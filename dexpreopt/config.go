@@ -16,6 +16,7 @@ package dexpreopt
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"strings"
 
 	"android/soong/android"
@@ -184,7 +185,7 @@ func constructWritablePath(ctx android.PathContext, path string) android.Writabl
 // soongConfig argument. LoadGlobalConfig is used directly in Soong and in
 // dexpreopt_gen called from Make to read the $OUT/dexpreopt.config written by
 // Make.
-func LoadGlobalConfig(ctx android.PathContext, data []byte, soongConfig GlobalSoongConfig) (GlobalConfig, error) {
+func LoadGlobalConfig(ctx android.PathContext, path string, soongConfig GlobalSoongConfig) (GlobalConfig, []byte, error) {
 	type GlobalJSONConfig struct {
 		GlobalConfig
 
@@ -195,9 +196,9 @@ func LoadGlobalConfig(ctx android.PathContext, data []byte, soongConfig GlobalSo
 	}
 
 	config := GlobalJSONConfig{}
-	err := json.Unmarshal(data, &config)
+	data, err := loadConfig(ctx, path, &config)
 	if err != nil {
-		return config.GlobalConfig, err
+		return config.GlobalConfig, nil, err
 	}
 
 	// Construct paths that require a PathContext.
@@ -208,13 +209,13 @@ func LoadGlobalConfig(ctx android.PathContext, data []byte, soongConfig GlobalSo
 	// either CreateGlobalSoongConfig or LoadGlobalSoongConfig).
 	config.GlobalConfig.SoongConfig = soongConfig
 
-	return config.GlobalConfig, nil
+	return config.GlobalConfig, data, nil
 }
 
 // LoadModuleConfig reads a per-module dexpreopt.config file into a ModuleConfig struct.  It is not used in Soong, which
 // receives a ModuleConfig struct directly from java/dexpreopt.go.  It is used in dexpreopt_gen called from oMake to
 // read the module dexpreopt.config written by Make.
-func LoadModuleConfig(ctx android.PathContext, data []byte) (ModuleConfig, error) {
+func LoadModuleConfig(ctx android.PathContext, path string) (ModuleConfig, error) {
 	type ModuleJSONConfig struct {
 		ModuleConfig
 
@@ -232,7 +233,7 @@ func LoadModuleConfig(ctx android.PathContext, data []byte) (ModuleConfig, error
 
 	config := ModuleJSONConfig{}
 
-	err := json.Unmarshal(data, &config)
+	_, err := loadConfig(ctx, path, &config)
 	if err != nil {
 		return config.ModuleConfig, err
 	}
@@ -288,10 +289,10 @@ type globalJsonSoongConfig struct {
 
 // LoadGlobalSoongConfig reads the dexpreopt_soong.config file into a
 // GlobalSoongConfig struct. It is only used in dexpreopt_gen.
-func LoadGlobalSoongConfig(ctx android.PathContext, data []byte) (GlobalSoongConfig, error) {
+func LoadGlobalSoongConfig(ctx android.PathContext, path string) (GlobalSoongConfig, error) {
 	var jc globalJsonSoongConfig
 
-	err := json.Unmarshal(data, &jc)
+	_, err := loadConfig(ctx, path, &jc)
 	if err != nil {
 		return GlobalSoongConfig{}, err
 	}
@@ -349,6 +350,26 @@ func (s *globalSoongConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
 		config.ManifestCheck.String(),
 		config.ConstructContext.String(),
 	}, " "))
+}
+
+func loadConfig(ctx android.PathContext, path string, config interface{}) ([]byte, error) {
+	r, err := ctx.Fs().Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, config)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {

@@ -84,9 +84,7 @@ type Context struct {
 }
 
 func NewContext() *Context {
-	ctx := &Context{blueprint.NewContext()}
-	ctx.SetSrcDir(absSrcDir)
-	return ctx
+	return &Context{blueprint.NewContext()}
 }
 
 func (ctx *Context) Register() {

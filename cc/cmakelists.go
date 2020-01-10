@@ -76,7 +76,7 @@ func (c *cmakelistsGeneratorSingleton) GenerateBuildActions(ctx android.Singleto
 	// Link all handmade CMakeLists.txt aggregate from
 	//     BASE/development/ide/clion to
 	// BASE/out/development/ide/clion.
-	dir := filepath.Join(android.AbsSrcDirForExistingUseCases(), cLionAggregateProjectsDirectory)
+	dir := filepath.Join(getAndroidSrcRootDirectory(ctx), cLionAggregateProjectsDirectory)
 	filepath.Walk(dir, linkAggregateCMakeListsFiles)
 
 	return
@@ -147,7 +147,7 @@ func generateCLionProject(compiledModule CompiledInterface, ctx android.Singleto
 	f.WriteString("# Tools > CMake > Change Project Root  \n\n")
 	f.WriteString(fmt.Sprintf("cmake_minimum_required(VERSION %s)\n", minimumCMakeVersionSupported))
 	f.WriteString(fmt.Sprintf("project(%s)\n", ccModule.ModuleBase.Name()))
-	f.WriteString(fmt.Sprintf("set(ANDROID_ROOT %s)\n\n", android.AbsSrcDirForExistingUseCases()))
+	f.WriteString(fmt.Sprintf("set(ANDROID_ROOT %s)\n\n", getAndroidSrcRootDirectory(ctx)))
 
 	pathToCC, _ := evalVariable(ctx, "${config.ClangBin}/")
 	f.WriteString(fmt.Sprintf("set(CMAKE_C_COMPILER \"%s%s\")\n", buildCMakePath(pathToCC), "clang"))
@@ -465,11 +465,16 @@ func evalVariable(ctx android.SingletonContext, str string) (string, error) {
 }
 
 func getCMakeListsForModule(module *Module, ctx android.SingletonContext) string {
-	return filepath.Join(android.AbsSrcDirForExistingUseCases(),
+	return filepath.Join(getAndroidSrcRootDirectory(ctx),
 		cLionOutputProjectsDirectory,
 		path.Dir(ctx.BlueprintFile(module)),
 		module.ModuleBase.Name()+"-"+
 			module.ModuleBase.Arch().ArchType.Name+"-"+
 			module.ModuleBase.Os().Name,
 		cMakeListsFilename)
+}
+
+func getAndroidSrcRootDirectory(ctx android.SingletonContext) string {
+	srcPath, _ := filepath.Abs(android.PathForSource(ctx).String())
+	return srcPath
 }

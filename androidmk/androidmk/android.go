@@ -15,9 +15,9 @@
 package androidmk
 
 import (
+	"android/soong/android"
 	mkparser "android/soong/androidmk/parser"
 	"fmt"
-	"sort"
 	"strings"
 
 	bpparser "github.com/google/blueprint/parser"
@@ -350,13 +350,7 @@ func splitAndAssign(ctx variableAssignmentContext, splitFunc listSplitFunc, name
 		return err
 	}
 
-	var classifications []string
-	for classification := range namesByClassification {
-		classifications = append(classifications, classification)
-	}
-	sort.Strings(classifications)
-
-	for _, nameClassification := range classifications {
+	for _, nameClassification := range android.SortedStringKeys(namesByClassification) {
 		name := namesByClassification[nameClassification]
 		if component, ok := lists[nameClassification]; ok && !emptyList(component) {
 			err = setVariable(ctx.file, ctx.append, ctx.prefix, name, component, true)
