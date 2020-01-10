@@ -520,13 +520,8 @@ type apexBundle struct {
 	// list of files to be included in this apex
 	filesInfo []apexFile
 
-	// list of module names that should be installed along with this APEX
-	requiredDeps []string
-
-	// list of module names that this APEX is depending on (to be shown via *-deps-info target)
+	// list of module names that this APEX is depending on
 	externalDeps []string
-	// list of module names that this APEX is including (to be shown via *-deps-info target)
-	internalDeps []string
 
 	testApex        bool
 	vndkApex        bool
@@ -536,9 +531,9 @@ type apexBundle struct {
 	manifestJsonOut android.WritablePath
 	manifestPbOut   android.WritablePath
 
-	// list of commands to create symlinks for backward compatibility
+	// list of commands to create symlinks for backward compatibility.
 	// these commands will be attached as LOCAL_POST_INSTALL_CMD to
-	// apex package itself(for unflattened build) or apex_manifest.json(for flattened build)
+	// apex package itself(for unflattened build) or apex_manifest(for flattened build)
 	// so that compat symlinks are always installed regardless of TARGET_FLATTEN_APEX setting.
 	compatSymlinks []string
 
@@ -950,7 +945,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			a.primaryApexType = true
 
 			if ctx.Config().InstallExtraFlattenedApexes() {
-				a.requiredDeps = append(a.requiredDeps, a.Name()+flattenedSuffix)
+				a.externalDeps = append(a.externalDeps, a.Name()+flattenedSuffix)
 			}
 		}
 	case zipApex:
@@ -1009,9 +1004,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		depTag := ctx.OtherModuleDependencyTag(child)
 		depName := ctx.OtherModuleName(child)
 		if _, isDirectDep := parent.(*apexBundle); isDirectDep {
-			if depTag != keyTag && depTag != certificateTag {
-				a.internalDeps = append(a.internalDeps, depName)
-			}
 			switch depTag {
 			case sharedLibTag:
 				if cc, ok := child.(*cc.Module); ok {
@@ -1142,10 +1134,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							//
 							// Always include if we are a host-apex however since those won't have any
 							// system libraries.
-							if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.requiredDeps) {
-								a.requiredDeps = append(a.requiredDeps, cc.Name())
+							if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.externalDeps) {
+								a.externalDeps = append(a.externalDeps, cc.Name())
 							}
-							a.externalDeps = append(a.externalDeps, depName)
 							requireNativeLibs = append(requireNativeLibs, cc.OutputFile().Path().Base())
 							// Don't track further
 							return false
@@ -1153,8 +1144,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						af := apexFileForNativeLibrary(ctx, cc, handleSpecialLibs)
 						af.transitiveDep = true
 						filesInfo = append(filesInfo, af)
-						a.internalDeps = append(a.internalDeps, depName)
-						a.internalDeps = append(a.internalDeps, cc.AllStaticDeps()...)
 						return true // track transitive dependencies
 					}
 				} else if cc.IsTestPerSrcDepTag(depTag) {
@@ -1170,10 +1159,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						return true // track transitive dependencies
 					}
 				} else if java.IsJniDepTag(depTag) {
-					a.externalDeps = append(a.externalDeps, depName)
+					// Do nothing for JNI dep. JNI libraries are always embedded in APK-in-APEX.
 					return true
-				} else if java.IsStaticLibDepTag(depTag) {
-					a.internalDeps = append(a.internalDeps, depName)
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
 				}
@@ -1269,9 +1256,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.buildUnflattenedApex(ctx)
 	}
 
-	apexName := proptools.StringDefault(a.properties.Apex_name, a.Name())
-	a.compatSymlinks = makeCompatSymlinks(apexName, ctx)
-	a.buildApexDependencyInfo(ctx)
+	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 }
 
 func newApexBundle() *apexBundle {

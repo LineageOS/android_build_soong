@@ -167,15 +167,15 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		}
 
 		// Framework config for the boot image extension.
-		// It includes both the Core libraries and framework.
+		// It includes framework libraries and depends on the ART config.
 		frameworkCfg := bootImageConfig{
-			extension:        false,
+			extension:        true,
 			name:             frameworkBootImageName,
 			stem:             "boot",
 			installSubdir:    frameworkSubdir,
-			modules:          concat(artModules, frameworkModules),
-			dexLocations:     concat(artLocations, frameworkLocations),
-			dexLocationsDeps: concat(artLocations, frameworkLocations),
+			modules:          frameworkModules,
+			dexLocations:     frameworkLocations,
+			dexLocationsDeps: append(artLocations, frameworkLocations...),
 		}
 
 		// Apex config for the  boot image used in the JIT-zygote experiment.
@@ -230,6 +230,10 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 
 			c.zip = c.dir.Join(ctx, c.name+".zip")
 		}
+
+		// specific to the framework config
+		frameworkCfg.dexPathsDeps = append(artCfg.dexPathsDeps, frameworkCfg.dexPathsDeps...)
+		frameworkCfg.imageLocations = append(artCfg.imageLocations, frameworkCfg.imageLocations...)
 
 		return configs
 	}).(map[string]*bootImageConfig)
