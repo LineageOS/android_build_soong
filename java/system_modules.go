@@ -92,6 +92,9 @@ func TransformJarsToSystemModules(ctx android.ModuleContext, jars android.Paths)
 	return outDir, outputs.Paths()
 }
 
+// java_system_modules creates a system module from a set of java libraries that can
+// be referenced from the system_modules property. It must contain at a minimum the
+// java.base module which must include classes from java.lang amongst other java packages.
 func SystemModulesFactory() android.Module {
 	module := &SystemModules{}
 	module.AddProperties(&module.properties)
