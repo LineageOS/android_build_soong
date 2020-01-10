@@ -41,7 +41,6 @@ bootstrap_go_package {
         "androidmk-parser",
         "blueprint-parser",
         "bpfix-lib",
-        "soong-android",
     ],
 }
 

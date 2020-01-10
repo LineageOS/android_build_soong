@@ -17,7 +17,6 @@ package java
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"android/soong/android"
 )
@@ -92,23 +91,21 @@ func (j *jdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCont
 		moduleInfos[name] = dpInfo
 	})
 
-	jfpath := android.PathForOutput(ctx, jdepsJsonFileName).String()
+	jfpath := android.PathForOutput(ctx, jdepsJsonFileName)
 	err := createJsonFile(moduleInfos, jfpath)
 	if err != nil {
 		ctx.Errorf(err.Error())
 	}
 }
 
-func createJsonFile(moduleInfos map[string]android.IdeInfo, jfpath string) error {
-	file, err := os.Create(jfpath)
-	if err != nil {
-		return fmt.Errorf("Failed to create file: %s, relative: %v", jdepsJsonFileName, err)
-	}
-	defer file.Close()
+func createJsonFile(moduleInfos map[string]android.IdeInfo, jfpath android.WritablePath) error {
 	buf, err := json.MarshalIndent(moduleInfos, "", "\t")
 	if err != nil {
-		return fmt.Errorf("Write file failed: %s, relative: %v", jdepsJsonFileName, err)
+		return fmt.Errorf("JSON marshal of java deps failed: %s", err)
 	}
-	fmt.Fprintf(file, string(buf))
+	err = android.WriteFileToOutputDir(jfpath, buf, 0666)
+	if err != nil {
+		return fmt.Errorf("Writing java deps to %s failed: %s", jfpath.String(), err)
+	}
 	return nil
 }

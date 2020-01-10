@@ -16,7 +16,6 @@ package android
 
 import (
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/pathtools"
 )
 
 // SingletonContext
@@ -74,8 +73,6 @@ type SingletonContext interface {
 	// builder whenever a file matching the pattern as added or removed, without rerunning if a
 	// file that does not match the pattern is added to a searched directory.
 	GlobWithDeps(pattern string, excludes []string) ([]string, error)
-
-	Fs() pathtools.FileSystem
 }
 
 type singletonAdaptor struct {
