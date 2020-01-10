@@ -16,8 +16,6 @@ package android
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -27,11 +25,10 @@ import (
 	"github.com/google/blueprint/pathtools"
 )
 
-var absSrcDir string
-
 // PathContext is the subset of a (Module|Singleton)Context required by the
 // Path methods.
 type PathContext interface {
+	Fs() pathtools.FileSystem
 	Config() Config
 	AddNinjaFileDeps(deps ...string)
 }
@@ -393,7 +390,7 @@ func expandOneSrcPath(ctx ModuleContext, s string, expandedExcludes []string) (P
 		return PathsWithModuleSrcSubDir(ctx, paths, ""), nil
 	} else {
 		p := pathForModuleSrc(ctx, s)
-		if exists, _, err := ctx.Config().fs.Exists(p.String()); err != nil {
+		if exists, _, err := ctx.Fs().Exists(p.String()); err != nil {
 			reportPathErrorf(ctx, "%s: %s", p, err.Error())
 		} else if !exists {
 			reportPathErrorf(ctx, "module source path %q does not exist", p)
@@ -723,7 +720,7 @@ func existsWithDependencies(ctx PathContext, path SourcePath) (exists bool, err 
 		var deps []string
 		// We cannot add build statements in this context, so we fall back to
 		// AddNinjaFileDeps
-		files, deps, err = ctx.Config().fs.Glob(path.String(), nil, pathtools.FollowSymlinks)
+		files, deps, err = pathtools.Glob(path.String(), nil, pathtools.FollowSymlinks)
 		ctx.AddNinjaFileDeps(deps...)
 	}
 
@@ -755,7 +752,7 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 		if !exists {
 			modCtx.AddMissingDependencies([]string{path.String()})
 		}
-	} else if exists, _, err := ctx.Config().fs.Exists(path.String()); err != nil {
+	} else if exists, _, err := ctx.Fs().Exists(path.String()); err != nil {
 		reportPathErrorf(ctx, "%s: %s", path, err.Error())
 	} else if !exists {
 		reportPathErrorf(ctx, "source path %q does not exist", path)
@@ -1359,6 +1356,7 @@ type testPathContext struct {
 	config Config
 }
 
+func (x *testPathContext) Fs() pathtools.FileSystem   { return x.config.fs }
 func (x *testPathContext) Config() Config             { return x.config }
 func (x *testPathContext) AddNinjaFileDeps(...string) {}
 
@@ -1403,17 +1401,4 @@ func maybeRelErr(basePath string, targetPath string) (string, bool, error) {
 		return "", false, nil
 	}
 	return rel, true, nil
-}
-
-// Writes a file to the output directory.  Attempting to write directly to the output directory
-// will fail due to the sandbox of the soong_build process.
-func WriteFileToOutputDir(path WritablePath, data []byte, perm os.FileMode) error {
-	return ioutil.WriteFile(absolutePath(path.String()), data, perm)
-}
-
-func absolutePath(path string) string {
-	if filepath.IsAbs(path) {
-		return path
-	}
-	return filepath.Join(absSrcDir, path)
 }

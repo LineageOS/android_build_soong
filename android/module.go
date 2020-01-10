@@ -16,13 +16,13 @@ package android
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"text/scanner"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -91,8 +91,7 @@ type EarlyModuleContext interface {
 
 	Glob(globPattern string, excludes []string) Paths
 	GlobFiles(globPattern string, excludes []string) Paths
-	IsSymlink(path Path) bool
-	Readlink(path Path) string
+	Fs() pathtools.FileSystem
 }
 
 // BaseModuleContext is the same as blueprint.BaseModuleContext except that Config() returns
@@ -1171,22 +1170,6 @@ func (e *earlyModuleContext) GlobFiles(globPattern string, excludes []string) Pa
 		e.ModuleErrorf("glob: %s", err.Error())
 	}
 	return pathsForModuleSrcFromFullPath(e, ret, false)
-}
-
-func (b *earlyModuleContext) IsSymlink(path Path) bool {
-	fileInfo, err := b.config.fs.Lstat(path.String())
-	if err != nil {
-		b.ModuleErrorf("os.Lstat(%q) failed: %s", path.String(), err)
-	}
-	return fileInfo.Mode()&os.ModeSymlink == os.ModeSymlink
-}
-
-func (b *earlyModuleContext) Readlink(path Path) string {
-	dest, err := b.config.fs.Readlink(path.String())
-	if err != nil {
-		b.ModuleErrorf("os.Readlink(%q) failed: %s", path.String(), err)
-	}
-	return dest
 }
 
 func (e *earlyModuleContext) Module() Module {
