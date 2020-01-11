@@ -27,7 +27,7 @@ import (
 type envFileEntry struct{ Key, Value string }
 type envFileData []envFileEntry
 
-func WriteEnvFile(filename string, envDeps map[string]string) error {
+func EnvFileContents(envDeps map[string]string) ([]byte, error) {
 	contents := make(envFileData, 0, len(envDeps))
 	for key, value := range envDeps {
 		contents = append(contents, envFileEntry{key, value})
@@ -37,17 +37,12 @@ func WriteEnvFile(filename string, envDeps map[string]string) error {
 
 	data, err := json.MarshalIndent(contents, "", "    ")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	data = append(data, '\n')
 
-	err = ioutil.WriteFile(filename, data, 0664)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return data, nil
 }
 
 func StaleEnvFile(filename string) (bool, error) {
