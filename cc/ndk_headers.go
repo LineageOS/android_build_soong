@@ -16,7 +16,6 @@ package cc
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -255,16 +254,8 @@ func processHeadersWithVersioner(ctx android.ModuleContext, srcDir, outDir andro
 	depsPath := android.PathForSource(ctx, "bionic/libc/versioner-dependencies")
 	depsGlob := ctx.Glob(filepath.Join(depsPath.String(), "**/*"), nil)
 	for i, path := range depsGlob {
-		fileInfo, err := os.Lstat(path.String())
-		if err != nil {
-			ctx.ModuleErrorf("os.Lstat(%q) failed: %s", path.String, err)
-		}
-		if fileInfo.Mode()&os.ModeSymlink == os.ModeSymlink {
-			dest, err := os.Readlink(path.String())
-			if err != nil {
-				ctx.ModuleErrorf("os.Readlink(%q) failed: %s",
-					path.String, err)
-			}
+		if ctx.IsSymlink(path) {
+			dest := ctx.Readlink(path)
 			// Additional .. to account for the symlink itself.
 			depsGlob[i] = android.PathForSource(
 				ctx, filepath.Clean(filepath.Join(path.String(), "..", dest)))
