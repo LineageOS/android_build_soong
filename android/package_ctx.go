@@ -19,7 +19,6 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/pathtools"
 )
 
 // PackageContext is a wrapper for blueprint.PackageContext that adds
@@ -58,10 +57,6 @@ func (e *configErrorWrapper) Errorf(format string, args ...interface{}) {
 }
 func (e *configErrorWrapper) AddNinjaFileDeps(deps ...string) {
 	e.pctx.AddNinjaFileDeps(deps...)
-}
-
-func (e *configErrorWrapper) Fs() pathtools.FileSystem {
-	return nil
 }
 
 type PackageVarContext interface {
