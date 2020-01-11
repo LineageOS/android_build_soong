@@ -79,9 +79,9 @@ func (c *compdbGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCon
 
 	// Create the output file.
 	dir := android.PathForOutput(ctx, compdbOutputProjectsDirectory)
-	os.MkdirAll(dir.String(), 0777)
+	os.MkdirAll(filepath.Join(android.AbsSrcDirForExistingUseCases(), dir.String()), 0777)
 	compDBFile := dir.Join(ctx, compdbFilename)
-	f, err := os.Create(compDBFile.String())
+	f, err := os.Create(filepath.Join(android.AbsSrcDirForExistingUseCases(), compDBFile.String()))
 	if err != nil {
 		log.Fatalf("Could not create file %s: %s", compDBFile, err)
 	}
@@ -103,8 +103,8 @@ func (c *compdbGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCon
 	}
 	f.Write(dat)
 
-	finalLinkPath := filepath.Join(ctx.Config().Getenv(envVariableCompdbLink), compdbFilename)
-	if finalLinkPath != "" {
+	if finalLinkDir := ctx.Config().Getenv(envVariableCompdbLink); finalLinkDir != "" {
+		finalLinkPath := filepath.Join(finalLinkDir, compdbFilename)
 		os.Remove(finalLinkPath)
 		if err := os.Symlink(compDBFile.String(), finalLinkPath); err != nil {
 			log.Fatalf("Unable to symlink %s to %s: %s", compDBFile, finalLinkPath, err)
@@ -174,18 +174,17 @@ func generateCompdbProject(compiledModule CompiledInterface, ctx android.Singlet
 		return
 	}
 
-	rootDir := getCompdbAndroidSrcRootDirectory(ctx)
-	pathToCC, err := ctx.Eval(pctx, rootDir+"/${config.ClangBin}/")
+	pathToCC, err := ctx.Eval(pctx, "${config.ClangBin}")
 	ccPath := "/bin/false"
 	cxxPath := "/bin/false"
 	if err == nil {
-		ccPath = pathToCC + "clang"
-		cxxPath = pathToCC + "clang++"
+		ccPath = filepath.Join(pathToCC, "clang")
+		cxxPath = filepath.Join(pathToCC, "clang++")
 	}
 	for _, src := range srcs {
 		if _, ok := builds[src.String()]; !ok {
 			builds[src.String()] = compDbEntry{
-				Directory: rootDir,
+				Directory: android.AbsSrcDirForExistingUseCases(),
 				Arguments: getArguments(src, ctx, ccModule, ccPath, cxxPath),
 				File:      src.String(),
 			}
@@ -199,9 +198,4 @@ func evalAndSplitVariable(ctx android.SingletonContext, str string) ([]string, e
 		return strings.Fields(evaluated), nil
 	}
 	return []string{""}, err
-}
-
-func getCompdbAndroidSrcRootDirectory(ctx android.SingletonContext) string {
-	srcPath, _ := filepath.Abs(android.PathForSource(ctx).String())
-	return srcPath
 }

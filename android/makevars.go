@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -41,7 +40,6 @@ type MakeVarsContext interface {
 	Config() Config
 	DeviceConfig() DeviceConfig
 	AddNinjaFileDeps(deps ...string)
-	Fs() pathtools.FileSystem
 
 	ModuleName(module blueprint.Module) string
 	ModuleDir(module blueprint.Module) string
@@ -151,7 +149,8 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 		return
 	}
 
-	outFile := PathForOutput(ctx, "make_vars"+proptools.String(ctx.Config().productVariables.Make_suffix)+".mk").String()
+	outFile := absolutePath(PathForOutput(ctx,
+		"make_vars"+proptools.String(ctx.Config().productVariables.Make_suffix)+".mk").String())
 
 	if ctx.Failed() {
 		return
@@ -175,15 +174,15 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 	outBytes := s.writeVars(vars)
 
-	if _, err := os.Stat(outFile); err == nil {
-		if data, err := ioutil.ReadFile(outFile); err == nil {
+	if _, err := os.Stat(absolutePath(outFile)); err == nil {
+		if data, err := ioutil.ReadFile(absolutePath(outFile)); err == nil {
 			if bytes.Equal(data, outBytes) {
 				return
 			}
 		}
 	}
 
-	if err := ioutil.WriteFile(outFile, outBytes, 0666); err != nil {
+	if err := ioutil.WriteFile(absolutePath(outFile), outBytes, 0666); err != nil {
 		ctx.Errorf(err.Error())
 	}
 }
