@@ -76,6 +76,8 @@ func RegisterJavaBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("java_host_for_device", HostForDeviceFactory)
 	ctx.RegisterModuleType("dex_import", DexImportFactory)
 
+	ctx.FinalDepsMutators(dexpreopt.RegisterToolDepsMutator)
+
 	ctx.RegisterSingletonType("logtags", LogtagsSingleton)
 	ctx.RegisterSingletonType("kythe_java_extract", kytheExtractJavaFactory)
 }
@@ -369,6 +371,7 @@ type Module struct {
 	android.DefaultableModuleBase
 	android.ApexModuleBase
 	android.SdkBase
+	dexpreopt.DexPreoptModule
 
 	properties       CompilerProperties
 	protoProperties  android.ProtoProperties
@@ -1574,6 +1577,16 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		}
 	} else {
 		outputFile = implementationAndResourcesJar
+
+		// dexpreopt.GetGlobalSoongConfig needs to be called at least once even if
+		// no module actually is dexpreopted, to ensure there's a cached
+		// GlobalSoongConfig for the dexpreopt singletons, which will run
+		// regardless.
+		// TODO(b/147613152): Remove when the singletons no longer rely on the
+		// cached GlobalSoongConfig.
+		if !dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
+			_ = dexpreopt.GetGlobalSoongConfig(ctx)
+		}
 	}
 
 	ctx.CheckbuildFile(outputFile)
@@ -2340,6 +2353,7 @@ type Import struct {
 	android.ApexModuleBase
 	prebuilt android.Prebuilt
 	android.SdkBase
+	dexpreopt.DexPreoptModule
 
 	properties ImportProperties
 
@@ -2550,6 +2564,7 @@ type DexImport struct {
 	android.DefaultableModuleBase
 	android.ApexModuleBase
 	prebuilt android.Prebuilt
+	dexpreopt.DexPreoptModule
 
 	properties DexImportProperties
 
