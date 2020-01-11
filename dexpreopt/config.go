@@ -16,7 +16,10 @@ package dexpreopt
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
+
+	"github.com/google/blueprint"
 
 	"android/soong/android"
 )
@@ -298,6 +301,71 @@ func ParseModuleConfig(ctx android.PathContext, data []byte) (ModuleConfig, erro
 	return config.ModuleConfig, nil
 }
 
+// dex2oatModuleName returns the name of the module to use for the dex2oat host
+// tool. It should be a binary module with public visibility that is compiled
+// and installed for host.
+func dex2oatModuleName(config android.Config) string {
+	// Default to the debug variant of dex2oat to help find bugs.
+	// Set USE_DEX2OAT_DEBUG to false for only building non-debug versions.
+	if config.Getenv("USE_DEX2OAT_DEBUG") == "false" {
+		return "dex2oat"
+	} else {
+		return "dex2oatd"
+	}
+}
+
+var dex2oatDepTag = struct {
+	blueprint.BaseDependencyTag
+}{}
+
+type DexPreoptModule interface {
+	dexPreoptModuleSignature() // Not called - only for type detection.
+}
+
+// RegisterToolDepsMutator registers a mutator that adds the necessary
+// dependencies to binary modules for tools that are required later when
+// Get(Cached)GlobalSoongConfig is called. It should be passed to
+// android.RegistrationContext.FinalDepsMutators, and module types that need
+// dependencies also need to embed DexPreoptModule.
+func RegisterToolDepsMutator(ctx android.RegisterMutatorsContext) {
+	ctx.BottomUp("dexpreopt_tool_deps", toolDepsMutator).Parallel()
+}
+
+func toolDepsMutator(ctx android.BottomUpMutatorContext) {
+	if GetGlobalConfig(ctx).DisablePreopt {
+		// Only register dependencies if dexpreopting is enabled. Necessary to avoid
+		// them in non-platform builds where dex2oat etc isn't available.
+		//
+		// It would be nice to not register this mutator at all then, but
+		// RegisterMutatorsContext available at registration doesn't have the state
+		// necessary to pass as PathContext to constructPath etc.
+		return
+	}
+	if _, ok := ctx.Module().(DexPreoptModule); !ok {
+		return
+	}
+	dex2oatBin := dex2oatModuleName(ctx.Config())
+	v := ctx.Config().BuildOSTarget.Variations()
+	ctx.AddFarVariationDependencies(v, dex2oatDepTag, dex2oatBin)
+}
+
+func dex2oatPathFromDep(ctx android.ModuleContext) android.Path {
+	dex2oatBin := dex2oatModuleName(ctx.Config())
+
+	dex2oatModule := ctx.GetDirectDepWithTag(dex2oatBin, dex2oatDepTag)
+	if dex2oatModule == nil {
+		// If this happens there's probably a missing call to AddToolDeps in DepsMutator.
+		panic(fmt.Sprintf("Failed to lookup %s dependency", dex2oatBin))
+	}
+
+	dex2oatPath := dex2oatModule.(android.HostToolProvider).HostToolPath()
+	if !dex2oatPath.Valid() {
+		panic(fmt.Sprintf("Failed to find host tool path in %s", dex2oatModule))
+	}
+
+	return dex2oatPath.Path()
+}
+
 // createGlobalSoongConfig creates a GlobalSoongConfig from the current context.
 // Should not be used in dexpreopt_gen.
 func createGlobalSoongConfig(ctx android.ModuleContext) GlobalSoongConfig {
@@ -308,18 +376,9 @@ func createGlobalSoongConfig(ctx android.ModuleContext) GlobalSoongConfig {
 		panic("This should not be called from tests. Please call GlobalSoongConfigForTests somewhere in the test setup.")
 	}
 
-	// Default to debug version to help find bugs.
-	// Set USE_DEX2OAT_DEBUG to false for only building non-debug versions.
-	var dex2oatBinary string
-	if ctx.Config().Getenv("USE_DEX2OAT_DEBUG") == "false" {
-		dex2oatBinary = "dex2oat"
-	} else {
-		dex2oatBinary = "dex2oatd"
-	}
-
 	return GlobalSoongConfig{
 		Profman:          ctx.Config().HostToolPath(ctx, "profman"),
-		Dex2oat:          ctx.Config().HostToolPath(ctx, dex2oatBinary),
+		Dex2oat:          dex2oatPathFromDep(ctx),
 		Aapt:             ctx.Config().HostToolPath(ctx, "aapt"),
 		SoongZip:         ctx.Config().HostToolPath(ctx, "soong_zip"),
 		Zip2zip:          ctx.Config().HostToolPath(ctx, "zip2zip"),
@@ -328,6 +387,16 @@ func createGlobalSoongConfig(ctx android.ModuleContext) GlobalSoongConfig {
 	}
 }
 
+// The main reason for this Once cache for GlobalSoongConfig is to make the
+// dex2oat path available to singletons. In ordinary modules we get it through a
+// dex2oatDepTag dependency, but in singletons there's no simple way to do the
+// same thing and ensure the right variant is selected, hence this cache to make
+// the resolved path available to singletons. This means we depend on there
+// being at least one ordinary module with a dex2oatDepTag dependency.
+//
+// TODO(b/147613152): Implement a way to deal with dependencies from singletons,
+// and then possibly remove this cache altogether (but the use in
+// GlobalSoongConfigForTests also needs to be rethought).
 var globalSoongConfigOnceKey = android.NewOnceKey("DexpreoptGlobalSoongConfig")
 
 // GetGlobalSoongConfig creates a GlobalSoongConfig the first time it's called,
@@ -336,6 +405,14 @@ func GetGlobalSoongConfig(ctx android.ModuleContext) GlobalSoongConfig {
 	globalSoong := ctx.Config().Once(globalSoongConfigOnceKey, func() interface{} {
 		return createGlobalSoongConfig(ctx)
 	}).(GlobalSoongConfig)
+
+	// Always resolve the tool path from the dependency, to ensure that every
+	// module has the dependency added properly.
+	myDex2oat := dex2oatPathFromDep(ctx)
+	if myDex2oat != globalSoong.Dex2oat {
+		panic(fmt.Sprintf("Inconsistent dex2oat path in cached config: expected %s, got %s", globalSoong.Dex2oat, myDex2oat))
+	}
+
 	return globalSoong
 }
 
@@ -383,6 +460,10 @@ func ParseGlobalSoongConfig(ctx android.PathContext, data []byte) (GlobalSoongCo
 }
 
 func (s *globalSoongConfigSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	if GetGlobalConfig(ctx).DisablePreopt {
+		return
+	}
+
 	config := GetCachedGlobalSoongConfig(ctx)
 	jc := globalJsonSoongConfig{
 		Profman:          config.Profman.String(),
@@ -410,6 +491,10 @@ func (s *globalSoongConfigSingleton) GenerateBuildActions(ctx android.SingletonC
 }
 
 func (s *globalSoongConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
+	if GetGlobalConfig(ctx).DisablePreopt {
+		return
+	}
+
 	config := GetCachedGlobalSoongConfig(ctx)
 
 	ctx.Strict("DEX2OAT", config.Dex2oat.String())
