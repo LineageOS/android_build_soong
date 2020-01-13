@@ -37,14 +37,7 @@ func init() {
 	RegisterJavaBuildComponents(android.InitRegistrationContext)
 
 	// Register sdk member types.
-	android.RegisterSdkMemberType(&headerLibrarySdkMemberType{
-		librarySdkMemberType{
-			android.SdkMemberTypeBase{
-				PropertyName: "java_header_libs",
-				SupportsSdk:  true,
-			},
-		},
-	})
+	android.RegisterSdkMemberType(javaHeaderLibsSdkMemberType)
 
 	android.RegisterSdkMemberType(&implLibrarySdkMemberType{
 		librarySdkMemberType{
@@ -1847,6 +1840,15 @@ func (mt *librarySdkMemberType) buildSnapshot(
 
 	module := builder.AddPrebuiltModule(member, "java_import")
 	module.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+}
+
+var javaHeaderLibsSdkMemberType android.SdkMemberType = &headerLibrarySdkMemberType{
+	librarySdkMemberType{
+		android.SdkMemberTypeBase{
+			PropertyName: "java_header_libs",
+			SupportsSdk:  true,
+		},
+	},
 }
 
 type headerLibrarySdkMemberType struct {

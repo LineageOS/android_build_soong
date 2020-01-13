@@ -31,6 +31,15 @@ func init() {
 	RegisterSystemModulesBuildComponents(android.InitRegistrationContext)
 
 	pctx.SourcePathVariable("moduleInfoJavaPath", "build/soong/scripts/jars-to-module-info-java.sh")
+
+	// Register sdk member types.
+	android.RegisterSdkMemberType(&systemModulesSdkMemberType{
+		android.SdkMemberTypeBase{
+			PropertyName:         "java_system_modules",
+			SupportsSdk:          true,
+			TransitiveSdkMembers: true,
+		},
+	})
 }
 
 func RegisterSystemModulesBuildComponents(ctx android.RegistrationContext) {
@@ -66,6 +75,10 @@ var (
 		},
 	},
 		"classpath", "outDir", "workDir")
+
+	// Dependency tag that causes the added dependencies to be added as java_header_libs
+	// to the sdk/module_exports/snapshot.
+	systemModulesLibsTag = android.DependencyTagForSdkMemberType(javaHeaderLibsSdkMemberType)
 )
 
 func TransformJarsToSystemModules(ctx android.ModuleContext, jars android.Paths) (android.Path, android.Paths) {
@@ -107,6 +120,7 @@ func SystemModulesFactory() android.Module {
 type SystemModules struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.SdkBase
 
 	properties SystemModulesProperties
 
@@ -125,7 +139,7 @@ type SystemModulesProperties struct {
 func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var jars android.Paths
 
-	ctx.VisitDirectDepsWithTag(libTag, func(module android.Module) {
+	ctx.VisitDirectDepsWithTag(systemModulesLibsTag, func(module android.Module) {
 		dep, _ := module.(Dependency)
 		jars = append(jars, dep.HeaderJars()...)
 	})
@@ -136,7 +150,7 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 }
 
 func (system *SystemModules) DepsMutator(ctx android.BottomUpMutatorContext) {
-	ctx.AddVariationDependencies(nil, libTag, system.properties.Libs...)
+	ctx.AddVariationDependencies(nil, systemModulesLibsTag, system.properties.Libs...)
 }
 
 func (system *SystemModules) AndroidMk() android.AndroidMkData {
@@ -173,6 +187,7 @@ func systemModulesImportFactory() android.Module {
 	android.InitPrebuiltModule(module, &module.properties.Libs)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	android.InitSdkAwareModule(module)
 	return module
 }
 
@@ -187,4 +202,38 @@ func (system *systemModulesImport) Name() string {
 
 func (system *systemModulesImport) Prebuilt() *android.Prebuilt {
 	return &system.prebuilt
+}
+
+type systemModulesSdkMemberType struct {
+	android.SdkMemberTypeBase
+}
+
+func (mt *systemModulesSdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
+	mctx.AddVariationDependencies(nil, dependencyTag, names...)
+}
+
+func (mt *systemModulesSdkMemberType) IsInstance(module android.Module) bool {
+	if _, ok := module.(*SystemModules); ok {
+		// A prebuilt system module cannot be added as a member of an sdk because the source and
+		// snapshot instances would conflict.
+		_, ok := module.(*systemModulesImport)
+		return !ok
+	}
+	return false
+}
+
+func (mt *systemModulesSdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
+	variants := member.Variants()
+	if len(variants) != 1 {
+		sdkModuleContext.ModuleErrorf("sdk contains %d variants of member %q but only one is allowed", len(variants), member.Name())
+		for _, variant := range variants {
+			sdkModuleContext.ModuleErrorf("    %q", variant)
+		}
+	}
+	variant := variants[0]
+	systemModule := variant.(*SystemModules)
+
+	pbm := builder.AddPrebuiltModule(member, "java_system_modules_import")
+	// Add the references to the libraries that form the system module.
+	pbm.AddPropertyWithTag("libs", systemModule.properties.Libs, builder.SdkMemberReferencePropertyTag())
 }
