@@ -652,7 +652,14 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	if j.shouldInstrumentStatic(ctx) {
+	// Framework libraries need special handling in static coverage builds: they should not have
+	// static dependency on jacoco, otherwise there would be multiple conflicting definitions of
+	// the same jacoco classes coming from different bootclasspath jars.
+	if inList(ctx.ModuleName(), config.InstrumentFrameworkModules) {
+		if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+			j.properties.Instrument = true
+		}
+	} else if j.shouldInstrumentStatic(ctx) {
 		ctx.AddVariationDependencies(nil, staticLibTag, "jacocoagent")
 	}
 }
@@ -1453,12 +1460,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	j.implementationJarFile = outputFile
 	if j.headerJarFile == nil {
 		j.headerJarFile = j.implementationJarFile
-	}
-
-	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
-		if inList(ctx.ModuleName(), config.InstrumentFrameworkModules) {
-			j.properties.Instrument = true
-		}
 	}
 
 	if j.shouldInstrument(ctx) {
