@@ -91,6 +91,10 @@ func withBinder32bit(fs map[string][]byte, config android.Config) {
 	config.TestProductVariables.Binder32bit = proptools.BoolPtr(true)
 }
 
+func withUnbundledBuild(fs map[string][]byte, config android.Config) {
+	config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
+}
+
 func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
 	android.ClearApexDependency()
 
@@ -1531,45 +1535,67 @@ func TestHeaderLibsDependency(t *testing.T) {
 	ensureContains(t, cFlags, "-Imy_include")
 }
 
-func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName string, files []string) {
+type fileInApex struct {
+	path   string // path in apex
+	isLink bool
+}
+
+func getFiles(t *testing.T, ctx *android.TestContext, moduleName string) []fileInApex {
 	t.Helper()
 	apexRule := ctx.ModuleForTests(moduleName, "android_common_"+moduleName+"_image").Rule("apexRule")
 	copyCmds := apexRule.Args["copy_commands"]
 	imageApexDir := "/image.apex/"
-	var failed bool
-	var surplus []string
-	filesMatched := make(map[string]bool)
-	addContent := func(content string) {
-		for _, expected := range files {
-			if matched, _ := path.Match(expected, content); matched {
-				filesMatched[expected] = true
-				return
-			}
-		}
-		surplus = append(surplus, content)
-	}
+	var ret []fileInApex
 	for _, cmd := range strings.Split(copyCmds, "&&") {
 		cmd = strings.TrimSpace(cmd)
 		if cmd == "" {
 			continue
 		}
 		terms := strings.Split(cmd, " ")
+		var dst string
+		var isLink bool
 		switch terms[0] {
 		case "mkdir":
 		case "cp":
 			if len(terms) != 3 {
 				t.Fatal("copyCmds contains invalid cp command", cmd)
 			}
-			dst := terms[2]
+			dst = terms[2]
+			isLink = false
+		case "ln":
+			if len(terms) != 3 && len(terms) != 4 {
+				// ln LINK TARGET or ln -s LINK TARGET
+				t.Fatal("copyCmds contains invalid ln command", cmd)
+			}
+			dst = terms[len(terms)-1]
+			isLink = true
+		default:
+			t.Fatalf("copyCmds should contain mkdir/cp commands only: %q", cmd)
+		}
+		if dst != "" {
 			index := strings.Index(dst, imageApexDir)
 			if index == -1 {
 				t.Fatal("copyCmds should copy a file to image.apex/", cmd)
 			}
 			dstFile := dst[index+len(imageApexDir):]
-			addContent(dstFile)
-		default:
-			t.Fatalf("copyCmds should contain mkdir/cp commands only: %q", cmd)
+			ret = append(ret, fileInApex{path: dstFile, isLink: isLink})
 		}
+	}
+	return ret
+}
+
+func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName string, files []string) {
+	var failed bool
+	var surplus []string
+	filesMatched := make(map[string]bool)
+	for _, file := range getFiles(t, ctx, moduleName) {
+		for _, expected := range files {
+			if matched, _ := path.Match(expected, file.path); matched {
+				filesMatched[expected] = true
+				return
+			}
+		}
+		surplus = append(surplus, file.path)
 	}
 
 	if len(surplus) > 0 {
@@ -3363,6 +3389,90 @@ func TestCarryRequiredModuleNames(t *testing.T) {
 	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += a b\n")
 	ensureContains(t, androidMk, "LOCAL_HOST_REQUIRED_MODULES += c d\n")
 	ensureContains(t, androidMk, "LOCAL_TARGET_REQUIRED_MODULES += e f\n")
+}
+
+func TestSymlinksFromApexToSystem(t *testing.T) {
+	bp := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+			java_libs: ["myjar"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["myotherlib"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "myotherlib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		java_library {
+			name: "myjar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			libs: ["myotherjar"],
+			compile_dex: true,
+		}
+
+		java_library {
+			name: "myotherjar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+	`
+
+	ensureRealfileExists := func(t *testing.T, files []fileInApex, file string) {
+		for _, f := range files {
+			if f.path == file {
+				if f.isLink {
+					t.Errorf("%q is not a real file", file)
+				}
+				return
+			}
+		}
+		t.Errorf("%q is not found", file)
+	}
+
+	ensureSymlinkExists := func(t *testing.T, files []fileInApex, file string) {
+		for _, f := range files {
+			if f.path == file {
+				if !f.isLink {
+					t.Errorf("%q is not a symlink", file)
+				}
+				return
+			}
+		}
+		t.Errorf("%q is not found", file)
+	}
+
+	ctx, _ := testApex(t, bp, withUnbundledBuild)
+	files := getFiles(t, ctx, "myapex")
+	ensureRealfileExists(t, files, "javalib/myjar.jar")
+	ensureRealfileExists(t, files, "lib64/mylib.so")
+	ensureRealfileExists(t, files, "lib64/myotherlib.so")
+
+	ctx, _ = testApex(t, bp)
+	files = getFiles(t, ctx, "myapex")
+	ensureRealfileExists(t, files, "javalib/myjar.jar")
+	ensureRealfileExists(t, files, "lib64/mylib.so")
+	ensureSymlinkExists(t, files, "lib64/myotherlib.so") // this is symlink
 }
 
 func TestMain(m *testing.M) {
