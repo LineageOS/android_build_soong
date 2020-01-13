@@ -245,40 +245,35 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 	apexType := a.properties.ApexType
 	suffix := apexType.suffix()
-	var implicitInputs []android.Path
 	unsignedOutputFile := android.PathForModuleOut(ctx, a.Name()+suffix+".unsigned")
 
-	// TODO(jiyong): construct the copy rules using RuleBuilder
-	var copyCommands []string
-	for _, fi := range a.filesInfo {
-		destPath := android.PathForModuleOut(ctx, "image"+suffix, fi.Path()).String()
-		copyCommands = append(copyCommands, "mkdir -p "+filepath.Dir(destPath))
-		if a.linkToSystemLib && fi.transitiveDep && fi.AvailableToPlatform() {
-			// TODO(jiyong): pathOnDevice should come from fi.module, not being calculated here
-			pathOnDevice := filepath.Join("/system", fi.Path())
-			copyCommands = append(copyCommands, "ln -s "+pathOnDevice+" "+destPath)
-		} else {
-			copyCommands = append(copyCommands, "cp "+fi.builtFile.String()+" "+destPath)
-			implicitInputs = append(implicitInputs, fi.builtFile)
-		}
-		// create additional symlinks pointing the file inside the APEX
-		for _, symlinkPath := range fi.SymlinkPaths() {
-			symlinkDest := android.PathForModuleOut(ctx, "image"+suffix, symlinkPath).String()
-			copyCommands = append(copyCommands, "ln -s "+filepath.Base(destPath)+" "+symlinkDest)
-		}
+	filesToCopy := []android.Path{}
+	for _, f := range a.filesInfo {
+		filesToCopy = append(filesToCopy, f.builtFile)
 	}
 
-	// TODO(jiyong): use RuleBuilder
-	var emitCommands []string
-	imageContentFile := android.PathForModuleOut(ctx, "content.txt")
+	copyCommands := []string{}
+	emitCommands := []string{}
+	imageContentFile := android.PathForModuleOut(ctx, a.Name()+"-content.txt")
 	emitCommands = append(emitCommands, "echo ./apex_manifest.pb >> "+imageContentFile.String())
 	if proptools.Bool(a.properties.Legacy_android10_support) {
 		emitCommands = append(emitCommands, "echo ./apex_manifest.json >> "+imageContentFile.String())
 	}
-	for _, fi := range a.filesInfo {
-		emitCommands = append(emitCommands, "echo './"+fi.Path()+"' >> "+imageContentFile.String())
+	for i, src := range filesToCopy {
+		dest := filepath.Join(a.filesInfo[i].installDir, src.Base())
+		emitCommands = append(emitCommands, "echo './"+dest+"' >> "+imageContentFile.String())
+		dest_path := filepath.Join(android.PathForModuleOut(ctx, "image"+suffix).String(), dest)
+		copyCommands = append(copyCommands, "mkdir -p "+filepath.Dir(dest_path))
+		copyCommands = append(copyCommands, "cp "+src.String()+" "+dest_path)
+		for _, sym := range a.filesInfo[i].symlinks {
+			symlinkDest := filepath.Join(filepath.Dir(dest_path), sym)
+			copyCommands = append(copyCommands, "ln -s "+filepath.Base(dest)+" "+symlinkDest)
+		}
 	}
 	emitCommands = append(emitCommands, "sort -o "+imageContentFile.String()+" "+imageContentFile.String())
+
+	implicitInputs := append(android.Paths(nil), filesToCopy...)
+	implicitInputs = append(implicitInputs, a.manifestPbOut)
 
 	if a.properties.Whitelisted_files != nil {
 		ctx.Build(pctx, android.BuildParams{
@@ -401,7 +396,6 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			optFlags = append(optFlags, "--do_not_check_keyname")
 		}
 
-		implicitInputs = append(implicitInputs, a.manifestPbOut)
 		if proptools.Bool(a.properties.Legacy_android10_support) {
 			implicitInputs = append(implicitInputs, a.manifestJsonOut)
 			optFlags = append(optFlags, "--manifest_json "+a.manifestJsonOut.String())
@@ -519,7 +513,7 @@ func (a *apexBundle) buildFilesInfo(ctx android.ModuleContext) {
 	if a.installable() {
 		// For flattened APEX, do nothing but make sure that APEX manifest and apex_pubkey are also copied along
 		// with other ordinary files.
-		a.filesInfo = append(a.filesInfo, newApexFile(ctx, a.manifestPbOut, "apex_manifest.pb", ".", etc, nil))
+		a.filesInfo = append(a.filesInfo, newApexFile(ctx, a.manifestPbOut, "apex_manifest.pb."+a.Name()+a.suffix, ".", etc, nil))
 
 		// rename to apex_pubkey
 		copiedPubkey := android.PathForModuleOut(ctx, "apex_pubkey")
@@ -528,7 +522,7 @@ func (a *apexBundle) buildFilesInfo(ctx android.ModuleContext) {
 			Input:  a.public_key_file,
 			Output: copiedPubkey,
 		})
-		a.filesInfo = append(a.filesInfo, newApexFile(ctx, copiedPubkey, "apex_pubkey", ".", etc, nil))
+		a.filesInfo = append(a.filesInfo, newApexFile(ctx, copiedPubkey, "apex_pubkey."+a.Name()+a.suffix, ".", etc, nil))
 
 		if a.properties.ApexType == flattenedApex {
 			apexName := proptools.StringDefault(a.properties.Apex_name, a.Name())

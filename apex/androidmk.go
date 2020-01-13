@@ -52,40 +52,13 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 		return moduleNames
 	}
 
-	var postInstallCommands []string
-	for _, fi := range a.filesInfo {
-		if a.linkToSystemLib && fi.transitiveDep && fi.AvailableToPlatform() {
-			// TODO(jiyong): pathOnDevice should come from fi.module, not being calculated here
-			linkTarget := filepath.Join("/system", fi.Path())
-			linkPath := filepath.Join(a.installDir.ToMakePath().String(), apexName, fi.Path())
-			mkdirCmd := "mkdir -p " + filepath.Dir(linkPath)
-			linkCmd := "ln -s " + linkTarget + " " + linkPath
-			postInstallCommands = append(postInstallCommands, mkdirCmd, linkCmd)
-		}
-	}
-	postInstallCommands = append(postInstallCommands, a.compatSymlinks...)
-
 	for _, fi := range a.filesInfo {
 		if cc, ok := fi.module.(*cc.Module); ok && cc.Properties.HideFromMake {
 			continue
 		}
 
-		linkToSystemLib := a.linkToSystemLib && fi.transitiveDep && fi.AvailableToPlatform()
-
-		var moduleName string
-		if linkToSystemLib {
-			moduleName = fi.moduleName
-		} else {
-			moduleName = fi.moduleName + "." + apexName + a.suffix
-		}
-
-		if !android.InList(moduleName, moduleNames) {
-			moduleNames = append(moduleNames, moduleName)
-		}
-
-		if linkToSystemLib {
-			// No need to copy the file since it's linked to the system file
-			continue
+		if !android.InList(fi.moduleName, moduleNames) {
+			moduleNames = append(moduleNames, fi.moduleName)
 		}
 
 		fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
@@ -94,7 +67,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 		} else {
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 		}
-		fmt.Fprintln(w, "LOCAL_MODULE :=", moduleName)
+		fmt.Fprintln(w, "LOCAL_MODULE :=", fi.moduleName)
 		// /apex/<apex_name>/{lib|framework|...}
 		pathWhenActivated := filepath.Join("$(PRODUCT_OUT)", "apex", apexName, fi.installDir)
 		if apexType == flattenedApex {
@@ -170,8 +143,8 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
 			// For flattened apexes, compat symlinks are attached to apex_manifest.json which is guaranteed for every apex
-			if a.primaryApexType && apexType == flattenedApex && fi.builtFile == a.manifestPbOut && len(postInstallCommands) > 0 {
-				fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", strings.Join(postInstallCommands, " && "))
+			if a.primaryApexType && fi.builtFile == a.manifestPbOut && len(a.compatSymlinks) > 0 {
+				fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", strings.Join(a.compatSymlinks, " && "))
 			}
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 		}
