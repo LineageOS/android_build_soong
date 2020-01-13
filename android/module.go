@@ -220,6 +220,7 @@ type Module interface {
 	InstallBypassMake() bool
 	InstallForceOS() *OsType
 	SkipInstall()
+	IsSkipInstall() bool
 	ExportedToMake() bool
 	InitRc() Paths
 	VintfFragments() Paths
@@ -907,6 +908,10 @@ func (m *ModuleBase) Disable() {
 
 func (m *ModuleBase) SkipInstall() {
 	m.commonProperties.SkipInstall = true
+}
+
+func (m *ModuleBase) IsSkipInstall() bool {
+	return m.commonProperties.SkipInstall == true
 }
 
 func (m *ModuleBase) ExportedToMake() bool {
