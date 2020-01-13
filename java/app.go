@@ -925,6 +925,16 @@ func (a *AndroidAppImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 	ctx android.ModuleContext, inputPath android.Path, outputPath android.OutputPath) {
+	// Test apps don't need their JNI libraries stored uncompressed. As a matter of fact, messing
+	// with them may invalidate pre-existing signature data.
+	if ctx.InstallInTestcases() && Bool(a.properties.Presigned) {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Output: outputPath,
+			Input:  inputPath,
+		})
+		return
+	}
 	rule := android.NewRuleBuilder()
 	rule.Command().
 		Textf(`if (zipinfo %s 'lib/*.so' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then`, inputPath).
@@ -1002,6 +1012,8 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	var installDir android.InstallPath
 	if Bool(a.properties.Privileged) {
 		installDir = android.PathForModuleInstall(ctx, "priv-app", a.BaseModuleName())
+	} else if ctx.InstallInTestcases() {
+		installDir = android.PathForModuleInstall(ctx, a.BaseModuleName(), ctx.DeviceConfig().DeviceArch())
 	} else {
 		installDir = android.PathForModuleInstall(ctx, "app", a.BaseModuleName())
 	}
@@ -1156,6 +1168,10 @@ func (a *AndroidTestImport) GenerateAndroidBuildActions(ctx android.ModuleContex
 	a.generateAndroidBuildActions(ctx)
 
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
+}
+
+func (a *AndroidTestImport) InstallInTestcases() bool {
+	return true
 }
 
 // android_test_import imports a prebuilt test apk with additional processing specified in the
