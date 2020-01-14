@@ -338,7 +338,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 
-	if library.dylib() || library.shared() {
+	if library.dylib() {
 		// We need prefer-dynamic for now to avoid linking in the static stdlib. See:
 		// https://github.com/rust-lang/rust/issues/19680
 		// https://github.com/rust-lang/rust/issues/34909
