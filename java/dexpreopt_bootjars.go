@@ -220,7 +220,8 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 	d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx)))
 	if global.GenerateApexImage {
 		// Create boot images for the JIT-zygote experiment.
-		d.otherImages = append(d.otherImages, buildBootImage(ctx, apexBootImageConfig(ctx)))
+		d.otherImages = append(d.otherImages, buildBootImage(ctx, artJZBootImageConfig(ctx)))
+		d.otherImages = append(d.otherImages, buildBootImage(ctx, frameworkJZBootImageConfig(ctx)))
 	}
 
 	dumpOatRules(ctx, d.defaultBootImage)
