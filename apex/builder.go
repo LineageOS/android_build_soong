@@ -233,6 +233,19 @@ func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext, apexFileName str
 	return android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.FirstUniquePaths(noticeFiles)).HtmlGzOutput
 }
 
+func (a *apexBundle) buildInstalledFilesFile(ctx android.ModuleContext, builtApex android.Path, imageDir android.Path) android.OutputPath {
+	output := android.PathForModuleOut(ctx, "installed-files.txt")
+	rule := android.NewRuleBuilder()
+	rule.Command().
+		Implicit(builtApex).
+		Text("(cd " + imageDir.String() + " ; ").
+		Text("find . -type f -printf \"%s %p\\n\") ").
+		Text(" | sort -nr > ").
+		Output(output)
+	rule.Build(pctx, ctx, "installed-files."+a.Name(), "Installed files")
+	return output.OutputPath
+}
+
 func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	var abis []string
 	for _, target := range ctx.MultiTargets() {
@@ -307,6 +320,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	outHostBinDir := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "bin").String()
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
 
+	imageDir := android.PathForModuleOut(ctx, "image"+suffix)
 	if apexType == imageApex {
 		// files and dirs that will be created in APEX
 		var readOnlyPaths = []string{"apex_manifest.json", "apex_manifest.pb"}
@@ -408,7 +422,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Description: "apex (" + apexType.name() + ")",
 			Args: map[string]string{
 				"tool_path":        outHostBinDir + ":" + prebuiltSdkToolsBinDir,
-				"image_dir":        android.PathForModuleOut(ctx, "image"+suffix).String(),
+				"image_dir":        imageDir.String(),
 				"copy_commands":    strings.Join(copyCommands, " && "),
 				"manifest":         a.manifestPbOut.String(),
 				"file_contexts":    a.fileContexts.String(),
@@ -446,7 +460,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Description: "apex (" + apexType.name() + ")",
 			Args: map[string]string{
 				"tool_path":     outHostBinDir + ":" + prebuiltSdkToolsBinDir,
-				"image_dir":     android.PathForModuleOut(ctx, "image"+suffix).String(),
+				"image_dir":     imageDir.String(),
 				"copy_commands": strings.Join(copyCommands, " && "),
 				"manifest":      a.manifestPbOut.String(),
 			},
@@ -474,6 +488,9 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		ctx.InstallFile(a.installDir, a.Name()+suffix, a.outputFile)
 	}
 	a.buildFilesInfo(ctx)
+
+	// installed-files.txt is dist'ed
+	a.installedFilesFile = a.buildInstalledFilesFile(ctx, a.outputFile, imageDir)
 }
 
 func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {

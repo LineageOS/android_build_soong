@@ -245,6 +245,14 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				if apexType == imageApex {
 					fmt.Fprintln(w, "ALL_MODULES.$(LOCAL_MODULE).BUNDLE :=", a.bundleModuleFile.String())
 				}
+
+				if a.installedFilesFile != nil {
+					goal := "droidcore"
+					distFile := name + "-installed-files.txt"
+					fmt.Fprintln(w, ".PHONY:", goal)
+					fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s)\n",
+						goal, a.installedFilesFile.String(), distFile)
+				}
 			}
 		}}
 }
