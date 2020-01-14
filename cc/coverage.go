@@ -163,7 +163,6 @@ type Coverage interface {
 	IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool
 	PreventInstall()
 	HideFromMake()
-	MarkAsCoverageVariant(bool)
 }
 
 func coverageMutator(mctx android.BottomUpMutatorContext) {
@@ -192,7 +191,6 @@ func coverageMutator(mctx android.BottomUpMutatorContext) {
 		// module which are split into "" and "cov" variants. e.g. when cc_test refers
 		// to an APEX via 'data' property.
 		m := mctx.CreateVariations("", "cov")
-		m[0].(Coverage).MarkAsCoverageVariant(true)
 		m[0].(Coverage).PreventInstall()
 		m[0].(Coverage).HideFromMake()
 	}
