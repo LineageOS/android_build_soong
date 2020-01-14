@@ -752,6 +752,7 @@ func AndroidTestHelperAppFactory() android.Module {
 
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	android.InitApexModule(module)
 	return module
 }
 
