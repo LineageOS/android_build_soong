@@ -22,7 +22,19 @@ import (
 )
 
 func init() {
-	RegisterModuleType("package", PackageFactory)
+	RegisterPackageBuildComponents(InitRegistrationContext)
+}
+
+// Register the package module type and supporting mutators.
+//
+// This must be called in the correct order (relative to other methods that also
+// register mutators) to match the order of mutator registration in mutator.go.
+// Failing to do so will result in an unrealistic test environment.
+func RegisterPackageBuildComponents(ctx RegistrationContext) {
+	ctx.RegisterModuleType("package", PackageFactory)
+
+	// Register mutators that are hard coded in to mutator.go.
+	ctx.HardCodedPreArchMutators(RegisterPackageRenamer)
 }
 
 // The information maintained about each package.
