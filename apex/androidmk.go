@@ -226,8 +226,8 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				if len(moduleNames) > 0 {
 					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(moduleNames, " "))
 				}
-				if len(a.requiredDeps) > 0 {
-					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(a.requiredDeps, " "))
+				if len(a.externalDeps) > 0 {
+					fmt.Fprintln(w, "LOCAL_REQUIRED_MODULES +=", strings.Join(a.externalDeps, " "))
 				}
 				a.writeRequiredModules(w)
 				var postInstallCommands []string

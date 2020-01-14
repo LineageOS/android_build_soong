@@ -51,8 +51,6 @@ type LinkableInterface interface {
 	ToolchainLibrary() bool
 	NdkPrebuiltStl() bool
 	StubDecorator() bool
-
-	AllStaticDeps() []string
 }
 
 type DependencyTag struct {
