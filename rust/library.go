@@ -323,6 +323,7 @@ func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
+	flags.RustFlags = append(flags.RustFlags, "-C metadata="+ctx.baseModuleName())
 	flags = library.baseCompiler.compilerFlags(ctx, flags)
 	if library.shared() || library.static() {
 		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Include_dirs)...)
