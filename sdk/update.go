@@ -196,7 +196,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 
 	for _, unversioned := range builder.prebuiltOrder {
 		// Copy the unversioned module so it can be modified to make it versioned.
-		versioned := unversioned.copy()
+		versioned := unversioned.deepCopy()
 		name := versioned.properties["name"].(string)
 		versioned.setProperty("name", builder.versionedSdkMemberName(name))
 		versioned.insertAfter("name", "sdk_member_name", name)
@@ -286,7 +286,7 @@ func generateBpContents(contents *generatedContents, bpFile *bpFile) {
 	for _, bpModule := range bpFile.order {
 		contents.Printfln("")
 		contents.Printfln("%s {", bpModule.moduleType)
-		outputPropertySet(contents, &bpModule.bpPropertySet)
+		outputPropertySet(contents, bpModule.bpPropertySet)
 		contents.Printfln("}")
 	}
 }
