@@ -151,9 +151,19 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_prebuilt.mk")
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
-			// For flattened apexes, compat symlinks are attached to apex_manifest.json which is guaranteed for every apex
-			if a.primaryApexType && fi.builtFile == a.manifestPbOut && len(a.compatSymlinks) > 0 {
-				fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", strings.Join(a.compatSymlinks, " && "))
+			if a.primaryApexType && fi.builtFile == a.manifestPbOut {
+				// Make apex_manifest.pb module for this APEX to override all other
+				// modules in the APEXes being overridden by this APEX
+				var patterns []string
+				for _, o := range a.overridableProperties.Overrides {
+					patterns = append(patterns, "%."+o+a.suffix)
+				}
+				fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES :=", strings.Join(patterns, " "))
+
+				if len(a.compatSymlinks) > 0 {
+					// For flattened apexes, compat symlinks are attached to apex_manifest.json which is guaranteed for every apex
+					fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", strings.Join(a.compatSymlinks, " && "))
+				}
 			}
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 		}
