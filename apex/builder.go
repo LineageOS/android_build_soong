@@ -554,3 +554,46 @@ func (a *apexBundle) getOverrideManifestPackageName(ctx android.ModuleContext) s
 	}
 	return ""
 }
+
+func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
+	if !a.primaryApexType {
+		return
+	}
+
+	if a.properties.IsCoverageVariant {
+		// Otherwise, we will have duplicated rules for coverage and
+		// non-coverage variants of the same APEX
+		return
+	}
+
+	internalDeps := a.internalDeps
+	externalDeps := a.externalDeps
+
+	internalDeps = android.SortedUniqueStrings(internalDeps)
+	externalDeps = android.SortedUniqueStrings(externalDeps)
+	externalDeps = android.RemoveListFromList(externalDeps, internalDeps)
+
+	var content strings.Builder
+	for _, name := range internalDeps {
+		fmt.Fprintf(&content, "internal %s\\n", name)
+	}
+	for _, name := range externalDeps {
+		fmt.Fprintf(&content, "external %s\\n", name)
+	}
+
+	depsInfoFile := android.PathForOutput(ctx, a.Name()+"-deps-info.txt")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        android.WriteFile,
+		Description: "Dependency Info",
+		Output:      depsInfoFile,
+		Args: map[string]string{
+			"content": content.String(),
+		},
+	})
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Phony,
+		Output: android.PathForPhony(ctx, a.Name()+"-deps-info"),
+		Inputs: []android.Path{depsInfoFile},
+	})
+}
