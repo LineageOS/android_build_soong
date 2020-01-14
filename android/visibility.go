@@ -19,6 +19,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/google/blueprint"
 )
 
 // Enforces visibility rules between modules.
@@ -188,6 +190,15 @@ func moduleToVisibilityRuleMap(ctx BaseModuleContext) *sync.Map {
 	return ctx.Config().Once(visibilityRuleMap, func() interface{} {
 		return &sync.Map{}
 	}).(*sync.Map)
+}
+
+// Marker interface that identifies dependencies that are excluded from visibility
+// enforcement.
+type ExcludeFromVisibilityEnforcementTag interface {
+	blueprint.DependencyTag
+
+	// Method that differentiates this interface from others.
+	ExcludeFromVisibilityEnforcement()
 }
 
 // The rule checker needs to be registered before defaults expansion to correctly check that
@@ -389,6 +400,12 @@ func visibilityRuleEnforcer(ctx TopDownMutatorContext) {
 
 	// Visit all the dependencies making sure that this module has access to them all.
 	ctx.VisitDirectDeps(func(dep Module) {
+		// Ignore dependencies that have an ExcludeFromVisibilityEnforcementTag
+		tag := ctx.OtherModuleDependencyTag(dep)
+		if _, ok := tag.(ExcludeFromVisibilityEnforcementTag); ok {
+			return
+		}
+
 		depName := ctx.OtherModuleName(dep)
 		depDir := ctx.OtherModuleDir(dep)
 		depQualified := qualifiedModuleName{depDir, depName}
