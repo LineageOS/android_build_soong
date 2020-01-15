@@ -194,12 +194,16 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 		member.memberType.BuildSnapshot(ctx, builder, member)
 	}
 
+	// Create a transformer that will transform an unversioned module into a versioned module.
+	unversionedToVersionedTransformer := unversionedToVersionedTransformation{builder: builder}
+
 	for _, unversioned := range builder.prebuiltOrder {
 		// Copy the unversioned module so it can be modified to make it versioned.
 		versioned := unversioned.deepCopy()
-		name := versioned.properties["name"].(string)
-		versioned.setProperty("name", builder.versionedSdkMemberName(name))
-		versioned.insertAfter("name", "sdk_member_name", name)
+
+		// Transform the unversioned module into a versioned one.
+		versioned.transform(unversionedToVersionedTransformer)
+
 		bpFile.AddModule(versioned)
 
 		// Set prefer: false - this is not strictly required as that is the default.
@@ -279,6 +283,22 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	}
 
 	return outputZipFile
+}
+
+type unversionedToVersionedTransformation struct {
+	identityTransformation
+	builder *snapshotBuilder
+}
+
+var _ bpTransformer = (*unversionedToVersionedTransformation)(nil)
+
+func (t unversionedToVersionedTransformation) transformModule(module *bpModule) *bpModule {
+	// Use a versioned name for the module but remember the original name for the
+	// snapshot.
+	name := module.getValue("name").(string)
+	module.setProperty("name", t.builder.versionedSdkMemberName(name))
+	module.insertAfter("name", "sdk_member_name", name)
+	return module
 }
 
 func generateBpContents(contents *generatedContents, bpFile *bpFile) {
