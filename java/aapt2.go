@@ -147,10 +147,16 @@ var fileListToFileRule = pctx.AndroidStaticRule("fileListToFile",
 		RspfileContent: "$in",
 	})
 
+var mergeAssetsRule = pctx.AndroidStaticRule("mergeAssets",
+	blueprint.RuleParams{
+		Command:     `${config.MergeZipsCmd} ${out} ${in}`,
+		CommandDeps: []string{"${config.MergeZipsCmd}"},
+	})
+
 func aapt2Link(ctx android.ModuleContext,
 	packageRes, genJar, proguardOptions, rTxt, extraPackages android.WritablePath,
 	flags []string, deps android.Paths,
-	compiledRes, compiledOverlay android.Paths, splitPackages android.WritablePaths) {
+	compiledRes, compiledOverlay, assetPackages android.Paths, splitPackages android.WritablePaths) {
 
 	genDir := android.PathForModuleGen(ctx, "aapt2", "R")
 
@@ -186,12 +192,25 @@ func aapt2Link(ctx android.ModuleContext,
 	}
 
 	implicitOutputs := append(splitPackages, proguardOptions, genJar, rTxt, extraPackages)
+	linkOutput := packageRes
+
+	// AAPT2 ignores assets in overlays. Merge them after linking.
+	if len(assetPackages) > 0 {
+		linkOutput = android.PathForModuleOut(ctx, "aapt2", "package-res.apk")
+		inputZips := append(android.Paths{linkOutput}, assetPackages...)
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        mergeAssetsRule,
+			Inputs:      inputZips,
+			Output:      packageRes,
+			Description: "merge assets from dependencies",
+		})
+	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:            aapt2LinkRule,
 		Description:     "aapt2 link",
 		Implicits:       deps,
-		Output:          packageRes,
+		Output:          linkOutput,
 		ImplicitOutputs: implicitOutputs,
 		Args: map[string]string{
 			"flags":           strings.Join(flags, " "),
