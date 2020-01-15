@@ -323,6 +323,7 @@ func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
+	flags.RustFlags = append(flags.RustFlags, "-C metadata="+ctx.baseModuleName())
 	flags = library.baseCompiler.compilerFlags(ctx, flags)
 	if library.shared() || library.static() {
 		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Include_dirs)...)
@@ -337,7 +338,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 
-	if library.dylib() || library.shared() {
+	if library.dylib() {
 		// We need prefer-dynamic for now to avoid linking in the static stdlib. See:
 		// https://github.com/rust-lang/rust/issues/19680
 		// https://github.com/rust-lang/rust/issues/34909
