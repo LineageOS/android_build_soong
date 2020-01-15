@@ -314,7 +314,7 @@ func generateBpContents(contents *generatedContents, bpFile *bpFile) {
 func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 	contents.Indent()
 	for _, name := range set.order {
-		value := set.properties[name]
+		value := set.getValue(name)
 
 		reflectedValue := reflect.ValueOf(value)
 		t := reflectedValue.Type()
