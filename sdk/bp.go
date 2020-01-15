@@ -51,26 +51,27 @@ func (s *bpPropertySet) getValue(name string) interface{} {
 	return s.properties[name]
 }
 
-func (s *bpPropertySet) deepCopy() *bpPropertySet {
-	propertiesCopy := make(map[string]interface{})
-	for p, v := range s.properties {
-		var valueCopy interface{}
-		if ps, ok := v.(*bpPropertySet); ok {
-			valueCopy = ps.deepCopy()
-		} else if values, ok := v.([]string); ok {
-			valuesCopy := make([]string, len(values))
-			copy(valuesCopy, values)
-			valueCopy = valuesCopy
+func (s *bpPropertySet) transform(transformer bpPropertyTransformer) {
+	var newOrder []string
+	for _, name := range s.order {
+		value := s.properties[name]
+		var newValue interface{}
+		if propertySet, ok := value.(*bpPropertySet); ok {
+			newValue = transformer.transformPropertySet(name, propertySet)
 		} else {
-			valueCopy = v
+			newValue = transformer.transformProperty(name, value)
 		}
-		propertiesCopy[p] = valueCopy
-	}
 
-	return &bpPropertySet{
-		properties: propertiesCopy,
-		order:      append([]string(nil), s.order...),
+		if newValue == nil {
+			// Delete the property from the map and exclude it from the new order.
+			delete(s.properties, name)
+		} else {
+			// Update the property in the map and add the name to the new order list.
+			s.properties[name] = newValue
+			newOrder = append(newOrder, name)
+		}
 	}
+	s.order = newOrder
 }
 
 func (s *bpPropertySet) setProperty(name string, value interface{}) {
@@ -111,12 +112,99 @@ type bpModule struct {
 
 var _ android.BpModule = (*bpModule)(nil)
 
+type bpPropertyTransformer interface {
+	// Transform the property set, returning the new property set to insert back into the
+	// parent property set (or module if this is the top level property set).
+	//
+	// This will be called before transforming the properties in the supplied set.
+	//
+	// The name will be "" for the top level property set.
+	//
+	// Returning nil will cause the property set to be removed.
+	transformPropertySet(name string, propertySet *bpPropertySet) *bpPropertySet
+
+	// Transform a property, return the new value to insert back into the property set.
+	//
+	// Returning nil will cause the property to be removed.
+	transformProperty(name string, value interface{}) interface{}
+}
+
+// Interface for transforming bpModule objects.
+type bpTransformer interface {
+	// Transform the module, returning the result.
+	//
+	// The method can either create a new module and return that, or modify the supplied module
+	// in place and return that.
+	//
+	// After this returns the transformer is applied to the contents of the returned module.
+	transformModule(module *bpModule) *bpModule
+
+	bpPropertyTransformer
+}
+
+type identityTransformation struct{}
+
+var _ bpTransformer = (*identityTransformation)(nil)
+
+func (t identityTransformation) transformModule(module *bpModule) *bpModule {
+	return module
+}
+
+func (t identityTransformation) transformPropertySet(name string, propertySet *bpPropertySet) *bpPropertySet {
+	return propertySet
+}
+
+func (t identityTransformation) transformProperty(name string, value interface{}) interface{} {
+	return value
+}
+
 func (m *bpModule) deepCopy() *bpModule {
-	return &bpModule{
-		bpPropertySet: m.bpPropertySet.deepCopy(),
-		moduleType:    m.moduleType,
+	return m.transform(deepCopyTransformer)
+}
+
+func (m *bpModule) transform(transformer bpTransformer) *bpModule {
+	transformedModule := transformer.transformModule(m)
+	// Copy the contents of the returned property set into the module and then transform that.
+	transformedModule.bpPropertySet = transformer.transformPropertySet("", transformedModule.bpPropertySet)
+	transformedModule.bpPropertySet.transform(transformer)
+	return transformedModule
+}
+
+type deepCopyTransformation struct{}
+
+func (t deepCopyTransformation) transformModule(module *bpModule) *bpModule {
+	// Take a shallow copy of the module. Any mutable property values will be copied by the
+	// transformer.
+	moduleCopy := *module
+	return &moduleCopy
+}
+
+func (t deepCopyTransformation) transformPropertySet(name string, propertySet *bpPropertySet) *bpPropertySet {
+	// Create a shallow copy of the properties map. Any mutable property values will be copied by the
+	// transformer.
+	propertiesCopy := make(map[string]interface{})
+	for p, v := range propertySet.properties {
+		propertiesCopy[p] = v
+	}
+
+	// Create a new property set.
+	return &bpPropertySet{
+		properties: propertiesCopy,
+		order:      append([]string(nil), propertySet.order...),
 	}
 }
+
+func (t deepCopyTransformation) transformProperty(name string, value interface{}) interface{} {
+	// Copy string slice, otherwise return value.
+	if values, ok := value.([]string); ok {
+		valuesCopy := make([]string, len(values))
+		copy(valuesCopy, values)
+		return valuesCopy
+	}
+	return value
+}
+
+var deepCopyTransformer bpTransformer = deepCopyTransformation{}
 
 // A .bp file
 type bpFile struct {
