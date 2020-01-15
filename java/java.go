@@ -619,12 +619,9 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			}
 
 			linkType, _ := j.getLinkType(ctx.ModuleName())
-			if linkType == javaSystem {
+			// only platform modules can use internal props
+			if linkType != javaPlatform {
 				ret[idx] = stub
-			} else if linkType != javaPlatform {
-				ctx.PropertyErrorf("sdk_version",
-					"can't link against sysprop_library %q from a module using public or core API",
-					lib)
 			}
 		}
 
