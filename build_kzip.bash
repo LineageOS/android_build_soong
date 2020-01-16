@@ -6,12 +6,14 @@
 # The following environment variables affect the result:
 #   BUILD_NUMBER          build number, used to generate unique ID (will use UUID if not set)
 #   DIST_DIR              where the resulting all.kzip will be placed
+#   KYTHE_KZIP_ENCODING   proto or json (proto is default)
 #   OUT_DIR               output directory (out if not specified})
 #   TARGET_BUILD_VARIANT  variant, e.g., `userdebug`
 #   TARGET_PRODUCT        target device name, e.g., 'aosp_blueline'
 #   XREF_CORPUS           source code repository URI, e.g., 'android.googlesource.com/platform/superproject'
 
 : ${BUILD_NUMBER:=$(uuidgen)}
+: ${KYTHE_KZIP_ENCODING:=proto}
 
 # The extraction might fail for some source files, so run with -k and then check that
 # sufficiently many files were generated.
