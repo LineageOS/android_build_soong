@@ -403,6 +403,11 @@ func TestBasicApex(t *testing.T) {
 			shared_libs: ["mylib2"],
 			system_shared_libs: [],
 			stl: "none",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
 		}
 
 		cc_binary {
@@ -422,6 +427,7 @@ func TestBasicApex(t *testing.T) {
 			system_shared_libs: [],
 			static_executable: true,
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -430,6 +436,11 @@ func TestBasicApex(t *testing.T) {
 			system_shared_libs: [],
 			stl: "none",
 			notice: "custom_notice",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
 		}
 
 		java_library {
@@ -440,6 +451,11 @@ func TestBasicApex(t *testing.T) {
 			compile_dex: true,
 			static_libs: ["myotherjar"],
 			libs: ["mysharedjar"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
 		}
 
 		java_library {
@@ -560,6 +576,7 @@ func TestDefaults(t *testing.T) {
 			name: "mylib",
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		java_library {
@@ -568,6 +585,7 @@ func TestDefaults(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			compile_dex: true,
+			apex_available: [ "myapex" ],
 		}
 
 		android_app {
@@ -575,6 +593,7 @@ func TestDefaults(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			sdk_version: "none",
 			system_modules: "none",
+			apex_available: [ "myapex" ],
 		}
 	`)
 	ensureExactContents(t, ctx, "myapex", []string{
@@ -627,6 +646,7 @@ func TestBasicZipApex(t *testing.T) {
 			shared_libs: ["mylib2"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -634,6 +654,7 @@ func TestBasicZipApex(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 	`)
 
@@ -674,6 +695,7 @@ func TestApexWithStubs(t *testing.T) {
 			shared_libs: ["mylib2", "mylib3"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -696,6 +718,7 @@ func TestApexWithStubs(t *testing.T) {
 			stubs: {
 				versions: ["10", "11", "12"],
 			},
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -703,6 +726,7 @@ func TestApexWithStubs(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 	`)
 
@@ -764,6 +788,7 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 			shared_libs: ["libfoo#10"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex2" ],
 		}
 
 		cc_library {
@@ -845,6 +870,7 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 			runtime_libs: ["libfoo", "libbar"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -862,6 +888,7 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 	`)
@@ -906,6 +933,7 @@ func TestApexDependencyToLLNDK(t *testing.T) {
 			shared_libs: ["libbar"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -956,6 +984,7 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			shared_libs: ["libdl#27"],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library_shared {
@@ -963,6 +992,7 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			shared_libs: ["libdl#27"],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -985,6 +1015,10 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 			stubs: {
 				versions: ["27", "28", "29"],
 			},
+			apex_available: [
+				"//apex_available:platform",
+				"myapex"
+			],
 		}
 
 		cc_library {
@@ -996,6 +1030,10 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 			stubs: {
 				versions: ["27", "28", "29"],
 			},
+			apex_available: [
+				"//apex_available:platform",
+				"myapex"
+			],
 		}
 
 		cc_library {
@@ -1087,6 +1125,7 @@ func TestFilesInSubDir(t *testing.T) {
 			relative_install_path: "foo/bar",
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_binary {
@@ -1096,6 +1135,7 @@ func TestFilesInSubDir(t *testing.T) {
 			system_shared_libs: [],
 			static_executable: true,
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 	`)
 
@@ -1140,6 +1180,7 @@ func TestUseVendor(t *testing.T) {
 			system_shared_libs: [],
 			vendor_available: true,
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -1148,6 +1189,7 @@ func TestUseVendor(t *testing.T) {
 			system_shared_libs: [],
 			vendor_available: true,
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 	`, func(fs map[string][]byte, config android.Config) {
 		setUseVendorWhitelistForTest(config, []string{"myapex"})
@@ -1248,6 +1290,10 @@ func TestStaticLinking(t *testing.T) {
 			stubs: {
 				versions: ["1", "2", "3"],
 			},
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
 		}
 
 		cc_binary {
@@ -1281,6 +1327,7 @@ func TestKeys(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex_keytest" ],
 		}
 
 		apex_key {
@@ -1474,6 +1521,12 @@ func TestMacro(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+				"otherapex",
+			],
 		}
 	`)
 
@@ -1527,6 +1580,7 @@ func TestHeaderLibsDependency(t *testing.T) {
 			stubs: {
 				versions: ["1", "2", "3"],
 			},
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -1629,6 +1683,7 @@ func TestVndkApexCurrent(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -1641,6 +1696,7 @@ func TestVndkApexCurrent(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 	`+vndkLibrariesTxtFiles("current"))
 
@@ -1678,6 +1734,7 @@ func TestVndkApexWithPrebuilt(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_prebuilt_library_shared {
@@ -1695,6 +1752,7 @@ func TestVndkApexWithPrebuilt(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 		`+vndkLibrariesTxtFiles("current"),
 		withFiles(map[string][]byte{
@@ -1765,6 +1823,7 @@ func TestVndkApexVersion(t *testing.T) {
 					srcs: ["libvndk27_arm64.so"],
 				},
 			},
+			apex_available: [ "myapex_v27" ],
 		}
 
 		vndk_prebuilt_shared {
@@ -1901,6 +1960,7 @@ func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 		`+vndkLibrariesTxtFiles("current"),
 		withTargets(map[android.OsType][]android.Target{
@@ -1993,6 +2053,7 @@ func TestVndkApexWithBinder32(t *testing.T) {
 					srcs: ["libvndk27binder32.so"],
 				}
 			},
+			apex_available: [ "myapex_v27" ],
 		}
 		`+vndkLibrariesTxtFiles("27"),
 		withFiles(map[string][]byte{
@@ -2058,6 +2119,7 @@ func TestDependenciesInApexManifest(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex_nodep" ],
 		}
 
 		cc_library {
@@ -2066,6 +2128,11 @@ func TestDependenciesInApexManifest(t *testing.T) {
 			shared_libs: ["libfoo"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [
+				"myapex_dep",
+				"myapex_provider",
+				"myapex_selfcontained",
+			],
 		}
 
 		cc_library {
@@ -2076,6 +2143,10 @@ func TestDependenciesInApexManifest(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [
+				"myapex_provider",
+				"myapex_selfcontained",
+			],
 		}
 	`)
 
@@ -2148,6 +2219,10 @@ func TestNonTestApex(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [
+					"//apex_available:platform",
+				  "myapex",
+		  ],
 		}
 	`)
 
@@ -2199,6 +2274,11 @@ func TestTestApex(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
 		}
 	`)
 
@@ -2267,6 +2347,11 @@ func TestApexWithTarget(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
 		}
 
 		cc_library {
@@ -2275,6 +2360,11 @@ func TestApexWithTarget(t *testing.T) {
 			system_shared_libs: [],
 			stl: "none",
 			compile_multilib: "first",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
 		}
 
 		cc_library {
@@ -2701,6 +2791,7 @@ func TestApexUsesOtherApex(t *testing.T) {
 			shared_libs: ["libcommon"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -2708,6 +2799,12 @@ func TestApexUsesOtherApex(t *testing.T) {
 			srcs: ["mylib_common.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"commonapex",
+				"myapex",
+			],
 		}
 	`)
 
@@ -2859,6 +2956,7 @@ func TestApexWithApps(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			jni_libs: ["libjni"],
+			apex_available: [ "myapex" ],
 		}
 
 		android_app {
@@ -2867,6 +2965,7 @@ func TestApexWithApps(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			privileged: true,
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library_shared {
@@ -2960,6 +3059,7 @@ func TestApexWithTestHelperApp(t *testing.T) {
 		android_test_helper_app {
 			name: "TesterHelpAppFoo",
 			srcs: ["foo/bar/MyClass.java"],
+			apex_available: [ "myapex" ],
 		}
 
 	`)
@@ -3215,6 +3315,7 @@ func TestOverrideApex(t *testing.T) {
 			package_name: "foo",
 			sdk_version: "none",
 			system_modules: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		override_android_app {
@@ -3298,6 +3399,7 @@ func TestJavaSDKLibrary(t *testing.T) {
 			name: "foo",
 			srcs: ["a.java"],
 			api_packages: ["foo"],
+			apex_available: [ "myapex" ],
 		}
 	`, withFiles(map[string][]byte{
 		"api/current.txt":        nil,
@@ -3363,6 +3465,7 @@ func TestCarryRequiredModuleNames(t *testing.T) {
 			required: ["a", "b"],
 			host_required: ["c", "d"],
 			target_required: ["e", "f"],
+			apex_available: [ "myapex" ],
 		}
 	`)
 

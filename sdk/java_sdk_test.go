@@ -73,6 +73,10 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 			sdk_version: "none",
 			compile_dex: true,
 			host_supported: true,
+			apex_available: [
+				"myapex",
+				"myapex2",
+			],
 		}
 
 		apex {
