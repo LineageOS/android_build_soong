@@ -59,6 +59,11 @@ func (ctx *TestContext) PreArchMutators(f RegisterMutatorFunc) {
 	ctx.preArch = append(ctx.preArch, f)
 }
 
+func (ctx *TestContext) HardCodedPreArchMutators(f RegisterMutatorFunc) {
+	// Register mutator function as normal for testing.
+	ctx.PreArchMutators(f)
+}
+
 func (ctx *TestContext) PreDepsMutators(f RegisterMutatorFunc) {
 	ctx.preDeps = append(ctx.preDeps, f)
 }
