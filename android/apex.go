@@ -144,9 +144,9 @@ const (
 
 func CheckAvailableForApex(what string, apex_available []string) bool {
 	if len(apex_available) == 0 {
-		// apex_available defaults to ["//apex_available:platform", "//apex_available:anyapex"],
-		// which means 'available to everybody'.
-		return true
+		// apex_available defaults to ["//apex_available:platform"],
+		// which means 'available to the platform but no apexes'.
+		return what == AvailableToPlatform
 	}
 	return InList(what, apex_available) ||
 		(what != AvailableToPlatform && InList(availableToAnyApex, apex_available))
