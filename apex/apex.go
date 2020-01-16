@@ -547,6 +547,8 @@ type apexBundle struct {
 	// Suffix of module name in Android.mk
 	// ".flattened", ".apex", ".zipapex", or ""
 	suffix string
+
+	installedFilesFile android.WritablePath
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
