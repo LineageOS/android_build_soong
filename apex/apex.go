@@ -75,6 +75,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.art"] = []string{
+		"jacocoagent",
 		"libadbconnection_server",
 		"libartd-disassembler",
 		"libbacktrace",
