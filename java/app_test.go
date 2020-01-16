@@ -1628,6 +1628,40 @@ func TestAndroidTestImport(t *testing.T) {
 	}
 }
 
+func TestAndroidTestImport_NoJinUncompressForPresigned(t *testing.T) {
+	ctx, _ := testJava(t, `
+		android_test_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			certificate: "cert/new_cert",
+			data: [
+				"testdata/data",
+			],
+		}
+
+		android_test_import {
+			name: "foo_presigned",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+			data: [
+				"testdata/data",
+			],
+		}
+		`)
+
+	variant := ctx.ModuleForTests("foo", "android_common")
+	jniRule := variant.Output("jnis-uncompressed/foo.apk").RuleParams.Command
+	if !strings.HasPrefix(jniRule, "if (zipinfo") {
+		t.Errorf("Unexpected JNI uncompress rule command: " + jniRule)
+	}
+
+	variant = ctx.ModuleForTests("foo_presigned", "android_common")
+	jniRule = variant.Output("jnis-uncompressed/foo_presigned.apk").BuildParams.Rule.String()
+	if jniRule != android.Cp.String() {
+		t.Errorf("Unexpected JNI uncompress rule: " + jniRule)
+	}
+}
+
 func TestStl(t *testing.T) {
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
