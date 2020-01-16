@@ -238,9 +238,13 @@ var (
 	_ = pctx.SourcePathVariable("kytheVnames", "build/soong/vnames.json")
 	_ = pctx.VariableFunc("kytheCorpus",
 		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCorpusName() })
+	_ = pctx.VariableFunc("kytheCuEncoding",
+		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCuEncoding() })
 	kytheExtract = pctx.StaticRule("kythe",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && KYTHE_CORPUS=${kytheCorpus} KYTHE_OUTPUT_FILE=$out KYTHE_VNAMES=$kytheVnames $cxxExtractor $cFlags $in ",
+			Command: `rm -f $out && ` +
+				`KYTHE_CORPUS=${kytheCorpus} KYTHE_OUTPUT_FILE=$out KYTHE_VNAMES=$kytheVnames KYTHE_KZIP_ENCODING=${kytheCuEncoding} ` +
+				`$cxxExtractor $cFlags $in `,
 			CommandDeps: []string{"$cxxExtractor", "$kytheVnames"},
 		},
 		"cFlags")
