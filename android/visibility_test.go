@@ -853,6 +853,51 @@ var visibilityTests = []struct {
 				` not visible to this module`,
 		},
 	},
+	{
+		name: "verify that prebuilt dependencies are ignored for visibility reasons (not preferred)",
+		fs: map[string][]byte{
+			"prebuilts/Blueprints": []byte(`
+				prebuilt {
+					name: "module",
+					visibility: ["//top/other"],
+				}`),
+			"top/sources/source_file": nil,
+			"top/sources/Blueprints": []byte(`
+				source {
+					name: "module",
+					visibility: ["//top/other"],
+				}`),
+			"top/other/source_file": nil,
+			"top/other/Blueprints": []byte(`
+				source {
+					name: "other",
+					deps: [":module"],
+				}`),
+		},
+	},
+	{
+		name: "verify that prebuilt dependencies are ignored for visibility reasons (preferred)",
+		fs: map[string][]byte{
+			"prebuilts/Blueprints": []byte(`
+				prebuilt {
+					name: "module",
+					visibility: ["//top/other"],
+					prefer: true,
+				}`),
+			"top/sources/source_file": nil,
+			"top/sources/Blueprints": []byte(`
+				source {
+					name: "module",
+					visibility: ["//top/other"],
+				}`),
+			"top/other/source_file": nil,
+			"top/other/Blueprints": []byte(`
+				source {
+					name: "other",
+					deps: [":module"],
+				}`),
+		},
+	},
 }
 
 func TestVisibility(t *testing.T) {
@@ -871,10 +916,12 @@ func testVisibility(buildDir string, fs map[string][]byte) (*TestContext, []erro
 	config := TestArchConfig(buildDir, nil, "", fs)
 
 	ctx := NewTestArchContext()
-	ctx.RegisterModuleType("package", PackageFactory)
 	ctx.RegisterModuleType("mock_library", newMockLibraryModule)
 	ctx.RegisterModuleType("mock_defaults", defaultsFactory)
-	ctx.PreArchMutators(RegisterPackageRenamer)
+
+	// Order of the following method calls is significant.
+	RegisterPackageBuildComponents(ctx)
+	registerTestPrebuiltBuildComponents(ctx)
 	ctx.PreArchMutators(RegisterVisibilityRuleChecker)
 	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(RegisterVisibilityRuleGatherer)

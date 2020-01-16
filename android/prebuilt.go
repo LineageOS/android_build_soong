@@ -36,6 +36,9 @@ type prebuiltDependencyTag struct {
 
 var PrebuiltDepTag prebuiltDependencyTag
 
+// Mark this tag so dependencies that use it are excluded from visibility enforcement.
+func (t prebuiltDependencyTag) ExcludeFromVisibilityEnforcement() {}
+
 type PrebuiltProperties struct {
 	// When prefer is set to true the prebuilt will be used instead of any source module with
 	// a matching name.

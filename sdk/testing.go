@@ -62,13 +62,11 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	ctx := android.NewTestArchContext()
 
 	// from android package
-	ctx.PreArchMutators(android.RegisterPackageRenamer)
+	android.RegisterPackageBuildComponents(ctx)
 	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
 	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
-
-	ctx.RegisterModuleType("package", android.PackageFactory)
 
 	// from java package
 	java.RegisterJavaBuildComponents(ctx)
