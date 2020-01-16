@@ -141,10 +141,8 @@ func TestPrebuilts(t *testing.T) {
 			config := TestConfig(buildDir, nil, bp, fs)
 
 			ctx := NewTestContext()
-			RegisterPrebuiltMutators(ctx)
+			registerTestPrebuiltBuildComponents(ctx)
 			ctx.RegisterModuleType("filegroup", FileGroupFactory)
-			ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
-			ctx.RegisterModuleType("source", newSourceModule)
 			ctx.Register(config)
 
 			_, errs := ctx.ParseBlueprintsFiles("Android.bp")
@@ -210,6 +208,13 @@ func TestPrebuilts(t *testing.T) {
 			}
 		})
 	}
+}
+
+func registerTestPrebuiltBuildComponents(ctx RegistrationContext) {
+	ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
+	ctx.RegisterModuleType("source", newSourceModule)
+
+	RegisterPrebuiltMutators(ctx)
 }
 
 type prebuiltModule struct {

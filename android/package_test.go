@@ -87,8 +87,7 @@ func testPackage(fs map[string][]byte) (*TestContext, []error) {
 	config := TestArchConfig(buildDir, nil, "", fs)
 
 	ctx := NewTestArchContext()
-	ctx.RegisterModuleType("package", PackageFactory)
-	ctx.PreArchMutators(RegisterPackageRenamer)
+	RegisterPackageBuildComponents(ctx)
 	ctx.Register(config)
 
 	_, errs := ctx.ParseBlueprintsFiles(".")
