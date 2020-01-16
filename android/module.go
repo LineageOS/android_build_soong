@@ -1746,7 +1746,7 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 			Rule:        Symlink,
 			Description: "install symlink " + fullInstallPath.Base(),
 			Output:      fullInstallPath,
-			OrderOnly:   Paths{srcPath},
+			Input:       srcPath,
 			Default:     !m.Config().EmbeddedInMake(),
 			Args: map[string]string{
 				"fromPath": relPath,
