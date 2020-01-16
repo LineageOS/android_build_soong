@@ -3379,6 +3379,7 @@ func TestLegacyAndroid10Support(t *testing.T) {
 	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
 	args := module.Rule("apexRule").Args
 	ensureContains(t, args["opt_flags"], "--manifest_json "+module.Output("apex_manifest.json").Output.String())
+	ensureNotContains(t, args["opt_flags"], "--no_hashtree")
 }
 
 func TestJavaSDKLibrary(t *testing.T) {
