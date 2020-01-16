@@ -57,7 +57,265 @@ var (
 	certificateTag = dependencyTag{name: "certificate"}
 	usesTag        = dependencyTag{name: "uses"}
 	androidAppTag  = dependencyTag{name: "androidApp"}
+	apexAvailWl    = makeApexAvailableWhitelist()
 )
+
+// This is a map from apex to modules, which overrides the
+// apex_available setting for that particular module to make
+// it available for the apex regardless of its setting.
+// TODO(b/147364041): remove this
+func makeApexAvailableWhitelist() map[string][]string {
+	// The "Module separator"s below are employed to minimize merge conflicts.
+	m := make(map[string][]string)
+	//
+	// Module separator
+	//
+	m["com.android.adbd"] = []string{"adbd", "libcrypto"}
+	//
+	// Module separator
+	//
+	m["com.android.art"] = []string{
+		"libadbconnection_server",
+		"libartd-disassembler",
+		"libbacktrace",
+		"libbase",
+		"libc++",
+		"libcrypto",
+		"libdexfile_support",
+		"libexpat",
+		"libicuuc",
+		"liblzma",
+		"libmeminfo",
+		"libprocinfo",
+		"libunwindstack",
+		"libvixl",
+		"libvixld",
+		"libz",
+		"libziparchive",
+		"prebuilt_libclang_rt",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.bluetooth.updatable"] = []string{
+		"android.hardware.audio.common@5.0",
+		"android.hardware.bluetooth@1.0",
+		"android.hardware.bluetooth@1.1",
+		"android.hardware.bluetooth.a2dp@1.0",
+		"android.hardware.bluetooth.audio@2.0",
+		"android.hidl.safe_union@1.0",
+		"libbase",
+		"libbinderthreadstate",
+		"libbluetooth",
+		"libbluetooth_jni",
+		"libc++",
+		"libchrome",
+		"libcrypto",
+		"libcutils",
+		"libevent",
+		"libfmq",
+		"libhidlbase",
+		"libprocessgroup",
+		"libprotobuf-cpp-lite",
+		"libstatslog",
+		"libtinyxml2",
+		"libutils",
+		"libz",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.cellbroadcast"] = []string{"CellBroadcastApp", "CellBroadcastServiceModule"}
+	//
+	// Module separator
+	//
+	m["com.android.conscrypt"] = []string{"boringssl_self_test", "libc++", "libcrypto", "libssl"}
+	//
+	// Module separator
+	//
+	m["com.android.cronet"] = []string{"org.chromium.net.cronet", "prebuilt_libcronet.80.0.3986.0"}
+	//
+	// Module separator
+	//
+	m["com.android.incremental"] = []string{"libc++", "libdataloader", "libincfs"}
+	//
+	// Module separator
+	//
+	m["com.android.media"] = []string{
+		"android.hardware.cas@1.0",
+		"android.hardware.cas.native@1.0",
+		"android.hidl.allocator@1.0",
+		"android.hidl.memory@1.0",
+		"android.hidl.memory.token@1.0",
+		"android.hidl.token@1.0",
+		"android.hidl.token@1.0-utils",
+		"libaacextractor",
+		"libamrextractor",
+		"libaudioutils",
+		"libbase",
+		"libbinderthreadstate",
+		"libc++",
+		"libcrypto",
+		"libcutils",
+		"libflacextractor",
+		"libhidlbase",
+		"libhidlmemory",
+		"libmidiextractor",
+		"libmkvextractor",
+		"libmp3extractor",
+		"libmp4extractor",
+		"libmpeg2extractor",
+		"liboggextractor",
+		"libprocessgroup",
+		"libspeexresampler",
+		"libstagefright_flacdec",
+		"libutils",
+		"libwavextractor",
+		"updatable-media",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.media.swcodec"] = []string{
+		"android.frameworks.bufferhub@1.0",
+		"android.hardware.common-ndk_platform",
+		"android.hardware.graphics.allocator@2.0",
+		"android.hardware.graphics.allocator@3.0",
+		"android.hardware.graphics.allocator@4.0",
+		"android.hardware.graphics.bufferqueue@1.0",
+		"android.hardware.graphics.bufferqueue@2.0",
+		"android.hardware.graphics.common@1.0",
+		"android.hardware.graphics.common@1.1",
+		"android.hardware.graphics.common@1.2",
+		"android.hardware.graphics.common-ndk_platform",
+		"android.hardware.graphics.mapper@2.0",
+		"android.hardware.graphics.mapper@2.1",
+		"android.hardware.graphics.mapper@3.0",
+		"android.hardware.graphics.mapper@4.0",
+		"android.hardware.media@1.0",
+		"android.hardware.media.bufferpool@2.0",
+		"android.hardware.media.c2@1.0",
+		"android.hardware.media.c2@1.1",
+		"android.hardware.media.omx@1.0",
+		"android.hidl.memory@1.0",
+		"android.hidl.memory.token@1.0",
+		"android.hidl.safe_union@1.0",
+		"android.hidl.token@1.0",
+		"android.hidl.token@1.0-utils",
+		"libaudioutils",
+		"libavservices_minijail",
+		"libbase",
+		"libbinderthreadstate",
+		"libc++",
+		"libcap",
+		"libcodec2",
+		"libcodec2_hidl@1.0",
+		"libcodec2_hidl@1.1",
+		"libcodec2_soft_aacdec",
+		"libcodec2_soft_aacenc",
+		"libcodec2_soft_amrnbdec",
+		"libcodec2_soft_amrnbenc",
+		"libcodec2_soft_amrwbdec",
+		"libcodec2_soft_amrwbenc",
+		"libcodec2_soft_av1dec_gav1",
+		"libcodec2_soft_avcdec",
+		"libcodec2_soft_avcenc",
+		"libcodec2_soft_common",
+		"libcodec2_soft_flacdec",
+		"libcodec2_soft_flacenc",
+		"libcodec2_soft_g711alawdec",
+		"libcodec2_soft_g711mlawdec",
+		"libcodec2_soft_gsmdec",
+		"libcodec2_soft_h263dec",
+		"libcodec2_soft_h263enc",
+		"libcodec2_soft_hevcdec",
+		"libcodec2_soft_hevcenc",
+		"libcodec2_soft_mp3dec",
+		"libcodec2_soft_mpeg2dec",
+		"libcodec2_soft_mpeg4dec",
+		"libcodec2_soft_mpeg4enc",
+		"libcodec2_soft_opusdec",
+		"libcodec2_soft_opusenc",
+		"libcodec2_soft_rawdec",
+		"libcodec2_soft_vorbisdec",
+		"libcodec2_soft_vp8dec",
+		"libcodec2_soft_vp8enc",
+		"libcodec2_soft_vp9dec",
+		"libcodec2_soft_vp9enc",
+		"libcodec2_vndk",
+		"libc_scudo",
+		"libcutils",
+		"libfmq",
+		"libgralloctypes",
+		"libhardware",
+		"libhidlbase",
+		"libhidlmemory",
+		"libion",
+		"libmedia_codecserviceregistrant",
+		"libminijail",
+		"libopus",
+		"libprocessgroup",
+		"libscudo_wrapper",
+		"libsfplugin_ccodec_utils",
+		"libspeexresampler",
+		"libstagefright_amrnb_common",
+		"libstagefright_bufferpool@2.0.1",
+		"libstagefright_bufferqueue_helper",
+		"libstagefright_enc_common",
+		"libstagefright_flacdec",
+		"libstagefright_foundation",
+		"libsync",
+		"libui",
+		"libutils",
+		"libvorbisidec",
+		"libvpx",
+		"mediaswcodec",
+		"prebuilt_libclang_rt",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.mediaprovider"] = []string{"libfuse", "MediaProvider", "MediaProviderGoogle"}
+	//
+	// Module separator
+	//
+	m["com.android.permission"] = []string{"GooglePermissionController", "PermissionController"}
+	//
+	// Module separator
+	//
+	m["com.android.runtime"] = []string{
+		"libbase",
+		"libc++",
+		"libdexfile_support",
+		"liblzma",
+		"libunwindstack",
+		"prebuilt_libclang_rt",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.resolv"] = []string{"libcrypto", "libnetd_resolv", "libssl"}
+	//
+	// Module separator
+	//
+	m["com.android.tethering"] = []string{"libbase", "libc++", "libnativehelper_compat_libc++"}
+	//
+	// Module separator
+	//
+	m["com.android.wifi"] = []string{
+		"libbase",
+		"libc++",
+		"libcutils",
+		"libprocessgroup",
+		"libutils",
+		"libwifi-jni",
+		"wifi-service-resources",
+	}
+	//
+	// Module separator
+	//
+	return m
+}
 
 func init() {
 	android.RegisterModuleType("apex", BundleFactory)
@@ -1233,7 +1491,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if !ctx.Host() && !a.testApex {
 		for _, fi := range filesInfo {
 			if am, ok := fi.module.(android.ApexModule); ok {
-				if !am.AvailableFor(ctx.ModuleName()) {
+				// vndk {enabled:true} implies visibility to the vndk apex
+				if ccm, ok := fi.module.(*cc.Module); ok && ccm.IsVndk() && a.vndkApex {
+					continue
+				}
+
+				if !am.AvailableFor(ctx.ModuleName()) && !whitelistedApexAvailable(ctx.ModuleName(), a.vndkApex, fi.module) {
 					ctx.ModuleErrorf("requires %q that is not available for the APEX", fi.module.Name())
 					// don't stop so that we can report other violations in the same run
 				}
@@ -1280,6 +1543,25 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 
 	a.buildApexDependencyInfo(ctx)
+}
+
+func whitelistedApexAvailable(apex string, is_vndk bool, module android.Module) bool {
+	key := apex
+	key = strings.Replace(key, "test_", "", 1)
+	key = strings.Replace(key, "com.android.art.debug", "com.android.art", 1)
+	key = strings.Replace(key, "com.android.art.release", "com.android.art", 1)
+
+	moduleName := module.Name()
+	if strings.Contains(moduleName, "prebuilt_libclang_rt") {
+		// This module has variants that depend on the product being built.
+		moduleName = "prebuilt_libclang_rt"
+	}
+
+	if val, ok := apexAvailWl[key]; ok && android.InList(moduleName, val) {
+		return true
+	}
+
+	return false
 }
 
 func newApexBundle() *apexBundle {
