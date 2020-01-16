@@ -285,11 +285,14 @@ type dependencyTag struct {
 
 // For dependencies from an in-development version of an SDK member to frozen versions of the same member
 // e.g. libfoo -> libfoo.mysdk.11 and libfoo.mysdk.12
-type sdkMemberVesionedDepTag struct {
+type sdkMemberVersionedDepTag struct {
 	dependencyTag
 	member  string
 	version string
 }
+
+// Mark this tag so dependencies that use it are excluded from visibility enforcement.
+func (t sdkMemberVersionedDepTag) ExcludeFromVisibilityEnforcement() {}
 
 // Step 1: create dependencies from an SDK module to its members.
 func memberMutator(mctx android.BottomUpMutatorContext) {
@@ -337,7 +340,7 @@ func memberInterVersionMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(android.SdkAware); ok && m.IsInAnySdk() {
 		if !m.ContainingSdk().Unversioned() {
 			memberName := m.MemberName()
-			tag := sdkMemberVesionedDepTag{member: memberName, version: m.ContainingSdk().Version}
+			tag := sdkMemberVersionedDepTag{member: memberName, version: m.ContainingSdk().Version}
 			mctx.AddReverseDependency(mctx.Module(), tag, memberName)
 		}
 	}
