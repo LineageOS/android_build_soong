@@ -89,6 +89,9 @@ message MetricsBase {
 
   // The metrics for calling Ninja.
   repeated PerfInfo ninja_runs = 20;
+
+  // The metrics for the whole build
+  optional PerfInfo total = 21;
 }
 
 message PerfInfo {

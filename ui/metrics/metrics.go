@@ -30,6 +30,7 @@ const (
 	RunSoong     = "soong"
 	PrimaryNinja = "ninja"
 	TestRun      = "test"
+	Total        = "total"
 )
 
 type Metrics struct {
@@ -56,6 +57,8 @@ func (m *Metrics) SetTimeMetrics(perf soong_metrics_proto.PerfInfo) {
 	case PrimaryNinja:
 		m.metrics.NinjaRuns = append(m.metrics.NinjaRuns, &perf)
 		break
+	case Total:
+		m.metrics.Total = &perf
 	default:
 		// ignored
 	}
