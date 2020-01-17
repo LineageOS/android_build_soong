@@ -56,8 +56,12 @@ type BinaryLinkerProperties struct {
 }
 
 func init() {
-	android.RegisterModuleType("cc_binary", BinaryFactory)
-	android.RegisterModuleType("cc_binary_host", binaryHostFactory)
+	RegisterBinaryBuildComponents(android.InitRegistrationContext)
+}
+
+func RegisterBinaryBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("cc_binary", BinaryFactory)
+	ctx.RegisterModuleType("cc_binary_host", binaryHostFactory)
 }
 
 // cc_binary produces a binary that is runnable on a device.
