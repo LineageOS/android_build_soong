@@ -46,8 +46,10 @@ var (
 		"core-icu4j",
 		"core-oj",
 		"core-libart",
+		// TODO: Could this be all updatable bootclasspath jars?
 		"updatable-media",
 		"framework-mediaprovider",
+		"framework-sdkextensions",
 		"ike",
 	}
 )
