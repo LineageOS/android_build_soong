@@ -132,6 +132,7 @@ var VndkMustUseVendorVariantList = []string{
 	"libsqlite",
 	"libssl",
 	"libstagefright_amrnb_common",
+	"libstagefright_bufferpool@2.0",
 	"libstagefright_bufferqueue_helper",
 	"libstagefright_enc_common",
 	"libstagefright_flacdec",
