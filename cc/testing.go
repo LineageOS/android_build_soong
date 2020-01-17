@@ -23,6 +23,7 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	android.RegisterPrebuiltMutators(ctx)
 
 	RegisterCCBuildComponents(ctx)
+	RegisterBinaryBuildComponents(ctx)
 	RegisterLibraryBuildComponents(ctx)
 
 	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
@@ -305,8 +306,6 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 
 func CreateTestContext() *android.TestContext {
 	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("cc_binary", BinaryFactory)
-	ctx.RegisterModuleType("cc_binary_host", binaryHostFactory)
 	ctx.RegisterModuleType("cc_fuzz", FuzzFactory)
 	ctx.RegisterModuleType("cc_test", TestFactory)
 	ctx.RegisterModuleType("llndk_headers", llndkHeadersFactory)
