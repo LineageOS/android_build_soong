@@ -644,20 +644,38 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	a.generateAndroidBuildActions(ctx)
 
-	a.testConfig = tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config,
+	testConfig := tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config,
 		a.testProperties.Test_config_template, a.manifestPath, a.testProperties.Test_suites, a.testProperties.Auto_gen_config)
-	if a.overridableAppProperties.Package_name != nil {
-		fixedConfig := android.PathForModuleOut(ctx, "test_config_fixer", "AndroidTest.xml")
-		rule := android.NewRuleBuilder()
-		rule.Command().BuiltTool(ctx, "test_config_fixer").
-			FlagWithInput("--manifest ", a.manifestPath).
-			FlagWithArg("--package-name ", *a.overridableAppProperties.Package_name).
-			Input(a.testConfig).
-			Output(fixedConfig)
-		rule.Build(pctx, ctx, "fix_test_config", "fix test config")
-		a.testConfig = fixedConfig
-	}
+	a.testConfig = a.FixTestConfig(ctx, testConfig)
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
+}
+
+func (a *AndroidTest) FixTestConfig(ctx android.ModuleContext, testConfig android.Path) android.Path {
+	if testConfig == nil {
+		return nil
+	}
+
+	fixedConfig := android.PathForModuleOut(ctx, "test_config_fixer", "AndroidTest.xml")
+	rule := android.NewRuleBuilder()
+	command := rule.Command().BuiltTool(ctx, "test_config_fixer").Input(testConfig).Output(fixedConfig)
+	fixNeeded := false
+
+	if ctx.ModuleName() != a.installApkName {
+		fixNeeded = true
+		command.FlagWithArg("--test-file-name ", a.installApkName+".apk")
+	}
+
+	if a.overridableAppProperties.Package_name != nil {
+		fixNeeded = true
+		command.FlagWithInput("--manifest ", a.manifestPath).
+			FlagWithArg("--package-name ", *a.overridableAppProperties.Package_name)
+	}
+
+	if fixNeeded {
+		rule.Build(pctx, ctx, "fix_test_config", "fix test config")
+		return fixedConfig
+	}
+	return testConfig
 }
 
 func (a *AndroidTest) DepsMutator(ctx android.BottomUpMutatorContext) {
