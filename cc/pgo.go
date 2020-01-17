@@ -177,6 +177,10 @@ func (props *PgoProperties) addProfileUseFlags(ctx ModuleContext, flags Flags) F
 		// if profileFile gets updated
 		flags.CFlagsDeps = append(flags.CFlagsDeps, profileFilePath)
 		flags.LdFlagsDeps = append(flags.LdFlagsDeps, profileFilePath)
+
+		if props.isSampling() {
+			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-mllvm,-no-warn-sample-unused=true")
+		}
 	}
 	return flags
 }
