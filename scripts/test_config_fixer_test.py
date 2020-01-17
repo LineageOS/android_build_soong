@@ -67,5 +67,32 @@ class OverwritePackageNameTest(unittest.TestCase):
     self.assertEqual(expected, output.getvalue())
 
 
+class OverwriteTestFileNameTest(unittest.TestCase):
+  """ Unit tests for overwrite_test_file_name function """
+
+  test_config = (
+      '<?xml version="1.0" encoding="utf-8"?>\n'
+      '<configuration description="Runs some tests.">\n'
+      '    <target_preparer class="com.android.tradefed.targetprep.TestAppInstallSetup">\n'
+      '        <option name="test-file-name" value="%s"/>\n'
+      '    </target_preparer>\n'
+      '    <test class="com.android.tradefed.testtype.AndroidJUnitTest">\n'
+      '        <option name="package" value="com.android.foo"/>\n'
+      '        <option name="runtime-hint" value="20s"/>\n'
+      '    </test>\n'
+      '</configuration>\n')
+
+  def test_all(self):
+    doc = minidom.parseString(self.test_config % ("foo.apk"))
+
+    test_config_fixer.overwrite_test_file_name(doc, "bar.apk")
+    output = StringIO.StringIO()
+    test_config_fixer.write_xml(output, doc)
+
+    # Only the matching package name in a test node should be updated.
+    expected = self.test_config % ("bar.apk")
+    self.assertEqual(expected, output.getvalue())
+
+
 if __name__ == '__main__':
   unittest.main(verbosity=2)
