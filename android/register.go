@@ -127,6 +127,12 @@ type RegistrationContext interface {
 	RegisterModuleType(name string, factory ModuleFactory)
 	RegisterSingletonType(name string, factory SingletonFactory)
 	PreArchMutators(f RegisterMutatorFunc)
+
+	// Register pre arch mutators that are hard coded into mutator.go.
+	//
+	// Only registers mutators for testing, is a noop on the InitRegistrationContext.
+	HardCodedPreArchMutators(f RegisterMutatorFunc)
+
 	PreDepsMutators(f RegisterMutatorFunc)
 	PostDepsMutators(f RegisterMutatorFunc)
 }
@@ -178,6 +184,10 @@ func (ctx *initRegistrationContext) RegisterSingletonType(name string, factory S
 
 func (ctx *initRegistrationContext) PreArchMutators(f RegisterMutatorFunc) {
 	PreArchMutators(f)
+}
+
+func (ctx *initRegistrationContext) HardCodedPreArchMutators(f RegisterMutatorFunc) {
+	// Nothing to do as the mutators are hard code in preArch in mutator.go
 }
 
 func (ctx *initRegistrationContext) PreDepsMutators(f RegisterMutatorFunc) {

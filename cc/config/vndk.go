@@ -72,6 +72,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.nfc@1.2",
 	"android.hardware.oemlock@1.0",
 	"android.hardware.power.stats@1.0",
+	"android.hardware.power-ndk_platform",
 	"android.hardware.power@1.0",
 	"android.hardware.power@1.1",
 	"android.hardware.radio@1.4",

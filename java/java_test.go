@@ -1227,3 +1227,67 @@ func TestPatchModule(t *testing.T) {
 		checkPatchModuleFlag(t, ctx, "baz", expected)
 	})
 }
+
+func TestJavaSystemModules(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_system_modules {
+			name: "system-modules",
+			libs: ["system-module1", "system-module2"],
+		}
+		java_library {
+			name: "system-module1",
+			srcs: ["a.java"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+		java_library {
+			name: "system-module2",
+			srcs: ["b.java"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+		`)
+
+	// check the existence of the module
+	systemModules := ctx.ModuleForTests("system-modules", "android_common")
+
+	cmd := systemModules.Rule("jarsTosystemModules")
+
+	// make sure the command compiles against the supplied modules.
+	for _, module := range []string{"system-module1.jar", "system-module2.jar"} {
+		if !strings.Contains(cmd.Args["classpath"], module) {
+			t.Errorf("system modules classpath %v does not contain %q", cmd.Args["classpath"],
+				module)
+		}
+	}
+}
+
+func TestJavaSystemModulesImport(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_system_modules_import {
+			name: "system-modules",
+			libs: ["system-module1", "system-module2"],
+		}
+		java_import {
+			name: "system-module1",
+			jars: ["a.jar"],
+		}
+		java_import {
+			name: "system-module2",
+			jars: ["b.jar"],
+		}
+		`)
+
+	// check the existence of the module
+	systemModules := ctx.ModuleForTests("system-modules", "android_common")
+
+	cmd := systemModules.Rule("jarsTosystemModules")
+
+	// make sure the command compiles against the supplied modules.
+	for _, module := range []string{"system-module1.jar", "system-module2.jar"} {
+		if !strings.Contains(cmd.Args["classpath"], module) {
+			t.Errorf("system modules classpath %v does not contain %q", cmd.Args["classpath"],
+				module)
+		}
+	}
+}
