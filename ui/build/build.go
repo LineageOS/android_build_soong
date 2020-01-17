@@ -19,6 +19,8 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
+
+	"android/soong/ui/metrics"
 )
 
 // Ensures the out directory exists, and has the proper files to prevent kati
@@ -138,6 +140,9 @@ func Build(ctx Context, config Config, what int) {
 	ctx.Verboseln("Starting build with args:", config.Arguments())
 	ctx.Verboseln("Environment:", config.Environment().Environ())
 	ctx.Verbosef("Total RAM: %dGB", config.TotalRAM()/1024/1024/1024)
+
+	ctx.BeginTrace(metrics.Total, "total")
+	defer ctx.EndTrace()
 
 	if config.SkipMake() {
 		ctx.Verboseln("Skipping Make/Kati as requested")
