@@ -1305,6 +1305,87 @@ func TestOverrideAndroidTest(t *testing.T) {
 	}
 }
 
+func TestAndroidTest_FixTestConfig(t *testing.T) {
+	ctx, _ := testJava(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			package_name: "com.android.foo",
+			sdk_version: "current",
+		}
+
+		android_test {
+			name: "foo_test",
+			srcs: ["b.java"],
+			instrumentation_for: "foo",
+		}
+
+		android_test {
+			name: "bar_test",
+			srcs: ["b.java"],
+			package_name: "com.android.bar.test",
+			instrumentation_for: "foo",
+		}
+
+		override_android_test {
+			name: "baz_test",
+			base: "foo_test",
+			package_name: "com.android.baz.test",
+		}
+		`)
+
+	testCases := []struct {
+		moduleName    string
+		variantName   string
+		expectedFlags []string
+	}{
+		{
+			moduleName:  "foo_test",
+			variantName: "android_common",
+		},
+		{
+			moduleName:  "bar_test",
+			variantName: "android_common",
+			expectedFlags: []string{
+				"--manifest " + buildDir + "/.intermediates/bar_test/android_common/manifest_fixer/AndroidManifest.xml",
+				"--package-name com.android.bar.test",
+			},
+		},
+		{
+			moduleName:  "foo_test",
+			variantName: "android_common_baz_test",
+			expectedFlags: []string{
+				"--manifest " + buildDir +
+					"/.intermediates/foo_test/android_common_baz_test/manifest_fixer/AndroidManifest.xml",
+				"--package-name com.android.baz.test",
+				"--test-file-name baz_test.apk",
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		variant := ctx.ModuleForTests(test.moduleName, test.variantName)
+		params := variant.MaybeOutput("test_config_fixer/AndroidTest.xml")
+
+		if len(test.expectedFlags) > 0 {
+			if params.Rule == nil {
+				t.Errorf("test_config_fixer was expected to run, but didn't")
+			} else {
+				for _, flag := range test.expectedFlags {
+					if !strings.Contains(params.RuleParams.Command, flag) {
+						t.Errorf("Flag %q was not found in command: %q", flag, params.RuleParams.Command)
+					}
+				}
+			}
+		} else {
+			if params.Rule != nil {
+				t.Errorf("test_config_fixer was not expected to run, but did: %q", params.RuleParams.Command)
+			}
+		}
+
+	}
+}
+
 func TestAndroidAppImport(t *testing.T) {
 	ctx, _ := testJava(t, `
 		android_app_import {
