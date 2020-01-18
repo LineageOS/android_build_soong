@@ -15,14 +15,15 @@
 package java
 
 import (
-	"android/soong/android"
-	"android/soong/java/config"
 	"fmt"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+
+	"android/soong/android"
+	"android/soong/java/config"
 
 	"github.com/google/blueprint/pathtools"
 )

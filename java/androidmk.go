@@ -616,3 +616,16 @@ func androidMkWriteTestData(data android.Paths, ret *android.AndroidMkData) {
 		})
 	}
 }
+
+func (r *RuntimeResourceOverlay) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
+		Class:      "ETC",
+		OutputFile: android.OptionalPathForPath(r.outputFile),
+		Include:    "$(BUILD_SYSTEM)/soong_app_prebuilt.mk",
+		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+			func(entries *android.AndroidMkEntries) {
+				entries.SetPath("LOCAL_MODULE_PATH", r.installDir.ToMakePath())
+			},
+		},
+	}}
+}

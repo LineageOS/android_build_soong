@@ -1464,3 +1464,40 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 	}
 }
 */
+
+func TestRuntimeResourceOverlay(t *testing.T) {
+	ctx, config := testJava(t, `
+		runtime_resource_overlay {
+			name: "foo",
+			certificate: "platform",
+			product_specific: true,
+		}
+		runtime_resource_overlay {
+			name: "foo_themed",
+			certificate: "platform",
+			product_specific: true,
+			theme: "faza",
+		}
+		`)
+	m := ctx.ModuleForTests("foo", "android_common")
+	// Check cert signing flag.
+	signedApk := m.Output("signed/foo.apk")
+	signingFlag := signedApk.Args["certificates"]
+	expected := "build/make/target/product/security/platform.x509.pem build/make/target/product/security/platform.pk8"
+	if expected != signingFlag {
+		t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected, signingFlag)
+	}
+	// Check device location.
+	path := android.AndroidMkEntriesForTest(t, config, "", m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
+	expectedPath := []string{"/tmp/target/product/test_device/product/overlay"}
+	if !reflect.DeepEqual(path, expectedPath) {
+		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
+	}
+	// A themed module has a different device location
+	m = ctx.ModuleForTests("foo_themed", "android_common")
+	path = android.AndroidMkEntriesForTest(t, config, "", m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
+	expectedPath = []string{"/tmp/target/product/test_device/product/overlay/faza"}
+	if !reflect.DeepEqual(path, expectedPath) {
+		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
+	}
+}

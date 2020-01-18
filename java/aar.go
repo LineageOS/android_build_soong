@@ -15,10 +15,11 @@
 package java
 
 import (
-	"android/soong/android"
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"android/soong/android"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"

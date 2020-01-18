@@ -42,6 +42,10 @@ func init() {
 	initAndroidAppImportVariantGroupTypes()
 }
 
+func RegisterAppBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("runtime_resource_overlay", RuntimeResourceOverlayFactory)
+}
+
 // AndroidManifest.xml merging
 // package splits
 
@@ -970,6 +974,95 @@ func AndroidAppImportFactory() android.Module {
 
 	InitJavaModule(module, android.DeviceSupported)
 	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Apk")
+
+	return module
+}
+
+type RuntimeResourceOverlay struct {
+	android.ModuleBase
+	android.DefaultableModuleBase
+	aapt
+
+	properties RuntimeResourceOverlayProperties
+
+	outputFile android.Path
+	installDir android.InstallPath
+}
+
+type RuntimeResourceOverlayProperties struct {
+	// the name of a certificate in the default certificate directory or an android_app_certificate
+	// module name in the form ":module".
+	Certificate *string
+
+	// optional theme name. If specified, the overlay package will be applied
+	// only when the ro.boot.vendor.overlay.theme system property is set to the same value.
+	Theme *string
+
+	// if not blank, set to the version of the sdk to compile against.
+	// Defaults to compiling against the current platform.
+	Sdk_version *string
+
+	// if not blank, set the minimum version of the sdk that the compiled artifacts will run against.
+	// Defaults to sdk_version if not set.
+	Min_sdk_version *string
+}
+
+func (r *RuntimeResourceOverlay) DepsMutator(ctx android.BottomUpMutatorContext) {
+	sdkDep := decodeSdkDep(ctx, sdkContext(r))
+	if sdkDep.hasFrameworkLibs() {
+		r.aapt.deps(ctx, sdkDep)
+	}
+
+	cert := android.SrcIsModule(String(r.properties.Certificate))
+	if cert != "" {
+		ctx.AddDependency(ctx.Module(), certificateTag, cert)
+	}
+}
+
+func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Compile and link resources
+	r.aapt.hasNoCode = true
+	r.aapt.buildActions(ctx, r)
+
+	// Sign the built package
+	_, certificates := collectAppDeps(ctx, false)
+	certificates = processMainCert(r.ModuleBase, String(r.properties.Certificate), certificates, ctx)
+	signed := android.PathForModuleOut(ctx, "signed", r.Name()+".apk")
+	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates)
+
+	r.outputFile = signed
+	r.installDir = android.PathForModuleInstall(ctx, "overlay", String(r.properties.Theme))
+	ctx.InstallFile(r.installDir, r.outputFile.Base(), r.outputFile)
+}
+
+func (r *RuntimeResourceOverlay) sdkVersion() string {
+	return String(r.properties.Sdk_version)
+}
+
+func (r *RuntimeResourceOverlay) systemModules() string {
+	return ""
+}
+
+func (r *RuntimeResourceOverlay) minSdkVersion() string {
+	if r.properties.Min_sdk_version != nil {
+		return *r.properties.Min_sdk_version
+	}
+	return r.sdkVersion()
+}
+
+func (r *RuntimeResourceOverlay) targetSdkVersion() string {
+	return r.sdkVersion()
+}
+
+// runtime_resource_overlay generates a resource-only apk file that can overlay application and
+// system resources at run time.
+func RuntimeResourceOverlayFactory() android.Module {
+	module := &RuntimeResourceOverlay{}
+	module.AddProperties(
+		&module.properties,
+		&module.aaptProperties)
+
+	InitJavaModule(module, android.DeviceSupported)
 
 	return module
 }
