@@ -164,7 +164,7 @@ type Certificate struct {
 func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 	a.Module.deps(ctx)
 
-	if String(a.appProperties.Stl) == "c++_shared" && a.sdkVersion() == "" {
+	if String(a.appProperties.Stl) == "c++_shared" && !a.sdkVersion().specified() {
 		ctx.PropertyErrorf("stl", "sdk_version must be set in order to use c++_shared")
 	}
 
@@ -213,7 +213,7 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 // Returns true if the native libraries should be stored in the APK uncompressed and the
 // extractNativeLibs application flag should be set to false in the manifest.
 func (a *AndroidApp) useEmbeddedNativeLibs(ctx android.ModuleContext) bool {
-	minSdkVersion, err := sdkVersionToNumber(ctx, a.minSdkVersion())
+	minSdkVersion, err := a.minSdkVersion().effectiveVersion(ctx)
 	if err != nil {
 		ctx.PropertyErrorf("min_sdk_version", "invalid value %q: %s", a.minSdkVersion(), err)
 	}
@@ -1273,22 +1273,22 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 	ctx.InstallFile(r.installDir, r.outputFile.Base(), r.outputFile)
 }
 
-func (r *RuntimeResourceOverlay) sdkVersion() string {
-	return String(r.properties.Sdk_version)
+func (r *RuntimeResourceOverlay) sdkVersion() sdkSpec {
+	return sdkSpecFrom(String(r.properties.Sdk_version))
 }
 
 func (r *RuntimeResourceOverlay) systemModules() string {
 	return ""
 }
 
-func (r *RuntimeResourceOverlay) minSdkVersion() string {
+func (r *RuntimeResourceOverlay) minSdkVersion() sdkSpec {
 	if r.properties.Min_sdk_version != nil {
-		return *r.properties.Min_sdk_version
+		return sdkSpecFrom(*r.properties.Min_sdk_version)
 	}
 	return r.sdkVersion()
 }
 
-func (r *RuntimeResourceOverlay) targetSdkVersion() string {
+func (r *RuntimeResourceOverlay) targetSdkVersion() sdkSpec {
 	return r.sdkVersion()
 }
 
