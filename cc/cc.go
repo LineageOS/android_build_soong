@@ -1113,7 +1113,7 @@ func (ctx *moduleContextImpl) shouldCreateSourceAbiDump() bool {
 		// Host modules do not need ABI dumps.
 		return false
 	}
-	if ctx.isStubs() {
+	if ctx.isStubs() || ctx.isNDKStubLibrary() {
 		// Stubs do not need ABI dumps.
 		return false
 	}
