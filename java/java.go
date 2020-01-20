@@ -105,7 +105,7 @@ func DexpreoptedSystemServerJars(config android.Config) *[]string {
 // order (which is partial and non-deterministic). This pass adds additional dependencies between
 // jars, making the order total and deterministic. It also constructs a global ordered list.
 func systemServerJarsDepsMutator(ctx android.BottomUpMutatorContext) {
-	jars := dexpreopt.NonUpdatableSystemServerJars(ctx, dexpreoptGlobalConfig(ctx))
+	jars := dexpreopt.NonUpdatableSystemServerJars(ctx, dexpreopt.GetGlobalConfig(ctx))
 	name := ctx.ModuleName()
 	if android.InList(name, jars) {
 		dexpreoptedSystemServerJarsLock.Lock()

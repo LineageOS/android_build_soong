@@ -59,7 +59,7 @@ type DexpreoptProperties struct {
 }
 
 func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
-	global := dexpreoptGlobalConfig(ctx)
+	global := dexpreopt.GetGlobalConfig(ctx)
 
 	if global.DisablePreopt {
 		return true
@@ -96,7 +96,7 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
 }
 
 func odexOnSystemOther(ctx android.ModuleContext, installPath android.InstallPath) bool {
-	return dexpreopt.OdexOnSystemOtherByName(ctx.ModuleName(), android.InstallPathToOnDevicePath(ctx, installPath), dexpreoptGlobalConfig(ctx))
+	return dexpreopt.OdexOnSystemOtherByName(ctx.ModuleName(), android.InstallPathToOnDevicePath(ctx, installPath), dexpreopt.GetGlobalConfig(ctx))
 }
 
 func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.ModuleOutPath) android.ModuleOutPath {
@@ -105,7 +105,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 	}
 
 	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
-	global := dexpreoptGlobalConfig(ctx)
+	global := dexpreopt.GetGlobalConfig(ctx)
 	bootImage := defaultBootImageConfig(ctx)
 	dexFiles := bootImage.dexPathsDeps.Paths()
 	dexLocations := bootImage.dexLocationsDeps
