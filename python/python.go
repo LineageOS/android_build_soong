@@ -340,6 +340,11 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 			// dependencies later.
 			ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherSharedLibTag, "libsqlite")
 
+			if ctx.Device() {
+				ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherSharedLibTag,
+					"liblog")
+			}
+
 			if ctx.Target().Os.Bionic() {
 				ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherSharedLibTag,
 					"libc", "libdl", "libm")
