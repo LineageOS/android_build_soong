@@ -838,8 +838,8 @@ func archMutator(mctx BottomUpMutatorContext) {
 		osTargets = targets
 	}
 
-	// only the primary arch in the recovery partition
-	if os == Android && module.InstallInRecovery() {
+	// only the primary arch in the ramdisk / recovery partition
+	if os == Android && (module.InstallInRecovery() || module.InstallInRamdisk()) {
 		osTargets = []Target{osTargets[0]}
 	}
 
