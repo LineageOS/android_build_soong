@@ -47,13 +47,29 @@ type sdkContext interface {
 	targetSdkVersion() string
 }
 
+func UseApiFingerprint(ctx android.BaseModuleContext, v string) bool {
+	if v == ctx.Config().PlatformSdkCodename() &&
+		ctx.Config().UnbundledBuild() &&
+		!ctx.Config().UnbundledBuildUsePrebuiltSdks() &&
+		ctx.Config().IsEnvTrue("UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT") {
+		return true
+	}
+	return false
+}
+
 func sdkVersionOrDefault(ctx android.BaseModuleContext, v string) string {
+	var sdkVersion string
 	switch v {
 	case "", "none", "current", "test_current", "system_current", "core_current", "core_platform":
-		return ctx.Config().DefaultAppTargetSdk()
+		sdkVersion = ctx.Config().DefaultAppTargetSdk()
 	default:
-		return v
+		sdkVersion = v
 	}
+	if UseApiFingerprint(ctx, sdkVersion) {
+		apiFingerprint := ApiFingerprintPath(ctx)
+		sdkVersion += fmt.Sprintf(".$$(cat %s)", apiFingerprint.String())
+	}
+	return sdkVersion
 }
 
 // Returns a sdk version as a number.  For modules targeting an unreleased SDK (meaning it does not yet have a number)

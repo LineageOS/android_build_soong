@@ -376,15 +376,17 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		}
 
 		targetSdkVersion := ctx.Config().DefaultAppTargetSdk()
-		if targetSdkVersion == ctx.Config().PlatformSdkCodename() &&
-			ctx.Config().UnbundledBuild() &&
-			!ctx.Config().UnbundledBuildUsePrebuiltSdks() &&
-			ctx.Config().IsEnvTrue("UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT") {
-			apiFingerprint := java.ApiFingerprintPath(ctx)
-			targetSdkVersion += fmt.Sprintf(".$$(cat %s)", apiFingerprint.String())
-			implicitInputs = append(implicitInputs, apiFingerprint)
+		minSdkVersion := ctx.Config().DefaultAppTargetSdk()
+		if java.UseApiFingerprint(ctx, targetSdkVersion) {
+			targetSdkVersion += fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
+			implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
+		}
+		if java.UseApiFingerprint(ctx, minSdkVersion) {
+			minSdkVersion += fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
+			implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
 		}
 		optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
+		optFlags = append(optFlags, "--min_sdk_version "+minSdkVersion)
 
 		noticeFile := a.buildNoticeFile(ctx, a.Name()+suffix)
 		if noticeFile.Valid() {
