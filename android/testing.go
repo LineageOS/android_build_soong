@@ -50,9 +50,9 @@ func NewTestArchContext() *TestContext {
 
 type TestContext struct {
 	*Context
-	preArch, preDeps, postDeps []RegisterMutatorFunc
-	NameResolver               *NameResolver
-	config                     Config
+	preArch, preDeps, postDeps, finalDeps []RegisterMutatorFunc
+	NameResolver                          *NameResolver
+	config                                Config
 }
 
 func (ctx *TestContext) PreArchMutators(f RegisterMutatorFunc) {
@@ -72,12 +72,16 @@ func (ctx *TestContext) PostDepsMutators(f RegisterMutatorFunc) {
 	ctx.postDeps = append(ctx.postDeps, f)
 }
 
+func (ctx *TestContext) FinalDepsMutators(f RegisterMutatorFunc) {
+	ctx.finalDeps = append(ctx.finalDeps, f)
+}
+
 func (ctx *TestContext) Register(config Config) {
 	ctx.SetFs(config.fs)
 	if config.mockBpList != "" {
 		ctx.SetModuleListFile(config.mockBpList)
 	}
-	registerMutators(ctx.Context.Context, ctx.preArch, ctx.preDeps, ctx.postDeps)
+	registerMutators(ctx.Context.Context, ctx.preArch, ctx.preDeps, ctx.postDeps, ctx.finalDeps)
 
 	ctx.RegisterSingletonType("env", EnvSingleton)
 

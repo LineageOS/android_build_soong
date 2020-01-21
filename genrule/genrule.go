@@ -30,10 +30,18 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("genrule_defaults", defaultsFactory)
+	registerGenruleBuildComponents(android.InitRegistrationContext)
+}
 
-	android.RegisterModuleType("gensrcs", GenSrcsFactory)
-	android.RegisterModuleType("genrule", GenRuleFactory)
+func registerGenruleBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("genrule_defaults", defaultsFactory)
+
+	ctx.RegisterModuleType("gensrcs", GenSrcsFactory)
+	ctx.RegisterModuleType("genrule", GenRuleFactory)
+
+	ctx.FinalDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("genrule_tool_deps", toolDepsMutator).Parallel()
+	})
 }
 
 var (
@@ -166,7 +174,7 @@ func (g *Module) GeneratedDeps() android.Paths {
 	return g.outputDeps
 }
 
-func (g *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
+func toolDepsMutator(ctx android.BottomUpMutatorContext) {
 	if g, ok := ctx.Module().(*Module); ok {
 		for _, tool := range g.properties.Tools {
 			tag := hostToolDependencyTag{label: tool}
