@@ -136,6 +136,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libc",
 			no_libcrt: true,
 			nocrt: true,
+			stl: "none",
 			system_shared_libs: [],
 			recovery_available: true,
 		}
@@ -147,6 +148,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libm",
 			no_libcrt: true,
 			nocrt: true,
+			stl: "none",
 			system_shared_libs: [],
 			recovery_available: true,
 		}
@@ -158,6 +160,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libdl",
 			no_libcrt: true,
 			nocrt: true,
+			stl: "none",
 			system_shared_libs: [],
 			recovery_available: true,
 		}
