@@ -938,7 +938,14 @@ type archPropRoot struct {
 // returns lists of reflect.Types that contains the arch-variant properties inside structs for each
 // arch, multilib and target property.
 func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
-	propShards, _ := proptools.FilterPropertyStructSharded(props, filterArchStruct)
+	// Each property struct shard will be nested many times under the runtime generated arch struct,
+	// which can hit the limit of 64kB for the name of runtime generated structs.  They are nested
+	// 97 times now, which may grow in the future, plus there is some overhead for the containing
+	// type.  This number may need to be reduced if too many are added, but reducing it too far
+	// could cause problems if a single deeply nested property no longer fits in the name.
+	const maxArchTypeNameSize = 500
+
+	propShards, _ := proptools.FilterPropertyStructSharded(props, maxArchTypeNameSize, filterArchStruct)
 	if len(propShards) == 0 {
 		return nil
 	}
