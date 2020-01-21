@@ -55,10 +55,10 @@ func testContext(config android.Config) *android.TestContext {
 
 	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	ctx.RegisterModuleType("genrule", GenRuleFactory)
-	ctx.RegisterModuleType("gensrcs", GenSrcsFactory)
-	ctx.RegisterModuleType("genrule_defaults", defaultsFactory)
 	ctx.RegisterModuleType("tool", toolFactory)
+
+	registerGenruleBuildComponents(ctx)
+
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.Register(config)
 

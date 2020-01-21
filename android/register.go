@@ -102,7 +102,7 @@ func (ctx *Context) Register() {
 		ctx.RegisterSingletonType(t.name, t.factory)
 	}
 
-	registerMutators(ctx.Context, preArch, preDeps, postDeps)
+	registerMutators(ctx.Context, preArch, preDeps, postDeps, finalDeps)
 
 	// Register makevars after other singletons so they can export values through makevars
 	ctx.RegisterSingletonType("makevars", SingletonFactoryAdaptor(makeVarsSingletonFunc))
@@ -135,6 +135,7 @@ type RegistrationContext interface {
 
 	PreDepsMutators(f RegisterMutatorFunc)
 	PostDepsMutators(f RegisterMutatorFunc)
+	FinalDepsMutators(f RegisterMutatorFunc)
 }
 
 // Used to register build components from an init() method, e.g.
@@ -196,4 +197,8 @@ func (ctx *initRegistrationContext) PreDepsMutators(f RegisterMutatorFunc) {
 
 func (ctx *initRegistrationContext) PostDepsMutators(f RegisterMutatorFunc) {
 	PostDepsMutators(f)
+}
+
+func (ctx *initRegistrationContext) FinalDepsMutators(f RegisterMutatorFunc) {
+	FinalDepsMutators(f)
 }
