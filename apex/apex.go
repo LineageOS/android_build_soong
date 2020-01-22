@@ -1098,7 +1098,7 @@ func (a *apexBundle) IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizer
 }
 
 func (a *apexBundle) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
-	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
+	return ctx.Device() && (ctx.DeviceConfig().NativeCoverageEnabled() || ctx.DeviceConfig().ClangCoverageEnabled())
 }
 
 func (a *apexBundle) PreventInstall() {
