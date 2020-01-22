@@ -838,16 +838,8 @@ type sdkLibraryImportProperties struct {
 
 	Sdk_version *string
 
-	Installable *bool
-
 	// List of shared java libs that this module has dependencies to
 	Libs []string
-
-	// List of files to remove from the jar file(s)
-	Exclude_files []string
-
-	// List of directories to remove from the jar file(s)
-	Exclude_dirs []string
 }
 
 type sdkLibraryImport struct {
