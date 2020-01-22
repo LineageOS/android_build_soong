@@ -138,10 +138,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.incremental"] = []string{"libc++", "libdataloader", "libincfs"}
-	//
-	// Module separator
-	//
 	m["com.android.media"] = []string{
 		"android.hardware.cas@1.0",
 		"android.hardware.cas.native@1.0",
