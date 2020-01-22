@@ -316,6 +316,8 @@ type productVariables struct {
 	EnforceProductPartitionInterface *bool `json:",omitempty"`
 
 	InstallExtraFlattenedApexes *bool `json:",omitempty"`
+
+	BoardUsesRecoveryAsBoot *bool `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
