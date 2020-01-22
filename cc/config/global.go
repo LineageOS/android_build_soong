@@ -88,6 +88,7 @@ var (
 		"-Wl,--no-undefined-version",
 		"-Wl,--exclude-libs,libgcc.a",
 		"-Wl,--exclude-libs,libgcc_stripped.a",
+		"-Wl,--exclude-libs,libunwind_llvm.a",
 	}
 
 	deviceGlobalLldflags = append(ClangFilterUnknownLldflags(deviceGlobalLdflags),
@@ -164,6 +165,9 @@ func init() {
 		if ctx.Config().IsEnvTrue("AUTO_ZERO_INITIALIZE") {
 			flags = append(flags, "-ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang")
 		} else if ctx.Config().IsEnvTrue("AUTO_PATTERN_INITIALIZE") {
+			flags = append(flags, "-ftrivial-auto-var-init=pattern")
+		} else {
+			// Default to pattern initialization.
 			flags = append(flags, "-ftrivial-auto-var-init=pattern")
 		}
 

@@ -51,13 +51,23 @@ func (s *bpPropertySet) getValue(name string) interface{} {
 	return s.properties[name]
 }
 
-func (s *bpPropertySet) copy() bpPropertySet {
+func (s *bpPropertySet) deepCopy() *bpPropertySet {
 	propertiesCopy := make(map[string]interface{})
 	for p, v := range s.properties {
-		propertiesCopy[p] = v
+		var valueCopy interface{}
+		if ps, ok := v.(*bpPropertySet); ok {
+			valueCopy = ps.deepCopy()
+		} else if values, ok := v.([]string); ok {
+			valuesCopy := make([]string, len(values))
+			copy(valuesCopy, values)
+			valueCopy = valuesCopy
+		} else {
+			valueCopy = v
+		}
+		propertiesCopy[p] = valueCopy
 	}
 
-	return bpPropertySet{
+	return &bpPropertySet{
 		properties: propertiesCopy,
 		order:      append([]string(nil), s.order...),
 	}
@@ -95,15 +105,15 @@ func (s *bpPropertySet) insertAfter(position string, name string, value interfac
 }
 
 type bpModule struct {
-	bpPropertySet
+	*bpPropertySet
 	moduleType string
 }
 
 var _ android.BpModule = (*bpModule)(nil)
 
-func (m *bpModule) copy() *bpModule {
+func (m *bpModule) deepCopy() *bpModule {
 	return &bpModule{
-		bpPropertySet: m.bpPropertySet.copy(),
+		bpPropertySet: m.bpPropertySet.deepCopy(),
 		moduleType:    m.moduleType,
 	}
 }
@@ -134,8 +144,9 @@ func (f *bpFile) AddModule(module android.BpModule) {
 
 func (f *bpFile) newModule(moduleType string) *bpModule {
 	module := &bpModule{
-		moduleType: moduleType,
+		moduleType:    moduleType,
+		bpPropertySet: &bpPropertySet{},
 	}
-	(&module.bpPropertySet).init()
+	module.bpPropertySet.init()
 	return module
 }

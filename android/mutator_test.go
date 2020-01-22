@@ -15,9 +15,12 @@
 package android
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -184,4 +187,111 @@ func TestModuleString(t *testing.T) {
 	if !reflect.DeepEqual(moduleStrings, want) {
 		t.Errorf("want module String() values:\n%q\ngot:\n%q", want, moduleStrings)
 	}
+}
+
+func TestFinalDepsPhase(t *testing.T) {
+	ctx := NewTestContext()
+
+	finalGot := map[string]int{}
+
+	dep1Tag := struct {
+		blueprint.BaseDependencyTag
+	}{}
+	dep2Tag := struct {
+		blueprint.BaseDependencyTag
+	}{}
+
+	ctx.PostDepsMutators(func(ctx RegisterMutatorsContext) {
+		ctx.BottomUp("far_deps_1", func(ctx BottomUpMutatorContext) {
+			if !strings.HasPrefix(ctx.ModuleName(), "common_dep") {
+				ctx.AddFarVariationDependencies([]blueprint.Variation{}, dep1Tag, "common_dep_1")
+			}
+		})
+		ctx.BottomUp("variant", func(ctx BottomUpMutatorContext) {
+			ctx.CreateLocalVariations("a", "b")
+		})
+	})
+
+	ctx.FinalDepsMutators(func(ctx RegisterMutatorsContext) {
+		ctx.BottomUp("far_deps_2", func(ctx BottomUpMutatorContext) {
+			if !strings.HasPrefix(ctx.ModuleName(), "common_dep") {
+				ctx.AddFarVariationDependencies([]blueprint.Variation{}, dep2Tag, "common_dep_2")
+			}
+		})
+		ctx.BottomUp("final", func(ctx BottomUpMutatorContext) {
+			finalGot[ctx.Module().String()] += 1
+			ctx.VisitDirectDeps(func(mod Module) {
+				finalGot[fmt.Sprintf("%s -> %s", ctx.Module().String(), mod)] += 1
+			})
+		})
+	})
+
+	ctx.RegisterModuleType("test", mutatorTestModuleFactory)
+
+	bp := `
+		test {
+			name: "common_dep_1",
+		}
+		test {
+			name: "common_dep_2",
+		}
+		test {
+			name: "foo",
+		}
+	`
+
+	config := TestConfig(buildDir, nil, bp, nil)
+	ctx.Register(config)
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	FailIfErrored(t, errs)
+
+	finalWant := map[string]int{
+		"common_dep_1{variant:a}":                   1,
+		"common_dep_1{variant:b}":                   1,
+		"common_dep_2{variant:a}":                   1,
+		"common_dep_2{variant:b}":                   1,
+		"foo{variant:a}":                            1,
+		"foo{variant:a} -> common_dep_1{variant:a}": 1,
+		"foo{variant:a} -> common_dep_2{variant:a}": 1,
+		"foo{variant:b}":                            1,
+		"foo{variant:b} -> common_dep_1{variant:b}": 1,
+		"foo{variant:b} -> common_dep_2{variant:a}": 1,
+	}
+
+	if !reflect.DeepEqual(finalWant, finalGot) {
+		t.Errorf("want:\n%q\ngot:\n%q", finalWant, finalGot)
+	}
+}
+
+func TestNoCreateVariationsInFinalDeps(t *testing.T) {
+	ctx := NewTestContext()
+
+	checkErr := func() {
+		if err := recover(); err == nil || !strings.Contains(fmt.Sprintf("%s", err), "not allowed in FinalDepsMutators") {
+			panic("Expected FinalDepsMutators consistency check to fail")
+		}
+	}
+
+	ctx.FinalDepsMutators(func(ctx RegisterMutatorsContext) {
+		ctx.BottomUp("vars", func(ctx BottomUpMutatorContext) {
+			defer checkErr()
+			ctx.CreateVariations("a", "b")
+		})
+		ctx.BottomUp("local_vars", func(ctx BottomUpMutatorContext) {
+			defer checkErr()
+			ctx.CreateLocalVariations("a", "b")
+		})
+	})
+
+	ctx.RegisterModuleType("test", mutatorTestModuleFactory)
+	config := TestConfig(buildDir, nil, `test {name: "foo"}`, nil)
+	ctx.Register(config)
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	FailIfErrored(t, errs)
 }

@@ -171,11 +171,13 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 			deps.StaticLibs = append(deps.StaticLibs, "libc++demangle")
 		}
 		if ctx.toolchain().Bionic() {
-			if ctx.Arch().ArchType == android.Arm {
-				deps.StaticLibs = append(deps.StaticLibs, "libunwind_llvm")
-			}
 			if ctx.staticBinary() {
 				deps.StaticLibs = append(deps.StaticLibs, "libm", "libc")
+				if ctx.Arch().ArchType == android.Arm {
+					deps.StaticLibs = append(deps.StaticLibs, "libunwind_llvm")
+				} else {
+					deps.StaticLibs = append(deps.StaticLibs, "libgcc_stripped")
+				}
 			}
 		}
 	case "":
@@ -196,6 +198,8 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 		}
 		if ctx.Arch().ArchType == android.Arm {
 			deps.StaticLibs = append(deps.StaticLibs, "ndk_libunwind")
+		} else {
+			deps.StaticLibs = append(deps.StaticLibs, "libgcc_stripped")
 		}
 	default:
 		panic(fmt.Errorf("Unknown stl: %q", stl.Properties.SelectedStl))
