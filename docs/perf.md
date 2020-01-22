@@ -8,7 +8,7 @@ soong_ui has tracing built in, so that every build execution's trace can be
 viewed.  Just open `$OUT_DIR/build.trace.gz` in Chrome's <chrome://tracing>, or
 with [catapult's trace viewer][catapult trace_viewer]. The last few traces are
 stored in `build.trace.#.gz` (larger numbers are older). The associated logs
-are stored in `soong.#.log`.
+are stored in `soong.#.log` and `verbose.#.log.gz`.
 
 ![trace example](./trace_example.png)
 
@@ -31,29 +31,29 @@ or read a file that's going to change on every build.
 
 In most cases, we've found that the fast-path is slow because all of the
 `$(shell)` commands need to be re-executed to determine if their output changed.
-The `$OUT_DIR/soong.log` contains statistics from the regen check:
+The `$OUT_DIR/verbose.log.gz` contains statistics from the regen check:
 
 ```
-.../kati.go:127: *kati*: regen check time: 1.699207
-.../kati.go:127: *kati*: glob time (regen): 0.377193 / 33609
-.../kati.go:127: *kati*: shell time (regen): 1.313529 / 184
-.../kati.go:127: *kati*:  0.217 find device vendor -type f -name \*.pk8 -o -name verifiedboot\* -o -name \*.x509.pem -o -name oem\*.prop | sort
-.../kati.go:127: *kati*:  0.105 cd packages/apps/Dialer ; find -L . -type d -name "res"
-.../kati.go:127: *kati*:  0.035 find device vendor -maxdepth 4 -name '*_aux_variant_config.mk' -o -name '*_aux_os_config.mk' | sort
-.../kati.go:127: *kati*:  0.029 cd frameworks/base ; find -L  core/java graphics/java location/java media/java media/mca/effect/java media/mca/filterfw/java media/mca/filterpacks/java drm/java opengl/java sax/java telecomm/java telephony/java wifi/java lowpan/java keystore/java rs/java ../opt/telephony/src/java/android/telephony ../opt/telephony/src/java/android/telephony/gsm ../opt/net/voip/src/java/android/net/rtp ../opt/net/voip/src/java/android/net/sip   -name "*.html" -and -not -name ".*"
-.../kati.go:127: *kati*:  0.025 test -d device && find -L device -maxdepth 4 -path '*/marlin/BoardConfig.mk'
-.../kati.go:127: *kati*:  0.023 find packages/apps/Settings/tests/robotests -type f -name '*Test.java' | sed -e 's!.*\(com/google.*Test\)\.java!\1!' -e 's!.*\(com/android.*Test\)\.java!\1!' | sed 's!/!\.!g' | cat
-.../kati.go:127: *kati*:  0.022 test -d vendor && find -L vendor -maxdepth 4 -path '*/marlin/BoardConfig.mk'
-.../kati.go:127: *kati*:  0.017 cd cts/tests/tests/shortcutmanager/packages/launchermanifest ; find -L  ../src -name "*.java" -and -not -name ".*"
-.../kati.go:127: *kati*:  0.016 cd cts/tests/tests/shortcutmanager/packages/launchermanifest ; find -L  ../../common/src -name "*.java" -and -not -name ".*"
-.../kati.go:127: *kati*:  0.015 cd libcore && (find luni/src/test/java -name "*.java" 2> /dev/null) | grep -v -f java_tests_blacklist
-.../kati.go:127: *kati*: stat time (regen): 0.250384 / 4405
+verbose: *kati*: regen check time: 0.754030
+verbose: *kati*: glob time (regen): 0.545859 / 43840
+verbose: *kati*: shell time (regen): 0.278095 / 66 (59 unique)
+verbose: *kati*:   0.012 / 1 mkdir -p out/target/product/generic && echo Android/aosp_arm/generic:R/AOSP.MASTER/$(date -d @$(cat out/build_date.txt) +%m%d%H%M):eng/test-keys >out/target/product/generic/build_fingerprint.txt && grep " " out/target/product/generic/build_fingerprint.txt
+verbose: *kati*:   0.010 / 1 echo 'com.android.launcher3.config.FlagOverrideSampleTest com.android.launcher3.logging.FileLogTest com.android.launcher3.model.AddWorkspaceItemsTaskTest com.android.launcher3.model.CacheDataUpdatedTaskTest com.android.launcher3.model.DbDowngradeHelperTest com.android.launcher3.model.GridBackupTableTest com.android.launcher3.model.GridSizeMigrationTaskTest com.android.launcher3.model.PackageInstallStateChangedTaskTest com.android.launcher3.popup.PopupPopulatorTest com.android.launcher3.util.GridOccupancyTest com.android.launcher3.util.IntSetTest' | tr ' ' '\n' | cat
+verbose: *kati*:   0.010 / 1 cd cts/tests/framework/base/windowmanager ; find -L  * -name "Components.java" -and -not -name ".*"
+verbose: *kati*:   0.010 / 1 git -C test/framework/build log -s -n 1 --format="%cd" --date=format:"%Y%m%d_%H%M%S" 2>/dev/null
+verbose: *kati*:   0.009 / 2 cd development/samples/ShortcutDemo/publisher ; find -L  ../common/src -name "*.java" -and -not -name ".*"
+verbose: *kati*:   0.009 / 2 cd development/samples/ShortcutDemo/launcher ; find -L  ../common/src -name "*.java" -and -not -name ".*"
+verbose: *kati*:   0.009 / 1 if ! cmp -s out/target/product/generic/obj/CONFIG/kati_packaging/dist.mk.tmp out/target/product/generic/obj/CONFIG/kati_packaging/dist.mk; then mv out/target/product/generic/obj/CONFIG/kati_packaging/dist.mk.tmp out/target/product/generic/obj/CONFIG/kati_packaging/dist.mk; else rm out/target/product/generic/obj/CONFIG/kati_packaging/dist.mk.tmp; fi
+verbose: *kati*:   0.008 / 1 mkdir -p out/target/product/generic && echo R/AOSP.MASTER/$(cat out/build_number.txt):eng/test-keys >out/target/product/generic/build_thumbprint.txt && grep " " out/target/product/generic/build_thumbprint.txt
+verbose: *kati*:   0.007 / 1 echo 'com.android.customization.model.clock.BaseClockManagerTest com.android.customization.model.clock.ClockManagerTest com.android.customization.model.grid.GridOptionsManagerTest com.android.customization.model.theme.ThemeManagerTest' | tr ' ' '\n' | cat
+verbose: *kati*:   0.007 / 1 uname -sm
+verbose: *kati*: stat time (regen): 0.361907 / 1241
 ```
 
-In this case, the total time spent checking was 1.69 seconds, even though the
+In this case, the total time spent checking was 0.75 seconds, even though the
 other "(regen)" numbers add up to more than that (some parts are parallelized
-where possible). The biggest contributor is the `$(shell)` times -- 184
-executions took a total of 1.31 seconds. The top 10 longest shell functions are
+where possible). Often times, the biggest contributor is the `$(shell)` times
+-- in this case, 66 calls took 0.27s. The top 10 longest shell functions are
 printed.
 
 All the longest commands in this case are all variants of a call to `find`, but
@@ -96,7 +96,8 @@ cached by Kati:
 $(sort $(shell find device vendor -type -f -a -name \*.pk8 -o -name verifiedboot\* -o -name \*.x509.pem -o -name oem\*.prop))
 ```
 
-Kati is learning about the implicit `-a` in [this change](https://github.com/google/kati/pull/132)
+Kati has now learned about the implicit `-a`, so this particular change is no
+longer necessary, but the basic concept holds.
 
 #### Kati regens too often
 
@@ -112,6 +113,46 @@ The state is stored in `$OUT_DIR/.kati_stamp*` files, and can be (partially)
 read with the `ckati_stamp_dump` tool in prebuilts/build-tools. More debugging
 is available when ckati is run with `--regen_debug`, but that can be a lot of
 data to understand.
+
+#### Debugging the slow path
+
+Kati will now dump out information about which Makefiles took the most time to
+execute. This is also in the `verbose.log.gz` file:
+
+```
+verbose: *kati*: included makefiles: 73.640833 / 232810 (1066 unique)
+verbose: *kati*:  18.389 /     1 out/soong/Android-aosp_arm.mk
+verbose: *kati*:  13.137 / 20144 build/make/core/soong_cc_prebuilt.mk
+verbose: *kati*:  11.743 / 27666 build/make/core/base_rules.mk
+verbose: *kati*:   2.289 /     1 art/Android.mk
+verbose: *kati*:   2.054 /     1 art/build/Android.cpplint.mk
+verbose: *kati*:   1.955 / 28269 build/make/core/clear_vars.mk
+verbose: *kati*:   1.795 /   283 build/make/core/package.mk
+verbose: *kati*:   1.790 /   283 build/make/core/package_internal.mk
+verbose: *kati*:   1.757 / 17382 build/make/core/link_type.mk
+verbose: *kati*:   1.078 /   297 build/make/core/aapt2.mk
+```
+
+This shows that soong_cc_prebuilt.mk was included 20144 times, for a total time
+spent of 13.137 secounds. While Android-aosp_arm.mk was only included once, and
+took 18.389 seconds. In this case, Android-aosp_arm.mk is the only file that
+includes soong_cc_prebuilt.mk, so we can safely assume that 13 of the 18 seconds
+in Android-aosp_arm.mk was actually spent within soong_cc_prebuilt.mk (or
+something that it included, like base_rules.mk).
+
+By default this only includes the top 10 entries, but you can ask for the stats
+for any makefile to be printed with `$(KATI_profile_makefile)`:
+
+```
+$(KATI_profile_makefile build/make/core/product.mk)
+```
+
+With these primitives, it's possible to get the timing information for small
+chunks, or even single lines, of a makefile. Just move the lines you want to
+measure into a new makefile, and replace their use with an `include` of the
+new makefile. It's possible to analyze where the time is being spent by doing
+a binary search using this method, but you do need to be careful not to split
+conditionals across two files (the ifeq/else/endif must all be in the same file).
 
 ### Ninja
 
@@ -164,15 +205,14 @@ use, disk bandwidth, etc) may also be necessary.
 
 ### Common
 
-#### mm
+### <= Android 10 (Q): mm
 
 Soong always loads the entire module graph, so as modules convert from Make to
 Soong, `mm` is becoming closer to `mma`. This produces more correct builds, but
 does slow down builds, as we need to verify/produce/load a larger build graph.
 
-We're exploring a few options to speed up build startup, one being [an
-experimental set of ninja patches][ninja parse optimization],
-though that's not the current path we're working towards.
+As of Android Q, loading large build graphs is fast, and in Android R, `mm` is
+now an alias of `mma`.
 
 ### Android 8.1 (Oreo MR1)
 
