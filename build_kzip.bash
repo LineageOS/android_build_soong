@@ -14,6 +14,7 @@
 
 : ${BUILD_NUMBER:=$(uuidgen)}
 : ${KYTHE_KZIP_ENCODING:=proto}
+export KYTHE_KZIP_ENCODING
 
 # The extraction might fail for some source files, so run with -k and then check that
 # sufficiently many files were generated.
