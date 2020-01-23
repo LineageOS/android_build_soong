@@ -291,6 +291,9 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
 	ctx.RegisterModuleType("override_apex", overrideApexFactory)
 
+	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
+
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterModuleType("cc_test", cc.TestFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
@@ -303,9 +306,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	java.RegisterAppBuildComponents(ctx)
 	ctx.RegisterModuleType("java_sdk_library", java.SdkLibraryFactory)
 
-	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
-	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
 
 	ctx.Register(config)
@@ -599,7 +600,7 @@ func TestDefaults(t *testing.T) {
 			apex_available: [ "myapex" ],
 		}
 	`)
-	ensureExactContents(t, ctx, "myapex", []string{
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
 		"etc/myetc",
 		"javalib/myjar.jar",
 		"lib64/mylib.so",
@@ -764,7 +765,7 @@ func TestApexWithStubs(t *testing.T) {
 	// Ensure that genstub is invoked with --apex
 	ensureContains(t, "--apex", ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_3").Rule("genStubSrc").Args["flags"])
 
-	ensureExactContents(t, ctx, "myapex", []string{
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
 		"lib64/mylib.so",
 		"lib64/mylib3.so",
 		"lib64/mylib4.so",
@@ -1603,12 +1604,13 @@ func TestHeaderLibsDependency(t *testing.T) {
 
 type fileInApex struct {
 	path   string // path in apex
+	src    string // src path
 	isLink bool
 }
 
-func getFiles(t *testing.T, ctx *android.TestContext, moduleName string) []fileInApex {
+func getFiles(t *testing.T, ctx *android.TestContext, moduleName, variant string) []fileInApex {
 	t.Helper()
-	apexRule := ctx.ModuleForTests(moduleName, "android_common_"+moduleName+"_image").Rule("apexRule")
+	apexRule := ctx.ModuleForTests(moduleName, variant).Rule("apexRule")
 	copyCmds := apexRule.Args["copy_commands"]
 	imageApexDir := "/image.apex/"
 	var ret []fileInApex
@@ -1618,7 +1620,7 @@ func getFiles(t *testing.T, ctx *android.TestContext, moduleName string) []fileI
 			continue
 		}
 		terms := strings.Split(cmd, " ")
-		var dst string
+		var dst, src string
 		var isLink bool
 		switch terms[0] {
 		case "mkdir":
@@ -1627,6 +1629,7 @@ func getFiles(t *testing.T, ctx *android.TestContext, moduleName string) []fileI
 				t.Fatal("copyCmds contains invalid cp command", cmd)
 			}
 			dst = terms[len(terms)-1]
+			src = terms[len(terms)-2]
 			isLink = false
 		case "ln":
 			if len(terms) != 3 && len(terms) != 4 {
@@ -1634,6 +1637,7 @@ func getFiles(t *testing.T, ctx *android.TestContext, moduleName string) []fileI
 				t.Fatal("copyCmds contains invalid ln command", cmd)
 			}
 			dst = terms[len(terms)-1]
+			src = terms[len(terms)-2]
 			isLink = true
 		default:
 			t.Fatalf("copyCmds should contain mkdir/cp commands only: %q", cmd)
@@ -1644,17 +1648,18 @@ func getFiles(t *testing.T, ctx *android.TestContext, moduleName string) []fileI
 				t.Fatal("copyCmds should copy a file to image.apex/", cmd)
 			}
 			dstFile := dst[index+len(imageApexDir):]
-			ret = append(ret, fileInApex{path: dstFile, isLink: isLink})
+			ret = append(ret, fileInApex{path: dstFile, src: src, isLink: isLink})
 		}
 	}
 	return ret
 }
 
-func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName string, files []string) {
+func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, variant string, files []string) {
+	t.Helper()
 	var failed bool
 	var surplus []string
 	filesMatched := make(map[string]bool)
-	for _, file := range getFiles(t, ctx, moduleName) {
+	for _, file := range getFiles(t, ctx, moduleName, variant) {
 		for _, expected := range files {
 			if matched, _ := path.Match(expected, file.path); matched {
 				filesMatched[expected] = true
@@ -1725,7 +1730,7 @@ func TestVndkApexCurrent(t *testing.T) {
 		}
 	`+vndkLibrariesTxtFiles("current"))
 
-	ensureExactContents(t, ctx, "myapex", []string{
+	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib/libvndksp.so",
 		"lib64/libvndk.so",
@@ -1785,7 +1790,7 @@ func TestVndkApexWithPrebuilt(t *testing.T) {
 			"libvndk.arm.so": nil,
 		}))
 
-	ensureExactContents(t, ctx, "myapex", []string{
+	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib/libvndk.arm.so",
 		"lib64/libvndk.so",
@@ -1876,7 +1881,7 @@ func TestVndkApexVersion(t *testing.T) {
 			"libvndk27_x86_64.so": nil,
 		}))
 
-	ensureExactContents(t, ctx, "myapex_v27", []string{
+	ensureExactContents(t, ctx, "myapex_v27", "android_common_image", []string{
 		"lib/libvndk27_arm.so",
 		"lib64/libvndk27_arm64.so",
 		"etc/*",
@@ -1949,7 +1954,7 @@ func TestVndkApexNameRule(t *testing.T) {
 		}`+vndkLibrariesTxtFiles("28", "current"))
 
 	assertApexName := func(expected, moduleName string) {
-		bundle := ctx.ModuleForTests(moduleName, "android_common_"+moduleName+"_image").Module().(*apexBundle)
+		bundle := ctx.ModuleForTests(moduleName, "android_common_image").Module().(*apexBundle)
 		actual := proptools.String(bundle.properties.Apex_name)
 		if !reflect.DeepEqual(actual, expected) {
 			t.Errorf("Got '%v', expected '%v'", actual, expected)
@@ -1997,7 +2002,7 @@ func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 			},
 		}))
 
-	ensureExactContents(t, ctx, "myapex", []string{
+	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib64/libvndk.so",
 		"etc/*",
@@ -2093,7 +2098,7 @@ func TestVndkApexWithBinder32(t *testing.T) {
 		}),
 	)
 
-	ensureExactContents(t, ctx, "myapex_v27", []string{
+	ensureExactContents(t, ctx, "myapex_v27", "android_common_image", []string{
 		"lib/libvndk27binder32.so",
 		"etc/*",
 	})
@@ -3437,7 +3442,7 @@ func TestJavaSDKLibrary(t *testing.T) {
 	}))
 
 	// java_sdk_library installs both impl jar and permission XML
-	ensureExactContents(t, ctx, "myapex", []string{
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
 		"javalib/foo.jar",
 		"etc/permissions/foo.xml",
 	})
@@ -3595,13 +3600,13 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 	}
 
 	ctx, _ := testApex(t, bp, withUnbundledBuild)
-	files := getFiles(t, ctx, "myapex")
+	files := getFiles(t, ctx, "myapex", "android_common_myapex_image")
 	ensureRealfileExists(t, files, "javalib/myjar.jar")
 	ensureRealfileExists(t, files, "lib64/mylib.so")
 	ensureRealfileExists(t, files, "lib64/myotherlib.so")
 
 	ctx, _ = testApex(t, bp)
-	files = getFiles(t, ctx, "myapex")
+	files = getFiles(t, ctx, "myapex", "android_common_myapex_image")
 	ensureRealfileExists(t, files, "javalib/myjar.jar")
 	ensureRealfileExists(t, files, "lib64/mylib.so")
 	ensureSymlinkExists(t, files, "lib64/myotherlib.so") // this is symlink
