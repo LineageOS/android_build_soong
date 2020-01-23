@@ -351,7 +351,7 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 	if lib, ok := m.linker.(libraryInterface); ok {
 		useCoreVariant := m.VndkVersion() == mctx.DeviceConfig().PlatformVndkVersion() &&
 			mctx.DeviceConfig().VndkUseCoreVariant() && !m.MustUseVendorVariant()
-		return lib.shared() && m.UseVndk() && m.IsVndk() && !m.isVndkExt() && !useCoreVariant
+		return lib.shared() && m.inVendor() && m.IsVndk() && !m.isVndkExt() && !useCoreVariant
 	}
 	return false
 }
@@ -670,7 +670,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		if m.Target().NativeBridge == android.NativeBridgeEnabled {
 			return nil, "", false
 		}
-		if !m.UseVndk() || !m.IsForPlatform() || !m.installable() || !m.inVendor() {
+		if !m.UseVndk() || !m.installable() || !m.inVendor() {
 			return nil, "", false
 		}
 		l, ok := m.linker.(vndkSnapshotLibraryInterface)
