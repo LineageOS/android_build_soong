@@ -347,7 +347,7 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 // Mark the direct and transitive dependencies of apex bundles so that they
 // can be built for the apex bundles.
 func apexDepsMutator(mctx android.BottomUpMutatorContext) {
-	if a, ok := mctx.Module().(*apexBundle); ok {
+	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
 		apexBundleName := mctx.ModuleName()
 		mctx.WalkDeps(func(child, parent android.Module) bool {
 			depName := mctx.OtherModuleName(child)
@@ -375,7 +375,7 @@ func apexDepsMutator(mctx android.BottomUpMutatorContext) {
 func apexMutator(mctx android.BottomUpMutatorContext) {
 	if am, ok := mctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
 		am.CreateApexVariations(mctx)
-	} else if _, ok := mctx.Module().(*apexBundle); ok {
+	} else if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
 		// apex bundle itself is mutated so that it and its modules have same
 		// apex variant.
 		apexBundleName := mctx.ModuleName()
