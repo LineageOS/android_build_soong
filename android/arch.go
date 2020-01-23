@@ -926,16 +926,31 @@ func filterToArch(targets []Target, arch ArchType) []Target {
 	return targets
 }
 
-// createArchType takes a reflect.Type that is either a struct or a pointer to a struct, and returns a list of
-// reflect.Type that contains the arch-variant properties inside structs for each architecture, os, target, multilib,
-// etc.
-func createArchType(props reflect.Type) []reflect.Type {
-	propShards, _ := proptools.FilterPropertyStructSharded(props, filterArchStruct)
+type archPropTypeDesc struct {
+	arch, multilib, target reflect.Type
+}
+
+type archPropRoot struct {
+	Arch, Multilib, Target interface{}
+}
+
+// createArchPropTypeDesc takes a reflect.Type that is either a struct or a pointer to a struct, and
+// returns lists of reflect.Types that contains the arch-variant properties inside structs for each
+// arch, multilib and target property.
+func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
+	// Each property struct shard will be nested many times under the runtime generated arch struct,
+	// which can hit the limit of 64kB for the name of runtime generated structs.  They are nested
+	// 97 times now, which may grow in the future, plus there is some overhead for the containing
+	// type.  This number may need to be reduced if too many are added, but reducing it too far
+	// could cause problems if a single deeply nested property no longer fits in the name.
+	const maxArchTypeNameSize = 500
+
+	propShards, _ := proptools.FilterPropertyStructSharded(props, maxArchTypeNameSize, filterArchStruct)
 	if len(propShards) == 0 {
 		return nil
 	}
 
-	var ret []reflect.Type
+	var ret []archPropTypeDesc
 	for _, props := range propShards {
 
 		variantFields := func(names []string) []reflect.StructField {
@@ -1011,20 +1026,12 @@ func createArchType(props reflect.Type) []reflect.Type {
 		}
 
 		targetType := reflect.StructOf(variantFields(targets))
-		ret = append(ret, reflect.StructOf([]reflect.StructField{
-			{
-				Name: "Arch",
-				Type: archType,
-			},
-			{
-				Name: "Multilib",
-				Type: multilibType,
-			},
-			{
-				Name: "Target",
-				Type: targetType,
-			},
-		}))
+
+		ret = append(ret, archPropTypeDesc{
+			arch:     reflect.PtrTo(archType),
+			multilib: reflect.PtrTo(multilibType),
+			target:   reflect.PtrTo(targetType),
+		})
 	}
 	return ret
 }
@@ -1036,11 +1043,20 @@ func filterArchStruct(field reflect.StructField, prefix string) (bool, reflect.S
 		// 16-bit limit on structure name length. The name is constructed
 		// based on the Go source representation of the structure, so
 		// the tag names count towards that length.
-		//
-		// TODO: handle the uncommon case of other tags being involved
-		if field.Tag == `android:"arch_variant"` {
-			field.Tag = ""
+
+		androidTag := field.Tag.Get("android")
+		values := strings.Split(androidTag, ",")
+
+		if string(field.Tag) != `android:"`+strings.Join(values, ",")+`"` {
+			panic(fmt.Errorf("unexpected tag format %q", field.Tag))
 		}
+		// these tags don't need to be present in the runtime generated struct type.
+		values = RemoveListFromList(values, []string{"arch_variant", "variant_prepend", "path"})
+		if len(values) > 0 {
+			panic(fmt.Errorf("unknown tags %q in field %q", values, prefix+field.Name))
+		}
+
+		field.Tag = ""
 		return true, field
 	}
 	return false, field
@@ -1069,12 +1085,16 @@ func InitArchModule(m Module) {
 		}
 
 		archPropTypes := archPropTypeMap.Once(NewCustomOnceKey(t), func() interface{} {
-			return createArchType(t)
-		}).([]reflect.Type)
+			return createArchPropTypeDesc(t)
+		}).([]archPropTypeDesc)
 
 		var archProperties []interface{}
 		for _, t := range archPropTypes {
-			archProperties = append(archProperties, reflect.New(t).Interface())
+			archProperties = append(archProperties, &archPropRoot{
+				Arch:     reflect.Zero(t.arch).Interface(),
+				Multilib: reflect.Zero(t.multilib).Interface(),
+				Target:   reflect.Zero(t.target).Interface(),
+			})
 		}
 		base.archProperties = append(base.archProperties, archProperties)
 		m.AddProperties(archProperties...)
@@ -1087,6 +1107,13 @@ var variantReplacer = strings.NewReplacer("-", "_", ".", "_")
 
 func (m *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 	dst interface{}, src reflect.Value, field, srcPrefix string) reflect.Value {
+
+	if src.Kind() == reflect.Ptr {
+		if src.IsNil() {
+			return src
+		}
+		src = src.Elem()
+	}
 
 	src = src.FieldByName(field)
 	if !src.IsValid() {
@@ -1134,7 +1161,7 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 		for _, archProperties := range m.archProperties[i] {
 			archPropValues := reflect.ValueOf(archProperties).Elem()
 
-			targetProp := archPropValues.FieldByName("Target")
+			targetProp := archPropValues.FieldByName("Target").Elem()
 
 			// Handle host-specific properties in the form:
 			// target: {
@@ -1229,9 +1256,9 @@ func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 		for _, archProperties := range m.archProperties[i] {
 			archPropValues := reflect.ValueOf(archProperties).Elem()
 
-			archProp := archPropValues.FieldByName("Arch")
-			multilibProp := archPropValues.FieldByName("Multilib")
-			targetProp := archPropValues.FieldByName("Target")
+			archProp := archPropValues.FieldByName("Arch").Elem()
+			multilibProp := archPropValues.FieldByName("Multilib").Elem()
+			targetProp := archPropValues.FieldByName("Target").Elem()
 
 			// Handle arch-specific properties in the form:
 			// arch: {

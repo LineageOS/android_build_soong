@@ -55,6 +55,24 @@ func TestFilterArchStruct(t *testing.T) {
 			filtered: true,
 		},
 		{
+			name: "tags",
+			in: &struct {
+				A *string `android:"arch_variant"`
+				B *string `android:"arch_variant,path"`
+				C *string `android:"arch_variant,path,variant_prepend"`
+				D *string `android:"path,variant_prepend,arch_variant"`
+				E *string `android:"path"`
+				F *string
+			}{},
+			out: &struct {
+				A *string
+				B *string
+				C *string
+				D *string
+			}{},
+			filtered: true,
+		},
+		{
 			name: "all filtered",
 			in: &struct {
 				A *string
