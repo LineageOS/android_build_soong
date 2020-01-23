@@ -28,6 +28,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.camera.device@3.4",
 	"android.hardware.camera.provider@2.4",
 	"android.hardware.fastboot@1.0",
+	"android.hardware.light-ndk_platform",
 	"android.hardware.media.bufferpool@1.0",
 	"android.hardware.neuralnetworks@1.0",
 	"android.hardware.neuralnetworks@1.1",
