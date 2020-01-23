@@ -473,6 +473,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "apex/apex_test.go",
+        "apex/vndk_test.go",
     ],
     pluginFor: ["soong_build"],
 }
