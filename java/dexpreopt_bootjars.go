@@ -190,7 +190,18 @@ func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]and
 	if skipDexpreoptBootJars(ctx) {
 		return nil
 	}
-	return artBootImageConfig(ctx).imagesDeps
+
+	// Include dexpreopt files for the primary boot image.
+	files := artBootImageConfig(ctx).imagesDeps
+
+	// For JIT-zygote config, also include dexpreopt files for the primary JIT-zygote image.
+	if dexpreoptGlobalConfig(ctx).UseApexImage {
+		for arch, paths := range artJZBootImageConfig(ctx).imagesDeps {
+			files[arch] = append(files[arch], paths...)
+		}
+	}
+
+	return files
 }
 
 // dexpreoptBoot singleton rules
