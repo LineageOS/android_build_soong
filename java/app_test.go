@@ -1471,6 +1471,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 			name: "foo",
 			certificate: "platform",
 			product_specific: true,
+			aaptflags: ["--keep-raw-values"],
 		}
 		runtime_resource_overlay {
 			name: "foo_themed",
@@ -1480,6 +1481,15 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 		}
 		`)
 	m := ctx.ModuleForTests("foo", "android_common")
+
+	// Check AAPT2 link flags.
+	aapt2Flags := m.Output("package-res.apk").Args["flags"]
+	expectedFlags := []string{"--keep-raw-values", "--no-resource-deduping", "--no-resource-removal"}
+	absentFlags := android.RemoveListFromList(expectedFlags, strings.Split(aapt2Flags, " "))
+	if len(absentFlags) > 0 {
+		t.Errorf("expected values, %q are missing in aapt2 link flags, %q", absentFlags, aapt2Flags)
+	}
+
 	// Check cert signing flag.
 	signedApk := m.Output("signed/foo.apk")
 	signingFlag := signedApk.Args["certificates"]
