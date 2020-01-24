@@ -22,6 +22,10 @@ type ImageInterface interface {
 	// CoreVariantNeeded should return true if the module needs a core variant (installed on the system image).
 	CoreVariantNeeded(ctx BaseModuleContext) bool
 
+	// RamdiskVariantNeeded should return true if the module needs a ramdisk variant (installed on the
+	// ramdisk partition).
+	RamdiskVariantNeeded(ctx BaseModuleContext) bool
+
 	// RecoveryVariantNeeded should return true if the module needs a recovery variant (installed on the
 	// recovery partition).
 	RecoveryVariantNeeded(ctx BaseModuleContext) bool
@@ -46,6 +50,9 @@ const (
 
 	// RecoveryVariation means a module to be installed to recovery image.
 	RecoveryVariation string = "recovery"
+
+	// RamdiskVariation means a module to be installed to ramdisk image.
+	RamdiskVariation string = "ramdisk"
 )
 
 // imageMutator creates variants for modules that implement the ImageInterface that
@@ -62,6 +69,9 @@ func imageMutator(ctx BottomUpMutatorContext) {
 
 		if m.CoreVariantNeeded(ctx) {
 			variations = append(variations, CoreVariation)
+		}
+		if m.RamdiskVariantNeeded(ctx) {
+			variations = append(variations, RamdiskVariation)
 		}
 		if m.RecoveryVariantNeeded(ctx) {
 			variations = append(variations, RecoveryVariation)

@@ -223,11 +223,15 @@ type BaseProperties struct {
 	// file
 	Logtags []string
 
+	// Make this module available when building for ramdisk
+	Ramdisk_available *bool
+
 	// Make this module available when building for recovery
 	Recovery_available *bool
 
 	// Set by imageMutator
 	CoreVariantNeeded     bool     `blueprint:"mutated"`
+	RamdiskVariantNeeded  bool     `blueprint:"mutated"`
 	RecoveryVariantNeeded bool     `blueprint:"mutated"`
 	ExtraVariants         []string `blueprint:"mutated"`
 
@@ -290,6 +294,7 @@ type ModuleContextIntf interface {
 	isVndkExt() bool
 	inProduct() bool
 	inVendor() bool
+	inRamdisk() bool
 	inRecovery() bool
 	shouldCreateSourceAbiDump() bool
 	selectedStl() string
@@ -878,8 +883,16 @@ func (c *Module) inVendor() bool {
 	return c.Properties.ImageVariationPrefix == VendorVariationPrefix
 }
 
+func (c *Module) InRamdisk() bool {
+	return c.ModuleBase.InRamdisk() || c.ModuleBase.InstallInRamdisk()
+}
+
 func (c *Module) InRecovery() bool {
 	return c.ModuleBase.InRecovery() || c.ModuleBase.InstallInRecovery()
+}
+
+func (c *Module) OnlyInRamdisk() bool {
+	return c.ModuleBase.InstallInRamdisk()
 }
 
 func (c *Module) OnlyInRecovery() bool {
@@ -1018,7 +1031,7 @@ func (ctx *moduleContextImpl) header() bool {
 }
 
 func (ctx *moduleContextImpl) useSdk() bool {
-	if ctx.ctx.Device() && !ctx.useVndk() && !ctx.inRecovery() && !ctx.ctx.Fuchsia() {
+	if ctx.ctx.Device() && !ctx.useVndk() && !ctx.inRamdisk() && !ctx.inRecovery() && !ctx.ctx.Fuchsia() {
 		return String(ctx.mod.Properties.Sdk_version) != ""
 	}
 	return false
@@ -1088,6 +1101,10 @@ func (ctx *moduleContextImpl) inProduct() bool {
 
 func (ctx *moduleContextImpl) inVendor() bool {
 	return ctx.mod.inVendor()
+}
+
+func (ctx *moduleContextImpl) inRamdisk() bool {
+	return ctx.mod.InRamdisk()
 }
 
 func (ctx *moduleContextImpl) inRecovery() bool {
@@ -1335,6 +1352,8 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		// .vendor suffix is added for backward compatibility with VNDK snapshot whose names with
 		// such suffixes are already hard-coded in prebuilts/vndk/.../Android.bp.
 		c.Properties.SubName += vendorSuffix
+	} else if c.InRamdisk() && !c.OnlyInRamdisk() {
+		c.Properties.SubName += ramdiskSuffix
 	} else if c.InRecovery() && !c.OnlyInRecovery() {
 		c.Properties.SubName += recoverySuffix
 	}
@@ -1444,7 +1463,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		// (unless it is explicitly referenced via .bootstrap suffix or the
 		// module is marked with 'bootstrap: true').
 		if c.HasStubsVariants() &&
-			android.DirectlyInAnyApex(ctx, ctx.baseModuleName()) &&
+			android.DirectlyInAnyApex(ctx, ctx.baseModuleName()) && !c.InRamdisk() &&
 			!c.InRecovery() && !c.UseVndk() && !c.static() && !c.isCoverageVariant() &&
 			c.IsStubs() {
 			c.Properties.HideFromMake = false // unhide
@@ -1732,7 +1751,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	addSharedLibDependencies := func(depTag DependencyTag, name string, version string) {
 		var variations []blueprint.Variation
 		variations = append(variations, blueprint.Variation{Mutator: "link", Variation: "shared"})
-		versionVariantAvail := !ctx.useVndk() && !c.InRecovery()
+		versionVariantAvail := !ctx.useVndk() && !c.InRecovery() && !c.InRamdisk()
 		if version != "" && versionVariantAvail {
 			// Version is explicitly specified. i.e. libFoo#30
 			variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
@@ -1861,6 +1880,10 @@ func checkLinkType(ctx android.ModuleContext, from LinkableInterface, to Linkabl
 	}
 	if from.SdkVersion() == "" {
 		// Platform code can link to anything
+		return
+	}
+	if from.InRamdisk() {
+		// Ramdisk code is not NDK
 		return
 	}
 	if from.InRecovery() {
@@ -2123,8 +2146,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					// If not building for APEX, use stubs only when it is from
 					// an APEX (and not from platform)
 					useThisDep = (depInPlatform != depIsStubs)
-					if c.InRecovery() || c.bootstrap() {
-						// However, for recovery or bootstrap modules,
+					if c.InRamdisk() || c.InRecovery() || c.bootstrap() {
+						// However, for ramdisk, recovery or bootstrap modules,
 						// always link to non-stub variant
 						useThisDep = !depIsStubs
 					}
@@ -2275,7 +2298,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			isVendorPublicLib := inList(libName, *vendorPublicLibraries)
 			bothVendorAndCoreVariantsExist := ccDep.HasVendorVariant() || isLLndk
 
-			if ctx.DeviceConfig().VndkUseCoreVariant() && ccDep.IsVndk() && !ccDep.MustUseVendorVariant() && !c.InRecovery() {
+			if ctx.DeviceConfig().VndkUseCoreVariant() && ccDep.IsVndk() && !ccDep.MustUseVendorVariant() && !c.InRamdisk() && !c.InRecovery() {
 				// The vendor module is a no-vendor-variant VNDK library.  Depend on the
 				// core module instead.
 				return libName
@@ -2285,6 +2308,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				return libName + c.getNameSuffixWithVndkVersion(ctx)
 			} else if (ctx.Platform() || ctx.ProductSpecific()) && isVendorPublicLib {
 				return libName + vendorPublicLibrarySuffix
+			} else if ccDep.InRamdisk() && !ccDep.OnlyInRamdisk() {
+				return libName + ramdiskSuffix
 			} else if ccDep.InRecovery() && !ccDep.OnlyInRecovery() {
 				return libName + recoverySuffix
 			} else if ccDep.Module().Target().NativeBridge == android.NativeBridgeEnabled {
@@ -2369,6 +2394,10 @@ func (c *Module) InstallInSanitizerDir() bool {
 	return c.installer.inSanitizerDir()
 }
 
+func (c *Module) InstallInRamdisk() bool {
+	return c.InRamdisk()
+}
+
 func (c *Module) InstallInRecovery() bool {
 	return c.InRecovery()
 }
@@ -2441,6 +2470,8 @@ func (c *Module) getMakeLinkType(actx android.ModuleContext) string {
 			return "native:product"
 		}
 		return "native:vendor"
+	} else if c.InRamdisk() {
+		return "native:ramdisk"
 	} else if c.InRecovery() {
 		return "native:recovery"
 	} else if c.Target().Os == android.Android && String(c.Properties.Sdk_version) != "" {
@@ -2647,6 +2678,7 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	}
 
 	var coreVariantNeeded bool = false
+	var ramdiskVariantNeeded bool = false
 	var recoveryVariantNeeded bool = false
 
 	var vendorVariants []string
@@ -2729,6 +2761,15 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		productVariants = []string{}
 	}
 
+	if Bool(m.Properties.Ramdisk_available) {
+		ramdiskVariantNeeded = true
+	}
+
+	if m.ModuleBase.InstallInRamdisk() {
+		ramdiskVariantNeeded = true
+		coreVariantNeeded = false
+	}
+
 	if Bool(m.Properties.Recovery_available) {
 		recoveryVariantNeeded = true
 	}
@@ -2746,12 +2787,17 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		m.Properties.ExtraVariants = append(m.Properties.ExtraVariants, ProductVariationPrefix+variant)
 	}
 
+	m.Properties.RamdiskVariantNeeded = ramdiskVariantNeeded
 	m.Properties.RecoveryVariantNeeded = recoveryVariantNeeded
 	m.Properties.CoreVariantNeeded = coreVariantNeeded
 }
 
 func (c *Module) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
 	return c.Properties.CoreVariantNeeded
+}
+
+func (c *Module) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+	return c.Properties.RamdiskVariantNeeded
 }
 
 func (c *Module) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
@@ -2764,7 +2810,9 @@ func (c *Module) ExtraImageVariations(ctx android.BaseModuleContext) []string {
 
 func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
 	m := module.(*Module)
-	if variant == android.RecoveryVariation {
+	if variant == android.RamdiskVariation {
+		m.MakeAsPlatform()
+	} else if variant == android.RecoveryVariation {
 		m.MakeAsPlatform()
 		squashRecoverySrcs(m)
 	} else if strings.HasPrefix(variant, VendorVariationPrefix) {

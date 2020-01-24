@@ -25,6 +25,7 @@ func init() {
 
 type GenruleExtraProperties struct {
 	Vendor_available   *bool
+	Ramdisk_available  *bool
 	Recovery_available *bool
 }
 
@@ -60,6 +61,10 @@ func (g *GenruleExtraProperties) CoreVariantNeeded(ctx android.BaseModuleContext
 	}
 
 	return Bool(g.Vendor_available) || !(ctx.SocSpecific() || ctx.DeviceSpecific())
+}
+
+func (g *GenruleExtraProperties) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+	return Bool(g.Ramdisk_available)
 }
 
 func (g *GenruleExtraProperties) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {

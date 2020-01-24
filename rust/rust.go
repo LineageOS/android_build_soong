@@ -85,6 +85,10 @@ func (mod *Module) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
 	return true
 }
 
+func (mod *Module) RamdiskVariantNeeded(android.BaseModuleContext) bool {
+	return mod.InRamdisk()
+}
+
 func (mod *Module) RecoveryVariantNeeded(android.BaseModuleContext) bool {
 	return mod.InRecovery()
 }
@@ -150,6 +154,10 @@ func (mod *Module) Toc() android.OptionalPath {
 		}
 	}
 	panic(fmt.Errorf("Toc() called on non-library module: %q", mod.BaseModuleName()))
+}
+
+func (mod *Module) OnlyInRamdisk() bool {
+	return false
 }
 
 func (mod *Module) OnlyInRecovery() bool {
