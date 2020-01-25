@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -42,6 +43,17 @@ func (e *Environment) Get(key string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// Get returns the int value associated with the key, and whether it exists
+// and is a valid int.
+func (e *Environment) GetInt(key string) (int, bool) {
+	if v, ok := e.Get(key); ok {
+		if i, err := strconv.Atoi(v); err == nil {
+			return i, true
+		}
+	}
+	return 0, false
 }
 
 // Set sets the value associated with the key, overwriting the current value

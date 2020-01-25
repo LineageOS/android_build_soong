@@ -174,6 +174,10 @@ func main() {
 	stat.AddOutput(status.NewProtoErrorLog(log, filepath.Join(logsDir, c.logsPrefix+"build_error")))
 	stat.AddOutput(status.NewCriticalPath(log))
 
+	buildCtx.Verbosef("Detected %.3v GB total RAM", float32(config.TotalRAM())/(1024*1024*1024))
+	buildCtx.Verbosef("Parallelism (local/remote/highmem): %v/%v/%v",
+		config.Parallel(), config.RemoteParallel(), config.HighmemParallel())
+
 	defer met.Dump(filepath.Join(logsDir, c.logsPrefix+"soong_metrics"))
 
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
