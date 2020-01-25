@@ -22,7 +22,7 @@ import (
 func detectTotalRAM(ctx Context) uint64 {
 	s, err := syscall.Sysctl("hw.memsize")
 	if err != nil {
-		ctx.Printf("Failed to get system memory size: %s")
+		ctx.Printf("Failed to get system memory size: %v", err)
 		return 0
 	}
 
@@ -32,7 +32,7 @@ func detectTotalRAM(ctx Context) uint64 {
 	}
 
 	if len(s) != 8 {
-		ctx.Printf("Failed to get system memory size, returned %d bytes, 8", len(s))
+		ctx.Printf("Failed to get system memory size, returned %d bytes, expecting 8 bytes", len(s))
 		return 0
 	}
 

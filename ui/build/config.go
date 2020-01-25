@@ -722,6 +722,33 @@ func (c *configImpl) Parallel() int {
 	return c.parallel
 }
 
+func (c *configImpl) HighmemParallel() int {
+	if i, ok := c.environ.GetInt("NINJA_HIGHMEM_NUM_JOBS"); ok {
+		return i
+	}
+
+	const minMemPerHighmemProcess = 8 * 1024 * 1024 * 1024
+	parallel := c.Parallel()
+	if c.UseRemoteBuild() {
+		// Ninja doesn't support nested pools, and when remote builds are enabled the total ninja parallelism
+		// is set very high (i.e. 500).  Using a large value here would cause the total number of running jobs
+		// to be the sum of the sizes of the local and highmem pools, which will cause extra CPU contention.
+		// Return 1/16th of the size of the local pool, rounding up.
+		return (parallel + 15) / 16
+	} else if c.totalRAM == 0 {
+		// Couldn't detect the total RAM, don't restrict highmem processes.
+		return parallel
+	} else if c.totalRAM <= 32*1024*1024*1024 {
+		// Less than 32GB of ram, restrict to 2 highmem processes
+		return 2
+	} else if p := int(c.totalRAM / minMemPerHighmemProcess); p < parallel {
+		// If less than 8GB total RAM per process, reduce the number of highmem processes
+		return p
+	}
+	// No restriction on highmem processes
+	return parallel
+}
+
 func (c *configImpl) TotalRAM() uint64 {
 	return c.totalRAM
 }
@@ -782,10 +809,11 @@ func (c *configImpl) UseRemoteBuild() bool {
 // gomacc) are run in parallel.  Note the parallelism of all other jobs is
 // still limited by Parallel()
 func (c *configImpl) RemoteParallel() int {
-	if v, ok := c.environ.Get("NINJA_REMOTE_NUM_JOBS"); ok {
-		if i, err := strconv.Atoi(v); err == nil {
-			return i
-		}
+	if !c.UseRemoteBuild() {
+		return 0
+	}
+	if i, ok := c.environ.GetInt("NINJA_REMOTE_NUM_JOBS"); ok {
+		return i
 	}
 	return 500
 }
