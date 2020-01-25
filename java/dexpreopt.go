@@ -104,6 +104,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		return dexJarFile
 	}
 
+	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreoptGlobalConfig(ctx)
 	bootImage := defaultBootImageConfig(ctx)
 	if global.UseApexImage {
@@ -189,7 +190,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		PresignedPrebuilt: d.isPresignedPrebuilt,
 	}
 
-	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, global, dexpreoptConfig)
+	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, globalSoong, global, dexpreoptConfig)
 	if err != nil {
 		ctx.ModuleErrorf("error generating dexpreopt rule: %s", err.Error())
 		return dexJarFile
