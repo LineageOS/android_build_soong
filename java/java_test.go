@@ -99,7 +99,7 @@ func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	t.Helper()
 
 	pathCtx := android.PathContextForTesting(config)
-	dexpreopt.SetTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
+	setDexpreoptTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
 
 	ctx.Register(config)
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
@@ -118,7 +118,7 @@ func testJavaErrorWithConfig(t *testing.T, pattern string, config android.Config
 	ctx := testContext()
 
 	pathCtx := android.PathContextForTesting(config)
-	dexpreopt.SetTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
+	setDexpreoptTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
 
 	ctx.Register(config)
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
