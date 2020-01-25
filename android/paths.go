@@ -1256,8 +1256,14 @@ func modulePartition(ctx ModuleInstallPathContext) string {
 	} else if ctx.InstallInTestcases() {
 		partition = "testcases"
 	} else if ctx.InstallInRamdisk() {
-		// TODO(elsk): should be conditional on RECOVERY_AS_BOOT
-		partition = "ramdisk"
+		if ctx.DeviceConfig().BoardUsesRecoveryAsBoot() {
+			partition = "recovery/root/first_stage_ramdisk"
+		} else {
+			partition = "ramdisk"
+		}
+		if !ctx.InstallInRoot() {
+			partition += "/system"
+		}
 	} else if ctx.InstallInRecovery() {
 		if ctx.InstallInRoot() {
 			partition = "recovery/root"
