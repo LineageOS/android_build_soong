@@ -48,8 +48,11 @@ func SetupOutDir(ctx Context, config Config) {
 
 var combinedBuildNinjaTemplate = template.Must(template.New("combined").Parse(`
 builddir = {{.OutDir}}
-pool local_pool
+{{if .UseRemoteBuild }}pool local_pool
  depth = {{.Parallel}}
+{{end -}}
+pool highmem_pool
+ depth = {{.HighmemParallel}}
 build _kati_always_build_: phony
 {{if .HasKatiSuffix}}subninja {{.KatiBuildNinjaFile}}
 subninja {{.KatiPackageNinjaFile}}
