@@ -1237,3 +1237,7 @@ func (c *deviceConfig) DeviceSecondaryArch() string {
 func (c *deviceConfig) DeviceSecondaryArchVariant() string {
 	return String(c.config.productVariables.DeviceSecondaryArchVariant)
 }
+
+func (c *deviceConfig) BoardUsesRecoveryAsBoot() bool {
+	return Bool(c.config.productVariables.BoardUsesRecoveryAsBoot)
+}

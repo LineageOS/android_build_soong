@@ -63,7 +63,6 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 			postInstallCommands = append(postInstallCommands, mkdirCmd, linkCmd)
 		}
 	}
-	postInstallCommands = append(postInstallCommands, a.compatSymlinks...)
 
 	for _, fi := range a.filesInfo {
 		if cc, ok := fi.module.(*cc.Module); ok && cc.Properties.HideFromMake {
@@ -178,17 +177,22 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_prebuilt.mk")
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
-			if a.primaryApexType && fi.builtFile == a.manifestPbOut {
-				// Make apex_manifest.pb module for this APEX to override all other
-				// modules in the APEXes being overridden by this APEX
-				var patterns []string
-				for _, o := range a.overridableProperties.Overrides {
-					patterns = append(patterns, "%."+o+a.suffix)
-				}
-				fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES :=", strings.Join(patterns, " "))
+			if fi.builtFile == a.manifestPbOut {
+				if a.primaryApexType {
+					// Make apex_manifest.pb module for this APEX to override all other
+					// modules in the APEXes being overridden by this APEX
+					var patterns []string
+					for _, o := range a.overridableProperties.Overrides {
+						patterns = append(patterns, "%."+o+a.suffix)
+					}
+					fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES :=", strings.Join(patterns, " "))
 
-				if apexType == flattenedApex && len(postInstallCommands) > 0 {
-					// For flattened apexes, compat symlinks are attached to apex_manifest.json which is guaranteed for every apex
+					if apexType == flattenedApex && len(a.compatSymlinks) > 0 {
+						// For flattened apexes, compat symlinks are attached to apex_manifest.json which is guaranteed for every apex
+						postInstallCommands = append(postInstallCommands, a.compatSymlinks...)
+					}
+				}
+				if len(postInstallCommands) > 0 {
 					fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", strings.Join(postInstallCommands, " && "))
 				}
 			}

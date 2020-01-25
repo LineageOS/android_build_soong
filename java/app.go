@@ -1257,7 +1257,8 @@ func (r *RuntimeResourceOverlay) DepsMutator(ctx android.BottomUpMutatorContext)
 func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Compile and link resources
 	r.aapt.hasNoCode = true
-	r.aapt.buildActions(ctx, r)
+	// Do not remove resources without default values nor dedupe resource configurations with the same value
+	r.aapt.buildActions(ctx, r, "--no-resource-deduping", "--no-resource-removal")
 
 	// Sign the built package
 	_, certificates := collectAppDeps(ctx, false)

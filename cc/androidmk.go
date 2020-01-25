@@ -27,6 +27,7 @@ var (
 	nativeBridgeSuffix = ".native_bridge"
 	productSuffix      = ".product"
 	vendorSuffix       = ".vendor"
+	ramdiskSuffix      = ".ramdisk"
 	recoverySuffix     = ".recovery"
 )
 
@@ -40,6 +41,7 @@ type AndroidMkContext interface {
 	UseVndk() bool
 	VndkVersion() string
 	static() bool
+	InRamdisk() bool
 	InRecovery() bool
 }
 
@@ -233,7 +235,7 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		})
 	}
 	if len(library.Properties.Stubs.Versions) > 0 &&
-		android.DirectlyInAnyApex(ctx, ctx.Name()) && !ctx.InRecovery() && !ctx.UseVndk() &&
+		android.DirectlyInAnyApex(ctx, ctx.Name()) && !ctx.InRamdisk() && !ctx.InRecovery() && !ctx.UseVndk() &&
 		!ctx.static() {
 		if !library.buildStubs() {
 			ret.SubName = ".bootstrap"

@@ -167,6 +167,7 @@ type ModuleContext interface {
 	InstallInData() bool
 	InstallInTestcases() bool
 	InstallInSanitizerDir() bool
+	InstallInRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
@@ -207,6 +208,7 @@ type Module interface {
 	InstallInData() bool
 	InstallInTestcases() bool
 	InstallInSanitizerDir() bool
+	InstallInRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
@@ -383,6 +385,9 @@ type commonProperties struct {
 
 	// Whether this module is installed to recovery partition
 	Recovery *bool
+
+	// Whether this module is installed to ramdisk
+	Ramdisk *bool
 
 	// Whether this module is built for non-native architecures (also known as native bridge binary)
 	Native_bridge_supported *bool `android:"arch_variant"`
@@ -867,6 +872,10 @@ func (m *ModuleBase) InstallInSanitizerDir() bool {
 	return false
 }
 
+func (m *ModuleBase) InstallInRamdisk() bool {
+	return Bool(m.commonProperties.Ramdisk)
+}
+
 func (m *ModuleBase) InstallInRecovery() bool {
 	return Bool(m.commonProperties.Recovery)
 }
@@ -896,6 +905,10 @@ func (m *ModuleBase) ImageVariation() blueprint.Variation {
 		Mutator:   "image",
 		Variation: m.base().commonProperties.ImageVariation,
 	}
+}
+
+func (m *ModuleBase) InRamdisk() bool {
+	return m.base().commonProperties.ImageVariation == RamdiskVariation
 }
 
 func (m *ModuleBase) InRecovery() bool {
@@ -1647,6 +1660,10 @@ func (m *moduleContext) InstallInTestcases() bool {
 
 func (m *moduleContext) InstallInSanitizerDir() bool {
 	return m.module.InstallInSanitizerDir()
+}
+
+func (m *moduleContext) InstallInRamdisk() bool {
+	return m.module.InstallInRamdisk()
 }
 
 func (m *moduleContext) InstallInRecovery() bool {
