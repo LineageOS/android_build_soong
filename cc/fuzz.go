@@ -355,10 +355,10 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 			return
 		}
 
-		// Discard vendor-NDK-linked + recovery modules, they're duplicates of
+		// Discard vendor-NDK-linked + ramdisk + recovery modules, they're duplicates of
 		// fuzz targets we're going to package anyway.
 		if !ccModule.Enabled() || ccModule.Properties.PreventInstall ||
-			ccModule.UseVndk() || ccModule.InRecovery() {
+			ccModule.UseVndk() || ccModule.InRamdisk() || ccModule.InRecovery() {
 			return
 		}
 

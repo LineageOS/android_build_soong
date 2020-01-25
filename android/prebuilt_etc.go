@@ -41,6 +41,9 @@ type prebuiltEtcProperties struct {
 	// is the same as the file name of the source file.
 	Filename_from_src *bool `android:"arch_variant"`
 
+	// Make this module available when building for ramdisk.
+	Ramdisk_available *bool
+
 	// Make this module available when building for recovery.
 	Recovery_available *bool
 
@@ -69,6 +72,18 @@ type PrebuiltEtc struct {
 	additionalDependencies *Paths
 }
 
+func (p *PrebuiltEtc) inRamdisk() bool {
+	return p.ModuleBase.InRamdisk() || p.ModuleBase.InstallInRamdisk()
+}
+
+func (p *PrebuiltEtc) onlyInRamdisk() bool {
+	return p.ModuleBase.InstallInRamdisk()
+}
+
+func (p *PrebuiltEtc) InstallInRamdisk() bool {
+	return p.inRamdisk()
+}
+
 func (p *PrebuiltEtc) inRecovery() bool {
 	return p.ModuleBase.InRecovery() || p.ModuleBase.InstallInRecovery()
 }
@@ -86,7 +101,11 @@ var _ ImageInterface = (*PrebuiltEtc)(nil)
 func (p *PrebuiltEtc) ImageMutatorBegin(ctx BaseModuleContext) {}
 
 func (p *PrebuiltEtc) CoreVariantNeeded(ctx BaseModuleContext) bool {
-	return !p.ModuleBase.InstallInRecovery()
+	return !p.ModuleBase.InstallInRecovery() && !p.ModuleBase.InstallInRamdisk()
+}
+
+func (p *PrebuiltEtc) RamdiskVariantNeeded(ctx BaseModuleContext) bool {
+	return Bool(p.properties.Ramdisk_available) || p.ModuleBase.InstallInRamdisk()
 }
 
 func (p *PrebuiltEtc) RecoveryVariantNeeded(ctx BaseModuleContext) bool {
@@ -167,6 +186,9 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
 
 func (p *PrebuiltEtc) AndroidMkEntries() []AndroidMkEntries {
 	nameSuffix := ""
+	if p.inRamdisk() && !p.onlyInRamdisk() {
+		nameSuffix = ".ramdisk"
+	}
 	if p.inRecovery() && !p.onlyInRecovery() {
 		nameSuffix = ".recovery"
 	}
