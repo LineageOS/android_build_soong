@@ -57,13 +57,7 @@ func TestMain(m *testing.M) {
 }
 
 func testConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
-	config := TestConfig(buildDir, env, bp, fs)
-
-	// Set up the global Once cache used for dexpreopt.GlobalSoongConfig, so that
-	// it doesn't create a real one, which would fail.
-	_ = dexpreopt.GlobalSoongConfigForTests(config)
-
-	return config
+	return TestConfig(buildDir, env, bp, fs)
 }
 
 func testContext() *android.TestContext {
