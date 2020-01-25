@@ -49,6 +49,7 @@ type ModuleInstallPathContext interface {
 	InstallInData() bool
 	InstallInTestcases() bool
 	InstallInSanitizerDir() bool
+	InstallInRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
@@ -1254,6 +1255,9 @@ func modulePartition(ctx ModuleInstallPathContext) string {
 		partition = "data"
 	} else if ctx.InstallInTestcases() {
 		partition = "testcases"
+	} else if ctx.InstallInRamdisk() {
+		// TODO(elsk): should be conditional on RECOVERY_AS_BOOT
+		partition = "ramdisk"
 	} else if ctx.InstallInRecovery() {
 		if ctx.InstallInRoot() {
 			partition = "recovery/root"

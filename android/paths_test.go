@@ -202,6 +202,7 @@ type moduleInstallPathContextImpl struct {
 	inData         bool
 	inTestcases    bool
 	inSanitizerDir bool
+	inRamdisk      bool
 	inRecovery     bool
 	inRoot         bool
 }
@@ -222,6 +223,10 @@ func (m moduleInstallPathContextImpl) InstallInTestcases() bool {
 
 func (m moduleInstallPathContextImpl) InstallInSanitizerDir() bool {
 	return m.inSanitizerDir
+}
+
+func (m moduleInstallPathContextImpl) InstallInRamdisk() bool {
+	return m.inRamdisk
 }
 
 func (m moduleInstallPathContextImpl) InstallInRecovery() bool {

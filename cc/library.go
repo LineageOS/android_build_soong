@@ -1040,7 +1040,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			isVendor := ctx.useVndk()
 			isOwnerPlatform := Bool(library.Properties.Sysprop.Platform)
 
-			if !ctx.inRecovery() && (isProduct || (isOwnerPlatform == isVendor)) {
+			if !ctx.inRamdisk() && !ctx.inRecovery() && (isProduct || (isOwnerPlatform == isVendor)) {
 				dir = android.PathForModuleGen(ctx, "sysprop/public", "include")
 			}
 		}
@@ -1118,7 +1118,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 			// The original path becomes a symlink to the corresponding file in the
 			// runtime APEX.
 			translatedArch := ctx.Target().NativeBridge == android.NativeBridgeEnabled
-			if InstallToBootstrap(ctx.baseModuleName(), ctx.Config()) && !library.buildStubs() && !translatedArch && !ctx.inRecovery() {
+			if InstallToBootstrap(ctx.baseModuleName(), ctx.Config()) && !library.buildStubs() && !translatedArch && !ctx.inRamdisk() && !ctx.inRecovery() {
 				if ctx.Device() {
 					library.installSymlinkToRuntimeApex(ctx, file)
 				}
@@ -1133,7 +1133,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 	}
 
 	if Bool(library.Properties.Static_ndk_lib) && library.static() &&
-		!ctx.useVndk() && !ctx.inRecovery() && ctx.Device() &&
+		!ctx.useVndk() && !ctx.inRamdisk() && !ctx.inRecovery() && ctx.Device() &&
 		library.baseLinker.sanitize.isUnsanitizedVariant() &&
 		!library.buildStubs() {
 		installPath := getNdkSysrootBase(ctx).Join(

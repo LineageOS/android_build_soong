@@ -38,6 +38,9 @@ type LinkableInterface interface {
 	Shared() bool
 	Toc() android.OptionalPath
 
+	InRamdisk() bool
+	OnlyInRamdisk() bool
+
 	InRecovery() bool
 	OnlyInRecovery() bool
 

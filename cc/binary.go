@@ -264,7 +264,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 				} else {
 					switch ctx.Os() {
 					case android.Android:
-						if ctx.bootstrap() && !ctx.inRecovery() {
+						if ctx.bootstrap() && !ctx.inRecovery() && !ctx.inRamdisk() {
 							flags.DynamicLinker = "/system/bin/bootstrap/linker"
 						} else {
 							flags.DynamicLinker = "/system/bin/linker"
@@ -458,7 +458,7 @@ func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
 	// The original path becomes a symlink to the corresponding file in the
 	// runtime APEX.
 	translatedArch := ctx.Target().NativeBridge == android.NativeBridgeEnabled
-	if InstallToBootstrap(ctx.baseModuleName(), ctx.Config()) && !translatedArch && ctx.apexName() == "" && !ctx.inRecovery() {
+	if InstallToBootstrap(ctx.baseModuleName(), ctx.Config()) && !translatedArch && ctx.apexName() == "" && !ctx.inRamdisk() && !ctx.inRecovery() {
 		if ctx.Device() && isBionic(ctx.baseModuleName()) {
 			binary.installSymlinkToRuntimeApex(ctx, file)
 		}
