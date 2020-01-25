@@ -27,6 +27,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/dexpreopt"
 	"android/soong/tradefed"
 )
 
@@ -850,6 +851,7 @@ type AndroidAppImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	prebuilt android.Prebuilt
+	dexpreopt.DexPreoptModule
 
 	properties   AndroidAppImportProperties
 	dpiVariants  interface{}
