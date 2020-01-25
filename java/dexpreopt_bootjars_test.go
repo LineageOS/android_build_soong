@@ -49,7 +49,7 @@ func TestDexpreoptBootJars(t *testing.T) {
 	pathCtx := android.PathContextForTesting(config)
 	dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
 	dexpreoptConfig.BootJars = []string{"foo", "bar", "baz"}
-	setDexpreoptTestGlobalConfig(config, dexpreoptConfig)
+	dexpreopt.SetTestGlobalConfig(config, dexpreoptConfig)
 
 	ctx := testContext()
 

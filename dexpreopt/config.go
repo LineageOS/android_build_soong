@@ -176,10 +176,9 @@ func constructWritablePath(ctx android.PathContext, path string) android.Writabl
 	return constructPath(ctx, path).(android.WritablePath)
 }
 
-// LoadGlobalConfig reads the global dexpreopt.config file into a GlobalConfig
-// struct. LoadGlobalConfig is used directly in Soong and in dexpreopt_gen
-// called from Make to read the $OUT/dexpreopt.config written by Make.
-func LoadGlobalConfig(ctx android.PathContext, data []byte) (GlobalConfig, error) {
+// ParseGlobalConfig parses the given data assumed to be read from the global
+// dexpreopt.config file into a GlobalConfig struct.
+func ParseGlobalConfig(ctx android.PathContext, data []byte) (GlobalConfig, error) {
 	type GlobalJSONConfig struct {
 		GlobalConfig
 
@@ -202,10 +201,65 @@ func LoadGlobalConfig(ctx android.PathContext, data []byte) (GlobalConfig, error
 	return config.GlobalConfig, nil
 }
 
-// LoadModuleConfig reads a per-module dexpreopt.config file into a ModuleConfig struct.  It is not used in Soong, which
-// receives a ModuleConfig struct directly from java/dexpreopt.go.  It is used in dexpreopt_gen called from oMake to
-// read the module dexpreopt.config written by Make.
-func LoadModuleConfig(ctx android.PathContext, data []byte) (ModuleConfig, error) {
+type globalConfigAndRaw struct {
+	global GlobalConfig
+	data   []byte
+}
+
+// GetGlobalConfig returns the global dexpreopt.config that's created in the
+// make config phase. It is loaded once the first time it is called for any
+// ctx.Config(), and returns the same data for all future calls with the same
+// ctx.Config(). A value can be inserted for tests using
+// setDexpreoptTestGlobalConfig.
+func GetGlobalConfig(ctx android.PathContext) GlobalConfig {
+	return getGlobalConfigRaw(ctx).global
+}
+
+// GetGlobalConfigRawData is the same as GetGlobalConfig, except that it returns
+// the literal content of dexpreopt.config.
+func GetGlobalConfigRawData(ctx android.PathContext) []byte {
+	return getGlobalConfigRaw(ctx).data
+}
+
+var globalConfigOnceKey = android.NewOnceKey("DexpreoptGlobalConfig")
+var testGlobalConfigOnceKey = android.NewOnceKey("TestDexpreoptGlobalConfig")
+
+func getGlobalConfigRaw(ctx android.PathContext) globalConfigAndRaw {
+	return ctx.Config().Once(globalConfigOnceKey, func() interface{} {
+		if data, err := ctx.Config().DexpreoptGlobalConfig(ctx); err != nil {
+			panic(err)
+		} else if data != nil {
+			globalConfig, err := ParseGlobalConfig(ctx, data)
+			if err != nil {
+				panic(err)
+			}
+			return globalConfigAndRaw{globalConfig, data}
+		}
+
+		// No global config filename set, see if there is a test config set
+		return ctx.Config().Once(testGlobalConfigOnceKey, func() interface{} {
+			// Nope, return a config with preopting disabled
+			return globalConfigAndRaw{GlobalConfig{
+				DisablePreopt:          true,
+				DisableGenerateProfile: true,
+			}, nil}
+		})
+	}).(globalConfigAndRaw)
+}
+
+// SetTestGlobalConfig sets a GlobalConfig that future calls to GetGlobalConfig
+// will return. It must be called before the first call to GetGlobalConfig for
+// the config.
+func SetTestGlobalConfig(config android.Config, globalConfig GlobalConfig) {
+	config.Once(testGlobalConfigOnceKey, func() interface{} { return globalConfigAndRaw{globalConfig, nil} })
+}
+
+// ParseModuleConfig parses a per-module dexpreopt.config file into a
+// ModuleConfig struct. It is not used in Soong, which receives a ModuleConfig
+// struct directly from java/dexpreopt.go. It is used in dexpreopt_gen called
+// from Make to read the module dexpreopt.config written in the Make config
+// stage.
+func ParseModuleConfig(ctx android.PathContext, data []byte) (ModuleConfig, error) {
 	type ModuleJSONConfig struct {
 		ModuleConfig
 
@@ -304,9 +358,10 @@ type globalJsonSoongConfig struct {
 	ConstructContext string
 }
 
-// LoadGlobalSoongConfig reads the dexpreopt_soong.config file into a
-// GlobalSoongConfig struct. It is only used in dexpreopt_gen.
-func LoadGlobalSoongConfig(ctx android.PathContext, data []byte) (GlobalSoongConfig, error) {
+// ParseGlobalSoongConfig parses the given data assumed to be read from the
+// global dexpreopt_soong.config file into a GlobalSoongConfig struct. It is
+// only used in dexpreopt_gen.
+func ParseGlobalSoongConfig(ctx android.PathContext, data []byte) (GlobalSoongConfig, error) {
 	var jc globalJsonSoongConfig
 
 	err := json.Unmarshal(data, &jc)
