@@ -57,8 +57,6 @@ func TestMain(m *testing.M) {
 }
 
 func testConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
-	bp += dexpreopt.BpToolModulesForTest()
-
 	config := TestConfig(buildDir, env, bp, fs)
 
 	// Set up the global Once cache used for dexpreopt.GlobalSoongConfig, so that
@@ -93,8 +91,6 @@ func testContext() *android.TestContext {
 	// Register module types and mutators from cc needed for JNI testing
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", cc.NdkPrebuiltSharedStlFactory)
-
-	dexpreopt.RegisterToolModulesForTest(ctx)
 
 	return ctx
 }
