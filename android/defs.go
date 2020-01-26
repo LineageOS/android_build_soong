@@ -99,6 +99,9 @@ var (
 
 	// Used only when USE_GOMA=true is set, to restrict non-goma jobs to the local parallelism value
 	localPool = blueprint.NewBuiltinPool("local_pool")
+
+	// Used for processes that need significant RAM to ensure there are not too many running in parallel.
+	highmemPool = blueprint.NewBuiltinPool("highmem_pool")
 )
 
 func init() {

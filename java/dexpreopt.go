@@ -59,7 +59,7 @@ type DexpreoptProperties struct {
 }
 
 func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
-	global := dexpreoptGlobalConfig(ctx)
+	global := dexpreopt.GetGlobalConfig(ctx)
 
 	if global.DisablePreopt {
 		return true
@@ -96,7 +96,7 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
 }
 
 func odexOnSystemOther(ctx android.ModuleContext, installPath android.InstallPath) bool {
-	return dexpreopt.OdexOnSystemOtherByName(ctx.ModuleName(), android.InstallPathToOnDevicePath(ctx, installPath), dexpreoptGlobalConfig(ctx))
+	return dexpreopt.OdexOnSystemOtherByName(ctx.ModuleName(), android.InstallPathToOnDevicePath(ctx, installPath), dexpreopt.GetGlobalConfig(ctx))
 }
 
 func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.ModuleOutPath) android.ModuleOutPath {
@@ -104,7 +104,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		return dexJarFile
 	}
 
-	global := dexpreoptGlobalConfig(ctx)
+	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
+	global := dexpreopt.GetGlobalConfig(ctx)
 	bootImage := defaultBootImageConfig(ctx)
 	if global.UseApexImage {
 		bootImage = frameworkJZBootImageConfig(ctx)
@@ -189,7 +190,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		PresignedPrebuilt: d.isPresignedPrebuilt,
 	}
 
-	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, global, dexpreoptConfig)
+	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, globalSoong, global, dexpreoptConfig)
 	if err != nil {
 		ctx.ModuleErrorf("error generating dexpreopt rule: %s", err.Error())
 		return dexJarFile
