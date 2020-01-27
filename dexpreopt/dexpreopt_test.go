@@ -61,13 +61,10 @@ func testModuleConfig(ctx android.PathContext, name, partition string) ModuleCon
 }
 
 func TestDexPreopt(t *testing.T) {
-	config := android.TestConfig("out", nil, "", nil)
-	ctx := android.PathContextForTesting(config)
-	globalSoong := GlobalSoongConfigForTests(config)
-	global := GlobalConfigForTests(ctx)
-	module := testSystemModuleConfig(ctx, "test")
+	ctx := android.PathContextForTesting(android.TestConfig("out", nil, "", nil))
+	global, module := GlobalConfigForTests(ctx), testSystemModuleConfig(ctx, "test")
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	rule, err := GenerateDexpreoptRule(ctx, global, module)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,9 +80,7 @@ func TestDexPreopt(t *testing.T) {
 }
 
 func TestDexPreoptSystemOther(t *testing.T) {
-	config := android.TestConfig("out", nil, "", nil)
-	ctx := android.PathContextForTesting(config)
-	globalSoong := GlobalSoongConfigForTests(config)
+	ctx := android.PathContextForTesting(android.TestConfig("out", nil, "", nil))
 	global := GlobalConfigForTests(ctx)
 	systemModule := testSystemModuleConfig(ctx, "Stest")
 	systemProductModule := testSystemProductModuleConfig(ctx, "SPtest")
@@ -123,7 +118,7 @@ func TestDexPreoptSystemOther(t *testing.T) {
 	for _, test := range tests {
 		global.PatternsOnSystemOther = test.patterns
 		for _, mt := range test.moduleTests {
-			rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, mt.module)
+			rule, err := GenerateDexpreoptRule(ctx, global, mt.module)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -143,15 +138,12 @@ func TestDexPreoptSystemOther(t *testing.T) {
 }
 
 func TestDexPreoptProfile(t *testing.T) {
-	config := android.TestConfig("out", nil, "", nil)
-	ctx := android.PathContextForTesting(config)
-	globalSoong := GlobalSoongConfigForTests(config)
-	global := GlobalConfigForTests(ctx)
-	module := testSystemModuleConfig(ctx, "test")
+	ctx := android.PathContextForTesting(android.TestConfig("out", nil, "", nil))
+	global, module := GlobalConfigForTests(ctx), testSystemModuleConfig(ctx, "test")
 
 	module.ProfileClassListing = android.OptionalPathForPath(android.PathForTesting("profile"))
 
-	rule, err := GenerateDexpreoptRule(ctx, globalSoong, global, module)
+	rule, err := GenerateDexpreoptRule(ctx, global, module)
 	if err != nil {
 		t.Fatal(err)
 	}
