@@ -718,6 +718,22 @@ func (c *config) UseRBE() bool {
 	return Bool(c.productVariables.UseRBE)
 }
 
+func (c *config) UseRBEJAVAC() bool {
+	return Bool(c.productVariables.UseRBEJAVAC)
+}
+
+func (c *config) UseRBER8() bool {
+	return Bool(c.productVariables.UseRBER8)
+}
+
+func (c *config) UseRBED8() bool {
+	return Bool(c.productVariables.UseRBED8)
+}
+
+func (c *config) UseRemoteBuild() bool {
+	return c.UseGoma() || c.UseRBE()
+}
+
 func (c *config) RunErrorProne() bool {
 	return c.IsEnvTrue("RUN_ERROR_PRONE")
 }

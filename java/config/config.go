@@ -129,6 +129,20 @@ func init() {
 		return ""
 	})
 
+	pctx.VariableFunc("R8Wrapper", func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv("R8_WRAPPER"); override != "" {
+			return override + " "
+		}
+		return ""
+	})
+
+	pctx.VariableFunc("D8Wrapper", func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv("D8_WRAPPER"); override != "" {
+			return override + " "
+		}
+		return ""
+	})
+
 	pctx.HostJavaToolVariable("JacocoCLIJar", "jacoco-cli.jar")
 
 	hostBinToolVariableWithPrebuilt := func(name, prebuiltDir, tool string) {

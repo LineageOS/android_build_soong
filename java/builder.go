@@ -38,7 +38,7 @@ var (
 	// this, all java rules write into separate directories and then are combined into a .jar file
 	// (if the rule produces .class files) or a .srcjar file (if the rule produces .java files).
 	// .srcjar files are unzipped into a temporary directory when compiled with javac.
-	javac = pctx.AndroidRemoteStaticRule("javac", android.SUPPORTS_GOMA,
+	javac = pctx.AndroidRemoteStaticRule("javac", android.RemoteRuleSupports{Goma: true, RBE: true, RBEFlag: android.RBE_JAVAC},
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" "$srcJarDir" && mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
