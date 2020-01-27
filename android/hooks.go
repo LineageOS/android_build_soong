@@ -34,6 +34,9 @@ type LoadHookContext interface {
 	AppendProperties(...interface{})
 	PrependProperties(...interface{})
 	CreateModule(ModuleFactory, ...interface{}) Module
+
+	registerScopedModuleType(name string, factory blueprint.ModuleFactory)
+	moduleFactories() map[string]blueprint.ModuleFactory
 }
 
 func AddLoadHook(m blueprint.Module, hook func(LoadHookContext)) {
@@ -50,6 +53,10 @@ type loadHookContext struct {
 	earlyModuleContext
 	bp     blueprint.LoadHookContext
 	module Module
+}
+
+func (l *loadHookContext) moduleFactories() map[string]blueprint.ModuleFactory {
+	return l.bp.ModuleFactories()
 }
 
 func (l *loadHookContext) AppendProperties(props ...interface{}) {
@@ -99,6 +106,10 @@ func (l *loadHookContext) CreateModule(factory ModuleFactory, props ...interface
 	}
 
 	return module
+}
+
+func (l *loadHookContext) registerScopedModuleType(name string, factory blueprint.ModuleFactory) {
+	l.bp.RegisterScopedModuleType(name, factory)
 }
 
 type InstallHookContext interface {

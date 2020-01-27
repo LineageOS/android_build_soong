@@ -162,6 +162,12 @@ func (r *NameResolver) findNamespace(path string) (namespace *Namespace) {
 	return namespace
 }
 
+// A NamelessModule can never be looked up by name.  It must still implement Name(), but the return
+// value doesn't have to be unique.
+type NamelessModule interface {
+	Nameless()
+}
+
 func (r *NameResolver) NewModule(ctx blueprint.NamespaceContext, moduleGroup blueprint.ModuleGroup, module blueprint.Module) (namespace blueprint.Namespace, errs []error) {
 	// if this module is a namespace, then save it to our list of namespaces
 	newNamespace, ok := module.(*NamespaceModule)
@@ -170,6 +176,10 @@ func (r *NameResolver) NewModule(ctx blueprint.NamespaceContext, moduleGroup blu
 		if err != nil {
 			return nil, []error{err}
 		}
+		return nil, nil
+	}
+
+	if _, ok := module.(NamelessModule); ok {
 		return nil, nil
 	}
 
