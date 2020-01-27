@@ -148,7 +148,7 @@ func testProductVariableModuleFactoryFactory(props interface{}) func() Module {
 		clonedProps := proptools.CloneProperties(reflect.ValueOf(props)).Interface()
 		m.AddProperties(clonedProps)
 
-		// Set a default variableProperties, this will be used as the input to the property struct filter
+		// Set a default soongConfigVariableProperties, this will be used as the input to the property struct filter
 		// for this test module.
 		m.variableProperties = testProductVariableProperties
 		InitAndroidModule(m)
