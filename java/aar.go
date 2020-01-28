@@ -177,7 +177,10 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext,
 	linkDeps = append(linkDeps, assetFiles...)
 
 	// SDK version flags
-	minSdkVersion := sdkVersionOrDefault(ctx, sdkContext.minSdkVersion())
+	minSdkVersion, err := sdkContext.minSdkVersion().effectiveVersionString(ctx)
+	if err != nil {
+		ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
+	}
 
 	linkFlags = append(linkFlags, "--min-sdk-version "+minSdkVersion)
 	linkFlags = append(linkFlags, "--target-sdk-version "+minSdkVersion)
@@ -524,22 +527,22 @@ type AARImport struct {
 	exportedStaticPackages android.Paths
 }
 
-func (a *AARImport) sdkVersion() string {
-	return String(a.properties.Sdk_version)
+func (a *AARImport) sdkVersion() sdkSpec {
+	return sdkSpecFrom(String(a.properties.Sdk_version))
 }
 
 func (a *AARImport) systemModules() string {
 	return ""
 }
 
-func (a *AARImport) minSdkVersion() string {
+func (a *AARImport) minSdkVersion() sdkSpec {
 	if a.properties.Min_sdk_version != nil {
-		return *a.properties.Min_sdk_version
+		return sdkSpecFrom(*a.properties.Min_sdk_version)
 	}
 	return a.sdkVersion()
 }
 
-func (a *AARImport) targetSdkVersion() string {
+func (a *AARImport) targetSdkVersion() sdkSpec {
 	return a.sdkVersion()
 }
 

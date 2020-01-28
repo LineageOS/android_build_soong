@@ -424,19 +424,19 @@ func JavadocHostFactory() android.Module {
 
 var _ android.OutputFileProducer = (*Javadoc)(nil)
 
-func (j *Javadoc) sdkVersion() string {
-	return String(j.properties.Sdk_version)
+func (j *Javadoc) sdkVersion() sdkSpec {
+	return sdkSpecFrom(String(j.properties.Sdk_version))
 }
 
 func (j *Javadoc) systemModules() string {
 	return proptools.String(j.properties.System_modules)
 }
 
-func (j *Javadoc) minSdkVersion() string {
+func (j *Javadoc) minSdkVersion() sdkSpec {
 	return j.sdkVersion()
 }
 
-func (j *Javadoc) targetSdkVersion() string {
+func (j *Javadoc) targetSdkVersion() sdkSpec {
 	return j.sdkVersion()
 }
 

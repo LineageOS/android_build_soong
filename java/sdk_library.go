@@ -650,27 +650,27 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 	mctx.CreateModule(android.PrebuiltEtcFactory, &etcProps)
 }
 
-func (module *SdkLibrary) PrebuiltJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
-	var api, v string
-	if sdkVersion == "" || sdkVersion == "none" {
-		api = "system"
-		v = "current"
-	} else if strings.Contains(sdkVersion, "_") {
-		t := strings.Split(sdkVersion, "_")
-		api = t[0]
-		v = t[1]
+func (module *SdkLibrary) PrebuiltJars(ctx android.BaseModuleContext, s sdkSpec) android.Paths {
+	var ver sdkVersion
+	var kind sdkKind
+	if s.usePrebuilt(ctx) {
+		ver = s.version
+		kind = s.kind
 	} else {
-		api = "public"
-		v = sdkVersion
+		// We don't have prebuilt SDK for the specific sdkVersion.
+		// Instead of breaking the build, fallback to use "system_current"
+		ver = sdkVersionCurrent
+		kind = sdkSystem
 	}
-	dir := filepath.Join("prebuilts", "sdk", v, api)
+
+	dir := filepath.Join("prebuilts", "sdk", ver.String(), kind.String())
 	jar := filepath.Join(dir, module.BaseModuleName()+".jar")
 	jarPath := android.ExistentPathForSource(ctx, jar)
 	if !jarPath.Valid() {
 		if ctx.Config().AllowMissingDependencies() {
 			return android.Paths{android.PathForSource(ctx, jar)}
 		} else {
-			ctx.PropertyErrorf("sdk_library", "invalid sdk version %q, %q does not exist", sdkVersion, jar)
+			ctx.PropertyErrorf("sdk_library", "invalid sdk version %q, %q does not exist", s.raw, jar)
 		}
 		return nil
 	}
@@ -678,32 +678,34 @@ func (module *SdkLibrary) PrebuiltJars(ctx android.BaseModuleContext, sdkVersion
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *SdkLibrary) SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
+func (module *SdkLibrary) SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
 	// This module is just a wrapper for the stubs.
 	if ctx.Config().UnbundledBuildUsePrebuiltSdks() {
 		return module.PrebuiltJars(ctx, sdkVersion)
 	} else {
-		if strings.HasPrefix(sdkVersion, "system_") {
+		switch sdkVersion.kind {
+		case sdkSystem:
 			return module.systemApiStubsPath
-		} else if sdkVersion == "" {
+		case sdkPrivate:
 			return module.Library.HeaderJars()
-		} else {
+		default:
 			return module.publicApiStubsPath
 		}
 	}
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *SdkLibrary) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
+func (module *SdkLibrary) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
 	// This module is just a wrapper for the stubs.
 	if ctx.Config().UnbundledBuildUsePrebuiltSdks() {
 		return module.PrebuiltJars(ctx, sdkVersion)
 	} else {
-		if strings.HasPrefix(sdkVersion, "system_") {
+		switch sdkVersion.kind {
+		case sdkSystem:
 			return module.systemApiStubsImplPath
-		} else if sdkVersion == "" {
+		case sdkPrivate:
 			return module.Library.ImplementationJars()
-		} else {
+		default:
 			return module.publicApiStubsImplPath
 		}
 	}
@@ -923,13 +925,13 @@ func (module *sdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *sdkLibraryImport) SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
+func (module *sdkLibraryImport) SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
 	// This module is just a wrapper for the prebuilt stubs.
 	return module.stubsPath
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *sdkLibraryImport) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths {
+func (module *sdkLibraryImport) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
 	// This module is just a wrapper for the stubs.
 	return module.stubsPath
 }
