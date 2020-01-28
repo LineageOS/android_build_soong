@@ -54,7 +54,6 @@ var (
 		"-Wl,--fatal-warnings",
 
 		"-Wl,--pack-dyn-relocs=android+relr",
-		"-Wl,--use-android-relr-tags",
 		"-Wl,--no-undefined",
 		"-Wl,--hash-style=gnu",
 	}
