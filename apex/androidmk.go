@@ -177,7 +177,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_prebuilt.mk")
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
-			if fi.builtFile == a.manifestPbOut {
+			if fi.builtFile == a.manifestPbOut && apexType == flattenedApex {
 				if a.primaryApexType {
 					// Make apex_manifest.pb module for this APEX to override all other
 					// modules in the APEXes being overridden by this APEX
@@ -187,7 +187,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 					}
 					fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES :=", strings.Join(patterns, " "))
 
-					if apexType == flattenedApex && len(a.compatSymlinks) > 0 {
+					if len(a.compatSymlinks) > 0 {
 						// For flattened apexes, compat symlinks are attached to apex_manifest.json which is guaranteed for every apex
 						postInstallCommands = append(postInstallCommands, a.compatSymlinks...)
 					}
