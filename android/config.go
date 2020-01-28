@@ -35,7 +35,8 @@ import (
 
 var Bool = proptools.Bool
 var String = proptools.String
-var FutureApiLevel = 10000
+
+const FutureApiLevel = 10000
 
 // The configuration file name
 const configFileName = "soong.config"

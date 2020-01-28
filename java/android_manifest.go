@@ -59,7 +59,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 	if isLibrary {
 		args = append(args, "--library")
 	} else {
-		minSdkVersion, err := sdkVersionToNumber(ctx, sdkContext.minSdkVersion())
+		minSdkVersion, err := sdkContext.minSdkVersion().effectiveVersion(ctx)
 		if err != nil {
 			ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 		}
@@ -92,15 +92,28 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 	}
 
 	var deps android.Paths
-	targetSdkVersion := sdkVersionOrDefault(ctx, sdkContext.targetSdkVersion())
-	minSdkVersion := sdkVersionOrDefault(ctx, sdkContext.minSdkVersion())
-	if (UseApiFingerprint(ctx, sdkContext.targetSdkVersion()) ||
-		UseApiFingerprint(ctx, sdkContext.minSdkVersion())) {
-			apiFingerprint := ApiFingerprintPath(ctx)
-			deps = append(deps, apiFingerprint)
+	targetSdkVersion, err := sdkContext.targetSdkVersion().effectiveVersionString(ctx)
+	if err != nil {
+		ctx.ModuleErrorf("invalid targetSdkVersion: %s", err)
+	}
+	if UseApiFingerprint(ctx, targetSdkVersion) {
+		targetSdkVersion += fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
+		deps = append(deps, ApiFingerprintPath(ctx))
+	}
+
+	minSdkVersion, err := sdkContext.minSdkVersion().effectiveVersionString(ctx)
+	if err != nil {
+		ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
+	}
+	if UseApiFingerprint(ctx, minSdkVersion) {
+		minSdkVersion += fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
+		deps = append(deps, ApiFingerprintPath(ctx))
 	}
 
 	fixedManifest := android.PathForModuleOut(ctx, "manifest_fixer", "AndroidManifest.xml")
+	if err != nil {
+		ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
+	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        manifestFixerRule,
 		Description: "fix manifest",
