@@ -832,6 +832,9 @@ type apexBundle struct {
 	// Whether to create symlink to the system file instead of having a file
 	// inside the apex or not
 	linkToSystemLib bool
+
+	// Struct holding the merged notice file paths in different formats
+	mergedNotices android.NoticeOutputs
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
