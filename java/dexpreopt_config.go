@@ -246,10 +246,12 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 
 		// specific to the framework config
 		frameworkCfg.dexPathsDeps = append(artCfg.dexPathsDeps, frameworkCfg.dexPathsDeps...)
+		frameworkCfg.primaryImages = artCfg.images
 		frameworkCfg.imageLocations = append(artCfg.imageLocations, frameworkCfg.imageLocations...)
 
 		// specific to the jitzygote-framework config
 		frameworkJZCfg.dexPathsDeps = append(artJZCfg.dexPathsDeps, frameworkJZCfg.dexPathsDeps...)
+		frameworkJZCfg.primaryImages = artJZCfg.images
 		frameworkJZCfg.imageLocations = append(artJZCfg.imageLocations, frameworkJZCfg.imageLocations...)
 
 		return configs
