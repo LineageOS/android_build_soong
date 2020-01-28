@@ -88,6 +88,9 @@ type bootImageConfig struct {
 	images     map[android.ArchType]android.OutputPath  // first image file
 	imagesDeps map[android.ArchType]android.OutputPaths // all files
 
+	// Only for extensions, paths to the primary boot images (grouped by target).
+	primaryImages map[android.ArchType]android.OutputPath
+
 	// File path to a zip archive with all image files (or nil, if not needed).
 	zip android.WritablePath
 }
@@ -355,7 +358,7 @@ func buildBootImageRuleForArch(ctx android.SingletonContext, image *bootImage,
 	}
 
 	if image.extension {
-		artImage := artBootImageConfig(ctx).images[arch]
+		artImage := image.primaryImages[arch]
 		cmd.
 			Flag("--runtime-arg").FlagWithInputList("-Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
 			Flag("--runtime-arg").FlagWithList("-Xbootclasspath-locations:", image.dexLocationsDeps, ":").
