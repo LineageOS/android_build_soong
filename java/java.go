@@ -29,7 +29,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/dexpreopt"
 	"android/soong/java/config"
 	"android/soong/tradefed"
 )
@@ -80,8 +79,6 @@ func RegisterJavaBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("java_host_for_device", HostForDeviceFactory)
 	ctx.RegisterModuleType("dex_import", DexImportFactory)
 
-	ctx.FinalDepsMutators(dexpreopt.RegisterToolDepsMutator)
-
 	ctx.RegisterSingletonType("logtags", LogtagsSingleton)
 	ctx.RegisterSingletonType("kythe_java_extract", kytheExtractJavaFactory)
 }
@@ -90,7 +87,7 @@ func (j *Module) checkSdkVersion(ctx android.ModuleContext) {
 	if j.SocSpecific() || j.DeviceSpecific() ||
 		(j.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface()) {
 		if sc, ok := ctx.Module().(sdkContext); ok {
-			if sc.sdkVersion() == "" {
+			if !sc.sdkVersion().specified() {
 				ctx.PropertyErrorf("sdk_version",
 					"sdk_version must have a value when the module is located at vendor or product(only if PRODUCT_ENFORCE_PRODUCT_PARTITION_INTERFACE is set).")
 			}
@@ -101,12 +98,11 @@ func (j *Module) checkSdkVersion(ctx android.ModuleContext) {
 func (j *Module) checkPlatformAPI(ctx android.ModuleContext) {
 	if sc, ok := ctx.Module().(sdkContext); ok {
 		usePlatformAPI := proptools.Bool(j.deviceProperties.Platform_apis)
-		if usePlatformAPI != (sc.sdkVersion() == "") {
-			if usePlatformAPI {
-				ctx.PropertyErrorf("platform_apis", "platform_apis must be false when sdk_version is not empty.")
-			} else {
-				ctx.PropertyErrorf("platform_apis", "platform_apis must be true when sdk_version is empty.")
-			}
+		sdkVersionSpecified := sc.sdkVersion().specified()
+		if usePlatformAPI && sdkVersionSpecified {
+			ctx.PropertyErrorf("platform_apis", "platform_apis must be false when sdk_version is not empty.")
+		} else if !usePlatformAPI && !sdkVersionSpecified {
+			ctx.PropertyErrorf("platform_apis", "platform_apis must be true when sdk_version is empty.")
 		}
 
 	}
@@ -338,7 +334,6 @@ type Module struct {
 	android.DefaultableModuleBase
 	android.ApexModuleBase
 	android.SdkBase
-	dexpreopt.DexPreoptModule
 
 	properties       CompilerProperties
 	protoProperties  android.ProtoProperties
@@ -455,8 +450,8 @@ type Dependency interface {
 }
 
 type SdkLibraryDependency interface {
-	SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths
-	SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion string) android.Paths
+	SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths
+	SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths
 }
 
 type xref interface {
@@ -557,24 +552,24 @@ func (j *Module) shouldInstrumentStatic(ctx android.BaseModuleContext) bool {
 			ctx.Config().UnbundledBuild())
 }
 
-func (j *Module) sdkVersion() string {
-	return String(j.deviceProperties.Sdk_version)
+func (j *Module) sdkVersion() sdkSpec {
+	return sdkSpecFrom(String(j.deviceProperties.Sdk_version))
 }
 
 func (j *Module) systemModules() string {
 	return proptools.String(j.deviceProperties.System_modules)
 }
 
-func (j *Module) minSdkVersion() string {
+func (j *Module) minSdkVersion() sdkSpec {
 	if j.deviceProperties.Min_sdk_version != nil {
-		return *j.deviceProperties.Min_sdk_version
+		return sdkSpecFrom(*j.deviceProperties.Min_sdk_version)
 	}
 	return j.sdkVersion()
 }
 
-func (j *Module) targetSdkVersion() string {
+func (j *Module) targetSdkVersion() sdkSpec {
 	if j.deviceProperties.Target_sdk_version != nil {
-		return *j.deviceProperties.Target_sdk_version
+		return sdkSpecFrom(*j.deviceProperties.Target_sdk_version)
 	}
 	return j.sdkVersion()
 }
@@ -780,26 +775,25 @@ func (m *Module) getLinkType(name string) (ret linkType, stubs bool) {
 		name == "stub-annotations" || name == "private-stub-annotations-jar" ||
 		name == "core-lambda-stubs" || name == "core-generated-annotation-stubs":
 		return javaCore, true
-	case ver == "core_current":
+	case ver.kind == sdkCore:
 		return javaCore, false
 	case name == "android_system_stubs_current":
 		return javaSystem, true
-	case strings.HasPrefix(ver, "system_"):
+	case ver.kind == sdkSystem:
 		return javaSystem, false
 	case name == "android_test_stubs_current":
 		return javaSystem, true
-	case strings.HasPrefix(ver, "test_"):
+	case ver.kind == sdkTest:
 		return javaPlatform, false
 	case name == "android_stubs_current":
 		return javaSdk, true
-	case ver == "current":
+	case ver.kind == sdkPublic:
 		return javaSdk, false
-	case ver == "" || ver == "none" || ver == "core_platform":
+	case ver.kind == sdkPrivate || ver.kind == sdkNone || ver.kind == sdkCorePlatform:
 		return javaPlatform, false
+	case !ver.valid():
+		panic(fmt.Errorf("sdk_version is invalid. got %q", ver.raw))
 	default:
-		if _, err := strconv.Atoi(ver); err != nil {
-			panic(fmt.Errorf("expected sdk_version to be a number, got %q", ver))
-		}
 		return javaSdk, false
 	}
 }
@@ -996,19 +990,7 @@ func addPlugins(deps *deps, pluginJars android.Paths, pluginClasses ...string) {
 }
 
 func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sdkContext) javaVersion {
-	v := sdkContext.sdkVersion()
-	// For PDK builds, use the latest SDK version instead of "current"
-	if ctx.Config().IsPdkBuild() &&
-		(v == "" || v == "none" || v == "core_platform" || v == "current") {
-		sdkVersions := ctx.Config().Get(sdkVersionsKey).([]int)
-		latestSdkVersion := 0
-		if len(sdkVersions) > 0 {
-			latestSdkVersion = sdkVersions[len(sdkVersions)-1]
-		}
-		v = strconv.Itoa(latestSdkVersion)
-	}
-
-	sdk, err := sdkVersionToNumber(ctx, v)
+	sdk, err := sdkContext.sdkVersion().effectiveVersion(ctx)
 	if err != nil {
 		ctx.PropertyErrorf("sdk_version", "%s", err)
 	}
@@ -1529,16 +1511,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		}
 	} else {
 		outputFile = implementationAndResourcesJar
-
-		// dexpreopt.GetGlobalSoongConfig needs to be called at least once even if
-		// no module actually is dexpreopted, to ensure there's a cached
-		// GlobalSoongConfig for the dexpreopt singletons, which will run
-		// regardless.
-		// TODO(b/147613152): Remove when the singletons no longer rely on the
-		// cached GlobalSoongConfig.
-		if !dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
-			_ = dexpreopt.GetGlobalSoongConfig(ctx)
-		}
 	}
 
 	ctx.CheckbuildFile(outputFile)
@@ -2289,7 +2261,6 @@ type Import struct {
 	android.ApexModuleBase
 	prebuilt android.Prebuilt
 	android.SdkBase
-	dexpreopt.DexPreoptModule
 
 	properties ImportProperties
 
@@ -2297,11 +2268,11 @@ type Import struct {
 	exportedSdkLibs       []string
 }
 
-func (j *Import) sdkVersion() string {
-	return String(j.properties.Sdk_version)
+func (j *Import) sdkVersion() sdkSpec {
+	return sdkSpecFrom(String(j.properties.Sdk_version))
 }
 
-func (j *Import) minSdkVersion() string {
+func (j *Import) minSdkVersion() sdkSpec {
 	return j.sdkVersion()
 }
 
@@ -2492,7 +2463,6 @@ type DexImport struct {
 	android.DefaultableModuleBase
 	android.ApexModuleBase
 	prebuilt android.Prebuilt
-	dexpreopt.DexPreoptModule
 
 	properties DexImportProperties
 

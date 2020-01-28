@@ -29,11 +29,14 @@ import (
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/android/soongconfig"
 )
 
 var Bool = proptools.Bool
 var String = proptools.String
-var FutureApiLevel = 10000
+
+const FutureApiLevel = 10000
 
 // The configuration file name
 const configFileName = "soong.config"
@@ -66,19 +69,7 @@ type DeviceConfig struct {
 	*deviceConfig
 }
 
-type VendorConfig interface {
-	// Bool interprets the variable named `name` as a boolean, returning true if, after
-	// lowercasing, it matches one of "1", "y", "yes", "on", or "true". Unset, or any other
-	// value will return false.
-	Bool(name string) bool
-
-	// String returns the string value of `name`. If the variable was not set, it will
-	// return the empty string.
-	String(name string) string
-
-	// IsSet returns whether the variable `name` was set by Make.
-	IsSet(name string) bool
-}
+type VendorConfig soongconfig.SoongConfig
 
 type config struct {
 	FileConfigurableOptions
@@ -127,8 +118,6 @@ type deviceConfig struct {
 	config *config
 	OncePer
 }
-
-type vendorConfig map[string]string
 
 type jsonConfigurable interface {
 	SetDefaultConfig()
@@ -1141,21 +1130,7 @@ func (c *config) XOMDisabledForPath(path string) bool {
 }
 
 func (c *config) VendorConfig(name string) VendorConfig {
-	return vendorConfig(c.productVariables.VendorVars[name])
-}
-
-func (c vendorConfig) Bool(name string) bool {
-	v := strings.ToLower(c[name])
-	return v == "1" || v == "y" || v == "yes" || v == "on" || v == "true"
-}
-
-func (c vendorConfig) String(name string) string {
-	return c[name]
-}
-
-func (c vendorConfig) IsSet(name string) bool {
-	_, ok := c[name]
-	return ok
+	return soongconfig.Config(c.productVariables.VendorVars[name])
 }
 
 func (c *config) NdkAbis() bool {
