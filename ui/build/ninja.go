@@ -133,6 +133,8 @@ func runNinja(ctx Context, config Config) {
 			"FLAG_invocation_id",
 			"FLAG_log_dir",
 			"FLAG_platform",
+			"FLAG_remote_accept_cache",
+			"FLAG_remote_update_cache",
 			"FLAG_server_address",
 
 			// ccache settings
