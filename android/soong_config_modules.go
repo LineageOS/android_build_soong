@@ -351,7 +351,7 @@ func soongConfigModuleFactory(factory blueprint.ModuleFactory,
 		return func() (blueprint.Module, []interface{}) {
 			module, props := factory()
 
-			conditionalProps := proptools.CloneEmptyProperties(conditionalFactoryProps.Elem())
+			conditionalProps := proptools.CloneEmptyProperties(conditionalFactoryProps)
 			props = append(props, conditionalProps.Interface())
 
 			AddLoadHook(module, func(ctx LoadHookContext) {
