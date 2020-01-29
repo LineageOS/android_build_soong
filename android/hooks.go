@@ -97,7 +97,7 @@ func (l *loadHookContext) CreateModule(factory ModuleFactory, props ...interface
 			module.base().variableProperties,
 			// Put an empty copy of the src properties into dst so that properties in src that are not in dst
 			// don't cause a "failed to find property to extend" error.
-			proptools.CloneEmptyProperties(reflect.ValueOf(src).Elem()).Interface(),
+			proptools.CloneEmptyProperties(reflect.ValueOf(src)).Interface(),
 		}
 		err := proptools.AppendMatchingProperties(dst, src, nil)
 		if err != nil {
