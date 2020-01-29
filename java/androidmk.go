@@ -663,11 +663,7 @@ func (a *AndroidAppImport) AndroidMkEntries() []android.AndroidMkEntries {
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(entries *android.AndroidMkEntries) {
 				entries.SetBoolIfTrue("LOCAL_PRIVILEGED_MODULE", a.Privileged())
-				if a.certificate != nil {
-					entries.SetPath("LOCAL_CERTIFICATE", a.certificate.Pem)
-				} else {
-					entries.SetString("LOCAL_CERTIFICATE", "PRESIGNED")
-				}
+				entries.SetString("LOCAL_CERTIFICATE", a.certificate.AndroidMkString())
 				entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", a.properties.Overrides...)
 				if len(a.dexpreopter.builtInstalled) > 0 {
 					entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", a.dexpreopter.builtInstalled)
