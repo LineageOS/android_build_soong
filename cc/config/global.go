@@ -166,6 +166,8 @@ func init() {
 			flags = append(flags, "-ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang")
 		} else if ctx.Config().IsEnvTrue("AUTO_PATTERN_INITIALIZE") {
 			flags = append(flags, "-ftrivial-auto-var-init=pattern")
+		} else if ctx.Config().IsEnvTrue("AUTO_UNINITIALIZE") {
+			flags = append(flags, "-ftrivial-auto-var-init=uninitialized")
 		}
 
 		return strings.Join(flags, " ")

@@ -667,8 +667,10 @@ func (fiz *FileInputZip) Open() error {
 		return nil
 	}
 	var err error
-	fiz.reader, err = zip.OpenReader(fiz.Name())
-	return err
+	if fiz.reader, err = zip.OpenReader(fiz.Name()); err != nil {
+		return fmt.Errorf("%s: %s", fiz.Name(), err.Error())
+	}
+	return nil
 }
 
 func main() {

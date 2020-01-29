@@ -112,6 +112,11 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 			}
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", pathWhenActivated)
+
+			// For non-flattend APEXes, the merged notice file is attached to the APEX itself.
+			// We don't need to have notice file for the individual modules in it. Otherwise,
+			// we will have duplicated notice entries.
+			fmt.Fprintln(w, "LOCAL_NO_NOTICE_FILE := true")
 		}
 		fmt.Fprintln(w, "LOCAL_PREBUILT_MODULE_FILE :=", fi.builtFile.String())
 		fmt.Fprintln(w, "LOCAL_MODULE_CLASS :=", fi.class.NameInMake())
@@ -177,7 +182,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_prebuilt.mk")
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
-			if fi.builtFile == a.manifestPbOut {
+			if fi.builtFile == a.manifestPbOut && apexType == flattenedApex {
 				if a.primaryApexType {
 					// Make apex_manifest.pb module for this APEX to override all other
 					// modules in the APEXes being overridden by this APEX
@@ -187,7 +192,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 					}
 					fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES :=", strings.Join(patterns, " "))
 
-					if apexType == flattenedApex && len(a.compatSymlinks) > 0 {
+					if len(a.compatSymlinks) > 0 {
 						// For flattened apexes, compat symlinks are attached to apex_manifest.json which is guaranteed for every apex
 						postInstallCommands = append(postInstallCommands, a.compatSymlinks...)
 					}
@@ -271,6 +276,11 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				if len(postInstallCommands) > 0 {
 					fmt.Fprintln(w, "LOCAL_POST_INSTALL_CMD :=", strings.Join(postInstallCommands, " && "))
 				}
+
+				if a.mergedNotices.Merged.Valid() {
+					fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", a.mergedNotices.Merged.Path().String())
+				}
+
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 
 				if apexType == imageApex {

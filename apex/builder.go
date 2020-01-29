@@ -211,7 +211,7 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 	})
 }
 
-func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext, apexFileName string) android.OptionalPath {
+func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName string) android.NoticeOutputs {
 	noticeFiles := []android.Path{}
 	for _, f := range a.filesInfo {
 		if f.module != nil {
@@ -227,10 +227,10 @@ func (a *apexBundle) buildNoticeFile(ctx android.ModuleContext, apexFileName str
 	}
 
 	if len(noticeFiles) == 0 {
-		return android.OptionalPath{}
+		return android.NoticeOutputs{}
 	}
 
-	return android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.FirstUniquePaths(noticeFiles)).HtmlGzOutput
+	return android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.FirstUniquePaths(noticeFiles))
 }
 
 func (a *apexBundle) buildInstalledFilesFile(ctx android.ModuleContext, builtApex android.Path, imageDir android.Path) android.OutputPath {
@@ -394,11 +394,11 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
 		optFlags = append(optFlags, "--min_sdk_version "+minSdkVersion)
 
-		noticeFile := a.buildNoticeFile(ctx, a.Name()+suffix)
-		if noticeFile.Valid() {
+		a.mergedNotices = a.buildNoticeFiles(ctx, a.Name()+suffix)
+		if a.mergedNotices.HtmlGzOutput.Valid() {
 			// If there's a NOTICE file, embed it as an asset file in the APEX.
-			implicitInputs = append(implicitInputs, noticeFile.Path())
-			optFlags = append(optFlags, "--assets_dir "+filepath.Dir(noticeFile.String()))
+			implicitInputs = append(implicitInputs, a.mergedNotices.HtmlGzOutput.Path())
+			optFlags = append(optFlags, "--assets_dir "+filepath.Dir(a.mergedNotices.HtmlGzOutput.String()))
 		}
 
 		if ctx.ModuleDir() != "system/apex/apexd/apexd_testdata" && ctx.ModuleDir() != "system/apex/shim/build" && a.testOnlyShouldSkipHashtreeGeneration() {

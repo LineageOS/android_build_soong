@@ -120,6 +120,10 @@ var fixSteps = []FixStep{
 		Name: "removeEmptyLibDependencies",
 		Fix:  removeEmptyLibDependencies,
 	},
+	{
+		Name: "removeHidlInterfaceTypes",
+		Fix:  removeHidlInterfaceTypes,
+	},
 }
 
 func NewFixRequest() FixRequest {
@@ -694,6 +698,18 @@ func removeEmptyLibDependencies(f *Fixer) error {
 				listValue.Values = newValues
 			}
 		}
+	}
+	return nil
+}
+
+// Removes hidl_interface 'types' which are no longer needed
+func removeHidlInterfaceTypes(f *Fixer) error {
+	for _, def := range f.tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !(ok && mod.Type == "hidl_interface") {
+			continue
+		}
+		removeProperty(mod, "types")
 	}
 	return nil
 }
