@@ -334,8 +334,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Diag.Cfi = nil
 	}
 
-	// Disable sanitizers that depend on the UBSan runtime for host builds.
-	if ctx.Host() {
+	// Disable sanitizers that depend on the UBSan runtime for windows/darwin builds.
+	if !ctx.Os().Linux() {
 		s.Cfi = nil
 		s.Diag.Cfi = nil
 		s.Misc_undefined = nil
@@ -433,11 +433,18 @@ func toDisableImplicitIntegerChange(flags []string) bool {
 func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	minimalRuntimeLib := config.UndefinedBehaviorSanitizerMinimalRuntimeLibrary(ctx.toolchain()) + ".a"
 	minimalRuntimePath := "${config.ClangAsanLibDir}/" + minimalRuntimeLib
+	builtinsRuntimeLib := config.BuiltinsRuntimeLibrary(ctx.toolchain()) + ".a"
+	builtinsRuntimePath := "${config.ClangAsanLibDir}/" + builtinsRuntimeLib
 
-	if ctx.Device() && sanitize.Properties.MinimalRuntimeDep {
+	if sanitize.Properties.MinimalRuntimeDep {
 		flags.Local.LdFlags = append(flags.Local.LdFlags,
 			minimalRuntimePath,
 			"-Wl,--exclude-libs,"+minimalRuntimeLib)
+		if ctx.Host() {
+			flags.Local.LdFlags = append(flags.Local.LdFlags,
+				builtinsRuntimePath,
+				"-Wl,--exclude-libs,"+builtinsRuntimeLib)
+		}
 	}
 	if !sanitize.Properties.SanitizerEnabled && !sanitize.Properties.UbsanRuntimeDep {
 		return flags
@@ -541,11 +548,15 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// there will always be undefined symbols in intermediate libraries.
 			_, flags.Global.LdFlags = removeFromList("-Wl,--no-undefined", flags.Global.LdFlags)
 			flags.Local.LdFlags = append(flags.Local.LdFlags, sanitizeArg)
-		} else {
-			if enableMinimalRuntime(sanitize) {
-				flags.Local.CFlags = append(flags.Local.CFlags, strings.Join(minimalRuntimeFlags, " "))
-				flags.libFlags = append([]string{minimalRuntimePath}, flags.libFlags...)
-				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
+		}
+
+		if enableMinimalRuntime(sanitize) {
+			flags.Local.CFlags = append(flags.Local.CFlags, strings.Join(minimalRuntimeFlags, " "))
+			flags.libFlags = append([]string{minimalRuntimePath}, flags.libFlags...)
+			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
+			if !ctx.toolchain().Bionic() {
+				flags.libFlags = append([]string{builtinsRuntimePath}, flags.libFlags...)
+				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,"+builtinsRuntimeLib)
 			}
 		}
 
@@ -888,34 +899,46 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			runtimeLibrary = config.UndefinedBehaviorSanitizerRuntimeLibrary(toolchain)
 		}
 
-		if mctx.Device() && runtimeLibrary != "" {
-			if isLlndkLibrary(runtimeLibrary, mctx.Config()) && !c.static() && c.UseVndk() {
-				runtimeLibrary = runtimeLibrary + llndkLibrarySuffix
-			}
+		if runtimeLibrary != "" {
+			// Devices and LinuxBionic use the same libraries.
+			if toolchain.Bionic() {
+				if isLlndkLibrary(runtimeLibrary, mctx.Config()) && !c.static() && c.UseVndk() {
+					runtimeLibrary = runtimeLibrary + llndkLibrarySuffix
+				}
 
-			// Adding dependency to the runtime library. We are using *FarVariation*
-			// because the runtime libraries themselves are not mutated by sanitizer
-			// mutators and thus don't have sanitizer variants whereas this module
-			// has been already mutated.
-			//
-			// Note that by adding dependency with {static|shared}DepTag, the lib is
-			// added to libFlags and LOCAL_SHARED_LIBRARIES by cc.Module
-			if c.staticBinary() {
-				// static executable gets static runtime libs
-				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
-					{Mutator: "link", Variation: "static"},
-					c.ImageVariation(),
-				}...), StaticDepTag, append([]string{runtimeLibrary}, extraStaticDeps...)...)
-			} else if !c.static() && !c.header() {
-				// dynamic executable and shared libs get shared runtime libs
-				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
-					{Mutator: "link", Variation: "shared"},
-					c.ImageVariation(),
-				}...), earlySharedDepTag, runtimeLibrary)
+				// Adding dependency to the runtime library. We are using *FarVariation*
+				// because the runtime libraries themselves are not mutated by sanitizer
+				// mutators and thus don't have sanitizer variants whereas this module
+				// has been already mutated.
+				//
+				// Note that by adding dependency with {static|shared}DepTag, the lib is
+				// added to libFlags and LOCAL_SHARED_LIBRARIES by cc.Module
+				if c.staticBinary() {
+					// static executable gets static runtime libs
+					mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
+						{Mutator: "link", Variation: "static"},
+						c.ImageVariation(),
+					}...), StaticDepTag, append([]string{runtimeLibrary}, extraStaticDeps...)...)
+				} else if !c.static() && !c.header() {
+					// dynamic executable and shared libs get shared runtime libs
+					mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
+						{Mutator: "link", Variation: "shared"},
+						c.ImageVariation(),
+					}...), earlySharedDepTag, runtimeLibrary)
+				}
+				// static lib does not have dependency to the runtime library. The
+				// dependency will be added to the executables or shared libs using
+				// the static lib.
+			} else {
+				if c.sanitize.Properties.UbsanRuntimeDep {
+					// Support UBSan runtime on host modules, which requires the builtins linked in as well.
+					mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
+						{Mutator: "link", Variation: "static"},
+						c.ImageVariation(),
+					}...), StaticDepTag, append([]string{runtimeLibrary, config.BuiltinsRuntimeLibrary(toolchain)},
+						extraStaticDeps...)...)
+				}
 			}
-			// static lib does not have dependency to the runtime library. The
-			// dependency will be added to the executables or shared libs using
-			// the static lib.
 		}
 	}
 }
