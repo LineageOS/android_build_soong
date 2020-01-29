@@ -154,10 +154,25 @@ func (a *AndroidApp) OutputFile() android.Path {
 	return a.outputFile
 }
 
+func (a *AndroidApp) Certificate() Certificate {
+	return a.certificate
+}
+
 var _ AndroidLibraryDependency = (*AndroidApp)(nil)
 
 type Certificate struct {
-	Pem, Key android.Path
+	Pem, Key  android.Path
+	presigned bool
+}
+
+var presignedCertificate = Certificate{presigned: true}
+
+func (c Certificate) AndroidMkString() string {
+	if c.presigned {
+		return "PRESIGNED"
+	} else {
+		return c.Pem.String()
+	}
 }
 
 func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -405,12 +420,15 @@ func processMainCert(m android.ModuleBase, certPropValue string, certificates []
 		if certPropValue != "" {
 			defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
 			mainCert = Certificate{
-				defaultDir.Join(ctx, certPropValue+".x509.pem"),
-				defaultDir.Join(ctx, certPropValue+".pk8"),
+				Pem: defaultDir.Join(ctx, certPropValue+".x509.pem"),
+				Key: defaultDir.Join(ctx, certPropValue+".pk8"),
 			}
 		} else {
 			pem, key := ctx.Config().DefaultAppCertificate(ctx)
-			mainCert = Certificate{pem, key}
+			mainCert = Certificate{
+				Pem: pem,
+				Key: key,
+			}
 		}
 		certificates = append([]Certificate{mainCert}, certificates...)
 	}
@@ -798,8 +816,8 @@ func AndroidAppCertificateFactory() android.Module {
 func (c *AndroidAppCertificate) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	cert := String(c.properties.Certificate)
 	c.Certificate = Certificate{
-		android.PathForModuleSrc(ctx, cert+".x509.pem"),
-		android.PathForModuleSrc(ctx, cert+".pk8"),
+		Pem: android.PathForModuleSrc(ctx, cert+".x509.pem"),
+		Key: android.PathForModuleSrc(ctx, cert+".pk8"),
 	}
 }
 
@@ -856,7 +874,7 @@ type AndroidAppImport struct {
 	archVariants interface{}
 
 	outputFile  android.Path
-	certificate *Certificate
+	certificate Certificate
 
 	dexpreopter
 
@@ -1064,7 +1082,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		if len(certificates) != 1 {
 			ctx.ModuleErrorf("Unexpected number of certificates were extracted: %q", certificates)
 		}
-		a.certificate = &certificates[0]
+		a.certificate = certificates[0]
 		signed := android.PathForModuleOut(ctx, "signed", ctx.ModuleName()+".apk")
 		SignAppPackage(ctx, signed, dexOutput, certificates)
 		a.outputFile = signed
@@ -1072,6 +1090,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		alignedApk := android.PathForModuleOut(ctx, "zip-aligned", ctx.ModuleName()+".apk")
 		TransformZipAlign(ctx, alignedApk, dexOutput)
 		a.outputFile = alignedApk
+		a.certificate = presignedCertificate
 	}
 
 	// TODO: Optionally compress the output apk.
@@ -1096,6 +1115,10 @@ func (a *AndroidAppImport) OutputFile() android.Path {
 
 func (a *AndroidAppImport) JacocoReportClassesFile() android.Path {
 	return nil
+}
+
+func (a *AndroidAppImport) Certificate() Certificate {
+	return a.certificate
 }
 
 var dpiVariantGroupType reflect.Type

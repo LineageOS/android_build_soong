@@ -723,7 +723,8 @@ type apexFile struct {
 	targetRequiredModuleNames []string
 	hostRequiredModuleNames   []string
 
-	jacocoReportClassesFile android.Path // only for javalibs and apps
+	jacocoReportClassesFile android.Path     // only for javalibs and apps
+	certificate             java.Certificate // only for apps
 }
 
 func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, moduleName string, installDir string, class apexFileClass, module android.Module) apexFile {
@@ -1212,6 +1213,7 @@ func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 	Privileged() bool
 	OutputFile() android.Path
 	JacocoReportClassesFile() android.Path
+	Certificate() java.Certificate
 }, pkgName string) apexFile {
 	appDir := "app"
 	if aapp.Privileged() {
@@ -1221,6 +1223,7 @@ func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 	fileToCopy := aapp.OutputFile()
 	af := newApexFile(ctx, fileToCopy, aapp.Name(), dirInApex, app, aapp)
 	af.jacocoReportClassesFile = aapp.JacocoReportClassesFile()
+	af.certificate = aapp.Certificate()
 	return af
 }
 
