@@ -1727,6 +1727,11 @@ type Library struct {
 }
 
 func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bool {
+	// Store uncompressed (and aligned) any dex files from jars in APEXes.
+	if am, ok := ctx.Module().(android.ApexModule); ok && !am.IsForPlatform() {
+		return true
+	}
+
 	// Store uncompressed (and do not strip) dex files from boot class path jars.
 	if inList(ctx.ModuleName(), ctx.Config().BootJars()) {
 		return true
