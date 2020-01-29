@@ -160,7 +160,7 @@ var (
 			`echo -e "New unexpected files were added to ${apex_module_name}." ` +
 			` "To fix the build run following command:" && ` +
 			`echo "system/apex/tools/update_whitelist.sh ${whitelisted_files_file} ${image_content_file}" && ` +
-			`exit 1)`,
+			`exit 1); touch ${out}`,
 		Description: "Diff ${image_content_file} and ${whitelisted_files_file}",
 	}, "image_content_file", "whitelisted_files_file", "apex_module_name")
 )
