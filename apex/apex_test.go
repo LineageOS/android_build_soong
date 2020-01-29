@@ -3014,7 +3014,7 @@ func TestApexWithApps(t *testing.T) {
 	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPriv/AppFooPriv.apk")
 
 	// JNI libraries are embedded inside APK
-	appZipRule := ctx.ModuleForTests("AppFoo", "android_common_myapex").Rule("zip")
+	appZipRule := ctx.ModuleForTests("AppFoo", "android_common_myapex").Description("zip jni lib")
 	libjniOutput := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_shared_myapex").Module().(*cc.Module).OutputFile()
 	ensureListContains(t, appZipRule.Implicits.Strings(), libjniOutput.String())
 	// ... uncompressed
