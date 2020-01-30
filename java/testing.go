@@ -142,6 +142,7 @@ func GatherRequiredDepsForTest() string {
 		"android_stubs_current",
 		"android_system_stubs_current",
 		"android_test_stubs_current",
+		"android_module_lib_stubs_current",
 		"core.current.stubs",
 		"core.platform.api.stubs",
 		"kotlin-stdlib",
