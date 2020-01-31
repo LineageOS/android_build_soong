@@ -293,7 +293,7 @@ func metadataRule(ctx android.SingletonContext) android.Path {
 	outputPath := hiddenAPISingletonPaths(ctx).metadata
 
 	rule.Command().
-		Tool(android.PathForSource(ctx, "frameworks/base/tools/hiddenapi/merge_csv.py")).
+		BuiltTool(ctx, "merge_csv").
 		Inputs(metadataCSV).
 		Text(">").
 		Output(outputPath)
