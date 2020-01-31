@@ -133,8 +133,8 @@ func main() {
 	writeScripts(ctx, globalSoongConfig, globalConfig, moduleConfig, *dexpreoptScriptPath)
 }
 
-func writeScripts(ctx android.PathContext, globalSoong dexpreopt.GlobalSoongConfig,
-	global dexpreopt.GlobalConfig, module dexpreopt.ModuleConfig, dexpreoptScriptPath string) {
+func writeScripts(ctx android.PathContext, globalSoong *dexpreopt.GlobalSoongConfig,
+	global *dexpreopt.GlobalConfig, module *dexpreopt.ModuleConfig, dexpreoptScriptPath string) {
 	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, globalSoong, global, module)
 	if err != nil {
 		panic(err)

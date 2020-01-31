@@ -20,20 +20,20 @@ import (
 	"testing"
 )
 
-func testSystemModuleConfig(ctx android.PathContext, name string) ModuleConfig {
+func testSystemModuleConfig(ctx android.PathContext, name string) *ModuleConfig {
 	return testModuleConfig(ctx, name, "system")
 }
 
-func testSystemProductModuleConfig(ctx android.PathContext, name string) ModuleConfig {
+func testSystemProductModuleConfig(ctx android.PathContext, name string) *ModuleConfig {
 	return testModuleConfig(ctx, name, "system/product")
 }
 
-func testProductModuleConfig(ctx android.PathContext, name string) ModuleConfig {
+func testProductModuleConfig(ctx android.PathContext, name string) *ModuleConfig {
 	return testModuleConfig(ctx, name, "product")
 }
 
-func testModuleConfig(ctx android.PathContext, name, partition string) ModuleConfig {
-	return ModuleConfig{
+func testModuleConfig(ctx android.PathContext, name, partition string) *ModuleConfig {
+	return &ModuleConfig{
 		Name:                            name,
 		DexLocation:                     fmt.Sprintf("/%s/app/test/%s.apk", partition, name),
 		BuildPath:                       android.PathForOutput(ctx, fmt.Sprintf("%s/%s.apk", name, name)),
@@ -94,7 +94,7 @@ func TestDexPreoptSystemOther(t *testing.T) {
 	global.HasSystemOther = true
 
 	type moduleTest struct {
-		module            ModuleConfig
+		module            *ModuleConfig
 		expectedPartition string
 	}
 	tests := []struct {
