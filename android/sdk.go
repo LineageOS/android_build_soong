@@ -218,6 +218,25 @@ type SdkMember interface {
 	Variants() []SdkAware
 }
 
+type SdkMemberTypeDependencyTag interface {
+	blueprint.DependencyTag
+
+	SdkMemberType() SdkMemberType
+}
+
+type sdkMemberDependencyTag struct {
+	blueprint.BaseDependencyTag
+	memberType SdkMemberType
+}
+
+func (t *sdkMemberDependencyTag) SdkMemberType() SdkMemberType {
+	return t.memberType
+}
+
+func DependencyTagForSdkMemberType(memberType SdkMemberType) SdkMemberTypeDependencyTag {
+	return &sdkMemberDependencyTag{memberType: memberType}
+}
+
 // Interface that must be implemented for every type that can be a member of an
 // sdk.
 //

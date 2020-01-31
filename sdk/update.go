@@ -113,8 +113,8 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) []*sdkMember {
 
 	ctx.VisitDirectDeps(func(m android.Module) {
 		tag := ctx.OtherModuleDependencyTag(m)
-		if memberTag, ok := tag.(*sdkMemberDependencyTag); ok {
-			memberType := memberTag.memberType
+		if memberTag, ok := tag.(android.SdkMemberTypeDependencyTag); ok {
+			memberType := memberTag.SdkMemberType()
 
 			// Make sure that the resolved module is allowed in the member list property.
 			if !memberType.IsInstance(m) {
