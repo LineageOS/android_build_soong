@@ -168,6 +168,9 @@ func init() {
 			flags = append(flags, "-ftrivial-auto-var-init=pattern")
 		} else if ctx.Config().IsEnvTrue("AUTO_UNINITIALIZE") {
 			flags = append(flags, "-ftrivial-auto-var-init=uninitialized")
+		} else {
+			// Default to pattern initialization.
+			flags = append(flags, "-ftrivial-auto-var-init=pattern")
 		}
 
 		return strings.Join(flags, " ")
