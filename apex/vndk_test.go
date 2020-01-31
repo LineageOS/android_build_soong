@@ -82,7 +82,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 				notice: "custom_notice",
 			}
 		`, func(fs map[string][]byte, config android.Config) {
-			config.TestProductVariables.NativeCoverage = proptools.BoolPtr(true)
+			config.TestProductVariables.Native_coverage = proptools.BoolPtr(true)
 		})
 
 		files := getFiles(t, ctx, "myapex", "android_common_image")

@@ -1029,7 +1029,7 @@ func (c *deviceConfig) DeviceKernelHeaderDirs() []string {
 }
 
 func (c *deviceConfig) NativeCoverageEnabled() bool {
-	return Bool(c.config.productVariables.NativeCoverage)
+	return Bool(c.config.productVariables.Native_coverage)
 }
 
 func (c *deviceConfig) ClangCoverageEnabled() bool {
