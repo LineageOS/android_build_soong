@@ -849,6 +849,10 @@ type sdkLibraryScopeProperties struct {
 }
 
 type sdkLibraryImportProperties struct {
+	// List of shared java libs, common to all scopes, that this module has
+	// dependencies to
+	Libs []string
+
 	// Properties associated with the public api scope.
 	Public sdkLibraryScopeProperties
 
@@ -866,11 +870,6 @@ type sdkLibraryImport struct {
 
 	properties sdkLibraryImportProperties
 
-	// Legacy properties for the public api scope.
-	//
-	// Should use properties.Public instead.
-	legacyPublicProperties sdkLibraryScopeProperties
-
 	commonToSdkLibraryAndImport
 }
 
@@ -880,9 +879,9 @@ var _ SdkLibraryDependency = (*sdkLibraryImport)(nil)
 func sdkLibraryImportFactory() android.Module {
 	module := &sdkLibraryImport{}
 
-	module.AddProperties(&module.properties, &module.legacyPublicProperties)
+	module.AddProperties(&module.properties)
 
-	android.InitPrebuiltModule(module, &module.legacyPublicProperties.Jars)
+	android.InitPrebuiltModule(module, &[]string{})
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
 	android.AddLoadHook(module, func(mctx android.LoadHookContext) { module.createInternalModules(mctx) })
@@ -898,22 +897,6 @@ func (module *sdkLibraryImport) Name() string {
 }
 
 func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookContext) {
-
-	// Prepend any of the libs from the legacy public properties to the libs for each of the
-	// scopes to avoid having to duplicate them in each scope.
-	for _, scopeProperties := range module.scopeProperties() {
-		scopeProperties.Libs = append(module.legacyPublicProperties.Libs, scopeProperties.Libs...)
-	}
-
-	if module.legacyPublicProperties.Jars != nil {
-		if module.properties.Public.Jars != nil {
-			mctx.ModuleErrorf("cannot set both `jars` and `public.jars`")
-			return
-		}
-
-		// The legacy set of properties has been used so copy them over the public properties.
-		module.properties.Public = module.legacyPublicProperties
-	}
 
 	for apiScope, scopeProperties := range module.scopeProperties() {
 		if len(scopeProperties.Jars) == 0 {
@@ -934,7 +917,9 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 
 		props.Name = proptools.StringPtr(apiScope.stubsModuleName(module.BaseModuleName()))
 		props.Sdk_version = scopeProperties.Sdk_version
-		props.Libs = scopeProperties.Libs
+		// Prepend any of the libs from the legacy public properties to the libs for each of the
+		// scopes to avoid having to duplicate them in each scope.
+		props.Libs = append(module.properties.Libs, scopeProperties.Libs...)
 		props.Jars = scopeProperties.Jars
 
 		if module.SocSpecific() {
