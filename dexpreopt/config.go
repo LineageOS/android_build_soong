@@ -317,32 +317,11 @@ var dex2oatDepTag = struct {
 	blueprint.BaseDependencyTag
 }{}
 
-type DexPreoptModule interface {
-	dexPreoptModuleSignature() // Not called - only for type detection.
-}
-
-// RegisterToolDepsMutator registers a mutator that adds the necessary
-// dependencies to binary modules for tools that are required later when
-// Get(Cached)GlobalSoongConfig is called. It should be passed to
-// android.RegistrationContext.FinalDepsMutators, and module types that need
-// dependencies also need to embed DexPreoptModule.
-func RegisterToolDepsMutator(ctx android.RegisterMutatorsContext) {
-	ctx.BottomUp("dexpreopt_tool_deps", toolDepsMutator).Parallel()
-}
-
-func toolDepsMutator(ctx android.BottomUpMutatorContext) {
-	if GetGlobalConfig(ctx).DisablePreopt {
-		// Only register dependencies if dexpreopting is enabled. Necessary to avoid
-		// them in non-platform builds where dex2oat etc isn't available.
-		//
-		// It would be nice to not register this mutator at all then, but
-		// RegisterMutatorsContext available at registration doesn't have the state
-		// necessary to pass as PathContext to constructPath etc.
-		return
-	}
-	if _, ok := ctx.Module().(DexPreoptModule); !ok {
-		return
-	}
+// RegisterToolDeps adds the necessary dependencies to binary modules for tools
+// that are required later when Get(Cached)GlobalSoongConfig is called. It
+// should be called from a mutator that's registered with
+// android.RegistrationContext.FinalDepsMutators.
+func RegisterToolDeps(ctx android.BottomUpMutatorContext) {
 	dex2oatBin := dex2oatModuleName(ctx.Config())
 	v := ctx.Config().BuildOSTarget.Variations()
 	ctx.AddFarVariationDependencies(v, dex2oatDepTag, dex2oatBin)
@@ -418,10 +397,13 @@ func GetGlobalSoongConfig(ctx android.ModuleContext) *GlobalSoongConfig {
 // GetCachedGlobalSoongConfig returns a cached GlobalSoongConfig created by an
 // earlier GetGlobalSoongConfig call. This function works with any context
 // compatible with a basic PathContext, since it doesn't try to create a
-// GlobalSoongConfig (which requires a full ModuleContext). It will panic if
-// called before the first GetGlobalSoongConfig call.
+// GlobalSoongConfig with the proper paths (which requires a full
+// ModuleContext). If there has been no prior call to GetGlobalSoongConfig, nil
+// is returned.
 func GetCachedGlobalSoongConfig(ctx android.PathContext) *GlobalSoongConfig {
-	return ctx.Config().Get(globalSoongConfigOnceKey).(*GlobalSoongConfig)
+	return ctx.Config().Once(globalSoongConfigOnceKey, func() interface{} {
+		return (*GlobalSoongConfig)(nil)
+	}).(*GlobalSoongConfig)
 }
 
 type globalJsonSoongConfig struct {
@@ -464,6 +446,12 @@ func (s *globalSoongConfigSingleton) GenerateBuildActions(ctx android.SingletonC
 	}
 
 	config := GetCachedGlobalSoongConfig(ctx)
+	if config == nil {
+		// No module has enabled dexpreopting, so we assume there will be no calls
+		// to dexpreopt_gen.
+		return
+	}
+
 	jc := globalJsonSoongConfig{
 		Profman:          config.Profman.String(),
 		Dex2oat:          config.Dex2oat.String(),
@@ -495,6 +483,9 @@ func (s *globalSoongConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
 	}
 
 	config := GetCachedGlobalSoongConfig(ctx)
+	if config == nil {
+		return
+	}
 
 	ctx.Strict("DEX2OAT", config.Dex2oat.String())
 	ctx.Strict("DEXPREOPT_GEN_DEPS", strings.Join([]string{

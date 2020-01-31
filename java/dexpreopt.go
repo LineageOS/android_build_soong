@@ -19,6 +19,11 @@ import (
 	"android/soong/dexpreopt"
 )
 
+type dexpreopterInterface interface {
+	IsInstallable() bool // Structs that embed dexpreopter must implement this.
+	dexpreoptDisabled(ctx android.BaseModuleContext) bool
+}
+
 type dexpreopter struct {
 	dexpreoptProperties DexpreoptProperties
 
@@ -26,7 +31,6 @@ type dexpreopter struct {
 	uncompressedDex     bool
 	isSDKLibrary        bool
 	isTest              bool
-	isInstallable       bool
 	isPresignedPrebuilt bool
 
 	manifestFile     android.Path
@@ -58,7 +62,7 @@ type DexpreoptProperties struct {
 	}
 }
 
-func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
+func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 	global := dexpreopt.GetGlobalConfig(ctx)
 
 	if global.DisablePreopt {
@@ -81,7 +85,11 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
 		return true
 	}
 
-	if !d.isInstallable {
+	if !ctx.Module().(dexpreopterInterface).IsInstallable() {
+		return true
+	}
+
+	if ctx.Host() {
 		return true
 	}
 
@@ -95,12 +103,23 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.ModuleContext) bool {
 	return false
 }
 
+func dexpreoptToolDepsMutator(ctx android.BottomUpMutatorContext) {
+	if d, ok := ctx.Module().(dexpreopterInterface); !ok || d.dexpreoptDisabled(ctx) {
+		return
+	}
+	dexpreopt.RegisterToolDeps(ctx)
+}
+
 func odexOnSystemOther(ctx android.ModuleContext, installPath android.InstallPath) bool {
 	return dexpreopt.OdexOnSystemOtherByName(ctx.ModuleName(), android.InstallPathToOnDevicePath(ctx, installPath), dexpreopt.GetGlobalConfig(ctx))
 }
 
 func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.ModuleOutPath) android.ModuleOutPath {
-	if d.dexpreoptDisabled(ctx) {
+	// TODO(b/148690468): The check on d.installPath is to bail out in cases where
+	// the dexpreopter struct hasn't been fully initialized before we're called,
+	// e.g. in aar.go. This keeps the behaviour that dexpreopting is effectively
+	// disabled, even if installable is true.
+	if d.dexpreoptDisabled(ctx) || d.installPath.Base() == "." {
 		return dexJarFile
 	}
 

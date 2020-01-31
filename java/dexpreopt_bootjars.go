@@ -205,6 +205,10 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 	if skipDexpreoptBootJars(ctx) {
 		return
 	}
+	if dexpreopt.GetCachedGlobalSoongConfig(ctx) == nil {
+		// No module has enabled dexpreopting, so we assume there will be no boot image to make.
+		return
+	}
 
 	d.dexpreoptConfigForMake = android.PathForOutput(ctx, ctx.Config().DeviceName(), "dexpreopt.config")
 	writeGlobalConfigForMake(ctx, d.dexpreoptConfigForMake)

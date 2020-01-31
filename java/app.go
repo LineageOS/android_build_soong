@@ -27,7 +27,6 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
-	"android/soong/dexpreopt"
 	"android/soong/tradefed"
 )
 
@@ -141,6 +140,10 @@ type AndroidApp struct {
 	additionalAaptFlags []string
 
 	noticeOutputs android.NoticeOutputs
+}
+
+func (a *AndroidApp) IsInstallable() bool {
+	return Bool(a.properties.Installable)
 }
 
 func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
@@ -339,7 +342,6 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 		installDir = filepath.Join("app", a.installApkName)
 	}
 	a.dexpreopter.installPath = android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
-	a.dexpreopter.isInstallable = Bool(a.properties.Installable)
 	a.dexpreopter.uncompressedDex = a.shouldUncompressDex(ctx)
 
 	a.dexpreopter.enforceUsesLibs = a.usesLibrary.enforceUsesLibraries()
@@ -876,7 +878,6 @@ type AndroidAppImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	prebuilt android.Prebuilt
-	dexpreopt.DexPreoptModule
 
 	properties   AndroidAppImportProperties
 	dpiVariants  interface{}
@@ -922,6 +923,10 @@ type AndroidAppImportProperties struct {
 
 	// Optional name for the installed app. If unspecified, it is derived from the module name.
 	Filename *string
+}
+
+func (a *AndroidAppImport) IsInstallable() bool {
+	return true
 }
 
 // Updates properties with variant-specific values.
@@ -1066,7 +1071,6 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	}
 
 	a.dexpreopter.installPath = installDir.Join(ctx, a.BaseModuleName()+".apk")
-	a.dexpreopter.isInstallable = true
 	a.dexpreopter.isPresignedPrebuilt = Bool(a.properties.Presigned)
 	a.dexpreopter.uncompressedDex = a.shouldUncompressDex(ctx)
 
