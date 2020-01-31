@@ -65,11 +65,6 @@ type sdkProperties struct {
 	Module_exports bool `blueprint:"mutated"`
 }
 
-type sdkMemberDependencyTag struct {
-	blueprint.BaseDependencyTag
-	memberType android.SdkMemberType
-}
-
 // Contains information about the sdk properties that list sdk members, e.g.
 // Java_header_libs.
 type sdkMemberListProperty struct {
@@ -81,7 +76,7 @@ type sdkMemberListProperty struct {
 
 	// the dependency tag used for items in this list that can be used to determine the memberType
 	// for a resolved dependency.
-	dependencyTag *sdkMemberDependencyTag
+	dependencyTag android.SdkMemberTypeDependencyTag
 }
 
 func (p *sdkMemberListProperty) propertyName() string {
@@ -167,9 +162,7 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 
 			memberType: memberType,
 
-			dependencyTag: &sdkMemberDependencyTag{
-				memberType: memberType,
-			},
+			dependencyTag: android.DependencyTagForSdkMemberType(memberType),
 		}
 
 		listProperties = append(listProperties, memberListProperty)
