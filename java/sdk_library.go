@@ -689,16 +689,19 @@ func (module *SdkLibrary) sdkJars(
 				return module.Library.ImplementationJars()
 			}
 		}
-		var paths *scopePaths
+		var apiScope *apiScope
 		switch sdkVersion.kind {
 		case sdkSystem:
-			paths = module.getScopePaths(apiScopeSystem)
+			apiScope = apiScopeSystem
+		case sdkTest:
+			apiScope = apiScopeTest
 		case sdkPrivate:
 			return module.Library.HeaderJars()
 		default:
-			paths = module.getScopePaths(apiScopePublic)
+			apiScope = apiScopePublic
 		}
 
+		paths := module.getScopePaths(apiScope)
 		if headerJars {
 			return paths.stubsHeaderPath
 		} else {
