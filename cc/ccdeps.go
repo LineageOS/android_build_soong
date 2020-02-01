@@ -17,7 +17,6 @@ package cc
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path"
 	"sort"
 	"strings"
@@ -106,7 +105,7 @@ func (c *ccdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCon
 
 	moduleDeps.Modules = moduleInfos
 
-	ccfpath := android.PathForOutput(ctx, ccdepsJsonFileName).String()
+	ccfpath := android.PathForOutput(ctx, ccdepsJsonFileName)
 	err := createJsonFile(moduleDeps, ccfpath)
 	if err != nil {
 		ctx.Errorf(err.Error())
@@ -236,17 +235,14 @@ func sortMap(moduleInfos map[string]ccIdeInfo) map[string]ccIdeInfo {
 	return m
 }
 
-func createJsonFile(moduleDeps ccDeps, ccfpath string) error {
-	file, err := os.Create(ccfpath)
-	if err != nil {
-		return fmt.Errorf("Failed to create file: %s, relative: %v", ccdepsJsonFileName, err)
-	}
-	defer file.Close()
-	moduleDeps.Modules = sortMap(moduleDeps.Modules)
+func createJsonFile(moduleDeps ccDeps, ccfpath android.WritablePath) error {
 	buf, err := json.MarshalIndent(moduleDeps, "", "\t")
 	if err != nil {
-		return fmt.Errorf("Write file failed: %s, relative: %v", ccdepsJsonFileName, err)
+		return fmt.Errorf("JSON marshal of cc deps failed: %s", err)
 	}
-	fmt.Fprintf(file, string(buf))
+	err = android.WriteFileToOutputDir(ccfpath, buf, 0666)
+	if err != nil {
+		return fmt.Errorf("Writing cc deps to %s failed: %s", ccfpath.String(), err)
+	}
 	return nil
 }
