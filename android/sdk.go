@@ -182,6 +182,8 @@ type SnapshotBuilder interface {
 	AddPrebuiltModule(member SdkMember, moduleType string) BpModule
 }
 
+type BpPropertyTag interface{}
+
 // A set of properties for use in a .bp file.
 type BpPropertySet interface {
 	// Add a property, the value can be one of the following types:
@@ -190,8 +192,11 @@ type BpPropertySet interface {
 	// * bool
 	// * BpPropertySet
 	//
-	// It is an error is multiples properties with the same name are added.
+	// It is an error if multiple properties with the same name are added.
 	AddProperty(name string, value interface{})
+
+	// Add a property with an associated tag
+	AddPropertyWithTag(name string, value interface{}, tag BpPropertyTag)
 
 	// Add a property set with the specified name and return so that additional
 	// properties can be added.
@@ -211,6 +216,25 @@ type SdkMember interface {
 
 	// All the variants required by the SDK.
 	Variants() []SdkAware
+}
+
+type SdkMemberTypeDependencyTag interface {
+	blueprint.DependencyTag
+
+	SdkMemberType() SdkMemberType
+}
+
+type sdkMemberDependencyTag struct {
+	blueprint.BaseDependencyTag
+	memberType SdkMemberType
+}
+
+func (t *sdkMemberDependencyTag) SdkMemberType() SdkMemberType {
+	return t.memberType
+}
+
+func DependencyTagForSdkMemberType(memberType SdkMemberType) SdkMemberTypeDependencyTag {
+	return &sdkMemberDependencyTag{memberType: memberType}
 }
 
 // Interface that must be implemented for every type that can be a member of an

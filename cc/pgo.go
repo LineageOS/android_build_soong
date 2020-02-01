@@ -41,9 +41,9 @@ var (
 var pgoProfileProjectsConfigKey = android.NewOnceKey("PgoProfileProjects")
 
 const profileInstrumentFlag = "-fprofile-generate=/data/local/tmp"
-const profileSamplingFlag = "-gline-tables-only"
+const profileSamplingFlag = "-gmlt -fdebug-info-for-profiling"
 const profileUseInstrumentFormat = "-fprofile-use=%s"
-const profileUseSamplingFormat = "-fprofile-sample-use=%s"
+const profileUseSamplingFormat = "-fprofile-sample-accurate -fprofile-sample-use=%s"
 
 func getPgoProfileProjects(config android.DeviceConfig) []string {
 	return config.OnceStringSlice(pgoProfileProjectsConfigKey, func() []string {

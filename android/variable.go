@@ -125,6 +125,11 @@ type variableProperties struct {
 		Experimental_mte struct {
 			Cflags []string `android:"arch_variant"`
 		} `android:"arch_variant"`
+
+		Native_coverage struct {
+			Srcs         []string `android:"arch_variant"`
+			Exclude_srcs []string `android:"arch_variant"`
+		} `android:"arch_variant"`
 	} `android:"arch_variant"`
 }
 
@@ -247,7 +252,7 @@ type productVariables struct {
 	ClangTidy  *bool   `json:",omitempty"`
 	TidyChecks *string `json:",omitempty"`
 
-	NativeCoverage       *bool    `json:",omitempty"`
+	Native_coverage      *bool    `json:",omitempty"`
 	ClangCoverage        *bool    `json:",omitempty"`
 	CoveragePaths        []string `json:",omitempty"`
 	CoverageExcludePaths []string `json:",omitempty"`
