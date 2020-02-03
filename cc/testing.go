@@ -227,6 +227,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			stl: "none",
 			vendor_available: true,
 			recovery_available: true,
+			host_supported: true,
 			apex_available: [
 				"//apex_available:platform",
 				"//apex_available:anyapex",
@@ -240,6 +241,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			stl: "none",
 			vendor_available: true,
 			recovery_available: true,
+			host_supported: true,
 			vndk: {
 				enabled: true,
 				support_system_process: true,
