@@ -116,6 +116,8 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 
 		coverage := ctx.GetDirectDepWithTag(getProfileLibraryName(ctx), coverageDepTag).(*Module)
 		deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
+
+		flags.LdFlags = append(flags.LdFlags, "-Wl,--wrap,getenv")
 	}
 
 	return flags, deps
