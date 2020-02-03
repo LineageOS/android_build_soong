@@ -1243,6 +1243,8 @@ type RuntimeResourceOverlay struct {
 
 	properties RuntimeResourceOverlayProperties
 
+	certificate Certificate
+
 	outputFile android.Path
 	installDir android.InstallPath
 }
@@ -1288,6 +1290,7 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 	certificates = processMainCert(r.ModuleBase, String(r.properties.Certificate), certificates, ctx)
 	signed := android.PathForModuleOut(ctx, "signed", r.Name()+".apk")
 	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates)
+	r.certificate = certificates[0]
 
 	r.outputFile = signed
 	r.installDir = android.PathForModuleInstall(ctx, "overlay", String(r.properties.Theme))
