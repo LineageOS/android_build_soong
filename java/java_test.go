@@ -458,7 +458,7 @@ func TestPrebuilts(t *testing.T) {
 		java_library {
 			name: "foo",
 			srcs: ["a.java", ":stubs-source"],
-			libs: ["bar", "sdklib"],
+			libs: ["bar", "sdklib", "sdklib-legacy"],
 			static_libs: ["baz"],
 		}
 
@@ -478,8 +478,15 @@ func TestPrebuilts(t *testing.T) {
 		}
 
 		java_sdk_library_import {
-			name: "sdklib",
+			name: "sdklib-legacy",
 			jars: ["b.jar"],
+		}
+
+		java_sdk_library_import {
+			name: "sdklib",
+			public: {
+				jars: ["c.jar"],
+			},
 		}
 
 		prebuilt_stubs_sources {
@@ -528,6 +535,54 @@ func TestPrebuilts(t *testing.T) {
 func assertDeepEquals(t *testing.T, message string, expected interface{}, actual interface{}) {
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("%s: expected %q, found %q", message, expected, actual)
+	}
+}
+
+func TestJavaSdkLibraryImport(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+			libs: ["sdklib"],
+			sdk_version: "current",
+		}
+
+		java_library {
+			name: "foo.system",
+			srcs: ["a.java"],
+			libs: ["sdklib"],
+			sdk_version: "system_current",
+		}
+
+		java_library {
+			name: "foo.test",
+			srcs: ["a.java"],
+			libs: ["sdklib"],
+			sdk_version: "test_current",
+		}
+
+		java_sdk_library_import {
+			name: "sdklib",
+			public: {
+				jars: ["a.jar"],
+			},
+			system: {
+				jars: ["b.jar"],
+			},
+			test: {
+				jars: ["c.jar"],
+			},
+		}
+		`)
+
+	for _, scope := range []string{"", ".system", ".test"} {
+		fooModule := ctx.ModuleForTests("foo"+scope, "android_common")
+		javac := fooModule.Rule("javac")
+
+		sdklibStubsJar := ctx.ModuleForTests("sdklib.stubs"+scope, "android_common").Rule("combineJar").Output
+		if !strings.Contains(javac.Args["classpath"], sdklibStubsJar.String()) {
+			t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], sdklibStubsJar.String())
+		}
 	}
 }
 
