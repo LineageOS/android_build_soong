@@ -458,7 +458,7 @@ func TestPrebuilts(t *testing.T) {
 		java_library {
 			name: "foo",
 			srcs: ["a.java", ":stubs-source"],
-			libs: ["bar", "sdklib", "sdklib-legacy"],
+			libs: ["bar", "sdklib"],
 			static_libs: ["baz"],
 		}
 
@@ -474,11 +474,6 @@ func TestPrebuilts(t *testing.T) {
 
 		dex_import {
 			name: "qux",
-			jars: ["b.jar"],
-		}
-
-		java_sdk_library_import {
-			name: "sdklib-legacy",
 			jars: ["b.jar"],
 		}
 
