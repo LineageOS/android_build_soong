@@ -341,7 +341,7 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 
 				entries.SetBoolIfTrue("LOCAL_PRIVILEGED_MODULE", app.Privileged())
 
-				entries.SetPath("LOCAL_CERTIFICATE", app.certificate.Pem)
+				entries.SetString("LOCAL_CERTIFICATE", app.certificate.AndroidMkString())
 				entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", app.getOverriddenPackages()...)
 
 				for _, jniLib := range app.installJniLibs {
@@ -699,6 +699,7 @@ func (r *RuntimeResourceOverlay) AndroidMkEntries() []android.AndroidMkEntries {
 		Include:    "$(BUILD_SYSTEM)/soong_app_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(entries *android.AndroidMkEntries) {
+				entries.SetString("LOCAL_CERTIFICATE", r.certificate.AndroidMkString())
 				entries.SetPath("LOCAL_MODULE_PATH", r.installDir.ToMakePath())
 			},
 		},

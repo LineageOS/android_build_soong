@@ -2242,10 +2242,15 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 	if expected != signingFlag {
 		t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected, signingFlag)
 	}
+	path := android.AndroidMkEntriesForTest(t, config, "", m.Module())[0].EntryMap["LOCAL_CERTIFICATE"]
+	expectedPath := []string{"build/make/target/product/security/platform.x509.pem"}
+	if !reflect.DeepEqual(path, expectedPath) {
+		t.Errorf("Unexpected LOCAL_CERTIFICATE value: %v, expected: %v", path, expectedPath)
+	}
 
 	// Check device location.
-	path := android.AndroidMkEntriesForTest(t, config, "", m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath := []string{"/tmp/target/product/test_device/product/overlay"}
+	path = android.AndroidMkEntriesForTest(t, config, "", m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
+	expectedPath = []string{"/tmp/target/product/test_device/product/overlay"}
 	if !reflect.DeepEqual(path, expectedPath) {
 		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
 	}
