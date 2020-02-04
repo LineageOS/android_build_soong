@@ -241,37 +241,41 @@ func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *
 
 func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
 
-	// a function for emitting include dirs
-	addExportedDirsForNativeLibs := func(lib nativeLibInfoProperties, properties android.BpPropertySet, systemInclude bool) {
-		includeDirs := nativeIncludeDirPathsFor(lib, systemInclude)
-		if len(includeDirs) == 0 {
-			return
-		}
-		var propertyName string
-		if !systemInclude {
-			propertyName = "export_include_dirs"
-		} else {
-			propertyName = "export_system_include_dirs"
-		}
-		properties.AddProperty(propertyName, includeDirs)
-	}
-
 	pbm := builder.AddPrebuiltModule(member, info.memberType.prebuiltModuleType)
 
-	addExportedDirsForNativeLibs(info.commonProperties, pbm, false /*systemInclude*/)
-	addExportedDirsForNativeLibs(info.commonProperties, pbm, true /*systemInclude*/)
+	addPossiblyArchSpecificProperties(info.commonProperties, pbm)
 
 	archProperties := pbm.AddPropertySet("arch")
 	for _, av := range info.archVariantProperties {
 		archTypeProperties := archProperties.AddPropertySet(av.archType)
+		// Add any arch specific properties inside the appropriate arch: {<arch>: {...}} block
 		archTypeProperties.AddProperty("srcs", []string{nativeLibraryPathFor(av)})
 
-		// export_* properties are added inside the arch: {<arch>: {...}} block
-		addExportedDirsForNativeLibs(av, archTypeProperties, false /*systemInclude*/)
-		addExportedDirsForNativeLibs(av, archTypeProperties, true /*systemInclude*/)
+		addPossiblyArchSpecificProperties(av, archTypeProperties)
 	}
 	pbm.AddProperty("stl", "none")
 	pbm.AddProperty("system_shared_libs", []string{})
+}
+
+// Add properties that may, or may not, be arch specific.
+func addPossiblyArchSpecificProperties(libInfo nativeLibInfoProperties, outputProperties android.BpPropertySet) {
+	addExportedDirsForNativeLibs(libInfo, outputProperties, false /*systemInclude*/)
+	addExportedDirsForNativeLibs(libInfo, outputProperties, true /*systemInclude*/)
+}
+
+// a function for emitting include dirs
+func addExportedDirsForNativeLibs(lib nativeLibInfoProperties, properties android.BpPropertySet, systemInclude bool) {
+	includeDirs := nativeIncludeDirPathsFor(lib, systemInclude)
+	if len(includeDirs) == 0 {
+		return
+	}
+	var propertyName string
+	if !systemInclude {
+		propertyName = "export_include_dirs"
+	} else {
+		propertyName = "export_system_include_dirs"
+	}
+	properties.AddProperty(propertyName, includeDirs)
 }
 
 const (
