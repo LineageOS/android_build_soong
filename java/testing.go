@@ -61,6 +61,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"prebuilts/sdk/29/public/android.jar":         nil,
 		"prebuilts/sdk/29/public/framework.aidl":      nil,
 		"prebuilts/sdk/29/system/android.jar":         nil,
+		"prebuilts/sdk/29/system/foo.jar":             nil,
 		"prebuilts/sdk/current/core/android.jar":      nil,
 		"prebuilts/sdk/current/public/android.jar":    nil,
 		"prebuilts/sdk/current/public/framework.aidl": nil,

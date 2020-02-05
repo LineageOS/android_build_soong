@@ -683,8 +683,9 @@ func (module *SdkLibrary) sdkJars(
 	sdkVersion sdkSpec,
 	headerJars bool) android.Paths {
 
-	// This module is just a wrapper for the stubs.
-	if ctx.Config().UnbundledBuildUsePrebuiltSdks() {
+	// If a specific numeric version has been requested or the build is explicitly configured
+	// for it then use prebuilt versions of the sdk.
+	if sdkVersion.version.isNumbered() || ctx.Config().UnbundledBuildUsePrebuiltSdks() {
 		return module.PrebuiltJars(ctx, sdkVersion)
 	} else {
 		if !sdkVersion.specified() {
