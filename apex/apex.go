@@ -267,6 +267,10 @@ type apexBundleProperties struct {
 
 	// List of sanitizer names that this APEX is enabled for
 	SanitizerNames []string `blueprint:"mutated"`
+
+	PreventInstall bool `blueprint:"mutated"`
+
+	HideFromMake bool `blueprint:"mutated"`
 }
 
 type apexTargetBundleProperties struct {
@@ -560,7 +564,7 @@ func (a *apexBundle) Srcs() android.Paths {
 }
 
 func (a *apexBundle) installable() bool {
-	return a.properties.Installable == nil || proptools.Bool(a.properties.Installable)
+	return !a.properties.PreventInstall && (a.properties.Installable == nil || proptools.Bool(a.properties.Installable))
 }
 
 func (a *apexBundle) getImageVariation(config android.DeviceConfig) string {
@@ -593,6 +597,18 @@ func (a *apexBundle) IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizer
 		}
 	}
 	return android.InList(sanitizerName, globalSanitizerNames)
+}
+
+func (a *apexBundle) IsNativeCoverageNeeded(ctx android.BaseContext) bool {
+	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
+}
+
+func (a *apexBundle) PreventInstall() {
+	a.properties.PreventInstall = true
+}
+
+func (a *apexBundle) HideFromMake() {
+	a.properties.HideFromMake = true
 }
 
 func getCopyManifestForNativeLibrary(cc *cc.Module, handleSpecialLibs bool) (fileToCopy android.Path, dirInApex string) {
@@ -1094,6 +1110,11 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 }
 
 func (a *apexBundle) AndroidMk() android.AndroidMkData {
+	if a.properties.HideFromMake {
+		return android.AndroidMkData{
+			Disabled: true,
+		}
+	}
 	writers := []android.AndroidMkData{}
 	if a.apexTypes.image() {
 		writers = append(writers, a.androidMkForType(imageApex))
@@ -1183,8 +1204,13 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, name, moduleDir string, apex
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_java_prebuilt.mk")
 		} else if fi.class == nativeSharedLib || fi.class == nativeExecutable {
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.builtFile.Base())
-			if cc, ok := fi.module.(*cc.Module); ok && cc.UnstrippedOutputFile() != nil {
-				fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", cc.UnstrippedOutputFile().String())
+			if cc, ok := fi.module.(*cc.Module); ok {
+				if cc.UnstrippedOutputFile() != nil {
+					fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", cc.UnstrippedOutputFile().String())
+				}
+				if cc.CoverageOutputFile().Valid() {
+					fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", cc.CoverageOutputFile().String())
+				}
 			}
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_prebuilt.mk")
 		} else {
