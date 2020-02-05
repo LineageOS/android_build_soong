@@ -1204,6 +1204,12 @@ func apexFileForPrebuiltEtc(ctx android.BaseModuleContext, prebuilt android.Preb
 	return newApexFile(ctx, fileToCopy, depName, dirInApex, etc, prebuilt)
 }
 
+func apexFileForCompatConfig(ctx android.BaseModuleContext, config java.PlatformCompatConfigIntf, depName string) apexFile {
+	dirInApex := filepath.Join("etc", config.SubDir())
+	fileToCopy := config.CompatConfig()
+	return newApexFile(ctx, fileToCopy, depName, dirInApex, etc, config)
+}
+
 func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 	android.Module
 	Privileged() bool
@@ -1371,8 +1377,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case prebuiltTag:
 				if prebuilt, ok := child.(android.PrebuiltEtcModule); ok {
 					filesInfo = append(filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
+				} else if prebuilt, ok := child.(java.PlatformCompatConfigIntf); ok {
+					filesInfo = append(filesInfo, apexFileForCompatConfig(ctx, prebuilt, depName))
 				} else {
-					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
+					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc and not a platform_compat_config module", depName)
 				}
 			case testTag:
 				if ccTest, ok := child.(*cc.Module); ok {
