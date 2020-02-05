@@ -323,6 +323,107 @@ func TestResourceDirs(t *testing.T) {
 	}
 }
 
+func TestLibraryAssets(t *testing.T) {
+	bp := `
+			android_app {
+				name: "foo",
+				sdk_version: "current",
+				static_libs: ["lib1", "lib2", "lib3"],
+			}
+
+			android_library {
+				name: "lib1",
+				sdk_version: "current",
+				asset_dirs: ["assets_a"],
+			}
+
+			android_library {
+				name: "lib2",
+				sdk_version: "current",
+			}
+
+			android_library {
+				name: "lib3",
+				sdk_version: "current",
+				static_libs: ["lib4"],
+			}
+
+			android_library {
+				name: "lib4",
+				sdk_version: "current",
+				asset_dirs: ["assets_b"],
+			}
+		`
+
+	testCases := []struct {
+		name          string
+		assetFlag     string
+		assetPackages []string
+	}{
+		{
+			name: "foo",
+			// lib1 has its own asset. lib3 doesn't have any, but provides lib4's transitively.
+			assetPackages: []string{
+				buildDir + "/.intermediates/foo/android_common/aapt2/package-res.apk",
+				buildDir + "/.intermediates/lib1/android_common/assets.zip",
+				buildDir + "/.intermediates/lib3/android_common/assets.zip",
+			},
+		},
+		{
+			name:      "lib1",
+			assetFlag: "-A assets_a",
+		},
+		{
+			name: "lib2",
+		},
+		{
+			name: "lib3",
+			assetPackages: []string{
+				buildDir + "/.intermediates/lib3/android_common/aapt2/package-res.apk",
+				buildDir + "/.intermediates/lib4/android_common/assets.zip",
+			},
+		},
+		{
+			name:      "lib4",
+			assetFlag: "-A assets_b",
+		},
+	}
+	ctx := testApp(t, bp)
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			m := ctx.ModuleForTests(test.name, "android_common")
+
+			// Check asset flag in aapt2 link flags
+			var aapt2link android.TestingBuildParams
+			if len(test.assetPackages) > 0 {
+				aapt2link = m.Output("aapt2/package-res.apk")
+			} else {
+				aapt2link = m.Output("package-res.apk")
+			}
+			aapt2Flags := aapt2link.Args["flags"]
+			if test.assetFlag != "" {
+				if !strings.Contains(aapt2Flags, test.assetFlag) {
+					t.Errorf("Can't find asset flag %q in aapt2 link flags %q", test.assetFlag, aapt2Flags)
+				}
+			} else {
+				if strings.Contains(aapt2Flags, " -A ") {
+					t.Errorf("aapt2 link flags %q contain unexpected asset flag", aapt2Flags)
+				}
+			}
+
+			// Check asset merge rule.
+			if len(test.assetPackages) > 0 {
+				mergeAssets := m.Output("package-res.apk")
+				if !reflect.DeepEqual(test.assetPackages, mergeAssets.Inputs.Strings()) {
+					t.Errorf("Unexpected mergeAssets inputs: %v, expected: %v",
+						mergeAssets.Inputs.Strings(), test.assetPackages)
+				}
+			}
+		})
+	}
+}
+
 func TestAndroidResources(t *testing.T) {
 	testCases := []struct {
 		name                       string
