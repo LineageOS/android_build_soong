@@ -49,6 +49,8 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"api/test-current.txt":   nil,
 		"api/test-removed.txt":   nil,
 		"framework/aidl/a.aidl":  nil,
+		"assets_a/a":             nil,
+		"assets_b/b":             nil,
 
 		"prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_shared.so": nil,
 
