@@ -30,6 +30,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"b.kt":                   nil,
 		"a.jar":                  nil,
 		"b.jar":                  nil,
+		"c.jar":                  nil,
 		"APP_NOTICE":             nil,
 		"GENRULE_NOTICE":         nil,
 		"LIB_NOTICE":             nil,

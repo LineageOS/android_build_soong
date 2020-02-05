@@ -225,12 +225,30 @@ type scopePaths struct {
 	apiFilePath     android.Path
 }
 
+// Common code between sdk library and sdk library import
+type commonToSdkLibraryAndImport struct {
+	scopePaths map[*apiScope]*scopePaths
+}
+
+func (c *commonToSdkLibraryAndImport) getScopePaths(scope *apiScope) *scopePaths {
+	if c.scopePaths == nil {
+		c.scopePaths = make(map[*apiScope]*scopePaths)
+	}
+	paths := c.scopePaths[scope]
+	if paths == nil {
+		paths = &scopePaths{}
+		c.scopePaths[scope] = paths
+	}
+
+	return paths
+}
+
 type SdkLibrary struct {
 	Library
 
 	sdkLibraryProperties sdkLibraryProperties
 
-	scopePaths map[*apiScope]*scopePaths
+	commonToSdkLibraryAndImport
 
 	permissionsFile android.Path
 }
@@ -244,19 +262,6 @@ func (module *SdkLibrary) getActiveApiScopes() apiScopes {
 	} else {
 		return apiScopes{apiScopePublic}
 	}
-}
-
-func (module *SdkLibrary) getScopePaths(scope *apiScope) *scopePaths {
-	if module.scopePaths == nil {
-		module.scopePaths = make(map[*apiScope]*scopePaths)
-	}
-	paths := module.scopePaths[scope]
-	if paths == nil {
-		paths = &scopePaths{}
-		module.scopePaths[scope] = paths
-	}
-
-	return paths
 }
 
 func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -833,13 +838,29 @@ func SdkLibraryFactory() android.Module {
 // SDK library prebuilts
 //
 
-type sdkLibraryImportProperties struct {
+// Properties associated with each api scope.
+type sdkLibraryScopeProperties struct {
 	Jars []string `android:"path"`
 
 	Sdk_version *string
 
 	// List of shared java libs that this module has dependencies to
 	Libs []string
+}
+
+type sdkLibraryImportProperties struct {
+	// List of shared java libs, common to all scopes, that this module has
+	// dependencies to
+	Libs []string
+
+	// Properties associated with the public api scope.
+	Public sdkLibraryScopeProperties
+
+	// Properties associated with the system api scope.
+	System sdkLibraryScopeProperties
+
+	// Properties associated with the test api scope.
+	Test sdkLibraryScopeProperties
 }
 
 type sdkLibraryImport struct {
@@ -849,7 +870,7 @@ type sdkLibraryImport struct {
 
 	properties sdkLibraryImportProperties
 
-	stubsPath android.Paths
+	commonToSdkLibraryAndImport
 }
 
 var _ SdkLibraryDependency = (*sdkLibraryImport)(nil)
@@ -860,7 +881,7 @@ func sdkLibraryImportFactory() android.Module {
 
 	module.AddProperties(&module.properties)
 
-	android.InitPrebuiltModule(module, &module.properties.Jars)
+	android.InitPrebuiltModule(module, &[]string{})
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
 	android.AddLoadHook(module, func(mctx android.LoadHookContext) { module.createInternalModules(mctx) })
@@ -876,28 +897,43 @@ func (module *sdkLibraryImport) Name() string {
 }
 
 func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookContext) {
-	// Creates a java import for the jar with ".stubs" suffix
-	props := struct {
-		Name                *string
-		Soc_specific        *bool
-		Device_specific     *bool
-		Product_specific    *bool
-		System_ext_specific *bool
-	}{}
 
-	props.Name = proptools.StringPtr(module.BaseModuleName() + sdkStubsLibrarySuffix)
+	for apiScope, scopeProperties := range module.scopeProperties() {
+		if len(scopeProperties.Jars) == 0 {
+			continue
+		}
 
-	if module.SocSpecific() {
-		props.Soc_specific = proptools.BoolPtr(true)
-	} else if module.DeviceSpecific() {
-		props.Device_specific = proptools.BoolPtr(true)
-	} else if module.ProductSpecific() {
-		props.Product_specific = proptools.BoolPtr(true)
-	} else if module.SystemExtSpecific() {
-		props.System_ext_specific = proptools.BoolPtr(true)
+		// Creates a java import for the jar with ".stubs" suffix
+		props := struct {
+			Name                *string
+			Soc_specific        *bool
+			Device_specific     *bool
+			Product_specific    *bool
+			System_ext_specific *bool
+			Sdk_version         *string
+			Libs                []string
+			Jars                []string
+		}{}
+
+		props.Name = proptools.StringPtr(apiScope.stubsModuleName(module.BaseModuleName()))
+		props.Sdk_version = scopeProperties.Sdk_version
+		// Prepend any of the libs from the legacy public properties to the libs for each of the
+		// scopes to avoid having to duplicate them in each scope.
+		props.Libs = append(module.properties.Libs, scopeProperties.Libs...)
+		props.Jars = scopeProperties.Jars
+
+		if module.SocSpecific() {
+			props.Soc_specific = proptools.BoolPtr(true)
+		} else if module.DeviceSpecific() {
+			props.Device_specific = proptools.BoolPtr(true)
+		} else if module.ProductSpecific() {
+			props.Product_specific = proptools.BoolPtr(true)
+		} else if module.SystemExtSpecific() {
+			props.System_ext_specific = proptools.BoolPtr(true)
+		}
+
+		mctx.CreateModule(ImportFactory, &props)
 	}
-
-	mctx.CreateModule(ImportFactory, &props, &module.properties)
 
 	javaSdkLibraries := javaSdkLibraries(mctx.Config())
 	javaSdkLibrariesLock.Lock()
@@ -905,9 +941,23 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 	*javaSdkLibraries = append(*javaSdkLibraries, module.BaseModuleName())
 }
 
+func (module *sdkLibraryImport) scopeProperties() map[*apiScope]*sdkLibraryScopeProperties {
+	p := make(map[*apiScope]*sdkLibraryScopeProperties)
+	p[apiScopePublic] = &module.properties.Public
+	p[apiScopeSystem] = &module.properties.System
+	p[apiScopeTest] = &module.properties.Test
+	return p
+}
+
 func (module *sdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) {
-	// Add dependencies to the prebuilt stubs library
-	ctx.AddVariationDependencies(nil, apiScopePublic.stubsTag, module.BaseModuleName()+sdkStubsLibrarySuffix)
+	for apiScope, scopeProperties := range module.scopeProperties() {
+		if len(scopeProperties.Jars) == 0 {
+			continue
+		}
+
+		// Add dependencies to the prebuilt stubs library
+		ctx.AddVariationDependencies(nil, apiScope.stubsTag, apiScope.stubsModuleName(module.BaseModuleName()))
+	}
 }
 
 func (module *sdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -915,21 +965,42 @@ func (module *sdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 	ctx.VisitDirectDeps(func(to android.Module) {
 		tag := ctx.OtherModuleDependencyTag(to)
 
-		switch tag {
-		case apiScopePublic.stubsTag:
-			module.stubsPath = to.(Dependency).HeaderJars()
+		if lib, ok := to.(Dependency); ok {
+			if scopeTag, ok := tag.(scopeDependencyTag); ok {
+				apiScope := scopeTag.apiScope
+				scopePaths := module.getScopePaths(apiScope)
+				scopePaths.stubsHeaderPath = lib.HeaderJars()
+			}
 		}
 	})
+}
+
+func (module *sdkLibraryImport) sdkJars(
+	ctx android.BaseModuleContext,
+	sdkVersion sdkSpec) android.Paths {
+
+	var apiScope *apiScope
+	switch sdkVersion.kind {
+	case sdkSystem:
+		apiScope = apiScopeSystem
+	case sdkTest:
+		apiScope = apiScopeTest
+	default:
+		apiScope = apiScopePublic
+	}
+
+	paths := module.getScopePaths(apiScope)
+	return paths.stubsHeaderPath
 }
 
 // to satisfy SdkLibraryDependency interface
 func (module *sdkLibraryImport) SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
 	// This module is just a wrapper for the prebuilt stubs.
-	return module.stubsPath
+	return module.sdkJars(ctx, sdkVersion)
 }
 
 // to satisfy SdkLibraryDependency interface
 func (module *sdkLibraryImport) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
 	// This module is just a wrapper for the stubs.
-	return module.stubsPath
+	return module.sdkJars(ctx, sdkVersion)
 }
