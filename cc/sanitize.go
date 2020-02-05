@@ -47,7 +47,7 @@ var (
 	// -flto and -fvisibility are required by clang when -fsanitize=cfi is
 	// used, but have no effect on assembly files
 	cfiAsflags = []string{"-flto", "-fvisibility=default"}
-	cfiLdflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize=cfi",
+	cfiLdflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize=cfi", "-fstack-protector-all",
 		"-Wl,-plugin-opt,O3", "-O3"}
 	cfiExportsMapPath     = "build/soong/cc/config/cfi_exports.map"
 	cfiStaticLibsMutex    sync.Mutex
