@@ -1266,8 +1266,11 @@ func orderStaticModuleDeps(module LinkableInterface, staticDeps []LinkableInterf
 	allTransitiveDeps := make(map[android.Path][]android.Path, len(staticDeps))
 	staticDepFiles := []android.Path{}
 	for _, dep := range staticDeps {
-		allTransitiveDeps[dep.OutputFile().Path()] = dep.GetDepsInLinkOrder()
-		staticDepFiles = append(staticDepFiles, dep.OutputFile().Path())
+		// The OutputFile may not be valid for a variant not present, and the AllowMissingDependencies flag is set.
+		if dep.OutputFile().Valid() {
+			allTransitiveDeps[dep.OutputFile().Path()] = dep.GetDepsInLinkOrder()
+			staticDepFiles = append(staticDepFiles, dep.OutputFile().Path())
+		}
 	}
 	sharedDepFiles := []android.Path{}
 	for _, sharedDep := range sharedDeps {
