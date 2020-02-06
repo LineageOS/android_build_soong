@@ -299,6 +299,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", cc.VndkLibrariesTxtFactory)
 	ctx.RegisterModuleType("prebuilt_etc", android.PrebuiltEtcFactory)
+	ctx.RegisterModuleType("platform_compat_config", java.PlatformCompatConfigFactory)
 	ctx.RegisterModuleType("sh_binary", android.ShBinaryFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	java.RegisterJavaBuildComponents(ctx)
@@ -3449,6 +3450,41 @@ func TestJavaSDKLibrary(t *testing.T) {
 	// Permission XML should point to the activated path of impl jar of java_sdk_library
 	xml := ctx.ModuleForTests("foo", "android_common_myapex").Output("foo.xml")
 	ensureContains(t, xml.Args["content"], `<library name="foo" file="/apex/myapex/javalib/foo.jar"`)
+}
+
+func TestCompatConfig(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			prebuilts: ["myjar-platform-compat-config"],
+			java_libs: ["myjar"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		platform_compat_config {
+		    name: "myjar-platform-compat-config",
+		    src: ":myjar",
+		}
+
+		java_library {
+			name: "myjar",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			compile_dex: true,
+			apex_available: [ "myapex" ],
+		}
+	`)
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"etc/compatconfig/myjar-platform-compat-config.xml",
+		"javalib/myjar.jar",
+	})
 }
 
 func TestRejectNonInstallableJavaLibrary(t *testing.T) {
