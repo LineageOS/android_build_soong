@@ -71,6 +71,7 @@ const (
 	sdkPublic
 	sdkSystem
 	sdkTest
+	sdkModule
 	sdkPrivate
 )
 
@@ -91,6 +92,8 @@ func (k sdkKind) String() string {
 		return "core"
 	case sdkCorePlatform:
 		return "core_platform"
+	case sdkModule:
+		return "module"
 	default:
 		return "invalid"
 	}
@@ -256,6 +259,8 @@ func sdkSpecFrom(str string) sdkSpec {
 			kind = sdkSystem
 		case "test":
 			kind = sdkTest
+		case "module":
+			kind = sdkModule
 		default:
 			return sdkSpec{sdkInvalid, sdkVersionNone, str}
 		}
@@ -382,6 +387,9 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		return toModule("android_test_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))
 	case sdkCore:
 		return toModule("core.current.stubs", "", nil)
+	case sdkModule:
+		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
+		return toModule("android_module_lib_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))
 	default:
 		panic(fmt.Errorf("invalid sdk %q", sdkVersion.raw))
 	}
