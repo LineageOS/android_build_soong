@@ -16,6 +16,7 @@ package java
 
 import (
 	"android/soong/android"
+	"android/soong/genrule"
 
 	"fmt"
 	"io"
@@ -264,6 +265,8 @@ func (module *SdkLibrary) getActiveApiScopes() apiScopes {
 	}
 }
 
+var xmlPermissionsFileTag = dependencyTag{name: "xml-permissions-file"}
+
 func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	useBuiltStubs := !ctx.Config().UnbundledBuildUsePrebuiltSdks()
 	for _, apiScope := range module.getActiveApiScopes() {
@@ -275,6 +278,11 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddVariationDependencies(nil, apiScope.apiFileTag, module.docsName(apiScope))
 	}
 
+	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
+		// Add dependency to the rule for generating the xml permissions file
+		ctx.AddDependency(module, xmlPermissionsFileTag, module.genXmlPermissionsFileName())
+	}
+
 	module.Library.deps(ctx)
 }
 
@@ -283,8 +291,6 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
 		module.Library.GenerateAndroidBuildActions(ctx)
 	}
-
-	module.buildPermissionsFile(ctx)
 
 	// Record the paths to the header jars of the library (stubs and impl).
 	// When this java_sdk_library is depended upon from others via "libs" property,
@@ -310,31 +316,19 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 				ctx.ModuleErrorf("depends on module %q of unknown tag %q", otherName, tag)
 			}
 		}
+		if tag == xmlPermissionsFileTag {
+			if genRule, ok := to.(genrule.SourceFileGenerator); ok {
+				pf := genRule.GeneratedSourceFiles()
+				if len(pf) != 1 {
+					ctx.ModuleErrorf("%q failed to generate permission XML", otherName)
+				} else {
+					module.permissionsFile = pf[0]
+				}
+			} else {
+				ctx.ModuleErrorf("depends on module %q to generate xml permissions file but it does not provide any outputs", otherName)
+			}
+		}
 	})
-}
-
-func (module *SdkLibrary) buildPermissionsFile(ctx android.ModuleContext) {
-	xmlContent := fmt.Sprintf(permissionsTemplate, module.BaseModuleName(), module.implPath())
-	permissionsFile := android.PathForModuleOut(ctx, module.xmlFileName())
-
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        android.WriteFile,
-		Output:      permissionsFile,
-		Description: "Generating " + module.BaseModuleName() + " permissions",
-		Args: map[string]string{
-			"content": xmlContent,
-		},
-	})
-
-	module.permissionsFile = permissionsFile
-}
-
-func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
-	switch tag {
-	case ".xml":
-		return android.Paths{module.permissionsFile}, nil
-	}
-	return module.Library.OutputFiles(tag)
 }
 
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
@@ -421,6 +415,11 @@ func (module *SdkLibrary) implPath() string {
 // Module name of the XML file for the lib
 func (module *SdkLibrary) xmlFileName() string {
 	return module.BaseModuleName() + sdkXmlFileSuffix
+}
+
+// Module name of the rule for generating the XML permissions file
+func (module *SdkLibrary) genXmlPermissionsFileName() string {
+	return "gen-" + module.BaseModuleName() + sdkXmlFileSuffix
 }
 
 // Get the sdk version for use when compiling the stubs library.
@@ -623,8 +622,34 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 	mctx.CreateModule(DroidstubsFactory, &props)
 }
 
+func (module *SdkLibrary) XmlPermissionsFile() android.Path {
+	return module.permissionsFile
+}
+
+func (module *SdkLibrary) XmlPermissionsFileContent() string {
+	return fmt.Sprintf(permissionsTemplate, module.BaseModuleName(), module.implPath())
+}
+
 // Creates the xml file that publicizes the runtime library
 func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
+
+	xmlContent := module.XmlPermissionsFileContent()
+
+	genRuleName := module.genXmlPermissionsFileName()
+
+	// Create a genrule module to create the XML permissions file.
+	genRuleProps := struct {
+		Name *string
+		Cmd  *string
+		Out  []string
+	}{
+		Name: proptools.StringPtr(genRuleName),
+		Cmd:  proptools.StringPtr("echo -e '" + xmlContent + "' > '$(out)'"),
+		Out:  []string{module.xmlFileName()},
+	}
+
+	mctx.CreateModule(genrule.GenRuleFactory, &genRuleProps)
+
 	// creates a prebuilt_etc module to actually place the xml file under
 	// <partition>/etc/permissions
 	etcProps := struct {
@@ -637,7 +662,7 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 		System_ext_specific *bool
 	}{}
 	etcProps.Name = proptools.StringPtr(module.xmlFileName())
-	etcProps.Src = proptools.StringPtr(":" + module.BaseModuleName() + "{.xml}")
+	etcProps.Src = proptools.StringPtr(":" + genRuleName)
 	etcProps.Sub_dir = proptools.StringPtr("permissions")
 	if module.SocSpecific() {
 		etcProps.Soc_specific = proptools.BoolPtr(true)
