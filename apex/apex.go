@@ -747,6 +747,10 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
+	m["com.android.permission"] = []string{"GooglePermissionController", "PermissionController"}
+	//
+	// Module separator
+	//
 	m["com.android.runtime"] = []string{
 		"bionic_libc_platform_headers",
 		"fmtlib",
