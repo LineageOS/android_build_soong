@@ -583,6 +583,13 @@ func (a *AndroidApp) getCertString(ctx android.BaseModuleContext) string {
 	return String(a.overridableAppProperties.Certificate)
 }
 
+func (a *AndroidApp) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	if IsJniDepTag(ctx.OtherModuleDependencyTag(dep)) {
+		return true
+	}
+	return a.Library.DepIsInSameApex(ctx, dep)
+}
+
 // For OutputFileProducer interface
 func (a *AndroidApp) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
