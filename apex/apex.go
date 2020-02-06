@@ -743,11 +743,9 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"kotlinx-coroutines-core-nodeps",
 		"libprotobuf-java-lite",
 		"permissioncontroller-statsd",
+		"GooglePermissionController",
+		"PermissionController",
 	}
-	//
-	// Module separator
-	//
-	m["com.android.permission"] = []string{"GooglePermissionController", "PermissionController"}
 	//
 	// Module separator
 	//
