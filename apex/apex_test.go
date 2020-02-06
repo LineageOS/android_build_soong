@@ -2210,17 +2210,29 @@ func TestDependenciesInApexManifest(t *testing.T) {
 }
 
 func TestApexName(t *testing.T) {
-	ctx, _ := testApex(t, `
+	ctx, config := testApex(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
 			apex_name: "com.android.myapex",
+			native_shared_libs: ["mylib"],
 		}
 
 		apex_key {
 			name: "myapex.key",
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
 		}
 	`)
 
@@ -2229,6 +2241,16 @@ func TestApexName(t *testing.T) {
 	ensureContains(t, apexManifestRule.Args["opt"], "-v name com.android.myapex")
 	apexRule := module.Rule("apexRule")
 	ensureContains(t, apexRule.Args["opt_flags"], "--do_not_check_keyname")
+
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	name := apexBundle.BaseModuleName()
+	prefix := "TARGET_"
+	var builder strings.Builder
+	data.Custom(&builder, name, prefix, "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_MODULE := mylib.myapex\n")
+	ensureNotContains(t, androidMk, "LOCAL_MODULE := mylib.com.android.myapex\n")
 }
 
 func TestNonTestApex(t *testing.T) {
