@@ -211,6 +211,15 @@ func TestClasspath(t *testing.T) {
 			java8classpath: []string{"prebuilts/sdk/29/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
 		},
+		{
+
+			name:           "module_current",
+			properties:     `sdk_version: "module_current",`,
+			bootclasspath:  []string{"android_module_lib_stubs_current", "core-lambda-stubs"},
+			system:         "core-current-stubs-system-modules",
+			java9classpath: []string{"android_module_lib_stubs_current"},
+			aidl:           "-p" + buildDir + "/framework.aidl",
+		},
 	}
 
 	for _, testcase := range classpathTestcases {
