@@ -303,6 +303,7 @@ func loadSoongConfigModuleTypeDefinition(ctx LoadHookContext, from string) map[s
 	}
 
 	return ctx.Config().Once(key, func() interface{} {
+		ctx.AddNinjaFileDeps(from)
 		r, err := ctx.Config().fs.Open(from)
 		if err != nil {
 			ctx.PropertyErrorf("from", "failed to open %q: %s", from, err)
