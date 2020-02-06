@@ -127,6 +127,7 @@ type variableProperties struct {
 		} `android:"arch_variant"`
 
 		Native_coverage struct {
+			Src          *string  `android:"arch_variant"`
 			Srcs         []string `android:"arch_variant"`
 			Exclude_srcs []string `android:"arch_variant"`
 		} `android:"arch_variant"`
