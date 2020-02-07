@@ -25,7 +25,7 @@ import (
 
 func init() {
 	PreDepsMutators(func(ctx RegisterMutatorsContext) {
-		ctx.BottomUp("variable", variableMutator).Parallel()
+		ctx.BottomUp("variable", VariableMutator).Parallel()
 	})
 }
 
@@ -384,7 +384,7 @@ func (v *productVariables) SetDefaultConfig() {
 	}
 }
 
-func variableMutator(mctx BottomUpMutatorContext) {
+func VariableMutator(mctx BottomUpMutatorContext) {
 	var module Module
 	var ok bool
 	if module, ok = mctx.Module().(Module); !ok {
@@ -537,6 +537,20 @@ func sliceToTypeArray(s []interface{}) interface{} {
 		ret.Index(i).Set(reflect.ValueOf(reflect.TypeOf(e)))
 	}
 	return ret.Interface()
+}
+
+func initProductVariableModule(m Module) {
+	base := m.base()
+
+	// Allow tests to override the default product variables
+	if base.variableProperties == nil {
+		base.variableProperties = defaultProductVariables
+	}
+	// Filter the product variables properties to the ones that exist on this module
+	base.variableProperties = createVariableProperties(m.GetProperties(), base.variableProperties)
+	if base.variableProperties != nil {
+		m.AddProperties(base.variableProperties)
+	}
 }
 
 // createVariableProperties takes the list of property structs for a module and returns a property struct that
