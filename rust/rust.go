@@ -705,13 +705,15 @@ func (mod *Module) InstallInData() bool {
 func linkPathFromFilePath(filepath android.Path) string {
 	return strings.Split(filepath.String(), filepath.Base())[0]
 }
+
 func libNameFromFilePath(filepath android.Path) string {
-	libName := strings.Split(filepath.Base(), filepath.Ext())[0]
+	libName := strings.TrimSuffix(filepath.Base(), filepath.Ext())
 	if strings.HasPrefix(libName, "lib") {
 		libName = libName[3:]
 	}
 	return libName
 }
+
 func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	ctx := &depsContext{
 		BottomUpMutatorContext: actx,
