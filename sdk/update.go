@@ -105,23 +105,23 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 // Collect all the members.
 //
 // The members are first grouped by type and then grouped by name. The order of
-// the types is the order they are referenced in android.SdkMemberTypes. The
-// names are in order in which the dependencies were added.
+// the types is the order they are referenced in android.SdkMemberTypesRegistry.
+// The names are in the order in which the dependencies were added.
 func (s *sdk) collectMembers(ctx android.ModuleContext) []*sdkMember {
 	byType := make(map[android.SdkMemberType][]*sdkMember)
 	byName := make(map[string]*sdkMember)
 
-	ctx.VisitDirectDeps(func(m android.Module) {
-		tag := ctx.OtherModuleDependencyTag(m)
+	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
+		tag := ctx.OtherModuleDependencyTag(child)
 		if memberTag, ok := tag.(android.SdkMemberTypeDependencyTag); ok {
 			memberType := memberTag.SdkMemberType()
 
 			// Make sure that the resolved module is allowed in the member list property.
-			if !memberType.IsInstance(m) {
-				ctx.ModuleErrorf("module %q is not valid in property %s", ctx.OtherModuleName(m), memberType.SdkPropertyName())
+			if !memberType.IsInstance(child) {
+				ctx.ModuleErrorf("module %q is not valid in property %s", ctx.OtherModuleName(child), memberType.SdkPropertyName())
 			}
 
-			name := ctx.OtherModuleName(m)
+			name := ctx.OtherModuleName(child)
 
 			member := byName[name]
 			if member == nil {
@@ -130,8 +130,14 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) []*sdkMember {
 				byType[memberType] = append(byType[memberType], member)
 			}
 
-			member.variants = append(member.variants, m.(android.SdkAware))
+			member.variants = append(member.variants, child.(android.SdkAware))
+
+			// If the member type supports transitive sdk members then recurse down into
+			// its dependencies, otherwise exit traversal.
+			return memberType.HasTransitiveSdkMembers()
 		}
+
+		return false
 	})
 
 	var members []*sdkMember
