@@ -539,7 +539,7 @@ func InitAndroidModule(m Module) {
 
 	// Allow tests to override the default product variables
 	if base.variableProperties == nil {
-		base.variableProperties = zeroProductVariables
+		base.variableProperties = defaultProductVariables
 	}
 
 	// Filter the product variables properties to the ones that exist on this module

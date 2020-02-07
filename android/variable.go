@@ -133,7 +133,7 @@ type variableProperties struct {
 	} `android:"arch_variant"`
 }
 
-var zeroProductVariables interface{} = variableProperties{}
+var defaultProductVariables interface{} = variableProperties{}
 
 type productVariables struct {
 	// Suffix to add to generated Makefiles
@@ -399,11 +399,9 @@ func variableMutator(mctx BottomUpMutatorContext) {
 	}
 
 	variableValues := reflect.ValueOf(a.variableProperties).Elem().FieldByName("Product_variables")
-	zeroValues := reflect.ValueOf(zeroProductVariables).FieldByName("Product_variables")
 
 	for i := 0; i < variableValues.NumField(); i++ {
 		variableValue := variableValues.Field(i)
-		zeroValue := zeroValues.Field(i)
 		name := variableValues.Type().Field(i).Name
 		property := "product_variables." + proptools.PropertyNameForField(name)
 
@@ -421,10 +419,9 @@ func variableMutator(mctx BottomUpMutatorContext) {
 		}
 
 		// Check if any properties were set for the module
-		if reflect.DeepEqual(variableValue.Interface(), zeroValue.Interface()) {
+		if variableValue.IsZero() {
 			continue
 		}
-
 		a.setVariableProperties(mctx, property, variableValue, val.Interface())
 	}
 }
