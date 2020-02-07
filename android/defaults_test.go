@@ -15,6 +15,7 @@
 package android
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/google/blueprint/proptools"
@@ -40,8 +41,8 @@ func (d *defaultsTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 func defaultsTestModuleFactory() Module {
 	module := &defaultsTestModule{}
 	module.AddProperties(&module.properties)
-	InitDefaultableModule(module)
 	InitAndroidModule(module)
+	InitDefaultableModule(module)
 	return module
 }
 
@@ -55,6 +56,49 @@ func defaultsTestDefaultsFactory() Module {
 	defaults.AddProperties(&defaultsTestProperties{})
 	InitDefaultsModule(defaults)
 	return defaults
+}
+
+func TestDefaults(t *testing.T) {
+	bp := `
+		defaults {
+			name: "transitive",
+			foo: ["transitive"],
+		}
+
+		defaults {
+			name: "defaults",
+			defaults: ["transitive"],
+			foo: ["defaults"],
+		}
+
+		test {
+			name: "foo",
+			defaults: ["defaults"],
+			foo: ["module"],
+		}
+	`
+
+	config := TestConfig(buildDir, nil, bp, nil)
+
+	ctx := NewTestContext()
+
+	ctx.RegisterModuleType("test", defaultsTestModuleFactory)
+	ctx.RegisterModuleType("defaults", defaultsTestDefaultsFactory)
+
+	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
+
+	ctx.Register(config)
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	FailIfErrored(t, errs)
+
+	foo := ctx.ModuleForTests("foo", "").Module().(*defaultsTestModule)
+
+	if g, w := foo.properties.Foo, []string{"transitive", "defaults", "module"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("expected foo %q, got %q", w, g)
+	}
 }
 
 func TestDefaultsAllowMissingDependencies(t *testing.T) {
