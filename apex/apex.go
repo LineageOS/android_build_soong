@@ -2099,12 +2099,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					}
 					filesInfo = append(filesInfo, af)
 
-					pf, _ := sdkLib.OutputFiles(".xml")
-					if len(pf) != 1 {
+					pf := sdkLib.XmlPermissionsFile()
+					if pf == nil {
 						ctx.PropertyErrorf("java_libs", "%q failed to generate permission XML", depName)
 						return false
 					}
-					filesInfo = append(filesInfo, newApexFile(ctx, pf[0], pf[0].Base(), "etc/permissions", etc, nil))
+					filesInfo = append(filesInfo, newApexFile(ctx, pf, pf.Base(), "etc/permissions", etc, nil))
 					return true // track transitive dependencies
 				} else {
 					ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
