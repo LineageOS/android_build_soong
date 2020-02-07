@@ -2054,11 +2054,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			}
 			switch depTag {
 			case sharedLibTag:
-				if cc, ok := child.(*cc.Module); ok {
-					if cc.HasStubsVariants() {
-						provideNativeLibs = append(provideNativeLibs, cc.OutputFile().Path().Base())
+				if c, ok := child.(*cc.Module); ok {
+					// bootstrap bionic libs are treated as provided by system
+					if c.HasStubsVariants() && !cc.InstallToBootstrap(c.BaseModuleName(), ctx.Config()) {
+						provideNativeLibs = append(provideNativeLibs, c.OutputFile().Path().Base())
 					}
-					filesInfo = append(filesInfo, apexFileForNativeLibrary(ctx, cc, handleSpecialLibs))
+					filesInfo = append(filesInfo, apexFileForNativeLibrary(ctx, c, handleSpecialLibs))
 					return true // track transitive dependencies
 				} else {
 					ctx.PropertyErrorf("native_shared_libs", "%q is not a cc_library or cc_library_shared module", depName)
