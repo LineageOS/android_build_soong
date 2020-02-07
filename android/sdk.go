@@ -264,6 +264,13 @@ type SdkMemberType interface {
 	// True if the member type supports the sdk/sdk_snapshot, false otherwise.
 	UsableWithSdkAndSdkSnapshot() bool
 
+	// Return true if modules of this type can have dependencies which should be
+	// treated as if they are sdk members.
+	//
+	// Any dependency that is to be treated as a member of the sdk needs to implement
+	// SdkAware and be added with an SdkMemberTypeDependencyTag tag.
+	HasTransitiveSdkMembers() bool
+
 	// Add dependencies from the SDK module to all the variants the member
 	// contributes to the SDK. The exact set of variants required is determined
 	// by the SDK and its properties. The dependencies must be added with the
@@ -291,8 +298,9 @@ type SdkMemberType interface {
 
 // Base type for SdkMemberType implementations.
 type SdkMemberTypeBase struct {
-	PropertyName string
-	SupportsSdk  bool
+	PropertyName         string
+	SupportsSdk          bool
+	TransitiveSdkMembers bool
 }
 
 func (b *SdkMemberTypeBase) SdkPropertyName() string {
@@ -301,6 +309,10 @@ func (b *SdkMemberTypeBase) SdkPropertyName() string {
 
 func (b *SdkMemberTypeBase) UsableWithSdkAndSdkSnapshot() bool {
 	return b.SupportsSdk
+}
+
+func (b *SdkMemberTypeBase) HasTransitiveSdkMembers() bool {
+	return b.TransitiveSdkMembers
 }
 
 // Encapsulates the information about registered SdkMemberTypes.
