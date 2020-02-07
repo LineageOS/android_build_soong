@@ -508,13 +508,13 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	// instead of `android.PathForOutput`) to return the correct path to the flattened
 	// APEX (as its contents is installed by Make, not Soong).
 	factx := flattenedApexContext{ctx}
-	apexName := proptools.StringDefault(a.properties.Apex_name, ctx.ModuleName())
-	a.outputFile = android.PathForModuleInstall(&factx, "apex", apexName)
+	apexBundleName := a.Name()
+	a.outputFile = android.PathForModuleInstall(&factx, "apex", apexBundleName)
 
 	if a.installable() && a.GetOverriddenBy() == "" {
-		installPath := android.PathForModuleInstall(ctx, "apex", apexName)
+		installPath := android.PathForModuleInstall(ctx, "apex", apexBundleName)
 		devicePath := android.InstallPathToOnDevicePath(ctx, installPath)
-		addFlattenedFileContextsInfos(ctx, apexName+":"+devicePath+":"+a.fileContexts.String())
+		addFlattenedFileContextsInfos(ctx, apexBundleName+":"+devicePath+":"+a.fileContexts.String())
 	}
 	a.buildFilesInfo(ctx)
 }
@@ -550,9 +550,9 @@ func (a *apexBundle) buildFilesInfo(ctx android.ModuleContext) {
 		a.filesInfo = append(a.filesInfo, newApexFile(ctx, copiedPubkey, "apex_pubkey", ".", etc, nil))
 
 		if a.properties.ApexType == flattenedApex {
-			apexName := proptools.StringDefault(a.properties.Apex_name, a.Name())
+			apexBundleName := a.Name()
 			for _, fi := range a.filesInfo {
-				dir := filepath.Join("apex", apexName, fi.installDir)
+				dir := filepath.Join("apex", apexBundleName, fi.installDir)
 				target := ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.builtFile.Base(), fi.builtFile)
 				for _, sym := range fi.symlinks {
 					ctx.InstallSymlink(android.PathForModuleInstall(ctx, dir), sym, target)
