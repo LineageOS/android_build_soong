@@ -583,3 +583,136 @@ module_exports_snapshot {
 		checkMergeZip(".intermediates/myexports/linux_glibc_common/tmp/java/myjavaapistubs_stubs_sources.zip"),
 	)
 }
+
+func TestSnapshotWithJavaSystemModules(t *testing.T) {
+	result := testSdkWithJava(t, `
+		sdk {
+			name: "mysdk",
+			java_system_modules: ["my-system-modules"],
+		}
+
+		java_system_modules {
+			name: "my-system-modules",
+			libs: ["system-module"],
+		}
+
+		java_library {
+			name: "system-module",
+			srcs: ["Test.java"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "android_common", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "mysdk_system-module@current",
+    sdk_member_name: "system-module",
+    jars: ["java/system-module.jar"],
+}
+
+java_import {
+    name: "system-module",
+    prefer: false,
+    jars: ["java/system-module.jar"],
+}
+
+java_system_modules_import {
+    name: "mysdk_my-system-modules@current",
+    sdk_member_name: "my-system-modules",
+    libs: ["mysdk_system-module@current"],
+}
+
+java_system_modules_import {
+    name: "my-system-modules",
+    prefer: false,
+    libs: ["system-module"],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    java_system_modules: ["mysdk_my-system-modules@current"],
+}
+`),
+		checkAllCopyRules(".intermediates/system-module/android_common/turbine-combined/system-module.jar -> java/system-module.jar"),
+	)
+}
+
+func TestHostSnapshotWithJavaSystemModules(t *testing.T) {
+	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
+	SkipIfNotLinux(t)
+
+	result := testSdkWithJava(t, `
+		sdk {
+			name: "mysdk",
+			device_supported: false,
+			host_supported: true,
+			java_system_modules: ["my-system-modules"],
+		}
+
+		java_system_modules {
+			name: "my-system-modules",
+			device_supported: false,
+			host_supported: true,
+			libs: ["system-module"],
+		}
+
+		java_library {
+			name: "system-module",
+			device_supported: false,
+			host_supported: true,
+			srcs: ["Test.java"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "linux_glibc_common", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "mysdk_system-module@current",
+    sdk_member_name: "system-module",
+    device_supported: false,
+    host_supported: true,
+    jars: ["java/system-module.jar"],
+}
+
+java_import {
+    name: "system-module",
+    prefer: false,
+    device_supported: false,
+    host_supported: true,
+    jars: ["java/system-module.jar"],
+}
+
+java_system_modules_import {
+    name: "mysdk_my-system-modules@current",
+    sdk_member_name: "my-system-modules",
+    device_supported: false,
+    host_supported: true,
+    libs: ["mysdk_system-module@current"],
+}
+
+java_system_modules_import {
+    name: "my-system-modules",
+    prefer: false,
+    device_supported: false,
+    host_supported: true,
+    libs: ["system-module"],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    device_supported: false,
+    host_supported: true,
+    java_system_modules: ["mysdk_my-system-modules@current"],
+}
+`),
+		checkAllCopyRules(".intermediates/system-module/linux_glibc_common/javac/system-module.jar -> java/system-module.jar"),
+	)
+}

@@ -180,6 +180,15 @@ type SnapshotBuilder interface {
 	// will only be used if the equivalently named non-prebuilt module is not
 	// present.
 	AddPrebuiltModule(member SdkMember, moduleType string) BpModule
+
+	// The property tag to use when adding a property to a BpModule that contains
+	// references to other sdk members. Using this will ensure that the reference
+	// is correctly output for both versioned and unversioned prebuilts in the
+	// snapshot.
+	//
+	// e.g.
+	// bpPropertySet.AddPropertyWithTag("libs", []string{"member1", "member2"}, builder.SdkMemberReferencePropertyTag())
+	SdkMemberReferencePropertyTag() BpPropertyTag
 }
 
 type BpPropertyTag interface{}
