@@ -15,6 +15,8 @@
 package android
 
 import (
+	"reflect"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -30,16 +32,18 @@ type defaultsProperties struct {
 }
 
 type DefaultableModuleBase struct {
-	defaultsProperties    defaultsProperties
-	defaultableProperties []interface{}
+	defaultsProperties            defaultsProperties
+	defaultableProperties         []interface{}
+	defaultableVariableProperties interface{}
 }
 
 func (d *DefaultableModuleBase) defaults() *defaultsProperties {
 	return &d.defaultsProperties
 }
 
-func (d *DefaultableModuleBase) setProperties(props []interface{}) {
+func (d *DefaultableModuleBase) setProperties(props []interface{}, variableProperties interface{}) {
 	d.defaultableProperties = props
+	d.defaultableVariableProperties = variableProperties
 }
 
 // Interface that must be supported by any module to which defaults can be applied.
@@ -48,7 +52,7 @@ type Defaultable interface {
 	defaults() *defaultsProperties
 
 	// Set the property structures into which defaults will be added.
-	setProperties([]interface{})
+	setProperties(props []interface{}, variableProperties interface{})
 
 	// Apply defaults from the supplied Defaults to the property structures supplied to
 	// setProperties(...).
@@ -63,7 +67,10 @@ type DefaultableModule interface {
 var _ Defaultable = (*DefaultableModuleBase)(nil)
 
 func InitDefaultableModule(module DefaultableModule) {
-	module.setProperties(module.(Module).GetProperties())
+	if module.(Module).base().module == nil {
+		panic("InitAndroidModule must be called before InitDefaultableModule")
+	}
+	module.setProperties(module.(Module).GetProperties(), module.(Module).base().variableProperties)
 
 	module.AddProperties(module.defaults())
 }
@@ -114,6 +121,8 @@ type Defaults interface {
 	// Get the structures containing the properties for which defaults can be provided.
 	properties() []interface{}
 
+	productVariableProperties() interface{}
+
 	// Return the defaults common properties.
 	common() *commonProperties
 
@@ -134,6 +143,10 @@ func (d *DefaultsModuleBase) properties() []interface{} {
 	return d.defaultableProperties
 }
 
+func (d *DefaultsModuleBase) productVariableProperties() interface{} {
+	return d.defaultableVariableProperties
+}
+
 func (d *DefaultsModuleBase) common() *commonProperties {
 	return &d.commonProperties
 }
@@ -151,9 +164,10 @@ func InitDefaultsModule(module DefaultsModule) {
 	module.AddProperties(
 		&hostAndDeviceProperties{},
 		commonProperties,
-		&variableProperties{},
 		&ApexProperties{})
 
+	initAndroidModuleBase(module)
+	initProductVariableModule(module)
 	InitArchModule(module)
 	InitDefaultableModule(module)
 
@@ -185,16 +199,57 @@ func (defaultable *DefaultableModuleBase) applyDefaults(ctx TopDownMutatorContex
 
 	for _, defaults := range defaultsList {
 		for _, prop := range defaultable.defaultableProperties {
-			for _, def := range defaults.properties() {
-				if proptools.TypeEqual(prop, def) {
-					err := proptools.PrependProperties(prop, def, nil)
-					if err != nil {
-						if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
-							ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
-						} else {
-							panic(err)
-						}
-					}
+			if prop == defaultable.defaultableVariableProperties {
+				defaultable.applyDefaultVariableProperties(ctx, defaults, prop)
+			} else {
+				defaultable.applyDefaultProperties(ctx, defaults, prop)
+			}
+		}
+	}
+}
+
+// Product variable properties need special handling, the type of the filtered product variable
+// property struct may not be identical between the defaults module and the defaultable module.
+// Use PrependMatchingProperties to apply whichever properties match.
+func (defaultable *DefaultableModuleBase) applyDefaultVariableProperties(ctx TopDownMutatorContext,
+	defaults Defaults, defaultableProp interface{}) {
+	if defaultableProp == nil {
+		return
+	}
+
+	defaultsProp := defaults.productVariableProperties()
+	if defaultsProp == nil {
+		return
+	}
+
+	dst := []interface{}{
+		defaultableProp,
+		// Put an empty copy of the src properties into dst so that properties in src that are not in dst
+		// don't cause a "failed to find property to extend" error.
+		proptools.CloneEmptyProperties(reflect.ValueOf(defaultsProp)).Interface(),
+	}
+
+	err := proptools.PrependMatchingProperties(dst, defaultsProp, nil)
+	if err != nil {
+		if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
+			ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+		} else {
+			panic(err)
+		}
+	}
+}
+
+func (defaultable *DefaultableModuleBase) applyDefaultProperties(ctx TopDownMutatorContext,
+	defaults Defaults, defaultableProp interface{}) {
+
+	for _, def := range defaults.properties() {
+		if proptools.TypeEqual(defaultableProp, def) {
+			err := proptools.PrependProperties(defaultableProp, def, nil)
+			if err != nil {
+				if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
+					ctx.PropertyErrorf(propertyErr.Property, "%s", propertyErr.Err.Error())
+				} else {
+					panic(err)
 				}
 			}
 		}
