@@ -34,7 +34,7 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
-			java_header_libs: ["myjavalib"],
+			java_header_libs: ["sdkmember"],
 		}
 
 		sdk_snapshot {
@@ -47,22 +47,36 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 			java_header_libs: ["sdkmember_mysdk_2"],
 		}
 
-		java_import {
+		java_library {
 			name: "sdkmember",
-			prefer: false,
+			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
 			host_supported: true,
+			apex_available: [
+				"//apex_available:platform",
+				"//apex_available:anyapex",
+			],
 		}
 
 		java_import {
 			name: "sdkmember_mysdk_1",
 			sdk_member_name: "sdkmember",
 			host_supported: true,
+			apex_available: [
+				"//apex_available:platform",
+				"//apex_available:anyapex",
+			],
 		}
 
 		java_import {
 			name: "sdkmember_mysdk_2",
 			sdk_member_name: "sdkmember",
 			host_supported: true,
+			apex_available: [
+				"//apex_available:platform",
+				"//apex_available:anyapex",
+			],
 		}
 
 		java_library {

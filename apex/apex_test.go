@@ -469,6 +469,11 @@ func TestBasicApex(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			compile_dex: true,
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
 		}
 
 		java_library {
@@ -760,7 +765,7 @@ func TestApexWithStubs(t *testing.T) {
 	ensureNotContains(t, mylibLdFlags, "mylib3/android_arm64_armv8-a_shared_12_myapex/mylib3.so")
 
 	// Ensure that stubs libs are built without -include flags
-	mylib2Cflags := ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
+	mylib2Cflags := ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
 	ensureNotContains(t, mylib2Cflags, "-include ")
 
 	// Ensure that genstub is invoked with --apex
@@ -886,6 +891,7 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 			stubs: {
 				versions: ["10", "20", "30"],
 			},
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -1573,6 +1579,7 @@ func TestHeaderLibsDependency(t *testing.T) {
 			export_include_dirs: ["my_include"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -3004,6 +3011,7 @@ func TestApexWithApps(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			stl: "none",
 			system_shared_libs: [],
+			apex_available: [ "myapex" ],
 		}
 	`)
 
@@ -3259,10 +3267,15 @@ func TestApexAvailable(t *testing.T) {
 	}`)
 
 	// check that libfoo and libbar are created only for myapex, but not for the platform
-	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared_myapex")
-	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared")
-	ensureListContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared_myapex")
-	ensureListNotContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared")
+	// TODO(jiyong) the checks for the platform variant are removed because we now create
+	// the platform variant regardless of the apex_availability. Instead, we will make sure that
+	// the platform variants are not used from other platform modules. When that is done,
+	// these checks will be replaced by expecting a specific error message that will be
+	// emitted when the platform variant is used.
+	//	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared_myapex")
+	//	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared")
+	//	ensureListContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared_myapex")
+	//	ensureListNotContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared")
 
 	ctx, _ = testApex(t, `
 	apex {
@@ -3311,11 +3324,16 @@ func TestApexAvailable(t *testing.T) {
 	}`)
 
 	// shared variant of libfoo is only available to myapex
-	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared_myapex")
-	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared")
-	// but the static variant is available to both myapex and the platform
-	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_static_myapex")
-	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_static")
+	// TODO(jiyong) the checks for the platform variant are removed because we now create
+	// the platform variant regardless of the apex_availability. Instead, we will make sure that
+	// the platform variants are not used from other platform modules. When that is done,
+	// these checks will be replaced by expecting a specific error message that will be
+	// emitted when the platform variant is used.
+	//	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared_myapex")
+	//	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared")
+	//	// but the static variant is available to both myapex and the platform
+	//	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_static_myapex")
+	//	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_static")
 }
 
 func TestOverrideApex(t *testing.T) {

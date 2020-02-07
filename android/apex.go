@@ -180,20 +180,20 @@ func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Module {
 	if len(m.apexVariations) > 0 {
 		m.checkApexAvailableProperty(mctx)
+
 		sort.Strings(m.apexVariations)
 		variations := []string{}
-		availableForPlatform := mctx.Module().(ApexModule).AvailableFor(AvailableToPlatform) || mctx.Host()
-		if availableForPlatform {
-			variations = append(variations, "") // Original variation for platform
-		}
+		variations = append(variations, "") // Original variation for platform
 		variations = append(variations, m.apexVariations...)
 
 		defaultVariation := ""
 		mctx.SetDefaultDependencyVariation(&defaultVariation)
+
 		modules := mctx.CreateVariations(variations...)
 		for i, m := range modules {
-			if availableForPlatform && i == 0 {
-				continue
+			platformVariation := i == 0
+			if platformVariation && !mctx.Host() && !m.(ApexModule).AvailableFor(AvailableToPlatform) {
+				m.SkipInstall()
 			}
 			m.(ApexModule).setApexName(variations[i])
 		}
