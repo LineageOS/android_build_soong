@@ -265,13 +265,11 @@ func (module *SdkLibrary) getActiveApiScopes() apiScopes {
 }
 
 func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
-	useBuiltStubs := !ctx.Config().UnbundledBuildUsePrebuiltSdks()
 	for _, apiScope := range module.getActiveApiScopes() {
 		// Add dependencies to the stubs library
-		if useBuiltStubs {
-			ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsName(apiScope))
-		}
+		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsName(apiScope))
 
+		// And the api file
 		ctx.AddVariationDependencies(nil, apiScope.apiFileTag, module.docsName(apiScope))
 	}
 
@@ -466,9 +464,6 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		Compile_dex         *bool
 		Java_version        *string
 		Product_variables   struct {
-			Unbundled_build struct {
-				Enabled *bool
-			}
 			Pdk struct {
 				Enabled *bool
 			}
@@ -487,10 +482,6 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
 	props.Installable = proptools.BoolPtr(false)
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
-	// Unbundled apps will use the prebult one from /prebuilts/sdk
-	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
-		props.Product_variables.Unbundled_build.Enabled = proptools.BoolPtr(false)
-	}
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
 	props.Openjdk9.Srcs = module.Library.Module.properties.Openjdk9.Srcs
 	props.Openjdk9.Javacflags = module.Library.Module.properties.Openjdk9.Javacflags
@@ -651,7 +642,7 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 	mctx.CreateModule(android.PrebuiltEtcFactory, &etcProps)
 }
 
-func (module *SdkLibrary) PrebuiltJars(ctx android.BaseModuleContext, s sdkSpec) android.Paths {
+func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s sdkSpec) android.Paths {
 	var ver sdkVersion
 	var kind sdkKind
 	if s.usePrebuilt(ctx) {
@@ -665,7 +656,7 @@ func (module *SdkLibrary) PrebuiltJars(ctx android.BaseModuleContext, s sdkSpec)
 	}
 
 	dir := filepath.Join("prebuilts", "sdk", ver.String(), kind.String())
-	jar := filepath.Join(dir, module.BaseModuleName()+".jar")
+	jar := filepath.Join(dir, baseName+".jar")
 	jarPath := android.ExistentPathForSource(ctx, jar)
 	if !jarPath.Valid() {
 		if ctx.Config().AllowMissingDependencies() {
@@ -683,10 +674,9 @@ func (module *SdkLibrary) sdkJars(
 	sdkVersion sdkSpec,
 	headerJars bool) android.Paths {
 
-	// If a specific numeric version has been requested or the build is explicitly configured
-	// for it then use prebuilt versions of the sdk.
-	if sdkVersion.version.isNumbered() || ctx.Config().UnbundledBuildUsePrebuiltSdks() {
-		return module.PrebuiltJars(ctx, sdkVersion)
+	// If a specific numeric version has been requested then use prebuilt versions of the sdk.
+	if sdkVersion.version.isNumbered() {
+		return PrebuiltJars(ctx, module.BaseModuleName(), sdkVersion)
 	} else {
 		if !sdkVersion.specified() {
 			if headerJars {
@@ -899,6 +889,11 @@ func (module *sdkLibraryImport) Name() string {
 
 func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookContext) {
 
+	// If the build is configured to use prebuilts then force this to be preferred.
+	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
+		module.prebuilt.ForcePrefer()
+	}
+
 	for apiScope, scopeProperties := range module.scopeProperties() {
 		if len(scopeProperties.Jars) == 0 {
 			continue
@@ -914,6 +909,7 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 			Sdk_version         *string
 			Libs                []string
 			Jars                []string
+			Prefer              *bool
 		}{}
 
 		props.Name = proptools.StringPtr(apiScope.stubsModuleName(module.BaseModuleName()))
@@ -931,6 +927,12 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 			props.Product_specific = proptools.BoolPtr(true)
 		} else if module.SystemExtSpecific() {
 			props.System_ext_specific = proptools.BoolPtr(true)
+		}
+
+		// If the build should use prebuilt sdks then set prefer to true on the stubs library.
+		// That will cause the prebuilt version of the stubs to override the source version.
+		if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
+			props.Prefer = proptools.BoolPtr(true)
 		}
 
 		mctx.CreateModule(ImportFactory, &props)
@@ -979,6 +981,11 @@ func (module *sdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 func (module *sdkLibraryImport) sdkJars(
 	ctx android.BaseModuleContext,
 	sdkVersion sdkSpec) android.Paths {
+
+	// If a specific numeric version has been requested then use prebuilt versions of the sdk.
+	if sdkVersion.version.isNumbered() {
+		return PrebuiltJars(ctx, module.BaseModuleName(), sdkVersion)
+	}
 
 	var apiScope *apiScope
 	switch sdkVersion.kind {
