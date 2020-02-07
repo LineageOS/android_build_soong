@@ -18,6 +18,7 @@ package config
 // For these libraries, the vendor variants must be installed even if the device
 // has VndkUseCoreVariant set.
 var VndkMustUseVendorVariantList = []string{
+	"android.hardware.light-ndk_platform",
 	"android.hardware.nfc@1.2",
 	"android.hardware.power-ndk_platform",
 	"android.hardware.vibrator-ndk_platform",
