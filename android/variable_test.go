@@ -171,7 +171,7 @@ func TestProductVariables(t *testing.T) {
 		Foo []string
 	}{}))
 	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
-		ctx.BottomUp("variable", variableMutator).Parallel()
+		ctx.BottomUp("variable", VariableMutator).Parallel()
 	})
 
 	// Test that a module can use one product variable even if it doesn't have all the properties
@@ -207,6 +207,115 @@ func TestProductVariables(t *testing.T) {
 	FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
 	FailIfErrored(t, errs)
+}
+
+var testProductVariableDefaultsProperties = struct {
+	Product_variables struct {
+		Eng struct {
+			Foo []string
+			Bar []string
+		}
+	}
+}{}
+
+type productVariablesDefaultsTestProperties struct {
+	Foo []string
+}
+
+type productVariablesDefaultsTestProperties2 struct {
+	Foo []string
+	Bar []string
+}
+
+type productVariablesDefaultsTestModule struct {
+	ModuleBase
+	DefaultableModuleBase
+	properties productVariablesDefaultsTestProperties
+}
+
+func (d *productVariablesDefaultsTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
+	ctx.Build(pctx, BuildParams{
+		Rule:   Touch,
+		Output: PathForModuleOut(ctx, "out"),
+	})
+}
+
+func productVariablesDefaultsTestModuleFactory() Module {
+	module := &productVariablesDefaultsTestModule{}
+	module.AddProperties(&module.properties)
+	module.variableProperties = testProductVariableDefaultsProperties
+	InitAndroidModule(module)
+	InitDefaultableModule(module)
+	return module
+}
+
+type productVariablesDefaultsTestDefaults struct {
+	ModuleBase
+	DefaultsModuleBase
+}
+
+func productVariablesDefaultsTestDefaultsFactory() Module {
+	defaults := &productVariablesDefaultsTestDefaults{}
+	defaults.AddProperties(&productVariablesDefaultsTestProperties{})
+	defaults.AddProperties(&productVariablesDefaultsTestProperties2{})
+	defaults.variableProperties = testProductVariableDefaultsProperties
+	InitDefaultsModule(defaults)
+	return defaults
+}
+
+// Test a defaults module that supports more product variable properties than the target module.
+func TestProductVariablesDefaults(t *testing.T) {
+	bp := `
+		defaults {
+			name: "defaults",
+			product_variables: {
+				eng: {
+					foo: ["product_variable_defaults"],
+					bar: ["product_variable_defaults"],
+				},
+			},
+			foo: ["defaults"],
+			bar: ["defaults"],
+		}
+
+		test {
+			name: "foo",
+			defaults: ["defaults"],
+			foo: ["module"],
+			product_variables: {
+				eng: {
+					foo: ["product_variable_module"],
+				},
+			},
+		}
+	`
+
+	config := TestConfig(buildDir, nil, bp, nil)
+	config.TestProductVariables.Eng = boolPtr(true)
+
+	ctx := NewTestContext()
+
+	ctx.RegisterModuleType("test", productVariablesDefaultsTestModuleFactory)
+	ctx.RegisterModuleType("defaults", productVariablesDefaultsTestDefaultsFactory)
+
+	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
+	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
+		ctx.BottomUp("variable", VariableMutator).Parallel()
+	})
+
+	ctx.Register(config)
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	FailIfErrored(t, errs)
+
+	foo := ctx.ModuleForTests("foo", "").Module().(*productVariablesDefaultsTestModule)
+
+	want := []string{"defaults", "module", "product_variable_defaults", "product_variable_module"}
+	if g, w := foo.properties.Foo, want; !reflect.DeepEqual(g, w) {
+		t.Errorf("expected foo %q, got %q", w, g)
+	}
 }
 
 func BenchmarkSliceToTypeArray(b *testing.B) {
