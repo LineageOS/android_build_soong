@@ -30,6 +30,8 @@ type GlobalConfig struct {
 
 	OnlyPreoptBootImageAndSystemServer bool // only preopt jars in the boot image or system server
 
+	UseArtImage bool // use the art image (use other boot class path dex files without image)
+
 	GenerateApexImage bool // generate an extra boot image only containing jars from the runtime apex
 	UseApexImage      bool // use the apex image by default
 

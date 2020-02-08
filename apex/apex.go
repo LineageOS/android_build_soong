@@ -2059,11 +2059,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			}
 			switch depTag {
 			case sharedLibTag:
-				if cc, ok := child.(*cc.Module); ok {
-					if cc.HasStubsVariants() {
-						provideNativeLibs = append(provideNativeLibs, cc.OutputFile().Path().Base())
+				if c, ok := child.(*cc.Module); ok {
+					// bootstrap bionic libs are treated as provided by system
+					if c.HasStubsVariants() && !cc.InstallToBootstrap(c.BaseModuleName(), ctx.Config()) {
+						provideNativeLibs = append(provideNativeLibs, c.OutputFile().Path().Base())
 					}
-					filesInfo = append(filesInfo, apexFileForNativeLibrary(ctx, cc, handleSpecialLibs))
+					filesInfo = append(filesInfo, apexFileForNativeLibrary(ctx, c, handleSpecialLibs))
 					return true // track transitive dependencies
 				} else {
 					ctx.PropertyErrorf("native_shared_libs", "%q is not a cc_library or cc_library_shared module", depName)
@@ -2098,12 +2099,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					}
 					filesInfo = append(filesInfo, af)
 
-					pf, _ := sdkLib.OutputFiles(".xml")
-					if len(pf) != 1 {
+					pf := sdkLib.XmlPermissionsFile()
+					if pf == nil {
 						ctx.PropertyErrorf("java_libs", "%q failed to generate permission XML", depName)
 						return false
 					}
-					filesInfo = append(filesInfo, newApexFile(ctx, pf[0], pf[0].Base(), "etc/permissions", etc, nil))
+					filesInfo = append(filesInfo, newApexFile(ctx, pf, pf.Base(), "etc/permissions", etc, nil))
 					return true // track transitive dependencies
 				} else {
 					ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))

@@ -62,6 +62,10 @@ func (p *Prebuilt) Name(name string) string {
 	return "prebuilt_" + name
 }
 
+func (p *Prebuilt) ForcePrefer() {
+	p.properties.Prefer = proptools.BoolPtr(true)
+}
+
 // The below source-related functions and the srcs, src fields are based on an assumption that
 // prebuilt modules have a static source property at the moment. Currently there is only one
 // exception, android_app_import, which chooses a source file depending on the product's DPI

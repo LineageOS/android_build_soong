@@ -16,6 +16,7 @@ package java
 
 import (
 	"android/soong/android"
+	"android/soong/genrule"
 
 	"fmt"
 	"io"
@@ -264,15 +265,20 @@ func (module *SdkLibrary) getActiveApiScopes() apiScopes {
 	}
 }
 
+var xmlPermissionsFileTag = dependencyTag{name: "xml-permissions-file"}
+
 func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
-	useBuiltStubs := !ctx.Config().UnbundledBuildUsePrebuiltSdks()
 	for _, apiScope := range module.getActiveApiScopes() {
 		// Add dependencies to the stubs library
-		if useBuiltStubs {
-			ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsName(apiScope))
-		}
+		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsName(apiScope))
 
+		// And the api file
 		ctx.AddVariationDependencies(nil, apiScope.apiFileTag, module.docsName(apiScope))
+	}
+
+	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
+		// Add dependency to the rule for generating the xml permissions file
+		ctx.AddDependency(module, xmlPermissionsFileTag, module.genXmlPermissionsFileName())
 	}
 
 	module.Library.deps(ctx)
@@ -283,8 +289,6 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
 		module.Library.GenerateAndroidBuildActions(ctx)
 	}
-
-	module.buildPermissionsFile(ctx)
 
 	// Record the paths to the header jars of the library (stubs and impl).
 	// When this java_sdk_library is depended upon from others via "libs" property,
@@ -310,31 +314,19 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 				ctx.ModuleErrorf("depends on module %q of unknown tag %q", otherName, tag)
 			}
 		}
+		if tag == xmlPermissionsFileTag {
+			if genRule, ok := to.(genrule.SourceFileGenerator); ok {
+				pf := genRule.GeneratedSourceFiles()
+				if len(pf) != 1 {
+					ctx.ModuleErrorf("%q failed to generate permission XML", otherName)
+				} else {
+					module.permissionsFile = pf[0]
+				}
+			} else {
+				ctx.ModuleErrorf("depends on module %q to generate xml permissions file but it does not provide any outputs", otherName)
+			}
+		}
 	})
-}
-
-func (module *SdkLibrary) buildPermissionsFile(ctx android.ModuleContext) {
-	xmlContent := fmt.Sprintf(permissionsTemplate, module.BaseModuleName(), module.implPath())
-	permissionsFile := android.PathForModuleOut(ctx, module.xmlFileName())
-
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        android.WriteFile,
-		Output:      permissionsFile,
-		Description: "Generating " + module.BaseModuleName() + " permissions",
-		Args: map[string]string{
-			"content": xmlContent,
-		},
-	})
-
-	module.permissionsFile = permissionsFile
-}
-
-func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
-	switch tag {
-	case ".xml":
-		return android.Paths{module.permissionsFile}, nil
-	}
-	return module.Library.OutputFiles(tag)
 }
 
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
@@ -423,6 +415,11 @@ func (module *SdkLibrary) xmlFileName() string {
 	return module.BaseModuleName() + sdkXmlFileSuffix
 }
 
+// Module name of the rule for generating the XML permissions file
+func (module *SdkLibrary) genXmlPermissionsFileName() string {
+	return "gen-" + module.BaseModuleName() + sdkXmlFileSuffix
+}
+
 // Get the sdk version for use when compiling the stubs library.
 func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.LoadHookContext, apiScope *apiScope) string {
 	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
@@ -466,9 +463,6 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		Compile_dex         *bool
 		Java_version        *string
 		Product_variables   struct {
-			Unbundled_build struct {
-				Enabled *bool
-			}
 			Pdk struct {
 				Enabled *bool
 			}
@@ -487,10 +481,6 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
 	props.Installable = proptools.BoolPtr(false)
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
-	// Unbundled apps will use the prebult one from /prebuilts/sdk
-	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
-		props.Product_variables.Unbundled_build.Enabled = proptools.BoolPtr(false)
-	}
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
 	props.Openjdk9.Srcs = module.Library.Module.properties.Openjdk9.Srcs
 	props.Openjdk9.Javacflags = module.Library.Module.properties.Openjdk9.Javacflags
@@ -623,8 +613,34 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 	mctx.CreateModule(DroidstubsFactory, &props)
 }
 
+func (module *SdkLibrary) XmlPermissionsFile() android.Path {
+	return module.permissionsFile
+}
+
+func (module *SdkLibrary) XmlPermissionsFileContent() string {
+	return fmt.Sprintf(permissionsTemplate, module.BaseModuleName(), module.implPath())
+}
+
 // Creates the xml file that publicizes the runtime library
 func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
+
+	xmlContent := module.XmlPermissionsFileContent()
+
+	genRuleName := module.genXmlPermissionsFileName()
+
+	// Create a genrule module to create the XML permissions file.
+	genRuleProps := struct {
+		Name *string
+		Cmd  *string
+		Out  []string
+	}{
+		Name: proptools.StringPtr(genRuleName),
+		Cmd:  proptools.StringPtr("echo -e '" + xmlContent + "' > '$(out)'"),
+		Out:  []string{module.xmlFileName()},
+	}
+
+	mctx.CreateModule(genrule.GenRuleFactory, &genRuleProps)
+
 	// creates a prebuilt_etc module to actually place the xml file under
 	// <partition>/etc/permissions
 	etcProps := struct {
@@ -637,7 +653,7 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 		System_ext_specific *bool
 	}{}
 	etcProps.Name = proptools.StringPtr(module.xmlFileName())
-	etcProps.Src = proptools.StringPtr(":" + module.BaseModuleName() + "{.xml}")
+	etcProps.Src = proptools.StringPtr(":" + genRuleName)
 	etcProps.Sub_dir = proptools.StringPtr("permissions")
 	if module.SocSpecific() {
 		etcProps.Soc_specific = proptools.BoolPtr(true)
@@ -651,7 +667,7 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 	mctx.CreateModule(android.PrebuiltEtcFactory, &etcProps)
 }
 
-func (module *SdkLibrary) PrebuiltJars(ctx android.BaseModuleContext, s sdkSpec) android.Paths {
+func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s sdkSpec) android.Paths {
 	var ver sdkVersion
 	var kind sdkKind
 	if s.usePrebuilt(ctx) {
@@ -665,7 +681,7 @@ func (module *SdkLibrary) PrebuiltJars(ctx android.BaseModuleContext, s sdkSpec)
 	}
 
 	dir := filepath.Join("prebuilts", "sdk", ver.String(), kind.String())
-	jar := filepath.Join(dir, module.BaseModuleName()+".jar")
+	jar := filepath.Join(dir, baseName+".jar")
 	jarPath := android.ExistentPathForSource(ctx, jar)
 	if !jarPath.Valid() {
 		if ctx.Config().AllowMissingDependencies() {
@@ -683,10 +699,9 @@ func (module *SdkLibrary) sdkJars(
 	sdkVersion sdkSpec,
 	headerJars bool) android.Paths {
 
-	// If a specific numeric version has been requested or the build is explicitly configured
-	// for it then use prebuilt versions of the sdk.
-	if sdkVersion.version.isNumbered() || ctx.Config().UnbundledBuildUsePrebuiltSdks() {
-		return module.PrebuiltJars(ctx, sdkVersion)
+	// If a specific numeric version has been requested then use prebuilt versions of the sdk.
+	if sdkVersion.version.isNumbered() {
+		return PrebuiltJars(ctx, module.BaseModuleName(), sdkVersion)
 	} else {
 		if !sdkVersion.specified() {
 			if headerJars {
@@ -899,6 +914,11 @@ func (module *sdkLibraryImport) Name() string {
 
 func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookContext) {
 
+	// If the build is configured to use prebuilts then force this to be preferred.
+	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
+		module.prebuilt.ForcePrefer()
+	}
+
 	for apiScope, scopeProperties := range module.scopeProperties() {
 		if len(scopeProperties.Jars) == 0 {
 			continue
@@ -914,6 +934,7 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 			Sdk_version         *string
 			Libs                []string
 			Jars                []string
+			Prefer              *bool
 		}{}
 
 		props.Name = proptools.StringPtr(apiScope.stubsModuleName(module.BaseModuleName()))
@@ -931,6 +952,12 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 			props.Product_specific = proptools.BoolPtr(true)
 		} else if module.SystemExtSpecific() {
 			props.System_ext_specific = proptools.BoolPtr(true)
+		}
+
+		// If the build should use prebuilt sdks then set prefer to true on the stubs library.
+		// That will cause the prebuilt version of the stubs to override the source version.
+		if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
+			props.Prefer = proptools.BoolPtr(true)
 		}
 
 		mctx.CreateModule(ImportFactory, &props)
@@ -979,6 +1006,11 @@ func (module *sdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 func (module *sdkLibraryImport) sdkJars(
 	ctx android.BaseModuleContext,
 	sdkVersion sdkSpec) android.Paths {
+
+	// If a specific numeric version has been requested then use prebuilt versions of the sdk.
+	if sdkVersion.version.isNumbered() {
+		return PrebuiltJars(ctx, module.BaseModuleName(), sdkVersion)
+	}
 
 	var apiScope *apiScope
 	switch sdkVersion.kind {

@@ -2751,3 +2751,42 @@ func TestDefaults(t *testing.T) {
 		t.Errorf("libboth ar rule wanted %q, got %q", w, g)
 	}
 }
+
+func TestProductVariableDefaults(t *testing.T) {
+	bp := `
+		cc_defaults {
+			name: "libfoo_defaults",
+			srcs: ["foo.c"],
+			cppflags: ["-DFOO"],
+			product_variables: {
+				debuggable: {
+					cppflags: ["-DBAR"],
+				},
+			},
+		}
+
+		cc_library {
+			name: "libfoo",
+			defaults: ["libfoo_defaults"],
+		}
+	`
+
+	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config.TestProductVariables.Debuggable = BoolPtr(true)
+
+	ctx := CreateTestContext()
+	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("variable", android.VariableMutator).Parallel()
+	})
+	ctx.Register(config)
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	android.FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	android.FailIfErrored(t, errs)
+
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static").Module().(*Module)
+	if !android.InList("-DBAR", libfoo.flags.Local.CppFlags) {
+		t.Errorf("expected -DBAR in cppflags, got %q", libfoo.flags.Local.CppFlags)
+	}
+}
