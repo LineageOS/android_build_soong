@@ -1266,8 +1266,11 @@ func orderStaticModuleDeps(module LinkableInterface, staticDeps []LinkableInterf
 	allTransitiveDeps := make(map[android.Path][]android.Path, len(staticDeps))
 	staticDepFiles := []android.Path{}
 	for _, dep := range staticDeps {
-		allTransitiveDeps[dep.OutputFile().Path()] = dep.GetDepsInLinkOrder()
-		staticDepFiles = append(staticDepFiles, dep.OutputFile().Path())
+		// The OutputFile may not be valid for a variant not present, and the AllowMissingDependencies flag is set.
+		if dep.OutputFile().Valid() {
+			allTransitiveDeps[dep.OutputFile().Path()] = dep.GetDepsInLinkOrder()
+			staticDepFiles = append(staticDepFiles, dep.OutputFile().Path())
+		}
 	}
 	sharedDepFiles := []android.Path{}
 	for _, sharedDep := range sharedDeps {
@@ -1777,6 +1780,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	for _, lib := range deps.SharedLibs {
 		depTag := SharedDepTag
+		if c.static() {
+			depTag = SharedFromStaticDepTag
+		}
 		if inList(lib, deps.ReexportSharedLibHeaders) {
 			depTag = sharedExportDepTag
 		}
@@ -2194,7 +2200,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		depFile := android.OptionalPath{}
 
 		switch depTag {
-		case ndkStubDepTag, SharedDepTag, sharedExportDepTag:
+		case ndkStubDepTag, SharedDepTag, SharedFromStaticDepTag, sharedExportDepTag:
 			ptr = &depPaths.SharedLibs
 			depPtr = &depPaths.SharedLibsDeps
 			depFile = ccDep.Toc()
@@ -2547,9 +2553,17 @@ func (c *Module) AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Write
 
 func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	if depTag, ok := ctx.OtherModuleDependencyTag(dep).(DependencyTag); ok {
-		if cc, ok := dep.(*Module); ok && cc.IsStubs() && depTag.Shared {
-			// dynamic dep to a stubs lib crosses APEX boundary
-			return false
+		if cc, ok := dep.(*Module); ok {
+			if cc.HasStubsVariants() && depTag.Shared && depTag.Library {
+				// dynamic dep to a stubs lib crosses APEX boundary
+				return false
+			}
+			if depTag.FromStatic {
+				// shared_lib dependency from a static lib is considered as crossing
+				// the APEX boundary because the dependency doesn't actually is
+				// linked; the dependency is used only during the compilation phase.
+				return false
+			}
 		}
 	}
 	return true

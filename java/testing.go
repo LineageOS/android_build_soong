@@ -49,6 +49,8 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"api/test-current.txt":   nil,
 		"api/test-removed.txt":   nil,
 		"framework/aidl/a.aidl":  nil,
+		"assets_a/a":             nil,
+		"assets_b/b":             nil,
 
 		"prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_shared.so": nil,
 
@@ -61,6 +63,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"prebuilts/sdk/29/public/android.jar":         nil,
 		"prebuilts/sdk/29/public/framework.aidl":      nil,
 		"prebuilts/sdk/29/system/android.jar":         nil,
+		"prebuilts/sdk/29/system/foo.jar":             nil,
 		"prebuilts/sdk/current/core/android.jar":      nil,
 		"prebuilts/sdk/current/public/android.jar":    nil,
 		"prebuilts/sdk/current/public/framework.aidl": nil,
@@ -143,6 +146,7 @@ func GatherRequiredDepsForTest() string {
 		"android_stubs_current",
 		"android_system_stubs_current",
 		"android_test_stubs_current",
+		"android_module_lib_stubs_current",
 		"core.current.stubs",
 		"core.platform.api.stubs",
 		"kotlin-stdlib",

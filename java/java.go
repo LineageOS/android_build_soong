@@ -757,9 +757,12 @@ func checkProducesJars(ctx android.ModuleContext, dep android.SourceFileProducer
 type linkType int
 
 const (
+	// TODO(jiyong) rename these for better readability. Make the allowed
+	// and disallowed link types explicit
 	javaCore linkType = iota
 	javaSdk
 	javaSystem
+	javaModule
 	javaPlatform
 )
 
@@ -789,6 +792,10 @@ func (m *Module) getLinkType(name string) (ret linkType, stubs bool) {
 		return javaSdk, true
 	case ver.kind == sdkPublic:
 		return javaSdk, false
+	case name == "android_module_lib_stubs_current":
+		return javaModule, true
+	case ver.kind == sdkModule:
+		return javaModule, false
 	case ver.kind == sdkPrivate || ver.kind == sdkNone || ver.kind == sdkCorePlatform:
 		return javaPlatform, false
 	case !ver.valid():
@@ -824,8 +831,14 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to linkTypeContext, 
 		}
 		break
 	case javaSystem:
-		if otherLinkType == javaPlatform {
+		if otherLinkType == javaPlatform || otherLinkType == javaModule {
 			ctx.ModuleErrorf("compiles against system API, but dependency %q is compiling against private API."+commonMessage,
+				ctx.OtherModuleName(to))
+		}
+		break
+	case javaModule:
+		if otherLinkType == javaPlatform {
+			ctx.ModuleErrorf("compiles against module API, but dependency %q is compiling against private API."+commonMessage,
 				ctx.OtherModuleName(to))
 		}
 		break
@@ -1704,8 +1717,10 @@ func (j *Module) hasCode(ctx android.ModuleContext) bool {
 
 func (j *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	depTag := ctx.OtherModuleDependencyTag(dep)
-	// dependencies other than the static linkage are all considered crossing APEX boundary
-	return depTag == staticLibTag
+	// Dependencies other than the static linkage are all considered crossing APEX boundary
+	// Also, a dependency to an sdk member is also considered as such. This is required because
+	// sdk members should be mutated into APEXes. Refer to sdk.sdkDepsReplaceMutator.
+	return depTag == staticLibTag || j.IsInAnySdk()
 }
 
 func (j *Module) Stem() string {
@@ -2391,6 +2406,14 @@ func (j *Import) ExportedPlugins() (android.Paths, []string) {
 
 func (j *Import) SrcJarArgs() ([]string, android.Paths) {
 	return nil, nil
+}
+
+func (j *Import) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	depTag := ctx.OtherModuleDependencyTag(dep)
+	// dependencies other than the static linkage are all considered crossing APEX boundary
+	// Also, a dependency to an sdk member is also considered as such. This is required because
+	// sdk members should be mutated into APEXes. Refer to sdk.sdkDepsReplaceMutator.
+	return depTag == staticLibTag || j.IsInAnySdk()
 }
 
 // Add compile time check for interface implementation

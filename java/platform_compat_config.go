@@ -21,7 +21,7 @@ import (
 
 func init() {
 	android.RegisterSingletonType("platform_compat_config_singleton", platformCompatConfigSingletonFactory)
-	android.RegisterModuleType("platform_compat_config", platformCompatConfigFactory)
+	android.RegisterModuleType("platform_compat_config", PlatformCompatConfigFactory)
 	android.RegisterModuleType("global_compat_config", globalCompatConfigFactory)
 }
 
@@ -50,11 +50,24 @@ func (p *platformCompatConfig) compatConfigMetadata() android.OutputPath {
 	return p.metadataFile
 }
 
-type platformCompatConfigIntf interface {
-	compatConfigMetadata() android.OutputPath
+func (p *platformCompatConfig) CompatConfig() android.OutputPath {
+	return p.configFile
 }
 
-var _ platformCompatConfigIntf = (*platformCompatConfig)(nil)
+func (p *platformCompatConfig) SubDir() string {
+	return "compatconfig"
+}
+
+type PlatformCompatConfigIntf interface {
+	android.Module
+
+	compatConfigMetadata() android.OutputPath
+	CompatConfig() android.OutputPath
+	// Sub dir under etc dir.
+	SubDir() string
+}
+
+var _ PlatformCompatConfigIntf = (*platformCompatConfig)(nil)
 
 // compat singleton rules
 func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.SingletonContext) {
@@ -62,7 +75,7 @@ func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.Singlet
 	var compatConfigMetadata android.Paths
 
 	ctx.VisitAllModules(func(module android.Module) {
-		if c, ok := module.(platformCompatConfigIntf); ok {
+		if c, ok := module.(PlatformCompatConfigIntf); ok {
 			metadata := c.compatConfigMetadata()
 			compatConfigMetadata = append(compatConfigMetadata, metadata)
 		}
@@ -130,7 +143,7 @@ func platformCompatConfigSingletonFactory() android.Singleton {
 	return &platformCompatConfigSingleton{}
 }
 
-func platformCompatConfigFactory() android.Module {
+func PlatformCompatConfigFactory() android.Module {
 	module := &platformCompatConfig{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)

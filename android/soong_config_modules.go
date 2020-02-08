@@ -54,7 +54,7 @@ type soongConfigModuleTypeImportProperties struct {
 // For example, an Android.bp file could have:
 //
 //     soong_config_module_type_import {
-//         from: "device/acme/Android.bp.bp",
+//         from: "device/acme/Android.bp",
 //         module_types: ["acme_cc_defaults"],
 //     }
 //
@@ -139,9 +139,9 @@ type soongConfigModuleTypeModule struct {
 }
 
 // soong_config_module_type defines module types with conditionals on Soong config
-// variables from another Android.bp file.  The new module type will exist for all
-// modules after the definition in an Android.bp file, and can be imported into other
-// Android.bp files using soong_config_module_type_import.
+// variables.  The new module type will exist for all modules after the definition
+// in an Android.bp file, and can be imported into other Android.bp files using
+// soong_config_module_type_import.
 //
 // For example, an Android.bp file could have:
 //
@@ -185,8 +185,6 @@ type soongConfigModuleTypeModule struct {
 //         defaults: ["acme_defaults"],
 //         srcs: ["*.cpp"],
 //     }
-//
-// And device/acme/Android.bp could have:
 //
 // If an acme BoardConfig.mk file contained:
 //
@@ -305,6 +303,7 @@ func loadSoongConfigModuleTypeDefinition(ctx LoadHookContext, from string) map[s
 	}
 
 	return ctx.Config().Once(key, func() interface{} {
+		ctx.AddNinjaFileDeps(from)
 		r, err := ctx.Config().fs.Open(from)
 		if err != nil {
 			ctx.PropertyErrorf("from", "failed to open %q: %s", from, err)

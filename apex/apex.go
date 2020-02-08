@@ -45,18 +45,21 @@ const (
 type dependencyTag struct {
 	blueprint.BaseDependencyTag
 	name string
+
+	// determines if the dependent will be part of the APEX payload
+	payload bool
 }
 
 var (
-	sharedLibTag   = dependencyTag{name: "sharedLib"}
-	executableTag  = dependencyTag{name: "executable"}
-	javaLibTag     = dependencyTag{name: "javaLib"}
-	prebuiltTag    = dependencyTag{name: "prebuilt"}
-	testTag        = dependencyTag{name: "test"}
+	sharedLibTag   = dependencyTag{name: "sharedLib", payload: true}
+	executableTag  = dependencyTag{name: "executable", payload: true}
+	javaLibTag     = dependencyTag{name: "javaLib", payload: true}
+	prebuiltTag    = dependencyTag{name: "prebuilt", payload: true}
+	testTag        = dependencyTag{name: "test", payload: true}
 	keyTag         = dependencyTag{name: "key"}
 	certificateTag = dependencyTag{name: "certificate"}
 	usesTag        = dependencyTag{name: "uses"}
-	androidAppTag  = dependencyTag{name: "androidApp"}
+	androidAppTag  = dependencyTag{name: "androidApp", payload: true}
 	apexAvailWl    = makeApexAvailableWhitelist()
 )
 
@@ -70,58 +73,225 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.adbd"] = []string{"adbd", "libcrypto"}
+	m["com.android.adbd"] = []string{
+		"adbd",
+		"bcm_object",
+		"fmtlib",
+		"libadbconnection_server",
+		"libadbd",
+		"libadbd_auth",
+		"libadbd_core",
+		"libadbd_services",
+		"libasyncio",
+		"libbacktrace_headers",
+		"libbase",
+		"libbase_headers",
+		"libbuildversion",
+		"libc++",
+		"libcap",
+		"libcrypto",
+		"libcrypto_utils",
+		"libcutils",
+		"libcutils_headers",
+		"libdiagnose_usb",
+		"liblog",
+		"liblog_headers",
+		"libmdnssd",
+		"libminijail",
+		"libminijail_gen_constants",
+		"libminijail_gen_constants_obj",
+		"libminijail_gen_syscall",
+		"libminijail_gen_syscall_obj",
+		"libminijail_generated",
+		"libpackagelistparser",
+		"libpcre2",
+		"libprocessgroup_headers",
+		"libqemu_pipe",
+		"libselinux",
+		"libsystem_headers",
+		"libutils_headers",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.appsearch"] = []string{
+		"icing-java-proto-lite",
+		"libprotobuf-java-lite",
+	}
 	//
 	// Module separator
 	//
 	m["com.android.art"] = []string{
+		"art_cmdlineparser_headers",
+		"art_disassembler_headers",
+		"art_libartbase_headers",
+		"bcm_object",
+		"bionic_libc_platform_headers",
+		"core-repackaged-icu4j",
+		"cpp-define-generator-asm-support",
+		"cpp-define-generator-definitions",
+		"crtbegin_dynamic",
+		"crtbegin_dynamic1",
+		"crtbegin_so1",
+		"crtbrand",
+		"conscrypt.module.intra.core.api.stubs",
+		"dex2oat_headers",
+		"dt_fd_forward_export",
+		"fmtlib",
+		"icu4c_extra_headers",
 		"jacocoagent",
+		"javavm_headers",
+		"jni_platform_headers",
+		"libPlatformProperties",
+		"libadbconnection_client",
 		"libadbconnection_server",
+		"libandroidicuinit",
+		"libart_runtime_headers_ndk",
 		"libartd-disassembler",
+		"libasync_safe",
 		"libbacktrace",
 		"libbase",
+		"libbase_headers",
 		"libc++",
+		"libc++_static",
+		"libc++abi",
+		"libc++demangle",
+		"libc_headers",
 		"libcrypto",
+		"libdexfile_all_headers",
+		"libdexfile_external_headers",
 		"libdexfile_support",
+		"libdmabufinfo",
 		"libexpat",
+		"libfdlibm",
+		"libgtest_prod",
+		"libicui18n_headers",
 		"libicuuc",
+		"libicuuc_headers",
+		"libicuuc_stubdata",
+		"libjdwp_headers",
+		"liblog",
+		"liblog_headers",
+		"liblz4",
 		"liblzma",
 		"libmeminfo",
+		"libnativebridge-headers",
+		"libnativehelper_header_only",
+		"libnativeloader-headers",
+		"libnpt_headers",
+		"libopenjdkjvmti_headers",
+		"libperfetto_client_experimental",
 		"libprocinfo",
+		"libprotobuf-cpp-lite",
+		"libunwind_llvm",
 		"libunwindstack",
+		"libv8",
+		"libv8base",
+		"libv8gen",
+		"libv8platform",
+		"libv8sampler",
+		"libv8src",
 		"libvixl",
 		"libvixld",
 		"libz",
 		"libziparchive",
-		"prebuilt_libclang_rt",
+		"perfetto_trace_protos",
 	}
 	//
 	// Module separator
 	//
 	m["com.android.bluetooth.updatable"] = []string{
 		"android.hardware.audio.common@5.0",
-		"android.hardware.bluetooth@1.0",
-		"android.hardware.bluetooth@1.1",
 		"android.hardware.bluetooth.a2dp@1.0",
 		"android.hardware.bluetooth.audio@2.0",
+		"android.hardware.bluetooth@1.0",
+		"android.hardware.bluetooth@1.1",
+		"android.hardware.graphics.bufferqueue@1.0",
+		"android.hardware.graphics.bufferqueue@2.0",
+		"android.hardware.graphics.common@1.0",
+		"android.hardware.graphics.common@1.1",
+		"android.hardware.graphics.common@1.2",
+		"android.hardware.media@1.0",
 		"android.hidl.safe_union@1.0",
+		"android.hidl.token@1.0",
+		"android.hidl.token@1.0-utils",
+		"avrcp-target-service",
+		"avrcp_headers",
+		"bcm_object",
+		"bluetooth-protos-lite",
+		"bluetooth.mapsapi",
+		"com.android.vcard",
+		"fmtlib",
+		"guava",
+		"internal_include_headers",
+		"lib-bt-packets",
+		"lib-bt-packets-avrcp",
+		"lib-bt-packets-base",
+		"libFraunhoferAAC",
+		"libaudio-a2dp-hw-utils",
+		"libaudio-hearing-aid-hw-utils",
+		"libbacktrace_headers",
 		"libbase",
+		"libbase_headers",
+		"libbinder_headers",
 		"libbinderthreadstate",
 		"libbluetooth",
+		"libbluetooth-types",
+		"libbluetooth-types-header",
+		"libbluetooth_gd",
+		"libbluetooth_headers",
 		"libbluetooth_jni",
+		"libbt-audio-hal-interface",
+		"libbt-bta",
+		"libbt-common",
+		"libbt-hci",
+		"libbt-platform-protos-lite",
+		"libbt-protos-lite",
+		"libbt-sbc-decoder",
+		"libbt-sbc-encoder",
+		"libbt-stack",
+		"libbt-utils",
+		"libbtcore",
+		"libbtdevice",
+		"libbte",
+		"libbtif",
 		"libc++",
 		"libchrome",
 		"libcrypto",
 		"libcutils",
+		"libcutils_headers",
 		"libevent",
 		"libfmq",
+		"libg722codec",
+		"libgtest_prod",
+		"libgui_headers",
 		"libhidlbase",
+		"libhidlbase-impl-internal",
+		"libhidltransport-impl-internal",
+		"libhwbinder-impl-internal",
+		"libjsoncpp",
+		"liblog_headers",
+		"libmedia_headers",
+		"libmodpb64",
+		"libosi",
 		"libprocessgroup",
+		"libprocessgroup_headers",
 		"libprotobuf-cpp-lite",
+		"libprotobuf-java-lite",
+		"libprotobuf-java-micro",
+		"libstagefright_foundation_headers",
+		"libstagefright_headers",
 		"libstatslog",
+		"libstatssocket",
+		"libsystem_headers",
 		"libtinyxml2",
+		"libudrv-uipc",
 		"libutils",
+		"libutils_headers",
 		"libz",
+		"media_plugin_headers",
+		"sap-api-java-static",
+		"services.net",
 	}
 	//
 	// Module separator
@@ -130,44 +300,239 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.conscrypt"] = []string{"boringssl_self_test", "libc++", "libcrypto", "libssl"}
+	m["com.android.conscrypt"] = []string{
+		"bcm_object",
+		"boringssl_self_test",
+		"libc++",
+		"libcrypto",
+		"libnativehelper_header_only",
+		"libssl",
+	}
 	//
 	// Module separator
 	//
-	m["com.android.cronet"] = []string{"org.chromium.net.cronet", "prebuilt_libcronet.80.0.3986.0"}
+	m["com.android.extservices"] = []string{
+		"flatbuffer_headers",
+		"liblua",
+		"libtextclassifier",
+		"libtextclassifier_hash_static",
+		"libtflite_static",
+		"libutf",
+		"libz_current",
+		"tensorflow_headers",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.cronet"] = []string{
+		"cronet_impl_common_java",
+		"cronet_impl_native_java",
+		"cronet_impl_platform_java",
+		"libcronet.80.0.3986.0",
+		"org.chromium.net.cronet",
+		"prebuilt_libcronet.80.0.3986.0",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.neuralnetworks"] = []string{
+		"android.hardware.neuralnetworks@1.0",
+		"android.hardware.neuralnetworks@1.1",
+		"android.hardware.neuralnetworks@1.2",
+		"android.hardware.neuralnetworks@1.3",
+		"android.hidl.allocator@1.0",
+		"android.hidl.memory.token@1.0",
+		"android.hidl.memory@1.0",
+		"android.hidl.safe_union@1.0",
+		"bcm_object",
+		"fmtlib",
+		"gemmlowp_headers",
+		"libarect",
+		"libbacktrace_headers",
+		"libbase",
+		"libbase_headers",
+		"libbinderthreadstate",
+		"libbuildversion",
+		"libc++",
+		"libcrypto",
+		"libcrypto_static",
+		"libcutils",
+		"libcutils_headers",
+		"libeigen",
+		"libfmq",
+		"libhidlbase",
+		"libhidlbase-impl-internal",
+		"libhidlmemory",
+		"libhidltransport-impl-internal",
+		"libhwbinder-impl-internal",
+		"libjsoncpp",
+		"liblog_headers",
+		"libmath",
+		"libneuralnetworks_common",
+		"libneuralnetworks_headers",
+		"libprocessgroup",
+		"libprocessgroup_headers",
+		"libprocpartition",
+		"libsync",
+		"libsystem_headers",
+		"libtextclassifier_hash",
+		"libtextclassifier_hash_headers",
+		"libtextclassifier_hash_static",
+		"libtflite_kernel_utils",
+		"libutils",
+		"libutils_headers",
+		"philox_random",
+		"philox_random_headers",
+		"tensorflow_headers",
+	}
 	//
 	// Module separator
 	//
 	m["com.android.media"] = []string{
-		"android.hardware.cas@1.0",
+		"android.frameworks.bufferhub@1.0",
 		"android.hardware.cas.native@1.0",
+		"android.hardware.cas@1.0",
+		"android.hardware.configstore-utils",
+		"android.hardware.configstore@1.0",
+		"android.hardware.configstore@1.1",
+		"android.hardware.graphics.allocator@2.0",
+		"android.hardware.graphics.allocator@3.0",
+		"android.hardware.graphics.bufferqueue@1.0",
+		"android.hardware.graphics.bufferqueue@2.0",
+		"android.hardware.graphics.common@1.0",
+		"android.hardware.graphics.common@1.1",
+		"android.hardware.graphics.common@1.2",
+		"android.hardware.graphics.mapper@2.0",
+		"android.hardware.graphics.mapper@2.1",
+		"android.hardware.graphics.mapper@3.0",
+		"android.hardware.media.omx@1.0",
+		"android.hardware.media@1.0",
 		"android.hidl.allocator@1.0",
-		"android.hidl.memory@1.0",
 		"android.hidl.memory.token@1.0",
+		"android.hidl.memory@1.0",
 		"android.hidl.token@1.0",
 		"android.hidl.token@1.0-utils",
+		"bcm_object",
+		"bionic_libc_platform_headers",
+		"fmtlib",
+		"gl_headers",
+		"libEGL",
+		"libEGL_blobCache",
+		"libEGL_getProcAddress",
+		"libFLAC",
+		"libFLAC-config",
+		"libFLAC-headers",
+		"libGLESv2",
 		"libaacextractor",
 		"libamrextractor",
+		"libarect",
+		"libasync_safe",
+		"libaudio_system_headers",
+		"libaudioclient",
+		"libaudioclient_headers",
+		"libaudiofoundation",
+		"libaudiofoundation_headers",
+		"libaudiomanager",
+		"libaudiopolicy",
 		"libaudioutils",
+		"libaudioutils_fixedfft",
+		"libbacktrace",
+		"libbacktrace_headers",
 		"libbase",
+		"libbase_headers",
+		"libbinder_headers",
 		"libbinderthreadstate",
+		"libbluetooth-types-header",
+		"libbufferhub",
+		"libbufferhub_headers",
+		"libbufferhubqueue",
 		"libc++",
+		"libc_headers",
+		"libc_malloc_debug_backtrace",
+		"libcamera_client",
+		"libcamera_metadata",
 		"libcrypto",
 		"libcutils",
+		"libcutils_headers",
+		"libdexfile_external_headers",
+		"libdexfile_support",
+		"libdvr_headers",
+		"libexpat",
+		"libfifo",
 		"libflacextractor",
+		"libgrallocusage",
+		"libgraphicsenv",
+		"libgui",
+		"libgui_headers",
+		"libhardware_headers",
 		"libhidlbase",
+		"libhidlbase-impl-internal",
 		"libhidlmemory",
+		"libhidltransport-impl-internal",
+		"libhwbinder-impl-internal",
+		"libinput",
+		"libjsoncpp",
+		"liblog_headers",
+		"liblzma",
+		"libmath",
+		"libmedia",
+		"libmedia_codeclist",
+		"libmedia_headers",
+		"libmedia_helper",
+		"libmedia_helper_headers",
+		"libmedia_midiiowrapper",
+		"libmedia_omx",
+		"libmediautils",
 		"libmidiextractor",
 		"libmkvextractor",
 		"libmp3extractor",
 		"libmp4extractor",
 		"libmpeg2extractor",
+		"libnativebase_headers",
+		"libnativebridge-headers",
+		"libnativebridge_lazy",
+		"libnativeloader-headers",
+		"libnativeloader_lazy",
+		"libnativewindow_headers",
+		"libnblog",
 		"liboggextractor",
+		"libpackagelistparser",
+		"libpcre2",
+		"libpdx",
+		"libpdx_default_transport",
+		"libpdx_headers",
+		"libpdx_uds",
 		"libprocessgroup",
+		"libprocessgroup_headers",
+		"libprocinfo",
+		"libselinux",
+		"libsonivox",
 		"libspeexresampler",
+		"libspeexresampler",
+		"libstagefright_esds",
 		"libstagefright_flacdec",
+		"libstagefright_flacdec",
+		"libstagefright_foundation",
+		"libstagefright_foundation_headers",
+		"libstagefright_foundation_without_imemory",
+		"libstagefright_headers",
+		"libstagefright_id3",
+		"libstagefright_metadatautils",
+		"libstagefright_mpeg2extractor",
+		"libstagefright_mpeg2support",
+		"libsync",
+		"libsystem_headers",
+		"libui",
+		"libui_headers",
+		"libunwindstack",
 		"libutils",
+		"libutils_headers",
+		"libvibrator",
+		"libvorbisidec",
 		"libwavextractor",
+		"libwebm",
+		"media_ndk_headers",
+		"media_plugin_headers",
 		"updatable-media",
 	}
 	//
@@ -176,38 +541,65 @@ func makeApexAvailableWhitelist() map[string][]string {
 	m["com.android.media.swcodec"] = []string{
 		"android.frameworks.bufferhub@1.0",
 		"android.hardware.common-ndk_platform",
+		"android.hardware.configstore-utils",
+		"android.hardware.configstore@1.0",
+		"android.hardware.configstore@1.1",
 		"android.hardware.graphics.allocator@2.0",
 		"android.hardware.graphics.allocator@3.0",
 		"android.hardware.graphics.allocator@4.0",
 		"android.hardware.graphics.bufferqueue@1.0",
 		"android.hardware.graphics.bufferqueue@2.0",
+		"android.hardware.graphics.common-ndk_platform",
 		"android.hardware.graphics.common@1.0",
 		"android.hardware.graphics.common@1.1",
 		"android.hardware.graphics.common@1.2",
-		"android.hardware.graphics.common-ndk_platform",
 		"android.hardware.graphics.mapper@2.0",
 		"android.hardware.graphics.mapper@2.1",
 		"android.hardware.graphics.mapper@3.0",
 		"android.hardware.graphics.mapper@4.0",
-		"android.hardware.media@1.0",
 		"android.hardware.media.bufferpool@2.0",
 		"android.hardware.media.c2@1.0",
 		"android.hardware.media.c2@1.1",
 		"android.hardware.media.omx@1.0",
-		"android.hidl.memory@1.0",
+		"android.hardware.media@1.0",
+		"android.hardware.media@1.0",
 		"android.hidl.memory.token@1.0",
+		"android.hidl.memory@1.0",
 		"android.hidl.safe_union@1.0",
 		"android.hidl.token@1.0",
 		"android.hidl.token@1.0-utils",
+		"fmtlib",
+		"libEGL",
+		"libFLAC",
+		"libFLAC-config",
+		"libFLAC-headers",
+		"libFraunhoferAAC",
+		"libarect",
+		"libasync_safe",
+		"libaudio_system_headers",
 		"libaudioutils",
+		"libaudioutils",
+		"libaudioutils_fixedfft",
+		"libavcdec",
+		"libavcenc",
 		"libavservices_minijail",
+		"libavservices_minijail",
+		"libbacktrace",
+		"libbacktrace_headers",
 		"libbase",
+		"libbase_headers",
+		"libbinder_headers",
 		"libbinderthreadstate",
+		"libbluetooth-types-header",
+		"libbufferhub_headers",
 		"libc++",
+		"libc_scudo",
 		"libcap",
 		"libcodec2",
+		"libcodec2_headers",
 		"libcodec2_hidl@1.0",
 		"libcodec2_hidl@1.1",
+		"libcodec2_internal",
 		"libcodec2_soft_aacdec",
 		"libcodec2_soft_aacenc",
 		"libcodec2_soft_amrnbdec",
@@ -240,77 +632,384 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libcodec2_soft_vp9dec",
 		"libcodec2_soft_vp9enc",
 		"libcodec2_vndk",
-		"libc_scudo",
 		"libcutils",
+		"libcutils_headers",
+		"libdexfile_support",
+		"libdvr_headers",
 		"libfmq",
+		"libfmq",
+		"libgav1",
 		"libgralloctypes",
+		"libgrallocusage",
+		"libgraphicsenv",
+		"libgsm",
+		"libgui_bufferqueue_static",
+		"libgui_headers",
 		"libhardware",
+		"libhardware_headers",
+		"libhevcdec",
+		"libhevcenc",
 		"libhidlbase",
+		"libhidlbase-impl-internal",
 		"libhidlmemory",
+		"libhidltransport-impl-internal",
+		"libhwbinder-impl-internal",
 		"libion",
+		"libjpeg",
+		"libjsoncpp",
+		"liblog_headers",
+		"liblzma",
+		"libmath",
 		"libmedia_codecserviceregistrant",
+		"libmedia_headers",
 		"libminijail",
+		"libminijail_gen_constants",
+		"libminijail_gen_constants_obj",
+		"libminijail_gen_syscall",
+		"libminijail_gen_syscall_obj",
+		"libminijail_generated",
+		"libmpeg2dec",
+		"libnativebase_headers",
+		"libnativebridge_lazy",
+		"libnativeloader_lazy",
+		"libnativewindow_headers",
 		"libopus",
+		"libpdx_headers",
 		"libprocessgroup",
+		"libprocessgroup_headers",
 		"libscudo_wrapper",
 		"libsfplugin_ccodec_utils",
 		"libspeexresampler",
 		"libstagefright_amrnb_common",
+		"libstagefright_amrnbdec",
+		"libstagefright_amrnbenc",
+		"libstagefright_amrwbdec",
+		"libstagefright_amrwbenc",
 		"libstagefright_bufferpool@2.0.1",
 		"libstagefright_bufferqueue_helper",
 		"libstagefright_enc_common",
 		"libstagefright_flacdec",
 		"libstagefright_foundation",
+		"libstagefright_foundation_headers",
+		"libstagefright_headers",
+		"libstagefright_m4vh263dec",
+		"libstagefright_m4vh263enc",
+		"libstagefright_mp3dec",
 		"libsync",
+		"libsystem_headers",
 		"libui",
+		"libui_headers",
+		"libunwindstack",
 		"libutils",
+		"libutils_headers",
 		"libvorbisidec",
 		"libvpx",
+		"libyuv",
+		"libyuv_static",
+		"media_ndk_headers",
+		"media_plugin_headers",
 		"mediaswcodec",
-		"prebuilt_libclang_rt",
 	}
 	//
 	// Module separator
 	//
-	m["com.android.mediaprovider"] = []string{"libfuse", "MediaProvider", "MediaProviderGoogle"}
+	m["com.android.mediaprovider"] = []string{
+		"MediaProvider",
+		"MediaProviderGoogle",
+		"fmtlib_ndk",
+		"guava",
+		"libbase_ndk",
+		"libfuse",
+		"libfuse_jni",
+		"libnativehelper_header_only",
+	}
 	//
 	// Module separator
 	//
-	m["com.android.permission"] = []string{"GooglePermissionController", "PermissionController"}
+	m["com.android.permission"] = []string{
+		"androidx.annotation_annotation",
+		"androidx.annotation_annotation-nodeps",
+		"androidx.lifecycle_lifecycle-common",
+		"androidx.lifecycle_lifecycle-common-java8",
+		"androidx.lifecycle_lifecycle-common-java8-nodeps",
+		"androidx.lifecycle_lifecycle-common-nodeps",
+		"kotlin-annotations",
+		"kotlin-stdlib",
+		"kotlin-stdlib-jdk7",
+		"kotlin-stdlib-jdk8",
+		"kotlinx-coroutines-android",
+		"kotlinx-coroutines-android-nodeps",
+		"kotlinx-coroutines-core",
+		"kotlinx-coroutines-core-nodeps",
+		"libprotobuf-java-lite",
+		"permissioncontroller-statsd",
+		"GooglePermissionController",
+		"PermissionController",
+	}
 	//
 	// Module separator
 	//
 	m["com.android.runtime"] = []string{
+		"bionic_libc_platform_headers",
+		"fmtlib",
+		"libarm-optimized-routines-math",
+		"libasync_safe",
+		"libasync_safe_headers",
+		"libbacktrace_headers",
 		"libbase",
+		"libbase_headers",
 		"libc++",
+		"libc_aeabi",
+		"libc_bionic",
+		"libc_bionic_ndk",
+		"libc_bootstrap",
+		"libc_common",
+		"libc_common_shared",
+		"libc_common_static",
+		"libc_dns",
+		"libc_dynamic_dispatch",
+		"libc_fortify",
+		"libc_freebsd",
+		"libc_freebsd_large_stack",
+		"libc_gdtoa",
+		"libc_headers",
+		"libc_init_dynamic",
+		"libc_init_static",
+		"libc_jemalloc_wrapper",
+		"libc_netbsd",
+		"libc_nomalloc",
+		"libc_nopthread",
+		"libc_openbsd",
+		"libc_openbsd_large_stack",
+		"libc_openbsd_ndk",
+		"libc_pthread",
+		"libc_static_dispatch",
+		"libc_syscalls",
+		"libc_tzcode",
+		"libc_unwind_static",
+		"libcutils",
+		"libcutils_headers",
+		"libdebuggerd",
+		"libdebuggerd_common_headers",
+		"libdebuggerd_handler_core",
+		"libdebuggerd_handler_fallback",
+		"libdexfile_external_headers",
 		"libdexfile_support",
+		"libdexfile_support_static",
+		"libgtest_prod",
+		"libjemalloc5",
+		"liblinker_main",
+		"liblinker_malloc",
+		"liblog",
+		"liblog_headers",
+		"liblz4",
 		"liblzma",
+		"libprocessgroup_headers",
+		"libprocinfo",
+		"libpropertyinfoparser",
+		"libscudo",
+		"libstdc++",
+		"libsystem_headers",
+		"libsystemproperties",
+		"libtombstoned_client_static",
 		"libunwindstack",
-		"prebuilt_libclang_rt",
+		"libutils_headers",
+		"libz",
+		"libziparchive",
 	}
 	//
 	// Module separator
 	//
-	m["com.android.resolv"] = []string{"libcrypto", "libnetd_resolv", "libssl"}
+	m["com.android.resolv"] = []string{
+		"bcm_object",
+		"dnsresolver_aidl_interface-unstable-ndk_platform",
+		"fmtlib",
+		"libbacktrace_headers",
+		"libbase",
+		"libbase_headers",
+		"libc++",
+		"libcrypto",
+		"libcutils",
+		"libcutils_headers",
+		"libgtest_prod",
+		"libjsoncpp",
+		"liblog",
+		"liblog_headers",
+		"libnativehelper_header_only",
+		"libnetd_client_headers",
+		"libnetd_resolv",
+		"libnetdutils",
+		"libprocessgroup",
+		"libprocessgroup_headers",
+		"libprotobuf-cpp-lite",
+		"libssl",
+		"libstatslog_resolv",
+		"libstatspush_compat",
+		"libstatssocket",
+		"libstatssocket_headers",
+		"libsystem_headers",
+		"libsysutils",
+		"libutils",
+		"libutils_headers",
+		"netd_event_listener_interface-ndk_platform",
+		"server_configurable_flags",
+		"stats_proto",
+	}
 	//
 	// Module separator
 	//
-	m["com.android.tethering"] = []string{"libbase", "libc++", "libnativehelper_compat_libc++"}
+	m["com.android.tethering"] = []string{
+		"libbase",
+		"libc++",
+		"libnativehelper_compat_libc++",
+		"android.hardware.tetheroffload.config@1.0",
+		"fmtlib",
+		"libbacktrace_headers",
+		"libbase_headers",
+		"libbinderthreadstate",
+		"libcgrouprc",
+		"libcgrouprc_format",
+		"libcutils",
+		"libcutils_headers",
+		"libhidlbase",
+		"libhidlbase-impl-internal",
+		"libhidltransport-impl-internal",
+		"libhwbinder-impl-internal",
+		"libjsoncpp",
+		"liblog",
+		"liblog_headers",
+		"libprocessgroup",
+		"libprocessgroup_headers",
+		"libsystem_headers",
+		"libtetherutilsjni",
+		"libutils",
+		"libutils_headers",
+		"libvndksupport",
+		"tethering-aidl-interfaces-java",
+	}
 	//
 	// Module separator
 	//
 	m["com.android.wifi"] = []string{
+		"PlatformProperties",
+		"android.hardware.wifi-V1.0-java",
+		"android.hardware.wifi-V1.1-java",
+		"android.hardware.wifi-V1.2-java",
+		"android.hardware.wifi-V1.3-java",
+		"android.hardware.wifi-V1.4-java",
+		"android.hardware.wifi.hostapd-V1.0-java",
+		"android.hardware.wifi.hostapd-V1.1-java",
+		"android.hardware.wifi.hostapd-V1.2-java",
+		"android.hardware.wifi.supplicant-V1.0-java",
+		"android.hardware.wifi.supplicant-V1.1-java",
+		"android.hardware.wifi.supplicant-V1.2-java",
+		"android.hardware.wifi.supplicant-V1.3-java",
+		"android.hidl.base-V1.0-java",
+		"android.hidl.manager-V1.0-java",
+		"android.hidl.manager-V1.1-java",
+		"android.hidl.manager-V1.2-java",
+		"androidx.annotation_annotation",
+		"androidx.annotation_annotation-nodeps",
+		"bouncycastle-unbundled",
+		"dnsresolver_aidl_interface-V2-java",
+		"error_prone_annotations",
+		"ipmemorystore-aidl-interfaces-V3-java",
+		"ipmemorystore-aidl-interfaces-java",
+		"ksoap2",
+		"libbacktrace_headers",
 		"libbase",
+		"libbase_headers",
 		"libc++",
 		"libcutils",
+		"libcutils_headers",
+		"liblog_headers",
+		"libnanohttpd",
 		"libprocessgroup",
+		"libprocessgroup_headers",
+		"libprotobuf-java-lite",
+		"libprotobuf-java-nano",
+		"libsystem_headers",
 		"libutils",
+		"libutils_headers",
 		"libwifi-jni",
+		"net-utils-services-common",
+		"netd_aidl_interface-V2-java",
+		"netd_aidl_interface-unstable-java",
+		"netd_event_listener_interface-java",
+		"netlink-client",
+		"networkstack-aidl-interfaces-unstable-java",
+		"networkstack-client",
+		"services.net",
+		"wifi-lite-protos",
+		"wifi-nano-protos",
+		"wifi-service-pre-jarjar",
 		"wifi-service-resources",
+		"prebuilt_androidx.annotation_annotation-nodeps",
 	}
 	//
 	// Module separator
 	//
+	m["com.android.sdkext"] = []string{
+		"fmtlib_ndk",
+		"libbase_ndk",
+		"libprotobuf-cpp-lite-ndk",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.os.statsd"] = []string{
+		"libbacktrace_headers",
+		"libbase_headers",
+		"libc++",
+		"libcutils",
+		"libcutils_headers",
+		"liblog_headers",
+		"libprocessgroup_headers",
+		"libstatssocket",
+		"libsystem_headers",
+		"libutils_headers",
+	}
+	//
+	// Module separator
+	//
+	m["//any"] = []string{
+		"crtbegin_dynamic",
+		"crtbegin_dynamic1",
+		"crtbegin_so",
+		"crtbegin_so1",
+		"crtbegin_static",
+		"crtbrand",
+		"crtend_android",
+		"crtend_so",
+		"libatomic",
+		"libc++_static",
+		"libc++abi",
+		"libc++demangle",
+		"libc_headers",
+		"libclang_rt",
+		"libgcc_stripped",
+		"libprofile-clang-extras",
+		"libprofile-clang-extras_ndk",
+		"libprofile-extras",
+		"libprofile-extras_ndk",
+		"libunwind_llvm",
+		"ndk_crtbegin_dynamic.27",
+		"ndk_crtbegin_so.16",
+		"ndk_crtbegin_so.19",
+		"ndk_crtbegin_so.21",
+		"ndk_crtbegin_so.24",
+		"ndk_crtbegin_so.27",
+		"ndk_crtend_android.27",
+		"ndk_crtend_so.16",
+		"ndk_crtend_so.19",
+		"ndk_crtend_so.21",
+		"ndk_crtend_so.24",
+		"ndk_crtend_so.27",
+		"ndk_libandroid_support",
+		"ndk_libc++_static",
+		"ndk_libc++abi",
+		"ndk_libunwind",
+	}
 	return m
 }
 
@@ -1208,6 +1907,12 @@ func apexFileForPrebuiltEtc(ctx android.BaseModuleContext, prebuilt android.Preb
 	return newApexFile(ctx, fileToCopy, depName, dirInApex, etc, prebuilt)
 }
 
+func apexFileForCompatConfig(ctx android.BaseModuleContext, config java.PlatformCompatConfigIntf, depName string) apexFile {
+	dirInApex := filepath.Join("etc", config.SubDir())
+	fileToCopy := config.CompatConfig()
+	return newApexFile(ctx, fileToCopy, depName, dirInApex, etc, config)
+}
+
 func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 	android.Module
 	Privileged() bool
@@ -1234,6 +1939,47 @@ type flattenedApexContext struct {
 
 func (c *flattenedApexContext) InstallBypassMake() bool {
 	return true
+}
+
+// Ensures that the dependencies are marked as available for this APEX
+func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
+	// Let's be practical. Availability for test, host, and the VNDK apex isn't important
+	if ctx.Host() || a.testApex || a.vndkApex {
+		return
+	}
+
+	checkDep := func(ctx android.ModuleContext, am android.ApexModule) {
+		apexName := ctx.ModuleName()
+		if am.AvailableFor(apexName) || whitelistedApexAvailable(apexName, am) {
+			return
+		}
+		ctx.ModuleErrorf("requires %q that is not available for the APEX.", am.Name())
+	}
+
+	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
+		am, ok := child.(android.ApexModule)
+		if !ok || !am.CanHaveApexVariants() {
+			return false
+		}
+
+		// Check for the direct dependencies that contribute to the payload
+		if dt, ok := ctx.OtherModuleDependencyTag(child).(dependencyTag); ok {
+			if dt.payload {
+				checkDep(ctx, am)
+				return true
+			}
+			return false
+		}
+
+		// Check for the indirect dependencies if it is considered as part of the APEX
+		if am.DepIsInSameApex(ctx, am) {
+			checkDep(ctx, am)
+			return true
+		}
+
+		// As soon as the dependency graph crosses the APEX boundary, don't go further.
+		return false
+	})
 }
 
 func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1270,6 +2016,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("tests", "property not allowed in apex module type")
 		return
 	}
+
+	a.checkApexAvailability(ctx)
 
 	handleSpecialLibs := !android.Bool(a.properties.Ignore_system_library_special_case)
 
@@ -1375,8 +2123,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case prebuiltTag:
 				if prebuilt, ok := child.(android.PrebuiltEtcModule); ok {
 					filesInfo = append(filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
+				} else if prebuilt, ok := child.(java.PlatformCompatConfigIntf); ok {
+					filesInfo = append(filesInfo, apexFileForCompatConfig(ctx, prebuilt, depName))
 				} else {
-					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
+					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc and not a platform_compat_config module", depName)
 				}
 			case testTag:
 				if ccTest, ok := child.(*cc.Module); ok {
@@ -1526,23 +2276,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return filesInfo[i].builtFile.String() < filesInfo[j].builtFile.String()
 	})
 
-	// check apex_available requirements
-	if !ctx.Host() && !a.testApex {
-		for _, fi := range filesInfo {
-			if am, ok := fi.module.(android.ApexModule); ok {
-				// vndk {enabled:true} implies visibility to the vndk apex
-				if ccm, ok := fi.module.(*cc.Module); ok && ccm.IsVndk() && a.vndkApex {
-					continue
-				}
-
-				if !am.AvailableFor(ctx.ModuleName()) && !whitelistedApexAvailable(ctx.ModuleName(), a.vndkApex, fi.module) {
-					ctx.ModuleErrorf("requires %q that is not available for the APEX", fi.module.Name())
-					// don't stop so that we can report other violations in the same run
-				}
-			}
-		}
-	}
-
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = filesInfo
 
@@ -1586,18 +2319,27 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.buildApexDependencyInfo(ctx)
 }
 
-func whitelistedApexAvailable(apex string, is_vndk bool, module android.Module) bool {
+func whitelistedApexAvailable(apex string, module android.Module) bool {
 	key := apex
 	key = strings.Replace(key, "test_", "", 1)
 	key = strings.Replace(key, "com.android.art.debug", "com.android.art", 1)
 	key = strings.Replace(key, "com.android.art.release", "com.android.art", 1)
 
 	moduleName := module.Name()
-	if strings.Contains(moduleName, "prebuilt_libclang_rt") {
-		// This module has variants that depend on the product being built.
-		moduleName = "prebuilt_libclang_rt"
+	// Prebuilt modules (e.g. java_import, etc.) have "prebuilt_" prefix added by the build
+	// system. Trim the prefix for the check since they are confusing
+	moduleName = strings.TrimPrefix(moduleName, "prebuilt_")
+	if strings.HasPrefix(moduleName, "libclang_rt.") {
+		// This module has many arch variants that depend on the product being built.
+		// We don't want to list them all
+		moduleName = "libclang_rt"
 	}
 
+	if val, ok := apexAvailWl[key]; ok && android.InList(moduleName, val) {
+		return true
+	}
+
+	key = "//any"
 	if val, ok := apexAvailWl[key]; ok && android.InList(moduleName, val) {
 		return true
 	}
