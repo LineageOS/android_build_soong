@@ -50,6 +50,9 @@ type sdk struct {
 	// list properties, e.g. java_libs.
 	dynamicMemberTypeListProperties interface{}
 
+	// The set of exported members.
+	exportedMembers map[string]struct{}
+
 	properties sdkProperties
 
 	snapshotFile android.OptionalPath
@@ -217,6 +220,33 @@ func SnapshotModuleFactory() android.Module {
 	return s
 }
 
+func (s *sdk) memberListProperties() []*sdkMemberListProperty {
+	return s.dynamicSdkMemberTypes.memberListProperties
+}
+
+func (s *sdk) getExportedMembers() map[string]struct{} {
+	if s.exportedMembers == nil {
+		// Collect all the exported members.
+		s.exportedMembers = make(map[string]struct{})
+
+		for _, memberListProperty := range s.memberListProperties() {
+			names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
+
+			// Every member specified explicitly in the properties is exported by the sdk.
+			for _, name := range names {
+				s.exportedMembers[name] = struct{}{}
+			}
+		}
+	}
+
+	return s.exportedMembers
+}
+
+func (s *sdk) isInternalMember(memberName string) bool {
+	_, ok := s.getExportedMembers()[memberName]
+	return !ok
+}
+
 func (s *sdk) snapshot() bool {
 	return s.properties.Snapshot
 }
@@ -290,7 +320,7 @@ func (t sdkMemberVersionedDepTag) ExcludeFromVisibilityEnforcement() {}
 // Step 1: create dependencies from an SDK module to its members.
 func memberMutator(mctx android.BottomUpMutatorContext) {
 	if s, ok := mctx.Module().(*sdk); ok {
-		for _, memberListProperty := range s.dynamicSdkMemberTypes.memberListProperties {
+		for _, memberListProperty := range s.memberListProperties() {
 			names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
 			tag := memberListProperty.dependencyTag
 			memberListProperty.memberType.AddDependencies(mctx, tag, names)
