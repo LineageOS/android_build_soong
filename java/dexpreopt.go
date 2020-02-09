@@ -111,14 +111,6 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 	if global.UseArtImage {
 		bootImage = artBootImageConfig(ctx)
 	}
-	if global.UseApexImage {
-		bootImage = frameworkJZBootImageConfig(ctx)
-		dexFiles = bootImage.dexPathsDeps.Paths()
-		dexLocations = bootImage.dexLocationsDeps
-		if global.UseArtImage {
-			bootImage = artJZBootImageConfig(ctx)
-		}
-	}
 
 	var archs []android.ArchType
 	for _, a := range ctx.MultiTargets() {
