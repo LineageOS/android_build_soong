@@ -197,13 +197,6 @@ func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]and
 	// Include dexpreopt files for the primary boot image.
 	files := artBootImageConfig(ctx).imagesDeps
 
-	// For JIT-zygote config, also include dexpreopt files for the primary JIT-zygote image.
-	if dexpreoptGlobalConfig(ctx).UseApexImage {
-		for arch, paths := range artJZBootImageConfig(ctx).imagesDeps {
-			files[arch] = append(files[arch], paths...)
-		}
-	}
-
 	return files
 }
 
@@ -232,11 +225,6 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 	d.defaultBootImage = buildBootImage(ctx, defaultBootImageConfig(ctx))
 	// Create boot image for the ART apex (build artifacts are accessed via the global boot image config).
 	d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx)))
-	if global.GenerateApexImage {
-		// Create boot images for the JIT-zygote experiment.
-		d.otherImages = append(d.otherImages, buildBootImage(ctx, artJZBootImageConfig(ctx)))
-		d.otherImages = append(d.otherImages, buildBootImage(ctx, frameworkJZBootImageConfig(ctx)))
-	}
 
 	dumpOatRules(ctx, d.defaultBootImage)
 }
