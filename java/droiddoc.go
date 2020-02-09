@@ -534,6 +534,9 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		ctx.AddMissingDependencies(sdkDep.java9Classpath)
 	} else if sdkDep.useFiles {
 		deps.bootClasspath = append(deps.bootClasspath, sdkDep.jars...)
+		deps.aidlPreprocess = sdkDep.aidl
+	} else {
+		deps.aidlPreprocess = sdkDep.aidl
 	}
 
 	ctx.VisitDirectDeps(func(module android.Module) {
