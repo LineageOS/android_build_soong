@@ -455,6 +455,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		Installable         *bool
 		Sdk_version         *string
 		System_modules      *string
+		Patch_module        *string
 		Libs                []string
 		Soc_specific        *bool
 		Device_specific     *bool
@@ -479,6 +480,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
 	props.Sdk_version = proptools.StringPtr(sdkVersion)
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
+	props.Patch_module = module.Library.Module.properties.Patch_module
 	props.Installable = proptools.BoolPtr(false)
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
