@@ -239,7 +239,7 @@ func (a *apexBundle) buildInstalledFilesFile(ctx android.ModuleContext, builtApe
 	rule.Command().
 		Implicit(builtApex).
 		Text("(cd " + imageDir.String() + " ; ").
-		Text("find . -type f -printf \"%s %p\\n\") ").
+		Text("find . \\( -type f -o -type l \\) -printf \"%s %p\\n\") ").
 		Text(" | sort -nr > ").
 		Output(output)
 	rule.Build(pctx, ctx, "installed-files."+a.Name(), "Installed files")
