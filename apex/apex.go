@@ -1936,21 +1936,9 @@ func (c *flattenedApexContext) InstallBypassMake() bool {
 	return true
 }
 
-// Ensures that the dependencies are marked as available for this APEX
-func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
-	// Let's be practical. Availability for test, host, and the VNDK apex isn't important
-	if ctx.Host() || a.testApex || a.vndkApex {
-		return
-	}
-
-	checkDep := func(ctx android.ModuleContext, am android.ApexModule) {
-		apexName := ctx.ModuleName()
-		if am.AvailableFor(apexName) || whitelistedApexAvailable(apexName, am) {
-			return
-		}
-		ctx.ModuleErrorf("requires %q that is not available for the APEX.", am.Name())
-	}
-
+// Visit dependencies that contributes to the payload of this APEX
+func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext,
+	do func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool)) {
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
 		am, ok := child.(android.ApexModule)
 		if !ok || !am.CanHaveApexVariants() {
@@ -1960,7 +1948,7 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		// Check for the direct dependencies that contribute to the payload
 		if dt, ok := ctx.OtherModuleDependencyTag(child).(dependencyTag); ok {
 			if dt.payload {
-				checkDep(ctx, am)
+				do(ctx, parent, am, false /* externalDep */)
 				return true
 			}
 			return false
@@ -1968,12 +1956,30 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 
 		// Check for the indirect dependencies if it is considered as part of the APEX
 		if am.DepIsInSameApex(ctx, am) {
-			checkDep(ctx, am)
+			do(ctx, parent, am, false /* externalDep */)
 			return true
 		}
 
+		do(ctx, parent, am, true /* externalDep */)
+
 		// As soon as the dependency graph crosses the APEX boundary, don't go further.
 		return false
+	})
+}
+
+// Ensures that the dependencies are marked as available for this APEX
+func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
+	// Let's be practical. Availability for test, host, and the VNDK apex isn't important
+	if ctx.Host() || a.testApex || a.vndkApex {
+		return
+	}
+
+	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
+		apexName := ctx.ModuleName()
+		if externalDep || to.AvailableFor(apexName) || whitelistedApexAvailable(apexName, to) {
+			return
+		}
+		ctx.ModuleErrorf("requires %q that is not available for the APEX.", to.Name())
 	})
 }
 
