@@ -242,6 +242,10 @@ type BaseProperties struct {
 	// Even if DeviceConfig().VndkUseCoreVariant() is set, this module must use vendor variant.
 	// see soong/cc/config/vndk.go
 	MustUseVendorVariant bool `blueprint:"mutated"`
+
+	// Used by vendor snapshot to record dependencies from snapshot modules.
+	SnapshotSharedLibs  []string `blueprint:"mutated"`
+	SnapshotRuntimeLibs []string `blueprint:"mutated"`
 }
 
 type VendorProperties struct {
@@ -452,8 +456,6 @@ type Module struct {
 	lto       *lto
 	pgo       *pgo
 	xom       *xom
-
-	androidMkSharedLibDeps []string
 
 	outputFile android.OptionalPath
 
@@ -928,6 +930,11 @@ func (c *Module) nativeCoverage() bool {
 		return false
 	}
 	return c.linker != nil && c.linker.nativeCoverage()
+}
+
+func (c *Module) isSnapshotPrebuilt() bool {
+	_, ok := c.linker.(*vndkPrebuiltLibraryDecorator)
+	return ok
 }
 
 func (c *Module) ExportedIncludeDirs() android.Paths {
@@ -2343,6 +2350,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			// they merely serve as Make dependencies and do not affect this lib itself.
 			c.Properties.AndroidMkSharedLibs = append(
 				c.Properties.AndroidMkSharedLibs, makeLibName(depName))
+			// Record depName as-is for snapshots.
+			c.Properties.SnapshotSharedLibs = append(c.Properties.SnapshotSharedLibs, depName)
 		case ndkStubDepTag, ndkLateStubDepTag:
 			c.Properties.AndroidMkSharedLibs = append(
 				c.Properties.AndroidMkSharedLibs,
@@ -2353,6 +2362,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		case runtimeDepTag:
 			c.Properties.AndroidMkRuntimeLibs = append(
 				c.Properties.AndroidMkRuntimeLibs, makeLibName(depName))
+			// Record depName as-is for snapshots.
+			c.Properties.SnapshotRuntimeLibs = append(c.Properties.SnapshotRuntimeLibs, depName)
 		case wholeStaticDepTag:
 			c.Properties.AndroidMkWholeStaticLibs = append(
 				c.Properties.AndroidMkWholeStaticLibs, makeLibName(depName))
