@@ -172,6 +172,7 @@ type ModuleContext interface {
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
+	InstallForceOS() *OsType
 
 	RequiredModuleNames() []string
 	HostRequiredModuleNames() []string
@@ -213,6 +214,7 @@ type Module interface {
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
+	InstallForceOS() *OsType
 	SkipInstall()
 	ExportedToMake() bool
 	NoticeFile() OptionalPath
@@ -891,6 +893,10 @@ func (m *ModuleBase) InstallInRoot() bool {
 
 func (m *ModuleBase) InstallBypassMake() bool {
 	return false
+}
+
+func (m *ModuleBase) InstallForceOS() *OsType {
+	return nil
 }
 
 func (m *ModuleBase) Owner() string {
@@ -1681,6 +1687,10 @@ func (m *moduleContext) InstallInRoot() bool {
 
 func (m *moduleContext) InstallBypassMake() bool {
 	return m.module.InstallBypassMake()
+}
+
+func (m *moduleContext) InstallForceOS() *OsType {
+	return m.module.InstallForceOS()
 }
 
 func (m *moduleContext) skipInstall(fullInstallPath InstallPath) bool {
