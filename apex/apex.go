@@ -2376,12 +2376,16 @@ func ApexBundleFactory(testApex bool, artApex bool) android.Module {
 	return bundle
 }
 
+// apex_test is an APEX for testing. The difference from the ordinary apex module type is that
+// certain compatibility checks such as apex_available are not done for apex_test.
 func testApexBundleFactory() android.Module {
 	bundle := newApexBundle()
 	bundle.testApex = true
 	return bundle
 }
 
+// apex packages other modules into an APEX file which is a packaging format for system-level
+// components like binaries, shared libraries, etc.
 func BundleFactory() android.Module {
 	return newApexBundle()
 }
