@@ -1475,6 +1475,16 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	j.implementationAndResourcesJar = implementationAndResourcesJar
 
+	// Enable dex compilation for the APEX variants, unless it is disabled explicitly
+	if android.DirectlyInAnyApex(ctx, ctx.ModuleName()) && !j.IsForPlatform() {
+		if j.deviceProperties.Compile_dex == nil {
+			j.deviceProperties.Compile_dex = proptools.BoolPtr(true)
+		}
+		if j.deviceProperties.Hostdex == nil {
+			j.deviceProperties.Hostdex = proptools.BoolPtr(true)
+		}
+	}
+
 	if ctx.Device() && j.hasCode(ctx) &&
 		(Bool(j.properties.Installable) || Bool(j.deviceProperties.Compile_dex)) {
 		// Dex compilation
