@@ -38,9 +38,12 @@ type ApexModule interface {
 	Module
 	apexModuleBase() *ApexModuleBase
 
-	// Marks that this module should be built for the APEX of the specified name.
+	// Marks that this module should be built for the APEXes of the specified names.
 	// Call this before apex.apexMutator is run.
-	BuildForApex(apexName string)
+	BuildForApexes(apexNames []string)
+
+	// Returns the name of the APEXes that this modoule will be built for
+	ApexVariations() []string
 
 	// Returns the name of APEX that this module will be built for. Empty string
 	// is returned when 'IsForPlatform() == true'. Note that a module can be
@@ -66,7 +69,7 @@ type ApexModule interface {
 	IsInstallableToApex() bool
 
 	// Mutate this module into one or more variants each of which is built
-	// for an APEX marked via BuildForApex().
+	// for an APEX marked via BuildForApexes().
 	CreateApexVariations(mctx BottomUpMutatorContext) []Module
 
 	// Sets the name of the apex variant of this module. Called inside
@@ -111,12 +114,18 @@ func (m *ApexModuleBase) apexModuleBase() *ApexModuleBase {
 	return m
 }
 
-func (m *ApexModuleBase) BuildForApex(apexName string) {
+func (m *ApexModuleBase) BuildForApexes(apexNames []string) {
 	m.apexVariationsLock.Lock()
 	defer m.apexVariationsLock.Unlock()
-	if !InList(apexName, m.apexVariations) {
-		m.apexVariations = append(m.apexVariations, apexName)
+	for _, apexName := range apexNames {
+		if !InList(apexName, m.apexVariations) {
+			m.apexVariations = append(m.apexVariations, apexName)
+		}
 	}
+}
+
+func (m *ApexModuleBase) ApexVariations() []string {
+	return m.apexVariations
 }
 
 func (m *ApexModuleBase) ApexName() string {
@@ -219,18 +228,20 @@ func apexNamesMap() map[string]map[string]bool {
 }
 
 // Update the map to mark that a module named moduleName is directly or indirectly
-// depended on by an APEX named apexName. Directly depending means that a module
+// depended on by the specified APEXes. Directly depending means that a module
 // is explicitly listed in the build definition of the APEX via properties like
 // native_shared_libs, java_libs, etc.
-func UpdateApexDependency(apexName string, moduleName string, directDep bool) {
+func UpdateApexDependency(apexNames []string, moduleName string, directDep bool) {
 	apexNamesMapMutex.Lock()
 	defer apexNamesMapMutex.Unlock()
-	apexNames, ok := apexNamesMap()[moduleName]
-	if !ok {
-		apexNames = make(map[string]bool)
-		apexNamesMap()[moduleName] = apexNames
+	for _, apexName := range apexNames {
+		apexesForModule, ok := apexNamesMap()[moduleName]
+		if !ok {
+			apexesForModule = make(map[string]bool)
+			apexNamesMap()[moduleName] = apexesForModule
+		}
+		apexesForModule[apexName] = apexesForModule[apexName] || directDep
 	}
-	apexNames[apexName] = apexNames[apexName] || directDep
 }
 
 // TODO(b/146393795): remove this when b/146393795 is fixed
