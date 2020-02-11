@@ -744,8 +744,7 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 					// If a static dependency is built with the minimal runtime,
 					// make sure we include the ubsan minimal runtime.
 					c.sanitize.Properties.MinimalRuntimeDep = true
-				} else if Bool(d.sanitize.Properties.Sanitize.Diag.Integer_overflow) ||
-					len(d.sanitize.Properties.Sanitize.Diag.Misc_undefined) > 0 {
+				} else if enableUbsanRuntime(d.sanitize) {
 					// If a static dependency runs with full ubsan diagnostics,
 					// make sure we include the ubsan runtime.
 					c.sanitize.Properties.UbsanRuntimeDep = true
@@ -1050,6 +1049,11 @@ func enableMinimalRuntime(sanitize *sanitize) bool {
 		return true
 	}
 	return false
+}
+
+func enableUbsanRuntime(sanitize *sanitize) bool {
+	return Bool(sanitize.Properties.Sanitize.Diag.Integer_overflow) ||
+		len(sanitize.Properties.Sanitize.Diag.Misc_undefined) > 0
 }
 
 func cfiMakeVarsProvider(ctx android.MakeVarsContext) {
