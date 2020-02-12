@@ -34,7 +34,7 @@ const (
 	sdkStubsLibrarySuffix = ".stubs"
 	sdkSystemApiSuffix    = ".system"
 	sdkTestApiSuffix      = ".test"
-	sdkDocsSuffix         = ".docs"
+	sdkStubsSourceSuffix  = ".stubs.source"
 	sdkXmlFileSuffix      = ".xml"
 	permissionsTemplate   = `<?xml version="1.0" encoding="utf-8"?>\n` +
 		`<!-- Copyright (C) 2018 The Android Open Source Project\n` +
@@ -109,7 +109,7 @@ func (scope *apiScope) stubsModuleName(baseName string) string {
 }
 
 func (scope *apiScope) docsModuleName(baseName string) string {
-	return baseName + sdkDocsSuffix + scope.moduleSuffix
+	return baseName + sdkStubsSourceSuffix + scope.moduleSuffix
 }
 
 type apiScopes []*apiScope
