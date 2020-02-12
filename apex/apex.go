@@ -1461,6 +1461,12 @@ func (af *apexFile) AvailableToPlatform() bool {
 	return false
 }
 
+type depInfo struct {
+	to         string
+	from       []string
+	isExternal bool
+}
+
 type apexBundle struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
@@ -1494,10 +1500,8 @@ type apexBundle struct {
 	// list of module names that should be installed along with this APEX
 	requiredDeps []string
 
-	// list of module names that this APEX is depending on (to be shown via *-deps-info target)
-	externalDeps []string
 	// list of module names that this APEX is including (to be shown via *-deps-info target)
-	internalDeps []string
+	depInfos map[string]depInfo
 
 	testApex        bool
 	vndkApex        bool
@@ -1978,6 +1982,31 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 	})
 }
 
+// Collects the list of module names that directly or indirectly contributes to the payload of this APEX
+func (a *apexBundle) collectDepsInfo(ctx android.ModuleContext) {
+	a.depInfos = make(map[string]depInfo)
+	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
+		if from.Name() == to.Name() {
+			// This can happen for cc.reuseObjTag. We are not interested in tracking this.
+			return
+		}
+
+		if info, exists := a.depInfos[to.Name()]; exists {
+			if !android.InList(from.Name(), info.from) {
+				info.from = append(info.from, from.Name())
+			}
+			info.isExternal = info.isExternal && externalDep
+			a.depInfos[to.Name()] = info
+		} else {
+			a.depInfos[to.Name()] = depInfo{
+				to:         to.Name(),
+				from:       []string{from.Name()},
+				isExternal: externalDep,
+			}
+		}
+	})
+}
+
 func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	buildFlattenedAsDefault := ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
 	switch a.properties.ApexType {
@@ -2015,6 +2044,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.checkApexAvailability(ctx)
 
+	a.collectDepsInfo(ctx)
+
 	handleSpecialLibs := !android.Bool(a.properties.Ignore_system_library_special_case)
 
 	// native lib dependencies
@@ -2046,13 +2077,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	var filesInfo []apexFile
+	// TODO(jiyong) do this using walkPayloadDeps
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
 		depTag := ctx.OtherModuleDependencyTag(child)
 		depName := ctx.OtherModuleName(child)
 		if _, isDirectDep := parent.(*apexBundle); isDirectDep {
-			if depTag != keyTag && depTag != certificateTag {
-				a.internalDeps = append(a.internalDeps, depName)
-			}
 			switch depTag {
 			case sharedLibTag:
 				if c, ok := child.(*cc.Module); ok {
@@ -2189,7 +2218,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.requiredDeps) {
 								a.requiredDeps = append(a.requiredDeps, cc.Name())
 							}
-							a.externalDeps = append(a.externalDeps, depName)
 							requireNativeLibs = append(requireNativeLibs, cc.OutputFile().Path().Base())
 							// Don't track further
 							return false
@@ -2197,8 +2225,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						af := apexFileForNativeLibrary(ctx, cc, handleSpecialLibs)
 						af.transitiveDep = true
 						filesInfo = append(filesInfo, af)
-						a.internalDeps = append(a.internalDeps, depName)
-						a.internalDeps = append(a.internalDeps, cc.AllStaticDeps()...)
 						return true // track transitive dependencies
 					}
 				} else if cc.IsTestPerSrcDepTag(depTag) {
@@ -2215,10 +2241,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						return true // track transitive dependencies
 					}
 				} else if java.IsJniDepTag(depTag) {
-					a.externalDeps = append(a.externalDeps, depName)
 					return true
-				} else if java.IsStaticLibDepTag(depTag) {
-					a.internalDeps = append(a.internalDeps, depName)
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
 				}
