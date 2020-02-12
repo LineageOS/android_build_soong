@@ -596,19 +596,14 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 		return
 	}
 
-	internalDeps := a.internalDeps
-	externalDeps := a.externalDeps
-
-	internalDeps = android.SortedUniqueStrings(internalDeps)
-	externalDeps = android.SortedUniqueStrings(externalDeps)
-	externalDeps = android.RemoveListFromList(externalDeps, internalDeps)
-
 	var content strings.Builder
-	for _, name := range internalDeps {
-		fmt.Fprintf(&content, "internal %s\\n", name)
-	}
-	for _, name := range externalDeps {
-		fmt.Fprintf(&content, "external %s\\n", name)
+	for _, key := range android.SortedStringKeys(a.depInfos) {
+		info := a.depInfos[key]
+		toName := info.to
+		if info.isExternal {
+			toName = toName + " (external)"
+		}
+		fmt.Fprintf(&content, "%s <- %s\\n", toName, strings.Join(android.SortedUniqueStrings(info.from), ", "))
 	}
 
 	depsInfoFile := android.PathForOutput(ctx, a.Name()+"-deps-info.txt")
