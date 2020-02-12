@@ -88,8 +88,7 @@ type ApexProperties struct {
 	//
 	// "//apex_available:anyapex" is a pseudo APEX name that matches to any APEX.
 	// "//apex_available:platform" refers to non-APEX partitions like "system.img".
-	// Default is ["//apex_available:platform", "//apex_available:anyapex"].
-	// TODO(b/128708192) change the default to ["//apex_available:platform"]
+	// Default is ["//apex_available:platform"].
 	Apex_available []string
 
 	// Name of the apex variant that this module is mutated into
