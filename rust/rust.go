@@ -354,11 +354,6 @@ func (mod *Module) GetStaticVariant() cc.LinkableInterface {
 	return nil
 }
 
-func (mod *Module) AllStaticDeps() []string {
-	// TODO(jiyong): do this for rust?
-	return nil
-}
-
 func (mod *Module) Module() android.Module {
 	return mod
 }
