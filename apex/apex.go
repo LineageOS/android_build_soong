@@ -234,7 +234,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libbase",
 		"libbase_headers",
 		"libbinder_headers",
-		"libbinderthreadstate",
 		"libbluetooth",
 		"libbluetooth-types",
 		"libbluetooth-types-header",
@@ -351,7 +350,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libbacktrace_headers",
 		"libbase",
 		"libbase_headers",
-		"libbinderthreadstate",
 		"libbuildversion",
 		"libc++",
 		"libcrypto",
@@ -441,7 +439,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libbase",
 		"libbase_headers",
 		"libbinder_headers",
-		"libbinderthreadstate",
 		"libbluetooth-types-header",
 		"libbufferhub",
 		"libbufferhub_headers",
@@ -589,7 +586,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libbase",
 		"libbase_headers",
 		"libbinder_headers",
-		"libbinderthreadstate",
 		"libbluetooth-types-header",
 		"libbufferhub_headers",
 		"libc++",
@@ -866,7 +862,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"fmtlib",
 		"libbacktrace_headers",
 		"libbase_headers",
-		"libbinderthreadstate",
 		"libcgrouprc",
 		"libcgrouprc_format",
 		"libcutils",
@@ -2376,12 +2371,16 @@ func ApexBundleFactory(testApex bool, artApex bool) android.Module {
 	return bundle
 }
 
+// apex_test is an APEX for testing. The difference from the ordinary apex module type is that
+// certain compatibility checks such as apex_available are not done for apex_test.
 func testApexBundleFactory() android.Module {
 	bundle := newApexBundle()
 	bundle.testApex = true
 	return bundle
 }
 
+// apex packages other modules into an APEX file which is a packaging format for system-level
+// components like binaries, shared libraries, etc.
 func BundleFactory() android.Module {
 	return newApexBundle()
 }

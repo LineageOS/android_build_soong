@@ -112,7 +112,9 @@ func createTrebleRules() []Rule {
 
 		// TODO(b/67974785): always enforce the manifest
 		NeverAllow().
-			Without("name", "libhidltransport-impl-internal").
+			Without("name", "libhidlbase-combined-impl").
+			Without("name", "libhidlbase").
+			Without("name", "libhidlbase_pgo").
 			With("product_variables.enforce_vintf_manifest.cflags", "*").
 			Because("manifest enforcement should be independent of ."),
 
