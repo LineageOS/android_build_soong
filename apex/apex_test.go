@@ -453,7 +453,6 @@ func TestBasicApex(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			sdk_version: "none",
 			system_modules: "none",
-			compile_dex: true,
 			static_libs: ["myotherjar"],
 			libs: ["mysharedjar"],
 			// TODO: remove //apex_available:platform
@@ -468,7 +467,6 @@ func TestBasicApex(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			sdk_version: "none",
 			system_modules: "none",
-			compile_dex: true,
 			// TODO: remove //apex_available:platform
 			apex_available: [
 				"//apex_available:platform",
@@ -481,7 +479,6 @@ func TestBasicApex(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			sdk_version: "none",
 			system_modules: "none",
-			compile_dex: true,
 		}
 	`)
 
@@ -595,7 +592,6 @@ func TestDefaults(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			sdk_version: "none",
 			system_modules: "none",
-			compile_dex: true,
 			apex_available: [ "myapex" ],
 		}
 
@@ -2997,7 +2993,6 @@ func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			sdk_version: "none",
 			system_modules: "none",
-			compile_dex: true,
 			enabled: false,
 		}
 	`)
@@ -3528,7 +3523,6 @@ func TestCompatConfig(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			sdk_version: "none",
 			system_modules: "none",
-			compile_dex: true,
 			apex_available: [ "myapex" ],
 		}
 	`)
@@ -3557,6 +3551,7 @@ func TestRejectNonInstallableJavaLibrary(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			sdk_version: "none",
 			system_modules: "none",
+			compile_dex: false,
 		}
 	`)
 }
@@ -3643,7 +3638,6 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			libs: ["myotherjar"],
-			compile_dex: true,
 			apex_available: [
 				"myapex",
 				"//apex_available:platform",
