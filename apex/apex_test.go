@@ -549,10 +549,11 @@ func TestBasicApex(t *testing.T) {
 	ensureListContains(t, noticeInputs, "custom_notice")
 
 	depsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("myapex-deps-info.txt").Args["content"], "\\n")
-	ensureListContains(t, depsInfo, "internal myjar")
-	ensureListContains(t, depsInfo, "internal mylib")
-	ensureListContains(t, depsInfo, "internal mylib2")
-	ensureListContains(t, depsInfo, "internal myotherjar")
+	ensureListContains(t, depsInfo, "myjar <- myapex")
+	ensureListContains(t, depsInfo, "mylib <- myapex")
+	ensureListContains(t, depsInfo, "mylib2 <- mylib")
+	ensureListContains(t, depsInfo, "myotherjar <- myjar")
+	ensureListContains(t, depsInfo, "mysharedjar (external) <- myjar")
 }
 
 func TestDefaults(t *testing.T) {
@@ -796,6 +797,7 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 			name: "mylib",
 			srcs: ["mylib.cpp"],
 			shared_libs: ["libfoo#10"],
+			static_libs: ["libbaz"],
 			system_shared_libs: [],
 			stl: "none",
 			apex_available: [ "myapex2" ],
@@ -817,6 +819,14 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+		}
+
+		cc_library_static {
+			name: "libbaz",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex2" ],
 		}
 
 	`)
@@ -846,10 +856,10 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 	ensureNotContains(t, libFooStubsLdFlags, "libbar.so")
 
 	depsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("myapex2-deps-info.txt").Args["content"], "\\n")
-	ensureListContains(t, depsInfo, "internal mylib")
-	ensureListContains(t, depsInfo, "external libfoo")
-	ensureListNotContains(t, depsInfo, "internal libfoo")
-	ensureListNotContains(t, depsInfo, "external mylib")
+
+	ensureListContains(t, depsInfo, "mylib <- myapex2")
+	ensureListContains(t, depsInfo, "libbaz <- mylib")
+	ensureListContains(t, depsInfo, "libfoo (external) <- mylib")
 }
 
 func TestApexWithRuntimeLibsDependency(t *testing.T) {
