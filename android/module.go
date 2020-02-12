@@ -293,6 +293,12 @@ type nameProperties struct {
 
 type commonProperties struct {
 	// emit build rules for this module
+	//
+	// Disabling a module should only be done for those modules that cannot be built
+	// in the current environment. Modules that can build in the current environment
+	// but are not usually required (e.g. superceded by a prebuilt) should not be
+	// disabled as that will prevent them from being built by the checkbuild target
+	// and so prevent early detection of changes that have broken those modules.
 	Enabled *bool `android:"arch_variant"`
 
 	// Controls the visibility of this module to other modules. Allowable values are one or more of
