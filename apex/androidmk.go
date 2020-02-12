@@ -217,6 +217,12 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 			}
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 		}
+
+		// m <module_name> will build <module_name>.<apex_name> as well.
+		if fi.moduleName != moduleName && a.primaryApexType {
+			fmt.Fprintln(w, ".PHONY: "+fi.moduleName)
+			fmt.Fprintln(w, fi.moduleName+": "+moduleName)
+		}
 	}
 	return moduleNames
 }
