@@ -241,6 +241,8 @@ type Module interface {
 	RequiredModuleNames() []string
 	HostRequiredModuleNames() []string
 	TargetRequiredModuleNames() []string
+
+	filesToInstall() InstallPaths
 }
 
 // Qualified id for a module
@@ -645,7 +647,7 @@ type ModuleBase struct {
 	primaryVisibilityProperty visibilityProperty
 
 	noAddressSanitizer bool
-	installFiles       Paths
+	installFiles       InstallPaths
 	checkbuildFiles    Paths
 	noticeFile         OptionalPath
 
@@ -844,22 +846,20 @@ func (m *ModuleBase) ExportedToMake() bool {
 	return m.commonProperties.NamespaceExportedToMake
 }
 
-func (m *ModuleBase) computeInstallDeps(
-	ctx blueprint.ModuleContext) Paths {
+func (m *ModuleBase) computeInstallDeps(ctx blueprint.ModuleContext) InstallPaths {
 
-	result := Paths{}
+	var result InstallPaths
 	// TODO(ccross): we need to use WalkDeps and have some way to know which dependencies require installation
-	ctx.VisitDepsDepthFirstIf(isFileInstaller,
-		func(m blueprint.Module) {
-			fileInstaller := m.(fileInstaller)
-			files := fileInstaller.filesToInstall()
-			result = append(result, files...)
-		})
+	ctx.VisitDepsDepthFirst(func(m blueprint.Module) {
+		if a, ok := m.(Module); ok {
+			result = append(result, a.filesToInstall()...)
+		}
+	})
 
 	return result
 }
 
-func (m *ModuleBase) filesToInstall() Paths {
+func (m *ModuleBase) filesToInstall() InstallPaths {
 	return m.installFiles
 }
 
@@ -939,8 +939,8 @@ func (m *ModuleBase) TargetRequiredModuleNames() []string {
 }
 
 func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
-	allInstalledFiles := Paths{}
-	allCheckbuildFiles := Paths{}
+	var allInstalledFiles InstallPaths
+	var allCheckbuildFiles Paths
 	ctx.VisitAllModuleVariants(func(module Module) {
 		a := module.base()
 		allInstalledFiles = append(allInstalledFiles, a.installFiles...)
@@ -959,7 +959,7 @@ func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 		ctx.Build(pctx, BuildParams{
 			Rule:      blueprint.Phony,
 			Output:    name,
-			Implicits: allInstalledFiles,
+			Implicits: allInstalledFiles.Paths(),
 			Default:   !ctx.Config().EmbeddedInMake(),
 		})
 		deps = append(deps, name)
@@ -1282,8 +1282,8 @@ func (b *baseModuleContext) GetDirectDepWithTag(name string, tag blueprint.Depen
 type moduleContext struct {
 	bp blueprint.ModuleContext
 	baseModuleContext
-	installDeps     Paths
-	installFiles    Paths
+	installDeps     InstallPaths
+	installFiles    InstallPaths
 	checkbuildFiles Paths
 	module          Module
 
@@ -1736,7 +1736,7 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 
 	if !m.skipInstall(fullInstallPath) {
 
-		deps = append(deps, m.installDeps...)
+		deps = append(deps, m.installDeps.Paths()...)
 
 		var implicitDeps, orderOnlyDeps Paths
 
@@ -1815,20 +1815,6 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 
 func (m *moduleContext) CheckbuildFile(srcPath Path) {
 	m.checkbuildFiles = append(m.checkbuildFiles, srcPath)
-}
-
-type fileInstaller interface {
-	filesToInstall() Paths
-}
-
-func isFileInstaller(m blueprint.Module) bool {
-	_, ok := m.(fileInstaller)
-	return ok
-}
-
-func isAndroidModule(m blueprint.Module) bool {
-	_, ok := m.(Module)
-	return ok
 }
 
 func findStringInSlice(str string, slice []string) int {
