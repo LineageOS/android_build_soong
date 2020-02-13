@@ -31,6 +31,33 @@ type snapshotLibraryInterface interface {
 var _ snapshotLibraryInterface = (*prebuiltLibraryLinker)(nil)
 var _ snapshotLibraryInterface = (*libraryDecorator)(nil)
 
+type snapshotMap struct {
+	snapshots map[string]string
+}
+
+func newSnapshotMap() *snapshotMap {
+	return &snapshotMap{
+		snapshots: make(map[string]string),
+	}
+}
+
+func snapshotMapKey(name string, arch android.ArchType) string {
+	return name + ":" + arch.String()
+}
+
+// Adds a snapshot name for given module name and architecture.
+// e.g. add("libbase", X86, "libbase.vndk.29.x86")
+func (s *snapshotMap) add(name string, arch android.ArchType, snapshot string) {
+	s.snapshots[snapshotMapKey(name, arch)] = snapshot
+}
+
+// Returns snapshot name for given module name and architecture, if found.
+// e.g. get("libcutils", X86) => "libcutils.vndk.29.x86", true
+func (s *snapshotMap) get(name string, arch android.ArchType) (snapshot string, found bool) {
+	snapshot, found = s.snapshots[snapshotMapKey(name, arch)]
+	return snapshot, found
+}
+
 func exportedHeaders(ctx android.SingletonContext, l exportedFlagsProducer) android.Paths {
 	var ret android.Paths
 

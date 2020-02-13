@@ -413,9 +413,12 @@ func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Androi
 }
 
 func (c *vndkPrebuiltLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	// Each vndk prebuilt is exported to androidMk only when BOARD_VNDK_VERSION != current
+	// and the version of the prebuilt is same as BOARD_VNDK_VERSION.
 	ret.Class = "SHARED_LIBRARIES"
 
-	ret.SubName = c.NameSuffix()
+	// shouldn't add any suffixes due to mk modules
+	ret.SubName = ""
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		c.libraryDecorator.androidMkWriteExportedFlags(w)
@@ -426,6 +429,61 @@ func (c *vndkPrebuiltLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *andr
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
+		if c.tocFile.Valid() {
+			fmt.Fprintln(w, "LOCAL_SOONG_TOC := "+c.tocFile.String())
+		}
+	})
+}
+
+func (c *vendorSnapshotLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	// Each vendor snapshot is exported to androidMk only when BOARD_VNDK_VERSION != current
+	// and the version of the prebuilt is same as BOARD_VNDK_VERSION.
+	if c.shared() {
+		ret.Class = "SHARED_LIBRARIES"
+	} else if c.static() {
+		ret.Class = "STATIC_LIBRARIES"
+	} else if c.header() {
+		ret.Class = "HEADER_LIBRARIES"
+	}
+
+	if c.androidMkVendorSuffix {
+		ret.SubName = vendorSuffix
+	} else {
+		ret.SubName = ""
+	}
+
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		c.libraryDecorator.androidMkWriteExportedFlags(w)
+
+		if c.shared() {
+			path, file := filepath.Split(c.path.ToMakePath().String())
+			stem, suffix, ext := android.SplitFileExt(file)
+			fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+ext)
+			fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
+			if c.shared() {
+				fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
+				fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
+			}
+			if c.tocFile.Valid() {
+				fmt.Fprintln(w, "LOCAL_SOONG_TOC := "+c.tocFile.String())
+			}
+		} else { // static or header
+			fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+		}
+	})
+}
+
+func (c *vendorSnapshotBinaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ret.Class = "EXECUTABLES"
+
+	if c.androidMkVendorSuffix {
+		ret.SubName = vendorSuffix
+	} else {
+		ret.SubName = ""
+	}
+
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		fmt.Fprintln(w, "LOCAL_MODULE_SYMLINKS := "+strings.Join(c.Properties.Symlinks, " "))
 	})
 }
 
