@@ -102,7 +102,7 @@ func dexpreoptDisabled(global GlobalConfig, module ModuleConfig) bool {
 
 	// Don't preopt system server jars that are updatable.
 	for _, p := range global.UpdatableSystemServerJars {
-		if _, jar := SplitApexJarPair(p); jar == module.Name {
+		if _, jar := android.SplitApexJarPair(p); jar == module.Name {
 			return true
 		}
 	}
@@ -537,18 +537,8 @@ func makefileMatch(pattern, s string) bool {
 }
 
 // Expected format for apexJarValue = <apex name>:<jar name>
-func SplitApexJarPair(apexJarValue string) (string, string) {
-	var apexJarPair []string = strings.SplitN(apexJarValue, ":", 2)
-	if apexJarPair == nil || len(apexJarPair) != 2 {
-		panic(fmt.Errorf("malformed apexJarValue: %q, expected format: <apex>:<jar>",
-			apexJarValue))
-	}
-	return apexJarPair[0], apexJarPair[1]
-}
-
-// Expected format for apexJarValue = <apex name>:<jar name>
 func GetJarLocationFromApexJarPair(apexJarValue string) string {
-	apex, jar := SplitApexJarPair(apexJarValue)
+	apex, jar := android.SplitApexJarPair(apexJarValue)
 	return filepath.Join("/apex", apex, "javalib", jar+".jar")
 }
 

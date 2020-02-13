@@ -115,16 +115,16 @@ func stemOf(moduleName string) string {
 func getJarsFromApexJarPairs(apexJarPairs []string) []string {
 	modules := make([]string, len(apexJarPairs))
 	for i, p := range apexJarPairs {
-		_, jar := dexpreopt.SplitApexJarPair(p)
+		_, jar := android.SplitApexJarPair(p)
 		modules[i] = jar
 	}
 	return modules
 }
 
 var (
-	bootImageConfigKey       = android.NewOnceKey("bootImageConfig")
-	artBootImageName         = "art"
-	frameworkBootImageName   = "boot"
+	bootImageConfigKey     = android.NewOnceKey("bootImageConfig")
+	artBootImageName       = "art"
+	frameworkBootImageName = "boot"
 )
 
 // Construct the global boot image configs.
@@ -179,8 +179,8 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		}
 
 		configs := map[string]*bootImageConfig{
-			artBootImageName:         &artCfg,
-			frameworkBootImageName:   &frameworkCfg,
+			artBootImageName:       &artCfg,
+			frameworkBootImageName: &frameworkCfg,
 		}
 
 		// common to all configs
