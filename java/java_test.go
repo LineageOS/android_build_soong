@@ -57,7 +57,15 @@ func TestMain(m *testing.M) {
 }
 
 func testConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
-	return TestConfig(buildDir, env, bp, fs)
+	bp += dexpreopt.BpToolModulesForTest()
+
+	config := TestConfig(buildDir, env, bp, fs)
+
+	// Set up the global Once cache used for dexpreopt.GlobalSoongConfig, so that
+	// it doesn't create a real one, which would fail.
+	_ = dexpreopt.GlobalSoongConfigForTests(config)
+
+	return config
 }
 
 func testContext() *android.TestContext {
@@ -86,6 +94,8 @@ func testContext() *android.TestContext {
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", cc.NdkPrebuiltSharedStlFactory)
 
+	dexpreopt.RegisterToolModulesForTest(ctx)
+
 	return ctx
 }
 
@@ -93,7 +103,7 @@ func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	t.Helper()
 
 	pathCtx := android.PathContextForTesting(config)
-	setDexpreoptTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
+	dexpreopt.SetTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
 
 	ctx.Register(config)
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
@@ -112,7 +122,7 @@ func testJavaErrorWithConfig(t *testing.T, pattern string, config android.Config
 	ctx := testContext()
 
 	pathCtx := android.PathContextForTesting(config)
-	setDexpreoptTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
+	dexpreopt.SetTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
 
 	ctx.Register(config)
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")

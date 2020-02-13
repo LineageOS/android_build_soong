@@ -80,13 +80,13 @@ func main() {
 
 	globalSoongConfigData, err := ioutil.ReadFile(*globalSoongConfigPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading global config %q: %s\n", *globalSoongConfigPath, err)
+		fmt.Fprintf(os.Stderr, "error reading global Soong config %q: %s\n", *globalSoongConfigPath, err)
 		os.Exit(2)
 	}
 
-	globalSoongConfig, err := dexpreopt.LoadGlobalSoongConfig(ctx, globalSoongConfigData)
+	globalSoongConfig, err := dexpreopt.ParseGlobalSoongConfig(ctx, globalSoongConfigData)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error loading global config %q: %s\n", *globalSoongConfigPath, err)
+		fmt.Fprintf(os.Stderr, "error parsing global Soong config %q: %s\n", *globalSoongConfigPath, err)
 		os.Exit(2)
 	}
 
@@ -96,9 +96,9 @@ func main() {
 		os.Exit(2)
 	}
 
-	globalConfig, err := dexpreopt.LoadGlobalConfig(ctx, globalConfigData, globalSoongConfig)
+	globalConfig, err := dexpreopt.ParseGlobalConfig(ctx, globalConfigData)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parse global config %q: %s\n", *globalConfigPath, err)
+		fmt.Fprintf(os.Stderr, "error parsing global config %q: %s\n", *globalConfigPath, err)
 		os.Exit(2)
 	}
 
@@ -108,9 +108,9 @@ func main() {
 		os.Exit(2)
 	}
 
-	moduleConfig, err := dexpreopt.LoadModuleConfig(ctx, moduleConfigData)
+	moduleConfig, err := dexpreopt.ParseModuleConfig(ctx, moduleConfigData)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error loading module config %q: %s\n", *moduleConfigPath, err)
+		fmt.Fprintf(os.Stderr, "error parsing module config %q: %s\n", *moduleConfigPath, err)
 		os.Exit(2)
 	}
 
@@ -130,12 +130,12 @@ func main() {
 		}
 	}()
 
-	writeScripts(ctx, globalConfig, moduleConfig, *dexpreoptScriptPath)
+	writeScripts(ctx, globalSoongConfig, globalConfig, moduleConfig, *dexpreoptScriptPath)
 }
 
-func writeScripts(ctx android.PathContext, global dexpreopt.GlobalConfig, module dexpreopt.ModuleConfig,
-	dexpreoptScriptPath string) {
-	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, global, module)
+func writeScripts(ctx android.PathContext, globalSoong *dexpreopt.GlobalSoongConfig,
+	global *dexpreopt.GlobalConfig, module *dexpreopt.ModuleConfig, dexpreoptScriptPath string) {
+	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, globalSoong, global, module)
 	if err != nil {
 		panic(err)
 	}
@@ -150,7 +150,7 @@ func writeScripts(ctx android.PathContext, global dexpreopt.GlobalConfig, module
 		dexpreoptRule.Command().Text("mkdir -p").Flag(filepath.Dir(installPath.String()))
 		dexpreoptRule.Command().Text("cp -f").Input(install.From).Output(installPath)
 	}
-	dexpreoptRule.Command().Tool(global.SoongConfig.SoongZip).
+	dexpreoptRule.Command().Tool(globalSoong.SoongZip).
 		FlagWithArg("-o ", "$2").
 		FlagWithArg("-C ", installDir.String()).
 		FlagWithArg("-D ", installDir.String())
