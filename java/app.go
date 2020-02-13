@@ -142,6 +142,10 @@ type AndroidApp struct {
 	noticeOutputs android.NoticeOutputs
 }
 
+func (a *AndroidApp) IsInstallable() bool {
+	return Bool(a.properties.Installable)
+}
+
 func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
 	return nil
 }
@@ -338,7 +342,6 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 		installDir = filepath.Join("app", a.installApkName)
 	}
 	a.dexpreopter.installPath = android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
-	a.dexpreopter.isInstallable = Bool(a.properties.Installable)
 	a.dexpreopter.uncompressedDex = a.shouldUncompressDex(ctx)
 
 	a.dexpreopter.enforceUsesLibs = a.usesLibrary.enforceUsesLibraries()
@@ -922,6 +925,10 @@ type AndroidAppImportProperties struct {
 	Filename *string
 }
 
+func (a *AndroidAppImport) IsInstallable() bool {
+	return true
+}
+
 // Updates properties with variant-specific values.
 func (a *AndroidAppImport) processVariants(ctx android.LoadHookContext) {
 	config := ctx.Config()
@@ -1064,7 +1071,6 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	}
 
 	a.dexpreopter.installPath = installDir.Join(ctx, a.BaseModuleName()+".apk")
-	a.dexpreopter.isInstallable = true
 	a.dexpreopter.isPresignedPrebuilt = Bool(a.properties.Presigned)
 	a.dexpreopter.uncompressedDex = a.shouldUncompressDex(ctx)
 
