@@ -256,6 +256,12 @@ func (pgo *pgo) begin(ctx BaseModuleContext) {
 		}
 	}
 
+	// PGO profile use is not feasible for a Clang coverage build because
+	// -fprofile-use and -fprofile-instr-generate are incompatible.
+	if ctx.DeviceConfig().ClangCoverageEnabled() {
+		return
+	}
+
 	if !ctx.Config().IsEnvTrue("ANDROID_PGO_NO_PROFILE_USE") &&
 		proptools.BoolDefault(pgo.Properties.Pgo.Enable_profile_use, true) {
 		if profileFile := pgo.Properties.getPgoProfileFile(ctx); profileFile.Valid() {
