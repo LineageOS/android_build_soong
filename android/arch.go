@@ -765,7 +765,7 @@ func osMutator(mctx BottomUpMutatorContext) {
 	}
 
 	if len(moduleOSList) == 0 {
-		base.commonProperties.Enabled = boolPtr(false)
+		base.Disable()
 		return
 	}
 
@@ -869,7 +869,7 @@ func archMutator(mctx BottomUpMutatorContext) {
 	}
 
 	if len(targets) == 0 {
-		base.commonProperties.Enabled = boolPtr(false)
+		base.Disable()
 		return
 	}
 
