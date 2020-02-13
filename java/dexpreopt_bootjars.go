@@ -165,7 +165,7 @@ func dexpreoptBootJarsFactory() android.Singleton {
 }
 
 func skipDexpreoptBootJars(ctx android.PathContext) bool {
-	if dexpreoptGlobalConfig(ctx).DisablePreopt {
+	if dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
 		return true
 	}
 
@@ -205,11 +205,15 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 	if skipDexpreoptBootJars(ctx) {
 		return
 	}
+	if dexpreopt.GetCachedGlobalSoongConfig(ctx) == nil {
+		// No module has enabled dexpreopting, so we assume there will be no boot image to make.
+		return
+	}
 
 	d.dexpreoptConfigForMake = android.PathForOutput(ctx, ctx.Config().DeviceName(), "dexpreopt.config")
 	writeGlobalConfigForMake(ctx, d.dexpreoptConfigForMake)
 
-	global := dexpreoptGlobalConfig(ctx)
+	global := dexpreopt.GetGlobalConfig(ctx)
 
 	// Skip recompiling the boot image for the second sanitization phase. We'll get separate paths
 	// and invalidate first-stage artifacts which are crucial to SANITIZE_LITE builds.
@@ -295,7 +299,8 @@ func buildBootImage(ctx android.SingletonContext, config bootImageConfig) *bootI
 func buildBootImageRuleForArch(ctx android.SingletonContext, image *bootImage,
 	arch android.ArchType, profile android.Path, missingDeps []string) android.WritablePaths {
 
-	global := dexpreoptGlobalConfig(ctx)
+	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
+	global := dexpreopt.GetGlobalConfig(ctx)
 
 	symbolsDir := image.symbolsDir.Join(ctx, image.installSubdir, arch.String())
 	symbolsFile := symbolsDir.Join(ctx, image.stem+".oat")
@@ -330,7 +335,7 @@ func buildBootImageRuleForArch(ctx android.SingletonContext, image *bootImage,
 
 	invocationPath := outputPath.ReplaceExtension(ctx, "invocation")
 
-	cmd.Tool(global.SoongConfig.Dex2oat).
+	cmd.Tool(globalSoong.Dex2oat).
 		Flag("--avoid-storing-invocation").
 		FlagWithOutput("--write-invocation-to=", invocationPath).ImplicitOutput(invocationPath).
 		Flag("--runtime-arg").FlagWithArg("-Xms", global.Dex2oatImageXms).
@@ -433,7 +438,8 @@ It is likely that the boot classpath is inconsistent.
 Rebuild with ART_BOOT_IMAGE_EXTRA_ARGS="--runtime-arg -verbose:verifier" to see verification errors.`
 
 func bootImageProfileRule(ctx android.SingletonContext, image *bootImage, missingDeps []string) android.WritablePath {
-	global := dexpreoptGlobalConfig(ctx)
+	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
+	global := dexpreopt.GetGlobalConfig(ctx)
 
 	if global.DisableGenerateProfile || ctx.Config().IsPdkBuild() || ctx.Config().UnbundledBuild() {
 		return nil
@@ -464,7 +470,7 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImage, missin
 
 		rule.Command().
 			Text(`ANDROID_LOG_TAGS="*:e"`).
-			Tool(global.SoongConfig.Profman).
+			Tool(globalSoong.Profman).
 			FlagWithInput("--create-profile-from=", bootImageProfile).
 			FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
 			FlagForEachArg("--dex-location=", image.dexLocationsDeps).
@@ -487,7 +493,8 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImage, missin
 var bootImageProfileRuleKey = android.NewOnceKey("bootImageProfileRule")
 
 func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImage, missingDeps []string) android.WritablePath {
-	global := dexpreoptGlobalConfig(ctx)
+	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
+	global := dexpreopt.GetGlobalConfig(ctx)
 
 	if global.DisableGenerateProfile || ctx.Config().IsPdkBuild() || ctx.Config().UnbundledBuild() {
 		return nil
@@ -513,7 +520,7 @@ func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImage, mi
 
 		rule.Command().
 			Text(`ANDROID_LOG_TAGS="*:e"`).
-			Tool(global.SoongConfig.Profman).
+			Tool(globalSoong.Profman).
 			Flag("--generate-boot-profile").
 			FlagWithInput("--create-profile-from=", bootFrameworkProfile).
 			FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
@@ -575,7 +582,7 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImage) {
 }
 
 func writeGlobalConfigForMake(ctx android.SingletonContext, path android.WritablePath) {
-	data := dexpreoptGlobalConfigRaw(ctx).data
+	data := dexpreopt.GetGlobalConfigRawData(ctx)
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   android.WriteFile,
