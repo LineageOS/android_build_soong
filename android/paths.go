@@ -1206,12 +1206,26 @@ func (p InstallPath) ToMakePath() InstallPath {
 // PathForModuleInstall returns a Path representing the install path for the
 // module appended with paths...
 func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string) InstallPath {
-	var outPaths []string
 	os := ctx.Os()
 	if forceOS := ctx.InstallForceOS(); forceOS != nil {
 		os = *forceOS
 	}
 	partition := modulePartition(ctx, os)
+
+	ret := pathForInstall(ctx, os, partition, ctx.Debug(), pathComponents...)
+
+	if ctx.InstallBypassMake() && ctx.Config().EmbeddedInMake() {
+		ret = ret.ToMakePath()
+	}
+
+	return ret
+}
+
+func pathForInstall(ctx PathContext, os OsType, partition string, debug bool,
+	pathComponents ...string) InstallPath {
+
+	var outPaths []string
+
 	if os.Class == Device {
 		outPaths = []string{"target", "product", ctx.Config().DeviceName(), partition}
 	} else {
@@ -1225,7 +1239,7 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 			outPaths = []string{"host", os.String() + "-x86", partition}
 		}
 	}
-	if ctx.Debug() {
+	if debug {
 		outPaths = append([]string{"debug"}, outPaths...)
 	}
 	outPaths = append(outPaths, pathComponents...)
@@ -1236,9 +1250,6 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 	}
 
 	ret := InstallPath{basePath{path, ctx.Config(), ""}, ""}
-	if ctx.InstallBypassMake() && ctx.Config().EmbeddedInMake() {
-		ret = ret.ToMakePath()
-	}
 
 	return ret
 }
@@ -1300,6 +1311,32 @@ func modulePartition(ctx ModuleInstallPathContext, os OsType) string {
 		}
 	}
 	return partition
+}
+
+type InstallPaths []InstallPath
+
+// Paths returns the InstallPaths as a Paths
+func (p InstallPaths) Paths() Paths {
+	if p == nil {
+		return nil
+	}
+	ret := make(Paths, len(p))
+	for i, path := range p {
+		ret[i] = path
+	}
+	return ret
+}
+
+// Strings returns the string forms of the install paths.
+func (p InstallPaths) Strings() []string {
+	if p == nil {
+		return nil
+	}
+	ret := make([]string, len(p))
+	for i, path := range p {
+		ret[i] = path.String()
+	}
+	return ret
 }
 
 // validateSafePath validates a path that we trust (may contain ninja variables).
