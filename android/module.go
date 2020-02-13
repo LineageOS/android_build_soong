@@ -204,6 +204,7 @@ type Module interface {
 	DepsMutator(BottomUpMutatorContext)
 
 	base() *ModuleBase
+	Disable()
 	Enabled() bool
 	Target() Target
 	InstallInData() bool
@@ -834,6 +835,10 @@ func (m *ModuleBase) Enabled() bool {
 		return !m.Os().DefaultDisabled
 	}
 	return *m.commonProperties.Enabled
+}
+
+func (m *ModuleBase) Disable() {
+	m.commonProperties.Enabled = proptools.BoolPtr(false)
 }
 
 func (m *ModuleBase) SkipInstall() {
