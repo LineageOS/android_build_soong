@@ -350,6 +350,12 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Diag.Cfi = nil
 	}
 
+	// Also disable CFI if building against snapshot.
+	vndkVersion := ctx.DeviceConfig().VndkVersion()
+	if ctx.useVndk() && vndkVersion != "current" && vndkVersion != "" {
+		s.Cfi = nil
+	}
+
 	// HWASan ramdisk (which is built from recovery) goes over some bootloader limit.
 	// Keep libc instrumented so that ramdisk / recovery can run hwasan-instrumented code if necessary.
 	if (ctx.inRamdisk() || ctx.inRecovery()) && !strings.HasPrefix(ctx.ModuleDir(), "bionic/libc") {
@@ -739,7 +745,11 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 				return false
 			}
 
-			if d, ok := child.(*Module); ok && d.static() && d.sanitize != nil {
+			d, ok := child.(*Module)
+			if !ok || !d.static() {
+				return false
+			}
+			if d.sanitize != nil {
 				if enableMinimalRuntime(d.sanitize) {
 					// If a static dependency is built with the minimal runtime,
 					// make sure we include the ubsan minimal runtime.
@@ -757,9 +767,18 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 				}
 
 				return true
-			} else {
-				return false
 			}
+
+			if p, ok := d.linker.(*vendorSnapshotLibraryDecorator); ok {
+				if Bool(p.properties.Sanitize_minimal_dep) {
+					c.sanitize.Properties.MinimalRuntimeDep = true
+				}
+				if Bool(p.properties.Sanitize_ubsan_dep) {
+					c.sanitize.Properties.UbsanRuntimeDep = true
+				}
+			}
+
+			return false
 		})
 	}
 }
@@ -900,12 +919,31 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			// Note that by adding dependency with {static|shared}DepTag, the lib is
 			// added to libFlags and LOCAL_SHARED_LIBRARIES by cc.Module
 			if c.staticBinary() {
+				deps := append(extraStaticDeps, runtimeLibrary)
+				// If we're using snapshots and in vendor, redirect to snapshot whenever possible
+				if c.VndkVersion() == mctx.DeviceConfig().VndkVersion() {
+					snapshots := vendorSnapshotStaticLibs(mctx.Config())
+					for idx, dep := range deps {
+						if lib, ok := snapshots.get(dep, mctx.Arch().ArchType); ok {
+							deps[idx] = lib
+						}
+					}
+				}
+
 				// static executable gets static runtime libs
 				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
 					{Mutator: "link", Variation: "static"},
 					c.ImageVariation(),
-				}...), StaticDepTag, append([]string{runtimeLibrary}, extraStaticDeps...)...)
+				}...), StaticDepTag, deps...)
 			} else if !c.static() && !c.header() {
+				// If we're using snapshots and in vendor, redirect to snapshot whenever possible
+				if c.VndkVersion() == mctx.DeviceConfig().VndkVersion() {
+					snapshots := vendorSnapshotSharedLibs(mctx.Config())
+					if lib, ok := snapshots.get(runtimeLibrary, mctx.Arch().ArchType); ok {
+						runtimeLibrary = lib
+					}
+				}
+
 				// dynamic executable and shared libs get shared runtime libs
 				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
 					{Mutator: "link", Variation: "shared"},
