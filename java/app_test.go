@@ -1005,6 +1005,7 @@ func TestJNIPackaging(t *testing.T) {
 			name: "libjni",
 			system_shared_libs: [],
 			stl: "none",
+			sdk_version: "current",
 		}
 
 		android_app {
@@ -2274,6 +2275,7 @@ func TestEmbedNotice(t *testing.T) {
 			system_shared_libs: [],
 			stl: "none",
 			notice: "LIB_NOTICE",
+			sdk_version: "current",
 		}
 
 		java_library {
