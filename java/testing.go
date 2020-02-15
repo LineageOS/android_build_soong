@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"android/soong/android"
+	"android/soong/cc"
 )
 
 func TestConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) android.Config {
@@ -51,8 +52,6 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"framework/aidl/a.aidl":  nil,
 		"assets_a/a":             nil,
 		"assets_b/b":             nil,
-
-		"prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_shared.so": nil,
 
 		"prebuilts/sdk/14/public/android.jar":         nil,
 		"prebuilts/sdk/14/public/framework.aidl":      nil,
@@ -121,6 +120,8 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"stubs-sources/foo/Foo.java": nil,
 		"stubs/sources/foo/Foo.java": nil,
 	}
+
+	cc.GatherRequiredFilesForTest(mockFS)
 
 	for k, v := range fs {
 		mockFS[k] = v

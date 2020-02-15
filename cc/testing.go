@@ -29,6 +29,8 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
 	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
+	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", NdkPrebuiltSharedStlFactory)
+	ctx.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
 }
 
 func GatherRequiredDepsForTest(os android.OsType) string {
@@ -257,7 +259,50 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		cc_library {
 			name: "libprotobuf-cpp-lite",
 		}
-		`
+
+		cc_library {
+			name: "ndk_libunwind",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		cc_library {
+			name: "libc.ndk.current",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		cc_library {
+			name: "libm.ndk.current",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		cc_library {
+			name: "libdl.ndk.current",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		ndk_prebuilt_object {
+			name: "ndk_crtbegin_so.27",
+			sdk_version: "27",
+		}
+
+		ndk_prebuilt_object {
+			name: "ndk_crtend_so.27",
+			sdk_version: "27",
+		}
+
+		ndk_prebuilt_shared_stl {
+			name: "ndk_libc++_shared",
+		}
+	`
+
 	if os == android.Fuchsia {
 		ret += `
 		cc_library {
@@ -271,6 +316,18 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		`
 	}
 	return ret
+}
+
+func GatherRequiredFilesForTest(fs map[string][]byte) {
+	fs["prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_shared.so"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-arm/usr/lib/crtbegin_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-arm/usr/lib/crtend_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-arm64/usr/lib/crtbegin_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-arm64/usr/lib/crtend_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-x86/usr/lib/crtbegin_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-x86/usr/lib/crtend_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-x86_64/usr/lib64/crtbegin_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-x86_64/usr/lib64/crtend_so.o"] = nil
 }
 
 func TestConfig(buildDir string, os android.OsType, env map[string]string,
@@ -292,6 +349,8 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 		"foo.map.txt": nil,
 		"liba.so":     nil,
 	}
+
+	GatherRequiredFilesForTest(mockFS)
 
 	for k, v := range fs {
 		mockFS[k] = v
