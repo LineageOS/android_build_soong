@@ -94,7 +94,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libcutils",
 		"libcutils_headers",
 		"libdiagnose_usb",
-		"liblog",
 		"liblog_headers",
 		"libmdnssd",
 		"libminijail",
@@ -170,7 +169,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libicuuc_headers",
 		"libicuuc_stubdata",
 		"libjdwp_headers",
-		"liblog",
 		"liblog_headers",
 		"liblz4",
 		"liblzma",
@@ -792,7 +790,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libjemalloc5",
 		"liblinker_main",
 		"liblinker_malloc",
-		"liblog",
 		"liblog_headers",
 		"liblz4",
 		"liblzma",
@@ -825,7 +822,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libcutils_headers",
 		"libgtest_prod",
 		"libjsoncpp",
-		"liblog",
 		"liblog_headers",
 		"libnativehelper_header_only",
 		"libnetd_client_headers",
@@ -866,7 +862,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libhidltransport-impl-internal",
 		"libhwbinder-impl-internal",
 		"libjsoncpp",
-		"liblog",
 		"liblog_headers",
 		"libprocessgroup",
 		"libprocessgroup_headers",
@@ -1025,7 +1020,7 @@ func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
 }
 
 func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
-	ctx.BottomUp("apex_deps", apexDepsMutator)
+	ctx.TopDown("apex_deps", apexDepsMutator)
 	ctx.BottomUp("apex", apexMutator).Parallel()
 	ctx.BottomUp("apex_flattened", apexFlattenedMutator).Parallel()
 	ctx.BottomUp("apex_uses", apexUsesMutator).Parallel()
@@ -1033,24 +1028,29 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 
 // Mark the direct and transitive dependencies of apex bundles so that they
 // can be built for the apex bundles.
-func apexDepsMutator(mctx android.BottomUpMutatorContext) {
+func apexDepsMutator(mctx android.TopDownMutatorContext) {
+	var apexBundleNames []string
+	var directDep bool
 	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
-		apexBundleName := mctx.ModuleName()
-		mctx.WalkDeps(func(child, parent android.Module) bool {
-			depName := mctx.OtherModuleName(child)
-			// If the parent is apexBundle, this child is directly depended.
-			_, directDep := parent.(*apexBundle)
-			android.UpdateApexDependency(apexBundleName, depName, directDep)
-
-			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() &&
-				(directDep || am.DepIsInSameApex(mctx, child)) {
-				am.BuildForApex(apexBundleName)
-				return true
-			} else {
-				return false
-			}
-		})
+		apexBundleNames = []string{mctx.ModuleName()}
+		directDep = true
+	} else if am, ok := mctx.Module().(android.ApexModule); ok {
+		apexBundleNames = am.ApexVariations()
+		directDep = false
 	}
+
+	if len(apexBundleNames) == 0 {
+		return
+	}
+
+	mctx.VisitDirectDeps(func(child android.Module) {
+		depName := mctx.OtherModuleName(child)
+		if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() &&
+			(directDep || am.DepIsInSameApex(mctx, child)) {
+			android.UpdateApexDependency(apexBundleNames, depName, directDep)
+			am.BuildForApexes(apexBundleNames)
+		}
+	})
 }
 
 // Create apex variations if a module is included in APEX(s).

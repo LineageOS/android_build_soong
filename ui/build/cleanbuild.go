@@ -237,6 +237,7 @@ func cleanOldFiles(ctx Context, basePath, file string) {
 			if fi.IsDir() {
 				if err := os.Remove(old); err == nil {
 					ctx.Println("Removed directory that is no longer installed: ", old)
+					cleanEmptyDirs(ctx, filepath.Dir(old))
 				} else {
 					ctx.Println("Failed to remove directory that is no longer installed (%q): %v", old, err)
 					ctx.Println("It's recommended to run `m installclean`")
@@ -244,6 +245,7 @@ func cleanOldFiles(ctx Context, basePath, file string) {
 			} else {
 				if err := os.Remove(old); err == nil {
 					ctx.Println("Removed file that is no longer installed: ", old)
+					cleanEmptyDirs(ctx, filepath.Dir(old))
 				} else if !os.IsNotExist(err) {
 					ctx.Fatalf("Failed to remove file that is no longer installed (%q): %v", old, err)
 				}
@@ -253,4 +255,17 @@ func cleanOldFiles(ctx Context, basePath, file string) {
 
 	// Use the new list as the base for the next build
 	os.Rename(file, oldFile)
+}
+
+func cleanEmptyDirs(ctx Context, dir string) {
+	files, err := ioutil.ReadDir(dir)
+	if err != nil || len(files) > 0 {
+		return
+	}
+	if err := os.Remove(dir); err == nil {
+		ctx.Println("Removed directory that is no longer installed: ", dir)
+	} else {
+		ctx.Fatalf("Failed to remove directory that is no longer installed (%q): %v", dir, err)
+	}
+	cleanEmptyDirs(ctx, filepath.Dir(dir))
 }

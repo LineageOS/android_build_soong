@@ -58,8 +58,8 @@ var SystemServerForcedDepTag = dependencyTag{name: "system-server-forced-dep"}
 
 // GenerateDexpreoptRule generates a set of commands that will preopt a module based on a GlobalConfig and a
 // ModuleConfig.  The produced files and their install locations will be available through rule.Installs().
-func GenerateDexpreoptRule(ctx android.PathContext,
-	global GlobalConfig, module ModuleConfig) (rule *android.RuleBuilder, err error) {
+func GenerateDexpreoptRule(ctx android.PathContext, globalSoong *GlobalSoongConfig,
+	global *GlobalConfig, module *ModuleConfig) (rule *android.RuleBuilder, err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -81,10 +81,10 @@ func GenerateDexpreoptRule(ctx android.PathContext,
 
 	var profile android.WritablePath
 	if generateProfile {
-		profile = profileCommand(ctx, global, module, rule)
+		profile = profileCommand(ctx, globalSoong, global, module, rule)
 	}
 	if generateBootProfile {
-		bootProfileCommand(ctx, global, module, rule)
+		bootProfileCommand(ctx, globalSoong, global, module, rule)
 	}
 
 	if !dexpreoptDisabled(ctx, global, module) {
@@ -96,7 +96,7 @@ func GenerateDexpreoptRule(ctx android.PathContext,
 			generateDM := shouldGenerateDM(module, global)
 
 			for archIdx, _ := range module.Archs {
-				dexpreoptCommand(ctx, global, module, rule, archIdx, profile, appImage, generateDM)
+				dexpreoptCommand(ctx, globalSoong, global, module, rule, archIdx, profile, appImage, generateDM)
 			}
 		}
 	}
@@ -104,7 +104,7 @@ func GenerateDexpreoptRule(ctx android.PathContext,
 	return rule, nil
 }
 
-func dexpreoptDisabled(ctx android.PathContext, global GlobalConfig, module ModuleConfig) bool {
+func dexpreoptDisabled(ctx android.PathContext, global *GlobalConfig, module *ModuleConfig) bool {
 	if contains(global.DisablePreoptModules, module.Name) {
 		return true
 	}
@@ -135,8 +135,8 @@ func dexpreoptDisabled(ctx android.PathContext, global GlobalConfig, module Modu
 	return false
 }
 
-func profileCommand(ctx android.PathContext, global GlobalConfig, module ModuleConfig,
-	rule *android.RuleBuilder) android.WritablePath {
+func profileCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, global *GlobalConfig,
+	module *ModuleConfig, rule *android.RuleBuilder) android.WritablePath {
 
 	profilePath := module.BuildPath.InSameDir(ctx, "profile.prof")
 	profileInstalledPath := module.DexLocation + ".prof"
@@ -147,7 +147,7 @@ func profileCommand(ctx android.PathContext, global GlobalConfig, module ModuleC
 
 	cmd := rule.Command().
 		Text(`ANDROID_LOG_TAGS="*:e"`).
-		Tool(global.SoongConfig.Profman)
+		Tool(globalSoong.Profman)
 
 	if module.ProfileIsTextListing {
 		// The profile is a test listing of classes (used for framework jars).
@@ -174,8 +174,8 @@ func profileCommand(ctx android.PathContext, global GlobalConfig, module ModuleC
 	return profilePath
 }
 
-func bootProfileCommand(ctx android.PathContext, global GlobalConfig, module ModuleConfig,
-	rule *android.RuleBuilder) android.WritablePath {
+func bootProfileCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, global *GlobalConfig,
+	module *ModuleConfig, rule *android.RuleBuilder) android.WritablePath {
 
 	profilePath := module.BuildPath.InSameDir(ctx, "profile.bprof")
 	profileInstalledPath := module.DexLocation + ".bprof"
@@ -186,7 +186,7 @@ func bootProfileCommand(ctx android.PathContext, global GlobalConfig, module Mod
 
 	cmd := rule.Command().
 		Text(`ANDROID_LOG_TAGS="*:e"`).
-		Tool(global.SoongConfig.Profman)
+		Tool(globalSoong.Profman)
 
 	// The profile is a test listing of methods.
 	// We need to generate the actual binary profile.
@@ -206,8 +206,9 @@ func bootProfileCommand(ctx android.PathContext, global GlobalConfig, module Mod
 	return profilePath
 }
 
-func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module ModuleConfig, rule *android.RuleBuilder,
-	archIdx int, profile android.WritablePath, appImage bool, generateDM bool) {
+func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, global *GlobalConfig,
+	module *ModuleConfig, rule *android.RuleBuilder, archIdx int, profile android.WritablePath,
+	appImage bool, generateDM bool) {
 
 	arch := module.Archs[archIdx]
 
@@ -345,14 +346,14 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 	if module.EnforceUsesLibraries {
 		if module.ManifestPath != nil {
 			rule.Command().Text(`target_sdk_version="$(`).
-				Tool(global.SoongConfig.ManifestCheck).
+				Tool(globalSoong.ManifestCheck).
 				Flag("--extract-target-sdk-version").
 				Input(module.ManifestPath).
 				Text(`)"`)
 		} else {
 			// No manifest to extract targetSdkVersion from, hope that DexJar is an APK
 			rule.Command().Text(`target_sdk_version="$(`).
-				Tool(global.SoongConfig.Aapt).
+				Tool(globalSoong.Aapt).
 				Flag("dump badging").
 				Input(module.DexPath).
 				Text(`| grep "targetSdkVersion" | sed -n "s/targetSdkVersion:'\(.*\)'/\1/p"`).
@@ -373,7 +374,7 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 			Implicits(conditionalClassLoaderContextHost29)
 		rule.Command().Textf(`conditional_target_libs_29="%s"`,
 			strings.Join(conditionalClassLoaderContextTarget29, " "))
-		rule.Command().Text("source").Tool(global.SoongConfig.ConstructContext).Input(module.DexPath)
+		rule.Command().Text("source").Tool(globalSoong.ConstructContext).Input(module.DexPath)
 	}
 
 	// Devices that do not have a product partition use a symlink from /product to /system/product.
@@ -386,7 +387,7 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 
 	cmd := rule.Command().
 		Text(`ANDROID_LOG_TAGS="*:e"`).
-		Tool(global.SoongConfig.Dex2oat).
+		Tool(globalSoong.Dex2oat).
 		Flag("--avoid-storing-invocation").
 		FlagWithOutput("--write-invocation-to=", invocationPath).ImplicitOutput(invocationPath).
 		Flag("--runtime-arg").FlagWithArg("-Xms", global.Dex2oatXms).
@@ -455,7 +456,7 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 		dmInstalledPath := pathtools.ReplaceExtension(module.DexLocation, "dm")
 		tmpPath := module.BuildPath.InSameDir(ctx, "primary.vdex")
 		rule.Command().Text("cp -f").Input(vdexPath).Output(tmpPath)
-		rule.Command().Tool(global.SoongConfig.SoongZip).
+		rule.Command().Tool(globalSoong.SoongZip).
 			FlagWithArg("-L", "9").
 			FlagWithOutput("-o", dmPath).
 			Flag("-j").
@@ -520,14 +521,14 @@ func dexpreoptCommand(ctx android.PathContext, global GlobalConfig, module Modul
 	rule.Install(vdexPath, vdexInstallPath)
 }
 
-func shouldGenerateDM(module ModuleConfig, global GlobalConfig) bool {
+func shouldGenerateDM(module *ModuleConfig, global *GlobalConfig) bool {
 	// Generating DM files only makes sense for verify, avoid doing for non verify compiler filter APKs.
 	// No reason to use a dm file if the dex is already uncompressed.
 	return global.GenerateDMFiles && !module.UncompressedDex &&
 		contains(module.PreoptFlags, "--compiler-filter=verify")
 }
 
-func OdexOnSystemOtherByName(name string, dexLocation string, global GlobalConfig) bool {
+func OdexOnSystemOtherByName(name string, dexLocation string, global *GlobalConfig) bool {
 	if !global.HasSystemOther {
 		return false
 	}
@@ -549,7 +550,7 @@ func OdexOnSystemOtherByName(name string, dexLocation string, global GlobalConfi
 	return false
 }
 
-func odexOnSystemOther(module ModuleConfig, global GlobalConfig) bool {
+func odexOnSystemOther(module *ModuleConfig, global *GlobalConfig) bool {
 	return OdexOnSystemOtherByName(module.Name, module.DexLocation, global)
 }
 
@@ -562,7 +563,7 @@ func PathToLocation(path android.Path, arch android.ArchType) string {
 	return filepath.Join(filepath.Dir(filepath.Dir(path.String())), filepath.Base(path.String()))
 }
 
-func pathForLibrary(module ModuleConfig, lib string) android.Path {
+func pathForLibrary(module *ModuleConfig, lib string) android.Path {
 	path, ok := module.LibraryPaths[lib]
 	if !ok {
 		panic(fmt.Errorf("unknown library path for %q", lib))
@@ -601,7 +602,7 @@ var nonUpdatableSystemServerJarsKey = android.NewOnceKey("nonUpdatableSystemServ
 
 // TODO: eliminate the superficial global config parameter by moving global config definition
 // from java subpackage to dexpreopt.
-func NonUpdatableSystemServerJars(ctx android.PathContext, global GlobalConfig) []string {
+func NonUpdatableSystemServerJars(ctx android.PathContext, global *GlobalConfig) []string {
 	return ctx.Config().Once(nonUpdatableSystemServerJarsKey, func() interface{} {
 		return android.RemoveListFromList(global.SystemServerJars,
 			GetJarsFromApexJarPairs(global.UpdatableSystemServerJars))
