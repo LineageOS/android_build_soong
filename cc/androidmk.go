@@ -413,12 +413,9 @@ func (c *llndkStubDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Androi
 }
 
 func (c *vndkPrebuiltLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	// Each vndk prebuilt is exported to androidMk only when BOARD_VNDK_VERSION != current
-	// and the version of the prebuilt is same as BOARD_VNDK_VERSION.
 	ret.Class = "SHARED_LIBRARIES"
 
-	// shouldn't add any suffixes due to mk modules
-	ret.SubName = ""
+	ret.SubName = c.androidMkSuffix
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		c.libraryDecorator.androidMkWriteExportedFlags(w)

@@ -72,7 +72,8 @@ type vndkPrebuiltProperties struct {
 
 type vndkPrebuiltLibraryDecorator struct {
 	*libraryDecorator
-	properties vndkPrebuiltProperties
+	properties      vndkPrebuiltProperties
+	androidMkSuffix string
 }
 
 func (p *vndkPrebuiltLibraryDecorator) Name(name string) string {
@@ -153,6 +154,13 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 		p.tocFile = android.OptionalPathForPath(tocFile)
 		TransformSharedObjectToToc(ctx, in, tocFile, builderFlags)
 
+		p.androidMkSuffix = p.NameSuffix()
+
+		vndkVersion := ctx.DeviceConfig().VndkVersion()
+		if vndkVersion == p.version() {
+			p.androidMkSuffix = ""
+		}
+
 		return in
 	}
 
@@ -223,15 +231,6 @@ func vndkPrebuiltSharedLibrary() *Module {
 	module.AddProperties(
 		&prebuilt.properties,
 	)
-
-	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
-		// Only vndk snapshots of BOARD_VNDK_VERSION will be used when building.
-		if prebuilt.version() != ctx.DeviceConfig().VndkVersion() {
-			module.SkipInstall()
-			module.Properties.HideFromMake = true
-			return
-		}
-	})
 
 	return module
 }
