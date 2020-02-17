@@ -1510,11 +1510,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		j.headerJarFile = j.implementationJarFile
 	}
 
-	// Force enable the instrumentation for java code that is built for APEXes
-	if android.DirectlyInAnyApex(ctx, ctx.ModuleName()) && !j.IsForPlatform() {
-		j.properties.Instrument = true
-	}
-
 	if j.shouldInstrument(ctx) {
 		outputFile = j.instrument(ctx, flags, outputFile, jarName)
 	}
