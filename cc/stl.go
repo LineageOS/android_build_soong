@@ -151,6 +151,14 @@ func needsLibAndroidSupport(ctx BaseModuleContext) bool {
 	return version < 21
 }
 
+func staticUnwinder(ctx android.BaseModuleContext) string {
+	if ctx.Arch().ArchType == android.Arm {
+		return "libunwind_llvm"
+	} else {
+		return "libgcc_stripped"
+	}
+}
+
 func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 	switch stl.Properties.SelectedStl {
 	case "libstdc++":
@@ -172,16 +180,16 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 		}
 		if ctx.toolchain().Bionic() {
 			if ctx.staticBinary() {
-				deps.StaticLibs = append(deps.StaticLibs, "libm", "libc")
-				if ctx.Arch().ArchType == android.Arm {
-					deps.StaticLibs = append(deps.StaticLibs, "libunwind_llvm")
-				} else {
-					deps.StaticLibs = append(deps.StaticLibs, "libgcc_stripped")
-				}
+				deps.StaticLibs = append(deps.StaticLibs, "libm", "libc", staticUnwinder(ctx))
+			} else {
+				deps.StaticUnwinderIfLegacy = true
 			}
 		}
 	case "":
 		// None or error.
+		if ctx.toolchain().Bionic() && ctx.Module().Name() == "libc++" {
+			deps.StaticUnwinderIfLegacy = true
+		}
 	case "ndk_system":
 		// TODO: Make a system STL prebuilt for the NDK.
 		// The system STL doesn't have a prebuilt (it uses the system's libstdc++), but it does have

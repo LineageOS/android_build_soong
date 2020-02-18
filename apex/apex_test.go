@@ -3437,6 +3437,7 @@ func TestLegacyAndroid10Support(t *testing.T) {
 		apex {
 			name: "myapex",
 			key: "myapex.key",
+			native_shared_libs: ["mylib"],
 			legacy_android10_support: true,
 		}
 
@@ -3445,12 +3446,54 @@ func TestLegacyAndroid10Support(t *testing.T) {
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
-	`)
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			stl: "libc++",
+			system_shared_libs: [],
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library {
+			name: "libc++",
+			srcs: ["mylib.cpp"],
+			stl: "none",
+			system_shared_libs: [],
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library_static {
+			name: "libc++demangle",
+			srcs: ["mylib.cpp"],
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		cc_library_static {
+			name: "libunwind_llvm",
+			srcs: ["mylib.cpp"],
+			stl: "none",
+			system_shared_libs: [],
+		}
+	`, withUnbundledBuild)
 
 	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
 	args := module.Rule("apexRule").Args
 	ensureContains(t, args["opt_flags"], "--manifest_json "+module.Output("apex_manifest.json").Output.String())
 	ensureNotContains(t, args["opt_flags"], "--no_hashtree")
+
+	// The copies of the libraries in the apex should have one more dependency than
+	// the ones outside the apex, namely the unwinder. Ideally we should check
+	// the dependency names directly here but for some reason the names are blank in
+	// this test.
+	for _, lib := range []string{"libc++", "mylib"} {
+		apexImplicits := ctx.ModuleForTests(lib, "android_arm64_armv8-a_shared_myapex").Rule("ld").Implicits
+		nonApexImplicits := ctx.ModuleForTests(lib, "android_arm64_armv8-a_shared").Rule("ld").Implicits
+		if len(apexImplicits) != len(nonApexImplicits)+1 {
+			t.Errorf("%q missing unwinder dep", lib)
+		}
+	}
 }
 
 func TestJavaSDKLibrary(t *testing.T) {
