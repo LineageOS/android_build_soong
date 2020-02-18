@@ -101,6 +101,7 @@ type aapt struct {
 	usesNonSdkApis          bool
 	sdkLibraries            []string
 	hasNoCode               bool
+	LoggingParent           string
 
 	splitNames []string
 	splits     []split
@@ -234,7 +235,8 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
 
 	manifestPath := manifestFixer(ctx, manifestSrcPath, sdkContext, sdkLibraries,
-		a.isLibrary, a.useEmbeddedNativeLibs, a.usesNonSdkApis, a.useEmbeddedDex, a.hasNoCode)
+		a.isLibrary, a.useEmbeddedNativeLibs, a.usesNonSdkApis, a.useEmbeddedDex, a.hasNoCode,
+		a.LoggingParent)
 
 	// Add additional manifest files to transitive manifests.
 	additionalManifests := android.PathsForModuleSrc(ctx, a.aaptProperties.Additional_manifests)

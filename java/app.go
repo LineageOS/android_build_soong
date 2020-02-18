@@ -111,6 +111,9 @@ type overridableAppProperties struct {
 
 	// the package name of this app. The package name in the manifest file is used if one was not given.
 	Package_name *string
+
+	// the logging parent of this app.
+	Logging_parent *string
 }
 
 type AndroidApp struct {
@@ -303,7 +306,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 
 	a.aapt.splitNames = a.appProperties.Package_splits
 	a.aapt.sdkLibraries = a.exportedSdkLibs
-
+	a.aapt.LoggingParent = String(a.overridableAppProperties.Logging_parent)
 	a.aapt.buildActions(ctx, sdkContext(a), aaptLinkFlags...)
 
 	// apps manifests are handled by aapt, don't let Module see them
