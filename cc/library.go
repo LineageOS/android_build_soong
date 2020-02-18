@@ -281,11 +281,9 @@ func (f *flagExporter) reexportSystemDirs(dirs ...android.Path) {
 }
 
 func (f *flagExporter) reexportFlags(flags ...string) {
-	for _, flag := range flags {
-		if strings.HasPrefix(flag, "-I") || strings.HasPrefix(flag, "-isystem") {
-			panic(fmt.Errorf("Exporting invalid flag %q: "+
-				"use reexportDirs or reexportSystemDirs to export directories", flag))
-		}
+	if android.PrefixInList(flags, "-I") || android.PrefixInList(flags, "-isystem") {
+		panic(fmt.Errorf("Exporting invalid flag %q: "+
+			"use reexportDirs or reexportSystemDirs to export directories", flag))
 	}
 	f.flags = append(f.flags, flags...)
 }

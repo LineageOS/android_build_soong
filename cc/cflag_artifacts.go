@@ -41,12 +41,7 @@ type cflagArtifactsText struct {
 // filter.
 func allowedDir(subdir string) bool {
 	subdir += "/"
-	for _, prefix := range TrackedCFlagsDir {
-		if strings.HasPrefix(subdir, prefix) {
-			return true
-		}
-	}
-	return false
+	return android.HasAnyPrefix(subdir, TrackedCFlagsDir)
 }
 
 func (s *cflagArtifactsText) genFlagFilename(flag string) string {
