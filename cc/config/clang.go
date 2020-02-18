@@ -171,7 +171,6 @@ func init() {
 		"-Wno-implicit-int-float-conversion",
 		// New warnings to be fixed after clang-r377782.
 		"-Wno-bitwise-conditional-parentheses", // http://b/148286937
-		"-Wno-bool-operation",                  // http://b/148287141
 		"-Wno-int-in-bool-context",             // http://b/148287349
 		"-Wno-sizeof-array-div",                // http://b/148815709
 		"-Wno-tautological-bitwise-compare",    // http://b/148831363
