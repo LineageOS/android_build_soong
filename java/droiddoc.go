@@ -605,11 +605,8 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 				continue
 			}
 			packageName := strings.ReplaceAll(filepath.Dir(src.Rel()), "/", ".")
-			for _, pkg := range filterPackages {
-				if strings.HasPrefix(packageName, pkg) {
-					filtered = append(filtered, src)
-					break
-				}
+			if android.HasAnyPrefix(packageName, filterPackages) {
+				filtered = append(filtered, src)
 			}
 		}
 		return filtered

@@ -426,7 +426,7 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 		cmd.FlagWithArg("--copy-dex-files=", "false")
 	}
 
-	if !anyHavePrefix(preoptFlags, "--compiler-filter=") {
+	if !android.PrefixInList(preoptFlags, "--compiler-filter=") {
 		var compilerFilter string
 		if contains(global.SystemServerJars, module.Name) {
 			// Jars of system server, use the product option if it is set, speed otherwise.
@@ -618,32 +618,4 @@ func contains(l []string, s string) bool {
 	return false
 }
 
-// remove all elements in a from b, returning a new slice
-func filterOut(a []string, b []string) []string {
-	var ret []string
-	for _, x := range b {
-		if !contains(a, x) {
-			ret = append(ret, x)
-		}
-	}
-	return ret
-}
-
-func replace(l []string, from, to string) {
-	for i := range l {
-		if l[i] == from {
-			l[i] = to
-		}
-	}
-}
-
 var copyOf = android.CopyOf
-
-func anyHavePrefix(l []string, prefix string) bool {
-	for _, x := range l {
-		if strings.HasPrefix(x, prefix) {
-			return true
-		}
-	}
-	return false
-}
