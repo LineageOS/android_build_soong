@@ -132,28 +132,28 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		bootImage = artBootImageConfig(ctx)
 	}
 
-	var archs []android.ArchType
-	for _, a := range ctx.MultiTargets() {
-		archs = append(archs, a.Arch.ArchType)
-	}
-	if len(archs) == 0 {
+	targets := ctx.MultiTargets()
+	if len(targets) == 0 {
 		// assume this is a java library, dexpreopt for all arches for now
 		for _, target := range ctx.Config().Targets[android.Android] {
 			if target.NativeBridge == android.NativeBridgeDisabled {
-				archs = append(archs, target.Arch.ArchType)
+				targets = append(targets, target)
 			}
 		}
 		if inList(ctx.ModuleName(), global.SystemServerJars) && !d.isSDKLibrary {
 			// If the module is not an SDK library and it's a system server jar, only preopt the primary arch.
-			archs = archs[:1]
+			targets = targets[:1]
 		}
 	}
 
+	var archs []android.ArchType
 	var images android.Paths
 	var imagesDeps []android.OutputPaths
-	for _, arch := range archs {
-		images = append(images, bootImage.images[arch])
-		imagesDeps = append(imagesDeps, bootImage.imagesDeps[arch])
+	for _, target := range targets {
+		archs = append(archs, target.Arch.ArchType)
+		variant := bootImage.getVariant(target)
+		images = append(images, variant.images)
+		imagesDeps = append(imagesDeps, variant.imagesDeps)
 	}
 
 	dexLocation := android.InstallPathToOnDevicePath(ctx, d.installPath)
