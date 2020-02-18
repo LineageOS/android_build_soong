@@ -252,7 +252,7 @@ func TestPrefixInList(t *testing.T) {
 
 	for _, testCase := range testcases {
 		t.Run(testCase.str, func(t *testing.T) {
-			out := PrefixInList(testCase.str, prefixes)
+			out := HasAnyPrefix(testCase.str, prefixes)
 			if out != testCase.expected {
 				t.Errorf("incorrect output:")
 				t.Errorf("       str: %#v", testCase.str)

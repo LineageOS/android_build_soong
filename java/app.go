@@ -273,13 +273,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	aaptLinkFlags := []string{}
 
 	// Add TARGET_AAPT_CHARACTERISTICS values to AAPT link flags if they exist and --product flags were not provided.
-	hasProduct := false
-	for _, f := range a.aaptProperties.Aaptflags {
-		if strings.HasPrefix(f, "--product") {
-			hasProduct = true
-			break
-		}
-	}
+	hasProduct := android.PrefixInList(a.aaptProperties.Aaptflags, "--product")
 	if !hasProduct && len(ctx.Config().ProductAAPTCharacteristics()) > 0 {
 		aaptLinkFlags = append(aaptLinkFlags, "--product", ctx.Config().ProductAAPTCharacteristics())
 	}

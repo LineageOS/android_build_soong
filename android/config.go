@@ -890,11 +890,7 @@ func (c *config) EnforceRROForModule(name string) bool {
 func (c *config) EnforceRROExcludedOverlay(path string) bool {
 	excluded := c.productVariables.EnforceRROExcludedOverlays
 	if excluded != nil {
-		for _, exclude := range excluded {
-			if strings.HasPrefix(path, exclude) {
-				return true
-			}
-		}
+		return HasAnyPrefix(path, excluded)
 	}
 	return false
 }
@@ -1050,12 +1046,12 @@ func (c *deviceConfig) ClangCoverageEnabled() bool {
 func (c *deviceConfig) CoverageEnabledForPath(path string) bool {
 	coverage := false
 	if c.config.productVariables.CoveragePaths != nil {
-		if InList("*", c.config.productVariables.CoveragePaths) || PrefixInList(path, c.config.productVariables.CoveragePaths) {
+		if InList("*", c.config.productVariables.CoveragePaths) || HasAnyPrefix(path, c.config.productVariables.CoveragePaths) {
 			coverage = true
 		}
 	}
 	if coverage && c.config.productVariables.CoverageExcludePaths != nil {
-		if PrefixInList(path, c.config.productVariables.CoverageExcludePaths) {
+		if HasAnyPrefix(path, c.config.productVariables.CoverageExcludePaths) {
 			coverage = false
 		}
 	}
@@ -1128,21 +1124,21 @@ func (c *config) IntegerOverflowDisabledForPath(path string) bool {
 	if c.productVariables.IntegerOverflowExcludePaths == nil {
 		return false
 	}
-	return PrefixInList(path, c.productVariables.IntegerOverflowExcludePaths)
+	return HasAnyPrefix(path, c.productVariables.IntegerOverflowExcludePaths)
 }
 
 func (c *config) CFIDisabledForPath(path string) bool {
 	if c.productVariables.CFIExcludePaths == nil {
 		return false
 	}
-	return PrefixInList(path, c.productVariables.CFIExcludePaths)
+	return HasAnyPrefix(path, c.productVariables.CFIExcludePaths)
 }
 
 func (c *config) CFIEnabledForPath(path string) bool {
 	if c.productVariables.CFIIncludePaths == nil {
 		return false
 	}
-	return PrefixInList(path, c.productVariables.CFIIncludePaths)
+	return HasAnyPrefix(path, c.productVariables.CFIIncludePaths)
 }
 
 func (c *config) VendorConfig(name string) VendorConfig {
