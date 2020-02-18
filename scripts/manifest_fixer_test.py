@@ -226,6 +226,47 @@ class RaiseMinSdkVersionTest(unittest.TestCase):
     self.assertEqual(output, expected)
 
 
+class AddLoggingParentTest(unittest.TestCase):
+  """Unit tests for add_logging_parent function."""
+
+  def add_logging_parent_test(self, input_manifest, logging_parent=None):
+    doc = minidom.parseString(input_manifest)
+    if logging_parent:
+      manifest_fixer.add_logging_parent(doc, logging_parent)
+    output = StringIO.StringIO()
+    manifest_fixer.write_xml(output, doc)
+    return output.getvalue()
+
+  manifest_tmpl = (
+      '<?xml version="1.0" encoding="utf-8"?>\n'
+      '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+      '%s'
+      '</manifest>\n')
+
+  def uses_logging_parent(self, logging_parent=None):
+    attrs = ''
+    if logging_parent:
+      meta_text = ('<meta-data android:name="android.content.pm.LOGGING_PARENT" '
+                   'android:value="%s"/>\n') % (logging_parent)
+      attrs += '    <application>\n        %s    </application>\n' % (meta_text)
+
+    return attrs
+
+  def test_no_logging_parent(self):
+    """Tests manifest_fixer with no logging_parent."""
+    manifest_input = self.manifest_tmpl % ''
+    expected = self.manifest_tmpl % self.uses_logging_parent()
+    output = self.add_logging_parent_test(manifest_input)
+    self.assertEqual(output, expected)
+
+  def test_logging_parent(self):
+    """Tests manifest_fixer with no logging_parent."""
+    manifest_input = self.manifest_tmpl % ''
+    expected = self.manifest_tmpl % self.uses_logging_parent('FOO')
+    output = self.add_logging_parent_test(manifest_input, 'FOO')
+    self.assertEqual(output, expected)
+
+
 class AddUsesLibrariesTest(unittest.TestCase):
   """Unit tests for add_uses_libraries function."""
 
