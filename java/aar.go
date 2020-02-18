@@ -134,15 +134,8 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext,
 	manifestPath android.Path) (compileFlags, linkFlags []string, linkDeps android.Paths,
 	resDirs, overlayDirs []globbedResourceDir, rroDirs []rroDir, resZips android.Paths) {
 
-	hasVersionCode := false
-	hasVersionName := false
-	for _, f := range a.aaptProperties.Aaptflags {
-		if strings.HasPrefix(f, "--version-code") {
-			hasVersionCode = true
-		} else if strings.HasPrefix(f, "--version-name") {
-			hasVersionName = true
-		}
-	}
+	hasVersionCode := android.PrefixInList(a.aaptProperties.Aaptflags, "--version-code")
+	hasVersionName := android.PrefixInList(a.aaptProperties.Aaptflags, "--version-name")
 
 	// Flags specified in Android.bp
 	linkFlags = append(linkFlags, a.aaptProperties.Aaptflags...)
@@ -337,7 +330,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 
 	// Extract assets from the resource package output so that they can be used later in aapt2link
 	// for modules that depend on this one.
-	if android.PrefixedStringInList(linkFlags, "-A ") || len(assetPackages) > 0 {
+	if android.PrefixInList(linkFlags, "-A ") || len(assetPackages) > 0 {
 		assets := android.PathForModuleOut(ctx, "assets.zip")
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        extractAssetsRule,
