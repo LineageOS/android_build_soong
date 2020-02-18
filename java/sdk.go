@@ -72,6 +72,7 @@ const (
 	sdkSystem
 	sdkTest
 	sdkModule
+	sdkSystemServer
 	sdkPrivate
 )
 
@@ -94,6 +95,8 @@ func (k sdkKind) String() string {
 		return "core_platform"
 	case sdkModule:
 		return "module"
+	case sdkSystemServer:
+		return "system_server"
 	default:
 		return "invalid"
 	}
@@ -261,6 +264,8 @@ func sdkSpecFrom(str string) sdkSpec {
 			kind = sdkTest
 		case "module":
 			kind = sdkModule
+		case "system_server":
+			kind = sdkSystemServer
 		default:
 			return sdkSpec{sdkInvalid, sdkVersionNone, str}
 		}
@@ -324,13 +329,13 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		}
 	}
 
-	toModule := func(m, r string, aidl android.Path) sdkDep {
+	toModule := func(modules []string, res string, aidl android.Path) sdkDep {
 		return sdkDep{
 			useModule:          true,
-			bootclasspath:      []string{m, config.DefaultLambdaStubsLibrary},
+			bootclasspath:      append(modules, config.DefaultLambdaStubsLibrary),
 			systemModules:      "core-current-stubs-system-modules",
-			java9Classpath:     []string{m},
-			frameworkResModule: r,
+			java9Classpath:     modules,
+			frameworkResModule: res,
 			aidl:               android.OptionalPathForPath(aidl),
 		}
 	}
@@ -380,16 +385,19 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 			noFrameworksLibs:   true,
 		}
 	case sdkPublic:
-		return toModule("android_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))
+		return toModule([]string{"android_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
 	case sdkSystem:
-		return toModule("android_system_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))
+		return toModule([]string{"android_system_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
 	case sdkTest:
-		return toModule("android_test_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))
+		return toModule([]string{"android_test_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
 	case sdkCore:
-		return toModule("core.current.stubs", "", nil)
+		return toModule([]string{"core.current.stubs"}, "", nil)
 	case sdkModule:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
-		return toModule("android_module_lib_stubs_current", "framework-res", sdkFrameworkAidlPath(ctx))
+		return toModule([]string{"android_module_lib_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
+	case sdkSystemServer:
+		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
+		return toModule([]string{"android_module_lib_stubs_current", "services-stubs"}, "framework-res", sdkFrameworkAidlPath(ctx))
 	default:
 		panic(fmt.Errorf("invalid sdk %q", sdkVersion.raw))
 	}
