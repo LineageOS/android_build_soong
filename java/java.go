@@ -807,6 +807,7 @@ const (
 	javaSdk
 	javaSystem
 	javaModule
+	javaSystemServer
 	javaPlatform
 )
 
@@ -840,6 +841,10 @@ func (m *Module) getLinkType(name string) (ret linkType, stubs bool) {
 		return javaModule, true
 	case ver.kind == sdkModule:
 		return javaModule, false
+	case name == "services-stubs":
+		return javaSystemServer, true
+	case ver.kind == sdkSystemServer:
+		return javaSystemServer, false
 	case ver.kind == sdkPrivate || ver.kind == sdkNone || ver.kind == sdkCorePlatform:
 		return javaPlatform, false
 	case !ver.valid():
@@ -875,14 +880,20 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to linkTypeContext, 
 		}
 		break
 	case javaSystem:
-		if otherLinkType == javaPlatform || otherLinkType == javaModule {
+		if otherLinkType == javaPlatform || otherLinkType == javaModule || otherLinkType == javaSystemServer {
 			ctx.ModuleErrorf("compiles against system API, but dependency %q is compiling against private API."+commonMessage,
 				ctx.OtherModuleName(to))
 		}
 		break
 	case javaModule:
-		if otherLinkType == javaPlatform {
+		if otherLinkType == javaPlatform || otherLinkType == javaSystemServer {
 			ctx.ModuleErrorf("compiles against module API, but dependency %q is compiling against private API."+commonMessage,
+				ctx.OtherModuleName(to))
+		}
+		break
+	case javaSystemServer:
+		if otherLinkType == javaPlatform {
+			ctx.ModuleErrorf("compiles against system server API, but dependency %q is compiling against private API."+commonMessage,
 				ctx.OtherModuleName(to))
 		}
 		break
