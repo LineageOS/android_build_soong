@@ -1029,17 +1029,17 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 // Mark the direct and transitive dependencies of apex bundles so that they
 // can be built for the apex bundles.
 func apexDepsMutator(mctx android.TopDownMutatorContext) {
-	var apexBundleNames []string
+	var apexBundles []android.ApexInfo
 	var directDep bool
 	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
-		apexBundleNames = []string{mctx.ModuleName()}
+		apexBundles = []android.ApexInfo{{mctx.ModuleName(), proptools.Bool(a.properties.Legacy_android10_support)}}
 		directDep = true
 	} else if am, ok := mctx.Module().(android.ApexModule); ok {
-		apexBundleNames = am.ApexVariations()
+		apexBundles = am.ApexVariations()
 		directDep = false
 	}
 
-	if len(apexBundleNames) == 0 {
+	if len(apexBundles) == 0 {
 		return
 	}
 
@@ -1047,8 +1047,8 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		depName := mctx.OtherModuleName(child)
 		if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() &&
 			(directDep || am.DepIsInSameApex(mctx, child)) {
-			android.UpdateApexDependency(apexBundleNames, depName, directDep)
-			am.BuildForApexes(apexBundleNames)
+			android.UpdateApexDependency(apexBundles, depName, directDep)
+			am.BuildForApexes(apexBundles)
 		}
 	})
 }
