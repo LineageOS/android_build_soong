@@ -19,6 +19,14 @@ import (
 	"sync"
 )
 
+type ApexInfo struct {
+	// Name of the apex variant that this module is mutated into
+	ApexName string
+
+	// Whether this apex variant needs to target Android 10
+	LegacyAndroid10Support bool
+}
+
 // ApexModule is the interface that a module type is expected to implement if
 // the module has to be built differently depending on whether the module
 // is destined for an apex or not (installed to one of the regular partitions).
@@ -38,12 +46,12 @@ type ApexModule interface {
 	Module
 	apexModuleBase() *ApexModuleBase
 
-	// Marks that this module should be built for the APEXes of the specified names.
+	// Marks that this module should be built for the specified APEXes.
 	// Call this before apex.apexMutator is run.
-	BuildForApexes(apexNames []string)
+	BuildForApexes(apexes []ApexInfo)
 
-	// Returns the name of the APEXes that this modoule will be built for
-	ApexVariations() []string
+	// Returns the APEXes that this module will be built for
+	ApexVariations() []ApexInfo
 
 	// Returns the name of APEX that this module will be built for. Empty string
 	// is returned when 'IsForPlatform() == true'. Note that a module can be
@@ -72,10 +80,6 @@ type ApexModule interface {
 	// for an APEX marked via BuildForApexes().
 	CreateApexVariations(mctx BottomUpMutatorContext) []Module
 
-	// Sets the name of the apex variant of this module. Called inside
-	// CreateApexVariations.
-	setApexName(apexName string)
-
 	// Tests if this module is available for the specified APEX or ":platform"
 	AvailableFor(what string) bool
 
@@ -94,8 +98,7 @@ type ApexProperties struct {
 	// Default is ["//apex_available:platform"].
 	Apex_available []string
 
-	// Name of the apex variant that this module is mutated into
-	ApexName string `blueprint:"mutated"`
+	Info ApexInfo `blueprint:"mutated"`
 }
 
 // Provides default implementation for the ApexModule interface. APEX-aware
@@ -106,37 +109,37 @@ type ApexModuleBase struct {
 	canHaveApexVariants bool
 
 	apexVariationsLock sync.Mutex // protects apexVariations during parallel apexDepsMutator
-	apexVariations     []string
+	apexVariations     []ApexInfo
 }
 
 func (m *ApexModuleBase) apexModuleBase() *ApexModuleBase {
 	return m
 }
 
-func (m *ApexModuleBase) BuildForApexes(apexNames []string) {
+func (m *ApexModuleBase) BuildForApexes(apexes []ApexInfo) {
 	m.apexVariationsLock.Lock()
 	defer m.apexVariationsLock.Unlock()
-	for _, apexName := range apexNames {
-		if !InList(apexName, m.apexVariations) {
-			m.apexVariations = append(m.apexVariations, apexName)
+nextApex:
+	for _, apex := range apexes {
+		for _, v := range m.apexVariations {
+			if v.ApexName == apex.ApexName {
+				continue nextApex
+			}
 		}
+		m.apexVariations = append(m.apexVariations, apex)
 	}
 }
 
-func (m *ApexModuleBase) ApexVariations() []string {
+func (m *ApexModuleBase) ApexVariations() []ApexInfo {
 	return m.apexVariations
 }
 
 func (m *ApexModuleBase) ApexName() string {
-	return m.ApexProperties.ApexName
+	return m.ApexProperties.Info.ApexName
 }
 
 func (m *ApexModuleBase) IsForPlatform() bool {
-	return m.ApexProperties.ApexName == ""
-}
-
-func (m *ApexModuleBase) setApexName(apexName string) {
-	m.ApexProperties.ApexName = apexName
+	return m.ApexProperties.Info.ApexName == ""
 }
 
 func (m *ApexModuleBase) CanHaveApexVariants() bool {
@@ -185,25 +188,35 @@ func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 	}
 }
 
+type byApexName []ApexInfo
+
+func (a byApexName) Len() int           { return len(a) }
+func (a byApexName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byApexName) Less(i, j int) bool { return a[i].ApexName < a[j].ApexName }
+
 func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Module {
 	if len(m.apexVariations) > 0 {
 		m.checkApexAvailableProperty(mctx)
 
-		sort.Strings(m.apexVariations)
+		sort.Sort(byApexName(m.apexVariations))
 		variations := []string{}
 		variations = append(variations, "") // Original variation for platform
-		variations = append(variations, m.apexVariations...)
+		for _, apex := range m.apexVariations {
+			variations = append(variations, apex.ApexName)
+		}
 
 		defaultVariation := ""
 		mctx.SetDefaultDependencyVariation(&defaultVariation)
 
 		modules := mctx.CreateVariations(variations...)
-		for i, m := range modules {
+		for i, mod := range modules {
 			platformVariation := i == 0
-			if platformVariation && !mctx.Host() && !m.(ApexModule).AvailableFor(AvailableToPlatform) {
-				m.SkipInstall()
+			if platformVariation && !mctx.Host() && !mod.(ApexModule).AvailableFor(AvailableToPlatform) {
+				mod.SkipInstall()
 			}
-			m.(ApexModule).setApexName(variations[i])
+			if !platformVariation {
+				mod.(ApexModule).apexModuleBase().ApexProperties.Info = m.apexVariations[i-1]
+			}
 		}
 		return modules
 	}
@@ -230,16 +243,16 @@ func apexNamesMap() map[string]map[string]bool {
 // depended on by the specified APEXes. Directly depending means that a module
 // is explicitly listed in the build definition of the APEX via properties like
 // native_shared_libs, java_libs, etc.
-func UpdateApexDependency(apexNames []string, moduleName string, directDep bool) {
+func UpdateApexDependency(apexes []ApexInfo, moduleName string, directDep bool) {
 	apexNamesMapMutex.Lock()
 	defer apexNamesMapMutex.Unlock()
-	for _, apexName := range apexNames {
+	for _, apex := range apexes {
 		apexesForModule, ok := apexNamesMap()[moduleName]
 		if !ok {
 			apexesForModule = make(map[string]bool)
 			apexNamesMap()[moduleName] = apexesForModule
 		}
-		apexesForModule[apexName] = apexesForModule[apexName] || directDep
+		apexesForModule[apex.ApexName] = apexesForModule[apex.ApexName] || directDep
 	}
 }
 

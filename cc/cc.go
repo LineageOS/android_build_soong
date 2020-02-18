@@ -95,6 +95,8 @@ type Deps struct {
 	HeaderLibs                                  []string
 	RuntimeLibs                                 []string
 
+	StaticUnwinderIfLegacy bool
+
 	ReexportSharedLibHeaders, ReexportStaticLibHeaders, ReexportHeaderLibHeaders []string
 
 	ObjFiles []string
@@ -385,6 +387,7 @@ var (
 	lateSharedDepTag      = DependencyTag{Name: "late shared", Library: true, Shared: true}
 	staticExportDepTag    = DependencyTag{Name: "static", Library: true, ReexportFlags: true}
 	lateStaticDepTag      = DependencyTag{Name: "late static", Library: true}
+	staticUnwinderDepTag  = DependencyTag{Name: "static unwinder", Library: true}
 	wholeStaticDepTag     = DependencyTag{Name: "whole static", Library: true, ReexportFlags: true}
 	headerDepTag          = DependencyTag{Name: "header", Library: true}
 	headerExportDepTag    = DependencyTag{Name: "header", Library: true, ReexportFlags: true}
@@ -1788,6 +1791,12 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		}, depTag, lib)
 	}
 
+	if deps.StaticUnwinderIfLegacy && ctx.Config().UnbundledBuild() {
+		actx.AddVariationDependencies([]blueprint.Variation{
+			{Mutator: "link", Variation: "static"},
+		}, staticUnwinderDepTag, staticUnwinder(actx))
+	}
+
 	for _, lib := range deps.LateStaticLibs {
 		actx.AddVariationDependencies([]blueprint.Variation{
 			{Mutator: "link", Variation: "static"},
@@ -2157,6 +2166,14 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			// staticVariants are a cc.Module specific concept.
 			if _, ok := ccDep.(*Module); ok && ccDep.CcLibraryInterface() {
 				c.staticVariant = ccDep
+				return
+			}
+		}
+
+		if depTag == staticUnwinderDepTag {
+			if c.ApexProperties.Info.LegacyAndroid10Support {
+				depTag = StaticDepTag
+			} else {
 				return
 			}
 		}
