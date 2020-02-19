@@ -117,6 +117,15 @@ func SystemModulesFactory() android.Module {
 	return module
 }
 
+type SystemModulesProvider interface {
+	HeaderJars() android.Paths
+	OutputDirAndDeps() (android.Path, android.Paths)
+}
+
+var _ SystemModulesProvider = (*SystemModules)(nil)
+
+var _ SystemModulesProvider = (*systemModulesImport)(nil)
+
 type SystemModules struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
@@ -134,6 +143,17 @@ type SystemModules struct {
 type SystemModulesProperties struct {
 	// List of java library modules that should be included in the system modules
 	Libs []string
+}
+
+func (system *SystemModules) HeaderJars() android.Paths {
+	return system.headerJars
+}
+
+func (system *SystemModules) OutputDirAndDeps() (android.Path, android.Paths) {
+	if system.outputDir == nil || len(system.outputDeps) == 0 {
+		panic("Missing directory for system module dependency")
+	}
+	return system.outputDir, system.outputDeps
 }
 
 func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleContext) {
