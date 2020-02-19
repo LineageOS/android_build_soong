@@ -661,14 +661,14 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 			headers = append(headers, exportedHeaders(ctx, l)...)
 		}
 
-		if m.NoticeFile().Valid() {
+		if len(m.NoticeFiles()) > 0 {
 			noticeName := ctx.ModuleName(m) + ".txt"
 			noticeOut := filepath.Join(noticeDir, noticeName)
 			// skip already copied notice file
 			if !installedNotices[noticeOut] {
 				installedNotices[noticeOut] = true
-				snapshotOutputs = append(snapshotOutputs, copyFile(
-					ctx, m.NoticeFile().Path(), noticeOut))
+				snapshotOutputs = append(snapshotOutputs, combineNotices(
+					ctx, m.NoticeFiles(), noticeOut))
 			}
 		}
 	})

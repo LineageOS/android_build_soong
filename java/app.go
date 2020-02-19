@@ -390,16 +390,20 @@ func (a *AndroidApp) noticeBuildActions(ctx android.ModuleContext) {
 			return false
 		}
 
-		path := child.(android.Module).NoticeFile()
-		if path.Valid() {
-			noticePathSet[path.Path()] = true
+		paths := child.(android.Module).NoticeFiles()
+		if len(paths) > 0 {
+			for _, path := range paths {
+				noticePathSet[path] = true
+			}
 		}
 		return true
 	})
 
 	// If the app has one, add it too.
-	if a.NoticeFile().Valid() {
-		noticePathSet[a.NoticeFile().Path()] = true
+	if len(a.NoticeFiles()) > 0 {
+		for _, path := range a.NoticeFiles() {
+			noticePathSet[path] = true
+		}
 	}
 
 	if len(noticePathSet) == 0 {

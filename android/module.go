@@ -218,7 +218,7 @@ type Module interface {
 	ExportedToMake() bool
 	InitRc() Paths
 	VintfFragments() Paths
-	NoticeFile() OptionalPath
+	NoticeFiles() Paths
 
 	AddProperties(props ...interface{})
 	GetProperties() []interface{}
@@ -645,7 +645,7 @@ type ModuleBase struct {
 	noAddressSanitizer bool
 	installFiles       Paths
 	checkbuildFiles    Paths
-	noticeFile         OptionalPath
+	noticeFiles        Paths
 
 	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
 	// Only set on the final variant of each module
@@ -904,8 +904,8 @@ func (m *ModuleBase) Owner() string {
 	return String(m.commonProperties.Owner)
 }
 
-func (m *ModuleBase) NoticeFile() OptionalPath {
-	return m.noticeFile
+func (m *ModuleBase) NoticeFiles() Paths {
+	return m.noticeFiles
 }
 
 func (m *ModuleBase) setImageVariation(variant string) {
@@ -1151,12 +1151,25 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			}
 		})
 
-		notice := proptools.StringDefault(m.commonProperties.Notice, "NOTICE")
+		m.noticeFiles = make([]Path, 0)
+		optPath := OptionalPath{}
+		notice := proptools.StringDefault(m.commonProperties.Notice, "")
 		if module := SrcIsModule(notice); module != "" {
-			m.noticeFile = ctx.ExpandOptionalSource(&notice, "notice")
-		} else {
+			optPath = ctx.ExpandOptionalSource(&notice, "notice")
+		} else if notice != "" {
 			noticePath := filepath.Join(ctx.ModuleDir(), notice)
-			m.noticeFile = ExistentPathForSource(ctx, noticePath)
+			optPath = ExistentPathForSource(ctx, noticePath)
+		}
+		if optPath.Valid() {
+			m.noticeFiles = append(m.noticeFiles, optPath.Path())
+		} else {
+			for _, notice = range []string{"LICENSE", "LICENCE", "NOTICE"} {
+				noticePath := filepath.Join(ctx.ModuleDir(), notice)
+				optPath = ExistentPathForSource(ctx, noticePath)
+				if optPath.Valid() {
+					m.noticeFiles = append(m.noticeFiles, optPath.Path())
+				}
+			}
 		}
 
 		m.module.GenerateAndroidBuildActions(ctx)
