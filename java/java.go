@@ -1031,18 +1031,16 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			case bootClasspathTag:
 				// If a system modules dependency has been added to the bootclasspath
 				// then add its libs to the bootclasspath.
-				sm := module.(*SystemModules)
-				deps.bootClasspath = append(deps.bootClasspath, sm.headerJars...)
+				sm := module.(SystemModulesProvider)
+				deps.bootClasspath = append(deps.bootClasspath, sm.HeaderJars()...)
 
 			case systemModulesTag:
 				if deps.systemModules != nil {
 					panic("Found two system module dependencies")
 				}
-				sm := module.(*SystemModules)
-				if sm.outputDir == nil || len(sm.outputDeps) == 0 {
-					panic("Missing directory for system module dependency")
-				}
-				deps.systemModules = &systemModules{sm.outputDir, sm.outputDeps}
+				sm := module.(SystemModulesProvider)
+				outputDir, outputDeps := sm.OutputDirAndDeps()
+				deps.systemModules = &systemModules{outputDir, outputDeps}
 			}
 		}
 	})
