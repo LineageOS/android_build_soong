@@ -455,19 +455,21 @@ func (c *vendorSnapshotLibraryDecorator) AndroidMk(ctx AndroidMkContext, ret *an
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		c.libraryDecorator.androidMkWriteExportedFlags(w)
 
-		if c.shared() {
+		if c.shared() || c.static() {
 			path, file := filepath.Split(c.path.ToMakePath().String())
 			stem, suffix, ext := android.SplitFileExt(file)
 			fmt.Fprintln(w, "LOCAL_BUILT_MODULE_STEM := $(LOCAL_MODULE)"+ext)
 			fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
+			fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
 			if c.shared() {
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
-				fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
 			}
 			if c.tocFile.Valid() {
 				fmt.Fprintln(w, "LOCAL_SOONG_TOC := "+c.tocFile.String())
 			}
-		} else { // static or header
+		}
+
+		if !c.shared() { // static or header
 			fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 		}
 	})
