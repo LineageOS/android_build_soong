@@ -39,6 +39,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libatomic",
 			vendor_available: true,
 			recovery_available: true,
+			native_bridge_supported: true,
 			src: "",
 		}
 
@@ -53,6 +54,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libclang_rt.builtins-arm-android",
 			vendor_available: true,
 			recovery_available: true,
+			native_bridge_supported: true,
 			src: "",
 		}
 
@@ -60,6 +62,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libclang_rt.builtins-aarch64-android",
 			vendor_available: true,
 			recovery_available: true,
+			native_bridge_supported: true,
 			src: "",
 		}
 
@@ -67,6 +70,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libclang_rt.builtins-i686-android",
 			vendor_available: true,
 			recovery_available: true,
+			native_bridge_supported: true,
 			src: "",
 		}
 
@@ -74,6 +78,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libclang_rt.builtins-x86_64-android",
 			vendor_available: true,
 			recovery_available: true,
+			native_bridge_supported: true,
 			src: "",
 		}
 
@@ -117,6 +122,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libclang_rt.ubsan_standalone-aarch64-android",
 			vendor_available: true,
 			recovery_available: true,
+			system_shared_libs: [],
 			srcs: [""],
 		}
 
@@ -141,6 +147,9 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			stl: "none",
 			system_shared_libs: [],
 			recovery_available: true,
+			stubs: {
+				versions: ["27", "28", "29"],
+			},
 		}
 		llndk_library {
 			name: "libc",
@@ -153,6 +162,13 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			stl: "none",
 			system_shared_libs: [],
 			recovery_available: true,
+			stubs: {
+				versions: ["27", "28", "29"],
+			},
+			apex_available: [
+				"//apex_available:platform",
+				"myapex"
+			],
 		}
 		llndk_library {
 			name: "libm",
@@ -165,6 +181,13 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			stl: "none",
 			system_shared_libs: [],
 			recovery_available: true,
+			stubs: {
+				versions: ["27", "28", "29"],
+			},
+			apex_available: [
+				"//apex_available:platform",
+				"myapex"
+			],
 		}
 		llndk_library {
 			name: "libdl",
@@ -203,6 +226,10 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 				enabled: true,
 				support_system_process: true,
 			},
+			apex_available: [
+				"//apex_available:platform",
+				"myapex"
+			],
 		}
 		cc_library {
 			name: "libc++demangle",
@@ -228,6 +255,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "crtbegin_so",
 			recovery_available: true,
 			vendor_available: true,
+			native_bridge_supported: true,
 			stl: "none",
 		}
 
@@ -235,18 +263,23 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "crtbegin_dynamic",
 			recovery_available: true,
 			vendor_available: true,
+			native_bridge_supported: true,
+			stl: "none",
 		}
 
 		cc_object {
 			name: "crtbegin_static",
 			recovery_available: true,
 			vendor_available: true,
+			native_bridge_supported: true,
+			stl: "none",
 		}
 
 		cc_object {
 			name: "crtend_so",
 			recovery_available: true,
 			vendor_available: true,
+			native_bridge_supported: true,
 			stl: "none",
 		}
 
@@ -254,6 +287,8 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "crtend_android",
 			recovery_available: true,
 			vendor_available: true,
+			native_bridge_supported: true,
+			stl: "none",
 		}
 
 		cc_library {
