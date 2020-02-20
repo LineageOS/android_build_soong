@@ -2674,20 +2674,20 @@ func TestStaticDepsOrderWithStubs(t *testing.T) {
 		cc_binary {
 			name: "mybin",
 			srcs: ["foo.c"],
-			static_libs: ["libB"],
+			static_libs: ["libfooB"],
 			static_executable: true,
 			stl: "none",
 		}
 
 		cc_library {
-			name: "libB",
+			name: "libfooB",
 			srcs: ["foo.c"],
-			shared_libs: ["libC"],
+			shared_libs: ["libfooC"],
 			stl: "none",
 		}
 
 		cc_library {
-			name: "libC",
+			name: "libfooC",
 			srcs: ["foo.c"],
 			stl: "none",
 			stubs: {
@@ -2697,7 +2697,7 @@ func TestStaticDepsOrderWithStubs(t *testing.T) {
 
 	mybin := ctx.ModuleForTests("mybin", "android_arm64_armv8-a").Module().(*Module)
 	actual := mybin.depsInLinkOrder
-	expected := getOutputPaths(ctx, "android_arm64_armv8-a_static", []string{"libB", "libC"})
+	expected := getOutputPaths(ctx, "android_arm64_armv8-a_static", []string{"libfooB", "libfooC"})
 
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("staticDeps orderings were not propagated correctly"+
