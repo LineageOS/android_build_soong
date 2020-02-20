@@ -1181,6 +1181,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 			name: "bar",
 			base: "foo",
 			certificate: ":new_certificate",
+			logging_parent: "bah",
 		}
 
 		android_app_certificate {
@@ -1196,37 +1197,41 @@ func TestOverrideAndroidApp(t *testing.T) {
 		`)
 
 	expectedVariants := []struct {
-		moduleName  string
-		variantName string
-		apkName     string
-		apkPath     string
-		signFlag    string
-		overrides   []string
-		aaptFlag    string
+		moduleName     string
+		variantName    string
+		apkName        string
+		apkPath        string
+		signFlag       string
+		overrides      []string
+		aaptFlag       string
+		logging_parent string
 	}{
 		{
-			moduleName:  "foo",
-			variantName: "android_common",
-			apkPath:     "/target/product/test_device/system/app/foo/foo.apk",
-			signFlag:    "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			overrides:   []string{"qux"},
-			aaptFlag:    "",
+			moduleName:     "foo",
+			variantName:    "android_common",
+			apkPath:        "/target/product/test_device/system/app/foo/foo.apk",
+			signFlag:       "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			overrides:      []string{"qux"},
+			aaptFlag:       "",
+			logging_parent: "",
 		},
 		{
-			moduleName:  "bar",
-			variantName: "android_common_bar",
-			apkPath:     "/target/product/test_device/system/app/bar/bar.apk",
-			signFlag:    "cert/new_cert.x509.pem cert/new_cert.pk8",
-			overrides:   []string{"qux", "foo"},
-			aaptFlag:    "",
+			moduleName:     "bar",
+			variantName:    "android_common_bar",
+			apkPath:        "/target/product/test_device/system/app/bar/bar.apk",
+			signFlag:       "cert/new_cert.x509.pem cert/new_cert.pk8",
+			overrides:      []string{"qux", "foo"},
+			aaptFlag:       "",
+			logging_parent: "bah",
 		},
 		{
-			moduleName:  "baz",
-			variantName: "android_common_baz",
-			apkPath:     "/target/product/test_device/system/app/baz/baz.apk",
-			signFlag:    "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			overrides:   []string{"qux", "foo"},
-			aaptFlag:    "--rename-manifest-package org.dandroid.bp",
+			moduleName:     "baz",
+			variantName:    "android_common_baz",
+			apkPath:        "/target/product/test_device/system/app/baz/baz.apk",
+			signFlag:       "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			overrides:      []string{"qux", "foo"},
+			aaptFlag:       "--rename-manifest-package org.dandroid.bp",
+			logging_parent: "",
 		},
 	}
 	for _, expected := range expectedVariants {
@@ -1258,6 +1263,13 @@ func TestOverrideAndroidApp(t *testing.T) {
 		if !reflect.DeepEqual(expected.overrides, mod.appProperties.Overrides) {
 			t.Errorf("Incorrect overrides property value, expected: %q, got: %q",
 				expected.overrides, mod.appProperties.Overrides)
+		}
+
+		// Test Overridable property: Logging_parent
+		logging_parent := mod.aapt.LoggingParent
+		if expected.logging_parent != logging_parent {
+			t.Errorf("Incorrect overrides property value for logging parent, expected: %q, got: %q",
+				expected.logging_parent, logging_parent)
 		}
 
 		// Check the package renaming flag, if exists.

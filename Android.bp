@@ -204,6 +204,7 @@ bootstrap_go_package {
         "cc/linker.go",
 
         "cc/binary.go",
+        "cc/binary_sdk_member.go",
         "cc/fuzz.go",
         "cc/library.go",
         "cc/library_sdk_member.go",
