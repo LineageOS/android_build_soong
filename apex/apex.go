@@ -2111,13 +2111,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						return false
 					}
 					filesInfo = append(filesInfo, af)
-
-					pf := sdkLib.XmlPermissionsFile()
-					if pf == nil {
-						ctx.PropertyErrorf("java_libs", "%q failed to generate permission XML", depName)
-						return false
-					}
-					filesInfo = append(filesInfo, newApexFile(ctx, pf, pf.Base(), "etc/permissions", etc, nil))
 					return true // track transitive dependencies
 				} else {
 					ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
@@ -2230,6 +2223,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					}
 				} else if java.IsJniDepTag(depTag) {
 					return true
+				} else if java.IsXmlPermissionsFileDepTag(depTag) {
+					if prebuilt, ok := child.(android.PrebuiltEtcModule); ok {
+						filesInfo = append(filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
+					}
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
 				}
