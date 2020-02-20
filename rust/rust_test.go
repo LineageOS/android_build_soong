@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/cc"
 )
 
 var (
@@ -60,6 +61,8 @@ func testConfig(bp string) android.Config {
 		"liby.so":    nil,
 		"libz.so":    nil,
 	}
+
+	cc.GatherRequiredFilesForTest(fs)
 
 	return android.TestArchConfig(buildDir, nil, bp, fs)
 }
