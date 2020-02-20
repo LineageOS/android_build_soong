@@ -383,6 +383,16 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 		targetSdkVersion := ctx.Config().DefaultAppTargetSdk()
 		minSdkVersion := ctx.Config().DefaultAppTargetSdk()
+
+		if proptools.Bool(a.properties.Legacy_android10_support) {
+			if !java.UseApiFingerprint(ctx, targetSdkVersion) {
+				targetSdkVersion = "29"
+			}
+			if !java.UseApiFingerprint(ctx, minSdkVersion) {
+				minSdkVersion = "29"
+			}
+		}
+
 		if java.UseApiFingerprint(ctx, targetSdkVersion) {
 			targetSdkVersion += fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
 			implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
