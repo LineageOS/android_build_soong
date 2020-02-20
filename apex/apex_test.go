@@ -99,112 +99,6 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	android.ClearApexDependency()
 
 	bp = bp + `
-		toolchain_library {
-			name: "libcompiler_rt-extras",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-		}
-
-		toolchain_library {
-			name: "libatomic",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		toolchain_library {
-			name: "libgcc",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-		}
-
-		toolchain_library {
-			name: "libgcc_stripped",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-aarch64-android",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-arm-android",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-x86_64-android",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-i686-android",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		cc_object {
-			name: "crtbegin_so",
-			stl: "none",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		cc_object {
-			name: "crtend_so",
-			stl: "none",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		cc_object {
-			name: "crtbegin_static",
-			stl: "none",
-		}
-
-		cc_object {
-			name: "crtend_android",
-			stl: "none",
-		}
-
-		llndk_library {
-			name: "libc",
-			symbol_file: "",
-			native_bridge_supported: true,
-		}
-
-		llndk_library {
-			name: "libm",
-			symbol_file: "",
-			native_bridge_supported: true,
-		}
-
-		llndk_library {
-			name: "libdl",
-			symbol_file: "",
-			native_bridge_supported: true,
-		}
-
 		filegroup {
 			name: "myapex-file_contexts",
 			srcs: [
@@ -212,6 +106,8 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 			],
 		}
 	`
+
+	bp = bp + cc.GatherRequiredDepsForTest(android.Android)
 
 	bp = bp + java.GatherRequiredDepsForTest()
 
@@ -258,6 +154,8 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"build/make/core/proguard_basic_keeps.flags": nil,
 		"dummy.txt":                                  nil,
 	}
+
+	cc.GatherRequiredFilesForTest(fs)
 
 	for _, handler := range handlers {
 		// The fs now needs to be populated before creating the config, call handlers twice
@@ -1011,47 +909,6 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 			shared_libs: ["libdl#27"],
 			stl: "none",
 			apex_available: [ "myapex" ],
-		}
-
-		cc_library {
-			name: "libc",
-			no_libcrt: true,
-			nocrt: true,
-			system_shared_libs: [],
-			stl: "none",
-			stubs: {
-				versions: ["27", "28", "29"],
-			},
-		}
-
-		cc_library {
-			name: "libm",
-			no_libcrt: true,
-			nocrt: true,
-			system_shared_libs: [],
-			stl: "none",
-			stubs: {
-				versions: ["27", "28", "29"],
-			},
-			apex_available: [
-				"//apex_available:platform",
-				"myapex"
-			],
-		}
-
-		cc_library {
-			name: "libdl",
-			no_libcrt: true,
-			nocrt: true,
-			system_shared_libs: [],
-			stl: "none",
-			stubs: {
-				versions: ["27", "28", "29"],
-			},
-			apex_available: [
-				"//apex_available:platform",
-				"myapex"
-			],
 		}
 
 		cc_library {
@@ -3454,28 +3311,6 @@ func TestLegacyAndroid10Support(t *testing.T) {
 			stl: "libc++",
 			system_shared_libs: [],
 			apex_available: [ "myapex" ],
-		}
-
-		cc_library {
-			name: "libc++",
-			srcs: ["mylib.cpp"],
-			stl: "none",
-			system_shared_libs: [],
-			apex_available: [ "myapex" ],
-		}
-
-		cc_library_static {
-			name: "libc++demangle",
-			srcs: ["mylib.cpp"],
-			stl: "none",
-			system_shared_libs: [],
-		}
-
-		cc_library_static {
-			name: "libunwind_llvm",
-			srcs: ["mylib.cpp"],
-			stl: "none",
-			system_shared_libs: [],
 		}
 	`, withUnbundledBuild)
 
