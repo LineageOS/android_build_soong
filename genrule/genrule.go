@@ -26,6 +26,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/shared"
+	"crypto/sha256"
 	"path/filepath"
 )
 
@@ -309,6 +310,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			addLocationLabel(out.Rel(), []string{filepath.Join("__SBOX_OUT_DIR__", out.Rel())})
 		}
 
+		referencedIn := false
 		referencedDepfile := false
 
 		rawCommand, err := android.ExpandNinjaEscaped(task.cmd, func(name string) (string, bool, error) {
@@ -333,6 +335,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 				return locationLabels[firstLabel][0], false, nil
 			case "in":
+				referencedIn = true
 				return "${in}", true, nil
 			case "out":
 				return "__SBOX_OUT_FILES__", false, nil
@@ -398,8 +401,16 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		// Escape the command for the shell
 		rawCommand = "'" + strings.Replace(rawCommand, "'", `'\''`, -1) + "'"
 		g.rawCommands = append(g.rawCommands, rawCommand)
-		sandboxCommand := fmt.Sprintf("rm -rf %s && $sboxCmd --sandbox-path %s --output-root %s -c %s %s $allouts",
-			task.genDir, sandboxPath, task.genDir, rawCommand, depfilePlaceholder)
+
+		sandboxCommand := fmt.Sprintf("rm -rf %s && $sboxCmd --sandbox-path %s --output-root %s",
+			task.genDir, sandboxPath, task.genDir)
+
+		if !referencedIn {
+			sandboxCommand = sandboxCommand + hashSrcFiles(srcFiles)
+		}
+
+		sandboxCommand = sandboxCommand + fmt.Sprintf(" -c %s %s $allouts",
+			rawCommand, depfilePlaceholder)
 
 		ruleParams := blueprint.RuleParams{
 			Command:     sandboxCommand,
@@ -461,6 +472,14 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		g.outputDeps = android.Paths{phonyFile}
 	}
 
+}
+
+func hashSrcFiles(srcFiles android.Paths) string {
+	h := sha256.New()
+	for _, src := range srcFiles {
+		h.Write([]byte(src.String()))
+	}
+	return fmt.Sprintf(" --input-hash %x", h.Sum(nil))
 }
 
 func (g *Module) generateSourceFile(ctx android.ModuleContext, task generateTask, rule blueprint.Rule) {
