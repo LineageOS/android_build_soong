@@ -138,6 +138,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			name: "libgcc_stripped",
 			vendor_available: true,
 			recovery_available: true,
+			sdk_version: "current",
 			src: "",
 		}
 
@@ -155,6 +156,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 		llndk_library {
 			name: "libc",
 			symbol_file: "",
+			sdk_version: "current",
 		}
 		cc_library {
 			name: "libm",
@@ -174,6 +176,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 		llndk_library {
 			name: "libm",
 			symbol_file: "",
+			sdk_version: "current",
 		}
 		cc_library {
 			name: "libdl",
@@ -193,6 +196,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 		llndk_library {
 			name: "libdl",
 			symbol_file: "",
+			sdk_version: "current",
 		}
 		cc_library {
 			name: "libft2",
@@ -205,6 +209,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			name: "libft2",
 			symbol_file: "",
 			vendor_available: false,
+			sdk_version: "current",
 		}
 		cc_library {
 			name: "libc++_static",
@@ -333,6 +338,16 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 
 		ndk_prebuilt_object {
 			name: "ndk_crtend_so.27",
+			sdk_version: "27",
+		}
+
+		ndk_prebuilt_object {
+			name: "ndk_crtbegin_dynamic.27",
+			sdk_version: "27",
+		}
+
+		ndk_prebuilt_object {
+			name: "ndk_crtend_android.27",
 			sdk_version: "27",
 		}
 
