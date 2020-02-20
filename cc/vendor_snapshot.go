@@ -41,7 +41,7 @@ var (
 	vendorSnapshotBinariesKey   = android.NewOnceKey("vendorSnapshotBinaries")
 )
 
-// vendor snapshot maps hold names of vendor snapshot modules per arch.
+// vendor snapshot maps hold names of vendor snapshot modules per arch
 func vendorSuffixModules(config android.Config) map[string]bool {
 	return config.Once(vendorSuffixModulesKey, func() interface{} {
 		return make(map[string]bool)
@@ -772,6 +772,10 @@ func VendorSnapshotMutator(ctx android.BottomUpMutatorContext) {
 
 // Disables source modules which have snapshots
 func VendorSnapshotSourceMutator(ctx android.BottomUpMutatorContext) {
+	if !ctx.Device() {
+		return
+	}
+
 	vndkVersion := ctx.DeviceConfig().VndkVersion()
 	// don't need snapshot if current
 	if vndkVersion == "current" || vndkVersion == "" {
@@ -783,11 +787,19 @@ func VendorSnapshotSourceMutator(ctx android.BottomUpMutatorContext) {
 		return
 	}
 
-	if module.HasVendorVariant() {
-		vendorSnapshotsLock.Lock()
-		defer vendorSnapshotsLock.Unlock()
+	// vendor suffix should be added to snapshots if the source module isn't vendor: true.
+	if !module.SocSpecific() {
+		// But we can't just check SocSpecific() since we already passed the image mutator.
+		// Check ramdisk and recovery to see if we are real "vendor: true" module.
+		ramdisk_available := module.InRamdisk() && !module.OnlyInRamdisk()
+		recovery_available := module.InRecovery() && !module.OnlyInRecovery()
 
-		vendorSuffixModules(ctx.Config())[ctx.ModuleName()] = true
+		if !ramdisk_available && !recovery_available {
+			vendorSnapshotsLock.Lock()
+			defer vendorSnapshotsLock.Unlock()
+
+			vendorSuffixModules(ctx.Config())[ctx.ModuleName()] = true
+		}
 	}
 
 	if module.isSnapshotPrebuilt() || module.VndkVersion() != ctx.DeviceConfig().VndkVersion() {
