@@ -23,8 +23,11 @@ if [ -z $ANDROID_HOST_OUT ]; then
   exit 1
 fi
 
-if [[ ( ! -f $ANDROID_HOST_OUT/nativetest64/par_test/par_test ) || ( ! -f $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3 ) ]]; then
-  echo "Run 'm par_test par_test3' first"
+if [[ ( ! -f $ANDROID_HOST_OUT/nativetest64/par_test/par_test ) ||
+      ( ! -f $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3 ) ||
+      ( ! -f $ANDROID_HOST_OUT/bin/py2-cmd ) ||
+      ( ! -f $ANDROID_HOST_OUT/bin/py3-cmd )]]; then
+  echo "Run 'm par_test par_test3 py2-cmd py3-cmd' first"
   exit 1
 fi
 
@@ -43,5 +46,16 @@ PYTHONHOME=/usr $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3
 PYTHONPATH=/usr $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3
 
 ARGTEST=true $ANDROID_HOST_OUT/nativetest64/par_test3/par_test3 --arg1 arg2
+
+cd $(dirname ${BASH_SOURCE[0]})
+
+PYTHONPATH=/extra $ANDROID_HOST_OUT/bin/py2-cmd py-cmd_test.py
+PYTHONPATH=/extra $ANDROID_HOST_OUT/bin/py3-cmd py-cmd_test.py
+
+ARGTEST=true PYTHONPATH=/extra $ANDROID_HOST_OUT/bin/py2-cmd py-cmd_test.py arg1 arg2
+ARGTEST2=true PYTHONPATH=/extra $ANDROID_HOST_OUT/bin/py2-cmd py-cmd_test.py --arg1 arg2
+
+ARGTEST=true PYTHONPATH=/extra $ANDROID_HOST_OUT/bin/py3-cmd py-cmd_test.py arg1 arg2
+ARGTEST2=true PYTHONPATH=/extra $ANDROID_HOST_OUT/bin/py3-cmd py-cmd_test.py --arg1 arg2
 
 echo "Passed!"
