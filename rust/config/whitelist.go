@@ -2,6 +2,7 @@ package config
 
 var (
 	RustAllowedPaths = []string{
+		"external/minijail",
 		"external/rust",
 		"external/crosvm",
 		"external/adhd",
