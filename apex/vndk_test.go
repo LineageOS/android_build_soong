@@ -68,6 +68,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 			cc_library {
 				name: "libprofile-extras",
 				vendor_available: true,
+				recovery_available: true,
 				native_coverage: false,
 				system_shared_libs: [],
 				stl: "none",
@@ -75,6 +76,23 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 			}
 			cc_library {
 				name: "libprofile-clang-extras",
+				vendor_available: true,
+				recovery_available: true,
+				native_coverage: false,
+				system_shared_libs: [],
+				stl: "none",
+				notice: "custom_notice",
+			}
+			cc_library {
+				name: "libprofile-extras_ndk",
+				vendor_available: true,
+				native_coverage: false,
+				system_shared_libs: [],
+				stl: "none",
+				notice: "custom_notice",
+			}
+			cc_library {
+				name: "libprofile-clang-extras_ndk",
 				vendor_available: true,
 				native_coverage: false,
 				system_shared_libs: [],
