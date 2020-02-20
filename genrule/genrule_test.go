@@ -502,6 +502,93 @@ func TestGenruleCmd(t *testing.T) {
 	}
 }
 
+func TestGenruleHashInputs(t *testing.T) {
+
+	// The basic idea here is to verify that the sbox command (which is
+	// in the Command field of the generate rule) contains a hash of the
+	// inputs, but only if $(in) is not referenced in the genrule cmd
+	// property.
+
+	// By including a hash of the inputs, we cause the rule to re-run if
+	// the list of inputs changes (because the sbox command changes).
+
+	// However, if the genrule cmd property already contains $(in), then
+	// the dependency is already expressed, so we don't need to include the
+	// hash in that case.
+
+	bp := `
+			genrule {
+				name: "hash0",
+				srcs: ["in1.txt", "in2.txt"],
+				out: ["out"],
+				cmd: "echo foo > $(out)",
+			}
+			genrule {
+				name: "hash1",
+				srcs: ["*.txt"],
+				out: ["out"],
+				cmd: "echo bar > $(out)",
+			}
+			genrule {
+				name: "hash2",
+				srcs: ["*.txt"],
+				out: ["out"],
+				cmd: "echo $(in) > $(out)",
+			}
+		`
+	testcases := []struct {
+		name         string
+		expectedHash string
+	}{
+		{
+			name: "hash0",
+			// sha256 value obtained from: echo -n 'in1.txtin2.txt' | sha256sum
+			expectedHash: "031097e11e0a8c822c960eb9742474f46336360a515744000d086d94335a9cb9",
+		},
+		{
+			name: "hash1",
+			// sha256 value obtained from: echo -n 'in1.txtin2.txtin3.txt' | sha256sum
+			expectedHash: "de5d22a4a7ab50d250cc59fcdf7a7e0775790d270bfca3a7a9e1f18a70dd996c",
+		},
+		{
+			name: "hash2",
+			// $(in) is present, option should not appear
+			expectedHash: "",
+		},
+	}
+
+	config := testConfig(bp, nil)
+	ctx := testContext(config)
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	if errs == nil {
+		_, errs = ctx.PrepareBuildActions(config)
+	}
+	if errs != nil {
+		t.Fatal(errs)
+	}
+
+	for _, test := range testcases {
+		t.Run(test.name, func(t *testing.T) {
+			gen := ctx.ModuleForTests(test.name, "")
+			command := gen.Rule("generator").RuleParams.Command
+
+			if len(test.expectedHash) > 0 {
+				// We add spaces before and after to make sure that
+				// this option doesn't abutt another sbox option.
+				expectedInputHashOption := " --input-hash " + test.expectedHash + " "
+
+				if !strings.Contains(command, expectedInputHashOption) {
+					t.Errorf("Expected command \"%s\" to contain \"%s\"", command, expectedInputHashOption)
+				}
+			} else {
+				if strings.Contains(command, "--input-hash") {
+					t.Errorf("Unexpected \"--input-hash\" found in command: \"%s\"", command)
+				}
+			}
+		})
+	}
+}
+
 func TestGenSrcs(t *testing.T) {
 	testcases := []struct {
 		name string
