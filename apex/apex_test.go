@@ -223,6 +223,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"apex_manifest.json":                                  nil,
 		"AndroidManifest.xml":                                 nil,
 		"system/sepolicy/apex/myapex-file_contexts":           nil,
+		"system/sepolicy/apex/myapex.updatable-file_contexts": nil,
 		"system/sepolicy/apex/myapex2-file_contexts":          nil,
 		"system/sepolicy/apex/otherapex-file_contexts":        nil,
 		"system/sepolicy/apex/commonapex-file_contexts":       nil,
@@ -3640,6 +3641,14 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			java_libs: ["myjar"],
 		}
 
+		apex {
+			name: "myapex.updatable",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+			java_libs: ["myjar"],
+			updatable: true,
+		}
+
 		apex_key {
 			name: "myapex.key",
 			public_key: "testkey.avbpubkey",
@@ -3654,6 +3663,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			stl: "none",
 			apex_available: [
 				"myapex",
+				"myapex.updatable",
 				"//apex_available:platform",
 			],
 		}
@@ -3665,6 +3675,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			stl: "none",
 			apex_available: [
 				"myapex",
+				"myapex.updatable",
 				"//apex_available:platform",
 			],
 		}
@@ -3677,6 +3688,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			libs: ["myotherjar"],
 			apex_available: [
 				"myapex",
+				"myapex.updatable",
 				"//apex_available:platform",
 			],
 		}
@@ -3688,6 +3700,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			system_modules: "none",
 			apex_available: [
 				"myapex",
+				"myapex.updatable",
 				"//apex_available:platform",
 			],
 		}
@@ -3717,17 +3730,30 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 		t.Errorf("%q is not found", file)
 	}
 
+	// For unbundled build, symlink shouldn't exist regardless of whether an APEX
+	// is updatable or not
 	ctx, _ := testApex(t, bp, withUnbundledBuild)
 	files := getFiles(t, ctx, "myapex", "android_common_myapex_image")
 	ensureRealfileExists(t, files, "javalib/myjar.jar")
 	ensureRealfileExists(t, files, "lib64/mylib.so")
 	ensureRealfileExists(t, files, "lib64/myotherlib.so")
 
+	files = getFiles(t, ctx, "myapex.updatable", "android_common_myapex.updatable_image")
+	ensureRealfileExists(t, files, "javalib/myjar.jar")
+	ensureRealfileExists(t, files, "lib64/mylib.so")
+	ensureRealfileExists(t, files, "lib64/myotherlib.so")
+
+	// For bundled build, symlink to the system for the non-updatable APEXes only
 	ctx, _ = testApex(t, bp)
 	files = getFiles(t, ctx, "myapex", "android_common_myapex_image")
 	ensureRealfileExists(t, files, "javalib/myjar.jar")
 	ensureRealfileExists(t, files, "lib64/mylib.so")
 	ensureSymlinkExists(t, files, "lib64/myotherlib.so") // this is symlink
+
+	files = getFiles(t, ctx, "myapex.updatable", "android_common_myapex.updatable_image")
+	ensureRealfileExists(t, files, "javalib/myjar.jar")
+	ensureRealfileExists(t, files, "lib64/mylib.so")
+	ensureRealfileExists(t, files, "lib64/myotherlib.so") // this is a real file
 }
 
 func TestMain(m *testing.M) {
