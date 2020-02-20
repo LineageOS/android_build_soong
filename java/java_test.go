@@ -92,7 +92,6 @@ func testContext() *android.TestContext {
 
 	// Register module types and mutators from cc needed for JNI testing
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
-	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", cc.NdkPrebuiltSharedStlFactory)
 
 	dexpreopt.RegisterToolModulesForTest(ctx)
 
