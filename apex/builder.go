@@ -404,6 +404,10 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
 		optFlags = append(optFlags, "--min_sdk_version "+minSdkVersion)
 
+		if a.overridableProperties.Logging_parent != "" {
+			optFlags = append(optFlags, "--logging_parent ", a.overridableProperties.Logging_parent)
+		}
+
 		a.mergedNotices = a.buildNoticeFiles(ctx, a.Name()+suffix)
 		if a.mergedNotices.HtmlGzOutput.Valid() {
 			// If there's a NOTICE file, embed it as an asset file in the APEX.
