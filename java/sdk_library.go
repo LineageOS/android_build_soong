@@ -16,7 +16,6 @@ package java
 
 import (
 	"android/soong/android"
-	"android/soong/genrule"
 
 	"fmt"
 	"io"
@@ -36,23 +35,23 @@ const (
 	sdkTestApiSuffix      = ".test"
 	sdkStubsSourceSuffix  = ".stubs.source"
 	sdkXmlFileSuffix      = ".xml"
-	permissionsTemplate   = `<?xml version="1.0" encoding="utf-8"?>\n` +
+	permissionsTemplate   = `<?xml version=\"1.0\" encoding=\"utf-8\"?>\n` +
 		`<!-- Copyright (C) 2018 The Android Open Source Project\n` +
 		`\n` +
-		`    Licensed under the Apache License, Version 2.0 (the "License");\n` +
+		`    Licensed under the Apache License, Version 2.0 (the \"License\");\n` +
 		`    you may not use this file except in compliance with the License.\n` +
 		`    You may obtain a copy of the License at\n` +
 		`\n` +
 		`        http://www.apache.org/licenses/LICENSE-2.0\n` +
 		`\n` +
 		`    Unless required by applicable law or agreed to in writing, software\n` +
-		`    distributed under the License is distributed on an "AS IS" BASIS,\n` +
+		`    distributed under the License is distributed on an \"AS IS\" BASIS,\n` +
 		`    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n` +
 		`    See the License for the specific language governing permissions and\n` +
 		`    limitations under the License.\n` +
 		`-->\n` +
 		`<permissions>\n` +
-		`    <library name="%s" file="%s"/>\n` +
+		`    <library name=\"%s\" file=\"%s\"/>\n` +
 		`</permissions>\n`
 )
 
@@ -250,8 +249,6 @@ type SdkLibrary struct {
 	sdkLibraryProperties sdkLibraryProperties
 
 	commonToSdkLibraryAndImport
-
-	permissionsFile android.Path
 }
 
 var _ Dependency = (*SdkLibrary)(nil)
@@ -267,6 +264,13 @@ func (module *SdkLibrary) getActiveApiScopes() apiScopes {
 
 var xmlPermissionsFileTag = dependencyTag{name: "xml-permissions-file"}
 
+func IsXmlPermissionsFileDepTag(depTag blueprint.DependencyTag) bool {
+	if dt, ok := depTag.(dependencyTag); ok {
+		return dt == xmlPermissionsFileTag
+	}
+	return false
+}
+
 func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, apiScope := range module.getActiveApiScopes() {
 		// Add dependencies to the stubs library
@@ -278,7 +282,7 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
 		// Add dependency to the rule for generating the xml permissions file
-		ctx.AddDependency(module, xmlPermissionsFileTag, module.genXmlPermissionsFileName())
+		ctx.AddDependency(module, xmlPermissionsFileTag, module.xmlFileName())
 	}
 
 	module.Library.deps(ctx)
@@ -312,18 +316,6 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 				scopePaths.apiFilePath = doc.ApiFilePath()
 			} else {
 				ctx.ModuleErrorf("depends on module %q of unknown tag %q", otherName, tag)
-			}
-		}
-		if tag == xmlPermissionsFileTag {
-			if genRule, ok := to.(genrule.SourceFileGenerator); ok {
-				pf := genRule.GeneratedSourceFiles()
-				if len(pf) != 1 {
-					ctx.ModuleErrorf("%q failed to generate permission XML", otherName)
-				} else {
-					module.permissionsFile = pf[0]
-				}
-			} else {
-				ctx.ModuleErrorf("depends on module %q to generate xml permissions file but it does not provide any outputs", otherName)
 			}
 		}
 	})
@@ -389,35 +381,9 @@ func (module *SdkLibrary) implName() string {
 	return module.BaseModuleName()
 }
 
-// File path to the runtime implementation library
-func (module *SdkLibrary) implPath() string {
-	if apexName := module.ApexName(); apexName != "" {
-		// TODO(b/146468504): ApexName() is only a soong module name, not apex name.
-		// In most cases, this works fine. But when apex_name is set or override_apex is used
-		// this can be wrong.
-		return fmt.Sprintf("/apex/%s/javalib/%s.jar", apexName, module.implName())
-	}
-	partition := "system"
-	if module.SocSpecific() {
-		partition = "vendor"
-	} else if module.DeviceSpecific() {
-		partition = "odm"
-	} else if module.ProductSpecific() {
-		partition = "product"
-	} else if module.SystemExtSpecific() {
-		partition = "system_ext"
-	}
-	return "/" + partition + "/framework/" + module.implName() + ".jar"
-}
-
 // Module name of the XML file for the lib
 func (module *SdkLibrary) xmlFileName() string {
 	return module.BaseModuleName() + sdkXmlFileSuffix
-}
-
-// Module name of the rule for generating the XML permissions file
-func (module *SdkLibrary) genXmlPermissionsFileName() string {
-	return "gen-" + module.BaseModuleName() + sdkXmlFileSuffix
 }
 
 // Get the sdk version for use when compiling the stubs library.
@@ -615,58 +581,31 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 	mctx.CreateModule(DroidstubsFactory, &props)
 }
 
-func (module *SdkLibrary) XmlPermissionsFile() android.Path {
-	return module.permissionsFile
-}
-
-func (module *SdkLibrary) XmlPermissionsFileContent() string {
-	return fmt.Sprintf(permissionsTemplate, module.BaseModuleName(), module.implPath())
-}
-
 // Creates the xml file that publicizes the runtime library
 func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
-
-	xmlContent := module.XmlPermissionsFileContent()
-
-	genRuleName := module.genXmlPermissionsFileName()
-
-	// Create a genrule module to create the XML permissions file.
-	genRuleProps := struct {
-		Name *string
-		Cmd  *string
-		Out  []string
-	}{
-		Name: proptools.StringPtr(genRuleName),
-		Cmd:  proptools.StringPtr("echo -e '" + xmlContent + "' > '$(out)'"),
-		Out:  []string{module.xmlFileName()},
-	}
-
-	mctx.CreateModule(genrule.GenRuleFactory, &genRuleProps)
-
-	// creates a prebuilt_etc module to actually place the xml file under
-	// <partition>/etc/permissions
-	etcProps := struct {
+	props := struct {
 		Name                *string
-		Src                 *string
-		Sub_dir             *string
+		Lib_name            *string
 		Soc_specific        *bool
 		Device_specific     *bool
 		Product_specific    *bool
 		System_ext_specific *bool
-	}{}
-	etcProps.Name = proptools.StringPtr(module.xmlFileName())
-	etcProps.Src = proptools.StringPtr(":" + genRuleName)
-	etcProps.Sub_dir = proptools.StringPtr("permissions")
-	if module.SocSpecific() {
-		etcProps.Soc_specific = proptools.BoolPtr(true)
-	} else if module.DeviceSpecific() {
-		etcProps.Device_specific = proptools.BoolPtr(true)
-	} else if module.ProductSpecific() {
-		etcProps.Product_specific = proptools.BoolPtr(true)
-	} else if module.SystemExtSpecific() {
-		etcProps.System_ext_specific = proptools.BoolPtr(true)
+	}{
+		Name:     proptools.StringPtr(module.xmlFileName()),
+		Lib_name: proptools.StringPtr(module.BaseModuleName()),
 	}
-	mctx.CreateModule(android.PrebuiltEtcFactory, &etcProps)
+
+	if module.SocSpecific() {
+		props.Soc_specific = proptools.BoolPtr(true)
+	} else if module.DeviceSpecific() {
+		props.Device_specific = proptools.BoolPtr(true)
+	} else if module.ProductSpecific() {
+		props.Product_specific = proptools.BoolPtr(true)
+	} else if module.SystemExtSpecific() {
+		props.System_ext_specific = proptools.BoolPtr(true)
+	}
+
+	mctx.CreateModule(sdkLibraryXmlFactory, &props)
 }
 
 func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s sdkSpec) android.Paths {
@@ -1038,4 +977,112 @@ func (module *sdkLibraryImport) SdkHeaderJars(ctx android.BaseModuleContext, sdk
 func (module *sdkLibraryImport) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
 	// This module is just a wrapper for the stubs.
 	return module.sdkJars(ctx, sdkVersion)
+}
+
+//
+// java_sdk_library_xml
+//
+type sdkLibraryXml struct {
+	android.ModuleBase
+	android.DefaultableModuleBase
+	android.ApexModuleBase
+
+	properties sdkLibraryXmlProperties
+
+	outputFilePath android.OutputPath
+	installDirPath android.InstallPath
+}
+
+type sdkLibraryXmlProperties struct {
+	// canonical name of the lib
+	Lib_name *string
+}
+
+// java_sdk_library_xml builds the permission xml file for a java_sdk_library.
+// Not to be used directly by users. java_sdk_library internally uses this.
+func sdkLibraryXmlFactory() android.Module {
+	module := &sdkLibraryXml{}
+
+	module.AddProperties(&module.properties)
+
+	android.InitApexModule(module)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+
+	return module
+}
+
+// from android.PrebuiltEtcModule
+func (module *sdkLibraryXml) SubDir() string {
+	return "permissions"
+}
+
+// from android.PrebuiltEtcModule
+func (module *sdkLibraryXml) OutputFile() android.OutputPath {
+	return module.outputFilePath
+}
+
+// from android.ApexModule
+func (module *sdkLibraryXml) AvailableFor(what string) bool {
+	return true
+}
+
+func (module *sdkLibraryXml) DepsMutator(ctx android.BottomUpMutatorContext) {
+	// do nothing
+}
+
+// File path to the runtime implementation library
+func (module *sdkLibraryXml) implPath() string {
+	implName := proptools.String(module.properties.Lib_name)
+	if apexName := module.ApexName(); apexName != "" {
+		// TODO(b/146468504): ApexName() is only a soong module name, not apex name.
+		// In most cases, this works fine. But when apex_name is set or override_apex is used
+		// this can be wrong.
+		return fmt.Sprintf("/apex/%s/javalib/%s.jar", apexName, implName)
+	}
+	partition := "system"
+	if module.SocSpecific() {
+		partition = "vendor"
+	} else if module.DeviceSpecific() {
+		partition = "odm"
+	} else if module.ProductSpecific() {
+		partition = "product"
+	} else if module.SystemExtSpecific() {
+		partition = "system_ext"
+	}
+	return "/" + partition + "/framework/" + implName + ".jar"
+}
+
+func (module *sdkLibraryXml) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	libName := proptools.String(module.properties.Lib_name)
+	xmlContent := fmt.Sprintf(permissionsTemplate, libName, module.implPath())
+
+	module.outputFilePath = android.PathForModuleOut(ctx, libName+".xml").OutputPath
+	rule := android.NewRuleBuilder()
+	rule.Command().
+		Text("/bin/bash -c \"echo -e '" + xmlContent + "'\" > ").
+		Output(module.outputFilePath)
+
+	rule.Build(pctx, ctx, "java_sdk_xml", "Permission XML")
+
+	module.installDirPath = android.PathForModuleInstall(ctx, "etc", module.SubDir())
+}
+
+func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {
+	if !module.IsForPlatform() {
+		return []android.AndroidMkEntries{android.AndroidMkEntries{
+			Disabled: true,
+		}}
+	}
+
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
+		Class:      "ETC",
+		OutputFile: android.OptionalPathForPath(module.outputFilePath),
+		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+			func(entries *android.AndroidMkEntries) {
+				entries.SetString("LOCAL_MODULE_TAGS", "optional")
+				entries.SetString("LOCAL_MODULE_PATH", module.installDirPath.ToMakePath().String())
+				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", module.outputFilePath.Base())
+			},
+		},
+	}}
 }

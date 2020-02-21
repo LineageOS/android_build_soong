@@ -294,9 +294,8 @@ func metadataRule(ctx android.SingletonContext) android.Path {
 
 	rule.Command().
 		BuiltTool(ctx, "merge_csv").
-		Inputs(metadataCSV).
-		Text(">").
-		Output(outputPath)
+		FlagWithOutput("--output=", outputPath).
+		Inputs(metadataCSV)
 
 	rule.Build(pctx, ctx, "hiddenAPIGreylistMetadataFile", "hiddenapi greylist metadata")
 

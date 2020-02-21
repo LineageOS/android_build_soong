@@ -53,6 +53,8 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 		"myapex.pk8":                                 nil,
 	}
 
+	cc.GatherRequiredFilesForTest(mockFS)
+
 	for k, v := range fs {
 		mockFS[k] = v
 	}

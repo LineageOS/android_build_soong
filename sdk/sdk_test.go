@@ -111,8 +111,14 @@ func TestSnapshotVisibility(t *testing.T) {
 			sdk_version: "none",
 		}
 
+		java_defaults {
+			name: "java-defaults",
+			visibility: ["//other/bar"], 
+		}
+
 		java_library {
 			name: "mypublicjavalib",
+			defaults: ["java-defaults"],
       visibility: ["//visibility:public"],
 			srcs: ["Test.java"],
 			system_modules: "none",

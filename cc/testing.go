@@ -29,6 +29,8 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
 	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
+	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", NdkPrebuiltSharedStlFactory)
+	ctx.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
 }
 
 func GatherRequiredDepsForTest(os android.OsType) string {
@@ -37,6 +39,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libatomic",
 			vendor_available: true,
 			recovery_available: true,
+			native_bridge_supported: true,
 			src: "",
 		}
 
@@ -51,6 +54,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libclang_rt.builtins-arm-android",
 			vendor_available: true,
 			recovery_available: true,
+			native_bridge_supported: true,
 			src: "",
 		}
 
@@ -58,6 +62,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libclang_rt.builtins-aarch64-android",
 			vendor_available: true,
 			recovery_available: true,
+			native_bridge_supported: true,
 			src: "",
 		}
 
@@ -65,6 +70,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libclang_rt.builtins-i686-android",
 			vendor_available: true,
 			recovery_available: true,
+			native_bridge_supported: true,
 			src: "",
 		}
 
@@ -72,6 +78,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libclang_rt.builtins-x86_64-android",
 			vendor_available: true,
 			recovery_available: true,
+			native_bridge_supported: true,
 			src: "",
 		}
 
@@ -115,6 +122,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "libclang_rt.ubsan_standalone-aarch64-android",
 			vendor_available: true,
 			recovery_available: true,
+			system_shared_libs: [],
 			srcs: [""],
 		}
 
@@ -139,6 +147,9 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			stl: "none",
 			system_shared_libs: [],
 			recovery_available: true,
+			stubs: {
+				versions: ["27", "28", "29"],
+			},
 		}
 		llndk_library {
 			name: "libc",
@@ -151,6 +162,13 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			stl: "none",
 			system_shared_libs: [],
 			recovery_available: true,
+			stubs: {
+				versions: ["27", "28", "29"],
+			},
+			apex_available: [
+				"//apex_available:platform",
+				"myapex"
+			],
 		}
 		llndk_library {
 			name: "libm",
@@ -163,6 +181,13 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			stl: "none",
 			system_shared_libs: [],
 			recovery_available: true,
+			stubs: {
+				versions: ["27", "28", "29"],
+			},
+			apex_available: [
+				"//apex_available:platform",
+				"myapex"
+			],
 		}
 		llndk_library {
 			name: "libdl",
@@ -201,6 +226,10 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 				enabled: true,
 				support_system_process: true,
 			},
+			apex_available: [
+				"//apex_available:platform",
+				"myapex"
+			],
 		}
 		cc_library {
 			name: "libc++demangle",
@@ -226,6 +255,7 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "crtbegin_so",
 			recovery_available: true,
 			vendor_available: true,
+			native_bridge_supported: true,
 			stl: "none",
 		}
 
@@ -233,18 +263,23 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "crtbegin_dynamic",
 			recovery_available: true,
 			vendor_available: true,
+			native_bridge_supported: true,
+			stl: "none",
 		}
 
 		cc_object {
 			name: "crtbegin_static",
 			recovery_available: true,
 			vendor_available: true,
+			native_bridge_supported: true,
+			stl: "none",
 		}
 
 		cc_object {
 			name: "crtend_so",
 			recovery_available: true,
 			vendor_available: true,
+			native_bridge_supported: true,
 			stl: "none",
 		}
 
@@ -252,12 +287,57 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			name: "crtend_android",
 			recovery_available: true,
 			vendor_available: true,
+			native_bridge_supported: true,
+			stl: "none",
 		}
 
 		cc_library {
 			name: "libprotobuf-cpp-lite",
 		}
-		`
+
+		cc_library {
+			name: "ndk_libunwind",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		cc_library {
+			name: "libc.ndk.current",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		cc_library {
+			name: "libm.ndk.current",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		cc_library {
+			name: "libdl.ndk.current",
+			sdk_version: "current",
+			stl: "none",
+			system_shared_libs: [],
+		}
+
+		ndk_prebuilt_object {
+			name: "ndk_crtbegin_so.27",
+			sdk_version: "27",
+		}
+
+		ndk_prebuilt_object {
+			name: "ndk_crtend_so.27",
+			sdk_version: "27",
+		}
+
+		ndk_prebuilt_shared_stl {
+			name: "ndk_libc++_shared",
+		}
+	`
+
 	if os == android.Fuchsia {
 		ret += `
 		cc_library {
@@ -271,6 +351,18 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		`
 	}
 	return ret
+}
+
+func GatherRequiredFilesForTest(fs map[string][]byte) {
+	fs["prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs/arm64-v8a/libc++_shared.so"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-arm/usr/lib/crtbegin_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-arm/usr/lib/crtend_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-arm64/usr/lib/crtbegin_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-arm64/usr/lib/crtend_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-x86/usr/lib/crtbegin_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-x86/usr/lib/crtend_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-x86_64/usr/lib64/crtbegin_so.o"] = nil
+	fs["prebuilts/ndk/current/platforms/android-27/arch-x86_64/usr/lib64/crtend_so.o"] = nil
 }
 
 func TestConfig(buildDir string, os android.OsType, env map[string]string,
@@ -292,6 +384,8 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 		"foo.map.txt": nil,
 		"liba.so":     nil,
 	}
+
+	GatherRequiredFilesForTest(mockFS)
 
 	for k, v := range fs {
 		mockFS[k] = v

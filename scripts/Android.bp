@@ -3,7 +3,6 @@ python_binary_host {
     main: "manifest_fixer.py",
     srcs: [
         "manifest_fixer.py",
-        "manifest.py",
     ],
     version: {
         py2: {
@@ -13,6 +12,9 @@ python_binary_host {
             enabled: false,
         },
     },
+    libs: [
+        "manifest_utils",
+    ],
 }
 
 python_test_host {
@@ -21,6 +23,24 @@ python_test_host {
     srcs: [
         "manifest_fixer_test.py",
         "manifest_fixer.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    },
+    libs: [
+        "manifest_utils",
+    ],
+    test_suites: ["general-tests"],
+}
+
+python_library_host {
+    name: "manifest_utils",
+    srcs: [
         "manifest.py",
     ],
     version: {
@@ -31,7 +51,6 @@ python_test_host {
             enabled: false,
         },
     },
-    test_suites: ["general-tests"],
 }
 
 python_binary_host {
@@ -39,7 +58,6 @@ python_binary_host {
     main: "manifest_check.py",
     srcs: [
         "manifest_check.py",
-        "manifest.py",
     ],
     version: {
         py2: {
@@ -49,6 +67,9 @@ python_binary_host {
             enabled: false,
         },
     },
+    libs: [
+        "manifest_utils",
+    ],
 }
 
 python_test_host {
@@ -57,7 +78,6 @@ python_test_host {
     srcs: [
         "manifest_check_test.py",
         "manifest_check.py",
-        "manifest.py",
     ],
     version: {
         py2: {
@@ -67,6 +87,9 @@ python_test_host {
             enabled: false,
         },
     },
+    libs: [
+        "manifest_utils",
+    ],
     test_suites: ["general-tests"],
 }
 
@@ -91,7 +114,6 @@ python_binary_host {
     main: "test_config_fixer.py",
     srcs: [
         "test_config_fixer.py",
-        "manifest.py",
     ],
     version: {
         py2: {
@@ -101,6 +123,9 @@ python_binary_host {
             enabled: false,
         },
     },
+    libs: [
+        "manifest_utils",
+    ],
 }
 
 python_test_host {
@@ -109,7 +134,6 @@ python_test_host {
     srcs: [
         "test_config_fixer_test.py",
         "test_config_fixer.py",
-        "manifest.py",
     ],
     version: {
         py2: {
@@ -119,5 +143,8 @@ python_test_host {
             enabled: false,
         },
     },
+    libs: [
+        "manifest_utils",
+    ],
     test_suites: ["general-tests"],
 }

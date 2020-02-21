@@ -92,7 +92,6 @@ func testContext() *android.TestContext {
 
 	// Register module types and mutators from cc needed for JNI testing
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
-	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", cc.NdkPrebuiltSharedStlFactory)
 
 	dexpreopt.RegisterToolModulesForTest(ctx)
 
@@ -982,6 +981,65 @@ func TestDroiddoc(t *testing.T) {
 	}
 }
 
+func TestDroidstubsWithSystemModules(t *testing.T) {
+	ctx, _ := testJava(t, `
+		droidstubs {
+		    name: "stubs-source-system-modules",
+		    srcs: [
+		        "bar-doc/*.java",
+		    ],
+				sdk_version: "none",
+				system_modules: "source-system-modules",
+		}
+
+		java_library {
+				name: "source-jar",
+		    srcs: [
+		        "a.java",
+		    ],
+		}
+
+		java_system_modules {
+				name: "source-system-modules",
+				libs: ["source-jar"],
+		}
+
+		droidstubs {
+		    name: "stubs-prebuilt-system-modules",
+		    srcs: [
+		        "bar-doc/*.java",
+		    ],
+				sdk_version: "none",
+				system_modules: "prebuilt-system-modules",
+		}
+
+		java_import {
+				name: "prebuilt-jar",
+				jars: ["a.jar"],
+		}
+
+		java_system_modules_import {
+				name: "prebuilt-system-modules",
+				libs: ["prebuilt-jar"],
+		}
+		`)
+
+	checkSystemModulesUseByDroidstubs(t, ctx, "stubs-source-system-modules", "source-jar.jar")
+
+	checkSystemModulesUseByDroidstubs(t, ctx, "stubs-prebuilt-system-modules", "prebuilt-jar.jar")
+}
+
+func checkSystemModulesUseByDroidstubs(t *testing.T, ctx *android.TestContext, moduleName string, systemJar string) {
+	metalavaRule := ctx.ModuleForTests(moduleName, "android_common").Rule("metalava")
+	var systemJars []string
+	for _, i := range metalavaRule.Implicits {
+		systemJars = append(systemJars, i.Base())
+	}
+	if len(systemJars) != 1 || systemJars[0] != systemJar {
+		t.Errorf("inputs of %q must be []string{%q}, but was %#v.", moduleName, systemJar, systemJars)
+	}
+}
+
 func TestJarGenrules(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_library {
@@ -1125,7 +1183,7 @@ func TestJavaSdkLibrary(t *testing.T) {
 	ctx.ModuleForTests("foo"+sdkStubsSourceSuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkStubsSourceSuffix+sdkSystemApiSuffix, "android_common")
 	ctx.ModuleForTests("foo"+sdkStubsSourceSuffix+sdkTestApiSuffix, "android_common")
-	ctx.ModuleForTests("foo"+sdkXmlFileSuffix, "android_arm64_armv8-a")
+	ctx.ModuleForTests("foo"+sdkXmlFileSuffix, "android_common")
 	ctx.ModuleForTests("foo.api.public.28", "")
 	ctx.ModuleForTests("foo.api.system.28", "")
 	ctx.ModuleForTests("foo.api.test.28", "")
@@ -1375,5 +1433,61 @@ func TestJavaSystemModulesImport(t *testing.T) {
 			t.Errorf("system modules classpath %v does not contain %q", cmd.Args["classpath"],
 				module)
 		}
+	}
+}
+
+func TestJavaLibraryWithSystemModules(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_library {
+		    name: "lib-with-source-system-modules",
+		    srcs: [
+		        "a.java",
+		    ],
+				sdk_version: "none",
+				system_modules: "source-system-modules",
+		}
+
+		java_library {
+				name: "source-jar",
+		    srcs: [
+		        "a.java",
+		    ],
+		}
+
+		java_system_modules {
+				name: "source-system-modules",
+				libs: ["source-jar"],
+		}
+
+		java_library {
+		    name: "lib-with-prebuilt-system-modules",
+		    srcs: [
+		        "a.java",
+		    ],
+				sdk_version: "none",
+				system_modules: "prebuilt-system-modules",
+		}
+
+		java_import {
+				name: "prebuilt-jar",
+				jars: ["a.jar"],
+		}
+
+		java_system_modules_import {
+				name: "prebuilt-system-modules",
+				libs: ["prebuilt-jar"],
+		}
+		`)
+
+	checkBootClasspathForSystemModule(t, ctx, "lib-with-source-system-modules", "/source-jar.jar")
+
+	checkBootClasspathForSystemModule(t, ctx, "lib-with-prebuilt-system-modules", "/prebuilt-jar.jar")
+}
+
+func checkBootClasspathForSystemModule(t *testing.T, ctx *android.TestContext, moduleName string, expectedSuffix string) {
+	javacRule := ctx.ModuleForTests(moduleName, "android_common").Rule("javac")
+	bootClasspath := javacRule.Args["bootClasspath"]
+	if strings.HasPrefix(bootClasspath, "--system ") && strings.HasSuffix(bootClasspath, expectedSuffix) {
+		t.Errorf("bootclasspath of %q must start with --system and end with %q, but was %#v.", moduleName, expectedSuffix, bootClasspath)
 	}
 }

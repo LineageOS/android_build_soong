@@ -17,6 +17,7 @@ package android
 import (
 	"fmt"
 	"io"
+	"strings"
 )
 
 func init() {
@@ -26,6 +27,8 @@ func init() {
 type vtsConfigProperties struct {
 	// Override the default (AndroidTest.xml) test manifest file name.
 	Test_config *string
+	// Additional test suites to add the test to.
+	Test_suites []string `android:"arch_variant"`
 }
 
 type VtsConfig struct {
@@ -50,7 +53,8 @@ func (me *VtsConfig) AndroidMk() AndroidMkData {
 				fmt.Fprintf(w, "LOCAL_TEST_CONFIG := %s\n",
 					*me.properties.Test_config)
 			}
-			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE := vts")
+			fmt.Fprintf(w, "LOCAL_COMPATIBILITY_SUITE := vts %s\n",
+				strings.Join(me.properties.Test_suites, " "))
 		},
 	}
 	return androidMkData

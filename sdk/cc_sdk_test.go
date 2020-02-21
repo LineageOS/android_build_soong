@@ -75,6 +75,7 @@ func TestBasicSdkWithCc(t *testing.T) {
 
 		cc_library_shared {
 			name: "sdkmember",
+			system_shared_libs: [],
 		}
 
 		sdk_snapshot {

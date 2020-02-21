@@ -142,6 +142,7 @@ func runNinja(ctx Context, config Config) {
 			"CCACHE_SLOPPINESS",
 			"CCACHE_BASEDIR",
 			"CCACHE_CPP2",
+			"CCACHE_DIR",
 		}, config.BuildBrokenNinjaUsesEnvVars()...)...)
 	}
 

@@ -99,112 +99,6 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	android.ClearApexDependency()
 
 	bp = bp + `
-		toolchain_library {
-			name: "libcompiler_rt-extras",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-		}
-
-		toolchain_library {
-			name: "libatomic",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		toolchain_library {
-			name: "libgcc",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-		}
-
-		toolchain_library {
-			name: "libgcc_stripped",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-aarch64-android",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-arm-android",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-x86_64-android",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		toolchain_library {
-			name: "libclang_rt.builtins-i686-android",
-			src: "",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		cc_object {
-			name: "crtbegin_so",
-			stl: "none",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		cc_object {
-			name: "crtend_so",
-			stl: "none",
-			vendor_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-		}
-
-		cc_object {
-			name: "crtbegin_static",
-			stl: "none",
-		}
-
-		cc_object {
-			name: "crtend_android",
-			stl: "none",
-		}
-
-		llndk_library {
-			name: "libc",
-			symbol_file: "",
-			native_bridge_supported: true,
-		}
-
-		llndk_library {
-			name: "libm",
-			symbol_file: "",
-			native_bridge_supported: true,
-		}
-
-		llndk_library {
-			name: "libdl",
-			symbol_file: "",
-			native_bridge_supported: true,
-		}
-
 		filegroup {
 			name: "myapex-file_contexts",
 			srcs: [
@@ -212,6 +106,8 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 			],
 		}
 	`
+
+	bp = bp + cc.GatherRequiredDepsForTest(android.Android)
 
 	bp = bp + java.GatherRequiredDepsForTest()
 
@@ -223,6 +119,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"apex_manifest.json":                                  nil,
 		"AndroidManifest.xml":                                 nil,
 		"system/sepolicy/apex/myapex-file_contexts":           nil,
+		"system/sepolicy/apex/myapex.updatable-file_contexts": nil,
 		"system/sepolicy/apex/myapex2-file_contexts":          nil,
 		"system/sepolicy/apex/otherapex-file_contexts":        nil,
 		"system/sepolicy/apex/commonapex-file_contexts":       nil,
@@ -257,6 +154,8 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"build/make/core/proguard_basic_keeps.flags": nil,
 		"dummy.txt":                                  nil,
 	}
+
+	cc.GatherRequiredFilesForTest(fs)
 
 	for _, handler := range handlers {
 		// The fs now needs to be populated before creating the config, call handlers twice
@@ -1010,47 +909,6 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 			shared_libs: ["libdl#27"],
 			stl: "none",
 			apex_available: [ "myapex" ],
-		}
-
-		cc_library {
-			name: "libc",
-			no_libcrt: true,
-			nocrt: true,
-			system_shared_libs: [],
-			stl: "none",
-			stubs: {
-				versions: ["27", "28", "29"],
-			},
-		}
-
-		cc_library {
-			name: "libm",
-			no_libcrt: true,
-			nocrt: true,
-			system_shared_libs: [],
-			stl: "none",
-			stubs: {
-				versions: ["27", "28", "29"],
-			},
-			apex_available: [
-				"//apex_available:platform",
-				"myapex"
-			],
-		}
-
-		cc_library {
-			name: "libdl",
-			no_libcrt: true,
-			nocrt: true,
-			system_shared_libs: [],
-			stl: "none",
-			stubs: {
-				versions: ["27", "28", "29"],
-			},
-			apex_available: [
-				"//apex_available:platform",
-				"myapex"
-			],
 		}
 
 		cc_library {
@@ -3454,28 +3312,6 @@ func TestLegacyAndroid10Support(t *testing.T) {
 			system_shared_libs: [],
 			apex_available: [ "myapex" ],
 		}
-
-		cc_library {
-			name: "libc++",
-			srcs: ["mylib.cpp"],
-			stl: "none",
-			system_shared_libs: [],
-			apex_available: [ "myapex" ],
-		}
-
-		cc_library_static {
-			name: "libc++demangle",
-			srcs: ["mylib.cpp"],
-			stl: "none",
-			system_shared_libs: [],
-		}
-
-		cc_library_static {
-			name: "libunwind_llvm",
-			srcs: ["mylib.cpp"],
-			stl: "none",
-			system_shared_libs: [],
-		}
 	`, withUnbundledBuild)
 
 	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
@@ -3531,9 +3367,8 @@ func TestJavaSDKLibrary(t *testing.T) {
 		"etc/permissions/foo.xml",
 	})
 	// Permission XML should point to the activated path of impl jar of java_sdk_library
-	sdkLibrary := ctx.ModuleForTests("foo", "android_common_myapex").Module().(*java.SdkLibrary)
-	xml := sdkLibrary.XmlPermissionsFileContent()
-	ensureContains(t, xml, `<library name="foo" file="/apex/myapex/javalib/foo.jar"`)
+	sdkLibrary := ctx.ModuleForTests("foo.xml", "android_common_myapex").Rule("java_sdk_xml")
+	ensureContains(t, sdkLibrary.RuleParams.Command, `<library name=\"foo\" file=\"/apex/myapex/javalib/foo.jar\"`)
 }
 
 func TestCompatConfig(t *testing.T) {
@@ -3641,6 +3476,14 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			java_libs: ["myjar"],
 		}
 
+		apex {
+			name: "myapex.updatable",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+			java_libs: ["myjar"],
+			updatable: true,
+		}
+
 		apex_key {
 			name: "myapex.key",
 			public_key: "testkey.avbpubkey",
@@ -3655,6 +3498,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			stl: "none",
 			apex_available: [
 				"myapex",
+				"myapex.updatable",
 				"//apex_available:platform",
 			],
 		}
@@ -3666,6 +3510,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			stl: "none",
 			apex_available: [
 				"myapex",
+				"myapex.updatable",
 				"//apex_available:platform",
 			],
 		}
@@ -3678,6 +3523,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			libs: ["myotherjar"],
 			apex_available: [
 				"myapex",
+				"myapex.updatable",
 				"//apex_available:platform",
 			],
 		}
@@ -3689,6 +3535,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			system_modules: "none",
 			apex_available: [
 				"myapex",
+				"myapex.updatable",
 				"//apex_available:platform",
 			],
 		}
@@ -3718,17 +3565,30 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 		t.Errorf("%q is not found", file)
 	}
 
+	// For unbundled build, symlink shouldn't exist regardless of whether an APEX
+	// is updatable or not
 	ctx, _ := testApex(t, bp, withUnbundledBuild)
 	files := getFiles(t, ctx, "myapex", "android_common_myapex_image")
 	ensureRealfileExists(t, files, "javalib/myjar.jar")
 	ensureRealfileExists(t, files, "lib64/mylib.so")
 	ensureRealfileExists(t, files, "lib64/myotherlib.so")
 
+	files = getFiles(t, ctx, "myapex.updatable", "android_common_myapex.updatable_image")
+	ensureRealfileExists(t, files, "javalib/myjar.jar")
+	ensureRealfileExists(t, files, "lib64/mylib.so")
+	ensureRealfileExists(t, files, "lib64/myotherlib.so")
+
+	// For bundled build, symlink to the system for the non-updatable APEXes only
 	ctx, _ = testApex(t, bp)
 	files = getFiles(t, ctx, "myapex", "android_common_myapex_image")
 	ensureRealfileExists(t, files, "javalib/myjar.jar")
 	ensureRealfileExists(t, files, "lib64/mylib.so")
 	ensureSymlinkExists(t, files, "lib64/myotherlib.so") // this is symlink
+
+	files = getFiles(t, ctx, "myapex.updatable", "android_common_myapex.updatable_image")
+	ensureRealfileExists(t, files, "javalib/myjar.jar")
+	ensureRealfileExists(t, files, "lib64/mylib.so")
+	ensureRealfileExists(t, files, "lib64/myotherlib.so") // this is a real file
 }
 
 func TestMain(m *testing.M) {

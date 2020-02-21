@@ -1280,6 +1280,11 @@ type apexBundleProperties struct {
 	Legacy_android10_support *bool
 
 	IsCoverageVariant bool `blueprint:"mutated"`
+
+	// Whether this APEX is considered updatable or not. When set to true, this will enforce additional
+	// rules for making sure that the APEX is truely updatable. This will also disable the size optimizations
+	// like symlinking to the system libs. Default is false.
+	Updatable *bool
 }
 
 type apexTargetBundleProperties struct {
@@ -2116,13 +2121,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						return false
 					}
 					filesInfo = append(filesInfo, af)
-
-					pf := sdkLib.XmlPermissionsFile()
-					if pf == nil {
-						ctx.PropertyErrorf("java_libs", "%q failed to generate permission XML", depName)
-						return false
-					}
-					filesInfo = append(filesInfo, newApexFile(ctx, pf, pf.Base(), "etc/permissions", etc, nil))
 					return true // track transitive dependencies
 				} else {
 					ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
@@ -2235,6 +2233,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					}
 				} else if java.IsJniDepTag(depTag) {
 					return true
+				} else if java.IsXmlPermissionsFileDepTag(depTag) {
+					if prebuilt, ok := child.(android.PrebuiltEtcModule); ok {
+						filesInfo = append(filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
+					}
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
 				}
@@ -2316,6 +2318,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.linkToSystemLib = !ctx.Config().UnbundledBuild() &&
 		a.installable() &&
 		!proptools.Bool(a.properties.Use_vendor)
+
+	// We don't need the optimization for updatable APEXes, as it might give false signal
+	// to the system health when the APEXes are still bundled (b/149805758)
+	if proptools.Bool(a.properties.Updatable) && a.properties.ApexType == imageApex {
+		a.linkToSystemLib = false
+	}
 
 	// prepare apex_manifest.json
 	a.buildManifest(ctx, provideNativeLibs, requireNativeLibs)
