@@ -65,12 +65,19 @@ func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorCont
 			if version == "" {
 				version = LatestStubsVersionFor(mctx.Config(), name)
 			}
-			for _, linkType := range mt.linkTypes {
+			if mt.linkTypes == nil {
 				mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
 					{Mutator: "image", Variation: android.CoreVariation},
-					{Mutator: "link", Variation: linkType},
 					{Mutator: "version", Variation: version},
 				}...), dependencyTag, name)
+			} else {
+				for _, linkType := range mt.linkTypes {
+					mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
+						{Mutator: "image", Variation: android.CoreVariation},
+						{Mutator: "link", Variation: linkType},
+						{Mutator: "version", Variation: version},
+					}...), dependencyTag, name)
+				}
 			}
 		}
 	}
@@ -207,10 +214,14 @@ func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.Modu
 	for _, av := range info.archVariantProperties {
 		archTypeProperties := archProperties.AddPropertySet(av.archType)
 
-		// Copy the generated library to the snapshot and add a reference to it in the .bp module.
-		nativeLibraryPath := nativeLibraryPathFor(av)
-		builder.CopyToSnapshot(av.outputFile, nativeLibraryPath)
-		archTypeProperties.AddProperty("srcs", []string{nativeLibraryPath})
+		// If the library has some link types then it produces an output binary file, otherwise it
+		// is header only.
+		if info.memberType.linkTypes != nil {
+			// Copy the generated library to the snapshot and add a reference to it in the .bp module.
+			nativeLibraryPath := nativeLibraryPathFor(av)
+			builder.CopyToSnapshot(av.outputFile, nativeLibraryPath)
+			archTypeProperties.AddProperty("srcs", []string{nativeLibraryPath})
+		}
 
 		// Add any arch specific properties inside the appropriate arch: {<arch>: {...}} block
 		addPossiblyArchSpecificProperties(sdkModuleContext, builder, av, archTypeProperties)
