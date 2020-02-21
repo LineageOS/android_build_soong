@@ -3230,6 +3230,7 @@ func TestOverrideApex(t *testing.T) {
 			base: "myapex",
 			apps: ["override_app"],
 			overrides: ["unknownapex"],
+			logging_parent: "com.foo.bar",
 		}
 
 		apex_key {
@@ -3274,6 +3275,10 @@ func TestOverrideApex(t *testing.T) {
 	name := apexBundle.Name()
 	if name != "override_myapex" {
 		t.Errorf("name should be \"override_myapex\", but was %q", name)
+	}
+
+	if apexBundle.overridableProperties.Logging_parent != "com.foo.bar" {
+		t.Errorf("override_myapex should have logging parent (com.foo.bar), but was %q.", apexBundle.overridableProperties.Logging_parent)
 	}
 
 	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
