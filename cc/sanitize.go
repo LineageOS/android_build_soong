@@ -179,6 +179,7 @@ type SanitizeProperties struct {
 	SanitizerEnabled  bool     `blueprint:"mutated"`
 	SanitizeDep       bool     `blueprint:"mutated"`
 	MinimalRuntimeDep bool     `blueprint:"mutated"`
+	BuiltinsDep       bool     `blueprint:"mutated"`
 	UbsanRuntimeDep   bool     `blueprint:"mutated"`
 	InSanitizerDir    bool     `blueprint:"mutated"`
 	Sanitizers        []string `blueprint:"mutated"`
@@ -334,8 +335,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Diag.Cfi = nil
 	}
 
-	// Disable sanitizers that depend on the UBSan runtime for host builds.
-	if ctx.Host() {
+	// Disable sanitizers that depend on the UBSan runtime for windows/darwin builds.
+	if !ctx.Os().Linux() {
 		s.Cfi = nil
 		s.Diag.Cfi = nil
 		s.Misc_undefined = nil
@@ -439,12 +440,19 @@ func toDisableImplicitIntegerChange(flags []string) bool {
 func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	minimalRuntimeLib := config.UndefinedBehaviorSanitizerMinimalRuntimeLibrary(ctx.toolchain()) + ".a"
 	minimalRuntimePath := "${config.ClangAsanLibDir}/" + minimalRuntimeLib
+	builtinsRuntimeLib := config.BuiltinsRuntimeLibrary(ctx.toolchain()) + ".a"
+	builtinsRuntimePath := "${config.ClangAsanLibDir}/" + builtinsRuntimeLib
 
-	if ctx.Device() && sanitize.Properties.MinimalRuntimeDep {
+	if sanitize.Properties.MinimalRuntimeDep {
 		flags.Local.LdFlags = append(flags.Local.LdFlags,
 			minimalRuntimePath,
 			"-Wl,--exclude-libs,"+minimalRuntimeLib)
 	}
+
+	if sanitize.Properties.BuiltinsDep {
+		flags.libFlags = append([]string{builtinsRuntimePath}, flags.libFlags...)
+	}
+
 	if !sanitize.Properties.SanitizerEnabled && !sanitize.Properties.UbsanRuntimeDep {
 		return flags
 	}
@@ -547,11 +555,19 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// there will always be undefined symbols in intermediate libraries.
 			_, flags.Global.LdFlags = removeFromList("-Wl,--no-undefined", flags.Global.LdFlags)
 			flags.Local.LdFlags = append(flags.Local.LdFlags, sanitizeArg)
-		} else {
-			if enableMinimalRuntime(sanitize) {
-				flags.Local.CFlags = append(flags.Local.CFlags, strings.Join(minimalRuntimeFlags, " "))
-				flags.libFlags = append([]string{minimalRuntimePath}, flags.libFlags...)
-				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
+
+			// non-Bionic toolchain prebuilts are missing UBSan's vptr and function sanitizers
+			if !ctx.toolchain().Bionic() {
+				flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize=vptr,function")
+			}
+		}
+
+		if enableMinimalRuntime(sanitize) {
+			flags.Local.CFlags = append(flags.Local.CFlags, strings.Join(minimalRuntimeFlags, " "))
+			flags.libFlags = append([]string{minimalRuntimePath}, flags.libFlags...)
+			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
+			if !ctx.toolchain().Bionic() {
+				flags.libFlags = append([]string{builtinsRuntimePath}, flags.libFlags...)
 			}
 		}
 
@@ -766,6 +782,10 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 					return false
 				}
 
+				if c.Os() == android.Linux {
+					c.sanitize.Properties.BuiltinsDep = true
+				}
+
 				return true
 			}
 
@@ -902,11 +922,14 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				runtimeLibrary = config.ScudoRuntimeLibrary(toolchain)
 			}
 		} else if len(diagSanitizers) > 0 || c.sanitize.Properties.UbsanRuntimeDep ||
-			Bool(c.sanitize.Properties.Sanitize.Fuzzer) {
+			Bool(c.sanitize.Properties.Sanitize.Fuzzer) ||
+			Bool(c.sanitize.Properties.Sanitize.Undefined) ||
+			Bool(c.sanitize.Properties.Sanitize.All_undefined) {
 			runtimeLibrary = config.UndefinedBehaviorSanitizerRuntimeLibrary(toolchain)
 		}
 
-		if mctx.Device() && runtimeLibrary != "" {
+		if runtimeLibrary != "" && (toolchain.Bionic() || c.sanitize.Properties.UbsanRuntimeDep) {
+			// UBSan is supported on non-bionic linux host builds as well
 			if isLlndkLibrary(runtimeLibrary, mctx.Config()) && !c.static() && c.UseVndk() {
 				runtimeLibrary = runtimeLibrary + llndkLibrarySuffix
 			}
@@ -1079,11 +1102,17 @@ func enableMinimalRuntime(sanitize *sanitize) bool {
 	if !Bool(sanitize.Properties.Sanitize.Address) &&
 		!Bool(sanitize.Properties.Sanitize.Hwaddress) &&
 		!Bool(sanitize.Properties.Sanitize.Fuzzer) &&
+
 		(Bool(sanitize.Properties.Sanitize.Integer_overflow) ||
-			len(sanitize.Properties.Sanitize.Misc_undefined) > 0) &&
+			len(sanitize.Properties.Sanitize.Misc_undefined) > 0 ||
+			Bool(sanitize.Properties.Sanitize.Undefined) ||
+			Bool(sanitize.Properties.Sanitize.All_undefined)) &&
+
 		!(Bool(sanitize.Properties.Sanitize.Diag.Integer_overflow) ||
 			Bool(sanitize.Properties.Sanitize.Diag.Cfi) ||
+			Bool(sanitize.Properties.Sanitize.Diag.Undefined) ||
 			len(sanitize.Properties.Sanitize.Diag.Misc_undefined) > 0) {
+
 		return true
 	}
 	return false
@@ -1091,6 +1120,7 @@ func enableMinimalRuntime(sanitize *sanitize) bool {
 
 func enableUbsanRuntime(sanitize *sanitize) bool {
 	return Bool(sanitize.Properties.Sanitize.Diag.Integer_overflow) ||
+		Bool(sanitize.Properties.Sanitize.Diag.Undefined) ||
 		len(sanitize.Properties.Sanitize.Diag.Misc_undefined) > 0
 }
 
