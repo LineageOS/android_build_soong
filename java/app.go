@@ -79,6 +79,10 @@ type appProperties struct {
 	// list of native libraries that will be provided in or alongside the resulting jar
 	Jni_libs []string `android:"arch_variant"`
 
+	// if true, allow JNI libraries that link against platform APIs even if this module sets
+	// sdk_version.
+	Jni_uses_platform_apis *bool
+
 	// STL library to use for JNI libraries.
 	Stl *string `android:"arch_variant"`
 
