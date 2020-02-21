@@ -183,7 +183,6 @@ func RegisterLibraryBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_library", LibraryFactory)
 	ctx.RegisterModuleType("cc_library_host_static", LibraryHostStaticFactory)
 	ctx.RegisterModuleType("cc_library_host_shared", LibraryHostSharedFactory)
-	ctx.RegisterModuleType("cc_library_headers", LibraryHeaderFactory)
 }
 
 // cc_library creates both static and/or shared libraries for a device and/or
@@ -230,16 +229,6 @@ func LibraryHostSharedFactory() android.Module {
 	module, library := NewLibrary(android.HostSupported)
 	library.BuildOnlyShared()
 	module.sdkMemberTypes = []android.SdkMemberType{sharedLibrarySdkMemberType}
-	return module.Init()
-}
-
-// cc_library_headers contains a set of c/c++ headers which are imported by
-// other soong cc modules using the header_libs property. For best practices,
-// use export_include_dirs property or LOCAL_EXPORT_C_INCLUDE_DIRS for
-// Make.
-func LibraryHeaderFactory() android.Module {
-	module, library := NewLibrary(android.HostAndDeviceSupported)
-	library.HeaderOnly()
 	return module.Init()
 }
 
