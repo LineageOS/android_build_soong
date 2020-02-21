@@ -115,7 +115,7 @@ func (mt *librarySdkMemberType) organizeVariants(member android.SdkMember) *nati
 			name:                         memberName,
 			archType:                     ccModule.Target().Arch.ArchType.String(),
 			ExportedIncludeDirs:          exportedIncludeDirs,
-			ExportedGeneratedIncludeDirs: exportedGeneratedIncludeDirs,
+			exportedGeneratedIncludeDirs: exportedGeneratedIncludeDirs,
 			ExportedSystemIncludeDirs:    ccModule.ExportedSystemIncludeDirs(),
 			ExportedFlags:                ccModule.ExportedFlags(),
 			exportedGeneratedHeaders:     ccModule.ExportedGeneratedHeaders(),
@@ -200,7 +200,7 @@ func extractCommonProperties(commonProperties interface{}, inputPropertiesSlice 
 func buildSharedNativeLibSnapshot(sdkModuleContext android.ModuleContext, info *nativeLibInfo, builder android.SnapshotBuilder, member android.SdkMember) {
 	// a function for emitting include dirs
 	addExportedDirCopyCommandsForNativeLibs := func(lib nativeLibInfoProperties) {
-		// Do not include ExportedGeneratedIncludeDirs in the list of directories whose
+		// Do not include exportedGeneratedIncludeDirs in the list of directories whose
 		// contents are copied as they are copied from exportedGeneratedHeaders below.
 		includeDirs := lib.ExportedIncludeDirs
 		includeDirs = append(includeDirs, lib.ExportedSystemIncludeDirs...)
@@ -296,7 +296,7 @@ func nativeIncludeDirPathsFor(lib nativeLibInfoProperties, systemInclude bool) [
 	var includeDirs []android.Path
 	if !systemInclude {
 		// Include the generated include dirs in the exported include dirs.
-		includeDirs = append(lib.ExportedIncludeDirs, lib.ExportedGeneratedIncludeDirs...)
+		includeDirs = append(lib.ExportedIncludeDirs, lib.exportedGeneratedIncludeDirs...)
 	} else {
 		includeDirs = lib.ExportedSystemIncludeDirs
 	}
@@ -327,13 +327,30 @@ type nativeLibInfoProperties struct {
 	// This is "" for common properties.
 	archType string
 
-	ExportedIncludeDirs          android.Paths
-	ExportedGeneratedIncludeDirs android.Paths
-	ExportedSystemIncludeDirs    android.Paths
-	ExportedFlags                []string
+	// The list of possibly common exported include dirs.
+	//
+	// This field is exported as its contents may not be arch specific.
+	ExportedIncludeDirs android.Paths
 
-	// exportedGeneratedHeaders is not exported as if set it is always arch specific.
+	// The list of arch specific exported generated include dirs.
+	//
+	// This field is not exported as its contents are always arch specific.
+	exportedGeneratedIncludeDirs android.Paths
+
+	// The list of arch specific exported generated header files.
+	//
+	// This field is not exported as its contents are is always arch specific.
 	exportedGeneratedHeaders android.Paths
+
+	// The list of possibly common exported system include dirs.
+	//
+	// This field is exported as its contents may not be arch specific.
+	ExportedSystemIncludeDirs android.Paths
+
+	// The list of possibly common exported flags.
+	//
+	// This field is exported as its contents may not be arch specific.
+	ExportedFlags []string
 
 	// outputFile is not exported as it is always arch specific.
 	outputFile android.Path
