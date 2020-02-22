@@ -107,9 +107,14 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 // The members are first grouped by type and then grouped by name. The order of
 // the types is the order they are referenced in android.SdkMemberTypesRegistry.
 // The names are in the order in which the dependencies were added.
-func (s *sdk) collectMembers(ctx android.ModuleContext) []*sdkMember {
+//
+// Returns the members as well as the multilib setting to use.
+func (s *sdk) collectMembers(ctx android.ModuleContext) ([]*sdkMember, string) {
 	byType := make(map[android.SdkMemberType][]*sdkMember)
 	byName := make(map[string]*sdkMember)
+
+	lib32 := false // True if any of the members have 32 bit version.
+	lib64 := false // True if any of the members have 64 bit version.
 
 	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
@@ -122,12 +127,18 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) []*sdkMember {
 			}
 
 			name := ctx.OtherModuleName(child)
-
 			member := byName[name]
 			if member == nil {
 				member = &sdkMember{memberType: memberType, name: name}
 				byName[name] = member
 				byType[memberType] = append(byType[memberType], member)
+			}
+
+			multilib := child.Target().Arch.ArchType.Multilib
+			if multilib == "lib32" {
+				lib32 = true
+			} else if multilib == "lib64" {
+				lib64 = true
 			}
 
 			// Only append new variants to the list. This is needed because a member can be both
@@ -148,7 +159,17 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) []*sdkMember {
 		members = append(members, membersOfType...)
 	}
 
-	return members
+	// Compute the setting of multilib.
+	var multilib string
+	if lib32 && lib64 {
+		multilib = "both"
+	} else if lib32 {
+		multilib = "32"
+	} else if lib64 {
+		multilib = "64"
+	}
+
+	return members, multilib
 }
 
 func appendUniqueVariants(variants []android.SdkAware, newVariant android.SdkAware) []android.SdkAware {
@@ -207,7 +228,8 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	}
 	s.builderForTests = builder
 
-	for _, member := range s.collectMembers(ctx) {
+	members, multilib := s.collectMembers(ctx)
+	for _, member := range members {
 		member.memberType.BuildSnapshot(ctx, builder, member)
 	}
 
@@ -249,6 +271,16 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	}
 
 	addHostDeviceSupportedProperties(&s.ModuleBase, snapshotModule)
+
+	// Compile_multilib defaults to both and must always be set to both on the
+	// device and so only needs to be set when targeted at the host and is neither
+	// unspecified or both.
+	if s.HostSupported() && multilib != "" && multilib != "both" {
+		targetSet := snapshotModule.AddPropertySet("target")
+		hostSet := targetSet.AddPropertySet("host")
+		hostSet.AddProperty("compile_multilib", multilib)
+	}
+
 	for _, memberListProperty := range s.memberListProperties() {
 		names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
 		if len(names) > 0 {
