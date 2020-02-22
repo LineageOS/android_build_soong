@@ -16,6 +16,7 @@ package cc
 
 import (
 	"path/filepath"
+	"strings"
 
 	"android/soong/android"
 	"github.com/google/blueprint"
@@ -98,7 +99,23 @@ func (mt *binarySdkMemberType) organizeVariants(member android.SdkMember) *nativ
 
 func buildSharedNativeBinarySnapshot(info *nativeBinaryInfo, builder android.SnapshotBuilder, member android.SdkMember) {
 	pbm := builder.AddPrebuiltModule(member, "cc_prebuilt_binary")
-	pbm.AddProperty("compile_multilib", "both")
+	archVariantCount := len(info.archVariantProperties)
+
+	// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
+	var multilib string
+	if archVariantCount == 2 {
+		multilib = "both"
+	} else if archVariantCount == 1 {
+		if strings.HasSuffix(info.archVariantProperties[0].archType, "64") {
+			multilib = "64"
+		} else {
+			multilib = "32"
+		}
+	}
+	if multilib != "" {
+		pbm.AddProperty("compile_multilib", multilib)
+	}
+
 	archProperties := pbm.AddPropertySet("arch")
 	for _, av := range info.archVariantProperties {
 		archTypeProperties := archProperties.AddPropertySet(av.archType)
