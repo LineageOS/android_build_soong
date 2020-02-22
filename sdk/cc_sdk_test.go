@@ -749,3 +749,94 @@ include/Test.h -> include/include/Test.h
 `),
 	)
 }
+
+func TestHostSnapshotWithMultiLib64(t *testing.T) {
+	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
+	SkipIfNotLinux(t)
+
+	result := testSdkWithCc(t, `
+		module_exports {
+			name: "myexports",
+			device_supported: false,
+			host_supported: true,
+			target: {
+				host: {
+					compile_multilib: "64",
+				},
+			},
+			native_static_libs: ["mynativelib"],
+		}
+
+		cc_library_static {
+			name: "mynativelib",
+			device_supported: false,
+			host_supported: true,
+			srcs: [
+				"Test.cpp",
+				"aidl/foo/bar/Test.aidl",
+			],
+			export_include_dirs: ["include"],
+			aidl: {
+				export_aidl_headers: true,
+			},
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	result.CheckSnapshot("myexports", "linux_glibc_common", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_static {
+    name: "myexports_mynativelib@current",
+    sdk_member_name: "mynativelib",
+    device_supported: false,
+    host_supported: true,
+    export_include_dirs: ["include/include"],
+    arch: {
+        x86_64: {
+            srcs: ["x86_64/lib/mynativelib.a"],
+            export_include_dirs: ["x86_64/include_gen/mynativelib"],
+        },
+    },
+    stl: "none",
+    system_shared_libs: [],
+}
+
+cc_prebuilt_library_static {
+    name: "mynativelib",
+    prefer: false,
+    device_supported: false,
+    host_supported: true,
+    export_include_dirs: ["include/include"],
+    arch: {
+        x86_64: {
+            srcs: ["x86_64/lib/mynativelib.a"],
+            export_include_dirs: ["x86_64/include_gen/mynativelib"],
+        },
+    },
+    stl: "none",
+    system_shared_libs: [],
+}
+
+module_exports_snapshot {
+    name: "myexports@current",
+    device_supported: false,
+    host_supported: true,
+    target: {
+        host: {
+            compile_multilib: "64",
+        },
+    },
+    native_static_libs: ["myexports_mynativelib@current"],
+}`),
+		checkAllCopyRules(`
+include/Test.h -> include/include/Test.h
+.intermediates/mynativelib/linux_glibc_x86_64_static/mynativelib.a -> x86_64/lib/mynativelib.a
+.intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/Test.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/Test.h
+.intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BnTest.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
+.intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BpTest.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/BpTest.h
+`),
+	)
+}
