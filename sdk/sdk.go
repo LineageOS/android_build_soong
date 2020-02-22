@@ -320,10 +320,12 @@ func (t sdkMemberVersionedDepTag) ExcludeFromVisibilityEnforcement() {}
 // Step 1: create dependencies from an SDK module to its members.
 func memberMutator(mctx android.BottomUpMutatorContext) {
 	if s, ok := mctx.Module().(*sdk); ok {
-		for _, memberListProperty := range s.memberListProperties() {
-			names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
-			tag := memberListProperty.dependencyTag
-			memberListProperty.memberType.AddDependencies(mctx, tag, names)
+		if s.Enabled() {
+			for _, memberListProperty := range s.memberListProperties() {
+				names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
+				tag := memberListProperty.dependencyTag
+				memberListProperty.memberType.AddDependencies(mctx, tag, names)
+			}
 		}
 	}
 }
