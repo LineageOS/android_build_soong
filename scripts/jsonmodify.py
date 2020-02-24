@@ -112,9 +112,10 @@ def main():
 
   if args.out:
     with open(args.out, "w") as f:
-      json.dump(obj, f, indent=2)
+      json.dump(obj, f, indent=2, separators=(',', ': '))
+      f.write('\n')
   else:
-    print(json.dumps(obj, indent=2))
+    print(json.dumps(obj, indent=2, separators=(',', ': ')))
 
 
 if __name__ == '__main__':
