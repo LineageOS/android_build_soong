@@ -50,7 +50,7 @@ var (
 		"updatable-media",
 		"framework-mediaprovider",
 		"framework-sdkextensions",
-		"ike",
+		"android.net.ipsec.ike",
 	}
 )
 
