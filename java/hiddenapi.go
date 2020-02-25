@@ -28,9 +28,10 @@ var hiddenAPIGenerateCSVRule = pctx.AndroidStaticRule("hiddenAPIGenerateCSV", bl
 }, "outFlag", "stubAPIFlags")
 
 type hiddenAPI struct {
-	flagsCSVPath    android.Path
-	metadataCSVPath android.Path
 	bootDexJarPath  android.Path
+	flagsCSVPath    android.Path
+	indexCSVPath    android.Path
+	metadataCSVPath android.Path
 }
 
 func (h *hiddenAPI) flagsCSV() android.Path {
@@ -45,17 +46,21 @@ func (h *hiddenAPI) bootDexJar() android.Path {
 	return h.bootDexJarPath
 }
 
+func (h *hiddenAPI) indexCSV() android.Path {
+	return h.indexCSVPath
+}
+
 type hiddenAPIIntf interface {
-	flagsCSV() android.Path
-	metadataCSV() android.Path
 	bootDexJar() android.Path
+	flagsCSV() android.Path
+	indexCSV() android.Path
+	metadataCSV() android.Path
 }
 
 var _ hiddenAPIIntf = (*hiddenAPI)(nil)
 
-func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, dexJar android.ModuleOutPath, implementationJar android.Path,
-	uncompressDex bool) android.ModuleOutPath {
-
+func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, dexJar android.ModuleOutPath,
+	implementationJar android.Path, uncompressDex bool) android.ModuleOutPath {
 	if !ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
 		name := ctx.ModuleName()
 
@@ -77,9 +82,8 @@ func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, dexJar android.ModuleOu
 			// Derive the greylist from classes jar.
 			flagsCSV := android.PathForModuleOut(ctx, "hiddenapi", "flags.csv")
 			metadataCSV := android.PathForModuleOut(ctx, "hiddenapi", "metadata.csv")
-			hiddenAPIGenerateCSV(ctx, flagsCSV, metadataCSV, implementationJar)
-			h.flagsCSVPath = flagsCSV
-			h.metadataCSVPath = metadataCSV
+			indexCSV := android.PathForModuleOut(ctx, "hiddenapi", "index.csv")
+			h.hiddenAPIGenerateCSV(ctx, flagsCSV, metadataCSV, indexCSV, implementationJar)
 
 			// If this module is actually on the boot jars list and not providing
 			// hiddenapi information for a module on the boot jars list then encode
@@ -96,9 +100,7 @@ func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, dexJar android.ModuleOu
 	return dexJar
 }
 
-func hiddenAPIGenerateCSV(ctx android.ModuleContext, flagsCSV, metadataCSV android.WritablePath,
-	classesJar android.Path) {
-
+func (h *hiddenAPI) hiddenAPIGenerateCSV(ctx android.ModuleContext, flagsCSV, metadataCSV, indexCSV android.WritablePath, classesJar android.Path) {
 	stubFlagsCSV := hiddenAPISingletonPaths(ctx).stubFlags
 
 	ctx.Build(pctx, android.BuildParams{
@@ -112,6 +114,7 @@ func hiddenAPIGenerateCSV(ctx android.ModuleContext, flagsCSV, metadataCSV andro
 			"stubAPIFlags": stubFlagsCSV.String(),
 		},
 	})
+	h.flagsCSVPath = flagsCSV
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        hiddenAPIGenerateCSVRule,
@@ -124,18 +127,26 @@ func hiddenAPIGenerateCSV(ctx android.ModuleContext, flagsCSV, metadataCSV andro
 			"stubAPIFlags": stubFlagsCSV.String(),
 		},
 	})
+	h.metadataCSVPath = metadataCSV
 
+	rule := android.NewRuleBuilder()
+	rule.Command().
+		BuiltTool(ctx, "merge_csv").
+		FlagWithInput("--zip_input=", classesJar).
+		FlagWithOutput("--output=", indexCSV)
+	rule.Build(pctx, ctx, "merged-hiddenapi-index", "Merged Hidden API index")
+	h.indexCSVPath = indexCSV
 }
 
 var hiddenAPIEncodeDexRule = pctx.AndroidStaticRule("hiddenAPIEncodeDex", blueprint.RuleParams{
-	Command: `rm -rf $tmpDir && mkdir -p $tmpDir && mkdir $tmpDir/dex-input && mkdir $tmpDir/dex-output && ` +
-		`unzip -o -q $in 'classes*.dex' -d $tmpDir/dex-input && ` +
-		`for INPUT_DEX in $$(find $tmpDir/dex-input -maxdepth 1 -name 'classes*.dex' | sort); do ` +
-		`  echo "--input-dex=$${INPUT_DEX}"; ` +
-		`  echo "--output-dex=$tmpDir/dex-output/$$(basename $${INPUT_DEX})"; ` +
-		`done | xargs ${config.HiddenAPI} encode --api-flags=$flagsCsv $hiddenapiFlags && ` +
-		`${config.SoongZipCmd} $soongZipFlags -o $tmpDir/dex.jar -C $tmpDir/dex-output -f "$tmpDir/dex-output/classes*.dex" && ` +
-		`${config.MergeZipsCmd} -D -zipToNotStrip $tmpDir/dex.jar -stripFile "classes*.dex" $out $tmpDir/dex.jar $in`,
+	Command: `rm -rf $tmpDir && mkdir -p $tmpDir && mkdir $tmpDir/dex-input && mkdir $tmpDir/dex-output &&
+		unzip -o -q $in 'classes*.dex' -d $tmpDir/dex-input &&
+		for INPUT_DEX in $$(find $tmpDir/dex-input -maxdepth 1 -name 'classes*.dex' | sort); do
+		  echo "--input-dex=$${INPUT_DEX}";
+		  echo "--output-dex=$tmpDir/dex-output/$$(basename $${INPUT_DEX})";
+		done | xargs ${config.HiddenAPI} encode --api-flags=$flagsCsv $hiddenapiFlags &&
+		${config.SoongZipCmd} $soongZipFlags -o $tmpDir/dex.jar -C $tmpDir/dex-output -f "$tmpDir/dex-output/classes*.dex" &&
+		${config.MergeZipsCmd} -D -zipToNotStrip $tmpDir/dex.jar -stripFile "classes*.dex" -stripFile "**/*.uau" $out $tmpDir/dex.jar $in`,
 	CommandDeps: []string{
 		"${config.HiddenAPI}",
 		"${config.SoongZipCmd}",
