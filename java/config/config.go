@@ -48,7 +48,7 @@ var (
 		// TODO: Could this be all updatable bootclasspath jars?
 		"updatable-media",
 		"framework-sdkextensions",
-		"ike",
+		"android.net.ipsec.ike",
 	}
 )
 
