@@ -241,6 +241,9 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	unversionedTransformer := unversionedTransformation{builder: builder}
 
 	for _, unversioned := range builder.prebuiltOrder {
+		// Prune any empty property sets.
+		unversioned = unversioned.transform(pruneEmptySetTransformer{})
+
 		// Copy the unversioned module so it can be modified to make it versioned.
 		versioned := unversioned.deepCopy()
 
@@ -386,6 +389,20 @@ func (t unversionedTransformation) transformProperty(name string, value interfac
 		return t.builder.unversionedSdkMemberNames(value.([]string)), tag
 	} else {
 		return value, tag
+	}
+}
+
+type pruneEmptySetTransformer struct {
+	identityTransformation
+}
+
+var _ bpTransformer = (*pruneEmptySetTransformer)(nil)
+
+func (t pruneEmptySetTransformer) transformPropertySetAfterContents(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag) {
+	if len(propertySet.properties) == 0 {
+		return nil, nil
+	} else {
+		return propertySet, tag
 	}
 }
 
