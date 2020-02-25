@@ -1280,6 +1280,9 @@ type apexBundleProperties struct {
 	// rules for making sure that the APEX is truely updatable. This will also disable the size optimizations
 	// like symlinking to the system libs. Default is false.
 	Updatable *bool
+
+	// The minimum SDK version that this apex must be compatibile with.
+	Min_sdk_version *string
 }
 
 type apexTargetBundleProperties struct {
