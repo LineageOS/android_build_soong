@@ -2235,7 +2235,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						return true // track transitive dependencies
 					}
 				} else if java.IsJniDepTag(depTag) {
-					return true
+					// Because APK-in-APEX embeds jni_libs transitively, we don't need to track transitive deps
+					return false
 				} else if java.IsXmlPermissionsFileDepTag(depTag) {
 					if prebuilt, ok := child.(android.PrebuiltEtcModule); ok {
 						filesInfo = append(filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
