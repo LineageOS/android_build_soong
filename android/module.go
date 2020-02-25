@@ -449,6 +449,22 @@ type commonProperties struct {
 	HostOrDeviceSupported HostOrDeviceSupported `blueprint:"mutated"`
 	ArchSpecific          bool                  `blueprint:"mutated"`
 
+	// If set to true then a CommonOS variant will be created which will have dependencies
+	// on all its OsType specific variants. Used by sdk/module_exports to create a snapshot
+	// that covers all os and architecture variants.
+	//
+	// The OsType specific variants can be retrieved by calling
+	// GetOsSpecificVariantsOfCommonOSVariant
+	//
+	// Set at module initialization time by calling InitCommonOSAndroidMultiTargetsArchModule
+	CreateCommonOSVariant bool `blueprint:"mutated"`
+
+	// If set to true then this variant is the CommonOS variant that has dependencies on its
+	// OsType specific variants.
+	//
+	// Set by osMutator.
+	CommonOSVariant bool `blueprint:"mutated"`
+
 	SkipInstall bool `blueprint:"mutated"`
 
 	NamespaceExportedToMake bool `blueprint:"mutated"`
@@ -579,6 +595,14 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 func InitAndroidMultiTargetsArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib) {
 	InitAndroidArchModule(m, hod, defaultMultilib)
 	m.base().commonProperties.UseTargetVariants = false
+}
+
+// As InitAndroidMultiTargetsArchModule except it creates an additional CommonOS variant that
+// has dependencies on all the OsType specific variants.
+func InitCommonOSAndroidMultiTargetsArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib) {
+	InitAndroidArchModule(m, hod, defaultMultilib)
+	m.base().commonProperties.UseTargetVariants = false
+	m.base().commonProperties.CreateCommonOSVariant = true
 }
 
 // A ModuleBase object contains the properties that are common to all Android
@@ -770,6 +794,11 @@ func (m *ModuleBase) Arch() Arch {
 
 func (m *ModuleBase) ArchSpecific() bool {
 	return m.commonProperties.ArchSpecific
+}
+
+// True if the current variant is a CommonOS variant, false otherwise.
+func (m *ModuleBase) IsCommonOSVariant() bool {
+	return m.commonProperties.CommonOSVariant
 }
 
 func (m *ModuleBase) OsClassSupported() []OsClass {
@@ -1136,8 +1165,11 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	blueprintCtx.GetMissingDependencies()
 
 	// For the final GenerateAndroidBuildActions pass, require that all visited dependencies Soong modules and
-	// are enabled.
-	ctx.baseModuleContext.strictVisitDeps = true
+	// are enabled. Unless the module is a CommonOS variant which may have dependencies on disabled variants
+	// (because the dependencies are added before the modules are disabled). The
+	// GetOsSpecificVariantsOfCommonOSVariant(...) method will ensure that the disabled variants are
+	// ignored.
+	ctx.baseModuleContext.strictVisitDeps = !m.IsCommonOSVariant()
 
 	if ctx.config.captureBuild {
 		ctx.ruleParams = make(map[blueprint.Rule]blueprint.RuleParams)

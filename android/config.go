@@ -359,6 +359,9 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 		return Config{}, err
 	}
 
+	// Make the CommonOS OsType available for all products.
+	targets[CommonOS] = []Target{commonTargetMap[CommonOS.Name]}
+
 	var archConfig []archConfig
 	if Bool(config.Mega_device) {
 		archConfig = getMegaDeviceConfig()
