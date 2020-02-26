@@ -2889,9 +2889,19 @@ func TestApexWithApps(t *testing.T) {
 		cc_library_shared {
 			name: "libjni",
 			srcs: ["mylib.cpp"],
+			shared_libs: ["libfoo"],
 			stl: "none",
 			system_shared_libs: [],
 			apex_available: [ "myapex" ],
+			sdk_version: "current",
+		}
+
+		cc_library_shared {
+			name: "libfoo",
+			stl: "none",
+			system_shared_libs: [],
+			apex_available: [ "myapex" ],
+			sdk_version: "current",
 		}
 	`)
 
@@ -2902,16 +2912,19 @@ func TestApexWithApps(t *testing.T) {
 	ensureContains(t, copyCmds, "image.apex/app/AppFoo/AppFoo.apk")
 	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPriv/AppFooPriv.apk")
 
-	// JNI libraries are embedded inside APK
-	appZipRule := ctx.ModuleForTests("AppFoo", "android_common_myapex").Description("zip jni lib")
-	libjniOutput := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_shared_myapex").Module().(*cc.Module).OutputFile()
-	ensureListContains(t, appZipRule.Implicits.Strings(), libjniOutput.String())
-	// ... uncompressed
+	appZipRule := ctx.ModuleForTests("AppFoo", "android_common_myapex").Description("zip jni libs")
+	// JNI libraries are uncompressed
 	if args := appZipRule.Args["jarArgs"]; !strings.Contains(args, "-L 0") {
-		t.Errorf("jni lib is not uncompressed for AppFoo")
+		t.Errorf("jni libs are not uncompressed for AppFoo")
 	}
-	// ... and not directly inside the APEX
-	ensureNotContains(t, copyCmds, "image.apex/lib64/libjni.so")
+	// JNI libraries including transitive deps are
+	for _, jni := range []string{"libjni", "libfoo"} {
+		jniOutput := ctx.ModuleForTests(jni, "android_arm64_armv8-a_shared_myapex").Module().(*cc.Module).OutputFile()
+		// ... embedded inside APK (jnilibs.zip)
+		ensureListContains(t, appZipRule.Implicits.Strings(), jniOutput.String())
+		// ... and not directly inside the APEX
+		ensureNotContains(t, copyCmds, "image.apex/lib64/"+jni+".so")
+	}
 }
 
 func TestApexWithAppImports(t *testing.T) {
