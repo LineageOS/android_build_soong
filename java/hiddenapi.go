@@ -159,9 +159,21 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, 
 		tmpOutput = android.PathForModuleOut(ctx, "hiddenapi", "unaligned", "unaligned.jar")
 		tmpDir = android.PathForModuleOut(ctx, "hiddenapi", "unaligned")
 	}
+
+	enforceHiddenApiFlagsToAllMembers := true
 	// If frameworks/base doesn't exist we must be building with the 'master-art' manifest.
 	// Disable assertion that all methods/fields have hidden API flags assigned.
 	if !ctx.Config().FrameworksBaseDirExists(ctx) {
+		enforceHiddenApiFlagsToAllMembers = false
+	}
+	// b/149353192: when a module is instrumented, jacoco adds synthetic members
+	// $jacocoData and $jacocoInit. Since they don't exist when building the hidden API flags,
+	// don't complain when we don't find hidden API flags for the synthetic members.
+	if j, ok := ctx.Module().(*Library); ok && j.shouldInstrument(ctx) {
+		enforceHiddenApiFlagsToAllMembers = false
+	}
+
+	if !enforceHiddenApiFlagsToAllMembers {
 		hiddenapiFlags = "--no-force-assign-all"
 	}
 
