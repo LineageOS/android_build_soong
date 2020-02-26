@@ -15,7 +15,9 @@
 package android
 
 import (
+	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 )
 
@@ -25,6 +27,8 @@ type ApexInfo struct {
 
 	// Whether this apex variant needs to target Android 10
 	LegacyAndroid10Support bool
+
+	MinSdkVersion int
 }
 
 // ApexModule is the interface that a module type is expected to implement if
@@ -86,6 +90,13 @@ type ApexModule interface {
 	// DepIsInSameApex tests if the other module 'dep' is installed to the same
 	// APEX as this module
 	DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
+
+	// Returns the highest version which is <= min_sdk_version.
+	// For example, with min_sdk_version is 10 and versionList is [9,11]
+	// it returns 9.
+	ChooseSdkVersion(versionList []string, useLatest bool) (string, error)
+
+	ShouldSupportAndroid10() bool
 }
 
 type ApexProperties struct {
@@ -175,6 +186,24 @@ func (m *ApexModuleBase) DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
 	// unless B is explicitly from outside of the APEX (i.e. a stubs lib). Thus, returning true.
 	// This is overridden by some module types like apex.ApexBundle, cc.Module, java.Module, etc.
 	return true
+}
+
+func (m *ApexModuleBase) ChooseSdkVersion(versionList []string, useLatest bool) (string, error) {
+	if useLatest {
+		return versionList[len(versionList)-1], nil
+	}
+	minSdkVersion := m.ApexProperties.Info.MinSdkVersion
+	for i := range versionList {
+		ver, _ := strconv.Atoi(versionList[len(versionList)-i-1])
+		if ver <= minSdkVersion {
+			return versionList[len(versionList)-i-1], nil
+		}
+	}
+	return "", fmt.Errorf("min_sdk_version is set %v, but not found in %v", minSdkVersion, versionList)
+}
+
+func (m *ApexModuleBase) ShouldSupportAndroid10() bool {
+	return !m.IsForPlatform() && (m.ApexProperties.Info.MinSdkVersion <= 29 || m.ApexProperties.Info.LegacyAndroid10Support)
 }
 
 func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {

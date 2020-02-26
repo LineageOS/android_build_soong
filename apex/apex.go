@@ -19,6 +19,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -1042,9 +1043,11 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 	var apexBundles []android.ApexInfo
 	var directDep bool
 	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
+		minSdkVersion := a.minSdkVersion(mctx)
 		apexBundles = []android.ApexInfo{android.ApexInfo{
 			ApexName:               mctx.ModuleName(),
 			LegacyAndroid10Support: proptools.Bool(a.properties.Legacy_android10_support),
+			MinSdkVersion:          minSdkVersion,
 		}}
 		directDep = true
 	} else if am, ok := mctx.Module().(android.ApexModule); ok {
@@ -1992,6 +1995,18 @@ func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext,
 		// As soon as the dependency graph crosses the APEX boundary, don't go further.
 		return false
 	})
+}
+
+func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) int {
+	ver := proptools.StringDefault(a.properties.Min_sdk_version, "current")
+	if ver != "current" {
+		minSdkVersion, err := strconv.Atoi(ver)
+		if err != nil {
+			ctx.PropertyErrorf("min_sdk_version", "should be \"current\" or <number>, but %q", ver)
+		}
+		return minSdkVersion
+	}
+	return android.FutureApiLevel
 }
 
 // Ensures that the dependencies are marked as available for this APEX
