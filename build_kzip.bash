@@ -19,16 +19,20 @@ export KYTHE_KZIP_ENCODING
 # The extraction might fail for some source files, so run with -k and then check that
 # sufficiently many files were generated.
 declare -r out="${OUT_DIR:-out}"
+
 # Build extraction files for C++ and Java. Build `merge_zips` which we use later.
 build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k merge_zips xref_cxx xref_java
-#Build extraction file for Go files in build/soong directory.
+
+# Build extraction file for Go the files in build/{blueprint,soong} directories.
 declare -r abspath_out=$(realpath "${out}")
 declare -r go_extractor=$(realpath prebuilts/build-tools/linux-x86/bin/go_extractor)
 declare -r go_root=$(realpath prebuilts/go/linux-x86)
+declare -r vnames_path=$(realpath build/soong/vnames.go.json)
+declare -r source_root=$PWD
 for dir in blueprint soong; do
   (cd "build/$dir";
-   "$go_extractor" --goroot="$go_root" --rules=vnames.go.json --canonicalize_package_corpus \
-    --output "${abspath_out}/soong/build_${dir}.go.kzip" ./...
+   KYTHE_ROOT_DIRECTORY="${source_root}" "$go_extractor" --goroot="$go_root" --rules="${vnames_path}" \
+   --canonicalize_package_corpus --output "${abspath_out}/soong/build_${dir}.go.kzip" ./...
   )
 done
 
