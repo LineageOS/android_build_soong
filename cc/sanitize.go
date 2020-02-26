@@ -609,18 +609,18 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func (sanitize *sanitize) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+func (sanitize *sanitize) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	// Add a suffix for cfi/hwasan/scs-enabled static/header libraries to allow surfacing
 	// both the sanitized and non-sanitized variants to make without a name conflict.
-	if ret.Class == "STATIC_LIBRARIES" || ret.Class == "HEADER_LIBRARIES" {
+	if entries.Class == "STATIC_LIBRARIES" || entries.Class == "HEADER_LIBRARIES" {
 		if Bool(sanitize.Properties.Sanitize.Cfi) {
-			ret.SubName += ".cfi"
+			entries.SubName += ".cfi"
 		}
 		if Bool(sanitize.Properties.Sanitize.Hwaddress) {
-			ret.SubName += ".hwasan"
+			entries.SubName += ".hwasan"
 		}
 		if Bool(sanitize.Properties.Sanitize.Scs) {
-			ret.SubName += ".scs"
+			entries.SubName += ".scs"
 		}
 	}
 }
