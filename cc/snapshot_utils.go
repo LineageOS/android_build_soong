@@ -117,6 +117,17 @@ func copyFile(ctx android.SingletonContext, path android.Path, out string) andro
 	return outPath
 }
 
+func combineNotices(ctx android.SingletonContext, paths android.Paths, out string) android.OutputPath {
+	outPath := android.PathForOutput(ctx, out)
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        android.Cat,
+		Inputs:      paths,
+		Output:      outPath,
+		Description: "combine notices for " + out,
+	})
+	return outPath
+}
+
 func writeStringToFile(ctx android.SingletonContext, content, out string) android.OutputPath {
 	outPath := android.PathForOutput(ctx, out)
 	ctx.Build(pctx, android.BuildParams{

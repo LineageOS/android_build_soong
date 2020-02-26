@@ -236,8 +236,8 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 		}
 	}
 
-	if amod.noticeFile.Valid() {
-		a.SetString("LOCAL_NOTICE_FILE", amod.noticeFile.String())
+	if len(amod.noticeFiles) > 0 {
+		a.SetString("LOCAL_NOTICE_FILE", strings.Join(amod.noticeFiles.Strings(), " "))
 	}
 
 	if host {
