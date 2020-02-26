@@ -215,15 +215,15 @@ func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName st
 	noticeFiles := []android.Path{}
 	for _, f := range a.filesInfo {
 		if f.module != nil {
-			notice := f.module.NoticeFile()
-			if notice.Valid() {
-				noticeFiles = append(noticeFiles, notice.Path())
+			notices := f.module.NoticeFiles()
+			if len(notices) > 0 {
+				noticeFiles = append(noticeFiles, notices...)
 			}
 		}
 	}
 	// append the notice file specified in the apex module itself
-	if a.NoticeFile().Valid() {
-		noticeFiles = append(noticeFiles, a.NoticeFile().Path())
+	if len(a.NoticeFiles()) > 0 {
+		noticeFiles = append(noticeFiles, a.NoticeFiles()...)
 	}
 
 	if len(noticeFiles) == 0 {

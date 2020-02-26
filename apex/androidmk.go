@@ -120,8 +120,8 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 				fmt.Fprintln(w, "LOCAL_MODULE_SYMLINKS :=", strings.Join(fi.symlinks, " "))
 			}
 
-			if fi.module != nil && fi.module.NoticeFile().Valid() {
-				fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", fi.module.NoticeFile().Path().String())
+			if fi.module != nil && len(fi.module.NoticeFiles()) > 0 {
+				fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", strings.Join(fi.module.NoticeFiles().Strings(), " "))
 			}
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", pathWhenActivated)
