@@ -49,7 +49,7 @@ type TestBinaryProperties struct {
 
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test
-	Data []string `android:"path"`
+	Data []string `android:"path,arch_variant"`
 
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
