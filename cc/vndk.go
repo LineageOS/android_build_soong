@@ -644,13 +644,13 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		moduleNames[stem] = ctx.ModuleName(m)
 		modulePaths[stem] = ctx.ModuleDir(m)
 
-		if m.NoticeFile().Valid() {
+		if len(m.NoticeFiles()) > 0 {
 			noticeName := stem + ".txt"
 			// skip already copied notice file
 			if _, ok := noticeBuilt[noticeName]; !ok {
 				noticeBuilt[noticeName] = true
-				snapshotOutputs = append(snapshotOutputs, copyFile(
-					ctx, m.NoticeFile().Path(), filepath.Join(noticeDir, noticeName)))
+				snapshotOutputs = append(snapshotOutputs, combineNotices(
+					ctx, m.NoticeFiles(), filepath.Join(noticeDir, noticeName)))
 			}
 		}
 
