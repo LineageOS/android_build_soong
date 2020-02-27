@@ -53,6 +53,7 @@ type ModuleInstallPathContext interface {
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
+	InstallForceOS() *OsType
 }
 
 var _ ModuleInstallPathContext = ModuleContext(nil)
@@ -1205,22 +1206,40 @@ func (p InstallPath) ToMakePath() InstallPath {
 // PathForModuleInstall returns a Path representing the install path for the
 // module appended with paths...
 func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string) InstallPath {
+	os := ctx.Os()
+	if forceOS := ctx.InstallForceOS(); forceOS != nil {
+		os = *forceOS
+	}
+	partition := modulePartition(ctx, os)
+
+	ret := pathForInstall(ctx, os, partition, ctx.Debug(), pathComponents...)
+
+	if ctx.InstallBypassMake() && ctx.Config().EmbeddedInMake() {
+		ret = ret.ToMakePath()
+	}
+
+	return ret
+}
+
+func pathForInstall(ctx PathContext, os OsType, partition string, debug bool,
+	pathComponents ...string) InstallPath {
+
 	var outPaths []string
-	if ctx.Device() {
-		partition := modulePartition(ctx)
+
+	if os.Class == Device {
 		outPaths = []string{"target", "product", ctx.Config().DeviceName(), partition}
 	} else {
-		switch ctx.Os() {
+		switch os {
 		case Linux:
-			outPaths = []string{"host", "linux-x86"}
+			outPaths = []string{"host", "linux-x86", partition}
 		case LinuxBionic:
 			// TODO: should this be a separate top level, or shared with linux-x86?
-			outPaths = []string{"host", "linux_bionic-x86"}
+			outPaths = []string{"host", "linux_bionic-x86", partition}
 		default:
-			outPaths = []string{"host", ctx.Os().String() + "-x86"}
+			outPaths = []string{"host", os.String() + "-x86", partition}
 		}
 	}
-	if ctx.Debug() {
+	if debug {
 		outPaths = append([]string{"debug"}, outPaths...)
 	}
 	outPaths = append(outPaths, pathComponents...)
@@ -1231,9 +1250,6 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 	}
 
 	ret := InstallPath{basePath{path, ctx.Config(), ""}, ""}
-	if ctx.InstallBypassMake() && ctx.Config().EmbeddedInMake() {
-		ret = ret.ToMakePath()
-	}
 
 	return ret
 }
@@ -1253,45 +1269,74 @@ func InstallPathToOnDevicePath(ctx PathContext, path InstallPath) string {
 	return "/" + rel
 }
 
-func modulePartition(ctx ModuleInstallPathContext) string {
+func modulePartition(ctx ModuleInstallPathContext, os OsType) string {
 	var partition string
-	if ctx.InstallInData() {
-		partition = "data"
-	} else if ctx.InstallInTestcases() {
+	if ctx.InstallInTestcases() {
+		// "testcases" install directory can be used for host or device modules.
 		partition = "testcases"
-	} else if ctx.InstallInRamdisk() {
-		if ctx.DeviceConfig().BoardUsesRecoveryAsBoot() {
-			partition = "recovery/root/first_stage_ramdisk"
+	} else if os.Class == Device {
+		if ctx.InstallInData() {
+			partition = "data"
+		} else if ctx.InstallInRamdisk() {
+			if ctx.DeviceConfig().BoardUsesRecoveryAsBoot() {
+				partition = "recovery/root/first_stage_ramdisk"
+			} else {
+				partition = "ramdisk"
+			}
+			if !ctx.InstallInRoot() {
+				partition += "/system"
+			}
+		} else if ctx.InstallInRecovery() {
+			if ctx.InstallInRoot() {
+				partition = "recovery/root"
+			} else {
+				// the layout of recovery partion is the same as that of system partition
+				partition = "recovery/root/system"
+			}
+		} else if ctx.SocSpecific() {
+			partition = ctx.DeviceConfig().VendorPath()
+		} else if ctx.DeviceSpecific() {
+			partition = ctx.DeviceConfig().OdmPath()
+		} else if ctx.ProductSpecific() {
+			partition = ctx.DeviceConfig().ProductPath()
+		} else if ctx.SystemExtSpecific() {
+			partition = ctx.DeviceConfig().SystemExtPath()
+		} else if ctx.InstallInRoot() {
+			partition = "root"
 		} else {
-			partition = "ramdisk"
+			partition = "system"
 		}
-		if !ctx.InstallInRoot() {
-			partition += "/system"
+		if ctx.InstallInSanitizerDir() {
+			partition = "data/asan/" + partition
 		}
-	} else if ctx.InstallInRecovery() {
-		if ctx.InstallInRoot() {
-			partition = "recovery/root"
-		} else {
-			// the layout of recovery partion is the same as that of system partition
-			partition = "recovery/root/system"
-		}
-	} else if ctx.SocSpecific() {
-		partition = ctx.DeviceConfig().VendorPath()
-	} else if ctx.DeviceSpecific() {
-		partition = ctx.DeviceConfig().OdmPath()
-	} else if ctx.ProductSpecific() {
-		partition = ctx.DeviceConfig().ProductPath()
-	} else if ctx.SystemExtSpecific() {
-		partition = ctx.DeviceConfig().SystemExtPath()
-	} else if ctx.InstallInRoot() {
-		partition = "root"
-	} else {
-		partition = "system"
-	}
-	if ctx.InstallInSanitizerDir() {
-		partition = "data/asan/" + partition
 	}
 	return partition
+}
+
+type InstallPaths []InstallPath
+
+// Paths returns the InstallPaths as a Paths
+func (p InstallPaths) Paths() Paths {
+	if p == nil {
+		return nil
+	}
+	ret := make(Paths, len(p))
+	for i, path := range p {
+		ret[i] = path
+	}
+	return ret
+}
+
+// Strings returns the string forms of the install paths.
+func (p InstallPaths) Strings() []string {
+	if p == nil {
+		return nil
+	}
+	ret := make([]string, len(p))
+	for i, path := range p {
+		ret[i] = path.String()
+	}
+	return ret
 }
 
 // validateSafePath validates a path that we trust (may contain ninja variables).
