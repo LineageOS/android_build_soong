@@ -16,22 +16,23 @@ package dexpreopt
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
+
+	"github.com/google/blueprint"
 
 	"android/soong/android"
 )
 
 // GlobalConfig stores the configuration for dex preopting. The fields are set
-// from product variables via dex_preopt_config.mk, except for SoongConfig
-// which come from CreateGlobalSoongConfig.
+// from product variables via dex_preopt_config.mk.
 type GlobalConfig struct {
 	DisablePreopt        bool     // disable preopt for all modules
 	DisablePreoptModules []string // modules with preopt disabled by product-specific config
 
 	OnlyPreoptBootImageAndSystemServer bool // only preopt jars in the boot image or system server
 
-	GenerateApexImage bool // generate an extra boot image only containing jars from the runtime apex
-	UseApexImage      bool // use the apex image by default
+	UseArtImage bool // use the art image (use other boot class path dex files without image)
 
 	HasSystemOther        bool     // store odex files that match PatternsOnSystemOther on the system_other partition
 	PatternsOnSystemOther []string // patterns (using '%' to denote a prefix match) to put odex on the system_other partition
@@ -82,8 +83,6 @@ type GlobalConfig struct {
 	BootFlags         string               // extra flags to pass to dex2oat for the boot image
 	Dex2oatImageXmx   string               // max heap size for dex2oat for the boot image
 	Dex2oatImageXms   string               // initial heap size for dex2oat for the boot image
-
-	SoongConfig GlobalSoongConfig // settings read from dexpreopt_soong.config
 }
 
 // GlobalSoongConfig contains the global config that is generated from Soong,
@@ -179,14 +178,11 @@ func constructWritablePath(ctx android.PathContext, path string) android.Writabl
 	return constructPath(ctx, path).(android.WritablePath)
 }
 
-// LoadGlobalConfig reads the global dexpreopt.config file into a GlobalConfig
-// struct, except the SoongConfig field which is set from the provided
-// soongConfig argument. LoadGlobalConfig is used directly in Soong and in
-// dexpreopt_gen called from Make to read the $OUT/dexpreopt.config written by
-// Make.
-func LoadGlobalConfig(ctx android.PathContext, data []byte, soongConfig GlobalSoongConfig) (GlobalConfig, error) {
+// ParseGlobalConfig parses the given data assumed to be read from the global
+// dexpreopt.config file into a GlobalConfig struct.
+func ParseGlobalConfig(ctx android.PathContext, data []byte) (*GlobalConfig, error) {
 	type GlobalJSONConfig struct {
-		GlobalConfig
+		*GlobalConfig
 
 		// Copies of entries in GlobalConfig that are not constructable without extra parameters.  They will be
 		// used to construct the real value manually below.
@@ -204,19 +200,70 @@ func LoadGlobalConfig(ctx android.PathContext, data []byte, soongConfig GlobalSo
 	config.GlobalConfig.DirtyImageObjects = android.OptionalPathForPath(constructPath(ctx, config.DirtyImageObjects))
 	config.GlobalConfig.BootImageProfiles = constructPaths(ctx, config.BootImageProfiles)
 
-	// Set this here to force the caller to provide a value for this struct (from
-	// either CreateGlobalSoongConfig or LoadGlobalSoongConfig).
-	config.GlobalConfig.SoongConfig = soongConfig
-
 	return config.GlobalConfig, nil
 }
 
-// LoadModuleConfig reads a per-module dexpreopt.config file into a ModuleConfig struct.  It is not used in Soong, which
-// receives a ModuleConfig struct directly from java/dexpreopt.go.  It is used in dexpreopt_gen called from oMake to
-// read the module dexpreopt.config written by Make.
-func LoadModuleConfig(ctx android.PathContext, data []byte) (ModuleConfig, error) {
+type globalConfigAndRaw struct {
+	global *GlobalConfig
+	data   []byte
+}
+
+// GetGlobalConfig returns the global dexpreopt.config that's created in the
+// make config phase. It is loaded once the first time it is called for any
+// ctx.Config(), and returns the same data for all future calls with the same
+// ctx.Config(). A value can be inserted for tests using
+// setDexpreoptTestGlobalConfig.
+func GetGlobalConfig(ctx android.PathContext) *GlobalConfig {
+	return getGlobalConfigRaw(ctx).global
+}
+
+// GetGlobalConfigRawData is the same as GetGlobalConfig, except that it returns
+// the literal content of dexpreopt.config.
+func GetGlobalConfigRawData(ctx android.PathContext) []byte {
+	return getGlobalConfigRaw(ctx).data
+}
+
+var globalConfigOnceKey = android.NewOnceKey("DexpreoptGlobalConfig")
+var testGlobalConfigOnceKey = android.NewOnceKey("TestDexpreoptGlobalConfig")
+
+func getGlobalConfigRaw(ctx android.PathContext) globalConfigAndRaw {
+	return ctx.Config().Once(globalConfigOnceKey, func() interface{} {
+		if data, err := ctx.Config().DexpreoptGlobalConfig(ctx); err != nil {
+			panic(err)
+		} else if data != nil {
+			globalConfig, err := ParseGlobalConfig(ctx, data)
+			if err != nil {
+				panic(err)
+			}
+			return globalConfigAndRaw{globalConfig, data}
+		}
+
+		// No global config filename set, see if there is a test config set
+		return ctx.Config().Once(testGlobalConfigOnceKey, func() interface{} {
+			// Nope, return a config with preopting disabled
+			return globalConfigAndRaw{&GlobalConfig{
+				DisablePreopt:          true,
+				DisableGenerateProfile: true,
+			}, nil}
+		})
+	}).(globalConfigAndRaw)
+}
+
+// SetTestGlobalConfig sets a GlobalConfig that future calls to GetGlobalConfig
+// will return. It must be called before the first call to GetGlobalConfig for
+// the config.
+func SetTestGlobalConfig(config android.Config, globalConfig *GlobalConfig) {
+	config.Once(testGlobalConfigOnceKey, func() interface{} { return globalConfigAndRaw{globalConfig, nil} })
+}
+
+// ParseModuleConfig parses a per-module dexpreopt.config file into a
+// ModuleConfig struct. It is not used in Soong, which receives a ModuleConfig
+// struct directly from java/dexpreopt.go. It is used in dexpreopt_gen called
+// from Make to read the module dexpreopt.config written in the Make config
+// stage.
+func ParseModuleConfig(ctx android.PathContext, data []byte) (*ModuleConfig, error) {
 	type ModuleJSONConfig struct {
-		ModuleConfig
+		*ModuleConfig
 
 		// Copies of entries in ModuleConfig that are not constructable without extra parameters.  They will be
 		// used to construct the real value manually below.
@@ -253,27 +300,110 @@ func LoadModuleConfig(ctx android.PathContext, data []byte) (ModuleConfig, error
 	return config.ModuleConfig, nil
 }
 
-// CreateGlobalSoongConfig creates a GlobalSoongConfig from the current context.
-// Should not be used in dexpreopt_gen.
-func CreateGlobalSoongConfig(ctx android.PathContext) GlobalSoongConfig {
-	// Default to debug version to help find bugs.
+// dex2oatModuleName returns the name of the module to use for the dex2oat host
+// tool. It should be a binary module with public visibility that is compiled
+// and installed for host.
+func dex2oatModuleName(config android.Config) string {
+	// Default to the debug variant of dex2oat to help find bugs.
 	// Set USE_DEX2OAT_DEBUG to false for only building non-debug versions.
-	var dex2oatBinary string
-	if ctx.Config().Getenv("USE_DEX2OAT_DEBUG") == "false" {
-		dex2oatBinary = "dex2oat"
+	if config.Getenv("USE_DEX2OAT_DEBUG") == "false" {
+		return "dex2oat"
 	} else {
-		dex2oatBinary = "dex2oatd"
+		return "dex2oatd"
+	}
+}
+
+var dex2oatDepTag = struct {
+	blueprint.BaseDependencyTag
+}{}
+
+// RegisterToolDeps adds the necessary dependencies to binary modules for tools
+// that are required later when Get(Cached)GlobalSoongConfig is called. It
+// should be called from a mutator that's registered with
+// android.RegistrationContext.FinalDepsMutators.
+func RegisterToolDeps(ctx android.BottomUpMutatorContext) {
+	dex2oatBin := dex2oatModuleName(ctx.Config())
+	v := ctx.Config().BuildOSTarget.Variations()
+	ctx.AddFarVariationDependencies(v, dex2oatDepTag, dex2oatBin)
+}
+
+func dex2oatPathFromDep(ctx android.ModuleContext) android.Path {
+	dex2oatBin := dex2oatModuleName(ctx.Config())
+
+	dex2oatModule := ctx.GetDirectDepWithTag(dex2oatBin, dex2oatDepTag)
+	if dex2oatModule == nil {
+		// If this happens there's probably a missing call to AddToolDeps in DepsMutator.
+		panic(fmt.Sprintf("Failed to lookup %s dependency", dex2oatBin))
 	}
 
-	return GlobalSoongConfig{
+	dex2oatPath := dex2oatModule.(android.HostToolProvider).HostToolPath()
+	if !dex2oatPath.Valid() {
+		panic(fmt.Sprintf("Failed to find host tool path in %s", dex2oatModule))
+	}
+
+	return dex2oatPath.Path()
+}
+
+// createGlobalSoongConfig creates a GlobalSoongConfig from the current context.
+// Should not be used in dexpreopt_gen.
+func createGlobalSoongConfig(ctx android.ModuleContext) *GlobalSoongConfig {
+	if ctx.Config().TestProductVariables != nil {
+		// If we're called in a test there'll be a confusing error from the path
+		// functions below that gets reported without a stack trace, so let's panic
+		// properly with a more helpful message.
+		panic("This should not be called from tests. Please call GlobalSoongConfigForTests somewhere in the test setup.")
+	}
+
+	return &GlobalSoongConfig{
 		Profman:          ctx.Config().HostToolPath(ctx, "profman"),
-		Dex2oat:          ctx.Config().HostToolPath(ctx, dex2oatBinary),
+		Dex2oat:          dex2oatPathFromDep(ctx),
 		Aapt:             ctx.Config().HostToolPath(ctx, "aapt"),
 		SoongZip:         ctx.Config().HostToolPath(ctx, "soong_zip"),
 		Zip2zip:          ctx.Config().HostToolPath(ctx, "zip2zip"),
 		ManifestCheck:    ctx.Config().HostToolPath(ctx, "manifest_check"),
 		ConstructContext: android.PathForSource(ctx, "build/make/core/construct_context.sh"),
 	}
+}
+
+// The main reason for this Once cache for GlobalSoongConfig is to make the
+// dex2oat path available to singletons. In ordinary modules we get it through a
+// dex2oatDepTag dependency, but in singletons there's no simple way to do the
+// same thing and ensure the right variant is selected, hence this cache to make
+// the resolved path available to singletons. This means we depend on there
+// being at least one ordinary module with a dex2oatDepTag dependency.
+//
+// TODO(b/147613152): Implement a way to deal with dependencies from singletons,
+// and then possibly remove this cache altogether (but the use in
+// GlobalSoongConfigForTests also needs to be rethought).
+var globalSoongConfigOnceKey = android.NewOnceKey("DexpreoptGlobalSoongConfig")
+
+// GetGlobalSoongConfig creates a GlobalSoongConfig the first time it's called,
+// and later returns the same cached instance.
+func GetGlobalSoongConfig(ctx android.ModuleContext) *GlobalSoongConfig {
+	globalSoong := ctx.Config().Once(globalSoongConfigOnceKey, func() interface{} {
+		return createGlobalSoongConfig(ctx)
+	}).(*GlobalSoongConfig)
+
+	// Always resolve the tool path from the dependency, to ensure that every
+	// module has the dependency added properly.
+	myDex2oat := dex2oatPathFromDep(ctx)
+	if myDex2oat != globalSoong.Dex2oat {
+		panic(fmt.Sprintf("Inconsistent dex2oat path in cached config: expected %s, got %s", globalSoong.Dex2oat, myDex2oat))
+	}
+
+	return globalSoong
+}
+
+// GetCachedGlobalSoongConfig returns a cached GlobalSoongConfig created by an
+// earlier GetGlobalSoongConfig call. This function works with any context
+// compatible with a basic PathContext, since it doesn't try to create a
+// GlobalSoongConfig with the proper paths (which requires a full
+// ModuleContext). If there has been no prior call to GetGlobalSoongConfig, nil
+// is returned.
+func GetCachedGlobalSoongConfig(ctx android.PathContext) *GlobalSoongConfig {
+	return ctx.Config().Once(globalSoongConfigOnceKey, func() interface{} {
+		return (*GlobalSoongConfig)(nil)
+	}).(*GlobalSoongConfig)
 }
 
 type globalJsonSoongConfig struct {
@@ -286,17 +416,18 @@ type globalJsonSoongConfig struct {
 	ConstructContext string
 }
 
-// LoadGlobalSoongConfig reads the dexpreopt_soong.config file into a
-// GlobalSoongConfig struct. It is only used in dexpreopt_gen.
-func LoadGlobalSoongConfig(ctx android.PathContext, data []byte) (GlobalSoongConfig, error) {
+// ParseGlobalSoongConfig parses the given data assumed to be read from the
+// global dexpreopt_soong.config file into a GlobalSoongConfig struct. It is
+// only used in dexpreopt_gen.
+func ParseGlobalSoongConfig(ctx android.PathContext, data []byte) (*GlobalSoongConfig, error) {
 	var jc globalJsonSoongConfig
 
 	err := json.Unmarshal(data, &jc)
 	if err != nil {
-		return GlobalSoongConfig{}, err
+		return &GlobalSoongConfig{}, err
 	}
 
-	config := GlobalSoongConfig{
+	config := &GlobalSoongConfig{
 		Profman:          constructPath(ctx, jc.Profman),
 		Dex2oat:          constructPath(ctx, jc.Dex2oat),
 		Aapt:             constructPath(ctx, jc.Aapt),
@@ -310,7 +441,17 @@ func LoadGlobalSoongConfig(ctx android.PathContext, data []byte) (GlobalSoongCon
 }
 
 func (s *globalSoongConfigSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	config := CreateGlobalSoongConfig(ctx)
+	if GetGlobalConfig(ctx).DisablePreopt {
+		return
+	}
+
+	config := GetCachedGlobalSoongConfig(ctx)
+	if config == nil {
+		// No module has enabled dexpreopting, so we assume there will be no calls
+		// to dexpreopt_gen.
+		return
+	}
+
 	jc := globalJsonSoongConfig{
 		Profman:          config.Profman.String(),
 		Dex2oat:          config.Dex2oat.String(),
@@ -337,7 +478,14 @@ func (s *globalSoongConfigSingleton) GenerateBuildActions(ctx android.SingletonC
 }
 
 func (s *globalSoongConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
-	config := CreateGlobalSoongConfig(ctx)
+	if GetGlobalConfig(ctx).DisablePreopt {
+		return
+	}
+
+	config := GetCachedGlobalSoongConfig(ctx)
+	if config == nil {
+		return
+	}
 
 	ctx.Strict("DEX2OAT", config.Dex2oat.String())
 	ctx.Strict("DEXPREOPT_GEN_DEPS", strings.Join([]string{
@@ -351,8 +499,8 @@ func (s *globalSoongConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
 	}, " "))
 }
 
-func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
-	return GlobalConfig{
+func GlobalConfigForTests(ctx android.PathContext) *GlobalConfig {
+	return &GlobalConfig{
 		DisablePreopt:                      false,
 		DisablePreoptModules:               nil,
 		OnlyPreoptBootImageAndSystemServer: false,
@@ -390,7 +538,14 @@ func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
 		BootFlags:                          "",
 		Dex2oatImageXmx:                    "",
 		Dex2oatImageXms:                    "",
-		SoongConfig: GlobalSoongConfig{
+	}
+}
+
+func GlobalSoongConfigForTests(config android.Config) *GlobalSoongConfig {
+	// Install the test GlobalSoongConfig in the Once cache so that later calls to
+	// Get(Cached)GlobalSoongConfig returns it without trying to create a real one.
+	return config.Once(globalSoongConfigOnceKey, func() interface{} {
+		return &GlobalSoongConfig{
 			Profman:          android.PathForTesting("profman"),
 			Dex2oat:          android.PathForTesting("dex2oat"),
 			Aapt:             android.PathForTesting("aapt"),
@@ -398,6 +553,6 @@ func GlobalConfigForTests(ctx android.PathContext) GlobalConfig {
 			Zip2zip:          android.PathForTesting("zip2zip"),
 			ManifestCheck:    android.PathForTesting("manifest_check"),
 			ConstructContext: android.PathForTesting("construct_context.sh"),
-		},
-	}
+		}
+	}).(*GlobalSoongConfig)
 }

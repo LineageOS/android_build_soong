@@ -112,7 +112,9 @@ func createTrebleRules() []Rule {
 
 		// TODO(b/67974785): always enforce the manifest
 		NeverAllow().
-			Without("name", "libhidltransport-impl-internal").
+			Without("name", "libhidlbase-combined-impl").
+			Without("name", "libhidlbase").
+			Without("name", "libhidlbase_pgo").
 			With("product_variables.enforce_vintf_manifest.cflags", "*").
 			Because("manifest enforcement should be independent of ."),
 
@@ -414,8 +416,8 @@ func (r *rule) String() string {
 }
 
 func (r *rule) appliesToPath(dir string) bool {
-	includePath := len(r.paths) == 0 || hasAnyPrefix(dir, r.paths)
-	excludePath := hasAnyPrefix(dir, r.unlessPaths)
+	includePath := len(r.paths) == 0 || HasAnyPrefix(dir, r.paths)
+	excludePath := HasAnyPrefix(dir, r.unlessPaths)
 	return includePath && !excludePath
 }
 
@@ -479,15 +481,6 @@ func fieldNamesForProperties(propertyNames string) []string {
 		names[i] = proptools.FieldNameForProperty(v)
 	}
 	return names
-}
-
-func hasAnyPrefix(s string, prefixes []string) bool {
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(s, prefix) {
-			return true
-		}
-	}
-	return false
 }
 
 func hasAnyProperty(properties []interface{}, props []ruleProperty) bool {

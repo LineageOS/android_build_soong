@@ -42,7 +42,11 @@ func (a *apexBundle) AndroidMk() android.AndroidMkData {
 		}}
 }
 
-func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) []string {
+func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, moduleDir string) []string {
+	// apexBundleName comes from the 'name' property; apexName comes from 'apex_name' property.
+	// An apex is installed to /system/apex/<apexBundleName> and is activated at /apex/<apexName>
+	// In many cases, the two names are the same, but could be different in general.
+
 	moduleNames := []string{}
 	apexType := a.properties.ApexType
 	// To avoid creating duplicate build rules, run this function only when primaryApexType is true
@@ -52,12 +56,21 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 		return moduleNames
 	}
 
+	// b/140136207. When there are overriding APEXes for a VNDK APEX, the symbols file for the overridden
+	// APEX and the overriding APEX will have the same installation paths at /apex/com.android.vndk.v<ver>
+	// as their apexName will be the same. To avoid the path conflicts, skip installing the symbol files
+	// for the overriding VNDK APEXes.
+	symbolFilesNotNeeded := a.vndkApex && len(a.overridableProperties.Overrides) > 0
+	if symbolFilesNotNeeded && apexType != flattenedApex {
+		return moduleNames
+	}
+
 	var postInstallCommands []string
 	for _, fi := range a.filesInfo {
 		if a.linkToSystemLib && fi.transitiveDep && fi.AvailableToPlatform() {
 			// TODO(jiyong): pathOnDevice should come from fi.module, not being calculated here
 			linkTarget := filepath.Join("/system", fi.Path())
-			linkPath := filepath.Join(a.installDir.ToMakePath().String(), apexName, fi.Path())
+			linkPath := filepath.Join(a.installDir.ToMakePath().String(), apexBundleName, fi.Path())
 			mkdirCmd := "mkdir -p " + filepath.Dir(linkPath)
 			linkCmd := "ln -sfn " + linkTarget + " " + linkPath
 			postInstallCommands = append(postInstallCommands, mkdirCmd, linkCmd)
@@ -75,7 +88,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 		if linkToSystemLib {
 			moduleName = fi.moduleName
 		} else {
-			moduleName = fi.moduleName + "." + apexName + a.suffix
+			moduleName = fi.moduleName + "." + apexBundleName + a.suffix
 		}
 
 		if !android.InList(moduleName, moduleNames) {
@@ -99,16 +112,16 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 		if apexType == flattenedApex {
 			// /system/apex/<name>/{lib|framework|...}
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join(a.installDir.ToMakePath().String(),
-				apexName, fi.installDir))
-			if a.primaryApexType {
+				apexBundleName, fi.installDir))
+			if a.primaryApexType && !symbolFilesNotNeeded {
 				fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
 			}
 			if len(fi.symlinks) > 0 {
 				fmt.Fprintln(w, "LOCAL_MODULE_SYMLINKS :=", strings.Join(fi.symlinks, " "))
 			}
 
-			if fi.module != nil && fi.module.NoticeFile().Valid() {
-				fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", fi.module.NoticeFile().Path().String())
+			if fi.module != nil && len(fi.module.NoticeFiles()) > 0 {
+				fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", strings.Join(fi.module.NoticeFiles().Strings(), " "))
 			}
 		} else {
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", pathWhenActivated)
@@ -204,6 +217,12 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexName, moduleDir string) 
 			}
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 		}
+
+		// m <module_name> will build <module_name>.<apex_name> as well.
+		if fi.moduleName != moduleName && a.primaryApexType {
+			fmt.Fprintln(w, ".PHONY: "+fi.moduleName)
+			fmt.Fprintln(w, fi.moduleName+": "+moduleName)
+		}
 	}
 	return moduleNames
 }
@@ -236,7 +255,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 			apexType := a.properties.ApexType
 			if a.installable() {
 				apexName := proptools.StringDefault(a.properties.Apex_name, name)
-				moduleNames = a.androidMkForFiles(w, apexName, moduleDir)
+				moduleNames = a.androidMkForFiles(w, name, apexName, moduleDir)
 			}
 
 			if apexType == flattenedApex {

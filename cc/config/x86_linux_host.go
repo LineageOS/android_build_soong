@@ -234,7 +234,7 @@ func (t *toolchainLinuxX8664) YasmFlags() string {
 }
 
 func (toolchainLinuxX86) LibclangRuntimeLibraryArch() string {
-	return "i686"
+	return "i386"
 }
 
 func (toolchainLinuxX8664) LibclangRuntimeLibraryArch() string {

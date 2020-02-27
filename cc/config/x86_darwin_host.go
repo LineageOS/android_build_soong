@@ -100,7 +100,7 @@ func init() {
 	pctx.VariableFunc("macSdkRoot", func(ctx android.PackageVarContext) string {
 		return xcrunSdk(ctx, "--show-sdk-path")
 	})
-	pctx.StaticVariable("macMinVersion", "10.8")
+	pctx.StaticVariable("macMinVersion", "10.10")
 	pctx.VariableFunc("MacArPath", func(ctx android.PackageVarContext) string {
 		return xcrun(ctx, "--find", "ar")
 	})

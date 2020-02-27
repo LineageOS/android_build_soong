@@ -534,6 +534,9 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		ctx.AddMissingDependencies(sdkDep.java9Classpath)
 	} else if sdkDep.useFiles {
 		deps.bootClasspath = append(deps.bootClasspath, sdkDep.jars...)
+		deps.aidlPreprocess = sdkDep.aidl
+	} else {
+		deps.aidlPreprocess = sdkDep.aidl
 	}
 
 	ctx.VisitDirectDeps(func(module android.Module) {
@@ -544,10 +547,10 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		case bootClasspathTag:
 			if dep, ok := module.(Dependency); ok {
 				deps.bootClasspath = append(deps.bootClasspath, dep.ImplementationJars()...)
-			} else if sm, ok := module.(*SystemModules); ok {
+			} else if sm, ok := module.(SystemModulesProvider); ok {
 				// A system modules dependency has been added to the bootclasspath
 				// so add its libs to the bootclasspath.
-				deps.bootClasspath = append(deps.bootClasspath, sm.headerJars...)
+				deps.bootClasspath = append(deps.bootClasspath, sm.HeaderJars()...)
 			} else {
 				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
 			}
@@ -575,11 +578,9 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			if deps.systemModules != nil {
 				panic("Found two system module dependencies")
 			}
-			sm := module.(*SystemModules)
-			if sm.outputDir == nil && len(sm.outputDeps) == 0 {
-				panic("Missing directory for system module dependency")
-			}
-			deps.systemModules = &systemModules{sm.outputDir, sm.outputDeps}
+			sm := module.(SystemModulesProvider)
+			outputDir, outputDeps := sm.OutputDirAndDeps()
+			deps.systemModules = &systemModules{outputDir, outputDeps}
 		}
 	})
 	// do not pass exclude_srcs directly when expanding srcFiles since exclude_srcs
@@ -602,11 +603,8 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 				continue
 			}
 			packageName := strings.ReplaceAll(filepath.Dir(src.Rel()), "/", ".")
-			for _, pkg := range filterPackages {
-				if strings.HasPrefix(packageName, pkg) {
-					filtered = append(filtered, src)
-					break
-				}
+			if android.HasAnyPrefix(packageName, filterPackages) {
+				filtered = append(filtered, src)
 			}
 		}
 		return filtered

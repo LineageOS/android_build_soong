@@ -183,7 +183,6 @@ func RegisterLibraryBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_library", LibraryFactory)
 	ctx.RegisterModuleType("cc_library_host_static", LibraryHostStaticFactory)
 	ctx.RegisterModuleType("cc_library_host_shared", LibraryHostSharedFactory)
-	ctx.RegisterModuleType("cc_library_headers", LibraryHeaderFactory)
 }
 
 // cc_library creates both static and/or shared libraries for a device and/or
@@ -233,16 +232,6 @@ func LibraryHostSharedFactory() android.Module {
 	return module.Init()
 }
 
-// cc_library_headers contains a set of c/c++ headers which are imported by
-// other soong cc modules using the header_libs property. For best practices,
-// use export_include_dirs property or LOCAL_EXPORT_C_INCLUDE_DIRS for
-// Make.
-func LibraryHeaderFactory() android.Module {
-	module, library := NewLibrary(android.HostAndDeviceSupported)
-	library.HeaderOnly()
-	return module.Init()
-}
-
 type flagExporter struct {
 	Properties FlagExporterProperties
 
@@ -281,11 +270,9 @@ func (f *flagExporter) reexportSystemDirs(dirs ...android.Path) {
 }
 
 func (f *flagExporter) reexportFlags(flags ...string) {
-	for _, flag := range flags {
-		if strings.HasPrefix(flag, "-I") || strings.HasPrefix(flag, "-isystem") {
-			panic(fmt.Errorf("Exporting invalid flag %q: "+
-				"use reexportDirs or reexportSystemDirs to export directories", flag))
-		}
+	if android.PrefixInList(flags, "-I") || android.PrefixInList(flags, "-isystem") {
+		panic(fmt.Errorf("Exporting invalid flag %q: "+
+			"use reexportDirs or reexportSystemDirs to export directories", flag))
 	}
 	f.flags = append(f.flags, flags...)
 }
@@ -1316,22 +1303,28 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 	if cc_prebuilt {
 		library := mctx.Module().(*Module).linker.(prebuiltLibraryInterface)
 
-		// Always create both the static and shared variants for prebuilt libraries, and then disable the one
-		// that is not being used.  This allows them to share the name of a cc_library module, which requires that
-		// all the variants of the cc_library also exist on the prebuilt.
-		modules := mctx.CreateLocalVariations("static", "shared")
-		static := modules[0].(*Module)
-		shared := modules[1].(*Module)
+		// Differentiate between header only and building an actual static/shared library
+		if library.buildStatic() || library.buildShared() {
+			// Always create both the static and shared variants for prebuilt libraries, and then disable the one
+			// that is not being used.  This allows them to share the name of a cc_library module, which requires that
+			// all the variants of the cc_library also exist on the prebuilt.
+			modules := mctx.CreateLocalVariations("static", "shared")
+			static := modules[0].(*Module)
+			shared := modules[1].(*Module)
 
-		static.linker.(prebuiltLibraryInterface).setStatic()
-		shared.linker.(prebuiltLibraryInterface).setShared()
+			static.linker.(prebuiltLibraryInterface).setStatic()
+			shared.linker.(prebuiltLibraryInterface).setShared()
 
-		if !library.buildStatic() {
-			static.linker.(prebuiltLibraryInterface).disablePrebuilt()
+			if !library.buildStatic() {
+				static.linker.(prebuiltLibraryInterface).disablePrebuilt()
+			}
+			if !library.buildShared() {
+				shared.linker.(prebuiltLibraryInterface).disablePrebuilt()
+			}
+		} else {
+			// Header only
 		}
-		if !library.buildShared() {
-			shared.linker.(prebuiltLibraryInterface).disablePrebuilt()
-		}
+
 	} else if library, ok := mctx.Module().(LinkableInterface); ok && library.CcLibraryInterface() {
 
 		// Non-cc.Modules may need an empty variant for their mutators.

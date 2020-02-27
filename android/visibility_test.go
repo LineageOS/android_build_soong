@@ -1,15 +1,17 @@
 package android
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/google/blueprint"
 )
 
 var visibilityTests = []struct {
-	name           string
-	fs             map[string][]byte
-	expectedErrors []string
+	name                string
+	fs                  map[string][]byte
+	expectedErrors      []string
+	effectiveVisibility map[qualifiedModuleName][]string
 }{
 	{
 		name: "invalid visibility: empty list",
@@ -493,6 +495,9 @@ var visibilityTests = []struct {
 					deps: ["libexample"],
 				}`),
 		},
+		effectiveVisibility: map[qualifiedModuleName][]string{
+			qualifiedModuleName{pkg: "top", name: "libexample"}: {"//visibility:public"},
+		},
 	},
 	{
 		name: "//visibility:public mixed with other from different defaults 1",
@@ -903,10 +908,24 @@ var visibilityTests = []struct {
 func TestVisibility(t *testing.T) {
 	for _, test := range visibilityTests {
 		t.Run(test.name, func(t *testing.T) {
-			_, errs := testVisibility(buildDir, test.fs)
+			ctx, errs := testVisibility(buildDir, test.fs)
 
 			CheckErrorsAgainstExpectations(t, errs, test.expectedErrors)
+
+			if test.effectiveVisibility != nil {
+				checkEffectiveVisibility(t, ctx, test.effectiveVisibility)
+			}
 		})
+	}
+}
+
+func checkEffectiveVisibility(t *testing.T, ctx *TestContext, effectiveVisibility map[qualifiedModuleName][]string) {
+	for moduleName, expectedRules := range effectiveVisibility {
+		rule := effectiveVisibilityRules(ctx.config, moduleName)
+		stringRules := rule.Strings()
+		if !reflect.DeepEqual(expectedRules, stringRules) {
+			t.Errorf("effective rules mismatch: expected %q, found %q", expectedRules, stringRules)
+		}
 	}
 }
 

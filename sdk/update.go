@@ -105,24 +105,28 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 // Collect all the members.
 //
 // The members are first grouped by type and then grouped by name. The order of
-// the types is the order they are referenced in android.SdkMemberTypes. The
-// names are in order in which the dependencies were added.
-func (s *sdk) collectMembers(ctx android.ModuleContext) []*sdkMember {
+// the types is the order they are referenced in android.SdkMemberTypesRegistry.
+// The names are in the order in which the dependencies were added.
+//
+// Returns the members as well as the multilib setting to use.
+func (s *sdk) collectMembers(ctx android.ModuleContext) ([]*sdkMember, string) {
 	byType := make(map[android.SdkMemberType][]*sdkMember)
 	byName := make(map[string]*sdkMember)
 
-	ctx.VisitDirectDeps(func(m android.Module) {
-		tag := ctx.OtherModuleDependencyTag(m)
+	lib32 := false // True if any of the members have 32 bit version.
+	lib64 := false // True if any of the members have 64 bit version.
+
+	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
+		tag := ctx.OtherModuleDependencyTag(child)
 		if memberTag, ok := tag.(android.SdkMemberTypeDependencyTag); ok {
 			memberType := memberTag.SdkMemberType()
 
 			// Make sure that the resolved module is allowed in the member list property.
-			if !memberType.IsInstance(m) {
-				ctx.ModuleErrorf("module %q is not valid in property %s", ctx.OtherModuleName(m), memberType.SdkPropertyName())
+			if !memberType.IsInstance(child) {
+				ctx.ModuleErrorf("module %q is not valid in property %s", ctx.OtherModuleName(child), memberType.SdkPropertyName())
 			}
 
-			name := ctx.OtherModuleName(m)
-
+			name := ctx.OtherModuleName(child)
 			member := byName[name]
 			if member == nil {
 				member = &sdkMember{memberType: memberType, name: name}
@@ -130,17 +134,51 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) []*sdkMember {
 				byType[memberType] = append(byType[memberType], member)
 			}
 
-			member.variants = append(member.variants, m.(android.SdkAware))
+			multilib := child.Target().Arch.ArchType.Multilib
+			if multilib == "lib32" {
+				lib32 = true
+			} else if multilib == "lib64" {
+				lib64 = true
+			}
+
+			// Only append new variants to the list. This is needed because a member can be both
+			// exported by the sdk and also be a transitive sdk member.
+			member.variants = appendUniqueVariants(member.variants, child.(android.SdkAware))
+
+			// If the member type supports transitive sdk members then recurse down into
+			// its dependencies, otherwise exit traversal.
+			return memberType.HasTransitiveSdkMembers()
 		}
+
+		return false
 	})
 
 	var members []*sdkMember
-	for _, memberListProperty := range s.dynamicSdkMemberTypes.memberListProperties {
+	for _, memberListProperty := range s.memberListProperties() {
 		membersOfType := byType[memberListProperty.memberType]
 		members = append(members, membersOfType...)
 	}
 
-	return members
+	// Compute the setting of multilib.
+	var multilib string
+	if lib32 && lib64 {
+		multilib = "both"
+	} else if lib32 {
+		multilib = "32"
+	} else if lib64 {
+		multilib = "64"
+	}
+
+	return members, multilib
+}
+
+func appendUniqueVariants(variants []android.SdkAware, newVariant android.SdkAware) []android.SdkAware {
+	for _, v := range variants {
+		if v == newVariant {
+			return variants
+		}
+	}
+	return append(variants, newVariant)
 }
 
 // SDK directory structure
@@ -190,24 +228,31 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	}
 	s.builderForTests = builder
 
-	for _, member := range s.collectMembers(ctx) {
+	members, multilib := s.collectMembers(ctx)
+	for _, member := range members {
 		member.memberType.BuildSnapshot(ctx, builder, member)
 	}
 
 	// Create a transformer that will transform an unversioned module into a versioned module.
 	unversionedToVersionedTransformer := unversionedToVersionedTransformation{builder: builder}
 
+	// Create a transformer that will transform an unversioned module by replacing any references
+	// to internal members with a unique module name and setting prefer: false.
+	unversionedTransformer := unversionedTransformation{builder: builder}
+
 	for _, unversioned := range builder.prebuiltOrder {
+		// Prune any empty property sets.
+		unversioned = unversioned.transform(pruneEmptySetTransformer{})
+
 		// Copy the unversioned module so it can be modified to make it versioned.
 		versioned := unversioned.deepCopy()
 
 		// Transform the unversioned module into a versioned one.
 		versioned.transform(unversionedToVersionedTransformer)
-
 		bpFile.AddModule(versioned)
 
-		// Set prefer: false - this is not strictly required as that is the default.
-		unversioned.insertAfter("name", "prefer", false)
+		// Transform the unversioned module to make it suitable for use in the snapshot.
+		unversioned.transform(unversionedTransformer)
 		bpFile.AddModule(unversioned)
 	}
 
@@ -229,7 +274,17 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	}
 
 	addHostDeviceSupportedProperties(&s.ModuleBase, snapshotModule)
-	for _, memberListProperty := range s.dynamicSdkMemberTypes.memberListProperties {
+
+	// Compile_multilib defaults to both and must always be set to both on the
+	// device and so only needs to be set when targeted at the host and is neither
+	// unspecified or both.
+	if s.HostSupported() && multilib != "" && multilib != "both" {
+		targetSet := snapshotModule.AddPropertySet("target")
+		hostSet := targetSet.AddPropertySet("host")
+		hostSet.AddProperty("compile_multilib", multilib)
+	}
+
+	for _, memberListProperty := range s.memberListProperties() {
 		names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
 		if len(names) > 0 {
 			snapshotModule.AddProperty(memberListProperty.propertyName(), builder.versionedSdkMemberNames(names))
@@ -285,12 +340,16 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext) android.OutputPath {
 	return outputZipFile
 }
 
+type propertyTag struct {
+	name string
+}
+
+var sdkMemberReferencePropertyTag = propertyTag{"sdkMemberReferencePropertyTag"}
+
 type unversionedToVersionedTransformation struct {
 	identityTransformation
 	builder *snapshotBuilder
 }
-
-var _ bpTransformer = (*unversionedToVersionedTransformation)(nil)
 
 func (t unversionedToVersionedTransformation) transformModule(module *bpModule) *bpModule {
 	// Use a versioned name for the module but remember the original name for the
@@ -299,6 +358,52 @@ func (t unversionedToVersionedTransformation) transformModule(module *bpModule) 
 	module.setProperty("name", t.builder.versionedSdkMemberName(name))
 	module.insertAfter("name", "sdk_member_name", name)
 	return module
+}
+
+func (t unversionedToVersionedTransformation) transformProperty(name string, value interface{}, tag android.BpPropertyTag) (interface{}, android.BpPropertyTag) {
+	if tag == sdkMemberReferencePropertyTag {
+		return t.builder.versionedSdkMemberNames(value.([]string)), tag
+	} else {
+		return value, tag
+	}
+}
+
+type unversionedTransformation struct {
+	identityTransformation
+	builder *snapshotBuilder
+}
+
+func (t unversionedTransformation) transformModule(module *bpModule) *bpModule {
+	// If the module is an internal member then use a unique name for it.
+	name := module.getValue("name").(string)
+	module.setProperty("name", t.builder.unversionedSdkMemberName(name))
+
+	// Set prefer: false - this is not strictly required as that is the default.
+	module.insertAfter("name", "prefer", false)
+
+	return module
+}
+
+func (t unversionedTransformation) transformProperty(name string, value interface{}, tag android.BpPropertyTag) (interface{}, android.BpPropertyTag) {
+	if tag == sdkMemberReferencePropertyTag {
+		return t.builder.unversionedSdkMemberNames(value.([]string)), tag
+	} else {
+		return value, tag
+	}
+}
+
+type pruneEmptySetTransformer struct {
+	identityTransformation
+}
+
+var _ bpTransformer = (*pruneEmptySetTransformer)(nil)
+
+func (t pruneEmptySetTransformer) transformPropertySetAfterContents(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag) {
+	if len(propertySet.properties) == 0 {
+		return nil, nil
+	} else {
+		return propertySet, tag
+	}
 }
 
 func generateBpContents(contents *generatedContents, bpFile *bpFile) {
@@ -424,11 +529,17 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 	m := s.bpFile.newModule(moduleType)
 	m.AddProperty("name", name)
 
-	// Extract visibility information from a member variant. All variants have the same
-	// visibility so it doesn't matter which one is used.
-	visibility := android.EffectiveVisibilityRules(s.ctx, member.Variants()[0])
-	if len(visibility) != 0 {
-		m.AddProperty("visibility", visibility)
+	if s.sdk.isInternalMember(name) {
+		// An internal member is only referenced from the sdk snapshot which is in the
+		// same package so can be marked as private.
+		m.AddProperty("visibility", []string{"//visibility:private"})
+	} else {
+		// Extract visibility information from a member variant. All variants have the same
+		// visibility so it doesn't matter which one is used.
+		visibility := android.EffectiveVisibilityRules(s.ctx, member.Variants()[0])
+		if len(visibility) != 0 {
+			m.AddProperty("visibility", visibility)
+		}
 	}
 
 	addHostDeviceSupportedProperties(&s.sdk.ModuleBase, m)
@@ -447,6 +558,10 @@ func addHostDeviceSupportedProperties(module *android.ModuleBase, bpModule *bpMo
 	}
 }
 
+func (s *snapshotBuilder) SdkMemberReferencePropertyTag() android.BpPropertyTag {
+	return sdkMemberReferencePropertyTag
+}
+
 // Get a versioned name appropriate for the SDK snapshot version being taken.
 func (s *snapshotBuilder) versionedSdkMemberName(unversionedName string) string {
 	return versionedSdkMemberName(s.ctx, unversionedName, s.version)
@@ -456,6 +571,23 @@ func (s *snapshotBuilder) versionedSdkMemberNames(members []string) []string {
 	var references []string = nil
 	for _, m := range members {
 		references = append(references, s.versionedSdkMemberName(m))
+	}
+	return references
+}
+
+// Get an internal name unique to the sdk.
+func (s *snapshotBuilder) unversionedSdkMemberName(unversionedName string) string {
+	if s.sdk.isInternalMember(unversionedName) {
+		return s.ctx.ModuleName() + "_" + unversionedName
+	} else {
+		return unversionedName
+	}
+}
+
+func (s *snapshotBuilder) unversionedSdkMemberNames(members []string) []string {
+	var references []string = nil
+	for _, m := range members {
+		references = append(references, s.unversionedSdkMemberName(m))
 	}
 	return references
 }

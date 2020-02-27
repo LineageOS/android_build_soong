@@ -204,6 +204,7 @@ type Module interface {
 	DepsMutator(BottomUpMutatorContext)
 
 	base() *ModuleBase
+	Disable()
 	Enabled() bool
 	Target() Target
 	InstallInData() bool
@@ -215,7 +216,9 @@ type Module interface {
 	InstallBypassMake() bool
 	SkipInstall()
 	ExportedToMake() bool
-	NoticeFile() OptionalPath
+	InitRc() Paths
+	VintfFragments() Paths
+	NoticeFiles() Paths
 
 	AddProperties(props ...interface{})
 	GetProperties() []interface{}
@@ -291,6 +294,12 @@ type nameProperties struct {
 
 type commonProperties struct {
 	// emit build rules for this module
+	//
+	// Disabling a module should only be done for those modules that cannot be built
+	// in the current environment. Modules that can build in the current environment
+	// but are not usually required (e.g. superceded by a prebuilt) should not be
+	// disabled as that will prevent them from being built by the checkbuild target
+	// and so prevent early detection of changes that have broken those modules.
 	Enabled *bool `android:"arch_variant"`
 
 	// Controls the visibility of this module to other modules. Allowable values are one or more of
@@ -537,16 +546,7 @@ func InitAndroidModule(m Module) {
 		&base.nameProperties,
 		&base.commonProperties)
 
-	// Allow tests to override the default product variables
-	if base.variableProperties == nil {
-		base.variableProperties = zeroProductVariables
-	}
-
-	// Filter the product variables properties to the ones that exist on this module
-	base.variableProperties = createVariableProperties(m.GetProperties(), base.variableProperties)
-	if base.variableProperties != nil {
-		m.AddProperties(base.variableProperties)
-	}
+	initProductVariableModule(m)
 
 	base.generalProperties = m.GetProperties()
 	base.customizableProperties = m.GetProperties()
@@ -645,7 +645,7 @@ type ModuleBase struct {
 	noAddressSanitizer bool
 	installFiles       Paths
 	checkbuildFiles    Paths
-	noticeFile         OptionalPath
+	noticeFiles        Paths
 
 	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
 	// Only set on the final variant of each module
@@ -661,6 +661,9 @@ type ModuleBase struct {
 	buildParams []BuildParams
 	ruleParams  map[blueprint.Rule]blueprint.RuleParams
 	variables   map[string]string
+
+	initRcPaths         Paths
+	vintfFragmentsPaths Paths
 
 	prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool
 }
@@ -834,6 +837,10 @@ func (m *ModuleBase) Enabled() bool {
 	return *m.commonProperties.Enabled
 }
 
+func (m *ModuleBase) Disable() {
+	m.commonProperties.Enabled = proptools.BoolPtr(false)
+}
+
 func (m *ModuleBase) SkipInstall() {
 	m.commonProperties.SkipInstall = true
 }
@@ -897,8 +904,8 @@ func (m *ModuleBase) Owner() string {
 	return String(m.commonProperties.Owner)
 }
 
-func (m *ModuleBase) NoticeFile() OptionalPath {
-	return m.noticeFile
+func (m *ModuleBase) NoticeFiles() Paths {
+	return m.noticeFiles
 }
 
 func (m *ModuleBase) setImageVariation(variant string) {
@@ -930,6 +937,14 @@ func (m *ModuleBase) HostRequiredModuleNames() []string {
 
 func (m *ModuleBase) TargetRequiredModuleNames() []string {
 	return m.base().commonProperties.Target_required
+}
+
+func (m *ModuleBase) InitRc() Paths {
+	return append(Paths{}, m.initRcPaths...)
+}
+
+func (m *ModuleBase) VintfFragments() Paths {
+	return append(Paths{}, m.vintfFragmentsPaths...)
 }
 
 func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
@@ -1097,6 +1112,9 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	if !ctx.PrimaryArch() {
 		suffix = append(suffix, ctx.Arch().ArchType.String())
 	}
+	if apex, ok := m.module.(ApexModule); ok && !apex.IsForPlatform() {
+		suffix = append(suffix, apex.ApexName())
+	}
 
 	ctx.Variable(pctx, "moduleDesc", desc)
 
@@ -1133,12 +1151,25 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			}
 		})
 
-		notice := proptools.StringDefault(m.commonProperties.Notice, "NOTICE")
+		m.noticeFiles = make([]Path, 0)
+		optPath := OptionalPath{}
+		notice := proptools.StringDefault(m.commonProperties.Notice, "")
 		if module := SrcIsModule(notice); module != "" {
-			m.noticeFile = ctx.ExpandOptionalSource(&notice, "notice")
-		} else {
+			optPath = ctx.ExpandOptionalSource(&notice, "notice")
+		} else if notice != "" {
 			noticePath := filepath.Join(ctx.ModuleDir(), notice)
-			m.noticeFile = ExistentPathForSource(ctx, noticePath)
+			optPath = ExistentPathForSource(ctx, noticePath)
+		}
+		if optPath.Valid() {
+			m.noticeFiles = append(m.noticeFiles, optPath.Path())
+		} else {
+			for _, notice = range []string{"LICENSE", "LICENCE", "NOTICE"} {
+				noticePath := filepath.Join(ctx.ModuleDir(), notice)
+				optPath = ExistentPathForSource(ctx, noticePath)
+				if optPath.Valid() {
+					m.noticeFiles = append(m.noticeFiles, optPath.Path())
+				}
+			}
 		}
 
 		m.module.GenerateAndroidBuildActions(ctx)
@@ -1148,6 +1179,8 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 		m.installFiles = append(m.installFiles, ctx.installFiles...)
 		m.checkbuildFiles = append(m.checkbuildFiles, ctx.checkbuildFiles...)
+		m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
+		m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
 	} else if ctx.Config().AllowMissingDependencies() {
 		// If the module is not enabled it will not create any build rules, nothing will call
 		// ctx.GetMissingDependencies(), and blueprint will consider the missing dependencies to be unhandled
@@ -1261,7 +1294,7 @@ type baseModuleContext struct {
 func (b *baseModuleContext) OtherModuleName(m blueprint.Module) string { return b.bp.OtherModuleName(m) }
 func (b *baseModuleContext) OtherModuleDir(m blueprint.Module) string  { return b.bp.OtherModuleDir(m) }
 func (b *baseModuleContext) OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{}) {
-	b.bp.OtherModuleErrorf(m, fmt, args)
+	b.bp.OtherModuleErrorf(m, fmt, args...)
 }
 func (b *baseModuleContext) OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag {
 	return b.bp.OtherModuleDependencyTag(m)

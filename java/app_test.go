@@ -903,6 +903,7 @@ func TestJNIPackaging(t *testing.T) {
 			name: "libjni",
 			system_shared_libs: [],
 			stl: "none",
+			sdk_version: "current",
 		}
 
 		android_app {
@@ -1181,6 +1182,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 			name: "bar",
 			base: "foo",
 			certificate: ":new_certificate",
+			logging_parent: "bah",
 		}
 
 		android_app_certificate {
@@ -1196,37 +1198,41 @@ func TestOverrideAndroidApp(t *testing.T) {
 		`)
 
 	expectedVariants := []struct {
-		moduleName  string
-		variantName string
-		apkName     string
-		apkPath     string
-		signFlag    string
-		overrides   []string
-		aaptFlag    string
+		moduleName     string
+		variantName    string
+		apkName        string
+		apkPath        string
+		signFlag       string
+		overrides      []string
+		aaptFlag       string
+		logging_parent string
 	}{
 		{
-			moduleName:  "foo",
-			variantName: "android_common",
-			apkPath:     "/target/product/test_device/system/app/foo/foo.apk",
-			signFlag:    "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			overrides:   []string{"qux"},
-			aaptFlag:    "",
+			moduleName:     "foo",
+			variantName:    "android_common",
+			apkPath:        "/target/product/test_device/system/app/foo/foo.apk",
+			signFlag:       "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			overrides:      []string{"qux"},
+			aaptFlag:       "",
+			logging_parent: "",
 		},
 		{
-			moduleName:  "bar",
-			variantName: "android_common_bar",
-			apkPath:     "/target/product/test_device/system/app/bar/bar.apk",
-			signFlag:    "cert/new_cert.x509.pem cert/new_cert.pk8",
-			overrides:   []string{"qux", "foo"},
-			aaptFlag:    "",
+			moduleName:     "bar",
+			variantName:    "android_common_bar",
+			apkPath:        "/target/product/test_device/system/app/bar/bar.apk",
+			signFlag:       "cert/new_cert.x509.pem cert/new_cert.pk8",
+			overrides:      []string{"qux", "foo"},
+			aaptFlag:       "",
+			logging_parent: "bah",
 		},
 		{
-			moduleName:  "baz",
-			variantName: "android_common_baz",
-			apkPath:     "/target/product/test_device/system/app/baz/baz.apk",
-			signFlag:    "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			overrides:   []string{"qux", "foo"},
-			aaptFlag:    "--rename-manifest-package org.dandroid.bp",
+			moduleName:     "baz",
+			variantName:    "android_common_baz",
+			apkPath:        "/target/product/test_device/system/app/baz/baz.apk",
+			signFlag:       "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			overrides:      []string{"qux", "foo"},
+			aaptFlag:       "--rename-manifest-package org.dandroid.bp",
+			logging_parent: "",
 		},
 	}
 	for _, expected := range expectedVariants {
@@ -1258,6 +1264,13 @@ func TestOverrideAndroidApp(t *testing.T) {
 		if !reflect.DeepEqual(expected.overrides, mod.appProperties.Overrides) {
 			t.Errorf("Incorrect overrides property value, expected: %q, got: %q",
 				expected.overrides, mod.appProperties.Overrides)
+		}
+
+		// Test Overridable property: Logging_parent
+		logging_parent := mod.aapt.LoggingParent
+		if expected.logging_parent != logging_parent {
+			t.Errorf("Incorrect overrides property value for logging parent, expected: %q, got: %q",
+				expected.logging_parent, logging_parent)
 		}
 
 		// Check the package renaming flag, if exists.
@@ -1847,42 +1860,6 @@ func TestAndroidTestImport_NoJinUncompressForPresigned(t *testing.T) {
 func TestStl(t *testing.T) {
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
-			name: "ndk_libunwind",
-			sdk_version: "current",
-			stl: "none",
-			system_shared_libs: [],
-		}
-
-		cc_library {
-			name: "libc.ndk.current",
-			sdk_version: "current",
-			stl: "none",
-			system_shared_libs: [],
-		}
-
-		cc_library {
-			name: "libm.ndk.current",
-			sdk_version: "current",
-			stl: "none",
-			system_shared_libs: [],
-		}
-
-		cc_library {
-			name: "libdl.ndk.current",
-			sdk_version: "current",
-			stl: "none",
-			system_shared_libs: [],
-		}
-
-		cc_object {
-			name: "ndk_crtbegin_so.27",
-		}
-
-		cc_object {
-			name: "ndk_crtend_so.27",
-		}
-
-		cc_library {
 			name: "libjni",
 			sdk_version: "current",
 			stl: "c++_shared",
@@ -1901,10 +1878,6 @@ func TestStl(t *testing.T) {
 			jni_libs: ["libjni"],
 			compile_multilib: "both",
 			sdk_version: "current",
-		}
-
-		ndk_prebuilt_shared_stl {
-			name: "ndk_libc++_shared",
 		}
 		`)
 
@@ -2140,6 +2113,7 @@ func TestEmbedNotice(t *testing.T) {
 			system_shared_libs: [],
 			stl: "none",
 			notice: "LIB_NOTICE",
+			sdk_version: "current",
 		}
 
 		java_library {

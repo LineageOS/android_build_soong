@@ -66,6 +66,8 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		// The architecture doesn't matter here, but asm/types.h is included by linux/types.h.
 		"-isystem bionic/libc/kernel/uapi/asm-arm64",
 		"-isystem bionic/libc/kernel/android/uapi",
+		// TODO(b/149785767): only give access to specific file with AID_* constants
+		"-I       system/core/libcutils/include",
 		"-I       system/bpf/progs/include",
 		"-I " + ctx.ModuleDir(),
 	}

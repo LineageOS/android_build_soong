@@ -31,7 +31,8 @@ var (
 //
 // vndk_prebuilt_shared {
 //     name: "libfoo",
-//     version: "27.1.0",
+//     version: "27",
+//     target_arch: "arm64",
 //     vendor_available: true,
 //     vndk: {
 //         enabled: true,
@@ -61,10 +62,6 @@ type vndkPrebuiltProperties struct {
 	// Prebuilt files for each arch.
 	Srcs []string `android:"arch_variant"`
 
-	// list of directories relative to the Blueprints file that will be added to the include
-	// path (using -isystem) for any module that links against this module.
-	Export_system_include_dirs []string `android:"arch_variant"`
-
 	// list of flags that will be used for any module that links against this module.
 	Export_flags []string `android:"arch_variant"`
 
@@ -75,7 +72,8 @@ type vndkPrebuiltProperties struct {
 
 type vndkPrebuiltLibraryDecorator struct {
 	*libraryDecorator
-	properties vndkPrebuiltProperties
+	properties      vndkPrebuiltProperties
+	androidMkSuffix string
 }
 
 func (p *vndkPrebuiltLibraryDecorator) Name(name string) string {
@@ -137,11 +135,33 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 
 	if len(p.properties.Srcs) > 0 && p.shared() {
 		p.libraryDecorator.exportIncludes(ctx)
-		p.libraryDecorator.reexportSystemDirs(
-			android.PathsForModuleSrc(ctx, p.properties.Export_system_include_dirs)...)
 		p.libraryDecorator.reexportFlags(p.properties.Export_flags...)
 		// current VNDK prebuilts are only shared libs.
-		return p.singleSourcePath(ctx)
+
+		in := p.singleSourcePath(ctx)
+		builderFlags := flagsToBuilderFlags(flags)
+		p.unstrippedOutputFile = in
+		libName := in.Base()
+		if p.needsStrip(ctx) {
+			stripped := android.PathForModuleOut(ctx, "stripped", libName)
+			p.stripExecutableOrSharedLib(ctx, in, stripped, builderFlags)
+			in = stripped
+		}
+
+		// Optimize out relinking against shared libraries whose interface hasn't changed by
+		// depending on a table of contents file instead of the library itself.
+		tocFile := android.PathForModuleOut(ctx, libName+".toc")
+		p.tocFile = android.OptionalPathForPath(tocFile)
+		TransformSharedObjectToToc(ctx, in, tocFile, builderFlags)
+
+		p.androidMkSuffix = p.NameSuffix()
+
+		vndkVersion := ctx.DeviceConfig().VndkVersion()
+		if vndkVersion == p.version() {
+			p.androidMkSuffix = ""
+		}
+
+		return in
 	}
 
 	ctx.Module().SkipInstall()
@@ -220,7 +240,8 @@ func vndkPrebuiltSharedLibrary() *Module {
 //
 //    vndk_prebuilt_shared {
 //        name: "libfoo",
-//        version: "27.1.0",
+//        version: "27",
+//        target_arch: "arm64",
 //        vendor_available: true,
 //        vndk: {
 //            enabled: true,

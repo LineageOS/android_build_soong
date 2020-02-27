@@ -265,7 +265,7 @@ func TestArchConfigFuchsia(buildDir string, env map[string]string, bp string, fs
 
 	config.Targets = map[OsType][]Target{
 		Fuchsia: []Target{
-			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: ""}, NativeBridgeDisabled, "", ""},
+			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", ""},
 		},
 		BuildOs: []Target{
 			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", ""},
@@ -790,14 +790,6 @@ func (c *config) DisableScudo() bool {
 	return Bool(c.productVariables.DisableScudo)
 }
 
-func (c *config) EnableXOM() bool {
-	if c.productVariables.EnableXOM == nil {
-		return true
-	} else {
-		return Bool(c.productVariables.EnableXOM)
-	}
-}
-
 func (c *config) Android64() bool {
 	for _, t := range c.Targets[Android] {
 		if t.Arch.ArchType.Multilib == "lib64" {
@@ -898,11 +890,7 @@ func (c *config) EnforceRROForModule(name string) bool {
 func (c *config) EnforceRROExcludedOverlay(path string) bool {
 	excluded := c.productVariables.EnforceRROExcludedOverlays
 	if excluded != nil {
-		for _, exclude := range excluded {
-			if strings.HasPrefix(path, exclude) {
-				return true
-			}
-		}
+		return HasAnyPrefix(path, excluded)
 	}
 	return false
 }
@@ -923,8 +911,23 @@ func (c *config) ModulesLoadedByPrivilegedModules() []string {
 	return c.productVariables.ModulesLoadedByPrivilegedModules
 }
 
+// Expected format for apexJarValue = <apex name>:<jar name>
+func SplitApexJarPair(apexJarValue string) (string, string) {
+	var apexJarPair []string = strings.SplitN(apexJarValue, ":", 2)
+	if apexJarPair == nil || len(apexJarPair) != 2 {
+		panic(fmt.Errorf("malformed apexJarValue: %q, expected format: <apex>:<jar>",
+			apexJarValue))
+	}
+	return apexJarPair[0], apexJarPair[1]
+}
+
 func (c *config) BootJars() []string {
-	return c.productVariables.BootJars
+	jars := c.productVariables.BootJars
+	for _, p := range c.productVariables.UpdatableBootJars {
+		_, jar := SplitApexJarPair(p)
+		jars = append(jars, jar)
+	}
+	return jars
 }
 
 func (c *config) DexpreoptGlobalConfig(ctx PathContext) ([]byte, error) {
@@ -1043,12 +1046,12 @@ func (c *deviceConfig) ClangCoverageEnabled() bool {
 func (c *deviceConfig) CoverageEnabledForPath(path string) bool {
 	coverage := false
 	if c.config.productVariables.CoveragePaths != nil {
-		if InList("*", c.config.productVariables.CoveragePaths) || PrefixInList(path, c.config.productVariables.CoveragePaths) {
+		if InList("*", c.config.productVariables.CoveragePaths) || HasAnyPrefix(path, c.config.productVariables.CoveragePaths) {
 			coverage = true
 		}
 	}
 	if coverage && c.config.productVariables.CoverageExcludePaths != nil {
-		if PrefixInList(path, c.config.productVariables.CoverageExcludePaths) {
+		if HasAnyPrefix(path, c.config.productVariables.CoverageExcludePaths) {
 			coverage = false
 		}
 	}
@@ -1121,28 +1124,21 @@ func (c *config) IntegerOverflowDisabledForPath(path string) bool {
 	if c.productVariables.IntegerOverflowExcludePaths == nil {
 		return false
 	}
-	return PrefixInList(path, c.productVariables.IntegerOverflowExcludePaths)
+	return HasAnyPrefix(path, c.productVariables.IntegerOverflowExcludePaths)
 }
 
 func (c *config) CFIDisabledForPath(path string) bool {
 	if c.productVariables.CFIExcludePaths == nil {
 		return false
 	}
-	return PrefixInList(path, c.productVariables.CFIExcludePaths)
+	return HasAnyPrefix(path, c.productVariables.CFIExcludePaths)
 }
 
 func (c *config) CFIEnabledForPath(path string) bool {
 	if c.productVariables.CFIIncludePaths == nil {
 		return false
 	}
-	return PrefixInList(path, c.productVariables.CFIIncludePaths)
-}
-
-func (c *config) XOMDisabledForPath(path string) bool {
-	if c.productVariables.XOMExcludePaths == nil {
-		return false
-	}
-	return PrefixInList(path, c.productVariables.XOMExcludePaths)
+	return HasAnyPrefix(path, c.productVariables.CFIIncludePaths)
 }
 
 func (c *config) VendorConfig(name string) VendorConfig {

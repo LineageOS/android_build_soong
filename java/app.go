@@ -79,6 +79,10 @@ type appProperties struct {
 	// list of native libraries that will be provided in or alongside the resulting jar
 	Jni_libs []string `android:"arch_variant"`
 
+	// if true, allow JNI libraries that link against platform APIs even if this module sets
+	// sdk_version.
+	Jni_uses_platform_apis *bool
+
 	// STL library to use for JNI libraries.
 	Stl *string `android:"arch_variant"`
 
@@ -111,6 +115,9 @@ type overridableAppProperties struct {
 
 	// the package name of this app. The package name in the manifest file is used if one was not given.
 	Package_name *string
+
+	// the logging parent of this app.
+	Logging_parent *string
 }
 
 type AndroidApp struct {
@@ -140,6 +147,10 @@ type AndroidApp struct {
 	additionalAaptFlags []string
 
 	noticeOutputs android.NoticeOutputs
+}
+
+func (a *AndroidApp) IsInstallable() bool {
+	return Bool(a.properties.Installable)
 }
 
 func (a *AndroidApp) ExportedProguardFlagFiles() android.Paths {
@@ -269,13 +280,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	aaptLinkFlags := []string{}
 
 	// Add TARGET_AAPT_CHARACTERISTICS values to AAPT link flags if they exist and --product flags were not provided.
-	hasProduct := false
-	for _, f := range a.aaptProperties.Aaptflags {
-		if strings.HasPrefix(f, "--product") {
-			hasProduct = true
-			break
-		}
-	}
+	hasProduct := android.PrefixInList(a.aaptProperties.Aaptflags, "--product")
 	if !hasProduct && len(ctx.Config().ProductAAPTCharacteristics()) > 0 {
 		aaptLinkFlags = append(aaptLinkFlags, "--product", ctx.Config().ProductAAPTCharacteristics())
 	}
@@ -305,7 +310,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 
 	a.aapt.splitNames = a.appProperties.Package_splits
 	a.aapt.sdkLibraries = a.exportedSdkLibs
-
+	a.aapt.LoggingParent = String(a.overridableAppProperties.Logging_parent)
 	a.aapt.buildActions(ctx, sdkContext(a), aaptLinkFlags...)
 
 	// apps manifests are handled by aapt, don't let Module see them
@@ -338,7 +343,6 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 		installDir = filepath.Join("app", a.installApkName)
 	}
 	a.dexpreopter.installPath = android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
-	a.dexpreopter.isInstallable = Bool(a.properties.Installable)
 	a.dexpreopter.uncompressedDex = a.shouldUncompressDex(ctx)
 
 	a.dexpreopter.enforceUsesLibs = a.usesLibrary.enforceUsesLibraries()
@@ -386,16 +390,20 @@ func (a *AndroidApp) noticeBuildActions(ctx android.ModuleContext) {
 			return false
 		}
 
-		path := child.(android.Module).NoticeFile()
-		if path.Valid() {
-			noticePathSet[path.Path()] = true
+		paths := child.(android.Module).NoticeFiles()
+		if len(paths) > 0 {
+			for _, path := range paths {
+				noticePathSet[path] = true
+			}
 		}
 		return true
 	})
 
 	// If the app has one, add it too.
-	if a.NoticeFile().Valid() {
-		noticePathSet[a.NoticeFile().Path()] = true
+	if len(a.NoticeFiles()) > 0 {
+		for _, path := range a.NoticeFiles() {
+			noticePathSet[path] = true
+		}
 	}
 
 	if len(noticePathSet) == 0 {
@@ -487,7 +495,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	dexJarFile := a.dexBuildActions(ctx)
 
-	jniLibs, certificateDeps := collectAppDeps(ctx, a.shouldEmbedJnis(ctx))
+	jniLibs, certificateDeps := collectAppDeps(ctx, a.shouldEmbedJnis(ctx), !Bool(a.appProperties.Jni_uses_platform_apis))
 	jniJarFile := a.jniBuildActions(jniLibs, ctx)
 
 	if ctx.Failed() {
@@ -523,7 +531,8 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func collectAppDeps(ctx android.ModuleContext, shouldCollectRecursiveNativeDeps bool) ([]jniLib, []Certificate) {
+func collectAppDeps(ctx android.ModuleContext, shouldCollectRecursiveNativeDeps bool,
+	checkNativeSdkVersion bool) ([]jniLib, []Certificate) {
 	var jniLibs []jniLib
 	var certificates []Certificate
 	seenModulePaths := make(map[string]bool)
@@ -544,6 +553,18 @@ func collectAppDeps(ctx android.ModuleContext, shouldCollectRecursiveNativeDeps 
 					return false
 				}
 				seenModulePaths[path.String()] = true
+
+				if checkNativeSdkVersion {
+					if app, ok := ctx.Module().(interface{ sdkVersion() sdkSpec }); ok {
+						if app.sdkVersion().specified() &&
+							app.sdkVersion().kind != sdkCorePlatform &&
+							dep.SdkVersion() == "" {
+							ctx.PropertyErrorf("jni_libs",
+								"JNI dependency %q uses platform APIs, but this module does not",
+								otherName)
+						}
+					}
+				}
 
 				if lib.Valid() {
 					jniLibs = append(jniLibs, jniLib{
@@ -922,6 +943,10 @@ type AndroidAppImportProperties struct {
 	Filename *string
 }
 
+func (a *AndroidAppImport) IsInstallable() bool {
+	return true
+}
+
 // Updates properties with variant-specific values.
 func (a *AndroidAppImport) processVariants(ctx android.LoadHookContext) {
 	config := ctx.Config()
@@ -1037,7 +1062,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		ctx.ModuleErrorf("One and only one of certficate, presigned, and default_dev_cert properties must be set")
 	}
 
-	_, certificates := collectAppDeps(ctx, false)
+	_, certificates := collectAppDeps(ctx, false, false)
 
 	// TODO: LOCAL_EXTRACT_APK/LOCAL_EXTRACT_DPI_APK
 	// TODO: LOCAL_PACKAGE_SPLITS
@@ -1064,7 +1089,6 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	}
 
 	a.dexpreopter.installPath = installDir.Join(ctx, a.BaseModuleName()+".apk")
-	a.dexpreopter.isInstallable = true
 	a.dexpreopter.isPresignedPrebuilt = Bool(a.properties.Presigned)
 	a.dexpreopter.uncompressedDex = a.shouldUncompressDex(ctx)
 
@@ -1293,7 +1317,7 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 	r.aapt.buildActions(ctx, r, "--no-resource-deduping", "--no-resource-removal")
 
 	// Sign the built package
-	_, certificates := collectAppDeps(ctx, false)
+	_, certificates := collectAppDeps(ctx, false, false)
 	certificates = processMainCert(r.ModuleBase, String(r.properties.Certificate), certificates, ctx)
 	signed := android.PathForModuleOut(ctx, "signed", r.Name()+".apk")
 	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates)

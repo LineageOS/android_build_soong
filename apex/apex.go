@@ -94,7 +94,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libcutils",
 		"libcutils_headers",
 		"libdiagnose_usb",
-		"liblog",
 		"liblog_headers",
 		"libmdnssd",
 		"libminijail",
@@ -170,7 +169,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libicuuc_headers",
 		"libicuuc_stubdata",
 		"libjdwp_headers",
-		"liblog",
 		"liblog_headers",
 		"liblz4",
 		"liblzma",
@@ -234,7 +232,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libbase",
 		"libbase_headers",
 		"libbinder_headers",
-		"libbinderthreadstate",
 		"libbluetooth",
 		"libbluetooth-types",
 		"libbluetooth-types-header",
@@ -286,7 +283,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libsystem_headers",
 		"libtinyxml2",
 		"libudrv-uipc",
-		"libutils",
 		"libutils_headers",
 		"libz",
 		"media_plugin_headers",
@@ -351,7 +347,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libbacktrace_headers",
 		"libbase",
 		"libbase_headers",
-		"libbinderthreadstate",
 		"libbuildversion",
 		"libc++",
 		"libcrypto",
@@ -379,7 +374,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libtextclassifier_hash_headers",
 		"libtextclassifier_hash_static",
 		"libtflite_kernel_utils",
-		"libutils",
 		"libutils_headers",
 		"philox_random",
 		"philox_random_headers",
@@ -441,7 +435,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libbase",
 		"libbase_headers",
 		"libbinder_headers",
-		"libbinderthreadstate",
 		"libbluetooth-types-header",
 		"libbufferhub",
 		"libbufferhub_headers",
@@ -525,7 +518,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libui",
 		"libui_headers",
 		"libunwindstack",
-		"libutils",
 		"libutils_headers",
 		"libvibrator",
 		"libvorbisidec",
@@ -589,7 +581,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libbase",
 		"libbase_headers",
 		"libbinder_headers",
-		"libbinderthreadstate",
 		"libbluetooth-types-header",
 		"libbufferhub_headers",
 		"libc++",
@@ -700,7 +691,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libui",
 		"libui_headers",
 		"libunwindstack",
-		"libutils",
 		"libutils_headers",
 		"libvorbisidec",
 		"libvpx",
@@ -800,7 +790,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libjemalloc5",
 		"liblinker_main",
 		"liblinker_malloc",
-		"liblog",
 		"liblog_headers",
 		"liblz4",
 		"liblzma",
@@ -833,7 +822,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libcutils_headers",
 		"libgtest_prod",
 		"libjsoncpp",
-		"liblog",
 		"liblog_headers",
 		"libnativehelper_header_only",
 		"libnetd_client_headers",
@@ -849,7 +837,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libstatssocket_headers",
 		"libsystem_headers",
 		"libsysutils",
-		"libutils",
 		"libutils_headers",
 		"netd_event_listener_interface-ndk_platform",
 		"server_configurable_flags",
@@ -866,7 +853,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"fmtlib",
 		"libbacktrace_headers",
 		"libbase_headers",
-		"libbinderthreadstate",
 		"libcgrouprc",
 		"libcgrouprc_format",
 		"libcutils",
@@ -876,13 +862,11 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libhidltransport-impl-internal",
 		"libhwbinder-impl-internal",
 		"libjsoncpp",
-		"liblog",
 		"liblog_headers",
 		"libprocessgroup",
 		"libprocessgroup_headers",
 		"libsystem_headers",
 		"libtetherutilsjni",
-		"libutils",
 		"libutils_headers",
 		"libvndksupport",
 		"tethering-aidl-interfaces-java",
@@ -929,7 +913,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libprotobuf-java-lite",
 		"libprotobuf-java-nano",
 		"libsystem_headers",
-		"libutils",
 		"libutils_headers",
 		"libwifi-jni",
 		"net-utils-services-common",
@@ -1037,7 +1020,7 @@ func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
 }
 
 func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
-	ctx.BottomUp("apex_deps", apexDepsMutator)
+	ctx.TopDown("apex_deps", apexDepsMutator)
 	ctx.BottomUp("apex", apexMutator).Parallel()
 	ctx.BottomUp("apex_flattened", apexFlattenedMutator).Parallel()
 	ctx.BottomUp("apex_uses", apexUsesMutator).Parallel()
@@ -1045,29 +1028,29 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 
 // Mark the direct and transitive dependencies of apex bundles so that they
 // can be built for the apex bundles.
-func apexDepsMutator(mctx android.BottomUpMutatorContext) {
+func apexDepsMutator(mctx android.TopDownMutatorContext) {
+	var apexBundles []android.ApexInfo
+	var directDep bool
 	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
-		apexBundleName := mctx.ModuleName()
-		mctx.WalkDeps(func(child, parent android.Module) bool {
-			depName := mctx.OtherModuleName(child)
-			// If the parent is apexBundle, this child is directly depended.
-			_, directDep := parent.(*apexBundle)
-			if a.installable() && !a.testApex {
-				// TODO(b/123892969): Workaround for not having any way to annotate test-apexs
-				// non-installable apex's cannot be installed and so should not prevent libraries from being
-				// installed to the system.
-				android.UpdateApexDependency(apexBundleName, depName, directDep)
-			}
-
-			if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() &&
-				(directDep || am.DepIsInSameApex(mctx, child)) {
-				am.BuildForApex(apexBundleName)
-				return true
-			} else {
-				return false
-			}
-		})
+		apexBundles = []android.ApexInfo{{mctx.ModuleName(), proptools.Bool(a.properties.Legacy_android10_support)}}
+		directDep = true
+	} else if am, ok := mctx.Module().(android.ApexModule); ok {
+		apexBundles = am.ApexVariations()
+		directDep = false
 	}
+
+	if len(apexBundles) == 0 {
+		return
+	}
+
+	mctx.VisitDirectDeps(func(child android.Module) {
+		depName := mctx.OtherModuleName(child)
+		if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() &&
+			(directDep || am.DepIsInSameApex(mctx, child)) {
+			android.UpdateApexDependency(apexBundles, depName, directDep)
+			am.BuildForApexes(apexBundles)
+		}
+	})
 }
 
 // Create apex variations if a module is included in APEX(s).
@@ -1297,6 +1280,14 @@ type apexBundleProperties struct {
 	Legacy_android10_support *bool
 
 	IsCoverageVariant bool `blueprint:"mutated"`
+
+	// Whether this APEX is considered updatable or not. When set to true, this will enforce additional
+	// rules for making sure that the APEX is truely updatable. This will also disable the size optimizations
+	// like symlinking to the system libs. Default is false.
+	Updatable *bool
+
+	// The minimum SDK version that this apex must be compatibile with.
+	Min_sdk_version *string
 }
 
 type apexTargetBundleProperties struct {
@@ -1333,6 +1324,9 @@ type overridableProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
+
+	// Logging Parent value
+	Logging_parent string
 }
 
 type apexPackaging int
@@ -1471,6 +1465,12 @@ func (af *apexFile) AvailableToPlatform() bool {
 	return false
 }
 
+type depInfo struct {
+	to         string
+	from       []string
+	isExternal bool
+}
+
 type apexBundle struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
@@ -1504,10 +1504,8 @@ type apexBundle struct {
 	// list of module names that should be installed along with this APEX
 	requiredDeps []string
 
-	// list of module names that this APEX is depending on (to be shown via *-deps-info target)
-	externalDeps []string
 	// list of module names that this APEX is including (to be shown via *-deps-info target)
-	internalDeps []string
+	depInfos map[string]depInfo
 
 	testApex        bool
 	vndkApex        bool
@@ -1941,21 +1939,9 @@ func (c *flattenedApexContext) InstallBypassMake() bool {
 	return true
 }
 
-// Ensures that the dependencies are marked as available for this APEX
-func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
-	// Let's be practical. Availability for test, host, and the VNDK apex isn't important
-	if ctx.Host() || a.testApex || a.vndkApex {
-		return
-	}
-
-	checkDep := func(ctx android.ModuleContext, am android.ApexModule) {
-		apexName := ctx.ModuleName()
-		if am.AvailableFor(apexName) || whitelistedApexAvailable(apexName, am) {
-			return
-		}
-		ctx.ModuleErrorf("requires %q that is not available for the APEX.", am.Name())
-	}
-
+// Visit dependencies that contributes to the payload of this APEX
+func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext,
+	do func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool)) {
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
 		am, ok := child.(android.ApexModule)
 		if !ok || !am.CanHaveApexVariants() {
@@ -1965,7 +1951,7 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		// Check for the direct dependencies that contribute to the payload
 		if dt, ok := ctx.OtherModuleDependencyTag(child).(dependencyTag); ok {
 			if dt.payload {
-				checkDep(ctx, am)
+				do(ctx, parent, am, false /* externalDep */)
 				return true
 			}
 			return false
@@ -1973,12 +1959,55 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 
 		// Check for the indirect dependencies if it is considered as part of the APEX
 		if am.DepIsInSameApex(ctx, am) {
-			checkDep(ctx, am)
+			do(ctx, parent, am, false /* externalDep */)
 			return true
 		}
 
+		do(ctx, parent, am, true /* externalDep */)
+
 		// As soon as the dependency graph crosses the APEX boundary, don't go further.
 		return false
+	})
+}
+
+// Ensures that the dependencies are marked as available for this APEX
+func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
+	// Let's be practical. Availability for test, host, and the VNDK apex isn't important
+	if ctx.Host() || a.testApex || a.vndkApex {
+		return
+	}
+
+	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
+		apexName := ctx.ModuleName()
+		if externalDep || to.AvailableFor(apexName) || whitelistedApexAvailable(apexName, to) {
+			return
+		}
+		ctx.ModuleErrorf("requires %q that is not available for the APEX.", to.Name())
+	})
+}
+
+// Collects the list of module names that directly or indirectly contributes to the payload of this APEX
+func (a *apexBundle) collectDepsInfo(ctx android.ModuleContext) {
+	a.depInfos = make(map[string]depInfo)
+	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
+		if from.Name() == to.Name() {
+			// This can happen for cc.reuseObjTag. We are not interested in tracking this.
+			return
+		}
+
+		if info, exists := a.depInfos[to.Name()]; exists {
+			if !android.InList(from.Name(), info.from) {
+				info.from = append(info.from, from.Name())
+			}
+			info.isExternal = info.isExternal && externalDep
+			a.depInfos[to.Name()] = info
+		} else {
+			a.depInfos[to.Name()] = depInfo{
+				to:         to.Name(),
+				from:       []string{from.Name()},
+				isExternal: externalDep,
+			}
+		}
 	})
 }
 
@@ -2019,6 +2048,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.checkApexAvailability(ctx)
 
+	a.collectDepsInfo(ctx)
+
 	handleSpecialLibs := !android.Bool(a.properties.Ignore_system_library_special_case)
 
 	// native lib dependencies
@@ -2050,20 +2081,19 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	var filesInfo []apexFile
+	// TODO(jiyong) do this using walkPayloadDeps
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
 		depTag := ctx.OtherModuleDependencyTag(child)
 		depName := ctx.OtherModuleName(child)
 		if _, isDirectDep := parent.(*apexBundle); isDirectDep {
-			if depTag != keyTag && depTag != certificateTag {
-				a.internalDeps = append(a.internalDeps, depName)
-			}
 			switch depTag {
 			case sharedLibTag:
-				if cc, ok := child.(*cc.Module); ok {
-					if cc.HasStubsVariants() {
-						provideNativeLibs = append(provideNativeLibs, cc.OutputFile().Path().Base())
+				if c, ok := child.(*cc.Module); ok {
+					// bootstrap bionic libs are treated as provided by system
+					if c.HasStubsVariants() && !cc.InstallToBootstrap(c.BaseModuleName(), ctx.Config()) {
+						provideNativeLibs = append(provideNativeLibs, c.OutputFile().Path().Base())
 					}
-					filesInfo = append(filesInfo, apexFileForNativeLibrary(ctx, cc, handleSpecialLibs))
+					filesInfo = append(filesInfo, apexFileForNativeLibrary(ctx, c, handleSpecialLibs))
 					return true // track transitive dependencies
 				} else {
 					ctx.PropertyErrorf("native_shared_libs", "%q is not a cc_library or cc_library_shared module", depName)
@@ -2097,13 +2127,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						return false
 					}
 					filesInfo = append(filesInfo, af)
-
-					pf, _ := sdkLib.OutputFiles(".xml")
-					if len(pf) != 1 {
-						ctx.PropertyErrorf("java_libs", "%q failed to generate permission XML", depName)
-						return false
-					}
-					filesInfo = append(filesInfo, newApexFile(ctx, pf[0], pf[0].Base(), "etc/permissions", etc, nil))
 					return true // track transitive dependencies
 				} else {
 					ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
@@ -2192,7 +2215,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.requiredDeps) {
 								a.requiredDeps = append(a.requiredDeps, cc.Name())
 							}
-							a.externalDeps = append(a.externalDeps, depName)
 							requireNativeLibs = append(requireNativeLibs, cc.OutputFile().Path().Base())
 							// Don't track further
 							return false
@@ -2200,8 +2222,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						af := apexFileForNativeLibrary(ctx, cc, handleSpecialLibs)
 						af.transitiveDep = true
 						filesInfo = append(filesInfo, af)
-						a.internalDeps = append(a.internalDeps, depName)
-						a.internalDeps = append(a.internalDeps, cc.AllStaticDeps()...)
 						return true // track transitive dependencies
 					}
 				} else if cc.IsTestPerSrcDepTag(depTag) {
@@ -2218,10 +2238,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						return true // track transitive dependencies
 					}
 				} else if java.IsJniDepTag(depTag) {
-					a.externalDeps = append(a.externalDeps, depName)
-					return true
-				} else if java.IsStaticLibDepTag(depTag) {
-					a.internalDeps = append(a.internalDeps, depName)
+					// Because APK-in-APEX embeds jni_libs transitively, we don't need to track transitive deps
+					return false
+				} else if java.IsXmlPermissionsFileDepTag(depTag) {
+					if prebuilt, ok := child.(android.PrebuiltEtcModule); ok {
+						filesInfo = append(filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
+					}
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
 					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
 				}
@@ -2304,6 +2326,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.installable() &&
 		!proptools.Bool(a.properties.Use_vendor)
 
+	// We don't need the optimization for updatable APEXes, as it might give false signal
+	// to the system health when the APEXes are still bundled (b/149805758)
+	if proptools.Bool(a.properties.Updatable) && a.properties.ApexType == imageApex {
+		a.linkToSystemLib = false
+	}
+
 	// prepare apex_manifest.json
 	a.buildManifest(ctx, provideNativeLibs, requireNativeLibs)
 
@@ -2369,12 +2397,16 @@ func ApexBundleFactory(testApex bool, artApex bool) android.Module {
 	return bundle
 }
 
+// apex_test is an APEX for testing. The difference from the ordinary apex module type is that
+// certain compatibility checks such as apex_available are not done for apex_test.
 func testApexBundleFactory() android.Module {
 	bundle := newApexBundle()
 	bundle.testApex = true
 	return bundle
 }
 
+// apex packages other modules into an APEX file which is a packaging format for system-level
+// components like binaries, shared libraries, etc.
 func BundleFactory() android.Module {
 	return newApexBundle()
 }

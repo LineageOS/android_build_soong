@@ -179,6 +179,7 @@ type SanitizeProperties struct {
 	SanitizerEnabled  bool     `blueprint:"mutated"`
 	SanitizeDep       bool     `blueprint:"mutated"`
 	MinimalRuntimeDep bool     `blueprint:"mutated"`
+	BuiltinsDep       bool     `blueprint:"mutated"`
 	UbsanRuntimeDep   bool     `blueprint:"mutated"`
 	InSanitizerDir    bool     `blueprint:"mutated"`
 	Sanitizers        []string `blueprint:"mutated"`
@@ -334,8 +335,8 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		s.Diag.Cfi = nil
 	}
 
-	// Disable sanitizers that depend on the UBSan runtime for host builds.
-	if ctx.Host() {
+	// Disable sanitizers that depend on the UBSan runtime for windows/darwin builds.
+	if !ctx.Os().Linux() {
 		s.Cfi = nil
 		s.Diag.Cfi = nil
 		s.Misc_undefined = nil
@@ -348,6 +349,12 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	if ctx.isVndk() && ctx.useVndk() {
 		s.Cfi = nil
 		s.Diag.Cfi = nil
+	}
+
+	// Also disable CFI if building against snapshot.
+	vndkVersion := ctx.DeviceConfig().VndkVersion()
+	if ctx.useVndk() && vndkVersion != "current" && vndkVersion != "" {
+		s.Cfi = nil
 	}
 
 	// HWASan ramdisk (which is built from recovery) goes over some bootloader limit.
@@ -433,12 +440,19 @@ func toDisableImplicitIntegerChange(flags []string) bool {
 func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	minimalRuntimeLib := config.UndefinedBehaviorSanitizerMinimalRuntimeLibrary(ctx.toolchain()) + ".a"
 	minimalRuntimePath := "${config.ClangAsanLibDir}/" + minimalRuntimeLib
+	builtinsRuntimeLib := config.BuiltinsRuntimeLibrary(ctx.toolchain()) + ".a"
+	builtinsRuntimePath := "${config.ClangAsanLibDir}/" + builtinsRuntimeLib
 
-	if ctx.Device() && sanitize.Properties.MinimalRuntimeDep {
+	if sanitize.Properties.MinimalRuntimeDep {
 		flags.Local.LdFlags = append(flags.Local.LdFlags,
 			minimalRuntimePath,
 			"-Wl,--exclude-libs,"+minimalRuntimeLib)
 	}
+
+	if sanitize.Properties.BuiltinsDep {
+		flags.libFlags = append([]string{builtinsRuntimePath}, flags.libFlags...)
+	}
+
 	if !sanitize.Properties.SanitizerEnabled && !sanitize.Properties.UbsanRuntimeDep {
 		return flags
 	}
@@ -541,11 +555,19 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 			// there will always be undefined symbols in intermediate libraries.
 			_, flags.Global.LdFlags = removeFromList("-Wl,--no-undefined", flags.Global.LdFlags)
 			flags.Local.LdFlags = append(flags.Local.LdFlags, sanitizeArg)
-		} else {
-			if enableMinimalRuntime(sanitize) {
-				flags.Local.CFlags = append(flags.Local.CFlags, strings.Join(minimalRuntimeFlags, " "))
-				flags.libFlags = append([]string{minimalRuntimePath}, flags.libFlags...)
-				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
+
+			// non-Bionic toolchain prebuilts are missing UBSan's vptr and function sanitizers
+			if !ctx.toolchain().Bionic() {
+				flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize=vptr,function")
+			}
+		}
+
+		if enableMinimalRuntime(sanitize) {
+			flags.Local.CFlags = append(flags.Local.CFlags, strings.Join(minimalRuntimeFlags, " "))
+			flags.libFlags = append([]string{minimalRuntimePath}, flags.libFlags...)
+			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--exclude-libs,"+minimalRuntimeLib)
+			if !ctx.toolchain().Bionic() {
+				flags.libFlags = append([]string{builtinsRuntimePath}, flags.libFlags...)
 			}
 		}
 
@@ -587,18 +609,18 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func (sanitize *sanitize) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+func (sanitize *sanitize) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	// Add a suffix for cfi/hwasan/scs-enabled static/header libraries to allow surfacing
 	// both the sanitized and non-sanitized variants to make without a name conflict.
-	if ret.Class == "STATIC_LIBRARIES" || ret.Class == "HEADER_LIBRARIES" {
+	if entries.Class == "STATIC_LIBRARIES" || entries.Class == "HEADER_LIBRARIES" {
 		if Bool(sanitize.Properties.Sanitize.Cfi) {
-			ret.SubName += ".cfi"
+			entries.SubName += ".cfi"
 		}
 		if Bool(sanitize.Properties.Sanitize.Hwaddress) {
-			ret.SubName += ".hwasan"
+			entries.SubName += ".hwasan"
 		}
 		if Bool(sanitize.Properties.Sanitize.Scs) {
-			ret.SubName += ".scs"
+			entries.SubName += ".scs"
 		}
 	}
 }
@@ -739,13 +761,16 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 				return false
 			}
 
-			if d, ok := child.(*Module); ok && d.static() && d.sanitize != nil {
+			d, ok := child.(*Module)
+			if !ok || !d.static() {
+				return false
+			}
+			if d.sanitize != nil {
 				if enableMinimalRuntime(d.sanitize) {
 					// If a static dependency is built with the minimal runtime,
 					// make sure we include the ubsan minimal runtime.
 					c.sanitize.Properties.MinimalRuntimeDep = true
-				} else if Bool(d.sanitize.Properties.Sanitize.Diag.Integer_overflow) ||
-					len(d.sanitize.Properties.Sanitize.Diag.Misc_undefined) > 0 {
+				} else if enableUbsanRuntime(d.sanitize) {
 					// If a static dependency runs with full ubsan diagnostics,
 					// make sure we include the ubsan runtime.
 					c.sanitize.Properties.UbsanRuntimeDep = true
@@ -757,10 +782,23 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 					return false
 				}
 
+				if c.Os() == android.Linux {
+					c.sanitize.Properties.BuiltinsDep = true
+				}
+
 				return true
-			} else {
-				return false
 			}
+
+			if p, ok := d.linker.(*vendorSnapshotLibraryDecorator); ok {
+				if Bool(p.properties.Sanitize_minimal_dep) {
+					c.sanitize.Properties.MinimalRuntimeDep = true
+				}
+				if Bool(p.properties.Sanitize_ubsan_dep) {
+					c.sanitize.Properties.UbsanRuntimeDep = true
+				}
+			}
+
+			return false
 		})
 	}
 }
@@ -884,11 +922,14 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				runtimeLibrary = config.ScudoRuntimeLibrary(toolchain)
 			}
 		} else if len(diagSanitizers) > 0 || c.sanitize.Properties.UbsanRuntimeDep ||
-			Bool(c.sanitize.Properties.Sanitize.Fuzzer) {
+			Bool(c.sanitize.Properties.Sanitize.Fuzzer) ||
+			Bool(c.sanitize.Properties.Sanitize.Undefined) ||
+			Bool(c.sanitize.Properties.Sanitize.All_undefined) {
 			runtimeLibrary = config.UndefinedBehaviorSanitizerRuntimeLibrary(toolchain)
 		}
 
-		if mctx.Device() && runtimeLibrary != "" {
+		if runtimeLibrary != "" && (toolchain.Bionic() || c.sanitize.Properties.UbsanRuntimeDep) {
+			// UBSan is supported on non-bionic linux host builds as well
 			if isLlndkLibrary(runtimeLibrary, mctx.Config()) && !c.static() && c.UseVndk() {
 				runtimeLibrary = runtimeLibrary + llndkLibrarySuffix
 			}
@@ -901,12 +942,31 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			// Note that by adding dependency with {static|shared}DepTag, the lib is
 			// added to libFlags and LOCAL_SHARED_LIBRARIES by cc.Module
 			if c.staticBinary() {
+				deps := append(extraStaticDeps, runtimeLibrary)
+				// If we're using snapshots and in vendor, redirect to snapshot whenever possible
+				if c.VndkVersion() == mctx.DeviceConfig().VndkVersion() {
+					snapshots := vendorSnapshotStaticLibs(mctx.Config())
+					for idx, dep := range deps {
+						if lib, ok := snapshots.get(dep, mctx.Arch().ArchType); ok {
+							deps[idx] = lib
+						}
+					}
+				}
+
 				// static executable gets static runtime libs
 				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
 					{Mutator: "link", Variation: "static"},
 					c.ImageVariation(),
-				}...), StaticDepTag, append([]string{runtimeLibrary}, extraStaticDeps...)...)
+				}...), StaticDepTag, deps...)
 			} else if !c.static() && !c.header() {
+				// If we're using snapshots and in vendor, redirect to snapshot whenever possible
+				if c.VndkVersion() == mctx.DeviceConfig().VndkVersion() {
+					snapshots := vendorSnapshotSharedLibs(mctx.Config())
+					if lib, ok := snapshots.get(runtimeLibrary, mctx.Arch().ArchType); ok {
+						runtimeLibrary = lib
+					}
+				}
+
 				// dynamic executable and shared libs get shared runtime libs
 				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
 					{Mutator: "link", Variation: "shared"},
@@ -1042,14 +1102,26 @@ func enableMinimalRuntime(sanitize *sanitize) bool {
 	if !Bool(sanitize.Properties.Sanitize.Address) &&
 		!Bool(sanitize.Properties.Sanitize.Hwaddress) &&
 		!Bool(sanitize.Properties.Sanitize.Fuzzer) &&
+
 		(Bool(sanitize.Properties.Sanitize.Integer_overflow) ||
-			len(sanitize.Properties.Sanitize.Misc_undefined) > 0) &&
+			len(sanitize.Properties.Sanitize.Misc_undefined) > 0 ||
+			Bool(sanitize.Properties.Sanitize.Undefined) ||
+			Bool(sanitize.Properties.Sanitize.All_undefined)) &&
+
 		!(Bool(sanitize.Properties.Sanitize.Diag.Integer_overflow) ||
 			Bool(sanitize.Properties.Sanitize.Diag.Cfi) ||
+			Bool(sanitize.Properties.Sanitize.Diag.Undefined) ||
 			len(sanitize.Properties.Sanitize.Diag.Misc_undefined) > 0) {
+
 		return true
 	}
 	return false
+}
+
+func enableUbsanRuntime(sanitize *sanitize) bool {
+	return Bool(sanitize.Properties.Sanitize.Diag.Integer_overflow) ||
+		Bool(sanitize.Properties.Sanitize.Diag.Undefined) ||
+		len(sanitize.Properties.Sanitize.Diag.Misc_undefined) > 0
 }
 
 func cfiMakeVarsProvider(ctx android.MakeVarsContext) {

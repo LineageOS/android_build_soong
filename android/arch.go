@@ -765,7 +765,7 @@ func osMutator(mctx BottomUpMutatorContext) {
 	}
 
 	if len(moduleOSList) == 0 {
-		base.commonProperties.Enabled = boolPtr(false)
+		base.Disable()
 		return
 	}
 
@@ -869,7 +869,7 @@ func archMutator(mctx BottomUpMutatorContext) {
 	}
 
 	if len(targets) == 0 {
-		base.commonProperties.Enabled = boolPtr(false)
+		base.Disable()
 		return
 	}
 
@@ -1521,12 +1521,7 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 
 // hasArmAbi returns true if arch has at least one arm ABI
 func hasArmAbi(arch Arch) bool {
-	for _, abi := range arch.Abi {
-		if strings.HasPrefix(abi, "arm") {
-			return true
-		}
-	}
-	return false
+	return PrefixInList(arch.Abi, "arm")
 }
 
 // hasArmArch returns true if targets has at least non-native_bridge arm Android arch
