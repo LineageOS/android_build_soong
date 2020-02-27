@@ -205,6 +205,7 @@ type moduleInstallPathContextImpl struct {
 	inRamdisk      bool
 	inRecovery     bool
 	inRoot         bool
+	forceOS        *OsType
 }
 
 func (m moduleInstallPathContextImpl) Config() Config {
@@ -239,6 +240,10 @@ func (m moduleInstallPathContextImpl) InstallInRoot() bool {
 
 func (m moduleInstallPathContextImpl) InstallBypassMake() bool {
 	return false
+}
+
+func (m moduleInstallPathContextImpl) InstallForceOS() *OsType {
+	return m.forceOS
 }
 
 func pathTestConfig(buildDir string) Config {
@@ -598,6 +603,40 @@ func TestPathForModuleInstall(t *testing.T) {
 			},
 			in:  []string{"nativetest", "my_test"},
 			out: "target/product/test_device/data/asan/data/nativetest/my_test",
+		}, {
+			name: "device testcases",
+			ctx: &moduleInstallPathContextImpl{
+				baseModuleContext: baseModuleContext{
+					os:     deviceTarget.Os,
+					target: deviceTarget,
+				},
+				inTestcases: true,
+			},
+			in:  []string{"my_test", "my_test_bin"},
+			out: "target/product/test_device/testcases/my_test/my_test_bin",
+		}, {
+			name: "host testcases",
+			ctx: &moduleInstallPathContextImpl{
+				baseModuleContext: baseModuleContext{
+					os:     hostTarget.Os,
+					target: hostTarget,
+				},
+				inTestcases: true,
+			},
+			in:  []string{"my_test", "my_test_bin"},
+			out: "host/linux-x86/testcases/my_test/my_test_bin",
+		}, {
+			name: "forced host testcases",
+			ctx: &moduleInstallPathContextImpl{
+				baseModuleContext: baseModuleContext{
+					os:     deviceTarget.Os,
+					target: deviceTarget,
+				},
+				inTestcases: true,
+				forceOS:     &Linux,
+			},
+			in:  []string{"my_test", "my_test_bin"},
+			out: "host/linux-x86/testcases/my_test/my_test_bin",
 		},
 	}
 
