@@ -323,8 +323,10 @@ func memberMutator(mctx android.BottomUpMutatorContext) {
 		if s.Enabled() {
 			for _, memberListProperty := range s.memberListProperties() {
 				names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
-				tag := memberListProperty.dependencyTag
-				memberListProperty.memberType.AddDependencies(mctx, tag, names)
+				if len(names) > 0 {
+					tag := memberListProperty.dependencyTag
+					memberListProperty.memberType.AddDependencies(mctx, tag, names)
+				}
 			}
 		}
 	}
