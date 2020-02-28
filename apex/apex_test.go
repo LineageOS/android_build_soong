@@ -1532,13 +1532,17 @@ func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, var
 	var surplus []string
 	filesMatched := make(map[string]bool)
 	for _, file := range getFiles(t, ctx, moduleName, variant) {
+		mactchFound := false
 		for _, expected := range files {
 			if matched, _ := path.Match(expected, file.path); matched {
 				filesMatched[expected] = true
-				return
+				mactchFound = true
+				break
 			}
 		}
-		surplus = append(surplus, file.path)
+		if !mactchFound {
+			surplus = append(surplus, file.path)
+		}
 	}
 
 	if len(surplus) > 0 {
@@ -1605,8 +1609,10 @@ func TestVndkApexCurrent(t *testing.T) {
 	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib/libvndksp.so",
+		"lib/libc++.so",
 		"lib64/libvndk.so",
 		"lib64/libvndksp.so",
+		"lib64/libc++.so",
 		"etc/llndk.libraries.VER.txt",
 		"etc/vndkcore.libraries.VER.txt",
 		"etc/vndksp.libraries.VER.txt",
@@ -1666,6 +1672,8 @@ func TestVndkApexWithPrebuilt(t *testing.T) {
 		"lib/libvndk.so",
 		"lib/libvndk.arm.so",
 		"lib64/libvndk.so",
+		"lib/libc++.so",
+		"lib64/libc++.so",
 		"etc/*",
 	})
 }
@@ -1877,6 +1885,8 @@ func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib64/libvndk.so",
+		"lib/libc++.so",
+		"lib64/libc++.so",
 		"etc/*",
 	})
 }
