@@ -145,6 +145,10 @@ func (m *Metrics) Dump(outputPath string) (err error) {
 	return writeMessageToFile(&m.metrics, outputPath)
 }
 
+func (m *Metrics) SetSoongBuildMetrics(metrics *soong_metrics_proto.SoongBuildMetrics) {
+	m.metrics.SoongBuildMetrics = metrics
+}
+
 type CriticalUserJourneysMetrics struct {
 	cujs soong_metrics_proto.CriticalUserJourneysMetrics
 }
