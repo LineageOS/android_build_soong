@@ -265,14 +265,16 @@ func ExampleRuleBuilderCommand_NinjaEscapedString() {
 
 func TestRuleBuilder(t *testing.T) {
 	fs := map[string][]byte{
-		"dep_fixer": nil,
-		"input":     nil,
-		"Implicit":  nil,
-		"Input":     nil,
-		"Tool":      nil,
-		"input2":    nil,
-		"tool2":     nil,
-		"input3":    nil,
+		"dep_fixer":  nil,
+		"input":      nil,
+		"Implicit":   nil,
+		"Input":      nil,
+		"OrderOnly":  nil,
+		"OrderOnlys": nil,
+		"Tool":       nil,
+		"input2":     nil,
+		"tool2":      nil,
+		"input3":     nil,
 	}
 
 	ctx := PathContextForTesting(TestConfig("out", nil, "", fs))
@@ -290,6 +292,7 @@ func TestRuleBuilder(t *testing.T) {
 			ImplicitOutput(PathForOutput(ctx, "ImplicitOutput")).
 			Input(PathForSource(ctx, "Input")).
 			Output(PathForOutput(ctx, "Output")).
+			OrderOnly(PathForSource(ctx, "OrderOnly")).
 			Text("Text").
 			Tool(PathForSource(ctx, "Tool"))
 
@@ -298,6 +301,7 @@ func TestRuleBuilder(t *testing.T) {
 			DepFile(PathForOutput(ctx, "depfile2")).
 			Input(PathForSource(ctx, "input2")).
 			Output(PathForOutput(ctx, "output2")).
+			OrderOnlys(PathsForSource(ctx, []string{"OrderOnlys"})).
 			Tool(PathForSource(ctx, "tool2"))
 
 		// Test updates to the first command after the second command has been started
@@ -317,6 +321,7 @@ func TestRuleBuilder(t *testing.T) {
 	wantOutputs := PathsForOutput(ctx, []string{"ImplicitOutput", "Output", "output", "output2", "output3"})
 	wantDepFiles := PathsForOutput(ctx, []string{"DepFile", "depfile", "ImplicitDepFile", "depfile2"})
 	wantTools := PathsForSource(ctx, []string{"Tool", "tool2"})
+	wantOrderOnlys := PathsForSource(ctx, []string{"OrderOnly", "OrderOnlys"})
 
 	t.Run("normal", func(t *testing.T) {
 		rule := NewRuleBuilder()
@@ -345,6 +350,9 @@ func TestRuleBuilder(t *testing.T) {
 		}
 		if g, w := rule.Tools(), wantTools; !reflect.DeepEqual(w, g) {
 			t.Errorf("\nwant rule.Tools() = %#v\n                got %#v", w, g)
+		}
+		if g, w := rule.OrderOnlys(), wantOrderOnlys; !reflect.DeepEqual(w, g) {
+			t.Errorf("\nwant rule.OrderOnlys() = %#v\n                got %#v", w, g)
 		}
 
 		if g, w := rule.depFileMergerCmd(ctx, rule.DepFiles()).String(), wantDepMergerCommand; g != w {
@@ -379,6 +387,9 @@ func TestRuleBuilder(t *testing.T) {
 		}
 		if g, w := rule.Tools(), wantTools; !reflect.DeepEqual(w, g) {
 			t.Errorf("\nwant rule.Tools() = %#v\n                got %#v", w, g)
+		}
+		if g, w := rule.OrderOnlys(), wantOrderOnlys; !reflect.DeepEqual(w, g) {
+			t.Errorf("\nwant rule.OrderOnlys() = %#v\n                got %#v", w, g)
 		}
 
 		if g, w := rule.depFileMergerCmd(ctx, rule.DepFiles()).String(), wantDepMergerCommand; g != w {
