@@ -61,6 +61,12 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 
 	config := android.TestArchConfig(buildDir, nil, bp, mockFS)
 
+	// Add windows as a default disable OS to test behavior when some OS variants
+	// are disabled.
+	config.Targets[android.Windows] = []android.Target{
+		{android.Windows, android.Arch{ArchType: android.X86_64}, android.NativeBridgeDisabled, "", ""},
+	}
+
 	ctx := android.NewTestArchContext()
 
 	// from android package
