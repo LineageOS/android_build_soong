@@ -1341,6 +1341,25 @@ android_app_import {
 }
 `,
 	},
+	{
+		desc: "undefined_boolean_var",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES:= a.cpp
+LOCAL_MODULE:= test
+LOCAL_32_BIT_ONLY := $(FLAG)
+include $(BUILD_EXECUTABLE)
+`,
+		expected: `
+cc_binary {
+    name: "test",
+    srcs: ["a.cpp"],
+    // ANDROIDMK TRANSLATION ERROR: value should evaluate to boolean literal
+    // LOCAL_32_BIT_ONLY := $(FLAG)
+
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
