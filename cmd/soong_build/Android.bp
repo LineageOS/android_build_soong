@@ -17,9 +17,11 @@ bootstrap_go_binary {
     deps: [
         "blueprint",
         "blueprint-bootstrap",
+        "golang-protobuf-proto",
         "soong",
         "soong-android",
         "soong-env",
+        "soong-ui-metrics_proto",
     ],
     srcs: [
         "main.go",
