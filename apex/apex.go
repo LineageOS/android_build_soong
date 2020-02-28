@@ -2329,6 +2329,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.linkToSystemLib = false
 	}
 
+	// We also don't want the optimization for host APEXes, because it doesn't make sense.
+	if ctx.Host() {
+		a.linkToSystemLib = false
+	}
+
 	// prepare apex_manifest.json
 	a.buildManifest(ctx, provideNativeLibs, requireNativeLibs)
 
