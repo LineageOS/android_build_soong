@@ -383,11 +383,15 @@ func local32BitOnly(ctx variableAssignmentContext) error {
 	if err != nil {
 		return err
 	}
-	if val.(*bpparser.Bool).Value {
+	boolValue, ok := val.(*bpparser.Bool)
+	if !ok {
+		return fmt.Errorf("value should evaluate to boolean literal")
+	}
+	if boolValue.Value {
 		thirtyTwo := &bpparser.String{
 			Value: "32",
 		}
-		setVariable(ctx.file, false, ctx.prefix, "compile_multilib", thirtyTwo, true)
+		return setVariable(ctx.file, false, ctx.prefix, "compile_multilib", thirtyTwo, true)
 	}
 	return nil
 }
