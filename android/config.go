@@ -570,8 +570,8 @@ func (c *config) BuildId() string {
 	return String(c.productVariables.BuildId)
 }
 
-func (c *config) BuildNumberFromFile() string {
-	return String(c.productVariables.BuildNumberFromFile)
+func (c *config) BuildNumberFile(ctx PathContext) Path {
+	return PathForOutput(ctx, String(c.productVariables.BuildNumberFile))
 }
 
 // DeviceName returns the name of the current device target
