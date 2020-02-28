@@ -226,6 +226,14 @@ func tearDown() {
 	os.RemoveAll(buildDir)
 }
 
+// ensure that 'result' equals 'expected'
+func ensureEquals(t *testing.T, result string, expected string) {
+	t.Helper()
+	if result != expected {
+		t.Errorf("%q != %q", expected, result)
+	}
+}
+
 // ensure that 'result' contains 'expected'
 func ensureContains(t *testing.T, result string, expected string) {
 	t.Helper()
@@ -3619,6 +3627,70 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 	ensureRealfileExists(t, files, "javalib/myjar.jar")
 	ensureRealfileExists(t, files, "lib64/mylib.so")
 	ensureRealfileExists(t, files, "lib64/myotherlib.so") // this is a real file
+}
+
+func TestApexWithJniLibs(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			jni_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["mylib2"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+	`)
+
+	rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
+	// Notice mylib2.so (transitive dep) is not added as a jni_lib
+	ensureEquals(t, rule.Args["opt"], "-a jniLibs mylib.so")
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"lib64/mylib.so",
+		"lib64/mylib2.so",
+	})
+}
+
+func TestApexWithJniLibs_Errors(t *testing.T) {
+	testApexError(t, `jni_libs: "xxx" is not a cc_library`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			jni_libs: ["xxx"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		prebuilt_etc {
+			name: "xxx",
+			src: "xxx",
+		}
+	`, withFiles(map[string][]byte{
+		"xxx": nil,
+	}))
 }
 
 func TestMain(m *testing.M) {

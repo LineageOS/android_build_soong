@@ -180,6 +180,17 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 		optCommands = append(optCommands, "-v name "+*a.properties.Apex_name)
 	}
 
+	// collect jniLibs. Notice that a.filesInfo is already sorted
+	var jniLibs []string
+	for _, fi := range a.filesInfo {
+		if fi.isJniLib {
+			jniLibs = append(jniLibs, fi.builtFile.Base())
+		}
+	}
+	if len(jniLibs) > 0 {
+		optCommands = append(optCommands, "-a jniLibs "+strings.Join(jniLibs, " "))
+	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   apexManifestRule,
 		Input:  manifestSrc,

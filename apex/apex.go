@@ -52,6 +52,7 @@ type dependencyTag struct {
 
 var (
 	sharedLibTag   = dependencyTag{name: "sharedLib", payload: true}
+	jniLibTag      = dependencyTag{name: "jniLib", payload: true}
 	executableTag  = dependencyTag{name: "executable", payload: true}
 	javaLibTag     = dependencyTag{name: "javaLib", payload: true}
 	prebuiltTag    = dependencyTag{name: "prebuilt", payload: true}
@@ -1164,6 +1165,9 @@ type ApexNativeDependencies struct {
 	// List of native libraries
 	Native_shared_libs []string
 
+	// List of JNI libraries
+	Jni_libs []string
+
 	// List of native executables
 	Binaries []string
 
@@ -1411,6 +1415,8 @@ type apexFile struct {
 
 	jacocoReportClassesFile android.Path     // only for javalibs and apps
 	certificate             java.Certificate // only for apps
+
+	isJniLib bool
 }
 
 func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, moduleName string, installDir string, class apexFileClass, module android.Module) apexFile {
@@ -1541,6 +1547,12 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
 		{Mutator: "version", Variation: ""}, // "" is the non-stub variant
 	}...), sharedLibTag, nativeModules.Native_shared_libs...)
 
+	ctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
+		{Mutator: "image", Variation: imageVariation},
+		{Mutator: "link", Variation: "shared"},
+		{Mutator: "version", Variation: ""}, // "" is the non-stub variant
+	}...), jniLibTag, nativeModules.Jni_libs...)
+
 	ctx.AddFarVariationDependencies(append(target.Variations(),
 		blueprint.Variation{Mutator: "image", Variation: imageVariation}),
 		executableTag, nativeModules.Binaries...)
@@ -1581,12 +1593,13 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 	for i, target := range targets {
-		// When multilib.* is omitted for native_shared_libs/tests, it implies
+		// When multilib.* is omitted for native_shared_libs/jni_libs/tests, it implies
 		// multilib.both
 		addDependenciesForNativeModules(ctx,
 			ApexNativeDependencies{
 				Native_shared_libs: a.properties.Native_shared_libs,
 				Tests:              a.properties.Tests,
+				Jni_libs:           a.properties.Jni_libs,
 				Binaries:           nil,
 			},
 			target, a.getImageVariation(config))
@@ -1605,6 +1618,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 				ApexNativeDependencies{
 					Native_shared_libs: nil,
 					Tests:              nil,
+					Jni_libs:           nil,
 					Binaries:           a.properties.Binaries,
 				},
 				target, a.getImageVariation(config))
@@ -1646,7 +1660,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 				for _, sanitizer := range ctx.Config().SanitizeDevice() {
 					if sanitizer == "hwaddress" {
 						addDependenciesForNativeModules(ctx,
-							ApexNativeDependencies{[]string{"libclang_rt.hwasan-aarch64-android"}, nil, nil},
+							ApexNativeDependencies{[]string{"libclang_rt.hwasan-aarch64-android"}, nil, nil, nil},
 							target, a.getImageVariation(config))
 						break
 					}
@@ -2068,16 +2082,23 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		depName := ctx.OtherModuleName(child)
 		if _, isDirectDep := parent.(*apexBundle); isDirectDep {
 			switch depTag {
-			case sharedLibTag:
+			case sharedLibTag, jniLibTag:
+				isJniLib := depTag == jniLibTag
 				if c, ok := child.(*cc.Module); ok {
 					// bootstrap bionic libs are treated as provided by system
 					if c.HasStubsVariants() && !cc.InstallToBootstrap(c.BaseModuleName(), ctx.Config()) {
 						provideNativeLibs = append(provideNativeLibs, c.OutputFile().Path().Base())
 					}
-					filesInfo = append(filesInfo, apexFileForNativeLibrary(ctx, c, handleSpecialLibs))
+					fi := apexFileForNativeLibrary(ctx, c, handleSpecialLibs)
+					fi.isJniLib = isJniLib
+					filesInfo = append(filesInfo, fi)
 					return true // track transitive dependencies
 				} else {
-					ctx.PropertyErrorf("native_shared_libs", "%q is not a cc_library or cc_library_shared module", depName)
+					propertyName := "native_shared_libs"
+					if isJniLib {
+						propertyName = "jni_libs"
+					}
+					ctx.PropertyErrorf(propertyName, "%q is not a cc_library or cc_library_shared module", depName)
 				}
 			case executableTag:
 				if cc, ok := child.(*cc.Module); ok {
