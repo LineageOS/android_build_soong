@@ -87,6 +87,12 @@ func withTargets(targets map[android.OsType][]android.Target) testCustomizer {
 	}
 }
 
+func withManifestPackageNameOverrides(specs []string) testCustomizer {
+	return func(fs map[string][]byte, config android.Config) {
+		config.TestProductVariables.ManifestPackageNameOverrides = specs
+	}
+}
+
 func withBinder32bit(fs map[string][]byte, config android.Config) {
 	config.TestProductVariables.Binder32bit = proptools.BoolPtr(true)
 }
@@ -3714,12 +3720,13 @@ func TestAppBundle(t *testing.T) {
 			system_modules: "none",
 			apex_available: [ "myapex" ],
 		}
-	`)
+		`, withManifestPackageNameOverrides([]string{"AppFoo:com.android.foo"}))
 
 	bundleConfigRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Description("Bundle Config")
 	content := bundleConfigRule.Args["content"]
 
 	ensureContains(t, content, `"compression":{"uncompressed_glob":["apex_payload.img","apex_manifest.*"]}`)
+	ensureContains(t, content, `"apex_config":{"apex_embedded_apk_config":[{"package_name":"com.android.foo","path":"app/AppFoo/AppFoo.apk"}]}`)
 }
 
 func TestMain(m *testing.M) {
