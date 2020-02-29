@@ -263,16 +263,41 @@ func (a *apexBundle) buildInstalledFilesFile(ctx android.ModuleContext, builtApe
 func (a *apexBundle) buildBundleConfig(ctx android.ModuleContext) android.OutputPath {
 	output := android.PathForModuleOut(ctx, "bundle_config.json")
 
+	type ApkConfig struct {
+		Package_name string `json:"package_name"`
+		Apk_path     string `json:"path"`
+	}
 	config := struct {
 		Compression struct {
 			Uncompressed_glob []string `json:"uncompressed_glob"`
 		} `json:"compression"`
+		Apex_config struct {
+			Apex_embedded_apk_config []ApkConfig `json:"apex_embedded_apk_config,omitempty"`
+		} `json:"apex_config,omitempty"`
 	}{}
 
 	config.Compression.Uncompressed_glob = []string{
 		"apex_payload.img",
 		"apex_manifest.*",
 	}
+
+	// collect the manifest names and paths of android apps
+	// if their manifest names are overridden
+	for _, fi := range a.filesInfo {
+		if fi.class != app {
+			continue
+		}
+		packageName := fi.overriddenPackageName
+		if packageName != "" {
+			config.Apex_config.Apex_embedded_apk_config = append(
+				config.Apex_config.Apex_embedded_apk_config,
+				ApkConfig{
+					Package_name: packageName,
+					Apk_path:     fi.Path(),
+				})
+		}
+	}
+
 	j, err := json.Marshal(config)
 	if err != nil {
 		panic(fmt.Errorf("error while marshalling to %q: %#v", output, err))

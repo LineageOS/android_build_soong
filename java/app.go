@@ -147,6 +147,8 @@ type AndroidApp struct {
 	additionalAaptFlags []string
 
 	noticeOutputs android.NoticeOutputs
+
+	overriddenManifestPackageName string
 }
 
 func (a *AndroidApp) IsInstallable() bool {
@@ -271,6 +273,10 @@ func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
 		!a.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
 }
 
+func (a *AndroidApp) OverriddenManifestPackageName() string {
+	return a.overriddenManifestPackageName
+}
+
 func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	a.aapt.usesNonSdkApis = Bool(a.Module.deviceProperties.Platform_apis)
 
@@ -304,6 +310,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 			manifestPackageName = *a.overridableAppProperties.Package_name
 		}
 		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
+		a.overriddenManifestPackageName = manifestPackageName
 	}
 
 	aaptLinkFlags = append(aaptLinkFlags, a.additionalAaptFlags...)

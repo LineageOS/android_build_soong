@@ -1415,6 +1415,7 @@ type apexFile struct {
 
 	jacocoReportClassesFile android.Path     // only for javalibs and apps
 	certificate             java.Certificate // only for apps
+	overriddenPackageName   string           // only for apps
 
 	isJniLib bool
 }
@@ -1922,6 +1923,12 @@ func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 	af := newApexFile(ctx, fileToCopy, aapp.Name(), dirInApex, app, aapp)
 	af.jacocoReportClassesFile = aapp.JacocoReportClassesFile()
 	af.certificate = aapp.Certificate()
+
+	if app, ok := aapp.(interface {
+		OverriddenManifestPackageName() string
+	}); ok {
+		af.overriddenPackageName = app.OverriddenManifestPackageName()
+	}
 	return af
 }
 
