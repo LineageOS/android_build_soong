@@ -226,6 +226,14 @@ func tearDown() {
 	os.RemoveAll(buildDir)
 }
 
+// ensure that 'result' equals 'expected'
+func ensureEquals(t *testing.T, result string, expected string) {
+	t.Helper()
+	if result != expected {
+		t.Errorf("%q != %q", expected, result)
+	}
+}
+
 // ensure that 'result' contains 'expected'
 func ensureContains(t *testing.T, result string, expected string) {
 	t.Helper()
@@ -1532,13 +1540,17 @@ func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, var
 	var surplus []string
 	filesMatched := make(map[string]bool)
 	for _, file := range getFiles(t, ctx, moduleName, variant) {
+		mactchFound := false
 		for _, expected := range files {
 			if matched, _ := path.Match(expected, file.path); matched {
 				filesMatched[expected] = true
-				return
+				mactchFound = true
+				break
 			}
 		}
-		surplus = append(surplus, file.path)
+		if !mactchFound {
+			surplus = append(surplus, file.path)
+		}
 	}
 
 	if len(surplus) > 0 {
@@ -1605,8 +1617,10 @@ func TestVndkApexCurrent(t *testing.T) {
 	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib/libvndksp.so",
+		"lib/libc++.so",
 		"lib64/libvndk.so",
 		"lib64/libvndksp.so",
+		"lib64/libc++.so",
 		"etc/llndk.libraries.VER.txt",
 		"etc/vndkcore.libraries.VER.txt",
 		"etc/vndksp.libraries.VER.txt",
@@ -1666,6 +1680,8 @@ func TestVndkApexWithPrebuilt(t *testing.T) {
 		"lib/libvndk.so",
 		"lib/libvndk.arm.so",
 		"lib64/libvndk.so",
+		"lib/libc++.so",
+		"lib64/libc++.so",
 		"etc/*",
 	})
 }
@@ -1877,6 +1893,8 @@ func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib64/libvndk.so",
+		"lib/libc++.so",
+		"lib64/libc++.so",
 		"etc/*",
 	})
 }
@@ -3609,6 +3627,70 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 	ensureRealfileExists(t, files, "javalib/myjar.jar")
 	ensureRealfileExists(t, files, "lib64/mylib.so")
 	ensureRealfileExists(t, files, "lib64/myotherlib.so") // this is a real file
+}
+
+func TestApexWithJniLibs(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			jni_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["mylib2"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+	`)
+
+	rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
+	// Notice mylib2.so (transitive dep) is not added as a jni_lib
+	ensureEquals(t, rule.Args["opt"], "-a jniLibs mylib.so")
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"lib64/mylib.so",
+		"lib64/mylib2.so",
+	})
+}
+
+func TestApexWithJniLibs_Errors(t *testing.T) {
+	testApexError(t, `jni_libs: "xxx" is not a cc_library`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			jni_libs: ["xxx"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		prebuilt_etc {
+			name: "xxx",
+			src: "xxx",
+		}
+	`, withFiles(map[string][]byte{
+		"xxx": nil,
+	}))
 }
 
 func TestMain(m *testing.M) {
