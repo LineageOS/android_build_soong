@@ -94,6 +94,8 @@ var Configuration = map[string]PathConfig{
 	"javap":    Allowed,
 	"lsof":     Allowed,
 	"m4":       Allowed,
+	"mkdtimg":  Allowed,
+	"mkdtboimg":Allowed,
 	"nproc":    Allowed,
 	"openssl":  Allowed,
 	"patch":    Allowed,
