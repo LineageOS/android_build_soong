@@ -15,6 +15,7 @@
 package apex
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -136,15 +137,17 @@ var (
 		})
 
 	apexBundleRule = pctx.StaticRule("apexBundleRule", blueprint.RuleParams{
-		Command: `${zip2zip} -i $in -o $out ` +
+		Command: `${zip2zip} -i $in -o $out.base ` +
 			`apex_payload.img:apex/${abi}.img ` +
 			`apex_manifest.json:root/apex_manifest.json ` +
 			`apex_manifest.pb:root/apex_manifest.pb ` +
 			`AndroidManifest.xml:manifest/AndroidManifest.xml ` +
-			`assets/NOTICE.html.gz:assets/NOTICE.html.gz`,
-		CommandDeps: []string{"${zip2zip}"},
+			`assets/NOTICE.html.gz:assets/NOTICE.html.gz &&` +
+			`${soong_zip} -o $out.config -C $$(dirname ${config}) -f ${config} && ` +
+			`${merge_zips} $out $out.base $out.config`,
+		CommandDeps: []string{"${zip2zip}", "${soong_zip}", "${merge_zips}"},
 		Description: "app bundle",
-	}, "abi")
+	}, "abi", "config")
 
 	emitApexContentRule = pctx.StaticRule("emitApexContentRule", blueprint.RuleParams{
 		Command:        `rm -f ${out} && touch ${out} && (. ${out}.emit_commands)`,
@@ -243,6 +246,36 @@ func (a *apexBundle) buildInstalledFilesFile(ctx android.ModuleContext, builtApe
 		Text(" | sort -nr > ").
 		Output(output)
 	rule.Build(pctx, ctx, "installed-files."+a.Name(), "Installed files")
+	return output.OutputPath
+}
+
+func (a *apexBundle) buildBundleConfig(ctx android.ModuleContext) android.OutputPath {
+	output := android.PathForModuleOut(ctx, "bundle_config.json")
+
+	config := struct {
+		Compression struct {
+			Uncompressed_glob []string `json:"uncompressed_glob"`
+		} `json:"compression"`
+	}{}
+
+	config.Compression.Uncompressed_glob = []string{
+		"apex_payload.img",
+		"apex_manifest.*",
+	}
+	j, err := json.Marshal(config)
+	if err != nil {
+		panic(fmt.Errorf("error while marshalling to %q: %#v", output, err))
+	}
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        android.WriteFile,
+		Output:      output,
+		Description: "Bundle Config " + output.String(),
+		Args: map[string]string{
+			"content": string(j),
+		},
+	})
+
 	return output.OutputPath
 }
 
@@ -465,13 +498,17 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Description: "apex proto convert",
 		})
 
+		bundleConfig := a.buildBundleConfig(ctx)
+
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        apexBundleRule,
 			Input:       apexProtoFile,
+			Implicit:    bundleConfig,
 			Output:      a.bundleModuleFile,
 			Description: "apex bundle module",
 			Args: map[string]string{
-				"abi": strings.Join(abis, "."),
+				"abi":    strings.Join(abis, "."),
+				"config": bundleConfig.String(),
 			},
 		})
 	} else {
