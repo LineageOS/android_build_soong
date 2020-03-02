@@ -1389,13 +1389,13 @@ func TestMacro(t *testing.T) {
 		apex {
 			name: "myapex",
 			key: "myapex.key",
-			native_shared_libs: ["mylib"],
+			native_shared_libs: ["mylib", "mylib2"],
 		}
 
 		apex {
 			name: "otherapex",
 			key: "myapex.key",
-			native_shared_libs: ["mylib"],
+			native_shared_libs: ["mylib", "mylib2"],
 		}
 
 		apex_key {
@@ -1409,29 +1409,53 @@ func TestMacro(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 				"otherapex",
 			],
 		}
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [
+				"myapex",
+				"otherapex",
+			],
+			use_apex_name_macro: true,
+		}
 	`)
 
-	// non-APEX variant does not have __ANDROID_APEX(_NAME)__ defined
+	// non-APEX variant does not have __ANDROID_APEX__ defined
 	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__")
+
+	// APEX variant has __ANDROID_APEX__ defined
+	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
+	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
+
+	// APEX variant has __ANDROID_APEX__ defined
+	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_otherapex").Rule("cc").Args["cFlags"]
+	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
 
-	// APEX variant has __ANDROID_APEX(_NAME)__ defined
-	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
+	// When cc_library sets use_apex_name_macro: true
+	// apex variants define additional macro to distinguish which apex variant it is built for
+
+	// non-APEX variant does not have __ANDROID_APEX__ defined
+	mylibCFlags = ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__")
+
+	// APEX variant has __ANDROID_APEX__ defined
+	mylibCFlags = ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
 
-	// APEX variant has __ANDROID_APEX(_NAME)__ defined
-	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_otherapex").Rule("cc").Args["cFlags"]
+	// APEX variant has __ANDROID_APEX__ defined
+	mylibCFlags = ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_otherapex").Rule("cc").Args["cFlags"]
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
