@@ -99,8 +99,8 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 	if err != nil {
 		ctx.ModuleErrorf("invalid targetSdkVersion: %s", err)
 	}
-	if UseApiFingerprint(ctx, targetSdkVersion) {
-		targetSdkVersion += fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
+	if UseApiFingerprint(ctx) {
+		targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
 		deps = append(deps, ApiFingerprintPath(ctx))
 	}
 
@@ -108,8 +108,8 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 	if err != nil {
 		ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 	}
-	if UseApiFingerprint(ctx, minSdkVersion) {
-		minSdkVersion += fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
+	if UseApiFingerprint(ctx) {
+		minSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", ApiFingerprintPath(ctx).String())
 		deps = append(deps, ApiFingerprintPath(ctx))
 	}
 
