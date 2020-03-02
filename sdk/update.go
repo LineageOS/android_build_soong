@@ -676,50 +676,66 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 	osInfo := &osTypeSpecificInfo{}
 	osInfo.Properties = memberType.CreateVariantPropertiesStruct()
 	variants := member.Variants()
+	commonArch := false
 	for _, variant := range variants {
 		var properties android.SdkMemberProperties
 
 		// Get the info associated with the arch type inside the os info.
 		archType := variant.Target().Arch.ArchType
 
-		archInfo := &archTypeSpecificInfo{archType: archType}
-		properties = memberType.CreateVariantPropertiesStruct()
-		archInfo.Properties = properties
+		if archType.Name == "common" {
+			// The arch type is common so populate the common properties directly.
+			properties = osInfo.Properties
 
-		osInfo.archTypes = append(osInfo.archTypes, archInfo)
+			commonArch = true
+		} else {
+			archInfo := &archTypeSpecificInfo{archType: archType}
+			properties = memberType.CreateVariantPropertiesStruct()
+			archInfo.Properties = properties
+
+			osInfo.archTypes = append(osInfo.archTypes, archInfo)
+		}
 
 		properties.PopulateFromVariant(variant)
 	}
 
-	var archProperties []android.SdkMemberProperties
-	for _, archInfo := range osInfo.archTypes {
-		archProperties = append(archProperties, archInfo.Properties)
-	}
-
-	extractCommonProperties(osInfo.Properties, archProperties)
-
-	// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
-	var multilib string
-	archVariantCount := len(osInfo.archTypes)
-	if archVariantCount == 2 {
-		multilib = "both"
-	} else if archVariantCount == 1 {
-		if strings.HasSuffix(osInfo.archTypes[0].archType.Name, "64") {
-			multilib = "64"
-		} else {
-			multilib = "32"
+	if commonArch {
+		if len(variants) != 1 {
+			panic("Expected to only have 1 variant when arch type is common but found " + string(len(variants)))
 		}
-	}
+	} else {
+		var archProperties []android.SdkMemberProperties
+		for _, archInfo := range osInfo.archTypes {
+			archProperties = append(archProperties, archInfo.Properties)
+		}
 
-	osInfo.Properties.Base().Compile_multilib = multilib
+		extractCommonProperties(osInfo.Properties, archProperties)
+
+		// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
+		var multilib string
+		archVariantCount := len(osInfo.archTypes)
+		if archVariantCount == 2 {
+			multilib = "both"
+		} else if archVariantCount == 1 {
+			if strings.HasSuffix(osInfo.archTypes[0].archType.Name, "64") {
+				multilib = "64"
+			} else {
+				multilib = "32"
+			}
+		}
+
+		osInfo.Properties.Base().Compile_multilib = multilib
+	}
 
 	osInfo.Properties.AddToPropertySet(sdkModuleContext, builder, bpModule)
 
-	archPropertySet := bpModule.AddPropertySet("arch")
-	for _, av := range osInfo.archTypes {
-		archTypePropertySet := archPropertySet.AddPropertySet(av.archType.Name)
+	if !commonArch {
+		archPropertySet := bpModule.AddPropertySet("arch")
+		for _, av := range osInfo.archTypes {
+			archTypePropertySet := archPropertySet.AddPropertySet(av.archType.Name)
 
-		av.Properties.AddToPropertySet(sdkModuleContext, builder, archTypePropertySet)
+			av.Properties.AddToPropertySet(sdkModuleContext, builder, archTypePropertySet)
+		}
 	}
 
 	memberType.FinalizeModule(sdkModuleContext, builder, member, bpModule)
