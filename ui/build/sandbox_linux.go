@@ -90,10 +90,7 @@ func (c *Cmd) sandboxSupported() bool {
 			return
 		}
 
-		c.ctx.Println("Build sandboxing disabled due to nsjail error. This may become fatal in the future.")
-		c.ctx.Println("Please let us know why nsjail doesn't work in your environment at:")
-		c.ctx.Println("  https://groups.google.com/forum/#!forum/android-building")
-		c.ctx.Println("  https://issuetracker.google.com/issues/new?component=381517")
+		c.ctx.Println("Build sandboxing disabled due to nsjail error.")
 
 		for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
 			c.ctx.Verboseln(line)
