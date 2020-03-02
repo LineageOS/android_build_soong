@@ -1866,12 +1866,12 @@ const (
 )
 
 // path to the jar file of a java library. Relative to <sdk_root>/<api_dir>
-func sdkSnapshotFilePathForJar(name string) string {
-	return sdkSnapshotFilePathForMember(name, jarFileSuffix)
+func sdkSnapshotFilePathForJar(osPrefix, name string) string {
+	return sdkSnapshotFilePathForMember(osPrefix, name, jarFileSuffix)
 }
 
-func sdkSnapshotFilePathForMember(name string, suffix string) string {
-	return filepath.Join(javaDir, name+suffix)
+func sdkSnapshotFilePathForMember(osPrefix, name string, suffix string) string {
+	return filepath.Join(javaDir, osPrefix, name+suffix)
 }
 
 type librarySdkMemberType struct {
@@ -1918,7 +1918,7 @@ func (p *librarySdkMemberProperties) PopulateFromVariant(variant android.SdkAwar
 func (p *librarySdkMemberProperties) AddToPropertySet(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, propertySet android.BpPropertySet) {
 	if p.jarToExport != nil {
 		exportedJar := p.jarToExport
-		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.library.Name())
+		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), p.library.Name())
 		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
 
 		for _, dir := range p.library.AidlIncludeDirs() {
@@ -2125,10 +2125,10 @@ func (p *testSdkMemberProperties) PopulateFromVariant(variant android.SdkAware) 
 
 func (p *testSdkMemberProperties) AddToPropertySet(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, propertySet android.BpPropertySet) {
 	if p.jarToExport != nil {
-		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.test.Name())
+		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), p.test.Name())
 		builder.CopyToSnapshot(p.jarToExport, snapshotRelativeJavaLibPath)
 
-		snapshotRelativeTestConfigPath := sdkSnapshotFilePathForMember(p.test.Name(), testConfigSuffix)
+		snapshotRelativeTestConfigPath := sdkSnapshotFilePathForMember(p.OsPrefix(), p.test.Name(), testConfigSuffix)
 		builder.CopyToSnapshot(p.test.testConfig, snapshotRelativeTestConfigPath)
 
 		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
@@ -2336,7 +2336,7 @@ func BinaryHostFactory() android.Module {
 //
 
 type ImportProperties struct {
-	Jars []string `android:"path"`
+	Jars []string `android:"path,arch_variant"`
 
 	Sdk_version *string
 
