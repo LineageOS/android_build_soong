@@ -15,6 +15,7 @@
 package apex
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -136,15 +137,17 @@ var (
 		})
 
 	apexBundleRule = pctx.StaticRule("apexBundleRule", blueprint.RuleParams{
-		Command: `${zip2zip} -i $in -o $out ` +
+		Command: `${zip2zip} -i $in -o $out.base ` +
 			`apex_payload.img:apex/${abi}.img ` +
 			`apex_manifest.json:root/apex_manifest.json ` +
 			`apex_manifest.pb:root/apex_manifest.pb ` +
 			`AndroidManifest.xml:manifest/AndroidManifest.xml ` +
-			`assets/NOTICE.html.gz:assets/NOTICE.html.gz`,
-		CommandDeps: []string{"${zip2zip}"},
+			`assets/NOTICE.html.gz:assets/NOTICE.html.gz &&` +
+			`${soong_zip} -o $out.config -C $$(dirname ${config}) -f ${config} && ` +
+			`${merge_zips} $out $out.base $out.config`,
+		CommandDeps: []string{"${zip2zip}", "${soong_zip}", "${merge_zips}"},
 		Description: "app bundle",
-	}, "abi")
+	}, "abi", "config")
 
 	emitApexContentRule = pctx.StaticRule("emitApexContentRule", blueprint.RuleParams{
 		Command:        `rm -f ${out} && touch ${out} && (. ${out}.emit_commands)`,
@@ -243,6 +246,61 @@ func (a *apexBundle) buildInstalledFilesFile(ctx android.ModuleContext, builtApe
 		Text(" | sort -nr > ").
 		Output(output)
 	rule.Build(pctx, ctx, "installed-files."+a.Name(), "Installed files")
+	return output.OutputPath
+}
+
+func (a *apexBundle) buildBundleConfig(ctx android.ModuleContext) android.OutputPath {
+	output := android.PathForModuleOut(ctx, "bundle_config.json")
+
+	type ApkConfig struct {
+		Package_name string `json:"package_name"`
+		Apk_path     string `json:"path"`
+	}
+	config := struct {
+		Compression struct {
+			Uncompressed_glob []string `json:"uncompressed_glob"`
+		} `json:"compression"`
+		Apex_config struct {
+			Apex_embedded_apk_config []ApkConfig `json:"apex_embedded_apk_config,omitempty"`
+		} `json:"apex_config,omitempty"`
+	}{}
+
+	config.Compression.Uncompressed_glob = []string{
+		"apex_payload.img",
+		"apex_manifest.*",
+	}
+
+	// collect the manifest names and paths of android apps
+	// if their manifest names are overridden
+	for _, fi := range a.filesInfo {
+		if fi.class != app {
+			continue
+		}
+		packageName := fi.overriddenPackageName
+		if packageName != "" {
+			config.Apex_config.Apex_embedded_apk_config = append(
+				config.Apex_config.Apex_embedded_apk_config,
+				ApkConfig{
+					Package_name: packageName,
+					Apk_path:     fi.Path(),
+				})
+		}
+	}
+
+	j, err := json.Marshal(config)
+	if err != nil {
+		panic(fmt.Errorf("error while marshalling to %q: %#v", output, err))
+	}
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        android.WriteFile,
+		Output:      output,
+		Description: "Bundle Config " + output.String(),
+		Args: map[string]string{
+			"content": string(j),
+		},
+	})
+
 	return output.OutputPath
 }
 
@@ -465,13 +523,17 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Description: "apex proto convert",
 		})
 
+		bundleConfig := a.buildBundleConfig(ctx)
+
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        apexBundleRule,
 			Input:       apexProtoFile,
+			Implicit:    bundleConfig,
 			Output:      a.bundleModuleFile,
 			Description: "apex bundle module",
 			Args: map[string]string{
-				"abi": strings.Join(abis, "."),
+				"abi":    strings.Join(abis, "."),
+				"config": bundleConfig.String(),
 			},
 		})
 	} else {

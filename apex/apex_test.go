@@ -87,6 +87,12 @@ func withTargets(targets map[android.OsType][]android.Target) testCustomizer {
 	}
 }
 
+func withManifestPackageNameOverrides(specs []string) testCustomizer {
+	return func(fs map[string][]byte, config android.Config) {
+		config.TestProductVariables.ManifestPackageNameOverrides = specs
+	}
+}
+
 func withBinder32bit(fs map[string][]byte, config android.Config) {
 	config.TestProductVariables.Binder32bit = proptools.BoolPtr(true)
 }
@@ -3607,6 +3613,36 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 	ensureRealfileExists(t, files, "javalib/myjar.jar")
 	ensureRealfileExists(t, files, "lib64/mylib.so")
 	ensureRealfileExists(t, files, "lib64/myotherlib.so") // this is a real file
+}
+
+func TestAppBundle(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			apps: ["AppFoo"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		android_app {
+			name: "AppFoo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			apex_available: [ "myapex" ],
+		}
+		`, withManifestPackageNameOverrides([]string{"AppFoo:com.android.foo"}))
+
+	bundleConfigRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Description("Bundle Config")
+	content := bundleConfigRule.Args["content"]
+
+	ensureContains(t, content, `"compression":{"uncompressed_glob":["apex_payload.img","apex_manifest.*"]}`)
+	ensureContains(t, content, `"apex_config":{"apex_embedded_apk_config":[{"package_name":"com.android.foo","path":"app/AppFoo/AppFoo.apk"}]}`)
 }
 
 func TestMain(m *testing.M) {
