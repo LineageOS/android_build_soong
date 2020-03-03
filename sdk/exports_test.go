@@ -42,7 +42,7 @@ func TestModuleExportsSnapshot(t *testing.T) {
 			"package/Android.bp": []byte(packageBp),
 		})
 
-	result.CheckSnapshot("myexports", "android_common", "package",
+	result.CheckSnapshot("myexports", "package",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
