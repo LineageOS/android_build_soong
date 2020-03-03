@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -1254,4 +1255,52 @@ func ExampleOutputPath_FileInSameDir() {
 	// Output:
 	// out/system/framework/boot.art out/system/framework/oat/arm/boot.vdex
 	// boot.art oat/arm/boot.vdex
+}
+
+func BenchmarkFirstUniquePaths(b *testing.B) {
+	implementations := []struct {
+		name string
+		f    func(Paths) Paths
+	}{
+		{
+			name: "list",
+			f:    firstUniquePathsList,
+		},
+		{
+			name: "map",
+			f:    firstUniquePathsMap,
+		},
+	}
+	const maxSize = 1024
+	uniquePaths := make(Paths, maxSize)
+	for i := range uniquePaths {
+		uniquePaths[i] = PathForTesting(strconv.Itoa(i))
+	}
+	samePath := make(Paths, maxSize)
+	for i := range samePath {
+		samePath[i] = uniquePaths[0]
+	}
+
+	f := func(b *testing.B, imp func(Paths) Paths, paths Paths) {
+		for i := 0; i < b.N; i++ {
+			b.ReportAllocs()
+			paths = append(Paths(nil), paths...)
+			imp(paths)
+		}
+	}
+
+	for n := 1; n <= maxSize; n <<= 1 {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			for _, implementation := range implementations {
+				b.Run(implementation.name, func(b *testing.B) {
+					b.Run("same", func(b *testing.B) {
+						f(b, implementation.f, samePath[:n])
+					})
+					b.Run("unique", func(b *testing.B) {
+						f(b, implementation.f, uniquePaths[:n])
+					})
+				})
+			}
+		})
+	}
 }
