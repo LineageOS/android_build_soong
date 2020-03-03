@@ -1778,6 +1778,8 @@ func filterMultilibTargets(targets []Target, multilib string) []Target {
 	return ret
 }
 
+// Return the set of Os specific common architecture targets for each Os in a list of
+// targets.
 func getCommonTargets(targets []Target) []Target {
 	var ret []Target
 	set := make(map[string]bool)
