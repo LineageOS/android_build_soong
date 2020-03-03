@@ -496,6 +496,28 @@ type vndkSnapshotSingleton struct {
 	vndkSnapshotZipFile android.OptionalPath
 }
 
+func isVndkSnapshotLibrary(config android.DeviceConfig, m *Module) (i snapshotLibraryInterface, vndkType string, isVndkSnapshotLib bool) {
+	if m.Target().NativeBridge == android.NativeBridgeEnabled {
+		return nil, "", false
+	}
+	if !m.inVendor() || !m.installable() || m.isSnapshotPrebuilt() {
+		return nil, "", false
+	}
+	l, ok := m.linker.(snapshotLibraryInterface)
+	if !ok || !l.shared() {
+		return nil, "", false
+	}
+	if m.VndkVersion() == config.PlatformVndkVersion() && m.IsVndk() && !m.isVndkExt() {
+		if m.isVndkSp() {
+			return l, "vndk-sp", true
+		} else {
+			return l, "vndk-core", true
+		}
+	}
+
+	return nil, "", false
+}
+
 func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	// build these files even if PlatformVndkVersion or BoardVndkVersion is not set
 	c.buildVndkLibrariesTxtFiles(ctx)
@@ -598,35 +620,13 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		return ret, true
 	}
 
-	isVndkSnapshotLibrary := func(m *Module) (i snapshotLibraryInterface, vndkType string, isVndkSnapshotLib bool) {
-		if m.Target().NativeBridge == android.NativeBridgeEnabled {
-			return nil, "", false
-		}
-		if !m.inVendor() || !m.installable() || m.isSnapshotPrebuilt() {
-			return nil, "", false
-		}
-		l, ok := m.linker.(snapshotLibraryInterface)
-		if !ok || !l.shared() {
-			return nil, "", false
-		}
-		if m.VndkVersion() == ctx.DeviceConfig().PlatformVndkVersion() && m.IsVndk() && !m.isVndkExt() {
-			if m.isVndkSp() {
-				return l, "vndk-sp", true
-			} else {
-				return l, "vndk-core", true
-			}
-		}
-
-		return nil, "", false
-	}
-
 	ctx.VisitAllModules(func(module android.Module) {
 		m, ok := module.(*Module)
 		if !ok || !m.Enabled() {
 			return
 		}
 
-		l, vndkType, ok := isVndkSnapshotLibrary(m)
+		l, vndkType, ok := isVndkSnapshotLibrary(ctx.DeviceConfig(), m)
 		if !ok {
 			return
 		}
@@ -655,7 +655,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		}
 
 		if ctx.Config().VndkSnapshotBuildArtifacts() {
-			headers = append(headers, exportedHeaders(ctx, l)...)
+			headers = append(headers, l.snapshotHeaders()...)
 		}
 	})
 

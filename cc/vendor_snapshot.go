@@ -428,12 +428,12 @@ func isVendorProprietaryPath(dir string) bool {
 // AOSP. They are not guaranteed to be compatible with older vendor images. (e.g. might
 // depend on newer VNDK) So they are captured as vendor snapshot To build older vendor
 // image and newer system image altogether.
-func isVendorSnapshotModule(ctx android.SingletonContext, m *Module) bool {
+func isVendorSnapshotModule(m *Module, moduleDir string) bool {
 	if !m.Enabled() {
 		return false
 	}
 	// skip proprietary modules, but include all VNDK (static)
-	if isVendorProprietaryPath(ctx.ModuleDir(m)) && !m.IsVndk() {
+	if isVendorProprietaryPath(moduleDir) && !m.IsVndk() {
 		return false
 	}
 	if m.Target().Os.Class != android.Device {
@@ -525,14 +525,6 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 
 	var headers android.Paths
 
-	type vendorSnapshotLibraryInterface interface {
-		exportedFlagsProducer
-		libraryInterface
-	}
-
-	var _ vendorSnapshotLibraryInterface = (*prebuiltLibraryLinker)(nil)
-	var _ vendorSnapshotLibraryInterface = (*libraryDecorator)(nil)
-
 	installSnapshot := func(m *Module) android.Paths {
 		targetArch := "arch-" + m.Target().Arch.ArchType.String()
 		if m.Target().Arch.ArchVariant != "" {
@@ -588,7 +580,7 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 
 		var propOut string
 
-		if l, ok := m.linker.(vendorSnapshotLibraryInterface); ok {
+		if l, ok := m.linker.(snapshotLibraryInterface); ok {
 			// library flags
 			prop.ExportedFlags = l.exportedFlags()
 			for _, dir := range l.exportedDirs() {
@@ -652,13 +644,18 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 
 	ctx.VisitAllModules(func(module android.Module) {
 		m, ok := module.(*Module)
-		if !ok || !isVendorSnapshotModule(ctx, m) {
+		if !ok {
+			return
+		}
+
+		moduleDir := ctx.ModuleDir(module)
+		if !isVendorSnapshotModule(m, moduleDir) {
 			return
 		}
 
 		snapshotOutputs = append(snapshotOutputs, installSnapshot(m)...)
-		if l, ok := m.linker.(vendorSnapshotLibraryInterface); ok {
-			headers = append(headers, exportedHeaders(ctx, l)...)
+		if l, ok := m.linker.(snapshotLibraryInterface); ok {
+			headers = append(headers, l.snapshotHeaders()...)
 		}
 
 		if m.NoticeFile().Valid() {
