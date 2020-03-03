@@ -17,6 +17,7 @@ package android
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"testing"
 )
 
@@ -59,14 +60,24 @@ var firstUniqueStringsTestCases = []struct {
 }
 
 func TestFirstUniqueStrings(t *testing.T) {
-	for _, testCase := range firstUniqueStringsTestCases {
-		out := FirstUniqueStrings(testCase.in)
-		if !reflect.DeepEqual(out, testCase.out) {
+	f := func(t *testing.T, imp func([]string) []string, in, want []string) {
+		t.Helper()
+		out := imp(in)
+		if !reflect.DeepEqual(out, want) {
 			t.Errorf("incorrect output:")
-			t.Errorf("     input: %#v", testCase.in)
-			t.Errorf("  expected: %#v", testCase.out)
+			t.Errorf("     input: %#v", in)
+			t.Errorf("  expected: %#v", want)
 			t.Errorf("       got: %#v", out)
 		}
+	}
+
+	for _, testCase := range firstUniqueStringsTestCases {
+		t.Run("list", func(t *testing.T) {
+			f(t, firstUniqueStringsList, testCase.in, testCase.out)
+		})
+		t.Run("map", func(t *testing.T) {
+			f(t, firstUniqueStringsMap, testCase.in, testCase.out)
+		})
 	}
 }
 
@@ -565,6 +576,54 @@ func Test_Shard(t *testing.T) {
 						paths, tt.args.shardSize, got, want)
 				}
 			})
+		})
+	}
+}
+
+func BenchmarkFirstUniqueStrings(b *testing.B) {
+	implementations := []struct {
+		name string
+		f    func([]string) []string
+	}{
+		{
+			name: "list",
+			f:    firstUniqueStringsList,
+		},
+		{
+			name: "map",
+			f:    firstUniqueStringsMap,
+		},
+	}
+	const maxSize = 1024
+	uniqueStrings := make([]string, maxSize)
+	for i := range uniqueStrings {
+		uniqueStrings[i] = strconv.Itoa(i)
+	}
+	sameString := make([]string, maxSize)
+	for i := range sameString {
+		sameString[i] = uniqueStrings[0]
+	}
+
+	f := func(b *testing.B, imp func([]string) []string, s []string) {
+		for i := 0; i < b.N; i++ {
+			b.ReportAllocs()
+			s = append([]string(nil), s...)
+			imp(s)
+		}
+	}
+
+	for n := 1; n <= maxSize; n <<= 1 {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			for _, implementation := range implementations {
+				b.Run(implementation.name, func(b *testing.B) {
+					b.Run("same", func(b *testing.B) {
+						f(b, implementation.f, sameString[:n])
+					})
+					b.Run("unique", func(b *testing.B) {
+						f(b, implementation.f, uniqueStrings[:n])
+					})
+				})
+			}
 		})
 	}
 }
