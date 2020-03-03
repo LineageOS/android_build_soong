@@ -35,7 +35,7 @@ func (s *bpPropertySet) init() {
 
 func (s *bpPropertySet) AddProperty(name string, value interface{}) {
 	if s.properties[name] != nil {
-		panic("Property %q already exists in property set")
+		panic(fmt.Sprintf("Property %q already exists in property set", name))
 	}
 
 	s.properties[name] = value
