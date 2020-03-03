@@ -132,6 +132,9 @@ type BaseModuleContext interface {
 
 	Target() Target
 	TargetPrimary() bool
+
+	// The additional arch specific targets (e.g. 32/64 bit) that this module variant is
+	// responsible for creating.
 	MultiTargets() []Target
 	Arch() Arch
 	Os() OsType
@@ -364,6 +367,10 @@ type commonProperties struct {
 		}
 	}
 
+	// If set to true then the archMutator will create variants for each arch specific target
+	// (e.g. 32/64) that the module is required to produce. If set to false then it will only
+	// create a variant for the architecture and will list the additional arch specific targets
+	// that the variant needs to produce in the CompileMultiTargets property.
 	UseTargetVariants bool   `blueprint:"mutated"`
 	Default_multilib  string `blueprint:"mutated"`
 
@@ -442,11 +449,35 @@ type commonProperties struct {
 		Suffix *string `android:"arch_variant"`
 	} `android:"arch_variant"`
 
-	// Set by TargetMutator
-	CompileOS           OsType   `blueprint:"mutated"`
-	CompileTarget       Target   `blueprint:"mutated"`
+	// The OsType of artifacts that this module variant is responsible for creating.
+	//
+	// Set by osMutator
+	CompileOS OsType `blueprint:"mutated"`
+
+	// The Target of artifacts that this module variant is responsible for creating.
+	//
+	// Set by archMutator
+	CompileTarget Target `blueprint:"mutated"`
+
+	// The additional arch specific targets (e.g. 32/64 bit) that this module variant is
+	// responsible for creating.
+	//
+	// By default this is nil as, where necessary, separate variants are created for the
+	// different multilib types supported and that information is encapsulated in the
+	// CompileTarget so the module variant simply needs to create artifacts for that.
+	//
+	// However, if UseTargetVariants is set to false (e.g. by
+	// InitAndroidMultiTargetsArchModule)  then no separate variants are created for the
+	// multilib targets. Instead a single variant is created for the architecture and
+	// this contains the multilib specific targets that this variant should create.
+	//
+	// Set by archMutator
 	CompileMultiTargets []Target `blueprint:"mutated"`
-	CompilePrimary      bool     `blueprint:"mutated"`
+
+	// True if the module variant's CompileTarget is the primary target
+	//
+	// Set by archMutator
+	CompilePrimary bool `blueprint:"mutated"`
 
 	// Set by InitAndroidModule
 	HostOrDeviceSupported HostOrDeviceSupported `blueprint:"mutated"`
@@ -1329,16 +1360,20 @@ type baseModuleContext struct {
 	strictVisitDeps bool // If true, enforce that all dependencies are enabled
 }
 
-func (b *baseModuleContext) OtherModuleName(m blueprint.Module) string { return b.bp.OtherModuleName(m) }
-func (b *baseModuleContext) OtherModuleDir(m blueprint.Module) string  { return b.bp.OtherModuleDir(m) }
+func (b *baseModuleContext) OtherModuleName(m blueprint.Module) string {
+	return b.bp.OtherModuleName(m)
+}
+func (b *baseModuleContext) OtherModuleDir(m blueprint.Module) string { return b.bp.OtherModuleDir(m) }
 func (b *baseModuleContext) OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{}) {
 	b.bp.OtherModuleErrorf(m, fmt, args...)
 }
 func (b *baseModuleContext) OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag {
 	return b.bp.OtherModuleDependencyTag(m)
 }
-func (b *baseModuleContext) OtherModuleExists(name string) bool        { return b.bp.OtherModuleExists(name) }
-func (b *baseModuleContext) OtherModuleType(m blueprint.Module) string { return b.bp.OtherModuleType(m) }
+func (b *baseModuleContext) OtherModuleExists(name string) bool { return b.bp.OtherModuleExists(name) }
+func (b *baseModuleContext) OtherModuleType(m blueprint.Module) string {
+	return b.bp.OtherModuleType(m)
+}
 
 func (b *baseModuleContext) GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module {
 	return b.bp.GetDirectDepWithTag(name, tag)
