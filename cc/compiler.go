@@ -176,6 +176,9 @@ type BaseCompilerProperties struct {
 
 	// Build and link with OpenMP
 	Openmp *bool `android:"arch_variant"`
+
+	// Adds __ANDROID_APEX_<APEX_MODULE_NAME>__ macro defined for apex variants in addition to __ANDROID_APEX__
+	Use_apex_name_macro *bool
 }
 
 func NewBaseCompiler() *baseCompiler {
@@ -321,9 +324,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	}
 
 	if ctx.apexName() != "" {
-		flags.Global.CommonFlags = append(flags.Global.CommonFlags,
-			"-D__ANDROID_APEX__",
-			"-D__ANDROID_APEX_"+makeDefineString(ctx.apexName())+"__")
+		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_APEX__")
+		if Bool(compiler.Properties.Use_apex_name_macro) {
+			flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_APEX_"+makeDefineString(ctx.apexName())+"__")
+		}
 	}
 
 	instructionSet := String(compiler.Properties.Instruction_set)
