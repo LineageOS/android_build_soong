@@ -30,10 +30,12 @@ func init() {
 		}
 		return strings.Join([]string{
 			"-*",
+			"bugprone*",
 			"clang-diagnostic-unused-command-line-argument",
 			"google*",
 			"misc-macro-parentheses",
 			"performance*",
+			"-bugprone-narrowing-conversions",
 			"-google-readability*",
 			"-google-runtime-references",
 		}, ",")
