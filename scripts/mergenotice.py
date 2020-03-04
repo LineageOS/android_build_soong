@@ -16,7 +16,7 @@
 #
 """
 Merges input notice files to the output file while ignoring duplicated files
-This script shouldn't be confused with build/make/tools/generate-notice-files.py
+This script shouldn't be confused with build/soong/scripts/generate-notice-files.py
 which is responsible for creating the final notice file for all artifacts
 installed. This script has rather limited scope; it is meant to create a merged
 notice file for a set of modules that are packaged together, e.g. in an APEX.
