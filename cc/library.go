@@ -1221,6 +1221,12 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 	}
 }
 
+func (library *libraryDecorator) everInstallable() bool {
+	// Only shared and static libraries are installed. Header libraries (which are
+	// neither static or shared) are not installed.
+	return library.shared() || library.static()
+}
+
 func (library *libraryDecorator) static() bool {
 	return library.MutatedProperties.VariantIsStatic
 }
