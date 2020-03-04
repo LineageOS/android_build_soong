@@ -29,7 +29,11 @@ import (
 )
 
 func init() {
-	RegisterSingletonType("androidmk", AndroidMkSingleton)
+	RegisterAndroidMkBuildComponents(InitRegistrationContext)
+}
+
+func RegisterAndroidMkBuildComponents(ctx RegistrationContext) {
+	ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
 }
 
 // Deprecated: consider using AndroidMkEntriesProvider instead, especially if you're not going to

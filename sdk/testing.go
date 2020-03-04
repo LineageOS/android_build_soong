@@ -69,6 +69,16 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 
 	ctx := android.NewTestArchContext()
 
+	// Enable androidmk support.
+	// * Register the singleton
+	// * Configure that we are inside make
+	// * Add CommonOS to ensure that androidmk processing works.
+	android.RegisterAndroidMkBuildComponents(ctx)
+	android.SetInMakeForTests(config)
+	config.Targets[android.CommonOS] = []android.Target{
+		{android.CommonOS, android.Arch{ArchType: android.Common}, android.NativeBridgeDisabled, "", ""},
+	}
+
 	// from android package
 	android.RegisterPackageBuildComponents(ctx)
 	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
