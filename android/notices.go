@@ -22,7 +22,7 @@ import (
 
 func init() {
 	pctx.SourcePathVariable("merge_notices", "build/soong/scripts/mergenotice.py")
-	pctx.SourcePathVariable("generate_notice", "build/make/tools/generate-notice-files.py")
+	pctx.SourcePathVariable("generate_notice", "build/soong/scripts/generate-notice-files.py")
 
 	pctx.HostBinToolVariable("minigzip", "minigzip")
 }
