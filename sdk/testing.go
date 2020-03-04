@@ -188,15 +188,20 @@ func (r *testSdkResult) getSdkSnapshotBuildInfo(sdk *sdk) *snapshotBuildInfo {
 
 	buildParams := sdk.BuildParamsForTests()
 	copyRules := &strings.Builder{}
+	snapshotDirPrefix := sdk.builderForTests.snapshotDir.String() + "/"
 	for _, bp := range buildParams {
 		switch bp.Rule.String() {
 		case android.Cp.String():
-			// Get source relative to build directory.
-			src := android.NormalizePathForTesting(bp.Input)
-			// Get destination relative to the snapshot root
-			dest := bp.Output.Rel()
-			_, _ = fmt.Fprintf(copyRules, "%s -> %s\n", src, dest)
-			info.snapshotContents = append(info.snapshotContents, dest)
+			output := bp.Output
+			// Only check copies into the snapshot directory.
+			if strings.HasPrefix(output.String(), snapshotDirPrefix) {
+				// Get source relative to build directory.
+				src := android.NormalizePathForTesting(bp.Input)
+				// Get destination relative to the snapshot root
+				dest := output.Rel()
+				_, _ = fmt.Fprintf(copyRules, "%s -> %s\n", src, dest)
+				info.snapshotContents = append(info.snapshotContents, dest)
+			}
 
 		case repackageZip.String():
 			// Add the destdir to the snapshot contents as that is effectively where
@@ -246,8 +251,11 @@ func (r *testSdkResult) ModuleForTests(name string, variant string) android.Test
 // Takes a list of functions which check different facets of the snapshot build rules.
 // Allows each test to customize what is checked without duplicating lots of code
 // or proliferating check methods of different flavors.
-func (r *testSdkResult) CheckSnapshot(name string, variant string, dir string, checkers ...snapshotBuildInfoChecker) {
+func (r *testSdkResult) CheckSnapshot(name string, dir string, checkers ...snapshotBuildInfoChecker) {
 	r.t.Helper()
+
+	// The sdk CommonOS variant is always responsible for generating the snapshot.
+	variant := android.CommonOS.Name
 
 	sdk := r.Module(name, variant).(*sdk)
 

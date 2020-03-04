@@ -470,6 +470,14 @@ func (p Paths) Strings() []string {
 // FirstUniquePaths returns all unique elements of a Paths, keeping the first copy of each.  It
 // modifies the Paths slice contents in place, and returns a subslice of the original slice.
 func FirstUniquePaths(list Paths) Paths {
+	// 128 was chosen based on BenchmarkFirstUniquePaths results.
+	if len(list) > 128 {
+		return firstUniquePathsMap(list)
+	}
+	return firstUniquePathsList(list)
+}
+
+func firstUniquePathsList(list Paths) Paths {
 	k := 0
 outer:
 	for i := 0; i < len(list); i++ {
@@ -478,6 +486,20 @@ outer:
 				continue outer
 			}
 		}
+		list[k] = list[i]
+		k++
+	}
+	return list[:k]
+}
+
+func firstUniquePathsMap(list Paths) Paths {
+	k := 0
+	seen := make(map[Path]bool, len(list))
+	for i := 0; i < len(list); i++ {
+		if seen[list[i]] {
+			continue
+		}
+		seen[list[i]] = true
 		list[k] = list[i]
 		k++
 	}
