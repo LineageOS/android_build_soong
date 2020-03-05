@@ -443,21 +443,18 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		targetSdkVersion := ctx.Config().DefaultAppTargetSdk()
 		minSdkVersion := ctx.Config().DefaultAppTargetSdk()
 
+		// TODO: this should be based on min_sdk_version property of an APEX.
 		if proptools.Bool(a.properties.Legacy_android10_support) {
-			if !java.UseApiFingerprint(ctx, targetSdkVersion) {
-				targetSdkVersion = "29"
-			}
-			if !java.UseApiFingerprint(ctx, minSdkVersion) {
-				minSdkVersion = "29"
-			}
+			targetSdkVersion = "29"
+			minSdkVersion = "29"
 		}
 
-		if java.UseApiFingerprint(ctx, targetSdkVersion) {
-			targetSdkVersion += fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
+		if java.UseApiFingerprint(ctx) {
+			targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
 			implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
 		}
-		if java.UseApiFingerprint(ctx, minSdkVersion) {
-			minSdkVersion += fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
+		if java.UseApiFingerprint(ctx) {
+			minSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())
 			implicitInputs = append(implicitInputs, java.ApiFingerprintPath(ctx))
 		}
 		optFlags = append(optFlags, "--target_sdk_version "+targetSdkVersion)
@@ -650,7 +647,7 @@ func (a *apexBundle) getOverrideManifestPackageName(ctx android.ModuleContext) s
 		}
 		return ""
 	}
-	manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(a.Name())
+	manifestPackageName, overridden := ctx.DeviceConfig().OverrideManifestPackageNameFor(ctx.ModuleName())
 	if overridden {
 		return manifestPackageName
 	}

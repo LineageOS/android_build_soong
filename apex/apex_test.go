@@ -3272,7 +3272,7 @@ func TestOverrideApex(t *testing.T) {
 			base: "app",
 			package_name: "bar",
 		}
-	`)
+	`, withManifestPackageNameOverrides([]string{"myapex:com.android.myapex"}))
 
 	originalVariant := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(android.OverridableModule)
 	overriddenVariant := ctx.ModuleForTests("myapex", "android_common_override_myapex_myapex_image").Module().(android.OverridableModule)
@@ -3299,6 +3299,9 @@ func TestOverrideApex(t *testing.T) {
 	if apexBundle.overridableProperties.Logging_parent != "com.foo.bar" {
 		t.Errorf("override_myapex should have logging parent (com.foo.bar), but was %q.", apexBundle.overridableProperties.Logging_parent)
 	}
+
+	optFlags := apexRule.Args["opt_flags"]
+	ensureContains(t, optFlags, "--override_apk_package_name com.android.myapex")
 
 	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
 	var builder strings.Builder

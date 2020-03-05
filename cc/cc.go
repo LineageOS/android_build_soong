@@ -2734,19 +2734,18 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 
 	if vndkdep := m.vndkdep; vndkdep != nil {
 		if vndkdep.isVndk() {
-			if productSpecific {
-				mctx.PropertyErrorf("product_specific",
-					"product_specific must not be true when `vndk: {enabled: true}`")
-			}
-			if vendorSpecific {
+			if vendorSpecific || productSpecific {
 				if !vndkdep.isVndkExt() {
 					mctx.PropertyErrorf("vndk",
 						"must set `extends: \"...\"` to vndk extension")
+				} else if m.VendorProperties.Vendor_available != nil {
+					mctx.PropertyErrorf("vendor_available",
+						"must not set at the same time as `vndk: {extends: \"...\"}`")
 				}
 			} else {
 				if vndkdep.isVndkExt() {
 					mctx.PropertyErrorf("vndk",
-						"must set `vendor: true` to set `extends: %q`",
+						"must set `vendor: true` or `product_specific: true` to set `extends: %q`",
 						m.getVndkExtendsModuleName())
 				}
 				if m.VendorProperties.Vendor_available == nil {
@@ -2819,7 +2818,7 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		} else {
 			mctx.ModuleErrorf("version is unknown for snapshot prebuilt")
 		}
-	} else if m.HasVendorVariant() && !vendorSpecific {
+	} else if m.HasVendorVariant() && !m.isVndkExt() {
 		// This will be available in /system, /vendor and /product
 		// or a /system directory that is available to vendor and product.
 		coreVariantNeeded = true
