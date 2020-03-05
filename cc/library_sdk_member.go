@@ -97,6 +97,13 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 
 func (mt *librarySdkMemberType) AddPrebuiltModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) android.BpModule {
 	pbm := builder.AddPrebuiltModule(member, mt.prebuiltModuleType)
+
+	ccModule := member.Variants()[0].(*Module)
+
+	sdkVersion := ccModule.SdkVersion()
+	if sdkVersion != "" {
+		pbm.AddProperty("sdk_version", sdkVersion)
+	}
 	return pbm
 }
 
