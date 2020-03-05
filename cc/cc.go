@@ -1465,6 +1465,13 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			c.Properties.HideFromMake = false // unhide
 			// Note: this is still non-installable
 		}
+
+		// glob exported headers for snapshot, if BOARD_VNDK_VERSION is current.
+		if i, ok := c.linker.(snapshotLibraryInterface); ok && ctx.DeviceConfig().VndkVersion() == "current" {
+			if isSnapshotAware(ctx, c) {
+				i.collectHeadersForSnapshot(ctx)
+			}
+		}
 	}
 
 	if c.installable() {
