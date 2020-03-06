@@ -390,6 +390,68 @@ type libraryDecorator struct {
 	*baseCompiler
 	*baseLinker
 	*baseInstaller
+
+	collectedSnapshotHeaders android.Paths
+}
+
+// collectHeadersForSnapshot collects all exported headers from library.
+// It globs header files in the source tree for exported include directories,
+// and tracks generated header files separately.
+//
+// This is to be called from GenerateAndroidBuildActions, and then collected
+// header files can be retrieved by snapshotHeaders().
+func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext) {
+	ret := android.Paths{}
+
+	// Headers in the source tree should be globbed. On the contrast, generated headers
+	// can't be globbed, and they should be manually collected.
+	// So, we first filter out intermediate directories (which contains generated headers)
+	// from exported directories, and then glob headers under remaining directories.
+	for _, path := range append(l.exportedDirs(), l.exportedSystemDirs()...) {
+		dir := path.String()
+		// Skip if dir is for generated headers
+		if strings.HasPrefix(dir, android.PathForOutput(ctx).String()) {
+			continue
+		}
+		exts := headerExts
+		// Glob all files under this special directory, because of C++ headers.
+		if strings.HasPrefix(dir, "external/libcxx/include") {
+			exts = []string{""}
+		}
+		for _, ext := range exts {
+			glob, err := ctx.GlobWithDeps(dir+"/**/*"+ext, nil)
+			if err != nil {
+				ctx.ModuleErrorf("glob failed: %#v", err)
+				return
+			}
+			for _, header := range glob {
+				if strings.HasSuffix(header, "/") {
+					continue
+				}
+				ret = append(ret, android.PathForSource(ctx, header))
+			}
+		}
+	}
+
+	// Collect generated headers
+	for _, header := range append(l.exportedGeneratedHeaders(), l.exportedDeps()...) {
+		// TODO(b/148123511): remove exportedDeps after cleaning up genrule
+		if strings.HasSuffix(header.Base(), "-phony") {
+			continue
+		}
+		ret = append(ret, header)
+	}
+
+	l.collectedSnapshotHeaders = ret
+}
+
+// This returns all exported header files, both generated ones and headers from source tree.
+// collectHeadersForSnapshot() must be called before calling this.
+func (l *libraryDecorator) snapshotHeaders() android.Paths {
+	if l.collectedSnapshotHeaders == nil {
+		panic("snapshotHeaders() must be called after collectHeadersForSnapshot()")
+	}
+	return l.collectedSnapshotHeaders
 }
 
 func (library *libraryDecorator) linkerProps() []interface{} {

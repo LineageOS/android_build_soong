@@ -113,13 +113,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.appsearch"] = []string{
-		"icing-java-proto-lite",
-		"libprotobuf-java-lite",
-	}
-	//
-	// Module separator
-	//
 	m["com.android.art"] = []string{
 		"art_cmdlineparser_headers",
 		"art_disassembler_headers",
@@ -1285,6 +1278,9 @@ type apexBundleProperties struct {
 	// rules for making sure that the APEX is truely updatable. This will also disable the size optimizations
 	// like symlinking to the system libs. Default is false.
 	Updatable *bool
+
+	// The minimum SDK version that this apex must be compatible with.
+	Min_sdk_version *string
 }
 
 type apexTargetBundleProperties struct {
