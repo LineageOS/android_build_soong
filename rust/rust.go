@@ -325,6 +325,10 @@ func (mod *Module) SetStubsVersions(string) {
 	panic("SetStubsVersions not yet implemented for rust modules")
 }
 
+func (mod *Module) StubsVersion() string {
+	panic("SetStubsVersions not yet implemented for rust modules")
+}
+
 func (mod *Module) BuildStaticVariant() bool {
 	if mod.compiler != nil {
 		if library, ok := mod.compiler.(libraryInterface); ok {
