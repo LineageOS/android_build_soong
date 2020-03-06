@@ -370,6 +370,15 @@ type linker interface {
 
 	nativeCoverage() bool
 	coverageOutputFilePath() android.OptionalPath
+
+	// Get the deps that have been explicitly specified in the properties.
+	// Only updates the
+	linkerSpecifiedDeps(specifiedDeps specifiedDeps) specifiedDeps
+}
+
+type specifiedDeps struct {
+	sharedLibs       []string
+	systemSharedLibs []string
 }
 
 type installer interface {
