@@ -1679,6 +1679,7 @@ func TestMacro(t *testing.T) {
 			name: "otherapex",
 			key: "myapex.key",
 			native_shared_libs: ["mylib", "mylib2"],
+			min_sdk_version: "29",
 		}
 
 		apex_key {
@@ -1713,15 +1714,18 @@ func TestMacro(t *testing.T) {
 	// non-APEX variant does not have __ANDROID_APEX__ defined
 	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__")
+	ensureContains(t, mylibCFlags, "-D__ANDROID_SDK_VERSION__=10000")
 
-	// APEX variant has __ANDROID_APEX__ defined
+	// APEX variant has __ANDROID_APEX__ and __ANDROID_APEX_SDK__ defined
 	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
+	ensureContains(t, mylibCFlags, "-D__ANDROID_SDK_VERSION__=10000")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
 
-	// APEX variant has __ANDROID_APEX__ defined
+	// APEX variant has __ANDROID_APEX__ and __ANDROID_APEX_SDK__ defined
 	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_otherapex").Rule("cc").Args["cFlags"]
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
+	ensureContains(t, mylibCFlags, "-D__ANDROID_SDK_VERSION__=29")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
 
 	// When cc_library sets use_apex_name_macro: true
