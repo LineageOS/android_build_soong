@@ -61,7 +61,25 @@ var (
 	usesTag        = dependencyTag{name: "uses"}
 	androidAppTag  = dependencyTag{name: "androidApp", payload: true}
 	apexAvailWl    = makeApexAvailableWhitelist()
+
+	inverseApexAvailWl = invertApexWhiteList(apexAvailWl)
 )
+
+// Transform the map of apex -> modules to module -> apexes.
+func invertApexWhiteList(m map[string][]string) map[string][]string {
+	r := make(map[string][]string)
+	for apex, modules := range m {
+		for _, module := range modules {
+			r[module] = append(r[module], apex)
+		}
+	}
+	return r
+}
+
+// Retrieve the while list of apexes to which the supplied module belongs.
+func WhitelistedApexAvailable(moduleName string) []string {
+	return inverseApexAvailWl[normalizeModuleName(moduleName)]
+}
 
 // This is a map from apex to modules, which overrides the
 // apex_available setting for that particular module to make
@@ -775,7 +793,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
-	m["//any"] = []string{
+	m[android.AvailableToAnyApex] = []string{
 		"libatomic",
 		"libclang_rt",
 		"libgcc_stripped",
@@ -2184,6 +2202,21 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 func whitelistedApexAvailable(apex, moduleName string) bool {
 	key := apex
+	moduleName = normalizeModuleName(moduleName)
+
+	if val, ok := apexAvailWl[key]; ok && android.InList(moduleName, val) {
+		return true
+	}
+
+	key = android.AvailableToAnyApex
+	if val, ok := apexAvailWl[key]; ok && android.InList(moduleName, val) {
+		return true
+	}
+
+	return false
+}
+
+func normalizeModuleName(moduleName string) string {
 	// Prebuilt modules (e.g. java_import, etc.) have "prebuilt_" prefix added by the build
 	// system. Trim the prefix for the check since they are confusing
 	moduleName = strings.TrimPrefix(moduleName, "prebuilt_")
@@ -2192,17 +2225,7 @@ func whitelistedApexAvailable(apex, moduleName string) bool {
 		// We don't want to list them all
 		moduleName = "libclang_rt"
 	}
-
-	if val, ok := apexAvailWl[key]; ok && android.InList(moduleName, val) {
-		return true
-	}
-
-	key = "//any"
-	if val, ok := apexAvailWl[key]; ok && android.InList(moduleName, val) {
-		return true
-	}
-
-	return false
+	return moduleName
 }
 
 func newApexBundle() *apexBundle {
