@@ -438,11 +438,10 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		}
 	}
 
-	if ctx.useSdk() && (ctx.Arch().ArchType != android.Mips && ctx.Arch().ArchType != android.Mips64) {
+	if ctx.useSdk() {
 		// The bionic linker now has support gnu style hashes (which are much faster!), but shipping
 		// to older devices requires the old style hash. Fortunately, we can build with both and
 		// it'll work anywhere.
-		// This is not currently supported on MIPS architectures.
 		flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--hash-style=both")
 	}
 
