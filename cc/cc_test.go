@@ -2530,6 +2530,7 @@ func TestRuntimeLibsNoVndk(t *testing.T) {
 }
 
 func checkStaticLibs(t *testing.T, expected []string, module *Module) {
+	t.Helper()
 	actual := module.Properties.AndroidMkStaticLibs
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("incorrect static_libs"+
