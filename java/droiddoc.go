@@ -77,6 +77,8 @@ var (
 				`$bootclasspathArgs $classpathArgs $sourcepathArgs --no-banner --color --quiet --format=v2 ` +
 				`$opts && ` +
 				`${config.SoongZipCmd} -write_if_changed -jar -o $out -C $stubsDir -D $stubsDir && ` +
+				`(if $writeSdkValues; then ${config.SoongZipCmd} -write_if_changed -d -o $metadataZip ` +
+				`-C $metadataDir -D $metadataDir; fi) && ` +
 				`rm -rf "$srcJarDir"`,
 			CommandDeps: []string{
 				"${config.ZipSyncCmd}",
@@ -89,7 +91,7 @@ var (
 			Restat:         true,
 		},
 		"outDir", "srcJarDir", "stubsDir", "srcJars", "javaVersion", "bootclasspathArgs",
-		"classpathArgs", "sourcepathArgs", "opts")
+		"classpathArgs", "sourcepathArgs", "opts", "writeSdkValues", "metadataZip", "metadataDir")
 
 	metalavaApiCheck = pctx.AndroidStaticRule("metalavaApiCheck",
 		blueprint.RuleParams{
@@ -1259,6 +1261,9 @@ type Droidstubs struct {
 
 	jdiffDocZip      android.WritablePath
 	jdiffStubsSrcJar android.WritablePath
+
+	metadataZip android.WritablePath
+	metadataDir android.WritablePath
 }
 
 func DroidstubsFactory() android.Module {
@@ -1393,7 +1398,8 @@ func (d *Droidstubs) collectStubsFlags(ctx android.ModuleContext,
 	}
 
 	if Bool(d.properties.Write_sdk_values) {
-		metalavaFlags = metalavaFlags + " --sdk-values " + android.PathForModuleOut(ctx, "out").String()
+		d.metadataDir = android.PathForModuleOut(ctx, "metadata")
+		metalavaFlags = metalavaFlags + " --sdk-values " + d.metadataDir.String()
 	}
 
 	if Bool(d.properties.Create_doc_stubs) {
@@ -1545,6 +1551,19 @@ func (d *Droidstubs) transformMetalava(ctx android.ModuleContext, implicits andr
 	implicitOutputs android.WritablePaths, javaVersion,
 	bootclasspathArgs, classpathArgs, sourcepathArgs, opts string) {
 
+	var writeSdkValues, metadataZip, metadataDir string
+	if Bool(d.properties.Write_sdk_values) {
+		writeSdkValues = "true"
+		d.metadataZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"-metadata.zip")
+		metadataZip = d.metadataZip.String()
+		metadataDir = d.metadataDir.String()
+		implicitOutputs = append(implicitOutputs, d.metadataZip)
+	} else {
+		writeSdkValues = "false"
+		metadataZip = ""
+		metadataDir = ""
+	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:            metalava,
 		Description:     "Metalava",
@@ -1562,6 +1581,9 @@ func (d *Droidstubs) transformMetalava(ctx android.ModuleContext, implicits andr
 			"classpathArgs":     classpathArgs,
 			"sourcepathArgs":    sourcepathArgs,
 			"opts":              opts,
+			"writeSdkValues":    writeSdkValues,
+			"metadataZip":       metadataZip,
+			"metadataDir":       metadataDir,
 		},
 	})
 }
