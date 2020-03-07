@@ -235,11 +235,6 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.Local.CppFlags = append(flags.Local.CppFlags, "-nostdinc++")
 			flags.extraLibFlags = append(flags.extraLibFlags, "-nostdlib++")
 			if ctx.Windows() {
-				if stl.Properties.SelectedStl == "libc++_static" {
-					// These are transitively needed by libc++_static.
-					flags.extraLibFlags = append(flags.extraLibFlags,
-						"-lmsvcrt", "-lucrt")
-				}
 				// Use SjLj exceptions for 32-bit.  libgcc_eh implements SjLj
 				// exception model for 32-bit.
 				if ctx.Arch().ArchType == android.X86 {
