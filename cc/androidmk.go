@@ -244,6 +244,9 @@ func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries 
 	if library.shared() && !library.buildStubs() {
 		ctx.subAndroidMk(entries, library.baseInstaller)
 	} else {
+		if library.buildStubs() {
+			entries.SubName = "." + library.stubsVersion()
+		}
 		entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 			entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
 			if library.buildStubs() {
@@ -254,6 +257,10 @@ func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries 
 	if len(library.Properties.Stubs.Versions) > 0 &&
 		android.DirectlyInAnyApex(ctx, ctx.Name()) && !ctx.InRamdisk() && !ctx.InRecovery() && !ctx.UseVndk() &&
 		!ctx.static() {
+		if library.buildStubs() && library.isLatestStubVersion() {
+			// reference the latest version via its name without suffix when it is provided by apex
+			entries.SubName = ""
+		}
 		if !library.buildStubs() {
 			entries.SubName = ".bootstrap"
 		}
