@@ -1998,7 +1998,7 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		if externalDep || to.AvailableFor(apexName) || whitelistedApexAvailable(apexName, to) {
 			return
 		}
-		ctx.ModuleErrorf("requires %q that is not available for the APEX.", to.Name())
+		ctx.ModuleErrorf("%q requires %q that is not available for the APEX.", from.Name(), to.Name())
 	})
 }
 
