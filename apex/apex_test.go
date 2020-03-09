@@ -3011,7 +3011,7 @@ func TestApexWithTestHelperApp(t *testing.T) {
 
 func TestApexPropertiesShouldBeDefaultable(t *testing.T) {
 	// libfoo's apex_available comes from cc_defaults
-	testApexError(t, `"myapex" .*: requires "libfoo" that is not available for the APEX`, `
+	testApexError(t, `"myapex" .*: "myapex" requires "libfoo" that is not available for the APEX`, `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
