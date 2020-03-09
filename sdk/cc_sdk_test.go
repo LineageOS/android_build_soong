@@ -517,6 +517,7 @@ func TestHostSnapshotWithCcSharedLibrary(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
+			sdk_version: "minimum",
 		}
 	`)
 
@@ -529,6 +530,7 @@ cc_prebuilt_library_shared {
     sdk_member_name: "mynativelib",
     device_supported: false,
     host_supported: true,
+    sdk_version: "minimum",
     export_include_dirs: ["include/include"],
     arch: {
         x86_64: {
@@ -549,6 +551,7 @@ cc_prebuilt_library_shared {
     prefer: false,
     device_supported: false,
     host_supported: true,
+    sdk_version: "minimum",
     export_include_dirs: ["include/include"],
     arch: {
         x86_64: {
