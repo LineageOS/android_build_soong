@@ -58,6 +58,7 @@ func TestDepNotInRequiredSdks(t *testing.T) {
 			sdk_version: "none",
 			compile_dex: true,
 			host_supported: true,
+			apex_available: ["myapex"],
 		}
 
 		// this lib is no in mysdk
@@ -113,7 +114,7 @@ func TestSnapshotVisibility(t *testing.T) {
 
 		java_defaults {
 			name: "java-defaults",
-			visibility: ["//other/bar"], 
+			visibility: ["//other/bar"],
 		}
 
 		java_library {

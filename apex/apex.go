@@ -212,8 +212,11 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"bluetooth-protos-lite",
 		"bluetooth.mapsapi",
 		"com.android.vcard",
+		"dnsresolver_aidl_interface-V2-java",
 		"fmtlib",
 		"guava",
+		"ipmemorystore-aidl-interfaces-V5-java",
+		"ipmemorystore-aidl-interfaces-java",
 		"internal_include_headers",
 		"lib-bt-packets",
 		"lib-bt-packets-avrcp",
@@ -279,6 +282,12 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libutils_headers",
 		"libz",
 		"media_plugin_headers",
+		"net-utils-services-common",
+		"netd_aidl_interface-unstable-java",
+		"netd_event_listener_interface-java",
+		"netlink-client",
+		"networkstack-aidl-interfaces-unstable-java",
+		"networkstack-client",
 		"sap-api-java-static",
 		"services.net",
 	}
@@ -296,6 +305,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libcrypto",
 		"libnativehelper_header_only",
 		"libssl",
+		"unsupportedappusage",
 	}
 	//
 	// Module separator
@@ -319,6 +329,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"cronet_impl_platform_java",
 		"libcronet.80.0.3986.0",
 		"org.chromium.net.cronet",
+		"org.chromium.net.cronet.xml",
 		"prebuilt_libcronet.80.0.3986.0",
 	}
 	//
@@ -559,6 +570,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libFLAC-config",
 		"libFLAC-headers",
 		"libFraunhoferAAC",
+		"libLibGuiProperties",
 		"libarect",
 		"libasync_safe",
 		"libaudio_system_headers",
@@ -574,6 +586,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libbase",
 		"libbase_headers",
 		"libbinder_headers",
+		"libbinderthreadstateutils",
 		"libbluetooth-types-header",
 		"libbufferhub_headers",
 		"libc++",
@@ -779,6 +792,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libdexfile_external_headers",
 		"libdexfile_support",
 		"libdexfile_support_static",
+		"libdl_static",
 		"libgtest_prod",
 		"libjemalloc5",
 		"liblinker_main",
@@ -870,6 +884,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 	m["com.android.wifi"] = []string{
 		"PlatformProperties",
 		"android.hardware.wifi-V1.0-java",
+		"android.hardware.wifi-V1.0-java-constants",
 		"android.hardware.wifi-V1.1-java",
 		"android.hardware.wifi-V1.2-java",
 		"android.hardware.wifi-V1.3-java",
@@ -890,6 +905,8 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"bouncycastle-unbundled",
 		"dnsresolver_aidl_interface-V2-java",
 		"error_prone_annotations",
+		"framework-wifi-pre-jarjar",
+		"framework-wifi-util-lib",
 		"ipmemorystore-aidl-interfaces-V3-java",
 		"ipmemorystore-aidl-interfaces-java",
 		"ksoap2",
@@ -1025,7 +1042,10 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 	var apexBundles []android.ApexInfo
 	var directDep bool
 	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
-		apexBundles = []android.ApexInfo{{mctx.ModuleName(), proptools.Bool(a.properties.Legacy_android10_support)}}
+		apexBundles = []android.ApexInfo{android.ApexInfo{
+			ApexName:               mctx.ModuleName(),
+			LegacyAndroid10Support: proptools.Bool(a.properties.Legacy_android10_support),
+		}}
 		directDep = true
 	} else if am, ok := mctx.Module().(android.ApexModule); ok {
 		apexBundles = am.ApexVariations()
@@ -1036,10 +1056,14 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		return
 	}
 
+	cur := mctx.Module().(interface {
+		DepIsInSameApex(android.BaseModuleContext, android.Module) bool
+	})
+
 	mctx.VisitDirectDeps(func(child android.Module) {
 		depName := mctx.OtherModuleName(child)
 		if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() &&
-			(directDep || am.DepIsInSameApex(mctx, child)) {
+			cur.DepIsInSameApex(mctx, child) {
 			android.UpdateApexDependency(apexBundles, depName, directDep)
 			am.BuildForApexes(apexBundles)
 		}
@@ -1958,7 +1982,7 @@ func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext,
 		}
 
 		// Check for the indirect dependencies if it is considered as part of the APEX
-		if am.DepIsInSameApex(ctx, am) {
+		if am.ApexName() != "" {
 			do(ctx, parent, am, false /* externalDep */)
 			return true
 		}
@@ -1979,10 +2003,12 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 
 	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
 		apexName := ctx.ModuleName()
-		if externalDep || to.AvailableFor(apexName) || whitelistedApexAvailable(apexName, to) {
+		fromName := ctx.OtherModuleName(from)
+		toName := ctx.OtherModuleName(to)
+		if externalDep || to.AvailableFor(apexName) || whitelistedApexAvailable(apexName, toName) {
 			return
 		}
-		ctx.ModuleErrorf("%q requires %q that is not available for the APEX.", from.Name(), to.Name())
+		ctx.ModuleErrorf("%q requires %q that is not available for the APEX.", fromName, toName)
 	})
 }
 
@@ -2352,13 +2378,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.buildApexDependencyInfo(ctx)
 }
 
-func whitelistedApexAvailable(apex string, module android.Module) bool {
+func whitelistedApexAvailable(apex, moduleName string) bool {
 	key := apex
 	key = strings.Replace(key, "test_", "", 1)
 	key = strings.Replace(key, "com.android.art.debug", "com.android.art", 1)
 	key = strings.Replace(key, "com.android.art.release", "com.android.art", 1)
 
-	moduleName := module.Name()
 	// Prebuilt modules (e.g. java_import, etc.) have "prebuilt_" prefix added by the build
 	// system. Trim the prefix for the check since they are confusing
 	moduleName = strings.TrimPrefix(moduleName, "prebuilt_")
