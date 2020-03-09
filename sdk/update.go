@@ -251,7 +251,14 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 
 	members, multilib := s.organizeMembers(ctx, memberRefs)
 	for _, member := range members {
-		member.memberType.BuildSnapshot(ctx, builder, member)
+		memberType := member.memberType
+		prebuiltModule := memberType.AddPrebuiltModule(ctx, builder, member)
+		if prebuiltModule == nil {
+			// Fall back to legacy method of building a snapshot
+			memberType.BuildSnapshot(ctx, builder, member)
+		} else {
+			s.createMemberSnapshot(ctx, builder, member, prebuiltModule)
+		}
 	}
 
 	// Create a transformer that will transform an unversioned module into a versioned module.
@@ -642,4 +649,138 @@ func (m *sdkMember) Name() string {
 
 func (m *sdkMember) Variants() []android.SdkAware {
 	return m.variants
+}
+
+type baseInfo struct {
+	Properties android.SdkMemberProperties
+}
+
+type osTypeSpecificInfo struct {
+	baseInfo
+
+	// The list of arch type specific info for this os type.
+	archTypes []*archTypeSpecificInfo
+}
+
+type archTypeSpecificInfo struct {
+	baseInfo
+
+	archType android.ArchType
+}
+
+func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, builder *snapshotBuilder, member *sdkMember, bpModule android.BpModule) {
+
+	memberType := member.memberType
+
+	// Group the properties for each variant by arch type.
+	osInfo := &osTypeSpecificInfo{}
+	osInfo.Properties = memberType.CreateVariantPropertiesStruct()
+	variants := member.Variants()
+	for _, variant := range variants {
+		var properties android.SdkMemberProperties
+
+		// Get the info associated with the arch type inside the os info.
+		archType := variant.Target().Arch.ArchType
+
+		archInfo := &archTypeSpecificInfo{archType: archType}
+		properties = memberType.CreateVariantPropertiesStruct()
+		archInfo.Properties = properties
+
+		osInfo.archTypes = append(osInfo.archTypes, archInfo)
+
+		properties.PopulateFromVariant(variant)
+	}
+
+	var archProperties []android.SdkMemberProperties
+	for _, archInfo := range osInfo.archTypes {
+		archProperties = append(archProperties, archInfo.Properties)
+	}
+
+	extractCommonProperties(osInfo.Properties, archProperties)
+
+	// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
+	var multilib string
+	archVariantCount := len(osInfo.archTypes)
+	if archVariantCount == 2 {
+		multilib = "both"
+	} else if archVariantCount == 1 {
+		if strings.HasSuffix(osInfo.archTypes[0].archType.Name, "64") {
+			multilib = "64"
+		} else {
+			multilib = "32"
+		}
+	}
+
+	osInfo.Properties.Base().Compile_multilib = multilib
+
+	osInfo.Properties.AddToPropertySet(sdkModuleContext, builder, bpModule)
+
+	archPropertySet := bpModule.AddPropertySet("arch")
+	for _, av := range osInfo.archTypes {
+		archTypePropertySet := archPropertySet.AddPropertySet(av.archType.Name)
+
+		av.Properties.AddToPropertySet(sdkModuleContext, builder, archTypePropertySet)
+	}
+
+	memberType.FinalizeModule(sdkModuleContext, builder, member, bpModule)
+}
+
+// Extract common properties from a slice of property structures of the same type.
+//
+// All the property structures must be of the same type.
+// commonProperties - must be a pointer to the structure into which common properties will be added.
+// inputPropertiesSlice - must be a slice of input properties structures.
+//
+// Iterates over each exported field (capitalized name) and checks to see whether they
+// have the same value (using DeepEquals) across all the input properties. If it does not then no
+// change is made. Otherwise, the common value is stored in the field in the commonProperties
+// and the field in each of the input properties structure is set to its default value.
+func extractCommonProperties(commonProperties interface{}, inputPropertiesSlice interface{}) {
+	commonPropertiesValue := reflect.ValueOf(commonProperties)
+	commonStructValue := commonPropertiesValue.Elem()
+	propertiesStructType := commonStructValue.Type()
+
+	// Create an empty structure from which default values for the field can be copied.
+	emptyStructValue := reflect.New(propertiesStructType).Elem()
+
+	for f := 0; f < propertiesStructType.NumField(); f++ {
+		// Check to see if all the structures have the same value for the field. The commonValue
+		// is nil on entry to the loop and if it is nil on exit then there is no common value,
+		// otherwise it points to the common value.
+		var commonValue *reflect.Value
+		sliceValue := reflect.ValueOf(inputPropertiesSlice)
+
+		for i := 0; i < sliceValue.Len(); i++ {
+			structValue := sliceValue.Index(i).Elem().Elem()
+			fieldValue := structValue.Field(f)
+			if !fieldValue.CanInterface() {
+				// The field is not exported so ignore it.
+				continue
+			}
+
+			if commonValue == nil {
+				// Use the first value as the commonProperties value.
+				commonValue = &fieldValue
+			} else {
+				// If the value does not match the current common value then there is
+				// no value in common so break out.
+				if !reflect.DeepEqual(fieldValue.Interface(), commonValue.Interface()) {
+					commonValue = nil
+					break
+				}
+			}
+		}
+
+		// If the fields all have a common value then store it in the common struct field
+		// and set the input struct's field to the empty value.
+		if commonValue != nil {
+			emptyValue := emptyStructValue.Field(f)
+			commonStructValue.Field(f).Set(*commonValue)
+			for i := 0; i < sliceValue.Len(); i++ {
+				structValue := sliceValue.Index(i).Elem().Elem()
+				fieldValue := structValue.Field(f)
+				fieldValue.Set(emptyValue)
+			}
+		}
+	}
 }
