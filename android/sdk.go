@@ -448,10 +448,29 @@ func RegisterSdkMemberType(memberType SdkMemberType) {
 
 // Base structure for all implementations of SdkMemberProperties.
 //
-// Contains common properties that apply across many different member types.
+// Contains common properties that apply across many different member types. These
+// are not affected by the optimization to extract common values.
 type SdkMemberPropertiesBase struct {
 	// The setting to use for the compile_multilib property.
 	Compile_multilib string
+
+	// The number of unique os types supported by the member variants.
+	Os_count int
+
+	// The os type for which these properties refer.
+	Os OsType
+}
+
+// The os prefix to use for any file paths in the sdk.
+//
+// Is an empty string if the member only provides variants for a single os type, otherwise
+// is the OsType.Name.
+func (b *SdkMemberPropertiesBase) OsPrefix() string {
+	if b.Os_count == 1 {
+		return ""
+	} else {
+		return b.Os.Name
+	}
 }
 
 func (b *SdkMemberPropertiesBase) Base() *SdkMemberPropertiesBase {
