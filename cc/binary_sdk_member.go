@@ -78,7 +78,7 @@ const (
 
 // path to the native binary. Relative to <sdk_root>/<api_dir>
 func nativeBinaryPathFor(lib nativeBinaryInfoProperties) string {
-	return filepath.Join(lib.archType,
+	return filepath.Join(lib.OsPrefix(), lib.archType,
 		nativeBinaryDir, lib.outputFile.Base())
 }
 
