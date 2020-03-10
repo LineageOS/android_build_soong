@@ -16,7 +16,6 @@ package cc
 
 import (
 	"path/filepath"
-	"reflect"
 
 	"android/soong/android"
 	"github.com/google/blueprint"
@@ -96,48 +95,25 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 	return false
 }
 
-// copy exported header files and stub *.so files
-func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	info := mt.organizeVariants(member)
-	info.generatePrebuiltLibrary(sdkModuleContext, builder, member)
+func (mt *librarySdkMemberType) AddPrebuiltModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) android.BpModule {
+	pbm := builder.AddPrebuiltModule(member, mt.prebuiltModuleType)
+
+	ccModule := member.Variants()[0].(*Module)
+
+	sdkVersion := ccModule.SdkVersion()
+	if sdkVersion != "" {
+		pbm.AddProperty("sdk_version", sdkVersion)
+	}
+	return pbm
 }
 
-// Organize the variants by architecture.
-func (mt *librarySdkMemberType) organizeVariants(member android.SdkMember) *nativeLibInfo {
-	memberName := member.Name()
-	info := &nativeLibInfo{
-		name:       memberName,
-		memberType: mt,
-	}
+func (mt *librarySdkMemberType) FinalizeModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember, bpModule android.BpModule) {
+	bpModule.AddProperty("stl", "none")
+	bpModule.AddProperty("system_shared_libs", []string{})
+}
 
-	for _, variant := range member.Variants() {
-		ccModule := variant.(*Module)
-
-		// Separate out the generated include dirs (which are arch specific) from the
-		// include dirs (which may not be).
-		exportedIncludeDirs, exportedGeneratedIncludeDirs := android.FilterPathListPredicate(
-			ccModule.ExportedIncludeDirs(), isGeneratedHeaderDirectory)
-
-		info.archVariantProperties = append(info.archVariantProperties, nativeLibInfoProperties{
-			name:                         memberName,
-			archType:                     ccModule.Target().Arch.ArchType.String(),
-			ExportedIncludeDirs:          exportedIncludeDirs,
-			exportedGeneratedIncludeDirs: exportedGeneratedIncludeDirs,
-			ExportedSystemIncludeDirs:    ccModule.ExportedSystemIncludeDirs(),
-			ExportedFlags:                ccModule.ExportedFlags(),
-			exportedGeneratedHeaders:     ccModule.ExportedGeneratedHeaders(),
-			outputFile:                   ccModule.OutputFile().Path(),
-		})
-	}
-
-	// Initialize the unexported properties that will not be set during the
-	// extraction process.
-	info.commonProperties.name = memberName
-
-	// Extract common properties from the arch specific properties.
-	extractCommonProperties(&info.commonProperties, info.archVariantProperties)
-
-	return info
+func (mt *librarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &nativeLibInfoProperties{memberType: mt}
 }
 
 func isGeneratedHeaderDirectory(p android.Path) bool {
@@ -145,94 +121,9 @@ func isGeneratedHeaderDirectory(p android.Path) bool {
 	return gen
 }
 
-// Extract common properties from a slice of property structures of the same type.
-//
-// All the property structures must be of the same type.
-// commonProperties - must be a pointer to the structure into which common properties will be added.
-// inputPropertiesSlice - must be a slice of input properties structures.
-//
-// Iterates over each exported field (capitalized name) and checks to see whether they
-// have the same value (using DeepEquals) across all the input properties. If it does not then no
-// change is made. Otherwise, the common value is stored in the field in the commonProperties
-// and the field in each of the input properties structure is set to its default value.
-func extractCommonProperties(commonProperties interface{}, inputPropertiesSlice interface{}) {
-	commonStructValue := reflect.ValueOf(commonProperties).Elem()
-	propertiesStructType := commonStructValue.Type()
-
-	// Create an empty structure from which default values for the field can be copied.
-	emptyStructValue := reflect.New(propertiesStructType).Elem()
-
-	for f := 0; f < propertiesStructType.NumField(); f++ {
-		// Check to see if all the structures have the same value for the field. The commonValue
-		// is nil on entry to the loop and if it is nil on exit then there is no common value,
-		// otherwise it points to the common value.
-		var commonValue *reflect.Value
-		sliceValue := reflect.ValueOf(inputPropertiesSlice)
-
-		for i := 0; i < sliceValue.Len(); i++ {
-			structValue := sliceValue.Index(i)
-			fieldValue := structValue.Field(f)
-			if !fieldValue.CanInterface() {
-				// The field is not exported so ignore it.
-				continue
-			}
-
-			if commonValue == nil {
-				// Use the first value as the commonProperties value.
-				commonValue = &fieldValue
-			} else {
-				// If the value does not match the current common value then there is
-				// no value in common so break out.
-				if !reflect.DeepEqual(fieldValue.Interface(), commonValue.Interface()) {
-					commonValue = nil
-					break
-				}
-			}
-		}
-
-		// If the fields all have a common value then store it in the common struct field
-		// and set the input struct's field to the empty value.
-		if commonValue != nil {
-			emptyValue := emptyStructValue.Field(f)
-			commonStructValue.Field(f).Set(*commonValue)
-			for i := 0; i < sliceValue.Len(); i++ {
-				structValue := sliceValue.Index(i)
-				fieldValue := structValue.Field(f)
-				fieldValue.Set(emptyValue)
-			}
-		}
-	}
-}
-
-func (info *nativeLibInfo) generatePrebuiltLibrary(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-
-	pbm := builder.AddPrebuiltModule(member, info.memberType.prebuiltModuleType)
-
-	addPossiblyArchSpecificProperties(sdkModuleContext, builder, info.commonProperties, pbm)
-
-	archProperties := pbm.AddPropertySet("arch")
-	for _, av := range info.archVariantProperties {
-		archTypeProperties := archProperties.AddPropertySet(av.archType)
-
-		// If the library has some link types then it produces an output binary file, otherwise it
-		// is header only.
-		if info.memberType.linkTypes != nil {
-			// Copy the generated library to the snapshot and add a reference to it in the .bp module.
-			nativeLibraryPath := nativeLibraryPathFor(av)
-			builder.CopyToSnapshot(av.outputFile, nativeLibraryPath)
-			archTypeProperties.AddProperty("srcs", []string{nativeLibraryPath})
-		}
-
-		// Add any arch specific properties inside the appropriate arch: {<arch>: {...}} block
-		addPossiblyArchSpecificProperties(sdkModuleContext, builder, av, archTypeProperties)
-	}
-	pbm.AddProperty("stl", "none")
-	pbm.AddProperty("system_shared_libs", []string{})
-}
-
 type includeDirsProperty struct {
 	// Accessor to retrieve the paths
-	pathsGetter func(libInfo nativeLibInfoProperties) android.Paths
+	pathsGetter func(libInfo *nativeLibInfoProperties) android.Paths
 
 	// The name of the property in the prebuilt library, "" means there is no property.
 	propertyName string
@@ -252,7 +143,7 @@ var includeDirProperties = []includeDirsProperty{
 		// ExportedIncludeDirs lists directories that contains some header files to be
 		// copied into a directory in the snapshot. The snapshot directories must be added to
 		// the export_include_dirs property in the prebuilt module in the snapshot.
-		pathsGetter:  func(libInfo nativeLibInfoProperties) android.Paths { return libInfo.ExportedIncludeDirs },
+		pathsGetter:  func(libInfo *nativeLibInfoProperties) android.Paths { return libInfo.ExportedIncludeDirs },
 		propertyName: "export_include_dirs",
 		snapshotDir:  nativeIncludeDir,
 		copy:         true,
@@ -262,7 +153,7 @@ var includeDirProperties = []includeDirsProperty{
 		// ExportedSystemIncludeDirs lists directories that contains some system header files to
 		// be copied into a directory in the snapshot. The snapshot directories must be added to
 		// the export_system_include_dirs property in the prebuilt module in the snapshot.
-		pathsGetter:  func(libInfo nativeLibInfoProperties) android.Paths { return libInfo.ExportedSystemIncludeDirs },
+		pathsGetter:  func(libInfo *nativeLibInfoProperties) android.Paths { return libInfo.ExportedSystemIncludeDirs },
 		propertyName: "export_system_include_dirs",
 		snapshotDir:  nativeIncludeDir,
 		copy:         true,
@@ -273,7 +164,7 @@ var includeDirProperties = []includeDirsProperty{
 		// that are explicitly listed in the exportedGeneratedHeaders property. So, the contents
 		// of these directories do not need to be copied, but these directories do need adding to
 		// the export_include_dirs property in the prebuilt module in the snapshot.
-		pathsGetter:  func(libInfo nativeLibInfoProperties) android.Paths { return libInfo.exportedGeneratedIncludeDirs },
+		pathsGetter:  func(libInfo *nativeLibInfoProperties) android.Paths { return libInfo.exportedGeneratedIncludeDirs },
 		propertyName: "export_include_dirs",
 		snapshotDir:  nativeGeneratedIncludeDir,
 		copy:         false,
@@ -284,7 +175,7 @@ var includeDirProperties = []includeDirsProperty{
 		// specified in exportedGeneratedIncludeDirs must be copied into the snapshot.
 		// As they are in a directory in exportedGeneratedIncludeDirs they do not need adding to a
 		// property in the prebuilt module in the snapshot.
-		pathsGetter:  func(libInfo nativeLibInfoProperties) android.Paths { return libInfo.exportedGeneratedHeaders },
+		pathsGetter:  func(libInfo *nativeLibInfoProperties) android.Paths { return libInfo.exportedGeneratedHeaders },
 		propertyName: "",
 		snapshotDir:  nativeGeneratedIncludeDir,
 		copy:         true,
@@ -293,7 +184,14 @@ var includeDirProperties = []includeDirsProperty{
 }
 
 // Add properties that may, or may not, be arch specific.
-func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, libInfo nativeLibInfoProperties, outputProperties android.BpPropertySet) {
+func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, libInfo *nativeLibInfoProperties, outputProperties android.BpPropertySet) {
+
+	// Copy the generated library to the snapshot and add a reference to it in the .bp module.
+	if libInfo.outputFile != nil {
+		nativeLibraryPath := nativeLibraryPathFor(libInfo)
+		builder.CopyToSnapshot(libInfo.outputFile, nativeLibraryPath)
+		outputProperties.AddProperty("srcs", []string{nativeLibraryPath})
+	}
 
 	// Map from property name to the include dirs to add to the prebuilt module in the snapshot.
 	includeDirs := make(map[string][]string)
@@ -355,8 +253,8 @@ const (
 )
 
 // path to the native library. Relative to <sdk_root>/<api_dir>
-func nativeLibraryPathFor(lib nativeLibInfoProperties) string {
-	return filepath.Join(lib.archType,
+func nativeLibraryPathFor(lib *nativeLibInfoProperties) string {
+	return filepath.Join(lib.OsPrefix(), lib.archType,
 		nativeStubDir, lib.outputFile.Base())
 }
 
@@ -365,6 +263,10 @@ func nativeLibraryPathFor(lib nativeLibInfoProperties) string {
 // The exported (capitalized) fields will be examined and may be changed during common value extraction.
 // The unexported fields will be left untouched.
 type nativeLibInfoProperties struct {
+	android.SdkMemberPropertiesBase
+
+	memberType *librarySdkMemberType
+
 	// The name of the library, is not exported as this must not be changed during optimization.
 	name string
 
@@ -401,10 +303,29 @@ type nativeLibInfoProperties struct {
 	outputFile android.Path
 }
 
-// nativeLibInfo represents a collection of arch-specific modules having the same name
-type nativeLibInfo struct {
-	name                  string
-	memberType            *librarySdkMemberType
-	archVariantProperties []nativeLibInfoProperties
-	commonProperties      nativeLibInfoProperties
+func (p *nativeLibInfoProperties) PopulateFromVariant(variant android.SdkAware) {
+	ccModule := variant.(*Module)
+
+	// If the library has some link types then it produces an output binary file, otherwise it
+	// is header only.
+	if p.memberType.linkTypes != nil {
+		p.outputFile = ccModule.OutputFile().Path()
+	}
+
+	// Separate out the generated include dirs (which are arch specific) from the
+	// include dirs (which may not be).
+	exportedIncludeDirs, exportedGeneratedIncludeDirs := android.FilterPathListPredicate(
+		ccModule.ExportedIncludeDirs(), isGeneratedHeaderDirectory)
+
+	p.name = variant.Name()
+	p.archType = ccModule.Target().Arch.ArchType.String()
+	p.ExportedIncludeDirs = exportedIncludeDirs
+	p.exportedGeneratedIncludeDirs = exportedGeneratedIncludeDirs
+	p.ExportedSystemIncludeDirs = ccModule.ExportedSystemIncludeDirs()
+	p.ExportedFlags = ccModule.ExportedFlags()
+	p.exportedGeneratedHeaders = ccModule.ExportedGeneratedHeaders()
+}
+
+func (p *nativeLibInfoProperties) AddToPropertySet(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, propertySet android.BpPropertySet) {
+	addPossiblyArchSpecificProperties(sdkModuleContext, builder, p, propertySet)
 }

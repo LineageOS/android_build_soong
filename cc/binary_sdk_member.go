@@ -16,7 +16,6 @@ package cc
 
 import (
 	"path/filepath"
-	"strings"
 
 	"android/soong/android"
 	"github.com/google/blueprint"
@@ -64,65 +63,13 @@ func (mt *binarySdkMemberType) IsInstance(module android.Module) bool {
 	return false
 }
 
-func (mt *binarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	info := mt.organizeVariants(member)
-	buildSharedNativeBinarySnapshot(info, builder, member)
-}
-
-// Organize the variants by architecture.
-func (mt *binarySdkMemberType) organizeVariants(member android.SdkMember) *nativeBinaryInfo {
-	memberName := member.Name()
-	info := &nativeBinaryInfo{
-		name:       memberName,
-		memberType: mt,
-	}
-
-	for _, variant := range member.Variants() {
-		ccModule := variant.(*Module)
-
-		info.archVariantProperties = append(info.archVariantProperties, nativeBinaryInfoProperties{
-			name:       memberName,
-			archType:   ccModule.Target().Arch.ArchType.String(),
-			outputFile: ccModule.OutputFile().Path(),
-		})
-	}
-
-	// Initialize the unexported properties that will not be set during the
-	// extraction process.
-	info.commonProperties.name = memberName
-
-	// Extract common properties from the arch specific properties.
-	extractCommonProperties(&info.commonProperties, info.archVariantProperties)
-
-	return info
-}
-
-func buildSharedNativeBinarySnapshot(info *nativeBinaryInfo, builder android.SnapshotBuilder, member android.SdkMember) {
+func (mt *binarySdkMemberType) AddPrebuiltModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) android.BpModule {
 	pbm := builder.AddPrebuiltModule(member, "cc_prebuilt_binary")
-	archVariantCount := len(info.archVariantProperties)
+	return pbm
+}
 
-	// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
-	var multilib string
-	if archVariantCount == 2 {
-		multilib = "both"
-	} else if archVariantCount == 1 {
-		if strings.HasSuffix(info.archVariantProperties[0].archType, "64") {
-			multilib = "64"
-		} else {
-			multilib = "32"
-		}
-	}
-	if multilib != "" {
-		pbm.AddProperty("compile_multilib", multilib)
-	}
-
-	archProperties := pbm.AddPropertySet("arch")
-	for _, av := range info.archVariantProperties {
-		archTypeProperties := archProperties.AddPropertySet(av.archType)
-		archTypeProperties.AddProperty("srcs", []string{nativeBinaryPathFor(av)})
-
-		builder.CopyToSnapshot(av.outputFile, nativeBinaryPathFor(av))
-	}
+func (mt *binarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &nativeBinaryInfoProperties{}
 }
 
 const (
@@ -131,7 +78,7 @@ const (
 
 // path to the native binary. Relative to <sdk_root>/<api_dir>
 func nativeBinaryPathFor(lib nativeBinaryInfoProperties) string {
-	return filepath.Join(lib.archType,
+	return filepath.Join(lib.OsPrefix(), lib.archType,
 		nativeBinaryDir, lib.outputFile.Base())
 }
 
@@ -140,8 +87,7 @@ func nativeBinaryPathFor(lib nativeBinaryInfoProperties) string {
 // The exported (capitalized) fields will be examined and may be changed during common value extraction.
 // The unexported fields will be left untouched.
 type nativeBinaryInfoProperties struct {
-	// The name of the library, is not exported as this must not be changed during optimization.
-	name string
+	android.SdkMemberPropertiesBase
 
 	// archType is not exported as if set (to a non default value) it is always arch specific.
 	// This is "" for common properties.
@@ -151,10 +97,21 @@ type nativeBinaryInfoProperties struct {
 	outputFile android.Path
 }
 
-// nativeBinaryInfo represents a collection of arch-specific modules having the same name
-type nativeBinaryInfo struct {
-	name                  string
-	memberType            *binarySdkMemberType
-	archVariantProperties []nativeBinaryInfoProperties
-	commonProperties      nativeBinaryInfoProperties
+func (p *nativeBinaryInfoProperties) PopulateFromVariant(variant android.SdkAware) {
+	ccModule := variant.(*Module)
+
+	p.archType = ccModule.Target().Arch.ArchType.String()
+	p.outputFile = ccModule.OutputFile().Path()
+}
+
+func (p *nativeBinaryInfoProperties) AddToPropertySet(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, propertySet android.BpPropertySet) {
+	if p.Compile_multilib != "" {
+		propertySet.AddProperty("compile_multilib", p.Compile_multilib)
+	}
+
+	if p.outputFile != nil {
+		propertySet.AddProperty("srcs", []string{nativeBinaryPathFor(*p)})
+
+		builder.CopyToSnapshot(p.outputFile, nativeBinaryPathFor(*p))
+	}
 }

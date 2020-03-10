@@ -302,7 +302,46 @@ type SdkMemberType interface {
 	//
 	// The SdkMember is guaranteed to contain variants for which the
 	// IsInstance(Module) method returned true.
+	//
+	// deprecated Use AddPrebuiltModule() instead.
 	BuildSnapshot(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember)
+
+	// Add a prebuilt module that the sdk will populate.
+	//
+	// Returning nil from this will cause the sdk module type to use the deprecated BuildSnapshot
+	// method to build the snapshot. That method is deprecated because it requires the SdkMemberType
+	// implementation to do all the word.
+	//
+	// Otherwise, returning a non-nil value from this will cause the sdk module type to do the
+	// majority of the work to generate the snapshot. The sdk module code generates the snapshot
+	// as follows:
+	//
+	// * A properties struct of type SdkMemberProperties is created for each variant and
+	//   populated with information from the variant by calling PopulateFromVariant(SdkAware)
+	//   on the struct.
+	//
+	// * An additional properties struct is created into which the common properties will be
+	//   added.
+	//
+	// * The variant property structs are analysed to find exported (capitalized) fields which
+	//   have common values. Those fields are cleared and the common value added to the common
+	//   properties.
+	//
+	// * The sdk module type populates the BpModule structure, creating the arch specific
+	//   structure and calls AddToPropertySet(...) on the properties struct to add the member
+	//   specific properties in the correct place in the structure.
+	//
+	// * Finally, the FinalizeModule(...) method is called to add any additional properties.
+	//   This was created to allow the property ordering in existing tests to be maintained so
+	//   as to avoid having to change tests while refactoring.
+	//
+	AddPrebuiltModule(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember) BpModule
+
+	// Add any additional properties to the end of the module.
+	FinalizeModule(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember, bpModule BpModule)
+
+	// Create a structure into which variant specific properties can be added.
+	CreateVariantPropertiesStruct() SdkMemberProperties
 }
 
 // Base type for SdkMemberType implementations.
@@ -322,6 +361,23 @@ func (b *SdkMemberTypeBase) UsableWithSdkAndSdkSnapshot() bool {
 
 func (b *SdkMemberTypeBase) HasTransitiveSdkMembers() bool {
 	return b.TransitiveSdkMembers
+}
+
+func (b *SdkMemberTypeBase) BuildSnapshot(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember) {
+	panic("override AddPrebuiltModule")
+}
+
+func (b *SdkMemberTypeBase) AddPrebuiltModule(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember) BpModule {
+	// Returning nil causes the legacy BuildSnapshot method to be used.
+	return nil
+}
+
+func (b *SdkMemberTypeBase) FinalizeModule(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember, module BpModule) {
+	// Do nothing by default
+}
+
+func (b *SdkMemberTypeBase) CreateVariantPropertiesStruct() SdkMemberProperties {
+	panic("override me")
 }
 
 // Encapsulates the information about registered SdkMemberTypes.
@@ -388,4 +444,51 @@ func RegisterSdkMemberType(memberType SdkMemberType) {
 	if memberType.UsableWithSdkAndSdkSnapshot() {
 		SdkMemberTypes = SdkMemberTypes.copyAndAppend(memberType)
 	}
+}
+
+// Base structure for all implementations of SdkMemberProperties.
+//
+// Contains common properties that apply across many different member types. These
+// are not affected by the optimization to extract common values.
+type SdkMemberPropertiesBase struct {
+	// The setting to use for the compile_multilib property.
+	Compile_multilib string
+
+	// The number of unique os types supported by the member variants.
+	Os_count int
+
+	// The os type for which these properties refer.
+	Os OsType
+}
+
+// The os prefix to use for any file paths in the sdk.
+//
+// Is an empty string if the member only provides variants for a single os type, otherwise
+// is the OsType.Name.
+func (b *SdkMemberPropertiesBase) OsPrefix() string {
+	if b.Os_count == 1 {
+		return ""
+	} else {
+		return b.Os.Name
+	}
+}
+
+func (b *SdkMemberPropertiesBase) Base() *SdkMemberPropertiesBase {
+	return b
+}
+
+// Interface to be implemented on top of a structure that contains variant specific
+// information.
+//
+// Struct fields that are capitalized are examined for common values to extract. Fields
+// that are not capitalized are assumed to be arch specific.
+type SdkMemberProperties interface {
+	// Access the base structure.
+	Base() *SdkMemberPropertiesBase
+
+	// Populate the structure with information from the variant.
+	PopulateFromVariant(variant SdkAware)
+
+	// Add the information from the structure to the property set.
+	AddToPropertySet(sdkModuleContext ModuleContext, builder SnapshotBuilder, propertySet BpPropertySet)
 }
