@@ -331,7 +331,8 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 
 	// Extract the common lists of members into a separate struct.
 	commonDynamicMemberProperties := s.dynamicSdkMemberTypes.createMemberListProperties()
-	extractCommonProperties(commonDynamicMemberProperties, dynamicMemberPropertiesList)
+	extractor := newCommonValueExtractor(commonDynamicMemberProperties)
+	extractor.extractCommonProperties(commonDynamicMemberProperties, dynamicMemberPropertiesList)
 
 	// Add properties common to all os types.
 	s.addMemberPropertiesToPropertySet(builder, snapshotModule, commonDynamicMemberProperties)
@@ -776,6 +777,9 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 	// The set of properties that are common across all architectures and os types.
 	commonProperties := createVariantPropertiesStruct(android.CommonOS)
 
+	// Create common value extractor that can be used to optimize the properties.
+	commonValueExtractor := newCommonValueExtractor(commonProperties)
+
 	// The list of property structures which are os type specific but common across
 	// architectures within that os type.
 	var osSpecificPropertiesList []android.SdkMemberProperties
@@ -824,7 +828,7 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 				archPropertiesList = append(archPropertiesList, archInfo.Properties)
 			}
 
-			extractCommonProperties(osInfo.Properties, archPropertiesList)
+			commonValueExtractor.extractCommonProperties(osInfo.Properties, archPropertiesList)
 
 			// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
 			var multilib string
@@ -845,7 +849,7 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 	}
 
 	// Extract properties which are common across all architectures and os types.
-	extractCommonProperties(commonProperties, osSpecificPropertiesList)
+	commonValueExtractor.extractCommonProperties(commonProperties, osSpecificPropertiesList)
 
 	// Add the common properties to the module.
 	commonProperties.AddToPropertySet(sdkModuleContext, builder, bpModule)
@@ -947,6 +951,73 @@ func (s *sdk) getPossibleOsTypes() []android.OsType {
 	return osTypes
 }
 
+// Given a struct value, access a field within that struct.
+type fieldAccessorFunc func(structValue reflect.Value) reflect.Value
+
+// Supports extracting common values from a number of instances of a properties
+// structure into a separate common set of properties.
+type commonValueExtractor struct {
+	// The getters for every field from which common values can be extracted.
+	fieldGetters []fieldAccessorFunc
+}
+
+// Create a new common value extractor for the structure type for the supplied
+// properties struct.
+//
+// The returned extractor can be used on any properties structure of the same type
+// as the supplied set of properties.
+func newCommonValueExtractor(propertiesStruct interface{}) *commonValueExtractor {
+	structType := getStructValue(reflect.ValueOf(propertiesStruct)).Type()
+	extractor := &commonValueExtractor{}
+	extractor.gatherFields(structType)
+	return extractor
+}
+
+// Gather the fields from the supplied structure type from which common values will
+// be extracted.
+func (e *commonValueExtractor) gatherFields(structType reflect.Type) {
+	for f := 0; f < structType.NumField(); f++ {
+		field := structType.Field(f)
+		if field.PkgPath != "" {
+			// Ignore unexported fields.
+			continue
+		}
+
+		// Ignore embedded structures.
+		if field.Type.Kind() == reflect.Struct && field.Anonymous {
+			continue
+		}
+
+		// Save a copy of the field index for use in the function.
+		fieldIndex := f
+		fieldGetter := func(value reflect.Value) reflect.Value {
+			// Skip through interface and pointer values to find the structure.
+			value = getStructValue(value)
+
+			// Return the field.
+			return value.Field(fieldIndex)
+		}
+
+		e.fieldGetters = append(e.fieldGetters, fieldGetter)
+	}
+}
+
+func getStructValue(value reflect.Value) reflect.Value {
+foundStruct:
+	for {
+		kind := value.Kind()
+		switch kind {
+		case reflect.Interface, reflect.Ptr:
+			value = value.Elem()
+		case reflect.Struct:
+			break foundStruct
+		default:
+			panic(fmt.Errorf("expecting struct, interface or pointer, found %v of kind %s", value, kind))
+		}
+	}
+	return value
+}
+
 // Extract common properties from a slice of property structures of the same type.
 //
 // All the property structures must be of the same type.
@@ -957,7 +1028,7 @@ func (s *sdk) getPossibleOsTypes() []android.OsType {
 // have the same value (using DeepEquals) across all the input properties. If it does not then no
 // change is made. Otherwise, the common value is stored in the field in the commonProperties
 // and the field in each of the input properties structure is set to its default value.
-func extractCommonProperties(commonProperties interface{}, inputPropertiesSlice interface{}) {
+func (e *commonValueExtractor) extractCommonProperties(commonProperties interface{}, inputPropertiesSlice interface{}) {
 	commonPropertiesValue := reflect.ValueOf(commonProperties)
 	commonStructValue := commonPropertiesValue.Elem()
 	propertiesStructType := commonStructValue.Type()
@@ -965,25 +1036,16 @@ func extractCommonProperties(commonProperties interface{}, inputPropertiesSlice 
 	// Create an empty structure from which default values for the field can be copied.
 	emptyStructValue := reflect.New(propertiesStructType).Elem()
 
-	for f := 0; f < propertiesStructType.NumField(); f++ {
+	for _, fieldGetter := range e.fieldGetters {
 		// Check to see if all the structures have the same value for the field. The commonValue
 		// is nil on entry to the loop and if it is nil on exit then there is no common value,
 		// otherwise it points to the common value.
 		var commonValue *reflect.Value
 		sliceValue := reflect.ValueOf(inputPropertiesSlice)
 
-		field := propertiesStructType.Field(f)
-		if field.Name == "SdkMemberPropertiesBase" {
-			continue
-		}
-
 		for i := 0; i < sliceValue.Len(); i++ {
-			structValue := sliceValue.Index(i).Elem().Elem()
-			fieldValue := structValue.Field(f)
-			if !fieldValue.CanInterface() {
-				// The field is not exported so ignore it.
-				continue
-			}
+			itemValue := sliceValue.Index(i)
+			fieldValue := fieldGetter(itemValue)
 
 			if commonValue == nil {
 				// Use the first value as the commonProperties value.
@@ -1001,11 +1063,11 @@ func extractCommonProperties(commonProperties interface{}, inputPropertiesSlice 
 		// If the fields all have a common value then store it in the common struct field
 		// and set the input struct's field to the empty value.
 		if commonValue != nil {
-			emptyValue := emptyStructValue.Field(f)
-			commonStructValue.Field(f).Set(*commonValue)
+			emptyValue := fieldGetter(emptyStructValue)
+			fieldGetter(commonStructValue).Set(*commonValue)
 			for i := 0; i < sliceValue.Len(); i++ {
-				structValue := sliceValue.Index(i).Elem().Elem()
-				fieldValue := structValue.Field(f)
+				itemValue := sliceValue.Index(i)
+				fieldValue := fieldGetter(itemValue)
 				fieldValue.Set(emptyValue)
 			}
 		}
