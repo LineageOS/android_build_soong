@@ -104,17 +104,20 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 	envFunc(cmd.Environment)
 
 	if _, ok := cmd.Environment.Get("BUILD_USERNAME"); !ok {
-		u, err := user.Current()
-		if err != nil {
-			ctx.Println("Failed to get current user")
+		username := "unknown"
+		if u, err := user.Current(); err == nil {
+			username = u.Username
+		} else {
+			ctx.Println("Failed to get current user:", err)
 		}
-		cmd.Environment.Set("BUILD_USERNAME", u.Username)
+		cmd.Environment.Set("BUILD_USERNAME", username)
 	}
 
 	if _, ok := cmd.Environment.Get("BUILD_HOSTNAME"); !ok {
 		hostname, err := os.Hostname()
 		if err != nil {
-			ctx.Println("Failed to read hostname")
+			ctx.Println("Failed to read hostname:", err)
+			hostname = "unknown"
 		}
 		cmd.Environment.Set("BUILD_HOSTNAME", hostname)
 	}
