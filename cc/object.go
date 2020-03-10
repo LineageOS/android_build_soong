@@ -26,6 +26,16 @@ import (
 
 func init() {
 	android.RegisterModuleType("cc_object", ObjectFactory)
+	android.RegisterSdkMemberType(ccObjectSdkMemberType)
+}
+
+var ccObjectSdkMemberType = &librarySdkMemberType{
+	SdkMemberTypeBase: android.SdkMemberTypeBase{
+		PropertyName: "native_objects",
+		SupportsSdk:  true,
+	},
+	prebuiltModuleType: "cc_prebuilt_object",
+	linkTypes:          nil,
 }
 
 type objectLinker struct {
@@ -67,6 +77,7 @@ func ObjectFactory() android.Module {
 	// Clang's address-significance tables are incompatible with ld -r.
 	module.compiler.appendCflags([]string{"-fno-addrsig"})
 
+	module.sdkMemberTypes = []android.SdkMemberType{ccObjectSdkMemberType}
 	return module.Init()
 }
 
