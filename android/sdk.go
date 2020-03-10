@@ -325,7 +325,8 @@ type SdkMemberType interface {
 	//
 	// * The variant property structs are analysed to find exported (capitalized) fields which
 	//   have common values. Those fields are cleared and the common value added to the common
-	//   properties.
+	//   properties. A field annotated with a tag of `sdk:"keep"` will be treated as if it
+	//   was not capitalized, i.e. not optimized for common values.
 	//
 	// * The sdk module type populates the BpModule structure, creating the arch specific
 	//   structure and calls AddToPropertySet(...) on the properties struct to add the member
@@ -452,13 +453,13 @@ func RegisterSdkMemberType(memberType SdkMemberType) {
 // are not affected by the optimization to extract common values.
 type SdkMemberPropertiesBase struct {
 	// The setting to use for the compile_multilib property.
-	Compile_multilib string
+	Compile_multilib string `sdk:"keep"`
 
 	// The number of unique os types supported by the member variants.
-	Os_count int
+	Os_count int `sdk:"keep"`
 
 	// The os type for which these properties refer.
-	Os OsType
+	Os OsType `sdk:"keep"`
 }
 
 // The os prefix to use for any file paths in the sdk.
