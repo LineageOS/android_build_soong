@@ -225,10 +225,17 @@ func versionedSdkMemberName(ctx android.ModuleContext, memberName string, versio
 // the contents (header files, stub libraries, etc) into the zip file.
 func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) android.OutputPath {
 
+	exportedMembers := make(map[string]struct{})
 	var memberRefs []sdkMemberRef
 	for _, sdkVariant := range sdkVariants {
 		memberRefs = append(memberRefs, sdkVariant.memberRefs...)
+
+		// Merge the exported member sets from all sdk variants.
+		for key, _ := range sdkVariant.getExportedMembers() {
+			exportedMembers[key] = struct{}{}
+		}
 	}
+	s.exportedMembers = exportedMembers
 
 	snapshotDir := android.PathForModuleOut(ctx, "snapshot")
 
@@ -302,23 +309,43 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 		snapshotModule.AddProperty("visibility", visibility)
 	}
 
-	addHostDeviceSupportedProperties(&s.ModuleBase, snapshotModule)
+	addHostDeviceSupportedProperties(s.ModuleBase.DeviceSupported(), s.ModuleBase.HostSupported(), snapshotModule)
 
 	// Compile_multilib defaults to both and must always be set to both on the
 	// device and so only needs to be set when targeted at the host and is neither
 	// unspecified or both.
+	targetPropertySet := snapshotModule.AddPropertySet("target")
 	if s.HostSupported() && multilib != "" && multilib != "both" {
-		targetSet := snapshotModule.AddPropertySet("target")
-		hostSet := targetSet.AddPropertySet("host")
+		hostSet := targetPropertySet.AddPropertySet("host")
 		hostSet.AddProperty("compile_multilib", multilib)
 	}
 
-	for _, memberListProperty := range s.memberListProperties() {
-		names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
-		if len(names) > 0 {
-			snapshotModule.AddProperty(memberListProperty.propertyName(), builder.versionedSdkMemberNames(names))
+	var dynamicMemberPropertiesList []interface{}
+	osTypeToMemberProperties := make(map[android.OsType]*sdk)
+	for _, sdkVariant := range sdkVariants {
+		properties := sdkVariant.dynamicMemberTypeListProperties
+		osTypeToMemberProperties[sdkVariant.Target().Os] = sdkVariant
+		dynamicMemberPropertiesList = append(dynamicMemberPropertiesList, properties)
+	}
+
+	// Extract the common lists of members into a separate struct.
+	commonDynamicMemberProperties := s.dynamicSdkMemberTypes.createMemberListProperties()
+	extractCommonProperties(commonDynamicMemberProperties, dynamicMemberPropertiesList)
+
+	// Add properties common to all os types.
+	s.addMemberPropertiesToPropertySet(builder, snapshotModule, commonDynamicMemberProperties)
+
+	// Iterate over the os types in a fixed order.
+	for _, osType := range s.getPossibleOsTypes() {
+		if sdkVariant, ok := osTypeToMemberProperties[osType]; ok {
+			osPropertySet := targetPropertySet.AddPropertySet(sdkVariant.Target().Os.Name)
+			s.addMemberPropertiesToPropertySet(builder, osPropertySet, sdkVariant.dynamicMemberTypeListProperties)
 		}
 	}
+
+	// Prune any empty property sets.
+	snapshotModule.transform(pruneEmptySetTransformer{})
+
 	bpFile.AddModule(snapshotModule)
 
 	// generate Android.bp
@@ -367,6 +394,15 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	}
 
 	return outputZipFile
+}
+
+func (s *sdk) addMemberPropertiesToPropertySet(builder *snapshotBuilder, propertySet android.BpPropertySet, dynamicMemberTypeListProperties interface{}) {
+	for _, memberListProperty := range s.memberListProperties() {
+		names := memberListProperty.getter(dynamicMemberTypeListProperties)
+		if len(names) > 0 {
+			propertySet.AddProperty(memberListProperty.propertyName(), builder.versionedSdkMemberNames(names))
+		}
+	}
 }
 
 type propertyTag struct {
@@ -573,7 +609,19 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 		}
 	}
 
-	addHostDeviceSupportedProperties(&s.sdk.ModuleBase, m)
+	deviceSupported := false
+	hostSupported := false
+
+	for _, variant := range member.Variants() {
+		osClass := variant.Target().Os.Class
+		if osClass == android.Host || osClass == android.HostCross {
+			hostSupported = true
+		} else if osClass == android.Device {
+			deviceSupported = true
+		}
+	}
+
+	addHostDeviceSupportedProperties(deviceSupported, hostSupported, m)
 
 	// Where available copy apex_available properties from the member.
 	if apexAware, ok := variant.(interface{ ApexAvailable() []string }); ok {
@@ -588,11 +636,11 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 	return m
 }
 
-func addHostDeviceSupportedProperties(module *android.ModuleBase, bpModule *bpModule) {
-	if !module.DeviceSupported() {
+func addHostDeviceSupportedProperties(deviceSupported bool, hostSupported bool, bpModule *bpModule) {
+	if !deviceSupported {
 		bpModule.AddProperty("device_supported", false)
 	}
-	if module.HostSupported() {
+	if hostSupported {
 		bpModule.AddProperty("host_supported", true)
 	}
 }
