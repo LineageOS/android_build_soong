@@ -173,6 +173,7 @@ func main() {
 	stat.AddOutput(status.NewErrorLog(log, filepath.Join(logsDir, c.logsPrefix+"error.log")))
 	stat.AddOutput(status.NewProtoErrorLog(log, filepath.Join(logsDir, c.logsPrefix+"build_error")))
 	stat.AddOutput(status.NewCriticalPath(log))
+	stat.AddOutput(status.NewBuildProgressLog(log, filepath.Join(logsDir, c.logsPrefix+"build_progress.pb")))
 
 	buildCtx.Verbosef("Detected %.3v GB total RAM", float32(config.TotalRAM())/(1024*1024*1024))
 	buildCtx.Verbosef("Parallelism (local/remote/highmem): %v/%v/%v",
