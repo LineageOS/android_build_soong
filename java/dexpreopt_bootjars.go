@@ -376,6 +376,7 @@ func buildBootImageRuleForArch(ctx android.SingletonContext, image *bootImage,
 		FlagWithArg("--instruction-set-features=", global.InstructionSetFeatures[arch]).
 		FlagWithArg("--android-root=", global.EmptyDirectory).
 		FlagWithArg("--no-inline-from=", "core-oj.jar").
+		Flag("--force-determinism").
 		Flag("--abort-on-hard-verifier-error")
 
 	if global.BootFlags != "" {
