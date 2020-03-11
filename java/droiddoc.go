@@ -1344,6 +1344,7 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 		cmd.FlagWithArg("--doc-stubs ", stubsDir.String())
 	} else {
 		cmd.FlagWithArg("--stubs ", stubsDir.String())
+		cmd.Flag("--exclude-documentation-from-stubs")
 	}
 }
 
