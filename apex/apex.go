@@ -1850,10 +1850,10 @@ func apexFileForNativeLibrary(ctx android.BaseModuleContext, ccMod *cc.Module, h
 	case "lib64":
 		dirInApex = "lib64"
 	}
-	dirInApex = filepath.Join(dirInApex, ccMod.RelativeInstallPath())
 	if ccMod.Target().NativeBridge == android.NativeBridgeEnabled {
 		dirInApex = filepath.Join(dirInApex, ccMod.Target().NativeBridgeRelativePath)
 	}
+	dirInApex = filepath.Join(dirInApex, ccMod.RelativeInstallPath())
 	if handleSpecialLibs && cc.InstallToBootstrap(ccMod.BaseModuleName(), ctx.Config()) {
 		// Special case for Bionic libs and other libs installed with them. This is
 		// to prevent those libs from being included in the search path
@@ -1873,10 +1873,11 @@ func apexFileForNativeLibrary(ctx android.BaseModuleContext, ccMod *cc.Module, h
 }
 
 func apexFileForExecutable(ctx android.BaseModuleContext, cc *cc.Module) apexFile {
-	dirInApex := filepath.Join("bin", cc.RelativeInstallPath())
+	dirInApex := "bin"
 	if cc.Target().NativeBridge == android.NativeBridgeEnabled {
 		dirInApex = filepath.Join(dirInApex, cc.Target().NativeBridgeRelativePath)
 	}
+	dirInApex = filepath.Join(dirInApex, cc.RelativeInstallPath())
 	fileToCopy := cc.OutputFile().Path()
 	af := newApexFile(ctx, fileToCopy, cc.Name(), dirInApex, nativeExecutable, cc)
 	af.symlinks = cc.Symlinks()
