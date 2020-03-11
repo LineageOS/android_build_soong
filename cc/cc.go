@@ -2851,6 +2851,9 @@ func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 				return false
 			}
 		}
+	} else if ctx.OtherModuleDependencyTag(dep) == llndkImplDep {
+		// We don't track beyond LLNDK
+		return false
 	}
 	return true
 }

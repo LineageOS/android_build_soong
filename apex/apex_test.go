@@ -4774,6 +4774,42 @@ func TestTestFor(t *testing.T) {
 	ensureNotContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared_1/mylib.so")
 }
 
+func TestNoStaticLinkingToStubsLib(t *testing.T) {
+	testApexError(t, `.*required by "mylib" is a native library providing stub.*`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			static_libs: ["otherlib"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library {
+			name: "otherlib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["1", "2", "3"],
+			},
+			apex_available: [ "myapex" ],
+		}
+	`)
+}
+
 func TestMain(m *testing.M) {
 	run := func() int {
 		setUp()
