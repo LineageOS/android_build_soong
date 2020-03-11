@@ -50,9 +50,8 @@ type sdkContext interface {
 	targetSdkVersion() sdkSpec
 }
 
-func UseApiFingerprint(ctx android.BaseModuleContext, v string) bool {
-	if v == ctx.Config().PlatformSdkCodename() &&
-		ctx.Config().UnbundledBuild() &&
+func UseApiFingerprint(ctx android.BaseModuleContext) bool {
+	if ctx.Config().UnbundledBuild() &&
 		!ctx.Config().UnbundledBuildUsePrebuiltSdks() &&
 		ctx.Config().IsEnvTrue("UNBUNDLED_BUILD_TARGET_SDK_WITH_API_FINGERPRINT") {
 		return true
