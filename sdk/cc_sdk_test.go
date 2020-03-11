@@ -298,6 +298,7 @@ cc_prebuilt_library_shared {
     name: "mysdk_mynativelib@current",
     sdk_member_name: "mynativelib",
     installable: false,
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         arm64: {
@@ -308,12 +309,12 @@ cc_prebuilt_library_shared {
             srcs: ["arm/lib/mynativelib.so"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_shared {
     name: "mynativelib",
     prefer: false,
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         arm64: {
@@ -324,7 +325,6 @@ cc_prebuilt_library_shared {
             srcs: ["arm/lib/mynativelib.so"],
         },
     },
-    stl: "none",
 }
 
 sdk_snapshot {
@@ -541,6 +541,7 @@ cc_prebuilt_library_shared {
         "apex2",
     ],
     installable: false,
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         arm64: {
@@ -552,7 +553,6 @@ cc_prebuilt_library_shared {
             export_include_dirs: ["arm/include_gen/mynativelib"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_shared {
@@ -562,6 +562,7 @@ cc_prebuilt_library_shared {
         "apex1",
         "apex2",
     ],
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         arm64: {
@@ -573,7 +574,6 @@ cc_prebuilt_library_shared {
             export_include_dirs: ["arm/include_gen/mynativelib"],
         },
     },
-    stl: "none",
 }
 
 sdk_snapshot {
@@ -665,6 +665,7 @@ cc_prebuilt_library_shared {
     name: "mysdk_mynativelib@current",
     sdk_member_name: "mynativelib",
     installable: false,
+    stl: "none",
     shared_libs: [
         "mysdk_myothernativelib@current",
         "libc",
@@ -677,12 +678,12 @@ cc_prebuilt_library_shared {
             srcs: ["arm/lib/mynativelib.so"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_shared {
     name: "mynativelib",
     prefer: false,
+    stl: "none",
     shared_libs: [
         "myothernativelib",
         "libc",
@@ -695,13 +696,13 @@ cc_prebuilt_library_shared {
             srcs: ["arm/lib/mynativelib.so"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_shared {
     name: "mysdk_myothernativelib@current",
     sdk_member_name: "myothernativelib",
     installable: false,
+    stl: "none",
     system_shared_libs: ["libm"],
     arch: {
         arm64: {
@@ -711,12 +712,12 @@ cc_prebuilt_library_shared {
             srcs: ["arm/lib/myothernativelib.so"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_shared {
     name: "myothernativelib",
     prefer: false,
+    stl: "none",
     system_shared_libs: ["libm"],
     arch: {
         arm64: {
@@ -726,13 +727,13 @@ cc_prebuilt_library_shared {
             srcs: ["arm/lib/myothernativelib.so"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_shared {
     name: "mysdk_mysystemnativelib@current",
     sdk_member_name: "mysystemnativelib",
     installable: false,
+    stl: "none",
     arch: {
         arm64: {
             srcs: ["arm64/lib/mysystemnativelib.so"],
@@ -741,12 +742,12 @@ cc_prebuilt_library_shared {
             srcs: ["arm/lib/mysystemnativelib.so"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_shared {
     name: "mysystemnativelib",
     prefer: false,
+    stl: "none",
     arch: {
         arm64: {
             srcs: ["arm64/lib/mysystemnativelib.so"],
@@ -755,7 +756,6 @@ cc_prebuilt_library_shared {
             srcs: ["arm/lib/mysystemnativelib.so"],
         },
     },
-    stl: "none",
 }
 
 sdk_snapshot {
@@ -819,6 +819,7 @@ cc_prebuilt_library_shared {
     host_supported: true,
     installable: false,
     sdk_version: "minimum",
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         x86_64: {
@@ -830,7 +831,6 @@ cc_prebuilt_library_shared {
             export_include_dirs: ["x86/include_gen/mynativelib"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_shared {
@@ -839,6 +839,7 @@ cc_prebuilt_library_shared {
     device_supported: false,
     host_supported: true,
     sdk_version: "minimum",
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         x86_64: {
@@ -850,7 +851,6 @@ cc_prebuilt_library_shared {
             export_include_dirs: ["x86/include_gen/mynativelib"],
         },
     },
-    stl: "none",
 }
 
 sdk_snapshot {
@@ -918,6 +918,7 @@ cc_prebuilt_library_shared {
     device_supported: false,
     host_supported: true,
     installable: false,
+    stl: "none",
     target: {
         linux_glibc_x86_64: {
             srcs: ["linux_glibc/x86_64/lib/mynativelib.so"],
@@ -929,7 +930,6 @@ cc_prebuilt_library_shared {
             srcs: ["windows/x86_64/lib/mynativelib.dll"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_shared {
@@ -937,6 +937,7 @@ cc_prebuilt_library_shared {
     prefer: false,
     device_supported: false,
     host_supported: true,
+    stl: "none",
     target: {
         linux_glibc_x86_64: {
             srcs: ["linux_glibc/x86_64/lib/mynativelib.so"],
@@ -948,7 +949,6 @@ cc_prebuilt_library_shared {
             srcs: ["windows/x86_64/lib/mynativelib.dll"],
         },
     },
-    stl: "none",
 }
 
 sdk_snapshot {
@@ -996,6 +996,7 @@ cc_prebuilt_library_static {
     name: "myexports_mynativelib@current",
     sdk_member_name: "mynativelib",
     installable: false,
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         arm64: {
@@ -1007,12 +1008,12 @@ cc_prebuilt_library_static {
             export_include_dirs: ["arm/include_gen/mynativelib"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_static {
     name: "mynativelib",
     prefer: false,
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         arm64: {
@@ -1024,7 +1025,6 @@ cc_prebuilt_library_static {
             export_include_dirs: ["arm/include_gen/mynativelib"],
         },
     },
-    stl: "none",
 }
 
 module_exports_snapshot {
@@ -1085,6 +1085,7 @@ cc_prebuilt_library_static {
     device_supported: false,
     host_supported: true,
     installable: false,
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         x86_64: {
@@ -1096,7 +1097,6 @@ cc_prebuilt_library_static {
             export_include_dirs: ["x86/include_gen/mynativelib"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_static {
@@ -1104,6 +1104,7 @@ cc_prebuilt_library_static {
     prefer: false,
     device_supported: false,
     host_supported: true,
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         x86_64: {
@@ -1115,7 +1116,6 @@ cc_prebuilt_library_static {
             export_include_dirs: ["x86/include_gen/mynativelib"],
         },
     },
-    stl: "none",
 }
 
 module_exports_snapshot {
@@ -1183,6 +1183,7 @@ cc_prebuilt_library_static {
     device_supported: false,
     host_supported: true,
     installable: false,
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         x86_64: {
@@ -1190,7 +1191,6 @@ cc_prebuilt_library_static {
             export_include_dirs: ["x86_64/include_gen/mynativelib"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_static {
@@ -1198,6 +1198,7 @@ cc_prebuilt_library_static {
     prefer: false,
     device_supported: false,
     host_supported: true,
+    stl: "none",
     export_include_dirs: ["include/include"],
     arch: {
         x86_64: {
@@ -1205,7 +1206,6 @@ cc_prebuilt_library_static {
             export_include_dirs: ["x86_64/include_gen/mynativelib"],
         },
     },
-    stl: "none",
 }
 
 module_exports_snapshot {
@@ -1251,15 +1251,15 @@ func TestSnapshotWithCcHeadersLibrary(t *testing.T) {
 cc_prebuilt_library_headers {
     name: "mysdk_mynativeheaders@current",
     sdk_member_name: "mynativeheaders",
-    export_include_dirs: ["include/include"],
     stl: "none",
+    export_include_dirs: ["include/include"],
 }
 
 cc_prebuilt_library_headers {
     name: "mynativeheaders",
     prefer: false,
-    export_include_dirs: ["include/include"],
     stl: "none",
+    export_include_dirs: ["include/include"],
 }
 
 sdk_snapshot {
@@ -1304,8 +1304,8 @@ cc_prebuilt_library_headers {
     sdk_member_name: "mynativeheaders",
     device_supported: false,
     host_supported: true,
-    export_include_dirs: ["include/include"],
     stl: "none",
+    export_include_dirs: ["include/include"],
 }
 
 cc_prebuilt_library_headers {
@@ -1313,8 +1313,8 @@ cc_prebuilt_library_headers {
     prefer: false,
     device_supported: false,
     host_supported: true,
-    export_include_dirs: ["include/include"],
     stl: "none",
+    export_include_dirs: ["include/include"],
 }
 
 sdk_snapshot {
@@ -1366,6 +1366,7 @@ cc_prebuilt_library_headers {
     name: "mysdk_mynativeheaders@current",
     sdk_member_name: "mynativeheaders",
     host_supported: true,
+    stl: "none",
     export_system_include_dirs: ["include/include"],
     target: {
         android: {
@@ -1375,13 +1376,13 @@ cc_prebuilt_library_headers {
             export_include_dirs: ["include/include-host"],
         },
     },
-    stl: "none",
 }
 
 cc_prebuilt_library_headers {
     name: "mynativeheaders",
     prefer: false,
     host_supported: true,
+    stl: "none",
     export_system_include_dirs: ["include/include"],
     target: {
         android: {
@@ -1391,7 +1392,6 @@ cc_prebuilt_library_headers {
             export_include_dirs: ["include/include-host"],
         },
     },
-    stl: "none",
 }
 
 sdk_snapshot {
