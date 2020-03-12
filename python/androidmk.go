@@ -100,5 +100,6 @@ func (installer *pythonInstaller) AndroidMk(base *Module, ret *android.AndroidMk
 		fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
 		fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(installer.androidMkSharedLibs, " "))
+		fmt.Fprintln(w, "LOCAL_CHECK_ELF_FILES := false")
 	})
 }
