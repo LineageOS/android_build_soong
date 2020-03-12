@@ -21,12 +21,13 @@ import (
 	"sync"
 )
 
+const (
+	SdkVersion_Android10 = 29
+)
+
 type ApexInfo struct {
 	// Name of the apex variant that this module is mutated into
 	ApexName string
-
-	// Whether this apex variant needs to target Android 10
-	LegacyAndroid10Support bool
 
 	MinSdkVersion int
 }
@@ -203,7 +204,7 @@ func (m *ApexModuleBase) ChooseSdkVersion(versionList []string, useLatest bool) 
 }
 
 func (m *ApexModuleBase) ShouldSupportAndroid10() bool {
-	return !m.IsForPlatform() && (m.ApexProperties.Info.MinSdkVersion <= 29 || m.ApexProperties.Info.LegacyAndroid10Support)
+	return !m.IsForPlatform() && (m.ApexProperties.Info.MinSdkVersion <= SdkVersion_Android10)
 }
 
 func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
