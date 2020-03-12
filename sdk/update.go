@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 
+	"android/soong/apex"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -409,7 +410,18 @@ type propertyTag struct {
 	name string
 }
 
+// A BpPropertyTag to add to a property that contains references to other sdk members.
+//
+// This will cause the references to be rewritten to a versioned reference in the version
+// specific instance of a snapshot module.
 var sdkMemberReferencePropertyTag = propertyTag{"sdkMemberReferencePropertyTag"}
+
+// A BpPropertyTag that indicates the property should only be present in the versioned
+// module.
+//
+// This will cause the property to be removed from the unversioned instance of a
+// snapshot module.
+var sdkVersionedOnlyPropertyTag = propertyTag{"sdkVersionedOnlyPropertyTag"}
 
 type unversionedToVersionedTransformation struct {
 	identityTransformation
@@ -452,6 +464,9 @@ func (t unversionedTransformation) transformModule(module *bpModule) *bpModule {
 func (t unversionedTransformation) transformProperty(name string, value interface{}, tag android.BpPropertyTag) (interface{}, android.BpPropertyTag) {
 	if tag == sdkMemberReferencePropertyTag {
 		return t.builder.unversionedSdkMemberNames(value.([]string)), tag
+	} else if tag == sdkVersionedOnlyPropertyTag {
+		// The property is not allowed in the unversioned module so remove it.
+		return nil, nil
 	} else {
 		return value, tag
 	}
@@ -626,8 +641,23 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 	// Where available copy apex_available properties from the member.
 	if apexAware, ok := variant.(interface{ ApexAvailable() []string }); ok {
 		apexAvailable := apexAware.ApexAvailable()
+
+		// Add in any white listed apex available settings.
+		apexAvailable = append(apexAvailable, apex.WhitelistedApexAvailable(member.Name())...)
+
 		if len(apexAvailable) > 0 {
+			// Remove duplicates and sort.
+			apexAvailable = android.FirstUniqueStrings(apexAvailable)
+			sort.Strings(apexAvailable)
+
 			m.AddProperty("apex_available", apexAvailable)
+		}
+	}
+
+	// Disable installation in the versioned module of those modules that are ever installable.
+	if installable, ok := variant.(interface{ EverInstallable() bool }); ok {
+		if installable.EverInstallable() {
+			m.AddPropertyWithTag("installable", false, sdkVersionedOnlyPropertyTag)
 		}
 	}
 
