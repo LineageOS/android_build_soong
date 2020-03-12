@@ -581,6 +581,14 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 	mctx.CreateModule(DroidstubsFactory, &props)
 }
 
+func (module *SdkLibrary) DepIsInSameApex(mctx android.BaseModuleContext, dep android.Module) bool {
+	depTag := mctx.OtherModuleDependencyTag(dep)
+	if depTag == xmlPermissionsFileTag {
+		return true
+	}
+	return module.Library.DepIsInSameApex(mctx, dep)
+}
+
 // Creates the xml file that publicizes the runtime library
 func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 	props := struct {
@@ -590,9 +598,11 @@ func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
 		Device_specific     *bool
 		Product_specific    *bool
 		System_ext_specific *bool
+		Apex_available      []string
 	}{
-		Name:     proptools.StringPtr(module.xmlFileName()),
-		Lib_name: proptools.StringPtr(module.BaseModuleName()),
+		Name:           proptools.StringPtr(module.xmlFileName()),
+		Lib_name:       proptools.StringPtr(module.BaseModuleName()),
+		Apex_available: module.ApexProperties.Apex_available,
 	}
 
 	if module.SocSpecific() {

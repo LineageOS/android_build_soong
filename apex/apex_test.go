@@ -2832,6 +2832,7 @@ func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
 			stl: "none",
 			system_shared_libs: [],
 			enabled: false,
+			apex_available: ["myapex"],
 		}
 	`)
 	testApexError(t, `module "myapex" .* depends on disabled module "myjar"`, `
@@ -2853,6 +2854,7 @@ func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			enabled: false,
+			apex_available: ["myapex"],
 		}
 	`)
 }
@@ -3011,7 +3013,7 @@ func TestApexWithTestHelperApp(t *testing.T) {
 
 func TestApexPropertiesShouldBeDefaultable(t *testing.T) {
 	// libfoo's apex_available comes from cc_defaults
-	testApexError(t, `"myapex" .*: "myapex" requires "libfoo" that is not available for the APEX`, `
+	testApexError(t, `requires "libfoo" that is not available for the APEX`, `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
@@ -3077,8 +3079,8 @@ func TestApexAvailable(t *testing.T) {
 		apex_available: ["otherapex"],
 	}`)
 
-	// libbar is an indirect dep
-	testApexError(t, "requires \"libbar\" that is not available for the APEX", `
+	// libbbaz is an indirect dep
+	testApexError(t, "requires \"libbaz\" that is not available for the APEX", `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
@@ -3091,31 +3093,26 @@ func TestApexAvailable(t *testing.T) {
 		private_key: "testkey.pem",
 	}
 
-	apex {
-		name: "otherapex",
-		key: "otherapex.key",
-		native_shared_libs: ["libfoo"],
-	}
-
-	apex_key {
-		name: "otherapex.key",
-		public_key: "testkey.avbpubkey",
-		private_key: "testkey.pem",
-	}
-
 	cc_library {
 		name: "libfoo",
 		stl: "none",
 		shared_libs: ["libbar"],
 		system_shared_libs: [],
-		apex_available: ["myapex", "otherapex"],
+		apex_available: ["myapex"],
 	}
 
 	cc_library {
 		name: "libbar",
 		stl: "none",
+		shared_libs: ["libbaz"],
 		system_shared_libs: [],
-		apex_available: ["otherapex"],
+		apex_available: ["myapex"],
+	}
+
+	cc_library {
+		name: "libbaz",
+		stl: "none",
+		system_shared_libs: [],
 	}`)
 
 	testApexError(t, "\"otherapex\" is not a valid module name", `
@@ -3452,6 +3449,7 @@ func TestRejectNonInstallableJavaLibrary(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			compile_dex: false,
+			apex_available: ["myapex"],
 		}
 	`)
 }
