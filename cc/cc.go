@@ -2638,9 +2638,15 @@ func (c *Module) AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Write
 func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	if depTag, ok := ctx.OtherModuleDependencyTag(dep).(DependencyTag); ok {
 		if cc, ok := dep.(*Module); ok {
-			if cc.HasStubsVariants() && depTag.Shared && depTag.Library {
-				// dynamic dep to a stubs lib crosses APEX boundary
-				return false
+			if cc.HasStubsVariants() {
+				if depTag.Shared && depTag.Library {
+					// dynamic dep to a stubs lib crosses APEX boundary
+					return false
+				}
+				if IsRuntimeDepTag(depTag) {
+					// runtime dep to a stubs lib also crosses APEX boundary
+					return false
+				}
 			}
 			if depTag.FromStatic {
 				// shared_lib dependency from a static lib is considered as crossing
