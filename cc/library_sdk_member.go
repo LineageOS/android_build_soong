@@ -42,10 +42,20 @@ var staticLibrarySdkMemberType = &librarySdkMemberType{
 	linkTypes:          []string{"static"},
 }
 
+var staticAndSharedLibrarySdkMemberType = &librarySdkMemberType{
+	SdkMemberTypeBase: android.SdkMemberTypeBase{
+		PropertyName: "native_libs",
+		SupportsSdk:  true,
+	},
+	prebuiltModuleType: "cc_prebuilt_library",
+	linkTypes:          []string{"static", "shared"},
+}
+
 func init() {
 	// Register sdk member types.
 	android.RegisterSdkMemberType(sharedLibrarySdkMemberType)
 	android.RegisterSdkMemberType(staticLibrarySdkMemberType)
+	android.RegisterSdkMemberType(staticAndSharedLibrarySdkMemberType)
 }
 
 type librarySdkMemberType struct {
@@ -338,9 +348,12 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(variant android.SdkAware) 
 
 	p.name = variant.Name()
 	p.archType = ccModule.Target().Arch.ArchType.String()
-	p.ExportedIncludeDirs = exportedIncludeDirs
-	p.exportedGeneratedIncludeDirs = exportedGeneratedIncludeDirs
-	p.ExportedSystemIncludeDirs = ccModule.ExportedSystemIncludeDirs()
+
+	// Make sure that the include directories are unique.
+	p.ExportedIncludeDirs = android.FirstUniquePaths(exportedIncludeDirs)
+	p.exportedGeneratedIncludeDirs = android.FirstUniquePaths(exportedGeneratedIncludeDirs)
+	p.ExportedSystemIncludeDirs = android.FirstUniquePaths(ccModule.ExportedSystemIncludeDirs())
+
 	p.ExportedFlags = ccModule.ExportedFlags()
 	if ccModule.linker != nil {
 		specifiedDeps := specifiedDeps{}

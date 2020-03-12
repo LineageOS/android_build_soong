@@ -1139,6 +1139,93 @@ include/Test.h -> include/include/Test.h
 	)
 }
 
+func TestSnapshotWithCcLibrary(t *testing.T) {
+	result := testSdkWithCc(t, `
+		module_exports {
+			name: "myexports",
+			native_libs: ["mynativelib"],
+		}
+
+		cc_library {
+			name: "mynativelib",
+			srcs: [
+				"Test.cpp",
+			],
+			export_include_dirs: ["include"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	result.CheckSnapshot("myexports", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library {
+    name: "myexports_mynativelib@current",
+    sdk_member_name: "mynativelib",
+    installable: false,
+    stl: "none",
+    export_include_dirs: ["include/include"],
+    arch: {
+        arm64: {
+            static: {
+                srcs: ["arm64/lib/mynativelib.a"],
+            },
+            shared: {
+                srcs: ["arm64/lib/mynativelib.so"],
+            },
+        },
+        arm: {
+            static: {
+                srcs: ["arm/lib/mynativelib.a"],
+            },
+            shared: {
+                srcs: ["arm/lib/mynativelib.so"],
+            },
+        },
+    },
+}
+
+cc_prebuilt_library {
+    name: "mynativelib",
+    prefer: false,
+    stl: "none",
+    export_include_dirs: ["include/include"],
+    arch: {
+        arm64: {
+            static: {
+                srcs: ["arm64/lib/mynativelib.a"],
+            },
+            shared: {
+                srcs: ["arm64/lib/mynativelib.so"],
+            },
+        },
+        arm: {
+            static: {
+                srcs: ["arm/lib/mynativelib.a"],
+            },
+            shared: {
+                srcs: ["arm/lib/mynativelib.so"],
+            },
+        },
+    },
+}
+
+module_exports_snapshot {
+    name: "myexports@current",
+    native_libs: ["myexports_mynativelib@current"],
+}
+`),
+		checkAllCopyRules(`
+include/Test.h -> include/include/Test.h
+.intermediates/mynativelib/android_arm64_armv8-a_static/mynativelib.a -> arm64/lib/mynativelib.a
+.intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
+.intermediates/mynativelib/android_arm_armv7-a-neon_static/mynativelib.a -> arm/lib/mynativelib.a
+.intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so`),
+	)
+}
+
 func TestHostSnapshotWithMultiLib64(t *testing.T) {
 	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
 	SkipIfNotLinux(t)
