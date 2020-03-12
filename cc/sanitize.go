@@ -900,6 +900,11 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 		c.sanitize.Properties.Sanitizers = sanitizers
 		c.sanitize.Properties.DiagSanitizers = diagSanitizers
 
+		// TODO(b/150822854) Hosts have a different default behavior and assume the runtime library is used.
+		if c.Host() {
+			diagSanitizers = sanitizers
+		}
+
 		// Determine the runtime library required
 		runtimeLibrary := ""
 		var extraStaticDeps []string
