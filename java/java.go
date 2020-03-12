@@ -1790,11 +1790,16 @@ func (j *Module) hasCode(ctx android.ModuleContext) bool {
 }
 
 func (j *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
-	depTag := ctx.OtherModuleDependencyTag(dep)
 	// Dependencies other than the static linkage are all considered crossing APEX boundary
+	if staticLibTag == ctx.OtherModuleDependencyTag(dep) {
+		return true
+	}
 	// Also, a dependency to an sdk member is also considered as such. This is required because
 	// sdk members should be mutated into APEXes. Refer to sdk.sdkDepsReplaceMutator.
-	return depTag == staticLibTag || j.IsInAnySdk()
+	if sa, ok := dep.(android.SdkAware); ok && sa.IsInAnySdk() {
+		return true
+	}
+	return false
 }
 
 func (j *Module) Stem() string {
@@ -2495,11 +2500,16 @@ func (j *Import) SrcJarArgs() ([]string, android.Paths) {
 }
 
 func (j *Import) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
-	depTag := ctx.OtherModuleDependencyTag(dep)
 	// dependencies other than the static linkage are all considered crossing APEX boundary
+	if staticLibTag == ctx.OtherModuleDependencyTag(dep) {
+		return true
+	}
 	// Also, a dependency to an sdk member is also considered as such. This is required because
 	// sdk members should be mutated into APEXes. Refer to sdk.sdkDepsReplaceMutator.
-	return depTag == staticLibTag || j.IsInAnySdk()
+	if sa, ok := dep.(android.SdkAware); ok && sa.IsInAnySdk() {
+		return true
+	}
+	return false
 }
 
 // Add compile time check for interface implementation
