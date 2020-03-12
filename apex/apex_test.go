@@ -87,6 +87,24 @@ func withTargets(targets map[android.OsType][]android.Target) testCustomizer {
 	}
 }
 
+// withNativeBridgeTargets sets configuration with targets including:
+// - X86_64 (primary)
+// - X86 (secondary)
+// - Arm64 on X86_64 (native bridge)
+// - Arm on X86 (native bridge)
+func withNativeBridgeEnabled(fs map[string][]byte, config android.Config) {
+	config.Targets[android.Android] = []android.Target{
+		{Os: android.Android, Arch: android.Arch{ArchType: android.X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}},
+			NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
+		{Os: android.Android, Arch: android.Arch{ArchType: android.X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}},
+			NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
+		{Os: android.Android, Arch: android.Arch{ArchType: android.Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}},
+			NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "x86_64", NativeBridgeRelativePath: "arm64"},
+		{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}},
+			NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "x86", NativeBridgeRelativePath: "arm"},
+	}
+}
+
 func withManifestPackageNameOverrides(specs []string) testCustomizer {
 	return func(fs map[string][]byte, config android.Config) {
 		config.TestProductVariables.ManifestPackageNameOverrides = specs
@@ -1337,6 +1355,64 @@ func TestFilesInSubDir(t *testing.T) {
 	ensureListContains(t, dirs, "bin/foo/bar")
 }
 
+func TestFilesInSubDirWhenNativeBridgeEnabled(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			multilib: {
+				both: {
+					native_shared_libs: ["mylib"],
+					binaries: ["mybin"],
+				},
+			},
+			compile_multilib: "both",
+			native_bridge_supported: true,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			relative_install_path: "foo/bar",
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+			native_bridge_supported: true,
+		}
+
+		cc_binary {
+			name: "mybin",
+			relative_install_path: "foo/bar",
+			system_shared_libs: [],
+			static_executable: true,
+			stl: "none",
+			apex_available: [ "myapex" ],
+			native_bridge_supported: true,
+			compile_multilib: "both", // default is "first" for binary
+			multilib: {
+				lib64: {
+					suffix: "64",
+				},
+			},
+		}
+	`, withNativeBridgeEnabled)
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"bin/foo/bar/mybin",
+		"bin/foo/bar/mybin64",
+		"bin/arm/foo/bar/mybin",
+		"bin/arm64/foo/bar/mybin64",
+		"lib/foo/bar/mylib.so",
+		"lib/arm/foo/bar/mylib.so",
+		"lib64/foo/bar/mylib.so",
+		"lib64/arm64/foo/bar/mylib.so",
+	})
+}
+
 func TestUseVendor(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
@@ -2200,15 +2276,7 @@ func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 			stl: "none",
 			apex_available: [ "myapex" ],
 		}
-		`+vndkLibrariesTxtFiles("current"),
-		withTargets(map[android.OsType][]android.Target{
-			android.Android: []android.Target{
-				{Os: android.Android, Arch: android.Arch{ArchType: android.Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
-				{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
-				{Os: android.Android, Arch: android.Arch{ArchType: android.X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}}, NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "arm64", NativeBridgeRelativePath: "x86_64"},
-				{Os: android.Android, Arch: android.Arch{ArchType: android.X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}}, NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "arm", NativeBridgeRelativePath: "x86"},
-			},
-		}))
+		`+vndkLibrariesTxtFiles("current"), withNativeBridgeEnabled)
 
 	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
 		"lib/libvndk.so",
@@ -2303,7 +2371,8 @@ func TestVndkApexWithBinder32(t *testing.T) {
 		withBinder32bit,
 		withTargets(map[android.OsType][]android.Target{
 			android.Android: []android.Target{
-				{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
+				{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}},
+					NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
 			},
 		}),
 	)
@@ -3164,6 +3233,7 @@ func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
 			stl: "none",
 			system_shared_libs: [],
 			enabled: false,
+			apex_available: ["myapex"],
 		}
 	`)
 	testApexError(t, `module "myapex" .* depends on disabled module "myjar"`, `
@@ -3185,6 +3255,7 @@ func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			enabled: false,
+			apex_available: ["myapex"],
 		}
 	`)
 }
@@ -3345,7 +3416,7 @@ func TestApexWithTestHelperApp(t *testing.T) {
 
 func TestApexPropertiesShouldBeDefaultable(t *testing.T) {
 	// libfoo's apex_available comes from cc_defaults
-	testApexError(t, `"myapex" .*: "myapex" requires "libfoo" that is not available for the APEX`, `
+	testApexError(t, `requires "libfoo" that is not available for the APEX`, `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
@@ -3411,8 +3482,8 @@ func TestApexAvailable(t *testing.T) {
 		apex_available: ["otherapex"],
 	}`)
 
-	// libbar is an indirect dep
-	testApexError(t, "requires \"libbar\" that is not available for the APEX", `
+	// libbbaz is an indirect dep
+	testApexError(t, "requires \"libbaz\" that is not available for the APEX", `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
@@ -3425,31 +3496,26 @@ func TestApexAvailable(t *testing.T) {
 		private_key: "testkey.pem",
 	}
 
-	apex {
-		name: "otherapex",
-		key: "otherapex.key",
-		native_shared_libs: ["libfoo"],
-	}
-
-	apex_key {
-		name: "otherapex.key",
-		public_key: "testkey.avbpubkey",
-		private_key: "testkey.pem",
-	}
-
 	cc_library {
 		name: "libfoo",
 		stl: "none",
 		shared_libs: ["libbar"],
 		system_shared_libs: [],
-		apex_available: ["myapex", "otherapex"],
+		apex_available: ["myapex"],
 	}
 
 	cc_library {
 		name: "libbar",
 		stl: "none",
+		shared_libs: ["libbaz"],
 		system_shared_libs: [],
-		apex_available: ["otherapex"],
+		apex_available: ["myapex"],
+	}
+
+	cc_library {
+		name: "libbaz",
+		stl: "none",
+		system_shared_libs: [],
 	}`)
 
 	testApexError(t, "\"otherapex\" is not a valid module name", `
@@ -3796,6 +3862,7 @@ func TestRejectNonInstallableJavaLibrary(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 			compile_dex: false,
+			apex_available: ["myapex"],
 		}
 	`)
 }
