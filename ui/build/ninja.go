@@ -38,6 +38,7 @@ func runNinja(ctx Context, config Config) {
 	executable := config.PrebuiltBuildTool("ninja")
 	args := []string{
 		"-d", "keepdepfile",
+		"-d", "keeprsp",
 		"--frontend_file", fifo,
 	}
 
