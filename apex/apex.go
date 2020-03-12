@@ -108,7 +108,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libpcre2",
 		"libprocessgroup_headers",
 		"libqemu_pipe",
-		"libselinux",
 		"libsystem_headers",
 		"libutils_headers",
 	}
@@ -506,7 +505,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libprocessgroup",
 		"libprocessgroup_headers",
 		"libprocinfo",
-		"libselinux",
 		"libsonivox",
 		"libspeexresampler",
 		"libspeexresampler",
