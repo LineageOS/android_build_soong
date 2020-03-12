@@ -86,6 +86,11 @@ func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
 	installer.path = ctx.InstallFile(installer.installDir(ctx), file.Base(), file)
 }
 
+func (installer *baseInstaller) everInstallable() bool {
+	// Most cc modules are installable.
+	return true
+}
+
 func (installer *baseInstaller) inData() bool {
 	return installer.location == InstallInData
 }
