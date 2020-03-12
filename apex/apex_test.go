@@ -802,7 +802,6 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 			stubs: {
 				versions: ["10", "20", "30"],
 			},
-			apex_available: [ "myapex" ],
 		}
 
 		cc_library {
@@ -3152,6 +3151,7 @@ func TestApexAvailable(t *testing.T) {
 		name: "libfoo",
 		stl: "none",
 		system_shared_libs: [],
+		runtime_libs: ["libbaz"],
 		apex_available: ["myapex"],
 	}
 
@@ -3160,6 +3160,15 @@ func TestApexAvailable(t *testing.T) {
 		stl: "none",
 		system_shared_libs: [],
 		apex_available: ["//apex_available:anyapex"],
+	}
+
+	cc_library {
+		name: "libbaz",
+		stl: "none",
+		system_shared_libs: [],
+		stubs: {
+			versions: ["10", "20", "30"],
+		},
 	}`)
 
 	// check that libfoo and libbar are created only for myapex, but not for the platform
