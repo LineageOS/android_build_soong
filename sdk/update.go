@@ -951,7 +951,8 @@ func (s *sdk) getPossibleOsTypes() []android.OsType {
 	return osTypes
 }
 
-// Given a struct value, access a field within that struct.
+// Given a struct value, access a field within that struct (or one of its embedded
+// structs).
 type fieldAccessorFunc func(structValue reflect.Value) reflect.Value
 
 // Supports extracting common values from a number of instances of a properties
@@ -969,13 +970,18 @@ type commonValueExtractor struct {
 func newCommonValueExtractor(propertiesStruct interface{}) *commonValueExtractor {
 	structType := getStructValue(reflect.ValueOf(propertiesStruct)).Type()
 	extractor := &commonValueExtractor{}
-	extractor.gatherFields(structType)
+	extractor.gatherFields(structType, nil)
 	return extractor
 }
 
 // Gather the fields from the supplied structure type from which common values will
 // be extracted.
-func (e *commonValueExtractor) gatherFields(structType reflect.Type) {
+//
+// This is recursive function. If it encounters an embedded field (no field name)
+// that is a struct then it will recurse into that struct passing in the accessor
+// for the field. That will then be used in the accessors for the fields in the
+// embedded struct.
+func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingStructAccessor fieldAccessorFunc) {
 	for f := 0; f < structType.NumField(); f++ {
 		field := structType.Field(f)
 		if field.PkgPath != "" {
@@ -983,14 +989,20 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type) {
 			continue
 		}
 
-		// Ignore embedded structures.
-		if field.Type.Kind() == reflect.Struct && field.Anonymous {
+		// Ignore fields whose value should be kept.
+		if proptools.HasTag(field, "sdk", "keep") {
 			continue
 		}
 
 		// Save a copy of the field index for use in the function.
 		fieldIndex := f
 		fieldGetter := func(value reflect.Value) reflect.Value {
+			if containingStructAccessor != nil {
+				// This is an embedded structure so first access the field for the embedded
+				// structure.
+				value = containingStructAccessor(value)
+			}
+
 			// Skip through interface and pointer values to find the structure.
 			value = getStructValue(value)
 
@@ -998,7 +1010,12 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type) {
 			return value.Field(fieldIndex)
 		}
 
-		e.fieldGetters = append(e.fieldGetters, fieldGetter)
+		if field.Type.Kind() == reflect.Struct && field.Anonymous {
+			// Gather fields from the embedded structure.
+			e.gatherFields(field.Type, fieldGetter)
+		} else {
+			e.fieldGetters = append(e.fieldGetters, fieldGetter)
+		}
 	}
 }
 
