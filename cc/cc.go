@@ -292,6 +292,7 @@ type ModuleContextIntf interface {
 	staticBinary() bool
 	header() bool
 	toolchain() config.Toolchain
+	canUseSdk() bool
 	useSdk() bool
 	sdkVersion() string
 	useVndk() bool
@@ -315,6 +316,7 @@ type ModuleContextIntf interface {
 	useClangLld(actx ModuleContext) bool
 	isForPlatform() bool
 	apexName() string
+	apexSdkVersion() int
 	hasStubsVariants() bool
 	isStubs() bool
 	bootstrap() bool
@@ -1048,8 +1050,12 @@ func (ctx *moduleContextImpl) header() bool {
 	return ctx.mod.header()
 }
 
+func (ctx *moduleContextImpl) canUseSdk() bool {
+	return ctx.ctx.Device() && !ctx.useVndk() && !ctx.inRamdisk() && !ctx.inRecovery() && !ctx.ctx.Fuchsia()
+}
+
 func (ctx *moduleContextImpl) useSdk() bool {
-	if ctx.ctx.Device() && !ctx.useVndk() && !ctx.inRamdisk() && !ctx.inRecovery() && !ctx.ctx.Fuchsia() {
+	if ctx.canUseSdk() {
 		return String(ctx.mod.Properties.Sdk_version) != ""
 	}
 	return false
@@ -1180,6 +1186,10 @@ func (ctx *moduleContextImpl) isForPlatform() bool {
 
 func (ctx *moduleContextImpl) apexName() string {
 	return ctx.mod.ApexName()
+}
+
+func (ctx *moduleContextImpl) apexSdkVersion() int {
+	return ctx.mod.ApexProperties.Info.MinSdkVersion
 }
 
 func (ctx *moduleContextImpl) hasStubsVariants() bool {
