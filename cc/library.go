@@ -1284,6 +1284,11 @@ func (library *libraryDecorator) stubsVersion() string {
 	return library.MutatedProperties.StubsVersion
 }
 
+func (library *libraryDecorator) isLatestStubVersion() bool {
+	versions := library.Properties.Stubs.Versions
+	return versions[len(versions)-1] == library.stubsVersion()
+}
+
 func (library *libraryDecorator) availableFor(what string) bool {
 	var list []string
 	if library.static() {
@@ -1449,30 +1454,35 @@ func LatestStubsVersionFor(config android.Config, name string) string {
 	return ""
 }
 
+func checkVersions(ctx android.BaseModuleContext, versions []string) {
+	numVersions := make([]int, len(versions))
+	for i, v := range versions {
+		numVer, err := strconv.Atoi(v)
+		if err != nil {
+			ctx.PropertyErrorf("versions", "%q is not a number", v)
+		}
+		numVersions[i] = numVer
+	}
+	if !sort.IsSorted(sort.IntSlice(numVersions)) {
+		ctx.PropertyErrorf("versions", "not sorted: %v", versions)
+	}
+}
+
 // Version mutator splits a module into the mandatory non-stubs variant
 // (which is unnamed) and zero or more stubs variants.
 func VersionMutator(mctx android.BottomUpMutatorContext) {
 	if library, ok := mctx.Module().(LinkableInterface); ok && !library.InRecovery() {
 		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 {
-			versions := []string{}
-			for _, v := range library.StubsVersions() {
-				if _, err := strconv.Atoi(v); err != nil {
-					mctx.PropertyErrorf("versions", "%q is not a number", v)
-				}
-				versions = append(versions, v)
+			versions := library.StubsVersions()
+			checkVersions(mctx, versions)
+			if mctx.Failed() {
+				return
 			}
-			sort.Slice(versions, func(i, j int) bool {
-				left, _ := strconv.Atoi(versions[i])
-				right, _ := strconv.Atoi(versions[j])
-				return left < right
-			})
 
 			// save the list of versions for later use
-			copiedVersions := make([]string, len(versions))
-			copy(copiedVersions, versions)
 			stubsVersionsLock.Lock()
 			defer stubsVersionsLock.Unlock()
-			stubsVersionsFor(mctx.Config())[mctx.ModuleName()] = copiedVersions
+			stubsVersionsFor(mctx.Config())[mctx.ModuleName()] = versions
 
 			// "" is for the non-stubs variant
 			versions = append([]string{""}, versions...)
