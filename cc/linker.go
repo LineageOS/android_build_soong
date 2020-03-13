@@ -490,6 +490,12 @@ func (linker *baseLinker) link(ctx ModuleContext,
 	panic(fmt.Errorf("baseLinker doesn't know how to link"))
 }
 
+func (linker *baseLinker) linkerSpecifiedDeps(specifiedDeps specifiedDeps) specifiedDeps {
+	specifiedDeps.sharedLibs = append(specifiedDeps.sharedLibs, linker.Properties.Shared_libs...)
+	specifiedDeps.systemSharedLibs = append(specifiedDeps.systemSharedLibs, linker.Properties.System_shared_libs...)
+	return specifiedDeps
+}
+
 // Injecting version symbols
 // Some host modules want a version number, but we don't want to rebuild it every time.  Optionally add a step
 // after linking that injects a constant placeholder with the current version number.
