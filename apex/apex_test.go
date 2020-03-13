@@ -976,6 +976,297 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 	ensureContains(t, libFlags, "libdl/android_arm64_armv8-a_shared/libdl.so")
 }
 
+func TestApexUseStubsAccordingToMinSdkVersionInUnbundledBuild(t *testing.T) {
+	// there are three links between liba --> libz
+	// 1) myapex -> libx -> liba -> libz    : this should be #2 link, but fallback to #1
+	// 2) otherapex -> liby -> liba -> libz : this should be #3 link
+	// 3) (platform) -> liba -> libz        : this should be non-stub link
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libx"],
+			min_sdk_version: "2",
+		}
+
+		apex {
+			name: "otherapex",
+			key: "myapex.key",
+			native_shared_libs: ["liby"],
+			min_sdk_version: "3",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libx",
+			shared_libs: ["liba"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library {
+			name: "liby",
+			shared_libs: ["liba"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "otherapex" ],
+		}
+
+		cc_library {
+			name: "liba",
+			shared_libs: ["libz"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [
+				"//apex_available:anyapex",
+				"//apex_available:platform",
+			],
+		}
+
+		cc_library {
+			name: "libz",
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["1", "3"],
+			},
+		}
+	`, withUnbundledBuild)
+
+	expectLink := func(from, from_variant, to, to_variant string) {
+		ldArgs := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld").Args["libFlags"]
+		ensureContains(t, ldArgs, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
+	}
+	expectNoLink := func(from, from_variant, to, to_variant string) {
+		ldArgs := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld").Args["libFlags"]
+		ensureNotContains(t, ldArgs, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
+	}
+	// platform liba is linked to non-stub version
+	expectLink("liba", "shared", "libz", "shared")
+	// liba in myapex is linked to #1
+	expectLink("liba", "shared_myapex", "libz", "shared_1")
+	expectNoLink("liba", "shared_myapex", "libz", "shared_3")
+	expectNoLink("liba", "shared_myapex", "libz", "shared")
+	// liba in otherapex is linked to #3
+	expectLink("liba", "shared_otherapex", "libz", "shared_3")
+	expectNoLink("liba", "shared_otherapex", "libz", "shared_1")
+	expectNoLink("liba", "shared_otherapex", "libz", "shared")
+}
+
+func TestApexMinSdkVersionDefaultsToLatest(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libx"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libx",
+			shared_libs: ["libz"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library {
+			name: "libz",
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["1", "2"],
+			},
+		}
+	`)
+
+	expectLink := func(from, from_variant, to, to_variant string) {
+		ldArgs := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld").Args["libFlags"]
+		ensureContains(t, ldArgs, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
+	}
+	expectNoLink := func(from, from_variant, to, to_variant string) {
+		ldArgs := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld").Args["libFlags"]
+		ensureNotContains(t, ldArgs, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
+	}
+	expectLink("libx", "shared_myapex", "libz", "shared_2")
+	expectNoLink("libx", "shared_myapex", "libz", "shared_1")
+	expectNoLink("libx", "shared_myapex", "libz", "shared")
+}
+
+func TestPlatformUsesLatestStubsFromApexes(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libx"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libx",
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+			stubs: {
+				versions: ["1", "2"],
+			},
+		}
+
+		cc_library {
+			name: "libz",
+			shared_libs: ["libx"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	expectLink := func(from, from_variant, to, to_variant string) {
+		ldArgs := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld").Args["libFlags"]
+		ensureContains(t, ldArgs, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
+	}
+	expectNoLink := func(from, from_variant, to, to_variant string) {
+		ldArgs := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld").Args["libFlags"]
+		ensureNotContains(t, ldArgs, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
+	}
+	expectLink("libz", "shared", "libx", "shared_2")
+	expectNoLink("libz", "shared", "libz", "shared_1")
+	expectNoLink("libz", "shared", "libz", "shared")
+}
+
+func TestQApexesUseLatestStubsInBundledBuilds(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libx"],
+			min_sdk_version: "29",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libx",
+			shared_libs: ["libbar"],
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library {
+			name: "libbar",
+			stubs: {
+				versions: ["29", "30"],
+			},
+		}
+	`)
+	expectLink := func(from, from_variant, to, to_variant string) {
+		ld := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld")
+		libFlags := ld.Args["libFlags"]
+		ensureContains(t, libFlags, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
+	}
+	expectLink("libx", "shared_myapex", "libbar", "shared_30")
+}
+
+func TestQTargetApexUseStaticUnwinder(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libx"],
+			min_sdk_version: "29",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libx",
+			apex_available: [ "myapex" ],
+		}
+
+	`, withUnbundledBuild)
+
+	// ensure apex variant of c++ is linked with static unwinder
+	cm := ctx.ModuleForTests("libc++", "android_arm64_armv8-a_shared_myapex").Module().(*cc.Module)
+	ensureListContains(t, cm.Properties.AndroidMkStaticLibs, "libgcc_stripped")
+	// note that platform variant is not.
+	cm = ctx.ModuleForTests("libc++", "android_arm64_armv8-a_shared").Module().(*cc.Module)
+	ensureListNotContains(t, cm.Properties.AndroidMkStaticLibs, "libgcc_stripped")
+
+	libFlags := ctx.ModuleForTests("libx", "android_arm64_armv8-a_shared_myapex").Rule("ld").Args["libFlags"]
+	ensureContains(t, libFlags, "android_arm64_armv8-a_shared_myapex/libc++.so")
+	ensureContains(t, libFlags, "android_arm64_armv8-a_shared_29/libc.so") // min_sdk_version applied
+}
+
+func TestInvalidMinSdkVersion(t *testing.T) {
+	testApexError(t, `"libz" .*: min_sdk_version is set 29.*`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libx"],
+			min_sdk_version: "29",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libx",
+			shared_libs: ["libz"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+		}
+
+		cc_library {
+			name: "libz",
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["30"],
+			},
+		}
+	`, withUnbundledBuild)
+
+	testApexError(t, `"myapex" .*: min_sdk_version: should be .*`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			min_sdk_version: "R",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`)
+}
+
 func TestFilesInSubDir(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
