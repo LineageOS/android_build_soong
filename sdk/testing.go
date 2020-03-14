@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -174,6 +175,13 @@ func (h *TestHelper) AssertStringEquals(message string, expected string, actual 
 func (h *TestHelper) AssertTrimmedStringEquals(message string, expected string, actual string) {
 	h.t.Helper()
 	h.AssertStringEquals(message, strings.TrimSpace(expected), strings.TrimSpace(actual))
+}
+
+func (h *TestHelper) AssertDeepEquals(message string, expected interface{}, actual interface{}) {
+	h.t.Helper()
+	if !reflect.DeepEqual(actual, expected) {
+		h.t.Errorf("%s: expected %#v, actual %#v", message, expected, actual)
+	}
 }
 
 // Encapsulates result of processing an SDK definition. Provides support for

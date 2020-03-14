@@ -19,6 +19,7 @@ import (
 
 	"android/soong/android"
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 // This file contains support for using cc library modules within an sdk.
@@ -108,8 +109,11 @@ func (mt *librarySdkMemberType) AddPrebuiltModule(sdkModuleContext android.Modul
 }
 
 func (mt *librarySdkMemberType) FinalizeModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember, bpModule android.BpModule) {
-	bpModule.AddProperty("stl", "none")
-	bpModule.AddProperty("system_shared_libs", []string{})
+	ccModule := (member.Variants()[0]).(*Module)
+	stl := ccModule.stl.Properties.Stl
+	if stl != nil {
+		bpModule.AddProperty("stl", proptools.String(stl))
+	}
 }
 
 func (mt *librarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
@@ -191,6 +195,14 @@ func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, b
 		nativeLibraryPath := nativeLibraryPathFor(libInfo)
 		builder.CopyToSnapshot(libInfo.outputFile, nativeLibraryPath)
 		outputProperties.AddProperty("srcs", []string{nativeLibraryPath})
+	}
+
+	if len(libInfo.SharedLibs) > 0 {
+		outputProperties.AddPropertyWithTag("shared_libs", libInfo.SharedLibs, builder.SdkMemberReferencePropertyTag(false))
+	}
+
+	if len(libInfo.SystemSharedLibs) > 0 {
+		outputProperties.AddPropertyWithTag("system_shared_libs", libInfo.SystemSharedLibs, builder.SdkMemberReferencePropertyTag(false))
 	}
 
 	// Map from property name to the include dirs to add to the prebuilt module in the snapshot.
@@ -299,6 +311,16 @@ type nativeLibInfoProperties struct {
 	// This field is exported as its contents may not be arch specific.
 	ExportedFlags []string
 
+	// The set of shared libraries
+	//
+	// This field is exported as its contents may not be arch specific.
+	SharedLibs []string
+
+	// The set of system shared libraries
+	//
+	// This field is exported as its contents may not be arch specific.
+	SystemSharedLibs []string
+
 	// outputFile is not exported as it is always arch specific.
 	outputFile android.Path
 }
@@ -323,6 +345,13 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(variant android.SdkAware) 
 	p.exportedGeneratedIncludeDirs = exportedGeneratedIncludeDirs
 	p.ExportedSystemIncludeDirs = ccModule.ExportedSystemIncludeDirs()
 	p.ExportedFlags = ccModule.ExportedFlags()
+	if ccModule.linker != nil {
+		specifiedDeps := specifiedDeps{}
+		specifiedDeps = ccModule.linker.linkerSpecifiedDeps(specifiedDeps)
+
+		p.SharedLibs = specifiedDeps.sharedLibs
+		p.SystemSharedLibs = specifiedDeps.systemSharedLibs
+	}
 	p.exportedGeneratedHeaders = ccModule.ExportedGeneratedHeaders()
 }
 

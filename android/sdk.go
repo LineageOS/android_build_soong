@@ -186,9 +186,33 @@ type SnapshotBuilder interface {
 	// is correctly output for both versioned and unversioned prebuilts in the
 	// snapshot.
 	//
+	// "required: true" means that the property must only contain references
+	// to other members of the sdk. Passing a reference to a module that is not a
+	// member of the sdk will result in a build error.
+	//
+	// "required: false" means that the property can contain references to modules
+	// that are either members or not members of the sdk. If a reference is to a
+	// module that is a non member then the reference is left unchanged, i.e. it
+	// is not transformed as references to members are.
+	//
+	// The handling of the member names is dependent on whether it is an internal or
+	// exported member. An exported member is one whose name is specified in one of
+	// the member type specific properties. An internal member is one that is added
+	// due to being a part of an exported (or other internal) member and is not itself
+	// an exported member.
+	//
+	// Member names are handled as follows:
+	// * When creating the unversioned form of the module the name is left unchecked
+	//   unless the member is internal in which case it is transformed into an sdk
+	//   specific name, i.e. by prefixing with the sdk name.
+	//
+	// * When creating the versioned form of the module the name is transformed into
+	//   a versioned sdk specific name, i.e. by prefixing with the sdk name and
+	//   suffixing with the version.
+	//
 	// e.g.
-	// bpPropertySet.AddPropertyWithTag("libs", []string{"member1", "member2"}, builder.SdkMemberReferencePropertyTag())
-	SdkMemberReferencePropertyTag() BpPropertyTag
+	// bpPropertySet.AddPropertyWithTag("libs", []string{"member1", "member2"}, builder.SdkMemberReferencePropertyTag(true))
+	SdkMemberReferencePropertyTag(required bool) BpPropertyTag
 }
 
 type BpPropertyTag interface{}
@@ -325,7 +349,8 @@ type SdkMemberType interface {
 	//
 	// * The variant property structs are analysed to find exported (capitalized) fields which
 	//   have common values. Those fields are cleared and the common value added to the common
-	//   properties.
+	//   properties. A field annotated with a tag of `sdk:"keep"` will be treated as if it
+	//   was not capitalized, i.e. not optimized for common values.
 	//
 	// * The sdk module type populates the BpModule structure, creating the arch specific
 	//   structure and calls AddToPropertySet(...) on the properties struct to add the member
@@ -452,13 +477,13 @@ func RegisterSdkMemberType(memberType SdkMemberType) {
 // are not affected by the optimization to extract common values.
 type SdkMemberPropertiesBase struct {
 	// The setting to use for the compile_multilib property.
-	Compile_multilib string
+	Compile_multilib string `sdk:"keep"`
 
 	// The number of unique os types supported by the member variants.
-	Os_count int
+	Os_count int `sdk:"keep"`
 
 	// The os type for which these properties refer.
-	Os OsType
+	Os OsType `sdk:"keep"`
 }
 
 // The os prefix to use for any file paths in the sdk.

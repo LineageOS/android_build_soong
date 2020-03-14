@@ -226,17 +226,23 @@ func versionedSdkMemberName(ctx android.ModuleContext, memberName string, versio
 // the contents (header files, stub libraries, etc) into the zip file.
 func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) android.OutputPath {
 
-	exportedMembers := make(map[string]struct{})
+	allMembersByName := make(map[string]struct{})
+	exportedMembersByName := make(map[string]struct{})
 	var memberRefs []sdkMemberRef
 	for _, sdkVariant := range sdkVariants {
 		memberRefs = append(memberRefs, sdkVariant.memberRefs...)
 
+		// Record the names of all the members, both explicitly specified and implicitly
+		// included.
+		for _, memberRef := range sdkVariant.memberRefs {
+			allMembersByName[memberRef.variant.Name()] = struct{}{}
+		}
+
 		// Merge the exported member sets from all sdk variants.
 		for key, _ := range sdkVariant.getExportedMembers() {
-			exportedMembers[key] = struct{}{}
+			exportedMembersByName[key] = struct{}{}
 		}
 	}
-	s.exportedMembers = exportedMembers
 
 	snapshotDir := android.PathForModuleOut(ctx, "snapshot")
 
@@ -247,14 +253,16 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	}
 
 	builder := &snapshotBuilder{
-		ctx:             ctx,
-		sdk:             s,
-		version:         "current",
-		snapshotDir:     snapshotDir.OutputPath,
-		copies:          make(map[string]string),
-		filesToZip:      []android.Path{bp.path},
-		bpFile:          bpFile,
-		prebuiltModules: make(map[string]*bpModule),
+		ctx:                   ctx,
+		sdk:                   s,
+		version:               "current",
+		snapshotDir:           snapshotDir.OutputPath,
+		copies:                make(map[string]string),
+		filesToZip:            []android.Path{bp.path},
+		bpFile:                bpFile,
+		prebuiltModules:       make(map[string]*bpModule),
+		allMembersByName:      allMembersByName,
+		exportedMembersByName: exportedMembersByName,
 	}
 	s.builderForTests = builder
 
@@ -331,7 +339,8 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 
 	// Extract the common lists of members into a separate struct.
 	commonDynamicMemberProperties := s.dynamicSdkMemberTypes.createMemberListProperties()
-	extractCommonProperties(commonDynamicMemberProperties, dynamicMemberPropertiesList)
+	extractor := newCommonValueExtractor(commonDynamicMemberProperties)
+	extractor.extractCommonProperties(commonDynamicMemberProperties, dynamicMemberPropertiesList)
 
 	// Add properties common to all os types.
 	s.addMemberPropertiesToPropertySet(builder, snapshotModule, commonDynamicMemberProperties)
@@ -401,7 +410,7 @@ func (s *sdk) addMemberPropertiesToPropertySet(builder *snapshotBuilder, propert
 	for _, memberListProperty := range s.memberListProperties() {
 		names := memberListProperty.getter(dynamicMemberTypeListProperties)
 		if len(names) > 0 {
-			propertySet.AddProperty(memberListProperty.propertyName(), builder.versionedSdkMemberNames(names))
+			propertySet.AddProperty(memberListProperty.propertyName(), builder.versionedSdkMemberNames(names, false))
 		}
 	}
 }
@@ -414,7 +423,8 @@ type propertyTag struct {
 //
 // This will cause the references to be rewritten to a versioned reference in the version
 // specific instance of a snapshot module.
-var sdkMemberReferencePropertyTag = propertyTag{"sdkMemberReferencePropertyTag"}
+var requiredSdkMemberReferencePropertyTag = propertyTag{"requiredSdkMemberReferencePropertyTag"}
+var optionalSdkMemberReferencePropertyTag = propertyTag{"optionalSdkMemberReferencePropertyTag"}
 
 // A BpPropertyTag that indicates the property should only be present in the versioned
 // module.
@@ -432,14 +442,15 @@ func (t unversionedToVersionedTransformation) transformModule(module *bpModule) 
 	// Use a versioned name for the module but remember the original name for the
 	// snapshot.
 	name := module.getValue("name").(string)
-	module.setProperty("name", t.builder.versionedSdkMemberName(name))
+	module.setProperty("name", t.builder.versionedSdkMemberName(name, true))
 	module.insertAfter("name", "sdk_member_name", name)
 	return module
 }
 
 func (t unversionedToVersionedTransformation) transformProperty(name string, value interface{}, tag android.BpPropertyTag) (interface{}, android.BpPropertyTag) {
-	if tag == sdkMemberReferencePropertyTag {
-		return t.builder.versionedSdkMemberNames(value.([]string)), tag
+	if tag == requiredSdkMemberReferencePropertyTag || tag == optionalSdkMemberReferencePropertyTag {
+		required := tag == requiredSdkMemberReferencePropertyTag
+		return t.builder.versionedSdkMemberNames(value.([]string), required), tag
 	} else {
 		return value, tag
 	}
@@ -453,7 +464,7 @@ type unversionedTransformation struct {
 func (t unversionedTransformation) transformModule(module *bpModule) *bpModule {
 	// If the module is an internal member then use a unique name for it.
 	name := module.getValue("name").(string)
-	module.setProperty("name", t.builder.unversionedSdkMemberName(name))
+	module.setProperty("name", t.builder.unversionedSdkMemberName(name, true))
 
 	// Set prefer: false - this is not strictly required as that is the default.
 	module.insertAfter("name", "prefer", false)
@@ -462,8 +473,9 @@ func (t unversionedTransformation) transformModule(module *bpModule) *bpModule {
 }
 
 func (t unversionedTransformation) transformProperty(name string, value interface{}, tag android.BpPropertyTag) (interface{}, android.BpPropertyTag) {
-	if tag == sdkMemberReferencePropertyTag {
-		return t.builder.unversionedSdkMemberNames(value.([]string)), tag
+	if tag == requiredSdkMemberReferencePropertyTag || tag == optionalSdkMemberReferencePropertyTag {
+		required := tag == requiredSdkMemberReferencePropertyTag
+		return t.builder.unversionedSdkMemberNames(value.([]string), required), tag
 	} else if tag == sdkVersionedOnlyPropertyTag {
 		// The property is not allowed in the unversioned module so remove it.
 		return nil, nil
@@ -558,6 +570,12 @@ type snapshotBuilder struct {
 
 	prebuiltModules map[string]*bpModule
 	prebuiltOrder   []*bpModule
+
+	// The set of all members by name.
+	allMembersByName map[string]struct{}
+
+	// The set of exported members by name.
+	exportedMembersByName map[string]struct{}
 }
 
 func (s *snapshotBuilder) CopyToSnapshot(src android.Path, dest string) {
@@ -611,7 +629,7 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 
 	variant := member.Variants()[0]
 
-	if s.sdk.isInternalMember(name) {
+	if s.isInternalMember(name) {
 		// An internal member is only referenced from the sdk snapshot which is in the
 		// same package so can be marked as private.
 		m.AddProperty("visibility", []string{"//visibility:private"})
@@ -675,38 +693,64 @@ func addHostDeviceSupportedProperties(deviceSupported bool, hostSupported bool, 
 	}
 }
 
-func (s *snapshotBuilder) SdkMemberReferencePropertyTag() android.BpPropertyTag {
-	return sdkMemberReferencePropertyTag
+func (s *snapshotBuilder) SdkMemberReferencePropertyTag(required bool) android.BpPropertyTag {
+	if required {
+		return requiredSdkMemberReferencePropertyTag
+	} else {
+		return optionalSdkMemberReferencePropertyTag
+	}
+}
+
+func (s *snapshotBuilder) OptionalSdkMemberReferencePropertyTag() android.BpPropertyTag {
+	return optionalSdkMemberReferencePropertyTag
 }
 
 // Get a versioned name appropriate for the SDK snapshot version being taken.
-func (s *snapshotBuilder) versionedSdkMemberName(unversionedName string) string {
+func (s *snapshotBuilder) versionedSdkMemberName(unversionedName string, required bool) string {
+	if _, ok := s.allMembersByName[unversionedName]; !ok {
+		if required {
+			s.ctx.ModuleErrorf("Required member reference %s is not a member of the sdk", unversionedName)
+		}
+		return unversionedName
+	}
 	return versionedSdkMemberName(s.ctx, unversionedName, s.version)
 }
 
-func (s *snapshotBuilder) versionedSdkMemberNames(members []string) []string {
+func (s *snapshotBuilder) versionedSdkMemberNames(members []string, required bool) []string {
 	var references []string = nil
 	for _, m := range members {
-		references = append(references, s.versionedSdkMemberName(m))
+		references = append(references, s.versionedSdkMemberName(m, required))
 	}
 	return references
 }
 
 // Get an internal name unique to the sdk.
-func (s *snapshotBuilder) unversionedSdkMemberName(unversionedName string) string {
-	if s.sdk.isInternalMember(unversionedName) {
+func (s *snapshotBuilder) unversionedSdkMemberName(unversionedName string, required bool) string {
+	if _, ok := s.allMembersByName[unversionedName]; !ok {
+		if required {
+			s.ctx.ModuleErrorf("Required member reference %s is not a member of the sdk", unversionedName)
+		}
+		return unversionedName
+	}
+
+	if s.isInternalMember(unversionedName) {
 		return s.ctx.ModuleName() + "_" + unversionedName
 	} else {
 		return unversionedName
 	}
 }
 
-func (s *snapshotBuilder) unversionedSdkMemberNames(members []string) []string {
+func (s *snapshotBuilder) unversionedSdkMemberNames(members []string, required bool) []string {
 	var references []string = nil
 	for _, m := range members {
-		references = append(references, s.unversionedSdkMemberName(m))
+		references = append(references, s.unversionedSdkMemberName(m, required))
 	}
 	return references
+}
+
+func (s *snapshotBuilder) isInternalMember(memberName string) bool {
+	_, ok := s.exportedMembersByName[memberName]
+	return !ok
 }
 
 type sdkMemberRef struct {
@@ -776,6 +820,9 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 	// The set of properties that are common across all architectures and os types.
 	commonProperties := createVariantPropertiesStruct(android.CommonOS)
 
+	// Create common value extractor that can be used to optimize the properties.
+	commonValueExtractor := newCommonValueExtractor(commonProperties)
+
 	// The list of property structures which are os type specific but common across
 	// architectures within that os type.
 	var osSpecificPropertiesList []android.SdkMemberProperties
@@ -824,7 +871,7 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 				archPropertiesList = append(archPropertiesList, archInfo.Properties)
 			}
 
-			extractCommonProperties(osInfo.Properties, archPropertiesList)
+			commonValueExtractor.extractCommonProperties(osInfo.Properties, archPropertiesList)
 
 			// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
 			var multilib string
@@ -845,7 +892,7 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 	}
 
 	// Extract properties which are common across all architectures and os types.
-	extractCommonProperties(commonProperties, osSpecificPropertiesList)
+	commonValueExtractor.extractCommonProperties(commonProperties, osSpecificPropertiesList)
 
 	// Add the common properties to the module.
 	commonProperties.AddToPropertySet(sdkModuleContext, builder, bpModule)
@@ -947,6 +994,90 @@ func (s *sdk) getPossibleOsTypes() []android.OsType {
 	return osTypes
 }
 
+// Given a struct value, access a field within that struct (or one of its embedded
+// structs).
+type fieldAccessorFunc func(structValue reflect.Value) reflect.Value
+
+// Supports extracting common values from a number of instances of a properties
+// structure into a separate common set of properties.
+type commonValueExtractor struct {
+	// The getters for every field from which common values can be extracted.
+	fieldGetters []fieldAccessorFunc
+}
+
+// Create a new common value extractor for the structure type for the supplied
+// properties struct.
+//
+// The returned extractor can be used on any properties structure of the same type
+// as the supplied set of properties.
+func newCommonValueExtractor(propertiesStruct interface{}) *commonValueExtractor {
+	structType := getStructValue(reflect.ValueOf(propertiesStruct)).Type()
+	extractor := &commonValueExtractor{}
+	extractor.gatherFields(structType, nil)
+	return extractor
+}
+
+// Gather the fields from the supplied structure type from which common values will
+// be extracted.
+//
+// This is recursive function. If it encounters an embedded field (no field name)
+// that is a struct then it will recurse into that struct passing in the accessor
+// for the field. That will then be used in the accessors for the fields in the
+// embedded struct.
+func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingStructAccessor fieldAccessorFunc) {
+	for f := 0; f < structType.NumField(); f++ {
+		field := structType.Field(f)
+		if field.PkgPath != "" {
+			// Ignore unexported fields.
+			continue
+		}
+
+		// Ignore fields whose value should be kept.
+		if proptools.HasTag(field, "sdk", "keep") {
+			continue
+		}
+
+		// Save a copy of the field index for use in the function.
+		fieldIndex := f
+		fieldGetter := func(value reflect.Value) reflect.Value {
+			if containingStructAccessor != nil {
+				// This is an embedded structure so first access the field for the embedded
+				// structure.
+				value = containingStructAccessor(value)
+			}
+
+			// Skip through interface and pointer values to find the structure.
+			value = getStructValue(value)
+
+			// Return the field.
+			return value.Field(fieldIndex)
+		}
+
+		if field.Type.Kind() == reflect.Struct && field.Anonymous {
+			// Gather fields from the embedded structure.
+			e.gatherFields(field.Type, fieldGetter)
+		} else {
+			e.fieldGetters = append(e.fieldGetters, fieldGetter)
+		}
+	}
+}
+
+func getStructValue(value reflect.Value) reflect.Value {
+foundStruct:
+	for {
+		kind := value.Kind()
+		switch kind {
+		case reflect.Interface, reflect.Ptr:
+			value = value.Elem()
+		case reflect.Struct:
+			break foundStruct
+		default:
+			panic(fmt.Errorf("expecting struct, interface or pointer, found %v of kind %s", value, kind))
+		}
+	}
+	return value
+}
+
 // Extract common properties from a slice of property structures of the same type.
 //
 // All the property structures must be of the same type.
@@ -957,7 +1088,7 @@ func (s *sdk) getPossibleOsTypes() []android.OsType {
 // have the same value (using DeepEquals) across all the input properties. If it does not then no
 // change is made. Otherwise, the common value is stored in the field in the commonProperties
 // and the field in each of the input properties structure is set to its default value.
-func extractCommonProperties(commonProperties interface{}, inputPropertiesSlice interface{}) {
+func (e *commonValueExtractor) extractCommonProperties(commonProperties interface{}, inputPropertiesSlice interface{}) {
 	commonPropertiesValue := reflect.ValueOf(commonProperties)
 	commonStructValue := commonPropertiesValue.Elem()
 	propertiesStructType := commonStructValue.Type()
@@ -965,25 +1096,16 @@ func extractCommonProperties(commonProperties interface{}, inputPropertiesSlice 
 	// Create an empty structure from which default values for the field can be copied.
 	emptyStructValue := reflect.New(propertiesStructType).Elem()
 
-	for f := 0; f < propertiesStructType.NumField(); f++ {
+	for _, fieldGetter := range e.fieldGetters {
 		// Check to see if all the structures have the same value for the field. The commonValue
 		// is nil on entry to the loop and if it is nil on exit then there is no common value,
 		// otherwise it points to the common value.
 		var commonValue *reflect.Value
 		sliceValue := reflect.ValueOf(inputPropertiesSlice)
 
-		field := propertiesStructType.Field(f)
-		if field.Name == "SdkMemberPropertiesBase" {
-			continue
-		}
-
 		for i := 0; i < sliceValue.Len(); i++ {
-			structValue := sliceValue.Index(i).Elem().Elem()
-			fieldValue := structValue.Field(f)
-			if !fieldValue.CanInterface() {
-				// The field is not exported so ignore it.
-				continue
-			}
+			itemValue := sliceValue.Index(i)
+			fieldValue := fieldGetter(itemValue)
 
 			if commonValue == nil {
 				// Use the first value as the commonProperties value.
@@ -1001,11 +1123,11 @@ func extractCommonProperties(commonProperties interface{}, inputPropertiesSlice 
 		// If the fields all have a common value then store it in the common struct field
 		// and set the input struct's field to the empty value.
 		if commonValue != nil {
-			emptyValue := emptyStructValue.Field(f)
-			commonStructValue.Field(f).Set(*commonValue)
+			emptyValue := fieldGetter(emptyStructValue)
+			fieldGetter(commonStructValue).Set(*commonValue)
 			for i := 0; i < sliceValue.Len(); i++ {
-				structValue := sliceValue.Index(i).Elem().Elem()
-				fieldValue := structValue.Field(f)
+				itemValue := sliceValue.Index(i)
+				fieldValue := fieldGetter(itemValue)
 				fieldValue.Set(emptyValue)
 			}
 		}
