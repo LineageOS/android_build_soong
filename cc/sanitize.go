@@ -900,6 +900,11 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 		c.sanitize.Properties.Sanitizers = sanitizers
 		c.sanitize.Properties.DiagSanitizers = diagSanitizers
 
+		// TODO(b/150822854) Hosts have a different default behavior and assume the runtime library is used.
+		if c.Host() {
+			diagSanitizers = sanitizers
+		}
+
 		// Determine the runtime library required
 		runtimeLibrary := ""
 		var extraStaticDeps []string
@@ -995,11 +1000,6 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 				modules[0].(*Module).sanitize.SetSanitizer(t, true)
 			} else if c.sanitize.isSanitizerEnabled(t) || c.sanitize.Properties.SanitizeDep {
 				isSanitizerEnabled := c.sanitize.isSanitizerEnabled(t)
-				if mctx.Device() && t.incompatibleWithCfi() {
-					// TODO: Make sure that cfi mutator runs "after" any of the sanitizers that
-					// are incompatible with cfi
-					c.sanitize.SetSanitizer(cfi, false)
-				}
 				if c.static() || c.header() || t == asan || t == fuzzer {
 					// Static and header libs are split into non-sanitized and sanitized variants.
 					// Shared libs are not split. However, for asan and fuzzer, we split even for shared
@@ -1020,6 +1020,12 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 					modules[1].(*Module).sanitize.SetSanitizer(t, true)
 					modules[0].(*Module).sanitize.Properties.SanitizeDep = false
 					modules[1].(*Module).sanitize.Properties.SanitizeDep = false
+
+					if mctx.Device() && t.incompatibleWithCfi() {
+						// TODO: Make sure that cfi mutator runs "after" any of the sanitizers that
+						// are incompatible with cfi
+						modules[1].(*Module).sanitize.SetSanitizer(cfi, false)
+					}
 
 					// For cfi/scs/hwasan, we can export both sanitized and un-sanitized variants
 					// to Make, because the sanitized version has a different suffix in name.
@@ -1057,6 +1063,12 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 					// locate the asan libraries under /data/asan
 					if mctx.Device() && t == asan && isSanitizerEnabled {
 						modules[0].(*Module).sanitize.Properties.InSanitizerDir = true
+					}
+
+					if mctx.Device() && t.incompatibleWithCfi() {
+						// TODO: Make sure that cfi mutator runs "after" any of the sanitizers that
+						// are incompatible with cfi
+						modules[0].(*Module).sanitize.SetSanitizer(cfi, false)
 					}
 				}
 			}
