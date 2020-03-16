@@ -1353,6 +1353,10 @@ type overridableProperties struct {
 
 	// Logging Parent value
 	Logging_parent string
+
+	// Apex Container Package Name.
+	// Override value for attribute package:name in AndroidManifest.xml
+	Package_name string
 }
 
 type apexPackaging int
