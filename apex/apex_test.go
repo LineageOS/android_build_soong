@@ -3737,7 +3737,7 @@ func TestLegacyAndroid10Support(t *testing.T) {
 			name: "myapex",
 			key: "myapex.key",
 			native_shared_libs: ["mylib"],
-			legacy_android10_support: true,
+			min_sdk_version: "29",
 		}
 
 		apex_key {
