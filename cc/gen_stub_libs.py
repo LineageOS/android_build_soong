@@ -26,8 +26,6 @@ import sys
 ALL_ARCHITECTURES = (
     'arm',
     'arm64',
-    'mips',
-    'mips64',
     'x86',
     'x86_64',
 )
