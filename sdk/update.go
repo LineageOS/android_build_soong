@@ -510,41 +510,53 @@ func generateBpContents(contents *generatedContents, bpFile *bpFile) {
 
 func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 	contents.Indent()
+
+	// Output the properties first, followed by the nested sets. This ensures a
+	// consistent output irrespective of whether property sets are created before
+	// or after the properties. This simplifies the creation of the module.
 	for _, name := range set.order {
 		value := set.getValue(name)
 
-		reflectedValue := reflect.ValueOf(value)
-		t := reflectedValue.Type()
-
-		kind := t.Kind()
-		switch kind {
-		case reflect.Slice:
-			length := reflectedValue.Len()
+		switch v := value.(type) {
+		case []string:
+			length := len(v)
 			if length > 1 {
 				contents.Printfln("%s: [", name)
 				contents.Indent()
 				for i := 0; i < length; i = i + 1 {
-					contents.Printfln("%q,", reflectedValue.Index(i).Interface())
+					contents.Printfln("%q,", v[i])
 				}
 				contents.Dedent()
 				contents.Printfln("],")
 			} else if length == 0 {
 				contents.Printfln("%s: [],", name)
 			} else {
-				contents.Printfln("%s: [%q],", name, reflectedValue.Index(0).Interface())
+				contents.Printfln("%s: [%q],", name, v[0])
 			}
-		case reflect.Bool:
-			contents.Printfln("%s: %t,", name, reflectedValue.Bool())
 
-		case reflect.Ptr:
-			contents.Printfln("%s: {", name)
-			outputPropertySet(contents, reflectedValue.Interface().(*bpPropertySet))
-			contents.Printfln("},")
+		case bool:
+			contents.Printfln("%s: %t,", name, v)
+
+		case *bpPropertySet:
+			// Do not write property sets in the properties phase.
 
 		default:
 			contents.Printfln("%s: %q,", name, value)
 		}
 	}
+
+	for _, name := range set.order {
+		value := set.getValue(name)
+
+		// Only write property sets in the sets phase.
+		switch v := value.(type) {
+		case *bpPropertySet:
+			contents.Printfln("%s: {", name)
+			outputPropertySet(contents, v)
+			contents.Printfln("},")
+		}
+	}
+
 	contents.Dedent()
 }
 

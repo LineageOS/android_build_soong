@@ -920,6 +920,7 @@ java_import {
 module_exports_snapshot {
     name: "myexports@current",
     host_supported: true,
+    java_libs: ["myexports_myjavalib@current"],
     target: {
         android: {
             java_header_libs: ["myexports_androidjavalib@current"],
@@ -928,7 +929,6 @@ module_exports_snapshot {
             java_header_libs: ["myexports_hostjavalib@current"],
         },
     },
-    java_libs: ["myexports_myjavalib@current"],
 }
 `),
 		checkAllCopyRules(`
