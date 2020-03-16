@@ -33,8 +33,7 @@ func init() {
 // /system/framework/boot.art and should be the same for all supported
 // architectures on the device. The concrete architecture specific
 // content actually ends up in a "filename" that contains an
-// architecture specific directory name such as arm, arm64, mips,
-// mips64, x86, x86_64.
+// architecture specific directory name such as arm, arm64, x86, x86_64.
 //
 // Here are some example values for an x86_64 / x86 configuration:
 //

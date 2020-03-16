@@ -46,8 +46,8 @@
 //
 // Target architecture
 // The target architecture is the preferred architecture supported by the selected
-// device.  It is most commonly 32-bit arm, but may also be 64-bit arm, 32-bit or
-// 64-bit x86, or mips.
+// device.  It is most commonly 32-bit arm, but may also be 64-bit arm, 32-bit
+// x86, or 64-bit x86.
 //
 // Secondary architecture
 // The secondary architecture specifies the architecture to compile a second copy
