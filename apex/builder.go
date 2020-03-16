@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"android/soong/android"
@@ -195,7 +196,7 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 		},
 	})
 
-	if proptools.Bool(a.properties.Legacy_android10_support) {
+	if a.minSdkVersion(ctx) == android.SdkVersion_Android10 {
 		// b/143654022 Q apexd can't understand newly added keys in apex_manifest.json
 		// prepare stripped-down version so that APEX modules built from R+ can be installed to Q
 		a.manifestJsonOut = android.PathForModuleOut(ctx, "apex_manifest.json")
@@ -344,7 +345,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	var emitCommands []string
 	imageContentFile := android.PathForModuleOut(ctx, "content.txt")
 	emitCommands = append(emitCommands, "echo ./apex_manifest.pb >> "+imageContentFile.String())
-	if proptools.Bool(a.properties.Legacy_android10_support) {
+	if a.minSdkVersion(ctx) == android.SdkVersion_Android10 {
 		emitCommands = append(emitCommands, "echo ./apex_manifest.json >> "+imageContentFile.String())
 	}
 	for _, fi := range a.filesInfo {
@@ -443,10 +444,9 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		targetSdkVersion := ctx.Config().DefaultAppTargetSdk()
 		minSdkVersion := ctx.Config().DefaultAppTargetSdk()
 
-		// TODO: this should be based on min_sdk_version property of an APEX.
-		if proptools.Bool(a.properties.Legacy_android10_support) {
-			targetSdkVersion = "29"
-			minSdkVersion = "29"
+		if a.minSdkVersion(ctx) == android.SdkVersion_Android10 {
+			minSdkVersion = strconv.Itoa(a.minSdkVersion(ctx))
+			targetSdkVersion = strconv.Itoa(a.minSdkVersion(ctx))
 		}
 
 		if java.UseApiFingerprint(ctx) {
@@ -475,7 +475,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			ctx.PropertyErrorf("test_only_no_hashtree", "not available")
 			return
 		}
-		if !proptools.Bool(a.properties.Legacy_android10_support) || a.testOnlyShouldSkipHashtreeGeneration() {
+		if a.minSdkVersion(ctx) > android.SdkVersion_Android10 || a.testOnlyShouldSkipHashtreeGeneration() {
 			// Apexes which are supposed to be installed in builtin dirs(/system, etc)
 			// don't need hashtree for activation. Therefore, by removing hashtree from
 			// apex bundle (filesystem image in it, to be specific), we can save storage.
@@ -488,7 +488,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			optFlags = append(optFlags, "--do_not_check_keyname")
 		}
 
-		if proptools.Bool(a.properties.Legacy_android10_support) {
+		if a.minSdkVersion(ctx) == android.SdkVersion_Android10 {
 			implicitInputs = append(implicitInputs, a.manifestJsonOut)
 			optFlags = append(optFlags, "--manifest_json "+a.manifestJsonOut.String())
 		}
