@@ -139,6 +139,7 @@ var (
 	apexBundleRule = pctx.StaticRule("apexBundleRule", blueprint.RuleParams{
 		Command: `${zip2zip} -i $in -o $out.base ` +
 			`apex_payload.img:apex/${abi}.img ` +
+			`apex_build_info.pb:apex/${abi}.build_info.pb ` +
 			`apex_manifest.json:root/apex_manifest.json ` +
 			`apex_manifest.pb:root/apex_manifest.pb ` +
 			`AndroidManifest.xml:manifest/AndroidManifest.xml ` +
