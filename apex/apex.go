@@ -1043,11 +1043,9 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 	var apexBundles []android.ApexInfo
 	var directDep bool
 	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
-		minSdkVersion := a.minSdkVersion(mctx)
 		apexBundles = []android.ApexInfo{android.ApexInfo{
-			ApexName:               mctx.ModuleName(),
-			LegacyAndroid10Support: proptools.Bool(a.properties.Legacy_android10_support),
-			MinSdkVersion:          minSdkVersion,
+			ApexName:      mctx.ModuleName(),
+			MinSdkVersion: a.minSdkVersion(mctx),
 		}}
 		directDep = true
 	} else if am, ok := mctx.Module().(android.ApexModule); ok {
@@ -1294,10 +1292,6 @@ type apexBundleProperties struct {
 	// Whenever apex_payload.img of the APEX should include dm-verity hashtree.
 	// Should be only used in tests#.
 	Test_only_no_hashtree *bool
-
-	// Whether this APEX should support Android10. Default is false. If this is set true, then apex_manifest.json is bundled as well
-	// because Android10 requires legacy apex_manifest.json instead of apex_manifest.pb
-	Legacy_android10_support *bool
 
 	IsCoverageVariant bool `blueprint:"mutated"`
 

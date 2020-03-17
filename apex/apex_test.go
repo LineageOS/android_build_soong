@@ -1672,13 +1672,14 @@ func TestMacro(t *testing.T) {
 		apex {
 			name: "myapex",
 			key: "myapex.key",
-			native_shared_libs: ["mylib"],
+			native_shared_libs: ["mylib", "mylib2"],
 		}
 
 		apex {
 			name: "otherapex",
 			key: "myapex.key",
-			native_shared_libs: ["mylib"],
+			native_shared_libs: ["mylib", "mylib2"],
+			min_sdk_version: "29",
 		}
 
 		apex_key {
@@ -1692,29 +1693,56 @@ func TestMacro(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
-			// TODO: remove //apex_available:platform
 			apex_available: [
-				"//apex_available:platform",
 				"myapex",
 				"otherapex",
 			],
 		}
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [
+				"myapex",
+				"otherapex",
+			],
+			use_apex_name_macro: true,
+		}
 	`)
 
-	// non-APEX variant does not have __ANDROID_APEX(_NAME)__ defined
+	// non-APEX variant does not have __ANDROID_APEX__ defined
 	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__")
+	ensureContains(t, mylibCFlags, "-D__ANDROID_SDK_VERSION__=10000")
+
+	// APEX variant has __ANDROID_APEX__ and __ANDROID_APEX_SDK__ defined
+	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
+	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
+	ensureContains(t, mylibCFlags, "-D__ANDROID_SDK_VERSION__=10000")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
+
+	// APEX variant has __ANDROID_APEX__ and __ANDROID_APEX_SDK__ defined
+	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_otherapex").Rule("cc").Args["cFlags"]
+	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
+	ensureContains(t, mylibCFlags, "-D__ANDROID_SDK_VERSION__=29")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
 
-	// APEX variant has __ANDROID_APEX(_NAME)__ defined
-	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
+	// When cc_library sets use_apex_name_macro: true
+	// apex variants define additional macro to distinguish which apex variant it is built for
+
+	// non-APEX variant does not have __ANDROID_APEX__ defined
+	mylibCFlags = ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__")
+
+	// APEX variant has __ANDROID_APEX__ defined
+	mylibCFlags = ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
 
-	// APEX variant has __ANDROID_APEX(_NAME)__ defined
-	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_otherapex").Rule("cc").Args["cFlags"]
+	// APEX variant has __ANDROID_APEX__ defined
+	mylibCFlags = ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_otherapex").Rule("cc").Args["cFlags"]
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX__")
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX_MYAPEX__")
 	ensureContains(t, mylibCFlags, "-D__ANDROID_APEX_OTHERAPEX__")
@@ -1828,13 +1856,17 @@ func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, var
 	var surplus []string
 	filesMatched := make(map[string]bool)
 	for _, file := range getFiles(t, ctx, moduleName, variant) {
+		mactchFound := false
 		for _, expected := range files {
 			if matched, _ := path.Match(expected, file.path); matched {
 				filesMatched[expected] = true
-				return
+				mactchFound = true
+				break
 			}
 		}
-		surplus = append(surplus, file.path)
+		if !mactchFound {
+			surplus = append(surplus, file.path)
+		}
 	}
 
 	if len(surplus) > 0 {
@@ -1901,8 +1933,10 @@ func TestVndkApexCurrent(t *testing.T) {
 	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib/libvndksp.so",
+		"lib/libc++.so",
 		"lib64/libvndk.so",
 		"lib64/libvndksp.so",
+		"lib64/libc++.so",
 		"etc/llndk.libraries.VER.txt",
 		"etc/vndkcore.libraries.VER.txt",
 		"etc/vndksp.libraries.VER.txt",
@@ -1962,6 +1996,8 @@ func TestVndkApexWithPrebuilt(t *testing.T) {
 		"lib/libvndk.so",
 		"lib/libvndk.arm.so",
 		"lib64/libvndk.so",
+		"lib/libc++.so",
+		"lib64/libc++.so",
 		"etc/*",
 	})
 }
@@ -2173,6 +2209,8 @@ func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib64/libvndk.so",
+		"lib/libc++.so",
+		"lib64/libc++.so",
 		"etc/*",
 	})
 }
@@ -3620,7 +3658,7 @@ func TestLegacyAndroid10Support(t *testing.T) {
 			name: "myapex",
 			key: "myapex.key",
 			native_shared_libs: ["mylib"],
-			legacy_android10_support: true,
+			min_sdk_version: "29",
 		}
 
 		apex_key {
