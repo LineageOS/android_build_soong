@@ -546,7 +546,11 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
 	var allPhonies android.Paths
 	for _, image := range image.variants {
 		arch := image.target.Arch.ArchType
-		suffix := image.target.String()
+		suffix := arch.String()
+		// Host and target might both use x86 arch. We need to ensure the names are unique.
+		if image.target.Os.Class == android.Host {
+			suffix = "host-" + suffix
+		}
 		// Create a rule to call oatdump.
 		output := android.PathForOutput(ctx, "boot."+suffix+".oatdump.txt")
 		rule := android.NewRuleBuilder()
@@ -569,7 +573,10 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
 			Text("echo").FlagWithArg("Output in ", output.String())
 		rule.Build(pctx, ctx, "phony-dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
 
-		allPhonies = append(allPhonies, phony)
+		// TODO: We need to make imageLocations per-variant to make oatdump work on host.
+		if image.target.Os == android.Android {
+			allPhonies = append(allPhonies, phony)
+		}
 	}
 
 	phony := android.PathForPhony(ctx, "dump-oat-boot")
