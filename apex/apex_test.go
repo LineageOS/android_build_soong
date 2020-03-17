@@ -3664,6 +3664,7 @@ func TestOverrideApex(t *testing.T) {
 			apps: ["override_app"],
 			overrides: ["unknownapex"],
 			logging_parent: "com.foo.bar",
+			package_name: "test.overridden.package",
 		}
 
 		apex_key {
@@ -3715,7 +3716,7 @@ func TestOverrideApex(t *testing.T) {
 	}
 
 	optFlags := apexRule.Args["opt_flags"]
-	ensureContains(t, optFlags, "--override_apk_package_name com.android.myapex")
+	ensureContains(t, optFlags, "--override_apk_package_name test.overridden.package")
 
 	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
 	var builder strings.Builder
