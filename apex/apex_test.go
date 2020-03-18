@@ -150,6 +150,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"vendor/foo/devkeys/testkey.pem":             nil,
 		"NOTICE":                                     nil,
 		"custom_notice":                              nil,
+		"custom_notice_for_static_lib":               nil,
 		"testkey2.avbpubkey":                         nil,
 		"testkey2.pem":                               nil,
 		"myapex-arm64.apex":                          nil,
@@ -346,6 +347,20 @@ func TestBasicApex(t *testing.T) {
 			system_shared_libs: [],
 			stl: "none",
 			notice: "custom_notice",
+			static_libs: ["libstatic"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+		}
+
+		cc_library_static {
+			name: "libstatic",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			notice: "custom_notice_for_static_lib",
 			// TODO: remove //apex_available:platform
 			apex_available: [
 				"//apex_available:platform",
@@ -444,11 +459,12 @@ func TestBasicApex(t *testing.T) {
 
 	mergeNoticesRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("mergeNoticesRule")
 	noticeInputs := mergeNoticesRule.Inputs.Strings()
-	if len(noticeInputs) != 2 {
-		t.Errorf("number of input notice files: expected = 2, actual = %q", len(noticeInputs))
+	if len(noticeInputs) != 3 {
+		t.Errorf("number of input notice files: expected = 3, actual = %q", len(noticeInputs))
 	}
 	ensureListContains(t, noticeInputs, "NOTICE")
 	ensureListContains(t, noticeInputs, "custom_notice")
+	ensureListContains(t, noticeInputs, "custom_notice_for_static_lib")
 
 	depsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("myapex-deps-info.txt").Args["content"], "\\n")
 	ensureListContains(t, depsInfo, "myjar <- myapex")
