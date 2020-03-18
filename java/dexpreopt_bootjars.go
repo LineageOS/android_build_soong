@@ -186,31 +186,19 @@ type dexpreoptBootJars struct {
 }
 
 // Accessor function for the apex package. Returns nil if dexpreopt is disabled.
-func DexpreoptedArtApexJars(ctx android.BuilderContext) (map[android.ArchType]android.OutputPaths, android.OutputPaths) {
+func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]android.OutputPaths {
 	if skipDexpreoptBootJars(ctx) {
-		return nil, nil
+		return nil
 	}
-
-	image := artBootImageConfig(ctx)
-
-	// Target-independent boot image files (*.vdex).
-	anyTarget := image.variants[0].target
-	vdexDir := image.dir.Join(ctx, anyTarget.Os.String(), image.installSubdir, anyTarget.Arch.ArchType.String())
-	vdexFiles := image.moduleFiles(ctx, vdexDir, ".vdex")
-
-	// Target-specific boot image files (*.oat, *.art).
-	artAndOatFiles := map[android.ArchType]android.OutputPaths{}
-	for _, variant := range image.variants {
+	// Include dexpreopt files for the primary boot image.
+	files := map[android.ArchType]android.OutputPaths{}
+	for _, variant := range artBootImageConfig(ctx).variants {
 		// We also generate boot images for host (for testing), but we don't need those in the apex.
-		os := variant.target.Os
-		if os == android.Android {
-			arch := variant.target.Arch.ArchType
-			archDir := image.dir.Join(ctx, os.String(), image.installSubdir, arch.String())
-			artAndOatFiles[arch] = image.moduleFiles(ctx, archDir, ".art", ".oat")
+		if variant.target.Os == android.Android {
+			files[variant.target.Arch.ArchType] = variant.imagesDeps
 		}
 	}
-
-	return artAndOatFiles, vdexFiles
+	return files
 }
 
 // dexpreoptBoot singleton rules
