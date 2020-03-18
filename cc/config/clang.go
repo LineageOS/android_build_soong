@@ -49,7 +49,7 @@ var ClangUnknownCflags = sorted([]string{
 	"-Wunused-but-set-variable",
 	"-fdiagnostics-color",
 
-	// arm + arm64 + mips + mips64
+	// arm + arm64
 	"-fgcse-after-reload",
 	"-frerun-cse-after-loop",
 	"-frename-registers",
@@ -67,11 +67,6 @@ var ClangUnknownCflags = sorted([]string{
 	"-fno-partial-inlining",
 	"-fno-tree-copy-prop",
 	"-fno-tree-loop-optimize",
-
-	// mips + mips64
-	"-msynci",
-	"-mno-synci",
-	"-mno-fused-madd",
 
 	// x86 + x86_64
 	"-finline-limit=300",
