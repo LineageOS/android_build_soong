@@ -107,7 +107,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libpcre2",
 		"libprocessgroup_headers",
 		"libqemu_pipe",
-		"libselinux",
 		"libsystem_headers",
 		"libutils_headers",
 	}
@@ -503,7 +502,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libprocessgroup",
 		"libprocessgroup_headers",
 		"libprocinfo",
-		"libselinux",
 		"libsonivox",
 		"libspeexresampler",
 		"libspeexresampler",
@@ -1341,6 +1339,10 @@ type overridableProperties struct {
 
 	// Logging Parent value
 	Logging_parent string
+
+	// Apex Container Package Name.
+	// Override value for attribute package:name in AndroidManifest.xml
+	Package_name string
 }
 
 type apexPackaging int
