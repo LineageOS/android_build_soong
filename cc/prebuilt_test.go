@@ -184,7 +184,7 @@ func TestPrebuiltLibraryShared(t *testing.T) {
 	})
 
 	shared := ctx.ModuleForTests("libtest", "android_arm64_armv8-a_shared").Module().(*Module)
-	assertString(t, shared.OutputFile().String(), "libf.so")
+	assertString(t, shared.OutputFile().Path().Base(), "libtest.so")
 }
 
 func TestPrebuiltLibraryStatic(t *testing.T) {
@@ -198,7 +198,7 @@ func TestPrebuiltLibraryStatic(t *testing.T) {
 	})
 
 	static := ctx.ModuleForTests("libtest", "android_arm64_armv8-a_static").Module().(*Module)
-	assertString(t, static.OutputFile().String(), "libf.a")
+	assertString(t, static.OutputFile().Path().Base(), "libf.a")
 }
 
 func TestPrebuiltLibrary(t *testing.T) {
@@ -221,8 +221,53 @@ func TestPrebuiltLibrary(t *testing.T) {
 	})
 
 	shared := ctx.ModuleForTests("libtest", "android_arm64_armv8-a_shared").Module().(*Module)
-	assertString(t, shared.OutputFile().String(), "libf.so")
+	assertString(t, shared.OutputFile().Path().Base(), "libtest.so")
 
 	static := ctx.ModuleForTests("libtest", "android_arm64_armv8-a_static").Module().(*Module)
-	assertString(t, static.OutputFile().String(), "libf.a")
+	assertString(t, static.OutputFile().Path().Base(), "libf.a")
+}
+
+func TestPrebuiltLibraryStem(t *testing.T) {
+	ctx := testPrebuilt(t, `
+	cc_prebuilt_library {
+		name: "libfoo",
+		stem: "libbar",
+		static: {
+			srcs: ["libfoo.a"],
+		},
+		shared: {
+			srcs: ["libfoo.so"],
+		},
+		strip: {
+			none: true,
+		},
+	}
+	`, map[string][]byte{
+		"libfoo.a":  nil,
+		"libfoo.so": nil,
+	})
+
+	static := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static").Module().(*Module)
+	assertString(t, static.OutputFile().Path().Base(), "libfoo.a")
+
+	shared := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module().(*Module)
+	assertString(t, shared.OutputFile().Path().Base(), "libbar.so")
+}
+
+func TestPrebuiltLibrarySharedStem(t *testing.T) {
+	ctx := testPrebuilt(t, `
+	cc_prebuilt_library_shared {
+		name: "libfoo",
+		stem: "libbar",
+		srcs: ["libfoo.so"],
+		strip: {
+			none: true,
+		},
+	}
+	`, map[string][]byte{
+		"libfoo.so": nil,
+	})
+
+	shared := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module().(*Module)
+	assertString(t, shared.OutputFile().Path().Base(), "libbar.so")
 }
