@@ -793,16 +793,200 @@ type baseInfo struct {
 type osTypeSpecificInfo struct {
 	baseInfo
 
+	osType android.OsType
+
 	// The list of arch type specific info for this os type.
 	//
 	// Nil if there is one variant whose arch type is common
 	archInfos []*archTypeSpecificInfo
 }
 
+type variantPropertiesFactoryFunc func() android.SdkMemberProperties
+
+// Create a new osTypeSpecificInfo for the specified os type and its properties
+// structures populated with information from the variants.
+func newOsTypeSpecificInfo(osType android.OsType, variantPropertiesFactory variantPropertiesFactoryFunc, osTypeVariants []android.SdkAware) *osTypeSpecificInfo {
+	osInfo := &osTypeSpecificInfo{
+		osType: osType,
+	}
+
+	osSpecificVariantPropertiesFactory := func() android.SdkMemberProperties {
+		properties := variantPropertiesFactory()
+		properties.Base().Os = osType
+		return properties
+	}
+
+	// Create a structure into which properties common across the architectures in
+	// this os type will be stored.
+	osInfo.Properties = osSpecificVariantPropertiesFactory()
+
+	// Group the variants by arch type.
+	var variantsByArchName = make(map[string][]android.SdkAware)
+	var archTypes []android.ArchType
+	for _, variant := range osTypeVariants {
+		archType := variant.Target().Arch.ArchType
+		archTypeName := archType.Name
+		if _, ok := variantsByArchName[archTypeName]; !ok {
+			archTypes = append(archTypes, archType)
+		}
+
+		variantsByArchName[archTypeName] = append(variantsByArchName[archTypeName], variant)
+	}
+
+	if commonVariants, ok := variantsByArchName["common"]; ok {
+		if len(osTypeVariants) != 1 {
+			panic("Expected to only have 1 variant when arch type is common but found " + string(len(osTypeVariants)))
+		}
+
+		// A common arch type only has one variant and its properties should be treated
+		// as common to the os type.
+		osInfo.Properties.PopulateFromVariant(commonVariants[0])
+	} else {
+		// Create an arch specific info for each supported architecture type.
+		for _, archType := range archTypes {
+			archTypeName := archType.Name
+
+			archVariants := variantsByArchName[archTypeName]
+			archInfo := newArchSpecificInfo(archType, osSpecificVariantPropertiesFactory, archVariants)
+
+			osInfo.archInfos = append(osInfo.archInfos, archInfo)
+		}
+	}
+
+	return osInfo
+}
+
+// Optimize the properties by extracting common properties from arch type specific
+// properties into os type specific properties.
+func (osInfo *osTypeSpecificInfo) optimizeProperties(commonValueExtractor *commonValueExtractor) {
+	// Nothing to do if there is only a single common architecture.
+	if len(osInfo.archInfos) == 0 {
+		return
+	}
+
+	var archPropertiesList []android.SdkMemberProperties
+	for _, archInfo := range osInfo.archInfos {
+		archPropertiesList = append(archPropertiesList, archInfo.Properties)
+	}
+
+	commonValueExtractor.extractCommonProperties(osInfo.Properties, archPropertiesList)
+
+	// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
+	var multilib string
+	archVariantCount := len(osInfo.archInfos)
+	if archVariantCount == 2 {
+		multilib = "both"
+	} else if archVariantCount == 1 {
+		if strings.HasSuffix(osInfo.archInfos[0].archType.Name, "64") {
+			multilib = "64"
+		} else {
+			multilib = "32"
+		}
+	}
+
+	osInfo.Properties.Base().Compile_multilib = multilib
+}
+
+// Add the properties for an os to a property set.
+//
+// Maps the properties related to the os variants through to an appropriate
+// module structure that will produce equivalent set of variants when it is
+// processed in a build.
+func (osInfo *osTypeSpecificInfo) addToPropertySet(
+	builder *snapshotBuilder,
+	bpModule android.BpModule,
+	targetPropertySet android.BpPropertySet) {
+
+	var osPropertySet android.BpPropertySet
+	var archPropertySet android.BpPropertySet
+	var archOsPrefix string
+	if osInfo.Properties.Base().Os_count == 1 {
+		// There is only one os type present in the variants so don't bother
+		// with adding target specific properties.
+
+		// Create a structure that looks like:
+		// module_type {
+		//   name: "...",
+		//   ...
+		//   <common properties>
+		//   ...
+		//   <single os type specific properties>
+		//
+		//   arch: {
+		//     <arch specific sections>
+		//   }
+		//
+		osPropertySet = bpModule
+		archPropertySet = osPropertySet.AddPropertySet("arch")
+
+		// Arch specific properties need to be added to an arch specific section
+		// within arch.
+		archOsPrefix = ""
+	} else {
+		// Create a structure that looks like:
+		// module_type {
+		//   name: "...",
+		//   ...
+		//   <common properties>
+		//   ...
+		//   target: {
+		//     <arch independent os specific sections, e.g. android>
+		//     ...
+		//     <arch and os specific sections, e.g. android_x86>
+		//   }
+		//
+		osType := osInfo.osType
+		osPropertySet = targetPropertySet.AddPropertySet(osType.Name)
+		archPropertySet = targetPropertySet
+
+		// Arch specific properties need to be added to an os and arch specific
+		// section prefixed with <os>_.
+		archOsPrefix = osType.Name + "_"
+	}
+
+	// Add the os specific but arch independent properties to the module.
+	osInfo.Properties.AddToPropertySet(builder.ctx, builder, osPropertySet)
+
+	// Add arch (and possibly os) specific sections for each set of arch (and possibly
+	// os) specific properties.
+	//
+	// The archInfos list will be empty if the os contains variants for the common
+	// architecture.
+	for _, archInfo := range osInfo.archInfos {
+		archInfo.addToPropertySet(builder, archPropertySet, archOsPrefix)
+	}
+}
+
 type archTypeSpecificInfo struct {
 	baseInfo
 
 	archType android.ArchType
+}
+
+// Create a new archTypeSpecificInfo for the specified arch type and its properties
+// structures populated with information from the variants.
+func newArchSpecificInfo(archType android.ArchType, variantPropertiesFactory variantPropertiesFactoryFunc, archVariants []android.SdkAware) *archTypeSpecificInfo {
+
+	if len(archVariants) != 1 {
+		panic(fmt.Errorf("expected one arch specific variant but found %d", len(archVariants)))
+	}
+
+	// Create an arch specific info into which the variant properties can be copied.
+	archInfo := &archTypeSpecificInfo{archType: archType}
+
+	// Create the properties into which the arch type specific properties will be
+	// added.
+	archInfo.Properties = variantPropertiesFactory()
+	archInfo.Properties.PopulateFromVariant(archVariants[0])
+
+	return archInfo
+}
+
+// Add the properties for an arch type to a property set.
+func (archInfo *archTypeSpecificInfo) addToPropertySet(builder *snapshotBuilder, archPropertySet android.BpPropertySet, archOsPrefix string) {
+	archTypeName := archInfo.archType.Name
+	archTypePropertySet := archPropertySet.AddPropertySet(archOsPrefix + archTypeName)
+	archInfo.Properties.AddToPropertySet(builder.ctx, builder, archTypePropertySet)
 }
 
 func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, builder *snapshotBuilder, member *sdkMember, bpModule android.BpModule) {
@@ -839,85 +1023,14 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 	var osSpecificPropertiesList []android.SdkMemberProperties
 
 	for osType, osTypeVariants := range variantsByOsType {
-		// Group the properties for each variant by arch type within the os.
-		osInfo := &osTypeSpecificInfo{}
+		osInfo := newOsTypeSpecificInfo(osType, variantPropertiesFactory, osTypeVariants)
 		osTypeToInfo[osType] = osInfo
-
-		osSpecificVariantPropertiesFactory := func() android.SdkMemberProperties {
-			properties := variantPropertiesFactory()
-			properties.Base().Os = osType
-			return properties
-		}
-
 		// Add the os specific properties to a list of os type specific yet architecture
 		// independent properties structs.
-		osInfo.Properties = osSpecificVariantPropertiesFactory()
 		osSpecificPropertiesList = append(osSpecificPropertiesList, osInfo.Properties)
 
-		// Group the variants by arch type.
-		var variantsByArchName = make(map[string][]android.SdkAware)
-		var archTypes []android.ArchType
-		for _, variant := range osTypeVariants {
-			archType := variant.Target().Arch.ArchType
-			archTypeName := archType.Name
-			if _, ok := variantsByArchName[archTypeName]; !ok {
-				archTypes = append(archTypes, archType)
-			}
-
-			variantsByArchName[archTypeName] = append(variantsByArchName[archTypeName], variant)
-		}
-
-		if commonVariants, ok := variantsByArchName["common"]; ok {
-			if len(osTypeVariants) != 1 {
-				panic("Expected to only have 1 variant when arch type is common but found " + string(len(osTypeVariants)))
-			}
-
-			// A common arch type only has one variant and its properties should be treated
-			// as common to the os type.
-			osInfo.Properties.PopulateFromVariant(commonVariants[0])
-		} else {
-			// Create an arch specific info for each supported architecture type.
-			for _, archType := range archTypes {
-				archTypeName := archType.Name
-
-				archVariants := variantsByArchName[archTypeName]
-				if len(archVariants) != 1 {
-					panic(fmt.Errorf("expected one arch specific variant but found %d", len(variants)))
-				}
-
-				// Create an arch specific info into which the variant properties can be copied.
-				archInfo := &archTypeSpecificInfo{archType: archType}
-
-				// Create the properties into which the arch type specific properties will be
-				// added.
-				archInfo.Properties = osSpecificVariantPropertiesFactory()
-				archInfo.Properties.PopulateFromVariant(archVariants[0])
-
-				osInfo.archInfos = append(osInfo.archInfos, archInfo)
-			}
-		}
-
-		var archPropertiesList []android.SdkMemberProperties
-		for _, archInfo := range osInfo.archInfos {
-			archPropertiesList = append(archPropertiesList, archInfo.Properties)
-		}
-
-		commonValueExtractor.extractCommonProperties(osInfo.Properties, archPropertiesList)
-
-		// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
-		var multilib string
-		archVariantCount := len(osInfo.archInfos)
-		if archVariantCount == 2 {
-			multilib = "both"
-		} else if archVariantCount == 1 {
-			if strings.HasSuffix(osInfo.archInfos[0].archType.Name, "64") {
-				multilib = "64"
-			} else {
-				multilib = "32"
-			}
-		}
-
-		osInfo.Properties.Base().Compile_multilib = multilib
+		// Optimize the properties across all the variants for a specific os type.
+		osInfo.optimizeProperties(commonValueExtractor)
 	}
 
 	// Extract properties which are common across all architectures and os types.
@@ -937,63 +1050,7 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 			continue
 		}
 
-		var osPropertySet android.BpPropertySet
-		var archPropertySet android.BpPropertySet
-		var archOsPrefix string
-		if osInfo.Properties.Base().Os_count == 1 {
-			// There is only one os type present in the variants so don't bother
-			// with adding target specific properties.
-
-			// Create a structure that looks like:
-			// module_type {
-			//   name: "...",
-			//   ...
-			//   <common properties>
-			//   ...
-			//   <single os type specific properties>
-			//
-			//   arch: {
-			//     <arch specific sections>
-			//   }
-			//
-			osPropertySet = bpModule
-			archPropertySet = osPropertySet.AddPropertySet("arch")
-
-			// Arch specific properties need to be added to an arch specific section
-			// within arch.
-			archOsPrefix = ""
-		} else {
-			// Create a structure that looks like:
-			// module_type {
-			//   name: "...",
-			//   ...
-			//   <common properties>
-			//   ...
-			//   target: {
-			//     <arch independent os specific sections, e.g. android>
-			//     ...
-			//     <arch and os specific sections, e.g. android_x86>
-			//   }
-			//
-			osPropertySet = targetPropertySet.AddPropertySet(osType.Name)
-			archPropertySet = targetPropertySet
-
-			// Arch specific properties need to be added to an os and arch specific
-			// section prefixed with <os>_.
-			archOsPrefix = osType.Name + "_"
-		}
-
-		osInfo.Properties.AddToPropertySet(sdkModuleContext, builder, osPropertySet)
-
-		// Add arch (and possibly os) specific sections for each set of arch (and possibly
-		// os) specific properties.
-		//
-		// The archInfos list will be empty if the os contains variants for the common
-		for _, archInfo := range osInfo.archInfos {
-			archTypePropertySet := archPropertySet.AddPropertySet(archOsPrefix + archInfo.archType.Name)
-
-			archInfo.Properties.AddToPropertySet(sdkModuleContext, builder, archTypePropertySet)
-		}
+		osInfo.addToPropertySet(builder, bpModule, targetPropertySet)
 	}
 }
 
