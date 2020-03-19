@@ -254,12 +254,15 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	members, multilib := s.organizeMembers(ctx, memberRefs)
 	for _, member := range members {
 		memberType := member.memberType
-		prebuiltModule := memberType.AddPrebuiltModule(ctx, builder, member)
+
+		memberCtx := &memberContext{ctx, builder}
+
+		prebuiltModule := memberType.AddPrebuiltModule(memberCtx, member)
 		if prebuiltModule == nil {
 			// Fall back to legacy method of building a snapshot
 			memberType.BuildSnapshot(ctx, builder, member)
 		} else {
-			s.createMemberSnapshot(ctx, builder, member, prebuiltModule)
+			s.createMemberSnapshot(memberCtx, member, prebuiltModule)
 		}
 	}
 
@@ -831,7 +834,7 @@ type variantPropertiesFactoryFunc func() android.SdkMemberProperties
 
 // Create a new osTypeSpecificInfo for the specified os type and its properties
 // structures populated with information from the variants.
-func newOsTypeSpecificInfo(osType android.OsType, variantPropertiesFactory variantPropertiesFactoryFunc, osTypeVariants []android.SdkAware) *osTypeSpecificInfo {
+func newOsTypeSpecificInfo(ctx android.SdkMemberContext, osType android.OsType, variantPropertiesFactory variantPropertiesFactoryFunc, osTypeVariants []android.Module) *osTypeSpecificInfo {
 	osInfo := &osTypeSpecificInfo{
 		osType: osType,
 	}
@@ -847,7 +850,7 @@ func newOsTypeSpecificInfo(osType android.OsType, variantPropertiesFactory varia
 	osInfo.Properties = osSpecificVariantPropertiesFactory()
 
 	// Group the variants by arch type.
-	var variantsByArchName = make(map[string][]android.SdkAware)
+	var variantsByArchName = make(map[string][]android.Module)
 	var archTypes []android.ArchType
 	for _, variant := range osTypeVariants {
 		archType := variant.Target().Arch.ArchType
@@ -866,14 +869,14 @@ func newOsTypeSpecificInfo(osType android.OsType, variantPropertiesFactory varia
 
 		// A common arch type only has one variant and its properties should be treated
 		// as common to the os type.
-		osInfo.Properties.PopulateFromVariant(commonVariants[0])
+		osInfo.Properties.PopulateFromVariant(ctx, commonVariants[0])
 	} else {
 		// Create an arch specific info for each supported architecture type.
 		for _, archType := range archTypes {
 			archTypeName := archType.Name
 
 			archVariants := variantsByArchName[archTypeName]
-			archInfo := newArchSpecificInfo(archType, osSpecificVariantPropertiesFactory, archVariants)
+			archInfo := newArchSpecificInfo(ctx, archType, osSpecificVariantPropertiesFactory, archVariants)
 
 			osInfo.archInfos = append(osInfo.archInfos, archInfo)
 		}
@@ -912,10 +915,7 @@ func (osInfo *osTypeSpecificInfo) optimizeProperties(commonValueExtractor *commo
 // Maps the properties related to the os variants through to an appropriate
 // module structure that will produce equivalent set of variants when it is
 // processed in a build.
-func (osInfo *osTypeSpecificInfo) addToPropertySet(
-	builder *snapshotBuilder,
-	bpModule android.BpModule,
-	targetPropertySet android.BpPropertySet) {
+func (osInfo *osTypeSpecificInfo) addToPropertySet(ctx *memberContext, bpModule android.BpModule, targetPropertySet android.BpPropertySet) {
 
 	var osPropertySet android.BpPropertySet
 	var archPropertySet android.BpPropertySet
@@ -965,7 +965,7 @@ func (osInfo *osTypeSpecificInfo) addToPropertySet(
 	}
 
 	// Add the os specific but arch independent properties to the module.
-	osInfo.Properties.AddToPropertySet(builder.ctx, builder, osPropertySet)
+	osInfo.Properties.AddToPropertySet(ctx, osPropertySet)
 
 	// Add arch (and possibly os) specific sections for each set of arch (and possibly
 	// os) specific properties.
@@ -973,7 +973,7 @@ func (osInfo *osTypeSpecificInfo) addToPropertySet(
 	// The archInfos list will be empty if the os contains variants for the common
 	// architecture.
 	for _, archInfo := range osInfo.archInfos {
-		archInfo.addToPropertySet(builder, archPropertySet, archOsPrefix)
+		archInfo.addToPropertySet(ctx, archPropertySet, archOsPrefix)
 	}
 }
 
@@ -987,7 +987,7 @@ type archTypeSpecificInfo struct {
 
 // Create a new archTypeSpecificInfo for the specified arch type and its properties
 // structures populated with information from the variants.
-func newArchSpecificInfo(archType android.ArchType, variantPropertiesFactory variantPropertiesFactoryFunc, archVariants []android.SdkAware) *archTypeSpecificInfo {
+func newArchSpecificInfo(ctx android.SdkMemberContext, archType android.ArchType, variantPropertiesFactory variantPropertiesFactoryFunc, archVariants []android.Module) *archTypeSpecificInfo {
 
 	// Create an arch specific info into which the variant properties can be copied.
 	archInfo := &archTypeSpecificInfo{archType: archType}
@@ -997,7 +997,7 @@ func newArchSpecificInfo(archType android.ArchType, variantPropertiesFactory var
 	archInfo.Properties = variantPropertiesFactory()
 
 	if len(archVariants) == 1 {
-		archInfo.Properties.PopulateFromVariant(archVariants[0])
+		archInfo.Properties.PopulateFromVariant(ctx, archVariants[0])
 	} else {
 		// There is more than one variant for this arch type which must be differentiated
 		// by link type.
@@ -1006,7 +1006,7 @@ func newArchSpecificInfo(archType android.ArchType, variantPropertiesFactory var
 			if linkType == "" {
 				panic(fmt.Errorf("expected one arch specific variant as it is not identified by link type but found %d", len(archVariants)))
 			} else {
-				linkInfo := newLinkSpecificInfo(linkType, variantPropertiesFactory, linkVariant)
+				linkInfo := newLinkSpecificInfo(ctx, linkType, variantPropertiesFactory, linkVariant)
 
 				archInfo.linkInfos = append(archInfo.linkInfos, linkInfo)
 			}
@@ -1052,14 +1052,14 @@ func (archInfo *archTypeSpecificInfo) optimizeProperties(commonValueExtractor *c
 }
 
 // Add the properties for an arch type to a property set.
-func (archInfo *archTypeSpecificInfo) addToPropertySet(builder *snapshotBuilder, archPropertySet android.BpPropertySet, archOsPrefix string) {
+func (archInfo *archTypeSpecificInfo) addToPropertySet(ctx *memberContext, archPropertySet android.BpPropertySet, archOsPrefix string) {
 	archTypeName := archInfo.archType.Name
 	archTypePropertySet := archPropertySet.AddPropertySet(archOsPrefix + archTypeName)
-	archInfo.Properties.AddToPropertySet(builder.ctx, builder, archTypePropertySet)
+	archInfo.Properties.AddToPropertySet(ctx, archTypePropertySet)
 
 	for _, linkInfo := range archInfo.linkInfos {
 		linkPropertySet := archTypePropertySet.AddPropertySet(linkInfo.linkType)
-		linkInfo.Properties.AddToPropertySet(builder.ctx, builder, linkPropertySet)
+		linkInfo.Properties.AddToPropertySet(ctx, linkPropertySet)
 	}
 }
 
@@ -1071,7 +1071,7 @@ type linkTypeSpecificInfo struct {
 
 // Create a new linkTypeSpecificInfo for the specified link type and its properties
 // structures populated with information from the variant.
-func newLinkSpecificInfo(linkType string, variantPropertiesFactory variantPropertiesFactoryFunc, linkVariant android.SdkAware) *linkTypeSpecificInfo {
+func newLinkSpecificInfo(ctx android.SdkMemberContext, linkType string, variantPropertiesFactory variantPropertiesFactoryFunc, linkVariant android.Module) *linkTypeSpecificInfo {
 	linkInfo := &linkTypeSpecificInfo{
 		baseInfo: baseInfo{
 			// Create the properties into which the link type specific properties will be
@@ -1080,16 +1080,29 @@ func newLinkSpecificInfo(linkType string, variantPropertiesFactory variantProper
 		},
 		linkType: linkType,
 	}
-	linkInfo.Properties.PopulateFromVariant(linkVariant)
+	linkInfo.Properties.PopulateFromVariant(ctx, linkVariant)
 	return linkInfo
 }
 
-func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, builder *snapshotBuilder, member *sdkMember, bpModule android.BpModule) {
+type memberContext struct {
+	sdkMemberContext android.ModuleContext
+	builder          *snapshotBuilder
+}
+
+func (m *memberContext) SdkModuleContext() android.ModuleContext {
+	return m.sdkMemberContext
+}
+
+func (m *memberContext) SnapshotBuilder() android.SnapshotBuilder {
+	return m.builder
+}
+
+func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModule android.BpModule) {
 
 	memberType := member.memberType
 
 	// Group the variants by os type.
-	variantsByOsType := make(map[android.OsType][]android.SdkAware)
+	variantsByOsType := make(map[android.OsType][]android.Module)
 	variants := member.Variants()
 	for _, variant := range variants {
 		osType := variant.Target().Os
@@ -1118,7 +1131,7 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 	var osSpecificPropertiesList []android.SdkMemberProperties
 
 	for osType, osTypeVariants := range variantsByOsType {
-		osInfo := newOsTypeSpecificInfo(osType, variantPropertiesFactory, osTypeVariants)
+		osInfo := newOsTypeSpecificInfo(ctx, osType, variantPropertiesFactory, osTypeVariants)
 		osTypeToInfo[osType] = osInfo
 		// Add the os specific properties to a list of os type specific yet architecture
 		// independent properties structs.
@@ -1132,7 +1145,7 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 	commonValueExtractor.extractCommonProperties(commonProperties, osSpecificPropertiesList)
 
 	// Add the common properties to the module.
-	commonProperties.AddToPropertySet(sdkModuleContext, builder, bpModule)
+	commonProperties.AddToPropertySet(ctx, bpModule)
 
 	// Create a target property set into which target specific properties can be
 	// added.
@@ -1145,7 +1158,7 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 			continue
 		}
 
-		osInfo.addToPropertySet(builder, bpModule, targetPropertySet)
+		osInfo.addToPropertySet(ctx, bpModule, targetPropertySet)
 	}
 }
 

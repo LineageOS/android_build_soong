@@ -106,8 +106,8 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 	return false
 }
 
-func (mt *librarySdkMemberType) AddPrebuiltModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) android.BpModule {
-	pbm := builder.AddPrebuiltModule(member, mt.prebuiltModuleType)
+func (mt *librarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	pbm := ctx.SnapshotBuilder().AddPrebuiltModule(member, mt.prebuiltModuleType)
 
 	ccModule := member.Variants()[0].(*Module)
 
@@ -332,7 +332,7 @@ type nativeLibInfoProperties struct {
 	outputFile android.Path
 }
 
-func (p *nativeLibInfoProperties) PopulateFromVariant(variant android.SdkAware) {
+func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	ccModule := variant.(*Module)
 
 	// If the library has some link types then it produces an output binary file, otherwise it
@@ -365,6 +365,6 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(variant android.SdkAware) 
 	p.exportedGeneratedHeaders = ccModule.ExportedGeneratedHeaders()
 }
 
-func (p *nativeLibInfoProperties) AddToPropertySet(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, propertySet android.BpPropertySet) {
-	addPossiblyArchSpecificProperties(sdkModuleContext, builder, p, propertySet)
+func (p *nativeLibInfoProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	addPossiblyArchSpecificProperties(ctx.SdkModuleContext(), ctx.SnapshotBuilder(), p, propertySet)
 }
