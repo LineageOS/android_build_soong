@@ -20,6 +20,7 @@ bootstrap_go_package {
         "soong-ui-logger",
         "soong-ui-status-ninja_frontend",
         "soong-ui-status-build_error_proto",
+        "soong-ui-status-build_progress_proto",
     ],
     srcs: [
         "critical_path.go",
@@ -51,5 +52,14 @@ bootstrap_go_package {
     deps: ["golang-protobuf-proto"],
     srcs: [
         "build_error_proto/build_error.pb.go",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-ui-status-build_progress_proto",
+    pkgPath: "android/soong/ui/status/build_progress_proto",
+    deps: ["golang-protobuf-proto"],
+    srcs: [
+        "build_progress_proto/build_progress.pb.go",
     ],
 }
