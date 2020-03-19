@@ -2414,8 +2414,13 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 			if c, ok := ccDep.(*Module); ok {
 				// Use base module name for snapshots when exporting to Makefile.
-				if c.isSnapshotPrebuilt() && !c.IsVndk() {
+				if c.isSnapshotPrebuilt() {
 					baseName := c.BaseModuleName()
+
+					if c.IsVndk() {
+						return baseName + ".vendor"
+					}
+
 					if vendorSuffixModules[baseName] {
 						return baseName + ".vendor"
 					} else {
