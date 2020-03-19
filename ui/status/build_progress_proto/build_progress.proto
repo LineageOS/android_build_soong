@@ -14,10 +14,10 @@
 
 syntax = "proto2";
 
-package soong_build_completion_status;
-option go_package = "soong_build_completion_status_proto";
+package soong_build_progress;
+option go_package = "soong_build_progress_proto";
 
-message BuildCompletionStatus {
+message BuildProgress {
   // Total number of actions in a build. The total actions will increase
   // and might decrease during the course of a build.
   optional uint64 total_actions = 1;
@@ -32,4 +32,7 @@ message BuildCompletionStatus {
   // Total number of current actions being executed during a course of a
   // build and current_actions + finished_actions <= total_actions.
   optional uint64 current_actions = 3;
+
+  // Total number of actions that reported as a failure.
+  optional uint64 failed_actions = 4;
 }
