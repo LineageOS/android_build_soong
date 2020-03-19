@@ -228,19 +228,15 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 }
 
 func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName string) android.NoticeOutputs {
-	noticeFiles := []android.Path{}
-	for _, f := range a.filesInfo {
-		if f.module != nil {
-			notices := f.module.NoticeFiles()
-			if len(notices) > 0 {
-				noticeFiles = append(noticeFiles, notices...)
-			}
+	var noticeFiles android.Paths
+
+	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
+		if externalDep {
+			return
 		}
-	}
-	// append the notice file specified in the apex module itself
-	if len(a.NoticeFiles()) > 0 {
-		noticeFiles = append(noticeFiles, a.NoticeFiles()...)
-	}
+		notices := to.NoticeFiles()
+		noticeFiles = append(noticeFiles, notices...)
+	})
 
 	if len(noticeFiles) == 0 {
 		return android.NoticeOutputs{}
