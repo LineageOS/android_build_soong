@@ -377,7 +377,9 @@ while [ $(wc -l < "${newDeps}") -gt 0 ]; do
         depth=$(expr ${depth} + 1)
     fi
     ( # recalculate dependencies by combining unique inputs of new deps w. old
+        set +e
         sh -c "${filter}" < "${newDeps}" | cut -d\  -f3- | getDeps
+        set -e
         cat "${oldDeps}"
     ) | sort -u > "${allDeps}"
     # recalculate new dependencies as net additions to old dependencies
@@ -433,7 +435,9 @@ if [ -n "${projects_out}" ] \
   || [ -n "${notices_out}" ]
 then
     readonly allProj="${tmpFiles}/projects"
+    set +e
     egrep -v '^out[/]' "${allDirs}" | getProjects > "${allProj}"
+    set -e
     if ${showProgress}; then
         echo $(wc -l < "${allProj}")" projects" >&2
     fi
@@ -450,7 +454,9 @@ case "${notices_out}" in
   '')        : do nothing;;
   *)
     readonly allNotice="${tmpFiles}/notices"
+    set +e
     egrep '^1' "${allDeps}" | cut -d\  -f3- | egrep -v '^out/' > "${allNotice}"
+    set -e
     cat "${allProj}" | while read proj; do
         for f in LICENSE LICENCE NOTICE license.txt notice.txt; do
             if [ -f "${proj}/${f}" ]; then
