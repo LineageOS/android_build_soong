@@ -178,24 +178,15 @@ func (e *errorProtoLog) FinishAction(result ActionResult, counts Counts) {
 		Artifacts:   result.Outputs,
 		Error:       proto.String(result.Error.Error()),
 	})
-}
 
-func (e *errorProtoLog) Flush() {
-	// Don't create the build error proto file if there is action errors.
-	if len(e.errorProto.ActionErrors) == 0 {
-		return
-	}
-
-	data, err := proto.Marshal(&e.errorProto)
-	if err != nil {
-		e.log.Printf("Failed to marshal build status proto: %v\n", err)
-		return
-	}
-
-	err = ioutil.WriteFile(e.filename, []byte(data), 0644)
+	err := writeToFile(&e.errorProto, e.filename)
 	if err != nil {
 		e.log.Printf("Failed to write file %s: %v\n", e.filename, err)
 	}
+}
+
+func (e *errorProtoLog) Flush() {
+	//Not required.
 }
 
 func (e *errorProtoLog) Message(level MsgLevel, message string) {
