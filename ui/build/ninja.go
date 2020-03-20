@@ -128,6 +128,16 @@ func runNinja(ctx Context, config Config) {
 			"GOMA_USE_LOCAL",
 
 			// RBE client
+			"RBE_compare",
+			"RBE_exec_root",
+			"RBE_exec_strategy",
+			"RBE_invocation_id",
+			"RBE_log_dir",
+			"RBE_platform",
+			"RBE_remote_accept_cache",
+			"RBE_remote_update_cache",
+			"RBE_server_address",
+			// TODO: remove old FLAG_ variables.
 			"FLAG_compare",
 			"FLAG_exec_root",
 			"FLAG_exec_strategy",
