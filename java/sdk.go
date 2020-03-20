@@ -396,7 +396,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		return toModule([]string{"android_module_lib_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
 	case sdkSystemServer:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
-		return toModule([]string{"android_module_lib_stubs_current", "services-stubs"}, "framework-res", sdkFrameworkAidlPath(ctx))
+		return toModule([]string{"android_system_server_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
 	default:
 		panic(fmt.Errorf("invalid sdk %q", sdkVersion.raw))
 	}
