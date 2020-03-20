@@ -2041,18 +2041,33 @@ func (mt *droidStubsSdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *droidStubsSdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	variants := member.Variants()
-	if len(variants) != 1 {
-		sdkModuleContext.ModuleErrorf("sdk contains %d variants of member %q but only one is allowed", len(variants), member.Name())
+func (mt *droidStubsSdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "prebuilt_stubs_sources")
+}
+
+func (mt *droidStubsSdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &droidStubsInfoProperties{}
+}
+
+type droidStubsInfoProperties struct {
+	android.SdkMemberPropertiesBase
+
+	StubsSrcJar android.Path
+}
+
+func (p *droidStubsInfoProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
+	droidstubs := variant.(*Droidstubs)
+	p.StubsSrcJar = droidstubs.stubsSrcJar
+}
+
+func (p *droidStubsInfoProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	if p.StubsSrcJar != nil {
+		builder := ctx.SnapshotBuilder()
+
+		snapshotRelativeDir := filepath.Join("java", ctx.Name()+"_stubs_sources")
+
+		builder.UnzipToSnapshot(p.StubsSrcJar, snapshotRelativeDir)
+
+		propertySet.AddProperty("srcs", []string{snapshotRelativeDir})
 	}
-	variant := variants[0]
-	d, _ := variant.(*Droidstubs)
-	stubsSrcJar := d.stubsSrcJar
-
-	snapshotRelativeDir := filepath.Join("java", d.Name()+"_stubs_sources")
-	builder.UnzipToSnapshot(stubsSrcJar, snapshotRelativeDir)
-
-	pbm := builder.AddPrebuiltModule(member, "prebuilt_stubs_sources")
-	pbm.AddProperty("srcs", []string{snapshotRelativeDir})
 }
