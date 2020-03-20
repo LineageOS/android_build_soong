@@ -222,9 +222,9 @@ func TestClasspath(t *testing.T) {
 		{
 			name:           "system_server_current",
 			properties:     `sdk_version: "system_server_current",`,
-			bootclasspath:  []string{"android_module_lib_stubs_current", "services-stubs", "core-lambda-stubs"},
+			bootclasspath:  []string{"android_system_server_stubs_current", "core-lambda-stubs"},
 			system:         "core-current-stubs-system-modules",
-			java9classpath: []string{"android_module_lib_stubs_current", "services-stubs"},
+			java9classpath: []string{"android_system_server_stubs_current"},
 			aidl:           "-p" + buildDir + "/framework.aidl",
 		},
 	}
