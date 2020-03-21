@@ -133,17 +133,18 @@ func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
 		module := apexModulesMap[key]
 		if m, ok := module.(*apexBundle); ok {
 			fmt.Fprintf(&filecontent,
-				"name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q\\n",
+				"name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q partition=%q\\n",
 				m.Name()+".apex",
 				m.public_key_file.String(),
 				m.private_key_file.String(),
 				m.container_certificate_file.String(),
-				m.container_private_key_file.String())
+				m.container_private_key_file.String(),
+				m.PartitionTag(ctx.DeviceConfig()))
 		} else if m, ok := module.(*Prebuilt); ok {
 			fmt.Fprintf(&filecontent,
-				"name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q\\n",
+				"name=%q public_key=%q private_key=%q container_certificate=%q container_private_key=%q partition=%q\\n",
 				m.InstallFilename(),
-				"PRESIGNED", "PRESIGNED", "PRESIGNED", "PRESIGNED")
+				"PRESIGNED", "PRESIGNED", "PRESIGNED", "PRESIGNED", m.PartitionTag(ctx.DeviceConfig()))
 		}
 	}
 
