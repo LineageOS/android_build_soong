@@ -847,7 +847,7 @@ func (m *Module) getLinkType(name string) (ret linkType, stubs bool) {
 		return javaModule, true
 	case ver.kind == sdkModule:
 		return javaModule, false
-	case name == "services-stubs":
+	case name == "android_system_server_stubs_current":
 		return javaSystemServer, true
 	case ver.kind == sdkSystemServer:
 		return javaSystemServer, false

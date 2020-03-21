@@ -12,6 +12,6 @@ if ! hash aprotoc &>/dev/null; then
   die "could not find aprotoc. ${error_msg}"
 fi
 
-if ! aprotoc --go_out=paths=source_relative:. build_completion.proto; then
+if ! aprotoc --go_out=paths=source_relative:. build_progress.proto; then
   die "build failed. ${error_msg}"
 fi

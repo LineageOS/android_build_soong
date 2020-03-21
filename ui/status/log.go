@@ -20,12 +20,14 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
 
 	"android/soong/ui/logger"
 	"android/soong/ui/status/build_error_proto"
+	"android/soong/ui/status/build_progress_proto"
 )
 
 type verboseLog struct {
@@ -154,6 +156,7 @@ type errorProtoLog struct {
 }
 
 func NewProtoErrorLog(log logger.Logger, filename string) StatusOutput {
+	os.Remove(filename)
 	return &errorProtoLog{
 		errorProto: soong_build_error_proto.BuildError{},
 		filename:   filename,
@@ -175,18 +178,15 @@ func (e *errorProtoLog) FinishAction(result ActionResult, counts Counts) {
 		Artifacts:   result.Outputs,
 		Error:       proto.String(result.Error.Error()),
 	})
-}
 
-func (e *errorProtoLog) Flush() {
-	data, err := proto.Marshal(&e.errorProto)
-	if err != nil {
-		e.log.Printf("Failed to marshal build status proto: %v\n", err)
-		return
-	}
-	err = ioutil.WriteFile(e.filename, []byte(data), 0644)
+	err := writeToFile(&e.errorProto, e.filename)
 	if err != nil {
 		e.log.Printf("Failed to write file %s: %v\n", e.filename, err)
 	}
+}
+
+func (e *errorProtoLog) Flush() {
+	//Not required.
 }
 
 func (e *errorProtoLog) Message(level MsgLevel, message string) {
@@ -197,4 +197,76 @@ func (e *errorProtoLog) Message(level MsgLevel, message string) {
 
 func (e *errorProtoLog) Write(p []byte) (int, error) {
 	return 0, errors.New("not supported")
+}
+
+type buildProgressLog struct {
+	filename      string
+	log           logger.Logger
+	failedActions uint64
+}
+
+func NewBuildProgressLog(log logger.Logger, filename string) StatusOutput {
+	return &buildProgressLog{
+		filename:      filename,
+		log:           log,
+		failedActions: 0,
+	}
+}
+
+func (b *buildProgressLog) StartAction(action *Action, counts Counts) {
+	b.updateCounters(counts)
+}
+
+func (b *buildProgressLog) FinishAction(result ActionResult, counts Counts) {
+	if result.Error != nil {
+		b.failedActions++
+	}
+	b.updateCounters(counts)
+}
+
+func (b *buildProgressLog) Flush() {
+	//Not required.
+}
+
+func (b *buildProgressLog) Message(level MsgLevel, message string) {
+	// Not required.
+}
+
+func (b *buildProgressLog) Write(p []byte) (int, error) {
+	return 0, errors.New("not supported")
+}
+
+func (b *buildProgressLog) updateCounters(counts Counts) {
+	err := writeToFile(
+		&soong_build_progress_proto.BuildProgress{
+			CurrentActions:  proto.Uint64(uint64(counts.RunningActions)),
+			FinishedActions: proto.Uint64(uint64(counts.FinishedActions)),
+			TotalActions:    proto.Uint64(uint64(counts.TotalActions)),
+			FailedActions:   proto.Uint64(b.failedActions),
+		},
+		b.filename,
+	)
+	if err != nil {
+		b.log.Printf("Failed to write file %s: %v\n", b.filename, err)
+	}
+}
+
+func writeToFile(pb proto.Message, outputPath string) (err error) {
+	data, err := proto.Marshal(pb)
+	if err != nil {
+		return err
+	}
+
+	tempPath := outputPath + ".tmp"
+	err = ioutil.WriteFile(tempPath, []byte(data), 0644)
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(tempPath, outputPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
