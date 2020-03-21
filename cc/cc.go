@@ -622,10 +622,6 @@ func (c *Module) SetBuildStubs() {
 			c.Properties.PreventInstall = true
 			return
 		}
-		if _, ok := c.linker.(*llndkStubDecorator); ok {
-			c.Properties.HideFromMake = true
-			return
-		}
 	}
 	panic(fmt.Errorf("SetBuildStubs called on non-library module: %q", c.BaseModuleName()))
 }
@@ -645,10 +641,6 @@ func (c *Module) SetStubsVersions(version string) {
 			library.MutatedProperties.StubsVersion = version
 			return
 		}
-		if llndk, ok := c.linker.(*llndkStubDecorator); ok {
-			llndk.libraryDecorator.MutatedProperties.StubsVersion = version
-			return
-		}
 	}
 	panic(fmt.Errorf("SetStubsVersions called on non-library module: %q", c.BaseModuleName()))
 }
@@ -657,9 +649,6 @@ func (c *Module) StubsVersion() string {
 	if c.linker != nil {
 		if library, ok := c.linker.(*libraryDecorator); ok {
 			return library.MutatedProperties.StubsVersion
-		}
-		if llndk, ok := c.linker.(*llndkStubDecorator); ok {
-			return llndk.libraryDecorator.MutatedProperties.StubsVersion
 		}
 	}
 	panic(fmt.Errorf("StubsVersion called on non-library module: %q", c.BaseModuleName()))
@@ -1862,7 +1851,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	addSharedLibDependencies := func(depTag DependencyTag, name string, version string) {
 		var variations []blueprint.Variation
 		variations = append(variations, blueprint.Variation{Mutator: "link", Variation: "shared"})
-		versionVariantAvail := !c.InRecovery() && !c.InRamdisk()
+		versionVariantAvail := !ctx.useVndk() && !c.InRecovery() && !c.InRamdisk()
 		if version != "" && versionVariantAvail {
 			// Version is explicitly specified. i.e. libFoo#30
 			variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
@@ -2197,17 +2186,13 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		if depTag == android.ProtoPluginDepTag {
 			return
 		}
-		if depTag == llndkImplDep {
-			return
-		}
 
 		if dep.Target().Os != ctx.Os() {
 			ctx.ModuleErrorf("OS mismatch between %q and %q", ctx.ModuleName(), depName)
 			return
 		}
 		if dep.Target().Arch.ArchType != ctx.Arch().ArchType {
-			ctx.ModuleErrorf("Arch mismatch between %q(%v) and %q(%v)",
-				ctx.ModuleName(), ctx.Arch().ArchType, depName, dep.Target().Arch.ArchType)
+			ctx.ModuleErrorf("Arch mismatch between %q and %q", ctx.ModuleName(), depName)
 			return
 		}
 
@@ -2300,27 +2285,6 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 				if !useThisDep {
 					return // stop processing this dep
-				}
-			}
-			if c.UseVndk() {
-				if m, ok := ccDep.(*Module); ok && m.IsStubs() { // LLNDK
-					// by default, use current version of LLNDK
-					versionToUse := ""
-					versions := stubsVersionsFor(ctx.Config())[depName]
-					if c.ApexName() != "" && len(versions) > 0 {
-						// if this is for use_vendor apex && dep has stubsVersions
-						// apply the same rule of apex sdk enforcement to choose right version
-						var err error
-						useLatest := c.ShouldSupportAndroid10() && !ctx.Config().UnbundledBuild()
-						versionToUse, err = c.ChooseSdkVersion(versions, useLatest)
-						if err != nil {
-							ctx.OtherModuleErrorf(dep, err.Error())
-							return
-						}
-					}
-					if versionToUse != ccDep.StubsVersion() {
-						return
-					}
 				}
 			}
 
