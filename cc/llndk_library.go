@@ -19,13 +19,7 @@ import (
 	"strings"
 
 	"android/soong/android"
-
-	"github.com/google/blueprint"
 )
-
-var llndkImplDep = struct {
-	blueprint.DependencyTag
-}{}
 
 var (
 	llndkLibrarySuffix = ".llndk"
@@ -86,9 +80,6 @@ func (stub *llndkStubDecorator) compile(ctx ModuleContext, flags Flags, deps Pat
 	if !inList(vndkVer, ctx.Config().PlatformVersionCombinedCodenames()) || vndkVer == "" {
 		// For non-enforcing devices, vndkVer is empty. Use "current" in that case, too.
 		vndkVer = "current"
-	}
-	if stub.stubsVersion() != "" {
-		vndkVer = stub.stubsVersion()
 	}
 	objs, versionScript := compileStubLibrary(ctx, flags, String(stub.Properties.Symbol_file), vndkVer, "--llndk")
 	stub.versionScriptPath = versionScript
@@ -161,10 +152,6 @@ func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDe
 	if Bool(stub.Properties.Export_headers_as_system) {
 		stub.exportIncludesAsSystem(ctx)
 		stub.libraryDecorator.flagExporter.Properties.Export_include_dirs = []string{}
-	}
-
-	if stub.stubsVersion() != "" {
-		stub.reexportFlags("-D" + versioningMacroName(ctx.baseModuleName()) + "=" + stub.stubsVersion())
 	}
 
 	return stub.libraryDecorator.link(ctx, flags, deps, objs)
