@@ -297,9 +297,6 @@ func processLlndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 	if !Bool(lib.Properties.Vendor_available) {
 		vndkPrivateLibraries(mctx.Config())[name] = filename
 	}
-	if mctx.OtherModuleExists(name) {
-		mctx.AddFarVariationDependencies(m.Target().Variations(), llndkImplDep, name)
-	}
 }
 
 func processVndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
