@@ -2398,6 +2398,34 @@ func checkEquals(t *testing.T, message string, expected, actual interface{}) {
 	}
 }
 
+func TestLlndkLibrary(t *testing.T) {
+	ctx := testCc(t, `
+	cc_library {
+		name: "libllndk",
+		stubs: { versions: ["1", "2"] },
+	}
+	llndk_library {
+		name: "libllndk",
+	}
+	`)
+	actual := ctx.ModuleVariantsForTests("libllndk.llndk")
+	expected := []string{
+		"android_vendor.VER_arm64_armv8-a_shared",
+		"android_vendor.VER_arm64_armv8-a_shared_1",
+		"android_vendor.VER_arm64_armv8-a_shared_2",
+		"android_vendor.VER_arm_armv7-a-neon_shared",
+		"android_vendor.VER_arm_armv7-a-neon_shared_1",
+		"android_vendor.VER_arm_armv7-a-neon_shared_2",
+	}
+	checkEquals(t, "variants for llndk stubs", expected, actual)
+
+	params := ctx.ModuleForTests("libllndk.llndk", "android_vendor.VER_arm_armv7-a-neon_shared").Description("generate stub")
+	checkEquals(t, "use VNDK version for default stubs", "current", params.Args["apiLevel"])
+
+	params = ctx.ModuleForTests("libllndk.llndk", "android_vendor.VER_arm_armv7-a-neon_shared_1").Description("generate stub")
+	checkEquals(t, "override apiLevel for versioned stubs", "1", params.Args["apiLevel"])
+}
+
 func TestLlndkHeaders(t *testing.T) {
 	ctx := testCc(t, `
 	llndk_headers {
