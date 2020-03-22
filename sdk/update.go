@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"android/soong/apex"
+	"android/soong/cc"
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -143,8 +144,7 @@ func (s *sdk) organizeMembers(ctx android.ModuleContext, memberRefs []sdkMemberR
 	byType := make(map[android.SdkMemberType][]*sdkMember)
 	byName := make(map[string]*sdkMember)
 
-	lib32 := false // True if any of the members have 32 bit version.
-	lib64 := false // True if any of the members have 64 bit version.
+	multilib := multilibNone
 
 	for _, memberRef := range memberRefs {
 		memberType := memberRef.memberType
@@ -158,12 +158,7 @@ func (s *sdk) organizeMembers(ctx android.ModuleContext, memberRefs []sdkMemberR
 			byType[memberType] = append(byType[memberType], member)
 		}
 
-		multilib := variant.Target().Arch.ArchType.Multilib
-		if multilib == "lib32" {
-			lib32 = true
-		} else if multilib == "lib64" {
-			lib64 = true
-		}
+		multilib = multilib.addArchType(variant.Target().Arch.ArchType)
 
 		// Only append new variants to the list. This is needed because a member can be both
 		// exported by the sdk and also be a transitive sdk member.
@@ -176,17 +171,7 @@ func (s *sdk) organizeMembers(ctx android.ModuleContext, memberRefs []sdkMemberR
 		members = append(members, membersOfType...)
 	}
 
-	// Compute the setting of multilib.
-	var multilib string
-	if lib32 && lib64 {
-		multilib = "both"
-	} else if lib32 {
-		multilib = "32"
-	} else if lib64 {
-		multilib = "64"
-	}
-
-	return members, multilib
+	return members, multilib.String()
 }
 
 func appendUniqueVariants(variants []android.SdkAware, newVariant android.SdkAware) []android.SdkAware {
@@ -786,6 +771,47 @@ func (m *sdkMember) Variants() []android.SdkAware {
 	return m.variants
 }
 
+// Track usages of multilib variants.
+type multilibUsage int
+
+const (
+	multilibNone multilibUsage = 0
+	multilib32   multilibUsage = 1
+	multilib64   multilibUsage = 2
+	multilibBoth               = multilib32 | multilib64
+)
+
+// Add the multilib that is used in the arch type.
+func (m multilibUsage) addArchType(archType android.ArchType) multilibUsage {
+	multilib := archType.Multilib
+	switch multilib {
+	case "":
+		return m
+	case "lib32":
+		return m | multilib32
+	case "lib64":
+		return m | multilib64
+	default:
+		panic(fmt.Errorf("Unknown Multilib field in ArchType, expected 'lib32' or 'lib64', found %q", multilib))
+	}
+}
+
+func (m multilibUsage) String() string {
+	switch m {
+	case multilibNone:
+		return ""
+	case multilib32:
+		return "32"
+	case multilib64:
+		return "64"
+	case multilibBoth:
+		return "both"
+	default:
+		panic(fmt.Errorf("Unknown multilib value, found %b, expected one of %b, %b, %b or %b",
+			m, multilibNone, multilib32, multilib64, multilibBoth))
+	}
+}
+
 type baseInfo struct {
 	Properties android.SdkMemberProperties
 }
@@ -864,27 +890,21 @@ func (osInfo *osTypeSpecificInfo) optimizeProperties(commonValueExtractor *commo
 		return
 	}
 
+	multilib := multilibNone
 	var archPropertiesList []android.SdkMemberProperties
 	for _, archInfo := range osInfo.archInfos {
+		multilib = multilib.addArchType(archInfo.archType)
+
+		// Optimize the arch properties first.
+		archInfo.optimizeProperties(commonValueExtractor)
+
 		archPropertiesList = append(archPropertiesList, archInfo.Properties)
 	}
 
 	commonValueExtractor.extractCommonProperties(osInfo.Properties, archPropertiesList)
 
 	// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
-	var multilib string
-	archVariantCount := len(osInfo.archInfos)
-	if archVariantCount == 2 {
-		multilib = "both"
-	} else if archVariantCount == 1 {
-		if strings.HasSuffix(osInfo.archInfos[0].archType.Name, "64") {
-			multilib = "64"
-		} else {
-			multilib = "32"
-		}
-	}
-
-	osInfo.Properties.Base().Compile_multilib = multilib
+	osInfo.Properties.Base().Compile_multilib = multilib.String()
 }
 
 // Add the properties for an os to a property set.
@@ -961,15 +981,13 @@ type archTypeSpecificInfo struct {
 	baseInfo
 
 	archType android.ArchType
+
+	linkInfos []*linkTypeSpecificInfo
 }
 
 // Create a new archTypeSpecificInfo for the specified arch type and its properties
 // structures populated with information from the variants.
 func newArchSpecificInfo(archType android.ArchType, variantPropertiesFactory variantPropertiesFactoryFunc, archVariants []android.SdkAware) *archTypeSpecificInfo {
-
-	if len(archVariants) != 1 {
-		panic(fmt.Errorf("expected one arch specific variant but found %d", len(archVariants)))
-	}
 
 	// Create an arch specific info into which the variant properties can be copied.
 	archInfo := &archTypeSpecificInfo{archType: archType}
@@ -977,9 +995,60 @@ func newArchSpecificInfo(archType android.ArchType, variantPropertiesFactory var
 	// Create the properties into which the arch type specific properties will be
 	// added.
 	archInfo.Properties = variantPropertiesFactory()
-	archInfo.Properties.PopulateFromVariant(archVariants[0])
+
+	if len(archVariants) == 1 {
+		archInfo.Properties.PopulateFromVariant(archVariants[0])
+	} else {
+		// There is more than one variant for this arch type which must be differentiated
+		// by link type.
+		for _, linkVariant := range archVariants {
+			linkType := getLinkType(linkVariant)
+			if linkType == "" {
+				panic(fmt.Errorf("expected one arch specific variant as it is not identified by link type but found %d", len(archVariants)))
+			} else {
+				linkInfo := newLinkSpecificInfo(linkType, variantPropertiesFactory, linkVariant)
+
+				archInfo.linkInfos = append(archInfo.linkInfos, linkInfo)
+			}
+		}
+	}
 
 	return archInfo
+}
+
+// Get the link type of the variant
+//
+// If the variant is not differentiated by link type then it returns "",
+// otherwise it returns one of "static" or "shared".
+func getLinkType(variant android.Module) string {
+	linkType := ""
+	if linkable, ok := variant.(cc.LinkableInterface); ok {
+		if linkable.Shared() && linkable.Static() {
+			panic(fmt.Errorf("expected variant %q to be either static or shared but was both", variant.String()))
+		} else if linkable.Shared() {
+			linkType = "shared"
+		} else if linkable.Static() {
+			linkType = "static"
+		} else {
+			panic(fmt.Errorf("expected variant %q to be either static or shared but was neither", variant.String()))
+		}
+	}
+	return linkType
+}
+
+// Optimize the properties by extracting common properties from link type specific
+// properties into arch type specific properties.
+func (archInfo *archTypeSpecificInfo) optimizeProperties(commonValueExtractor *commonValueExtractor) {
+	if len(archInfo.linkInfos) == 0 {
+		return
+	}
+
+	var propertiesList []android.SdkMemberProperties
+	for _, linkInfo := range archInfo.linkInfos {
+		propertiesList = append(propertiesList, linkInfo.Properties)
+	}
+
+	commonValueExtractor.extractCommonProperties(archInfo.Properties, propertiesList)
 }
 
 // Add the properties for an arch type to a property set.
@@ -987,6 +1056,32 @@ func (archInfo *archTypeSpecificInfo) addToPropertySet(builder *snapshotBuilder,
 	archTypeName := archInfo.archType.Name
 	archTypePropertySet := archPropertySet.AddPropertySet(archOsPrefix + archTypeName)
 	archInfo.Properties.AddToPropertySet(builder.ctx, builder, archTypePropertySet)
+
+	for _, linkInfo := range archInfo.linkInfos {
+		linkPropertySet := archTypePropertySet.AddPropertySet(linkInfo.linkType)
+		linkInfo.Properties.AddToPropertySet(builder.ctx, builder, linkPropertySet)
+	}
+}
+
+type linkTypeSpecificInfo struct {
+	baseInfo
+
+	linkType string
+}
+
+// Create a new linkTypeSpecificInfo for the specified link type and its properties
+// structures populated with information from the variant.
+func newLinkSpecificInfo(linkType string, variantPropertiesFactory variantPropertiesFactoryFunc, linkVariant android.SdkAware) *linkTypeSpecificInfo {
+	linkInfo := &linkTypeSpecificInfo{
+		baseInfo: baseInfo{
+			// Create the properties into which the link type specific properties will be
+			// added.
+			Properties: variantPropertiesFactory(),
+		},
+		linkType: linkType,
+	}
+	linkInfo.Properties.PopulateFromVariant(linkVariant)
+	return linkInfo
 }
 
 func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, builder *snapshotBuilder, member *sdkMember, bpModule android.BpModule) {
