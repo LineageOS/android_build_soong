@@ -107,9 +107,10 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 
 // Collect all the members.
 //
-// Returns a list containing type (extracted from the dependency tag) and the variant.
-func (s *sdk) collectMembers(ctx android.ModuleContext) []sdkMemberRef {
-	var memberRefs []sdkMemberRef
+// Returns a list containing type (extracted from the dependency tag) and the variant
+// plus the multilib usages.
+func (s *sdk) collectMembers(ctx android.ModuleContext) {
+	s.multilibUsages = multilibNone
 	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
 		if memberTag, ok := tag.(android.SdkMemberTypeDependencyTag); ok {
@@ -120,7 +121,10 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) []sdkMemberRef {
 				ctx.ModuleErrorf("module %q is not valid in property %s", ctx.OtherModuleName(child), memberType.SdkPropertyName())
 			}
 
-			memberRefs = append(memberRefs, sdkMemberRef{memberType, child.(android.SdkAware)})
+			// Keep track of which multilib variants are used by the sdk.
+			s.multilibUsages = s.multilibUsages.addArchType(child.Target().Arch.ArchType)
+
+			s.memberRefs = append(s.memberRefs, sdkMemberRef{memberType, child.(android.SdkAware)})
 
 			// If the member type supports transitive sdk members then recurse down into
 			// its dependencies, otherwise exit traversal.
@@ -129,8 +133,6 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) []sdkMemberRef {
 
 		return false
 	})
-
-	return memberRefs
 }
 
 // Organize the members.
@@ -140,11 +142,9 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) []sdkMemberRef {
 // The names are in the order in which the dependencies were added.
 //
 // Returns the members as well as the multilib setting to use.
-func (s *sdk) organizeMembers(ctx android.ModuleContext, memberRefs []sdkMemberRef) ([]*sdkMember, string) {
+func (s *sdk) organizeMembers(ctx android.ModuleContext, memberRefs []sdkMemberRef) []*sdkMember {
 	byType := make(map[android.SdkMemberType][]*sdkMember)
 	byName := make(map[string]*sdkMember)
-
-	multilib := multilibNone
 
 	for _, memberRef := range memberRefs {
 		memberType := memberRef.memberType
@@ -158,8 +158,6 @@ func (s *sdk) organizeMembers(ctx android.ModuleContext, memberRefs []sdkMemberR
 			byType[memberType] = append(byType[memberType], member)
 		}
 
-		multilib = multilib.addArchType(variant.Target().Arch.ArchType)
-
 		// Only append new variants to the list. This is needed because a member can be both
 		// exported by the sdk and also be a transitive sdk member.
 		member.variants = appendUniqueVariants(member.variants, variant)
@@ -171,7 +169,7 @@ func (s *sdk) organizeMembers(ctx android.ModuleContext, memberRefs []sdkMemberR
 		members = append(members, membersOfType...)
 	}
 
-	return members, multilib.String()
+	return members
 }
 
 func appendUniqueVariants(variants []android.SdkAware, newVariant android.SdkAware) []android.SdkAware {
@@ -251,7 +249,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	}
 	s.builderForTests = builder
 
-	members, multilib := s.organizeMembers(ctx, memberRefs)
+	members := s.organizeMembers(ctx, memberRefs)
 	for _, member := range members {
 		memberType := member.memberType
 
@@ -303,15 +301,6 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 
 	addHostDeviceSupportedProperties(s.ModuleBase.DeviceSupported(), s.ModuleBase.HostSupported(), snapshotModule)
 
-	// Compile_multilib defaults to both and must always be set to both on the
-	// device and so only needs to be set when targeted at the host and is neither
-	// unspecified or both.
-	targetPropertySet := snapshotModule.AddPropertySet("target")
-	if s.HostSupported() && multilib != "" && multilib != "both" {
-		hostSet := targetPropertySet.AddPropertySet("host")
-		hostSet.AddProperty("compile_multilib", multilib)
-	}
-
 	var dynamicMemberPropertiesList []interface{}
 	osTypeToMemberProperties := make(map[android.OsType]*sdk)
 	for _, sdkVariant := range sdkVariants {
@@ -329,9 +318,20 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	s.addMemberPropertiesToPropertySet(builder, snapshotModule, commonDynamicMemberProperties)
 
 	// Iterate over the os types in a fixed order.
+	targetPropertySet := snapshotModule.AddPropertySet("target")
 	for _, osType := range s.getPossibleOsTypes() {
 		if sdkVariant, ok := osTypeToMemberProperties[osType]; ok {
 			osPropertySet := targetPropertySet.AddPropertySet(sdkVariant.Target().Os.Name)
+
+			// Compile_multilib defaults to both and must always be set to both on the
+			// device and so only needs to be set when targeted at the host and is neither
+			// unspecified or both.
+			multilib := sdkVariant.multilibUsages
+			if (osType.Class == android.Host || osType.Class == android.HostCross) &&
+				multilib != multilibNone && multilib != multilibBoth {
+				osPropertySet.AddProperty("compile_multilib", multilib.String())
+			}
+
 			s.addMemberPropertiesToPropertySet(builder, osPropertySet, sdkVariant.dynamicMemberTypeListProperties)
 		}
 	}
