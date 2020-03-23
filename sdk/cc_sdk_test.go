@@ -553,6 +553,11 @@ module_exports_snapshot {
     device_supported: false,
     host_supported: true,
     native_binaries: ["myexports_mynativebinary@current"],
+    target: {
+        windows: {
+            compile_multilib: "64",
+        },
+    },
 }
 `),
 		checkAllCopyRules(`
@@ -1013,6 +1018,11 @@ sdk_snapshot {
     device_supported: false,
     host_supported: true,
     native_shared_libs: ["mysdk_mynativelib@current"],
+    target: {
+        windows: {
+            compile_multilib: "64",
+        },
+    },
 }
 `),
 		checkAllCopyRules(`
@@ -1358,7 +1368,7 @@ module_exports_snapshot {
     host_supported: true,
     native_static_libs: ["myexports_mynativelib@current"],
     target: {
-        host: {
+        linux_glibc: {
             compile_multilib: "64",
         },
     },
