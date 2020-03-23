@@ -1862,8 +1862,8 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *librarySdkMemberType) AddPrebuiltModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) android.BpModule {
-	return builder.AddPrebuiltModule(member, "java_import")
+func (mt *librarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "java_import")
 }
 
 func (mt *librarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
@@ -1879,15 +1879,18 @@ type librarySdkMemberProperties struct {
 	jarToExport android.Path
 }
 
-func (p *librarySdkMemberProperties) PopulateFromVariant(variant android.SdkAware) {
+func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	j := variant.(*Library)
 
 	p.library = j
 	p.jarToExport = p.memberType.jarToExportGetter(j)
 }
 
-func (p *librarySdkMemberProperties) AddToPropertySet(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, propertySet android.BpPropertySet) {
+func (p *librarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
 	if p.jarToExport != nil {
+		sdkModuleContext := ctx.SdkModuleContext()
+		builder := ctx.SnapshotBuilder()
+
 		exportedJar := p.jarToExport
 		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), p.library.Name())
 		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
@@ -2066,8 +2069,8 @@ func (mt *testSdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *testSdkMemberType) AddPrebuiltModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) android.BpModule {
-	return builder.AddPrebuiltModule(member, "java_test_import")
+func (mt *testSdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "java_test_import")
 }
 
 func (mt *testSdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
@@ -2081,7 +2084,7 @@ type testSdkMemberProperties struct {
 	jarToExport android.Path
 }
 
-func (p *testSdkMemberProperties) PopulateFromVariant(variant android.SdkAware) {
+func (p *testSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	test := variant.(*Test)
 
 	implementationJars := test.ImplementationJars()
@@ -2093,8 +2096,10 @@ func (p *testSdkMemberProperties) PopulateFromVariant(variant android.SdkAware) 
 	p.jarToExport = implementationJars[0]
 }
 
-func (p *testSdkMemberProperties) AddToPropertySet(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, propertySet android.BpPropertySet) {
+func (p *testSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
 	if p.jarToExport != nil {
+		builder := ctx.SnapshotBuilder()
+
 		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), p.test.Name())
 		builder.CopyToSnapshot(p.jarToExport, snapshotRelativeJavaLibPath)
 
