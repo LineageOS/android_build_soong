@@ -255,7 +255,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	for _, member := range members {
 		memberType := member.memberType
 
-		memberCtx := &memberContext{ctx, builder}
+		memberCtx := &memberContext{ctx, builder, memberType, member.name}
 
 		prebuiltModule := memberType.AddPrebuiltModule(memberCtx, member)
 		if prebuiltModule == nil {
@@ -1087,6 +1087,8 @@ func newLinkSpecificInfo(ctx android.SdkMemberContext, linkType string, variantP
 type memberContext struct {
 	sdkMemberContext android.ModuleContext
 	builder          *snapshotBuilder
+	memberType       android.SdkMemberType
+	name             string
 }
 
 func (m *memberContext) SdkModuleContext() android.ModuleContext {
@@ -1095,6 +1097,14 @@ func (m *memberContext) SdkModuleContext() android.ModuleContext {
 
 func (m *memberContext) SnapshotBuilder() android.SnapshotBuilder {
 	return m.builder
+}
+
+func (m *memberContext) MemberType() android.SdkMemberType {
+	return m.memberType
+}
+
+func (m *memberContext) Name() string {
+	return m.name
 }
 
 func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModule android.BpModule) {
