@@ -23,14 +23,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/dexpreopt"
 	"android/soong/java/config"
 	"android/soong/tradefed"
 )
@@ -60,8 +58,6 @@ func init() {
 			PropertyName: "java_tests",
 		},
 	})
-
-	android.PostDepsMutators(RegisterPostDepsMutators)
 }
 
 func RegisterJavaBuildComponents(ctx android.RegistrationContext) {
@@ -88,44 +84,6 @@ func RegisterJavaBuildComponents(ctx android.RegistrationContext) {
 
 	ctx.RegisterSingletonType("logtags", LogtagsSingleton)
 	ctx.RegisterSingletonType("kythe_java_extract", kytheExtractJavaFactory)
-}
-
-func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
-	ctx.BottomUp("ordered_system_server_jars", systemServerJarsDepsMutator)
-}
-
-var (
-	dexpreoptedSystemServerJarsKey  = android.NewOnceKey("dexpreoptedSystemServerJars")
-	dexpreoptedSystemServerJarsLock sync.Mutex
-)
-
-func DexpreoptedSystemServerJars(config android.Config) *[]string {
-	return config.Once(dexpreoptedSystemServerJarsKey, func() interface{} {
-		return &[]string{}
-	}).(*[]string)
-}
-
-// A PostDepsMutator pass that enforces total order on non-updatable system server jars. A total
-// order is neededed because such jars must be dexpreopted together (each jar on the list must have
-// all preceding jars in its class loader context). The total order must be compatible with the
-// partial order imposed by genuine dependencies between system server jars (which is not always
-// respected by the PRODUCT_SYSTEM_SERVER_JARS variable).
-//
-// An earlier mutator pass creates genuine dependencies, and this pass traverses the jars in that
-// order (which is partial and non-deterministic). This pass adds additional dependencies between
-// jars, making the order total and deterministic. It also constructs a global ordered list.
-func systemServerJarsDepsMutator(ctx android.BottomUpMutatorContext) {
-	jars := dexpreopt.NonUpdatableSystemServerJars(ctx, dexpreopt.GetGlobalConfig(ctx))
-	name := ctx.ModuleName()
-	if android.InList(name, jars) {
-		dexpreoptedSystemServerJarsLock.Lock()
-		defer dexpreoptedSystemServerJarsLock.Unlock()
-		jars := DexpreoptedSystemServerJars(ctx.Config())
-		for _, dep := range *jars {
-			ctx.AddDependency(ctx.Module(), dexpreopt.SystemServerDepTag, dep)
-		}
-		*jars = append(*jars, name)
-	}
 }
 
 func (j *Module) checkSdkVersion(ctx android.ModuleContext) {
@@ -710,11 +668,6 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		}
 	} else if j.shouldInstrumentStatic(ctx) {
 		ctx.AddVariationDependencies(nil, staticLibTag, "jacocoagent")
-	}
-
-	// services depend on com.android.location.provider, but dependency in not registered in a Blueprint file
-	if ctx.ModuleName() == "services" {
-		ctx.AddDependency(ctx.Module(), dexpreopt.SystemServerForcedDepTag, "com.android.location.provider")
 	}
 }
 
@@ -1909,37 +1862,43 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *librarySdkMemberType) AddPrebuiltModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) android.BpModule {
-	return builder.AddPrebuiltModule(member, "java_import")
+func (mt *librarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "java_import")
 }
 
 func (mt *librarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
-	return &librarySdkMemberProperties{memberType: mt}
+	return &librarySdkMemberProperties{}
 }
 
 type librarySdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
-	memberType *librarySdkMemberType
-
-	library     *Library
-	jarToExport android.Path
+	JarToExport     android.Path
+	AidlIncludeDirs android.Paths
 }
 
-func (p *librarySdkMemberProperties) PopulateFromVariant(variant android.SdkAware) {
+func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	j := variant.(*Library)
 
-	p.library = j
-	p.jarToExport = p.memberType.jarToExportGetter(j)
+	p.JarToExport = ctx.MemberType().(*librarySdkMemberType).jarToExportGetter(j)
+	p.AidlIncludeDirs = j.AidlIncludeDirs()
 }
 
-func (p *librarySdkMemberProperties) AddToPropertySet(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, propertySet android.BpPropertySet) {
-	if p.jarToExport != nil {
-		exportedJar := p.jarToExport
-		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), p.library.Name())
+func (p *librarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	builder := ctx.SnapshotBuilder()
+
+	exportedJar := p.JarToExport
+	if exportedJar != nil {
+		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), ctx.Name())
 		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
 
-		for _, dir := range p.library.AidlIncludeDirs() {
+		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+	}
+
+	aidlIncludeDirs := p.AidlIncludeDirs
+	if len(aidlIncludeDirs) != 0 {
+		sdkModuleContext := ctx.SdkModuleContext()
+		for _, dir := range aidlIncludeDirs {
 			// TODO(jiyong): copy parcelable declarations only
 			aidlFiles, _ := sdkModuleContext.GlobWithDeps(dir.String()+"/**/*.aidl", nil)
 			for _, file := range aidlFiles {
@@ -1947,7 +1906,7 @@ func (p *librarySdkMemberProperties) AddToPropertySet(sdkModuleContext android.M
 			}
 		}
 
-		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+		// TODO(b/151933053) - add aidl include dirs property
 	}
 }
 
@@ -2113,8 +2072,8 @@ func (mt *testSdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *testSdkMemberType) AddPrebuiltModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) android.BpModule {
-	return builder.AddPrebuiltModule(member, "java_test_import")
+func (mt *testSdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "java_test_import")
 }
 
 func (mt *testSdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
@@ -2124,11 +2083,11 @@ func (mt *testSdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberPr
 type testSdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
-	test        *Test
-	jarToExport android.Path
+	JarToExport android.Path
+	TestConfig  android.Path
 }
 
-func (p *testSdkMemberProperties) PopulateFromVariant(variant android.SdkAware) {
+func (p *testSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	test := variant.(*Test)
 
 	implementationJars := test.ImplementationJars()
@@ -2136,19 +2095,25 @@ func (p *testSdkMemberProperties) PopulateFromVariant(variant android.SdkAware) 
 		panic(fmt.Errorf("there must be only one implementation jar from %q", test.Name()))
 	}
 
-	p.test = test
-	p.jarToExport = implementationJars[0]
+	p.JarToExport = implementationJars[0]
+	p.TestConfig = test.testConfig
 }
 
-func (p *testSdkMemberProperties) AddToPropertySet(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, propertySet android.BpPropertySet) {
-	if p.jarToExport != nil {
-		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), p.test.Name())
-		builder.CopyToSnapshot(p.jarToExport, snapshotRelativeJavaLibPath)
+func (p *testSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	builder := ctx.SnapshotBuilder()
 
-		snapshotRelativeTestConfigPath := sdkSnapshotFilePathForMember(p.OsPrefix(), p.test.Name(), testConfigSuffix)
-		builder.CopyToSnapshot(p.test.testConfig, snapshotRelativeTestConfigPath)
+	exportedJar := p.JarToExport
+	if exportedJar != nil {
+		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), ctx.Name())
+		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
 
 		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+	}
+
+	testConfig := p.TestConfig
+	if testConfig != nil {
+		snapshotRelativeTestConfigPath := sdkSnapshotFilePathForMember(p.OsPrefix(), ctx.Name(), testConfigSuffix)
+		builder.CopyToSnapshot(testConfig, snapshotRelativeTestConfigPath)
 		propertySet.AddProperty("test_config", snapshotRelativeTestConfigPath)
 	}
 }
