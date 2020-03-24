@@ -1491,3 +1491,27 @@ func checkBootClasspathForSystemModule(t *testing.T, ctx *android.TestContext, m
 		t.Errorf("bootclasspath of %q must start with --system and end with %q, but was %#v.", moduleName, expectedSuffix, bootClasspath)
 	}
 }
+
+func TestAidlExportIncludeDirsFromImports(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["aidl/foo/IFoo.aidl"],
+			libs: ["bar"],
+		}
+
+		java_import {
+			name: "bar",
+			jars: ["a.jar"],
+			aidl: {
+				export_include_dirs: ["aidl/bar"],
+			},
+		}
+	`)
+
+	aidlCommand := ctx.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
+	expectedAidlFlag := "-Iaidl/bar"
+	if !strings.Contains(aidlCommand, expectedAidlFlag) {
+		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
+	}
+}
