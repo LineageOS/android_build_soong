@@ -378,7 +378,7 @@ type linker interface {
 
 type specifiedDeps struct {
 	sharedLibs       []string
-	systemSharedLibs []string
+	systemSharedLibs []string // Note nil and [] are semantically distinct.
 }
 
 type installer interface {
