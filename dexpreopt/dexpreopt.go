@@ -589,7 +589,7 @@ func NonUpdatableSystemServerJars(ctx android.PathContext, global *GlobalConfig)
 // at that time (Soong processes the jars in dependency order, which may be different from the
 // the system server classpath order).
 func SystemServerDexJarHostPath(ctx android.PathContext, jar string) android.OutputPath {
-	return android.PathForOutput(ctx, ctx.Config().BuildDir(), "system_server_dexjars", jar+".jar")
+	return android.PathForOutput(ctx, "system_server_dexjars", jar+".jar")
 }
 
 func contains(l []string, s string) bool {
