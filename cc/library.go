@@ -1317,7 +1317,7 @@ var charsNotForMacro = regexp.MustCompile("[^a-zA-Z0-9_]+")
 
 func versioningMacroName(moduleName string) string {
 	macroName := charsNotForMacro.ReplaceAllString(moduleName, "_")
-	macroName = strings.ToUpper(moduleName)
+	macroName = strings.ToUpper(macroName)
 	return "__" + macroName + "_API__"
 }
 
