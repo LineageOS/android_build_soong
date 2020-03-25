@@ -2338,6 +2338,12 @@ type ImportProperties struct {
 
 	// set the name of the output
 	Stem *string
+
+	Aidl struct {
+		// directories that should be added as include directories for any aidl sources of modules
+		// that depend on this module, as well as to aidl for this module.
+		Export_include_dirs []string
+	}
 }
 
 type Import struct {
@@ -2351,6 +2357,7 @@ type Import struct {
 
 	combinedClasspathFile android.Path
 	exportedSdkLibs       []string
+	exportAidlIncludeDirs android.Paths
 }
 
 func (j *Import) sdkVersion() sdkSpec {
@@ -2424,6 +2431,8 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 			jarName, outputFile)
 	}
+
+	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.properties.Aidl.Export_include_dirs)
 }
 
 var _ Dependency = (*Import)(nil)
@@ -2458,7 +2467,7 @@ func (j *Import) DexJar() android.Path {
 }
 
 func (j *Import) AidlIncludeDirs() android.Paths {
-	return nil
+	return j.exportAidlIncludeDirs
 }
 
 func (j *Import) ExportedSdkLibs() []string {
