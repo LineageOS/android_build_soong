@@ -542,6 +542,7 @@ func (ddoc *Droiddoc) AndroidMkEntries() []android.AndroidMkEntries {
 func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
+		DistFile:   android.OptionalPathForPath(dstubs.apiFile),
 		OutputFile: android.OptionalPathForPath(dstubs.stubsSrcJar),
 		Include:    "$(BUILD_SYSTEM)/soong_droiddoc_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
