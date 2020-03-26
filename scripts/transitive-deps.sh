@@ -469,7 +469,9 @@ case "${notices_out}" in
     fi
     readonly hashedNotice="${tmpFiles}/hashednotices"
     ( # md5sum outputs checksum space indicator(space or *) filename newline
+        set +e
         sort -u "${allNotice}" | tr '\n' '\0' | xargs -0 -r md5sum 2>/dev/null
+        set -e
       # use sed to replace space and indicator with separator
     ) > "${hashedNotice}"
     if ${showProgress}; then
