@@ -2387,6 +2387,17 @@ func TestStaticLibDepReorderingWithShared(t *testing.T) {
 	}
 }
 
+func checkEquals(t *testing.T, message string, expected, actual interface{}) {
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf(message+
+			"\nactual:   %v"+
+			"\nexpected: %v",
+			actual,
+			expected,
+		)
+	}
+}
+
 func TestLlndkHeaders(t *testing.T) {
 	ctx := testCc(t, `
 	llndk_headers {
@@ -2814,6 +2825,18 @@ func TestVersionedStubs(t *testing.T) {
 	libFoo1VersioningMacro := "-D__LIBFOO_API__=1"
 	if !strings.Contains(cFlags, libFoo1VersioningMacro) {
 		t.Errorf("%q is not found in %q", libFoo1VersioningMacro, cFlags)
+	}
+}
+
+func TestVersioningMacro(t *testing.T) {
+	for _, tc := range []struct{ moduleName, expected string }{
+		{"libc", "__LIBC_API__"},
+		{"libfoo", "__LIBFOO_API__"},
+		{"libfoo@1", "__LIBFOO_1_API__"},
+		{"libfoo-v1", "__LIBFOO_V1_API__"},
+		{"libfoo.v1", "__LIBFOO_V1_API__"},
+	} {
+		checkEquals(t, tc.moduleName, tc.expected, versioningMacroName(tc.moduleName))
 	}
 }
 
