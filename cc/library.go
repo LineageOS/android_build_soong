@@ -1468,6 +1468,19 @@ func checkVersions(ctx android.BaseModuleContext, versions []string) {
 	}
 }
 
+func createVersionVariations(mctx android.BottomUpMutatorContext, versions []string) {
+	// "" is for the non-stubs variant
+	versions = append([]string{""}, versions...)
+
+	modules := mctx.CreateVariations(versions...)
+	for i, m := range modules {
+		if versions[i] != "" {
+			m.(LinkableInterface).SetBuildStubs()
+			m.(LinkableInterface).SetStubsVersions(versions[i])
+		}
+	}
+}
+
 // Version mutator splits a module into the mandatory non-stubs variant
 // (which is unnamed) and zero or more stubs variants.
 func VersionMutator(mctx android.BottomUpMutatorContext) {
@@ -1479,24 +1492,30 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 				return
 			}
 
-			// save the list of versions for later use
 			stubsVersionsLock.Lock()
 			defer stubsVersionsLock.Unlock()
+			// save the list of versions for later use
 			stubsVersionsFor(mctx.Config())[mctx.ModuleName()] = versions
 
-			// "" is for the non-stubs variant
-			versions = append([]string{""}, versions...)
-
-			modules := mctx.CreateVariations(versions...)
-			for i, m := range modules {
-				if versions[i] != "" {
-					m.(LinkableInterface).SetBuildStubs()
-					m.(LinkableInterface).SetStubsVersions(versions[i])
-				}
-			}
-		} else {
-			mctx.CreateVariations("")
+			createVersionVariations(mctx, versions)
+			return
 		}
+
+		if c, ok := library.(*Module); ok && c.IsStubs() {
+			stubsVersionsLock.Lock()
+			defer stubsVersionsLock.Unlock()
+			// For LLNDK llndk_library, we borrow vstubs.ersions from its implementation library.
+			// Since llndk_library has dependency to its implementation library,
+			// we can safely access stubsVersionsFor() with its baseModuleName.
+			versions := stubsVersionsFor(mctx.Config())[c.BaseModuleName()]
+			// save the list of versions for later use
+			stubsVersionsFor(mctx.Config())[mctx.ModuleName()] = versions
+
+			createVersionVariations(mctx, versions)
+			return
+		}
+
+		mctx.CreateVariations("")
 		return
 	}
 	if genrule, ok := mctx.Module().(*genrule.Module); ok {
