@@ -60,6 +60,10 @@ type bpf struct {
 func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	cflags := []string{
 		"-nostdlibinc",
+
+		// Make paths in deps files relative
+		"-no-canonical-prefixes",
+
 		"-O2",
 		"-isystem bionic/libc/include",
 		"-isystem bionic/libc/kernel/uapi",
