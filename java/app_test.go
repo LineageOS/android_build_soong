@@ -1073,6 +1073,66 @@ func TestCertificates(t *testing.T) {
 	}
 }
 
+func TestRequestV4SigningFlag(t *testing.T) {
+	testCases := []struct {
+		name     string
+		bp       string
+		expected string
+	}{
+		{
+			name: "default",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+				}
+			`,
+			expected: "",
+		},
+		{
+			name: "default",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+					v4_signature: false,
+				}
+			`,
+			expected: "",
+		},
+		{
+			name: "module certificate property",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+					v4_signature: true,
+				}
+			`,
+			expected: "--enable-v4",
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			config := testAppConfig(nil, test.bp, nil)
+			ctx := testContext()
+
+			run(t, ctx, config)
+			foo := ctx.ModuleForTests("foo", "android_common")
+
+			signapk := foo.Output("foo.apk")
+			signFlags := signapk.Args["flags"]
+			if test.expected != signFlags {
+				t.Errorf("Incorrect signing flags, expected: %q, got: %q", test.expected, signFlags)
+			}
+		})
+	}
+}
+
 func TestPackageNameOverride(t *testing.T) {
 	testCases := []struct {
 		name                string
