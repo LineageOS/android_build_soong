@@ -155,6 +155,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		images = append(images, variant.images)
 		imagesDeps = append(imagesDeps, variant.imagesDeps)
 	}
+	// The locations for all Android targets are identical. Pick the first one.
+	imageLocations := bootImage.getVariant(targets[0]).imageLocations()
 
 	dexLocation := android.InstallPathToOnDevicePath(ctx, d.installPath)
 
@@ -198,7 +200,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		Archs:                   archs,
 		DexPreoptImages:         images,
 		DexPreoptImagesDeps:     imagesDeps,
-		DexPreoptImageLocations: bootImage.imageLocations,
+		DexPreoptImageLocations: imageLocations,
 
 		PreoptBootClassPathDexFiles:     dexFiles,
 		PreoptBootClassPathDexLocations: dexLocations,
