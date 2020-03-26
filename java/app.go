@@ -105,6 +105,11 @@ type appProperties struct {
 	// If set, find and merge all NOTICE files that this module and its dependencies have and store
 	// it in the APK as an asset.
 	Embed_notices *bool
+
+	// cc.Coverage related properties
+	PreventInstall    bool `blueprint:"mutated"`
+	HideFromMake      bool `blueprint:"mutated"`
+	IsCoverageVariant bool `blueprint:"mutated"`
 }
 
 // android_app properties that can be overridden by override_android_app
@@ -133,7 +138,8 @@ type AndroidApp struct {
 
 	overridableAppProperties overridableAppProperties
 
-	installJniLibs []jniLib
+	installJniLibs     []jniLib
+	jniCoverageOutputs android.Paths
 
 	bundleFile android.Path
 
@@ -169,6 +175,10 @@ func (a *AndroidApp) OutputFile() android.Path {
 
 func (a *AndroidApp) Certificate() Certificate {
 	return a.certificate
+}
+
+func (a *AndroidApp) JniCoverageOutputs() android.Paths {
+	return a.jniCoverageOutputs
 }
 
 var _ AndroidLibraryDependency = (*AndroidApp)(nil)
@@ -373,6 +383,11 @@ func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext
 		if a.shouldEmbedJnis(ctx) {
 			jniJarFile = android.PathForModuleOut(ctx, "jnilibs.zip")
 			TransformJniLibsToJar(ctx, jniJarFile, jniLibs, a.useEmbeddedNativeLibs(ctx))
+			for _, jni := range jniLibs {
+				if jni.coverageFile.Valid() {
+					a.jniCoverageOutputs = append(a.jniCoverageOutputs, jni.coverageFile.Path())
+				}
+			}
 		} else {
 			a.installJniLibs = jniLibs
 		}
@@ -572,9 +587,10 @@ func collectAppDeps(ctx android.ModuleContext, shouldCollectRecursiveNativeDeps 
 
 				if lib.Valid() {
 					jniLibs = append(jniLibs, jniLib{
-						name:   ctx.OtherModuleName(module),
-						path:   path,
-						target: module.Target(),
+						name:         ctx.OtherModuleName(module),
+						path:         path,
+						target:       module.Target(),
+						coverageFile: dep.CoverageOutputFile(),
 					})
 				} else {
 					ctx.ModuleErrorf("dependency %q missing output file", otherName)
@@ -627,6 +643,24 @@ func (a *AndroidApp) OutputFiles(tag string) (android.Paths, error) {
 func (a *AndroidApp) Privileged() bool {
 	return Bool(a.appProperties.Privileged)
 }
+
+func (a *AndroidApp) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
+	return ctx.Device() && (ctx.DeviceConfig().NativeCoverageEnabled() || ctx.DeviceConfig().ClangCoverageEnabled())
+}
+
+func (a *AndroidApp) PreventInstall() {
+	a.appProperties.PreventInstall = true
+}
+
+func (a *AndroidApp) HideFromMake() {
+	a.appProperties.HideFromMake = true
+}
+
+func (a *AndroidApp) MarkAsCoverageVariant(coverage bool) {
+	a.appProperties.IsCoverageVariant = coverage
+}
+
+var _ cc.Coverage = (*AndroidApp)(nil)
 
 // android_app compiles sources and Android resources into an Android application package `.apk` file.
 func AndroidAppFactory() android.Module {
