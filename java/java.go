@@ -419,6 +419,8 @@ type Module struct {
 
 	// list of the xref extraction files
 	kytheFiles android.Paths
+
+	distFile android.Path
 }
 
 func (j *Module) OutputFiles(tag string) (android.Paths, error) {
@@ -1775,8 +1777,17 @@ func (j *Module) IsInstallable() bool {
 // Java libraries (.jar file)
 //
 
+type LibraryProperties struct {
+	Dist struct {
+		// The tag of the output of this module that should be output.
+		Tag *string `android:"arch_variant"`
+	} `android:"arch_variant"`
+}
+
 type Library struct {
 	Module
+
+	libraryProperties LibraryProperties
 
 	InstallMixin func(ctx android.ModuleContext, installPath android.Path) (extraInstallDeps android.Paths)
 }
@@ -1820,6 +1831,15 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 			ctx.ModuleName()+".jar", j.outputFile, extraInstallDeps...)
+	}
+
+	// Verify Dist.Tag is set to a supported output
+	if j.libraryProperties.Dist.Tag != nil {
+		distFiles, err := j.OutputFiles(*j.libraryProperties.Dist.Tag)
+		if err != nil {
+			ctx.PropertyErrorf("dist.tag", "%s", err.Error())
+		}
+		j.distFile = distFiles[0]
 	}
 }
 
@@ -1945,7 +1965,8 @@ func LibraryFactory() android.Module {
 		&module.Module.properties,
 		&module.Module.deviceProperties,
 		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties)
+		&module.Module.protoProperties,
+		&module.libraryProperties)
 
 	android.InitApexModule(module)
 	android.InitSdkAwareModule(module)
