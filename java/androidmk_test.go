@@ -16,6 +16,7 @@ package java
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"android/soong/android"
@@ -131,5 +132,40 @@ func TestHostdexSpecificRequired(t *testing.T) {
 	actual := subEntries.EntryMap["LOCAL_REQUIRED_MODULES"]
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("Unexpected required modules - expected: %q, actual: %q", expected, actual)
+	}
+}
+
+func TestDistWithTag(t *testing.T) {
+	ctx, config := testJava(t, `
+		java_library {
+			name: "foo_without_tag",
+			srcs: ["a.java"],
+			compile_dex: true,
+			dist: {
+				targets: ["hi"],
+			},
+		}
+		java_library {
+			name: "foo_with_tag",
+			srcs: ["a.java"],
+			compile_dex: true,
+			dist: {
+				targets: ["hi"],
+				tag: ".jar",
+			},
+		}
+	`)
+
+	without_tag_entries := android.AndroidMkEntriesForTest(t, config, "", ctx.ModuleForTests("foo_without_tag", "android_common").Module())
+	with_tag_entries := android.AndroidMkEntriesForTest(t, config, "", ctx.ModuleForTests("foo_with_tag", "android_common").Module())
+
+	if len(without_tag_entries) != 2 || len(with_tag_entries) != 2 {
+		t.Errorf("two mk entries per module expected, got %d and %d", len(without_tag_entries), len(with_tag_entries))
+	}
+	if !with_tag_entries[0].DistFile.Valid() || !strings.Contains(with_tag_entries[0].DistFile.String(), "/javac/foo_with_tag.jar") {
+		t.Errorf("expected classes.jar DistFile, got %v", with_tag_entries[0].DistFile)
+	}
+	if without_tag_entries[0].DistFile.Valid() {
+		t.Errorf("did not expect explicit DistFile, got %v", without_tag_entries[0].DistFile)
 	}
 }
