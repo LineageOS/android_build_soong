@@ -315,18 +315,6 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			"-isystem "+getCurrentIncludePath(ctx).Join(ctx, config.NDKTriple(tc)).String())
 	}
 
-	if ctx.canUseSdk() {
-		sdkVersion := ctx.sdkVersion()
-		if sdkVersion == "" || sdkVersion == "current" {
-			if ctx.isForPlatform() {
-				sdkVersion = strconv.Itoa(android.FutureApiLevel)
-			} else {
-				sdkVersion = strconv.Itoa(ctx.apexSdkVersion())
-			}
-		}
-		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_SDK_VERSION__="+sdkVersion)
-	}
-
 	if ctx.useVndk() {
 		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_VNDK__")
 	}
@@ -339,6 +327,9 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_APEX__")
 		if Bool(compiler.Properties.Use_apex_name_macro) {
 			flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_APEX_"+makeDefineString(ctx.apexName())+"__")
+		}
+		if ctx.Device() {
+			flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_SDK_VERSION__="+strconv.Itoa(ctx.apexSdkVersion()))
 		}
 	}
 
