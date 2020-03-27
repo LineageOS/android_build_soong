@@ -50,6 +50,8 @@ type GlobalConfig struct {
 	UpdatableSystemServerJars []string // jars within apex that are loaded into system server
 	SpeedApps                 []string // apps that should be speed optimized
 
+	BrokenSuboptimalOrderOfSystemServerJars bool // if true, sub-optimal order does not cause a build error
+
 	PreoptFlags []string // global dex2oat flags that should be used if no module-specific dex2oat flags are specified
 
 	DefaultCompilerFilter      string // default compiler filter to pass to dex2oat, overridden by --compiler-filter= in module-specific dex2oat flags
