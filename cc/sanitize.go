@@ -38,6 +38,8 @@ var (
 	asanLdflags = []string{"-Wl,-u,__asan_preinit"}
 
 	hwasanCflags = []string{"-fno-omit-frame-pointer", "-Wno-frame-larger-than=",
+		"-fsanitize-hwaddress-abi=platform",
+		"-fno-experimental-new-pass-manager",
 		// The following improves debug location information
 		// availability at the cost of its accuracy. It increases
 		// the likelihood of a stack variable's frame offset
