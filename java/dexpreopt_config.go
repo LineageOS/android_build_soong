@@ -115,7 +115,6 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		// ART config for the primary boot image in the ART apex.
 		// It includes the Core Libraries.
 		artCfg := bootImageConfig{
-			extension:        false,
 			name:             artBootImageName,
 			stem:             "boot",
 			installSubdir:    artSubdir,
@@ -127,7 +126,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		// Framework config for the boot image extension.
 		// It includes framework libraries and depends on the ART config.
 		frameworkCfg := bootImageConfig{
-			extension:        true,
+			extends:          &artCfg,
 			name:             frameworkBootImageName,
 			stem:             "boot",
 			installSubdir:    frameworkSubdir,
@@ -148,8 +147,6 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 
 			// expands to <stem>.art for primary image and <stem>-<1st module>.art for extension
 			imageName := c.firstModuleNameOrStem() + ".art"
-
-			c.imageLocations = []string{c.dir.Join(ctx, "android", c.installSubdir, imageName).String()}
 
 			// The path to bootclasspath dex files needs to be known at module
 			// GenerateAndroidBuildAction time, before the bootclasspath modules have been compiled.
@@ -182,7 +179,6 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		for i := range targets {
 			frameworkCfg.variants[i].primaryImages = artCfg.variants[i].images
 		}
-		frameworkCfg.imageLocations = append(artCfg.imageLocations, frameworkCfg.imageLocations...)
 
 		return configs
 	}).(map[string]*bootImageConfig)
