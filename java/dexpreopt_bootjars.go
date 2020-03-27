@@ -28,28 +28,10 @@ func init() {
 	android.RegisterSingletonType("dex_bootjars", dexpreoptBootJarsFactory)
 }
 
-// The image "location" is a symbolic path that with multiarchitecture
-// support doesn't really exist on the device. Typically it is
-// /system/framework/boot.art and should be the same for all supported
-// architectures on the device. The concrete architecture specific
-// content actually ends up in a "filename" that contains an
-// architecture specific directory name such as arm, arm64, x86, x86_64.
-//
-// Here are some example values for an x86_64 / x86 configuration:
-//
-// bootImages["x86_64"] = "out/soong/generic_x86_64/dex_bootjars/system/framework/x86_64/boot.art"
-// dexpreopt.PathToLocation(bootImages["x86_64"], "x86_64") = "out/soong/generic_x86_64/dex_bootjars/system/framework/boot.art"
-//
-// bootImages["x86"] = "out/soong/generic_x86_64/dex_bootjars/system/framework/x86/boot.art"
-// dexpreopt.PathToLocation(bootImages["x86"])= "out/soong/generic_x86_64/dex_bootjars/system/framework/boot.art"
-//
-// The location is passed as an argument to the ART tools like dex2oat instead of the real path. The ART tools
-// will then reconstruct the real path, so the rules must have a dependency on the real path.
-
 // Target-independent description of pre-compiled boot image.
 type bootImageConfig struct {
-	// Whether this image is an extension.
-	extension bool
+	// If this image is an extension, the image that it extends.
+	extends *bootImageConfig
 
 	// Image name (used in directory names and ninja rule names).
 	name string
@@ -76,9 +58,6 @@ type bootImageConfig struct {
 	// File paths to jars.
 	dexPaths     android.WritablePaths // for this image
 	dexPathsDeps android.WritablePaths // for the dependency images and in this image
-
-	// The "locations" of the dependency images and in this image.
-	imageLocations []string
 
 	// File path to a zip archive with all image files (or nil, if not needed).
 	zip android.WritablePath
@@ -125,7 +104,7 @@ func (image bootImageConfig) moduleName(idx int) string {
 	// exists), and the rest are converted to 'name'-<jar>.art.
 	m := image.modules[idx]
 	name := image.stem
-	if idx != 0 || image.extension {
+	if idx != 0 || image.extends != nil {
 		name += "-" + stemOf(m)
 	}
 	return name
@@ -148,6 +127,24 @@ func (image bootImageConfig) moduleFiles(ctx android.PathContext, dir android.Ou
 		}
 	}
 	return ret
+}
+
+// The image "location" is a symbolic path that, with multiarchitecture support, doesn't really
+// exist on the device. Typically it is /apex/com.android.art/javalib/boot.art and should be the
+// same for all supported architectures on the device. The concrete architecture specific files
+// actually end up in architecture-specific sub-directory such as arm, arm64, x86, or x86_64.
+//
+// For example a physical file
+// "/apex/com.android.art/javalib/x86/boot.art" has "image location"
+// "/apex/com.android.art/javalib/boot.art" (which is not an actual file).
+//
+// The location is passed as an argument to the ART tools like dex2oat instead of the real path.
+// ART tools will then reconstruct the architecture-specific real path.
+func (image *bootImageVariant) imageLocations() (imageLocations []string) {
+	if image.extends != nil {
+		imageLocations = image.extends.getVariant(image.target).imageLocations()
+	}
+	return append(imageLocations, dexpreopt.PathToLocation(image.images, image.target.Arch.ArchType))
 }
 
 func concat(lists ...[]string) []string {
@@ -351,7 +348,7 @@ func buildBootImageVariant(ctx android.SingletonContext, image *bootImageVariant
 		cmd.FlagWithInput("--dirty-image-objects=", global.DirtyImageObjects.Path())
 	}
 
-	if image.extension {
+	if image.extends != nil {
 		artImage := image.primaryImages
 		cmd.
 			Flag("--runtime-arg").FlagWithInputList("-Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
@@ -559,7 +556,7 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
 			BuiltTool(ctx, "oatdumpd").
 			FlagWithInputList("--runtime-arg -Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
 			FlagWithList("--runtime-arg -Xbootclasspath-locations:", image.dexLocationsDeps, ":").
-			FlagWithArg("--image=", strings.Join(image.imageLocations, ":")).Implicits(image.imagesDeps.Paths()).
+			FlagWithArg("--image=", strings.Join(image.imageLocations(), ":")).Implicits(image.imagesDeps.Paths()).
 			FlagWithOutput("--output=", output).
 			FlagWithArg("--instruction-set=", arch.String())
 		rule.Build(pctx, ctx, "dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
@@ -573,10 +570,7 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
 			Text("echo").FlagWithArg("Output in ", output.String())
 		rule.Build(pctx, ctx, "phony-dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
 
-		// TODO: We need to make imageLocations per-variant to make oatdump work on host.
-		if image.target.Os == android.Android {
-			allPhonies = append(allPhonies, phony)
-		}
+		allPhonies = append(allPhonies, phony)
 	}
 
 	phony := android.PathForPhony(ctx, "dump-oat-boot")
@@ -617,20 +611,24 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 		var imageNames []string
 		for _, current := range append(d.otherImages, image) {
 			imageNames = append(imageNames, current.name)
-			for _, current := range current.variants {
+			imageLocations := []string{}
+			for _, variant := range current.variants {
 				suffix := ""
-				if current.target.Os.Class == android.Host {
+				if variant.target.Os.Class == android.Host {
 					suffix = "_host"
 				}
-				sfx := current.name + suffix + "_" + current.target.Arch.ArchType.String()
-				ctx.Strict("DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_"+sfx, current.vdexInstalls.String())
-				ctx.Strict("DEXPREOPT_IMAGE_"+sfx, current.images.String())
-				ctx.Strict("DEXPREOPT_IMAGE_DEPS_"+sfx, strings.Join(current.imagesDeps.Strings(), " "))
-				ctx.Strict("DEXPREOPT_IMAGE_BUILT_INSTALLED_"+sfx, current.installs.String())
-				ctx.Strict("DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_"+sfx, current.unstrippedInstalls.String())
+				sfx := variant.name + suffix + "_" + variant.target.Arch.ArchType.String()
+				ctx.Strict("DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_"+sfx, variant.vdexInstalls.String())
+				ctx.Strict("DEXPREOPT_IMAGE_"+sfx, variant.images.String())
+				ctx.Strict("DEXPREOPT_IMAGE_DEPS_"+sfx, strings.Join(variant.imagesDeps.Strings(), " "))
+				ctx.Strict("DEXPREOPT_IMAGE_BUILT_INSTALLED_"+sfx, variant.installs.String())
+				ctx.Strict("DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_"+sfx, variant.unstrippedInstalls.String())
+				if variant.target.Os == android.Android {
+					// The locations for all Android targets are identical. Pick one.
+					imageLocations = variant.imageLocations()
+				}
 			}
-
-			ctx.Strict("DEXPREOPT_IMAGE_LOCATIONS_"+current.name, strings.Join(current.imageLocations, ":"))
+			ctx.Strict("DEXPREOPT_IMAGE_LOCATIONS_"+current.name, strings.Join(imageLocations, ":"))
 			ctx.Strict("DEXPREOPT_IMAGE_ZIP_"+current.name, current.zip.String())
 		}
 		ctx.Strict("DEXPREOPT_IMAGE_NAMES", strings.Join(imageNames, " "))
