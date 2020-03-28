@@ -275,7 +275,7 @@ func (binary *Binary) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
-	if !app.IsForPlatform() {
+	if !app.IsForPlatform() || app.appProperties.HideFromMake {
 		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Disabled: true,
 		}}
@@ -288,6 +288,7 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 			func(entries *android.AndroidMkEntries) {
 				// App module names can be overridden.
 				entries.SetString("LOCAL_MODULE", app.installApkName)
+				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", app.appProperties.PreventInstall)
 				entries.SetPath("LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE", app.exportPackage)
 				if app.dexJarFile != nil {
 					entries.SetPath("LOCAL_SOONG_DEX_JAR", app.dexJarFile)
@@ -346,6 +347,9 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 
 				for _, jniLib := range app.installJniLibs {
 					entries.AddStrings("LOCAL_SOONG_JNI_LIBS_"+jniLib.target.Arch.ArchType.String(), jniLib.name)
+				}
+				if len(app.jniCoverageOutputs) > 0 {
+					entries.AddStrings("LOCAL_PREBUILT_COVERAGE_ARCHIVE", app.jniCoverageOutputs.Strings()...)
 				}
 				if len(app.dexpreopter.builtInstalled) > 0 {
 					entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", app.dexpreopter.builtInstalled)

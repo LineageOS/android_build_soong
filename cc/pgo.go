@@ -88,20 +88,21 @@ func (pgo *pgo) props() []interface{} {
 	return []interface{}{&pgo.Properties}
 }
 
-func (props *PgoProperties) addProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
+func (props *PgoProperties) addInstrumentationProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
 	flags.Local.CFlags = append(flags.Local.CFlags, props.Pgo.Cflags...)
 
-	if props.isInstrumentation() {
-		flags.Local.CFlags = append(flags.Local.CFlags, profileInstrumentFlag)
-		// The profile runtime is added below in deps().  Add the below
-		// flag, which is the only other link-time action performed by
-		// the Clang driver during link.
-		flags.Local.LdFlags = append(flags.Local.LdFlags, "-u__llvm_profile_runtime")
-	}
-	if props.isSampling() {
-		flags.Local.CFlags = append(flags.Local.CFlags, profileSamplingFlag)
-		flags.Local.LdFlags = append(flags.Local.LdFlags, profileSamplingFlag)
-	}
+	flags.Local.CFlags = append(flags.Local.CFlags, profileInstrumentFlag)
+	// The profile runtime is added below in deps().  Add the below
+	// flag, which is the only other link-time action performed by
+	// the Clang driver during link.
+	flags.Local.LdFlags = append(flags.Local.LdFlags, "-u__llvm_profile_runtime")
+	return flags
+}
+func (props *PgoProperties) addSamplingProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
+	flags.Local.CFlags = append(flags.Local.CFlags, props.Pgo.Cflags...)
+
+	flags.Local.CFlags = append(flags.Local.CFlags, profileSamplingFlag)
+	flags.Local.LdFlags = append(flags.Local.LdFlags, profileSamplingFlag)
 	return flags
 }
 
@@ -286,8 +287,12 @@ func (pgo *pgo) flags(ctx ModuleContext, flags Flags) Flags {
 	props := pgo.Properties
 
 	// Add flags to profile this module based on its profile_kind
-	if props.ShouldProfileModule {
-		return props.addProfileGatherFlags(ctx, flags)
+	if props.ShouldProfileModule && props.isInstrumentation() {
+		return props.addInstrumentationProfileGatherFlags(ctx, flags)
+	} else if props.ShouldProfileModule && props.isSampling() {
+		return props.addSamplingProfileGatherFlags(ctx, flags)
+	} else if ctx.DeviceConfig().SamplingPGO() {
+		return props.addSamplingProfileGatherFlags(ctx, flags)
 	}
 
 	if !ctx.Config().IsEnvTrue("ANDROID_PGO_NO_PROFILE_USE") {
