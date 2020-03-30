@@ -72,6 +72,7 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 	if !hideFromMake {
 		mainEntries = android.AndroidMkEntries{
 			Class:      "JAVA_LIBRARIES",
+			DistFile:   android.OptionalPathForPath(library.distFile),
 			OutputFile: android.OptionalPathForPath(library.outputFile),
 			Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
