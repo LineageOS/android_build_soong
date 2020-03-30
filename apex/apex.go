@@ -2023,6 +2023,13 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		return
 	}
 
+	// Coverage build adds additional dependencies for the coverage-only runtime libraries.
+	// Requiring them and their transitive depencies with apex_available is not right
+	// because they just add noise.
+	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") || a.IsNativeCoverageNeeded(ctx) {
+		return
+	}
+
 	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
 		apexName := ctx.ModuleName()
 		fromName := ctx.OtherModuleName(from)
