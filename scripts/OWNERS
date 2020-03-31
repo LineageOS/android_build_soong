@@ -1,2 +1,3 @@
 per-file system-clang-format,system-clang-format-2 = enh@google.com,smoreland@google.com
 per-file build-mainline-modules.sh = ngeoffray@google.com,paulduffin@google.com,mast@google.com
+per-file build-aml-prebuilts.sh = ngeoffray@google.com,paulduffin@google.com,mast@google.com
