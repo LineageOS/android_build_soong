@@ -53,30 +53,18 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 			system_modules: "none",
 			sdk_version: "none",
 			host_supported: true,
-			apex_available: [
-				"//apex_available:platform",
-				"//apex_available:anyapex",
-			],
 		}
 
 		java_import {
 			name: "sdkmember_mysdk_1",
 			sdk_member_name: "sdkmember",
 			host_supported: true,
-			apex_available: [
-				"//apex_available:platform",
-				"//apex_available:anyapex",
-			],
 		}
 
 		java_import {
 			name: "sdkmember_mysdk_2",
 			sdk_member_name: "sdkmember",
 			host_supported: true,
-			apex_available: [
-				"//apex_available:platform",
-				"//apex_available:anyapex",
-			],
 		}
 
 		java_library {
