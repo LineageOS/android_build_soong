@@ -53,7 +53,7 @@ func (me *VtsConfig) AndroidMk() AndroidMkData {
 				fmt.Fprintf(w, "LOCAL_TEST_CONFIG := %s\n",
 					*me.properties.Test_config)
 			}
-			fmt.Fprintf(w, "LOCAL_COMPATIBILITY_SUITE := vts %s\n",
+			fmt.Fprintf(w, "LOCAL_COMPATIBILITY_SUITE := vts10 %s\n",
 				strings.Join(me.properties.Test_suites, " "))
 		},
 	}
@@ -64,7 +64,7 @@ func InitVtsConfigModule(me *VtsConfig) {
 	me.AddProperties(&me.properties)
 }
 
-// vts_config generates a Vendor Test Suite (VTS) configuration file from the
+// vts_config generates a Vendor Test Suite (VTS10) configuration file from the
 // <test_config> xml file and stores it in a subdirectory of $(HOST_OUT).
 func VtsConfigFactory() Module {
 	module := &VtsConfig{}
