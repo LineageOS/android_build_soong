@@ -1976,7 +1976,7 @@ func (c *flattenedApexContext) InstallBypassMake() bool {
 // Visit dependencies that contributes to the payload of this APEX
 func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext,
 	do func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool)) {
-	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
+	ctx.WalkDeps(func(child, parent android.Module) bool {
 		am, ok := child.(android.ApexModule)
 		if !ok || !am.CanHaveApexVariants() {
 			return false
@@ -2037,7 +2037,11 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		if externalDep || to.AvailableFor(apexName) || whitelistedApexAvailable(apexName, toName) {
 			return
 		}
-		ctx.ModuleErrorf("%q requires %q that is not available for the APEX.", fromName, toName)
+		message := ""
+		for _, m := range ctx.GetWalkPath()[1:] {
+			message = fmt.Sprintf("%s\n    -> %s", message, m.String())
+		}
+		ctx.ModuleErrorf("%q requires %q that is not available for the APEX. Dependency path:%s", fromName, toName, message)
 	})
 }
 
