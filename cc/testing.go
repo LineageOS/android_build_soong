@@ -66,6 +66,20 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			src: "",
 		}
 
+		cc_prebuilt_library_shared {
+			name: "libclang_rt.hwasan-aarch64-android",
+			nocrt: true,
+			vendor_available: true,
+			recovery_available: true,
+			system_shared_libs: [],
+			stl: "none",
+			srcs: [""],
+			check_elf_files: false,
+			sanitize: {
+				never: true,
+			},
+		}
+
 		toolchain_library {
 			name: "libclang_rt.builtins-i686-android",
 			vendor_available: true,

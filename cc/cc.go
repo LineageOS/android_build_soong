@@ -476,6 +476,9 @@ type Module struct {
 	makeLinkType string
 	// Kythe (source file indexer) paths for this compilation module
 	kytheFiles android.Paths
+
+	// For apex variants, this is set as apex.min_sdk_version
+	apexSdkVersion int
 }
 
 func (c *Module) Toc() android.OptionalPath {
@@ -1197,7 +1200,7 @@ func (ctx *moduleContextImpl) apexName() string {
 }
 
 func (ctx *moduleContextImpl) apexSdkVersion() int {
-	return ctx.mod.ApexProperties.Info.MinSdkVersion
+	return ctx.mod.apexSdkVersion
 }
 
 func (ctx *moduleContextImpl) hasStubsVariants() bool {
@@ -1828,7 +1831,10 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		}, depTag, lib)
 	}
 
-	if deps.StaticUnwinderIfLegacy && ctx.Config().UnbundledBuild() {
+	// staticUnwinderDep is treated as staticDep for Q apexes
+	// so that native libraries/binaries are linked with static unwinder
+	// because Q libc doesn't have unwinder APIs
+	if deps.StaticUnwinderIfLegacy {
 		actx.AddVariationDependencies([]blueprint.Variation{
 			{Mutator: "link", Variation: "static"},
 		}, staticUnwinderDepTag, staticUnwinder(actx))
@@ -2212,9 +2218,22 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 		}
 
+		// For the dependency from platform to apex, use the latest stubs
+		c.apexSdkVersion = android.FutureApiLevel
+		if !c.IsForPlatform() {
+			c.apexSdkVersion = c.ApexProperties.Info.MinSdkVersion
+		}
+
+		if android.InList("hwaddress", ctx.Config().SanitizeDevice()) {
+			// In hwasan build, we override apexSdkVersion to the FutureApiLevel(10000)
+			// so that even Q(29/Android10) apexes could use the dynamic unwinder by linking the newer stubs(e.g libc(R+)).
+			// (b/144430859)
+			c.apexSdkVersion = android.FutureApiLevel
+		}
+
 		if depTag == staticUnwinderDepTag {
-			// Use static unwinder for legacy (min_sdk_version = 29) apexes  (b/144430859)
-			if c.ShouldSupportAndroid10() {
+			// Use static unwinder for legacy (min_sdk_version = 29) apexes (b/144430859)
+			if c.apexSdkVersion <= android.SdkVersion_Android10 {
 				depTag = StaticDepTag
 			} else {
 				return
@@ -2268,8 +2287,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 				// when to use (unspecified) stubs, check min_sdk_version and choose the right one
 				if useThisDep && depIsStubs && !explicitlyVersioned {
-					useLatest := c.IsForPlatform() || (c.ShouldSupportAndroid10() && !ctx.Config().UnbundledBuild())
-					versionToUse, err := c.ChooseSdkVersion(ccDep.StubsVersions(), useLatest)
+					versionToUse, err := c.ChooseSdkVersion(ccDep.StubsVersions(), c.apexSdkVersion)
 					if err != nil {
 						ctx.OtherModuleErrorf(dep, err.Error())
 						return
@@ -2292,8 +2310,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// if this is for use_vendor apex && dep has stubsVersions
 						// apply the same rule of apex sdk enforcement to choose right version
 						var err error
-						useLatest := c.ShouldSupportAndroid10() && !ctx.Config().UnbundledBuild()
-						versionToUse, err = c.ChooseSdkVersion(versions, useLatest)
+						versionToUse, err = c.ChooseSdkVersion(versions, c.apexSdkVersion)
 						if err != nil {
 							ctx.OtherModuleErrorf(dep, err.Error())
 							return
