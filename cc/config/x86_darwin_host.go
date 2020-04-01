@@ -15,9 +15,11 @@
 package config
 
 import (
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"android/soong/android"
 )
@@ -89,28 +91,20 @@ const (
 )
 
 func init() {
-	pctx.VariableFunc("macSdkPath", func(ctx android.PackageVarContext) string {
-		xcodeselect := ctx.Config().HostSystemTool("xcode-select")
-		bytes, err := exec.Command(xcodeselect, "--print-path").Output()
-		if err != nil {
-			ctx.Errorf("xcode-select failed with: %q", err.Error())
-		}
-		return strings.TrimSpace(string(bytes))
-	})
 	pctx.VariableFunc("macSdkRoot", func(ctx android.PackageVarContext) string {
-		return xcrunSdk(ctx, "--show-sdk-path")
+		return getMacTools(ctx).sdkRoot
 	})
 	pctx.StaticVariable("macMinVersion", "10.10")
 	pctx.VariableFunc("MacArPath", func(ctx android.PackageVarContext) string {
-		return xcrun(ctx, "--find", "ar")
+		return getMacTools(ctx).arPath
 	})
 
 	pctx.VariableFunc("MacStripPath", func(ctx android.PackageVarContext) string {
-		return xcrun(ctx, "--find", "strip")
+		return getMacTools(ctx).stripPath
 	})
 
 	pctx.VariableFunc("MacToolPath", func(ctx android.PackageVarContext) string {
-		return filepath.Dir(xcrun(ctx, "--find", "ld"))
+		return getMacTools(ctx).toolPath
 	})
 
 	pctx.StaticVariable("DarwinGccVersion", darwinGccVersion)
@@ -126,38 +120,66 @@ func init() {
 	pctx.StaticVariable("DarwinYasmFlags", "-f macho -m amd64")
 }
 
-func xcrun(ctx android.PackageVarContext, args ...string) string {
-	xcrun := ctx.Config().HostSystemTool("xcrun")
-	bytes, err := exec.Command(xcrun, args...).Output()
-	if err != nil {
-		ctx.Errorf("xcrun failed with: %q", err.Error())
-	}
-	return strings.TrimSpace(string(bytes))
+type macPlatformTools struct {
+	once sync.Once
+	err  error
+
+	sdkRoot   string
+	arPath    string
+	stripPath string
+	toolPath  string
 }
 
-func xcrunSdk(ctx android.PackageVarContext, arg string) string {
-	xcrun := ctx.Config().HostSystemTool("xcrun")
-	if selected := ctx.Config().Getenv("MAC_SDK_VERSION"); selected != "" {
-		if !inList(selected, darwinSupportedSdkVersions) {
-			ctx.Errorf("MAC_SDK_VERSION %s isn't supported: %q", selected, darwinSupportedSdkVersions)
+var macTools = &macPlatformTools{}
+
+func getMacTools(ctx android.PackageVarContext) *macPlatformTools {
+	macTools.once.Do(func() {
+		xcrunTool := ctx.Config().HostSystemTool("xcrun")
+
+		xcrun := func(args ...string) string {
+			if macTools.err != nil {
+				return ""
+			}
+
+			bytes, err := exec.Command(xcrunTool, args...).Output()
+			if err != nil {
+				macTools.err = fmt.Errorf("xcrun %q failed with: %q", args, err)
+				return ""
+			}
+
+			return strings.TrimSpace(string(bytes))
+		}
+
+		xcrunSdk := func(arg string) string {
+			if selected := ctx.Config().Getenv("MAC_SDK_VERSION"); selected != "" {
+				if !inList(selected, darwinSupportedSdkVersions) {
+					macTools.err = fmt.Errorf("MAC_SDK_VERSION %s isn't supported: %q", selected, darwinSupportedSdkVersions)
+					return ""
+				}
+
+				return xcrun("--sdk", "macosx"+selected, arg)
+			}
+
+			for _, sdk := range darwinSupportedSdkVersions {
+				bytes, err := exec.Command(xcrunTool, "--sdk", "macosx"+sdk, arg).Output()
+				if err == nil {
+					return strings.TrimSpace(string(bytes))
+				}
+			}
+			macTools.err = fmt.Errorf("Could not find a supported mac sdk: %q", darwinSupportedSdkVersions)
 			return ""
 		}
 
-		bytes, err := exec.Command(xcrun, "--sdk", "macosx"+selected, arg).Output()
-		if err != nil {
-			ctx.Errorf("MAC_SDK_VERSION %s is not installed", selected)
-		}
-		return strings.TrimSpace(string(bytes))
-	}
+		macTools.sdkRoot = xcrunSdk("--show-sdk-path")
 
-	for _, sdk := range darwinSupportedSdkVersions {
-		bytes, err := exec.Command(xcrun, "--sdk", "macosx"+sdk, arg).Output()
-		if err == nil {
-			return strings.TrimSpace(string(bytes))
-		}
+		macTools.arPath = xcrun("--find", "ar")
+		macTools.stripPath = xcrun("--find", "strip")
+		macTools.toolPath = filepath.Dir(xcrun("--find", "ld"))
+	})
+	if macTools.err != nil {
+		ctx.Errorf("%q", macTools.err)
 	}
-	ctx.Errorf("Could not find a supported mac sdk: %q", darwinSupportedSdkVersions)
-	return ""
+	return macTools
 }
 
 type toolchainDarwin struct {
