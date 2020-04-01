@@ -79,6 +79,14 @@ func stemOf(moduleName string) string {
 	return moduleName
 }
 
+func getDexLocation(ctx android.PathContext, target android.Target, subdir string, name string) string {
+	if target.Os.Class == android.Host {
+		return filepath.Join("out", "host", ctx.Config().PrebuiltOS(), subdir, name)
+	} else {
+		return filepath.Join("/", subdir, name)
+	}
+}
+
 var (
 	bootImageConfigKey     = android.NewOnceKey("bootImageConfig")
 	artBootImageName       = "art"
@@ -104,35 +112,23 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		artSubdir := "apex/com.android.art/javalib"
 		frameworkSubdir := "system/framework"
 
-		var artLocations, frameworkLocations []string
-		for _, m := range artModules {
-			artLocations = append(artLocations, filepath.Join("/"+artSubdir, stemOf(m)+".jar"))
-		}
-		for _, m := range frameworkModules {
-			frameworkLocations = append(frameworkLocations, filepath.Join("/"+frameworkSubdir, stemOf(m)+".jar"))
-		}
-
 		// ART config for the primary boot image in the ART apex.
 		// It includes the Core Libraries.
 		artCfg := bootImageConfig{
-			name:             artBootImageName,
-			stem:             "boot",
-			installSubdir:    artSubdir,
-			modules:          artModules,
-			dexLocations:     artLocations,
-			dexLocationsDeps: artLocations,
+			name:          artBootImageName,
+			stem:          "boot",
+			installSubdir: artSubdir,
+			modules:       artModules,
 		}
 
 		// Framework config for the boot image extension.
 		// It includes framework libraries and depends on the ART config.
 		frameworkCfg := bootImageConfig{
-			extends:          &artCfg,
-			name:             frameworkBootImageName,
-			stem:             "boot",
-			installSubdir:    frameworkSubdir,
-			modules:          frameworkModules,
-			dexLocations:     frameworkLocations,
-			dexLocationsDeps: append(artLocations, frameworkLocations...),
+			extends:       &artCfg,
+			name:          frameworkBootImageName,
+			stem:          "boot",
+			installSubdir: frameworkSubdir,
+			modules:       frameworkModules,
 		}
 
 		configs := map[string]*bootImageConfig{
@@ -168,6 +164,10 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 					images:          imageDir.Join(ctx, imageName),
 					imagesDeps:      c.moduleFiles(ctx, imageDir, ".art", ".oat", ".vdex"),
 				}
+				for _, m := range c.modules {
+					variant.dexLocations = append(variant.dexLocations, getDexLocation(ctx, target, c.installSubdir, stemOf(m)+".jar"))
+				}
+				variant.dexLocationsDeps = variant.dexLocations
 				c.variants = append(c.variants, variant)
 			}
 
@@ -178,6 +178,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		frameworkCfg.dexPathsDeps = append(artCfg.dexPathsDeps, frameworkCfg.dexPathsDeps...)
 		for i := range targets {
 			frameworkCfg.variants[i].primaryImages = artCfg.variants[i].images
+			frameworkCfg.variants[i].dexLocationsDeps = append(artCfg.variants[i].dexLocations, frameworkCfg.variants[i].dexLocationsDeps...)
 		}
 
 		return configs
@@ -202,7 +203,7 @@ func defaultBootclasspath(ctx android.PathContext) []string {
 			updatableBootclasspath[i] = dexpreopt.GetJarLocationFromApexJarPair(p)
 		}
 
-		bootclasspath := append(copyOf(image.dexLocationsDeps), updatableBootclasspath...)
+		bootclasspath := append(copyOf(image.getAnyAndroidVariant().dexLocationsDeps), updatableBootclasspath...)
 		return bootclasspath
 	})
 }
@@ -217,7 +218,7 @@ func init() {
 
 func dexpreoptConfigMakevars(ctx android.MakeVarsContext) {
 	ctx.Strict("PRODUCT_BOOTCLASSPATH", strings.Join(defaultBootclasspath(ctx), ":"))
-	ctx.Strict("PRODUCT_DEX2OAT_BOOTCLASSPATH", strings.Join(defaultBootImageConfig(ctx).dexLocationsDeps, ":"))
+	ctx.Strict("PRODUCT_DEX2OAT_BOOTCLASSPATH", strings.Join(defaultBootImageConfig(ctx).getAnyAndroidVariant().dexLocationsDeps, ":"))
 	ctx.Strict("PRODUCT_SYSTEM_SERVER_CLASSPATH", strings.Join(systemServerClasspath(ctx), ":"))
 
 	ctx.Strict("DEXPREOPT_BOOT_JARS_MODULES", strings.Join(defaultBootImageConfig(ctx).modules, ":"))

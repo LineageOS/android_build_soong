@@ -51,10 +51,6 @@ type bootImageConfig struct {
 	// The names of jars that constitute this image.
 	modules []string
 
-	// The "locations" of jars.
-	dexLocations     []string // for this image
-	dexLocationsDeps []string // for the dependency images and in this image
-
 	// File paths to jars.
 	dexPaths     android.WritablePaths // for this image
 	dexPathsDeps android.WritablePaths // for the dependency images and in this image
@@ -76,6 +72,10 @@ type bootImageVariant struct {
 	// Target for which the image is generated.
 	target android.Target
 
+	// The "locations" of jars.
+	dexLocations     []string // for this image
+	dexLocationsDeps []string // for the dependency images and in this image
+
 	// Paths to image files.
 	images     android.OutputPath  // first image file
 	imagesDeps android.OutputPaths // all files
@@ -92,6 +92,16 @@ type bootImageVariant struct {
 func (image bootImageConfig) getVariant(target android.Target) *bootImageVariant {
 	for _, variant := range image.variants {
 		if variant.target.Os == target.Os && variant.target.Arch.ArchType == target.Arch.ArchType {
+			return variant
+		}
+	}
+	return nil
+}
+
+// Return any (the first) variant which is for the device (as opposed to for the host)
+func (image bootImageConfig) getAnyAndroidVariant() *bootImageVariant {
+	for _, variant := range image.variants {
+		if variant.target.Os == android.Android {
 			return variant
 		}
 	}
@@ -475,7 +485,7 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImageConfig, 
 			Tool(globalSoong.Profman).
 			FlagWithInput("--create-profile-from=", bootImageProfile).
 			FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
-			FlagForEachArg("--dex-location=", image.dexLocationsDeps).
+			FlagForEachArg("--dex-location=", image.getAnyAndroidVariant().dexLocationsDeps).
 			FlagWithOutput("--reference-profile-file=", profile)
 
 		rule.Install(profile, "/system/etc/boot-image.prof")
@@ -526,7 +536,7 @@ func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImageConf
 			Flag("--generate-boot-profile").
 			FlagWithInput("--create-profile-from=", bootFrameworkProfile).
 			FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
-			FlagForEachArg("--dex-location=", image.dexLocationsDeps).
+			FlagForEachArg("--dex-location=", image.getAnyAndroidVariant().dexLocationsDeps).
 			FlagWithOutput("--reference-profile-file=", profile)
 
 		rule.Install(profile, "/system/etc/boot-image.bprof")
@@ -606,12 +616,11 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 	if image != nil {
 		ctx.Strict("DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED", image.profileInstalls.String())
 		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_FILES", strings.Join(image.dexPathsDeps.Strings(), " "))
-		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_LOCATIONS", strings.Join(image.dexLocationsDeps, " "))
+		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_LOCATIONS", strings.Join(image.getAnyAndroidVariant().dexLocationsDeps, " "))
 
 		var imageNames []string
 		for _, current := range append(d.otherImages, image) {
 			imageNames = append(imageNames, current.name)
-			imageLocations := []string{}
 			for _, variant := range current.variants {
 				suffix := ""
 				if variant.target.Os.Class == android.Host {
@@ -623,11 +632,8 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 				ctx.Strict("DEXPREOPT_IMAGE_DEPS_"+sfx, strings.Join(variant.imagesDeps.Strings(), " "))
 				ctx.Strict("DEXPREOPT_IMAGE_BUILT_INSTALLED_"+sfx, variant.installs.String())
 				ctx.Strict("DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_"+sfx, variant.unstrippedInstalls.String())
-				if variant.target.Os == android.Android {
-					// The locations for all Android targets are identical. Pick one.
-					imageLocations = variant.imageLocations()
-				}
 			}
+			imageLocations := current.getAnyAndroidVariant().imageLocations()
 			ctx.Strict("DEXPREOPT_IMAGE_LOCATIONS_"+current.name, strings.Join(imageLocations, ":"))
 			ctx.Strict("DEXPREOPT_IMAGE_ZIP_"+current.name, current.zip.String())
 		}
