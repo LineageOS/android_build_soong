@@ -882,7 +882,7 @@ func TestApexDependsOnLLNDKTransitively(t *testing.T) {
 		shouldNotLink []string
 	}{
 		{
-			name:          "should link to test latest",
+			name:          "should link to the latest",
 			minSdkVersion: "current",
 			shouldLink:    "30",
 			shouldNotLink: []string{"29"},
@@ -1222,7 +1222,7 @@ func TestPlatformUsesLatestStubsFromApexes(t *testing.T) {
 	expectNoLink("libz", "shared", "libz", "shared")
 }
 
-func TestQApexesUseLatestStubsInBundledBuilds(t *testing.T) {
+func TestQApexesUseLatestStubsInBundledBuildsAndHWASAN(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
@@ -1249,16 +1249,18 @@ func TestQApexesUseLatestStubsInBundledBuilds(t *testing.T) {
 				versions: ["29", "30"],
 			},
 		}
-	`)
+	`, func(fs map[string][]byte, config android.Config) {
+		config.TestProductVariables.SanitizeDevice = []string{"hwaddress"}
+	})
 	expectLink := func(from, from_variant, to, to_variant string) {
 		ld := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld")
 		libFlags := ld.Args["libFlags"]
 		ensureContains(t, libFlags, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
 	}
-	expectLink("libx", "shared_myapex", "libbar", "shared_30")
+	expectLink("libx", "shared_hwasan_myapex", "libbar", "shared_30")
 }
 
-func TestQTargetApexUseStaticUnwinder(t *testing.T) {
+func TestQTargetApexUsesStaticUnwinder(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
 			name: "myapex",
@@ -1277,8 +1279,7 @@ func TestQTargetApexUseStaticUnwinder(t *testing.T) {
 			name: "libx",
 			apex_available: [ "myapex" ],
 		}
-
-	`, withUnbundledBuild)
+	`)
 
 	// ensure apex variant of c++ is linked with static unwinder
 	cm := ctx.ModuleForTests("libc++", "android_arm64_armv8-a_shared_myapex").Module().(*cc.Module)
@@ -1289,7 +1290,7 @@ func TestQTargetApexUseStaticUnwinder(t *testing.T) {
 }
 
 func TestInvalidMinSdkVersion(t *testing.T) {
-	testApexError(t, `"libz" .*: min_sdk_version is set 29.*`, `
+	testApexError(t, `"libz" .*: not found a version\(<=29\)`, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -1319,9 +1320,9 @@ func TestInvalidMinSdkVersion(t *testing.T) {
 				versions: ["30"],
 			},
 		}
-	`, withUnbundledBuild)
+	`)
 
-	testApexError(t, `"myapex" .*: min_sdk_version: should be .*`, `
+	testApexError(t, `"myapex" .*: min_sdk_version: should be "current" or <number>`, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
@@ -1842,7 +1843,7 @@ func TestMacro(t *testing.T) {
 	// non-APEX variant does not have __ANDROID_APEX__ defined
 	mylibCFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
 	ensureNotContains(t, mylibCFlags, "-D__ANDROID_APEX__")
-	ensureNotContains(t, mylibCFlags, "-D__ANDROID_SDK_VERSION__=10000")
+	ensureNotContains(t, mylibCFlags, "-D__ANDROID_SDK_VERSION__")
 
 	// APEX variant has __ANDROID_APEX__ and __ANDROID_APEX_SDK__ defined
 	mylibCFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_myapex").Rule("cc").Args["cFlags"]
