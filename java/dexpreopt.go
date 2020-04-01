@@ -127,7 +127,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 	global := dexpreopt.GetGlobalConfig(ctx)
 	bootImage := defaultBootImageConfig(ctx)
 	dexFiles := bootImage.dexPathsDeps.Paths()
-	dexLocations := bootImage.dexLocationsDeps
+	// The dex locations for all Android variants are identical.
+	dexLocations := bootImage.getAnyAndroidVariant().dexLocationsDeps
 	if global.UseArtImage {
 		bootImage = artBootImageConfig(ctx)
 	}
@@ -155,8 +156,8 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		images = append(images, variant.images)
 		imagesDeps = append(imagesDeps, variant.imagesDeps)
 	}
-	// The locations for all Android targets are identical. Pick the first one.
-	imageLocations := bootImage.getVariant(targets[0]).imageLocations()
+	// The image locations for all Android variants are identical.
+	imageLocations := bootImage.getAnyAndroidVariant().imageLocations()
 
 	dexLocation := android.InstallPathToOnDevicePath(ctx, d.installPath)
 
