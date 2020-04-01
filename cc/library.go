@@ -367,6 +367,9 @@ type libraryDecorator struct {
 	// Location of the file that should be copied to dist dir when requested
 	distFile android.OptionalPath
 
+	// stubs.symbol_file
+	stubsSymbolFile android.OptionalPath
+
 	versionScriptPath android.ModuleGenPath
 
 	post_install_cmds []string
@@ -376,7 +379,7 @@ type libraryDecorator struct {
 	useCoreVariant       bool
 	checkSameCoreVariant bool
 
-	// Decorated interafaces
+	// Decorated interfaces
 	*baseCompiler
 	*baseLinker
 	*baseInstaller
@@ -603,6 +606,7 @@ func (library *libraryDecorator) shouldCreateSourceAbiDump(ctx ModuleContext) bo
 
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
 	if library.buildStubs() {
+		library.stubsSymbolFile = android.OptionalPathForModuleSrc(ctx, library.Properties.Stubs.Symbol_file)
 		objs, versionScript := compileStubLibrary(ctx, flags, String(library.Properties.Stubs.Symbol_file), library.MutatedProperties.StubsVersion, "--apex")
 		library.versionScriptPath = versionScript
 		return objs

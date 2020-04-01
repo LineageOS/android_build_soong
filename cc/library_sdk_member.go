@@ -269,12 +269,21 @@ func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, b
 	for property, dirs := range includeDirs {
 		outputProperties.AddProperty(property, dirs)
 	}
+
+	if len(libInfo.StubsVersion) > 0 {
+		symbolFilePath := filepath.Join(nativeEtcDir, libInfo.StubsSymbolFile.Path().Base())
+		builder.CopyToSnapshot(libInfo.StubsSymbolFile.Path(), symbolFilePath)
+		stubsSet := outputProperties.AddPropertySet("stubs")
+		stubsSet.AddProperty("symbol_file", symbolFilePath)
+		stubsSet.AddProperty("versions", []string{libInfo.StubsVersion})
+	}
 }
 
 const (
 	nativeIncludeDir          = "include"
 	nativeGeneratedIncludeDir = "include_gen"
 	nativeStubDir             = "lib"
+	nativeEtcDir              = "etc"
 )
 
 // path to the native library. Relative to <sdk_root>/<api_dir>
@@ -335,6 +344,13 @@ type nativeLibInfoProperties struct {
 	// This field is exported as its contents may not be arch specific.
 	SystemSharedLibs []string
 
+	// The specific stubs version for the lib variant, or empty string if stubs
+	// are not in use.
+	StubsVersion string
+
+	// The stubs symbol file.
+	StubsSymbolFile android.OptionalPath
+
 	// outputFile is not exported as it is always arch specific.
 	outputFile android.Path
 }
@@ -370,6 +386,11 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 		p.SystemSharedLibs = specifiedDeps.systemSharedLibs
 	}
 	p.exportedGeneratedHeaders = ccModule.ExportedGeneratedHeaders()
+
+	if ccModule.HasStubsVariants() {
+		p.StubsVersion = ccModule.StubsVersion()
+		p.StubsSymbolFile = ccModule.StubsSymbolFile()
+	}
 }
 
 func (p *nativeLibInfoProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
