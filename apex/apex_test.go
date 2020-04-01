@@ -3501,7 +3501,7 @@ func TestApexPropertiesShouldBeDefaultable(t *testing.T) {
 	}`)
 }
 
-func TestApexAvailable(t *testing.T) {
+func TestApexAvailable_DirectDep(t *testing.T) {
 	// libfoo is not available to myapex, but only to otherapex
 	testApexError(t, "requires \"libfoo\" that is not available for the APEX", `
 	apex {
@@ -3534,9 +3534,17 @@ func TestApexAvailable(t *testing.T) {
 		system_shared_libs: [],
 		apex_available: ["otherapex"],
 	}`)
+}
 
+func TestApexAvailable_IndirectDep(t *testing.T) {
 	// libbbaz is an indirect dep
-	testApexError(t, "requires \"libbaz\" that is not available for the APEX", `
+	testApexError(t, `requires "libbaz" that is not available for the APEX. Dependency path:
+.*-> libfoo.*link:shared.*
+.*-> libfoo.*link:static.*
+.*-> libbar.*link:shared.*
+.*-> libbar.*link:static.*
+.*-> libbaz.*link:shared.*
+.*-> libbaz.*link:static.*`, `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
@@ -3570,7 +3578,9 @@ func TestApexAvailable(t *testing.T) {
 		stl: "none",
 		system_shared_libs: [],
 	}`)
+}
 
+func TestApexAvailable_InvalidApexName(t *testing.T) {
 	testApexError(t, "\"otherapex\" is not a valid module name", `
 	apex {
 		name: "myapex",
@@ -3591,7 +3601,7 @@ func TestApexAvailable(t *testing.T) {
 		apex_available: ["otherapex"],
 	}`)
 
-	ctx, _ := testApex(t, `
+	testApex(t, `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
@@ -3627,7 +3637,9 @@ func TestApexAvailable(t *testing.T) {
 			versions: ["10", "20", "30"],
 		},
 	}`)
+}
 
+func TestApexAvailable_CreatedForPlatform(t *testing.T) {
 	// check that libfoo and libbar are created only for myapex, but not for the platform
 	// TODO(jiyong) the checks for the platform variant are removed because we now create
 	// the platform variant regardless of the apex_availability. Instead, we will make sure that
@@ -3639,7 +3651,7 @@ func TestApexAvailable(t *testing.T) {
 	//	ensureListContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared_myapex")
 	//	ensureListNotContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared")
 
-	ctx, _ = testApex(t, `
+	ctx, _ := testApex(t, `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
@@ -3661,8 +3673,10 @@ func TestApexAvailable(t *testing.T) {
 	// check that libfoo is created only for the platform
 	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared_myapex")
 	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared")
+}
 
-	ctx, _ = testApex(t, `
+func TestApexAvailable_CreatedForApex(t *testing.T) {
+	testApex(t, `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
