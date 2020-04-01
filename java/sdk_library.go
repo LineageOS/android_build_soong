@@ -18,7 +18,6 @@ import (
 	"android/soong/android"
 
 	"fmt"
-	"io"
 	"path"
 	"path/filepath"
 	"sort"
@@ -328,41 +327,6 @@ func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 	entriesList := module.Library.AndroidMkEntries()
 	entries := &entriesList[0]
 	entries.Required = append(entries.Required, module.xmlFileName())
-
-	entries.ExtraFooters = []android.AndroidMkExtraFootersFunc{
-		func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
-			if !Bool(module.sdkLibraryProperties.No_dist) {
-				// Create a phony module that installs the impl library, for the case when this lib is
-				// in PRODUCT_PACKAGES.
-				owner := module.ModuleBase.Owner()
-				if owner == "" {
-					if Bool(module.sdkLibraryProperties.Core_lib) {
-						owner = "core"
-					} else {
-						owner = "android"
-					}
-				}
-
-				// Create dist rules to install the stubs libs and api files to the dist dir
-				for _, apiScope := range module.getActiveApiScopes() {
-					if scopePaths, ok := module.scopePaths[apiScope]; ok {
-						if len(scopePaths.stubsHeaderPath) == 1 {
-							fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
-								scopePaths.stubsImplPath.Strings()[0]+
-								":"+path.Join("apistubs", owner, apiScope.name,
-								module.BaseModuleName()+".jar")+")")
-						}
-						if scopePaths.apiFilePath != nil {
-							fmt.Fprintln(w, "$(call dist-for-goals,sdk win_sdk,"+
-								scopePaths.apiFilePath.String()+
-								":"+path.Join("apistubs", owner, apiScope.name, "api",
-								module.BaseModuleName()+".txt")+")")
-						}
-					}
-				}
-			}
-		},
-	}
 	return entriesList
 }
 
@@ -384,6 +348,17 @@ func (module *SdkLibrary) implName() string {
 // Module name of the XML file for the lib
 func (module *SdkLibrary) xmlFileName() string {
 	return module.BaseModuleName() + sdkXmlFileSuffix
+}
+
+// The dist path of the stub artifacts
+func (module *SdkLibrary) apiDistPath(apiScope *apiScope) string {
+	if module.ModuleBase.Owner() != "" {
+		return path.Join("apistubs", module.ModuleBase.Owner(), apiScope.name)
+	} else if Bool(module.sdkLibraryProperties.Core_lib) {
+		return path.Join("apistubs", "core", apiScope.name)
+	} else {
+		return path.Join("apistubs", "android", apiScope.name)
+	}
 }
 
 // Get the sdk version for use when compiling the stubs library.
@@ -438,6 +413,12 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 			Srcs       []string
 			Javacflags []string
 		}
+		Dist struct {
+			Targets []string
+			Dest    *string
+			Dir     *string
+			Tag     *string
+		}
 	}{}
 
 	props.Name = proptools.StringPtr(module.stubsName(apiScope))
@@ -465,6 +446,13 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 		props.Product_specific = proptools.BoolPtr(true)
 	} else if module.SystemExtSpecific() {
 		props.System_ext_specific = proptools.BoolPtr(true)
+	}
+	// Dist the class jar artifact for sdk builds.
+	if !Bool(module.sdkLibraryProperties.No_dist) {
+		props.Dist.Targets = []string{"sdk", "win_sdk"}
+		props.Dist.Dest = proptools.StringPtr(fmt.Sprintf("%v.jar", module.BaseModuleName()))
+		props.Dist.Dir = proptools.StringPtr(module.apiDistPath(apiScope))
+		props.Dist.Tag = proptools.StringPtr(".jar")
 	}
 
 	mctx.CreateModule(LibraryFactory, &props)
@@ -496,6 +484,11 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 		Aidl struct {
 			Include_dirs       []string
 			Local_include_dirs []string
+		}
+		Dist struct {
+			Targets []string
+			Dest    *string
+			Dir     *string
 		}
 	}{}
 
@@ -577,6 +570,13 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 	props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
 		module.latestRemovedApiFilegroupName(apiScope))
 	props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
+
+	// Dist the api txt artifact for sdk builds.
+	if !Bool(module.sdkLibraryProperties.No_dist) {
+		props.Dist.Targets = []string{"sdk", "win_sdk"}
+		props.Dist.Dest = proptools.StringPtr(fmt.Sprintf("%v.txt", module.BaseModuleName()))
+		props.Dist.Dir = proptools.StringPtr(path.Join(module.apiDistPath(apiScope), "api"))
+	}
 
 	mctx.CreateModule(DroidstubsFactory, &props)
 }
