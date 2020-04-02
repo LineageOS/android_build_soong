@@ -203,19 +203,6 @@ var neverallowTests = []struct {
 		},
 	},
 	{
-		name: "dependency on framework-mediaprovider",
-		fs: map[string][]byte{
-			"Android.bp": []byte(`
-				java_library {
-					name: "needs_framework_mediaprovider",
-					libs: ["framework-mediaprovider"],
-				}`),
-		},
-		expectedErrors: []string{
-			"framework-mediaprovider includes private APIs. Use framework_mediaprovider_stubs instead.",
-		},
-	},
-	{
 		name: "java_device_for_host",
 		fs: map[string][]byte{
 			"Android.bp": []byte(`
