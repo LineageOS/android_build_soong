@@ -92,12 +92,10 @@ type ApexModule interface {
 	// APEX as this module
 	DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
 
-	// Returns the highest version which is <= min_sdk_version.
-	// For example, with min_sdk_version is 10 and versionList is [9,11]
-	// it returns 9.
-	ChooseSdkVersion(versionList []string, useLatest bool) (string, error)
-
-	ShouldSupportAndroid10() bool
+	// Returns the highest version which is <= maxSdkVersion.
+	// For example, with maxSdkVersion is 10 and versionList is [9,11]
+	// it returns 9 as string
+	ChooseSdkVersion(versionList []string, maxSdkVersion int) (string, error)
 }
 
 type ApexProperties struct {
@@ -189,22 +187,14 @@ func (m *ApexModuleBase) DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
 	return true
 }
 
-func (m *ApexModuleBase) ChooseSdkVersion(versionList []string, useLatest bool) (string, error) {
-	if useLatest {
-		return versionList[len(versionList)-1], nil
-	}
-	minSdkVersion := m.ApexProperties.Info.MinSdkVersion
+func (m *ApexModuleBase) ChooseSdkVersion(versionList []string, maxSdkVersion int) (string, error) {
 	for i := range versionList {
 		ver, _ := strconv.Atoi(versionList[len(versionList)-i-1])
-		if ver <= minSdkVersion {
+		if ver <= maxSdkVersion {
 			return versionList[len(versionList)-i-1], nil
 		}
 	}
-	return "", fmt.Errorf("min_sdk_version is set %v, but not found in %v", minSdkVersion, versionList)
-}
-
-func (m *ApexModuleBase) ShouldSupportAndroid10() bool {
-	return !m.IsForPlatform() && (m.ApexProperties.Info.MinSdkVersion <= SdkVersion_Android10)
+	return "", fmt.Errorf("not found a version(<=%d) in versionList: %v", maxSdkVersion, versionList)
 }
 
 func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
