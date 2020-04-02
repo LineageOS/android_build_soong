@@ -95,26 +95,15 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	m["com.android.adbd"] = []string{
 		"adbd",
-		"bcm_object",
-		"fmtlib",
 		"libadbconnection_server",
 		"libadbd",
 		"libadbd_auth",
 		"libadbd_core",
 		"libadbd_services",
 		"libasyncio",
-		"libbacktrace_headers",
-		"libbase",
-		"libbase_headers",
 		"libbuildversion",
-		"libc++",
 		"libcap",
-		"libcrypto",
-		"libcrypto_utils",
-		"libcutils",
-		"libcutils_headers",
 		"libdiagnose_usb",
-		"liblog_headers",
 		"libmdnssd",
 		"libminijail",
 		"libminijail_gen_constants",
@@ -126,8 +115,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libpcre2",
 		"libprocessgroup_headers",
 		"libqemu_pipe",
-		"libsystem_headers",
-		"libutils_headers",
 	}
 	//
 	// Module separator
@@ -143,7 +130,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"art_cmdlineparser_headers",
 		"art_disassembler_headers",
 		"art_libartbase_headers",
-		"bcm_object",
 		"bionic_libc_platform_headers",
 		"core-repackaged-icu4j",
 		"cpp-define-generator-asm-support",
@@ -155,9 +141,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"conscrypt.module.intra.core.api.stubs",
 		"dex2oat_headers",
 		"dt_fd_forward_export",
-		"fmtlib",
 		"icu4c_extra_headers",
-		"jacocoagent",
 		"javavm_headers",
 		"jni_platform_headers",
 		"libPlatformProperties",
@@ -167,15 +151,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libart_runtime_headers_ndk",
 		"libartd-disassembler",
 		"libasync_safe",
-		"libbacktrace",
-		"libbase",
-		"libbase_headers",
-		"libc++",
-		"libc++_static",
-		"libc++abi",
-		"libc++demangle",
-		"libc_headers",
-		"libcrypto",
 		"libdexfile_all_headers",
 		"libdexfile_external_headers",
 		"libdexfile_support",
@@ -188,7 +163,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libicuuc_headers",
 		"libicuuc_stubdata",
 		"libjdwp_headers",
-		"liblog_headers",
 		"liblz4",
 		"liblzma",
 		"libmeminfo",
@@ -199,7 +173,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libopenjdkjvmti_headers",
 		"libperfetto_client_experimental",
 		"libprocinfo",
-		"libprotobuf-cpp-lite",
 		"libunwind_llvm",
 		"libunwindstack",
 		"libv8",
@@ -236,13 +209,10 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"android.hidl.token@1.0-utils",
 		"avrcp-target-service",
 		"avrcp_headers",
-		"bcm_object",
 		"bluetooth-protos-lite",
 		"bluetooth.mapsapi",
 		"com.android.vcard",
 		"dnsresolver_aidl_interface-V2-java",
-		"fmtlib",
-		"guava",
 		"ipmemorystore-aidl-interfaces-V5-java",
 		"ipmemorystore-aidl-interfaces-java",
 		"internal_include_headers",
@@ -252,9 +222,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libFraunhoferAAC",
 		"libaudio-a2dp-hw-utils",
 		"libaudio-hearing-aid-hw-utils",
-		"libbacktrace_headers",
-		"libbase",
-		"libbase_headers",
 		"libbinder_headers",
 		"libbluetooth",
 		"libbluetooth-types",
@@ -276,38 +243,23 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libbtdevice",
 		"libbte",
 		"libbtif",
-		"libc++",
 		"libchrome",
-		"libcrypto",
-		"libcutils",
-		"libcutils_headers",
 		"libevent",
 		"libfmq",
 		"libg722codec",
 		"libgtest_prod",
 		"libgui_headers",
-		"libhidlbase",
-		"libhidlbase-impl-internal",
-		"libhidltransport-impl-internal",
-		"libhwbinder-impl-internal",
-		"libjsoncpp",
-		"liblog_headers",
 		"libmedia_headers",
 		"libmodpb64",
 		"libosi",
 		"libprocessgroup",
 		"libprocessgroup_headers",
-		"libprotobuf-cpp-lite",
-		"libprotobuf-java-lite",
-		"libprotobuf-java-micro",
 		"libstagefright_foundation_headers",
 		"libstagefright_headers",
 		"libstatslog",
 		"libstatssocket",
-		"libsystem_headers",
 		"libtinyxml2",
 		"libudrv-uipc",
-		"libutils_headers",
 		"libz",
 		"media_plugin_headers",
 		"net-utils-services-common",
@@ -327,12 +279,8 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.conscrypt"] = []string{
-		"bcm_object",
 		"boringssl_self_test",
-		"libc++",
-		"libcrypto",
 		"libnativehelper_header_only",
-		"libssl",
 		"unsupportedappusage",
 	}
 	//
@@ -372,28 +320,11 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"android.hidl.memory.token@1.0",
 		"android.hidl.memory@1.0",
 		"android.hidl.safe_union@1.0",
-		"bcm_object",
-		"fmtlib",
 		"gemmlowp_headers",
 		"libarect",
-		"libbacktrace_headers",
-		"libbase",
-		"libbase_headers",
 		"libbuildversion",
-		"libc++",
-		"libcrypto",
-		"libcrypto_static",
-		"libcutils",
-		"libcutils_headers",
 		"libeigen",
 		"libfmq",
-		"libhidlbase",
-		"libhidlbase-impl-internal",
-		"libhidlmemory",
-		"libhidltransport-impl-internal",
-		"libhwbinder-impl-internal",
-		"libjsoncpp",
-		"liblog_headers",
 		"libmath",
 		"libneuralnetworks_common",
 		"libneuralnetworks_headers",
@@ -401,12 +332,10 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libprocessgroup_headers",
 		"libprocpartition",
 		"libsync",
-		"libsystem_headers",
 		"libtextclassifier_hash",
 		"libtextclassifier_hash_headers",
 		"libtextclassifier_hash_static",
 		"libtflite_kernel_utils",
-		"libutils_headers",
 		"philox_random",
 		"philox_random_headers",
 		"tensorflow_headers",
@@ -438,9 +367,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"android.hidl.memory@1.0",
 		"android.hidl.token@1.0",
 		"android.hidl.token@1.0-utils",
-		"bcm_object",
 		"bionic_libc_platform_headers",
-		"fmtlib",
 		"gl_headers",
 		"libEGL",
 		"libEGL_blobCache",
@@ -462,23 +389,14 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libaudiopolicy",
 		"libaudioutils",
 		"libaudioutils_fixedfft",
-		"libbacktrace",
-		"libbacktrace_headers",
-		"libbase",
-		"libbase_headers",
 		"libbinder_headers",
 		"libbluetooth-types-header",
 		"libbufferhub",
 		"libbufferhub_headers",
 		"libbufferhubqueue",
-		"libc++",
-		"libc_headers",
 		"libc_malloc_debug_backtrace",
 		"libcamera_client",
 		"libcamera_metadata",
-		"libcrypto",
-		"libcutils",
-		"libcutils_headers",
 		"libdexfile_external_headers",
 		"libdexfile_support",
 		"libdvr_headers",
@@ -490,14 +408,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libgui",
 		"libgui_headers",
 		"libhardware_headers",
-		"libhidlbase",
-		"libhidlbase-impl-internal",
-		"libhidlmemory",
-		"libhidltransport-impl-internal",
-		"libhwbinder-impl-internal",
 		"libinput",
-		"libjsoncpp",
-		"liblog_headers",
 		"liblzma",
 		"libmath",
 		"libmedia",
@@ -545,11 +456,9 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libstagefright_mpeg2extractor",
 		"libstagefright_mpeg2support",
 		"libsync",
-		"libsystem_headers",
 		"libui",
 		"libui_headers",
 		"libunwindstack",
-		"libutils_headers",
 		"libvibrator",
 		"libvorbisidec",
 		"libwavextractor",
@@ -591,7 +500,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"android.hidl.safe_union@1.0",
 		"android.hidl.token@1.0",
 		"android.hidl.token@1.0-utils",
-		"fmtlib",
 		"libEGL",
 		"libFLAC",
 		"libFLAC-config",
@@ -608,15 +516,10 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libavcenc",
 		"libavservices_minijail",
 		"libavservices_minijail",
-		"libbacktrace",
-		"libbacktrace_headers",
-		"libbase",
-		"libbase_headers",
 		"libbinder_headers",
 		"libbinderthreadstateutils",
 		"libbluetooth-types-header",
 		"libbufferhub_headers",
-		"libc++",
 		"libc_scudo",
 		"libcap",
 		"libcodec2",
@@ -656,8 +559,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libcodec2_soft_vp9dec",
 		"libcodec2_soft_vp9enc",
 		"libcodec2_vndk",
-		"libcutils",
-		"libcutils_headers",
 		"libdexfile_support",
 		"libdvr_headers",
 		"libfmq",
@@ -673,15 +574,8 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libhardware_headers",
 		"libhevcdec",
 		"libhevcenc",
-		"libhidlbase",
-		"libhidlbase-impl-internal",
-		"libhidlmemory",
-		"libhidltransport-impl-internal",
-		"libhwbinder-impl-internal",
 		"libion",
 		"libjpeg",
-		"libjsoncpp",
-		"liblog_headers",
 		"liblzma",
 		"libmath",
 		"libmedia_codecserviceregistrant",
@@ -720,11 +614,9 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libstagefright_m4vh263enc",
 		"libstagefright_mp3dec",
 		"libsync",
-		"libsystem_headers",
 		"libui",
 		"libui_headers",
 		"libunwindstack",
-		"libutils_headers",
 		"libvorbisidec",
 		"libvpx",
 		"libyuv",
@@ -740,7 +632,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"MediaProvider",
 		"MediaProviderGoogle",
 		"fmtlib_ndk",
-		"guava",
 		"libbase_ndk",
 		"libfuse",
 		"libfuse_jni",
@@ -764,7 +655,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"kotlinx-coroutines-android-nodeps",
 		"kotlinx-coroutines-core",
 		"kotlinx-coroutines-core-nodeps",
-		"libprotobuf-java-lite",
 		"permissioncontroller-statsd",
 		"GooglePermissionController",
 		"PermissionController",
@@ -774,14 +664,9 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	m["com.android.runtime"] = []string{
 		"bionic_libc_platform_headers",
-		"fmtlib",
 		"libarm-optimized-routines-math",
 		"libasync_safe",
 		"libasync_safe_headers",
-		"libbacktrace_headers",
-		"libbase",
-		"libbase_headers",
-		"libc++",
 		"libc_aeabi",
 		"libc_bionic",
 		"libc_bionic_ndk",
@@ -795,7 +680,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libc_freebsd",
 		"libc_freebsd_large_stack",
 		"libc_gdtoa",
-		"libc_headers",
 		"libc_init_dynamic",
 		"libc_init_static",
 		"libc_jemalloc_wrapper",
@@ -810,8 +694,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libc_syscalls",
 		"libc_tzcode",
 		"libc_unwind_static",
-		"libcutils",
-		"libcutils_headers",
 		"libdebuggerd",
 		"libdebuggerd_common_headers",
 		"libdebuggerd_handler_core",
@@ -824,7 +706,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libjemalloc5",
 		"liblinker_main",
 		"liblinker_malloc",
-		"liblog_headers",
 		"liblz4",
 		"liblzma",
 		"libprocessgroup_headers",
@@ -832,11 +713,9 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libpropertyinfoparser",
 		"libscudo",
 		"libstdc++",
-		"libsystem_headers",
 		"libsystemproperties",
 		"libtombstoned_client_static",
 		"libunwindstack",
-		"libutils_headers",
 		"libz",
 		"libziparchive",
 	}
@@ -844,34 +723,19 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.resolv"] = []string{
-		"bcm_object",
 		"dnsresolver_aidl_interface-unstable-ndk_platform",
-		"fmtlib",
-		"libbacktrace_headers",
-		"libbase",
-		"libbase_headers",
-		"libc++",
-		"libcrypto",
-		"libcutils",
-		"libcutils_headers",
 		"libgtest_prod",
-		"libjsoncpp",
-		"liblog_headers",
 		"libnativehelper_header_only",
 		"libnetd_client_headers",
 		"libnetd_resolv",
 		"libnetdutils",
 		"libprocessgroup",
 		"libprocessgroup_headers",
-		"libprotobuf-cpp-lite",
-		"libssl",
 		"libstatslog_resolv",
 		"libstatspush_compat",
 		"libstatssocket",
 		"libstatssocket_headers",
-		"libsystem_headers",
 		"libsysutils",
-		"libutils_headers",
 		"netd_event_listener_interface-ndk_platform",
 		"server_configurable_flags",
 		"stats_proto",
@@ -880,28 +744,13 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.tethering"] = []string{
-		"libbase",
-		"libc++",
 		"libnativehelper_compat_libc++",
 		"android.hardware.tetheroffload.config@1.0",
-		"fmtlib",
-		"libbacktrace_headers",
-		"libbase_headers",
 		"libcgrouprc",
 		"libcgrouprc_format",
-		"libcutils",
-		"libcutils_headers",
-		"libhidlbase",
-		"libhidlbase-impl-internal",
-		"libhidltransport-impl-internal",
-		"libhwbinder-impl-internal",
-		"libjsoncpp",
-		"liblog_headers",
 		"libprocessgroup",
 		"libprocessgroup_headers",
-		"libsystem_headers",
 		"libtetherutilsjni",
-		"libutils_headers",
 		"libvndksupport",
 		"tethering-aidl-interfaces-java",
 	}
@@ -937,20 +786,9 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"ipmemorystore-aidl-interfaces-V3-java",
 		"ipmemorystore-aidl-interfaces-java",
 		"ksoap2",
-		"libbacktrace_headers",
-		"libbase",
-		"libbase_headers",
-		"libc++",
-		"libcutils",
-		"libcutils_headers",
-		"liblog_headers",
 		"libnanohttpd",
 		"libprocessgroup",
 		"libprocessgroup_headers",
-		"libprotobuf-java-lite",
-		"libprotobuf-java-nano",
-		"libsystem_headers",
-		"libutils_headers",
 		"libwifi-jni",
 		"net-utils-services-common",
 		"netd_aidl_interface-V2-java",
@@ -978,34 +816,14 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.os.statsd"] = []string{
-		"libbacktrace_headers",
-		"libbase_headers",
-		"libc++",
-		"libcutils",
-		"libcutils_headers",
-		"liblog_headers",
 		"libprocessgroup_headers",
 		"libstatssocket",
-		"libsystem_headers",
-		"libutils_headers",
 	}
 	//
 	// Module separator
 	//
 	m[android.AvailableToAnyApex] = []string{
-		"crtbegin_dynamic",
-		"crtbegin_dynamic1",
-		"crtbegin_so",
-		"crtbegin_so1",
-		"crtbegin_static",
-		"crtbrand",
-		"crtend_android",
-		"crtend_so",
 		"libatomic",
-		"libc++_static",
-		"libc++abi",
-		"libc++demangle",
-		"libc_headers",
 		"libclang_rt",
 		"libgcc_stripped",
 		"libprofile-clang-extras",
@@ -1985,9 +1803,13 @@ func (c *flattenedApexContext) InstallBypassMake() bool {
 	return true
 }
 
+// Function called while walking an APEX's payload dependencies.
+//
+// Return true if the `to` module should be visited, false otherwise.
+type payloadDepsCallback func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool
+
 // Visit dependencies that contributes to the payload of this APEX
-func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext,
-	do func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool)) {
+func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext, do payloadDepsCallback) {
 	ctx.WalkDeps(func(child, parent android.Module) bool {
 		am, ok := child.(android.ApexModule)
 		if !ok || !am.CanHaveApexVariants() {
@@ -1997,22 +1819,18 @@ func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext,
 		// Check for the direct dependencies that contribute to the payload
 		if dt, ok := ctx.OtherModuleDependencyTag(child).(dependencyTag); ok {
 			if dt.payload {
-				do(ctx, parent, am, false /* externalDep */)
-				return true
+				return do(ctx, parent, am, false /* externalDep */)
 			}
+			// As soon as the dependency graph crosses the APEX boundary, don't go further.
 			return false
 		}
 
 		// Check for the indirect dependencies if it is considered as part of the APEX
 		if am.ApexName() != "" {
-			do(ctx, parent, am, false /* externalDep */)
-			return true
+			return do(ctx, parent, am, false /* externalDep */)
 		}
 
-		do(ctx, parent, am, true /* externalDep */)
-
-		// As soon as the dependency graph crosses the APEX boundary, don't go further.
-		return false
+		return do(ctx, parent, am, true /* externalDep */)
 	})
 }
 
@@ -2042,28 +1860,36 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		return
 	}
 
-	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
+	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
+		if externalDep {
+			// As soon as the dependency graph crosses the APEX boundary, don't go further.
+			return false
+		}
+
 		apexName := ctx.ModuleName()
 		fromName := ctx.OtherModuleName(from)
 		toName := ctx.OtherModuleName(to)
-		if externalDep || to.AvailableFor(apexName) || whitelistedApexAvailable(apexName, toName) {
-			return
+		if to.AvailableFor(apexName) || whitelistedApexAvailable(apexName, toName) {
+			return true
 		}
 		message := ""
 		for _, m := range ctx.GetWalkPath()[1:] {
 			message = fmt.Sprintf("%s\n    -> %s", message, m.String())
 		}
 		ctx.ModuleErrorf("%q requires %q that is not available for the APEX. Dependency path:%s", fromName, toName, message)
+		// Visit this module's dependencies to check and report any issues with their availability.
+		return true
 	})
 }
 
 // Collects the list of module names that directly or indirectly contributes to the payload of this APEX
 func (a *apexBundle) collectDepsInfo(ctx android.ModuleContext) {
 	a.depInfos = make(map[string]depInfo)
-	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
+	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
 		if from.Name() == to.Name() {
 			// This can happen for cc.reuseObjTag. We are not interested in tracking this.
-			return
+			// As soon as the dependency graph crosses the APEX boundary, don't go further.
+			return !externalDep
 		}
 
 		if info, exists := a.depInfos[to.Name()]; exists {
@@ -2079,6 +1905,9 @@ func (a *apexBundle) collectDepsInfo(ctx android.ModuleContext) {
 				isExternal: externalDep,
 			}
 		}
+
+		// As soon as the dependency graph crosses the APEX boundary, don't go further.
+		return !externalDep
 	})
 }
 
