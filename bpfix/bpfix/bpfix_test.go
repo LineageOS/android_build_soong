@@ -918,3 +918,67 @@ func TestRemoveHidlInterfaceTypes(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveSoongConfigBoolVariable(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "remove bool",
+			in: `
+				soong_config_module_type {
+					name: "foo",
+					variables: ["bar", "baz"],
+				}
+
+				soong_config_bool_variable {
+					name: "bar",
+				}
+
+				soong_config_string_variable {
+					name: "baz",
+				}
+			`,
+			out: `
+				soong_config_module_type {
+					name: "foo",
+					variables: [
+						"baz"
+					],
+					bool_variables: ["bar"],
+				}
+
+				soong_config_string_variable {
+					name: "baz",
+				}
+			`,
+		},
+		{
+			name: "existing bool_variables",
+			in: `
+				soong_config_module_type {
+					name: "foo",
+					variables: ["baz"],
+					bool_variables: ["bar"],
+				}
+
+				soong_config_bool_variable {
+					name: "baz",
+				}
+			`,
+			out: `
+				soong_config_module_type {
+					name: "foo",
+					bool_variables: ["bar", "baz"],
+				}
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, removeSoongConfigBoolVariable)
+		})
+	}
+}
