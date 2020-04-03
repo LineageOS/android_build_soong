@@ -419,17 +419,14 @@ soong_config_module_type {
     name: "acme_cc_defaults",
     module_type: "cc_defaults",
     config_namespace: "acme",
-    variables: ["board", "feature"],
+    variables: ["board"],
+    bool_variables: ["feature"],
     properties: ["cflags", "srcs"],
 }
 
 soong_config_string_variable {
     name: "board",
     values: ["soc_a", "soc_b"],
-}
-
-soong_config_bool_variable {
-    name: "feature",
 }
 ```
 
