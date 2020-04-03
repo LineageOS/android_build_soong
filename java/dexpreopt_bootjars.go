@@ -16,6 +16,7 @@ package java
 
 import (
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -281,6 +282,7 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 
 	profile := bootImageProfileRule(ctx, image, missingDeps)
 	bootFrameworkProfileRule(ctx, image, missingDeps)
+	updatableBcpPackagesRule(ctx, image, missingDeps)
 
 	var allFiles android.Paths
 	for _, variant := range image.variants {
@@ -548,6 +550,61 @@ func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImageConf
 }
 
 var bootFrameworkProfileRuleKey = android.NewOnceKey("bootFrameworkProfileRule")
+
+func updatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConfig, missingDeps []string) android.WritablePath {
+	if ctx.Config().IsPdkBuild() || ctx.Config().UnbundledBuild() {
+		return nil
+	}
+
+	return ctx.Config().Once(updatableBcpPackagesRuleKey, func() interface{} {
+		global := dexpreopt.GetGlobalConfig(ctx)
+		updatableModules := dexpreopt.GetJarsFromApexJarPairs(global.UpdatableBootJars)
+
+		// Collect `permitted_packages` for updatable boot jars.
+		var updatablePackages []string
+		ctx.VisitAllModules(func(module android.Module) {
+			if j, ok := module.(*Library); ok {
+				name := ctx.ModuleName(module)
+				if i := android.IndexList(name, updatableModules); i != -1 {
+					pp := j.properties.Permitted_packages
+					if len(pp) > 0 {
+						updatablePackages = append(updatablePackages, pp...)
+					} else {
+						ctx.Errorf("Missing permitted_packages for %s", name)
+					}
+					// Do not match the same library repeatedly.
+					updatableModules = append(updatableModules[:i], updatableModules[i+1:]...)
+				}
+			}
+		})
+
+		// Sort updatable packages to ensure deterministic ordering.
+		sort.Strings(updatablePackages)
+
+		updatableBcpPackagesName := "updatable-bcp-packages.txt"
+		updatableBcpPackages := image.dir.Join(ctx, updatableBcpPackagesName)
+
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.WriteFile,
+			Output: updatableBcpPackages,
+			Args: map[string]string{
+				// WriteFile automatically adds the last end-of-line.
+				"content": strings.Join(updatablePackages, "\\n"),
+			},
+		})
+
+		rule := android.NewRuleBuilder()
+		rule.MissingDeps(missingDeps)
+		rule.Install(updatableBcpPackages, "/system/etc/"+updatableBcpPackagesName)
+		// TODO: Rename `profileInstalls` to `extraInstalls`?
+		// Maybe even move the field out of the bootImageConfig into some higher level type?
+		image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
+
+		return updatableBcpPackages
+	}).(android.WritablePath)
+}
+
+var updatableBcpPackagesRuleKey = android.NewOnceKey("updatableBcpPackagesRule")
 
 func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
 	var allPhonies android.Paths
