@@ -1031,6 +1031,10 @@ func (c *deviceConfig) DeviceKernelHeaderDirs() []string {
 	return c.config.productVariables.DeviceKernelHeaders
 }
 
+func (c *deviceConfig) SamplingPGO() bool {
+	return Bool(c.config.productVariables.SamplingPGO)
+}
+
 func (c *config) NativeLineCoverage() bool {
 	return Bool(c.productVariables.NativeLineCoverage)
 }
