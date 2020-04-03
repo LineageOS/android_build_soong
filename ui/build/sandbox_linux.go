@@ -54,6 +54,9 @@ var sandboxConfig struct {
 
 	working bool
 	group   string
+	srcDir  string
+	outDir  string
+	distDir string
 }
 
 func (c *Cmd) sandboxSupported() bool {
@@ -72,12 +75,20 @@ func (c *Cmd) sandboxSupported() bool {
 			sandboxConfig.group = "nobody"
 		}
 
+		sandboxConfig.srcDir = absPath(c.ctx, ".")
+		sandboxConfig.outDir = absPath(c.ctx, c.config.OutDir())
+		sandboxConfig.distDir = absPath(c.ctx, c.config.DistDir())
+
 		cmd := exec.CommandContext(c.ctx.Context, nsjailPath,
 			"-H", "android-build",
 			"-e",
 			"-u", "nobody",
 			"-g", sandboxConfig.group,
-			"-B", "/",
+			"-R", "/",
+			"-B", sandboxConfig.srcDir,
+			"-B", "/tmp",
+			"-B", sandboxConfig.outDir,
+			"-B", sandboxConfig.distDir,
 			"--disable_clone_newcgroup",
 			"--",
 			"/bin/bash", "-c", `if [ $(hostname) == "android-build" ]; then echo "Android" "Success"; else echo Failure; fi`)
@@ -144,8 +155,20 @@ func (c *Cmd) wrapSandbox() {
 		"--rlimit_fsize", "soft",
 		"--rlimit_nofile", "soft",
 
-		// For now, just map everything. Eventually we should limit this, especially to make most things readonly.
-		"-B", "/",
+		// For now, just map everything. Make most things readonly.
+		"-R", "/",
+
+		// Mount source are read-write
+		"-B", sandboxConfig.srcDir,
+
+		//Mount out dir as read-write
+		"-B", sandboxConfig.outDir,
+
+		//Mount dist dir as read-write
+		"-B", sandboxConfig.distDir,
+
+		// Mount a writable tmp dir
+		"-B", "/tmp",
 
 		// Disable newcgroup for now, since it may require newer kernels
 		// TODO: try out cgroups
