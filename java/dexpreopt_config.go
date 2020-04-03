@@ -139,8 +139,6 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 
 		// common to all configs
 		for _, c := range configs {
-			c.targets = targets
-
 			c.dir = deviceDir.Join(ctx, "dex_"+c.name+"jars")
 			c.symbolsDir = deviceDir.Join(ctx, "dex_"+c.name+"jars_unstripped")
 
@@ -159,14 +157,17 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 			}
 			c.dexPathsDeps = c.dexPaths
 
-			c.images = make(map[android.ArchType]android.OutputPath)
-			c.imagesDeps = make(map[android.ArchType]android.OutputPaths)
-
+			// Create target-specific variants.
 			for _, target := range targets {
 				arch := target.Arch.ArchType
 				imageDir := c.dir.Join(ctx, c.installSubdir, arch.String())
-				c.images[arch] = imageDir.Join(ctx, imageName)
-				c.imagesDeps[arch] = c.moduleFiles(ctx, imageDir, ".art", ".oat", ".vdex")
+				variant := &bootImageVariant{
+					bootImageConfig: c,
+					target:          target,
+					images:          imageDir.Join(ctx, imageName),
+					imagesDeps:      c.moduleFiles(ctx, imageDir, ".art", ".oat", ".vdex"),
+				}
+				c.variants = append(c.variants, variant)
 			}
 
 			c.zip = c.dir.Join(ctx, c.name+".zip")
@@ -174,19 +175,21 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 
 		// specific to the framework config
 		frameworkCfg.dexPathsDeps = append(artCfg.dexPathsDeps, frameworkCfg.dexPathsDeps...)
-		frameworkCfg.primaryImages = artCfg.images
+		for i := range targets {
+			frameworkCfg.variants[i].primaryImages = artCfg.variants[i].images
+		}
 		frameworkCfg.imageLocations = append(artCfg.imageLocations, frameworkCfg.imageLocations...)
 
 		return configs
 	}).(map[string]*bootImageConfig)
 }
 
-func artBootImageConfig(ctx android.PathContext) bootImageConfig {
-	return *genBootImageConfigs(ctx)[artBootImageName]
+func artBootImageConfig(ctx android.PathContext) *bootImageConfig {
+	return genBootImageConfigs(ctx)[artBootImageName]
 }
 
-func defaultBootImageConfig(ctx android.PathContext) bootImageConfig {
-	return *genBootImageConfigs(ctx)[frameworkBootImageName]
+func defaultBootImageConfig(ctx android.PathContext) *bootImageConfig {
+	return genBootImageConfigs(ctx)[frameworkBootImageName]
 }
 
 func defaultBootclasspath(ctx android.PathContext) []string {
