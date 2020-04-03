@@ -22,6 +22,25 @@ import (
 	"github.com/google/blueprint"
 )
 
+func testPrebuilt(t *testing.T, bp string, fs map[string][]byte) *android.TestContext {
+	config := TestConfig(buildDir, android.Android, nil, bp, fs)
+	ctx := CreateTestContext()
+
+	// Enable androidmk support.
+	// * Register the singleton
+	// * Configure that we are inside make
+	// * Add CommonOS to ensure that androidmk processing works.
+	android.RegisterAndroidMkBuildComponents(ctx)
+	android.SetInMakeForTests(config)
+
+	ctx.Register(config)
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	android.FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	android.FailIfErrored(t, errs)
+	return ctx
+}
+
 func TestPrebuilt(t *testing.T) {
 	bp := `
 		cc_library {
@@ -84,7 +103,15 @@ func TestPrebuilt(t *testing.T) {
 		}
 	`
 
-	ctx := testPrebuilt(t, bp)
+	ctx := testPrebuilt(t, bp, map[string][]byte{
+		"liba.so": nil,
+		"libb.a":  nil,
+		"libd.so": nil,
+		"libe.a":  nil,
+		"libf.a":  nil,
+		"libf.so": nil,
+		"crtx.o":  nil,
+	})
 
 	// Verify that all the modules exist and that their dependencies were connected correctly
 	liba := ctx.ModuleForTests("liba", "android_arm64_armv8-a_shared").Module()
@@ -143,35 +170,6 @@ func TestPrebuilt(t *testing.T) {
 	}
 }
 
-func testPrebuilt(t *testing.T, bp string) *android.TestContext {
-
-	fs := map[string][]byte{
-		"liba.so": nil,
-		"libb.a":  nil,
-		"libd.so": nil,
-		"libe.a":  nil,
-		"libf.a":  nil,
-		"libf.so": nil,
-		"crtx.o":  nil,
-	}
-	config := TestConfig(buildDir, android.Android, nil, bp, fs)
-	ctx := CreateTestContext()
-
-	// Enable androidmk support.
-	// * Register the singleton
-	// * Configure that we are inside make
-	// * Add CommonOS to ensure that androidmk processing works.
-	android.RegisterAndroidMkBuildComponents(ctx)
-	android.SetInMakeForTests(config)
-
-	ctx.Register(config)
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
-	return ctx
-}
-
 func TestPrebuiltLibraryShared(t *testing.T) {
 	ctx := testPrebuilt(t, `
 	cc_prebuilt_library_shared {
@@ -181,7 +179,9 @@ func TestPrebuiltLibraryShared(t *testing.T) {
         none: true,
     },
 	}
-	`)
+	`, map[string][]byte{
+		"libf.so": nil,
+	})
 
 	shared := ctx.ModuleForTests("libtest", "android_arm64_armv8-a_shared").Module().(*Module)
 	assertString(t, shared.OutputFile().String(), "libf.so")
@@ -193,7 +193,9 @@ func TestPrebuiltLibraryStatic(t *testing.T) {
 		name: "libtest",
 		srcs: ["libf.a"],
 	}
-	`)
+	`, map[string][]byte{
+		"libf.a": nil,
+	})
 
 	static := ctx.ModuleForTests("libtest", "android_arm64_armv8-a_static").Module().(*Module)
 	assertString(t, static.OutputFile().String(), "libf.a")
@@ -213,7 +215,10 @@ func TestPrebuiltLibrary(t *testing.T) {
         none: true,
     },
 	}
-	`)
+	`, map[string][]byte{
+		"libf.a":  nil,
+		"libf.so": nil,
+	})
 
 	shared := ctx.ModuleForTests("libtest", "android_arm64_armv8-a_shared").Module().(*Module)
 	assertString(t, shared.OutputFile().String(), "libf.so")
