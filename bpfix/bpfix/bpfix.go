@@ -124,6 +124,10 @@ var fixSteps = []FixStep{
 		Name: "removeHidlInterfaceTypes",
 		Fix:  removeHidlInterfaceTypes,
 	},
+	{
+		Name: "removeSoongConfigBoolVariable",
+		Fix:  removeSoongConfigBoolVariable,
+	},
 }
 
 func NewFixRequest() FixRequest {
@@ -711,6 +715,78 @@ func removeHidlInterfaceTypes(f *Fixer) error {
 		}
 		removeProperty(mod, "types")
 	}
+	return nil
+}
+
+func removeSoongConfigBoolVariable(f *Fixer) error {
+	found := map[string]bool{}
+	newDefs := make([]parser.Definition, 0, len(f.tree.Defs))
+	for _, def := range f.tree.Defs {
+		if mod, ok := def.(*parser.Module); ok && mod.Type == "soong_config_bool_variable" {
+			if name, ok := getLiteralStringPropertyValue(mod, "name"); ok {
+				found[name] = true
+			} else {
+				return fmt.Errorf("Found soong_config_bool_variable without a name")
+			}
+		} else {
+			newDefs = append(newDefs, def)
+		}
+	}
+	f.tree.Defs = newDefs
+
+	if len(found) == 0 {
+		return nil
+	}
+
+	return runPatchListMod(func(mod *parser.Module, buf []byte, patchList *parser.PatchList) error {
+		if mod.Type != "soong_config_module_type" {
+			return nil
+		}
+
+		variables, ok := getLiteralListProperty(mod, "variables")
+		if !ok {
+			return nil
+		}
+
+		boolValues := strings.Builder{}
+		empty := true
+		for _, item := range variables.Values {
+			nameValue, ok := item.(*parser.String)
+			if !ok {
+				empty = false
+				continue
+			}
+			if found[nameValue.Value] {
+				patchList.Add(item.Pos().Offset, item.End().Offset+2, "")
+
+				boolValues.WriteString(`"`)
+				boolValues.WriteString(nameValue.Value)
+				boolValues.WriteString(`",`)
+			} else {
+				empty = false
+			}
+		}
+		if empty {
+			*patchList = parser.PatchList{}
+
+			prop, _ := mod.GetProperty("variables")
+			patchList.Add(prop.Pos().Offset, prop.End().Offset+2, "")
+		}
+		if boolValues.Len() == 0 {
+			return nil
+		}
+
+		bool_variables, ok := getLiteralListProperty(mod, "bool_variables")
+		if ok {
+			patchList.Add(bool_variables.RBracePos.Offset, bool_variables.RBracePos.Offset, ","+boolValues.String())
+		} else {
+			patchList.Add(variables.RBracePos.Offset+2, variables.RBracePos.Offset+2,
+				fmt.Sprintf(`bool_variables: [%s],`, boolValues.String()))
+		}
+
+		return nil
+	})(f)
+
 	return nil
 }
 
