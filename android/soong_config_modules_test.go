@@ -43,7 +43,8 @@ func TestSoongConfigModule(t *testing.T) {
 			name: "acme_test_defaults",
 			module_type: "test_defaults",
 			config_namespace: "acme",
-			variables: ["board", "feature1", "feature2", "FEATURE3"],
+			variables: ["board", "feature1", "FEATURE3"],
+			bool_variables: ["feature2"],
 			properties: ["cflags", "srcs"],
 		}
 
@@ -54,10 +55,6 @@ func TestSoongConfigModule(t *testing.T) {
 
 		soong_config_bool_variable {
 			name: "feature1",
-		}
-
-		soong_config_bool_variable {
-			name: "feature2",
 		}
 
 		soong_config_bool_variable {

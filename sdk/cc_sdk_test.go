@@ -32,6 +32,7 @@ func testSdkWithCc(t *testing.T, bp string) *testSdkResult {
 		"arm64/include/Arm64Test.h":     nil,
 		"libfoo.so":                     nil,
 		"aidl/foo/bar/Test.aidl":        nil,
+		"some/where/stubslib.map.txt":   nil,
 	}
 	return testSdkWithFs(t, bp, fs)
 }
@@ -1736,6 +1737,68 @@ sdk_snapshot {
     name: "mysdk@current",
     host_supported: true,
     native_shared_libs: ["mysdk_sslvariants@current"],
+}
+`))
+}
+
+func TestStubsLibrary(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: ["stubslib"],
+		}
+
+		cc_library {
+			name: "stubslib",
+			stubs: {
+				symbol_file: "some/where/stubslib.map.txt",
+				versions: ["1", "2", "3"],
+			},
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_shared {
+    name: "mysdk_stubslib@current",
+    sdk_member_name: "stubslib",
+    installable: false,
+    stubs: {
+        symbol_file: "etc/stubslib.map.txt",
+        versions: ["3"],
+    },
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/stubslib.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/stubslib.so"],
+        },
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "stubslib",
+    prefer: false,
+    stubs: {
+        symbol_file: "etc/stubslib.map.txt",
+        versions: ["3"],
+    },
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/stubslib.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/stubslib.so"],
+        },
+    },
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    native_shared_libs: ["mysdk_stubslib@current"],
 }
 `))
 }

@@ -109,6 +109,9 @@ type ModuleTypeProperties struct {
 	// the list of SOONG_CONFIG variables that this module type will read
 	Variables []string
 
+	// the list of boolean SOONG_CONFIG variables that this module type will read
+	Bool_variables []string
+
 	// the list of properties that this module type will extend.
 	Properties []string
 }
@@ -145,6 +148,18 @@ func processModuleTypeDef(v *SoongConfigDefinition, def *parser.Module) (errs []
 		variableNames:        props.Variables,
 	}
 	v.ModuleTypes[props.Name] = mt
+
+	for _, name := range props.Bool_variables {
+		if name == "" {
+			return []error{fmt.Errorf("bool_variable name must not be blank")}
+		}
+
+		mt.Variables = append(mt.Variables, &boolVariable{
+			baseVariable: baseVariable{
+				variable: name,
+			},
+		})
+	}
 
 	return nil
 }
