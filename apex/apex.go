@@ -19,7 +19,6 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -94,16 +93,9 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.adbd"] = []string{
-		"adbd",
-		"libadbconnection_server",
-		"libadbd",
 		"libadbd_auth",
-		"libadbd_core",
-		"libadbd_services",
-		"libasyncio",
 		"libbuildversion",
 		"libcap",
-		"libdiagnose_usb",
 		"libmdnssd",
 		"libminijail",
 		"libminijail_gen_constants",
@@ -114,7 +106,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libpackagelistparser",
 		"libpcre2",
 		"libprocessgroup_headers",
-		"libqemu_pipe",
 	}
 	//
 	// Module separator
@@ -831,22 +822,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libprofile-extras",
 		"libprofile-extras_ndk",
 		"libunwind_llvm",
-		"ndk_crtbegin_dynamic.27",
-		"ndk_crtbegin_so.16",
-		"ndk_crtbegin_so.19",
-		"ndk_crtbegin_so.21",
-		"ndk_crtbegin_so.24",
-		"ndk_crtbegin_so.27",
-		"ndk_crtend_android.27",
-		"ndk_crtend_so.16",
-		"ndk_crtend_so.19",
-		"ndk_crtend_so.21",
-		"ndk_crtend_so.24",
-		"ndk_crtend_so.27",
-		"ndk_libandroid_support",
-		"ndk_libc++_static",
-		"ndk_libc++abi",
-		"ndk_libunwind",
 	}
 	return m
 }
@@ -1836,14 +1811,11 @@ func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext, do payloadDepsCa
 
 func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) int {
 	ver := proptools.StringDefault(a.properties.Min_sdk_version, "current")
-	if ver != "current" {
-		minSdkVersion, err := strconv.Atoi(ver)
-		if err != nil {
-			ctx.PropertyErrorf("min_sdk_version", "should be \"current\" or <number>, but %q", ver)
-		}
-		return minSdkVersion
+	intVer, err := android.ApiStrToNum(ctx, ver)
+	if err != nil {
+		ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
 	}
-	return android.FutureApiLevel
+	return intVer
 }
 
 // Ensures that the dependencies are marked as available for this APEX
