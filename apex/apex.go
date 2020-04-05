@@ -93,16 +93,9 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.adbd"] = []string{
-		"adbd",
-		"libadbconnection_server",
-		"libadbd",
 		"libadbd_auth",
-		"libadbd_core",
-		"libadbd_services",
-		"libasyncio",
 		"libbuildversion",
 		"libcap",
-		"libdiagnose_usb",
 		"libmdnssd",
 		"libminijail",
 		"libminijail_gen_constants",
@@ -113,7 +106,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libpackagelistparser",
 		"libpcre2",
 		"libprocessgroup_headers",
-		"libqemu_pipe",
 	}
 	//
 	// Module separator
@@ -830,22 +822,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libprofile-extras",
 		"libprofile-extras_ndk",
 		"libunwind_llvm",
-		"ndk_crtbegin_dynamic.27",
-		"ndk_crtbegin_so.16",
-		"ndk_crtbegin_so.19",
-		"ndk_crtbegin_so.21",
-		"ndk_crtbegin_so.24",
-		"ndk_crtbegin_so.27",
-		"ndk_crtend_android.27",
-		"ndk_crtend_so.16",
-		"ndk_crtend_so.19",
-		"ndk_crtend_so.21",
-		"ndk_crtend_so.24",
-		"ndk_crtend_so.27",
-		"ndk_libandroid_support",
-		"ndk_libc++_static",
-		"ndk_libc++abi",
-		"ndk_libunwind",
 	}
 	return m
 }
