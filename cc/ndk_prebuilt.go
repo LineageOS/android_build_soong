@@ -90,6 +90,11 @@ func (c *ndkPrebuiltObjectLinker) link(ctx ModuleContext, flags Flags,
 	return ndkPrebuiltModuleToPath(ctx, flags.Toolchain, objectExtension, ctx.sdkVersion())
 }
 
+func (*ndkPrebuiltObjectLinker) availableFor(what string) bool {
+	// ndk prebuilt objects are available to everywhere
+	return true
+}
+
 type ndkPrebuiltStlLinker struct {
 	*libraryDecorator
 }
@@ -101,6 +106,11 @@ func (ndk *ndkPrebuiltStlLinker) linkerProps() []interface{} {
 func (*ndkPrebuiltStlLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	// NDK libraries can't have any dependencies
 	return deps
+}
+
+func (*ndkPrebuiltStlLinker) availableFor(what string) bool {
+	// ndk prebuilt objects are available to everywhere
+	return true
 }
 
 // ndk_prebuilt_shared_stl exports a precompiled ndk shared standard template
