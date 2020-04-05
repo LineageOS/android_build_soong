@@ -19,7 +19,6 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -1995,14 +1994,11 @@ func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext,
 
 func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) int {
 	ver := proptools.StringDefault(a.properties.Min_sdk_version, "current")
-	if ver != "current" {
-		minSdkVersion, err := strconv.Atoi(ver)
-		if err != nil {
-			ctx.PropertyErrorf("min_sdk_version", "should be \"current\" or <number>, but %q", ver)
-		}
-		return minSdkVersion
+	intVer, err := android.ApiStrToNum(ctx, ver)
+	if err != nil {
+		ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
 	}
-	return android.FutureApiLevel
+	return intVer
 }
 
 // Ensures that the dependencies are marked as available for this APEX
