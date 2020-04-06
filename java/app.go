@@ -580,28 +580,14 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Build a final signed app package.
 	packageFile := android.PathForModuleOut(ctx, a.installApkName+".apk")
-	v4SigningRequested := Bool(a.Module.deviceProperties.V4_signature)
-	var v4SignatureFile android.WritablePath = nil
-	if v4SigningRequested {
-		v4SignatureFile = android.PathForModuleOut(ctx, a.installApkName+".apk.idsig")
-	}
-	CreateAndSignAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates, apkDeps, v4SignatureFile)
+	CreateAndSignAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates, apkDeps)
 	a.outputFile = packageFile
-	if v4SigningRequested {
-		a.extraOutputFiles = append(a.extraOutputFiles, v4SignatureFile)
-	}
 
 	for _, split := range a.aapt.splits {
 		// Sign the split APKs
 		packageFile := android.PathForModuleOut(ctx, a.installApkName+"_"+split.suffix+".apk")
-		if v4SigningRequested {
-			v4SignatureFile = android.PathForModuleOut(ctx, a.installApkName+"_"+split.suffix+".apk.idsig")
-		}
-		CreateAndSignAppPackage(ctx, packageFile, split.path, nil, nil, certificates, apkDeps, v4SignatureFile)
+		CreateAndSignAppPackage(ctx, packageFile, split.path, nil, nil, certificates, apkDeps)
 		a.extraOutputFiles = append(a.extraOutputFiles, packageFile)
-		if v4SigningRequested {
-			a.extraOutputFiles = append(a.extraOutputFiles, v4SignatureFile)
-		}
 	}
 
 	// Build an app bundle.
@@ -1250,7 +1236,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		}
 		a.certificate = certificates[0]
 		signed := android.PathForModuleOut(ctx, "signed", apkFilename)
-		SignAppPackage(ctx, signed, dexOutput, certificates, nil)
+		SignAppPackage(ctx, signed, dexOutput, certificates)
 		a.outputFile = signed
 	} else {
 		alignedApk := android.PathForModuleOut(ctx, "zip-aligned", apkFilename)
@@ -1506,7 +1492,7 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 	_, certificates := collectAppDeps(ctx, false, false)
 	certificates = processMainCert(r.ModuleBase, String(r.properties.Certificate), certificates, ctx)
 	signed := android.PathForModuleOut(ctx, "signed", r.Name()+".apk")
-	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates, nil)
+	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates)
 	r.certificate = certificates[0]
 
 	r.outputFile = signed
