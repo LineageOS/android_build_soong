@@ -1766,7 +1766,6 @@ cc_prebuilt_library_shared {
     sdk_member_name: "stubslib",
     installable: false,
     stubs: {
-        symbol_file: "etc/stubslib.map.txt",
         versions: ["3"],
     },
     arch: {
@@ -1783,7 +1782,6 @@ cc_prebuilt_library_shared {
     name: "stubslib",
     prefer: false,
     stubs: {
-        symbol_file: "etc/stubslib.map.txt",
         versions: ["3"],
     },
     arch: {
