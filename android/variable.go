@@ -95,6 +95,9 @@ type variableProperties struct {
 			Sanitize struct {
 				Address *bool
 			}
+			Optimize struct {
+				Enabled *bool
+			}
 		}
 
 		Pdk struct {
