@@ -81,7 +81,7 @@ func stemOf(moduleName string) string {
 
 func getDexLocation(ctx android.PathContext, target android.Target, subdir string, name string) string {
 	if target.Os.Class == android.Host {
-		return filepath.Join("out", "host", ctx.Config().PrebuiltOS(), subdir, name)
+		return filepath.Join(ctx.Config().Getenv("OUT_DIR"), "host", ctx.Config().PrebuiltOS(), subdir, name)
 	} else {
 		return filepath.Join("/", subdir, name)
 	}
