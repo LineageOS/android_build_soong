@@ -115,7 +115,7 @@ func main() {
 
 			filename := filepath.Join(*outputDir, name)
 			if f.FileInfo().IsDir() {
-				must(os.MkdirAll(filename, f.FileInfo().Mode()))
+				must(os.MkdirAll(filename, 0777))
 			} else {
 				must(os.MkdirAll(filepath.Dir(filename), 0777))
 				in, err := f.Open()
