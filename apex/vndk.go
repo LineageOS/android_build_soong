@@ -95,6 +95,10 @@ func apexVndkMutator(mctx android.TopDownMutatorContext) {
 func apexVndkDepsMutator(mctx android.BottomUpMutatorContext) {
 	if m, ok := mctx.Module().(*cc.Module); ok && cc.IsForVndkApex(mctx, m) {
 		vndkVersion := m.VndkVersion()
+		// For VNDK-Lite device, we gather core-variants of VNDK-Sp libraries, which doesn't have VNDK version defined
+		if vndkVersion == "" {
+			vndkVersion = mctx.DeviceConfig().PlatformVndkVersion()
+		}
 		vndkApexList := vndkApexList(mctx.Config())
 		if vndkApex, ok := vndkApexList[vndkVersion]; ok {
 			mctx.AddReverseDependency(mctx.Module(), sharedLibTag, vndkApex)
