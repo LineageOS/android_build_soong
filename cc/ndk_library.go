@@ -381,9 +381,6 @@ func newStubLibrary() *Module {
 	module.linker = stub
 	module.installer = stub
 
-	module.Properties.AlwaysSdk = true
-	module.Properties.Sdk_version = StringPtr("current")
-
 	module.AddProperties(&stub.properties, &library.MutatedProperties)
 
 	return module
