@@ -164,10 +164,6 @@ func (mod *Module) OnlyInRecovery() bool {
 	return false
 }
 
-func (mod *Module) UseSdk() bool {
-	return false
-}
-
 func (mod *Module) UseVndk() bool {
 	return false
 }
@@ -186,10 +182,6 @@ func (mod *Module) HasVendorVariant() bool {
 
 func (mod *Module) SdkVersion() string {
 	return ""
-}
-
-func (mod *Module) AlwaysSdk() bool {
-	return false
 }
 
 func (mod *Module) ToolchainLibrary() bool {
