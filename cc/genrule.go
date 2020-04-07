@@ -27,6 +27,7 @@ type GenruleExtraProperties struct {
 	Vendor_available   *bool
 	Ramdisk_available  *bool
 	Recovery_available *bool
+	Sdk_version        *string
 }
 
 // cc_genrule is a genrule that can depend on other cc_* objects.
