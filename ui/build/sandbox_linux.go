@@ -79,7 +79,7 @@ func (c *Cmd) sandboxSupported() bool {
 		sandboxConfig.outDir = absPath(c.ctx, c.config.OutDir())
 		sandboxConfig.distDir = absPath(c.ctx, c.config.DistDir())
 
-		cmd := exec.CommandContext(c.ctx.Context, nsjailPath,
+		sandboxArgs := []string{
 			"-H", "android-build",
 			"-e",
 			"-u", "nobody",
@@ -88,10 +88,21 @@ func (c *Cmd) sandboxSupported() bool {
 			"-B", sandboxConfig.srcDir,
 			"-B", "/tmp",
 			"-B", sandboxConfig.outDir,
-			"-B", sandboxConfig.distDir,
+		}
+
+		if _, err := os.Stat(sandboxConfig.distDir); !os.IsNotExist(err) {
+			//Mount dist dir as read-write if it already exists
+			sandboxArgs = append(sandboxArgs, "-B",
+				sandboxConfig.distDir)
+		}
+
+		sandboxArgs = append(sandboxArgs,
 			"--disable_clone_newcgroup",
 			"--",
 			"/bin/bash", "-c", `if [ $(hostname) == "android-build" ]; then echo "Android" "Success"; else echo Failure; fi`)
+
+		cmd := exec.CommandContext(c.ctx.Context, nsjailPath, sandboxArgs...)
+
 		cmd.Env = c.config.Environment().Environ()
 
 		c.ctx.Verboseln(cmd.Args)
@@ -164,9 +175,6 @@ func (c *Cmd) wrapSandbox() {
 		//Mount out dir as read-write
 		"-B", sandboxConfig.outDir,
 
-		//Mount dist dir as read-write
-		"-B", sandboxConfig.distDir,
-
 		// Mount a writable tmp dir
 		"-B", "/tmp",
 
@@ -176,6 +184,11 @@ func (c *Cmd) wrapSandbox() {
 
 		// Only log important warnings / errors
 		"-q",
+	}
+
+	if _, err := os.Stat(sandboxConfig.distDir); !os.IsNotExist(err) {
+		//Mount dist dir as read-write if it already exists
+		sandboxArgs = append(sandboxArgs, "-B", sandboxConfig.distDir)
 	}
 
 	if c.Sandbox.AllowBuildBrokenUsesNetwork && c.config.BuildBrokenUsesNetwork() {
