@@ -86,6 +86,9 @@ type apiScope struct {
 	// *current. Older stubs library built with a numbered SDK version is created from
 	// the prebuilt jar.
 	sdkVersion string
+
+	// Extra arguments to pass to droidstubs for this scope.
+	droidstubsArgs []string
 }
 
 // Initialize a scope, creating and adding appropriate dependency tags
@@ -131,6 +134,7 @@ var (
 		moduleSuffix:              sdkSystemApiSuffix,
 		apiFileMakeVariableSuffix: "_SYSTEM",
 		sdkVersion:                "system_current",
+		droidstubsArgs:            []string{"-showAnnotation android.annotation.SystemApi"},
 	})
 	apiScopeTest = initApiScope(&apiScope{
 		name:                      "test",
@@ -138,6 +142,7 @@ var (
 		moduleSuffix:              sdkTestApiSuffix,
 		apiFileMakeVariableSuffix: "_TEST",
 		sdkVersion:                "test_current",
+		droidstubsArgs:            []string{"-showAnnotation android.annotation.TestApi"},
 	})
 	allApiScopes = apiScopes{
 		apiScopePublic,
@@ -528,12 +533,8 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 	}
 	droidstubsArgs = append(droidstubsArgs, android.JoinWithPrefix(disabledWarnings, "--hide "))
 
-	switch apiScope {
-	case apiScopeSystem:
-		droidstubsArgs = append(droidstubsArgs, "-showAnnotation android.annotation.SystemApi")
-	case apiScopeTest:
-		droidstubsArgs = append(droidstubsArgs, " -showAnnotation android.annotation.TestApi")
-	}
+	// Add in scope specific arguments.
+	droidstubsArgs = append(droidstubsArgs, apiScope.droidstubsArgs...)
 	props.Arg_files = module.sdkLibraryProperties.Droiddoc_option_files
 	props.Args = proptools.StringPtr(strings.Join(droidstubsArgs, " "))
 
