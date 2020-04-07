@@ -115,13 +115,9 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 			switch s {
 			case "libc++", "libc++_static":
 				return s
-			case "c++_shared":
-				return "libc++"
-			case "c++_static":
-				return "libc++_static"
 			case "none":
 				return ""
-			case "", "system":
+			case "":
 				if ctx.static() {
 					return "libc++_static"
 				} else {
