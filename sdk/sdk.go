@@ -434,8 +434,8 @@ func sdkDepsReplaceMutator(mctx android.BottomUpMutatorContext) {
 // Step 6: ensure that the dependencies from outside of the APEX are all from the required SDKs
 func sdkRequirementsMutator(mctx android.TopDownMutatorContext) {
 	if m, ok := mctx.Module().(interface {
-		DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool
-		RequiredSdks() android.SdkRefs
+		android.DepIsInSameApex
+		android.RequiredSdks
 	}); ok {
 		requiredSdks := m.RequiredSdks()
 		if len(requiredSdks) == 0 {
