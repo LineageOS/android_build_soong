@@ -1760,11 +1760,6 @@ func (j *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 	if staticLibTag == ctx.OtherModuleDependencyTag(dep) {
 		return true
 	}
-	// Also, a dependency to an sdk member is also considered as such. This is required because
-	// sdk members should be mutated into APEXes. Refer to sdk.sdkDepsReplaceMutator.
-	if sa, ok := dep.(android.SdkAware); ok && sa.IsInAnySdk() {
-		return true
-	}
 	return false
 }
 
@@ -2511,11 +2506,6 @@ func (j *Import) SrcJarArgs() ([]string, android.Paths) {
 func (j *Import) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	// dependencies other than the static linkage are all considered crossing APEX boundary
 	if staticLibTag == ctx.OtherModuleDependencyTag(dep) {
-		return true
-	}
-	// Also, a dependency to an sdk member is also considered as such. This is required because
-	// sdk members should be mutated into APEXes. Refer to sdk.sdkDepsReplaceMutator.
-	if sa, ok := dep.(android.SdkAware); ok && sa.IsInAnySdk() {
 		return true
 	}
 	return false
