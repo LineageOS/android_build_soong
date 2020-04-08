@@ -94,24 +94,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.adbd"] = []string{
-		"libadbd_auth",
-		"libbuildversion",
-		"libcap",
-		"libmdnssd",
-		"libminijail",
-		"libminijail_gen_constants",
-		"libminijail_gen_constants_obj",
-		"libminijail_gen_syscall",
-		"libminijail_gen_syscall_obj",
-		"libminijail_generated",
-		"libpackagelistparser",
-		"libpcre2",
-		"libprocessgroup_headers",
-	}
-	//
-	// Module separator
-	//
 	artApexContents := []string{
 		"art_cmdlineparser_headers",
 		"art_disassembler_headers",
@@ -135,14 +117,12 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libandroidicuinit",
 		"libart_runtime_headers_ndk",
 		"libartd-disassembler",
-		"libasync_safe",
 		"libdexfile_all_headers",
 		"libdexfile_external_headers",
 		"libdexfile_support",
 		"libdmabufinfo",
 		"libexpat",
 		"libfdlibm",
-		"libgtest_prod",
 		"libicui18n_headers",
 		"libicuuc",
 		"libicuuc_headers",
@@ -232,13 +212,10 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libevent",
 		"libfmq",
 		"libg722codec",
-		"libgtest_prod",
 		"libgui_headers",
 		"libmedia_headers",
 		"libmodpb64",
 		"libosi",
-		"libprocessgroup",
-		"libprocessgroup_headers",
 		"libstagefright_foundation_headers",
 		"libstagefright_headers",
 		"libstatslog",
@@ -264,9 +241,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.conscrypt"] = []string{
-		"boringssl_self_test",
 		"libnativehelper_header_only",
-		"unsupportedappusage",
 	}
 	//
 	// Module separator
@@ -284,18 +259,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.cronet"] = []string{
-		"cronet_impl_common_java",
-		"cronet_impl_native_java",
-		"cronet_impl_platform_java",
-		"libcronet.80.0.3986.0",
-		"org.chromium.net.cronet",
-		"org.chromium.net.cronet.xml",
-		"prebuilt_libcronet.80.0.3986.0",
-	}
-	//
-	// Module separator
-	//
 	m["com.android.neuralnetworks"] = []string{
 		"android.hardware.neuralnetworks@1.0",
 		"android.hardware.neuralnetworks@1.1",
@@ -308,8 +271,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libarect",
 		"libbuildversion",
 		"libmath",
-		"libprocessgroup",
-		"libprocessgroup_headers",
 		"libprocpartition",
 		"libsync",
 	}
@@ -352,7 +313,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libaacextractor",
 		"libamrextractor",
 		"libarect",
-		"libasync_safe",
 		"libaudio_system_headers",
 		"libaudioclient",
 		"libaudioclient_headers",
@@ -406,13 +366,10 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libnblog",
 		"liboggextractor",
 		"libpackagelistparser",
-		"libpcre2",
 		"libpdx",
 		"libpdx_default_transport",
 		"libpdx_headers",
 		"libpdx_uds",
-		"libprocessgroup",
-		"libprocessgroup_headers",
 		"libprocinfo",
 		"libsonivox",
 		"libspeexresampler",
@@ -478,7 +435,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libFraunhoferAAC",
 		"libLibGuiProperties",
 		"libarect",
-		"libasync_safe",
 		"libaudio_system_headers",
 		"libaudioutils",
 		"libaudioutils",
@@ -492,7 +448,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libbluetooth-types-header",
 		"libbufferhub_headers",
 		"libc_scudo",
-		"libcap",
 		"libcodec2",
 		"libcodec2_headers",
 		"libcodec2_hidl@1.0",
@@ -551,12 +506,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libmath",
 		"libmedia_codecserviceregistrant",
 		"libmedia_headers",
-		"libminijail",
-		"libminijail_gen_constants",
-		"libminijail_gen_constants_obj",
-		"libminijail_gen_syscall",
-		"libminijail_gen_syscall_obj",
-		"libminijail_generated",
 		"libmpeg2dec",
 		"libnativebase_headers",
 		"libnativebridge_lazy",
@@ -564,8 +513,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libnativewindow_headers",
 		"libopus",
 		"libpdx_headers",
-		"libprocessgroup",
-		"libprocessgroup_headers",
 		"libscudo_wrapper",
 		"libsfplugin_ccodec_utils",
 		"libstagefright_amrnb_common",
@@ -633,8 +580,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 	m["com.android.runtime"] = []string{
 		"bionic_libc_platform_headers",
 		"libarm-optimized-routines-math",
-		"libasync_safe",
-		"libasync_safe_headers",
 		"libc_aeabi",
 		"libc_bionic",
 		"libc_bionic_ndk",
@@ -670,13 +615,11 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libdexfile_support",
 		"libdexfile_support_static",
 		"libdl_static",
-		"libgtest_prod",
 		"libjemalloc5",
 		"liblinker_main",
 		"liblinker_malloc",
 		"liblz4",
 		"liblzma",
-		"libprocessgroup_headers",
 		"libprocinfo",
 		"libpropertyinfoparser",
 		"libscudo",
@@ -690,34 +633,11 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.resolv"] = []string{
-		"dnsresolver_aidl_interface-unstable-ndk_platform",
-		"libgtest_prod",
-		"libnativehelper_header_only",
-		"libnetd_client_headers",
-		"libnetd_resolv",
-		"libnetdutils",
-		"libprocessgroup",
-		"libprocessgroup_headers",
-		"libstatslog_resolv",
-		"libstatspush_compat",
-		"libstatssocket",
-		"libstatssocket_headers",
-		"libsysutils",
-		"netd_event_listener_interface-ndk_platform",
-		"server_configurable_flags",
-		"stats_proto",
-	}
-	//
-	// Module separator
-	//
 	m["com.android.tethering"] = []string{
 		"libnativehelper_compat_libc++",
 		"android.hardware.tetheroffload.config@1.0",
 		"libcgrouprc",
 		"libcgrouprc_format",
-		"libprocessgroup",
-		"libprocessgroup_headers",
 		"libtetherutilsjni",
 		"libvndksupport",
 		"tethering-aidl-interfaces-java",
@@ -755,8 +675,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"ipmemorystore-aidl-interfaces-java",
 		"ksoap2",
 		"libnanohttpd",
-		"libprocessgroup",
-		"libprocessgroup_headers",
 		"libwifi-jni",
 		"net-utils-services-common",
 		"netd_aidl_interface-V2-java",
@@ -784,7 +702,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.os.statsd"] = []string{
-		"libprocessgroup_headers",
 		"libstatssocket",
 	}
 	//
