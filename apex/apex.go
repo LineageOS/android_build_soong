@@ -1005,6 +1005,12 @@ func makeApexAvailableWhitelist() map[string][]string {
 }
 
 func init() {
+	android.AddNeverAllowRules(android.NeverAllow().
+		ModuleType("apex").
+		With("updatable", "true").
+		With("min_sdk_version", "").
+		Because("All updatable apexes should set min_sdk_version."))
+
 	android.RegisterModuleType("apex", BundleFactory)
 	android.RegisterModuleType("apex_test", testApexBundleFactory)
 	android.RegisterModuleType("apex_vndk", vndkApexBundleFactory)
