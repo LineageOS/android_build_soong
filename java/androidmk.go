@@ -517,10 +517,21 @@ func (ddoc *Droiddoc) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
+	// If the stubsSrcJar is not generated (because generate_stubs is false) then
+	// use the api file as the output file to ensure the relevant phony targets
+	// are created in make if only the api txt file is being generated. This is
+	// needed because an invalid output file would prevent the make entries from
+	// being written.
+	// TODO(b/146727827): Revert when we do not need to generate stubs and API separately.
+	distFile := android.OptionalPathForPath(dstubs.apiFile)
+	outputFile := android.OptionalPathForPath(dstubs.stubsSrcJar)
+	if !outputFile.Valid() {
+		outputFile = distFile
+	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
-		DistFile:   android.OptionalPathForPath(dstubs.apiFile),
-		OutputFile: android.OptionalPathForPath(dstubs.stubsSrcJar),
+		DistFile:   distFile,
+		OutputFile: outputFile,
 		Include:    "$(BUILD_SYSTEM)/soong_droiddoc_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(entries *android.AndroidMkEntries) {
