@@ -912,49 +912,49 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 			continue
 		}
 
-		// Creates a java import for the jar with ".stubs" suffix
-		props := struct {
-			Name                *string
-			Soc_specific        *bool
-			Device_specific     *bool
-			Product_specific    *bool
-			System_ext_specific *bool
-			Sdk_version         *string
-			Libs                []string
-			Jars                []string
-			Prefer              *bool
-		}{}
-
-		props.Name = proptools.StringPtr(apiScope.stubsModuleName(module.BaseModuleName()))
-		props.Sdk_version = scopeProperties.Sdk_version
-		// Prepend any of the libs from the legacy public properties to the libs for each of the
-		// scopes to avoid having to duplicate them in each scope.
-		props.Libs = append(module.properties.Libs, scopeProperties.Libs...)
-		props.Jars = scopeProperties.Jars
-
-		if module.SocSpecific() {
-			props.Soc_specific = proptools.BoolPtr(true)
-		} else if module.DeviceSpecific() {
-			props.Device_specific = proptools.BoolPtr(true)
-		} else if module.ProductSpecific() {
-			props.Product_specific = proptools.BoolPtr(true)
-		} else if module.SystemExtSpecific() {
-			props.System_ext_specific = proptools.BoolPtr(true)
-		}
-
-		// If the build should use prebuilt sdks then set prefer to true on the stubs library.
-		// That will cause the prebuilt version of the stubs to override the source version.
-		if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
-			props.Prefer = proptools.BoolPtr(true)
-		}
-
-		mctx.CreateModule(ImportFactory, &props)
+		module.createJavaImportForStubs(mctx, apiScope, scopeProperties)
 	}
 
 	javaSdkLibraries := javaSdkLibraries(mctx.Config())
 	javaSdkLibrariesLock.Lock()
 	defer javaSdkLibrariesLock.Unlock()
 	*javaSdkLibraries = append(*javaSdkLibraries, module.BaseModuleName())
+}
+
+func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.LoadHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
+	// Creates a java import for the jar with ".stubs" suffix
+	props := struct {
+		Name                *string
+		Soc_specific        *bool
+		Device_specific     *bool
+		Product_specific    *bool
+		System_ext_specific *bool
+		Sdk_version         *string
+		Libs                []string
+		Jars                []string
+		Prefer              *bool
+	}{}
+	props.Name = proptools.StringPtr(apiScope.stubsModuleName(module.BaseModuleName()))
+	props.Sdk_version = scopeProperties.Sdk_version
+	// Prepend any of the libs from the legacy public properties to the libs for each of the
+	// scopes to avoid having to duplicate them in each scope.
+	props.Libs = append(module.properties.Libs, scopeProperties.Libs...)
+	props.Jars = scopeProperties.Jars
+	if module.SocSpecific() {
+		props.Soc_specific = proptools.BoolPtr(true)
+	} else if module.DeviceSpecific() {
+		props.Device_specific = proptools.BoolPtr(true)
+	} else if module.ProductSpecific() {
+		props.Product_specific = proptools.BoolPtr(true)
+	} else if module.SystemExtSpecific() {
+		props.System_ext_specific = proptools.BoolPtr(true)
+	}
+	// If the build should use prebuilt sdks then set prefer to true on the stubs library.
+	// That will cause the prebuilt version of the stubs to override the source version.
+	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
+		props.Prefer = proptools.BoolPtr(true)
+	}
+	mctx.CreateModule(ImportFactory, &props)
 }
 
 func (module *sdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) {
