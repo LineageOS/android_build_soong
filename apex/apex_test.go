@@ -159,6 +159,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"my_include":                                 nil,
 		"foo/bar/MyClass.java":                       nil,
 		"prebuilt.jar":                               nil,
+		"prebuilt.so":                                nil,
 		"vendor/foo/devkeys/test.x509.pem":           nil,
 		"vendor/foo/devkeys/test.pk8":                nil,
 		"testkey.x509.pem":                           nil,
@@ -368,7 +369,7 @@ func TestBasicApex(t *testing.T) {
 			apex_available: [ "myapex" ],
 		}
 
-		cc_library {
+		cc_library_shared {
 			name: "mylib2",
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
@@ -381,6 +382,16 @@ func TestBasicApex(t *testing.T) {
 				"myapex",
 			],
 		}
+
+		cc_prebuilt_library_shared {
+			name: "mylib2",
+			srcs: ["prebuilt.so"],
+			// TODO: remove //apex_available:platform
+			apex_available: [
+				"//apex_available:platform",
+				"myapex",
+			],
+    }
 
 		cc_library_static {
 			name: "libstatic",
