@@ -86,6 +86,9 @@ type apiScope struct {
 	// *current. Older stubs library built with a numbered SDK version is created from
 	// the prebuilt jar.
 	sdkVersion string
+
+	// Extra arguments to pass to droidstubs for this scope.
+	droidstubsArgs []string
 }
 
 // Initialize a scope, creating and adding appropriate dependency tags
@@ -131,6 +134,7 @@ var (
 		moduleSuffix:              sdkSystemApiSuffix,
 		apiFileMakeVariableSuffix: "_SYSTEM",
 		sdkVersion:                "system_current",
+		droidstubsArgs:            []string{"-showAnnotation android.annotation.SystemApi"},
 	})
 	apiScopeTest = initApiScope(&apiScope{
 		name:                      "test",
@@ -138,6 +142,7 @@ var (
 		moduleSuffix:              sdkTestApiSuffix,
 		apiFileMakeVariableSuffix: "_TEST",
 		sdkVersion:                "test_current",
+		droidstubsArgs:            []string{"-showAnnotation android.annotation.TestApi"},
 	})
 	allApiScopes = apiScopes{
 		apiScopePublic,
@@ -458,7 +463,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 	mctx.CreateModule(LibraryFactory, &props)
 }
 
-// Creates a droiddoc module that creates stubs source files from the given full source
+// Creates a droidstubs module that creates stubs source files from the given full source
 // files
 func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiScope *apiScope) {
 	props := struct {
@@ -516,15 +521,15 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 	props.Merge_annotations_dirs = module.sdkLibraryProperties.Merge_annotations_dirs
 	props.Merge_inclusion_annotations_dirs = module.sdkLibraryProperties.Merge_inclusion_annotations_dirs
 
-	droiddocArgs := []string{}
+	droidstubsArgs := []string{}
 	if len(module.sdkLibraryProperties.Api_packages) != 0 {
-		droiddocArgs = append(droiddocArgs, "--stub-packages "+strings.Join(module.sdkLibraryProperties.Api_packages, ":"))
+		droidstubsArgs = append(droidstubsArgs, "--stub-packages "+strings.Join(module.sdkLibraryProperties.Api_packages, ":"))
 	}
 	if len(module.sdkLibraryProperties.Hidden_api_packages) != 0 {
-		droiddocArgs = append(droiddocArgs,
+		droidstubsArgs = append(droidstubsArgs,
 			android.JoinWithPrefix(module.sdkLibraryProperties.Hidden_api_packages, " --hide-package "))
 	}
-	droiddocArgs = append(droiddocArgs, module.sdkLibraryProperties.Droiddoc_options...)
+	droidstubsArgs = append(droidstubsArgs, module.sdkLibraryProperties.Droiddoc_options...)
 	disabledWarnings := []string{
 		"MissingPermission",
 		"BroadcastBehavior",
@@ -536,16 +541,12 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 		"Todo",
 		"Typo",
 	}
-	droiddocArgs = append(droiddocArgs, android.JoinWithPrefix(disabledWarnings, "--hide "))
+	droidstubsArgs = append(droidstubsArgs, android.JoinWithPrefix(disabledWarnings, "--hide "))
 
-	switch apiScope {
-	case apiScopeSystem:
-		droiddocArgs = append(droiddocArgs, "-showAnnotation android.annotation.SystemApi")
-	case apiScopeTest:
-		droiddocArgs = append(droiddocArgs, " -showAnnotation android.annotation.TestApi")
-	}
+	// Add in scope specific arguments.
+	droidstubsArgs = append(droidstubsArgs, apiScope.droidstubsArgs...)
 	props.Arg_files = module.sdkLibraryProperties.Droiddoc_option_files
-	props.Args = proptools.StringPtr(strings.Join(droiddocArgs, " "))
+	props.Args = proptools.StringPtr(strings.Join(droidstubsArgs, " "))
 
 	// List of APIs identified from the provided source files are created. They are later
 	// compared against to the not-yet-released (a.k.a current) list of APIs and to the
