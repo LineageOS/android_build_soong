@@ -277,6 +277,9 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 		} else if isApexModule && apex.IsForPlatform() && Bool(module.(*Library).deviceProperties.Hostdex) {
 			// this is a special "hostdex" variant, skip it and resume search
 			return -1, nil
+		} else if name == "jacocoagent" && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+			// this is Jacoco platform variant for a coverage build, skip it and resume search
+			return -1, nil
 		} else {
 			// this (installable) jar is part of the platform, fail immediately
 			ctx.Errorf("module '%s' is part of the platform and not allowed in the ART boot image", name)
