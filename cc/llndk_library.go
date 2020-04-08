@@ -83,7 +83,7 @@ func (stub *llndkStubDecorator) compilerFlags(ctx ModuleContext, flags Flags, de
 
 func (stub *llndkStubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
 	vndkVer := ctx.Module().(*Module).VndkVersion()
-	if !inList(vndkVer, ctx.Config().PlatformVersionCombinedCodenames()) || vndkVer == "" {
+	if !inList(vndkVer, ctx.Config().PlatformVersionActiveCodenames()) || vndkVer == "" {
 		// For non-enforcing devices, vndkVer is empty. Use "current" in that case, too.
 		vndkVer = "current"
 	}
