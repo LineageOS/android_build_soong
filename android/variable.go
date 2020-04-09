@@ -140,9 +140,8 @@ type productVariables struct {
 	// Suffix to add to generated Makefiles
 	Make_suffix *string `json:",omitempty"`
 
-	BuildId             *string `json:",omitempty"`
-	BuildNumberFromFile *string `json:",omitempty"`
-	DateFromFile        *string `json:",omitempty"`
+	BuildId         *string `json:",omitempty"`
+	BuildNumberFile *string `json:",omitempty"`
 
 	Platform_version_name                     *string  `json:",omitempty"`
 	Platform_sdk_version                      *int     `json:",omitempty"`
@@ -346,7 +345,7 @@ func stringPtr(v string) *string {
 
 func (v *productVariables) SetDefaultConfig() {
 	*v = productVariables{
-		BuildNumberFromFile: stringPtr("123456789"),
+		BuildNumberFile: stringPtr("build_number.txt"),
 
 		Platform_version_name:             stringPtr("Q"),
 		Platform_sdk_version:              intPtr(28),
