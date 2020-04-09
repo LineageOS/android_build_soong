@@ -1076,7 +1076,7 @@ func (ctx *moduleContextImpl) sdkVersion() string {
 	if ctx.ctx.Device() {
 		if ctx.useVndk() {
 			vndkVer := ctx.mod.VndkVersion()
-			if inList(vndkVer, ctx.ctx.Config().PlatformVersionCombinedCodenames()) {
+			if inList(vndkVer, ctx.ctx.Config().PlatformVersionActiveCodenames()) {
 				return "current"
 			}
 			return vndkVer
