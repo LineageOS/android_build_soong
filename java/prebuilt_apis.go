@@ -28,10 +28,6 @@ func init() {
 
 func RegisterPrebuiltApisBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_apis", PrebuiltApisFactory)
-
-	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("prebuilt_apis", PrebuiltApisMutator).Parallel()
-	})
 }
 
 type prebuiltApisProperties struct {
@@ -48,7 +44,7 @@ func (module *prebuiltApis) GenerateAndroidBuildActions(ctx android.ModuleContex
 	// no need to implement
 }
 
-func parseJarPath(ctx android.BaseModuleContext, path string) (module string, apiver string, scope string) {
+func parseJarPath(path string) (module string, apiver string, scope string) {
 	elements := strings.Split(path, "/")
 
 	apiver = elements[0]
@@ -58,7 +54,7 @@ func parseJarPath(ctx android.BaseModuleContext, path string) (module string, ap
 	return
 }
 
-func parseApiFilePath(ctx android.BaseModuleContext, path string) (module string, apiver string, scope string) {
+func parseApiFilePath(ctx android.LoadHookContext, path string) (module string, apiver string, scope string) {
 	elements := strings.Split(path, "/")
 	apiver = elements[0]
 
@@ -73,7 +69,7 @@ func parseApiFilePath(ctx android.BaseModuleContext, path string) (module string
 	return
 }
 
-func createImport(mctx android.TopDownMutatorContext, module string, scope string, apiver string, path string) {
+func createImport(mctx android.LoadHookContext, module string, scope string, apiver string, path string) {
 	props := struct {
 		Name        *string
 		Jars        []string
@@ -89,7 +85,7 @@ func createImport(mctx android.TopDownMutatorContext, module string, scope strin
 	mctx.CreateModule(ImportFactory, &props)
 }
 
-func createFilegroup(mctx android.TopDownMutatorContext, module string, scope string, apiver string, path string) {
+func createFilegroup(mctx android.LoadHookContext, module string, scope string, apiver string, path string) {
 	fgName := module + ".api." + scope + "." + apiver
 	filegroupProps := struct {
 		Name *string
@@ -100,7 +96,7 @@ func createFilegroup(mctx android.TopDownMutatorContext, module string, scope st
 	mctx.CreateModule(android.FileGroupFactory, &filegroupProps)
 }
 
-func getPrebuiltFiles(mctx android.TopDownMutatorContext, name string) []string {
+func getPrebuiltFiles(mctx android.LoadHookContext, name string) []string {
 	mydir := mctx.ModuleDir() + "/"
 	var files []string
 	for _, apiver := range mctx.Module().(*prebuiltApis).properties.Api_dirs {
@@ -115,7 +111,7 @@ func getPrebuiltFiles(mctx android.TopDownMutatorContext, name string) []string 
 	return files
 }
 
-func prebuiltSdkStubs(mctx android.TopDownMutatorContext) {
+func prebuiltSdkStubs(mctx android.LoadHookContext) {
 	mydir := mctx.ModuleDir() + "/"
 	// <apiver>/<scope>/<module>.jar
 	files := getPrebuiltFiles(mctx, "*.jar")
@@ -123,12 +119,12 @@ func prebuiltSdkStubs(mctx android.TopDownMutatorContext) {
 	for _, f := range files {
 		// create a Import module for each jar file
 		localPath := strings.TrimPrefix(f, mydir)
-		module, apiver, scope := parseJarPath(mctx, localPath)
+		module, apiver, scope := parseJarPath(localPath)
 		createImport(mctx, module, scope, apiver, localPath)
 	}
 }
 
-func prebuiltApiFiles(mctx android.TopDownMutatorContext) {
+func prebuiltApiFiles(mctx android.LoadHookContext) {
 	mydir := mctx.ModuleDir() + "/"
 	// <apiver>/<scope>/api/<module>.txt
 	files := getPrebuiltFiles(mctx, "api/*.txt")
@@ -178,7 +174,7 @@ func prebuiltApiFiles(mctx android.TopDownMutatorContext) {
 	}
 }
 
-func PrebuiltApisMutator(mctx android.TopDownMutatorContext) {
+func createPrebuiltApiModules(mctx android.LoadHookContext) {
 	if _, ok := mctx.Module().(*prebuiltApis); ok {
 		prebuiltApiFiles(mctx)
 		prebuiltSdkStubs(mctx)
@@ -191,9 +187,15 @@ func PrebuiltApisMutator(mctx android.TopDownMutatorContext) {
 // generates a filegroup module named <module>-api.<scope>.<ver>.
 //
 // It also creates <module>-api.<scope>.latest for the latest <ver>.
+//
+// Similarly, it generates a java_import for all API .jar files found under the
+// directory where the Android.bp is located. Specifically, an API file located
+// at ./<ver>/<scope>/api/<module>.jar generates a java_import module named
+// <prebuilt-api-module>.<scope>.<ver>.<module>.
 func PrebuiltApisFactory() android.Module {
 	module := &prebuiltApis{}
 	module.AddProperties(&module.properties)
 	android.InitAndroidModule(module)
+	android.AddLoadHook(module, createPrebuiltApiModules)
 	return module
 }
