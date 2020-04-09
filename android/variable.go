@@ -149,7 +149,6 @@ type productVariables struct {
 	Platform_sdk_codename                     *string  `json:",omitempty"`
 	Platform_sdk_final                        *bool    `json:",omitempty"`
 	Platform_version_active_codenames         []string `json:",omitempty"`
-	Platform_version_future_codenames         []string `json:",omitempty"`
 	Platform_vndk_version                     *string  `json:",omitempty"`
 	Platform_systemsdk_versions               []string `json:",omitempty"`
 	Platform_security_patch                   *string  `json:",omitempty"`
@@ -251,7 +250,7 @@ type productVariables struct {
 	ClangTidy  *bool   `json:",omitempty"`
 	TidyChecks *string `json:",omitempty"`
 
-	SamplingPGO  *bool   `json:",omitempty"`
+	SamplingPGO *bool `json:",omitempty"`
 
 	NativeLineCoverage   *bool    `json:",omitempty"`
 	Native_coverage      *bool    `json:",omitempty"`
@@ -354,7 +353,6 @@ func (v *productVariables) SetDefaultConfig() {
 		Platform_sdk_codename:             stringPtr("Q"),
 		Platform_sdk_final:                boolPtr(false),
 		Platform_version_active_codenames: []string{"Q"},
-		Platform_version_future_codenames: []string{"Q"},
 		Platform_vndk_version:             stringPtr("Q"),
 
 		HostArch:                   stringPtr("x86_64"),
