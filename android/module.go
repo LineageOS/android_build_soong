@@ -128,6 +128,13 @@ type BaseModuleContext interface {
 	// and returns a top-down dependency path from a start module to current child module.
 	GetWalkPath() []Module
 
+	// GetTagPath is supposed to be called in visit function passed in WalkDeps()
+	// and returns a top-down dependency tags path from a start module to current child module.
+	// It has one less entry than GetWalkPath() as it contains the dependency tags that
+	// exist between each adjacent pair of modules in the GetWalkPath().
+	// GetTagPath()[i] is the tag between GetWalkPath()[i] and GetWalkPath()[i+1]
+	GetTagPath() []blueprint.DependencyTag
+
 	AddMissingDependencies(missingDeps []string)
 
 	Target() Target
@@ -220,6 +227,7 @@ type Module interface {
 	InstallBypassMake() bool
 	InstallForceOS() *OsType
 	SkipInstall()
+	IsSkipInstall() bool
 	ExportedToMake() bool
 	InitRc() Paths
 	VintfFragments() Paths
@@ -943,6 +951,10 @@ func (m *ModuleBase) SkipInstall() {
 	m.commonProperties.SkipInstall = true
 }
 
+func (m *ModuleBase) IsSkipInstall() bool {
+	return m.commonProperties.SkipInstall == true
+}
+
 func (m *ModuleBase) ExportedToMake() bool {
 	return m.commonProperties.NamespaceExportedToMake
 }
@@ -1400,6 +1412,7 @@ type baseModuleContext struct {
 	debug         bool
 
 	walkPath []Module
+	tagPath  []blueprint.DependencyTag
 
 	strictVisitDeps bool // If true, enforce that all dependencies are enabled
 }
@@ -1696,6 +1709,7 @@ func (b *baseModuleContext) WalkDepsBlueprint(visit func(blueprint.Module, bluep
 
 func (b *baseModuleContext) WalkDeps(visit func(Module, Module) bool) {
 	b.walkPath = []Module{b.Module()}
+	b.tagPath = []blueprint.DependencyTag{}
 	b.bp.WalkDeps(func(child, parent blueprint.Module) bool {
 		childAndroidModule, _ := child.(Module)
 		parentAndroidModule, _ := parent.(Module)
@@ -1703,8 +1717,10 @@ func (b *baseModuleContext) WalkDeps(visit func(Module, Module) bool) {
 			// record walkPath before visit
 			for b.walkPath[len(b.walkPath)-1] != parentAndroidModule {
 				b.walkPath = b.walkPath[0 : len(b.walkPath)-1]
+				b.tagPath = b.tagPath[0 : len(b.tagPath)-1]
 			}
 			b.walkPath = append(b.walkPath, childAndroidModule)
+			b.tagPath = append(b.tagPath, b.OtherModuleDependencyTag(childAndroidModule))
 			return visit(childAndroidModule, parentAndroidModule)
 		} else {
 			return false
@@ -1714,6 +1730,10 @@ func (b *baseModuleContext) WalkDeps(visit func(Module, Module) bool) {
 
 func (b *baseModuleContext) GetWalkPath() []Module {
 	return b.walkPath
+}
+
+func (b *baseModuleContext) GetTagPath() []blueprint.DependencyTag {
+	return b.tagPath
 }
 
 func (m *moduleContext) VisitAllModuleVariants(visit func(Module)) {
