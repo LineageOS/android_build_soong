@@ -35,6 +35,7 @@ func init() {
 
 var sdkVersionsKey = android.NewOnceKey("sdkVersionsKey")
 var sdkFrameworkAidlPathKey = android.NewOnceKey("sdkFrameworkAidlPathKey")
+var nonUpdatableFrameworkAidlPathKey = android.NewOnceKey("nonUpdatableFrameworkAidlPathKey")
 var apiFingerprintPathKey = android.NewOnceKey("apiFingerprintPathKey")
 
 type sdkContext interface {
@@ -393,7 +394,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		return toModule([]string{"core.current.stubs"}, "", nil)
 	case sdkModule:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
-		return toModule([]string{"android_module_lib_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
+		return toModule([]string{"android_module_lib_stubs_current"}, "framework-res", nonUpdatableFrameworkAidlPath(ctx))
 	case sdkSystemServer:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
 		return toModule([]string{"android_system_server_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
@@ -452,6 +453,7 @@ func (sdkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	}
 
 	createSdkFrameworkAidl(ctx)
+	createNonUpdatableFrameworkAidl(ctx)
 	createAPIFingerprint(ctx)
 }
 
@@ -463,6 +465,31 @@ func createSdkFrameworkAidl(ctx android.SingletonContext) {
 		"android_system_stubs_current",
 	}
 
+	combinedAidl := sdkFrameworkAidlPath(ctx)
+	tempPath := combinedAidl.ReplaceExtension(ctx, "aidl.tmp")
+
+	rule := createFrameworkAidl(stubsModules, tempPath, ctx)
+
+	commitChangeForRestat(rule, tempPath, combinedAidl)
+
+	rule.Build(pctx, ctx, "framework_aidl", "generate framework.aidl")
+}
+
+// Creates a version of framework.aidl for the non-updatable part of the platform.
+func createNonUpdatableFrameworkAidl(ctx android.SingletonContext) {
+	stubsModules := []string{"android_module_lib_stubs_current"}
+
+	combinedAidl := nonUpdatableFrameworkAidlPath(ctx)
+	tempPath := combinedAidl.ReplaceExtension(ctx, "aidl.tmp")
+
+	rule := createFrameworkAidl(stubsModules, tempPath, ctx)
+
+	commitChangeForRestat(rule, tempPath, combinedAidl)
+
+	rule.Build(pctx, ctx, "framework_non_updatable_aidl", "generate framework_non_updatable.aidl")
+}
+
+func createFrameworkAidl(stubsModules []string, path android.OutputPath, ctx android.SingletonContext) *android.RuleBuilder {
 	stubsJars := make([]android.Paths, len(stubsModules))
 
 	ctx.VisitAllModules(func(module android.Module) {
@@ -482,8 +509,7 @@ func createSdkFrameworkAidl(ctx android.SingletonContext) {
 			if ctx.Config().AllowMissingDependencies() {
 				missingDeps = append(missingDeps, stubsModules[i])
 			} else {
-				ctx.Errorf("failed to find dex jar path for module %q",
-					stubsModules[i])
+				ctx.Errorf("failed to find dex jar path for module %q", stubsModules[i])
 			}
 		}
 	}
@@ -507,25 +533,26 @@ func createSdkFrameworkAidl(ctx android.SingletonContext) {
 		}
 	}
 
-	combinedAidl := sdkFrameworkAidlPath(ctx)
-	tempPath := combinedAidl.ReplaceExtension(ctx, "aidl.tmp")
-
 	rule.Command().
-		Text("rm -f").Output(tempPath)
+		Text("rm -f").Output(path)
 	rule.Command().
 		Text("cat").
 		Inputs(aidls).
 		Text("| sort -u >").
-		Output(tempPath)
+		Output(path)
 
-	commitChangeForRestat(rule, tempPath, combinedAidl)
-
-	rule.Build(pctx, ctx, "framework_aidl", "generate framework.aidl")
+	return rule
 }
 
 func sdkFrameworkAidlPath(ctx android.PathContext) android.OutputPath {
 	return ctx.Config().Once(sdkFrameworkAidlPathKey, func() interface{} {
 		return android.PathForOutput(ctx, "framework.aidl")
+	}).(android.OutputPath)
+}
+
+func nonUpdatableFrameworkAidlPath(ctx android.PathContext) android.OutputPath {
+	return ctx.Config().Once(nonUpdatableFrameworkAidlPathKey, func() interface{} {
+		return android.PathForOutput(ctx, "framework_non_updatable.aidl")
 	}).(android.OutputPath)
 }
 
