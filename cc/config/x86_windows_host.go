@@ -58,8 +58,11 @@ var (
 		"-Wl,--dynamicbase",
 		"-Wl,--nxcompat",
 	}
+	windowsLldflags = []string{
+		"-Wl,--Xlink=-Brepro", // Enable deterministic build
+	}
 	windowsClangLdflags  = append(ClangFilterUnknownCflags(windowsLdflags), []string{}...)
-	windowsClangLldflags = ClangFilterUnknownLldflags(windowsClangLdflags)
+	windowsClangLldflags = append(ClangFilterUnknownLldflags(windowsClangLdflags), windowsLldflags...)
 
 	windowsX86Cflags = []string{
 		"-m32",
