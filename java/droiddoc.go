@@ -301,6 +301,11 @@ type DroidstubsProperties struct {
 	// if set to true, allow Metalava to generate doc_stubs source files. Defaults to false.
 	Create_doc_stubs *bool
 
+	// if set to false then do not write out stubs. Defaults to true.
+	//
+	// TODO(b/146727827): Remove capability when we do not need to generate stubs and API separately.
+	Generate_stubs *bool
+
 	// is set to true, Metalava will allow framework SDK to contain API levels annotations.
 	Api_levels_annotations_enabled *bool
 
@@ -1285,7 +1290,7 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsDir android.WritablePath) {
+func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsDir android.OptionalPath) {
 	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
 		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
 		String(d.properties.Api_filename) != "" {
@@ -1341,11 +1346,13 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 		cmd.FlagWithArg("--sdk-values ", d.metadataDir.String())
 	}
 
-	if Bool(d.properties.Create_doc_stubs) {
-		cmd.FlagWithArg("--doc-stubs ", stubsDir.String())
-	} else {
-		cmd.FlagWithArg("--stubs ", stubsDir.String())
-		cmd.Flag("--exclude-documentation-from-stubs")
+	if stubsDir.Valid() {
+		if Bool(d.properties.Create_doc_stubs) {
+			cmd.FlagWithArg("--doc-stubs ", stubsDir.String())
+		} else {
+			cmd.FlagWithArg("--stubs ", stubsDir.String())
+			cmd.Flag("--exclude-documentation-from-stubs")
+		}
 	}
 }
 
@@ -1502,15 +1509,18 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Create rule for metalava
 
-	d.Javadoc.stubsSrcJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
-
 	srcJarDir := android.PathForModuleOut(ctx, "srcjars")
-	stubsDir := android.PathForModuleOut(ctx, "stubsDir")
 
 	rule := android.NewRuleBuilder()
 
-	rule.Command().Text("rm -rf").Text(stubsDir.String())
-	rule.Command().Text("mkdir -p").Text(stubsDir.String())
+	generateStubs := BoolDefault(d.properties.Generate_stubs, true)
+	var stubsDir android.OptionalPath
+	if generateStubs {
+		d.Javadoc.stubsSrcJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
+		stubsDir = android.OptionalPathForPath(android.PathForModuleOut(ctx, "stubsDir"))
+		rule.Command().Text("rm -rf").Text(stubsDir.String())
+		rule.Command().Text("mkdir -p").Text(stubsDir.String())
+	}
 
 	srcJarList := zipSyncCmd(ctx, rule, srcJarDir, d.Javadoc.srcJars)
 
@@ -1536,13 +1546,15 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.ImplicitOutput(android.PathForModuleGen(ctx, o))
 	}
 
-	rule.Command().
-		BuiltTool(ctx, "soong_zip").
-		Flag("-write_if_changed").
-		Flag("-jar").
-		FlagWithOutput("-o ", d.Javadoc.stubsSrcJar).
-		FlagWithArg("-C ", stubsDir.String()).
-		FlagWithArg("-D ", stubsDir.String())
+	if generateStubs {
+		rule.Command().
+			BuiltTool(ctx, "soong_zip").
+			Flag("-write_if_changed").
+			Flag("-jar").
+			FlagWithOutput("-o ", d.Javadoc.stubsSrcJar).
+			FlagWithArg("-C ", stubsDir.String()).
+			FlagWithArg("-D ", stubsDir.String())
+	}
 
 	if Bool(d.properties.Write_sdk_values) {
 		d.metadataZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"-metadata.zip")
