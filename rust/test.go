@@ -50,6 +50,10 @@ type testDecorator struct {
 	testConfig android.Path
 }
 
+func (test *testDecorator) nativeCoverage() bool {
+	return true
+}
+
 func NewRustTest(hod android.HostOrDeviceSupported) (*Module, *testDecorator) {
 	module := newModule(hod, android.MultilibFirst)
 

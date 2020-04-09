@@ -391,6 +391,7 @@ bootstrap_go_package {
     srcs: [
         "rust/androidmk.go",
         "rust/compiler.go",
+        "rust/coverage.go",
         "rust/binary.go",
         "rust/builder.go",
         "rust/library.go",
@@ -403,6 +404,7 @@ bootstrap_go_package {
     testSrcs: [
         "rust/binary_test.go",
         "rust/compiler_test.go",
+        "rust/coverage_test.go",
         "rust/library_test.go",
         "rust/rust_test.go",
         "rust/test_test.go",
