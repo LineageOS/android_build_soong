@@ -17,6 +17,7 @@ package android
 import (
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -147,7 +148,8 @@ func createLibcoreRules() []Rule {
 	rules := []Rule{
 		NeverAllow().
 			NotIn(coreLibraryProjects...).
-			With("sdk_version", "none"),
+			With("sdk_version", "none").
+			WithoutMatcher("name", Regexp("^android_.*stubs_current$")),
 	}
 
 	return rules
@@ -284,6 +286,18 @@ func (m *startsWithMatcher) test(value string) bool {
 
 func (m *startsWithMatcher) String() string {
 	return ".starts-with(" + m.prefix + ")"
+}
+
+type regexMatcher struct {
+	re *regexp.Regexp
+}
+
+func (m *regexMatcher) test(value string) bool {
+	return m.re.MatchString(value)
+}
+
+func (m *regexMatcher) String() string {
+	return ".regexp(" + m.re.String() + ")"
 }
 
 type isSetMatcher struct{}
@@ -499,6 +513,14 @@ func (r *rule) appliesToProperties(properties []interface{}) bool {
 
 func StartsWith(prefix string) ValueMatcher {
 	return &startsWithMatcher{prefix}
+}
+
+func Regexp(re string) ValueMatcher {
+	r, err := regexp.Compile(re)
+	if err != nil {
+		panic(err)
+	}
+	return &regexMatcher{r}
 }
 
 // assorted utils
