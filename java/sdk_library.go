@@ -171,6 +171,14 @@ func init() {
 		sort.Strings(*javaSdkLibraries)
 		ctx.Strict("JAVA_SDK_LIBRARIES", strings.Join(*javaSdkLibraries, " "))
 	})
+
+	// Register sdk member types.
+	android.RegisterSdkMemberType(&sdkLibrarySdkMemberType{
+		android.SdkMemberTypeBase{
+			PropertyName: "java_sdk_libs",
+			SupportsSdk:  true,
+		},
+	})
 }
 
 func RegisterSdkLibraryBuildComponents(ctx android.RegistrationContext) {
@@ -830,6 +838,8 @@ type sdkLibraryImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	prebuilt android.Prebuilt
+	android.ApexModuleBase
+	android.SdkBase
 
 	properties sdkLibraryImportProperties
 
@@ -888,6 +898,8 @@ func sdkLibraryImportFactory() android.Module {
 	module.AddProperties(&module.properties, allScopeProperties)
 
 	android.InitPrebuiltModule(module, &[]string{""})
+	android.InitApexModule(module)
+	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
 	android.AddLoadHook(module, func(mctx android.LoadHookContext) { module.createInternalModules(mctx) })
@@ -914,49 +926,49 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 			continue
 		}
 
-		// Creates a java import for the jar with ".stubs" suffix
-		props := struct {
-			Name                *string
-			Soc_specific        *bool
-			Device_specific     *bool
-			Product_specific    *bool
-			System_ext_specific *bool
-			Sdk_version         *string
-			Libs                []string
-			Jars                []string
-			Prefer              *bool
-		}{}
-
-		props.Name = proptools.StringPtr(apiScope.stubsModuleName(module.BaseModuleName()))
-		props.Sdk_version = scopeProperties.Sdk_version
-		// Prepend any of the libs from the legacy public properties to the libs for each of the
-		// scopes to avoid having to duplicate them in each scope.
-		props.Libs = append(module.properties.Libs, scopeProperties.Libs...)
-		props.Jars = scopeProperties.Jars
-
-		if module.SocSpecific() {
-			props.Soc_specific = proptools.BoolPtr(true)
-		} else if module.DeviceSpecific() {
-			props.Device_specific = proptools.BoolPtr(true)
-		} else if module.ProductSpecific() {
-			props.Product_specific = proptools.BoolPtr(true)
-		} else if module.SystemExtSpecific() {
-			props.System_ext_specific = proptools.BoolPtr(true)
-		}
-
-		// If the build should use prebuilt sdks then set prefer to true on the stubs library.
-		// That will cause the prebuilt version of the stubs to override the source version.
-		if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
-			props.Prefer = proptools.BoolPtr(true)
-		}
-
-		mctx.CreateModule(ImportFactory, &props)
+		module.createJavaImportForStubs(mctx, apiScope, scopeProperties)
 	}
 
 	javaSdkLibraries := javaSdkLibraries(mctx.Config())
 	javaSdkLibrariesLock.Lock()
 	defer javaSdkLibrariesLock.Unlock()
 	*javaSdkLibraries = append(*javaSdkLibraries, module.BaseModuleName())
+}
+
+func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.LoadHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
+	// Creates a java import for the jar with ".stubs" suffix
+	props := struct {
+		Name                *string
+		Soc_specific        *bool
+		Device_specific     *bool
+		Product_specific    *bool
+		System_ext_specific *bool
+		Sdk_version         *string
+		Libs                []string
+		Jars                []string
+		Prefer              *bool
+	}{}
+	props.Name = proptools.StringPtr(apiScope.stubsModuleName(module.BaseModuleName()))
+	props.Sdk_version = scopeProperties.Sdk_version
+	// Prepend any of the libs from the legacy public properties to the libs for each of the
+	// scopes to avoid having to duplicate them in each scope.
+	props.Libs = append(module.properties.Libs, scopeProperties.Libs...)
+	props.Jars = scopeProperties.Jars
+	if module.SocSpecific() {
+		props.Soc_specific = proptools.BoolPtr(true)
+	} else if module.DeviceSpecific() {
+		props.Device_specific = proptools.BoolPtr(true)
+	} else if module.ProductSpecific() {
+		props.Product_specific = proptools.BoolPtr(true)
+	} else if module.SystemExtSpecific() {
+		props.System_ext_specific = proptools.BoolPtr(true)
+	}
+	// If the build should use prebuilt sdks then set prefer to true on the stubs library.
+	// That will cause the prebuilt version of the stubs to override the source version.
+	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
+		props.Prefer = proptools.BoolPtr(true)
+	}
+	mctx.CreateModule(ImportFactory, &props)
 }
 
 func (module *sdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -1126,4 +1138,82 @@ func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {
 			},
 		},
 	}}
+}
+
+type sdkLibrarySdkMemberType struct {
+	android.SdkMemberTypeBase
+}
+
+func (s *sdkLibrarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
+	mctx.AddVariationDependencies(nil, dependencyTag, names...)
+}
+
+func (s *sdkLibrarySdkMemberType) IsInstance(module android.Module) bool {
+	_, ok := module.(*SdkLibrary)
+	return ok
+}
+
+func (s *sdkLibrarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "java_sdk_library_import")
+}
+
+func (s *sdkLibrarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &sdkLibrarySdkMemberProperties{}
+}
+
+type sdkLibrarySdkMemberProperties struct {
+	android.SdkMemberPropertiesBase
+
+	// Scope to per scope properties.
+	Scopes map[*apiScope]scopeProperties
+
+	// Additional libraries that the exported stubs libraries depend upon.
+	Libs []string
+}
+
+type scopeProperties struct {
+	Jars       android.Paths
+	SdkVersion string
+}
+
+func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
+	sdk := variant.(*SdkLibrary)
+
+	s.Scopes = make(map[*apiScope]scopeProperties)
+	for _, apiScope := range allApiScopes {
+		paths := sdk.getScopePaths(apiScope)
+		jars := paths.stubsImplPath
+		if len(jars) > 0 {
+			properties := scopeProperties{}
+			properties.Jars = jars
+			properties.SdkVersion = apiScope.sdkVersion
+			s.Scopes[apiScope] = properties
+		}
+	}
+
+	s.Libs = sdk.properties.Libs
+}
+
+func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	for _, apiScope := range allApiScopes {
+		if properties, ok := s.Scopes[apiScope]; ok {
+			scopeSet := propertySet.AddPropertySet(apiScope.name)
+
+			var jars []string
+			for _, p := range properties.Jars {
+				dest := filepath.Join("sdk_library", s.OsPrefix(), apiScope.name, ctx.Name()+"-stubs.jar")
+				ctx.SnapshotBuilder().CopyToSnapshot(p, dest)
+				jars = append(jars, dest)
+			}
+			scopeSet.AddProperty("jars", jars)
+
+			if properties.SdkVersion != "" {
+				scopeSet.AddProperty("sdk_version", properties.SdkVersion)
+			}
+		}
+	}
+
+	if len(s.Libs) > 0 {
+		propertySet.AddPropertyWithTag("libs", s.Libs, ctx.SnapshotBuilder().SdkMemberReferencePropertyTag(false))
+	}
 }
