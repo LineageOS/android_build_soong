@@ -120,7 +120,7 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	// https://b.corp.google.com/issues/153464409
 	// many local projects enable cert-* checks, which
 	// trigger bugprone-reserved-identifier.
-	tidyChecks = tidyChecks + ",-bugprone-reserved-identifier*"
+	tidyChecks = tidyChecks + ",-bugprone-reserved-identifier*,-cert-dcl51-cpp,-cert-dcl37-c"
 	flags.TidyFlags = append(flags.TidyFlags, tidyChecks)
 
 	if len(tidy.Properties.Tidy_checks_as_errors) > 0 {
