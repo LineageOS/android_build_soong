@@ -90,6 +90,7 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	// from java package
 	java.RegisterJavaBuildComponents(ctx)
 	java.RegisterAppBuildComponents(ctx)
+	java.RegisterSdkLibraryBuildComponents(ctx)
 	java.RegisterStubsBuildComponents(ctx)
 	java.RegisterSystemModulesBuildComponents(ctx)
 
