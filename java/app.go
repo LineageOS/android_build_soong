@@ -1345,6 +1345,12 @@ type RuntimeResourceOverlayProperties struct {
 	// if not blank, set the minimum version of the sdk that the compiled artifacts will run against.
 	// Defaults to sdk_version if not set.
 	Min_sdk_version *string
+
+	// list of android_library modules whose resources are extracted and linked against statically
+	Static_libs []string
+
+	// list of android_app modules whose resources are extracted and linked against
+	Resource_libs []string
 }
 
 func (r *RuntimeResourceOverlay) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -1357,6 +1363,9 @@ func (r *RuntimeResourceOverlay) DepsMutator(ctx android.BottomUpMutatorContext)
 	if cert != "" {
 		ctx.AddDependency(ctx.Module(), certificateTag, cert)
 	}
+
+	ctx.AddVariationDependencies(nil, staticLibTag, r.properties.Static_libs...)
+	ctx.AddVariationDependencies(nil, libTag, r.properties.Resource_libs...)
 }
 
 func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleContext) {
