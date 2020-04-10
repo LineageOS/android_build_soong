@@ -2342,11 +2342,17 @@ func checkAapt2LinkFlag(t *testing.T, aapt2Flags, flagName, expectedValue string
 }
 
 func TestRuntimeResourceOverlay(t *testing.T) {
-	ctx, config := testJava(t, `
+	fs := map[string][]byte{
+		"baz/res/res/values/strings.xml": nil,
+		"bar/res/res/values/strings.xml": nil,
+	}
+	bp := `
 		runtime_resource_overlay {
 			name: "foo",
 			certificate: "platform",
 			product_specific: true,
+			static_libs: ["bar"],
+			resource_libs: ["baz"],
 			aaptflags: ["--keep-raw-values"],
 		}
 
@@ -2356,7 +2362,21 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 			product_specific: true,
 			theme: "faza",
 		}
-		`)
+
+		android_library {
+			name: "bar",
+			resource_dirs: ["bar/res"],
+		}
+
+		android_app {
+			name: "baz",
+			sdk_version: "current",
+			resource_dirs: ["baz/res"],
+		}
+		`
+	config := testAppConfig(nil, bp, fs)
+	ctx := testContext()
+	run(t, ctx, config)
 
 	m := ctx.ModuleForTests("foo", "android_common")
 
@@ -2366,6 +2386,19 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 	absentFlags := android.RemoveListFromList(expectedFlags, strings.Split(aapt2Flags, " "))
 	if len(absentFlags) > 0 {
 		t.Errorf("expected values, %q are missing in aapt2 link flags, %q", absentFlags, aapt2Flags)
+	}
+
+	// Check overlay.list output for static_libs dependency.
+	overlayList := m.Output("aapt2/overlay.list").Inputs.Strings()
+	staticLibPackage := buildDir + "/.intermediates/bar/android_common/package-res.apk"
+	if !inList(staticLibPackage, overlayList) {
+		t.Errorf("Stactic lib res package %q missing in overlay list: %q", staticLibPackage, overlayList)
+	}
+
+	// Check AAPT2 link flags for resource_libs dependency.
+	resourceLibFlag := "-I " + buildDir + "/.intermediates/baz/android_common/package-res.apk"
+	if !strings.Contains(aapt2Flags, resourceLibFlag) {
+		t.Errorf("Resource lib flag %q missing in aapt2 link flags: %q", resourceLibFlag, aapt2Flags)
 	}
 
 	// Check cert signing flag.
