@@ -26,7 +26,7 @@ import (
 )
 
 func init() {
-	android.RegisterSingletonType("dex_bootjars", dexpreoptBootJarsFactory)
+	RegisterDexpreoptBootJarsComponents(android.InitRegistrationContext)
 }
 
 // The image "location" is a symbolic path that with multiarchitecture
@@ -168,6 +168,10 @@ func dexpreoptBootJarsFactory() android.Singleton {
 	return &dexpreoptBootJars{}
 }
 
+func RegisterDexpreoptBootJarsComponents(ctx android.RegistrationContext) {
+	ctx.RegisterSingletonType("dex_bootjars", dexpreoptBootJarsFactory)
+}
+
 func skipDexpreoptBootJars(ctx android.PathContext) bool {
 	if dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
 		return true
@@ -238,16 +242,66 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 	dumpOatRules(ctx, d.defaultBootImage)
 }
 
+// Inspect this module to see if it contains a bootclasspath dex jar.
+// Note that the same jar may occur in multiple modules.
+// This logic is tested in the apex package to avoid import cycle apex <-> java.
+func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, module android.Module) (int, android.Path) {
+	// All apex Java libraries have non-installable platform variants, skip them.
+	if module.IsSkipInstall() {
+		return -1, nil
+	}
+
+	jar, hasJar := module.(interface{ DexJar() android.Path })
+	if !hasJar {
+		return -1, nil
+	}
+
+	name := ctx.ModuleName(module)
+	index := android.IndexList(name, image.modules)
+	if index == -1 {
+		return -1, nil
+	}
+
+	// Check that this module satisfies constraints for a particular boot image.
+	apex, isApexModule := module.(android.ApexModule)
+	if image.name == artBootImageName {
+		if isApexModule && strings.HasPrefix(apex.ApexName(), "com.android.art.") {
+			// ok, found the jar in the ART apex
+		} else if isApexModule && !apex.IsForPlatform() {
+			// this jar is part of an updatable apex other than ART, fail immediately
+			ctx.Errorf("module '%s' from updatable apex '%s' is not allowed in the ART boot image", name, apex.ApexName())
+		} else if isApexModule && apex.IsForPlatform() && Bool(module.(*Library).deviceProperties.Hostdex) {
+			// this is a special "hostdex" variant, skip it and resume search
+			return -1, nil
+		} else if name == "jacocoagent" && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+			// this is Jacoco platform variant for a coverage build, skip it and resume search
+			return -1, nil
+		} else {
+			// this (installable) jar is part of the platform, fail immediately
+			ctx.Errorf("module '%s' is part of the platform and not allowed in the ART boot image", name)
+		}
+	} else if image.name == frameworkBootImageName {
+		if !isApexModule || apex.IsForPlatform() {
+			// ok, this jar is part of the platform
+		} else {
+			// this jar is part of an updatable apex, fail immediately
+			ctx.Errorf("module '%s' from updatable apex '%s' is not allowed in the framework boot image", name, apex.ApexName())
+		}
+	} else {
+		panic("unknown boot image: " + image.name)
+	}
+
+	return index, jar.DexJar()
+}
+
 // buildBootImage takes a bootImageConfig, creates rules to build it, and returns the image.
 func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootImageConfig {
+	// Collect dex jar paths for the boot image modules.
+	// This logic is tested in the apex package to avoid import cycle apex <-> java.
 	bootDexJars := make(android.Paths, len(image.modules))
 	ctx.VisitAllModules(func(module android.Module) {
-		// Collect dex jar paths for the modules listed above.
-		if j, ok := module.(interface{ DexJar() android.Path }); ok {
-			name := ctx.ModuleName(module)
-			if i := android.IndexList(name, image.modules); i != -1 {
-				bootDexJars[i] = j.DexJar()
-			}
+		if i, j := getBootImageJar(ctx, image, module); i != -1 {
+			bootDexJars[i] = j
 		}
 	})
 
@@ -259,7 +313,8 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 				missingDeps = append(missingDeps, image.modules[i])
 				bootDexJars[i] = android.PathForOutput(ctx, "missing")
 			} else {
-				ctx.Errorf("failed to find dex jar path for module %q",
+				ctx.Errorf("failed to find a dex jar path for module '%s'"+
+					", note that some jars may be filtered out by module constraints",
 					image.modules[i])
 			}
 		}
