@@ -236,10 +236,11 @@ type sdkLibraryProperties struct {
 }
 
 type scopePaths struct {
-	stubsHeaderPath android.Paths
-	stubsImplPath   android.Paths
-	apiFilePath     android.Path
-	stubsSrcJar     android.Path
+	stubsHeaderPath    android.Paths
+	stubsImplPath      android.Paths
+	currentApiFilePath android.Path
+	removedApiFilePath android.Path
+	stubsSrcJar        android.Path
 }
 
 // Common code between sdk library and sdk library import
@@ -330,7 +331,8 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 			if scopeTag, ok := tag.(scopeDependencyTag); ok {
 				apiScope := scopeTag.apiScope
 				scopePaths := module.getScopePaths(apiScope)
-				scopePaths.apiFilePath = doc.ApiFilePath()
+				scopePaths.currentApiFilePath = doc.ApiFilePath()
+				scopePaths.removedApiFilePath = doc.RemovedApiFilePath()
 				scopePaths.stubsSrcJar = doc.StubsSrcJar()
 			} else {
 				ctx.ModuleErrorf("depends on module %q of unknown tag %q", otherName, tag)
@@ -831,6 +833,12 @@ type sdkLibraryScopeProperties struct {
 
 	// The stub sources.
 	Stub_srcs []string `android:"path"`
+
+	// The current.txt
+	Current_api string `android:"path"`
+
+	// The removed.txt
+	Removed_api string `android:"path"`
 }
 
 type sdkLibraryImportProperties struct {
@@ -1192,9 +1200,11 @@ type sdkLibrarySdkMemberProperties struct {
 }
 
 type scopeProperties struct {
-	Jars        android.Paths
-	StubsSrcJar android.Path
-	SdkVersion  string
+	Jars           android.Paths
+	StubsSrcJar    android.Path
+	CurrentApiFile android.Path
+	RemovedApiFile android.Path
+	SdkVersion     string
 }
 
 func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
@@ -1209,6 +1219,8 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 			properties.Jars = jars
 			properties.SdkVersion = apiScope.sdkVersion
 			properties.StubsSrcJar = paths.stubsSrcJar
+			properties.CurrentApiFile = paths.currentApiFilePath
+			properties.RemovedApiFile = paths.removedApiFilePath
 			s.Scopes[apiScope] = properties
 		}
 	}
@@ -1236,6 +1248,18 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 			snapshotRelativeDir := filepath.Join(scopeDir, ctx.Name()+"_stub_sources")
 			ctx.SnapshotBuilder().UnzipToSnapshot(properties.StubsSrcJar, snapshotRelativeDir)
 			scopeSet.AddProperty("stub_srcs", []string{snapshotRelativeDir})
+
+			if properties.CurrentApiFile != nil {
+				currentApiSnapshotPath := filepath.Join(scopeDir, ctx.Name()+".txt")
+				ctx.SnapshotBuilder().CopyToSnapshot(properties.CurrentApiFile, currentApiSnapshotPath)
+				scopeSet.AddProperty("current_api", currentApiSnapshotPath)
+			}
+
+			if properties.RemovedApiFile != nil {
+				removedApiSnapshotPath := filepath.Join(scopeDir, ctx.Name()+"-removed.txt")
+				ctx.SnapshotBuilder().CopyToSnapshot(properties.CurrentApiFile, removedApiSnapshotPath)
+				scopeSet.AddProperty("removed_api", removedApiSnapshotPath)
+			}
 
 			if properties.SdkVersion != "" {
 				scopeSet.AddProperty("sdk_version", properties.SdkVersion)
