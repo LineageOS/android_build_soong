@@ -239,6 +239,7 @@ type scopePaths struct {
 	stubsHeaderPath android.Paths
 	stubsImplPath   android.Paths
 	apiFilePath     android.Path
+	stubsSrcJar     android.Path
 }
 
 // Common code between sdk library and sdk library import
@@ -325,11 +326,12 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 				scopePaths.stubsImplPath = lib.ImplementationJars()
 			}
 		}
-		if doc, ok := to.(ApiFilePath); ok {
+		if doc, ok := to.(ApiStubsProvider); ok {
 			if scopeTag, ok := tag.(scopeDependencyTag); ok {
 				apiScope := scopeTag.apiScope
 				scopePaths := module.getScopePaths(apiScope)
 				scopePaths.apiFilePath = doc.ApiFilePath()
+				scopePaths.stubsSrcJar = doc.StubsSrcJar()
 			} else {
 				ctx.ModuleErrorf("depends on module %q of unknown tag %q", otherName, tag)
 			}
@@ -826,6 +828,9 @@ type sdkLibraryScopeProperties struct {
 
 	// List of shared java libs that this module has dependencies to
 	Libs []string
+
+	// The stub sources.
+	Stub_srcs []string `android:"path"`
 }
 
 type sdkLibraryImportProperties struct {
@@ -927,6 +932,8 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 		}
 
 		module.createJavaImportForStubs(mctx, apiScope, scopeProperties)
+
+		module.createPrebuiltStubsSources(mctx, apiScope, scopeProperties)
 	}
 
 	javaSdkLibraries := javaSdkLibraries(mctx.Config())
@@ -969,6 +976,16 @@ func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.LoadHookCo
 		props.Prefer = proptools.BoolPtr(true)
 	}
 	mctx.CreateModule(ImportFactory, &props)
+}
+
+func (module *sdkLibraryImport) createPrebuiltStubsSources(mctx android.LoadHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
+	props := struct {
+		Name *string
+		Srcs []string
+	}{}
+	props.Name = proptools.StringPtr(apiScope.docsModuleName(module.BaseModuleName()))
+	props.Srcs = scopeProperties.Stub_srcs
+	mctx.CreateModule(PrebuiltStubsSourcesFactory, &props)
 }
 
 func (module *sdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -1169,11 +1186,15 @@ type sdkLibrarySdkMemberProperties struct {
 
 	// Additional libraries that the exported stubs libraries depend upon.
 	Libs []string
+
+	// The Java stubs source files.
+	Stub_srcs []string
 }
 
 type scopeProperties struct {
-	Jars       android.Paths
-	SdkVersion string
+	Jars        android.Paths
+	StubsSrcJar android.Path
+	SdkVersion  string
 }
 
 func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
@@ -1187,6 +1208,7 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 			properties := scopeProperties{}
 			properties.Jars = jars
 			properties.SdkVersion = apiScope.sdkVersion
+			properties.StubsSrcJar = paths.stubsSrcJar
 			s.Scopes[apiScope] = properties
 		}
 	}
@@ -1199,13 +1221,21 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 		if properties, ok := s.Scopes[apiScope]; ok {
 			scopeSet := propertySet.AddPropertySet(apiScope.name)
 
+			scopeDir := filepath.Join("sdk_library", s.OsPrefix(), apiScope.name)
+
 			var jars []string
 			for _, p := range properties.Jars {
-				dest := filepath.Join("sdk_library", s.OsPrefix(), apiScope.name, ctx.Name()+"-stubs.jar")
+				dest := filepath.Join(scopeDir, ctx.Name()+"-stubs.jar")
 				ctx.SnapshotBuilder().CopyToSnapshot(p, dest)
 				jars = append(jars, dest)
 			}
 			scopeSet.AddProperty("jars", jars)
+
+			// Merge the stubs source jar into the snapshot zip so that when it is unpacked
+			// the source files are also unpacked.
+			snapshotRelativeDir := filepath.Join(scopeDir, ctx.Name()+"_stub_sources")
+			ctx.SnapshotBuilder().UnzipToSnapshot(properties.StubsSrcJar, snapshotRelativeDir)
+			scopeSet.AddProperty("stub_srcs", []string{snapshotRelativeDir})
 
 			if properties.SdkVersion != "" {
 				scopeSet.AddProperty("sdk_version", properties.SdkVersion)
