@@ -383,6 +383,7 @@ type ApiFilePath interface {
 // Provider of information about API stubs, used by java_sdk_library.
 type ApiStubsProvider interface {
 	ApiFilePath
+	RemovedApiFilePath() android.Path
 	StubsSrcJar() android.Path
 }
 
@@ -1269,6 +1270,10 @@ func DroidstubsHostFactory() android.Module {
 
 func (d *Droidstubs) ApiFilePath() android.Path {
 	return d.apiFilePath
+}
+
+func (d *Droidstubs) RemovedApiFilePath() android.Path {
+	return d.removedApiFile
 }
 
 func (d *Droidstubs) StubsSrcJar() android.Path {
