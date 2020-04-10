@@ -624,7 +624,7 @@ module_exports_snapshot {
 
 `),
 		checkAllCopyRules(""),
-		checkMergeZip(".intermediates/myexports/common_os/tmp/java/myjavaapistubs_stubs_sources.zip"),
+		checkMergeZips(".intermediates/myexports/common_os/tmp/java/myjavaapistubs_stubs_sources.zip"),
 	)
 }
 
@@ -678,7 +678,7 @@ module_exports_snapshot {
 }
 `),
 		checkAllCopyRules(""),
-		checkMergeZip(".intermediates/myexports/common_os/tmp/java/myjavaapistubs_stubs_sources.zip"),
+		checkMergeZips(".intermediates/myexports/common_os/tmp/java/myjavaapistubs_stubs_sources.zip"),
 	)
 }
 
@@ -997,14 +997,17 @@ java_sdk_library_import {
     apex_available: ["//apex_available:anyapex"],
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
         sdk_version: "current",
     },
     system: {
         jars: ["sdk_library/system/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/system/myjavalib_stub_sources"],
         sdk_version: "system_current",
     },
     test: {
         jars: ["sdk_library/test/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/test/myjavalib_stub_sources"],
         sdk_version: "test_current",
     },
 }
@@ -1015,14 +1018,17 @@ java_sdk_library_import {
     apex_available: ["//apex_available:anyapex"],
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
         sdk_version: "current",
     },
     system: {
         jars: ["sdk_library/system/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/system/myjavalib_stub_sources"],
         sdk_version: "system_current",
     },
     test: {
         jars: ["sdk_library/test/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/test/myjavalib_stub_sources"],
         sdk_version: "test_current",
     },
 }
@@ -1037,5 +1043,9 @@ sdk_snapshot {
 .intermediates/myjavalib.stubs.system/android_common/javac/myjavalib.stubs.system.jar -> sdk_library/system/myjavalib-stubs.jar
 .intermediates/myjavalib.stubs.test/android_common/javac/myjavalib.stubs.test.jar -> sdk_library/test/myjavalib-stubs.jar
 `),
+		checkMergeZips(
+			".intermediates/mysdk/common_os/tmp/sdk_library/public/myjavalib_stub_sources.zip",
+			".intermediates/mysdk/common_os/tmp/sdk_library/system/myjavalib_stub_sources.zip",
+			".intermediates/mysdk/common_os/tmp/sdk_library/test/myjavalib_stub_sources.zip"),
 	)
 }

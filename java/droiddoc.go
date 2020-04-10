@@ -375,8 +375,15 @@ func ignoreMissingModules(ctx android.BottomUpMutatorContext, apiToCheck *ApiToC
 	apiToCheck.Removed_api_file = nil
 }
 
+// Used by xsd_config
 type ApiFilePath interface {
 	ApiFilePath() android.Path
+}
+
+// Provider of information about API stubs, used by java_sdk_library.
+type ApiStubsProvider interface {
+	ApiFilePath
+	StubsSrcJar() android.Path
 }
 
 //
@@ -1262,6 +1269,10 @@ func DroidstubsHostFactory() android.Module {
 
 func (d *Droidstubs) ApiFilePath() android.Path {
 	return d.apiFilePath
+}
+
+func (d *Droidstubs) StubsSrcJar() android.Path {
+	return d.stubsSrcJar
 }
 
 func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
