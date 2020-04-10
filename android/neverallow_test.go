@@ -227,6 +227,16 @@ var neverallowTests = []struct {
 		},
 	},
 	{
+		name: "sdk_version: \"none\" on android_*stubs_current stub",
+		fs: map[string][]byte{
+			"frameworks/base/Android.bp": []byte(`
+				java_library {
+					name: "android_stubs_current",
+					sdk_version: "none",
+				}`),
+		},
+	},
+	{
 		name: "sdk_version: \"none\" outside core libraries",
 		fs: map[string][]byte{
 			"Android.bp": []byte(`
