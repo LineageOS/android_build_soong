@@ -45,6 +45,7 @@ func TestSoongConfigModule(t *testing.T) {
 			config_namespace: "acme",
 			variables: ["board", "feature1", "FEATURE3"],
 			bool_variables: ["feature2"],
+			value_variables: ["size"],
 			properties: ["cflags", "srcs"],
 		}
 
@@ -82,6 +83,9 @@ func TestSoongConfigModule(t *testing.T) {
 						cflags: ["-DSOC_B"],
 					},
 				},
+				size: {
+					cflags: ["-DSIZE=%s"],
+				},
 				feature1: {
 					cflags: ["-DFEATURE1"],
 				},
@@ -101,6 +105,7 @@ func TestSoongConfigModule(t *testing.T) {
 		config.TestProductVariables.VendorVars = map[string]map[string]string{
 			"acme": map[string]string{
 				"board":    "soc_a",
+				"size":     "42",
 				"feature1": "true",
 				"feature2": "false",
 				// FEATURE3 unset
@@ -121,7 +126,7 @@ func TestSoongConfigModule(t *testing.T) {
 		FailIfErrored(t, errs)
 
 		foo := ctx.ModuleForTests("foo", "").Module().(*soongConfigTestModule)
-		if g, w := foo.props.Cflags, []string{"-DGENERIC", "-DSOC_A", "-DFEATURE1"}; !reflect.DeepEqual(g, w) {
+		if g, w := foo.props.Cflags, []string{"-DGENERIC", "-DSIZE=42", "-DSOC_A", "-DFEATURE1"}; !reflect.DeepEqual(g, w) {
 			t.Errorf("wanted foo cflags %q, got %q", w, g)
 		}
 	}
