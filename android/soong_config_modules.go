@@ -73,6 +73,9 @@ type soongConfigModuleTypeImportProperties struct {
 //             feature: {
 //                 cflags: ["-DFEATURE"],
 //             },
+//             width: {
+//                 cflags: ["-DWIDTH=%s"],
+//             },
 //         },
 //     }
 //
@@ -90,6 +93,7 @@ type soongConfigModuleTypeImportProperties struct {
 //         config_namespace: "acme",
 //         variables: ["board"],
 //         bool_variables: ["feature"],
+//         value_variables: ["width"],
 //         properties: ["cflags", "srcs"],
 //     }
 //
@@ -107,8 +111,9 @@ type soongConfigModuleTypeImportProperties struct {
 //
 //     SOONG_CONFIG_acme_board := soc_a
 //     SOONG_CONFIG_acme_feature := true
+//     SOONG_CONFIG_acme_width := 200
 //
-// Then libacme_foo would build with cflags "-DGENERIC -DSOC_A -DFEATURE".
+// Then libacme_foo would build with cflags "-DGENERIC -DSOC_A -DFEATURE -DWIDTH=200".
 func soongConfigModuleTypeImportFactory() Module {
 	module := &soongConfigModuleTypeImport{}
 
@@ -151,6 +156,7 @@ type soongConfigModuleTypeModule struct {
 //         config_namespace: "acme",
 //         variables: ["board"],
 //         bool_variables: ["feature"],
+//         value_variables: ["width"],
 //         properties: ["cflags", "srcs"],
 //     }
 //
@@ -174,6 +180,9 @@ type soongConfigModuleTypeModule struct {
 //             feature: {
 //                 cflags: ["-DFEATURE"],
 //             },
+//             width: {
+//	               cflags: ["-DWIDTH=%s"],
+//             },
 //         },
 //     }
 //
@@ -192,6 +201,7 @@ type soongConfigModuleTypeModule struct {
 //
 //     SOONG_CONFIG_acme_board := soc_a
 //     SOONG_CONFIG_acme_feature := true
+//     SOONG_CONFIG_acme_width := 200
 //
 // Then libacme_foo would build with cflags "-DGENERIC -DSOC_A -DFEATURE".
 func soongConfigModuleTypeFactory() Module {
@@ -352,7 +362,12 @@ func soongConfigModuleFactory(factory blueprint.ModuleFactory,
 
 			AddLoadHook(module, func(ctx LoadHookContext) {
 				config := ctx.Config().VendorConfig(moduleType.ConfigNamespace)
-				for _, ps := range soongconfig.PropertiesToApply(moduleType, conditionalProps, config) {
+				newProps, err := soongconfig.PropertiesToApply(moduleType, conditionalProps, config)
+				if err != nil {
+					ctx.ModuleErrorf("%s", err)
+					return
+				}
+				for _, ps := range newProps {
 					ctx.AppendProperties(ps)
 				}
 			})
