@@ -27,7 +27,6 @@ var (
 		"-Wl,--icf=safe",
 		"-Wl,-z,max-page-size=4096",
 
-		"-Wl,--execute-only",
 		"-Wl,-z,separate-code",
 	}
 
