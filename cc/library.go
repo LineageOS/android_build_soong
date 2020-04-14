@@ -1303,6 +1303,18 @@ func (library *libraryDecorator) availableFor(what string) bool {
 	return android.CheckAvailableForApex(what, list)
 }
 
+func (library *libraryDecorator) skipInstall(mod *Module) {
+	if library.static() && library.buildStatic() && !library.buildStubs() {
+		// If we're asked to skip installation of a static library (in particular
+		// when it's not //apex_available:platform) we still want an AndroidMk entry
+		// for it to ensure we get the relevant NOTICE file targets (cf.
+		// notice_files.mk) that other libraries might depend on. AndroidMkEntries
+		// always sets LOCAL_UNINSTALLABLE_MODULE for these entries.
+		return
+	}
+	mod.ModuleBase.SkipInstall()
+}
+
 var versioningMacroNamesListKey = android.NewOnceKey("versioningMacroNamesList")
 
 func versioningMacroNamesList(config android.Config) *map[string]string {
