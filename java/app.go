@@ -110,6 +110,10 @@ type appProperties struct {
 	PreventInstall    bool `blueprint:"mutated"`
 	HideFromMake      bool `blueprint:"mutated"`
 	IsCoverageVariant bool `blueprint:"mutated"`
+
+	// Whether this app is considered mainline updatable or not. When set to true, this will enforce
+	// additional rules for making sure that the APK is truly updatable. Default is false.
+	Updatable *bool
 }
 
 // android_app properties that can be overridden by override_android_app
@@ -249,9 +253,19 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 }
 
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	a.checkPlatformAPI(ctx)
-	a.checkSdkVersion(ctx)
+	a.checkAppSdkVersions(ctx)
 	a.generateAndroidBuildActions(ctx)
+}
+
+func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
+	if Bool(a.appProperties.Updatable) {
+		if !a.sdkVersion().stable() {
+			ctx.PropertyErrorf("sdk_version", "Updatable apps must use stable SDKs, found %v", a.sdkVersion())
+		}
+	}
+
+	a.checkPlatformAPI(ctx)
+	a.checkSdkVersions(ctx)
 }
 
 // Returns true if the native libraries should be stored in the APK uncompressed and the
