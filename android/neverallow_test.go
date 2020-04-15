@@ -313,7 +313,7 @@ func TestNeverallow(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// If the test has its own rules then use them instead of the default ones.
 			if test.rules != nil {
-				setTestNeverallowRules(config, test.rules)
+				SetTestNeverallowRules(config, test.rules)
 			}
 			_, errs := testNeverallow(config)
 			CheckErrorsAgainstExpectations(t, errs, test.expectedErrors)
@@ -327,7 +327,7 @@ func testNeverallow(config Config) (*TestContext, []error) {
 	ctx.RegisterModuleType("java_library", newMockJavaLibraryModule)
 	ctx.RegisterModuleType("java_library_host", newMockJavaLibraryModule)
 	ctx.RegisterModuleType("java_device_for_host", newMockJavaLibraryModule)
-	ctx.PostDepsMutators(registerNeverallowMutator)
+	ctx.PostDepsMutators(RegisterNeverallowMutator)
 	ctx.Register(config)
 
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
