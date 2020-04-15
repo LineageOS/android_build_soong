@@ -155,6 +155,10 @@ func (p *prebuiltLibraryLinker) disablePrebuilt() {
 	p.properties.Srcs = nil
 }
 
+func (p *prebuiltLibraryLinker) skipInstall(mod *Module) {
+	mod.ModuleBase.SkipInstall()
+}
+
 func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
 	module, library := NewLibrary(hod)
 	module.compiler = nil
@@ -163,6 +167,7 @@ func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDec
 		libraryDecorator: library,
 	}
 	module.linker = prebuilt
+	module.installer = prebuilt
 
 	module.AddProperties(&prebuilt.properties)
 
