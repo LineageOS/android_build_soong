@@ -148,6 +148,10 @@ type sdkSpec struct {
 	raw     string
 }
 
+func (s sdkSpec) String() string {
+	return fmt.Sprintf("%s_%s", s.kind, s.version)
+}
+
 // valid checks if this sdkSpec is well-formed. Note however that true doesn't mean that the
 // specified SDK actually exists.
 func (s sdkSpec) valid() bool {
@@ -157,6 +161,23 @@ func (s sdkSpec) valid() bool {
 // specified checks if this sdkSpec is well-formed and is not "".
 func (s sdkSpec) specified() bool {
 	return s.valid() && s.kind != sdkPrivate
+}
+
+// whether the API surface is managed and versioned, i.e. has .txt file that
+// get frozen on SDK freeze and changes get reviewed by API council.
+func (s sdkSpec) stable() bool {
+	if !s.specified() {
+		return false
+	}
+	switch s.kind {
+	case sdkCore, sdkPublic, sdkSystem, sdkModule, sdkSystemServer:
+		return true
+	case sdkNone, sdkCorePlatform, sdkTest, sdkPrivate:
+		return false
+	default:
+		panic(fmt.Errorf("unknown sdkKind=%v", s.kind))
+	}
+	return false
 }
 
 // prebuiltSdkAvailableForUnbundledBuilt tells whether this sdkSpec can have a prebuilt SDK
