@@ -309,6 +309,10 @@ func processVndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 		panic(err)
 	}
 
+	if m.HasStubsVariants() {
+		mctx.PropertyErrorf("vndk.enabled", "This library provides stubs. Shouldn't be VNDK. Consider making it as LLNDK")
+	}
+
 	vndkLibrariesLock.Lock()
 	defer vndkLibrariesLock.Unlock()
 
