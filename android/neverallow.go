@@ -42,7 +42,7 @@ import (
 //     counts as a match
 // - it has none of the "Without" properties matched (same rules as above)
 
-func registerNeverallowMutator(ctx RegisterMutatorsContext) {
+func RegisterNeverallowMutator(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("neverallow", neverallowMutator).Parallel()
 }
 
@@ -247,7 +247,7 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 }
 
 type ValueMatcher interface {
-	test(string) bool
+	Test(string) bool
 	String() string
 }
 
@@ -255,7 +255,7 @@ type equalMatcher struct {
 	expected string
 }
 
-func (m *equalMatcher) test(value string) bool {
+func (m *equalMatcher) Test(value string) bool {
 	return m.expected == value
 }
 
@@ -266,7 +266,7 @@ func (m *equalMatcher) String() string {
 type anyMatcher struct {
 }
 
-func (m *anyMatcher) test(value string) bool {
+func (m *anyMatcher) Test(value string) bool {
 	return true
 }
 
@@ -280,7 +280,7 @@ type startsWithMatcher struct {
 	prefix string
 }
 
-func (m *startsWithMatcher) test(value string) bool {
+func (m *startsWithMatcher) Test(value string) bool {
 	return strings.HasPrefix(value, m.prefix)
 }
 
@@ -292,7 +292,7 @@ type regexMatcher struct {
 	re *regexp.Regexp
 }
 
-func (m *regexMatcher) test(value string) bool {
+func (m *regexMatcher) Test(value string) bool {
 	return m.re.MatchString(value)
 }
 
@@ -302,7 +302,7 @@ func (m *regexMatcher) String() string {
 
 type isSetMatcher struct{}
 
-func (m *isSetMatcher) test(value string) bool {
+func (m *isSetMatcher) Test(value string) bool {
 	return value != ""
 }
 
@@ -573,7 +573,7 @@ func hasProperty(properties []interface{}, prop ruleProperty) bool {
 		}
 
 		check := func(value string) bool {
-			return prop.matcher.test(value)
+			return prop.matcher.Test(value)
 		}
 
 		if matchValue(propertiesValue, check) {
@@ -630,6 +630,6 @@ func neverallowRules(config Config) []Rule {
 // Overrides the default neverallow rules for the supplied config.
 //
 // For testing only.
-func setTestNeverallowRules(config Config, testRules []Rule) {
+func SetTestNeverallowRules(config Config, testRules []Rule) {
 	config.Once(neverallowRulesKey, func() interface{} { return testRules })
 }
