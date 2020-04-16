@@ -80,7 +80,7 @@ func RegisterJavaBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterSingletonType("kythe_java_extract", kytheExtractJavaFactory)
 }
 
-func (j *Module) checkSdkVersion(ctx android.ModuleContext) {
+func (j *Module) checkSdkVersions(ctx android.ModuleContext) {
 	if j.SocSpecific() || j.DeviceSpecific() ||
 		(j.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface()) {
 		if sc, ok := ctx.Module().(sdkContext); ok {
@@ -90,6 +90,18 @@ func (j *Module) checkSdkVersion(ctx android.ModuleContext) {
 			}
 		}
 	}
+
+	ctx.VisitDirectDeps(func(module android.Module) {
+		tag := ctx.OtherModuleDependencyTag(module)
+		switch module.(type) {
+		// TODO(satayev): cover other types as well, e.g. imports
+		case *Library, *AndroidLibrary:
+			switch tag {
+			case bootClasspathTag, libTag, staticLibTag, java9LibTag:
+				checkLinkType(ctx, j, module.(linkTypeContext), tag.(dependencyTag))
+			}
+		}
+	})
 }
 
 func (j *Module) checkPlatformAPI(ctx android.ModuleContext) {
@@ -892,15 +904,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			// Handled by AndroidApp.collectAppDeps
 			return
 		}
-		switch module.(type) {
-		case *Library, *AndroidLibrary:
-			if to, ok := module.(linkTypeContext); ok {
-				switch tag {
-				case bootClasspathTag, libTag, staticLibTag:
-					checkLinkType(ctx, j, to, tag.(dependencyTag))
-				}
-			}
-		}
+
 		switch dep := module.(type) {
 		case SdkLibraryDependency:
 			switch tag {
@@ -1817,7 +1821,7 @@ func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bo
 }
 
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	j.checkSdkVersion(ctx)
+	j.checkSdkVersions(ctx)
 	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar")
 	j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
 	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &j.dexpreopter)
