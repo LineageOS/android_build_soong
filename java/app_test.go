@@ -264,6 +264,108 @@ func TestAndroidAppLinkType(t *testing.T) {
 	`)
 }
 
+func TestUpdatableApps(t *testing.T) {
+	testCases := []struct {
+		name          string
+		bp            string
+		expectedError string
+	}{
+		{
+			name: "Stable public SDK",
+			bp: `android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "29",
+					updatable: true,
+				}`,
+		},
+		{
+			name: "Stable system SDK",
+			bp: `android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "system_29",
+					updatable: true,
+				}`,
+		},
+		{
+			name: "Current public SDK",
+			bp: `android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+					updatable: true,
+				}`,
+		},
+		{
+			name: "Current system SDK",
+			bp: `android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "system_current",
+					updatable: true,
+				}`,
+		},
+		{
+			name: "Current module SDK",
+			bp: `android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "module_current",
+					updatable: true,
+				}`,
+		},
+		{
+			name: "Current core SDK",
+			bp: `android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "core_current",
+					updatable: true,
+				}`,
+		},
+		{
+			name: "No Platform APIs",
+			bp: `android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					platform_apis: true,
+					updatable: true,
+				}`,
+			expectedError: "Updatable apps must use stable SDKs",
+		},
+		{
+			name: "No Core Platform APIs",
+			bp: `android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "core_platform",
+					updatable: true,
+				}`,
+			expectedError: "Updatable apps must use stable SDKs",
+		},
+		{
+			name: "No unspecified APIs",
+			bp: `android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					updatable: true,
+				}`,
+			expectedError: "Updatable apps must use stable SDK",
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			if test.expectedError == "" {
+				testJava(t, test.bp)
+			} else {
+				testJavaError(t, test.expectedError, test.bp)
+			}
+		})
+	}
+}
+
 func TestResourceDirs(t *testing.T) {
 	testCases := []struct {
 		name      string
