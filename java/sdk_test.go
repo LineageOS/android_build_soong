@@ -217,7 +217,7 @@ func TestClasspath(t *testing.T) {
 			bootclasspath:  []string{"android_module_lib_stubs_current", "core-lambda-stubs"},
 			system:         "core-current-stubs-system-modules",
 			java9classpath: []string{"android_module_lib_stubs_current"},
-			aidl:           "-p" + buildDir + "/framework.aidl",
+			aidl:           "-p" + buildDir + "/framework_non_updatable.aidl",
 		},
 		{
 			name:           "system_server_current",
