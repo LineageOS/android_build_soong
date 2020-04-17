@@ -373,13 +373,6 @@ func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.LoadHookContext
 	}
 }
 
-// $(INTERNAL_PLATFORM_<apiTagName>_API_FILE) points to the generated
-// api file for the current source
-// TODO: remove this when apicheck is done in soong
-func (module *SdkLibrary) apiTagName(apiScope *apiScope) string {
-	return strings.Replace(strings.ToUpper(module.BaseModuleName()), ".", "_", -1) + apiScope.apiFileMakeVariableSuffix
-}
-
 func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {
 	return ":" + module.BaseModuleName() + ".api." + apiScope.name + ".latest"
 }
@@ -470,9 +463,6 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 		Libs                             []string
 		Arg_files                        []string
 		Args                             *string
-		Api_tag_name                     *string
-		Api_filename                     *string
-		Removed_api_filename             *string
 		Java_version                     *string
 		Merge_annotations_dirs           []string
 		Merge_inclusion_annotations_dirs []string
@@ -555,10 +545,6 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 	apiDir := module.getApiDir()
 	currentApiFileName = path.Join(apiDir, currentApiFileName)
 	removedApiFileName = path.Join(apiDir, removedApiFileName)
-	// TODO(jiyong): remove these three props
-	props.Api_tag_name = proptools.StringPtr(module.apiTagName(apiScope))
-	props.Api_filename = proptools.StringPtr(currentApiFileName)
-	props.Removed_api_filename = proptools.StringPtr(removedApiFileName)
 
 	// check against the not-yet-release API
 	props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
