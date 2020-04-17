@@ -148,7 +148,8 @@ func (r *REParams) Template() string {
 // locally executable rule and the second rule is a remotely executable rule.
 func StaticRules(ctx android.PackageContext, name string, ruleParams blueprint.RuleParams, reParams *REParams, commonArgs []string, reArgs []string) (blueprint.Rule, blueprint.Rule) {
 	ruleParamsRE := ruleParams
-	ruleParamsRE.Command = reParams.Template() + ruleParamsRE.Command
+	ruleParams.Command = strings.ReplaceAll(ruleParams.Command, "$reTemplate", "")
+	ruleParamsRE.Command = strings.ReplaceAll(ruleParamsRE.Command, "$reTemplate", reParams.Template())
 
 	return ctx.AndroidStaticRule(name, ruleParams, commonArgs...),
 		ctx.AndroidRemoteStaticRule(name+"RE", android.RemoteRuleSupports{RBE: true}, ruleParamsRE, append(commonArgs, reArgs...)...)
