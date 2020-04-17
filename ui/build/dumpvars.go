@@ -190,6 +190,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 		// compiler wrappers set up by make
 		"CC_WRAPPER",
 		"CXX_WRAPPER",
+		"RBE_WRAPPER",
 		"JAVAC_WRAPPER",
 		"R8_WRAPPER",
 		"D8_WRAPPER",
