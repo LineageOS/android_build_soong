@@ -1524,40 +1524,35 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		apiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Api_file))
 		removedApiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Removed_api_file))
 		baselineFile := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Current.Baseline_file)
-		updatedBaselineOutput := android.PathForModuleOut(ctx, "current_baseline.txt")
+
+		if baselineFile.Valid() {
+			ctx.PropertyErrorf("current API check can't have a baseline file. (module %s)", ctx.ModuleName())
+		}
 
 		d.checkCurrentApiTimestamp = android.PathForModuleOut(ctx, "check_current_api.timestamp")
 
 		rule := android.NewRuleBuilder()
 
+		// Diff command line.
+		// -F matches the closest "opening" line, such as "package xxx{"
+		// and "  public class Yyy {".
+		diff := `diff -u -F '{ *$'`
+
 		rule.Command().Text("( true")
+		rule.Command().
+			Text(diff).
+			Input(apiFile).Input(d.apiFile)
 
-		srcJarDir := android.PathForModuleOut(ctx, "current-apicheck", "srcjars")
-		srcJarList := zipSyncCmd(ctx, rule, srcJarDir, d.Javadoc.srcJars)
-
-		cmd := metalavaCmd(ctx, rule, javaVersion, d.Javadoc.srcFiles, srcJarList,
-			deps.bootClasspath, deps.classpath, d.Javadoc.sourcepaths)
-
-		cmd.Flag(d.Javadoc.args).Implicits(d.Javadoc.argFiles).
-			FlagWithInput("--check-compatibility:api:current ", apiFile).
-			FlagWithInput("--check-compatibility:removed:current ", removedApiFile)
-
-		d.inclusionAnnotationsFlags(ctx, cmd)
-		d.mergeAnnoDirFlags(ctx, cmd)
-
-		if baselineFile.Valid() {
-			cmd.FlagWithInput("--baseline ", baselineFile.Path())
-			cmd.FlagWithOutput("--update-baseline ", updatedBaselineOutput)
-		}
-
-		zipSyncCleanupCmd(rule, srcJarDir)
+		rule.Command().
+			Text(diff).
+			Input(removedApiFile).Input(d.removedApiFile)
 
 		msg := fmt.Sprintf(`\n******************************\n`+
 			`You have tried to change the API from what has been previously approved.\n\n`+
 			`To make these errors go away, you have two choices:\n`+
-			`   1. You can add '@hide' javadoc comments to the methods, etc. listed in the\n`+
-			`      errors above.\n\n`+
-			`   2. You can update current.txt by executing the following command:\n`+
+			`   1. You can add '@hide' javadoc comments (and remove @SystemApi/@TestApi/etc)\n`+
+			`      to the new methods, etc. shown in the above diff.\n\n`+
+			`   2. You can update current.txt and/or removed.txt by executing the following command:\n`+
 			`         make %s-update-current-api\n\n`+
 			`      To submit the revised current.txt to the main Android repository,\n`+
 			`      you will need approval.\n`+
@@ -1570,7 +1565,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			Text("; exit 38").
 			Text(")")
 
-		rule.Build(pctx, ctx, "metalavaCurrentApiCheck", "metalava check current API")
+		rule.Build(pctx, ctx, "metalavaCurrentApiCheck", "check current API")
 
 		d.updateCurrentApiTimestamp = android.PathForModuleOut(ctx, "update_current_api.timestamp")
 
