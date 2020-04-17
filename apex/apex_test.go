@@ -4205,6 +4205,27 @@ func TestApexWithJniLibs(t *testing.T) {
 	})
 }
 
+func TestApexMutatorsDontRunIfDisabled(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		delete(config.Targets, android.Android)
+		config.AndroidCommonTarget = android.Target{}
+	})
+
+	if expected, got := []string{""}, ctx.ModuleVariantsForTests("myapex"); !reflect.DeepEqual(expected, got) {
+		t.Errorf("Expected variants: %v, but got: %v", expected, got)
+	}
+}
+
 func TestApexWithJniLibs_Errors(t *testing.T) {
 	testApexError(t, `jni_libs: "xxx" is not a cc_library`, `
 		apex {
