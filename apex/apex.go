@@ -2280,9 +2280,6 @@ func newApexBundle() *apexBundle {
 	module.AddProperties(&module.properties)
 	module.AddProperties(&module.targetProperties)
 	module.AddProperties(&module.overridableProperties)
-	module.Prefer32(func(ctx android.BaseModuleContext, base *android.ModuleBase, class android.OsClass) bool {
-		return class == android.Device && ctx.Config().DevicePrefer32BitExecutables()
-	})
 	android.InitAndroidMultiTargetsArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitSdkAwareModule(module)
