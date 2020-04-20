@@ -19,6 +19,8 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"syscall"
+	"time"
 )
 
 // Cmd is a wrapper of os/exec.Cmd that integrates with the build context for
@@ -33,6 +35,8 @@ type Cmd struct {
 	ctx    Context
 	config Config
 	name   string
+
+	started time.Time
 }
 
 func Command(ctx Context, config Config, name string, executable string, args ...string) *Cmd {
@@ -57,7 +61,20 @@ func (c *Cmd) prepare() {
 		c.wrapSandbox()
 	}
 
-	c.ctx.Verboseln(c.Path, c.Args)
+	c.ctx.Verbosef("%q executing %q %v\n", c.name, c.Path, c.Args)
+	c.started = time.Now()
+}
+
+func (c *Cmd) report() {
+	if c.Cmd.ProcessState != nil {
+		rusage := c.Cmd.ProcessState.SysUsage().(*syscall.Rusage)
+		c.ctx.Verbosef("%q finished with exit code %d (%s real, %s user, %s system, %dMB maxrss)",
+			c.name, c.Cmd.ProcessState.ExitCode(),
+			time.Since(c.started).Round(time.Millisecond),
+			c.Cmd.ProcessState.UserTime().Round(time.Millisecond),
+			c.Cmd.ProcessState.SystemTime().Round(time.Millisecond),
+			rusage.Maxrss/1024)
+	}
 }
 
 func (c *Cmd) Start() error {
@@ -68,19 +85,28 @@ func (c *Cmd) Start() error {
 func (c *Cmd) Run() error {
 	c.prepare()
 	err := c.Cmd.Run()
+	c.report()
 	return err
 }
 
 func (c *Cmd) Output() ([]byte, error) {
 	c.prepare()
 	bytes, err := c.Cmd.Output()
+	c.report()
 	return bytes, err
 }
 
 func (c *Cmd) CombinedOutput() ([]byte, error) {
 	c.prepare()
 	bytes, err := c.Cmd.CombinedOutput()
+	c.report()
 	return bytes, err
+}
+
+func (c *Cmd) Wait() error {
+	err := c.Cmd.Wait()
+	c.report()
+	return err
 }
 
 // StartOrFatal is equivalent to Start, but handles the error with a call to ctx.Fatal
