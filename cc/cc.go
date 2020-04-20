@@ -1195,6 +1195,11 @@ func (ctx *moduleContextImpl) shouldCreateSourceAbiDump() bool {
 		return false
 	}
 
+	// Coverage builds have extra symbols.
+	if ctx.mod.isCoverageVariant() {
+		return false
+	}
+
 	if ctx.ctx.Fuchsia() {
 		return false
 	}
