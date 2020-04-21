@@ -906,13 +906,18 @@ func SplitApexJarPair(apexJarValue string) (string, string) {
 	return apexJarPair[0], apexJarPair[1]
 }
 
-func (c *config) BootJars() []string {
-	jars := c.productVariables.BootJars
-	for _, p := range c.productVariables.UpdatableBootJars {
+func GetJarsFromApexJarPairs(apexJarPairs []string) []string {
+	modules := make([]string, len(apexJarPairs))
+	for i, p := range apexJarPairs {
 		_, jar := SplitApexJarPair(p)
-		jars = append(jars, jar)
+		modules[i] = jar
 	}
-	return jars
+	return modules
+}
+
+func (c *config) BootJars() []string {
+	return append(GetJarsFromApexJarPairs(c.productVariables.BootJars),
+		GetJarsFromApexJarPairs(c.productVariables.UpdatableBootJars)...)
 }
 
 func (c *config) DexpreoptGlobalConfig(ctx PathContext) ([]byte, error) {

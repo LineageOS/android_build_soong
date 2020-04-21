@@ -79,7 +79,20 @@ func stemOf(moduleName string) string {
 	return moduleName
 }
 
-func getDexLocation(ctx android.PathContext, target android.Target, subdir string, name string) string {
+func getDexLocation(ctx android.PathContext, target android.Target, module string) string {
+	apex, jar := android.SplitApexJarPair(module)
+
+	name := stemOf(jar) + ".jar"
+
+	var subdir string
+	if apex == "platform" {
+		// Special apex name "platform" denotes jars do not come from an apex, but are part
+		// of the platform. Such jars are installed on the /system partition on device.
+		subdir = "system/framework"
+	} else {
+		subdir = filepath.Join("apex", apex, "javalib")
+	}
+
 	if target.Os.Class == android.Host {
 		return filepath.Join(ctx.Config().Getenv("OUT_DIR"), "host", ctx.Config().PrebuiltOS(), subdir, name)
 	} else {
@@ -106,8 +119,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
 			artModules = append(artModules, "jacocoagent")
 		}
-		frameworkModules := android.RemoveListFromList(global.BootJars,
-			concat(artModules, dexpreopt.GetJarsFromApexJarPairs(global.UpdatableBootJars)))
+		frameworkModules := android.RemoveListFromList(global.BootJars, artModules)
 
 		artSubdir := "apex/com.android.art/javalib"
 		frameworkSubdir := "system/framework"
@@ -150,7 +162,8 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 			// TODO(b/143682396): use module dependencies instead
 			inputDir := deviceDir.Join(ctx, "dex_"+c.name+"jars_input")
 			for _, m := range c.modules {
-				c.dexPaths = append(c.dexPaths, inputDir.Join(ctx, stemOf(m)+".jar"))
+				_, jar := android.SplitApexJarPair(m)
+				c.dexPaths = append(c.dexPaths, inputDir.Join(ctx, stemOf(jar)+".jar"))
 			}
 			c.dexPathsDeps = c.dexPaths
 
@@ -165,7 +178,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 					imagesDeps:      c.moduleFiles(ctx, imageDir, ".art", ".oat", ".vdex"),
 				}
 				for _, m := range c.modules {
-					variant.dexLocations = append(variant.dexLocations, getDexLocation(ctx, target, c.installSubdir, stemOf(m)+".jar"))
+					variant.dexLocations = append(variant.dexLocations, getDexLocation(ctx, target, m))
 				}
 				variant.dexLocationsDeps = variant.dexLocations
 				c.variants = append(c.variants, variant)

@@ -82,7 +82,7 @@ func GenerateDexpreoptRule(ctx android.PathContext, globalSoong *GlobalSoongConf
 
 	if !dexpreoptDisabled(ctx, global, module) {
 		// Don't preopt individual boot jars, they will be preopted together.
-		if !contains(global.BootJars, module.Name) {
+		if !contains(android.GetJarsFromApexJarPairs(global.BootJars), module.Name) {
 			appImage := (generateProfile || module.ForceCreateAppImage || global.DefaultAppImages) &&
 				!module.NoCreateAppImage
 
@@ -113,7 +113,7 @@ func dexpreoptDisabled(ctx android.PathContext, global *GlobalConfig, module *Mo
 	// Also preopt system server jars since selinux prevents system server from loading anything from
 	// /data. If we don't do this they will need to be extracted which is not favorable for RAM usage
 	// or performance. If PreoptExtractedApk is true, we ignore the only preopt boot image options.
-	if global.OnlyPreoptBootImageAndSystemServer && !contains(global.BootJars, module.Name) &&
+	if global.OnlyPreoptBootImageAndSystemServer && !contains(android.GetJarsFromApexJarPairs(global.BootJars), module.Name) &&
 		!contains(global.SystemServerJars, module.Name) && !module.PreoptExtractedApk {
 		return true
 	}
@@ -566,15 +566,6 @@ func GetJarLocationFromApexJarPair(apexJarValue string) string {
 	return filepath.Join("/apex", apex, "javalib", jar+".jar")
 }
 
-func GetJarsFromApexJarPairs(apexJarPairs []string) []string {
-	modules := make([]string, len(apexJarPairs))
-	for i, p := range apexJarPairs {
-		_, jar := android.SplitApexJarPair(p)
-		modules[i] = jar
-	}
-	return modules
-}
-
 var nonUpdatableSystemServerJarsKey = android.NewOnceKey("nonUpdatableSystemServerJars")
 
 // TODO: eliminate the superficial global config parameter by moving global config definition
@@ -582,7 +573,7 @@ var nonUpdatableSystemServerJarsKey = android.NewOnceKey("nonUpdatableSystemServ
 func NonUpdatableSystemServerJars(ctx android.PathContext, global *GlobalConfig) []string {
 	return ctx.Config().Once(nonUpdatableSystemServerJarsKey, func() interface{} {
 		return android.RemoveListFromList(global.SystemServerJars,
-			GetJarsFromApexJarPairs(global.UpdatableSystemServerJars))
+			android.GetJarsFromApexJarPairs(global.UpdatableSystemServerJars))
 	}).([]string)
 }
 
