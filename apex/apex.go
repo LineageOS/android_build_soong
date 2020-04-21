@@ -74,16 +74,9 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.adbd"] = []string{
-		"adbd",
-		"libadbconnection_server",
-		"libadbd",
 		"libadbd_auth",
-		"libadbd_core",
-		"libadbd_services",
-		"libasyncio",
 		"libbuildversion",
 		"libcap",
-		"libdiagnose_usb",
 		"libmdnssd",
 		"libminijail",
 		"libminijail_gen_constants",
@@ -94,7 +87,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libpackagelistparser",
 		"libpcre2",
 		"libprocessgroup_headers",
-		"libqemu_pipe",
 	}
 	//
 	// Module separator
