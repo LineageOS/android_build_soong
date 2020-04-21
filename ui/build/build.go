@@ -53,7 +53,6 @@ builddir = {{.OutDir}}
 {{end -}}
 pool highmem_pool
  depth = {{.HighmemParallel}}
-build _kati_always_build_: phony
 {{if .HasKatiSuffix}}subninja {{.KatiBuildNinjaFile}}
 subninja {{.KatiPackageNinjaFile}}
 {{end -}}
