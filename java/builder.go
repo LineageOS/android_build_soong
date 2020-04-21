@@ -146,7 +146,12 @@ var (
 
 	jarjar = pctx.AndroidStaticRule("jarjar",
 		blueprint.RuleParams{
-			Command:     "${config.JavaCmd} ${config.JavaVmFlags} -jar ${config.JarjarCmd} process $rulesFile $in $out",
+			Command: "${config.JavaCmd} ${config.JavaVmFlags}" +
+				// b/146418363 Enable Android specific jarjar transformer to drop compat annotations
+				// for newly repackaged classes. Dropping @UnsupportedAppUsage on repackaged classes
+				// avoids adding new hiddenapis after jarjar'ing.
+				" -DremoveAndroidCompatAnnotations=true" +
+				" -jar ${config.JarjarCmd} process $rulesFile $in $out",
 			CommandDeps: []string{"${config.JavaCmd}", "${config.JarjarCmd}", "$rulesFile"},
 		},
 		"rulesFile")
