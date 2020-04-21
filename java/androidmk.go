@@ -577,14 +577,12 @@ func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
 					fmt.Fprintln(w, dstubs.Name()+"-check-last-released-api:",
 						dstubs.checkLastReleasedApiTimestamp.String())
 
-					if dstubs.Name() != "android.car-system-stubs-docs" {
-						fmt.Fprintln(w, ".PHONY: checkapi")
-						fmt.Fprintln(w, "checkapi:",
-							dstubs.checkLastReleasedApiTimestamp.String())
+					fmt.Fprintln(w, ".PHONY: checkapi")
+					fmt.Fprintln(w, "checkapi:",
+						dstubs.checkLastReleasedApiTimestamp.String())
 
-						fmt.Fprintln(w, ".PHONY: droidcore")
-						fmt.Fprintln(w, "droidcore: checkapi")
-					}
+					fmt.Fprintln(w, ".PHONY: droidcore")
+					fmt.Fprintln(w, "droidcore: checkapi")
 				}
 				if dstubs.apiLintTimestamp != nil {
 					fmt.Fprintln(w, ".PHONY:", dstubs.Name()+"-api-lint")
