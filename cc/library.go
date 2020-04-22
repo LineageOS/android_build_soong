@@ -1532,10 +1532,18 @@ func createVersionVariations(mctx android.BottomUpMutatorContext, versions []str
 	}
 }
 
-// Version mutator splits a module into the mandatory non-stubs variant
+func VersionVariantAvailable(module interface {
+	Host() bool
+	InRamdisk() bool
+	InRecovery() bool
+}) bool {
+	return !module.Host() && !module.InRamdisk() && !module.InRecovery()
+}
+
+// VersionMutator splits a module into the mandatory non-stubs variant
 // (which is unnamed) and zero or more stubs variants.
 func VersionMutator(mctx android.BottomUpMutatorContext) {
-	if library, ok := mctx.Module().(LinkableInterface); ok && !library.InRecovery() {
+	if library, ok := mctx.Module().(LinkableInterface); ok && VersionVariantAvailable(library) {
 		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 {
 			versions := library.StubsVersions()
 			normalizeVersions(mctx, versions)
@@ -1571,7 +1579,7 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 	}
 	if genrule, ok := mctx.Module().(*genrule.Module); ok {
 		if _, ok := genrule.Extra.(*GenruleExtraProperties); ok {
-			if !genrule.InRecovery() {
+			if VersionVariantAvailable(genrule) {
 				mctx.CreateVariations("")
 				return
 			}
