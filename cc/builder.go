@@ -255,7 +255,11 @@ var (
 	kytheExtract = pctx.StaticRule("kythe",
 		blueprint.RuleParams{
 			Command: `rm -f $out && ` +
-				`KYTHE_CORPUS=${kytheCorpus} KYTHE_OUTPUT_FILE=$out KYTHE_VNAMES=$kytheVnames KYTHE_KZIP_ENCODING=${kytheCuEncoding} ` +
+				`KYTHE_CORPUS=${kytheCorpus} ` +
+				`KYTHE_OUTPUT_FILE=$out ` +
+				`KYTHE_VNAMES=$kytheVnames ` +
+				`KYTHE_KZIP_ENCODING=${kytheCuEncoding} ` +
+				`KYTHE_CANONICALIZE_VNAME_PATHS=prefer-relative ` +
 				`$cxxExtractor $cFlags $in `,
 			CommandDeps: []string{"$cxxExtractor", "$kytheVnames"},
 		},
