@@ -161,6 +161,7 @@ func TestSyspropLibrary(t *testing.T) {
 			api_packages: ["android.sysprop"],
 			property_owner: "Platform",
 			vendor_available: true,
+			host_supported: true,
 		}
 
 		sysprop_library {
@@ -244,6 +245,11 @@ func TestSyspropLibrary(t *testing.T) {
 			static_libs: ["sysprop-platform", "sysprop-vendor"],
 		}
 
+		cc_library {
+			name: "libbase",
+			host_supported: true,
+		}
+
 		cc_library_headers {
 			name: "libbase_headers",
 			vendor_available: true,
@@ -256,6 +262,12 @@ func TestSyspropLibrary(t *testing.T) {
 			nocrt: true,
 			system_shared_libs: [],
 			recovery_available: true,
+			host_supported: true,
+		}
+
+		cc_binary_host {
+			name: "hostbin",
+			static_libs: ["sysprop-platform"],
 		}
 
 		llndk_library {
