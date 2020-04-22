@@ -349,6 +349,7 @@ bootstrap_go_package {
     deps: [
         "blueprint-proptools",
         "soong-android",
+        "soong-remoteexec",
     ],
     srcs: [
         "java/config/config.go",
