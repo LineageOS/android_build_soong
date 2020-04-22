@@ -1909,8 +1909,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	addSharedLibDependencies := func(depTag DependencyTag, name string, version string) {
 		var variations []blueprint.Variation
 		variations = append(variations, blueprint.Variation{Mutator: "link", Variation: "shared"})
-		versionVariantAvail := !c.InRecovery() && !c.InRamdisk()
-		if version != "" && versionVariantAvail {
+		if version != "" && VersionVariantAvailable(c) {
 			// Version is explicitly specified. i.e. libFoo#30
 			variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
 			depTag.ExplicitlyVersioned = true
@@ -1920,7 +1919,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		// If the version is not specified, add dependency to all stubs libraries.
 		// The stubs library will be used when the depending module is built for APEX and
 		// the dependent module is not in the same APEX.
-		if version == "" && versionVariantAvail {
+		if version == "" && VersionVariantAvailable(c) {
 			for _, ver := range stubsVersionsFor(actx.Config())[name] {
 				// Note that depTag.ExplicitlyVersioned is false in this case.
 				actx.AddVariationDependencies([]blueprint.Variation{
@@ -2318,7 +2317,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 			if ccDep.CcLibrary() && !depIsStatic {
 				depIsStubs := ccDep.BuildStubs()
-				depHasStubs := ccDep.HasStubsVariants()
+				depHasStubs := VersionVariantAvailable(c) && ccDep.HasStubsVariants()
 				depInSameApex := android.DirectlyInApex(c.ApexName(), depName)
 				depInPlatform := !android.DirectlyInAnyApex(ctx, depName)
 
@@ -2334,8 +2333,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					// If not building for APEX, use stubs only when it is from
 					// an APEX (and not from platform)
 					useThisDep = (depInPlatform != depIsStubs)
-					if c.InRamdisk() || c.InRecovery() || c.bootstrap() {
-						// However, for ramdisk, recovery or bootstrap modules,
+					if c.bootstrap() {
+						// However, for host, ramdisk, recovery or bootstrap modules,
 						// always link to non-stub variant
 						useThisDep = !depIsStubs
 					}
