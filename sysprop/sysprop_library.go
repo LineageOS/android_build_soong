@@ -151,6 +151,12 @@ type syspropLibraryProperties struct {
 
 	// Whether public stub exists or not.
 	Public_stub *bool `blueprint:"mutated"`
+
+	Cpp struct {
+		// Minimum sdk version that the artifact should support when it runs as part of mainline modules(APEX).
+		// Forwarded to cc_library.min_sdk_version
+		Min_sdk_version *string
+	}
 }
 
 var (
@@ -344,6 +350,7 @@ type ccLibraryProperties struct {
 	Vendor_available   *bool
 	Host_supported     *bool
 	Apex_available     []string
+	Min_sdk_version    *string
 }
 
 type javaLibraryProperties struct {
@@ -433,6 +440,7 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	ccProps.Vendor_available = m.properties.Vendor_available
 	ccProps.Host_supported = m.properties.Host_supported
 	ccProps.Apex_available = m.ApexProperties.Apex_available
+	ccProps.Min_sdk_version = m.properties.Cpp.Min_sdk_version
 	ctx.CreateModule(cc.LibraryFactory, &ccProps)
 
 	scope := "internal"

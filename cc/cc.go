@@ -213,6 +213,9 @@ type BaseProperties struct {
 	// two variants to be built, one for the platform and one for apps.
 	Sdk_version *string
 
+	// Minimum sdk version that the artifact should support when it runs as part of mainline modules(APEX).
+	Min_sdk_version *string
+
 	// If true, always create an sdk variant and don't create a platform variant.
 	Sdk_variant_only *bool
 
