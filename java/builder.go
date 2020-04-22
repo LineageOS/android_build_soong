@@ -191,7 +191,7 @@ type javaBuilderFlags struct {
 	classpath      classpath
 	java9Classpath classpath
 	processorPath  classpath
-	processor      string
+	processors     []string
 	systemModules  *systemModules
 	aidlFlags      string
 	aidlDeps       android.Paths
@@ -265,8 +265,8 @@ func emitXrefRule(ctx android.ModuleContext, xrefFile android.WritablePath, idx 
 	deps = append(deps, flags.processorPath...)
 
 	processor := "-proc:none"
-	if flags.processor != "" {
-		processor = "-processor " + flags.processor
+	if len(flags.processors) > 0 {
+		processor = "-processor " + strings.Join(flags.processors, ",")
 	}
 
 	intermediatesDir := "xref"
@@ -380,8 +380,8 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 	deps = append(deps, flags.processorPath...)
 
 	processor := "-proc:none"
-	if flags.processor != "" {
-		processor = "-processor " + flags.processor
+	if len(flags.processors) > 0 {
+		processor = "-processor " + strings.Join(flags.processors, ",")
 	}
 
 	srcJarDir := "srcjars"
