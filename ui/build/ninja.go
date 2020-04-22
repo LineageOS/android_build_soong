@@ -58,6 +58,7 @@ func runNinja(ctx Context, config Config) {
 	args = append(args, "-f", config.CombinedNinjaFile())
 
 	args = append(args,
+		"-o", "usesphonyoutputs=yes",
 		"-w", "dupbuild=err",
 		"-w", "missingdepfile=err")
 
