@@ -39,6 +39,8 @@ type LinkableInterface interface {
 	Shared() bool
 	Toc() android.OptionalPath
 
+	Host() bool
+
 	InRamdisk() bool
 	OnlyInRamdisk() bool
 
