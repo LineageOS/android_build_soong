@@ -167,7 +167,7 @@ func (m *ApexModuleBase) IsInstallableToApex() bool {
 
 const (
 	AvailableToPlatform = "//apex_available:platform"
-	availableToAnyApex  = "//apex_available:anyapex"
+	AvailableToAnyApex  = "//apex_available:anyapex"
 )
 
 func CheckAvailableForApex(what string, apex_available []string) bool {
@@ -177,7 +177,7 @@ func CheckAvailableForApex(what string, apex_available []string) bool {
 		return what == AvailableToPlatform
 	}
 	return InList(what, apex_available) ||
-		(what != AvailableToPlatform && InList(availableToAnyApex, apex_available))
+		(what != AvailableToPlatform && InList(AvailableToAnyApex, apex_available))
 }
 
 func (m *ApexModuleBase) AvailableFor(what string) bool {
@@ -203,7 +203,7 @@ func (m *ApexModuleBase) ChooseSdkVersion(versionList []string, maxSdkVersion in
 
 func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 	for _, n := range m.ApexProperties.Apex_available {
-		if n == AvailableToPlatform || n == availableToAnyApex {
+		if n == AvailableToPlatform || n == AvailableToAnyApex {
 			continue
 		}
 		if !mctx.OtherModuleExists(n) && !mctx.Config().AllowMissingDependencies() {
