@@ -91,7 +91,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.art"] = []string{
+	artApexContents := []string{
 		"art_cmdlineparser_headers",
 		"art_disassembler_headers",
 		"art_libartbase_headers",
@@ -152,6 +152,8 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libziparchive",
 		"perfetto_trace_protos",
 	}
+	m["com.android.art.debug"] = artApexContents
+	m["com.android.art.release"] = artApexContents
 	//
 	// Module separator
 	//
@@ -2183,8 +2185,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func whitelistedApexAvailable(apex, moduleName string) bool {
 	key := apex
 	key = strings.Replace(key, "test_", "", 1)
-	key = strings.Replace(key, "com.android.art.debug", "com.android.art", 1)
-	key = strings.Replace(key, "com.android.art.release", "com.android.art", 1)
 
 	// Prebuilt modules (e.g. java_import, etc.) have "prebuilt_" prefix added by the build
 	// system. Trim the prefix for the check since they are confusing
