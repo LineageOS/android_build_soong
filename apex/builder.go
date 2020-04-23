@@ -219,14 +219,18 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName string) android.NoticeOutputs {
 	var noticeFiles android.Paths
 
-	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
+	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
 		if externalDep {
-			return
+			// As soon as the dependency graph crosses the APEX boundary, don't go further.
+			return false
 		}
+
 		notice := to.NoticeFile()
 		if notice.Valid() {
 			noticeFiles = append(noticeFiles, notice.Path())
 		}
+
+		return true
 	})
 
 	if len(noticeFiles) == 0 {
