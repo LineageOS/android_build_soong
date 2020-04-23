@@ -150,6 +150,7 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 		fields = append(fields, reflect.StructField{
 			Name: proptools.FieldNameForProperty(p),
 			Type: reflect.TypeOf([]string{}),
+			Tag:  `android:"arch_variant"`,
 		})
 
 		// Copy the field index for use in the getter func as using the loop variable directly will
