@@ -22,6 +22,7 @@ func init() {
 
 func RegisterLibraryHeadersBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_library_headers", LibraryHeaderFactory)
+	ctx.RegisterModuleType("cc_prebuilt_library_headers", prebuiltLibraryHeaderFactory)
 }
 
 // cc_library_headers contains a set of c/c++ headers which are imported by
@@ -30,6 +31,13 @@ func RegisterLibraryHeadersBuildComponents(ctx android.RegistrationContext) {
 // Make.
 func LibraryHeaderFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
+	library.HeaderOnly()
+	return module.Init()
+}
+
+// cc_prebuilt_library_headers is a prebuilt version of cc_library_headers
+func prebuiltLibraryHeaderFactory() android.Module {
+	module, library := NewPrebuiltLibrary(android.HostAndDeviceSupported)
 	library.HeaderOnly()
 	return module.Init()
 }
