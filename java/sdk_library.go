@@ -171,6 +171,14 @@ func init() {
 		sort.Strings(*javaSdkLibraries)
 		ctx.Strict("JAVA_SDK_LIBRARIES", strings.Join(*javaSdkLibraries, " "))
 	})
+
+	// Register sdk member types.
+	android.RegisterSdkMemberType(&sdkLibrarySdkMemberType{
+		android.SdkMemberTypeBase{
+			PropertyName: "java_sdk_libs",
+			SupportsSdk:  true,
+		},
+	})
 }
 
 func RegisterSdkLibraryBuildComponents(ctx android.RegistrationContext) {
@@ -816,6 +824,8 @@ type sdkLibraryImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	prebuilt android.Prebuilt
+	android.ApexModuleBase
+	android.SdkBase
 
 	properties sdkLibraryImportProperties
 
@@ -874,6 +884,8 @@ func sdkLibraryImportFactory() android.Module {
 	module.AddProperties(&module.properties, allScopeProperties)
 
 	android.InitPrebuiltModule(module, &[]string{""})
+	android.InitApexModule(module)
+	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
 	android.AddLoadHook(module, func(mctx android.LoadHookContext) { module.createInternalModules(mctx) })
@@ -1112,4 +1124,82 @@ func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {
 			},
 		},
 	}}
+}
+
+type sdkLibrarySdkMemberType struct {
+	android.SdkMemberTypeBase
+}
+
+func (s *sdkLibrarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
+	mctx.AddVariationDependencies(nil, dependencyTag, names...)
+}
+
+func (s *sdkLibrarySdkMemberType) IsInstance(module android.Module) bool {
+	_, ok := module.(*SdkLibrary)
+	return ok
+}
+
+func (s *sdkLibrarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "java_sdk_library_import")
+}
+
+func (s *sdkLibrarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &sdkLibrarySdkMemberProperties{}
+}
+
+type sdkLibrarySdkMemberProperties struct {
+	android.SdkMemberPropertiesBase
+
+	// Scope to per scope properties.
+	Scopes map[*apiScope]scopeProperties
+
+	// Additional libraries that the exported stubs libraries depend upon.
+	Libs []string
+}
+
+type scopeProperties struct {
+	Jars       android.Paths
+	SdkVersion string
+}
+
+func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
+	sdk := variant.(*SdkLibrary)
+
+	s.Scopes = make(map[*apiScope]scopeProperties)
+	for _, apiScope := range allApiScopes {
+		paths := sdk.getScopePaths(apiScope)
+		jars := paths.stubsImplPath
+		if len(jars) > 0 {
+			properties := scopeProperties{}
+			properties.Jars = jars
+			properties.SdkVersion = apiScope.sdkVersion
+			s.Scopes[apiScope] = properties
+		}
+	}
+
+	s.Libs = sdk.properties.Libs
+}
+
+func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	for _, apiScope := range allApiScopes {
+		if properties, ok := s.Scopes[apiScope]; ok {
+			scopeSet := propertySet.AddPropertySet(apiScope.name)
+
+			var jars []string
+			for _, p := range properties.Jars {
+				dest := filepath.Join("sdk_library", s.OsPrefix(), apiScope.name, ctx.Name()+"-stubs.jar")
+				ctx.SnapshotBuilder().CopyToSnapshot(p, dest)
+				jars = append(jars, dest)
+			}
+			scopeSet.AddProperty("jars", jars)
+
+			if properties.SdkVersion != "" {
+				scopeSet.AddProperty("sdk_version", properties.SdkVersion)
+			}
+		}
+	}
+
+	if len(s.Libs) > 0 {
+		propertySet.AddPropertyWithTag("libs", s.Libs, ctx.SnapshotBuilder().SdkMemberReferencePropertyTag(false))
+	}
 }
