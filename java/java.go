@@ -1866,12 +1866,12 @@ const (
 )
 
 // path to the jar file of a java library. Relative to <sdk_root>/<api_dir>
-func sdkSnapshotFilePathForJar(member android.SdkMember) string {
-	return sdkSnapshotFilePathForMember(member, jarFileSuffix)
+func sdkSnapshotFilePathForJar(name string) string {
+	return sdkSnapshotFilePathForMember(name, jarFileSuffix)
 }
 
-func sdkSnapshotFilePathForMember(member android.SdkMember, suffix string) string {
-	return filepath.Join(javaDir, member.Name()+suffix)
+func sdkSnapshotFilePathForMember(name string, suffix string) string {
+	return filepath.Join(javaDir, name+suffix)
 }
 
 type librarySdkMemberType struct {
@@ -1891,32 +1891,46 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
+func (mt *librarySdkMemberType) AddPrebuiltModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) android.BpModule {
+	return builder.AddPrebuiltModule(member, "java_import")
+}
 
-	variants := member.Variants()
-	if len(variants) != 1 {
-		sdkModuleContext.ModuleErrorf("sdk contains %d variants of member %q but only one is allowed", len(variants), member.Name())
-		for _, variant := range variants {
-			sdkModuleContext.ModuleErrorf("    %q", variant)
-		}
-	}
-	variant := variants[0]
+func (mt *librarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &librarySdkMemberProperties{memberType: mt}
+}
+
+type librarySdkMemberProperties struct {
+	android.SdkMemberPropertiesBase
+
+	memberType *librarySdkMemberType
+
+	library     *Library
+	jarToExport android.Path
+}
+
+func (p *librarySdkMemberProperties) PopulateFromVariant(variant android.SdkAware) {
 	j := variant.(*Library)
 
-	exportedJar := mt.jarToExportGetter(j)
-	snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(member)
-	builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
+	p.library = j
+	p.jarToExport = p.memberType.jarToExportGetter(j)
+}
 
-	for _, dir := range j.AidlIncludeDirs() {
-		// TODO(jiyong): copy parcelable declarations only
-		aidlFiles, _ := sdkModuleContext.GlobWithDeps(dir.String()+"/**/*.aidl", nil)
-		for _, file := range aidlFiles {
-			builder.CopyToSnapshot(android.PathForSource(sdkModuleContext, file), filepath.Join(aidlIncludeDir, file))
+func (p *librarySdkMemberProperties) AddToPropertySet(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, propertySet android.BpPropertySet) {
+	if p.jarToExport != nil {
+		exportedJar := p.jarToExport
+		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.library.Name())
+		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
+
+		for _, dir := range p.library.AidlIncludeDirs() {
+			// TODO(jiyong): copy parcelable declarations only
+			aidlFiles, _ := sdkModuleContext.GlobWithDeps(dir.String()+"/**/*.aidl", nil)
+			for _, file := range aidlFiles {
+				builder.CopyToSnapshot(android.PathForSource(sdkModuleContext, file), filepath.Join(aidlIncludeDir, file))
+			}
 		}
-	}
 
-	module := builder.AddPrebuiltModule(member, "java_import")
-	module.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+	}
 }
 
 var javaHeaderLibsSdkMemberType android.SdkMemberType = &librarySdkMemberType{
@@ -2082,31 +2096,44 @@ func (mt *testSdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *testSdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	variants := member.Variants()
-	if len(variants) != 1 {
-		sdkModuleContext.ModuleErrorf("sdk contains %d variants of member %q but only one is allowed", len(variants), member.Name())
-		for _, variant := range variants {
-			sdkModuleContext.ModuleErrorf("    %q", variant)
-		}
-	}
-	variant := variants[0]
-	j := variant.(*Test)
+func (mt *testSdkMemberType) AddPrebuiltModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) android.BpModule {
+	return builder.AddPrebuiltModule(member, "java_test_import")
+}
 
-	implementationJars := j.ImplementationJars()
+func (mt *testSdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &testSdkMemberProperties{}
+}
+
+type testSdkMemberProperties struct {
+	android.SdkMemberPropertiesBase
+
+	test        *Test
+	jarToExport android.Path
+}
+
+func (p *testSdkMemberProperties) PopulateFromVariant(variant android.SdkAware) {
+	test := variant.(*Test)
+
+	implementationJars := test.ImplementationJars()
 	if len(implementationJars) != 1 {
-		panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
+		panic(fmt.Errorf("there must be only one implementation jar from %q", test.Name()))
 	}
 
-	snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(member)
-	builder.CopyToSnapshot(implementationJars[0], snapshotRelativeJavaLibPath)
+	p.test = test
+	p.jarToExport = implementationJars[0]
+}
 
-	snapshotRelativeTestConfigPath := sdkSnapshotFilePathForMember(member, testConfigSuffix)
-	builder.CopyToSnapshot(j.testConfig, snapshotRelativeTestConfigPath)
+func (p *testSdkMemberProperties) AddToPropertySet(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, propertySet android.BpPropertySet) {
+	if p.jarToExport != nil {
+		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.test.Name())
+		builder.CopyToSnapshot(p.jarToExport, snapshotRelativeJavaLibPath)
 
-	module := builder.AddPrebuiltModule(member, "java_test_import")
-	module.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
-	module.AddProperty("test_config", snapshotRelativeTestConfigPath)
+		snapshotRelativeTestConfigPath := sdkSnapshotFilePathForMember(p.test.Name(), testConfigSuffix)
+		builder.CopyToSnapshot(p.test.testConfig, snapshotRelativeTestConfigPath)
+
+		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+		propertySet.AddProperty("test_config", snapshotRelativeTestConfigPath)
+	}
 }
 
 // java_test builds a and links sources into a `.jar` file for the device, and possibly for the host as well, and
