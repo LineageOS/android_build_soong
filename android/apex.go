@@ -126,6 +126,10 @@ func (m *ApexModuleBase) apexModuleBase() *ApexModuleBase {
 	return m
 }
 
+func (m *ApexModuleBase) ApexAvailable() []string {
+	return m.ApexProperties.Apex_available
+}
+
 func (m *ApexModuleBase) BuildForApexes(apexes []ApexInfo) {
 	m.apexVariationsLock.Lock()
 	defer m.apexVariationsLock.Unlock()
