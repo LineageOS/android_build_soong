@@ -255,5 +255,5 @@ func (mt *systemModulesSdkMemberType) BuildSnapshot(sdkModuleContext android.Mod
 
 	pbm := builder.AddPrebuiltModule(member, "java_system_modules_import")
 	// Add the references to the libraries that form the system module.
-	pbm.AddPropertyWithTag("libs", systemModule.properties.Libs, builder.SdkMemberReferencePropertyTag())
+	pbm.AddPropertyWithTag("libs", systemModule.properties.Libs, builder.SdkMemberReferencePropertyTag(true))
 }

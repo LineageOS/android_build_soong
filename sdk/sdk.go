@@ -50,9 +50,6 @@ type sdk struct {
 	// list properties, e.g. java_libs.
 	dynamicMemberTypeListProperties interface{}
 
-	// The set of exported members.
-	exportedMembers map[string]struct{}
-
 	// Information about the OsType specific member variants associated with this variant.
 	//
 	// Set by OsType specific variants when their GenerateAndroidBuildActions is invoked
@@ -233,26 +230,19 @@ func (s *sdk) memberListProperties() []*sdkMemberListProperty {
 }
 
 func (s *sdk) getExportedMembers() map[string]struct{} {
-	if s.exportedMembers == nil {
-		// Collect all the exported members.
-		s.exportedMembers = make(map[string]struct{})
+	// Collect all the exported members.
+	exportedMembers := make(map[string]struct{})
 
-		for _, memberListProperty := range s.memberListProperties() {
-			names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
+	for _, memberListProperty := range s.memberListProperties() {
+		names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
 
-			// Every member specified explicitly in the properties is exported by the sdk.
-			for _, name := range names {
-				s.exportedMembers[name] = struct{}{}
-			}
+		// Every member specified explicitly in the properties is exported by the sdk.
+		for _, name := range names {
+			exportedMembers[name] = struct{}{}
 		}
 	}
 
-	return s.exportedMembers
-}
-
-func (s *sdk) isInternalMember(memberName string) bool {
-	_, ok := s.getExportedMembers()[memberName]
-	return !ok
+	return exportedMembers
 }
 
 func (s *sdk) snapshot() bool {
