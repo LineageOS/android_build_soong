@@ -307,7 +307,7 @@ type builderFlags struct {
 	rsFlags       string
 	toolchain     config.Toolchain
 	tidy          bool
-	coverage      bool
+	gcovCoverage  bool
 	sAbiDump      bool
 	emitXrefs     bool
 
@@ -369,7 +369,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 		tidyFiles = make(android.Paths, 0, len(srcFiles))
 	}
 	var coverageFiles android.Paths
-	if flags.coverage {
+	if flags.gcovCoverage {
 		coverageFiles = make(android.Paths, 0, len(srcFiles))
 	}
 	var kytheFiles android.Paths
@@ -470,7 +470,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 
 		var ccCmd string
 		tidy := flags.tidy
-		coverage := flags.coverage
+		coverage := flags.gcovCoverage
 		dump := flags.sAbiDump
 		rule := cc
 		emitXref := flags.emitXrefs

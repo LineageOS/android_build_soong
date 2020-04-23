@@ -82,7 +82,7 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		tidyFlags:     strings.Join(in.TidyFlags, " "),
 		sAbiFlags:     strings.Join(in.SAbiFlags, " "),
 		toolchain:     in.Toolchain,
-		coverage:      in.Coverage,
+		gcovCoverage:  in.GcovCoverage,
 		tidy:          in.Tidy,
 		sAbiDump:      in.SAbiDump,
 		emitXrefs:     in.EmitXrefs,

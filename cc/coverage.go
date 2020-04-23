@@ -82,10 +82,10 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 	}
 
 	if cov.Properties.CoverageEnabled {
-		flags.Coverage = true
 		cov.linkCoverage = true
 
 		if gcovCoverage {
+			flags.GcovCoverage = true
 			flags.Local.CommonFlags = append(flags.Local.CommonFlags, "--coverage", "-O0")
 
 			// Override -Wframe-larger-than and non-default optimization

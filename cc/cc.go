@@ -182,11 +182,11 @@ type Flags struct {
 	// These must be after any module include flags, which will be in CommonFlags.
 	SystemIncludeFlags []string
 
-	Toolchain config.Toolchain
-	Tidy      bool
-	Coverage  bool
-	SAbiDump  bool
-	EmitXrefs bool // If true, generate Ninja rules to generate emitXrefs input files for Kythe
+	Toolchain    config.Toolchain
+	Tidy         bool
+	GcovCoverage bool
+	SAbiDump     bool
+	EmitXrefs    bool // If true, generate Ninja rules to generate emitXrefs input files for Kythe
 
 	RequiredInstructionSet string
 	DynamicLinker          string
