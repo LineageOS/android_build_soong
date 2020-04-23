@@ -595,3 +595,20 @@ func androidMkWriteTestData(data android.Paths, ret *android.AndroidMkData) {
 		})
 	}
 }
+
+func (apkSet *AndroidAppSet) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "APPS",
+		OutputFile: android.OptionalPathForPath(apkSet.packedOutput),
+		Include:    "$(BUILD_SYSTEM)/soong_android_app_set.mk",
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				if apkSet.Privileged() {
+					fmt.Fprintln(w, "LOCAL_PRIVILEGED_MODULE := true")
+				}
+				fmt.Fprintln(w, "LOCAL_APK_SET_MASTER_FILE := ", apkSet.masterFile)
+				fmt.Fprintln(w, "LOCAL_OVERRIDES_PACKAGES :=", strings.Join(apkSet.properties.Overrides, " "))
+			},
+		},
+	}
+}
