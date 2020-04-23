@@ -39,11 +39,17 @@ func init() {
 	// Register sdk member types.
 	android.RegisterSdkMemberType(javaHeaderLibsSdkMemberType)
 
-	android.RegisterSdkMemberType(&implLibrarySdkMemberType{
-		librarySdkMemberType{
-			android.SdkMemberTypeBase{
-				PropertyName: "java_libs",
-			},
+	android.RegisterSdkMemberType(&librarySdkMemberType{
+		android.SdkMemberTypeBase{
+			PropertyName: "java_libs",
+		},
+		func(j *Library) android.Path {
+			implementationJars := j.ImplementationJars()
+			if len(implementationJars) != 1 {
+				panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
+			}
+
+			return implementationJars[0]
 		},
 	})
 
@@ -1870,6 +1876,10 @@ func sdkSnapshotFilePathForMember(member android.SdkMember, suffix string) strin
 
 type librarySdkMemberType struct {
 	android.SdkMemberTypeBase
+
+	// Function to retrieve the appropriate output jar (implementation or header) from
+	// the library.
+	jarToExportGetter func(j *Library) android.Path
 }
 
 func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
@@ -1881,11 +1891,7 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *librarySdkMemberType) buildSnapshot(
-	sdkModuleContext android.ModuleContext,
-	builder android.SnapshotBuilder,
-	member android.SdkMember,
-	jarToExportGetter func(j *Library) android.Path) {
+func (mt *librarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
 
 	variants := member.Variants()
 	if len(variants) != 1 {
@@ -1897,7 +1903,7 @@ func (mt *librarySdkMemberType) buildSnapshot(
 	variant := variants[0]
 	j := variant.(*Library)
 
-	exportedJar := jarToExportGetter(j)
+	exportedJar := mt.jarToExportGetter(j)
 	snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(member)
 	builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
 
@@ -1913,43 +1919,19 @@ func (mt *librarySdkMemberType) buildSnapshot(
 	module.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
 }
 
-var javaHeaderLibsSdkMemberType android.SdkMemberType = &headerLibrarySdkMemberType{
-	librarySdkMemberType{
-		android.SdkMemberTypeBase{
-			PropertyName: "java_header_libs",
-			SupportsSdk:  true,
-		},
+var javaHeaderLibsSdkMemberType android.SdkMemberType = &librarySdkMemberType{
+	android.SdkMemberTypeBase{
+		PropertyName: "java_header_libs",
+		SupportsSdk:  true,
 	},
-}
-
-type headerLibrarySdkMemberType struct {
-	librarySdkMemberType
-}
-
-func (mt *headerLibrarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	mt.librarySdkMemberType.buildSnapshot(sdkModuleContext, builder, member, func(j *Library) android.Path {
+	func(j *Library) android.Path {
 		headerJars := j.HeaderJars()
 		if len(headerJars) != 1 {
 			panic(fmt.Errorf("there must be only one header jar from %q", j.Name()))
 		}
 
 		return headerJars[0]
-	})
-}
-
-type implLibrarySdkMemberType struct {
-	librarySdkMemberType
-}
-
-func (mt *implLibrarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	mt.librarySdkMemberType.buildSnapshot(sdkModuleContext, builder, member, func(j *Library) android.Path {
-		implementationJars := j.ImplementationJars()
-		if len(implementationJars) != 1 {
-			panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
-		}
-
-		return implementationJars[0]
-	})
+	},
 }
 
 // java_library builds and links sources into a `.jar` file for the device, and possibly for the host as well.
