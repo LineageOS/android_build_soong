@@ -105,15 +105,12 @@ func (mt *librarySdkMemberType) AddPrebuiltModule(sdkModuleContext android.Modul
 	if sdkVersion != "" {
 		pbm.AddProperty("sdk_version", sdkVersion)
 	}
-	return pbm
-}
 
-func (mt *librarySdkMemberType) FinalizeModule(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember, bpModule android.BpModule) {
-	ccModule := (member.Variants()[0]).(*Module)
 	stl := ccModule.stl.Properties.Stl
 	if stl != nil {
-		bpModule.AddProperty("stl", proptools.String(stl))
+		pbm.AddProperty("stl", proptools.String(stl))
 	}
+	return pbm
 }
 
 func (mt *librarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
