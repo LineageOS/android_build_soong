@@ -115,6 +115,7 @@ func syspropJavaGenFactory() android.Module {
 
 type syspropLibrary struct {
 	android.ModuleBase
+	android.ApexModuleBase
 
 	properties syspropLibraryProperties
 
@@ -296,6 +297,7 @@ func syspropLibraryFactory() android.Module {
 		&m.properties,
 	)
 	android.InitAndroidModule(m)
+	android.InitApexModule(m)
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) { syspropLibraryHook(ctx, m) })
 	return m
 }
@@ -323,6 +325,7 @@ type ccLibraryProperties struct {
 	Recovery_available *bool
 	Vendor_available   *bool
 	Host_supported     *bool
+	Apex_available     []string
 }
 
 type javaLibraryProperties struct {
@@ -411,6 +414,7 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	ccProps.Recovery_available = m.properties.Recovery_available
 	ccProps.Vendor_available = m.properties.Vendor_available
 	ccProps.Host_supported = m.properties.Host_supported
+	ccProps.Apex_available = m.ApexProperties.Apex_available
 	ctx.CreateModule(cc.LibraryFactory, &ccProps)
 
 	scope := "internal"
