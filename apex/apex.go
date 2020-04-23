@@ -2184,8 +2184,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 func whitelistedApexAvailable(apex, moduleName string) bool {
 	key := apex
-	key = strings.Replace(key, "test_", "", 1)
-
 	// Prebuilt modules (e.g. java_import, etc.) have "prebuilt_" prefix added by the build
 	// system. Trim the prefix for the check since they are confusing
 	moduleName = strings.TrimPrefix(moduleName, "prebuilt_")
