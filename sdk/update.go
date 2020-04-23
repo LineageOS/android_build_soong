@@ -424,11 +424,6 @@ type propertyTag struct {
 // This will cause the references to be rewritten to a versioned reference in the version
 // specific instance of a snapshot module.
 var requiredSdkMemberReferencePropertyTag = propertyTag{"requiredSdkMemberReferencePropertyTag"}
-
-// A BpPropertyTag to add to a property that contains references to other sdk members.
-//
-// This will cause the references to be rewritten to a versioned reference in the version
-// specific instance of a snapshot module.
 var optionalSdkMemberReferencePropertyTag = propertyTag{"optionalSdkMemberReferencePropertyTag"}
 
 // A BpPropertyTag that indicates the property should only be present in the versioned
