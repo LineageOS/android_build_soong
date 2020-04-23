@@ -1896,35 +1896,38 @@ func (mt *librarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, 
 }
 
 func (mt *librarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
-	return &librarySdkMemberProperties{memberType: mt}
+	return &librarySdkMemberProperties{}
 }
 
 type librarySdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
-	memberType *librarySdkMemberType
-
-	library     *Library
-	jarToExport android.Path
+	JarToExport     android.Path
+	AidlIncludeDirs android.Paths
 }
 
 func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	j := variant.(*Library)
 
-	p.library = j
-	p.jarToExport = p.memberType.jarToExportGetter(j)
+	p.JarToExport = ctx.MemberType().(*librarySdkMemberType).jarToExportGetter(j)
+	p.AidlIncludeDirs = j.AidlIncludeDirs()
 }
 
 func (p *librarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
-	if p.jarToExport != nil {
-		sdkModuleContext := ctx.SdkModuleContext()
-		builder := ctx.SnapshotBuilder()
+	builder := ctx.SnapshotBuilder()
 
-		exportedJar := p.jarToExport
-		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), p.library.Name())
+	exportedJar := p.JarToExport
+	if exportedJar != nil {
+		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), ctx.Name())
 		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
 
-		for _, dir := range p.library.AidlIncludeDirs() {
+		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+	}
+
+	aidlIncludeDirs := p.AidlIncludeDirs
+	if len(aidlIncludeDirs) != 0 {
+		sdkModuleContext := ctx.SdkModuleContext()
+		for _, dir := range aidlIncludeDirs {
 			// TODO(jiyong): copy parcelable declarations only
 			aidlFiles, _ := sdkModuleContext.GlobWithDeps(dir.String()+"/**/*.aidl", nil)
 			for _, file := range aidlFiles {
@@ -1932,7 +1935,7 @@ func (p *librarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberConte
 			}
 		}
 
-		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+		// TODO(b/151933053) - add aidl include dirs property
 	}
 }
 
@@ -2110,8 +2113,8 @@ func (mt *testSdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberPr
 type testSdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
-	test        *Test
-	jarToExport android.Path
+	JarToExport android.Path
+	TestConfig  android.Path
 }
 
 func (p *testSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
@@ -2122,21 +2125,25 @@ func (p *testSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberConte
 		panic(fmt.Errorf("there must be only one implementation jar from %q", test.Name()))
 	}
 
-	p.test = test
-	p.jarToExport = implementationJars[0]
+	p.JarToExport = implementationJars[0]
+	p.TestConfig = test.testConfig
 }
 
 func (p *testSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
-	if p.jarToExport != nil {
-		builder := ctx.SnapshotBuilder()
+	builder := ctx.SnapshotBuilder()
 
-		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), p.test.Name())
-		builder.CopyToSnapshot(p.jarToExport, snapshotRelativeJavaLibPath)
-
-		snapshotRelativeTestConfigPath := sdkSnapshotFilePathForMember(p.OsPrefix(), p.test.Name(), testConfigSuffix)
-		builder.CopyToSnapshot(p.test.testConfig, snapshotRelativeTestConfigPath)
+	exportedJar := p.JarToExport
+	if exportedJar != nil {
+		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), ctx.Name())
+		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
 
 		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+	}
+
+	testConfig := p.TestConfig
+	if testConfig != nil {
+		snapshotRelativeTestConfigPath := sdkSnapshotFilePathForMember(p.OsPrefix(), ctx.Name(), testConfigSuffix)
+		builder.CopyToSnapshot(testConfig, snapshotRelativeTestConfigPath)
 		propertySet.AddProperty("test_config", snapshotRelativeTestConfigPath)
 	}
 }
