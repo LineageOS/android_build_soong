@@ -309,7 +309,6 @@ cc_prebuilt_library_shared {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 cc_prebuilt_library_shared {
@@ -326,7 +325,6 @@ cc_prebuilt_library_shared {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 sdk_snapshot {
@@ -555,7 +553,6 @@ cc_prebuilt_library_shared {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 cc_prebuilt_library_shared {
@@ -577,7 +574,6 @@ cc_prebuilt_library_shared {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 sdk_snapshot {
@@ -595,6 +591,189 @@ include/Test.h -> include/include/Test.h
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/gen/aidl/aidl/foo/bar/Test.h -> arm/include_gen/mynativelib/aidl/foo/bar/Test.h
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/gen/aidl/aidl/foo/bar/BnTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BnTest.h
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/gen/aidl/aidl/foo/bar/BpTest.h -> arm/include_gen/mynativelib/aidl/foo/bar/BpTest.h
+`),
+	)
+}
+
+func TestSnapshotWithCcSharedLibrarySharedLibs(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: [
+				"mynativelib",
+				"myothernativelib",
+				"mysystemnativelib",
+			],
+		}
+
+		cc_library {
+			name: "mysystemnativelib",
+			srcs: [
+				"Test.cpp",
+			],
+			system_shared_libs: [],
+			stl: "none",
+		}
+
+		cc_library_shared {
+			name: "myothernativelib",
+			srcs: [
+				"Test.cpp",
+			],
+			system_shared_libs: [
+				// A reference to a library that is not an sdk member. Uses libm as that
+				// is in the default set of modules available to this test and so is available
+				// both here and also when the generated Android.bp file is tested in
+				// CheckSnapshot(). This ensures that the system_shared_libs property correctly
+				// handles references to modules that are not sdk members.
+				"libm",
+			],
+			stl: "none",
+		}
+
+		cc_library {
+			name: "mynativelib",
+			srcs: [
+				"Test.cpp",
+			],
+			shared_libs: [
+				// A reference to another sdk member.
+				"myothernativelib",
+			],
+			target: {
+				android: {
+					shared: {
+						shared_libs: [
+							// A reference to a library that is not an sdk member. The libc library
+							// is used here to check that the shared_libs property is handled correctly
+							// in a similar way to how libm is used to check system_shared_libs above.
+							"libc",
+						],
+					},
+				},
+			},
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_shared {
+    name: "mysdk_mynativelib@current",
+    sdk_member_name: "mynativelib",
+    installable: false,
+    shared_libs: [
+        "mysdk_myothernativelib@current",
+        "libc",
+    ],
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/mynativelib.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/mynativelib.so"],
+        },
+    },
+    stl: "none",
+}
+
+cc_prebuilt_library_shared {
+    name: "mynativelib",
+    prefer: false,
+    shared_libs: [
+        "myothernativelib",
+        "libc",
+    ],
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/mynativelib.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/mynativelib.so"],
+        },
+    },
+    stl: "none",
+}
+
+cc_prebuilt_library_shared {
+    name: "mysdk_myothernativelib@current",
+    sdk_member_name: "myothernativelib",
+    installable: false,
+    system_shared_libs: ["libm"],
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/myothernativelib.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/myothernativelib.so"],
+        },
+    },
+    stl: "none",
+}
+
+cc_prebuilt_library_shared {
+    name: "myothernativelib",
+    prefer: false,
+    system_shared_libs: ["libm"],
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/myothernativelib.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/myothernativelib.so"],
+        },
+    },
+    stl: "none",
+}
+
+cc_prebuilt_library_shared {
+    name: "mysdk_mysystemnativelib@current",
+    sdk_member_name: "mysystemnativelib",
+    installable: false,
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/mysystemnativelib.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/mysystemnativelib.so"],
+        },
+    },
+    stl: "none",
+}
+
+cc_prebuilt_library_shared {
+    name: "mysystemnativelib",
+    prefer: false,
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/mysystemnativelib.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/mysystemnativelib.so"],
+        },
+    },
+    stl: "none",
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    native_shared_libs: [
+        "mysdk_mynativelib@current",
+        "mysdk_myothernativelib@current",
+        "mysdk_mysystemnativelib@current",
+    ],
+}
+`),
+		checkAllCopyRules(`
+.intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
+.intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so
+.intermediates/myothernativelib/android_arm64_armv8-a_shared/myothernativelib.so -> arm64/lib/myothernativelib.so
+.intermediates/myothernativelib/android_arm_armv7-a-neon_shared/myothernativelib.so -> arm/lib/myothernativelib.so
+.intermediates/mysystemnativelib/android_arm64_armv8-a_shared/mysystemnativelib.so -> arm64/lib/mysystemnativelib.so
+.intermediates/mysystemnativelib/android_arm_armv7-a-neon_shared/mysystemnativelib.so -> arm/lib/mysystemnativelib.so
 `),
 	)
 }
@@ -652,7 +831,6 @@ cc_prebuilt_library_shared {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 cc_prebuilt_library_shared {
@@ -673,7 +851,6 @@ cc_prebuilt_library_shared {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 sdk_snapshot {
@@ -753,7 +930,6 @@ cc_prebuilt_library_shared {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 cc_prebuilt_library_shared {
@@ -773,7 +949,6 @@ cc_prebuilt_library_shared {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 sdk_snapshot {
@@ -833,7 +1008,6 @@ cc_prebuilt_library_static {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 cc_prebuilt_library_static {
@@ -851,7 +1025,6 @@ cc_prebuilt_library_static {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 module_exports_snapshot {
@@ -924,7 +1097,6 @@ cc_prebuilt_library_static {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 cc_prebuilt_library_static {
@@ -944,7 +1116,6 @@ cc_prebuilt_library_static {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 module_exports_snapshot {
@@ -1020,7 +1191,6 @@ cc_prebuilt_library_static {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 cc_prebuilt_library_static {
@@ -1036,7 +1206,6 @@ cc_prebuilt_library_static {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 module_exports_snapshot {
@@ -1084,7 +1253,6 @@ cc_prebuilt_library_headers {
     sdk_member_name: "mynativeheaders",
     export_include_dirs: ["include/include"],
     stl: "none",
-    system_shared_libs: [],
 }
 
 cc_prebuilt_library_headers {
@@ -1092,7 +1260,6 @@ cc_prebuilt_library_headers {
     prefer: false,
     export_include_dirs: ["include/include"],
     stl: "none",
-    system_shared_libs: [],
 }
 
 sdk_snapshot {
@@ -1139,7 +1306,6 @@ cc_prebuilt_library_headers {
     host_supported: true,
     export_include_dirs: ["include/include"],
     stl: "none",
-    system_shared_libs: [],
 }
 
 cc_prebuilt_library_headers {
@@ -1149,7 +1315,6 @@ cc_prebuilt_library_headers {
     host_supported: true,
     export_include_dirs: ["include/include"],
     stl: "none",
-    system_shared_libs: [],
 }
 
 sdk_snapshot {
@@ -1211,7 +1376,6 @@ cc_prebuilt_library_headers {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 cc_prebuilt_library_headers {
@@ -1228,7 +1392,6 @@ cc_prebuilt_library_headers {
         },
     },
     stl: "none",
-    system_shared_libs: [],
 }
 
 sdk_snapshot {

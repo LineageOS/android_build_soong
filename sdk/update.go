@@ -226,17 +226,23 @@ func versionedSdkMemberName(ctx android.ModuleContext, memberName string, versio
 // the contents (header files, stub libraries, etc) into the zip file.
 func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) android.OutputPath {
 
-	exportedMembers := make(map[string]struct{})
+	allMembersByName := make(map[string]struct{})
+	exportedMembersByName := make(map[string]struct{})
 	var memberRefs []sdkMemberRef
 	for _, sdkVariant := range sdkVariants {
 		memberRefs = append(memberRefs, sdkVariant.memberRefs...)
 
+		// Record the names of all the members, both explicitly specified and implicitly
+		// included.
+		for _, memberRef := range sdkVariant.memberRefs {
+			allMembersByName[memberRef.variant.Name()] = struct{}{}
+		}
+
 		// Merge the exported member sets from all sdk variants.
 		for key, _ := range sdkVariant.getExportedMembers() {
-			exportedMembers[key] = struct{}{}
+			exportedMembersByName[key] = struct{}{}
 		}
 	}
-	s.exportedMembers = exportedMembers
 
 	snapshotDir := android.PathForModuleOut(ctx, "snapshot")
 
@@ -247,14 +253,16 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	}
 
 	builder := &snapshotBuilder{
-		ctx:             ctx,
-		sdk:             s,
-		version:         "current",
-		snapshotDir:     snapshotDir.OutputPath,
-		copies:          make(map[string]string),
-		filesToZip:      []android.Path{bp.path},
-		bpFile:          bpFile,
-		prebuiltModules: make(map[string]*bpModule),
+		ctx:                   ctx,
+		sdk:                   s,
+		version:               "current",
+		snapshotDir:           snapshotDir.OutputPath,
+		copies:                make(map[string]string),
+		filesToZip:            []android.Path{bp.path},
+		bpFile:                bpFile,
+		prebuiltModules:       make(map[string]*bpModule),
+		allMembersByName:      allMembersByName,
+		exportedMembersByName: exportedMembersByName,
 	}
 	s.builderForTests = builder
 
@@ -402,7 +410,7 @@ func (s *sdk) addMemberPropertiesToPropertySet(builder *snapshotBuilder, propert
 	for _, memberListProperty := range s.memberListProperties() {
 		names := memberListProperty.getter(dynamicMemberTypeListProperties)
 		if len(names) > 0 {
-			propertySet.AddProperty(memberListProperty.propertyName(), builder.versionedSdkMemberNames(names))
+			propertySet.AddProperty(memberListProperty.propertyName(), builder.versionedSdkMemberNames(names, false))
 		}
 	}
 }
@@ -415,7 +423,13 @@ type propertyTag struct {
 //
 // This will cause the references to be rewritten to a versioned reference in the version
 // specific instance of a snapshot module.
-var sdkMemberReferencePropertyTag = propertyTag{"sdkMemberReferencePropertyTag"}
+var requiredSdkMemberReferencePropertyTag = propertyTag{"requiredSdkMemberReferencePropertyTag"}
+
+// A BpPropertyTag to add to a property that contains references to other sdk members.
+//
+// This will cause the references to be rewritten to a versioned reference in the version
+// specific instance of a snapshot module.
+var optionalSdkMemberReferencePropertyTag = propertyTag{"optionalSdkMemberReferencePropertyTag"}
 
 // A BpPropertyTag that indicates the property should only be present in the versioned
 // module.
@@ -433,14 +447,15 @@ func (t unversionedToVersionedTransformation) transformModule(module *bpModule) 
 	// Use a versioned name for the module but remember the original name for the
 	// snapshot.
 	name := module.getValue("name").(string)
-	module.setProperty("name", t.builder.versionedSdkMemberName(name))
+	module.setProperty("name", t.builder.versionedSdkMemberName(name, true))
 	module.insertAfter("name", "sdk_member_name", name)
 	return module
 }
 
 func (t unversionedToVersionedTransformation) transformProperty(name string, value interface{}, tag android.BpPropertyTag) (interface{}, android.BpPropertyTag) {
-	if tag == sdkMemberReferencePropertyTag {
-		return t.builder.versionedSdkMemberNames(value.([]string)), tag
+	if tag == requiredSdkMemberReferencePropertyTag || tag == optionalSdkMemberReferencePropertyTag {
+		required := tag == requiredSdkMemberReferencePropertyTag
+		return t.builder.versionedSdkMemberNames(value.([]string), required), tag
 	} else {
 		return value, tag
 	}
@@ -454,7 +469,7 @@ type unversionedTransformation struct {
 func (t unversionedTransformation) transformModule(module *bpModule) *bpModule {
 	// If the module is an internal member then use a unique name for it.
 	name := module.getValue("name").(string)
-	module.setProperty("name", t.builder.unversionedSdkMemberName(name))
+	module.setProperty("name", t.builder.unversionedSdkMemberName(name, true))
 
 	// Set prefer: false - this is not strictly required as that is the default.
 	module.insertAfter("name", "prefer", false)
@@ -463,8 +478,9 @@ func (t unversionedTransformation) transformModule(module *bpModule) *bpModule {
 }
 
 func (t unversionedTransformation) transformProperty(name string, value interface{}, tag android.BpPropertyTag) (interface{}, android.BpPropertyTag) {
-	if tag == sdkMemberReferencePropertyTag {
-		return t.builder.unversionedSdkMemberNames(value.([]string)), tag
+	if tag == requiredSdkMemberReferencePropertyTag || tag == optionalSdkMemberReferencePropertyTag {
+		required := tag == requiredSdkMemberReferencePropertyTag
+		return t.builder.unversionedSdkMemberNames(value.([]string), required), tag
 	} else if tag == sdkVersionedOnlyPropertyTag {
 		// The property is not allowed in the unversioned module so remove it.
 		return nil, nil
@@ -559,6 +575,12 @@ type snapshotBuilder struct {
 
 	prebuiltModules map[string]*bpModule
 	prebuiltOrder   []*bpModule
+
+	// The set of all members by name.
+	allMembersByName map[string]struct{}
+
+	// The set of exported members by name.
+	exportedMembersByName map[string]struct{}
 }
 
 func (s *snapshotBuilder) CopyToSnapshot(src android.Path, dest string) {
@@ -612,7 +634,7 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 
 	variant := member.Variants()[0]
 
-	if s.sdk.isInternalMember(name) {
+	if s.isInternalMember(name) {
 		// An internal member is only referenced from the sdk snapshot which is in the
 		// same package so can be marked as private.
 		m.AddProperty("visibility", []string{"//visibility:private"})
@@ -676,38 +698,64 @@ func addHostDeviceSupportedProperties(deviceSupported bool, hostSupported bool, 
 	}
 }
 
-func (s *snapshotBuilder) SdkMemberReferencePropertyTag() android.BpPropertyTag {
-	return sdkMemberReferencePropertyTag
+func (s *snapshotBuilder) SdkMemberReferencePropertyTag(required bool) android.BpPropertyTag {
+	if required {
+		return requiredSdkMemberReferencePropertyTag
+	} else {
+		return optionalSdkMemberReferencePropertyTag
+	}
+}
+
+func (s *snapshotBuilder) OptionalSdkMemberReferencePropertyTag() android.BpPropertyTag {
+	return optionalSdkMemberReferencePropertyTag
 }
 
 // Get a versioned name appropriate for the SDK snapshot version being taken.
-func (s *snapshotBuilder) versionedSdkMemberName(unversionedName string) string {
+func (s *snapshotBuilder) versionedSdkMemberName(unversionedName string, required bool) string {
+	if _, ok := s.allMembersByName[unversionedName]; !ok {
+		if required {
+			s.ctx.ModuleErrorf("Required member reference %s is not a member of the sdk", unversionedName)
+		}
+		return unversionedName
+	}
 	return versionedSdkMemberName(s.ctx, unversionedName, s.version)
 }
 
-func (s *snapshotBuilder) versionedSdkMemberNames(members []string) []string {
+func (s *snapshotBuilder) versionedSdkMemberNames(members []string, required bool) []string {
 	var references []string = nil
 	for _, m := range members {
-		references = append(references, s.versionedSdkMemberName(m))
+		references = append(references, s.versionedSdkMemberName(m, required))
 	}
 	return references
 }
 
 // Get an internal name unique to the sdk.
-func (s *snapshotBuilder) unversionedSdkMemberName(unversionedName string) string {
-	if s.sdk.isInternalMember(unversionedName) {
+func (s *snapshotBuilder) unversionedSdkMemberName(unversionedName string, required bool) string {
+	if _, ok := s.allMembersByName[unversionedName]; !ok {
+		if required {
+			s.ctx.ModuleErrorf("Required member reference %s is not a member of the sdk", unversionedName)
+		}
+		return unversionedName
+	}
+
+	if s.isInternalMember(unversionedName) {
 		return s.ctx.ModuleName() + "_" + unversionedName
 	} else {
 		return unversionedName
 	}
 }
 
-func (s *snapshotBuilder) unversionedSdkMemberNames(members []string) []string {
+func (s *snapshotBuilder) unversionedSdkMemberNames(members []string, required bool) []string {
 	var references []string = nil
 	for _, m := range members {
-		references = append(references, s.unversionedSdkMemberName(m))
+		references = append(references, s.unversionedSdkMemberName(m, required))
 	}
 	return references
+}
+
+func (s *snapshotBuilder) isInternalMember(memberName string) bool {
+	_, ok := s.exportedMembersByName[memberName]
+	return !ok
 }
 
 type sdkMemberRef struct {
