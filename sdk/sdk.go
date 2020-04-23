@@ -281,7 +281,9 @@ func (s *sdk) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 
 		// Generate the snapshot from the member info.
-		s.snapshotFile = android.OptionalPathForPath(s.buildSnapshot(ctx, sdkVariants))
+		p := s.buildSnapshot(ctx, sdkVariants)
+		s.snapshotFile = android.OptionalPathForPath(p)
+		ctx.InstallFile(android.PathForMainlineSdksInstall(ctx), s.Name()+"-current.zip", p)
 	}
 }
 
