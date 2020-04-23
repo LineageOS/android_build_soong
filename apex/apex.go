@@ -392,7 +392,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libprocessgroup",
 		"libprocessgroup_headers",
 		"libprocinfo",
-		"libsonivox",
 		"libspeexresampler",
 		"libspeexresampler",
 		"libstagefright_esds",
