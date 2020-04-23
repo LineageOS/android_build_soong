@@ -87,15 +87,16 @@ func (p *prebuiltLibraryLinker) linkerProps() []interface{} {
 
 func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
+
+	p.libraryDecorator.exportIncludes(ctx)
+	p.libraryDecorator.reexportDirs(deps.ReexportedDirs...)
+	p.libraryDecorator.reexportSystemDirs(deps.ReexportedSystemDirs...)
+	p.libraryDecorator.reexportFlags(deps.ReexportedFlags...)
+	p.libraryDecorator.reexportDeps(deps.ReexportedDeps...)
+	p.libraryDecorator.addExportedGeneratedHeaders(deps.ReexportedGeneratedHeaders...)
+
 	// TODO(ccross): verify shared library dependencies
 	if len(p.properties.Srcs) > 0 {
-		p.libraryDecorator.exportIncludes(ctx)
-		p.libraryDecorator.reexportDirs(deps.ReexportedDirs...)
-		p.libraryDecorator.reexportSystemDirs(deps.ReexportedSystemDirs...)
-		p.libraryDecorator.reexportFlags(deps.ReexportedFlags...)
-		p.libraryDecorator.reexportDeps(deps.ReexportedDeps...)
-		p.libraryDecorator.addExportedGeneratedHeaders(deps.ReexportedGeneratedHeaders...)
-
 		builderFlags := flagsToBuilderFlags(flags)
 
 		in := p.Prebuilt.SingleSourcePath(ctx)
