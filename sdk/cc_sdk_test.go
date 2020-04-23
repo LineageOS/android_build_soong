@@ -1212,12 +1212,12 @@ module_exports_snapshot {
     name: "myexports@current",
     device_supported: false,
     host_supported: true,
+    native_static_libs: ["myexports_mynativelib@current"],
     target: {
         host: {
             compile_multilib: "64",
         },
     },
-    native_static_libs: ["myexports_mynativelib@current"],
 }`),
 		checkAllCopyRules(`
 include/Test.h -> include/include/Test.h
