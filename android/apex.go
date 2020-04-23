@@ -19,6 +19,8 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+
+	"github.com/google/blueprint"
 )
 
 const (
@@ -115,6 +117,15 @@ type ApexProperties struct {
 	Apex_available []string
 
 	Info ApexInfo `blueprint:"mutated"`
+}
+
+// Marker interface that identifies dependencies that are excluded from APEX
+// contents.
+type ExcludeFromApexContentsTag interface {
+	blueprint.DependencyTag
+
+	// Method that differentiates this interface from others.
+	ExcludeFromApexContents()
 }
 
 // Provides default implementation for the ApexModule interface. APEX-aware
