@@ -52,10 +52,15 @@ type sdk struct {
 
 	// Information about the OsType specific member variants associated with this variant.
 	//
-	// Set by OsType specific variants when their GenerateAndroidBuildActions is invoked
-	// and used by the CommonOS variant when its GenerateAndroidBuildActions is invoked, which
-	// is guaranteed to occur afterwards.
+	// Set by OsType specific variants in the collectMembers() method and used by the
+	// CommonOS variant when building the snapshot. That work is all done on separate
+	// calls to the sdk.GenerateAndroidBuildActions method which is guaranteed to be
+	// called for the OsType specific variants before the CommonOS variant (because
+	// the latter depends on the former).
 	memberRefs []sdkMemberRef
+
+	// The multilib variants that are used by this sdk variant.
+	multilibUsages multilibUsage
 
 	properties sdkProperties
 
@@ -259,8 +264,8 @@ func (s *sdk) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// This method is guaranteed to be called on OsType specific variants before it is called
 	// on their corresponding CommonOS variant.
 	if !s.IsCommonOSVariant() {
-		// Collect the OsType specific members are add them to the OsType specific variant.
-		s.memberRefs = s.collectMembers(ctx)
+		// Update the OsType specific sdk variant with information about its members.
+		s.collectMembers(ctx)
 	} else {
 		// Get the OsType specific variants on which the CommonOS depends.
 		osSpecificVariants := android.GetOsSpecificVariantsOfCommonOSVariant(ctx)
