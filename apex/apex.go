@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -121,7 +122,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"crtbegin_dynamic1",
 		"crtbegin_so1",
 		"crtbrand",
-		"conscrypt.module.intra.core.api.stubs",
 		"dex2oat_headers",
 		"dt_fd_forward_export",
 		"icu4c_extra_headers",
@@ -862,18 +862,26 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		return
 	}
 
-	cur := mctx.Module().(interface {
-		DepIsInSameApex(android.BaseModuleContext, android.Module) bool
-	})
+	cur := mctx.Module().(android.DepIsInSameApex)
 
 	mctx.VisitDirectDeps(func(child android.Module) {
 		depName := mctx.OtherModuleName(child)
 		if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() &&
-			cur.DepIsInSameApex(mctx, child) {
+			(cur.DepIsInSameApex(mctx, child) || inAnySdk(child)) {
 			android.UpdateApexDependency(apexBundles, depName, directDep)
 			am.BuildForApexes(apexBundles)
 		}
 	})
+}
+
+// If a module in an APEX depends on a module from an SDK then it needs an APEX
+// specific variant created for it. Refer to sdk.sdkDepsReplaceMutator.
+func inAnySdk(module android.Module) bool {
+	if sa, ok := module.(android.SdkAware); ok {
+		return sa.IsInAnySdk()
+	}
+
+	return false
 }
 
 // Create apex variations if a module is included in APEX(s).
@@ -1809,6 +1817,24 @@ func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) int {
 	return intVer
 }
 
+// A regexp for removing boilerplate from BaseDependencyTag from the string representation of
+// a dependency tag.
+var tagCleaner = regexp.MustCompile(`\QBaseDependencyTag:blueprint.BaseDependencyTag{}\E(, )?`)
+
+func PrettyPrintTag(tag blueprint.DependencyTag) string {
+	// Use tag's custom String() method if available.
+	if stringer, ok := tag.(fmt.Stringer); ok {
+		return stringer.String()
+	}
+
+	// Otherwise, get a default string representation of the tag's struct.
+	tagString := fmt.Sprintf("%#v", tag)
+
+	// Remove the boilerplate from BaseDependencyTag as it adds no value.
+	tagString = tagCleaner.ReplaceAllString(tagString, "")
+	return tagString
+}
+
 // Ensures that the dependencies are marked as available for this APEX
 func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 	// Let's be practical. Availability for test, host, and the VNDK apex isn't important
@@ -1832,12 +1858,23 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		apexName := ctx.ModuleName()
 		fromName := ctx.OtherModuleName(from)
 		toName := ctx.OtherModuleName(to)
+
+		// If `to` is not actually in the same APEX as `from` then it does not need apex_available and neither
+		// do any of its dependencies.
+		if am, ok := from.(android.DepIsInSameApex); ok && !am.DepIsInSameApex(ctx, to) {
+			// As soon as the dependency graph crosses the APEX boundary, don't go further.
+			return false
+		}
+
 		if to.AvailableFor(apexName) || whitelistedApexAvailable(apexName, toName) {
 			return true
 		}
 		message := ""
-		for _, m := range ctx.GetWalkPath()[1:] {
-			message = fmt.Sprintf("%s\n    -> %s", message, m.String())
+		tagPath := ctx.GetTagPath()
+		// Skip the first module as that will be added at the start of the error message by ctx.ModuleErrorf().
+		walkPath := ctx.GetWalkPath()[1:]
+		for i, m := range walkPath {
+			message = fmt.Sprintf("%s\n           via tag %s\n    -> %s", message, PrettyPrintTag(tagPath[i]), m.String())
 		}
 		ctx.ModuleErrorf("%q requires %q that is not available for the APEX. Dependency path:%s", fromName, toName, message)
 		// Visit this module's dependencies to check and report any issues with their availability.
@@ -1947,6 +1984,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// TODO(jiyong) do this using walkPayloadDeps
 	ctx.WalkDepsBlueprint(func(child, parent blueprint.Module) bool {
 		depTag := ctx.OtherModuleDependencyTag(child)
+		if _, ok := depTag.(android.ExcludeFromApexContentsTag); ok {
+			return false
+		}
 		depName := ctx.OtherModuleName(child)
 		if _, isDirectDep := parent.(*apexBundle); isDirectDep {
 			switch depTag {
@@ -2108,7 +2148,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						filesInfo = append(filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
 					}
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
-					ctx.ModuleErrorf("unexpected tag %q for indirect dependency %q", depTag, depName)
+					ctx.ModuleErrorf("unexpected tag %s for indirect dependency %q", PrettyPrintTag(depTag), depName)
 				}
 			}
 		}
