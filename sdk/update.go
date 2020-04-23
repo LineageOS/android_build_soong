@@ -1283,10 +1283,6 @@ foundStruct:
 func (e *commonValueExtractor) extractCommonProperties(commonProperties interface{}, inputPropertiesSlice interface{}) {
 	commonPropertiesValue := reflect.ValueOf(commonProperties)
 	commonStructValue := commonPropertiesValue.Elem()
-	propertiesStructType := commonStructValue.Type()
-
-	// Create an empty structure from which default values for the field can be copied.
-	emptyStructValue := reflect.New(propertiesStructType).Elem()
 
 	for _, fieldGetter := range e.fieldGetters {
 		// Check to see if all the structures have the same value for the field. The commonValue
@@ -1315,7 +1311,7 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 		// If the fields all have a common value then store it in the common struct field
 		// and set the input struct's field to the empty value.
 		if commonValue != nil {
-			emptyValue := fieldGetter(emptyStructValue)
+			emptyValue := reflect.Zero(commonValue.Type())
 			fieldGetter(commonStructValue).Set(*commonValue)
 			for i := 0; i < sliceValue.Len(); i++ {
 				itemValue := sliceValue.Index(i)
