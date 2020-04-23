@@ -31,8 +31,15 @@ func (t removeFredTransformation) transformProperty(name string, value interface
 	return value, tag
 }
 
-func (t removeFredTransformation) transformPropertySet(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag) {
+func (t removeFredTransformation) transformPropertySetBeforeContents(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag) {
 	if name == "fred" {
+		return nil, nil
+	}
+	return propertySet, tag
+}
+
+func (t removeFredTransformation) transformPropertySetAfterContents(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag) {
+	if len(propertySet.properties) == 0 {
 		return nil, nil
 	}
 	return propertySet, tag
