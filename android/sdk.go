@@ -145,10 +145,6 @@ func (s *SdkBase) RequiredSdks() SdkRefs {
 	return s.properties.RequiredSdks
 }
 
-func (s *SdkBase) BuildSnapshot(sdkModuleContext ModuleContext, builder SnapshotBuilder) {
-	sdkModuleContext.ModuleErrorf("module type " + sdkModuleContext.OtherModuleType(s.module) + " cannot be used in an sdk")
-}
-
 // InitSdkAwareModule initializes the SdkBase struct. This must be called by all modules including
 // SdkBase.
 func InitSdkAwareModule(m SdkAware) {
@@ -319,17 +315,6 @@ type SdkMemberType interface {
 	// the module is not allowed in whichever sdk property it was added.
 	IsInstance(module Module) bool
 
-	// Build the snapshot for the SDK member
-	//
-	// The ModuleContext provided is for the SDK module, so information for
-	// variants in the supplied member can be accessed using the Other... methods.
-	//
-	// The SdkMember is guaranteed to contain variants for which the
-	// IsInstance(Module) method returned true.
-	//
-	// deprecated Use AddPrebuiltModule() instead.
-	BuildSnapshot(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember)
-
 	// Add a prebuilt module that the sdk will populate.
 	//
 	// Returning nil from this will cause the sdk module type to use the deprecated BuildSnapshot
@@ -379,19 +364,6 @@ func (b *SdkMemberTypeBase) UsableWithSdkAndSdkSnapshot() bool {
 
 func (b *SdkMemberTypeBase) HasTransitiveSdkMembers() bool {
 	return b.TransitiveSdkMembers
-}
-
-func (b *SdkMemberTypeBase) BuildSnapshot(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember) {
-	panic("override AddPrebuiltModule")
-}
-
-func (b *SdkMemberTypeBase) AddPrebuiltModule(ctx SdkMemberContext, member SdkMember) BpModule {
-	// Returning nil causes the legacy BuildSnapshot method to be used.
-	return nil
-}
-
-func (b *SdkMemberTypeBase) CreateVariantPropertiesStruct() SdkMemberProperties {
-	panic("override me")
 }
 
 // Encapsulates the information about registered SdkMemberTypes.
