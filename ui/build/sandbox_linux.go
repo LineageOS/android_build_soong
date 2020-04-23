@@ -19,8 +19,10 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 )
 
 type Sandbox struct {
@@ -47,13 +49,14 @@ var (
 	}
 )
 
-const nsjailPath = "prebuilts/build-tools/linux-x86/bin/nsjail"
+const nsjailPath = "prebuilts/tools-lineage/linux-x86/bin/nsjail"
 
 var sandboxConfig struct {
 	once sync.Once
 
 	working bool
 	group   string
+	nice    int
 }
 
 func (c *Cmd) sandboxSupported() bool {
@@ -72,6 +75,16 @@ func (c *Cmd) sandboxSupported() bool {
 			sandboxConfig.group = "nobody"
 		}
 
+		// By default nsjail will set nice priority to 19.  However,
+		// if the build has been started with a non-zero nice level already,
+		// let's continue to use it.
+		sandboxConfig.nice = 19 // nsjail default
+		if currentNice, err := syscall.Getpriority(syscall.PRIO_PROCESS, 0); err == nil {
+			if currentNice != 0 {
+				sandboxConfig.nice = currentNice
+			}
+		}
+
 		cmd := exec.CommandContext(c.ctx.Context, nsjailPath,
 			"-H", "android-build",
 			"-e",
@@ -79,6 +92,7 @@ func (c *Cmd) sandboxSupported() bool {
 			"-g", sandboxConfig.group,
 			"-B", "/",
 			"--disable_clone_newcgroup",
+			"--nice_level", strconv.Itoa(sandboxConfig.nice),
 			"--",
 			"/bin/bash", "-c", `if [ $(hostname) == "android-build" ]; then echo "Android" "Success"; else echo Failure; fi`)
 		cmd.Env = c.config.Environment().Environ()
@@ -150,6 +164,8 @@ func (c *Cmd) wrapSandbox() {
 		// Disable newcgroup for now, since it may require newer kernels
 		// TODO: try out cgroups
 		"--disable_clone_newcgroup",
+
+		"--nice_level", strconv.Itoa(sandboxConfig.nice),
 
 		// Only log important warnings / errors
 		"-q",
