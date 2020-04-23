@@ -410,6 +410,10 @@ func CheckErrorsAgainstExpectations(t *testing.T, errs []error, expectedErrorPat
 
 }
 
+func SetInMakeForTests(config Config) {
+	config.inMake = true
+}
+
 func AndroidMkEntriesForTest(t *testing.T, config Config, bpPath string, mod blueprint.Module) []AndroidMkEntries {
 	var p AndroidMkEntriesProvider
 	var ok bool

@@ -18,6 +18,18 @@ import "android/soong/android"
 
 func init() {
 	RegisterLibraryHeadersBuildComponents(android.InitRegistrationContext)
+
+	// Register sdk member types.
+	android.RegisterSdkMemberType(headersLibrarySdkMemberType)
+}
+
+var headersLibrarySdkMemberType = &librarySdkMemberType{
+	SdkMemberTypeBase: android.SdkMemberTypeBase{
+		PropertyName: "native_header_libs",
+		SupportsSdk:  true,
+	},
+	prebuiltModuleType: "cc_prebuilt_library_headers",
+	linkTypes:          nil,
 }
 
 func RegisterLibraryHeadersBuildComponents(ctx android.RegistrationContext) {
@@ -32,6 +44,7 @@ func RegisterLibraryHeadersBuildComponents(ctx android.RegistrationContext) {
 func LibraryHeaderFactory() android.Module {
 	module, library := NewLibrary(android.HostAndDeviceSupported)
 	library.HeaderOnly()
+	module.sdkMemberTypes = []android.SdkMemberType{headersLibrarySdkMemberType}
 	return module.Init()
 }
 

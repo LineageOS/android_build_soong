@@ -35,7 +35,7 @@ func (s *bpPropertySet) init() {
 
 func (s *bpPropertySet) AddProperty(name string, value interface{}) {
 	if s.properties[name] != nil {
-		panic("Property %q already exists in property set")
+		panic(fmt.Sprintf("Property %q already exists in property set", name))
 	}
 
 	s.properties[name] = value
@@ -48,8 +48,7 @@ func (s *bpPropertySet) AddPropertyWithTag(name string, value interface{}, tag a
 }
 
 func (s *bpPropertySet) AddPropertySet(name string) android.BpPropertySet {
-	set := &bpPropertySet{}
-	set.init()
+	set := newPropertySet()
 	s.AddProperty(name, set)
 	return set
 }
@@ -62,7 +61,7 @@ func (s *bpPropertySet) getTag(name string) interface{} {
 	return s.tags[name]
 }
 
-func (s *bpPropertySet) transform(transformer bpPropertyTransformer) {
+func (s *bpPropertySet) transformContents(transformer bpPropertyTransformer) {
 	var newOrder []string
 	for _, name := range s.order {
 		value := s.properties[name]
@@ -70,7 +69,13 @@ func (s *bpPropertySet) transform(transformer bpPropertyTransformer) {
 		var newValue interface{}
 		var newTag android.BpPropertyTag
 		if propertySet, ok := value.(*bpPropertySet); ok {
-			newValue, newTag = transformer.transformPropertySet(name, propertySet, tag)
+			var newPropertySet *bpPropertySet
+			newPropertySet, newTag = transformPropertySet(transformer, name, propertySet, tag)
+			if newPropertySet == nil {
+				newValue = nil
+			} else {
+				newValue = newPropertySet
+			}
 		} else {
 			newValue, newTag = transformer.transformProperty(name, value, tag)
 		}
@@ -86,6 +91,16 @@ func (s *bpPropertySet) transform(transformer bpPropertyTransformer) {
 		}
 	}
 	s.order = newOrder
+}
+
+func transformPropertySet(transformer bpPropertyTransformer, name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag) {
+	newPropertySet, newTag := transformer.transformPropertySetBeforeContents(name, propertySet, tag)
+	if newPropertySet != nil {
+		newPropertySet.transformContents(transformer)
+
+		newPropertySet, newTag = transformer.transformPropertySetAfterContents(name, newPropertySet, newTag)
+	}
+	return newPropertySet, newTag
 }
 
 func (s *bpPropertySet) setProperty(name string, value interface{}) {
@@ -136,7 +151,17 @@ type bpPropertyTransformer interface {
 	// The name will be "" for the top level property set.
 	//
 	// Returning (nil, ...) will cause the property set to be removed.
-	transformPropertySet(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag)
+	transformPropertySetBeforeContents(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag)
+
+	// Transform the property set, returning the new property set/tag to insert back into the
+	// parent property set (or module if this is the top level property set).
+	//
+	// This will be called after transforming the properties in the supplied set.
+	//
+	// The name will be "" for the top level property set.
+	//
+	// Returning (nil, ...) will cause the property set to be removed.
+	transformPropertySetAfterContents(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag)
 
 	// Transform a property, return the new value/tag to insert back into the property set.
 	//
@@ -165,7 +190,11 @@ func (t identityTransformation) transformModule(module *bpModule) *bpModule {
 	return module
 }
 
-func (t identityTransformation) transformPropertySet(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag) {
+func (t identityTransformation) transformPropertySetBeforeContents(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag) {
+	return propertySet, tag
+}
+
+func (t identityTransformation) transformPropertySetAfterContents(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag) {
 	return propertySet, tag
 }
 
@@ -180,12 +209,13 @@ func (m *bpModule) deepCopy() *bpModule {
 func (m *bpModule) transform(transformer bpTransformer) *bpModule {
 	transformedModule := transformer.transformModule(m)
 	// Copy the contents of the returned property set into the module and then transform that.
-	transformedModule.bpPropertySet, _ = transformer.transformPropertySet("", transformedModule.bpPropertySet, nil)
-	transformedModule.bpPropertySet.transform(transformer)
+	transformedModule.bpPropertySet, _ = transformPropertySet(transformer, "", transformedModule.bpPropertySet, nil)
 	return transformedModule
 }
 
-type deepCopyTransformation struct{}
+type deepCopyTransformation struct {
+	identityTransformation
+}
 
 func (t deepCopyTransformation) transformModule(module *bpModule) *bpModule {
 	// Take a shallow copy of the module. Any mutable property values will be copied by the
@@ -194,7 +224,7 @@ func (t deepCopyTransformation) transformModule(module *bpModule) *bpModule {
 	return &moduleCopy
 }
 
-func (t deepCopyTransformation) transformPropertySet(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag) {
+func (t deepCopyTransformation) transformPropertySetBeforeContents(name string, propertySet *bpPropertySet, tag android.BpPropertyTag) (*bpPropertySet, android.BpPropertyTag) {
 	// Create a shallow copy of the properties map. Any mutable property values will be copied by the
 	// transformer.
 	propertiesCopy := make(map[string]interface{})
@@ -253,10 +283,19 @@ func (f *bpFile) AddModule(module android.BpModule) {
 }
 
 func (f *bpFile) newModule(moduleType string) *bpModule {
+	return newModule(moduleType)
+}
+
+func newModule(moduleType string) *bpModule {
 	module := &bpModule{
 		moduleType:    moduleType,
-		bpPropertySet: &bpPropertySet{},
+		bpPropertySet: newPropertySet(),
 	}
-	module.bpPropertySet.init()
 	return module
+}
+
+func newPropertySet() *bpPropertySet {
+	set := &bpPropertySet{}
+	set.init()
+	return set
 }

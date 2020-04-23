@@ -195,6 +195,7 @@ func LibraryFactory() android.Module {
 	module.sdkMemberTypes = []android.SdkMemberType{
 		sharedLibrarySdkMemberType,
 		staticLibrarySdkMemberType,
+		staticAndSharedLibrarySdkMemberType,
 	}
 	return module.Init()
 }
@@ -817,6 +818,23 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
+func (library *libraryDecorator) linkerSpecifiedDeps(specifiedDeps specifiedDeps) specifiedDeps {
+	specifiedDeps = library.baseLinker.linkerSpecifiedDeps(specifiedDeps)
+	var properties StaticOrSharedProperties
+	if library.static() {
+		properties = library.StaticProperties.Static
+	} else if library.shared() {
+		properties = library.SharedProperties.Shared
+	}
+
+	specifiedDeps.sharedLibs = append(specifiedDeps.sharedLibs, properties.Shared_libs...)
+	specifiedDeps.systemSharedLibs = append(specifiedDeps.systemSharedLibs, properties.System_shared_libs...)
+
+	specifiedDeps.sharedLibs = android.FirstUniqueStrings(specifiedDeps.sharedLibs)
+	specifiedDeps.systemSharedLibs = android.FirstUniqueStrings(specifiedDeps.systemSharedLibs)
+	return specifiedDeps
+}
+
 func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
@@ -1219,6 +1237,12 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 
 		library.ndkSysrootPath = installPath
 	}
+}
+
+func (library *libraryDecorator) everInstallable() bool {
+	// Only shared and static libraries are installed. Header libraries (which are
+	// neither static or shared) are not installed.
+	return library.shared() || library.static()
 }
 
 func (library *libraryDecorator) static() bool {
