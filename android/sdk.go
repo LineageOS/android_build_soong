@@ -465,14 +465,29 @@ func RegisterSdkMemberType(memberType SdkMemberType) {
 // Contains common properties that apply across many different member types. These
 // are not affected by the optimization to extract common values.
 type SdkMemberPropertiesBase struct {
-	// The setting to use for the compile_multilib property.
-	Compile_multilib string `sdk:"keep"`
-
 	// The number of unique os types supported by the member variants.
+	//
+	// If a member has a variant with more than one os type then it will need to differentiate
+	// the locations of any of their prebuilt files in the snapshot by os type to prevent them
+	// from colliding. See OsPrefix().
+	//
+	// This property is the same for all variants of a member and so would be optimized away
+	// if it was not explicitly kept.
 	Os_count int `sdk:"keep"`
 
 	// The os type for which these properties refer.
+	//
+	// Provided to allow a member to differentiate between os types in the locations of their
+	// prebuilt files when it supports more than one os type.
+	//
+	// This property is the same for all os type specific variants of a member and so would be
+	// optimized away if it was not explicitly kept.
 	Os OsType `sdk:"keep"`
+
+	// The setting to use for the compile_multilib property.
+	//
+	// This property is set after optimization so there is no point in trying to optimize it.
+	Compile_multilib string `sdk:"keep"`
 }
 
 // The os prefix to use for any file paths in the sdk.
@@ -515,4 +530,13 @@ type SdkMemberContext interface {
 
 	// The builder of the snapshot.
 	SnapshotBuilder() SnapshotBuilder
+
+	// The type of the member.
+	MemberType() SdkMemberType
+
+	// The name of the member.
+	//
+	// Provided for use by sdk members to create a member specific location within the snapshot
+	// into which to copy the prebuilt files.
+	Name() string
 }
