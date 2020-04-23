@@ -971,8 +971,6 @@ func (s *sdk) createMemberSnapshot(sdkModuleContext android.ModuleContext, build
 			}
 		}
 	}
-
-	memberType.FinalizeModule(sdkModuleContext, builder, member, bpModule)
 }
 
 // Compute the list of possible os types that this sdk could support.
