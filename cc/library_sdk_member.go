@@ -254,7 +254,7 @@ const (
 
 // path to the native library. Relative to <sdk_root>/<api_dir>
 func nativeLibraryPathFor(lib *nativeLibInfoProperties) string {
-	return filepath.Join(lib.archType,
+	return filepath.Join(lib.OsPrefix(), lib.archType,
 		nativeStubDir, lib.outputFile.Base())
 }
 
