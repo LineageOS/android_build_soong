@@ -297,6 +297,7 @@ func TestSnapshotWithCcSharedLibraryCommonProperties(t *testing.T) {
 cc_prebuilt_library_shared {
     name: "mysdk_mynativelib@current",
     sdk_member_name: "mynativelib",
+    installable: false,
     export_include_dirs: ["include/include"],
     arch: {
         arm64: {
@@ -366,6 +367,7 @@ func TestSnapshotWithCcBinary(t *testing.T) {
 cc_prebuilt_binary {
     name: "mymodule_exports_mynativebinary@current",
     sdk_member_name: "mynativebinary",
+    installable: false,
     compile_multilib: "both",
     arch: {
         arm64: {
@@ -447,6 +449,7 @@ cc_prebuilt_binary {
     sdk_member_name: "mynativebinary",
     device_supported: false,
     host_supported: true,
+    installable: false,
     target: {
         linux_glibc: {
             compile_multilib: "both",
@@ -539,6 +542,7 @@ cc_prebuilt_library_shared {
         "apex1",
         "apex2",
     ],
+    installable: false,
     export_include_dirs: ["include/include"],
     arch: {
         arm64: {
@@ -634,6 +638,7 @@ cc_prebuilt_library_shared {
     sdk_member_name: "mynativelib",
     device_supported: false,
     host_supported: true,
+    installable: false,
     sdk_version: "minimum",
     export_include_dirs: ["include/include"],
     arch: {
@@ -735,6 +740,7 @@ cc_prebuilt_library_shared {
     sdk_member_name: "mynativelib",
     device_supported: false,
     host_supported: true,
+    installable: false,
     target: {
         linux_glibc_x86_64: {
             srcs: ["linux_glibc/x86_64/lib/mynativelib.so"],
@@ -814,6 +820,7 @@ func TestSnapshotWithCcStaticLibrary(t *testing.T) {
 cc_prebuilt_library_static {
     name: "myexports_mynativelib@current",
     sdk_member_name: "mynativelib",
+    installable: false,
     export_include_dirs: ["include/include"],
     arch: {
         arm64: {
@@ -904,6 +911,7 @@ cc_prebuilt_library_static {
     sdk_member_name: "mynativelib",
     device_supported: false,
     host_supported: true,
+    installable: false,
     export_include_dirs: ["include/include"],
     arch: {
         x86_64: {
@@ -1003,6 +1011,7 @@ cc_prebuilt_library_static {
     sdk_member_name: "mynativelib",
     device_supported: false,
     host_supported: true,
+    installable: false,
     export_include_dirs: ["include/include"],
     arch: {
         x86_64: {
