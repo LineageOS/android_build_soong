@@ -206,3 +206,19 @@ sdk_snapshot {
 }
 `))
 }
+
+func TestSDkInstall(t *testing.T) {
+	sdk := `
+		sdk {
+			name: "mysdk",
+		}
+	`
+	result := testSdkWithFs(t, ``,
+		map[string][]byte{
+			"Android.bp": []byte(sdk),
+		})
+
+	result.CheckSnapshot("mysdk", "",
+		checkAllOtherCopyRules(`.intermediates/mysdk/common_os/mysdk-current.zip -> mysdk-current.zip`),
+	)
+}
