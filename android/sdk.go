@@ -22,17 +22,30 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+// Extracted from SdkAware to make it easier to define custom subsets of the
+// SdkAware interface and improve code navigation within the IDE.
+//
+// In addition to its use in SdkAware this interface must also be implemented by
+// APEX to specify the SDKs required by that module and its contents. e.g. APEX
+// is expected to implement RequiredSdks() by reading its own properties like
+// `uses_sdks`.
+type RequiredSdks interface {
+	// The set of SDKs required by an APEX and its contents.
+	RequiredSdks() SdkRefs
+}
+
 // SdkAware is the interface that must be supported by any module to become a member of SDK or to be
 // built with SDK
 type SdkAware interface {
 	Module
+	RequiredSdks
+
 	sdkBase() *SdkBase
 	MakeMemberOf(sdk SdkRef)
 	IsInAnySdk() bool
 	ContainingSdk() SdkRef
 	MemberName() string
 	BuildWithSdks(sdks SdkRefs)
-	RequiredSdks() SdkRefs
 }
 
 // SdkRef refers to a version of an SDK

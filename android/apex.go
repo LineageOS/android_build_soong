@@ -32,6 +32,14 @@ type ApexInfo struct {
 	MinSdkVersion int
 }
 
+// Extracted from ApexModule to make it easier to define custom subsets of the
+// ApexModule interface and improve code navigation within the IDE.
+type DepIsInSameApex interface {
+	// DepIsInSameApex tests if the other module 'dep' is installed to the same
+	// APEX as this module
+	DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
+}
+
 // ApexModule is the interface that a module type is expected to implement if
 // the module has to be built differently depending on whether the module
 // is destined for an apex or not (installed to one of the regular partitions).
@@ -49,6 +57,8 @@ type ApexInfo struct {
 // respectively.
 type ApexModule interface {
 	Module
+	DepIsInSameApex
+
 	apexModuleBase() *ApexModuleBase
 
 	// Marks that this module should be built for the specified APEXes.
@@ -87,10 +97,6 @@ type ApexModule interface {
 
 	// Tests if this module is available for the specified APEX or ":platform"
 	AvailableFor(what string) bool
-
-	// DepIsInSameApex tests if the other module 'dep' is installed to the same
-	// APEX as this module
-	DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
 
 	// Returns the highest version which is <= maxSdkVersion.
 	// For example, with maxSdkVersion is 10 and versionList is [9,11]
