@@ -246,8 +246,11 @@ func (r *testSdkResult) ModuleForTests(name string, variant string) android.Test
 // Takes a list of functions which check different facets of the snapshot build rules.
 // Allows each test to customize what is checked without duplicating lots of code
 // or proliferating check methods of different flavors.
-func (r *testSdkResult) CheckSnapshot(name string, variant string, dir string, checkers ...snapshotBuildInfoChecker) {
+func (r *testSdkResult) CheckSnapshot(name string, dir string, checkers ...snapshotBuildInfoChecker) {
 	r.t.Helper()
+
+	// The sdk CommonOS variant is always responsible for generating the snapshot.
+	variant := android.CommonOS.Name
 
 	sdk := r.Module(name, variant).(*sdk)
 

@@ -53,6 +53,13 @@ type sdk struct {
 	// The set of exported members.
 	exportedMembers map[string]struct{}
 
+	// Information about the OsType specific member variants associated with this variant.
+	//
+	// Set by OsType specific variants when their GenerateAndroidBuildActions is invoked
+	// and used by the CommonOS variant when its GenerateAndroidBuildActions is invoked, which
+	// is guaranteed to occur afterwards.
+	memberRefs []sdkMemberRef
+
 	properties sdkProperties
 
 	snapshotFile android.OptionalPath
@@ -201,7 +208,7 @@ func newSdkModule(moduleExports bool) *sdk {
 	// properties for the member type specific list properties.
 	s.dynamicMemberTypeListProperties = s.dynamicSdkMemberTypes.createMemberListProperties()
 	s.AddProperties(&s.properties, s.dynamicMemberTypeListProperties)
-	android.InitAndroidMultiTargetsArchModule(s, android.HostAndDeviceSupported, android.MultilibCommon)
+	android.InitCommonOSAndroidMultiTargetsArchModule(s, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(s)
 	android.AddLoadHook(s, func(ctx android.LoadHookContext) {
 		type props struct {
@@ -252,10 +259,29 @@ func (s *sdk) snapshot() bool {
 }
 
 func (s *sdk) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if !s.snapshot() {
+	if s.snapshot() {
 		// We don't need to create a snapshot out of sdk_snapshot.
 		// That doesn't make sense. We need a snapshot to create sdk_snapshot.
-		s.snapshotFile = android.OptionalPathForPath(s.buildSnapshot(ctx))
+		return
+	}
+
+	// This method is guaranteed to be called on OsType specific variants before it is called
+	// on their corresponding CommonOS variant.
+	if !s.IsCommonOSVariant() {
+		// Collect the OsType specific members are add them to the OsType specific variant.
+		s.memberRefs = s.collectMembers(ctx)
+	} else {
+		// Get the OsType specific variants on which the CommonOS depends.
+		osSpecificVariants := android.GetOsSpecificVariantsOfCommonOSVariant(ctx)
+		var sdkVariants []*sdk
+		for _, m := range osSpecificVariants {
+			if sdkVariant, ok := m.(*sdk); ok {
+				sdkVariants = append(sdkVariants, sdkVariant)
+			}
+		}
+
+		// Generate the snapshot from the member info.
+		s.snapshotFile = android.OptionalPathForPath(s.buildSnapshot(ctx, sdkVariants))
 	}
 }
 
@@ -320,7 +346,8 @@ func (t sdkMemberVersionedDepTag) ExcludeFromVisibilityEnforcement() {}
 // Step 1: create dependencies from an SDK module to its members.
 func memberMutator(mctx android.BottomUpMutatorContext) {
 	if s, ok := mctx.Module().(*sdk); ok {
-		if s.Enabled() {
+		// Add dependencies from enabled and non CommonOS variants to the sdk member variants.
+		if s.Enabled() && !s.IsCommonOSVariant() {
 			for _, memberListProperty := range s.memberListProperties() {
 				names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
 				if len(names) > 0 {
