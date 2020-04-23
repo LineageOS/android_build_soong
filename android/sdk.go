@@ -356,7 +356,7 @@ type SdkMemberType interface {
 	//   structure and calls AddToPropertySet(...) on the properties struct to add the member
 	//   specific properties in the correct place in the structure.
 	//
-	AddPrebuiltModule(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember) BpModule
+	AddPrebuiltModule(ctx SdkMemberContext, member SdkMember) BpModule
 
 	// Create a structure into which variant specific properties can be added.
 	CreateVariantPropertiesStruct() SdkMemberProperties
@@ -385,7 +385,7 @@ func (b *SdkMemberTypeBase) BuildSnapshot(sdkModuleContext ModuleContext, builde
 	panic("override AddPrebuiltModule")
 }
 
-func (b *SdkMemberTypeBase) AddPrebuiltModule(sdkModuleContext ModuleContext, builder SnapshotBuilder, member SdkMember) BpModule {
+func (b *SdkMemberTypeBase) AddPrebuiltModule(ctx SdkMemberContext, member SdkMember) BpModule {
 	// Returning nil causes the legacy BuildSnapshot method to be used.
 	return nil
 }
@@ -500,9 +500,19 @@ type SdkMemberProperties interface {
 	// Access the base structure.
 	Base() *SdkMemberPropertiesBase
 
-	// Populate the structure with information from the variant.
-	PopulateFromVariant(variant SdkAware)
+	// Populate this structure with information from the variant.
+	PopulateFromVariant(ctx SdkMemberContext, variant Module)
 
-	// Add the information from the structure to the property set.
-	AddToPropertySet(sdkModuleContext ModuleContext, builder SnapshotBuilder, propertySet BpPropertySet)
+	// Add the information from this structure to the property set.
+	AddToPropertySet(ctx SdkMemberContext, propertySet BpPropertySet)
+}
+
+// Provides access to information common to a specific member.
+type SdkMemberContext interface {
+
+	// The module context of the sdk common os variant which is creating the snapshot.
+	SdkModuleContext() ModuleContext
+
+	// The builder of the snapshot.
+	SnapshotBuilder() SnapshotBuilder
 }
