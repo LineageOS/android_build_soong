@@ -39,3 +39,24 @@ func TestLibraryHeaders(t *testing.T) {
 		t.Errorf("cflags for libsystem must contain -Imy_include, but was %#v.", cflags)
 	}
 }
+
+func TestPrebuiltLibraryHeaders(t *testing.T) {
+	ctx := testCc(t, `
+	cc_prebuilt_library_headers {
+		name: "headers",
+		export_include_dirs: ["my_include"],
+	}
+	cc_library_static {
+		name: "lib",
+		srcs: ["foo.c"],
+		header_libs: ["headers"],
+	}
+	`)
+
+	// test if header search paths are correctly added
+	cc := ctx.ModuleForTests("lib", "android_arm64_armv8-a_static").Rule("cc")
+	cflags := cc.Args["cFlags"]
+	if !strings.Contains(cflags, " -Imy_include ") {
+		t.Errorf("cflags for libsystem must contain -Imy_include, but was %#v.", cflags)
+	}
+}
