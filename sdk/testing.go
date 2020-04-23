@@ -40,7 +40,7 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 			name: "myapex.cert",
 			certificate: "myapex",
 		}
-	` + cc.GatherRequiredDepsForTest(android.Android)
+	` + cc.GatherRequiredDepsForTest(android.Android, android.Windows)
 
 	mockFS := map[string][]byte{
 		"build/make/target/product/security":         nil,

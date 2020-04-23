@@ -596,7 +596,7 @@ var BuildOs = func() OsType {
 }()
 
 var (
-	osTypeList      []OsType
+	OsTypeList      []OsType
 	commonTargetMap = make(map[string]Target)
 
 	NoOsType    OsType
@@ -672,7 +672,7 @@ func NewOsType(name string, class OsClass, defDisabled bool) OsType {
 
 		DefaultDisabled: defDisabled,
 	}
-	osTypeList = append(osTypeList, os)
+	OsTypeList = append(OsTypeList, os)
 
 	if _, found := commonTargetMap[name]; found {
 		panic(fmt.Errorf("Found Os type duplicate during OsType registration: %q", name))
@@ -684,7 +684,7 @@ func NewOsType(name string, class OsClass, defDisabled bool) OsType {
 }
 
 func osByName(name string) OsType {
-	for _, os := range osTypeList {
+	for _, os := range OsTypeList {
 		if os.Name == name {
 			return os
 		}
@@ -750,7 +750,7 @@ func osMutator(mctx BottomUpMutatorContext) {
 
 	var moduleOSList []OsType
 
-	for _, os := range osTypeList {
+	for _, os := range OsTypeList {
 		supportedClass := false
 		for _, osClass := range osClasses {
 			if os.Class == osClass {
@@ -1071,7 +1071,7 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 			"Arm_on_x86",
 			"Arm_on_x86_64",
 		}
-		for _, os := range osTypeList {
+		for _, os := range OsTypeList {
 			targets = append(targets, os.Field)
 
 			for _, archType := range osArchTypeMap[os] {
