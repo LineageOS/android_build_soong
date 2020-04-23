@@ -122,7 +122,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"crtbegin_dynamic1",
 		"crtbegin_so1",
 		"crtbrand",
-		"conscrypt.module.intra.core.api.stubs",
 		"dex2oat_headers",
 		"dt_fd_forward_export",
 		"icu4c_extra_headers",
