@@ -840,3 +840,108 @@ include/Test.h -> include/include/Test.h
 `),
 	)
 }
+
+func TestSnapshotWithCcHeadersLibrary(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_header_libs: ["mynativeheaders"],
+		}
+
+		cc_library_headers {
+			name: "mynativeheaders",
+			export_include_dirs: ["include"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "android_common", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_headers {
+    name: "mysdk_mynativeheaders@current",
+    sdk_member_name: "mynativeheaders",
+    export_include_dirs: ["include/include"],
+    stl: "none",
+    system_shared_libs: [],
+}
+
+cc_prebuilt_library_headers {
+    name: "mynativeheaders",
+    prefer: false,
+    export_include_dirs: ["include/include"],
+    stl: "none",
+    system_shared_libs: [],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    native_header_libs: ["mysdk_mynativeheaders@current"],
+}
+`),
+		checkAllCopyRules(`
+include/Test.h -> include/include/Test.h
+`),
+	)
+}
+
+func TestHostSnapshotWithCcHeadersLibrary(t *testing.T) {
+	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
+	SkipIfNotLinux(t)
+
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			device_supported: false,
+			host_supported: true,
+			native_header_libs: ["mynativeheaders"],
+		}
+
+		cc_library_headers {
+			name: "mynativeheaders",
+			device_supported: false,
+			host_supported: true,
+			export_include_dirs: ["include"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "linux_glibc_common", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_headers {
+    name: "mysdk_mynativeheaders@current",
+    sdk_member_name: "mynativeheaders",
+    device_supported: false,
+    host_supported: true,
+    export_include_dirs: ["include/include"],
+    stl: "none",
+    system_shared_libs: [],
+}
+
+cc_prebuilt_library_headers {
+    name: "mynativeheaders",
+    prefer: false,
+    device_supported: false,
+    host_supported: true,
+    export_include_dirs: ["include/include"],
+    stl: "none",
+    system_shared_libs: [],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    device_supported: false,
+    host_supported: true,
+    native_header_libs: ["mysdk_mynativeheaders@current"],
+}
+`),
+		checkAllCopyRules(`
+include/Test.h -> include/include/Test.h
+`),
+	)
+}
