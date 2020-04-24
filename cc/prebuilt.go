@@ -23,6 +23,7 @@ func init() {
 }
 
 func RegisterPrebuiltBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("cc_prebuilt_library", PrebuiltLibraryFactory)
 	ctx.RegisterModuleType("cc_prebuilt_library_shared", PrebuiltSharedLibraryFactory)
 	ctx.RegisterModuleType("cc_prebuilt_library_static", PrebuiltStaticLibraryFactory)
 	ctx.RegisterModuleType("cc_prebuilt_binary", prebuiltBinaryFactory)
@@ -87,18 +88,25 @@ func (p *prebuiltLibraryLinker) linkerProps() []interface{} {
 
 func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
-	// TODO(ccross): verify shared library dependencies
-	if len(p.properties.Srcs) > 0 {
-		p.libraryDecorator.exportIncludes(ctx)
-		p.libraryDecorator.reexportDirs(deps.ReexportedDirs...)
-		p.libraryDecorator.reexportSystemDirs(deps.ReexportedSystemDirs...)
-		p.libraryDecorator.reexportFlags(deps.ReexportedFlags...)
-		p.libraryDecorator.reexportDeps(deps.ReexportedDeps...)
-		p.libraryDecorator.addExportedGeneratedHeaders(deps.ReexportedGeneratedHeaders...)
 
+	p.libraryDecorator.exportIncludes(ctx)
+	p.libraryDecorator.reexportDirs(deps.ReexportedDirs...)
+	p.libraryDecorator.reexportSystemDirs(deps.ReexportedSystemDirs...)
+	p.libraryDecorator.reexportFlags(deps.ReexportedFlags...)
+	p.libraryDecorator.reexportDeps(deps.ReexportedDeps...)
+	p.libraryDecorator.addExportedGeneratedHeaders(deps.ReexportedGeneratedHeaders...)
+
+	// TODO(ccross): verify shared library dependencies
+	srcs := p.prebuiltSrcs()
+	if len(srcs) > 0 {
 		builderFlags := flagsToBuilderFlags(flags)
 
-		in := p.Prebuilt.SingleSourcePath(ctx)
+		if len(srcs) > 1 {
+			ctx.PropertyErrorf("srcs", "multiple prebuilt source files")
+			return nil
+		}
+
+		in := android.PathForModuleSrc(ctx, srcs[0])
 
 		if p.shared() {
 			p.unstrippedOutputFile = in
@@ -120,6 +128,18 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 	}
 
 	return nil
+}
+
+func (p *prebuiltLibraryLinker) prebuiltSrcs() []string {
+	srcs := p.properties.Srcs
+	if p.static() {
+		srcs = append(srcs, p.libraryDecorator.StaticProperties.Static.Srcs...)
+	}
+	if p.shared() {
+		srcs = append(srcs, p.libraryDecorator.SharedProperties.Shared.Srcs...)
+	}
+
+	return srcs
 }
 
 func (p *prebuiltLibraryLinker) shared() bool {
@@ -150,11 +170,26 @@ func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDec
 
 	module.AddProperties(&prebuilt.properties)
 
-	android.InitPrebuiltModule(module, &prebuilt.properties.Srcs)
+	srcsSupplier := func() []string {
+		return prebuilt.prebuiltSrcs()
+	}
+
+	android.InitPrebuiltModuleWithSrcSupplier(module, srcsSupplier, "srcs")
 
 	// Prebuilt libraries can be used in SDKs.
 	android.InitSdkAwareModule(module)
 	return module, library
+}
+
+// cc_prebuilt_library installs a precompiled shared library that are
+// listed in the srcs property in the device's directory.
+func PrebuiltLibraryFactory() android.Module {
+	module, _ := NewPrebuiltLibrary(android.HostAndDeviceSupported)
+
+	// Prebuilt shared libraries can be included in APEXes
+	android.InitApexModule(module)
+
+	return module.Init()
 }
 
 // cc_prebuilt_library_shared installs a precompiled shared library that are

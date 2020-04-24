@@ -242,18 +242,28 @@ func (mt *systemModulesSdkMemberType) IsInstance(module android.Module) bool {
 	return false
 }
 
-func (mt *systemModulesSdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	variants := member.Variants()
-	if len(variants) != 1 {
-		sdkModuleContext.ModuleErrorf("sdk contains %d variants of member %q but only one is allowed", len(variants), member.Name())
-		for _, variant := range variants {
-			sdkModuleContext.ModuleErrorf("    %q", variant)
-		}
-	}
-	variant := variants[0]
-	systemModule := variant.(*SystemModules)
+func (mt *systemModulesSdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "java_system_modules_import")
+}
 
-	pbm := builder.AddPrebuiltModule(member, "java_system_modules_import")
-	// Add the references to the libraries that form the system module.
-	pbm.AddPropertyWithTag("libs", systemModule.properties.Libs, builder.SdkMemberReferencePropertyTag())
+type systemModulesInfoProperties struct {
+	android.SdkMemberPropertiesBase
+
+	Libs []string
+}
+
+func (mt *systemModulesSdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &systemModulesInfoProperties{}
+}
+
+func (p *systemModulesInfoProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
+	systemModule := variant.(*SystemModules)
+	p.Libs = systemModule.properties.Libs
+}
+
+func (p *systemModulesInfoProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	if len(p.Libs) > 0 {
+		// Add the references to the libraries that form the system module.
+		propertySet.AddPropertyWithTag("libs", p.Libs, ctx.SnapshotBuilder().SdkMemberReferencePropertyTag(true))
+	}
 }

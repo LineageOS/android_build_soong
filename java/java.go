@@ -39,11 +39,17 @@ func init() {
 	// Register sdk member types.
 	android.RegisterSdkMemberType(javaHeaderLibsSdkMemberType)
 
-	android.RegisterSdkMemberType(&implLibrarySdkMemberType{
-		librarySdkMemberType{
-			android.SdkMemberTypeBase{
-				PropertyName: "java_libs",
-			},
+	android.RegisterSdkMemberType(&librarySdkMemberType{
+		android.SdkMemberTypeBase{
+			PropertyName: "java_libs",
+		},
+		func(j *Library) android.Path {
+			implementationJars := j.ImplementationJars()
+			if len(implementationJars) != 1 {
+				panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
+			}
+
+			return implementationJars[0]
 		},
 	})
 
@@ -1758,11 +1764,6 @@ func (j *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 	if staticLibTag == ctx.OtherModuleDependencyTag(dep) {
 		return true
 	}
-	// Also, a dependency to an sdk member is also considered as such. This is required because
-	// sdk members should be mutated into APEXes. Refer to sdk.sdkDepsReplaceMutator.
-	if sa, ok := dep.(android.SdkAware); ok && sa.IsInAnySdk() {
-		return true
-	}
 	return false
 }
 
@@ -1860,16 +1861,20 @@ const (
 )
 
 // path to the jar file of a java library. Relative to <sdk_root>/<api_dir>
-func sdkSnapshotFilePathForJar(member android.SdkMember) string {
-	return sdkSnapshotFilePathForMember(member, jarFileSuffix)
+func sdkSnapshotFilePathForJar(osPrefix, name string) string {
+	return sdkSnapshotFilePathForMember(osPrefix, name, jarFileSuffix)
 }
 
-func sdkSnapshotFilePathForMember(member android.SdkMember, suffix string) string {
-	return filepath.Join(javaDir, member.Name()+suffix)
+func sdkSnapshotFilePathForMember(osPrefix, name string, suffix string) string {
+	return filepath.Join(javaDir, osPrefix, name+suffix)
 }
 
 type librarySdkMemberType struct {
 	android.SdkMemberTypeBase
+
+	// Function to retrieve the appropriate output jar (implementation or header) from
+	// the library.
+	jarToExportGetter func(j *Library) android.Path
 }
 
 func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
@@ -1881,75 +1886,67 @@ func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *librarySdkMemberType) buildSnapshot(
-	sdkModuleContext android.ModuleContext,
-	builder android.SnapshotBuilder,
-	member android.SdkMember,
-	jarToExportGetter func(j *Library) android.Path) {
+func (mt *librarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "java_import")
+}
 
-	variants := member.Variants()
-	if len(variants) != 1 {
-		sdkModuleContext.ModuleErrorf("sdk contains %d variants of member %q but only one is allowed", len(variants), member.Name())
-		for _, variant := range variants {
-			sdkModuleContext.ModuleErrorf("    %q", variant)
-		}
-	}
-	variant := variants[0]
+func (mt *librarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &librarySdkMemberProperties{}
+}
+
+type librarySdkMemberProperties struct {
+	android.SdkMemberPropertiesBase
+
+	JarToExport     android.Path
+	AidlIncludeDirs android.Paths
+}
+
+func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	j := variant.(*Library)
 
-	exportedJar := jarToExportGetter(j)
-	snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(member)
-	builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
+	p.JarToExport = ctx.MemberType().(*librarySdkMemberType).jarToExportGetter(j)
+	p.AidlIncludeDirs = j.AidlIncludeDirs()
+}
 
-	for _, dir := range j.AidlIncludeDirs() {
-		// TODO(jiyong): copy parcelable declarations only
-		aidlFiles, _ := sdkModuleContext.GlobWithDeps(dir.String()+"/**/*.aidl", nil)
-		for _, file := range aidlFiles {
-			builder.CopyToSnapshot(android.PathForSource(sdkModuleContext, file), filepath.Join(aidlIncludeDir, file))
-		}
+func (p *librarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	builder := ctx.SnapshotBuilder()
+
+	exportedJar := p.JarToExport
+	if exportedJar != nil {
+		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), ctx.Name())
+		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
+
+		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
 	}
 
-	module := builder.AddPrebuiltModule(member, "java_import")
-	module.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+	aidlIncludeDirs := p.AidlIncludeDirs
+	if len(aidlIncludeDirs) != 0 {
+		sdkModuleContext := ctx.SdkModuleContext()
+		for _, dir := range aidlIncludeDirs {
+			// TODO(jiyong): copy parcelable declarations only
+			aidlFiles, _ := sdkModuleContext.GlobWithDeps(dir.String()+"/**/*.aidl", nil)
+			for _, file := range aidlFiles {
+				builder.CopyToSnapshot(android.PathForSource(sdkModuleContext, file), filepath.Join(aidlIncludeDir, file))
+			}
+		}
+
+		// TODO(b/151933053) - add aidl include dirs property
+	}
 }
 
-var javaHeaderLibsSdkMemberType android.SdkMemberType = &headerLibrarySdkMemberType{
-	librarySdkMemberType{
-		android.SdkMemberTypeBase{
-			PropertyName: "java_header_libs",
-			SupportsSdk:  true,
-		},
+var javaHeaderLibsSdkMemberType android.SdkMemberType = &librarySdkMemberType{
+	android.SdkMemberTypeBase{
+		PropertyName: "java_header_libs",
+		SupportsSdk:  true,
 	},
-}
-
-type headerLibrarySdkMemberType struct {
-	librarySdkMemberType
-}
-
-func (mt *headerLibrarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	mt.librarySdkMemberType.buildSnapshot(sdkModuleContext, builder, member, func(j *Library) android.Path {
+	func(j *Library) android.Path {
 		headerJars := j.HeaderJars()
 		if len(headerJars) != 1 {
 			panic(fmt.Errorf("there must be only one header jar from %q", j.Name()))
 		}
 
 		return headerJars[0]
-	})
-}
-
-type implLibrarySdkMemberType struct {
-	librarySdkMemberType
-}
-
-func (mt *implLibrarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	mt.librarySdkMemberType.buildSnapshot(sdkModuleContext, builder, member, func(j *Library) android.Path {
-		implementationJars := j.ImplementationJars()
-		if len(implementationJars) != 1 {
-			panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
-		}
-
-		return implementationJars[0]
-	})
+	},
 }
 
 // java_library builds and links sources into a `.jar` file for the device, and possibly for the host as well.
@@ -2100,31 +2097,50 @@ func (mt *testSdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *testSdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	variants := member.Variants()
-	if len(variants) != 1 {
-		sdkModuleContext.ModuleErrorf("sdk contains %d variants of member %q but only one is allowed", len(variants), member.Name())
-		for _, variant := range variants {
-			sdkModuleContext.ModuleErrorf("    %q", variant)
-		}
-	}
-	variant := variants[0]
-	j := variant.(*Test)
+func (mt *testSdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "java_test_import")
+}
 
-	implementationJars := j.ImplementationJars()
+func (mt *testSdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &testSdkMemberProperties{}
+}
+
+type testSdkMemberProperties struct {
+	android.SdkMemberPropertiesBase
+
+	JarToExport android.Path
+	TestConfig  android.Path
+}
+
+func (p *testSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
+	test := variant.(*Test)
+
+	implementationJars := test.ImplementationJars()
 	if len(implementationJars) != 1 {
-		panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
+		panic(fmt.Errorf("there must be only one implementation jar from %q", test.Name()))
 	}
 
-	snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(member)
-	builder.CopyToSnapshot(implementationJars[0], snapshotRelativeJavaLibPath)
+	p.JarToExport = implementationJars[0]
+	p.TestConfig = test.testConfig
+}
 
-	snapshotRelativeTestConfigPath := sdkSnapshotFilePathForMember(member, testConfigSuffix)
-	builder.CopyToSnapshot(j.testConfig, snapshotRelativeTestConfigPath)
+func (p *testSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	builder := ctx.SnapshotBuilder()
 
-	module := builder.AddPrebuiltModule(member, "java_test_import")
-	module.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
-	module.AddProperty("test_config", snapshotRelativeTestConfigPath)
+	exportedJar := p.JarToExport
+	if exportedJar != nil {
+		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), ctx.Name())
+		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
+
+		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+	}
+
+	testConfig := p.TestConfig
+	if testConfig != nil {
+		snapshotRelativeTestConfigPath := sdkSnapshotFilePathForMember(p.OsPrefix(), ctx.Name(), testConfigSuffix)
+		builder.CopyToSnapshot(testConfig, snapshotRelativeTestConfigPath)
+		propertySet.AddProperty("test_config", snapshotRelativeTestConfigPath)
+	}
 }
 
 // java_test builds a and links sources into a `.jar` file for the device, and possibly for the host as well, and
@@ -2327,7 +2343,7 @@ func BinaryHostFactory() android.Module {
 //
 
 type ImportProperties struct {
-	Jars []string `android:"path"`
+	Jars []string `android:"path,arch_variant"`
 
 	Sdk_version *string
 
@@ -2485,11 +2501,6 @@ func (j *Import) SrcJarArgs() ([]string, android.Paths) {
 func (j *Import) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	// dependencies other than the static linkage are all considered crossing APEX boundary
 	if staticLibTag == ctx.OtherModuleDependencyTag(dep) {
-		return true
-	}
-	// Also, a dependency to an sdk member is also considered as such. This is required because
-	// sdk members should be mutated into APEXes. Refer to sdk.sdkDepsReplaceMutator.
-	if sa, ok := dep.(android.SdkAware); ok && sa.IsInAnySdk() {
 		return true
 	}
 	return false

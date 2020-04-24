@@ -16,6 +16,8 @@ package sdk
 
 import (
 	"testing"
+
+	"github.com/google/blueprint/proptools"
 )
 
 // Needed in an _test.go file in this package to ensure tests run correctly, particularly in IDE.
@@ -146,7 +148,7 @@ func TestSnapshotVisibility(t *testing.T) {
 			"package/Android.bp": []byte(packageBp),
 		})
 
-	result.CheckSnapshot("mysdk", "android_common", "package",
+	result.CheckSnapshot("mysdk", "package",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -205,4 +207,123 @@ sdk_snapshot {
     ],
 }
 `))
+}
+
+func TestSDkInstall(t *testing.T) {
+	sdk := `
+		sdk {
+			name: "mysdk",
+		}
+	`
+	result := testSdkWithFs(t, ``,
+		map[string][]byte{
+			"Android.bp": []byte(sdk),
+		})
+
+	result.CheckSnapshot("mysdk", "",
+		checkAllOtherCopyRules(`.intermediates/mysdk/common_os/mysdk-current.zip -> mysdk-current.zip`),
+	)
+}
+
+type EmbeddedPropertiesStruct struct {
+	S_Embedded_Common    string
+	S_Embedded_Different string
+}
+
+type testPropertiesStruct struct {
+	private     string
+	Public_Kept string `sdk:"keep"`
+	S_Common    string
+	S_Different string
+	A_Common    []string
+	A_Different []string
+	F_Common    *bool
+	F_Different *bool
+	EmbeddedPropertiesStruct
+}
+
+func TestCommonValueOptimization(t *testing.T) {
+	common := &testPropertiesStruct{}
+	structs := []*testPropertiesStruct{
+		&testPropertiesStruct{
+			private:     "common",
+			Public_Kept: "common",
+			S_Common:    "common",
+			S_Different: "upper",
+			A_Common:    []string{"first", "second"},
+			A_Different: []string{"alpha", "beta"},
+			F_Common:    proptools.BoolPtr(false),
+			F_Different: proptools.BoolPtr(false),
+			EmbeddedPropertiesStruct: EmbeddedPropertiesStruct{
+				S_Embedded_Common:    "embedded_common",
+				S_Embedded_Different: "embedded_upper",
+			},
+		},
+		&testPropertiesStruct{
+			private:     "common",
+			Public_Kept: "common",
+			S_Common:    "common",
+			S_Different: "lower",
+			A_Common:    []string{"first", "second"},
+			A_Different: []string{"alpha", "delta"},
+			F_Common:    proptools.BoolPtr(false),
+			F_Different: proptools.BoolPtr(true),
+			EmbeddedPropertiesStruct: EmbeddedPropertiesStruct{
+				S_Embedded_Common:    "embedded_common",
+				S_Embedded_Different: "embedded_lower",
+			},
+		},
+	}
+
+	extractor := newCommonValueExtractor(common)
+	extractor.extractCommonProperties(common, structs)
+
+	h := TestHelper{t}
+	h.AssertDeepEquals("common properties not correct", common,
+		&testPropertiesStruct{
+			private:     "",
+			Public_Kept: "",
+			S_Common:    "common",
+			S_Different: "",
+			A_Common:    []string{"first", "second"},
+			A_Different: []string(nil),
+			F_Common:    proptools.BoolPtr(false),
+			F_Different: nil,
+			EmbeddedPropertiesStruct: EmbeddedPropertiesStruct{
+				S_Embedded_Common:    "embedded_common",
+				S_Embedded_Different: "",
+			},
+		})
+
+	h.AssertDeepEquals("updated properties[0] not correct", structs[0],
+		&testPropertiesStruct{
+			private:     "common",
+			Public_Kept: "common",
+			S_Common:    "",
+			S_Different: "upper",
+			A_Common:    nil,
+			A_Different: []string{"alpha", "beta"},
+			F_Common:    nil,
+			F_Different: proptools.BoolPtr(false),
+			EmbeddedPropertiesStruct: EmbeddedPropertiesStruct{
+				S_Embedded_Common:    "",
+				S_Embedded_Different: "embedded_upper",
+			},
+		})
+
+	h.AssertDeepEquals("updated properties[1] not correct", structs[1],
+		&testPropertiesStruct{
+			private:     "common",
+			Public_Kept: "common",
+			S_Common:    "",
+			S_Different: "lower",
+			A_Common:    nil,
+			A_Different: []string{"alpha", "delta"},
+			F_Common:    nil,
+			F_Different: proptools.BoolPtr(true),
+			EmbeddedPropertiesStruct: EmbeddedPropertiesStruct{
+				S_Embedded_Common:    "",
+				S_Embedded_Different: "embedded_lower",
+			},
+		})
 }

@@ -19,6 +19,8 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+
+	"github.com/google/blueprint"
 )
 
 const (
@@ -30,6 +32,14 @@ type ApexInfo struct {
 	ApexName string
 
 	MinSdkVersion int
+}
+
+// Extracted from ApexModule to make it easier to define custom subsets of the
+// ApexModule interface and improve code navigation within the IDE.
+type DepIsInSameApex interface {
+	// DepIsInSameApex tests if the other module 'dep' is installed to the same
+	// APEX as this module
+	DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
 }
 
 // ApexModule is the interface that a module type is expected to implement if
@@ -49,6 +59,8 @@ type ApexInfo struct {
 // respectively.
 type ApexModule interface {
 	Module
+	DepIsInSameApex
+
 	apexModuleBase() *ApexModuleBase
 
 	// Marks that this module should be built for the specified APEXes.
@@ -88,10 +100,6 @@ type ApexModule interface {
 	// Tests if this module is available for the specified APEX or ":platform"
 	AvailableFor(what string) bool
 
-	// DepIsInSameApex tests if the other module 'dep' is installed to the same
-	// APEX as this module
-	DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
-
 	// Returns the highest version which is <= maxSdkVersion.
 	// For example, with maxSdkVersion is 10 and versionList is [9,11]
 	// it returns 9 as string
@@ -111,6 +119,15 @@ type ApexProperties struct {
 	Info ApexInfo `blueprint:"mutated"`
 }
 
+// Marker interface that identifies dependencies that are excluded from APEX
+// contents.
+type ExcludeFromApexContentsTag interface {
+	blueprint.DependencyTag
+
+	// Method that differentiates this interface from others.
+	ExcludeFromApexContents()
+}
+
 // Provides default implementation for the ApexModule interface. APEX-aware
 // modules are expected to include this struct and call InitApexModule().
 type ApexModuleBase struct {
@@ -124,6 +141,10 @@ type ApexModuleBase struct {
 
 func (m *ApexModuleBase) apexModuleBase() *ApexModuleBase {
 	return m
+}
+
+func (m *ApexModuleBase) ApexAvailable() []string {
+	return m.ApexProperties.Apex_available
 }
 
 func (m *ApexModuleBase) BuildForApexes(apexes []ApexInfo) {
@@ -163,7 +184,7 @@ func (m *ApexModuleBase) IsInstallableToApex() bool {
 
 const (
 	AvailableToPlatform = "//apex_available:platform"
-	availableToAnyApex  = "//apex_available:anyapex"
+	AvailableToAnyApex  = "//apex_available:anyapex"
 )
 
 func CheckAvailableForApex(what string, apex_available []string) bool {
@@ -173,7 +194,7 @@ func CheckAvailableForApex(what string, apex_available []string) bool {
 		return what == AvailableToPlatform
 	}
 	return InList(what, apex_available) ||
-		(what != AvailableToPlatform && InList(availableToAnyApex, apex_available))
+		(what != AvailableToPlatform && InList(AvailableToAnyApex, apex_available))
 }
 
 func (m *ApexModuleBase) AvailableFor(what string) bool {
@@ -199,7 +220,7 @@ func (m *ApexModuleBase) ChooseSdkVersion(versionList []string, maxSdkVersion in
 
 func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 	for _, n := range m.ApexProperties.Apex_available {
-		if n == AvailableToPlatform || n == availableToAnyApex {
+		if n == AvailableToPlatform || n == AvailableToAnyApex {
 			continue
 		}
 		if !mctx.OtherModuleExists(n) && !mctx.Config().AllowMissingDependencies() {

@@ -63,49 +63,12 @@ func (mt *binarySdkMemberType) IsInstance(module android.Module) bool {
 	return false
 }
 
-func (mt *binarySdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	info := mt.organizeVariants(member)
-	buildSharedNativeBinarySnapshot(info, builder, member)
+func (mt *binarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "cc_prebuilt_binary")
 }
 
-// Organize the variants by architecture.
-func (mt *binarySdkMemberType) organizeVariants(member android.SdkMember) *nativeBinaryInfo {
-	memberName := member.Name()
-	info := &nativeBinaryInfo{
-		name:       memberName,
-		memberType: mt,
-	}
-
-	for _, variant := range member.Variants() {
-		ccModule := variant.(*Module)
-
-		info.archVariantProperties = append(info.archVariantProperties, nativeBinaryInfoProperties{
-			name:       memberName,
-			archType:   ccModule.Target().Arch.ArchType.String(),
-			outputFile: ccModule.OutputFile().Path(),
-		})
-	}
-
-	// Initialize the unexported properties that will not be set during the
-	// extraction process.
-	info.commonProperties.name = memberName
-
-	// Extract common properties from the arch specific properties.
-	extractCommonProperties(&info.commonProperties, info.archVariantProperties)
-
-	return info
-}
-
-func buildSharedNativeBinarySnapshot(info *nativeBinaryInfo, builder android.SnapshotBuilder, member android.SdkMember) {
-	pbm := builder.AddPrebuiltModule(member, "cc_prebuilt_binary")
-	pbm.AddProperty("compile_multilib", "both")
-	archProperties := pbm.AddPropertySet("arch")
-	for _, av := range info.archVariantProperties {
-		archTypeProperties := archProperties.AddPropertySet(av.archType)
-		archTypeProperties.AddProperty("srcs", []string{nativeBinaryPathFor(av)})
-
-		builder.CopyToSnapshot(av.outputFile, nativeBinaryPathFor(av))
-	}
+func (mt *binarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &nativeBinaryInfoProperties{}
 }
 
 const (
@@ -114,7 +77,7 @@ const (
 
 // path to the native binary. Relative to <sdk_root>/<api_dir>
 func nativeBinaryPathFor(lib nativeBinaryInfoProperties) string {
-	return filepath.Join(lib.archType,
+	return filepath.Join(lib.OsPrefix(), lib.archType,
 		nativeBinaryDir, lib.outputFile.Base())
 }
 
@@ -123,8 +86,7 @@ func nativeBinaryPathFor(lib nativeBinaryInfoProperties) string {
 // The exported (capitalized) fields will be examined and may be changed during common value extraction.
 // The unexported fields will be left untouched.
 type nativeBinaryInfoProperties struct {
-	// The name of the library, is not exported as this must not be changed during optimization.
-	name string
+	android.SdkMemberPropertiesBase
 
 	// archType is not exported as if set (to a non default value) it is always arch specific.
 	// This is "" for common properties.
@@ -132,12 +94,50 @@ type nativeBinaryInfoProperties struct {
 
 	// outputFile is not exported as it is always arch specific.
 	outputFile android.Path
+
+	// The set of shared libraries
+	//
+	// This field is exported as its contents may not be arch specific.
+	SharedLibs []string
+
+	// The set of system shared libraries
+	//
+	// This field is exported as its contents may not be arch specific.
+	SystemSharedLibs []string
 }
 
-// nativeBinaryInfo represents a collection of arch-specific modules having the same name
-type nativeBinaryInfo struct {
-	name                  string
-	memberType            *binarySdkMemberType
-	archVariantProperties []nativeBinaryInfoProperties
-	commonProperties      nativeBinaryInfoProperties
+func (p *nativeBinaryInfoProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
+	ccModule := variant.(*Module)
+
+	p.archType = ccModule.Target().Arch.ArchType.String()
+	p.outputFile = ccModule.OutputFile().Path()
+
+	if ccModule.linker != nil {
+		specifiedDeps := specifiedDeps{}
+		specifiedDeps = ccModule.linker.linkerSpecifiedDeps(specifiedDeps)
+
+		p.SharedLibs = specifiedDeps.sharedLibs
+		p.SystemSharedLibs = specifiedDeps.systemSharedLibs
+	}
+}
+
+func (p *nativeBinaryInfoProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	if p.Compile_multilib != "" {
+		propertySet.AddProperty("compile_multilib", p.Compile_multilib)
+	}
+
+	builder := ctx.SnapshotBuilder()
+	if p.outputFile != nil {
+		propertySet.AddProperty("srcs", []string{nativeBinaryPathFor(*p)})
+
+		builder.CopyToSnapshot(p.outputFile, nativeBinaryPathFor(*p))
+	}
+
+	if len(p.SharedLibs) > 0 {
+		propertySet.AddPropertyWithTag("shared_libs", p.SharedLibs, builder.SdkMemberReferencePropertyTag(false))
+	}
+
+	if len(p.SystemSharedLibs) > 0 {
+		propertySet.AddPropertyWithTag("system_shared_libs", p.SystemSharedLibs, builder.SdkMemberReferencePropertyTag(false))
+	}
 }

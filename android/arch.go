@@ -596,7 +596,7 @@ var BuildOs = func() OsType {
 }()
 
 var (
-	osTypeList      []OsType
+	OsTypeList      []OsType
 	commonTargetMap = make(map[string]Target)
 
 	NoOsType    OsType
@@ -606,6 +606,10 @@ var (
 	Windows     = NewOsType("windows", HostCross, true)
 	Android     = NewOsType("android", Device, false)
 	Fuchsia     = NewOsType("fuchsia", Device, false)
+
+	// A pseudo OSType for a common os variant, which is OSType agnostic and which
+	// has dependencies on all the OS variants.
+	CommonOS = NewOsType("common_os", Generic, false)
 
 	osArchTypeMap = map[OsType][]ArchType{
 		Linux:       []ArchType{X86, X86_64},
@@ -668,7 +672,7 @@ func NewOsType(name string, class OsClass, defDisabled bool) OsType {
 
 		DefaultDisabled: defDisabled,
 	}
-	osTypeList = append(osTypeList, os)
+	OsTypeList = append(OsTypeList, os)
 
 	if _, found := commonTargetMap[name]; found {
 		panic(fmt.Errorf("Found Os type duplicate during OsType registration: %q", name))
@@ -680,7 +684,7 @@ func NewOsType(name string, class OsClass, defDisabled bool) OsType {
 }
 
 func osByName(name string) OsType {
-	for _, os := range osTypeList {
+	for _, os := range OsTypeList {
 		if os.Name == name {
 			return os
 		}
@@ -746,7 +750,7 @@ func osMutator(mctx BottomUpMutatorContext) {
 
 	var moduleOSList []OsType
 
-	for _, os := range osTypeList {
+	for _, os := range OsTypeList {
 		supportedClass := false
 		for _, osClass := range osClasses {
 			if os.Class == osClass {
@@ -775,12 +779,64 @@ func osMutator(mctx BottomUpMutatorContext) {
 		osNames[i] = os.String()
 	}
 
-	modules := mctx.CreateVariations(osNames...)
-	for i, m := range modules {
-		m.(Module).base().commonProperties.CompileOS = moduleOSList[i]
-		m.(Module).base().setOSProperties(mctx)
+	createCommonOSVariant := base.commonProperties.CreateCommonOSVariant
+	if createCommonOSVariant {
+		// A CommonOS variant was requested so add it to the list of OS's variants to
+		// create. It needs to be added to the end because it needs to depend on the
+		// the other variants in the list returned by CreateVariations(...) and inter
+		// variant dependencies can only be created from a later variant in that list to
+		// an earlier one. That is because variants are always processed in the order in
+		// which they are returned from CreateVariations(...).
+		osNames = append(osNames, CommonOS.Name)
+		moduleOSList = append(moduleOSList, CommonOS)
 	}
 
+	modules := mctx.CreateVariations(osNames...)
+	for i, m := range modules {
+		m.base().commonProperties.CompileOS = moduleOSList[i]
+		m.base().setOSProperties(mctx)
+	}
+
+	if createCommonOSVariant {
+		// A CommonOS variant was requested so add dependencies from it (the last one in
+		// the list) to the OS type specific variants.
+		last := len(modules) - 1
+		commonOSVariant := modules[last]
+		commonOSVariant.base().commonProperties.CommonOSVariant = true
+		for _, module := range modules[0:last] {
+			// Ignore modules that are enabled. Note, this will only avoid adding
+			// dependencies on OsType variants that are explicitly disabled in their
+			// properties. The CommonOS variant will still depend on disabled variants
+			// if they are disabled afterwards, e.g. in archMutator if
+			if module.Enabled() {
+				mctx.AddInterVariantDependency(commonOsToOsSpecificVariantTag, commonOSVariant, module)
+			}
+		}
+	}
+}
+
+// Identifies the dependency from CommonOS variant to the os specific variants.
+type commonOSTag struct{ blueprint.BaseDependencyTag }
+
+var commonOsToOsSpecificVariantTag = commonOSTag{}
+
+// Get the OsType specific variants for the current CommonOS variant.
+//
+// The returned list will only contain enabled OsType specific variants of the
+// module referenced in the supplied context. An empty list is returned if there
+// are no enabled variants or the supplied context is not for an CommonOS
+// variant.
+func GetOsSpecificVariantsOfCommonOSVariant(mctx BaseModuleContext) []Module {
+	var variants []Module
+	mctx.VisitDirectDeps(func(m Module) {
+		if mctx.OtherModuleDependencyTag(m) == commonOsToOsSpecificVariantTag {
+			if m.Enabled() {
+				variants = append(variants, m)
+			}
+		}
+	})
+
+	return variants
 }
 
 // archMutator splits a module into a variant for each Target requested by the module.  Target selection
@@ -821,6 +877,15 @@ func archMutator(mctx BottomUpMutatorContext) {
 	}
 
 	os := base.commonProperties.CompileOS
+	if os == CommonOS {
+		// Make sure that the target related properties are initialized for the
+		// CommonOS variant.
+		addTargetProperties(module, commonTargetMap[os.Name], nil, true)
+
+		// Do not create arch specific variants for the CommonOS variant.
+		return
+	}
+
 	osTargets := mctx.Config().Targets[os]
 	image := base.commonProperties.ImageVariation
 	// Filter NativeBridge targets unless they are explicitly supported
@@ -881,13 +946,15 @@ func archMutator(mctx BottomUpMutatorContext) {
 
 	modules := mctx.CreateVariations(targetNames...)
 	for i, m := range modules {
-		m.(Module).base().commonProperties.CompileTarget = targets[i]
-		m.(Module).base().commonProperties.CompileMultiTargets = multiTargets
-		if i == 0 {
-			m.(Module).base().commonProperties.CompilePrimary = true
-		}
+		addTargetProperties(m, targets[i], multiTargets, i == 0)
 		m.(Module).base().setArchProperties(mctx)
 	}
+}
+
+func addTargetProperties(m Module, target Target, multiTargets []Target, primaryTarget bool) {
+	m.base().commonProperties.CompileTarget = target
+	m.base().commonProperties.CompileMultiTargets = multiTargets
+	m.base().commonProperties.CompilePrimary = primaryTarget
 }
 
 func decodeMultilib(base *ModuleBase, class OsClass) (multilib, extraMultilib string) {
@@ -1004,7 +1071,7 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 			"Arm_on_x86",
 			"Arm_on_x86_64",
 		}
-		for _, os := range osTypeList {
+		for _, os := range OsTypeList {
 			targets = append(targets, os.Field)
 
 			for _, archType := range osArchTypeMap[os] {
@@ -1711,6 +1778,8 @@ func filterMultilibTargets(targets []Target, multilib string) []Target {
 	return ret
 }
 
+// Return the set of Os specific common architecture targets for each Os in a list of
+// targets.
 func getCommonTargets(targets []Target) []Target {
 	var ret []Target
 	set := make(map[string]bool)

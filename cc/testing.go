@@ -25,6 +25,7 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterCCBuildComponents(ctx)
 	RegisterBinaryBuildComponents(ctx)
 	RegisterLibraryBuildComponents(ctx)
+	RegisterLibraryHeadersBuildComponents(ctx)
 
 	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
 	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
@@ -33,7 +34,7 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
 }
 
-func GatherRequiredDepsForTest(os android.OsType) string {
+func GatherRequiredDepsForTest(oses ...android.OsType) string {
 	ret := `
 		toolchain_library {
 			name: "libatomic",
@@ -379,8 +380,9 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 		}
 	`
 
-	if os == android.Fuchsia {
-		ret += `
+	for _, os := range oses {
+		if os == android.Fuchsia {
+			ret += `
 		cc_library {
 			name: "libbioniccompat",
 			stl: "none",
@@ -390,6 +392,22 @@ func GatherRequiredDepsForTest(os android.OsType) string {
 			stl: "none",
 		}
 		`
+		}
+		if os == android.Windows {
+			ret += `
+		toolchain_library {
+			name: "libwinpthread",
+			host_supported: true,
+			enabled: false,
+			target: {
+				windows: {
+					enabled: true,
+				},
+			},
+			src: "",
+		}
+		`
+		}
 	}
 	return ret
 }

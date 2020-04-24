@@ -177,36 +177,14 @@ type DroiddocProperties struct {
 	// filegroup or genrule can be included within this property.
 	Knowntags []string `android:"path"`
 
-	// the tag name used to distinguish if the API files belong to public/system/test.
-	Api_tag_name *string
-
 	// the generated public API filename by Doclava.
 	Api_filename *string
-
-	// the generated public Dex API filename by Doclava.
-	Dex_api_filename *string
-
-	// the generated private API filename by Doclava.
-	Private_api_filename *string
-
-	// the generated private Dex API filename by Doclava.
-	Private_dex_api_filename *string
 
 	// the generated removed API filename by Doclava.
 	Removed_api_filename *string
 
 	// the generated removed Dex API filename by Doclava.
 	Removed_dex_api_filename *string
-
-	// mapping of dex signatures to source file and line number. This is a temporary property and
-	// will be deleted; you probably shouldn't be using it.
-	Dex_mapping_filename *string
-
-	// the generated exact API filename by Doclava.
-	Exact_api_filename *string
-
-	// the generated proguard filename by Doclava.
-	Proguard_filename *string
 
 	// if set to false, don't allow droiddoc to generate stubs source files. Defaults to true.
 	Create_stubs *bool
@@ -229,36 +207,14 @@ type DroiddocProperties struct {
 }
 
 type DroidstubsProperties struct {
-	// the tag name used to distinguish if the API files belong to public/system/test.
-	Api_tag_name *string
-
 	// the generated public API filename by Metalava.
 	Api_filename *string
-
-	// the generated public Dex API filename by Metalava.
-	Dex_api_filename *string
-
-	// the generated private API filename by Metalava.
-	Private_api_filename *string
-
-	// the generated private Dex API filename by Metalava.
-	Private_dex_api_filename *string
 
 	// the generated removed API filename by Metalava.
 	Removed_api_filename *string
 
 	// the generated removed Dex API filename by Metalava.
 	Removed_dex_api_filename *string
-
-	// mapping of dex signatures to source file and line number. This is a temporary property and
-	// will be deleted; you probably shouldn't be using it.
-	Dex_mapping_filename *string
-
-	// the generated exact API filename by Metalava.
-	Exact_api_filename *string
-
-	// the generated proguard filename by Metalava.
-	Proguard_filename *string
 
 	Check_api struct {
 		Last_released ApiToCheck
@@ -300,6 +256,11 @@ type DroidstubsProperties struct {
 
 	// if set to true, allow Metalava to generate doc_stubs source files. Defaults to false.
 	Create_doc_stubs *bool
+
+	// if set to false then do not write out stubs. Defaults to true.
+	//
+	// TODO(b/146727827): Remove capability when we do not need to generate stubs and API separately.
+	Generate_stubs *bool
 
 	// is set to true, Metalava will allow framework SDK to contain API levels annotations.
 	Api_levels_annotations_enabled *bool
@@ -718,14 +679,9 @@ type Droiddoc struct {
 
 	properties        DroiddocProperties
 	apiFile           android.WritablePath
-	dexApiFile        android.WritablePath
 	privateApiFile    android.WritablePath
-	privateDexApiFile android.WritablePath
 	removedApiFile    android.WritablePath
 	removedDexApiFile android.WritablePath
-	exactApiFile      android.WritablePath
-	apiMappingFile    android.WritablePath
-	proguardFile      android.WritablePath
 
 	checkCurrentApiTimestamp      android.WritablePath
 	updateCurrentApiTimestamp     android.WritablePath
@@ -863,39 +819,9 @@ func (d *Droiddoc) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilde
 		cmd.FlagWithOutput("-removedApi ", d.removedApiFile)
 	}
 
-	if String(d.properties.Private_api_filename) != "" {
-		d.privateApiFile = android.PathForModuleOut(ctx, String(d.properties.Private_api_filename))
-		cmd.FlagWithOutput("-privateApi ", d.privateApiFile)
-	}
-
-	if String(d.properties.Dex_api_filename) != "" {
-		d.dexApiFile = android.PathForModuleOut(ctx, String(d.properties.Dex_api_filename))
-		cmd.FlagWithOutput("-dexApi ", d.dexApiFile)
-	}
-
-	if String(d.properties.Private_dex_api_filename) != "" {
-		d.privateDexApiFile = android.PathForModuleOut(ctx, String(d.properties.Private_dex_api_filename))
-		cmd.FlagWithOutput("-privateDexApi ", d.privateDexApiFile)
-	}
-
 	if String(d.properties.Removed_dex_api_filename) != "" {
 		d.removedDexApiFile = android.PathForModuleOut(ctx, String(d.properties.Removed_dex_api_filename))
 		cmd.FlagWithOutput("-removedDexApi ", d.removedDexApiFile)
-	}
-
-	if String(d.properties.Exact_api_filename) != "" {
-		d.exactApiFile = android.PathForModuleOut(ctx, String(d.properties.Exact_api_filename))
-		cmd.FlagWithOutput("-exactApi ", d.exactApiFile)
-	}
-
-	if String(d.properties.Dex_mapping_filename) != "" {
-		d.apiMappingFile = android.PathForModuleOut(ctx, String(d.properties.Dex_mapping_filename))
-		cmd.FlagWithOutput("-apiMapping ", d.apiMappingFile)
-	}
-
-	if String(d.properties.Proguard_filename) != "" {
-		d.proguardFile = android.PathForModuleOut(ctx, String(d.properties.Proguard_filename))
-		cmd.FlagWithOutput("-proguard ", d.proguardFile)
 	}
 
 	if BoolDefault(d.properties.Create_stubs, true) {
@@ -1197,14 +1123,9 @@ type Droidstubs struct {
 	apiFile                 android.WritablePath
 	apiXmlFile              android.WritablePath
 	lastReleasedApiXmlFile  android.WritablePath
-	dexApiFile              android.WritablePath
 	privateApiFile          android.WritablePath
-	privateDexApiFile       android.WritablePath
 	removedApiFile          android.WritablePath
 	removedDexApiFile       android.WritablePath
-	apiMappingFile          android.WritablePath
-	exactApiFile            android.WritablePath
-	proguardFile            android.WritablePath
 	nullabilityWarningsFile android.WritablePath
 
 	checkCurrentApiTimestamp      android.WritablePath
@@ -1285,7 +1206,7 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsDir android.WritablePath) {
+func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsDir android.OptionalPath) {
 	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
 		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
 		String(d.properties.Api_filename) != "" {
@@ -1301,39 +1222,9 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 		cmd.FlagWithOutput("--removed-api ", d.removedApiFile)
 	}
 
-	if String(d.properties.Private_api_filename) != "" {
-		d.privateApiFile = android.PathForModuleOut(ctx, String(d.properties.Private_api_filename))
-		cmd.FlagWithOutput("--private-api ", d.privateApiFile)
-	}
-
-	if String(d.properties.Dex_api_filename) != "" {
-		d.dexApiFile = android.PathForModuleOut(ctx, String(d.properties.Dex_api_filename))
-		cmd.FlagWithOutput("--dex-api ", d.dexApiFile)
-	}
-
-	if String(d.properties.Private_dex_api_filename) != "" {
-		d.privateDexApiFile = android.PathForModuleOut(ctx, String(d.properties.Private_dex_api_filename))
-		cmd.FlagWithOutput("--private-dex-api ", d.privateDexApiFile)
-	}
-
 	if String(d.properties.Removed_dex_api_filename) != "" {
 		d.removedDexApiFile = android.PathForModuleOut(ctx, String(d.properties.Removed_dex_api_filename))
 		cmd.FlagWithOutput("--removed-dex-api ", d.removedDexApiFile)
-	}
-
-	if String(d.properties.Exact_api_filename) != "" {
-		d.exactApiFile = android.PathForModuleOut(ctx, String(d.properties.Exact_api_filename))
-		cmd.FlagWithOutput("--exact-api ", d.exactApiFile)
-	}
-
-	if String(d.properties.Dex_mapping_filename) != "" {
-		d.apiMappingFile = android.PathForModuleOut(ctx, String(d.properties.Dex_mapping_filename))
-		cmd.FlagWithOutput("--dex-api-mapping ", d.apiMappingFile)
-	}
-
-	if String(d.properties.Proguard_filename) != "" {
-		d.proguardFile = android.PathForModuleOut(ctx, String(d.properties.Proguard_filename))
-		cmd.FlagWithOutput("--proguard ", d.proguardFile)
 	}
 
 	if Bool(d.properties.Write_sdk_values) {
@@ -1341,11 +1232,13 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 		cmd.FlagWithArg("--sdk-values ", d.metadataDir.String())
 	}
 
-	if Bool(d.properties.Create_doc_stubs) {
-		cmd.FlagWithArg("--doc-stubs ", stubsDir.String())
-	} else {
-		cmd.FlagWithArg("--stubs ", stubsDir.String())
-		cmd.Flag("--exclude-documentation-from-stubs")
+	if stubsDir.Valid() {
+		if Bool(d.properties.Create_doc_stubs) {
+			cmd.FlagWithArg("--doc-stubs ", stubsDir.String())
+		} else {
+			cmd.FlagWithArg("--stubs ", stubsDir.String())
+			cmd.Flag("--exclude-documentation-from-stubs")
+		}
 	}
 }
 
@@ -1502,15 +1395,18 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Create rule for metalava
 
-	d.Javadoc.stubsSrcJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
-
 	srcJarDir := android.PathForModuleOut(ctx, "srcjars")
-	stubsDir := android.PathForModuleOut(ctx, "stubsDir")
 
 	rule := android.NewRuleBuilder()
 
-	rule.Command().Text("rm -rf").Text(stubsDir.String())
-	rule.Command().Text("mkdir -p").Text(stubsDir.String())
+	generateStubs := BoolDefault(d.properties.Generate_stubs, true)
+	var stubsDir android.OptionalPath
+	if generateStubs {
+		d.Javadoc.stubsSrcJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
+		stubsDir = android.OptionalPathForPath(android.PathForModuleOut(ctx, "stubsDir"))
+		rule.Command().Text("rm -rf").Text(stubsDir.String())
+		rule.Command().Text("mkdir -p").Text(stubsDir.String())
+	}
 
 	srcJarList := zipSyncCmd(ctx, rule, srcJarDir, d.Javadoc.srcJars)
 
@@ -1536,13 +1432,15 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.ImplicitOutput(android.PathForModuleGen(ctx, o))
 	}
 
-	rule.Command().
-		BuiltTool(ctx, "soong_zip").
-		Flag("-write_if_changed").
-		Flag("-jar").
-		FlagWithOutput("-o ", d.Javadoc.stubsSrcJar).
-		FlagWithArg("-C ", stubsDir.String()).
-		FlagWithArg("-D ", stubsDir.String())
+	if generateStubs {
+		rule.Command().
+			BuiltTool(ctx, "soong_zip").
+			Flag("-write_if_changed").
+			Flag("-jar").
+			FlagWithOutput("-o ", d.Javadoc.stubsSrcJar).
+			FlagWithArg("-C ", stubsDir.String()).
+			FlagWithArg("-D ", stubsDir.String())
+	}
 
 	if Bool(d.properties.Write_sdk_values) {
 		d.metadataZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"-metadata.zip")
@@ -2041,18 +1939,33 @@ func (mt *droidStubsSdkMemberType) IsInstance(module android.Module) bool {
 	return ok
 }
 
-func (mt *droidStubsSdkMemberType) BuildSnapshot(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, member android.SdkMember) {
-	variants := member.Variants()
-	if len(variants) != 1 {
-		sdkModuleContext.ModuleErrorf("sdk contains %d variants of member %q but only one is allowed", len(variants), member.Name())
+func (mt *droidStubsSdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "prebuilt_stubs_sources")
+}
+
+func (mt *droidStubsSdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &droidStubsInfoProperties{}
+}
+
+type droidStubsInfoProperties struct {
+	android.SdkMemberPropertiesBase
+
+	StubsSrcJar android.Path
+}
+
+func (p *droidStubsInfoProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
+	droidstubs := variant.(*Droidstubs)
+	p.StubsSrcJar = droidstubs.stubsSrcJar
+}
+
+func (p *droidStubsInfoProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	if p.StubsSrcJar != nil {
+		builder := ctx.SnapshotBuilder()
+
+		snapshotRelativeDir := filepath.Join("java", ctx.Name()+"_stubs_sources")
+
+		builder.UnzipToSnapshot(p.StubsSrcJar, snapshotRelativeDir)
+
+		propertySet.AddProperty("srcs", []string{snapshotRelativeDir})
 	}
-	variant := variants[0]
-	d, _ := variant.(*Droidstubs)
-	stubsSrcJar := d.stubsSrcJar
-
-	snapshotRelativeDir := filepath.Join("java", d.Name()+"_stubs_sources")
-	builder.UnzipToSnapshot(stubsSrcJar, snapshotRelativeDir)
-
-	pbm := builder.AddPrebuiltModule(member, "prebuilt_stubs_sources")
-	pbm.AddProperty("srcs", []string{snapshotRelativeDir})
 }
