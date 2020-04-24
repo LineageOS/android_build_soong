@@ -3482,6 +3482,7 @@ func TestApexWithAppImports(t *testing.T) {
 			dex_preopt: {
 				enabled: false,
 			},
+			apex_available: ["myapex"],
 		}
 
 		android_app_import {
@@ -3493,6 +3494,7 @@ func TestApexWithAppImports(t *testing.T) {
 				enabled: false,
 			},
 			filename: "AwesomePrebuiltAppFooPriv.apk",
+			apex_available: ["myapex"],
 		}
 	`)
 
@@ -3534,6 +3536,7 @@ func TestApexWithAppImportsPrefer(t *testing.T) {
 			filename: "AppFooPrebuilt.apk",
 			presigned: true,
 			prefer: true,
+			apex_available: ["myapex"],
 		}
 	`, withFiles(map[string][]byte{
 		"AppFooPrebuilt.apk": nil,
