@@ -1134,7 +1134,8 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	flags.java9Classpath = append(flags.java9Classpath, deps.java9Classpath...)
 	flags.processorPath = append(flags.processorPath, deps.processorPath...)
 
-	flags.processor = strings.Join(deps.processorClasses, ",")
+	flags.processors = append(flags.processors, deps.processorClasses...)
+	flags.processors = android.FirstUniqueStrings(flags.processors)
 
 	if len(flags.bootClasspath) == 0 && ctx.Host() && !flags.javaVersion.usesJavaModules() &&
 		decodeSdkDep(ctx, sdkContext(j)).hasStandardLibs() {
@@ -1269,7 +1270,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			srcJars = append(srcJars, kaptSrcJar)
 			// Disable annotation processing in javac, it's already been handled by kapt
 			flags.processorPath = nil
-			flags.processor = ""
+			flags.processors = nil
 		}
 
 		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
