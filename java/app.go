@@ -986,6 +986,7 @@ func OverrideAndroidTestModuleFactory() android.Module {
 type AndroidAppImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.ApexModuleBase
 	prebuilt android.Prebuilt
 
 	properties   AndroidAppImportProperties
@@ -1223,7 +1224,9 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	// TODO: Optionally compress the output apk.
 
-	a.installPath = ctx.InstallFile(installDir, apkFilename, a.outputFile)
+	if a.IsForPlatform() {
+		a.installPath = ctx.InstallFile(installDir, apkFilename, a.outputFile)
+	}
 
 	// TODO: androidmk converter jni libs
 }
@@ -1274,6 +1277,13 @@ func (a *AndroidAppImport) Privileged() bool {
 	return Bool(a.properties.Privileged)
 }
 
+func (a *AndroidAppImport) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	// android_app_import might have extra dependencies via uses_libs property.
+	// Don't track the dependency as we don't automatically add those libraries
+	// to the classpath. It should be explicitly added to java_libs property of APEX
+	return false
+}
+
 func createVariantGroupType(variants []string, variantGroupName string) reflect.Type {
 	props := reflect.TypeOf((*AndroidAppImportProperties)(nil))
 
@@ -1320,6 +1330,7 @@ func AndroidAppImportFactory() android.Module {
 		module.processVariants(ctx)
 	})
 
+	android.InitApexModule(module)
 	InitJavaModule(module, android.DeviceSupported)
 	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Apk")
 
@@ -1357,6 +1368,7 @@ func AndroidTestImportFactory() android.Module {
 		module.processVariants(ctx)
 	})
 
+	android.InitApexModule(module)
 	InitJavaModule(module, android.DeviceSupported)
 	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Apk")
 
