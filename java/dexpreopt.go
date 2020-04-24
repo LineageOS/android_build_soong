@@ -62,6 +62,10 @@ type DexpreoptProperties struct {
 	}
 }
 
+func init() {
+	dexpreopt.DexpreoptRunningInSoong = true
+}
+
 func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 	global := dexpreopt.GetGlobalConfig(ctx)
 
