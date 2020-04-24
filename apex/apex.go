@@ -778,6 +778,7 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		apexBundles = []android.ApexInfo{{
 			ApexName:      mctx.ModuleName(),
 			MinSdkVersion: a.minSdkVersion(mctx),
+			Updatable:     proptools.Bool(a.properties.Updatable),
 		}}
 		directDep = true
 	} else if am, ok := mctx.Module().(android.ApexModule); ok {
