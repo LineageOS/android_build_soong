@@ -268,27 +268,28 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 
 	// Check that this module satisfies constraints for a particular boot image.
 	apex, isApexModule := module.(android.ApexModule)
+	fromUpdatableApex := isApexModule && apex.Updatable()
 	if image.name == artBootImageName {
 		if isApexModule && strings.HasPrefix(apex.ApexName(), "com.android.art.") {
-			// ok, found the jar in the ART apex
-		} else if isApexModule && !apex.IsForPlatform() {
-			// this jar is part of an updatable apex other than ART, fail immediately
-			ctx.Errorf("module '%s' from updatable apex '%s' is not allowed in the ART boot image", name, apex.ApexName())
+			// ok: found the jar in the ART apex
 		} else if isApexModule && apex.IsForPlatform() && Bool(module.(*Library).deviceProperties.Hostdex) {
-			// this is a special "hostdex" variant, skip it and resume search
+			// exception (skip and continue): special "hostdex" platform variant
 			return -1, nil
 		} else if name == "jacocoagent" && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
-			// this is Jacoco platform variant for a coverage build, skip it and resume search
+			// exception (skip and continue): Jacoco platform variant for a coverage build
 			return -1, nil
+		} else if fromUpdatableApex {
+			// error: this jar is part of an updatable apex other than ART
+			ctx.Errorf("module '%s' from updatable apex '%s' is not allowed in the ART boot image", name, apex.ApexName())
 		} else {
-			// this (installable) jar is part of the platform, fail immediately
-			ctx.Errorf("module '%s' is part of the platform and not allowed in the ART boot image", name)
+			// error: this jar is part of the platform or a non-updatable apex
+			ctx.Errorf("module '%s' is not allowed in the ART boot image", name)
 		}
 	} else if image.name == frameworkBootImageName {
-		if !isApexModule || apex.IsForPlatform() {
-			// ok, this jar is part of the platform
+		if !fromUpdatableApex {
+			// ok: this jar is part of the platform or a non-updatable apex
 		} else {
-			// this jar is part of an updatable apex, fail immediately
+			// error: this jar is part of an updatable apex
 			ctx.Errorf("module '%s' from updatable apex '%s' is not allowed in the framework boot image", name, apex.ApexName())
 		}
 	} else {
