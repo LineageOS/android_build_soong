@@ -519,7 +519,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libnativebridge_lazy",
 		"libnativeloader_lazy",
 		"libnativewindow_headers",
-		"libopus",
 		"libpdx_headers",
 		"libscudo_wrapper",
 		"libsfplugin_ccodec_utils",
