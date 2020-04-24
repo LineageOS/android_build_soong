@@ -563,7 +563,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libnativebridge_lazy",
 		"libnativeloader_lazy",
 		"libnativewindow_headers",
-		"libopus",
 		"libpdx_headers",
 		"libprocessgroup",
 		"libprocessgroup_headers",
