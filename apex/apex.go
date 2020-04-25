@@ -377,7 +377,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libpdx_headers",
 		"libpdx_uds",
 		"libprocinfo",
-		"libsonivox",
 		"libspeexresampler",
 		"libspeexresampler",
 		"libstagefright_esds",
