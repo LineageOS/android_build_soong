@@ -3413,6 +3413,7 @@ func TestApexWithAppImports(t *testing.T) {
 			dex_preopt: {
 				enabled: false,
 			},
+			filename: "AwesomePrebuiltAppFooPriv.apk",
 		}
 	`)
 
@@ -3421,7 +3422,47 @@ func TestApexWithAppImports(t *testing.T) {
 	copyCmds := apexRule.Args["copy_commands"]
 
 	ensureContains(t, copyCmds, "image.apex/app/AppFooPrebuilt/AppFooPrebuilt.apk")
-	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPrivPrebuilt/AppFooPrivPrebuilt.apk")
+	ensureContains(t, copyCmds, "image.apex/priv-app/AppFooPrivPrebuilt/AwesomePrebuiltAppFooPriv.apk")
+}
+
+func TestApexWithAppImportsPrefer(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			apps: [
+				"AppFoo",
+			],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		android_app {
+			name: "AppFoo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			apex_available: [ "myapex" ],
+		}
+
+		android_app_import {
+			name: "AppFoo",
+			apk: "AppFooPrebuilt.apk",
+			filename: "AppFooPrebuilt.apk",
+			presigned: true,
+			prefer: true,
+		}
+	`, withFiles(map[string][]byte{
+		"AppFooPrebuilt.apk": nil,
+	}))
+
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"app/AppFoo/AppFooPrebuilt.apk",
+	})
 }
 
 func TestApexWithTestHelperApp(t *testing.T) {
@@ -3754,7 +3795,7 @@ func TestOverrideApex(t *testing.T) {
 	copyCmds := apexRule.Args["copy_commands"]
 
 	ensureNotContains(t, copyCmds, "image.apex/app/app/app.apk")
-	ensureContains(t, copyCmds, "image.apex/app/app/override_app.apk")
+	ensureContains(t, copyCmds, "image.apex/app/override_app/override_app.apk")
 
 	apexBundle := module.Module().(*apexBundle)
 	name := apexBundle.Name()
@@ -4083,6 +4124,27 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 	ensureRealfileExists(t, files, "javalib/myjar.jar")
 	ensureRealfileExists(t, files, "lib64/mylib.so")
 	ensureRealfileExists(t, files, "lib64/myotherlib.so") // this is a real file
+}
+
+func TestApexMutatorsDontRunIfDisabled(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		delete(config.Targets, android.Android)
+		config.AndroidCommonTarget = android.Target{}
+	})
+
+	if expected, got := []string{""}, ctx.ModuleVariantsForTests("myapex"); !reflect.DeepEqual(expected, got) {
+		t.Errorf("Expected variants: %v, but got: %v", expected, got)
+	}
 }
 
 func TestAppBundle(t *testing.T) {
