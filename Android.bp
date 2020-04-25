@@ -644,7 +644,8 @@ toolchain_library {
     arch: {
         arm: {
             src: "prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/lib/gcc/arm-linux-androideabi/4.9.x/libgcc.a",
-            repack_objects_to_keep: ["unwind-arm.o", "libunwind.o", "pr-support.o"],
+            repack_objects_to_keep: [],
+            enabled: false,
         },
         arm64: {
             src: "prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/lib/gcc/aarch64-linux-android/4.9.x/libgcc.a",
