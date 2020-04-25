@@ -519,7 +519,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libnativebridge_lazy",
 		"libnativeloader_lazy",
 		"libnativewindow_headers",
-		"libopus",
 		"libpdx_headers",
 		"libscudo_wrapper",
 		"libsfplugin_ccodec_utils",
@@ -779,6 +778,7 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		apexBundles = []android.ApexInfo{{
 			ApexName:      mctx.ModuleName(),
 			MinSdkVersion: a.minSdkVersion(mctx),
+			Updatable:     proptools.Bool(a.properties.Updatable),
 		}}
 		directDep = true
 	} else if am, ok := mctx.Module().(android.ApexModule); ok {

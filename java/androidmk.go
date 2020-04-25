@@ -626,6 +626,11 @@ func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (a *AndroidAppImport) AndroidMkEntries() []android.AndroidMkEntries {
+	if !a.IsForPlatform() {
+		// The non-platform variant is placed inside APEX. No reason to
+		// make it available to Make.
+		return nil
+	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "APPS",
 		OutputFile: android.OptionalPathForPath(a.outputFile),

@@ -215,25 +215,6 @@ func TestProcMacroDeviceDeps(t *testing.T) {
 			srcs: ["foo.rs"],
 			crate_name: "bar",
 		}
-		// Make a dummy libstd to let resolution go through
-		rust_library_dylib {
-			name: "libstd",
-			crate_name: "std",
-			srcs: ["foo.rs"],
-			no_stdlibs: true,
-		}
-		rust_library_dylib {
-			name: "libterm",
-			crate_name: "term",
-			srcs: ["foo.rs"],
-			no_stdlibs: true,
-		}
-		rust_library_dylib {
-			name: "libtest",
-			crate_name: "test",
-			srcs: ["foo.rs"],
-			no_stdlibs: true,
-		}
 		rust_proc_macro {
 			name: "libpm",
 			rlibs: ["libbar"],

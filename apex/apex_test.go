@@ -3482,6 +3482,7 @@ func TestApexWithAppImports(t *testing.T) {
 			dex_preopt: {
 				enabled: false,
 			},
+			apex_available: ["myapex"],
 		}
 
 		android_app_import {
@@ -3493,6 +3494,7 @@ func TestApexWithAppImports(t *testing.T) {
 				enabled: false,
 			},
 			filename: "AwesomePrebuiltAppFooPriv.apk",
+			apex_available: ["myapex"],
 		}
 	`)
 
@@ -3534,6 +3536,7 @@ func TestApexWithAppImportsPrefer(t *testing.T) {
 			filename: "AppFooPrebuilt.apk",
 			presigned: true,
 			prefer: true,
+			apex_available: ["myapex"],
 		}
 	`, withFiles(map[string][]byte{
 		"AppFooPrebuilt.apk": nil,
@@ -4330,6 +4333,13 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg, bp string, transformDe
 				"system/sepolicy/apex/some-updatable-apex-file_contexts",
 			],
 		}
+
+		filegroup {
+			name: "some-non-updatable-apex-file_contexts",
+			srcs: [
+				"system/sepolicy/apex/some-non-updatable-apex-file_contexts",
+			],
+		}
 	`
 	bp += cc.GatherRequiredDepsForTest(android.Android)
 	bp += java.GatherRequiredDepsForTest()
@@ -4342,6 +4352,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg, bp string, transformDe
 		"apex_manifest.json":                 nil,
 		"AndroidManifest.xml":                nil,
 		"system/sepolicy/apex/some-updatable-apex-file_contexts":       nil,
+		"system/sepolicy/apex/some-non-updatable-apex-file_contexts":   nil,
 		"system/sepolicy/apex/com.android.art.something-file_contexts": nil,
 		"framework/aidl/a.aidl": nil,
 	}
@@ -4396,6 +4407,14 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 		}
 
 		java_library {
+			name: "some-non-updatable-apex-lib",
+			srcs: ["a.java"],
+			apex_available: [
+				"some-non-updatable-apex",
+			],
+		}
+
+		java_library {
 			name: "some-platform-lib",
 			srcs: ["a.java"],
 			installable: true,
@@ -4414,16 +4433,28 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 			name: "some-updatable-apex",
 			key: "some-updatable-apex.key",
 			java_libs: ["some-updatable-apex-lib"],
+			updatable: true,
+		}
+
+		apex {
+			name: "some-non-updatable-apex",
+			key: "some-non-updatable-apex.key",
+			java_libs: ["some-non-updatable-apex-lib"],
 		}
 
 		apex_key {
 			name: "some-updatable-apex.key",
 		}
 
+		apex_key {
+			name: "some-non-updatable-apex.key",
+		}
+
 		apex {
 			name: "com.android.art.something",
 			key: "com.android.art.something.key",
 			java_libs: ["some-art-lib"],
+			updatable: true,
 		}
 
 		apex_key {
@@ -4454,12 +4485,25 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
+	// non-updatable jar from some other apex in the ART boot image => error
+	error = "module 'some-non-updatable-apex-lib' is not allowed in the ART boot image"
+	transform = func(config *dexpreopt.GlobalConfig) {
+		config.ArtApexJars = []string{"some-non-updatable-apex-lib"}
+	}
+	testNoUpdatableJarsInBootImage(t, error, bp, transform)
+
 	// updatable jar from some other apex in the framework boot image => error
 	error = "module 'some-updatable-apex-lib' from updatable apex 'some-updatable-apex' is not allowed in the framework boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
 		config.BootJars = []string{"some-updatable-apex-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
+
+	// non-updatable jar from some other apex in the framework boot image => ok
+	transform = func(config *dexpreopt.GlobalConfig) {
+		config.BootJars = []string{"some-non-updatable-apex-lib"}
+	}
+	testNoUpdatableJarsInBootImage(t, "", bp, transform)
 
 	// nonexistent jar in the ART boot image => error
 	error = "failed to find a dex jar path for module 'nonexistent'"
@@ -4476,7 +4520,7 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// platform jar in the ART boot image => error
-	error = "module 'some-platform-lib' is part of the platform and not allowed in the ART boot image"
+	error = "module 'some-platform-lib' is not allowed in the ART boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
 		config.ArtApexJars = []string{"some-platform-lib"}
 	}
