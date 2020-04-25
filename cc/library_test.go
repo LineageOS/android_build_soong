@@ -17,6 +17,8 @@ package cc
 import (
 	"reflect"
 	"testing"
+
+	"android/soong/android"
 )
 
 func TestLibraryReuse(t *testing.T) {
@@ -185,4 +187,56 @@ func TestLibraryReuse(t *testing.T) {
 			t.Errorf("missing protobuf cflags")
 		}
 	})
+}
+
+func TestStubsVersions(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			stubs: {
+				versions: ["29", "R", "10000"],
+			},
+		}
+	`
+	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config.TestProductVariables.Platform_version_active_codenames = []string{"R"}
+	ctx := testCcWithConfig(t, config)
+
+	variants := ctx.ModuleVariantsForTests("libfoo")
+	for _, expectedVer := range []string{"29", "9000", "10000"} {
+		expectedVariant := "android_arm_armv7-a-neon_shared_" + expectedVer
+		if !inList(expectedVariant, variants) {
+			t.Errorf("missing expected variant: %q", expectedVariant)
+		}
+	}
+}
+
+func TestStubsVersions_NotSorted(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			stubs: {
+				versions: ["29", "10000", "R"],
+			},
+		}
+	`
+	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config.TestProductVariables.Platform_version_active_codenames = []string{"R"}
+	testCcErrorWithConfig(t, `"libfoo" .*: versions: not sorted`, config)
+}
+
+func TestStubsVersions_ParseError(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			stubs: {
+				versions: ["29", "10000", "X"],
+			},
+		}
+	`
+
+	testCcError(t, `"libfoo" .*: versions: SDK version should be`, bp)
 }

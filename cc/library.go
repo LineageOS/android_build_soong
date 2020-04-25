@@ -1501,17 +1501,21 @@ func LatestStubsVersionFor(config android.Config, name string) string {
 	return ""
 }
 
-func checkVersions(ctx android.BaseModuleContext, versions []string) {
+func normalizeVersions(ctx android.BaseModuleContext, versions []string) {
 	numVersions := make([]int, len(versions))
 	for i, v := range versions {
-		numVer, err := strconv.Atoi(v)
+		numVer, err := android.ApiStrToNum(ctx, v)
 		if err != nil {
-			ctx.PropertyErrorf("versions", "%q is not a number", v)
+			ctx.PropertyErrorf("versions", "%s", err.Error())
+			return
 		}
 		numVersions[i] = numVer
 	}
 	if !sort.IsSorted(sort.IntSlice(numVersions)) {
 		ctx.PropertyErrorf("versions", "not sorted: %v", versions)
+	}
+	for i, v := range numVersions {
+		versions[i] = strconv.Itoa(v)
 	}
 }
 
@@ -1542,7 +1546,7 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 	if library, ok := mctx.Module().(LinkableInterface); ok && VersionVariantAvailable(library) {
 		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 {
 			versions := library.StubsVersions()
-			checkVersions(mctx, versions)
+			normalizeVersions(mctx, versions)
 			if mctx.Failed() {
 				return
 			}
