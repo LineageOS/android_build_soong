@@ -211,6 +211,9 @@ type BaseProperties struct {
 	// Minimum sdk version supported when compiling against the ndk
 	Sdk_version *string
 
+	// Minimum sdk version that the artifact should support when it runs as part of mainline modules(APEX).
+	Min_sdk_version *string
+
 	AndroidMkSharedLibs       []string `blueprint:"mutated"`
 	AndroidMkStaticLibs       []string `blueprint:"mutated"`
 	AndroidMkRuntimeLibs      []string `blueprint:"mutated"`
