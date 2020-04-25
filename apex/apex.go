@@ -412,7 +412,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libprocessgroup",
 		"libprocessgroup_headers",
 		"libprocinfo",
-		"libsonivox",
 		"libspeexresampler",
 		"libspeexresampler",
 		"libstagefright_esds",
@@ -845,10 +844,13 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 // Mark the direct and transitive dependencies of apex bundles so that they
 // can be built for the apex bundles.
 func apexDepsMutator(mctx android.TopDownMutatorContext) {
+	if !mctx.Module().Enabled() {
+		return
+	}
 	var apexBundles []android.ApexInfo
 	var directDep bool
 	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
-		apexBundles = []android.ApexInfo{android.ApexInfo{
+		apexBundles = []android.ApexInfo{{
 			ApexName:      mctx.ModuleName(),
 			MinSdkVersion: a.minSdkVersion(mctx),
 		}}
@@ -886,6 +888,9 @@ func inAnySdk(module android.Module) bool {
 
 // Create apex variations if a module is included in APEX(s).
 func apexMutator(mctx android.BottomUpMutatorContext) {
+	if !mctx.Module().Enabled() {
+		return
+	}
 	if am, ok := mctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
 		am.CreateApexVariations(mctx)
 	} else if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
@@ -923,6 +928,9 @@ func addFlattenedFileContextsInfos(ctx android.BaseModuleContext, fileContextsIn
 }
 
 func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
+	if !mctx.Module().Enabled() {
+		return
+	}
 	if ab, ok := mctx.Module().(*apexBundle); ok {
 		var variants []string
 		switch proptools.StringDefault(ab.properties.Payload_type, "image") {
@@ -1746,15 +1754,16 @@ func apexFileForCompatConfig(ctx android.BaseModuleContext, config java.Platform
 func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 	android.Module
 	Privileged() bool
+	InstallApkName() string
 	OutputFile() android.Path
 	JacocoReportClassesFile() android.Path
 	Certificate() java.Certificate
-}, pkgName string) apexFile {
+}) apexFile {
 	appDir := "app"
 	if aapp.Privileged() {
 		appDir = "priv-app"
 	}
-	dirInApex := filepath.Join(appDir, pkgName)
+	dirInApex := filepath.Join(appDir, aapp.InstallApkName())
 	fileToCopy := aapp.OutputFile()
 	af := newApexFile(ctx, fileToCopy, aapp.Name(), dirInApex, app, aapp)
 	af.jacocoReportClassesFile = aapp.JacocoReportClassesFile()
@@ -2035,14 +2044,13 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
 				}
 			case androidAppTag:
-				pkgName := ctx.DeviceConfig().OverridePackageNameFor(depName)
 				if ap, ok := child.(*java.AndroidApp); ok {
-					filesInfo = append(filesInfo, apexFileForAndroidApp(ctx, ap, pkgName))
+					filesInfo = append(filesInfo, apexFileForAndroidApp(ctx, ap))
 					return true // track transitive dependencies
 				} else if ap, ok := child.(*java.AndroidAppImport); ok {
-					filesInfo = append(filesInfo, apexFileForAndroidApp(ctx, ap, pkgName))
+					filesInfo = append(filesInfo, apexFileForAndroidApp(ctx, ap))
 				} else if ap, ok := child.(*java.AndroidTestHelperApp); ok {
-					filesInfo = append(filesInfo, apexFileForAndroidApp(ctx, ap, pkgName))
+					filesInfo = append(filesInfo, apexFileForAndroidApp(ctx, ap))
 				} else {
 					ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
 				}
