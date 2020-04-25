@@ -96,6 +96,8 @@ type libraryProperties struct {
 	Unversioned_until *string
 
 	// Private property for use by the mutator that splits per-API level.
+	// can be one of <number:sdk_version> or <codename> or "current"
+	// passed to "gen_stub_libs.py" as it is
 	ApiLevel string `blueprint:"mutated"`
 
 	// True if this API is not yet ready to be shipped in the NDK. It will be
