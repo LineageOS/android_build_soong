@@ -1374,6 +1374,13 @@ type RuntimeResourceOverlayProperties struct {
 
 	// list of android_app modules whose resources are extracted and linked against
 	Resource_libs []string
+
+	// Names of modules to be overridden. Listed modules can only be other overlays
+	// (in Make or Soong).
+	// This does not completely prevent installation of the overridden overlays, but if both
+	// overlays would be installed by default (in PRODUCT_PACKAGES) the other overlay will be removed
+	// from PRODUCT_PACKAGES.
+	Overrides []string
 }
 
 func (r *RuntimeResourceOverlay) DepsMutator(ctx android.BottomUpMutatorContext) {
