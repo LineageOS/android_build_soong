@@ -108,6 +108,11 @@ type ApexModule interface {
 
 	// Tests if the module comes from an updatable APEX.
 	Updatable() bool
+
+	// List of APEXes that this module tests. The module has access to
+	// the private part of the listed APEXes even when it is not included in the
+	// APEXes.
+	TestFor() []string
 }
 
 type ApexProperties struct {
@@ -149,6 +154,11 @@ func (m *ApexModuleBase) apexModuleBase() *ApexModuleBase {
 
 func (m *ApexModuleBase) ApexAvailable() []string {
 	return m.ApexProperties.Apex_available
+}
+
+func (m *ApexModuleBase) TestFor() []string {
+	// To be implemented by concrete types inheriting ApexModuleBase
+	return nil
 }
 
 func (m *ApexModuleBase) BuildForApexes(apexes []ApexInfo) {

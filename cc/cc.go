@@ -2338,6 +2338,15 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// always link to non-stub variant
 						useThisDep = !depIsStubs
 					}
+					for _, testFor := range c.TestFor() {
+						// Another exception: if this module is bundled with an APEX, then
+						// it is linked with the non-stub variant of a module in the APEX
+						// as if this is part of the APEX.
+						if android.DirectlyInApex(testFor, depName) {
+							useThisDep = !depIsStubs
+							break
+						}
+					}
 				} else {
 					// If building for APEX, use stubs only when it is not from
 					// the same APEX
@@ -2761,6 +2770,16 @@ func (c *Module) AvailableFor(what string) bool {
 		return c.ApexModuleBase.AvailableFor(what) || linker.availableFor(what)
 	} else {
 		return c.ApexModuleBase.AvailableFor(what)
+	}
+}
+
+func (c *Module) TestFor() []string {
+	if test, ok := c.linker.(interface {
+		testFor() []string
+	}); ok {
+		return test.testFor()
+	} else {
+		return c.ApexModuleBase.TestFor()
 	}
 }
 
