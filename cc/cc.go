@@ -581,6 +581,10 @@ func (c *Module) SdkVersion() string {
 	return String(c.Properties.Sdk_version)
 }
 
+func (c *Module) MinSdkVersion() string {
+	return String(c.Properties.Min_sdk_version)
+}
+
 func (c *Module) AlwaysSdk() bool {
 	return c.Properties.AlwaysSdk || Bool(c.Properties.Sdk_variant_only)
 }

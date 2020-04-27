@@ -413,19 +413,27 @@ type ApexModuleDepInfo struct {
 	From []string
 	// Whether the dependency belongs to the final compiled APEX.
 	IsExternal bool
+	// min_sdk_version of the ApexModule
+	MinSdkVersion string
 }
 
 // A map of a dependency name to its ApexModuleDepInfo
 type DepNameToDepInfoMap map[string]ApexModuleDepInfo
 
 type ApexBundleDepsInfo struct {
-	flatListPath OutputPath
-	fullListPath OutputPath
+	minSdkVersion string
+	flatListPath  OutputPath
+	fullListPath  OutputPath
 }
 
 type ApexDepsInfoIntf interface {
+	MinSdkVersion() string
 	FlatListPath() Path
 	FullListPath() Path
+}
+
+func (d *ApexBundleDepsInfo) MinSdkVersion() string {
+	return d.minSdkVersion
 }
 
 func (d *ApexBundleDepsInfo) FlatListPath() Path {
@@ -441,14 +449,16 @@ var _ ApexDepsInfoIntf = (*ApexBundleDepsInfo)(nil)
 // Generate two module out files:
 // 1. FullList with transitive deps and their parents in the dep graph
 // 2. FlatList with a flat list of transitive deps
-func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, depInfos DepNameToDepInfoMap) {
+func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, minSdkVersion string, depInfos DepNameToDepInfoMap) {
+	d.minSdkVersion = minSdkVersion
+
 	var fullContent strings.Builder
 	var flatContent strings.Builder
 
-	fmt.Fprintf(&flatContent, "%s:\\n", ctx.ModuleName())
+	fmt.Fprintf(&flatContent, "%s(minSdkVersion:%s):\\n", ctx.ModuleName(), minSdkVersion)
 	for _, key := range FirstUniqueStrings(SortedStringKeys(depInfos)) {
 		info := depInfos[key]
-		toName := info.To
+		toName := fmt.Sprintf("%s(minSdkVersion:%s)", info.To, info.MinSdkVersion)
 		if info.IsExternal {
 			toName = toName + " (external)"
 		}
