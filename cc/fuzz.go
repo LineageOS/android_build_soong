@@ -126,7 +126,7 @@ func (fuzz *fuzzBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 func collectAllSharedDependencies(ctx android.SingletonContext, module android.Module) android.Paths {
 	var fringe []android.Module
 
-	seen := make(map[android.Module]bool)
+	seen := make(map[string]bool)
 
 	// Enumerate the first level of dependencies, as we discard all non-library
 	// modules in the BFS loop below.
@@ -140,15 +140,15 @@ func collectAllSharedDependencies(ctx android.SingletonContext, module android.M
 
 	for i := 0; i < len(fringe); i++ {
 		module := fringe[i]
-		if seen[module] {
+		if seen[module.Name()] {
 			continue
 		}
-		seen[module] = true
+		seen[module.Name()] = true
 
 		ccModule := module.(*Module)
 		sharedLibraries = append(sharedLibraries, ccModule.UnstrippedOutputFile())
 		ctx.VisitDirectDeps(module, func(dep android.Module) {
-			if isValidSharedDependency(dep) && !seen[dep] {
+			if isValidSharedDependency(dep) && !seen[dep.Name()] {
 				fringe = append(fringe, dep)
 			}
 		})
@@ -255,13 +255,13 @@ func (fuzz *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 	}
 
 	// Grab the list of required shared libraries.
-	seen := make(map[android.Module]bool)
+	seen := make(map[string]bool)
 	var sharedLibraries android.Paths
 	ctx.WalkDeps(func(child, parent android.Module) bool {
-		if seen[child] {
+		if seen[child.Name()] {
 			return false
 		}
-		seen[child] = true
+		seen[child.Name()] = true
 
 		if isValidSharedDependency(child) {
 			sharedLibraries = append(sharedLibraries, child.(*Module).UnstrippedOutputFile())
