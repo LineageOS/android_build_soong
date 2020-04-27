@@ -4017,6 +4017,7 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 			native_shared_libs: ["mylib"],
 			java_libs: ["myjar"],
 			updatable: true,
+			min_sdk_version: "current",
 		}
 
 		apex_key {
@@ -4240,6 +4241,22 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg, bp string, transformDe
 	} else {
 		t.Fatalf("missing expected error %q (0 errors are returned)", errmsg)
 	}
+}
+
+func TestUpdatable_should_set_min_sdk_version(t *testing.T) {
+	testApexError(t, `"myapex" .*: updatable: updatable APEXes should set min_sdk_version`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			updatable: true,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+	`)
 }
 
 func TestNoUpdatableJarsInBootImage(t *testing.T) {
