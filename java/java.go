@@ -2745,6 +2745,7 @@ func DefaultsFactory() android.Module {
 		&sdkLibraryProperties{},
 		&DexImportProperties{},
 		&android.ApexProperties{},
+		&RuntimeResourceOverlayProperties{},
 	)
 
 	android.InitDefaultsModule(module)
