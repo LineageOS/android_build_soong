@@ -38,13 +38,6 @@ const (
 )
 
 var (
-	abiCheckAllowFlags = []string{
-		"-allow-unreferenced-changes",
-		"-allow-unreferenced-elf-symbol-changes",
-	}
-)
-
-var (
 	pctx = android.NewPackageContext("android/soong/cc")
 
 	cc = pctx.AndroidRemoteStaticRule("cc", android.RemoteRuleSupports{Goma: true, RBE: true},
@@ -221,8 +214,7 @@ var (
 
 	sAbiDiff = pctx.RuleFunc("sAbiDiff",
 		func(ctx android.PackageRuleContext) blueprint.RuleParams {
-			// TODO(b/78139997): Add -check-all-apis back
-			commandStr := "($sAbiDiffer ${allowFlags} -lib ${libName} -arch ${arch} -o ${out} -new ${in} -old ${referenceDump})"
+			commandStr := "($sAbiDiffer ${extraFlags} -lib ${libName} -arch ${arch} -o ${out} -new ${in} -old ${referenceDump})"
 			commandStr += "|| (echo 'error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py ${createReferenceDumpFlags} -l ${libName}'"
 			commandStr += " && (mkdir -p $$DIST_DIR/abidiffs && cp ${out} $$DIST_DIR/abidiffs/)"
 			commandStr += " && exit 1)"
@@ -231,7 +223,7 @@ var (
 				CommandDeps: []string{"$sAbiDiffer"},
 			}
 		},
-		"allowFlags", "referenceDump", "libName", "arch", "createReferenceDumpFlags")
+		"extraFlags", "referenceDump", "libName", "arch", "createReferenceDumpFlags")
 
 	unzipRefSAbiDump = pctx.AndroidStaticRule("unzipRefSAbiDump",
 		blueprint.RuleParams{
@@ -742,27 +734,36 @@ func UnzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseNam
 }
 
 func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
-	baseName, exportedHeaderFlags string, isLlndk, isNdk, isVndkExt bool) android.OptionalPath {
+	baseName, exportedHeaderFlags string, checkAllApis, isLlndk, isNdk, isVndkExt bool) android.OptionalPath {
 
 	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 	createReferenceDumpFlags := ""
 
-	localAbiCheckAllowFlags := append([]string(nil), abiCheckAllowFlags...)
-	if exportedHeaderFlags == "" {
-		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-advice-only")
+	var extraFlags []string
+	if checkAllApis {
+		extraFlags = append(extraFlags, "-check-all-apis")
+	} else {
+		extraFlags = append(extraFlags,
+			"-allow-unreferenced-changes",
+			"-allow-unreferenced-elf-symbol-changes")
 	}
+
+	if exportedHeaderFlags == "" {
+		extraFlags = append(extraFlags, "-advice-only")
+	}
+
 	if isLlndk || isNdk {
 		createReferenceDumpFlags = "--llndk"
 		if isLlndk {
 			// TODO(b/130324828): "-consider-opaque-types-different" should apply to
 			// both LLNDK and NDK shared libs. However, a known issue in header-abi-diff
 			// breaks libaaudio. Remove the if-guard after the issue is fixed.
-			localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-consider-opaque-types-different")
+			extraFlags = append(extraFlags, "-consider-opaque-types-different")
 		}
 	}
 	if isVndkExt {
-		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-allow-extensions")
+		extraFlags = append(extraFlags, "-allow-extensions")
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -775,7 +776,7 @@ func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 			"referenceDump":            referenceDump.String(),
 			"libName":                  libName,
 			"arch":                     ctx.Arch().ArchType.Name,
-			"allowFlags":               strings.Join(localAbiCheckAllowFlags, " "),
+			"extraFlags":               strings.Join(extraFlags, " "),
 			"createReferenceDumpFlags": createReferenceDumpFlags,
 		},
 	})
