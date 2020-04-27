@@ -1032,8 +1032,10 @@ type apexBundleProperties struct {
 	IsCoverageVariant bool `blueprint:"mutated"`
 
 	// Whether this APEX is considered updatable or not. When set to true, this will enforce additional
-	// rules for making sure that the APEX is truely updatable. This will also disable the size optimizations
-	// like symlinking to the system libs. Default is false.
+	// rules for making sure that the APEX is truly updatable.
+	// - To be updatable, min_sdk_version should be set as well
+	// This will also disable the size optimizations like symlinking to the system libs.
+	// Default is false.
 	Updatable *bool
 
 	// The minimum SDK version that this apex must be compatibile with.
@@ -1805,6 +1807,14 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 	})
 }
 
+func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
+	if proptools.Bool(a.properties.Updatable) {
+		if String(a.properties.Min_sdk_version) == "" {
+			ctx.PropertyErrorf("updatable", "updatable APEXes should set min_sdk_version as well")
+		}
+	}
+}
+
 // Collects the list of module names that directly or indirectly contributes to the payload of this APEX
 func (a *apexBundle) collectDepsInfo(ctx android.ModuleContext) {
 	a.depInfos = make(map[string]depInfo)
@@ -1870,6 +1880,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	a.checkApexAvailability(ctx)
+	a.checkUpdatable(ctx)
 
 	a.collectDepsInfo(ctx)
 
