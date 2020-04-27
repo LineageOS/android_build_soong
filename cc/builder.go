@@ -58,7 +58,7 @@ var (
 
 	ld, ldRE = remoteexec.StaticRules(pctx, "ld",
 		blueprint.RuleParams{
-			Command: "$ldCmd ${crtBegin} @${out}.rsp " +
+			Command: "$reTemplate$ldCmd ${crtBegin} @${out}.rsp " +
 				"${libFlags} ${crtEnd} -o ${out} ${ldFlags} ${extraLibFlags}",
 			CommandDeps:    []string{"$ldCmd"},
 			Rspfile:        "${out}.rsp",
@@ -66,7 +66,8 @@ var (
 			// clang -Wl,--out-implib doesn't update its output file if it hasn't changed.
 			Restat: true,
 		},
-		&remoteexec.REParams{Labels: map[string]string{"type": "link", "tool": "clang"},
+		&remoteexec.REParams{
+			Labels:          map[string]string{"type": "link", "tool": "clang"},
 			ExecStrategy:    "${config.RECXXLinksExecStrategy}",
 			Inputs:          []string{"${out}.rsp"},
 			RSPFile:         "${out}.rsp",
@@ -79,11 +80,12 @@ var (
 		blueprint.RuleParams{
 			// Without -no-pie, clang 7.0 adds -pie to link Android files,
 			// but -r and -pie cannot be used together.
-			Command:     "$ldCmd -fuse-ld=lld -nostdlib -no-pie -Wl,-r ${in} -o ${out} ${ldFlags}",
+			Command:     "$reTemplate$ldCmd -fuse-ld=lld -nostdlib -no-pie -Wl,-r ${in} -o ${out} ${ldFlags}",
 			CommandDeps: []string{"$ldCmd"},
 		}, &remoteexec.REParams{
-			Labels:       map[string]string{"type": "link", "tool": "clang"},
-			ExecStrategy: "${config.RECXXLinksExecStrategy}", Inputs: []string{"$inCommaList"},
+			Labels:          map[string]string{"type": "link", "tool": "clang"},
+			ExecStrategy:    "${config.RECXXLinksExecStrategy}",
+			Inputs:          []string{"$inCommaList"},
 			OutputFiles:     []string{"${out}"},
 			ToolchainInputs: []string{"$ldCmd"},
 			Platform:        map[string]string{remoteexec.PoolKey: "${config.RECXXLinksPool}"},
@@ -192,12 +194,18 @@ var (
 	_ = pctx.SourcePathVariable("sAbiDumper", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-dumper")
 
 	// -w has been added since header-abi-dumper does not need to produce any sort of diagnostic information.
-	sAbiDump = pctx.AndroidStaticRule("sAbiDump",
+	sAbiDump, sAbiDumpRE = remoteexec.StaticRules(pctx, "sAbiDump",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && $sAbiDumper -o ${out} $in $exportDirs -- $cFlags -w -isystem prebuilts/clang-tools/${config.HostPrebuiltTag}/clang-headers",
+			Command:     "rm -f $out && $reTemplate$sAbiDumper -o ${out} $in $exportDirs -- $cFlags -w -isystem prebuilts/clang-tools/${config.HostPrebuiltTag}/clang-headers",
 			CommandDeps: []string{"$sAbiDumper"},
-		},
-		"cFlags", "exportDirs")
+		}, &remoteexec.REParams{
+			Labels:       map[string]string{"type": "abi-dump", "tool": "header-abi-dumper"},
+			ExecStrategy: "${config.REAbiDumperExecStrategy}",
+			Platform: map[string]string{
+				remoteexec.PoolKey:      "${config.RECXXPool}",
+				"InputRootAbsolutePath": android.AbsSrcDirForExistingUseCases(),
+			},
+		}, []string{"cFlags", "exportDirs"}, nil)
 
 	_ = pctx.SourcePathVariable("sAbiLinker", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-linker")
 
@@ -559,8 +567,12 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			sAbiDumpFile := android.ObjPathWithExt(ctx, subdir, srcFile, "sdump")
 			sAbiDumpFiles = append(sAbiDumpFiles, sAbiDumpFile)
 
+			dumpRule := sAbiDump
+			if ctx.Config().IsEnvTrue("RBE_ABI_DUMPER") {
+				dumpRule = sAbiDumpRE
+			}
 			ctx.Build(pctx, android.BuildParams{
-				Rule:        sAbiDump,
+				Rule:        dumpRule,
 				Description: "header-abi-dumper " + srcFile.Rel(),
 				Output:      sAbiDumpFile,
 				Input:       srcFile,
