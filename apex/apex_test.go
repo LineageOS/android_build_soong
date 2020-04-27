@@ -3750,22 +3750,12 @@ func TestApexAvailable_InvalidApexName(t *testing.T) {
 	}`)
 }
 
-func TestApexAvailable_CreatedForPlatform(t *testing.T) {
-	// check that libfoo and libbar are created only for myapex, but not for the platform
-	// TODO(jiyong) the checks for the platform variant are removed because we now create
-	// the platform variant regardless of the apex_availability. Instead, we will make sure that
-	// the platform variants are not used from other platform modules. When that is done,
-	// these checks will be replaced by expecting a specific error message that will be
-	// emitted when the platform variant is used.
-	//	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared_myapex")
-	//	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared")
-	//	ensureListContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared_myapex")
-	//	ensureListNotContains(t, ctx.ModuleVariantsForTests("libbar"), "android_arm64_armv8-a_shared")
-
+func TestApexAvailable_CheckForPlatform(t *testing.T) {
 	ctx, _ := testApex(t, `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
+		native_shared_libs: ["libbar", "libbaz"],
 	}
 
 	apex_key {
@@ -3778,16 +3768,52 @@ func TestApexAvailable_CreatedForPlatform(t *testing.T) {
 		name: "libfoo",
 		stl: "none",
 		system_shared_libs: [],
+		shared_libs: ["libbar"],
 		apex_available: ["//apex_available:platform"],
+	}
+
+	cc_library {
+		name: "libfoo2",
+		stl: "none",
+		system_shared_libs: [],
+		shared_libs: ["libbaz"],
+		apex_available: ["//apex_available:platform"],
+	}
+
+	cc_library {
+		name: "libbar",
+		stl: "none",
+		system_shared_libs: [],
+		apex_available: ["myapex"],
+	}
+
+	cc_library {
+		name: "libbaz",
+		stl: "none",
+		system_shared_libs: [],
+		apex_available: ["myapex"],
+		stubs: {
+			versions: ["1"],
+		},
 	}`)
 
-	// check that libfoo is created only for the platform
-	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared_myapex")
-	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared")
+	// libfoo shouldn't be available to platform even though it has "//apex_available:platform",
+	// because it depends on libbar which isn't available to platform
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module().(*cc.Module)
+	if libfoo.NotAvailableForPlatform() != true {
+		t.Errorf("%q shouldn't be available to platform", libfoo.String())
+	}
+
+	// libfoo2 however can be available to platform because it depends on libbaz which provides
+	// stubs
+	libfoo2 := ctx.ModuleForTests("libfoo2", "android_arm64_armv8-a_shared").Module().(*cc.Module)
+	if libfoo2.NotAvailableForPlatform() == true {
+		t.Errorf("%q should be available to platform", libfoo2.String())
+	}
 }
 
 func TestApexAvailable_CreatedForApex(t *testing.T) {
-	testApex(t, `
+	ctx, _ := testApex(t, `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
@@ -3810,17 +3836,14 @@ func TestApexAvailable_CreatedForApex(t *testing.T) {
 		},
 	}`)
 
-	// shared variant of libfoo is only available to myapex
-	// TODO(jiyong) the checks for the platform variant are removed because we now create
-	// the platform variant regardless of the apex_availability. Instead, we will make sure that
-	// the platform variants are not used from other platform modules. When that is done,
-	// these checks will be replaced by expecting a specific error message that will be
-	// emitted when the platform variant is used.
-	//	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared_myapex")
-	//	ensureListNotContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_shared")
-	//	// but the static variant is available to both myapex and the platform
-	//	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_static_myapex")
-	//	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo"), "android_arm64_armv8-a_static")
+	libfooShared := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module().(*cc.Module)
+	if libfooShared.NotAvailableForPlatform() != true {
+		t.Errorf("%q shouldn't be available to platform", libfooShared.String())
+	}
+	libfooStatic := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static").Module().(*cc.Module)
+	if libfooStatic.NotAvailableForPlatform() != false {
+		t.Errorf("%q should be available to platform", libfooStatic.String())
+	}
 }
 
 func TestOverrideApex(t *testing.T) {
