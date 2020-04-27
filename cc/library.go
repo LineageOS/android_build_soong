@@ -102,6 +102,10 @@ type LibraryProperties struct {
 
 		// Symbol tags that should be ignored from the symbol file
 		Exclude_symbol_tags []string
+
+		// Run checks on all APIs (in addition to the ones referred by
+		// one of exported ELF symbols.)
+		Check_all_apis *bool
 	}
 
 	// Order symbols in .bss section by their sizes.  Only useful for shared libraries.
@@ -1072,7 +1076,9 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 		refAbiDumpFile := getRefAbiDumpFile(ctx, vndkVersion, fileName)
 		if refAbiDumpFile != nil {
 			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
-				refAbiDumpFile, fileName, exportedHeaderFlags, ctx.isLlndk(ctx.Config()), ctx.isNdk(), ctx.isVndkExt())
+				refAbiDumpFile, fileName, exportedHeaderFlags,
+				Bool(library.Properties.Header_abi_checker.Check_all_apis),
+				ctx.isLlndk(ctx.Config()), ctx.isNdk(), ctx.isVndkExt())
 		}
 	}
 }
