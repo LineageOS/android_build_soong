@@ -688,29 +688,37 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 		return
 	}
 
-	var content strings.Builder
-	for _, key := range android.SortedStringKeys(a.depInfos) {
-		info := a.depInfos[key]
-		toName := info.to
-		if info.isExternal {
-			toName = toName + " (external)"
+	depInfos := android.DepNameToDepInfoMap{}
+	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
+		if from.Name() == to.Name() {
+			// This can happen for cc.reuseObjTag. We are not interested in tracking this.
+			// As soon as the dependency graph crosses the APEX boundary, don't go further.
+			return !externalDep
 		}
-		fmt.Fprintf(&content, "%s <- %s\\n", toName, strings.Join(android.SortedUniqueStrings(info.from), ", "))
-	}
 
-	depsInfoFile := android.PathForOutput(ctx, a.Name()+"-deps-info.txt")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        android.WriteFile,
-		Description: "Dependency Info",
-		Output:      depsInfoFile,
-		Args: map[string]string{
-			"content": content.String(),
-		},
+		if info, exists := depInfos[to.Name()]; exists {
+			if !android.InList(from.Name(), info.From) {
+				info.From = append(info.From, from.Name())
+			}
+			info.IsExternal = info.IsExternal && externalDep
+			depInfos[to.Name()] = info
+		} else {
+			depInfos[to.Name()] = android.ApexModuleDepInfo{
+				To:         to.Name(),
+				From:       []string{from.Name()},
+				IsExternal: externalDep,
+			}
+		}
+
+		// As soon as the dependency graph crosses the APEX boundary, don't go further.
+		return !externalDep
 	})
+
+	a.ApexBundleDepsInfo.BuildDepsInfoLists(ctx, depInfos)
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   android.Phony,
 		Output: android.PathForPhony(ctx, a.Name()+"-deps-info"),
-		Inputs: []android.Path{depsInfoFile},
+		Inputs: []android.Path{a.ApexBundleDepsInfo.FullListPath()},
 	})
 }

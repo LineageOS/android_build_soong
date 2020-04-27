@@ -504,7 +504,7 @@ func TestBasicApex(t *testing.T) {
 	ensureListContains(t, noticeInputs, "custom_notice")
 	ensureListContains(t, noticeInputs, "custom_notice_for_static_lib")
 
-	depsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("myapex-deps-info.txt").Args["content"], "\\n")
+	depsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
 	ensureListContains(t, depsInfo, "myjar <- myapex")
 	ensureListContains(t, depsInfo, "mylib <- myapex")
 	ensureListContains(t, depsInfo, "mylib2 <- mylib")
@@ -818,7 +818,7 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 	// Ensure that libfoo stubs is not linking to libbar (since it is a stubs)
 	ensureNotContains(t, libFooStubsLdFlags, "libbar.so")
 
-	depsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("myapex2-deps-info.txt").Args["content"], "\\n")
+	depsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
 
 	ensureListContains(t, depsInfo, "mylib <- myapex2")
 	ensureListContains(t, depsInfo, "libbaz <- mylib")
