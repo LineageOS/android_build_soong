@@ -1084,6 +1084,10 @@ type apexBundleProperties struct {
 	// Should be only used in tests#.
 	Test_only_no_hashtree *bool
 
+	// Whenever apex_payload.img of the APEX should not be dm-verity signed.
+	// Should be only used in tests#.
+	Test_only_unsigned_payload *bool
+
 	IsCoverageVariant bool `blueprint:"mutated"`
 
 	// Whether this APEX is considered updatable or not. When set to true, this will enforce additional
@@ -1571,6 +1575,10 @@ func (a *apexBundle) installable() bool {
 
 func (a *apexBundle) testOnlyShouldSkipHashtreeGeneration() bool {
 	return proptools.Bool(a.properties.Test_only_no_hashtree)
+}
+
+func (a *apexBundle) testOnlyShouldSkipPayloadSign() bool {
+	return proptools.Bool(a.properties.Test_only_unsigned_payload)
 }
 
 func (a *apexBundle) getImageVariation(config android.DeviceConfig) string {
