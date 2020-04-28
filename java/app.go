@@ -1424,6 +1424,15 @@ type RuntimeResourceOverlayProperties struct {
 	Overrides []string
 }
 
+// RuntimeResourceOverlayModule interface is used by the apex package to gather information from
+// a RuntimeResourceOverlay module.
+type RuntimeResourceOverlayModule interface {
+	android.Module
+	OutputFile() android.Path
+	Certificate() Certificate
+	Theme() string
+}
+
 func (r *RuntimeResourceOverlay) DepsMutator(ctx android.BottomUpMutatorContext) {
 	sdkDep := decodeSdkDep(ctx, sdkContext(r))
 	if sdkDep.hasFrameworkLibs() {
@@ -1474,6 +1483,18 @@ func (r *RuntimeResourceOverlay) minSdkVersion() sdkSpec {
 
 func (r *RuntimeResourceOverlay) targetSdkVersion() sdkSpec {
 	return r.sdkVersion()
+}
+
+func (r *RuntimeResourceOverlay) Certificate() Certificate {
+	return r.certificate
+}
+
+func (r *RuntimeResourceOverlay) OutputFile() android.Path {
+	return r.outputFile
+}
+
+func (r *RuntimeResourceOverlay) Theme() string {
+	return String(r.properties.Theme)
 }
 
 // runtime_resource_overlay generates a resource-only apk file that can overlay application and
