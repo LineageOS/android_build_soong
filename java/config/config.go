@@ -22,6 +22,7 @@ import (
 	_ "github.com/google/blueprint/bootstrap"
 
 	"android/soong/android"
+	"android/soong/remoteexec"
 )
 
 var (
@@ -137,30 +138,16 @@ func init() {
 	pctx.HostJavaToolVariable("MetalavaJar", "metalava.jar")
 	pctx.HostJavaToolVariable("DokkaJar", "dokka.jar")
 	pctx.HostJavaToolVariable("JetifierJar", "jetifier.jar")
+	pctx.HostJavaToolVariable("R8Jar", "r8-compat-proguard.jar")
+	pctx.HostJavaToolVariable("D8Jar", "d8.jar")
 
 	pctx.HostBinToolVariable("SoongJavacWrapper", "soong_javac_wrapper")
 	pctx.HostBinToolVariable("DexpreoptGen", "dexpreopt_gen")
 
-	pctx.VariableFunc("JavacWrapper", func(ctx android.PackageVarContext) string {
-		if override := ctx.Config().Getenv("JAVAC_WRAPPER"); override != "" {
-			return override + " "
-		}
-		return ""
-	})
-
-	pctx.VariableFunc("R8Wrapper", func(ctx android.PackageVarContext) string {
-		if override := ctx.Config().Getenv("R8_WRAPPER"); override != "" {
-			return override + " "
-		}
-		return ""
-	})
-
-	pctx.VariableFunc("D8Wrapper", func(ctx android.PackageVarContext) string {
-		if override := ctx.Config().Getenv("D8_WRAPPER"); override != "" {
-			return override + " "
-		}
-		return ""
-	})
+	pctx.VariableFunc("REJavaPool", remoteexec.EnvOverrideFunc("RBE_JAVA_POOL", "java16"))
+	pctx.VariableFunc("REJavacExecStrategy", remoteexec.EnvOverrideFunc("RBE_JAVAC_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
+	pctx.VariableFunc("RED8ExecStrategy", remoteexec.EnvOverrideFunc("RBE_D8_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
+	pctx.VariableFunc("RER8ExecStrategy", remoteexec.EnvOverrideFunc("RBE_R8_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
 
 	pctx.HostJavaToolVariable("JacocoCLIJar", "jacoco-cli.jar")
 
