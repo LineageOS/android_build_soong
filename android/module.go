@@ -1500,10 +1500,17 @@ func (m *moduleContext) Variable(pctx PackageContext, name, value string) {
 func (m *moduleContext) Rule(pctx PackageContext, name string, params blueprint.RuleParams,
 	argNames ...string) blueprint.Rule {
 
-	if m.config.UseRemoteBuild() && params.Pool == nil {
-		// When USE_GOMA=true or USE_RBE=true are set and the rule is not supported by goma/RBE, restrict
-		// jobs to the local parallelism value
-		params.Pool = localPool
+	if m.config.UseRemoteBuild() {
+		if params.Pool == nil {
+			// When USE_GOMA=true or USE_RBE=true are set and the rule is not supported by goma/RBE, restrict
+			// jobs to the local parallelism value
+			params.Pool = localPool
+		} else if params.Pool == remotePool {
+			// remotePool is a fake pool used to identify rule that are supported for remoting. If the rule's
+			// pool is the remotePool, replace with nil so that ninja runs it at NINJA_REMOTE_NUM_JOBS
+			// parallelism.
+			params.Pool = nil
+		}
 	}
 
 	rule := m.bp.Rule(pctx.PackageContext, name, params, argNames...)
