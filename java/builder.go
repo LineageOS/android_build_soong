@@ -27,6 +27,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/remoteexec"
 )
 
 var (
@@ -39,12 +40,12 @@ var (
 	// (if the rule produces .class files) or a .srcjar file (if the rule produces .java files).
 	// .srcjar files are unzipped into a temporary directory when compiled with javac.
 	// TODO(b/143658984): goma can't handle the --system argument to javac.
-	javac = pctx.AndroidRemoteStaticRule("javac", android.RemoteRuleSupports{Goma: false, RBE: true, RBEFlag: android.RBE_JAVAC},
+	javac, javacRE = remoteexec.StaticRules(pctx, "javac",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" "$srcJarDir" && mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`(if [ -s $srcJarDir/list ] || [ -s $out.rsp ] ; then ` +
-				`${config.SoongJavacWrapper} ${config.JavacWrapper}${config.JavacCmd} ` +
+				`${config.SoongJavacWrapper} $reTemplate${config.JavacCmd} ` +
 				`${config.JavacHeapFlags} ${config.JavacVmFlags} ${config.CommonJdkFlags} ` +
 				`$processorpath $processor $javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
@@ -59,9 +60,12 @@ var (
 			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
 			Rspfile:          "$out.rsp",
 			RspfileContent:   "$in",
-		},
-		"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJars", "srcJarDir",
-		"outDir", "annoDir", "javaVersion")
+		}, &remoteexec.REParams{
+			Labels:       map[string]string{"type": "compile", "lang": "java", "compiler": "javac"},
+			ExecStrategy: "${config.REJavacExecStrategy}",
+			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		}, []string{"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJars", "srcJarDir",
+			"outDir", "annoDir", "javaVersion"}, nil)
 
 	_ = pctx.VariableFunc("kytheCorpus",
 		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCorpusName() })
@@ -188,6 +192,7 @@ var (
 func init() {
 	pctx.Import("android/soong/android")
 	pctx.Import("android/soong/java/config")
+	pctx.Import("android/soong/remoteexec")
 }
 
 type javaBuilderFlags struct {
@@ -398,8 +403,12 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		outDir = filepath.Join(shardDir, outDir)
 		annoDir = filepath.Join(shardDir, annoDir)
 	}
+	rule := javac
+	if ctx.Config().IsEnvTrue("RBE_JAVAC") {
+		rule = javacRE
+	}
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        javac,
+		Rule:        rule,
 		Description: desc,
 		Output:      outputFile,
 		Inputs:      srcFiles,
