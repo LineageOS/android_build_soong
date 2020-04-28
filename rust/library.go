@@ -281,7 +281,7 @@ func (library *libraryDecorator) BuildOnlyShared() {
 }
 
 func NewRustLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
-	module := newModule(hod, android.MultilibFirst)
+	module := newModule(hod, android.MultilibBoth)
 
 	library := &libraryDecorator{
 		MutatedProperties: LibraryMutatedProperties{
