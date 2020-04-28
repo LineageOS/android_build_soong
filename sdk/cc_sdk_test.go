@@ -1749,7 +1749,12 @@ func TestStubsLibrary(t *testing.T) {
 		}
 
 		cc_library {
+			name: "internaldep",
+		}
+
+		cc_library {
 			name: "stubslib",
+			shared_libs: ["internaldep"],
 			stubs: {
 				symbol_file: "some/where/stubslib.map.txt",
 				versions: ["1", "2", "3"],
