@@ -38,13 +38,6 @@ const (
 )
 
 var (
-	abiCheckAllowFlags = []string{
-		"-allow-unreferenced-changes",
-		"-allow-unreferenced-elf-symbol-changes",
-	}
-)
-
-var (
 	pctx = android.NewPackageContext("android/soong/cc")
 
 	cc = pctx.AndroidRemoteStaticRule("cc", android.RemoteRuleSupports{Goma: true, RBE: true},
@@ -65,7 +58,7 @@ var (
 
 	ld, ldRE = remoteexec.StaticRules(pctx, "ld",
 		blueprint.RuleParams{
-			Command: "$ldCmd ${crtBegin} @${out}.rsp " +
+			Command: "$reTemplate$ldCmd ${crtBegin} @${out}.rsp " +
 				"${libFlags} ${crtEnd} -o ${out} ${ldFlags} ${extraLibFlags}",
 			CommandDeps:    []string{"$ldCmd"},
 			Rspfile:        "${out}.rsp",
@@ -73,7 +66,8 @@ var (
 			// clang -Wl,--out-implib doesn't update its output file if it hasn't changed.
 			Restat: true,
 		},
-		&remoteexec.REParams{Labels: map[string]string{"type": "link", "tool": "clang"},
+		&remoteexec.REParams{
+			Labels:          map[string]string{"type": "link", "tool": "clang"},
 			ExecStrategy:    "${config.RECXXLinksExecStrategy}",
 			Inputs:          []string{"${out}.rsp"},
 			RSPFile:         "${out}.rsp",
@@ -86,11 +80,12 @@ var (
 		blueprint.RuleParams{
 			// Without -no-pie, clang 7.0 adds -pie to link Android files,
 			// but -r and -pie cannot be used together.
-			Command:     "$ldCmd -fuse-ld=lld -nostdlib -no-pie -Wl,-r ${in} -o ${out} ${ldFlags}",
+			Command:     "$reTemplate$ldCmd -fuse-ld=lld -nostdlib -no-pie -Wl,-r ${in} -o ${out} ${ldFlags}",
 			CommandDeps: []string{"$ldCmd"},
 		}, &remoteexec.REParams{
-			Labels:       map[string]string{"type": "link", "tool": "clang"},
-			ExecStrategy: "${config.RECXXLinksExecStrategy}", Inputs: []string{"$inCommaList"},
+			Labels:          map[string]string{"type": "link", "tool": "clang"},
+			ExecStrategy:    "${config.RECXXLinksExecStrategy}",
+			Inputs:          []string{"$inCommaList"},
 			OutputFiles:     []string{"${out}"},
 			ToolchainInputs: []string{"$ldCmd"},
 			Platform:        map[string]string{remoteexec.PoolKey: "${config.RECXXLinksPool}"},
@@ -199,12 +194,18 @@ var (
 	_ = pctx.SourcePathVariable("sAbiDumper", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-dumper")
 
 	// -w has been added since header-abi-dumper does not need to produce any sort of diagnostic information.
-	sAbiDump = pctx.AndroidStaticRule("sAbiDump",
+	sAbiDump, sAbiDumpRE = remoteexec.StaticRules(pctx, "sAbiDump",
 		blueprint.RuleParams{
-			Command:     "rm -f $out && $sAbiDumper -o ${out} $in $exportDirs -- $cFlags -w -isystem prebuilts/clang-tools/${config.HostPrebuiltTag}/clang-headers",
+			Command:     "rm -f $out && $reTemplate$sAbiDumper -o ${out} $in $exportDirs -- $cFlags -w -isystem prebuilts/clang-tools/${config.HostPrebuiltTag}/clang-headers",
 			CommandDeps: []string{"$sAbiDumper"},
-		},
-		"cFlags", "exportDirs")
+		}, &remoteexec.REParams{
+			Labels:       map[string]string{"type": "abi-dump", "tool": "header-abi-dumper"},
+			ExecStrategy: "${config.REAbiDumperExecStrategy}",
+			Platform: map[string]string{
+				remoteexec.PoolKey:      "${config.RECXXPool}",
+				"InputRootAbsolutePath": android.AbsSrcDirForExistingUseCases(),
+			},
+		}, []string{"cFlags", "exportDirs"}, nil)
 
 	_ = pctx.SourcePathVariable("sAbiLinker", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-linker")
 
@@ -221,8 +222,7 @@ var (
 
 	sAbiDiff = pctx.RuleFunc("sAbiDiff",
 		func(ctx android.PackageRuleContext) blueprint.RuleParams {
-			// TODO(b/78139997): Add -check-all-apis back
-			commandStr := "($sAbiDiffer ${allowFlags} -lib ${libName} -arch ${arch} -o ${out} -new ${in} -old ${referenceDump})"
+			commandStr := "($sAbiDiffer ${extraFlags} -lib ${libName} -arch ${arch} -o ${out} -new ${in} -old ${referenceDump})"
 			commandStr += "|| (echo 'error: Please update ABI references with: $$ANDROID_BUILD_TOP/development/vndk/tools/header-checker/utils/create_reference_dumps.py ${createReferenceDumpFlags} -l ${libName}'"
 			commandStr += " && (mkdir -p $$DIST_DIR/abidiffs && cp ${out} $$DIST_DIR/abidiffs/)"
 			commandStr += " && exit 1)"
@@ -231,7 +231,7 @@ var (
 				CommandDeps: []string{"$sAbiDiffer"},
 			}
 		},
-		"allowFlags", "referenceDump", "libName", "arch", "createReferenceDumpFlags")
+		"extraFlags", "referenceDump", "libName", "arch", "createReferenceDumpFlags")
 
 	unzipRefSAbiDump = pctx.AndroidStaticRule("unzipRefSAbiDump",
 		blueprint.RuleParams{
@@ -567,8 +567,12 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			sAbiDumpFile := android.ObjPathWithExt(ctx, subdir, srcFile, "sdump")
 			sAbiDumpFiles = append(sAbiDumpFiles, sAbiDumpFile)
 
+			dumpRule := sAbiDump
+			if ctx.Config().IsEnvTrue("RBE_ABI_DUMPER") {
+				dumpRule = sAbiDumpRE
+			}
 			ctx.Build(pctx, android.BuildParams{
-				Rule:        sAbiDump,
+				Rule:        dumpRule,
 				Description: "header-abi-dumper " + srcFile.Rel(),
 				Output:      sAbiDumpFile,
 				Input:       srcFile,
@@ -742,27 +746,36 @@ func UnzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseNam
 }
 
 func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
-	baseName, exportedHeaderFlags string, isLlndk, isNdk, isVndkExt bool) android.OptionalPath {
+	baseName, exportedHeaderFlags string, checkAllApis, isLlndk, isNdk, isVndkExt bool) android.OptionalPath {
 
 	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
 	libName := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 	createReferenceDumpFlags := ""
 
-	localAbiCheckAllowFlags := append([]string(nil), abiCheckAllowFlags...)
-	if exportedHeaderFlags == "" {
-		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-advice-only")
+	var extraFlags []string
+	if checkAllApis {
+		extraFlags = append(extraFlags, "-check-all-apis")
+	} else {
+		extraFlags = append(extraFlags,
+			"-allow-unreferenced-changes",
+			"-allow-unreferenced-elf-symbol-changes")
 	}
+
+	if exportedHeaderFlags == "" {
+		extraFlags = append(extraFlags, "-advice-only")
+	}
+
 	if isLlndk || isNdk {
 		createReferenceDumpFlags = "--llndk"
 		if isLlndk {
 			// TODO(b/130324828): "-consider-opaque-types-different" should apply to
 			// both LLNDK and NDK shared libs. However, a known issue in header-abi-diff
 			// breaks libaaudio. Remove the if-guard after the issue is fixed.
-			localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-consider-opaque-types-different")
+			extraFlags = append(extraFlags, "-consider-opaque-types-different")
 		}
 	}
 	if isVndkExt {
-		localAbiCheckAllowFlags = append(localAbiCheckAllowFlags, "-allow-extensions")
+		extraFlags = append(extraFlags, "-allow-extensions")
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -775,7 +788,7 @@ func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 			"referenceDump":            referenceDump.String(),
 			"libName":                  libName,
 			"arch":                     ctx.Arch().ArchType.Name,
-			"allowFlags":               strings.Join(localAbiCheckAllowFlags, " "),
+			"extraFlags":               strings.Join(extraFlags, " "),
 			"createReferenceDumpFlags": createReferenceDumpFlags,
 		},
 	})
