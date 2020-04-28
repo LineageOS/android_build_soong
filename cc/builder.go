@@ -77,10 +77,10 @@ var (
 			ExecStrategy:    "${config.RECXXLinksExecStrategy}",
 			Inputs:          []string{"${out}.rsp"},
 			RSPFile:         "${out}.rsp",
-			OutputFiles:     []string{"${out}"},
+			OutputFiles:     []string{"${out}", "$implicitOutputs"},
 			ToolchainInputs: []string{"$ldCmd"},
 			Platform:        map[string]string{remoteexec.PoolKey: "${config.RECXXLinksPool}"},
-		}, []string{"ldCmd", "crtBegin", "libFlags", "crtEnd", "ldFlags", "extraLibFlags"}, nil)
+		}, []string{"ldCmd", "crtBegin", "libFlags", "crtEnd", "ldFlags", "extraLibFlags"}, []string{"implicitOutputs"})
 
 	partialLd, partialLdRE = remoteexec.StaticRules(pctx, "partialLd",
 		blueprint.RuleParams{
@@ -91,10 +91,10 @@ var (
 		}, &remoteexec.REParams{
 			Labels:       map[string]string{"type": "link", "tool": "clang"},
 			ExecStrategy: "${config.RECXXLinksExecStrategy}", Inputs: []string{"$inCommaList"},
-			OutputFiles:     []string{"${out}"},
+			OutputFiles:     []string{"${out}", "$implicitOutputs"},
 			ToolchainInputs: []string{"$ldCmd"},
 			Platform:        map[string]string{remoteexec.PoolKey: "${config.RECXXLinksPool}"},
-		}, []string{"ldCmd", "ldFlags"}, []string{"inCommaList"})
+		}, []string{"ldCmd", "ldFlags"}, []string{"inCommaList", "implicitOutputs"})
 
 	ar = pctx.AndroidStaticRule("ar",
 		blueprint.RuleParams{
@@ -672,8 +672,17 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 	}
 
 	rule := ld
+	args := map[string]string{
+		"ldCmd":         ldCmd,
+		"crtBegin":      crtBegin.String(),
+		"libFlags":      strings.Join(libFlagsList, " "),
+		"extraLibFlags": flags.extraLibFlags,
+		"ldFlags":       flags.globalLdFlags + " " + flags.localLdFlags,
+		"crtEnd":        crtEnd.String(),
+	}
 	if ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
 		rule = ldRE
+		args["implicitOutputs"] = strings.Join(implicitOutputs.Strings(), ",")
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -683,14 +692,7 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 		ImplicitOutputs: implicitOutputs,
 		Inputs:          objFiles,
 		Implicits:       deps,
-		Args: map[string]string{
-			"ldCmd":         ldCmd,
-			"crtBegin":      crtBegin.String(),
-			"libFlags":      strings.Join(libFlagsList, " "),
-			"extraLibFlags": flags.extraLibFlags,
-			"ldFlags":       flags.globalLdFlags + " " + flags.localLdFlags,
-			"crtEnd":        crtEnd.String(),
-		},
+		Args:            args,
 	})
 }
 
