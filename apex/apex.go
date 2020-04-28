@@ -62,6 +62,7 @@ var (
 	certificateTag = dependencyTag{name: "certificate"}
 	usesTag        = dependencyTag{name: "uses"}
 	androidAppTag  = dependencyTag{name: "androidApp", payload: true}
+	rroTag         = dependencyTag{name: "rro", payload: true}
 	apexAvailWl    = makeApexAvailableWhitelist()
 
 	inverseApexAvailWl = invertApexWhiteList(apexAvailWl)
@@ -1129,6 +1130,9 @@ type overridableProperties struct {
 	// List of APKs to package inside APEX
 	Apps []string
 
+	// List of runtime resource overlays (RROs) inside APEX
+	Rros []string
+
 	// Names of modules to be overridden. Listed modules can only be other binaries
 	// (in Make or Soong).
 	// This does not completely prevent installation of the overridden binaries, but if both
@@ -1539,6 +1543,8 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (a *apexBundle) OverridablePropertiesDepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
 		androidAppTag, a.overridableProperties.Apps...)
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+		rroTag, a.overridableProperties.Rros...)
 }
 
 func (a *apexBundle) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
@@ -1752,6 +1758,21 @@ func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 		OverriddenManifestPackageName() string
 	}); ok {
 		af.overriddenPackageName = app.OverriddenManifestPackageName()
+	}
+	return af
+}
+
+func apexFileForRuntimeResourceOverlay(ctx android.BaseModuleContext, rro java.RuntimeResourceOverlayModule) apexFile {
+	rroDir := "overlay"
+	dirInApex := filepath.Join(rroDir, rro.Theme())
+	fileToCopy := rro.OutputFile()
+	af := newApexFile(ctx, fileToCopy, rro.Name(), dirInApex, app, rro)
+	af.certificate = rro.Certificate()
+
+	if a, ok := rro.(interface {
+		OverriddenManifestPackageName() string
+	}); ok {
+		af.overriddenPackageName = a.OverriddenManifestPackageName()
 	}
 	return af
 }
@@ -2048,6 +2069,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					filesInfo = append(filesInfo, apexFileForAndroidApp(ctx, ap))
 				} else {
 					ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
+				}
+			case rroTag:
+				if rro, ok := child.(java.RuntimeResourceOverlayModule); ok {
+					filesInfo = append(filesInfo, apexFileForRuntimeResourceOverlay(ctx, rro))
+				} else {
+					ctx.PropertyErrorf("rros", "%q is not an runtime_resource_overlay module", depName)
 				}
 			case prebuiltTag:
 				if prebuilt, ok := child.(android.PrebuiltEtcModule); ok {
