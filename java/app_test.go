@@ -2625,3 +2625,78 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
 	}
 }
+
+func TestOverrideRuntimeResourceOverlay(t *testing.T) {
+	ctx, _ := testJava(t, `
+		runtime_resource_overlay {
+			name: "foo_overlay",
+			certificate: "platform",
+			product_specific: true,
+			sdk_version: "current",
+		}
+
+		override_runtime_resource_overlay {
+			name: "bar_overlay",
+			base: "foo_overlay",
+			package_name: "com.android.bar.overlay",
+			target_package_name: "com.android.bar",
+		}
+		`)
+
+	expectedVariants := []struct {
+		moduleName        string
+		variantName       string
+		apkPath           string
+		overrides         []string
+		targetVariant     string
+		packageFlag       string
+		targetPackageFlag string
+	}{
+		{
+			variantName:       "android_common",
+			apkPath:           "/target/product/test_device/product/overlay/foo_overlay.apk",
+			overrides:         nil,
+			targetVariant:     "android_common",
+			packageFlag:       "",
+			targetPackageFlag: "",
+		},
+		{
+			variantName:       "android_common_bar_overlay",
+			apkPath:           "/target/product/test_device/product/overlay/bar_overlay.apk",
+			overrides:         []string{"foo_overlay"},
+			targetVariant:     "android_common_bar",
+			packageFlag:       "com.android.bar.overlay",
+			targetPackageFlag: "com.android.bar",
+		},
+	}
+	for _, expected := range expectedVariants {
+		variant := ctx.ModuleForTests("foo_overlay", expected.variantName)
+
+		// Check the final apk name
+		outputs := variant.AllOutputs()
+		expectedApkPath := buildDir + expected.apkPath
+		found := false
+		for _, o := range outputs {
+			if o == expectedApkPath {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Can't find %q in output files.\nAll outputs:%v", expectedApkPath, outputs)
+		}
+
+		// Check if the overrides field values are correctly aggregated.
+		mod := variant.Module().(*RuntimeResourceOverlay)
+		if !reflect.DeepEqual(expected.overrides, mod.properties.Overrides) {
+			t.Errorf("Incorrect overrides property value, expected: %q, got: %q",
+				expected.overrides, mod.properties.Overrides)
+		}
+
+		// Check aapt2 flags.
+		res := variant.Output("package-res.apk")
+		aapt2Flags := res.Args["flags"]
+		checkAapt2LinkFlag(t, aapt2Flags, "rename-manifest-package", expected.packageFlag)
+		checkAapt2LinkFlag(t, aapt2Flags, "rename-overlay-target-package", expected.targetPackageFlag)
+	}
+}
