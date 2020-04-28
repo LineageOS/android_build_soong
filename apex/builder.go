@@ -493,6 +493,10 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			optFlags = append(optFlags, "--no_hashtree")
 		}
 
+		if a.testOnlyShouldSkipPayloadSign() {
+			optFlags = append(optFlags, "--unsigned_payload")
+		}
+
 		if a.properties.Apex_name != nil {
 			// If apex_name is set, apexer can skip checking if key name matches with apex name.
 			// Note that apex_manifest is also mended.
