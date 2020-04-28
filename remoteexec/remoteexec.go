@@ -154,3 +154,14 @@ func StaticRules(ctx android.PackageContext, name string, ruleParams blueprint.R
 	return ctx.AndroidStaticRule(name, ruleParams, commonArgs...),
 		ctx.AndroidRemoteStaticRule(name+"RE", android.RemoteRuleSupports{RBE: true}, ruleParamsRE, append(commonArgs, reArgs...)...)
 }
+
+// EnvOverrideFunc retrieves a variable func that evaluates to the value of the given environment
+// variable if set, otherwise the given default.
+func EnvOverrideFunc(envVar, defaultVal string) func(ctx android.PackageVarContext) string {
+	return func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv(envVar); override != "" {
+			return override
+		}
+		return defaultVal
+	}
+}

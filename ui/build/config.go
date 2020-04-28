@@ -783,48 +783,6 @@ func (c *configImpl) UseRBE() bool {
 	return false
 }
 
-func (c *configImpl) UseRBEJAVAC() bool {
-	if !c.UseRBE() {
-		return false
-	}
-
-	if v, ok := c.environ.Get("RBE_JAVAC"); ok {
-		v = strings.TrimSpace(v)
-		if v != "" && v != "false" {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *configImpl) UseRBER8() bool {
-	if !c.UseRBE() {
-		return false
-	}
-
-	if v, ok := c.environ.Get("RBE_R8"); ok {
-		v = strings.TrimSpace(v)
-		if v != "" && v != "false" {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *configImpl) UseRBED8() bool {
-	if !c.UseRBE() {
-		return false
-	}
-
-	if v, ok := c.environ.Get("RBE_D8"); ok {
-		v = strings.TrimSpace(v)
-		if v != "" && v != "false" {
-			return true
-		}
-	}
-	return false
-}
-
 func (c *configImpl) StartRBE() bool {
 	if !c.UseRBE() {
 		return false
