@@ -35,6 +35,9 @@ type FuzzConfig struct {
 	Componentid *int64 `json:"componentid,omitempty"`
 	// Hotlists in Google's bug tracking system that bugs should be marked with.
 	Hotlists []string `json:"hotlists,omitempty"`
+	// Specify whether this fuzz target was submitted by a researcher. Defaults
+	// to false.
+	Researcher_submitted *bool `json:"researcher_submitted,omitempty"`
 }
 
 func (f *FuzzConfig) String() string {
