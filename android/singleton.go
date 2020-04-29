@@ -128,10 +128,17 @@ func (s *singletonContextAdaptor) Variable(pctx PackageContext, name, value stri
 }
 
 func (s *singletonContextAdaptor) Rule(pctx PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule {
-	if s.Config().UseRemoteBuild() && params.Pool == nil {
-		// When USE_GOMA=true or USE_RBE=true are set and the rule is not supported by goma/RBE, restrict
-		// jobs to the local parallelism value
-		params.Pool = localPool
+	if s.Config().UseRemoteBuild() {
+		if params.Pool == nil {
+			// When USE_GOMA=true or USE_RBE=true are set and the rule is not supported by goma/RBE, restrict
+			// jobs to the local parallelism value
+			params.Pool = localPool
+		} else if params.Pool == remotePool {
+			// remotePool is a fake pool used to identify rule that are supported for remoting. If the rule's
+			// pool is the remotePool, replace with nil so that ninja runs it at NINJA_REMOTE_NUM_JOBS
+			// parallelism.
+			params.Pool = nil
+		}
 	}
 	rule := s.SingletonContext.Rule(pctx.PackageContext, name, params, argNames...)
 	if s.Config().captureBuild {

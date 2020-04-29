@@ -484,6 +484,10 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			optFlags = append(optFlags, "--no_hashtree")
 		}
 
+		if a.testOnlyShouldSkipPayloadSign() {
+			optFlags = append(optFlags, "--unsigned_payload")
+		}
+
 		if a.properties.Apex_name != nil {
 			// If apex_name is set, apexer can skip checking if key name matches with apex name.
 			// Note that apex_manifest is also mended.
@@ -587,7 +591,7 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	apexBundleName := a.Name()
 	a.outputFile = android.PathForModuleInstall(&factx, "apex", apexBundleName)
 
-	if a.installable() && a.GetOverriddenBy() == "" {
+	if a.installable() {
 		installPath := android.PathForModuleInstall(ctx, "apex", apexBundleName)
 		devicePath := android.InstallPathToOnDevicePath(ctx, installPath)
 		addFlattenedFileContextsInfos(ctx, apexBundleName+":"+devicePath+":"+a.fileContexts.String())
