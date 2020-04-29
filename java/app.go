@@ -763,6 +763,7 @@ func AndroidAppFactory() android.Module {
 }
 
 type appTestProperties struct {
+	// The name of the android_app module that the tests will run against.
 	Instrumentation_for *string
 
 	// if specified, the instrumentation target package name in the manifest is overwritten by it.
