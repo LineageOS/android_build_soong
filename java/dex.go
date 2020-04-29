@@ -20,12 +20,13 @@ import (
 	"github.com/google/blueprint"
 
 	"android/soong/android"
+	"android/soong/remoteexec"
 )
 
-var d8 = pctx.AndroidRemoteStaticRule("d8", android.RemoteRuleSupports{RBE: true, RBEFlag: android.RBE_D8},
+var d8, d8RE = remoteexec.StaticRules(pctx, "d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`${config.D8Wrapper}${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $in && ` +
+			`$reTemplate${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $in && ` +
 			`${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
@@ -33,14 +34,19 @@ var d8 = pctx.AndroidRemoteStaticRule("d8", android.RemoteRuleSupports{RBE: true
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
-	},
-	"outDir", "d8Flags", "zipFlags")
+	}, &remoteexec.REParams{
+		Labels:          map[string]string{"type": "compile", "compiler": "d8"},
+		Inputs:          []string{"${config.D8Jar}"},
+		ExecStrategy:    "${config.RED8ExecStrategy}",
+		ToolchainInputs: []string{"${config.JavaCmd}"},
+		Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+	}, []string{"outDir", "d8Flags", "zipFlags"}, nil)
 
-var r8 = pctx.AndroidRemoteStaticRule("r8", android.RemoteRuleSupports{RBE: true, RBEFlag: android.RBE_R8},
+var r8, r8RE = remoteexec.StaticRules(pctx, "r8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`rm -f "$outDict" && ` +
-			`${config.R8Wrapper}${config.R8Cmd} ${config.DexFlags} -injars $in --output $outDir ` +
+			`$reTemplate${config.R8Cmd} ${config.DexFlags} -injars $in --output $outDir ` +
 			`--force-proguard-compatibility ` +
 			`--no-data-resources ` +
 			`-printmapping $outDict ` +
@@ -53,8 +59,13 @@ var r8 = pctx.AndroidRemoteStaticRule("r8", android.RemoteRuleSupports{RBE: true
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
-	},
-	"outDir", "outDict", "r8Flags", "zipFlags")
+	}, &remoteexec.REParams{
+		Labels:          map[string]string{"type": "compile", "compiler": "r8"},
+		Inputs:          []string{"$implicits", "${config.R8Jar}"},
+		ExecStrategy:    "${config.RER8ExecStrategy}",
+		ToolchainInputs: []string{"${config.JavaCmd}"},
+		Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+	}, []string{"outDir", "outDict", "r8Flags", "zipFlags"}, []string{"implicits"})
 
 func (j *Module) dexCommonFlags(ctx android.ModuleContext) []string {
 	flags := j.deviceProperties.Dxflags
@@ -185,24 +196,34 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 		proguardDictionary := android.PathForModuleOut(ctx, "proguard_dictionary")
 		j.proguardDictionary = proguardDictionary
 		r8Flags, r8Deps := j.r8Flags(ctx, flags)
+		rule := r8
+		args := map[string]string{
+			"r8Flags":  strings.Join(r8Flags, " "),
+			"zipFlags": zipFlags,
+			"outDict":  j.proguardDictionary.String(),
+			"outDir":   outDir.String(),
+		}
+		if ctx.Config().IsEnvTrue("RBE_R8") {
+			rule = r8RE
+			args["implicits"] = strings.Join(r8Deps.Strings(), ",")
+		}
 		ctx.Build(pctx, android.BuildParams{
-			Rule:           r8,
+			Rule:           rule,
 			Description:    "r8",
 			Output:         javalibJar,
 			ImplicitOutput: proguardDictionary,
 			Input:          classesJar,
 			Implicits:      r8Deps,
-			Args: map[string]string{
-				"r8Flags":  strings.Join(r8Flags, " "),
-				"zipFlags": zipFlags,
-				"outDict":  j.proguardDictionary.String(),
-				"outDir":   outDir.String(),
-			},
+			Args:           args,
 		})
 	} else {
 		d8Flags, d8Deps := j.d8Flags(ctx, flags)
+		rule := d8
+		if ctx.Config().IsEnvTrue("RBE_D8") {
+			rule = d8RE
+		}
 		ctx.Build(pctx, android.BuildParams{
-			Rule:        d8,
+			Rule:        rule,
 			Description: "d8",
 			Output:      javalibJar,
 			Input:       classesJar,
