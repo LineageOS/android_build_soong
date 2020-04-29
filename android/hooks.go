@@ -39,6 +39,12 @@ type LoadHookContext interface {
 	moduleFactories() map[string]blueprint.ModuleFactory
 }
 
+// Add a hook that will be called once the module has been loaded, i.e. its
+// properties have been initialized from the Android.bp file.
+//
+// Consider using SetDefaultableHook to register a hook for any module that implements
+// DefaultableModule as the hook is called after any defaults have been applied to the
+// module which could reduce duplication and make it easier to use.
 func AddLoadHook(m blueprint.Module, hook func(LoadHookContext)) {
 	blueprint.AddLoadHook(m, func(ctx blueprint.LoadHookContext) {
 		actx := &loadHookContext{
