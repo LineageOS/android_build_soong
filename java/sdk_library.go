@@ -83,9 +83,6 @@ type apiScope struct {
 	// module name.
 	moduleSuffix string
 
-	// The suffix to add to the make variable that references the location of the api file.
-	apiFileMakeVariableSuffix string
-
 	// SDK version that the stubs library is built against. Note that this is always
 	// *current. Older stubs library built with a numbered SDK version is created from
 	// the prebuilt jar.
@@ -133,20 +130,18 @@ var (
 		sdkVersion: "current",
 	})
 	apiScopeSystem = initApiScope(&apiScope{
-		name:                      "system",
-		apiFilePrefix:             "system-",
-		moduleSuffix:              sdkSystemApiSuffix,
-		apiFileMakeVariableSuffix: "_SYSTEM",
-		sdkVersion:                "system_current",
-		droidstubsArgs:            []string{"-showAnnotation android.annotation.SystemApi"},
+		name:           "system",
+		apiFilePrefix:  "system-",
+		moduleSuffix:   sdkSystemApiSuffix,
+		sdkVersion:     "system_current",
+		droidstubsArgs: []string{"-showAnnotation android.annotation.SystemApi"},
 	})
 	apiScopeTest = initApiScope(&apiScope{
-		name:                      "test",
-		apiFilePrefix:             "test-",
-		moduleSuffix:              sdkTestApiSuffix,
-		apiFileMakeVariableSuffix: "_TEST",
-		sdkVersion:                "test_current",
-		droidstubsArgs:            []string{"-showAnnotation android.annotation.TestApi"},
+		name:           "test",
+		apiFilePrefix:  "test-",
+		moduleSuffix:   sdkTestApiSuffix,
+		sdkVersion:     "test_current",
+		droidstubsArgs: []string{"-showAnnotation android.annotation.TestApi"},
 	})
 	allApiScopes = apiScopes{
 		apiScopePublic,
