@@ -92,6 +92,13 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
+	m["com.android.appsearch"] = []string{
+		"icing-java-proto-lite",
+		"libprotobuf-java-lite",
+	}
+	//
+	// Module separator
+	//
 	artApexContents := []string{
 		"art_cmdlineparser_headers",
 		"art_disassembler_headers",
