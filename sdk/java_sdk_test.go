@@ -46,13 +46,13 @@ java_system_modules_import {
 java_import {
 	name: "core.platform.api.stubs",
 }
-java_sdk_library_import {
+java_import {
 	name: "android_stubs_current",
 }
-java_sdk_library_import {
+java_import {
 	name: "android_system_stubs_current",
 }
-java_sdk_library_import {
+java_import {
 	name: "android_test_stubs_current",
 }
 java_import {

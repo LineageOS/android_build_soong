@@ -83,9 +83,6 @@ type apiScope struct {
 	// module name.
 	moduleSuffix string
 
-	// The suffix to add to the make variable that references the location of the api file.
-	apiFileMakeVariableSuffix string
-
 	// SDK version that the stubs library is built against. Note that this is always
 	// *current. Older stubs library built with a numbered SDK version is created from
 	// the prebuilt jar.
@@ -133,20 +130,18 @@ var (
 		sdkVersion: "current",
 	})
 	apiScopeSystem = initApiScope(&apiScope{
-		name:                      "system",
-		apiFilePrefix:             "system-",
-		moduleSuffix:              sdkSystemApiSuffix,
-		apiFileMakeVariableSuffix: "_SYSTEM",
-		sdkVersion:                "system_current",
-		droidstubsArgs:            []string{"-showAnnotation android.annotation.SystemApi"},
+		name:           "system",
+		apiFilePrefix:  "system-",
+		moduleSuffix:   sdkSystemApiSuffix,
+		sdkVersion:     "system_current",
+		droidstubsArgs: []string{"-showAnnotation android.annotation.SystemApi"},
 	})
 	apiScopeTest = initApiScope(&apiScope{
-		name:                      "test",
-		apiFilePrefix:             "test-",
-		moduleSuffix:              sdkTestApiSuffix,
-		apiFileMakeVariableSuffix: "_TEST",
-		sdkVersion:                "test_current",
-		droidstubsArgs:            []string{"-showAnnotation android.annotation.TestApi"},
+		name:           "test",
+		apiFilePrefix:  "test-",
+		moduleSuffix:   sdkTestApiSuffix,
+		sdkVersion:     "test_current",
+		droidstubsArgs: []string{"-showAnnotation android.annotation.TestApi"},
 	})
 	allApiScopes = apiScopes{
 		apiScopePublic,
@@ -503,17 +498,15 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 		}
 	}{}
 
-	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
-	// Use the platform API if standard libraries were requested, otherwise use
-	// no default libraries.
-	sdkVersion := ""
-	if !sdkDep.hasStandardLibs() {
-		sdkVersion = "none"
-	}
+	// The stubs source processing uses the same compile time classpath when extracting the
+	// API from the implementation library as it does when compiling it. i.e. the same
+	// * sdk version
+	// * system_modules
+	// * libs (static_libs/libs)
 
 	props.Name = proptools.StringPtr(module.docsName(apiScope))
 	props.Srcs = append(props.Srcs, module.Library.Module.properties.Srcs...)
-	props.Sdk_version = proptools.StringPtr(sdkVersion)
+	props.Sdk_version = module.Library.Module.deviceProperties.Sdk_version
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
 	props.Installable = proptools.BoolPtr(false)
 	// A droiddoc module has only one Libs property and doesn't distinguish between
