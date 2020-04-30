@@ -24,6 +24,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/java/config"
+	"android/soong/remoteexec"
 )
 
 func init() {
@@ -1375,7 +1376,31 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	srcJarList android.Path, bootclasspath, classpath classpath, sourcepaths android.Paths) *android.RuleBuilderCommand {
 	// Metalava uses lots of memory, restrict the number of metalava jobs that can run in parallel.
 	rule.HighMem()
-	cmd := rule.Command().BuiltTool(ctx, "metalava").
+	cmd := rule.Command()
+	if ctx.Config().IsEnvTrue("RBE_METALAVA") {
+		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
+		execStrategy := remoteexec.LocalExecStrategy
+		if v := ctx.Config().Getenv("RBE_METALAVA_EXEC_STRATEGY"); v != "" {
+			execStrategy = v
+		}
+		pool := "metalava"
+		if v := ctx.Config().Getenv("RBE_METALAVA_POOL"); v != "" {
+			pool = v
+		}
+		inputs := []string{android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "metalava.jar").String()}
+		if v := ctx.Config().Getenv("RBE_METALAVA_INPUTS"); v != "" {
+			inputs = append(inputs, strings.Split(v, ",")...)
+		}
+		cmd.Text((&remoteexec.REParams{
+			Labels:          map[string]string{"type": "compile", "lang": "java", "compiler": "metalava"},
+			ExecStrategy:    execStrategy,
+			Inputs:          inputs,
+			ToolchainInputs: []string{config.JavaCmd(ctx).String()},
+			Platform:        map[string]string{remoteexec.PoolKey: pool},
+		}).NoVarTemplate(ctx.Config()))
+	}
+
+	cmd.BuiltTool(ctx, "metalava").
 		Flag(config.JavacVmFlags).
 		FlagWithArg("-encoding ", "UTF-8").
 		FlagWithArg("-source ", javaVersion.String()).
