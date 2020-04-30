@@ -73,6 +73,7 @@ func getApiLevelsMap(config Config) map[string]int {
 			"O-MR1": 27,
 			"P":     28,
 			"Q":     29,
+			"R":     30,
 		}
 		for i, codename := range config.PlatformVersionActiveCodenames() {
 			apiLevelsMap[codename] = baseApiLevel + i
