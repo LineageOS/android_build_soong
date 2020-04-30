@@ -50,7 +50,7 @@ func init() {
 }
 
 type toolchainArm struct {
-	toolchain64Bit
+	toolchain32Bit
 	toolchainRustFlags string
 }
 
