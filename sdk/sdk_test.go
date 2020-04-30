@@ -289,9 +289,12 @@ func TestCommonValueOptimization(t *testing.T) {
 	}
 
 	extractor := newCommonValueExtractor(common)
-	extractor.extractCommonProperties(common, structs)
 
 	h := TestHelper{t}
+
+	err := extractor.extractCommonProperties(common, structs)
+	h.AssertDeepEquals("unexpected error", nil, err)
+
 	h.AssertDeepEquals("common properties not correct",
 		&testPropertiesStruct{
 			name:        "common",
