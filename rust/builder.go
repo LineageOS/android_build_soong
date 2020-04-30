@@ -108,8 +108,8 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 	}
 	// TODO once we have static libraries in the host prebuilt .bp, this
 	// should be unconditionally added.
-	if !ctx.Host() {
-		// If we're on a device build, do not use an implicit sysroot
+	if !(ctx.Host() && ctx.TargetPrimary()) {
+		// If we're not targeting the host primary arch, do not use an implicit sysroot
 		rustcFlags = append(rustcFlags, "--sysroot=/dev/null")
 	}
 	// Collect linker flags

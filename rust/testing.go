@@ -46,24 +46,29 @@ func GatherRequiredDepsForTest() string {
 			crate_name: "std",
 			srcs: ["foo.rs"],
 			no_stdlibs: true,
+			host_supported: true,
 		}
 		rust_library_rlib {
 			name: "libstd.static",
 			crate_name: "std",
 			srcs: ["foo.rs"],
 			no_stdlibs: true,
+			host_supported: true,
 		}
 		rust_library_dylib {
 			name: "libtest",
 			crate_name: "test",
 			srcs: ["foo.rs"],
 			no_stdlibs: true,
+			host_supported: true,
+
 		}
 		rust_library_rlib {
 			name: "libtest.static",
 			crate_name: "test",
 			srcs: ["foo.rs"],
 			no_stdlibs: true,
+			host_supported: true,
 		}
 
 ` + cc.GatherRequiredDepsForTest(android.NoOsType)
