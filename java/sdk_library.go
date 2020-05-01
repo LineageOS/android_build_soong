@@ -494,17 +494,15 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 		}
 	}{}
 
-	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
-	// Use the platform API if standard libraries were requested, otherwise use
-	// no default libraries.
-	sdkVersion := ""
-	if !sdkDep.hasStandardLibs() {
-		sdkVersion = "none"
-	}
+	// The stubs source processing uses the same compile time classpath when extracting the
+	// API from the implementation library as it does when compiling it. i.e. the same
+	// * sdk version
+	// * system_modules
+	// * libs (static_libs/libs)
 
 	props.Name = proptools.StringPtr(module.docsName(apiScope))
 	props.Srcs = append(props.Srcs, module.Library.Module.properties.Srcs...)
-	props.Sdk_version = proptools.StringPtr(sdkVersion)
+	props.Sdk_version = module.Library.Module.deviceProperties.Sdk_version
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
 	props.Installable = proptools.BoolPtr(false)
 	// A droiddoc module has only one Libs property and doesn't distinguish between
