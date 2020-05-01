@@ -59,7 +59,7 @@ func parseApiFilePath(ctx android.LoadHookContext, path string) (module string, 
 	apiver = elements[0]
 
 	scope = elements[1]
-	if scope != "public" && scope != "system" && scope != "test" {
+	if scope != "public" && scope != "system" && scope != "test" && scope != "module-lib" && scope != "system-server" {
 		ctx.ModuleErrorf("invalid scope %q found in path: %q", scope, path)
 		return
 	}
@@ -100,7 +100,7 @@ func getPrebuiltFiles(mctx android.LoadHookContext, name string) []string {
 	mydir := mctx.ModuleDir() + "/"
 	var files []string
 	for _, apiver := range mctx.Module().(*prebuiltApis).properties.Api_dirs {
-		for _, scope := range []string{"public", "system", "test", "core"} {
+		for _, scope := range []string{"public", "system", "test", "core", "module-lib", "system-server"} {
 			vfiles, err := mctx.GlobWithDeps(mydir+apiver+"/"+scope+"/"+name, nil)
 			if err != nil {
 				mctx.ModuleErrorf("failed to glob %s files under %q: %s", name, mydir+apiver+"/"+scope, err)
