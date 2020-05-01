@@ -82,14 +82,6 @@ type RegisterMutatorFunc func(RegisterMutatorsContext)
 var preArch = []RegisterMutatorFunc{
 	RegisterNamespaceMutator,
 
-	// Rename package module types.
-	//
-	// The package module type does not have a name property, instead its name is determined
-	// by the location of the containing .bp file relative to the root of the file structure
-	// being built by Soong. Unfortunately, due to limitations in LoadHook the module has to
-	// be given a synthetic temporary name which is then fixed up by these mutators.
-	RegisterPackageRenamer,
-
 	// Create an association between prebuilt modules and their corresponding source
 	// modules (if any).
 	RegisterPrebuiltsPreArchMutators,
