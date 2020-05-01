@@ -74,3 +74,33 @@ func TestEnforceSingleSourceFile(t *testing.T) {
 		  host_supported: true,
 		}`)
 }
+
+func TestInstallDir(t *testing.T) {
+	ctx := testRust(t, `
+		rust_library_dylib {
+			name: "libfoo",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+		}
+		rust_binary {
+			name: "fizzbuzz",
+			srcs: ["foo.rs"],
+		}`)
+
+	install_path_lib64 := ctx.ModuleForTests("libfoo",
+		"android_arm64_armv8-a_dylib").Module().(*Module).compiler.(*libraryDecorator).path.String()
+	install_path_lib32 := ctx.ModuleForTests("libfoo",
+		"android_arm_armv7-a-neon_dylib").Module().(*Module).compiler.(*libraryDecorator).path.String()
+	install_path_bin := ctx.ModuleForTests("fizzbuzz",
+		"android_arm64_armv8-a").Module().(*Module).compiler.(*binaryDecorator).path.String()
+
+	if !strings.HasSuffix(install_path_lib64, "system/lib64/libfoo.dylib.so") {
+		t.Fatalf("unexpected install path for 64-bit library: %#v", install_path_lib64)
+	}
+	if !strings.HasSuffix(install_path_lib32, "system/lib/libfoo.dylib.so") {
+		t.Fatalf("unexpected install path for 32-bit library: %#v", install_path_lib32)
+	}
+	if !strings.HasSuffix(install_path_bin, "system/bin/fizzbuzz") {
+		t.Fatalf("unexpected install path for binary: %#v", install_path_bin)
+	}
+}
