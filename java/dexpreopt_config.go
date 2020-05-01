@@ -89,6 +89,8 @@ func getDexLocation(ctx android.PathContext, target android.Target, module strin
 		// Special apex name "platform" denotes jars do not come from an apex, but are part
 		// of the platform. Such jars are installed on the /system partition on device.
 		subdir = "system/framework"
+	} else if apex == "system_ext" {
+		subdir = "system_ext/framework"
 	} else {
 		subdir = filepath.Join("apex", apex, "javalib")
 	}
