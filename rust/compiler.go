@@ -183,8 +183,8 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 
 	if !Bool(compiler.Properties.No_stdlibs) {
 		for _, stdlib := range config.Stdlibs {
-			// If we're building for host, use the compiler's stdlibs
-			if ctx.Host() {
+			// If we're building for the primary host target, use the compiler's stdlibs
+			if ctx.Host() && ctx.TargetPrimary() {
 				stdlib = stdlib + "_" + ctx.toolchain().RustTriple()
 			}
 
@@ -192,9 +192,12 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 			// static linking is the default, if one of our static
 			// dependencies uses a dynamic library, we need to dynamically
 			// link the stdlib as well.
-			if (len(deps.Dylibs) > 0) || (!ctx.Host()) {
+			if (len(deps.Dylibs) > 0) || ctx.Device() {
 				// Dynamically linked stdlib
 				deps.Dylibs = append(deps.Dylibs, stdlib)
+			} else if ctx.Host() && !ctx.TargetPrimary() {
+				// Otherwise use the static in-tree stdlib for host secondary arch
+				deps.Rlibs = append(deps.Rlibs, stdlib+".static")
 			}
 		}
 	}
