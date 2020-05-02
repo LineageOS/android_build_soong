@@ -187,6 +187,7 @@ bootstrap_go_package {
         "cc/rs.go",
         "cc/sanitize.go",
         "cc/sabi.go",
+        "cc/sdk.go",
         "cc/snapshot_utils.go",
         "cc/stl.go",
         "cc/strip.go",
