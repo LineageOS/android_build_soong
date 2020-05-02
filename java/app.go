@@ -230,6 +230,13 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, jniTarget := range ctx.MultiTargets() {
 		variation := append(jniTarget.Variations(),
 			blueprint.Variation{Mutator: "link", Variation: "shared"})
+
+		// If the app builds against an Android SDK use the SDK variant of JNI dependencies
+		// unless jni_uses_platform_apis is set.
+		if a.sdkVersion().specified() && a.sdkVersion().kind != sdkCorePlatform &&
+			!Bool(a.appProperties.Jni_uses_platform_apis) {
+			variation = append(variation, blueprint.Variation{Mutator: "sdk", Variation: "sdk"})
+		}
 		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs...)
 	}
 
@@ -557,7 +564,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	dexJarFile := a.dexBuildActions(ctx)
 
-	jniLibs, certificateDeps := collectAppDeps(ctx, a.shouldEmbedJnis(ctx))
+	jniLibs, certificateDeps := collectAppDeps(ctx, a.shouldEmbedJnis(ctx), !Bool(a.appProperties.Jni_uses_platform_apis))
 	jniJarFile := a.jniBuildActions(jniLibs, ctx)
 
 	if ctx.Failed() {
@@ -607,7 +614,8 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func collectAppDeps(ctx android.ModuleContext, shouldCollectRecursiveNativeDeps bool) ([]jniLib, []Certificate) {
+func collectAppDeps(ctx android.ModuleContext, shouldCollectRecursiveNativeDeps bool,
+	checkNativeSdkVersion bool) ([]jniLib, []Certificate) {
 	var jniLibs []jniLib
 	var certificates []Certificate
 	seenModulePaths := make(map[string]bool)
@@ -628,6 +636,18 @@ func collectAppDeps(ctx android.ModuleContext, shouldCollectRecursiveNativeDeps 
 					return false
 				}
 				seenModulePaths[path.String()] = true
+
+				if checkNativeSdkVersion {
+					if app, ok := ctx.Module().(interface{ sdkVersion() sdkSpec }); ok {
+						if app.sdkVersion().specified() &&
+							app.sdkVersion().kind != sdkCorePlatform &&
+							dep.SdkVersion() == "" {
+							ctx.PropertyErrorf("jni_libs",
+								"JNI dependency %q uses platform APIs, but this module does not",
+								otherName)
+						}
+					}
+				}
 
 				if lib.Valid() {
 					jniLibs = append(jniLibs, jniLib{
@@ -1169,7 +1189,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		ctx.ModuleErrorf("One and only one of certficate, presigned, and default_dev_cert properties must be set")
 	}
 
-	_, certificates := collectAppDeps(ctx, false)
+	_, certificates := collectAppDeps(ctx, false, false)
 
 	// TODO: LOCAL_EXTRACT_APK/LOCAL_EXTRACT_DPI_APK
 	// TODO: LOCAL_PACKAGE_SPLITS
@@ -1457,7 +1477,7 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 	r.aapt.buildActions(ctx, r, aaptLinkFlags...)
 
 	// Sign the built package
-	_, certificates := collectAppDeps(ctx, false)
+	_, certificates := collectAppDeps(ctx, false, false)
 	certificates = processMainCert(r.ModuleBase, String(r.properties.Certificate), certificates, ctx)
 	signed := android.PathForModuleOut(ctx, "signed", r.Name()+".apk")
 	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates, nil)

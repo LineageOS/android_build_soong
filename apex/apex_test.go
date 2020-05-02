@@ -3323,18 +3323,20 @@ func TestApexWithApps(t *testing.T) {
 		android_app {
 			name: "AppFoo",
 			srcs: ["foo/bar/MyClass.java"],
-			sdk_version: "none",
+			sdk_version: "current",
 			system_modules: "none",
 			jni_libs: ["libjni"],
+			stl: "none",
 			apex_available: [ "myapex" ],
 		}
 
 		android_app {
 			name: "AppFooPriv",
 			srcs: ["foo/bar/MyClass.java"],
-			sdk_version: "none",
+			sdk_version: "current",
 			system_modules: "none",
 			privileged: true,
+			stl: "none",
 			apex_available: [ "myapex" ],
 		}
 
@@ -3371,7 +3373,7 @@ func TestApexWithApps(t *testing.T) {
 	}
 	// JNI libraries including transitive deps are
 	for _, jni := range []string{"libjni", "libfoo"} {
-		jniOutput := ctx.ModuleForTests(jni, "android_arm64_armv8-a_shared_myapex").Module().(*cc.Module).OutputFile()
+		jniOutput := ctx.ModuleForTests(jni, "android_arm64_armv8-a_sdk_shared_myapex").Module().(*cc.Module).OutputFile()
 		// ... embedded inside APK (jnilibs.zip)
 		ensureListContains(t, appZipRule.Implicits.Strings(), jniOutput.String())
 		// ... and not directly inside the APEX
