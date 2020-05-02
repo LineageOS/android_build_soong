@@ -259,6 +259,50 @@ var neverallowTests = []struct {
 				}`),
 		},
 	},
+	// CC sdk rule tests
+	{
+		name: `"sdk_variant_only" outside whitelist`,
+		fs: map[string][]byte{
+			"Android.bp": []byte(`
+				cc_library {
+					name: "outside_whitelist",
+					sdk_version: "current",
+					sdk_variant_only: true,
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outside_whitelist": violates neverallow`,
+		},
+	},
+	{
+		name: `"sdk_variant_only: false" outside whitelist`,
+		fs: map[string][]byte{
+			"Android.bp": []byte(`
+				cc_library {
+					name: "outside_whitelist",
+					sdk_version: "current",
+					sdk_variant_only: false,
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outside_whitelist": violates neverallow`,
+		},
+	},
+	{
+		name: `"platform" outside whitelist`,
+		fs: map[string][]byte{
+			"Android.bp": []byte(`
+				cc_library {
+					name: "outside_whitelist",
+					platform: {
+						shared_libs: ["libfoo"],
+					},
+				}`),
+		},
+		expectedErrors: []string{
+			`module "outside_whitelist": violates neverallow`,
+		},
+	},
 }
 
 func TestNeverallow(t *testing.T) {
@@ -299,6 +343,8 @@ type mockCcLibraryProperties struct {
 	Include_dirs     []string
 	Vendor_available *bool
 	Static_libs      []string
+	Sdk_version      *string
+	Sdk_variant_only *bool
 
 	Vndk struct {
 		Enabled                *bool
@@ -314,6 +360,10 @@ type mockCcLibraryProperties struct {
 		Treble_linker_namespaces struct {
 			Cflags []string
 		}
+	}
+
+	Platform struct {
+		Shared_libs []string
 	}
 }
 

@@ -54,6 +54,7 @@ func init() {
 	AddNeverAllowRules(createLibcoreRules()...)
 	AddNeverAllowRules(createMediaRules()...)
 	AddNeverAllowRules(createJavaDeviceForHostRules()...)
+	AddNeverAllowRules(createCcSdkVariantRules()...)
 }
 
 // Add a NeverAllow rule to the set of rules to apply.
@@ -177,6 +178,37 @@ func createJavaDeviceForHostRules() []Rule {
 	}
 }
 
+func createCcSdkVariantRules() []Rule {
+	sdkVersionOnlyWhitelist := []string{
+		// derive_sdk_prefer32 has stem: "derive_sdk" which conflicts with the derive_sdk.
+		// This sometimes works because the APEX modules that contain derive_sdk and
+		// derive_sdk_prefer32 suppress the platform installation rules, but fails when
+		// the APEX modules contain the SDK variant and the platform variant still exists.
+		"frameworks/base/apex/sdkextensions/derive_sdk",
+	}
+
+	platformVariantPropertiesWhitelist := []string{
+		// android_native_app_glue and libRSSupport use native_window.h but target old
+		// sdk versions (minimum and 9 respectively) where libnativewindow didn't exist,
+		// so they can't add libnativewindow to shared_libs to get the header directory
+		// for the platform variant.  Allow them to use the platform variant
+		// property to set shared_libs.
+		"prebuilts/ndk",
+		"frameworks/rs",
+	}
+
+	return []Rule{
+		NeverAllow().
+			NotIn(sdkVersionOnlyWhitelist...).
+			WithMatcher("sdk_variant_only", isSetMatcherInstance).
+			Because("sdk_variant_only can only be used in whitelisted projects"),
+		NeverAllow().
+			NotIn(platformVariantPropertiesWhitelist...).
+			WithMatcher("platform.shared_libs", isSetMatcherInstance).
+			Because("platform variant properties can only be used in whitelisted projects"),
+	}
+}
+
 func neverallowMutator(ctx BottomUpMutatorContext) {
 	m, ok := ctx.Module().(Module)
 	if !ok {
@@ -267,6 +299,18 @@ func (m *regexMatcher) Test(value string) bool {
 func (m *regexMatcher) String() string {
 	return ".regexp(" + m.re.String() + ")"
 }
+
+type isSetMatcher struct{}
+
+func (m *isSetMatcher) Test(value string) bool {
+	return value != ""
+}
+
+func (m *isSetMatcher) String() string {
+	return ".is-set"
+}
+
+var isSetMatcherInstance = &isSetMatcher{}
 
 type ruleProperty struct {
 	fields  []string // e.x.: Vndk.Enabled
