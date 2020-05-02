@@ -230,6 +230,13 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, jniTarget := range ctx.MultiTargets() {
 		variation := append(jniTarget.Variations(),
 			blueprint.Variation{Mutator: "link", Variation: "shared"})
+
+		// If the app builds against an Android SDK use the SDK variant of JNI dependencies
+		// unless jni_uses_platform_apis is set.
+		if a.sdkVersion().specified() && a.sdkVersion().kind != sdkCorePlatform &&
+			!Bool(a.appProperties.Jni_uses_platform_apis) {
+			variation = append(variation, blueprint.Variation{Mutator: "sdk", Variation: "sdk"})
+		}
 		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs...)
 	}
 
