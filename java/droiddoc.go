@@ -1489,20 +1489,37 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		updatedBaselineOutput := android.PathForModuleOut(ctx, "api_lint_baseline.txt")
 		d.apiLintTimestamp = android.PathForModuleOut(ctx, "api_lint.timestamp")
 
+		msg := `` +
+			`************************************************************\n` +
+			`Your API changes are triggering API Lint warnings or errors.\n` +
+			`To make these errors go away, fix the code according to the\n` +
+			`error and/or warning messages above.\n` +
+			`\n` +
+			`If it's not possible to do so, there are workarounds:\n` +
+			`\n` +
+			`1. You can suppress the errors with @SuppressLint(\"<id>\")\n`
+
 		if baselineFile.Valid() {
 			cmd.FlagWithInput("--baseline ", baselineFile.Path())
 			cmd.FlagWithOutput("--update-baseline ", updatedBaselineOutput)
+
+			msg += fmt.Sprintf(``+
+				`2. You can update the baseline by executing the following\n`+
+				`   command:\n`+
+				`       cp \\ \n`+
+				`       \"$PWD/%s\" \\ \n`+
+				`       \"$PWD/%s\" \n`+
+				`   To submit the revised baseline.txt to the main Android\n`+
+				`   repository, you will need approval.\n`, updatedBaselineOutput, baselineFile.Path())
+		} else {
+			msg += fmt.Sprintf(``+
+				`2. You can add a baseline file of existing lint failures\n`+
+				`   to the build rule of %s.\n`, d.Name())
 		}
+		msg += `************************************************************\n`
 
 		zipSyncCleanupCmd(rule, srcJarDir)
 
-		msg := fmt.Sprintf(`\n******************************\n`+
-			`Your API changes are triggering API Lint warnings or errors.\n\n`+
-			`To make these errors go away, you have two choices:\n`+
-			`   1. You can suppress the errors with @SuppressLint(\"<id>\").\n\n`+
-			`   2. You can update the baseline by executing the following command:\n`+
-			`         cp \"$PWD/%s\" \"$PWD/%s\"\n\n`+
-			`******************************\n`, updatedBaselineOutput, baselineFile.Path())
 		rule.Command().
 			Text("touch").Output(d.apiLintTimestamp).
 			Text(") || (").
