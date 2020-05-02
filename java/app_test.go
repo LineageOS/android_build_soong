@@ -912,6 +912,7 @@ func TestJNIABI(t *testing.T) {
 		cc_library {
 			name: "libjni",
 			system_shared_libs: [],
+			sdk_version: "current",
 			stl: "none",
 		}
 
@@ -1024,6 +1025,7 @@ func TestJNIPackaging(t *testing.T) {
 			name: "libjni",
 			system_shared_libs: [],
 			stl: "none",
+			sdk_version: "current",
 		}
 
 		android_app {
@@ -1048,26 +1050,26 @@ func TestJNIPackaging(t *testing.T) {
 
 		android_test {
 			name: "test",
-			sdk_version: "core_platform",
+			sdk_version: "current",
 			jni_libs: ["libjni"],
 		}
 
 		android_test {
 			name: "test_noembed",
-			sdk_version: "core_platform",
+			sdk_version: "current",
 			jni_libs: ["libjni"],
 			use_embedded_native_libs: false,
 		}
 
 		android_test_helper_app {
 			name: "test_helper",
-			sdk_version: "core_platform",
+			sdk_version: "current",
 			jni_libs: ["libjni"],
 		}
 
 		android_test_helper_app {
 			name: "test_helper_noembed",
-			sdk_version: "core_platform",
+			sdk_version: "current",
 			jni_libs: ["libjni"],
 			use_embedded_native_libs: false,
 		}
@@ -1098,6 +1100,10 @@ func TestJNIPackaging(t *testing.T) {
 			if jniLibZip.Rule != nil {
 				if g, w := !strings.Contains(jniLibZip.Args["jarArgs"], "-L 0"), test.compressed; g != w {
 					t.Errorf("expected jni compressed %v, got %v", w, g)
+				}
+
+				if !strings.Contains(jniLibZip.Implicits[0].String(), "_sdk_") {
+					t.Errorf("expected input %q to use sdk variant", jniLibZip.Implicits[0].String())
 				}
 			}
 		})
@@ -2293,6 +2299,7 @@ func TestEmbedNotice(t *testing.T) {
 			system_shared_libs: [],
 			stl: "none",
 			notice: "LIB_NOTICE",
+			sdk_version: "current",
 		}
 
 		java_library {
