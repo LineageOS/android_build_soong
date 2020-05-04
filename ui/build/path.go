@@ -177,9 +177,12 @@ func SetupPath(ctx Context, config Config) {
 		execs = append(execs, parsePathDir(pathEntry)...)
 	}
 
-	allowAllSymlinks := config.Environment().IsEnvTrue("TEMPORARY_DISABLE_PATH_RESTRICTIONS")
+	if config.Environment().IsEnvTrue("TEMPORARY_DISABLE_PATH_RESTRICTIONS") {
+		ctx.Fatalln("TEMPORARY_DISABLE_PATH_RESTRICTIONS was a temporary migration method, and is now obsolete.")
+	}
+
 	for _, name := range execs {
-		if !paths.GetConfig(name).Symlink && !allowAllSymlinks {
+		if !paths.GetConfig(name).Symlink {
 			continue
 		}
 
