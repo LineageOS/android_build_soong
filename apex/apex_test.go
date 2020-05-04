@@ -4526,68 +4526,68 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 
 	// updatable jar from ART apex in the ART boot image => ok
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.ArtApexJars = []string{"some-art-lib"}
+		config.ArtApexJars = []string{"com.android.art.something:some-art-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, "", bp, transform)
 
 	// updatable jar from ART apex in the framework boot image => error
 	error = "module 'some-art-lib' from updatable apex 'com.android.art.something' is not allowed in the framework boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = []string{"some-art-lib"}
+		config.BootJars = []string{"com.android.art.something:some-art-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// updatable jar from some other apex in the ART boot image => error
 	error = "module 'some-updatable-apex-lib' from updatable apex 'some-updatable-apex' is not allowed in the ART boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.ArtApexJars = []string{"some-updatable-apex-lib"}
+		config.ArtApexJars = []string{"some-updatable-apex:some-updatable-apex-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// non-updatable jar from some other apex in the ART boot image => error
 	error = "module 'some-non-updatable-apex-lib' is not allowed in the ART boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.ArtApexJars = []string{"some-non-updatable-apex-lib"}
+		config.ArtApexJars = []string{"some-non-updatable-apex:some-non-updatable-apex-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// updatable jar from some other apex in the framework boot image => error
 	error = "module 'some-updatable-apex-lib' from updatable apex 'some-updatable-apex' is not allowed in the framework boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = []string{"some-updatable-apex-lib"}
+		config.BootJars = []string{"some-updatable-apex:some-updatable-apex-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// non-updatable jar from some other apex in the framework boot image => ok
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = []string{"some-non-updatable-apex-lib"}
+		config.BootJars = []string{"some-non-updatable-apex:some-non-updatable-apex-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, "", bp, transform)
 
 	// nonexistent jar in the ART boot image => error
 	error = "failed to find a dex jar path for module 'nonexistent'"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.ArtApexJars = []string{"nonexistent"}
+		config.ArtApexJars = []string{"platform:nonexistent"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// nonexistent jar in the framework boot image => error
 	error = "failed to find a dex jar path for module 'nonexistent'"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = []string{"nonexistent"}
+		config.BootJars = []string{"platform:nonexistent"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// platform jar in the ART boot image => error
 	error = "module 'some-platform-lib' is not allowed in the ART boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.ArtApexJars = []string{"some-platform-lib"}
+		config.ArtApexJars = []string{"platform:some-platform-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// platform jar in the framework boot image => ok
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = []string{"some-platform-lib"}
+		config.BootJars = []string{"platform:some-platform-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, "", bp, transform)
 }
