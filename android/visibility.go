@@ -246,14 +246,8 @@ func checkRules(ctx BaseModuleContext, currentPkg, property string, visibility [
 	}
 
 	for _, v := range visibility {
-		ok, pkg, name := splitRule(v, currentPkg)
+		ok, pkg, name := splitRule(ctx, v, currentPkg, property)
 		if !ok {
-			// Visibility rule is invalid so ignore it. Keep going rather than aborting straight away to
-			// ensure all the rules on this module are checked.
-			ctx.PropertyErrorf(property,
-				"invalid visibility pattern %q must match"+
-					" //<package>:<module>, //<package> or :<module>",
-				v)
 			continue
 		}
 
@@ -301,21 +295,24 @@ func visibilityRuleGatherer(ctx BottomUpMutatorContext) {
 
 	// Parse the visibility rules that control access to the module and store them by id
 	// for use when enforcing the rules.
-	if visibility := m.visibility(); visibility != nil {
-		rule := parseRules(ctx, currentPkg, m.visibility())
-		if rule != nil {
-			moduleToVisibilityRuleMap(ctx.Config()).Store(qualifiedModuleId, rule)
+	primaryProperty := m.base().primaryVisibilityProperty
+	if primaryProperty != nil {
+		if visibility := primaryProperty.getStrings(); visibility != nil {
+			rule := parseRules(ctx, currentPkg, primaryProperty.getName(), visibility)
+			if rule != nil {
+				moduleToVisibilityRuleMap(ctx.Config()).Store(qualifiedModuleId, rule)
+			}
 		}
 	}
 }
 
-func parseRules(ctx BaseModuleContext, currentPkg string, visibility []string) compositeRule {
+func parseRules(ctx BaseModuleContext, currentPkg, property string, visibility []string) compositeRule {
 	rules := make(compositeRule, 0, len(visibility))
 	hasPrivateRule := false
 	hasPublicRule := false
 	hasNonPrivateRule := false
 	for _, v := range visibility {
-		ok, pkg, name := splitRule(v, currentPkg)
+		ok, pkg, name := splitRule(ctx, v, currentPkg, property)
 		if !ok {
 			continue
 		}
@@ -376,10 +373,16 @@ func isAllowedFromOutsideVendor(pkg string, name string) bool {
 	return !isAncestor("vendor", pkg)
 }
 
-func splitRule(ruleExpression string, currentPkg string) (bool, string, string) {
+func splitRule(ctx BaseModuleContext, ruleExpression string, currentPkg, property string) (bool, string, string) {
 	// Make sure that the rule is of the correct format.
 	matches := visibilityRuleRegexp.FindStringSubmatch(ruleExpression)
 	if ruleExpression == "" || matches == nil {
+		// Visibility rule is invalid so ignore it. Keep going rather than aborting straight away to
+		// ensure all the rules on this module are checked.
+		ctx.PropertyErrorf(property,
+			"invalid visibility pattern %q must match"+
+				" //<package>:<module>, //<package> or :<module>",
+			ruleExpression)
 		return false, "", ""
 	}
 
