@@ -113,7 +113,7 @@ func (image bootImageConfig) moduleName(idx int) string {
 	// Dexpreopt on the boot class path produces multiple files. The first dex file
 	// is converted into 'name'.art (to match the legacy assumption that 'name'.art
 	// exists), and the rest are converted to 'name'-<jar>.art.
-	m := image.modules[idx]
+	_, m := android.SplitApexJarPair(image.modules[idx])
 	name := image.stem
 	if idx != 0 || image.extends != nil {
 		name += "-" + stemOf(m)
@@ -261,7 +261,7 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 	}
 
 	name := ctx.ModuleName(module)
-	index := android.IndexList(name, image.modules)
+	index := android.IndexList(name, android.GetJarsFromApexJarPairs(image.modules))
 	if index == -1 {
 		return -1, nil
 	}
@@ -314,13 +314,13 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 	// Ensure all modules were converted to paths
 	for i := range bootDexJars {
 		if bootDexJars[i] == nil {
+			_, m := android.SplitApexJarPair(image.modules[i])
 			if ctx.Config().AllowMissingDependencies() {
-				missingDeps = append(missingDeps, image.modules[i])
+				missingDeps = append(missingDeps, m)
 				bootDexJars[i] = android.PathForOutput(ctx, "missing")
 			} else {
 				ctx.Errorf("failed to find a dex jar path for module '%s'"+
-					", note that some jars may be filtered out by module constraints",
-					image.modules[i])
+					", note that some jars may be filtered out by module constraints", m)
 			}
 		}
 	}
@@ -614,7 +614,7 @@ func updatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConf
 
 	return ctx.Config().Once(updatableBcpPackagesRuleKey, func() interface{} {
 		global := dexpreopt.GetGlobalConfig(ctx)
-		updatableModules := dexpreopt.GetJarsFromApexJarPairs(global.UpdatableBootJars)
+		updatableModules := android.GetJarsFromApexJarPairs(global.UpdatableBootJars)
 
 		// Collect `permitted_packages` for updatable boot jars.
 		var updatablePackages []string
