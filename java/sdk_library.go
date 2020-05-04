@@ -90,6 +90,9 @@ type apiScope struct {
 
 	// Extra arguments to pass to droidstubs for this scope.
 	droidstubsArgs []string
+
+	// Whether the api scope can be treated as unstable, and should skip compat checks.
+	unstable bool
 }
 
 // Initialize a scope, creating and adding appropriate dependency tags
@@ -142,6 +145,7 @@ var (
 		moduleSuffix:   sdkTestApiSuffix,
 		sdkVersion:     "test_current",
 		droidstubsArgs: []string{"-showAnnotation android.annotation.TestApi"},
+		unstable:       true,
 	})
 	allApiScopes = apiScopes{
 		apiScopePublic,
@@ -556,12 +560,14 @@ func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiSc
 	props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
 	props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
 
-	// check against the latest released API
-	props.Check_api.Last_released.Api_file = proptools.StringPtr(
-		module.latestApiFilegroupName(apiScope))
-	props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
-		module.latestRemovedApiFilegroupName(apiScope))
-	props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
+	if !apiScope.unstable {
+		// check against the latest released API
+		props.Check_api.Last_released.Api_file = proptools.StringPtr(
+			module.latestApiFilegroupName(apiScope))
+		props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
+			module.latestRemovedApiFilegroupName(apiScope))
+		props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
+	}
 
 	// Dist the api txt artifact for sdk builds.
 	if !Bool(module.sdkLibraryProperties.No_dist) {
