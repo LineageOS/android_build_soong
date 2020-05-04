@@ -3145,8 +3145,16 @@ func TestApexWithTests(t *testing.T) {
 			gtest: false,
 			srcs: ["mytest.cpp"],
 			relative_install_path: "test",
+			shared_libs: ["mylib"],
 			system_shared_libs: [],
 			static_executable: true,
+			stl: "none",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
 			stl: "none",
 		}
 
@@ -3169,8 +3177,9 @@ func TestApexWithTests(t *testing.T) {
 	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule")
 	copyCmds := apexRule.Args["copy_commands"]
 
-	// Ensure that test dep is copied into apex.
+	// Ensure that test dep (and their transitive dependencies) are copied into apex.
 	ensureContains(t, copyCmds, "image.apex/bin/test/mytest")
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
 
 	// Ensure that test deps built with `test_per_src` are copied into apex.
 	ensureContains(t, copyCmds, "image.apex/bin/test/mytest1")
