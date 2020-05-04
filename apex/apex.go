@@ -2093,13 +2093,13 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						// We do not add this variation to `filesInfo`, as it has no output;
 						// however, we do add the other variations of this module as indirect
 						// dependencies (see below).
-						return true
 					} else {
 						// Single-output test module (where `test_per_src: false`).
 						af := apexFileForExecutable(ctx, ccTest)
 						af.class = nativeTest
 						filesInfo = append(filesInfo, af)
 					}
+					return true // track transitive dependencies
 				} else {
 					ctx.PropertyErrorf("tests", "%q is not a cc module", depName)
 				}
