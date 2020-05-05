@@ -111,7 +111,7 @@ func (p *nativeBinaryInfoProperties) PopulateFromVariant(ctx android.SdkMemberCo
 	ccModule := variant.(*Module)
 
 	p.archType = ccModule.Target().Arch.ArchType.String()
-	p.outputFile = ccModule.OutputFile().Path()
+	p.outputFile = getRequiredMemberOutputFile(ctx, ccModule)
 
 	if ccModule.linker != nil {
 		specifiedDeps := specifiedDeps{}
