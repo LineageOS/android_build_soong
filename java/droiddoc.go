@@ -1471,6 +1471,15 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd := metalavaCmd(ctx, rule, javaVersion, d.Javadoc.srcFiles, srcJarList,
 			deps.bootClasspath, deps.classpath, d.Javadoc.sourcepaths)
 
+		// TODO(b/154317059): Clean up this whitelist by baselining and/or checking in last-released.
+		if d.Name() != "android.car-system-stubs-docs" &&
+			d.Name() != "android.car-stubs-docs" &&
+			d.Name() != "system-api-stubs-docs" &&
+			d.Name() != "test-api-stubs-docs" {
+			cmd.Flag("--lints-as-errors")
+			cmd.Flag("--warnings-as-errors") // Most lints are actually warnings.
+		}
+
 		cmd.Flag(d.Javadoc.args).Implicits(d.Javadoc.argFiles)
 
 		newSince := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Api_lint.New_since)
