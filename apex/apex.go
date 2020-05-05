@@ -1896,6 +1896,8 @@ func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
 		if String(a.properties.Min_sdk_version) == "" {
 			ctx.PropertyErrorf("updatable", "updatable APEXes should set min_sdk_version as well")
 		}
+
+		a.checkJavaStableSdkVersion(ctx)
 	}
 }
 
@@ -1965,7 +1967,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.checkApexAvailability(ctx)
 	a.checkUpdatable(ctx)
-
 	a.collectDepsInfo(ctx)
 
 	handleSpecialLibs := !android.Bool(a.properties.Ignore_system_library_special_case)
@@ -2093,13 +2094,13 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						// We do not add this variation to `filesInfo`, as it has no output;
 						// however, we do add the other variations of this module as indirect
 						// dependencies (see below).
-						return true
 					} else {
 						// Single-output test module (where `test_per_src: false`).
 						af := apexFileForExecutable(ctx, ccTest)
 						af.class = nativeTest
 						filesInfo = append(filesInfo, af)
 					}
+					return true // track transitive dependencies
 				} else {
 					ctx.PropertyErrorf("tests", "%q is not a cc module", depName)
 				}
@@ -2283,6 +2284,23 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 
 	a.buildApexDependencyInfo(ctx)
+}
+
+// Enforce that Java deps of the apex are using stable SDKs to compile
+func (a *apexBundle) checkJavaStableSdkVersion(ctx android.ModuleContext) {
+	// Visit direct deps only. As long as we guarantee top-level deps are using
+	// stable SDKs, java's checkLinkType guarantees correct usage for transitive deps
+	ctx.VisitDirectDepsBlueprint(func(module blueprint.Module) {
+		tag := ctx.OtherModuleDependencyTag(module)
+		switch tag {
+		case javaLibTag, androidAppTag:
+			if m, ok := module.(interface{ CheckStableSdkVersion() error }); ok {
+				if err := m.CheckStableSdkVersion(); err != nil {
+					ctx.ModuleErrorf("cannot depend on \"%v\": %v", ctx.OtherModuleName(module), err)
+				}
+			}
+		}
+	})
 }
 
 func whitelistedApexAvailable(apex, moduleName string) bool {

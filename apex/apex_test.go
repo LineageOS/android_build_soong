@@ -1411,6 +1411,122 @@ func TestInvalidMinSdkVersion(t *testing.T) {
 	`)
 }
 
+func TestJavaStableSdkVersion(t *testing.T) {
+	testCases := []struct {
+		name          string
+		expectedError string
+		bp            string
+	}{
+		{
+			name: "Non-updatable apex with non-stable dep",
+			bp: `
+				apex {
+					name: "myapex",
+					java_libs: ["myjar"],
+					key: "myapex.key",
+				}
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+				java_library {
+					name: "myjar",
+					srcs: ["foo/bar/MyClass.java"],
+					sdk_version: "core_platform",
+					apex_available: ["myapex"],
+				}
+			`,
+		},
+		{
+			name: "Updatable apex with stable dep",
+			bp: `
+				apex {
+					name: "myapex",
+					java_libs: ["myjar"],
+					key: "myapex.key",
+					updatable: true,
+					min_sdk_version: "29",
+				}
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+				java_library {
+					name: "myjar",
+					srcs: ["foo/bar/MyClass.java"],
+					sdk_version: "current",
+					apex_available: ["myapex"],
+				}
+			`,
+		},
+		{
+			name:          "Updatable apex with non-stable dep",
+			expectedError: "cannot depend on \"myjar\"",
+			bp: `
+				apex {
+					name: "myapex",
+					java_libs: ["myjar"],
+					key: "myapex.key",
+					updatable: true,
+				}
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+				java_library {
+					name: "myjar",
+					srcs: ["foo/bar/MyClass.java"],
+					sdk_version: "core_platform",
+					apex_available: ["myapex"],
+				}
+			`,
+		},
+		{
+			name:          "Updatable apex with non-stable transitive dep",
+			expectedError: "compiles against Android API, but dependency \"transitive-jar\" is compiling against non-public Android API.",
+			bp: `
+				apex {
+					name: "myapex",
+					java_libs: ["myjar"],
+					key: "myapex.key",
+					updatable: true,
+				}
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+				java_library {
+					name: "myjar",
+					srcs: ["foo/bar/MyClass.java"],
+					sdk_version: "current",
+					apex_available: ["myapex"],
+					static_libs: ["transitive-jar"],
+				}
+				java_library {
+					name: "transitive-jar",
+					srcs: ["foo/bar/MyClass.java"],
+					sdk_version: "core_platform",
+					apex_available: ["myapex"],
+				}
+			`,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			if test.expectedError == "" {
+				testApex(t, test.bp)
+			} else {
+				testApexError(t, test.expectedError, test.bp)
+			}
+		})
+	}
+}
+
 func TestFilesInSubDir(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
@@ -3145,8 +3261,16 @@ func TestApexWithTests(t *testing.T) {
 			gtest: false,
 			srcs: ["mytest.cpp"],
 			relative_install_path: "test",
+			shared_libs: ["mylib"],
 			system_shared_libs: [],
 			static_executable: true,
+			stl: "none",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
 			stl: "none",
 		}
 
@@ -3169,8 +3293,9 @@ func TestApexWithTests(t *testing.T) {
 	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule")
 	copyCmds := apexRule.Args["copy_commands"]
 
-	// Ensure that test dep is copied into apex.
+	// Ensure that test dep (and their transitive dependencies) are copied into apex.
 	ensureContains(t, copyCmds, "image.apex/bin/test/mytest")
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
 
 	// Ensure that test deps built with `test_per_src` are copied into apex.
 	ensureContains(t, copyCmds, "image.apex/bin/test/mytest1")
@@ -4449,6 +4574,7 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 		java_library {
 			name: "some-updatable-apex-lib",
 			srcs: ["a.java"],
+			sdk_version: "current",
 			apex_available: [
 				"some-updatable-apex",
 			],
@@ -4465,12 +4591,14 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 		java_library {
 			name: "some-platform-lib",
 			srcs: ["a.java"],
+			sdk_version: "current",
 			installable: true,
 		}
 
 		java_library {
 			name: "some-art-lib",
 			srcs: ["a.java"],
+			sdk_version: "current",
 			apex_available: [
 				"com.android.art.something",
 			],
@@ -4517,68 +4645,68 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 
 	// updatable jar from ART apex in the ART boot image => ok
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.ArtApexJars = []string{"some-art-lib"}
+		config.ArtApexJars = []string{"com.android.art.something:some-art-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, "", bp, transform)
 
 	// updatable jar from ART apex in the framework boot image => error
 	error = "module 'some-art-lib' from updatable apex 'com.android.art.something' is not allowed in the framework boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = []string{"some-art-lib"}
+		config.BootJars = []string{"com.android.art.something:some-art-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// updatable jar from some other apex in the ART boot image => error
 	error = "module 'some-updatable-apex-lib' from updatable apex 'some-updatable-apex' is not allowed in the ART boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.ArtApexJars = []string{"some-updatable-apex-lib"}
+		config.ArtApexJars = []string{"some-updatable-apex:some-updatable-apex-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// non-updatable jar from some other apex in the ART boot image => error
 	error = "module 'some-non-updatable-apex-lib' is not allowed in the ART boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.ArtApexJars = []string{"some-non-updatable-apex-lib"}
+		config.ArtApexJars = []string{"some-non-updatable-apex:some-non-updatable-apex-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// updatable jar from some other apex in the framework boot image => error
 	error = "module 'some-updatable-apex-lib' from updatable apex 'some-updatable-apex' is not allowed in the framework boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = []string{"some-updatable-apex-lib"}
+		config.BootJars = []string{"some-updatable-apex:some-updatable-apex-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// non-updatable jar from some other apex in the framework boot image => ok
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = []string{"some-non-updatable-apex-lib"}
+		config.BootJars = []string{"some-non-updatable-apex:some-non-updatable-apex-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, "", bp, transform)
 
 	// nonexistent jar in the ART boot image => error
 	error = "failed to find a dex jar path for module 'nonexistent'"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.ArtApexJars = []string{"nonexistent"}
+		config.ArtApexJars = []string{"platform:nonexistent"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// nonexistent jar in the framework boot image => error
 	error = "failed to find a dex jar path for module 'nonexistent'"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = []string{"nonexistent"}
+		config.BootJars = []string{"platform:nonexistent"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// platform jar in the ART boot image => error
 	error = "module 'some-platform-lib' is not allowed in the ART boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.ArtApexJars = []string{"some-platform-lib"}
+		config.ArtApexJars = []string{"platform:some-platform-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// platform jar in the framework boot image => ok
 	transform = func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = []string{"some-platform-lib"}
+		config.BootJars = []string{"platform:some-platform-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, "", bp, transform)
 }

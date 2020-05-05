@@ -181,14 +181,14 @@ func (c *Cmd) wrapSandbox() {
 		// For now, just map everything. Make most things readonly.
 		"-R", "/",
 
+		// Mount a writable tmp dir
+		"-B", "/tmp",
+
 		// Mount source are read-write
 		"-B", sandboxConfig.srcDir,
 
 		//Mount out dir as read-write
 		"-B", sandboxConfig.outDir,
-
-		// Mount a writable tmp dir
-		"-B", "/tmp",
 
 		// Disable newcgroup for now, since it may require newer kernels
 		// TODO: try out cgroups
