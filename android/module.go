@@ -607,10 +607,8 @@ func InitAndroidModule(m Module) {
 	base.customizableProperties = m.GetProperties()
 
 	// The default_visibility property needs to be checked and parsed by the visibility module during
-	// its checking and parsing phases.
-	base.primaryVisibilityProperty =
-		newVisibilityProperty("visibility", &base.commonProperties.Visibility)
-	base.visibilityPropertyInfo = []visibilityProperty{base.primaryVisibilityProperty}
+	// its checking and parsing phases so make it the primary visibility property.
+	setPrimaryVisibilityProperty(m, "visibility", &base.commonProperties.Visibility)
 }
 
 func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib) {
