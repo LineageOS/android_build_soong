@@ -245,7 +245,7 @@ func checkRules(ctx BaseModuleContext, currentPkg, property string, visibility [
 		return
 	}
 
-	for _, v := range visibility {
+	for i, v := range visibility {
 		ok, pkg, name := splitRule(ctx, v, currentPkg, property)
 		if !ok {
 			continue
@@ -257,11 +257,18 @@ func checkRules(ctx BaseModuleContext, currentPkg, property string, visibility [
 			case "legacy_public":
 				ctx.PropertyErrorf(property, "//visibility:legacy_public must not be used")
 				continue
+			case "override":
+				// This keyword does not create a rule so pretend it does not exist.
+				ruleCount -= 1
 			default:
 				ctx.PropertyErrorf(property, "unrecognized visibility rule %q", v)
 				continue
 			}
-			if ruleCount != 1 {
+			if name == "override" {
+				if i != 0 {
+					ctx.PropertyErrorf(property, `"%v" may only be used at the start of the visibility rules`, v)
+				}
+			} else if ruleCount != 1 {
 				ctx.PropertyErrorf(property, "cannot mix %q with any other visibility rules", v)
 				continue
 			}
@@ -327,6 +334,14 @@ func parseRules(ctx BaseModuleContext, currentPkg, property string, visibility [
 			case "public":
 				r = publicRule{}
 				hasPublicRule = true
+			case "override":
+				// Discard all preceding rules and any state based on them.
+				rules = nil
+				hasPrivateRule = false
+				hasPublicRule = false
+				hasNonPrivateRule = false
+				// This does not actually create a rule so continue onto the next rule.
+				continue
 			}
 		} else {
 			switch name {
