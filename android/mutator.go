@@ -81,11 +81,53 @@ type RegisterMutatorFunc func(RegisterMutatorsContext)
 
 var preArch = []RegisterMutatorFunc{
 	RegisterNamespaceMutator,
+
 	// Rename package module types.
+	//
+	// The package module type does not have a name property, instead its name is determined
+	// by the location of the containing .bp file relative to the root of the file structure
+	// being built by Soong. Unfortunately, due to limitations in LoadHook the module has to
+	// be given a synthetic temporary name which is then fixed up by these mutators.
 	RegisterPackageRenamer,
+
+	// Create an association between prebuilt modules and their corresponding source
+	// modules (if any).
 	RegisterPrebuiltsPreArchMutators,
+
+	// Check the visibility rules are valid.
+	//
+	// This must run after the package renamer mutators so that any issues found during
+	// validation of the package's default_visibility property are reported using the
+	// correct package name and not the synthetic name.
+	//
+	// This must also be run before defaults mutators as the rules for validation are
+	// different before checking the rules than they are afterwards. e.g.
+	//    visibility: ["//visibility:private", "//visibility:public"]
+	// would be invalid if specified in a module definition but is valid if it results
+	// from something like this:
+	//
+	//    defaults {
+	//        name: "defaults",
+	//        // Be inaccessible outside a package by default.
+	//        visibility: ["//visibility:private"]
+	//    }
+	//
+	//    defaultable_module {
+	//        name: "defaultable_module",
+	//        defaults: ["defaults"],
+	//        // Override the default.
+	//        visibility: ["//visibility:public"]
+	//    }
+	//
 	RegisterVisibilityRuleChecker,
+
+	// Apply properties from defaults modules to the referencing modules.
 	RegisterDefaultsPreArchMutators,
+
+	// Gather the visibility rules for all modules for us during visibility enforcement.
+	//
+	// This must come after the defaults mutators to ensure that any visibility supplied
+	// in a defaults module has been successfully applied before the rules are gathered.
 	RegisterVisibilityRuleGatherer,
 }
 
