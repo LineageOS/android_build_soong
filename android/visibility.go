@@ -480,3 +480,28 @@ func EffectiveVisibilityRules(ctx BaseModuleContext, module Module) []string {
 
 	return rule.Strings()
 }
+
+// Clear the default visibility properties so they can be replaced.
+func clearVisibilityProperties(module Module) {
+	module.base().visibilityPropertyInfo = nil
+}
+
+// Add a property that contains visibility rules so that they are checked for
+// correctness.
+func AddVisibilityProperty(module Module, name string, stringsProperty *[]string) {
+	addVisibilityProperty(module, name, stringsProperty)
+}
+
+func addVisibilityProperty(module Module, name string, stringsProperty *[]string) visibilityProperty {
+	base := module.base()
+	property := newVisibilityProperty(name, stringsProperty)
+	base.visibilityPropertyInfo = append(base.visibilityPropertyInfo, property)
+	return property
+}
+
+// Set the primary visibility property.
+//
+// Also adds the property to the list of properties to be validated.
+func setPrimaryVisibilityProperty(module Module, name string, stringsProperty *[]string) {
+	module.base().primaryVisibilityProperty = addVisibilityProperty(module, name, stringsProperty)
+}
