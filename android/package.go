@@ -101,10 +101,8 @@ func PackageFactory() Module {
 	module.AddProperties(&module.properties)
 
 	// The default_visibility property needs to be checked and parsed by the visibility module during
-	// its checking and parsing phases.
-	module.primaryVisibilityProperty =
-		newVisibilityProperty("default_visibility", &module.properties.Default_visibility)
-	module.visibilityPropertyInfo = []visibilityProperty{module.primaryVisibilityProperty}
+	// its checking and parsing phases so make it the primary visibility property.
+	setPrimaryVisibilityProperty(module, "default_visibility", &module.properties.Default_visibility)
 
 	return module
 }
