@@ -494,11 +494,13 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 		})
 	}
 
-	syspropLibrariesLock.Lock()
-	defer syspropLibrariesLock.Unlock()
+	if m.ExportedToMake() {
+		syspropLibrariesLock.Lock()
+		defer syspropLibrariesLock.Unlock()
 
-	libraries := syspropLibraries(ctx.Config())
-	*libraries = append(*libraries, ctx.ModuleName())
+		libraries := syspropLibraries(ctx.Config())
+		*libraries = append(*libraries, "//"+ctx.ModuleDir()+":"+ctx.ModuleName())
+	}
 }
 
 func syspropDepsMutator(ctx android.BottomUpMutatorContext) {
