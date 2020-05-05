@@ -17,6 +17,8 @@ package remoteexec
 import (
 	"fmt"
 	"testing"
+
+	"android/soong/android"
 )
 
 func TestTemplate(t *testing.T) {
@@ -61,6 +63,22 @@ func TestTemplate(t *testing.T) {
 				t.Errorf("Template() returned\n%s\nwant\n%s", got, test.want)
 			}
 		})
+	}
+}
+
+func TestNoVarTemplate(t *testing.T) {
+	params := &REParams{
+		Labels:      map[string]string{"type": "compile", "lang": "cpp", "compiler": "clang"},
+		Inputs:      []string{"$in"},
+		OutputFiles: []string{"$out"},
+		Platform: map[string]string{
+			ContainerImageKey: DefaultImage,
+			PoolKey:           "default",
+		},
+	}
+	want := fmt.Sprintf("prebuilts/remoteexecution-client/live/rewrapper --labels=compiler=clang,lang=cpp,type=compile --platform=\"Pool=default,container-image=%s\" --exec_strategy=local --inputs=$in --output_files=$out -- ", DefaultImage)
+	if got := params.NoVarTemplate(android.NullConfig("")); got != want {
+		t.Errorf("NoVarTemplate() returned\n%s\nwant\n%s", got, want)
 	}
 }
 
