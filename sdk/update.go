@@ -301,18 +301,18 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 
 	addHostDeviceSupportedProperties(s.ModuleBase.DeviceSupported(), s.ModuleBase.HostSupported(), snapshotModule)
 
-	var dynamicMemberPropertiesList []interface{}
+	var dynamicMemberPropertiesContainers []propertiesContainer
 	osTypeToMemberProperties := make(map[android.OsType]*sdk)
 	for _, sdkVariant := range sdkVariants {
 		properties := sdkVariant.dynamicMemberTypeListProperties
 		osTypeToMemberProperties[sdkVariant.Target().Os] = sdkVariant
-		dynamicMemberPropertiesList = append(dynamicMemberPropertiesList, properties)
+		dynamicMemberPropertiesContainers = append(dynamicMemberPropertiesContainers, &dynamicMemberPropertiesContainer{properties})
 	}
 
 	// Extract the common lists of members into a separate struct.
 	commonDynamicMemberProperties := s.dynamicSdkMemberTypes.createMemberListProperties()
 	extractor := newCommonValueExtractor(commonDynamicMemberProperties)
-	extractor.extractCommonProperties(commonDynamicMemberProperties, dynamicMemberPropertiesList)
+	extractor.extractCommonProperties(commonDynamicMemberProperties, dynamicMemberPropertiesContainers)
 
 	// Add properties common to all os types.
 	s.addMemberPropertiesToPropertySet(builder, snapshotModule, commonDynamicMemberProperties)
@@ -814,6 +814,10 @@ type baseInfo struct {
 	Properties android.SdkMemberProperties
 }
 
+func (b *baseInfo) optimizableProperties() interface{} {
+	return b.Properties
+}
+
 type osTypeSpecificInfo struct {
 	baseInfo
 
@@ -889,17 +893,14 @@ func (osInfo *osTypeSpecificInfo) optimizeProperties(commonValueExtractor *commo
 	}
 
 	multilib := multilibNone
-	var archPropertiesList []android.SdkMemberProperties
 	for _, archInfo := range osInfo.archInfos {
 		multilib = multilib.addArchType(archInfo.archType)
 
 		// Optimize the arch properties first.
 		archInfo.optimizeProperties(commonValueExtractor)
-
-		archPropertiesList = append(archPropertiesList, archInfo.Properties)
 	}
 
-	commonValueExtractor.extractCommonProperties(osInfo.Properties, archPropertiesList)
+	commonValueExtractor.extractCommonProperties(osInfo.Properties, osInfo.archInfos)
 
 	// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
 	osInfo.Properties.Base().Compile_multilib = multilib.String()
@@ -1011,6 +1012,10 @@ func newArchSpecificInfo(ctx android.SdkMemberContext, archType android.ArchType
 	return archInfo
 }
 
+func (archInfo *archTypeSpecificInfo) optimizableProperties() interface{} {
+	return archInfo.Properties
+}
+
 // Get the link type of the variant
 //
 // If the variant is not differentiated by link type then it returns "",
@@ -1038,12 +1043,7 @@ func (archInfo *archTypeSpecificInfo) optimizeProperties(commonValueExtractor *c
 		return
 	}
 
-	var propertiesList []android.SdkMemberProperties
-	for _, linkInfo := range archInfo.linkInfos {
-		propertiesList = append(propertiesList, linkInfo.Properties)
-	}
-
-	commonValueExtractor.extractCommonProperties(archInfo.Properties, propertiesList)
+	commonValueExtractor.extractCommonProperties(archInfo.Properties, archInfo.linkInfos)
 }
 
 // Add the properties for an arch type to a property set.
@@ -1133,21 +1133,21 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 
 	// The list of property structures which are os type specific but common across
 	// architectures within that os type.
-	var osSpecificPropertiesList []android.SdkMemberProperties
+	var osSpecificPropertiesContainers []*osTypeSpecificInfo
 
 	for osType, osTypeVariants := range variantsByOsType {
 		osInfo := newOsTypeSpecificInfo(ctx, osType, variantPropertiesFactory, osTypeVariants)
 		osTypeToInfo[osType] = osInfo
 		// Add the os specific properties to a list of os type specific yet architecture
 		// independent properties structs.
-		osSpecificPropertiesList = append(osSpecificPropertiesList, osInfo.Properties)
+		osSpecificPropertiesContainers = append(osSpecificPropertiesContainers, osInfo)
 
 		// Optimize the properties across all the variants for a specific os type.
 		osInfo.optimizeProperties(commonValueExtractor)
 	}
 
 	// Extract properties which are common across all architectures and os types.
-	commonValueExtractor.extractCommonProperties(commonProperties, osSpecificPropertiesList)
+	commonValueExtractor.extractCommonProperties(commonProperties, osSpecificPropertiesContainers)
 
 	// Add the common properties to the module.
 	commonProperties.AddToPropertySet(ctx, bpModule)
@@ -1270,11 +1270,29 @@ foundStruct:
 	return value
 }
 
+// A container of properties to be optimized.
+//
+// Allows additional information to be associated with the properties, e.g. for
+// filtering.
+type propertiesContainer interface {
+	// Get the properties that need optimizing.
+	optimizableProperties() interface{}
+}
+
+// A wrapper for dynamic member properties to allow them to be optimized.
+type dynamicMemberPropertiesContainer struct {
+	dynamicMemberProperties interface{}
+}
+
+func (c dynamicMemberPropertiesContainer) optimizableProperties() interface{} {
+	return c.dynamicMemberProperties
+}
+
 // Extract common properties from a slice of property structures of the same type.
 //
 // All the property structures must be of the same type.
 // commonProperties - must be a pointer to the structure into which common properties will be added.
-// inputPropertiesSlice - must be a slice of input properties structures.
+// inputPropertiesSlice - must be a slice of propertiesContainer interfaces.
 //
 // Iterates over each exported field (capitalized name) and checks to see whether they
 // have the same value (using DeepEquals) across all the input properties. If it does not then no
@@ -1284,15 +1302,17 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 	commonPropertiesValue := reflect.ValueOf(commonProperties)
 	commonStructValue := commonPropertiesValue.Elem()
 
+	sliceValue := reflect.ValueOf(inputPropertiesSlice)
+
 	for _, fieldGetter := range e.fieldGetters {
 		// Check to see if all the structures have the same value for the field. The commonValue
 		// is nil on entry to the loop and if it is nil on exit then there is no common value,
 		// otherwise it points to the common value.
 		var commonValue *reflect.Value
-		sliceValue := reflect.ValueOf(inputPropertiesSlice)
 
 		for i := 0; i < sliceValue.Len(); i++ {
-			itemValue := sliceValue.Index(i)
+			container := sliceValue.Index(i).Interface().(propertiesContainer)
+			itemValue := reflect.ValueOf(container.optimizableProperties())
 			fieldValue := fieldGetter(itemValue)
 
 			if commonValue == nil {
@@ -1314,7 +1334,8 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 			emptyValue := reflect.Zero(commonValue.Type())
 			fieldGetter(commonStructValue).Set(*commonValue)
 			for i := 0; i < sliceValue.Len(); i++ {
-				itemValue := sliceValue.Index(i)
+				container := sliceValue.Index(i).Interface().(propertiesContainer)
+				itemValue := reflect.ValueOf(container.optimizableProperties())
 				fieldValue := fieldGetter(itemValue)
 				fieldValue.Set(emptyValue)
 			}
