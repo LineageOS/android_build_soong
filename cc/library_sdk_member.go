@@ -307,7 +307,7 @@ type nativeLibInfoProperties struct {
 	// The list of possibly common exported include dirs.
 	//
 	// This field is exported as its contents may not be arch specific.
-	ExportedIncludeDirs android.Paths
+	ExportedIncludeDirs android.Paths `android:"arch_variant"`
 
 	// The list of arch specific exported generated include dirs.
 	//
@@ -322,23 +322,23 @@ type nativeLibInfoProperties struct {
 	// The list of possibly common exported system include dirs.
 	//
 	// This field is exported as its contents may not be arch specific.
-	ExportedSystemIncludeDirs android.Paths
+	ExportedSystemIncludeDirs android.Paths `android:"arch_variant"`
 
 	// The list of possibly common exported flags.
 	//
 	// This field is exported as its contents may not be arch specific.
-	ExportedFlags []string
+	ExportedFlags []string `android:"arch_variant"`
 
 	// The set of shared libraries
 	//
 	// This field is exported as its contents may not be arch specific.
-	SharedLibs []string
+	SharedLibs []string `android:"arch_variant"`
 
 	// The set of system shared libraries. Note nil and [] are semantically
 	// distinct - see BaseLinkerProperties.System_shared_libs.
 	//
 	// This field is exported as its contents may not be arch specific.
-	SystemSharedLibs []string
+	SystemSharedLibs []string `android:"arch_variant"`
 
 	// The specific stubs version for the lib variant, or empty string if stubs
 	// are not in use.
