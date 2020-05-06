@@ -20,7 +20,7 @@ var packageTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			`top/Blueprints:3:10: mutated field name cannot be set in a Blueprint file`,
+			`top/Blueprints:3:10: unrecognized property "name"`,
 			`top/Blueprints:4:16: unrecognized property "visibility"`,
 		},
 	},
@@ -50,7 +50,7 @@ var packageTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			`module "//top": package {...} specified multiple times`,
+			`module "//top" already defined`,
 		},
 	},
 }
