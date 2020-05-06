@@ -375,7 +375,10 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 		specifiedDeps := specifiedDeps{}
 		specifiedDeps = ccModule.linker.linkerSpecifiedDeps(specifiedDeps)
 
-		p.SharedLibs = specifiedDeps.sharedLibs
+		if !ccModule.HasStubsVariants() {
+			// Propagate dynamic dependencies for implementation libs, but not stubs.
+			p.SharedLibs = specifiedDeps.sharedLibs
+		}
 		p.SystemSharedLibs = specifiedDeps.systemSharedLibs
 	}
 	p.exportedGeneratedHeaders = ccModule.ExportedGeneratedHeaders()
