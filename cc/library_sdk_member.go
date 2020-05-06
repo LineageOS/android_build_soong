@@ -354,7 +354,7 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 	// If the library has some link types then it produces an output binary file, otherwise it
 	// is header only.
 	if !p.memberType.noOutputFiles {
-		p.outputFile = ccModule.OutputFile().Path()
+		p.outputFile = getRequiredMemberOutputFile(ctx, ccModule)
 	}
 
 	// Separate out the generated include dirs (which are arch specific) from the
@@ -386,6 +386,17 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 	if ccModule.HasStubsVariants() {
 		p.StubsVersion = ccModule.StubsVersion()
 	}
+}
+
+func getRequiredMemberOutputFile(ctx android.SdkMemberContext, ccModule *Module) android.Path {
+	var path android.Path
+	outputFile := ccModule.OutputFile()
+	if outputFile.Valid() {
+		path = outputFile.Path()
+	} else {
+		ctx.SdkModuleContext().ModuleErrorf("member variant %s does not have a valid output file", ccModule)
+	}
+	return path
 }
 
 func (p *nativeLibInfoProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
