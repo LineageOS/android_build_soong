@@ -612,13 +612,6 @@ func (c *Module) GetDepsInLinkOrder() []android.Path {
 	return c.depsInLinkOrder
 }
 
-func (c *Module) StubsSymbolFile() android.OptionalPath {
-	if library, ok := c.linker.(*libraryDecorator); ok {
-		return library.stubsSymbolFile
-	}
-	return android.OptionalPath{}
-}
-
 func (c *Module) StubsVersions() []string {
 	if c.linker != nil {
 		if library, ok := c.linker.(*libraryDecorator); ok {
