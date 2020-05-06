@@ -242,9 +242,13 @@ type testPropertiesStruct struct {
 	EmbeddedPropertiesStruct
 }
 
+func (p *testPropertiesStruct) optimizableProperties() interface{} {
+	return p
+}
+
 func TestCommonValueOptimization(t *testing.T) {
 	common := &testPropertiesStruct{}
-	structs := []*testPropertiesStruct{
+	structs := []propertiesContainer{
 		&testPropertiesStruct{
 			private:     "common",
 			Public_Kept: "common",
