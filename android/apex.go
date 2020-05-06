@@ -411,11 +411,17 @@ type ApexModuleDepInfo struct {
 type DepNameToDepInfoMap map[string]ApexModuleDepInfo
 
 type ApexBundleDepsInfo struct {
+	flatListPath OutputPath
 	fullListPath OutputPath
 }
 
 type ApexDepsInfoIntf interface {
+	FlatListPath() Path
 	FullListPath() Path
+}
+
+func (d *ApexBundleDepsInfo) FlatListPath() Path {
+	return d.flatListPath
 }
 
 func (d *ApexBundleDepsInfo) FullListPath() Path {
@@ -424,15 +430,22 @@ func (d *ApexBundleDepsInfo) FullListPath() Path {
 
 var _ ApexDepsInfoIntf = (*ApexBundleDepsInfo)(nil)
 
+// Generate two module out files:
+// 1. FullList with transitive deps and their parents in the dep graph
+// 2. FlatList with a flat list of transitive deps
 func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, depInfos DepNameToDepInfoMap) {
-	var content strings.Builder
+	var fullContent strings.Builder
+	var flatContent strings.Builder
+
+	fmt.Fprintf(&flatContent, "%s:\\n", ctx.ModuleName())
 	for _, key := range FirstUniqueStrings(SortedStringKeys(depInfos)) {
 		info := depInfos[key]
 		toName := info.To
 		if info.IsExternal {
 			toName = toName + " (external)"
 		}
-		fmt.Fprintf(&content, "%s <- %s\\n", toName, strings.Join(SortedUniqueStrings(info.From), ", "))
+		fmt.Fprintf(&fullContent, "%s <- %s\\n", toName, strings.Join(SortedUniqueStrings(info.From), ", "))
+		fmt.Fprintf(&flatContent, "  %s\\n", toName)
 	}
 
 	d.fullListPath = PathForModuleOut(ctx, "depsinfo", "fulllist.txt").OutputPath
@@ -441,7 +454,17 @@ func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, depInfos DepN
 		Description: "Full Dependency Info",
 		Output:      d.fullListPath,
 		Args: map[string]string{
-			"content": content.String(),
+			"content": fullContent.String(),
+		},
+	})
+
+	d.flatListPath = PathForModuleOut(ctx, "depsinfo", "flatlist.txt").OutputPath
+	ctx.Build(pctx, BuildParams{
+		Rule:        WriteFile,
+		Description: "Flat Dependency Info",
+		Output:      d.flatListPath,
+		Args: map[string]string{
+			"content": flatContent.String(),
 		},
 	})
 }

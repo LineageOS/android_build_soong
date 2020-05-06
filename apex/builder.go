@@ -710,6 +710,9 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   android.Phony,
 		Output: android.PathForPhony(ctx, a.Name()+"-deps-info"),
-		Inputs: []android.Path{a.ApexBundleDepsInfo.FullListPath()},
+		Inputs: []android.Path{
+			a.ApexBundleDepsInfo.FullListPath(),
+			a.ApexBundleDepsInfo.FlatListPath(),
+		},
 	})
 }
