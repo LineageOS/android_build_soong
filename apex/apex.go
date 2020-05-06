@@ -1287,12 +1287,6 @@ func (af *apexFile) AvailableToPlatform() bool {
 	return false
 }
 
-type depInfo struct {
-	to         string
-	from       []string
-	isExternal bool
-}
-
 type apexBundle struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
@@ -1327,7 +1321,7 @@ type apexBundle struct {
 	requiredDeps []string
 
 	// list of module names that this APEX is including (to be shown via *-deps-info target)
-	depInfos map[string]depInfo
+	android.ApexBundleDepsInfo
 
 	testApex        bool
 	vndkApex        bool
@@ -1901,35 +1895,6 @@ func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
 	}
 }
 
-// Collects the list of module names that directly or indirectly contributes to the payload of this APEX
-func (a *apexBundle) collectDepsInfo(ctx android.ModuleContext) {
-	a.depInfos = make(map[string]depInfo)
-	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
-		if from.Name() == to.Name() {
-			// This can happen for cc.reuseObjTag. We are not interested in tracking this.
-			// As soon as the dependency graph crosses the APEX boundary, don't go further.
-			return !externalDep
-		}
-
-		if info, exists := a.depInfos[to.Name()]; exists {
-			if !android.InList(from.Name(), info.from) {
-				info.from = append(info.from, from.Name())
-			}
-			info.isExternal = info.isExternal && externalDep
-			a.depInfos[to.Name()] = info
-		} else {
-			a.depInfos[to.Name()] = depInfo{
-				to:         to.Name(),
-				from:       []string{from.Name()},
-				isExternal: externalDep,
-			}
-		}
-
-		// As soon as the dependency graph crosses the APEX boundary, don't go further.
-		return !externalDep
-	})
-}
-
 func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	buildFlattenedAsDefault := ctx.Config().FlattenApex() && !ctx.Config().UnbundledBuild()
 	switch a.properties.ApexType {
@@ -1967,7 +1932,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.checkApexAvailability(ctx)
 	a.checkUpdatable(ctx)
-	a.collectDepsInfo(ctx)
 
 	handleSpecialLibs := !android.Bool(a.properties.Ignore_system_library_special_case)
 

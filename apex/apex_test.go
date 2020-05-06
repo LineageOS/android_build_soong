@@ -504,12 +504,19 @@ func TestBasicApex(t *testing.T) {
 	ensureListContains(t, noticeInputs, "custom_notice")
 	ensureListContains(t, noticeInputs, "custom_notice_for_static_lib")
 
-	depsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("myapex-deps-info.txt").Args["content"], "\\n")
-	ensureListContains(t, depsInfo, "myjar <- myapex")
-	ensureListContains(t, depsInfo, "mylib <- myapex")
-	ensureListContains(t, depsInfo, "mylib2 <- mylib")
-	ensureListContains(t, depsInfo, "myotherjar <- myjar")
-	ensureListContains(t, depsInfo, "mysharedjar (external) <- myjar")
+	fullDepsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
+	ensureListContains(t, fullDepsInfo, "myjar(minSdkVersion:(no version)) <- myapex")
+	ensureListContains(t, fullDepsInfo, "mylib(minSdkVersion:(no version)) <- myapex")
+	ensureListContains(t, fullDepsInfo, "mylib2(minSdkVersion:(no version)) <- mylib")
+	ensureListContains(t, fullDepsInfo, "myotherjar(minSdkVersion:(no version)) <- myjar")
+	ensureListContains(t, fullDepsInfo, "mysharedjar(minSdkVersion:(no version)) (external) <- myjar")
+
+	flatDepsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("depsinfo/flatlist.txt").Args["content"], "\\n")
+	ensureListContains(t, flatDepsInfo, "  myjar(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "  mylib(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "  mylib2(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "  myotherjar(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "  mysharedjar(minSdkVersion:(no version)) (external)")
 }
 
 func TestDefaults(t *testing.T) {
@@ -818,11 +825,15 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 	// Ensure that libfoo stubs is not linking to libbar (since it is a stubs)
 	ensureNotContains(t, libFooStubsLdFlags, "libbar.so")
 
-	depsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("myapex2-deps-info.txt").Args["content"], "\\n")
+	fullDepsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
+	ensureListContains(t, fullDepsInfo, "mylib(minSdkVersion:(no version)) <- myapex2")
+	ensureListContains(t, fullDepsInfo, "libbaz(minSdkVersion:(no version)) <- mylib")
+	ensureListContains(t, fullDepsInfo, "libfoo(minSdkVersion:(no version)) (external) <- mylib")
 
-	ensureListContains(t, depsInfo, "mylib <- myapex2")
-	ensureListContains(t, depsInfo, "libbaz <- mylib")
-	ensureListContains(t, depsInfo, "libfoo (external) <- mylib")
+	flatDepsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("depsinfo/flatlist.txt").Args["content"], "\\n")
+	ensureListContains(t, flatDepsInfo, "  mylib(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "  libbaz(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "  libfoo(minSdkVersion:(no version)) (external)")
 }
 
 func TestApexWithRuntimeLibsDependency(t *testing.T) {

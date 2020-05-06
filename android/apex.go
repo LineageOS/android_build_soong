@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/google/blueprint"
@@ -402,4 +403,86 @@ func InitApexModule(m ApexModule) {
 	base.canHaveApexVariants = true
 
 	m.AddProperties(&base.ApexProperties)
+}
+
+// A dependency info for a single ApexModule, either direct or transitive.
+type ApexModuleDepInfo struct {
+	// Name of the dependency
+	To string
+	// List of dependencies To belongs to. Includes APEX itself, if a direct dependency.
+	From []string
+	// Whether the dependency belongs to the final compiled APEX.
+	IsExternal bool
+	// min_sdk_version of the ApexModule
+	MinSdkVersion string
+}
+
+// A map of a dependency name to its ApexModuleDepInfo
+type DepNameToDepInfoMap map[string]ApexModuleDepInfo
+
+type ApexBundleDepsInfo struct {
+	minSdkVersion string
+	flatListPath  OutputPath
+	fullListPath  OutputPath
+}
+
+type ApexDepsInfoIntf interface {
+	MinSdkVersion() string
+	FlatListPath() Path
+	FullListPath() Path
+}
+
+func (d *ApexBundleDepsInfo) MinSdkVersion() string {
+	return d.minSdkVersion
+}
+
+func (d *ApexBundleDepsInfo) FlatListPath() Path {
+	return d.flatListPath
+}
+
+func (d *ApexBundleDepsInfo) FullListPath() Path {
+	return d.fullListPath
+}
+
+var _ ApexDepsInfoIntf = (*ApexBundleDepsInfo)(nil)
+
+// Generate two module out files:
+// 1. FullList with transitive deps and their parents in the dep graph
+// 2. FlatList with a flat list of transitive deps
+func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, minSdkVersion string, depInfos DepNameToDepInfoMap) {
+	d.minSdkVersion = minSdkVersion
+
+	var fullContent strings.Builder
+	var flatContent strings.Builder
+
+	fmt.Fprintf(&flatContent, "%s(minSdkVersion:%s):\\n", ctx.ModuleName(), minSdkVersion)
+	for _, key := range FirstUniqueStrings(SortedStringKeys(depInfos)) {
+		info := depInfos[key]
+		toName := fmt.Sprintf("%s(minSdkVersion:%s)", info.To, info.MinSdkVersion)
+		if info.IsExternal {
+			toName = toName + " (external)"
+		}
+		fmt.Fprintf(&fullContent, "%s <- %s\\n", toName, strings.Join(SortedUniqueStrings(info.From), ", "))
+		fmt.Fprintf(&flatContent, "  %s\\n", toName)
+	}
+
+	d.fullListPath = PathForModuleOut(ctx, "depsinfo", "fulllist.txt").OutputPath
+	ctx.Build(pctx, BuildParams{
+		Rule:        WriteFile,
+		Description: "Full Dependency Info",
+		Output:      d.fullListPath,
+		Args: map[string]string{
+			"content": fullContent.String(),
+		},
+	})
+
+	d.flatListPath = PathForModuleOut(ctx, "depsinfo", "flatlist.txt").OutputPath
+	ctx.Build(pctx, BuildParams{
+		Rule:        WriteFile,
+		Description: "Flat Dependency Info",
+		Output:      d.flatListPath,
+		Args: map[string]string{
+			"content": flatContent.String(),
+		},
+	})
 }
