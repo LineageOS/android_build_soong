@@ -225,6 +225,63 @@ func TestSdkWithCc(t *testing.T) {
 	`)
 }
 
+func TestSnapshotWithObject(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_objects: ["crtobj"],
+		}
+
+		cc_object {
+			name: "crtobj",
+			stl: "none",
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_object {
+    name: "mysdk_crtobj@current",
+    sdk_member_name: "crtobj",
+    stl: "none",
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/crtobj.o"],
+        },
+        arm: {
+            srcs: ["arm/lib/crtobj.o"],
+        },
+    },
+}
+
+cc_prebuilt_object {
+    name: "crtobj",
+    prefer: false,
+    stl: "none",
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/crtobj.o"],
+        },
+        arm: {
+            srcs: ["arm/lib/crtobj.o"],
+        },
+    },
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    native_objects: ["mysdk_crtobj@current"],
+}
+`),
+		checkAllCopyRules(`
+.intermediates/crtobj/android_arm64_armv8-a/crtobj.o -> arm64/lib/crtobj.o
+.intermediates/crtobj/android_arm_armv7-a-neon/crtobj.o -> arm/lib/crtobj.o
+`),
+	)
+}
+
 func TestSnapshotWithCcDuplicateHeaders(t *testing.T) {
 	result := testSdkWithCc(t, `
 		sdk {
