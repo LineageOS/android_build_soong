@@ -1186,15 +1186,24 @@ func (s *sdk) getPossibleOsTypes() []android.OsType {
 	return osTypes
 }
 
-// Given a struct value, access a field within that struct (or one of its embedded
-// structs).
+// Given a set of properties (struct value), return the value of the field within that
+// struct (or one of its embedded structs).
 type fieldAccessorFunc func(structValue reflect.Value) reflect.Value
+
+// A property that can be optimized by the commonValueExtractor.
+type extractorProperty struct {
+	// Retrieves the value on which common value optimization will be performed.
+	getter fieldAccessorFunc
+
+	// The empty value for the field.
+	emptyValue reflect.Value
+}
 
 // Supports extracting common values from a number of instances of a properties
 // structure into a separate common set of properties.
 type commonValueExtractor struct {
-	// The getters for every field from which common values can be extracted.
-	fieldGetters []fieldAccessorFunc
+	// The properties that the extractor can optimize.
+	properties []extractorProperty
 }
 
 // Create a new common value extractor for the structure type for the supplied
@@ -1249,7 +1258,11 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 			// Gather fields from the embedded structure.
 			e.gatherFields(field.Type, fieldGetter)
 		} else {
-			e.fieldGetters = append(e.fieldGetters, fieldGetter)
+			property := extractorProperty{
+				fieldGetter,
+				reflect.Zero(field.Type),
+			}
+			e.properties = append(e.properties, property)
 		}
 	}
 }
@@ -1304,7 +1317,9 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 
 	sliceValue := reflect.ValueOf(inputPropertiesSlice)
 
-	for _, fieldGetter := range e.fieldGetters {
+	for _, property := range e.properties {
+		fieldGetter := property.getter
+
 		// Check to see if all the structures have the same value for the field. The commonValue
 		// is nil on entry to the loop and if it is nil on exit then there is no common value,
 		// otherwise it points to the common value.
@@ -1331,7 +1346,7 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 		// If the fields all have a common value then store it in the common struct field
 		// and set the input struct's field to the empty value.
 		if commonValue != nil {
-			emptyValue := reflect.Zero(commonValue.Type())
+			emptyValue := property.emptyValue
 			fieldGetter(commonStructValue).Set(*commonValue)
 			for i := 0; i < sliceValue.Len(); i++ {
 				container := sliceValue.Index(i).Interface().(propertiesContainer)
