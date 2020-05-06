@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 
 	"android/soong/android"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -63,7 +64,10 @@ type librarySdkMemberType struct {
 
 	prebuiltModuleType string
 
-	// The set of link types supported, set of "static", "shared".
+	noOutputFiles bool // True if there are no srcs files.
+
+	// The set of link types supported. A set of "static", "shared", or nil to
+	// skip link type variations.
 	linkTypes []string
 }
 
@@ -337,7 +341,7 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 
 	// If the library has some link types then it produces an output binary file, otherwise it
 	// is header only.
-	if p.memberType.linkTypes != nil {
+	if !p.memberType.noOutputFiles {
 		p.outputFile = ccModule.OutputFile().Path()
 	}
 
