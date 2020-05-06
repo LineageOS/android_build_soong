@@ -246,6 +246,7 @@ class Symbol(object):
     def __eq__(self, other):
         return self.name == other.name and set(self.tags) == set(other.tags)
 
+
 class SymbolFileParser(object):
     """Parses NDK symbol files."""
     def __init__(self, input_file, api_map, arch, api, llndk, apex):
