@@ -176,18 +176,18 @@ func InitDefaultsModule(module DefaultsModule) {
 	defaultsVisibility := module.defaultsVisibility()
 	module.AddProperties(&base.nameProperties, defaultsVisibility)
 
-	// The defaults_visibility property controls the visibility of a defaults module.
-	base.primaryVisibilityProperty =
-		newVisibilityProperty("defaults_visibility", &defaultsVisibility.Defaults_visibility)
-
 	// Unlike non-defaults modules the visibility property is not stored in m.base().commonProperties.
-	// Instead it is stored in a separate instance of commonProperties created above so use that.
+	// Instead it is stored in a separate instance of commonProperties created above so clear the
+	// existing list of properties.
+	clearVisibilityProperties(module)
+
+	// The defaults_visibility property controls the visibility of a defaults module so it must be
+	// set as the primary property, which also adds it to the list.
+	setPrimaryVisibilityProperty(module, "defaults_visibility", &defaultsVisibility.Defaults_visibility)
+
 	// The visibility property needs to be checked (but not parsed) by the visibility module during
-	// its checking phase and parsing phase.
-	base.visibilityPropertyInfo = []visibilityProperty{
-		base.primaryVisibilityProperty,
-		newVisibilityProperty("visibility", &commonProperties.Visibility),
-	}
+	// its checking phase and parsing phase so add it to the list as a normal property.
+	AddVisibilityProperty(module, "visibility", &commonProperties.Visibility)
 
 	base.module = module
 }

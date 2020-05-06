@@ -478,7 +478,7 @@ func TestBasicApex(t *testing.T) {
 	ensureListContains(t, noticeInputs, "custom_notice")
 	ensureListContains(t, noticeInputs, "custom_notice_for_static_lib")
 
-	depsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("myapex-deps-info.txt").Args["content"], "\\n")
+	depsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
 	ensureListContains(t, depsInfo, "myjar <- myapex")
 	ensureListContains(t, depsInfo, "mylib <- myapex")
 	ensureListContains(t, depsInfo, "mylib2 <- mylib")
@@ -784,7 +784,7 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 	// Ensure that libfoo stubs is not linking to libbar (since it is a stubs)
 	ensureNotContains(t, libFooStubsLdFlags, "libbar.so")
 
-	depsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("myapex2-deps-info.txt").Args["content"], "\\n")
+	depsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
 
 	ensureListContains(t, depsInfo, "mylib <- myapex2")
 	ensureListContains(t, depsInfo, "libbaz <- mylib")
@@ -1375,6 +1375,122 @@ func TestInvalidMinSdkVersion(t *testing.T) {
 			private_key: "testkey.pem",
 		}
 	`)
+}
+
+func TestJavaStableSdkVersion(t *testing.T) {
+	testCases := []struct {
+		name          string
+		expectedError string
+		bp            string
+	}{
+		{
+			name: "Non-updatable apex with non-stable dep",
+			bp: `
+				apex {
+					name: "myapex",
+					java_libs: ["myjar"],
+					key: "myapex.key",
+				}
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+				java_library {
+					name: "myjar",
+					srcs: ["foo/bar/MyClass.java"],
+					sdk_version: "core_platform",
+					apex_available: ["myapex"],
+				}
+			`,
+		},
+		{
+			name: "Updatable apex with stable dep",
+			bp: `
+				apex {
+					name: "myapex",
+					java_libs: ["myjar"],
+					key: "myapex.key",
+					updatable: true,
+					min_sdk_version: "29",
+				}
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+				java_library {
+					name: "myjar",
+					srcs: ["foo/bar/MyClass.java"],
+					sdk_version: "current",
+					apex_available: ["myapex"],
+				}
+			`,
+		},
+		{
+			name:          "Updatable apex with non-stable dep",
+			expectedError: "cannot depend on \"myjar\"",
+			bp: `
+				apex {
+					name: "myapex",
+					java_libs: ["myjar"],
+					key: "myapex.key",
+					updatable: true,
+				}
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+				java_library {
+					name: "myjar",
+					srcs: ["foo/bar/MyClass.java"],
+					sdk_version: "core_platform",
+					apex_available: ["myapex"],
+				}
+			`,
+		},
+		{
+			name:          "Updatable apex with non-stable transitive dep",
+			expectedError: "compiles against Android API, but dependency \"transitive-jar\" is compiling against non-public Android API.",
+			bp: `
+				apex {
+					name: "myapex",
+					java_libs: ["myjar"],
+					key: "myapex.key",
+					updatable: true,
+				}
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+				java_library {
+					name: "myjar",
+					srcs: ["foo/bar/MyClass.java"],
+					sdk_version: "current",
+					apex_available: ["myapex"],
+					static_libs: ["transitive-jar"],
+				}
+				java_library {
+					name: "transitive-jar",
+					srcs: ["foo/bar/MyClass.java"],
+					sdk_version: "core_platform",
+					apex_available: ["myapex"],
+				}
+			`,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			if test.expectedError == "" {
+				testApex(t, test.bp)
+			} else {
+				testApexError(t, test.expectedError, test.bp)
+			}
+		})
+	}
 }
 
 func TestFilesInSubDir(t *testing.T) {
@@ -4289,6 +4405,7 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 		java_library {
 			name: "some-updatable-apex-lib",
 			srcs: ["a.java"],
+			sdk_version: "current",
 			apex_available: [
 				"some-updatable-apex",
 			],
@@ -4297,12 +4414,14 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 		java_library {
 			name: "some-platform-lib",
 			srcs: ["a.java"],
+			sdk_version: "current",
 			installable: true,
 		}
 
 		java_library {
 			name: "some-art-lib",
 			srcs: ["a.java"],
+			sdk_version: "current",
 			apex_available: [
 				"com.android.art.something",
 			],

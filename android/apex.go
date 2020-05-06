@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/google/blueprint"
@@ -394,4 +395,53 @@ func InitApexModule(m ApexModule) {
 	base.canHaveApexVariants = true
 
 	m.AddProperties(&base.ApexProperties)
+}
+
+// A dependency info for a single ApexModule, either direct or transitive.
+type ApexModuleDepInfo struct {
+	// Name of the dependency
+	To string
+	// List of dependencies To belongs to. Includes APEX itself, if a direct dependency.
+	From []string
+	// Whether the dependency belongs to the final compiled APEX.
+	IsExternal bool
+}
+
+// A map of a dependency name to its ApexModuleDepInfo
+type DepNameToDepInfoMap map[string]ApexModuleDepInfo
+
+type ApexBundleDepsInfo struct {
+	fullListPath OutputPath
+}
+
+type ApexDepsInfoIntf interface {
+	FullListPath() Path
+}
+
+func (d *ApexBundleDepsInfo) FullListPath() Path {
+	return d.fullListPath
+}
+
+var _ ApexDepsInfoIntf = (*ApexBundleDepsInfo)(nil)
+
+func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, depInfos DepNameToDepInfoMap) {
+	var content strings.Builder
+	for _, key := range FirstUniqueStrings(SortedStringKeys(depInfos)) {
+		info := depInfos[key]
+		toName := info.To
+		if info.IsExternal {
+			toName = toName + " (external)"
+		}
+		fmt.Fprintf(&content, "%s <- %s\\n", toName, strings.Join(SortedUniqueStrings(info.From), ", "))
+	}
+
+	d.fullListPath = PathForModuleOut(ctx, "depsinfo", "fulllist.txt").OutputPath
+	ctx.Build(pctx, BuildParams{
+		Rule:        WriteFile,
+		Description: "Full Dependency Info",
+		Output:      d.fullListPath,
+		Args: map[string]string{
+			"content": content.String(),
+		},
+	})
 }
