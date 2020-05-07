@@ -67,6 +67,9 @@ type apiScope struct {
 	// The name of the api scope, e.g. public, system, test
 	name string
 
+	// The api scope that this scope extends.
+	extends *apiScope
+
 	// The name of the field in the dynamically created structure.
 	fieldName string
 
@@ -134,6 +137,7 @@ var (
 	})
 	apiScopeSystem = initApiScope(&apiScope{
 		name:           "system",
+		extends:        apiScopePublic,
 		apiFilePrefix:  "system-",
 		moduleSuffix:   sdkSystemApiSuffix,
 		sdkVersion:     "system_current",
@@ -141,6 +145,7 @@ var (
 	})
 	apiScopeTest = initApiScope(&apiScope{
 		name:           "test",
+		extends:        apiScopePublic,
 		apiFilePrefix:  "test-",
 		moduleSuffix:   sdkTestApiSuffix,
 		sdkVersion:     "test_current",
