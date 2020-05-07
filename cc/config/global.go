@@ -265,16 +265,6 @@ func init() {
 
 var HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)
 
-func bionicHeaders(kernelArch string) string {
-	return strings.Join([]string{
-		"-isystem bionic/libc/include",
-		"-isystem bionic/libc/kernel/uapi",
-		"-isystem bionic/libc/kernel/uapi/asm-" + kernelArch,
-		"-isystem bionic/libc/kernel/android/scsi",
-		"-isystem bionic/libc/kernel/android/uapi",
-	}, " ")
-}
-
 func envOverrideFunc(envVar, defaultVal string) func(ctx android.PackageVarContext) string {
 	return func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv(envVar); override != "" {
