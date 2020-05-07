@@ -331,13 +331,7 @@ type SdkMemberType interface {
 
 	// Add a prebuilt module that the sdk will populate.
 	//
-	// Returning nil from this will cause the sdk module type to use the deprecated BuildSnapshot
-	// method to build the snapshot. That method is deprecated because it requires the SdkMemberType
-	// implementation to do all the word.
-	//
-	// Otherwise, returning a non-nil value from this will cause the sdk module type to do the
-	// majority of the work to generate the snapshot. The sdk module code generates the snapshot
-	// as follows:
+	// The sdk module code generates the snapshot as follows:
 	//
 	// * A properties struct of type SdkMemberProperties is created for each variant and
 	//   populated with information from the variant by calling PopulateFromVariant(SdkAware)
