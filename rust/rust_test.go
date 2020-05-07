@@ -21,6 +21,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/cc"
 )
@@ -57,6 +59,7 @@ func testConfig(bp string) android.Config {
 
 	fs := map[string][]byte{
 		"foo.rs":     nil,
+		"foo.c":      nil,
 		"src/bar.rs": nil,
 		"liby.so":    nil,
 		"libz.so":    nil,
@@ -68,6 +71,14 @@ func testConfig(bp string) android.Config {
 }
 
 func testRust(t *testing.T, bp string) *android.TestContext {
+	return testRustContext(t, bp, false)
+}
+
+func testRustCov(t *testing.T, bp string) *android.TestContext {
+	return testRustContext(t, bp, true)
+}
+
+func testRustContext(t *testing.T, bp string, coverage bool) *android.TestContext {
 	// TODO (b/140435149)
 	if runtime.GOOS != "linux" {
 		t.Skip("Only the Linux toolchain is supported for Rust")
@@ -75,6 +86,11 @@ func testRust(t *testing.T, bp string) *android.TestContext {
 
 	t.Helper()
 	config := testConfig(bp)
+
+	if coverage {
+		config.TestProductVariables.Native_coverage = proptools.BoolPtr(true)
+		config.TestProductVariables.CoveragePaths = []string{"*"}
+	}
 
 	t.Helper()
 	ctx := CreateTestContext()

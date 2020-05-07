@@ -1614,6 +1614,8 @@ func (a *apexBundle) IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizer
 	return android.InList(sanitizerName, globalSanitizerNames)
 }
 
+var _ cc.Coverage = (*apexBundle)(nil)
+
 func (a *apexBundle) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
 	return ctx.Device() && (ctx.DeviceConfig().NativeCoverageEnabled() || ctx.DeviceConfig().ClangCoverageEnabled())
 }
@@ -1629,6 +1631,8 @@ func (a *apexBundle) HideFromMake() {
 func (a *apexBundle) MarkAsCoverageVariant(coverage bool) {
 	a.properties.IsCoverageVariant = coverage
 }
+
+func (a *apexBundle) EnableCoverageIfNeeded() {}
 
 // TODO(jiyong) move apexFileFor* close to the apexFile type definition
 func apexFileForNativeLibrary(ctx android.BaseModuleContext, ccMod *cc.Module, handleSpecialLibs bool) apexFile {

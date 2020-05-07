@@ -141,6 +141,16 @@ func PrefixInList(list []string, prefix string) bool {
 	return false
 }
 
+// Returns true if any string in the given list has the given suffix.
+func SuffixInList(list []string, suffix string) bool {
+	for _, s := range list {
+		if strings.HasSuffix(s, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 // IndexListPred returns the index of the element which in the given `list` satisfying the predicate, or -1 if there is no such element.
 func IndexListPred(pred func(s string) bool, list []string) int {
 	for i, l := range list {
