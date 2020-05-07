@@ -733,6 +733,8 @@ func (a *AndroidApp) MarkAsCoverageVariant(coverage bool) {
 	a.appProperties.IsCoverageVariant = coverage
 }
 
+func (a *AndroidApp) EnableCoverageIfNeeded() {}
+
 var _ cc.Coverage = (*AndroidApp)(nil)
 
 // android_app compiles sources and Android resources into an Android application package `.apk` file.

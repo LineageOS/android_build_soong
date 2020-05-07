@@ -69,3 +69,7 @@ func (prebuilt *prebuiltLibraryDecorator) compilerDeps(ctx DepsContext, deps Dep
 	deps = prebuilt.baseCompiler.compilerDeps(ctx, deps)
 	return deps
 }
+
+func (prebuilt *prebuiltLibraryDecorator) nativeCoverage() bool {
+	return false
+}
