@@ -40,6 +40,7 @@ func init() {
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
 		ctx.BottomUp("rust_unit_tests", TestPerSrcMutator).Parallel()
+		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
 	})
 	pctx.Import("android/soong/rust/config")
 }
@@ -51,6 +52,7 @@ type Flags struct {
 	LinkFlags       []string      // Flags that apply to linker
 	RustFlagsDeps   android.Paths // Files depended on by compiler flags
 	Toolchain       config.Toolchain
+	Coverage        bool
 }
 
 type BaseProperties struct {
@@ -60,6 +62,8 @@ type BaseProperties struct {
 	AndroidMkSharedLibs    []string
 	AndroidMkStaticLibs    []string
 	SubName                string `blueprint:"mutated"`
+	PreventInstall         bool
+	HideFromMake           bool
 }
 
 type Module struct {
@@ -72,6 +76,7 @@ type Module struct {
 	multilib android.Multilib
 
 	compiler         compiler
+	coverage         *coverage
 	cachedToolchain  config.Toolchain
 	subAndroidMkOnce map[subAndroidMkProvider]bool
 	outputFile       android.OptionalPath
@@ -224,6 +229,8 @@ type PathDeps struct {
 	depFlags   []string
 	//ReexportedDeps android.Paths
 
+	coverageFiles android.Paths
+
 	CrtBegin android.OptionalPath
 	CrtEnd   android.OptionalPath
 }
@@ -245,6 +252,34 @@ type compiler interface {
 	inData() bool
 	install(ctx ModuleContext, path android.Path)
 	relativeInstallPath() string
+
+	nativeCoverage() bool
+}
+
+func (mod *Module) isCoverageVariant() bool {
+	return mod.coverage.Properties.IsCoverageVariant
+}
+
+var _ cc.Coverage = (*Module)(nil)
+
+func (mod *Module) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
+	return mod.coverage != nil && mod.coverage.Properties.NeedCoverageVariant
+}
+
+func (mod *Module) PreventInstall() {
+	mod.Properties.PreventInstall = true
+}
+
+func (mod *Module) HideFromMake() {
+	mod.Properties.HideFromMake = true
+}
+
+func (mod *Module) MarkAsCoverageVariant(coverage bool) {
+	mod.coverage.Properties.IsCoverageVariant = coverage
+}
+
+func (mod *Module) EnableCoverageIfNeeded() {
+	mod.coverage.Properties.CoverageEnabled = mod.coverage.Properties.NeedCoverageBuild
 }
 
 func defaultsFactory() android.Module {
@@ -268,6 +303,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&ProcMacroCompilerProperties{},
 		&PrebuiltProperties{},
 		&TestProperties{},
+		&cc.CoverageProperties{},
 	)
 
 	android.InitDefaultsModule(module)
@@ -395,6 +431,18 @@ func (mod *Module) HasStaticVariant() bool {
 	return false
 }
 
+func (mod *Module) CoverageFiles() android.Paths {
+	if mod.compiler != nil {
+		if library, ok := mod.compiler.(*libraryDecorator); ok {
+			if library.coverageFile != nil {
+				return android.Paths{library.coverageFile}
+			}
+			return android.Paths{}
+		}
+	}
+	panic(fmt.Errorf("CoverageFiles called on non-library module: %q", mod.BaseModuleName()))
+}
+
 var _ cc.LinkableInterface = (*Module)(nil)
 
 func (mod *Module) Init() android.Module {
@@ -403,6 +451,10 @@ func (mod *Module) Init() android.Module {
 	if mod.compiler != nil {
 		mod.AddProperties(mod.compiler.compilerProps()...)
 	}
+	if mod.coverage != nil {
+		mod.AddProperties(mod.coverage.props()...)
+	}
+
 	android.InitAndroidArchModule(mod, mod.hod, mod.multilib)
 
 	android.InitDefaultableModule(mod)
@@ -432,6 +484,7 @@ func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib)
 }
 func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
 	module := newBaseModule(hod, multilib)
+	module.coverage = &coverage{}
 	return module
 }
 
@@ -454,6 +507,7 @@ type ModuleContextIntf interface {
 	toolchain() config.Toolchain
 	baseModuleName() string
 	CrateName() string
+	nativeCoverage() bool
 }
 
 type depsContext struct {
@@ -464,6 +518,14 @@ type depsContext struct {
 type moduleContext struct {
 	android.ModuleContext
 	moduleContextImpl
+}
+
+func (ctx *moduleContextImpl) nativeCoverage() bool {
+	return ctx.mod.nativeCoverage()
+}
+
+func (mod *Module) nativeCoverage() bool {
+	return mod.compiler != nil && mod.compiler.nativeCoverage()
 }
 
 type moduleContextImpl struct {
@@ -508,9 +570,17 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	if mod.compiler != nil {
 		flags = mod.compiler.compilerFlags(ctx, flags)
+	}
+	if mod.coverage != nil {
+		flags, deps = mod.coverage.flags(ctx, flags, deps)
+	}
+
+	if mod.compiler != nil {
 		outputFile := mod.compiler.compile(ctx, flags, deps)
 		mod.outputFile = android.OptionalPathForPath(outputFile)
-		mod.compiler.install(ctx, mod.outputFile.Path())
+		if !mod.Properties.PreventInstall {
+			mod.compiler.install(ctx, mod.outputFile.Path())
+		}
 	}
 }
 
@@ -519,6 +589,10 @@ func (mod *Module) deps(ctx DepsContext) Deps {
 
 	if mod.compiler != nil {
 		deps = mod.compiler.compilerDeps(ctx, deps)
+	}
+
+	if mod.coverage != nil {
+		deps = mod.coverage.deps(ctx, deps)
 	}
 
 	deps.Rlibs = android.LastUniqueStrings(deps.Rlibs)
@@ -552,6 +626,12 @@ var (
 	procMacroDepTag  = dependencyTag{name: "procMacro", proc_macro: true}
 	testPerSrcDepTag = dependencyTag{name: "rust_unit_tests"}
 )
+
+func (mod *Module) begin(ctx BaseModuleContext) {
+	if mod.coverage != nil {
+		mod.coverage.begin(ctx)
+	}
+}
 
 func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var depPaths PathDeps
@@ -588,6 +668,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					ctx.ModuleErrorf("mod %q not an rlib library", depName)
 					return
 				}
+				depPaths.coverageFiles = append(depPaths.coverageFiles, rustDep.CoverageFiles()...)
 				directRlibDeps = append(directRlibDeps, rustDep)
 				mod.Properties.AndroidMkRlibs = append(mod.Properties.AndroidMkRlibs, depName)
 			case procMacroDepTag:
@@ -642,6 +723,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depFlag = "-lstatic=" + libName
 				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
 				depPaths.depFlags = append(depPaths.depFlags, depFlag)
+				depPaths.coverageFiles = append(depPaths.coverageFiles, ccDep.CoverageFiles()...)
 				directStaticLibDeps = append(directStaticLibDeps, ccDep)
 				mod.Properties.AndroidMkStaticLibs = append(mod.Properties.AndroidMkStaticLibs, depName)
 			case cc.SharedDepTag:
@@ -770,6 +852,29 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	// proc_macros are compiler plugins, and so we need the host arch variant as a dependendcy.
 	actx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(), procMacroDepTag, deps.ProcMacros...)
+}
+
+func BeginMutator(ctx android.BottomUpMutatorContext) {
+	if mod, ok := ctx.Module().(*Module); ok && mod.Enabled() {
+		mod.beginMutator(ctx)
+	}
+}
+
+type baseModuleContext struct {
+	android.BaseModuleContext
+	moduleContextImpl
+}
+
+func (mod *Module) beginMutator(actx android.BottomUpMutatorContext) {
+	ctx := &baseModuleContext{
+		BaseModuleContext: actx,
+		moduleContextImpl: moduleContextImpl{
+			mod: mod,
+		},
+	}
+	ctx.ctx = ctx
+
+	mod.begin(ctx)
 }
 
 func (mod *Module) Name() string {
