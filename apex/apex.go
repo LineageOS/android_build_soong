@@ -2108,8 +2108,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							//
 							// Always include if we are a host-apex however since those won't have any
 							// system libraries.
-							if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.requiredDeps) {
-								a.requiredDeps = append(a.requiredDeps, cc.Name())
+							if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.BaseModuleName(), a.requiredDeps) {
+								a.requiredDeps = append(a.requiredDeps, cc.BaseModuleName())
 							}
 							requireNativeLibs = append(requireNativeLibs, cc.OutputFile().Path().Base())
 							// Don't track further
