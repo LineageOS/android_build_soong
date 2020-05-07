@@ -35,6 +35,9 @@ type DefaultableModuleBase struct {
 	defaultsProperties            defaultsProperties
 	defaultableProperties         []interface{}
 	defaultableVariableProperties interface{}
+
+	// The optional hook to call after any defaults have been applied.
+	hook DefaultableHook
 }
 
 func (d *DefaultableModuleBase) defaults() *defaultsProperties {
@@ -44,6 +47,16 @@ func (d *DefaultableModuleBase) defaults() *defaultsProperties {
 func (d *DefaultableModuleBase) setProperties(props []interface{}, variableProperties interface{}) {
 	d.defaultableProperties = props
 	d.defaultableVariableProperties = variableProperties
+}
+
+func (d *DefaultableModuleBase) SetDefaultableHook(hook DefaultableHook) {
+	d.hook = hook
+}
+
+func (d *DefaultableModuleBase) callHookIfAvailable(ctx DefaultableHookContext) {
+	if d.hook != nil {
+		d.hook(ctx)
+	}
 }
 
 // Interface that must be supported by any module to which defaults can be applied.
@@ -57,6 +70,15 @@ type Defaultable interface {
 	// Apply defaults from the supplied Defaults to the property structures supplied to
 	// setProperties(...).
 	applyDefaults(TopDownMutatorContext, []Defaults)
+
+	// Set the hook to be called after any defaults have been applied.
+	//
+	// Should be used in preference to a AddLoadHook when the behavior of the load
+	// hook is dependent on properties supplied in the Android.bp file.
+	SetDefaultableHook(hook DefaultableHook)
+
+	// Call the hook if specified.
+	callHookIfAvailable(context DefaultableHookContext)
 }
 
 type DefaultableModule interface {
@@ -74,6 +96,15 @@ func InitDefaultableModule(module DefaultableModule) {
 
 	module.AddProperties(module.defaults())
 }
+
+// A restricted subset of context methods, similar to LoadHookContext.
+type DefaultableHookContext interface {
+	EarlyModuleContext
+
+	CreateModule(ModuleFactory, ...interface{}) Module
+}
+
+type DefaultableHook func(ctx DefaultableHookContext)
 
 // The Defaults_visibility property.
 type DefaultsVisibilityProperties struct {
@@ -268,25 +299,29 @@ func defaultsDepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func defaultsMutator(ctx TopDownMutatorContext) {
-	if defaultable, ok := ctx.Module().(Defaultable); ok && len(defaultable.defaults().Defaults) > 0 {
-		var defaultsList []Defaults
-		seen := make(map[Defaults]bool)
+	if defaultable, ok := ctx.Module().(Defaultable); ok {
+		if len(defaultable.defaults().Defaults) > 0 {
+			var defaultsList []Defaults
+			seen := make(map[Defaults]bool)
 
-		ctx.WalkDeps(func(module, parent Module) bool {
-			if ctx.OtherModuleDependencyTag(module) == DefaultsDepTag {
-				if defaults, ok := module.(Defaults); ok {
-					if !seen[defaults] {
-						seen[defaults] = true
-						defaultsList = append(defaultsList, defaults)
-						return len(defaults.defaults().Defaults) > 0
+			ctx.WalkDeps(func(module, parent Module) bool {
+				if ctx.OtherModuleDependencyTag(module) == DefaultsDepTag {
+					if defaults, ok := module.(Defaults); ok {
+						if !seen[defaults] {
+							seen[defaults] = true
+							defaultsList = append(defaultsList, defaults)
+							return len(defaults.defaults().Defaults) > 0
+						}
+					} else {
+						ctx.PropertyErrorf("defaults", "module %s is not an defaults module",
+							ctx.OtherModuleName(module))
 					}
-				} else {
-					ctx.PropertyErrorf("defaults", "module %s is not an defaults module",
-						ctx.OtherModuleName(module))
 				}
-			}
-			return false
-		})
-		defaultable.applyDefaults(ctx, defaultsList)
+				return false
+			})
+			defaultable.applyDefaults(ctx, defaultsList)
+		}
+
+		defaultable.callHookIfAvailable(ctx)
 	}
 }
