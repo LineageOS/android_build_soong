@@ -98,6 +98,7 @@ func CreateTestContext() *android.TestContext {
 		// rust mutators
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
 		ctx.BottomUp("rust_unit_tests", TestPerSrcMutator).Parallel()
+		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
 	})
 
 	return ctx
