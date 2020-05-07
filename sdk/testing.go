@@ -173,6 +173,15 @@ func (h *TestHelper) AssertStringEquals(message string, expected string, actual 
 	}
 }
 
+func (h *TestHelper) AssertErrorMessageEquals(message string, expected string, actual error) {
+	h.t.Helper()
+	if actual == nil {
+		h.t.Errorf("Expected error but was nil")
+	} else if actual.Error() != expected {
+		h.t.Errorf("%s: expected %s, actual %s", message, expected, actual.Error())
+	}
+}
+
 func (h *TestHelper) AssertTrimmedStringEquals(message string, expected string, actual string) {
 	h.t.Helper()
 	h.AssertStringEquals(message, strings.TrimSpace(expected), strings.TrimSpace(actual))
