@@ -1412,6 +1412,8 @@ func AndroidTestImportFactory() android.Module {
 		module.processVariants(ctx)
 	})
 
+	module.dexpreopter.isTest = true
+
 	android.InitApexModule(module)
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
