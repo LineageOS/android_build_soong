@@ -70,8 +70,6 @@ func init() {
 	pctx.StaticVariable("LinuxBionicLdflags", strings.Join(linuxBionicLdflags, " "))
 	pctx.StaticVariable("LinuxBionicLldflags", strings.Join(linuxBionicLldflags, " "))
 
-	pctx.StaticVariable("LinuxBionicIncludeFlags", bionicHeaders("x86"))
-
 	// Use the device gcc toolchain for now
 	pctx.StaticVariable("LinuxBionicGccRoot", "${X86_64GccRoot}")
 }
@@ -97,7 +95,7 @@ func (t *toolchainLinuxBionic) GccVersion() string {
 }
 
 func (t *toolchainLinuxBionic) IncludeFlags() string {
-	return "${config.LinuxBionicIncludeFlags}"
+	return ""
 }
 
 func (t *toolchainLinuxBionic) ClangTriple() string {
