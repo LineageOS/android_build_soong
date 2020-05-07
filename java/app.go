@@ -1394,6 +1394,8 @@ func AndroidTestImportFactory() android.Module {
 		module.processVariants(ctx)
 	})
 
+	module.dexpreopter.isTest = true
+
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Apk")
