@@ -396,7 +396,7 @@ type linker interface {
 
 type specifiedDeps struct {
 	sharedLibs       []string
-	systemSharedLibs []string
+	systemSharedLibs []string // Note nil and [] are semantically distinct.
 }
 
 type installer interface {
@@ -578,6 +578,10 @@ func (c *Module) StubDecorator() bool {
 
 func (c *Module) SdkVersion() string {
 	return String(c.Properties.Sdk_version)
+}
+
+func (c *Module) MinSdkVersion() string {
+	return String(c.Properties.Min_sdk_version)
 }
 
 func (c *Module) AlwaysSdk() bool {

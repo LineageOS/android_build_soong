@@ -405,17 +405,31 @@ type ApexModuleDepInfo struct {
 	From []string
 	// Whether the dependency belongs to the final compiled APEX.
 	IsExternal bool
+	// min_sdk_version of the ApexModule
+	MinSdkVersion string
 }
 
 // A map of a dependency name to its ApexModuleDepInfo
 type DepNameToDepInfoMap map[string]ApexModuleDepInfo
 
 type ApexBundleDepsInfo struct {
-	fullListPath OutputPath
+	minSdkVersion string
+	flatListPath  OutputPath
+	fullListPath  OutputPath
 }
 
 type ApexDepsInfoIntf interface {
+	MinSdkVersion() string
+	FlatListPath() Path
 	FullListPath() Path
+}
+
+func (d *ApexBundleDepsInfo) MinSdkVersion() string {
+	return d.minSdkVersion
+}
+
+func (d *ApexBundleDepsInfo) FlatListPath() Path {
+	return d.flatListPath
 }
 
 func (d *ApexBundleDepsInfo) FullListPath() Path {
@@ -424,15 +438,24 @@ func (d *ApexBundleDepsInfo) FullListPath() Path {
 
 var _ ApexDepsInfoIntf = (*ApexBundleDepsInfo)(nil)
 
-func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, depInfos DepNameToDepInfoMap) {
-	var content strings.Builder
+// Generate two module out files:
+// 1. FullList with transitive deps and their parents in the dep graph
+// 2. FlatList with a flat list of transitive deps
+func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, minSdkVersion string, depInfos DepNameToDepInfoMap) {
+	d.minSdkVersion = minSdkVersion
+
+	var fullContent strings.Builder
+	var flatContent strings.Builder
+
+	fmt.Fprintf(&flatContent, "%s(minSdkVersion:%s):\\n", ctx.ModuleName(), minSdkVersion)
 	for _, key := range FirstUniqueStrings(SortedStringKeys(depInfos)) {
 		info := depInfos[key]
-		toName := info.To
+		toName := fmt.Sprintf("%s(minSdkVersion:%s)", info.To, info.MinSdkVersion)
 		if info.IsExternal {
 			toName = toName + " (external)"
 		}
-		fmt.Fprintf(&content, "%s <- %s\\n", toName, strings.Join(SortedUniqueStrings(info.From), ", "))
+		fmt.Fprintf(&fullContent, "%s <- %s\\n", toName, strings.Join(SortedUniqueStrings(info.From), ", "))
+		fmt.Fprintf(&flatContent, "  %s\\n", toName)
 	}
 
 	d.fullListPath = PathForModuleOut(ctx, "depsinfo", "fulllist.txt").OutputPath
@@ -441,7 +464,17 @@ func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, depInfos DepN
 		Description: "Full Dependency Info",
 		Output:      d.fullListPath,
 		Args: map[string]string{
-			"content": content.String(),
+			"content": fullContent.String(),
+		},
+	})
+
+	d.flatListPath = PathForModuleOut(ctx, "depsinfo", "flatlist.txt").OutputPath
+	ctx.Build(pctx, BuildParams{
+		Rule:        WriteFile,
+		Description: "Flat Dependency Info",
+		Output:      d.flatListPath,
+		Args: map[string]string{
+			"content": flatContent.String(),
 		},
 	})
 }

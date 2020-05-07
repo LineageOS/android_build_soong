@@ -32,6 +32,7 @@ func testSdkWithCc(t *testing.T, bp string) *testSdkResult {
 		"arm64/include/Arm64Test.h":     nil,
 		"libfoo.so":                     nil,
 		"aidl/foo/bar/Test.aidl":        nil,
+		"some/where/stubslib.map.txt":   nil,
 	}
 	return testSdkWithFs(t, bp, fs)
 }
@@ -48,7 +49,6 @@ func TestSdkIsCompileMultilibBoth(t *testing.T) {
 		cc_library_shared {
 			name: "sdkmember",
 			srcs: ["Test.cpp"],
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -178,13 +178,11 @@ func TestHostSdkWithCc(t *testing.T) {
 
 		cc_library_host_shared {
 			name: "sdkshared",
-			system_shared_libs: [],
 			stl: "none",
 		}
 
 		cc_library_host_static {
 			name: "sdkstatic",
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -201,28 +199,81 @@ func TestSdkWithCc(t *testing.T) {
 
 		cc_library_shared {
 			name: "sdkshared",
-			system_shared_libs: [],
 			stl: "none",
 		}
 
 		cc_library_static {
 			name: "sdkstatic",
-			system_shared_libs: [],
 			stl: "none",
 		}
 
 		cc_library {
 			name: "sdkboth1",
-			system_shared_libs: [],
 			stl: "none",
 		}
 
 		cc_library {
 			name: "sdkboth2",
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
+}
+
+func TestSnapshotWithObject(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_objects: ["crtobj"],
+		}
+
+		cc_object {
+			name: "crtobj",
+			stl: "none",
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_object {
+    name: "mysdk_crtobj@current",
+    sdk_member_name: "crtobj",
+    stl: "none",
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/crtobj.o"],
+        },
+        arm: {
+            srcs: ["arm/lib/crtobj.o"],
+        },
+    },
+}
+
+cc_prebuilt_object {
+    name: "crtobj",
+    prefer: false,
+    stl: "none",
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/crtobj.o"],
+        },
+        arm: {
+            srcs: ["arm/lib/crtobj.o"],
+        },
+    },
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    native_objects: ["mysdk_crtobj@current"],
+}
+`),
+		checkAllCopyRules(`
+.intermediates/crtobj/android_arm64_armv8-a/crtobj.o -> arm64/lib/crtobj.o
+.intermediates/crtobj/android_arm_armv7-a-neon/crtobj.o -> arm/lib/crtobj.o
+`),
+	)
 }
 
 func TestSnapshotWithCcDuplicateHeaders(t *testing.T) {
@@ -238,7 +289,6 @@ func TestSnapshotWithCcDuplicateHeaders(t *testing.T) {
 				"Test.cpp",
 			],
 			export_include_dirs: ["include"],
-			system_shared_libs: [],
 			stl: "none",
 		}
 
@@ -248,7 +298,6 @@ func TestSnapshotWithCcDuplicateHeaders(t *testing.T) {
 				"Test.cpp",
 			],
 			export_include_dirs: ["include"],
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -285,7 +334,6 @@ func TestSnapshotWithCcSharedLibraryCommonProperties(t *testing.T) {
 					export_system_include_dirs: ["arm64/include"],
 				},
 			},
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -353,7 +401,6 @@ func TestSnapshotWithCcBinary(t *testing.T) {
 				"Test.cpp",
 			],
 			compile_multilib: "both",
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -428,7 +475,6 @@ func TestMultipleHostOsTypesSnapshotWithCcBinary(t *testing.T) {
 				"Test.cpp",
 			],
 			compile_multilib: "both",
-			system_shared_libs: [],
 			stl: "none",
 			target: {
 				windows: {
@@ -529,7 +575,6 @@ func TestSnapshotWithCcSharedLibrary(t *testing.T) {
 			aidl: {
 				export_aidl_headers: true,
 			},
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -616,7 +661,6 @@ func TestSnapshotWithCcSharedLibrarySharedLibs(t *testing.T) {
 			srcs: [
 				"Test.cpp",
 			],
-			system_shared_libs: [],
 			stl: "none",
 		}
 
@@ -657,7 +701,6 @@ func TestSnapshotWithCcSharedLibrarySharedLibs(t *testing.T) {
 					},
 				},
 			},
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -807,7 +850,6 @@ func TestHostSnapshotWithCcSharedLibrary(t *testing.T) {
 			aidl: {
 				export_aidl_headers: true,
 			},
-			system_shared_libs: [],
 			stl: "none",
 			sdk_version: "minimum",
 		}
@@ -903,7 +945,6 @@ func TestMultipleHostOsTypesSnapshotWithCcSharedLibrary(t *testing.T) {
 			srcs: [
 				"Test.cpp",
 			],
-			system_shared_libs: [],
 			stl: "none",
 			target: {
 				windows: {
@@ -993,7 +1034,6 @@ func TestSnapshotWithCcStaticLibrary(t *testing.T) {
 			aidl: {
 				export_aidl_headers: true,
 			},
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -1080,7 +1120,6 @@ func TestHostSnapshotWithCcStaticLibrary(t *testing.T) {
 			aidl: {
 				export_aidl_headers: true,
 			},
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -1162,7 +1201,6 @@ func TestSnapshotWithCcLibrary(t *testing.T) {
 				"Test.cpp",
 			],
 			export_include_dirs: ["include"],
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -1265,7 +1303,6 @@ func TestHostSnapshotWithMultiLib64(t *testing.T) {
 			aidl: {
 				export_aidl_headers: true,
 			},
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -1336,7 +1373,6 @@ func TestSnapshotWithCcHeadersLibrary(t *testing.T) {
 		cc_library_headers {
 			name: "mynativeheaders",
 			export_include_dirs: ["include"],
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -1387,7 +1423,6 @@ func TestHostSnapshotWithCcHeadersLibrary(t *testing.T) {
 			device_supported: false,
 			host_supported: true,
 			export_include_dirs: ["include"],
-			system_shared_libs: [],
 			stl: "none",
 		}
 	`)
@@ -1441,7 +1476,6 @@ func TestDeviceAndHostSnapshotWithCcHeadersLibrary(t *testing.T) {
 		cc_library_headers {
 			name: "mynativeheaders",
 			host_supported: true,
-			system_shared_libs: [],
 			stl: "none",
 			export_system_include_dirs: ["include"],
 			target: {
@@ -1503,4 +1537,271 @@ include-android/AndroidTest.h -> include/include-android/AndroidTest.h
 include-host/HostTest.h -> include/include-host/HostTest.h
 `),
 	)
+}
+
+func TestSystemSharedLibPropagation(t *testing.T) {
+	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
+	SkipIfNotLinux(t)
+
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: ["sslnil", "sslempty", "sslnonempty"],
+		}
+
+		cc_library {
+			name: "sslnil",
+			host_supported: true,
+		}
+
+		cc_library {
+			name: "sslempty",
+			system_shared_libs: [],
+		}
+
+		cc_library {
+			name: "sslnonempty",
+			system_shared_libs: ["sslnil"],
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_shared {
+    name: "mysdk_sslnil@current",
+    sdk_member_name: "sslnil",
+    installable: false,
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/sslnil.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/sslnil.so"],
+        },
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "sslnil",
+    prefer: false,
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/sslnil.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/sslnil.so"],
+        },
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "mysdk_sslempty@current",
+    sdk_member_name: "sslempty",
+    installable: false,
+    system_shared_libs: [],
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/sslempty.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/sslempty.so"],
+        },
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "sslempty",
+    prefer: false,
+    system_shared_libs: [],
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/sslempty.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/sslempty.so"],
+        },
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "mysdk_sslnonempty@current",
+    sdk_member_name: "sslnonempty",
+    installable: false,
+    system_shared_libs: ["mysdk_sslnil@current"],
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/sslnonempty.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/sslnonempty.so"],
+        },
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "sslnonempty",
+    prefer: false,
+    system_shared_libs: ["sslnil"],
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/sslnonempty.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/sslnonempty.so"],
+        },
+    },
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    native_shared_libs: [
+        "mysdk_sslnil@current",
+        "mysdk_sslempty@current",
+        "mysdk_sslnonempty@current",
+    ],
+}
+`))
+
+	result = testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			host_supported: true,
+			native_shared_libs: ["sslvariants"],
+		}
+
+		cc_library {
+			name: "sslvariants",
+			host_supported: true,
+			target: {
+				android: {
+					system_shared_libs: [],
+				},
+			},
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_shared {
+    name: "mysdk_sslvariants@current",
+    sdk_member_name: "sslvariants",
+    host_supported: true,
+    installable: false,
+    target: {
+        android: {
+            system_shared_libs: [],
+        },
+        android_arm64: {
+            srcs: ["android/arm64/lib/sslvariants.so"],
+        },
+        android_arm: {
+            srcs: ["android/arm/lib/sslvariants.so"],
+        },
+        linux_glibc_x86_64: {
+            srcs: ["linux_glibc/x86_64/lib/sslvariants.so"],
+        },
+        linux_glibc_x86: {
+            srcs: ["linux_glibc/x86/lib/sslvariants.so"],
+        },
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "sslvariants",
+    prefer: false,
+    host_supported: true,
+    target: {
+        android: {
+            system_shared_libs: [],
+        },
+        android_arm64: {
+            srcs: ["android/arm64/lib/sslvariants.so"],
+        },
+        android_arm: {
+            srcs: ["android/arm/lib/sslvariants.so"],
+        },
+        linux_glibc_x86_64: {
+            srcs: ["linux_glibc/x86_64/lib/sslvariants.so"],
+        },
+        linux_glibc_x86: {
+            srcs: ["linux_glibc/x86/lib/sslvariants.so"],
+        },
+    },
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    host_supported: true,
+    native_shared_libs: ["mysdk_sslvariants@current"],
+}
+`))
+}
+
+func TestStubsLibrary(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: ["stubslib"],
+		}
+
+		cc_library {
+			name: "internaldep",
+		}
+
+		cc_library {
+			name: "stubslib",
+			shared_libs: ["internaldep"],
+			stubs: {
+				symbol_file: "some/where/stubslib.map.txt",
+				versions: ["1", "2", "3"],
+			},
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_shared {
+    name: "mysdk_stubslib@current",
+    sdk_member_name: "stubslib",
+    installable: false,
+    stubs: {
+        versions: ["3"],
+    },
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/stubslib.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/stubslib.so"],
+        },
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "stubslib",
+    prefer: false,
+    stubs: {
+        versions: ["3"],
+    },
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/stubslib.so"],
+        },
+        arm: {
+            srcs: ["arm/lib/stubslib.so"],
+        },
+    },
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    native_shared_libs: ["mysdk_stubslib@current"],
+}
+`))
 }

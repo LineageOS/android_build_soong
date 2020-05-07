@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 
 	"android/soong/android"
+
 	"github.com/google/blueprint"
 )
 
@@ -110,7 +111,7 @@ func (p *nativeBinaryInfoProperties) PopulateFromVariant(ctx android.SdkMemberCo
 	ccModule := variant.(*Module)
 
 	p.archType = ccModule.Target().Arch.ArchType.String()
-	p.outputFile = ccModule.OutputFile().Path()
+	p.outputFile = getRequiredMemberOutputFile(ctx, ccModule)
 
 	if ccModule.linker != nil {
 		specifiedDeps := specifiedDeps{}
@@ -137,7 +138,9 @@ func (p *nativeBinaryInfoProperties) AddToPropertySet(ctx android.SdkMemberConte
 		propertySet.AddPropertyWithTag("shared_libs", p.SharedLibs, builder.SdkMemberReferencePropertyTag(false))
 	}
 
-	if len(p.SystemSharedLibs) > 0 {
+	// SystemSharedLibs needs to be propagated if it's a list, even if it's empty,
+	// so check for non-nil instead of nonzero length.
+	if p.SystemSharedLibs != nil {
 		propertySet.AddPropertyWithTag("system_shared_libs", p.SystemSharedLibs, builder.SdkMemberReferencePropertyTag(false))
 	}
 }

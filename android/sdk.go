@@ -313,10 +313,11 @@ type SdkMemberType interface {
 	// SdkAware and be added with an SdkMemberTypeDependencyTag tag.
 	HasTransitiveSdkMembers() bool
 
-	// Add dependencies from the SDK module to all the variants the member
-	// contributes to the SDK. The exact set of variants required is determined
-	// by the SDK and its properties. The dependencies must be added with the
-	// supplied tag.
+	// Add dependencies from the SDK module to all the module variants the member
+	// type contributes to the SDK. `names` is the list of module names given in
+	// the member type property (as returned by SdkPropertyName()) in the SDK
+	// module. The exact set of variants required is determined by the SDK and its
+	// properties. The dependencies must be added with the supplied tag.
 	//
 	// The BottomUpMutatorContext provided is for the SDK module.
 	AddDependencies(mctx BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string)

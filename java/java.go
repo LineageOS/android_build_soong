@@ -604,6 +604,10 @@ func (j *Module) targetSdkVersion() sdkSpec {
 	return j.sdkVersion()
 }
 
+func (j *Module) MinSdkVersion() string {
+	return j.minSdkVersion().version.String()
+}
+
 func (j *Module) AvailableFor(what string) bool {
 	if what == android.AvailableToPlatform && Bool(j.deviceProperties.Hostdex) {
 		// Exception: for hostdex: true libraries, the platform variant is created
@@ -2393,6 +2397,10 @@ func (j *Import) sdkVersion() sdkSpec {
 
 func (j *Import) minSdkVersion() sdkSpec {
 	return j.sdkVersion()
+}
+
+func (j *Import) MinSdkVersion() string {
+	return j.minSdkVersion().version.String()
 }
 
 func (j *Import) Prebuilt() *android.Prebuilt {
