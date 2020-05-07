@@ -45,7 +45,7 @@ var combineApk = pctx.AndroidStaticRule("combineApk",
 	})
 
 func CreateAndSignAppPackage(ctx android.ModuleContext, outputFile android.WritablePath,
-	packageFile, jniJarFile, dexJarFile android.Path, certificates []Certificate, deps android.Paths) {
+	packageFile, jniJarFile, dexJarFile android.Path, certificates []Certificate, deps android.Paths, lineageFile android.Path) {
 
 	unsignedApkName := strings.TrimSuffix(outputFile.Base(), ".apk") + "-unsigned.apk"
 	unsignedApk := android.PathForModuleOut(ctx, unsignedApkName)
@@ -66,16 +66,21 @@ func CreateAndSignAppPackage(ctx android.ModuleContext, outputFile android.Writa
 		Implicits: deps,
 	})
 
-	SignAppPackage(ctx, outputFile, unsignedApk, certificates)
+	SignAppPackage(ctx, outputFile, unsignedApk, certificates, lineageFile)
 }
 
-func SignAppPackage(ctx android.ModuleContext, signedApk android.WritablePath, unsignedApk android.Path, certificates []Certificate) {
+func SignAppPackage(ctx android.ModuleContext, signedApk android.WritablePath, unsignedApk android.Path, certificates []Certificate, lineageFile android.Path) {
 
 	var certificateArgs []string
 	var deps android.Paths
 	for _, c := range certificates {
 		certificateArgs = append(certificateArgs, c.Pem.String(), c.Key.String())
 		deps = append(deps, c.Pem, c.Key)
+	}
+
+	var flags []string
+	if lineageFile != nil {
+		flags = append(flags, "--lineage", lineageFile.String())
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -86,6 +91,7 @@ func SignAppPackage(ctx android.ModuleContext, signedApk android.WritablePath, u
 		Implicits:   deps,
 		Args: map[string]string{
 			"certificates": strings.Join(certificateArgs, " "),
+			"flags":        strings.Join(flags, " "),
 		},
 	})
 }
