@@ -383,3 +383,88 @@ func TestArchMutator(t *testing.T) {
 		})
 	}
 }
+
+func TestArchMutatorNativeBridge(t *testing.T) {
+	bp := `
+		// This module is only enabled for x86.
+		module {
+			name: "foo",
+		}
+
+		// This module is enabled for x86 and arm (via native bridge).
+		module {
+			name: "bar",
+			native_bridge_supported: true,
+		}
+
+		// This module is enabled for arm (native_bridge) only.
+		module {
+			name: "baz",
+			native_bridge_supported: true,
+			enabled: false,
+			target: {
+				native_bridge: {
+					enabled: true,
+				}
+			}
+		}
+	`
+
+	testCases := []struct {
+		name        string
+		config      func(Config)
+		fooVariants []string
+		barVariants []string
+		bazVariants []string
+	}{
+		{
+			name:        "normal",
+			config:      nil,
+			fooVariants: []string{"android_x86_64_silvermont", "android_x86_silvermont"},
+			barVariants: []string{"android_x86_64_silvermont", "android_native_bridge_arm64_armv8-a", "android_x86_silvermont", "android_native_bridge_arm_armv7-a-neon"},
+			bazVariants: []string{"android_native_bridge_arm64_armv8-a", "android_native_bridge_arm_armv7-a-neon"},
+		},
+	}
+
+	enabledVariants := func(ctx *TestContext, name string) []string {
+		var ret []string
+		variants := ctx.ModuleVariantsForTests(name)
+		for _, variant := range variants {
+			m := ctx.ModuleForTests(name, variant)
+			if m.Module().Enabled() {
+				ret = append(ret, variant)
+			}
+		}
+		return ret
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			config := TestArchConfigNativeBridge(buildDir, nil, bp, nil)
+
+			ctx := NewTestArchContext()
+			ctx.RegisterModuleType("module", archTestModuleFactory)
+			ctx.Register(config)
+			if tt.config != nil {
+				tt.config(config)
+			}
+
+			_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+			FailIfErrored(t, errs)
+			_, errs = ctx.PrepareBuildActions(config)
+			FailIfErrored(t, errs)
+
+			if g, w := enabledVariants(ctx, "foo"), tt.fooVariants; !reflect.DeepEqual(w, g) {
+				t.Errorf("want foo variants:\n%q\ngot:\n%q\n", w, g)
+			}
+
+			if g, w := enabledVariants(ctx, "bar"), tt.barVariants; !reflect.DeepEqual(w, g) {
+				t.Errorf("want bar variants:\n%q\ngot:\n%q\n", w, g)
+			}
+
+			if g, w := enabledVariants(ctx, "baz"), tt.bazVariants; !reflect.DeepEqual(w, g) {
+				t.Errorf("want qux variants:\n%q\ngot:\n%q\n", w, g)
+			}
+		})
+	}
+}
