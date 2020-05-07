@@ -117,44 +117,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 	})
 
 	t.Run("VNDK APEX supports coverage variants", func(t *testing.T) {
-		ctx, _ := testApex(t, bp+`
-			cc_library {
-				name: "libprofile-extras",
-				vendor_available: true,
-				recovery_available: true,
-				native_coverage: false,
-				system_shared_libs: [],
-				stl: "none",
-				notice: "custom_notice",
-			}
-			cc_library {
-				name: "libprofile-clang-extras",
-				vendor_available: true,
-				recovery_available: true,
-				native_coverage: false,
-				system_shared_libs: [],
-				stl: "none",
-				notice: "custom_notice",
-			}
-			cc_library {
-				name: "libprofile-extras_ndk",
-				vendor_available: true,
-				native_coverage: false,
-				system_shared_libs: [],
-				stl: "none",
-				notice: "custom_notice",
-				sdk_version: "current",
-			}
-			cc_library {
-				name: "libprofile-clang-extras_ndk",
-				vendor_available: true,
-				native_coverage: false,
-				system_shared_libs: [],
-				stl: "none",
-				notice: "custom_notice",
-				sdk_version: "current",
-			}
-		`, func(fs map[string][]byte, config android.Config) {
+		ctx, _ := testApex(t, bp, func(fs map[string][]byte, config android.Config) {
 			config.TestProductVariables.Native_coverage = proptools.BoolPtr(true)
 		})
 
