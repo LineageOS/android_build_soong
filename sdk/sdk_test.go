@@ -283,7 +283,7 @@ func TestCommonValueOptimization(t *testing.T) {
 	extractor.extractCommonProperties(common, structs)
 
 	h := TestHelper{t}
-	h.AssertDeepEquals("common properties not correct", common,
+	h.AssertDeepEquals("common properties not correct",
 		&testPropertiesStruct{
 			private:     "",
 			Public_Kept: "",
@@ -297,9 +297,10 @@ func TestCommonValueOptimization(t *testing.T) {
 				S_Embedded_Common:    "embedded_common",
 				S_Embedded_Different: "",
 			},
-		})
+		},
+		common)
 
-	h.AssertDeepEquals("updated properties[0] not correct", structs[0],
+	h.AssertDeepEquals("updated properties[0] not correct",
 		&testPropertiesStruct{
 			private:     "common",
 			Public_Kept: "common",
@@ -313,9 +314,10 @@ func TestCommonValueOptimization(t *testing.T) {
 				S_Embedded_Common:    "",
 				S_Embedded_Different: "embedded_upper",
 			},
-		})
+		},
+		structs[0])
 
-	h.AssertDeepEquals("updated properties[1] not correct", structs[1],
+	h.AssertDeepEquals("updated properties[1] not correct",
 		&testPropertiesStruct{
 			private:     "common",
 			Public_Kept: "common",
@@ -329,5 +331,6 @@ func TestCommonValueOptimization(t *testing.T) {
 				S_Embedded_Common:    "",
 				S_Embedded_Different: "embedded_lower",
 			},
-		})
+		},
+		structs[1])
 }
