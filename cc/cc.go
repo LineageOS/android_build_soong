@@ -437,7 +437,6 @@ var (
 	ndkLateStubDepTag     = DependencyTag{Name: "ndk late stub", Library: true}
 	vndkExtDepTag         = DependencyTag{Name: "vndk extends", Library: true}
 	runtimeDepTag         = DependencyTag{Name: "runtime lib"}
-	coverageDepTag        = DependencyTag{Name: "coverage"}
 	testPerSrcDepTag      = DependencyTag{Name: "test_per_src"}
 )
 
@@ -743,6 +742,15 @@ func (c *Module) Module() android.Module {
 
 func (c *Module) OutputFile() android.OptionalPath {
 	return c.outputFile
+}
+
+func (c *Module) CoverageFiles() android.Paths {
+	if c.linker != nil {
+		if library, ok := c.linker.(libraryInterface); ok {
+			return library.objs().coverageFiles
+		}
+	}
+	panic(fmt.Errorf("CoverageFiles called on non-library module: %q", c.BaseModuleName()))
 }
 
 var _ LinkableInterface = (*Module)(nil)
@@ -2493,13 +2501,16 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			// When combining coverage files for shared libraries and executables, coverage files
 			// in static libraries act as if they were whole static libraries. The same goes for
 			// source based Abi dump files.
-			// This should only be done for cc.Modules
 			if c, ok := ccDep.(*Module); ok {
 				staticLib := c.linker.(libraryInterface)
 				depPaths.StaticLibObjs.coverageFiles = append(depPaths.StaticLibObjs.coverageFiles,
 					staticLib.objs().coverageFiles...)
 				depPaths.StaticLibObjs.sAbiDumpFiles = append(depPaths.StaticLibObjs.sAbiDumpFiles,
 					staticLib.objs().sAbiDumpFiles...)
+			} else if c, ok := ccDep.(LinkableInterface); ok {
+				// Handle non-CC modules here
+				depPaths.StaticLibObjs.coverageFiles = append(depPaths.StaticLibObjs.coverageFiles,
+					c.CoverageFiles()...)
 			}
 		}
 

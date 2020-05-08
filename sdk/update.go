@@ -306,13 +306,13 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	for _, sdkVariant := range sdkVariants {
 		properties := sdkVariant.dynamicMemberTypeListProperties
 		osTypeToMemberProperties[sdkVariant.Target().Os] = sdkVariant
-		dynamicMemberPropertiesContainers = append(dynamicMemberPropertiesContainers, &dynamicMemberPropertiesContainer{properties})
+		dynamicMemberPropertiesContainers = append(dynamicMemberPropertiesContainers, &dynamicMemberPropertiesContainer{sdkVariant, properties})
 	}
 
 	// Extract the common lists of members into a separate struct.
 	commonDynamicMemberProperties := s.dynamicSdkMemberTypes.createMemberListProperties()
 	extractor := newCommonValueExtractor(commonDynamicMemberProperties)
-	extractor.extractCommonProperties(commonDynamicMemberProperties, dynamicMemberPropertiesContainers)
+	extractCommonProperties(ctx, extractor, commonDynamicMemberProperties, dynamicMemberPropertiesContainers)
 
 	// Add properties common to all os types.
 	s.addMemberPropertiesToPropertySet(builder, snapshotModule, commonDynamicMemberProperties)
@@ -387,6 +387,13 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	}
 
 	return outputZipFile
+}
+
+func extractCommonProperties(ctx android.ModuleContext, extractor *commonValueExtractor, commonProperties interface{}, inputPropertiesSlice interface{}) {
+	err := extractor.extractCommonProperties(commonProperties, inputPropertiesSlice)
+	if err != nil {
+		ctx.ModuleErrorf("error extracting common properties: %s", err)
+	}
 }
 
 func (s *sdk) addMemberPropertiesToPropertySet(builder *snapshotBuilder, propertySet android.BpPropertySet, dynamicMemberTypeListProperties interface{}) {
@@ -829,6 +836,8 @@ type osTypeSpecificInfo struct {
 	archInfos []*archTypeSpecificInfo
 }
 
+var _ propertiesContainer = (*osTypeSpecificInfo)(nil)
+
 type variantPropertiesFactoryFunc func() android.SdkMemberProperties
 
 // Create a new osTypeSpecificInfo for the specified os type and its properties
@@ -886,7 +895,7 @@ func newOsTypeSpecificInfo(ctx android.SdkMemberContext, osType android.OsType, 
 
 // Optimize the properties by extracting common properties from arch type specific
 // properties into os type specific properties.
-func (osInfo *osTypeSpecificInfo) optimizeProperties(commonValueExtractor *commonValueExtractor) {
+func (osInfo *osTypeSpecificInfo) optimizeProperties(ctx *memberContext, commonValueExtractor *commonValueExtractor) {
 	// Nothing to do if there is only a single common architecture.
 	if len(osInfo.archInfos) == 0 {
 		return
@@ -897,10 +906,10 @@ func (osInfo *osTypeSpecificInfo) optimizeProperties(commonValueExtractor *commo
 		multilib = multilib.addArchType(archInfo.archType)
 
 		// Optimize the arch properties first.
-		archInfo.optimizeProperties(commonValueExtractor)
+		archInfo.optimizeProperties(ctx, commonValueExtractor)
 	}
 
-	commonValueExtractor.extractCommonProperties(osInfo.Properties, osInfo.archInfos)
+	extractCommonProperties(ctx.sdkMemberContext, commonValueExtractor, osInfo.Properties, osInfo.archInfos)
 
 	// Choose setting for compile_multilib that is appropriate for the arch variants supplied.
 	osInfo.Properties.Base().Compile_multilib = multilib.String()
@@ -973,6 +982,17 @@ func (osInfo *osTypeSpecificInfo) addToPropertySet(ctx *memberContext, bpModule 
 	}
 }
 
+func (osInfo *osTypeSpecificInfo) isHostVariant() bool {
+	osClass := osInfo.osType.Class
+	return osClass == android.Host || osClass == android.HostCross
+}
+
+var _ isHostVariant = (*osTypeSpecificInfo)(nil)
+
+func (osInfo *osTypeSpecificInfo) String() string {
+	return fmt.Sprintf("OsType{%s}", osInfo.osType)
+}
+
 type archTypeSpecificInfo struct {
 	baseInfo
 
@@ -980,6 +1000,8 @@ type archTypeSpecificInfo struct {
 
 	linkInfos []*linkTypeSpecificInfo
 }
+
+var _ propertiesContainer = (*archTypeSpecificInfo)(nil)
 
 // Create a new archTypeSpecificInfo for the specified arch type and its properties
 // structures populated with information from the variants.
@@ -1038,12 +1060,12 @@ func getLinkType(variant android.Module) string {
 
 // Optimize the properties by extracting common properties from link type specific
 // properties into arch type specific properties.
-func (archInfo *archTypeSpecificInfo) optimizeProperties(commonValueExtractor *commonValueExtractor) {
+func (archInfo *archTypeSpecificInfo) optimizeProperties(ctx *memberContext, commonValueExtractor *commonValueExtractor) {
 	if len(archInfo.linkInfos) == 0 {
 		return
 	}
 
-	commonValueExtractor.extractCommonProperties(archInfo.Properties, archInfo.linkInfos)
+	extractCommonProperties(ctx.sdkMemberContext, commonValueExtractor, archInfo.Properties, archInfo.linkInfos)
 }
 
 // Add the properties for an arch type to a property set.
@@ -1058,11 +1080,17 @@ func (archInfo *archTypeSpecificInfo) addToPropertySet(ctx *memberContext, archP
 	}
 }
 
+func (archInfo *archTypeSpecificInfo) String() string {
+	return fmt.Sprintf("ArchType{%s}", archInfo.archType)
+}
+
 type linkTypeSpecificInfo struct {
 	baseInfo
 
 	linkType string
 }
+
+var _ propertiesContainer = (*linkTypeSpecificInfo)(nil)
 
 // Create a new linkTypeSpecificInfo for the specified link type and its properties
 // structures populated with information from the variant.
@@ -1077,6 +1105,10 @@ func newLinkSpecificInfo(ctx android.SdkMemberContext, linkType string, variantP
 	}
 	linkInfo.Properties.PopulateFromVariant(ctx, linkVariant)
 	return linkInfo
+}
+
+func (l *linkTypeSpecificInfo) String() string {
+	return fmt.Sprintf("LinkType{%s}", l.linkType)
 }
 
 type memberContext struct {
@@ -1143,11 +1175,11 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 		osSpecificPropertiesContainers = append(osSpecificPropertiesContainers, osInfo)
 
 		// Optimize the properties across all the variants for a specific os type.
-		osInfo.optimizeProperties(commonValueExtractor)
+		osInfo.optimizeProperties(ctx, commonValueExtractor)
 	}
 
 	// Extract properties which are common across all architectures and os types.
-	commonValueExtractor.extractCommonProperties(commonProperties, osSpecificPropertiesContainers)
+	extractCommonProperties(ctx.sdkMemberContext, commonValueExtractor, commonProperties, osSpecificPropertiesContainers)
 
 	// Add the common properties to the module.
 	commonProperties.AddToPropertySet(ctx, bpModule)
@@ -1190,13 +1222,38 @@ func (s *sdk) getPossibleOsTypes() []android.OsType {
 // struct (or one of its embedded structs).
 type fieldAccessorFunc func(structValue reflect.Value) reflect.Value
 
+// Checks the metadata to determine whether the property should be ignored for the
+// purposes of common value extraction or not.
+type extractorMetadataPredicate func(metadata propertiesContainer) bool
+
+// Indicates whether optimizable properties are provided by a host variant or
+// not.
+type isHostVariant interface {
+	isHostVariant() bool
+}
+
 // A property that can be optimized by the commonValueExtractor.
 type extractorProperty struct {
+	// The name of the field for this property.
+	name string
+
+	// Filter that can use metadata associated with the properties being optimized
+	// to determine whether the field should be ignored during common value
+	// optimization.
+	filter extractorMetadataPredicate
+
 	// Retrieves the value on which common value optimization will be performed.
 	getter fieldAccessorFunc
 
 	// The empty value for the field.
 	emptyValue reflect.Value
+
+	// True if the property can support arch variants false otherwise.
+	archVariant bool
+}
+
+func (p extractorProperty) String() string {
+	return p.name
 }
 
 // Supports extracting common values from a number of instances of a properties
@@ -1238,8 +1295,25 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 			continue
 		}
 
+		var filter extractorMetadataPredicate
+
+		// Add a filter
+		if proptools.HasTag(field, "sdk", "ignored-on-host") {
+			filter = func(metadata propertiesContainer) bool {
+				if m, ok := metadata.(isHostVariant); ok {
+					if m.isHostVariant() {
+						return false
+					}
+				}
+				return true
+			}
+		}
+
 		// Save a copy of the field index for use in the function.
 		fieldIndex := f
+
+		name := field.Name
+
 		fieldGetter := func(value reflect.Value) reflect.Value {
 			if containingStructAccessor != nil {
 				// This is an embedded structure so first access the field for the embedded
@@ -1250,6 +1324,12 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 			// Skip through interface and pointer values to find the structure.
 			value = getStructValue(value)
 
+			defer func() {
+				if r := recover(); r != nil {
+					panic(fmt.Errorf("%s for fieldIndex %d of field %s of value %#v", r, fieldIndex, name, value.Interface()))
+				}
+			}()
+
 			// Return the field.
 			return value.Field(fieldIndex)
 		}
@@ -1259,8 +1339,11 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 			e.gatherFields(field.Type, fieldGetter)
 		} else {
 			property := extractorProperty{
+				name,
+				filter,
 				fieldGetter,
 				reflect.Zero(field.Type),
+				proptools.HasTag(field, "android", "arch_variant"),
 			}
 			e.properties = append(e.properties, property)
 		}
@@ -1288,17 +1371,24 @@ foundStruct:
 // Allows additional information to be associated with the properties, e.g. for
 // filtering.
 type propertiesContainer interface {
+	fmt.Stringer
+
 	// Get the properties that need optimizing.
 	optimizableProperties() interface{}
 }
 
 // A wrapper for dynamic member properties to allow them to be optimized.
 type dynamicMemberPropertiesContainer struct {
+	sdkVariant              *sdk
 	dynamicMemberProperties interface{}
 }
 
 func (c dynamicMemberPropertiesContainer) optimizableProperties() interface{} {
 	return c.dynamicMemberProperties
+}
+
+func (c dynamicMemberPropertiesContainer) String() string {
+	return c.sdkVariant.String()
 }
 
 // Extract common properties from a slice of property structures of the same type.
@@ -1311,7 +1401,7 @@ func (c dynamicMemberPropertiesContainer) optimizableProperties() interface{} {
 // have the same value (using DeepEquals) across all the input properties. If it does not then no
 // change is made. Otherwise, the common value is stored in the field in the commonProperties
 // and the field in each of the input properties structure is set to its default value.
-func (e *commonValueExtractor) extractCommonProperties(commonProperties interface{}, inputPropertiesSlice interface{}) {
+func (e *commonValueExtractor) extractCommonProperties(commonProperties interface{}, inputPropertiesSlice interface{}) error {
 	commonPropertiesValue := reflect.ValueOf(commonProperties)
 	commonStructValue := commonPropertiesValue.Elem()
 
@@ -1319,16 +1409,37 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 
 	for _, property := range e.properties {
 		fieldGetter := property.getter
+		filter := property.filter
+		if filter == nil {
+			filter = func(metadata propertiesContainer) bool {
+				return true
+			}
+		}
 
 		// Check to see if all the structures have the same value for the field. The commonValue
-		// is nil on entry to the loop and if it is nil on exit then there is no common value,
-		// otherwise it points to the common value.
+		// is nil on entry to the loop and if it is nil on exit then there is no common value or
+		// all the values have been filtered out, otherwise it points to the common value.
 		var commonValue *reflect.Value
+
+		// Assume that all the values will be the same.
+		//
+		// While similar to this is not quite the same as commonValue == nil. If all the values
+		// have been filtered out then this will be false but commonValue == nil will be true.
+		valuesDiffer := false
 
 		for i := 0; i < sliceValue.Len(); i++ {
 			container := sliceValue.Index(i).Interface().(propertiesContainer)
 			itemValue := reflect.ValueOf(container.optimizableProperties())
 			fieldValue := fieldGetter(itemValue)
+
+			if !filter(container) {
+				expectedValue := property.emptyValue.Interface()
+				actualValue := fieldValue.Interface()
+				if !reflect.DeepEqual(expectedValue, actualValue) {
+					return fmt.Errorf("field %q is supposed to be ignored for %q but is set to %#v instead of %#v", property, container, actualValue, expectedValue)
+				}
+				continue
+			}
 
 			if commonValue == nil {
 				// Use the first value as the commonProperties value.
@@ -1338,12 +1449,13 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 				// no value in common so break out.
 				if !reflect.DeepEqual(fieldValue.Interface(), commonValue.Interface()) {
 					commonValue = nil
+					valuesDiffer = true
 					break
 				}
 			}
 		}
 
-		// If the fields all have a common value then store it in the common struct field
+		// If the fields all have common value then store it in the common struct field
 		// and set the input struct's field to the empty value.
 		if commonValue != nil {
 			emptyValue := property.emptyValue
@@ -1355,5 +1467,22 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 				fieldValue.Set(emptyValue)
 			}
 		}
+
+		if valuesDiffer && !property.archVariant {
+			// The values differ but the property does not support arch variants so it
+			// is an error.
+			var details strings.Builder
+			for i := 0; i < sliceValue.Len(); i++ {
+				container := sliceValue.Index(i).Interface().(propertiesContainer)
+				itemValue := reflect.ValueOf(container.optimizableProperties())
+				fieldValue := fieldGetter(itemValue)
+
+				_, _ = fmt.Fprintf(&details, "\n    %q has value %q", container.String(), fieldValue.Interface())
+			}
+
+			return fmt.Errorf("field %q is not tagged as \"arch_variant\" but has arch specific properties:%s", property.String(), details.String())
+		}
 	}
+
+	return nil
 }

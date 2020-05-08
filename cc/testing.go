@@ -192,6 +192,45 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			symbol_file: "",
 			sdk_version: "current",
 		}
+
+		// Coverage libraries
+		cc_library {
+			name: "libprofile-extras",
+			vendor_available: true,
+			recovery_available: true,
+			native_coverage: false,
+			system_shared_libs: [],
+			stl: "none",
+			notice: "custom_notice",
+		}
+		cc_library {
+			name: "libprofile-clang-extras",
+			vendor_available: true,
+			recovery_available: true,
+			native_coverage: false,
+			system_shared_libs: [],
+			stl: "none",
+			notice: "custom_notice",
+		}
+		cc_library {
+			name: "libprofile-extras_ndk",
+			vendor_available: true,
+			native_coverage: false,
+			system_shared_libs: [],
+			stl: "none",
+			notice: "custom_notice",
+			sdk_version: "current",
+		}
+		cc_library {
+			name: "libprofile-clang-extras_ndk",
+			vendor_available: true,
+			native_coverage: false,
+			system_shared_libs: [],
+			stl: "none",
+			notice: "custom_notice",
+			sdk_version: "current",
+		}
+
 		cc_library {
 			name: "libdl",
 			no_libcrt: true,
@@ -485,8 +524,8 @@ func CreateTestContext() *android.TestContext {
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", VndkLibrariesTxtFactory)
-	RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 	ctx.RegisterSingletonType("vendor-snapshot", VendorSnapshotSingleton)
 

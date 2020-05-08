@@ -226,19 +226,20 @@ func TestSDkInstall(t *testing.T) {
 }
 
 type EmbeddedPropertiesStruct struct {
-	S_Embedded_Common    string
-	S_Embedded_Different string
+	S_Embedded_Common    string `android:"arch_variant"`
+	S_Embedded_Different string `android:"arch_variant"`
 }
 
 type testPropertiesStruct struct {
+	name        string
 	private     string
 	Public_Kept string `sdk:"keep"`
 	S_Common    string
-	S_Different string
+	S_Different string `android:"arch_variant"`
 	A_Common    []string
-	A_Different []string
+	A_Different []string `android:"arch_variant"`
 	F_Common    *bool
-	F_Different *bool
+	F_Different *bool `android:"arch_variant"`
 	EmbeddedPropertiesStruct
 }
 
@@ -246,10 +247,17 @@ func (p *testPropertiesStruct) optimizableProperties() interface{} {
 	return p
 }
 
+func (p *testPropertiesStruct) String() string {
+	return p.name
+}
+
+var _ propertiesContainer = (*testPropertiesStruct)(nil)
+
 func TestCommonValueOptimization(t *testing.T) {
-	common := &testPropertiesStruct{}
+	common := &testPropertiesStruct{name: "common"}
 	structs := []propertiesContainer{
 		&testPropertiesStruct{
+			name:        "struct-0",
 			private:     "common",
 			Public_Kept: "common",
 			S_Common:    "common",
@@ -264,6 +272,7 @@ func TestCommonValueOptimization(t *testing.T) {
 			},
 		},
 		&testPropertiesStruct{
+			name:        "struct-1",
 			private:     "common",
 			Public_Kept: "common",
 			S_Common:    "common",
@@ -280,11 +289,15 @@ func TestCommonValueOptimization(t *testing.T) {
 	}
 
 	extractor := newCommonValueExtractor(common)
-	extractor.extractCommonProperties(common, structs)
 
 	h := TestHelper{t}
-	h.AssertDeepEquals("common properties not correct", common,
+
+	err := extractor.extractCommonProperties(common, structs)
+	h.AssertDeepEquals("unexpected error", nil, err)
+
+	h.AssertDeepEquals("common properties not correct",
 		&testPropertiesStruct{
+			name:        "common",
 			private:     "",
 			Public_Kept: "",
 			S_Common:    "common",
@@ -297,10 +310,12 @@ func TestCommonValueOptimization(t *testing.T) {
 				S_Embedded_Common:    "embedded_common",
 				S_Embedded_Different: "",
 			},
-		})
+		},
+		common)
 
-	h.AssertDeepEquals("updated properties[0] not correct", structs[0],
+	h.AssertDeepEquals("updated properties[0] not correct",
 		&testPropertiesStruct{
+			name:        "struct-0",
 			private:     "common",
 			Public_Kept: "common",
 			S_Common:    "",
@@ -313,10 +328,12 @@ func TestCommonValueOptimization(t *testing.T) {
 				S_Embedded_Common:    "",
 				S_Embedded_Different: "embedded_upper",
 			},
-		})
+		},
+		structs[0])
 
-	h.AssertDeepEquals("updated properties[1] not correct", structs[1],
+	h.AssertDeepEquals("updated properties[1] not correct",
 		&testPropertiesStruct{
+			name:        "struct-1",
 			private:     "common",
 			Public_Kept: "common",
 			S_Common:    "",
@@ -329,5 +346,29 @@ func TestCommonValueOptimization(t *testing.T) {
 				S_Embedded_Common:    "",
 				S_Embedded_Different: "embedded_lower",
 			},
-		})
+		},
+		structs[1])
+}
+
+func TestCommonValueOptimization_InvalidArchSpecificVariants(t *testing.T) {
+	common := &testPropertiesStruct{name: "common"}
+	structs := []propertiesContainer{
+		&testPropertiesStruct{
+			name:     "struct-0",
+			S_Common: "should-be-but-is-not-common0",
+		},
+		&testPropertiesStruct{
+			name:     "struct-1",
+			S_Common: "should-be-but-is-not-common1",
+		},
+	}
+
+	extractor := newCommonValueExtractor(common)
+
+	h := TestHelper{t}
+
+	err := extractor.extractCommonProperties(common, structs)
+	h.AssertErrorMessageEquals("unexpected error", `field "S_Common" is not tagged as "arch_variant" but has arch specific properties:
+    "struct-0" has value "should-be-but-is-not-common0"
+    "struct-1" has value "should-be-but-is-not-common1"`, err)
 }

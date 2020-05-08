@@ -92,7 +92,6 @@ func init() {
 
 	pctx.StaticVariable("Arm64Ldflags", strings.Join(arm64Ldflags, " "))
 	pctx.StaticVariable("Arm64Lldflags", strings.Join(arm64Lldflags, " "))
-	pctx.StaticVariable("Arm64IncludeFlags", bionicHeaders("arm64"))
 
 	pctx.StaticVariable("Arm64ClangCflags", strings.Join(ClangFilterUnknownCflags(arm64Cflags), " "))
 	pctx.StaticVariable("Arm64ClangLdflags", strings.Join(ClangFilterUnknownCflags(arm64Ldflags), " "))
@@ -164,7 +163,7 @@ func (t *toolchainArm64) GccVersion() string {
 }
 
 func (t *toolchainArm64) IncludeFlags() string {
-	return "${config.Arm64IncludeFlags}"
+	return ""
 }
 
 func (t *toolchainArm64) ClangTriple() string {

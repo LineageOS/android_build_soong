@@ -82,10 +82,6 @@ type RegisterMutatorFunc func(RegisterMutatorsContext)
 var preArch = []RegisterMutatorFunc{
 	RegisterNamespaceMutator,
 
-	// Create an association between prebuilt modules and their corresponding source
-	// modules (if any).
-	RegisterPrebuiltsPreArchMutators,
-
 	// Check the visibility rules are valid.
 	//
 	// This must run after the package renamer mutators so that any issues found during
@@ -114,7 +110,18 @@ var preArch = []RegisterMutatorFunc{
 	RegisterVisibilityRuleChecker,
 
 	// Apply properties from defaults modules to the referencing modules.
+	//
+	// Any mutators that are added before this will not see any modules created by
+	// a DefaultableHook.
 	RegisterDefaultsPreArchMutators,
+
+	// Create an association between prebuilt modules and their corresponding source
+	// modules (if any).
+	//
+	// Must be run after defaults mutators to ensure that any modules created by
+	// a DefaultableHook can be either a prebuilt or a source module with a matching
+	// prebuilt.
+	RegisterPrebuiltsPreArchMutators,
 
 	// Gather the visibility rules for all modules for us during visibility enforcement.
 	//

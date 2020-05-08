@@ -67,6 +67,9 @@ type apiScope struct {
 	// The name of the api scope, e.g. public, system, test
 	name string
 
+	// The api scope that this scope extends.
+	extends *apiScope
+
 	// The name of the field in the dynamically created structure.
 	fieldName string
 
@@ -134,6 +137,7 @@ var (
 	})
 	apiScopeSystem = initApiScope(&apiScope{
 		name:           "system",
+		extends:        apiScopePublic,
 		apiFilePrefix:  "system-",
 		moduleSuffix:   sdkSystemApiSuffix,
 		sdkVersion:     "system_current",
@@ -141,6 +145,7 @@ var (
 	})
 	apiScopeTest = initApiScope(&apiScope{
 		name:           "test",
+		extends:        apiScopePublic,
 		apiFilePrefix:  "test-",
 		moduleSuffix:   sdkTestApiSuffix,
 		sdkVersion:     "test_current",
@@ -382,7 +387,7 @@ func (module *SdkLibrary) apiDistPath(apiScope *apiScope) string {
 }
 
 // Get the sdk version for use when compiling the stubs library.
-func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.LoadHookContext, apiScope *apiScope) string {
+func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.DefaultableHookContext, apiScope *apiScope) string {
 	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
 	if sdkDep.hasStandardLibs() {
 		// If building against a standard sdk then use the sdk version appropriate for the scope.
@@ -402,7 +407,7 @@ func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) stri
 }
 
 // Creates a static java library that has API stubs
-func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiScope *apiScope) {
+func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext, apiScope *apiScope) {
 	props := struct {
 		Name                *string
 		Srcs                []string
@@ -473,7 +478,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.LoadHookContext, apiSc
 
 // Creates a droidstubs module that creates stubs source files from the given full source
 // files
-func (module *SdkLibrary) createStubsSources(mctx android.LoadHookContext, apiScope *apiScope) {
+func (module *SdkLibrary) createStubsSources(mctx android.DefaultableHookContext, apiScope *apiScope) {
 	props := struct {
 		Name                             *string
 		Srcs                             []string
@@ -592,7 +597,7 @@ func (module *SdkLibrary) DepIsInSameApex(mctx android.BaseModuleContext, dep an
 }
 
 // Creates the xml file that publicizes the runtime library
-func (module *SdkLibrary) createXmlFile(mctx android.LoadHookContext) {
+func (module *SdkLibrary) createXmlFile(mctx android.DefaultableHookContext) {
 	props := struct {
 		Name                *string
 		Lib_name            *string
@@ -713,7 +718,12 @@ func (module *SdkLibrary) getApiDir() string {
 // For a java_sdk_library module, create internal modules for stubs, docs,
 // runtime libs and xml file. If requested, the stubs and docs are created twice
 // once for public API level and once for system API level
-func (module *SdkLibrary) CreateInternalModules(mctx android.LoadHookContext) {
+func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookContext) {
+	// If the module has been disabled then don't create any child modules.
+	if !module.Enabled() {
+		return
+	}
+
 	if len(module.Library.Module.properties.Srcs) == 0 {
 		mctx.PropertyErrorf("srcs", "java_sdk_library must specify srcs")
 		return
@@ -799,7 +809,7 @@ func SdkLibraryFactory() android.Module {
 	module.InitSdkLibraryProperties()
 	android.InitApexModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
-	android.AddLoadHook(module, func(ctx android.LoadHookContext) { module.CreateInternalModules(ctx) })
+	module.SetDefaultableHook(func(ctx android.DefaultableHookContext) { module.CreateInternalModules(ctx) })
 	return module
 }
 
