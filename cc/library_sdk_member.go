@@ -307,7 +307,7 @@ type nativeLibInfoProperties struct {
 	// The list of possibly common exported include dirs.
 	//
 	// This field is exported as its contents may not be arch specific.
-	ExportedIncludeDirs android.Paths `android:"arch_variant"`
+	ExportedIncludeDirs android.Paths
 
 	// The list of arch specific exported generated include dirs.
 	//
@@ -322,31 +322,27 @@ type nativeLibInfoProperties struct {
 	// The list of possibly common exported system include dirs.
 	//
 	// This field is exported as its contents may not be arch specific.
-	ExportedSystemIncludeDirs android.Paths `android:"arch_variant"`
+	ExportedSystemIncludeDirs android.Paths
 
 	// The list of possibly common exported flags.
 	//
 	// This field is exported as its contents may not be arch specific.
-	ExportedFlags []string `android:"arch_variant"`
+	ExportedFlags []string
 
 	// The set of shared libraries
 	//
 	// This field is exported as its contents may not be arch specific.
-	SharedLibs []string `android:"arch_variant"`
+	SharedLibs []string
 
 	// The set of system shared libraries. Note nil and [] are semantically
 	// distinct - see BaseLinkerProperties.System_shared_libs.
 	//
 	// This field is exported as its contents may not be arch specific.
-	SystemSharedLibs []string `android:"arch_variant"`
+	SystemSharedLibs []string
 
 	// The specific stubs version for the lib variant, or empty string if stubs
 	// are not in use.
-	//
-	// Marked 'ignored-on-host' as the StubsVersion() from which this is initialized is
-	// not set on host and the stubs.versions property which this is written to is does
-	// not vary by arch so cannot be android specific.
-	StubsVersion string `sdk:"ignored-on-host"`
+	StubsVersion string
 
 	// outputFile is not exported as it is always arch specific.
 	outputFile android.Path
