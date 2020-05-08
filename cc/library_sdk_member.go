@@ -342,11 +342,7 @@ type nativeLibInfoProperties struct {
 
 	// The specific stubs version for the lib variant, or empty string if stubs
 	// are not in use.
-	//
-	// Marked 'ignored-on-host' as the StubsVersion() from which this is initialized is
-	// not set on host and the stubs.versions property which this is written to is does
-	// not vary by arch so cannot be android specific.
-	StubsVersion string `sdk:"ignored-on-host"`
+	StubsVersion string
 
 	// outputFile is not exported as it is always arch specific.
 	outputFile android.Path
