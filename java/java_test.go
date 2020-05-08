@@ -1229,6 +1229,24 @@ func TestJavaSdkLibrary(t *testing.T) {
 	}
 }
 
+func TestJavaSdkLibrary_InvalidScopes(t *testing.T) {
+	testJavaError(t, `module "foo": enabled api scope "system" depends on disabled scope "public"`, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+			// Explicitly disable public to test the check that ensures the set of enabled
+			// scopes is consistent.
+			public: {
+				enabled: false,
+			},
+			system: {
+				enabled: true,
+			},
+		}
+		`)
+}
+
 var compilerFlagsTestCases = []struct {
 	in  string
 	out bool
