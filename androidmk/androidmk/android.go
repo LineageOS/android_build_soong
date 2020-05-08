@@ -111,6 +111,7 @@ func init() {
 
 			"LOCAL_DEX_PREOPT_PROFILE_CLASS_LISTING": "dex_preopt.profile",
 			"LOCAL_TEST_CONFIG":                      "test_config",
+			"LOCAL_RRO_THEME":                        "theme",
 		})
 	addStandardProperties(bpparser.ListType,
 		map[string]string{
@@ -925,6 +926,7 @@ var moduleTypes = map[string]string{
 	"BUILD_HOST_JAVA_LIBRARY":        "java_library_host",
 	"BUILD_HOST_DALVIK_JAVA_LIBRARY": "java_library_host_dalvik",
 	"BUILD_PACKAGE":                  "android_app",
+	"BUILD_RRO_PACKAGE":              "runtime_resource_overlay",
 
 	"BUILD_CTS_EXECUTABLE":          "cc_binary",               // will be further massaged by bpfix depending on the output path
 	"BUILD_CTS_SUPPORT_PACKAGE":     "cts_support_package",     // will be rewritten to android_test by bpfix
