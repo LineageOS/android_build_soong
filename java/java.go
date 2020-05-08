@@ -1906,7 +1906,7 @@ func (mt *librarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMembe
 type librarySdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
-	JarToExport     android.Path `android:"arch_variant"`
+	JarToExport     android.Path
 	AidlIncludeDirs android.Paths
 }
 
