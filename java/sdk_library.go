@@ -70,6 +70,18 @@ type apiScope struct {
 	// The api scope that this scope extends.
 	extends *apiScope
 
+	// The legacy enabled status for a specific scope can be dependent on other
+	// properties that have been specified on the library so it is provided by
+	// a function that can determine the status by examining those properties.
+	legacyEnabledStatus func(module *SdkLibrary) bool
+
+	// The default enabled status for non-legacy behavior, which is triggered by
+	// explicitly enabling at least one api scope.
+	defaultEnabledStatus bool
+
+	// Gets a pointer to the scope specific properties.
+	scopeSpecificProperties func(module *SdkLibrary) *ApiScopeProperties
+
 	// The name of the field in the dynamically created structure.
 	fieldName string
 
@@ -120,6 +132,10 @@ func (scope *apiScope) docsModuleName(baseName string) string {
 	return baseName + sdkStubsSourceSuffix + scope.moduleSuffix
 }
 
+func (scope *apiScope) String() string {
+	return scope.name
+}
+
 type apiScopes []*apiScope
 
 func (scopes apiScopes) Strings(accessor func(*apiScope) string) []string {
@@ -132,20 +148,38 @@ func (scopes apiScopes) Strings(accessor func(*apiScope) string) []string {
 
 var (
 	apiScopePublic = initApiScope(&apiScope{
-		name:       "public",
+		name: "public",
+
+		// Public scope is enabled by default for both legacy and non-legacy modes.
+		legacyEnabledStatus: func(module *SdkLibrary) bool {
+			return true
+		},
+		defaultEnabledStatus: true,
+
+		scopeSpecificProperties: func(module *SdkLibrary) *ApiScopeProperties {
+			return &module.sdkLibraryProperties.Public
+		},
 		sdkVersion: "current",
 	})
 	apiScopeSystem = initApiScope(&apiScope{
-		name:           "system",
-		extends:        apiScopePublic,
+		name:                "system",
+		extends:             apiScopePublic,
+		legacyEnabledStatus: (*SdkLibrary).generateTestAndSystemScopesByDefault,
+		scopeSpecificProperties: func(module *SdkLibrary) *ApiScopeProperties {
+			return &module.sdkLibraryProperties.System
+		},
 		apiFilePrefix:  "system-",
 		moduleSuffix:   sdkSystemApiSuffix,
 		sdkVersion:     "system_current",
 		droidstubsArgs: []string{"-showAnnotation android.annotation.SystemApi"},
 	})
 	apiScopeTest = initApiScope(&apiScope{
-		name:           "test",
-		extends:        apiScopePublic,
+		name:                "test",
+		extends:             apiScopePublic,
+		legacyEnabledStatus: (*SdkLibrary).generateTestAndSystemScopesByDefault,
+		scopeSpecificProperties: func(module *SdkLibrary) *ApiScopeProperties {
+			return &module.sdkLibraryProperties.Test
+		},
 		apiFilePrefix:  "test-",
 		moduleSuffix:   sdkTestApiSuffix,
 		sdkVersion:     "test_current",
@@ -190,6 +224,18 @@ func RegisterSdkLibraryBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("java_sdk_library_import", sdkLibraryImportFactory)
 }
 
+// Properties associated with each api scope.
+type ApiScopeProperties struct {
+	// Indicates whether the api surface is generated.
+	//
+	// If this is set for any scope then all scopes must explicitly specify if they
+	// are enabled. This is to prevent new usages from depending on legacy behavior.
+	//
+	// Otherwise, if this is not set for any scope then the default  behavior is
+	// scope specific so please refer to the scope specific property documentation.
+	Enabled *bool
+}
+
 type sdkLibraryProperties struct {
 	// List of Java libraries that will be in the classpath when building stubs
 	Stub_only_libs []string `android:"arch_variant"`
@@ -232,8 +278,30 @@ type sdkLibraryProperties struct {
 	// don't create dist rules.
 	No_dist *bool `blueprint:"mutated"`
 
-	// indicates whether system and test apis should be managed.
-	Has_system_and_test_apis bool `blueprint:"mutated"`
+	// indicates whether system and test apis should be generated.
+	Generate_system_and_test_apis bool `blueprint:"mutated"`
+
+	// The properties specific to the public api scope
+	//
+	// Unless explicitly specified by using public.enabled the public api scope is
+	// enabled by default in both legacy and non-legacy mode.
+	Public ApiScopeProperties
+
+	// The properties specific to the system api scope
+	//
+	// In legacy mode the system api scope is enabled by default when sdk_version
+	// is set to something other than "none".
+	//
+	// In non-legacy mode the system api scope is disabled by default.
+	System ApiScopeProperties
+
+	// The properties specific to the test api scope
+	//
+	// In legacy mode the test api scope is enabled by default when sdk_version
+	// is set to something other than "none".
+	//
+	// In non-legacy mode the test api scope is disabled by default.
+	Test ApiScopeProperties
 
 	// TODO: determines whether to create HTML doc or not
 	//Html_doc *bool
@@ -270,18 +338,65 @@ type SdkLibrary struct {
 
 	sdkLibraryProperties sdkLibraryProperties
 
+	// Map from api scope to the scope specific property structure.
+	scopeToProperties map[*apiScope]*ApiScopeProperties
+
 	commonToSdkLibraryAndImport
 }
 
 var _ Dependency = (*SdkLibrary)(nil)
 var _ SdkLibraryDependency = (*SdkLibrary)(nil)
 
-func (module *SdkLibrary) getActiveApiScopes() apiScopes {
-	if module.sdkLibraryProperties.Has_system_and_test_apis {
-		return allApiScopes
-	} else {
-		return apiScopes{apiScopePublic}
+func (module *SdkLibrary) generateTestAndSystemScopesByDefault() bool {
+	return module.sdkLibraryProperties.Generate_system_and_test_apis
+}
+
+func (module *SdkLibrary) getGeneratedApiScopes(ctx android.EarlyModuleContext) apiScopes {
+	// Check to see if any scopes have been explicitly enabled. If any have then all
+	// must be.
+	anyScopesExplicitlyEnabled := false
+	for _, scope := range allApiScopes {
+		scopeProperties := module.scopeToProperties[scope]
+		if scopeProperties.Enabled != nil {
+			anyScopesExplicitlyEnabled = true
+			break
+		}
 	}
+
+	var generatedScopes apiScopes
+	enabledScopes := make(map[*apiScope]struct{})
+	for _, scope := range allApiScopes {
+		scopeProperties := module.scopeToProperties[scope]
+		// If any scopes are explicitly enabled then ignore the legacy enabled status.
+		// This is to ensure that any new usages of this module type do not rely on legacy
+		// behaviour.
+		defaultEnabledStatus := false
+		if anyScopesExplicitlyEnabled {
+			defaultEnabledStatus = scope.defaultEnabledStatus
+		} else {
+			defaultEnabledStatus = scope.legacyEnabledStatus(module)
+		}
+		enabled := proptools.BoolDefault(scopeProperties.Enabled, defaultEnabledStatus)
+		if enabled {
+			enabledScopes[scope] = struct{}{}
+			generatedScopes = append(generatedScopes, scope)
+		}
+	}
+
+	// Now check to make sure that any scope that is extended by an enabled scope is also
+	// enabled.
+	for _, scope := range allApiScopes {
+		if _, ok := enabledScopes[scope]; ok {
+			extends := scope.extends
+			if extends != nil {
+				if _, ok := enabledScopes[extends]; !ok {
+					ctx.ModuleErrorf("enabled api scope %q depends on disabled scope %q", scope, extends)
+				}
+			}
+		}
+	}
+
+	return generatedScopes
 }
 
 var xmlPermissionsFileTag = dependencyTag{name: "xml-permissions-file"}
@@ -294,7 +409,7 @@ func IsXmlPermissionsFileDepTag(depTag blueprint.DependencyTag) bool {
 }
 
 func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
-	for _, apiScope := range module.getActiveApiScopes() {
+	for _, apiScope := range module.getGeneratedApiScopes(ctx) {
 		// Add dependencies to the stubs library
 		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsName(apiScope))
 
@@ -734,15 +849,15 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 	// also assume it does not contribute to the dist build.
 	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
 	hasSystemAndTestApis := sdkDep.hasStandardLibs()
-	module.sdkLibraryProperties.Has_system_and_test_apis = hasSystemAndTestApis
+	module.sdkLibraryProperties.Generate_system_and_test_apis = hasSystemAndTestApis
 	module.sdkLibraryProperties.No_dist = proptools.BoolPtr(!hasSystemAndTestApis)
 
 	missing_current_api := false
 
-	activeScopes := module.getActiveApiScopes()
+	generatedScopes := module.getGeneratedApiScopes(mctx)
 
 	apiDir := module.getApiDir()
-	for _, scope := range activeScopes {
+	for _, scope := range generatedScopes {
 		for _, api := range []string{"current.txt", "removed.txt"} {
 			path := path.Join(mctx.ModuleDir(), apiDir, scope.apiFilePrefix+api)
 			p := android.ExistentPathForSource(mctx, path)
@@ -765,11 +880,11 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 			"You can update them by:\n"+
 			"%s %q %s && m update-api",
 			script, filepath.Join(mctx.ModuleDir(), apiDir),
-			strings.Join(activeScopes.Strings(func(s *apiScope) string { return s.apiFilePrefix }), " "))
+			strings.Join(generatedScopes.Strings(func(s *apiScope) string { return s.apiFilePrefix }), " "))
 		return
 	}
 
-	for _, scope := range activeScopes {
+	for _, scope := range generatedScopes {
 		module.createStubsLibrary(mctx, scope)
 		module.createStubsSources(mctx, scope)
 	}
@@ -809,6 +924,14 @@ func SdkLibraryFactory() android.Module {
 	module.InitSdkLibraryProperties()
 	android.InitApexModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
+
+	// Initialize the map from scope to scope specific properties.
+	scopeToProperties := make(map[*apiScope]*ApiScopeProperties)
+	for _, scope := range allApiScopes {
+		scopeToProperties[scope] = scope.scopeSpecificProperties(module)
+	}
+	module.scopeToProperties = scopeToProperties
+
 	module.SetDefaultableHook(func(ctx android.DefaultableHookContext) { module.CreateInternalModules(ctx) })
 	return module
 }
