@@ -1360,6 +1360,29 @@ cc_binary {
 }
 `,
 	},
+	{
+		desc: "runtime_resource_overlay",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_PACKAGE_NAME := foo
+LOCAL_PRODUCT_MODULE := true
+LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
+LOCAL_SDK_VERSION := current
+LOCAL_RRO_THEME := FooTheme
+
+include $(BUILD_RRO_PACKAGE)
+`,
+		expected: `
+runtime_resource_overlay {
+	name: "foo",
+	product_specific: true,
+	resource_dirs: ["res"],
+	sdk_version: "current",
+	theme: "FooTheme",
+
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
