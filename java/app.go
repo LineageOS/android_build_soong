@@ -80,9 +80,13 @@ type appProperties struct {
 	// list of native libraries that will be provided in or alongside the resulting jar
 	Jni_libs []string `android:"arch_variant"`
 
-	// if true, allow JNI libraries that link against platform APIs even if this module sets
+	// if true, use JNI libraries that link against platform APIs even if this module sets
 	// sdk_version.
 	Jni_uses_platform_apis *bool
+
+	// if true, use JNI libraries that link against SDK APIs even if this module does not set
+	// sdk_version.
+	Jni_uses_sdk_apis *bool
 
 	// STL library to use for JNI libraries.
 	Stl *string `android:"arch_variant"`
@@ -234,7 +238,8 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 		// If the app builds against an Android SDK use the SDK variant of JNI dependencies
 		// unless jni_uses_platform_apis is set.
 		if a.sdkVersion().specified() && a.sdkVersion().kind != sdkCorePlatform &&
-			!Bool(a.appProperties.Jni_uses_platform_apis) {
+			!Bool(a.appProperties.Jni_uses_platform_apis) ||
+			Bool(a.appProperties.Jni_uses_sdk_apis) {
 			variation = append(variation, blueprint.Variation{Mutator: "sdk", Variation: "sdk"})
 		}
 		ctx.AddFarVariationDependencies(variation, tag, a.appProperties.Jni_libs...)
@@ -1389,7 +1394,8 @@ func AndroidTestImportFactory() android.Module {
 		module.processVariants(ctx)
 	})
 
-	InitJavaModule(module, android.DeviceSupported)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
 	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Apk")
 
 	return module
