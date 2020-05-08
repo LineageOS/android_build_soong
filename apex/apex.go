@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -1811,24 +1810,6 @@ func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) int {
 	return intVer
 }
 
-// A regexp for removing boilerplate from BaseDependencyTag from the string representation of
-// a dependency tag.
-var tagCleaner = regexp.MustCompile(`\QBaseDependencyTag:blueprint.BaseDependencyTag{}\E(, )?`)
-
-func PrettyPrintTag(tag blueprint.DependencyTag) string {
-	// Use tag's custom String() method if available.
-	if stringer, ok := tag.(fmt.Stringer); ok {
-		return stringer.String()
-	}
-
-	// Otherwise, get a default string representation of the tag's struct.
-	tagString := fmt.Sprintf("%#v", tag)
-
-	// Remove the boilerplate from BaseDependencyTag as it adds no value.
-	tagString = tagCleaner.ReplaceAllString(tagString, "")
-	return tagString
-}
-
 // Ensures that the dependencies are marked as available for this APEX
 func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 	// Let's be practical. Availability for test, host, and the VNDK apex isn't important
@@ -1863,14 +1844,7 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		if to.AvailableFor(apexName) || whitelistedApexAvailable(apexName, toName) {
 			return true
 		}
-		message := ""
-		tagPath := ctx.GetTagPath()
-		// Skip the first module as that will be added at the start of the error message by ctx.ModuleErrorf().
-		walkPath := ctx.GetWalkPath()[1:]
-		for i, m := range walkPath {
-			message = fmt.Sprintf("%s\n           via tag %s\n    -> %s", message, PrettyPrintTag(tagPath[i]), m.String())
-		}
-		ctx.ModuleErrorf("%q requires %q that is not available for the APEX. Dependency path:%s", fromName, toName, message)
+		ctx.ModuleErrorf("%q requires %q that is not available for the APEX. Dependency path:%s", fromName, toName, ctx.GetPathString(true))
 		// Visit this module's dependencies to check and report any issues with their availability.
 		return true
 	})
@@ -1884,6 +1858,44 @@ func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
 
 		a.checkJavaStableSdkVersion(ctx)
 	}
+}
+
+// Ensures that a lib providing stub isn't statically linked
+func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext) {
+	// Practically, we only care about regular APEXes on the device.
+	if ctx.Host() || a.testApex || a.vndkApex {
+		return
+	}
+
+	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
+		if ccm, ok := to.(*cc.Module); ok {
+			apexName := ctx.ModuleName()
+			fromName := ctx.OtherModuleName(from)
+			toName := ctx.OtherModuleName(to)
+
+			// If `to` is not actually in the same APEX as `from` then it does not need apex_available and neither
+			// do any of its dependencies.
+			if am, ok := from.(android.DepIsInSameApex); ok && !am.DepIsInSameApex(ctx, to) {
+				// As soon as the dependency graph crosses the APEX boundary, don't go further.
+				return false
+			}
+
+			// The dynamic linker and crash_dump tool in the runtime APEX is the only exception to this rule.
+			// It can't make the static dependencies dynamic because it can't
+			// do the dynamic linking for itself.
+			if apexName == "com.android.runtime" && (fromName == "linker" || fromName == "crash_dump") {
+				return false
+			}
+
+			isStubLibraryFromOtherApex := ccm.HasStubsVariants() && !android.DirectlyInApex(apexName, toName)
+			if isStubLibraryFromOtherApex && !externalDep {
+				ctx.ModuleErrorf("%q required by %q is a native library providing stub. "+
+					"It shouldn't be included in this APEX via static linking. Dependency path: %s", to.String(), fromName, ctx.GetPathString(false))
+			}
+
+		}
+		return true
+	})
 }
 
 func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1923,6 +1935,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.checkApexAvailability(ctx)
 	a.checkUpdatable(ctx)
+	a.checkStaticLinkingToStubLibraries(ctx)
 
 	handleSpecialLibs := !android.Bool(a.properties.Ignore_system_library_special_case)
 
@@ -2134,7 +2147,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						filesInfo = append(filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
 					}
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
-					ctx.ModuleErrorf("unexpected tag %s for indirect dependency %q", PrettyPrintTag(depTag), depName)
+					ctx.ModuleErrorf("unexpected tag %s for indirect dependency %q", android.PrettyPrintTag(depTag), depName)
 				}
 			}
 		}
