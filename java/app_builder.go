@@ -45,7 +45,7 @@ var combineApk = pctx.AndroidStaticRule("combineApk",
 	})
 
 func CreateAndSignAppPackage(ctx android.ModuleContext, outputFile android.WritablePath,
-	packageFile, jniJarFile, dexJarFile android.Path, certificates []Certificate, deps android.Paths, v4SignatureFile android.WritablePath) {
+	packageFile, jniJarFile, dexJarFile android.Path, certificates []Certificate, deps android.Paths, v4SignatureFile android.WritablePath, lineageFile android.Path) {
 
 	unsignedApkName := strings.TrimSuffix(outputFile.Base(), ".apk") + "-unsigned.apk"
 	unsignedApk := android.PathForModuleOut(ctx, unsignedApkName)
@@ -66,10 +66,10 @@ func CreateAndSignAppPackage(ctx android.ModuleContext, outputFile android.Writa
 		Implicits: deps,
 	})
 
-	SignAppPackage(ctx, outputFile, unsignedApk, certificates, v4SignatureFile)
+	SignAppPackage(ctx, outputFile, unsignedApk, certificates, v4SignatureFile, lineageFile)
 }
 
-func SignAppPackage(ctx android.ModuleContext, signedApk android.WritablePath, unsignedApk android.Path, certificates []Certificate, v4SignatureFile android.WritablePath) {
+func SignAppPackage(ctx android.ModuleContext, signedApk android.WritablePath, unsignedApk android.Path, certificates []Certificate, v4SignatureFile android.WritablePath, lineageFile android.Path) {
 
 	var certificateArgs []string
 	var deps android.Paths
@@ -79,10 +79,14 @@ func SignAppPackage(ctx android.ModuleContext, signedApk android.WritablePath, u
 	}
 
 	outputFiles := android.WritablePaths{signedApk}
-	var flag string = ""
+	var flags []string
 	if v4SignatureFile != nil {
 		outputFiles = append(outputFiles, v4SignatureFile)
-		flag = "--enable-v4"
+		flags = append(flags, "--enable-v4")
+	}
+
+	if lineageFile != nil {
+		flags = append(flags, "--lineage", lineageFile.String())
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -93,7 +97,7 @@ func SignAppPackage(ctx android.ModuleContext, signedApk android.WritablePath, u
 		Implicits:   deps,
 		Args: map[string]string{
 			"certificates": strings.Join(certificateArgs, " "),
-			"flags":        flag,
+			"flags":        strings.Join(flags, " "),
 		},
 	})
 }
