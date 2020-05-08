@@ -186,10 +186,30 @@ var (
 		droidstubsArgs: []string{"-showAnnotation android.annotation.TestApi"},
 		unstable:       true,
 	})
+	apiScopeModuleLib = initApiScope(&apiScope{
+		name:    "module_lib",
+		extends: apiScopeSystem,
+		// Module_lib scope is disabled by default in legacy mode.
+		//
+		// Enabling this would break existing usages.
+		legacyEnabledStatus: func(module *SdkLibrary) bool {
+			return false
+		},
+		scopeSpecificProperties: func(module *SdkLibrary) *ApiScopeProperties {
+			return &module.sdkLibraryProperties.Module_lib
+		},
+		apiFilePrefix: "module-lib-",
+		moduleSuffix:  ".module_lib",
+		sdkVersion:    "module_current",
+		droidstubsArgs: []string{
+			"--show-annotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES\\)",
+		},
+	})
 	allApiScopes = apiScopes{
 		apiScopePublic,
 		apiScopeSystem,
 		apiScopeTest,
+		apiScopeModuleLib,
 	}
 )
 
@@ -302,6 +322,12 @@ type sdkLibraryProperties struct {
 	//
 	// In non-legacy mode the test api scope is disabled by default.
 	Test ApiScopeProperties
+
+	// The properties specific to the module_lib api scope
+	//
+	// Unless explicitly specified by using test.enabled the module_lib api scope is
+	// disabled by default.
+	Module_lib ApiScopeProperties
 
 	// TODO: determines whether to create HTML doc or not
 	//Html_doc *bool
