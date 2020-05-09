@@ -233,6 +233,16 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 		a.aapt.deps(ctx, sdkDep)
 	}
 
+	usesSDK := a.sdkVersion().specified() && a.sdkVersion().kind != sdkCorePlatform
+
+	if usesSDK && Bool(a.appProperties.Jni_uses_sdk_apis) {
+		ctx.PropertyErrorf("jni_uses_sdk_apis",
+			"can only be set for modules that do not set sdk_version")
+	} else if !usesSDK && Bool(a.appProperties.Jni_uses_platform_apis) {
+		ctx.PropertyErrorf("jni_uses_platform_apis",
+			"can only be set for modules that set sdk_version")
+	}
+
 	tag := &jniDependencyTag{}
 	for _, jniTarget := range ctx.MultiTargets() {
 		variation := append(jniTarget.Variations(),
@@ -240,8 +250,7 @@ func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 		// If the app builds against an Android SDK use the SDK variant of JNI dependencies
 		// unless jni_uses_platform_apis is set.
-		if a.sdkVersion().specified() && a.sdkVersion().kind != sdkCorePlatform &&
-			!Bool(a.appProperties.Jni_uses_platform_apis) ||
+		if (usesSDK && !Bool(a.appProperties.Jni_uses_platform_apis)) ||
 			Bool(a.appProperties.Jni_uses_sdk_apis) {
 			variation = append(variation, blueprint.Variation{Mutator: "sdk", Variation: "sdk"})
 		}
