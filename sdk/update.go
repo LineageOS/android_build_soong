@@ -1215,10 +1215,25 @@ func (s *sdk) getPossibleOsTypes() []android.OsType {
 // struct (or one of its embedded structs).
 type fieldAccessorFunc func(structValue reflect.Value) reflect.Value
 
+// Checks the metadata to determine whether the property should be ignored for the
+// purposes of common value extraction or not.
+type extractorMetadataPredicate func(metadata propertiesContainer) bool
+
+// Indicates whether optimizable properties are provided by a host variant or
+// not.
+type isHostVariant interface {
+	isHostVariant() bool
+}
+
 // A property that can be optimized by the commonValueExtractor.
 type extractorProperty struct {
 	// The name of the field for this property.
 	name string
+
+	// Filter that can use metadata associated with the properties being optimized
+	// to determine whether the field should be ignored during common value
+	// optimization.
+	filter extractorMetadataPredicate
 
 	// Retrieves the value on which common value optimization will be performed.
 	getter fieldAccessorFunc
@@ -1273,6 +1288,20 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 			continue
 		}
 
+		var filter extractorMetadataPredicate
+
+		// Add a filter
+		if proptools.HasTag(field, "sdk", "ignored-on-host") {
+			filter = func(metadata propertiesContainer) bool {
+				if m, ok := metadata.(isHostVariant); ok {
+					if m.isHostVariant() {
+						return false
+					}
+				}
+				return true
+			}
+		}
+
 		// Save a copy of the field index for use in the function.
 		fieldIndex := f
 
@@ -1304,6 +1333,7 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 		} else {
 			property := extractorProperty{
 				name,
+				filter,
 				fieldGetter,
 				reflect.Zero(field.Type),
 				proptools.HasTag(field, "android", "arch_variant"),
@@ -1372,6 +1402,12 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 
 	for _, property := range e.properties {
 		fieldGetter := property.getter
+		filter := property.filter
+		if filter == nil {
+			filter = func(metadata propertiesContainer) bool {
+				return true
+			}
+		}
 
 		// Check to see if all the structures have the same value for the field. The commonValue
 		// is nil on entry to the loop and if it is nil on exit then there is no common value or
@@ -1388,6 +1424,15 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 			container := sliceValue.Index(i).Interface().(propertiesContainer)
 			itemValue := reflect.ValueOf(container.optimizableProperties())
 			fieldValue := fieldGetter(itemValue)
+
+			if !filter(container) {
+				expectedValue := property.emptyValue.Interface()
+				actualValue := fieldValue.Interface()
+				if !reflect.DeepEqual(expectedValue, actualValue) {
+					return fmt.Errorf("field %q is supposed to be ignored for %q but is set to %#v instead of %#v", property, container, actualValue, expectedValue)
+				}
+				continue
+			}
 
 			if commonValue == nil {
 				// Use the first value as the commonProperties value.
