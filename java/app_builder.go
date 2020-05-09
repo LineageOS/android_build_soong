@@ -87,6 +87,7 @@ func SignAppPackage(ctx android.ModuleContext, signedApk android.WritablePath, u
 
 	if lineageFile != nil {
 		flags = append(flags, "--lineage", lineageFile.String())
+		deps = append(deps, lineageFile)
 	}
 
 	ctx.Build(pctx, android.BuildParams{
