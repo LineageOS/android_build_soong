@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/scanner"
 
@@ -134,6 +135,13 @@ type BaseModuleContext interface {
 	// exist between each adjacent pair of modules in the GetWalkPath().
 	// GetTagPath()[i] is the tag between GetWalkPath()[i] and GetWalkPath()[i+1]
 	GetTagPath() []blueprint.DependencyTag
+
+	// GetPathString is supposed to be called in visit function passed in WalkDeps()
+	// and returns a multi-line string showing the modules and dependency tags
+	// among them along the top-down dependency path from a start module to current child module.
+	// skipFirst when set to true, the output doesn't include the start module,
+	// which is already printed when this function is used along with ModuleErrorf().
+	GetPathString(skipFirst bool) string
 
 	AddMissingDependencies(missingDeps []string)
 
@@ -1732,6 +1740,41 @@ func (b *baseModuleContext) GetWalkPath() []Module {
 
 func (b *baseModuleContext) GetTagPath() []blueprint.DependencyTag {
 	return b.tagPath
+}
+
+// A regexp for removing boilerplate from BaseDependencyTag from the string representation of
+// a dependency tag.
+var tagCleaner = regexp.MustCompile(`\QBaseDependencyTag:blueprint.BaseDependencyTag{}\E(, )?`)
+
+// PrettyPrintTag returns string representation of the tag, but prefers
+// custom String() method if available.
+func PrettyPrintTag(tag blueprint.DependencyTag) string {
+	// Use tag's custom String() method if available.
+	if stringer, ok := tag.(fmt.Stringer); ok {
+		return stringer.String()
+	}
+
+	// Otherwise, get a default string representation of the tag's struct.
+	tagString := fmt.Sprintf("%#v", tag)
+
+	// Remove the boilerplate from BaseDependencyTag as it adds no value.
+	tagString = tagCleaner.ReplaceAllString(tagString, "")
+	return tagString
+}
+
+func (b *baseModuleContext) GetPathString(skipFirst bool) string {
+	sb := strings.Builder{}
+	tagPath := b.GetTagPath()
+	walkPath := b.GetWalkPath()
+	if !skipFirst {
+		sb.WriteString(walkPath[0].String())
+	}
+	for i, m := range walkPath[1:] {
+		sb.WriteString("\n")
+		sb.WriteString(fmt.Sprintf("           via tag %s\n", PrettyPrintTag(tagPath[i])))
+		sb.WriteString(fmt.Sprintf("    -> %s", m.String()))
+	}
+	return sb.String()
 }
 
 func (m *moduleContext) VisitAllModuleVariants(visit func(Module)) {
