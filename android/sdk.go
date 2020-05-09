@@ -342,8 +342,14 @@ type SdkMemberType interface {
 	//
 	// * The variant property structs are analysed to find exported (capitalized) fields which
 	//   have common values. Those fields are cleared and the common value added to the common
-	//   properties. A field annotated with a tag of `sdk:"keep"` will be treated as if it
+	//   properties.
+	//
+	//   A field annotated with a tag of `sdk:"keep"` will be treated as if it
 	//   was not capitalized, i.e. not optimized for common values.
+	//
+	//   A field annotated with a tag of `android:"arch_variant"` will be allowed to have
+	//   values that differ by arch, fields not tagged as such must have common values across
+	//   all variants.
 	//
 	// * The sdk module type populates the BpModule structure, creating the arch specific
 	//   structure and calls AddToPropertySet(...) on the properties struct to add the member
