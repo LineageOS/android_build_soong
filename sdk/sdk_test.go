@@ -231,6 +231,7 @@ type EmbeddedPropertiesStruct struct {
 }
 
 type testPropertiesStruct struct {
+	name        string
 	private     string
 	Public_Kept string `sdk:"keep"`
 	S_Common    string
@@ -246,10 +247,17 @@ func (p *testPropertiesStruct) optimizableProperties() interface{} {
 	return p
 }
 
+func (p *testPropertiesStruct) String() string {
+	return p.name
+}
+
+var _ propertiesContainer = (*testPropertiesStruct)(nil)
+
 func TestCommonValueOptimization(t *testing.T) {
-	common := &testPropertiesStruct{}
+	common := &testPropertiesStruct{name: "common"}
 	structs := []propertiesContainer{
 		&testPropertiesStruct{
+			name:        "struct-0",
 			private:     "common",
 			Public_Kept: "common",
 			S_Common:    "common",
@@ -264,6 +272,7 @@ func TestCommonValueOptimization(t *testing.T) {
 			},
 		},
 		&testPropertiesStruct{
+			name:        "struct-1",
 			private:     "common",
 			Public_Kept: "common",
 			S_Common:    "common",
@@ -283,8 +292,9 @@ func TestCommonValueOptimization(t *testing.T) {
 	extractor.extractCommonProperties(common, structs)
 
 	h := TestHelper{t}
-	h.AssertDeepEquals("common properties not correct", common,
+	h.AssertDeepEquals("common properties not correct",
 		&testPropertiesStruct{
+			name:        "common",
 			private:     "",
 			Public_Kept: "",
 			S_Common:    "common",
@@ -297,10 +307,12 @@ func TestCommonValueOptimization(t *testing.T) {
 				S_Embedded_Common:    "embedded_common",
 				S_Embedded_Different: "",
 			},
-		})
+		},
+		common)
 
-	h.AssertDeepEquals("updated properties[0] not correct", structs[0],
+	h.AssertDeepEquals("updated properties[0] not correct",
 		&testPropertiesStruct{
+			name:        "struct-0",
 			private:     "common",
 			Public_Kept: "common",
 			S_Common:    "",
@@ -313,10 +325,12 @@ func TestCommonValueOptimization(t *testing.T) {
 				S_Embedded_Common:    "",
 				S_Embedded_Different: "embedded_upper",
 			},
-		})
+		},
+		structs[0])
 
-	h.AssertDeepEquals("updated properties[1] not correct", structs[1],
+	h.AssertDeepEquals("updated properties[1] not correct",
 		&testPropertiesStruct{
+			name:        "struct-1",
 			private:     "common",
 			Public_Kept: "common",
 			S_Common:    "",
@@ -329,5 +343,6 @@ func TestCommonValueOptimization(t *testing.T) {
 				S_Embedded_Common:    "",
 				S_Embedded_Different: "embedded_lower",
 			},
-		})
+		},
+		structs[1])
 }

@@ -173,6 +173,15 @@ func (h *TestHelper) AssertStringEquals(message string, expected string, actual 
 	}
 }
 
+func (h *TestHelper) AssertErrorMessageEquals(message string, expected string, actual error) {
+	h.t.Helper()
+	if actual == nil {
+		h.t.Errorf("Expected error but was nil")
+	} else if actual.Error() != expected {
+		h.t.Errorf("%s: expected %s, actual %s", message, expected, actual.Error())
+	}
+}
+
 func (h *TestHelper) AssertTrimmedStringEquals(message string, expected string, actual string) {
 	h.t.Helper()
 	h.AssertStringEquals(message, strings.TrimSpace(expected), strings.TrimSpace(actual))
@@ -339,14 +348,15 @@ func checkAllOtherCopyRules(expected string) snapshotBuildInfoChecker {
 	}
 }
 
-// Check that the specified path is in the list of zips to merge with the intermediate zip.
-func checkMergeZip(expected string) snapshotBuildInfoChecker {
+// Check that the specified paths match the list of zips to merge with the intermediate zip.
+func checkMergeZips(expected ...string) snapshotBuildInfoChecker {
 	return func(info *snapshotBuildInfo) {
 		info.r.t.Helper()
 		if info.intermediateZip == "" {
 			info.r.t.Errorf("No intermediate zip file was created")
 		}
-		ensureListContains(info.r.t, info.mergeZips, expected)
+
+		info.r.AssertDeepEquals("mismatching merge zip files", expected, info.mergeZips)
 	}
 }
 

@@ -114,6 +114,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 
 		"cert/new_cert.x509.pem": nil,
 		"cert/new_cert.pk8":      nil,
+		"lineage.bin":            nil,
 
 		"testdata/data": nil,
 
