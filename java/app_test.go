@@ -1110,6 +1110,100 @@ func TestJNIPackaging(t *testing.T) {
 	}
 }
 
+func TestJNISDK(t *testing.T) {
+	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+		cc_library {
+			name: "libjni",
+			system_shared_libs: [],
+			stl: "none",
+			sdk_version: "current",
+		}
+
+		android_test {
+			name: "app_platform",
+			jni_libs: ["libjni"],
+			platform_apis: true,
+		}
+
+		android_test {
+			name: "app_sdk",
+			jni_libs: ["libjni"],
+			sdk_version: "current",
+		}
+
+		android_test {
+			name: "app_force_platform",
+			jni_libs: ["libjni"],
+			sdk_version: "current",
+			jni_uses_platform_apis: true,
+		}
+
+		android_test {
+			name: "app_force_sdk",
+			jni_libs: ["libjni"],
+			platform_apis: true,
+			jni_uses_sdk_apis: true,
+		}
+	`)
+
+	testCases := []struct {
+		name   string
+		sdkJNI bool
+	}{
+		{"app_platform", false},
+		{"app_sdk", true},
+		{"app_force_platform", false},
+		{"app_force_sdk", true},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			app := ctx.ModuleForTests(test.name, "android_common")
+			platformJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_shared").
+				Output("libjni.so").Output.String()
+			sdkJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_sdk_shared").
+				Output("libjni.so").Output.String()
+
+			jniLibZip := app.MaybeOutput("jnilibs.zip")
+			if len(jniLibZip.Implicits) != 1 {
+				t.Fatalf("expected exactly one jni library, got %q", jniLibZip.Implicits.Strings())
+			}
+			gotJNI := jniLibZip.Implicits[0].String()
+
+			if test.sdkJNI {
+				if gotJNI != sdkJNI {
+					t.Errorf("expected SDK JNI library %q, got %q", sdkJNI, gotJNI)
+				}
+			} else {
+				if gotJNI != platformJNI {
+					t.Errorf("expected platform JNI library %q, got %q", platformJNI, gotJNI)
+				}
+			}
+		})
+	}
+
+	t.Run("jni_uses_platform_apis_error", func(t *testing.T) {
+		testJavaError(t, `jni_uses_platform_apis: can only be set for modules that set sdk_version`, `
+			android_test {
+				name: "app_platform",
+				platform_apis: true,
+				jni_uses_platform_apis: true,
+			}
+		`)
+	})
+
+	t.Run("jni_uses_sdk_apis_error", func(t *testing.T) {
+		testJavaError(t, `jni_uses_sdk_apis: can only be set for modules that do not set sdk_version`, `
+			android_test {
+				name: "app_sdk",
+				sdk_version: "current",
+				jni_uses_sdk_apis: true,
+			}
+		`)
+	})
+
+}
+
 func TestCertificates(t *testing.T) {
 	testCases := []struct {
 		name                string
@@ -1143,7 +1237,7 @@ func TestCertificates(t *testing.T) {
 
 				android_app_certificate {
 					name: "new_certificate",
-			    certificate: "cert/new_cert",
+					certificate: "cert/new_cert",
 				}
 			`,
 			certificateOverride: "",
@@ -1176,7 +1270,7 @@ func TestCertificates(t *testing.T) {
 
 				android_app_certificate {
 					name: "new_certificate",
-			    certificate: "cert/new_cert",
+					certificate: "cert/new_cert",
 				}
 			`,
 			certificateOverride: "foo:new_certificate",
