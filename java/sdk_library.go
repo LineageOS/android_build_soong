@@ -257,6 +257,14 @@ type ApiScopeProperties struct {
 }
 
 type sdkLibraryProperties struct {
+	// Visibility for stubs library modules. If not specified then defaults to the
+	// visibility property.
+	Stubs_library_visibility []string
+
+	// Visibility for stubs source modules. If not specified then defaults to the
+	// visibility property.
+	Stubs_source_visibility []string
+
 	// List of Java libraries that will be in the classpath when building stubs
 	Stub_only_libs []string `android:"arch_variant"`
 
@@ -551,6 +559,7 @@ func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) stri
 func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext, apiScope *apiScope) {
 	props := struct {
 		Name                *string
+		Visibility          []string
 		Srcs                []string
 		Installable         *bool
 		Sdk_version         *string
@@ -581,6 +590,12 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	}{}
 
 	props.Name = proptools.StringPtr(module.stubsName(apiScope))
+
+	// If stubs_library_visibility is not set then the created module will use the
+	// visibility of this module.
+	visibility := module.sdkLibraryProperties.Stubs_library_visibility
+	props.Visibility = visibility
+
 	// sources are generated from the droiddoc
 	props.Srcs = []string{":" + module.docsName(apiScope)}
 	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
@@ -622,6 +637,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 func (module *SdkLibrary) createStubsSources(mctx android.DefaultableHookContext, apiScope *apiScope) {
 	props := struct {
 		Name                             *string
+		Visibility                       []string
 		Srcs                             []string
 		Installable                      *bool
 		Sdk_version                      *string
@@ -655,6 +671,12 @@ func (module *SdkLibrary) createStubsSources(mctx android.DefaultableHookContext
 	// * libs (static_libs/libs)
 
 	props.Name = proptools.StringPtr(module.docsName(apiScope))
+
+	// If stubs_source_visibility is not set then the created module will use the
+	// visibility of this module.
+	visibility := module.sdkLibraryProperties.Stubs_source_visibility
+	props.Visibility = visibility
+
 	props.Srcs = append(props.Srcs, module.Library.Module.properties.Srcs...)
 	props.Sdk_version = module.Library.Module.deviceProperties.Sdk_version
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
@@ -957,6 +979,10 @@ func SdkLibraryFactory() android.Module {
 		scopeToProperties[scope] = scope.scopeSpecificProperties(module)
 	}
 	module.scopeToProperties = scopeToProperties
+
+	// Add the properties containing visibility rules so that they are checked.
+	android.AddVisibilityProperty(module, "stubs_library_visibility", &module.sdkLibraryProperties.Stubs_library_visibility)
+	android.AddVisibilityProperty(module, "stubs_source_visibility", &module.sdkLibraryProperties.Stubs_source_visibility)
 
 	module.SetDefaultableHook(func(ctx android.DefaultableHookContext) { module.CreateInternalModules(ctx) })
 	return module
