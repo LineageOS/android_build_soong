@@ -337,6 +337,12 @@ type sdkLibraryProperties struct {
 	// disabled by default.
 	Module_lib ApiScopeProperties
 
+	// Properties related to api linting.
+	Api_lint struct {
+		// Enable api linting.
+		Enabled *bool
+	}
+
 	// TODO: determines whether to create HTML doc or not
 	//Html_doc *bool
 }
@@ -652,6 +658,12 @@ func (module *SdkLibrary) createStubsSources(mctx android.DefaultableHookContext
 			Current                   ApiToCheck
 			Last_released             ApiToCheck
 			Ignore_missing_latest_api *bool
+
+			Api_lint struct {
+				Enabled       *bool
+				New_since     *string
+				Baseline_file *string
+			}
 		}
 		Aidl struct {
 			Include_dirs       []string
@@ -734,11 +746,30 @@ func (module *SdkLibrary) createStubsSources(mctx android.DefaultableHookContext
 
 	if !apiScope.unstable {
 		// check against the latest released API
-		props.Check_api.Last_released.Api_file = proptools.StringPtr(
-			module.latestApiFilegroupName(apiScope))
+		latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
+		props.Check_api.Last_released.Api_file = latestApiFilegroupName
 		props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
 			module.latestRemovedApiFilegroupName(apiScope))
 		props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
+
+		if proptools.Bool(module.sdkLibraryProperties.Api_lint.Enabled) {
+			// Enable api lint.
+			props.Check_api.Api_lint.Enabled = proptools.BoolPtr(true)
+			props.Check_api.Api_lint.New_since = latestApiFilegroupName
+
+			// If it exists then pass a lint-baseline.txt through to droidstubs.
+			baselinePath := path.Join(apiDir, apiScope.apiFilePrefix+"lint-baseline.txt")
+			baselinePathRelativeToRoot := path.Join(mctx.ModuleDir(), baselinePath)
+			paths, err := mctx.GlobWithDeps(baselinePathRelativeToRoot, nil)
+			if err != nil {
+				mctx.ModuleErrorf("error checking for presence of %s: %s", baselinePathRelativeToRoot, err)
+			}
+			if len(paths) == 1 {
+				props.Check_api.Api_lint.Baseline_file = proptools.StringPtr(baselinePath)
+			} else if len(paths) != 0 {
+				mctx.ModuleErrorf("error checking for presence of %s: expected one path, found: %v", baselinePathRelativeToRoot, paths)
+			}
+		}
 	}
 
 	// Dist the api txt artifact for sdk builds.
