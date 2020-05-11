@@ -1085,7 +1085,7 @@ func sdkLibraryImportFactory() android.Module {
 	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
-	android.AddLoadHook(module, func(mctx android.LoadHookContext) { module.createInternalModules(mctx) })
+	module.SetDefaultableHook(func(mctx android.DefaultableHookContext) { module.createInternalModules(mctx) })
 	return module
 }
 
@@ -1097,7 +1097,7 @@ func (module *sdkLibraryImport) Name() string {
 	return module.prebuilt.Name(module.ModuleBase.Name())
 }
 
-func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookContext) {
+func (module *sdkLibraryImport) createInternalModules(mctx android.DefaultableHookContext) {
 
 	// If the build is configured to use prebuilts then force this to be preferred.
 	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
@@ -1120,7 +1120,7 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 	*javaSdkLibraries = append(*javaSdkLibraries, module.BaseModuleName())
 }
 
-func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.LoadHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
+func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
 	// Creates a java import for the jar with ".stubs" suffix
 	props := struct {
 		Name                *string
@@ -1156,7 +1156,7 @@ func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.LoadHookCo
 	mctx.CreateModule(ImportFactory, &props)
 }
 
-func (module *sdkLibraryImport) createPrebuiltStubsSources(mctx android.LoadHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
+func (module *sdkLibraryImport) createPrebuiltStubsSources(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
 	props := struct {
 		Name *string
 		Srcs []string
