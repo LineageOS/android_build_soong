@@ -1225,6 +1225,9 @@ type extractorProperty struct {
 
 	// The empty value for the field.
 	emptyValue reflect.Value
+
+	// True if the property can support arch variants false otherwise.
+	archVariant bool
 }
 
 func (p extractorProperty) String() string {
@@ -1303,6 +1306,7 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 				name,
 				fieldGetter,
 				reflect.Zero(field.Type),
+				proptools.HasTag(field, "android", "arch_variant"),
 			}
 			e.properties = append(e.properties, property)
 		}
@@ -1370,9 +1374,15 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 		fieldGetter := property.getter
 
 		// Check to see if all the structures have the same value for the field. The commonValue
-		// is nil on entry to the loop and if it is nil on exit then there is no common value,
-		// otherwise it points to the common value.
+		// is nil on entry to the loop and if it is nil on exit then there is no common value or
+		// all the values have been filtered out, otherwise it points to the common value.
 		var commonValue *reflect.Value
+
+		// Assume that all the values will be the same.
+		//
+		// While similar to this is not quite the same as commonValue == nil. If all the values
+		// have been filtered out then this will be false but commonValue == nil will be true.
+		valuesDiffer := false
 
 		for i := 0; i < sliceValue.Len(); i++ {
 			container := sliceValue.Index(i).Interface().(propertiesContainer)
@@ -1387,12 +1397,13 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 				// no value in common so break out.
 				if !reflect.DeepEqual(fieldValue.Interface(), commonValue.Interface()) {
 					commonValue = nil
+					valuesDiffer = true
 					break
 				}
 			}
 		}
 
-		// If the fields all have a common value then store it in the common struct field
+		// If the fields all have common value then store it in the common struct field
 		// and set the input struct's field to the empty value.
 		if commonValue != nil {
 			emptyValue := property.emptyValue
@@ -1403,6 +1414,21 @@ func (e *commonValueExtractor) extractCommonProperties(commonProperties interfac
 				fieldValue := fieldGetter(itemValue)
 				fieldValue.Set(emptyValue)
 			}
+		}
+
+		if valuesDiffer && !property.archVariant {
+			// The values differ but the property does not support arch variants so it
+			// is an error.
+			var details strings.Builder
+			for i := 0; i < sliceValue.Len(); i++ {
+				container := sliceValue.Index(i).Interface().(propertiesContainer)
+				itemValue := reflect.ValueOf(container.optimizableProperties())
+				fieldValue := fieldGetter(itemValue)
+
+				_, _ = fmt.Fprintf(&details, "\n    %q has value %q", container.String(), fieldValue.Interface())
+			}
+
+			return fmt.Errorf("field %q is not tagged as \"arch_variant\" but has arch specific properties:%s", property.String(), details.String())
 		}
 	}
 
