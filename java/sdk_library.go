@@ -171,7 +171,7 @@ var (
 		apiFilePrefix:  "system-",
 		moduleSuffix:   sdkSystemApiSuffix,
 		sdkVersion:     "system_current",
-		droidstubsArgs: []string{"-showAnnotation android.annotation.SystemApi"},
+		droidstubsArgs: []string{"-showAnnotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS\\)"},
 	})
 	apiScopeTest = initApiScope(&apiScope{
 		name:                "test",
