@@ -1805,3 +1805,89 @@ sdk_snapshot {
 }
 `))
 }
+
+func TestDeviceAndHostSnapshotWithStubsLibrary(t *testing.T) {
+	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
+	SkipIfNotLinux(t)
+
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			host_supported: true,
+			native_shared_libs: ["stubslib"],
+		}
+
+		cc_library {
+			name: "internaldep",
+			host_supported: true,
+		}
+
+		cc_library {
+			name: "stubslib",
+			host_supported: true,
+			shared_libs: ["internaldep"],
+			stubs: {
+				symbol_file: "some/where/stubslib.map.txt",
+				versions: ["1", "2", "3"],
+			},
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_shared {
+    name: "mysdk_stubslib@current",
+    sdk_member_name: "stubslib",
+    host_supported: true,
+    installable: false,
+    stubs: {
+        versions: ["3"],
+    },
+    target: {
+        android_arm64: {
+            srcs: ["android/arm64/lib/stubslib.so"],
+        },
+        android_arm: {
+            srcs: ["android/arm/lib/stubslib.so"],
+        },
+        linux_glibc_x86_64: {
+            srcs: ["linux_glibc/x86_64/lib/stubslib.so"],
+        },
+        linux_glibc_x86: {
+            srcs: ["linux_glibc/x86/lib/stubslib.so"],
+        },
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "stubslib",
+    prefer: false,
+    host_supported: true,
+    stubs: {
+        versions: ["3"],
+    },
+    target: {
+        android_arm64: {
+            srcs: ["android/arm64/lib/stubslib.so"],
+        },
+        android_arm: {
+            srcs: ["android/arm/lib/stubslib.so"],
+        },
+        linux_glibc_x86_64: {
+            srcs: ["linux_glibc/x86_64/lib/stubslib.so"],
+        },
+        linux_glibc_x86: {
+            srcs: ["linux_glibc/x86/lib/stubslib.so"],
+        },
+    },
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    host_supported: true,
+    native_shared_libs: ["mysdk_stubslib@current"],
+}
+`))
+}
