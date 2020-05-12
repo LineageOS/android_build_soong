@@ -60,6 +60,17 @@ type scopeDependencyTag struct {
 	blueprint.BaseDependencyTag
 	name     string
 	apiScope *apiScope
+
+	// Function for extracting appropriate path information from the dependency.
+	depInfoExtractor func(paths *scopePaths, dep android.Module) error
+}
+
+// Extract tag specific information from the dependency.
+func (tag scopeDependencyTag) extractDepInfo(ctx android.ModuleContext, dep android.Module, paths *scopePaths) {
+	err := tag.depInfoExtractor(paths, dep)
+	if err != nil {
+		ctx.ModuleErrorf("has an invalid {scopeDependencyTag: %s} dependency on module %s: %s", tag.name, ctx.OtherModuleName(dep), err.Error())
+	}
 }
 
 // Provides information about an api scope, e.g. public, system, test.
@@ -88,8 +99,8 @@ type apiScope struct {
 	// The tag to use to depend on the stubs library module.
 	stubsTag scopeDependencyTag
 
-	// The tag to use to depend on the stubs
-	apiFileTag scopeDependencyTag
+	// The tag to use to depend on the stubs source and API module.
+	stubsSourceAndApiTag scopeDependencyTag
 
 	// The scope specific prefix to add to the api file base of "current.txt" or "removed.txt".
 	apiFilePrefix string
@@ -112,14 +123,17 @@ type apiScope struct {
 
 // Initialize a scope, creating and adding appropriate dependency tags
 func initApiScope(scope *apiScope) *apiScope {
-	scope.fieldName = proptools.FieldNameForProperty(scope.name)
+	name := scope.name
+	scope.fieldName = proptools.FieldNameForProperty(name)
 	scope.stubsTag = scopeDependencyTag{
-		name:     scope.name + "-stubs",
-		apiScope: scope,
+		name:             name + "-stubs",
+		apiScope:         scope,
+		depInfoExtractor: (*scopePaths).extractStubsLibraryInfoFromDependency,
 	}
-	scope.apiFileTag = scopeDependencyTag{
-		name:     scope.name + "-api",
-		apiScope: scope,
+	scope.stubsSourceAndApiTag = scopeDependencyTag{
+		name:             name + "-stubs-source-and-api",
+		apiScope:         scope,
+		depInfoExtractor: (*scopePaths).extractStubsSourceAndApiInfoFromApiStubsProvider,
 	}
 	return scope
 }
@@ -128,7 +142,7 @@ func (scope *apiScope) stubsModuleName(baseName string) string {
 	return baseName + sdkStubsLibrarySuffix + scope.moduleSuffix
 }
 
-func (scope *apiScope) docsModuleName(baseName string) string {
+func (scope *apiScope) stubsSourceModuleName(baseName string) string {
 	return baseName + sdkStubsSourceSuffix + scope.moduleSuffix
 }
 
@@ -171,7 +185,7 @@ var (
 		apiFilePrefix:  "system-",
 		moduleSuffix:   sdkSystemApiSuffix,
 		sdkVersion:     "system_current",
-		droidstubsArgs: []string{"-showAnnotation android.annotation.SystemApi"},
+		droidstubsArgs: []string{"-showAnnotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS\\)"},
 	})
 	apiScopeTest = initApiScope(&apiScope{
 		name:                "test",
@@ -349,6 +363,27 @@ type scopePaths struct {
 	stubsSrcJar        android.Path
 }
 
+func (paths *scopePaths) extractStubsLibraryInfoFromDependency(dep android.Module) error {
+	if lib, ok := dep.(Dependency); ok {
+		paths.stubsHeaderPath = lib.HeaderJars()
+		paths.stubsImplPath = lib.ImplementationJars()
+		return nil
+	} else {
+		return fmt.Errorf("expected module that implements Dependency, e.g. java_library")
+	}
+}
+
+func (paths *scopePaths) extractStubsSourceAndApiInfoFromApiStubsProvider(dep android.Module) error {
+	if provider, ok := dep.(ApiStubsProvider); ok {
+		paths.currentApiFilePath = provider.ApiFilePath()
+		paths.removedApiFilePath = provider.RemovedApiFilePath()
+		paths.stubsSrcJar = provider.StubsSrcJar()
+		return nil
+	} else {
+		return fmt.Errorf("expected module that implements ApiStubsProvider, e.g. droidstubs")
+	}
+}
+
 // Common code between sdk library and sdk library import
 type commonToSdkLibraryAndImport struct {
 	scopePaths map[*apiScope]*scopePaths
@@ -447,8 +482,8 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 		// Add dependencies to the stubs library
 		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsName(apiScope))
 
-		// And the api file
-		ctx.AddVariationDependencies(nil, apiScope.apiFileTag, module.docsName(apiScope))
+		// And the stubs source and api files
+		ctx.AddVariationDependencies(nil, apiScope.stubsSourceAndApiTag, module.stubsSourceName(apiScope))
 	}
 
 	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
@@ -469,27 +504,16 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	// When this java_sdk_library is depended upon from others via "libs" property,
 	// the recorded paths will be returned depending on the link type of the caller.
 	ctx.VisitDirectDeps(func(to android.Module) {
-		otherName := ctx.OtherModuleName(to)
 		tag := ctx.OtherModuleDependencyTag(to)
 
-		if lib, ok := to.(Dependency); ok {
-			if scopeTag, ok := tag.(scopeDependencyTag); ok {
-				apiScope := scopeTag.apiScope
-				scopePaths := module.getScopePaths(apiScope)
-				scopePaths.stubsHeaderPath = lib.HeaderJars()
-				scopePaths.stubsImplPath = lib.ImplementationJars()
-			}
-		}
-		if doc, ok := to.(ApiStubsProvider); ok {
-			if scopeTag, ok := tag.(scopeDependencyTag); ok {
-				apiScope := scopeTag.apiScope
-				scopePaths := module.getScopePaths(apiScope)
-				scopePaths.currentApiFilePath = doc.ApiFilePath()
-				scopePaths.removedApiFilePath = doc.RemovedApiFilePath()
-				scopePaths.stubsSrcJar = doc.StubsSrcJar()
-			} else {
-				ctx.ModuleErrorf("depends on module %q of unknown tag %q", otherName, tag)
-			}
+		// Extract information from any of the scope specific dependencies.
+		if scopeTag, ok := tag.(scopeDependencyTag); ok {
+			apiScope := scopeTag.apiScope
+			scopePaths := module.getScopePaths(apiScope)
+
+			// Extract information from the dependency. The exact information extracted
+			// is determined by the nature of the dependency which is determined by the tag.
+			scopeTag.extractDepInfo(ctx, to, scopePaths)
 		}
 	})
 }
@@ -504,14 +528,15 @@ func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 	return entriesList
 }
 
-// Module name of the stubs library
+// Name of the java_library module that compiles the stubs source.
 func (module *SdkLibrary) stubsName(apiScope *apiScope) string {
 	return apiScope.stubsModuleName(module.BaseModuleName())
 }
 
-// Module name of the docs
-func (module *SdkLibrary) docsName(apiScope *apiScope) string {
-	return apiScope.docsModuleName(module.BaseModuleName())
+// // Name of the droidstubs module that generates the stubs source and
+// generates/checks the API.
+func (module *SdkLibrary) stubsSourceName(apiScope *apiScope) string {
+	return apiScope.stubsSourceModuleName(module.BaseModuleName())
 }
 
 // Module name of the runtime implementation library
@@ -597,7 +622,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	props.Visibility = visibility
 
 	// sources are generated from the droiddoc
-	props.Srcs = []string{":" + module.docsName(apiScope)}
+	props.Srcs = []string{":" + module.stubsSourceName(apiScope)}
 	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
 	props.Sdk_version = proptools.StringPtr(sdkVersion)
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
@@ -633,8 +658,8 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 }
 
 // Creates a droidstubs module that creates stubs source files from the given full source
-// files
-func (module *SdkLibrary) createStubsSources(mctx android.DefaultableHookContext, apiScope *apiScope) {
+// files and also updates and checks the API specification files.
+func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookContext, apiScope *apiScope) {
 	props := struct {
 		Name                             *string
 		Visibility                       []string
@@ -670,7 +695,7 @@ func (module *SdkLibrary) createStubsSources(mctx android.DefaultableHookContext
 	// * system_modules
 	// * libs (static_libs/libs)
 
-	props.Name = proptools.StringPtr(module.docsName(apiScope))
+	props.Name = proptools.StringPtr(module.stubsSourceName(apiScope))
 
 	// If stubs_source_visibility is not set then the created module will use the
 	// visibility of this module.
@@ -934,7 +959,7 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 
 	for _, scope := range generatedScopes {
 		module.createStubsLibrary(mctx, scope)
-		module.createStubsSources(mctx, scope)
+		module.createStubsSourcesAndApi(mctx, scope)
 	}
 
 	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
@@ -1001,7 +1026,7 @@ type sdkLibraryScopeProperties struct {
 	// List of shared java libs that this module has dependencies to
 	Libs []string
 
-	// The stub sources.
+	// The stubs source.
 	Stub_srcs []string `android:"path"`
 
 	// The current.txt
@@ -1161,7 +1186,7 @@ func (module *sdkLibraryImport) createPrebuiltStubsSources(mctx android.Defaulta
 		Name *string
 		Srcs []string
 	}{}
-	props.Name = proptools.StringPtr(apiScope.docsModuleName(module.BaseModuleName()))
+	props.Name = proptools.StringPtr(apiScope.stubsSourceModuleName(module.BaseModuleName()))
 	props.Srcs = scopeProperties.Stub_srcs
 	mctx.CreateModule(PrebuiltStubsSourcesFactory, &props)
 }
