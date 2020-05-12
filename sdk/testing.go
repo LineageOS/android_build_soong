@@ -207,7 +207,7 @@ type testSdkResult struct {
 // e.g. find the src/dest pairs from each cp command, the various zip files
 // generated, etc.
 func (r *testSdkResult) getSdkSnapshotBuildInfo(sdk *sdk) *snapshotBuildInfo {
-	androidBpContents := strings.NewReplacer("\\n", "\n").Replace(sdk.GetAndroidBpContentsForTests())
+	androidBpContents := sdk.GetAndroidBpContentsForTests()
 
 	info := &snapshotBuildInfo{
 		r:                 r,
