@@ -87,18 +87,23 @@ func (gc *generatedContents) Dedent() {
 }
 
 func (gc *generatedContents) Printfln(format string, args ...interface{}) {
-	// ninja consumes newline characters in rspfile_content. Prevent it by
-	// escaping the backslash in the newline character. The extra backslash
-	// is removed when the rspfile is written to the actual script file
-	fmt.Fprintf(&(gc.content), strings.Repeat("    ", gc.indentLevel)+format+"\\n", args...)
+	fmt.Fprintf(&(gc.content), strings.Repeat("    ", gc.indentLevel)+format+"\n", args...)
 }
 
 func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderContext, implicits android.Paths) {
 	rb := android.NewRuleBuilder()
-	// convert \\n to \n
+
+	content := gf.content.String()
+
+	// ninja consumes newline characters in rspfile_content. Prevent it by
+	// escaping the backslash in the newline character. The extra backslash
+	// is removed when the rspfile is written to the actual script file
+	content = strings.ReplaceAll(content, "\n", "\\n")
+
 	rb.Command().
 		Implicits(implicits).
-		Text("echo").Text(proptools.ShellEscape(gf.content.String())).
+		Text("echo").Text(proptools.ShellEscape(content)).
+		// convert \\n to \n
 		Text("| sed 's/\\\\n/\\n/g' >").Output(gf.path)
 	rb.Command().
 		Text("chmod a+x").Output(gf.path)
