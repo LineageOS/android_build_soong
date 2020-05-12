@@ -1388,6 +1388,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 			pool = v
 		}
 		inputs := []string{android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "metalava.jar").String()}
+		inputs = append(inputs, sourcepaths.Strings()...)
 		if v := ctx.Config().Getenv("RBE_METALAVA_INPUTS"); v != "" {
 			inputs = append(inputs, strings.Split(v, ",")...)
 		}
