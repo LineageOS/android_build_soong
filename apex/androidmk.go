@@ -308,7 +308,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 
 				if apexType == imageApex {
-					fmt.Fprintln(w, "ALL_MODULES.$(LOCAL_MODULE).BUNDLE :=", a.bundleModuleFile.String())
+					fmt.Fprintln(w, "ALL_MODULES.$(my_register_name).BUNDLE :=", a.bundleModuleFile.String())
 				}
 
 				if a.installedFilesFile != nil {
