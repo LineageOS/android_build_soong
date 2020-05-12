@@ -178,6 +178,8 @@ type AndroidApp struct {
 	noticeOutputs android.NoticeOutputs
 
 	overriddenManifestPackageName string
+
+	android.ApexBundleDepsInfo
 }
 
 func (a *AndroidApp) IsInstallable() bool {
@@ -633,6 +635,8 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 			ctx.InstallFile(a.installDir, extra.Base(), extra)
 		}
 	}
+
+	a.buildAppDependencyInfo(ctx)
 }
 
 func collectAppDeps(ctx android.ModuleContext, shouldCollectRecursiveNativeDeps bool,
@@ -699,6 +703,49 @@ func collectAppDeps(ctx android.ModuleContext, shouldCollectRecursiveNativeDeps 
 	})
 
 	return jniLibs, certificates
+}
+
+func (a *AndroidApp) walkPayloadDeps(ctx android.ModuleContext,
+	do func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool)) {
+
+	ctx.WalkDeps(func(child, parent android.Module) bool {
+		isExternal := !a.DepIsInSameApex(ctx, child)
+		if am, ok := child.(android.ApexModule); ok {
+			do(ctx, parent, am, isExternal)
+		}
+		return !isExternal
+	})
+}
+
+func (a *AndroidApp) buildAppDependencyInfo(ctx android.ModuleContext) {
+	if ctx.Host() {
+		return
+	}
+
+	depsInfo := android.DepNameToDepInfoMap{}
+	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
+		depName := to.Name()
+		if info, exist := depsInfo[depName]; exist {
+			info.From = append(info.From, from.Name())
+			info.IsExternal = info.IsExternal && externalDep
+			depsInfo[depName] = info
+		} else {
+			toMinSdkVersion := "(no version)"
+			if m, ok := to.(interface{ MinSdkVersion() string }); ok {
+				if v := m.MinSdkVersion(); v != "" {
+					toMinSdkVersion = v
+				}
+			}
+			depsInfo[depName] = android.ApexModuleDepInfo{
+				To:            depName,
+				From:          []string{from.Name()},
+				IsExternal:    externalDep,
+				MinSdkVersion: toMinSdkVersion,
+			}
+		}
+	})
+
+	a.ApexBundleDepsInfo.BuildDepsInfoLists(ctx, a.MinSdkVersion(), depsInfo)
 }
 
 func (a *AndroidApp) getCertString(ctx android.BaseModuleContext) string {

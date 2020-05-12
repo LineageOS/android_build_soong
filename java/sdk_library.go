@@ -257,6 +257,14 @@ type ApiScopeProperties struct {
 }
 
 type sdkLibraryProperties struct {
+	// Visibility for stubs library modules. If not specified then defaults to the
+	// visibility property.
+	Stubs_library_visibility []string
+
+	// Visibility for stubs source modules. If not specified then defaults to the
+	// visibility property.
+	Stubs_source_visibility []string
+
 	// List of Java libraries that will be in the classpath when building stubs
 	Stub_only_libs []string `android:"arch_variant"`
 
@@ -551,6 +559,7 @@ func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) stri
 func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext, apiScope *apiScope) {
 	props := struct {
 		Name                *string
+		Visibility          []string
 		Srcs                []string
 		Installable         *bool
 		Sdk_version         *string
@@ -581,6 +590,12 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	}{}
 
 	props.Name = proptools.StringPtr(module.stubsName(apiScope))
+
+	// If stubs_library_visibility is not set then the created module will use the
+	// visibility of this module.
+	visibility := module.sdkLibraryProperties.Stubs_library_visibility
+	props.Visibility = visibility
+
 	// sources are generated from the droiddoc
 	props.Srcs = []string{":" + module.docsName(apiScope)}
 	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
@@ -622,6 +637,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 func (module *SdkLibrary) createStubsSources(mctx android.DefaultableHookContext, apiScope *apiScope) {
 	props := struct {
 		Name                             *string
+		Visibility                       []string
 		Srcs                             []string
 		Installable                      *bool
 		Sdk_version                      *string
@@ -655,6 +671,12 @@ func (module *SdkLibrary) createStubsSources(mctx android.DefaultableHookContext
 	// * libs (static_libs/libs)
 
 	props.Name = proptools.StringPtr(module.docsName(apiScope))
+
+	// If stubs_source_visibility is not set then the created module will use the
+	// visibility of this module.
+	visibility := module.sdkLibraryProperties.Stubs_source_visibility
+	props.Visibility = visibility
+
 	props.Srcs = append(props.Srcs, module.Library.Module.properties.Srcs...)
 	props.Sdk_version = module.Library.Module.deviceProperties.Sdk_version
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
@@ -958,6 +980,10 @@ func SdkLibraryFactory() android.Module {
 	}
 	module.scopeToProperties = scopeToProperties
 
+	// Add the properties containing visibility rules so that they are checked.
+	android.AddVisibilityProperty(module, "stubs_library_visibility", &module.sdkLibraryProperties.Stubs_library_visibility)
+	android.AddVisibilityProperty(module, "stubs_source_visibility", &module.sdkLibraryProperties.Stubs_source_visibility)
+
 	module.SetDefaultableHook(func(ctx android.DefaultableHookContext) { module.CreateInternalModules(ctx) })
 	return module
 }
@@ -1059,7 +1085,7 @@ func sdkLibraryImportFactory() android.Module {
 	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
-	android.AddLoadHook(module, func(mctx android.LoadHookContext) { module.createInternalModules(mctx) })
+	module.SetDefaultableHook(func(mctx android.DefaultableHookContext) { module.createInternalModules(mctx) })
 	return module
 }
 
@@ -1071,7 +1097,7 @@ func (module *sdkLibraryImport) Name() string {
 	return module.prebuilt.Name(module.ModuleBase.Name())
 }
 
-func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookContext) {
+func (module *sdkLibraryImport) createInternalModules(mctx android.DefaultableHookContext) {
 
 	// If the build is configured to use prebuilts then force this to be preferred.
 	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
@@ -1094,7 +1120,7 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.LoadHookConte
 	*javaSdkLibraries = append(*javaSdkLibraries, module.BaseModuleName())
 }
 
-func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.LoadHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
+func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
 	// Creates a java import for the jar with ".stubs" suffix
 	props := struct {
 		Name                *string
@@ -1130,7 +1156,7 @@ func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.LoadHookCo
 	mctx.CreateModule(ImportFactory, &props)
 }
 
-func (module *sdkLibraryImport) createPrebuiltStubsSources(mctx android.LoadHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
+func (module *sdkLibraryImport) createPrebuiltStubsSources(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
 	props := struct {
 		Name *string
 		Srcs []string
