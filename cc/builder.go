@@ -207,15 +207,23 @@ var (
 		}, []string{"cFlags", "exportDirs"}, nil)
 
 	_ = pctx.SourcePathVariable("sAbiLinker", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-linker")
+	_ = pctx.SourcePathVariable("sAbiLinkerLibs", "prebuilts/clang-tools/${config.HostPrebuiltTag}/lib64")
 
-	sAbiLink = pctx.AndroidStaticRule("sAbiLink",
+	sAbiLink, sAbiLinkRE = remoteexec.StaticRules(pctx, "sAbiLink",
 		blueprint.RuleParams{
-			Command:        "$sAbiLinker -o ${out} $symbolFilter -arch $arch  $exportedHeaderFlags @${out}.rsp ",
+			Command:        "$reTemplate$sAbiLinker -o ${out} $symbolFilter -arch $arch  $exportedHeaderFlags @${out}.rsp ",
 			CommandDeps:    []string{"$sAbiLinker"},
 			Rspfile:        "${out}.rsp",
 			RspfileContent: "${in}",
-		},
-		"symbolFilter", "arch", "exportedHeaderFlags")
+		}, &remoteexec.REParams{
+			Labels:          map[string]string{"type": "tool", "name": "abi-linker"},
+			ExecStrategy:    "${config.REAbiLinkerExecStrategy}",
+			Inputs:          []string{"$sAbiLinkerLibs", "${out}.rsp", "$implicits"},
+			RSPFile:         "${out}.rsp",
+			OutputFiles:     []string{"$out"},
+			ToolchainInputs: []string{"$sAbiLinker"},
+			Platform:        map[string]string{remoteexec.PoolKey: "${config.RECXXPool}"},
+		}, []string{"symbolFilter", "arch", "exportedHeaderFlags"}, []string{"implicits"})
 
 	_ = pctx.SourcePathVariable("sAbiDiffer", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-diff")
 
@@ -724,17 +732,30 @@ func TransformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 	for _, tag := range excludedSymbolTags {
 		symbolFilterStr += " --exclude-symbol-tag " + tag
 	}
+	rule := sAbiLink
+	args := map[string]string{
+		"symbolFilter":        symbolFilterStr,
+		"arch":                ctx.Arch().ArchType.Name,
+		"exportedHeaderFlags": exportedHeaderFlags,
+	}
+	if ctx.Config().IsEnvTrue("RBE_ABI_LINKER") {
+		rule = sAbiLinkRE
+		rbeImplicits := implicits.Strings()
+		for _, p := range strings.Split(exportedHeaderFlags, " ") {
+			if len(p) > 2 {
+				// Exclude the -I prefix.
+				rbeImplicits = append(rbeImplicits, p[2:])
+			}
+		}
+		args["implicits"] = strings.Join(rbeImplicits, ",")
+	}
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        sAbiLink,
+		Rule:        rule,
 		Description: "header-abi-linker " + outputFile.Base(),
 		Output:      outputFile,
 		Inputs:      sAbiDumps,
 		Implicits:   implicits,
-		Args: map[string]string{
-			"symbolFilter":        symbolFilterStr,
-			"arch":                ctx.Arch().ArchType.Name,
-			"exportedHeaderFlags": exportedHeaderFlags,
-		},
+		Args:        args,
 	})
 	return android.OptionalPathForPath(outputFile)
 }
