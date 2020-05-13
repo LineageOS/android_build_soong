@@ -30,13 +30,8 @@ import (
 )
 
 const (
-	sdkStubsLibrarySuffix = ".stubs"
-	sdkSystemApiSuffix    = ".system"
-	sdkTestApiSuffix      = ".test"
-	sdkStubsSourceSuffix  = ".stubs.source"
-	sdkApiSuffix          = ".api"
-	sdkXmlFileSuffix      = ".xml"
-	permissionsTemplate   = `<?xml version=\"1.0\" encoding=\"utf-8\"?>\n` +
+	sdkXmlFileSuffix    = ".xml"
+	permissionsTemplate = `<?xml version=\"1.0\" encoding=\"utf-8\"?>\n` +
 		`<!-- Copyright (C) 2018 The Android Open Source Project\n` +
 		`\n` +
 		`    Licensed under the Apache License, Version 2.0 (the \"License\");\n` +
@@ -192,15 +187,15 @@ func initApiScope(scope *apiScope) *apiScope {
 }
 
 func (scope *apiScope) stubsLibraryModuleName(baseName string) string {
-	return baseName + sdkStubsLibrarySuffix + scope.moduleSuffix
+	return baseName + ".stubs" + scope.moduleSuffix
 }
 
 func (scope *apiScope) stubsSourceModuleName(baseName string) string {
-	return baseName + sdkStubsSourceSuffix + scope.moduleSuffix
+	return baseName + ".stubs.source" + scope.moduleSuffix
 }
 
 func (scope *apiScope) apiModuleName(baseName string) string {
-	return baseName + sdkApiSuffix + scope.moduleSuffix
+	return baseName + ".api" + scope.moduleSuffix
 }
 
 func (scope *apiScope) String() string {
@@ -240,7 +235,7 @@ var (
 			return &module.sdkLibraryProperties.System
 		},
 		apiFilePrefix:  "system-",
-		moduleSuffix:   sdkSystemApiSuffix,
+		moduleSuffix:   ".system",
 		sdkVersion:     "system_current",
 		droidstubsArgs: []string{"-showAnnotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS\\)"},
 	})
@@ -252,7 +247,7 @@ var (
 			return &module.sdkLibraryProperties.Test
 		},
 		apiFilePrefix:  "test-",
-		moduleSuffix:   sdkTestApiSuffix,
+		moduleSuffix:   ".test",
 		sdkVersion:     "test_current",
 		droidstubsArgs: []string{"-showAnnotation android.annotation.TestApi"},
 		unstable:       true,
