@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -122,9 +123,10 @@ func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {
 		ctx.VisitAllModules(func(m blueprint.Module) {
 			allModuleNames = append(allModuleNames, m.(Module).Name()+"("+ctx.ModuleSubDir(m)+")")
 		})
+		sort.Strings(allModuleNames)
 
-		panic(fmt.Errorf("failed to find module %q variant %q."+
-			"\nall modules: %v", name, variant, allModuleNames))
+		panic(fmt.Errorf("failed to find module %q variant %q. All modules:\n  %s",
+			name, variant, strings.Join(allModuleNames, "\n  ")))
 	}
 
 	return TestingModule{module}
