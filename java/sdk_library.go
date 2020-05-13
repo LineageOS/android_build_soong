@@ -567,7 +567,7 @@ func (module *SdkLibrary) apiDistPath(apiScope *apiScope) string {
 }
 
 // Get the sdk version for use when compiling the stubs library.
-func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.DefaultableHookContext, apiScope *apiScope) string {
+func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.EarlyModuleContext, apiScope *apiScope) string {
 	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
 	if sdkDep.hasStandardLibs() {
 		// If building against a standard sdk then use the sdk version appropriate for the scope.
@@ -1443,7 +1443,7 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 		if len(jars) > 0 {
 			properties := scopeProperties{}
 			properties.Jars = jars
-			properties.SdkVersion = apiScope.sdkVersion
+			properties.SdkVersion = sdk.sdkVersionForStubsLibrary(ctx.SdkModuleContext(), apiScope)
 			properties.StubsSrcJar = paths.stubsSrcJar
 			properties.CurrentApiFile = paths.currentApiFilePath
 			properties.RemovedApiFile = paths.removedApiFilePath
