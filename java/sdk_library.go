@@ -191,7 +191,7 @@ func initApiScope(scope *apiScope) *apiScope {
 	return scope
 }
 
-func (scope *apiScope) stubsModuleName(baseName string) string {
+func (scope *apiScope) stubsLibraryModuleName(baseName string) string {
 	return baseName + sdkStubsLibrarySuffix + scope.moduleSuffix
 }
 
@@ -479,7 +479,30 @@ type commonToSdkLibraryAndImportProperties struct {
 
 // Common code between sdk library and sdk library import
 type commonToSdkLibraryAndImport struct {
+	moduleBase *android.ModuleBase
+
 	scopePaths map[*apiScope]*scopePaths
+}
+
+func (c *commonToSdkLibraryAndImport) initCommon(moduleBase *android.ModuleBase) {
+	c.moduleBase = moduleBase
+}
+
+// Name of the java_library module that compiles the stubs source.
+func (c *commonToSdkLibraryAndImport) stubsLibraryModuleName(apiScope *apiScope) string {
+	return apiScope.stubsLibraryModuleName(c.moduleBase.BaseModuleName())
+}
+
+// Name of the droidstubs module that generates the stubs source and may also
+// generate/check the API.
+func (c *commonToSdkLibraryAndImport) stubsSourceModuleName(apiScope *apiScope) string {
+	return apiScope.stubsSourceModuleName(c.moduleBase.BaseModuleName())
+}
+
+// Name of the droidstubs module that generates/checks the API. Only used if it
+// requires different arts to the stubs source generating module.
+func (c *commonToSdkLibraryAndImport) apiModuleName(apiScope *apiScope) string {
+	return apiScope.apiModuleName(c.moduleBase.BaseModuleName())
 }
 
 func (c *commonToSdkLibraryAndImport) getScopePaths(scope *apiScope) *scopePaths {
@@ -573,17 +596,17 @@ func IsXmlPermissionsFileDepTag(depTag blueprint.DependencyTag) bool {
 func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, apiScope := range module.getGeneratedApiScopes(ctx) {
 		// Add dependencies to the stubs library
-		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsName(apiScope))
+		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsLibraryModuleName(apiScope))
 
 		// If the stubs source and API cannot be generated together then add an additional dependency on
 		// the API module.
 		if apiScope.createStubsSourceAndApiTogether {
 			// Add a dependency on the stubs source in order to access both stubs source and api information.
-			ctx.AddVariationDependencies(nil, apiScope.stubsSourceAndApiTag, module.stubsSourceName(apiScope))
+			ctx.AddVariationDependencies(nil, apiScope.stubsSourceAndApiTag, module.stubsSourceModuleName(apiScope))
 		} else {
 			// Add separate dependencies on the creators of the stubs source files and the API.
-			ctx.AddVariationDependencies(nil, apiScope.stubsSourceTag, module.stubsSourceName(apiScope))
-			ctx.AddVariationDependencies(nil, apiScope.apiFileTag, module.apiName(apiScope))
+			ctx.AddVariationDependencies(nil, apiScope.stubsSourceTag, module.stubsSourceModuleName(apiScope))
+			ctx.AddVariationDependencies(nil, apiScope.apiFileTag, module.apiModuleName(apiScope))
 		}
 	}
 
@@ -627,23 +650,6 @@ func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 	entries := &entriesList[0]
 	entries.Required = append(entries.Required, module.xmlFileName())
 	return entriesList
-}
-
-// Name of the java_library module that compiles the stubs source.
-func (module *SdkLibrary) stubsName(apiScope *apiScope) string {
-	return apiScope.stubsModuleName(module.BaseModuleName())
-}
-
-// Name of the droidstubs module that generates the stubs source and may also
-// generate/check the API.
-func (module *SdkLibrary) stubsSourceName(apiScope *apiScope) string {
-	return apiScope.stubsSourceModuleName(module.BaseModuleName())
-}
-
-// Name of the droidstubs module that generates/checks the API. Only used if it
-// requires different arts to the stubs source generating module.
-func (module *SdkLibrary) apiName(apiScope *apiScope) string {
-	return apiScope.apiModuleName(module.BaseModuleName())
 }
 
 // Module name of the runtime implementation library
@@ -721,7 +727,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 		}
 	}{}
 
-	props.Name = proptools.StringPtr(module.stubsName(apiScope))
+	props.Name = proptools.StringPtr(module.stubsLibraryModuleName(apiScope))
 
 	// If stubs_library_visibility is not set then the created module will use the
 	// visibility of this module.
@@ -729,7 +735,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	props.Visibility = visibility
 
 	// sources are generated from the droiddoc
-	props.Srcs = []string{":" + module.stubsSourceName(apiScope)}
+	props.Srcs = []string{":" + module.stubsSourceModuleName(apiScope)}
 	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
 	props.Sdk_version = proptools.StringPtr(sdkVersion)
 	props.System_modules = module.Library.Module.deviceProperties.System_modules
@@ -1099,7 +1105,7 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 
 	for _, scope := range generatedScopes {
 		stubsSourceArgs := scope.droidstubsArgsForGeneratingStubsSource
-		stubsSourceModuleName := module.stubsSourceName(scope)
+		stubsSourceModuleName := module.stubsSourceModuleName(scope)
 
 		// If the args needed to generate the stubs and API are the same then they
 		// can be generated in a single invocation of metalava, otherwise they will
@@ -1111,7 +1117,7 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 			module.createStubsSourcesAndApi(mctx, scope, stubsSourceModuleName, true, false, stubsSourceArgs)
 
 			apiArgs := scope.droidstubsArgsForGeneratingApi
-			apiName := module.apiName(scope)
+			apiName := module.apiModuleName(scope)
 			module.createStubsSourcesAndApi(mctx, scope, apiName, false, true, apiArgs)
 		}
 
@@ -1150,6 +1156,10 @@ func (module *SdkLibrary) InitSdkLibraryProperties() {
 // the runtime lib to the classpath at runtime if requested via <uses-library>.
 func SdkLibraryFactory() android.Module {
 	module := &SdkLibrary{}
+
+	// Initialize information common between source and prebuilt.
+	module.initCommon(&module.ModuleBase)
+
 	module.InitSdkLibraryProperties()
 	android.InitApexModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
@@ -1261,6 +1271,9 @@ func sdkLibraryImportFactory() android.Module {
 	module.scopeProperties = scopeToProperties
 	module.AddProperties(&module.properties, allScopeProperties)
 
+	// Initialize information common between source and prebuilt.
+	module.initCommon(&module.ModuleBase)
+
 	android.InitPrebuiltModule(module, &[]string{""})
 	android.InitApexModule(module)
 	android.InitSdkAwareModule(module)
@@ -1314,7 +1327,7 @@ func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.Defaultabl
 		Jars                []string
 		Prefer              *bool
 	}{}
-	props.Name = proptools.StringPtr(apiScope.stubsModuleName(module.BaseModuleName()))
+	props.Name = proptools.StringPtr(module.stubsLibraryModuleName(apiScope))
 	props.Sdk_version = scopeProperties.Sdk_version
 	// Prepend any of the libs from the legacy public properties to the libs for each of the
 	// scopes to avoid having to duplicate them in each scope.
@@ -1342,7 +1355,7 @@ func (module *sdkLibraryImport) createPrebuiltStubsSources(mctx android.Defaulta
 		Name *string
 		Srcs []string
 	}{}
-	props.Name = proptools.StringPtr(apiScope.stubsSourceModuleName(module.BaseModuleName()))
+	props.Name = proptools.StringPtr(module.stubsSourceModuleName(apiScope))
 	props.Srcs = scopeProperties.Stub_srcs
 	mctx.CreateModule(PrebuiltStubsSourcesFactory, &props)
 }
@@ -1354,7 +1367,7 @@ func (module *sdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) 
 		}
 
 		// Add dependencies to the prebuilt stubs library
-		ctx.AddVariationDependencies(nil, apiScope.stubsTag, apiScope.stubsModuleName(module.BaseModuleName()))
+		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsLibraryModuleName(apiScope))
 	}
 }
 
