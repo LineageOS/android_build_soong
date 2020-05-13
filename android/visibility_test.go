@@ -636,6 +636,177 @@ var visibilityTests = []struct {
 		},
 	},
 	{
+		name: "//visibility:private override //visibility:public",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//visibility:public"],
+				}
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:private"],
+					defaults: ["libexample_defaults"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "libexample": visibility: cannot mix "//visibility:private" with any other visibility rules`,
+		},
+	},
+	{
+		name: "//visibility:public override //visibility:private",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//visibility:private"],
+				}
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:public"],
+					defaults: ["libexample_defaults"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "libexample": visibility: cannot mix "//visibility:private" with any other visibility rules`,
+		},
+	},
+	{
+		name: "//visibility:override must be first in the list",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				mock_library {
+					name: "libexample",
+					visibility: ["//other", "//visibility:override", "//namespace"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "libexample": visibility: "//visibility:override" may only be used at the start of the visibility rules`,
+		},
+	},
+	{
+		name: "//visibility:override discards //visibility:private",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//visibility:private"],
+				}
+				mock_library {
+					name: "libexample",
+					// Make this visibility to //other but not //visibility:private
+					visibility: ["//visibility:override", "//other"],
+					defaults: ["libexample_defaults"],
+				}`),
+			"other/Blueprints": []byte(`
+				mock_library {
+					name: "libother",
+					deps: ["libexample"],
+				}`),
+		},
+	},
+	{
+		name: "//visibility:override discards //visibility:public",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//visibility:public"],
+				}
+				mock_library {
+					name: "libexample",
+					// Make this visibility to //other but not //visibility:public
+					visibility: ["//visibility:override", "//other"],
+					defaults: ["libexample_defaults"],
+				}`),
+			"other/Blueprints": []byte(`
+				mock_library {
+					name: "libother",
+					deps: ["libexample"],
+				}`),
+			"namespace/Blueprints": []byte(`
+				mock_library {
+					name: "libnamespace",
+					deps: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "libnamespace" variant "android_common": depends on //top:libexample which is not visible to this module`,
+		},
+	},
+	{
+		name: "//visibility:override discards defaults supplied rules",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//namespace"],
+				}
+				mock_library {
+					name: "libexample",
+					// Make this visibility to //other but not //namespace
+					visibility: ["//visibility:override", "//other"],
+					defaults: ["libexample_defaults"],
+				}`),
+			"other/Blueprints": []byte(`
+				mock_library {
+					name: "libother",
+					deps: ["libexample"],
+				}`),
+			"namespace/Blueprints": []byte(`
+				mock_library {
+					name: "libnamespace",
+					deps: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "libnamespace" variant "android_common": depends on //top:libexample which is not visible to this module`,
+		},
+	},
+	{
+		name: "//visibility:override can override //visibility:public with //visibility:private",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//visibility:public"],
+				}
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:override", "//visibility:private"],
+					defaults: ["libexample_defaults"],
+				}`),
+			"namespace/Blueprints": []byte(`
+				mock_library {
+					name: "libnamespace",
+					deps: ["libexample"],
+				}`),
+		},
+		expectedErrors: []string{
+			`module "libnamespace" variant "android_common": depends on //top:libexample which is not visible to this module`,
+		},
+	},
+	{
+		name: "//visibility:override can override //visibility:private with //visibility:public",
+		fs: map[string][]byte{
+			"top/Blueprints": []byte(`
+				mock_defaults {
+					name: "libexample_defaults",
+					visibility: ["//visibility:private"],
+				}
+				mock_library {
+					name: "libexample",
+					visibility: ["//visibility:override", "//visibility:public"],
+					defaults: ["libexample_defaults"],
+				}`),
+			"namespace/Blueprints": []byte(`
+				mock_library {
+					name: "libnamespace",
+					deps: ["libexample"],
+				}`),
+		},
+	},
+	{
 		name: "//visibility:private mixed with itself",
 		fs: map[string][]byte{
 			"top/Blueprints": []byte(`
