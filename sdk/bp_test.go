@@ -57,7 +57,7 @@ func TestTransformRemoveProperty(t *testing.T) {
 
 	contents := &generatedContents{}
 	outputPropertySet(contents, set)
-	helper.AssertTrimmedStringEquals("removing property failed", "name: \"name\",\\n", contents.content.String())
+	helper.AssertTrimmedStringEquals("removing property failed", "name: \"name\",\n", contents.content.String())
 }
 
 func TestTransformRemovePropertySet(t *testing.T) {
@@ -72,5 +72,5 @@ func TestTransformRemovePropertySet(t *testing.T) {
 
 	contents := &generatedContents{}
 	outputPropertySet(contents, set)
-	helper.AssertTrimmedStringEquals("removing property set failed", "name: \"name\",\\n", contents.content.String())
+	helper.AssertTrimmedStringEquals("removing property set failed", "name: \"name\",\n", contents.content.String())
 }
