@@ -289,6 +289,9 @@ Each rule in the property must be in one of the following forms:
 * `["//visibility:public"]`: Anyone can use this module.
 * `["//visibility:private"]`: Only rules in the module's package (not its
 subpackages) can use this module.
+* `["//visibility:override"]`: Discards any rules inherited from defaults or a
+creating module. Can only be used at the beginning of a list of visibility
+rules.
 * `["//some/package:__pkg__", "//other/package:__pkg__"]`: Only modules in
 `some/package` and `other/package` (defined in `some/package/*.bp` and
 `other/package/*.bp`) have access to this module. Note that sub-packages do not
