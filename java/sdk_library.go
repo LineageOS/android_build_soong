@@ -474,6 +474,15 @@ func (paths *scopePaths) extractStubsSourceAndApiInfoFromApiStubsProvider(dep an
 }
 
 type commonToSdkLibraryAndImportProperties struct {
+	// The naming scheme to use for the components that this module creates.
+	//
+	// If not specified then it defaults to "default", which is currently the only
+	// allowable value.
+	//
+	// This is a temporary mechanism to simplify conversion from separate modules for each
+	// component that follow a different naming pattern to the default one.
+	//
+	// TODO(b/155480189) - Remove once naming inconsistencies have been resolved.
 	Naming_scheme *string
 }
 
@@ -482,27 +491,46 @@ type commonToSdkLibraryAndImport struct {
 	moduleBase *android.ModuleBase
 
 	scopePaths map[*apiScope]*scopePaths
+
+	namingScheme sdkLibraryComponentNamingScheme
+
+	commonProperties commonToSdkLibraryAndImportProperties
 }
 
 func (c *commonToSdkLibraryAndImport) initCommon(moduleBase *android.ModuleBase) {
 	c.moduleBase = moduleBase
+
+	moduleBase.AddProperties(&c.commonProperties)
+}
+
+func (c *commonToSdkLibraryAndImport) initCommonAfterDefaultsApplied(ctx android.DefaultableHookContext) bool {
+	schemeProperty := proptools.StringDefault(c.commonProperties.Naming_scheme, "default")
+	switch schemeProperty {
+	case "default":
+		c.namingScheme = &defaultNamingScheme{}
+	default:
+		ctx.PropertyErrorf("naming_scheme", "expected 'default' but was %q", schemeProperty)
+		return false
+	}
+
+	return true
 }
 
 // Name of the java_library module that compiles the stubs source.
 func (c *commonToSdkLibraryAndImport) stubsLibraryModuleName(apiScope *apiScope) string {
-	return apiScope.stubsLibraryModuleName(c.moduleBase.BaseModuleName())
+	return c.namingScheme.stubsLibraryModuleName(apiScope, c.moduleBase.BaseModuleName())
 }
 
 // Name of the droidstubs module that generates the stubs source and may also
 // generate/check the API.
 func (c *commonToSdkLibraryAndImport) stubsSourceModuleName(apiScope *apiScope) string {
-	return apiScope.stubsSourceModuleName(c.moduleBase.BaseModuleName())
+	return c.namingScheme.stubsSourceModuleName(apiScope, c.moduleBase.BaseModuleName())
 }
 
 // Name of the droidstubs module that generates/checks the API. Only used if it
 // requires different arts to the stubs source generating module.
 func (c *commonToSdkLibraryAndImport) apiModuleName(apiScope *apiScope) string {
-	return apiScope.apiModuleName(c.moduleBase.BaseModuleName())
+	return c.namingScheme.apiModuleName(apiScope, c.moduleBase.BaseModuleName())
 }
 
 func (c *commonToSdkLibraryAndImport) getScopePaths(scope *apiScope) *scopePaths {
@@ -1149,6 +1177,32 @@ func (module *SdkLibrary) InitSdkLibraryProperties() {
 	module.Library.Module.deviceProperties.IsSDKLibrary = true
 }
 
+// Defines how to name the individual component modules the sdk library creates.
+type sdkLibraryComponentNamingScheme interface {
+	stubsLibraryModuleName(scope *apiScope, baseName string) string
+
+	stubsSourceModuleName(scope *apiScope, baseName string) string
+
+	apiModuleName(scope *apiScope, baseName string) string
+}
+
+type defaultNamingScheme struct {
+}
+
+func (s *defaultNamingScheme) stubsLibraryModuleName(scope *apiScope, baseName string) string {
+	return scope.stubsLibraryModuleName(baseName)
+}
+
+func (s *defaultNamingScheme) stubsSourceModuleName(scope *apiScope, baseName string) string {
+	return scope.stubsSourceModuleName(baseName)
+}
+
+func (s *defaultNamingScheme) apiModuleName(scope *apiScope, baseName string) string {
+	return scope.apiModuleName(baseName)
+}
+
+var _ sdkLibraryComponentNamingScheme = (*defaultNamingScheme)(nil)
+
 // java_sdk_library is a special Java library that provides optional platform APIs to apps.
 // In practice, it can be viewed as a combination of several modules: 1) stubs library that clients
 // are linked against to, 2) droiddoc module that internally generates API stubs source files,
@@ -1175,7 +1229,11 @@ func SdkLibraryFactory() android.Module {
 	android.AddVisibilityProperty(module, "stubs_library_visibility", &module.sdkLibraryProperties.Stubs_library_visibility)
 	android.AddVisibilityProperty(module, "stubs_source_visibility", &module.sdkLibraryProperties.Stubs_source_visibility)
 
-	module.SetDefaultableHook(func(ctx android.DefaultableHookContext) { module.CreateInternalModules(ctx) })
+	module.SetDefaultableHook(func(ctx android.DefaultableHookContext) {
+		if module.initCommonAfterDefaultsApplied(ctx) {
+			module.CreateInternalModules(ctx)
+		}
+	})
 	return module
 }
 
@@ -1279,7 +1337,11 @@ func sdkLibraryImportFactory() android.Module {
 	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
-	module.SetDefaultableHook(func(mctx android.DefaultableHookContext) { module.createInternalModules(mctx) })
+	module.SetDefaultableHook(func(mctx android.DefaultableHookContext) {
+		if module.initCommonAfterDefaultsApplied(mctx) {
+			module.createInternalModules(mctx)
+		}
+	})
 	return module
 }
 
