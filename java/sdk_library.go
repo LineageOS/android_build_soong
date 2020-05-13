@@ -320,6 +320,22 @@ type ApiScopeProperties struct {
 	// Otherwise, if this is not set for any scope then the default  behavior is
 	// scope specific so please refer to the scope specific property documentation.
 	Enabled *bool
+
+	// The sdk_version to use for building the stubs.
+	//
+	// If not specified then it will use an sdk_version determined as follows:
+	// 1) If the sdk_version specified on the java_sdk_library is none then this
+	//    will be none. This is used for java_sdk_library instances that are used
+	//    to create stubs that contribute to the core_current sdk version.
+	// 2) Otherwise, it is assumed that this library extends but does not contribute
+	//    directly to a specific sdk_version and so this uses the sdk_version appropriate
+	//    for the api scope. e.g. public will use sdk_version: current, system will use
+	//    sdk_version: system_current, etc.
+	//
+	// This does not affect the sdk_version used for either generating the stubs source
+	// or the API file. They both have to use the same sdk_version as is used for
+	// compiling the implementation library.
+	Sdk_version *string
 }
 
 type sdkLibraryProperties struct {
@@ -701,6 +717,11 @@ func (module *SdkLibrary) apiDistPath(apiScope *apiScope) string {
 
 // Get the sdk version for use when compiling the stubs library.
 func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.EarlyModuleContext, apiScope *apiScope) string {
+	scopeProperties := module.scopeToProperties[apiScope]
+	if scopeProperties.Sdk_version != nil {
+		return proptools.String(scopeProperties.Sdk_version)
+	}
+
 	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
 	if sdkDep.hasStandardLibs() {
 		// If building against a standard sdk then use the sdk version appropriate for the scope.
