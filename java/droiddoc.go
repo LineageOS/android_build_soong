@@ -221,8 +221,22 @@ type DroidstubsProperties struct {
 
 		Current ApiToCheck
 
-		// do not perform API check against Last_released, in the case that both two specified API
-		// files by Last_released are modules which don't exist.
+		// The java_sdk_library module generates references to modules (i.e. filegroups)
+		// from which information about the latest API version can be obtained. As those
+		// modules may not exist (e.g. because a previous version has not been released) it
+		// sets ignore_missing_latest_api=true on the droidstubs modules it creates so
+		// that droidstubs can ignore those references if the modules do not yet exist.
+		//
+		// If true then this will ignore module references for modules that do not exist
+		// in properties that supply the previous version of the API.
+		//
+		// There are two sets of those:
+		// * Api_file, Removed_api_file in check_api.last_released
+		// * New_since in check_api.api_lint.new_since
+		//
+		// The first two must be set as a pair, so either they should both exist or neither
+		// should exist - in which case when this property is true they are ignored. If one
+		// exists and the other does not then it is an error.
 		Ignore_missing_latest_api *bool `blueprint:"mutated"`
 
 		Api_lint struct {
@@ -1199,8 +1213,18 @@ func (d *Droidstubs) StubsSrcJar() android.Path {
 func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	d.Javadoc.addDeps(ctx)
 
+	// If requested clear any properties that provide information about the latest version
+	// of an API and which reference non-existent modules.
 	if Bool(d.properties.Check_api.Ignore_missing_latest_api) {
 		ignoreMissingModules(ctx, &d.properties.Check_api.Last_released)
+
+		// If the new_since references a module, e.g. :module-latest-api and the module
+		// does not exist then clear it.
+		newSinceSrc := d.properties.Check_api.Api_lint.New_since
+		newSinceSrcModule := android.SrcIsModule(proptools.String(newSinceSrc))
+		if newSinceSrcModule != "" && !ctx.OtherModuleExists(newSinceSrcModule) {
+			d.properties.Check_api.Api_lint.New_since = nil
+		}
 	}
 
 	if len(d.properties.Merge_annotations_dirs) != 0 {
