@@ -258,7 +258,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"libtextclassifier_hash_static",
 		"libtflite_static",
 		"libutf",
-		"libz_current",
 		"tensorflow_headers",
 	}
 	//
