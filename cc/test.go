@@ -160,6 +160,10 @@ func (test *testBinary) srcs() []string {
 	return test.baseCompiler.Properties.Srcs
 }
 
+func (test *testBinary) dataPaths() android.Paths {
+	return test.data
+}
+
 func (test *testBinary) isAllTestsVariation() bool {
 	stem := test.binaryDecorator.Properties.Stem
 	return stem != nil && *stem == ""
