@@ -1448,22 +1448,23 @@ func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.Defaultabl
 	} else if module.SystemExtSpecific() {
 		props.System_ext_specific = proptools.BoolPtr(true)
 	}
-	// If the build should use prebuilt sdks then set prefer to true on the stubs library.
-	// That will cause the prebuilt version of the stubs to override the source version.
-	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
-		props.Prefer = proptools.BoolPtr(true)
-	}
+	// The imports are preferred if the java_sdk_library_import is preferred.
+	props.Prefer = proptools.BoolPtr(module.prebuilt.Prefer())
 	mctx.CreateModule(ImportFactory, &props)
 }
 
 func (module *sdkLibraryImport) createPrebuiltStubsSources(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
 	props := struct {
-		Name *string
-		Srcs []string
+		Name   *string
+		Srcs   []string
+		Prefer *bool
 	}{}
 	props.Name = proptools.StringPtr(module.stubsSourceModuleName(apiScope))
 	props.Srcs = scopeProperties.Stub_srcs
 	mctx.CreateModule(PrebuiltStubsSourcesFactory, &props)
+
+	// The stubs source is preferred if the java_sdk_library_import is preferred.
+	props.Prefer = proptools.BoolPtr(module.prebuilt.Prefer())
 }
 
 func (module *sdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) {
