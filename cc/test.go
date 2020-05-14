@@ -90,6 +90,10 @@ type TestBinaryProperties struct {
 	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
 	// explicitly.
 	Auto_gen_config *bool
+
+	// Add parameterized mainline modules to auto generated test config. The options will be
+	// handled by TradeFed to download and install the specified modules on the device.
+	Test_mainline_modules []string
 }
 
 func init() {
@@ -329,24 +333,25 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	var api_level_prop string
 	var configs []tradefed.Config
 	var min_level string
+	for _, module := range test.Properties.Test_mainline_modules {
+		configs = append(configs, tradefed.Option{Name: "config-descriptor:metadata", Key: "mainline-param", Value: module})
+	}
 	if Bool(test.Properties.Require_root) {
 		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", nil})
 	} else {
 		var options []tradefed.Option
-		options = append(options, tradefed.Option{"force-root", "false"})
+		options = append(options, tradefed.Option{Name: "force-root", Value: "false"})
 		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", options})
 	}
 	if Bool(test.Properties.Disable_framework) {
 		var options []tradefed.Option
-		options = append(options, tradefed.Option{"run-command", "stop"})
-		options = append(options, tradefed.Option{"teardown-command", "start"})
-		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RunCommandTargetPreparer", options})
+		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.StopServicesSetup", options})
 	}
 	if Bool(test.testDecorator.Properties.Isolated) {
-		configs = append(configs, tradefed.Option{"not-shardable", "true"})
+		configs = append(configs, tradefed.Option{Name: "not-shardable", Value: "true"})
 	}
 	if test.Properties.Test_options.Run_test_as != nil {
-		configs = append(configs, tradefed.Option{"run-test-as", String(test.Properties.Test_options.Run_test_as)})
+		configs = append(configs, tradefed.Option{Name: "run-test-as", Value: String(test.Properties.Test_options.Run_test_as)})
 	}
 	if test.Properties.Test_min_api_level != nil && test.Properties.Test_min_sdk_version != nil {
 		ctx.PropertyErrorf("test_min_api_level", "'test_min_api_level' and 'test_min_sdk_version' should not be set at the same time.")
@@ -359,8 +364,8 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	}
 	if api_level_prop != "" {
 		var options []tradefed.Option
-		options = append(options, tradefed.Option{"min-api-level", min_level})
-		options = append(options, tradefed.Option{"api-level-prop", api_level_prop})
+		options = append(options, tradefed.Option{Name: "min-api-level", Value: min_level})
+		options = append(options, tradefed.Option{Name: "api-level-prop", Value: api_level_prop})
 		configs = append(configs, tradefed.Object{"module_controller", "com.android.tradefed.testtype.suite.module.MinApiLevelModuleController", options})
 	}
 
