@@ -149,7 +149,7 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{entries}
 }
 
-func androidMkWriteTestData(data android.Paths, ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+func AndroidMkDataPaths(data android.Paths) []string {
 	var testFiles []string
 	for _, d := range data {
 		rel := d.Rel()
@@ -160,6 +160,11 @@ func androidMkWriteTestData(data android.Paths, ctx AndroidMkContext, entries *a
 		path = strings.TrimSuffix(path, rel)
 		testFiles = append(testFiles, path+":"+rel)
 	}
+	return testFiles
+}
+
+func androidMkWriteTestData(data android.Paths, ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+	testFiles := AndroidMkDataPaths(data)
 	if len(testFiles) > 0 {
 		entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 			entries.AddStrings("LOCAL_TEST_DATA", testFiles...)
