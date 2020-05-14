@@ -1668,6 +1668,9 @@ type sdkLibrarySdkMemberProperties struct {
 
 	// The Java stubs source files.
 	Stub_srcs []string
+
+	// The naming scheme.
+	Naming_scheme *string
 }
 
 type scopeProperties struct {
@@ -1697,9 +1700,14 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 	}
 
 	s.Libs = sdk.properties.Libs
+	s.Naming_scheme = sdk.commonProperties.Naming_scheme
 }
 
 func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+	if s.Naming_scheme != nil {
+		propertySet.AddProperty("naming_scheme", proptools.String(s.Naming_scheme))
+	}
+
 	for _, apiScope := range allApiScopes {
 		if properties, ok := s.Scopes[apiScope]; ok {
 			scopeSet := propertySet.AddPropertySet(apiScope.name)
