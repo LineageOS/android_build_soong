@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"regexp"
 	"strings"
@@ -32,9 +33,10 @@ import (
 )
 
 type TargetConfig struct {
-	sdkVersion       int32
-	screenDpi        map[android_bundle_proto.ScreenDensity_DensityAlias]bool
-	abis             map[android_bundle_proto.Abi_AbiAlias]bool
+	sdkVersion int32
+	screenDpi  map[android_bundle_proto.ScreenDensity_DensityAlias]bool
+	// Map holding <ABI alias>:<its sequence number in the flag> info.
+	abis             map[android_bundle_proto.Abi_AbiAlias]int
 	allowPrereleased bool
 	stem             string
 }
@@ -88,6 +90,7 @@ func (apkSet *ApkSet) close() {
 }
 
 // Matchers for selection criteria
+
 type abiTargetingMatcher struct {
 	*android_bundle_proto.AbiTargeting
 }
@@ -99,12 +102,28 @@ func (m abiTargetingMatcher) matches(config TargetConfig) bool {
 	if _, ok := config.abis[android_bundle_proto.Abi_UNSPECIFIED_CPU_ARCHITECTURE]; ok {
 		return true
 	}
+	// Find the one that appears first in the abis flags.
+	abiIdx := math.MaxInt32
 	for _, v := range m.GetValue() {
-		if _, ok := config.abis[v.Alias]; ok {
-			return true
+		if i, ok := config.abis[v.Alias]; ok {
+			if i < abiIdx {
+				abiIdx = i
+			}
 		}
 	}
-	return false
+	if abiIdx == math.MaxInt32 {
+		return false
+	}
+	// See if any alternatives appear before the above one.
+	for _, a := range m.GetAlternatives() {
+		if i, ok := config.abis[a.Alias]; ok {
+			if i < abiIdx {
+				// There is a better alternative. Skip this one.
+				return false
+			}
+		}
+	}
+	return true
 }
 
 type apkDescriptionMatcher struct {
@@ -161,16 +180,55 @@ func (m moduleTargetingMatcher) matches(config TargetConfig) bool {
 			userCountriesTargetingMatcher{m.UserCountriesTargeting}.matches(config))
 }
 
+// A higher number means a higher priority.
+// This order must be kept identical to bundletool's.
+var multiAbiPriorities = map[android_bundle_proto.Abi_AbiAlias]int{
+	android_bundle_proto.Abi_ARMEABI:     1,
+	android_bundle_proto.Abi_ARMEABI_V7A: 2,
+	android_bundle_proto.Abi_ARM64_V8A:   3,
+	android_bundle_proto.Abi_X86:         4,
+	android_bundle_proto.Abi_X86_64:      5,
+	android_bundle_proto.Abi_MIPS:        6,
+	android_bundle_proto.Abi_MIPS64:      7,
+}
+
 type multiAbiTargetingMatcher struct {
 	*android_bundle_proto.MultiAbiTargeting
 }
 
-func (t multiAbiTargetingMatcher) matches(_ TargetConfig) bool {
+func (t multiAbiTargetingMatcher) matches(config TargetConfig) bool {
 	if t.MultiAbiTargeting == nil {
 		return true
 	}
-	log.Fatal("multiABI based selection is not implemented")
-	return false
+	if _, ok := config.abis[android_bundle_proto.Abi_UNSPECIFIED_CPU_ARCHITECTURE]; ok {
+		return true
+	}
+	// Find the one with the highest priority.
+	highestPriority := 0
+	for _, v := range t.GetValue() {
+		for _, a := range v.GetAbi() {
+			if _, ok := config.abis[a.Alias]; ok {
+				if highestPriority < multiAbiPriorities[a.Alias] {
+					highestPriority = multiAbiPriorities[a.Alias]
+				}
+			}
+		}
+	}
+	if highestPriority == 0 {
+		return false
+	}
+	// See if there are any matching alternatives with a higher priority.
+	for _, v := range t.GetAlternatives() {
+		for _, a := range v.GetAbi() {
+			if _, ok := config.abis[a.Alias]; ok {
+				if highestPriority < multiAbiPriorities[a.Alias] {
+					// There's a better one. Skip this one.
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 type screenDensityTargetingMatcher struct {
@@ -349,13 +407,28 @@ func (apkSet *ApkSet) writeApks(selected SelectionResult, config TargetConfig,
 	return nil
 }
 
+func (apkSet *ApkSet) extractAndCopySingle(selected SelectionResult, outFile *os.File) error {
+	if len(selected.entries) != 1 {
+		return fmt.Errorf("Too many matching entries for extract-single:\n%v", selected.entries)
+	}
+	apk, ok := apkSet.entries[selected.entries[0]]
+	if !ok {
+		return fmt.Errorf("Couldn't find apk path %s", selected.entries[0])
+	}
+	inputReader, _ := apk.Open()
+	_, err := io.Copy(outFile, inputReader)
+	return err
+}
+
 // Arguments parsing
 var (
-	outputZip    = flag.String("o", "", "output zip containing extracted entries")
+	outputFile   = flag.String("o", "", "output file containing extracted entries")
 	targetConfig = TargetConfig{
 		screenDpi: map[android_bundle_proto.ScreenDensity_DensityAlias]bool{},
-		abis:      map[android_bundle_proto.Abi_AbiAlias]bool{},
+		abis:      map[android_bundle_proto.Abi_AbiAlias]int{},
 	}
+	extractSingle = flag.Bool("extract-single", false,
+		"extract a single target and output it uncompressed. only available for standalone apks and apexes.")
 )
 
 // Parse abi values
@@ -368,19 +441,12 @@ func (a abiFlagValue) String() string {
 }
 
 func (a abiFlagValue) Set(abiList string) error {
-	if abiList == "none" {
-		return nil
-	}
-	if abiList == "all" {
-		targetConfig.abis[android_bundle_proto.Abi_UNSPECIFIED_CPU_ARCHITECTURE] = true
-		return nil
-	}
-	for _, abi := range strings.Split(abiList, ",") {
+	for i, abi := range strings.Split(abiList, ",") {
 		v, ok := android_bundle_proto.Abi_AbiAlias_value[abi]
 		if !ok {
 			return fmt.Errorf("bad ABI value: %q", abi)
 		}
-		targetConfig.abis[android_bundle_proto.Abi_AbiAlias(v)] = true
+		targetConfig.abis[android_bundle_proto.Abi_AbiAlias(v)] = i
 	}
 	return nil
 }
@@ -414,20 +480,21 @@ func (s screenDensityFlagValue) Set(densityList string) error {
 
 func processArgs() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, `usage: extract_apks -o <output-zip> -sdk-version value -abis value -screen-densities value  <APK set>`)
+		fmt.Fprintln(os.Stderr, `usage: extract_apks -o <output-file> -sdk-version value -abis value `+
+			`-screen-densities value {-stem value | -extract-single} [-allow-prereleased] <APK set>`)
 		flag.PrintDefaults()
 		os.Exit(2)
 	}
 	version := flag.Uint("sdk-version", 0, "SDK version")
 	flag.Var(abiFlagValue{&targetConfig}, "abis",
-		"'all' or comma-separated ABIs list of ARMEABI ARMEABI_V7A ARM64_V8A X86 X86_64 MIPS MIPS64")
+		"comma-separated ABIs list of ARMEABI ARMEABI_V7A ARM64_V8A X86 X86_64 MIPS MIPS64")
 	flag.Var(screenDensityFlagValue{&targetConfig}, "screen-densities",
 		"'all' or comma-separated list of screen density names (NODPI LDPI MDPI TVDPI HDPI XHDPI XXHDPI XXXHDPI)")
 	flag.BoolVar(&targetConfig.allowPrereleased, "allow-prereleased", false,
 		"allow prereleased")
-	flag.StringVar(&targetConfig.stem, "stem", "", "output entries base name")
+	flag.StringVar(&targetConfig.stem, "stem", "", "output entries base name in the output zip file")
 	flag.Parse()
-	if (*outputZip == "") || len(flag.Args()) != 1 || *version == 0 || targetConfig.stem == "" {
+	if (*outputFile == "") || len(flag.Args()) != 1 || *version == 0 || (targetConfig.stem == "" && !*extractSingle) {
 		flag.Usage()
 	}
 	targetConfig.sdkVersion = int32(*version)
@@ -450,18 +517,24 @@ func main() {
 		log.Fatalf("there are no entries for the target configuration: %#v", targetConfig)
 	}
 
-	outFile, err := os.Create(*outputZip)
+	outFile, err := os.Create(*outputFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer outFile.Close()
-	writer := zip.NewWriter(outFile)
-	defer func() {
-		if err := writer.Close(); err != nil {
-			log.Fatal(err)
-		}
-	}()
-	if err = apkSet.writeApks(sel, targetConfig, writer); err != nil {
+
+	if *extractSingle {
+		err = apkSet.extractAndCopySingle(sel, outFile)
+	} else {
+		writer := zip.NewWriter(outFile)
+		defer func() {
+			if err := writer.Close(); err != nil {
+				log.Fatal(err)
+			}
+		}()
+		err = apkSet.writeApks(sel, targetConfig, writer)
+	}
+	if err != nil {
 		log.Fatal(err)
 	}
 }
