@@ -1177,12 +1177,12 @@ func TestJavaSdkLibrary(t *testing.T) {
 
 	// check the existence of the internal modules
 	ctx.ModuleForTests("foo", "android_common")
-	ctx.ModuleForTests("foo"+sdkStubsLibrarySuffix, "android_common")
-	ctx.ModuleForTests("foo"+sdkStubsLibrarySuffix+sdkSystemApiSuffix, "android_common")
-	ctx.ModuleForTests("foo"+sdkStubsLibrarySuffix+sdkTestApiSuffix, "android_common")
-	ctx.ModuleForTests("foo"+sdkStubsSourceSuffix, "android_common")
-	ctx.ModuleForTests("foo"+sdkStubsSourceSuffix+sdkSystemApiSuffix, "android_common")
-	ctx.ModuleForTests("foo"+sdkStubsSourceSuffix+sdkTestApiSuffix, "android_common")
+	ctx.ModuleForTests(apiScopePublic.stubsLibraryModuleName("foo"), "android_common")
+	ctx.ModuleForTests(apiScopeSystem.stubsLibraryModuleName("foo"), "android_common")
+	ctx.ModuleForTests(apiScopeTest.stubsLibraryModuleName("foo"), "android_common")
+	ctx.ModuleForTests(apiScopePublic.stubsSourceModuleName("foo"), "android_common")
+	ctx.ModuleForTests(apiScopeSystem.stubsSourceModuleName("foo"), "android_common")
+	ctx.ModuleForTests(apiScopeTest.stubsSourceModuleName("foo"), "android_common")
 	ctx.ModuleForTests("foo"+sdkXmlFileSuffix, "android_common")
 	ctx.ModuleForTests("foo.api.public.28", "")
 	ctx.ModuleForTests("foo.api.system.28", "")
@@ -1242,6 +1242,20 @@ func TestJavaSdkLibrary_InvalidScopes(t *testing.T) {
 			},
 			system: {
 				enabled: true,
+			},
+		}
+		`)
+}
+
+func TestJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
+	testJava(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+			system: {
+				enabled: true,
+				sdk_version: "module_current",
 			},
 		}
 		`)

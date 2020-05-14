@@ -345,9 +345,7 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	}
 	if Bool(test.Properties.Disable_framework) {
 		var options []tradefed.Option
-		options = append(options, tradefed.Option{Name: "run-command", Value: "stop"})
-		options = append(options, tradefed.Option{Name: "teardown-command", Value: "start"})
-		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RunCommandTargetPreparer", options})
+		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.StopServicesSetup", options})
 	}
 	if Bool(test.testDecorator.Properties.Isolated) {
 		configs = append(configs, tradefed.Option{Name: "not-shardable", Value: "true"})
