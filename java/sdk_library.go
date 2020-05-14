@@ -92,6 +92,9 @@ type apiScope struct {
 	// The name of the field in the dynamically created structure.
 	fieldName string
 
+	// The name of the property in the java_sdk_library_import
+	propertyName string
+
 	// The tag to use to depend on the stubs library module.
 	stubsTag scopeDependencyTag
 
@@ -142,7 +145,8 @@ type apiScope struct {
 // Initialize a scope, creating and adding appropriate dependency tags
 func initApiScope(scope *apiScope) *apiScope {
 	name := scope.name
-	scope.fieldName = proptools.FieldNameForProperty(name)
+	scope.propertyName = strings.ReplaceAll(name, "-", "_")
+	scope.fieldName = proptools.FieldNameForProperty(scope.propertyName)
 	scope.stubsTag = scopeDependencyTag{
 		name:             name + "-stubs",
 		apiScope:         scope,
@@ -253,7 +257,7 @@ var (
 		unstable:       true,
 	})
 	apiScopeModuleLib = initApiScope(&apiScope{
-		name:    "module_lib",
+		name:    "module-lib",
 		extends: apiScopeSystem,
 		// Module_lib scope is disabled by default in legacy mode.
 		//
@@ -1710,7 +1714,7 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 
 	for _, apiScope := range allApiScopes {
 		if properties, ok := s.Scopes[apiScope]; ok {
-			scopeSet := propertySet.AddPropertySet(apiScope.name)
+			scopeSet := propertySet.AddPropertySet(apiScope.propertyName)
 
 			scopeDir := filepath.Join("sdk_library", s.OsPrefix(), apiScope.name)
 
