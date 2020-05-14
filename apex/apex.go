@@ -1217,6 +1217,7 @@ type apexFile struct {
 	module     android.Module
 	// list of symlinks that will be created in installDir that point to this apexFile
 	symlinks      []string
+	dataPaths     android.Paths
 	transitiveDep bool
 	moduleDir     string
 
@@ -1252,16 +1253,20 @@ func (af *apexFile) Ok() bool {
 	return af.builtFile != nil && af.builtFile.String() != ""
 }
 
+func (af *apexFile) apexRelativePath(path string) string {
+	return filepath.Join(af.installDir, path)
+}
+
 // Path() returns path of this apex file relative to the APEX root
 func (af *apexFile) Path() string {
-	return filepath.Join(af.installDir, af.builtFile.Base())
+	return af.apexRelativePath(af.builtFile.Base())
 }
 
 // SymlinkPaths() returns paths of the symlinks (if any) relative to the APEX root
 func (af *apexFile) SymlinkPaths() []string {
 	var ret []string
 	for _, symlink := range af.symlinks {
-		ret = append(ret, filepath.Join(af.installDir, symlink))
+		ret = append(ret, af.apexRelativePath(symlink))
 	}
 	return ret
 }
@@ -1667,6 +1672,7 @@ func apexFileForExecutable(ctx android.BaseModuleContext, cc *cc.Module) apexFil
 	fileToCopy := cc.OutputFile().Path()
 	af := newApexFile(ctx, fileToCopy, cc.Name(), dirInApex, nativeExecutable, cc)
 	af.symlinks = cc.Symlinks()
+	af.dataPaths = cc.DataPaths()
 	return af
 }
 
