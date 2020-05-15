@@ -886,6 +886,13 @@ func (m *ModuleBase) SystemExtSpecific() bool {
 	return Bool(m.commonProperties.System_ext_specific)
 }
 
+// RequiresStableAPIs returns true if the module will be installed to a partition that may
+// be updated separately from the system image.
+func (m *ModuleBase) RequiresStableAPIs(ctx BaseModuleContext) bool {
+	return m.SocSpecific() || m.DeviceSpecific() ||
+		(m.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface())
+}
+
 func (m *ModuleBase) PartitionTag(config DeviceConfig) string {
 	partition := "system"
 	if m.SocSpecific() {

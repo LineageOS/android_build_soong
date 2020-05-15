@@ -95,8 +95,7 @@ func (j *Module) CheckStableSdkVersion() error {
 }
 
 func (j *Module) checkSdkVersions(ctx android.ModuleContext) {
-	if j.SocSpecific() || j.DeviceSpecific() ||
-		(j.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface()) {
+	if j.RequiresStableAPIs(ctx) {
 		if sc, ok := ctx.Module().(sdkContext); ok {
 			if !sc.sdkVersion().specified() {
 				ctx.PropertyErrorf("sdk_version",
