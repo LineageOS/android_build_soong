@@ -92,6 +92,8 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"prebuilts/apk/app_xhdpi.apk":  nil,
 		"prebuilts/apk/app_xxhdpi.apk": nil,
 
+		"prebuilts/apks/app.apks": nil,
+
 		// For framework-res, which is an implicit dependency for framework
 		"AndroidManifest.xml":                        nil,
 		"build/make/target/product/security/testkey": nil,
