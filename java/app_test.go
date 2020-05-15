@@ -1265,25 +1265,44 @@ func TestJNISDK(t *testing.T) {
 			platform_apis: true,
 			jni_uses_sdk_apis: true,
 		}
+
+		cc_library {
+			name: "libvendorjni",
+			system_shared_libs: [],
+			stl: "none",
+			vendor: true,
+		}
+
+		android_test {
+			name: "app_vendor",
+			jni_libs: ["libvendorjni"],
+			sdk_version: "current",
+			vendor: true,
+		}
 	`)
 
 	testCases := []struct {
-		name   string
-		sdkJNI bool
+		name      string
+		sdkJNI    bool
+		vendorJNI bool
 	}{
-		{"app_platform", false},
-		{"app_sdk", true},
-		{"app_force_platform", false},
-		{"app_force_sdk", true},
+		{name: "app_platform"},
+		{name: "app_sdk", sdkJNI: true},
+		{name: "app_force_platform"},
+		{name: "app_force_sdk", sdkJNI: true},
+		{name: "app_vendor", vendorJNI: true},
 	}
+
+	platformJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_shared").
+		Output("libjni.so").Output.String()
+	sdkJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_sdk_shared").
+		Output("libjni.so").Output.String()
+	vendorJNI := ctx.ModuleForTests("libvendorjni", "android_arm64_armv8-a_shared").
+		Output("libvendorjni.so").Output.String()
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			app := ctx.ModuleForTests(test.name, "android_common")
-			platformJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_shared").
-				Output("libjni.so").Output.String()
-			sdkJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_sdk_shared").
-				Output("libjni.so").Output.String()
 
 			jniLibZip := app.MaybeOutput("jnilibs.zip")
 			if len(jniLibZip.Implicits) != 1 {
@@ -1294,6 +1313,10 @@ func TestJNISDK(t *testing.T) {
 			if test.sdkJNI {
 				if gotJNI != sdkJNI {
 					t.Errorf("expected SDK JNI library %q, got %q", sdkJNI, gotJNI)
+				}
+			} else if test.vendorJNI {
+				if gotJNI != vendorJNI {
+					t.Errorf("expected platform JNI library %q, got %q", vendorJNI, gotJNI)
 				}
 			} else {
 				if gotJNI != platformJNI {
