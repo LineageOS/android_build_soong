@@ -15,11 +15,12 @@
 package java
 
 import (
-	"android/soong/android"
 	"sort"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/android"
 )
 
 func init() {
@@ -69,6 +70,10 @@ func parseApiFilePath(ctx android.LoadHookContext, path string) (module string, 
 	return
 }
 
+func prebuiltApiModuleName(mctx android.LoadHookContext, module string, scope string, apiver string) string {
+	return mctx.ModuleName() + "_" + scope + "_" + apiver + "_" + module
+}
+
 func createImport(mctx android.LoadHookContext, module string, scope string, apiver string, path string) {
 	props := struct {
 		Name        *string
@@ -76,7 +81,7 @@ func createImport(mctx android.LoadHookContext, module string, scope string, api
 		Sdk_version *string
 		Installable *bool
 	}{}
-	props.Name = proptools.StringPtr(mctx.ModuleName() + "_" + scope + "_" + apiver + "_" + module)
+	props.Name = proptools.StringPtr(prebuiltApiModuleName(mctx, module, scope, apiver))
 	props.Jars = append(props.Jars, path)
 	// TODO(hansson): change to scope after migration is done.
 	props.Sdk_version = proptools.StringPtr("current")
@@ -121,6 +126,27 @@ func prebuiltSdkStubs(mctx android.LoadHookContext) {
 		localPath := strings.TrimPrefix(f, mydir)
 		module, apiver, scope := parseJarPath(localPath)
 		createImport(mctx, module, scope, apiver, localPath)
+	}
+}
+
+func createSystemModules(mctx android.LoadHookContext, apiver string) {
+	props := struct {
+		Name *string
+		Libs []string
+	}{}
+	props.Name = proptools.StringPtr(prebuiltApiModuleName(mctx, "system_modules", "public", apiver))
+	props.Libs = append(props.Libs, prebuiltApiModuleName(mctx, "core-for-system-modules", "public", apiver))
+
+	mctx.CreateModule(SystemModulesFactory, &props)
+}
+
+func prebuiltSdkSystemModules(mctx android.LoadHookContext) {
+	for _, apiver := range mctx.Module().(*prebuiltApis).properties.Api_dirs {
+		jar := android.ExistentPathForSource(mctx,
+			mctx.ModuleDir(), apiver, "public", "core-for-system-modules.jar")
+		if jar.Valid() {
+			createSystemModules(mctx, apiver)
+		}
 	}
 }
 
@@ -178,6 +204,7 @@ func createPrebuiltApiModules(mctx android.LoadHookContext) {
 	if _, ok := mctx.Module().(*prebuiltApis); ok {
 		prebuiltApiFiles(mctx)
 		prebuiltSdkStubs(mctx)
+		prebuiltSdkSystemModules(mctx)
 	}
 }
 
@@ -191,7 +218,9 @@ func createPrebuiltApiModules(mctx android.LoadHookContext) {
 // Similarly, it generates a java_import for all API .jar files found under the
 // directory where the Android.bp is located. Specifically, an API file located
 // at ./<ver>/<scope>/api/<module>.jar generates a java_import module named
-// <prebuilt-api-module>.<scope>.<ver>.<module>.
+// <prebuilt-api-module>_<scope>_<ver>_<module>, and for SDK versions >= 30
+// a java_system_modules module named
+// <prebuilt-api-module>_public_<ver>_system_modules
 func PrebuiltApisFactory() android.Module {
 	module := &prebuiltApis{}
 	module.AddProperties(&module.properties)
