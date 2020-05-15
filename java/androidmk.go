@@ -676,3 +676,20 @@ func (r *RuntimeResourceOverlay) AndroidMkEntries() []android.AndroidMkEntries {
 		},
 	}}
 }
+
+func (apkSet *AndroidAppSet) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{
+		android.AndroidMkEntries{
+			Class:      "APPS",
+			OutputFile: android.OptionalPathForPath(apkSet.packedOutput),
+			Include:    "$(BUILD_SYSTEM)/soong_android_app_set.mk",
+			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+				func(entries *android.AndroidMkEntries) {
+					entries.SetBoolIfTrue("LOCAL_PRIVILEGED_MODULE", apkSet.Privileged())
+					entries.SetString("LOCAL_APK_SET_MASTER_FILE", apkSet.masterFile)
+					entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", apkSet.properties.Overrides...)
+				},
+			},
+		},
+	}
+}
