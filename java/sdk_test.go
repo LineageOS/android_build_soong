@@ -83,6 +83,16 @@ func TestClasspath(t *testing.T) {
 		},
 		{
 
+			name:           "sdk v30",
+			properties:     `sdk_version: "30",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_30_system_modules",
+			java8classpath: []string{"prebuilts/sdk/30/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/30/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/30/public/framework.aidl",
+		},
+		{
+
 			name:           "current",
 			properties:     `sdk_version: "current",`,
 			bootclasspath:  []string{"android_stubs_current", "core-lambda-stubs"},
@@ -107,6 +117,16 @@ func TestClasspath(t *testing.T) {
 			forces8:        true,
 			java8classpath: []string{"prebuilts/sdk/29/system/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
+		},
+		{
+
+			name:           "system_30",
+			properties:     `sdk_version: "system_30",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_30_system_modules",
+			java8classpath: []string{"prebuilts/sdk/30/system/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/30/system/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/30/public/framework.aidl",
 		},
 		{
 
@@ -176,12 +196,24 @@ func TestClasspath(t *testing.T) {
 		},
 		{
 
+			name:           "unbundled sdk v30",
+			unbundled:      true,
+			properties:     `sdk_version: "30",`,
+			bootclasspath:  []string{`""`},
+			system:         "sdk_public_30_system_modules",
+			java8classpath: []string{"prebuilts/sdk/30/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/30/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/30/public/framework.aidl",
+		},
+		{
+
 			name:           "unbundled current",
 			unbundled:      true,
 			properties:     `sdk_version: "current",`,
 			bootclasspath:  []string{`""`},
-			forces8:        true,
+			system:         "sdk_public_current_system_modules",
 			java8classpath: []string{"prebuilts/sdk/current/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/current/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
 			aidl:           "-pprebuilts/sdk/current/public/framework.aidl",
 		},
 
@@ -189,27 +221,30 @@ func TestClasspath(t *testing.T) {
 			name:           "pdk default",
 			pdk:            true,
 			bootclasspath:  []string{`""`},
-			forces8:        true,
-			java8classpath: []string{"prebuilts/sdk/29/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
-			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
+			system:         "sdk_public_30_system_modules",
+			java8classpath: []string{"prebuilts/sdk/30/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/30/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/30/public/framework.aidl",
 		},
 		{
 			name:           "pdk current",
 			pdk:            true,
 			properties:     `sdk_version: "current",`,
 			bootclasspath:  []string{`""`},
-			forces8:        true,
-			java8classpath: []string{"prebuilts/sdk/29/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
-			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
+			system:         "sdk_public_30_system_modules",
+			java8classpath: []string{"prebuilts/sdk/30/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/30/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/30/public/framework.aidl",
 		},
 		{
 			name:           "pdk 29",
 			pdk:            true,
 			properties:     `sdk_version: "29",`,
 			bootclasspath:  []string{`""`},
-			forces8:        true,
-			java8classpath: []string{"prebuilts/sdk/29/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
-			aidl:           "-pprebuilts/sdk/29/public/framework.aidl",
+			system:         "sdk_public_30_system_modules",
+			java8classpath: []string{"prebuilts/sdk/30/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			java9classpath: []string{"prebuilts/sdk/30/public/android.jar", "prebuilts/sdk/tools/core-lambda-stubs.jar"},
+			aidl:           "-pprebuilts/sdk/30/public/framework.aidl",
 		},
 		{
 			name:           "module_current",
@@ -292,12 +327,16 @@ func TestClasspath(t *testing.T) {
 			if testcase.system == "none" {
 				system = "--system=none"
 			} else if testcase.system != "" {
-				system = "--system=" + filepath.Join(buildDir, ".intermediates", testcase.system, "android_common", "system")
+				dir := ""
+				if strings.HasPrefix(testcase.system, "sdk_public_") {
+					dir = "prebuilts/sdk"
+				}
+				system = "--system=" + filepath.Join(buildDir, ".intermediates", dir, testcase.system, "android_common", "system")
 				// The module-relative parts of these paths are hardcoded in system_modules.go:
 				systemDeps = []string{
-					filepath.Join(buildDir, ".intermediates", testcase.system, "android_common", "system", "lib", "modules"),
-					filepath.Join(buildDir, ".intermediates", testcase.system, "android_common", "system", "lib", "jrt-fs.jar"),
-					filepath.Join(buildDir, ".intermediates", testcase.system, "android_common", "system", "release"),
+					filepath.Join(buildDir, ".intermediates", dir, testcase.system, "android_common", "system", "lib", "modules"),
+					filepath.Join(buildDir, ".intermediates", dir, testcase.system, "android_common", "system", "lib", "jrt-fs.jar"),
+					filepath.Join(buildDir, ".intermediates", dir, testcase.system, "android_common", "system", "release"),
 				}
 			}
 
