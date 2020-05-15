@@ -180,6 +180,8 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"build/make/core/proguard.flags":             nil,
 		"build/make/core/proguard_basic_keeps.flags": nil,
 		"dummy.txt":                                  nil,
+		"baz":                                        nil,
+		"bar/baz":                                    nil,
 	}
 
 	cc.GatherRequiredFilesForTest(fs)
@@ -3267,6 +3269,14 @@ func TestApexWithTests(t *testing.T) {
 			private_key: "testkey.pem",
 		}
 
+		filegroup {
+			name: "fg",
+			srcs: [
+				"baz",
+				"bar/baz"
+			],
+		}
+
 		cc_test {
 			name: "mytest",
 			gtest: false,
@@ -3276,6 +3286,7 @@ func TestApexWithTests(t *testing.T) {
 			system_shared_libs: [],
 			static_executable: true,
 			stl: "none",
+			data: [":fg"],
 		}
 
 		cc_library {
@@ -3307,6 +3318,10 @@ func TestApexWithTests(t *testing.T) {
 	// Ensure that test dep (and their transitive dependencies) are copied into apex.
 	ensureContains(t, copyCmds, "image.apex/bin/test/mytest")
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
+
+	//Ensure that test data are copied into apex.
+	ensureContains(t, copyCmds, "image.apex/bin/test/baz")
+	ensureContains(t, copyCmds, "image.apex/bin/test/bar/baz")
 
 	// Ensure that test deps built with `test_per_src` are copied into apex.
 	ensureContains(t, copyCmds, "image.apex/bin/test/mytest1")
