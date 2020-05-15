@@ -500,6 +500,17 @@ func EffectiveVisibilityRules(ctx BaseModuleContext, module Module) []string {
 	// without checking the visibility rules. Here we need to add that visibility
 	// explicitly.
 	if rule != nil && !rule.matches(qualified) {
+		if len(rule) == 1 {
+			if _, ok := rule[0].(privateRule); ok {
+				// If the rule is //visibility:private we can't append another
+				// visibility to it. Semantically we need to convert it to a package
+				// visibility rule for the location where the result is used, but since
+				// modules are implicitly visible within the package we get the same
+				// result without any rule at all, so just make it an empty list to be
+				// appended below.
+				rule = compositeRule{}
+			}
+		}
 		rule = append(rule, packageRule{dir})
 	}
 
