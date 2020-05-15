@@ -141,6 +141,94 @@ func TestAppSplits(t *testing.T) {
 	}
 }
 
+func TestAndroidAppSet(t *testing.T) {
+	ctx, config := testJava(t, `
+		android_app_set {
+			name: "foo",
+			set: "prebuilts/apks/app.apks",
+			prerelease: true,
+        }`)
+	module := ctx.ModuleForTests("foo", "android_common")
+	const packedSplitApks = "extracted.zip"
+	params := module.Output(packedSplitApks)
+	if params.Rule == nil {
+		t.Errorf("expected output %s is missing", packedSplitApks)
+	}
+	if s := params.Args["allow-prereleased"]; s != "true" {
+		t.Errorf("wrong allow-prereleased value: '%s', expected 'true'", s)
+	}
+	mkEntries := android.AndroidMkEntriesForTest(t, config, "", module.Module())[0]
+	actualMaster := mkEntries.EntryMap["LOCAL_APK_SET_MASTER_FILE"]
+	expectedMaster := []string{"foo.apk"}
+	if !reflect.DeepEqual(actualMaster, expectedMaster) {
+		t.Errorf("Unexpected LOCAL_APK_SET_MASTER_FILE value: '%s', expected: '%s',",
+			actualMaster, expectedMaster)
+	}
+}
+
+func TestAndroidAppSet_Variants(t *testing.T) {
+	bp := `
+		android_app_set {
+			name: "foo",
+			set: "prebuilts/apks/app.apks",
+		}`
+	testCases := []struct {
+		name                string
+		deviceArch          *string
+		deviceSecondaryArch *string
+		aaptPrebuiltDPI     []string
+		sdkVersion          int
+		expected            map[string]string
+	}{
+		{
+			name:            "One",
+			deviceArch:      proptools.StringPtr("x86"),
+			aaptPrebuiltDPI: []string{"ldpi", "xxhdpi"},
+			sdkVersion:      29,
+			expected: map[string]string{
+				"abis":              "X86",
+				"allow-prereleased": "false",
+				"screen-densities":  "LDPI,XXHDPI",
+				"sdk-version":       "29",
+				"stem":              "foo",
+			},
+		},
+		{
+			name:                "Two",
+			deviceArch:          proptools.StringPtr("x86_64"),
+			deviceSecondaryArch: proptools.StringPtr("x86"),
+			aaptPrebuiltDPI:     nil,
+			sdkVersion:          30,
+			expected: map[string]string{
+				"abis":              "X86_64,X86",
+				"allow-prereleased": "false",
+				"screen-densities":  "all",
+				"sdk-version":       "30",
+				"stem":              "foo",
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		config := testAppConfig(nil, bp, nil)
+		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
+		config.TestProductVariables.Platform_sdk_version = &test.sdkVersion
+		config.TestProductVariables.DeviceArch = test.deviceArch
+		config.TestProductVariables.DeviceSecondaryArch = test.deviceSecondaryArch
+		ctx := testContext()
+		run(t, ctx, config)
+		module := ctx.ModuleForTests("foo", "android_common")
+		const packedSplitApks = "extracted.zip"
+		params := module.Output(packedSplitApks)
+		for k, v := range test.expected {
+			if actual := params.Args[k]; actual != v {
+				t.Errorf("%s: bad build arg value for '%s': '%s', expected '%s'",
+					test.name, k, actual, v)
+			}
+		}
+	}
+}
+
 func TestPlatformAPIs(t *testing.T) {
 	testJava(t, `
 		android_app {
