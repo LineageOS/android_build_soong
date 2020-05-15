@@ -123,7 +123,7 @@ func init() {
 	pctx.HostBinToolVariable("D8Cmd", "d8")
 	pctx.HostBinToolVariable("R8Cmd", "r8-compat-proguard")
 	pctx.HostBinToolVariable("HiddenAPICmd", "hiddenapi")
-
+	pctx.HostBinToolVariable("ExtractApksCmd", "extract_apks")
 	pctx.VariableFunc("TurbineJar", func(ctx android.PackageVarContext) string {
 		turbine := "turbine.jar"
 		if ctx.Config().UnbundledBuild() {
