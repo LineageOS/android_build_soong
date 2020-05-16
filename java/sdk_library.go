@@ -747,21 +747,17 @@ func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) stri
 // Creates a static java library that has API stubs
 func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext, apiScope *apiScope) {
 	props := struct {
-		Name                *string
-		Visibility          []string
-		Srcs                []string
-		Installable         *bool
-		Sdk_version         *string
-		System_modules      *string
-		Patch_module        *string
-		Libs                []string
-		Soc_specific        *bool
-		Device_specific     *bool
-		Product_specific    *bool
-		System_ext_specific *bool
-		Compile_dex         *bool
-		Java_version        *string
-		Product_variables   struct {
+		Name              *string
+		Visibility        []string
+		Srcs              []string
+		Installable       *bool
+		Sdk_version       *string
+		System_modules    *string
+		Patch_module      *string
+		Libs              []string
+		Compile_dex       *bool
+		Java_version      *string
+		Product_variables struct {
 			Pdk struct {
 				Enabled *bool
 			}
@@ -801,15 +797,6 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 		props.Compile_dex = module.Library.Module.deviceProperties.Compile_dex
 	}
 
-	if module.SocSpecific() {
-		props.Soc_specific = proptools.BoolPtr(true)
-	} else if module.DeviceSpecific() {
-		props.Device_specific = proptools.BoolPtr(true)
-	} else if module.ProductSpecific() {
-		props.Product_specific = proptools.BoolPtr(true)
-	} else if module.SystemExtSpecific() {
-		props.System_ext_specific = proptools.BoolPtr(true)
-	}
 	// Dist the class jar artifact for sdk builds.
 	if !Bool(module.sdkLibraryProperties.No_dist) {
 		props.Dist.Targets = []string{"sdk", "win_sdk"}
@@ -984,27 +971,13 @@ func (module *SdkLibrary) DepIsInSameApex(mctx android.BaseModuleContext, dep an
 // Creates the xml file that publicizes the runtime library
 func (module *SdkLibrary) createXmlFile(mctx android.DefaultableHookContext) {
 	props := struct {
-		Name                *string
-		Lib_name            *string
-		Soc_specific        *bool
-		Device_specific     *bool
-		Product_specific    *bool
-		System_ext_specific *bool
-		Apex_available      []string
+		Name           *string
+		Lib_name       *string
+		Apex_available []string
 	}{
 		Name:           proptools.StringPtr(module.xmlFileName()),
 		Lib_name:       proptools.StringPtr(module.BaseModuleName()),
 		Apex_available: module.ApexProperties.Apex_available,
-	}
-
-	if module.SocSpecific() {
-		props.Soc_specific = proptools.BoolPtr(true)
-	} else if module.DeviceSpecific() {
-		props.Device_specific = proptools.BoolPtr(true)
-	} else if module.ProductSpecific() {
-		props.Product_specific = proptools.BoolPtr(true)
-	} else if module.SystemExtSpecific() {
-		props.System_ext_specific = proptools.BoolPtr(true)
 	}
 
 	mctx.CreateModule(sdkLibraryXmlFactory, &props)
@@ -1427,15 +1400,11 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.DefaultableHo
 func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
 	// Creates a java import for the jar with ".stubs" suffix
 	props := struct {
-		Name                *string
-		Soc_specific        *bool
-		Device_specific     *bool
-		Product_specific    *bool
-		System_ext_specific *bool
-		Sdk_version         *string
-		Libs                []string
-		Jars                []string
-		Prefer              *bool
+		Name        *string
+		Sdk_version *string
+		Libs        []string
+		Jars        []string
+		Prefer      *bool
 	}{}
 	props.Name = proptools.StringPtr(module.stubsLibraryModuleName(apiScope))
 	props.Sdk_version = scopeProperties.Sdk_version
@@ -1443,15 +1412,7 @@ func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.Defaultabl
 	// scopes to avoid having to duplicate them in each scope.
 	props.Libs = append(module.properties.Libs, scopeProperties.Libs...)
 	props.Jars = scopeProperties.Jars
-	if module.SocSpecific() {
-		props.Soc_specific = proptools.BoolPtr(true)
-	} else if module.DeviceSpecific() {
-		props.Device_specific = proptools.BoolPtr(true)
-	} else if module.ProductSpecific() {
-		props.Product_specific = proptools.BoolPtr(true)
-	} else if module.SystemExtSpecific() {
-		props.System_ext_specific = proptools.BoolPtr(true)
-	}
+
 	// The imports are preferred if the java_sdk_library_import is preferred.
 	props.Prefer = proptools.BoolPtr(module.prebuilt.Prefer())
 	mctx.CreateModule(ImportFactory, &props)
