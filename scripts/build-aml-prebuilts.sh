@@ -50,15 +50,20 @@ SOONG_OUT=${OUT_DIR}/soong
 mkdir -p ${SOONG_OUT}
 SOONG_VARS=${SOONG_OUT}/soong.variables
 
+# We enable bionic linux builds as ART also needs prebuilts for it.
+# Enabling bionic linux requires setting allow_missing_dependencies.
 cat > ${SOONG_VARS}.new << EOF
 {
     "Platform_sdk_version": ${PLATFORM_SDK_VERSION},
     "Platform_sdk_codename": "${PLATFORM_VERSION}",
     "Platform_version_active_codenames": ${PLATFORM_VERSION_ALL_CODENAMES},
+    "Allow_missing_dependencies": true,
 
     "DeviceName": "generic_arm64",
     "HostArch": "x86_64",
     "HostSecondaryArch": "x86",
+    "CrossHost": "linux_bionic",
+    "CrossHostArch": "x86_64",
     "Aml_abis": true,
 
     "UseGoma": ${USE_GOMA}
