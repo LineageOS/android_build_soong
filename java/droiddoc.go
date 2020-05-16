@@ -1529,9 +1529,9 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			msg += fmt.Sprintf(``+
 				`2. You can update the baseline by executing the following\n`+
 				`   command:\n`+
-				`       cp \\ \n`+
-				`       "'"$PWD"$'/%s" \\ \n`+
-				`       "'"$PWD"$'/%s" \n`+
+				`       cp \\\n`+
+				`       "'"$PWD"$'/%s" \\\n`+
+				`       "'"$PWD"$'/%s"\n`+
 				`   To submit the revised baseline.txt to the main Android\n`+
 				`   repository, you will need approval.\n`, updatedBaselineOutput, baselineFile.Path())
 		} else {
