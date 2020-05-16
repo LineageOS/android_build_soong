@@ -253,6 +253,20 @@ func (s sdkSpec) effectiveVersionString(ctx android.EarlyModuleContext) (string,
 	return ver.String(), err
 }
 
+func (s sdkSpec) defaultJavaLanguageVersion(ctx android.EarlyModuleContext) javaVersion {
+	sdk, err := s.effectiveVersion(ctx)
+	if err != nil {
+		ctx.PropertyErrorf("sdk_version", "%s", err)
+	}
+	if sdk <= 23 {
+		return JAVA_VERSION_7
+	} else if sdk <= 29 {
+		return JAVA_VERSION_8
+	} else {
+		return JAVA_VERSION_9
+	}
+}
+
 func sdkSpecFrom(str string) sdkSpec {
 	switch str {
 	// special cases first
@@ -346,10 +360,16 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 			return sdkDep{}
 		}
 
+		var systemModules string
+		if sdkVersion.defaultJavaLanguageVersion(ctx).usesJavaModules() {
+			systemModules = "sdk_public_" + sdkVersion.version.String() + "_system_modules"
+		}
+
 		return sdkDep{
-			useFiles: true,
-			jars:     android.Paths{jarPath.Path(), lambdaStubsPath},
-			aidl:     android.OptionalPathForPath(aidlPath.Path()),
+			useFiles:      true,
+			jars:          android.Paths{jarPath.Path(), lambdaStubsPath},
+			aidl:          android.OptionalPathForPath(aidlPath.Path()),
+			systemModules: systemModules,
 		}
 	}
 
