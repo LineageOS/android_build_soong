@@ -141,6 +141,94 @@ func TestAppSplits(t *testing.T) {
 	}
 }
 
+func TestAndroidAppSet(t *testing.T) {
+	ctx, config := testJava(t, `
+		android_app_set {
+			name: "foo",
+			set: "prebuilts/apks/app.apks",
+			prerelease: true,
+        }`)
+	module := ctx.ModuleForTests("foo", "android_common")
+	const packedSplitApks = "extracted.zip"
+	params := module.Output(packedSplitApks)
+	if params.Rule == nil {
+		t.Errorf("expected output %s is missing", packedSplitApks)
+	}
+	if s := params.Args["allow-prereleased"]; s != "true" {
+		t.Errorf("wrong allow-prereleased value: '%s', expected 'true'", s)
+	}
+	mkEntries := android.AndroidMkEntriesForTest(t, config, "", module.Module())[0]
+	actualMaster := mkEntries.EntryMap["LOCAL_APK_SET_MASTER_FILE"]
+	expectedMaster := []string{"foo.apk"}
+	if !reflect.DeepEqual(actualMaster, expectedMaster) {
+		t.Errorf("Unexpected LOCAL_APK_SET_MASTER_FILE value: '%s', expected: '%s',",
+			actualMaster, expectedMaster)
+	}
+}
+
+func TestAndroidAppSet_Variants(t *testing.T) {
+	bp := `
+		android_app_set {
+			name: "foo",
+			set: "prebuilts/apks/app.apks",
+		}`
+	testCases := []struct {
+		name                string
+		deviceArch          *string
+		deviceSecondaryArch *string
+		aaptPrebuiltDPI     []string
+		sdkVersion          int
+		expected            map[string]string
+	}{
+		{
+			name:            "One",
+			deviceArch:      proptools.StringPtr("x86"),
+			aaptPrebuiltDPI: []string{"ldpi", "xxhdpi"},
+			sdkVersion:      29,
+			expected: map[string]string{
+				"abis":              "X86",
+				"allow-prereleased": "false",
+				"screen-densities":  "LDPI,XXHDPI",
+				"sdk-version":       "29",
+				"stem":              "foo",
+			},
+		},
+		{
+			name:                "Two",
+			deviceArch:          proptools.StringPtr("x86_64"),
+			deviceSecondaryArch: proptools.StringPtr("x86"),
+			aaptPrebuiltDPI:     nil,
+			sdkVersion:          30,
+			expected: map[string]string{
+				"abis":              "X86_64,X86",
+				"allow-prereleased": "false",
+				"screen-densities":  "all",
+				"sdk-version":       "30",
+				"stem":              "foo",
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		config := testAppConfig(nil, bp, nil)
+		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
+		config.TestProductVariables.Platform_sdk_version = &test.sdkVersion
+		config.TestProductVariables.DeviceArch = test.deviceArch
+		config.TestProductVariables.DeviceSecondaryArch = test.deviceSecondaryArch
+		ctx := testContext()
+		run(t, ctx, config)
+		module := ctx.ModuleForTests("foo", "android_common")
+		const packedSplitApks = "extracted.zip"
+		params := module.Output(packedSplitApks)
+		for k, v := range test.expected {
+			if actual := params.Args[k]; actual != v {
+				t.Errorf("%s: bad build arg value for '%s': '%s', expected '%s'",
+					test.name, k, actual, v)
+			}
+		}
+	}
+}
+
 func TestPlatformAPIs(t *testing.T) {
 	testJava(t, `
 		android_app {
@@ -1265,25 +1353,44 @@ func TestJNISDK(t *testing.T) {
 			platform_apis: true,
 			jni_uses_sdk_apis: true,
 		}
+
+		cc_library {
+			name: "libvendorjni",
+			system_shared_libs: [],
+			stl: "none",
+			vendor: true,
+		}
+
+		android_test {
+			name: "app_vendor",
+			jni_libs: ["libvendorjni"],
+			sdk_version: "current",
+			vendor: true,
+		}
 	`)
 
 	testCases := []struct {
-		name   string
-		sdkJNI bool
+		name      string
+		sdkJNI    bool
+		vendorJNI bool
 	}{
-		{"app_platform", false},
-		{"app_sdk", true},
-		{"app_force_platform", false},
-		{"app_force_sdk", true},
+		{name: "app_platform"},
+		{name: "app_sdk", sdkJNI: true},
+		{name: "app_force_platform"},
+		{name: "app_force_sdk", sdkJNI: true},
+		{name: "app_vendor", vendorJNI: true},
 	}
+
+	platformJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_shared").
+		Output("libjni.so").Output.String()
+	sdkJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_sdk_shared").
+		Output("libjni.so").Output.String()
+	vendorJNI := ctx.ModuleForTests("libvendorjni", "android_arm64_armv8-a_shared").
+		Output("libvendorjni.so").Output.String()
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			app := ctx.ModuleForTests(test.name, "android_common")
-			platformJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_shared").
-				Output("libjni.so").Output.String()
-			sdkJNI := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_sdk_shared").
-				Output("libjni.so").Output.String()
 
 			jniLibZip := app.MaybeOutput("jnilibs.zip")
 			if len(jniLibZip.Implicits) != 1 {
@@ -1294,6 +1401,10 @@ func TestJNISDK(t *testing.T) {
 			if test.sdkJNI {
 				if gotJNI != sdkJNI {
 					t.Errorf("expected SDK JNI library %q, got %q", sdkJNI, gotJNI)
+				}
+			} else if test.vendorJNI {
+				if gotJNI != vendorJNI {
+					t.Errorf("expected platform JNI library %q, got %q", vendorJNI, gotJNI)
 				}
 			} else {
 				if gotJNI != platformJNI {
