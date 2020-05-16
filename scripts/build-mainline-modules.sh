@@ -18,6 +18,7 @@ MODULES_SDK_AND_EXPORTS=(
   art-module-test-exports
   conscrypt-module-sdk
   conscrypt-module-test-exports
+  conscrypt-module-host-exports
 )
 
 # We want to create apex modules for all supported architectures.
