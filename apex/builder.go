@@ -61,6 +61,7 @@ func init() {
 	pctx.HostBinToolVariable("zipalign", "zipalign")
 	pctx.HostBinToolVariable("jsonmodify", "jsonmodify")
 	pctx.HostBinToolVariable("conv_apex_manifest", "conv_apex_manifest")
+	pctx.HostBinToolVariable("extract_apks", "extract_apks")
 }
 
 var (

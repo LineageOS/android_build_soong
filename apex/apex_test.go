@@ -157,6 +157,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"testkey2.pem":                               nil,
 		"myapex-arm64.apex":                          nil,
 		"myapex-arm.apex":                            nil,
+		"myapex.apks":                                nil,
 		"frameworks/base/api/current.txt":            nil,
 		"framework/aidl/a.aidl":                      nil,
 		"build/make/core/proguard.flags":             nil,
@@ -198,6 +199,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("apex_defaults", defaultsFactory)
 	ctx.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
 	ctx.RegisterModuleType("override_apex", overrideApexFactory)
+	ctx.RegisterModuleType("apex_set", apexSetFactory)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
@@ -4568,6 +4570,48 @@ func TestTestFor(t *testing.T) {
 	ldFlags := ctx.ModuleForTests("mytest", "android_arm64_armv8-a").Rule("ld").Args["libFlags"]
 	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared/mylib.so")
 	ensureNotContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared_1/mylib.so")
+}
+
+// TODO(jungjw): Move this to proptools
+func intPtr(i int) *int {
+	return &i
+}
+
+func TestApexSet(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex_set {
+			name: "myapex",
+			set: "myapex.apks",
+			filename: "foo_v2.apex",
+			overrides: ["foo"],
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		config.TestProductVariables.Platform_sdk_version = intPtr(30)
+		config.TestProductVariables.DeviceArch = proptools.StringPtr("arm")
+		config.TestProductVariables.DeviceSecondaryArch = proptools.StringPtr("arm64")
+	})
+
+	m := ctx.ModuleForTests("myapex", "android_common")
+
+	// Check extract_apks tool parameters.
+	extractedApex := m.Output(buildDir + "/.intermediates/myapex/android_common/foo_v2.apex")
+	actual := extractedApex.Args["abis"]
+	expected := "ARMEABI_V7A,ARM64_V8A"
+	if actual != expected {
+		t.Errorf("Unexpected abis parameter - expected %q vs actual %q", expected, actual)
+	}
+	actual = extractedApex.Args["sdk-version"]
+	expected = "30"
+	if actual != expected {
+		t.Errorf("Unexpected abis parameter - expected %q vs actual %q", expected, actual)
+	}
+
+	a := m.Module().(*ApexSet)
+	expectedOverrides := []string{"foo"}
+	actualOverrides := android.AndroidMkEntriesForTest(t, config, "", a)[0].EntryMap["LOCAL_OVERRIDES_MODULES"]
+	if !reflect.DeepEqual(actualOverrides, expectedOverrides) {
+		t.Errorf("Incorrect LOCAL_OVERRIDES_MODULES - expected %q vs actual %q", expectedOverrides, actualOverrides)
+	}
 }
 
 func TestMain(m *testing.M) {
