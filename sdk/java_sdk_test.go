@@ -1328,10 +1328,10 @@ java_sdk_library_import {
         sdk_version: "system_current",
     },
     module_lib: {
-        jars: ["sdk_library/module_lib/myjavalib-stubs.jar"],
-        stub_srcs: ["sdk_library/module_lib/myjavalib_stub_sources"],
-        current_api: "sdk_library/module_lib/myjavalib.txt",
-        removed_api: "sdk_library/module_lib/myjavalib-removed.txt",
+        jars: ["sdk_library/module-lib/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/module-lib/myjavalib_stub_sources"],
+        current_api: "sdk_library/module-lib/myjavalib.txt",
+        removed_api: "sdk_library/module-lib/myjavalib-removed.txt",
         sdk_version: "module_current",
     },
 }
@@ -1355,10 +1355,10 @@ java_sdk_library_import {
         sdk_version: "system_current",
     },
     module_lib: {
-        jars: ["sdk_library/module_lib/myjavalib-stubs.jar"],
-        stub_srcs: ["sdk_library/module_lib/myjavalib_stub_sources"],
-        current_api: "sdk_library/module_lib/myjavalib.txt",
-        removed_api: "sdk_library/module_lib/myjavalib-removed.txt",
+        jars: ["sdk_library/module-lib/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/module-lib/myjavalib_stub_sources"],
+        current_api: "sdk_library/module-lib/myjavalib.txt",
+        removed_api: "sdk_library/module-lib/myjavalib-removed.txt",
         sdk_version: "module_current",
     },
 }
@@ -1375,14 +1375,14 @@ sdk_snapshot {
 .intermediates/myjavalib.stubs.system/android_common/javac/myjavalib.stubs.system.jar -> sdk_library/system/myjavalib-stubs.jar
 .intermediates/myjavalib.stubs.source.system/android_common/myjavalib.stubs.source.system_api.txt -> sdk_library/system/myjavalib.txt
 .intermediates/myjavalib.stubs.source.system/android_common/myjavalib.stubs.source.system_api.txt -> sdk_library/system/myjavalib-removed.txt
-.intermediates/myjavalib.stubs.module_lib/android_common/javac/myjavalib.stubs.module_lib.jar -> sdk_library/module_lib/myjavalib-stubs.jar
-.intermediates/myjavalib.api.module_lib/android_common/myjavalib.api.module_lib_api.txt -> sdk_library/module_lib/myjavalib.txt
-.intermediates/myjavalib.api.module_lib/android_common/myjavalib.api.module_lib_api.txt -> sdk_library/module_lib/myjavalib-removed.txt
+.intermediates/myjavalib.stubs.module_lib/android_common/javac/myjavalib.stubs.module_lib.jar -> sdk_library/module-lib/myjavalib-stubs.jar
+.intermediates/myjavalib.api.module_lib/android_common/myjavalib.api.module_lib_api.txt -> sdk_library/module-lib/myjavalib.txt
+.intermediates/myjavalib.api.module_lib/android_common/myjavalib.api.module_lib_api.txt -> sdk_library/module-lib/myjavalib-removed.txt
 `),
 		checkMergeZips(
 			".intermediates/mysdk/common_os/tmp/sdk_library/public/myjavalib_stub_sources.zip",
 			".intermediates/mysdk/common_os/tmp/sdk_library/system/myjavalib_stub_sources.zip",
-			".intermediates/mysdk/common_os/tmp/sdk_library/module_lib/myjavalib_stub_sources.zip",
+			".intermediates/mysdk/common_os/tmp/sdk_library/module-lib/myjavalib_stub_sources.zip",
 		),
 	)
 }
