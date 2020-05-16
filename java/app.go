@@ -96,16 +96,16 @@ func (as *AndroidAppSet) Privileged() bool {
 	return Bool(as.properties.Privileged)
 }
 
-var targetCpuAbi = map[string]string{
+var TargetCpuAbi = map[string]string{
 	"arm":    "ARMEABI_V7A",
 	"arm64":  "ARM64_V8A",
 	"x86":    "X86",
 	"x86_64": "X86_64",
 }
 
-func supportedAbis(ctx android.ModuleContext) []string {
+func SupportedAbis(ctx android.ModuleContext) []string {
 	abiName := func(archVar string, deviceArch string) string {
-		if abi, found := targetCpuAbi[deviceArch]; found {
+		if abi, found := TargetCpuAbi[deviceArch]; found {
 			return abi
 		}
 		ctx.ModuleErrorf("Invalid %s: %s", archVar, deviceArch)
@@ -138,7 +138,7 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 			Output:      as.packedOutput,
 			Inputs:      android.Paths{as.prebuilt.SingleSourcePath(ctx)},
 			Args: map[string]string{
-				"abis":              strings.Join(supportedAbis(ctx), ","),
+				"abis":              strings.Join(SupportedAbis(ctx), ","),
 				"allow-prereleased": strconv.FormatBool(proptools.Bool(as.properties.Prerelease)),
 				"screen-densities":  screenDensities,
 				"sdk-version":       ctx.Config().PlatformSdkVersion(),
