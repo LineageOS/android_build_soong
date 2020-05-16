@@ -155,14 +155,14 @@ func TestSnapshotVisibility(t *testing.T) {
 java_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
-    visibility: ["//other/foo:__pkg__"],
+    visibility: ["//other/foo"],
     jars: ["java/myjavalib.jar"],
 }
 
 java_import {
     name: "myjavalib",
     prefer: false,
-    visibility: ["//other/foo:__pkg__"],
+    visibility: ["//other/foo"],
     jars: ["java/myjavalib.jar"],
 }
 
@@ -183,21 +183,21 @@ java_import {
 java_import {
     name: "mysdk_mydefaultedjavalib@current",
     sdk_member_name: "mydefaultedjavalib",
-    visibility: ["//other/bar:__pkg__"],
+    visibility: ["//other/bar"],
     jars: ["java/mydefaultedjavalib.jar"],
 }
 
 java_import {
     name: "mydefaultedjavalib",
     prefer: false,
-    visibility: ["//other/bar:__pkg__"],
+    visibility: ["//other/bar"],
     jars: ["java/mydefaultedjavalib.jar"],
 }
 
 sdk_snapshot {
     name: "mysdk@current",
     visibility: [
-        "//other/foo:__pkg__",
+        "//other/foo",
         "//package:__subpackages__",
     ],
     java_header_libs: [
