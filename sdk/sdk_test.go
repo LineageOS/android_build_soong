@@ -103,6 +103,7 @@ func TestSnapshotVisibility(t *testing.T) {
 				"myjavalib",
 				"mypublicjavalib",
 				"mydefaultedjavalib",
+				"myprivatejavalib",
 			],
 		}
 
@@ -137,6 +138,14 @@ func TestSnapshotVisibility(t *testing.T) {
 			name: "mydefaultedjavalib",
 			defaults: ["myjavadefaults"],
 			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
+		}
+
+		java_library {
+			name: "myprivatejavalib",
+			srcs: ["Test.java"],
+			visibility: ["//visibility:private"],
 			system_modules: "none",
 			sdk_version: "none",
 		}
@@ -206,6 +215,20 @@ java_import {
     jars: ["java/mydefaultedjavalib.jar"],
 }
 
+java_import {
+    name: "mysdk_myprivatejavalib@current",
+    sdk_member_name: "myprivatejavalib",
+    visibility: ["//package"],
+    jars: ["java/myprivatejavalib.jar"],
+}
+
+java_import {
+    name: "myprivatejavalib",
+    prefer: false,
+    visibility: ["//package"],
+    jars: ["java/myprivatejavalib.jar"],
+}
+
 sdk_snapshot {
     name: "mysdk@current",
     visibility: [
@@ -216,6 +239,7 @@ sdk_snapshot {
         "mysdk_myjavalib@current",
         "mysdk_mypublicjavalib@current",
         "mysdk_mydefaultedjavalib@current",
+        "mysdk_myprivatejavalib@current",
     ],
 }
 `))
