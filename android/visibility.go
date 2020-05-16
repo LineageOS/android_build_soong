@@ -496,6 +496,13 @@ func EffectiveVisibilityRules(ctx BaseModuleContext, module Module) []string {
 
 	rule := effectiveVisibilityRules(ctx.Config(), qualified)
 
+	// Modules are implicitly visible to other modules in the same package,
+	// without checking the visibility rules. Here we need to add that visibility
+	// explicitly.
+	if rule != nil && !rule.matches(qualified) {
+		rule = append(rule, packageRule{dir})
+	}
+
 	return rule.Strings()
 }
 
