@@ -58,6 +58,7 @@ cat > ${SOONG_VARS}.new << EOF
 
     "DeviceName": "generic_arm64",
     "HostArch": "x86_64",
+    "HostSecondaryArch": "x86",
     "Aml_abis": true,
 
     "UseGoma": ${USE_GOMA}
