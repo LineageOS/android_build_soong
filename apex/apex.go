@@ -726,6 +726,7 @@ func init() {
 	android.RegisterModuleType("apex_defaults", defaultsFactory)
 	android.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
 	android.RegisterModuleType("override_apex", overrideApexFactory)
+	android.RegisterModuleType("apex_set", apexSetFactory)
 
 	android.PreDepsMutators(RegisterPreDepsMutators)
 	android.PostDepsMutators(RegisterPostDepsMutators)
@@ -1692,16 +1693,10 @@ func apexFileForShBinary(ctx android.BaseModuleContext, sh *android.ShBinary) ap
 	return af
 }
 
-// TODO(b/146586360): replace javaLibrary(in apex/apex.go) with java.Dependency
-type javaLibrary interface {
-	android.Module
-	java.Dependency
-}
-
-func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaLibrary) apexFile {
+func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib java.Dependency, module android.Module) apexFile {
 	dirInApex := "javalib"
 	fileToCopy := lib.DexJar()
-	af := newApexFile(ctx, fileToCopy, lib.Name(), dirInApex, javaSharedLib, lib)
+	af := newApexFile(ctx, fileToCopy, module.Name(), dirInApex, javaSharedLib, module)
 	af.jacocoReportClassesFile = lib.JacocoReportClassesFile()
 	return af
 }
@@ -1972,7 +1967,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 			case javaLibTag:
 				if javaLib, ok := child.(*java.Library); ok {
-					af := apexFileForJavaLibrary(ctx, javaLib)
+					af := apexFileForJavaLibrary(ctx, javaLib, javaLib)
 					if !af.Ok() {
 						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
 					} else {
@@ -1980,7 +1975,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						return true // track transitive dependencies
 					}
 				} else if sdkLib, ok := child.(*java.SdkLibrary); ok {
-					af := apexFileForJavaLibrary(ctx, sdkLib)
+					af := apexFileForJavaLibrary(ctx, sdkLib, sdkLib)
 					if !af.Ok() {
 						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
 						return false

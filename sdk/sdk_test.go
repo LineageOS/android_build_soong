@@ -103,6 +103,7 @@ func TestSnapshotVisibility(t *testing.T) {
 				"myjavalib",
 				"mypublicjavalib",
 				"mydefaultedjavalib",
+				"myprivatejavalib",
 			],
 		}
 
@@ -140,6 +141,14 @@ func TestSnapshotVisibility(t *testing.T) {
 			system_modules: "none",
 			sdk_version: "none",
 		}
+
+		java_library {
+			name: "myprivatejavalib",
+			srcs: ["Test.java"],
+			visibility: ["//visibility:private"],
+			system_modules: "none",
+			sdk_version: "none",
+		}
 	`
 
 	result := testSdkWithFs(t, ``,
@@ -155,14 +164,20 @@ func TestSnapshotVisibility(t *testing.T) {
 java_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
-    visibility: ["//other/foo:__pkg__"],
+    visibility: [
+        "//other/foo",
+        "//package",
+    ],
     jars: ["java/myjavalib.jar"],
 }
 
 java_import {
     name: "myjavalib",
     prefer: false,
-    visibility: ["//other/foo:__pkg__"],
+    visibility: [
+        "//other/foo",
+        "//package",
+    ],
     jars: ["java/myjavalib.jar"],
 }
 
@@ -183,27 +198,48 @@ java_import {
 java_import {
     name: "mysdk_mydefaultedjavalib@current",
     sdk_member_name: "mydefaultedjavalib",
-    visibility: ["//other/bar:__pkg__"],
+    visibility: [
+        "//other/bar",
+        "//package",
+    ],
     jars: ["java/mydefaultedjavalib.jar"],
 }
 
 java_import {
     name: "mydefaultedjavalib",
     prefer: false,
-    visibility: ["//other/bar:__pkg__"],
+    visibility: [
+        "//other/bar",
+        "//package",
+    ],
     jars: ["java/mydefaultedjavalib.jar"],
+}
+
+java_import {
+    name: "mysdk_myprivatejavalib@current",
+    sdk_member_name: "myprivatejavalib",
+    visibility: ["//package"],
+    jars: ["java/myprivatejavalib.jar"],
+}
+
+java_import {
+    name: "myprivatejavalib",
+    prefer: false,
+    visibility: ["//package"],
+    jars: ["java/myprivatejavalib.jar"],
 }
 
 sdk_snapshot {
     name: "mysdk@current",
     visibility: [
-        "//other/foo:__pkg__",
+        "//other/foo",
         "//package:__subpackages__",
     ],
     java_header_libs: [
         "mysdk_myjavalib@current",
         "mysdk_mypublicjavalib@current",
         "mysdk_mydefaultedjavalib@current",
+        "mysdk_myprivatejavalib@current",
     ],
 }
 `))

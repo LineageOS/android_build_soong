@@ -95,8 +95,7 @@ func (j *Module) CheckStableSdkVersion() error {
 }
 
 func (j *Module) checkSdkVersions(ctx android.ModuleContext) {
-	if j.SocSpecific() || j.DeviceSpecific() ||
-		(j.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface()) {
+	if j.RequiresStableAPIs(ctx) {
 		if sc, ok := ctx.Module().(sdkContext); ok {
 			if !sc.sdkVersion().specified() {
 				ctx.PropertyErrorf("sdk_version",
@@ -629,12 +628,14 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 			}
 		} else if sdkDep.useModule {
 			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.bootclasspath...)
-			ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
 			ctx.AddVariationDependencies(nil, java9LibTag, sdkDep.java9Classpath...)
 			if j.deviceProperties.EffectiveOptimizeEnabled() && sdkDep.hasStandardLibs() {
 				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultBootclasspathLibraries...)
 				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultLibraries...)
 			}
+		}
+		if sdkDep.systemModules != "" {
+			ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
 		}
 
 		if ctx.ModuleName() == "android_stubs_current" ||
@@ -1038,19 +1039,10 @@ func addPlugins(deps *deps, pluginJars android.Paths, pluginClasses ...string) {
 }
 
 func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sdkContext) javaVersion {
-	sdk, err := sdkContext.sdkVersion().effectiveVersion(ctx)
-	if err != nil {
-		ctx.PropertyErrorf("sdk_version", "%s", err)
-	}
 	if javaVersion != "" {
 		return normalizeJavaVersion(ctx, javaVersion)
-	} else if ctx.Device() && sdk <= 23 {
-		return JAVA_VERSION_7
-	} else if ctx.Device() && sdk <= 29 {
-		return JAVA_VERSION_8
-	} else if ctx.Device() && ctx.Config().UnbundledBuildUsePrebuiltSdks() {
-		// TODO(b/142896162): once we have prebuilt system modules we can use 1.9 for unbundled builds
-		return JAVA_VERSION_8
+	} else if ctx.Device() {
+		return sdkContext.sdkVersion().defaultJavaLanguageVersion(ctx)
 	} else {
 		return JAVA_VERSION_9
 	}
