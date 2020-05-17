@@ -244,14 +244,7 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.extservices"] = []string{
-		"flatbuffer_headers",
-		"liblua",
-		"libtextclassifier",
-		"libtextclassifier_hash_static",
-		"libtflite_static",
-		"libutf",
 		"libz_current",
-		"tensorflow_headers",
 	}
 	//
 	// Module separator
