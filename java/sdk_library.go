@@ -785,16 +785,16 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	props.Srcs = []string{":" + module.stubsSourceModuleName(apiScope)}
 	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
 	props.Sdk_version = proptools.StringPtr(sdkVersion)
-	props.System_modules = module.Library.Module.deviceProperties.System_modules
-	props.Patch_module = module.Library.Module.properties.Patch_module
+	props.System_modules = module.deviceProperties.System_modules
+	props.Patch_module = module.properties.Patch_module
 	props.Installable = proptools.BoolPtr(false)
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
-	props.Openjdk9.Srcs = module.Library.Module.properties.Openjdk9.Srcs
-	props.Openjdk9.Javacflags = module.Library.Module.properties.Openjdk9.Javacflags
-	props.Java_version = module.Library.Module.properties.Java_version
-	if module.Library.Module.deviceProperties.Compile_dex != nil {
-		props.Compile_dex = module.Library.Module.deviceProperties.Compile_dex
+	props.Openjdk9.Srcs = module.properties.Openjdk9.Srcs
+	props.Openjdk9.Javacflags = module.properties.Openjdk9.Javacflags
+	props.Java_version = module.properties.Java_version
+	if module.deviceProperties.Compile_dex != nil {
+		props.Compile_dex = module.deviceProperties.Compile_dex
 	}
 
 	// Dist the class jar artifact for sdk builds.
@@ -860,17 +860,17 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	visibility := module.sdkLibraryProperties.Stubs_source_visibility
 	props.Visibility = visibility
 
-	props.Srcs = append(props.Srcs, module.Library.Module.properties.Srcs...)
-	props.Sdk_version = module.Library.Module.deviceProperties.Sdk_version
-	props.System_modules = module.Library.Module.deviceProperties.System_modules
+	props.Srcs = append(props.Srcs, module.properties.Srcs...)
+	props.Sdk_version = module.deviceProperties.Sdk_version
+	props.System_modules = module.deviceProperties.System_modules
 	props.Installable = proptools.BoolPtr(false)
 	// A droiddoc module has only one Libs property and doesn't distinguish between
 	// shared libs and static libs. So we need to add both of these libs to Libs property.
-	props.Libs = module.Library.Module.properties.Libs
-	props.Libs = append(props.Libs, module.Library.Module.properties.Static_libs...)
-	props.Aidl.Include_dirs = module.Library.Module.deviceProperties.Aidl.Include_dirs
-	props.Aidl.Local_include_dirs = module.Library.Module.deviceProperties.Aidl.Local_include_dirs
-	props.Java_version = module.Library.Module.properties.Java_version
+	props.Libs = module.properties.Libs
+	props.Libs = append(props.Libs, module.properties.Static_libs...)
+	props.Aidl.Include_dirs = module.deviceProperties.Aidl.Include_dirs
+	props.Aidl.Local_include_dirs = module.deviceProperties.Aidl.Local_include_dirs
+	props.Java_version = module.properties.Java_version
 
 	props.Merge_annotations_dirs = module.sdkLibraryProperties.Merge_annotations_dirs
 	props.Merge_inclusion_annotations_dirs = module.sdkLibraryProperties.Merge_inclusion_annotations_dirs
@@ -1021,9 +1021,9 @@ func (module *SdkLibrary) sdkJars(
 	} else {
 		if !sdkVersion.specified() {
 			if headerJars {
-				return module.Library.HeaderJars()
+				return module.HeaderJars()
 			} else {
-				return module.Library.ImplementationJars()
+				return module.ImplementationJars()
 			}
 		}
 		var apiScope *apiScope
@@ -1033,7 +1033,7 @@ func (module *SdkLibrary) sdkJars(
 		case sdkTest:
 			apiScope = apiScopeTest
 		case sdkPrivate:
-			return module.Library.HeaderJars()
+			return module.HeaderJars()
 		default:
 			apiScope = apiScopePublic
 		}
@@ -1082,7 +1082,7 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 		return
 	}
 
-	if len(module.Library.Module.properties.Srcs) == 0 {
+	if len(module.properties.Srcs) == 0 {
 		mctx.PropertyErrorf("srcs", "java_sdk_library must specify srcs")
 		return
 	}
@@ -1163,14 +1163,14 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 func (module *SdkLibrary) InitSdkLibraryProperties() {
 	module.AddProperties(
 		&module.sdkLibraryProperties,
-		&module.Library.Module.properties,
-		&module.Library.Module.dexpreoptProperties,
-		&module.Library.Module.deviceProperties,
-		&module.Library.Module.protoProperties,
+		&module.properties,
+		&module.dexpreoptProperties,
+		&module.deviceProperties,
+		&module.protoProperties,
 	)
 
-	module.Library.Module.properties.Installable = proptools.BoolPtr(true)
-	module.Library.Module.deviceProperties.IsSDKLibrary = true
+	module.properties.Installable = proptools.BoolPtr(true)
+	module.deviceProperties.IsSDKLibrary = true
 }
 
 // Defines how to name the individual component modules the sdk library creates.
