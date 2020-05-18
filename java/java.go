@@ -2044,6 +2044,10 @@ type testProperties struct {
 	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
 	// explicitly.
 	Auto_gen_config *bool
+
+	// Add parameterized mainline modules to auto generated test config. The options will be
+	// handled by TradeFed to do downloading and installing the specified modules on the device.
+	Test_mainline_modules []string
 }
 
 type testHelperLibraryProperties struct {
