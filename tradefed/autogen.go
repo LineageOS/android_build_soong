@@ -219,31 +219,39 @@ func AutoGenRustTestConfig(ctx android.ModuleContext, name string, testConfigPro
 }
 
 var autogenInstrumentationTest = pctx.StaticRule("autogenInstrumentationTest", blueprint.RuleParams{
-	Command: "${AutoGenTestConfigScript} $out $in ${EmptyTestConfig} $template",
+	Command: "${AutoGenTestConfigScript} $out $in ${EmptyTestConfig} $template ${extraConfigs}",
 	CommandDeps: []string{
 		"${AutoGenTestConfigScript}",
 		"${EmptyTestConfig}",
 		"$template",
 	},
-}, "name", "template")
+}, "name", "template", "extraConfigs")
 
 func AutoGenInstrumentationTestConfig(ctx android.ModuleContext, testConfigProp *string,
-	testConfigTemplateProp *string, manifest android.Path, testSuites []string, autoGenConfig *bool) android.Path {
+	testConfigTemplateProp *string, manifest android.Path, testSuites []string, autoGenConfig *bool, configs []Config) android.Path {
 	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites, autoGenConfig, testConfigTemplateProp)
+	var configStrings []string
 	if autogenPath != nil {
 		template := "${InstrumentationTestConfigTemplate}"
 		moduleTemplate := getTestConfigTemplate(ctx, testConfigTemplateProp)
 		if moduleTemplate.Valid() {
 			template = moduleTemplate.String()
 		}
+		for _, config := range configs {
+			configStrings = append(configStrings, config.Config())
+		}
+		extraConfigs := strings.Join(configStrings, fmt.Sprintf("\\n%s", test_xml_indent))
+		extraConfigs = fmt.Sprintf("--extra-configs '%s'", extraConfigs)
+
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        autogenInstrumentationTest,
 			Description: "test config",
 			Input:       manifest,
 			Output:      autogenPath,
 			Args: map[string]string{
-				"name":     ctx.ModuleName(),
-				"template": template,
+				"name":         ctx.ModuleName(),
+				"template":     template,
+				"extraConfigs": extraConfigs,
 			},
 		})
 		return autogenPath

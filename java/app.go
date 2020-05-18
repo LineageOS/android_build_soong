@@ -1015,6 +1015,7 @@ func (a *AndroidTest) InstallInTestcases() bool {
 }
 
 func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	var configs []tradefed.Config
 	if a.appTestProperties.Instrumentation_target_package != nil {
 		a.additionalAaptFlags = append(a.additionalAaptFlags,
 			"--rename-instrumentation-target-package "+*a.appTestProperties.Instrumentation_target_package)
@@ -1027,8 +1028,12 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	a.generateAndroidBuildActions(ctx)
 
+	for _, module := range a.testProperties.Test_mainline_modules {
+		configs = append(configs, tradefed.Option{Name: "config-descriptor:metadata", Key: "mainline-param", Value: module})
+	}
+
 	testConfig := tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config,
-		a.testProperties.Test_config_template, a.manifestPath, a.testProperties.Test_suites, a.testProperties.Auto_gen_config)
+		a.testProperties.Test_config_template, a.manifestPath, a.testProperties.Test_suites, a.testProperties.Auto_gen_config, configs)
 	a.testConfig = a.FixTestConfig(ctx, testConfig)
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
 }
