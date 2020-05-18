@@ -1245,6 +1245,9 @@ type AndroidAppImportProperties struct {
 	// be set for presigned modules.
 	Presigned *bool
 
+	// Name of the signing certificate lineage file.
+	Lineage *string
+
 	// Sign with the default system dev certificate. Must be used judiciously. Most imported apps
 	// need to either specify a specific certificate or be presigned.
 	Default_dev_cert *bool
@@ -1443,7 +1446,11 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		}
 		a.certificate = certificates[0]
 		signed := android.PathForModuleOut(ctx, "signed", apkFilename)
-		SignAppPackage(ctx, signed, dexOutput, certificates, nil, nil)
+		var lineageFile android.Path
+		if lineage := String(a.properties.Lineage); lineage != "" {
+			lineageFile = android.PathForModuleSrc(ctx, lineage)
+		}
+		SignAppPackage(ctx, signed, dexOutput, certificates, nil, lineageFile)
 		a.outputFile = signed
 	} else {
 		alignedApk := android.PathForModuleOut(ctx, "zip-aligned", apkFilename)
