@@ -162,7 +162,7 @@ func init() {
 
 		// http://b/131390872
 		// Automatically initialize any uninitialized stack variables.
-		// Prefer zero-init if both options are set.
+		// Prefer zero-init if multiple options are set.
 		if ctx.Config().IsEnvTrue("AUTO_ZERO_INITIALIZE") {
 			flags = append(flags, "-ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang")
 		} else if ctx.Config().IsEnvTrue("AUTO_PATTERN_INITIALIZE") {
@@ -170,8 +170,8 @@ func init() {
 		} else if ctx.Config().IsEnvTrue("AUTO_UNINITIALIZE") {
 			flags = append(flags, "-ftrivial-auto-var-init=uninitialized")
 		} else {
-			// Default to pattern initialization.
-			flags = append(flags, "-ftrivial-auto-var-init=pattern")
+			// Default to zero initialization.
+			flags = append(flags, "-ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang")
 		}
 
 		return strings.Join(flags, " ")
