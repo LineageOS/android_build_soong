@@ -354,12 +354,31 @@ func (me *CompilerDeviceProperties) EffectiveOptimizeEnabled() bool {
 	return BoolDefault(me.Optimize.Enabled, me.Optimize.EnabledByDefault)
 }
 
+// Functionality common to Module and Import
+type embeddableInModuleAndImport struct {
+}
+
+// Module/Import's DepIsInSameApex(...) delegates to this method.
+//
+// This cannot implement DepIsInSameApex(...) directly as that leads to ambiguity with
+// the one provided by ApexModuleBase.
+func (e *embeddableInModuleAndImport) depIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	// dependencies other than the static linkage are all considered crossing APEX boundary
+	if staticLibTag == ctx.OtherModuleDependencyTag(dep) {
+		return true
+	}
+	return false
+}
+
 // Module contains the properties and members used by all java module types
 type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
 	android.ApexModuleBase
 	android.SdkBase
+
+	// Functionality common to Module and Import.
+	embeddableInModuleAndImport
 
 	properties       CompilerProperties
 	protoProperties  android.ProtoProperties
@@ -1765,11 +1784,7 @@ func (j *Module) hasCode(ctx android.ModuleContext) bool {
 }
 
 func (j *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
-	// Dependencies other than the static linkage are all considered crossing APEX boundary
-	if staticLibTag == ctx.OtherModuleDependencyTag(dep) {
-		return true
-	}
-	return false
+	return j.depIsInSameApex(ctx, dep)
 }
 
 func (j *Module) Stem() string {
@@ -2377,6 +2392,9 @@ type Import struct {
 	prebuilt android.Prebuilt
 	android.SdkBase
 
+	// Functionality common to Module and Import.
+	embeddableInModuleAndImport
+
 	properties ImportProperties
 
 	combinedClasspathFile android.Path
@@ -2508,11 +2526,7 @@ func (j *Import) SrcJarArgs() ([]string, android.Paths) {
 }
 
 func (j *Import) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
-	// dependencies other than the static linkage are all considered crossing APEX boundary
-	if staticLibTag == ctx.OtherModuleDependencyTag(dep) {
-		return true
-	}
-	return false
+	return j.depIsInSameApex(ctx, dep)
 }
 
 // Add compile time check for interface implementation
