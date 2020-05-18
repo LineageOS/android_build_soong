@@ -309,7 +309,12 @@ func processVndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 		panic(err)
 	}
 
-	if m.HasStubsVariants() {
+	if m.HasStubsVariants() && name != "libz" {
+		// b/155456180 libz is the ONLY exception here. We don't want to make
+		// libz an LLNDK library because APIs required for vendors might be
+		// wider than what we expose as NDK/Mainline APIs. As the library is
+		// an external one, it's risky to keep the API stability promise if
+		// it becomes an LLNDK.
 		mctx.PropertyErrorf("vndk.enabled", "This library provides stubs. Shouldn't be VNDK. Consider making it as LLNDK")
 	}
 
