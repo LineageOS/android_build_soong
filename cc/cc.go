@@ -124,9 +124,15 @@ type PathDeps struct {
 	StaticLibs, LateStaticLibs, WholeStaticLibs android.Paths
 
 	// Paths to .o files
-	Objs               Objects
+	Objs Objects
+	// Paths to .o files in dependencies that provide them. Note that these lists
+	// aren't complete since prebuilt modules don't provide the .o files.
 	StaticLibObjs      Objects
 	WholeStaticLibObjs Objects
+
+	// Paths to .a files in prebuilts. Complements WholeStaticLibObjs to contain
+	// the libs from all whole_static_lib dependencies.
+	WholeStaticLibsFromPrebuilts android.Paths
 
 	// Paths to generated source files
 	GeneratedSources android.Paths
@@ -2482,7 +2488,11 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					}
 					ctx.AddMissingDependencies(missingDeps)
 				}
-				depPaths.WholeStaticLibObjs = depPaths.WholeStaticLibObjs.Append(staticLib.objs())
+				if _, ok := ccWholeStaticLib.linker.(prebuiltLinkerInterface); ok {
+					depPaths.WholeStaticLibsFromPrebuilts = append(depPaths.WholeStaticLibsFromPrebuilts, linkFile.Path())
+				} else {
+					depPaths.WholeStaticLibObjs = depPaths.WholeStaticLibObjs.Append(staticLib.objs())
+				}
 			} else {
 				ctx.ModuleErrorf(
 					"non-cc.Modules cannot be included as whole static libraries.", depName)
