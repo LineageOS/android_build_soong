@@ -257,8 +257,10 @@ func init() {
 		return ""
 	})
 
+	pctx.VariableFunc("RECXXPool", envOverrideFunc("RBE_CXX_POOL", remoteexec.DefaultPool))
 	pctx.VariableFunc("RECXXLinksPool", envOverrideFunc("RBE_CXX_LINKS_POOL", remoteexec.DefaultPool))
 	pctx.VariableFunc("RECXXLinksExecStrategy", envOverrideFunc("RBE_CXX_LINKS_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
+	pctx.VariableFunc("REAbiDumperExecStrategy", envOverrideFunc("RBE_ABI_DUMPER_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
 }
 
 var HostPrebuiltTag = pctx.VariableConfigMethod("HostPrebuiltTag", android.Config.PrebuiltOS)
