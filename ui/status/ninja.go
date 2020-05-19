@@ -174,6 +174,8 @@ func (n *NinjaReader) run() {
 				n.status.Print("warning: " + message)
 			case ninja_frontend.Status_Message_ERROR:
 				n.status.Error(message)
+			case ninja_frontend.Status_Message_DEBUG:
+				n.status.Verbose(message)
 			default:
 				n.status.Print(message)
 			}
