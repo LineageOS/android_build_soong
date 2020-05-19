@@ -104,6 +104,8 @@ type EarlyModuleContext interface {
 type BaseModuleContext interface {
 	EarlyModuleContext
 
+	blueprintBaseModuleContext() blueprint.BaseModuleContext
+
 	OtherModuleName(m blueprint.Module) string
 	OtherModuleDir(m blueprint.Module) string
 	OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{})
@@ -1439,6 +1441,10 @@ func (b *baseModuleContext) GetDirectDepWithTag(name string, tag blueprint.Depen
 	return b.bp.GetDirectDepWithTag(name, tag)
 }
 
+func (b *baseModuleContext) blueprintBaseModuleContext() blueprint.BaseModuleContext {
+	return b.bp
+}
+
 type moduleContext struct {
 	bp blueprint.ModuleContext
 	baseModuleContext
@@ -2360,4 +2366,9 @@ type IdeInfo struct {
 	Classes           []string `json:"class,omitempty"`
 	Installed_paths   []string `json:"installed,omitempty"`
 	SrcJars           []string `json:"srcjars,omitempty"`
+}
+
+func CheckBlueprintSyntax(ctx BaseModuleContext, filename string, contents string) []error {
+	bpctx := ctx.blueprintBaseModuleContext()
+	return blueprint.CheckBlueprintSyntax(bpctx.ModuleFactories(), filename, contents)
 }

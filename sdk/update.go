@@ -350,6 +350,9 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	bp = newGeneratedFile(ctx, "snapshot", "Android.bp")
 	generateBpContents(&bp.generatedContents, bpFile)
 
+	contents := bp.content.String()
+	syntaxCheckSnapshotBpFile(ctx, contents)
+
 	bp.build(pctx, ctx, nil)
 
 	filesToZip := builder.filesToZip
@@ -392,6 +395,36 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	}
 
 	return outputZipFile
+}
+
+// Check the syntax of the generated Android.bp file contents and if they are
+// invalid then log an error with the contents (tagged with line numbers) and the
+// errors that were found so that it is easy to see where the problem lies.
+func syntaxCheckSnapshotBpFile(ctx android.ModuleContext, contents string) {
+	errs := android.CheckBlueprintSyntax(ctx, "Android.bp", contents)
+	if len(errs) != 0 {
+		message := &strings.Builder{}
+		_, _ = fmt.Fprint(message, `errors in generated Android.bp snapshot:
+
+Generated Android.bp contents
+========================================================================
+`)
+		for i, line := range strings.Split(contents, "\n") {
+			_, _ = fmt.Fprintf(message, "%6d:    %s\n", i+1, line)
+		}
+
+		_, _ = fmt.Fprint(message, `
+========================================================================
+
+Errors found:
+`)
+
+		for _, err := range errs {
+			_, _ = fmt.Fprintf(message, "%s\n", err.Error())
+		}
+
+		ctx.ModuleErrorf("%s", message.String())
+	}
 }
 
 func extractCommonProperties(ctx android.ModuleContext, extractor *commonValueExtractor, commonProperties interface{}, inputPropertiesSlice interface{}) {
