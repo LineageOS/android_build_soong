@@ -491,16 +491,6 @@ func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
 		!a.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
 }
 
-func generateAaptRenamePackageFlags(packageName string) []string {
-	aaptFlags := []string{}
-	aaptFlags = append(aaptFlags, "--rename-manifest-package "+packageName)
-	// --rename-resources-package renames the package within the resources table to packageName.
-	// Note: this will *not* rename the R.java file because the base module .R
-	// package may be directly referenced in code.
-	aaptFlags = append(aaptFlags, "--rename-resources-package "+packageName)
-	return aaptFlags
-}
-
 func (a *AndroidApp) OverriddenManifestPackageName() string {
 	return a.overriddenManifestPackageName
 }
@@ -537,7 +527,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 		if !overridden {
 			manifestPackageName = *a.overridableAppProperties.Package_name
 		}
-		aaptLinkFlags = append(aaptLinkFlags, generateAaptRenamePackageFlags(manifestPackageName)...)
+		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
 		a.overriddenManifestPackageName = manifestPackageName
 	}
 
