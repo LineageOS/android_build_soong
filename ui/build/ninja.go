@@ -39,6 +39,7 @@ func runNinja(ctx Context, config Config) {
 	args := []string{
 		"-d", "keepdepfile",
 		"-d", "keeprsp",
+		"-d", "stats",
 		"--frontend_file", fifo,
 	}
 
