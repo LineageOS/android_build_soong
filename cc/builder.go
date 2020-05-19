@@ -99,6 +99,15 @@ var (
 		},
 		"arCmd", "arFlags")
 
+	arWithLibs = pctx.AndroidStaticRule("arWithLibs",
+		blueprint.RuleParams{
+			Command:        "rm -f ${out} && $arCmd $arObjFlags $out @${out}.rsp && $arCmd $arLibFlags $out $arLibs",
+			CommandDeps:    []string{"$arCmd"},
+			Rspfile:        "${out}.rsp",
+			RspfileContent: "${arObjs}",
+		},
+		"arCmd", "arObjFlags", "arObjs", "arLibFlags", "arLibs")
+
 	darwinStrip = pctx.AndroidStaticRule("darwinStrip",
 		blueprint.RuleParams{
 			Command:     "${config.MacStripPath} -u -r -o $out $in",
@@ -609,26 +618,45 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 }
 
 // Generate a rule for compiling multiple .o files to a static library (.a)
-func TransformObjToStaticLib(ctx android.ModuleContext, objFiles android.Paths,
+func TransformObjToStaticLib(ctx android.ModuleContext,
+	objFiles android.Paths, wholeStaticLibs android.Paths,
 	flags builderFlags, outputFile android.ModuleOutPath, deps android.Paths) {
 
 	arCmd := "${config.ClangBin}/llvm-ar"
-	arFlags := "crsPD"
+	arFlags := ""
 	if !ctx.Darwin() {
 		arFlags += " -format=gnu"
 	}
 
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        ar,
-		Description: "static link " + outputFile.Base(),
-		Output:      outputFile,
-		Inputs:      objFiles,
-		Implicits:   deps,
-		Args: map[string]string{
-			"arFlags": arFlags,
-			"arCmd":   arCmd,
-		},
-	})
+	if len(wholeStaticLibs) == 0 {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        ar,
+			Description: "static link " + outputFile.Base(),
+			Output:      outputFile,
+			Inputs:      objFiles,
+			Implicits:   deps,
+			Args: map[string]string{
+				"arFlags": "crsPD" + arFlags,
+				"arCmd":   arCmd,
+			},
+		})
+
+	} else {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        arWithLibs,
+			Description: "static link " + outputFile.Base(),
+			Output:      outputFile,
+			Inputs:      append(objFiles, wholeStaticLibs...),
+			Implicits:   deps,
+			Args: map[string]string{
+				"arCmd":      arCmd,
+				"arObjFlags": "crsPD" + arFlags,
+				"arObjs":     strings.Join(objFiles.Strings(), " "),
+				"arLibFlags": "cqsL" + arFlags,
+				"arLibs":     strings.Join(wholeStaticLibs.Strings(), " "),
+			},
+		})
+	}
 }
 
 // Generate a rule for compiling multiple .o files, plus static libraries, whole static libraries,
