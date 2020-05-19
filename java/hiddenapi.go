@@ -180,7 +180,9 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, 
 	// b/149353192: when a module is instrumented, jacoco adds synthetic members
 	// $jacocoData and $jacocoInit. Since they don't exist when building the hidden API flags,
 	// don't complain when we don't find hidden API flags for the synthetic members.
-	if j, ok := ctx.Module().(*Library); ok && j.shouldInstrument(ctx) {
+	if j, ok := ctx.Module().(interface {
+		shouldInstrument(android.BaseModuleContext) bool
+	}); ok && j.shouldInstrument(ctx) {
 		enforceHiddenApiFlagsToAllMembers = false
 	}
 
