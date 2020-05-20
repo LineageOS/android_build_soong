@@ -237,14 +237,20 @@ func TransformJniLibsToJar(ctx android.ModuleContext, outputFile android.Writabl
 			"-f", j.path.String())
 	}
 
+	rule := zip
+	args := map[string]string{
+		"jarArgs": strings.Join(proptools.NinjaAndShellEscapeList(jarArgs), " "),
+	}
+	if ctx.Config().IsEnvTrue("RBE_ZIP") {
+		rule = zipRE
+		args["implicits"] = strings.Join(deps.Strings(), ",")
+	}
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        zip,
+		Rule:        rule,
 		Description: "zip jni libs",
 		Output:      outputFile,
 		Implicits:   deps,
-		Args: map[string]string{
-			"jarArgs": strings.Join(proptools.NinjaAndShellEscapeList(jarArgs), " "),
-		},
+		Args:        args,
 	})
 }
 
