@@ -109,11 +109,11 @@ func (image bootImageConfig) getAnyAndroidVariant() *bootImageVariant {
 	return nil
 }
 
-func (image bootImageConfig) moduleName(idx int) string {
+func (image bootImageConfig) moduleName(ctx android.PathContext, idx int) string {
 	// Dexpreopt on the boot class path produces multiple files. The first dex file
 	// is converted into 'name'.art (to match the legacy assumption that 'name'.art
 	// exists), and the rest are converted to 'name'-<jar>.art.
-	_, m := android.SplitApexJarPair(image.modules[idx])
+	_, m := android.SplitApexJarPair(ctx, image.modules[idx])
 	name := image.stem
 	if idx != 0 || image.extends != nil {
 		name += "-" + stemOf(m)
@@ -121,9 +121,9 @@ func (image bootImageConfig) moduleName(idx int) string {
 	return name
 }
 
-func (image bootImageConfig) firstModuleNameOrStem() string {
+func (image bootImageConfig) firstModuleNameOrStem(ctx android.PathContext) string {
 	if len(image.modules) > 0 {
-		return image.moduleName(0)
+		return image.moduleName(ctx, 0)
 	} else {
 		return image.stem
 	}
@@ -132,7 +132,7 @@ func (image bootImageConfig) firstModuleNameOrStem() string {
 func (image bootImageConfig) moduleFiles(ctx android.PathContext, dir android.OutputPath, exts ...string) android.OutputPaths {
 	ret := make(android.OutputPaths, 0, len(image.modules)*len(exts))
 	for i := range image.modules {
-		name := image.moduleName(i)
+		name := image.moduleName(ctx, i)
 		for _, ext := range exts {
 			ret = append(ret, dir.Join(ctx, name+ext))
 		}
@@ -261,7 +261,7 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 	}
 
 	name := ctx.ModuleName(module)
-	index := android.IndexList(name, android.GetJarsFromApexJarPairs(image.modules))
+	index := android.IndexList(name, android.GetJarsFromApexJarPairs(ctx, image.modules))
 	if index == -1 {
 		return -1, nil
 	}
@@ -314,7 +314,7 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 	// Ensure all modules were converted to paths
 	for i := range bootDexJars {
 		if bootDexJars[i] == nil {
-			_, m := android.SplitApexJarPair(image.modules[i])
+			_, m := android.SplitApexJarPair(ctx, image.modules[i])
 			if ctx.Config().AllowMissingDependencies() {
 				missingDeps = append(missingDeps, m)
 				bootDexJars[i] = android.PathForOutput(ctx, "missing")
@@ -614,7 +614,7 @@ func updatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConf
 
 	return ctx.Config().Once(updatableBcpPackagesRuleKey, func() interface{} {
 		global := dexpreopt.GetGlobalConfig(ctx)
-		updatableModules := android.GetJarsFromApexJarPairs(global.UpdatableBootJars)
+		updatableModules := android.GetJarsFromApexJarPairs(ctx, global.UpdatableBootJars)
 
 		// Collect `permitted_packages` for updatable boot jars.
 		var updatablePackages []string
