@@ -21,6 +21,7 @@ import (
 	"github.com/google/blueprint/pathtools"
 
 	"android/soong/android"
+	"android/soong/cc"
 )
 
 var (
@@ -161,11 +162,17 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 
 	if flags.Coverage {
 		var gcnoFile android.WritablePath
+		// Provide consistency with cc gcda output, see cc/builder.go init()
+		profileEmitArg := strings.TrimPrefix("PWD=", cc.PwdPrefix()) + "/"
 
 		if outputFile.Ext() != "" {
 			gcnoFile = android.PathForModuleOut(ctx, pathtools.ReplaceExtension(outputFile.Base(), "gcno"))
+			rustcFlags = append(rustcFlags, "-Z profile-emit="+profileEmitArg+android.PathForModuleOut(
+				ctx, pathtools.ReplaceExtension(outputFile.Base(), "gcda")).String())
 		} else {
 			gcnoFile = android.PathForModuleOut(ctx, outputFile.Base()+".gcno")
+			rustcFlags = append(rustcFlags, "-Z profile-emit="+profileEmitArg+android.PathForModuleOut(
+				ctx, outputFile.Base()+".gcda").String())
 		}
 
 		implicitOutputs = append(implicitOutputs, gcnoFile)
