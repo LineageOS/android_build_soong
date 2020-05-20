@@ -897,27 +897,31 @@ func (c *config) ModulesLoadedByPrivilegedModules() []string {
 }
 
 // Expected format for apexJarValue = <apex name>:<jar name>
-func SplitApexJarPair(apexJarValue string) (string, string) {
-	var apexJarPair []string = strings.SplitN(apexJarValue, ":", 2)
-	if apexJarPair == nil || len(apexJarPair) != 2 {
-		panic(fmt.Errorf("malformed apexJarValue: %q, expected format: <apex>:<jar>",
-			apexJarValue))
+func SplitApexJarPair(ctx PathContext, str string) (string, string) {
+	pair := strings.SplitN(str, ":", 2)
+	if len(pair) == 2 {
+		return pair[0], pair[1]
+	} else {
+		reportPathErrorf(ctx, "malformed (apex, jar) pair: '%s', expected format: <apex>:<jar>", str)
+		return "error-apex", "error-jar"
 	}
-	return apexJarPair[0], apexJarPair[1]
 }
 
-func GetJarsFromApexJarPairs(apexJarPairs []string) []string {
+func GetJarsFromApexJarPairs(ctx PathContext, apexJarPairs []string) []string {
 	modules := make([]string, len(apexJarPairs))
 	for i, p := range apexJarPairs {
-		_, jar := SplitApexJarPair(p)
+		_, jar := SplitApexJarPair(ctx, p)
 		modules[i] = jar
 	}
 	return modules
 }
 
 func (c *config) BootJars() []string {
-	return append(GetJarsFromApexJarPairs(c.productVariables.BootJars),
-		GetJarsFromApexJarPairs(c.productVariables.UpdatableBootJars)...)
+	ctx := NullPathContext{Config{
+		config: c,
+	}}
+	return append(GetJarsFromApexJarPairs(ctx, c.productVariables.BootJars),
+		GetJarsFromApexJarPairs(ctx, c.productVariables.UpdatableBootJars)...)
 }
 
 func (c *config) DexpreoptGlobalConfig(ctx PathContext) ([]byte, error) {
