@@ -24,7 +24,7 @@ import (
 	"android/soong/dexpreopt"
 )
 
-func TestDexpreoptBootJars(t *testing.T) {
+func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOutputs []string) {
 	bp := `
 		java_sdk_library {
 			name: "foo",
@@ -52,14 +52,39 @@ func TestDexpreoptBootJars(t *testing.T) {
 	dexpreopt.SetTestGlobalConfig(config, dexpreoptConfig)
 
 	ctx := testContext()
-
 	RegisterDexpreoptBootJarsComponents(ctx)
-
 	run(t, ctx, config)
 
 	dexpreoptBootJars := ctx.SingletonForTests("dex_bootjars")
+	rule := dexpreoptBootJars.Output(ruleFile)
 
-	bootArt := dexpreoptBootJars.Output("boot-foo.art")
+	for i := range expectedInputs {
+		expectedInputs[i] = filepath.Join(buildDir, "test_device", expectedInputs[i])
+	}
+
+	for i := range expectedOutputs {
+		expectedOutputs[i] = filepath.Join(buildDir, "test_device", expectedOutputs[i])
+	}
+
+	inputs := rule.Implicits.Strings()
+	sort.Strings(inputs)
+	sort.Strings(expectedInputs)
+
+	outputs := append(android.WritablePaths{rule.Output}, rule.ImplicitOutputs...).Strings()
+	sort.Strings(outputs)
+	sort.Strings(expectedOutputs)
+
+	if !reflect.DeepEqual(inputs, expectedInputs) {
+		t.Errorf("want inputs %q\n got inputs %q", expectedInputs, inputs)
+	}
+
+	if !reflect.DeepEqual(outputs, expectedOutputs) {
+		t.Errorf("want outputs %q\n got outputs %q", expectedOutputs, outputs)
+	}
+}
+
+func TestDexpreoptBootJars(t *testing.T) {
+	ruleFile := "boot-foo.art"
 
 	expectedInputs := []string{
 		"dex_artjars/android/apex/com.android.art/javalib/arm64/boot.art",
@@ -68,47 +93,71 @@ func TestDexpreoptBootJars(t *testing.T) {
 		"dex_bootjars_input/baz.jar",
 	}
 
-	for i := range expectedInputs {
-		expectedInputs[i] = filepath.Join(buildDir, "test_device", expectedInputs[i])
-	}
-
-	inputs := bootArt.Implicits.Strings()
-	sort.Strings(inputs)
-	sort.Strings(expectedInputs)
-
-	if !reflect.DeepEqual(inputs, expectedInputs) {
-		t.Errorf("want inputs %q\n got inputs %q", expectedInputs, inputs)
-	}
-
 	expectedOutputs := []string{
 		"dex_bootjars/android/system/framework/arm64/boot.invocation",
-
 		"dex_bootjars/android/system/framework/arm64/boot-foo.art",
 		"dex_bootjars/android/system/framework/arm64/boot-bar.art",
 		"dex_bootjars/android/system/framework/arm64/boot-baz.art",
-
 		"dex_bootjars/android/system/framework/arm64/boot-foo.oat",
 		"dex_bootjars/android/system/framework/arm64/boot-bar.oat",
 		"dex_bootjars/android/system/framework/arm64/boot-baz.oat",
-
 		"dex_bootjars/android/system/framework/arm64/boot-foo.vdex",
 		"dex_bootjars/android/system/framework/arm64/boot-bar.vdex",
 		"dex_bootjars/android/system/framework/arm64/boot-baz.vdex",
-
 		"dex_bootjars_unstripped/android/system/framework/arm64/boot-foo.oat",
 		"dex_bootjars_unstripped/android/system/framework/arm64/boot-bar.oat",
 		"dex_bootjars_unstripped/android/system/framework/arm64/boot-baz.oat",
 	}
 
-	for i := range expectedOutputs {
-		expectedOutputs[i] = filepath.Join(buildDir, "test_device", expectedOutputs[i])
+	testDexpreoptBoot(t, ruleFile, expectedInputs, expectedOutputs)
+}
+
+// Changes to the boot.zip structure may break the ART APK scanner.
+func TestDexpreoptBootZip(t *testing.T) {
+	ruleFile := "boot.zip"
+
+	expectedInputs := []string{
+		"dex_bootjars/android/system/framework/arm/boot-foo.art",
+		"dex_bootjars/android/system/framework/arm/boot-bar.art",
+		"dex_bootjars/android/system/framework/arm/boot-baz.art",
+		"dex_bootjars/android/system/framework/arm/boot-foo.oat",
+		"dex_bootjars/android/system/framework/arm/boot-bar.oat",
+		"dex_bootjars/android/system/framework/arm/boot-baz.oat",
+		"dex_bootjars/android/system/framework/arm/boot-foo.vdex",
+		"dex_bootjars/android/system/framework/arm/boot-bar.vdex",
+		"dex_bootjars/android/system/framework/arm/boot-baz.vdex",
+		"dex_bootjars/android/system/framework/arm64/boot-foo.art",
+		"dex_bootjars/android/system/framework/arm64/boot-bar.art",
+		"dex_bootjars/android/system/framework/arm64/boot-baz.art",
+		"dex_bootjars/android/system/framework/arm64/boot-foo.oat",
+		"dex_bootjars/android/system/framework/arm64/boot-bar.oat",
+		"dex_bootjars/android/system/framework/arm64/boot-baz.oat",
+		"dex_bootjars/android/system/framework/arm64/boot-foo.vdex",
+		"dex_bootjars/android/system/framework/arm64/boot-bar.vdex",
+		"dex_bootjars/android/system/framework/arm64/boot-baz.vdex",
+		"dex_bootjars/linux_glibc/system/framework/x86/boot-foo.art",
+		"dex_bootjars/linux_glibc/system/framework/x86/boot-bar.art",
+		"dex_bootjars/linux_glibc/system/framework/x86/boot-baz.art",
+		"dex_bootjars/linux_glibc/system/framework/x86/boot-foo.oat",
+		"dex_bootjars/linux_glibc/system/framework/x86/boot-bar.oat",
+		"dex_bootjars/linux_glibc/system/framework/x86/boot-baz.oat",
+		"dex_bootjars/linux_glibc/system/framework/x86/boot-foo.vdex",
+		"dex_bootjars/linux_glibc/system/framework/x86/boot-bar.vdex",
+		"dex_bootjars/linux_glibc/system/framework/x86/boot-baz.vdex",
+		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-foo.art",
+		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-bar.art",
+		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-baz.art",
+		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-foo.oat",
+		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-bar.oat",
+		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-baz.oat",
+		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-foo.vdex",
+		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-bar.vdex",
+		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-baz.vdex",
 	}
 
-	outputs := append(android.WritablePaths{bootArt.Output}, bootArt.ImplicitOutputs...).Strings()
-	sort.Strings(outputs)
-	sort.Strings(expectedOutputs)
-
-	if !reflect.DeepEqual(outputs, expectedOutputs) {
-		t.Errorf("want outputs %q\n got outputs %q", expectedOutputs, outputs)
+	expectedOutputs := []string{
+		"dex_bootjars/boot.zip",
 	}
+
+	testDexpreoptBoot(t, ruleFile, expectedInputs, expectedOutputs)
 }
