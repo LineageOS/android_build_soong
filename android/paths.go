@@ -43,6 +43,14 @@ type PathGlobContext interface {
 var _ PathContext = SingletonContext(nil)
 var _ PathContext = ModuleContext(nil)
 
+// "Null" path context is a minimal path context for a given config.
+type NullPathContext struct {
+	config Config
+}
+
+func (NullPathContext) AddNinjaFileDeps(...string) {}
+func (ctx NullPathContext) Config() Config         { return ctx.config }
+
 type ModuleInstallPathContext interface {
 	BaseModuleContext
 
