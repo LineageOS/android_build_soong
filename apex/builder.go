@@ -445,11 +445,11 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		}
 
 		targetSdkVersion := ctx.Config().DefaultAppTargetSdk()
+		// TODO(b/157078772): propagate min_sdk_version to apexer.
 		minSdkVersion := ctx.Config().DefaultAppTargetSdk()
 
 		if a.minSdkVersion(ctx) == android.SdkVersion_Android10 {
 			minSdkVersion = strconv.Itoa(a.minSdkVersion(ctx))
-			targetSdkVersion = strconv.Itoa(a.minSdkVersion(ctx))
 		}
 
 		if java.UseApiFingerprint(ctx) {
