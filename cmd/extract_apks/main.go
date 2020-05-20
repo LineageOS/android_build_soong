@@ -374,6 +374,10 @@ func (apkSet *ApkSet) writeApks(selected SelectionResult, config TargetConfig,
 			regexp.MustCompile(`^.*/` + selected.moduleName + `(-.*\.apk)$`),
 			config.stem + `$1`,
 		},
+		{
+			regexp.MustCompile(`^universal\.apk$`),
+			config.stem + ".apk",
+		},
 	}
 	renamer := func(path string) (string, bool) {
 		for _, rr := range renameRules {
