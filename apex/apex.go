@@ -251,6 +251,18 @@ func makeApexAvailableWhitelist() map[string][]string {
 	//
 	// Module separator
 	//
+	m["com.android.extservices"] = []string{
+		"error_prone_annotations",
+		"ExtServices-core",
+		"ExtServices",
+		"libtextclassifier-java",
+		"textclassifier-statsd",
+		"TextClassifierNotificationLibNoManifest",
+		"TextClassifierServiceLibNoManifest",
+	}
+	//
+	// Module separator
+	//
 	m["com.android.neuralnetworks"] = []string{
 		"android.hardware.neuralnetworks@1.0",
 		"android.hardware.neuralnetworks@1.1",
@@ -294,7 +306,10 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"android.hidl.token@1.0",
 		"android.hidl.token@1.0-utils",
 		"bionic_libc_platform_headers",
+		"exoplayer2-extractor",
+		"exoplayer2-extractor-annotation-stubs",
 		"gl_headers",
+		"jsr305",
 		"libEGL",
 		"libEGL_blobCache",
 		"libEGL_getProcAddress",
@@ -551,12 +566,8 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.permission"] = []string{
-		"androidx.annotation_annotation",
-		"androidx.annotation_annotation-nodeps",
-		"androidx.lifecycle_lifecycle-common",
-		"androidx.lifecycle_lifecycle-common-java8",
-		"androidx.lifecycle_lifecycle-common-java8-nodeps",
-		"androidx.lifecycle_lifecycle-common-nodeps",
+		"car-ui-lib",
+		"iconloader",
 		"kotlin-annotations",
 		"kotlin-stdlib",
 		"kotlin-stdlib-jdk7",
@@ -568,6 +579,15 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"permissioncontroller-statsd",
 		"GooglePermissionController",
 		"PermissionController",
+		"SettingsLibActionBarShadow",
+		"SettingsLibAppPreference",
+		"SettingsLibBarChartPreference",
+		"SettingsLibLayoutPreference",
+		"SettingsLibProgressBar",
+		"SettingsLibSearchWidget",
+		"SettingsLibSettingsTheme",
+		"SettingsLibRestrictedLockUtils",
+		"SettingsLibHelpUtils",
 	}
 	//
 	// Module separator
@@ -629,13 +649,21 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m["com.android.tethering"] = []string{
-		"libnativehelper_compat_libc++",
-		"android.hardware.tetheroffload.config@1.0",
+		"android.hardware.tetheroffload.config-V1.0-java",
+		"android.hardware.tetheroffload.control-V1.0-java",
+		"android.hidl.base-V1.0-java",
+		"ipmemorystore-aidl-interfaces-java",
 		"libcgrouprc",
 		"libcgrouprc_format",
+		"libnativehelper_compat_libc++",
 		"libtetherutilsjni",
 		"libvndksupport",
+		"net-utils-framework-common",
+		"netd_aidl_interface-V3-java",
+		"netlink-client",
+		"networkstack-aidl-interfaces-java",
 		"tethering-aidl-interfaces-java",
+		"TetheringApiCurrentLib",
 	}
 	//
 	// Module separator
@@ -659,8 +687,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"android.hidl.manager-V1.0-java",
 		"android.hidl.manager-V1.1-java",
 		"android.hidl.manager-V1.2-java",
-		"androidx.annotation_annotation",
-		"androidx.annotation_annotation-nodeps",
 		"bouncycastle-unbundled",
 		"dnsresolver_aidl_interface-V2-java",
 		"error_prone_annotations",
@@ -682,7 +708,6 @@ func makeApexAvailableWhitelist() map[string][]string {
 		"wifi-nano-protos",
 		"wifi-service-pre-jarjar",
 		"wifi-service-resources",
-		"prebuilt_androidx.annotation_annotation-nodeps",
 	}
 	//
 	// Module separator
@@ -702,6 +727,15 @@ func makeApexAvailableWhitelist() map[string][]string {
 	// Module separator
 	//
 	m[android.AvailableToAnyApex] = []string{
+		// TODO(b/156996905) Set apex_available/min_sdk_version for androidx/extras support libraries
+		"androidx",
+		"androidx-constraintlayout_constraintlayout",
+		"androidx-constraintlayout_constraintlayout-nodeps",
+		"androidx-constraintlayout_constraintlayout-solver",
+		"androidx-constraintlayout_constraintlayout-solver-nodeps",
+		"com.google.android.material_material",
+		"com.google.android.material_material-nodeps",
+
 		"libatomic",
 		"libclang_rt",
 		"libgcc_stripped",
@@ -2294,6 +2328,10 @@ func normalizeModuleName(moduleName string) string {
 		// This module has many arch variants that depend on the product being built.
 		// We don't want to list them all
 		moduleName = "libclang_rt"
+	}
+	if strings.HasPrefix(moduleName, "androidx.") {
+		// TODO(b/156996905) Set apex_available/min_sdk_version for androidx support libraries
+		moduleName = "androidx"
 	}
 	return moduleName
 }
