@@ -39,7 +39,7 @@ func systemServerClasspath(ctx android.MakeVarsContext) []string {
 		// 2) The jars that are from an updatable apex.
 		for _, m := range global.UpdatableSystemServerJars {
 			systemServerClasspathLocations = append(systemServerClasspathLocations,
-				dexpreopt.GetJarLocationFromApexJarPair(m))
+				dexpreopt.GetJarLocationFromApexJarPair(ctx, m))
 		}
 		if len(systemServerClasspathLocations) != len(global.SystemServerJars)+len(global.UpdatableSystemServerJars) {
 			panic(fmt.Errorf("Wrong number of system server jars, got %d, expected %d",
@@ -80,7 +80,7 @@ func stemOf(moduleName string) string {
 }
 
 func getDexLocation(ctx android.PathContext, target android.Target, module string) string {
-	apex, jar := android.SplitApexJarPair(module)
+	apex, jar := android.SplitApexJarPair(ctx, module)
 
 	name := stemOf(jar) + ".jar"
 
@@ -156,7 +156,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 			c.symbolsDir = deviceDir.Join(ctx, "dex_"+c.name+"jars_unstripped")
 
 			// expands to <stem>.art for primary image and <stem>-<1st module>.art for extension
-			imageName := c.firstModuleNameOrStem() + ".art"
+			imageName := c.firstModuleNameOrStem(ctx) + ".art"
 
 			// The path to bootclasspath dex files needs to be known at module
 			// GenerateAndroidBuildAction time, before the bootclasspath modules have been compiled.
@@ -164,7 +164,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 			// TODO(b/143682396): use module dependencies instead
 			inputDir := deviceDir.Join(ctx, "dex_"+c.name+"jars_input")
 			for _, m := range c.modules {
-				_, jar := android.SplitApexJarPair(m)
+				_, jar := android.SplitApexJarPair(ctx, m)
 				c.dexPaths = append(c.dexPaths, inputDir.Join(ctx, stemOf(jar)+".jar"))
 			}
 			c.dexPathsDeps = c.dexPaths
@@ -215,7 +215,7 @@ func defaultBootclasspath(ctx android.PathContext) []string {
 
 		updatableBootclasspath := make([]string, len(global.UpdatableBootJars))
 		for i, p := range global.UpdatableBootJars {
-			updatableBootclasspath[i] = dexpreopt.GetJarLocationFromApexJarPair(p)
+			updatableBootclasspath[i] = dexpreopt.GetJarLocationFromApexJarPair(ctx, p)
 		}
 
 		bootclasspath := append(copyOf(image.getAnyAndroidVariant().dexLocationsDeps), updatableBootclasspath...)
