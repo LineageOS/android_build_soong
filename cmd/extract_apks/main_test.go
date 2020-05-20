@@ -24,19 +24,19 @@ import (
 	"android/soong/third_party/zip"
 )
 
-type TestConfigDesc struct {
+type testConfigDesc struct {
 	name         string
 	targetConfig TargetConfig
 	expected     SelectionResult
 }
 
-type TestDesc struct {
+type testDesc struct {
 	protoText string
-	configs   []TestConfigDesc
+	configs   []testConfigDesc
 }
 
 func TestSelectApks_ApkSet(t *testing.T) {
-	testCases := []TestDesc{
+	testCases := []testDesc{
 		{
 			protoText: `
 variant {
@@ -117,7 +117,7 @@ bundletool {
   version: "0.10.3" }
 
 `,
-			configs: []TestConfigDesc{
+			configs: []testConfigDesc{
 				{
 					name: "one",
 					targetConfig: TargetConfig{
@@ -209,7 +209,7 @@ variant {
           value { min { value: 21 } } } }
       path: "splits/base-master.apk"
       split_apk_metadata { is_master_split: true } } } }`,
-			configs: []TestConfigDesc{
+			configs: []testConfigDesc{
 				{
 					name: "Prerelease",
 					targetConfig: TargetConfig{
@@ -221,6 +221,30 @@ variant {
 					expected: SelectionResult{
 						"base",
 						[]string{"splits/base-master.apk"},
+					},
+				},
+			},
+		},
+		{
+			protoText: `
+variant {
+  targeting {
+    sdk_version_targeting {
+      value { min { value: 29 } } } }
+  apk_set {
+    module_metadata {
+      name: "base" targeting {} delivery_type: INSTALL_TIME }
+    apk_description {
+      targeting {}
+      path: "universal.apk"
+      standalone_apk_metadata { fused_module_name: "base" } } } }`,
+			configs: []testConfigDesc{
+				{
+					name:         "Universal",
+					targetConfig: TargetConfig{sdkVersion: 30},
+					expected: SelectionResult{
+						"base",
+						[]string{"universal.apk"},
 					},
 				},
 			},
@@ -241,7 +265,7 @@ variant {
 }
 
 func TestSelectApks_ApexSet(t *testing.T) {
-	testCases := []TestDesc{
+	testCases := []testDesc{
 		{
 			protoText: `
 variant {
@@ -300,7 +324,7 @@ bundletool {
   version: "0.10.3" }
 
 `,
-			configs: []TestConfigDesc{
+			configs: []testConfigDesc{
 				{
 					name: "order matches priorities",
 					targetConfig: TargetConfig{
@@ -406,24 +430,48 @@ func (w testZip2ZipWriter) CopyFrom(file *zip.File, out string) error {
 	return nil
 }
 
-func TestWriteZip(t *testing.T) {
+type testCaseWriteZip struct {
+	name       string
+	moduleName string
+	stem       string
 	// what we write from what
-	expected := map[string]string{
-		"Foo.apk":       "splits/mybase-master.apk",
-		"Foo-xhdpi.apk": "splits/mybase-xhdpi.apk",
+	expected map[string]string
+}
+
+func TestWriteZip(t *testing.T) {
+	testCases := []testCaseWriteZip{
+		{
+			name:       "splits",
+			moduleName: "mybase",
+			stem:       "Foo",
+			expected: map[string]string{
+				"Foo.apk":       "splits/mybase-master.apk",
+				"Foo-xhdpi.apk": "splits/mybase-xhdpi.apk",
+			},
+		},
+		{
+			name:       "universal",
+			moduleName: "base",
+			stem:       "Bar",
+			expected: map[string]string{
+				"Bar.apk": "universal.apk",
+			},
+		},
 	}
-	apkSet := ApkSet{entries: make(map[string]*zip.File)}
-	sel := SelectionResult{moduleName: "mybase"}
-	for _, in := range expected {
-		apkSet.entries[in] = &zip.File{FileHeader: zip.FileHeader{Name: in}}
-		sel.entries = append(sel.entries, in)
-	}
-	writer := testZip2ZipWriter{make(map[string]string)}
-	config := TargetConfig{stem: "Foo"}
-	if err := apkSet.writeApks(sel, config, writer); err != nil {
-		t.Error(err)
-	}
-	if !reflect.DeepEqual(expected, writer.entries) {
-		t.Errorf("expected %v, got %v", expected, writer.entries)
+	for _, testCase := range testCases {
+		apkSet := ApkSet{entries: make(map[string]*zip.File)}
+		sel := SelectionResult{moduleName: testCase.moduleName}
+		for _, in := range testCase.expected {
+			apkSet.entries[in] = &zip.File{FileHeader: zip.FileHeader{Name: in}}
+			sel.entries = append(sel.entries, in)
+		}
+		writer := testZip2ZipWriter{make(map[string]string)}
+		config := TargetConfig{stem: testCase.stem}
+		if err := apkSet.writeApks(sel, config, writer); err != nil {
+			t.Error(err)
+		}
+		if !reflect.DeepEqual(testCase.expected, writer.entries) {
+			t.Errorf("expected %v, got %v", testCase.expected, writer.entries)
+		}
 	}
 }
