@@ -1261,6 +1261,45 @@ func TestJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
 		`)
 }
 
+func TestJavaSdkLibrary_MissingScope(t *testing.T) {
+	testJavaError(t, `requires api scope module-lib from foo but it only has \[\] available`, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			public: {
+				enabled: false,
+			},
+		}
+
+		java_library {
+			name: "baz",
+			srcs: ["a.java"],
+			libs: ["foo"],
+			sdk_version: "module_current",
+		}
+		`)
+}
+
+func TestJavaSdkLibrary_FallbackScope(t *testing.T) {
+	testJava(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			system: {
+				enabled: true,
+			},
+		}
+
+		java_library {
+			name: "baz",
+			srcs: ["a.java"],
+			libs: ["foo"],
+			// foo does not have module-lib scope so it should fallback to system
+			sdk_version: "module_current",
+		}
+		`)
+}
+
 var compilerFlagsTestCases = []struct {
 	in  string
 	out bool
