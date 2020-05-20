@@ -24,48 +24,66 @@ import (
 	"android/soong/remoteexec"
 )
 
-var d8, d8RE = remoteexec.StaticRules(pctx, "d8",
+var d8, d8RE = remoteexec.MultiCommandStaticRules(pctx, "d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`$reTemplate${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $in && ` +
-			`${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
+			`$d8Template${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $in && ` +
+			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.D8Cmd}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
-	}, &remoteexec.REParams{
-		Labels:          map[string]string{"type": "compile", "compiler": "d8"},
-		Inputs:          []string{"${config.D8Jar}"},
-		ExecStrategy:    "${config.RED8ExecStrategy}",
-		ToolchainInputs: []string{"${config.JavaCmd}"},
-		Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+	}, map[string]*remoteexec.REParams{
+		"$d8Template": &remoteexec.REParams{
+			Labels:          map[string]string{"type": "compile", "compiler": "d8"},
+			Inputs:          []string{"${config.D8Jar}"},
+			ExecStrategy:    "${config.RED8ExecStrategy}",
+			ToolchainInputs: []string{"${config.JavaCmd}"},
+			Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
+		"$zipTemplate": &remoteexec.REParams{
+			Labels:       map[string]string{"type": "tool", "name": "soong_zip"},
+			Inputs:       []string{"${config.SoongZipCmd}", "$outDir"},
+			OutputFiles:  []string{"$outDir/classes.dex.jar"},
+			ExecStrategy: "${config.RED8ExecStrategy}",
+			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
 	}, []string{"outDir", "d8Flags", "zipFlags"}, nil)
 
-var r8, r8RE = remoteexec.StaticRules(pctx, "r8",
+var r8, r8RE = remoteexec.MultiCommandStaticRules(pctx, "r8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`rm -f "$outDict" && ` +
-			`$reTemplate${config.R8Cmd} ${config.DexFlags} -injars $in --output $outDir ` +
+			`$r8Template${config.R8Cmd} ${config.DexFlags} -injars $in --output $outDir ` +
 			`--force-proguard-compatibility ` +
 			`--no-data-resources ` +
 			`-printmapping $outDict ` +
 			`$r8Flags && ` +
 			`touch "$outDict" && ` +
-			`${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
+			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
 			"${config.R8Cmd}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
-	}, &remoteexec.REParams{
-		Labels:          map[string]string{"type": "compile", "compiler": "r8"},
-		Inputs:          []string{"$implicits", "${config.R8Jar}"},
-		ExecStrategy:    "${config.RER8ExecStrategy}",
-		ToolchainInputs: []string{"${config.JavaCmd}"},
-		Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+	}, map[string]*remoteexec.REParams{
+		"$r8Template": &remoteexec.REParams{
+			Labels:          map[string]string{"type": "compile", "compiler": "r8"},
+			Inputs:          []string{"$implicits", "${config.R8Jar}"},
+			ExecStrategy:    "${config.RER8ExecStrategy}",
+			ToolchainInputs: []string{"${config.JavaCmd}"},
+			Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
+		"$zipTemplate": &remoteexec.REParams{
+			Labels:       map[string]string{"type": "tool", "name": "soong_zip"},
+			Inputs:       []string{"${config.SoongZipCmd}", "$outDir"},
+			OutputFiles:  []string{"$outDir/classes.dex.jar"},
+			ExecStrategy: "${config.RER8ExecStrategy}",
+			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
 	}, []string{"outDir", "outDict", "r8Flags", "zipFlags"}, []string{"implicits"})
 
 func (j *Module) dexCommonFlags(ctx android.ModuleContext) []string {
