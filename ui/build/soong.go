@@ -119,6 +119,7 @@ func runSoong(ctx Context, config Config) {
 		cmd := Command(ctx, config, "soong "+name,
 			config.PrebuiltBuildTool("ninja"),
 			"-d", "keepdepfile",
+			"-d", "stats",
 			"-o", "usesphonyoutputs=yes",
 			"-o", "preremoveoutputs=yes",
 			"-w", "dupbuild=err",
