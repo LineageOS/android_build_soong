@@ -1748,7 +1748,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 		certFlag       string
 		lineageFlag    string
 		overrides      []string
-		packageFlag    string
+		aaptFlag       string
 		logging_parent string
 	}{
 		{
@@ -1758,7 +1758,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 			certFlag:       "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
 			lineageFlag:    "",
 			overrides:      []string{"qux"},
-			packageFlag:    "",
+			aaptFlag:       "",
 			logging_parent: "",
 		},
 		{
@@ -1768,7 +1768,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 			certFlag:       "cert/new_cert.x509.pem cert/new_cert.pk8",
 			lineageFlag:    "--lineage lineage.bin",
 			overrides:      []string{"qux", "foo"},
-			packageFlag:    "",
+			aaptFlag:       "",
 			logging_parent: "bah",
 		},
 		{
@@ -1778,7 +1778,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 			certFlag:       "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
 			lineageFlag:    "",
 			overrides:      []string{"qux", "foo"},
-			packageFlag:    "org.dandroid.bp",
+			aaptFlag:       "--rename-manifest-package org.dandroid.bp",
 			logging_parent: "",
 		},
 	}
@@ -1826,11 +1826,12 @@ func TestOverrideAndroidApp(t *testing.T) {
 				expected.logging_parent, logging_parent)
 		}
 
-		// Check the package renaming flags, if exists.
+		// Check the package renaming flag, if exists.
 		res := variant.Output("package-res.apk")
 		aapt2Flags := res.Args["flags"]
-		checkAapt2LinkFlag(t, aapt2Flags, "rename-manifest-package", expected.packageFlag)
-		checkAapt2LinkFlag(t, aapt2Flags, "rename-resources-package", expected.packageFlag)
+		if !strings.Contains(aapt2Flags, expected.aaptFlag) {
+			t.Errorf("package renaming flag, %q is missing in aapt2 link flags, %q", expected.aaptFlag, aapt2Flags)
+		}
 	}
 }
 
@@ -1967,7 +1968,6 @@ func TestOverrideAndroidTest(t *testing.T) {
 		res := variant.Output("package-res.apk")
 		aapt2Flags := res.Args["flags"]
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-manifest-package", expected.packageFlag)
-		checkAapt2LinkFlag(t, aapt2Flags, "rename-resources-package", expected.packageFlag)
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-instrumentation-target-package", expected.targetPackageFlag)
 	}
 }
