@@ -694,7 +694,7 @@ func (c *commonToSdkLibraryAndImport) findClosestScopePath(scope *apiScope) *sco
 	return nil
 }
 
-func (c *commonToSdkLibraryAndImport) sdkJarsCommon(ctx android.BaseModuleContext, sdkVersion sdkSpec, headerJars bool) android.Paths {
+func (c *commonToSdkLibraryAndImport) selectHeaderJarsForSdkVersion(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
 
 	// If a specific numeric version has been requested then use prebuilt versions of the sdk.
 	if sdkVersion.version.isNumbered() {
@@ -725,11 +725,7 @@ func (c *commonToSdkLibraryAndImport) sdkJarsCommon(ctx android.BaseModuleContex
 		return nil
 	}
 
-	if headerJars {
-		return paths.stubsHeaderPath
-	} else {
-		return paths.stubsImplPath
-	}
+	return paths.stubsHeaderPath
 }
 
 type SdkLibrary struct {
@@ -1200,7 +1196,7 @@ func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkS
 		return module.HeaderJars()
 	}
 
-	return module.sdkJarsCommon(ctx, sdkVersion, headerJars)
+	return module.selectHeaderJarsForSdkVersion(ctx, sdkVersion)
 }
 
 // to satisfy SdkLibraryDependency interface
@@ -1639,11 +1635,7 @@ func (module *sdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 }
 
 func (module *sdkLibraryImport) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
-
-	// The java_sdk_library_import can only ever give back header jars as it does not
-	// have an implementation jar.
-	headerJars := true
-	return module.sdkJarsCommon(ctx, sdkVersion, headerJars)
+	return module.selectHeaderJarsForSdkVersion(ctx, sdkVersion)
 }
 
 // to satisfy SdkLibraryDependency interface
