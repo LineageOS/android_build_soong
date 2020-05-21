@@ -1342,6 +1342,31 @@ android_app_import {
 `,
 	},
 	{
+		desc: "android_test_import prebuilt",
+		in: `
+		include $(CLEAR_VARS)
+		LOCAL_MODULE := foo
+		LOCAL_SRC_FILES := foo.apk
+		LOCAL_MODULE_CLASS := APPS
+		LOCAL_MODULE_TAGS := tests
+		LOCAL_MODULE_SUFFIX := .apk
+		LOCAL_CERTIFICATE := PRESIGNED
+		LOCAL_REPLACE_PREBUILT_APK_INSTALLED := $(LOCAL_PATH)/foo.apk
+		LOCAL_COMPATIBILITY_SUITE := cts
+		include $(BUILD_PREBUILT)
+		`,
+		expected: `
+android_test_import {
+	name: "foo",
+	srcs: ["foo.apk"],
+
+	certificate: "PRESIGNED",
+	preprocessed: true,
+	test_suites: ["cts"],
+}
+`,
+	},
+	{
 		desc: "undefined_boolean_var",
 		in: `
 include $(CLEAR_VARS)
