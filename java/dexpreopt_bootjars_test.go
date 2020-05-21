@@ -116,43 +116,15 @@ func TestDexpreoptBootJars(t *testing.T) {
 func TestDexpreoptBootZip(t *testing.T) {
 	ruleFile := "boot.zip"
 
-	expectedInputs := []string{
-		"dex_bootjars/android/system/framework/arm/boot-foo.art",
-		"dex_bootjars/android/system/framework/arm/boot-bar.art",
-		"dex_bootjars/android/system/framework/arm/boot-baz.art",
-		"dex_bootjars/android/system/framework/arm/boot-foo.oat",
-		"dex_bootjars/android/system/framework/arm/boot-bar.oat",
-		"dex_bootjars/android/system/framework/arm/boot-baz.oat",
-		"dex_bootjars/android/system/framework/arm/boot-foo.vdex",
-		"dex_bootjars/android/system/framework/arm/boot-bar.vdex",
-		"dex_bootjars/android/system/framework/arm/boot-baz.vdex",
-		"dex_bootjars/android/system/framework/arm64/boot-foo.art",
-		"dex_bootjars/android/system/framework/arm64/boot-bar.art",
-		"dex_bootjars/android/system/framework/arm64/boot-baz.art",
-		"dex_bootjars/android/system/framework/arm64/boot-foo.oat",
-		"dex_bootjars/android/system/framework/arm64/boot-bar.oat",
-		"dex_bootjars/android/system/framework/arm64/boot-baz.oat",
-		"dex_bootjars/android/system/framework/arm64/boot-foo.vdex",
-		"dex_bootjars/android/system/framework/arm64/boot-bar.vdex",
-		"dex_bootjars/android/system/framework/arm64/boot-baz.vdex",
-		"dex_bootjars/linux_glibc/system/framework/x86/boot-foo.art",
-		"dex_bootjars/linux_glibc/system/framework/x86/boot-bar.art",
-		"dex_bootjars/linux_glibc/system/framework/x86/boot-baz.art",
-		"dex_bootjars/linux_glibc/system/framework/x86/boot-foo.oat",
-		"dex_bootjars/linux_glibc/system/framework/x86/boot-bar.oat",
-		"dex_bootjars/linux_glibc/system/framework/x86/boot-baz.oat",
-		"dex_bootjars/linux_glibc/system/framework/x86/boot-foo.vdex",
-		"dex_bootjars/linux_glibc/system/framework/x86/boot-bar.vdex",
-		"dex_bootjars/linux_glibc/system/framework/x86/boot-baz.vdex",
-		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-foo.art",
-		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-bar.art",
-		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-baz.art",
-		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-foo.oat",
-		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-bar.oat",
-		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-baz.oat",
-		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-foo.vdex",
-		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-bar.vdex",
-		"dex_bootjars/linux_glibc/system/framework/x86_64/boot-baz.vdex",
+	ctx := android.PathContextForTesting(testConfig(nil, "", nil))
+	expectedInputs := []string{}
+	for _, target := range dexpreoptTargets(ctx) {
+		for _, ext := range []string{".art", ".oat", ".vdex"} {
+			for _, jar := range []string{"foo", "bar", "baz"} {
+				expectedInputs = append(expectedInputs,
+					filepath.Join("dex_bootjars", target.Os.String(), "system/framework", target.Arch.ArchType.String(), "boot-"+jar+ext))
+			}
+		}
 	}
 
 	expectedOutputs := []string{
