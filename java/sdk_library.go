@@ -564,6 +564,31 @@ func (c *commonToSdkLibraryAndImport) getScopePaths(scope *apiScope) *scopePaths
 	return paths
 }
 
+func (c *commonToSdkLibraryAndImport) sdkJarsCommon(ctx android.BaseModuleContext, sdkVersion sdkSpec, headerJars bool) android.Paths {
+
+	// If a specific numeric version has been requested then use prebuilt versions of the sdk.
+	if sdkVersion.version.isNumbered() {
+		return PrebuiltJars(ctx, c.moduleBase.BaseModuleName(), sdkVersion)
+	}
+
+	var apiScope *apiScope
+	switch sdkVersion.kind {
+	case sdkSystem:
+		apiScope = apiScopeSystem
+	case sdkTest:
+		apiScope = apiScopeTest
+	default:
+		apiScope = apiScopePublic
+	}
+
+	paths := c.getScopePaths(apiScope)
+	if headerJars {
+		return paths.stubsHeaderPath
+	} else {
+		return paths.stubsImplPath
+	}
+}
+
 type SdkLibrary struct {
 	Library
 
@@ -1010,41 +1035,20 @@ func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s sdkSpec) and
 	return android.Paths{jarPath.Path()}
 }
 
-func (module *SdkLibrary) sdkJars(
-	ctx android.BaseModuleContext,
-	sdkVersion sdkSpec,
-	headerJars bool) android.Paths {
+func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkSpec, headerJars bool) android.Paths {
 
-	// If a specific numeric version has been requested then use prebuilt versions of the sdk.
-	if sdkVersion.version.isNumbered() {
-		return PrebuiltJars(ctx, module.BaseModuleName(), sdkVersion)
-	} else {
-		if !sdkVersion.specified() {
-			if headerJars {
-				return module.HeaderJars()
-			} else {
-				return module.ImplementationJars()
-			}
-		}
-		var apiScope *apiScope
-		switch sdkVersion.kind {
-		case sdkSystem:
-			apiScope = apiScopeSystem
-		case sdkTest:
-			apiScope = apiScopeTest
-		case sdkPrivate:
-			return module.HeaderJars()
-		default:
-			apiScope = apiScopePublic
-		}
-
-		paths := module.getScopePaths(apiScope)
+	// Check any special cases for java_sdk_library.
+	if !sdkVersion.specified() {
 		if headerJars {
-			return paths.stubsHeaderPath
+			return module.HeaderJars()
 		} else {
-			return paths.stubsImplPath
+			return module.ImplementationJars()
 		}
+	} else if sdkVersion.kind == sdkPrivate {
+		return module.HeaderJars()
 	}
+
+	return module.sdkJarsCommon(ctx, sdkVersion, headerJars)
 }
 
 // to satisfy SdkLibraryDependency interface
@@ -1458,27 +1462,12 @@ func (module *sdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 	})
 }
 
-func (module *sdkLibraryImport) sdkJars(
-	ctx android.BaseModuleContext,
-	sdkVersion sdkSpec) android.Paths {
+func (module *sdkLibraryImport) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
 
-	// If a specific numeric version has been requested then use prebuilt versions of the sdk.
-	if sdkVersion.version.isNumbered() {
-		return PrebuiltJars(ctx, module.BaseModuleName(), sdkVersion)
-	}
-
-	var apiScope *apiScope
-	switch sdkVersion.kind {
-	case sdkSystem:
-		apiScope = apiScopeSystem
-	case sdkTest:
-		apiScope = apiScopeTest
-	default:
-		apiScope = apiScopePublic
-	}
-
-	paths := module.getScopePaths(apiScope)
-	return paths.stubsHeaderPath
+	// The java_sdk_library_import can only ever give back header jars as it does not
+	// have an implementation jar.
+	headerJars := true
+	return module.sdkJarsCommon(ctx, sdkVersion, headerJars)
 }
 
 // to satisfy SdkLibraryDependency interface
