@@ -909,6 +909,130 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 
 }
 
+func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
+	ctx, _ := testApex(t, "", func(fs map[string][]byte, config android.Config) {
+		bp := `
+		apex {
+			name: "com.android.runtime",
+			key: "com.android.runtime.key",
+			native_shared_libs: ["libc"],
+		}
+
+		apex_key {
+			name: "com.android.runtime.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libc",
+			no_libcrt: true,
+			nocrt: true,
+			stl: "none",
+			system_shared_libs: [],
+			stubs: { versions: ["1"] },
+			apex_available: ["com.android.runtime"],
+
+			sanitize: {
+				hwaddress: true,
+			}
+		}
+
+		cc_prebuilt_library_shared {
+			name: "libclang_rt.hwasan-aarch64-android",
+			no_libcrt: true,
+			nocrt: true,
+			stl: "none",
+			system_shared_libs: [],
+			srcs: [""],
+			stubs: { versions: ["1"] },
+
+			sanitize: {
+				never: true,
+			},
+		}
+		`
+		// override bp to use hard-coded names: com.android.runtime and libc
+		fs["Android.bp"] = []byte(bp)
+		fs["system/sepolicy/apex/com.android.runtime-file_contexts"] = nil
+	})
+
+	ensureExactContents(t, ctx, "com.android.runtime", "android_common_hwasan_com.android.runtime_image", []string{
+		"lib64/bionic/libc.so",
+		"lib64/bionic/libclang_rt.hwasan-aarch64-android.so",
+	})
+
+	hwasan := ctx.ModuleForTests("libclang_rt.hwasan-aarch64-android", "android_arm64_armv8-a_shared")
+
+	installed := hwasan.Description("install libclang_rt.hwasan")
+	ensureContains(t, installed.Output.String(), "/system/lib64/bootstrap/libclang_rt.hwasan-aarch64-android.so")
+
+	symlink := hwasan.Description("install symlink libclang_rt.hwasan")
+	ensureEquals(t, symlink.Args["fromPath"], "/apex/com.android.runtime/lib64/bionic/libclang_rt.hwasan-aarch64-android.so")
+	ensureContains(t, symlink.Output.String(), "/system/lib64/libclang_rt.hwasan-aarch64-android.so")
+}
+
+func TestRuntimeApexShouldInstallHwasanIfHwaddressSanitized(t *testing.T) {
+	ctx, _ := testApex(t, "", func(fs map[string][]byte, config android.Config) {
+		bp := `
+		apex {
+			name: "com.android.runtime",
+			key: "com.android.runtime.key",
+			native_shared_libs: ["libc"],
+		}
+
+		apex_key {
+			name: "com.android.runtime.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libc",
+			no_libcrt: true,
+			nocrt: true,
+			stl: "none",
+			system_shared_libs: [],
+			stubs: { versions: ["1"] },
+			apex_available: ["com.android.runtime"],
+		}
+
+		cc_prebuilt_library_shared {
+			name: "libclang_rt.hwasan-aarch64-android",
+			no_libcrt: true,
+			nocrt: true,
+			stl: "none",
+			system_shared_libs: [],
+			srcs: [""],
+			stubs: { versions: ["1"] },
+
+			sanitize: {
+				never: true,
+			},
+		}
+		`
+		// override bp to use hard-coded names: com.android.runtime and libc
+		fs["Android.bp"] = []byte(bp)
+		fs["system/sepolicy/apex/com.android.runtime-file_contexts"] = nil
+
+		config.TestProductVariables.SanitizeDevice = []string{"hwaddress"}
+	})
+
+	ensureExactContents(t, ctx, "com.android.runtime", "android_common_hwasan_com.android.runtime_image", []string{
+		"lib64/bionic/libc.so",
+		"lib64/bionic/libclang_rt.hwasan-aarch64-android.so",
+	})
+
+	hwasan := ctx.ModuleForTests("libclang_rt.hwasan-aarch64-android", "android_arm64_armv8-a_shared")
+
+	installed := hwasan.Description("install libclang_rt.hwasan")
+	ensureContains(t, installed.Output.String(), "/system/lib64/bootstrap/libclang_rt.hwasan-aarch64-android.so")
+
+	symlink := hwasan.Description("install symlink libclang_rt.hwasan")
+	ensureEquals(t, symlink.Args["fromPath"], "/apex/com.android.runtime/lib64/bionic/libclang_rt.hwasan-aarch64-android.so")
+	ensureContains(t, symlink.Output.String(), "/system/lib64/libclang_rt.hwasan-aarch64-android.so")
+}
+
 func TestApexDependsOnLLNDKTransitively(t *testing.T) {
 	testcases := []struct {
 		name          string
