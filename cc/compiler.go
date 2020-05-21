@@ -300,8 +300,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	if !(ctx.useSdk() || ctx.useVndk()) || ctx.Host() {
 		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
 			"${config.CommonGlobalIncludes}",
-			tc.IncludeFlags(),
-			"${config.CommonNativehelperInclude}")
+			tc.IncludeFlags())
 	}
 
 	if ctx.useSdk() {
