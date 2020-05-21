@@ -513,6 +513,7 @@ func AndroidLibraryFactory() android.Module {
 
 	module.androidLibraryProperties.BuildAAR = true
 
+	android.InitApexModule(module)
 	InitJavaModule(module, android.DeviceSupported)
 	return module
 }
@@ -537,7 +538,11 @@ type AARImportProperties struct {
 type AARImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.ApexModuleBase
 	prebuilt android.Prebuilt
+
+	// Functionality common to Module and Import.
+	embeddableInModuleAndImport
 
 	properties AARImportProperties
 
@@ -742,6 +747,10 @@ func (a *AARImport) SrcJarArgs() ([]string, android.Paths) {
 	return nil, nil
 }
 
+func (a *AARImport) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	return a.depIsInSameApex(ctx, dep)
+}
+
 var _ android.PrebuiltInterface = (*Import)(nil)
 
 // android_library_import imports an `.aar` file into the build graph as if it was built with android_library.
@@ -754,6 +763,7 @@ func AARImportFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitPrebuiltModule(module, &module.properties.Aars)
+	android.InitApexModule(module)
 	InitJavaModule(module, android.DeviceSupported)
 	return module
 }

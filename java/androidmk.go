@@ -211,6 +211,11 @@ func (prebuilt *DexImport) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (prebuilt *AARImport) AndroidMkEntries() []android.AndroidMkEntries {
+	if !prebuilt.IsForPlatform() {
+		return []android.AndroidMkEntries{{
+			Disabled: true,
+		}}
+	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(prebuilt.classpathFile),
@@ -416,6 +421,11 @@ func (a *AndroidTestHelperApp) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (a *AndroidLibrary) AndroidMkEntries() []android.AndroidMkEntries {
+	if !a.IsForPlatform() {
+		return []android.AndroidMkEntries{{
+			Disabled: true,
+		}}
+	}
 	entriesList := a.Library.AndroidMkEntries()
 	entries := &entriesList[0]
 
