@@ -379,8 +379,11 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 				sharedLibs = append(sharedLibs, exportPackage)
 			}
 
-			if _, ok := module.(SdkLibraryDependency); ok {
-				sdkLibraries = append(sdkLibraries, ctx.OtherModuleName(module))
+			// If the module is (or possibly could be) a component of a java_sdk_library
+			// (including the java_sdk_library) itself then append any implicit sdk library
+			// names to the list of sdk libraries to be added to the manifest.
+			if component, ok := module.(SdkLibraryComponentDependency); ok {
+				sdkLibraries = append(sdkLibraries, component.OptionalImplicitSdkLibrary()...)
 			}
 
 		case frameworkResTag:
@@ -513,6 +516,7 @@ func AndroidLibraryFactory() android.Module {
 
 	module.androidLibraryProperties.BuildAAR = true
 
+	android.InitApexModule(module)
 	InitJavaModule(module, android.DeviceSupported)
 	return module
 }
@@ -537,7 +541,11 @@ type AARImportProperties struct {
 type AARImport struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.ApexModuleBase
 	prebuilt android.Prebuilt
+
+	// Functionality common to Module and Import.
+	embeddableInModuleAndImport
 
 	properties AARImportProperties
 
@@ -742,6 +750,10 @@ func (a *AARImport) SrcJarArgs() ([]string, android.Paths) {
 	return nil, nil
 }
 
+func (a *AARImport) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	return a.depIsInSameApex(ctx, dep)
+}
+
 var _ android.PrebuiltInterface = (*Import)(nil)
 
 // android_library_import imports an `.aar` file into the build graph as if it was built with android_library.
@@ -754,6 +766,7 @@ func AARImportFactory() android.Module {
 	module.AddProperties(&module.properties)
 
 	android.InitPrebuiltModule(module, &module.properties.Aars)
+	android.InitApexModule(module)
 	InitJavaModule(module, android.DeviceSupported)
 	return module
 }
