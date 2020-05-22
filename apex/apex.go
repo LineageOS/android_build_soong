@@ -1496,19 +1496,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 					target,
 					a.getImageVariation(config))
 			}
-
-			if strings.HasPrefix(ctx.ModuleName(), "com.android.runtime") && target.Os.Class == android.Device {
-				for _, sanitizer := range ctx.Config().SanitizeDevice() {
-					if sanitizer == "hwaddress" {
-						addDependenciesForNativeModules(ctx,
-							ApexNativeDependencies{[]string{"libclang_rt.hwasan-aarch64-android"}, nil, nil, nil},
-							target, a.getImageVariation(config))
-						break
-					}
-				}
-			}
 		}
-
 	}
 
 	// For prebuilt_etc, use the first variant (64 on 64/32bit device,
@@ -1638,6 +1626,21 @@ func (a *apexBundle) IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizer
 		}
 	}
 	return android.InList(sanitizerName, globalSanitizerNames)
+}
+
+func (a *apexBundle) AddSanitizerDependencies(ctx android.BottomUpMutatorContext, sanitizerName string) {
+	if ctx.Device() && sanitizerName == "hwaddress" && strings.HasPrefix(a.Name(), "com.android.runtime") {
+		for _, target := range ctx.MultiTargets() {
+			if target.Arch.ArchType.Multilib == "lib64" {
+				ctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
+					{Mutator: "image", Variation: a.getImageVariation(ctx.DeviceConfig())},
+					{Mutator: "link", Variation: "shared"},
+					{Mutator: "version", Variation: ""}, // "" is the non-stub variant
+				}...), sharedLibTag, "libclang_rt.hwasan-aarch64-android")
+				break
+			}
+		}
+	}
 }
 
 var _ cc.Coverage = (*apexBundle)(nil)

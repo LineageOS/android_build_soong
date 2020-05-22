@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -575,6 +576,7 @@ func TestJavaSdkLibraryImport(t *testing.T) {
 			},
 			test: {
 				jars: ["c.jar"],
+				stub_srcs: ["c.java"],
 			},
 		}
 		`)
@@ -1152,13 +1154,42 @@ func TestJavaSdkLibrary(t *testing.T) {
 		java_library {
 			name: "baz",
 			srcs: ["c.java"],
-			libs: ["foo", "bar"],
+			libs: ["foo", "bar.stubs"],
 			sdk_version: "system_current",
+		}
+		java_sdk_library {
+			name: "barney",
+			srcs: ["c.java"],
+			api_only: true,
+		}
+		java_sdk_library {
+			name: "betty",
+			srcs: ["c.java"],
+			shared_library: false,
+		}
+		java_sdk_library_import {
+		    name: "quuz",
+				public: {
+					jars: ["c.jar"],
+				},
+		}
+		java_sdk_library_import {
+		    name: "fred",
+				public: {
+					jars: ["b.jar"],
+				},
+		}
+		java_sdk_library_import {
+		    name: "wilma",
+				public: {
+					jars: ["b.jar"],
+				},
+				shared_library: false,
 		}
 		java_library {
 		    name: "qux",
 		    srcs: ["c.java"],
-		    libs: ["baz"],
+		    libs: ["baz", "fred", "quuz.stubs", "wilma", "barney", "betty"],
 		    sdk_version: "system_current",
 		}
 		java_library {
@@ -1223,10 +1254,118 @@ func TestJavaSdkLibrary(t *testing.T) {
 	qux := ctx.ModuleForTests("qux", "android_common")
 	if quxLib, ok := qux.Module().(*Library); ok {
 		sdkLibs := quxLib.ExportedSdkLibs()
-		if len(sdkLibs) != 2 || !android.InList("foo", sdkLibs) || !android.InList("bar", sdkLibs) {
-			t.Errorf("qux should export \"foo\" and \"bar\" but exports %v", sdkLibs)
+		sort.Strings(sdkLibs)
+		if w := []string{"bar", "foo", "fred", "quuz"}; !reflect.DeepEqual(w, sdkLibs) {
+			t.Errorf("qux should export %q but exports %q", w, sdkLibs)
 		}
 	}
+}
+
+func TestJavaSdkLibrary_UseSourcesFromAnotherSdkLibrary(t *testing.T) {
+	testJava(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			public: {
+				enabled: true,
+			},
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java", ":foo{.public.stubs.source}"],
+		}
+		`)
+}
+
+func TestJavaSdkLibrary_AccessOutputFiles_MissingScope(t *testing.T) {
+	testJavaError(t, `"foo" does not provide api scope system`, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			public: {
+				enabled: true,
+			},
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java", ":foo{.system.stubs.source}"],
+		}
+		`)
+}
+
+func TestJavaSdkLibraryImport_AccessOutputFiles(t *testing.T) {
+	testJava(t, `
+		java_sdk_library_import {
+			name: "foo",
+			public: {
+				jars: ["a.jar"],
+				stub_srcs: ["a.java"],
+				current_api: "api/current.txt",
+				removed_api: "api/removed.txt",
+			},
+		}
+
+		java_library {
+			name: "bar",
+			srcs: [":foo{.public.stubs.source}"],
+			java_resources: [
+				":foo{.public.api.txt}",
+				":foo{.public.removed-api.txt}",
+			],
+		}
+		`)
+}
+
+func TestJavaSdkLibraryImport_AccessOutputFiles_Invalid(t *testing.T) {
+	bp := `
+		java_sdk_library_import {
+			name: "foo",
+			public: {
+				jars: ["a.jar"],
+			},
+		}
+		`
+
+	t.Run("stubs.source", func(t *testing.T) {
+		testJavaError(t, `stubs.source not available for api scope public`, bp+`
+		java_library {
+			name: "bar",
+			srcs: [":foo{.public.stubs.source}"],
+			java_resources: [
+				":foo{.public.api.txt}",
+				":foo{.public.removed-api.txt}",
+			],
+		}
+		`)
+	})
+
+	t.Run("api.txt", func(t *testing.T) {
+		testJavaError(t, `api.txt not available for api scope public`, bp+`
+		java_library {
+			name: "bar",
+			srcs: ["a.java"],
+			java_resources: [
+				":foo{.public.api.txt}",
+			],
+		}
+		`)
+	})
+
+	t.Run("removed-api.txt", func(t *testing.T) {
+		testJavaError(t, `removed-api.txt not available for api scope public`, bp+`
+		java_library {
+			name: "bar",
+			srcs: ["a.java"],
+			java_resources: [
+				":foo{.public.removed-api.txt}",
+			],
+		}
+		`)
+	})
 }
 
 func TestJavaSdkLibrary_InvalidScopes(t *testing.T) {
@@ -1257,6 +1396,45 @@ func TestJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
 				enabled: true,
 				sdk_version: "module_current",
 			},
+		}
+		`)
+}
+
+func TestJavaSdkLibrary_MissingScope(t *testing.T) {
+	testJavaError(t, `requires api scope module-lib from foo but it only has \[\] available`, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			public: {
+				enabled: false,
+			},
+		}
+
+		java_library {
+			name: "baz",
+			srcs: ["a.java"],
+			libs: ["foo"],
+			sdk_version: "module_current",
+		}
+		`)
+}
+
+func TestJavaSdkLibrary_FallbackScope(t *testing.T) {
+	testJava(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			system: {
+				enabled: true,
+			},
+		}
+
+		java_library {
+			name: "baz",
+			srcs: ["a.java"],
+			libs: ["foo"],
+			// foo does not have module-lib scope so it should fallback to system
+			sdk_version: "module_current",
 		}
 		`)
 }
