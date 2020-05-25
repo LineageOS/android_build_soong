@@ -61,19 +61,16 @@ java_import {
 	name: "android_module_lib_stubs_current",
 }
 java_import {
-	name: "core-lambda-stubs",
+	name: "core-lambda-stubs", 
 	sdk_version: "none",
 }
 java_import {
-	name: "ext",
+	name: "ext", 
 	sdk_version: "none",
 }
 java_import {
-	name: "framework",
+	name: "framework", 
 	sdk_version: "none",
-}
-java_library {
-	name: "stub-annotations",
 }
 ` + bp
 
