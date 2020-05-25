@@ -1157,16 +1157,6 @@ func TestJavaSdkLibrary(t *testing.T) {
 			libs: ["foo", "bar.stubs"],
 			sdk_version: "system_current",
 		}
-		java_sdk_library {
-			name: "barney",
-			srcs: ["c.java"],
-			api_only: true,
-		}
-		java_sdk_library {
-			name: "betty",
-			srcs: ["c.java"],
-			shared_library: false,
-		}
 		java_sdk_library_import {
 		    name: "quuz",
 				public: {
@@ -1179,17 +1169,10 @@ func TestJavaSdkLibrary(t *testing.T) {
 					jars: ["b.jar"],
 				},
 		}
-		java_sdk_library_import {
-		    name: "wilma",
-				public: {
-					jars: ["b.jar"],
-				},
-				shared_library: false,
-		}
 		java_library {
 		    name: "qux",
 		    srcs: ["c.java"],
-		    libs: ["baz", "fred", "quuz.stubs", "wilma", "barney", "betty"],
+		    libs: ["baz", "fred", "quuz.stubs"],
 		    sdk_version: "system_current",
 		}
 		java_library {
