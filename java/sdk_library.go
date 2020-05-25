@@ -551,7 +551,7 @@ func (c *commonToSdkLibraryAndImport) apiModuleName(apiScope *apiScope) string {
 	return c.namingScheme.apiModuleName(apiScope, c.moduleBase.BaseModuleName())
 }
 
-func (c *commonToSdkLibraryAndImport) getScopePathsCreateIfNeeded(scope *apiScope) *scopePaths {
+func (c *commonToSdkLibraryAndImport) getScopePaths(scope *apiScope) *scopePaths {
 	if c.scopePaths == nil {
 		c.scopePaths = make(map[*apiScope]*scopePaths)
 	}
@@ -562,28 +562,6 @@ func (c *commonToSdkLibraryAndImport) getScopePathsCreateIfNeeded(scope *apiScop
 	}
 
 	return paths
-}
-
-func (c *commonToSdkLibraryAndImport) findScopePaths(scope *apiScope) *scopePaths {
-	if c.scopePaths == nil {
-		return nil
-	}
-
-	return c.scopePaths[scope]
-}
-
-// If this does not support the requested api scope then find the closest available
-// scope it does support. Returns nil if no such scope is available.
-func (c *commonToSdkLibraryAndImport) findClosestScopePath(scope *apiScope) *scopePaths {
-	for s := scope; s != nil; s = s.extends {
-		if paths := c.findScopePaths(s); paths != nil {
-			return paths
-		}
-	}
-
-	// This should never happen outside tests as public should be the base scope for every
-	// scope and is enabled by default.
-	return nil
 }
 
 func (c *commonToSdkLibraryAndImport) sdkJarsCommon(ctx android.BaseModuleContext, sdkVersion sdkSpec, headerJars bool) android.Paths {
@@ -597,26 +575,13 @@ func (c *commonToSdkLibraryAndImport) sdkJarsCommon(ctx android.BaseModuleContex
 	switch sdkVersion.kind {
 	case sdkSystem:
 		apiScope = apiScopeSystem
-	case sdkModule:
-		apiScope = apiScopeModuleLib
 	case sdkTest:
 		apiScope = apiScopeTest
 	default:
 		apiScope = apiScopePublic
 	}
 
-	paths := c.findClosestScopePath(apiScope)
-	if paths == nil {
-		var scopes []string
-		for _, s := range allApiScopes {
-			if c.findScopePaths(s) != nil {
-				scopes = append(scopes, s.name)
-			}
-		}
-		ctx.ModuleErrorf("requires api scope %s from %s but it only has %q available", apiScope.name, c.moduleBase.BaseModuleName(), scopes)
-		return nil
-	}
-
+	paths := c.getScopePaths(apiScope)
 	if headerJars {
 		return paths.stubsHeaderPath
 	} else {
@@ -739,7 +704,7 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		// Extract information from any of the scope specific dependencies.
 		if scopeTag, ok := tag.(scopeDependencyTag); ok {
 			apiScope := scopeTag.apiScope
-			scopePaths := module.getScopePathsCreateIfNeeded(apiScope)
+			scopePaths := module.getScopePaths(apiScope)
 
 			// Extract information from the dependency. The exact information extracted
 			// is determined by the nature of the dependency which is determined by the tag.
@@ -1490,7 +1455,7 @@ func (module *sdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 		if lib, ok := to.(Dependency); ok {
 			if scopeTag, ok := tag.(scopeDependencyTag); ok {
 				apiScope := scopeTag.apiScope
-				scopePaths := module.getScopePathsCreateIfNeeded(apiScope)
+				scopePaths := module.getScopePaths(apiScope)
 				scopePaths.stubsHeaderPath = lib.HeaderJars()
 			}
 		}
@@ -1675,11 +1640,7 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 
 	s.Scopes = make(map[*apiScope]scopeProperties)
 	for _, apiScope := range allApiScopes {
-		paths := sdk.findScopePaths(apiScope)
-		if paths == nil {
-			continue
-		}
-
+		paths := sdk.getScopePaths(apiScope)
 		jars := paths.stubsImplPath
 		if len(jars) > 0 {
 			properties := scopeProperties{}
