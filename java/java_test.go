@@ -575,7 +575,6 @@ func TestJavaSdkLibraryImport(t *testing.T) {
 			},
 			test: {
 				jars: ["c.jar"],
-				stub_srcs: ["c.java"],
 			},
 		}
 		`)
