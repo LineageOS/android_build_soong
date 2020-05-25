@@ -351,16 +351,11 @@ type ApiFilePath interface {
 	ApiFilePath() android.Path
 }
 
-type ApiStubsSrcProvider interface {
-	StubsSrcJar() android.Path
-}
-
 // Provider of information about API stubs, used by java_sdk_library.
 type ApiStubsProvider interface {
 	ApiFilePath
 	RemovedApiFilePath() android.Path
-
-	ApiStubsSrcProvider
+	StubsSrcJar() android.Path
 }
 
 //
@@ -1944,10 +1939,6 @@ func (p *PrebuiltStubsSources) OutputFiles(tag string) (android.Paths, error) {
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
-}
-
-func (d *PrebuiltStubsSources) StubsSrcJar() android.Path {
-	return d.stubsSrcJar
 }
 
 func (p *PrebuiltStubsSources) GenerateAndroidBuildActions(ctx android.ModuleContext) {
