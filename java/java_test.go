@@ -575,6 +575,7 @@ func TestJavaSdkLibraryImport(t *testing.T) {
 			},
 			test: {
 				jars: ["c.jar"],
+				stub_srcs: ["c.java"],
 			},
 		}
 		`)
@@ -1229,6 +1230,113 @@ func TestJavaSdkLibrary(t *testing.T) {
 	}
 }
 
+func TestJavaSdkLibrary_UseSourcesFromAnotherSdkLibrary(t *testing.T) {
+	testJava(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			public: {
+				enabled: true,
+			},
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java", ":foo{.public.stubs.source}"],
+		}
+		`)
+}
+
+func TestJavaSdkLibrary_AccessOutputFiles_MissingScope(t *testing.T) {
+	testJavaError(t, `"foo" does not provide api scope system`, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			public: {
+				enabled: true,
+			},
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java", ":foo{.system.stubs.source}"],
+		}
+		`)
+}
+
+func TestJavaSdkLibraryImport_AccessOutputFiles(t *testing.T) {
+	testJava(t, `
+		java_sdk_library_import {
+			name: "foo",
+			public: {
+				jars: ["a.jar"],
+				stub_srcs: ["a.java"],
+				current_api: "api/current.txt",
+				removed_api: "api/removed.txt",
+			},
+		}
+
+		java_library {
+			name: "bar",
+			srcs: [":foo{.public.stubs.source}"],
+			java_resources: [
+				":foo{.public.api.txt}",
+				":foo{.public.removed-api.txt}",
+			],
+		}
+		`)
+}
+
+func TestJavaSdkLibraryImport_AccessOutputFiles_Invalid(t *testing.T) {
+	bp := `
+		java_sdk_library_import {
+			name: "foo",
+			public: {
+				jars: ["a.jar"],
+			},
+		}
+		`
+
+	t.Run("stubs.source", func(t *testing.T) {
+		testJavaError(t, `stubs.source not available for api scope public`, bp+`
+		java_library {
+			name: "bar",
+			srcs: [":foo{.public.stubs.source}"],
+			java_resources: [
+				":foo{.public.api.txt}",
+				":foo{.public.removed-api.txt}",
+			],
+		}
+		`)
+	})
+
+	t.Run("api.txt", func(t *testing.T) {
+		testJavaError(t, `api.txt not available for api scope public`, bp+`
+		java_library {
+			name: "bar",
+			srcs: ["a.java"],
+			java_resources: [
+				":foo{.public.api.txt}",
+			],
+		}
+		`)
+	})
+
+	t.Run("removed-api.txt", func(t *testing.T) {
+		testJavaError(t, `removed-api.txt not available for api scope public`, bp+`
+		java_library {
+			name: "bar",
+			srcs: ["a.java"],
+			java_resources: [
+				":foo{.public.removed-api.txt}",
+			],
+		}
+		`)
+	})
+}
+
 func TestJavaSdkLibrary_InvalidScopes(t *testing.T) {
 	testJavaError(t, `module "foo": enabled api scope "system" depends on disabled scope "public"`, `
 		java_sdk_library {
@@ -1257,6 +1365,45 @@ func TestJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
 				enabled: true,
 				sdk_version: "module_current",
 			},
+		}
+		`)
+}
+
+func TestJavaSdkLibrary_MissingScope(t *testing.T) {
+	testJavaError(t, `requires api scope module-lib from foo but it only has \[\] available`, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			public: {
+				enabled: false,
+			},
+		}
+
+		java_library {
+			name: "baz",
+			srcs: ["a.java"],
+			libs: ["foo"],
+			sdk_version: "module_current",
+		}
+		`)
+}
+
+func TestJavaSdkLibrary_FallbackScope(t *testing.T) {
+	testJava(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			system: {
+				enabled: true,
+			},
+		}
+
+		java_library {
+			name: "baz",
+			srcs: ["a.java"],
+			libs: ["foo"],
+			// foo does not have module-lib scope so it should fallback to system
+			sdk_version: "module_current",
 		}
 		`)
 }
