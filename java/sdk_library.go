@@ -19,7 +19,6 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -146,8 +145,6 @@ type apiScope struct {
 // Initialize a scope, creating and adding appropriate dependency tags
 func initApiScope(scope *apiScope) *apiScope {
 	name := scope.name
-	scopeByName[name] = scope
-	allScopeNames = append(allScopeNames, name)
 	scope.propertyName = strings.ReplaceAll(name, "-", "_")
 	scope.fieldName = proptools.FieldNameForProperty(scope.propertyName)
 	scope.stubsTag = scopeDependencyTag{
@@ -220,8 +217,6 @@ func (scopes apiScopes) Strings(accessor func(*apiScope) string) []string {
 }
 
 var (
-	scopeByName    = make(map[string]*apiScope)
-	allScopeNames  []string
 	apiScopePublic = initApiScope(&apiScope{
 		name: "public",
 
@@ -583,82 +578,6 @@ func (c *commonToSdkLibraryAndImport) apiModuleName(apiScope *apiScope) string {
 	return c.namingScheme.apiModuleName(apiScope, c.moduleBase.BaseModuleName())
 }
 
-// The component names for different outputs of the java_sdk_library.
-//
-// They are similar to the names used for the child modules it creates
-const (
-	stubsSourceComponentName = "stubs.source"
-
-	apiTxtComponentName = "api.txt"
-
-	removedApiTxtComponentName = "removed-api.txt"
-)
-
-// A regular expression to match tags that reference a specific stubs component.
-//
-// It will only match if given a valid scope and a valid component. It is verfy strict
-// to ensure it does not accidentally match a similar looking tag that should be processed
-// by the embedded Library.
-var tagSplitter = func() *regexp.Regexp {
-	// Given a list of literal string items returns a regular expression that will
-	// match any one of the items.
-	choice := func(items ...string) string {
-		return `\Q` + strings.Join(items, `\E|\Q`) + `\E`
-	}
-
-	// Regular expression to match one of the scopes.
-	scopesRegexp := choice(allScopeNames...)
-
-	// Regular expression to match one of the components.
-	componentsRegexp := choice(stubsSourceComponentName, apiTxtComponentName, removedApiTxtComponentName)
-
-	// Regular expression to match any combination of one scope and one component.
-	return regexp.MustCompile(fmt.Sprintf(`^\.(%s)\.(%s)$`, scopesRegexp, componentsRegexp))
-}()
-
-// For OutputFileProducer interface
-//
-// .<scope>.stubs.source
-// .<scope>.api.txt
-// .<scope>.removed-api.txt
-func (c *commonToSdkLibraryAndImport) commonOutputFiles(tag string) (android.Paths, error) {
-	if groups := tagSplitter.FindStringSubmatch(tag); groups != nil {
-		scopeName := groups[1]
-		component := groups[2]
-
-		if scope, ok := scopeByName[scopeName]; ok {
-			paths := c.findScopePaths(scope)
-			if paths == nil {
-				return nil, fmt.Errorf("%q does not provide api scope %s", c.moduleBase.BaseModuleName(), scopeName)
-			}
-
-			switch component {
-			case stubsSourceComponentName:
-				if paths.stubsSrcJar.Valid() {
-					return android.Paths{paths.stubsSrcJar.Path()}, nil
-				}
-
-			case apiTxtComponentName:
-				if paths.currentApiFilePath.Valid() {
-					return android.Paths{paths.currentApiFilePath.Path()}, nil
-				}
-
-			case removedApiTxtComponentName:
-				if paths.removedApiFilePath.Valid() {
-					return android.Paths{paths.removedApiFilePath.Path()}, nil
-				}
-			}
-
-			return nil, fmt.Errorf("%s not available for api scope %s", component, scopeName)
-		} else {
-			return nil, fmt.Errorf("unknown scope %s in %s", scope, tag)
-		}
-
-	} else {
-		return nil, nil
-	}
-}
-
 func (c *commonToSdkLibraryAndImport) getScopePathsCreateIfNeeded(scope *apiScope) *scopePaths {
 	if c.scopePaths == nil {
 		c.scopePaths = make(map[*apiScope]*scopePaths)
@@ -830,15 +749,6 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 
 	module.Library.deps(ctx)
-}
-
-func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
-	paths, err := module.commonOutputFiles(tag)
-	if paths == nil && err == nil {
-		return module.Library.OutputFiles(tag)
-	} else {
-		return paths, err
-	}
 }
 
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1604,10 +1514,6 @@ func (module *sdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) 
 			ctx.AddVariationDependencies(nil, apiScope.stubsSourceTag, module.stubsSourceModuleName(apiScope))
 		}
 	}
-}
-
-func (module *sdkLibraryImport) OutputFiles(tag string) (android.Paths, error) {
-	return module.commonOutputFiles(tag)
 }
 
 func (module *sdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
