@@ -433,30 +433,12 @@ type sdkLibraryProperties struct {
 	//Html_doc *bool
 }
 
-// Paths to outputs from java_sdk_library and java_sdk_library_import.
-//
-// Fields that are android.Paths are always set (during GenerateAndroidBuildActions).
-// OptionalPaths are always set by java_sdk_library but may not be set by
-// java_sdk_library_import as not all instances provide that information.
 type scopePaths struct {
-	// The path (represented as Paths for convenience when returning) to the stubs header jar.
-	//
-	// That is the jar that is created by turbine.
-	stubsHeaderPath android.Paths
-
-	// The path (represented as Paths for convenience when returning) to the stubs implementation jar.
-	//
-	// This is not the implementation jar, it still only contains stubs.
-	stubsImplPath android.Paths
-
-	// The API specification file, e.g. system_current.txt.
-	currentApiFilePath android.OptionalPath
-
-	// The specification of API elements removed since the last release.
-	removedApiFilePath android.OptionalPath
-
-	// The stubs source jar.
-	stubsSrcJar android.OptionalPath
+	stubsHeaderPath    android.Paths
+	stubsImplPath      android.Paths
+	currentApiFilePath android.Path
+	removedApiFilePath android.Path
+	stubsSrcJar        android.Path
 }
 
 func (paths *scopePaths) extractStubsLibraryInfoFromDependency(dep android.Module) error {
@@ -478,18 +460,9 @@ func (paths *scopePaths) treatDepAsApiStubsProvider(dep android.Module, action f
 	}
 }
 
-func (paths *scopePaths) treatDepAsApiStubsSrcProvider(dep android.Module, action func(provider ApiStubsSrcProvider)) error {
-	if apiStubsProvider, ok := dep.(ApiStubsSrcProvider); ok {
-		action(apiStubsProvider)
-		return nil
-	} else {
-		return fmt.Errorf("expected module that implements ApiStubsSrcProvider, e.g. droidstubs")
-	}
-}
-
 func (paths *scopePaths) extractApiInfoFromApiStubsProvider(provider ApiStubsProvider) {
-	paths.currentApiFilePath = android.OptionalPathForPath(provider.ApiFilePath())
-	paths.removedApiFilePath = android.OptionalPathForPath(provider.RemovedApiFilePath())
+	paths.currentApiFilePath = provider.ApiFilePath()
+	paths.removedApiFilePath = provider.RemovedApiFilePath()
 }
 
 func (paths *scopePaths) extractApiInfoFromDep(dep android.Module) error {
@@ -498,12 +471,12 @@ func (paths *scopePaths) extractApiInfoFromDep(dep android.Module) error {
 	})
 }
 
-func (paths *scopePaths) extractStubsSourceInfoFromApiStubsProviders(provider ApiStubsSrcProvider) {
-	paths.stubsSrcJar = android.OptionalPathForPath(provider.StubsSrcJar())
+func (paths *scopePaths) extractStubsSourceInfoFromApiStubsProviders(provider ApiStubsProvider) {
+	paths.stubsSrcJar = provider.StubsSrcJar()
 }
 
 func (paths *scopePaths) extractStubsSourceInfoFromDep(dep android.Module) error {
-	return paths.treatDepAsApiStubsSrcProvider(dep, func(provider ApiStubsSrcProvider) {
+	return paths.treatDepAsApiStubsProvider(dep, func(provider ApiStubsProvider) {
 		paths.extractStubsSourceInfoFromApiStubsProviders(provider)
 	})
 }
@@ -1341,10 +1314,10 @@ type sdkLibraryScopeProperties struct {
 	Stub_srcs []string `android:"path"`
 
 	// The current.txt
-	Current_api *string `android:"path"`
+	Current_api string `android:"path"`
 
 	// The removed.txt
-	Removed_api *string `android:"path"`
+	Removed_api string `android:"path"`
 }
 
 type sdkLibraryImportProperties struct {
@@ -1454,9 +1427,7 @@ func (module *sdkLibraryImport) createInternalModules(mctx android.DefaultableHo
 
 		module.createJavaImportForStubs(mctx, apiScope, scopeProperties)
 
-		if len(scopeProperties.Stub_srcs) > 0 {
-			module.createPrebuiltStubsSources(mctx, apiScope, scopeProperties)
-		}
+		module.createPrebuiltStubsSources(mctx, apiScope, scopeProperties)
 	}
 
 	javaSdkLibraries := javaSdkLibraries(mctx.Config())
@@ -1508,40 +1479,22 @@ func (module *sdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) 
 
 		// Add dependencies to the prebuilt stubs library
 		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsLibraryModuleName(apiScope))
-
-		if len(scopeProperties.Stub_srcs) > 0 {
-			// Add dependencies to the prebuilt stubs source library
-			ctx.AddVariationDependencies(nil, apiScope.stubsSourceTag, module.stubsSourceModuleName(apiScope))
-		}
 	}
 }
 
 func (module *sdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	// Record the paths to the prebuilt stubs library and stubs source.
+	// Record the paths to the prebuilt stubs library.
 	ctx.VisitDirectDeps(func(to android.Module) {
 		tag := ctx.OtherModuleDependencyTag(to)
 
-		// Extract information from any of the scope specific dependencies.
-		if scopeTag, ok := tag.(scopeDependencyTag); ok {
-			apiScope := scopeTag.apiScope
-			scopePaths := module.getScopePathsCreateIfNeeded(apiScope)
-
-			// Extract information from the dependency. The exact information extracted
-			// is determined by the nature of the dependency which is determined by the tag.
-			scopeTag.extractDepInfo(ctx, to, scopePaths)
+		if lib, ok := to.(Dependency); ok {
+			if scopeTag, ok := tag.(scopeDependencyTag); ok {
+				apiScope := scopeTag.apiScope
+				scopePaths := module.getScopePathsCreateIfNeeded(apiScope)
+				scopePaths.stubsHeaderPath = lib.HeaderJars()
+			}
 		}
 	})
-
-	// Populate the scope paths with information from the properties.
-	for apiScope, scopeProperties := range module.scopeProperties {
-		if len(scopeProperties.Jars) == 0 {
-			continue
-		}
-
-		paths := module.getScopePathsCreateIfNeeded(apiScope)
-		paths.currentApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Current_api)
-		paths.removedApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Removed_api)
-	}
 }
 
 func (module *sdkLibraryImport) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
@@ -1732,9 +1685,9 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 			properties := scopeProperties{}
 			properties.Jars = jars
 			properties.SdkVersion = sdk.sdkVersionForStubsLibrary(ctx.SdkModuleContext(), apiScope)
-			properties.StubsSrcJar = paths.stubsSrcJar.Path()
-			properties.CurrentApiFile = paths.currentApiFilePath.Path()
-			properties.RemovedApiFile = paths.removedApiFilePath.Path()
+			properties.StubsSrcJar = paths.stubsSrcJar
+			properties.CurrentApiFile = paths.currentApiFilePath
+			properties.RemovedApiFile = paths.removedApiFilePath
 			s.Scopes[apiScope] = properties
 		}
 	}
