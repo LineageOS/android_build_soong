@@ -792,7 +792,9 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
 	props.Openjdk9.Srcs = module.properties.Openjdk9.Srcs
 	props.Openjdk9.Javacflags = module.properties.Openjdk9.Javacflags
-	props.Java_version = module.properties.Java_version
+	// We compile the stubs for 1.8 in line with the main android.jar stubs, and potential
+	// interop with older developer tools that don't support 1.9.
+	props.Java_version = proptools.StringPtr("1.8")
 	if module.deviceProperties.Compile_dex != nil {
 		props.Compile_dex = module.deviceProperties.Compile_dex
 	}
