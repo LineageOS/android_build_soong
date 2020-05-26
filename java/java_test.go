@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -1258,6 +1259,31 @@ func TestJavaSdkLibrary(t *testing.T) {
 		if w := []string{"bar", "foo", "fred", "quuz"}; !reflect.DeepEqual(w, sdkLibs) {
 			t.Errorf("qux should export %q but exports %q", w, sdkLibs)
 		}
+	}
+}
+
+func TestJavaSdkLibrary_DoNotAccessImplWhenItIsNotBuilt(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_only: true,
+			public: {
+				enabled: true,
+			},
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java"],
+			libs: ["foo"],
+		}
+		`)
+
+	// The bar library should depend on the stubs jar.
+	barLibrary := ctx.ModuleForTests("bar", "android_common").Rule("javac")
+	if expected, actual := `^-classpath .*:/[^:]*/turbine-combined/foo\.stubs\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+		t.Errorf("expected %q, found %#q", expected, actual)
 	}
 }
 
