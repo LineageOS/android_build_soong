@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -1153,13 +1154,42 @@ func TestJavaSdkLibrary(t *testing.T) {
 		java_library {
 			name: "baz",
 			srcs: ["c.java"],
-			libs: ["foo", "bar"],
+			libs: ["foo", "bar.stubs"],
 			sdk_version: "system_current",
+		}
+		java_sdk_library {
+			name: "barney",
+			srcs: ["c.java"],
+			api_only: true,
+		}
+		java_sdk_library {
+			name: "betty",
+			srcs: ["c.java"],
+			shared_library: false,
+		}
+		java_sdk_library_import {
+		    name: "quuz",
+				public: {
+					jars: ["c.jar"],
+				},
+		}
+		java_sdk_library_import {
+		    name: "fred",
+				public: {
+					jars: ["b.jar"],
+				},
+		}
+		java_sdk_library_import {
+		    name: "wilma",
+				public: {
+					jars: ["b.jar"],
+				},
+				shared_library: false,
 		}
 		java_library {
 		    name: "qux",
 		    srcs: ["c.java"],
-		    libs: ["baz"],
+		    libs: ["baz", "fred", "quuz.stubs", "wilma", "barney", "betty"],
 		    sdk_version: "system_current",
 		}
 		java_library {
@@ -1224,8 +1254,9 @@ func TestJavaSdkLibrary(t *testing.T) {
 	qux := ctx.ModuleForTests("qux", "android_common")
 	if quxLib, ok := qux.Module().(*Library); ok {
 		sdkLibs := quxLib.ExportedSdkLibs()
-		if len(sdkLibs) != 2 || !android.InList("foo", sdkLibs) || !android.InList("bar", sdkLibs) {
-			t.Errorf("qux should export \"foo\" and \"bar\" but exports %v", sdkLibs)
+		sort.Strings(sdkLibs)
+		if w := []string{"bar", "foo", "fred", "quuz"}; !reflect.DeepEqual(w, sdkLibs) {
+			t.Errorf("qux should export %q but exports %q", w, sdkLibs)
 		}
 	}
 }
