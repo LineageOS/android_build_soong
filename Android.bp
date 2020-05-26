@@ -492,6 +492,7 @@ bootstrap_go_package {
     srcs: [
         "apex/androidmk.go",
         "apex/apex.go",
+        "apex/apex_singleton.go",
         "apex/builder.go",
         "apex/key.go",
         "apex/prebuilt.go",
