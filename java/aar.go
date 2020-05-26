@@ -379,8 +379,11 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 				sharedLibs = append(sharedLibs, exportPackage)
 			}
 
-			if _, ok := module.(SdkLibraryDependency); ok {
-				sdkLibraries = append(sdkLibraries, ctx.OtherModuleName(module))
+			// If the module is (or possibly could be) a component of a java_sdk_library
+			// (including the java_sdk_library) itself then append any implicit sdk library
+			// names to the list of sdk libraries to be added to the manifest.
+			if component, ok := module.(SdkLibraryComponentDependency); ok {
+				sdkLibraries = append(sdkLibraries, component.OptionalImplicitSdkLibrary()...)
 			}
 
 		case frameworkResTag:
