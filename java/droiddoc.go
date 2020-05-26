@@ -1314,12 +1314,9 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 		d.annotationsZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"_annotations.zip")
 		cmd.FlagWithOutput("--extract-annotations ", d.annotationsZip)
 
-		if len(d.properties.Merge_annotations_dirs) == 0 {
-			ctx.PropertyErrorf("merge_annotations_dirs",
-				"has to be non-empty if annotations was enabled!")
+		if len(d.properties.Merge_annotations_dirs) != 0 {
+			d.mergeAnnoDirFlags(ctx, cmd)
 		}
-
-		d.mergeAnnoDirFlags(ctx, cmd)
 
 		// TODO(tnorbye): find owners to fix these warnings when annotation was enabled.
 		cmd.FlagWithArg("--hide ", "HiddenTypedefConstant").

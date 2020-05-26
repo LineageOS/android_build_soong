@@ -2543,20 +2543,6 @@ func TestUsesLibraries(t *testing.T) {
 		}
 
 		java_sdk_library {
-			name: "qux",
-			srcs: ["a.java"],
-			api_packages: ["qux"],
-			sdk_version: "current",
-		}
-
-		java_sdk_library {
-			name: "quuz",
-			srcs: ["a.java"],
-			api_packages: ["quuz"],
-			sdk_version: "current",
-		}
-
-		java_sdk_library {
 			name: "bar",
 			srcs: ["a.java"],
 			api_packages: ["bar"],
@@ -2566,7 +2552,6 @@ func TestUsesLibraries(t *testing.T) {
 		android_app {
 			name: "app",
 			srcs: ["a.java"],
-			libs: ["qux", "quuz.stubs"],
 			uses_libs: ["foo"],
 			sdk_version: "current",
 			optional_uses_libs: [
@@ -2596,15 +2581,6 @@ func TestUsesLibraries(t *testing.T) {
 
 	app := ctx.ModuleForTests("app", "android_common")
 	prebuilt := ctx.ModuleForTests("prebuilt", "android_common")
-
-	// Test that implicit dependencies on java_sdk_library instances are passed to the manifest.
-	manifestFixerArgs := app.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
-	if w := "--uses-library qux"; !strings.Contains(manifestFixerArgs, w) {
-		t.Errorf("unexpected manifest_fixer args: wanted %q in %q", w, manifestFixerArgs)
-	}
-	if w := "--uses-library quuz"; !strings.Contains(manifestFixerArgs, w) {
-		t.Errorf("unexpected manifest_fixer args: wanted %q in %q", w, manifestFixerArgs)
-	}
 
 	// Test that all libraries are verified
 	cmd := app.Rule("verify_uses_libraries").RuleParams.Command
