@@ -33,6 +33,7 @@ type ApexInfo struct {
 	ApexName string
 
 	MinSdkVersion int
+	Updatable     bool
 }
 
 // Extracted from ApexModule to make it easier to define custom subsets of the
@@ -115,6 +116,9 @@ type ApexModule interface {
 	// For example, with maxSdkVersion is 10 and versionList is [9,11]
 	// it returns 9 as string
 	ChooseSdkVersion(versionList []string, maxSdkVersion int) (string, error)
+
+	// Tests if the module comes from an updatable APEX.
+	Updatable() bool
 
 	// List of APEXes that this module tests. The module has access to
 	// the private part of the listed APEXes even when it is not included in the
@@ -258,6 +262,10 @@ func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 			mctx.PropertyErrorf("apex_available", "%q is not a valid module name", n)
 		}
 	}
+}
+
+func (m *ApexModuleBase) Updatable() bool {
+	return m.ApexProperties.Info.Updatable
 }
 
 type byApexName []ApexInfo
