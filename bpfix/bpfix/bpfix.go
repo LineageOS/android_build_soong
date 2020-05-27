@@ -408,6 +408,8 @@ func rewriteTestModuleTypes(f *Fixer) error {
 			switch mod.Type {
 			case "android_app":
 				mod.Type = "android_test"
+			case "android_app_import":
+				mod.Type = "android_test_import"
 			case "java_library", "java_library_installable":
 				mod.Type = "java_test"
 			case "java_library_host":
@@ -951,7 +953,8 @@ func removeTags(mod *parser.Module, buf []byte, patchlist *parser.PatchList) err
 			case strings.Contains(mod.Type, "cc_test"),
 				strings.Contains(mod.Type, "cc_library_static"),
 				strings.Contains(mod.Type, "java_test"),
-				mod.Type == "android_test":
+				mod.Type == "android_test",
+				mod.Type == "android_test_import":
 				continue
 			case strings.Contains(mod.Type, "cc_lib"):
 				replaceStr += `// WARNING: Module tags are not supported in Soong.
