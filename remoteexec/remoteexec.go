@@ -75,6 +75,9 @@ type REParams struct {
 	// OutputFiles is a list of output file paths or ninja variables as placeholders for rule
 	// outputs.
 	OutputFiles []string
+	// OutputDirectories is a list of output directory paths or ninja variables as placeholders
+	// for rule outputs.
+	OutputDirectories []string
 	// ToolchainInputs is a list of paths or ninja variables pointing to the location of
 	// toolchain binaries used by the rule.
 	ToolchainInputs []string
@@ -151,6 +154,10 @@ func (r *REParams) wrapperArgs() string {
 		args += " --output_files=" + strings.Join(r.OutputFiles, ",")
 	}
 
+	if len(r.OutputDirectories) > 0 {
+		args += " --output_directories=" + strings.Join(r.OutputDirectories, ",")
+	}
+
 	if len(r.ToolchainInputs) > 0 {
 		args += " --toolchain_inputs=" + strings.Join(r.ToolchainInputs, ",")
 	}
@@ -159,7 +166,9 @@ func (r *REParams) wrapperArgs() string {
 }
 
 // StaticRules returns a pair of rules based on the given RuleParams, where the first rule is a
-// locally executable rule and the second rule is a remotely executable rule.
+// locally executable rule and the second rule is a remotely executable rule. commonArgs are args
+// used for both the local and remotely executable rules. reArgs are used only for remote
+// execution.
 func StaticRules(ctx android.PackageContext, name string, ruleParams blueprint.RuleParams, reParams *REParams, commonArgs []string, reArgs []string) (blueprint.Rule, blueprint.Rule) {
 	ruleParamsRE := ruleParams
 	ruleParams.Command = strings.ReplaceAll(ruleParams.Command, "$reTemplate", "")
