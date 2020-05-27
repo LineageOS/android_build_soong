@@ -1115,6 +1115,7 @@ const (
 	javaSharedLib
 	nativeTest
 	app
+	appSet
 )
 
 func (class apexFileClass) NameInMake() string {
@@ -1129,7 +1130,7 @@ func (class apexFileClass) NameInMake() string {
 		return "JAVA_LIBRARIES"
 	case nativeTest:
 		return "NATIVE_TESTS"
-	case app:
+	case app, appSet:
 		// b/142537672 Why isn't this APP? We want to have full control over
 		// the paths and file names of the apk file under the flattend APEX.
 		// If this is set to APP, then the paths and file names are modified
@@ -1998,6 +1999,15 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					filesInfo = append(filesInfo, apexFileForAndroidApp(ctx, ap))
 				} else if ap, ok := child.(*java.AndroidTestHelperApp); ok {
 					filesInfo = append(filesInfo, apexFileForAndroidApp(ctx, ap))
+				} else if ap, ok := child.(*java.AndroidAppSet); ok {
+					appDir := "app"
+					if ap.Privileged() {
+						appDir = "priv-app"
+					}
+					af := newApexFile(ctx, ap.OutputFile(), ap.Name(),
+						filepath.Join(appDir, ap.BaseModuleName()), appSet, ap)
+					af.certificate = java.PresignedCertificate
+					filesInfo = append(filesInfo, af)
 				} else {
 					ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
 				}
