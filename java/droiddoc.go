@@ -545,7 +545,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		case libTag:
 			switch dep := module.(type) {
 			case SdkLibraryDependency:
-				deps.classpath = append(deps.classpath, dep.SdkImplementationJars(ctx, j.sdkVersion())...)
+				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
 			case Dependency:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
