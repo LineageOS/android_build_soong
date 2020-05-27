@@ -184,6 +184,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"dummy.txt":                                  nil,
 		"baz":                                        nil,
 		"bar/baz":                                    nil,
+		"testdata/baz":                               nil,
 	}
 
 	cc.GatherRequiredFilesForTest(fs)
@@ -271,6 +272,15 @@ func ensureContains(t *testing.T, result string, expected string) {
 	t.Helper()
 	if !strings.Contains(result, expected) {
 		t.Errorf("%q is not found in %q", expected, result)
+	}
+}
+
+// ensure that 'result' contains 'expected' exactly one time
+func ensureContainsOnce(t *testing.T, result string, expected string) {
+	t.Helper()
+	count := strings.Count(result, expected)
+	if count != 1 {
+		t.Errorf("%q is found %d times (expected 1 time) in %q", expected, count, result)
 	}
 }
 
@@ -3423,6 +3433,13 @@ func TestApexWithTests(t *testing.T) {
 			stl: "none",
 		}
 
+		filegroup {
+			name: "fg2",
+			srcs: [
+				"testdata/baz"
+			],
+		}
+
 		cc_test {
 			name: "mytests",
 			gtest: false,
@@ -3436,6 +3453,10 @@ func TestApexWithTests(t *testing.T) {
 			system_shared_libs: [],
 			static_executable: true,
 			stl: "none",
+			data: [
+				":fg",
+				":fg2",
+			],
 		}
 	`)
 
@@ -3475,7 +3496,8 @@ func TestApexWithTests(t *testing.T) {
 	data = android.AndroidMkDataForTest(t, config, "", flatBundle)
 	data.Custom(&builder, name, prefix, "", data)
 	flatAndroidMk := builder.String()
-	ensureContains(t, flatAndroidMk, "LOCAL_TEST_DATA := :baz :bar/baz\n")
+	ensureContainsOnce(t, flatAndroidMk, "LOCAL_TEST_DATA := :baz :bar/baz\n")
+	ensureContainsOnce(t, flatAndroidMk, "LOCAL_TEST_DATA := :testdata/baz\n")
 }
 
 func TestInstallExtraFlattenedApexes(t *testing.T) {
