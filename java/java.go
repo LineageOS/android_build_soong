@@ -342,8 +342,13 @@ type CompilerDeviceProperties struct {
 	// set the name of the output
 	Stem *string
 
-	UncompressDex bool `blueprint:"mutated"`
-	IsSDKLibrary  bool `blueprint:"mutated"`
+	// Keep the data uncompressed. We always need uncompressed dex for execution,
+	// so this might actually save space by avoiding storing the same data twice.
+	// This defaults to reasonable value based on module and should not be set.
+	// It exists only to support ART tests.
+	Uncompress_dex *bool
+
+	IsSDKLibrary bool `blueprint:"mutated"`
 
 	// If true, generate the signature file of APK Signing Scheme V4, along side the signed APK file.
 	// Defaults to false.
@@ -1571,7 +1576,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 		// Hidden API CSV generation and dex encoding
 		dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, dexOutputFile, j.implementationJarFile,
-			j.deviceProperties.UncompressDex)
+			proptools.Bool(j.deviceProperties.Uncompress_dex))
 
 		// merge dex jar with resources if necessary
 		if j.resourceJar != nil {
@@ -1579,7 +1584,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			combinedJar := android.PathForModuleOut(ctx, "dex-withres", jarName)
 			TransformJarsToJar(ctx, combinedJar, "for dex resources", jars, android.OptionalPath{},
 				false, nil, nil)
-			if j.deviceProperties.UncompressDex {
+			if *j.deviceProperties.Uncompress_dex {
 				combinedAlignedJar := android.PathForModuleOut(ctx, "dex-withres-aligned", jarName)
 				TransformZipAlign(ctx, combinedAlignedJar, combinedJar)
 				dexOutputFile = combinedAlignedJar
@@ -1856,8 +1861,11 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.checkSdkVersions(ctx)
 	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar")
 	j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
-	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &j.dexpreopter)
-	j.deviceProperties.UncompressDex = j.dexpreopter.uncompressedDex
+	if j.deviceProperties.Uncompress_dex == nil {
+		// If the value was not force-set by the user, use reasonable default based on the module.
+		j.deviceProperties.Uncompress_dex = proptools.BoolPtr(shouldUncompressDex(ctx, &j.dexpreopter))
+	}
+	j.dexpreopter.uncompressedDex = *j.deviceProperties.Uncompress_dex
 	j.compile(ctx, nil)
 
 	exclusivelyForApex := android.InAnyApex(ctx.ModuleName()) && !j.IsForPlatform()
