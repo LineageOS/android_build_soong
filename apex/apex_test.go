@@ -3456,9 +3456,9 @@ func TestApexWithTests(t *testing.T) {
 	ensureContains(t, copyCmds, "image.apex/bin/test/mytest3")
 
 	// Ensure the module is correctly translated.
-	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
-	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
-	name := apexBundle.BaseModuleName()
+	bundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", bundle)
+	name := bundle.BaseModuleName()
 	prefix := "TARGET_"
 	var builder strings.Builder
 	data.Custom(&builder, name, prefix, "", data)
@@ -3470,6 +3470,12 @@ func TestApexWithTests(t *testing.T) {
 	ensureContains(t, androidMk, "LOCAL_MODULE := apex_manifest.pb.myapex\n")
 	ensureContains(t, androidMk, "LOCAL_MODULE := apex_pubkey.myapex\n")
 	ensureContains(t, androidMk, "LOCAL_MODULE := myapex\n")
+
+	flatBundle := ctx.ModuleForTests("myapex", "android_common_myapex_flattened").Module().(*apexBundle)
+	data = android.AndroidMkDataForTest(t, config, "", flatBundle)
+	data.Custom(&builder, name, prefix, "", data)
+	flatAndroidMk := builder.String()
+	ensureContains(t, flatAndroidMk, "LOCAL_TEST_DATA := :baz :bar/baz\n")
 }
 
 func TestInstallExtraFlattenedApexes(t *testing.T) {
