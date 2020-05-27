@@ -1298,14 +1298,15 @@ func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s sdkSpec) and
 func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkSpec, headerJars bool) android.Paths {
 
 	// Check any special cases for java_sdk_library.
-	if !sdkVersion.specified() {
+	//
+	// Only allow access to the implementation library in the following condition:
+	// * No sdk_version specified on the referencing module.
+	if sdkVersion.kind == sdkPrivate {
 		if headerJars {
 			return module.HeaderJars()
 		} else {
 			return module.ImplementationJars()
 		}
-	} else if sdkVersion.kind == sdkPrivate {
-		return module.HeaderJars()
 	}
 
 	return module.selectHeaderJarsForSdkVersion(ctx, sdkVersion)
