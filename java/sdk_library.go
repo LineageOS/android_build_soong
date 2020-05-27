@@ -372,7 +372,10 @@ type sdkLibraryProperties struct {
 	// Defaults to "api".
 	Api_dir *string
 
-	// If set to true there is no runtime library.
+	// Determines whether a runtime implementation library is built; defaults to false.
+	//
+	// If true then it also prevents the module from being used as a shared module, i.e.
+	// it is as is shared_library: false, was set.
 	Api_only *bool
 
 	// local files that are used within user customized droiddoc options.
@@ -532,6 +535,13 @@ type commonToSdkLibraryAndImportProperties struct {
 	//
 	// TODO(b/155480189) - Remove once naming inconsistencies have been resolved.
 	Naming_scheme *string
+
+	// Specifies whether this module can be used as an Android shared library; defaults
+	// to true.
+	//
+	// An Android shared library is one that can be referenced in a <uses-library> element
+	// in an AndroidManifest.xml.
+	Shared_library *bool
 }
 
 // Common code between sdk library and sdk library import
@@ -542,17 +552,23 @@ type commonToSdkLibraryAndImport struct {
 
 	namingScheme sdkLibraryComponentNamingScheme
 
-	commonProperties commonToSdkLibraryAndImportProperties
+	commonSdkLibraryProperties commonToSdkLibraryAndImportProperties
+
+	// Functionality related to this being used as a component of a java_sdk_library.
+	EmbeddableSdkLibraryComponent
 }
 
 func (c *commonToSdkLibraryAndImport) initCommon(moduleBase *android.ModuleBase) {
 	c.moduleBase = moduleBase
 
-	moduleBase.AddProperties(&c.commonProperties)
+	moduleBase.AddProperties(&c.commonSdkLibraryProperties)
+
+	// Initialize this as an sdk library component.
+	c.initSdkLibraryComponent(moduleBase)
 }
 
 func (c *commonToSdkLibraryAndImport) initCommonAfterDefaultsApplied(ctx android.DefaultableHookContext) bool {
-	schemeProperty := proptools.StringDefault(c.commonProperties.Naming_scheme, "default")
+	schemeProperty := proptools.StringDefault(c.commonSdkLibraryProperties.Naming_scheme, "default")
 	switch schemeProperty {
 	case "default":
 		c.namingScheme = &defaultNamingScheme{}
@@ -561,6 +577,12 @@ func (c *commonToSdkLibraryAndImport) initCommonAfterDefaultsApplied(ctx android
 	default:
 		ctx.PropertyErrorf("naming_scheme", "expected 'default' but was %q", schemeProperty)
 		return false
+	}
+
+	// Only track this sdk library if this can be used as a shared library.
+	if c.sharedLibrary() {
+		// Use the name specified in the module definition as the owner.
+		c.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack = proptools.StringPtr(c.moduleBase.BaseModuleName())
 	}
 
 	return true
@@ -728,6 +750,91 @@ func (c *commonToSdkLibraryAndImport) selectHeaderJarsForSdkVersion(ctx android.
 	return paths.stubsHeaderPath
 }
 
+func (c *commonToSdkLibraryAndImport) sdkComponentPropertiesForChildLibrary() interface{} {
+	componentProps := &struct {
+		SdkLibraryToImplicitlyTrack *string
+	}{}
+
+	if c.sharedLibrary() {
+		// Mark the stubs library as being components of this java_sdk_library so that
+		// any app that includes code which depends (directly or indirectly) on the stubs
+		// library will have the appropriate <uses-library> invocation inserted into its
+		// manifest if necessary.
+		componentProps.SdkLibraryToImplicitlyTrack = proptools.StringPtr(c.moduleBase.BaseModuleName())
+	}
+
+	return componentProps
+}
+
+// Check if this can be used as a shared library.
+func (c *commonToSdkLibraryAndImport) sharedLibrary() bool {
+	return proptools.BoolDefault(c.commonSdkLibraryProperties.Shared_library, true)
+}
+
+// Properties related to the use of a module as an component of a java_sdk_library.
+type SdkLibraryComponentProperties struct {
+
+	// The name of the java_sdk_library/_import to add to a <uses-library> entry
+	// in the AndroidManifest.xml of any Android app that includes code that references
+	// this module. If not set then no java_sdk_library/_import is tracked.
+	SdkLibraryToImplicitlyTrack *string `blueprint:"mutated"`
+}
+
+// Structure to be embedded in a module struct that needs to support the
+// SdkLibraryComponentDependency interface.
+type EmbeddableSdkLibraryComponent struct {
+	sdkLibraryComponentProperties SdkLibraryComponentProperties
+}
+
+func (e *EmbeddableSdkLibraryComponent) initSdkLibraryComponent(moduleBase *android.ModuleBase) {
+	moduleBase.AddProperties(&e.sdkLibraryComponentProperties)
+}
+
+// to satisfy SdkLibraryComponentDependency
+func (e *EmbeddableSdkLibraryComponent) OptionalImplicitSdkLibrary() []string {
+	if e.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack != nil {
+		return []string{*e.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack}
+	}
+	return nil
+}
+
+// Implemented by modules that are (or possibly could be) a component of a java_sdk_library
+// (including the java_sdk_library) itself.
+type SdkLibraryComponentDependency interface {
+	// The optional name of the sdk library that should be implicitly added to the
+	// AndroidManifest of an app that contains code which references the sdk library.
+	//
+	// Returns an array containing 0 or 1 items rather than a *string to make it easier
+	// to append this to the list of exported sdk libraries.
+	OptionalImplicitSdkLibrary() []string
+}
+
+// Make sure that all the module types that are components of java_sdk_library/_import
+// and which can be referenced (directly or indirectly) from an android app implement
+// the SdkLibraryComponentDependency interface.
+var _ SdkLibraryComponentDependency = (*Library)(nil)
+var _ SdkLibraryComponentDependency = (*Import)(nil)
+var _ SdkLibraryComponentDependency = (*SdkLibrary)(nil)
+var _ SdkLibraryComponentDependency = (*sdkLibraryImport)(nil)
+
+// Provides access to sdk_version related header and implentation jars.
+type SdkLibraryDependency interface {
+	SdkLibraryComponentDependency
+
+	// Get the header jars appropriate for the supplied sdk_version.
+	//
+	// These are turbine generated jars so they only change if the externals of the
+	// class changes but it does not contain and implementation or JavaDoc.
+	SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths
+
+	// Get the implementation jars appropriate for the supplied sdk version.
+	//
+	// These are either the implementation jar for the whole sdk library or the implementation
+	// jars for the stubs. The latter should only be needed when generating JavaDoc as otherwise
+	// they are identical to the corresponding header jars.
+	SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths
+}
+
 type SdkLibrary struct {
 	Library
 
@@ -820,12 +927,15 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
-		// Add dependency to the rule for generating the xml permissions file
-		ctx.AddDependency(module, xmlPermissionsFileTag, module.xmlFileName())
-	}
+	if module.requiresRuntimeImplementationLibrary() {
+		if module.sharedLibrary() {
+			// Add dependency to the rule for generating the xml permissions file
+			ctx.AddDependency(module, xmlPermissionsFileTag, module.xmlFileName())
+		}
 
-	module.Library.deps(ctx)
+		// Only add the deps for the library if it is actually going to be built.
+		module.Library.deps(ctx)
+	}
 }
 
 func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
@@ -838,8 +948,8 @@ func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
 }
 
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	// Don't build an implementation library if this is api only.
-	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
+	// Only build an implementation library if required.
+	if module.requiresRuntimeImplementationLibrary() {
 		module.Library.GenerateAndroidBuildActions(ctx)
 	}
 
@@ -862,7 +972,7 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 }
 
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
-	if proptools.Bool(module.sdkLibraryProperties.Api_only) {
+	if !module.requiresRuntimeImplementationLibrary() {
 		return nil
 	}
 	entriesList := module.Library.AndroidMkEntries()
@@ -980,7 +1090,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 		props.Dist.Tag = proptools.StringPtr(".jar")
 	}
 
-	mctx.CreateModule(LibraryFactory, &props)
+	mctx.CreateModule(LibraryFactory, &props, module.sdkComponentPropertiesForChildLibrary())
 }
 
 // Creates a droidstubs module that creates stubs source files from the given full source
@@ -1185,17 +1295,40 @@ func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s sdkSpec) and
 	return android.Paths{jarPath.Path()}
 }
 
+// Get the apex name for module, "" if it is for platform.
+func getApexNameForModule(module android.Module) string {
+	if apex, ok := module.(android.ApexModule); ok {
+		return apex.ApexName()
+	}
+
+	return ""
+}
+
+// Check to see if the other module is within the same named APEX as this module.
+//
+// If either this or the other module are on the platform then this will return
+// false.
+func (module *SdkLibrary) withinSameApexAs(other android.Module) bool {
+	name := module.ApexName()
+	return name != "" && getApexNameForModule(other) == name
+}
+
 func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkSpec, headerJars bool) android.Paths {
 
-	// Check any special cases for java_sdk_library.
-	if !sdkVersion.specified() {
-		if headerJars {
-			return module.HeaderJars()
-		} else {
-			return module.ImplementationJars()
+	// Only provide access to the implementation library if it is actually built.
+	if module.requiresRuntimeImplementationLibrary() {
+		// Check any special cases for java_sdk_library.
+		//
+		// Only allow access to the implementation library in the following condition:
+		// * No sdk_version specified on the referencing module.
+		// * The referencing module is in the same apex as this.
+		if sdkVersion.kind == sdkPrivate || module.withinSameApexAs(ctx.Module()) {
+			if headerJars {
+				return module.HeaderJars()
+			} else {
+				return module.ImplementationJars()
+			}
 		}
-	} else if sdkVersion.kind == sdkPrivate {
-		return module.HeaderJars()
 	}
 
 	return module.selectHeaderJarsForSdkVersion(ctx, sdkVersion)
@@ -1302,9 +1435,12 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 		module.createStubsLibrary(mctx, scope)
 	}
 
-	if !proptools.Bool(module.sdkLibraryProperties.Api_only) {
-		// for runtime
-		module.createXmlFile(mctx)
+	if module.requiresRuntimeImplementationLibrary() {
+		// Only create an XML permissions file that declares the library as being usable
+		// as a shared library if required.
+		if module.sharedLibrary() {
+			module.createXmlFile(mctx)
+		}
 
 		// record java_sdk_library modules so that they are exported to make
 		javaSdkLibraries := javaSdkLibraries(mctx.Config())
@@ -1323,8 +1459,14 @@ func (module *SdkLibrary) InitSdkLibraryProperties() {
 		&module.protoProperties,
 	)
 
+	module.initSdkLibraryComponent(&module.ModuleBase)
+
 	module.properties.Installable = proptools.BoolPtr(true)
 	module.deviceProperties.IsSDKLibrary = true
+}
+
+func (module *SdkLibrary) requiresRuntimeImplementationLibrary() bool {
+	return !proptools.Bool(module.sdkLibraryProperties.Api_only)
 }
 
 // Defines how to name the individual component modules the sdk library creates.
@@ -1405,6 +1547,18 @@ func SdkLibraryFactory() android.Module {
 	android.AddVisibilityProperty(module, "stubs_source_visibility", &module.sdkLibraryProperties.Stubs_source_visibility)
 
 	module.SetDefaultableHook(func(ctx android.DefaultableHookContext) {
+		// If no implementation is required then it cannot be used as a shared library
+		// either.
+		if !module.requiresRuntimeImplementationLibrary() {
+			// If shared_library has been explicitly set to true then it is incompatible
+			// with api_only: true.
+			if proptools.Bool(module.commonSdkLibraryProperties.Shared_library) {
+				ctx.PropertyErrorf("api_only/shared_library", "inconsistent settings, shared_library and api_only cannot both be true")
+			}
+			// Set shared_library: false.
+			module.commonSdkLibraryProperties.Shared_library = proptools.BoolPtr(false)
+		}
+
 		if module.initCommonAfterDefaultsApplied(ctx) {
 			module.CreateInternalModules(ctx)
 		}
@@ -1571,7 +1725,8 @@ func (module *sdkLibraryImport) createJavaImportForStubs(mctx android.Defaultabl
 
 	// The imports are preferred if the java_sdk_library_import is preferred.
 	props.Prefer = proptools.BoolPtr(module.prebuilt.Prefer())
-	mctx.CreateModule(ImportFactory, &props)
+
+	mctx.CreateModule(ImportFactory, &props, module.sdkComponentPropertiesForChildLibrary())
 }
 
 func (module *sdkLibraryImport) createPrebuiltStubsSources(mctx android.DefaultableHookContext, apiScope *apiScope, scopeProperties *sdkLibraryScopeProperties) {
@@ -1828,7 +1983,7 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 	}
 
 	s.Libs = sdk.properties.Libs
-	s.Naming_scheme = sdk.commonProperties.Naming_scheme
+	s.Naming_scheme = sdk.commonSdkLibraryProperties.Naming_scheme
 }
 
 func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {

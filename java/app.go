@@ -414,7 +414,7 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
-	if Bool(a.appProperties.Updatable) || a.ApexModuleBase.Updatable() {
+	if a.Updatable() {
 		if !a.sdkVersion().stable() {
 			ctx.PropertyErrorf("sdk_version", "Updatable apps must use stable SDKs, found %v", a.sdkVersion())
 		}
@@ -909,6 +909,10 @@ func (a *AndroidApp) buildAppDependencyInfo(ctx android.ModuleContext) {
 	})
 
 	a.ApexBundleDepsInfo.BuildDepsInfoLists(ctx, a.MinSdkVersion(), depsInfo)
+}
+
+func (a *AndroidApp) Updatable() bool {
+	return Bool(a.appProperties.Updatable) || a.ApexModuleBase.Updatable()
 }
 
 func (a *AndroidApp) getCertString(ctx android.BaseModuleContext) string {
