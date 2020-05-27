@@ -55,6 +55,7 @@ func init() {
 	AddNeverAllowRules(createMediaRules()...)
 	AddNeverAllowRules(createJavaDeviceForHostRules()...)
 	AddNeverAllowRules(createCcSdkVariantRules()...)
+	AddNeverAllowRules(createUncompressDexRules()...)
 }
 
 // Add a NeverAllow rule to the set of rules to apply.
@@ -207,6 +208,15 @@ func createCcSdkVariantRules() []Rule {
 			NotIn(platformVariantPropertiesWhitelist...).
 			WithMatcher("platform.shared_libs", isSetMatcherInstance).
 			Because("platform variant properties can only be used in whitelisted projects"),
+	}
+}
+
+func createUncompressDexRules() []Rule {
+	return []Rule{
+		NeverAllow().
+			NotIn("art").
+			WithMatcher("uncompress_dex", isSetMatcherInstance).
+			Because("uncompress_dex is only allowed for certain jars for test in art."),
 	}
 }
 
