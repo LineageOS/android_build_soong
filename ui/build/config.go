@@ -737,6 +737,9 @@ func (c *configImpl) HighmemParallel() int {
 	} else if c.totalRAM == 0 {
 		// Couldn't detect the total RAM, don't restrict highmem processes.
 		return parallel
+	} else if c.totalRAM <= 16*1024*1024*1024 {
+		// Less than 16GB of ram, restrict to 1 highmem processes
+		return 1
 	} else if c.totalRAM <= 32*1024*1024*1024 {
 		// Less than 32GB of ram, restrict to 2 highmem processes
 		return 2
