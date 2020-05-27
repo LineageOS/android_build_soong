@@ -49,6 +49,9 @@ type prebuiltEtcProperties struct {
 
 	// Whether this module is directly installable to one of the partitions. Default: true.
 	Installable *bool
+
+	// Install symlinks to the installed file.
+	Symlinks []string `android:"arch_variant"`
 }
 
 type PrebuiltEtcModule interface {
@@ -201,10 +204,13 @@ func (p *PrebuiltEtc) AndroidMkEntries() []AndroidMkEntries {
 				entries.SetString("LOCAL_MODULE_TAGS", "optional")
 				entries.SetString("LOCAL_MODULE_PATH", p.installDirPath.ToMakePath().String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.outputFilePath.Base())
+				if len(p.properties.Symlinks) > 0 {
+					entries.AddStrings("LOCAL_MODULE_SYMLINKS", p.properties.Symlinks...)
+				}
 				entries.SetString("LOCAL_UNINSTALLABLE_MODULE", strconv.FormatBool(!p.Installable()))
 				if p.additionalDependencies != nil {
 					for _, path := range *p.additionalDependencies {
-						entries.SetString("LOCAL_ADDITIONAL_DEPENDENCIES", path.String())
+						entries.AddStrings("LOCAL_ADDITIONAL_DEPENDENCIES", path.String())
 					}
 				}
 			},
