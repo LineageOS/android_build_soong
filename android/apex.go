@@ -425,7 +425,8 @@ type ApexBundleDepsInfo struct {
 	fullListPath OutputPath
 }
 
-type ApexDepsInfoIntf interface {
+type ApexBundleDepsInfoIntf interface {
+	Updatable() bool
 	FlatListPath() Path
 	FullListPath() Path
 }
@@ -437,8 +438,6 @@ func (d *ApexBundleDepsInfo) FlatListPath() Path {
 func (d *ApexBundleDepsInfo) FullListPath() Path {
 	return d.fullListPath
 }
-
-var _ ApexDepsInfoIntf = (*ApexBundleDepsInfo)(nil)
 
 // Generate two module out files:
 // 1. FullList with transitive deps and their parents in the dep graph
