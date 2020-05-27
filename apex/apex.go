@@ -785,6 +785,7 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		apexBundles = []android.ApexInfo{{
 			ApexName:      mctx.ModuleName(),
 			MinSdkVersion: a.minSdkVersion(mctx),
+			Updatable:     a.Updatable(),
 		}}
 		directDep = true
 	} else if am, ok := mctx.Module().(android.ApexModule); ok {
@@ -1828,6 +1829,12 @@ func PrettyPrintTag(tag blueprint.DependencyTag) string {
 	return tagString
 }
 
+func (a *apexBundle) Updatable() bool {
+	return proptools.Bool(a.properties.Updatable)
+}
+
+var _ android.ApexBundleDepsInfoIntf = (*apexBundle)(nil)
+
 // Ensures that the dependencies are marked as available for this APEX
 func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 	// Let's be practical. Availability for test, host, and the VNDK apex isn't important
@@ -1876,7 +1883,7 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 }
 
 func (a *apexBundle) checkUpdatable(ctx android.ModuleContext) {
-	if proptools.Bool(a.properties.Updatable) {
+	if a.Updatable() {
 		if String(a.properties.Min_sdk_version) == "" {
 			ctx.PropertyErrorf("updatable", "updatable APEXes should set min_sdk_version as well")
 		}
@@ -2203,7 +2210,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// We don't need the optimization for updatable APEXes, as it might give false signal
 	// to the system health when the APEXes are still bundled (b/149805758)
-	if proptools.Bool(a.properties.Updatable) && a.properties.ApexType == imageApex {
+	if a.Updatable() && a.properties.ApexType == imageApex {
 		a.linkToSystemLib = false
 	}
 

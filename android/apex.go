@@ -33,6 +33,7 @@ type ApexInfo struct {
 	ApexName string
 
 	MinSdkVersion int
+	Updatable     bool
 }
 
 // Extracted from ApexModule to make it easier to define custom subsets of the
@@ -115,6 +116,9 @@ type ApexModule interface {
 	// For example, with maxSdkVersion is 10 and versionList is [9,11]
 	// it returns 9 as string
 	ChooseSdkVersion(versionList []string, maxSdkVersion int) (string, error)
+
+	// Tests if the module comes from an updatable APEX.
+	Updatable() bool
 
 	// List of APEXes that this module tests. The module has access to
 	// the private part of the listed APEXes even when it is not included in the
@@ -258,6 +262,10 @@ func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 			mctx.PropertyErrorf("apex_available", "%q is not a valid module name", n)
 		}
 	}
+}
+
+func (m *ApexModuleBase) Updatable() bool {
+	return m.ApexProperties.Info.Updatable
 }
 
 type byApexName []ApexInfo
@@ -413,19 +421,14 @@ type ApexModuleDepInfo struct {
 type DepNameToDepInfoMap map[string]ApexModuleDepInfo
 
 type ApexBundleDepsInfo struct {
-	minSdkVersion string
-	flatListPath  OutputPath
-	fullListPath  OutputPath
+	flatListPath OutputPath
+	fullListPath OutputPath
 }
 
-type ApexDepsInfoIntf interface {
-	MinSdkVersion() string
+type ApexBundleDepsInfoIntf interface {
+	Updatable() bool
 	FlatListPath() Path
 	FullListPath() Path
-}
-
-func (d *ApexBundleDepsInfo) MinSdkVersion() string {
-	return d.minSdkVersion
 }
 
 func (d *ApexBundleDepsInfo) FlatListPath() Path {
@@ -436,14 +439,10 @@ func (d *ApexBundleDepsInfo) FullListPath() Path {
 	return d.fullListPath
 }
 
-var _ ApexDepsInfoIntf = (*ApexBundleDepsInfo)(nil)
-
 // Generate two module out files:
 // 1. FullList with transitive deps and their parents in the dep graph
 // 2. FlatList with a flat list of transitive deps
 func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, minSdkVersion string, depInfos DepNameToDepInfoMap) {
-	d.minSdkVersion = minSdkVersion
-
 	var fullContent strings.Builder
 	var flatContent strings.Builder
 
