@@ -1038,7 +1038,7 @@ func checkSystemModulesUseByDroidstubs(t *testing.T, ctx *android.TestContext, m
 	for _, i := range metalavaRule.Implicits {
 		systemJars = append(systemJars, i.Base())
 	}
-	if len(systemJars) != 1 || systemJars[0] != systemJar {
+	if len(systemJars) < 1 || systemJars[0] != systemJar {
 		t.Errorf("inputs of %q must be []string{%q}, but was %#v.", moduleName, systemJar, systemJars)
 	}
 }
