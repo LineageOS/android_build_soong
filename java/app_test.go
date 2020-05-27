@@ -2866,6 +2866,32 @@ func TestUncompressDex(t *testing.T) {
 			uncompressedPlatform:  true,
 			uncompressedUnbundled: true,
 		},
+		{
+			name: "normal_uncompress_dex_true",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+					uncompress_dex: true,
+				}
+			`,
+			uncompressedPlatform:  true,
+			uncompressedUnbundled: true,
+		},
+		{
+			name: "normal_uncompress_dex_false",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+					uncompress_dex: false,
+				}
+			`,
+			uncompressedPlatform:  false,
+			uncompressedUnbundled: false,
+		},
 	}
 
 	test := func(t *testing.T, bp string, want bool, unbundled bool) {

@@ -303,6 +303,29 @@ var neverallowTests = []struct {
 			`module "outside_whitelist": violates neverallow`,
 		},
 	},
+	{
+		name: "uncompress_dex inside art",
+		fs: map[string][]byte{
+			"art/Android.bp": []byte(`
+				java_library {
+					name: "inside_art_libraries",
+					uncompress_dex: true,
+				}`),
+		},
+	},
+	{
+		name: "uncompress_dex outside art",
+		fs: map[string][]byte{
+			"other/Android.bp": []byte(`
+				java_library {
+					name: "outside_art_libraries",
+					uncompress_dex: true,
+				}`),
+		},
+		expectedErrors: []string{
+			"module \"outside_art_libraries\": violates neverallow",
+		},
+	},
 }
 
 func TestNeverallow(t *testing.T) {
@@ -396,8 +419,9 @@ func (p *mockCcLibraryModule) GenerateAndroidBuildActions(ModuleContext) {
 }
 
 type mockJavaLibraryProperties struct {
-	Libs        []string
-	Sdk_version *string
+	Libs           []string
+	Sdk_version    *string
+	Uncompress_dex *bool
 }
 
 type mockJavaLibraryModule struct {
