@@ -376,6 +376,7 @@ type Javadoc struct {
 	srcFiles    android.Paths
 	sourcepaths android.Paths
 	argFiles    android.Paths
+	implicits   android.Paths
 
 	args string
 
@@ -575,6 +576,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	// do not pass exclude_srcs directly when expanding srcFiles since exclude_srcs
 	// may contain filegroup or genrule.
 	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
+	j.implicits = append(j.implicits, srcFiles...)
 
 	filterByPackage := func(srcs []android.Path, filterPackages []string) []android.Path {
 		if filterPackages == nil {
@@ -599,6 +601,24 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		return filtered
 	}
 	srcFiles = filterByPackage(srcFiles, j.properties.Filter_packages)
+
+	// While metalava needs package html files, it does not need them to be explicit on the command
+	// line. More importantly, the metalava rsp file is also used by the subsequent jdiff action if
+	// jdiff_enabled=true. javadoc complains if it receives html files on the command line. The filter
+	// below excludes html files from the rsp file for both metalava and jdiff. Note that the html
+	// files are still included as implicit inputs for successful remote execution and correct
+	// incremental builds.
+	filterHtml := func(srcs []android.Path) []android.Path {
+		filtered := []android.Path{}
+		for _, src := range srcs {
+			if src.Ext() == ".html" {
+				continue
+			}
+			filtered = append(filtered, src)
+		}
+		return filtered
+	}
+	srcFiles = filterHtml(srcFiles)
 
 	flags := j.collectAidlFlags(ctx, deps)
 	srcFiles = j.genSources(ctx, srcFiles, flags)
@@ -1399,10 +1419,26 @@ func (d *Droidstubs) apiToXmlFlags(ctx android.ModuleContext, cmd *android.RuleB
 }
 
 func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersion javaVersion, srcs android.Paths,
-	srcJarList android.Path, bootclasspath, classpath classpath, sourcepaths android.Paths) *android.RuleBuilderCommand {
+	srcJarList android.Path, bootclasspath, classpath classpath, sourcepaths android.Paths, implicits android.Paths) *android.RuleBuilderCommand {
 	// Metalava uses lots of memory, restrict the number of metalava jobs that can run in parallel.
 	rule.HighMem()
 	cmd := rule.Command()
+
+	rspFile := ""
+	if len(implicits) > 0 {
+		implicitsRsp := android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"implicits.rsp")
+		rspFile = implicitsRsp.String()
+		impRule := android.NewRuleBuilder()
+		impCmd := impRule.Command()
+		// A dummy action that copies the ninja generated rsp file to a new location. This allows us to
+		// add a large number of inputs to a file without exceeding bash command length limits (which
+		// would happen if we use the WriteFile rule). The cp is needed because RuleBuilder sets the
+		// rsp file to be ${output}.rsp.
+		impCmd.Text("cp").FlagWithRspFileInputList("", implicits).Output(implicitsRsp)
+		impRule.Build(pctx, ctx, "implicitsGen", "implicits generation")
+		cmd.Implicits(implicits)
+		cmd.Implicit(implicitsRsp)
+	}
 	if ctx.Config().IsEnvTrue("RBE_METALAVA") {
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
 		execStrategy := remoteexec.LocalExecStrategy
@@ -1414,7 +1450,6 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 			pool = v
 		}
 		inputs := []string{android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "metalava.jar").String()}
-		inputs = append(inputs, sourcepaths.Strings()...)
 		if v := ctx.Config().Getenv("RBE_METALAVA_INPUTS"); v != "" {
 			inputs = append(inputs, strings.Split(v, ",")...)
 		}
@@ -1422,6 +1457,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 			Labels:          map[string]string{"type": "compile", "lang": "java", "compiler": "metalava"},
 			ExecStrategy:    execStrategy,
 			Inputs:          inputs,
+			RSPFile:         rspFile,
 			ToolchainInputs: []string{config.JavaCmd(ctx).String()},
 			Platform:        map[string]string{remoteexec.PoolKey: pool},
 		}).NoVarTemplate(ctx.Config()))
@@ -1479,7 +1515,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	srcJarList := zipSyncCmd(ctx, rule, srcJarDir, d.Javadoc.srcJars)
 
 	cmd := metalavaCmd(ctx, rule, javaVersion, d.Javadoc.srcFiles, srcJarList,
-		deps.bootClasspath, deps.classpath, d.Javadoc.sourcepaths)
+		deps.bootClasspath, deps.classpath, d.Javadoc.sourcepaths, d.Javadoc.implicits)
 
 	d.stubsFlags(ctx, cmd, stubsDir)
 
