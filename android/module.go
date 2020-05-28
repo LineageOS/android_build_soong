@@ -111,6 +111,8 @@ type BaseModuleContext interface {
 	OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{})
 	OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag
 	OtherModuleExists(name string) bool
+	OtherModuleDependencyVariantExists(variations []blueprint.Variation, name string) bool
+	OtherModuleReverseDependencyVariantExists(name string) bool
 	OtherModuleType(m blueprint.Module) string
 
 	GetDirectDepsWithTag(tag blueprint.DependencyTag) []Module
@@ -1433,6 +1435,12 @@ func (b *baseModuleContext) OtherModuleDependencyTag(m blueprint.Module) bluepri
 	return b.bp.OtherModuleDependencyTag(m)
 }
 func (b *baseModuleContext) OtherModuleExists(name string) bool { return b.bp.OtherModuleExists(name) }
+func (b *baseModuleContext) OtherModuleDependencyVariantExists(variations []blueprint.Variation, name string) bool {
+	return b.bp.OtherModuleDependencyVariantExists(variations, name)
+}
+func (b *baseModuleContext) OtherModuleReverseDependencyVariantExists(name string) bool {
+	return b.bp.OtherModuleReverseDependencyVariantExists(name)
+}
 func (b *baseModuleContext) OtherModuleType(m blueprint.Module) string {
 	return b.bp.OtherModuleType(m)
 }
