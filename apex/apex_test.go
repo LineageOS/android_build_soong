@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -4020,6 +4021,15 @@ func TestLegacyAndroid10Support(t *testing.T) {
 	}
 }
 
+var filesForSdkLibrary = map[string][]byte{
+	"api/current.txt":        nil,
+	"api/removed.txt":        nil,
+	"api/system-current.txt": nil,
+	"api/system-removed.txt": nil,
+	"api/test-current.txt":   nil,
+	"api/test-removed.txt":   nil,
+}
+
 func TestJavaSDKLibrary(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
@@ -4040,14 +4050,7 @@ func TestJavaSDKLibrary(t *testing.T) {
 			api_packages: ["foo"],
 			apex_available: [ "myapex" ],
 		}
-	`, withFiles(map[string][]byte{
-		"api/current.txt":        nil,
-		"api/removed.txt":        nil,
-		"api/system-current.txt": nil,
-		"api/system-removed.txt": nil,
-		"api/test-current.txt":   nil,
-		"api/test-removed.txt":   nil,
-	}))
+	`, withFiles(filesForSdkLibrary))
 
 	// java_sdk_library installs both impl jar and permission XML
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
@@ -4057,6 +4060,98 @@ func TestJavaSDKLibrary(t *testing.T) {
 	// Permission XML should point to the activated path of impl jar of java_sdk_library
 	sdkLibrary := ctx.ModuleForTests("foo.xml", "android_common_myapex").Rule("java_sdk_xml")
 	ensureContains(t, sdkLibrary.RuleParams.Command, `<library name=\"foo\" file=\"/apex/myapex/javalib/foo.jar\"`)
+}
+
+func TestJavaSDKLibrary_WithinApex(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["foo", "bar"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			apex_available: ["myapex"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["a.java"],
+			libs: ["foo"],
+			apex_available: ["myapex"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+	`, withFiles(filesForSdkLibrary))
+
+	// java_sdk_library installs both impl jar and permission XML
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"javalib/bar.jar",
+		"javalib/foo.jar",
+		"etc/permissions/foo.xml",
+	})
+
+	// The bar library should depend on the implementation jar.
+	barLibrary := ctx.ModuleForTests("bar", "android_common_myapex").Rule("javac")
+	if expected, actual := `^-classpath /[^:]*/turbine-combined/foo\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+		t.Errorf("expected %q, found %#q", expected, actual)
+	}
+}
+
+func TestJavaSDKLibrary_CrossBoundary(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["foo"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			apex_available: ["myapex"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["a.java"],
+			libs: ["foo"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+	`, withFiles(filesForSdkLibrary))
+
+	// java_sdk_library installs both impl jar and permission XML
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"javalib/foo.jar",
+		"etc/permissions/foo.xml",
+	})
+
+	// The bar library should depend on the stubs jar.
+	barLibrary := ctx.ModuleForTests("bar", "android_common").Rule("javac")
+	if expected, actual := `^-classpath /[^:]*/turbine-combined/foo\.stubs\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+		t.Errorf("expected %q, found %#q", expected, actual)
+	}
 }
 
 func TestCompatConfig(t *testing.T) {
@@ -4342,6 +4437,13 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg, bp string, transformDe
 				"system/sepolicy/apex/some-updatable-apex-file_contexts",
 			],
 		}
+
+		filegroup {
+			name: "some-non-updatable-apex-file_contexts",
+			srcs: [
+				"system/sepolicy/apex/some-non-updatable-apex-file_contexts",
+			],
+		}
 	`
 	bp += cc.GatherRequiredDepsForTest(android.Android)
 	bp += java.GatherRequiredDepsForTest()
@@ -4354,6 +4456,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg, bp string, transformDe
 		"apex_manifest.json":                 nil,
 		"AndroidManifest.xml":                nil,
 		"system/sepolicy/apex/some-updatable-apex-file_contexts":       nil,
+		"system/sepolicy/apex/some-non-updatable-apex-file_contexts":   nil,
 		"system/sepolicy/apex/com.android.art.something-file_contexts": nil,
 		"framework/aidl/a.aidl": nil,
 	}
@@ -4425,6 +4528,14 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 		}
 
 		java_library {
+			name: "some-non-updatable-apex-lib",
+			srcs: ["a.java"],
+			apex_available: [
+				"some-non-updatable-apex",
+			],
+		}
+
+		java_library {
 			name: "some-platform-lib",
 			srcs: ["a.java"],
 			sdk_version: "current",
@@ -4445,16 +4556,30 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 			name: "some-updatable-apex",
 			key: "some-updatable-apex.key",
 			java_libs: ["some-updatable-apex-lib"],
+			updatable: true,
+			min_sdk_version: "current",
+		}
+
+		apex {
+			name: "some-non-updatable-apex",
+			key: "some-non-updatable-apex.key",
+			java_libs: ["some-non-updatable-apex-lib"],
 		}
 
 		apex_key {
 			name: "some-updatable-apex.key",
 		}
 
+		apex_key {
+			name: "some-non-updatable-apex.key",
+		}
+
 		apex {
 			name: "com.android.art.something",
 			key: "com.android.art.something.key",
 			java_libs: ["some-art-lib"],
+			updatable: true,
+			min_sdk_version: "current",
 		}
 
 		apex_key {
@@ -4485,12 +4610,25 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
+	// non-updatable jar from some other apex in the ART boot image => error
+	error = "module 'some-non-updatable-apex-lib' is not allowed in the ART boot image"
+	transform = func(config *dexpreopt.GlobalConfig) {
+		config.ArtApexJars = []string{"some-non-updatable-apex-lib"}
+	}
+	testNoUpdatableJarsInBootImage(t, error, bp, transform)
+
 	// updatable jar from some other apex in the framework boot image => error
 	error = "module 'some-updatable-apex-lib' from updatable apex 'some-updatable-apex' is not allowed in the framework boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
 		config.BootJars = []string{"some-updatable-apex-lib"}
 	}
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
+
+	// non-updatable jar from some other apex in the framework boot image => ok
+	transform = func(config *dexpreopt.GlobalConfig) {
+		config.BootJars = []string{"some-non-updatable-apex-lib"}
+	}
+	testNoUpdatableJarsInBootImage(t, "", bp, transform)
 
 	// nonexistent jar in the ART boot image => error
 	error = "failed to find a dex jar path for module 'nonexistent'"
@@ -4507,7 +4645,7 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 	testNoUpdatableJarsInBootImage(t, error, bp, transform)
 
 	// platform jar in the ART boot image => error
-	error = "module 'some-platform-lib' is part of the platform and not allowed in the ART boot image"
+	error = "module 'some-platform-lib' is not allowed in the ART boot image"
 	transform = func(config *dexpreopt.GlobalConfig) {
 		config.ArtApexJars = []string{"some-platform-lib"}
 	}

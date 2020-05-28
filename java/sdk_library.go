@@ -1295,17 +1295,40 @@ func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s sdkSpec) and
 	return android.Paths{jarPath.Path()}
 }
 
+// Get the apex name for module, "" if it is for platform.
+func getApexNameForModule(module android.Module) string {
+	if apex, ok := module.(android.ApexModule); ok {
+		return apex.ApexName()
+	}
+
+	return ""
+}
+
+// Check to see if the other module is within the same named APEX as this module.
+//
+// If either this or the other module are on the platform then this will return
+// false.
+func (module *SdkLibrary) withinSameApexAs(other android.Module) bool {
+	name := module.ApexName()
+	return name != "" && getApexNameForModule(other) == name
+}
+
 func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkSpec, headerJars bool) android.Paths {
 
-	// Check any special cases for java_sdk_library.
-	if !sdkVersion.specified() {
-		if headerJars {
-			return module.HeaderJars()
-		} else {
-			return module.ImplementationJars()
+	// Only provide access to the implementation library if it is actually built.
+	if module.requiresRuntimeImplementationLibrary() {
+		// Check any special cases for java_sdk_library.
+		//
+		// Only allow access to the implementation library in the following condition:
+		// * No sdk_version specified on the referencing module.
+		// * The referencing module is in the same apex as this.
+		if sdkVersion.kind == sdkPrivate || module.withinSameApexAs(ctx.Module()) {
+			if headerJars {
+				return module.HeaderJars()
+			} else {
+				return module.ImplementationJars()
+			}
 		}
-	} else if sdkVersion.kind == sdkPrivate {
-		return module.HeaderJars()
 	}
 
 	return module.selectHeaderJarsForSdkVersion(ctx, sdkVersion)

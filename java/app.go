@@ -414,7 +414,7 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
-	if Bool(a.appProperties.Updatable) {
+	if a.Updatable() {
 		if !a.sdkVersion().stable() {
 			ctx.PropertyErrorf("sdk_version", "Updatable apps must use stable SDKs, found %v", a.sdkVersion())
 		}
@@ -540,15 +540,16 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 		installDir = filepath.Join("app", a.installApkName)
 	}
 	a.dexpreopter.installPath = android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
-	a.dexpreopter.uncompressedDex = a.shouldUncompressDex(ctx)
-
+	if a.deviceProperties.Uncompress_dex == nil {
+		// If the value was not force-set by the user, use reasonable default based on the module.
+		a.deviceProperties.Uncompress_dex = proptools.BoolPtr(a.shouldUncompressDex(ctx))
+	}
+	a.dexpreopter.uncompressedDex = *a.deviceProperties.Uncompress_dex
 	a.dexpreopter.enforceUsesLibs = a.usesLibrary.enforceUsesLibraries()
 	a.dexpreopter.usesLibs = a.usesLibrary.usesLibraryProperties.Uses_libs
 	a.dexpreopter.optionalUsesLibs = a.usesLibrary.presentOptionalUsesLibs(ctx)
 	a.dexpreopter.libraryPaths = a.usesLibrary.usesLibraryPaths(ctx)
 	a.dexpreopter.manifestFile = a.mergedManifestFile
-
-	a.deviceProperties.UncompressDex = a.dexpreopter.uncompressedDex
 
 	if ctx.ModuleName() != "framework-res" {
 		a.Module.compile(ctx, a.aaptSrcJar)
@@ -877,6 +878,10 @@ func (a *AndroidApp) buildAppDependencyInfo(ctx android.ModuleContext) {
 	})
 
 	a.ApexBundleDepsInfo.BuildDepsInfoLists(ctx, a.MinSdkVersion(), depsInfo)
+}
+
+func (a *AndroidApp) Updatable() bool {
+	return Bool(a.appProperties.Updatable) || a.ApexModuleBase.Updatable()
 }
 
 func (a *AndroidApp) getCertString(ctx android.BaseModuleContext) string {
@@ -1230,6 +1235,8 @@ type AndroidAppImport struct {
 
 	usesLibrary usesLibrary
 
+	preprocessed bool
+
 	installPath android.InstallPath
 }
 
@@ -1322,7 +1329,7 @@ func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 	ctx android.ModuleContext, inputPath android.Path, outputPath android.OutputPath) {
 	// Test apps don't need their JNI libraries stored uncompressed. As a matter of fact, messing
 	// with them may invalidate pre-existing signature data.
-	if ctx.InstallInTestcases() && Bool(a.properties.Presigned) {
+	if ctx.InstallInTestcases() && (Bool(a.properties.Presigned) || a.preprocessed) {
 		ctx.Build(pctx, android.BuildParams{
 			Rule:   android.Cp,
 			Output: outputPath,
@@ -1343,7 +1350,7 @@ func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 
 // Returns whether this module should have the dex file stored uncompressed in the APK.
 func (a *AndroidAppImport) shouldUncompressDex(ctx android.ModuleContext) bool {
-	if ctx.Config().UnbundledBuild() {
+	if ctx.Config().UnbundledBuild() || a.preprocessed {
 		return false
 	}
 
@@ -1435,9 +1442,13 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	apkFilename := proptools.StringDefault(a.properties.Filename, a.BaseModuleName()+".apk")
 
-	// Sign or align the package
 	// TODO: Handle EXTERNAL
-	if !Bool(a.properties.Presigned) {
+
+	// Sign or align the package if package has not been preprocessed
+	if a.preprocessed {
+		a.outputFile = srcApk
+		a.certificate = presignedCertificate
+	} else if !Bool(a.properties.Presigned) {
 		// If the certificate property is empty at this point, default_dev_cert must be set to true.
 		// Which makes processMainCert's behavior for the empty cert string WAI.
 		certificates = processMainCert(a.ModuleBase, String(a.properties.Certificate), certificates, ctx)
@@ -1566,10 +1577,16 @@ func AndroidAppImportFactory() android.Module {
 		module.processVariants(ctx)
 	})
 
-	InitJavaModule(module, android.DeviceSupported)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
 	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Apk")
 
 	return module
+}
+
+type androidTestImportProperties struct {
+	// Whether the prebuilt apk can be installed without additional processing. Default is false.
+	Preprocessed *bool
 }
 
 type AndroidTestImport struct {
@@ -1577,10 +1594,14 @@ type AndroidTestImport struct {
 
 	testProperties testProperties
 
+	testImportProperties androidTestImportProperties
+
 	data android.Paths
 }
 
 func (a *AndroidTestImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	a.preprocessed = Bool(a.testImportProperties.Preprocessed)
+
 	a.generateAndroidBuildActions(ctx)
 
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
@@ -1598,6 +1619,7 @@ func AndroidTestImportFactory() android.Module {
 	module.AddProperties(&module.dexpreoptProperties)
 	module.AddProperties(&module.usesLibrary.usesLibraryProperties)
 	module.AddProperties(&module.testProperties)
+	module.AddProperties(&module.testImportProperties)
 	module.populateAllVariantStructs()
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
 		module.processVariants(ctx)
@@ -1631,6 +1653,9 @@ type RuntimeResourceOverlayProperties struct {
 	// the name of a certificate in the default certificate directory or an android_app_certificate
 	// module name in the form ":module".
 	Certificate *string
+
+	// Name of the signing certificate lineage file.
+	Lineage *string
 
 	// optional theme name. If specified, the overlay package will be applied
 	// only when the ro.boot.vendor.overlay.theme system property is set to the same value.
@@ -1697,7 +1722,11 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 	_, certificates := collectAppDeps(ctx, r, false, false)
 	certificates = processMainCert(r.ModuleBase, String(r.properties.Certificate), certificates, ctx)
 	signed := android.PathForModuleOut(ctx, "signed", r.Name()+".apk")
-	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates, nil, nil)
+	var lineageFile android.Path
+	if lineage := String(r.properties.Lineage); lineage != "" {
+		lineageFile = android.PathForModuleSrc(ctx, lineage)
+	}
+	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates, nil, lineageFile)
 	r.certificate = certificates[0]
 
 	r.outputFile = signed
