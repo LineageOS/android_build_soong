@@ -438,6 +438,14 @@ type sdkLibraryProperties struct {
 	// disabled by default.
 	Module_lib ApiScopeProperties
 
+	// Determines if the stubs are preferred over the implementation library
+	// for linking, even when the client doesn't specify sdk_version. When this
+	// is set to true, such clients are provided with the widest API surface that
+	// this lib provides. Note however that this option doesn't affect the clients
+	// that are in the same APEX as this library. In that case, the clients are
+	// always linked with the implementation library. Default is false.
+	Default_to_stubs *bool
+
 	// Properties related to api linting.
 	Api_lint struct {
 		// Enable api linting.
@@ -1354,6 +1362,13 @@ func (module *SdkLibrary) withinSameApexAs(other android.Module) bool {
 }
 
 func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkSpec, headerJars bool) android.Paths {
+	// If the client doesn't set sdk_version, but if this library prefers stubs over
+	// the impl library, let's provide the widest API surface possible. To do so,
+	// force override sdk_version to module_current so that the closest possible API
+	// surface could be found in selectHeaderJarsForSdkVersion
+	if module.defaultsToStubs() && !sdkVersion.specified() {
+		sdkVersion = sdkSpecFrom("module_current")
+	}
 
 	// Only provide access to the implementation library if it is actually built.
 	if module.requiresRuntimeImplementationLibrary() {
@@ -1515,6 +1530,10 @@ func (module *SdkLibrary) InitSdkLibraryProperties() {
 
 func (module *SdkLibrary) requiresRuntimeImplementationLibrary() bool {
 	return !proptools.Bool(module.sdkLibraryProperties.Api_only)
+}
+
+func (module *SdkLibrary) defaultsToStubs() bool {
+	return proptools.Bool(module.sdkLibraryProperties.Default_to_stubs)
 }
 
 // Defines how to name the individual component modules the sdk library creates.
