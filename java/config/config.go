@@ -178,7 +178,7 @@ func init() {
 
 func hostBinToolVariableWithSdkToolsPrebuilt(name, tool string) {
 	pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
-		if ctx.Config().AlwaysUsePrebuiltSdks() || ctx.Config().IsPdkBuild() {
+		if ctx.Config().AlwaysUsePrebuiltSdks() {
 			return filepath.Join("prebuilts/sdk/tools", runtime.GOOS, "bin", tool)
 		} else {
 			return ctx.Config().HostToolPath(ctx, tool).String()
@@ -188,7 +188,7 @@ func hostBinToolVariableWithSdkToolsPrebuilt(name, tool string) {
 
 func hostJavaToolVariableWithSdkToolsPrebuilt(name, tool string) {
 	pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
-		if ctx.Config().AlwaysUsePrebuiltSdks() || ctx.Config().IsPdkBuild() {
+		if ctx.Config().AlwaysUsePrebuiltSdks() {
 			return filepath.Join("prebuilts/sdk/tools/lib", tool+".jar")
 		} else {
 			return ctx.Config().HostJavaToolPath(ctx, tool+".jar").String()
@@ -198,7 +198,7 @@ func hostJavaToolVariableWithSdkToolsPrebuilt(name, tool string) {
 
 func hostJNIToolVariableWithSdkToolsPrebuilt(name, tool string) {
 	pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
-		if ctx.Config().AlwaysUsePrebuiltSdks() || ctx.Config().IsPdkBuild() {
+		if ctx.Config().AlwaysUsePrebuiltSdks() {
 			ext := ".so"
 			if runtime.GOOS == "darwin" {
 				ext = ".dylib"
@@ -212,7 +212,7 @@ func hostJNIToolVariableWithSdkToolsPrebuilt(name, tool string) {
 
 func hostBinToolVariableWithBuildToolsPrebuilt(name, tool string) {
 	pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
-		if ctx.Config().AlwaysUsePrebuiltSdks() || ctx.Config().IsPdkBuild() {
+		if ctx.Config().AlwaysUsePrebuiltSdks() {
 			return filepath.Join("prebuilts/build-tools", ctx.Config().PrebuiltOS(), "bin", tool)
 		} else {
 			return ctx.Config().HostToolPath(ctx, tool).String()

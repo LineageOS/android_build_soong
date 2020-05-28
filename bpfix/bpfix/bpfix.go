@@ -128,6 +128,10 @@ var fixSteps = []FixStep{
 		Name: "removeSoongConfigBoolVariable",
 		Fix:  removeSoongConfigBoolVariable,
 	},
+	{
+		Name: "removePdkProperty",
+		Fix:  runPatchListMod(removePdkProperty),
+	},
 }
 
 func NewFixRequest() FixRequest {
@@ -991,6 +995,25 @@ func removeTags(mod *parser.Module, buf []byte, patchlist *parser.PatchList) err
 	}
 
 	return patchlist.Add(prop.Pos().Offset, prop.End().Offset+2, replaceStr)
+}
+
+func removePdkProperty(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error {
+	prop, ok := mod.GetProperty("product_variables")
+	if !ok {
+		return nil
+	}
+	propMap, ok := prop.Value.(*parser.Map)
+	if !ok {
+		return nil
+	}
+	pdkProp, ok := propMap.GetProperty("pdk")
+	if !ok {
+		return nil
+	}
+	if len(propMap.Properties) > 1 {
+		return patchlist.Add(pdkProp.Pos().Offset, pdkProp.End().Offset+2, "")
+	}
+	return patchlist.Add(prop.Pos().Offset, prop.End().Offset+2, "")
 }
 
 func mergeMatchingModuleProperties(mod *parser.Module, buf []byte, patchlist *parser.PatchList) error {
