@@ -1127,22 +1127,17 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 // Creates a static java library that has API stubs
 func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext, apiScope *apiScope) {
 	props := struct {
-		Name              *string
-		Visibility        []string
-		Srcs              []string
-		Installable       *bool
-		Sdk_version       *string
-		System_modules    *string
-		Patch_module      *string
-		Libs              []string
-		Compile_dex       *bool
-		Java_version      *string
-		Product_variables struct {
-			Pdk struct {
-				Enabled *bool
-			}
-		}
-		Openjdk9 struct {
+		Name           *string
+		Visibility     []string
+		Srcs           []string
+		Installable    *bool
+		Sdk_version    *string
+		System_modules *string
+		Patch_module   *string
+		Libs           []string
+		Compile_dex    *bool
+		Java_version   *string
+		Openjdk9       struct {
 			Srcs       []string
 			Javacflags []string
 		}
@@ -1174,7 +1169,6 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	if proptools.Bool(module.sdkLibraryProperties.Annotations_enabled) {
 		props.Libs = append(props.Libs, "stub-annotations")
 	}
-	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
 	props.Openjdk9.Srcs = module.properties.Openjdk9.Srcs
 	props.Openjdk9.Javacflags = module.properties.Openjdk9.Javacflags
 	// We compile the stubs for 1.8 in line with the main android.jar stubs, and potential
