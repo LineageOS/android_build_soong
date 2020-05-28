@@ -1465,6 +1465,33 @@ func TestJavaSdkLibrary_FallbackScope(t *testing.T) {
 		`)
 }
 
+func TestJavaSdkLibrary_DefaultToStubs(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			system: {
+				enabled: true,
+			},
+			default_to_stubs: true,
+		}
+
+		java_library {
+			name: "baz",
+			srcs: ["a.java"],
+			libs: ["foo"],
+			// does not have sdk_version set, should fallback to module,
+			// which will then fallback to system because the module scope
+			// is not enabled.
+		}
+		`)
+	// The baz library should depend on the system stubs jar.
+	bazLibrary := ctx.ModuleForTests("baz", "android_common").Rule("javac")
+	if expected, actual := `^-classpath .*:/[^:]*/turbine-combined/foo\.stubs.system\.jar$`, bazLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+		t.Errorf("expected %q, found %#q", expected, actual)
+	}
+}
+
 var compilerFlagsTestCases = []struct {
 	in  string
 	out bool
