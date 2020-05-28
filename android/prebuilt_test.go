@@ -24,7 +24,7 @@ import (
 var prebuiltsTests = []struct {
 	name     string
 	modules  string
-	prebuilt bool
+	prebuilt []OsClass
 }{
 	{
 		name: "no prebuilt",
@@ -32,7 +32,7 @@ var prebuiltsTests = []struct {
 			source {
 				name: "bar",
 			}`,
-		prebuilt: false,
+		prebuilt: nil,
 	},
 	{
 		name: "no source prebuilt not preferred",
@@ -42,7 +42,7 @@ var prebuiltsTests = []struct {
 				prefer: false,
 				srcs: ["prebuilt_file"],
 			}`,
-		prebuilt: true,
+		prebuilt: []OsClass{Device, Host},
 	},
 	{
 		name: "no source prebuilt preferred",
@@ -52,7 +52,7 @@ var prebuiltsTests = []struct {
 				prefer: true,
 				srcs: ["prebuilt_file"],
 			}`,
-		prebuilt: true,
+		prebuilt: []OsClass{Device, Host},
 	},
 	{
 		name: "prebuilt not preferred",
@@ -60,13 +60,13 @@ var prebuiltsTests = []struct {
 			source {
 				name: "bar",
 			}
-			
+
 			prebuilt {
 				name: "bar",
 				prefer: false,
 				srcs: ["prebuilt_file"],
 			}`,
-		prebuilt: false,
+		prebuilt: nil,
 	},
 	{
 		name: "prebuilt preferred",
@@ -74,13 +74,13 @@ var prebuiltsTests = []struct {
 			source {
 				name: "bar",
 			}
-			
+
 			prebuilt {
 				name: "bar",
 				prefer: true,
 				srcs: ["prebuilt_file"],
 			}`,
-		prebuilt: true,
+		prebuilt: []OsClass{Device, Host},
 	},
 	{
 		name: "prebuilt no file not preferred",
@@ -88,12 +88,12 @@ var prebuiltsTests = []struct {
 			source {
 				name: "bar",
 			}
-			
+
 			prebuilt {
 				name: "bar",
 				prefer: false,
 			}`,
-		prebuilt: false,
+		prebuilt: nil,
 	},
 	{
 		name: "prebuilt no file preferred",
@@ -101,12 +101,12 @@ var prebuiltsTests = []struct {
 			source {
 				name: "bar",
 			}
-			
+
 			prebuilt {
 				name: "bar",
 				prefer: true,
 			}`,
-		prebuilt: false,
+		prebuilt: nil,
 	},
 	{
 		name: "prebuilt file from filegroup preferred",
@@ -120,7 +120,40 @@ var prebuiltsTests = []struct {
 				prefer: true,
 				srcs: [":fg"],
 			}`,
-		prebuilt: true,
+		prebuilt: []OsClass{Device, Host},
+	},
+	{
+		name: "prebuilt module for device only",
+		modules: `
+			source {
+				name: "bar",
+			}
+
+			prebuilt {
+				name: "bar",
+				host_supported: false,
+				prefer: true,
+				srcs: ["prebuilt_file"],
+			}`,
+		prebuilt: []OsClass{Device},
+	},
+	{
+		name: "prebuilt file for host only",
+		modules: `
+			source {
+				name: "bar",
+			}
+
+			prebuilt {
+				name: "bar",
+				prefer: true,
+				target: {
+					linux_glibc: {
+						srcs: ["prebuilt_file"],
+					},
+				},
+			}`,
+		prebuilt: []OsClass{Host},
 	},
 }
 
@@ -138,9 +171,9 @@ func TestPrebuilts(t *testing.T) {
 					deps: [":bar"],
 				}
 				` + test.modules
-			config := TestConfig(buildDir, nil, bp, fs)
+			config := TestArchConfig(buildDir, nil, bp, fs)
 
-			ctx := NewTestContext()
+			ctx := NewTestArchContext()
 			registerTestPrebuiltBuildComponents(ctx)
 			ctx.RegisterModuleType("filegroup", FileGroupFactory)
 			ctx.Register(config)
@@ -150,61 +183,71 @@ func TestPrebuilts(t *testing.T) {
 			_, errs = ctx.PrepareBuildActions(config)
 			FailIfErrored(t, errs)
 
-			foo := ctx.ModuleForTests("foo", "")
+			for _, variant := range ctx.ModuleVariantsForTests("foo") {
+				foo := ctx.ModuleForTests("foo", variant)
+				t.Run(foo.Module().Target().Os.Class.String(), func(t *testing.T) {
+					var dependsOnSourceModule, dependsOnPrebuiltModule bool
+					ctx.VisitDirectDeps(foo.Module(), func(m blueprint.Module) {
+						if _, ok := m.(*sourceModule); ok {
+							dependsOnSourceModule = true
+						}
+						if p, ok := m.(*prebuiltModule); ok {
+							dependsOnPrebuiltModule = true
+							if !p.Prebuilt().properties.UsePrebuilt {
+								t.Errorf("dependency on prebuilt module not marked used")
+							}
+						}
+					})
 
-			var dependsOnSourceModule, dependsOnPrebuiltModule bool
-			ctx.VisitDirectDeps(foo.Module(), func(m blueprint.Module) {
-				if _, ok := m.(*sourceModule); ok {
-					dependsOnSourceModule = true
-				}
-				if p, ok := m.(*prebuiltModule); ok {
-					dependsOnPrebuiltModule = true
-					if !p.Prebuilt().properties.UsePrebuilt {
-						t.Errorf("dependency on prebuilt module not marked used")
+					deps := foo.Module().(*sourceModule).deps
+					if deps == nil || len(deps) != 1 {
+						t.Errorf("deps does not have single path, but is %v", deps)
 					}
-				}
-			})
+					var usingSourceFile, usingPrebuiltFile bool
+					if deps[0].String() == "source_file" {
+						usingSourceFile = true
+					}
+					if deps[0].String() == "prebuilt_file" {
+						usingPrebuiltFile = true
+					}
 
-			deps := foo.Module().(*sourceModule).deps
-			if deps == nil || len(deps) != 1 {
-				t.Errorf("deps does not have single path, but is %v", deps)
-			}
-			var usingSourceFile, usingPrebuiltFile bool
-			if deps[0].String() == "source_file" {
-				usingSourceFile = true
-			}
-			if deps[0].String() == "prebuilt_file" {
-				usingPrebuiltFile = true
-			}
+					prebuilt := false
+					for _, os := range test.prebuilt {
+						if os == foo.Module().Target().Os.Class {
+							prebuilt = true
+						}
+					}
 
-			if test.prebuilt {
-				if !dependsOnPrebuiltModule {
-					t.Errorf("doesn't depend on prebuilt module")
-				}
-				if !usingPrebuiltFile {
-					t.Errorf("doesn't use prebuilt_file")
-				}
+					if prebuilt {
+						if !dependsOnPrebuiltModule {
+							t.Errorf("doesn't depend on prebuilt module")
+						}
+						if !usingPrebuiltFile {
+							t.Errorf("doesn't use prebuilt_file")
+						}
 
-				if dependsOnSourceModule {
-					t.Errorf("depends on source module")
-				}
-				if usingSourceFile {
-					t.Errorf("using source_file")
-				}
-			} else {
-				if dependsOnPrebuiltModule {
-					t.Errorf("depends on prebuilt module")
-				}
-				if usingPrebuiltFile {
-					t.Errorf("using prebuilt_file")
-				}
+						if dependsOnSourceModule {
+							t.Errorf("depends on source module")
+						}
+						if usingSourceFile {
+							t.Errorf("using source_file")
+						}
+					} else {
+						if dependsOnPrebuiltModule {
+							t.Errorf("depends on prebuilt module")
+						}
+						if usingPrebuiltFile {
+							t.Errorf("using prebuilt_file")
+						}
 
-				if !dependsOnSourceModule {
-					t.Errorf("doesn't depend on source module")
-				}
-				if !usingSourceFile {
-					t.Errorf("doesn't use source_file")
-				}
+						if !dependsOnSourceModule {
+							t.Errorf("doesn't depend on source module")
+						}
+						if !usingSourceFile {
+							t.Errorf("doesn't use source_file")
+						}
+					}
+				})
 			}
 		})
 	}
@@ -221,7 +264,7 @@ type prebuiltModule struct {
 	ModuleBase
 	prebuilt   Prebuilt
 	properties struct {
-		Srcs []string `android:"path"`
+		Srcs []string `android:"path,arch_variant"`
 	}
 	src Path
 }
@@ -230,7 +273,7 @@ func newPrebuiltModule() Module {
 	m := &prebuiltModule{}
 	m.AddProperties(&m.properties)
 	InitPrebuiltModule(m, &m.properties.Srcs)
-	InitAndroidModule(m)
+	InitAndroidArchModule(m, HostAndDeviceDefault, MultilibCommon)
 	return m
 }
 
@@ -260,7 +303,7 @@ func (p *prebuiltModule) OutputFiles(tag string) (Paths, error) {
 type sourceModule struct {
 	ModuleBase
 	properties struct {
-		Deps []string `android:"path"`
+		Deps []string `android:"path,arch_variant"`
 	}
 	dependsOnSourceModule, dependsOnPrebuiltModule bool
 	deps                                           Paths
@@ -270,7 +313,7 @@ type sourceModule struct {
 func newSourceModule() Module {
 	m := &sourceModule{}
 	m.AddProperties(&m.properties)
-	InitAndroidModule(m)
+	InitAndroidArchModule(m, HostAndDeviceDefault, MultilibCommon)
 	return m
 }
 
