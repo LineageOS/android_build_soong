@@ -1878,7 +1878,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			extraInstallDeps = j.InstallMixin(ctx, j.outputFile)
 		}
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
-			ctx.ModuleName()+".jar", j.outputFile, extraInstallDeps...)
+			j.Stem()+".jar", j.outputFile, extraInstallDeps...)
 	}
 
 	// Verify Dist.Tag is set to a supported output
@@ -2728,7 +2728,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.maybeStrippedDexJarFile = dexOutputFile
 
 	ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
-		ctx.ModuleName()+".jar", dexOutputFile)
+		j.Stem()+".jar", dexOutputFile)
 }
 
 func (j *DexImport) DexJar() android.Path {
