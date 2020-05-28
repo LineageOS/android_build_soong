@@ -1558,6 +1558,24 @@ func (s *frameworkModulesNamingScheme) apiModuleName(scope *apiScope, baseName s
 
 var _ sdkLibraryComponentNamingScheme = (*frameworkModulesNamingScheme)(nil)
 
+func moduleStubLinkType(name string) (stub bool, ret linkType) {
+	// This suffix-based approach is fragile and could potentially mis-trigger.
+	// TODO(b/155164730): Clean this up when modules no longer reference sdk_lib stubs directly.
+	if strings.HasSuffix(name, ".stubs.public") || strings.HasSuffix(name, "-stubs-publicapi") {
+		return true, javaSdk
+	}
+	if strings.HasSuffix(name, ".stubs.system") || strings.HasSuffix(name, "-stubs-systemapi") {
+		return true, javaSystem
+	}
+	if strings.HasSuffix(name, ".stubs.module_lib") || strings.HasSuffix(name, "-stubs-module_libs_api") {
+		return true, javaModule
+	}
+	if strings.HasSuffix(name, ".stubs.test") {
+		return true, javaSystem
+	}
+	return false, javaPlatform
+}
+
 // java_sdk_library is a special Java library that provides optional platform APIs to apps.
 // In practice, it can be viewed as a combination of several modules: 1) stubs library that clients
 // are linked against to, 2) droiddoc module that internally generates API stubs source files,
