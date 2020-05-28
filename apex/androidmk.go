@@ -78,6 +78,8 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 		}
 	}
 
+	seenDataOutPaths := make(map[string]bool)
+
 	for _, fi := range a.filesInfo {
 		if cc, ok := fi.module.(*cc.Module); ok && cc.Properties.HideFromMake {
 			continue
@@ -112,16 +114,24 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 		pathWhenActivated := filepath.Join("$(PRODUCT_OUT)", "apex", apexName, fi.installDir)
 		if apexType == flattenedApex {
 			// /system/apex/<name>/{lib|framework|...}
-			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join(a.installDir.ToMakePath().String(),
-				apexBundleName, fi.installDir))
+			modulePath := filepath.Join(a.installDir.ToMakePath().String(), apexBundleName, fi.installDir)
+			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", modulePath)
 			if a.primaryApexType && !symbolFilesNotNeeded {
 				fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
 			}
 			if len(fi.symlinks) > 0 {
 				fmt.Fprintln(w, "LOCAL_MODULE_SYMLINKS :=", strings.Join(fi.symlinks, " "))
 			}
-			if len(fi.dataPaths) > 0 {
-				fmt.Fprintln(w, "LOCAL_TEST_DATA :=", strings.Join(cc.AndroidMkDataPaths(fi.dataPaths), " "))
+			newDataPaths := []android.Path{}
+			for _, path := range fi.dataPaths {
+				dataOutPath := modulePath + ":" + path.Rel()
+				if ok := seenDataOutPaths[dataOutPath]; !ok {
+					newDataPaths = append(newDataPaths, path)
+					seenDataOutPaths[dataOutPath] = true
+				}
+			}
+			if len(newDataPaths) > 0 {
+				fmt.Fprintln(w, "LOCAL_TEST_DATA :=", strings.Join(cc.AndroidMkDataPaths(newDataPaths), " "))
 			}
 
 			if fi.module != nil && len(fi.module.NoticeFiles()) > 0 {
