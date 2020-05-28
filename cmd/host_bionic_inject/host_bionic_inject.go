@@ -105,7 +105,9 @@ func parseElf(r io.ReaderAt, linker *elf.File) (uint64, error) {
 
 	err = checkLinker(file, linker, symbols)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("Linker executable failed verification against app embedded linker: %s\n"+
+			"linker might not be in sync with crtbegin_dynamic.o.",
+			err)
 	}
 
 	start, err := findSymbol(symbols, "_start")
