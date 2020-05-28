@@ -348,6 +348,10 @@ type ApiScopeProperties struct {
 }
 
 type sdkLibraryProperties struct {
+	// Visibility for impl library module. If not specified then defaults to the
+	// visibility property.
+	Impl_library_visibility []string
+
 	// Visibility for stubs library modules. If not specified then defaults to the
 	// visibility property.
 	Stubs_library_visibility []string
@@ -910,6 +914,8 @@ func IsXmlPermissionsFileDepTag(depTag blueprint.DependencyTag) bool {
 	return false
 }
 
+var implLibraryTag = dependencyTag{name: "impl-library"}
+
 func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, apiScope := range module.getGeneratedApiScopes(ctx) {
 		// Add dependencies to the stubs library
@@ -928,6 +934,9 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 
 	if module.requiresRuntimeImplementationLibrary() {
+		// Add dependency to the rule for generating the implementation library.
+		ctx.AddDependency(module, implLibraryTag, module.implLibraryModuleName())
+
 		if module.sharedLibrary() {
 			// Add dependency to the rule for generating the xml permissions file
 			ctx.AddDependency(module, xmlPermissionsFileTag, module.xmlFileName())
@@ -982,8 +991,8 @@ func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 // Module name of the runtime implementation library
-func (module *SdkLibrary) implName() string {
-	return module.BaseModuleName()
+func (module *SdkLibrary) implLibraryModuleName() string {
+	return module.BaseModuleName() + ".impl"
 }
 
 // Module name of the XML file for the lib
@@ -1025,6 +1034,27 @@ func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {
 
 func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) string {
 	return ":" + module.BaseModuleName() + "-removed.api." + apiScope.name + ".latest"
+}
+
+// Creates the implementation java library
+func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext) {
+	props := struct {
+		Name       *string
+		Visibility []string
+	}{
+		Name:       proptools.StringPtr(module.implLibraryModuleName()),
+		Visibility: module.sdkLibraryProperties.Impl_library_visibility,
+	}
+
+	properties := []interface{}{
+		&module.properties,
+		&module.protoProperties,
+		&module.deviceProperties,
+		&module.dexpreoptProperties,
+		&props,
+		module.sdkComponentPropertiesForChildLibrary(),
+	}
+	mctx.CreateModule(LibraryFactory, properties...)
 }
 
 // Creates a static java library that has API stubs
@@ -1436,6 +1466,14 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 	}
 
 	if module.requiresRuntimeImplementationLibrary() {
+		// Create child module to create an implementation library.
+		//
+		// This temporarily creates a second implementation library that can be explicitly
+		// referenced.
+		//
+		// TODO(b/156618935) - update comment once only one implementation library is created.
+		module.createImplLibrary(mctx)
+
 		// Only create an XML permissions file that declares the library as being usable
 		// as a shared library if required.
 		if module.sharedLibrary() {
@@ -1543,6 +1581,7 @@ func SdkLibraryFactory() android.Module {
 	module.scopeToProperties = scopeToProperties
 
 	// Add the properties containing visibility rules so that they are checked.
+	android.AddVisibilityProperty(module, "impl_library_visibility", &module.sdkLibraryProperties.Impl_library_visibility)
 	android.AddVisibilityProperty(module, "stubs_library_visibility", &module.sdkLibraryProperties.Stubs_library_visibility)
 	android.AddVisibilityProperty(module, "stubs_source_visibility", &module.sdkLibraryProperties.Stubs_source_visibility)
 
