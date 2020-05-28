@@ -568,15 +568,16 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 		installDir = filepath.Join("app", a.installApkName)
 	}
 	a.dexpreopter.installPath = android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
-	a.dexpreopter.uncompressedDex = a.shouldUncompressDex(ctx)
-
+	if a.deviceProperties.Uncompress_dex == nil {
+		// If the value was not force-set by the user, use reasonable default based on the module.
+		a.deviceProperties.Uncompress_dex = proptools.BoolPtr(a.shouldUncompressDex(ctx))
+	}
+	a.dexpreopter.uncompressedDex = *a.deviceProperties.Uncompress_dex
 	a.dexpreopter.enforceUsesLibs = a.usesLibrary.enforceUsesLibraries()
 	a.dexpreopter.usesLibs = a.usesLibrary.usesLibraryProperties.Uses_libs
 	a.dexpreopter.optionalUsesLibs = a.usesLibrary.presentOptionalUsesLibs(ctx)
 	a.dexpreopter.libraryPaths = a.usesLibrary.usesLibraryPaths(ctx)
 	a.dexpreopter.manifestFile = a.mergedManifestFile
-
-	a.deviceProperties.UncompressDex = a.dexpreopter.uncompressedDex
 
 	if ctx.ModuleName() != "framework-res" {
 		a.Module.compile(ctx, a.aaptSrcJar)
@@ -1627,7 +1628,8 @@ func AndroidAppImportFactory() android.Module {
 	})
 
 	android.InitApexModule(module)
-	InitJavaModule(module, android.DeviceSupported)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(module)
 	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Apk")
 
 	return module
@@ -1704,6 +1706,9 @@ type RuntimeResourceOverlayProperties struct {
 	// module name in the form ":module".
 	Certificate *string
 
+	// Name of the signing certificate lineage file.
+	Lineage *string
+
 	// optional theme name. If specified, the overlay package will be applied
 	// only when the ro.boot.vendor.overlay.theme system property is set to the same value.
 	Theme *string
@@ -1778,7 +1783,11 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 	_, certificates := collectAppDeps(ctx, r, false, false)
 	certificates = processMainCert(r.ModuleBase, String(r.properties.Certificate), certificates, ctx)
 	signed := android.PathForModuleOut(ctx, "signed", r.Name()+".apk")
-	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates, nil, nil)
+	var lineageFile android.Path
+	if lineage := String(r.properties.Lineage); lineage != "" {
+		lineageFile = android.PathForModuleSrc(ctx, lineage)
+	}
+	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates, nil, lineageFile)
 	r.certificate = certificates[0]
 
 	r.outputFile = signed

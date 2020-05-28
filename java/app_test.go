@@ -2866,6 +2866,32 @@ func TestUncompressDex(t *testing.T) {
 			uncompressedPlatform:  true,
 			uncompressedUnbundled: true,
 		},
+		{
+			name: "normal_uncompress_dex_true",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+					uncompress_dex: true,
+				}
+			`,
+			uncompressedPlatform:  true,
+			uncompressedUnbundled: true,
+		},
+		{
+			name: "normal_uncompress_dex_false",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+					uncompress_dex: false,
+				}
+			`,
+			uncompressedPlatform:  false,
+			uncompressedUnbundled: false,
+		},
 	}
 
 	test := func(t *testing.T, bp string, want bool, unbundled bool) {
@@ -2929,6 +2955,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 		runtime_resource_overlay {
 			name: "foo",
 			certificate: "platform",
+			lineage: "lineage.bin",
 			product_specific: true,
 			static_libs: ["bar"],
 			resource_libs: ["baz"],
@@ -2983,6 +3010,11 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 
 	// Check cert signing flag.
 	signedApk := m.Output("signed/foo.apk")
+	lineageFlag := signedApk.Args["flags"]
+	expectedLineageFlag := "--lineage lineage.bin"
+	if expectedLineageFlag != lineageFlag {
+		t.Errorf("Incorrect signing lineage flags, expected: %q, got: %q", expectedLineageFlag, lineageFlag)
+	}
 	signingFlag := signedApk.Args["certificates"]
 	expected := "build/make/target/product/security/platform.x509.pem build/make/target/product/security/platform.pk8"
 	if expected != signingFlag {

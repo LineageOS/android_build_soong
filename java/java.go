@@ -342,8 +342,13 @@ type CompilerDeviceProperties struct {
 	// set the name of the output
 	Stem *string
 
-	UncompressDex bool `blueprint:"mutated"`
-	IsSDKLibrary  bool `blueprint:"mutated"`
+	// Keep the data uncompressed. We always need uncompressed dex for execution,
+	// so this might actually save space by avoiding storing the same data twice.
+	// This defaults to reasonable value based on module and should not be set.
+	// It exists only to support ART tests.
+	Uncompress_dex *bool
+
+	IsSDKLibrary bool `blueprint:"mutated"`
 
 	// If true, generate the signature file of APK Signing Scheme V4, along side the signed APK file.
 	// Defaults to false.
@@ -475,6 +480,9 @@ type Module struct {
 	kytheFiles android.Paths
 
 	distFile android.Path
+
+	// Collect the module directory for IDE info in java/jdeps.go.
+	modulePaths []string
 }
 
 func (j *Module) OutputFiles(tag string) (android.Paths, error) {
@@ -832,41 +840,42 @@ type linkTypeContext interface {
 }
 
 func (m *Module) getLinkType(name string) (ret linkType, stubs bool) {
-	ver := m.sdkVersion()
-	switch {
-	case name == "core.current.stubs" || name == "core.platform.api.stubs" ||
-		name == "stub-annotations" || name == "private-stub-annotations-jar" ||
-		name == "core-lambda-stubs" || name == "core-generated-annotation-stubs":
+	switch name {
+	case "core.current.stubs", "core.platform.api.stubs", "stub-annotations",
+		"private-stub-annotations-jar", "core-lambda-stubs", "core-generated-annotation-stubs":
 		return javaCore, true
-	case ver.kind == sdkCore:
-		return javaCore, false
-	case name == "android_system_stubs_current":
-		return javaSystem, true
-	case ver.kind == sdkSystem:
-		return javaSystem, false
-	case name == "android_test_stubs_current":
-		return javaSystem, true
-	case ver.kind == sdkTest:
-		return javaPlatform, false
-	case name == "android_stubs_current":
+	case "android_stubs_current":
 		return javaSdk, true
-	case ver.kind == sdkPublic:
-		return javaSdk, false
-	case name == "android_module_lib_stubs_current":
+	case "android_system_stubs_current":
+		return javaSystem, true
+	case "android_module_lib_stubs_current":
 		return javaModule, true
-	case ver.kind == sdkModule:
-		return javaModule, false
-	case name == "android_system_server_stubs_current":
+	case "android_system_server_stubs_current":
 		return javaSystemServer, true
-	case ver.kind == sdkSystemServer:
-		return javaSystemServer, false
-	case ver.kind == sdkPrivate || ver.kind == sdkNone || ver.kind == sdkCorePlatform:
-		return javaPlatform, false
-	case !ver.valid():
-		panic(fmt.Errorf("sdk_version is invalid. got %q", ver.raw))
-	default:
-		return javaSdk, false
+	case "android_test_stubs_current":
+		return javaSystem, true
 	}
+
+	ver := m.sdkVersion()
+	switch ver.kind {
+	case sdkCore:
+		return javaCore, false
+	case sdkSystem:
+		return javaSystem, false
+	case sdkPublic:
+		return javaSdk, false
+	case sdkModule:
+		return javaModule, false
+	case sdkSystemServer:
+		return javaSystemServer, false
+	case sdkPrivate, sdkNone, sdkCorePlatform, sdkTest:
+		return javaPlatform, false
+	}
+
+	if !ver.valid() {
+		panic(fmt.Errorf("sdk_version is invalid. got %q", ver.raw))
+	}
+	return javaSdk, false
 }
 
 func checkLinkType(ctx android.ModuleContext, from *Module, to linkTypeContext, tag dependencyTag) {
@@ -1571,7 +1580,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 		// Hidden API CSV generation and dex encoding
 		dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, dexOutputFile, j.implementationJarFile,
-			j.deviceProperties.UncompressDex)
+			proptools.Bool(j.deviceProperties.Uncompress_dex))
 
 		// merge dex jar with resources if necessary
 		if j.resourceJar != nil {
@@ -1579,7 +1588,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			combinedJar := android.PathForModuleOut(ctx, "dex-withres", jarName)
 			TransformJarsToJar(ctx, combinedJar, "for dex resources", jars, android.OptionalPath{},
 				false, nil, nil)
-			if j.deviceProperties.UncompressDex {
+			if *j.deviceProperties.Uncompress_dex {
 				combinedAlignedJar := android.PathForModuleOut(ctx, "dex-withres-aligned", jarName)
 				TransformZipAlign(ctx, combinedAlignedJar, combinedJar)
 				dexOutputFile = combinedAlignedJar
@@ -1780,6 +1789,7 @@ func (j *Module) IDEInfo(dpInfo *android.IdeInfo) {
 	if j.expandJarjarRules != nil {
 		dpInfo.Jarjar_rules = append(dpInfo.Jarjar_rules, j.expandJarjarRules.String())
 	}
+	dpInfo.Paths = append(dpInfo.Paths, j.modulePaths...)
 }
 
 func (j *Module) CompilerDeps() []string {
@@ -1856,9 +1866,15 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.checkSdkVersions(ctx)
 	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar")
 	j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
-	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, &j.dexpreopter)
-	j.deviceProperties.UncompressDex = j.dexpreopter.uncompressedDex
+	if j.deviceProperties.Uncompress_dex == nil {
+		// If the value was not force-set by the user, use reasonable default based on the module.
+		j.deviceProperties.Uncompress_dex = proptools.BoolPtr(shouldUncompressDex(ctx, &j.dexpreopter))
+	}
+	j.dexpreopter.uncompressedDex = *j.deviceProperties.Uncompress_dex
 	j.compile(ctx, nil)
+
+	// Collect the module directory for IDE info in java/jdeps.go.
+	j.modulePaths = append(j.modulePaths, ctx.ModuleDir())
 
 	exclusivelyForApex := android.InAnyApex(ctx.ModuleName()) && !j.IsForPlatform()
 	if (Bool(j.properties.Installable) || ctx.Host()) && !exclusivelyForApex {

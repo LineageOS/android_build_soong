@@ -116,10 +116,10 @@ var (
 		},
 		"abis", "allow-prereleased", "screen-densities", "sdk-version", "stem")
 
-	turbine = pctx.AndroidStaticRule("turbine",
+	turbine, turbineRE = remoteexec.StaticRules(pctx, "turbine",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-				`${config.JavaCmd} ${config.JavaVmFlags} -jar ${config.TurbineJar} --output $out.tmp ` +
+				`$reTemplate${config.JavaCmd} ${config.JavaVmFlags} -jar ${config.TurbineJar} --output $out.tmp ` +
 				`--temp_dir "$outDir" --sources @$out.rsp  --source_jars $srcJars ` +
 				`--javacopts ${config.CommonJdkFlags} ` +
 				`$javacFlags -source $javaVersion -target $javaVersion -- $bootClasspath $classpath && ` +
@@ -134,7 +134,15 @@ var (
 			RspfileContent: "$in",
 			Restat:         true,
 		},
-		"javacFlags", "bootClasspath", "classpath", "srcJars", "outDir", "javaVersion")
+		&remoteexec.REParams{Labels: map[string]string{"type": "tool", "name": "turbine"},
+			ExecStrategy:      "${config.RETurbineExecStrategy}",
+			Inputs:            []string{"${config.TurbineJar}", "${out}.rsp", "$implicits"},
+			RSPFile:           "${out}.rsp",
+			OutputFiles:       []string{"$out.tmp"},
+			OutputDirectories: []string{"$outDir"},
+			ToolchainInputs:   []string{"${config.JavaCmd}"},
+			Platform:          map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		}, []string{"javacFlags", "bootClasspath", "classpath", "srcJars", "outDir", "javaVersion"}, []string{"implicits"})
 
 	jar = pctx.AndroidStaticRule("jar",
 		blueprint.RuleParams{
@@ -346,20 +354,26 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 	deps = append(deps, classpath...)
 	deps = append(deps, flags.processorPath...)
 
+	rule := turbine
+	args := map[string]string{
+		"javacFlags":    flags.javacFlags,
+		"bootClasspath": bootClasspath,
+		"srcJars":       strings.Join(srcJars.Strings(), " "),
+		"classpath":     classpath.FormTurbineClassPath("--classpath "),
+		"outDir":        android.PathForModuleOut(ctx, "turbine", "classes").String(),
+		"javaVersion":   flags.javaVersion.String(),
+	}
+	if ctx.Config().IsEnvTrue("RBE_TURBINE") {
+		rule = turbineRE
+		args["implicits"] = strings.Join(deps.Strings(), ",")
+	}
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        turbine,
+		Rule:        rule,
 		Description: "turbine",
 		Output:      outputFile,
 		Inputs:      srcFiles,
 		Implicits:   deps,
-		Args: map[string]string{
-			"javacFlags":    flags.javacFlags,
-			"bootClasspath": bootClasspath,
-			"srcJars":       strings.Join(srcJars.Strings(), " "),
-			"classpath":     classpath.FormTurbineClassPath("--classpath "),
-			"outDir":        android.PathForModuleOut(ctx, "turbine", "classes").String(),
-			"javaVersion":   flags.javaVersion.String(),
-		},
+		Args:        args,
 	})
 }
 
