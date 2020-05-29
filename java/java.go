@@ -1843,6 +1843,17 @@ type Library struct {
 	InstallMixin func(ctx android.ModuleContext, installPath android.Path) (extraInstallDeps android.Paths)
 }
 
+// Provides access to the list of permitted packages from updatable boot jars.
+type PermittedPackagesForUpdatableBootJars interface {
+	PermittedPackagesForUpdatableBootJars() []string
+}
+
+var _ PermittedPackagesForUpdatableBootJars = (*Library)(nil)
+
+func (j *Library) PermittedPackagesForUpdatableBootJars() []string {
+	return j.properties.Permitted_packages
+}
+
 func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bool {
 	// Store uncompressed (and aligned) any dex files from jars in APEXes.
 	if am, ok := ctx.Module().(android.ApexModule); ok && !am.IsForPlatform() {
