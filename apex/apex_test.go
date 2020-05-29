@@ -386,6 +386,7 @@ func TestBasicApex(t *testing.T) {
 		java_library {
 			name: "myjar",
 			srcs: ["foo/bar/MyClass.java"],
+			stem: "myjar_stem",
 			sdk_version: "none",
 			system_modules: "none",
 			static_libs: ["myotherjar"],
@@ -440,7 +441,7 @@ func TestBasicApex(t *testing.T) {
 	// Ensure that both direct and indirect deps are copied into apex
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib2.so")
-	ensureContains(t, copyCmds, "image.apex/javalib/myjar.jar")
+	ensureContains(t, copyCmds, "image.apex/javalib/myjar_stem.jar")
 	// .. but not for java libs
 	ensureNotContains(t, copyCmds, "image.apex/javalib/myotherjar.jar")
 	ensureNotContains(t, copyCmds, "image.apex/javalib/msharedjar.jar")
