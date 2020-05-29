@@ -232,30 +232,10 @@ func (p PackageContext) StaticRule(name string, params blueprint.RuleParams,
 	}, argNames...)
 }
 
-// RBEExperimentalFlag indicates which flag should be set for the AndroidRemoteStaticRule
-// to use RBE.
-type RBEExperimentalFlag int
-
-const (
-	// RBE_NOT_EXPERIMENTAL indicates the rule should use RBE in every build that has
-	// UseRBE set.
-	RBE_NOT_EXPERIMENTAL RBEExperimentalFlag = iota
-	// RBE_JAVAC indicates the rule should use RBE only if the RBE_JAVAC variable is
-	// set in an RBE enabled build.
-	RBE_JAVAC
-	// RBE_R8 indicates the rule should use RBE only if the RBE_R8 variable is set in
-	// an RBE enabled build.
-	RBE_R8
-	// RBE_D8 indicates the rule should use RBE only if the RBE_D8 variable is set in
-	// an RBE enabled build.
-	RBE_D8
-)
-
 // RemoteRuleSupports configures rules with whether they have Goma and/or RBE support.
 type RemoteRuleSupports struct {
-	Goma    bool
-	RBE     bool
-	RBEFlag RBEExperimentalFlag
+	Goma bool
+	RBE  bool
 }
 
 // AndroidRemoteStaticRule wraps blueprint.StaticRule but uses goma or RBE's parallelism if goma or RBE are enabled
@@ -275,18 +255,6 @@ func (p PackageContext) AndroidRemoteStaticRule(name string, supports RemoteRule
 			// When USE_RBE=true is set and the rule is not supported by RBE, restrict jobs to the
 			// local parallelism value
 			params.Pool = localPool
-		}
-
-		if ctx.Config().UseRBE() && supports.RBE {
-			if supports.RBEFlag == RBE_JAVAC && !ctx.Config().UseRBEJAVAC() {
-				params.Pool = localPool
-			}
-			if supports.RBEFlag == RBE_R8 && !ctx.Config().UseRBER8() {
-				params.Pool = localPool
-			}
-			if supports.RBEFlag == RBE_D8 && !ctx.Config().UseRBED8() {
-				params.Pool = localPool
-			}
 		}
 
 		return params, nil
