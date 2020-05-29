@@ -1178,6 +1178,7 @@ func (class apexFileClass) NameInMake() string {
 // apexFile represents a file in an APEX bundle
 type apexFile struct {
 	builtFile  android.Path
+	stem       string
 	moduleName string
 	installDir string
 	class      apexFileClass
@@ -1226,7 +1227,11 @@ func (af *apexFile) apexRelativePath(path string) string {
 
 // Path() returns path of this apex file relative to the APEX root
 func (af *apexFile) Path() string {
-	return af.apexRelativePath(af.builtFile.Base())
+	stem := af.builtFile.Base()
+	if af.stem != "" {
+		stem = af.stem
+	}
+	return af.apexRelativePath(stem)
 }
 
 // SymlinkPaths() returns paths of the symlinks (if any) relative to the APEX root
@@ -1673,11 +1678,17 @@ func apexFileForShBinary(ctx android.BaseModuleContext, sh *android.ShBinary) ap
 	return af
 }
 
-func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib java.Dependency, module android.Module) apexFile {
+type javaDependency interface {
+	java.Dependency
+	Stem() string
+}
+
+func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaDependency, module android.Module) apexFile {
 	dirInApex := "javalib"
 	fileToCopy := lib.DexJar()
 	af := newApexFile(ctx, fileToCopy, module.Name(), dirInApex, javaSharedLib, module)
 	af.jacocoReportClassesFile = lib.JacocoReportClassesFile()
+	af.stem = lib.Stem() + ".jar"
 	return af
 }
 
