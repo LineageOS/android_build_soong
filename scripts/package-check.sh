@@ -52,6 +52,7 @@ zip_contents=`zipinfo -1 $jar_file`
 # Check all class file names against the expected prefixes.
 old_ifs=${IFS}
 IFS=$'\n'
+failed=false
 for zip_entry in ${zip_contents}; do
   # Check the suffix.
   if [[ "${zip_entry}" = *.class ]]; then
@@ -65,8 +66,11 @@ for zip_entry in ${zip_contents}; do
     done
     if [[ "${found}" == "false" ]]; then
       echo "Class file ${zip_entry} is outside specified packages."
-      exit 1
+      failed=true
     fi
   fi
 done
+if [[ "${failed}" == "true" ]]; then
+  exit 1
+fi
 IFS=${old_ifs}
