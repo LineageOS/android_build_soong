@@ -256,28 +256,22 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 				filepath.Join("/system/framework", l+".jar"))
 		}
 
+		// org.apache.http.legacy contains classes that were in the default classpath until API 28.
+		// If the targetSdkVersion in the manifest or APK is < 28, and the module does not explicitly
+		// depend on org.apache.http.legacy, then implicitly add it to the classpath for dexpreopt.
 		const httpLegacy = "org.apache.http.legacy"
-		const httpLegacyImpl = "org.apache.http.legacy.impl"
-
-		// org.apache.http.legacy contains classes that were in the default classpath until API 28.  If the
-		// targetSdkVersion in the manifest or APK is < 28, and the module does not explicitly depend on
-		// org.apache.http.legacy, then implicitly add the classes to the classpath for dexpreopt.  One the
-		// device the classes will be in a file called org.apache.http.legacy.impl.jar.
-		module.LibraryPaths[httpLegacyImpl] = module.LibraryPaths[httpLegacy]
-
-		if !contains(module.UsesLibraries, httpLegacy) && !contains(module.PresentOptionalUsesLibraries, httpLegacy) {
+		if !contains(usesLibs, httpLegacy) {
 			conditionalClassLoaderContextHost28 = append(conditionalClassLoaderContextHost28,
-				pathForLibrary(module, httpLegacyImpl))
+				pathForLibrary(module, httpLegacy))
 			conditionalClassLoaderContextTarget28 = append(conditionalClassLoaderContextTarget28,
-				filepath.Join("/system/framework", httpLegacyImpl+".jar"))
+				filepath.Join("/system/framework", httpLegacy+".jar"))
 		}
-
-		const hidlBase = "android.hidl.base-V1.0-java"
-		const hidlManager = "android.hidl.manager-V1.0-java"
 
 		// android.hidl.base-V1.0-java and android.hidl.manager-V1.0 contain classes that were in the default
 		// classpath until API 29.  If the targetSdkVersion in the manifest or APK is < 29 then implicitly add
 		// the classes to the classpath for dexpreopt.
+		const hidlBase = "android.hidl.base-V1.0-java"
+		const hidlManager = "android.hidl.manager-V1.0-java"
 		conditionalClassLoaderContextHost29 = append(conditionalClassLoaderContextHost29,
 			pathForLibrary(module, hidlManager))
 		conditionalClassLoaderContextTarget29 = append(conditionalClassLoaderContextTarget29,
