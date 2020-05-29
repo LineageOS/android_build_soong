@@ -989,6 +989,7 @@ func TestSnapshotWithJavaSdkLibrary(t *testing.T) {
 			apex_available: ["//apex_available:anyapex"],
 			srcs: ["Test.java"],
 			sdk_version: "current",
+			shared_library: false,
 			stubs_library_visibility: ["//other"],
 			stubs_source_visibility: ["//another"],
 		}
@@ -1002,6 +1003,7 @@ java_sdk_library_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
     apex_available: ["//apex_available:anyapex"],
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
@@ -1029,6 +1031,7 @@ java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
     apex_available: ["//apex_available:anyapex"],
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
@@ -1097,6 +1100,7 @@ func TestSnapshotWithJavaSdkLibrary_SdkVersion_None(t *testing.T) {
 java_sdk_library_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
+    shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
@@ -1109,6 +1113,7 @@ java_sdk_library_import {
 java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
+    shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
@@ -1159,6 +1164,7 @@ func TestSnapshotWithJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
 java_sdk_library_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
+    shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
@@ -1171,6 +1177,7 @@ java_sdk_library_import {
 java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
+    shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
@@ -1225,6 +1232,7 @@ java_sdk_library_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
     apex_available: ["//apex_available:anyapex"],
+    shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
@@ -1245,6 +1253,7 @@ java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
     apex_available: ["//apex_available:anyapex"],
+    shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
@@ -1313,6 +1322,7 @@ java_sdk_library_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
     apex_available: ["//apex_available:anyapex"],
+    shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
@@ -1340,6 +1350,7 @@ java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
     apex_available: ["//apex_available:anyapex"],
+    shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
@@ -1415,6 +1426,7 @@ java_sdk_library_import {
     sdk_member_name: "myjavalib",
     apex_available: ["//apex_available:anyapex"],
     naming_scheme: "framework-modules",
+    shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
@@ -1429,6 +1441,7 @@ java_sdk_library_import {
     prefer: false,
     apex_available: ["//apex_available:anyapex"],
     naming_scheme: "framework-modules",
+    shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
         stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
