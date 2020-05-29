@@ -421,10 +421,41 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 		if String(a.deviceProperties.Min_sdk_version) == "" {
 			ctx.PropertyErrorf("updatable", "updatable apps must set min_sdk_version.")
 		}
+		if minSdkVersion, err := a.minSdkVersion().effectiveVersion(ctx); err == nil {
+			a.checkJniLibsSdkVersion(ctx, minSdkVersion)
+		} else {
+			ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
+		}
 	}
 
 	a.checkPlatformAPI(ctx)
 	a.checkSdkVersions(ctx)
+}
+
+// If an updatable APK sets min_sdk_version, min_sdk_vesion of JNI libs should match with it.
+// This check is enforced for "updatable" APKs (including APK-in-APEX).
+// b/155209650: until min_sdk_version is properly supported, use sdk_version instead.
+// because, sdk_version is overridden by min_sdk_version (if set as smaller)
+// and linkType is checked with dependencies so we can be sure that the whole dependency tree
+// will meet the requirements.
+func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVersion sdkVersion) {
+	// It's enough to check direct JNI deps' sdk_version because all transitive deps from JNI deps are checked in cc.checkLinkType()
+	ctx.VisitDirectDeps(func(m android.Module) {
+		if !IsJniDepTag(ctx.OtherModuleDependencyTag(m)) {
+			return
+		}
+		dep, _ := m.(*cc.Module)
+		// The domain of cc.sdk_version is "current" and <number>
+		// We can rely on sdkSpec to convert it to <number> so that "current" is handled
+		// properly regardless of sdk finalization.
+		jniSdkVersion, err := sdkSpecFrom(dep.SdkVersion()).effectiveVersion(ctx)
+		if err != nil || minSdkVersion < jniSdkVersion {
+			ctx.OtherModuleErrorf(dep, "sdk_version(%v) is higher than min_sdk_version(%v) of the containing android_app(%v)",
+				dep.SdkVersion(), minSdkVersion, ctx.ModuleName())
+			return
+		}
+
+	})
 }
 
 // Returns true if the native libraries should be stored in the APK uncompressed and the
