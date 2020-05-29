@@ -69,7 +69,26 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 	if !library.ApexModuleBase.AvailableFor(android.AvailableToPlatform) {
 		hideFromMake = true
 	}
-	if !hideFromMake {
+	if hideFromMake {
+		// May still need to add some additional dependencies. This will be called
+		// once for the platform variant (even if it is not being used) and once each
+		// for the APEX specific variants. In order to avoid adding the dependency
+		// multiple times only add it for the platform variant.
+		checkedModulePaths := library.additionalCheckedModules
+		if library.IsForPlatform() && len(checkedModulePaths) != 0 {
+			mainEntries = android.AndroidMkEntries{
+				Class: "FAKE",
+				// Need at least one output file in order for this to take effect.
+				OutputFile: android.OptionalPathForPath(checkedModulePaths[0]),
+				Include:    "$(BUILD_PHONY_PACKAGE)",
+				ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+					func(entries *android.AndroidMkEntries) {
+						entries.AddStrings("LOCAL_ADDITIONAL_CHECKED_MODULE", checkedModulePaths.Strings()...)
+					},
+				},
+			}
+		}
+	} else {
 		mainEntries = android.AndroidMkEntries{
 			Class:      "JAVA_LIBRARIES",
 			DistFile:   android.OptionalPathForPath(library.distFile),
