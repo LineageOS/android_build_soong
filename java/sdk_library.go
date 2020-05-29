@@ -391,6 +391,9 @@ type sdkLibraryProperties struct {
 	//  $(location <label>): the path to the droiddoc_option_files with name <label>
 	Droiddoc_options []string
 
+	// is set to true, Metalava will allow framework SDK to contain annotations.
+	Annotations_enabled *bool
+
 	// a list of top-level directories containing files to merge qualifier annotations
 	// (i.e. those intended to be included in the stubs written) from.
 	Merge_annotations_dirs []string
@@ -434,6 +437,14 @@ type sdkLibraryProperties struct {
 	// Unless explicitly specified by using test.enabled the module_lib api scope is
 	// disabled by default.
 	Module_lib ApiScopeProperties
+
+	// Determines if the stubs are preferred over the implementation library
+	// for linking, even when the client doesn't specify sdk_version. When this
+	// is set to true, such clients are provided with the widest API surface that
+	// this lib provides. Note however that this option doesn't affect the clients
+	// that are in the same APEX as this library. In that case, the clients are
+	// always linked with the implementation library. Default is false.
+	Default_to_stubs *bool
 
 	// Properties related to api linting.
 	Api_lint struct {
@@ -1102,6 +1113,11 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	props.Patch_module = module.properties.Patch_module
 	props.Installable = proptools.BoolPtr(false)
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
+	// The stub-annotations library contains special versions of the annotations
+	// with CLASS retention policy, so that they're kept.
+	if proptools.Bool(module.sdkLibraryProperties.Annotations_enabled) {
+		props.Libs = append(props.Libs, "stub-annotations")
+	}
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
 	props.Openjdk9.Srcs = module.properties.Openjdk9.Srcs
 	props.Openjdk9.Javacflags = module.properties.Openjdk9.Javacflags
@@ -1137,6 +1153,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		Arg_files                        []string
 		Args                             *string
 		Java_version                     *string
+		Annotations_enabled              *bool
 		Merge_annotations_dirs           []string
 		Merge_inclusion_annotations_dirs []string
 		Generate_stubs                   *bool
@@ -1187,6 +1204,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	props.Aidl.Local_include_dirs = module.deviceProperties.Aidl.Local_include_dirs
 	props.Java_version = module.properties.Java_version
 
+	props.Annotations_enabled = module.sdkLibraryProperties.Annotations_enabled
 	props.Merge_annotations_dirs = module.sdkLibraryProperties.Merge_annotations_dirs
 	props.Merge_inclusion_annotations_dirs = module.sdkLibraryProperties.Merge_inclusion_annotations_dirs
 
@@ -1344,6 +1362,13 @@ func (module *SdkLibrary) withinSameApexAs(other android.Module) bool {
 }
 
 func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkSpec, headerJars bool) android.Paths {
+	// If the client doesn't set sdk_version, but if this library prefers stubs over
+	// the impl library, let's provide the widest API surface possible. To do so,
+	// force override sdk_version to module_current so that the closest possible API
+	// surface could be found in selectHeaderJarsForSdkVersion
+	if module.defaultsToStubs() && !sdkVersion.specified() {
+		sdkVersion = sdkSpecFrom("module_current")
+	}
 
 	// Only provide access to the implementation library if it is actually built.
 	if module.requiresRuntimeImplementationLibrary() {
@@ -1507,6 +1532,10 @@ func (module *SdkLibrary) requiresRuntimeImplementationLibrary() bool {
 	return !proptools.Bool(module.sdkLibraryProperties.Api_only)
 }
 
+func (module *SdkLibrary) defaultsToStubs() bool {
+	return proptools.Bool(module.sdkLibraryProperties.Default_to_stubs)
+}
+
 // Defines how to name the individual component modules the sdk library creates.
 type sdkLibraryComponentNamingScheme interface {
 	stubsLibraryModuleName(scope *apiScope, baseName string) string
@@ -1557,6 +1586,24 @@ func (s *frameworkModulesNamingScheme) apiModuleName(scope *apiScope, baseName s
 }
 
 var _ sdkLibraryComponentNamingScheme = (*frameworkModulesNamingScheme)(nil)
+
+func moduleStubLinkType(name string) (stub bool, ret linkType) {
+	// This suffix-based approach is fragile and could potentially mis-trigger.
+	// TODO(b/155164730): Clean this up when modules no longer reference sdk_lib stubs directly.
+	if strings.HasSuffix(name, ".stubs.public") || strings.HasSuffix(name, "-stubs-publicapi") {
+		return true, javaSdk
+	}
+	if strings.HasSuffix(name, ".stubs.system") || strings.HasSuffix(name, "-stubs-systemapi") {
+		return true, javaSystem
+	}
+	if strings.HasSuffix(name, ".stubs.module_lib") || strings.HasSuffix(name, "-stubs-module_libs_api") {
+		return true, javaModule
+	}
+	if strings.HasSuffix(name, ".stubs.test") {
+		return true, javaSystem
+	}
+	return false, javaPlatform
+}
 
 // java_sdk_library is a special Java library that provides optional platform APIs to apps.
 // In practice, it can be viewed as a combination of several modules: 1) stubs library that clients

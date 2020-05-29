@@ -856,6 +856,10 @@ func (m *Module) getLinkType(name string) (ret linkType, stubs bool) {
 		return javaSystem, true
 	}
 
+	if stub, linkType := moduleStubLinkType(name); stub {
+		return linkType, true
+	}
+
 	ver := m.sdkVersion()
 	switch ver.kind {
 	case sdkCore:
