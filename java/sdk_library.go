@@ -348,6 +348,10 @@ type ApiScopeProperties struct {
 }
 
 type sdkLibraryProperties struct {
+	// Visibility for impl library module. If not specified then defaults to the
+	// visibility property.
+	Impl_library_visibility []string
+
 	// Visibility for stubs library modules. If not specified then defaults to the
 	// visibility property.
 	Stubs_library_visibility []string
@@ -386,6 +390,9 @@ type sdkLibraryProperties struct {
 	//
 	//  $(location <label>): the path to the droiddoc_option_files with name <label>
 	Droiddoc_options []string
+
+	// is set to true, Metalava will allow framework SDK to contain annotations.
+	Annotations_enabled *bool
 
 	// a list of top-level directories containing files to merge qualifier annotations
 	// (i.e. those intended to be included in the stubs written) from.
@@ -910,6 +917,8 @@ func IsXmlPermissionsFileDepTag(depTag blueprint.DependencyTag) bool {
 	return false
 }
 
+var implLibraryTag = dependencyTag{name: "impl-library"}
+
 func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, apiScope := range module.getGeneratedApiScopes(ctx) {
 		// Add dependencies to the stubs library
@@ -928,6 +937,9 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 
 	if module.requiresRuntimeImplementationLibrary() {
+		// Add dependency to the rule for generating the implementation library.
+		ctx.AddDependency(module, implLibraryTag, module.implLibraryModuleName())
+
 		if module.sharedLibrary() {
 			// Add dependency to the rule for generating the xml permissions file
 			ctx.AddDependency(module, xmlPermissionsFileTag, module.xmlFileName())
@@ -982,8 +994,8 @@ func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 // Module name of the runtime implementation library
-func (module *SdkLibrary) implName() string {
-	return module.BaseModuleName()
+func (module *SdkLibrary) implLibraryModuleName() string {
+	return module.BaseModuleName() + ".impl"
 }
 
 // Module name of the XML file for the lib
@@ -1025,6 +1037,27 @@ func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {
 
 func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) string {
 	return ":" + module.BaseModuleName() + "-removed.api." + apiScope.name + ".latest"
+}
+
+// Creates the implementation java library
+func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext) {
+	props := struct {
+		Name       *string
+		Visibility []string
+	}{
+		Name:       proptools.StringPtr(module.implLibraryModuleName()),
+		Visibility: module.sdkLibraryProperties.Impl_library_visibility,
+	}
+
+	properties := []interface{}{
+		&module.properties,
+		&module.protoProperties,
+		&module.deviceProperties,
+		&module.dexpreoptProperties,
+		&props,
+		module.sdkComponentPropertiesForChildLibrary(),
+	}
+	mctx.CreateModule(LibraryFactory, properties...)
 }
 
 // Creates a static java library that has API stubs
@@ -1072,6 +1105,11 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	props.Patch_module = module.properties.Patch_module
 	props.Installable = proptools.BoolPtr(false)
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
+	// The stub-annotations library contains special versions of the annotations
+	// with CLASS retention policy, so that they're kept.
+	if proptools.Bool(module.sdkLibraryProperties.Annotations_enabled) {
+		props.Libs = append(props.Libs, "stub-annotations")
+	}
 	props.Product_variables.Pdk.Enabled = proptools.BoolPtr(false)
 	props.Openjdk9.Srcs = module.properties.Openjdk9.Srcs
 	props.Openjdk9.Javacflags = module.properties.Openjdk9.Javacflags
@@ -1107,6 +1145,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		Arg_files                        []string
 		Args                             *string
 		Java_version                     *string
+		Annotations_enabled              *bool
 		Merge_annotations_dirs           []string
 		Merge_inclusion_annotations_dirs []string
 		Generate_stubs                   *bool
@@ -1157,6 +1196,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	props.Aidl.Local_include_dirs = module.deviceProperties.Aidl.Local_include_dirs
 	props.Java_version = module.properties.Java_version
 
+	props.Annotations_enabled = module.sdkLibraryProperties.Annotations_enabled
 	props.Merge_annotations_dirs = module.sdkLibraryProperties.Merge_annotations_dirs
 	props.Merge_inclusion_annotations_dirs = module.sdkLibraryProperties.Merge_inclusion_annotations_dirs
 
@@ -1436,6 +1476,14 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 	}
 
 	if module.requiresRuntimeImplementationLibrary() {
+		// Create child module to create an implementation library.
+		//
+		// This temporarily creates a second implementation library that can be explicitly
+		// referenced.
+		//
+		// TODO(b/156618935) - update comment once only one implementation library is created.
+		module.createImplLibrary(mctx)
+
 		// Only create an XML permissions file that declares the library as being usable
 		// as a shared library if required.
 		if module.sharedLibrary() {
@@ -1520,6 +1568,24 @@ func (s *frameworkModulesNamingScheme) apiModuleName(scope *apiScope, baseName s
 
 var _ sdkLibraryComponentNamingScheme = (*frameworkModulesNamingScheme)(nil)
 
+func moduleStubLinkType(name string) (stub bool, ret linkType) {
+	// This suffix-based approach is fragile and could potentially mis-trigger.
+	// TODO(b/155164730): Clean this up when modules no longer reference sdk_lib stubs directly.
+	if strings.HasSuffix(name, ".stubs.public") || strings.HasSuffix(name, "-stubs-publicapi") {
+		return true, javaSdk
+	}
+	if strings.HasSuffix(name, ".stubs.system") || strings.HasSuffix(name, "-stubs-systemapi") {
+		return true, javaSystem
+	}
+	if strings.HasSuffix(name, ".stubs.module_lib") || strings.HasSuffix(name, "-stubs-module_libs_api") {
+		return true, javaModule
+	}
+	if strings.HasSuffix(name, ".stubs.test") {
+		return true, javaSystem
+	}
+	return false, javaPlatform
+}
+
 // java_sdk_library is a special Java library that provides optional platform APIs to apps.
 // In practice, it can be viewed as a combination of several modules: 1) stubs library that clients
 // are linked against to, 2) droiddoc module that internally generates API stubs source files,
@@ -1543,6 +1609,7 @@ func SdkLibraryFactory() android.Module {
 	module.scopeToProperties = scopeToProperties
 
 	// Add the properties containing visibility rules so that they are checked.
+	android.AddVisibilityProperty(module, "impl_library_visibility", &module.sdkLibraryProperties.Impl_library_visibility)
 	android.AddVisibilityProperty(module, "stubs_library_visibility", &module.sdkLibraryProperties.Stubs_library_visibility)
 	android.AddVisibilityProperty(module, "stubs_source_visibility", &module.sdkLibraryProperties.Stubs_source_visibility)
 

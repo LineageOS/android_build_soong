@@ -853,6 +853,10 @@ func (m *Module) getLinkType(name string) (ret linkType, stubs bool) {
 		return javaSystem, true
 	}
 
+	if stub, linkType := moduleStubLinkType(name); stub {
+		return linkType, true
+	}
+
 	ver := m.sdkVersion()
 	switch ver.kind {
 	case sdkCore:
@@ -2066,6 +2070,10 @@ type testProperties struct {
 	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
 	// explicitly.
 	Auto_gen_config *bool
+
+	// Add parameterized mainline modules to auto generated test config. The options will be
+	// handled by TradeFed to do downloading and installing the specified modules on the device.
+	Test_mainline_modules []string
 }
 
 type testHelperLibraryProperties struct {
