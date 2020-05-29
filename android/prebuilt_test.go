@@ -148,7 +148,7 @@ var prebuiltsTests = []struct {
 				name: "bar",
 				prefer: true,
 				target: {
-					linux_glibc: {
+					host: {
 						srcs: ["prebuilt_file"],
 					},
 				},
