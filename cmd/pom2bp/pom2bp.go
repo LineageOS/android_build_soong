@@ -213,10 +213,14 @@ func (p Pom) IsHostAndDeviceModule() bool {
 	return hostAndDeviceModuleNames.IsHostAndDeviceModule(p.GroupId, p.ArtifactId)
 }
 
+func (p Pom) IsHostOnly() bool {
+	return p.IsHostModule() && !p.IsHostAndDeviceModule()
+}
+
 func (p Pom) ModuleType() string {
 	if p.IsAar() {
 		return "android_library"
-	} else if p.IsHostModule() && !p.IsHostAndDeviceModule() {
+	} else if p.IsHostOnly() {
 		return "java_library_host"
 	} else {
 		return "java_library_static"
@@ -226,7 +230,7 @@ func (p Pom) ModuleType() string {
 func (p Pom) ImportModuleType() string {
 	if p.IsAar() {
 		return "android_library_import"
-	} else if p.IsHostModule() && !p.IsHostAndDeviceModule() {
+	} else if p.IsHostOnly() {
 		return "java_import_host"
 	} else {
 		return "java_import"
@@ -366,6 +370,12 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
     {{- if .IsHostAndDeviceModule}}
     host_supported: true,
     {{- end}}
+    {{- if not .IsHostOnly}}
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    {{- end}}
     {{- if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",
     static_libs: [
@@ -401,6 +411,12 @@ var bpDepsTemplate = template.Must(template.New("bp").Parse(`
     {{- if .IsHostAndDeviceModule}}
     host_supported: true,
     {{- end}}
+    {{- if not .IsHostOnly}}
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    {{- end}}
     {{- if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",
     static_libs: [
@@ -431,9 +447,17 @@ var bpDepsTemplate = template.Must(template.New("bp").Parse(`
     {{- if .IsHostAndDeviceModule}}
     host_supported: true,
     {{- end}}
+    {{- if not .IsHostOnly}}
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    {{- end}}
     {{- if .IsAar}}
     min_sdk_version: "{{.MinSdkVersion}}",
     manifest: "manifests/{{.BpName}}/AndroidManifest.xml",
+    {{- else if not .IsHostOnly}}
+    min_sdk_version: "24",
     {{- end}}
     {{- end}}
     static_libs: [
