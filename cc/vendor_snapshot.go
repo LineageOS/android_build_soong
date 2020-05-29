@@ -443,7 +443,7 @@ func isVendorSnapshotModule(m *Module, moduleDir string) bool {
 		return false
 	}
 	// the module must be installed in /vendor
-	if !m.installable() || m.isSnapshotPrebuilt() || !m.inVendor() {
+	if !m.IsForPlatform() || m.isSnapshotPrebuilt() || !m.inVendor() {
 		return false
 	}
 	// exclude test modules
@@ -457,12 +457,17 @@ func isVendorSnapshotModule(m *Module, moduleDir string) bool {
 
 	// Libraries
 	if l, ok := m.linker.(snapshotLibraryInterface); ok {
+		// header libraries are not installable, but captured.
+		if (l.static() || l.shared()) && !m.installable() {
+			return false
+		}
 		if l.static() {
 			return proptools.BoolDefault(m.VendorProperties.Vendor_available, true)
 		}
 		if l.shared() {
 			return !m.IsVndk()
 		}
+
 		return true
 	}
 
