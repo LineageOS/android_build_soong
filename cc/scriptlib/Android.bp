@@ -21,3 +21,12 @@ python_test_host {
         "test_ndk_api_coverage_parser.py",
     ],
 }
+
+python_binary_host {
+    name: "ndk_api_coverage_parser",
+    main: "ndk_api_coverage_parser.py",
+    srcs: [
+        "gen_stub_libs.py",
+        "ndk_api_coverage_parser.py",
+    ],
+}
