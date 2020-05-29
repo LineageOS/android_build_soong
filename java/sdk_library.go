@@ -2036,6 +2036,10 @@ type sdkLibrarySdkMemberProperties struct {
 
 	// The naming scheme.
 	Naming_scheme *string
+
+	// True if the java_sdk_library_import is for a shared library, false
+	// otherwise.
+	Shared_library *bool
 }
 
 type scopeProperties struct {
@@ -2070,11 +2074,15 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 
 	s.Libs = sdk.properties.Libs
 	s.Naming_scheme = sdk.commonSdkLibraryProperties.Naming_scheme
+	s.Shared_library = proptools.BoolPtr(sdk.sharedLibrary())
 }
 
 func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
 	if s.Naming_scheme != nil {
 		propertySet.AddProperty("naming_scheme", proptools.String(s.Naming_scheme))
+	}
+	if s.Shared_library != nil {
+		propertySet.AddProperty("shared_library", *s.Shared_library)
 	}
 
 	for _, apiScope := range allApiScopes {
