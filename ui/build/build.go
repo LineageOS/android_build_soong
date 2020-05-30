@@ -142,7 +142,26 @@ func help(ctx Context, config Config, what int) {
 func Build(ctx Context, config Config, what int) {
 	ctx.Verboseln("Starting build with args:", config.Arguments())
 	ctx.Verboseln("Environment:", config.Environment().Environ())
-	ctx.Verbosef("Total RAM: %dGB", config.TotalRAM()/1024/1024/1024)
+
+	if totalRAM := config.TotalRAM(); totalRAM != 0 {
+		ram := float32(totalRAM) / (1024 * 1024 * 1024)
+		ctx.Verbosef("Total RAM: %.3vGB", ram)
+
+		if ram <= 16 {
+			ctx.Println("************************************************************")
+			ctx.Printf("You are building on a machine with %.3vGB of RAM\n", ram)
+			ctx.Println("")
+			ctx.Println("The minimum required amount of free memory is around 16GB,")
+			ctx.Println("and even with that, some configurations may not work.")
+			ctx.Println("")
+			ctx.Println("If you run into segfaults or other errors, try reducing your")
+			ctx.Println("-j value.")
+			ctx.Println("************************************************************")
+		} else if ram <= float32(config.Parallel()) {
+			ctx.Printf("Warning: high -j%d count compared to %.3vGB of RAM", config.Parallel(), ram)
+			ctx.Println("If you run into segfaults or other errors, try a lower -j value")
+		}
+	}
 
 	ctx.BeginTrace(metrics.Total, "total")
 	defer ctx.EndTrace()

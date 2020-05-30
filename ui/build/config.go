@@ -738,6 +738,9 @@ func (c *configImpl) HighmemParallel() int {
 	} else if c.totalRAM == 0 {
 		// Couldn't detect the total RAM, don't restrict highmem processes.
 		return parallel
+	} else if c.totalRAM <= 16*1024*1024*1024 {
+		// Less than 16GB of ram, restrict to 1 highmem processes
+		return 1
 	} else if c.totalRAM <= 32*1024*1024*1024 {
 		// Less than 32GB of ram, restrict to 2 highmem processes
 		return 2
@@ -779,48 +782,6 @@ func (c *configImpl) StartGoma() bool {
 
 func (c *configImpl) UseRBE() bool {
 	if v, ok := c.environ.Get("USE_RBE"); ok {
-		v = strings.TrimSpace(v)
-		if v != "" && v != "false" {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *configImpl) UseRBEJAVAC() bool {
-	if !c.UseRBE() {
-		return false
-	}
-
-	if v, ok := c.environ.Get("RBE_JAVAC"); ok {
-		v = strings.TrimSpace(v)
-		if v != "" && v != "false" {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *configImpl) UseRBER8() bool {
-	if !c.UseRBE() {
-		return false
-	}
-
-	if v, ok := c.environ.Get("RBE_R8"); ok {
-		v = strings.TrimSpace(v)
-		if v != "" && v != "false" {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *configImpl) UseRBED8() bool {
-	if !c.UseRBE() {
-		return false
-	}
-
-	if v, ok := c.environ.Get("RBE_D8"); ok {
 		v = strings.TrimSpace(v)
 		if v != "" && v != "false" {
 			return true
