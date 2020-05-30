@@ -619,10 +619,10 @@ func updatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConf
 		// Collect `permitted_packages` for updatable boot jars.
 		var updatablePackages []string
 		ctx.VisitAllModules(func(module android.Module) {
-			if j, ok := module.(*Library); ok {
+			if j, ok := module.(PermittedPackagesForUpdatableBootJars); ok {
 				name := ctx.ModuleName(module)
 				if i := android.IndexList(name, updatableModules); i != -1 {
-					pp := j.properties.Permitted_packages
+					pp := j.PermittedPackagesForUpdatableBootJars()
 					if len(pp) > 0 {
 						updatablePackages = append(updatablePackages, pp...)
 					} else {

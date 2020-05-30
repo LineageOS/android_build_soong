@@ -1465,13 +1465,19 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			serviceFile := file.String()
 			zipargs = append(zipargs, "-C", filepath.Dir(serviceFile), "-f", serviceFile)
 		}
+		rule := zip
+		args := map[string]string{
+			"jarArgs": "-P META-INF/services/ " + strings.Join(proptools.NinjaAndShellEscapeList(zipargs), " "),
+		}
+		if ctx.Config().IsEnvTrue("RBE_ZIP") {
+			rule = zipRE
+			args["implicits"] = strings.Join(services.Strings(), ",")
+		}
 		ctx.Build(pctx, android.BuildParams{
-			Rule:      zip,
+			Rule:      rule,
 			Output:    servicesJar,
 			Implicits: services,
-			Args: map[string]string{
-				"jarArgs": "-P META-INF/services/ " + strings.Join(proptools.NinjaAndShellEscapeList(zipargs), " "),
-			},
+			Args:      args,
 		})
 		jars = append(jars, servicesJar)
 	}
@@ -1843,6 +1849,17 @@ type Library struct {
 	InstallMixin func(ctx android.ModuleContext, installPath android.Path) (extraInstallDeps android.Paths)
 }
 
+// Provides access to the list of permitted packages from updatable boot jars.
+type PermittedPackagesForUpdatableBootJars interface {
+	PermittedPackagesForUpdatableBootJars() []string
+}
+
+var _ PermittedPackagesForUpdatableBootJars = (*Library)(nil)
+
+func (j *Library) PermittedPackagesForUpdatableBootJars() []string {
+	return j.properties.Permitted_packages
+}
+
 func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bool {
 	// Store uncompressed (and aligned) any dex files from jars in APEXes.
 	if am, ok := ctx.Module().(android.ApexModule); ok && !am.IsForPlatform() {
@@ -1887,7 +1904,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			extraInstallDeps = j.InstallMixin(ctx, j.outputFile)
 		}
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
-			ctx.ModuleName()+".jar", j.outputFile, extraInstallDeps...)
+			j.Stem()+".jar", j.outputFile, extraInstallDeps...)
 	}
 
 	// Verify Dist.Tag is set to a supported output
@@ -2737,7 +2754,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.maybeStrippedDexJarFile = dexOutputFile
 
 	ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
-		ctx.ModuleName()+".jar", dexOutputFile)
+		j.Stem()+".jar", dexOutputFile)
 }
 
 func (j *DexImport) DexJar() android.Path {

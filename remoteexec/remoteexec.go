@@ -178,6 +178,22 @@ func StaticRules(ctx android.PackageContext, name string, ruleParams blueprint.R
 		ctx.AndroidRemoteStaticRule(name+"RE", android.RemoteRuleSupports{RBE: true}, ruleParamsRE, append(commonArgs, reArgs...)...)
 }
 
+// MultiCommandStaticRules returns a pair of rules based on the given RuleParams, where the first
+// rule is a locally executable rule and the second rule is a remotely executable rule. This
+// function supports multiple remote execution wrappers placed in the template when commands are
+// chained together with &&. commonArgs are args used for both the local and remotely executable
+// rules. reArgs are args used only for remote execution.
+func MultiCommandStaticRules(ctx android.PackageContext, name string, ruleParams blueprint.RuleParams, reParams map[string]*REParams, commonArgs []string, reArgs []string) (blueprint.Rule, blueprint.Rule) {
+	ruleParamsRE := ruleParams
+	for k, v := range reParams {
+		ruleParams.Command = strings.ReplaceAll(ruleParams.Command, k, "")
+		ruleParamsRE.Command = strings.ReplaceAll(ruleParamsRE.Command, k, v.Template())
+	}
+
+	return ctx.AndroidStaticRule(name, ruleParams, commonArgs...),
+		ctx.AndroidRemoteStaticRule(name+"RE", android.RemoteRuleSupports{RBE: true}, ruleParamsRE, append(commonArgs, reArgs...)...)
+}
+
 // EnvOverrideFunc retrieves a variable func that evaluates to the value of the given environment
 // variable if set, otherwise the given default.
 func EnvOverrideFunc(envVar, defaultVal string) func(ctx android.PackageVarContext) string {

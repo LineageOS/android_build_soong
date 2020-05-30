@@ -40,17 +40,17 @@ var (
 	// (if the rule produces .class files) or a .srcjar file (if the rule produces .java files).
 	// .srcjar files are unzipped into a temporary directory when compiled with javac.
 	// TODO(b/143658984): goma can't handle the --system argument to javac.
-	javac, javacRE = remoteexec.StaticRules(pctx, "javac",
+	javac, javacRE = remoteexec.MultiCommandStaticRules(pctx, "javac",
 		blueprint.RuleParams{
 			Command: `rm -rf "$outDir" "$annoDir" "$srcJarDir" && mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`(if [ -s $srcJarDir/list ] || [ -s $out.rsp ] ; then ` +
-				`${config.SoongJavacWrapper} $reTemplate${config.JavacCmd} ` +
+				`${config.SoongJavacWrapper} $javaTemplate${config.JavacCmd} ` +
 				`${config.JavacHeapFlags} ${config.JavacVmFlags} ${config.CommonJdkFlags} ` +
 				`$processorpath $processor $javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
 				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list ; fi ) && ` +
-				`${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir && ` +
+				`$zipTemplate${config.SoongZipCmd} -jar -o $out -C $outDir -D $outDir && ` +
 				`rm -rf "$srcJarDir"`,
 			CommandDeps: []string{
 				"${config.JavacCmd}",
@@ -60,10 +60,19 @@ var (
 			CommandOrderOnly: []string{"${config.SoongJavacWrapper}"},
 			Rspfile:          "$out.rsp",
 			RspfileContent:   "$in",
-		}, &remoteexec.REParams{
-			Labels:       map[string]string{"type": "compile", "lang": "java", "compiler": "javac"},
-			ExecStrategy: "${config.REJavacExecStrategy}",
-			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		}, map[string]*remoteexec.REParams{
+			"$javaTemplate": &remoteexec.REParams{
+				Labels:       map[string]string{"type": "compile", "lang": "java", "compiler": "javac"},
+				ExecStrategy: "${config.REJavacExecStrategy}",
+				Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+			},
+			"$zipTemplate": &remoteexec.REParams{
+				Labels:       map[string]string{"type": "tool", "name": "soong_zip"},
+				Inputs:       []string{"${config.SoongZipCmd}", "$outDir"},
+				OutputFiles:  []string{"$out"},
+				ExecStrategy: "${config.REJavacExecStrategy}",
+				Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+			},
 		}, []string{"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJars", "srcJarDir",
 			"outDir", "annoDir", "javaVersion"}, nil)
 
@@ -144,23 +153,35 @@ var (
 			Platform:          map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		}, []string{"javacFlags", "bootClasspath", "classpath", "srcJars", "outDir", "javaVersion"}, []string{"implicits"})
 
-	jar = pctx.AndroidStaticRule("jar",
+	jar, jarRE = remoteexec.StaticRules(pctx, "jar",
 		blueprint.RuleParams{
-			Command:        `${config.SoongZipCmd} -jar -o $out @$out.rsp`,
+			Command:        `$reTemplate${config.SoongZipCmd} -jar -o $out @$out.rsp`,
 			CommandDeps:    []string{"${config.SoongZipCmd}"},
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$jarArgs",
 		},
-		"jarArgs")
+		&remoteexec.REParams{
+			ExecStrategy: "${config.REJarExecStrategy}",
+			Inputs:       []string{"${config.SoongZipCmd}", "${out}.rsp"},
+			RSPFile:      "${out}.rsp",
+			OutputFiles:  []string{"$out"},
+			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		}, []string{"jarArgs"}, nil)
 
-	zip = pctx.AndroidStaticRule("zip",
+	zip, zipRE = remoteexec.StaticRules(pctx, "zip",
 		blueprint.RuleParams{
 			Command:        `${config.SoongZipCmd} -o $out @$out.rsp`,
 			CommandDeps:    []string{"${config.SoongZipCmd}"},
 			Rspfile:        "$out.rsp",
 			RspfileContent: "$jarArgs",
 		},
-		"jarArgs")
+		&remoteexec.REParams{
+			ExecStrategy: "${config.REZipExecStrategy}",
+			Inputs:       []string{"${config.SoongZipCmd}", "${out}.rsp", "$implicits"},
+			RSPFile:      "${out}.rsp",
+			OutputFiles:  []string{"$out"},
+			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		}, []string{"jarArgs"}, []string{"implicits"})
 
 	combineJar = pctx.AndroidStaticRule("combineJar",
 		blueprint.RuleParams{
@@ -457,8 +478,12 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 func TransformResourcesToJar(ctx android.ModuleContext, outputFile android.WritablePath,
 	jarArgs []string, deps android.Paths) {
 
+	rule := jar
+	if ctx.Config().IsEnvTrue("RBE_JAR") {
+		rule = jarRE
+	}
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        jar,
+		Rule:        rule,
 		Description: "jar",
 		Output:      outputFile,
 		Implicits:   deps,
