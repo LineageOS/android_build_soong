@@ -247,7 +247,7 @@ func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName st
 		return android.NoticeOutputs{}
 	}
 
-	return android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.FirstUniquePaths(noticeFiles))
+	return android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.SortedUniquePaths(noticeFiles))
 }
 
 func (a *apexBundle) buildInstalledFilesFile(ctx android.ModuleContext, builtApex android.Path, imageDir android.Path) android.OutputPath {
