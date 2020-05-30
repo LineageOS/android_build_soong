@@ -485,6 +485,15 @@ func FirstUniquePaths(list Paths) Paths {
 	return firstUniquePathsList(list)
 }
 
+// SortedUniquePaths returns what its name says
+func SortedUniquePaths(list Paths) Paths {
+	unique := FirstUniquePaths(list)
+	sort.Slice(unique, func(i, j int) bool {
+		return unique[i].String() < unique[j].String()
+	})
+	return unique
+}
+
 func firstUniquePathsList(list Paths) Paths {
 	k := 0
 outer:
