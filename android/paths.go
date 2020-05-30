@@ -483,6 +483,15 @@ outer:
 	return list[:k]
 }
 
+// SortedUniquePaths returns what its name says
+func SortedUniquePaths(list Paths) Paths {
+	unique := FirstUniquePaths(list)
+	sort.Slice(unique, func(i, j int) bool {
+		return unique[i].String() < unique[j].String()
+	})
+	return unique
+}
+
 // LastUniquePaths returns all unique elements of a Paths, keeping the last copy of each.  It
 // modifies the Paths slice contents in place, and returns a subslice of the original slice.
 func LastUniquePaths(list Paths) Paths {
