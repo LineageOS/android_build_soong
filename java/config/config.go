@@ -150,6 +150,10 @@ func init() {
 	pctx.VariableFunc("REJavacExecStrategy", remoteexec.EnvOverrideFunc("RBE_JAVAC_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
 	pctx.VariableFunc("RED8ExecStrategy", remoteexec.EnvOverrideFunc("RBE_D8_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
 	pctx.VariableFunc("RER8ExecStrategy", remoteexec.EnvOverrideFunc("RBE_R8_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
+	pctx.VariableFunc("RETurbineExecStrategy", remoteexec.EnvOverrideFunc("RBE_TURBINE_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
+	pctx.VariableFunc("RESignApkExecStrategy", remoteexec.EnvOverrideFunc("RBE_SIGNAPK_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
+	pctx.VariableFunc("REJarExecStrategy", remoteexec.EnvOverrideFunc("RBE_JAR_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
+	pctx.VariableFunc("REZipExecStrategy", remoteexec.EnvOverrideFunc("RBE_ZIP_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
 
 	pctx.HostJavaToolVariable("JacocoCLIJar", "jacoco-cli.jar")
 

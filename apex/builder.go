@@ -238,7 +238,7 @@ func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName st
 		return android.NoticeOutputs{}
 	}
 
-	return android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.FirstUniquePaths(noticeFiles))
+	return android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.SortedUniquePaths(noticeFiles))
 }
 
 func (a *apexBundle) buildInstalledFilesFile(ctx android.ModuleContext, builtApex android.Path, imageDir android.Path) android.OutputPath {
@@ -557,19 +557,27 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	}
 
 	a.outputFile = android.PathForModuleOut(ctx, a.Name()+suffix)
+	rule := java.Signapk
+	args := map[string]string{
+		"certificates": a.container_certificate_file.String() + " " + a.container_private_key_file.String(),
+		"flags":        "-a 4096", //alignment
+	}
+	implicits := android.Paths{
+		a.container_certificate_file,
+		a.container_private_key_file,
+	}
+	if ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
+		rule = java.SignapkRE
+		args["implicits"] = strings.Join(implicits.Strings(), ",")
+		args["outCommaList"] = a.outputFile.String()
+	}
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        java.Signapk,
+		Rule:        rule,
 		Description: "signapk",
 		Output:      a.outputFile,
 		Input:       unsignedOutputFile,
-		Implicits: []android.Path{
-			a.container_certificate_file,
-			a.container_private_key_file,
-		},
-		Args: map[string]string{
-			"certificates": a.container_certificate_file.String() + " " + a.container_private_key_file.String(),
-			"flags":        "-a 4096", //alignment
-		},
+		Implicits:   implicits,
+		Args:        args,
 	})
 
 	// Install to $OUT/soong/{target,host}/.../apex

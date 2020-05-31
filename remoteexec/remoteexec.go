@@ -75,6 +75,9 @@ type REParams struct {
 	// OutputFiles is a list of output file paths or ninja variables as placeholders for rule
 	// outputs.
 	OutputFiles []string
+	// OutputDirectories is a list of output directory paths or ninja variables as placeholders
+	// for rule outputs.
+	OutputDirectories []string
 	// ToolchainInputs is a list of paths or ninja variables pointing to the location of
 	// toolchain binaries used by the rule.
 	ToolchainInputs []string
@@ -137,6 +140,10 @@ func (r *REParams) Template() string {
 		template += " --output_files=" + strings.Join(r.OutputFiles, ",")
 	}
 
+	if len(r.OutputDirectories) > 0 {
+		template += " --output_directories=" + strings.Join(r.OutputDirectories, ",")
+	}
+
 	if len(r.ToolchainInputs) > 0 {
 		template += " --toolchain_inputs=" + strings.Join(r.ToolchainInputs, ",")
 	}
@@ -145,11 +152,29 @@ func (r *REParams) Template() string {
 }
 
 // StaticRules returns a pair of rules based on the given RuleParams, where the first rule is a
-// locally executable rule and the second rule is a remotely executable rule.
+// locally executable rule and the second rule is a remotely executable rule. commonArgs are args
+// used for both the local and remotely executable rules. reArgs are used only for remote
+// execution.
 func StaticRules(ctx android.PackageContext, name string, ruleParams blueprint.RuleParams, reParams *REParams, commonArgs []string, reArgs []string) (blueprint.Rule, blueprint.Rule) {
 	ruleParamsRE := ruleParams
 	ruleParams.Command = strings.ReplaceAll(ruleParams.Command, "$reTemplate", "")
 	ruleParamsRE.Command = strings.ReplaceAll(ruleParamsRE.Command, "$reTemplate", reParams.Template())
+
+	return ctx.AndroidStaticRule(name, ruleParams, commonArgs...),
+		ctx.AndroidRemoteStaticRule(name+"RE", android.RemoteRuleSupports{RBE: true}, ruleParamsRE, append(commonArgs, reArgs...)...)
+}
+
+// MultiCommandStaticRules returns a pair of rules based on the given RuleParams, where the first
+// rule is a locally executable rule and the second rule is a remotely executable rule. This
+// function supports multiple remote execution wrappers placed in the template when commands are
+// chained together with &&. commonArgs are args used for both the local and remotely executable
+// rules. reArgs are args used only for remote execution.
+func MultiCommandStaticRules(ctx android.PackageContext, name string, ruleParams blueprint.RuleParams, reParams map[string]*REParams, commonArgs []string, reArgs []string) (blueprint.Rule, blueprint.Rule) {
+	ruleParamsRE := ruleParams
+	for k, v := range reParams {
+		ruleParams.Command = strings.ReplaceAll(ruleParams.Command, k, "")
+		ruleParamsRE.Command = strings.ReplaceAll(ruleParamsRE.Command, k, v.Template())
+	}
 
 	return ctx.AndroidStaticRule(name, ruleParams, commonArgs...),
 		ctx.AndroidRemoteStaticRule(name+"RE", android.RemoteRuleSupports{RBE: true}, ruleParamsRE, append(commonArgs, reArgs...)...)
