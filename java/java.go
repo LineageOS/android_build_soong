@@ -1462,13 +1462,19 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			serviceFile := file.String()
 			zipargs = append(zipargs, "-C", filepath.Dir(serviceFile), "-f", serviceFile)
 		}
+		rule := zip
+		args := map[string]string{
+			"jarArgs": "-P META-INF/services/ " + strings.Join(proptools.NinjaAndShellEscapeList(zipargs), " "),
+		}
+		if ctx.Config().IsEnvTrue("RBE_ZIP") {
+			rule = zipRE
+			args["implicits"] = strings.Join(services.Strings(), ",")
+		}
 		ctx.Build(pctx, android.BuildParams{
-			Rule:      zip,
+			Rule:      rule,
 			Output:    servicesJar,
 			Implicits: services,
-			Args: map[string]string{
-				"jarArgs": "-P META-INF/services/ " + strings.Join(proptools.NinjaAndShellEscapeList(zipargs), " "),
-			},
+			Args:      args,
 		})
 		jars = append(jars, servicesJar)
 	}
