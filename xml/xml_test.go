@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/etc"
 )
 
 var buildDir string
@@ -57,7 +58,7 @@ func testXml(t *testing.T, bp string) *android.TestContext {
 	}
 	config := android.TestArchConfig(buildDir, nil, bp, fs)
 	ctx := android.NewTestArchContext()
-	ctx.RegisterModuleType("prebuilt_etc", android.PrebuiltEtcFactory)
+	ctx.RegisterModuleType("prebuilt_etc", etc.PrebuiltEtcFactory)
 	ctx.RegisterModuleType("prebuilt_etc_xml", PrebuiltEtcXmlFactory)
 	ctx.Register(config)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})

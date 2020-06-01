@@ -16,6 +16,7 @@ package xml
 
 import (
 	"android/soong/android"
+	"android/soong/etc"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -62,7 +63,7 @@ type prebuiltEtcXmlProperties struct {
 }
 
 type prebuiltEtcXml struct {
-	android.PrebuiltEtc
+	etc.PrebuiltEtc
 
 	properties prebuiltEtcXmlProperties
 }
@@ -121,7 +122,7 @@ func (p *prebuiltEtcXml) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 func PrebuiltEtcXmlFactory() android.Module {
 	module := &prebuiltEtcXml{}
 	module.AddProperties(&module.properties)
-	android.InitPrebuiltEtcModule(&module.PrebuiltEtc, "etc")
+	etc.InitPrebuiltEtcModule(&module.PrebuiltEtc, "etc")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	return module
