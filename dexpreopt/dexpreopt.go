@@ -241,6 +241,10 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 	var conditionalClassLoaderContextHost29 android.Paths
 	var conditionalClassLoaderContextTarget29 []string
 
+	// Extra paths that will be appended to the class loader if the APK manifest has targetSdkVersion < 30
+	var conditionalClassLoaderContextHost30 android.Paths
+	var conditionalClassLoaderContextTarget30 []string
+
 	// A flag indicating if the '&' class loader context is used.
 	unknownClassLoaderContext := false
 
@@ -280,6 +284,17 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 			pathForLibrary(module, hidlBase))
 		conditionalClassLoaderContextTarget29 = append(conditionalClassLoaderContextTarget29,
 			filepath.Join("/system/framework", hidlBase+".jar"))
+
+		// android.test.base contains classes that were in the default classpath until API 30.
+		// If the targetSdkVersion in the manifest or APK is < 30 then implicitly add it to the
+		// classpath for dexpreopt.
+		const testBase = "android.test.base"
+		if !contains(usesLibs, testBase) {
+			conditionalClassLoaderContextHost30 = append(conditionalClassLoaderContextHost30,
+				pathForLibrary(module, testBase))
+			conditionalClassLoaderContextTarget30 = append(conditionalClassLoaderContextTarget30,
+				filepath.Join("/system/framework", testBase+".jar"))
+		}
 	} else if jarIndex := android.IndexList(module.Name, systemServerJars); jarIndex >= 0 {
 		// System server jars should be dexpreopted together: class loader context of each jar
 		// should include all preceding jars on the system server classpath.
@@ -345,6 +360,11 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 			Implicits(conditionalClassLoaderContextHost29)
 		rule.Command().Textf(`conditional_target_libs_29="%s"`,
 			strings.Join(conditionalClassLoaderContextTarget29, " "))
+		rule.Command().Textf(`conditional_host_libs_30="%s"`,
+			strings.Join(conditionalClassLoaderContextHost30.Strings(), " ")).
+			Implicits(conditionalClassLoaderContextHost30)
+		rule.Command().Textf(`conditional_target_libs_30="%s"`,
+			strings.Join(conditionalClassLoaderContextTarget30, " "))
 		rule.Command().Text("source").Tool(globalSoong.ConstructContext).Input(module.DexPath)
 	}
 
