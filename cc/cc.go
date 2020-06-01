@@ -309,6 +309,7 @@ type ModuleContextIntf interface {
 	static() bool
 	staticBinary() bool
 	header() bool
+	binary() bool
 	toolchain() config.Toolchain
 	canUseSdk() bool
 	useSdk() bool
@@ -1114,6 +1115,10 @@ func (ctx *moduleContextImpl) header() bool {
 	return ctx.mod.header()
 }
 
+func (ctx *moduleContextImpl) binary() bool {
+	return ctx.mod.binary()
+}
+
 func (ctx *moduleContextImpl) canUseSdk() bool {
 	return ctx.mod.canUseSdk()
 }
@@ -1896,7 +1901,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	if deps.StaticUnwinderIfLegacy {
 		actx.AddVariationDependencies([]blueprint.Variation{
 			{Mutator: "link", Variation: "static"},
-		}, staticUnwinderDepTag, staticUnwinder(actx))
+		}, staticUnwinderDepTag, rewriteSnapshotLibs(staticUnwinder(actx), vendorSnapshotStaticLibs))
 	}
 
 	for _, lib := range deps.LateStaticLibs {
@@ -2709,6 +2714,15 @@ func (c *Module) header() bool {
 		header() bool
 	}); ok {
 		return h.header()
+	}
+	return false
+}
+
+func (c *Module) binary() bool {
+	if b, ok := c.linker.(interface {
+		binary() bool
+	}); ok {
+		return b.binary()
 	}
 	return false
 }

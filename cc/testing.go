@@ -457,6 +457,7 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 		"my_include":  nil,
 		"foo.map.txt": nil,
 		"liba.so":     nil,
+		"libb.a":      nil,
 	}
 
 	GatherRequiredFilesForTest(mockFS)
