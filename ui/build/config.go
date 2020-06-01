@@ -961,3 +961,14 @@ func (c *configImpl) SetPdkBuild(pdk bool) {
 func (c *configImpl) IsPdkBuild() bool {
 	return c.pdkBuild
 }
+
+func (c *configImpl) BuildDateTime() string {
+	return c.buildDateTime
+}
+
+func (c *configImpl) MetricsUploaderApp() string {
+	if p, ok := c.environ.Get("ANDROID_ENABLE_METRICS_UPLOAD"); ok {
+		return p
+	}
+	return ""
+}
