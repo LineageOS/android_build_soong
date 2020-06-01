@@ -291,6 +291,10 @@ func (p *prebuiltObjectLinker) link(ctx ModuleContext,
 	return nil
 }
 
+func (p *prebuiltObjectLinker) object() bool {
+	return true
+}
+
 func newPrebuiltObject() *Module {
 	module := newObject()
 	prebuilt := &prebuiltObjectLinker{

@@ -548,6 +548,25 @@ func (c *vendorSnapshotBinaryDecorator) AndroidMkEntries(ctx AndroidMkContext, e
 	})
 }
 
+func (c *vendorSnapshotObjectLinker) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+	entries.Class = "STATIC_LIBRARIES"
+
+	if c.androidMkVendorSuffix {
+		entries.SubName = vendorSuffix
+	} else {
+		entries.SubName = ""
+	}
+
+	entries.ExtraFooters = append(entries.ExtraFooters,
+		func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
+			out := entries.OutputFile.Path()
+			varname := fmt.Sprintf("SOONG_%sOBJECT_%s%s", prefix, name, entries.SubName)
+
+			fmt.Fprintf(w, "\n%s := %s\n", varname, out.String())
+			fmt.Fprintln(w, ".KATI_READONLY: "+varname)
+		})
+}
+
 func (c *ndkPrebuiltStlLinker) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	entries.Class = "SHARED_LIBRARIES"
 }

@@ -845,6 +845,11 @@ func TestVendorSnapshot(t *testing.T) {
 		vendor_available: true,
 		src: "libb.a",
 	}
+
+	cc_object {
+		name: "obj",
+		vendor_available: true,
+	}
 `
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
@@ -903,6 +908,12 @@ func TestVendorSnapshot(t *testing.T) {
 		// For header libraries, all vendor:true and vendor_available modules are captured.
 		headerDir := filepath.Join(snapshotVariantPath, archDir, "header")
 		jsonFiles = append(jsonFiles, filepath.Join(headerDir, "libvendor_headers.json"))
+
+		// For object modules, all vendor:true and vendor_available modules are captured.
+		objectVariant := fmt.Sprintf("android_vendor.VER_%s_%s", archType, archVariant)
+		objectDir := filepath.Join(snapshotVariantPath, archDir, "object")
+		checkSnapshot(t, ctx, snapshotSingleton, "obj", "obj.o", objectDir, objectVariant)
+		jsonFiles = append(jsonFiles, filepath.Join(objectDir, "obj.o.json"))
 	}
 
 	for _, jsonFile := range jsonFiles {
