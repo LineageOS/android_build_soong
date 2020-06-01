@@ -47,11 +47,17 @@ func inList(s string, list []string) bool {
 }
 
 func main() {
+	buildStartedMilli := time.Now().UnixNano() / int64(time.Millisecond)
 	var stdio terminal.StdioInterface
 	stdio = terminal.StdioImpl{}
+	logsPrefix := ""
 
 	// dumpvar uses stdout, everything else should be in stderr
 	if os.Args[1] == "--dumpvar-mode" || os.Args[1] == "--dumpvars-mode" {
+		// Any metrics files add the prefix to distinguish the type of metrics being
+		// collected to further aggregate the metrics. For dump-var mode, it is usually
+		// related to the execution of lunch command.
+		logsPrefix = "dumpvars-"
 		stdio = terminal.NewCustomStdio(os.Stdin, os.Stderr, os.Stderr)
 	}
 
@@ -110,13 +116,18 @@ func main() {
 		logsDir = filepath.Join(config.DistDir(), "logs")
 	}
 
+	rbeMetricsFile := filepath.Join(logsDir, logsPrefix+"rbe_metrics.pb")
+	soongMetricsFile := filepath.Join(logsDir, logsPrefix+"soong_metrics")
+	defer build.UploadMetrics(buildCtx, config, buildStartedMilli, rbeMetricsFile, soongMetricsFile)
+
 	os.MkdirAll(logsDir, 0777)
+
 	log.SetOutput(filepath.Join(logsDir, "soong.log"))
 	trace.SetOutput(filepath.Join(logsDir, "build.trace"))
 	stat.AddOutput(status.NewVerboseLog(log, filepath.Join(logsDir, "verbose.log")))
 	stat.AddOutput(status.NewErrorLog(log, filepath.Join(logsDir, "error.log")))
 
-	defer met.Dump(filepath.Join(logsDir, "build_metrics"))
+	defer met.Dump(soongMetricsFile)
 
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
 		if !strings.HasSuffix(start, "N") {
