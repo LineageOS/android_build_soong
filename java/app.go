@@ -1863,6 +1863,7 @@ func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, hasFrameworkLibs 
 				"org.apache.http.legacy",
 				"android.hidl.base-V1.0-java",
 				"android.hidl.manager-V1.0-java")
+			ctx.AddVariationDependencies(nil, usesLibTag, optionalUsesLibs...)
 		}
 	}
 }
