@@ -310,6 +310,7 @@ type ModuleContextIntf interface {
 	staticBinary() bool
 	header() bool
 	binary() bool
+	object() bool
 	toolchain() config.Toolchain
 	canUseSdk() bool
 	useSdk() bool
@@ -1003,14 +1004,8 @@ func (c *Module) nativeCoverage() bool {
 }
 
 func (c *Module) isSnapshotPrebuilt() bool {
-	if _, ok := c.linker.(*vndkPrebuiltLibraryDecorator); ok {
-		return true
-	}
-	if _, ok := c.linker.(*vendorSnapshotLibraryDecorator); ok {
-		return true
-	}
-	if _, ok := c.linker.(*vendorSnapshotBinaryDecorator); ok {
-		return true
+	if p, ok := c.linker.(interface{ isSnapshotPrebuilt() bool }); ok {
+		return p.isSnapshotPrebuilt()
 	}
 	return false
 }
@@ -1117,6 +1112,10 @@ func (ctx *moduleContextImpl) header() bool {
 
 func (ctx *moduleContextImpl) binary() bool {
 	return ctx.mod.binary()
+}
+
+func (ctx *moduleContextImpl) object() bool {
+	return ctx.mod.object()
 }
 
 func (ctx *moduleContextImpl) canUseSdk() bool {
@@ -1982,11 +1981,13 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	actx.AddVariationDependencies(nil, objDepTag, deps.ObjFiles...)
 
+	vendorSnapshotObjects := vendorSnapshotObjects(actx.Config())
+
 	if deps.CrtBegin != "" {
-		actx.AddVariationDependencies(nil, CrtBeginDepTag, deps.CrtBegin)
+		actx.AddVariationDependencies(nil, CrtBeginDepTag, rewriteSnapshotLibs(deps.CrtBegin, vendorSnapshotObjects))
 	}
 	if deps.CrtEnd != "" {
-		actx.AddVariationDependencies(nil, CrtEndDepTag, deps.CrtEnd)
+		actx.AddVariationDependencies(nil, CrtEndDepTag, rewriteSnapshotLibs(deps.CrtEnd, vendorSnapshotObjects))
 	}
 	if deps.LinkerFlagsFile != "" {
 		actx.AddDependency(c, linkerFlagsDepTag, deps.LinkerFlagsFile)
@@ -2723,6 +2724,15 @@ func (c *Module) binary() bool {
 		binary() bool
 	}); ok {
 		return b.binary()
+	}
+	return false
+}
+
+func (c *Module) object() bool {
+	if o, ok := c.linker.(interface {
+		object() bool
+	}); ok {
+		return o.object()
 	}
 	return false
 }
