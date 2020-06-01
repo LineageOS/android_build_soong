@@ -190,7 +190,7 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 	var jniLibs []string
 	for _, fi := range a.filesInfo {
 		if fi.isJniLib {
-			jniLibs = append(jniLibs, fi.builtFile.Base())
+			jniLibs = append(jniLibs, fi.Stem())
 		}
 	}
 	if len(jniLibs) > 0 {
@@ -417,7 +417,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		var readOnlyPaths = []string{"apex_manifest.json", "apex_manifest.pb"}
 		var executablePaths []string // this also includes dirs
 		for _, f := range a.filesInfo {
-			pathInApex := filepath.Join(f.installDir, f.builtFile.Base())
+			pathInApex := f.Path()
 			if f.installDir == "bin" || strings.HasPrefix(f.installDir, "bin/") {
 				executablePaths = append(executablePaths, pathInApex)
 				for _, d := range f.dataPaths {
@@ -667,7 +667,7 @@ func (a *apexBundle) buildFilesInfo(ctx android.ModuleContext) {
 			apexBundleName := a.Name()
 			for _, fi := range a.filesInfo {
 				dir := filepath.Join("apex", apexBundleName, fi.installDir)
-				target := ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.builtFile.Base(), fi.builtFile)
+				target := ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.Stem(), fi.builtFile)
 				for _, sym := range fi.symlinks {
 					ctx.InstallSymlink(android.PathForModuleInstall(ctx, dir), sym, target)
 				}
