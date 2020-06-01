@@ -117,6 +117,8 @@ func inList(s string, list []string) bool {
 // Command is the type of soong_ui execution. Only one type of
 // execution is specified. The args are specific to the command.
 func main() {
+	buildStartedMilli := time.Now().UnixNano() / int64(time.Millisecond)
+
 	c, args := getCommand(os.Args)
 	if c == nil {
 		fmt.Fprintf(os.Stderr, "The `soong` native UI is not yet available.\n")
@@ -166,12 +168,17 @@ func main() {
 		logsDir = filepath.Join(config.DistDir(), "logs")
 	}
 
+	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error")
+	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
+	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
+	defer build.UploadMetrics(buildCtx, config, buildStartedMilli, buildErrorFile, rbeMetricsFile, soongMetricsFile)
+
 	os.MkdirAll(logsDir, 0777)
 	log.SetOutput(filepath.Join(logsDir, c.logsPrefix+"soong.log"))
 	trace.SetOutput(filepath.Join(logsDir, c.logsPrefix+"build.trace"))
 	stat.AddOutput(status.NewVerboseLog(log, filepath.Join(logsDir, c.logsPrefix+"verbose.log")))
 	stat.AddOutput(status.NewErrorLog(log, filepath.Join(logsDir, c.logsPrefix+"error.log")))
-	stat.AddOutput(status.NewProtoErrorLog(log, filepath.Join(logsDir, c.logsPrefix+"build_error")))
+	stat.AddOutput(status.NewProtoErrorLog(log, buildErrorFile))
 	stat.AddOutput(status.NewCriticalPath(log))
 	stat.AddOutput(status.NewBuildProgressLog(log, filepath.Join(logsDir, c.logsPrefix+"build_progress.pb")))
 
@@ -179,7 +186,7 @@ func main() {
 	buildCtx.Verbosef("Parallelism (local/remote/highmem): %v/%v/%v",
 		config.Parallel(), config.RemoteParallel(), config.HighmemParallel())
 
-	defer met.Dump(filepath.Join(logsDir, c.logsPrefix+"soong_metrics"))
+	defer met.Dump(soongMetricsFile)
 
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
 		if !strings.HasSuffix(start, "N") {
