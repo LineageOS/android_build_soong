@@ -401,7 +401,6 @@ func TestSnapshotWithCcBinary(t *testing.T) {
 				"Test.cpp",
 			],
 			compile_multilib: "both",
-			stl: "none",
 		}
 	`)
 
@@ -494,6 +493,7 @@ cc_prebuilt_binary {
     device_supported: false,
     host_supported: true,
     installable: false,
+    stl: "none",
     target: {
         linux_glibc: {
             compile_multilib: "both",
@@ -518,6 +518,7 @@ cc_prebuilt_binary {
     prefer: false,
     device_supported: false,
     host_supported: true,
+    stl: "none",
     target: {
         linux_glibc: {
             compile_multilib: "both",
@@ -553,6 +554,90 @@ module_exports_snapshot {
 .intermediates/mynativebinary/linux_glibc_x86_64/mynativebinary -> linux_glibc/x86_64/bin/mynativebinary
 .intermediates/mynativebinary/linux_glibc_x86/mynativebinary -> linux_glibc/x86/bin/mynativebinary
 .intermediates/mynativebinary/windows_x86_64/mynativebinary.exe -> windows/x86_64/bin/mynativebinary.exe
+`),
+	)
+}
+
+// Test that we support the necessary flags for the linker binary, which is
+// special in several ways.
+func TestSnapshotWithCcStaticNocrtBinary(t *testing.T) {
+	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
+	SkipIfNotLinux(t)
+
+	result := testSdkWithCc(t, `
+		module_exports {
+			name: "mymodule_exports",
+			host_supported: true,
+			device_supported: false,
+			native_binaries: ["linker"],
+		}
+
+		cc_binary {
+			name: "linker",
+			host_supported: true,
+			static_executable: true,
+			nocrt: true,
+			stl: "none",
+			srcs: [
+				"Test.cpp",
+			],
+			compile_multilib: "both",
+		}
+	`)
+
+	result.CheckSnapshot("mymodule_exports", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_binary {
+    name: "mymodule_exports_linker@current",
+    sdk_member_name: "linker",
+    device_supported: false,
+    host_supported: true,
+    installable: false,
+    stl: "none",
+    static_executable: true,
+    nocrt: true,
+    compile_multilib: "both",
+    arch: {
+        x86_64: {
+            srcs: ["x86_64/bin/linker"],
+        },
+        x86: {
+            srcs: ["x86/bin/linker"],
+        },
+    },
+}
+
+cc_prebuilt_binary {
+    name: "linker",
+    prefer: false,
+    device_supported: false,
+    host_supported: true,
+    stl: "none",
+    static_executable: true,
+    nocrt: true,
+    compile_multilib: "both",
+    arch: {
+        x86_64: {
+            srcs: ["x86_64/bin/linker"],
+        },
+        x86: {
+            srcs: ["x86/bin/linker"],
+        },
+    },
+}
+
+module_exports_snapshot {
+    name: "mymodule_exports@current",
+    device_supported: false,
+    host_supported: true,
+    native_binaries: ["mymodule_exports_linker@current"],
+}
+`),
+		checkAllCopyRules(`
+.intermediates/linker/linux_glibc_x86_64/linker -> x86_64/bin/linker
+.intermediates/linker/linux_glibc_x86/linker -> x86/bin/linker
 `),
 	)
 }
