@@ -20,6 +20,7 @@ import (
 	"android/soong/android"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -65,7 +66,15 @@ func (mt *binarySdkMemberType) IsInstance(module android.Module) bool {
 }
 
 func (mt *binarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
-	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "cc_prebuilt_binary")
+	pbm := ctx.SnapshotBuilder().AddPrebuiltModule(member, "cc_prebuilt_binary")
+
+	ccModule := member.Variants()[0].(*Module)
+
+	if stl := ccModule.stl.Properties.Stl; stl != nil {
+		pbm.AddProperty("stl", proptools.String(stl))
+	}
+
+	return pbm
 }
 
 func (mt *binarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
@@ -105,6 +114,10 @@ type nativeBinaryInfoProperties struct {
 	//
 	// This field is exported as its contents may not be arch specific.
 	SystemSharedLibs []string
+
+	// Arch specific flags.
+	StaticExecutable bool
+	Nocrt            bool
 }
 
 func (p *nativeBinaryInfoProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
@@ -112,6 +125,10 @@ func (p *nativeBinaryInfoProperties) PopulateFromVariant(ctx android.SdkMemberCo
 
 	p.archType = ccModule.Target().Arch.ArchType.String()
 	p.outputFile = getRequiredMemberOutputFile(ctx, ccModule)
+
+	binaryLinker := ccModule.linker.(*binaryDecorator)
+	p.StaticExecutable = binaryLinker.static()
+	p.Nocrt = Bool(binaryLinker.baseLinker.Properties.Nocrt)
 
 	if ccModule.linker != nil {
 		specifiedDeps := specifiedDeps{}
@@ -142,5 +159,12 @@ func (p *nativeBinaryInfoProperties) AddToPropertySet(ctx android.SdkMemberConte
 	// so check for non-nil instead of nonzero length.
 	if p.SystemSharedLibs != nil {
 		propertySet.AddPropertyWithTag("system_shared_libs", p.SystemSharedLibs, builder.SdkMemberReferencePropertyTag(false))
+	}
+
+	if p.StaticExecutable {
+		propertySet.AddProperty("static_executable", p.StaticExecutable)
+	}
+	if p.Nocrt {
+		propertySet.AddProperty("nocrt", p.Nocrt)
 	}
 }
