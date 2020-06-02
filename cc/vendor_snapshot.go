@@ -924,6 +924,11 @@ func VendorSnapshotSourceMutator(ctx android.BottomUpMutatorContext) {
 		return
 	}
 
+	// .. and also filter out llndk library
+	if module.isLlndk(ctx.Config()) {
+		return
+	}
+
 	var snapshotMap *snapshotMap
 
 	if lib, ok := module.linker.(libraryInterface); ok {
