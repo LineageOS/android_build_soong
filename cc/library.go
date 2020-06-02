@@ -629,7 +629,7 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 
 	TransformObjToStaticLib(ctx, library.objects.objFiles, builderFlags, outputFile, objs.tidyFiles)
 
-	library.coverageOutputFile = TransformCoverageFilesToLib(ctx, library.objects, builderFlags,
+	library.coverageOutputFile = TransformCoverageFilesToZip(ctx, library.objects,
 		ctx.ModuleName()+library.MutatedProperties.VariantName)
 
 	library.wholeStaticMissingDeps = ctx.GetMissingDependencies()
@@ -741,7 +741,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.StaticLibObjs.sAbiDumpFiles...)
 	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.WholeStaticLibObjs.sAbiDumpFiles...)
 
-	library.coverageOutputFile = TransformCoverageFilesToLib(ctx, objs, builderFlags, library.getLibName(ctx))
+	library.coverageOutputFile = TransformCoverageFilesToZip(ctx, objs, library.getLibName(ctx))
 	library.linkSAbiDumpFiles(ctx, objs, fileName, ret)
 
 	return ret
@@ -756,6 +756,10 @@ func (library *libraryDecorator) nativeCoverage() bool {
 		return false
 	}
 	return true
+}
+
+func (library *libraryDecorator) coverageOutputFilePath() android.OptionalPath {
+	return library.coverageOutputFile
 }
 
 func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {
