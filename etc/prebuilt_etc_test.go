@@ -12,24 +12,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package android
+package etc
 
 import (
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"android/soong/android"
 )
 
-func testPrebuiltEtc(t *testing.T, bp string) (*TestContext, Config) {
+var buildDir string
+
+func setUp() {
+	var err error
+	buildDir, err = ioutil.TempDir("", "soong_etc_test")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func tearDown() {
+	os.RemoveAll(buildDir)
+}
+
+func TestMain(m *testing.M) {
+	run := func() int {
+		setUp()
+		defer tearDown()
+
+		return m.Run()
+	}
+
+	os.Exit(run())
+}
+
+func testPrebuiltEtc(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	fs := map[string][]byte{
 		"foo.conf": nil,
 		"bar.conf": nil,
 		"baz.conf": nil,
 	}
 
-	config := TestArchConfig(buildDir, nil, bp, fs)
+	config := android.TestArchConfig(buildDir, nil, bp, fs)
 
-	ctx := NewTestArchContext()
+	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
 	ctx.RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
 	ctx.RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
@@ -38,9 +67,9 @@ func testPrebuiltEtc(t *testing.T, bp string) (*TestContext, Config) {
 	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
 	ctx.Register(config)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
+	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
-	FailIfErrored(t, errs)
+	android.FailIfErrored(t, errs)
 
 	return ctx, config
 }
@@ -142,7 +171,7 @@ func TestPrebuiltEtcAndroidMk(t *testing.T) {
 	}
 
 	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*PrebuiltEtc)
-	entries := AndroidMkEntriesForTest(t, config, "", mod)[0]
+	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
 	for k, expectedValue := range expected {
 		if value, ok := entries.EntryMap[k]; ok {
 			if !reflect.DeepEqual(value, expectedValue) {
@@ -162,7 +191,7 @@ func TestPrebuiltEtcHost(t *testing.T) {
 		}
 	`)
 
-	buildOS := BuildOs.String()
+	buildOS := android.BuildOs.String()
 	p := ctx.ModuleForTests("foo.conf", buildOS+"_common").Module().(*PrebuiltEtc)
 	if !p.Host() {
 		t.Errorf("host bit is not set for a prebuilt_etc_host module.")
@@ -194,7 +223,7 @@ func TestPrebuiltUserShareHostInstallDirPath(t *testing.T) {
 		}
 	`)
 
-	buildOS := BuildOs.String()
+	buildOS := android.BuildOs.String()
 	p := ctx.ModuleForTests("foo.conf", buildOS+"_common").Module().(*PrebuiltEtc)
 	expected := filepath.Join(buildDir, "host", config.PrebuiltOS(), "usr", "share", "bar")
 	if p.installDirPath.String() != expected {

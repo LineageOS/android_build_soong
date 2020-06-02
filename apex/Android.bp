@@ -1,0 +1,27 @@
+bootstrap_go_package {
+    name: "soong-apex",
+    pkgPath: "android/soong/apex",
+    deps: [
+        "blueprint",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-java",
+        "soong-python",
+        "soong-sh",
+    ],
+    srcs: [
+        "androidmk.go",
+        "apex.go",
+        "apex_singleton.go",
+        "builder.go",
+        "key.go",
+        "prebuilt.go",
+        "vndk.go",
+    ],
+    testSrcs: [
+        "apex_test.go",
+        "vndk_test.go",
+    ],
+    pluginFor: ["soong_build"],
+}
