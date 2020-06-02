@@ -17,6 +17,8 @@ package cc
 import (
 	"strconv"
 
+	"github.com/google/blueprint"
+
 	"android/soong/android"
 )
 
@@ -41,30 +43,28 @@ func (cov *coverage) props() []interface{} {
 	return []interface{}{&cov.Properties}
 }
 
-func (cov *coverage) deps(ctx BaseModuleContext, deps Deps) Deps {
-	if cov.Properties.NeedCoverageBuild {
-		// Link libprofile-extras/libprofile-extras_ndk when coverage
-		// variant is required.  This is a no-op unless coverage is
-		// actually enabled during linking, when
-		// '-uinit_profile_extras' is added (in flags()) to force the
-		// setup code in libprofile-extras be linked into the
-		// binary/library.
-		//
-		// We cannot narrow it further to only the 'cov' variant since
-		// the mutator hasn't run (and we don't have the 'cov' variant
-		// yet).
-		if !ctx.useSdk() {
-			deps.LateStaticLibs = append(deps.LateStaticLibs, "libprofile-extras")
-		} else {
-			deps.LateStaticLibs = append(deps.LateStaticLibs, "libprofile-extras_ndk")
-		}
+func getProfileLibraryName(ctx ModuleContextIntf) string {
+	// This function should only ever be called for a cc.Module, so the
+	// following statement should always succeed.
+	if ctx.useSdk() {
+		return "libprofile-extras_ndk"
+	} else {
+		return "libprofile-extras"
+	}
+}
+
+func (cov *coverage) deps(ctx DepsContext, deps Deps) Deps {
+	if cov.Properties.NeedCoverageVariant {
+		ctx.AddVariationDependencies([]blueprint.Variation{
+			{Mutator: "link", Variation: "static"},
+		}, coverageDepTag, getProfileLibraryName(ctx))
 	}
 	return deps
 }
 
-func (cov *coverage) flags(ctx ModuleContext, flags Flags) Flags {
+func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags, PathDeps) {
 	if !ctx.DeviceConfig().NativeCoverageEnabled() {
-		return flags
+		return flags, deps
 	}
 
 	if cov.Properties.CoverageEnabled {
@@ -114,11 +114,13 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags) Flags {
 	if cov.linkCoverage {
 		flags.LdFlags = append(flags.LdFlags, "--coverage")
 
-		// Force linking of constructor/setup code in libprofile-extras
-		flags.LdFlags = append(flags.LdFlags, "-uinit_profile_extras")
+		coverage := ctx.GetDirectDepWithTag(getProfileLibraryName(ctx), coverageDepTag).(*Module)
+		deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
+
+		flags.LdFlags = append(flags.LdFlags, "-Wl,--wrap,getenv")
 	}
 
-	return flags
+	return flags, deps
 }
 
 func (cov *coverage) begin(ctx BaseModuleContext) {
@@ -138,7 +140,6 @@ func (cov *coverage) begin(ctx BaseModuleContext) {
 	} else {
 		// Check if Native_coverage is set to false.  This property defaults to true.
 		needCoverageVariant = BoolDefault(cov.Properties.Native_coverage, true)
-
 		if sdk_version := ctx.sdkVersion(); ctx.useSdk() && sdk_version != "current" {
 			// Native coverage is not supported for SDK versions < 23
 			if fromApi, err := strconv.Atoi(sdk_version); err == nil && fromApi < 23 {
@@ -154,6 +155,14 @@ func (cov *coverage) begin(ctx BaseModuleContext) {
 
 	cov.Properties.NeedCoverageBuild = needCoverageBuild
 	cov.Properties.NeedCoverageVariant = needCoverageVariant
+}
+
+// Coverage is an interface for non-CC modules to implement to be mutated for coverage
+type Coverage interface {
+	android.Module
+	IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool
+	PreventInstall()
+	HideFromMake()
 }
 
 func coverageMutator(mctx android.BottomUpMutatorContext) {
@@ -175,5 +184,14 @@ func coverageMutator(mctx android.BottomUpMutatorContext) {
 			m[1].(*Module).coverage.Properties.CoverageEnabled = needCoverageBuild
 			m[1].(*Module).coverage.Properties.IsCoverageVariant = true
 		}
+	} else if cov, ok := mctx.Module().(Coverage); ok && cov.IsNativeCoverageNeeded(mctx) {
+		// APEX modules fall here
+
+		// Note: variant "" is also created because an APEX can be depended on by another
+		// module which are split into "" and "cov" variants. e.g. when cc_test refers
+		// to an APEX via 'data' property.
+		m := mctx.CreateVariations("", "cov")
+		m[0].(Coverage).PreventInstall()
+		m[0].(Coverage).HideFromMake()
 	}
 }

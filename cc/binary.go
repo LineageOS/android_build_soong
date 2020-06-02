@@ -388,7 +388,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
-	binary.coverageOutputFile = TransformCoverageFilesToLib(ctx, objs, builderFlags, binary.getStem(ctx))
+	binary.coverageOutputFile = TransformCoverageFilesToZip(ctx, objs, binary.getStem(ctx))
 
 	// Need to determine symlinks early since some targets (ie APEX) need this
 	// information but will not call 'install'
@@ -419,6 +419,10 @@ func (binary *binaryDecorator) symlinkList() []string {
 
 func (binary *binaryDecorator) nativeCoverage() bool {
 	return true
+}
+
+func (binary *binaryDecorator) coverageOutputFilePath() android.OptionalPath {
+	return binary.coverageOutputFile
 }
 
 // /system/bin/linker -> /apex/com.android.runtime/bin/linker
