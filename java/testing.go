@@ -230,6 +230,22 @@ func GatherRequiredDepsForTest() string {
 			system_modules: "core-platform-api-stubs-system-modules",
 			installable: true,
 		}
+
+		java_library {
+			name: "android.test.base",
+			srcs: ["a.java"],
+			sdk_version: "none",
+			system_modules: "core-platform-api-stubs-system-modules",
+			installable: true,
+		}
+  
+		java_library {
+			name: "android.test.mock",
+			srcs: ["a.java"],
+			sdk_version: "none",
+			system_modules: "core-platform-api-stubs-system-modules",
+			installable: true,
+		}
 	`
 
 	systemModules := []string{
