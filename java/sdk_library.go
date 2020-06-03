@@ -2113,7 +2113,7 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 
 			if properties.RemovedApiFile != nil {
 				removedApiSnapshotPath := filepath.Join(scopeDir, ctx.Name()+"-removed.txt")
-				ctx.SnapshotBuilder().CopyToSnapshot(properties.CurrentApiFile, removedApiSnapshotPath)
+				ctx.SnapshotBuilder().CopyToSnapshot(properties.RemovedApiFile, removedApiSnapshotPath)
 				scopeSet.AddProperty("removed_api", removedApiSnapshotPath)
 			}
 

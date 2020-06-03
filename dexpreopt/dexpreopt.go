@@ -37,6 +37,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -192,6 +193,55 @@ func bootProfileCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig,
 	return profilePath
 }
 
+type classLoaderContext struct {
+	// The class loader context using paths in the build.
+	Host android.Paths
+
+	// The class loader context using paths as they will be on the device.
+	Target []string
+}
+
+// A map of class loader contexts for each SDK version.
+// A map entry for "any" version contains libraries that are unconditionally added to class loader
+// context. Map entries for existing versions contains libraries that were in the default classpath
+// until that API version, and should be added to class loader context if and only if the
+// targetSdkVersion in the manifest or APK is less than that API version.
+type classLoaderContextMap map[int]*classLoaderContext
+
+const anySdkVersion int = -1
+
+func (m classLoaderContextMap) getSortedKeys() []int {
+	keys := make([]int, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	return keys
+}
+
+func (m classLoaderContextMap) getValue(sdkVer int) *classLoaderContext {
+	if _, ok := m[sdkVer]; !ok {
+		m[sdkVer] = &classLoaderContext{}
+	}
+	return m[sdkVer]
+}
+
+func (m classLoaderContextMap) addLibs(sdkVer int, module *ModuleConfig, libs ...string) {
+	clc := m.getValue(sdkVer)
+	for _, lib := range libs {
+		clc.Host = append(clc.Host, pathForLibrary(module, lib))
+		clc.Target = append(clc.Target, filepath.Join("/system/framework", lib+".jar"))
+	}
+}
+
+func (m classLoaderContextMap) addSystemServerLibs(sdkVer int, ctx android.PathContext, module *ModuleConfig, libs ...string) {
+	clc := m.getValue(sdkVer)
+	for _, lib := range libs {
+		clc.Host = append(clc.Host, SystemServerDexJarHostPath(ctx, lib))
+		clc.Target = append(clc.Target, filepath.Join("/system/framework", lib+".jar"))
+	}
+}
+
 func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, global *GlobalConfig,
 	module *ModuleConfig, rule *android.RuleBuilder, archIdx int, profile android.WritablePath,
 	appImage bool, generateDM bool) {
@@ -227,81 +277,38 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 
 	systemServerJars := NonUpdatableSystemServerJars(ctx, global)
 
-	// The class loader context using paths in the build
-	var classLoaderContextHost android.Paths
-
-	// The class loader context using paths as they will be on the device
-	var classLoaderContextTarget []string
-
-	// Extra paths that will be appended to the class loader if the APK manifest has targetSdkVersion < 28
-	var conditionalClassLoaderContextHost28 android.Paths
-	var conditionalClassLoaderContextTarget28 []string
-
-	// Extra paths that will be appended to the class loader if the APK manifest has targetSdkVersion < 29
-	var conditionalClassLoaderContextHost29 android.Paths
-	var conditionalClassLoaderContextTarget29 []string
-
-	// Extra paths that will be appended to the class loader if the APK manifest has targetSdkVersion < 30
-	var conditionalClassLoaderContextHost30 android.Paths
-	var conditionalClassLoaderContextTarget30 []string
+	classLoaderContexts := make(classLoaderContextMap)
 
 	// A flag indicating if the '&' class loader context is used.
 	unknownClassLoaderContext := false
 
 	if module.EnforceUsesLibraries {
+		// Unconditional class loader context.
 		usesLibs := append(copyOf(module.UsesLibraries), module.PresentOptionalUsesLibraries...)
+		classLoaderContexts.addLibs(anySdkVersion, module, usesLibs...)
 
-		// Create class loader context for dex2oat from uses libraries and filtered optional libraries
-		for _, l := range usesLibs {
-
-			classLoaderContextHost = append(classLoaderContextHost,
-				pathForLibrary(module, l))
-			classLoaderContextTarget = append(classLoaderContextTarget,
-				filepath.Join("/system/framework", l+".jar"))
-		}
-
-		// org.apache.http.legacy contains classes that were in the default classpath until API 28.
-		// If the targetSdkVersion in the manifest or APK is < 28, and the module does not explicitly
-		// depend on org.apache.http.legacy, then implicitly add it to the classpath for dexpreopt.
+		// Conditional class loader context for API version < 28.
 		const httpLegacy = "org.apache.http.legacy"
 		if !contains(usesLibs, httpLegacy) {
-			conditionalClassLoaderContextHost28 = append(conditionalClassLoaderContextHost28,
-				pathForLibrary(module, httpLegacy))
-			conditionalClassLoaderContextTarget28 = append(conditionalClassLoaderContextTarget28,
-				filepath.Join("/system/framework", httpLegacy+".jar"))
+			classLoaderContexts.addLibs(28, module, httpLegacy)
 		}
 
-		// android.hidl.base-V1.0-java and android.hidl.manager-V1.0 contain classes that were in the default
-		// classpath until API 29.  If the targetSdkVersion in the manifest or APK is < 29 then implicitly add
-		// the classes to the classpath for dexpreopt.
-		const hidlBase = "android.hidl.base-V1.0-java"
-		const hidlManager = "android.hidl.manager-V1.0-java"
-		conditionalClassLoaderContextHost29 = append(conditionalClassLoaderContextHost29,
-			pathForLibrary(module, hidlManager))
-		conditionalClassLoaderContextTarget29 = append(conditionalClassLoaderContextTarget29,
-			filepath.Join("/system/framework", hidlManager+".jar"))
-		conditionalClassLoaderContextHost29 = append(conditionalClassLoaderContextHost29,
-			pathForLibrary(module, hidlBase))
-		conditionalClassLoaderContextTarget29 = append(conditionalClassLoaderContextTarget29,
-			filepath.Join("/system/framework", hidlBase+".jar"))
+		// Conditional class loader context for API version < 29.
+		usesLibs29 := []string{
+			"android.hidl.base-V1.0-java",
+			"android.hidl.manager-V1.0-java",
+		}
+		classLoaderContexts.addLibs(29, module, usesLibs29...)
 
-		// android.test.base contains classes that were in the default classpath until API 30.
-		// If the targetSdkVersion in the manifest or APK is < 30 then implicitly add it to the
-		// classpath for dexpreopt.
+		// Conditional class loader context for API version < 30.
 		const testBase = "android.test.base"
 		if !contains(usesLibs, testBase) {
-			conditionalClassLoaderContextHost30 = append(conditionalClassLoaderContextHost30,
-				pathForLibrary(module, testBase))
-			conditionalClassLoaderContextTarget30 = append(conditionalClassLoaderContextTarget30,
-				filepath.Join("/system/framework", testBase+".jar"))
+			classLoaderContexts.addLibs(30, module, testBase)
 		}
 	} else if jarIndex := android.IndexList(module.Name, systemServerJars); jarIndex >= 0 {
 		// System server jars should be dexpreopted together: class loader context of each jar
 		// should include all preceding jars on the system server classpath.
-		for _, otherJar := range systemServerJars[:jarIndex] {
-			classLoaderContextHost = append(classLoaderContextHost, SystemServerDexJarHostPath(ctx, otherJar))
-			classLoaderContextTarget = append(classLoaderContextTarget, "/system/framework/"+otherJar+".jar")
-		}
+		classLoaderContexts.addSystemServerLibs(anySdkVersion, ctx, module, systemServerJars[:jarIndex]...)
 
 		// Copy the system server jar to a predefined location where dex2oat will find it.
 		dexPathHost := SystemServerDexJarHostPath(ctx, module.Name)
@@ -323,10 +330,11 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 			Text(`class_loader_context_arg=--class-loader-context=\&`).
 			Text(`stored_class_loader_context_arg=""`)
 	} else {
+		clc := classLoaderContexts[anySdkVersion]
 		rule.Command().
-			Text("class_loader_context_arg=--class-loader-context=PCL[" + strings.Join(classLoaderContextHost.Strings(), ":") + "]").
-			Implicits(classLoaderContextHost).
-			Text("stored_class_loader_context_arg=--stored-class-loader-context=PCL[" + strings.Join(classLoaderContextTarget, ":") + "]")
+			Text("class_loader_context_arg=--class-loader-context=PCL[" + strings.Join(clc.Host.Strings(), ":") + "]").
+			Implicits(clc.Host).
+			Text("stored_class_loader_context_arg=--stored-class-loader-context=PCL[" + strings.Join(clc.Target, ":") + "]")
 	}
 
 	if module.EnforceUsesLibraries {
@@ -345,26 +353,19 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 				Text(`| grep "targetSdkVersion" | sed -n "s/targetSdkVersion:'\(.*\)'/\1/p"`).
 				Text(`)"`)
 		}
-		rule.Command().Textf(`dex_preopt_host_libraries="%s"`,
-			strings.Join(classLoaderContextHost.Strings(), " ")).
-			Implicits(classLoaderContextHost)
-		rule.Command().Textf(`dex_preopt_target_libraries="%s"`,
-			strings.Join(classLoaderContextTarget, " "))
-		rule.Command().Textf(`conditional_host_libs_28="%s"`,
-			strings.Join(conditionalClassLoaderContextHost28.Strings(), " ")).
-			Implicits(conditionalClassLoaderContextHost28)
-		rule.Command().Textf(`conditional_target_libs_28="%s"`,
-			strings.Join(conditionalClassLoaderContextTarget28, " "))
-		rule.Command().Textf(`conditional_host_libs_29="%s"`,
-			strings.Join(conditionalClassLoaderContextHost29.Strings(), " ")).
-			Implicits(conditionalClassLoaderContextHost29)
-		rule.Command().Textf(`conditional_target_libs_29="%s"`,
-			strings.Join(conditionalClassLoaderContextTarget29, " "))
-		rule.Command().Textf(`conditional_host_libs_30="%s"`,
-			strings.Join(conditionalClassLoaderContextHost30.Strings(), " ")).
-			Implicits(conditionalClassLoaderContextHost30)
-		rule.Command().Textf(`conditional_target_libs_30="%s"`,
-			strings.Join(conditionalClassLoaderContextTarget30, " "))
+		for _, ver := range classLoaderContexts.getSortedKeys() {
+			clc := classLoaderContexts.getValue(ver)
+			var varHost, varTarget string
+			if ver == anySdkVersion {
+				varHost = "dex_preopt_host_libraries"
+				varTarget = "dex_preopt_target_libraries"
+			} else {
+				varHost = fmt.Sprintf("conditional_host_libs_%d", ver)
+				varTarget = fmt.Sprintf("conditional_target_libs_%d", ver)
+			}
+			rule.Command().Textf(varHost+`="%s"`, strings.Join(clc.Host.Strings(), " ")).Implicits(clc.Host)
+			rule.Command().Textf(varTarget+`="%s"`, strings.Join(clc.Target, " "))
+		}
 		rule.Command().Text("source").Tool(globalSoong.ConstructContext).Input(module.DexPath)
 	}
 
