@@ -498,7 +498,7 @@ type Dependency interface {
 	ImplementationJars() android.Paths
 	ResourceJars() android.Paths
 	ImplementationAndResourcesJars() android.Paths
-	DexJar() android.Path
+	DexJarBuildPath() android.Path
 	AidlIncludeDirs() android.Paths
 	ExportedSdkLibs() []string
 	ExportedPlugins() (android.Paths, []string)
@@ -1736,7 +1736,7 @@ func (j *Module) ImplementationJars() android.Paths {
 	return android.Paths{j.implementationJarFile}
 }
 
-func (j *Module) DexJar() android.Path {
+func (j *Module) DexJarBuildPath() android.Path {
 	return j.dexJarFile
 }
 
@@ -2562,7 +2562,7 @@ func (j *Import) ImplementationAndResourcesJars() android.Paths {
 	return android.Paths{j.combinedClasspathFile}
 }
 
-func (j *Import) DexJar() android.Path {
+func (j *Import) DexJarBuildPath() android.Path {
 	return nil
 }
 
@@ -2745,7 +2745,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.Stem()+".jar", dexOutputFile)
 }
 
-func (j *DexImport) DexJar() android.Path {
+func (j *DexImport) DexJarBuildPath() android.Path {
 	return j.dexJarFile
 }
 
