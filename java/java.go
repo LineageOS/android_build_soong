@@ -471,6 +471,7 @@ type Module struct {
 
 	hiddenAPI
 	dexpreopter
+	linter
 
 	// list of the xref extraction files
 	kytheFiles android.Paths
@@ -493,6 +494,7 @@ func (j *Module) addHostAndDeviceProperties() {
 	j.AddProperties(
 		&j.deviceProperties,
 		&j.dexpreoptProperties,
+		&j.linter.properties,
 	)
 }
 
@@ -1647,6 +1649,28 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		outputFile = implementationAndResourcesJar
 	}
 
+	if ctx.Device() {
+		lintSDKVersionString := func(sdkSpec sdkSpec) string {
+			if v := sdkSpec.version; v.isNumbered() {
+				return v.String()
+			} else {
+				return ctx.Config().DefaultAppTargetSdk()
+			}
+		}
+
+		j.linter.name = ctx.ModuleName()
+		j.linter.srcs = srcFiles
+		j.linter.srcJars = srcJars
+		j.linter.classpath = append(append(android.Paths(nil), flags.bootClasspath...), flags.classpath...)
+		j.linter.classes = j.implementationJarFile
+		j.linter.minSdkVersion = lintSDKVersionString(j.minSdkVersion())
+		j.linter.targetSdkVersion = lintSDKVersionString(j.targetSdkVersion())
+		j.linter.compileSdkVersion = lintSDKVersionString(j.sdkVersion())
+		j.linter.javaLanguageLevel = flags.javaVersion.String()
+		j.linter.kotlinLanguageLevel = "1.3"
+		j.linter.lint(ctx)
+	}
+
 	ctx.CheckbuildFile(outputFile)
 
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
@@ -2255,6 +2279,7 @@ func TestFactory() android.Module {
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
+	module.Module.linter.test = true
 
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
@@ -2269,6 +2294,7 @@ func TestHelperLibraryFactory() android.Module {
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
+	module.Module.linter.test = true
 
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
@@ -2856,6 +2882,7 @@ func DefaultsFactory() android.Module {
 		&DexImportProperties{},
 		&android.ApexProperties{},
 		&RuntimeResourceOverlayProperties{},
+		&LintProperties{},
 	)
 
 	android.InitDefaultsModule(module)
