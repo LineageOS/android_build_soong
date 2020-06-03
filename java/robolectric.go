@@ -221,6 +221,7 @@ func RobolectricTestFactory() android.Module {
 		&module.robolectricProperties)
 
 	module.Module.dexpreopter.isTest = true
+	module.Module.linter.test = true
 
 	InitJavaModule(module, android.DeviceSupported)
 	return module
