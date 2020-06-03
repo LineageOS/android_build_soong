@@ -206,7 +206,7 @@ var (
 		blueprint.RuleParams{
 			Command: "rm -f $out && " +
 				"${config.PackageCheckCmd} $in $packages && " +
-				"touch $out",
+				"cp $in $out",
 			CommandDeps: []string{"${config.PackageCheckCmd}"},
 		},
 		"packages")
@@ -547,8 +547,9 @@ func TransformJarJar(ctx android.ModuleContext, outputFile android.WritablePath,
 	})
 }
 
-func CheckJarPackages(ctx android.ModuleContext, outputFile android.WritablePath,
-	classesJar android.Path, permittedPackages []string) {
+func CheckJarPackages(ctx android.ModuleContext, classesJar android.Path, permittedPackages []string) android.ModuleOutPath {
+	outputFile := android.PathForModuleOut(ctx, "package-check", classesJar.Base())
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        packageCheck,
 		Description: "packageCheck",
@@ -558,6 +559,8 @@ func CheckJarPackages(ctx android.ModuleContext, outputFile android.WritablePath
 			"packages": strings.Join(permittedPackages, " "),
 		},
 	})
+
+	return outputFile
 }
 
 func TransformJetifier(ctx android.ModuleContext, outputFile android.WritablePath,
