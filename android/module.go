@@ -1955,7 +1955,7 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 	rule blueprint.Rule, deps []Path) InstallPath {
 
 	fullInstallPath := installPath.Join(m, name)
-	m.module.base().hooks.runInstallHooks(m, fullInstallPath, false)
+	m.module.base().hooks.runInstallHooks(m, srcPath, fullInstallPath, false)
 
 	if !m.skipInstall(fullInstallPath) {
 
@@ -1989,7 +1989,7 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 
 func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, srcPath InstallPath) InstallPath {
 	fullInstallPath := installPath.Join(m, name)
-	m.module.base().hooks.runInstallHooks(m, fullInstallPath, true)
+	m.module.base().hooks.runInstallHooks(m, srcPath, fullInstallPath, true)
 
 	if !m.skipInstall(fullInstallPath) {
 
@@ -2018,7 +2018,7 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 // (e.g. /apex/...)
 func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name string, absPath string) InstallPath {
 	fullInstallPath := installPath.Join(m, name)
-	m.module.base().hooks.runInstallHooks(m, fullInstallPath, true)
+	m.module.base().hooks.runInstallHooks(m, nil, fullInstallPath, true)
 
 	if !m.skipInstall(fullInstallPath) {
 		m.Build(pctx, BuildParams{
