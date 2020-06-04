@@ -1899,7 +1899,7 @@ func (u *usesLibrary) usesLibraryPaths(ctx android.ModuleContext) map[string]and
 	if !ctx.Config().UnbundledBuild() {
 		ctx.VisitDirectDepsWithTag(usesLibTag, func(m android.Module) {
 			if lib, ok := m.(Dependency); ok {
-				if dexJar := lib.DexJarBuildPath(); dexJar != nil {
+				if dexJar := lib.DexJar(); dexJar != nil {
 					usesLibPaths[ctx.OtherModuleName(m)] = dexJar
 				} else {
 					ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must produce a dex jar, does it have installable: true?",
