@@ -23,14 +23,16 @@ import (
 	"strings"
 	"sync"
 
-	"android/soong/android"
-	"android/soong/cc"
-	"android/soong/java"
-	"android/soong/python"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/android"
+	"android/soong/cc"
+	prebuilt_etc "android/soong/etc"
+	"android/soong/java"
+	"android/soong/python"
+	"android/soong/sh"
 )
 
 const (
@@ -1661,7 +1663,7 @@ func apexFileForGoBinary(ctx android.BaseModuleContext, depName string, gb boots
 	return newApexFile(ctx, fileToCopy, depName, dirInApex, goBinary, nil)
 }
 
-func apexFileForShBinary(ctx android.BaseModuleContext, sh *android.ShBinary) apexFile {
+func apexFileForShBinary(ctx android.BaseModuleContext, sh *sh.ShBinary) apexFile {
 	dirInApex := filepath.Join("bin", sh.SubDir())
 	fileToCopy := sh.OutputFile()
 	af := newApexFile(ctx, fileToCopy, sh.Name(), dirInApex, shBinary, sh)
@@ -1683,7 +1685,7 @@ func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaDependency, m
 	return af
 }
 
-func apexFileForPrebuiltEtc(ctx android.BaseModuleContext, prebuilt android.PrebuiltEtcModule, depName string) apexFile {
+func apexFileForPrebuiltEtc(ctx android.BaseModuleContext, prebuilt prebuilt_etc.PrebuiltEtcModule, depName string) apexFile {
 	dirInApex := filepath.Join("etc", prebuilt.SubDir())
 	fileToCopy := prebuilt.OutputFile()
 	return newApexFile(ctx, fileToCopy, depName, dirInApex, etc, prebuilt)
@@ -1944,7 +1946,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				if cc, ok := child.(*cc.Module); ok {
 					filesInfo = append(filesInfo, apexFileForExecutable(ctx, cc))
 					return true // track transitive dependencies
-				} else if sh, ok := child.(*android.ShBinary); ok {
+				} else if sh, ok := child.(*sh.ShBinary); ok {
 					filesInfo = append(filesInfo, apexFileForShBinary(ctx, sh))
 				} else if py, ok := child.(*python.Module); ok && py.HostToolPath().Valid() {
 					filesInfo = append(filesInfo, apexFileForPyBinary(ctx, py))
@@ -1985,7 +1987,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
 				}
 			case prebuiltTag:
-				if prebuilt, ok := child.(android.PrebuiltEtcModule); ok {
+				if prebuilt, ok := child.(prebuilt_etc.PrebuiltEtcModule); ok {
 					filesInfo = append(filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
 				} else if prebuilt, ok := child.(java.PlatformCompatConfigIntf); ok {
 					filesInfo = append(filesInfo, apexFileForCompatConfig(ctx, prebuilt, depName))
@@ -2082,7 +2084,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					// Because APK-in-APEX embeds jni_libs transitively, we don't need to track transitive deps
 					return false
 				} else if java.IsXmlPermissionsFileDepTag(depTag) {
-					if prebuilt, ok := child.(android.PrebuiltEtcModule); ok {
+					if prebuilt, ok := child.(prebuilt_etc.PrebuiltEtcModule); ok {
 						filesInfo = append(filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
 					}
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
