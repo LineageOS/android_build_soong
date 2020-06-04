@@ -147,7 +147,7 @@ func stubFlagsRule(ctx android.SingletonContext) {
 			name := ctx.ModuleName(module)
 			for moduleList, pathList := range moduleListToPathList {
 				if i := android.IndexList(name, *moduleList); i != -1 {
-					pathList[i] = j.DexJarBuildPath()
+					pathList[i] = j.DexJar()
 				}
 			}
 		}
