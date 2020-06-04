@@ -25,6 +25,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc/config"
+	"android/soong/etc"
 )
 
 const (
@@ -410,7 +411,7 @@ type vndkLibrariesTxt struct {
 	outputFile android.OutputPath
 }
 
-var _ android.PrebuiltEtcModule = &vndkLibrariesTxt{}
+var _ etc.PrebuiltEtcModule = &vndkLibrariesTxt{}
 var _ android.OutputFileProducer = &vndkLibrariesTxt{}
 
 // vndk_libraries_txt is a special kind of module type in that it name is one of

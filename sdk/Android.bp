@@ -1,0 +1,27 @@
+bootstrap_go_package {
+    name: "soong-sdk",
+    pkgPath: "android/soong/sdk",
+    deps: [
+        "blueprint",
+        "soong",
+        "soong-android",
+        "soong-apex",
+        "soong-cc",
+        "soong-java",
+    ],
+    srcs: [
+        "bp.go",
+        "exports.go",
+        "sdk.go",
+        "update.go",
+    ],
+    testSrcs: [
+        "bp_test.go",
+        "cc_sdk_test.go",
+        "exports_test.go",
+        "java_sdk_test.go",
+        "sdk_test.go",
+        "testing.go",
+    ],
+    pluginFor: ["soong_build"],
+}

@@ -29,7 +29,9 @@ import (
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
+	prebuilt_etc "android/soong/etc"
 	"android/soong/java"
+	"android/soong/sh"
 )
 
 var buildDir string
@@ -209,9 +211,9 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("cc_test", cc.TestFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", cc.VndkLibrariesTxtFactory)
-	ctx.RegisterModuleType("prebuilt_etc", android.PrebuiltEtcFactory)
+	ctx.RegisterModuleType("prebuilt_etc", prebuilt_etc.PrebuiltEtcFactory)
 	ctx.RegisterModuleType("platform_compat_config", java.PlatformCompatConfigFactory)
-	ctx.RegisterModuleType("sh_binary", android.ShBinaryFactory)
+	ctx.RegisterModuleType("sh_binary", sh.ShBinaryFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	java.RegisterJavaBuildComponents(ctx)
 	java.RegisterSystemModulesBuildComponents(ctx)
