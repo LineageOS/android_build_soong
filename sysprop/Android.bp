@@ -1,0 +1,18 @@
+bootstrap_go_package {
+    name: "soong-sysprop",
+    pkgPath: "android/soong/sysprop",
+    deps: [
+        "blueprint",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-java",
+    ],
+    srcs: [
+        "sysprop_library.go",
+    ],
+    testSrcs: [
+        "sysprop_test.go",
+    ],
+    pluginFor: ["soong_build"],
+}
