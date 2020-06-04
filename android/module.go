@@ -194,6 +194,10 @@ type ModuleContext interface {
 	// Similar to blueprint.ModuleContext.Build, but takes Paths instead of []string,
 	// and performs more verification.
 	Build(pctx PackageContext, params BuildParams)
+	// Phony creates a Make-style phony rule, a rule with no commands that can depend on other
+	// phony rules or real files.  Phony can be called on the same name multiple times to add
+	// additional dependencies.
+	Phony(phony string, deps ...Path)
 
 	PrimaryModule() Module
 	FinalModule() Module
@@ -706,6 +710,7 @@ type ModuleBase struct {
 	installFiles       Paths
 	checkbuildFiles    Paths
 	noticeFile         OptionalPath
+	phonies            map[string]Paths
 
 	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
 	// Only set on the final variant of each module
@@ -1075,26 +1080,17 @@ func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 	}
 
 	if len(allInstalledFiles) > 0 {
-		name := PathForPhony(ctx, namespacePrefix+ctx.ModuleName()+"-install")
-		ctx.Build(pctx, BuildParams{
-			Rule:      blueprint.Phony,
-			Output:    name,
-			Implicits: allInstalledFiles,
-			Default:   !ctx.Config().EmbeddedInMake(),
-		})
-		deps = append(deps, name)
-		m.installTarget = name
+		name := namespacePrefix + ctx.ModuleName() + "-install"
+		ctx.Phony(name, allInstalledFiles...)
+		m.installTarget = PathForPhony(ctx, name)
+		deps = append(deps, m.installTarget)
 	}
 
 	if len(allCheckbuildFiles) > 0 {
-		name := PathForPhony(ctx, namespacePrefix+ctx.ModuleName()+"-checkbuild")
-		ctx.Build(pctx, BuildParams{
-			Rule:      blueprint.Phony,
-			Output:    name,
-			Implicits: allCheckbuildFiles,
-		})
-		deps = append(deps, name)
-		m.checkbuildTarget = name
+		name := namespacePrefix + ctx.ModuleName() + "-checkbuild"
+		ctx.Phony(name, allCheckbuildFiles...)
+		m.checkbuildTarget = PathForPhony(ctx, name)
+		deps = append(deps, m.checkbuildTarget)
 	}
 
 	if len(deps) > 0 {
@@ -1103,12 +1099,7 @@ func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 			suffix = "-soong"
 		}
 
-		name := PathForPhony(ctx, namespacePrefix+ctx.ModuleName()+suffix)
-		ctx.Build(pctx, BuildParams{
-			Rule:      blueprint.Phony,
-			Outputs:   []WritablePath{name},
-			Implicits: deps,
-		})
+		ctx.Phony(namespacePrefix+ctx.ModuleName()+suffix, deps...)
 
 		m.blueprintDir = ctx.ModuleDir()
 	}
@@ -1282,6 +1273,9 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		m.checkbuildFiles = append(m.checkbuildFiles, ctx.checkbuildFiles...)
 		m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
 		m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
+		for k, v := range ctx.phonies {
+			m.phonies[k] = append(m.phonies[k], v...)
+		}
 	} else if ctx.Config().AllowMissingDependencies() {
 		// If the module is not enabled it will not create any build rules, nothing will call
 		// ctx.GetMissingDependencies(), and blueprint will consider the missing dependencies to be unhandled
@@ -1419,6 +1413,7 @@ type moduleContext struct {
 	installFiles    Paths
 	checkbuildFiles Paths
 	module          Module
+	phonies         map[string]Paths
 
 	// For tests
 	buildParams []BuildParams
@@ -1533,6 +1528,11 @@ func (m *moduleContext) Build(pctx PackageContext, params BuildParams) {
 
 	m.bp.Build(pctx.PackageContext, convertBuildParams(params))
 }
+
+func (m *moduleContext) Phony(name string, deps ...Path) {
+	addPhony(m.config, name, deps...)
+}
+
 func (m *moduleContext) GetMissingDependencies() []string {
 	var missingDeps []string
 	missingDeps = append(missingDeps, m.Module().base().commonProperties.MissingDeps...)
@@ -2167,9 +2167,8 @@ type buildTargetSingleton struct{}
 func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	var checkbuildDeps Paths
 
-	mmTarget := func(dir string) WritablePath {
-		return PathForPhony(ctx,
-			"MODULES-IN-"+strings.Replace(filepath.Clean(dir), "/", "-", -1))
+	mmTarget := func(dir string) string {
+		return "MODULES-IN-" + strings.Replace(filepath.Clean(dir), "/", "-", -1)
 	}
 
 	modulesInDir := make(map[string]Paths)
@@ -2195,11 +2194,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 
 	// Create a top-level checkbuild target that depends on all modules
-	ctx.Build(pctx, BuildParams{
-		Rule:      blueprint.Phony,
-		Output:    PathForPhony(ctx, "checkbuild"+suffix),
-		Implicits: checkbuildDeps,
-	})
+	ctx.Phony("checkbuild"+suffix, checkbuildDeps...)
 
 	// Make will generate the MODULES-IN-* targets
 	if ctx.Config().EmbeddedInMake() {
@@ -2223,7 +2218,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	for _, dir := range dirs {
 		p := parentDir(dir)
 		if p != "." && p != "/" {
-			modulesInDir[p] = append(modulesInDir[p], mmTarget(dir))
+			modulesInDir[p] = append(modulesInDir[p], PathForPhony(ctx, mmTarget(dir)))
 		}
 	}
 
@@ -2231,14 +2226,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	// depends on the MODULES-IN-* targets of all of its subdirectories that contain Android.bp
 	// files.
 	for _, dir := range dirs {
-		ctx.Build(pctx, BuildParams{
-			Rule:      blueprint.Phony,
-			Output:    mmTarget(dir),
-			Implicits: modulesInDir[dir],
-			// HACK: checkbuild should be an optional build, but force it
-			// enabled for now in standalone builds
-			Default: !ctx.Config().EmbeddedInMake(),
-		})
+		ctx.Phony(mmTarget(dir), modulesInDir[dir]...)
 	}
 
 	// Create (host|host-cross|target)-<OS> phony rules to build a reduced checkbuild.
@@ -2265,23 +2253,15 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 			continue
 		}
 
-		name := PathForPhony(ctx, className+"-"+os.Name)
-		osClass[className] = append(osClass[className], name)
+		name := className + "-" + os.Name
+		osClass[className] = append(osClass[className], PathForPhony(ctx, name))
 
-		ctx.Build(pctx, BuildParams{
-			Rule:      blueprint.Phony,
-			Output:    name,
-			Implicits: deps,
-		})
+		ctx.Phony(name, deps...)
 	}
 
 	// Wrap those into host|host-cross|target phony rules
 	for _, class := range SortedStringKeys(osClass) {
-		ctx.Build(pctx, BuildParams{
-			Rule:      blueprint.Phony,
-			Output:    PathForPhony(ctx, class),
-			Implicits: osClass[class],
-		})
+		ctx.Phony(class, osClass[class]...)
 	}
 }
 
