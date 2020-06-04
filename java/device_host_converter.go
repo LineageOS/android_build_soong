@@ -150,7 +150,7 @@ func (d *DeviceHostConverter) ImplementationAndResourcesJars() android.Paths {
 	return d.implementationAndResourceJars
 }
 
-func (d *DeviceHostConverter) DexJarBuildPath() android.Path {
+func (d *DeviceHostConverter) DexJar() android.Path {
 	return nil
 }
 
