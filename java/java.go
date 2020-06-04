@@ -2863,11 +2863,7 @@ func (ks *kytheExtractJavaSingleton) GenerateBuildActions(ctx android.SingletonC
 	})
 	// TODO(asmundak): perhaps emit a rule to output a warning if there were no xrefTargets
 	if len(xrefTargets) > 0 {
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   blueprint.Phony,
-			Output: android.PathForPhony(ctx, "xref_java"),
-			Inputs: xrefTargets,
-		})
+		ctx.Phony("xref_java", xrefTargets...)
 	}
 }
 
