@@ -255,7 +255,7 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 		return -1, nil
 	}
 
-	jar, hasJar := module.(interface{ DexJarBuildPath() android.Path })
+	jar, hasJar := module.(interface{ DexJar() android.Path })
 	if !hasJar {
 		return -1, nil
 	}
@@ -296,7 +296,7 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 		panic("unknown boot image: " + image.name)
 	}
 
-	return index, jar.DexJarBuildPath()
+	return index, jar.DexJar()
 }
 
 // buildBootImage takes a bootImageConfig, creates rules to build it, and returns the image.
