@@ -248,6 +248,10 @@ func (p *prebuiltObjectLinker) link(ctx ModuleContext,
 	return nil
 }
 
+func (p *prebuiltObjectLinker) object() bool {
+	return true
+}
+
 func newPrebuiltObject() *Module {
 	module := newObject()
 	prebuilt := &prebuiltObjectLinker{
@@ -304,6 +308,10 @@ func (p *prebuiltBinaryLinker) link(ctx ModuleContext,
 	}
 
 	return nil
+}
+
+func (p *prebuiltBinaryLinker) binary() bool {
+	return true
 }
 
 // cc_prebuilt_binary installs a precompiled executable in srcs property in the
