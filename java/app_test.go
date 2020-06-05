@@ -149,7 +149,7 @@ func TestAndroidAppSet(t *testing.T) {
 			prerelease: true,
         }`)
 	module := ctx.ModuleForTests("foo", "android_common")
-	const packedSplitApks = "extracted.zip"
+	const packedSplitApks = "foo.zip"
 	params := module.Output(packedSplitApks)
 	if params.Rule == nil {
 		t.Errorf("expected output %s is missing", packedSplitApks)
@@ -218,7 +218,7 @@ func TestAndroidAppSet_Variants(t *testing.T) {
 		ctx := testContext()
 		run(t, ctx, config)
 		module := ctx.ModuleForTests("foo", "android_common")
-		const packedSplitApks = "extracted.zip"
+		const packedSplitApks = "foo.zip"
 		params := module.Output(packedSplitApks)
 		for k, v := range test.expected {
 			if actual := params.Args[k]; actual != v {

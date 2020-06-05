@@ -96,7 +96,7 @@ func withTargets(targets map[android.OsType][]android.Target) testCustomizer {
 // - X86 (secondary)
 // - Arm64 on X86_64 (native bridge)
 // - Arm on X86 (native bridge)
-func withNativeBridgeEnabled(fs map[string][]byte, config android.Config) {
+func withNativeBridgeEnabled(_ map[string][]byte, config android.Config) {
 	config.Targets[android.Android] = []android.Target{
 		{Os: android.Android, Arch: android.Arch{ArchType: android.X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}},
 			NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
@@ -115,15 +115,15 @@ func withManifestPackageNameOverrides(specs []string) testCustomizer {
 	}
 }
 
-func withBinder32bit(fs map[string][]byte, config android.Config) {
+func withBinder32bit(_ map[string][]byte, config android.Config) {
 	config.TestProductVariables.Binder32bit = proptools.BoolPtr(true)
 }
 
-func withUnbundledBuild(fs map[string][]byte, config android.Config) {
+func withUnbundledBuild(_ map[string][]byte, config android.Config) {
 	config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 }
 
-func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
+func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
 	android.ClearApexDependency()
 
 	bp = bp + `
@@ -187,6 +187,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"baz":                                        nil,
 		"bar/baz":                                    nil,
 		"testdata/baz":                               nil,
+		"AppSet.apks":                                nil,
 	}
 
 	cc.GatherRequiredFilesForTest(fs)
@@ -258,7 +259,7 @@ func setUp() {
 }
 
 func tearDown() {
-	os.RemoveAll(buildDir)
+	_ = os.RemoveAll(buildDir)
 }
 
 // ensure that 'result' equals 'expected'
@@ -291,6 +292,17 @@ func ensureNotContains(t *testing.T, result string, notExpected string) {
 	t.Helper()
 	if strings.Contains(result, notExpected) {
 		t.Errorf("%q is found in %q", notExpected, result)
+	}
+}
+
+func ensureMatches(t *testing.T, result string, expectedRex string) {
+	ok, err := regexp.MatchString(expectedRex, result)
+	if err != nil {
+		t.Fatalf("regexp failure trying to match %s against `%s` expression: %s", result, expectedRex, err)
+		return
+	}
+	if !ok {
+		t.Errorf("%s does not match regular expession %s", result, expectedRex)
 	}
 }
 
@@ -4772,6 +4784,38 @@ func TestAppBundle(t *testing.T) {
 	ensureContains(t, content, `"apex_config":{"apex_embedded_apk_config":[{"package_name":"com.android.foo","path":"app/AppFoo/AppFoo.apk"}]}`)
 }
 
+func TestAppSetBundle(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			apps: ["AppSet"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		android_app_set {
+			name: "AppSet",
+			set: "AppSet.apks",
+		}`)
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	bundleConfigRule := mod.Description("Bundle Config")
+	content := bundleConfigRule.Args["content"]
+	ensureContains(t, content, `"compression":{"uncompressed_glob":["apex_payload.img","apex_manifest.*"]}`)
+	s := mod.Rule("apexRule").Args["copy_commands"]
+	copyCmds := regexp.MustCompile(" *&& *").Split(s, -1)
+	if len(copyCmds) != 3 {
+		t.Fatalf("Expected 3 commands, got %d in:\n%s", len(copyCmds), s)
+	}
+	ensureMatches(t, copyCmds[0], "^rm -rf .*/app/AppSet$")
+	ensureMatches(t, copyCmds[1], "^mkdir -p .*/app/AppSet$")
+	ensureMatches(t, copyCmds[2], "^unzip .*-d .*/app/AppSet .*/AppSet.zip$")
+}
+
 func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpreoptConfig func(*dexpreopt.GlobalConfig)) {
 	t.Helper()
 
@@ -4931,7 +4975,7 @@ func TestUpdatable_should_set_min_sdk_version(t *testing.T) {
 
 func TestNoUpdatableJarsInBootImage(t *testing.T) {
 
-	var error string
+	var err string
 	var transform func(*dexpreopt.GlobalConfig)
 
 	t.Run("updatable jar from ART apex in the ART boot image => ok", func(t *testing.T) {
@@ -4942,35 +4986,35 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 	})
 
 	t.Run("updatable jar from ART apex in the framework boot image => error", func(t *testing.T) {
-		error = "module 'some-art-lib' from updatable apex 'com.android.art.something' is not allowed in the framework boot image"
+		err = "module 'some-art-lib' from updatable apex 'com.android.art.something' is not allowed in the framework boot image"
 		transform = func(config *dexpreopt.GlobalConfig) {
 			config.BootJars = []string{"com.android.art.something:some-art-lib"}
 		}
-		testNoUpdatableJarsInBootImage(t, error, transform)
+		testNoUpdatableJarsInBootImage(t, err, transform)
 	})
 
 	t.Run("updatable jar from some other apex in the ART boot image => error", func(t *testing.T) {
-		error = "module 'some-updatable-apex-lib' from updatable apex 'some-updatable-apex' is not allowed in the ART boot image"
+		err = "module 'some-updatable-apex-lib' from updatable apex 'some-updatable-apex' is not allowed in the ART boot image"
 		transform = func(config *dexpreopt.GlobalConfig) {
 			config.ArtApexJars = []string{"some-updatable-apex:some-updatable-apex-lib"}
 		}
-		testNoUpdatableJarsInBootImage(t, error, transform)
+		testNoUpdatableJarsInBootImage(t, err, transform)
 	})
 
 	t.Run("non-updatable jar from some other apex in the ART boot image => error", func(t *testing.T) {
-		error = "module 'some-non-updatable-apex-lib' is not allowed in the ART boot image"
+		err = "module 'some-non-updatable-apex-lib' is not allowed in the ART boot image"
 		transform = func(config *dexpreopt.GlobalConfig) {
 			config.ArtApexJars = []string{"some-non-updatable-apex:some-non-updatable-apex-lib"}
 		}
-		testNoUpdatableJarsInBootImage(t, error, transform)
+		testNoUpdatableJarsInBootImage(t, err, transform)
 	})
 
 	t.Run("updatable jar from some other apex in the framework boot image => error", func(t *testing.T) {
-		error = "module 'some-updatable-apex-lib' from updatable apex 'some-updatable-apex' is not allowed in the framework boot image"
+		err = "module 'some-updatable-apex-lib' from updatable apex 'some-updatable-apex' is not allowed in the framework boot image"
 		transform = func(config *dexpreopt.GlobalConfig) {
 			config.BootJars = []string{"some-updatable-apex:some-updatable-apex-lib"}
 		}
-		testNoUpdatableJarsInBootImage(t, error, transform)
+		testNoUpdatableJarsInBootImage(t, err, transform)
 	})
 
 	t.Run("non-updatable jar from some other apex in the framework boot image => ok", func(t *testing.T) {
@@ -4981,27 +5025,27 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 	})
 
 	t.Run("nonexistent jar in the ART boot image => error", func(t *testing.T) {
-		error = "failed to find a dex jar path for module 'nonexistent'"
+		err = "failed to find a dex jar path for module 'nonexistent'"
 		transform = func(config *dexpreopt.GlobalConfig) {
 			config.ArtApexJars = []string{"platform:nonexistent"}
 		}
-		testNoUpdatableJarsInBootImage(t, error, transform)
+		testNoUpdatableJarsInBootImage(t, err, transform)
 	})
 
 	t.Run("nonexistent jar in the framework boot image => error", func(t *testing.T) {
-		error = "failed to find a dex jar path for module 'nonexistent'"
+		err = "failed to find a dex jar path for module 'nonexistent'"
 		transform = func(config *dexpreopt.GlobalConfig) {
 			config.BootJars = []string{"platform:nonexistent"}
 		}
-		testNoUpdatableJarsInBootImage(t, error, transform)
+		testNoUpdatableJarsInBootImage(t, err, transform)
 	})
 
 	t.Run("platform jar in the ART boot image => error", func(t *testing.T) {
-		error = "module 'some-platform-lib' is not allowed in the ART boot image"
+		err = "module 'some-platform-lib' is not allowed in the ART boot image"
 		transform = func(config *dexpreopt.GlobalConfig) {
 			config.ArtApexJars = []string{"platform:some-platform-lib"}
 		}
-		testNoUpdatableJarsInBootImage(t, error, transform)
+		testNoUpdatableJarsInBootImage(t, err, transform)
 	})
 
 	t.Run("platform jar in the framework boot image => ok", func(t *testing.T) {
