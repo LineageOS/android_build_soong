@@ -1685,14 +1685,14 @@ func apexFileForShBinary(ctx android.BaseModuleContext, sh *sh.ShBinary) apexFil
 }
 
 type javaDependency interface {
-	DexJar() android.Path
+	DexJarBuildPath() android.Path
 	JacocoReportClassesFile() android.Path
 	Stem() string
 }
 
 func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaDependency, module android.Module) apexFile {
 	dirInApex := "javalib"
-	fileToCopy := lib.DexJar()
+	fileToCopy := lib.DexJarBuildPath()
 	af := newApexFile(ctx, fileToCopy, module.Name(), dirInApex, javaSharedLib, module)
 	af.jacocoReportClassesFile = lib.JacocoReportClassesFile()
 	af.stem = lib.Stem() + ".jar"

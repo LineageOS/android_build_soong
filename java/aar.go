@@ -730,7 +730,7 @@ func (a *AARImport) ImplementationAndResourcesJars() android.Paths {
 	return android.Paths{a.classpathFile}
 }
 
-func (a *AARImport) DexJar() android.Path {
+func (a *AARImport) DexJarBuildPath() android.Path {
 	return nil
 }
 
