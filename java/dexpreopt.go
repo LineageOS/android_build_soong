@@ -37,7 +37,7 @@ type dexpreopter struct {
 	usesLibs         []string
 	optionalUsesLibs []string
 	enforceUsesLibs  bool
-	libraryPaths     map[string]android.Path
+	libraryPaths     dexpreopt.LibraryPaths
 
 	builtInstalled string
 }
