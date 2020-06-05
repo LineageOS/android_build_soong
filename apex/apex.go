@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"android/soong/android"
@@ -91,6 +92,17 @@ var (
 		CommandDeps: []string{"${zip2zip}"},
 		Description: "app bundle",
 	}, "abi")
+
+	extractMatchingApex = pctx.StaticRule(
+		"extractMatchingApex",
+		blueprint.RuleParams{
+			Command: `rm -rf "$out" && ` +
+				`${extract_apks} -o "${out}" -allow-prereleased=${allow-prereleased} ` +
+				`-sdk-version=${sdk-version} -abis=${abis} -screen-densities=all -extract-single ` +
+				`${in}`,
+			CommandDeps: []string{"${extract_apks}"},
+		},
+		"abis", "allow-prereleased", "sdk-version")
 )
 
 var imageApexSuffix = ".apex"
@@ -138,11 +150,13 @@ func init() {
 	pctx.HostBinToolVariable("soong_zip", "soong_zip")
 	pctx.HostBinToolVariable("zip2zip", "zip2zip")
 	pctx.HostBinToolVariable("zipalign", "zipalign")
+	pctx.HostBinToolVariable("extract_apks", "extract_apks")
 
 	android.RegisterModuleType("apex", apexBundleFactory)
 	android.RegisterModuleType("apex_test", testApexBundleFactory)
 	android.RegisterModuleType("apex_defaults", defaultsFactory)
 	android.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
+	android.RegisterModuleType("apex_set", apexSetFactory)
 
 	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("apex_deps", apexDepsMutator)
@@ -1474,4 +1488,106 @@ func PrebuiltFactory() android.Module {
 	android.InitSingleSourcePrebuiltModule(module, &module.properties.Source)
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
+}
+
+type ApexSet struct {
+	android.ModuleBase
+	prebuilt android.Prebuilt
+
+	properties ApexSetProperties
+
+	installDir      android.OutputPath
+	installFilename string
+	outputApex      android.WritablePath
+}
+
+type ApexSetProperties struct {
+	// the .apks file path that contains prebuilt apex files to be extracted.
+	Set string
+
+	// whether the extracted apex file installable.
+	Installable *bool
+
+	// optional name for the installed apex. If unspecified, name of the
+	// module is used as the file name
+	Filename *string
+
+	// names of modules to be overridden. Listed modules can only be other binaries
+	// (in Make or Soong).
+	// This does not completely prevent installation of the overridden binaries, but if both
+	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
+	// from PRODUCT_PACKAGES.
+	Overrides []string
+
+	// apexes in this set use prerelease SDK version
+	Prerelease *bool
+}
+
+func (a *ApexSet) installable() bool {
+	return a.properties.Installable == nil || proptools.Bool(a.properties.Installable)
+}
+
+func (a *ApexSet) InstallFilename() string {
+	return proptools.StringDefault(a.properties.Filename, a.BaseModuleName()+imageApexSuffix)
+}
+
+func (a *ApexSet) Prebuilt() *android.Prebuilt {
+	return &a.prebuilt
+}
+
+func (a *ApexSet) Name() string {
+	return a.prebuilt.Name(a.ModuleBase.Name())
+}
+
+// prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
+func apexSetFactory() android.Module {
+	module := &ApexSet{}
+	module.AddProperties(&module.properties)
+	android.InitSingleSourcePrebuiltModule(module, &module.properties.Set)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	return module
+}
+
+func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	a.installFilename = a.InstallFilename()
+	if !strings.HasSuffix(a.installFilename, imageApexSuffix) {
+		ctx.ModuleErrorf("filename should end in %s for apex_set", imageApexSuffix)
+	}
+
+	apexSet := a.prebuilt.SingleSourcePath(ctx)
+	a.outputApex = android.PathForModuleOut(ctx, a.installFilename)
+	ctx.Build(pctx,
+		android.BuildParams{
+			Rule:        extractMatchingApex,
+			Description: "Extract an apex from an apex set",
+			Inputs:      android.Paths{apexSet},
+			Output:      a.outputApex,
+			Args: map[string]string{
+				"abis":              strings.Join(java.SupportedAbis(ctx), ","),
+				"allow-prereleased": strconv.FormatBool(proptools.Bool(a.properties.Prerelease)),
+				"sdk-version":       ctx.Config().PlatformSdkVersion(),
+			},
+		})
+	a.installDir = android.PathForModuleInstall(ctx, "apex")
+	if a.installable() {
+		ctx.InstallFile(a.installDir, a.installFilename, a.outputApex)
+	}
+}
+
+func (a *ApexSet) AndroidMk() android.AndroidMkData {
+	return android.AndroidMkData{
+		Class:      "ETC",
+		OutputFile: android.OptionalPathForPath(a.outputApex),
+		Include:    "$(BUILD_PREBUILT)",
+		Extra: []android.AndroidMkExtraFunc{
+			func(w io.Writer, outputFile android.Path) {
+				fmt.Fprintln(w, "LOCAL_MODULE_PATH := ", filepath.Join("$(OUT_DIR)", a.installDir.RelPathString()))
+				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", a.installFilename)
+				if !a.installable() {
+					fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+				}
+				fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES :=", strings.Join(a.properties.Overrides, " "))
+			},
+		},
+	}
 }

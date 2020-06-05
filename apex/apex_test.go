@@ -29,9 +29,15 @@ import (
 
 var buildDir string
 
-func testApex(t *testing.T, bp string) *android.TestContext {
+type testCustomizer func(fs map[string][]byte, config android.Config)
+
+func testApex(t *testing.T, bp string, handlers ...testCustomizer) *android.TestContext {
 	var config android.Config
 	config, buildDir = setup(t)
+	for _, handler := range handlers {
+		tempFS := map[string][]byte{}
+		handler(tempFS, config)
+	}
 	defer teardown(buildDir)
 
 	ctx := android.NewTestArchContext()
@@ -40,6 +46,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 	ctx.RegisterModuleType("apex_key", android.ModuleFactoryAdaptor(apexKeyFactory))
 	ctx.RegisterModuleType("apex_defaults", android.ModuleFactoryAdaptor(defaultsFactory))
 	ctx.RegisterModuleType("prebuilt_apex", android.ModuleFactoryAdaptor(PrebuiltFactory))
+	ctx.RegisterModuleType("apex_set", android.ModuleFactoryAdaptor(apexSetFactory))
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
@@ -181,6 +188,7 @@ func testApex(t *testing.T, bp string) *android.TestContext {
 		"testkey2.pem":                         nil,
 		"myapex-arm64.apex":                    nil,
 		"myapex-arm.apex":                      nil,
+		"myapex.apks":                          nil,
 		"frameworks/base/api/current.txt":      nil,
 	})
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
@@ -1286,5 +1294,40 @@ func TestPrebuiltFilenameOverride(t *testing.T) {
 	expected := "notmyapex.apex"
 	if p.installFilename != expected {
 		t.Errorf("installFilename invalid. expected: %q, actual: %q", expected, p.installFilename)
+	}
+}
+
+// TODO(jungjw): Move this to proptools
+func intPtr(i int) *int {
+	return &i
+}
+
+func TestApexSet(t *testing.T) {
+	ctx := testApex(t, `
+		apex_set {
+			name: "myapex",
+			set: "myapex.apks",
+			filename: "foo_v2.apex",
+			overrides: ["foo"],
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		config.TestProductVariables.Platform_sdk_version = intPtr(30)
+		config.TestProductVariables.DeviceArch = proptools.StringPtr("arm")
+		config.TestProductVariables.DeviceSecondaryArch = proptools.StringPtr("arm64")
+	})
+
+	m := ctx.ModuleForTests("myapex", "android_common")
+
+	// Check extract_apks tool parameters.
+	extractedApex := m.Output(buildDir + "/.intermediates/myapex/android_common/foo_v2.apex")
+	actual := extractedApex.Args["abis"]
+	expected := "ARMEABI_V7A,ARM64_V8A"
+	if actual != expected {
+		t.Errorf("Unexpected abis parameter - expected %q vs actual %q", expected, actual)
+	}
+	actual = extractedApex.Args["sdk-version"]
+	expected = "30"
+	if actual != expected {
+		t.Errorf("Unexpected abis parameter - expected %q vs actual %q", expected, actual)
 	}
 }
