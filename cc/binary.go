@@ -231,6 +231,10 @@ func (binary *binaryDecorator) staticBinary() bool {
 	return binary.static()
 }
 
+func (binary *binaryDecorator) binary() bool {
+	return true
+}
+
 func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = binary.baseLinker.linkerFlags(ctx, flags)
 
