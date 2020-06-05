@@ -158,10 +158,13 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 
 // android_app_set extracts a set of APKs based on the target device
 // configuration and installs this set as "split APKs".
-// The set will always contain `base-master.apk` and every APK built
-// to the target device. All density-specific APK will be included, too,
-// unless PRODUCT_APPT_PREBUILT_DPI is defined (should contain comma-sepearated
-// list of density names (LDPI, MDPI, HDPI, etc.)
+// The extracted set always contains 'master' APK whose name is
+// _module_name_.apk and every split APK matching target device.
+// The extraction of the density-specific splits depends on
+// PRODUCT_AAPT_PREBUILT_DPI variable. If present (its value should
+// be a list density names: LDPI, MDPI, HDPI, etc.), only listed
+// splits will be extracted. Otherwise all density-specific splits
+// will be extracted.
 func AndroidApkSetFactory() android.Module {
 	module := &AndroidAppSet{}
 	module.AddProperties(&module.properties)
@@ -1208,7 +1211,7 @@ type OverrideAndroidApp struct {
 	android.OverrideModuleBase
 }
 
-func (i *OverrideAndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (i *OverrideAndroidApp) GenerateAndroidBuildActions(_ android.ModuleContext) {
 	// All the overrides happen in the base module.
 	// TODO(jungjw): Check the base module type.
 }
@@ -1229,7 +1232,7 @@ type OverrideAndroidTest struct {
 	android.OverrideModuleBase
 }
 
-func (i *OverrideAndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (i *OverrideAndroidTest) GenerateAndroidBuildActions(_ android.ModuleContext) {
 	// All the overrides happen in the base module.
 	// TODO(jungjw): Check the base module type.
 }
@@ -1251,7 +1254,7 @@ type OverrideRuntimeResourceOverlay struct {
 	android.OverrideModuleBase
 }
 
-func (i *OverrideRuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (i *OverrideRuntimeResourceOverlay) GenerateAndroidBuildActions(_ android.ModuleContext) {
 	// All the overrides happen in the base module.
 	// TODO(jungjw): Check the base module type.
 }
@@ -1574,7 +1577,7 @@ func (a *AndroidAppImport) Privileged() bool {
 	return Bool(a.properties.Privileged)
 }
 
-func (a *AndroidAppImport) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+func (a *AndroidAppImport) DepIsInSameApex(_ android.BaseModuleContext, _ android.Module) bool {
 	// android_app_import might have extra dependencies via uses_libs property.
 	// Don't track the dependency as we don't automatically add those libraries
 	// to the classpath. It should be explicitly added to java_libs property of APEX
