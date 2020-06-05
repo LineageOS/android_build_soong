@@ -134,6 +134,90 @@ func TestAppSplits(t *testing.T) {
 	}
 }
 
+func TestAndroidAppSet(t *testing.T) {
+	config := testConfig(nil)
+	config.TestProductVariables.DeviceArch = proptools.StringPtr("arm64")
+	ctx := testAppContext(config, `
+	android_app_set {
+		name: "foo",
+		set: "prebuilts/apks/app.apks",
+		prerelease: true,
+	}`, nil)
+	run(t, ctx, config)
+	module := ctx.ModuleForTests("foo", "android_common")
+	const packedSplitApks = "extracted.zip"
+	params := module.Output(packedSplitApks)
+	if params.Rule == nil {
+		t.Errorf("expected output %s is missing", packedSplitApks)
+	}
+	if s := params.Args["allow-prereleased"]; s != "true" {
+		t.Errorf("wrong allow-prereleased value: '%s', expected 'true'", s)
+	}
+}
+
+func TestAndroidAppSet_Variants(t *testing.T) {
+	bp := `
+		android_app_set {
+			name: "foo",
+			set: "prebuilts/apks/app.apks",
+		}`
+	testCases := []struct {
+		name                string
+		deviceArch          *string
+		deviceSecondaryArch *string
+		aaptPrebuiltDPI     []string
+		sdkVersion          int
+		expected            map[string]string
+	}{
+		{
+			name:            "One",
+			deviceArch:      proptools.StringPtr("x86"),
+			aaptPrebuiltDPI: []string{"ldpi", "xxhdpi"},
+			sdkVersion:      29,
+			expected: map[string]string{
+				"abis":              "X86",
+				"allow-prereleased": "false",
+				"screen-densities":  "LDPI,XXHDPI",
+				"sdk-version":       "29",
+				"stem":              "foo",
+			},
+		},
+		{
+			name:                "Two",
+			deviceArch:          proptools.StringPtr("x86_64"),
+			deviceSecondaryArch: proptools.StringPtr("x86"),
+			aaptPrebuiltDPI:     nil,
+			sdkVersion:          30,
+			expected: map[string]string{
+				"abis":              "X86_64,X86",
+				"allow-prereleased": "false",
+				"screen-densities":  "all",
+				"sdk-version":       "30",
+				"stem":              "foo",
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		config := testConfig(nil)
+		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
+		config.TestProductVariables.Platform_sdk_version = &test.sdkVersion
+		config.TestProductVariables.DeviceArch = test.deviceArch
+		config.TestProductVariables.DeviceSecondaryArch = test.deviceSecondaryArch
+		ctx := testAppContext(config, bp, nil)
+		run(t, ctx, config)
+		module := ctx.ModuleForTests("foo", "android_common")
+		const packedSplitApks = "extracted.zip"
+		params := module.Output(packedSplitApks)
+		for k, v := range test.expected {
+			if actual := params.Args[k]; actual != v {
+				t.Errorf("%s: bad build arg value for '%s': '%s', expected '%s'",
+					test.name, k, actual, v)
+			}
+		}
+	}
+}
+
 func TestResourceDirs(t *testing.T) {
 	testCases := []struct {
 		name      string

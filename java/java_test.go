@@ -88,6 +88,7 @@ func testContext(config android.Config, bp string,
 	ctx.RegisterModuleType("java_sdk_library", android.ModuleFactoryAdaptor(SdkLibraryFactory))
 	ctx.RegisterModuleType("override_android_app", android.ModuleFactoryAdaptor(OverrideAndroidAppModuleFactory))
 	ctx.RegisterModuleType("prebuilt_apis", android.ModuleFactoryAdaptor(PrebuiltApisFactory))
+	ctx.RegisterModuleType("android_app_set", android.ModuleFactoryAdaptor(AndroidApkSetFactory))
 	ctx.PreArchMutators(android.RegisterPrebuiltsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterPrebuiltsPostDepsMutators)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
@@ -167,6 +168,8 @@ func testContext(config android.Config, bp string,
 		"prebuilts/sdk/tools/core-lambda-stubs.jar":   nil,
 		"prebuilts/sdk/Android.bp":                    []byte(`prebuilt_apis { name: "sdk", api_dirs: ["14", "28", "current"],}`),
 
+		"prebuilts/apks/app.apks": nil,
+
 		// For framework-res, which is an implicit dependency for framework
 		"AndroidManifest.xml":                   nil,
 		"build/target/product/security/testkey": nil,
@@ -210,6 +213,27 @@ func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
 	android.FailIfErrored(t, errs)
+}
+
+func testJavaError(t *testing.T, pattern string, bp string) (*android.TestContext, android.Config) {
+	t.Helper()
+	config := testConfig(nil)
+	ctx := testContext(config, bp, nil)
+
+	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
+	if len(errs) > 0 {
+		android.FailIfNoMatchingErrors(t, pattern, errs)
+		return ctx, config
+	}
+	_, errs = ctx.PrepareBuildActions(config)
+	if len(errs) > 0 {
+		android.FailIfNoMatchingErrors(t, pattern, errs)
+		return ctx, config
+	}
+
+	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
+
+	return ctx, config
 }
 
 func testJava(t *testing.T, bp string) *android.TestContext {

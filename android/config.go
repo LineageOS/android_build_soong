@@ -1053,3 +1053,11 @@ func (c *config) ProductHiddenAPIStubsTest() []string {
 func (c *deviceConfig) TargetFSConfigGen() []string {
 	return c.config.productVariables.TargetFSConfigGen
 }
+
+func (c *deviceConfig) DeviceArch() string {
+	return String(c.config.productVariables.DeviceArch)
+}
+
+func (c *deviceConfig) DeviceSecondaryArch() string {
+	return String(c.config.productVariables.DeviceSecondaryArch)
+}
