@@ -12,19 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package android
+package etc
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/google/blueprint/proptools"
+
+	"android/soong/android"
+)
+
+var pctx = android.NewPackageContext("android/soong/etc")
 
 // TODO(jungw): Now that it handles more than the ones in etc/, consider renaming this file.
 
 func init() {
-	RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
-	RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
-	RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
-	RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
-	RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
-	RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
+	pctx.Import("android/soong/android")
+
+	android.RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
+	android.RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
+	android.RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
+	android.RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
+	android.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
+	android.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
 }
 
 type prebuiltEtcProperties struct {
@@ -52,24 +62,24 @@ type prebuiltEtcProperties struct {
 }
 
 type PrebuiltEtcModule interface {
-	Module
+	android.Module
 	SubDir() string
-	OutputFile() OutputPath
+	OutputFile() android.OutputPath
 }
 
 type PrebuiltEtc struct {
-	ModuleBase
+	android.ModuleBase
 
 	properties prebuiltEtcProperties
 
-	sourceFilePath Path
-	outputFilePath OutputPath
+	sourceFilePath android.Path
+	outputFilePath android.OutputPath
 	// The base install location, e.g. "etc" for prebuilt_etc, "usr/share" for prebuilt_usr_share.
 	installDirBase string
 	// The base install location when soc_specific property is set to true, e.g. "firmware" for prebuilt_firmware.
 	socInstallDirBase      string
-	installDirPath         InstallPath
-	additionalDependencies *Paths
+	installDirPath         android.InstallPath
+	additionalDependencies *android.Paths
 }
 
 func (p *PrebuiltEtc) inRamdisk() bool {
@@ -96,65 +106,65 @@ func (p *PrebuiltEtc) InstallInRecovery() bool {
 	return p.inRecovery()
 }
 
-var _ ImageInterface = (*PrebuiltEtc)(nil)
+var _ android.ImageInterface = (*PrebuiltEtc)(nil)
 
-func (p *PrebuiltEtc) ImageMutatorBegin(ctx BaseModuleContext) {}
+func (p *PrebuiltEtc) ImageMutatorBegin(ctx android.BaseModuleContext) {}
 
-func (p *PrebuiltEtc) CoreVariantNeeded(ctx BaseModuleContext) bool {
+func (p *PrebuiltEtc) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
 	return !p.ModuleBase.InstallInRecovery() && !p.ModuleBase.InstallInRamdisk()
 }
 
-func (p *PrebuiltEtc) RamdiskVariantNeeded(ctx BaseModuleContext) bool {
-	return Bool(p.properties.Ramdisk_available) || p.ModuleBase.InstallInRamdisk()
+func (p *PrebuiltEtc) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+	return proptools.Bool(p.properties.Ramdisk_available) || p.ModuleBase.InstallInRamdisk()
 }
 
-func (p *PrebuiltEtc) RecoveryVariantNeeded(ctx BaseModuleContext) bool {
-	return Bool(p.properties.Recovery_available) || p.ModuleBase.InstallInRecovery()
+func (p *PrebuiltEtc) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
+	return proptools.Bool(p.properties.Recovery_available) || p.ModuleBase.InstallInRecovery()
 }
 
-func (p *PrebuiltEtc) ExtraImageVariations(ctx BaseModuleContext) []string {
+func (p *PrebuiltEtc) ExtraImageVariations(ctx android.BaseModuleContext) []string {
 	return nil
 }
 
-func (p *PrebuiltEtc) SetImageVariation(ctx BaseModuleContext, variation string, module Module) {
+func (p *PrebuiltEtc) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {
 }
 
-func (p *PrebuiltEtc) DepsMutator(ctx BottomUpMutatorContext) {
+func (p *PrebuiltEtc) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if p.properties.Src == nil {
 		ctx.PropertyErrorf("src", "missing prebuilt source file")
 	}
 }
 
-func (p *PrebuiltEtc) SourceFilePath(ctx ModuleContext) Path {
-	return PathForModuleSrc(ctx, String(p.properties.Src))
+func (p *PrebuiltEtc) SourceFilePath(ctx android.ModuleContext) android.Path {
+	return android.PathForModuleSrc(ctx, android.String(p.properties.Src))
 }
 
-func (p *PrebuiltEtc) InstallDirPath() InstallPath {
+func (p *PrebuiltEtc) InstallDirPath() android.InstallPath {
 	return p.installDirPath
 }
 
 // This allows other derivative modules (e.g. prebuilt_etc_xml) to perform
 // additional steps (like validating the src) before the file is installed.
-func (p *PrebuiltEtc) SetAdditionalDependencies(paths Paths) {
+func (p *PrebuiltEtc) SetAdditionalDependencies(paths android.Paths) {
 	p.additionalDependencies = &paths
 }
 
-func (p *PrebuiltEtc) OutputFile() OutputPath {
+func (p *PrebuiltEtc) OutputFile() android.OutputPath {
 	return p.outputFilePath
 }
 
 func (p *PrebuiltEtc) SubDir() string {
-	return String(p.properties.Sub_dir)
+	return android.String(p.properties.Sub_dir)
 }
 
 func (p *PrebuiltEtc) Installable() bool {
-	return p.properties.Installable == nil || Bool(p.properties.Installable)
+	return p.properties.Installable == nil || android.Bool(p.properties.Installable)
 }
 
-func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
-	p.sourceFilePath = PathForModuleSrc(ctx, String(p.properties.Src))
-	filename := String(p.properties.Filename)
-	filename_from_src := Bool(p.properties.Filename_from_src)
+func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	p.sourceFilePath = android.PathForModuleSrc(ctx, android.String(p.properties.Src))
+	filename := android.String(p.properties.Filename)
+	filename_from_src := android.Bool(p.properties.Filename_from_src)
 	if filename == "" {
 		if filename_from_src {
 			filename = p.sourceFilePath.Base()
@@ -165,7 +175,7 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
 		ctx.PropertyErrorf("filename_from_src", "filename is set. filename_from_src can't be true")
 		return
 	}
-	p.outputFilePath = PathForModuleOut(ctx, filename).OutputPath
+	p.outputFilePath = android.PathForModuleOut(ctx, filename).OutputPath
 
 	// If soc install dir was specified and SOC specific is set, set the installDirPath to the specified
 	// socInstallDirBase.
@@ -173,18 +183,18 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx ModuleContext) {
 	if ctx.SocSpecific() && p.socInstallDirBase != "" {
 		installBaseDir = p.socInstallDirBase
 	}
-	p.installDirPath = PathForModuleInstall(ctx, installBaseDir, String(p.properties.Sub_dir))
+	p.installDirPath = android.PathForModuleInstall(ctx, installBaseDir, proptools.String(p.properties.Sub_dir))
 
 	// This ensures that outputFilePath has the correct name for others to
 	// use, as the source file may have a different name.
-	ctx.Build(pctx, BuildParams{
-		Rule:   Cp,
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
 		Output: p.outputFilePath,
 		Input:  p.sourceFilePath,
 	})
 }
 
-func (p *PrebuiltEtc) AndroidMkEntries() []AndroidMkEntries {
+func (p *PrebuiltEtc) AndroidMkEntries() []android.AndroidMkEntries {
 	nameSuffix := ""
 	if p.inRamdisk() && !p.onlyInRamdisk() {
 		nameSuffix = ".ramdisk"
@@ -192,12 +202,12 @@ func (p *PrebuiltEtc) AndroidMkEntries() []AndroidMkEntries {
 	if p.inRecovery() && !p.onlyInRecovery() {
 		nameSuffix = ".recovery"
 	}
-	return []AndroidMkEntries{AndroidMkEntries{
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "ETC",
 		SubName:    nameSuffix,
-		OutputFile: OptionalPathForPath(p.outputFilePath),
-		ExtraEntries: []AndroidMkExtraEntriesFunc{
-			func(entries *AndroidMkEntries) {
+		OutputFile: android.OptionalPathForPath(p.outputFilePath),
+		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+			func(entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_TAGS", "optional")
 				entries.SetString("LOCAL_MODULE_PATH", p.installDirPath.ToMakePath().String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.outputFilePath.Base())
@@ -219,61 +229,61 @@ func InitPrebuiltEtcModule(p *PrebuiltEtc, dirBase string) {
 
 // prebuilt_etc is for a prebuilt artifact that is installed in
 // <partition>/etc/<sub_dir> directory.
-func PrebuiltEtcFactory() Module {
+func PrebuiltEtcFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "etc")
 	// This module is device-only
-	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	return module
 }
 
 // prebuilt_etc_host is for a host prebuilt artifact that is installed in
 // $(HOST_OUT)/etc/<sub_dir> directory.
-func PrebuiltEtcHostFactory() Module {
+func PrebuiltEtcHostFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "etc")
 	// This module is host-only
-	InitAndroidArchModule(module, HostSupported, MultilibCommon)
+	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
 	return module
 }
 
 // prebuilt_usr_share is for a prebuilt artifact that is installed in
 // <partition>/usr/share/<sub_dir> directory.
-func PrebuiltUserShareFactory() Module {
+func PrebuiltUserShareFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/share")
 	// This module is device-only
-	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	return module
 }
 
 // prebuild_usr_share_host is for a host prebuilt artifact that is installed in
 // $(HOST_OUT)/usr/share/<sub_dir> directory.
-func PrebuiltUserShareHostFactory() Module {
+func PrebuiltUserShareHostFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/share")
 	// This module is host-only
-	InitAndroidArchModule(module, HostSupported, MultilibCommon)
+	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibCommon)
 	return module
 }
 
 // prebuilt_font installs a font in <partition>/fonts directory.
-func PrebuiltFontFactory() Module {
+func PrebuiltFontFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "fonts")
 	// This module is device-only
-	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	return module
 }
 
 // prebuilt_firmware installs a firmware file to <partition>/etc/firmware directory for system image.
 // If soc_specific property is set to true, the firmware file is installed to the vendor <partition>/firmware
 // directory for vendor image.
-func PrebuiltFirmwareFactory() Module {
+func PrebuiltFirmwareFactory() android.Module {
 	module := &PrebuiltEtc{}
 	module.socInstallDirBase = "firmware"
 	InitPrebuiltEtcModule(module, "etc/firmware")
 	// This module is device-only
-	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	return module
 }

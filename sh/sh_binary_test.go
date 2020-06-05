@@ -1,27 +1,56 @@
-package android
+package sh
 
 import (
+	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
+
+	"android/soong/android"
 )
 
-func testShBinary(t *testing.T, bp string) (*TestContext, Config) {
+var buildDir string
+
+func setUp() {
+	var err error
+	buildDir, err = ioutil.TempDir("", "soong_sh_test")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func tearDown() {
+	os.RemoveAll(buildDir)
+}
+
+func TestMain(m *testing.M) {
+	run := func() int {
+		setUp()
+		defer tearDown()
+
+		return m.Run()
+	}
+
+	os.Exit(run())
+}
+
+func testShBinary(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	fs := map[string][]byte{
 		"test.sh":            nil,
 		"testdata/data1":     nil,
 		"testdata/sub/data2": nil,
 	}
 
-	config := TestArchConfig(buildDir, nil, bp, fs)
+	config := android.TestArchConfig(buildDir, nil, bp, fs)
 
-	ctx := NewTestArchContext()
+	ctx := android.NewTestArchContext()
 	ctx.RegisterModuleType("sh_test", ShTestFactory)
 	ctx.RegisterModuleType("sh_test_host", ShTestHostFactory)
 	ctx.Register(config)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
+	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
-	FailIfErrored(t, errs)
+	android.FailIfErrored(t, errs)
 
 	return ctx, config
 }
@@ -41,7 +70,7 @@ func TestShTestTestData(t *testing.T) {
 
 	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*ShTest)
 
-	entries := AndroidMkEntriesForTest(t, config, "", mod)[0]
+	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
 	expected := []string{":testdata/data1", ":testdata/sub/data2"}
 	actual := entries.EntryMap["LOCAL_TEST_DATA"]
 	if !reflect.DeepEqual(expected, actual) {
@@ -62,7 +91,7 @@ func TestShTestHost(t *testing.T) {
 		}
 	`)
 
-	buildOS := BuildOs.String()
+	buildOS := android.BuildOs.String()
 	mod := ctx.ModuleForTests("foo", buildOS+"_x86_64").Module().(*ShTest)
 	if !mod.Host() {
 		t.Errorf("host bit is not set for a sh_test_host module.")
