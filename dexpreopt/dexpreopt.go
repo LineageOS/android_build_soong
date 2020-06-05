@@ -229,8 +229,9 @@ func (m classLoaderContextMap) getValue(sdkVer int) *classLoaderContext {
 func (m classLoaderContextMap) addLibs(sdkVer int, module *ModuleConfig, libs ...string) {
 	clc := m.getValue(sdkVer)
 	for _, lib := range libs {
-		clc.Host = append(clc.Host, pathForLibrary(module, lib))
-		clc.Target = append(clc.Target, filepath.Join("/system/framework", lib+".jar"))
+		p := pathForLibrary(module, lib)
+		clc.Host = append(clc.Host, p.Host)
+		clc.Target = append(clc.Target, p.Device)
 	}
 }
 
@@ -557,7 +558,7 @@ func PathToLocation(path android.Path, arch android.ArchType) string {
 	return filepath.Join(filepath.Dir(filepath.Dir(path.String())), filepath.Base(path.String()))
 }
 
-func pathForLibrary(module *ModuleConfig, lib string) android.Path {
+func pathForLibrary(module *ModuleConfig, lib string) *LibraryPath {
 	path, ok := module.LibraryPaths[lib]
 	if !ok {
 		panic(fmt.Errorf("unknown library path for %q", lib))
