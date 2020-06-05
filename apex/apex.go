@@ -1684,7 +1684,8 @@ func apexFileForShBinary(ctx android.BaseModuleContext, sh *sh.ShBinary) apexFil
 }
 
 type javaDependency interface {
-	java.Dependency
+	DexJar() android.Path
+	JacocoReportClassesFile() android.Path
 	Stem() string
 }
 
@@ -2004,23 +2005,16 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					ctx.PropertyErrorf("binaries", "%q is neither cc_binary, (embedded) py_binary, (host) blueprint_go_binary, (host) bootstrap_go_binary, nor sh_binary", depName)
 				}
 			case javaLibTag:
-				if javaLib, ok := child.(*java.Library); ok {
-					af := apexFileForJavaLibrary(ctx, javaLib, javaLib)
-					if !af.Ok() {
-						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
-					} else {
-						filesInfo = append(filesInfo, af)
-						return true // track transitive dependencies
-					}
-				} else if sdkLib, ok := child.(*java.SdkLibrary); ok {
-					af := apexFileForJavaLibrary(ctx, sdkLib, sdkLib)
+				switch child.(type) {
+				case *java.Library, *java.SdkLibrary, *java.DexImport:
+					af := apexFileForJavaLibrary(ctx, child.(javaDependency), child.(android.Module))
 					if !af.Ok() {
 						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
 						return false
 					}
 					filesInfo = append(filesInfo, af)
 					return true // track transitive dependencies
-				} else {
+				default:
 					ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
 				}
 			case androidAppTag:
