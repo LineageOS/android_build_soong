@@ -2684,6 +2684,10 @@ func (j *DexImport) Stem() string {
 	return proptools.StringDefault(j.properties.Stem, j.ModuleBase.Name())
 }
 
+func (a *DexImport) JacocoReportClassesFile() android.Path {
+	return nil
+}
+
 func (j *DexImport) IsInstallable() bool {
 	return true
 }
