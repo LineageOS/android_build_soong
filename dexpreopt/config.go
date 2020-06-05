@@ -100,6 +100,15 @@ type GlobalSoongConfig struct {
 	ConstructContext android.Path
 }
 
+// LibraryPath contains paths to the library DEX jar on host and on device.
+type LibraryPath struct {
+	Host   android.Path
+	Device string
+}
+
+// LibraryPaths is a map from library name to on-host and on-device paths to its DEX jar.
+type LibraryPaths map[string]*LibraryPath
+
 type ModuleConfig struct {
 	Name            string
 	DexLocation     string // dex location on device
@@ -117,7 +126,7 @@ type ModuleConfig struct {
 	EnforceUsesLibraries         bool
 	PresentOptionalUsesLibraries []string
 	UsesLibraries                []string
-	LibraryPaths                 map[string]android.Path
+	LibraryPaths                 LibraryPaths
 
 	Archs                   []android.ArchType
 	DexPreoptImages         []android.Path
@@ -161,14 +170,6 @@ func constructPaths(ctx android.PathContext, paths []string) android.Paths {
 	var ret android.Paths
 	for _, path := range paths {
 		ret = append(ret, constructPath(ctx, path))
-	}
-	return ret
-}
-
-func constructPathMap(ctx android.PathContext, paths map[string]string) map[string]android.Path {
-	ret := map[string]android.Path{}
-	for key, path := range paths {
-		ret[key] = constructPath(ctx, path)
 	}
 	return ret
 }
@@ -264,6 +265,13 @@ func SetTestGlobalConfig(config android.Config, globalConfig *GlobalConfig) {
 // from Make to read the module dexpreopt.config written in the Make config
 // stage.
 func ParseModuleConfig(ctx android.PathContext, data []byte) (*ModuleConfig, error) {
+	type jsonLibraryPath struct {
+		Host   string
+		Device string
+	}
+
+	type jsonLibraryPaths map[string]jsonLibraryPath
+
 	type ModuleJSONConfig struct {
 		*ModuleConfig
 
@@ -273,10 +281,22 @@ func ParseModuleConfig(ctx android.PathContext, data []byte) (*ModuleConfig, err
 		DexPath                     string
 		ManifestPath                string
 		ProfileClassListing         string
-		LibraryPaths                map[string]string
+		LibraryPaths                jsonLibraryPaths
 		DexPreoptImages             []string
 		DexPreoptImageLocations     []string
 		PreoptBootClassPathDexFiles []string
+	}
+
+	// convert JSON map of library paths to LibraryPaths
+	constructLibraryPaths := func(ctx android.PathContext, paths jsonLibraryPaths) LibraryPaths {
+		m := LibraryPaths{}
+		for lib, path := range paths {
+			m[lib] = &LibraryPath{
+				constructPath(ctx, path.Host),
+				path.Device,
+			}
+		}
+		return m
 	}
 
 	config := ModuleJSONConfig{}
@@ -291,7 +311,7 @@ func ParseModuleConfig(ctx android.PathContext, data []byte) (*ModuleConfig, err
 	config.ModuleConfig.DexPath = constructPath(ctx, config.DexPath)
 	config.ModuleConfig.ManifestPath = constructPath(ctx, config.ManifestPath)
 	config.ModuleConfig.ProfileClassListing = android.OptionalPathForPath(constructPath(ctx, config.ProfileClassListing))
-	config.ModuleConfig.LibraryPaths = constructPathMap(ctx, config.LibraryPaths)
+	config.ModuleConfig.LibraryPaths = constructLibraryPaths(ctx, config.LibraryPaths)
 	config.ModuleConfig.DexPreoptImages = constructPaths(ctx, config.DexPreoptImages)
 	config.ModuleConfig.DexPreoptImageLocations = config.DexPreoptImageLocations
 	config.ModuleConfig.PreoptBootClassPathDexFiles = constructPaths(ctx, config.PreoptBootClassPathDexFiles)
