@@ -28,6 +28,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/dexpreopt"
 	"android/soong/tradefed"
 )
 
@@ -1888,24 +1889,30 @@ func (u *usesLibrary) presentOptionalUsesLibs(ctx android.BaseModuleContext) []s
 	return optionalUsesLibs
 }
 
-// usesLibraryPaths returns a map of module names of shared library dependencies to the paths to their dex jars.
-func (u *usesLibrary) usesLibraryPaths(ctx android.ModuleContext) map[string]android.Path {
-	usesLibPaths := make(map[string]android.Path)
+// usesLibraryPaths returns a map of module names of shared library dependencies to the paths
+// to their dex jars on host and on device.
+func (u *usesLibrary) usesLibraryPaths(ctx android.ModuleContext) dexpreopt.LibraryPaths {
+	usesLibPaths := make(dexpreopt.LibraryPaths)
 
 	if !ctx.Config().UnbundledBuild() {
 		ctx.VisitDirectDepsWithTag(usesLibTag, func(m android.Module) {
+			dep := ctx.OtherModuleName(m)
 			if lib, ok := m.(Dependency); ok {
 				if dexJar := lib.DexJarBuildPath(); dexJar != nil {
-					usesLibPaths[ctx.OtherModuleName(m)] = dexJar
+					usesLibPaths[dep] = &dexpreopt.LibraryPath{
+						dexJar,
+						// TODO(b/132357300): propagate actual install paths here.
+						filepath.Join("/system/framework", dep+".jar"),
+					}
 				} else {
-					ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must produce a dex jar, does it have installable: true?",
-						ctx.OtherModuleName(m))
+					ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must"+
+						" produce a dex jar, does it have installable: true?", dep)
 				}
 			} else if ctx.Config().AllowMissingDependencies() {
-				ctx.AddMissingDependencies([]string{ctx.OtherModuleName(m)})
+				ctx.AddMissingDependencies([]string{dep})
 			} else {
-				ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must be a java library",
-					ctx.OtherModuleName(m))
+				ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must be "+
+					"a java library", dep)
 			}
 		})
 	}
