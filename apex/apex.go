@@ -1227,11 +1227,14 @@ func (af *apexFile) apexRelativePath(path string) string {
 
 // Path() returns path of this apex file relative to the APEX root
 func (af *apexFile) Path() string {
-	stem := af.builtFile.Base()
+	return af.apexRelativePath(af.Stem())
+}
+
+func (af *apexFile) Stem() string {
 	if af.stem != "" {
-		stem = af.stem
+		return af.stem
 	}
-	return af.apexRelativePath(stem)
+	return af.builtFile.Base()
 }
 
 // SymlinkPaths() returns paths of the symlinks (if any) relative to the APEX root
@@ -1672,7 +1675,8 @@ func apexFileForShBinary(ctx android.BaseModuleContext, sh *sh.ShBinary) apexFil
 }
 
 type javaDependency interface {
-	java.Dependency
+	DexJar() android.Path
+	JacocoReportClassesFile() android.Path
 	Stem() string
 }
 
@@ -1933,11 +1937,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			switch depTag {
 			case sharedLibTag:
 				if c, ok := child.(*cc.Module); ok {
+					fi := apexFileForNativeLibrary(ctx, c, handleSpecialLibs)
+					filesInfo = append(filesInfo, fi)
 					// bootstrap bionic libs are treated as provided by system
 					if c.HasStubsVariants() && !cc.InstallToBootstrap(c.BaseModuleName(), ctx.Config()) {
-						provideNativeLibs = append(provideNativeLibs, c.OutputFile().Path().Base())
+						provideNativeLibs = append(provideNativeLibs, fi.Stem())
 					}
-					filesInfo = append(filesInfo, apexFileForNativeLibrary(ctx, c, handleSpecialLibs))
 					return true // track transitive dependencies
 				} else {
 					ctx.PropertyErrorf("native_shared_libs", "%q is not a cc_library or cc_library_shared module", depName)
@@ -1956,23 +1961,16 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					ctx.PropertyErrorf("binaries", "%q is neither cc_binary, (embedded) py_binary, (host) blueprint_go_binary, (host) bootstrap_go_binary, nor sh_binary", depName)
 				}
 			case javaLibTag:
-				if javaLib, ok := child.(*java.Library); ok {
-					af := apexFileForJavaLibrary(ctx, javaLib, javaLib)
-					if !af.Ok() {
-						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
-					} else {
-						filesInfo = append(filesInfo, af)
-						return true // track transitive dependencies
-					}
-				} else if sdkLib, ok := child.(*java.SdkLibrary); ok {
-					af := apexFileForJavaLibrary(ctx, sdkLib, sdkLib)
+				switch child.(type) {
+				case *java.Library, *java.SdkLibrary, *java.DexImport:
+					af := apexFileForJavaLibrary(ctx, child.(javaDependency), child.(android.Module))
 					if !af.Ok() {
 						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
 						return false
 					}
 					filesInfo = append(filesInfo, af)
 					return true // track transitive dependencies
-				} else {
+				default:
 					ctx.PropertyErrorf("java_libs", "%q of type %q is not supported", depName, ctx.OtherModuleType(child))
 				}
 			case androidAppTag:
@@ -2047,6 +2045,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							// don't include it in this APEX
 							return false
 						}
+						af := apexFileForNativeLibrary(ctx, cc, handleSpecialLibs)
+						af.transitiveDep = true
 						if !a.Host() && !android.DirectlyInApex(ctx.ModuleName(), ctx.OtherModuleName(cc)) && (cc.IsStubs() || cc.HasStubsVariants()) {
 							// If the dependency is a stubs lib, don't include it in this APEX,
 							// but make sure that the lib is installed on the device.
@@ -2058,12 +2058,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.Name(), a.requiredDeps) {
 								a.requiredDeps = append(a.requiredDeps, cc.Name())
 							}
-							requireNativeLibs = append(requireNativeLibs, cc.OutputFile().Path().Base())
+							requireNativeLibs = append(requireNativeLibs, af.Stem())
 							// Don't track further
 							return false
 						}
-						af := apexFileForNativeLibrary(ctx, cc, handleSpecialLibs)
-						af.transitiveDep = true
 						filesInfo = append(filesInfo, af)
 						return true // track transitive dependencies
 					}

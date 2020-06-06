@@ -158,3 +158,7 @@ func (object *objectLinker) nativeCoverage() bool {
 func (object *objectLinker) coverageOutputFilePath() android.OptionalPath {
 	return android.OptionalPath{}
 }
+
+func (object *objectLinker) object() bool {
+	return true
+}
