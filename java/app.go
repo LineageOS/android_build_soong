@@ -28,6 +28,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/dexpreopt"
 	"android/soong/tradefed"
 )
 
@@ -96,6 +97,14 @@ func (as *AndroidAppSet) Privileged() bool {
 	return Bool(as.properties.Privileged)
 }
 
+func (as *AndroidAppSet) OutputFile() android.Path {
+	return as.packedOutput
+}
+
+func (as *AndroidAppSet) MasterFile() string {
+	return as.masterFile
+}
+
 var TargetCpuAbi = map[string]string{
 	"arm":    "ARMEABI_V7A",
 	"arm64":  "ARM64_V8A",
@@ -120,7 +129,7 @@ func SupportedAbis(ctx android.ModuleContext) []string {
 }
 
 func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	as.packedOutput = android.PathForModuleOut(ctx, "extracted.zip")
+	as.packedOutput = android.PathForModuleOut(ctx, ctx.ModuleName()+".zip")
 	// We are assuming here that the master file in the APK
 	// set has `.apk` suffix. If it doesn't the build will fail.
 	// APK sets containing APEX files are handled elsewhere.
@@ -145,26 +154,17 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 				"stem":              ctx.ModuleName(),
 			},
 		})
-	// TODO(asmundak): add this (it's wrong now, will cause copying extracted.zip)
-	/*
-		var installDir android.InstallPath
-		if Bool(as.properties.Privileged) {
-			installDir = android.PathForModuleInstall(ctx, "priv-app", as.BaseModuleName())
-		} else if ctx.InstallInTestcases() {
-			installDir = android.PathForModuleInstall(ctx, as.BaseModuleName(), ctx.DeviceConfig().DeviceArch())
-		} else {
-			installDir = android.PathForModuleInstall(ctx, "app", as.BaseModuleName())
-		}
-		ctx.InstallFile(installDir, as.masterFile", as.packedOutput)
-	*/
 }
 
 // android_app_set extracts a set of APKs based on the target device
 // configuration and installs this set as "split APKs".
-// The set will always contain `base-master.apk` and every APK built
-// to the target device. All density-specific APK will be included, too,
-// unless PRODUCT_APPT_PREBUILT_DPI is defined (should contain comma-sepearated
-// list of density names (LDPI, MDPI, HDPI, etc.)
+// The extracted set always contains 'master' APK whose name is
+// _module_name_.apk and every split APK matching target device.
+// The extraction of the density-specific splits depends on
+// PRODUCT_AAPT_PREBUILT_DPI variable. If present (its value should
+// be a list density names: LDPI, MDPI, HDPI, etc.), only listed
+// splits will be extracted. Otherwise all density-specific splits
+// will be extracted.
 func AndroidApkSetFactory() android.Module {
 	module := &AndroidAppSet{}
 	module.AddProperties(&module.properties)
@@ -335,7 +335,7 @@ type Certificate struct {
 	presigned bool
 }
 
-var presignedCertificate = Certificate{presigned: true}
+var PresignedCertificate = Certificate{presigned: true}
 
 func (c Certificate) AndroidMkString() string {
 	if c.presigned {
@@ -494,6 +494,14 @@ func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
 		!a.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
 }
 
+func generateAaptRenamePackageFlags(packageName string) []string {
+	aaptFlags := []string{}
+	aaptFlags = append(aaptFlags, "--rename-manifest-package "+packageName)
+	// Required to rename the package name in the resources table.
+	aaptFlags = append(aaptFlags, "--rename-resources-package "+packageName)
+	return aaptFlags
+}
+
 func (a *AndroidApp) OverriddenManifestPackageName() string {
 	return a.overriddenManifestPackageName
 }
@@ -530,7 +538,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 		if !overridden {
 			manifestPackageName = *a.overridableAppProperties.Package_name
 		}
-		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
+		aaptLinkFlags = append(aaptLinkFlags, generateAaptRenamePackageFlags(manifestPackageName)...)
 		a.overriddenManifestPackageName = manifestPackageName
 	}
 
@@ -1203,7 +1211,7 @@ type OverrideAndroidApp struct {
 	android.OverrideModuleBase
 }
 
-func (i *OverrideAndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (i *OverrideAndroidApp) GenerateAndroidBuildActions(_ android.ModuleContext) {
 	// All the overrides happen in the base module.
 	// TODO(jungjw): Check the base module type.
 }
@@ -1224,7 +1232,7 @@ type OverrideAndroidTest struct {
 	android.OverrideModuleBase
 }
 
-func (i *OverrideAndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (i *OverrideAndroidTest) GenerateAndroidBuildActions(_ android.ModuleContext) {
 	// All the overrides happen in the base module.
 	// TODO(jungjw): Check the base module type.
 }
@@ -1246,7 +1254,7 @@ type OverrideRuntimeResourceOverlay struct {
 	android.OverrideModuleBase
 }
 
-func (i *OverrideRuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (i *OverrideRuntimeResourceOverlay) GenerateAndroidBuildActions(_ android.ModuleContext) {
 	// All the overrides happen in the base module.
 	// TODO(jungjw): Check the base module type.
 }
@@ -1491,7 +1499,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	// Sign or align the package if package has not been preprocessed
 	if a.preprocessed {
 		a.outputFile = srcApk
-		a.certificate = presignedCertificate
+		a.certificate = PresignedCertificate
 	} else if !Bool(a.properties.Presigned) {
 		// If the certificate property is empty at this point, default_dev_cert must be set to true.
 		// Which makes processMainCert's behavior for the empty cert string WAI.
@@ -1511,7 +1519,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		alignedApk := android.PathForModuleOut(ctx, "zip-aligned", apkFilename)
 		TransformZipAlign(ctx, alignedApk, dexOutput)
 		a.outputFile = alignedApk
-		a.certificate = presignedCertificate
+		a.certificate = PresignedCertificate
 	}
 
 	// TODO: Optionally compress the output apk.
@@ -1569,7 +1577,7 @@ func (a *AndroidAppImport) Privileged() bool {
 	return Bool(a.properties.Privileged)
 }
 
-func (a *AndroidAppImport) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+func (a *AndroidAppImport) DepIsInSameApex(_ android.BaseModuleContext, _ android.Module) bool {
 	// android_app_import might have extra dependencies via uses_libs property.
 	// Don't track the dependency as we don't automatically add those libraries
 	// to the classpath. It should be explicitly added to java_libs property of APEX
@@ -1892,24 +1900,30 @@ func (u *usesLibrary) presentOptionalUsesLibs(ctx android.BaseModuleContext) []s
 	return optionalUsesLibs
 }
 
-// usesLibraryPaths returns a map of module names of shared library dependencies to the paths to their dex jars.
-func (u *usesLibrary) usesLibraryPaths(ctx android.ModuleContext) map[string]android.Path {
-	usesLibPaths := make(map[string]android.Path)
+// usesLibraryPaths returns a map of module names of shared library dependencies to the paths
+// to their dex jars on host and on device.
+func (u *usesLibrary) usesLibraryPaths(ctx android.ModuleContext) dexpreopt.LibraryPaths {
+	usesLibPaths := make(dexpreopt.LibraryPaths)
 
 	if !ctx.Config().UnbundledBuild() {
 		ctx.VisitDirectDepsWithTag(usesLibTag, func(m android.Module) {
+			dep := ctx.OtherModuleName(m)
 			if lib, ok := m.(Dependency); ok {
-				if dexJar := lib.DexJar(); dexJar != nil {
-					usesLibPaths[ctx.OtherModuleName(m)] = dexJar
+				if dexJar := lib.DexJarBuildPath(); dexJar != nil {
+					usesLibPaths[dep] = &dexpreopt.LibraryPath{
+						dexJar,
+						// TODO(b/132357300): propagate actual install paths here.
+						filepath.Join("/system/framework", dep+".jar"),
+					}
 				} else {
-					ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must produce a dex jar, does it have installable: true?",
-						ctx.OtherModuleName(m))
+					ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must"+
+						" produce a dex jar, does it have installable: true?", dep)
 				}
 			} else if ctx.Config().AllowMissingDependencies() {
-				ctx.AddMissingDependencies([]string{ctx.OtherModuleName(m)})
+				ctx.AddMissingDependencies([]string{dep})
 			} else {
-				ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must be a java library",
-					ctx.OtherModuleName(m))
+				ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must be "+
+					"a java library", dep)
 			}
 		})
 	}

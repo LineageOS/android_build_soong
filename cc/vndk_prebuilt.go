@@ -186,6 +186,10 @@ func (p *vndkPrebuiltLibraryDecorator) nativeCoverage() bool {
 	return false
 }
 
+func (p *vndkPrebuiltLibraryDecorator) isSnapshotPrebuilt() bool {
+	return true
+}
+
 func (p *vndkPrebuiltLibraryDecorator) install(ctx ModuleContext, file android.Path) {
 	arches := ctx.DeviceConfig().Arches()
 	if len(arches) == 0 || arches[0].ArchType.String() != p.arch() {
