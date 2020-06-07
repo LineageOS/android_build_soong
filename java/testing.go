@@ -25,33 +25,12 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	bp += GatherRequiredDepsForTest()
 
 	mockFS := map[string][]byte{
-		"a.java":                 nil,
-		"b.java":                 nil,
-		"c.java":                 nil,
-		"b.kt":                   nil,
-		"a.jar":                  nil,
-		"b.jar":                  nil,
-		"c.jar":                  nil,
-		"APP_NOTICE":             nil,
-		"GENRULE_NOTICE":         nil,
-		"LIB_NOTICE":             nil,
-		"TOOL_NOTICE":            nil,
-		"AndroidTest.xml":        nil,
-		"java-res/a/a":           nil,
-		"java-res/b/b":           nil,
-		"java-res2/a":            nil,
-		"java-fg/a.java":         nil,
-		"java-fg/b.java":         nil,
-		"java-fg/c.java":         nil,
 		"api/current.txt":        nil,
 		"api/removed.txt":        nil,
 		"api/system-current.txt": nil,
 		"api/system-removed.txt": nil,
 		"api/test-current.txt":   nil,
 		"api/test-removed.txt":   nil,
-		"framework/aidl/a.aidl":  nil,
-		"assets_a/a":             nil,
-		"assets_b/b":             nil,
 
 		"prebuilts/sdk/14/public/android.jar":                      nil,
 		"prebuilts/sdk/14/public/framework.aidl":                   nil,
@@ -101,45 +80,6 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"prebuilts/sdk/30/test/api/bar-removed.txt":                nil,
 		"prebuilts/sdk/tools/core-lambda-stubs.jar":                nil,
 		"prebuilts/sdk/Android.bp":                                 []byte(`prebuilt_apis { name: "sdk", api_dirs: ["14", "28", "30", "current"],}`),
-
-		"prebuilts/apk/app.apk":        nil,
-		"prebuilts/apk/app_arm.apk":    nil,
-		"prebuilts/apk/app_arm64.apk":  nil,
-		"prebuilts/apk/app_xhdpi.apk":  nil,
-		"prebuilts/apk/app_xxhdpi.apk": nil,
-
-		"prebuilts/apks/app.apks": nil,
-
-		// For framework-res, which is an implicit dependency for framework
-		"AndroidManifest.xml":                        nil,
-		"build/make/target/product/security/testkey": nil,
-
-		"build/soong/scripts/jar-wrapper.sh": nil,
-
-		"build/make/core/verify_uses_libraries.sh": nil,
-
-		"build/make/core/proguard.flags":             nil,
-		"build/make/core/proguard_basic_keeps.flags": nil,
-
-		"jdk8/jre/lib/jce.jar": nil,
-		"jdk8/jre/lib/rt.jar":  nil,
-		"jdk8/lib/tools.jar":   nil,
-
-		"bar-doc/a.java":                 nil,
-		"bar-doc/b.java":                 nil,
-		"bar-doc/IFoo.aidl":              nil,
-		"bar-doc/IBar.aidl":              nil,
-		"bar-doc/known_oj_tags.txt":      nil,
-		"external/doclava/templates-sdk": nil,
-
-		"cert/new_cert.x509.pem": nil,
-		"cert/new_cert.pk8":      nil,
-		"lineage.bin":            nil,
-
-		"testdata/data": nil,
-
-		"stubs-sources/foo/Foo.java": nil,
-		"stubs/sources/foo/Foo.java": nil,
 
 		// For java_sdk_library
 		"api/module-lib-current.txt":                        nil,
