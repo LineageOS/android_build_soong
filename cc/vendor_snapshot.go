@@ -429,7 +429,7 @@ func isVendorProprietaryPath(dir string) bool {
 // depend on newer VNDK) So they are captured as vendor snapshot To build older vendor
 // image and newer system image altogether.
 func isVendorSnapshotModule(m *Module, moduleDir string) bool {
-	if !m.Enabled() {
+	if !m.Enabled() || m.Properties.HideFromMake {
 		return false
 	}
 	// skip proprietary modules, but include all VNDK (static)
@@ -443,37 +443,37 @@ func isVendorSnapshotModule(m *Module, moduleDir string) bool {
 		return false
 	}
 	// the module must be installed in /vendor
-	if !m.installable() || m.isSnapshotPrebuilt() || !m.inVendor() {
-		return false
-	}
-	// exclude test modules
-	if _, ok := m.linker.(interface{ gtest() bool }); ok {
-		return false
-	}
-	// TODO(b/65377115): add full support for sanitizer
-	if m.sanitize != nil && !m.sanitize.isUnsanitizedVariant() {
+	if !m.IsForPlatform() || m.isSnapshotPrebuilt() || !m.inVendor() {
 		return false
 	}
 
 	// Libraries
 	if l, ok := m.linker.(snapshotLibraryInterface); ok {
+		// TODO(b/65377115): add full support for sanitizer
+		if m.sanitize != nil {
+			// cfi, scs and hwasan export both sanitized and unsanitized variants for static and header
+			// Always use unsanitized variants of them.
+			for _, t := range []sanitizerType{cfi, scs, hwasan} {
+				if !l.shared() && m.sanitize.isSanitizerEnabled(t) {
+					return false
+				}
+			}
+		}
 		if l.static() {
-			return proptools.BoolDefault(m.VendorProperties.Vendor_available, true)
+			return m.outputFile.Valid() && proptools.BoolDefault(m.VendorProperties.Vendor_available, true)
 		}
 		if l.shared() {
-			return !m.IsVndk()
+			return m.outputFile.Valid() && !m.IsVndk()
 		}
 		return true
 	}
 
 	// Binaries
-	_, ok := m.linker.(*binaryDecorator)
-	if !ok {
-		if _, ok := m.linker.(*prebuiltBinaryLinker); !ok {
-			return false
-		}
+	if m.binary() {
+		return m.outputFile.Valid() && proptools.BoolDefault(m.VendorProperties.Vendor_available, true)
 	}
-	return proptools.BoolDefault(m.VendorProperties.Vendor_available, true)
+
+	return false
 }
 
 func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
@@ -620,7 +620,7 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 			}
 
 			propOut = filepath.Join(snapshotArchDir, targetArch, libType, stem+".json")
-		} else {
+		} else if m.binary() {
 			// binary flags
 			prop.Symlinks = m.Symlinks()
 			prop.SharedLibs = m.Properties.SnapshotSharedLibs
@@ -630,6 +630,9 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 			snapshotBinOut := filepath.Join(snapshotArchDir, targetArch, "binary", binPath.Base())
 			ret = append(ret, copyFile(ctx, binPath, snapshotBinOut))
 			propOut = snapshotBinOut + ".json"
+		} else {
+			ctx.Errorf("unknown module %q in vendor snapshot", m.String())
+			return nil
 		}
 
 		j, err := json.Marshal(prop)
@@ -815,9 +818,7 @@ func VendorSnapshotSourceMutator(ctx android.BottomUpMutatorContext) {
 			// header
 			snapshotMap = vendorSnapshotHeaderLibs(ctx.Config())
 		}
-	} else if _, ok := module.linker.(*binaryDecorator); ok {
-		snapshotMap = vendorSnapshotBinaries(ctx.Config())
-	} else if _, ok := module.linker.(*prebuiltBinaryLinker); ok {
+	} else if module.binary() {
 		snapshotMap = vendorSnapshotBinaries(ctx.Config())
 	} else {
 		return
