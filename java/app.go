@@ -445,8 +445,11 @@ func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVer
 			return
 		}
 		dep, _ := m.(*cc.Module)
-		jniSdkVersion, err := android.ApiStrToNum(ctx, dep.SdkVersion())
-		if err != nil || int(minSdkVersion) < jniSdkVersion {
+		// The domain of cc.sdk_version is "current" and <number>
+		// We can rely on sdkSpec to convert it to <number> so that "current" is handled
+		// properly regardless of sdk finalization.
+		jniSdkVersion, err := sdkSpecFrom(dep.SdkVersion()).effectiveVersion(ctx)
+		if err != nil || minSdkVersion < jniSdkVersion {
 			ctx.OtherModuleErrorf(dep, "sdk_version(%v) is higher than min_sdk_version(%v) of the containing android_app(%v)",
 				dep.SdkVersion(), minSdkVersion, ctx.ModuleName())
 			return
