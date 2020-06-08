@@ -316,6 +316,8 @@ type ModuleContextIntf interface {
 	static() bool
 	staticBinary() bool
 	header() bool
+	binary() bool
+	object() bool
 	toolchain() config.Toolchain
 	canUseSdk() bool
 	useSdk() bool
@@ -1017,14 +1019,8 @@ func (c *Module) nativeCoverage() bool {
 }
 
 func (c *Module) isSnapshotPrebuilt() bool {
-	if _, ok := c.linker.(*vndkPrebuiltLibraryDecorator); ok {
-		return true
-	}
-	if _, ok := c.linker.(*vendorSnapshotLibraryDecorator); ok {
-		return true
-	}
-	if _, ok := c.linker.(*vendorSnapshotBinaryDecorator); ok {
-		return true
+	if p, ok := c.linker.(interface{ isSnapshotPrebuilt() bool }); ok {
+		return p.isSnapshotPrebuilt()
 	}
 	return false
 }
@@ -1127,6 +1123,14 @@ func (ctx *moduleContextImpl) staticBinary() bool {
 
 func (ctx *moduleContextImpl) header() bool {
 	return ctx.mod.header()
+}
+
+func (ctx *moduleContextImpl) binary() bool {
+	return ctx.mod.binary()
+}
+
+func (ctx *moduleContextImpl) object() bool {
+	return ctx.mod.object()
 }
 
 func (ctx *moduleContextImpl) canUseSdk() bool {
@@ -1925,7 +1929,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	if deps.StaticUnwinderIfLegacy {
 		actx.AddVariationDependencies([]blueprint.Variation{
 			{Mutator: "link", Variation: "static"},
-		}, staticUnwinderDepTag, staticUnwinder(actx))
+		}, staticUnwinderDepTag, rewriteSnapshotLibs(staticUnwinder(actx), vendorSnapshotStaticLibs))
 	}
 
 	for _, lib := range deps.LateStaticLibs {
@@ -2006,11 +2010,13 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	actx.AddVariationDependencies(nil, objDepTag, deps.ObjFiles...)
 
+	vendorSnapshotObjects := vendorSnapshotObjects(actx.Config())
+
 	if deps.CrtBegin != "" {
-		actx.AddVariationDependencies(nil, CrtBeginDepTag, deps.CrtBegin)
+		actx.AddVariationDependencies(nil, CrtBeginDepTag, rewriteSnapshotLibs(deps.CrtBegin, vendorSnapshotObjects))
 	}
 	if deps.CrtEnd != "" {
-		actx.AddVariationDependencies(nil, CrtEndDepTag, deps.CrtEnd)
+		actx.AddVariationDependencies(nil, CrtEndDepTag, rewriteSnapshotLibs(deps.CrtEnd, vendorSnapshotObjects))
 	}
 	if deps.LinkerFlagsFile != "" {
 		actx.AddDependency(c, linkerFlagsDepTag, deps.LinkerFlagsFile)
@@ -2752,6 +2758,24 @@ func (c *Module) header() bool {
 	return false
 }
 
+func (c *Module) binary() bool {
+	if b, ok := c.linker.(interface {
+		binary() bool
+	}); ok {
+		return b.binary()
+	}
+	return false
+}
+
+func (c *Module) object() bool {
+	if o, ok := c.linker.(interface {
+		object() bool
+	}); ok {
+		return o.object()
+	}
+	return false
+}
+
 func (c *Module) getMakeLinkType(actx android.ModuleContext) string {
 	if c.UseVndk() {
 		if lib, ok := c.linker.(*llndkStubDecorator); ok {
@@ -3064,20 +3088,32 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		// This will be available in /system, /vendor and /product
 		// or a /system directory that is available to vendor and product.
 		coreVariantNeeded = true
-		vendorVariants = append(vendorVariants, platformVndkVersion)
-		productVariants = append(productVariants, platformVndkVersion)
-		// VNDK modules must not create BOARD_VNDK_VERSION variant because its
-		// code is PLATFORM_VNDK_VERSION.
-		// On the other hand, vendor_available modules which are not VNDK should
-		// also build BOARD_VNDK_VERSION because it's installed in /vendor.
-		// vendor_available modules are also available to /product.
-		if !m.IsVndk() {
+
+		// We assume that modules under proprietary paths are compatible for
+		// BOARD_VNDK_VERSION. The other modules are regarded as AOSP, or
+		// PLATFORM_VNDK_VERSION.
+		if isVendorProprietaryPath(mctx.ModuleDir()) {
 			vendorVariants = append(vendorVariants, boardVndkVersion)
+		} else {
+			vendorVariants = append(vendorVariants, platformVndkVersion)
+		}
+
+		// vendor_available modules are also available to /product.
+		productVariants = append(productVariants, platformVndkVersion)
+		// VNDK is always PLATFORM_VNDK_VERSION
+		if !m.IsVndk() {
 			productVariants = append(productVariants, productVndkVersion)
 		}
 	} else if vendorSpecific && String(m.Properties.Sdk_version) == "" {
 		// This will be available in /vendor (or /odm) only
-		vendorVariants = append(vendorVariants, boardVndkVersion)
+		// We assume that modules under proprietary paths are compatible for
+		// BOARD_VNDK_VERSION. The other modules are regarded as AOSP, or
+		// PLATFORM_VNDK_VERSION.
+		if isVendorProprietaryPath(mctx.ModuleDir()) {
+			vendorVariants = append(vendorVariants, boardVndkVersion)
+		} else {
+			vendorVariants = append(vendorVariants, platformVndkVersion)
+		}
 	} else {
 		// This is either in /system (or similar: /data), or is a
 		// modules built with the NDK. Modules built with the NDK
