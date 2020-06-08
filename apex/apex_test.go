@@ -97,15 +97,15 @@ func withManifestPackageNameOverrides(specs []string) testCustomizer {
 	}
 }
 
-func withBinder32bit(fs map[string][]byte, config android.Config) {
+func withBinder32bit(_ map[string][]byte, config android.Config) {
 	config.TestProductVariables.Binder32bit = proptools.BoolPtr(true)
 }
 
-func withUnbundledBuild(fs map[string][]byte, config android.Config) {
+func withUnbundledBuild(_ map[string][]byte, config android.Config) {
 	config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 }
 
-func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
+func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
 	android.ClearApexDependency()
 
 	bp = bp + `
@@ -166,6 +166,7 @@ func testApexContext(t *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"build/make/core/proguard.flags":             nil,
 		"build/make/core/proguard_basic_keeps.flags": nil,
 		"dummy.txt":                                  nil,
+		"AppSet.apks":                                nil,
 	}
 
 	cc.GatherRequiredFilesForTest(fs)
@@ -237,7 +238,7 @@ func setUp() {
 }
 
 func tearDown() {
-	os.RemoveAll(buildDir)
+	_ = os.RemoveAll(buildDir)
 }
 
 // ensure that 'result' contains 'expected'
@@ -253,6 +254,17 @@ func ensureNotContains(t *testing.T, result string, notExpected string) {
 	t.Helper()
 	if strings.Contains(result, notExpected) {
 		t.Errorf("%q is found in %q", notExpected, result)
+	}
+}
+
+func ensureMatches(t *testing.T, result string, expectedRex string) {
+	ok, err := regexp.MatchString(expectedRex, result)
+	if err != nil {
+		t.Fatalf("regexp failure trying to match %s against `%s` expression: %s", result, expectedRex, err)
+		return
+	}
+	if !ok {
+		t.Errorf("%s does not match regular expession %s", result, expectedRex)
 	}
 }
 
@@ -4442,6 +4454,38 @@ func TestAppBundle(t *testing.T) {
 
 	ensureContains(t, content, `"compression":{"uncompressed_glob":["apex_payload.img","apex_manifest.*"]}`)
 	ensureContains(t, content, `"apex_config":{"apex_embedded_apk_config":[{"package_name":"com.android.foo","path":"app/AppFoo/AppFoo.apk"}]}`)
+}
+
+func TestAppSetBundle(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			apps: ["AppSet"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		android_app_set {
+			name: "AppSet",
+			set: "AppSet.apks",
+		}`)
+	mod := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	bundleConfigRule := mod.Description("Bundle Config")
+	content := bundleConfigRule.Args["content"]
+	ensureContains(t, content, `"compression":{"uncompressed_glob":["apex_payload.img","apex_manifest.*"]}`)
+	s := mod.Rule("apexRule").Args["copy_commands"]
+	copyCmds := regexp.MustCompile(" *&& *").Split(s, -1)
+	if len(copyCmds) != 3 {
+		t.Fatalf("Expected 3 commands, got %d in:\n%s", len(copyCmds), s)
+	}
+	ensureMatches(t, copyCmds[0], "^rm -rf .*/app/AppSet$")
+	ensureMatches(t, copyCmds[1], "^mkdir -p .*/app/AppSet$")
+	ensureMatches(t, copyCmds[2], "^unzip .*-d .*/app/AppSet .*/AppSet.zip$")
 }
 
 func testNoUpdatableJarsInBootImage(t *testing.T, errmsg, bp string, transformDexpreoptConfig func(*dexpreopt.GlobalConfig)) {
