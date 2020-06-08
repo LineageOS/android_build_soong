@@ -40,9 +40,9 @@ func getTestConfig(ctx android.ModuleContext, prop *string) android.Path {
 }
 
 var autogenTestConfig = pctx.StaticRule("autogenTestConfig", blueprint.RuleParams{
-	Command:     "sed 's&{MODULE}&${name}&g;s&{EXTRA_CONFIGS}&'${extraConfigs}'&g' $template > $out",
+	Command:     "sed 's&{MODULE}&${name}&g;s&{EXTRA_CONFIGS}&'${extraConfigs}'&g;s&{OUTPUT_FILENAME}&'${outputFileName}'&g' $template > $out",
 	CommandDeps: []string{"$template"},
-}, "name", "template", "extraConfigs")
+}, "name", "template", "extraConfigs", "outputFileName")
 
 func testConfigPath(ctx android.ModuleContext, prop *string, testSuites []string, autoGenConfig *bool, testConfigTemplateProp *string) (path android.Path, autogenPath android.WritablePath) {
 	p := getTestConfig(ctx, prop)
@@ -108,10 +108,14 @@ func (ob Object) Config() string {
 }
 
 func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, template string, configs []Config) {
-	autogenTemplateWithName(ctx, ctx.ModuleName(), output, template, configs)
+	autogenTemplateWithNameAndOutputFile(ctx, ctx.ModuleName(), output, template, configs, "")
 }
 
 func autogenTemplateWithName(ctx android.ModuleContext, name string, output android.WritablePath, template string, configs []Config) {
+	autogenTemplateWithNameAndOutputFile(ctx, ctx.ModuleName(), output, template, configs, "")
+}
+
+func autogenTemplateWithNameAndOutputFile(ctx android.ModuleContext, name string, output android.WritablePath, template string, configs []Config, outputFileName string) {
 	var configStrings []string
 	for _, config := range configs {
 		configStrings = append(configStrings, config.Config())
@@ -124,9 +128,10 @@ func autogenTemplateWithName(ctx android.ModuleContext, name string, output andr
 		Description: "test config",
 		Output:      output,
 		Args: map[string]string{
-			"name":         name,
-			"template":     template,
-			"extraConfigs": extraConfigs,
+			"name":           name,
+			"template":       template,
+			"extraConfigs":   extraConfigs,
+			"outputFileName": outputFileName,
 		},
 	})
 }
@@ -144,6 +149,21 @@ func AutoGenNativeTestConfig(ctx android.ModuleContext, testConfigProp *string,
 			} else {
 				autogenTemplate(ctx, autogenPath, "${NativeHostTestConfigTemplate}", config)
 			}
+		}
+		return autogenPath
+	}
+	return path
+}
+
+func AutoGenShellTestConfig(ctx android.ModuleContext, testConfigProp *string,
+	testConfigTemplateProp *string, testSuites []string, config []Config, autoGenConfig *bool, outputFileName string) android.Path {
+	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites, autoGenConfig, testConfigTemplateProp)
+	if autogenPath != nil {
+		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
+		if templatePath.Valid() {
+			autogenTemplateWithNameAndOutputFile(ctx, ctx.ModuleName(), autogenPath, templatePath.String(), config, outputFileName)
+		} else {
+			autogenTemplateWithNameAndOutputFile(ctx, ctx.ModuleName(), autogenPath, "${ShellTestConfigTemplate}", config, outputFileName)
 		}
 		return autogenPath
 	}
