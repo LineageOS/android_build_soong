@@ -3088,20 +3088,32 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		// This will be available in /system, /vendor and /product
 		// or a /system directory that is available to vendor and product.
 		coreVariantNeeded = true
-		vendorVariants = append(vendorVariants, platformVndkVersion)
-		productVariants = append(productVariants, platformVndkVersion)
-		// VNDK modules must not create BOARD_VNDK_VERSION variant because its
-		// code is PLATFORM_VNDK_VERSION.
-		// On the other hand, vendor_available modules which are not VNDK should
-		// also build BOARD_VNDK_VERSION because it's installed in /vendor.
-		// vendor_available modules are also available to /product.
-		if !m.IsVndk() {
+
+		// We assume that modules under proprietary paths are compatible for
+		// BOARD_VNDK_VERSION. The other modules are regarded as AOSP, or
+		// PLATFORM_VNDK_VERSION.
+		if isVendorProprietaryPath(mctx.ModuleDir()) {
 			vendorVariants = append(vendorVariants, boardVndkVersion)
+		} else {
+			vendorVariants = append(vendorVariants, platformVndkVersion)
+		}
+
+		// vendor_available modules are also available to /product.
+		productVariants = append(productVariants, platformVndkVersion)
+		// VNDK is always PLATFORM_VNDK_VERSION
+		if !m.IsVndk() {
 			productVariants = append(productVariants, productVndkVersion)
 		}
 	} else if vendorSpecific && String(m.Properties.Sdk_version) == "" {
 		// This will be available in /vendor (or /odm) only
-		vendorVariants = append(vendorVariants, boardVndkVersion)
+		// We assume that modules under proprietary paths are compatible for
+		// BOARD_VNDK_VERSION. The other modules are regarded as AOSP, or
+		// PLATFORM_VNDK_VERSION.
+		if isVendorProprietaryPath(mctx.ModuleDir()) {
+			vendorVariants = append(vendorVariants, boardVndkVersion)
+		} else {
+			vendorVariants = append(vendorVariants, platformVndkVersion)
+		}
 	} else {
 		// This is either in /system (or similar: /data), or is a
 		// modules built with the NDK. Modules built with the NDK
