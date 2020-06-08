@@ -69,11 +69,14 @@ var (
 	// by default set to (uid/gid/mode) = (1000/1000/0644)
 	// TODO(b/113082813) make this configurable using config.fs syntax
 	generateFsConfig = pctx.StaticRule("generateFsConfig", blueprint.RuleParams{
-		Command: `echo '/ 1000 1000 0755' > ${out} && ` +
-			`echo ${ro_paths} | tr ' ' '\n' | awk '{print "/"$$1 " 1000 1000 0644"}' >> ${out} && ` +
-			`echo ${exec_paths} | tr ' ' '\n' | awk '{print "/"$$1 " 0 2000 0755"}' >> ${out}`,
-		Description: "fs_config ${out}",
-	}, "ro_paths", "exec_paths")
+		Command: `( echo '/ 1000 1000 0755' ` +
+			`&& for i in ${ro_paths}; do echo "/$$i 1000 1000 0644"; done ` +
+			`&& for i in  ${exec_paths}; do echo "/$$i 0 2000 0755"; done ` +
+			`&& ( tr ' ' '\n' <${out}.apklist | for i in ${apk_paths}; do read apk; echo "/$$i 0 2000 0755"; zipinfo -1 $$apk | sed "s:\(.*\):/$$i/\1 1000 1000 0644:"; done ) ) > ${out}`,
+		Description:    "fs_config ${out}",
+		Rspfile:        "$out.apklist",
+		RspfileContent: "$in",
+	}, "ro_paths", "exec_paths", "apk_paths")
 
 	apexManifestRule = pctx.StaticRule("apexManifestRule", blueprint.RuleParams{
 		Command: `rm -f $out && ${jsonmodify} $in ` +
@@ -278,7 +281,7 @@ func (a *apexBundle) buildBundleConfig(ctx android.ModuleContext) android.Output
 	// collect the manifest names and paths of android apps
 	// if their manifest names are overridden
 	for _, fi := range a.filesInfo {
-		if fi.class != app {
+		if fi.class != app && fi.class != appSet {
 			continue
 		}
 		packageName := fi.overriddenPackageName
@@ -328,13 +331,22 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	var copyCommands []string
 	for _, fi := range a.filesInfo {
 		destPath := android.PathForModuleOut(ctx, "image"+suffix, fi.Path()).String()
-		copyCommands = append(copyCommands, "mkdir -p "+filepath.Dir(destPath))
+		destPathDir := filepath.Dir(destPath)
+		if fi.class == appSet {
+			copyCommands = append(copyCommands, "rm -rf "+destPathDir)
+		}
+		copyCommands = append(copyCommands, "mkdir -p "+destPathDir)
 		if a.linkToSystemLib && fi.transitiveDep && fi.AvailableToPlatform() {
 			// TODO(jiyong): pathOnDevice should come from fi.module, not being calculated here
 			pathOnDevice := filepath.Join("/system", fi.Path())
 			copyCommands = append(copyCommands, "ln -sfn "+pathOnDevice+" "+destPath)
 		} else {
-			copyCommands = append(copyCommands, "cp -f "+fi.builtFile.String()+" "+destPath)
+			if fi.class == appSet {
+				copyCommands = append(copyCommands,
+					fmt.Sprintf("unzip -q -d %s %s", destPathDir, fi.builtFile.String()))
+			} else {
+				copyCommands = append(copyCommands, "cp -f "+fi.builtFile.String()+" "+destPath)
+			}
 			implicitInputs = append(implicitInputs, fi.builtFile)
 		}
 		// create additional symlinks pointing the file inside the APEX
@@ -394,6 +406,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		// files and dirs that will be created in APEX
 		var readOnlyPaths = []string{"apex_manifest.json", "apex_manifest.pb"}
 		var executablePaths []string // this also includes dirs
+		var extractedAppSetPaths android.Paths
+		var extractedAppSetDirs []string
 		for _, f := range a.filesInfo {
 			pathInApex := f.Path()
 			if f.installDir == "bin" || strings.HasPrefix(f.installDir, "bin/") {
@@ -401,6 +415,9 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				for _, s := range f.symlinks {
 					executablePaths = append(executablePaths, filepath.Join(f.installDir, s))
 				}
+			} else if f.class == appSet {
+				extractedAppSetPaths = append(extractedAppSetPaths, f.builtFile)
+				extractedAppSetDirs = append(extractedAppSetDirs, f.installDir)
 			} else {
 				readOnlyPaths = append(readOnlyPaths, pathInApex)
 			}
@@ -421,9 +438,11 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Rule:        generateFsConfig,
 			Output:      cannedFsConfig,
 			Description: "generate fs config",
+			Inputs:      extractedAppSetPaths,
 			Args: map[string]string{
 				"ro_paths":   strings.Join(readOnlyPaths, " "),
 				"exec_paths": strings.Join(executablePaths, " "),
+				"apk_paths":  strings.Join(extractedAppSetDirs, " "),
 			},
 		})
 
