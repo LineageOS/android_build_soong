@@ -2741,8 +2741,10 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	j.maybeStrippedDexJarFile = dexOutputFile
 
-	ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
-		j.Stem()+".jar", dexOutputFile)
+	if j.IsForPlatform() {
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
+			j.Stem()+".jar", dexOutputFile)
+	}
 }
 
 func (j *DexImport) DexJar() android.Path {
