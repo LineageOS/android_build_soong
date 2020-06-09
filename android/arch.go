@@ -1026,6 +1026,7 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 			"Not_windows",
 			"Arm_on_x86",
 			"Arm_on_x86_64",
+			"Native_bridge",
 		}
 		for _, os := range OsTypeList {
 			targets = append(targets, os.Field)
@@ -1411,6 +1412,11 @@ func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 						hasX8664AndroidArch(ctx.Config().Targets[Android])) {
 					field := "Arm_on_x86_64"
 					prefix := "target.arm_on_x86_64"
+					m.appendProperties(ctx, genProps, targetProp, field, prefix)
+				}
+				if os == Android && m.Target().NativeBridge == NativeBridgeEnabled {
+					field := "Native_bridge"
+					prefix := "target.native_bridge"
 					m.appendProperties(ctx, genProps, targetProp, field, prefix)
 				}
 			}
