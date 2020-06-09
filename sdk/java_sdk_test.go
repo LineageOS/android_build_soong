@@ -43,10 +43,10 @@ java_system_modules_import {
 	name: "core-current-stubs-system-modules",
 }
 java_system_modules_import {
-	name: "core-platform-api-stubs-system-modules",
+	name: "legacy-core-platform-api-stubs-system-modules",
 }
 java_import {
-	name: "core.platform.api.stubs",
+	name: "legacy.core.platform.api.stubs",
 }
 java_import {
 	name: "android_stubs_current",
