@@ -1424,10 +1424,9 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	rule.HighMem()
 	cmd := rule.Command()
 
-	rspFile := ""
+	var implicitsRsp android.WritablePath
 	if len(implicits) > 0 {
-		implicitsRsp := android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"implicits.rsp")
-		rspFile = implicitsRsp.String()
+		implicitsRsp = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"implicits.rsp")
 		impRule := android.NewRuleBuilder()
 		impCmd := impRule.Command()
 		// A dummy action that copies the ninja generated rsp file to a new location. This allows us to
@@ -1454,10 +1453,10 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 			inputs = append(inputs, strings.Split(v, ",")...)
 		}
 		cmd.Text((&remoteexec.REParams{
-			Labels:          map[string]string{"type": "compile", "lang": "java", "compiler": "metalava"},
+			Labels:          map[string]string{"type": "compile", "lang": "java", "compiler": "metalava", "shallow": "true"},
 			ExecStrategy:    execStrategy,
 			Inputs:          inputs,
-			RSPFile:         rspFile,
+			RSPFile:         implicitsRsp.String(),
 			ToolchainInputs: []string{config.JavaCmd(ctx).String()},
 			Platform:        map[string]string{remoteexec.PoolKey: pool},
 		}).NoVarTemplate(ctx.Config()))
@@ -1468,7 +1467,12 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 		FlagWithArg("-encoding ", "UTF-8").
 		FlagWithArg("-source ", javaVersion.String()).
 		FlagWithRspFileInputList("@", srcs).
-		FlagWithInput("@", srcJarList)
+		FlagWithInput("@", srcJarList).
+		FlagWithOutput("--strict-input-files:warn ", android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"violations.txt"))
+
+	if implicitsRsp.String() != "" {
+		cmd.FlagWithArg("--strict-input-files-exempt ", "@"+implicitsRsp.String())
+	}
 
 	if len(bootclasspath) > 0 {
 		cmd.FlagWithInputList("-bootclasspath ", bootclasspath.Paths(), ":")
