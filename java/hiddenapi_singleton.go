@@ -207,6 +207,15 @@ func stubFlagsRule(ctx android.SingletonContext) {
 	rule.Build(pctx, ctx, "hiddenAPIStubFlagsFile", "hiddenapi stub flags")
 }
 
+func moduleForGreyListRemovedApis(ctx android.SingletonContext, module android.Module) bool {
+	switch ctx.ModuleName(module) {
+	case "api-stubs-docs", "system-api-stubs-docs", "android.car-stubs-docs", "android.car-system-stubs-docs":
+		return true
+	default:
+		return false
+	}
+}
+
 // flagsRule creates a rule to build hiddenapi-flags.csv out of flags.csv files generated for boot image modules and
 // the greylists.
 func flagsRule(ctx android.SingletonContext) android.Path {
@@ -222,7 +231,7 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 			// Track @removed public and system APIs via corresponding droidstubs targets.
 			// These APIs are not present in the stubs, however, we have to keep allowing access
 			// to them at runtime.
-			if m := ctx.ModuleName(module); m == "api-stubs-docs" || m == "system-api-stubs-docs" {
+			if moduleForGreyListRemovedApis(ctx, module) {
 				greylistRemovedApis = append(greylistRemovedApis, ds.removedDexApiFile)
 			}
 		}
