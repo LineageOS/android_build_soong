@@ -329,12 +329,21 @@ func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 
 	return deps
 }
+
+func (library *libraryDecorator) sharedLibFilename(ctx ModuleContext) string {
+	return library.getStem(ctx) + ctx.toolchain().SharedLibSuffix()
+}
+
 func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags.RustFlags = append(flags.RustFlags, "-C metadata="+ctx.baseModuleName())
 	flags = library.baseCompiler.compilerFlags(ctx, flags)
 	if library.shared() || library.static() {
 		library.includeDirs = append(library.includeDirs, android.PathsForModuleSrc(ctx, library.Properties.Include_dirs)...)
 	}
+	if library.shared() {
+		flags.LinkFlags = append(flags.LinkFlags, "-Wl,-soname="+library.sharedLibFilename(ctx))
+	}
+
 	return flags
 }
 
@@ -371,7 +380,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		outputs := TransformSrctoStatic(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
 		library.coverageFile = outputs.coverageFile
 	} else if library.shared() {
-		fileName := library.getStem(ctx) + ctx.toolchain().SharedLibSuffix()
+		fileName := library.sharedLibFilename(ctx)
 		outputFile = android.PathForModuleOut(ctx, fileName)
 
 		outputs := TransformSrctoShared(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
