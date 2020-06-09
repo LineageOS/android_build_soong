@@ -70,7 +70,7 @@ type TestProperties struct {
 
 	// the name of the test configuration (for example "AndroidTest.xml") that should be
 	// installed with the module.
-	Test_config *string `android:"arch_variant"`
+	Test_config *string `android:"path,arch_variant"`
 
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test.
@@ -231,12 +231,8 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 				s.customAndroidMkEntries(entries)
 
 				entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", s.testProperties.Test_suites...)
-				if s.testProperties.Test_config != nil {
-					entries.SetString("LOCAL_TEST_CONFIG", proptools.String(s.testProperties.Test_config))
-				} else {
-					if s.testConfig != nil {
-						entries.SetString("LOCAL_FULL_TEST_CONFIG", s.testConfig.String())
-					}
+				if s.testConfig != nil {
+					entries.SetPath("LOCAL_FULL_TEST_CONFIG", s.testConfig)
 				}
 				for _, d := range s.data {
 					rel := d.Rel()
