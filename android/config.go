@@ -1041,15 +1041,20 @@ func (c *deviceConfig) ClangCoverageEnabled() bool {
 	return Bool(c.config.productVariables.ClangCoverage)
 }
 
-func (c *deviceConfig) CoverageEnabledForPath(path string) bool {
+// NativeCoverageEnabledForPath returns whether (GCOV- or Clang-based) native
+// code coverage is enabled for path. By default, coverage is not enabled for a
+// given path unless it is part of the NativeCoveragePaths product variable (and
+// not part of the NativeCoverageExcludePaths product variable). Value "*" in
+// NativeCoveragePaths represents any path.
+func (c *deviceConfig) NativeCoverageEnabledForPath(path string) bool {
 	coverage := false
-	if c.config.productVariables.CoveragePaths != nil {
-		if InList("*", c.config.productVariables.CoveragePaths) || HasAnyPrefix(path, c.config.productVariables.CoveragePaths) {
+	if c.config.productVariables.NativeCoveragePaths != nil {
+		if InList("*", c.config.productVariables.NativeCoveragePaths) || HasAnyPrefix(path, c.config.productVariables.NativeCoveragePaths) {
 			coverage = true
 		}
 	}
-	if coverage && c.config.productVariables.CoverageExcludePaths != nil {
-		if HasAnyPrefix(path, c.config.productVariables.CoverageExcludePaths) {
+	if coverage && c.config.productVariables.NativeCoverageExcludePaths != nil {
+		if HasAnyPrefix(path, c.config.productVariables.NativeCoverageExcludePaths) {
 			coverage = false
 		}
 	}
