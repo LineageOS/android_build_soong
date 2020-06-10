@@ -810,7 +810,7 @@ func GetOsSpecificVariantsOfCommonOSVariant(mctx BaseModuleContext) []Module {
 // Valid multilib values include:
 //    "both": compile for all Targets supported by the OsClass (generally x86_64 and x86, or arm64 and arm).
 //    "first": compile for only a single preferred Target supported by the OsClass.  This is generally x86_64 or arm64,
-//        but may be arm for a 32-bit only build or a build with TARGET_PREFER_32_BIT=true set.
+//        but may be arm for a 32-bit only build.
 //    "32": compile for only a single 32-bit Target supported by the OsClass.
 //    "64": compile for only a single 64-bit Target supported by the OsClass.
 //    "common": compile a for a single Target that will work on all Targets suported by the OsClass (for example Java).
