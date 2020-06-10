@@ -140,6 +140,13 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 
 		"stubs-sources/foo/Foo.java": nil,
 		"stubs/sources/foo/Foo.java": nil,
+
+		// For java_sdk_library
+		"api/module-lib-current.txt":                        nil,
+		"api/module-lib-removed.txt":                        nil,
+		"api/system-server-current.txt":                     nil,
+		"api/system-server-removed.txt":                     nil,
+		"build/soong/scripts/gen-java-current-api-files.sh": nil,
 	}
 
 	cc.GatherRequiredFilesForTest(mockFS)
