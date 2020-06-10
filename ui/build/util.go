@@ -15,6 +15,7 @@
 package build
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -123,4 +124,21 @@ func decodeKeyValue(str string) (string, string, bool) {
 		return "", "", false
 	}
 	return str[:idx], str[idx+1:], true
+}
+
+// copyFile copies a file from src to dst. filepath.Dir(dst) must exist.
+func copyFile(src, dst string) (int64, error) {
+	source, err := os.Open(src)
+	if err != nil {
+		return 0, err
+	}
+	defer source.Close()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return 0, err
+	}
+	defer destination.Close()
+
+	return io.Copy(destination, source)
 }
