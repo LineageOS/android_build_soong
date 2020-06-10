@@ -43,6 +43,7 @@ func sdkMutator(ctx android.BottomUpMutatorContext) {
 
 			if ctx.Config().UnbundledBuild() {
 				modules[0].(*Module).Properties.HideFromMake = true
+				modules[0].(*Module).Properties.PreventInstall = true
 			} else {
 				modules[1].(*Module).Properties.SdkAndPlatformVariantVisibleToMake = true
 				modules[1].(*Module).Properties.PreventInstall = true
