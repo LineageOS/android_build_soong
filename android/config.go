@@ -732,14 +732,6 @@ func (c *config) Eng() bool {
 	return Bool(c.productVariables.Eng)
 }
 
-func (c *config) DevicePrefer32BitApps() bool {
-	return Bool(c.productVariables.DevicePrefer32BitApps)
-}
-
-func (c *config) DevicePrefer32BitExecutables() bool {
-	return Bool(c.productVariables.DevicePrefer32BitExecutables)
-}
-
 func (c *config) DevicePrimaryArchType() ArchType {
 	return c.Targets[Android][0].Arch.ArchType
 }
