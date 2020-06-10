@@ -466,7 +466,41 @@ func TestBinary(t *testing.T) {
 		t.Errorf("expected binary wrapper implicits [%q], got %v",
 			barJar, barWrapperDeps)
 	}
+}
 
+func TestHostBinaryNoJavaDebugInfoOverride(t *testing.T) {
+	bp := `
+		java_library {
+			name: "target_library",
+			srcs: ["a.java"],
+		}
+
+		java_binary_host {
+			name: "host_binary",
+			srcs: ["b.java"],
+		}
+	`
+	config := testConfig(nil, bp, nil)
+	config.TestProductVariables.MinimizeJavaDebugInfo = proptools.BoolPtr(true)
+
+	ctx, _ := testJavaWithConfig(t, config)
+
+	// first, sanity check that the -g flag is added to target modules
+	targetLibrary := ctx.ModuleForTests("target_library", "android_common")
+	targetJavaFlags := targetLibrary.Module().VariablesForTests()["javacFlags"]
+	if !strings.Contains(targetJavaFlags, "-g:source,lines") {
+		t.Errorf("target library javac flags %v should contain "+
+			"-g:source,lines override with MinimizeJavaDebugInfo", targetJavaFlags)
+	}
+
+	// check that -g is not overridden for host modules
+	buildOS := android.BuildOs.String()
+	hostBinary := ctx.ModuleForTests("host_binary", buildOS+"_common")
+	hostJavaFlags := hostBinary.Module().VariablesForTests()["javacFlags"]
+	if strings.Contains(hostJavaFlags, "-g:source,lines") {
+		t.Errorf("java_binary_host javac flags %v should not have "+
+			"-g:source,lines override with MinimizeJavaDebugInfo", hostJavaFlags)
+	}
 }
 
 func TestPrebuilts(t *testing.T) {
