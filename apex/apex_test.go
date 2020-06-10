@@ -4786,8 +4786,10 @@ func TestApexSet(t *testing.T) {
 		}
 	`, func(fs map[string][]byte, config android.Config) {
 		config.TestProductVariables.Platform_sdk_version = intPtr(30)
-		config.TestProductVariables.DeviceArch = proptools.StringPtr("arm")
-		config.TestProductVariables.DeviceSecondaryArch = proptools.StringPtr("arm64")
+		config.Targets[android.Android] = []android.Target{
+			{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}},
+			{Os: android.Android, Arch: android.Arch{ArchType: android.Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}},
+		}
 	})
 
 	m := ctx.ModuleForTests("myapex", "android_common")
