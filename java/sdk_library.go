@@ -264,7 +264,7 @@ var (
 	apiScopeModuleLib = initApiScope(&apiScope{
 		name:    "module-lib",
 		extends: apiScopeSystem,
-		// Module_lib scope is disabled by default in legacy mode.
+		// The module-lib scope is disabled by default in legacy mode.
 		//
 		// Enabling this would break existing usages.
 		legacyEnabledStatus: func(module *SdkLibrary) bool {
@@ -280,11 +280,34 @@ var (
 			"--show-annotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES\\)",
 		},
 	})
+	apiScopeSystemServer = initApiScope(&apiScope{
+		name:    "system-server",
+		extends: apiScopePublic,
+		// The system-server scope is disabled by default in legacy mode.
+		//
+		// Enabling this would break existing usages.
+		legacyEnabledStatus: func(module *SdkLibrary) bool {
+			return false
+		},
+		scopeSpecificProperties: func(module *SdkLibrary) *ApiScopeProperties {
+			return &module.sdkLibraryProperties.System_server
+		},
+		apiFilePrefix: "system-server-",
+		moduleSuffix:  ".system_server",
+		sdkVersion:    "system_server_current",
+		droidstubsArgs: []string{
+			"--show-annotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.SYSTEM_SERVER\\) ",
+			"--hide-annotation android.annotation.Hide",
+			// com.android.* classes are okay in this interface"
+			"--hide InternalClasses",
+		},
+	})
 	allApiScopes = apiScopes{
 		apiScopePublic,
 		apiScopeSystem,
 		apiScopeTest,
 		apiScopeModuleLib,
+		apiScopeSystemServer,
 	}
 )
 
@@ -432,11 +455,17 @@ type sdkLibraryProperties struct {
 	// In non-legacy mode the test api scope is disabled by default.
 	Test ApiScopeProperties
 
-	// The properties specific to the module_lib api scope
+	// The properties specific to the module-lib api scope
 	//
-	// Unless explicitly specified by using test.enabled the module_lib api scope is
+	// Unless explicitly specified by using test.enabled the module-lib api scope is
 	// disabled by default.
 	Module_lib ApiScopeProperties
+
+	// The properties specific to the system-server api scope
+	//
+	// Unless explicitly specified by using test.enabled the module-lib api scope is
+	// disabled by default.
+	System_server ApiScopeProperties
 
 	// Determines if the stubs are preferred over the implementation library
 	// for linking, even when the client doesn't specify sdk_version. When this
@@ -746,6 +775,8 @@ func (c *commonToSdkLibraryAndImport) selectHeaderJarsForSdkVersion(ctx android.
 		apiScope = apiScopeModuleLib
 	case sdkTest:
 		apiScope = apiScopeTest
+	case sdkSystemServer:
+		apiScope = apiScopeSystemServer
 	default:
 		apiScope = apiScopePublic
 	}
