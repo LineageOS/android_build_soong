@@ -987,10 +987,6 @@ func AndroidAppFactory() android.Module {
 		&module.overridableAppProperties,
 		&module.usesLibrary.usesLibraryProperties)
 
-	module.Prefer32(func(ctx android.BaseModuleContext, base *android.ModuleBase, class android.OsClass) bool {
-		return class == android.Device && ctx.Config().DevicePrefer32BitApps()
-	})
-
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitOverridableModule(module, &module.appProperties.Overrides)
