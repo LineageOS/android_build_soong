@@ -1426,6 +1426,38 @@ func TestJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
 		`)
 }
 
+func TestJavaSdkLibrary_ModuleLib(t *testing.T) {
+	testJava(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+			system: {
+				enabled: true,
+			},
+			module_lib: {
+				enabled: true,
+			},
+		}
+		`)
+}
+
+func TestJavaSdkLibrary_SystemServer(t *testing.T) {
+	testJava(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java", "b.java"],
+			api_packages: ["foo"],
+			system: {
+				enabled: true,
+			},
+			system_server: {
+				enabled: true,
+			},
+		}
+		`)
+}
+
 func TestJavaSdkLibrary_MissingScope(t *testing.T) {
 	testJavaError(t, `requires api scope module-lib from foo but it only has \[\] available`, `
 		java_sdk_library {
