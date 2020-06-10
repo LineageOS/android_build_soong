@@ -112,17 +112,17 @@ var TargetCpuAbi = map[string]string{
 }
 
 func SupportedAbis(ctx android.ModuleContext) []string {
-	abiName := func(archVar string, deviceArch string) string {
+	abiName := func(targetIdx int, deviceArch string) string {
 		if abi, found := TargetCpuAbi[deviceArch]; found {
 			return abi
 		}
-		ctx.ModuleErrorf("Invalid %s: %s", archVar, deviceArch)
+		ctx.ModuleErrorf("Target %d has invalid Arch: %s", targetIdx, deviceArch)
 		return "BAD_ABI"
 	}
 
-	result := []string{abiName("TARGET_ARCH", ctx.DeviceConfig().DeviceArch())}
-	if s := ctx.DeviceConfig().DeviceSecondaryArch(); s != "" {
-		result = append(result, abiName("TARGET_2ND_ARCH", s))
+	var result []string
+	for i, target := range ctx.Config().Targets[android.Android] {
+		result = append(result, abiName(i, target.Arch.ArchType.String()))
 	}
 	return result
 }
