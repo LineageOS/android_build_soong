@@ -143,6 +143,7 @@ var BannerVars = []string{
 	"TARGET_BUILD_VARIANT",
 	"TARGET_BUILD_TYPE",
 	"TARGET_BUILD_APPS",
+	"TARGET_BUILD_UNBUNDLED",
 	"TARGET_ARCH",
 	"TARGET_ARCH_VARIANT",
 	"TARGET_CPU_VARIANT",
@@ -187,6 +188,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 		"TARGET_PRODUCT",
 		"TARGET_BUILD_VARIANT",
 		"TARGET_BUILD_APPS",
+		"TARGET_BUILD_UNBUNDLED",
 
 		// compiler wrappers set up by make
 		"CC_WRAPPER",
