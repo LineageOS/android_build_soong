@@ -107,6 +107,8 @@ type ShTest struct {
 
 	testProperties TestProperties
 
+	installDir android.InstallPath
+
 	data       android.Paths
 	testConfig android.Path
 }
@@ -201,8 +203,8 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	} else if !ctx.Host() && ctx.Config().HasMultilibConflict(ctx.Arch().ArchType) {
 		testDir = filepath.Join(testDir, ctx.Arch().ArchType.String())
 	}
-	installDir := android.PathForModuleInstall(ctx, testDir, proptools.String(s.properties.Sub_dir))
-	s.installedFile = ctx.InstallExecutable(installDir, s.outputFilePath.Base(), s.outputFilePath)
+	s.installDir = android.PathForModuleInstall(ctx, testDir, proptools.String(s.properties.Sub_dir), s.Name())
+	s.installedFile = ctx.InstallExecutable(s.installDir, s.outputFilePath.Base(), s.outputFilePath)
 
 	s.data = android.PathsForModuleSrc(ctx, s.testProperties.Data)
 
@@ -230,6 +232,7 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 			func(entries *android.AndroidMkEntries) {
 				s.customAndroidMkEntries(entries)
 
+				entries.SetPath("LOCAL_MODULE_PATH", s.installDir.ToMakePath())
 				entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", s.testProperties.Test_suites...)
 				if s.testConfig != nil {
 					entries.SetPath("LOCAL_FULL_TEST_CONFIG", s.testConfig)
