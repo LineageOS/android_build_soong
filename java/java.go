@@ -506,6 +506,7 @@ type Dependency interface {
 	ResourceJars() android.Paths
 	ImplementationAndResourcesJars() android.Paths
 	DexJarBuildPath() android.Path
+	DexJarInstallPath() android.Path
 	AidlIncludeDirs() android.Paths
 	ExportedSdkLibs() []string
 	ExportedPlugins() (android.Paths, []string)
@@ -1753,6 +1754,10 @@ func (j *Module) DexJarBuildPath() android.Path {
 	return j.dexJarFile
 }
 
+func (j *Module) DexJarInstallPath() android.Path {
+	return j.installFile
+}
+
 func (j *Module) ResourceJars() android.Paths {
 	if j.resourceJar == nil {
 		return nil
@@ -2576,6 +2581,10 @@ func (j *Import) ImplementationAndResourcesJars() android.Paths {
 }
 
 func (j *Import) DexJarBuildPath() android.Path {
+	return nil
+}
+
+func (j *Import) DexJarInstallPath() android.Path {
 	return nil
 }
 
