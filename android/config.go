@@ -111,6 +111,10 @@ type config struct {
 	fs         pathtools.FileSystem
 	mockBpList string
 
+	// If testAllowNonExistentPaths is true then PathForSource and PathForModuleSrc won't error
+	// in tests when a path doesn't exist.
+	testAllowNonExistentPaths bool
+
 	OncePer
 }
 
@@ -230,6 +234,10 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		buildDir:     buildDir,
 		captureBuild: true,
 		env:          envCopy,
+
+		// Set testAllowNonExistentPaths so that test contexts don't need to specify every path
+		// passed to PathForSource or PathForModuleSrc.
+		testAllowNonExistentPaths: true,
 	}
 	config.deviceConfig = &deviceConfig{
 		config: config,
