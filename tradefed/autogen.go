@@ -112,7 +112,7 @@ func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, tem
 }
 
 func autogenTemplateWithName(ctx android.ModuleContext, name string, output android.WritablePath, template string, configs []Config) {
-	autogenTemplateWithNameAndOutputFile(ctx, ctx.ModuleName(), output, template, configs, "")
+	autogenTemplateWithNameAndOutputFile(ctx, name, output, template, configs, "")
 }
 
 func autogenTemplateWithNameAndOutputFile(ctx android.ModuleContext, name string, output android.WritablePath, template string, configs []Config, outputFileName string) {
