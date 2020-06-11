@@ -104,6 +104,9 @@ func (ctx *Context) Register() {
 
 	registerMutators(ctx.Context, preArch, preDeps, postDeps, finalDeps)
 
+	// Register phony just before makevars so it can write out its phony rules as Make rules
+	ctx.RegisterSingletonType("phony", SingletonFactoryAdaptor(phonySingletonFactory))
+
 	// Register makevars after other singletons so they can export values through makevars
 	ctx.RegisterSingletonType("makevars", SingletonFactoryAdaptor(makeVarsSingletonFunc))
 
