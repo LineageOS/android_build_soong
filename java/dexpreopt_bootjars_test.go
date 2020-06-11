@@ -118,7 +118,7 @@ func TestDexpreoptBootZip(t *testing.T) {
 
 	ctx := android.PathContextForTesting(testConfig(nil, "", nil))
 	expectedInputs := []string{}
-	for _, target := range dexpreoptTargets(ctx) {
+	for _, target := range ctx.Config().Targets[android.Android] {
 		for _, ext := range []string{".art", ".oat", ".vdex"} {
 			for _, jar := range []string{"foo", "bar", "baz"} {
 				expectedInputs = append(expectedInputs,
