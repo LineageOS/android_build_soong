@@ -734,6 +734,10 @@ func (a *AARImport) DexJarBuildPath() android.Path {
 	return nil
 }
 
+func (a *AARImport) DexJarInstallPath() android.Path {
+	return nil
+}
+
 func (a *AARImport) AidlIncludeDirs() android.Paths {
 	return nil
 }
