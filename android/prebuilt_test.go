@@ -155,6 +155,44 @@ var prebuiltsTests = []struct {
 			}`,
 		prebuilt: []OsClass{Host},
 	},
+	{
+		name: "prebuilt override not preferred",
+		modules: `
+			source {
+				name: "baz",
+			}
+
+			override_source {
+				name: "bar",
+				base: "baz",
+			}
+
+			prebuilt {
+				name: "bar",
+				prefer: false,
+				srcs: ["prebuilt_file"],
+			}`,
+		prebuilt: nil,
+	},
+	{
+		name: "prebuilt override preferred",
+		modules: `
+			source {
+				name: "baz",
+			}
+
+			override_source {
+				name: "bar",
+				base: "baz",
+			}
+
+			prebuilt {
+				name: "bar",
+				prefer: true,
+				srcs: ["prebuilt_file"],
+			}`,
+		prebuilt: []OsClass{Device, Host},
+	},
 }
 
 func TestPrebuilts(t *testing.T) {
@@ -256,8 +294,10 @@ func TestPrebuilts(t *testing.T) {
 func registerTestPrebuiltBuildComponents(ctx RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
 	ctx.RegisterModuleType("source", newSourceModule)
+	ctx.RegisterModuleType("override_source", newOverrideSourceModule)
 
 	RegisterPrebuiltMutators(ctx)
+	ctx.PostDepsMutators(RegisterOverridePostDepsMutators)
 }
 
 type prebuiltModule struct {
@@ -300,11 +340,15 @@ func (p *prebuiltModule) OutputFiles(tag string) (Paths, error) {
 	}
 }
 
+type sourceModuleProperties struct {
+	Deps []string `android:"path,arch_variant"`
+}
+
 type sourceModule struct {
 	ModuleBase
-	properties struct {
-		Deps []string `android:"path,arch_variant"`
-	}
+	OverridableModuleBase
+
+	properties                                     sourceModuleProperties
 	dependsOnSourceModule, dependsOnPrebuiltModule bool
 	deps                                           Paths
 	src                                            Path
@@ -314,10 +358,11 @@ func newSourceModule() Module {
 	m := &sourceModule{}
 	m.AddProperties(&m.properties)
 	InitAndroidArchModule(m, HostAndDeviceDefault, MultilibCommon)
+	InitOverridableModule(m, nil)
 	return m
 }
 
-func (s *sourceModule) DepsMutator(ctx BottomUpMutatorContext) {
+func (s *sourceModule) OverridablePropertiesDepsMutator(ctx BottomUpMutatorContext) {
 	// s.properties.Deps are annotated with android:path, so they are
 	// automatically added to the dependency by pathDeps mutator
 }
@@ -329,4 +374,21 @@ func (s *sourceModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 
 func (s *sourceModule) Srcs() Paths {
 	return Paths{s.src}
+}
+
+type overrideSourceModule struct {
+	ModuleBase
+	OverrideModuleBase
+}
+
+func (o *overrideSourceModule) GenerateAndroidBuildActions(_ ModuleContext) {
+}
+
+func newOverrideSourceModule() Module {
+	m := &overrideSourceModule{}
+	m.AddProperties(&sourceModuleProperties{})
+
+	InitAndroidArchModule(m, HostAndDeviceDefault, MultilibCommon)
+	InitOverrideModule(m)
+	return m
 }
