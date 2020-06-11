@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	toolPath = pctx.SourcePathVariable("toolPath", "build/soong/cc/gen_stub_libs.py")
+	toolPath = pctx.SourcePathVariable("toolPath", "build/soong/cc/scriptlib/gen_stub_libs.py")
 
 	genStubSrc = pctx.AndroidStaticRule("genStubSrc",
 		blueprint.RuleParams{
