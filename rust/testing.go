@@ -100,6 +100,7 @@ func CreateTestContext() *android.TestContext {
 		ctx.BottomUp("rust_unit_tests", TestPerSrcMutator).Parallel()
 		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
 	})
+	ctx.RegisterSingletonType("rust_project_generator", rustProjectGeneratorSingleton)
 
 	return ctx
 }
