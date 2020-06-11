@@ -592,6 +592,7 @@ func (c *configImpl) Lunch(ctx Context, product, variant string) {
 	c.environ.Set("TARGET_BUILD_VARIANT", variant)
 	c.environ.Set("TARGET_BUILD_TYPE", "release")
 	c.environ.Unset("TARGET_BUILD_APPS")
+	c.environ.Unset("TARGET_BUILD_UNBUNDLED")
 }
 
 // Tapas configures the environment to build one or more unbundled apps,
