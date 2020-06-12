@@ -1897,16 +1897,22 @@ func (u *usesLibrary) usesLibraryPaths(ctx android.ModuleContext) dexpreopt.Libr
 		ctx.VisitDirectDepsWithTag(usesLibTag, func(m android.Module) {
 			dep := ctx.OtherModuleName(m)
 			if lib, ok := m.(Dependency); ok {
-				if dexJar := lib.DexJarBuildPath(); dexJar != nil {
-					usesLibPaths[dep] = &dexpreopt.LibraryPath{
-						dexJar,
-						// TODO(b/132357300): propagate actual install paths here.
-						filepath.Join("/system/framework", dep+".jar"),
-					}
-				} else {
+				buildPath := lib.DexJarBuildPath()
+				if buildPath == nil {
 					ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must"+
 						" produce a dex jar, does it have installable: true?", dep)
+					return
 				}
+
+				var devicePath string
+				installPath := lib.DexJarInstallPath()
+				if installPath == nil {
+					devicePath = filepath.Join("/system/framework", dep+".jar")
+				} else {
+					devicePath = android.InstallPathToOnDevicePath(ctx, installPath.(android.InstallPath))
+				}
+
+				usesLibPaths[dep] = &dexpreopt.LibraryPath{buildPath, devicePath}
 			} else if ctx.Config().AllowMissingDependencies() {
 				ctx.AddMissingDependencies([]string{dep})
 			} else {

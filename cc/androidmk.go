@@ -457,6 +457,9 @@ func (c *stubDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.
 		entries.SetString("LOCAL_MODULE_PATH", path)
 		entries.SetString("LOCAL_MODULE_STEM", stem)
 		entries.SetBool("LOCAL_NO_NOTICE_FILE", true)
+		if c.parsedCoverageXmlPath.String() != "" {
+			entries.SetString("SOONG_NDK_API_XML", "$(SOONG_NDK_API_XML) "+c.parsedCoverageXmlPath.String())
+		}
 	})
 }
 

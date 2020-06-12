@@ -179,15 +179,7 @@ func RegisterDexpreoptBootJarsComponents(ctx android.RegistrationContext) {
 }
 
 func skipDexpreoptBootJars(ctx android.PathContext) bool {
-	if dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
-		return true
-	}
-
-	if ctx.Config().UnbundledBuild() {
-		return true
-	}
-
-	return false
+	return dexpreopt.GetGlobalConfig(ctx).DisablePreopt
 }
 
 type dexpreoptBootJars struct {
@@ -340,10 +332,12 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 	bootFrameworkProfileRule(ctx, image, missingDeps)
 	updatableBcpPackagesRule(ctx, image, missingDeps)
 
-	var allFiles android.Paths
+	var zipFiles android.Paths
 	for _, variant := range image.variants {
 		files := buildBootImageVariant(ctx, variant, profile, missingDeps)
-		allFiles = append(allFiles, files.Paths()...)
+		if variant.target.Os == android.Android {
+			zipFiles = append(zipFiles, files.Paths()...)
+		}
 	}
 
 	if image.zip != nil {
@@ -351,8 +345,8 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 		rule.Command().
 			BuiltTool(ctx, "soong_zip").
 			FlagWithOutput("-o ", image.zip).
-			FlagWithArg("-C ", image.dir.String()).
-			FlagWithInputList("-f ", allFiles, " -f ")
+			FlagWithArg("-C ", image.dir.Join(ctx, android.Android.String()).String()).
+			FlagWithInputList("-f ", zipFiles, " -f ")
 
 		rule.Build(pctx, ctx, "zip_"+image.name, "zip "+image.name+" image")
 	}
