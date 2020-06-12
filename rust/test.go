@@ -15,14 +15,16 @@
 package rust
 
 import (
-	"path/filepath"
-	"strings"
-
 	"android/soong/android"
 	"android/soong/tradefed"
 )
 
 type TestProperties struct {
+	// Disables the creation of a test-specific directory when used with
+	// relative_install_path. Useful if several tests need to be in the same
+	// directory, but test_per_src doesn't work.
+	No_named_install_directory *bool
+
 	// the name of the test configuration (for example "AndroidTest.xml") that should be
 	// installed with the module.
 	Test_config *string `android:"path,arch_variant"`
@@ -64,7 +66,7 @@ func NewRustTest(hod android.HostOrDeviceSupported) (*Module, *testDecorator) {
 	}
 
 	module.compiler = test
-
+	module.AddProperties(&test.Properties)
 	return module, test
 }
 
@@ -72,36 +74,21 @@ func (test *testDecorator) compilerProps() []interface{} {
 	return append(test.binaryDecorator.compilerProps(), &test.Properties)
 }
 
-func (test *testDecorator) getMutatedModuleSubName(moduleName string) string {
-	stem := String(test.baseCompiler.Properties.Stem)
-	if stem != "" && !strings.HasSuffix(moduleName, "_"+stem) {
-		// Avoid repeated suffix in the module name.
-		return "_" + stem
-	}
-	return ""
-}
-
 func (test *testDecorator) install(ctx ModuleContext, file android.Path) {
-	name := ctx.ModuleName()
-	path := test.baseCompiler.relativeInstallPath()
-	// on device, use mutated module name
-	name = name + test.getMutatedModuleSubName(name)
-	if !ctx.Device() { // on host, use mutated module name + arch type + stem name
-		stem := String(test.baseCompiler.Properties.Stem)
-		if stem == "" {
-			stem = name
-		}
-		name = filepath.Join(name, ctx.Arch().ArchType.String(), stem)
-	}
-	test.testConfig = tradefed.AutoGenRustTestConfig(ctx, name,
+	test.testConfig = tradefed.AutoGenRustTestConfig(ctx,
 		test.Properties.Test_config,
 		test.Properties.Test_config_template,
 		test.Properties.Test_suites,
+		nil,
 		test.Properties.Auto_gen_config)
+
 	// default relative install path is module name
-	if path == "" {
+	if !Bool(test.Properties.No_named_install_directory) {
 		test.baseCompiler.relative = ctx.ModuleName()
+	} else if String(test.baseCompiler.Properties.Relative_install_path) == "" {
+		ctx.PropertyErrorf("no_named_install_directory", "Module install directory may only be disabled if relative_install_path is set")
 	}
+
 	test.binaryDecorator.install(ctx, file)
 }
 
@@ -125,65 +112,4 @@ func RustTestFactory() android.Module {
 func RustTestHostFactory() android.Module {
 	module, _ := NewRustTest(android.HostSupported)
 	return module.Init()
-}
-
-func (test *testDecorator) testPerSrc() bool {
-	return true
-}
-
-func (test *testDecorator) srcs() []string {
-	return test.binaryDecorator.Properties.Srcs
-}
-
-func (test *testDecorator) setSrc(name, src string) {
-	test.binaryDecorator.Properties.Srcs = []string{src}
-	test.baseCompiler.Properties.Stem = StringPtr(name)
-}
-
-func (test *testDecorator) unsetSrc() {
-	test.binaryDecorator.Properties.Srcs = nil
-	test.baseCompiler.Properties.Stem = StringPtr("")
-}
-
-type testPerSrc interface {
-	testPerSrc() bool
-	srcs() []string
-	setSrc(string, string)
-	unsetSrc()
-}
-
-var _ testPerSrc = (*testDecorator)(nil)
-
-func TestPerSrcMutator(mctx android.BottomUpMutatorContext) {
-	if m, ok := mctx.Module().(*Module); ok {
-		if test, ok := m.compiler.(testPerSrc); ok {
-			numTests := len(test.srcs())
-			if test.testPerSrc() && numTests > 0 {
-				if duplicate, found := android.CheckDuplicate(test.srcs()); found {
-					mctx.PropertyErrorf("srcs", "found a duplicate entry %q", duplicate)
-					return
-				}
-				// Rust compiler always compiles one source file at a time and
-				// uses the crate name as output file name.
-				// Cargo uses the test source file name as default crate name,
-				// but that can be redefined.
-				// So when there are multiple source files, the source file names will
-				// be the output file names, but when there is only one test file,
-				// use the crate name.
-				testNames := make([]string, numTests)
-				for i, src := range test.srcs() {
-					testNames[i] = strings.TrimSuffix(filepath.Base(src), filepath.Ext(src))
-				}
-				crateName := m.compiler.crateName()
-				if numTests == 1 && crateName != "" {
-					testNames[0] = crateName
-				}
-				// TODO(chh): Add an "all tests" variation like cc/test.go?
-				tests := mctx.CreateLocalVariations(testNames...)
-				for i, src := range test.srcs() {
-					tests[i].(*Module).compiler.(testPerSrc).setSrc(testNames[i], src)
-				}
-			}
-		}
-	}
 }
