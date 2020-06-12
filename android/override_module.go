@@ -208,7 +208,21 @@ var overrideBaseDepTag overrideBaseDependencyTag
 // next phase.
 func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 	if module, ok := ctx.Module().(OverrideModule); ok {
-		ctx.AddDependency(ctx.Module(), overrideBaseDepTag, *module.getOverrideModuleProperties().Base)
+		// Skip this overriding module if there's a prebuilt module that overrides it with prefer flag.
+		overriddenByPrebuilt := false
+		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(dep Module) {
+			prebuilt, ok := dep.(PrebuiltInterface)
+			if !ok {
+				panic("PrebuiltDepTag leads to a non-prebuilt module " + dep.Name())
+			}
+			if prebuilt.Prebuilt().UsePrebuilt() {
+				overriddenByPrebuilt = true
+				return
+			}
+		})
+		if !overriddenByPrebuilt {
+			ctx.AddDependency(ctx.Module(), overrideBaseDepTag, *module.getOverrideModuleProperties().Base)
+		}
 	}
 }
 
