@@ -283,16 +283,19 @@ var (
 		"cFlags")
 )
 
+func PwdPrefix() string {
+	// Darwin doesn't have /proc
+	if runtime.GOOS != "darwin" {
+		return "PWD=/proc/self/cwd"
+	}
+	return ""
+}
+
 func init() {
 	// We run gcc/clang with PWD=/proc/self/cwd to remove $TOP from the
 	// debug output. That way two builds in two different directories will
 	// create the same output.
-	if runtime.GOOS != "darwin" {
-		pctx.StaticVariable("relPwd", "PWD=/proc/self/cwd")
-	} else {
-		// Darwin doesn't have /proc
-		pctx.StaticVariable("relPwd", "")
-	}
+	pctx.StaticVariable("relPwd", PwdPrefix())
 
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 	pctx.Import("android/soong/remoteexec")
