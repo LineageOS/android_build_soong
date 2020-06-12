@@ -691,9 +691,9 @@ func processMainCert(m android.ModuleBase, certPropValue string, certificates []
 		systemCertPath := ctx.Config().DefaultAppCertificateDir(ctx).String()
 		if strings.HasPrefix(certPath, systemCertPath) {
 			enforceSystemCert := ctx.Config().EnforceSystemCertificate()
-			whitelist := ctx.Config().EnforceSystemCertificateWhitelist()
+			allowed := ctx.Config().EnforceSystemCertificateAllowList()
 
-			if enforceSystemCert && !inList(m.Name(), whitelist) {
+			if enforceSystemCert && !inList(m.Name(), allowed) {
 				ctx.PropertyErrorf("certificate", "The module in product partition cannot be signed with certificate in system.")
 			}
 		}
