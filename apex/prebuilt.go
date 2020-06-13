@@ -278,6 +278,10 @@ func (a *ApexSet) Name() string {
 	return a.prebuilt.Name(a.ModuleBase.Name())
 }
 
+func (a *ApexSet) Overrides() []string {
+	return a.properties.Overrides
+}
+
 // prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
 func apexSetFactory() android.Module {
 	module := &ApexSet{}
