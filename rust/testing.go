@@ -97,7 +97,6 @@ func CreateTestContext() *android.TestContext {
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		// rust mutators
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
-		ctx.BottomUp("rust_unit_tests", TestPerSrcMutator).Parallel()
 		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
 	})
 	ctx.RegisterSingletonType("rust_project_generator", rustProjectGeneratorSingleton)
