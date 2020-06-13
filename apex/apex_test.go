@@ -241,6 +241,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	java.RegisterSystemModulesBuildComponents(ctx)
 	java.RegisterAppBuildComponents(ctx)
 	ctx.RegisterModuleType("java_sdk_library", java.SdkLibraryFactory)
+	ctx.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
 
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
@@ -5196,6 +5197,46 @@ func TestNoStaticLinkingToStubsLib(t *testing.T) {
 			apex_available: [ "myapex" ],
 		}
 	`)
+}
+
+func TestApexKeysTxt(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		prebuilt_apex {
+			name: "myapex",
+			prefer: true,
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+		}
+
+		apex_set {
+			name: "myapex_set",
+			set: "myapex.apks",
+			filename: "myapex_set.apex",
+			overrides: ["myapex"],
+		}
+	`)
+
+	apexKeysText := ctx.SingletonForTests("apex_keys_text")
+	content := apexKeysText.MaybeDescription("apexkeys.txt").BuildParams.Args["content"]
+	ensureContains(t, content, `name="myapex_set.apex" public_key="PRESIGNED" private_key="PRESIGNED" container_certificate="PRESIGNED" container_private_key="PRESIGNED" partition="system"`)
+	ensureNotContains(t, content, "myapex.apex")
 }
 
 func TestMain(m *testing.M) {
