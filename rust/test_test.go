@@ -19,45 +19,17 @@ import (
 	"testing"
 )
 
-// Check if rust_test_host accepts multiple source files and applies --test flag.
 func TestRustTest(t *testing.T) {
 	ctx := testRust(t, `
 		rust_test_host {
 			name: "my_test",
-			srcs: ["foo.rs", "src/bar.rs"],
-			crate_name: "new_test", // not used for multiple source files
-			relative_install_path: "rust/my-test",
-		}`)
-
-	for _, name := range []string{"foo", "bar"} {
-		testingModule := ctx.ModuleForTests("my_test", "linux_glibc_x86_64_"+name)
-		testingBuildParams := testingModule.Output(name)
-		rustcFlags := testingBuildParams.Args["rustcFlags"]
-		if !strings.Contains(rustcFlags, "--test") {
-			t.Errorf("%v missing --test flag, rustcFlags: %#v", name, rustcFlags)
-		}
-		outPath := "/my_test/linux_glibc_x86_64_" + name + "/" + name
-		if !strings.Contains(testingBuildParams.Output.String(), outPath) {
-			t.Errorf("wrong output: %v  expect: %v", testingBuildParams.Output, outPath)
-		}
-	}
-}
-
-// crate_name is output file name, when there is only one source file.
-func TestRustTestSingleFile(t *testing.T) {
-	ctx := testRust(t, `
-		rust_test_host {
-			name: "my-test",
 			srcs: ["foo.rs"],
-			crate_name: "new_test",
-			relative_install_path: "my-pkg",
 		}`)
 
-	name := "new_test"
-	testingModule := ctx.ModuleForTests("my-test", "linux_glibc_x86_64_"+name)
-	outPath := "/my-test/linux_glibc_x86_64_" + name + "/" + name
-	testingBuildParams := testingModule.Output(name)
-	if !strings.Contains(testingBuildParams.Output.String(), outPath) {
-		t.Errorf("wrong output: %v  expect: %v", testingBuildParams.Output, outPath)
+	testingModule := ctx.ModuleForTests("my_test", "linux_glibc_x86_64")
+	expectedOut := "my_test/linux_glibc_x86_64/my_test"
+	outPath := testingModule.Output("my_test").Output.String()
+	if !strings.Contains(outPath, expectedOut) {
+		t.Errorf("wrong output path: %v;  expected: %v", outPath, expectedOut)
 	}
 }

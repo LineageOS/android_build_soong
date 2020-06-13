@@ -112,7 +112,7 @@ func autogenTemplate(ctx android.ModuleContext, output android.WritablePath, tem
 }
 
 func autogenTemplateWithName(ctx android.ModuleContext, name string, output android.WritablePath, template string, configs []Config) {
-	autogenTemplateWithNameAndOutputFile(ctx, ctx.ModuleName(), output, template, configs, "")
+	autogenTemplateWithNameAndOutputFile(ctx, name, output, template, configs, "")
 }
 
 func autogenTemplateWithNameAndOutputFile(ctx android.ModuleContext, name string, output android.WritablePath, template string, configs []Config, outputFileName string) {
@@ -220,19 +220,20 @@ func AutoGenPythonBinaryHostTestConfig(ctx android.ModuleContext, testConfigProp
 	return path
 }
 
-func AutoGenRustTestConfig(ctx android.ModuleContext, name string, testConfigProp *string,
-	testConfigTemplateProp *string, testSuites []string, autoGenConfig *bool) android.Path {
+func AutoGenRustTestConfig(ctx android.ModuleContext, testConfigProp *string,
+	testConfigTemplateProp *string, testSuites []string, config []Config, autoGenConfig *bool) android.Path {
 	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites, autoGenConfig, testConfigTemplateProp)
 	if autogenPath != nil {
-		templatePathString := "${RustHostTestConfigTemplate}"
-		if ctx.Device() {
-			templatePathString = "${RustDeviceTestConfigTemplate}"
-		}
 		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
 		if templatePath.Valid() {
-			templatePathString = templatePath.String()
+			autogenTemplate(ctx, autogenPath, templatePath.String(), config)
+		} else {
+			if ctx.Device() {
+				autogenTemplate(ctx, autogenPath, "${RustDeviceTestConfigTemplate}", config)
+			} else {
+				autogenTemplate(ctx, autogenPath, "${RustHostTestConfigTemplate}", config)
+			}
 		}
-		autogenTemplateWithName(ctx, name, autogenPath, templatePathString, nil)
 		return autogenPath
 	}
 	return path
