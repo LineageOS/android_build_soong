@@ -1163,8 +1163,8 @@ func (c *config) EnforceSystemCertificate() bool {
 	return Bool(c.productVariables.EnforceSystemCertificate)
 }
 
-func (c *config) EnforceSystemCertificateWhitelist() []string {
-	return c.productVariables.EnforceSystemCertificateWhitelist
+func (c *config) EnforceSystemCertificateAllowList() []string {
+	return c.productVariables.EnforceSystemCertificateAllowList
 }
 
 func (c *config) EnforceProductPartitionInterface() bool {
