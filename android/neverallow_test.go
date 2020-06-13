@@ -212,7 +212,7 @@ var neverallowTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			"java_device_for_host can only be used in whitelisted projects",
+			"java_device_for_host can only be used in allowed projects",
 		},
 	},
 	// Libcore rule tests
@@ -261,46 +261,46 @@ var neverallowTests = []struct {
 	},
 	// CC sdk rule tests
 	{
-		name: `"sdk_variant_only" outside whitelist`,
+		name: `"sdk_variant_only" outside allowed list`,
 		fs: map[string][]byte{
 			"Android.bp": []byte(`
 				cc_library {
-					name: "outside_whitelist",
+					name: "outside_allowed_list",
 					sdk_version: "current",
 					sdk_variant_only: true,
 				}`),
 		},
 		expectedErrors: []string{
-			`module "outside_whitelist": violates neverallow`,
+			`module "outside_allowed_list": violates neverallow`,
 		},
 	},
 	{
-		name: `"sdk_variant_only: false" outside whitelist`,
+		name: `"sdk_variant_only: false" outside allowed list`,
 		fs: map[string][]byte{
 			"Android.bp": []byte(`
 				cc_library {
-					name: "outside_whitelist",
+					name: "outside_allowed_list",
 					sdk_version: "current",
 					sdk_variant_only: false,
 				}`),
 		},
 		expectedErrors: []string{
-			`module "outside_whitelist": violates neverallow`,
+			`module "outside_allowed_list": violates neverallow`,
 		},
 	},
 	{
-		name: `"platform" outside whitelist`,
+		name: `"platform" outside allowed list`,
 		fs: map[string][]byte{
 			"Android.bp": []byte(`
 				cc_library {
-					name: "outside_whitelist",
+					name: "outside_allowed_list",
 					platform: {
 						shared_libs: ["libfoo"],
 					},
 				}`),
 		},
 		expectedErrors: []string{
-			`module "outside_whitelist": violates neverallow`,
+			`module "outside_allowed_list": violates neverallow`,
 		},
 	},
 	{

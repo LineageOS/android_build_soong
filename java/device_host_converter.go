@@ -51,7 +51,7 @@ type DeviceForHost struct {
 // java_device_for_host makes the classes.jar output of a device java_library module available to host
 // java_library modules.
 //
-// It is rarely necessary, and its usage is restricted to a few whitelisted projects.
+// It is rarely necessary, and its usage is restricted to a few allowed projects.
 func DeviceForHostFactory() android.Module {
 	module := &DeviceForHost{}
 
@@ -68,7 +68,7 @@ type HostForDevice struct {
 // java_host_for_device makes the classes.jar output of a host java_library module available to device
 // java_library modules.
 //
-// It is rarely necessary, and its usage is restricted to a few whitelisted projects.
+// It is rarely necessary, and its usage is restricted to a few allowed projects.
 func HostForDeviceFactory() android.Module {
 	module := &HostForDevice{}
 
