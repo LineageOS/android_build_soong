@@ -285,7 +285,7 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 
 	if module.EnforceUsesLibraries {
 		// Unconditional class loader context.
-		usesLibs := append(copyOf(module.UsesLibraries), module.PresentOptionalUsesLibraries...)
+		usesLibs := append(copyOf(module.UsesLibraries), module.OptionalUsesLibraries...)
 		classLoaderContexts.addLibs(anySdkVersion, module, usesLibs...)
 
 		// Conditional class loader context for API version < 28.
