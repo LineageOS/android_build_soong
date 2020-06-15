@@ -171,7 +171,7 @@ func main() {
 	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error")
 	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
 	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
-	defer build.UploadMetrics(buildCtx, config, buildStartedMilli, buildErrorFile, rbeMetricsFile, soongMetricsFile)
+	defer build.UploadMetrics(buildCtx, config, c.forceDumbOutput, buildStartedMilli, buildErrorFile, rbeMetricsFile, soongMetricsFile)
 
 	os.MkdirAll(logsDir, 0777)
 	log.SetOutput(filepath.Join(logsDir, c.logsPrefix+"soong.log"))
