@@ -315,6 +315,28 @@ func newPackageId(pkg string) qualifiedModuleName {
 	return qualifiedModuleName{pkg: pkg, name: ""}
 }
 
+type Dist struct {
+	// Copy the output of this module to the $DIST_DIR when `dist` is specified on the
+	// command line and any of these targets are also on the command line, or otherwise
+	// built
+	Targets []string `android:"arch_variant"`
+
+	// The name of the output artifact. This defaults to the basename of the output of
+	// the module.
+	Dest *string `android:"arch_variant"`
+
+	// The directory within the dist directory to store the artifact. Defaults to the
+	// top level directory ("").
+	Dir *string `android:"arch_variant"`
+
+	// A suffix to add to the artifact file name (before any extension).
+	Suffix *string `android:"arch_variant"`
+
+	// A string tag to select the OutputFiles associated with the tag. Defaults to the
+	// the empty "" string.
+	Tag *string `android:"arch_variant"`
+}
+
 type nameProperties struct {
 	// The name of the module.  Must be unique across all modules.
 	Name *string
@@ -454,23 +476,13 @@ type commonProperties struct {
 	// relative path to a file to include in the list of notices for the device
 	Notice *string `android:"path"`
 
-	Dist struct {
-		// copy the output of this module to the $DIST_DIR when `dist` is specified on the
-		// command line and  any of these targets are also on the command line, or otherwise
-		// built
-		Targets []string `android:"arch_variant"`
+	// configuration to distribute output files from this module to the distribution
+	// directory (default: $OUT/dist, configurable with $DIST_DIR)
+	Dist Dist `android:"arch_variant"`
 
-		// The name of the output artifact. This defaults to the basename of the output of
-		// the module.
-		Dest *string `android:"arch_variant"`
-
-		// The directory within the dist directory to store the artifact. Defaults to the
-		// top level directory ("").
-		Dir *string `android:"arch_variant"`
-
-		// A suffix to add to the artifact file name (before any extension).
-		Suffix *string `android:"arch_variant"`
-	} `android:"arch_variant"`
+	// a list of configurations to distribute output files from this module to the
+	// distribution directory (default: $OUT/dist, configurable with $DIST_DIR)
+	Dists []Dist `android:"arch_variant"`
 
 	// The OsType of artifacts that this module variant is responsible for creating.
 	//
@@ -535,6 +547,14 @@ type commonProperties struct {
 
 	// set by ImageMutator
 	ImageVariation string `blueprint:"mutated"`
+}
+
+// A map of OutputFile tag keys to Paths, for disting purposes.
+type TaggedDistFiles map[string]Paths
+
+func MakeDefaultDistFiles(paths ...Path) TaggedDistFiles {
+	// The default OutputFile tag is the empty "" string.
+	return TaggedDistFiles{"": paths}
 }
 
 type hostAndDeviceProperties struct {
@@ -813,6 +833,41 @@ func (m *ModuleBase) qualifiedModuleId(ctx BaseModuleContext) qualifiedModuleNam
 
 func (m *ModuleBase) visibilityProperties() []visibilityProperty {
 	return m.visibilityPropertyInfo
+}
+
+func (m *ModuleBase) Dists() []Dist {
+	if len(m.commonProperties.Dist.Targets) > 0 {
+		// Make a copy of the underlying Dists slice to protect against
+		// backing array modifications with repeated calls to this method.
+		distsCopy := append([]Dist(nil), m.commonProperties.Dists...)
+		return append(distsCopy, m.commonProperties.Dist)
+	} else {
+		return m.commonProperties.Dists
+	}
+}
+
+func (m *ModuleBase) GenerateTaggedDistFiles(ctx BaseModuleContext) TaggedDistFiles {
+	distFiles := make(TaggedDistFiles)
+	for _, dist := range m.Dists() {
+		var tag string
+		var distFilesForTag Paths
+		if dist.Tag == nil {
+			tag = ""
+		} else {
+			tag = *dist.Tag
+		}
+		distFilesForTag, err := m.base().module.(OutputFileProducer).OutputFiles(tag)
+		if err != nil {
+			ctx.PropertyErrorf("dist.tag", "%s", err.Error())
+		}
+		for _, distFile := range distFilesForTag {
+			if distFile != nil && !distFiles[tag].containsPath(distFile) {
+				distFiles[tag] = append(distFiles[tag], distFile)
+			}
+		}
+	}
+
+	return distFiles
 }
 
 func (m *ModuleBase) Target() Target {
