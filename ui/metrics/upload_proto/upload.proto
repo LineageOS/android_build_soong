@@ -32,4 +32,8 @@ message Upload {
 
   // A list of metrics filepaths to upload.
   repeated string metrics_files = 5;
+
+  // A list of directories to delete after the copy of metrics files
+  // is completed for uploading.
+  repeated string directories_to_delete = 6;
 }
