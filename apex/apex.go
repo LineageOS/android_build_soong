@@ -185,12 +185,6 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.conscrypt"] = []string{
-		"libnativehelper_header_only",
-	}
-	//
-	// Module separator
-	//
 	m["com.android.extservices"] = []string{
 		"error_prone_annotations",
 		"ExtServices-core",
@@ -501,7 +495,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libbase_ndk",
 		"libfuse",
 		"libfuse_jni",
-		"libnativehelper_header_only",
 	}
 	//
 	// Module separator
@@ -596,7 +589,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"ipmemorystore-aidl-interfaces-java",
 		"libcgrouprc",
 		"libcgrouprc_format",
-		"libnativehelper_compat_libc++",
 		"libtetherutilsjni",
 		"libvndksupport",
 		"net-utils-framework-common",
