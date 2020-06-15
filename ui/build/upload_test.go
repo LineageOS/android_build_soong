@@ -15,6 +15,7 @@
 package build
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -61,6 +62,22 @@ func TestUploadMetrics(t *testing.T) {
 			}
 			defer os.RemoveAll(outDir)
 
+			// Supply our own getTmpDir to delete the temp dir once the test is done.
+			orgGetTmpDir := getTmpDir
+			getTmpDir = func(string, string) (string, error) {
+				retDir := filepath.Join(outDir, "tmp_upload_dir")
+				if err := os.Mkdir(retDir, 0755); err != nil {
+					t.Fatalf("failed to create temporary directory %q: %v", retDir, err)
+				}
+				return retDir, nil
+			}
+			defer func() { getTmpDir = orgGetTmpDir }()
+
+			metricsUploadDir := filepath.Join(outDir, ".metrics_uploader")
+			if err := os.Mkdir(metricsUploadDir, 0755); err != nil {
+				t.Fatalf("failed to create %q directory for oauth valid check: %v", metricsUploadDir, err)
+			}
+
 			var metricsFiles []string
 			if tt.createFiles {
 				for _, f := range tt.files {
@@ -80,41 +97,62 @@ func TestUploadMetrics(t *testing.T) {
 				buildDateTime: strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10),
 			}}
 
-			UploadMetrics(ctx, config, 1591031903, metricsFiles...)
-
-			if _, err := os.Stat(filepath.Join(outDir, uploadPbFilename)); err == nil {
-				t.Error("got true, want false for upload protobuf file to exist")
-			}
+			UploadMetrics(ctx, config, false, 1591031903, metricsFiles...)
 		})
 	}
 }
 
 func TestUploadMetricsErrors(t *testing.T) {
-	expectedErr := "failed to write the marshaled"
-	defer logger.Recover(func(err error) {
-		got := err.Error()
-		if !strings.Contains(got, expectedErr) {
-			t.Errorf("got %q, want %q to be contained in error", got, expectedErr)
-		}
-	})
+	ctx := testContext()
+	tests := []struct {
+		description string
+		tmpDir      string
+		tmpDirErr   error
+		expectedErr string
+	}{{
+		description: "getTmpDir returned error",
+		tmpDirErr:   errors.New("getTmpDir failed"),
+		expectedErr: "getTmpDir failed",
+	}, {
+		description: "copyFile operation error",
+		tmpDir:      "/fake_dir",
+		expectedErr: "failed to copy",
+	}}
 
-	outDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("failed to create out directory: %v", outDir)
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			defer logger.Recover(func(err error) {
+				got := err.Error()
+				if !strings.Contains(got, tt.expectedErr) {
+					t.Errorf("got %q, want %q to be contained in error", got, tt.expectedErr)
+				}
+			})
+
+			outDir, err := ioutil.TempDir("", "")
+			if err != nil {
+				t.Fatalf("failed to create out directory: %v", outDir)
+			}
+			defer os.RemoveAll(outDir)
+
+			orgGetTmpDir := getTmpDir
+			getTmpDir = func(string, string) (string, error) {
+				return tt.tmpDir, tt.tmpDirErr
+			}
+			defer func() { getTmpDir = orgGetTmpDir }()
+
+			metricsFile := filepath.Join(outDir, "metrics_file_1")
+			if err := ioutil.WriteFile(metricsFile, []byte("test file"), 0644); err != nil {
+				t.Fatalf("failed to create a fake metrics file %q for uploading: %v", metricsFile, err)
+			}
+
+			config := Config{&configImpl{
+				environ: &Environment{
+					"ANDROID_ENABLE_METRICS_UPLOAD=fake",
+					"OUT_DIR=/bad",
+				}}}
+
+			UploadMetrics(ctx, config, true, 1591031903, metricsFile)
+			t.Errorf("got nil, expecting %q as a failure", tt.expectedErr)
+		})
 	}
-	defer os.RemoveAll(outDir)
-
-	metricsFile := filepath.Join(outDir, "metrics_file_1")
-	if err := ioutil.WriteFile(metricsFile, []byte("test file"), 0644); err != nil {
-		t.Fatalf("failed to create a fake metrics file %q for uploading: %v", metricsFile, err)
-	}
-
-	config := Config{&configImpl{
-		environ: &Environment{
-			"ANDROID_ENABLE_METRICS_UPLOAD=fake",
-			"OUT_DIR=/bad",
-		}}}
-
-	UploadMetrics(testContext(), config, 1591031903, metricsFile)
-	t.Errorf("got nil, expecting %q as a failure", expectedErr)
 }
