@@ -193,10 +193,10 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Mo
 		ProfileIsTextListing: profileIsTextListing,
 		ProfileBootListing:   profileBootListing,
 
-		EnforceUsesLibraries:         d.enforceUsesLibs,
-		PresentOptionalUsesLibraries: d.optionalUsesLibs,
-		UsesLibraries:                d.usesLibs,
-		LibraryPaths:                 d.libraryPaths,
+		EnforceUsesLibraries:  d.enforceUsesLibs,
+		OptionalUsesLibraries: d.optionalUsesLibs,
+		UsesLibraries:         d.usesLibs,
+		LibraryPaths:          d.libraryPaths,
 
 		Archs:                   archs,
 		DexPreoptImages:         images,
