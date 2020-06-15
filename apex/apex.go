@@ -389,7 +389,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libbinderthreadstateutils",
 		"libbluetooth-types-header",
 		"libbufferhub_headers",
-		"libc_scudo",
 		"libcodec2",
 		"libcodec2_headers",
 		"libcodec2_hidl@1.0",
