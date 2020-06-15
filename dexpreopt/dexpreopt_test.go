@@ -44,7 +44,7 @@ func testModuleConfig(ctx android.PathContext, name, partition string) *ModuleCo
 		ProfileClassListing:             android.OptionalPath{},
 		ProfileIsTextListing:            false,
 		EnforceUsesLibraries:            false,
-		PresentOptionalUsesLibraries:    nil,
+		OptionalUsesLibraries:           nil,
 		UsesLibraries:                   nil,
 		LibraryPaths:                    nil,
 		Archs:                           []android.ArchType{android.Arm},
