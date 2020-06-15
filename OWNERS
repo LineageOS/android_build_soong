@@ -1,4 +1,10 @@
-per-file * = asmundak@google.com,ccross@android.com,dwillemsen@google.com,jungjw@google.com,paulduffin@google.com
+per-file * = asmundak@google.com
+per-file * = ccross@android.com
+per-file * = dwillemsen@google.com
+per-file * = eakammer@google.com
+per-file * = jungjw@google.com
+per-file * = patricearruda@google.com
+per-file * = paulduffin@google.com
 
 per-file ndk_*.go, *gen_stub_libs.py = danalbert@google.com
 per-file clang.go,global.go = srhines@google.com, chh@google.com, pirama@google.com, yikong@google.com
