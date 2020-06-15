@@ -963,11 +963,8 @@ func AndroidAppFactory() android.Module {
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
+	module.addHostAndDeviceProperties()
 	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
 		&module.aaptProperties,
 		&module.appProperties,
 		&module.overridableAppProperties,
@@ -1083,11 +1080,8 @@ func AndroidTestFactory() android.Module {
 	module.appProperties.AlwaysPackageNativeLibs = true
 	module.Module.dexpreopter.isTest = true
 
+	module.addHostAndDeviceProperties()
 	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
 		&module.aaptProperties,
 		&module.appProperties,
 		&module.appTestProperties,
@@ -1135,11 +1129,8 @@ func AndroidTestHelperAppFactory() android.Module {
 	module.appProperties.AlwaysPackageNativeLibs = true
 	module.Module.dexpreopter.isTest = true
 
+	module.addHostAndDeviceProperties()
 	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
 		&module.aaptProperties,
 		&module.appProperties,
 		&module.appTestHelperAppProperties,

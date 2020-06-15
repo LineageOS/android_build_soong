@@ -1535,13 +1535,8 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 }
 
 func (module *SdkLibrary) InitSdkLibraryProperties() {
-	module.AddProperties(
-		&module.sdkLibraryProperties,
-		&module.properties,
-		&module.dexpreoptProperties,
-		&module.deviceProperties,
-		&module.protoProperties,
-	)
+	module.addHostAndDeviceProperties()
+	module.AddProperties(&module.sdkLibraryProperties)
 
 	module.initSdkLibraryComponent(&module.ModuleBase)
 
