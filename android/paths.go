@@ -211,6 +211,15 @@ func (p OptionalPath) String() string {
 // Paths is a slice of Path objects, with helpers to operate on the collection.
 type Paths []Path
 
+func (paths Paths) containsPath(path Path) bool {
+	for _, p := range paths {
+		if p == path {
+			return true
+		}
+	}
+	return false
+}
+
 // PathsForSource returns Paths rooted from SrcDir
 func PathsForSource(ctx PathContext, paths []string) Paths {
 	ret := make(Paths, len(paths))

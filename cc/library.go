@@ -365,7 +365,7 @@ type libraryDecorator struct {
 	unstrippedOutputFile android.Path
 
 	// Location of the file that should be copied to dist dir when requested
-	distFile android.OptionalPath
+	distFile android.Path
 
 	versionScriptPath android.ModuleGenPath
 
@@ -890,7 +890,7 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 		} else {
 			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
-			library.distFile = android.OptionalPathForPath(versionedOutputFile)
+			library.distFile = versionedOutputFile
 			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 		}
 	}
@@ -984,11 +984,11 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 		} else {
 			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
-			library.distFile = android.OptionalPathForPath(versionedOutputFile)
+			library.distFile = versionedOutputFile
 
 			if library.stripper.needsStrip(ctx) {
 				out := android.PathForModuleOut(ctx, "versioned-stripped", fileName)
-				library.distFile = android.OptionalPathForPath(out)
+				library.distFile = out
 				library.stripper.stripExecutableOrSharedLib(ctx, versionedOutputFile, out, builderFlags)
 			}
 
