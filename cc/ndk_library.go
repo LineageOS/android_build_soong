@@ -329,6 +329,7 @@ func parseSymbolFileForCoverage(ctx ModuleContext, symbolFile string) android.Mo
 		Description: "parse ndk api symbol file for api coverage: " + symbolFilePath.Rel(),
 		Outputs:     []android.WritablePath{parsedApiCoveragePath},
 		Input:       symbolFilePath,
+		Implicits:   []android.Path{apiLevelsJson},
 		Args: map[string]string{
 			"apiMap": apiLevelsJson.String(),
 		},
