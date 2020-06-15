@@ -1973,8 +1973,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					fi := apexFileForNativeLibrary(ctx, c, handleSpecialLibs)
 					fi.isJniLib = isJniLib
 					filesInfo = append(filesInfo, fi)
-					// bootstrap bionic libs are treated as provided by system
-					if c.HasStubsVariants() && !cc.InstallToBootstrap(c.BaseModuleName(), ctx.Config()) {
+					// Collect the list of stub-providing libs except:
+					// - VNDK libs are only for vendors
+					// - bootstrap bionic libs are treated as provided by system
+					if c.HasStubsVariants() && !a.vndkApex && !cc.InstallToBootstrap(c.BaseModuleName(), ctx.Config()) {
 						provideNativeLibs = append(provideNativeLibs, fi.Stem())
 					}
 					return true // track transitive dependencies
