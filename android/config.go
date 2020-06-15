@@ -1029,6 +1029,27 @@ func (c *deviceConfig) SamplingPGO() bool {
 	return Bool(c.config.productVariables.SamplingPGO)
 }
 
+// JavaCoverageEnabledForPath returns whether Java code coverage is enabled for
+// path. Coverage is enabled by default when the product variable
+// JavaCoveragePaths is empty. If JavaCoveragePaths is not empty, coverage is
+// enabled for any path which is part of this variable (and not part of the
+// JavaCoverageExcludePaths product variable). Value "*" in JavaCoveragePaths
+// represents any path.
+func (c *deviceConfig) JavaCoverageEnabledForPath(path string) bool {
+	coverage := false
+	if c.config.productVariables.JavaCoveragePaths == nil ||
+		InList("*", c.config.productVariables.JavaCoveragePaths) ||
+		HasAnyPrefix(path, c.config.productVariables.JavaCoveragePaths) {
+		coverage = true
+	}
+	if coverage && c.config.productVariables.JavaCoverageExcludePaths != nil {
+		if HasAnyPrefix(path, c.config.productVariables.JavaCoverageExcludePaths) {
+			coverage = false
+		}
+	}
+	return coverage
+}
+
 func (c *config) NativeLineCoverage() bool {
 	return Bool(c.productVariables.NativeLineCoverage)
 }
