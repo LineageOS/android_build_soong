@@ -180,7 +180,7 @@ func SetCoverageProperties(ctx android.BaseModuleContext, properties CoveragePro
 
 		if needCoverageVariant {
 			// Coverage variant is actually built with coverage if enabled for its module path
-			needCoverageBuild = ctx.DeviceConfig().CoverageEnabledForPath(ctx.ModuleDir())
+			needCoverageBuild = ctx.DeviceConfig().NativeCoverageEnabledForPath(ctx.ModuleDir())
 		}
 	}
 
