@@ -123,10 +123,10 @@ type ModuleConfig struct {
 	ProfileIsTextListing bool
 	ProfileBootListing   android.OptionalPath
 
-	EnforceUsesLibraries         bool
-	PresentOptionalUsesLibraries []string
-	UsesLibraries                []string
-	LibraryPaths                 LibraryPaths
+	EnforceUsesLibraries  bool
+	OptionalUsesLibraries []string
+	UsesLibraries         []string
+	LibraryPaths          LibraryPaths
 
 	Archs                   []android.ArchType
 	DexPreoptImages         []android.Path
