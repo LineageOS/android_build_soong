@@ -57,7 +57,14 @@ func (test *testDecorator) nativeCoverage() bool {
 }
 
 func NewRustTest(hod android.HostOrDeviceSupported) (*Module, *testDecorator) {
-	module := newModule(hod, android.MultilibFirst)
+	// Build both 32 and 64 targets for device tests.
+	// Cannot build both for host tests yet if the test depends on
+	// something like proc-macro2 that cannot be built for both.
+	multilib := android.MultilibBoth
+	if hod != android.DeviceSupported && hod != android.HostAndDeviceSupported {
+		multilib = android.MultilibFirst
+	}
+	module := newModule(hod, multilib)
 
 	test := &testDecorator{
 		binaryDecorator: &binaryDecorator{
