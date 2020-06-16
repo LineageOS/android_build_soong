@@ -22,6 +22,7 @@ import (
 
 	"android/soong/apex"
 	"android/soong/cc"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
@@ -667,8 +668,8 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 	if apexAware, ok := variant.(interface{ ApexAvailable() []string }); ok {
 		apexAvailable := apexAware.ApexAvailable()
 
-		// Add in any white listed apex available settings.
-		apexAvailable = append(apexAvailable, apex.WhitelistedApexAvailable(member.Name())...)
+		// Add in any baseline apex available settings.
+		apexAvailable = append(apexAvailable, apex.BaselineApexAvailable(member.Name())...)
 
 		if len(apexAvailable) > 0 {
 			// Remove duplicates and sort.
