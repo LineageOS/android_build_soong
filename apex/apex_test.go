@@ -973,7 +973,7 @@ func TestApexDependsOnLLNDKTransitively(t *testing.T) {
 				symbol_file: "",
 			}
 			`, func(fs map[string][]byte, config android.Config) {
-				setUseVendorWhitelistForTest(config, []string{"myapex"})
+				setUseVendorAllowListForTest(config, []string{"myapex"})
 			}, withUnbundledBuild)
 
 			// Ensure that LLNDK dep is not included
@@ -1642,7 +1642,7 @@ func TestUseVendor(t *testing.T) {
 			apex_available: [ "myapex" ],
 		}
 	`, func(fs map[string][]byte, config android.Config) {
-		setUseVendorWhitelistForTest(config, []string{"myapex"})
+		setUseVendorAllowListForTest(config, []string{"myapex"})
 	})
 
 	inputsList := []string{}
@@ -1675,9 +1675,9 @@ func TestUseVendorRestriction(t *testing.T) {
 			private_key: "testkey.pem",
 		}
 	`, func(fs map[string][]byte, config android.Config) {
-		setUseVendorWhitelistForTest(config, []string{""})
+		setUseVendorAllowListForTest(config, []string{""})
 	})
-	// no error with whitelist
+	// no error with allow list
 	testApex(t, `
 		apex {
 			name: "myapex",
@@ -1690,7 +1690,7 @@ func TestUseVendorRestriction(t *testing.T) {
 			private_key: "testkey.pem",
 		}
 	`, func(fs map[string][]byte, config android.Config) {
-		setUseVendorWhitelistForTest(config, []string{"myapex"})
+		setUseVendorAllowListForTest(config, []string{"myapex"})
 	})
 }
 
@@ -3422,7 +3422,7 @@ func TestApexUsesFailsIfUseVenderMismatch(t *testing.T) {
 			private_key: "testkey.pem",
 		}
 	`, func(fs map[string][]byte, config android.Config) {
-		setUseVendorWhitelistForTest(config, []string{"myapex"})
+		setUseVendorAllowListForTest(config, []string{"myapex"})
 	})
 }
 
