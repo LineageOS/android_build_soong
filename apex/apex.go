@@ -1019,7 +1019,7 @@ type apexBundleProperties struct {
 	Uses []string
 
 	// A txt file containing list of files that are allowed to be included in this APEX.
-	Whitelisted_files *string
+	Allowed_files *string
 
 	// package format of this apex variant; could be non-flattened, flattened, or zip.
 	// imageApex, zipApex or flattened
