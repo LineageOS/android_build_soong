@@ -66,7 +66,7 @@ func testApexError(t *testing.T, pattern, bp string, handlers ...testCustomizer)
 func testApex(t *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
 	t.Helper()
 	ctx, config := testApexContext(t, bp, handlers...)
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	_, errs := ctx.ParseBlueprintsFiles(".")
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
 	android.FailIfErrored(t, errs)
@@ -217,6 +217,11 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	}
 
 	ctx := android.NewTestArchContext()
+
+	// from android package
+	android.RegisterPackageBuildComponents(ctx)
+	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
+
 	ctx.RegisterModuleType("apex", BundleFactory)
 	ctx.RegisterModuleType("apex_test", testApexBundleFactory)
 	ctx.RegisterModuleType("apex_vndk", vndkApexBundleFactory)
@@ -230,6 +235,12 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
+
+	// Register this after the prebuilt mutators have been registered (in
+	// cc.RegisterRequiredBuildComponentsForTest) to match what happens at runtime.
+	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
+	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
+
 	ctx.RegisterModuleType("cc_test", cc.TestFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", cc.VndkLibrariesTxtFactory)
@@ -240,7 +251,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	java.RegisterJavaBuildComponents(ctx)
 	java.RegisterSystemModulesBuildComponents(ctx)
 	java.RegisterAppBuildComponents(ctx)
-	ctx.RegisterModuleType("java_sdk_library", java.SdkLibraryFactory)
+	java.RegisterSdkLibraryBuildComponents(ctx)
 	ctx.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
 
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
@@ -4366,6 +4377,9 @@ var filesForSdkLibrary = map[string][]byte{
 	"api/system-removed.txt": nil,
 	"api/test-current.txt":   nil,
 	"api/test-removed.txt":   nil,
+
+	// For java_sdk_library_import
+	"a.jar": nil,
 }
 
 func TestJavaSDKLibrary(t *testing.T) {
@@ -4490,6 +4504,117 @@ func TestJavaSDKLibrary_CrossBoundary(t *testing.T) {
 	if expected, actual := `^-classpath /[^:]*/turbine-combined/foo\.stubs\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
 		t.Errorf("expected %q, found %#q", expected, actual)
 	}
+}
+
+func TestJavaSDKLibrary_ImportPreferred(t *testing.T) {
+	ctx, _ := testApex(t, ``,
+		withFiles(map[string][]byte{
+			"apex/a.java":             nil,
+			"apex/apex_manifest.json": nil,
+			"apex/Android.bp": []byte(`
+		package {
+			default_visibility: ["//visibility:private"],
+		}
+
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["foo", "bar"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["a.java"],
+			libs: ["foo"],
+			apex_available: ["myapex"],
+			sdk_version: "none",
+			system_modules: "none",
+		}
+`),
+			"source/a.java":          nil,
+			"source/api/current.txt": nil,
+			"source/api/removed.txt": nil,
+			"source/Android.bp": []byte(`
+		package {
+			default_visibility: ["//visibility:private"],
+		}
+
+		java_sdk_library {
+			name: "foo",
+			visibility: ["//apex"],
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			apex_available: ["myapex"],
+			sdk_version: "none",
+			system_modules: "none",
+			public: {
+				enabled: true,
+			},
+		}
+`),
+			"prebuilt/a.jar": nil,
+			"prebuilt/Android.bp": []byte(`
+		package {
+			default_visibility: ["//visibility:private"],
+		}
+
+		java_sdk_library_import {
+			name: "foo",
+			visibility: ["//apex", "//source"],
+			apex_available: ["myapex"],
+			prefer: true,
+			public: {
+				jars: ["a.jar"],
+			},
+		}
+`),
+		}),
+	)
+
+	// java_sdk_library installs both impl jar and permission XML
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"javalib/bar.jar",
+		"javalib/foo.jar",
+		"etc/permissions/foo.xml",
+	})
+
+	// The bar library should depend on the implementation jar.
+	barLibrary := ctx.ModuleForTests("bar", "android_common_myapex").Rule("javac")
+	if expected, actual := `^-classpath /[^:]*/turbine-combined/foo\.impl\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+		t.Errorf("expected %q, found %#q", expected, actual)
+	}
+}
+
+func TestJavaSDKLibrary_ImportOnly(t *testing.T) {
+	testApexError(t, `java_libs: "foo" is not configured to be compiled into dex`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["foo"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_sdk_library_import {
+			name: "foo",
+			apex_available: ["myapex"],
+			prefer: true,
+			public: {
+				jars: ["a.jar"],
+			},
+		}
+
+	`, withFiles(filesForSdkLibrary))
 }
 
 func TestCompatConfig(t *testing.T) {
