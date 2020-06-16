@@ -45,12 +45,13 @@ func main() {
 	}
 
 	output, errs := androidmk.ConvertFile(os.Args[1], bytes.NewBuffer(b))
+	if len(output) > 0 {
+		fmt.Print(output)
+	}
 	if len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Fprintln(os.Stderr, "ERROR: ", err)
 		}
 		os.Exit(1)
 	}
-
-	fmt.Print(output)
 }
