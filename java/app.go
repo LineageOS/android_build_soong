@@ -132,7 +132,7 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	// We are assuming here that the master file in the APK
 	// set has `.apk` suffix. If it doesn't the build will fail.
 	// APK sets containing APEX files are handled elsewhere.
-	as.masterFile = ctx.ModuleName() + ".apk"
+	as.masterFile = as.BaseModuleName() + ".apk"
 	screenDensities := "all"
 	if dpis := ctx.Config().ProductAAPTPrebuiltDPI(); len(dpis) > 0 {
 		screenDensities = strings.ToUpper(strings.Join(dpis, ","))
