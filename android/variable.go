@@ -310,7 +310,7 @@ type productVariables struct {
 	PackageNameOverrides         []string `json:",omitempty"`
 
 	EnforceSystemCertificate          *bool    `json:",omitempty"`
-	EnforceSystemCertificateWhitelist []string `json:",omitempty"`
+	EnforceSystemCertificateAllowList []string `json:",omitempty"`
 
 	ProductHiddenAPIStubs       []string `json:",omitempty"`
 	ProductHiddenAPIStubsSystem []string `json:",omitempty"`
