@@ -29,11 +29,11 @@ func init() {
 type TestProperties struct {
 	// the name of the test configuration (for example "AndroidTest.xml") that should be
 	// installed with the module.
-	Test_config *string `android:"arch_variant"`
+	Test_config *string `android:"path,arch_variant"`
 
 	// the name of the test configuration template (for example "AndroidTestTemplate.xml") that
 	// should be installed with the module.
-	Test_config_template *string `android:"arch_variant"`
+	Test_config_template *string `android:"path,arch_variant"`
 }
 
 type testDecorator struct {

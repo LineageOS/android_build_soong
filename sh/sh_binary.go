@@ -22,6 +22,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/tradefed"
 )
 
 // sh_binary is for shell scripts (and batch files) that are installed as
@@ -69,11 +70,24 @@ type TestProperties struct {
 
 	// the name of the test configuration (for example "AndroidTest.xml") that should be
 	// installed with the module.
-	Test_config *string `android:"arch_variant"`
+	Test_config *string `android:"path,arch_variant"`
 
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test.
 	Data []string `android:"path,arch_variant"`
+
+	// Add RootTargetPreparer to auto generated test config. This guarantees the test to run
+	// with root permission.
+	Require_root *bool
+
+	// the name of the test configuration template (for example "AndroidTestTemplate.xml") that
+	// should be installed with the module.
+	Test_config_template *string `android:"path,arch_variant"`
+
+	// Flag to indicate whether or not to create test config automatically. If AndroidTest.xml
+	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
+	// explicitly.
+	Auto_gen_config *bool
 }
 
 type ShBinary struct {
@@ -93,7 +107,8 @@ type ShTest struct {
 
 	testProperties TestProperties
 
-	data android.Paths
+	data       android.Paths
+	testConfig android.Path
 }
 
 func (s *ShBinary) HostToolPath() android.OptionalPath {
@@ -190,6 +205,16 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	s.installedFile = ctx.InstallExecutable(installDir, s.outputFilePath.Base(), s.outputFilePath)
 
 	s.data = android.PathsForModuleSrc(ctx, s.testProperties.Data)
+
+	var configs []tradefed.Config
+	if Bool(s.testProperties.Require_root) {
+		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", nil})
+	} else {
+		options := []tradefed.Option{{Name: "force-root", Value: "false"}}
+		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", options})
+	}
+	s.testConfig = tradefed.AutoGenShellTestConfig(ctx, s.testProperties.Test_config,
+		s.testProperties.Test_config_template, s.testProperties.Test_suites, configs, s.testProperties.Auto_gen_config, s.outputFilePath.Base())
 }
 
 func (s *ShTest) InstallInData() bool {
@@ -206,7 +231,9 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 				s.customAndroidMkEntries(entries)
 
 				entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", s.testProperties.Test_suites...)
-				entries.SetString("LOCAL_TEST_CONFIG", proptools.String(s.testProperties.Test_config))
+				if s.testConfig != nil {
+					entries.SetPath("LOCAL_FULL_TEST_CONFIG", s.testConfig)
+				}
 				for _, d := range s.data {
 					rel := d.Rel()
 					path := d.String()
@@ -265,3 +292,5 @@ func ShTestHostFactory() android.Module {
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibFirst)
 	return module
 }
+
+var Bool = proptools.Bool
