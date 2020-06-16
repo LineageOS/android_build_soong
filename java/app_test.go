@@ -2719,7 +2719,7 @@ func TestCodelessApp(t *testing.T) {
 }
 
 func TestEmbedNotice(t *testing.T) {
-	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
+	ctx, _ := testJavaWithFS(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		android_app {
 			name: "foo",
 			srcs: ["a.java"],
@@ -2775,7 +2775,12 @@ func TestEmbedNotice(t *testing.T) {
 			srcs: ["b.java"],
 			notice: "TOOL_NOTICE",
 		}
-	`)
+	`, map[string][]byte{
+		"APP_NOTICE":     nil,
+		"GENRULE_NOTICE": nil,
+		"LIB_NOTICE":     nil,
+		"TOOL_NOTICE":    nil,
+	})
 
 	// foo has NOTICE files to process, and embed_notices is true.
 	foo := ctx.ModuleForTests("foo", "android_common")
