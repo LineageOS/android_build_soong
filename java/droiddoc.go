@@ -1471,7 +1471,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 		FlagWithInput("@", srcJarList).
 		FlagWithOutput("--strict-input-files:warn ", android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"violations.txt"))
 
-	if implicitsRsp.String() != "" {
+	if implicitsRsp != nil {
 		cmd.FlagWithArg("--strict-input-files-exempt ", "@"+implicitsRsp.String())
 	}
 
