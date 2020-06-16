@@ -2817,6 +2817,40 @@ func TestVndkApexWithBinder32(t *testing.T) {
 	})
 }
 
+func TestVndkApexShouldNotProvideNativeLibs(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex_vndk {
+			name: "myapex",
+			key: "myapex.key",
+			file_contexts: ":myapex-file_contexts",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "libz",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			stubs: {
+				symbol_file: "libz.map.txt",
+				versions: ["30"],
+			}
+		}
+	`+vndkLibrariesTxtFiles("current"), withFiles(map[string][]byte{
+		"libz.map.txt": nil,
+	}))
+
+	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_image").Rule("apexManifestRule")
+	provideNativeLibs := names(apexManifestRule.Args["provideNativeLibs"])
+	ensureListEmpty(t, provideNativeLibs)
+}
+
 func TestDependenciesInApexManifest(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {

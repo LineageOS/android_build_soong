@@ -185,12 +185,6 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.conscrypt"] = []string{
-		"libnativehelper_header_only",
-	}
-	//
-	// Module separator
-	//
 	m["com.android.extservices"] = []string{
 		"error_prone_annotations",
 		"ExtServices-core",
@@ -395,7 +389,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libbinderthreadstateutils",
 		"libbluetooth-types-header",
 		"libbufferhub_headers",
-		"libc_scudo",
 		"libcodec2",
 		"libcodec2_headers",
 		"libcodec2_hidl@1.0",
@@ -500,7 +493,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libbase_ndk",
 		"libfuse",
 		"libfuse_jni",
-		"libnativehelper_header_only",
 	}
 	//
 	// Module separator
@@ -595,7 +587,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"ipmemorystore-aidl-interfaces-java",
 		"libcgrouprc",
 		"libcgrouprc_format",
-		"libnativehelper_compat_libc++",
 		"libtetherutilsjni",
 		"libvndksupport",
 		"net-utils-framework-common",
@@ -1981,8 +1972,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					fi := apexFileForNativeLibrary(ctx, c, handleSpecialLibs)
 					fi.isJniLib = isJniLib
 					filesInfo = append(filesInfo, fi)
-					// bootstrap bionic libs are treated as provided by system
-					if c.HasStubsVariants() && !cc.InstallToBootstrap(c.BaseModuleName(), ctx.Config()) {
+					// Collect the list of stub-providing libs except:
+					// - VNDK libs are only for vendors
+					// - bootstrap bionic libs are treated as provided by system
+					if c.HasStubsVariants() && !a.vndkApex && !cc.InstallToBootstrap(c.BaseModuleName(), ctx.Config()) {
 						provideNativeLibs = append(provideNativeLibs, fi.Stem())
 					}
 					return true // track transitive dependencies

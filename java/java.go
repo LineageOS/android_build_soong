@@ -605,13 +605,30 @@ type jniLib struct {
 }
 
 func (j *Module) shouldInstrument(ctx android.BaseModuleContext) bool {
-	return j.properties.Instrument && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT")
+	return j.properties.Instrument &&
+		ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") &&
+		ctx.DeviceConfig().JavaCoverageEnabledForPath(ctx.ModuleDir())
 }
 
 func (j *Module) shouldInstrumentStatic(ctx android.BaseModuleContext) bool {
 	return j.shouldInstrument(ctx) &&
 		(ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_STATIC") ||
 			ctx.Config().UnbundledBuild())
+}
+
+func (j *Module) shouldInstrumentInApex(ctx android.BaseModuleContext) bool {
+	// Force enable the instrumentation for java code that is built for APEXes ...
+	// except for the jacocoagent itself (because instrumenting jacocoagent using jacocoagent
+	// doesn't make sense) or framework libraries (e.g. libraries found in the InstrumentFrameworkModules list) unless EMMA_INSTRUMENT_FRAMEWORK is true.
+	isJacocoAgent := ctx.ModuleName() == "jacocoagent"
+	if android.DirectlyInAnyApex(ctx, ctx.ModuleName()) && !isJacocoAgent && !j.IsForPlatform() {
+		if !inList(ctx.ModuleName(), config.InstrumentFrameworkModules) {
+			return true
+		} else if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+			return true
+		}
+	}
+	return false
 }
 
 func (j *Module) sdkVersion() sdkSpec {
@@ -1547,11 +1564,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		j.headerJarFile = j.implementationJarFile
 	}
 
-	// Force enable the instrumentation for java code that is built for APEXes ...
-	// except for the jacocoagent itself (because instrumenting jacocoagent using jacocoagent
-	// doesn't make sense)
-	isJacocoAgent := ctx.ModuleName() == "jacocoagent"
-	if android.DirectlyInAnyApex(ctx, ctx.ModuleName()) && !isJacocoAgent && !j.IsForPlatform() {
+	if j.shouldInstrumentInApex(ctx) {
 		j.properties.Instrument = true
 	}
 

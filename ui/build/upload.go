@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"android/soong/ui/metrics"
 	"github.com/golang/protobuf/proto"
 
 	upload_proto "android/soong/ui/metrics/upload_proto"
@@ -32,11 +33,21 @@ const (
 	uploadPbFilename = ".uploader.pb"
 )
 
+var (
+	// For testing purpose
+	getTmpDir = ioutil.TempDir
+)
+
 // UploadMetrics uploads a set of metrics files to a server for analysis. An
 // uploader full path is required to be specified in order to upload the set
 // of metrics files. This is accomplished by defining the ANDROID_ENABLE_METRICS_UPLOAD
-// environment variable.
-func UploadMetrics(ctx Context, config Config, buildStartedMilli int64, files ...string) {
+// environment variable. The metrics files are copied to a temporary directory
+// and the uploader is then executed in the background to allow the user to continue
+// working.
+func UploadMetrics(ctx Context, config Config, forceDumbOutput bool, buildStartedMilli int64, files ...string) {
+	ctx.BeginTrace(metrics.RunSetupTool, "upload_metrics")
+	defer ctx.EndTrace()
+
 	uploader := config.MetricsUploaderApp()
 	// No metrics to upload if the path to the uploader was not specified.
 	if uploader == "" {
@@ -56,6 +67,22 @@ func UploadMetrics(ctx Context, config Config, buildStartedMilli int64, files ..
 		return
 	}
 
+	// The temporary directory cannot be deleted as the metrics uploader is started
+	// in the background and requires to exist until the operation is done. The
+	// uploader can delete the directory as it is specified in the upload proto.
+	tmpDir, err := getTmpDir("", "upload_metrics")
+	if err != nil {
+		ctx.Fatalf("failed to create a temporary directory to store the list of metrics files: %v\n", err)
+	}
+
+	for i, src := range metricsFiles {
+		dst := filepath.Join(tmpDir, filepath.Base(src))
+		if _, err := copyFile(src, dst); err != nil {
+			ctx.Fatalf("failed to copy %q to %q: %v\n", src, dst, err)
+		}
+		metricsFiles[i] = dst
+	}
+
 	// For platform builds, the branch and target name is hardcoded to specific
 	// values for later extraction of the metrics in the data metrics pipeline.
 	data, err := proto.Marshal(&upload_proto.Upload{
@@ -64,17 +91,23 @@ func UploadMetrics(ctx Context, config Config, buildStartedMilli int64, files ..
 		BranchName:            proto.String("developer-metrics"),
 		TargetName:            proto.String("platform-build-systems-metrics"),
 		MetricsFiles:          metricsFiles,
+		DirectoriesToDelete:   []string{tmpDir},
 	})
 	if err != nil {
 		ctx.Fatalf("failed to marshal metrics upload proto buffer message: %v\n", err)
 	}
 
-	pbFile := filepath.Join(config.OutDir(), uploadPbFilename)
+	pbFile := filepath.Join(tmpDir, uploadPbFilename)
 	if err := ioutil.WriteFile(pbFile, data, 0644); err != nil {
 		ctx.Fatalf("failed to write the marshaled metrics upload protobuf to %q: %v\n", pbFile, err)
 	}
-	// Remove the upload file as it's not longer needed after it has been processed by the uploader.
-	defer os.Remove(pbFile)
 
-	Command(ctx, config, "upload metrics", uploader, "--upload-metrics", pbFile).RunAndStreamOrFatal()
+	// Start the uploader in the background as it takes several milliseconds to start the uploader
+	// and prepare the metrics for upload. This affects small commands like "lunch".
+	cmd := Command(ctx, config, "upload metrics", uploader, "--upload-metrics", pbFile)
+	if forceDumbOutput {
+		cmd.RunOrFatal()
+	} else {
+		cmd.RunAndStreamOrFatal()
+	}
 }
