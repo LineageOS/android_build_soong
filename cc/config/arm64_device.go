@@ -32,7 +32,7 @@ var (
 			"-march=armv8-a",
 		},
 		"armv8-2a": []string{
-			"-march=armv8.2a",
+			"-march=armv8.2-a",
 		},
 	}
 
