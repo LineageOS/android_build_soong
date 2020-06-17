@@ -3099,10 +3099,19 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		}
 	} else if vendorSpecific && String(m.Properties.Sdk_version) == "" {
 		// This will be available in /vendor (or /odm) only
-		// We assume that modules under proprietary paths are compatible for
-		// BOARD_VNDK_VERSION. The other modules are regarded as AOSP, or
-		// PLATFORM_VNDK_VERSION.
-		if isVendorProprietaryPath(mctx.ModuleDir()) {
+
+		// kernel_headers is a special module type whose exported headers
+		// are coming from DeviceKernelHeaders() which is always vendor
+		// dependent. They'll always have both vendor variants.
+		// For other modules, we assume that modules under proprietary
+		// paths are compatible for BOARD_VNDK_VERSION. The other modules
+		// are regarded as AOSP, which is PLATFORM_VNDK_VERSION.
+		if _, ok := m.linker.(*kernelHeadersDecorator); ok {
+			vendorVariants = append(vendorVariants,
+				platformVndkVersion,
+				boardVndkVersion,
+			)
+		} else if isVendorProprietaryPath(mctx.ModuleDir()) {
 			vendorVariants = append(vendorVariants, boardVndkVersion)
 		} else {
 			vendorVariants = append(vendorVariants, platformVndkVersion)
