@@ -24,9 +24,6 @@ func init() {
 }
 
 type BinaryCompilerProperties struct {
-	// path to the main source file that contains the program entry point (e.g. src/main.rs)
-	Srcs []string `android:"path,arch_variant"`
-
 	// passes -C prefer-dynamic to rustc, which tells it to dynamically link the stdlib
 	// (assuming it has no dylib dependencies already)
 	Prefer_dynamic *bool
@@ -35,10 +32,7 @@ type BinaryCompilerProperties struct {
 type binaryDecorator struct {
 	*baseCompiler
 
-	Properties            BinaryCompilerProperties
-	distFile              android.OptionalPath
-	coverageOutputZipFile android.OptionalPath
-	unstrippedOutputFile  android.Path
+	Properties BinaryCompilerProperties
 }
 
 var _ compiler = (*binaryDecorator)(nil)
@@ -112,7 +106,7 @@ func (binary *binaryDecorator) nativeCoverage() bool {
 func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
 	fileName := binary.getStem(ctx) + ctx.toolchain().ExecutableSuffix()
 
-	srcPath := srcPathFromModuleSrcs(ctx, binary.Properties.Srcs)
+	srcPath := srcPathFromModuleSrcs(ctx, binary.baseCompiler.Properties.Srcs)
 
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	binary.unstrippedOutputFile = outputFile
