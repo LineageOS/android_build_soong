@@ -1019,7 +1019,7 @@ type apexBundleProperties struct {
 	Uses []string
 
 	// A txt file containing list of files that are allowed to be included in this APEX.
-	Whitelisted_files *string
+	Allowed_files *string
 
 	// package format of this apex variant; could be non-flattened, flattened, or zip.
 	// imageApex, zipApex or flattened
@@ -2001,7 +2001,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 			case javaLibTag:
 				switch child.(type) {
-				case *java.Library, *java.SdkLibrary, *java.DexImport:
+				case *java.Library, *java.SdkLibrary, *java.DexImport, *java.SdkLibraryImport:
 					af := apexFileForJavaLibrary(ctx, child.(javaDependency), child.(android.Module))
 					if !af.Ok() {
 						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)

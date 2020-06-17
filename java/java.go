@@ -1171,9 +1171,9 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	if flags.javaVersion.usesJavaModules() {
 		javacFlags = append(javacFlags, j.properties.Openjdk9.Javacflags...)
 	}
-	if ctx.Config().MinimizeJavaDebugInfo() {
-		// Override the -g flag passed globally to remove local variable debug info to reduce
-		// disk and memory usage.
+	if ctx.Config().MinimizeJavaDebugInfo() && !ctx.Host() {
+		// For non-host binaries, override the -g flag passed globally to remove
+		// local variable debug info to reduce disk and memory usage.
 		javacFlags = append(javacFlags, "-g:source,lines")
 	}
 	javacFlags = append(javacFlags, "-Xlint:-dep-ann")

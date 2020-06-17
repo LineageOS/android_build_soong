@@ -124,6 +124,7 @@ func ConvertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 
 	var conds []*conditional
 	var assignmentCond *conditional
+	var tree *bpparser.File
 
 	for _, node := range nodes {
 		file.setMkPos(p.Unpack(node.Pos()), p.Unpack(node.End()))
@@ -200,24 +201,27 @@ func ConvertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 		}
 	}
 
-	tree := &bpparser.File{
+	tree = &bpparser.File{
 		Defs:     file.defs,
 		Comments: file.comments,
 	}
 
 	// check for common supported but undesirable structures and clean them up
 	fixer := bpfix.NewFixer(tree)
-	tree, err := fixer.Fix(bpfix.NewFixRequest().AddAll())
-	if err != nil {
-		return "", []error{err}
+	fixedTree, fixerErr := fixer.Fix(bpfix.NewFixRequest().AddAll())
+	if fixerErr != nil {
+		errs = append(errs, fixerErr)
+	} else {
+		tree = fixedTree
 	}
 
 	out, err := bpparser.Print(tree)
 	if err != nil {
-		return "", []error{err}
+		errs = append(errs, err)
+		return "", errs
 	}
 
-	return string(out), nil
+	return string(out), errs
 }
 
 func handleAssignment(file *bpFile, assignment *mkparser.Assignment, c *conditional) {
