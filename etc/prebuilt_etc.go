@@ -35,6 +35,7 @@ func init() {
 	android.RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
 	android.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
 	android.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
+	android.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
 }
 
 type prebuiltEtcProperties struct {
@@ -289,6 +290,18 @@ func PrebuiltFirmwareFactory() android.Module {
 	module := &PrebuiltEtc{}
 	module.socInstallDirBase = "firmware"
 	InitPrebuiltEtcModule(module, "etc/firmware")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	return module
+}
+
+// prebuilt_dsp installs a DSP related file to <partition>/etc/dsp directory for system image.
+// If soc_specific property is set to true, the DSP related file is installed to the vendor <partition>/dsp
+// directory for vendor image.
+func PrebuiltDSPFactory() android.Module {
+	module := &PrebuiltEtc{}
+	module.socInstallDirBase = "dsp"
+	InitPrebuiltEtcModule(module, "etc/dsp")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	return module
