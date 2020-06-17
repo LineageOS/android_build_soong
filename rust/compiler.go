@@ -53,6 +53,9 @@ const (
 )
 
 type BaseCompilerProperties struct {
+	// path to the source file that is the main entry point of the program (e.g. main.rs or lib.rs)
+	Srcs []string `android:"path,arch_variant"`
+
 	// whether to pass "-D warnings" to rustc. Defaults to true.
 	Deny_warnings *bool
 
@@ -100,17 +103,10 @@ type BaseCompilerProperties struct {
 }
 
 type baseCompiler struct {
-	Properties    BaseCompilerProperties
-	pathDeps      android.Paths
-	rustFlagsDeps android.Paths
-	linkFlagsDeps android.Paths
-	flags         string
-	linkFlags     string
-	depFlags      []string
-	linkDirs      []string
-	edition       string
-	src           android.Path //rustc takes a single src file
-	coverageFile  android.Path //rustc generates a single gcno file
+	Properties   BaseCompilerProperties
+	depFlags     []string
+	linkDirs     []string
+	coverageFile android.Path //rustc generates a single gcno file
 
 	// Install related
 	dir      string
@@ -119,6 +115,10 @@ type baseCompiler struct {
 	relative string
 	path     android.InstallPath
 	location installLocation
+
+	coverageOutputZipFile android.OptionalPath
+	unstrippedOutputFile  android.Path
+	distFile              android.OptionalPath
 }
 
 func (compiler *baseCompiler) coverageOutputZipPath() android.OptionalPath {

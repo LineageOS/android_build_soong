@@ -23,20 +23,12 @@ func init() {
 }
 
 type ProcMacroCompilerProperties struct {
-	// path to the source file that is the main entry point of the program (e.g. src/lib.rs)
-	Srcs []string `android:"path,arch_variant"`
-
-	// set name of the procMacro
-	Stem   *string `android:"arch_variant"`
-	Suffix *string `android:"arch_variant"`
 }
 
 type procMacroDecorator struct {
 	*baseCompiler
 
-	Properties           ProcMacroCompilerProperties
-	distFile             android.OptionalPath
-	unstrippedOutputFile android.Path
+	Properties ProcMacroCompilerProperties
 }
 
 type procMacroInterface interface {
@@ -70,7 +62,7 @@ func (procMacro *procMacroDecorator) compile(ctx ModuleContext, flags Flags, dep
 	fileName := procMacro.getStem(ctx) + ctx.toolchain().ProcMacroSuffix()
 	outputFile := android.PathForModuleOut(ctx, fileName)
 
-	srcPath := srcPathFromModuleSrcs(ctx, procMacro.Properties.Srcs)
+	srcPath := srcPathFromModuleSrcs(ctx, procMacro.baseCompiler.Properties.Srcs)
 
 	procMacro.unstrippedOutputFile = outputFile
 
