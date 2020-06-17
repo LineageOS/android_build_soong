@@ -1580,7 +1580,8 @@ func VersionVariantAvailable(module interface {
 // (which is unnamed) and zero or more stubs variants.
 func VersionMutator(mctx android.BottomUpMutatorContext) {
 	if library, ok := mctx.Module().(LinkableInterface); ok && VersionVariantAvailable(library) {
-		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 {
+		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 &&
+			!library.IsSdkVariant() {
 			versions := library.StubsVersions()
 			normalizeVersions(mctx, versions)
 			if mctx.Failed() {
