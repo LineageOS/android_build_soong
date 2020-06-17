@@ -94,9 +94,9 @@ func (k sdkKind) String() string {
 	case sdkCorePlatform:
 		return "core_platform"
 	case sdkModule:
-		return "module"
+		return "module-lib"
 	case sdkSystemServer:
-		return "system_server"
+		return "system-server"
 	default:
 		return "invalid"
 	}
