@@ -3209,6 +3209,10 @@ func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string
 	}
 }
 
+func (c *Module) IsSdkVariant() bool {
+	return c.Properties.IsSdkVariant
+}
+
 func getCurrentNdkPrebuiltVersion(ctx DepsContext) string {
 	if ctx.Config().PlatformSdkVersionInt() > config.NdkMaxPrebuiltVersionInt {
 		return strconv.Itoa(config.NdkMaxPrebuiltVersionInt)
