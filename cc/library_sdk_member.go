@@ -124,6 +124,14 @@ func (mt *librarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, 
 	if stl != nil {
 		pbm.AddProperty("stl", proptools.String(stl))
 	}
+
+	if lib, ok := ccModule.linker.(*libraryDecorator); ok {
+		uhs := lib.Properties.Unique_host_soname
+		if uhs != nil {
+			pbm.AddProperty("unique_host_soname", proptools.Bool(uhs))
+		}
+	}
+
 	return pbm
 }
 
