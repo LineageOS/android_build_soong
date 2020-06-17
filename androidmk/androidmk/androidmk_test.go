@@ -1367,6 +1367,28 @@ android_test_import {
 `,
 	},
 	{
+		desc: "dashed_variable gets renamed",
+		in: `
+		include $(CLEAR_VARS)
+
+		dashed-variable:= a.cpp
+
+		LOCAL_MODULE:= test
+		LOCAL_SRC_FILES:= $(dashed-variable)
+		include $(BUILD_EXECUTABLE)
+		`,
+		expected: `
+
+// ANDROIDMK TRANSLATION WARNING: Variable names cannot contain: "-". Renamed "dashed-variable" to "dashed_dash_variable"
+dashed_dash_variable = ["a.cpp"]
+cc_binary {
+
+    name: "test",
+    srcs: dashed_dash_variable,
+}
+`,
+	},
+	{
 		desc: "undefined_boolean_var",
 		in: `
 include $(CLEAR_VARS)
