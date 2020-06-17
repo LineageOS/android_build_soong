@@ -712,8 +712,15 @@ func (c *config) AllowMissingDependencies() bool {
 	return Bool(c.productVariables.Allow_missing_dependencies)
 }
 
+// Returns true if building without full platform sources.
 func (c *config) UnbundledBuild() bool {
 	return Bool(c.productVariables.Unbundled_build)
+}
+
+// Returns true if building apps that aren't bundled with the platform.
+// UnbundledBuild() is always true when this is true.
+func (c *config) UnbundledBuildApps() bool {
+	return Bool(c.productVariables.Unbundled_build_apps)
 }
 
 func (c *config) UnbundledBuildUsePrebuiltSdks() bool {
