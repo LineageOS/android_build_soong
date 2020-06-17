@@ -155,6 +155,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 				sdk_version: "current",
 			}
 		`, func(fs map[string][]byte, config android.Config) {
+			config.TestProductVariables.GcovCoverage = proptools.BoolPtr(true)
 			config.TestProductVariables.Native_coverage = proptools.BoolPtr(true)
 		})
 

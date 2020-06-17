@@ -256,11 +256,13 @@ type productVariables struct {
 	JavaCoveragePaths        []string `json:",omitempty"`
 	JavaCoverageExcludePaths []string `json:",omitempty"`
 
-	NativeLineCoverage         *bool    `json:",omitempty"`
-	Native_coverage            *bool    `json:",omitempty"`
+	GcovCoverage               *bool    `json:",omitempty"`
 	ClangCoverage              *bool    `json:",omitempty"`
 	NativeCoveragePaths        []string `json:",omitempty"`
 	NativeCoverageExcludePaths []string `json:",omitempty"`
+
+	// Set by NewConfig
+	Native_coverage *bool
 
 	DevicePrefer32BitApps        *bool `json:",omitempty"`
 	DevicePrefer32BitExecutables *bool `json:",omitempty"`
