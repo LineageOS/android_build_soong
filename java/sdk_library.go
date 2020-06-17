@@ -2009,6 +2009,26 @@ func (module *SdkLibraryImport) Stem() string {
 	return module.BaseModuleName()
 }
 
+var _ ApexDependency = (*SdkLibraryImport)(nil)
+
+// to satisfy java.ApexDependency interface
+func (module *SdkLibraryImport) HeaderJars() android.Paths {
+	if module.implLibraryModule == nil {
+		return nil
+	} else {
+		return module.implLibraryModule.HeaderJars()
+	}
+}
+
+// to satisfy java.ApexDependency interface
+func (module *SdkLibraryImport) ImplementationAndResourcesJars() android.Paths {
+	if module.implLibraryModule == nil {
+		return nil
+	} else {
+		return module.implLibraryModule.ImplementationAndResourcesJars()
+	}
+}
+
 //
 // java_sdk_library_xml
 //

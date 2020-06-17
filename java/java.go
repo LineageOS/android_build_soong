@@ -500,11 +500,16 @@ func (j *Module) OutputFiles(tag string) (android.Paths, error) {
 
 var _ android.OutputFileProducer = (*Module)(nil)
 
-type Dependency interface {
+// Methods that need to be implemented for a module that is added to apex java_libs property.
+type ApexDependency interface {
 	HeaderJars() android.Paths
+	ImplementationAndResourcesJars() android.Paths
+}
+
+type Dependency interface {
+	ApexDependency
 	ImplementationJars() android.Paths
 	ResourceJars() android.Paths
-	ImplementationAndResourcesJars() android.Paths
 	DexJarBuildPath() android.Path
 	DexJarInstallPath() android.Path
 	AidlIncludeDirs() android.Paths
