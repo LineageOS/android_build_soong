@@ -45,11 +45,10 @@ func init() {
 }
 
 type Flags struct {
-	GlobalRustFlags []string      // Flags that apply globally to rust
-	GlobalLinkFlags []string      // Flags that apply globally to linker
-	RustFlags       []string      // Flags that apply to rust
-	LinkFlags       []string      // Flags that apply to linker
-	RustFlagsDeps   android.Paths // Files depended on by compiler flags
+	GlobalRustFlags []string // Flags that apply globally to rust
+	GlobalLinkFlags []string // Flags that apply globally to linker
+	RustFlags       []string // Flags that apply to rust
+	LinkFlags       []string // Flags that apply to linker
 	Toolchain       config.Toolchain
 	Coverage        bool
 }

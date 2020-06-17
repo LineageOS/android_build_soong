@@ -45,9 +45,6 @@ type LibraryCompilerProperties struct {
 	Shared VariantLibraryProperties `android:"arch_variant"`
 	Static VariantLibraryProperties `android:"arch_variant"`
 
-	// path to the source file that is the main entry point of the program (e.g. src/lib.rs)
-	Srcs []string `android:"path,arch_variant"`
-
 	// path to include directories to pass to cc_* modules, only relevant for static/shared variants.
 	Include_dirs []string `android:"path,arch_variant"`
 }
@@ -75,12 +72,9 @@ type LibraryMutatedProperties struct {
 type libraryDecorator struct {
 	*baseCompiler
 
-	Properties            LibraryCompilerProperties
-	MutatedProperties     LibraryMutatedProperties
-	distFile              android.OptionalPath
-	coverageOutputZipFile android.OptionalPath
-	unstrippedOutputFile  android.Path
-	includeDirs           android.Paths
+	Properties        LibraryCompilerProperties
+	MutatedProperties LibraryMutatedProperties
+	includeDirs       android.Paths
 }
 
 type libraryInterface interface {
@@ -350,7 +344,7 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
 	var outputFile android.WritablePath
 
-	srcPath := srcPathFromModuleSrcs(ctx, library.Properties.Srcs)
+	srcPath := srcPathFromModuleSrcs(ctx, library.baseCompiler.Properties.Srcs)
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 
