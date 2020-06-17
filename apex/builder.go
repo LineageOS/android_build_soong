@@ -165,13 +165,13 @@ var (
 	diffApexContentRule = pctx.StaticRule("diffApexContentRule", blueprint.RuleParams{
 		Command: `diff --unchanged-group-format='' \` +
 			`--changed-group-format='%<' \` +
-			`${image_content_file} ${whitelisted_files_file} || (` +
+			`${image_content_file} ${allowed_files_file} || (` +
 			`echo -e "New unexpected files were added to ${apex_module_name}." ` +
 			` "To fix the build run following command:" && ` +
-			`echo "system/apex/tools/update_whitelist.sh ${whitelisted_files_file} ${image_content_file}" && ` +
+			`echo "system/apex/tools/update_allowed_list.sh ${allowed_files_file} ${image_content_file}" && ` +
 			`exit 1); touch ${out}`,
-		Description: "Diff ${image_content_file} and ${whitelisted_files_file}",
-	}, "image_content_file", "whitelisted_files_file", "apex_module_name")
+		Description: "Diff ${image_content_file} and ${allowed_files_file}",
+	}, "image_content_file", "allowed_files_file", "apex_module_name")
 )
 
 func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs, requireNativeLibs []string) {
@@ -369,7 +369,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	emitCommands = append(emitCommands, "sort -o "+imageContentFile.String()+" "+imageContentFile.String())
 	implicitInputs = append(implicitInputs, a.manifestPbOut)
 
-	if a.properties.Whitelisted_files != nil {
+	if a.properties.Allowed_files != nil {
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        emitApexContentRule,
 			Implicits:   implicitInputs,
@@ -380,7 +380,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			},
 		})
 		implicitInputs = append(implicitInputs, imageContentFile)
-		whitelistedFilesFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.Whitelisted_files))
+		allowedFilesFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.Allowed_files))
 
 		phonyOutput := android.PathForModuleOut(ctx, a.Name()+"-diff-phony-output")
 		ctx.Build(pctx, android.BuildParams{
@@ -389,9 +389,9 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Output:      phonyOutput,
 			Description: "diff apex image content",
 			Args: map[string]string{
-				"whitelisted_files_file": whitelistedFilesFile.String(),
-				"image_content_file":     imageContentFile.String(),
-				"apex_module_name":       a.Name(),
+				"allowed_files_file": allowedFilesFile.String(),
+				"image_content_file": imageContentFile.String(),
+				"apex_module_name":   a.Name(),
 			},
 		})
 

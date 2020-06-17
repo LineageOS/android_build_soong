@@ -142,9 +142,14 @@ func testJavaErrorWithConfig(t *testing.T, pattern string, config android.Config
 	return ctx, config
 }
 
+func testJavaWithFS(t *testing.T, bp string, fs map[string][]byte) (*android.TestContext, android.Config) {
+	t.Helper()
+	return testJavaWithConfig(t, testConfig(nil, bp, fs))
+}
+
 func testJava(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	t.Helper()
-	return testJavaWithConfig(t, testConfig(nil, bp, nil))
+	return testJavaWithFS(t, bp, nil)
 }
 
 func testJavaWithConfig(t *testing.T, config android.Config) (*android.TestContext, android.Config) {
@@ -740,7 +745,7 @@ func TestResources(t *testing.T) {
 
 	for _, test := range table {
 		t.Run(test.name, func(t *testing.T) {
-			ctx, _ := testJava(t, `
+			ctx, _ := testJavaWithFS(t, `
 				java_library {
 					name: "foo",
 					srcs: [
@@ -750,7 +755,13 @@ func TestResources(t *testing.T) {
 					],
 					`+test.prop+`,
 				}
-			`+test.extra)
+			`+test.extra,
+				map[string][]byte{
+					"java-res/a/a": nil,
+					"java-res/b/b": nil,
+					"java-res2/a":  nil,
+				},
+			)
 
 			foo := ctx.ModuleForTests("foo", "android_common").Output("withres/foo.jar")
 			fooRes := ctx.ModuleForTests("foo", "android_common").Output("res/foo.jar")
@@ -769,7 +780,7 @@ func TestResources(t *testing.T) {
 }
 
 func TestIncludeSrcs(t *testing.T) {
-	ctx, _ := testJava(t, `
+	ctx, _ := testJavaWithFS(t, `
 		java_library {
 			name: "foo",
 			srcs: [
@@ -790,7 +801,11 @@ func TestIncludeSrcs(t *testing.T) {
 			java_resource_dirs: ["java-res"],
 			include_srcs: true,
 		}
-	`)
+	`, map[string][]byte{
+		"java-res/a/a": nil,
+		"java-res/b/b": nil,
+		"java-res2/a":  nil,
+	})
 
 	// Test a library with include_srcs: true
 	foo := ctx.ModuleForTests("foo", "android_common").Output("withres/foo.jar")
@@ -832,7 +847,7 @@ func TestIncludeSrcs(t *testing.T) {
 }
 
 func TestGeneratedSources(t *testing.T) {
-	ctx, _ := testJava(t, `
+	ctx, _ := testJavaWithFS(t, `
 		java_library {
 			name: "foo",
 			srcs: [
@@ -847,7 +862,10 @@ func TestGeneratedSources(t *testing.T) {
 			tool_files: ["java-res/a"],
 			out: ["gen.java"],
 		}
-	`)
+	`, map[string][]byte{
+		"a.java": nil,
+		"b.java": nil,
+	})
 
 	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
 	genrule := ctx.ModuleForTests("gen", "").Rule("generator")
@@ -932,7 +950,7 @@ func TestSharding(t *testing.T) {
 }
 
 func TestDroiddoc(t *testing.T) {
-	ctx, _ := testJava(t, `
+	ctx, _ := testJavaWithFS(t, `
 		droiddoc_exported_dir {
 		    name: "droiddoc-templates-sdk",
 		    path: ".",
@@ -945,7 +963,7 @@ func TestDroiddoc(t *testing.T) {
 		droiddoc {
 		    name: "bar-doc",
 		    srcs: [
-		        "bar-doc/*.java",
+		        "bar-doc/a.java",
 		        "bar-doc/IFoo.aidl",
 		        ":bar-doc-aidl-srcs",
 		    ],
@@ -963,7 +981,11 @@ func TestDroiddoc(t *testing.T) {
 		    todo_file: "libcore-docs-todo.html",
 		    args: "-offlinemode -title \"libcore\"",
 		}
-		`)
+		`,
+		map[string][]byte{
+			"bar-doc/a.java": nil,
+			"bar-doc/b.java": nil,
+		})
 
 	barDoc := ctx.ModuleForTests("bar-doc", "android_common").Rule("javadoc")
 	var javaSrcs []string
@@ -989,7 +1011,7 @@ func TestDroidstubsWithSystemModules(t *testing.T) {
 		droidstubs {
 		    name: "stubs-source-system-modules",
 		    srcs: [
-		        "bar-doc/*.java",
+		        "bar-doc/a.java",
 		    ],
 				sdk_version: "none",
 				system_modules: "source-system-modules",
@@ -1010,7 +1032,7 @@ func TestDroidstubsWithSystemModules(t *testing.T) {
 		droidstubs {
 		    name: "stubs-prebuilt-system-modules",
 		    srcs: [
-		        "bar-doc/*.java",
+		        "bar-doc/a.java",
 		    ],
 				sdk_version: "none",
 				system_modules: "prebuilt-system-modules",

@@ -132,7 +132,7 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	// We are assuming here that the master file in the APK
 	// set has `.apk` suffix. If it doesn't the build will fail.
 	// APK sets containing APEX files are handled elsewhere.
-	as.masterFile = ctx.ModuleName() + ".apk"
+	as.masterFile = as.BaseModuleName() + ".apk"
 	screenDensities := "all"
 	if dpis := ctx.Config().ProductAAPTPrebuiltDPI(); len(dpis) > 0 {
 		screenDensities = strings.ToUpper(strings.Join(dpis, ","))
@@ -686,9 +686,9 @@ func processMainCert(m android.ModuleBase, certPropValue string, certificates []
 		systemCertPath := ctx.Config().DefaultAppCertificateDir(ctx).String()
 		if strings.HasPrefix(certPath, systemCertPath) {
 			enforceSystemCert := ctx.Config().EnforceSystemCertificate()
-			whitelist := ctx.Config().EnforceSystemCertificateWhitelist()
+			allowed := ctx.Config().EnforceSystemCertificateAllowList()
 
-			if enforceSystemCert && !inList(m.Name(), whitelist) {
+			if enforceSystemCert && !inList(m.Name(), allowed) {
 				ctx.PropertyErrorf("certificate", "The module in product partition cannot be signed with certificate in system.")
 			}
 		}

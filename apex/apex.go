@@ -63,13 +63,14 @@ var (
 	certificateTag = dependencyTag{name: "certificate"}
 	usesTag        = dependencyTag{name: "uses"}
 	androidAppTag  = dependencyTag{name: "androidApp", payload: true}
-	apexAvailWl    = makeApexAvailableWhitelist()
 
-	inverseApexAvailWl = invertApexWhiteList(apexAvailWl)
+	apexAvailBaseline = makeApexAvailableBaseline()
+
+	inverseApexAvailBaseline = invertApexBaseline(apexAvailBaseline)
 )
 
 // Transform the map of apex -> modules to module -> apexes.
-func invertApexWhiteList(m map[string][]string) map[string][]string {
+func invertApexBaseline(m map[string][]string) map[string][]string {
 	r := make(map[string][]string)
 	for apex, modules := range m {
 		for _, module := range modules {
@@ -79,16 +80,16 @@ func invertApexWhiteList(m map[string][]string) map[string][]string {
 	return r
 }
 
-// Retrieve the while list of apexes to which the supplied module belongs.
-func WhitelistedApexAvailable(moduleName string) []string {
-	return inverseApexAvailWl[normalizeModuleName(moduleName)]
+// Retrieve the baseline of apexes to which the supplied module belongs.
+func BaselineApexAvailable(moduleName string) []string {
+	return inverseApexAvailBaseline[normalizeModuleName(moduleName)]
 }
 
 // This is a map from apex to modules, which overrides the
 // apex_available setting for that particular module to make
 // it available for the apex regardless of its setting.
 // TODO(b/147364041): remove this
-func makeApexAvailableWhitelist() map[string][]string {
+func makeApexAvailableBaseline() map[string][]string {
 	// The "Module separator"s below are employed to minimize merge conflicts.
 	m := make(map[string][]string)
 	//
@@ -905,17 +906,17 @@ func apexUsesMutator(mctx android.BottomUpMutatorContext) {
 }
 
 var (
-	useVendorWhitelistKey = android.NewOnceKey("useVendorWhitelist")
+	useVendorAllowListKey = android.NewOnceKey("useVendorAllowList")
 )
 
-// useVendorWhitelist returns the list of APEXes which are allowed to use_vendor.
+// useVendorAllowList returns the list of APEXes which are allowed to use_vendor.
 // When use_vendor is used, native modules are built with __ANDROID_VNDK__ and __ANDROID_APEX__,
 // which may cause compatibility issues. (e.g. libbinder)
 // Even though libbinder restricts its availability via 'apex_available' property and relies on
 // yet another macro __ANDROID_APEX_<NAME>__, we restrict usage of "use_vendor:" from other APEX modules
 // to avoid similar problems.
-func useVendorWhitelist(config android.Config) []string {
-	return config.Once(useVendorWhitelistKey, func() interface{} {
+func useVendorAllowList(config android.Config) []string {
+	return config.Once(useVendorAllowListKey, func() interface{} {
 		return []string{
 			// swcodec uses "vendor" variants for smaller size
 			"com.android.media.swcodec",
@@ -924,11 +925,11 @@ func useVendorWhitelist(config android.Config) []string {
 	}).([]string)
 }
 
-// setUseVendorWhitelistForTest overrides useVendorWhitelist and must be
-// called before the first call to useVendorWhitelist()
-func setUseVendorWhitelistForTest(config android.Config, whitelist []string) {
-	config.Once(useVendorWhitelistKey, func() interface{} {
-		return whitelist
+// setUseVendorAllowListForTest overrides useVendorAllowList and must be
+// called before the first call to useVendorAllowList()
+func setUseVendorAllowListForTest(config android.Config, allowList []string) {
+	config.Once(useVendorAllowListKey, func() interface{} {
+		return allowList
 	})
 }
 
@@ -1030,8 +1031,8 @@ type apexBundleProperties struct {
 	// List of providing APEXes' names so that this APEX can depend on provided shared libraries.
 	Uses []string
 
-	// A txt file containing list of files that are whitelisted to be included in this APEX.
-	Whitelisted_files *string
+	// A txt file containing list of files that are allowed to be included in this APEX.
+	Allowed_files *string
 
 	// package format of this apex variant; could be non-flattened, flattened, or zip.
 	// imageApex, zipApex or flattened
@@ -1358,7 +1359,7 @@ func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if proptools.Bool(a.properties.Use_vendor) && !android.InList(a.Name(), useVendorWhitelist(ctx.Config())) {
+	if proptools.Bool(a.properties.Use_vendor) && !android.InList(a.Name(), useVendorAllowList(ctx.Config())) {
 		ctx.PropertyErrorf("use_vendor", "not allowed to set use_vendor: true")
 	}
 
@@ -1832,7 +1833,7 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 			return false
 		}
 
-		if to.AvailableFor(apexName) || whitelistedApexAvailable(apexName, toName) {
+		if to.AvailableFor(apexName) || baselineApexAvailable(apexName, toName) {
 			return true
 		}
 		message := ""
@@ -1963,7 +1964,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 			case javaLibTag:
 				switch child.(type) {
-				case *java.Library, *java.SdkLibrary, *java.DexImport:
+				case *java.Library, *java.SdkLibrary, *java.DexImport, *java.SdkLibraryImport:
 					af := apexFileForJavaLibrary(ctx, child.(javaDependency), child.(android.Module))
 					if !af.Ok() {
 						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
@@ -2220,16 +2221,16 @@ func (a *apexBundle) checkJavaStableSdkVersion(ctx android.ModuleContext) {
 	})
 }
 
-func whitelistedApexAvailable(apex, moduleName string) bool {
+func baselineApexAvailable(apex, moduleName string) bool {
 	key := apex
 	moduleName = normalizeModuleName(moduleName)
 
-	if val, ok := apexAvailWl[key]; ok && android.InList(moduleName, val) {
+	if val, ok := apexAvailBaseline[key]; ok && android.InList(moduleName, val) {
 		return true
 	}
 
 	key = android.AvailableToAnyApex
-	if val, ok := apexAvailWl[key]; ok && android.InList(moduleName, val) {
+	if val, ok := apexAvailBaseline[key]; ok && android.InList(moduleName, val) {
 		return true
 	}
 

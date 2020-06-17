@@ -36,6 +36,12 @@ type SingletonContext interface {
 	Variable(pctx PackageContext, name, value string)
 	Rule(pctx PackageContext, name string, params blueprint.RuleParams, argNames ...string) blueprint.Rule
 	Build(pctx PackageContext, params BuildParams)
+
+	// Phony creates a Make-style phony rule, a rule with no commands that can depend on other
+	// phony rules or real files.  Phony can be called on the same name multiple times to add
+	// additional dependencies.
+	Phony(name string, deps ...Path)
+
 	RequireNinjaVersion(major, minor, micro int)
 
 	// SetNinjaBuildDir sets the value of the top-level "builddir" Ninja variable
@@ -154,6 +160,10 @@ func (s *singletonContextAdaptor) Build(pctx PackageContext, params BuildParams)
 	bparams := convertBuildParams(params)
 	s.SingletonContext.Build(pctx.PackageContext, bparams)
 
+}
+
+func (s *singletonContextAdaptor) Phony(name string, deps ...Path) {
+	addPhony(s.Config(), name, deps...)
 }
 
 func (s *singletonContextAdaptor) SetNinjaBuildDir(pctx PackageContext, value string) {
