@@ -196,6 +196,10 @@ func (mod *Module) AlwaysSdk() bool {
 	return false
 }
 
+func (mod *Module) IsSdkVariant() bool {
+	return false
+}
+
 func (mod *Module) ToolchainLibrary() bool {
 	return false
 }
