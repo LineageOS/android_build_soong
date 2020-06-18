@@ -59,7 +59,7 @@ func main() {
 	ctx := android.NewContext()
 	ctx.Register()
 
-	configuration, err := android.NewConfig(srcDir, bootstrap.BuildDir, bootstrap.ModuleListFile)
+	configuration, err := android.NewConfig(srcDir, bootstrap.BuildDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
