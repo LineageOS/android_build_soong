@@ -268,6 +268,9 @@ type overridableAppProperties struct {
 
 	// the logging parent of this app.
 	Logging_parent *string
+
+	// Whether to rename the package in resources to the override name rather than the base name. Defaults to true.
+	Rename_resources_package *bool
 }
 
 // runtime_resource_overlay properties that can be overridden by override_runtime_resource_overlay
@@ -505,8 +508,21 @@ func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
 		!a.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
 }
 
+func generateAaptRenamePackageFlags(packageName string, renameResourcesPackage bool) []string {
+	aaptFlags := []string{"--rename-manifest-package " + packageName}
+	if renameResourcesPackage {
+		// Required to rename the package name in the resources table.
+		aaptFlags = append(aaptFlags, "--rename-resources-package "+packageName)
+	}
+	return aaptFlags
+}
+
 func (a *AndroidApp) OverriddenManifestPackageName() string {
 	return a.overriddenManifestPackageName
+}
+
+func (a *AndroidApp) renameResourcesPackage() bool {
+	return proptools.BoolDefault(a.overridableAppProperties.Rename_resources_package, true)
 }
 
 func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
@@ -541,7 +557,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 		if !overridden {
 			manifestPackageName = *a.overridableAppProperties.Package_name
 		}
-		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
+		aaptLinkFlags = append(aaptLinkFlags, generateAaptRenamePackageFlags(manifestPackageName, a.renameResourcesPackage())...)
 		a.overriddenManifestPackageName = manifestPackageName
 	}
 
@@ -1784,7 +1800,7 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 		if !overridden {
 			manifestPackageName = *r.overridableProperties.Package_name
 		}
-		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
+		aaptLinkFlags = append(aaptLinkFlags, generateAaptRenamePackageFlags(manifestPackageName, false)...)
 	}
 	if r.overridableProperties.Target_package_name != nil {
 		aaptLinkFlags = append(aaptLinkFlags,
