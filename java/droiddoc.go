@@ -1321,6 +1321,7 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 			cmd.Flag("--exclude-documentation-from-stubs")
 		}
 	}
+	cmd.FlagWithArg("--hide ", "ShowingMemberInHiddenClass") // b/159121253 -- remove it once all the violations are fixed.
 }
 
 func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
