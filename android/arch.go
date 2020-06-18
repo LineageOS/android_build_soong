@@ -124,6 +124,7 @@ var archVariants = map[ArchType][]string{
 	Arm64: {
 		"armv8_a",
 		"armv8_2a",
+		"armv8-2a-dotprod",
 		"cortex-a53",
 		"cortex-a55",
 		"cortex-a72",
@@ -171,6 +172,9 @@ var archFeatures = map[ArchType][]string{
 	Arm: {
 		"neon",
 	},
+	Arm64: {
+		"dotprod",
+	},
 	X86: {
 		"ssse3",
 		"sse4",
@@ -206,6 +210,11 @@ var archFeatureMap = map[ArchType]map[string][]string{
 		},
 		"armv8-2a": {
 			"neon",
+		},
+	},
+	Arm64: {
+		"armv8-2a-dotprod": {
+			"dotprod",
 		},
 	},
 	X86: {
@@ -1615,9 +1624,10 @@ func getMegaDeviceConfig() []archConfig {
 		{"arm64", "armv8-a", "kryo", []string{"arm64-v8a"}},
 		{"arm64", "armv8-a", "exynos-m1", []string{"arm64-v8a"}},
 		{"arm64", "armv8-a", "exynos-m2", []string{"arm64-v8a"}},
-		{"arm64", "armv8-2a", "cortex-a75", []string{"arm64-v8a"}},
-		{"arm64", "armv8-2a", "cortex-a76", []string{"arm64-v8a"}},
 		{"arm64", "armv8-2a", "kryo385", []string{"arm64-v8a"}},
+		{"arm64", "armv8-2a-dotprod", "cortex-a55", []string{"arm64-v8a"}},
+		{"arm64", "armv8-2a-dotprod", "cortex-a75", []string{"arm64-v8a"}},
+		{"arm64", "armv8-2a-dotprod", "cortex-a76", []string{"arm64-v8a"}},
 		{"x86", "", "", []string{"x86"}},
 		{"x86", "atom", "", []string{"x86"}},
 		{"x86", "haswell", "", []string{"x86"}},

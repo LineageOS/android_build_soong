@@ -34,6 +34,9 @@ var (
 		"armv8-2a": []string{
 			"-march=armv8.2-a",
 		},
+		"armv8-2a-dotprod": []string{
+			"-march=armv8.2-a+dotprod",
+		},
 	}
 
 	arm64Ldflags = []string{
@@ -100,6 +103,7 @@ func init() {
 
 	pctx.StaticVariable("Arm64ClangArmv8ACflags", strings.Join(arm64ArchVariantCflags["armv8-a"], " "))
 	pctx.StaticVariable("Arm64ClangArmv82ACflags", strings.Join(arm64ArchVariantCflags["armv8-2a"], " "))
+	pctx.StaticVariable("Arm64ClangArmv82ADotprodCflags", strings.Join(arm64ArchVariantCflags["armv8-2a-dotprod"], " "))
 
 	pctx.StaticVariable("Arm64ClangCortexA53Cflags",
 		strings.Join(arm64ClangCpuVariantCflags["cortex-a53"], " "))
@@ -121,6 +125,7 @@ var (
 	arm64ClangArchVariantCflagsVar = map[string]string{
 		"armv8-a":  "${config.Arm64ClangArmv8ACflags}",
 		"armv8-2a": "${config.Arm64ClangArmv82ACflags}",
+		"armv8-2a-dotprod": "${config.Arm64ClangArmv82ADotprodCflags}",
 	}
 
 	arm64ClangCpuVariantCflagsVar = map[string]string{
@@ -198,6 +203,7 @@ func arm64ToolchainFactory(arch android.Arch) Toolchain {
 	switch arch.ArchVariant {
 	case "armv8-a":
 	case "armv8-2a":
+	case "armv8-2a-dotprod":
 		// Nothing extra for armv8-a/armv8-2a
 	default:
 		panic(fmt.Sprintf("Unknown ARM architecture version: %q", arch.ArchVariant))
