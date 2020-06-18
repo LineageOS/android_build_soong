@@ -1743,52 +1743,125 @@ func TestOverrideAndroidApp(t *testing.T) {
 			base: "foo",
 			package_name: "org.dandroid.bp",
 		}
+
+		override_android_app {
+			name: "baz_no_rename_resources",
+			base: "foo",
+			package_name: "org.dandroid.bp",
+			rename_resources_package: false,
+		}
+
+		android_app {
+			name: "foo_no_rename_resources",
+			srcs: ["a.java"],
+			certificate: "expiredkey",
+			overrides: ["qux"],
+			rename_resources_package: false,
+			sdk_version: "current",
+		}
+
+		override_android_app {
+			name: "baz_base_no_rename_resources",
+			base: "foo_no_rename_resources",
+			package_name: "org.dandroid.bp",
+		}
+
+		override_android_app {
+			name: "baz_override_base_rename_resources",
+			base: "foo_no_rename_resources",
+			package_name: "org.dandroid.bp",
+			rename_resources_package: true,
+		}
 		`)
 
 	expectedVariants := []struct {
-		moduleName     string
-		variantName    string
-		apkName        string
-		apkPath        string
-		certFlag       string
-		lineageFlag    string
-		overrides      []string
-		aaptFlag       string
-		logging_parent string
+		name            string
+		moduleName      string
+		variantName     string
+		apkName         string
+		apkPath         string
+		certFlag        string
+		lineageFlag     string
+		overrides       []string
+		packageFlag     string
+		renameResources bool
+		logging_parent  string
 	}{
 		{
-			moduleName:     "foo",
-			variantName:    "android_common",
-			apkPath:        "/target/product/test_device/system/app/foo/foo.apk",
-			certFlag:       "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			lineageFlag:    "",
-			overrides:      []string{"qux"},
-			aaptFlag:       "",
-			logging_parent: "",
+			name:            "foo",
+			moduleName:      "foo",
+			variantName:     "android_common",
+			apkPath:         "/target/product/test_device/system/app/foo/foo.apk",
+			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			lineageFlag:     "",
+			overrides:       []string{"qux"},
+			packageFlag:     "",
+			renameResources: false,
+			logging_parent:  "",
 		},
 		{
-			moduleName:     "bar",
-			variantName:    "android_common_bar",
-			apkPath:        "/target/product/test_device/system/app/bar/bar.apk",
-			certFlag:       "cert/new_cert.x509.pem cert/new_cert.pk8",
-			lineageFlag:    "--lineage lineage.bin",
-			overrides:      []string{"qux", "foo"},
-			aaptFlag:       "",
-			logging_parent: "bah",
+			name:            "foo",
+			moduleName:      "bar",
+			variantName:     "android_common_bar",
+			apkPath:         "/target/product/test_device/system/app/bar/bar.apk",
+			certFlag:        "cert/new_cert.x509.pem cert/new_cert.pk8",
+			lineageFlag:     "--lineage lineage.bin",
+			overrides:       []string{"qux", "foo"},
+			packageFlag:     "",
+			renameResources: false,
+			logging_parent:  "bah",
 		},
 		{
-			moduleName:     "baz",
-			variantName:    "android_common_baz",
-			apkPath:        "/target/product/test_device/system/app/baz/baz.apk",
-			certFlag:       "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			lineageFlag:    "",
-			overrides:      []string{"qux", "foo"},
-			aaptFlag:       "--rename-manifest-package org.dandroid.bp",
-			logging_parent: "",
+			name:            "foo",
+			moduleName:      "baz",
+			variantName:     "android_common_baz",
+			apkPath:         "/target/product/test_device/system/app/baz/baz.apk",
+			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			lineageFlag:     "",
+			overrides:       []string{"qux", "foo"},
+			packageFlag:     "org.dandroid.bp",
+			renameResources: true,
+			logging_parent:  "",
+		},
+		{
+			name:            "foo",
+			moduleName:      "baz_no_rename_resources",
+			variantName:     "android_common_baz_no_rename_resources",
+			apkPath:         "/target/product/test_device/system/app/baz_no_rename_resources/baz_no_rename_resources.apk",
+			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			lineageFlag:     "",
+			overrides:       []string{"qux", "foo"},
+			packageFlag:     "org.dandroid.bp",
+			renameResources: false,
+			logging_parent:  "",
+		},
+		{
+			name:            "foo_no_rename_resources",
+			moduleName:      "baz_base_no_rename_resources",
+			variantName:     "android_common_baz_base_no_rename_resources",
+			apkPath:         "/target/product/test_device/system/app/baz_base_no_rename_resources/baz_base_no_rename_resources.apk",
+			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			lineageFlag:     "",
+			overrides:       []string{"qux", "foo_no_rename_resources"},
+			packageFlag:     "org.dandroid.bp",
+			renameResources: false,
+			logging_parent:  "",
+		},
+		{
+			name:            "foo_no_rename_resources",
+			moduleName:      "baz_override_base_rename_resources",
+			variantName:     "android_common_baz_override_base_rename_resources",
+			apkPath:         "/target/product/test_device/system/app/baz_override_base_rename_resources/baz_override_base_rename_resources.apk",
+			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			lineageFlag:     "",
+			overrides:       []string{"qux", "foo_no_rename_resources"},
+			packageFlag:     "org.dandroid.bp",
+			renameResources: true,
+			logging_parent:  "",
 		},
 	}
 	for _, expected := range expectedVariants {
-		variant := ctx.ModuleForTests("foo", expected.variantName)
+		variant := ctx.ModuleForTests(expected.name, expected.variantName)
 
 		// Check the final apk name
 		outputs := variant.AllOutputs()
@@ -1834,9 +1907,12 @@ func TestOverrideAndroidApp(t *testing.T) {
 		// Check the package renaming flag, if exists.
 		res := variant.Output("package-res.apk")
 		aapt2Flags := res.Args["flags"]
-		if !strings.Contains(aapt2Flags, expected.aaptFlag) {
-			t.Errorf("package renaming flag, %q is missing in aapt2 link flags, %q", expected.aaptFlag, aapt2Flags)
+		checkAapt2LinkFlag(t, aapt2Flags, "rename-manifest-package", expected.packageFlag)
+		expectedPackage := expected.packageFlag
+		if !expected.renameResources {
+			expectedPackage = ""
 		}
+		checkAapt2LinkFlag(t, aapt2Flags, "rename-resources-package", expectedPackage)
 	}
 }
 
@@ -1973,6 +2049,7 @@ func TestOverrideAndroidTest(t *testing.T) {
 		res := variant.Output("package-res.apk")
 		aapt2Flags := res.Args["flags"]
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-manifest-package", expected.packageFlag)
+		checkAapt2LinkFlag(t, aapt2Flags, "rename-resources-package", expected.packageFlag)
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-instrumentation-target-package", expected.targetPackageFlag)
 	}
 }
@@ -3190,6 +3267,7 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 		res := variant.Output("package-res.apk")
 		aapt2Flags := res.Args["flags"]
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-manifest-package", expected.packageFlag)
+		checkAapt2LinkFlag(t, aapt2Flags, "rename-resources-package", "")
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-overlay-target-package", expected.targetPackageFlag)
 	}
 }
