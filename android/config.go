@@ -93,9 +93,8 @@ type config struct {
 
 	deviceConfig *deviceConfig
 
-	srcDir         string // the path of the root source directory
-	buildDir       string // the path of the build output directory
-	moduleListFile string // the path to the file which lists blueprint files to parse.
+	srcDir   string // the path of the root source directory
+	buildDir string // the path of the build output directory
 
 	env       map[string]string
 	envLock   sync.Mutex
@@ -317,7 +316,7 @@ func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[st
 
 // New creates a new Config object.  The srcDir argument specifies the path to
 // the root source directory. It also loads the config file, if found.
-func NewConfig(srcDir, buildDir string, moduleListFile string) (Config, error) {
+func NewConfig(srcDir, buildDir string) (Config, error) {
 	// Make a config with default options
 	config := &config{
 		ConfigFileName:           filepath.Join(buildDir, configFileName),
@@ -329,8 +328,7 @@ func NewConfig(srcDir, buildDir string, moduleListFile string) (Config, error) {
 		buildDir:          buildDir,
 		multilibConflicts: make(map[ArchType]bool),
 
-		moduleListFile: moduleListFile,
-		fs:             pathtools.NewOsFs(absSrcDir),
+		fs: pathtools.NewOsFs(absSrcDir),
 	}
 
 	config.deviceConfig = &deviceConfig{
