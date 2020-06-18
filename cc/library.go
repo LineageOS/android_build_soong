@@ -1077,9 +1077,14 @@ func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.
 
 func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objects, fileName string, soFile android.Path) {
 	if library.shouldCreateSourceAbiDump(ctx) {
-		vndkVersion := ctx.DeviceConfig().PlatformVndkVersion()
-		if ver := ctx.DeviceConfig().VndkVersion(); ver != "" && ver != "current" {
-			vndkVersion = ver
+		var vndkVersion string
+
+		if ctx.useVndk() {
+			// For modules linking against vndk, follow its vndk version
+			vndkVersion = ctx.Module().(*Module).VndkVersion()
+		} else {
+			// Regard the other modules as PLATFORM_VNDK_VERSION
+			vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
 		}
 
 		exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
@@ -1575,7 +1580,8 @@ func VersionVariantAvailable(module interface {
 // (which is unnamed) and zero or more stubs variants.
 func VersionMutator(mctx android.BottomUpMutatorContext) {
 	if library, ok := mctx.Module().(LinkableInterface); ok && VersionVariantAvailable(library) {
-		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 {
+		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 &&
+			!library.IsSdkVariant() {
 			versions := library.StubsVersions()
 			normalizeVersions(mctx, versions)
 			if mctx.Failed() {

@@ -114,7 +114,7 @@ func appendLibraryAndDeps(ctx android.SingletonContext, project *rustProjectJson
 		return cInfo.ID, crateName, true
 	}
 	crate := rustProjectCrate{Deps: make([]rustProjectDep, 0), Cfgs: make([]string, 0)}
-	src := rustLib.Properties.Srcs[0]
+	src := rustLib.baseCompiler.Properties.Srcs[0]
 	crate.RootModule = path.Join(ctx.ModuleDir(rModule), src)
 	crate.Edition = getEdition(rustLib.baseCompiler)
 
