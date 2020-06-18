@@ -40,6 +40,8 @@ type TestProperties struct {
 type TestOptions struct {
 	// The UID that you want to run the test as on a device.
 	Run_test_as *string
+	// A list of free-formed strings without spaces that categorize the test.
+	Test_suite_tag []string
 }
 
 type TestBinaryProperties struct {
@@ -356,6 +358,9 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	}
 	if test.Properties.Test_options.Run_test_as != nil {
 		configs = append(configs, tradefed.Option{Name: "run-test-as", Value: String(test.Properties.Test_options.Run_test_as)})
+	}
+	for _, tag := range test.Properties.Test_options.Test_suite_tag {
+		configs = append(configs, tradefed.Option{Name: "test-suite-tag", Value: tag})
 	}
 	if test.Properties.Test_min_api_level != nil && test.Properties.Test_min_sdk_version != nil {
 		ctx.PropertyErrorf("test_min_api_level", "'test_min_api_level' and 'test_min_sdk_version' should not be set at the same time.")
