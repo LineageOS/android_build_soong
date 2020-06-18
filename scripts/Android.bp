@@ -148,3 +148,9 @@ python_test_host {
     ],
     test_suites: ["general-tests"],
 }
+
+python_binary_host {
+    name: "lint-project-xml",
+    main: "lint-project-xml.py",
+    srcs: ["lint-project-xml.py"],
+}
