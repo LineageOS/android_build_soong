@@ -1976,3 +1976,83 @@ sdk_snapshot {
 }
 `))
 }
+
+func TestUniqueHostSoname(t *testing.T) {
+	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
+	SkipIfNotLinux(t)
+
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			host_supported: true,
+			native_shared_libs: ["mylib"],
+		}
+
+		cc_library {
+			name: "mylib",
+			host_supported: true,
+			unique_host_soname: true,
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_shared {
+    name: "mysdk_mylib@current",
+    sdk_member_name: "mylib",
+    host_supported: true,
+    installable: false,
+    unique_host_soname: true,
+    target: {
+        android_arm64: {
+            srcs: ["android/arm64/lib/mylib.so"],
+        },
+        android_arm: {
+            srcs: ["android/arm/lib/mylib.so"],
+        },
+        linux_glibc_x86_64: {
+            srcs: ["linux_glibc/x86_64/lib/mylib-host.so"],
+        },
+        linux_glibc_x86: {
+            srcs: ["linux_glibc/x86/lib/mylib-host.so"],
+        },
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "mylib",
+    prefer: false,
+    host_supported: true,
+    unique_host_soname: true,
+    target: {
+        android_arm64: {
+            srcs: ["android/arm64/lib/mylib.so"],
+        },
+        android_arm: {
+            srcs: ["android/arm/lib/mylib.so"],
+        },
+        linux_glibc_x86_64: {
+            srcs: ["linux_glibc/x86_64/lib/mylib-host.so"],
+        },
+        linux_glibc_x86: {
+            srcs: ["linux_glibc/x86/lib/mylib-host.so"],
+        },
+    },
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    host_supported: true,
+    native_shared_libs: ["mysdk_mylib@current"],
+}
+`),
+		checkAllCopyRules(`
+.intermediates/mylib/android_arm64_armv8-a_shared/mylib.so -> android/arm64/lib/mylib.so
+.intermediates/mylib/android_arm_armv7-a-neon_shared/mylib.so -> android/arm/lib/mylib.so
+.intermediates/mylib/linux_glibc_x86_64_shared/mylib-host.so -> linux_glibc/x86_64/lib/mylib-host.so
+.intermediates/mylib/linux_glibc_x86_shared/mylib-host.so -> linux_glibc/x86/lib/mylib-host.so
+`),
+	)
+}
