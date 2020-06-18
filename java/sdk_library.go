@@ -1101,6 +1101,7 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 		&module.protoProperties,
 		&module.deviceProperties,
 		&module.dexpreoptProperties,
+		&module.linter.properties,
 		&props,
 		module.sdkComponentPropertiesForChildLibrary(),
 	}
