@@ -21,6 +21,8 @@ MODULES_SDK_AND_EXPORTS=(
   conscrypt-module-host-exports
   runtime-module-sdk
   runtime-module-host-exports
+  i18n-module-test-exports
+  i18n-module-sdk
 )
 
 # We want to create apex modules for all supported architectures.
