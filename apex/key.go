@@ -160,12 +160,6 @@ func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
 				presigned: true,
 				partition: m.PartitionTag(ctx.DeviceConfig()),
 			}
-
-			for _, om := range m.Overrides() {
-				if _, ok := apexKeyMap[om]; ok {
-					delete(apexKeyMap, om)
-				}
-			}
 			apexKeyMap[m.BaseModuleName()] = entry
 		}
 	})
