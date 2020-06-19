@@ -17,6 +17,8 @@ package rust
 import (
 	"strings"
 	"testing"
+
+	"android/soong/android"
 )
 
 // Test that variants are being generated correctly, and that crate-types are correct.
@@ -115,16 +117,24 @@ func TestValidateLibraryStem(t *testing.T) {
 
 }
 
-func TestSharedLibraryFlags(t *testing.T) {
+func TestSharedLibrary(t *testing.T) {
 	ctx := testRust(t, `
-		rust_library_host {
+		rust_library {
 			name: "libfoo",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
 		}`)
 
-	libfooShared := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_shared").Output("libfoo.so")
-	if !strings.Contains(libfooShared.Args["linkFlags"], "-Wl,-soname=libfoo.so") {
-		t.Errorf("missing expected -Wl,-soname linker flag for libfoo shared lib, linkFlags: %#v", libfooShared.Args["linkFlags"])
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared")
+
+	libfooOutput := libfoo.Output("libfoo.so")
+	if !strings.Contains(libfooOutput.Args["linkFlags"], "-Wl,-soname=libfoo.so") {
+		t.Errorf("missing expected -Wl,-soname linker flag for libfoo shared lib, linkFlags: %#v",
+			libfooOutput.Args["linkFlags"])
+	}
+
+	if !android.InList("libstd", libfoo.Module().(*Module).Properties.AndroidMkDylibs) {
+		t.Errorf("Non-static libstd dylib expected to be a dependency of Rust shared libraries. Dylib deps are: %#v",
+			libfoo.Module().(*Module).Properties.AndroidMkDylibs)
 	}
 }
