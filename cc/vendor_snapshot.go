@@ -548,6 +548,10 @@ func isVendorSnapshotModule(m *Module, moduleDir string) bool {
 	if !m.IsForPlatform() || m.isSnapshotPrebuilt() || !m.inVendor() {
 		return false
 	}
+	// skip kernel_headers which always depend on vendor
+	if _, ok := m.linker.(*kernelHeadersDecorator); ok {
+		return false
+	}
 
 	// Libraries
 	if l, ok := m.linker.(snapshotLibraryInterface); ok {
