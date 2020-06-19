@@ -253,6 +253,9 @@ type CompilerProperties struct {
 
 	// List of files to include in the META-INF/services folder of the resulting jar.
 	Services []string `android:"path,arch_variant"`
+
+	// If true, package the kotlin stdlib into the jar.  Defaults to true.
+	Static_kotlin_stdlib *bool `android:"arch_variant"`
 }
 
 type CompilerDeviceProperties struct {
@@ -580,6 +583,7 @@ var (
 	certificateTag        = dependencyTag{name: "certificate"}
 	instrumentationForTag = dependencyTag{name: "instrumentation_for"}
 	usesLibTag            = dependencyTag{name: "uses-library"}
+	extraLintCheckTag     = dependencyTag{name: "extra-lint-check"}
 )
 
 func IsLibDepTag(depTag blueprint.DependencyTag) bool {
@@ -691,6 +695,8 @@ func (j *Module) AvailableFor(what string) bool {
 
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
+		j.linter.deps(ctx)
+
 		sdkDep := decodeSdkDep(ctx, sdkContext(j))
 		if sdkDep.useDefaultLibs {
 			ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
@@ -1354,8 +1360,10 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		if len(flags.processorPath) > 0 {
 			// Use kapt for annotation processing
 			kaptSrcJar := android.PathForModuleOut(ctx, "kapt", "kapt-sources.jar")
-			kotlinKapt(ctx, kaptSrcJar, kotlinSrcFiles, srcJars, flags)
+			kaptResJar := android.PathForModuleOut(ctx, "kapt", "kapt-res.jar")
+			kotlinKapt(ctx, kaptSrcJar, kaptResJar, kotlinSrcFiles, srcJars, flags)
 			srcJars = append(srcJars, kaptSrcJar)
+			kotlinJars = append(kotlinJars, kaptResJar)
 			// Disable annotation processing in javac, it's already been handled by kapt
 			flags.processorPath = nil
 			flags.processors = nil
@@ -1370,9 +1378,11 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		// Make javac rule depend on the kotlinc rule
 		flags.classpath = append(flags.classpath, kotlinJar)
 
-		// Jar kotlin classes into the final jar after javac
 		kotlinJars = append(kotlinJars, kotlinJar)
-		kotlinJars = append(kotlinJars, deps.kotlinStdlib...)
+		// Jar kotlin classes into the final jar after javac
+		if BoolDefault(j.properties.Static_kotlin_stdlib, true) {
+			kotlinJars = append(kotlinJars, deps.kotlinStdlib...)
+		}
 	}
 
 	jars := append(android.Paths(nil), kotlinJars...)

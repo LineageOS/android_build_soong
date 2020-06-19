@@ -42,6 +42,9 @@ type LintProperties struct {
 
 		// Checks that should be skipped.
 		Disabled_checks []string
+
+		// Modules that provide extra lint checks
+		Extra_check_modules []string
 	}
 }
 
@@ -74,6 +77,14 @@ type lintOutputs struct {
 
 func (l *linter) enabled() bool {
 	return BoolDefault(l.properties.Lint.Enabled, true)
+}
+
+func (l *linter) deps(ctx android.BottomUpMutatorContext) {
+	if !l.enabled() {
+		return
+	}
+
+	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), extraLintCheckTag, l.properties.Lint.Extra_check_modules...)
 }
 
 func (l *linter) writeLintProjectXML(ctx android.ModuleContext,
@@ -177,6 +188,16 @@ func (l *linter) generateManifest(ctx android.ModuleContext, rule *android.RuleB
 func (l *linter) lint(ctx android.ModuleContext) {
 	if !l.enabled() {
 		return
+	}
+
+	extraLintCheckModules := ctx.GetDirectDepsWithTag(extraLintCheckTag)
+	for _, extraLintCheckModule := range extraLintCheckModules {
+		if dep, ok := extraLintCheckModule.(Dependency); ok {
+			l.extraLintCheckJars = append(l.extraLintCheckJars, dep.ImplementationAndResourcesJars()...)
+		} else {
+			ctx.PropertyErrorf("lint.extra_check_modules",
+				"%s is not a java module", ctx.OtherModuleName(extraLintCheckModule))
+		}
 	}
 
 	rule := android.NewRuleBuilder()
