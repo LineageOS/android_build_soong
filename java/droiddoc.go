@@ -1224,6 +1224,21 @@ func DroidstubsHostFactory() android.Module {
 	return module
 }
 
+func (d *Droidstubs) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return android.Paths{d.stubsSrcJar}, nil
+	case ".docs.zip":
+		return android.Paths{d.docZip}, nil
+	case ".annotations.zip":
+		return android.Paths{d.annotationsZip}, nil
+	case ".api_versions.xml":
+		return android.Paths{d.apiVersionsXml}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
+}
+
 func (d *Droidstubs) ApiFilePath() android.Path {
 	return d.apiFilePath
 }
@@ -1306,6 +1321,7 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 			cmd.Flag("--exclude-documentation-from-stubs")
 		}
 	}
+	cmd.FlagWithArg("--hide ", "ShowingMemberInHiddenClass") // b/159121253 -- remove it once all the violations are fixed.
 }
 
 func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {

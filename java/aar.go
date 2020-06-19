@@ -102,6 +102,7 @@ type aapt struct {
 	sdkLibraries            []string
 	hasNoCode               bool
 	LoggingParent           string
+	resourceFiles           android.Paths
 
 	splitNames []string
 	splits     []split
@@ -275,6 +276,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 
 	var compiledResDirs []android.Paths
 	for _, dir := range resDirs {
+		a.resourceFiles = append(a.resourceFiles, dir.files...)
 		compiledResDirs = append(compiledResDirs, aapt2Compile(ctx, dir.dir, dir.files, compileFlags).Paths())
 	}
 
@@ -473,6 +475,10 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	// apps manifests are handled by aapt, don't let Module see them
 	a.properties.Manifest = nil
 
+	a.linter.mergedManifest = a.aapt.mergedManifestFile
+	a.linter.manifest = a.aapt.manifestPath
+	a.linter.resources = a.aapt.resourceFiles
+
 	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles,
 		a.proguardOptionsFile)
 
@@ -506,15 +512,13 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 func AndroidLibraryFactory() android.Module {
 	module := &AndroidLibrary{}
 
+	module.Module.addHostAndDeviceProperties()
 	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
 		&module.aaptProperties,
 		&module.androidLibraryProperties)
 
 	module.androidLibraryProperties.BuildAAR = true
+	module.Module.linter.library = true
 
 	android.InitApexModule(module)
 	InitJavaModule(module, android.DeviceSupported)

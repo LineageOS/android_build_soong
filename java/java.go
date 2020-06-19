@@ -475,6 +475,7 @@ type Module struct {
 
 	hiddenAPI
 	dexpreopter
+	linter
 
 	// list of the xref extraction files
 	kytheFiles android.Paths
@@ -483,6 +484,22 @@ type Module struct {
 
 	// Collect the module directory for IDE info in java/jdeps.go.
 	modulePaths []string
+}
+
+func (j *Module) addHostProperties() {
+	j.AddProperties(
+		&j.properties,
+		&j.protoProperties,
+	)
+}
+
+func (j *Module) addHostAndDeviceProperties() {
+	j.addHostProperties()
+	j.AddProperties(
+		&j.deviceProperties,
+		&j.dexpreoptProperties,
+		&j.linter.properties,
+	)
 }
 
 func (j *Module) OutputFiles(tag string) (android.Paths, error) {
@@ -1643,6 +1660,28 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		outputFile = implementationAndResourcesJar
 	}
 
+	if ctx.Device() {
+		lintSDKVersionString := func(sdkSpec sdkSpec) string {
+			if v := sdkSpec.version; v.isNumbered() {
+				return v.String()
+			} else {
+				return ctx.Config().DefaultAppTargetSdk()
+			}
+		}
+
+		j.linter.name = ctx.ModuleName()
+		j.linter.srcs = srcFiles
+		j.linter.srcJars = srcJars
+		j.linter.classpath = append(append(android.Paths(nil), flags.bootClasspath...), flags.classpath...)
+		j.linter.classes = j.implementationJarFile
+		j.linter.minSdkVersion = lintSDKVersionString(j.minSdkVersion())
+		j.linter.targetSdkVersion = lintSDKVersionString(j.targetSdkVersion())
+		j.linter.compileSdkVersion = lintSDKVersionString(j.sdkVersion())
+		j.linter.javaLanguageLevel = flags.javaVersion.String()
+		j.linter.kotlinLanguageLevel = "1.3"
+		j.linter.lint(ctx)
+	}
+
 	ctx.CheckbuildFile(outputFile)
 
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
@@ -2055,12 +2094,8 @@ var javaHeaderLibsSdkMemberType android.SdkMemberType = &librarySdkMemberType{
 func LibraryFactory() android.Module {
 	module := &Library{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
-		&module.libraryProperties)
+	module.addHostAndDeviceProperties()
+	module.AddProperties(&module.libraryProperties)
 
 	module.initModuleAndImport(&module.ModuleBase)
 
@@ -2082,9 +2117,7 @@ func LibraryStaticFactory() android.Module {
 func LibraryHostFactory() android.Module {
 	module := &Library{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.protoProperties)
+	module.addHostProperties()
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
@@ -2252,15 +2285,12 @@ func (p *testSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext,
 func TestFactory() android.Module {
 	module := &Test{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
-		&module.testProperties)
+	module.addHostAndDeviceProperties()
+	module.AddProperties(&module.testProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
+	module.Module.linter.test = true
 
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
@@ -2270,15 +2300,12 @@ func TestFactory() android.Module {
 func TestHelperLibraryFactory() android.Module {
 	module := &TestHelperLibrary{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
-		&module.testHelperLibraryProperties)
+	module.addHostAndDeviceProperties()
+	module.AddProperties(&module.testHelperLibraryProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
+	module.Module.linter.test = true
 
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
@@ -2316,10 +2343,8 @@ func JavaTestImportFactory() android.Module {
 func TestHostFactory() android.Module {
 	module := &Test{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.protoProperties,
-		&module.testProperties)
+	module.addHostProperties()
+	module.AddProperties(&module.testProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
@@ -2403,12 +2428,8 @@ func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
 func BinaryFactory() android.Module {
 	module := &Binary{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
-		&module.binaryProperties)
+	module.addHostAndDeviceProperties()
+	module.AddProperties(&module.binaryProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
@@ -2424,10 +2445,8 @@ func BinaryFactory() android.Module {
 func BinaryHostFactory() android.Module {
 	module := &Binary{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.protoProperties,
-		&module.binaryProperties)
+	module.addHostProperties()
+	module.AddProperties(&module.binaryProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
@@ -2874,6 +2893,7 @@ func DefaultsFactory() android.Module {
 		&DexImportProperties{},
 		&android.ApexProperties{},
 		&RuntimeResourceOverlayProperties{},
+		&LintProperties{},
 	)
 
 	android.InitDefaultsModule(module)
