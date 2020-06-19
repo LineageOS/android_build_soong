@@ -482,6 +482,21 @@ type Module struct {
 	distFile android.Path
 }
 
+func (j *Module) addHostProperties() {
+	j.AddProperties(
+		&j.properties,
+		&j.protoProperties,
+	)
+}
+
+func (j *Module) addHostAndDeviceProperties() {
+	j.addHostProperties()
+	j.AddProperties(
+		&j.deviceProperties,
+		&j.dexpreoptProperties,
+	)
+}
+
 func (j *Module) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
 	case "":
@@ -2024,12 +2039,8 @@ var javaHeaderLibsSdkMemberType android.SdkMemberType = &librarySdkMemberType{
 func LibraryFactory() android.Module {
 	module := &Library{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
-		&module.libraryProperties)
+	module.addHostAndDeviceProperties()
+	module.AddProperties(&module.libraryProperties)
 
 	module.initModuleAndImport(&module.ModuleBase)
 
@@ -2051,9 +2062,7 @@ func LibraryStaticFactory() android.Module {
 func LibraryHostFactory() android.Module {
 	module := &Library{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.protoProperties)
+	module.addHostProperties()
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
@@ -2221,12 +2230,8 @@ func (p *testSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext,
 func TestFactory() android.Module {
 	module := &Test{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
-		&module.testProperties)
+	module.addHostAndDeviceProperties()
+	module.AddProperties(&module.testProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
@@ -2239,12 +2244,8 @@ func TestFactory() android.Module {
 func TestHelperLibraryFactory() android.Module {
 	module := &TestHelperLibrary{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
-		&module.testHelperLibraryProperties)
+	module.addHostAndDeviceProperties()
+	module.AddProperties(&module.testHelperLibraryProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.Module.dexpreopter.isTest = true
@@ -2285,10 +2286,8 @@ func JavaTestImportFactory() android.Module {
 func TestHostFactory() android.Module {
 	module := &Test{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.protoProperties,
-		&module.testProperties)
+	module.addHostProperties()
+	module.AddProperties(&module.testProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
@@ -2372,12 +2371,8 @@ func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
 func BinaryFactory() android.Module {
 	module := &Binary{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.deviceProperties,
-		&module.Module.dexpreoptProperties,
-		&module.Module.protoProperties,
-		&module.binaryProperties)
+	module.addHostAndDeviceProperties()
+	module.AddProperties(&module.binaryProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
@@ -2393,10 +2388,8 @@ func BinaryFactory() android.Module {
 func BinaryHostFactory() android.Module {
 	module := &Binary{}
 
-	module.AddProperties(
-		&module.Module.properties,
-		&module.Module.protoProperties,
-		&module.binaryProperties)
+	module.addHostProperties()
+	module.AddProperties(&module.binaryProperties)
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 

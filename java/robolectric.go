@@ -215,10 +215,9 @@ func (r *robolectricTest) writeTestRunner(w io.Writer, module, name string, test
 func RobolectricTestFactory() android.Module {
 	module := &robolectricTest{}
 
+	module.addHostProperties()
 	module.AddProperties(
-		&module.Module.properties,
 		&module.Module.deviceProperties,
-		&module.Module.protoProperties,
 		&module.robolectricProperties)
 
 	module.Module.dexpreopter.isTest = true
