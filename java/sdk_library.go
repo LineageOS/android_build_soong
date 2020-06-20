@@ -1091,9 +1091,12 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 	props := struct {
 		Name       *string
 		Visibility []string
+		Instrument bool
 	}{
 		Name:       proptools.StringPtr(module.implLibraryModuleName()),
 		Visibility: module.sdkLibraryProperties.Impl_library_visibility,
+		// Set the instrument property to ensure it is instrumented when instrumentation is required.
+		Instrument: true,
 	}
 
 	properties := []interface{}{
@@ -2003,6 +2006,26 @@ func (module *SdkLibraryImport) JacocoReportClassesFile() android.Path {
 // to satisfy apex.javaDependency interface
 func (module *SdkLibraryImport) Stem() string {
 	return module.BaseModuleName()
+}
+
+var _ ApexDependency = (*SdkLibraryImport)(nil)
+
+// to satisfy java.ApexDependency interface
+func (module *SdkLibraryImport) HeaderJars() android.Paths {
+	if module.implLibraryModule == nil {
+		return nil
+	} else {
+		return module.implLibraryModule.HeaderJars()
+	}
+}
+
+// to satisfy java.ApexDependency interface
+func (module *SdkLibraryImport) ImplementationAndResourcesJars() android.Paths {
+	if module.implLibraryModule == nil {
+		return nil
+	} else {
+		return module.implLibraryModule.ImplementationAndResourcesJars()
+	}
 }
 
 //
