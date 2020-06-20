@@ -253,6 +253,9 @@ type CompilerProperties struct {
 
 	// List of files to include in the META-INF/services folder of the resulting jar.
 	Services []string `android:"path,arch_variant"`
+
+	// If true, package the kotlin stdlib into the jar.  Defaults to true.
+	Static_kotlin_stdlib *bool `android:"arch_variant"`
 }
 
 type CompilerDeviceProperties struct {
@@ -1345,9 +1348,11 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		// Make javac rule depend on the kotlinc rule
 		flags.classpath = append(flags.classpath, kotlinJar)
 
-		// Jar kotlin classes into the final jar after javac
 		kotlinJars = append(kotlinJars, kotlinJar)
-		kotlinJars = append(kotlinJars, deps.kotlinStdlib...)
+		// Jar kotlin classes into the final jar after javac
+		if BoolDefault(j.properties.Static_kotlin_stdlib, true) {
+			kotlinJars = append(kotlinJars, deps.kotlinStdlib...)
+		}
 	}
 
 	jars := append(android.Paths(nil), kotlinJars...)
