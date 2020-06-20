@@ -223,6 +223,11 @@ var overrideBaseDepTag overrideBaseDependencyTag
 // next phase.
 func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 	if module, ok := ctx.Module().(OverrideModule); ok {
+		base := String(module.getOverrideModuleProperties().Base)
+		if !ctx.OtherModuleExists(base) {
+			ctx.PropertyErrorf("base", "%q is not a valid module name", base)
+			return
+		}
 		// See if there's a prebuilt module that overrides this override module with prefer flag,
 		// in which case we call SkipInstall on the corresponding variant later.
 		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(dep Module) {
