@@ -169,3 +169,36 @@ func TestDistWithTag(t *testing.T) {
 		t.Errorf("did not expect explicit DistFile, got %v", without_tag_entries[0].DistFile)
 	}
 }
+
+func TestJavaSdkLibrary_RequireXmlPermissionFile(t *testing.T) {
+	ctx, config := testJava(t, `
+		java_sdk_library {
+			name: "foo-shared_library",
+			srcs: ["a.java"],
+		}
+		java_sdk_library {
+			name: "foo-no_shared_library",
+			srcs: ["a.java"],
+			shared_library: false,
+		}
+		`)
+
+	// Verify the existence of internal modules
+	ctx.ModuleForTests("foo-shared_library.xml", "android_common")
+
+	testCases := []struct {
+		moduleName string
+		expected   []string
+	}{
+		{"foo-shared_library", []string{"foo-shared_library.xml"}},
+		{"foo-no_shared_library", nil},
+	}
+	for _, tc := range testCases {
+		mod := ctx.ModuleForTests(tc.moduleName, "android_common").Module()
+		entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
+		actual := entries.EntryMap["LOCAL_REQUIRED_MODULES"]
+		if !reflect.DeepEqual(tc.expected, actual) {
+			t.Errorf("Unexpected required modules - expected: %q, actual: %q", tc.expected, actual)
+		}
+	}
+}
