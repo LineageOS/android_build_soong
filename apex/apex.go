@@ -1685,7 +1685,9 @@ type javaDependency interface {
 func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaDependency, module android.Module) apexFile {
 	dirInApex := "javalib"
 	fileToCopy := lib.DexJar()
-	af := newApexFile(ctx, fileToCopy, module.Name(), dirInApex, javaSharedLib, module)
+	// Remove prebuilt_ if necessary so the source and prebuilt modules have the same name.
+	name := strings.TrimPrefix(module.Name(), "prebuilt_")
+	af := newApexFile(ctx, fileToCopy, name, dirInApex, javaSharedLib, module)
 	af.jacocoReportClassesFile = lib.JacocoReportClassesFile()
 	af.stem = lib.Stem() + ".jar"
 	return af
