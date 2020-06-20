@@ -985,9 +985,6 @@ type apexBundleProperties struct {
 	// List of providing APEXes' names so that this APEX can depend on provided shared libraries.
 	Uses []string
 
-	// A txt file containing list of files that are allowed to be included in this APEX.
-	Allowed_files *string
-
 	// package format of this apex variant; could be non-flattened, flattened, or zip.
 	// imageApex, zipApex or flattened
 	ApexType apexPackaging `blueprint:"mutated"`
@@ -1063,6 +1060,9 @@ type overridableProperties struct {
 	// Apex Container Package Name.
 	// Override value for attribute package:name in AndroidManifest.xml
 	Package_name string
+
+	// A txt file containing list of files that are allowed to be included in this APEX.
+	Allowed_files *string `android:"path"`
 }
 
 type apexPackaging int
@@ -1454,6 +1454,9 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *apexBundle) OverridablePropertiesDepsMutator(ctx android.BottomUpMutatorContext) {
+	if a.overridableProperties.Allowed_files != nil {
+		android.ExtractSourceDeps(ctx, a.overridableProperties.Allowed_files)
+	}
 	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
 		androidAppTag, a.overridableProperties.Apps...)
 	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
