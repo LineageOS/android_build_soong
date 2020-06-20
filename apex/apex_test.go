@@ -4988,7 +4988,7 @@ func TestApexKeysTxt(t *testing.T) {
 	apexKeysText := ctx.SingletonForTests("apex_keys_text")
 	content := apexKeysText.MaybeDescription("apexkeys.txt").BuildParams.Args["content"]
 	ensureContains(t, content, `name="myapex_set.apex" public_key="PRESIGNED" private_key="PRESIGNED" container_certificate="PRESIGNED" container_private_key="PRESIGNED" partition="system"`)
-	ensureNotContains(t, content, "myapex.apex")
+	ensureContains(t, content, `name="myapex.apex" public_key="PRESIGNED" private_key="PRESIGNED" container_certificate="PRESIGNED" container_private_key="PRESIGNED" partition="system"`)
 }
 
 func TestMain(m *testing.M) {
