@@ -305,8 +305,8 @@ func (library *libraryDecorator) compilerProps() []interface{} {
 
 func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 
-	// TODO(b/144861059) Remove if C libraries support dylib linkage in the future.
-	if !ctx.Host() && (library.static() || library.shared()) {
+	// TODO(b/155498724) Remove if C static libraries no longer require libstd as an rlib dependency.
+	if !ctx.Host() && library.static() {
 		library.setNoStdlibs()
 		for _, stdlib := range config.Stdlibs {
 			deps.Rlibs = append(deps.Rlibs, stdlib+".static")
