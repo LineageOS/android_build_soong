@@ -574,6 +574,7 @@ var (
 	certificateTag        = dependencyTag{name: "certificate"}
 	instrumentationForTag = dependencyTag{name: "instrumentation_for"}
 	usesLibTag            = dependencyTag{name: "uses-library"}
+	extraLintCheckTag     = dependencyTag{name: "extra-lint-check"}
 )
 
 func IsLibDepTag(depTag blueprint.DependencyTag) bool {
@@ -668,6 +669,8 @@ func (j *Module) AvailableFor(what string) bool {
 
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
+		j.linter.deps(ctx)
+
 		sdkDep := decodeSdkDep(ctx, sdkContext(j))
 		if sdkDep.useDefaultLibs {
 			ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
