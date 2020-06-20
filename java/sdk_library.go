@@ -1045,8 +1045,10 @@ func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 		return nil
 	}
 	entriesList := module.Library.AndroidMkEntries()
-	entries := &entriesList[0]
-	entries.Required = append(entries.Required, module.xmlPermissionsModuleName())
+	if module.sharedLibrary() {
+		entries := &entriesList[0]
+		entries.Required = append(entries.Required, module.xmlPermissionsModuleName())
+	}
 	return entriesList
 }
 
