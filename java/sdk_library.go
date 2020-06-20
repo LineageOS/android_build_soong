@@ -1091,9 +1091,12 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 	props := struct {
 		Name       *string
 		Visibility []string
+		Instrument bool
 	}{
 		Name:       proptools.StringPtr(module.implLibraryModuleName()),
 		Visibility: module.sdkLibraryProperties.Impl_library_visibility,
+		// Set the instrument property to ensure it is instrumented when instrumentation is required.
+		Instrument: true,
 	}
 
 	properties := []interface{}{
