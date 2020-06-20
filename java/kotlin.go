@@ -90,7 +90,8 @@ func kotlinCompile(ctx android.ModuleContext, outputFile android.WritablePath,
 
 var kapt = pctx.AndroidRemoteStaticRule("kapt", android.RemoteRuleSupports{Goma: true},
 	blueprint.RuleParams{
-		Command: `rm -rf "$srcJarDir" "$kotlinBuildFile" "$kaptDir" && mkdir -p "$srcJarDir" "$kaptDir" && ` +
+		Command: `rm -rf "$srcJarDir" "$kotlinBuildFile" "$kaptDir" && ` +
+			`mkdir -p "$srcJarDir" "$kaptDir/sources" "$kaptDir/classes" && ` +
 			`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 			`${config.GenKotlinBuildFileCmd} $classpath "$name" "" $out.rsp $srcJarDir/list > $kotlinBuildFile &&` +
 			`${config.KotlincCmd} ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} $kotlincFlags ` +
@@ -105,6 +106,7 @@ var kapt = pctx.AndroidRemoteStaticRule("kapt", android.RemoteRuleSupports{Goma:
 			`$kaptProcessor ` +
 			`-Xbuild-file=$kotlinBuildFile && ` +
 			`${config.SoongZipCmd} -jar -o $out -C $kaptDir/sources -D $kaptDir/sources && ` +
+			`${config.SoongZipCmd} -jar -o $classesJarOut -C $kaptDir/classes -D $kaptDir/classes && ` +
 			`rm -rf "$srcJarDir"`,
 		CommandDeps: []string{
 			"${config.KotlincCmd}",
@@ -118,13 +120,14 @@ var kapt = pctx.AndroidRemoteStaticRule("kapt", android.RemoteRuleSupports{Goma:
 		RspfileContent: `$in`,
 	},
 	"kotlincFlags", "encodedJavacFlags", "kaptProcessorPath", "kaptProcessor",
-	"classpath", "srcJars", "srcJarDir", "kaptDir", "kotlinJvmTarget", "kotlinBuildFile", "name")
+	"classpath", "srcJars", "srcJarDir", "kaptDir", "kotlinJvmTarget", "kotlinBuildFile", "name",
+	"classesJarOut")
 
 // kotlinKapt performs Kotlin-compatible annotation processing.  It takes .kt and .java sources and srcjars, and runs
 // annotation processors over all of them, producing a srcjar of generated code in outputFile.  The srcjar should be
 // added as an additional input to kotlinc and javac rules, and the javac rule should have annotation processing
 // disabled.
-func kotlinKapt(ctx android.ModuleContext, outputFile android.WritablePath,
+func kotlinKapt(ctx android.ModuleContext, srcJarOutputFile, resJarOutputFile android.WritablePath,
 	srcFiles, srcJars android.Paths,
 	flags javaBuilderFlags) {
 
@@ -152,11 +155,12 @@ func kotlinKapt(ctx android.ModuleContext, outputFile android.WritablePath,
 	kotlinName = strings.ReplaceAll(kotlinName, "/", "__")
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        kapt,
-		Description: "kapt",
-		Output:      outputFile,
-		Inputs:      srcFiles,
-		Implicits:   deps,
+		Rule:           kapt,
+		Description:    "kapt",
+		Output:         srcJarOutputFile,
+		ImplicitOutput: resJarOutputFile,
+		Inputs:         srcFiles,
+		Implicits:      deps,
 		Args: map[string]string{
 			"classpath":         flags.kotlincClasspath.FormJavaClassPath("-classpath"),
 			"kotlincFlags":      flags.kotlincFlags,
@@ -168,6 +172,7 @@ func kotlinKapt(ctx android.ModuleContext, outputFile android.WritablePath,
 			"kaptDir":           android.PathForModuleOut(ctx, "kapt/gen").String(),
 			"encodedJavacFlags": encodedJavacFlags,
 			"name":              kotlinName,
+			"classesJarOut":     resJarOutputFile.String(),
 		},
 	})
 }
