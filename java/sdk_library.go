@@ -2201,8 +2201,12 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 			properties.Jars = jars
 			properties.SdkVersion = sdk.sdkVersionForStubsLibrary(ctx.SdkModuleContext(), apiScope)
 			properties.StubsSrcJar = paths.stubsSrcJar.Path()
-			properties.CurrentApiFile = paths.currentApiFilePath.Path()
-			properties.RemovedApiFile = paths.removedApiFilePath.Path()
+			if paths.currentApiFilePath.Valid() {
+				properties.CurrentApiFile = paths.currentApiFilePath.Path()
+			}
+			if paths.removedApiFilePath.Valid() {
+				properties.RemovedApiFile = paths.removedApiFilePath.Path()
+			}
 			s.Scopes[apiScope] = properties
 		}
 	}
