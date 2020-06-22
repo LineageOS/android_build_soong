@@ -22,6 +22,7 @@ import unittest
 import gen_stub_libs as gsl
 
 
+
 # pylint: disable=missing-docstring
 
 
@@ -164,15 +165,15 @@ class SymbolPresenceTest(unittest.TestCase):
 class OmitVersionTest(unittest.TestCase):
     def test_omit_private(self):
         self.assertFalse(
-            gsl.should_omit_version(
-                gsl.Version('foo', None, [], []), 'arm', 9, False, False))
+            gsl.should_omit_version(gsl.Version('foo', None, [], []), 'arm', 9,
+                                    False, False))
 
         self.assertTrue(
-            gsl.should_omit_version(
-                gsl.Version('foo_PRIVATE', None, [], []), 'arm', 9, False, False))
+            gsl.should_omit_version(gsl.Version('foo_PRIVATE', None, [], []),
+                                    'arm', 9, False, False))
         self.assertTrue(
-            gsl.should_omit_version(
-                gsl.Version('foo_PLATFORM', None, [], []), 'arm', 9, False, False))
+            gsl.should_omit_version(gsl.Version('foo_PLATFORM', None, [], []),
+                                    'arm', 9, False, False))
 
         self.assertTrue(
             gsl.should_omit_version(
@@ -181,44 +182,44 @@ class OmitVersionTest(unittest.TestCase):
 
     def test_omit_llndk(self):
         self.assertTrue(
-            gsl.should_omit_version(
-                gsl.Version('foo', None, ['llndk'], []), 'arm', 9, False, False))
+            gsl.should_omit_version(gsl.Version('foo', None, ['llndk'], []),
+                                    'arm', 9, False, False))
 
         self.assertFalse(
-            gsl.should_omit_version(
-                gsl.Version('foo', None, [], []), 'arm', 9, True, False))
+            gsl.should_omit_version(gsl.Version('foo', None, [], []), 'arm', 9,
+                                    True, False))
         self.assertFalse(
-            gsl.should_omit_version(
-                gsl.Version('foo', None, ['llndk'], []), 'arm', 9, True, False))
+            gsl.should_omit_version(gsl.Version('foo', None, ['llndk'], []),
+                                    'arm', 9, True, False))
 
     def test_omit_apex(self):
         self.assertTrue(
-            gsl.should_omit_version(
-                gsl.Version('foo', None, ['apex'], []), 'arm', 9, False, False))
+            gsl.should_omit_version(gsl.Version('foo', None, ['apex'], []),
+                                    'arm', 9, False, False))
 
         self.assertFalse(
-            gsl.should_omit_version(
-                gsl.Version('foo', None, [], []), 'arm', 9, False, True))
+            gsl.should_omit_version(gsl.Version('foo', None, [], []), 'arm', 9,
+                                    False, True))
         self.assertFalse(
-            gsl.should_omit_version(
-                gsl.Version('foo', None, ['apex'], []), 'arm', 9, False, True))
+            gsl.should_omit_version(gsl.Version('foo', None, ['apex'], []),
+                                    'arm', 9, False, True))
 
     def test_omit_arch(self):
         self.assertFalse(
-            gsl.should_omit_version(
-                gsl.Version('foo', None, [], []), 'arm', 9, False, False))
+            gsl.should_omit_version(gsl.Version('foo', None, [], []), 'arm', 9,
+                                    False, False))
         self.assertFalse(
-            gsl.should_omit_version(
-                gsl.Version('foo', None, ['arm'], []), 'arm', 9, False, False))
+            gsl.should_omit_version(gsl.Version('foo', None, ['arm'], []),
+                                    'arm', 9, False, False))
 
         self.assertTrue(
-            gsl.should_omit_version(
-                gsl.Version('foo', None, ['x86'], []), 'arm', 9, False, False))
+            gsl.should_omit_version(gsl.Version('foo', None, ['x86'], []),
+                                    'arm', 9, False, False))
 
     def test_omit_api(self):
         self.assertFalse(
-            gsl.should_omit_version(
-                gsl.Version('foo', None, [], []), 'arm', 9, False, False))
+            gsl.should_omit_version(gsl.Version('foo', None, [], []), 'arm', 9,
+                                    False, False))
         self.assertFalse(
             gsl.should_omit_version(
                 gsl.Version('foo', None, ['introduced=9'], []), 'arm', 9,
@@ -233,47 +234,51 @@ class OmitVersionTest(unittest.TestCase):
 class OmitSymbolTest(unittest.TestCase):
     def test_omit_llndk(self):
         self.assertTrue(
-            gsl.should_omit_symbol(
-                gsl.Symbol('foo', ['llndk']), 'arm', 9, False, False))
+            gsl.should_omit_symbol(gsl.Symbol('foo', ['llndk']), 'arm', 9,
+                                   False, False))
 
         self.assertFalse(
-            gsl.should_omit_symbol(gsl.Symbol('foo', []), 'arm', 9, True, False))
+            gsl.should_omit_symbol(gsl.Symbol('foo', []), 'arm', 9, True,
+                                   False))
         self.assertFalse(
-            gsl.should_omit_symbol(
-                gsl.Symbol('foo', ['llndk']), 'arm', 9, True, False))
+            gsl.should_omit_symbol(gsl.Symbol('foo', ['llndk']), 'arm', 9,
+                                   True, False))
 
     def test_omit_apex(self):
         self.assertTrue(
-            gsl.should_omit_symbol(
-                gsl.Symbol('foo', ['apex']), 'arm', 9, False, False))
+            gsl.should_omit_symbol(gsl.Symbol('foo', ['apex']), 'arm', 9,
+                                   False, False))
 
         self.assertFalse(
-            gsl.should_omit_symbol(gsl.Symbol('foo', []), 'arm', 9, False, True))
+            gsl.should_omit_symbol(gsl.Symbol('foo', []), 'arm', 9, False,
+                                   True))
         self.assertFalse(
-            gsl.should_omit_symbol(
-                gsl.Symbol('foo', ['apex']), 'arm', 9, False, True))
+            gsl.should_omit_symbol(gsl.Symbol('foo', ['apex']), 'arm', 9,
+                                   False, True))
 
     def test_omit_arch(self):
         self.assertFalse(
-            gsl.should_omit_symbol(gsl.Symbol('foo', []), 'arm', 9, False, False))
+            gsl.should_omit_symbol(gsl.Symbol('foo', []), 'arm', 9, False,
+                                   False))
         self.assertFalse(
-            gsl.should_omit_symbol(
-                gsl.Symbol('foo', ['arm']), 'arm', 9, False, False))
+            gsl.should_omit_symbol(gsl.Symbol('foo', ['arm']), 'arm', 9, False,
+                                   False))
 
         self.assertTrue(
-            gsl.should_omit_symbol(
-                gsl.Symbol('foo', ['x86']), 'arm', 9, False, False))
+            gsl.should_omit_symbol(gsl.Symbol('foo', ['x86']), 'arm', 9, False,
+                                   False))
 
     def test_omit_api(self):
         self.assertFalse(
-            gsl.should_omit_symbol(gsl.Symbol('foo', []), 'arm', 9, False, False))
+            gsl.should_omit_symbol(gsl.Symbol('foo', []), 'arm', 9, False,
+                                   False))
         self.assertFalse(
-            gsl.should_omit_symbol(
-                gsl.Symbol('foo', ['introduced=9']), 'arm', 9, False, False))
+            gsl.should_omit_symbol(gsl.Symbol('foo', ['introduced=9']), 'arm',
+                                   9, False, False))
 
         self.assertTrue(
-            gsl.should_omit_symbol(
-                gsl.Symbol('foo', ['introduced=14']), 'arm', 9, False, False))
+            gsl.should_omit_symbol(gsl.Symbol('foo', ['introduced=14']), 'arm',
+                                   9, False, False))
 
 
 class SymbolFileParseTest(unittest.TestCase):
@@ -404,7 +409,8 @@ class SymbolFileParseTest(unittest.TestCase):
     def test_parse_fails_invalid_input(self):
         with self.assertRaises(gsl.ParseError):
             input_file = io.StringIO('foo')
-            parser = gsl.SymbolFileParser(input_file, {}, 'arm', 16, False, False)
+            parser = gsl.SymbolFileParser(input_file, {}, 'arm', 16, False,
+                                          False)
             parser.parse()
 
     def test_parse(self):
@@ -472,7 +478,8 @@ class GeneratorTest(unittest.TestCase):
         # OmitVersionTest, PrivateVersionTest, and SymbolPresenceTest.
         src_file = io.StringIO()
         version_file = io.StringIO()
-        generator = gsl.Generator(src_file, version_file, 'arm', 9, False, False)
+        generator = gsl.Generator(src_file, version_file, 'arm', 9, False,
+                                  False)
 
         version = gsl.Version('VERSION_PRIVATE', None, [], [
             gsl.Symbol('foo', []),
@@ -500,7 +507,8 @@ class GeneratorTest(unittest.TestCase):
         # SymbolPresenceTest.
         src_file = io.StringIO()
         version_file = io.StringIO()
-        generator = gsl.Generator(src_file, version_file, 'arm', 9, False, False)
+        generator = gsl.Generator(src_file, version_file, 'arm', 9, False,
+                                  False)
 
         version = gsl.Version('VERSION_1', None, [], [
             gsl.Symbol('foo', ['x86']),
@@ -533,7 +541,8 @@ class GeneratorTest(unittest.TestCase):
     def test_write(self):
         src_file = io.StringIO()
         version_file = io.StringIO()
-        generator = gsl.Generator(src_file, version_file, 'arm', 9, False, False)
+        generator = gsl.Generator(src_file, version_file, 'arm', 9, False,
+                                  False)
 
         versions = [
             gsl.Version('VERSION_1', None, [], [
@@ -615,12 +624,14 @@ class IntegrationTest(unittest.TestCase):
                 wobble;
             } VERSION_4;
         """))
-        parser = gsl.SymbolFileParser(input_file, api_map, 'arm', 9, False, False)
+        parser = gsl.SymbolFileParser(input_file, api_map, 'arm', 9, False,
+                                      False)
         versions = parser.parse()
 
         src_file = io.StringIO()
         version_file = io.StringIO()
-        generator = gsl.Generator(src_file, version_file, 'arm', 9, False, False)
+        generator = gsl.Generator(src_file, version_file, 'arm', 9, False,
+                                  False)
         generator.write(versions)
 
         expected_src = textwrap.dedent("""\
@@ -665,12 +676,14 @@ class IntegrationTest(unittest.TestCase):
                     *;
             };
         """))
-        parser = gsl.SymbolFileParser(input_file, api_map, 'arm', 9001, False, False)
+        parser = gsl.SymbolFileParser(input_file, api_map, 'arm', 9001, False,
+                                      False)
         versions = parser.parse()
 
         src_file = io.StringIO()
         version_file = io.StringIO()
-        generator = gsl.Generator(src_file, version_file, 'arm', 9001, False, False)
+        generator = gsl.Generator(src_file, version_file, 'arm', 9001, False,
+                                  False)
         generator.write(versions)
 
         expected_src = textwrap.dedent("""\
@@ -715,10 +728,10 @@ class IntegrationTest(unittest.TestCase):
         """))
         parser = gsl.SymbolFileParser(input_file, {}, 'arm', 16, False, False)
 
-        with self.assertRaises(gsl.MultiplyDefinedSymbolError) as cm:
+        with self.assertRaises(gsl.MultiplyDefinedSymbolError) as ex_context:
             parser.parse()
-        self.assertEquals(['bar', 'foo'],
-                          cm.exception.multiply_defined_symbols)
+        self.assertEqual(['bar', 'foo'],
+                         ex_context.exception.multiply_defined_symbols)
 
     def test_integration_with_apex(self):
         api_map = {
@@ -759,7 +772,8 @@ class IntegrationTest(unittest.TestCase):
                 wobble;
             } VERSION_4;
         """))
-        parser = gsl.SymbolFileParser(input_file, api_map, 'arm', 9, False, True)
+        parser = gsl.SymbolFileParser(input_file, api_map, 'arm', 9, False,
+                                      True)
         versions = parser.parse()
 
         src_file = io.StringIO()
