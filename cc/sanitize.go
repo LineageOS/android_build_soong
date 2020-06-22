@@ -48,6 +48,10 @@ var (
 		// higher number of "optimized out" stack variables.
 		// b/112437883.
 		"-mllvm", "-instcombine-lower-dbg-declare=0",
+		// TODO(b/159343917): HWASan and GlobalISel don't play nicely, and
+		// GlobalISel is the default at -O0 on aarch64.
+		"-mllvm", "--aarch64-enable-global-isel-at-O=-1",
+		"-mllvm", "-fast-isel=false",
 	}
 
 	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
