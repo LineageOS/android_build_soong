@@ -5398,6 +5398,61 @@ func TestApexKeysTxt(t *testing.T) {
 	ensureContains(t, content, `name="myapex.apex" public_key="PRESIGNED" private_key="PRESIGNED" container_certificate="PRESIGNED" container_private_key="PRESIGNED" partition="system"`)
 }
 
+func TestAllowedFiles(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			apps: ["app"],
+			allowed_files: "allowed.txt",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		android_app {
+			name: "app",
+			srcs: ["foo/bar/MyClass.java"],
+			package_name: "foo",
+			sdk_version: "none",
+			system_modules: "none",
+			apex_available: [ "myapex" ],
+		}
+	`, withFiles(map[string][]byte{
+		"sub/Android.bp": []byte(`
+			override_apex {
+				name: "override_myapex",
+				base: "myapex",
+				apps: ["override_app"],
+				allowed_files: ":allowed",
+			}
+			// Overridable "path" property should be referenced indirectly
+			filegroup {
+				name: "allowed",
+				srcs: ["allowed.txt"],
+			}
+			override_android_app {
+				name: "override_app",
+				base: "app",
+				package_name: "bar",
+			}
+			`),
+	}))
+
+	rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("diffApexContentRule")
+	if expected, actual := "allowed.txt", rule.Args["allowed_files_file"]; expected != actual {
+		t.Errorf("allowed_files_file: expected %q but got %q", expected, actual)
+	}
+
+	rule2 := ctx.ModuleForTests("myapex", "android_common_override_myapex_myapex_image").Rule("diffApexContentRule")
+	if expected, actual := "sub/allowed.txt", rule2.Args["allowed_files_file"]; expected != actual {
+		t.Errorf("allowed_files_file: expected %q but got %q", expected, actual)
+	}
+}
+
 func TestMain(m *testing.M) {
 	run := func() int {
 		setUp()
