@@ -49,8 +49,10 @@ type Flags struct {
 	GlobalLinkFlags []string // Flags that apply globally to linker
 	RustFlags       []string // Flags that apply to rust
 	LinkFlags       []string // Flags that apply to linker
+	ClippyFlags     []string // Flags that apply to clippy-driver, during the linting
 	Toolchain       config.Toolchain
 	Coverage        bool
+	Clippy          bool
 }
 
 type BaseProperties struct {
@@ -75,6 +77,7 @@ type Module struct {
 
 	compiler         compiler
 	coverage         *coverage
+	clippy           *clippy
 	cachedToolchain  config.Toolchain
 	subAndroidMkOnce map[subAndroidMkProvider]bool
 	outputFile       android.OptionalPath
@@ -306,6 +309,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&PrebuiltProperties{},
 		&TestProperties{},
 		&cc.CoverageProperties{},
+		&ClippyProperties{},
 	)
 
 	android.InitDefaultsModule(module)
@@ -456,6 +460,9 @@ func (mod *Module) Init() android.Module {
 	if mod.coverage != nil {
 		mod.AddProperties(mod.coverage.props()...)
 	}
+	if mod.clippy != nil {
+		mod.AddProperties(mod.clippy.props()...)
+	}
 
 	android.InitAndroidArchModule(mod, mod.hod, mod.multilib)
 
@@ -487,6 +494,7 @@ func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib)
 func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
 	module := newBaseModule(hod, multilib)
 	module.coverage = &coverage{}
+	module.clippy = &clippy{}
 	return module
 }
 
@@ -575,6 +583,9 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 	if mod.coverage != nil {
 		flags, deps = mod.coverage.flags(ctx, flags, deps)
+	}
+	if mod.clippy != nil {
+		flags, deps = mod.clippy.flags(ctx, flags, deps)
 	}
 
 	if mod.compiler != nil {
