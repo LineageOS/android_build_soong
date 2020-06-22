@@ -1414,7 +1414,7 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 }
 
 func (d *Droidstubs) apiToXmlFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
-	if Bool(d.properties.Jdiff_enabled) && !ctx.Config().IsPdkBuild() {
+	if Bool(d.properties.Jdiff_enabled) && !ctx.Config().IsPdkBuild() && d.apiFile != nil {
 		if d.apiFile.String() == "" {
 			ctx.ModuleErrorf("API signature file has to be specified in Metalava when jdiff is enabled.")
 		}
@@ -1845,13 +1845,19 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			Flag("-XDignore.symbol.file").
 			FlagWithArg("-doclet ", "jdiff.JDiff").
 			FlagWithInput("-docletpath ", jdiff).
-			Flag("-quiet").
-			FlagWithArg("-newapi ", strings.TrimSuffix(d.apiXmlFile.Base(), d.apiXmlFile.Ext())).
-			FlagWithArg("-newapidir ", filepath.Dir(d.apiXmlFile.String())).
-			Implicit(d.apiXmlFile).
-			FlagWithArg("-oldapi ", strings.TrimSuffix(d.lastReleasedApiXmlFile.Base(), d.lastReleasedApiXmlFile.Ext())).
-			FlagWithArg("-oldapidir ", filepath.Dir(d.lastReleasedApiXmlFile.String())).
-			Implicit(d.lastReleasedApiXmlFile)
+			Flag("-quiet")
+
+		if d.apiXmlFile != nil {
+			cmd.FlagWithArg("-newapi ", strings.TrimSuffix(d.apiXmlFile.Base(), d.apiXmlFile.Ext())).
+				FlagWithArg("-newapidir ", filepath.Dir(d.apiXmlFile.String())).
+				Implicit(d.apiXmlFile)
+		}
+
+		if d.lastReleasedApiXmlFile != nil {
+			cmd.FlagWithArg("-oldapi ", strings.TrimSuffix(d.lastReleasedApiXmlFile.Base(), d.lastReleasedApiXmlFile.Ext())).
+				FlagWithArg("-oldapidir ", filepath.Dir(d.lastReleasedApiXmlFile.String())).
+				Implicit(d.lastReleasedApiXmlFile)
+		}
 
 		rule.Command().
 			BuiltTool(ctx, "soong_zip").
