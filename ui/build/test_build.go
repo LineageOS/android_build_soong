@@ -66,6 +66,8 @@ func testForDanglingRules(ctx Context, config Config) {
 	outDir := config.OutDir()
 	bootstrapDir := filepath.Join(outDir, "soong", ".bootstrap")
 	miniBootstrapDir := filepath.Join(outDir, "soong", ".minibootstrap")
+	modulePathsDir := filepath.Join(outDir, ".module_paths")
+	variablesFilePath := filepath.Join(outDir, "soong", "soong.variables")
 
 	danglingRules := make(map[string]bool)
 
@@ -76,7 +78,10 @@ func testForDanglingRules(ctx Context, config Config) {
 			// Leaf node is not in the out directory.
 			continue
 		}
-		if strings.HasPrefix(line, bootstrapDir) || strings.HasPrefix(line, miniBootstrapDir) {
+		if strings.HasPrefix(line, bootstrapDir) ||
+			strings.HasPrefix(line, miniBootstrapDir) ||
+			strings.HasPrefix(line, modulePathsDir) ||
+			line == variablesFilePath {
 			// Leaf node is in one of Soong's bootstrap directories, which do not have
 			// full build rules in the primary build.ninja file.
 			continue
