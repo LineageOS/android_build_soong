@@ -150,7 +150,7 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 				"allow-prereleased": strconv.FormatBool(proptools.Bool(as.properties.Prerelease)),
 				"screen-densities":  screenDensities,
 				"sdk-version":       ctx.Config().PlatformSdkVersion(),
-				"stem":              ctx.ModuleName(),
+				"stem":              as.BaseModuleName(),
 			},
 		})
 }
