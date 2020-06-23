@@ -155,8 +155,11 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext,
 	cmd.FlagForEachArg("--extra_checks_jar ", l.extraLintCheckJars.Strings())
 	deps = append(deps, l.extraLintCheckJars...)
 
-	// The cache tag in project.xml is relative to the project.xml file.
-	cmd.FlagWithArg("--cache_dir ", "cache")
+	cmd.FlagWithArg("--root_dir ", "$PWD")
+
+	// The cache tag in project.xml is relative to the root dir, or the project.xml file if
+	// the root dir is not set.
+	cmd.FlagWithArg("--cache_dir ", cacheDir.String())
 
 	cmd.FlagWithInput("@",
 		android.PathForSource(ctx, "build/soong/java/lint_defaults.txt"))
