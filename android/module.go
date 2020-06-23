@@ -819,6 +819,10 @@ func (m *ModuleBase) Host() bool {
 	return m.Os().Class == Host || m.Os().Class == HostCross
 }
 
+func (m *ModuleBase) Device() bool {
+	return m.Os().Class == Device
+}
+
 func (m *ModuleBase) Arch() Arch {
 	return m.Target().Arch
 }

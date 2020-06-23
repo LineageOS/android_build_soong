@@ -430,6 +430,40 @@ func TestVndk(t *testing.T) {
 	checkVndkLibrariesOutput(t, ctx, "vndkcorevariant.libraries.txt", nil)
 }
 
+func TestVndkWithHostSupported(t *testing.T) {
+	ctx := testCc(t, `
+		cc_library {
+			name: "libvndk_host_supported",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			host_supported: true,
+		}
+
+		cc_library {
+			name: "libvndk_host_supported_but_disabled_on_device",
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+			},
+			host_supported: true,
+			enabled: false,
+			target: {
+				host: {
+					enabled: true,
+				}
+			}
+		}
+
+		vndk_libraries_txt {
+			name: "vndkcore.libraries.txt",
+		}
+	`)
+
+	checkVndkLibrariesOutput(t, ctx, "vndkcore.libraries.txt", []string{"libvndk_host_supported.so"})
+}
+
 func TestVndkLibrariesTxtAndroidMk(t *testing.T) {
 	bp := `
 		vndk_libraries_txt {
