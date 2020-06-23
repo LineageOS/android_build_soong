@@ -42,6 +42,11 @@ type OverrideModule interface {
 	setOverridingProperties(properties []interface{})
 
 	getOverrideModuleProperties() *OverrideModuleProperties
+
+	// Internal funcs to handle interoperability between override modules and prebuilts.
+	// i.e. cases where an overriding module, too, is overridden by a prebuilt module.
+	setOverriddenByPrebuilt(overridden bool)
+	getOverriddenByPrebuilt() bool
 }
 
 // Base module struct for override module types
@@ -49,6 +54,8 @@ type OverrideModuleBase struct {
 	moduleProperties OverrideModuleProperties
 
 	overridingProperties []interface{}
+
+	overriddenByPrebuilt bool
 }
 
 type OverrideModuleProperties struct {
@@ -72,6 +79,14 @@ func (o *OverrideModuleBase) getOverrideModuleProperties() *OverrideModuleProper
 
 func (o *OverrideModuleBase) GetOverriddenModuleName() string {
 	return proptools.String(o.moduleProperties.Base)
+}
+
+func (o *OverrideModuleBase) setOverriddenByPrebuilt(overridden bool) {
+	o.overriddenByPrebuilt = overridden
+}
+
+func (o *OverrideModuleBase) getOverriddenByPrebuilt() bool {
+	return o.overriddenByPrebuilt
 }
 
 func InitOverrideModule(m OverrideModule) {
@@ -208,21 +223,19 @@ var overrideBaseDepTag overrideBaseDependencyTag
 // next phase.
 func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 	if module, ok := ctx.Module().(OverrideModule); ok {
-		// Skip this overriding module if there's a prebuilt module that overrides it with prefer flag.
-		overriddenByPrebuilt := false
+		// See if there's a prebuilt module that overrides this override module with prefer flag,
+		// in which case we call SkipInstall on the corresponding variant later.
 		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(dep Module) {
 			prebuilt, ok := dep.(PrebuiltInterface)
 			if !ok {
 				panic("PrebuiltDepTag leads to a non-prebuilt module " + dep.Name())
 			}
 			if prebuilt.Prebuilt().UsePrebuilt() {
-				overriddenByPrebuilt = true
+				module.setOverriddenByPrebuilt(true)
 				return
 			}
 		})
-		if !overriddenByPrebuilt {
-			ctx.AddDependency(ctx.Module(), overrideBaseDepTag, *module.getOverrideModuleProperties().Base)
-		}
+		ctx.AddDependency(ctx.Module(), overrideBaseDepTag, *module.getOverrideModuleProperties().Base)
 	}
 }
 
@@ -258,6 +271,10 @@ func performOverrideMutator(ctx BottomUpMutatorContext) {
 		ctx.AliasVariation(variants[0])
 		for i, o := range overrides {
 			mods[i+1].(OverridableModule).override(ctx, o)
+			if o.getOverriddenByPrebuilt() {
+				// The overriding module itself, too, is overridden by a prebuilt. Skip its installation.
+				mods[i+1].SkipInstall()
+			}
 		}
 	} else if o, ok := ctx.Module().(OverrideModule); ok {
 		// Create a variant of the overriding module with its own name. This matches the above local
