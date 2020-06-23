@@ -32,14 +32,14 @@ func TestClippy(t *testing.T) {
 			clippy: false,
 		}`)
 
-	ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Output("libfoo.so")
-	fooClippy := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").MaybeRule("clippy")
+	ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").Output("libfoo.dylib.so")
+	fooClippy := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").MaybeRule("clippy")
 	if fooClippy.Rule.String() != "android/soong/rust.clippy" {
 		t.Errorf("Clippy output (default) for libfoo was not generated: %+v", fooClippy)
 	}
 
-	ctx.ModuleForTests("libfoobar", "android_arm64_armv8-a_shared").Output("libfoobar.so")
-	foobarClippy := ctx.ModuleForTests("libfoobar", "android_arm64_armv8-a_shared").MaybeRule("clippy")
+	ctx.ModuleForTests("libfoobar", "android_arm64_armv8-a_dylib").Output("libfoobar.dylib.so")
+	foobarClippy := ctx.ModuleForTests("libfoobar", "android_arm64_armv8-a_dylib").MaybeRule("clippy")
 	if foobarClippy.Rule != nil {
 		t.Errorf("Clippy output for libfoobar is not empty")
 	}
