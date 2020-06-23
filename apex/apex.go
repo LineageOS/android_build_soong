@@ -1656,7 +1656,7 @@ func (a *apexBundle) AddSanitizerDependencies(ctx android.BottomUpMutatorContext
 var _ cc.Coverage = (*apexBundle)(nil)
 
 func (a *apexBundle) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
-	return ctx.Device() && (ctx.DeviceConfig().NativeCoverageEnabled() || ctx.DeviceConfig().ClangCoverageEnabled())
+	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
 }
 
 func (a *apexBundle) PreventInstall() {

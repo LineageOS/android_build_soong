@@ -45,7 +45,7 @@ func (cov *coverage) deps(ctx DepsContext, deps Deps) Deps {
 
 func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags, PathDeps) {
 
-	if !ctx.DeviceConfig().NativeCoverageEnabled() && !ctx.DeviceConfig().ClangCoverageEnabled() {
+	if !ctx.DeviceConfig().NativeCoverageEnabled() {
 		return flags, deps
 	}
 
