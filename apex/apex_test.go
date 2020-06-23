@@ -4855,6 +4855,141 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 	testNoUpdatableJarsInBootImage(t, "", bp, transform)
 }
 
+func testApexPermittedPackagesRules(t *testing.T, errmsg, bp string, apexBootJars []string, rules []android.Rule) {
+	t.Helper()
+	android.ClearApexDependency()
+	bp += `
+	apex_key {
+		name: "myapex.key",
+		public_key: "testkey.avbpubkey",
+		private_key: "testkey.pem",
+	}`
+	fs := map[string][]byte{
+		"lib1/src/A.java": nil,
+		"lib2/src/B.java": nil,
+		"system/sepolicy/apex/myapex-file_contexts": nil,
+	}
+
+	ctx := android.NewTestArchContext()
+	ctx.RegisterModuleType("apex", BundleFactory)
+	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
+	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	cc.RegisterRequiredBuildComponentsForTest(ctx)
+	java.RegisterJavaBuildComponents(ctx)
+	java.RegisterSystemModulesBuildComponents(ctx)
+	java.RegisterDexpreoptBootJarsComponents(ctx)
+	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
+	ctx.PreDepsMutators(RegisterPreDepsMutators)
+	ctx.PostDepsMutators(RegisterPostDepsMutators)
+	ctx.PostDepsMutators(android.RegisterNeverallowMutator)
+
+	config := android.TestArchConfig(buildDir, nil, bp, fs)
+	android.SetTestNeverallowRules(config, rules)
+	updatableBootJars := make([]string, 0, len(apexBootJars))
+	for _, apexBootJar := range apexBootJars {
+		updatableBootJars = append(updatableBootJars, "myapex:"+apexBootJar)
+	}
+	config.TestProductVariables.UpdatableBootJars = updatableBootJars
+
+	ctx.Register(config)
+
+	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
+	android.FailIfErrored(t, errs)
+
+	_, errs = ctx.PrepareBuildActions(config)
+	if errmsg == "" {
+		android.FailIfErrored(t, errs)
+	} else if len(errs) > 0 {
+		android.FailIfNoMatchingErrors(t, errmsg, errs)
+		return
+	} else {
+		t.Fatalf("missing expected error %q (0 errors are returned)", errmsg)
+	}
+}
+
+func TestApexPermittedPackagesRules(t *testing.T) {
+	testcases := []struct {
+		name            string
+		expectedError   string
+		bp              string
+		bootJars        []string
+		modulesPackages map[string][]string
+	}{
+
+		{
+			name:          "Non-Bootclasspath apex jar not satisfying allowed module packages.",
+			expectedError: "",
+			bp: `
+				java_library {
+					name: "bcp_lib1",
+					srcs: ["lib1/src/*.java"],
+					permitted_packages: ["foo.bar"],
+					apex_available: ["myapex"],
+					sdk_version: "none",
+					system_modules: "none",
+				}
+				java_library {
+					name: "nonbcp_lib2",
+					srcs: ["lib2/src/*.java"],
+					apex_available: ["myapex"],
+					permitted_packages: ["a.b"],
+					sdk_version: "none",
+					system_modules: "none",
+				}
+				apex {
+					name: "myapex",
+					key: "myapex.key",
+					java_libs: ["bcp_lib1", "nonbcp_lib2"],
+				}`,
+			bootJars: []string{"bcp_lib1"},
+			modulesPackages: map[string][]string{
+				"myapex": []string{
+					"foo.bar",
+				},
+			},
+		},
+		{
+			name:          "Bootclasspath apex jar not satisfying allowed module packages.",
+			expectedError: `module "bcp_lib2" .* which is restricted because jars that are part of the myapex module may only allow these packages: foo.bar. Please jarjar or move code around.`,
+			bp: `
+				java_library {
+					name: "bcp_lib1",
+					srcs: ["lib1/src/*.java"],
+					apex_available: ["myapex"],
+					permitted_packages: ["foo.bar"],
+					sdk_version: "none",
+					system_modules: "none",
+				}
+				java_library {
+					name: "bcp_lib2",
+					srcs: ["lib2/src/*.java"],
+					apex_available: ["myapex"],
+					permitted_packages: ["foo.bar", "bar.baz"],
+					sdk_version: "none",
+					system_modules: "none",
+				}
+				apex {
+					name: "myapex",
+					key: "myapex.key",
+					java_libs: ["bcp_lib1", "bcp_lib2"],
+				}
+			`,
+			bootJars: []string{"bcp_lib1", "bcp_lib2"},
+			modulesPackages: map[string][]string{
+				"myapex": []string{
+					"foo.bar",
+				},
+			},
+		},
+	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			rules := createApexPermittedPackagesRules(tc.modulesPackages)
+			testApexPermittedPackagesRules(t, tc.expectedError, tc.bp, tc.bootJars, rules)
+		})
+	}
+}
+
 func TestTestFor(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
@@ -4989,6 +5124,61 @@ func TestApexKeysTxt(t *testing.T) {
 	content := apexKeysText.MaybeDescription("apexkeys.txt").BuildParams.Args["content"]
 	ensureContains(t, content, `name="myapex_set.apex" public_key="PRESIGNED" private_key="PRESIGNED" container_certificate="PRESIGNED" container_private_key="PRESIGNED" partition="system"`)
 	ensureContains(t, content, `name="myapex.apex" public_key="PRESIGNED" private_key="PRESIGNED" container_certificate="PRESIGNED" container_private_key="PRESIGNED" partition="system"`)
+}
+
+func TestAllowedFiles(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			apps: ["app"],
+			allowed_files: "allowed.txt",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		android_app {
+			name: "app",
+			srcs: ["foo/bar/MyClass.java"],
+			package_name: "foo",
+			sdk_version: "none",
+			system_modules: "none",
+			apex_available: [ "myapex" ],
+		}
+	`, withFiles(map[string][]byte{
+		"sub/Android.bp": []byte(`
+			override_apex {
+				name: "override_myapex",
+				base: "myapex",
+				apps: ["override_app"],
+				allowed_files: ":allowed",
+			}
+			// Overridable "path" property should be referenced indirectly
+			filegroup {
+				name: "allowed",
+				srcs: ["allowed.txt"],
+			}
+			override_android_app {
+				name: "override_app",
+				base: "app",
+				package_name: "bar",
+			}
+			`),
+	}))
+
+	rule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("diffApexContentRule")
+	if expected, actual := "allowed.txt", rule.Args["allowed_files_file"]; expected != actual {
+		t.Errorf("allowed_files_file: expected %q but got %q", expected, actual)
+	}
+
+	rule2 := ctx.ModuleForTests("myapex", "android_common_override_myapex_myapex_image").Rule("diffApexContentRule")
+	if expected, actual := "sub/allowed.txt", rule2.Args["allowed_files_file"]; expected != actual {
+		t.Errorf("allowed_files_file: expected %q but got %q", expected, actual)
+	}
 }
 
 func TestMain(m *testing.M) {

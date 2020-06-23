@@ -369,7 +369,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	emitCommands = append(emitCommands, "sort -o "+imageContentFile.String()+" "+imageContentFile.String())
 	implicitInputs = append(implicitInputs, a.manifestPbOut)
 
-	if a.properties.Allowed_files != nil {
+	if a.overridableProperties.Allowed_files != nil {
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        emitApexContentRule,
 			Implicits:   implicitInputs,
@@ -380,7 +380,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			},
 		})
 		implicitInputs = append(implicitInputs, imageContentFile)
-		allowedFilesFile := android.PathForModuleSrc(ctx, proptools.String(a.properties.Allowed_files))
+		allowedFilesFile := android.PathForModuleSrc(ctx, proptools.String(a.overridableProperties.Allowed_files))
 
 		phonyOutput := android.PathForModuleOut(ctx, a.Name()+"-diff-phony-output")
 		ctx.Build(pctx, android.BuildParams{

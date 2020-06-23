@@ -688,6 +688,55 @@ func makeApexAvailableBaseline() map[string][]string {
 	return m
 }
 
+// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART.
+// Adding code to the bootclasspath in new packages will cause issues on module update.
+func qModulesPackages() map[string][]string {
+	return map[string][]string{
+		"com.android.conscrypt": []string{
+			"android.net.ssl",
+			"com.android.org.conscrypt",
+		},
+		"com.android.media": []string{
+			"android.media",
+		},
+	}
+}
+
+// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART.
+// Adding code to the bootclasspath in new packages will cause issues on module update.
+func rModulesPackages() map[string][]string {
+	return map[string][]string{
+		"com.android.mediaprovider": []string{
+			"android.provider",
+		},
+		"com.android.permission": []string{
+			"android.permission",
+			"android.app.role",
+			"com.android.permission",
+			"com.android.role",
+		},
+		"com.android.sdkext": []string{
+			"android.os.ext",
+		},
+		"com.android.os.statsd": []string{
+			"android.app",
+			"android.os",
+			"android.util",
+			"com.android.internal.statsd",
+			"com.android.server.stats",
+		},
+		"com.android.wifi": []string{
+			"com.android.server.wifi",
+			"com.android.wifi.x",
+			"android.hardware.wifi",
+			"android.net.wifi",
+		},
+		"com.android.tethering": []string{
+			"android.net",
+		},
+	}
+}
+
 func init() {
 	android.RegisterModuleType("apex", BundleFactory)
 	android.RegisterModuleType("apex_test", testApexBundleFactory)
@@ -705,6 +754,24 @@ func init() {
 		sort.Strings(*apexFileContextsInfos)
 		ctx.Strict("APEX_FILE_CONTEXTS_INFOS", strings.Join(*apexFileContextsInfos, " "))
 	})
+
+	android.AddNeverAllowRules(createApexPermittedPackagesRules(qModulesPackages())...)
+	android.AddNeverAllowRules(createApexPermittedPackagesRules(rModulesPackages())...)
+}
+
+func createApexPermittedPackagesRules(modules_packages map[string][]string) []android.Rule {
+	rules := make([]android.Rule, 0, len(modules_packages))
+	for module_name, module_packages := range modules_packages {
+		permitted_packages_rule := android.NeverAllow().
+			BootclasspathJar().
+			With("apex_available", module_name).
+			WithMatcher("permitted_packages", android.NotInList(module_packages)).
+			Because("jars that are part of the " + module_name +
+				" module may only allow these packages: " + strings.Join(module_packages, ",") +
+				". Please jarjar or move code around.")
+		rules = append(rules, permitted_packages_rule)
+	}
+	return rules
 }
 
 func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
@@ -1031,9 +1098,6 @@ type apexBundleProperties struct {
 	// List of providing APEXes' names so that this APEX can depend on provided shared libraries.
 	Uses []string
 
-	// A txt file containing list of files that are allowed to be included in this APEX.
-	Allowed_files *string
-
 	// package format of this apex variant; could be non-flattened, flattened, or zip.
 	// imageApex, zipApex or flattened
 	ApexType apexPackaging `blueprint:"mutated"`
@@ -1106,6 +1170,9 @@ type overridableProperties struct {
 	// Apex Container Package Name.
 	// Override value for attribute package:name in AndroidManifest.xml
 	Package_name string
+
+	// A txt file containing list of files that are allowed to be included in this APEX.
+	Allowed_files *string `android:"path"`
 }
 
 type apexPackaging int
@@ -1510,6 +1577,9 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *apexBundle) OverridablePropertiesDepsMutator(ctx android.BottomUpMutatorContext) {
+	if a.overridableProperties.Allowed_files != nil {
+		android.ExtractSourceDeps(ctx, a.overridableProperties.Allowed_files)
+	}
 	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
 		androidAppTag, a.overridableProperties.Apps...)
 }
