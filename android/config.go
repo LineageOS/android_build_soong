@@ -406,6 +406,14 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 		return Config{}, err
 	}
 
+	if Bool(config.productVariables.GcovCoverage) && Bool(config.productVariables.ClangCoverage) {
+		return Config{}, fmt.Errorf("GcovCoverage and ClangCoverage cannot both be set")
+	}
+
+	config.productVariables.Native_coverage = proptools.BoolPtr(
+		Bool(config.productVariables.GcovCoverage) ||
+			Bool(config.productVariables.ClangCoverage))
+
 	return Config{config}, nil
 }
 
@@ -1057,16 +1065,18 @@ func (c *deviceConfig) JavaCoverageEnabledForPath(path string) bool {
 	return coverage
 }
 
-func (c *config) NativeLineCoverage() bool {
-	return Bool(c.productVariables.NativeLineCoverage)
-}
-
+// Returns true if gcov or clang coverage is enabled.
 func (c *deviceConfig) NativeCoverageEnabled() bool {
-	return Bool(c.config.productVariables.Native_coverage) || Bool(c.config.productVariables.NativeLineCoverage)
+	return Bool(c.config.productVariables.GcovCoverage) ||
+		Bool(c.config.productVariables.ClangCoverage)
 }
 
 func (c *deviceConfig) ClangCoverageEnabled() bool {
 	return Bool(c.config.productVariables.ClangCoverage)
+}
+
+func (c *deviceConfig) GcovCoverageEnabled() bool {
+	return Bool(c.config.productVariables.GcovCoverage)
 }
 
 // NativeCoverageEnabledForPath returns whether (GCOV- or Clang-based) native
