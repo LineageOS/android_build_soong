@@ -2105,7 +2105,7 @@ func TestUseVendor(t *testing.T) {
 	ensureNotContains(t, inputsString, "android_arm64_armv8-a_shared_myapex/mylib2.so")
 }
 
-func TestUseVendorRestriction(t *testing.T) {
+func TestUseVendorNotAllowedForSystemApexes(t *testing.T) {
 	testApexError(t, `module "myapex" .*: use_vendor: not allowed`, `
 		apex {
 			name: "myapex",
@@ -2159,6 +2159,47 @@ func TestUseVendorFailsIfNotVendorAvailable(t *testing.T) {
 			stl: "none",
 		}
 	`)
+}
+
+func TestVendorApex(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			binaries: ["mybin"],
+			vendor: true,
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+		cc_binary {
+			name: "mybin",
+			vendor: true,
+			shared_libs: ["libfoo"],
+		}
+		cc_library {
+			name: "libfoo",
+			proprietary: true,
+		}
+	`)
+
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"bin/mybin",
+		"lib64/libfoo.so",
+		// TODO(b/159195575): Add an option to use VNDK libs from VNDK APEX
+		"lib64/libc++.so",
+	})
+
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	name := apexBundle.BaseModuleName()
+	prefix := "TARGET_"
+	var builder strings.Builder
+	data.Custom(&builder, name, prefix, "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, `LOCAL_MODULE_PATH := /tmp/target/product/test_device/vendor/apex`)
 }
 
 func TestAndroidMkWritesCommonProperties(t *testing.T) {
