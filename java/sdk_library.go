@@ -1088,15 +1088,22 @@ func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) stri
 
 // Creates the implementation java library
 func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext) {
+
+	moduleNamePtr := proptools.StringPtr(module.BaseModuleName())
+
 	props := struct {
-		Name       *string
-		Visibility []string
-		Instrument bool
+		Name              *string
+		Visibility        []string
+		Instrument        bool
+		ConfigurationName *string
 	}{
 		Name:       proptools.StringPtr(module.implLibraryModuleName()),
 		Visibility: module.sdkLibraryProperties.Impl_library_visibility,
 		// Set the instrument property to ensure it is instrumented when instrumentation is required.
 		Instrument: true,
+
+		// Make the created library behave as if it had the same name as this module.
+		ConfigurationName: moduleNamePtr,
 	}
 
 	properties := []interface{}{
