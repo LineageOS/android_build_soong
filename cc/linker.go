@@ -298,17 +298,6 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			}
 		}
 
-		if inList("libc_scudo", deps.SharedLibs) {
-			// libc_scudo is an alternate implementation of all
-			// allocation functions (malloc, free), that uses
-			// the scudo allocator instead of the default native
-			// allocator. If this library is in the list, make
-			// sure it's first so it properly overrides the
-			// allocation functions of all other shared libraries.
-			_, deps.SharedLibs = removeFromList("libc_scudo", deps.SharedLibs)
-			deps.SharedLibs = append([]string{"libc_scudo"}, deps.SharedLibs...)
-		}
-
 		// If libc and libdl are both in system_shared_libs make sure libdl comes after libc
 		// to avoid loading libdl before libc.
 		if inList("libdl", systemSharedLibs) && inList("libc", systemSharedLibs) &&
