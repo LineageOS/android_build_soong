@@ -2161,6 +2161,35 @@ func TestUseVendorFailsIfNotVendorAvailable(t *testing.T) {
 	`)
 }
 
+func TestAndroidMkWritesCommonProperties(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			vintf_fragments: ["fragment.xml"],
+			init_rc: ["init.rc"],
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+		cc_binary {
+			name: "mybin",
+		}
+	`)
+
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	name := apexBundle.BaseModuleName()
+	prefix := "TARGET_"
+	var builder strings.Builder
+	data.Custom(&builder, name, prefix, "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_VINTF_FRAGMENTS := fragment.xml\n")
+	ensureContains(t, androidMk, "LOCAL_INIT_RC := init.rc\n")
+}
+
 func TestStaticLinking(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
