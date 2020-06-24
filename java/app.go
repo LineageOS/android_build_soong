@@ -151,7 +151,7 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 				"allow-prereleased": strconv.FormatBool(proptools.Bool(as.properties.Prerelease)),
 				"screen-densities":  screenDensities,
 				"sdk-version":       ctx.Config().PlatformSdkVersion(),
-				"stem":              ctx.ModuleName(),
+				"stem":              as.BaseModuleName(),
 			},
 		})
 }
@@ -952,7 +952,7 @@ func (a *AndroidApp) Privileged() bool {
 }
 
 func (a *AndroidApp) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool {
-	return ctx.Device() && (ctx.DeviceConfig().NativeCoverageEnabled() || ctx.DeviceConfig().ClangCoverageEnabled())
+	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
 }
 
 func (a *AndroidApp) PreventInstall() {

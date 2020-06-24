@@ -55,7 +55,27 @@ func testShBinary(t *testing.T, bp string) (*android.TestContext, android.Config
 	return ctx, config
 }
 
-func TestShTestTestData(t *testing.T) {
+func TestShTestSubDir(t *testing.T) {
+	ctx, config := testShBinary(t, `
+		sh_test {
+			name: "foo",
+			src: "test.sh",
+			sub_dir: "foo_test"
+		}
+	`)
+
+	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*ShTest)
+
+	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
+
+	expectedPath := "/tmp/target/product/test_device/data/nativetest64/foo_test"
+	actualPath := entries.EntryMap["LOCAL_MODULE_PATH"][0]
+	if expectedPath != actualPath {
+		t.Errorf("Unexpected LOCAL_MODULE_PATH expected: %q, actual: %q", expectedPath, actualPath)
+	}
+}
+
+func TestShTest(t *testing.T) {
 	ctx, config := testShBinary(t, `
 		sh_test {
 			name: "foo",
@@ -71,10 +91,17 @@ func TestShTestTestData(t *testing.T) {
 	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*ShTest)
 
 	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
-	expected := []string{":testdata/data1", ":testdata/sub/data2"}
-	actual := entries.EntryMap["LOCAL_TEST_DATA"]
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("Unexpected test data expected: %q, actual: %q", expected, actual)
+
+	expectedPath := "/tmp/target/product/test_device/data/nativetest64/foo"
+	actualPath := entries.EntryMap["LOCAL_MODULE_PATH"][0]
+	if expectedPath != actualPath {
+		t.Errorf("Unexpected LOCAL_MODULE_PATH expected: %q, actual: %q", expectedPath, actualPath)
+	}
+
+	expectedData := []string{":testdata/data1", ":testdata/sub/data2"}
+	actualData := entries.EntryMap["LOCAL_TEST_DATA"]
+	if !reflect.DeepEqual(expectedData, actualData) {
+		t.Errorf("Unexpected test data expected: %q, actual: %q", expectedData, actualData)
 	}
 }
 
