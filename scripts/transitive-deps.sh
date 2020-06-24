@@ -56,7 +56,7 @@ Output Options:
                     temporary / intermediate files.
   -sep=<delim>      Use 'delim' as output field separator between notice
                     checksum and notice filename in notice output.
-                    e.g. sep='\t'
+                    e.g. sep='\\t'
                     (Default space)
   -csv              Shorthand for -sep=','
   -directories=<f>  Output directory names of dependencies to 'f'.
@@ -280,7 +280,7 @@ while [ $# -gt 0 ]; do
           notices=)
             notices_out=$(expr "${flag}" : '^.*=\(.*\)$');;
           *)
-            die "Unknown flag ${1}";;
+            die "${usage}\n\nUnknown flag ${1}";;
         esac
       ;;
       *)
