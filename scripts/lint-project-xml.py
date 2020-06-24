@@ -77,6 +77,8 @@ def parse_args():
                       help='mark the module as a test.')
   parser.add_argument('--cache_dir', dest='cache_dir',
                       help='directory to use for cached file.')
+  parser.add_argument('--root_dir', dest='root_dir',
+                      help='directory to use for root dir.')
   group = parser.add_argument_group('check arguments', 'later arguments override earlier ones.')
   group.add_argument('--fatal_check', dest='checks', action=check_action('fatal'), default=[],
                      help='treat a lint issue as a fatal error.')
@@ -162,6 +164,8 @@ def write_project_xml(f, args):
 
   f.write("<?xml version='1.0' encoding='utf-8'?>\n")
   f.write("<project>\n")
+  if args.root_dir:
+    f.write("  <root dir='%s' />\n" % args.root_dir)
   f.write("  <module name='%s' android='true' %sdesugar='full' >\n" % (args.name, "library='true' " if args.library else ""))
   if args.manifest:
     f.write("    <manifest file='%s' %s/>\n" % (args.manifest, test_attr))
