@@ -251,6 +251,18 @@ func (p *Module) HostToolPath() android.OptionalPath {
 	return android.OptionalPathForPath(p.installer.(*binaryDecorator).path)
 }
 
+func (p *Module) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		if outputFile := p.installSource; outputFile.Valid() {
+			return android.Paths{outputFile.Path()}, nil
+		}
+		return android.Paths{}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
+}
+
 func (p *Module) isEmbeddedLauncherEnabled(actual_version string) bool {
 	switch actual_version {
 	case pyVersion2:
