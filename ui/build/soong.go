@@ -139,6 +139,13 @@ func runSoong(ctx Context, config Config) {
 	soongBuildMetrics := loadSoongBuildMetrics(ctx, config)
 	logSoongBuildMetrics(ctx, soongBuildMetrics)
 
+	distGzipFile(ctx, config, config.SoongNinjaFile(), "soong")
+
+	if !config.SkipMake() {
+		distGzipFile(ctx, config, config.SoongAndroidMk(), "soong")
+		distGzipFile(ctx, config, config.SoongMakeVarsMk(), "soong")
+	}
+
 	if ctx.Metrics != nil {
 		ctx.Metrics.SetSoongBuildMetrics(soongBuildMetrics)
 	}

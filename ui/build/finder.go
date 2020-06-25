@@ -86,7 +86,7 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 	os.MkdirAll(dumpDir, 0777)
 
 	androidMks := f.FindFirstNamedAt(".", "Android.mk")
-	err := dumpListToFile(androidMks, filepath.Join(dumpDir, "Android.mk.list"))
+	err := dumpListToFile(ctx, config, androidMks, filepath.Join(dumpDir, "Android.mk.list"))
 	if err != nil {
 		ctx.Fatalf("Could not export module list: %v", err)
 	}
@@ -94,25 +94,25 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 	androidProductsMks := f.FindNamedAt("device", "AndroidProducts.mk")
 	androidProductsMks = append(androidProductsMks, f.FindNamedAt("vendor", "AndroidProducts.mk")...)
 	androidProductsMks = append(androidProductsMks, f.FindNamedAt("product", "AndroidProducts.mk")...)
-	err = dumpListToFile(androidProductsMks, filepath.Join(dumpDir, "AndroidProducts.mk.list"))
+	err = dumpListToFile(ctx, config, androidProductsMks, filepath.Join(dumpDir, "AndroidProducts.mk.list"))
 	if err != nil {
 		ctx.Fatalf("Could not export product list: %v", err)
 	}
 
 	cleanSpecs := f.FindFirstNamedAt(".", "CleanSpec.mk")
-	err = dumpListToFile(cleanSpecs, filepath.Join(dumpDir, "CleanSpec.mk.list"))
+	err = dumpListToFile(ctx, config, cleanSpecs, filepath.Join(dumpDir, "CleanSpec.mk.list"))
 	if err != nil {
 		ctx.Fatalf("Could not export module list: %v", err)
 	}
 
 	owners := f.FindNamedAt(".", "OWNERS")
-	err = dumpListToFile(owners, filepath.Join(dumpDir, "OWNERS.list"))
+	err = dumpListToFile(ctx, config, owners, filepath.Join(dumpDir, "OWNERS.list"))
 	if err != nil {
 		ctx.Fatalf("Could not find OWNERS: %v", err)
 	}
 
 	testMappings := f.FindNamedAt(".", "TEST_MAPPING")
-	err = dumpListToFile(testMappings, filepath.Join(dumpDir, "TEST_MAPPING.list"))
+	err = dumpListToFile(ctx, config, testMappings, filepath.Join(dumpDir, "TEST_MAPPING.list"))
 	if err != nil {
 		ctx.Fatalf("Could not find TEST_MAPPING: %v", err)
 	}
@@ -122,18 +122,24 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 	if len(androidBps) == 0 {
 		ctx.Fatalf("No Android.bp found")
 	}
-	err = dumpListToFile(androidBps, filepath.Join(dumpDir, "Android.bp.list"))
+	err = dumpListToFile(ctx, config, androidBps, filepath.Join(dumpDir, "Android.bp.list"))
 	if err != nil {
 		ctx.Fatalf("Could not find modules: %v", err)
 	}
 }
 
-func dumpListToFile(list []string, filePath string) (err error) {
+func dumpListToFile(ctx Context, config Config, list []string, filePath string) (err error) {
 	desiredText := strings.Join(list, "\n")
 	desiredBytes := []byte(desiredText)
 	actualBytes, readErr := ioutil.ReadFile(filePath)
 	if readErr != nil || !bytes.Equal(desiredBytes, actualBytes) {
 		err = ioutil.WriteFile(filePath, desiredBytes, 0777)
+		if err != nil {
+			return err
+		}
 	}
-	return err
+
+	distFile(ctx, config, filePath, "module_paths")
+
+	return nil
 }
