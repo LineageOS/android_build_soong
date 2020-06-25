@@ -88,7 +88,7 @@ func (l *linter) deps(ctx android.BottomUpMutatorContext) {
 }
 
 func (l *linter) writeLintProjectXML(ctx android.ModuleContext,
-	rule *android.RuleBuilder) (projectXMLPath, configXMLPath, cacheDir android.WritablePath, deps android.Paths) {
+	rule *android.RuleBuilder) (projectXMLPath, configXMLPath, cacheDir, homeDir android.WritablePath, deps android.Paths) {
 
 	var resourcesList android.WritablePath
 	if len(l.resources) > 0 {
@@ -106,6 +106,7 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext,
 	// Lint looks for a lint.xml file next to the project.xml file, give it one.
 	configXMLPath = android.PathForModuleOut(ctx, "lint", "lint.xml")
 	cacheDir = android.PathForModuleOut(ctx, "lint", "cache")
+	homeDir = android.PathForModuleOut(ctx, "lint", "home")
 
 	srcJarDir := android.PathForModuleOut(ctx, "lint-srcjars")
 	srcJarList := zipSyncCmd(ctx, rule, srcJarDir, l.srcJars)
@@ -154,8 +155,11 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext,
 	cmd.FlagForEachArg("--extra_checks_jar ", l.extraLintCheckJars.Strings())
 	deps = append(deps, l.extraLintCheckJars...)
 
-	// The cache tag in project.xml is relative to the project.xml file.
-	cmd.FlagWithArg("--cache_dir ", "cache")
+	cmd.FlagWithArg("--root_dir ", "$PWD")
+
+	// The cache tag in project.xml is relative to the root dir, or the project.xml file if
+	// the root dir is not set.
+	cmd.FlagWithArg("--cache_dir ", cacheDir.String())
 
 	cmd.FlagWithInput("@",
 		android.PathForSource(ctx, "build/soong/java/lint_defaults.txt"))
@@ -165,7 +169,7 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext,
 	cmd.FlagForEachArg("--error_check ", l.properties.Lint.Error_checks)
 	cmd.FlagForEachArg("--fatal_check ", l.properties.Lint.Fatal_checks)
 
-	return projectXMLPath, configXMLPath, cacheDir, deps
+	return projectXMLPath, configXMLPath, cacheDir, homeDir, deps
 }
 
 // generateManifest adds a command to the rule to write a dummy manifest cat contains the
@@ -207,18 +211,19 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		l.manifest = manifest
 	}
 
-	projectXML, lintXML, cacheDir, deps := l.writeLintProjectXML(ctx, rule)
+	projectXML, lintXML, cacheDir, homeDir, deps := l.writeLintProjectXML(ctx, rule)
 
 	l.outputs.html = android.PathForModuleOut(ctx, "lint-report.html")
 	l.outputs.text = android.PathForModuleOut(ctx, "lint-report.txt")
 	l.outputs.xml = android.PathForModuleOut(ctx, "lint-report.xml")
 
-	rule.Command().Text("rm -rf").Flag(cacheDir.String())
-	rule.Command().Text("mkdir -p").Flag(cacheDir.String())
+	rule.Command().Text("rm -rf").Flag(cacheDir.String()).Flag(homeDir.String())
+	rule.Command().Text("mkdir -p").Flag(cacheDir.String()).Flag(homeDir.String())
 
 	rule.Command().
 		Text("(").
 		Flag("JAVA_OPTS=-Xmx2048m").
+		FlagWithArg("ANDROID_SDK_HOME=", homeDir.String()).
 		FlagWithInput("SDK_ANNOTATIONS=", annotationsZipPath(ctx)).
 		FlagWithInput("LINT_OPTS=-DLINT_API_DATABASE=", apiVersionsXmlPath(ctx)).
 		Tool(android.PathForSource(ctx, "prebuilts/cmdline-tools/tools/bin/lint")).
@@ -239,7 +244,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		Text("|| (").Text("cat").Input(l.outputs.text).Text("; exit 7)").
 		Text(")")
 
-	rule.Command().Text("rm -rf").Flag(cacheDir.String())
+	rule.Command().Text("rm -rf").Flag(cacheDir.String()).Flag(homeDir.String())
 
 	rule.Build(pctx, ctx, "lint", "lint")
 }
