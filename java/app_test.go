@@ -475,6 +475,24 @@ func TestUpdatableApps(t *testing.T) {
 	}
 }
 
+func TestUpdatableApps_TransitiveDepsShouldSetMinSdkVersion(t *testing.T) {
+	testJavaError(t, `module "bar".*: should support min_sdk_version\(29\)`, cc.GatherRequiredDepsForTest(android.Android)+`
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			updatable: true,
+			sdk_version: "current",
+			min_sdk_version: "29",
+			static_libs: ["bar"],
+		}
+
+		java_library {
+			name: "bar",
+			sdk_version: "current",
+		}
+	`)
+}
+
 func TestUpdatableApps_JniLibsShouldShouldSupportMinSdkVersion(t *testing.T) {
 	testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		android_app {
