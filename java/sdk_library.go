@@ -1905,6 +1905,11 @@ func (module *SdkLibraryImport) DepIsInSameApex(mctx android.BaseModuleContext, 
 	return false
 }
 
+func (module *SdkLibraryImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion int) error {
+	// we don't check prebuilt modules for sdk_version
+	return nil
+}
+
 func (module *SdkLibraryImport) OutputFiles(tag string) (android.Paths, error) {
 	return module.commonOutputFiles(tag)
 }
@@ -2069,6 +2074,11 @@ func (module *sdkLibraryXml) AvailableFor(what string) bool {
 
 func (module *sdkLibraryXml) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// do nothing
+}
+
+func (module *sdkLibraryXml) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion int) error {
+	// sdkLibraryXml doesn't need to be checked separately because java_sdk_library is checked
+	return nil
 }
 
 // File path to the runtime implementation library
