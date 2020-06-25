@@ -2905,6 +2905,54 @@ func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 	return true
 }
 
+// b/154667674: refactor this to handle "current" in a consistent way
+func decodeSdkVersionString(ctx android.BaseModuleContext, versionString string) (int, error) {
+	if versionString == "" {
+		return 0, fmt.Errorf("not specified")
+	}
+	if versionString == "current" {
+		if ctx.Config().PlatformSdkCodename() == "REL" {
+			return ctx.Config().PlatformSdkVersionInt(), nil
+		}
+		return android.FutureApiLevel, nil
+	}
+	return android.ApiStrToNum(ctx, versionString)
+}
+
+func (c *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion int) error {
+	// We ignore libclang_rt.* prebuilt libs since they declare sdk_version: 14(b/121358700)
+	if strings.HasPrefix(ctx.OtherModuleName(c), "libclang_rt") {
+		return nil
+	}
+	// b/154569636: set min_sdk_version correctly for toolchain_libraries
+	if c.ToolchainLibrary() {
+		return nil
+	}
+	// We don't check for prebuilt modules
+	if _, ok := c.linker.(prebuiltLinkerInterface); ok {
+		return nil
+	}
+	minSdkVersion := c.MinSdkVersion()
+	if minSdkVersion == "apex_inherit" {
+		return nil
+	}
+	if minSdkVersion == "" {
+		// JNI libs within APK-in-APEX fall into here
+		// Those are okay to set sdk_version instead
+		// We don't have to check if this is a SDK variant because
+		// non-SDK variant resets sdk_version, which works too.
+		minSdkVersion = c.SdkVersion()
+	}
+	ver, err := decodeSdkVersionString(ctx, minSdkVersion)
+	if err != nil {
+		return err
+	}
+	if ver > sdkVersion {
+		return fmt.Errorf("newer SDK(%v)", ver)
+	}
+	return nil
+}
+
 //
 // Defaults
 //
