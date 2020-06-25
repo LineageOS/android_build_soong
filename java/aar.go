@@ -762,6 +762,10 @@ func (a *AARImport) DepIsInSameApex(ctx android.BaseModuleContext, dep android.M
 	return a.depIsInSameApex(ctx, dep)
 }
 
+func (g *AARImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion int) error {
+	return nil
+}
+
 var _ android.PrebuiltInterface = (*Import)(nil)
 
 // android_library_import imports an `.aar` file into the build graph as if it was built with android_library.

@@ -145,6 +145,7 @@ func NdkPrebuiltStaticStlFactory() android.Module {
 		libraryDecorator: library,
 	}
 	module.installer = nil
+	module.Properties.Sdk_version = StringPtr("minimum")
 	module.Properties.HideFromMake = true
 	module.Properties.AlwaysSdk = true
 	module.Properties.Sdk_version = StringPtr("current")

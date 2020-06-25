@@ -310,6 +310,10 @@ func (m *syspropLibrary) AndroidMk() android.AndroidMkData {
 		}}
 }
 
+func (m *syspropLibrary) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion int) error {
+	return fmt.Errorf("sysprop_library is not supposed to be part of apex modules")
+}
+
 // sysprop_library creates schematized APIs from sysprop description files (.sysprop).
 // Both Java and C++ modules can link against sysprop_library, and API stability check
 // against latest APIs (see build/soong/scripts/freeze-sysprop-api-files.sh)
