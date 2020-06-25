@@ -243,6 +243,8 @@ func Build(ctx Context, config Config, what int) {
 	// Write combined ninja file
 	createCombinedBuildNinjaFile(ctx, config)
 
+	distGzipFile(ctx, config, config.CombinedNinjaFile())
+
 	if what&RunBuildTests != 0 {
 		testForDanglingRules(ctx, config)
 	}
@@ -254,5 +256,49 @@ func Build(ctx Context, config Config, what int) {
 
 		// Run ninja
 		runNinja(ctx, config)
+	}
+}
+
+// distGzipFile writes a compressed copy of src to the distDir if dist is enabled.  Failures
+// are printed but non-fatal.
+func distGzipFile(ctx Context, config Config, src string, subDirs ...string) {
+	if !config.Dist() {
+		return
+	}
+
+	subDir := filepath.Join(subDirs...)
+	destDir := filepath.Join(config.DistDir(), "soong_ui", subDir)
+
+	err := os.MkdirAll(destDir, 0777)
+	if err != nil {
+		ctx.Printf("failed to mkdir %s: %s", destDir, err.Error())
+
+	}
+
+	err = gzipFileToDir(src, destDir)
+	if err != nil {
+		ctx.Printf("failed to dist %s: %s", filepath.Base(src), err.Error())
+	}
+}
+
+// distFile writes a copy of src to the distDir if dist is enabled.  Failures are printed but
+// non-fatal.
+func distFile(ctx Context, config Config, src string, subDirs ...string) {
+	if !config.Dist() {
+		return
+	}
+
+	subDir := filepath.Join(subDirs...)
+	destDir := filepath.Join(config.DistDir(), "soong_ui", subDir)
+
+	err := os.MkdirAll(destDir, 0777)
+	if err != nil {
+		ctx.Printf("failed to mkdir %s: %s", destDir, err.Error())
+
+	}
+
+	_, err = copyFile(src, filepath.Join(destDir, filepath.Base(src)))
+	if err != nil {
+		ctx.Printf("failed to dist %s: %s", filepath.Base(src), err.Error())
 	}
 }
