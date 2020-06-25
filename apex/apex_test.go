@@ -3480,110 +3480,104 @@ func TestApexInVariousPartition(t *testing.T) {
 	}
 }
 
-func TestFileContexts(t *testing.T) {
+func TestFileContexts_FindInDefaultLocationIfNotSet(t *testing.T) {
 	ctx, _ := testApex(t, `
-	apex {
-		name: "myapex",
-		key: "myapex.key",
-	}
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+		}
 
-	apex_key {
-		name: "myapex.key",
-		public_key: "testkey.avbpubkey",
-		private_key: "testkey.pem",
-	}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
 	`)
 	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
-	apexRule := module.Rule("apexRule")
-	actual := apexRule.Args["file_contexts"]
-	expected := "system/sepolicy/apex/myapex-file_contexts"
-	if actual != expected {
-		t.Errorf("wrong file_contexts. expected %q. actual %q", expected, actual)
-	}
+	rule := module.Output("file_contexts")
+	ensureContains(t, rule.RuleParams.Command, "cat system/sepolicy/apex/myapex-file_contexts")
+}
 
+func TestFileContexts_ShouldBeUnderSystemSepolicyForSystemApexes(t *testing.T) {
 	testApexError(t, `"myapex" .*: file_contexts: should be under system/sepolicy`, `
-	apex {
-		name: "myapex",
-		key: "myapex.key",
-		file_contexts: "my_own_file_contexts",
-	}
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			file_contexts: "my_own_file_contexts",
+		}
 
-	apex_key {
-		name: "myapex.key",
-		public_key: "testkey.avbpubkey",
-		private_key: "testkey.pem",
-	}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
 	`, withFiles(map[string][]byte{
 		"my_own_file_contexts": nil,
 	}))
+}
 
+func TestFileContexts_ProductSpecificApexes(t *testing.T) {
 	testApexError(t, `"myapex" .*: file_contexts: cannot find`, `
-	apex {
-		name: "myapex",
-		key: "myapex.key",
-		product_specific: true,
-		file_contexts: "product_specific_file_contexts",
-	}
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			product_specific: true,
+			file_contexts: "product_specific_file_contexts",
+		}
 
-	apex_key {
-		name: "myapex.key",
-		public_key: "testkey.avbpubkey",
-		private_key: "testkey.pem",
-	}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
 	`)
 
-	ctx, _ = testApex(t, `
-	apex {
-		name: "myapex",
-		key: "myapex.key",
-		product_specific: true,
-		file_contexts: "product_specific_file_contexts",
-	}
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			product_specific: true,
+			file_contexts: "product_specific_file_contexts",
+		}
 
-	apex_key {
-		name: "myapex.key",
-		public_key: "testkey.avbpubkey",
-		private_key: "testkey.pem",
-	}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
 	`, withFiles(map[string][]byte{
 		"product_specific_file_contexts": nil,
 	}))
-	module = ctx.ModuleForTests("myapex", "android_common_myapex_image")
-	apexRule = module.Rule("apexRule")
-	actual = apexRule.Args["file_contexts"]
-	expected = "product_specific_file_contexts"
-	if actual != expected {
-		t.Errorf("wrong file_contexts. expected %q. actual %q", expected, actual)
-	}
+	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	rule := module.Output("file_contexts")
+	ensureContains(t, rule.RuleParams.Command, "cat product_specific_file_contexts")
+}
 
-	ctx, _ = testApex(t, `
-	apex {
-		name: "myapex",
-		key: "myapex.key",
-		product_specific: true,
-		file_contexts: ":my-file-contexts",
-	}
+func TestFileContexts_SetViaFileGroup(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			product_specific: true,
+			file_contexts: ":my-file-contexts",
+		}
 
-	apex_key {
-		name: "myapex.key",
-		public_key: "testkey.avbpubkey",
-		private_key: "testkey.pem",
-	}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
 
-	filegroup {
-		name: "my-file-contexts",
-		srcs: ["product_specific_file_contexts"],
-	}
+		filegroup {
+			name: "my-file-contexts",
+			srcs: ["product_specific_file_contexts"],
+		}
 	`, withFiles(map[string][]byte{
 		"product_specific_file_contexts": nil,
 	}))
-	module = ctx.ModuleForTests("myapex", "android_common_myapex_image")
-	apexRule = module.Rule("apexRule")
-	actual = apexRule.Args["file_contexts"]
-	expected = "product_specific_file_contexts"
-	if actual != expected {
-		t.Errorf("wrong file_contexts. expected %q. actual %q", expected, actual)
-	}
+	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	rule := module.Output("file_contexts")
+	ensureContains(t, rule.RuleParams.Command, "cat product_specific_file_contexts")
 }
 
 func TestApexKeyFromOtherModule(t *testing.T) {
