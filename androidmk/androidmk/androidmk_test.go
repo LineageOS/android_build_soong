@@ -1389,6 +1389,35 @@ cc_binary {
 `,
 	},
 	{
+		desc: "variableReassigned",
+		in: `
+include $(CLEAR_VARS)
+
+src_files:= a.cpp
+
+LOCAL_SRC_FILES:= $(src_files)
+LOCAL_MODULE:= test
+include $(BUILD_EXECUTABLE)
+
+# clear locally used variable
+src_files:=
+`,
+		expected: `
+
+
+src_files = ["a.cpp"]
+cc_binary {
+    name: "test",
+
+    srcs: src_files,
+}
+
+// clear locally used variable
+// ANDROIDMK TRANSLATION ERROR: cannot assign a variable multiple times: "src_files"
+// src_files :=
+`,
+	},
+	{
 		desc: "undefined_boolean_var",
 		in: `
 include $(CLEAR_VARS)
