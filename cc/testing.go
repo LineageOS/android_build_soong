@@ -273,6 +273,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			vendor_available: true,
 			recovery_available: true,
 			host_supported: true,
+			min_sdk_version: "29",
 			apex_available: [
 				"//apex_available:platform",
 				"//apex_available:anyapex",
@@ -287,6 +288,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			vendor_available: true,
 			recovery_available: true,
 			host_supported: true,
+			min_sdk_version: "29",
 			vndk: {
 				enabled: true,
 				support_system_process: true,
@@ -305,6 +307,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			host_supported: false,
 			vendor_available: true,
 			recovery_available: true,
+			min_sdk_version: "29",
 			apex_available: [
 				"//apex_available:platform",
 				"//apex_available:anyapex",
@@ -338,6 +341,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			recovery_available: true,
 			vendor_available: true,
 			native_bridge_supported: true,
+			min_sdk_version: "29",
 			stl: "none",
 		}
 
@@ -365,6 +369,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			recovery_available: true,
 			vendor_available: true,
 			native_bridge_supported: true,
+			min_sdk_version: "29",
 			stl: "none",
 		}
 

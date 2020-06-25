@@ -124,6 +124,10 @@ type ApexModule interface {
 	// the private part of the listed APEXes even when it is not included in the
 	// APEXes.
 	TestFor() []string
+
+	// Returns nil if this module supports sdkVersion
+	// Otherwise, returns error with reason
+	ShouldSupportSdkVersion(ctx BaseModuleContext, sdkVersion int) error
 }
 
 type ApexProperties struct {
@@ -475,5 +479,127 @@ func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, minSdkVersion
 		Args: map[string]string{
 			"content": flatContent.String(),
 		},
+	})
+}
+
+// TODO(b/158059172): remove minSdkVersion allowlist
+var minSdkVersionAllowlist = map[string]int{
+	"adbd":                  30,
+	"android.net.ipsec.ike": 30,
+	"androidx-constraintlayout_constraintlayout-solver": 30,
+	"androidx.annotation_annotation":                    28,
+	"androidx.arch.core_core-common":                    28,
+	"androidx.collection_collection":                    28,
+	"androidx.lifecycle_lifecycle-common":               28,
+	"apache-commons-compress":                           29,
+	"bouncycastle_ike_digests":                          30,
+	"brotli-java":                                       29,
+	"captiveportal-lib":                                 28,
+	"flatbuffer_headers":                                30,
+	"framework-permission":                              30,
+	"framework-statsd":                                  30,
+	"gemmlowp_headers":                                  30,
+	"ike-internals":                                     30,
+	"kotlinx-coroutines-android":                        28,
+	"kotlinx-coroutines-core":                           28,
+	"libadb_crypto":                                     30,
+	"libadb_pairing_auth":                               30,
+	"libadb_pairing_connection":                         30,
+	"libadb_pairing_server":                             30,
+	"libadb_protos":                                     30,
+	"libadb_tls_connection":                             30,
+	"libadbconnection_client":                           30,
+	"libadbconnection_server":                           30,
+	"libadbd_core":                                      30,
+	"libadbd_services":                                  30,
+	"libadbd":                                           30,
+	"libapp_processes_protos_lite":                      30,
+	"libasyncio":                                        30,
+	"libbrotli":                                         30,
+	"libbuildversion":                                   30,
+	"libcrypto_static":                                  30,
+	"libcrypto_utils":                                   30,
+	"libdiagnose_usb":                                   30,
+	"libeigen":                                          30,
+	"liblz4":                                            30,
+	"libmdnssd":                                         30,
+	"libneuralnetworks_common":                          30,
+	"libneuralnetworks_headers":                         30,
+	"libneuralnetworks":                                 30,
+	"libprocpartition":                                  30,
+	"libprotobuf-java-lite":                             30,
+	"libprotoutil":                                      30,
+	"libqemu_pipe":                                      30,
+	"libstats_jni":                                      30,
+	"libstatslog_statsd":                                30,
+	"libstatsmetadata":                                  30,
+	"libstatspull":                                      30,
+	"libstatssocket":                                    30,
+	"libsync":                                           30,
+	"libtextclassifier_hash_headers":                    30,
+	"libtextclassifier_hash_static":                     30,
+	"libtflite_kernel_utils":                            30,
+	"libwatchdog":                                       29,
+	"libzstd":                                           30,
+	"metrics-constants-protos":                          28,
+	"net-utils-framework-common":                        29,
+	"permissioncontroller-statsd":                       28,
+	"philox_random_headers":                             30,
+	"philox_random":                                     30,
+	"service-permission":                                30,
+	"service-statsd":                                    30,
+	"statsd-aidl-ndk_platform":                          30,
+	"statsd":                                            30,
+	"tensorflow_headers":                                30,
+	"xz-java":                                           29,
+}
+
+// Function called while walking an APEX's payload dependencies.
+//
+// Return true if the `to` module should be visited, false otherwise.
+type PayloadDepsCallback func(ctx ModuleContext, from blueprint.Module, to ApexModule, externalDep bool) bool
+
+// UpdatableModule represents updatable APEX/APK
+type UpdatableModule interface {
+	Module
+	WalkPayloadDeps(ctx ModuleContext, do PayloadDepsCallback)
+}
+
+// CheckMinSdkVersion checks if every dependency of an updatable module sets min_sdk_version accordingly
+func CheckMinSdkVersion(m UpdatableModule, ctx ModuleContext, minSdkVersion int) {
+	// do not enforce min_sdk_version for host
+	if ctx.Host() {
+		return
+	}
+
+	// do not enforce for coverage build
+	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") || ctx.DeviceConfig().NativeCoverageEnabled() || ctx.DeviceConfig().ClangCoverageEnabled() {
+		return
+	}
+
+	// do not enforce deps.min_sdk_version if APEX/APK doesn't set min_sdk_version or
+	// min_sdk_version is not finalized (e.g. current or codenames)
+	if minSdkVersion == FutureApiLevel {
+		return
+	}
+
+	m.WalkPayloadDeps(ctx, func(ctx ModuleContext, from blueprint.Module, to ApexModule, externalDep bool) bool {
+		if externalDep {
+			// external deps are outside the payload boundary, which is "stable" interface.
+			// We don't have to check min_sdk_version for external dependencies.
+			return false
+		}
+		if am, ok := from.(DepIsInSameApex); ok && !am.DepIsInSameApex(ctx, to) {
+			return false
+		}
+		if err := to.ShouldSupportSdkVersion(ctx, minSdkVersion); err != nil {
+			toName := ctx.OtherModuleName(to)
+			if ver, ok := minSdkVersionAllowlist[toName]; !ok || ver > minSdkVersion {
+				ctx.OtherModuleErrorf(to, "should support min_sdk_version(%v) for %q: %v. Dependency path: %s",
+					minSdkVersion, ctx.ModuleName(), err.Error(), ctx.GetPathString(false))
+				return false
+			}
+		}
+		return true
 	})
 }
