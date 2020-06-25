@@ -44,7 +44,7 @@ func init() {
 			PropertyName: "java_libs",
 		},
 		func(j *Library) android.Path {
-			implementationJars := j.ImplementationJars()
+			implementationJars := j.ImplementationAndResourcesJars()
 			if len(implementationJars) != 1 {
 				panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
 			}

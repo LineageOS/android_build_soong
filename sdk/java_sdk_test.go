@@ -23,6 +23,7 @@ func testSdkWithJava(t *testing.T, bp string) *testSdkResult {
 
 	fs := map[string][]byte{
 		"Test.java":              nil,
+		"resource.test":          nil,
 		"aidl/foo/bar/Test.aidl": nil,
 
 		// For java_sdk_library
@@ -348,6 +349,7 @@ func TestSnapshotWithJavaImplLibrary(t *testing.T) {
 		java_library {
 			name: "myjavalib",
 			srcs: ["Test.java"],
+			java_resources: ["resource.txt"],
 			aidl: {
 				export_include_dirs: ["aidl"],
 			},
@@ -381,7 +383,7 @@ module_exports_snapshot {
 
 `),
 		checkAllCopyRules(`
-.intermediates/myjavalib/android_common/javac/myjavalib.jar -> java/myjavalib.jar
+.intermediates/myjavalib/android_common/withres/myjavalib.jar -> java/myjavalib.jar
 aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 `),
 	)
