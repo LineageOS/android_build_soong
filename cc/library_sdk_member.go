@@ -380,7 +380,11 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 	// Make sure that the include directories are unique.
 	p.ExportedIncludeDirs = android.FirstUniquePaths(exportedIncludeDirs)
 	p.exportedGeneratedIncludeDirs = android.FirstUniquePaths(exportedGeneratedIncludeDirs)
-	p.ExportedSystemIncludeDirs = android.FirstUniquePaths(ccModule.ExportedSystemIncludeDirs())
+
+	// Take a copy before filtering out duplicates to avoid changing the slice owned by the
+	// ccModule.
+	dirs := append(android.Paths(nil), ccModule.ExportedSystemIncludeDirs()...)
+	p.ExportedSystemIncludeDirs = android.FirstUniquePaths(dirs)
 
 	p.ExportedFlags = ccModule.ExportedFlags()
 	if ccModule.linker != nil {
