@@ -16,7 +16,6 @@ package apex
 
 import (
 	"fmt"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -1343,7 +1342,7 @@ type apexBundle struct {
 	container_certificate_file android.Path
 	container_private_key_file android.Path
 
-	fileContexts android.Path
+	fileContexts android.WritablePath
 
 	// list of files to be included in this apex
 	filesInfo []apexFile
@@ -2289,22 +2288,6 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.installDir = android.PathForModuleInstall(ctx, "apex")
 	a.filesInfo = filesInfo
 
-	if a.properties.ApexType != zipApex {
-		if a.properties.File_contexts == nil {
-			a.fileContexts = android.PathForSource(ctx, "system/sepolicy/apex", ctx.ModuleName()+"-file_contexts")
-		} else {
-			a.fileContexts = android.PathForModuleSrc(ctx, *a.properties.File_contexts)
-			if a.Platform() {
-				if matched, err := path.Match("system/sepolicy/**/*", a.fileContexts.String()); err != nil || !matched {
-					ctx.PropertyErrorf("file_contexts", "should be under system/sepolicy, but %q", a.fileContexts)
-				}
-			}
-		}
-		if !android.ExistentPathForSource(ctx, a.fileContexts.String()).Valid() {
-			ctx.PropertyErrorf("file_contexts", "cannot find file_contexts file: %q", a.fileContexts)
-			return
-		}
-	}
 	// Optimization. If we are building bundled APEX, for the files that are gathered due to the
 	// transitive dependencies, don't place them inside the APEX, but place a symlink pointing
 	// the same library in the system partition, thus effectively sharing the same libraries
@@ -2327,6 +2310,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// prepare apex_manifest.json
 	a.buildManifest(ctx, provideNativeLibs, requireNativeLibs)
+
+	a.buildFileContexts(ctx)
 
 	a.setCertificateAndPrivateKey(ctx)
 	if a.properties.ApexType == flattenedApex {
