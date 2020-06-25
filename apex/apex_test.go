@@ -2202,6 +2202,71 @@ func TestVendorApex(t *testing.T) {
 	ensureContains(t, androidMk, `LOCAL_MODULE_PATH := /tmp/target/product/test_device/vendor/apex`)
 }
 
+func TestAndroidMk_UseVendorRequired(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			use_vendor: true,
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			vendor_available: true,
+			apex_available: ["myapex"],
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		setUseVendorAllowListForTest(config, []string{"myapex"})
+	})
+
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	name := apexBundle.BaseModuleName()
+	prefix := "TARGET_"
+	var builder strings.Builder
+	data.Custom(&builder, name, prefix, "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += libc libm libdl\n")
+}
+
+func TestAndroidMk_VendorApexRequired(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			vendor: true,
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			vendor_available: true,
+		}
+	`)
+
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	name := apexBundle.BaseModuleName()
+	prefix := "TARGET_"
+	var builder strings.Builder
+	data.Custom(&builder, name, prefix, "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += libc.vendor libm.vendor libdl.vendor\n")
+}
+
 func TestAndroidMkWritesCommonProperties(t *testing.T) {
 	ctx, config := testApex(t, `
 		apex {

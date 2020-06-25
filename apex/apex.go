@@ -2124,7 +2124,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						}
 						af := apexFileForNativeLibrary(ctx, cc, handleSpecialLibs)
 						af.transitiveDep = true
-						if !a.Host() && !android.DirectlyInApex(ctx.ModuleName(), ctx.OtherModuleName(cc)) && (cc.IsStubs() || cc.HasStubsVariants()) {
+						if !a.Host() && !android.DirectlyInApex(ctx.ModuleName(), depName) && (cc.IsStubs() || cc.HasStubsVariants()) {
 							// If the dependency is a stubs lib, don't include it in this APEX,
 							// but make sure that the lib is installed on the device.
 							// In case no APEX is having the lib, the lib is installed to the system
@@ -2132,8 +2132,17 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							//
 							// Always include if we are a host-apex however since those won't have any
 							// system libraries.
-							if !android.DirectlyInAnyApex(ctx, cc.Name()) && !android.InList(cc.BaseModuleName(), a.requiredDeps) {
-								a.requiredDeps = append(a.requiredDeps, cc.BaseModuleName())
+							if !android.DirectlyInAnyApex(ctx, depName) {
+								// we need a module name for Make
+								name := cc.BaseModuleName() + cc.Properties.SubName
+								if proptools.Bool(a.properties.Use_vendor) {
+									// we don't use subName(.vendor) for a "use_vendor: true" apex
+									// which is supposed to be installed in /system
+									name = cc.BaseModuleName()
+								}
+								if !android.InList(name, a.requiredDeps) {
+									a.requiredDeps = append(a.requiredDeps, name)
+								}
 							}
 							requireNativeLibs = append(requireNativeLibs, af.Stem())
 							// Don't track further
