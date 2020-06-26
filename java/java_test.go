@@ -684,9 +684,8 @@ func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
 	checkModuleDependencies(t, ctx, "sdklib", "android_common", []string{
 		`dex2oatd`,
 		`prebuilt_sdklib`,
-		// This should be sdklib.stubs but is switched to the prebuilt because it is preferred.
-		`prebuilt_sdklib.stubs`,
 		`sdklib.impl`,
+		`sdklib.stubs`,
 		`sdklib.stubs.source`,
 		`sdklib.xml`,
 	})
