@@ -98,8 +98,8 @@ type binaryDecorator struct {
 	// Output archive of gcno coverage information
 	coverageOutputFile android.OptionalPath
 
-	// Location of the file that should be copied to dist dir when requested
-	distFile android.OptionalPath
+	// Location of the files that should be copied to dist dir when requested
+	distFiles android.TaggedDistFiles
 
 	post_install_cmds []string
 }
@@ -367,11 +367,11 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 			binary.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 		} else {
 			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
-			binary.distFile = android.OptionalPathForPath(versionedOutputFile)
+			binary.distFiles = android.MakeDefaultDistFiles(versionedOutputFile)
 
 			if binary.stripper.needsStrip(ctx) {
 				out := android.PathForModuleOut(ctx, "versioned-stripped", fileName)
-				binary.distFile = android.OptionalPathForPath(out)
+				binary.distFiles = android.MakeDefaultDistFiles(out)
 				binary.stripper.stripExecutableOrSharedLib(ctx, versionedOutputFile, out, builderFlags)
 			}
 
