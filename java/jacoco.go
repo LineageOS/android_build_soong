@@ -25,6 +25,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/java/config"
 )
 
 var (
@@ -76,7 +77,8 @@ func (j *Module) jacocoModuleToZipCommand(ctx android.ModuleContext) string {
 	if err != nil {
 		ctx.PropertyErrorf("jacoco.include_filter", "%s", err.Error())
 	}
-	excludes, err := jacocoFiltersToSpecs(j.properties.Jacoco.Exclude_filter)
+	// Also include the default list of classes to exclude from instrumentation.
+	excludes, err := jacocoFiltersToSpecs(append(j.properties.Jacoco.Exclude_filter, config.DefaultJacocoExcludeFilter...))
 	if err != nil {
 		ctx.PropertyErrorf("jacoco.exclude_filter", "%s", err.Error())
 	}
