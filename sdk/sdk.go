@@ -291,7 +291,7 @@ func (s *sdk) AndroidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "FAKE",
 		OutputFile: s.snapshotFile,
-		DistFile:   s.snapshotFile,
+		DistFiles:  android.MakeDefaultDistFiles(s.snapshotFile.Path()),
 		Include:    "$(BUILD_PHONY_PACKAGE)",
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
 			func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
