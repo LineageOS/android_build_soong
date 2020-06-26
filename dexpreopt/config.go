@@ -383,7 +383,7 @@ func createGlobalSoongConfig(ctx android.ModuleContext) *GlobalSoongConfig {
 		SoongZip:         ctx.Config().HostToolPath(ctx, "soong_zip"),
 		Zip2zip:          ctx.Config().HostToolPath(ctx, "zip2zip"),
 		ManifestCheck:    ctx.Config().HostToolPath(ctx, "manifest_check"),
-		ConstructContext: android.PathForSource(ctx, "build/make/core/construct_context.sh"),
+		ConstructContext: android.PathForSource(ctx, "build/soong/scripts/construct_context.sh"),
 	}
 }
 
