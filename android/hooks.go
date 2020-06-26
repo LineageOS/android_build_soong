@@ -120,6 +120,7 @@ func (l *loadHookContext) registerScopedModuleType(name string, factory blueprin
 
 type InstallHookContext interface {
 	ModuleContext
+	SrcPath() Path
 	Path() InstallPath
 	Symlink() bool
 }
@@ -134,8 +135,15 @@ func AddInstallHook(m blueprint.Module, hook func(InstallHookContext)) {
 
 type installHookContext struct {
 	ModuleContext
+	srcPath Path
 	path    InstallPath
 	symlink bool
+}
+
+var _ InstallHookContext = &installHookContext{}
+
+func (x *installHookContext) SrcPath() Path {
+	return x.srcPath
 }
 
 func (x *installHookContext) Path() InstallPath {
@@ -146,10 +154,11 @@ func (x *installHookContext) Symlink() bool {
 	return x.symlink
 }
 
-func (x *hooks) runInstallHooks(ctx ModuleContext, path InstallPath, symlink bool) {
+func (x *hooks) runInstallHooks(ctx ModuleContext, srcPath Path, path InstallPath, symlink bool) {
 	if len(x.install) > 0 {
 		mctx := &installHookContext{
 			ModuleContext: ctx,
+			srcPath:       srcPath,
 			path:          path,
 			symlink:       symlink,
 		}

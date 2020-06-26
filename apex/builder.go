@@ -17,6 +17,7 @@ package apex
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -231,10 +232,42 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 	})
 }
 
+func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) {
+	if a.properties.ApexType == zipApex {
+		return
+	}
+	var fileContexts android.Path
+	if a.properties.File_contexts == nil {
+		fileContexts = android.PathForSource(ctx, "system/sepolicy/apex", ctx.ModuleName()+"-file_contexts")
+	} else {
+		fileContexts = android.PathForModuleSrc(ctx, *a.properties.File_contexts)
+	}
+	if a.Platform() {
+		if matched, err := path.Match("system/sepolicy/**/*", fileContexts.String()); err != nil || !matched {
+			ctx.PropertyErrorf("file_contexts", "should be under system/sepolicy, but %q", fileContexts)
+			return
+		}
+	}
+	if !android.ExistentPathForSource(ctx, fileContexts.String()).Valid() {
+		ctx.PropertyErrorf("file_contexts", "cannot find file_contexts file: %q", a.fileContexts)
+		return
+	}
+
+	output := android.PathForModuleOut(ctx, "file_contexts")
+	rule := android.NewRuleBuilder()
+	rule.Command().Text("rm").FlagWithOutput("-f ", output)
+	rule.Command().Text("cat").Input(fileContexts).Text(">>").Output(output)
+	rule.Command().Text("echo").Text(">>").Output(output)
+	rule.Command().Text("echo").Flag("/apex_manifest\\\\.pb u:object_r:system_file:s0").Text(">>").Output(output)
+	rule.Build(pctx, ctx, "file_contexts."+a.Name(), "Generate file_contexts")
+
+	a.fileContexts = output.OutputPath
+}
+
 func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName string) android.NoticeOutputs {
 	var noticeFiles android.Paths
 
-	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
+	a.WalkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
 		if externalDep {
 			// As soon as the dependency graph crosses the APEX boundary, don't go further.
 			return false
@@ -733,7 +766,7 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 	}
 
 	depInfos := android.DepNameToDepInfoMap{}
-	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
+	a.WalkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
 		if from.Name() == to.Name() {
 			// This can happen for cc.reuseObjTag. We are not interested in tracking this.
 			// As soon as the dependency graph crosses the APEX boundary, don't go further.

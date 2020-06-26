@@ -421,8 +421,10 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 		if String(a.deviceProperties.Min_sdk_version) == "" {
 			ctx.PropertyErrorf("updatable", "updatable apps must set min_sdk_version.")
 		}
+
 		if minSdkVersion, err := a.minSdkVersion().effectiveVersion(ctx); err == nil {
 			a.checkJniLibsSdkVersion(ctx, minSdkVersion)
+			android.CheckMinSdkVersion(a, ctx, int(minSdkVersion))
 		} else {
 			ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
 		}
@@ -876,13 +878,13 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 	return jniLibs, certificates
 }
 
-func (a *AndroidApp) walkPayloadDeps(ctx android.ModuleContext,
-	do func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool)) {
-
+func (a *AndroidApp) WalkPayloadDeps(ctx android.ModuleContext, do android.PayloadDepsCallback) {
 	ctx.WalkDeps(func(child, parent android.Module) bool {
 		isExternal := !a.DepIsInSameApex(ctx, child)
 		if am, ok := child.(android.ApexModule); ok {
-			do(ctx, parent, am, isExternal)
+			if !do(ctx, parent, am, isExternal) {
+				return false
+			}
 		}
 		return !isExternal
 	})
@@ -894,7 +896,7 @@ func (a *AndroidApp) buildAppDependencyInfo(ctx android.ModuleContext) {
 	}
 
 	depsInfo := android.DepNameToDepInfoMap{}
-	a.walkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) {
+	a.WalkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
 		depName := to.Name()
 		if info, exist := depsInfo[depName]; exist {
 			info.From = append(info.From, from.Name())
@@ -914,6 +916,7 @@ func (a *AndroidApp) buildAppDependencyInfo(ctx android.ModuleContext) {
 				MinSdkVersion: toMinSdkVersion,
 			}
 		}
+		return true
 	})
 
 	a.ApexBundleDepsInfo.BuildDepsInfoLists(ctx, a.MinSdkVersion(), depsInfo)
@@ -1575,6 +1578,11 @@ func (a *AndroidAppImport) sdkVersion() sdkSpec {
 
 func (a *AndroidAppImport) minSdkVersion() sdkSpec {
 	return sdkSpecFrom("")
+}
+
+func (j *AndroidAppImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion int) error {
+	// Do not check for prebuilts against the min_sdk_version of enclosing APEX
+	return nil
 }
 
 func createVariantGroupType(variants []string, variantGroupName string) reflect.Type {
