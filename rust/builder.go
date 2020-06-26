@@ -39,6 +39,18 @@ var (
 		},
 		"rustcFlags", "linkFlags", "libFlags", "crtBegin", "crtEnd")
 
+	_            = pctx.SourcePathVariable("clippyCmd", "${config.RustBin}/clippy-driver")
+	clippyDriver = pctx.AndroidStaticRule("clippy",
+		blueprint.RuleParams{
+			Command: "$clippyCmd " +
+				// Because clippy-driver uses rustc as backend, we need to have some output even during the linting.
+				// Use the metadata output as it has the smallest footprint.
+				"--emit metadata -o $out $in ${libFlags} " +
+				"$clippyFlags $rustcFlags",
+			CommandDeps: []string{"$clippyCmd"},
+		},
+		"rustcFlags", "libFlags", "clippyFlags")
+
 	zip = pctx.AndroidStaticRule("zip",
 		blueprint.RuleParams{
 			Command:        "cat $out.rsp | tr ' ' '\\n' | tr -d \\' | sort -u > ${out}.tmp && ${SoongZipCmd} -o ${out} -C $$OUT_DIR -l ${out}.tmp",
@@ -125,10 +137,14 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 		rustcFlags = append(rustcFlags, "--target="+targetTriple)
 		linkFlags = append(linkFlags, "-target "+targetTriple)
 	}
-	// TODO once we have static libraries in the host prebuilt .bp, this
-	// should be unconditionally added.
-	if !(ctx.Host() && ctx.TargetPrimary()) {
-		// If we're not targeting the host primary arch, do not use an implicit sysroot
+	// TODO(b/159718669): Once we have defined static libraries in the host
+	// prebuilts Blueprint file, sysroot should be unconditionally sourced
+	// from /dev/null. Explicitly set sysroot to avoid clippy-driver to
+	// internally call rustc.
+	if ctx.Host() && ctx.TargetPrimary() {
+		rustcFlags = append(rustcFlags, "--sysroot=${config.RustPath}")
+	} else {
+		// If we're not targeting the host primary arch, do not use a sysroot.
 		rustcFlags = append(rustcFlags, "--sysroot=/dev/null")
 	}
 	// Collect linker flags
@@ -177,6 +193,25 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 
 		implicitOutputs = append(implicitOutputs, gcnoFile)
 		output.coverageFile = gcnoFile
+	}
+
+	if flags.Clippy {
+		clippyFile := android.PathForModuleOut(ctx, outputFile.Base()+".clippy")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:            clippyDriver,
+			Description:     "clippy " + main.Rel(),
+			Output:          clippyFile,
+			ImplicitOutputs: nil,
+			Inputs:          inputs,
+			Implicits:       implicits,
+			Args: map[string]string{
+				"rustcFlags":  strings.Join(rustcFlags, " "),
+				"libFlags":    strings.Join(libFlags, " "),
+				"clippyFlags": strings.Join(flags.ClippyFlags, " "),
+			},
+		})
+		// Declare the clippy build as an implicit dependency of the original crate.
+		implicits = append(implicits, clippyFile)
 	}
 
 	ctx.Build(pctx, android.BuildParams{

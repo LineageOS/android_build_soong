@@ -9,6 +9,7 @@ bootstrap_go_package {
         "arm_device.go",
         "arm64_device.go",
         "global.go",
+        "clippy.go",
         "toolchain.go",
         "allowed_list.go",
         "x86_darwin_host.go",
