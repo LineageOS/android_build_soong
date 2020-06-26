@@ -70,6 +70,12 @@ func (tag scopeDependencyTag) extractDepInfo(ctx android.ModuleContext, dep andr
 	}
 }
 
+var _ android.ReplaceSourceWithPrebuilt = (*scopeDependencyTag)(nil)
+
+func (tag scopeDependencyTag) ReplaceSourceWithPrebuilt() bool {
+	return false
+}
+
 // Provides information about an api scope, e.g. public, system, test.
 type apiScope struct {
 	// The name of the api scope, e.g. public, system, test
