@@ -30,6 +30,16 @@ func RegisterPrebuiltMutators(ctx RegistrationContext) {
 	ctx.PostDepsMutators(RegisterPrebuiltsPostDepsMutators)
 }
 
+// Marks a dependency tag as possibly preventing a reference to a source from being
+// replaced with the prebuilt.
+type ReplaceSourceWithPrebuilt interface {
+	blueprint.DependencyTag
+
+	// Return true if the dependency defined by this tag should be replaced with the
+	// prebuilt.
+	ReplaceSourceWithPrebuilt() bool
+}
+
 type prebuiltDependencyTag struct {
 	blueprint.BaseDependencyTag
 }
@@ -244,7 +254,13 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 		name := m.base().BaseModuleName()
 		if p.properties.UsePrebuilt {
 			if p.properties.SourceExists {
-				ctx.ReplaceDependencies(name)
+				ctx.ReplaceDependenciesIf(name, func(from blueprint.Module, tag blueprint.DependencyTag, to blueprint.Module) bool {
+					if t, ok := tag.(ReplaceSourceWithPrebuilt); ok {
+						return t.ReplaceSourceWithPrebuilt()
+					}
+
+					return true
+				})
 			}
 		} else {
 			m.SkipInstall()
