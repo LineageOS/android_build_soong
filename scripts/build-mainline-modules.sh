@@ -23,6 +23,14 @@ MODULES_SDK_AND_EXPORTS=(
   runtime-module-host-exports
   i18n-module-test-exports
   i18n-module-sdk
+  platform-mainline-sdk
+)
+
+# List of libraries installed on the platform that are needed for ART chroot
+# testing.
+PLATFORM_LIBRARIES=(
+  liblog
+  libartpalette-system
 )
 
 # We want to create apex modules for all supported architectures.
@@ -49,7 +57,8 @@ DIST_DIR=$(source build/envsetup.sh > /dev/null; TARGET_PRODUCT= get_build_var D
 for product in "${PRODUCTS[@]}"; do
   echo_and_run build/soong/soong_ui.bash --make-mode $@ \
     TARGET_PRODUCT=${product} \
-    ${MAINLINE_MODULES[@]}
+    ${MAINLINE_MODULES[@]} \
+    ${PLATFORM_LIBRARIES[@]}
 
   PRODUCT_OUT=$(source build/envsetup.sh > /dev/null; TARGET_PRODUCT=${product} get_build_var PRODUCT_OUT)
   TARGET_ARCH=$(source build/envsetup.sh > /dev/null; TARGET_PRODUCT=${product} get_build_var TARGET_ARCH)
@@ -58,8 +67,10 @@ for product in "${PRODUCTS[@]}"; do
   for module in "${MAINLINE_MODULES[@]}"; do
     echo_and_run cp ${PWD}/${PRODUCT_OUT}/system/apex/${module}.apex ${DIST_DIR}/${TARGET_ARCH}/
   done
+  for library in "${PLATFORM_LIBRARIES[@]}"; do
+    echo_and_run cp ${PWD}/${PRODUCT_OUT}/system/lib/${library}.so ${DIST_DIR}/${TARGET_ARCH}/
+  done
 done
-
 
 # Create multi-archs SDKs in a different out directory. The multi-arch script
 # uses Soong in --skip-make mode which cannot use the same directory as normal
