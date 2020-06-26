@@ -86,6 +86,7 @@ func testContext() *android.TestContext {
 	RegisterStubsBuildComponents(ctx)
 	RegisterSdkLibraryBuildComponents(ctx)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	ctx.PreArchMutators(android.RegisterComponentsMutator)
 
 	RegisterPrebuiltApisBuildComponents(ctx)
 
@@ -650,11 +651,11 @@ func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
 	})
 
 	checkModuleDependencies(t, ctx, "prebuilt_sdklib", "android_common", []string{
+		`prebuilt_sdklib.stubs`,
 		`sdklib.impl`,
 		// This should be prebuilt_sdklib.stubs but is set to sdklib.stubs because the
 		// dependency is added after prebuilts may have been renamed and so has to use
 		// the renamed name.
-		`sdklib.stubs`,
 		`sdklib.xml`,
 	})
 }
