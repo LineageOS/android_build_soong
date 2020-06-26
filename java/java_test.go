@@ -25,6 +25,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -168,6 +169,20 @@ func moduleToPath(name string) string {
 		return name
 	default:
 		return filepath.Join(buildDir, ".intermediates", name, "android_common", "turbine-combined", name+".jar")
+	}
+}
+
+func checkModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
+	t.Helper()
+	module := ctx.ModuleForTests(name, variant).Module()
+	deps := []string{}
+	ctx.VisitDirectDeps(module, func(m blueprint.Module) {
+		deps = append(deps, m.Name())
+	})
+	sort.Strings(deps)
+
+	if actual := deps; !reflect.DeepEqual(expected, actual) {
+		t.Errorf("expected %#q, found %#q", expected, actual)
 	}
 }
 
@@ -596,6 +611,90 @@ func TestJavaSdkLibraryImport(t *testing.T) {
 			t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], sdklibStubsJar.String())
 		}
 	}
+
+	checkModuleDependencies(t, ctx, "sdklib", "android_common", []string{
+		`prebuilt_sdklib.stubs`,
+		`prebuilt_sdklib.stubs.source.test`,
+		`prebuilt_sdklib.stubs.system`,
+		`prebuilt_sdklib.stubs.test`,
+	})
+}
+
+func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_sdk_library {
+			name: "sdklib",
+			srcs: ["a.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			public: {
+				enabled: true,
+			},
+		}
+
+		java_sdk_library_import {
+			name: "sdklib",
+			public: {
+				jars: ["a.jar"],
+			},
+		}
+		`)
+
+	checkModuleDependencies(t, ctx, "sdklib", "android_common", []string{
+		`dex2oatd`,
+		`prebuilt_sdklib`,
+		`sdklib.impl`,
+		`sdklib.stubs`,
+		`sdklib.stubs.source`,
+		`sdklib.xml`,
+	})
+
+	checkModuleDependencies(t, ctx, "prebuilt_sdklib", "android_common", []string{
+		`sdklib.impl`,
+		// This should be prebuilt_sdklib.stubs but is set to sdklib.stubs because the
+		// dependency is added after prebuilts may have been renamed and so has to use
+		// the renamed name.
+		`sdklib.stubs`,
+		`sdklib.xml`,
+	})
+}
+
+func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_sdk_library {
+			name: "sdklib",
+			srcs: ["a.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			public: {
+				enabled: true,
+			},
+		}
+
+		java_sdk_library_import {
+			name: "sdklib",
+			prefer: true,
+			public: {
+				jars: ["a.jar"],
+			},
+		}
+		`)
+
+	checkModuleDependencies(t, ctx, "sdklib", "android_common", []string{
+		`dex2oatd`,
+		`prebuilt_sdklib`,
+		// This should be sdklib.stubs but is switched to the prebuilt because it is preferred.
+		`prebuilt_sdklib.stubs`,
+		`sdklib.impl`,
+		`sdklib.stubs.source`,
+		`sdklib.xml`,
+	})
+
+	checkModuleDependencies(t, ctx, "prebuilt_sdklib", "android_common", []string{
+		`prebuilt_sdklib.stubs`,
+		`sdklib.impl`,
+		`sdklib.xml`,
+	})
 }
 
 func TestDefaults(t *testing.T) {
@@ -1399,6 +1498,28 @@ func TestJavaSdkLibrary_AccessOutputFiles_MissingScope(t *testing.T) {
 			srcs: ["b.java", ":foo{.system.stubs.source}"],
 		}
 		`)
+}
+
+func TestJavaSdkLibrary_Deps(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_sdk_library {
+			name: "sdklib",
+			srcs: ["a.java"],
+			sdk_version: "none",
+			system_modules: "none",
+			public: {
+				enabled: true,
+			},
+		}
+		`)
+
+	checkModuleDependencies(t, ctx, "sdklib", "android_common", []string{
+		`dex2oatd`,
+		`sdklib.impl`,
+		`sdklib.stubs`,
+		`sdklib.stubs.source`,
+		`sdklib.xml`,
+	})
 }
 
 func TestJavaSdkLibraryImport_AccessOutputFiles(t *testing.T) {
