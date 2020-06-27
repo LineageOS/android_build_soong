@@ -342,6 +342,12 @@ type CompilerDeviceProperties struct {
 	// otherwise provides defaults libraries to add to the bootclasspath.
 	System_modules *string
 
+	// The name of the module as used in build configuration.
+	//
+	// Allows a library to separate its actual name from the name used in
+	// build configuration, e.g.ctx.Config().BootJars().
+	ConfigurationName *string `blueprint:"mutated"`
+
 	// set the name of the output
 	Stem *string
 
@@ -483,7 +489,7 @@ type Module struct {
 	// list of the xref extraction files
 	kytheFiles android.Paths
 
-	distFile android.Path
+	distFiles android.TaggedDistFiles
 
 	// Collect the module directory for IDE info in java/jdeps.go.
 	modulePaths []string
@@ -1635,8 +1641,11 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			return
 		}
 
+		configurationName := j.ConfigurationName()
+		primary := configurationName == ctx.ModuleName()
+
 		// Hidden API CSV generation and dex encoding
-		dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, dexOutputFile, j.implementationJarFile,
+		dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, configurationName, primary, dexOutputFile, j.implementationJarFile,
 			proptools.Bool(j.deviceProperties.Uncompress_dex))
 
 		// merge dex jar with resources if necessary
@@ -1913,6 +1922,10 @@ func (j *Module) Stem() string {
 	return proptools.StringDefault(j.deviceProperties.Stem, j.Name())
 }
 
+func (j *Module) ConfigurationName() string {
+	return proptools.StringDefault(j.deviceProperties.ConfigurationName, j.BaseModuleName())
+}
+
 func (j *Module) JacocoReportClassesFile() android.Path {
 	return j.jacocoReportClassesFile
 }
@@ -1925,17 +1938,8 @@ func (j *Module) IsInstallable() bool {
 // Java libraries (.jar file)
 //
 
-type LibraryProperties struct {
-	Dist struct {
-		// The tag of the output of this module that should be output.
-		Tag *string `android:"arch_variant"`
-	} `android:"arch_variant"`
-}
-
 type Library struct {
 	Module
-
-	libraryProperties LibraryProperties
 
 	InstallMixin func(ctx android.ModuleContext, installPath android.Path) (extraInstallDeps android.Paths)
 }
@@ -1998,14 +2002,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			j.Stem()+".jar", j.outputFile, extraInstallDeps...)
 	}
 
-	// Verify Dist.Tag is set to a supported output
-	if j.libraryProperties.Dist.Tag != nil {
-		distFiles, err := j.OutputFiles(*j.libraryProperties.Dist.Tag)
-		if err != nil {
-			ctx.PropertyErrorf("dist.tag", "%s", err.Error())
-		}
-		j.distFile = distFiles[0]
-	}
+	j.distFiles = j.GenerateTaggedDistFiles(ctx)
 }
 
 func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -2123,7 +2120,6 @@ func LibraryFactory() android.Module {
 	module := &Library{}
 
 	module.addHostAndDeviceProperties()
-	module.AddProperties(&module.libraryProperties)
 
 	module.initModuleAndImport(&module.ModuleBase)
 
