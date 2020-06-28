@@ -145,11 +145,18 @@ func createLibcoreRules() []Rule {
 		"prebuilts",
 	}
 
-	// Core library constraints. The sdk_version: "none" can only be used in core library projects.
+	// Additional whitelisted path only used for ART testing, which needs access to core library
+	// targets. This does not affect the contents of a device image (system, vendor, etc.).
+	var artTests = []string{
+		"art/test",
+	}
+
+	// Core library constraints. The sdk_version: "none" can only be used in core library projects and ART tests.
 	// Access to core library targets is restricted using visibility rules.
 	rules := []Rule{
 		NeverAllow().
 			NotIn(coreLibraryProjects...).
+			NotIn(artTests...).
 			With("sdk_version", "none").
 			WithoutMatcher("name", Regexp("^android_.*stubs_current$")),
 	}
