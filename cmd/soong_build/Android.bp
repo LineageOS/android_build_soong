@@ -29,4 +29,3 @@ bootstrap_go_binary {
     ],
     primaryBuilder: true,
 }
-
