@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	os.Exit(run())
 }
 
-func testPrebuiltEtc(t *testing.T, bp string) (*android.TestContext, android.Config) {
+func testPrebuiltEtcContext(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	fs := map[string][]byte{
 		"foo.conf": nil,
 		"bar.conf": nil,
@@ -67,6 +67,14 @@ func testPrebuiltEtc(t *testing.T, bp string) (*android.TestContext, android.Con
 	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
 	ctx.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
 	ctx.Register(config)
+
+	return ctx, config
+}
+
+func testPrebuiltEtc(t *testing.T, bp string) (*android.TestContext, android.Config) {
+	t.Helper()
+
+	ctx, config := testPrebuiltEtcContext(t, bp)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
@@ -75,6 +83,24 @@ func testPrebuiltEtc(t *testing.T, bp string) (*android.TestContext, android.Con
 	return ctx, config
 }
 
+func testPrebuiltEtcError(t *testing.T, pattern, bp string) {
+	t.Helper()
+
+	ctx, config := testPrebuiltEtcContext(t, bp)
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	if len(errs) > 0 {
+		android.FailIfNoMatchingErrors(t, pattern, errs)
+		return
+	}
+
+	_, errs = ctx.PrepareBuildActions(config)
+	if len(errs) > 0 {
+		android.FailIfNoMatchingErrors(t, pattern, errs)
+		return
+	}
+
+	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
+}
 func TestPrebuiltEtcVariants(t *testing.T) {
 	ctx, _ := testPrebuiltEtc(t, `
 		prebuilt_etc {
@@ -182,6 +208,33 @@ func TestPrebuiltEtcAndroidMk(t *testing.T) {
 			t.Errorf("No %s defined, saw %q", k, entries.EntryMap)
 		}
 	}
+}
+
+func TestPrebuiltEtcRelativeInstallPathInstallDirPath(t *testing.T) {
+	ctx, _ := testPrebuiltEtc(t, `
+		prebuilt_etc {
+			name: "foo.conf",
+			src: "foo.conf",
+			relative_install_path: "bar",
+		}
+	`)
+
+	p := ctx.ModuleForTests("foo.conf", "android_arm64_armv8-a").Module().(*PrebuiltEtc)
+	expected := buildDir + "/target/product/test_device/system/etc/bar"
+	if p.installDirPath.String() != expected {
+		t.Errorf("expected %q, got %q", expected, p.installDirPath.String())
+	}
+}
+
+func TestPrebuiltEtcCannotSetRelativeInstallPathAndSubDir(t *testing.T) {
+	testPrebuiltEtcError(t, "relative_install_path is set. Cannot set sub_dir", `
+		prebuilt_etc {
+			name: "foo.conf",
+			src: "foo.conf",
+			sub_dir: "bar",
+			relative_install_path: "bar",
+		}
+	`)
 }
 
 func TestPrebuiltEtcHost(t *testing.T) {

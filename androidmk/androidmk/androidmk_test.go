@@ -876,7 +876,7 @@ include $(BUILD_PREBUILT)
 prebuilt_etc {
 	name: "etc.test1",
 	src: "mymod",
-	sub_dir: "foo/bar",
+	relative_install_path: "foo/bar",
 
 }
 `,
@@ -896,7 +896,7 @@ prebuilt_etc {
 	name: "etc.test1",
 
 	src: "etc.test1",
-	sub_dir: "foo/bar",
+	relative_install_path: "foo/bar",
 
 }
 `,
@@ -913,7 +913,7 @@ include $(BUILD_PREBUILT)
 		expected: `
 prebuilt_etc {
 	name: "etc.test1",
-	sub_dir: "foo/bar",
+	relative_install_path: "foo/bar",
     device_specific: true,
 
 }
@@ -931,7 +931,7 @@ include $(BUILD_PREBUILT)
 		expected: `
 prebuilt_etc {
 	name: "etc.test1",
-	sub_dir: "foo/bar",
+	relative_install_path: "foo/bar",
 	product_specific: true,
 
 
@@ -950,7 +950,7 @@ include $(BUILD_PREBUILT)
 		expected: `
 prebuilt_etc {
 	name: "etc.test1",
-	sub_dir: "foo/bar",
+	relative_install_path: "foo/bar",
 	product_specific: true,
 
 }
@@ -968,7 +968,7 @@ include $(BUILD_PREBUILT)
 		expected: `
 prebuilt_etc {
 	name: "etc.test1",
-	sub_dir: "foo/bar",
+	relative_install_path: "foo/bar",
 	system_ext_specific: true,
 
 }
@@ -986,7 +986,7 @@ include $(BUILD_PREBUILT)
 		expected: `
 prebuilt_etc {
 	name: "etc.test1",
-	sub_dir: "foo/bar",
+	relative_install_path: "foo/bar",
 	system_ext_specific: true,
 
 
@@ -1005,7 +1005,7 @@ include $(BUILD_PREBUILT)
 		expected: `
 prebuilt_etc {
 	name: "etc.test1",
-	sub_dir: "foo/bar",
+	relative_install_path: "foo/bar",
 	proprietary: true,
 
 }
@@ -1023,7 +1023,7 @@ include $(BUILD_PREBUILT)
 		expected: `
 prebuilt_etc {
 	name: "etc.test1",
-	sub_dir: "foo/bar",
+	relative_install_path: "foo/bar",
 	proprietary: true,
 
 }
@@ -1041,7 +1041,7 @@ include $(BUILD_PREBUILT)
 		expected: `
 prebuilt_etc {
 	name: "etc.test1",
-	sub_dir: "foo/bar",
+	relative_install_path: "foo/bar",
 	proprietary: true,
 
 }
@@ -1059,7 +1059,7 @@ include $(BUILD_PREBUILT)
 		expected: `
 prebuilt_etc {
 	name: "etc.test1",
-	sub_dir: "foo/bar",
+	relative_install_path: "foo/bar",
 	recovery: true,
 
 }
@@ -1098,7 +1098,7 @@ prebuilt_usr_share {
 	name: "foo",
 
 	src: "foo.txt",
-	sub_dir: "bar",
+	relative_install_path: "bar",
 }
 `,
 	},
@@ -1174,7 +1174,7 @@ prebuilt_usr_share_host {
 	name: "foo",
 
 	src: "foo.txt",
-	sub_dir: "bar",
+	relative_install_path: "bar",
 }
 `,
 	},
@@ -1193,7 +1193,7 @@ prebuilt_firmware {
 	name: "foo",
 
 	src: "foo.fw",
-	sub_dir: "bar",
+	relative_install_path: "bar",
 }
 `,
 	},
@@ -1212,7 +1212,7 @@ prebuilt_firmware {
 	name: "foo",
 
 	src: "foo.fw",
-	sub_dir: "bar",
+	relative_install_path: "bar",
 }
 `,
 	},
@@ -1231,7 +1231,7 @@ prebuilt_firmware {
 	name: "foo",
 
 	src: "foo.fw",
-	sub_dir: "bar",
+	relative_install_path: "bar",
 	proprietary: true,
 }
 `,
@@ -1251,7 +1251,7 @@ prebuilt_firmware {
 	name: "foo",
 
 	src: "foo.fw",
-	sub_dir: "bar",
+	relative_install_path: "bar",
 	proprietary: true,
 }
 `,
