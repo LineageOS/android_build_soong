@@ -412,7 +412,10 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 	switch sdkVersion.kind {
 	case sdkPrivate:
 		return sdkDep{
-			useDefaultLibs:     true,
+			useModule:          true,
+			systemModules:      config.LegacyCorePlatformSystemModules,
+			bootclasspath:      config.LegacyCorePlatformBootclasspathLibraries,
+			classpath:          config.FrameworkLibraries,
 			frameworkResModule: "framework-res",
 		}
 	case sdkNone:
@@ -434,7 +437,9 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		}
 	case sdkCorePlatform:
 		return sdkDep{
-			useDefaultLibs:     true,
+			useModule:          true,
+			systemModules:      config.LegacyCorePlatformSystemModules,
+			bootclasspath:      config.LegacyCorePlatformBootclasspathLibraries,
 			frameworkResModule: "framework-res",
 			noFrameworksLibs:   true,
 		}
