@@ -22,4 +22,3 @@ blueprint_go_binary {
         "zipsync.go",
     ],
 }
-

@@ -44,11 +44,9 @@ bootstrap_go_package {
         "bpfix/bpfix.go",
     ],
     testSrcs: [
-      "bpfix/bpfix_test.go",
+        "bpfix/bpfix_test.go",
     ],
     deps: [
         "blueprint-parser",
     ],
 }
-
-
