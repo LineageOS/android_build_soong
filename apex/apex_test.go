@@ -2105,7 +2105,7 @@ func TestUseVendor(t *testing.T) {
 	ensureNotContains(t, inputsString, "android_arm64_armv8-a_shared_myapex/mylib2.so")
 }
 
-func TestUseVendorRestriction(t *testing.T) {
+func TestUseVendorNotAllowedForSystemApexes(t *testing.T) {
 	testApexError(t, `module "myapex" .*: use_vendor: not allowed`, `
 		apex {
 			name: "myapex",
@@ -2159,6 +2159,141 @@ func TestUseVendorFailsIfNotVendorAvailable(t *testing.T) {
 			stl: "none",
 		}
 	`)
+}
+
+func TestVendorApex(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			binaries: ["mybin"],
+			vendor: true,
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+		cc_binary {
+			name: "mybin",
+			vendor: true,
+			shared_libs: ["libfoo"],
+		}
+		cc_library {
+			name: "libfoo",
+			proprietary: true,
+		}
+	`)
+
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"bin/mybin",
+		"lib64/libfoo.so",
+		// TODO(b/159195575): Add an option to use VNDK libs from VNDK APEX
+		"lib64/libc++.so",
+	})
+
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	name := apexBundle.BaseModuleName()
+	prefix := "TARGET_"
+	var builder strings.Builder
+	data.Custom(&builder, name, prefix, "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, `LOCAL_MODULE_PATH := /tmp/target/product/test_device/vendor/apex`)
+}
+
+func TestAndroidMk_UseVendorRequired(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			use_vendor: true,
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			vendor_available: true,
+			apex_available: ["myapex"],
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		setUseVendorAllowListForTest(config, []string{"myapex"})
+	})
+
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	name := apexBundle.BaseModuleName()
+	prefix := "TARGET_"
+	var builder strings.Builder
+	data.Custom(&builder, name, prefix, "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += libc libm libdl\n")
+}
+
+func TestAndroidMk_VendorApexRequired(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			vendor: true,
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			vendor_available: true,
+		}
+	`)
+
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	name := apexBundle.BaseModuleName()
+	prefix := "TARGET_"
+	var builder strings.Builder
+	data.Custom(&builder, name, prefix, "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += libc.vendor libm.vendor libdl.vendor\n")
+}
+
+func TestAndroidMkWritesCommonProperties(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			vintf_fragments: ["fragment.xml"],
+			init_rc: ["init.rc"],
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+		cc_binary {
+			name: "mybin",
+		}
+	`)
+
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	name := apexBundle.BaseModuleName()
+	prefix := "TARGET_"
+	var builder strings.Builder
+	data.Custom(&builder, name, prefix, "", data)
+	androidMk := builder.String()
+	ensureContains(t, androidMk, "LOCAL_VINTF_FRAGMENTS := fragment.xml\n")
+	ensureContains(t, androidMk, "LOCAL_INIT_RC := init.rc\n")
 }
 
 func TestStaticLinking(t *testing.T) {
