@@ -742,6 +742,22 @@ func TestRewritePrebuiltEtc(t *testing.T) {
 		}
 		`,
 		},
+		{
+			name: "prebuilt_etc sub_dir",
+			in: `
+			prebuilt_etc {
+			name: "foo",
+			src: "bar",
+			sub_dir: "baz",
+		}
+		`,
+			out: `prebuilt_etc {
+			name: "foo",
+			src: "bar",
+			relative_install_dir: "baz",
+		}
+		`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
