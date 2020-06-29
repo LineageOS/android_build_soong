@@ -34,7 +34,7 @@ var (
 
 	globalPgoProfileProjects = []string{
 		"toolchain/pgo-profiles",
-		"vendor/google_data/pgo-profiles",
+		"vendor/google_data/pgo_profile",
 	}
 )
 
