@@ -106,15 +106,24 @@ toolchain_library {
         },
         arm64: {
             src: "prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/lib/gcc/aarch64-linux-android/4.9.x/libgcc.a",
-            repack_objects_to_keep: ["unwind-dw2.o", "unwind-dw2-fde-dip.o"],
+            repack_objects_to_keep: [
+                "unwind-dw2.o",
+                "unwind-dw2-fde-dip.o",
+            ],
         },
         x86: {
             src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/lib/gcc/x86_64-linux-android/4.9.x/32/libgcc.a",
-            repack_objects_to_keep: ["unwind-dw2.o", "unwind-dw2-fde-dip.o"],
+            repack_objects_to_keep: [
+                "unwind-dw2.o",
+                "unwind-dw2-fde-dip.o",
+            ],
         },
         x86_64: {
             src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/lib/gcc/x86_64-linux-android/4.9.x/libgcc.a",
-            repack_objects_to_keep: ["unwind-dw2.o", "unwind-dw2-fde-dip.o"],
+            repack_objects_to_keep: [
+                "unwind-dw2.o",
+                "unwind-dw2-fde-dip.o",
+            ],
         },
     },
 }
