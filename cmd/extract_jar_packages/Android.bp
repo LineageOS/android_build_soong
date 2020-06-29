@@ -22,4 +22,3 @@ blueprint_go_binary {
         "extract_jar_packages.go",
     ],
 }
-
