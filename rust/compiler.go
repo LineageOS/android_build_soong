@@ -67,6 +67,9 @@ type BaseCompilerProperties struct {
 	// list of rust dylib crate dependencies
 	Dylibs []string `android:"arch_variant"`
 
+	// list of rust automatic crate dependencies
+	Rustlibs []string `android:"arch_variant"`
+
 	// list of rust proc_macro crate dependencies
 	Proc_macros []string `android:"arch_variant"`
 
@@ -178,6 +181,7 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.Rlibs = append(deps.Rlibs, compiler.Properties.Rlibs...)
 	deps.Dylibs = append(deps.Dylibs, compiler.Properties.Dylibs...)
+	deps.Rustlibs = append(deps.Rustlibs, compiler.Properties.Rustlibs...)
 	deps.ProcMacros = append(deps.ProcMacros, compiler.Properties.Proc_macros...)
 	deps.StaticLibs = append(deps.StaticLibs, compiler.Properties.Static_libs...)
 	deps.SharedLibs = append(deps.SharedLibs, compiler.Properties.Shared_libs...)
