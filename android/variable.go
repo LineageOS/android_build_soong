@@ -308,8 +308,6 @@ type productVariables struct {
 	BoardPlatPrivateSepolicyDirs []string `json:",omitempty"`
 	BoardSepolicyM4Defs          []string `json:",omitempty"`
 
-	BoardVndkRuntimeDisable *bool `json:",omitempty"`
-
 	VendorVars map[string]map[string]string `json:",omitempty"`
 
 	Ndk_abis               *bool `json:",omitempty"`
