@@ -533,7 +533,7 @@ func (f etcPrebuiltModuleUpdate) update(m *parser.Module, path string) bool {
 		updated = true
 	} else if trimmedPath := strings.TrimPrefix(path, f.prefix+"/"); trimmedPath != path {
 		m.Properties = append(m.Properties, &parser.Property{
-			Name:  "sub_dir",
+			Name:  "relative_install_path",
 			Value: &parser.String{Value: trimmedPath},
 		})
 		updated = true
@@ -580,6 +580,8 @@ func rewriteAndroidmkPrebuiltEtc(f *Fixer) error {
 
 		// 'srcs' --> 'src' conversion
 		convertToSingleSource(mod, "src")
+
+		renameProperty(mod, "sub_dir", "relative_install_dir")
 
 		// The rewriter converts LOCAL_MODULE_PATH attribute into a struct attribute
 		// 'local_module_path'. Analyze its contents and create the correct sub_dir:,
