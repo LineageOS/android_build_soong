@@ -106,7 +106,7 @@ python_binary_host {
         py3: {
             enabled: false,
         },
-    }
+    },
 }
 
 python_binary_host {

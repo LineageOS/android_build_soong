@@ -17,7 +17,7 @@
 //
 
 subdirs = [
-    "cmd"
+    "cmd",
 ]
 
 bootstrap_go_package {
@@ -30,8 +30,6 @@ bootstrap_go_package {
         "finder_test.go",
     ],
     deps: [
-      "soong-finder-fs",
+        "soong-finder-fs",
     ],
 }
-
-

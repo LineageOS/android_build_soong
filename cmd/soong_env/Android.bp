@@ -22,4 +22,3 @@ bootstrap_go_binary {
     ],
     default: true,
 }
-
