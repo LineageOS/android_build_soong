@@ -58,7 +58,7 @@ type AndroidMkData struct {
 
 	Extra []AndroidMkExtraFunc
 
-	preamble bytes.Buffer
+	Entries AndroidMkEntries
 }
 
 type AndroidMkExtraFunc func(w io.Writer, outputFile Path)
@@ -483,7 +483,7 @@ func translateGoBinaryModule(ctx SingletonContext, w io.Writer, mod blueprint.Mo
 
 func (data *AndroidMkData) fillInData(config Config, bpPath string, mod blueprint.Module) {
 	// Get the preamble content through AndroidMkEntries logic.
-	entries := AndroidMkEntries{
+	data.Entries = AndroidMkEntries{
 		Class:           data.Class,
 		SubName:         data.SubName,
 		DistFiles:       data.DistFiles,
@@ -494,16 +494,12 @@ func (data *AndroidMkData) fillInData(config Config, bpPath string, mod blueprin
 		Host_required:   data.Host_required,
 		Target_required: data.Target_required,
 	}
-	entries.fillInEntries(config, bpPath, mod)
-
-	// preamble doesn't need the footer content.
-	entries.footer = bytes.Buffer{}
-	entries.write(&data.preamble)
+	data.Entries.fillInEntries(config, bpPath, mod)
 
 	// copy entries back to data since it is used in Custom
-	data.Required = entries.Required
-	data.Host_required = entries.Host_required
-	data.Target_required = entries.Target_required
+	data.Required = data.Entries.Required
+	data.Host_required = data.Entries.Host_required
+	data.Target_required = data.Entries.Target_required
 }
 
 func translateAndroidModule(ctx SingletonContext, w io.Writer, mod blueprint.Module,
@@ -559,7 +555,9 @@ func WriteAndroidMkData(w io.Writer, data AndroidMkData) {
 		return
 	}
 
-	w.Write(data.preamble.Bytes())
+	// write preamble via Entries
+	data.Entries.footer = bytes.Buffer{}
+	data.Entries.write(w)
 
 	for _, extra := range data.Extra {
 		extra(w, data.OutputFile.Path())
