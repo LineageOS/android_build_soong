@@ -33,14 +33,7 @@ func (a *apexBundle) AndroidMk() android.AndroidMkData {
 			Disabled: true,
 		}
 	}
-	writers := []android.AndroidMkData{}
-	writers = append(writers, a.androidMkForType())
-	return android.AndroidMkData{
-		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
-			for _, data := range writers {
-				data.Custom(w, name, prefix, moduleDir, data)
-			}
-		}}
+	return a.androidMkForType()
 }
 
 func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, moduleDir string) []string {
@@ -308,6 +301,20 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", a.installDir.ToMakePath().String())
 				fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", name+apexType.suffix())
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE :=", !a.installable())
+
+				// Because apex writes .mk with Custom(), we need to write manually some common properties
+				// which are available via data.Entries
+				commonProperties := []string{
+					"LOCAL_INIT_RC", "LOCAL_VINTF_FRAGMENTS",
+					"LOCAL_PROPRIETARY_MODULE", "LOCAL_VENDOR_MODULE", "LOCAL_ODM_MODULE", "LOCAL_PRODUCT_MODULE", "LOCAL_SYSTEM_EXT_MODULE",
+					"LOCAL_MODULE_OWNER",
+				}
+				for _, name := range commonProperties {
+					if value, ok := data.Entries.EntryMap[name]; ok {
+						fmt.Fprintln(w, name+" := "+strings.Join(value, " "))
+					}
+				}
+
 				if len(a.overridableProperties.Overrides) > 0 {
 					fmt.Fprintln(w, "LOCAL_OVERRIDES_MODULES :=", strings.Join(a.overridableProperties.Overrides, " "))
 				}
