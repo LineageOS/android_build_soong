@@ -69,6 +69,28 @@ func TestSdkIsCompileMultilibBoth(t *testing.T) {
 	ensureListContains(t, inputs, arm64Output.String())
 }
 
+func TestSdkCompileMultilibOverride(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: ["sdkmember"],
+			compile_multilib: "64",
+		}
+
+		cc_library_shared {
+			name: "sdkmember",
+			srcs: ["Test.cpp"],
+			stl: "none",
+			compile_multilib: "64",
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAllCopyRules(`
+.intermediates/sdkmember/android_arm64_armv8-a_shared/sdkmember.so -> arm64/lib/sdkmember.so
+`))
+}
+
 func TestBasicSdkWithCc(t *testing.T) {
 	result := testSdkWithCc(t, `
 		sdk {

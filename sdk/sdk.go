@@ -218,7 +218,7 @@ func newSdkModule(moduleExports bool) *sdk {
 			Compile_multilib *string
 		}
 		p := &props{Compile_multilib: proptools.StringPtr("both")}
-		ctx.AppendProperties(p)
+		ctx.PrependProperties(p)
 	})
 	return s
 }
