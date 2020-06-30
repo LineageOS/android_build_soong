@@ -38,7 +38,10 @@ func ccDepsGeneratorSingleton() android.Singleton {
 }
 
 type ccdepsGeneratorSingleton struct {
+	outputPath android.Path
 }
+
+var _ android.SingletonMakeVarsProvider = (*ccdepsGeneratorSingleton)(nil)
 
 const (
 	// Environment variables used to control the behavior of this singleton.
@@ -110,6 +113,21 @@ func (c *ccdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCon
 	if err != nil {
 		ctx.Errorf(err.Error())
 	}
+	c.outputPath = ccfpath
+
+	// This is necessary to satisfy the dangling rules check as this file is written by Soong rather than a rule.
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Touch,
+		Output: ccfpath,
+	})
+}
+
+func (c *ccdepsGeneratorSingleton) MakeVars(ctx android.MakeVarsContext) {
+	if c.outputPath == nil {
+		return
+	}
+
+	ctx.DistForGoal("general-tests", c.outputPath)
 }
 
 func parseCompilerCCParameters(ctx android.SingletonContext, params []string) ccParameters {
