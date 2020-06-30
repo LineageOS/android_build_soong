@@ -16,9 +16,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"reflect"
 	"testing"
+
+	"github.com/golang/protobuf/proto"
 
 	bp "android/soong/cmd/extract_apks/bundle_proto"
 	"android/soong/third_party/zip"
@@ -430,48 +431,63 @@ func (w testZip2ZipWriter) CopyFrom(file *zip.File, out string) error {
 	return nil
 }
 
-type testCaseWriteZip struct {
+type testCaseWriteApks struct {
 	name       string
 	moduleName string
 	stem       string
+	partition  string
 	// what we write from what
-	expected map[string]string
+	expectedZipEntries map[string]string
+	expectedApkcerts   []string
 }
 
-func TestWriteZip(t *testing.T) {
-	testCases := []testCaseWriteZip{
+func TestWriteApks(t *testing.T) {
+	testCases := []testCaseWriteApks{
 		{
 			name:       "splits",
 			moduleName: "mybase",
 			stem:       "Foo",
-			expected: map[string]string{
+			partition:  "system",
+			expectedZipEntries: map[string]string{
 				"Foo.apk":       "splits/mybase-master.apk",
 				"Foo-xhdpi.apk": "splits/mybase-xhdpi.apk",
+			},
+			expectedApkcerts: []string{
+				`name="Foo-xhdpi.apk" certificate="PRESIGNED" private_key="" partition="system"`,
+				`name="Foo.apk" certificate="PRESIGNED" private_key="" partition="system"`,
 			},
 		},
 		{
 			name:       "universal",
 			moduleName: "base",
 			stem:       "Bar",
-			expected: map[string]string{
+			partition:  "product",
+			expectedZipEntries: map[string]string{
 				"Bar.apk": "universal.apk",
+			},
+			expectedApkcerts: []string{
+				`name="Bar.apk" certificate="PRESIGNED" private_key="" partition="product"`,
 			},
 		},
 	}
 	for _, testCase := range testCases {
 		apkSet := ApkSet{entries: make(map[string]*zip.File)}
 		sel := SelectionResult{moduleName: testCase.moduleName}
-		for _, in := range testCase.expected {
+		for _, in := range testCase.expectedZipEntries {
 			apkSet.entries[in] = &zip.File{FileHeader: zip.FileHeader{Name: in}}
 			sel.entries = append(sel.entries, in)
 		}
 		writer := testZip2ZipWriter{make(map[string]string)}
 		config := TargetConfig{stem: testCase.stem}
-		if err := apkSet.writeApks(sel, config, writer); err != nil {
+		apkcerts, err := apkSet.writeApks(sel, config, writer, testCase.partition)
+		if err != nil {
 			t.Error(err)
 		}
-		if !reflect.DeepEqual(testCase.expected, writer.entries) {
-			t.Errorf("expected %v, got %v", testCase.expected, writer.entries)
+		if !reflect.DeepEqual(testCase.expectedZipEntries, writer.entries) {
+			t.Errorf("expected zip entries %v, got %v", testCase.expectedZipEntries, writer.entries)
+		}
+		if !reflect.DeepEqual(testCase.expectedApkcerts, apkcerts) {
+			t.Errorf("expected apkcerts %v, got %v", testCase.expectedApkcerts, apkcerts)
 		}
 	}
 }
