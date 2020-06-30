@@ -208,7 +208,7 @@ type classLoaderContext struct {
 // targetSdkVersion in the manifest or APK is less than that API version.
 type classLoaderContextMap map[int]*classLoaderContext
 
-const anySdkVersion int = -1
+const anySdkVersion int = 9999 // should go last in class loader context
 
 func (m classLoaderContextMap) getSortedKeys() []int {
 	keys := make([]int, 0, len(m))
@@ -340,22 +340,21 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 				Text(`)"`)
 		}
 
-		// Generate commands that define shell variables for versioned classpaths
-		// and construct class loader context from them using construct_context.sh.
+		// Generate command that saves host and target class loader context in shell variables.
+		cmd := rule.Command().
+			Text(`eval "$(`).Tool(globalSoong.ConstructContext).
+			Text(` --target-sdk-version ${target_sdk_version}`)
 		for _, ver := range classLoaderContexts.getSortedKeys() {
 			clc := classLoaderContexts.getValue(ver)
-			var varHost, varTarget string
+			verString := fmt.Sprintf("%d", ver)
 			if ver == anySdkVersion {
-				varHost = "dex_preopt_host_libraries"
-				varTarget = "dex_preopt_target_libraries"
-			} else {
-				varHost = fmt.Sprintf("conditional_host_libs_%d", ver)
-				varTarget = fmt.Sprintf("conditional_target_libs_%d", ver)
+				verString = "any" // a special keyword that means any SDK version
 			}
-			rule.Command().Textf(varHost+`="%s"`, strings.Join(clc.Host.Strings(), " ")).Implicits(clc.Host)
-			rule.Command().Textf(varTarget+`="%s"`, strings.Join(clc.Target, " "))
+			cmd.Textf(`--host-classpath-for-sdk %s %s`, verString, strings.Join(clc.Host.Strings(), ":")).
+				Implicits(clc.Host).
+				Textf(`--target-classpath-for-sdk %s %s`, verString, strings.Join(clc.Target, ":"))
 		}
-		rule.Command().Text("source").Tool(globalSoong.ConstructContext).Input(module.DexPath)
+		cmd.Text(`)"`)
 	} else {
 		// Pass special class loader context to skip the classpath and collision check.
 		// This will get removed once LOCAL_USES_LIBRARIES is enforced.
