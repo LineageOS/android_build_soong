@@ -514,37 +514,48 @@ type DepsContext interface {
 }
 
 type ModuleContextIntf interface {
+	RustModule() *Module
 	toolchain() config.Toolchain
-	baseModuleName() string
-	CrateName() string
-	nativeCoverage() bool
 }
 
 type depsContext struct {
 	android.BottomUpMutatorContext
-	moduleContextImpl
 }
 
 type moduleContext struct {
 	android.ModuleContext
-	moduleContextImpl
 }
 
-func (ctx *moduleContextImpl) nativeCoverage() bool {
-	return ctx.mod.nativeCoverage()
+type baseModuleContext struct {
+	android.BaseModuleContext
+}
+
+func (ctx *moduleContext) RustModule() *Module {
+	return ctx.Module().(*Module)
+}
+
+func (ctx *moduleContext) toolchain() config.Toolchain {
+	return ctx.RustModule().toolchain(ctx)
+}
+
+func (ctx *depsContext) RustModule() *Module {
+	return ctx.Module().(*Module)
+}
+
+func (ctx *depsContext) toolchain() config.Toolchain {
+	return ctx.RustModule().toolchain(ctx)
+}
+
+func (ctx *baseModuleContext) RustModule() *Module {
+	return ctx.Module().(*Module)
+}
+
+func (ctx *baseModuleContext) toolchain() config.Toolchain {
+	return ctx.RustModule().toolchain(ctx)
 }
 
 func (mod *Module) nativeCoverage() bool {
 	return mod.compiler != nil && mod.compiler.nativeCoverage()
-}
-
-type moduleContextImpl struct {
-	mod *Module
-	ctx BaseModuleContext
-}
-
-func (ctx *moduleContextImpl) toolchain() config.Toolchain {
-	return ctx.mod.toolchain(ctx.ctx)
 }
 
 func (mod *Module) toolchain(ctx android.BaseModuleContext) config.Toolchain {
@@ -560,11 +571,7 @@ func (d *Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	ctx := &moduleContext{
 		ModuleContext: actx,
-		moduleContextImpl: moduleContextImpl{
-			mod: mod,
-		},
 	}
-	ctx.ctx = ctx
 
 	toolchain := mod.toolchain(ctx)
 
@@ -616,14 +623,6 @@ func (mod *Module) deps(ctx DepsContext) Deps {
 
 	return deps
 
-}
-
-func (ctx *moduleContextImpl) baseModuleName() string {
-	return ctx.mod.ModuleBase.BaseModuleName()
-}
-
-func (ctx *moduleContextImpl) CrateName() string {
-	return ctx.mod.CrateName()
 }
 
 type dependencyTag struct {
@@ -822,11 +821,7 @@ func libNameFromFilePath(filepath android.Path) string {
 func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	ctx := &depsContext{
 		BottomUpMutatorContext: actx,
-		moduleContextImpl: moduleContextImpl{
-			mod: mod,
-		},
 	}
-	ctx.ctx = ctx
 
 	deps := mod.deps(ctx)
 	commonDepVariations := []blueprint.Variation{}
@@ -873,19 +868,10 @@ func BeginMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-type baseModuleContext struct {
-	android.BaseModuleContext
-	moduleContextImpl
-}
-
 func (mod *Module) beginMutator(actx android.BottomUpMutatorContext) {
 	ctx := &baseModuleContext{
 		BaseModuleContext: actx,
-		moduleContextImpl: moduleContextImpl{
-			mod: mod,
-		},
 	}
-	ctx.ctx = ctx
 
 	mod.begin(ctx)
 }

@@ -253,7 +253,7 @@ func (compiler *baseCompiler) getStem(ctx ModuleContext) string {
 }
 
 func (compiler *baseCompiler) getStemWithoutSuffix(ctx BaseModuleContext) string {
-	stem := ctx.baseModuleName()
+	stem := ctx.ModuleName()
 	if String(compiler.Properties.Stem) != "" {
 		stem = String(compiler.Properties.Stem)
 	}

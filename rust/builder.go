@@ -69,36 +69,36 @@ func init() {
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 }
 
-func TransformSrcToBinary(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
+func TransformSrcToBinary(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath, includeDirs []string) buildOutput {
 	flags.RustFlags = append(flags.RustFlags, "-C lto")
 
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "bin", includeDirs)
 }
 
-func TransformSrctoRlib(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
+func TransformSrctoRlib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath, includeDirs []string) buildOutput {
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "rlib", includeDirs)
 }
 
-func TransformSrctoDylib(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
+func TransformSrctoDylib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath, includeDirs []string) buildOutput {
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "dylib", includeDirs)
 }
 
-func TransformSrctoStatic(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
+func TransformSrctoStatic(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath, includeDirs []string) buildOutput {
 	flags.RustFlags = append(flags.RustFlags, "-C lto")
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "staticlib", includeDirs)
 }
 
-func TransformSrctoShared(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
+func TransformSrctoShared(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath, includeDirs []string) buildOutput {
 	flags.RustFlags = append(flags.RustFlags, "-C lto")
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "cdylib", includeDirs)
 }
 
-func TransformSrctoProcMacro(ctx android.ModuleContext, mainSrc android.Path, deps PathDeps,
+func TransformSrctoProcMacro(ctx ModuleContext, mainSrc android.Path, deps PathDeps,
 	flags Flags, outputFile android.WritablePath, includeDirs []string) buildOutput {
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "proc-macro", includeDirs)
 }
@@ -111,7 +111,7 @@ func rustLibsToPaths(libs RustLibraries) android.Paths {
 	return paths
 }
 
-func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps PathDeps, flags Flags,
+func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, flags Flags,
 	outputFile android.WritablePath, crate_type string, includeDirs []string) buildOutput {
 
 	var inputs android.Paths
@@ -121,8 +121,8 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 	var implicitOutputs android.WritablePaths
 
 	output.outputFile = outputFile
-	crate_name := ctx.(ModuleContext).CrateName()
-	targetTriple := ctx.(ModuleContext).toolchain().RustTriple()
+	crate_name := ctx.RustModule().CrateName()
+	targetTriple := ctx.toolchain().RustTriple()
 
 	inputs = append(inputs, main)
 
@@ -233,7 +233,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 	return output
 }
 
-func TransformCoverageFilesToZip(ctx android.ModuleContext,
+func TransformCoverageFilesToZip(ctx ModuleContext,
 	covFiles android.Paths, baseName string) android.OptionalPath {
 	if len(covFiles) > 0 {
 
