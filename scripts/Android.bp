@@ -106,7 +106,7 @@ python_binary_host {
         py3: {
             enabled: false,
         },
-    }
+    },
 }
 
 python_binary_host {
@@ -152,5 +152,17 @@ python_test_host {
 python_binary_host {
     name: "lint-project-xml",
     main: "lint-project-xml.py",
-    srcs: ["lint-project-xml.py"],
+    srcs: [
+        "lint-project-xml.py",
+        "ninja_rsp.py",
+    ],
+}
+
+python_binary_host {
+    name: "gen-kotlin-build-file.py",
+    main: "gen-kotlin-build-file.py",
+    srcs: [
+        "gen-kotlin-build-file.py",
+        "ninja_rsp.py",
+    ],
 }

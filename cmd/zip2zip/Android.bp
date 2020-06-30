@@ -24,4 +24,3 @@ blueprint_go_binary {
     ],
     testSrcs: ["zip2zip_test.go"],
 }
-
