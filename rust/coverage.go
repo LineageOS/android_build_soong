@@ -67,6 +67,6 @@ func (cov *coverage) begin(ctx BaseModuleContext) {
 		// Host coverage not yet supported.
 	} else {
 		// Update useSdk and sdkVersion args if Rust modules become SDK aware.
-		cov.Properties = cc.SetCoverageProperties(ctx, cov.Properties, ctx.nativeCoverage(), false, "")
+		cov.Properties = cc.SetCoverageProperties(ctx, cov.Properties, ctx.RustModule().nativeCoverage(), false, "")
 	}
 }
