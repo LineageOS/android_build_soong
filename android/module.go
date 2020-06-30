@@ -234,6 +234,7 @@ type Module interface {
 	Disable()
 	Enabled() bool
 	Target() Target
+	Owner() string
 	InstallInData() bool
 	InstallInTestcases() bool
 	InstallInSanitizerDir() bool
