@@ -1308,6 +1308,7 @@ func TestSymlinkPointingToDirectory(t *testing.T) {
 
 	fs.Link(t, "/tmp/links/dir", "../dir", filesystem)
 	fs.Link(t, "/tmp/links/link", "../dir", filesystem)
+	fs.Link(t, "/tmp/links/hi.txt", "../dir", filesystem)
 	fs.Link(t, "/tmp/links/broken", "nothingHere", filesystem)
 	fs.Link(t, "/tmp/links/recursive", "recursive", filesystem)
 
