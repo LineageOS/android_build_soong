@@ -153,6 +153,9 @@ func TestAndroidAppSet(t *testing.T) {
 	if s := params.Args["allow-prereleased"]; s != "true" {
 		t.Errorf("wrong allow-prereleased value: '%s', expected 'true'", s)
 	}
+	if s := params.Args["partition"]; s != "system" {
+		t.Errorf("wrong partition value: '%s', expected 'system'", s)
+	}
 }
 
 func TestAndroidAppSet_Variants(t *testing.T) {
