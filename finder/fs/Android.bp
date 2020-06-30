@@ -25,6 +25,7 @@ bootstrap_go_package {
         "test.go",
     ],
     testSrcs: [
+        "fs_test.go",
         "readdir_test.go",
     ],
     darwin: {
