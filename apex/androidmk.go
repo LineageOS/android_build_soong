@@ -108,6 +108,9 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 		}
 		fmt.Fprintln(w, "LOCAL_MODULE :=", moduleName)
+		if fi.module != nil && fi.module.Owner() != "" {
+			fmt.Fprintln(w, "LOCAL_MODULE_OWNER :=", fi.module.Owner())
+		}
 		// /apex/<apex_name>/{lib|framework|...}
 		pathWhenActivated := filepath.Join("$(PRODUCT_OUT)", "apex", apexName, fi.installDir)
 		if apexType == flattenedApex {
