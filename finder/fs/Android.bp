@@ -22,6 +22,7 @@ bootstrap_go_package {
     srcs: [
         "fs.go",
         "readdir.go",
+        "test.go",
     ],
     testSrcs: [
         "readdir_test.go",
