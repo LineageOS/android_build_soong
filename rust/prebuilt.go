@@ -27,6 +27,8 @@ func init() {
 type PrebuiltProperties struct {
 	// path to the prebuilt file
 	Srcs []string `android:"path,arch_variant"`
+	// directories containing associated rlib dependencies
+	Link_dirs []string `android:"path,arch_variant"`
 }
 
 type prebuiltLibraryDecorator struct {
@@ -35,6 +37,7 @@ type prebuiltLibraryDecorator struct {
 }
 
 var _ compiler = (*prebuiltLibraryDecorator)(nil)
+var _ exportedFlagsProducer = (*prebuiltLibraryDecorator)(nil)
 
 func PrebuiltLibraryFactory() android.Module {
 	module, _ := NewPrebuiltLibrary(android.HostAndDeviceSupported)
@@ -90,6 +93,8 @@ func (prebuilt *prebuiltLibraryDecorator) compilerProps() []interface{} {
 }
 
 func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
+	prebuilt.exportLinkDirs(android.PathsForModuleSrc(ctx, prebuilt.Properties.Link_dirs).Strings()...)
+
 	srcPath := srcPathFromModuleSrcs(ctx, prebuilt.prebuiltSrcs())
 
 	prebuilt.unstrippedOutputFile = srcPath
