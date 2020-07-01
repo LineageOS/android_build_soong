@@ -143,3 +143,50 @@ func TestSharedLibrary(t *testing.T) {
 			libfoo.Module().(*Module).Properties.AndroidMkDylibs)
 	}
 }
+
+// Test that variants pull in the right type of rustlib autodep
+func TestAutoDeps(t *testing.T) {
+
+	ctx := testRust(t, `
+                rust_library_host {
+                        name: "libbar",
+                        srcs: ["bar.rs"],
+                        crate_name: "bar",
+                }
+		rust_library_host {
+			name: "libfoo",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+                        rustlibs: ["libbar"],
+		}
+                rust_ffi_host {
+                        name: "libfoo.ffi",
+                        srcs: ["foo.rs"],
+                        crate_name: "foo",
+                        rustlibs: ["libbar"],
+                }`)
+
+	libfooRlib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_rlib")
+	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib")
+	libfooStatic := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_static")
+	libfooShared := ctx.ModuleForTests("libfoo.ffi", "linux_glibc_x86_64_shared")
+
+	for _, static := range []android.TestingModule{libfooRlib, libfooStatic} {
+		if !android.InList("libbar", static.Module().(*Module).Properties.AndroidMkRlibs) {
+			t.Errorf("libbar not present as static dependency in static lib")
+		}
+		if android.InList("libbar", static.Module().(*Module).Properties.AndroidMkDylibs) {
+			t.Errorf("libbar present as dynamic dependency in static lib")
+		}
+	}
+
+	for _, dyn := range []android.TestingModule{libfooDylib, libfooShared} {
+		if !android.InList("libbar", dyn.Module().(*Module).Properties.AndroidMkDylibs) {
+			t.Errorf("libbar not present as dynamic dependency in dynamic lib")
+		}
+		if android.InList("libbar", dyn.Module().(*Module).Properties.AndroidMkRlibs) {
+			t.Errorf("libbar present as static dependency in dynamic lib")
+		}
+
+	}
+}

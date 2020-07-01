@@ -131,3 +131,11 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 func (binary *binaryDecorator) coverageOutputZipPath() android.OptionalPath {
 	return binary.coverageOutputZipFile
 }
+
+func (binary *binaryDecorator) autoDep() autoDep {
+	if binary.preferDynamic() {
+		return dylibAutoDep
+	} else {
+		return rlibAutoDep
+	}
+}
