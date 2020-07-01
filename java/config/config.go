@@ -28,12 +28,11 @@ import (
 var (
 	pctx = android.NewPackageContext("android/soong/java/config")
 
-	// TODO(b/157640067): Don't depend on the legacy API by default in the long term.
-	DefaultBootclasspathLibraries = []string{"legacy.core.platform.api.stubs", "core-lambda-stubs"}
-	DefaultSystemModules          = "legacy-core-platform-api-stubs-system-modules"
-	DefaultLibraries              = []string{"ext", "framework"}
-	DefaultLambdaStubsLibrary     = "core-lambda-stubs"
-	SdkLambdaStubsPath            = "prebuilts/sdk/tools/core-lambda-stubs.jar"
+	LegacyCorePlatformBootclasspathLibraries = []string{"legacy.core.platform.api.stubs", "core-lambda-stubs"}
+	LegacyCorePlatformSystemModules          = "legacy-core-platform-api-stubs-system-modules"
+	FrameworkLibraries                       = []string{"ext", "framework"}
+	DefaultLambdaStubsLibrary                = "core-lambda-stubs"
+	SdkLambdaStubsPath                       = "prebuilts/sdk/tools/core-lambda-stubs.jar"
 
 	DefaultMakeJacocoExcludeFilter = []string{"org.junit.*", "org.jacoco.*", "org.mockito.*"}
 	DefaultJacocoExcludeFilter     = []string{"org.junit.**", "org.jacoco.**", "org.mockito.**"}
