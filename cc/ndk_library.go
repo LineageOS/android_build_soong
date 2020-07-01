@@ -47,37 +47,10 @@ var (
 
 	ndkLibrarySuffix = ".ndk"
 
-	ndkPrebuiltSharedLibs = []string{
-		"aaudio",
-		"amidi",
-		"android",
-		"binder_ndk",
-		"c",
-		"camera2ndk",
-		"dl",
-		"EGL",
-		"GLESv1_CM",
-		"GLESv2",
-		"GLESv3",
-		"jnigraphics",
-		"log",
-		"mediandk",
-		"nativewindow",
-		"m",
-		"neuralnetworks",
-		"OpenMAXAL",
-		"OpenSLES",
-		"stdc++",
-		"sync",
-		"vulkan",
-		"z",
-	}
-	ndkPrebuiltSharedLibraries = addPrefix(append([]string(nil), ndkPrebuiltSharedLibs...), "lib")
-
-	// These libraries have migrated over to the new ndk_library, which is added
-	// as a variation dependency via depsMutator.
-	ndkMigratedLibs     = []string{}
-	ndkMigratedLibsLock sync.Mutex // protects ndkMigratedLibs writes during parallel BeginMutator
+	// Added as a variation dependency via depsMutator.
+	ndkKnownLibs = []string{}
+	// protects ndkKnownLibs writes during parallel BeginMutator.
+	ndkKnownLibsLock sync.Mutex
 )
 
 // Creates a stub shared library based on the provided version file.
@@ -257,14 +230,14 @@ func (c *stubDecorator) compilerInit(ctx BaseModuleContext) {
 		ctx.PropertyErrorf("name", "Do not append %q manually, just use the base name", ndkLibrarySuffix)
 	}
 
-	ndkMigratedLibsLock.Lock()
-	defer ndkMigratedLibsLock.Unlock()
-	for _, lib := range ndkMigratedLibs {
+	ndkKnownLibsLock.Lock()
+	defer ndkKnownLibsLock.Unlock()
+	for _, lib := range ndkKnownLibs {
 		if lib == name {
 			return
 		}
 	}
-	ndkMigratedLibs = append(ndkMigratedLibs, name)
+	ndkKnownLibs = append(ndkKnownLibs, name)
 }
 
 func addStubLibraryCompilerFlags(flags Flags) Flags {

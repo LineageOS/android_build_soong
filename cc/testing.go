@@ -32,6 +32,7 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", NdkPrebuiltSharedStlFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
+	ctx.RegisterModuleType("ndk_library", NdkLibraryFactory)
 }
 
 func GatherRequiredDepsForTest(oses ...android.OsType) string {
@@ -393,25 +394,22 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			system_shared_libs: [],
 		}
 
-		cc_library {
-			name: "libc.ndk.current",
-			sdk_version: "current",
-			stl: "none",
-			system_shared_libs: [],
+		ndk_library {
+			name: "libc",
+			first_version: "minimum",
+			symbol_file: "libc.map.txt",
 		}
 
-		cc_library {
-			name: "libm.ndk.current",
-			sdk_version: "current",
-			stl: "none",
-			system_shared_libs: [],
+		ndk_library {
+			name: "libm",
+			first_version: "minimum",
+			symbol_file: "libm.map.txt",
 		}
 
-		cc_library {
-			name: "libdl.ndk.current",
-			sdk_version: "current",
-			stl: "none",
-			system_shared_libs: [],
+		ndk_library {
+			name: "libdl",
+			first_version: "minimum",
+			symbol_file: "libdl.map.txt",
 		}
 
 		ndk_prebuilt_object {
@@ -503,7 +501,6 @@ func CreateTestContext() *android.TestContext {
 	ctx.RegisterModuleType("cc_fuzz", FuzzFactory)
 	ctx.RegisterModuleType("cc_test", TestFactory)
 	ctx.RegisterModuleType("llndk_headers", llndkHeadersFactory)
-	ctx.RegisterModuleType("ndk_library", NdkLibraryFactory)
 	ctx.RegisterModuleType("vendor_public_library", vendorPublicLibraryFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
