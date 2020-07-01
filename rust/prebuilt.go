@@ -19,12 +19,16 @@ import (
 )
 
 func init() {
+	android.RegisterModuleType("rust_prebuilt_library", PrebuiltLibraryFactory)
 	android.RegisterModuleType("rust_prebuilt_dylib", PrebuiltDylibFactory)
+	android.RegisterModuleType("rust_prebuilt_rlib", PrebuiltRlibFactory)
 }
 
 type PrebuiltProperties struct {
 	// path to the prebuilt file
 	Srcs []string `android:"path,arch_variant"`
+	// directories containing associated rlib dependencies
+	Link_dirs []string `android:"path,arch_variant"`
 }
 
 type prebuiltLibraryDecorator struct {
@@ -33,32 +37,65 @@ type prebuiltLibraryDecorator struct {
 }
 
 var _ compiler = (*prebuiltLibraryDecorator)(nil)
+var _ exportedFlagsProducer = (*prebuiltLibraryDecorator)(nil)
+
+func PrebuiltLibraryFactory() android.Module {
+	module, _ := NewPrebuiltLibrary(android.HostAndDeviceSupported)
+	return module.Init()
+}
 
 func PrebuiltDylibFactory() android.Module {
 	module, _ := NewPrebuiltDylib(android.HostAndDeviceSupported)
 	return module.Init()
 }
 
-func NewPrebuiltDylib(hod android.HostOrDeviceSupported) (*Module, *prebuiltLibraryDecorator) {
+func PrebuiltRlibFactory() android.Module {
+	module, _ := NewPrebuiltRlib(android.HostAndDeviceSupported)
+	return module.Init()
+}
+
+func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *prebuiltLibraryDecorator) {
 	module, library := NewRustLibrary(hod)
-	library.BuildOnlyDylib()
+	library.BuildOnlyRust()
 	library.setNoStdlibs()
-	library.setDylib()
 	prebuilt := &prebuiltLibraryDecorator{
 		libraryDecorator: library,
 	}
 	module.compiler = prebuilt
-	module.AddProperties(&library.Properties)
+	return module, prebuilt
+}
+
+func NewPrebuiltDylib(hod android.HostOrDeviceSupported) (*Module, *prebuiltLibraryDecorator) {
+	module, library := NewRustLibrary(hod)
+	library.BuildOnlyDylib()
+	library.setNoStdlibs()
+	prebuilt := &prebuiltLibraryDecorator{
+		libraryDecorator: library,
+	}
+	module.compiler = prebuilt
+	return module, prebuilt
+}
+
+func NewPrebuiltRlib(hod android.HostOrDeviceSupported) (*Module, *prebuiltLibraryDecorator) {
+	module, library := NewRustLibrary(hod)
+	library.BuildOnlyRlib()
+	library.setNoStdlibs()
+	prebuilt := &prebuiltLibraryDecorator{
+		libraryDecorator: library,
+	}
+	module.compiler = prebuilt
 	return module, prebuilt
 }
 
 func (prebuilt *prebuiltLibraryDecorator) compilerProps() []interface{} {
-	return append(prebuilt.baseCompiler.compilerProps(),
+	return append(prebuilt.libraryDecorator.compilerProps(),
 		&prebuilt.Properties)
 }
 
 func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
-	srcPath := srcPathFromModuleSrcs(ctx, prebuilt.Properties.Srcs)
+	prebuilt.exportLinkDirs(android.PathsForModuleSrc(ctx, prebuilt.Properties.Link_dirs).Strings()...)
+
+	srcPath := srcPathFromModuleSrcs(ctx, prebuilt.prebuiltSrcs())
 
 	prebuilt.unstrippedOutputFile = srcPath
 
@@ -72,4 +109,16 @@ func (prebuilt *prebuiltLibraryDecorator) compilerDeps(ctx DepsContext, deps Dep
 
 func (prebuilt *prebuiltLibraryDecorator) nativeCoverage() bool {
 	return false
+}
+
+func (prebuilt *prebuiltLibraryDecorator) prebuiltSrcs() []string {
+	srcs := prebuilt.Properties.Srcs
+	if prebuilt.rlib() {
+		srcs = append(srcs, prebuilt.libraryDecorator.Properties.Rlib.Srcs...)
+	}
+	if prebuilt.dylib() {
+		srcs = append(srcs, prebuilt.libraryDecorator.Properties.Dylib.Srcs...)
+	}
+
+	return srcs
 }

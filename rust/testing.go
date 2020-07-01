@@ -21,14 +21,26 @@ import (
 
 func GatherRequiredDepsForTest() string {
 	bp := `
-		rust_prebuilt_dylib {
+		rust_prebuilt_library {
 				name: "libstd_x86_64-unknown-linux-gnu",
-				srcs: [""],
+                                crate_name: "std",
+                                rlib: {
+                                    srcs: ["libstd.rlib"],
+                                },
+                                dylib: {
+                                    srcs: ["libstd.so"],
+                                },
 				host_supported: true,
 		}
-		rust_prebuilt_dylib {
+		rust_prebuilt_library {
 				name: "libtest_x86_64-unknown-linux-gnu",
-				srcs: [""],
+                                crate_name: "test",
+                                rlib: {
+                                    srcs: ["libtest.rlib"],
+                                },
+                                dylib: {
+                                    srcs: ["libtest.so"],
+                                },
 				host_supported: true,
 		}
 
@@ -41,34 +53,21 @@ func GatherRequiredDepsForTest() string {
 			nocrt: true,
 			system_shared_libs: [],
 		}
-		rust_library_dylib {
+		rust_library {
 			name: "libstd",
 			crate_name: "std",
 			srcs: ["foo.rs"],
 			no_stdlibs: true,
 			host_supported: true,
+                        native_coverage: false,
 		}
-		rust_library_rlib {
-			name: "libstd.static",
-			crate_name: "std",
-			srcs: ["foo.rs"],
-			no_stdlibs: true,
-			host_supported: true,
-		}
-		rust_library_dylib {
+		rust_library {
 			name: "libtest",
 			crate_name: "test",
 			srcs: ["foo.rs"],
 			no_stdlibs: true,
 			host_supported: true,
-
-		}
-		rust_library_rlib {
-			name: "libtest.static",
-			crate_name: "test",
-			srcs: ["foo.rs"],
-			no_stdlibs: true,
-			host_supported: true,
+                        native_coverage: false,
 		}
 
 ` + cc.GatherRequiredDepsForTest(android.NoOsType)
@@ -83,17 +82,21 @@ func CreateTestContext() *android.TestContext {
 	ctx.RegisterModuleType("rust_test", RustTestFactory)
 	ctx.RegisterModuleType("rust_test_host", RustTestHostFactory)
 	ctx.RegisterModuleType("rust_library", RustLibraryFactory)
-	ctx.RegisterModuleType("rust_library_host", RustLibraryHostFactory)
-	ctx.RegisterModuleType("rust_library_host_rlib", RustLibraryRlibHostFactory)
-	ctx.RegisterModuleType("rust_library_host_dylib", RustLibraryDylibHostFactory)
-	ctx.RegisterModuleType("rust_library_rlib", RustLibraryRlibFactory)
 	ctx.RegisterModuleType("rust_library_dylib", RustLibraryDylibFactory)
-	ctx.RegisterModuleType("rust_library_shared", RustLibrarySharedFactory)
-	ctx.RegisterModuleType("rust_library_static", RustLibraryStaticFactory)
-	ctx.RegisterModuleType("rust_library_host_shared", RustLibrarySharedHostFactory)
-	ctx.RegisterModuleType("rust_library_host_static", RustLibraryStaticHostFactory)
+	ctx.RegisterModuleType("rust_library_rlib", RustLibraryRlibFactory)
+	ctx.RegisterModuleType("rust_library_host", RustLibraryHostFactory)
+	ctx.RegisterModuleType("rust_library_host_dylib", RustLibraryDylibHostFactory)
+	ctx.RegisterModuleType("rust_library_host_rlib", RustLibraryRlibHostFactory)
+	ctx.RegisterModuleType("rust_ffi", RustFFIFactory)
+	ctx.RegisterModuleType("rust_ffi_shared", RustFFISharedFactory)
+	ctx.RegisterModuleType("rust_ffi_static", RustFFIStaticFactory)
+	ctx.RegisterModuleType("rust_ffi_host", RustFFIHostFactory)
+	ctx.RegisterModuleType("rust_ffi_host_shared", RustFFISharedHostFactory)
+	ctx.RegisterModuleType("rust_ffi_host_static", RustFFIStaticHostFactory)
 	ctx.RegisterModuleType("rust_proc_macro", ProcMacroFactory)
+	ctx.RegisterModuleType("rust_prebuilt_library", PrebuiltLibraryFactory)
 	ctx.RegisterModuleType("rust_prebuilt_dylib", PrebuiltDylibFactory)
+	ctx.RegisterModuleType("rust_prebuilt_rlib", PrebuiltRlibFactory)
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		// rust mutators
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()

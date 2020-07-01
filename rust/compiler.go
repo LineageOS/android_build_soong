@@ -67,6 +67,9 @@ type BaseCompilerProperties struct {
 	// list of rust dylib crate dependencies
 	Dylibs []string `android:"arch_variant"`
 
+	// list of rust automatic crate dependencies
+	Rustlibs []string `android:"arch_variant"`
+
 	// list of rust proc_macro crate dependencies
 	Proc_macros []string `android:"arch_variant"`
 
@@ -100,8 +103,6 @@ type BaseCompilerProperties struct {
 
 type baseCompiler struct {
 	Properties   BaseCompilerProperties
-	depFlags     []string
-	linkDirs     []string
 	coverageFile android.Path //rustc generates a single gcno file
 
 	// Install related
@@ -178,6 +179,7 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.Rlibs = append(deps.Rlibs, compiler.Properties.Rlibs...)
 	deps.Dylibs = append(deps.Dylibs, compiler.Properties.Dylibs...)
+	deps.Rustlibs = append(deps.Rustlibs, compiler.Properties.Rustlibs...)
 	deps.ProcMacros = append(deps.ProcMacros, compiler.Properties.Proc_macros...)
 	deps.StaticLibs = append(deps.StaticLibs, compiler.Properties.Static_libs...)
 	deps.SharedLibs = append(deps.SharedLibs, compiler.Properties.Shared_libs...)
@@ -189,17 +191,7 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 				stdlib = stdlib + "_" + ctx.toolchain().RustTriple()
 			}
 
-			// This check is technically insufficient - on the host, where
-			// static linking is the default, if one of our static
-			// dependencies uses a dynamic library, we need to dynamically
-			// link the stdlib as well.
-			if (len(deps.Dylibs) > 0) || ctx.Device() {
-				// Dynamically linked stdlib
-				deps.Dylibs = append(deps.Dylibs, stdlib)
-			} else if ctx.Host() && !ctx.TargetPrimary() {
-				// Otherwise use the static in-tree stdlib for host secondary arch
-				deps.Rlibs = append(deps.Rlibs, stdlib+".static")
-			}
+			deps.Rustlibs = append(deps.Rustlibs, stdlib)
 		}
 	}
 	return deps
