@@ -48,12 +48,11 @@ func NewPrebuiltDylib(hod android.HostOrDeviceSupported) (*Module, *prebuiltLibr
 		libraryDecorator: library,
 	}
 	module.compiler = prebuilt
-	module.AddProperties(&library.Properties)
 	return module, prebuilt
 }
 
 func (prebuilt *prebuiltLibraryDecorator) compilerProps() []interface{} {
-	return append(prebuilt.baseCompiler.compilerProps(),
+	return append(prebuilt.libraryDecorator.compilerProps(),
 		&prebuilt.Properties)
 }
 
