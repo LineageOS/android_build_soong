@@ -120,10 +120,11 @@ var (
 				`${config.ExtractApksCmd} -o "${out}" -allow-prereleased=${allow-prereleased} ` +
 				`-sdk-version=${sdk-version} -abis=${abis} ` +
 				`--screen-densities=${screen-densities} --stem=${stem} ` +
+				`-apkcerts=${apkcerts} -partition=${partition} ` +
 				`${in}`,
 			CommandDeps: []string{"${config.ExtractApksCmd}"},
 		},
-		"abis", "allow-prereleased", "screen-densities", "sdk-version", "stem")
+		"abis", "allow-prereleased", "screen-densities", "sdk-version", "stem", "apkcerts", "partition")
 
 	turbine, turbineRE = remoteexec.StaticRules(pctx, "turbine",
 		blueprint.RuleParams{
