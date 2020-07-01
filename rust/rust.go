@@ -886,6 +886,18 @@ func (mod *Module) Name() string {
 	return name
 }
 
+var _ android.HostToolProvider = (*Module)(nil)
+
+func (mod *Module) HostToolPath() android.OptionalPath {
+	if !mod.Host() {
+		return android.OptionalPath{}
+	}
+	if _, ok := mod.compiler.(*binaryDecorator); ok {
+		return mod.outputFile
+	}
+	return android.OptionalPath{}
+}
+
 var Bool = proptools.Bool
 var BoolDefault = proptools.BoolDefault
 var String = proptools.String
