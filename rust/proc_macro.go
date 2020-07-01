@@ -76,3 +76,7 @@ func (procMacro *procMacroDecorator) getStem(ctx ModuleContext) string {
 
 	return stem + String(procMacro.baseCompiler.Properties.Suffix)
 }
+
+func (procMacro *procMacroDecorator) autoDep() autoDep {
+	return rlibAutoDep
+}
