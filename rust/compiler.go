@@ -103,8 +103,6 @@ type BaseCompilerProperties struct {
 
 type baseCompiler struct {
 	Properties   BaseCompilerProperties
-	depFlags     []string
-	linkDirs     []string
 	coverageFile android.Path //rustc generates a single gcno file
 
 	// Install related
