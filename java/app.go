@@ -78,6 +78,7 @@ type AndroidAppSet struct {
 	properties   AndroidAppSetProperties
 	packedOutput android.WritablePath
 	masterFile   string
+	apkcertsFile android.ModuleOutPath
 }
 
 func (as *AndroidAppSet) Name() string {
@@ -129,6 +130,7 @@ func SupportedAbis(ctx android.ModuleContext) []string {
 
 func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	as.packedOutput = android.PathForModuleOut(ctx, ctx.ModuleName()+".zip")
+	as.apkcertsFile = android.PathForModuleOut(ctx, "apkcerts.txt")
 	// We are assuming here that the master file in the APK
 	// set has `.apk` suffix. If it doesn't the build will fail.
 	// APK sets containing APEX files are handled elsewhere.
@@ -141,16 +143,19 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	// TODO(asmundak): do we support device features
 	ctx.Build(pctx,
 		android.BuildParams{
-			Rule:        extractMatchingApks,
-			Description: "Extract APKs from APK set",
-			Output:      as.packedOutput,
-			Inputs:      android.Paths{as.prebuilt.SingleSourcePath(ctx)},
+			Rule:           extractMatchingApks,
+			Description:    "Extract APKs from APK set",
+			Output:         as.packedOutput,
+			ImplicitOutput: as.apkcertsFile,
+			Inputs:         android.Paths{as.prebuilt.SingleSourcePath(ctx)},
 			Args: map[string]string{
 				"abis":              strings.Join(SupportedAbis(ctx), ","),
 				"allow-prereleased": strconv.FormatBool(proptools.Bool(as.properties.Prerelease)),
 				"screen-densities":  screenDensities,
 				"sdk-version":       ctx.Config().PlatformSdkVersion(),
 				"stem":              as.BaseModuleName(),
+				"apkcerts":          as.apkcertsFile.String(),
+				"partition":         as.PartitionTag(ctx.DeviceConfig()),
 			},
 		})
 }
