@@ -28,10 +28,6 @@ func getEdition(compiler *baseCompiler) string {
 	return proptools.StringDefault(compiler.Properties.Edition, config.DefaultEdition)
 }
 
-func getDenyWarnings(compiler *baseCompiler) bool {
-	return BoolDefault(compiler.Properties.Deny_warnings, config.DefaultDenyWarnings)
-}
-
 func (compiler *baseCompiler) setNoStdlibs() {
 	compiler.Properties.No_stdlibs = proptools.BoolPtr(true)
 }
@@ -56,8 +52,8 @@ type BaseCompilerProperties struct {
 	// path to the source file that is the main entry point of the program (e.g. main.rs or lib.rs)
 	Srcs []string `android:"path,arch_variant"`
 
-	// whether to pass "-D warnings" to rustc. Defaults to true.
-	Deny_warnings *bool
+	// whether to suppress the standard lint flags - default to false
+	No_lint *bool
 
 	// flags to pass to rustc
 	Flags []string `android:"path,arch_variant"`
@@ -145,8 +141,8 @@ func (compiler *baseCompiler) featuresToFlags(features []string) []string {
 
 func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 
-	if getDenyWarnings(compiler) {
-		flags.RustFlags = append(flags.RustFlags, "-D warnings")
+	if !Bool(compiler.Properties.No_lint) {
+		flags.RustFlags = append(flags.RustFlags, config.RustcLintsForDir(ctx.ModuleDir()))
 	}
 	flags.RustFlags = append(flags.RustFlags, compiler.Properties.Flags...)
 	flags.RustFlags = append(flags.RustFlags, compiler.featuresToFlags(compiler.Properties.Features)...)
