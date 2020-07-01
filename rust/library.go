@@ -186,6 +186,16 @@ func (library *libraryDecorator) setStatic() {
 	library.MutatedProperties.VariantIsDylib = false
 }
 
+func (library *libraryDecorator) autoDep() autoDep {
+	if library.rlib() || library.static() {
+		return rlibAutoDep
+	} else if library.dylib() || library.shared() {
+		return dylibAutoDep
+	} else {
+		return rlibAutoDep
+	}
+}
+
 var _ compiler = (*libraryDecorator)(nil)
 var _ libraryInterface = (*libraryDecorator)(nil)
 
