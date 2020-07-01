@@ -197,6 +197,7 @@ func GatherRequiredDepsForTest() string {
 	systemModules := []string{
 		"core-current-stubs-system-modules",
 		"legacy-core-platform-api-stubs-system-modules",
+		"stable-core-platform-api-stubs-system-modules",
 	}
 
 	for _, extra := range systemModules {
