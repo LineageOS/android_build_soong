@@ -705,17 +705,17 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 
 		sdkDep := decodeSdkDep(ctx, sdkContext(j))
 		if sdkDep.useDefaultLibs {
-			ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
-			ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
+			ctx.AddVariationDependencies(nil, bootClasspathTag, config.LegacyCorePlatformBootclasspathLibraries...)
+			ctx.AddVariationDependencies(nil, systemModulesTag, config.LegacyCorePlatformSystemModules)
 			if sdkDep.hasFrameworkLibs() {
-				ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
+				ctx.AddVariationDependencies(nil, libTag, config.FrameworkLibraries...)
 			}
 		} else if sdkDep.useModule {
 			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.bootclasspath...)
 			ctx.AddVariationDependencies(nil, java9LibTag, sdkDep.java9Classpath...)
 			if j.deviceProperties.EffectiveOptimizeEnabled() && sdkDep.hasStandardLibs() {
-				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultBootclasspathLibraries...)
-				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultLibraries...)
+				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.LegacyCorePlatformBootclasspathLibraries...)
+				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.FrameworkLibraries...)
 			}
 		}
 		if sdkDep.systemModules != "" {
