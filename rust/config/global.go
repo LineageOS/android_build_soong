@@ -32,8 +32,6 @@ var (
 		"libtest",
 	}
 
-	DefaultDenyWarnings = true
-
 	GlobalRustFlags = []string{
 		"--remap-path-prefix $$(pwd)=",
 		"-C codegen-units=1",
