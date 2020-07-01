@@ -21,6 +21,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/java"
+
 	"github.com/google/blueprint"
 
 	"github.com/google/blueprint/proptools"
@@ -238,6 +239,9 @@ type ApexSet struct {
 	// list of commands to create symlinks for backward compatibility.
 	// these commands will be attached as LOCAL_POST_INSTALL_CMD
 	compatSymlinks []string
+
+	hostRequired        []string
+	postInstallCommands []string
 }
 
 type ApexSetProperties struct {
@@ -322,21 +326,43 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	for _, overridden := range a.properties.Overrides {
 		a.compatSymlinks = append(a.compatSymlinks, makeCompatSymlinks(overridden, ctx)...)
 	}
+
+	if ctx.Config().InstallExtraFlattenedApexes() {
+		// flattened apex should be in /system_ext/apex
+		flattenedApexDir := android.PathForModuleInstall(&systemExtContext{ctx}, "apex", a.BaseModuleName())
+		a.postInstallCommands = append(a.postInstallCommands,
+			fmt.Sprintf("$(HOST_OUT_EXECUTABLES)/deapexer --debugfs_path $(HOST_OUT_EXECUTABLES)/debugfs extract %s %s",
+				a.outputApex.String(),
+				flattenedApexDir.ToMakePath().String(),
+			))
+		a.hostRequired = []string{"deapexer", "debugfs"}
+	}
+}
+
+type systemExtContext struct {
+	android.ModuleContext
+}
+
+func (*systemExtContext) SystemExtSpecific() bool {
+	return true
 }
 
 func (a *ApexSet) AndroidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
-		Class:      "ETC",
-		OutputFile: android.OptionalPathForPath(a.outputApex),
-		Include:    "$(BUILD_PREBUILT)",
+		Class:         "ETC",
+		OutputFile:    android.OptionalPathForPath(a.outputApex),
+		Include:       "$(BUILD_PREBUILT)",
+		Host_required: a.hostRequired,
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_PATH", a.installDir.ToMakePath().String())
 				entries.SetString("LOCAL_MODULE_STEM", a.installFilename)
 				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !a.installable())
 				entries.AddStrings("LOCAL_OVERRIDES_MODULES", a.properties.Overrides...)
-				if len(a.compatSymlinks) > 0 {
-					entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(a.compatSymlinks, " && "))
+				postInstallCommands := append([]string{}, a.postInstallCommands...)
+				postInstallCommands = append(postInstallCommands, a.compatSymlinks...)
+				if len(postInstallCommands) > 0 {
+					entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(postInstallCommands, " && "))
 				}
 			},
 		},
