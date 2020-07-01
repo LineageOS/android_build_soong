@@ -569,7 +569,13 @@ func isVendorSnapshotModule(m *Module, moduleDir string) bool {
 			return m.outputFile.Valid() && proptools.BoolDefault(m.VendorProperties.Vendor_available, true)
 		}
 		if l.shared() {
-			return m.outputFile.Valid() && !m.IsVndk()
+			if !m.outputFile.Valid() {
+				return false
+			}
+			if !m.IsVndk() {
+				return true
+			}
+			return m.isVndkExt()
 		}
 		return true
 	}
@@ -669,7 +675,16 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 
 		// Common properties among snapshots.
 		prop.ModuleName = ctx.ModuleName(m)
-		prop.RelativeInstallPath = m.RelativeInstallPath()
+		if m.isVndkExt() {
+			// vndk exts are installed to /vendor/lib(64)?/vndk(-sp)?
+			if m.isVndkSp() {
+				prop.RelativeInstallPath = "vndk-sp"
+			} else {
+				prop.RelativeInstallPath = "vndk"
+			}
+		} else {
+			prop.RelativeInstallPath = m.RelativeInstallPath()
+		}
 		prop.RuntimeLibs = m.Properties.SnapshotRuntimeLibs
 		prop.Required = m.RequiredModuleNames()
 		for _, path := range m.InitRc() {
