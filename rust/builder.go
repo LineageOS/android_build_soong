@@ -46,7 +46,7 @@ var (
 				// Because clippy-driver uses rustc as backend, we need to have some output even during the linting.
 				// Use the metadata output as it has the smallest footprint.
 				"--emit metadata -o $out $in ${libFlags} " +
-				"$clippyFlags $rustcFlags",
+				"$rustcFlags $clippyFlags",
 			CommandDeps: []string{"$clippyCmd"},
 		},
 		"rustcFlags", "libFlags", "clippyFlags")
