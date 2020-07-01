@@ -38,7 +38,8 @@ func init() {
 }
 
 type VariantLibraryProperties struct {
-	Enabled *bool `android:"arch_variant"`
+	Enabled *bool    `android:"arch_variant"`
+	Srcs    []string `android:"path,arch_variant"`
 }
 
 type LibraryCompilerProperties struct {
@@ -355,7 +356,7 @@ func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	if !ctx.Host() && library.static() {
 		library.setNoStdlibs()
 		for _, stdlib := range config.Stdlibs {
-			deps.Rlibs = append(deps.Rlibs, stdlib+".static")
+			deps.Rlibs = append(deps.Rlibs, stdlib)
 		}
 	}
 

@@ -440,6 +440,9 @@ func (mod *Module) HasStaticVariant() bool {
 
 func (mod *Module) CoverageFiles() android.Paths {
 	if mod.compiler != nil {
+		if !mod.compiler.nativeCoverage() {
+			return android.Paths{}
+		}
 		if library, ok := mod.compiler.(*libraryDecorator); ok {
 			if library.coverageFile != nil {
 				return android.Paths{library.coverageFile}
