@@ -437,11 +437,10 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		}
 	case sdkCorePlatform:
 		return sdkDep{
-			useModule:          true,
-			systemModules:      config.LegacyCorePlatformSystemModules,
-			bootclasspath:      config.LegacyCorePlatformBootclasspathLibraries,
-			frameworkResModule: "framework-res",
-			noFrameworksLibs:   true,
+			useModule:        true,
+			systemModules:    config.LegacyCorePlatformSystemModules,
+			bootclasspath:    config.LegacyCorePlatformBootclasspathLibraries,
+			noFrameworksLibs: true,
 		}
 	case sdkPublic:
 		return toModule([]string{"android_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
