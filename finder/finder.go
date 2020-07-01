@@ -1393,17 +1393,25 @@ func (f *Finder) listDirSync(dir *pathMap) {
 	for _, child := range children {
 		linkBits := child.Mode() & os.ModeSymlink
 		isLink := linkBits != 0
-		if child.IsDir() {
-			if !isLink {
+		if isLink {
+			childPath := filepath.Join(path, child.Name())
+			childStat, err := f.filesystem.Stat(childPath)
+			if err != nil {
+				// If stat fails this is probably a broken or dangling symlink, treat it as a file.
+				subfiles = append(subfiles, child.Name())
+			} else if childStat.IsDir() {
 				// Skip symlink dirs.
 				// We don't have to support symlink dirs because
 				// that would cause duplicates.
-				subdirs = append(subdirs, child.Name())
+			} else {
+				// We do have to support symlink files because the link name might be
+				// different than the target name
+				// (for example, Android.bp -> build/soong/root.bp)
+				subfiles = append(subfiles, child.Name())
 			}
+		} else if child.IsDir() {
+			subdirs = append(subdirs, child.Name())
 		} else {
-			// We do have to support symlink files because the link name might be
-			// different than the target name
-			// (for example, Android.bp -> build/soong/root.bp)
 			subfiles = append(subfiles, child.Name())
 		}
 
