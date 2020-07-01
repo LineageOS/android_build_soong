@@ -24,6 +24,7 @@ import (
 	"math"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
@@ -355,7 +356,7 @@ type Zip2ZipWriter interface {
 
 // Writes out selected entries, renaming them as needed
 func (apkSet *ApkSet) writeApks(selected SelectionResult, config TargetConfig,
-	writer Zip2ZipWriter) error {
+	writer Zip2ZipWriter, partition string) ([]string, error) {
 	// Renaming rules:
 	//  splits/MODULE-master.apk to STEM.apk
 	// else
@@ -389,10 +390,11 @@ func (apkSet *ApkSet) writeApks(selected SelectionResult, config TargetConfig,
 	}
 
 	entryOrigin := make(map[string]string) // output entry to input entry
+	var apkcerts []string
 	for _, apk := range selected.entries {
 		apkFile, ok := apkSet.entries[apk]
 		if !ok {
-			return fmt.Errorf("TOC refers to an entry %s which does not exist", apk)
+			return nil, fmt.Errorf("TOC refers to an entry %s which does not exist", apk)
 		}
 		inName := apkFile.Name
 		outName, ok := renamer(inName)
@@ -405,10 +407,15 @@ func (apkSet *ApkSet) writeApks(selected SelectionResult, config TargetConfig,
 		}
 		entryOrigin[outName] = inName
 		if err := writer.CopyFrom(apkFile, outName); err != nil {
-			return err
+			return nil, err
+		}
+		if partition != "" {
+			apkcerts = append(apkcerts, fmt.Sprintf(
+				`name="%s" certificate="PRESIGNED" private_key="" partition="%s"`, outName, partition))
 		}
 	}
-	return nil
+	sort.Strings(apkcerts)
+	return apkcerts, nil
 }
 
 func (apkSet *ApkSet) extractAndCopySingle(selected SelectionResult, outFile *os.File) error {
@@ -433,6 +440,9 @@ var (
 	}
 	extractSingle = flag.Bool("extract-single", false,
 		"extract a single target and output it uncompressed. only available for standalone apks and apexes.")
+	apkcertsOutput = flag.String("apkcerts", "",
+		"optional apkcerts.txt output file containing signing info of all outputted apks")
+	partition = flag.String("partition", "", "partition string. required when -apkcerts is used.")
 )
 
 // Parse abi values
@@ -485,7 +495,8 @@ func (s screenDensityFlagValue) Set(densityList string) error {
 func processArgs() {
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, `usage: extract_apks -o <output-file> -sdk-version value -abis value `+
-			`-screen-densities value {-stem value | -extract-single} [-allow-prereleased] <APK set>`)
+			`-screen-densities value {-stem value | -extract-single} [-allow-prereleased] `+
+			`[-apkcerts <apkcerts output file> -partition <partition>] <APK set>`)
 		flag.PrintDefaults()
 		os.Exit(2)
 	}
@@ -498,7 +509,8 @@ func processArgs() {
 		"allow prereleased")
 	flag.StringVar(&targetConfig.stem, "stem", "", "output entries base name in the output zip file")
 	flag.Parse()
-	if (*outputFile == "") || len(flag.Args()) != 1 || *version == 0 || (targetConfig.stem == "" && !*extractSingle) {
+	if (*outputFile == "") || len(flag.Args()) != 1 || *version == 0 ||
+		(targetConfig.stem == "" && !*extractSingle) || (*apkcertsOutput != "" && *partition == "") {
 		flag.Usage()
 	}
 	targetConfig.sdkVersion = int32(*version)
@@ -536,7 +548,20 @@ func main() {
 				log.Fatal(err)
 			}
 		}()
-		err = apkSet.writeApks(sel, targetConfig, writer)
+		apkcerts, err := apkSet.writeApks(sel, targetConfig, writer, *partition)
+		if err == nil && *apkcertsOutput != "" {
+			apkcertsFile, err := os.Create(*apkcertsOutput)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer apkcertsFile.Close()
+			for _, a := range apkcerts {
+				_, err = apkcertsFile.WriteString(a + "\n")
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+		}
 	}
 	if err != nil {
 		log.Fatal(err)
