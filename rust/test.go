@@ -105,6 +105,10 @@ func (test *testDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
+func (test *testDecorator) autoDep() autoDep {
+	return rlibAutoDep
+}
+
 func init() {
 	// Rust tests are binary files built with --test.
 	android.RegisterModuleType("rust_test", RustTestFactory)
