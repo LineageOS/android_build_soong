@@ -449,7 +449,12 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 	case sdkTest:
 		return toModule([]string{"android_test_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
 	case sdkCore:
-		return toModule([]string{"core.current.stubs"}, "", nil)
+		return sdkDep{
+			useModule:        true,
+			bootclasspath:    []string{"core.current.stubs", config.DefaultLambdaStubsLibrary},
+			systemModules:    "core-current-stubs-system-modules",
+			noFrameworksLibs: true,
+		}
 	case sdkModule:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
 		return toModule([]string{"android_module_lib_stubs_current"}, "framework-res", nonUpdatableFrameworkAidlPath(ctx))
