@@ -27,6 +27,7 @@ type ProcMacroCompilerProperties struct {
 
 type procMacroDecorator struct {
 	*baseCompiler
+	*flagExporter
 
 	Properties ProcMacroCompilerProperties
 }
@@ -35,6 +36,7 @@ type procMacroInterface interface {
 }
 
 var _ compiler = (*procMacroDecorator)(nil)
+var _ exportedFlagsProducer = (*procMacroDecorator)(nil)
 
 func ProcMacroFactory() android.Module {
 	module, _ := NewProcMacro(android.HostSupportedNoCross)
@@ -46,6 +48,7 @@ func NewProcMacro(hod android.HostOrDeviceSupported) (*Module, *procMacroDecorat
 
 	procMacro := &procMacroDecorator{
 		baseCompiler: NewBaseCompiler("lib", "lib64", InstallInSystem),
+		flagExporter: NewFlagExporter(),
 	}
 
 	module.compiler = procMacro
@@ -75,4 +78,8 @@ func (procMacro *procMacroDecorator) getStem(ctx ModuleContext) string {
 	validateLibraryStem(ctx, stem, procMacro.crateName())
 
 	return stem + String(procMacro.baseCompiler.Properties.Suffix)
+}
+
+func (procMacro *procMacroDecorator) autoDep() autoDep {
+	return rlibAutoDep
 }

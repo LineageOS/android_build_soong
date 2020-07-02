@@ -51,6 +51,7 @@ type FileSystem interface {
 	// getting information about files
 	Open(name string) (file io.ReadCloser, err error)
 	Lstat(path string) (stats os.FileInfo, err error)
+	Stat(path string) (stats os.FileInfo, err error)
 	ReadDir(path string) (contents []DirEntryInfo, err error)
 
 	InodeNumber(info os.FileInfo) (number uint64, err error)
@@ -97,6 +98,10 @@ func (osFs) Open(name string) (io.ReadCloser, error) { return os.Open(name) }
 
 func (osFs) Lstat(path string) (stats os.FileInfo, err error) {
 	return os.Lstat(path)
+}
+
+func (osFs) Stat(path string) (stats os.FileInfo, err error) {
+	return os.Stat(path)
 }
 
 func (osFs) ReadDir(path string) (contents []DirEntryInfo, err error) {
@@ -376,7 +381,7 @@ type mockFileInfo struct {
 	size         int64
 	modTime      time.Time // time at which the inode's contents were modified
 	permTime     time.Time // time at which the inode's permissions were modified
-	isDir        bool
+	mode         os.FileMode
 	inodeNumber  uint64
 	deviceNumber uint64
 }
@@ -390,7 +395,7 @@ func (m *mockFileInfo) Size() int64 {
 }
 
 func (m *mockFileInfo) Mode() os.FileMode {
-	return 0
+	return m.mode
 }
 
 func (m *mockFileInfo) ModTime() time.Time {
@@ -398,7 +403,7 @@ func (m *mockFileInfo) ModTime() time.Time {
 }
 
 func (m *mockFileInfo) IsDir() bool {
-	return m.isDir
+	return m.mode&os.ModeDir != 0
 }
 
 func (m *mockFileInfo) Sys() interface{} {
@@ -407,11 +412,11 @@ func (m *mockFileInfo) Sys() interface{} {
 
 func (m *MockFs) dirToFileInfo(d *mockDir, path string) (info *mockFileInfo) {
 	return &mockFileInfo{
-		path:         path,
+		path:         filepath.Base(path),
 		size:         1,
 		modTime:      d.modTime,
 		permTime:     d.permTime,
-		isDir:        true,
+		mode:         os.ModeDir,
 		inodeNumber:  d.inodeNumber,
 		deviceNumber: m.deviceNumber,
 	}
@@ -420,11 +425,11 @@ func (m *MockFs) dirToFileInfo(d *mockDir, path string) (info *mockFileInfo) {
 
 func (m *MockFs) fileToFileInfo(f *mockFile, path string) (info *mockFileInfo) {
 	return &mockFileInfo{
-		path:         path,
+		path:         filepath.Base(path),
 		size:         1,
 		modTime:      f.modTime,
 		permTime:     f.permTime,
-		isDir:        false,
+		mode:         0,
 		inodeNumber:  f.inodeNumber,
 		deviceNumber: m.deviceNumber,
 	}
@@ -432,11 +437,11 @@ func (m *MockFs) fileToFileInfo(f *mockFile, path string) (info *mockFileInfo) {
 
 func (m *MockFs) linkToFileInfo(l *mockLink, path string) (info *mockFileInfo) {
 	return &mockFileInfo{
-		path:         path,
+		path:         filepath.Base(path),
 		size:         1,
 		modTime:      l.modTime,
 		permTime:     l.permTime,
-		isDir:        false,
+		mode:         os.ModeSymlink,
 		inodeNumber:  l.inodeNumber,
 		deviceNumber: m.deviceNumber,
 	}
@@ -483,6 +488,16 @@ func (m *MockFs) Lstat(path string) (stats os.FileInfo, err error) {
 		Path: path,
 		Err:  os.ErrNotExist,
 	}
+}
+
+func (m *MockFs) Stat(path string) (stats os.FileInfo, err error) {
+	// resolve symlinks
+	path, err = m.resolve(path, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.Lstat(path)
 }
 
 func (m *MockFs) InodeNumber(info os.FileInfo) (number uint64, err error) {

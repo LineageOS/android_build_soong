@@ -105,6 +105,12 @@ func TestCoverageZip(t *testing.T) {
 			rlibs: ["librlib"],
 			crate_name: "foo",
 		}
+                rust_ffi_static {
+                        name: "libbaz",
+                        srcs: ["foo.rs"],
+                        rlibs: ["librlib"],
+                        crate_name: "baz",
+                }
 		rust_library_rlib {
 			name: "librlib",
 			srcs: ["foo.rs"],
@@ -113,17 +119,17 @@ func TestCoverageZip(t *testing.T) {
 		rust_binary {
 			name: "fizz",
 			rlibs: ["librlib"],
-			static_libs: ["libfoo"],
+			static_libs: ["libbaz"],
 			srcs: ["foo.rs"],
 		}
 		cc_binary {
 			name: "buzz",
-			static_libs: ["libfoo"],
+			static_libs: ["libbaz"],
 			srcs: ["foo.c"],
 		}
 		cc_library {
 			name: "libbar",
-			static_libs: ["libfoo"],
+			static_libs: ["libbaz"],
 			compile_multilib: "64",
 			srcs: ["foo.c"],
 		}`)
@@ -149,7 +155,7 @@ func TestCoverageZip(t *testing.T) {
 
 	// Make sure the expected inputs are provided to the zip rule.
 	if !android.SuffixInList(fizzZipInputs, "android_arm64_armv8-a_rlib_cov/librlib.gcno") ||
-		!android.SuffixInList(fizzZipInputs, "android_arm64_armv8-a_static_cov/libfoo.gcno") ||
+		!android.SuffixInList(fizzZipInputs, "android_arm64_armv8-a_static_cov/libbaz.gcno") ||
 		!android.SuffixInList(fizzZipInputs, "android_arm64_armv8-a_cov/fizz.gcno") {
 		t.Fatalf("missing expected coverage files for rust 'fizz' binary: %#v", fizzZipInputs)
 	}
@@ -158,11 +164,11 @@ func TestCoverageZip(t *testing.T) {
 		t.Fatalf("missing expected coverage files for rust 'fizz' binary: %#v", libfooZipInputs)
 	}
 	if !android.SuffixInList(buzzZipInputs, "android_arm64_armv8-a_cov/obj/foo.gcno") ||
-		!android.SuffixInList(buzzZipInputs, "android_arm64_armv8-a_static_cov/libfoo.gcno") {
+		!android.SuffixInList(buzzZipInputs, "android_arm64_armv8-a_static_cov/libbaz.gcno") {
 		t.Fatalf("missing expected coverage files for cc 'buzz' binary: %#v", buzzZipInputs)
 	}
 	if !android.SuffixInList(libbarZipInputs, "android_arm64_armv8-a_static_cov/obj/foo.gcno") ||
-		!android.SuffixInList(libbarZipInputs, "android_arm64_armv8-a_static_cov/libfoo.gcno") {
+		!android.SuffixInList(libbarZipInputs, "android_arm64_armv8-a_static_cov/libbaz.gcno") {
 		t.Fatalf("missing expected coverage files for cc 'libbar' library: %#v", libbarZipInputs)
 	}
 }

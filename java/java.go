@@ -601,7 +601,7 @@ func IsStaticLibDepTag(depTag blueprint.DependencyTag) bool {
 }
 
 type sdkDep struct {
-	useModule, useFiles, useDefaultLibs, invalidVersion bool
+	useModule, useFiles, invalidVersion bool
 
 	// The modules that will be added to the bootclasspath when targeting 1.8 or lower
 	bootclasspath []string
@@ -610,7 +610,11 @@ type sdkDep struct {
 	// modules are to be used.
 	systemModules string
 
+	// The modules that will be added to the classpath regardless of the Java language level targeted
+	classpath []string
+
 	// The modules that will be added ot the classpath when targeting 1.9 or higher
+	// (normally these will be on the bootclasspath when targeting 1.8 or lower)
 	java9Classpath []string
 
 	frameworkResModule string
@@ -704,18 +708,15 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		j.linter.deps(ctx)
 
 		sdkDep := decodeSdkDep(ctx, sdkContext(j))
-		if sdkDep.useDefaultLibs {
-			ctx.AddVariationDependencies(nil, bootClasspathTag, config.DefaultBootclasspathLibraries...)
-			ctx.AddVariationDependencies(nil, systemModulesTag, config.DefaultSystemModules)
-			if sdkDep.hasFrameworkLibs() {
-				ctx.AddVariationDependencies(nil, libTag, config.DefaultLibraries...)
-			}
-		} else if sdkDep.useModule {
+		if sdkDep.useModule {
 			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.bootclasspath...)
 			ctx.AddVariationDependencies(nil, java9LibTag, sdkDep.java9Classpath...)
+			ctx.AddVariationDependencies(nil, libTag, sdkDep.classpath...)
 			if j.deviceProperties.EffectiveOptimizeEnabled() && sdkDep.hasStandardLibs() {
-				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultBootclasspathLibraries...)
-				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.DefaultLibraries...)
+				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.LegacyCorePlatformBootclasspathLibraries...)
+			}
+			if j.deviceProperties.EffectiveOptimizeEnabled() && sdkDep.hasFrameworkLibs() {
+				ctx.AddVariationDependencies(nil, proguardRaiseTag, config.FrameworkLibraries...)
 			}
 		}
 		if sdkDep.systemModules != "" {

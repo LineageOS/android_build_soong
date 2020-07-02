@@ -873,7 +873,7 @@ func (c *Module) isCoverageVariant() bool {
 }
 
 func (c *Module) IsNdk() bool {
-	return inList(c.Name(), ndkMigratedLibs)
+	return inList(c.Name(), ndkKnownLibs)
 }
 
 func (c *Module) isLlndk(config android.Config) bool {
@@ -1759,8 +1759,6 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	variantNdkLibs := []string{}
 	variantLateNdkLibs := []string{}
 	if ctx.Os() == android.Android {
-		version := ctx.sdkVersion()
-
 		// rewriteLibs takes a list of names of shared libraries and scans it for three types
 		// of names:
 		//
@@ -1802,12 +1800,8 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			for _, entry := range list {
 				// strip #version suffix out
 				name, _ := StubsLibNameAndVersion(entry)
-				if ctx.useSdk() && inList(name, ndkPrebuiltSharedLibraries) {
-					if !inList(name, ndkMigratedLibs) {
-						nonvariantLibs = append(nonvariantLibs, name+".ndk."+version)
-					} else {
-						variantLibs = append(variantLibs, name+ndkLibrarySuffix)
-					}
+				if ctx.useSdk() && inList(name, ndkKnownLibs) {
+					variantLibs = append(variantLibs, name+ndkLibrarySuffix)
 				} else if ctx.useVndk() {
 					nonvariantLibs = append(nonvariantLibs, rewriteVendorLibs(entry))
 				} else if (ctx.Platform() || ctx.ProductSpecific()) && inList(name, *vendorPublicLibraries) {
@@ -2988,6 +2982,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&BinaryLinkerProperties{},
 		&TestProperties{},
 		&TestBinaryProperties{},
+		&BenchmarkProperties{},
 		&FuzzProperties{},
 		&StlProperties{},
 		&SanitizeProperties{},

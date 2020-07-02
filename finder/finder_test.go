@@ -20,11 +20,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
-	"runtime/debug"
 	"sort"
 	"testing"
-	"time"
 
 	"android/soong/finder/fs"
 )
@@ -41,7 +38,7 @@ func newFinder(t *testing.T, filesystem *fs.MockFs, cacheParams CacheParams) *Fi
 func newFinderWithNumThreads(t *testing.T, filesystem *fs.MockFs, cacheParams CacheParams, numThreads int) *Finder {
 	f, err := newFinderAndErr(t, filesystem, cacheParams, numThreads)
 	if err != nil {
-		fatal(t, err.Error())
+		t.Fatal(err.Error())
 	}
 	return f
 }
@@ -62,7 +59,7 @@ func newFinderAndErr(t *testing.T, filesystem *fs.MockFs, cacheParams CacheParam
 func finderWithSameParams(t *testing.T, original *Finder) *Finder {
 	f, err := finderAndErrorWithSameParams(t, original)
 	if err != nil {
-		fatal(t, err.Error())
+		t.Fatal(err.Error())
 	}
 	return f
 }
@@ -78,146 +75,13 @@ func finderAndErrorWithSameParams(t *testing.T, original *Finder) (*Finder, erro
 	return f, err
 }
 
-func write(t *testing.T, path string, content string, filesystem *fs.MockFs) {
-	parent := filepath.Dir(path)
-	filesystem.MkDirs(parent)
-	err := filesystem.WriteFile(path, []byte(content), 0777)
-	if err != nil {
-		fatal(t, err.Error())
-	}
-}
-
-func create(t *testing.T, path string, filesystem *fs.MockFs) {
-	write(t, path, "hi", filesystem)
-}
-
-func delete(t *testing.T, path string, filesystem *fs.MockFs) {
-	err := filesystem.Remove(path)
-	if err != nil {
-		fatal(t, err.Error())
-	}
-}
-
-func removeAll(t *testing.T, path string, filesystem *fs.MockFs) {
-	err := filesystem.RemoveAll(path)
-	if err != nil {
-		fatal(t, err.Error())
-	}
-}
-
-func move(t *testing.T, oldPath string, newPath string, filesystem *fs.MockFs) {
-	err := filesystem.Rename(oldPath, newPath)
-	if err != nil {
-		fatal(t, err.Error())
-	}
-}
-
-func link(t *testing.T, newPath string, oldPath string, filesystem *fs.MockFs) {
-	parentPath := filepath.Dir(newPath)
-	err := filesystem.MkDirs(parentPath)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	err = filesystem.Symlink(oldPath, newPath)
-	if err != nil {
-		fatal(t, err.Error())
-	}
-}
-func read(t *testing.T, path string, filesystem *fs.MockFs) string {
-	reader, err := filesystem.Open(path)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-	bytes, err := ioutil.ReadAll(reader)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	return string(bytes)
-}
-func modTime(t *testing.T, path string, filesystem *fs.MockFs) time.Time {
-	stats, err := filesystem.Lstat(path)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	return stats.ModTime()
-}
-func setReadable(t *testing.T, path string, readable bool, filesystem *fs.MockFs) {
-	err := filesystem.SetReadable(path, readable)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func setReadErr(t *testing.T, path string, readErr error, filesystem *fs.MockFs) {
-	err := filesystem.SetReadErr(path, readErr)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func fatal(t *testing.T, message string) {
-	t.Error(message)
-	debug.PrintStack()
-	t.FailNow()
-}
-
-func assertSameResponse(t *testing.T, actual []string, expected []string) {
-	sort.Strings(actual)
-	sort.Strings(expected)
-	if !reflect.DeepEqual(actual, expected) {
-		fatal(
-			t,
-			fmt.Sprintf(
-				"Expected Finder to return these %v paths:\n  %v,\ninstead returned these %v paths:  %v\n",
-				len(expected), expected, len(actual), actual),
-		)
-	}
-}
-
-func assertSameStatCalls(t *testing.T, actual []string, expected []string) {
-	sort.Strings(actual)
-	sort.Strings(expected)
-
-	if !reflect.DeepEqual(actual, expected) {
-		fatal(
-			t,
-			fmt.Sprintf(
-				"Finder made incorrect Stat calls.\n"+
-					"Actual:\n"+
-					"%v\n"+
-					"Expected:\n"+
-					"%v\n"+
-					"\n",
-				actual, expected),
-		)
-	}
-}
-func assertSameReadDirCalls(t *testing.T, actual []string, expected []string) {
-	sort.Strings(actual)
-	sort.Strings(expected)
-
-	if !reflect.DeepEqual(actual, expected) {
-		fatal(
-			t,
-			fmt.Sprintf(
-				"Finder made incorrect ReadDir calls.\n"+
-					"Actual:\n"+
-					"%v\n"+
-					"Expected:\n"+
-					"%v\n"+
-					"\n",
-				actual, expected),
-		)
-	}
-}
-
 // runSimpleTests creates a few files, searches for findme.txt, and checks for the expected matches
 func runSimpleTest(t *testing.T, existentPaths []string, expectedMatches []string) {
 	filesystem := newFs()
 	root := "/tmp"
 	filesystem.MkDirs(root)
 	for _, path := range existentPaths {
-		create(t, filepath.Join(root, path), filesystem)
+		fs.Create(t, filepath.Join(root, path), filesystem)
 	}
 
 	finder := newFinder(t,
@@ -237,7 +101,7 @@ func runSimpleTest(t *testing.T, existentPaths []string, expectedMatches []strin
 	for i := range expectedMatches {
 		absoluteMatches = append(absoluteMatches, filepath.Join(root, expectedMatches[i]))
 	}
-	assertSameResponse(t, foundPaths, absoluteMatches)
+	fs.AssertSameResponse(t, foundPaths, absoluteMatches)
 }
 
 // testAgainstSeveralThreadcounts runs the given test for each threadcount that we care to test
@@ -288,7 +152,7 @@ func TestEmptyDirectory(t *testing.T) {
 func TestEmptyPath(t *testing.T) {
 	filesystem := newFs()
 	root := "/tmp"
-	create(t, filepath.Join(root, "findme.txt"), filesystem)
+	fs.Create(t, filepath.Join(root, "findme.txt"), filesystem)
 
 	finder := newFinder(
 		t,
@@ -302,7 +166,7 @@ func TestEmptyPath(t *testing.T) {
 
 	foundPaths := finder.FindNamedAt("", "findme.txt")
 
-	assertSameResponse(t, foundPaths, []string{})
+	fs.AssertSameResponse(t, foundPaths, []string{})
 }
 
 func TestFilesystemRoot(t *testing.T) {
@@ -311,7 +175,7 @@ func TestFilesystemRoot(t *testing.T) {
 		filesystem := newFs()
 		root := "/"
 		createdPath := "/findme.txt"
-		create(t, createdPath, filesystem)
+		fs.Create(t, createdPath, filesystem)
 
 		finder := newFinderWithNumThreads(
 			t,
@@ -326,7 +190,7 @@ func TestFilesystemRoot(t *testing.T) {
 
 		foundPaths := finder.FindNamedAt(root, "findme.txt")
 
-		assertSameResponse(t, foundPaths, []string{createdPath})
+		fs.AssertSameResponse(t, foundPaths, []string{createdPath})
 	}
 
 	testAgainstSeveralThreadcounts(t, testWithNumThreads)
@@ -334,7 +198,7 @@ func TestFilesystemRoot(t *testing.T) {
 
 func TestNonexistentDir(t *testing.T) {
 	filesystem := newFs()
-	create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
 
 	_, err := newFinderAndErr(
 		t,
@@ -346,18 +210,18 @@ func TestNonexistentDir(t *testing.T) {
 		1,
 	)
 	if err == nil {
-		fatal(t, "Did not fail when given a nonexistent root directory")
+		t.Fatal("Did not fail when given a nonexistent root directory")
 	}
 }
 
 func TestExcludeDirs(t *testing.T) {
 	filesystem := newFs()
-	create(t, "/tmp/exclude/findme.txt", filesystem)
-	create(t, "/tmp/exclude/subdir/findme.txt", filesystem)
-	create(t, "/tmp/subdir/exclude/findme.txt", filesystem)
-	create(t, "/tmp/subdir/subdir/findme.txt", filesystem)
-	create(t, "/tmp/subdir/findme.txt", filesystem)
-	create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/exclude/findme.txt", filesystem)
+	fs.Create(t, "/tmp/exclude/subdir/findme.txt", filesystem)
+	fs.Create(t, "/tmp/subdir/exclude/findme.txt", filesystem)
+	fs.Create(t, "/tmp/subdir/subdir/findme.txt", filesystem)
+	fs.Create(t, "/tmp/subdir/findme.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
 
 	finder := newFinder(
 		t,
@@ -372,7 +236,7 @@ func TestExcludeDirs(t *testing.T) {
 
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/findme.txt",
 			"/tmp/subdir/findme.txt",
 			"/tmp/subdir/subdir/findme.txt"})
@@ -380,15 +244,15 @@ func TestExcludeDirs(t *testing.T) {
 
 func TestPruneFiles(t *testing.T) {
 	filesystem := newFs()
-	create(t, "/tmp/out/findme.txt", filesystem)
-	create(t, "/tmp/out/.ignore-out-dir", filesystem)
-	create(t, "/tmp/out/child/findme.txt", filesystem)
+	fs.Create(t, "/tmp/out/findme.txt", filesystem)
+	fs.Create(t, "/tmp/out/.ignore-out-dir", filesystem)
+	fs.Create(t, "/tmp/out/child/findme.txt", filesystem)
 
-	create(t, "/tmp/out2/.ignore-out-dir", filesystem)
-	create(t, "/tmp/out2/sub/findme.txt", filesystem)
+	fs.Create(t, "/tmp/out2/.ignore-out-dir", filesystem)
+	fs.Create(t, "/tmp/out2/sub/findme.txt", filesystem)
 
-	create(t, "/tmp/findme.txt", filesystem)
-	create(t, "/tmp/include/findme.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/include/findme.txt", filesystem)
 
 	finder := newFinder(
 		t,
@@ -403,7 +267,7 @@ func TestPruneFiles(t *testing.T) {
 
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/findme.txt",
 			"/tmp/include/findme.txt"})
 }
@@ -412,10 +276,10 @@ func TestPruneFiles(t *testing.T) {
 // tests of the filesystem root are in TestFilesystemRoot
 func TestRootDir(t *testing.T) {
 	filesystem := newFs()
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/a/subdir/findme.txt", filesystem)
-	create(t, "/tmp/b/findme.txt", filesystem)
-	create(t, "/tmp/b/subdir/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/subdir/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/subdir/findme.txt", filesystem)
 
 	finder := newFinder(
 		t,
@@ -429,17 +293,17 @@ func TestRootDir(t *testing.T) {
 
 	foundPaths := finder.FindNamedAt("/tmp/a", "findme.txt")
 
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/a/findme.txt",
 			"/tmp/a/subdir/findme.txt"})
 }
 
 func TestUncachedDir(t *testing.T) {
 	filesystem := newFs()
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/a/subdir/findme.txt", filesystem)
-	create(t, "/tmp/b/findme.txt", filesystem)
-	create(t, "/tmp/b/subdir/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/subdir/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/subdir/findme.txt", filesystem)
 
 	finder := newFinder(
 		t,
@@ -456,7 +320,7 @@ func TestUncachedDir(t *testing.T) {
 	// fail to notice its slowness. Instead, we only ever search the cache for files
 	// to return, which enforces that we can determine which files will be
 	// interesting upfront.
-	assertSameResponse(t, foundPaths, []string{})
+	fs.AssertSameResponse(t, foundPaths, []string{})
 
 	finder.Shutdown()
 }
@@ -464,9 +328,9 @@ func TestUncachedDir(t *testing.T) {
 func TestSearchingForFilesExcludedFromCache(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/findme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/a/misc.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/misc.txt", filesystem)
 
 	// set up the finder and run it
 	finder := newFinder(
@@ -483,7 +347,7 @@ func TestSearchingForFilesExcludedFromCache(t *testing.T) {
 	// fail to notice its slowness. Instead, we only ever search the cache for files
 	// to return, which enforces that we can determine which files will be
 	// interesting upfront.
-	assertSameResponse(t, foundPaths, []string{})
+	fs.AssertSameResponse(t, foundPaths, []string{})
 
 	finder.Shutdown()
 }
@@ -491,12 +355,12 @@ func TestSearchingForFilesExcludedFromCache(t *testing.T) {
 func TestRelativeFilePaths(t *testing.T) {
 	filesystem := newFs()
 
-	create(t, "/tmp/ignore/hi.txt", filesystem)
-	create(t, "/tmp/include/hi.txt", filesystem)
-	create(t, "/cwd/hi.txt", filesystem)
-	create(t, "/cwd/a/hi.txt", filesystem)
-	create(t, "/cwd/a/a/hi.txt", filesystem)
-	create(t, "/rel/a/hi.txt", filesystem)
+	fs.Create(t, "/tmp/ignore/hi.txt", filesystem)
+	fs.Create(t, "/tmp/include/hi.txt", filesystem)
+	fs.Create(t, "/cwd/hi.txt", filesystem)
+	fs.Create(t, "/cwd/a/hi.txt", filesystem)
+	fs.Create(t, "/cwd/a/a/hi.txt", filesystem)
+	fs.Create(t, "/rel/a/hi.txt", filesystem)
 
 	finder := newFinder(
 		t,
@@ -509,25 +373,25 @@ func TestRelativeFilePaths(t *testing.T) {
 	defer finder.Shutdown()
 
 	foundPaths := finder.FindNamedAt("a", "hi.txt")
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"a/hi.txt",
 			"a/a/hi.txt"})
 
 	foundPaths = finder.FindNamedAt("/tmp/include", "hi.txt")
-	assertSameResponse(t, foundPaths, []string{"/tmp/include/hi.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/include/hi.txt"})
 
 	foundPaths = finder.FindNamedAt(".", "hi.txt")
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"hi.txt",
 			"a/hi.txt",
 			"a/a/hi.txt"})
 
 	foundPaths = finder.FindNamedAt("/rel", "hi.txt")
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/rel/a/hi.txt"})
 
 	foundPaths = finder.FindNamedAt("/tmp/include", "hi.txt")
-	assertSameResponse(t, foundPaths, []string{"/tmp/include/hi.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/include/hi.txt"})
 }
 
 // have to run this test with the race-detector (`go test -race src/android/soong/finder/*.go`)
@@ -535,7 +399,7 @@ func TestRelativeFilePaths(t *testing.T) {
 func TestRootDirsContainedInOtherRootDirs(t *testing.T) {
 	filesystem := newFs()
 
-	create(t, "/tmp/a/b/c/d/e/f/g/h/i/j/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/b/c/d/e/f/g/h/i/j/findme.txt", filesystem)
 
 	finder := newFinder(
 		t,
@@ -549,15 +413,15 @@ func TestRootDirsContainedInOtherRootDirs(t *testing.T) {
 
 	foundPaths := finder.FindNamedAt("/tmp/a", "findme.txt")
 
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/a/b/c/d/e/f/g/h/i/j/findme.txt"})
 }
 
 func TestFindFirst(t *testing.T) {
 	filesystem := newFs()
-	create(t, "/tmp/a/hi.txt", filesystem)
-	create(t, "/tmp/b/hi.txt", filesystem)
-	create(t, "/tmp/b/a/hi.txt", filesystem)
+	fs.Create(t, "/tmp/a/hi.txt", filesystem)
+	fs.Create(t, "/tmp/b/hi.txt", filesystem)
+	fs.Create(t, "/tmp/b/a/hi.txt", filesystem)
 
 	finder := newFinder(
 		t,
@@ -571,7 +435,7 @@ func TestFindFirst(t *testing.T) {
 
 	foundPaths := finder.FindFirstNamed("hi.txt")
 
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/a/hi.txt",
 			"/tmp/b/hi.txt"},
 	)
@@ -593,7 +457,7 @@ func TestConcurrentFindSameDirectory(t *testing.T) {
 		}
 		sort.Strings(paths)
 		for _, path := range paths {
-			create(t, path, filesystem)
+			fs.Create(t, path, filesystem)
 		}
 
 		// set up a finder
@@ -621,7 +485,7 @@ func TestConcurrentFindSameDirectory(t *testing.T) {
 		// check that each response was correct
 		for i := 0; i < numTests; i++ {
 			foundPaths := <-results
-			assertSameResponse(t, foundPaths, paths)
+			fs.AssertSameResponse(t, foundPaths, paths)
 		}
 	}
 
@@ -649,7 +513,7 @@ func TestConcurrentFindDifferentDirectories(t *testing.T) {
 	}
 	sort.Strings(allFiles)
 	for _, path := range allFiles {
-		create(t, path, filesystem)
+		fs.Create(t, path, filesystem)
 	}
 
 	// set up a finder
@@ -687,16 +551,16 @@ func TestConcurrentFindDifferentDirectories(t *testing.T) {
 	// check that each response was correct
 	for i := 0; i < numTests; i++ {
 		testRun := <-testRuns
-		assertSameResponse(t, testRun.foundMatches, testRun.correctMatches)
+		fs.AssertSameResponse(t, testRun.foundMatches, testRun.correctMatches)
 	}
 }
 
 func TestStrangelyFormattedPaths(t *testing.T) {
 	filesystem := newFs()
 
-	create(t, "/tmp/findme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/b/findme.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/findme.txt", filesystem)
 
 	finder := newFinder(
 		t,
@@ -710,7 +574,7 @@ func TestStrangelyFormattedPaths(t *testing.T) {
 
 	foundPaths := finder.FindNamedAt("//tmp//a//..", "findme.txt")
 
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/a/findme.txt",
 			"/tmp/b/findme.txt",
 			"/tmp/findme.txt"})
@@ -719,9 +583,9 @@ func TestStrangelyFormattedPaths(t *testing.T) {
 func TestCorruptedCacheHeader(t *testing.T) {
 	filesystem := newFs()
 
-	create(t, "/tmp/findme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
-	write(t, "/finder/finder-db", "sample header", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Write(t, "/finder/finder-db", "sample header", filesystem)
 
 	finder := newFinder(
 		t,
@@ -735,7 +599,7 @@ func TestCorruptedCacheHeader(t *testing.T) {
 
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/a/findme.txt",
 			"/tmp/findme.txt"})
 }
@@ -743,8 +607,8 @@ func TestCorruptedCacheHeader(t *testing.T) {
 func TestCanUseCache(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/findme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -759,11 +623,11 @@ func TestCanUseCache(t *testing.T) {
 	// check the response of the first finder
 	correctResponse := []string{"/tmp/a/findme.txt",
 		"/tmp/findme.txt"}
-	assertSameResponse(t, foundPaths, correctResponse)
+	fs.AssertSameResponse(t, foundPaths, correctResponse)
 	finder.Shutdown()
 
 	// check results
-	cacheText := read(t, finder.DbPath, filesystem)
+	cacheText := fs.Read(t, finder.DbPath, filesystem)
 	if len(cacheText) < 1 {
 		t.Fatalf("saved cache db is empty\n")
 	}
@@ -780,8 +644,8 @@ func TestCanUseCache(t *testing.T) {
 	finder2 := finderWithSameParams(t, finder)
 	foundPaths = finder2.FindNamedAt("/tmp", "findme.txt")
 	// check results
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{})
-	assertSameReadDirCalls(t, filesystem.StatCalls, statCalls)
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{})
+	fs.AssertSameReadDirCalls(t, filesystem.StatCalls, statCalls)
 
 	finder2.Shutdown()
 }
@@ -789,8 +653,8 @@ func TestCanUseCache(t *testing.T) {
 func TestCorruptedCacheBody(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/findme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -807,7 +671,7 @@ func TestCorruptedCacheBody(t *testing.T) {
 	// check the response of the first finder
 	correctResponse := []string{"/tmp/a/findme.txt",
 		"/tmp/findme.txt"}
-	assertSameResponse(t, foundPaths, correctResponse)
+	fs.AssertSameResponse(t, foundPaths, correctResponse)
 	numStatCalls := len(filesystem.StatCalls)
 	numReadDirCalls := len(filesystem.ReadDirCalls)
 
@@ -828,7 +692,7 @@ func TestCorruptedCacheBody(t *testing.T) {
 	finder2 := finderWithSameParams(t, finder)
 	foundPaths = finder2.FindNamedAt("/tmp", "findme.txt")
 	// check results
-	assertSameResponse(t, foundPaths, correctResponse)
+	fs.AssertSameResponse(t, foundPaths, correctResponse)
 	numNewStatCalls := len(filesystem.StatCalls)
 	numNewReadDirCalls := len(filesystem.ReadDirCalls)
 	// It's permissable to make more Stat calls with a corrupted cache because
@@ -853,7 +717,7 @@ func TestCorruptedCacheBody(t *testing.T) {
 func TestStatCalls(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
 
 	// run finder
 	finder := newFinder(
@@ -868,19 +732,19 @@ func TestStatCalls(t *testing.T) {
 	finder.Shutdown()
 
 	// check response
-	assertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt"})
-	assertSameStatCalls(t, filesystem.StatCalls, []string{"/tmp", "/tmp/a"})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp", "/tmp/a"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt"})
+	fs.AssertSameStatCalls(t, filesystem.StatCalls, []string{"/tmp", "/tmp/a"})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp", "/tmp/a"})
 }
 
 func TestFileAdded(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/ignoreme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/b/ignore.txt", filesystem)
-	create(t, "/tmp/b/c/nope.txt", filesystem)
-	create(t, "/tmp/b/c/d/irrelevant.txt", filesystem)
+	fs.Create(t, "/tmp/ignoreme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/ignore.txt", filesystem)
+	fs.Create(t, "/tmp/b/c/nope.txt", filesystem)
+	fs.Create(t, "/tmp/b/c/d/irrelevant.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -895,11 +759,11 @@ func TestFileAdded(t *testing.T) {
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 	finder.Shutdown()
 	// check the response of the first finder
-	assertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt"})
 
 	// modify the filesystem
 	filesystem.Clock.Tick()
-	create(t, "/tmp/b/c/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/c/findme.txt", filesystem)
 	filesystem.Clock.Tick()
 	filesystem.ClearMetrics()
 
@@ -908,9 +772,9 @@ func TestFileAdded(t *testing.T) {
 	foundPaths = finder2.FindNamedAt("/tmp", "findme.txt")
 
 	// check results
-	assertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt", "/tmp/b/c/findme.txt"})
-	assertSameStatCalls(t, filesystem.StatCalls, []string{"/tmp", "/tmp/a", "/tmp/b", "/tmp/b/c", "/tmp/b/c/d"})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp/b/c"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt", "/tmp/b/c/findme.txt"})
+	fs.AssertSameStatCalls(t, filesystem.StatCalls, []string{"/tmp", "/tmp/a", "/tmp/b", "/tmp/b/c", "/tmp/b/c/d"})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp/b/c"})
 	finder2.Shutdown()
 
 }
@@ -918,11 +782,11 @@ func TestFileAdded(t *testing.T) {
 func TestDirectoriesAdded(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/ignoreme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/b/ignore.txt", filesystem)
-	create(t, "/tmp/b/c/nope.txt", filesystem)
-	create(t, "/tmp/b/c/d/irrelevant.txt", filesystem)
+	fs.Create(t, "/tmp/ignoreme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/ignore.txt", filesystem)
+	fs.Create(t, "/tmp/b/c/nope.txt", filesystem)
+	fs.Create(t, "/tmp/b/c/d/irrelevant.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -936,13 +800,13 @@ func TestDirectoriesAdded(t *testing.T) {
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 	finder.Shutdown()
 	// check the response of the first finder
-	assertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt"})
 
 	// modify the filesystem
 	filesystem.Clock.Tick()
-	create(t, "/tmp/b/c/new/findme.txt", filesystem)
-	create(t, "/tmp/b/c/new/new2/findme.txt", filesystem)
-	create(t, "/tmp/b/c/new/new2/ignoreme.txt", filesystem)
+	fs.Create(t, "/tmp/b/c/new/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/c/new/new2/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/c/new/new2/ignoreme.txt", filesystem)
 	filesystem.ClearMetrics()
 
 	// run the second finder
@@ -950,11 +814,11 @@ func TestDirectoriesAdded(t *testing.T) {
 	foundPaths = finder2.FindNamedAt("/tmp", "findme.txt")
 
 	// check results
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/a/findme.txt", "/tmp/b/c/new/findme.txt", "/tmp/b/c/new/new2/findme.txt"})
-	assertSameStatCalls(t, filesystem.StatCalls,
+	fs.AssertSameStatCalls(t, filesystem.StatCalls,
 		[]string{"/tmp", "/tmp/a", "/tmp/b", "/tmp/b/c", "/tmp/b/c/d", "/tmp/b/c/new", "/tmp/b/c/new/new2"})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp/b/c", "/tmp/b/c/new", "/tmp/b/c/new/new2"})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp/b/c", "/tmp/b/c/new", "/tmp/b/c/new/new2"})
 
 	finder2.Shutdown()
 }
@@ -962,8 +826,8 @@ func TestDirectoriesAdded(t *testing.T) {
 func TestDirectoryAndSubdirectoryBothUpdated(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/hi1.txt", filesystem)
-	create(t, "/tmp/a/hi1.txt", filesystem)
+	fs.Create(t, "/tmp/hi1.txt", filesystem)
+	fs.Create(t, "/tmp/a/hi1.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -977,12 +841,12 @@ func TestDirectoryAndSubdirectoryBothUpdated(t *testing.T) {
 	foundPaths := finder.FindNamedAt("/tmp", "hi1.txt")
 	finder.Shutdown()
 	// check the response of the first finder
-	assertSameResponse(t, foundPaths, []string{"/tmp/hi1.txt", "/tmp/a/hi1.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/hi1.txt", "/tmp/a/hi1.txt"})
 
 	// modify the filesystem
 	filesystem.Clock.Tick()
-	create(t, "/tmp/hi2.txt", filesystem)
-	create(t, "/tmp/a/hi2.txt", filesystem)
+	fs.Create(t, "/tmp/hi2.txt", filesystem)
+	fs.Create(t, "/tmp/a/hi2.txt", filesystem)
 	filesystem.ClearMetrics()
 
 	// run the second finder
@@ -990,11 +854,11 @@ func TestDirectoryAndSubdirectoryBothUpdated(t *testing.T) {
 	foundPaths = finder2.FindAll()
 
 	// check results
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/hi1.txt", "/tmp/hi2.txt", "/tmp/a/hi1.txt", "/tmp/a/hi2.txt"})
-	assertSameStatCalls(t, filesystem.StatCalls,
+	fs.AssertSameStatCalls(t, filesystem.StatCalls,
 		[]string{"/tmp", "/tmp/a"})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp", "/tmp/a"})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp", "/tmp/a"})
 
 	finder2.Shutdown()
 }
@@ -1002,11 +866,11 @@ func TestDirectoryAndSubdirectoryBothUpdated(t *testing.T) {
 func TestFileDeleted(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/ignoreme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/b/findme.txt", filesystem)
-	create(t, "/tmp/b/c/nope.txt", filesystem)
-	create(t, "/tmp/b/c/d/irrelevant.txt", filesystem)
+	fs.Create(t, "/tmp/ignoreme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/c/nope.txt", filesystem)
+	fs.Create(t, "/tmp/b/c/d/irrelevant.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -1020,11 +884,11 @@ func TestFileDeleted(t *testing.T) {
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 	finder.Shutdown()
 	// check the response of the first finder
-	assertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt", "/tmp/b/findme.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt", "/tmp/b/findme.txt"})
 
 	// modify the filesystem
 	filesystem.Clock.Tick()
-	delete(t, "/tmp/b/findme.txt", filesystem)
+	fs.Delete(t, "/tmp/b/findme.txt", filesystem)
 	filesystem.ClearMetrics()
 
 	// run the second finder
@@ -1032,9 +896,9 @@ func TestFileDeleted(t *testing.T) {
 	foundPaths = finder2.FindNamedAt("/tmp", "findme.txt")
 
 	// check results
-	assertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt"})
-	assertSameStatCalls(t, filesystem.StatCalls, []string{"/tmp", "/tmp/a", "/tmp/b", "/tmp/b/c", "/tmp/b/c/d"})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp/b"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/a/findme.txt"})
+	fs.AssertSameStatCalls(t, filesystem.StatCalls, []string{"/tmp", "/tmp/a", "/tmp/b", "/tmp/b/c", "/tmp/b/c/d"})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp/b"})
 
 	finder2.Shutdown()
 }
@@ -1042,11 +906,11 @@ func TestFileDeleted(t *testing.T) {
 func TestDirectoriesDeleted(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/findme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/a/1/findme.txt", filesystem)
-	create(t, "/tmp/a/1/2/findme.txt", filesystem)
-	create(t, "/tmp/b/findme.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/1/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/1/2/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/findme.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -1060,7 +924,7 @@ func TestDirectoriesDeleted(t *testing.T) {
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 	finder.Shutdown()
 	// check the response of the first finder
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/findme.txt",
 			"/tmp/a/findme.txt",
 			"/tmp/a/1/findme.txt",
@@ -1069,7 +933,7 @@ func TestDirectoriesDeleted(t *testing.T) {
 
 	// modify the filesystem
 	filesystem.Clock.Tick()
-	removeAll(t, "/tmp/a/1", filesystem)
+	fs.RemoveAll(t, "/tmp/a/1", filesystem)
 	filesystem.ClearMetrics()
 
 	// run the second finder
@@ -1077,7 +941,7 @@ func TestDirectoriesDeleted(t *testing.T) {
 	foundPaths = finder2.FindNamedAt("/tmp", "findme.txt")
 
 	// check results
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/findme.txt", "/tmp/a/findme.txt", "/tmp/b/findme.txt"})
 	// Technically, we don't care whether /tmp/a/1/2 gets Statted or gets skipped
 	// if the Finder detects the nonexistence of /tmp/a/1
@@ -1087,9 +951,9 @@ func TestDirectoriesDeleted(t *testing.T) {
 	// The Finder is currently implemented to always restat every dir and
 	// to not short-circuit due to nonexistence of parents (but it will remove
 	// missing dirs from the cache for next time)
-	assertSameStatCalls(t, filesystem.StatCalls,
+	fs.AssertSameStatCalls(t, filesystem.StatCalls,
 		[]string{"/tmp", "/tmp/a", "/tmp/a/1", "/tmp/a/1/2", "/tmp/b"})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp/a"})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp/a"})
 
 	finder2.Shutdown()
 }
@@ -1097,11 +961,11 @@ func TestDirectoriesDeleted(t *testing.T) {
 func TestDirectoriesMoved(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/findme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/a/1/findme.txt", filesystem)
-	create(t, "/tmp/a/1/2/findme.txt", filesystem)
-	create(t, "/tmp/b/findme.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/1/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/1/2/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/findme.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -1115,7 +979,7 @@ func TestDirectoriesMoved(t *testing.T) {
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 	finder.Shutdown()
 	// check the response of the first finder
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/findme.txt",
 			"/tmp/a/findme.txt",
 			"/tmp/a/1/findme.txt",
@@ -1124,7 +988,7 @@ func TestDirectoriesMoved(t *testing.T) {
 
 	// modify the filesystem
 	filesystem.Clock.Tick()
-	move(t, "/tmp/a", "/tmp/c", filesystem)
+	fs.Move(t, "/tmp/a", "/tmp/c", filesystem)
 	filesystem.ClearMetrics()
 
 	// run the second finder
@@ -1132,7 +996,7 @@ func TestDirectoriesMoved(t *testing.T) {
 	foundPaths = finder2.FindNamedAt("/tmp", "findme.txt")
 
 	// check results
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/findme.txt",
 			"/tmp/b/findme.txt",
 			"/tmp/c/findme.txt",
@@ -1146,20 +1010,20 @@ func TestDirectoriesMoved(t *testing.T) {
 	// The Finder is currently implemented to always restat every dir and
 	// to not short-circuit due to nonexistence of parents (but it will remove
 	// missing dirs from the cache for next time)
-	assertSameStatCalls(t, filesystem.StatCalls,
+	fs.AssertSameStatCalls(t, filesystem.StatCalls,
 		[]string{"/tmp", "/tmp/a", "/tmp/a/1", "/tmp/a/1/2", "/tmp/b", "/tmp/c", "/tmp/c/1", "/tmp/c/1/2"})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp", "/tmp/c", "/tmp/c/1", "/tmp/c/1/2"})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp", "/tmp/c", "/tmp/c/1", "/tmp/c/1/2"})
 	finder2.Shutdown()
 }
 
 func TestDirectoriesSwapped(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/findme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/a/1/findme.txt", filesystem)
-	create(t, "/tmp/a/1/2/findme.txt", filesystem)
-	create(t, "/tmp/b/findme.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/1/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/1/2/findme.txt", filesystem)
+	fs.Create(t, "/tmp/b/findme.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -1173,7 +1037,7 @@ func TestDirectoriesSwapped(t *testing.T) {
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 	finder.Shutdown()
 	// check the response of the first finder
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/findme.txt",
 			"/tmp/a/findme.txt",
 			"/tmp/a/1/findme.txt",
@@ -1182,9 +1046,9 @@ func TestDirectoriesSwapped(t *testing.T) {
 
 	// modify the filesystem
 	filesystem.Clock.Tick()
-	move(t, "/tmp/a", "/tmp/temp", filesystem)
-	move(t, "/tmp/b", "/tmp/a", filesystem)
-	move(t, "/tmp/temp", "/tmp/b", filesystem)
+	fs.Move(t, "/tmp/a", "/tmp/temp", filesystem)
+	fs.Move(t, "/tmp/b", "/tmp/a", filesystem)
+	fs.Move(t, "/tmp/temp", "/tmp/b", filesystem)
 	filesystem.ClearMetrics()
 
 	// run the second finder
@@ -1192,7 +1056,7 @@ func TestDirectoriesSwapped(t *testing.T) {
 	foundPaths = finder2.FindNamedAt("/tmp", "findme.txt")
 
 	// check results
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/findme.txt",
 			"/tmp/a/findme.txt",
 			"/tmp/b/findme.txt",
@@ -1206,9 +1070,9 @@ func TestDirectoriesSwapped(t *testing.T) {
 	// The Finder is currently implemented to always restat every dir and
 	// to not short-circuit due to nonexistence of parents (but it will remove
 	// missing dirs from the cache for next time)
-	assertSameStatCalls(t, filesystem.StatCalls,
+	fs.AssertSameStatCalls(t, filesystem.StatCalls,
 		[]string{"/tmp", "/tmp/a", "/tmp/a/1", "/tmp/a/1/2", "/tmp/b", "/tmp/b/1", "/tmp/b/1/2"})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp", "/tmp/a", "/tmp/b", "/tmp/b/1", "/tmp/b/1/2"})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp", "/tmp/a", "/tmp/b", "/tmp/b/1", "/tmp/b/1/2"})
 	finder2.Shutdown()
 }
 
@@ -1217,15 +1081,15 @@ func TestDirectoriesSwapped(t *testing.T) {
 // runFsReplacementTest is a helper method called by other tests
 func runFsReplacementTest(t *testing.T, fs1 *fs.MockFs, fs2 *fs.MockFs) {
 	// setup fs1
-	create(t, "/tmp/findme.txt", fs1)
-	create(t, "/tmp/a/findme.txt", fs1)
-	create(t, "/tmp/a/a/findme.txt", fs1)
+	fs.Create(t, "/tmp/findme.txt", fs1)
+	fs.Create(t, "/tmp/a/findme.txt", fs1)
+	fs.Create(t, "/tmp/a/a/findme.txt", fs1)
 
 	// setup fs2 to have the same directories but different files
-	create(t, "/tmp/findme.txt", fs2)
-	create(t, "/tmp/a/findme.txt", fs2)
-	create(t, "/tmp/a/a/ignoreme.txt", fs2)
-	create(t, "/tmp/a/b/findme.txt", fs2)
+	fs.Create(t, "/tmp/findme.txt", fs2)
+	fs.Create(t, "/tmp/a/findme.txt", fs2)
+	fs.Create(t, "/tmp/a/a/ignoreme.txt", fs2)
+	fs.Create(t, "/tmp/a/b/findme.txt", fs2)
 
 	// run the first finder
 	finder := newFinder(
@@ -1239,12 +1103,12 @@ func runFsReplacementTest(t *testing.T, fs1 *fs.MockFs, fs2 *fs.MockFs) {
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
 	finder.Shutdown()
 	// check the response of the first finder
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/findme.txt", "/tmp/a/findme.txt", "/tmp/a/a/findme.txt"})
 
 	// copy the cache data from the first filesystem to the second
-	cacheContent := read(t, finder.DbPath, fs1)
-	write(t, finder.DbPath, cacheContent, fs2)
+	cacheContent := fs.Read(t, finder.DbPath, fs1)
+	fs.Write(t, finder.DbPath, cacheContent, fs2)
 
 	// run the second finder, with the same config and same cache contents but a different filesystem
 	finder2 := newFinder(
@@ -1258,11 +1122,11 @@ func runFsReplacementTest(t *testing.T, fs1 *fs.MockFs, fs2 *fs.MockFs) {
 	foundPaths = finder2.FindNamedAt("/tmp", "findme.txt")
 
 	// check results
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/findme.txt", "/tmp/a/findme.txt", "/tmp/a/b/findme.txt"})
-	assertSameStatCalls(t, fs2.StatCalls,
+	fs.AssertSameStatCalls(t, fs2.StatCalls,
 		[]string{"/tmp", "/tmp/a", "/tmp/a/a", "/tmp/a/b"})
-	assertSameReadDirCalls(t, fs2.ReadDirCalls,
+	fs.AssertSameReadDirCalls(t, fs2.ReadDirCalls,
 		[]string{"/tmp", "/tmp/a", "/tmp/a/a", "/tmp/a/b"})
 	finder2.Shutdown()
 }
@@ -1292,7 +1156,7 @@ func TestConsistentCacheOrdering(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
 	for i := 0; i < 5; i++ {
-		create(t, fmt.Sprintf("/tmp/%v/findme.txt", i), filesystem)
+		fs.Create(t, fmt.Sprintf("/tmp/%v/findme.txt", i), filesystem)
 	}
 
 	// run the first finder
@@ -1308,7 +1172,7 @@ func TestConsistentCacheOrdering(t *testing.T) {
 	finder.Shutdown()
 
 	// read db file
-	string1 := read(t, finder.DbPath, filesystem)
+	string1 := fs.Read(t, finder.DbPath, filesystem)
 
 	err := filesystem.Remove(finder.DbPath)
 	if err != nil {
@@ -1320,7 +1184,7 @@ func TestConsistentCacheOrdering(t *testing.T) {
 	finder2.FindNamedAt("/tmp", "findme.txt")
 	finder2.Shutdown()
 
-	string2 := read(t, finder.DbPath, filesystem)
+	string2 := fs.Read(t, finder.DbPath, filesystem)
 
 	if string1 != string2 {
 		t.Errorf("Running Finder twice generated two dbs not having identical contents.\n"+
@@ -1343,9 +1207,9 @@ func TestConsistentCacheOrdering(t *testing.T) {
 func TestNumSyscallsOfSecondFind(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/findme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/a/misc.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/misc.txt", filesystem)
 
 	// set up the finder and run it once
 	finder := newFinder(
@@ -1357,15 +1221,15 @@ func TestNumSyscallsOfSecondFind(t *testing.T) {
 		},
 	)
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
-	assertSameResponse(t, foundPaths, []string{"/tmp/findme.txt", "/tmp/a/findme.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/findme.txt", "/tmp/a/findme.txt"})
 
 	filesystem.ClearMetrics()
 
 	// run the finder again and confirm it doesn't check the filesystem
 	refoundPaths := finder.FindNamedAt("/tmp", "findme.txt")
-	assertSameResponse(t, refoundPaths, foundPaths)
-	assertSameStatCalls(t, filesystem.StatCalls, []string{})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{})
+	fs.AssertSameResponse(t, refoundPaths, foundPaths)
+	fs.AssertSameStatCalls(t, filesystem.StatCalls, []string{})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{})
 
 	finder.Shutdown()
 }
@@ -1373,9 +1237,9 @@ func TestNumSyscallsOfSecondFind(t *testing.T) {
 func TestChangingParamsOfSecondFind(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/findme.txt", filesystem)
-	create(t, "/tmp/a/findme.txt", filesystem)
-	create(t, "/tmp/a/metoo.txt", filesystem)
+	fs.Create(t, "/tmp/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/findme.txt", filesystem)
+	fs.Create(t, "/tmp/a/metoo.txt", filesystem)
 
 	// set up the finder and run it once
 	finder := newFinder(
@@ -1387,15 +1251,15 @@ func TestChangingParamsOfSecondFind(t *testing.T) {
 		},
 	)
 	foundPaths := finder.FindNamedAt("/tmp", "findme.txt")
-	assertSameResponse(t, foundPaths, []string{"/tmp/findme.txt", "/tmp/a/findme.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/findme.txt", "/tmp/a/findme.txt"})
 
 	filesystem.ClearMetrics()
 
 	// run the finder again and confirm it gets the right answer without asking the filesystem
 	refoundPaths := finder.FindNamedAt("/tmp", "metoo.txt")
-	assertSameResponse(t, refoundPaths, []string{"/tmp/a/metoo.txt"})
-	assertSameStatCalls(t, filesystem.StatCalls, []string{})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{})
+	fs.AssertSameResponse(t, refoundPaths, []string{"/tmp/a/metoo.txt"})
+	fs.AssertSameStatCalls(t, filesystem.StatCalls, []string{})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{})
 
 	finder.Shutdown()
 }
@@ -1403,15 +1267,15 @@ func TestChangingParamsOfSecondFind(t *testing.T) {
 func TestSymlinkPointingToFile(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/a/hi.txt", filesystem)
-	create(t, "/tmp/a/ignoreme.txt", filesystem)
-	link(t, "/tmp/hi.txt", "a/hi.txt", filesystem)
-	link(t, "/tmp/b/hi.txt", "../a/hi.txt", filesystem)
-	link(t, "/tmp/c/hi.txt", "/tmp/hi.txt", filesystem)
-	link(t, "/tmp/d/hi.txt", "../a/bye.txt", filesystem)
-	link(t, "/tmp/d/bye.txt", "../a/hi.txt", filesystem)
-	link(t, "/tmp/e/bye.txt", "../a/bye.txt", filesystem)
-	link(t, "/tmp/f/hi.txt", "somethingThatDoesntExist", filesystem)
+	fs.Create(t, "/tmp/a/hi.txt", filesystem)
+	fs.Create(t, "/tmp/a/ignoreme.txt", filesystem)
+	fs.Link(t, "/tmp/hi.txt", "a/hi.txt", filesystem)
+	fs.Link(t, "/tmp/b/hi.txt", "../a/hi.txt", filesystem)
+	fs.Link(t, "/tmp/c/hi.txt", "/tmp/hi.txt", filesystem)
+	fs.Link(t, "/tmp/d/hi.txt", "../a/bye.txt", filesystem)
+	fs.Link(t, "/tmp/d/bye.txt", "../a/hi.txt", filesystem)
+	fs.Link(t, "/tmp/e/bye.txt", "../a/bye.txt", filesystem)
+	fs.Link(t, "/tmp/f/hi.txt", "somethingThatDoesntExist", filesystem)
 
 	// set up the finder and run it once
 	finder := newFinder(
@@ -1432,20 +1296,21 @@ func TestSymlinkPointingToFile(t *testing.T) {
 		"/tmp/d/hi.txt",
 		"/tmp/f/hi.txt",
 	}
-	assertSameResponse(t, foundPaths, correctResponse)
+	fs.AssertSameResponse(t, foundPaths, correctResponse)
 
 }
 
 func TestSymlinkPointingToDirectory(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/dir/hi.txt", filesystem)
-	create(t, "/tmp/dir/ignoreme.txt", filesystem)
+	fs.Create(t, "/tmp/dir/hi.txt", filesystem)
+	fs.Create(t, "/tmp/dir/ignoreme.txt", filesystem)
 
-	link(t, "/tmp/links/dir", "../dir", filesystem)
-	link(t, "/tmp/links/link", "../dir", filesystem)
-	link(t, "/tmp/links/broken", "nothingHere", filesystem)
-	link(t, "/tmp/links/recursive", "recursive", filesystem)
+	fs.Link(t, "/tmp/links/dir", "../dir", filesystem)
+	fs.Link(t, "/tmp/links/link", "../dir", filesystem)
+	fs.Link(t, "/tmp/links/hi.txt", "../dir", filesystem)
+	fs.Link(t, "/tmp/links/broken", "nothingHere", filesystem)
+	fs.Link(t, "/tmp/links/recursive", "recursive", filesystem)
 
 	// set up the finder and run it once
 	finder := newFinder(
@@ -1463,7 +1328,7 @@ func TestSymlinkPointingToDirectory(t *testing.T) {
 	correctResponse := []string{
 		"/tmp/dir/hi.txt",
 	}
-	assertSameResponse(t, foundPaths, correctResponse)
+	fs.AssertSameResponse(t, foundPaths, correctResponse)
 
 }
 
@@ -1472,9 +1337,9 @@ func TestSymlinkPointingToDirectory(t *testing.T) {
 func TestAddPruneFile(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/out/hi.txt", filesystem)
-	create(t, "/tmp/out/a/hi.txt", filesystem)
-	create(t, "/tmp/hi.txt", filesystem)
+	fs.Create(t, "/tmp/out/hi.txt", filesystem)
+	fs.Create(t, "/tmp/out/a/hi.txt", filesystem)
+	fs.Create(t, "/tmp/hi.txt", filesystem)
 
 	// do find
 	finder := newFinder(
@@ -1490,7 +1355,7 @@ func TestAddPruneFile(t *testing.T) {
 	foundPaths := finder.FindNamedAt("/tmp", "hi.txt")
 
 	// check result
-	assertSameResponse(t, foundPaths,
+	fs.AssertSameResponse(t, foundPaths,
 		[]string{"/tmp/hi.txt",
 			"/tmp/out/hi.txt",
 			"/tmp/out/a/hi.txt"},
@@ -1499,19 +1364,19 @@ func TestAddPruneFile(t *testing.T) {
 
 	// modify filesystem
 	filesystem.Clock.Tick()
-	create(t, "/tmp/out/.ignore-out-dir", filesystem)
+	fs.Create(t, "/tmp/out/.ignore-out-dir", filesystem)
 	// run another find and check its result
 	finder2 := finderWithSameParams(t, finder)
 	foundPaths = finder2.FindNamedAt("/tmp", "hi.txt")
-	assertSameResponse(t, foundPaths, []string{"/tmp/hi.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/hi.txt"})
 	finder2.Shutdown()
 }
 
 func TestUpdatingDbIffChanged(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/a/hi.txt", filesystem)
-	create(t, "/tmp/b/bye.txt", filesystem)
+	fs.Create(t, "/tmp/a/hi.txt", filesystem)
+	fs.Create(t, "/tmp/b/bye.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -1526,11 +1391,11 @@ func TestUpdatingDbIffChanged(t *testing.T) {
 	foundPaths := finder.FindAll()
 	finder.Shutdown()
 	// check results
-	assertSameResponse(t, foundPaths, []string{"/tmp/a/hi.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/a/hi.txt"})
 
 	// modify the filesystem
 	filesystem.Clock.Tick()
-	create(t, "/tmp/b/hi.txt", filesystem)
+	fs.Create(t, "/tmp/b/hi.txt", filesystem)
 	filesystem.Clock.Tick()
 	filesystem.ClearMetrics()
 
@@ -1539,10 +1404,10 @@ func TestUpdatingDbIffChanged(t *testing.T) {
 	foundPaths = finder2.FindAll()
 	finder2.Shutdown()
 	// check results
-	assertSameResponse(t, foundPaths, []string{"/tmp/a/hi.txt", "/tmp/b/hi.txt"})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp/b"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/a/hi.txt", "/tmp/b/hi.txt"})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{"/tmp/b"})
 	expectedDbWriteTime := filesystem.Clock.Time()
-	actualDbWriteTime := modTime(t, finder2.DbPath, filesystem)
+	actualDbWriteTime := fs.ModTime(t, finder2.DbPath, filesystem)
 	if actualDbWriteTime != expectedDbWriteTime {
 		t.Fatalf("Expected to write db at %v, actually wrote db at %v\n",
 			expectedDbWriteTime, actualDbWriteTime)
@@ -1556,10 +1421,10 @@ func TestUpdatingDbIffChanged(t *testing.T) {
 	foundPaths = finder3.FindAll()
 
 	// check results
-	assertSameResponse(t, foundPaths, []string{"/tmp/a/hi.txt", "/tmp/b/hi.txt"})
-	assertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/a/hi.txt", "/tmp/b/hi.txt"})
+	fs.AssertSameReadDirCalls(t, filesystem.ReadDirCalls, []string{})
 	finder3.Shutdown()
-	actualDbWriteTime = modTime(t, finder3.DbPath, filesystem)
+	actualDbWriteTime = fs.ModTime(t, finder3.DbPath, filesystem)
 	if actualDbWriteTime != expectedDbWriteTime {
 		t.Fatalf("Re-wrote db even when contents did not change")
 	}
@@ -1569,10 +1434,10 @@ func TestUpdatingDbIffChanged(t *testing.T) {
 func TestDirectoryNotPermitted(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/hi.txt", filesystem)
-	create(t, "/tmp/a/hi.txt", filesystem)
-	create(t, "/tmp/a/a/hi.txt", filesystem)
-	create(t, "/tmp/b/hi.txt", filesystem)
+	fs.Create(t, "/tmp/hi.txt", filesystem)
+	fs.Create(t, "/tmp/a/hi.txt", filesystem)
+	fs.Create(t, "/tmp/a/a/hi.txt", filesystem)
+	fs.Create(t, "/tmp/b/hi.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -1588,12 +1453,12 @@ func TestDirectoryNotPermitted(t *testing.T) {
 	finder.Shutdown()
 	allPaths := []string{"/tmp/hi.txt", "/tmp/a/hi.txt", "/tmp/a/a/hi.txt", "/tmp/b/hi.txt"}
 	// check results
-	assertSameResponse(t, foundPaths, allPaths)
+	fs.AssertSameResponse(t, foundPaths, allPaths)
 
 	// modify the filesystem
 	filesystem.Clock.Tick()
 
-	setReadable(t, "/tmp/a", false, filesystem)
+	fs.SetReadable(t, "/tmp/a", false, filesystem)
 	filesystem.Clock.Tick()
 
 	// run the second finder
@@ -1601,24 +1466,24 @@ func TestDirectoryNotPermitted(t *testing.T) {
 	foundPaths = finder2.FindAll()
 	finder2.Shutdown()
 	// check results
-	assertSameResponse(t, foundPaths, []string{"/tmp/hi.txt", "/tmp/b/hi.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/hi.txt", "/tmp/b/hi.txt"})
 
 	// modify the filesystem back
-	setReadable(t, "/tmp/a", true, filesystem)
+	fs.SetReadable(t, "/tmp/a", true, filesystem)
 
 	// run the third finder
 	finder3 := finderWithSameParams(t, finder2)
 	foundPaths = finder3.FindAll()
 	finder3.Shutdown()
 	// check results
-	assertSameResponse(t, foundPaths, allPaths)
+	fs.AssertSameResponse(t, foundPaths, allPaths)
 }
 
 func TestFileNotPermitted(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/hi.txt", filesystem)
-	setReadable(t, "/tmp/hi.txt", false, filesystem)
+	fs.Create(t, "/tmp/hi.txt", filesystem)
+	fs.SetReadable(t, "/tmp/hi.txt", false, filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -1633,13 +1498,13 @@ func TestFileNotPermitted(t *testing.T) {
 	foundPaths := finder.FindAll()
 	finder.Shutdown()
 	// check results
-	assertSameResponse(t, foundPaths, []string{"/tmp/hi.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/hi.txt"})
 }
 
 func TestCacheEntryPathUnexpectedError(t *testing.T) {
 	// setup filesystem
 	filesystem := newFs()
-	create(t, "/tmp/a/hi.txt", filesystem)
+	fs.Create(t, "/tmp/a/hi.txt", filesystem)
 
 	// run the first finder
 	finder := newFinder(
@@ -1654,14 +1519,14 @@ func TestCacheEntryPathUnexpectedError(t *testing.T) {
 	foundPaths := finder.FindAll()
 	finder.Shutdown()
 	// check results
-	assertSameResponse(t, foundPaths, []string{"/tmp/a/hi.txt"})
+	fs.AssertSameResponse(t, foundPaths, []string{"/tmp/a/hi.txt"})
 
 	// make the directory not readable
-	setReadErr(t, "/tmp/a", os.ErrInvalid, filesystem)
+	fs.SetReadErr(t, "/tmp/a", os.ErrInvalid, filesystem)
 
 	// run the second finder
 	_, err := finderAndErrorWithSameParams(t, finder)
 	if err == nil {
-		fatal(t, "Failed to detect unexpected filesystem error")
+		t.Fatal("Failed to detect unexpected filesystem error")
 	}
 }

@@ -46,7 +46,7 @@ var (
 				// Because clippy-driver uses rustc as backend, we need to have some output even during the linting.
 				// Use the metadata output as it has the smallest footprint.
 				"--emit metadata -o $out $in ${libFlags} " +
-				"$clippyFlags $rustcFlags",
+				"$rustcFlags $clippyFlags",
 			CommandDeps: []string{"$clippyCmd"},
 		},
 		"rustcFlags", "libFlags", "clippyFlags")
@@ -70,37 +70,37 @@ func init() {
 }
 
 func TransformSrcToBinary(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
-	outputFile android.WritablePath, includeDirs []string) buildOutput {
+	outputFile android.WritablePath, linkDirs []string) buildOutput {
 	flags.RustFlags = append(flags.RustFlags, "-C lto")
 
-	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "bin", includeDirs)
+	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "bin", linkDirs)
 }
 
 func TransformSrctoRlib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
-	outputFile android.WritablePath, includeDirs []string) buildOutput {
-	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "rlib", includeDirs)
+	outputFile android.WritablePath, linkDirs []string) buildOutput {
+	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "rlib", linkDirs)
 }
 
 func TransformSrctoDylib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
-	outputFile android.WritablePath, includeDirs []string) buildOutput {
-	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "dylib", includeDirs)
+	outputFile android.WritablePath, linkDirs []string) buildOutput {
+	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "dylib", linkDirs)
 }
 
 func TransformSrctoStatic(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
-	outputFile android.WritablePath, includeDirs []string) buildOutput {
+	outputFile android.WritablePath, linkDirs []string) buildOutput {
 	flags.RustFlags = append(flags.RustFlags, "-C lto")
-	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "staticlib", includeDirs)
+	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "staticlib", linkDirs)
 }
 
 func TransformSrctoShared(ctx ModuleContext, mainSrc android.Path, deps PathDeps, flags Flags,
-	outputFile android.WritablePath, includeDirs []string) buildOutput {
+	outputFile android.WritablePath, linkDirs []string) buildOutput {
 	flags.RustFlags = append(flags.RustFlags, "-C lto")
-	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "cdylib", includeDirs)
+	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "cdylib", linkDirs)
 }
 
 func TransformSrctoProcMacro(ctx ModuleContext, mainSrc android.Path, deps PathDeps,
-	flags Flags, outputFile android.WritablePath, includeDirs []string) buildOutput {
-	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "proc-macro", includeDirs)
+	flags Flags, outputFile android.WritablePath, linkDirs []string) buildOutput {
+	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, "proc-macro", linkDirs)
 }
 
 func rustLibsToPaths(libs RustLibraries) android.Paths {
@@ -112,7 +112,7 @@ func rustLibsToPaths(libs RustLibraries) android.Paths {
 }
 
 func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, flags Flags,
-	outputFile android.WritablePath, crate_type string, includeDirs []string) buildOutput {
+	outputFile android.WritablePath, crate_type string, linkDirs []string) buildOutput {
 
 	var inputs android.Paths
 	var implicits android.Paths
@@ -137,16 +137,10 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		rustcFlags = append(rustcFlags, "--target="+targetTriple)
 		linkFlags = append(linkFlags, "-target "+targetTriple)
 	}
-	// TODO(b/159718669): Once we have defined static libraries in the host
-	// prebuilts Blueprint file, sysroot should be unconditionally sourced
-	// from /dev/null. Explicitly set sysroot to avoid clippy-driver to
-	// internally call rustc.
-	if ctx.Host() && ctx.TargetPrimary() {
-		rustcFlags = append(rustcFlags, "--sysroot=${config.RustPath}")
-	} else {
-		// If we're not targeting the host primary arch, do not use a sysroot.
-		rustcFlags = append(rustcFlags, "--sysroot=/dev/null")
-	}
+
+	// Suppress an implicit sysroot
+	rustcFlags = append(rustcFlags, "--sysroot=/dev/null")
+
 	// Collect linker flags
 	linkFlags = append(linkFlags, flags.GlobalLinkFlags...)
 	linkFlags = append(linkFlags, flags.LinkFlags...)
@@ -162,7 +156,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		libFlags = append(libFlags, "--extern "+proc_macro.CrateName+"="+proc_macro.Path.String())
 	}
 
-	for _, path := range includeDirs {
+	for _, path := range linkDirs {
 		libFlags = append(libFlags, "-L "+path)
 	}
 
