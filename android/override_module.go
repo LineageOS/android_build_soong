@@ -28,6 +28,7 @@ package android
 // module based on it.
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/google/blueprint"
@@ -161,6 +162,11 @@ func (b *OverridableModuleBase) addOverride(o OverrideModule) {
 
 // Should NOT be used in the same mutator as addOverride.
 func (b *OverridableModuleBase) getOverrides() []OverrideModule {
+	b.overridesLock.Lock()
+	sort.Slice(b.overrides, func(i, j int) bool {
+		return b.overrides[i].Name() < b.overrides[j].Name()
+	})
+	b.overridesLock.Unlock()
 	return b.overrides
 }
 
