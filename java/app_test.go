@@ -147,7 +147,7 @@ func TestAndroidAppSet(t *testing.T) {
 			name: "foo",
 			set: "prebuilts/apks/app.apks",
 			prerelease: true,
-        }`)
+		}`)
 	module := ctx.ModuleForTests("foo", "android_common")
 	const packedSplitApks = "foo.zip"
 	params := module.Output(packedSplitApks)
@@ -156,6 +156,9 @@ func TestAndroidAppSet(t *testing.T) {
 	}
 	if s := params.Args["allow-prereleased"]; s != "true" {
 		t.Errorf("wrong allow-prereleased value: '%s', expected 'true'", s)
+	}
+	if s := params.Args["partition"]; s != "system" {
+		t.Errorf("wrong partition value: '%s', expected 'system'", s)
 	}
 	mkEntries := android.AndroidMkEntriesForTest(t, config, "", module.Module())[0]
 	actualMaster := mkEntries.EntryMap["LOCAL_APK_SET_MASTER_FILE"]

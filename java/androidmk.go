@@ -716,6 +716,7 @@ func (apkSet *AndroidAppSet) AndroidMkEntries() []android.AndroidMkEntries {
 				func(entries *android.AndroidMkEntries) {
 					entries.SetBoolIfTrue("LOCAL_PRIVILEGED_MODULE", apkSet.Privileged())
 					entries.SetString("LOCAL_APK_SET_MASTER_FILE", apkSet.masterFile)
+					entries.SetPath("LOCAL_APKCERTS_FILE", apkSet.apkcertsFile)
 					entries.AddStrings("LOCAL_OVERRIDES_PACKAGES", apkSet.properties.Overrides...)
 				},
 			},
