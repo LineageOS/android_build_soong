@@ -150,6 +150,46 @@ python_test_host {
 }
 
 python_binary_host {
+    name: "construct_context",
+    main: "construct_context.py",
+    srcs: [
+        "construct_context.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    },
+    libs: [
+        "manifest_utils",
+    ],
+}
+
+python_test_host {
+    name: "construct_context_test",
+    main: "construct_context_test.py",
+    srcs: [
+        "construct_context_test.py",
+        "construct_context.py",
+    ],
+    version: {
+        py2: {
+            enabled: true,
+        },
+        py3: {
+            enabled: false,
+        },
+    },
+    libs: [
+        "manifest_utils",
+    ],
+    test_suites: ["general-tests"],
+}
+
+python_binary_host {
     name: "lint-project-xml",
     main: "lint-project-xml.py",
     srcs: [
