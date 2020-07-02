@@ -1879,9 +1879,8 @@ func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, hasFrameworkLibs 
 		// creating a cyclic dependency:
 		//     e.g. framework-res -> org.apache.http.legacy -> ... -> framework-res.
 		if hasFrameworkLibs {
-			// dexpreopt/dexpreopt.go needs the paths to the dex jars of these libraries in case construct_context.sh needs
-			// to pass them to dex2oat.  Add them as a dependency so we can determine the path to the dex jar of each
-			// library to dexpreopt.
+			// Dexpreopt needs paths to the dex jars of these libraries in order to construct
+			// class loader context for dex2oat. Add them as a dependency with a special tag.
 			ctx.AddVariationDependencies(nil, usesLibTag,
 				"org.apache.http.legacy",
 				"android.hidl.base-V1.0-java",
