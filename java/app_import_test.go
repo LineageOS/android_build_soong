@@ -232,7 +232,7 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 }
 
 func TestAndroidAppImport_Filename(t *testing.T) {
-	ctx, config := testJava(t, `
+	ctx, _ := testJava(t, `
 		android_app_import {
 			name: "foo",
 			apk: "prebuilts/apk/app.apk",
@@ -269,8 +269,7 @@ func TestAndroidAppImport_Filename(t *testing.T) {
 
 		a := variant.Module().(*AndroidAppImport)
 		expectedValues := []string{test.expected}
-		actualValues := android.AndroidMkEntriesForTest(
-			t, config, "", a)[0].EntryMap["LOCAL_INSTALLED_MODULE_STEM"]
+		actualValues := android.AndroidMkEntriesForTest(t, ctx, a)[0].EntryMap["LOCAL_INSTALLED_MODULE_STEM"]
 		if !reflect.DeepEqual(actualValues, expectedValues) {
 			t.Errorf("Incorrect LOCAL_INSTALLED_MODULE_STEM value '%s', expected '%s'",
 				actualValues, expectedValues)
@@ -394,7 +393,7 @@ func TestAndroidAppImport_overridesDisabledAndroidApp(t *testing.T) {
 }
 
 func TestAndroidAppImport_frameworkRes(t *testing.T) {
-	ctx, config := testJava(t, `
+	ctx, _ := testJava(t, `
 		android_app_import {
 			name: "framework-res",
 			certificate: "platform",
@@ -424,7 +423,7 @@ func TestAndroidAppImport_frameworkRes(t *testing.T) {
 
 	}
 
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
+	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 
 	expectedPath := "."
 	// From apk property above, in the root of the source tree.
@@ -457,7 +456,7 @@ func TestAndroidAppImport_frameworkRes(t *testing.T) {
 }
 
 func TestAndroidTestImport(t *testing.T) {
-	ctx, config := testJava(t, `
+	ctx, _ := testJava(t, `
 		android_test_import {
 			name: "foo",
 			apk: "prebuilts/apk/app.apk",
@@ -471,7 +470,7 @@ func TestAndroidTestImport(t *testing.T) {
 	test := ctx.ModuleForTests("foo", "android_common").Module().(*AndroidTestImport)
 
 	// Check android mks.
-	entries := android.AndroidMkEntriesForTest(t, config, "", test)[0]
+	entries := android.AndroidMkEntriesForTest(t, ctx, test)[0]
 	expected := []string{"tests"}
 	actual := entries.EntryMap["LOCAL_MODULE_TAGS"]
 	if !reflect.DeepEqual(expected, actual) {

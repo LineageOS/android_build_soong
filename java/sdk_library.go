@@ -2238,7 +2238,7 @@ func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(module.outputFilePath),
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(entries *android.AndroidMkEntries) {
+			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_TAGS", "optional")
 				entries.SetString("LOCAL_MODULE_PATH", module.installDirPath.ToMakePath().String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", module.outputFilePath.Base())
