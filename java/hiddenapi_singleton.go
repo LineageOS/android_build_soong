@@ -92,31 +92,34 @@ func (h *hiddenAPISingleton) MakeVars(ctx android.MakeVarsContext) {
 // stubFlagsRule creates the rule to build hiddenapi-stub-flags.txt out of dex jars from stub modules and boot image
 // modules.
 func stubFlagsRule(ctx android.SingletonContext) {
-	// Public API stubs
-	publicStubModules := []string{
-		"android_stubs_current",
+	var publicStubModules []string
+	var systemStubModules []string
+	var testStubModules []string
+	var corePlatformStubModules []string
+
+	if ctx.Config().UnbundledBuildUsePrebuiltSdks() {
+		// Build configuration mandates using prebuilt stub modules
+		publicStubModules = append(publicStubModules, "sdk_public_current_android")
+		systemStubModules = append(systemStubModules, "sdk_system_current_android")
+		testStubModules = append(testStubModules, "sdk_test_current_android")
+	} else {
+		// Use stub modules built from source
+		publicStubModules = append(publicStubModules, "android_stubs_current")
+		systemStubModules = append(systemStubModules, "android_system_stubs_current")
+		testStubModules = append(testStubModules, "android_test_stubs_current")
 	}
+	// We do not have prebuilts of the core platform api yet
+	corePlatformStubModules = append(corePlatformStubModules, "core.platform.api.stubs")
 
 	// Add the android.test.base to the set of stubs only if the android.test.base module is on
 	// the boot jars list as the runtime will only enforce hiddenapi access against modules on
 	// that list.
-	if inList("android.test.base", ctx.Config().BootJars()) && !ctx.Config().UnbundledBuildUsePrebuiltSdks() {
-		publicStubModules = append(publicStubModules, "android.test.base.stubs")
-	}
-
-	// System API stubs
-	systemStubModules := []string{
-		"android_system_stubs_current",
-	}
-
-	// Test API stubs
-	testStubModules := []string{
-		"android_test_stubs_current",
-	}
-
-	// Core Platform API stubs
-	corePlatformStubModules := []string{
-		"core.platform.api.stubs",
+	if inList("android.test.base", ctx.Config().BootJars()) {
+		if ctx.Config().UnbundledBuildUsePrebuiltSdks() {
+			publicStubModules = append(publicStubModules, "sdk_public_current_android.test.base")
+		} else {
+			publicStubModules = append(publicStubModules, "android.test.base.stubs")
+		}
 	}
 
 	// Allow products to define their own stubs for custom product jars that apps can use.

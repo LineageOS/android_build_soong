@@ -79,7 +79,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"prebuilts/sdk/30/system/api/bar-removed.txt":              nil,
 		"prebuilts/sdk/30/test/api/bar-removed.txt":                nil,
 		"prebuilts/sdk/tools/core-lambda-stubs.jar":                nil,
-		"prebuilts/sdk/Android.bp":                                 []byte(`prebuilt_apis { name: "sdk", api_dirs: ["14", "28", "30", "current"],}`),
+		"prebuilts/sdk/Android.bp":                                 []byte(`prebuilt_apis { name: "sdk", api_dirs: ["14", "28", "30", "current"], imports_sdk_version: "none", imports_compile_dex:true,}`),
 
 		// For java_sdk_library
 		"api/module-lib-current.txt":                        nil,
