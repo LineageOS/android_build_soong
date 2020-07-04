@@ -3009,6 +3009,9 @@ func squashVendorSrcs(m *Module) {
 
 		lib.baseCompiler.Properties.Exclude_srcs = append(lib.baseCompiler.Properties.Exclude_srcs,
 			lib.baseCompiler.Properties.Target.Vendor.Exclude_srcs...)
+
+		lib.baseCompiler.Properties.Exclude_generated_sources = append(lib.baseCompiler.Properties.Exclude_generated_sources,
+			lib.baseCompiler.Properties.Target.Vendor.Exclude_generated_sources...)
 	}
 }
 
@@ -3019,6 +3022,9 @@ func squashRecoverySrcs(m *Module) {
 
 		lib.baseCompiler.Properties.Exclude_srcs = append(lib.baseCompiler.Properties.Exclude_srcs,
 			lib.baseCompiler.Properties.Target.Recovery.Exclude_srcs...)
+
+		lib.baseCompiler.Properties.Exclude_generated_sources = append(lib.baseCompiler.Properties.Exclude_generated_sources,
+			lib.baseCompiler.Properties.Target.Recovery.Exclude_generated_sources...)
 	}
 }
 
