@@ -136,7 +136,6 @@ type PathDeps struct {
 
 	// Paths to generated source files
 	GeneratedSources android.Paths
-	GeneratedHeaders android.Paths
 	GeneratedDeps    android.Paths
 
 	Flags                      []string
@@ -2228,8 +2227,6 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				fallthrough
 			case genHeaderDepTag, genHeaderExportDepTag:
 				if genRule, ok := dep.(genrule.SourceFileGenerator); ok {
-					depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders,
-						genRule.GeneratedSourceFiles()...)
 					depPaths.GeneratedDeps = append(depPaths.GeneratedDeps,
 						genRule.GeneratedDeps()...)
 					dirs := genRule.GeneratedHeaderDirs()
@@ -2417,7 +2414,6 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			if _, ok := ccDep.(*Module); ok {
 				if i, ok := ccDep.(*Module).linker.(exportedFlagsProducer); ok {
 					depPaths.SystemIncludeDirs = append(depPaths.SystemIncludeDirs, i.exportedSystemDirs()...)
-					depPaths.GeneratedHeaders = append(depPaths.GeneratedHeaders, i.exportedGeneratedHeaders()...)
 					depPaths.GeneratedDeps = append(depPaths.GeneratedDeps, i.exportedDeps()...)
 					depPaths.Flags = append(depPaths.Flags, i.exportedFlags()...)
 
@@ -2647,7 +2643,6 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	depPaths.Flags = android.FirstUniqueStrings(depPaths.Flags)
 	depPaths.IncludeDirs = android.FirstUniquePaths(depPaths.IncludeDirs)
 	depPaths.SystemIncludeDirs = android.FirstUniquePaths(depPaths.SystemIncludeDirs)
-	depPaths.GeneratedHeaders = android.FirstUniquePaths(depPaths.GeneratedHeaders)
 	depPaths.GeneratedDeps = android.FirstUniquePaths(depPaths.GeneratedDeps)
 	depPaths.ReexportedDirs = android.FirstUniquePaths(depPaths.ReexportedDirs)
 	depPaths.ReexportedSystemDirs = android.FirstUniquePaths(depPaths.ReexportedSystemDirs)
