@@ -1091,6 +1091,21 @@ func TestPathsForModuleSrc(t *testing.T) {
 			rels: []string{"gen/c"},
 		},
 		{
+			name: "output file provider with exclude",
+			bp: `
+			test {
+				name: "foo",
+				srcs: [":b", ":c"],
+				exclude_srcs: [":c"]
+			}
+			output_file_provider {
+				name: "c",
+				outs: ["gen/c"],
+			}`,
+			srcs: []string{buildDir + "/.intermediates/ofp/b/gen/b"},
+			rels: []string{"gen/b"},
+		},
+		{
 			name: "special characters glob",
 			bp: `
 			test {
