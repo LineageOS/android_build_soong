@@ -86,6 +86,10 @@ type BaseCompilerProperties struct {
 	// genrule modules.
 	Generated_sources []string `android:"arch_variant"`
 
+	// list of generated sources that should not be used to build the C/C++ module.
+	// This is most useful in the arch/multilib variants to remove non-common files
+	Exclude_generated_sources []string `android:"arch_variant"`
+
 	// list of generated headers to add to the include path. These are the names
 	// of genrule modules.
 	Generated_headers []string `android:"arch_variant"`
@@ -150,6 +154,10 @@ type BaseCompilerProperties struct {
 			// List of additional cflags that should be used to build the vendor
 			// variant of the C/C++ module.
 			Cflags []string
+
+			// list of generated sources that should not be used to
+			// build the vendor variant of the C/C++ module.
+			Exclude_generated_sources []string
 		}
 		Recovery struct {
 			// list of source files that should only be used in the
@@ -163,6 +171,10 @@ type BaseCompilerProperties struct {
 			// List of additional cflags that should be used to build the recovery
 			// variant of the C/C++ module.
 			Cflags []string
+
+			// list of generated sources that should not be used to
+			// build the recovery variant of the C/C++ module.
+			Exclude_generated_sources []string
 		}
 	}
 
@@ -227,6 +239,7 @@ func (compiler *baseCompiler) compilerInit(ctx BaseModuleContext) {}
 
 func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.GeneratedSources = append(deps.GeneratedSources, compiler.Properties.Generated_sources...)
+	deps.GeneratedSources = removeListFromList(deps.GeneratedSources, compiler.Properties.Exclude_generated_sources)
 	deps.GeneratedHeaders = append(deps.GeneratedHeaders, compiler.Properties.Generated_headers...)
 
 	android.ProtoDeps(ctx, &compiler.Proto)
