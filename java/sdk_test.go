@@ -139,11 +139,10 @@ func TestClasspath(t *testing.T) {
 		},
 		{
 
-			name:           "core_current",
-			properties:     `sdk_version: "core_current",`,
-			bootclasspath:  []string{"core.current.stubs", "core-lambda-stubs"},
-			system:         "core-current-stubs-system-modules",
-			java9classpath: []string{"core.current.stubs"},
+			name:          "core_current",
+			properties:    `sdk_version: "core_current",`,
+			bootclasspath: []string{"core.current.stubs", "core-lambda-stubs"},
+			system:        "core-current-stubs-system-modules",
 		},
 		{
 
