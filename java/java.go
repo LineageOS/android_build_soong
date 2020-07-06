@@ -626,10 +626,11 @@ func (s sdkDep) hasFrameworkLibs() bool {
 }
 
 type jniLib struct {
-	name         string
-	path         android.Path
-	target       android.Target
-	coverageFile android.OptionalPath
+	name           string
+	path           android.Path
+	target         android.Target
+	coverageFile   android.OptionalPath
+	unstrippedFile android.Path
 }
 
 func (j *Module) shouldInstrument(ctx android.BaseModuleContext) bool {
