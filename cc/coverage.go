@@ -175,7 +175,7 @@ func (cov *coverage) begin(ctx BaseModuleContext) {
 
 		if needCoverageVariant {
 			// Coverage variant is actually built with coverage if enabled for its module path
-			needCoverageBuild = ctx.DeviceConfig().CoverageEnabledForPath(ctx.ModuleDir())
+			needCoverageBuild = ctx.DeviceConfig().NativeCoverageEnabledForPath(ctx.ModuleDir())
 		}
 	}
 
