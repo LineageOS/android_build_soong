@@ -642,8 +642,34 @@ func (c *config) PlatformBaseOS() string {
 	return String(c.productVariables.Platform_base_os)
 }
 
-func (c *config) MinSupportedSdkVersion() int {
-	return 16
+func (c *config) MinSupportedSdkVersion() ApiLevel {
+	return uncheckedFinalApiLevel(16)
+}
+
+func (c *config) FinalApiLevels() []ApiLevel {
+	var levels []ApiLevel
+	for i := 1; i <= c.PlatformSdkVersionInt(); i++ {
+		levels = append(levels, uncheckedFinalApiLevel(i))
+	}
+	return levels
+}
+
+func (c *config) PreviewApiLevels() []ApiLevel {
+	var levels []ApiLevel
+	for i, codename := range c.PlatformVersionActiveCodenames() {
+		levels = append(levels, ApiLevel{
+			value:     codename,
+			number:    i,
+			isPreview: true,
+		})
+	}
+	return levels
+}
+
+func (c *config) AllSupportedApiLevels() []ApiLevel {
+	var levels []ApiLevel
+	levels = append(levels, c.FinalApiLevels()...)
+	return append(levels, c.PreviewApiLevels()...)
 }
 
 func (c *config) DefaultAppTargetSdkInt() int {
