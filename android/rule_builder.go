@@ -172,7 +172,7 @@ func (r *RuleBuilder) Inputs() Paths {
 
 	inputs := make(map[string]Path)
 	for _, c := range r.commands {
-		for _, input := range c.inputs {
+		for _, input := range append(c.inputs, c.implicits...) {
 			inputStr := input.String()
 			if _, isOutput := outputs[inputStr]; !isOutput {
 				if _, isDepFile := depFiles[inputStr]; !isDepFile {
@@ -480,6 +480,7 @@ func (r *RuleBuilder) Build(pctx PackageContext, ctx BuilderContext, name string
 type RuleBuilderCommand struct {
 	buf           strings.Builder
 	inputs        Paths
+	implicits     Paths
 	orderOnlys    Paths
 	outputs       WritablePaths
 	depFiles      WritablePaths
@@ -500,6 +501,16 @@ func (c *RuleBuilderCommand) addInput(path Path) string {
 		}
 	}
 	c.inputs = append(c.inputs, path)
+	return path.String()
+}
+
+func (c *RuleBuilderCommand) addImplicit(path Path) string {
+	if c.sbox {
+		if rel, isRel, _ := maybeRelErr(c.sboxOutDir.String(), path.String()); isRel {
+			return "__SBOX_OUT_DIR__/" + rel
+		}
+	}
+	c.implicits = append(c.implicits, path)
 	return path.String()
 }
 
@@ -623,7 +634,7 @@ func (c *RuleBuilderCommand) Inputs(paths Paths) *RuleBuilderCommand {
 // Implicit adds the specified input path to the dependencies returned by RuleBuilder.Inputs without modifying the
 // command line.
 func (c *RuleBuilderCommand) Implicit(path Path) *RuleBuilderCommand {
-	c.addInput(path)
+	c.addImplicit(path)
 	return c
 }
 
@@ -631,9 +642,14 @@ func (c *RuleBuilderCommand) Implicit(path Path) *RuleBuilderCommand {
 // command line.
 func (c *RuleBuilderCommand) Implicits(paths Paths) *RuleBuilderCommand {
 	for _, path := range paths {
-		c.addInput(path)
+		c.addImplicit(path)
 	}
 	return c
+}
+
+// GetImplicits returns the command's implicit inputs.
+func (c *RuleBuilderCommand) GetImplicits() Paths {
+	return c.implicits
 }
 
 // OrderOnly adds the specified input path to the dependencies returned by RuleBuilder.OrderOnlys
