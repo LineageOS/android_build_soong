@@ -126,6 +126,11 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 	if err != nil {
 		ctx.Fatalf("Could not find modules: %v", err)
 	}
+
+	if config.Dist() {
+		f.WaitForDbDump()
+		distFile(ctx, config, f.DbPath, "module_paths")
+	}
 }
 
 func dumpListToFile(ctx Context, config Config, list []string, filePath string) (err error) {
