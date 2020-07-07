@@ -58,6 +58,9 @@ type TestBinaryProperties struct {
 	// the test
 	Data []string `android:"path,arch_variant"`
 
+	// list of shared library modules that should be installed alongside the test
+	Data_libs []string `android:"arch_variant"`
+
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
 	Test_suites []string `android:"arch_variant"`
@@ -325,6 +328,7 @@ func (test *testBinary) linkerInit(ctx BaseModuleContext) {
 func (test *testBinary) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = test.testDecorator.linkerDeps(ctx, deps)
 	deps = test.binaryDecorator.linkerDeps(ctx, deps)
+	deps.DataLibs = append(deps.DataLibs, test.Properties.Data_libs...)
 	return deps
 }
 
@@ -336,6 +340,21 @@ func (test *testBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 
 func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	test.data = android.PathsForModuleSrc(ctx, test.Properties.Data)
+
+	ctx.VisitDirectDepsWithTag(dataLibDepTag, func(dep android.Module) {
+		depName := ctx.OtherModuleName(dep)
+		ccDep, ok := dep.(LinkableInterface)
+
+		if !ok {
+			ctx.ModuleErrorf("data_lib %q is not a linkable cc module", depName)
+		}
+		if ccDep.OutputFile().Valid() {
+			test.data = append(test.data, ccDep.OutputFile().Path())
+		} else {
+			ctx.ModuleErrorf("data_lib %q has no output file", depName)
+		}
+	})
+
 	var api_level_prop string
 	var configs []tradefed.Config
 	var min_level string
@@ -507,6 +526,7 @@ func (benchmark *benchmarkDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps
 
 func (benchmark *benchmarkDecorator) install(ctx ModuleContext, file android.Path) {
 	benchmark.data = android.PathsForModuleSrc(ctx, benchmark.Properties.Data)
+
 	var configs []tradefed.Config
 	if Bool(benchmark.Properties.Require_root) {
 		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", nil})
