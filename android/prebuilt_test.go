@@ -22,9 +22,10 @@ import (
 )
 
 var prebuiltsTests = []struct {
-	name     string
-	modules  string
-	prebuilt []OsClass
+	name      string
+	replaceBp bool // modules is added to default bp boilerplate if false.
+	modules   string
+	prebuilt  []OsType
 }{
 	{
 		name: "no prebuilt",
@@ -42,7 +43,7 @@ var prebuiltsTests = []struct {
 				prefer: false,
 				srcs: ["prebuilt_file"],
 			}`,
-		prebuilt: []OsClass{Device, Host},
+		prebuilt: []OsType{Android, BuildOs},
 	},
 	{
 		name: "no source prebuilt preferred",
@@ -52,7 +53,7 @@ var prebuiltsTests = []struct {
 				prefer: true,
 				srcs: ["prebuilt_file"],
 			}`,
-		prebuilt: []OsClass{Device, Host},
+		prebuilt: []OsType{Android, BuildOs},
 	},
 	{
 		name: "prebuilt not preferred",
@@ -80,7 +81,7 @@ var prebuiltsTests = []struct {
 				prefer: true,
 				srcs: ["prebuilt_file"],
 			}`,
-		prebuilt: []OsClass{Device, Host},
+		prebuilt: []OsType{Android, BuildOs},
 	},
 	{
 		name: "prebuilt no file not preferred",
@@ -120,7 +121,7 @@ var prebuiltsTests = []struct {
 				prefer: true,
 				srcs: [":fg"],
 			}`,
-		prebuilt: []OsClass{Device, Host},
+		prebuilt: []OsType{Android, BuildOs},
 	},
 	{
 		name: "prebuilt module for device only",
@@ -135,7 +136,7 @@ var prebuiltsTests = []struct {
 				prefer: true,
 				srcs: ["prebuilt_file"],
 			}`,
-		prebuilt: []OsClass{Device},
+		prebuilt: []OsType{Android},
 	},
 	{
 		name: "prebuilt file for host only",
@@ -153,7 +154,7 @@ var prebuiltsTests = []struct {
 					},
 				},
 			}`,
-		prebuilt: []OsClass{Host},
+		prebuilt: []OsType{BuildOs},
 	},
 	{
 		name: "prebuilt override not preferred",
@@ -191,7 +192,72 @@ var prebuiltsTests = []struct {
 				prefer: true,
 				srcs: ["prebuilt_file"],
 			}`,
-		prebuilt: []OsClass{Device, Host},
+		prebuilt: []OsType{Android, BuildOs},
+	},
+	{
+		name:      "prebuilt including default-disabled OS",
+		replaceBp: true,
+		modules: `
+			source {
+				name: "foo",
+				deps: [":bar"],
+				target: {
+					windows: {
+						enabled: true,
+					},
+				},
+			}
+
+			source {
+				name: "bar",
+				target: {
+					windows: {
+						enabled: true,
+					},
+				},
+			}
+
+			prebuilt {
+				name: "bar",
+				prefer: true,
+				srcs: ["prebuilt_file"],
+				target: {
+					windows: {
+						enabled: true,
+					},
+				},
+			}`,
+		prebuilt: []OsType{Android, BuildOs, Windows},
+	},
+	{
+		name:      "fall back to source for default-disabled OS",
+		replaceBp: true,
+		modules: `
+			source {
+				name: "foo",
+				deps: [":bar"],
+				target: {
+					windows: {
+						enabled: true,
+					},
+				},
+			}
+
+			source {
+				name: "bar",
+				target: {
+					windows: {
+						enabled: true,
+					},
+				},
+			}
+
+			prebuilt {
+				name: "bar",
+				prefer: true,
+				srcs: ["prebuilt_file"],
+			}`,
+		prebuilt: []OsType{Android, BuildOs},
 	},
 }
 
@@ -203,13 +269,24 @@ func TestPrebuilts(t *testing.T) {
 
 	for _, test := range prebuiltsTests {
 		t.Run(test.name, func(t *testing.T) {
-			bp := `
-				source {
-					name: "foo",
-					deps: [":bar"],
-				}
-				` + test.modules
+			bp := test.modules
+			if !test.replaceBp {
+				bp = bp + `
+					source {
+						name: "foo",
+						deps: [":bar"],
+					}`
+			}
 			config := TestArchConfig(buildDir, nil, bp, fs)
+
+			// Add windows to the target list to test the logic when a variant is
+			// disabled by default.
+			if !Windows.DefaultDisabled {
+				t.Errorf("windows is assumed to be disabled by default")
+			}
+			config.config.Targets[Windows] = []Target{
+				{Windows, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", ""},
+			}
 
 			ctx := NewTestArchContext()
 			registerTestPrebuiltBuildComponents(ctx)
@@ -223,7 +300,7 @@ func TestPrebuilts(t *testing.T) {
 
 			for _, variant := range ctx.ModuleVariantsForTests("foo") {
 				foo := ctx.ModuleForTests("foo", variant)
-				t.Run(foo.Module().Target().Os.Class.String(), func(t *testing.T) {
+				t.Run(foo.Module().Target().Os.String(), func(t *testing.T) {
 					var dependsOnSourceModule, dependsOnPrebuiltModule bool
 					ctx.VisitDirectDeps(foo.Module(), func(m blueprint.Module) {
 						if _, ok := m.(*sourceModule); ok {
@@ -237,26 +314,38 @@ func TestPrebuilts(t *testing.T) {
 						}
 					})
 
+					moduleIsDisabled := !foo.Module().Enabled()
 					deps := foo.Module().(*sourceModule).deps
-					if deps == nil || len(deps) != 1 {
-						t.Errorf("deps does not have single path, but is %v", deps)
+					if moduleIsDisabled {
+						if len(deps) > 0 {
+							t.Errorf("disabled module got deps: %v", deps)
+						}
+					} else {
+						if len(deps) != 1 {
+							t.Errorf("deps does not have single path, but is %v", deps)
+						}
 					}
+
 					var usingSourceFile, usingPrebuiltFile bool
-					if deps[0].String() == "source_file" {
+					if len(deps) > 0 && deps[0].String() == "source_file" {
 						usingSourceFile = true
 					}
-					if deps[0].String() == "prebuilt_file" {
+					if len(deps) > 0 && deps[0].String() == "prebuilt_file" {
 						usingPrebuiltFile = true
 					}
 
 					prebuilt := false
 					for _, os := range test.prebuilt {
-						if os == foo.Module().Target().Os.Class {
+						if os == foo.Module().Target().Os {
 							prebuilt = true
 						}
 					}
 
 					if prebuilt {
+						if moduleIsDisabled {
+							t.Errorf("dependent module for prebuilt is disabled")
+						}
+
 						if !dependsOnPrebuiltModule {
 							t.Errorf("doesn't depend on prebuilt module")
 						}
@@ -270,7 +359,7 @@ func TestPrebuilts(t *testing.T) {
 						if usingSourceFile {
 							t.Errorf("using source_file")
 						}
-					} else {
+					} else if !moduleIsDisabled {
 						if dependsOnPrebuiltModule {
 							t.Errorf("depends on prebuilt module")
 						}
