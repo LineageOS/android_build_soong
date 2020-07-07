@@ -325,7 +325,12 @@ func (f *Finder) FindMatching(rootPath string, filter WalkFunc) []string {
 // Shutdown declares that the finder is no longer needed and waits for its cleanup to complete
 // Currently, that only entails waiting for the database dump to complete.
 func (f *Finder) Shutdown() {
-	f.waitForDbDump()
+	f.WaitForDbDump()
+}
+
+// WaitForDbDump returns once the database has been written to f.DbPath.
+func (f *Finder) WaitForDbDump() {
+	f.shutdownWaitgroup.Wait()
 }
 
 // End of public api
@@ -343,10 +348,6 @@ func (f *Finder) goDumpDb() {
 	} else {
 		f.verbosef("Skipping dumping unmodified db\n")
 	}
-}
-
-func (f *Finder) waitForDbDump() {
-	f.shutdownWaitgroup.Wait()
 }
 
 // joinCleanPaths is like filepath.Join but is faster because
