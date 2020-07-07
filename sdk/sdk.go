@@ -330,6 +330,11 @@ type dependencyTag struct {
 	blueprint.BaseDependencyTag
 }
 
+// Mark this tag so dependencies that use it are excluded from APEX contents.
+func (t dependencyTag) ExcludeFromApexContents() {}
+
+var _ android.ExcludeFromApexContentsTag = dependencyTag{}
+
 // For dependencies from an in-development version of an SDK member to frozen versions of the same member
 // e.g. libfoo -> libfoo.mysdk.11 and libfoo.mysdk.12
 type sdkMemberVersionedDepTag struct {

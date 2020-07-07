@@ -44,14 +44,15 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	` + cc.GatherRequiredDepsForTest(android.Android, android.Windows)
 
 	mockFS := map[string][]byte{
-		"build/make/target/product/security":         nil,
-		"apex_manifest.json":                         nil,
-		"system/sepolicy/apex/myapex-file_contexts":  nil,
-		"system/sepolicy/apex/myapex2-file_contexts": nil,
-		"myapex.avbpubkey":                           nil,
-		"myapex.pem":                                 nil,
-		"myapex.x509.pem":                            nil,
-		"myapex.pk8":                                 nil,
+		"build/make/target/product/security":           nil,
+		"apex_manifest.json":                           nil,
+		"system/sepolicy/apex/myapex-file_contexts":    nil,
+		"system/sepolicy/apex/myapex2-file_contexts":   nil,
+		"system/sepolicy/apex/mysdkapex-file_contexts": nil,
+		"myapex.avbpubkey":                             nil,
+		"myapex.pem":                                   nil,
+		"myapex.x509.pem":                              nil,
+		"myapex.pk8":                                   nil,
 	}
 
 	cc.GatherRequiredFilesForTest(mockFS)

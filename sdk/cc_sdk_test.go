@@ -79,6 +79,8 @@ func TestBasicSdkWithCc(t *testing.T) {
 		cc_library_shared {
 			name: "sdkmember",
 			system_shared_libs: [],
+			stl: "none",
+			apex_available: ["mysdkapex"],
 		}
 
 		sdk_snapshot {
@@ -149,6 +151,13 @@ func TestBasicSdkWithCc(t *testing.T) {
 			name: "myapex2",
 			native_shared_libs: ["mycpplib"],
 			uses_sdks: ["mysdk@2"],
+			key: "myapex.key",
+			certificate: ":myapex.cert",
+		}
+
+		apex {
+			name: "mysdkapex",
+			native_shared_libs: ["sdkmember"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
 		}
