@@ -26,11 +26,13 @@ import (
 )
 
 const (
-	RunSetupTool = "setup"
-	RunKati      = "kati"
-	RunSoong     = "soong"
-	PrimaryNinja = "ninja"
-	TestRun      = "test"
+	PrimaryNinja    = "ninja"
+	RunKati         = "kati"
+	RunSetupTool    = "setup"
+	RunShutdownTool = "shutdown"
+	RunSoong        = "soong"
+	TestRun         = "test"
+	Total           = "total"
 )
 
 type Metrics struct {

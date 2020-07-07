@@ -131,6 +131,7 @@ func main() {
 	stat.AddOutput(status.NewErrorLog(log, filepath.Join(logsDir, "error.log")))
 
 	defer met.Dump(soongMetricsFile)
+	defer build.DumpRBEMetrics(buildCtx, config, rbeMetricsFile)
 
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
 		if !strings.HasSuffix(start, "N") {
