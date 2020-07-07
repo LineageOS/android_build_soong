@@ -44,7 +44,7 @@ var propertyRank = map[string]int{
 	"name":             0,
 	"src":              1,
 	"srcs":             2,
-	"defautls":         3,
+	"defaults":         3,
 	"host_supported":   4,
 	"device_supported": 5,
 }
