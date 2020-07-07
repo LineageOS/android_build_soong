@@ -32,6 +32,7 @@ var (
 		"-Wno-unused",
 		"-Winit-self",
 		"-Wpointer-arith",
+		"-Wunreachable-code-loop-increment",
 
 		// Make paths in deps files relative
 		"-no-canonical-prefixes",
@@ -51,6 +52,7 @@ var (
 		"-Werror=date-time",
 		"-Werror=pragma-pack",
 		"-Werror=pragma-pack-suspicious-include",
+		"-Werror=unreachable-code-loop-increment",
 	}
 
 	commonGlobalConlyflags = []string{}
