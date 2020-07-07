@@ -722,7 +722,7 @@ func (c *config) AllowMissingDependencies() bool {
 	return Bool(c.productVariables.Allow_missing_dependencies)
 }
 
-// Returns true if building without full platform sources.
+// Returns true if a full platform source tree cannot be assumed.
 func (c *config) UnbundledBuild() bool {
 	return Bool(c.productVariables.Unbundled_build)
 }
@@ -733,8 +733,9 @@ func (c *config) UnbundledBuildApps() bool {
 	return Bool(c.productVariables.Unbundled_build_apps)
 }
 
-func (c *config) UnbundledBuildUsePrebuiltSdks() bool {
-	return Bool(c.productVariables.Unbundled_build) && !Bool(c.productVariables.Unbundled_build_sdks_from_source)
+// Returns true if building modules against prebuilt SDKs.
+func (c *config) AlwaysUsePrebuiltSdks() bool {
+	return Bool(c.productVariables.Always_use_prebuilt_sdks)
 }
 
 func (c *config) Fuchsia() bool {

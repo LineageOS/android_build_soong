@@ -2866,6 +2866,7 @@ func TestUncompressDex(t *testing.T) {
 		config := testAppConfig(nil, bp, nil)
 		if unbundled {
 			config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
+			config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
 		}
 
 		ctx := testContext()
