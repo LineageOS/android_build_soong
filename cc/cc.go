@@ -96,6 +96,9 @@ type Deps struct {
 	HeaderLibs                                  []string
 	RuntimeLibs                                 []string
 
+	// Used for data dependencies adjacent to tests
+	DataLibs []string
+
 	StaticUnwinderIfLegacy bool
 
 	ReexportSharedLibHeaders, ReexportStaticLibHeaders, ReexportHeaderLibHeaders []string
@@ -423,6 +426,7 @@ type xref interface {
 }
 
 var (
+	dataLibDepTag         = DependencyTag{Name: "data_lib", Library: true, Shared: true}
 	sharedExportDepTag    = DependencyTag{Name: "shared", Library: true, Shared: true, ReexportFlags: true}
 	earlySharedDepTag     = DependencyTag{Name: "early_shared", Library: true, Shared: true}
 	lateSharedDepTag      = DependencyTag{Name: "late shared", Library: true, Shared: true}
@@ -1979,6 +1983,10 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		}
 		addSharedLibDependencies(lateSharedDepTag, lib, "")
 	}
+
+	actx.AddVariationDependencies([]blueprint.Variation{
+		{Mutator: "link", Variation: "shared"},
+	}, dataLibDepTag, deps.DataLibs...)
 
 	actx.AddVariationDependencies([]blueprint.Variation{
 		{Mutator: "link", Variation: "shared"},
