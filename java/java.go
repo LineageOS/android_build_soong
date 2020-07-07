@@ -633,7 +633,9 @@ type jniLib struct {
 }
 
 func (j *Module) shouldInstrument(ctx android.BaseModuleContext) bool {
-	return j.properties.Instrument && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT")
+	return j.properties.Instrument &&
+		ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") &&
+		ctx.DeviceConfig().JavaCoverageEnabledForPath(ctx.ModuleDir())
 }
 
 func (j *Module) shouldInstrumentStatic(ctx android.BaseModuleContext) bool {

@@ -74,8 +74,8 @@ func (cov *coverage) deps(ctx DepsContext, deps Deps) Deps {
 }
 
 func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags, PathDeps) {
-	gcovCoverage := ctx.DeviceConfig().NativeCoverageEnabled()
 	clangCoverage := ctx.DeviceConfig().ClangCoverageEnabled()
+	gcovCoverage := ctx.DeviceConfig().GcovCoverageEnabled()
 
 	if !gcovCoverage && !clangCoverage {
 		return flags, deps
@@ -151,7 +151,7 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 
 func (cov *coverage) begin(ctx BaseModuleContext) {
 	// Coverage is disabled globally
-	if !ctx.DeviceConfig().NativeCoverageEnabled() && !ctx.DeviceConfig().ClangCoverageEnabled() {
+	if !ctx.DeviceConfig().NativeCoverageEnabled() {
 		return
 	}
 
@@ -175,7 +175,7 @@ func (cov *coverage) begin(ctx BaseModuleContext) {
 
 		if needCoverageVariant {
 			// Coverage variant is actually built with coverage if enabled for its module path
-			needCoverageBuild = ctx.DeviceConfig().CoverageEnabledForPath(ctx.ModuleDir())
+			needCoverageBuild = ctx.DeviceConfig().NativeCoverageEnabledForPath(ctx.ModuleDir())
 		}
 	}
 

@@ -406,6 +406,14 @@ func NewConfig(srcDir, buildDir string) (Config, error) {
 		return Config{}, err
 	}
 
+	if Bool(config.productVariables.GcovCoverage) && Bool(config.productVariables.ClangCoverage) {
+		return Config{}, fmt.Errorf("GcovCoverage and ClangCoverage cannot both be set")
+	}
+
+	config.productVariables.Native_coverage = proptools.BoolPtr(
+		Bool(config.productVariables.GcovCoverage) ||
+			Bool(config.productVariables.ClangCoverage))
+
 	return Config{config}, nil
 }
 
@@ -1037,27 +1045,55 @@ func (c *deviceConfig) SamplingPGO() bool {
 	return Bool(c.config.productVariables.SamplingPGO)
 }
 
-func (c *config) NativeLineCoverage() bool {
-	return Bool(c.productVariables.NativeLineCoverage)
+// JavaCoverageEnabledForPath returns whether Java code coverage is enabled for
+// path. Coverage is enabled by default when the product variable
+// JavaCoveragePaths is empty. If JavaCoveragePaths is not empty, coverage is
+// enabled for any path which is part of this variable (and not part of the
+// JavaCoverageExcludePaths product variable). Value "*" in JavaCoveragePaths
+// represents any path.
+func (c *deviceConfig) JavaCoverageEnabledForPath(path string) bool {
+	coverage := false
+	if c.config.productVariables.JavaCoveragePaths == nil ||
+		InList("*", c.config.productVariables.JavaCoveragePaths) ||
+		HasAnyPrefix(path, c.config.productVariables.JavaCoveragePaths) {
+		coverage = true
+	}
+	if coverage && c.config.productVariables.JavaCoverageExcludePaths != nil {
+		if HasAnyPrefix(path, c.config.productVariables.JavaCoverageExcludePaths) {
+			coverage = false
+		}
+	}
+	return coverage
 }
 
+// Returns true if gcov or clang coverage is enabled.
 func (c *deviceConfig) NativeCoverageEnabled() bool {
-	return Bool(c.config.productVariables.Native_coverage) || Bool(c.config.productVariables.NativeLineCoverage)
+	return Bool(c.config.productVariables.GcovCoverage) ||
+		Bool(c.config.productVariables.ClangCoverage)
 }
 
 func (c *deviceConfig) ClangCoverageEnabled() bool {
 	return Bool(c.config.productVariables.ClangCoverage)
 }
 
-func (c *deviceConfig) CoverageEnabledForPath(path string) bool {
+func (c *deviceConfig) GcovCoverageEnabled() bool {
+	return Bool(c.config.productVariables.GcovCoverage)
+}
+
+// NativeCoverageEnabledForPath returns whether (GCOV- or Clang-based) native
+// code coverage is enabled for path. By default, coverage is not enabled for a
+// given path unless it is part of the NativeCoveragePaths product variable (and
+// not part of the NativeCoverageExcludePaths product variable). Value "*" in
+// NativeCoveragePaths represents any path.
+func (c *deviceConfig) NativeCoverageEnabledForPath(path string) bool {
 	coverage := false
-	if c.config.productVariables.CoveragePaths != nil {
-		if InList("*", c.config.productVariables.CoveragePaths) || HasAnyPrefix(path, c.config.productVariables.CoveragePaths) {
+	if c.config.productVariables.NativeCoveragePaths != nil {
+		if InList("*", c.config.productVariables.NativeCoveragePaths) || HasAnyPrefix(path, c.config.productVariables.NativeCoveragePaths) {
 			coverage = true
 		}
 	}
-	if coverage && c.config.productVariables.CoverageExcludePaths != nil {
-		if HasAnyPrefix(path, c.config.productVariables.CoverageExcludePaths) {
+	if coverage && c.config.productVariables.NativeCoverageExcludePaths != nil {
+		if HasAnyPrefix(path, c.config.productVariables.NativeCoverageExcludePaths) {
 			coverage = false
 		}
 	}
