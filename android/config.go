@@ -1053,7 +1053,7 @@ func (c *deviceConfig) SamplingPGO() bool {
 // represents any path.
 func (c *deviceConfig) JavaCoverageEnabledForPath(path string) bool {
 	coverage := false
-	if c.config.productVariables.JavaCoveragePaths == nil ||
+	if len(c.config.productVariables.JavaCoveragePaths) == 0 ||
 		InList("*", c.config.productVariables.JavaCoveragePaths) ||
 		HasAnyPrefix(path, c.config.productVariables.JavaCoveragePaths) {
 		coverage = true
