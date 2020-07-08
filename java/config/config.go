@@ -34,7 +34,8 @@ var (
 	DefaultLambdaStubsLibrary     = "core-lambda-stubs"
 	SdkLambdaStubsPath            = "prebuilts/sdk/tools/core-lambda-stubs.jar"
 
-	DefaultJacocoExcludeFilter = []string{"org.junit.*", "org.jacoco.*", "org.mockito.*"}
+	DefaultMakeJacocoExcludeFilter = []string{"org.junit.*", "org.jacoco.*", "org.mockito.*"}
+	DefaultJacocoExcludeFilter     = []string{"org.junit.**", "org.jacoco.**", "org.mockito.**"}
 
 	InstrumentFrameworkModules = []string{
 		"framework",
