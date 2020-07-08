@@ -84,6 +84,7 @@ func testSdkContext(bp string, fs map[string][]byte) (*android.TestContext, andr
 	android.RegisterPackageBuildComponents(ctx)
 	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	ctx.PreArchMutators(android.RegisterComponentsMutator)
 	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
 	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
 
