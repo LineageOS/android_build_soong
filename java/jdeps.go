@@ -34,7 +34,10 @@ func jDepsGeneratorSingleton() android.Singleton {
 }
 
 type jdepsGeneratorSingleton struct {
+	outputPath android.Path
 }
+
+var _ android.SingletonMakeVarsProvider = (*jdepsGeneratorSingleton)(nil)
 
 const (
 	// Environment variables used to modify behavior of this singleton.
@@ -96,6 +99,21 @@ func (j *jdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCont
 	if err != nil {
 		ctx.Errorf(err.Error())
 	}
+	j.outputPath = jfpath
+
+	// This is necessary to satisfy the dangling rules check as this file is written by Soong rather than a rule.
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Touch,
+		Output: jfpath,
+	})
+}
+
+func (j *jdepsGeneratorSingleton) MakeVars(ctx android.MakeVarsContext) {
+	if j.outputPath == nil {
+		return
+	}
+
+	ctx.DistForGoal("general-tests", j.outputPath)
 }
 
 func createJsonFile(moduleInfos map[string]android.IdeInfo, jfpath android.WritablePath) error {
