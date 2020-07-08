@@ -2100,15 +2100,6 @@ func (m *moduleContext) CheckbuildFile(srcPath Path) {
 	m.checkbuildFiles = append(m.checkbuildFiles, srcPath)
 }
 
-func findStringInSlice(str string, slice []string) int {
-	for i, s := range slice {
-		if s == str {
-			return i
-		}
-	}
-	return -1
-}
-
 // SrcIsModule decodes module references in the format ":name" into the module name, or empty string if the input
 // was not a module reference.
 func SrcIsModule(s string) (module string) {
