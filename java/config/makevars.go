@@ -64,7 +64,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("ZIPSYNC", "${ZipSyncCmd}")
 
 	ctx.Strict("JACOCO_CLI_JAR", "${JacocoCLIJar}")
-	ctx.Strict("DEFAULT_JACOCO_EXCLUDE_FILTER", strings.Join(DefaultJacocoExcludeFilter, ","))
+	ctx.Strict("DEFAULT_JACOCO_EXCLUDE_FILTER", strings.Join(DefaultMakeJacocoExcludeFilter, ","))
 
 	ctx.Strict("EXTRACT_JAR_PACKAGES", "${ExtractJarPackagesCmd}")
 
