@@ -187,6 +187,7 @@ func main() {
 		config.Parallel(), config.RemoteParallel(), config.HighmemParallel())
 
 	defer met.Dump(soongMetricsFile)
+	defer build.DumpRBEMetrics(buildCtx, config, rbeMetricsFile)
 
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
 		if !strings.HasSuffix(start, "N") {
