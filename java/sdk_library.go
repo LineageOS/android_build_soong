@@ -70,6 +70,12 @@ func (tag scopeDependencyTag) extractDepInfo(ctx android.ModuleContext, dep andr
 	}
 }
 
+var _ android.ReplaceSourceWithPrebuilt = (*scopeDependencyTag)(nil)
+
+func (tag scopeDependencyTag) ReplaceSourceWithPrebuilt() bool {
+	return false
+}
+
 // Provides information about an api scope, e.g. public, system, test.
 type apiScope struct {
 	// The name of the api scope, e.g. public, system, test
@@ -976,7 +982,8 @@ func IsXmlPermissionsFileDepTag(depTag blueprint.DependencyTag) bool {
 
 var implLibraryTag = sdkLibraryComponentTag{name: "impl-library"}
 
-func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
+// Add the dependencies on the child modules in the component deps mutator.
+func (module *SdkLibrary) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, apiScope := range module.getGeneratedApiScopes(ctx) {
 		// Add dependencies to the stubs library
 		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsLibraryModuleName(apiScope))
@@ -1001,7 +1008,12 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 			// Add dependency to the rule for generating the xml permissions file
 			ctx.AddDependency(module, xmlPermissionsFileTag, module.xmlPermissionsModuleName())
 		}
+	}
+}
 
+// Add other dependencies as normal.
+func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if module.requiresRuntimeImplementationLibrary() {
 		// Only add the deps for the library if it is actually going to be built.
 		module.Library.deps(ctx)
 	}
@@ -1884,20 +1896,26 @@ func (module *SdkLibraryImport) createPrebuiltStubsSources(mctx android.Defaulta
 	props.Prefer = proptools.BoolPtr(module.prebuilt.Prefer())
 }
 
-func (module *SdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) {
+// Add the dependencies on the child module in the component deps mutator so that it
+// creates references to the prebuilt and not the source modules.
+func (module *SdkLibraryImport) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	for apiScope, scopeProperties := range module.scopeProperties {
 		if len(scopeProperties.Jars) == 0 {
 			continue
 		}
 
 		// Add dependencies to the prebuilt stubs library
-		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsLibraryModuleName(apiScope))
+		ctx.AddVariationDependencies(nil, apiScope.stubsTag, "prebuilt_"+module.stubsLibraryModuleName(apiScope))
 
 		if len(scopeProperties.Stub_srcs) > 0 {
 			// Add dependencies to the prebuilt stubs source library
-			ctx.AddVariationDependencies(nil, apiScope.stubsSourceTag, module.stubsSourceModuleName(apiScope))
+			ctx.AddVariationDependencies(nil, apiScope.stubsSourceTag, "prebuilt_"+module.stubsSourceModuleName(apiScope))
 		}
 	}
+}
+
+// Add other dependencies as normal.
+func (module *SdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	implName := module.implLibraryModuleName()
 	if ctx.OtherModuleExists(implName) {
