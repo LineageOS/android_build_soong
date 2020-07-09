@@ -25,7 +25,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -170,20 +169,6 @@ func moduleToPath(name string) string {
 		return name
 	default:
 		return filepath.Join(buildDir, ".intermediates", name, "android_common", "turbine-combined", name+".jar")
-	}
-}
-
-func checkModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
-	t.Helper()
-	module := ctx.ModuleForTests(name, variant).Module()
-	deps := []string{}
-	ctx.VisitDirectDeps(module, func(m blueprint.Module) {
-		deps = append(deps, m.Name())
-	})
-	sort.Strings(deps)
-
-	if actual := deps; !reflect.DeepEqual(expected, actual) {
-		t.Errorf("expected %#q, found %#q", expected, actual)
 	}
 }
 
@@ -647,7 +632,7 @@ func TestJavaSdkLibraryImport(t *testing.T) {
 		}
 	}
 
-	checkModuleDependencies(t, ctx, "sdklib", "android_common", []string{
+	CheckModuleDependencies(t, ctx, "sdklib", "android_common", []string{
 		`prebuilt_sdklib.stubs`,
 		`prebuilt_sdklib.stubs.source.test`,
 		`prebuilt_sdklib.stubs.system`,
@@ -675,7 +660,7 @@ func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
 		}
 		`)
 
-	checkModuleDependencies(t, ctx, "sdklib", "android_common", []string{
+	CheckModuleDependencies(t, ctx, "sdklib", "android_common", []string{
 		`dex2oatd`,
 		`prebuilt_sdklib`,
 		`sdklib.impl`,
@@ -684,7 +669,7 @@ func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
 		`sdklib.xml`,
 	})
 
-	checkModuleDependencies(t, ctx, "prebuilt_sdklib", "android_common", []string{
+	CheckModuleDependencies(t, ctx, "prebuilt_sdklib", "android_common", []string{
 		`prebuilt_sdklib.stubs`,
 		`sdklib.impl`,
 		// This should be prebuilt_sdklib.stubs but is set to sdklib.stubs because the
@@ -715,7 +700,7 @@ func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
 		}
 		`)
 
-	checkModuleDependencies(t, ctx, "sdklib", "android_common", []string{
+	CheckModuleDependencies(t, ctx, "sdklib", "android_common", []string{
 		`dex2oatd`,
 		`prebuilt_sdklib`,
 		`sdklib.impl`,
@@ -724,7 +709,7 @@ func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
 		`sdklib.xml`,
 	})
 
-	checkModuleDependencies(t, ctx, "prebuilt_sdklib", "android_common", []string{
+	CheckModuleDependencies(t, ctx, "prebuilt_sdklib", "android_common", []string{
 		`prebuilt_sdklib.stubs`,
 		`sdklib.impl`,
 		`sdklib.xml`,
@@ -1491,7 +1476,7 @@ func TestJavaSdkLibrary_Deps(t *testing.T) {
 		}
 		`)
 
-	checkModuleDependencies(t, ctx, "sdklib", "android_common", []string{
+	CheckModuleDependencies(t, ctx, "sdklib", "android_common", []string{
 		`dex2oatd`,
 		`sdklib.impl`,
 		`sdklib.stubs`,

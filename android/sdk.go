@@ -266,6 +266,9 @@ type SdkMemberTypeDependencyTag interface {
 	SdkMemberType() SdkMemberType
 }
 
+var _ SdkMemberTypeDependencyTag = (*sdkMemberDependencyTag)(nil)
+var _ ReplaceSourceWithPrebuilt = (*sdkMemberDependencyTag)(nil)
+
 type sdkMemberDependencyTag struct {
 	blueprint.BaseDependencyTag
 	memberType SdkMemberType
@@ -273,6 +276,12 @@ type sdkMemberDependencyTag struct {
 
 func (t *sdkMemberDependencyTag) SdkMemberType() SdkMemberType {
 	return t.memberType
+}
+
+// Prevent dependencies from the sdk/module_exports onto their members from being
+// replaced with a preferred prebuilt.
+func (t *sdkMemberDependencyTag) ReplaceSourceWithPrebuilt() bool {
+	return false
 }
 
 func DependencyTagForSdkMemberType(memberType SdkMemberType) SdkMemberTypeDependencyTag {
