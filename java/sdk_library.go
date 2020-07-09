@@ -1110,6 +1110,7 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 		&module.properties,
 		&module.protoProperties,
 		&module.deviceProperties,
+		&module.dexProperties,
 		&module.dexpreoptProperties,
 		&module.linter.properties,
 		&props,
@@ -1174,8 +1175,8 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	// We compile the stubs for 1.8 in line with the main android.jar stubs, and potential
 	// interop with older developer tools that don't support 1.9.
 	props.Java_version = proptools.StringPtr("1.8")
-	if module.deviceProperties.Compile_dex != nil {
-		props.Compile_dex = module.deviceProperties.Compile_dex
+	if module.dexProperties.Compile_dex != nil {
+		props.Compile_dex = module.dexProperties.Compile_dex
 	}
 
 	// Dist the class jar artifact for sdk builds.
