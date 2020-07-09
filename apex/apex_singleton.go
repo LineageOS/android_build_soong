@@ -27,39 +27,79 @@ func init() {
 }
 
 type apexDepsInfoSingleton struct {
-	// Output file with all flatlists from updatable modules' deps-info combined
-	updatableFlatListsPath android.OutputPath
+	allowedApexDepsInfoCheckResult android.OutputPath
 }
 
 func apexDepsInfoSingletonFactory() android.Singleton {
 	return &apexDepsInfoSingleton{}
 }
 
-var combineFilesRule = pctx.AndroidStaticRule("combineFilesRule",
-	blueprint.RuleParams{
-		Command:        "cat $out.rsp | xargs cat > $out",
+var (
+	// Generate new apex allowed_deps.txt by merging all internal dependencies.
+	generateApexDepsInfoFilesRule = pctx.AndroidStaticRule("generateApexDepsInfoFilesRule", blueprint.RuleParams{
+		Command: "cat $out.rsp | xargs cat" +
+			// Only track non-external dependencies, i.e. those that end up in the binary
+			" | grep -v '(external)'" +
+			// Ignore comments in any of the files
+			" | grep -v '^#'" +
+			" | sort -u -f >$out",
 		Rspfile:        "$out.rsp",
 		RspfileContent: "$in",
-	},
+	})
+
+	// Diff two given lists while ignoring comments in the allowed deps file.
+	diffAllowedApexDepsInfoRule = pctx.AndroidStaticRule("diffAllowedApexDepsInfoRule", blueprint.RuleParams{
+		Description: "Diff ${allowed_deps} and ${new_allowed_deps}",
+		Command: `
+			if grep -v '^#' ${allowed_deps} | diff -B - ${new_allowed_deps}; then
+			   touch ${out};
+			else
+				echo -e "\n******************************";
+				echo "ERROR: go/apex-allowed-deps-error";
+				echo "******************************";
+				echo "Detected changes to allowed dependencies in updatable modules.";
+				echo "To fix and update build/soong/apex/allowed_deps.txt, please run:";
+				echo "$$ (croot && build/soong/scripts/update-apex-allowed-deps.sh)";
+				echo "Members of mainline-modularization@google.com will review the changes.";
+				echo -e "******************************\n";
+				exit 1;
+			fi;
+		`,
+	}, "allowed_deps", "new_allowed_deps")
 )
 
 func (s *apexDepsInfoSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	updatableFlatLists := android.Paths{}
 	ctx.VisitAllModules(func(module android.Module) {
 		if binaryInfo, ok := module.(android.ApexBundleDepsInfoIntf); ok {
-			if path := binaryInfo.FlatListPath(); path != nil {
-				if binaryInfo.Updatable() {
-					updatableFlatLists = append(updatableFlatLists, path)
-				}
+			if path := binaryInfo.FlatListPath(); path != nil && binaryInfo.Updatable() {
+				updatableFlatLists = append(updatableFlatLists, path)
 			}
 		}
 	})
 
-	s.updatableFlatListsPath = android.PathForOutput(ctx, "apex", "depsinfo", "updatable-flatlists.txt")
+	allowedDeps := android.ExistentPathForSource(ctx, "build/soong/apex/allowed_deps.txt").Path()
+
+	newAllowedDeps := android.PathForOutput(ctx, "apex", "depsinfo", "new-allowed-deps.txt")
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        combineFilesRule,
-		Description: "Generate " + s.updatableFlatListsPath.String(),
-		Inputs:      updatableFlatLists,
-		Output:      s.updatableFlatListsPath,
+		Rule:   generateApexDepsInfoFilesRule,
+		Inputs: append(updatableFlatLists, allowedDeps),
+		Output: newAllowedDeps,
 	})
+
+	s.allowedApexDepsInfoCheckResult = android.PathForOutput(ctx, newAllowedDeps.Rel()+".check")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   diffAllowedApexDepsInfoRule,
+		Input:  newAllowedDeps,
+		Output: s.allowedApexDepsInfoCheckResult,
+		Args: map[string]string{
+			"allowed_deps":     allowedDeps.String(),
+			"new_allowed_deps": newAllowedDeps.String(),
+		},
+	})
+}
+
+func (s *apexDepsInfoSingleton) MakeVars(ctx android.MakeVarsContext) {
+	// Export check result to Make. The path is added to droidcore.
+	ctx.Strict("APEX_ALLOWED_DEPS_CHECK", s.allowedApexDepsInfoCheckResult.String())
 }
