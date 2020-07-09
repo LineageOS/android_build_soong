@@ -875,12 +875,12 @@ func (c *config) EnforceRROForModule(name string) bool {
 	enforceList := c.productVariables.EnforceRROTargets
 	// TODO(b/150820813) Some modules depend on static overlay, remove this after eliminating the dependency.
 	exemptedList := c.productVariables.EnforceRROExemptedTargets
-	if exemptedList != nil {
+	if len(exemptedList) > 0 {
 		if InList(name, exemptedList) {
 			return false
 		}
 	}
-	if enforceList != nil {
+	if len(enforceList) > 0 {
 		if InList("*", enforceList) {
 			return true
 		}
@@ -891,7 +891,7 @@ func (c *config) EnforceRROForModule(name string) bool {
 
 func (c *config) EnforceRROExcludedOverlay(path string) bool {
 	excluded := c.productVariables.EnforceRROExcludedOverlays
-	if excluded != nil {
+	if len(excluded) > 0 {
 		return HasAnyPrefix(path, excluded)
 	}
 	return false
@@ -1059,7 +1059,7 @@ func (c *deviceConfig) JavaCoverageEnabledForPath(path string) bool {
 		HasAnyPrefix(path, c.config.productVariables.JavaCoveragePaths) {
 		coverage = true
 	}
-	if coverage && c.config.productVariables.JavaCoverageExcludePaths != nil {
+	if coverage && len(c.config.productVariables.JavaCoverageExcludePaths) > 0 {
 		if HasAnyPrefix(path, c.config.productVariables.JavaCoverageExcludePaths) {
 			coverage = false
 		}
@@ -1088,12 +1088,12 @@ func (c *deviceConfig) GcovCoverageEnabled() bool {
 // NativeCoveragePaths represents any path.
 func (c *deviceConfig) NativeCoverageEnabledForPath(path string) bool {
 	coverage := false
-	if c.config.productVariables.NativeCoveragePaths != nil {
+	if len(c.config.productVariables.NativeCoveragePaths) > 0 {
 		if InList("*", c.config.productVariables.NativeCoveragePaths) || HasAnyPrefix(path, c.config.productVariables.NativeCoveragePaths) {
 			coverage = true
 		}
 	}
-	if coverage && c.config.productVariables.NativeCoverageExcludePaths != nil {
+	if coverage && len(c.config.productVariables.NativeCoverageExcludePaths) > 0 {
 		if HasAnyPrefix(path, c.config.productVariables.NativeCoverageExcludePaths) {
 			coverage = false
 		}
@@ -1164,21 +1164,21 @@ func findOverrideValue(overrides []string, name string, errorMsg string) (newVal
 }
 
 func (c *config) IntegerOverflowDisabledForPath(path string) bool {
-	if c.productVariables.IntegerOverflowExcludePaths == nil {
+	if len(c.productVariables.IntegerOverflowExcludePaths) == 0 {
 		return false
 	}
 	return HasAnyPrefix(path, c.productVariables.IntegerOverflowExcludePaths)
 }
 
 func (c *config) CFIDisabledForPath(path string) bool {
-	if c.productVariables.CFIExcludePaths == nil {
+	if len(c.productVariables.CFIExcludePaths) == 0 {
 		return false
 	}
 	return HasAnyPrefix(path, c.productVariables.CFIExcludePaths)
 }
 
 func (c *config) CFIEnabledForPath(path string) bool {
-	if c.productVariables.CFIIncludePaths == nil {
+	if len(c.productVariables.CFIIncludePaths) == 0 {
 		return false
 	}
 	return HasAnyPrefix(path, c.productVariables.CFIIncludePaths)
