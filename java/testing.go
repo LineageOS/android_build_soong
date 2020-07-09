@@ -16,9 +16,13 @@ package java
 
 import (
 	"fmt"
+	"reflect"
+	"sort"
+	"testing"
 
 	"android/soong/android"
 	"android/soong/cc"
+	"github.com/google/blueprint"
 )
 
 func TestConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) android.Config {
@@ -215,4 +219,18 @@ func GatherRequiredDepsForTest() string {
 	}
 
 	return bp
+}
+
+func CheckModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
+	t.Helper()
+	module := ctx.ModuleForTests(name, variant).Module()
+	deps := []string{}
+	ctx.VisitDirectDeps(module, func(m blueprint.Module) {
+		deps = append(deps, m.Name())
+	})
+	sort.Strings(deps)
+
+	if actual := deps; !reflect.DeepEqual(expected, actual) {
+		t.Errorf("expected %#q, found %#q", expected, actual)
+	}
 }
