@@ -539,7 +539,7 @@ func TestDataLibs(t *testing.T) {
 			data_libs: ["test_lib"],
 			gtest: false,
 		}
-  `
+ `
 
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
@@ -564,7 +564,7 @@ func TestDataLibs(t *testing.T) {
 	}
 
 	outputPath := outputFiles[0].String()
-	testBinaryPath := testBinary.dataPaths()[0].String()
+	testBinaryPath := testBinary.dataPaths()[0].SrcPath.String()
 
 	if !strings.HasSuffix(outputPath, "/main_test") {
 		t.Errorf("expected test output file to be 'main_test', but was '%s'", outputPath)
@@ -573,6 +573,54 @@ func TestDataLibs(t *testing.T) {
 	if !strings.HasSuffix(testBinaryPath, "/test_lib.so") {
 		t.Errorf("expected test data file to be 'test_lib.so', but was '%s'", testBinaryPath)
 		return
+	}
+}
+
+func TestDataLibsRelativeInstallPath(t *testing.T) {
+	bp := `
+		cc_test_library {
+			name: "test_lib",
+			srcs: ["test_lib.cpp"],
+			relative_install_path: "foo/bar/baz",
+			gtest: false,
+		}
+
+		cc_test {
+			name: "main_test",
+			data_libs: ["test_lib"],
+			gtest: false,
+		}
+ `
+
+	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.VndkUseCoreVariant = BoolPtr(true)
+
+	ctx := testCcWithConfig(t, config)
+	module := ctx.ModuleForTests("main_test", "android_arm_armv7-a-neon").Module()
+	testBinary := module.(*Module).linker.(*testBinary)
+	outputFiles, err := module.(android.OutputFileProducer).OutputFiles("")
+	if err != nil {
+		t.Fatalf("Expected cc_test to produce output files, error: %s", err)
+	}
+	if len(outputFiles) != 1 {
+		t.Errorf("expected exactly one output file. output files: [%s]", outputFiles)
+	}
+	if len(testBinary.dataPaths()) != 1 {
+		t.Errorf("expected exactly one test data file. test data files: [%s]", testBinary.dataPaths())
+	}
+
+	outputPath := outputFiles[0].String()
+	testBinaryPath := testBinary.dataPaths()[0]
+
+	if !strings.HasSuffix(outputPath, "/main_test") {
+		t.Errorf("expected test output file to be 'main_test', but was '%s'", outputPath)
+	}
+	entries := android.AndroidMkEntriesForTest(t, config, "", module)[0]
+	if !strings.HasSuffix(entries.EntryMap["LOCAL_TEST_DATA"][0], ":test_lib.so:foo/bar/baz") {
+		t.Errorf("expected LOCAL_TEST_DATA to end with `:test_lib.so:foo/bar/baz`,"+
+			" but was '%s'", testBinaryPath)
 	}
 }
 
