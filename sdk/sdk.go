@@ -218,7 +218,7 @@ func newSdkModule(moduleExports bool) *sdk {
 			Compile_multilib *string
 		}
 		p := &props{Compile_multilib: proptools.StringPtr("both")}
-		ctx.AppendProperties(p)
+		ctx.PrependProperties(p)
 	})
 	return s
 }
@@ -329,6 +329,11 @@ func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 type dependencyTag struct {
 	blueprint.BaseDependencyTag
 }
+
+// Mark this tag so dependencies that use it are excluded from APEX contents.
+func (t dependencyTag) ExcludeFromApexContents() {}
+
+var _ android.ExcludeFromApexContentsTag = dependencyTag{}
 
 // For dependencies from an in-development version of an SDK member to frozen versions of the same member
 // e.g. libfoo -> libfoo.mysdk.11 and libfoo.mysdk.12
