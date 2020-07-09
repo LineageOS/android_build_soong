@@ -12,6 +12,41 @@ are stored in `soong.#.log` and `verbose.#.log.gz`.
 
 ![trace example](./trace_example.png)
 
+### Critical path
+
+soong_ui logs the wall time of the longest dependency chain compared to the
+elapsed wall time in `$OUT_DIR/soong.log`.  For example:
+```
+critical path took 3m10s
+elapsed time 5m16s
+perfect parallelism ratio 60%
+critical path:
+    0:00 build out/target/product/generic_arm64/obj/FAKE/sepolicy_neverallows_intermediates/policy_2.conf
+    0:04 build out/target/product/generic_arm64/obj/FAKE/sepolicy_neverallows_intermediates/sepolicy_neverallows
+    0:13 build out/target/product/generic_arm64/obj/ETC/plat_sepolicy.cil_intermediates/plat_sepolicy.cil
+    0:01 build out/target/product/generic_arm64/obj/ETC/plat_pub_versioned.cil_intermediates/plat_pub_versioned.cil
+    0:02 build out/target/product/generic_arm64/obj/ETC/vendor_sepolicy.cil_intermediates/vendor_sepolicy.cil
+    0:16 build out/target/product/generic_arm64/obj/ETC/sepolicy_intermediates/sepolicy
+    0:00 build out/target/product/generic_arm64/obj/ETC/plat_seapp_contexts_intermediates/plat_seapp_contexts
+    0:00 Install: out/target/product/generic_arm64/system/etc/selinux/plat_seapp_contexts
+    0:02 build out/target/product/generic_arm64/obj/NOTICE.txt
+    0:00 build out/target/product/generic_arm64/obj/NOTICE.xml.gz
+    0:00 build out/target/product/generic_arm64/system/etc/NOTICE.xml.gz
+    0:01 Installed file list: out/target/product/generic_arm64/installed-files.txt
+    1:00 Target system fs image: out/target/product/generic_arm64/obj/PACKAGING/systemimage_intermediates/system.img
+    0:01 Install system fs image: out/target/product/generic_arm64/system.img
+    0:01 Target vbmeta image: out/target/product/generic_arm64/vbmeta.img
+    1:26 Package target files: out/target/product/generic_arm64/obj/PACKAGING/target_files_intermediates/aosp_arm64-target_files-6663974.zip
+    0:01 Package: out/target/product/generic_arm64/aosp_arm64-img-6663974.zip
+    0:01 Dist: /buildbot/dist_dirs/aosp-master-linux-aosp_arm64-userdebug/6663974/aosp_arm64-img-6663974.zip
+```
+
+If the elapsed time is much longer than the critical path then additional
+parallelism on the build machine will improve total build times.  If there are
+long individual times listed in the critical path then improving build times
+for those steps or adjusting dependencies so that those steps can run earlier
+in the build graph will improve total build times.
+
 ### Soong
 
 Soong can be traced and profiled using the standard Go tools. It understands
