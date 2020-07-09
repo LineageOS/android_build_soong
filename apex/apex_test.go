@@ -5791,6 +5791,41 @@ func TestAllowedFiles(t *testing.T) {
 	}
 }
 
+func TestNonPreferredPrebuiltDependency(t *testing.T) {
+	_, _ = testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			stubs: {
+				versions: ["10000"],
+			},
+			apex_available: ["myapex"],
+		}
+
+		cc_prebuilt_library_shared {
+			name: "mylib",
+			prefer: false,
+			srcs: ["prebuilt.so"],
+			stubs: {
+				versions: ["10000"],
+			},
+			apex_available: ["myapex"],
+		}
+	`)
+}
+
 func TestMain(m *testing.M) {
 	run := func() int {
 		setUp()

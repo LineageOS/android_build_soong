@@ -1750,9 +1750,15 @@ func (a *apexBundle) WalkPayloadDeps(ctx android.ModuleContext, do android.Paylo
 			return false
 		}
 
+		dt := ctx.OtherModuleDependencyTag(child)
+
+		if _, ok := dt.(android.ExcludeFromApexContentsTag); ok {
+			return false
+		}
+
 		// Check for the direct dependencies that contribute to the payload
-		if dt, ok := ctx.OtherModuleDependencyTag(child).(dependencyTag); ok {
-			if dt.payload {
+		if adt, ok := dt.(dependencyTag); ok {
+			if adt.payload {
 				return do(ctx, parent, am, false /* externalDep */)
 			}
 			// As soon as the dependency graph crosses the APEX boundary, don't go further.
