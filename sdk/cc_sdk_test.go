@@ -69,6 +69,28 @@ func TestSdkIsCompileMultilibBoth(t *testing.T) {
 	ensureListContains(t, inputs, arm64Output.String())
 }
 
+func TestSdkCompileMultilibOverride(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: ["sdkmember"],
+			compile_multilib: "64",
+		}
+
+		cc_library_shared {
+			name: "sdkmember",
+			srcs: ["Test.cpp"],
+			stl: "none",
+			compile_multilib: "64",
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAllCopyRules(`
+.intermediates/sdkmember/android_arm64_armv8-a_shared/sdkmember.so -> arm64/lib/sdkmember.so
+`))
+}
+
 func TestBasicSdkWithCc(t *testing.T) {
 	result := testSdkWithCc(t, `
 		sdk {
@@ -79,6 +101,8 @@ func TestBasicSdkWithCc(t *testing.T) {
 		cc_library_shared {
 			name: "sdkmember",
 			system_shared_libs: [],
+			stl: "none",
+			apex_available: ["mysdkapex"],
 		}
 
 		sdk_snapshot {
@@ -149,6 +173,13 @@ func TestBasicSdkWithCc(t *testing.T) {
 			name: "myapex2",
 			native_shared_libs: ["mycpplib"],
 			uses_sdks: ["mysdk@2"],
+			key: "myapex.key",
+			certificate: ":myapex.cert",
+		}
+
+		apex {
+			name: "mysdkapex",
+			native_shared_libs: ["sdkmember"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
 		}
