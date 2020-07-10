@@ -61,6 +61,7 @@ func testConfig(bp string) android.Config {
 		"foo.rs":     nil,
 		"foo.c":      nil,
 		"src/bar.rs": nil,
+		"src/any.h":  nil,
 		"liby.so":    nil,
 		"libz.so":    nil,
 	}
@@ -181,7 +182,7 @@ func TestDepsTracking(t *testing.T) {
 		}
 		rust_library_host_rlib {
 			name: "librlib",
-			srcs: ["foo.rs"],
+			srcs: ["foo.rs", ":my_generator"],
 			crate_name: "rlib",
 		}
 		rust_proc_macro {
@@ -189,17 +190,38 @@ func TestDepsTracking(t *testing.T) {
 			srcs: ["foo.rs"],
 			crate_name: "pm",
 		}
+		genrule {
+			name: "my_generator",
+			tools: ["any_rust_binary"],
+			cmd: "$(location) -o $(out) $(in)",
+			srcs: ["src/any.h"],
+			out: ["src/any.rs"],
+		}
 		rust_binary_host {
-			name: "fizz-buzz",
+			name: "fizz-buzz-dep",
 			dylibs: ["libdylib"],
 			rlibs: ["librlib"],
 			proc_macros: ["libpm"],
 			static_libs: ["libstatic"],
 			shared_libs: ["libshared"],
-			srcs: ["foo.rs"],
+			srcs: [
+				"foo.rs",
+				":my_generator",
+			],
 		}
 	`)
-	module := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module)
+	module := ctx.ModuleForTests("fizz-buzz-dep", "linux_glibc_x86_64").Module().(*Module)
+	rlibmodule := ctx.ModuleForTests("librlib", "linux_glibc_x86_64_rlib").Module().(*Module)
+
+	srcs := module.compiler.(*binaryDecorator).baseCompiler.Properties.Srcs
+	if len(srcs) != 2 || !android.InList(":my_generator", srcs) {
+		t.Errorf("missing module dependency in fizz-buzz)")
+	}
+
+	srcs = rlibmodule.compiler.(*libraryDecorator).baseCompiler.Properties.Srcs
+	if len(srcs) != 2 || !android.InList(":my_generator", srcs) {
+		t.Errorf("missing module dependency in rlib")
+	}
 
 	// Since dependencies are added to AndroidMk* properties, we can check these to see if they've been picked up.
 	if !android.InList("libdylib", module.Properties.AndroidMkDylibs) {

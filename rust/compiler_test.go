@@ -43,7 +43,7 @@ func TestFeaturesToFlags(t *testing.T) {
 // Test that we reject multiple source files.
 func TestEnforceSingleSourceFile(t *testing.T) {
 
-	singleSrcError := "srcs can only contain one path for rust modules"
+	singleSrcError := "srcs can only contain one path for a rust file"
 
 	// Test libraries
 	testRustError(t, singleSrcError, `
