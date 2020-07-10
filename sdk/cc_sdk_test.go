@@ -73,7 +73,6 @@ func TestSdkCompileMultilibOverride(t *testing.T) {
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
-			device_supported: false,
 			host_supported: true,
 			native_shared_libs: ["sdkmember"],
 			compile_multilib: "64",
@@ -81,7 +80,6 @@ func TestSdkCompileMultilibOverride(t *testing.T) {
 
 		cc_library_shared {
 			name: "sdkmember",
-			device_supported: false,
 			host_supported: true,
 			srcs: ["Test.cpp"],
 			stl: "none",
@@ -96,14 +94,16 @@ func TestSdkCompileMultilibOverride(t *testing.T) {
 cc_prebuilt_library_shared {
     name: "mysdk_sdkmember@current",
     sdk_member_name: "sdkmember",
-    device_supported: false,
     host_supported: true,
     installable: false,
     stl: "none",
     compile_multilib: "64",
-    arch: {
-        x86_64: {
-            srcs: ["x86_64/lib/sdkmember.so"],
+    target: {
+        android_arm64: {
+            srcs: ["android/arm64/lib/sdkmember.so"],
+        },
+        linux_glibc_x86_64: {
+            srcs: ["linux_glibc/x86_64/lib/sdkmember.so"],
         },
     },
 }
@@ -111,31 +111,29 @@ cc_prebuilt_library_shared {
 cc_prebuilt_library_shared {
     name: "sdkmember",
     prefer: false,
-    device_supported: false,
     host_supported: true,
     stl: "none",
     compile_multilib: "64",
-    arch: {
-        x86_64: {
-            srcs: ["x86_64/lib/sdkmember.so"],
+    target: {
+        android_arm64: {
+            srcs: ["android/arm64/lib/sdkmember.so"],
+        },
+        linux_glibc_x86_64: {
+            srcs: ["linux_glibc/x86_64/lib/sdkmember.so"],
         },
     },
 }
 
 sdk_snapshot {
     name: "mysdk@current",
-    device_supported: false,
     host_supported: true,
     native_shared_libs: ["mysdk_sdkmember@current"],
-    target: {
-        linux_glibc: {
-            compile_multilib: "64",
-        },
-    },
+    compile_multilib: "64",
 }
 `),
 		checkAllCopyRules(`
-.intermediates/sdkmember/linux_glibc_x86_64_shared/sdkmember.so -> x86_64/lib/sdkmember.so
+.intermediates/sdkmember/android_arm64_armv8-a_shared/sdkmember.so -> android/arm64/lib/sdkmember.so
+.intermediates/sdkmember/linux_glibc_x86_64_shared/sdkmember.so -> linux_glibc/x86_64/lib/sdkmember.so
 `))
 }
 
@@ -1527,11 +1525,7 @@ module_exports_snapshot {
     device_supported: false,
     host_supported: true,
     native_static_libs: ["myexports_mynativelib@current"],
-    target: {
-        linux_glibc: {
-            compile_multilib: "64",
-        },
-    },
+    compile_multilib: "64",
 }`),
 		checkAllCopyRules(`
 include/Test.h -> include/include/Test.h
