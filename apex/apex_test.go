@@ -573,18 +573,18 @@ func TestBasicApex(t *testing.T) {
 	ensureListContains(t, noticeInputs, "custom_notice_for_static_lib")
 
 	fullDepsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
-	ensureListContains(t, fullDepsInfo, "myjar(minSdkVersion:(no version)) <- myapex")
-	ensureListContains(t, fullDepsInfo, "mylib(minSdkVersion:(no version)) <- myapex")
-	ensureListContains(t, fullDepsInfo, "mylib2(minSdkVersion:(no version)) <- mylib")
-	ensureListContains(t, fullDepsInfo, "myotherjar(minSdkVersion:(no version)) <- myjar")
-	ensureListContains(t, fullDepsInfo, "mysharedjar(minSdkVersion:(no version)) (external) <- myjar")
+	ensureListContains(t, fullDepsInfo, "  myjar(minSdkVersion:(no version)) <- myapex")
+	ensureListContains(t, fullDepsInfo, "  mylib(minSdkVersion:(no version)) <- myapex")
+	ensureListContains(t, fullDepsInfo, "  mylib2(minSdkVersion:(no version)) <- mylib")
+	ensureListContains(t, fullDepsInfo, "  myotherjar(minSdkVersion:(no version)) <- myjar")
+	ensureListContains(t, fullDepsInfo, "  mysharedjar(minSdkVersion:(no version)) (external) <- myjar")
 
 	flatDepsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("depsinfo/flatlist.txt").Args["content"], "\\n")
-	ensureListContains(t, flatDepsInfo, "  myjar(minSdkVersion:(no version))")
-	ensureListContains(t, flatDepsInfo, "  mylib(minSdkVersion:(no version))")
-	ensureListContains(t, flatDepsInfo, "  mylib2(minSdkVersion:(no version))")
-	ensureListContains(t, flatDepsInfo, "  myotherjar(minSdkVersion:(no version))")
-	ensureListContains(t, flatDepsInfo, "  mysharedjar(minSdkVersion:(no version)) (external)")
+	ensureListContains(t, flatDepsInfo, "myjar(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "mylib(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "mylib2(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "myotherjar(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "mysharedjar(minSdkVersion:(no version)) (external)")
 }
 
 func TestDefaults(t *testing.T) {
@@ -894,14 +894,14 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 	ensureNotContains(t, libFooStubsLdFlags, "libbar.so")
 
 	fullDepsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
-	ensureListContains(t, fullDepsInfo, "mylib(minSdkVersion:(no version)) <- myapex2")
-	ensureListContains(t, fullDepsInfo, "libbaz(minSdkVersion:(no version)) <- mylib")
-	ensureListContains(t, fullDepsInfo, "libfoo(minSdkVersion:(no version)) (external) <- mylib")
+	ensureListContains(t, fullDepsInfo, "  mylib(minSdkVersion:(no version)) <- myapex2")
+	ensureListContains(t, fullDepsInfo, "  libbaz(minSdkVersion:(no version)) <- mylib")
+	ensureListContains(t, fullDepsInfo, "  libfoo(minSdkVersion:(no version)) (external) <- mylib")
 
 	flatDepsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("depsinfo/flatlist.txt").Args["content"], "\\n")
-	ensureListContains(t, flatDepsInfo, "  mylib(minSdkVersion:(no version))")
-	ensureListContains(t, flatDepsInfo, "  libbaz(minSdkVersion:(no version))")
-	ensureListContains(t, flatDepsInfo, "  libfoo(minSdkVersion:(no version)) (external)")
+	ensureListContains(t, flatDepsInfo, "mylib(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "libbaz(minSdkVersion:(no version))")
+	ensureListContains(t, flatDepsInfo, "libfoo(minSdkVersion:(no version)) (external)")
 }
 
 func TestApexWithRuntimeLibsDependency(t *testing.T) {
@@ -5926,6 +5926,41 @@ func TestAllowedFiles(t *testing.T) {
 	if expected, actual := "sub/allowed.txt", rule2.Args["allowed_files_file"]; expected != actual {
 		t.Errorf("allowed_files_file: expected %q but got %q", expected, actual)
 	}
+}
+
+func TestNonPreferredPrebuiltDependency(t *testing.T) {
+	_, _ = testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			stubs: {
+				versions: ["10000"],
+			},
+			apex_available: ["myapex"],
+		}
+
+		cc_prebuilt_library_shared {
+			name: "mylib",
+			prefer: false,
+			srcs: ["prebuilt.so"],
+			stubs: {
+				versions: ["10000"],
+			},
+			apex_available: ["myapex"],
+		}
+	`)
 }
 
 func TestMain(m *testing.M) {
