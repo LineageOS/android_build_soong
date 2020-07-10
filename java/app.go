@@ -105,6 +105,10 @@ func (as *AndroidAppSet) MasterFile() string {
 	return as.masterFile
 }
 
+func (as *AndroidAppSet) APKCertsFile() android.Path {
+	return as.apkcertsFile
+}
+
 var TargetCpuAbi = map[string]string{
 	"arm":    "ARMEABI_V7A",
 	"arm64":  "ARM64_V8A",
