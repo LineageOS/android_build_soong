@@ -62,9 +62,10 @@ type BaseProperties struct {
 	AndroidMkProcMacroLibs []string
 	AndroidMkSharedLibs    []string
 	AndroidMkStaticLibs    []string
-	SubName                string `blueprint:"mutated"`
-	PreventInstall         bool
-	HideFromMake           bool
+
+	SubName        string `blueprint:"mutated"`
+	PreventInstall bool
+	HideFromMake   bool
 }
 
 type Module struct {
@@ -85,6 +86,22 @@ type Module struct {
 	outputFile       android.OptionalPath
 
 	subName string
+}
+
+func (mod *Module) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		if mod.sourceProvider != nil {
+			return mod.sourceProvider.Srcs(), nil
+		} else {
+			if mod.outputFile.Valid() {
+				return android.Paths{mod.outputFile.Path()}, nil
+			}
+			return android.Paths{}, nil
+		}
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
 }
 
 var _ android.ImageInterface = (*Module)(nil)
@@ -860,7 +877,6 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	// Dedup exported flags from dependencies
 	depPaths.linkDirs = android.FirstUniqueStrings(depPaths.linkDirs)
 	depPaths.depFlags = android.FirstUniqueStrings(depPaths.depFlags)
-	depPaths.SrcDeps = android.FirstUniquePaths(depPaths.SrcDeps)
 
 	return depPaths
 }
@@ -977,3 +993,5 @@ var Bool = proptools.Bool
 var BoolDefault = proptools.BoolDefault
 var String = proptools.String
 var StringPtr = proptools.StringPtr
+
+var _ android.OutputFileProducer = (*Module)(nil)
