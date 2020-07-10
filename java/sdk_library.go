@@ -143,6 +143,7 @@ type apiScope struct {
 	droidstubsArgsForGeneratingApi []string
 
 	// True if the stubs source and api can be created by the same metalava invocation.
+	// TODO(b/146727827) Now that metalava supports "API hierarchy", do we still need it?
 	createStubsSourceAndApiTogether bool
 
 	// Whether the api scope can be treated as unstable, and should skip compat checks.
@@ -284,6 +285,7 @@ var (
 		sdkVersion:    "module_current",
 		droidstubsArgs: []string{
 			"--show-annotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES\\)",
+			"--show-for-stub-purposes-annotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS\\)",
 		},
 	})
 	apiScopeSystemServer = initApiScope(&apiScope{
