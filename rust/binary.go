@@ -106,7 +106,8 @@ func (binary *binaryDecorator) nativeCoverage() bool {
 func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
 	fileName := binary.getStem(ctx) + ctx.toolchain().ExecutableSuffix()
 
-	srcPath := srcPathFromModuleSrcs(ctx, binary.baseCompiler.Properties.Srcs)
+	srcPath, paths := srcPathFromModuleSrcs(ctx, binary.baseCompiler.Properties.Srcs)
+	deps.SrcDeps = paths
 
 	outputFile := android.PathForModuleOut(ctx, fileName)
 	binary.unstrippedOutputFile = outputFile
