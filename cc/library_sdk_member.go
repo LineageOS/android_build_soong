@@ -234,7 +234,7 @@ func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, b
 	for _, propertyInfo := range includeDirProperties {
 		// Calculate the base directory in the snapshot into which the files will be copied.
 		// lib.ArchType is "" for common properties.
-		targetDir := filepath.Join(libInfo.archType, propertyInfo.snapshotDir)
+		targetDir := filepath.Join(libInfo.OsPrefix(), libInfo.archType, propertyInfo.snapshotDir)
 
 		propertyName := propertyInfo.propertyName
 
