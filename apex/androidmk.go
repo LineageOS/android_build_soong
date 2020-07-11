@@ -200,6 +200,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 				panic(fmt.Sprintf("Expected %s to be AndroidAppSet", fi.module))
 			}
 			fmt.Fprintln(w, "LOCAL_APK_SET_MASTER_FILE :=", as.MasterFile())
+			fmt.Fprintln(w, "LOCAL_APKCERTS_FILE :=", as.APKCertsFile().String())
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_android_app_set.mk")
 		case nativeSharedLib, nativeExecutable, nativeTest:
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.Stem())
