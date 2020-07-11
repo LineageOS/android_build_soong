@@ -225,6 +225,8 @@ func (headers *llndkHeadersDecorator) Name(name string) string {
 func llndkHeadersFactory() android.Module {
 	module, library := NewLibrary(android.DeviceSupported)
 	library.HeaderOnly()
+	module.stl = nil
+	module.sanitize = nil
 
 	decorator := &llndkHeadersDecorator{
 		libraryDecorator: library,
