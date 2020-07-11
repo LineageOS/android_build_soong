@@ -1614,13 +1614,13 @@ cc_prebuilt_library_headers {
     sdk_member_name: "mynativeheaders",
     host_supported: true,
     stl: "none",
-    export_system_include_dirs: ["include/include"],
+    export_system_include_dirs: ["common_os/include/include"],
     target: {
         android: {
-            export_include_dirs: ["include/include-android"],
+            export_include_dirs: ["android/include/include-android"],
         },
         linux_glibc: {
-            export_include_dirs: ["include/include-host"],
+            export_include_dirs: ["linux_glibc/include/include-host"],
         },
     },
 }
@@ -1630,13 +1630,13 @@ cc_prebuilt_library_headers {
     prefer: false,
     host_supported: true,
     stl: "none",
-    export_system_include_dirs: ["include/include"],
+    export_system_include_dirs: ["common_os/include/include"],
     target: {
         android: {
-            export_include_dirs: ["include/include-android"],
+            export_include_dirs: ["android/include/include-android"],
         },
         linux_glibc: {
-            export_include_dirs: ["include/include-host"],
+            export_include_dirs: ["linux_glibc/include/include-host"],
         },
     },
 }
@@ -1648,9 +1648,9 @@ sdk_snapshot {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
-include-android/AndroidTest.h -> include/include-android/AndroidTest.h
-include-host/HostTest.h -> include/include-host/HostTest.h
+include/Test.h -> common_os/include/include/Test.h
+include-android/AndroidTest.h -> android/include/include-android/AndroidTest.h
+include-host/HostTest.h -> linux_glibc/include/include-host/HostTest.h
 `),
 	)
 }
