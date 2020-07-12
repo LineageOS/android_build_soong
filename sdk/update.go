@@ -911,7 +911,7 @@ func newOsTypeSpecificInfo(ctx android.SdkMemberContext, osType android.OsType, 
 
 	if commonVariants, ok := variantsByArchName["common"]; ok {
 		if len(osTypeVariants) != 1 {
-			panic("Expected to only have 1 variant when arch type is common but found " + string(len(osTypeVariants)))
+			panic(fmt.Errorf("Expected to only have 1 variant when arch type is common but found %d", len(osTypeVariants)))
 		}
 
 		// A common arch type only has one variant and its properties should be treated
