@@ -220,12 +220,21 @@ func (l *linter) lint(ctx android.ModuleContext) {
 	rule.Command().Text("rm -rf").Flag(cacheDir.String()).Flag(homeDir.String())
 	rule.Command().Text("mkdir -p").Flag(cacheDir.String()).Flag(homeDir.String())
 
+	var annotationsZipPath, apiVersionsXMLPath android.Path
+	if ctx.Config().UnbundledBuildUsePrebuiltSdks() {
+		annotationsZipPath = android.PathForSource(ctx, "prebuilts/sdk/current/public/data/annotations.zip")
+		apiVersionsXMLPath = android.PathForSource(ctx, "prebuilts/sdk/current/public/data/api-versions.xml")
+	} else {
+		annotationsZipPath = copiedAnnotationsZipPath(ctx)
+		apiVersionsXMLPath = copiedAPIVersionsXmlPath(ctx)
+	}
+
 	rule.Command().
 		Text("(").
 		Flag("JAVA_OPTS=-Xmx2048m").
 		FlagWithArg("ANDROID_SDK_HOME=", homeDir.String()).
-		FlagWithInput("SDK_ANNOTATIONS=", annotationsZipPath(ctx)).
-		FlagWithInput("LINT_OPTS=-DLINT_API_DATABASE=", apiVersionsXmlPath(ctx)).
+		FlagWithInput("SDK_ANNOTATIONS=", annotationsZipPath).
+		FlagWithInput("LINT_OPTS=-DLINT_API_DATABASE=", apiVersionsXMLPath).
 		Tool(android.PathForSource(ctx, "prebuilts/cmdline-tools/tools/bin/lint")).
 		Implicit(android.PathForSource(ctx, "prebuilts/cmdline-tools/tools/lib/lint-classpath.jar")).
 		Flag("--quiet").
@@ -271,7 +280,7 @@ func (l *lintSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 }
 
 func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
-	if ctx.Config().UnbundledBuild() {
+	if ctx.Config().UnbundledBuildUsePrebuiltSdks() {
 		return
 	}
 
@@ -297,25 +306,29 @@ func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   android.Cp,
 		Input:  android.OutputFileForModule(ctx, frameworkDocStubs, ".annotations.zip"),
-		Output: annotationsZipPath(ctx),
+		Output: copiedAnnotationsZipPath(ctx),
 	})
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   android.Cp,
 		Input:  android.OutputFileForModule(ctx, frameworkDocStubs, ".api_versions.xml"),
-		Output: apiVersionsXmlPath(ctx),
+		Output: copiedAPIVersionsXmlPath(ctx),
 	})
 }
 
-func annotationsZipPath(ctx android.PathContext) android.WritablePath {
+func copiedAnnotationsZipPath(ctx android.PathContext) android.WritablePath {
 	return android.PathForOutput(ctx, "lint", "annotations.zip")
 }
 
-func apiVersionsXmlPath(ctx android.PathContext) android.WritablePath {
+func copiedAPIVersionsXmlPath(ctx android.PathContext) android.WritablePath {
 	return android.PathForOutput(ctx, "lint", "api_versions.xml")
 }
 
 func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
+	if ctx.Config().UnbundledBuild() {
+		return
+	}
+
 	var outputs []*lintOutputs
 	var dirs []string
 	ctx.VisitAllModules(func(m android.Module) {
@@ -370,7 +383,9 @@ func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
 }
 
 func (l *lintSingleton) MakeVars(ctx android.MakeVarsContext) {
-	ctx.DistForGoal("lint-check", l.htmlZip, l.textZip, l.xmlZip)
+	if !ctx.Config().UnbundledBuild() {
+		ctx.DistForGoal("lint-check", l.htmlZip, l.textZip, l.xmlZip)
+	}
 }
 
 var _ android.SingletonMakeVarsProvider = (*lintSingleton)(nil)
