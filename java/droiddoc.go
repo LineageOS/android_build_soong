@@ -112,12 +112,19 @@ type JavadocProperties struct {
 	// local files that are used within user customized droiddoc options.
 	Arg_files []string `android:"path"`
 
-	// user customized droiddoc args.
+	// user customized droiddoc args. Deprecated, use flags instead.
 	// Available variables for substitution:
 	//
 	//  $(location <label>): the path to the arg_files with name <label>
 	//  $$: a literal $
 	Args *string
+
+	// user customized droiddoc args. Not compatible with property args.
+	// Available variables for substitution:
+	//
+	//  $(location <label>): the path to the arg_files with name <label>
+	//  $$: a literal $
+	Flags []string
 
 	// names of the output files used in args that will be generated
 	Out []string
@@ -382,7 +389,7 @@ type Javadoc struct {
 	argFiles    android.Paths
 	implicits   android.Paths
 
-	args string
+	args []string
 
 	docZip      android.WritablePath
 	stubsSrcJar android.WritablePath
@@ -619,8 +626,8 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	}
 	srcFiles = filterHtml(srcFiles)
 
-	flags := j.collectAidlFlags(ctx, deps)
-	srcFiles = j.genSources(ctx, srcFiles, flags)
+	aidlFlags := j.collectAidlFlags(ctx, deps)
+	srcFiles = j.genSources(ctx, srcFiles, aidlFlags)
 
 	// srcs may depend on some genrule output.
 	j.srcJars = srcFiles.FilterByExt(".srcjar")
@@ -649,24 +656,38 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		}
 	}
 
-	var err error
-	j.args, err = android.Expand(String(j.properties.Args), func(name string) (string, error) {
-		if strings.HasPrefix(name, "location ") {
-			label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
-			if paths, ok := argFilesMap[label]; ok {
-				return paths, nil
-			} else {
-				return "", fmt.Errorf("unknown location label %q, expecting one of %q",
-					label, strings.Join(argFileLabels, ", "))
-			}
-		} else if name == "genDir" {
-			return android.PathForModuleGen(ctx).String(), nil
-		}
-		return "", fmt.Errorf("unknown variable '$(%s)'", name)
-	})
+	var argsPropertyName string
+	flags := make([]string, 0)
+	if j.properties.Args != nil && j.properties.Flags != nil {
+		ctx.PropertyErrorf("args", "flags is set. Cannot set args")
+	} else if args := proptools.String(j.properties.Args); args != "" {
+		flags = append(flags, args)
+		argsPropertyName = "args"
+	} else {
+		flags = append(flags, j.properties.Flags...)
+		argsPropertyName = "flags"
+	}
 
-	if err != nil {
-		ctx.PropertyErrorf("args", "%s", err.Error())
+	for _, flag := range flags {
+		args, err := android.Expand(flag, func(name string) (string, error) {
+			if strings.HasPrefix(name, "location ") {
+				label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
+				if paths, ok := argFilesMap[label]; ok {
+					return paths, nil
+				} else {
+					return "", fmt.Errorf("unknown location label %q, expecting one of %q",
+						label, strings.Join(argFileLabels, ", "))
+				}
+			} else if name == "genDir" {
+				return android.PathForModuleGen(ctx).String(), nil
+			}
+			return "", fmt.Errorf("unknown variable '$(%s)'", name)
+		})
+
+		if err != nil {
+			ctx.PropertyErrorf(argsPropertyName, "%s", err.Error())
+		}
+		j.args = append(j.args, args)
 	}
 
 	return deps
@@ -1010,7 +1031,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	d.stubsFlags(ctx, cmd, stubsDir)
 
-	cmd.Flag(d.Javadoc.args).Implicits(d.Javadoc.argFiles)
+	cmd.Flag(strings.Join(d.Javadoc.args, " ")).Implicits(d.Javadoc.argFiles)
 
 	if d.properties.Compat_config != nil {
 		compatConfig := android.PathForModuleSrc(ctx, String(d.properties.Compat_config))
@@ -1327,7 +1348,7 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 		cmd.Flag("--include-annotations")
 
 		validatingNullability :=
-			strings.Contains(d.Javadoc.args, "--validate-nullability-from-merged-stubs") ||
+			android.InList("--validate-nullability-from-merged-stubs", d.Javadoc.args) ||
 				String(d.properties.Validate_nullability_from_list) != ""
 
 		migratingNullability := String(d.properties.Previous_api) != ""
@@ -1539,14 +1560,14 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	d.apiLevelsAnnotationsFlags(ctx, cmd)
 	d.apiToXmlFlags(ctx, cmd)
 
-	if strings.Contains(d.Javadoc.args, "--generate-documentation") {
+	if android.InList("--generate-documentation", d.Javadoc.args) {
 		// Currently Metalava have the ability to invoke Javadoc in a seperate process.
 		// Pass "-nodocs" to suppress the Javadoc invocation when Metalava receives
 		// "--generate-documentation" arg. This is not needed when Metalava removes this feature.
-		d.Javadoc.args = d.Javadoc.args + " -nodocs "
+		d.Javadoc.args = append(d.Javadoc.args, "-nodocs")
 	}
 
-	cmd.Flag(d.Javadoc.args).Implicits(d.Javadoc.argFiles)
+	cmd.Flag(strings.Join(d.Javadoc.args, " ")).Implicits(d.Javadoc.argFiles)
 	for _, o := range d.Javadoc.properties.Out {
 		cmd.ImplicitOutput(android.PathForModuleGen(ctx, o))
 	}
