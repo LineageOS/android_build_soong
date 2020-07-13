@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"android/soong/ui/logger"
 )
@@ -94,7 +95,7 @@ func TestUploadMetrics(t *testing.T) {
 				},
 			}}
 
-			UploadMetrics(ctx, config, false, 1591031903, metricsFiles...)
+			UploadMetrics(ctx, config, false, time.Now(), metricsFiles...)
 		})
 	}
 }
@@ -148,7 +149,7 @@ func TestUploadMetricsErrors(t *testing.T) {
 					"OUT_DIR=/bad",
 				}}}
 
-			UploadMetrics(ctx, config, true, 1591031903, metricsFile)
+			UploadMetrics(ctx, config, true, time.Now(), metricsFile)
 			t.Errorf("got nil, expecting %q as a failure", tt.expectedErr)
 		})
 	}

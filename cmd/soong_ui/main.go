@@ -47,7 +47,7 @@ func inList(s string, list []string) bool {
 }
 
 func main() {
-	buildStartedMilli := time.Now().UnixNano() / int64(time.Millisecond)
+	buildStarted := time.Now()
 	var stdio terminal.StdioInterface
 	stdio = terminal.StdioImpl{}
 	simpleOutput := false
@@ -83,6 +83,7 @@ func main() {
 	defer trace.Close()
 
 	met := metrics.New()
+	met.SetBuildDateTime(buildStarted)
 
 	stat := &status.Status{}
 	defer stat.Finish()
@@ -120,7 +121,7 @@ func main() {
 
 	rbeMetricsFile := filepath.Join(logsDir, logsPrefix+"rbe_metrics.pb")
 	soongMetricsFile := filepath.Join(logsDir, logsPrefix+"soong_metrics")
-	defer build.UploadMetrics(buildCtx, config, simpleOutput, buildStartedMilli, rbeMetricsFile, soongMetricsFile)
+	defer build.UploadMetrics(buildCtx, config, simpleOutput, buildStarted, rbeMetricsFile, soongMetricsFile)
 
 	os.MkdirAll(logsDir, 0777)
 

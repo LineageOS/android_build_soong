@@ -17,7 +17,7 @@ package metrics
 import (
 	"io/ioutil"
 	"os"
-	"strconv"
+	"time"
 
 	"android/soong/ui/metrics/metrics_proto"
 
@@ -127,14 +127,8 @@ func (m *Metrics) getArch(arch string) *metrics_proto.MetricsBase_ARCH {
 	}
 }
 
-func (m *Metrics) SetBuildDateTime(date_time string) {
-	if date_time != "" {
-		date_time_timestamp, err := strconv.ParseInt(date_time, 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		m.metrics.BuildDateTimestamp = &date_time_timestamp
-	}
+func (m *Metrics) SetBuildDateTime(buildTimestamp time.Time) {
+	m.metrics.BuildDateTimestamp = proto.Int64(buildTimestamp.UnixNano() / int64(time.Second))
 }
 
 func (m *Metrics) Serialize() (data []byte, err error) {
