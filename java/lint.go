@@ -231,7 +231,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	rule.Command().
 		Text("(").
-		Flag("JAVA_OPTS=-Xmx2048m").
+		Flag("JAVA_OPTS=-Xmx3072m").
 		FlagWithArg("ANDROID_SDK_HOME=", homeDir.String()).
 		FlagWithInput("SDK_ANNOTATIONS=", annotationsZipPath).
 		FlagWithInput("LINT_OPTS=-DLINT_API_DATABASE=", apiVersionsXMLPath).
