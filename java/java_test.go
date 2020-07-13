@@ -1097,7 +1097,7 @@ func TestDroiddoc(t *testing.T) {
 		    ],
 		    proofread_file: "libcore-proofread.txt",
 		    todo_file: "libcore-docs-todo.html",
-		    args: "-offlinemode -title \"libcore\"",
+		    flags: ["-offlinemode -title \"libcore\""],
 		}
 		`,
 		map[string][]byte{
@@ -1122,6 +1122,42 @@ func TestDroiddoc(t *testing.T) {
 	if g, w := aidl.Implicits.Strings(), []string{"bar-doc/IBar.aidl", "bar-doc/IFoo.aidl"}; !reflect.DeepEqual(w, g) {
 		t.Errorf("aidl inputs must be %q, but was %q", w, g)
 	}
+}
+
+func TestDroiddocArgsAndFlagsCausesError(t *testing.T) {
+	testJavaError(t, "flags is set. Cannot set args", `
+		droiddoc_exported_dir {
+		    name: "droiddoc-templates-sdk",
+		    path: ".",
+		}
+		filegroup {
+		    name: "bar-doc-aidl-srcs",
+		    srcs: ["bar-doc/IBar.aidl"],
+		    path: "bar-doc",
+		}
+		droiddoc {
+		    name: "bar-doc",
+		    srcs: [
+		        "bar-doc/a.java",
+		        "bar-doc/IFoo.aidl",
+		        ":bar-doc-aidl-srcs",
+		    ],
+		    exclude_srcs: [
+		        "bar-doc/b.java"
+		    ],
+		    custom_template: "droiddoc-templates-sdk",
+		    hdf: [
+		        "android.whichdoc offline",
+		    ],
+		    knowntags: [
+		        "bar-doc/known_oj_tags.txt",
+		    ],
+		    proofread_file: "libcore-proofread.txt",
+		    todo_file: "libcore-docs-todo.html",
+		    flags: ["-offlinemode -title \"libcore\""],
+		    args: "-offlinemode -title \"libcore\"",
+		}
+		`)
 }
 
 func TestDroidstubsWithSystemModules(t *testing.T) {
