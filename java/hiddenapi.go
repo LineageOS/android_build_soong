@@ -146,7 +146,7 @@ func (h *hiddenAPI) hiddenAPIGenerateCSV(ctx android.ModuleContext, flagsCSV, me
 
 var hiddenAPIEncodeDexRule = pctx.AndroidStaticRule("hiddenAPIEncodeDex", blueprint.RuleParams{
 	Command: `rm -rf $tmpDir && mkdir -p $tmpDir && mkdir $tmpDir/dex-input && mkdir $tmpDir/dex-output &&
-		unzip -o -q $in 'classes*.dex' -d $tmpDir/dex-input &&
+		unzip -qoDD $in 'classes*.dex' -d $tmpDir/dex-input &&
 		for INPUT_DEX in $$(find $tmpDir/dex-input -maxdepth 1 -name 'classes*.dex' | sort); do
 		  echo "--input-dex=$${INPUT_DEX}";
 		  echo "--output-dex=$tmpDir/dex-output/$$(basename $${INPUT_DEX})";

@@ -641,7 +641,7 @@ func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 var unzipAAR = pctx.AndroidStaticRule("unzipAAR",
 	blueprint.RuleParams{
 		Command: `rm -rf $outDir && mkdir -p $outDir && ` +
-			`unzip -qo -d $outDir $in && rm -rf $outDir/res && touch $out`,
+			`unzip -qoDD -d $outDir $in && rm -rf $outDir/res && touch $out`,
 	},
 	"outDir")
 
