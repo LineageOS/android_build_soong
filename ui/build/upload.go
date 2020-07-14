@@ -44,7 +44,7 @@ var (
 // environment variable. The metrics files are copied to a temporary directory
 // and the uploader is then executed in the background to allow the user to continue
 // working.
-func UploadMetrics(ctx Context, config Config, forceDumbOutput bool, buildStartedMilli int64, files ...string) {
+func UploadMetrics(ctx Context, config Config, forceDumbOutput bool, buildStarted time.Time, files ...string) {
 	ctx.BeginTrace(metrics.RunSetupTool, "upload_metrics")
 	defer ctx.EndTrace()
 
@@ -86,7 +86,7 @@ func UploadMetrics(ctx Context, config Config, forceDumbOutput bool, buildStarte
 	// For platform builds, the branch and target name is hardcoded to specific
 	// values for later extraction of the metrics in the data metrics pipeline.
 	data, err := proto.Marshal(&upload_proto.Upload{
-		CreationTimestampMs:   proto.Uint64(uint64(buildStartedMilli)),
+		CreationTimestampMs:   proto.Uint64(uint64(buildStarted.UnixNano() / int64(time.Millisecond))),
 		CompletionTimestampMs: proto.Uint64(uint64(time.Now().UnixNano() / int64(time.Millisecond))),
 		BranchName:            proto.String("developer-metrics"),
 		TargetName:            proto.String("platform-build-systems-metrics"),
