@@ -97,7 +97,7 @@ func TestUploadMetrics(t *testing.T) {
 				buildDateTime: strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10),
 			}}
 
-			UploadMetrics(ctx, config, false, 1591031903, metricsFiles...)
+			UploadMetrics(ctx, config, false, time.Now(), metricsFiles...)
 		})
 	}
 }
@@ -151,7 +151,7 @@ func TestUploadMetricsErrors(t *testing.T) {
 					"OUT_DIR=/bad",
 				}}}
 
-			UploadMetrics(ctx, config, true, 1591031903, metricsFile)
+			UploadMetrics(ctx, config, true, time.Now(), metricsFile)
 			t.Errorf("got nil, expecting %q as a failure", tt.expectedErr)
 		})
 	}
