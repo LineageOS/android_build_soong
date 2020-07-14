@@ -117,7 +117,7 @@ func inList(s string, list []string) bool {
 // Command is the type of soong_ui execution. Only one type of
 // execution is specified. The args are specific to the command.
 func main() {
-	buildStartedMilli := time.Now().UnixNano() / int64(time.Millisecond)
+	buildStarted := time.Now()
 
 	c, args := getCommand(os.Args)
 	if c == nil {
@@ -138,6 +138,7 @@ func main() {
 	defer trace.Close()
 
 	met := metrics.New()
+	met.SetBuildDateTime(buildStarted)
 
 	stat := &status.Status{}
 	defer stat.Finish()
@@ -171,7 +172,7 @@ func main() {
 	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error")
 	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
 	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
-	defer build.UploadMetrics(buildCtx, config, c.forceDumbOutput, buildStartedMilli, buildErrorFile, rbeMetricsFile, soongMetricsFile)
+	defer build.UploadMetrics(buildCtx, config, c.forceDumbOutput, buildStarted, buildErrorFile, rbeMetricsFile, soongMetricsFile)
 
 	os.MkdirAll(logsDir, 0777)
 	log.SetOutput(filepath.Join(logsDir, c.logsPrefix+"soong.log"))
