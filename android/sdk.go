@@ -466,7 +466,8 @@ func RegisterSdkMemberType(memberType SdkMemberType) {
 
 // Base structure for all implementations of SdkMemberProperties.
 //
-// Contains common properties that apply across many different member types.
+// Contains common properties that apply across many different member types. These
+// are not affected by the optimization to extract common values.
 type SdkMemberPropertiesBase struct {
 	// The number of unique os types supported by the member variants.
 	//
@@ -488,7 +489,9 @@ type SdkMemberPropertiesBase struct {
 	Os OsType `sdk:"keep"`
 
 	// The setting to use for the compile_multilib property.
-	Compile_multilib string `android:"arch_variant"`
+	//
+	// This property is set after optimization so there is no point in trying to optimize it.
+	Compile_multilib string `sdk:"keep"`
 }
 
 // The os prefix to use for any file paths in the sdk.
