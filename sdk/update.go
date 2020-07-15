@@ -794,17 +794,6 @@ func (s *snapshotBuilder) isInternalMember(memberName string) bool {
 	return !ok
 }
 
-// Add the properties from the given SdkMemberProperties to the blueprint
-// property set. This handles common properties in SdkMemberPropertiesBase and
-// calls the member-specific AddToPropertySet for the rest.
-func addSdkMemberPropertiesToSet(ctx *memberContext, memberProperties android.SdkMemberProperties, targetPropertySet android.BpPropertySet) {
-	if memberProperties.Base().Compile_multilib != "" {
-		targetPropertySet.AddProperty("compile_multilib", memberProperties.Base().Compile_multilib)
-	}
-
-	memberProperties.AddToPropertySet(ctx, targetPropertySet)
-}
-
 type sdkMemberRef struct {
 	memberType android.SdkMemberType
 	variant    android.SdkAware
@@ -1020,7 +1009,7 @@ func (osInfo *osTypeSpecificInfo) addToPropertySet(ctx *memberContext, bpModule 
 	}
 
 	// Add the os specific but arch independent properties to the module.
-	addSdkMemberPropertiesToSet(ctx, osInfo.Properties, osPropertySet)
+	osInfo.Properties.AddToPropertySet(ctx, osPropertySet)
 
 	// Add arch (and possibly os) specific sections for each set of arch (and possibly
 	// os) specific properties.
@@ -1122,11 +1111,11 @@ func (archInfo *archTypeSpecificInfo) optimizeProperties(ctx *memberContext, com
 func (archInfo *archTypeSpecificInfo) addToPropertySet(ctx *memberContext, archPropertySet android.BpPropertySet, archOsPrefix string) {
 	archTypeName := archInfo.archType.Name
 	archTypePropertySet := archPropertySet.AddPropertySet(archOsPrefix + archTypeName)
-	addSdkMemberPropertiesToSet(ctx, archInfo.Properties, archTypePropertySet)
+	archInfo.Properties.AddToPropertySet(ctx, archTypePropertySet)
 
 	for _, linkInfo := range archInfo.linkInfos {
 		linkPropertySet := archTypePropertySet.AddPropertySet(linkInfo.linkType)
-		addSdkMemberPropertiesToSet(ctx, linkInfo.Properties, linkPropertySet)
+		linkInfo.Properties.AddToPropertySet(ctx, linkPropertySet)
 	}
 }
 
@@ -1232,7 +1221,7 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 	extractCommonProperties(ctx.sdkMemberContext, commonValueExtractor, commonProperties, osSpecificPropertiesContainers)
 
 	// Add the common properties to the module.
-	addSdkMemberPropertiesToSet(ctx, commonProperties, bpModule)
+	commonProperties.AddToPropertySet(ctx, bpModule)
 
 	// Create a target property set into which target specific properties can be
 	// added.
