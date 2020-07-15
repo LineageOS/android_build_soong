@@ -66,6 +66,10 @@ func (t *toolchainDarwin) SharedLibSuffix() string {
 	return ".dylib"
 }
 
+func (t *toolchainDarwin) DylibSuffix() string {
+	return ".rustlib.dylib"
+}
+
 func (t *toolchainDarwin) ProcMacroSuffix() string {
 	return ".dylib"
 }
