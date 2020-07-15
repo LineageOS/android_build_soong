@@ -21,8 +21,11 @@ import (
 )
 
 var (
-	LinuxRustFlags      = []string{}
-	LinuxRustLinkFlags  = []string{}
+	LinuxRustFlags     = []string{}
+	LinuxRustLinkFlags = []string{
+		"-B${ccConfig.ClangBin}",
+		"-fuse-ld=lld",
+	}
 	linuxX86Rustflags   = []string{}
 	linuxX86Linkflags   = []string{}
 	linuxX8664Rustflags = []string{}
