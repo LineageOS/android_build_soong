@@ -111,6 +111,7 @@ type BaseCompilerProperties struct {
 	Gnu_extensions *bool
 
 	Yacc *YaccProperties
+	Lex  *LexProperties
 
 	Aidl struct {
 		// list of directories that will be added to the aidl include paths.
@@ -289,6 +290,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	flags.Local.YasmFlags = append(flags.Local.YasmFlags, esc(compiler.Properties.Asflags)...)
 
 	flags.Yacc = compiler.Properties.Yacc
+	flags.Lex = compiler.Properties.Lex
 
 	// Include dir cflags
 	localIncludeDirs := android.PathsForModuleSrc(ctx, compiler.Properties.Local_include_dirs)

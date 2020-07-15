@@ -361,6 +361,7 @@ type builderFlags struct {
 	protoOptionsFile bool
 
 	yacc *YaccProperties
+	lex  *LexProperties
 }
 
 type Objects struct {
