@@ -15,6 +15,9 @@
 package sdk
 
 import (
+	"android/soong/android"
+	"log"
+	"os"
 	"testing"
 
 	"github.com/google/blueprint/proptools"
@@ -22,6 +25,12 @@ import (
 
 // Needed in an _test.go file in this package to ensure tests run correctly, particularly in IDE.
 func TestMain(m *testing.M) {
+	if android.BuildOs != android.Linux {
+		// b/145598135 - Generating host snapshots for anything other than linux is not supported.
+		log.Printf("Skipping as sdk snapshot generation is only supported on %s not %s", android.Linux, android.BuildOs)
+		os.Exit(0)
+	}
+
 	runTestWithBuildDir(m)
 }
 
