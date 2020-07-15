@@ -422,10 +422,3 @@ func runTestWithBuildDir(m *testing.M) {
 
 	os.Exit(run())
 }
-
-func SkipIfNotLinux(t *testing.T) {
-	t.Helper()
-	if android.BuildOs != android.Linux {
-		t.Skipf("Skipping as sdk snapshot generation is only supported on %s not %s", android.Linux, android.BuildOs)
-	}
-}

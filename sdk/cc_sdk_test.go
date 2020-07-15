@@ -481,9 +481,6 @@ module_exports_snapshot {
 }
 
 func TestMultipleHostOsTypesSnapshotWithCcBinary(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithCc(t, `
 		module_exports {
 			name: "myexports",
@@ -592,9 +589,6 @@ module_exports_snapshot {
 // Test that we support the necessary flags for the linker binary, which is
 // special in several ways.
 func TestSnapshotWithCcStaticNocrtBinary(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithCc(t, `
 		module_exports {
 			name: "mymodule_exports",
@@ -943,9 +937,6 @@ sdk_snapshot {
 }
 
 func TestHostSnapshotWithCcSharedLibrary(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -1038,9 +1029,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestMultipleHostOsTypesSnapshotWithCcSharedLibrary(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -1213,9 +1201,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestHostSnapshotWithCcStaticLibrary(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithCc(t, `
 		module_exports {
 			name: "myexports",
@@ -1391,9 +1376,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestHostSnapshotWithMultiLib64(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithCc(t, `
 		module_exports {
 			name: "myexports",
@@ -1523,9 +1505,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestHostSnapshotWithCcHeadersLibrary(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -1579,9 +1558,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestDeviceAndHostSnapshotWithCcHeadersLibrary(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -1656,9 +1632,6 @@ include-host/HostTest.h -> linux_glibc/include/include-host/HostTest.h
 }
 
 func TestSystemSharedLibPropagation(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -1923,9 +1896,6 @@ sdk_snapshot {
 }
 
 func TestDeviceAndHostSnapshotWithStubsLibrary(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -2009,9 +1979,6 @@ sdk_snapshot {
 }
 
 func TestUniqueHostSoname(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
