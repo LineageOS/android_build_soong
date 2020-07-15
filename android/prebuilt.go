@@ -225,7 +225,7 @@ func PrebuiltRenameMutator(ctx BottomUpMutatorContext) {
 // PrebuiltSourceDepsMutator adds dependencies to the prebuilt module from the
 // corresponding source module, if one exists for the same variant.
 func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
-	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Prebuilt() != nil {
+	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Enabled() && m.Prebuilt() != nil {
 		p := m.Prebuilt()
 		if !p.properties.PrebuiltRenamedToSource {
 			name := m.base().BaseModuleName()
