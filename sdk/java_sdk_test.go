@@ -265,9 +265,6 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestHostSnapshotWithJavaHeaderLibrary(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -325,9 +322,6 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestDeviceAndHostSnapshotWithJavaHeaderLibrary(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -441,9 +435,6 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestHostSnapshotWithJavaImplLibrary(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithJava(t, `
 		module_exports {
 			name: "myexports",
@@ -548,9 +539,6 @@ module_exports_snapshot {
 }
 
 func TestHostSnapshotWithJavaTest(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithJava(t, `
 		module_exports {
 			name: "myexports",
@@ -692,9 +680,6 @@ module_exports_snapshot {
 }
 
 func TestHostSnapshotWithDroidstubs(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithDroidstubs(t, `
 		module_exports {
 			name: "myexports",
@@ -835,9 +820,6 @@ sdk_snapshot {
 }
 
 func TestHostSnapshotWithJavaSystemModules(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -913,9 +895,6 @@ sdk_snapshot {
 }
 
 func TestDeviceAndHostSnapshotWithOsSpecificMembers(t *testing.T) {
-	// b/145598135 - Generating host snapshots for anything other than linux is not supported.
-	SkipIfNotLinux(t)
-
 	result := testSdkWithJava(t, `
 		module_exports {
 			name: "myexports",
