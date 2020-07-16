@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # Copyright (C) 2016 The Android Open Source Project
 #
@@ -14,13 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Generates source for stub shared libraries for the NDK."""
-import argparse
-import json
+"""Parser for Android's version script information."""
 import logging
-import os
 import re
-import sys
 
 
 ALL_ARCHITECTURES = (
@@ -55,6 +50,24 @@ def is_api_level_tag(tag):
     if tag.startswith('versioned='):
         return True
     return False
+
+
+def decode_api_level(api, api_map):
+    """Decodes the API level argument into the API level number.
+
+    For the average case, this just decodes the integer value from the string,
+    but for unreleased APIs we need to translate from the API codename (like
+    "O") to the future API level for that codename.
+    """
+    try:
+        return int(api)
+    except ValueError:
+        pass
+
+    if api == "current":
+        return FUTURE_API_LEVEL
+
+    return api_map[api]
 
 
 def decode_api_level_tags(tags, api_map):
@@ -118,7 +131,8 @@ def should_omit_version(version, arch, api, llndk, apex):
     if 'platform-only' in version.tags:
         return True
 
-    no_llndk_no_apex = 'llndk' not in version.tags and 'apex' not in version.tags
+    no_llndk_no_apex = ('llndk' not in version.tags
+                        and 'apex' not in version.tags)
     keep = no_llndk_no_apex or \
            ('llndk' in version.tags and llndk) or \
            ('apex' in version.tags and apex)
@@ -205,7 +219,6 @@ def symbol_versioned_in_api(tags, api):
 
 class ParseError(RuntimeError):
     """An error that occurred while parsing a symbol file."""
-    pass
 
 
 class MultiplyDefinedSymbolError(RuntimeError):
@@ -217,7 +230,7 @@ class MultiplyDefinedSymbolError(RuntimeError):
         self.multiply_defined_symbols = multiply_defined_symbols
 
 
-class Version(object):
+class Version:
     """A version block of a symbol file."""
     def __init__(self, name, base, tags, symbols):
         self.name = name
@@ -237,7 +250,7 @@ class Version(object):
         return True
 
 
-class Symbol(object):
+class Symbol:
     """A symbol definition from a symbol file."""
     def __init__(self, name, tags):
         self.name = name
@@ -247,7 +260,7 @@ class Symbol(object):
         return self.name == other.name and set(self.tags) == set(other.tags)
 
 
-class SymbolFileParser(object):
+class SymbolFileParser:
     """Parses NDK symbol files."""
     def __init__(self, input_file, api_map, arch, api, llndk, apex):
         self.input_file = input_file
@@ -283,11 +296,13 @@ class SymbolFileParser(object):
         symbol_names = set()
         multiply_defined_symbols = set()
         for version in versions:
-            if should_omit_version(version, self.arch, self.api, self.llndk, self.apex):
+            if should_omit_version(version, self.arch, self.api, self.llndk,
+                                   self.apex):
                 continue
 
             for symbol in version.symbols:
-                if should_omit_symbol(symbol, self.arch, self.api, self.llndk, self.apex):
+                if should_omit_symbol(symbol, self.arch, self.api, self.llndk,
+                                      self.apex):
                     continue
 
                 if symbol.name in symbol_names:
@@ -367,141 +382,3 @@ class SymbolFileParser(object):
                 break
         self.current_line = line
         return self.current_line
-
-
-class Generator(object):
-    """Output generator that writes stub source files and version scripts."""
-    def __init__(self, src_file, version_script, arch, api, llndk, apex):
-        self.src_file = src_file
-        self.version_script = version_script
-        self.arch = arch
-        self.api = api
-        self.llndk = llndk
-        self.apex = apex
-
-    def write(self, versions):
-        """Writes all symbol data to the output files."""
-        for version in versions:
-            self.write_version(version)
-
-    def write_version(self, version):
-        """Writes a single version block's data to the output files."""
-        if should_omit_version(version, self.arch, self.api, self.llndk, self.apex):
-            return
-
-        section_versioned = symbol_versioned_in_api(version.tags, self.api)
-        version_empty = True
-        pruned_symbols = []
-        for symbol in version.symbols:
-            if should_omit_symbol(symbol, self.arch, self.api, self.llndk, self.apex):
-                continue
-
-            if symbol_versioned_in_api(symbol.tags, self.api):
-                version_empty = False
-            pruned_symbols.append(symbol)
-
-        if len(pruned_symbols) > 0:
-            if not version_empty and section_versioned:
-                self.version_script.write(version.name + ' {\n')
-                self.version_script.write('    global:\n')
-            for symbol in pruned_symbols:
-                emit_version = symbol_versioned_in_api(symbol.tags, self.api)
-                if section_versioned and emit_version:
-                    self.version_script.write('        ' + symbol.name + ';\n')
-
-                weak = ''
-                if 'weak' in symbol.tags:
-                    weak = '__attribute__((weak)) '
-
-                if 'var' in symbol.tags:
-                    self.src_file.write('{}int {} = 0;\n'.format(
-                        weak, symbol.name))
-                else:
-                    self.src_file.write('{}void {}() {{}}\n'.format(
-                        weak, symbol.name))
-
-            if not version_empty and section_versioned:
-                base = '' if version.base is None else ' ' + version.base
-                self.version_script.write('}' + base + ';\n')
-
-
-def decode_api_level(api, api_map):
-    """Decodes the API level argument into the API level number.
-
-    For the average case, this just decodes the integer value from the string,
-    but for unreleased APIs we need to translate from the API codename (like
-    "O") to the future API level for that codename.
-    """
-    try:
-        return int(api)
-    except ValueError:
-        pass
-
-    if api == "current":
-        return FUTURE_API_LEVEL
-
-    return api_map[api]
-
-
-def parse_args():
-    """Parses and returns command line arguments."""
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('-v', '--verbose', action='count', default=0)
-
-    parser.add_argument(
-        '--api', required=True, help='API level being targeted.')
-    parser.add_argument(
-        '--arch', choices=ALL_ARCHITECTURES, required=True,
-        help='Architecture being targeted.')
-    parser.add_argument(
-        '--llndk', action='store_true', help='Use the LLNDK variant.')
-    parser.add_argument(
-        '--apex', action='store_true', help='Use the APEX variant.')
-
-    parser.add_argument(
-        '--api-map', type=os.path.realpath, required=True,
-        help='Path to the API level map JSON file.')
-
-    parser.add_argument(
-        'symbol_file', type=os.path.realpath, help='Path to symbol file.')
-    parser.add_argument(
-        'stub_src', type=os.path.realpath,
-        help='Path to output stub source file.')
-    parser.add_argument(
-        'version_script', type=os.path.realpath,
-        help='Path to output version script.')
-
-    return parser.parse_args()
-
-
-def main():
-    """Program entry point."""
-    args = parse_args()
-
-    with open(args.api_map) as map_file:
-        api_map = json.load(map_file)
-    api = decode_api_level(args.api, api_map)
-
-    verbose_map = (logging.WARNING, logging.INFO, logging.DEBUG)
-    verbosity = args.verbose
-    if verbosity > 2:
-        verbosity = 2
-    logging.basicConfig(level=verbose_map[verbosity])
-
-    with open(args.symbol_file) as symbol_file:
-        try:
-            versions = SymbolFileParser(symbol_file, api_map, args.arch, api,
-                                        args.llndk, args.apex).parse()
-        except MultiplyDefinedSymbolError as ex:
-            sys.exit('{}: error: {}'.format(args.symbol_file, ex))
-
-    with open(args.stub_src, 'w') as src_file:
-        with open(args.version_script, 'w') as version_file:
-            generator = Generator(src_file, version_file, args.arch, api,
-                                  args.llndk, args.apex)
-            generator.write(versions)
-
-
-if __name__ == '__main__':
-    main()
