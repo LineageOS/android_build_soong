@@ -6,9 +6,8 @@ per-file * = jungjw@google.com
 per-file * = patricearruda@google.com
 per-file * = paulduffin@google.com
 
-per-file ndk_*.go, *gen_stub_libs.py = danalbert@google.com
+per-file ndk_*.go = danalbert@google.com
 per-file clang.go,global.go = srhines@google.com, chh@google.com, pirama@google.com, yikong@google.com
 per-file tidy.go = srhines@google.com, chh@google.com
 per-file lto.go,pgo.go = srhines@google.com, pirama@google.com, yikong@google.com
 per-file docs/map_files.md = danalbert@google.com, enh@google.com, jiyong@google.com
-per-file *ndk_api_coverage_parser.py = sophiez@google.com

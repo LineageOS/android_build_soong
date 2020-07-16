@@ -26,17 +26,16 @@ import (
 )
 
 func init() {
+	pctx.HostBinToolVariable("ndkStubGenerator", "ndkstubgen")
 	pctx.HostBinToolVariable("ndk_api_coverage_parser", "ndk_api_coverage_parser")
 }
 
 var (
-	toolPath = pctx.SourcePathVariable("toolPath", "build/soong/cc/scriptlib/gen_stub_libs.py")
-
 	genStubSrc = pctx.AndroidStaticRule("genStubSrc",
 		blueprint.RuleParams{
-			Command: "$toolPath --arch $arch --api $apiLevel --api-map " +
-				"$apiMap $flags $in $out",
-			CommandDeps: []string{"$toolPath"},
+			Command: "$ndkStubGenerator --arch $arch --api $apiLevel " +
+				"--api-map $apiMap $flags $in $out",
+			CommandDeps: []string{"$ndkStubGenerator"},
 		}, "arch", "apiLevel", "apiMap", "flags")
 
 	parseNdkApiRule = pctx.AndroidStaticRule("parseNdkApiRule",
@@ -78,9 +77,9 @@ type libraryProperties struct {
 	// https://github.com/android-ndk/ndk/issues/265.
 	Unversioned_until *string
 
-	// Private property for use by the mutator that splits per-API level.
-	// can be one of <number:sdk_version> or <codename> or "current"
-	// passed to "gen_stub_libs.py" as it is
+	// Private property for use by the mutator that splits per-API level. Can be
+	// one of <number:sdk_version> or <codename> or "current" passed to
+	// "ndkstubgen.py" as it is
 	ApiLevel string `blueprint:"mutated"`
 
 	// True if this API is not yet ready to be shipped in the NDK. It will be
