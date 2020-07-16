@@ -292,8 +292,10 @@ type AndroidApp struct {
 
 	overridableAppProperties overridableAppProperties
 
-	installJniLibs     []jniLib
-	jniCoverageOutputs android.Paths
+	jniLibs                  []jniLib
+	installPathForJNISymbols android.Path
+	embeddedJniLibs          bool
+	jniCoverageOutputs       android.Paths
 
 	bundleFile android.Path
 
@@ -570,8 +572,7 @@ func (a *AndroidApp) proguardBuildActions(ctx android.ModuleContext) {
 	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, a.proguardOptionsFile)
 }
 
-func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
-
+func (a *AndroidApp) installPath(ctx android.ModuleContext) android.InstallPath {
 	var installDir string
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
@@ -581,7 +582,12 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 	} else {
 		installDir = filepath.Join("app", a.installApkName)
 	}
-	a.dexpreopter.installPath = android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
+
+	return android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
+}
+
+func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
+	a.dexpreopter.installPath = a.installPath(ctx)
 	if a.deviceProperties.Uncompress_dex == nil {
 		// If the value was not force-set by the user, use reasonable default based on the module.
 		a.deviceProperties.Uncompress_dex = proptools.BoolPtr(a.shouldUncompressDex(ctx))
@@ -603,8 +609,10 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext) android.WritablePath {
 	var jniJarFile android.WritablePath
 	if len(jniLibs) > 0 {
+		a.jniLibs = jniLibs
 		if a.shouldEmbedJnis(ctx) {
 			jniJarFile = android.PathForModuleOut(ctx, "jnilibs.zip")
+			a.installPathForJNISymbols = a.installPath(ctx).ToMakePath()
 			TransformJniLibsToJar(ctx, jniJarFile, jniLibs, a.useEmbeddedNativeLibs(ctx))
 			for _, jni := range jniLibs {
 				if jni.coverageFile.Valid() {
@@ -622,11 +630,23 @@ func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext
 					}
 				}
 			}
-		} else {
-			a.installJniLibs = jniLibs
+			a.embeddedJniLibs = true
 		}
 	}
 	return jniJarFile
+}
+
+func (a *AndroidApp) JNISymbolsInstalls(installPath string) android.RuleBuilderInstalls {
+	var jniSymbols android.RuleBuilderInstalls
+	for _, jniLib := range a.jniLibs {
+		if jniLib.unstrippedFile != nil {
+			jniSymbols = append(jniSymbols, android.RuleBuilderInstall{
+				From: jniLib.unstrippedFile,
+				To:   filepath.Join(installPath, targetToJniDir(jniLib.target), jniLib.unstrippedFile.Base()),
+			})
+		}
+	}
+	return jniSymbols
 }
 
 func (a *AndroidApp) noticeBuildActions(ctx android.ModuleContext) {
@@ -858,10 +878,11 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 
 				if lib.Valid() {
 					jniLibs = append(jniLibs, jniLib{
-						name:         ctx.OtherModuleName(module),
-						path:         path,
-						target:       module.Target(),
-						coverageFile: dep.CoverageOutputFile(),
+						name:           ctx.OtherModuleName(module),
+						path:           path,
+						target:         module.Target(),
+						coverageFile:   dep.CoverageOutputFile(),
+						unstrippedFile: dep.UnstrippedOutputFile(),
 					})
 				} else {
 					ctx.ModuleErrorf("dependency %q missing output file", otherName)
