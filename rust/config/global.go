@@ -54,6 +54,9 @@ var (
 		"-Wl,--pack-dyn-relocs=android+relr",
 		"-Wl,--no-undefined",
 		"-Wl,--hash-style=gnu",
+
+		"-B${ccConfig.ClangBin}",
+		"-fuse-ld=lld",
 	}
 )
 
@@ -80,7 +83,7 @@ func init() {
 
 	pctx.ImportAs("ccConfig", "android/soong/cc/config")
 	pctx.StaticVariable("RustLinker", "${ccConfig.ClangBin}/clang++")
-	pctx.StaticVariable("RustLinkerArgs", "-B ${ccConfig.ClangBin} -fuse-ld=lld")
+	pctx.StaticVariable("RustLinkerArgs", "")
 
 	pctx.StaticVariable("DeviceGlobalLinkFlags", strings.Join(deviceGlobalLinkFlags, " "))
 
