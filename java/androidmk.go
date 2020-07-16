@@ -131,6 +131,10 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 						entries.SetPath("LOCAL_SOONG_PROGUARD_DICT", library.proguardDictionary)
 					}
 					entries.SetString("LOCAL_MODULE_STEM", library.Stem())
+
+					entries.AddOptionalPath("LOCAL_SOONG_LINT_REPORTS", library.linter.outputs.transitiveHTMLZip)
+					entries.AddOptionalPath("LOCAL_SOONG_LINT_REPORTS", library.linter.outputs.transitiveTextZip)
+					entries.AddOptionalPath("LOCAL_SOONG_LINT_REPORTS", library.linter.outputs.transitiveXMLZip)
 				},
 			},
 		}
@@ -389,6 +393,10 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 					install := app.onDeviceDir + "/" + extra.Base()
 					entries.AddStrings("LOCAL_SOONG_BUILT_INSTALLED", extra.String()+":"+install)
 				}
+
+				entries.AddOptionalPath("LOCAL_SOONG_LINT_REPORTS", app.linter.outputs.transitiveHTMLZip)
+				entries.AddOptionalPath("LOCAL_SOONG_LINT_REPORTS", app.linter.outputs.transitiveTextZip)
+				entries.AddOptionalPath("LOCAL_SOONG_LINT_REPORTS", app.linter.outputs.transitiveXMLZip)
 			},
 		},
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
