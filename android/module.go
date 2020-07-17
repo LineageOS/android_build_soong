@@ -50,6 +50,8 @@ type BuildParams struct {
 	Implicit        Path
 	Implicits       Paths
 	OrderOnly       Paths
+	Validation      Path
+	Validations     Paths
 	Default         bool
 	Args            map[string]string
 }
@@ -1561,6 +1563,7 @@ func convertBuildParams(params BuildParams) blueprint.BuildParams {
 		Inputs:          params.Inputs.Strings(),
 		Implicits:       params.Implicits.Strings(),
 		OrderOnly:       params.OrderOnly.Strings(),
+		Validations:     params.Validations.Strings(),
 		Args:            params.Args,
 		Optional:        !params.Default,
 	}
@@ -1580,13 +1583,17 @@ func convertBuildParams(params BuildParams) blueprint.BuildParams {
 	if params.Implicit != nil {
 		bparams.Implicits = append(bparams.Implicits, params.Implicit.String())
 	}
+	if params.Validation != nil {
+		bparams.Validations = append(bparams.Validations, params.Validation.String())
+	}
 
 	bparams.Outputs = proptools.NinjaEscapeList(bparams.Outputs)
 	bparams.ImplicitOutputs = proptools.NinjaEscapeList(bparams.ImplicitOutputs)
 	bparams.Inputs = proptools.NinjaEscapeList(bparams.Inputs)
 	bparams.Implicits = proptools.NinjaEscapeList(bparams.Implicits)
 	bparams.OrderOnly = proptools.NinjaEscapeList(bparams.OrderOnly)
-	bparams.Depfile = proptools.NinjaEscapeList([]string{bparams.Depfile})[0]
+	bparams.Validations = proptools.NinjaEscapeList(bparams.Validations)
+	bparams.Depfile = proptools.NinjaEscape(bparams.Depfile)
 
 	return bparams
 }
