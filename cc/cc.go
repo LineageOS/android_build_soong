@@ -116,6 +116,8 @@ type Deps struct {
 	// Used for host bionic
 	LinkerFlagsFile string
 	DynamicLinker   string
+
+	Tools []string
 }
 
 type PathDeps struct {
@@ -158,6 +160,8 @@ type PathDeps struct {
 
 	// Path to the dynamic linker binary
 	DynamicLinker android.OptionalPath
+
+	Tools map[string]android.Path
 }
 
 // LocalOrGlobalFlags contains flags that need to have values set globally by the build system or locally by the module
@@ -423,6 +427,12 @@ type installer interface {
 
 type xref interface {
 	XrefCcFiles() android.Paths
+}
+
+type ToolDependencyTag struct {
+	blueprint.BaseDependencyTag
+
+	Name string
 }
 
 var (
@@ -1694,6 +1704,7 @@ func (c *Module) deps(ctx DepsContext) Deps {
 	deps.LateSharedLibs = android.LastUniqueStrings(deps.LateSharedLibs)
 	deps.HeaderLibs = android.LastUniqueStrings(deps.HeaderLibs)
 	deps.RuntimeLibs = android.LastUniqueStrings(deps.RuntimeLibs)
+	deps.Tools = android.LastUniqueStrings(deps.Tools)
 
 	for _, lib := range deps.ReexportSharedLibHeaders {
 		if !inList(lib, deps.SharedLibs) {
@@ -2037,6 +2048,11 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			}, vndkExtDepTag, vndkdep.getVndkExtendsModuleName())
 		}
 	}
+
+	for _, tool := range deps.Tools {
+		actx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(),
+			ToolDependencyTag{Name: tool}, tool)
+	}
 }
 
 func BeginMutator(ctx android.BottomUpMutatorContext) {
@@ -2218,6 +2234,21 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
 		depTag := ctx.OtherModuleDependencyTag(dep)
+
+		if toolDep, ok := depTag.(ToolDependencyTag); ok {
+			if toolMod, ok := dep.(android.HostToolProvider); ok {
+				if depPaths.Tools == nil {
+					depPaths.Tools = make(map[string]android.Path)
+				}
+				toolPath := toolMod.HostToolPath()
+				if !toolPath.Valid() {
+					ctx.ModuleErrorf("Failed to find path for host tool %q", toolDep.Name)
+				}
+				depPaths.Tools[toolDep.Name] = toolPath.Path()
+			} else {
+				ctx.ModuleErrorf("Found module, but not host tool for %q", toolDep.Name)
+			}
+		}
 
 		ccDep, ok := dep.(LinkableInterface)
 		if !ok {
