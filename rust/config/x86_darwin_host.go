@@ -21,8 +21,10 @@ import (
 )
 
 var (
-	DarwinRustFlags      = []string{}
-	DarwinRustLinkFlags  = []string{}
+	DarwinRustFlags     = []string{}
+	DarwinRustLinkFlags = []string{
+		"-B${ccConfig.MacToolPath}",
+	}
 	darwinX8664Rustflags = []string{}
 	darwinX8664Linkflags = []string{}
 )
