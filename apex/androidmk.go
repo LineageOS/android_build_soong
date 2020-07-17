@@ -113,10 +113,11 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 		}
 		// /apex/<apex_name>/{lib|framework|...}
 		pathWhenActivated := filepath.Join("$(PRODUCT_OUT)", "apex", apexName, fi.installDir)
+		var modulePath string
 		if apexType == flattenedApex {
 			// /system/apex/<name>/{lib|framework|...}
-			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", filepath.Join(a.installDir.ToMakePath().String(),
-				apexBundleName, fi.installDir))
+			modulePath = filepath.Join(a.installDir.ToMakePath().String(), apexBundleName, fi.installDir)
+			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", modulePath)
 			if a.primaryApexType && !symbolFilesNotNeeded {
 				fmt.Fprintln(w, "LOCAL_SOONG_SYMBOL_PATH :=", pathWhenActivated)
 			}
@@ -128,6 +129,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 				fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", fi.module.NoticeFile().Path().String())
 			}
 		} else {
+			modulePath = pathWhenActivated
 			fmt.Fprintln(w, "LOCAL_MODULE_PATH :=", pathWhenActivated)
 
 			// For non-flattend APEXes, the merged notice file is attached to the APEX itself.
@@ -190,8 +192,13 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 			// we need to remove the suffix from LOCAL_MODULE_STEM, otherwise
 			// we will have foo.apk.apk
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", strings.TrimSuffix(fi.Stem(), ".apk"))
-			if app, ok := fi.module.(*java.AndroidApp); ok && len(app.JniCoverageOutputs()) > 0 {
-				fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", strings.Join(app.JniCoverageOutputs().Strings(), " "))
+			if app, ok := fi.module.(*java.AndroidApp); ok {
+				if jniCoverageOutputs := app.JniCoverageOutputs(); len(jniCoverageOutputs) > 0 {
+					fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", strings.Join(jniCoverageOutputs.Strings(), " "))
+				}
+				if jniLibSymbols := app.JNISymbolsInstalls(modulePath); len(jniLibSymbols) > 0 {
+					fmt.Fprintln(w, "LOCAL_SOONG_JNI_LIBS_SYMBOLS :=", jniLibSymbols.String())
+				}
 			}
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_app_prebuilt.mk")
 		case appSet:
