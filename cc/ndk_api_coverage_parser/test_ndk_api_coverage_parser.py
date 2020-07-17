@@ -20,7 +20,7 @@ import textwrap
 import unittest
 
 from xml.etree.ElementTree import tostring
-from gen_stub_libs import FUTURE_API_LEVEL, SymbolFileParser
+from symbolfile import FUTURE_API_LEVEL, SymbolFileParser
 import ndk_api_coverage_parser as nparser
 
 

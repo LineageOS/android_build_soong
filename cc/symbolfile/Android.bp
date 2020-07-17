@@ -14,19 +14,20 @@
 // limitations under the License.
 //
 
-python_test_host {
-    name: "test_ndk_api_coverage_parser",
-    main: "test_ndk_api_coverage_parser.py",
+python_library_host {
+    name: "symbolfile",
+    pkg_path: "symbolfile",
     srcs: [
-        "test_ndk_api_coverage_parser.py",
+        "__init__.py",
     ],
 }
 
-python_binary_host {
-    name: "ndk_api_coverage_parser",
-    main: "ndk_api_coverage_parser.py",
+python_test_host {
+    name: "test_symbolfile",
     srcs: [
-        "gen_stub_libs.py",
-        "ndk_api_coverage_parser.py",
+        "test_symbolfile.py",
+    ],
+    libs: [
+        "symbolfile",
     ],
 }
