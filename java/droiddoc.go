@@ -1519,7 +1519,9 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	cmd.Flag("--no-banner").
 		Flag("--color").
 		Flag("--quiet").
-		Flag("--format=v2")
+		Flag("--format=v2").
+		FlagWithArg("--repeat-errors-max ", "10").
+		FlagWithArg("--hide ", "UnresolvedImport")
 
 	return cmd
 }
