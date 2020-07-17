@@ -21,20 +21,20 @@ import (
 	"android/soong/cc"
 )
 
+var ccTestFs = map[string][]byte{
+	"Test.cpp":                      nil,
+	"include/Test.h":                nil,
+	"include-android/AndroidTest.h": nil,
+	"include-host/HostTest.h":       nil,
+	"arm64/include/Arm64Test.h":     nil,
+	"libfoo.so":                     nil,
+	"aidl/foo/bar/Test.aidl":        nil,
+	"some/where/stubslib.map.txt":   nil,
+}
+
 func testSdkWithCc(t *testing.T, bp string) *testSdkResult {
 	t.Helper()
-
-	fs := map[string][]byte{
-		"Test.cpp":                      nil,
-		"include/Test.h":                nil,
-		"include-android/AndroidTest.h": nil,
-		"include-host/HostTest.h":       nil,
-		"arm64/include/Arm64Test.h":     nil,
-		"libfoo.so":                     nil,
-		"aidl/foo/bar/Test.aidl":        nil,
-		"some/where/stubslib.map.txt":   nil,
-	}
-	return testSdkWithFs(t, bp, fs)
+	return testSdkWithFs(t, bp, ccTestFs)
 }
 
 // Contains tests for SDK members provided by the cc package.

@@ -30,6 +30,7 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
 	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
+	ctx.RegisterModuleType("cc_genrule", genRuleFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_shared_stl", NdkPrebuiltSharedStlFactory)
 	ctx.RegisterModuleType("ndk_prebuilt_object", NdkPrebuiltObjectFactory)
 	ctx.RegisterModuleType("ndk_library", NdkLibraryFactory)
@@ -39,6 +40,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 	ret := `
 		toolchain_library {
 			name: "libatomic",
+			defaults: ["linux_bionic_supported"],
 			vendor_available: true,
 			recovery_available: true,
 			native_bridge_supported: true,
@@ -92,6 +94,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 
 		toolchain_library {
 			name: "libclang_rt.builtins-x86_64-android",
+			defaults: ["linux_bionic_supported"],
 			vendor_available: true,
 			recovery_available: true,
 			native_bridge_supported: true,
@@ -121,6 +124,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 
 		toolchain_library {
 			name: "libclang_rt.fuzzer-x86_64-android",
+			defaults: ["linux_bionic_supported"],
 			vendor_available: true,
 			recovery_available: true,
 			src: "",
@@ -144,6 +148,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 
 		toolchain_library {
 			name: "libgcc",
+			defaults: ["linux_bionic_supported"],
 			vendor_available: true,
 			recovery_available: true,
 			src: "",
@@ -151,6 +156,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 
 		toolchain_library {
 			name: "libgcc_stripped",
+			defaults: ["linux_bionic_supported"],
 			vendor_available: true,
 			recovery_available: true,
 			sdk_version: "current",
@@ -159,6 +165,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 
 		cc_library {
 			name: "libc",
+			defaults: ["linux_bionic_supported"],
 			no_libcrt: true,
 			nocrt: true,
 			stl: "none",
@@ -175,6 +182,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 		}
 		cc_library {
 			name: "libm",
+			defaults: ["linux_bionic_supported"],
 			no_libcrt: true,
 			nocrt: true,
 			stl: "none",
@@ -234,6 +242,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 
 		cc_library {
 			name: "libdl",
+			defaults: ["linux_bionic_supported"],
 			no_libcrt: true,
 			nocrt: true,
 			stl: "none",
@@ -326,6 +335,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 
 		cc_defaults {
 			name: "crt_defaults",
+			defaults: ["linux_bionic_supported"],
 			recovery_available: true,
 			vendor_available: true,
 			native_bridge_supported: true,
@@ -437,6 +447,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 		}
 	`
 
+	supportLinuxBionic := false
 	for _, os := range oses {
 		if os == android.Fuchsia {
 			ret += `
@@ -465,7 +476,59 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 		}
 		`
 		}
+		if os == android.LinuxBionic {
+			supportLinuxBionic = true
+			ret += `
+				cc_binary {
+					name: "linker",
+					defaults: ["linux_bionic_supported"],
+					recovery_available: true,
+					stl: "none",
+					nocrt: true,
+					static_executable: true,
+					native_coverage: false,
+					system_shared_libs: [],
+				}
+
+				cc_genrule {
+					name: "host_bionic_linker_flags",
+					host_supported: true,
+					device_supported: false,
+					target: {
+						host: {
+							enabled: false,
+						},
+						linux_bionic: {
+							enabled: true,
+						},
+					},
+					out: ["linker.flags"],
+				}
+
+				cc_defaults {
+					name: "linux_bionic_supported",
+					host_supported: true,
+					target: {
+						host: {
+							enabled: false,
+						},
+						linux_bionic: {
+							enabled: true,
+						},
+					},
+				}
+			`
+		}
 	}
+
+	if !supportLinuxBionic {
+		ret += `
+			cc_defaults {
+				name: "linux_bionic_supported",
+			}
+		`
+	}
+
 	return ret
 }
 
