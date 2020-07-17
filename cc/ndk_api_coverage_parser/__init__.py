@@ -21,7 +21,7 @@ import os
 import sys
 
 from xml.etree.ElementTree import Element, SubElement, tostring
-from gen_stub_libs import ALL_ARCHITECTURES, FUTURE_API_LEVEL, MultiplyDefinedSymbolError, SymbolFileParser
+from symbolfile import ALL_ARCHITECTURES, FUTURE_API_LEVEL, MultiplyDefinedSymbolError, SymbolFileParser
 
 
 ROOT_ELEMENT_TAG = 'ndk-library'
