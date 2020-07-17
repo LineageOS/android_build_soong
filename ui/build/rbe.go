@@ -15,8 +15,11 @@
 package build
 
 import (
+	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"time"
 
 	"android/soong/ui/metrics"
 )
@@ -47,6 +50,11 @@ func rbeCommand(ctx Context, config Config, rbeCmd string) string {
 	}
 
 	return cmdPath
+}
+
+func getRBEVars(ctx Context, tmpDir string) map[string]string {
+	rand.Seed(time.Now().UnixNano())
+	return map[string]string{"RBE_server_address": fmt.Sprintf("unix://%v/reproxy_%v.sock", tmpDir, rand.Intn(1000))}
 }
 
 func startRBE(ctx Context, config Config) {
