@@ -107,6 +107,25 @@ func (a *AndroidMkEntries) SetPath(name string, path Path) {
 	a.EntryMap[name] = []string{path.String()}
 }
 
+func (a *AndroidMkEntries) SetOptionalPath(name string, path OptionalPath) {
+	if path.Valid() {
+		a.SetPath(name, path.Path())
+	}
+}
+
+func (a *AndroidMkEntries) AddPath(name string, path Path) {
+	if _, ok := a.EntryMap[name]; !ok {
+		a.entryOrder = append(a.entryOrder, name)
+	}
+	a.EntryMap[name] = append(a.EntryMap[name], path.String())
+}
+
+func (a *AndroidMkEntries) AddOptionalPath(name string, path OptionalPath) {
+	if path.Valid() {
+		a.AddPath(name, path.Path())
+	}
+}
+
 func (a *AndroidMkEntries) SetBoolIfTrue(name string, flag bool) {
 	if flag {
 		if _, ok := a.EntryMap[name]; !ok {
