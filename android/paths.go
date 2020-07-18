@@ -466,6 +466,10 @@ func (p Paths) Strings() []string {
 	return ret
 }
 
+func CopyOfPaths(paths Paths) Paths {
+	return append(Paths(nil), paths...)
+}
+
 // FirstUniquePaths returns all unique elements of a Paths, keeping the first copy of each.  It
 // modifies the Paths slice contents in place, and returns a subslice of the original slice.
 func FirstUniquePaths(list Paths) Paths {
