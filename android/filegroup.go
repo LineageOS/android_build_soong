@@ -15,9 +15,7 @@
 package android
 
 import (
-	"io"
 	"strings"
-	"text/template"
 )
 
 func init() {
@@ -71,23 +69,8 @@ func (fg *fileGroup) Srcs() Paths {
 	return append(Paths{}, fg.srcs...)
 }
 
-var androidMkTemplate = template.Must(template.New("filegroup").Parse(`
-ifdef {{.makeVar}}
-  $(error variable {{.makeVar}} set by soong module is already set in make)
-endif
-{{.makeVar}} := {{.value}}
-.KATI_READONLY := {{.makeVar}}
-`))
-
-func (fg *fileGroup) AndroidMk() AndroidMkData {
-	return AndroidMkData{
-		Custom: func(w io.Writer, name, prefix, moduleDir string, data AndroidMkData) {
-			if makeVar := String(fg.properties.Export_to_make_var); makeVar != "" {
-				androidMkTemplate.Execute(w, map[string]string{
-					"makeVar": makeVar,
-					"value":   strings.Join(fg.srcs.Strings(), " "),
-				})
-			}
-		},
+func (fg *fileGroup) MakeVars(ctx MakeVarsModuleContext) {
+	if makeVar := String(fg.properties.Export_to_make_var); makeVar != "" {
+		ctx.StrictRaw(makeVar, strings.Join(fg.srcs.Strings(), " "))
 	}
 }
