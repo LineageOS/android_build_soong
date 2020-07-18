@@ -268,6 +268,9 @@ type overridableAppProperties struct {
 
 	// the logging parent of this app.
 	Logging_parent *string
+
+	// Whether to rename the package in resources to the override name rather than the base name. Defaults to true.
+	Rename_resources_package *bool
 }
 
 // runtime_resource_overlay properties that can be overridden by override_runtime_resource_overlay
@@ -292,8 +295,10 @@ type AndroidApp struct {
 
 	overridableAppProperties overridableAppProperties
 
-	installJniLibs     []jniLib
-	jniCoverageOutputs android.Paths
+	jniLibs                  []jniLib
+	installPathForJNISymbols android.Path
+	embeddedJniLibs          bool
+	jniCoverageOutputs       android.Paths
 
 	bundleFile android.Path
 
@@ -505,8 +510,21 @@ func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
 		!a.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
 }
 
+func generateAaptRenamePackageFlags(packageName string, renameResourcesPackage bool) []string {
+	aaptFlags := []string{"--rename-manifest-package " + packageName}
+	if renameResourcesPackage {
+		// Required to rename the package name in the resources table.
+		aaptFlags = append(aaptFlags, "--rename-resources-package "+packageName)
+	}
+	return aaptFlags
+}
+
 func (a *AndroidApp) OverriddenManifestPackageName() string {
 	return a.overriddenManifestPackageName
+}
+
+func (a *AndroidApp) renameResourcesPackage() bool {
+	return proptools.BoolDefault(a.overridableAppProperties.Rename_resources_package, true)
 }
 
 func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
@@ -541,7 +559,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 		if !overridden {
 			manifestPackageName = *a.overridableAppProperties.Package_name
 		}
-		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
+		aaptLinkFlags = append(aaptLinkFlags, generateAaptRenamePackageFlags(manifestPackageName, a.renameResourcesPackage())...)
 		a.overriddenManifestPackageName = manifestPackageName
 	}
 
@@ -570,8 +588,7 @@ func (a *AndroidApp) proguardBuildActions(ctx android.ModuleContext) {
 	a.Module.extraProguardFlagFiles = append(a.Module.extraProguardFlagFiles, a.proguardOptionsFile)
 }
 
-func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
-
+func (a *AndroidApp) installPath(ctx android.ModuleContext) android.InstallPath {
 	var installDir string
 	if ctx.ModuleName() == "framework-res" {
 		// framework-res.apk is installed as system/framework/framework-res.apk
@@ -581,7 +598,12 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 	} else {
 		installDir = filepath.Join("app", a.installApkName)
 	}
-	a.dexpreopter.installPath = android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
+
+	return android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
+}
+
+func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
+	a.dexpreopter.installPath = a.installPath(ctx)
 	if a.deviceProperties.Uncompress_dex == nil {
 		// If the value was not force-set by the user, use reasonable default based on the module.
 		a.deviceProperties.Uncompress_dex = proptools.BoolPtr(a.shouldUncompressDex(ctx))
@@ -603,8 +625,10 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext) android.WritablePath {
 	var jniJarFile android.WritablePath
 	if len(jniLibs) > 0 {
+		a.jniLibs = jniLibs
 		if a.shouldEmbedJnis(ctx) {
 			jniJarFile = android.PathForModuleOut(ctx, "jnilibs.zip")
+			a.installPathForJNISymbols = a.installPath(ctx).ToMakePath()
 			TransformJniLibsToJar(ctx, jniJarFile, jniLibs, a.useEmbeddedNativeLibs(ctx))
 			for _, jni := range jniLibs {
 				if jni.coverageFile.Valid() {
@@ -622,11 +646,23 @@ func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext
 					}
 				}
 			}
-		} else {
-			a.installJniLibs = jniLibs
+			a.embeddedJniLibs = true
 		}
 	}
 	return jniJarFile
+}
+
+func (a *AndroidApp) JNISymbolsInstalls(installPath string) android.RuleBuilderInstalls {
+	var jniSymbols android.RuleBuilderInstalls
+	for _, jniLib := range a.jniLibs {
+		if jniLib.unstrippedFile != nil {
+			jniSymbols = append(jniSymbols, android.RuleBuilderInstall{
+				From: jniLib.unstrippedFile,
+				To:   filepath.Join(installPath, targetToJniDir(jniLib.target), jniLib.unstrippedFile.Base()),
+			})
+		}
+	}
+	return jniSymbols
 }
 
 func (a *AndroidApp) noticeBuildActions(ctx android.ModuleContext) {
@@ -756,6 +792,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.linter.mergedManifest = a.aapt.mergedManifestFile
 	a.linter.manifest = a.aapt.manifestPath
 	a.linter.resources = a.aapt.resourceFiles
+	a.linter.buildModuleReportZip = ctx.Config().UnbundledBuildApps()
 
 	dexJarFile := a.dexBuildActions(ctx)
 
@@ -858,10 +895,11 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 
 				if lib.Valid() {
 					jniLibs = append(jniLibs, jniLib{
-						name:         ctx.OtherModuleName(module),
-						path:         path,
-						target:       module.Target(),
-						coverageFile: dep.CoverageOutputFile(),
+						name:           ctx.OtherModuleName(module),
+						path:           path,
+						target:         module.Target(),
+						coverageFile:   dep.CoverageOutputFile(),
+						unstrippedFile: dep.UnstrippedOutputFile(),
 					})
 				} else {
 					ctx.ModuleErrorf("dependency %q missing output file", otherName)
@@ -1784,7 +1822,7 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 		if !overridden {
 			manifestPackageName = *r.overridableProperties.Package_name
 		}
-		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
+		aaptLinkFlags = append(aaptLinkFlags, generateAaptRenamePackageFlags(manifestPackageName, false)...)
 	}
 	if r.overridableProperties.Target_package_name != nil {
 		aaptLinkFlags = append(aaptLinkFlags,
