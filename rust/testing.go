@@ -81,6 +81,7 @@ func CreateTestContext() *android.TestContext {
 	ctx.RegisterModuleType("genrule", genrule.GenRuleFactory)
 	ctx.RegisterModuleType("rust_binary", RustBinaryFactory)
 	ctx.RegisterModuleType("rust_binary_host", RustBinaryHostFactory)
+	ctx.RegisterModuleType("rust_bindgen", RustBindgenFactory)
 	ctx.RegisterModuleType("rust_test", RustTestFactory)
 	ctx.RegisterModuleType("rust_test_host", RustTestHostFactory)
 	ctx.RegisterModuleType("rust_library", RustLibraryFactory)
