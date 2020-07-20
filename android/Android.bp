@@ -46,6 +46,7 @@ bootstrap_go_package {
         "sdk.go",
         "singleton.go",
         "soong_config_modules.go",
+        "test_suites.go",
         "testing.go",
         "util.go",
         "variable.go",
