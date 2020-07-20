@@ -239,6 +239,21 @@ func AutoGenRustTestConfig(ctx android.ModuleContext, testConfigProp *string,
 	return path
 }
 
+func AutoGenRobolectricTestConfig(ctx android.ModuleContext, testConfigProp *string, testConfigTemplateProp *string,
+	testSuites []string, autoGenConfig *bool) android.Path {
+	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites, autoGenConfig, testConfigTemplateProp)
+	if autogenPath != nil {
+		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
+		if templatePath.Valid() {
+			autogenTemplate(ctx, autogenPath, templatePath.String(), nil)
+		} else {
+			autogenTemplate(ctx, autogenPath, "${RobolectricTestConfigTemplate}", nil)
+		}
+		return autogenPath
+	}
+	return path
+}
+
 var autogenInstrumentationTest = pctx.StaticRule("autogenInstrumentationTest", blueprint.RuleParams{
 	Command: "${AutoGenTestConfigScript} $out $in ${EmptyTestConfig} $template ${extraConfigs}",
 	CommandDeps: []string{
