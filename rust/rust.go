@@ -42,6 +42,7 @@ func init() {
 		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
 	})
 	pctx.Import("android/soong/rust/config")
+	pctx.ImportAs("ccConfig", "android/soong/cc/config")
 }
 
 type Flags struct {
@@ -61,9 +62,10 @@ type BaseProperties struct {
 	AndroidMkProcMacroLibs []string
 	AndroidMkSharedLibs    []string
 	AndroidMkStaticLibs    []string
-	SubName                string `blueprint:"mutated"`
-	PreventInstall         bool
-	HideFromMake           bool
+
+	SubName        string `blueprint:"mutated"`
+	PreventInstall bool
+	HideFromMake   bool
 }
 
 type Module struct {
@@ -79,8 +81,27 @@ type Module struct {
 	coverage         *coverage
 	clippy           *clippy
 	cachedToolchain  config.Toolchain
+	sourceProvider   SourceProvider
 	subAndroidMkOnce map[subAndroidMkProvider]bool
 	outputFile       android.OptionalPath
+
+	subName string
+}
+
+func (mod *Module) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		if mod.sourceProvider != nil {
+			return mod.sourceProvider.Srcs(), nil
+		} else {
+			if mod.outputFile.Valid() {
+				return android.Paths{mod.outputFile.Path()}, nil
+			}
+			return android.Paths{}, nil
+		}
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
 }
 
 var _ android.ImageInterface = (*Module)(nil)
@@ -348,6 +369,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&LibraryCompilerProperties{},
 		&ProcMacroCompilerProperties{},
 		&PrebuiltProperties{},
+		&SourceProviderProperties{},
 		&TestProperties{},
 		&cc.CoverageProperties{},
 		&ClippyProperties{},
@@ -507,6 +529,9 @@ func (mod *Module) Init() android.Module {
 	if mod.clippy != nil {
 		mod.AddProperties(mod.clippy.props()...)
 	}
+	if mod.sourceProvider != nil {
+		mod.AddProperties(mod.sourceProvider.sourceProviderProps()...)
+	}
 
 	android.InitAndroidArchModule(mod, mod.hod, mod.multilib)
 
@@ -645,6 +670,10 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		if !mod.Properties.PreventInstall {
 			mod.compiler.install(ctx, mod.outputFile.Path())
 		}
+	} else if mod.sourceProvider != nil {
+		outputFile := mod.sourceProvider.generateSource(ctx)
+		mod.outputFile = android.OptionalPathForPath(outputFile)
+		mod.subName = ctx.ModuleSubDir()
 	}
 }
 
@@ -653,6 +682,8 @@ func (mod *Module) deps(ctx DepsContext) Deps {
 
 	if mod.compiler != nil {
 		deps = mod.compiler.compilerDeps(ctx, deps)
+	} else if mod.sourceProvider != nil {
+		deps = mod.sourceProvider.sourceProviderDeps(ctx, deps)
 	}
 
 	if mod.coverage != nil {
@@ -846,7 +877,6 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	// Dedup exported flags from dependencies
 	depPaths.linkDirs = android.FirstUniqueStrings(depPaths.linkDirs)
 	depPaths.depFlags = android.FirstUniqueStrings(depPaths.depFlags)
-	depPaths.SrcDeps = android.FirstUniquePaths(depPaths.SrcDeps)
 
 	return depPaths
 }
@@ -963,3 +993,5 @@ var Bool = proptools.Bool
 var BoolDefault = proptools.BoolDefault
 var String = proptools.String
 var StringPtr = proptools.StringPtr
+
+var _ android.OutputFileProducer = (*Module)(nil)
