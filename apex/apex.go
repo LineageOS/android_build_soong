@@ -2206,7 +2206,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case android.PrebuiltDepTag:
 				// If the prebuilt is force disabled, remember to delete the prebuilt file
 				// that might have been installed in the previous builds
-				if prebuilt, ok := child.(*Prebuilt); ok && prebuilt.isForceDisabled() {
+				if prebuilt, ok := child.(prebuilt); ok && prebuilt.isForceDisabled() {
 					a.prebuiltFileToDelete = prebuilt.InstallFilename()
 				}
 			}
