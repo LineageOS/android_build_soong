@@ -130,7 +130,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 		},
 	})
 
-	return fixedManifest
+	return fixedManifest.WithoutRel()
 }
 
 func manifestMerger(ctx android.ModuleContext, manifest android.Path, staticLibManifests android.Paths,
@@ -155,5 +155,5 @@ func manifestMerger(ctx android.ModuleContext, manifest android.Path, staticLibM
 		},
 	})
 
-	return mergedManifest
+	return mergedManifest.WithoutRel()
 }
