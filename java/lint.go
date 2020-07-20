@@ -17,6 +17,7 @@ package java
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"android/soong/android"
 )
@@ -104,7 +105,16 @@ func (l *linter) deps(ctx android.BottomUpMutatorContext) {
 		return
 	}
 
-	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), extraLintCheckTag, l.properties.Lint.Extra_check_modules...)
+	extraCheckModules := l.properties.Lint.Extra_check_modules
+
+	if checkOnly := ctx.Config().Getenv("ANDROID_LINT_CHECK"); checkOnly != "" {
+		if checkOnlyModules := ctx.Config().Getenv("ANDROID_LINT_CHECK_EXTRA_MODULES"); checkOnlyModules != "" {
+			extraCheckModules = strings.Split(checkOnlyModules, ",")
+		}
+	}
+
+	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(),
+		extraLintCheckTag, extraCheckModules...)
 }
 
 func (l *linter) writeLintProjectXML(ctx android.ModuleContext,
@@ -262,7 +272,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		apiVersionsXMLPath = copiedAPIVersionsXmlPath(ctx)
 	}
 
-	rule.Command().
+	cmd := rule.Command().
 		Text("(").
 		Flag("JAVA_OPTS=-Xmx2048m").
 		FlagWithArg("ANDROID_SDK_HOME=", homeDir.String()).
@@ -282,9 +292,13 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		FlagWithArg("--url ", fmt.Sprintf(".=.,%s=out", android.PathForOutput(ctx).String())).
 		Flag("--exitcode").
 		Flags(l.properties.Lint.Flags).
-		Implicits(deps).
-		Text("|| (").Text("cat").Input(text).Text("; exit 7)").
-		Text(")")
+		Implicits(deps)
+
+	if checkOnly := ctx.Config().Getenv("ANDROID_LINT_CHECK"); checkOnly != "" {
+		cmd.FlagWithArg("--check ", checkOnly)
+	}
+
+	cmd.Text("|| (").Text("cat").Input(text).Text("; exit 7)").Text(")")
 
 	rule.Command().Text("rm -rf").Flag(cacheDir.String()).Flag(homeDir.String())
 
