@@ -55,6 +55,7 @@ func (mod *Module) AndroidMk() android.AndroidMkData {
 	ret := android.AndroidMkData{
 		OutputFile: mod.outputFile,
 		Include:    "$(BUILD_SYSTEM)/soong_rust_prebuilt.mk",
+		SubName:    mod.subName,
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				if len(mod.Properties.AndroidMkRlibs) > 0 {
@@ -75,9 +76,11 @@ func (mod *Module) AndroidMk() android.AndroidMkData {
 			},
 		},
 	}
-
-	mod.subAndroidMk(&ret, mod.compiler)
-
+	if mod.compiler != nil {
+		mod.subAndroidMk(&ret, mod.compiler)
+	} else if mod.sourceProvider != nil {
+		mod.subAndroidMk(&ret, mod.sourceProvider)
+	}
 	ret.SubName += mod.Properties.SubName
 
 	return ret
@@ -153,6 +156,25 @@ func (procMacro *procMacroDecorator) AndroidMk(ctx AndroidMkContext, ret *androi
 		ret.DistFiles = android.MakeDefaultDistFiles(procMacro.distFile.Path())
 	}
 
+}
+
+func (sourceProvider *baseSourceProvider) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	outFile := sourceProvider.outputFile
+	ret.Class = "ETC"
+	ret.OutputFile = android.OptionalPathForPath(outFile)
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		_, file := filepath.Split(outFile.String())
+		stem, suffix, _ := android.SplitFileExt(file)
+		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
+		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
+	})
+}
+
+func (bindgen *bindgenDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.subAndroidMk(ret, bindgen.baseSourceProvider)
+	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
+	})
 }
 
 func (compiler *baseCompiler) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
