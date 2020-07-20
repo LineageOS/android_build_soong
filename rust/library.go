@@ -369,7 +369,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	var outputFile android.WritablePath
 
 	srcPath, paths := srcPathFromModuleSrcs(ctx, library.baseCompiler.Properties.Srcs)
-	deps.SrcDeps = paths
+	deps.SrcDeps = append(deps.SrcDeps, paths...)
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 

@@ -10,6 +10,7 @@ bootstrap_go_package {
     srcs: [
         "androidmk.go",
         "binary.go",
+        "bindgen.go",
         "builder.go",
         "clippy.go",
         "compiler.go",
@@ -19,11 +20,13 @@ bootstrap_go_package {
         "proc_macro.go",
         "project_json.go",
         "rust.go",
+        "source_provider.go",
         "test.go",
         "testing.go",
     ],
     testSrcs: [
         "binary_test.go",
+        "bindgen_test.go",
         "clippy_test.go",
         "compiler_test.go",
         "coverage_test.go",
