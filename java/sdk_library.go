@@ -126,25 +126,23 @@ type apiScope struct {
 	// the prebuilt jar.
 	sdkVersion string
 
+	// The annotation that identifies this API level, empty for the public API scope.
+	annotation string
+
 	// Extra arguments to pass to droidstubs for this scope.
-	droidstubsArgs []string
-
-	// The args that must be passed to droidstubs to generate the stubs source
-	// for this scope.
 	//
-	// The stubs source must include the definitions of everything that is in this
-	// api scope and all the scopes that this one extends.
-	droidstubsArgsForGeneratingStubsSource []string
+	// This is not used directly but is used to construct the droidstubsArgs.
+	extraArgs []string
 
-	// The args that must be passed to droidstubs to generate the API for this scope.
+	// The args that must be passed to droidstubs to generate the API and stubs source
+	// for this scope, constructed dynamically by initApiScope().
 	//
 	// The API only includes the additional members that this scope adds over the scope
 	// that it extends.
-	droidstubsArgsForGeneratingApi []string
-
-	// True if the stubs source and api can be created by the same metalava invocation.
-	// TODO(b/146727827) Now that metalava supports "API hierarchy", do we still need it?
-	createStubsSourceAndApiTogether bool
+	//
+	// The stubs source must include the definitions of everything that is in this
+	// api scope and all the scopes that this one extends.
+	droidstubsArgs []string
 
 	// Whether the api scope can be treated as unstable, and should skip compat checks.
 	unstable bool
@@ -181,21 +179,23 @@ func initApiScope(scope *apiScope) *apiScope {
 	// To get the args needed to generate the stubs source append all the args from
 	// this scope and all the scopes it extends as each set of args adds additional
 	// members to the stubs.
-	var stubsSourceArgs []string
-	for s := scope; s != nil; s = s.extends {
-		stubsSourceArgs = append(stubsSourceArgs, s.droidstubsArgs...)
+	var scopeSpecificArgs []string
+	if scope.annotation != "" {
+		scopeSpecificArgs = []string{"--show-annotation", scope.annotation}
 	}
-	scope.droidstubsArgsForGeneratingStubsSource = stubsSourceArgs
+	for s := scope; s != nil; s = s.extends {
+		scopeSpecificArgs = append(scopeSpecificArgs, s.extraArgs...)
 
-	// Currently the args needed to generate the API are the same as the args
-	// needed to add additional members.
-	apiArgs := scope.droidstubsArgs
-	scope.droidstubsArgsForGeneratingApi = apiArgs
+		// Ensure that the generated stubs includes all the API elements from the API scope
+		// that this scope extends.
+		if s != scope && s.annotation != "" {
+			scopeSpecificArgs = append(scopeSpecificArgs, "--show-for-stub-purposes-annotation", s.annotation)
+		}
+	}
 
-	// If the args needed to generate the stubs and API are the same then they
-	// can be generated in a single invocation of metalava, otherwise they will
-	// need separate invocations.
-	scope.createStubsSourceAndApiTogether = reflect.DeepEqual(stubsSourceArgs, apiArgs)
+	// Escape any special characters in the arguments. This is needed because droidstubs
+	// passes these directly to the shell command.
+	scope.droidstubsArgs = proptools.ShellEscapeList(scopeSpecificArgs)
 
 	return scope
 }
@@ -250,10 +250,10 @@ var (
 		scopeSpecificProperties: func(module *SdkLibrary) *ApiScopeProperties {
 			return &module.sdkLibraryProperties.System
 		},
-		apiFilePrefix:  "system-",
-		moduleSuffix:   ".system",
-		sdkVersion:     "system_current",
-		droidstubsArgs: []string{"-showAnnotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS\\)"},
+		apiFilePrefix: "system-",
+		moduleSuffix:  ".system",
+		sdkVersion:    "system_current",
+		annotation:    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)",
 	})
 	apiScopeTest = initApiScope(&apiScope{
 		name:                "test",
@@ -262,11 +262,11 @@ var (
 		scopeSpecificProperties: func(module *SdkLibrary) *ApiScopeProperties {
 			return &module.sdkLibraryProperties.Test
 		},
-		apiFilePrefix:  "test-",
-		moduleSuffix:   ".test",
-		sdkVersion:     "test_current",
-		droidstubsArgs: []string{"-showAnnotation android.annotation.TestApi"},
-		unstable:       true,
+		apiFilePrefix: "test-",
+		moduleSuffix:  ".test",
+		sdkVersion:    "test_current",
+		annotation:    "android.annotation.TestApi",
+		unstable:      true,
 	})
 	apiScopeModuleLib = initApiScope(&apiScope{
 		name:    "module-lib",
@@ -283,10 +283,7 @@ var (
 		apiFilePrefix: "module-lib-",
 		moduleSuffix:  ".module_lib",
 		sdkVersion:    "module_current",
-		droidstubsArgs: []string{
-			"--show-annotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES\\)",
-			"--show-for-stub-purposes-annotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS\\)",
-		},
+		annotation:    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)",
 	})
 	apiScopeSystemServer = initApiScope(&apiScope{
 		name:    "system-server",
@@ -303,11 +300,11 @@ var (
 		apiFilePrefix: "system-server-",
 		moduleSuffix:  ".system_server",
 		sdkVersion:    "system_server_current",
-		droidstubsArgs: []string{
-			"--show-annotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.SYSTEM_SERVER\\) ",
-			"--hide-annotation android.annotation.Hide",
+		annotation:    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.SYSTEM_SERVER)",
+		extraArgs: []string{
+			"--hide-annotation", "android.annotation.Hide",
 			// com.android.* classes are okay in this interface"
-			"--hide InternalClasses",
+			"--hide", "InternalClasses",
 		},
 	})
 	allApiScopes = apiScopes{
@@ -990,16 +987,8 @@ func (module *SdkLibrary) ComponentDepsMutator(ctx android.BottomUpMutatorContex
 		// Add dependencies to the stubs library
 		ctx.AddVariationDependencies(nil, apiScope.stubsTag, module.stubsLibraryModuleName(apiScope))
 
-		// If the stubs source and API cannot be generated together then add an additional dependency on
-		// the API module.
-		if apiScope.createStubsSourceAndApiTogether {
-			// Add a dependency on the stubs source in order to access both stubs source and api information.
-			ctx.AddVariationDependencies(nil, apiScope.stubsSourceAndApiTag, module.stubsSourceModuleName(apiScope))
-		} else {
-			// Add separate dependencies on the creators of the stubs source files and the API.
-			ctx.AddVariationDependencies(nil, apiScope.stubsSourceTag, module.stubsSourceModuleName(apiScope))
-			ctx.AddVariationDependencies(nil, apiScope.apiFileTag, module.apiModuleName(apiScope))
-		}
+		// Add a dependency on the stubs source in order to access both stubs source and api information.
+		ctx.AddVariationDependencies(nil, apiScope.stubsSourceAndApiTag, module.stubsSourceModuleName(apiScope))
 	}
 
 	if module.requiresRuntimeImplementationLibrary() {
@@ -1207,7 +1196,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 
 // Creates a droidstubs module that creates stubs source files from the given full source
 // files and also updates and checks the API specification files.
-func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookContext, apiScope *apiScope, name string, createStubSources, createApi bool, scopeSpecificDroidstubsArgs []string) {
+func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookContext, apiScope *apiScope, name string, scopeSpecificDroidstubsArgs []string) {
 	props := struct {
 		Name                             *string
 		Visibility                       []string
@@ -1296,64 +1285,57 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	}
 	droidstubsArgs = append(droidstubsArgs, android.JoinWithPrefix(disabledWarnings, "--hide "))
 
-	if !createStubSources {
-		// Stubs are not required.
-		props.Generate_stubs = proptools.BoolPtr(false)
-	}
-
 	// Add in scope specific arguments.
 	droidstubsArgs = append(droidstubsArgs, scopeSpecificDroidstubsArgs...)
 	props.Arg_files = module.sdkLibraryProperties.Droiddoc_option_files
 	props.Args = proptools.StringPtr(strings.Join(droidstubsArgs, " "))
 
-	if createApi {
-		// List of APIs identified from the provided source files are created. They are later
-		// compared against to the not-yet-released (a.k.a current) list of APIs and to the
-		// last-released (a.k.a numbered) list of API.
-		currentApiFileName := apiScope.apiFilePrefix + "current.txt"
-		removedApiFileName := apiScope.apiFilePrefix + "removed.txt"
-		apiDir := module.getApiDir()
-		currentApiFileName = path.Join(apiDir, currentApiFileName)
-		removedApiFileName = path.Join(apiDir, removedApiFileName)
+	// List of APIs identified from the provided source files are created. They are later
+	// compared against to the not-yet-released (a.k.a current) list of APIs and to the
+	// last-released (a.k.a numbered) list of API.
+	currentApiFileName := apiScope.apiFilePrefix + "current.txt"
+	removedApiFileName := apiScope.apiFilePrefix + "removed.txt"
+	apiDir := module.getApiDir()
+	currentApiFileName = path.Join(apiDir, currentApiFileName)
+	removedApiFileName = path.Join(apiDir, removedApiFileName)
 
-		// check against the not-yet-release API
-		props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
-		props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
+	// check against the not-yet-release API
+	props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
+	props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
 
-		if !apiScope.unstable {
-			// check against the latest released API
-			latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
-			props.Check_api.Last_released.Api_file = latestApiFilegroupName
-			props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
-				module.latestRemovedApiFilegroupName(apiScope))
-			props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
+	if !apiScope.unstable {
+		// check against the latest released API
+		latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
+		props.Check_api.Last_released.Api_file = latestApiFilegroupName
+		props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
+			module.latestRemovedApiFilegroupName(apiScope))
+		props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
 
-			if proptools.Bool(module.sdkLibraryProperties.Api_lint.Enabled) {
-				// Enable api lint.
-				props.Check_api.Api_lint.Enabled = proptools.BoolPtr(true)
-				props.Check_api.Api_lint.New_since = latestApiFilegroupName
+		if proptools.Bool(module.sdkLibraryProperties.Api_lint.Enabled) {
+			// Enable api lint.
+			props.Check_api.Api_lint.Enabled = proptools.BoolPtr(true)
+			props.Check_api.Api_lint.New_since = latestApiFilegroupName
 
-				// If it exists then pass a lint-baseline.txt through to droidstubs.
-				baselinePath := path.Join(apiDir, apiScope.apiFilePrefix+"lint-baseline.txt")
-				baselinePathRelativeToRoot := path.Join(mctx.ModuleDir(), baselinePath)
-				paths, err := mctx.GlobWithDeps(baselinePathRelativeToRoot, nil)
-				if err != nil {
-					mctx.ModuleErrorf("error checking for presence of %s: %s", baselinePathRelativeToRoot, err)
-				}
-				if len(paths) == 1 {
-					props.Check_api.Api_lint.Baseline_file = proptools.StringPtr(baselinePath)
-				} else if len(paths) != 0 {
-					mctx.ModuleErrorf("error checking for presence of %s: expected one path, found: %v", baselinePathRelativeToRoot, paths)
-				}
+			// If it exists then pass a lint-baseline.txt through to droidstubs.
+			baselinePath := path.Join(apiDir, apiScope.apiFilePrefix+"lint-baseline.txt")
+			baselinePathRelativeToRoot := path.Join(mctx.ModuleDir(), baselinePath)
+			paths, err := mctx.GlobWithDeps(baselinePathRelativeToRoot, nil)
+			if err != nil {
+				mctx.ModuleErrorf("error checking for presence of %s: %s", baselinePathRelativeToRoot, err)
+			}
+			if len(paths) == 1 {
+				props.Check_api.Api_lint.Baseline_file = proptools.StringPtr(baselinePath)
+			} else if len(paths) != 0 {
+				mctx.ModuleErrorf("error checking for presence of %s: expected one path, found: %v", baselinePathRelativeToRoot, paths)
 			}
 		}
+	}
 
-		// Dist the api txt artifact for sdk builds.
-		if !Bool(module.sdkLibraryProperties.No_dist) {
-			props.Dist.Targets = []string{"sdk", "win_sdk"}
-			props.Dist.Dest = proptools.StringPtr(fmt.Sprintf("%v.txt", module.BaseModuleName()))
-			props.Dist.Dir = proptools.StringPtr(path.Join(module.apiDistPath(apiScope), "api"))
-		}
+	// Dist the api txt artifact for sdk builds.
+	if !Bool(module.sdkLibraryProperties.No_dist) {
+		props.Dist.Targets = []string{"sdk", "win_sdk"}
+		props.Dist.Dest = proptools.StringPtr(fmt.Sprintf("%v.txt", module.BaseModuleName()))
+		props.Dist.Dir = proptools.StringPtr(path.Join(module.apiDistPath(apiScope), "api"))
 	}
 
 	mctx.CreateModule(DroidstubsFactory, &props)
@@ -1536,22 +1518,8 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 	}
 
 	for _, scope := range generatedScopes {
-		stubsSourceArgs := scope.droidstubsArgsForGeneratingStubsSource
-		stubsSourceModuleName := module.stubsSourceModuleName(scope)
-
-		// If the args needed to generate the stubs and API are the same then they
-		// can be generated in a single invocation of metalava, otherwise they will
-		// need separate invocations.
-		if scope.createStubsSourceAndApiTogether {
-			// Use the stubs source name for legacy reasons.
-			module.createStubsSourcesAndApi(mctx, scope, stubsSourceModuleName, true, true, stubsSourceArgs)
-		} else {
-			module.createStubsSourcesAndApi(mctx, scope, stubsSourceModuleName, true, false, stubsSourceArgs)
-
-			apiArgs := scope.droidstubsArgsForGeneratingApi
-			apiName := module.apiModuleName(scope)
-			module.createStubsSourcesAndApi(mctx, scope, apiName, false, true, apiArgs)
-		}
+		// Use the stubs source name for legacy reasons.
+		module.createStubsSourcesAndApi(mctx, scope, module.stubsSourceModuleName(scope), scope.droidstubsArgs)
 
 		module.createStubsLibrary(mctx, scope)
 	}
