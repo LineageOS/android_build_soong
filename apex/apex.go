@@ -1246,7 +1246,7 @@ type apexFile struct {
 	module     android.Module
 	// list of symlinks that will be created in installDir that point to this apexFile
 	symlinks      []string
-	dataPaths     android.Paths
+	dataPaths     []android.DataPath
 	transitiveDep bool
 	moduleDir     string
 
