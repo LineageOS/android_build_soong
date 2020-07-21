@@ -1401,9 +1401,9 @@ func (c *Module) IsTestPerSrcAllTestsVariation() bool {
 	return ok && test.isAllTestsVariation()
 }
 
-func (c *Module) DataPaths() android.Paths {
+func (c *Module) DataPaths() []android.DataPath {
 	if p, ok := c.installer.(interface {
-		dataPaths() android.Paths
+		dataPaths() []android.DataPath
 	}); ok {
 		return p.dataPaths()
 	}
