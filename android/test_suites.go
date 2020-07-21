@@ -47,10 +47,12 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	})
 
 	t.robolectric = robolectricTestSuite(ctx, files["robolectric-tests"])
+
+	ctx.Phony("robolectric-tests", t.robolectric)
 }
 
 func (t *testSuiteFiles) MakeVars(ctx MakeVarsContext) {
-	ctx.Strict("ROBOLECTRIC_TEST_SUITE", t.robolectric.String())
+	ctx.DistForGoal("robolectric-tests", t.robolectric)
 }
 
 func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) WritablePath {
