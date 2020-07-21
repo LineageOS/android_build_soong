@@ -21,10 +21,13 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/java/config"
+	"android/soong/tradefed"
 )
 
 func init() {
 	android.RegisterModuleType("android_robolectric_test", RobolectricTestFactory)
+	android.RegisterModuleType("android_robolectric_runtimes", robolectricRuntimesFactory)
 }
 
 var robolectricDefaultLibs = []string{
@@ -32,10 +35,13 @@ var robolectricDefaultLibs = []string{
 	"Robolectric_all-target",
 	"mockito-robolectric-prebuilt",
 	"truth-prebuilt",
+	// TODO(ccross): this is not needed at link time
+	"junitxml",
 }
 
 var (
-	roboCoverageLibsTag = dependencyTag{name: "roboSrcs"}
+	roboCoverageLibsTag = dependencyTag{name: "roboCoverageLibs"}
+	roboRuntimesTag     = dependencyTag{name: "roboRuntimes"}
 )
 
 type robolectricProperties struct {
@@ -58,12 +64,27 @@ type robolectricTest struct {
 	Library
 
 	robolectricProperties robolectricProperties
+	testProperties        testProperties
 
 	libs  []string
 	tests []string
 
+	manifest    android.Path
+	resourceApk android.Path
+
+	combinedJar android.WritablePath
+
 	roboSrcJar android.Path
+
+	testConfig android.Path
+	data       android.Paths
 }
+
+func (r *robolectricTest) TestSuites() []string {
+	return r.testProperties.Test_suites
+}
+
+var _ android.TestSuiteModule = (*robolectricTest)(nil)
 
 func (r *robolectricTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 	r.Library.DepsMutator(ctx)
@@ -77,9 +98,16 @@ func (r *robolectricTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, libTag, robolectricDefaultLibs...)
 
 	ctx.AddVariationDependencies(nil, roboCoverageLibsTag, r.robolectricProperties.Coverage_libs...)
+
+	ctx.AddVariationDependencies(nil, roboRuntimesTag, "robolectric-android-all-prebuilts")
 }
 
 func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	r.testConfig = tradefed.AutoGenRobolectricTestConfig(ctx, r.testProperties.Test_config,
+		r.testProperties.Test_config_template, r.testProperties.Test_suites,
+		r.testProperties.Auto_gen_config)
+	r.data = android.PathsForModuleSrc(ctx, r.testProperties.Data)
+
 	roboTestConfig := android.PathForModuleGen(ctx, "robolectric").
 		Join(ctx, "com/android/tools/test_config.properties")
 
@@ -95,6 +123,9 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		ctx.PropertyErrorf("instrumentation_for", "dependency must be an android_app")
 	}
 
+	r.manifest = instrumentedApp.mergedManifestFile
+	r.resourceApk = instrumentedApp.outputFile
+
 	generateRoboTestConfig(ctx, roboTestConfig, instrumentedApp)
 	r.extraResources = android.Paths{roboTestConfig}
 
@@ -104,9 +135,29 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	r.generateRoboSrcJar(ctx, roboSrcJar, instrumentedApp)
 	r.roboSrcJar = roboSrcJar
 
-	for _, dep := range ctx.GetDirectDepsWithTag(libTag) {
-		r.libs = append(r.libs, dep.(Dependency).BaseModuleName())
+	roboTestConfigJar := android.PathForModuleOut(ctx, "robolectric_samedir", "samedir_config.jar")
+	generateSameDirRoboTestConfigJar(ctx, roboTestConfigJar)
+
+	combinedJarJars := android.Paths{
+		// roboTestConfigJar comes first so that its com/android/tools/test_config.properties
+		// overrides the one from r.extraResources.  The r.extraResources one can be removed
+		// once the Make test runner is removed.
+		roboTestConfigJar,
+		r.outputFile,
+		instrumentedApp.implementationAndResourcesJar,
 	}
+
+	for _, dep := range ctx.GetDirectDepsWithTag(libTag) {
+		m := dep.(Dependency)
+		r.libs = append(r.libs, m.BaseModuleName())
+		if !android.InList(m.BaseModuleName(), config.FrameworkLibraries) {
+			combinedJarJars = append(combinedJarJars, m.ImplementationAndResourcesJars()...)
+		}
+	}
+
+	r.combinedJar = android.PathForModuleOut(ctx, "robolectric_combined", r.outputFile.Base())
+	TransformJarsToJar(ctx, r.combinedJar, "combine jars", combinedJarJars, android.OptionalPath{},
+		false, nil, nil)
 
 	// TODO: this could all be removed if tradefed was used as the test runner, it will find everything
 	// annotated as a test and run it.
@@ -121,13 +172,37 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		}
 		r.tests = append(r.tests, s)
 	}
+
+	r.data = append(r.data, r.manifest, r.resourceApk)
+
+	runtimes := ctx.GetDirectDepWithTag("robolectric-android-all-prebuilts", roboRuntimesTag)
+
+	installPath := android.PathForModuleInstall(ctx, r.BaseModuleName())
+
+	installedResourceApk := ctx.InstallFile(installPath, ctx.ModuleName()+".apk", r.resourceApk)
+	installedManifest := ctx.InstallFile(installPath, ctx.ModuleName()+"-AndroidManifest.xml", r.manifest)
+	installedConfig := ctx.InstallFile(installPath, ctx.ModuleName()+".config", r.testConfig)
+
+	var installDeps android.Paths
+	for _, runtime := range runtimes.(*robolectricRuntimes).runtimes {
+		installDeps = append(installDeps, runtime)
+	}
+	installDeps = append(installDeps, installedResourceApk, installedManifest, installedConfig)
+
+	for _, data := range android.PathsForModuleSrc(ctx, r.testProperties.Data) {
+		installedData := ctx.InstallFile(installPath, data.Rel(), data)
+		installDeps = append(installDeps, installedData)
+	}
+
+	ctx.InstallFile(installPath, ctx.ModuleName()+".jar", r.combinedJar, installDeps...)
 }
 
-func generateRoboTestConfig(ctx android.ModuleContext, outputFile android.WritablePath, instrumentedApp *AndroidApp) {
+func generateRoboTestConfig(ctx android.ModuleContext, outputFile android.WritablePath,
+	instrumentedApp *AndroidApp) {
+	rule := android.NewRuleBuilder()
+
 	manifest := instrumentedApp.mergedManifestFile
 	resourceApk := instrumentedApp.outputFile
-
-	rule := android.NewRuleBuilder()
 
 	rule.Command().Text("rm -f").Output(outputFile)
 	rule.Command().
@@ -139,6 +214,28 @@ func generateRoboTestConfig(ctx android.ModuleContext, outputFile android.Writab
 		Implicit(resourceApk)
 
 	rule.Build(pctx, ctx, "generate_test_config", "generate test_config.properties")
+}
+
+func generateSameDirRoboTestConfigJar(ctx android.ModuleContext, outputFile android.ModuleOutPath) {
+	rule := android.NewRuleBuilder()
+
+	outputDir := outputFile.InSameDir(ctx)
+	configFile := outputDir.Join(ctx, "com/android/tools/test_config.properties")
+	rule.Temporary(configFile)
+	rule.Command().Text("rm -f").Output(outputFile).Output(configFile)
+	rule.Command().Textf("mkdir -p $(dirname %s)", configFile.String())
+	rule.Command().
+		Text("(").
+		Textf(`echo "android_merged_manifest=%s-AndroidManifest.xml" &&`, ctx.ModuleName()).
+		Textf(`echo "android_resource_apk=%s.apk"`, ctx.ModuleName()).
+		Text(") >>").Output(configFile)
+	rule.Command().
+		BuiltTool(ctx, "soong_zip").
+		FlagWithArg("-C ", outputDir.String()).
+		FlagWithInput("-f ", configFile).
+		FlagWithOutput("-o ", outputFile)
+
+	rule.Build(pctx, ctx, "generate_test_config_samedir", "generate test_config.properties")
 }
 
 func (r *robolectricTest) generateRoboSrcJar(ctx android.ModuleContext, outputFile android.WritablePath,
@@ -202,7 +299,6 @@ func (r *robolectricTest) writeTestRunner(w io.Writer, module, name string, test
 		fmt.Fprintln(w, "LOCAL_ROBOTEST_TIMEOUT :=", *t)
 	}
 	fmt.Fprintln(w, "-include external/robolectric-shadows/run_robotests.mk")
-
 }
 
 // An android_robolectric_test module compiles tests against the Robolectric framework that can run on the local host
@@ -218,11 +314,75 @@ func RobolectricTestFactory() android.Module {
 	module.addHostProperties()
 	module.AddProperties(
 		&module.Module.deviceProperties,
-		&module.robolectricProperties)
+		&module.robolectricProperties,
+		&module.testProperties)
 
 	module.Module.dexpreopter.isTest = true
 	module.Module.linter.test = true
 
+	module.testProperties.Test_suites = []string{"robolectric-tests"}
+
 	InitJavaModule(module, android.DeviceSupported)
 	return module
 }
+
+func (r *robolectricTest) InstallBypassMake() bool         { return true }
+func (r *robolectricTest) InstallInTestcases() bool        { return true }
+func (r *robolectricTest) InstallForceOS() *android.OsType { return &android.BuildOs }
+
+func robolectricRuntimesFactory() android.Module {
+	module := &robolectricRuntimes{}
+	module.AddProperties(&module.props)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	return module
+}
+
+type robolectricRuntimesProperties struct {
+	Jars []string `android:"path"`
+	Lib  *string
+}
+
+type robolectricRuntimes struct {
+	android.ModuleBase
+
+	props robolectricRuntimesProperties
+
+	runtimes []android.InstallPath
+}
+
+func (r *robolectricRuntimes) TestSuites() []string {
+	return []string{"robolectric-tests"}
+}
+
+var _ android.TestSuiteModule = (*robolectricRuntimes)(nil)
+
+func (r *robolectricRuntimes) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if !ctx.Config().UnbundledBuildUsePrebuiltSdks() && r.props.Lib != nil {
+		ctx.AddVariationDependencies(nil, libTag, String(r.props.Lib))
+	}
+}
+
+func (r *robolectricRuntimes) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	files := android.PathsForModuleSrc(ctx, r.props.Jars)
+
+	androidAllDir := android.PathForModuleInstall(ctx, "android-all")
+	fmt.Println(androidAllDir.String())
+	for _, from := range files {
+		installedRuntime := ctx.InstallFile(androidAllDir, from.Base(), from)
+		r.runtimes = append(r.runtimes, installedRuntime)
+	}
+
+	if !ctx.Config().UnbundledBuildUsePrebuiltSdks() && r.props.Lib != nil {
+		runtimeFromSourceModule := ctx.GetDirectDepWithTag(String(r.props.Lib), libTag)
+		runtimeFromSourceJar := android.OutputFileForModule(ctx, runtimeFromSourceModule, "")
+
+		runtimeName := fmt.Sprintf("android-all-%s-robolectric-r0.jar",
+			ctx.Config().PlatformSdkCodename())
+		installedRuntime := ctx.InstallFile(androidAllDir, runtimeName, runtimeFromSourceJar)
+		r.runtimes = append(r.runtimes, installedRuntime)
+	}
+}
+
+func (r *robolectricRuntimes) InstallBypassMake() bool         { return true }
+func (r *robolectricRuntimes) InstallInTestcases() bool        { return true }
+func (r *robolectricRuntimes) InstallForceOS() *android.OsType { return &android.BuildOs }
