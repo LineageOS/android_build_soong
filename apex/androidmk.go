@@ -119,9 +119,9 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 			if len(fi.symlinks) > 0 {
 				fmt.Fprintln(w, "LOCAL_MODULE_SYMLINKS :=", strings.Join(fi.symlinks, " "))
 			}
-			newDataPaths := []android.Path{}
+			newDataPaths := []android.DataPath{}
 			for _, path := range fi.dataPaths {
-				dataOutPath := modulePath + ":" + path.Rel()
+				dataOutPath := modulePath + ":" + path.SrcPath.Rel()
 				if ok := seenDataOutPaths[dataOutPath]; !ok {
 					newDataPaths = append(newDataPaths, path)
 					seenDataOutPaths[dataOutPath] = true

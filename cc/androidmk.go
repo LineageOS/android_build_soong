@@ -149,21 +149,25 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{entries}
 }
 
-func AndroidMkDataPaths(data android.Paths) []string {
+func AndroidMkDataPaths(data []android.DataPath) []string {
 	var testFiles []string
 	for _, d := range data {
-		rel := d.Rel()
-		path := d.String()
+		rel := d.SrcPath.Rel()
+		path := d.SrcPath.String()
 		if !strings.HasSuffix(path, rel) {
 			panic(fmt.Errorf("path %q does not end with %q", path, rel))
 		}
 		path = strings.TrimSuffix(path, rel)
-		testFiles = append(testFiles, path+":"+rel)
+		testFileString := path + ":" + rel
+		if len(d.RelativeInstallPath) > 0 {
+			testFileString += ":" + d.RelativeInstallPath
+		}
+		testFiles = append(testFiles, testFileString)
 	}
 	return testFiles
 }
 
-func androidMkWriteTestData(data android.Paths, ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+func androidMkWriteTestData(data []android.DataPath, ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	testFiles := AndroidMkDataPaths(data)
 	if len(testFiles) > 0 {
 		entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
@@ -357,8 +361,11 @@ func (benchmark *benchmarkDecorator) AndroidMkEntries(ctx AndroidMkContext, entr
 			entries.SetBool("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", true)
 		}
 	})
-
-	androidMkWriteTestData(benchmark.data, ctx, entries)
+	dataPaths := []android.DataPath{}
+	for _, srcPath := range benchmark.data {
+		dataPaths = append(dataPaths, android.DataPath{SrcPath: srcPath})
+	}
+	androidMkWriteTestData(dataPaths, ctx, entries)
 }
 
 func (test *testBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
