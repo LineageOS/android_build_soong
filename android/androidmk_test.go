@@ -45,6 +45,8 @@ func (m *customModule) OutputFiles(tag string) (Paths, error) {
 		return PathsForTesting("one.out"), nil
 	case ".multiple":
 		return PathsForTesting("two.out", "three/four.out"), nil
+	case ".another-tag":
+		return PathsForTesting("another.out"), nil
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
@@ -117,6 +119,38 @@ func TestGetDistForGoals(t *testing.T) {
 			expectedAndroidMkLines: []string{
 				".PHONY: my_goal\n",
 				"$(call dist-for-goals,my_goal,one.out:one.out)\n",
+			},
+		},
+		{
+			bp: `
+			custom {
+				name: "foo",
+				dist: {
+					targets: ["my_goal"],
+					tag: ".another-tag",
+				}
+			}
+			`,
+			expectedAndroidMkLines: []string{
+				".PHONY: my_goal\n",
+				"$(call dist-for-goals,my_goal,another.out:another.out)\n",
+			},
+		},
+		{
+			bp: `
+			custom {
+				name: "foo",
+				dists: [
+					{
+						targets: ["my_goal"],
+						tag: ".another-tag",
+					},
+				],
+			}
+			`,
+			expectedAndroidMkLines: []string{
+				".PHONY: my_goal\n",
+				"$(call dist-for-goals,my_goal,another.out:another.out)\n",
 			},
 		},
 		{
