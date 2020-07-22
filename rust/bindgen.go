@@ -48,6 +48,7 @@ var (
 
 func init() {
 	android.RegisterModuleType("rust_bindgen", RustBindgenFactory)
+	android.RegisterModuleType("rust_bindgen_host", RustBindgenHostFactory)
 }
 
 var _ SourceProvider = (*bindgenDecorator)(nil)
@@ -149,6 +150,11 @@ func (b *bindgenDecorator) sourceProviderProps() []interface{} {
 
 func RustBindgenFactory() android.Module {
 	module, _ := NewRustBindgen(android.HostAndDeviceSupported)
+	return module.Init()
+}
+
+func RustBindgenHostFactory() android.Module {
+	module, _ := NewRustBindgen(android.HostSupported)
 	return module.Init()
 }
 
