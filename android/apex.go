@@ -65,9 +65,9 @@ type ApexModule interface {
 
 	apexModuleBase() *ApexModuleBase
 
-	// Marks that this module should be built for the specified APEXes.
+	// Marks that this module should be built for the specified APEX.
 	// Call this before apex.apexMutator is run.
-	BuildForApexes(apexes []ApexInfo)
+	BuildForApex(apex ApexInfo)
 
 	// Returns the APEXes that this module will be built for
 	ApexVariations() []ApexInfo
@@ -96,7 +96,7 @@ type ApexModule interface {
 	IsInstallableToApex() bool
 
 	// Mutate this module into one or more variants each of which is built
-	// for an APEX marked via BuildForApexes().
+	// for an APEX marked via BuildForApex().
 	CreateApexVariations(mctx BottomUpMutatorContext) []Module
 
 	// Tests if this module is available for the specified APEX or ":platform"
@@ -174,18 +174,15 @@ func (m *ApexModuleBase) TestFor() []string {
 	return nil
 }
 
-func (m *ApexModuleBase) BuildForApexes(apexes []ApexInfo) {
+func (m *ApexModuleBase) BuildForApex(apex ApexInfo) {
 	m.apexVariationsLock.Lock()
 	defer m.apexVariationsLock.Unlock()
-nextApex:
-	for _, apex := range apexes {
-		for _, v := range m.apexVariations {
-			if v.ApexName == apex.ApexName {
-				continue nextApex
-			}
+	for _, v := range m.apexVariations {
+		if v.ApexName == apex.ApexName {
+			return
 		}
-		m.apexVariations = append(m.apexVariations, apex)
 	}
+	m.apexVariations = append(m.apexVariations, apex)
 }
 
 func (m *ApexModuleBase) ApexVariations() []ApexInfo {
@@ -323,17 +320,15 @@ func apexNamesMap() map[string]map[string]bool {
 // depended on by the specified APEXes. Directly depending means that a module
 // is explicitly listed in the build definition of the APEX via properties like
 // native_shared_libs, java_libs, etc.
-func UpdateApexDependency(apexes []ApexInfo, moduleName string, directDep bool) {
+func UpdateApexDependency(apex ApexInfo, moduleName string, directDep bool) {
 	apexNamesMapMutex.Lock()
 	defer apexNamesMapMutex.Unlock()
-	for _, apex := range apexes {
-		apexesForModule, ok := apexNamesMap()[moduleName]
-		if !ok {
-			apexesForModule = make(map[string]bool)
-			apexNamesMap()[moduleName] = apexesForModule
-		}
-		apexesForModule[apex.ApexName] = apexesForModule[apex.ApexName] || directDep
+	apexesForModule, ok := apexNamesMap()[moduleName]
+	if !ok {
+		apexesForModule = make(map[string]bool)
+		apexNamesMap()[moduleName] = apexesForModule
 	}
+	apexesForModule[apex.ApexName] = apexesForModule[apex.ApexName] || directDep
 }
 
 // TODO(b/146393795): remove this when b/146393795 is fixed
