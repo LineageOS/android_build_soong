@@ -752,3 +752,12 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 		},
 	})
 }
+
+func (a *apexBundle) buildLintReports(ctx android.ModuleContext) {
+	depSetsBuilder := java.NewLintDepSetBuilder()
+	for _, fi := range a.filesInfo {
+		depSetsBuilder.Transitive(fi.lintDepSets)
+	}
+
+	a.lintReports = java.BuildModuleLintReportZips(ctx, depSetsBuilder.Build())
+}
