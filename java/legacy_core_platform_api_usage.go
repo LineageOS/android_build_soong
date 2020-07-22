@@ -199,6 +199,7 @@ var legacyCorePlatformApiModules = []string{
 	"SettingsOverlayG5NZ6",
 	"SettingsProvider",
 	"SettingsProviderTest",
+	"SettingsRoboTests",
 	"Shell",
 	"ShellTests",
 	"SimContact",
