@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	defaultBindgenFlags = []string{"--no-rustfmt-bindings"}
+	defaultBindgenFlags = []string{""}
 
 	// bindgen should specify its own Clang revision so updating Clang isn't potentially blocked on bindgen failures.
 	bindgenClangVersion  = "clang-r383902c"
@@ -40,7 +40,8 @@ var (
 	//TODO(ivanlozano) Switch this to RuleBuilder
 	bindgen = pctx.AndroidStaticRule("bindgen",
 		blueprint.RuleParams{
-			Command:     "CLANG_PATH=$bindgenClang LIBCLANG_PATH=$bindgenLibClang $bindgenCmd $flags $in -o $out -- $cflags",
+			Command: "CLANG_PATH=$bindgenClang LIBCLANG_PATH=$bindgenLibClang RUSTFMT=${config.RustBin}/rustfmt " +
+				"$bindgenCmd $flags $in -o $out -- $cflags",
 			CommandDeps: []string{"$bindgenCmd"},
 		},
 		"flags", "cflags")
