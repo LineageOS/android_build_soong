@@ -200,15 +200,16 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	}
 
 	if len(deps.SrcDeps) > 0 {
-		moduleGenDir := android.PathForModuleOut(ctx, "out/")
+		genSubDir := "out/"
+		moduleGenDir := android.PathForModuleOut(ctx, genSubDir)
 		var outputs android.WritablePaths
 
 		for _, genSrc := range deps.SrcDeps {
-			if android.SuffixInList(outputs.Strings(), "out/"+genSrc.Base()) {
+			if android.SuffixInList(outputs.Strings(), genSubDir+genSrc.Base()) {
 				ctx.PropertyErrorf("srcs",
 					"multiple source providers generate the same filename output: "+genSrc.Base())
 			}
-			outputs = append(outputs, android.PathForModuleOut(ctx, "out/"+genSrc.Base()))
+			outputs = append(outputs, android.PathForModuleOut(ctx, genSubDir+genSrc.Base()))
 		}
 
 		ctx.Build(pctx, android.BuildParams{
