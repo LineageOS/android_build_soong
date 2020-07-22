@@ -199,8 +199,8 @@ func (props *PgoProperties) isPGO(ctx BaseModuleContext) bool {
 		return false
 	}
 
-	// If at least one property exists, validate that all properties exist
-	if !profileKindPresent || !filePresent || !benchmarksPresent {
+	// profileKindPresent and filePresent are mandatory properties.
+	if !profileKindPresent || !filePresent {
 		var missing []string
 		if !profileKindPresent {
 			missing = append(missing, "profile kind (either \"instrumentation\" or \"sampling\" property)")
@@ -208,11 +208,13 @@ func (props *PgoProperties) isPGO(ctx BaseModuleContext) bool {
 		if !filePresent {
 			missing = append(missing, "profile_file property")
 		}
-		if !benchmarksPresent {
-			missing = append(missing, "non-empty benchmarks property")
-		}
 		missingProps := strings.Join(missing, ", ")
 		ctx.ModuleErrorf("PGO specification is missing properties: " + missingProps)
+	}
+
+	// Benchmark property is mandatory for instrumentation PGO.
+	if isInstrumentation && !benchmarksPresent {
+		ctx.ModuleErrorf("Instrumentation PGO specification is missing benchmark property")
 	}
 
 	if isSampling && isInstrumentation {
@@ -288,15 +290,17 @@ func (pgo *pgo) flags(ctx ModuleContext, flags Flags) Flags {
 
 	// Add flags to profile this module based on its profile_kind
 	if props.ShouldProfileModule && props.isInstrumentation() {
-		return props.addInstrumentationProfileGatherFlags(ctx, flags)
+		props.addInstrumentationProfileGatherFlags(ctx, flags)
+		// Instrumentation PGO use and gather flags cannot coexist.
+		return flags
 	} else if props.ShouldProfileModule && props.isSampling() {
-		return props.addSamplingProfileGatherFlags(ctx, flags)
+		props.addSamplingProfileGatherFlags(ctx, flags)
 	} else if ctx.DeviceConfig().SamplingPGO() {
-		return props.addSamplingProfileGatherFlags(ctx, flags)
+		props.addSamplingProfileGatherFlags(ctx, flags)
 	}
 
 	if !ctx.Config().IsEnvTrue("ANDROID_PGO_NO_PROFILE_USE") {
-		return props.addProfileUseFlags(ctx, flags)
+		props.addProfileUseFlags(ctx, flags)
 	}
 
 	return flags
