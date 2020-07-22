@@ -49,8 +49,8 @@ func TestClasspath(t *testing.T) {
 	}{
 		{
 			name:           "default",
-			bootclasspath:  config.LegacyCorePlatformBootclasspathLibraries,
-			system:         config.LegacyCorePlatformSystemModules,
+			bootclasspath:  config.StableCorePlatformBootclasspathLibraries,
+			system:         config.StableCorePlatformSystemModules,
 			java8classpath: config.FrameworkLibraries,
 			java9classpath: config.FrameworkLibraries,
 			aidl:           "-Iframework/aidl",
@@ -58,16 +58,16 @@ func TestClasspath(t *testing.T) {
 		{
 			name:           `sdk_version:"core_platform"`,
 			properties:     `sdk_version:"core_platform"`,
-			bootclasspath:  config.LegacyCorePlatformBootclasspathLibraries,
-			system:         config.LegacyCorePlatformSystemModules,
+			bootclasspath:  config.StableCorePlatformBootclasspathLibraries,
+			system:         config.StableCorePlatformSystemModules,
 			java8classpath: []string{},
 			aidl:           "",
 		},
 		{
 			name:           "blank sdk version",
 			properties:     `sdk_version: "",`,
-			bootclasspath:  config.LegacyCorePlatformBootclasspathLibraries,
-			system:         config.LegacyCorePlatformSystemModules,
+			bootclasspath:  config.StableCorePlatformBootclasspathLibraries,
+			system:         config.StableCorePlatformSystemModules,
 			java8classpath: config.FrameworkLibraries,
 			java9classpath: config.FrameworkLibraries,
 			aidl:           "-Iframework/aidl",
@@ -155,9 +155,9 @@ func TestClasspath(t *testing.T) {
 		{
 
 			name:           "nostdlib system_modules",
-			properties:     `sdk_version: "none", system_modules: "legacy-core-platform-api-stubs-system-modules"`,
-			system:         "legacy-core-platform-api-stubs-system-modules",
-			bootclasspath:  []string{"legacy-core-platform-api-stubs-system-modules-lib"},
+			properties:     `sdk_version: "none", system_modules: "stable-core-platform-api-stubs-system-modules"`,
+			system:         "stable-core-platform-api-stubs-system-modules",
+			bootclasspath:  []string{"stable-core-platform-api-stubs-system-modules-lib"},
 			java8classpath: []string{},
 		},
 		{

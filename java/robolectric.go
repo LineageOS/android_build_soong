@@ -366,7 +366,6 @@ func (r *robolectricRuntimes) GenerateAndroidBuildActions(ctx android.ModuleCont
 	files := android.PathsForModuleSrc(ctx, r.props.Jars)
 
 	androidAllDir := android.PathForModuleInstall(ctx, "android-all")
-	fmt.Println(androidAllDir.String())
 	for _, from := range files {
 		installedRuntime := ctx.InstallFile(androidAllDir, from.Base(), from)
 		r.runtimes = append(r.runtimes, installedRuntime)

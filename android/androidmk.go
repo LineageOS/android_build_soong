@@ -165,7 +165,7 @@ func (a *AndroidMkEntries) GetDistForGoals(mod blueprint.Module) []string {
 	var ret []string
 
 	availableTaggedDists := TaggedDistFiles{}
-	if a.DistFiles != nil && len(a.DistFiles[""]) > 0 {
+	if a.DistFiles != nil {
 		availableTaggedDists = a.DistFiles
 	} else if a.OutputFile.Valid() {
 		availableTaggedDists = MakeDefaultDistFiles(a.OutputFile.Path())

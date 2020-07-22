@@ -1555,3 +1555,15 @@ func absolutePath(path string) string {
 	}
 	return filepath.Join(absSrcDir, path)
 }
+
+// A DataPath represents the path of a file to be used as data, for example
+// a test library to be installed alongside a test.
+// The data file should be installed (copied from `<SrcPath>`) to
+// `<install_root>/<RelativeInstallPath>/<filename>`, or
+// `<install_root>/<filename>` if RelativeInstallPath is empty.
+type DataPath struct {
+	// The path of the data file that should be copied into the data directory
+	SrcPath Path
+	// The install path of the data file, relative to the install root.
+	RelativeInstallPath string
+}
