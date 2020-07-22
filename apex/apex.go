@@ -780,7 +780,7 @@ func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
 }
 
 func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
-	ctx.TopDown("apex_deps", apexDepsMutator)
+	ctx.TopDown("apex_deps", apexDepsMutator).Parallel()
 	ctx.BottomUp("apex", apexMutator).Parallel()
 	ctx.BottomUp("apex_flattened", apexFlattenedMutator).Parallel()
 	ctx.BottomUp("apex_uses", apexUsesMutator).Parallel()
@@ -793,33 +793,30 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 	if !mctx.Module().Enabled() {
 		return
 	}
-	var apexBundles []android.ApexInfo
-	var directDep bool
-	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
-		apexBundles = []android.ApexInfo{{
-			ApexName:      mctx.ModuleName(),
-			MinSdkVersion: a.minSdkVersion(mctx),
-			Updatable:     a.Updatable(),
-		}}
-		directDep = true
-	} else if am, ok := mctx.Module().(android.ApexModule); ok {
-		apexBundles = am.ApexVariations()
-		directDep = false
-	}
-
-	if len(apexBundles) == 0 {
+	a, ok := mctx.Module().(*apexBundle)
+	if !ok || a.vndkApex {
 		return
 	}
-
-	cur := mctx.Module().(android.DepIsInSameApex)
-
-	mctx.VisitDirectDeps(func(child android.Module) {
-		depName := mctx.OtherModuleName(child)
-		if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() &&
-			(cur.DepIsInSameApex(mctx, child) || inAnySdk(child)) {
-			android.UpdateApexDependency(apexBundles, depName, directDep)
-			am.BuildForApexes(apexBundles)
+	apexInfo := android.ApexInfo{
+		ApexName:      mctx.ModuleName(),
+		MinSdkVersion: a.minSdkVersion(mctx),
+		Updatable:     a.Updatable(),
+	}
+	mctx.WalkDeps(func(child, parent android.Module) bool {
+		am, ok := child.(android.ApexModule)
+		if !ok || !am.CanHaveApexVariants() {
+			return false
 		}
+		if !parent.(android.DepIsInSameApex).DepIsInSameApex(mctx, child) && !inAnySdk(child) {
+			return false
+		}
+
+		depName := mctx.OtherModuleName(child)
+		// If the parent is apexBundle, this child is directly depended.
+		_, directDep := parent.(*apexBundle)
+		android.UpdateApexDependency(apexInfo, depName, directDep)
+		am.BuildForApex(apexInfo)
+		return true
 	})
 }
 
