@@ -401,13 +401,17 @@ func memberInterVersionMutator(mctx android.BottomUpMutatorContext) {
 // Step 4: transitively ripple down the SDK requirements from the root modules like APEX to its
 // descendants
 func sdkDepsMutator(mctx android.TopDownMutatorContext) {
-	if m, ok := mctx.Module().(android.SdkAware); ok {
+	if parent, ok := mctx.Module().(interface {
+		android.DepIsInSameApex
+		android.RequiredSdks
+	}); ok {
 		// Module types for Mainline modules (e.g. APEX) are expected to implement RequiredSdks()
 		// by reading its own properties like `uses_sdks`.
-		requiredSdks := m.RequiredSdks()
+		requiredSdks := parent.RequiredSdks()
 		if len(requiredSdks) > 0 {
 			mctx.VisitDirectDeps(func(m android.Module) {
-				if dep, ok := m.(android.SdkAware); ok {
+				// Only propagate required sdks from the apex onto its contents.
+				if dep, ok := m.(android.SdkAware); ok && parent.DepIsInSameApex(mctx, dep) {
 					dep.BuildWithSdks(requiredSdks)
 				}
 			})
@@ -418,15 +422,28 @@ func sdkDepsMutator(mctx android.TopDownMutatorContext) {
 // Step 5: if libfoo.mysdk.11 is in the context where version 11 of mysdk is requested, the
 // versioned module is used instead of the un-versioned (in-development) module libfoo
 func sdkDepsReplaceMutator(mctx android.BottomUpMutatorContext) {
-	if m, ok := mctx.Module().(android.SdkAware); ok && m.IsInAnySdk() {
-		if sdk := m.ContainingSdk(); !sdk.Unversioned() {
-			if m.RequiredSdks().Contains(sdk) {
-				// Note that this replacement is done only for the modules that have the same
-				// variations as the current module. Since current module is already mutated for
-				// apex references in other APEXes are not affected by this replacement.
-				memberName := m.MemberName()
-				mctx.ReplaceDependencies(memberName)
-			}
+	if versionedSdkMember, ok := mctx.Module().(android.SdkAware); ok && versionedSdkMember.IsInAnySdk() {
+		if sdk := versionedSdkMember.ContainingSdk(); !sdk.Unversioned() {
+			// Only replace dependencies to <sdkmember> with <sdkmember@required-version>
+			// if the depending module requires it. e.g.
+			//      foo -> sdkmember
+			// will be transformed to:
+			//      foo -> sdkmember@1
+			// if and only if foo is a member of an APEX that requires version 1 of the
+			// sdk containing sdkmember.
+			memberName := versionedSdkMember.MemberName()
+
+			// Replace dependencies on sdkmember with a dependency on the current module which
+			// is a versioned prebuilt of the sdkmember if required.
+			mctx.ReplaceDependenciesIf(memberName, func(from blueprint.Module, tag blueprint.DependencyTag, to blueprint.Module) bool {
+				// from - foo
+				// to - sdkmember
+				replace := false
+				if parent, ok := from.(android.RequiredSdks); ok {
+					replace = parent.RequiredSdks().Contains(sdk)
+				}
+				return replace
+			})
 		}
 	}
 }
