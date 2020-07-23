@@ -413,8 +413,8 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 	case sdkPrivate:
 		return sdkDep{
 			useModule:          true,
-			systemModules:      config.LegacyCorePlatformSystemModules,
-			bootclasspath:      config.LegacyCorePlatformBootclasspathLibraries,
+			systemModules:      corePlatformSystemModules(ctx),
+			bootclasspath:      corePlatformBootclasspathLibraries(ctx),
 			classpath:          config.FrameworkLibraries,
 			frameworkResModule: "framework-res",
 		}
@@ -438,8 +438,8 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 	case sdkCorePlatform:
 		return sdkDep{
 			useModule:        true,
-			systemModules:    config.LegacyCorePlatformSystemModules,
-			bootclasspath:    config.LegacyCorePlatformBootclasspathLibraries,
+			systemModules:    corePlatformSystemModules(ctx),
+			bootclasspath:    corePlatformBootclasspathLibraries(ctx),
 			noFrameworksLibs: true,
 		}
 	case sdkPublic:
