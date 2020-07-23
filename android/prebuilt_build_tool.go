@@ -29,6 +29,10 @@ type prebuiltBuildToolProperties struct {
 
 	// Extra files that should trigger rules using this tool to rebuild
 	Deps []string `android:"path,arch_variant"`
+
+	// Create a make variable with the specified name that contains the path to
+	// this prebuilt built tool, relative to the root of the source tree.
+	Export_to_make_var *string
 }
 
 type prebuiltBuildTool struct {
@@ -79,6 +83,12 @@ func (t *prebuiltBuildTool) GenerateAndroidBuildActions(ctx ModuleContext) {
 
 func (t *prebuiltBuildTool) HostToolPath() OptionalPath {
 	return t.toolPath
+}
+
+func (t *prebuiltBuildTool) MakeVars(ctx MakeVarsModuleContext) {
+	if makeVar := String(t.properties.Export_to_make_var); makeVar != "" {
+		ctx.StrictRaw(makeVar, t.toolPath.String())
+	}
 }
 
 var _ HostToolProvider = &prebuiltBuildTool{}
