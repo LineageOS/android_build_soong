@@ -103,6 +103,7 @@ var legacyCorePlatformApiModules = []string{
 	"SettingsLib",
 	"SettingsProvider",
 	"SettingsProviderTest",
+	"SettingsRoboTests",
 	"Shell",
 	"ShellTests",
 	"sl4a.Common",
