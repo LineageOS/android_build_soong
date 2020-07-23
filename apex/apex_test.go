@@ -5179,6 +5179,57 @@ func TestSymlinksFromApexToSystem(t *testing.T) {
 	ensureRealfileExists(t, files, "lib64/myotherlib.so") // this is a real file
 }
 
+func TestSymlinksFromApexToSystemRequiredModuleNames(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library_shared {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["myotherlib"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [
+				"myapex",
+				"//apex_available:platform",
+			],
+		}
+
+		cc_prebuilt_library_shared {
+			name: "myotherlib",
+			srcs: ["prebuilt.so"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [
+				"myapex",
+				"//apex_available:platform",
+			],
+		}
+	`)
+
+	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", apexBundle)
+	var builder strings.Builder
+	data.Custom(&builder, apexBundle.BaseModuleName(), "TARGET_", "", data)
+	androidMk := builder.String()
+	// `myotherlib` is added to `myapex` as symlink
+	ensureContains(t, androidMk, "LOCAL_MODULE := mylib.myapex\n")
+	ensureNotContains(t, androidMk, "LOCAL_MODULE := prebuilt_myotherlib.myapex\n")
+	ensureNotContains(t, androidMk, "LOCAL_MODULE := myotherlib.myapex\n")
+	// `myapex` should have `myotherlib` in its required line, not `prebuilt_myotherlib`
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += mylib.myapex myotherlib apex_manifest.pb.myapex apex_pubkey.myapex\n")
+}
+
 func TestApexWithJniLibs(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
