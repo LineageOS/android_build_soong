@@ -24,8 +24,6 @@ import (
 )
 
 func init() {
-	pctx.SourcePathVariable("m4Cmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/m4")
-
 	pctx.HostBinToolVariable("aidlCmd", "aidl-cpp")
 	pctx.HostBinToolVariable("syspropCmd", "sysprop_cpp")
 }
