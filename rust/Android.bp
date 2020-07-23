@@ -27,6 +27,7 @@ bootstrap_go_package {
     testSrcs: [
         "binary_test.go",
         "bindgen_test.go",
+        "builder_test.go",
         "clippy_test.go",
         "compiler_test.go",
         "coverage_test.go",

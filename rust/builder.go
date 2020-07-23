@@ -42,14 +42,14 @@ var (
 	_            = pctx.SourcePathVariable("clippyCmd", "${config.RustBin}/clippy-driver")
 	clippyDriver = pctx.AndroidStaticRule("clippy",
 		blueprint.RuleParams{
-			Command: "$clippyCmd " +
+			Command: "$envVars $clippyCmd " +
 				// Because clippy-driver uses rustc as backend, we need to have some output even during the linting.
 				// Use the metadata output as it has the smallest footprint.
 				"--emit metadata -o $out $in ${libFlags} " +
 				"$rustcFlags $clippyFlags",
 			CommandDeps: []string{"$clippyCmd"},
 		},
-		"rustcFlags", "libFlags", "clippyFlags")
+		"rustcFlags", "libFlags", "clippyFlags", "envVars")
 
 	zip = pctx.AndroidStaticRule("zip",
 		blueprint.RuleParams{
@@ -199,35 +199,17 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		output.coverageFile = gcnoFile
 	}
 
-	if flags.Clippy {
-		clippyFile := android.PathForModuleOut(ctx, outputFile.Base()+".clippy")
-		ctx.Build(pctx, android.BuildParams{
-			Rule:            clippyDriver,
-			Description:     "clippy " + main.Rel(),
-			Output:          clippyFile,
-			ImplicitOutputs: nil,
-			Inputs:          inputs,
-			Implicits:       implicits,
-			Args: map[string]string{
-				"rustcFlags":  strings.Join(rustcFlags, " "),
-				"libFlags":    strings.Join(libFlags, " "),
-				"clippyFlags": strings.Join(flags.ClippyFlags, " "),
-			},
-		})
-		// Declare the clippy build as an implicit dependency of the original crate.
-		implicits = append(implicits, clippyFile)
-	}
-
 	if len(deps.SrcDeps) > 0 {
-		moduleGenDir := android.PathForModuleOut(ctx, "out/")
+		genSubDir := "out/"
+		moduleGenDir := android.PathForModuleOut(ctx, genSubDir)
 		var outputs android.WritablePaths
 
 		for _, genSrc := range deps.SrcDeps {
-			if android.SuffixInList(outputs.Strings(), "out/"+genSrc.Base()) {
+			if android.SuffixInList(outputs.Strings(), genSubDir+genSrc.Base()) {
 				ctx.PropertyErrorf("srcs",
 					"multiple source providers generate the same filename output: "+genSrc.Base())
 			}
-			outputs = append(outputs, android.PathForModuleOut(ctx, "out/"+genSrc.Base()))
+			outputs = append(outputs, android.PathForModuleOut(ctx, genSubDir+genSrc.Base()))
 		}
 
 		ctx.Build(pctx, android.BuildParams{
@@ -241,6 +223,26 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		})
 		implicits = append(implicits, outputs.Paths()...)
 		envVars = append(envVars, "OUT_DIR=$$PWD/"+moduleGenDir.String())
+	}
+
+	if flags.Clippy {
+		clippyFile := android.PathForModuleOut(ctx, outputFile.Base()+".clippy")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:            clippyDriver,
+			Description:     "clippy " + main.Rel(),
+			Output:          clippyFile,
+			ImplicitOutputs: nil,
+			Inputs:          inputs,
+			Implicits:       implicits,
+			Args: map[string]string{
+				"rustcFlags":  strings.Join(rustcFlags, " "),
+				"libFlags":    strings.Join(libFlags, " "),
+				"clippyFlags": strings.Join(flags.ClippyFlags, " "),
+				"envVars":     strings.Join(envVars, " "),
+			},
+		})
+		// Declare the clippy build as an implicit dependency of the original crate.
+		implicits = append(implicits, clippyFile)
 	}
 
 	ctx.Build(pctx, android.BuildParams{
