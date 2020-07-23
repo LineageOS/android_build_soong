@@ -30,6 +30,8 @@ var (
 
 	LegacyCorePlatformBootclasspathLibraries = []string{"legacy.core.platform.api.stubs", "core-lambda-stubs"}
 	LegacyCorePlatformSystemModules          = "legacy-core-platform-api-stubs-system-modules"
+	StableCorePlatformBootclasspathLibraries = []string{"stable.core.platform.api.stubs", "core-lambda-stubs"}
+	StableCorePlatformSystemModules          = "stable-core-platform-api-stubs-system-modules"
 	FrameworkLibraries                       = []string{"ext", "framework"}
 	DefaultLambdaStubsLibrary                = "core-lambda-stubs"
 	SdkLambdaStubsPath                       = "prebuilts/sdk/tools/core-lambda-stubs.jar"
