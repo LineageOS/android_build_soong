@@ -34,10 +34,8 @@ type RequiredSdks interface {
 	RequiredSdks() SdkRefs
 }
 
-// SdkAware is the interface that must be supported by any module to become a member of SDK or to be
-// built with SDK
-type SdkAware interface {
-	Module
+// Provided to improve code navigation with the IDE.
+type sdkAwareWithoutModule interface {
 	RequiredSdks
 
 	sdkBase() *SdkBase
@@ -46,6 +44,13 @@ type SdkAware interface {
 	ContainingSdk() SdkRef
 	MemberName() string
 	BuildWithSdks(sdks SdkRefs)
+}
+
+// SdkAware is the interface that must be supported by any module to become a member of SDK or to be
+// built with SDK
+type SdkAware interface {
+	Module
+	sdkAwareWithoutModule
 }
 
 // SdkRef refers to a version of an SDK
