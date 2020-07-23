@@ -251,6 +251,14 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.StaticLibs = append(deps.StaticLibs, "libomp")
 	}
 
+	if compiler.hasSrcExt(".y") || compiler.hasSrcExt(".yy") {
+		deps.Tools = append(deps.Tools, "bison", "m4")
+	}
+
+	if compiler.hasSrcExt(".l") || compiler.hasSrcExt(".ll") {
+		deps.Tools = append(deps.Tools, "flex", "m4")
+	}
+
 	return deps
 }
 
@@ -582,7 +590,7 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 
 	srcs := append(android.Paths(nil), compiler.srcsBeforeGen...)
 
-	srcs, genDeps := genSources(ctx, srcs, buildFlags)
+	srcs, genDeps := genSources(ctx, srcs, buildFlags, deps.Tools)
 	pathDeps = append(pathDeps, genDeps...)
 
 	compiler.pathDeps = pathDeps
