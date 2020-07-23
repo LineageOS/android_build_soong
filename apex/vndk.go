@@ -16,7 +16,6 @@ package apex
 
 import (
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -124,10 +123,10 @@ func makeCompatSymlinks(name string, ctx android.ModuleContext) (symlinks []stri
 	// Since prebuilt vndk libs still depend on system/lib/vndk path
 	if strings.HasPrefix(name, vndkApexNamePrefix) {
 		vndkVersion := strings.TrimPrefix(name, vndkApexNamePrefix)
-		if numVer, err := strconv.Atoi(vndkVersion); err != nil {
+		if ver, err := android.ApiLevelFromUser(ctx, vndkVersion); err != nil {
 			ctx.ModuleErrorf("apex_vndk should be named as %v<ver:number>: %s", vndkApexNamePrefix, name)
 			return
-		} else if numVer > android.SdkVersion_Android10 {
+		} else if ver.GreaterThan(android.SdkVersion_Android10) {
 			return
 		}
 		// the name of vndk apex is formatted "com.android.vndk.v" + version

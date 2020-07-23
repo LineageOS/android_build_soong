@@ -1425,13 +1425,7 @@ func TestApexMinSdkVersion_SupportsCodeNames(t *testing.T) {
 		ldArgs := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld").Args["libFlags"]
 		ensureNotContains(t, ldArgs, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
 	}
-	// 9000 is quite a magic number.
-	// Finalized SDK codenames are mapped as P(28), Q(29), ...
-	// And, codenames which are not finalized yet(active_codenames + future_codenames) are numbered from 9000, 9001, ...
-	// to distinguish them from finalized and future_api(10000)
-	// In this test, "R" is assumed not finalized yet( listed in Platform_version_active_codenames) and translated into 9000
-	// (refer android/api_levels.go)
-	expectLink("libx", "shared_apex10000", "libz", "shared_9000")
+	expectLink("libx", "shared_apex10000", "libz", "shared_R")
 	expectNoLink("libx", "shared_apex10000", "libz", "shared_29")
 	expectNoLink("libx", "shared_apex10000", "libz", "shared")
 }
@@ -6130,7 +6124,7 @@ func TestNonPreferredPrebuiltDependency(t *testing.T) {
 			name: "mylib",
 			srcs: ["mylib.cpp"],
 			stubs: {
-				versions: ["10000"],
+				versions: ["current"],
 			},
 			apex_available: ["myapex"],
 		}
@@ -6140,7 +6134,7 @@ func TestNonPreferredPrebuiltDependency(t *testing.T) {
 			prefer: false,
 			srcs: ["prebuilt.so"],
 			stubs: {
-				versions: ["10000"],
+				versions: ["current"],
 			},
 			apex_available: ["myapex"],
 		}

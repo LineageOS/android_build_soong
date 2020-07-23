@@ -133,6 +133,10 @@ func (v sdkVersion) String() string {
 	return "(no version)"
 }
 
+func (v sdkVersion) ApiLevel(ctx android.EarlyModuleContext) android.ApiLevel {
+	return android.ApiLevelOrPanic(ctx, v.String())
+}
+
 // asNumberString directly converts the numeric value of this sdk version as a string.
 // When isNumbered() is true, this method is the same as String(). However, for sdkVersionCurrent
 // and sdkVersionNone, this returns 10000 and 0 while String() returns "current" and "(no version"),
