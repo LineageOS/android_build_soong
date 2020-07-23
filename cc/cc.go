@@ -2291,7 +2291,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	}
 
 	// For the dependency from platform to apex, use the latest stubs
-	c.apexSdkVersion = android.CurrentApiLevel
+	c.apexSdkVersion = android.FutureApiLevel
 	if !c.IsForPlatform() {
 		c.apexSdkVersion = c.ApexProperties.Info.MinSdkVersion(ctx)
 	}
@@ -2300,7 +2300,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		// In hwasan build, we override apexSdkVersion to the FutureApiLevel(10000)
 		// so that even Q(29/Android10) apexes could use the dynamic unwinder by linking the newer stubs(e.g libc(R+)).
 		// (b/144430859)
-		c.apexSdkVersion = android.CurrentApiLevel
+		c.apexSdkVersion = android.FutureApiLevel
 	}
 
 	ctx.VisitDirectDeps(func(dep android.Module) {

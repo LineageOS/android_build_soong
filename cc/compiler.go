@@ -392,7 +392,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	if ctx.Os().Class == android.Device {
 		version := ctx.sdkVersion()
 		if version == "" || version == "current" {
-			target += strconv.Itoa(android.FutureApiLevel)
+			target += strconv.Itoa(android.FutureApiLevelInt)
 		} else {
 			target += version
 		}
