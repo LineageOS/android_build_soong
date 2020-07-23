@@ -69,7 +69,7 @@ var (
 	// A symlink rule.
 	Symlink = pctx.AndroidStaticRule("Symlink",
 		blueprint.RuleParams{
-			Command:     "ln -f -s $fromPath $out",
+			Command:     "rm -f $out && ln -f -s $fromPath $out",
 			Description: "symlink $out",
 		},
 		"fromPath")
