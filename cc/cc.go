@@ -2231,6 +2231,19 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		depPaths.ReexportedGeneratedHeaders = append(depPaths.ReexportedGeneratedHeaders, exporter.exportedGeneratedHeaders()...)
 	}
 
+	// For the dependency from platform to apex, use the latest stubs
+	c.apexSdkVersion = android.FutureApiLevel
+	if !c.IsForPlatform() {
+		c.apexSdkVersion = c.ApexProperties.Info.MinSdkVersion
+	}
+
+	if android.InList("hwaddress", ctx.Config().SanitizeDevice()) {
+		// In hwasan build, we override apexSdkVersion to the FutureApiLevel(10000)
+		// so that even Q(29/Android10) apexes could use the dynamic unwinder by linking the newer stubs(e.g libc(R+)).
+		// (b/144430859)
+		c.apexSdkVersion = android.FutureApiLevel
+	}
+
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
 		depTag := ctx.OtherModuleDependencyTag(dep)
@@ -2332,19 +2345,6 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				c.staticVariant = ccDep
 				return
 			}
-		}
-
-		// For the dependency from platform to apex, use the latest stubs
-		c.apexSdkVersion = android.FutureApiLevel
-		if !c.IsForPlatform() {
-			c.apexSdkVersion = c.ApexProperties.Info.MinSdkVersion
-		}
-
-		if android.InList("hwaddress", ctx.Config().SanitizeDevice()) {
-			// In hwasan build, we override apexSdkVersion to the FutureApiLevel(10000)
-			// so that even Q(29/Android10) apexes could use the dynamic unwinder by linking the newer stubs(e.g libc(R+)).
-			// (b/144430859)
-			c.apexSdkVersion = android.FutureApiLevel
 		}
 
 		if depTag == staticUnwinderDepTag {
