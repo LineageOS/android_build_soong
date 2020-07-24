@@ -41,8 +41,10 @@ var (
 	bindgen = pctx.AndroidStaticRule("bindgen",
 		blueprint.RuleParams{
 			Command: "CLANG_PATH=$bindgenClang LIBCLANG_PATH=$bindgenLibClang RUSTFMT=${config.RustBin}/rustfmt " +
-				"$bindgenCmd $flags $in -o $out -- $cflags",
+				"$bindgenCmd $flags $in -o $out -- -MD -MF $out.d $cflags",
 			CommandDeps: []string{"$bindgenCmd"},
+			Deps:        blueprint.DepsGCC,
+			Depfile:     "$out.d",
 		},
 		"flags", "cflags")
 )
