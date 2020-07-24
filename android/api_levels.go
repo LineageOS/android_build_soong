@@ -274,7 +274,7 @@ func getFinalCodenamesMap(config Config) map[string]int {
 		// neither R nor S are final, but the S APIs stop being available in a
 		// final R build.
 		if Bool(config.productVariables.Platform_sdk_final) {
-			apiLevelsMap["current"] = config.PlatformSdkVersionInt()
+			apiLevelsMap["current"] = config.PlatformSdkVersion().FinalOrFutureInt()
 		}
 
 		return apiLevelsMap
