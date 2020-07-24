@@ -39,7 +39,6 @@ bootstrap_go_package {
         "paths.go",
         "phony.go",
         "prebuilt.go",
-        "prebuilt_build_tool.go",
         "proto.go",
         "register.go",
         "rule_builder.go",
