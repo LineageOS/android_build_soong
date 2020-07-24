@@ -291,6 +291,26 @@ func TestSourceProviderDeps(t *testing.T) {
 	}
 }
 
+func TestSourceProviderTargetMismatch(t *testing.T) {
+	// This might error while building the dependency tree or when calling depsToPaths() depending on the lunched
+	// target, which results in two different errors. So don't check the error, just confirm there is one.
+	testRustError(t, ".*", `
+		rust_proc_macro {
+			name: "libprocmacro",
+			srcs: [
+				"foo.rs",
+				":libbindings",
+			],
+			crate_name: "procmacro",
+		}
+		rust_bindgen {
+			name: "libbindings",
+			stem: "bindings",
+			wrapper_src: "src/any.h",
+		}
+	`)
+}
+
 // Test to make sure proc_macros use host variants when building device modules.
 func TestProcMacroDeviceDeps(t *testing.T) {
 	ctx := testRust(t, `
