@@ -59,9 +59,15 @@ func (t *prebuiltBuildTool) GenerateAndroidBuildActions(ctx ModuleContext) {
 	installedPath := PathForModuleOut(ctx, t.ModuleBase.Name())
 	deps := PathsForModuleSrc(ctx, t.properties.Deps)
 
-	relPath, err := filepath.Rel(path.Dir(installedPath.String()), sourcePath.String())
-	if err != nil {
-		ctx.ModuleErrorf("Unabled to generate symlink between %q and %q: %s", installedPath.String(), sourcePath.String())
+	var relPath string
+	if filepath.IsAbs(installedPath.String()) {
+		relPath = filepath.Join(absSrcDir, sourcePath.String())
+	} else {
+		var err error
+		relPath, err = filepath.Rel(path.Dir(installedPath.String()), sourcePath.String())
+		if err != nil {
+			ctx.ModuleErrorf("Unable to generate symlink between %q and %q: %s", installedPath.String(), sourcePath.String(), err)
+		}
 	}
 
 	ctx.Build(pctx, BuildParams{
