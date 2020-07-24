@@ -743,6 +743,8 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	directProcMacroDeps := []*Module{}
 	directSharedLibDeps := [](cc.LinkableInterface){}
 	directStaticLibDeps := [](cc.LinkableInterface){}
+	directSrcProvidersDeps := []*Module{}
+	directSrcDeps := [](android.SourceFileProducer){}
 
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
@@ -776,6 +778,24 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			case procMacroDepTag:
 				directProcMacroDeps = append(directProcMacroDeps, rustDep)
 				mod.Properties.AndroidMkProcMacroLibs = append(mod.Properties.AndroidMkProcMacroLibs, depName)
+			case android.SourceDepTag:
+				// Since these deps are added in path_properties.go via AddDependencies, we need to ensure the correct
+				// OS/Arch variant is used.
+				var helper string
+				if ctx.Host() {
+					helper = "missing 'host_supported'?"
+				} else {
+					helper = "device module defined?"
+				}
+
+				if dep.Target().Os != ctx.Os() {
+					ctx.ModuleErrorf("OS mismatch on dependency %q (%s)", dep.Name(), helper)
+					return
+				} else if dep.Target().Arch.ArchType != ctx.Arch().ArchType {
+					ctx.ModuleErrorf("Arch mismatch on dependency %q (%s)", dep.Name(), helper)
+					return
+				}
+				directSrcProvidersDeps = append(directSrcProvidersDeps, rustDep)
 			}
 
 			//Append the dependencies exportedDirs
@@ -791,6 +811,14 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				}
 			}
 
+		}
+
+		if srcDep, ok := dep.(android.SourceFileProducer); ok {
+			switch depTag {
+			case android.SourceDepTag:
+				// These are usually genrules which don't have per-target variants.
+				directSrcDeps = append(directSrcDeps, srcDep)
+			}
 		}
 
 		if ccDep, ok := dep.(cc.LinkableInterface); ok {
@@ -868,11 +896,22 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		sharedLibDepFiles = append(sharedLibDepFiles, dep.OutputFile().Path())
 	}
 
+	var srcProviderDepFiles android.Paths
+	for _, dep := range directSrcProvidersDeps {
+		srcs, _ := dep.OutputFiles("")
+		srcProviderDepFiles = append(srcProviderDepFiles, srcs...)
+	}
+	for _, dep := range directSrcDeps {
+		srcs := dep.Srcs()
+		srcProviderDepFiles = append(srcProviderDepFiles, srcs...)
+	}
+
 	depPaths.RLibs = append(depPaths.RLibs, rlibDepFiles...)
 	depPaths.DyLibs = append(depPaths.DyLibs, dylibDepFiles...)
 	depPaths.SharedLibs = append(depPaths.SharedLibs, sharedLibDepFiles...)
 	depPaths.StaticLibs = append(depPaths.StaticLibs, staticLibDepFiles...)
 	depPaths.ProcMacros = append(depPaths.ProcMacros, procMacroDepFiles...)
+	depPaths.SrcDeps = append(depPaths.SrcDeps, srcProviderDepFiles...)
 
 	// Dedup exported flags from dependencies
 	depPaths.linkDirs = android.FirstUniqueStrings(depPaths.linkDirs)
