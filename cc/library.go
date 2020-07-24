@@ -121,7 +121,10 @@ type SharedProperties struct {
 }
 
 type StaticOrSharedProperties struct {
-	Srcs   []string `android:"path,arch_variant"`
+	Srcs []string `android:"path,arch_variant"`
+
+	Sanitized Sanitized `android:"arch_variant"`
+
 	Cflags []string `android:"arch_variant"`
 
 	Enabled            *bool    `android:"arch_variant"`
