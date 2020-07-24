@@ -183,12 +183,15 @@ func (a *AndroidMkEntries) GetDistForGoals(mod blueprint.Module) []string {
 	name := amod.BaseModuleName()
 
 	var ret []string
+	var availableTaggedDists TaggedDistFiles
 
-	availableTaggedDists := TaggedDistFiles{}
 	if a.DistFiles != nil {
 		availableTaggedDists = a.DistFiles
 	} else if a.OutputFile.Valid() {
 		availableTaggedDists = MakeDefaultDistFiles(a.OutputFile.Path())
+	} else {
+		// Nothing dist-able for this module.
+		return nil
 	}
 
 	// Iterate over this module's dist structs, merged from the dist and dists properties.
