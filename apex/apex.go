@@ -770,7 +770,7 @@ func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
 }
 
 func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
-	ctx.TopDown("apex_deps", apexDepsMutator)
+	ctx.TopDown("apex_deps", apexDepsMutator).Parallel()
 	ctx.BottomUp("apex", apexMutator).Parallel()
 	ctx.BottomUp("apex_flattened", apexFlattenedMutator).Parallel()
 	ctx.BottomUp("apex_uses", apexUsesMutator).Parallel()
@@ -783,33 +783,30 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 	if !mctx.Module().Enabled() {
 		return
 	}
-	var apexBundles []android.ApexInfo
-	var directDep bool
-	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
-		apexBundles = []android.ApexInfo{{
-			ApexName:      mctx.ModuleName(),
-			MinSdkVersion: a.minSdkVersion(mctx),
-			Updatable:     a.Updatable(),
-		}}
-		directDep = true
-	} else if am, ok := mctx.Module().(android.ApexModule); ok {
-		apexBundles = am.ApexVariations()
-		directDep = false
-	}
-
-	if len(apexBundles) == 0 {
+	a, ok := mctx.Module().(*apexBundle)
+	if !ok || a.vndkApex {
 		return
 	}
-
-	cur := mctx.Module().(android.DepIsInSameApex)
-
-	mctx.VisitDirectDeps(func(child android.Module) {
-		depName := mctx.OtherModuleName(child)
-		if am, ok := child.(android.ApexModule); ok && am.CanHaveApexVariants() &&
-			(cur.DepIsInSameApex(mctx, child) || inAnySdk(child)) {
-			android.UpdateApexDependency(apexBundles, depName, directDep)
-			am.BuildForApexes(apexBundles)
+	apexInfo := android.ApexInfo{
+		ApexName:      mctx.ModuleName(),
+		MinSdkVersion: a.minSdkVersion(mctx),
+		Updatable:     a.Updatable(),
+	}
+	mctx.WalkDeps(func(child, parent android.Module) bool {
+		am, ok := child.(android.ApexModule)
+		if !ok || !am.CanHaveApexVariants() {
+			return false
 		}
+		if !parent.(android.DepIsInSameApex).DepIsInSameApex(mctx, child) && !inAnySdk(child) {
+			return false
+		}
+
+		depName := mctx.OtherModuleName(child)
+		// If the parent is apexBundle, this child is directly depended.
+		_, directDep := parent.(*apexBundle)
+		android.UpdateApexDependency(apexInfo, depName, directDep)
+		am.BuildForApex(apexInfo)
+		return true
 	})
 }
 
@@ -1255,6 +1252,7 @@ type apexFile struct {
 	hostRequiredModuleNames   []string
 
 	jacocoReportClassesFile android.Path     // only for javalibs and apps
+	lintDepSets             java.LintDepSets // only for javalibs and apps
 	certificate             java.Certificate // only for apps
 	overriddenPackageName   string           // only for apps
 
@@ -1379,6 +1377,9 @@ type apexBundle struct {
 
 	// Struct holding the merged notice file paths in different formats
 	mergedNotices android.NoticeOutputs
+
+	// Optional list of lint report zip files for apexes that contain java or app modules
+	lintReports android.Paths
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
@@ -1767,8 +1768,15 @@ func apexFileForShBinary(ctx android.BaseModuleContext, sh *sh.ShBinary) apexFil
 type javaDependency interface {
 	DexJarBuildPath() android.Path
 	JacocoReportClassesFile() android.Path
+	LintDepSets() java.LintDepSets
+
 	Stem() string
 }
+
+var _ javaDependency = (*java.Library)(nil)
+var _ javaDependency = (*java.SdkLibrary)(nil)
+var _ javaDependency = (*java.DexImport)(nil)
+var _ javaDependency = (*java.SdkLibraryImport)(nil)
 
 func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaDependency, module android.Module) apexFile {
 	dirInApex := "javalib"
@@ -1777,6 +1785,7 @@ func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaDependency, m
 	name := strings.TrimPrefix(module.Name(), "prebuilt_")
 	af := newApexFile(ctx, fileToCopy, name, dirInApex, javaSharedLib, module)
 	af.jacocoReportClassesFile = lib.JacocoReportClassesFile()
+	af.lintDepSets = lib.LintDepSets()
 	af.stem = lib.Stem() + ".jar"
 	return af
 }
@@ -2369,6 +2378,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 
 	a.buildApexDependencyInfo(ctx)
+
+	a.buildLintReports(ctx)
 }
 
 // Enforce that Java deps of the apex are using stable SDKs to compile
