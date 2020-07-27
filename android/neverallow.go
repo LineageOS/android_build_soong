@@ -56,6 +56,7 @@ func init() {
 	AddNeverAllowRules(createJavaDeviceForHostRules()...)
 	AddNeverAllowRules(createCcSdkVariantRules()...)
 	AddNeverAllowRules(createUncompressDexRules()...)
+	AddNeverAllowRules(createMakefileGoalRules()...)
 }
 
 // Add a NeverAllow rule to the set of rules to apply.
@@ -228,6 +229,15 @@ func createUncompressDexRules() []Rule {
 			NotIn("art").
 			WithMatcher("uncompress_dex", isSetMatcherInstance).
 			Because("uncompress_dex is only allowed for certain jars for test in art."),
+	}
+}
+
+func createMakefileGoalRules() []Rule {
+	return []Rule{
+		NeverAllow().
+			ModuleType("makefile_goal").
+			WithoutMatcher("product_out_path", Regexp("^boot[0-9a-zA-Z.-]*[.]img$")).
+			Because("Only boot images may be imported as a makefile goal."),
 	}
 }
 
