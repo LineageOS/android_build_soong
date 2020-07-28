@@ -208,7 +208,7 @@ func stubFlagsRule(ctx android.SingletonContext) {
 }
 
 // flagsRule creates a rule to build hiddenapi-flags.csv out of flags.csv files generated for boot image modules and
-// the greylists.
+// the unsupported API.
 func flagsRule(ctx android.SingletonContext) android.Path {
 	var flagsCSV android.Paths
 	var greylistRemovedApis android.Paths
@@ -247,18 +247,18 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 		Tool(android.PathForSource(ctx, "frameworks/base/tools/hiddenapi/generate_hiddenapi_lists.py")).
 		FlagWithInput("--csv ", stubFlags).
 		Inputs(flagsCSV).
-		FlagWithInput("--greylist ",
+		FlagWithInput("--unsupported ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist.txt")).
-		FlagWithInput("--greylist-ignore-conflicts ", combinedRemovedApis).
-		FlagWithInput("--greylist-max-q ",
+		FlagWithInput("--unsupported-ignore-conflicts ", combinedRemovedApis).
+		FlagWithInput("--max-target-q ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-q.txt")).
-		FlagWithInput("--greylist-max-p ",
+		FlagWithInput("--max-target-p ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-p.txt")).
-		FlagWithInput("--greylist-max-o-ignore-conflicts ",
+		FlagWithInput("--max-target-o-ignore-conflicts ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-o.txt")).
-		FlagWithInput("--blacklist ",
+		FlagWithInput("--blocked ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-force-blacklist.txt")).
-		FlagWithInput("--greylist-packages ",
+		FlagWithInput("--unsupported-packages ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-packages.txt")).
 		FlagWithOutput("--output ", tempPath)
 
