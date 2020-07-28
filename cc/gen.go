@@ -24,6 +24,7 @@ import (
 )
 
 func init() {
+	pctx.SourcePathVariable("lexCmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/flex")
 	pctx.SourcePathVariable("m4Cmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/m4")
 
 	pctx.HostBinToolVariable("aidlCmd", "aidl-cpp")
@@ -31,6 +32,12 @@ func init() {
 }
 
 var (
+	lex = pctx.AndroidStaticRule("lex",
+		blueprint.RuleParams{
+			Command:     "M4=$m4Cmd $lexCmd -o$out $in",
+			CommandDeps: []string{"$lexCmd", "$m4Cmd"},
+		})
+
 	sysprop = pctx.AndroidStaticRule("sysprop",
 		blueprint.RuleParams{
 			Command: "$syspropCmd --header-dir=$headerOutDir --public-header-dir=$publicOutDir " +
@@ -59,8 +66,7 @@ type YaccProperties struct {
 }
 
 func genYacc(ctx android.ModuleContext, rule *android.RuleBuilder, yaccFile android.Path,
-	outFile android.ModuleGenPath, props *YaccProperties,
-	tools map[string]android.Path) (headerFiles android.Paths) {
+	outFile android.ModuleGenPath, props *YaccProperties) (headerFiles android.Paths) {
 
 	outDir := android.PathForModuleGen(ctx, "yacc")
 	headerFile := android.GenPathWithExt(ctx, "yacc", yaccFile, "h")
@@ -91,17 +97,9 @@ func genYacc(ctx android.ModuleContext, rule *android.RuleBuilder, yaccFile andr
 		}
 	}
 
-	bison, ok := tools["bison"]
-	if !ok {
-		ctx.ModuleErrorf("Unable to find bison")
-	}
-	m4, ok := tools["m4"]
-	if !ok {
-		ctx.ModuleErrorf("Unable to find m4")
-	}
-
-	cmd.FlagWithInput("M4=", m4).
-		Tool(bison).
+	cmd.Text("BISON_PKGDATADIR=prebuilts/build-tools/common/bison").
+		FlagWithInput("M4=", ctx.Config().PrebuiltBuildTool(ctx, "m4")).
+		PrebuiltBuildTool(ctx, "bison").
 		Flag("-d").
 		Flags(flags).
 		FlagWithOutput("--defines=", headerFile).
@@ -155,23 +153,13 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 	}
 }
 
-func genLex(ctx android.ModuleContext, rule *android.RuleBuilder, lexFile android.Path,
-	outFile android.ModuleGenPath, tools map[string]android.Path) {
-
-	flex, ok := tools["flex"]
-	if !ok {
-		ctx.ModuleErrorf("Unable to find flex")
-	}
-	m4, ok := tools["m4"]
-	if !ok {
-		ctx.ModuleErrorf("Unable to find m4")
-	}
-
-	rule.Command().
-		FlagWithInput("M4=", m4).
-		Tool(flex).
-		FlagWithOutput("-o", outFile).
-		Input(lexFile)
+func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.ModuleGenPath) {
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        lex,
+		Description: "lex " + lexFile.Rel(),
+		Output:      outFile,
+		Input:       lexFile,
+	})
 }
 
 func genSysprop(ctx android.ModuleContext, syspropFile android.Path) (android.Path, android.Paths) {
@@ -218,21 +206,13 @@ func genWinMsg(ctx android.ModuleContext, srcFile android.Path, flags builderFla
 	return rcFile, headerFile
 }
 
-func genSources(ctx android.ModuleContext, srcFiles android.Paths, buildFlags builderFlags,
-	tools map[string]android.Path) (android.Paths, android.Paths) {
+func genSources(ctx android.ModuleContext, srcFiles android.Paths,
+	buildFlags builderFlags) (android.Paths, android.Paths) {
 
 	var deps android.Paths
 	var rsFiles android.Paths
 
 	var aidlRule *android.RuleBuilder
-
-	var lexRule_ *android.RuleBuilder
-	lexRule := func() *android.RuleBuilder {
-		if lexRule_ == nil {
-			lexRule_ = android.NewRuleBuilder().Sbox(android.PathForModuleGen(ctx, "lex"))
-		}
-		return lexRule_
-	}
 
 	var yaccRule_ *android.RuleBuilder
 	yaccRule := func() *android.RuleBuilder {
@@ -247,19 +227,19 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths, buildFlags bu
 		case ".y":
 			cFile := android.GenPathWithExt(ctx, "yacc", srcFile, "c")
 			srcFiles[i] = cFile
-			deps = append(deps, genYacc(ctx, yaccRule(), srcFile, cFile, buildFlags.yacc, tools)...)
+			deps = append(deps, genYacc(ctx, yaccRule(), srcFile, cFile, buildFlags.yacc)...)
 		case ".yy":
 			cppFile := android.GenPathWithExt(ctx, "yacc", srcFile, "cpp")
 			srcFiles[i] = cppFile
-			deps = append(deps, genYacc(ctx, yaccRule(), srcFile, cppFile, buildFlags.yacc, tools)...)
+			deps = append(deps, genYacc(ctx, yaccRule(), srcFile, cppFile, buildFlags.yacc)...)
 		case ".l":
 			cFile := android.GenPathWithExt(ctx, "lex", srcFile, "c")
 			srcFiles[i] = cFile
-			genLex(ctx, lexRule(), srcFile, cFile, tools)
+			genLex(ctx, srcFile, cFile)
 		case ".ll":
 			cppFile := android.GenPathWithExt(ctx, "lex", srcFile, "cpp")
 			srcFiles[i] = cppFile
-			genLex(ctx, lexRule(), srcFile, cppFile, tools)
+			genLex(ctx, srcFile, cppFile)
 		case ".proto":
 			ccFile, headerFile := genProto(ctx, srcFile, buildFlags)
 			srcFiles[i] = ccFile
@@ -289,10 +269,6 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths, buildFlags bu
 
 	if aidlRule != nil {
 		aidlRule.Build(pctx, ctx, "aidl", "gen aidl")
-	}
-
-	if lexRule_ != nil {
-		lexRule_.Build(pctx, ctx, "lex", "gen lex")
 	}
 
 	if yaccRule_ != nil {
