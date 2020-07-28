@@ -219,7 +219,7 @@ func TestRLEBuffer(t *testing.T) {
 	}
 }
 
-// fakeHash32 is a dummy Hash32 that always returns 0.
+// fakeHash32 is a fake Hash32 that always returns 0.
 type fakeHash32 struct {
 	hash.Hash32
 }
