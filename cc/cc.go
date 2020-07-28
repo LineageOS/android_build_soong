@@ -3034,7 +3034,7 @@ func squashRecoverySrcs(m *Module) {
 var _ android.ImageInterface = (*Module)(nil)
 
 func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
-	// Sanity check
+	// Validation check
 	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
 	productSpecific := mctx.ProductSpecific()
 
