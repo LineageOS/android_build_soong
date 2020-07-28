@@ -65,7 +65,7 @@ type IntermPathProvider interface {
 }
 
 var (
-	stubTemplateHost = "build/soong/python/scripts/stub_template_host.txt"
+	StubTemplateHost = "build/soong/python/scripts/stub_template_host.txt"
 )
 
 func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
