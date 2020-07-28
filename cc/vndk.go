@@ -559,10 +559,6 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		return
 	}
 
-	if ctx.DeviceConfig().BoardVndkRuntimeDisable() {
-		return
-	}
-
 	var snapshotOutputs android.Paths
 
 	/*

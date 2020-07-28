@@ -1252,10 +1252,6 @@ func (c *config) MissingUsesLibraries() []string {
 	return c.productVariables.MissingUsesLibraries
 }
 
-func (c *deviceConfig) BoardVndkRuntimeDisable() bool {
-	return Bool(c.config.productVariables.BoardVndkRuntimeDisable)
-}
-
 func (c *deviceConfig) DeviceArch() string {
 	return String(c.config.productVariables.DeviceArch)
 }
