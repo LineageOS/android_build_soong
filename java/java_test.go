@@ -31,6 +31,7 @@ import (
 	"android/soong/cc"
 	"android/soong/dexpreopt"
 	"android/soong/genrule"
+	"android/soong/python"
 )
 
 var buildDir string
@@ -81,6 +82,7 @@ func testContext() *android.TestContext {
 	ctx.RegisterModuleType("java_plugin", PluginFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("genrule", genrule.GenRuleFactory)
+	ctx.RegisterModuleType("python_binary_host", python.PythonBinaryHostFactory)
 	RegisterDocsBuildComponents(ctx)
 	RegisterStubsBuildComponents(ctx)
 	RegisterSdkLibraryBuildComponents(ctx)
@@ -89,6 +91,7 @@ func testContext() *android.TestContext {
 
 	RegisterPrebuiltApisBuildComponents(ctx)
 
+	ctx.PreDepsMutators(python.RegisterPythonPreDepsMutators)
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 	ctx.RegisterPreSingletonType("overlay", android.SingletonFactoryAdaptor(OverlaySingletonFactory))
 	ctx.RegisterPreSingletonType("sdk_versions", android.SingletonFactoryAdaptor(sdkPreSingletonFactory))
@@ -2006,5 +2009,30 @@ func TestAidlExportIncludeDirsFromImports(t *testing.T) {
 	expectedAidlFlag := "-Iaidl/bar"
 	if !strings.Contains(aidlCommand, expectedAidlFlag) {
 		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
+	}
+}
+
+func TestDataNativeBinaries(t *testing.T) {
+	ctx, config := testJava(t, `
+		java_test_host {
+			name: "foo",
+			srcs: ["a.java"],
+			data_native_bins: ["bin"]
+		}
+
+		python_binary_host {
+			name: "bin",
+			srcs: ["bin.py"],
+		}
+	`)
+
+	buildOS := android.BuildOs.String()
+
+	test := ctx.ModuleForTests("foo", buildOS+"_common").Module().(*TestHost)
+	entries := android.AndroidMkEntriesForTest(t, config, "", test)[0]
+	expected := []string{buildDir + "/.intermediates/bin/" + buildOS + "_x86_64_PY3/bin:bin"}
+	actual := entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"]
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Unexpected test data - expected: %q, actual: %q", expected, actual)
 	}
 }
