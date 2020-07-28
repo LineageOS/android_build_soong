@@ -259,9 +259,9 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		// If AllowMissingDependencies is enabled, the build will not have stopped when
 		// AddFarVariationDependencies was called on a missing tool, which will result in nonsensical
-		// "cmd: unknown location label ..." errors later.  Add a dummy file to the local label.  The
-		// command that uses this dummy file will never be executed because the rule will be replaced with
-		// an android.Error rule reporting the missing dependencies.
+		// "cmd: unknown location label ..." errors later.  Add a placeholder file to the local label.
+		// The command that uses this placeholder file will never be executed because the rule will be
+		// replaced with an android.Error rule reporting the missing dependencies.
 		if ctx.Config().AllowMissingDependencies() {
 			for _, tool := range g.properties.Tools {
 				if !seenTools[tool] {
@@ -292,9 +292,9 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 			// If AllowMissingDependencies is enabled, the build will not have stopped when
 			// the dependency was added on a missing SourceFileProducer module, which will result in nonsensical
-			// "cmd: label ":..." has no files" errors later.  Add a dummy file to the local label.  The
-			// command that uses this dummy file will never be executed because the rule will be replaced with
-			// an android.Error rule reporting the missing dependencies.
+			// "cmd: label ":..." has no files" errors later.  Add a placeholder file to the local label.
+			// The command that uses this placeholder file will never be executed because the rule will be
+			// replaced with an android.Error rule reporting the missing dependencies.
 			ctx.AddMissingDependencies(missingDeps)
 			addLocationLabel(in, []string{"***missing srcs " + in + "***"})
 		} else {
