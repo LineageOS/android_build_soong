@@ -252,7 +252,7 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext,
 	return projectXMLPath, configXMLPath, cacheDir, homeDir, deps
 }
 
-// generateManifest adds a command to the rule to write a dummy manifest cat contains the
+// generateManifest adds a command to the rule to write a simple manifest that contains the
 // minSdkVersion and targetSdkVersion for modules (like java_library) that don't have a manifest.
 func (l *linter) generateManifest(ctx android.ModuleContext, rule *android.RuleBuilder) android.Path {
 	manifestPath := android.PathForModuleOut(ctx, "lint", "AndroidManifest.xml")
