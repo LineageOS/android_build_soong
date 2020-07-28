@@ -30,9 +30,11 @@ import (
 )
 
 func init() {
-	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("version_split", versionSplitMutator()).Parallel()
-	})
+	android.PreDepsMutators(RegisterPythonPreDepsMutators)
+}
+
+func RegisterPythonPreDepsMutators(ctx android.RegisterMutatorsContext) {
+	ctx.BottomUp("version_split", versionSplitMutator()).Parallel()
 }
 
 // the version properties that apply to python libraries and binaries.
@@ -226,15 +228,20 @@ func versionSplitMutator() func(android.BottomUpMutatorContext) {
 	return func(mctx android.BottomUpMutatorContext) {
 		if base, ok := mctx.Module().(*Module); ok {
 			versionNames := []string{}
-			if base.properties.Version.Py2.Enabled != nil &&
-				*(base.properties.Version.Py2.Enabled) == true {
-				versionNames = append(versionNames, pyVersion2)
-			}
+			// PY3 is first so that we alias the PY3 variant rather than PY2 if both
+			// are available
 			if !(base.properties.Version.Py3.Enabled != nil &&
 				*(base.properties.Version.Py3.Enabled) == false) {
 				versionNames = append(versionNames, pyVersion3)
 			}
+			if base.properties.Version.Py2.Enabled != nil &&
+				*(base.properties.Version.Py2.Enabled) == true {
+				versionNames = append(versionNames, pyVersion2)
+			}
 			modules := mctx.CreateVariations(versionNames...)
+			if len(versionNames) > 0 {
+				mctx.AliasVariation(versionNames[0])
+			}
 			for i, v := range versionNames {
 				// set the actual version for Python module.
 				modules[i].(*Module).properties.Actual_version = v
