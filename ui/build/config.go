@@ -96,7 +96,7 @@ func NewConfig(ctx Context, args ...string) Config {
 		environ: OsEnvironment(),
 	}
 
-	// Sane default matching ninja
+	// Default matching ninja
 	ret.parallel = runtime.NumCPU() + 2
 	ret.keepGoing = 1
 
