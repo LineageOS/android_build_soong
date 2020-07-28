@@ -178,6 +178,8 @@ type SanitizeProperties struct {
 
 		// value to pass to -fsanitize-blacklist
 		Blacklist *string
+		// value to pass to -fsanitize-blacklist
+		Blocklist *string
 	} `android:"arch_variant"`
 
 	SanitizerEnabled  bool     `blueprint:"mutated"`
@@ -598,6 +600,12 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	if blacklist.Valid() {
 		flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize-blacklist="+blacklist.String())
 		flags.CFlagsDeps = append(flags.CFlagsDeps, blacklist.Path())
+	}
+
+	blocklist := android.OptionalPathForModuleSrc(ctx, sanitize.Properties.Sanitize.Blocklist)
+	if blocklist.Valid() {
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize-blacklist="+blocklist.String())
+		flags.CFlagsDeps = append(flags.CFlagsDeps, blocklist.Path())
 	}
 
 	return flags
