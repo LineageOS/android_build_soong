@@ -1683,7 +1683,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	impRule := android.NewRuleBuilder()
 	impCmd := impRule.Command()
-	// A dummy action that copies the ninja generated rsp file to a new location. This allows us to
+	// An action that copies the ninja generated rsp file to a new location. This allows us to
 	// add a large number of inputs to a file without exceeding bash command length limits (which
 	// would happen if we use the WriteFile rule). The cp is needed because RuleBuilder sets the
 	// rsp file to be ${output}.rsp.
