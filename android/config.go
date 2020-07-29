@@ -337,8 +337,8 @@ func NewConfig(srcDir, buildDir string, moduleListFile string) (Config, error) {
 		config: config,
 	}
 
-	// Sanity check the build and source directories. This won't catch strange
-	// configurations with symlinks, but at least checks the obvious cases.
+	// Soundness check of the build and source directories. This won't catch strange
+	// configurations with symlinks, but at least checks the obvious case.
 	absBuildDir, err := filepath.Abs(buildDir)
 	if err != nil {
 		return Config{}, err
