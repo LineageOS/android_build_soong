@@ -33,7 +33,7 @@ type baseSourceProvider struct {
 var _ SourceProvider = (*baseSourceProvider)(nil)
 
 type SourceProvider interface {
-	generateSource(ctx android.ModuleContext) android.Path
+	generateSource(ctx android.ModuleContext, deps PathDeps) android.Path
 	Srcs() android.Paths
 	sourceProviderProps() []interface{}
 	sourceProviderDeps(ctx DepsContext, deps Deps) Deps
@@ -43,7 +43,7 @@ func (sp *baseSourceProvider) Srcs() android.Paths {
 	return android.Paths{sp.outputFile}
 }
 
-func (sp *baseSourceProvider) generateSource(ctx android.ModuleContext) android.Path {
+func (sp *baseSourceProvider) generateSource(ctx android.ModuleContext, deps PathDeps) android.Path {
 	panic("baseSourceProviderModule does not implement generateSource()")
 }
 
