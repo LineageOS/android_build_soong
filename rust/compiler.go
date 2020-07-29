@@ -199,7 +199,7 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
-func (compiler *baseCompiler) bionicDeps(ctx DepsContext, deps Deps) Deps {
+func bionicDeps(deps Deps) Deps {
 	deps.SharedLibs = append(deps.SharedLibs, "liblog")
 	deps.SharedLibs = append(deps.SharedLibs, "libc")
 	deps.SharedLibs = append(deps.SharedLibs, "libm")

@@ -48,9 +48,9 @@ func TestRustBindgen(t *testing.T) {
 		t.Errorf("missing clang cflags in rust_bindgen rule: cflags %#v", libbindgen.Args["cflags"])
 	}
 	if !strings.Contains(libbindgen.Args["cflags"], "-Ishared_include") {
-		t.Errorf("missing clang cflags in rust_bindgen rule: cflags %#v", libbindgen.Args["cflags"])
+		t.Errorf("missing shared_libs exported includes in rust_bindgen rule: cflags %#v", libbindgen.Args["cflags"])
 	}
 	if !strings.Contains(libbindgen.Args["cflags"], "-Istatic_include") {
-		t.Errorf("missing clang cflags in rust_bindgen rule: cflags %#v", libbindgen.Args["cflags"])
+		t.Errorf("missing static_libs exported includes in rust_bindgen rule: cflags %#v", libbindgen.Args["cflags"])
 	}
 }
