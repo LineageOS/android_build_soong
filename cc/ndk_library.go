@@ -396,8 +396,8 @@ func newStubLibrary() *Module {
 	return module
 }
 
-// ndk_library creates a stub library that exposes dummy implementation
-// of functions and variables for use at build time only.
+// ndk_library creates a library that exposes a stub implementation of functions
+// and variables for use at build time only.
 func NdkLibraryFactory() android.Module {
 	module := newStubLibrary()
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
