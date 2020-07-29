@@ -26,64 +26,64 @@ import (
 
 func TestStatusOutput(t *testing.T) {
 	tests := []struct {
-		name  string
-		calls func(stat status.StatusOutput)
-		smart string
-		dumb  string
+		name   string
+		calls  func(stat status.StatusOutput)
+		smart  string
+		simple string
 	}{
 		{
-			name:  "two actions",
-			calls: twoActions,
-			smart: "\r\x1b[1m[  0% 0/2] action1\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action1\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action2\x1b[0m\x1b[K\r\x1b[1m[100% 2/2] action2\x1b[0m\x1b[K\n",
-			dumb:  "[ 50% 1/2] action1\n[100% 2/2] action2\n",
+			name:   "two actions",
+			calls:  twoActions,
+			smart:  "\r\x1b[1m[  0% 0/2] action1\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action1\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action2\x1b[0m\x1b[K\r\x1b[1m[100% 2/2] action2\x1b[0m\x1b[K\n",
+			simple: "[ 50% 1/2] action1\n[100% 2/2] action2\n",
 		},
 		{
-			name:  "two parallel actions",
-			calls: twoParallelActions,
-			smart: "\r\x1b[1m[  0% 0/2] action1\x1b[0m\x1b[K\r\x1b[1m[  0% 0/2] action2\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action1\x1b[0m\x1b[K\r\x1b[1m[100% 2/2] action2\x1b[0m\x1b[K\n",
-			dumb:  "[ 50% 1/2] action1\n[100% 2/2] action2\n",
+			name:   "two parallel actions",
+			calls:  twoParallelActions,
+			smart:  "\r\x1b[1m[  0% 0/2] action1\x1b[0m\x1b[K\r\x1b[1m[  0% 0/2] action2\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action1\x1b[0m\x1b[K\r\x1b[1m[100% 2/2] action2\x1b[0m\x1b[K\n",
+			simple: "[ 50% 1/2] action1\n[100% 2/2] action2\n",
 		},
 		{
-			name:  "action with output",
-			calls: actionsWithOutput,
-			smart: "\r\x1b[1m[  0% 0/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action2\x1b[0m\x1b[K\r\x1b[1m[ 66% 2/3] action2\x1b[0m\x1b[K\noutput1\noutput2\n\r\x1b[1m[ 66% 2/3] action3\x1b[0m\x1b[K\r\x1b[1m[100% 3/3] action3\x1b[0m\x1b[K\n",
-			dumb:  "[ 33% 1/3] action1\n[ 66% 2/3] action2\noutput1\noutput2\n[100% 3/3] action3\n",
+			name:   "action with output",
+			calls:  actionsWithOutput,
+			smart:  "\r\x1b[1m[  0% 0/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action2\x1b[0m\x1b[K\r\x1b[1m[ 66% 2/3] action2\x1b[0m\x1b[K\noutput1\noutput2\n\r\x1b[1m[ 66% 2/3] action3\x1b[0m\x1b[K\r\x1b[1m[100% 3/3] action3\x1b[0m\x1b[K\n",
+			simple: "[ 33% 1/3] action1\n[ 66% 2/3] action2\noutput1\noutput2\n[100% 3/3] action3\n",
 		},
 		{
-			name:  "action with output without newline",
-			calls: actionsWithOutputWithoutNewline,
-			smart: "\r\x1b[1m[  0% 0/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action2\x1b[0m\x1b[K\r\x1b[1m[ 66% 2/3] action2\x1b[0m\x1b[K\noutput1\noutput2\n\r\x1b[1m[ 66% 2/3] action3\x1b[0m\x1b[K\r\x1b[1m[100% 3/3] action3\x1b[0m\x1b[K\n",
-			dumb:  "[ 33% 1/3] action1\n[ 66% 2/3] action2\noutput1\noutput2\n[100% 3/3] action3\n",
+			name:   "action with output without newline",
+			calls:  actionsWithOutputWithoutNewline,
+			smart:  "\r\x1b[1m[  0% 0/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action2\x1b[0m\x1b[K\r\x1b[1m[ 66% 2/3] action2\x1b[0m\x1b[K\noutput1\noutput2\n\r\x1b[1m[ 66% 2/3] action3\x1b[0m\x1b[K\r\x1b[1m[100% 3/3] action3\x1b[0m\x1b[K\n",
+			simple: "[ 33% 1/3] action1\n[ 66% 2/3] action2\noutput1\noutput2\n[100% 3/3] action3\n",
 		},
 		{
-			name:  "action with error",
-			calls: actionsWithError,
-			smart: "\r\x1b[1m[  0% 0/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action2\x1b[0m\x1b[K\r\x1b[1m[ 66% 2/3] action2\x1b[0m\x1b[K\nFAILED: f1 f2\ntouch f1 f2\nerror1\nerror2\n\r\x1b[1m[ 66% 2/3] action3\x1b[0m\x1b[K\r\x1b[1m[100% 3/3] action3\x1b[0m\x1b[K\n",
-			dumb:  "[ 33% 1/3] action1\n[ 66% 2/3] action2\nFAILED: f1 f2\ntouch f1 f2\nerror1\nerror2\n[100% 3/3] action3\n",
+			name:   "action with error",
+			calls:  actionsWithError,
+			smart:  "\r\x1b[1m[  0% 0/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action1\x1b[0m\x1b[K\r\x1b[1m[ 33% 1/3] action2\x1b[0m\x1b[K\r\x1b[1m[ 66% 2/3] action2\x1b[0m\x1b[K\nFAILED: f1 f2\ntouch f1 f2\nerror1\nerror2\n\r\x1b[1m[ 66% 2/3] action3\x1b[0m\x1b[K\r\x1b[1m[100% 3/3] action3\x1b[0m\x1b[K\n",
+			simple: "[ 33% 1/3] action1\n[ 66% 2/3] action2\nFAILED: f1 f2\ntouch f1 f2\nerror1\nerror2\n[100% 3/3] action3\n",
 		},
 		{
-			name:  "action with empty description",
-			calls: actionWithEmptyDescription,
-			smart: "\r\x1b[1m[  0% 0/1] command1\x1b[0m\x1b[K\r\x1b[1m[100% 1/1] command1\x1b[0m\x1b[K\n",
-			dumb:  "[100% 1/1] command1\n",
+			name:   "action with empty description",
+			calls:  actionWithEmptyDescription,
+			smart:  "\r\x1b[1m[  0% 0/1] command1\x1b[0m\x1b[K\r\x1b[1m[100% 1/1] command1\x1b[0m\x1b[K\n",
+			simple: "[100% 1/1] command1\n",
 		},
 		{
-			name:  "messages",
-			calls: actionsWithMessages,
-			smart: "\r\x1b[1m[  0% 0/2] action1\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action1\x1b[0m\x1b[K\r\x1b[1mstatus\x1b[0m\x1b[K\r\x1b[Kprint\nFAILED: error\n\r\x1b[1m[ 50% 1/2] action2\x1b[0m\x1b[K\r\x1b[1m[100% 2/2] action2\x1b[0m\x1b[K\n",
-			dumb:  "[ 50% 1/2] action1\nstatus\nprint\nFAILED: error\n[100% 2/2] action2\n",
+			name:   "messages",
+			calls:  actionsWithMessages,
+			smart:  "\r\x1b[1m[  0% 0/2] action1\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action1\x1b[0m\x1b[K\r\x1b[1mstatus\x1b[0m\x1b[K\r\x1b[Kprint\nFAILED: error\n\r\x1b[1m[ 50% 1/2] action2\x1b[0m\x1b[K\r\x1b[1m[100% 2/2] action2\x1b[0m\x1b[K\n",
+			simple: "[ 50% 1/2] action1\nstatus\nprint\nFAILED: error\n[100% 2/2] action2\n",
 		},
 		{
-			name:  "action with long description",
-			calls: actionWithLongDescription,
-			smart: "\r\x1b[1m[  0% 0/2] action with very long descrip\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action with very long descrip\x1b[0m\x1b[K\n",
-			dumb:  "[ 50% 1/2] action with very long description to test eliding\n",
+			name:   "action with long description",
+			calls:  actionWithLongDescription,
+			smart:  "\r\x1b[1m[  0% 0/2] action with very long descrip\x1b[0m\x1b[K\r\x1b[1m[ 50% 1/2] action with very long descrip\x1b[0m\x1b[K\n",
+			simple: "[ 50% 1/2] action with very long description to test eliding\n",
 		},
 		{
-			name:  "action with output with ansi codes",
-			calls: actionWithOuptutWithAnsiCodes,
-			smart: "\r\x1b[1m[  0% 0/1] action1\x1b[0m\x1b[K\r\x1b[1m[100% 1/1] action1\x1b[0m\x1b[K\n\x1b[31mcolor\x1b[0m\n",
-			dumb:  "[100% 1/1] action1\ncolor\n",
+			name:   "action with output with ansi codes",
+			calls:  actionWithOuptutWithAnsiCodes,
+			smart:  "\r\x1b[1m[  0% 0/1] action1\x1b[0m\x1b[K\r\x1b[1m[100% 1/1] action1\x1b[0m\x1b[K\n\x1b[31mcolor\x1b[0m\n",
+			simple: "[100% 1/1] action1\ncolor\n",
 		},
 	}
 
@@ -103,24 +103,24 @@ func TestStatusOutput(t *testing.T) {
 				}
 			})
 
-			t.Run("dumb", func(t *testing.T) {
-				dumb := &bytes.Buffer{}
-				stat := NewStatusOutput(dumb, "", false, false)
+			t.Run("simple", func(t *testing.T) {
+				simple := &bytes.Buffer{}
+				stat := NewStatusOutput(simple, "", false, false)
 				tt.calls(stat)
 				stat.Flush()
 
-				if g, w := dumb.String(), tt.dumb; g != w {
+				if g, w := simple.String(), tt.simple; g != w {
 					t.Errorf("want:\n%q\ngot:\n%q", w, g)
 				}
 			})
 
-			t.Run("force dumb", func(t *testing.T) {
+			t.Run("force simple", func(t *testing.T) {
 				smart := &fakeSmartTerminal{termWidth: 40}
 				stat := NewStatusOutput(smart, "", true, false)
 				tt.calls(stat)
 				stat.Flush()
 
-				if g, w := smart.String(), tt.dumb; g != w {
+				if g, w := smart.String(), tt.simple; g != w {
 					t.Errorf("want:\n%q\ngot:\n%q", w, g)
 				}
 			})

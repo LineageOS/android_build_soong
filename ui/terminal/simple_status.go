@@ -21,31 +21,31 @@ import (
 	"android/soong/ui/status"
 )
 
-type dumbStatusOutput struct {
+type simpleStatusOutput struct {
 	writer    io.Writer
 	formatter formatter
 }
 
-// NewDumbStatusOutput returns a StatusOutput that represents the
+// NewSimpleStatusOutput returns a StatusOutput that represents the
 // current build status similarly to Ninja's built-in terminal
 // output.
-func NewDumbStatusOutput(w io.Writer, formatter formatter) status.StatusOutput {
-	return &dumbStatusOutput{
+func NewSimpleStatusOutput(w io.Writer, formatter formatter) status.StatusOutput {
+	return &simpleStatusOutput{
 		writer:    w,
 		formatter: formatter,
 	}
 }
 
-func (s *dumbStatusOutput) Message(level status.MsgLevel, message string) {
+func (s *simpleStatusOutput) Message(level status.MsgLevel, message string) {
 	if level >= status.StatusLvl {
 		fmt.Fprintln(s.writer, s.formatter.message(level, message))
 	}
 }
 
-func (s *dumbStatusOutput) StartAction(action *status.Action, counts status.Counts) {
+func (s *simpleStatusOutput) StartAction(action *status.Action, counts status.Counts) {
 }
 
-func (s *dumbStatusOutput) FinishAction(result status.ActionResult, counts status.Counts) {
+func (s *simpleStatusOutput) FinishAction(result status.ActionResult, counts status.Counts) {
 	str := result.Description
 	if str == "" {
 		str = result.Command
@@ -63,9 +63,9 @@ func (s *dumbStatusOutput) FinishAction(result status.ActionResult, counts statu
 	}
 }
 
-func (s *dumbStatusOutput) Flush() {}
+func (s *simpleStatusOutput) Flush() {}
 
-func (s *dumbStatusOutput) Write(p []byte) (int, error) {
+func (s *simpleStatusOutput) Write(p []byte) (int, error) {
 	fmt.Fprint(s.writer, string(p))
 	return len(p), nil
 }
