@@ -2640,12 +2640,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			makeLibName := c.makeLibName(ctx, ccDep, depName) + libDepTag.makeSuffix
 			switch {
 			case libDepTag.header():
-				// TODO(ccross): The reexportFlags check is there to maintain previous
-				//   behavior when adding libraryDependencyTag and should be removed.
-				if !libDepTag.reexportFlags {
-					c.Properties.AndroidMkHeaderLibs = append(
-						c.Properties.AndroidMkHeaderLibs, makeLibName)
-				}
+				c.Properties.AndroidMkHeaderLibs = append(
+					c.Properties.AndroidMkHeaderLibs, makeLibName)
 			case libDepTag.shared():
 				if ccDep.CcLibrary() {
 					if ccDep.BuildStubs() && android.InAnyApex(depName) {
@@ -2660,13 +2656,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 				// Note: the order of libs in this list is not important because
 				// they merely serve as Make dependencies and do not affect this lib itself.
-				// TODO(ccross): The reexportFlags, order and ndk checks are there to
-				//   maintain previous behavior when adding libraryDependencyTag and
-				//   should be removed.
-				if !c.static() || libDepTag.reexportFlags || libDepTag.Order == lateLibraryDependency || libDepTag.ndk {
-					c.Properties.AndroidMkSharedLibs = append(
-						c.Properties.AndroidMkSharedLibs, makeLibName)
-				}
+				c.Properties.AndroidMkSharedLibs = append(
+					c.Properties.AndroidMkSharedLibs, makeLibName)
 				// Record baseLibName for snapshots.
 				c.Properties.SnapshotSharedLibs = append(c.Properties.SnapshotSharedLibs, baseLibName(depName))
 			case libDepTag.static():
