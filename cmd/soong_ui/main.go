@@ -35,14 +35,14 @@ import (
 // A command represents an operation to be executed in the soong build
 // system.
 type command struct {
-	// the flag name (must have double dashes)
+	// The flag name (must have double dashes).
 	flag string
 
-	// description for the flag (to display when running help)
+	// Description for the flag (to display when running help).
 	description string
 
-	// Forces the status output into dumb terminal mode.
-	forceDumbOutput bool
+	// Stream the build status output into the simple terminal mode.
+	simpleOutput bool
 
 	// Sets a prefix string to use for filenames of log files.
 	logsPrefix string
@@ -70,21 +70,21 @@ var commands []command = []command{
 		stdio: stdio,
 		run:   make,
 	}, {
-		flag:            "--dumpvar-mode",
-		description:     "print the value of the legacy make variable VAR to stdout",
-		forceDumbOutput: true,
-		logsPrefix:      "dumpvars-",
-		config:          dumpVarConfig,
-		stdio:           customStdio,
-		run:             dumpVar,
+		flag:         "--dumpvar-mode",
+		description:  "print the value of the legacy make variable VAR to stdout",
+		simpleOutput: true,
+		logsPrefix:   "dumpvars-",
+		config:       dumpVarConfig,
+		stdio:        customStdio,
+		run:          dumpVar,
 	}, {
-		flag:            "--dumpvars-mode",
-		description:     "dump the values of one or more legacy make variables, in shell syntax",
-		forceDumbOutput: true,
-		logsPrefix:      "dumpvars-",
-		config:          dumpVarConfig,
-		stdio:           customStdio,
-		run:             dumpVars,
+		flag:         "--dumpvars-mode",
+		description:  "dump the values of one or more legacy make variables, in shell syntax",
+		simpleOutput: true,
+		logsPrefix:   "dumpvars-",
+		config:       dumpVarConfig,
+		stdio:        customStdio,
+		run:          dumpVars,
 	}, {
 		flag:        "--build-mode",
 		description: "build modules based on the specified build action",
@@ -125,7 +125,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	output := terminal.NewStatusOutput(c.stdio().Stdout(), os.Getenv("NINJA_STATUS"), c.forceDumbOutput,
+	output := terminal.NewStatusOutput(c.stdio().Stdout(), os.Getenv("NINJA_STATUS"), c.simpleOutput,
 		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD"))
 
 	log := logger.New(output)
@@ -172,7 +172,7 @@ func main() {
 	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error")
 	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
 	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
-	defer build.UploadMetrics(buildCtx, config, c.forceDumbOutput, buildStarted, buildErrorFile, rbeMetricsFile, soongMetricsFile)
+	defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, buildErrorFile, rbeMetricsFile, soongMetricsFile)
 
 	os.MkdirAll(logsDir, 0777)
 	log.SetOutput(filepath.Join(logsDir, c.logsPrefix+"soong.log"))
