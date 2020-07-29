@@ -805,7 +805,7 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		if !ok || !am.CanHaveApexVariants() {
 			return false
 		}
-		if !parent.(android.DepIsInSameApex).DepIsInSameApex(mctx, child) && !inAnySdk(child) {
+		if !parent.(android.DepIsInSameApex).DepIsInSameApex(mctx, child) {
 			return false
 		}
 		if excludeVndkLibs {
