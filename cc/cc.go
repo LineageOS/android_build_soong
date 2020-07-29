@@ -2989,9 +2989,7 @@ func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 				return false
 			}
 		}
-		// TODO(ccross): The libDepTag.reexportFlags is there to maintain previous behavior
-		//   when adding libraryDependencyTag and should be removed.
-		if isLibDepTag && c.static() && libDepTag.shared() && !libDepTag.reexportFlags {
+		if isLibDepTag && c.static() && libDepTag.shared() {
 			// shared_lib dependency from a static lib is considered as crossing
 			// the APEX boundary because the dependency doesn't actually is
 			// linked; the dependency is used only during the compilation phase.
