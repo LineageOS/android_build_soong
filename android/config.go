@@ -1271,3 +1271,7 @@ func (c *deviceConfig) DeviceSecondaryArchVariant() string {
 func (c *deviceConfig) BoardUsesRecoveryAsBoot() bool {
 	return Bool(c.config.productVariables.BoardUsesRecoveryAsBoot)
 }
+
+func (c *deviceConfig) BoardKernelBinaries() []string {
+	return c.config.productVariables.BoardKernelBinaries
+}
