@@ -489,7 +489,7 @@ func TestHostBinaryNoJavaDebugInfoOverride(t *testing.T) {
 
 	ctx, _ := testJavaWithConfig(t, config)
 
-	// first, sanity check that the -g flag is added to target modules
+	// first, check that the -g flag is added to target modules
 	targetLibrary := ctx.ModuleForTests("target_library", "android_common")
 	targetJavaFlags := targetLibrary.Module().VariablesForTests()["javacFlags"]
 	if !strings.Contains(targetJavaFlags, "-g:source,lines") {
