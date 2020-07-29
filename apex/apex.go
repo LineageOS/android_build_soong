@@ -1235,12 +1235,14 @@ func (class apexFileClass) NameInMake() string {
 
 // apexFile represents a file in an APEX bundle
 type apexFile struct {
-	builtFile  android.Path
-	stem       string
-	moduleName string
-	installDir string
-	class      apexFileClass
-	module     android.Module
+	builtFile android.Path
+	stem      string
+	// Module name of `module` in AndroidMk. Note the generated AndroidMk module for
+	// apexFile is named something like <AndroidMk module name>.<apex name>[<apex suffix>]
+	androidMkModuleName string
+	installDir          string
+	class               apexFileClass
+	module              android.Module
 	// list of symlinks that will be created in installDir that point to this apexFile
 	symlinks      []string
 	dataPaths     []android.DataPath
@@ -1259,13 +1261,13 @@ type apexFile struct {
 	isJniLib bool
 }
 
-func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, moduleName string, installDir string, class apexFileClass, module android.Module) apexFile {
+func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidMkModuleName string, installDir string, class apexFileClass, module android.Module) apexFile {
 	ret := apexFile{
-		builtFile:  builtFile,
-		moduleName: moduleName,
-		installDir: installDir,
-		class:      class,
-		module:     module,
+		builtFile:           builtFile,
+		androidMkModuleName: androidMkModuleName,
+		installDir:          installDir,
+		class:               class,
+		module:              module,
 	}
 	if module != nil {
 		ret.moduleDir = ctx.OtherModuleDir(module)
@@ -1722,7 +1724,8 @@ func apexFileForNativeLibrary(ctx android.BaseModuleContext, ccMod *cc.Module, h
 	}
 
 	fileToCopy := ccMod.OutputFile().Path()
-	return newApexFile(ctx, fileToCopy, ccMod.Name(), dirInApex, nativeSharedLib, ccMod)
+	androidMkModuleName := ccMod.BaseModuleName() + ccMod.Properties.SubName
+	return newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeSharedLib, ccMod)
 }
 
 func apexFileForExecutable(ctx android.BaseModuleContext, cc *cc.Module) apexFile {
@@ -1732,7 +1735,8 @@ func apexFileForExecutable(ctx android.BaseModuleContext, cc *cc.Module) apexFil
 	}
 	dirInApex = filepath.Join(dirInApex, cc.RelativeInstallPath())
 	fileToCopy := cc.OutputFile().Path()
-	af := newApexFile(ctx, fileToCopy, cc.Name(), dirInApex, nativeExecutable, cc)
+	androidMkModuleName := cc.BaseModuleName() + cc.Properties.SubName
+	af := newApexFile(ctx, fileToCopy, androidMkModuleName, dirInApex, nativeExecutable, cc)
 	af.symlinks = cc.Symlinks()
 	af.dataPaths = cc.DataPaths()
 	return af
@@ -1741,7 +1745,7 @@ func apexFileForExecutable(ctx android.BaseModuleContext, cc *cc.Module) apexFil
 func apexFileForPyBinary(ctx android.BaseModuleContext, py *python.Module) apexFile {
 	dirInApex := "bin"
 	fileToCopy := py.HostToolPath().Path()
-	return newApexFile(ctx, fileToCopy, py.Name(), dirInApex, pyBinary, py)
+	return newApexFile(ctx, fileToCopy, py.BaseModuleName(), dirInApex, pyBinary, py)
 }
 func apexFileForGoBinary(ctx android.BaseModuleContext, depName string, gb bootstrap.GoBinaryTool) apexFile {
 	dirInApex := "bin"
@@ -1760,12 +1764,14 @@ func apexFileForGoBinary(ctx android.BaseModuleContext, depName string, gb boots
 func apexFileForShBinary(ctx android.BaseModuleContext, sh *sh.ShBinary) apexFile {
 	dirInApex := filepath.Join("bin", sh.SubDir())
 	fileToCopy := sh.OutputFile()
-	af := newApexFile(ctx, fileToCopy, sh.Name(), dirInApex, shBinary, sh)
+	af := newApexFile(ctx, fileToCopy, sh.BaseModuleName(), dirInApex, shBinary, sh)
 	af.symlinks = sh.Symlinks()
 	return af
 }
 
-type javaDependency interface {
+type javaModule interface {
+	android.Module
+	BaseModuleName() string
 	DexJarBuildPath() android.Path
 	JacocoReportClassesFile() android.Path
 	LintDepSets() java.LintDepSets
@@ -1773,20 +1779,18 @@ type javaDependency interface {
 	Stem() string
 }
 
-var _ javaDependency = (*java.Library)(nil)
-var _ javaDependency = (*java.SdkLibrary)(nil)
-var _ javaDependency = (*java.DexImport)(nil)
-var _ javaDependency = (*java.SdkLibraryImport)(nil)
+var _ javaModule = (*java.Library)(nil)
+var _ javaModule = (*java.SdkLibrary)(nil)
+var _ javaModule = (*java.DexImport)(nil)
+var _ javaModule = (*java.SdkLibraryImport)(nil)
 
-func apexFileForJavaLibrary(ctx android.BaseModuleContext, lib javaDependency, module android.Module) apexFile {
+func apexFileForJavaLibrary(ctx android.BaseModuleContext, module javaModule) apexFile {
 	dirInApex := "javalib"
-	fileToCopy := lib.DexJarBuildPath()
-	// Remove prebuilt_ if necessary so the source and prebuilt modules have the same name.
-	name := strings.TrimPrefix(module.Name(), "prebuilt_")
-	af := newApexFile(ctx, fileToCopy, name, dirInApex, javaSharedLib, module)
-	af.jacocoReportClassesFile = lib.JacocoReportClassesFile()
-	af.lintDepSets = lib.LintDepSets()
-	af.stem = lib.Stem() + ".jar"
+	fileToCopy := module.DexJarBuildPath()
+	af := newApexFile(ctx, fileToCopy, module.BaseModuleName(), dirInApex, javaSharedLib, module)
+	af.jacocoReportClassesFile = module.JacocoReportClassesFile()
+	af.lintDepSets = module.LintDepSets()
+	af.stem = module.Stem() + ".jar"
 	return af
 }
 
@@ -1809,6 +1813,7 @@ func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 	OutputFile() android.Path
 	JacocoReportClassesFile() android.Path
 	Certificate() java.Certificate
+	BaseModuleName() string
 }) apexFile {
 	appDir := "app"
 	if aapp.Privileged() {
@@ -1816,7 +1821,7 @@ func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 	}
 	dirInApex := filepath.Join(appDir, aapp.InstallApkName())
 	fileToCopy := aapp.OutputFile()
-	af := newApexFile(ctx, fileToCopy, aapp.Name(), dirInApex, app, aapp)
+	af := newApexFile(ctx, fileToCopy, aapp.BaseModuleName(), dirInApex, app, aapp)
 	af.jacocoReportClassesFile = aapp.JacocoReportClassesFile()
 	af.certificate = aapp.Certificate()
 
@@ -2134,7 +2139,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case javaLibTag:
 				switch child.(type) {
 				case *java.Library, *java.SdkLibrary, *java.DexImport, *java.SdkLibraryImport:
-					af := apexFileForJavaLibrary(ctx, child.(javaDependency), child.(android.Module))
+					af := apexFileForJavaLibrary(ctx, child.(javaModule))
 					if !af.Ok() {
 						ctx.PropertyErrorf("java_libs", "%q is not configured to be compiled into dex", depName)
 						return false
@@ -2157,7 +2162,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					if ap.Privileged() {
 						appDir = "priv-app"
 					}
-					af := newApexFile(ctx, ap.OutputFile(), ap.Name(),
+					af := newApexFile(ctx, ap.OutputFile(), ap.BaseModuleName(),
 						filepath.Join(appDir, ap.BaseModuleName()), appSet, ap)
 					af.certificate = java.PresignedCertificate
 					filesInfo = append(filesInfo, af)
@@ -2267,7 +2272,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						// use the name of the generated test binary (`fileToCopy`) instead of the name
 						// of the original test module (`depName`, shared by all `test_per_src`
 						// variations of that module).
-						af.moduleName = filepath.Base(af.builtFile.String())
+						af.androidMkModuleName = filepath.Base(af.builtFile.String())
 						// these are not considered transitive dep
 						af.transitiveDep = false
 						filesInfo = append(filesInfo, af)

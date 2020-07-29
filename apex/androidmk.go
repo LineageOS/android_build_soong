@@ -82,9 +82,9 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 
 		var moduleName string
 		if linkToSystemLib {
-			moduleName = fi.moduleName
+			moduleName = fi.androidMkModuleName
 		} else {
-			moduleName = fi.moduleName + "." + apexBundleName + a.suffix
+			moduleName = fi.androidMkModuleName + "." + apexBundleName + a.suffix
 		}
 
 		if !android.InList(moduleName, moduleNames) {
@@ -253,9 +253,9 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 		}
 
 		// m <module_name> will build <module_name>.<apex_name> as well.
-		if fi.moduleName != moduleName && a.primaryApexType {
-			fmt.Fprintln(w, ".PHONY: "+fi.moduleName)
-			fmt.Fprintln(w, fi.moduleName+": "+moduleName)
+		if fi.androidMkModuleName != moduleName && a.primaryApexType {
+			fmt.Fprintf(w, ".PHONY: %s\n", fi.androidMkModuleName)
+			fmt.Fprintf(w, "%s: %s\n", fi.androidMkModuleName, moduleName)
 		}
 	}
 	return moduleNames

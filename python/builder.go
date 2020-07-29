@@ -91,7 +91,7 @@ func registerBuildActionForParFile(ctx android.ModuleContext, embeddedLauncher b
 
 	if !embeddedLauncher {
 		// the path of stub_template_host.txt from source tree.
-		template := android.PathForSource(ctx, stubTemplateHost)
+		template := android.PathForSource(ctx, StubTemplateHost)
 		implicits = append(implicits, template)
 
 		// intermediate output path for __main__.py

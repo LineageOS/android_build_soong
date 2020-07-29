@@ -55,7 +55,7 @@ var (
 	}
 
 	cfiCflags = []string{"-flto", "-fsanitize-cfi-cross-dso",
-		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blacklist.txt"}
+		"-fsanitize-blacklist=external/compiler-rt/lib/cfi/cfi_blocklist.txt"}
 	// -flto and -fvisibility are required by clang when -fsanitize=cfi is
 	// used, but have no effect on assembly files
 	cfiAsflags = []string{"-flto", "-fvisibility=default"}
@@ -65,7 +65,7 @@ var (
 	cfiStaticLibsMutex    sync.Mutex
 	hwasanStaticLibsMutex sync.Mutex
 
-	intOverflowCflags = []string{"-fsanitize-blacklist=build/soong/cc/config/integer_overflow_blacklist.txt"}
+	intOverflowCflags = []string{"-fsanitize-blacklist=build/soong/cc/config/integer_overflow_blocklist.txt"}
 
 	minimalRuntimeFlags = []string{"-fsanitize-minimal-runtime", "-fno-sanitize-trap=integer,undefined",
 		"-fno-sanitize-recover=integer,undefined"}
@@ -178,6 +178,8 @@ type SanitizeProperties struct {
 
 		// value to pass to -fsanitize-blacklist
 		Blacklist *string
+		// value to pass to -fsanitize-blacklist
+		Blocklist *string
 	} `android:"arch_variant"`
 
 	SanitizerEnabled  bool     `blueprint:"mutated"`
@@ -598,6 +600,12 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	if blacklist.Valid() {
 		flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize-blacklist="+blacklist.String())
 		flags.CFlagsDeps = append(flags.CFlagsDeps, blacklist.Path())
+	}
+
+	blocklist := android.OptionalPathForModuleSrc(ctx, sanitize.Properties.Sanitize.Blocklist)
+	if blocklist.Valid() {
+		flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize-blacklist="+blocklist.String())
+		flags.CFlagsDeps = append(flags.CFlagsDeps, blocklist.Path())
 	}
 
 	return flags
