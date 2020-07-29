@@ -256,6 +256,11 @@ type PathDeps struct {
 	depFlags   []string
 	//ReexportedDeps android.Paths
 
+	// Used by bindgen modules which call clang
+	depClangFlags         []string
+	depIncludePaths       android.Paths
+	depSystemIncludePaths android.Paths
+
 	coverageFiles android.Paths
 
 	CrtBegin android.OptionalPath
@@ -671,7 +676,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			mod.compiler.install(ctx, mod.outputFile.Path())
 		}
 	} else if mod.sourceProvider != nil {
-		outputFile := mod.sourceProvider.generateSource(ctx)
+		outputFile := mod.sourceProvider.generateSource(ctx, deps)
 		mod.outputFile = android.OptionalPathForPath(outputFile)
 		mod.subName = ctx.ModuleSubDir()
 	}
@@ -849,6 +854,11 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depFlag = "-lstatic=" + libName
 				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
 				depPaths.depFlags = append(depPaths.depFlags, depFlag)
+				depPaths.depIncludePaths = append(depPaths.depIncludePaths, ccDep.IncludeDirs()...)
+				if mod, ok := ccDep.(*cc.Module); ok {
+					depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, mod.ExportedSystemIncludeDirs()...)
+					depPaths.depClangFlags = append(depPaths.depClangFlags, mod.ExportedFlags()...)
+				}
 				depPaths.coverageFiles = append(depPaths.coverageFiles, ccDep.CoverageFiles()...)
 				directStaticLibDeps = append(directStaticLibDeps, ccDep)
 				mod.Properties.AndroidMkStaticLibs = append(mod.Properties.AndroidMkStaticLibs, depName)
@@ -856,6 +866,11 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depFlag = "-ldylib=" + libName
 				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
 				depPaths.depFlags = append(depPaths.depFlags, depFlag)
+				depPaths.depIncludePaths = append(depPaths.depIncludePaths, ccDep.IncludeDirs()...)
+				if mod, ok := ccDep.(*cc.Module); ok {
+					depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, mod.ExportedSystemIncludeDirs()...)
+					depPaths.depClangFlags = append(depPaths.depClangFlags, mod.ExportedFlags()...)
+				}
 				directSharedLibDeps = append(directSharedLibDeps, ccDep)
 				mod.Properties.AndroidMkSharedLibs = append(mod.Properties.AndroidMkSharedLibs, depName)
 				exportDep = true
@@ -916,6 +931,9 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	// Dedup exported flags from dependencies
 	depPaths.linkDirs = android.FirstUniqueStrings(depPaths.linkDirs)
 	depPaths.depFlags = android.FirstUniqueStrings(depPaths.depFlags)
+	depPaths.depClangFlags = android.FirstUniqueStrings(depPaths.depClangFlags)
+	depPaths.depIncludePaths = android.FirstUniquePaths(depPaths.depIncludePaths)
+	depPaths.depSystemIncludePaths = android.FirstUniquePaths(depPaths.depSystemIncludePaths)
 
 	return depPaths
 }
