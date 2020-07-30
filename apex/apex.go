@@ -2256,10 +2256,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							return false
 						}
 						if cc.UseVndk() && proptools.Bool(a.properties.Use_vndk_as_stable) && cc.IsVndk() {
-							// For vendor APEX with use_vndk_as_stable: true, we don't include VNDK libs
-							// and use them from VNDK APEX.
-							// TODO(b/159576928): add "vndk" as requiredDeps so that linkerconfig can make "vndk"
-							// linker namespace avaiable to this apex.
+							requireNativeLibs = append(requireNativeLibs, ":vndk")
 							return false
 						}
 						af := apexFileForNativeLibrary(ctx, cc, handleSpecialLibs)
