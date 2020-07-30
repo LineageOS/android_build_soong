@@ -333,6 +333,10 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				if apexType == imageApex {
 					fmt.Fprintln(w, "ALL_MODULES.$(LOCAL_MODULE).BUNDLE :=", a.bundleModuleFile.String())
 				}
+				if len(a.lintReports) > 0 {
+					fmt.Fprintln(w, "ALL_MODULES.$(my_register_name).LINT_REPORTS :=",
+						strings.Join(a.lintReports.Strings(), " "))
+				}
 
 				if a.installedFilesFile != nil {
 					goal := "checkbuild"
