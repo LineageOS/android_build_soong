@@ -429,7 +429,7 @@ func NewInputZipsManager(nInputZips, maxOpenZips int) *InputZipsManager {
 	if maxOpenZips < 3 {
 		panic(fmt.Errorf("open zips limit should be above 3"))
 	}
-	// In the dummy element .older points to the most recently opened InputZip, and .newer points to the oldest.
+	// In the fake element .older points to the most recently opened InputZip, and .newer points to the oldest.
 	head := new(ManagedInputZip)
 	head.older = head
 	head.newer = head
