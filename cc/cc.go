@@ -2112,6 +2112,15 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		}
 	}
 
+	if c.isNDKStubLibrary() {
+		// NDK stubs depend on their implementation because the ABI dumps are
+		// generated from the implementation library.
+		actx.AddFarVariationDependencies(append(ctx.Target().Variations(),
+			c.ImageVariation(),
+			blueprint.Variation{Mutator: "link", Variation: "shared"},
+		), stubImplementation, c.BaseModuleName())
+	}
+
 	// sysprop_library has to support both C++ and Java. So sysprop_library internally creates one
 	// C++ implementation library and one Java implementation library. When a module links against
 	// sysprop_library, the C++ implementation library has to be linked. syspropImplLibraries is a

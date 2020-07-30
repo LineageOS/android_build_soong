@@ -1565,7 +1565,10 @@ type archConfig struct {
 	abi         []string
 }
 
-// getNdkAbisConfig returns a list of archConfigs for the ABIs supported by the NDK.
+// getNdkAbisConfig returns the list of archConfigs that are used for bulding
+// the API stubs and static libraries that are included in the NDK. These are
+// built *without Neon*, because non-Neon is still supported and building these
+// with Neon will break those users.
 func getNdkAbisConfig() []archConfig {
 	return []archConfig{
 		{"arm", "armv7-a", "", []string{"armeabi-v7a"}},
