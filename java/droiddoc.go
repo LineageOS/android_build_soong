@@ -191,7 +191,7 @@ type DroiddocProperties struct {
 	// the generated removed Dex API filename by Doclava.
 	Removed_dex_api_filename *string
 
-	// if set to false, don't allow droiddoc to generate stubs source files. Defaults to true.
+	// if set to false, don't allow droiddoc to generate stubs source files. Defaults to false.
 	Create_stubs *bool
 
 	Check_api struct {
@@ -857,6 +857,10 @@ func (d *Droiddoc) doclavaDocsFlags(ctx android.ModuleContext, cmd *android.Rule
 	}
 }
 
+func (d *Droiddoc) createStubs() bool {
+	return BoolDefault(d.properties.Create_stubs, false)
+}
+
 func (d *Droiddoc) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand, stubsDir android.WritablePath) {
 	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
 		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
@@ -879,7 +883,7 @@ func (d *Droiddoc) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuilde
 		cmd.FlagWithOutput("-removedDexApi ", d.removedDexApiFile)
 	}
 
-	if BoolDefault(d.properties.Create_stubs, true) {
+	if d.createStubs() {
 		cmd.FlagWithArg("-stubs ", stubsDir.String())
 	}
 
