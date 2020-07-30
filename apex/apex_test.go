@@ -2201,6 +2201,10 @@ func TestVendorApex(t *testing.T) {
 	data.Custom(&builder, name, prefix, "", data)
 	androidMk := builder.String()
 	ensureContains(t, androidMk, `LOCAL_MODULE_PATH := /tmp/target/product/test_device/vendor/apex`)
+
+	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
+	requireNativeLibs := names(apexManifestRule.Args["requireNativeLibs"])
+	ensureListNotContains(t, requireNativeLibs, ":vndk")
 }
 
 func TestVendorApex_use_vndk_as_stable(t *testing.T) {
@@ -2250,6 +2254,10 @@ func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 		"bin/mybin",
 		"lib64/libvendor.so",
 	})
+
+	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
+	requireNativeLibs := names(apexManifestRule.Args["requireNativeLibs"])
+	ensureListContains(t, requireNativeLibs, ":vndk")
 }
 
 func TestAndroidMk_UseVendorRequired(t *testing.T) {
