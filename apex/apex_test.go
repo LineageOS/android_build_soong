@@ -2201,6 +2201,63 @@ func TestVendorApex(t *testing.T) {
 	data.Custom(&builder, name, prefix, "", data)
 	androidMk := builder.String()
 	ensureContains(t, androidMk, `LOCAL_MODULE_PATH := /tmp/target/product/test_device/vendor/apex`)
+
+	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
+	requireNativeLibs := names(apexManifestRule.Args["requireNativeLibs"])
+	ensureListNotContains(t, requireNativeLibs, ":vndk")
+}
+
+func TestVendorApex_use_vndk_as_stable(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			binaries: ["mybin"],
+			vendor: true,
+			use_vndk_as_stable: true,
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+		cc_binary {
+			name: "mybin",
+			vendor: true,
+			shared_libs: ["libvndk", "libvendor"],
+		}
+		cc_library {
+			name: "libvndk",
+			vndk: {
+				enabled: true,
+			},
+			vendor_available: true,
+		}
+		cc_library {
+			name: "libvendor",
+			vendor: true,
+		}
+	`)
+
+	vendorVariant := "android_vendor.VER_arm64_armv8-a"
+
+	ldRule := ctx.ModuleForTests("mybin", vendorVariant+"_myapex").Rule("ld")
+	libs := names(ldRule.Args["libFlags"])
+	// VNDK libs(libvndk/libc++) as they are
+	ensureListContains(t, libs, buildDir+"/.intermediates/libvndk/"+vendorVariant+"_shared/libvndk.so")
+	ensureListContains(t, libs, buildDir+"/.intermediates/libc++/"+vendorVariant+"_shared/libc++.so")
+	// non-stable Vendor libs as APEX variants
+	ensureListContains(t, libs, buildDir+"/.intermediates/libvendor/"+vendorVariant+"_shared_myapex/libvendor.so")
+
+	// VNDK libs are not included when use_vndk_as_stable: true
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"bin/mybin",
+		"lib64/libvendor.so",
+	})
+
+	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
+	requireNativeLibs := names(apexManifestRule.Args["requireNativeLibs"])
+	ensureListContains(t, requireNativeLibs, ":vndk")
 }
 
 func TestAndroidMk_UseVendorRequired(t *testing.T) {

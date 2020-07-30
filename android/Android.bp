@@ -24,6 +24,7 @@ bootstrap_go_package {
         "filegroup.go",
         "hooks.go",
         "image.go",
+        "makefile_goal.go",
         "makevars.go",
         "metrics.go",
         "module.go",

@@ -792,13 +792,26 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		MinSdkVersion: a.minSdkVersion(mctx),
 		Updatable:     a.Updatable(),
 	}
+
+	useVndk := a.SocSpecific() || a.DeviceSpecific() || (a.ProductSpecific() && mctx.Config().EnforceProductPartitionInterface())
+	excludeVndkLibs := useVndk && proptools.Bool(a.properties.Use_vndk_as_stable)
+	if !useVndk && proptools.Bool(a.properties.Use_vndk_as_stable) {
+		mctx.PropertyErrorf("use_vndk_as_stable", "not supported for system/system_ext APEXes")
+		return
+	}
+
 	mctx.WalkDeps(func(child, parent android.Module) bool {
 		am, ok := child.(android.ApexModule)
 		if !ok || !am.CanHaveApexVariants() {
 			return false
 		}
-		if !parent.(android.DepIsInSameApex).DepIsInSameApex(mctx, child) && !inAnySdk(child) {
+		if !parent.(android.DepIsInSameApex).DepIsInSameApex(mctx, child) {
 			return false
+		}
+		if excludeVndkLibs {
+			if c, ok := child.(*cc.Module); ok && c.IsVndk() {
+				return false
+			}
 		}
 
 		depName := mctx.OtherModuleName(child)
@@ -1110,6 +1123,11 @@ type apexBundleProperties struct {
 
 	// The minimum SDK version that this apex must be compatibile with.
 	Min_sdk_version *string
+
+	// If set true, VNDK libs are considered as stable libs and are not included in this apex.
+	// Should be only used in non-system apexes (e.g. vendor: true).
+	// Default is false.
+	Use_vndk_as_stable *bool
 }
 
 type apexTargetBundleProperties struct {
@@ -1927,7 +1945,8 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 
 	// Because APEXes targeting other than system/system_ext partitions
 	// can't set apex_available, we skip checks for these APEXes
-	if ctx.SocSpecific() || ctx.DeviceSpecific() || ctx.ProductSpecific() {
+	if a.SocSpecific() || a.DeviceSpecific() ||
+		(a.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface()) {
 		return
 	}
 
@@ -2236,6 +2255,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							// don't include it in this APEX
 							return false
 						}
+						if cc.UseVndk() && proptools.Bool(a.properties.Use_vndk_as_stable) && cc.IsVndk() {
+							requireNativeLibs = append(requireNativeLibs, ":vndk")
+							return false
+						}
 						af := apexFileForNativeLibrary(ctx, cc, handleSpecialLibs)
 						af.transitiveDep = true
 						if !a.Host() && !android.DirectlyInApex(ctx.ModuleName(), depName) && (cc.IsStubs() || cc.HasStubsVariants()) {
@@ -2353,7 +2376,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// APEXes targeting other than system/system_ext partitions use vendor/product variants.
 	// So we can't link them to /system/lib libs which are core variants.
-	if a.SocSpecific() || a.DeviceSpecific() || a.ProductSpecific() {
+	if a.SocSpecific() || a.DeviceSpecific() ||
+		(a.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface()) {
 		a.linkToSystemLib = false
 	}
 

@@ -44,7 +44,7 @@ var (
 // environment variable. The metrics files are copied to a temporary directory
 // and the uploader is then executed in the background to allow the user to continue
 // working.
-func UploadMetrics(ctx Context, config Config, forceDumbOutput bool, buildStarted time.Time, files ...string) {
+func UploadMetrics(ctx Context, config Config, simpleOutput bool, buildStarted time.Time, files ...string) {
 	ctx.BeginTrace(metrics.RunSetupTool, "upload_metrics")
 	defer ctx.EndTrace()
 
@@ -105,7 +105,7 @@ func UploadMetrics(ctx Context, config Config, forceDumbOutput bool, buildStarte
 	// Start the uploader in the background as it takes several milliseconds to start the uploader
 	// and prepare the metrics for upload. This affects small commands like "lunch".
 	cmd := Command(ctx, config, "upload metrics", uploader, "--upload-metrics", pbFile)
-	if forceDumbOutput {
+	if simpleOutput {
 		cmd.RunOrFatal()
 	} else {
 		cmd.RunAndStreamOrFatal()
