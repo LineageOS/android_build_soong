@@ -236,12 +236,14 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.PreArchMutators(android.RegisterComponentsMutator)
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 
-	cc.RegisterRequiredBuildComponentsForTest(ctx)
+	android.RegisterPrebuiltMutators(ctx)
 
-	// Register this after the prebuilt mutators have been registered (in
-	// cc.RegisterRequiredBuildComponentsForTest) to match what happens at runtime.
+	// Register these after the prebuilt mutators have been registered to match what
+	// happens at runtime.
 	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
 	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
+
+	cc.RegisterRequiredBuildComponentsForTest(ctx)
 
 	ctx.RegisterModuleType("cc_test", cc.TestFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
@@ -5542,6 +5544,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpre
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	android.RegisterPrebuiltMutators(ctx)
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	java.RegisterJavaBuildComponents(ctx)
 	java.RegisterSystemModulesBuildComponents(ctx)

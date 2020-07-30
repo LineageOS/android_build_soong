@@ -67,6 +67,8 @@ func testContext(config android.Config) *android.TestContext {
 		ctx.BottomUp("sysprop_deps", syspropDepsMutator).Parallel()
 	})
 
+	android.RegisterPrebuiltMutators(ctx)
+
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("sysprop_java", java.SyspropMutator).Parallel()
