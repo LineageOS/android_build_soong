@@ -97,6 +97,8 @@ func (s *apexDepsInfoSingleton) GenerateBuildActions(ctx android.SingletonContex
 			"new_allowed_deps": newAllowedDeps.String(),
 		},
 	})
+
+	ctx.Phony("apex-allowed-deps-check", s.allowedApexDepsInfoCheckResult)
 }
 
 func (s *apexDepsInfoSingleton) MakeVars(ctx android.MakeVarsContext) {
