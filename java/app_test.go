@@ -161,11 +161,11 @@ func TestAndroidAppSet(t *testing.T) {
 		t.Errorf("wrong partition value: '%s', expected 'system'", s)
 	}
 	mkEntries := android.AndroidMkEntriesForTest(t, config, "", module.Module())[0]
-	actualMaster := mkEntries.EntryMap["LOCAL_APK_SET_MASTER_FILE"]
-	expectedMaster := []string{"foo.apk"}
-	if !reflect.DeepEqual(actualMaster, expectedMaster) {
-		t.Errorf("Unexpected LOCAL_APK_SET_MASTER_FILE value: '%s', expected: '%s',",
-			actualMaster, expectedMaster)
+	actualInstallFile := mkEntries.EntryMap["LOCAL_APK_SET_INSTALL_FILE"]
+	expectedInstallFile := []string{"foo.apk"}
+	if !reflect.DeepEqual(actualInstallFile, expectedInstallFile) {
+		t.Errorf("Unexpected LOCAL_APK_SET_INSTALL_FILE value: '%s', expected: '%s',",
+			actualInstallFile, expectedInstallFile)
 	}
 }
 
