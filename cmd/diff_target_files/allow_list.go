@@ -25,18 +25,13 @@ import (
 	"unicode"
 )
 
-type jsonWhitelist struct {
-	Paths               []string
-	IgnoreMatchingLines []string
-}
-
-type whitelist struct {
+type allowList struct {
 	path                string
 	ignoreMatchingLines []string
 }
 
-func parseWhitelists(whitelists []string, whitelistFiles []string) ([]whitelist, error) {
-	var ret []whitelist
+func parseAllowLists(allowLists []string, allowListFiles []string) ([]allowList, error) {
+	var ret []allowList
 
 	add := func(path string, ignoreMatchingLines []string) {
 		for _, x := range ret {
@@ -46,24 +41,24 @@ func parseWhitelists(whitelists []string, whitelistFiles []string) ([]whitelist,
 			}
 		}
 
-		ret = append(ret, whitelist{
+		ret = append(ret, allowList{
 			path:                path,
 			ignoreMatchingLines: ignoreMatchingLines,
 		})
 	}
 
-	for _, file := range whitelistFiles {
-		newWhitelists, err := parseWhitelistFile(file)
+	for _, file := range allowListFiles {
+		newAllowlists, err := parseAllowListFile(file)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, w := range newWhitelists {
+		for _, w := range newAllowlists {
 			add(w.path, w.ignoreMatchingLines)
 		}
 	}
 
-	for _, s := range whitelists {
+	for _, s := range allowLists {
 		colon := strings.IndexRune(s, ':')
 		var ignoreMatchingLines []string
 		if colon >= 0 {
@@ -75,7 +70,7 @@ func parseWhitelists(whitelists []string, whitelistFiles []string) ([]whitelist,
 	return ret, nil
 }
 
-func parseWhitelistFile(file string) ([]whitelist, error) {
+func parseAllowListFile(file string) ([]allowList, error) {
 	r, err := os.Open(file)
 	if err != nil {
 		return nil, err
@@ -84,27 +79,32 @@ func parseWhitelistFile(file string) ([]whitelist, error) {
 
 	d := json.NewDecoder(newJSONCommentStripper(r))
 
-	var jsonWhitelists []jsonWhitelist
+	var jsonAllowLists []struct {
+		Paths               []string
+		IgnoreMatchingLines []string
+	}
 
-	err = d.Decode(&jsonWhitelists)
+	if err := d.Decode(&jsonAllowLists); err != nil {
+		return nil, err
+	}
 
-	var whitelists []whitelist
-	for _, w := range jsonWhitelists {
+	var allowLists []allowList
+	for _, w := range jsonAllowLists {
 		for _, p := range w.Paths {
-			whitelists = append(whitelists, whitelist{
+			allowLists = append(allowLists, allowList{
 				path:                p,
 				ignoreMatchingLines: w.IgnoreMatchingLines,
 			})
 		}
 	}
 
-	return whitelists, err
+	return allowLists, err
 }
 
-func filterModifiedPaths(l [][2]*ZipArtifactFile, whitelists []whitelist) ([][2]*ZipArtifactFile, error) {
+func filterModifiedPaths(l [][2]*ZipArtifactFile, allowLists []allowList) ([][2]*ZipArtifactFile, error) {
 outer:
 	for i := 0; i < len(l); i++ {
-		for _, w := range whitelists {
+		for _, w := range allowLists {
 			if match, err := Match(w.path, l[i][0].Name); err != nil {
 				return l, err
 			} else if match {
@@ -126,10 +126,10 @@ outer:
 	return l, nil
 }
 
-func filterNewPaths(l []*ZipArtifactFile, whitelists []whitelist) ([]*ZipArtifactFile, error) {
+func filterNewPaths(l []*ZipArtifactFile, allowLists []allowList) ([]*ZipArtifactFile, error) {
 outer:
 	for i := 0; i < len(l); i++ {
-		for _, w := range whitelists {
+		for _, w := range allowLists {
 			if match, err := Match(w.path, l[i].Name); err != nil {
 				return l, err
 			} else if match && len(w.ignoreMatchingLines) == 0 {
@@ -192,18 +192,18 @@ func diffIgnoringMatchingLines(a *ZipArtifactFile, b *ZipArtifactFile, ignoreMat
 	return bytes.Compare(bufA, bufB) == 0, nil
 }
 
-func applyWhitelists(diff zipDiff, whitelists []whitelist) (zipDiff, error) {
+func applyAllowLists(diff zipDiff, allowLists []allowList) (zipDiff, error) {
 	var err error
 
-	diff.modified, err = filterModifiedPaths(diff.modified, whitelists)
+	diff.modified, err = filterModifiedPaths(diff.modified, allowLists)
 	if err != nil {
 		return diff, err
 	}
-	diff.onlyInA, err = filterNewPaths(diff.onlyInA, whitelists)
+	diff.onlyInA, err = filterNewPaths(diff.onlyInA, allowLists)
 	if err != nil {
 		return diff, err
 	}
-	diff.onlyInB, err = filterNewPaths(diff.onlyInB, whitelists)
+	diff.onlyInB, err = filterNewPaths(diff.onlyInB, allowLists)
 	if err != nil {
 		return diff, err
 	}
