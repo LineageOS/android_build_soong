@@ -20,8 +20,6 @@ import (
 
 func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterPrebuiltBuildComponents(ctx)
-	android.RegisterPrebuiltMutators(ctx)
-
 	RegisterCCBuildComponents(ctx)
 	RegisterBinaryBuildComponents(ctx)
 	RegisterLibraryBuildComponents(ctx)
@@ -570,6 +568,7 @@ func CreateTestContext() *android.TestContext {
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", VndkLibrariesTxtFactory)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	android.RegisterPrebuiltMutators(ctx)
 	RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 	ctx.RegisterSingletonType("vendor-snapshot", VendorSnapshotSingleton)

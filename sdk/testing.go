@@ -97,6 +97,11 @@ func testSdkContext(bp string, fs map[string][]byte, extraOsTypes []android.OsTy
 	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterComponentsMutator)
+
+	android.RegisterPrebuiltMutators(ctx)
+
+	// Register these after the prebuilt mutators have been registered to match what
+	// happens at runtime.
 	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
 	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
 
