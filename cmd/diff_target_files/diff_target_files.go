@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	whitelists     = newMultiString("whitelist", "whitelist patterns in the form <pattern>[:<regex of line to ignore>]")
-	whitelistFiles = newMultiString("whitelist_file", "files containing whitelist definitions")
+	allowLists     = newMultiString("allowlist", "allowlist patterns in the form <pattern>[:<regex of line to ignore>]")
+	allowListFiles = newMultiString("allowlist_file", "files containing allowlist definitions")
 
 	filters = newMultiString("filter", "filter patterns to apply to files in target-files.zip before comparing")
 )
@@ -47,9 +47,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	whitelists, err := parseWhitelists(*whitelists, *whitelistFiles)
+	allowLists, err := parseAllowLists(*allowLists, *allowListFiles)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing whitelists: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error parsing allowlists: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -67,7 +67,7 @@ func main() {
 	}
 	defer refZip.Close()
 
-	diff, err := compareTargetFiles(priZip, refZip, targetFilesPattern, whitelists, *filters)
+	diff, err := compareTargetFiles(priZip, refZip, targetFilesPattern, allowLists, *filters)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error comparing zip files: %v\n", err)
 		os.Exit(1)
