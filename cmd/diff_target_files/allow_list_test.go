@@ -57,10 +57,10 @@ c
 
 var f2 = bytesToZipArtifactFile("dir/f2", nil)
 
-func Test_applyWhitelists(t *testing.T) {
+func Test_applyAllowLists(t *testing.T) {
 	type args struct {
 		diff       zipDiff
-		whitelists []whitelist
+		allowLists []allowList
 	}
 	tests := []struct {
 		name    string
@@ -74,7 +74,7 @@ func Test_applyWhitelists(t *testing.T) {
 				diff: zipDiff{
 					onlyInA: []*ZipArtifactFile{f1a, f2},
 				},
-				whitelists: []whitelist{{path: "dir/f1"}},
+				allowLists: []allowList{{path: "dir/f1"}},
 			},
 			want: zipDiff{
 				onlyInA: []*ZipArtifactFile{f2},
@@ -86,7 +86,7 @@ func Test_applyWhitelists(t *testing.T) {
 				diff: zipDiff{
 					onlyInA: []*ZipArtifactFile{f1a, f2},
 				},
-				whitelists: []whitelist{{path: "dir/*"}},
+				allowLists: []allowList{{path: "dir/*"}},
 			},
 			want: zipDiff{},
 		},
@@ -96,7 +96,7 @@ func Test_applyWhitelists(t *testing.T) {
 				diff: zipDiff{
 					modified: [][2]*ZipArtifactFile{{f1a, f1b}},
 				},
-				whitelists: []whitelist{{path: "dir/*"}},
+				allowLists: []allowList{{path: "dir/*"}},
 			},
 			want: zipDiff{},
 		},
@@ -106,20 +106,20 @@ func Test_applyWhitelists(t *testing.T) {
 				diff: zipDiff{
 					modified: [][2]*ZipArtifactFile{{f1a, f1b}},
 				},
-				whitelists: []whitelist{{path: "dir/*", ignoreMatchingLines: []string{"foo: .*"}}},
+				allowLists: []allowList{{path: "dir/*", ignoreMatchingLines: []string{"foo: .*"}}},
 			},
 			want: zipDiff{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := applyWhitelists(tt.args.diff, tt.args.whitelists)
+			got, err := applyAllowLists(tt.args.diff, tt.args.allowLists)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("applyWhitelists() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Test_applyAllowLists() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("applyWhitelists() = %v, want %v", got, tt.want)
+				t.Errorf("Test_applyAllowLists() = %v, want %v", got, tt.want)
 			}
 		})
 	}
