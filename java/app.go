@@ -78,7 +78,7 @@ type AndroidAppSet struct {
 
 	properties   AndroidAppSetProperties
 	packedOutput android.WritablePath
-	masterFile   string
+	installFile  string
 	apkcertsFile android.ModuleOutPath
 }
 
@@ -102,8 +102,8 @@ func (as *AndroidAppSet) OutputFile() android.Path {
 	return as.packedOutput
 }
 
-func (as *AndroidAppSet) MasterFile() string {
-	return as.masterFile
+func (as *AndroidAppSet) InstallFile() string {
+	return as.installFile
 }
 
 func (as *AndroidAppSet) APKCertsFile() android.Path {
@@ -136,10 +136,10 @@ func SupportedAbis(ctx android.ModuleContext) []string {
 func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	as.packedOutput = android.PathForModuleOut(ctx, ctx.ModuleName()+".zip")
 	as.apkcertsFile = android.PathForModuleOut(ctx, "apkcerts.txt")
-	// We are assuming here that the master file in the APK
+	// We are assuming here that the install file in the APK
 	// set has `.apk` suffix. If it doesn't the build will fail.
 	// APK sets containing APEX files are handled elsewhere.
-	as.masterFile = as.BaseModuleName() + ".apk"
+	as.installFile = as.BaseModuleName() + ".apk"
 	screenDensities := "all"
 	if dpis := ctx.Config().ProductAAPTPrebuiltDPI(); len(dpis) > 0 {
 		screenDensities = strings.ToUpper(strings.Join(dpis, ","))
@@ -167,7 +167,7 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 
 // android_app_set extracts a set of APKs based on the target device
 // configuration and installs this set as "split APKs".
-// The extracted set always contains 'master' APK whose name is
+// The extracted set always contains an APK whose name is
 // _module_name_.apk and every split APK matching target device.
 // The extraction of the density-specific splits depends on
 // PRODUCT_AAPT_PREBUILT_DPI variable. If present (its value should
