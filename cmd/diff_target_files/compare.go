@@ -21,7 +21,7 @@ import (
 
 // compareTargetFiles takes two ZipArtifacts and compares the files they contain by examining
 // the path, size, and CRC of each file.
-func compareTargetFiles(priZip, refZip ZipArtifact, artifact string, whitelists []whitelist, filters []string) (zipDiff, error) {
+func compareTargetFiles(priZip, refZip ZipArtifact, artifact string, allowLists []allowList, filters []string) (zipDiff, error) {
 	priZipFiles, err := priZip.Files()
 	if err != nil {
 		return zipDiff{}, fmt.Errorf("error fetching target file lists from primary zip %v", err)
@@ -45,7 +45,7 @@ func compareTargetFiles(priZip, refZip ZipArtifact, artifact string, whitelists 
 	// Compare the file lists from both builds
 	diff := diffTargetFilesLists(refZipFiles, priZipFiles)
 
-	return applyWhitelists(diff, whitelists)
+	return applyAllowLists(diff, allowLists)
 }
 
 // zipDiff contains the list of files that differ between two zip files.
