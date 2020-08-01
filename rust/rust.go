@@ -141,12 +141,8 @@ func (mod *Module) SelectedStl() string {
 
 func (mod *Module) NonCcVariants() bool {
 	if mod.compiler != nil {
-		if library, ok := mod.compiler.(libraryInterface); ok {
-			if library.buildRlib() || library.buildDylib() {
-				return true
-			} else {
-				return false
-			}
+		if _, ok := mod.compiler.(libraryInterface); ok {
+			return false
 		}
 	}
 	panic(fmt.Errorf("NonCcVariants called on non-library module: %q", mod.BaseModuleName()))
@@ -162,16 +158,16 @@ func (mod *Module) Static() bool {
 			return library.static()
 		}
 	}
-	panic(fmt.Errorf("Static called on non-library module: %q", mod.BaseModuleName()))
+	return false
 }
 
 func (mod *Module) Shared() bool {
 	if mod.compiler != nil {
 		if library, ok := mod.compiler.(libraryInterface); ok {
-			return library.static()
+			return library.shared()
 		}
 	}
-	panic(fmt.Errorf("Shared called on non-library module: %q", mod.BaseModuleName()))
+	return false
 }
 
 func (mod *Module) Toc() android.OptionalPath {
@@ -399,7 +395,9 @@ func (mod *Module) CcLibrary() bool {
 
 func (mod *Module) CcLibraryInterface() bool {
 	if mod.compiler != nil {
-		if _, ok := mod.compiler.(libraryInterface); ok {
+		// use build{Static,Shared}() instead of {static,shared}() here because this might be called before
+		// VariantIs{Static,Shared} is set.
+		if lib, ok := mod.compiler.(libraryInterface); ok && (lib.buildShared() || lib.buildStatic()) {
 			return true
 		}
 	}
@@ -754,7 +752,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	ctx.VisitDirectDeps(func(dep android.Module) {
 		depName := ctx.OtherModuleName(dep)
 		depTag := ctx.OtherModuleDependencyTag(dep)
-		if rustDep, ok := dep.(*Module); ok {
+		if rustDep, ok := dep.(*Module); ok && !rustDep.CcLibraryInterface() {
 			//Handle Rust Modules
 
 			linkFile := rustDep.outputFile
@@ -816,17 +814,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				}
 			}
 
-		}
-
-		if srcDep, ok := dep.(android.SourceFileProducer); ok {
-			switch depTag {
-			case android.SourceDepTag:
-				// These are usually genrules which don't have per-target variants.
-				directSrcDeps = append(directSrcDeps, srcDep)
-			}
-		}
-
-		if ccDep, ok := dep.(cc.LinkableInterface); ok {
+		} else if ccDep, ok := dep.(cc.LinkableInterface); ok {
 			//Handle C dependencies
 			if _, ok := ccDep.(*Module); !ok {
 				if ccDep.Module().Target().Os != ctx.Os() {
@@ -884,6 +872,14 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			if lib, ok := mod.compiler.(exportedFlagsProducer); ok && exportDep {
 				lib.exportLinkDirs(linkPath)
 				lib.exportDepFlags(depFlag)
+			}
+		}
+
+		if srcDep, ok := dep.(android.SourceFileProducer); ok {
+			switch depTag {
+			case android.SourceDepTag:
+				// These are usually genrules which don't have per-target variants.
+				directSrcDeps = append(directSrcDeps, srcDep)
 			}
 		}
 	})
@@ -974,21 +970,18 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 	actx.AddVariationDependencies(
 		append(commonDepVariations, []blueprint.Variation{
-			{Mutator: "rust_libraries", Variation: "rlib"},
-			{Mutator: "link", Variation: ""}}...),
+			{Mutator: "rust_libraries", Variation: "rlib"}}...),
 		rlibDepTag, deps.Rlibs...)
 	actx.AddVariationDependencies(
 		append(commonDepVariations, []blueprint.Variation{
-			{Mutator: "rust_libraries", Variation: "dylib"},
-			{Mutator: "link", Variation: ""}}...),
+			{Mutator: "rust_libraries", Variation: "dylib"}}...),
 		dylibDepTag, deps.Dylibs...)
 
 	if deps.Rustlibs != nil {
 		autoDep := mod.compiler.(autoDeppable).autoDep()
 		actx.AddVariationDependencies(
 			append(commonDepVariations, []blueprint.Variation{
-				{Mutator: "rust_libraries", Variation: autoDep.variation},
-				{Mutator: "link", Variation: ""}}...),
+				{Mutator: "rust_libraries", Variation: autoDep.variation}}...),
 			autoDep.depTag, deps.Rustlibs...)
 	}
 
