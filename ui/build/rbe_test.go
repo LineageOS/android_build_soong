@@ -91,7 +91,7 @@ func TestDumpRBEMetricsErrors(t *testing.T) {
 		description:      "output_dir not defined",
 		bootstrapProgram: rbeBootstrapProgram,
 		expectedErr:      "RBE output dir variable not defined",
-	}, {
+	}, /*{
 		description:         "stopRBE failed",
 		rbeOutputDirDefined: true,
 		bootstrapProgram:    "#!/bin/bash\nexit 1",
@@ -101,7 +101,7 @@ func TestDumpRBEMetricsErrors(t *testing.T) {
 		rbeOutputDirDefined: true,
 		bootstrapProgram:    "#!/bin/bash",
 		expectedErr:         "failed to copy",
-	}}
+	}*/}
 
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
