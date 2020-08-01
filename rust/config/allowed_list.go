@@ -8,6 +8,7 @@ var (
 		"external/adhd",
 		"prebuilts/rust",
 		"system/security",
+		"system/tools/aidl",
 	}
 
 	RustModuleTypes = []string{
