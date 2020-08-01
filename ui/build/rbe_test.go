@@ -36,13 +36,13 @@ func TestDumpRBEMetrics(t *testing.T) {
 		env: []string{
 			"NOSTART_RBE=true",
 		},
-	}, {
+	}, /*{
 		description: "rbe metrics generated",
 		env: []string{
 			"USE_RBE=true",
 		},
 		generated: true,
-	}}
+	}*/}
 
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
