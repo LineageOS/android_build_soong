@@ -552,6 +552,13 @@ func isVendorSnapshotModule(m *Module, moduleDir string) bool {
 	if _, ok := m.linker.(*kernelHeadersDecorator); ok {
 		return false
 	}
+	// skip llndk_library and llndk_headers which are backward compatible
+	if _, ok := m.linker.(*llndkStubDecorator); ok {
+		return false
+	}
+	if _, ok := m.linker.(*llndkHeadersDecorator); ok {
+		return false
+	}
 
 	// Libraries
 	if l, ok := m.linker.(snapshotLibraryInterface); ok {
