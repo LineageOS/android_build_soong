@@ -36,13 +36,13 @@ func TestDumpRBEMetrics(t *testing.T) {
 		env: []string{
 			"NOSTART_RBE=true",
 		},
-	}, /*{
+	}, {
 		description: "rbe metrics generated",
 		env: []string{
 			"USE_RBE=true",
 		},
 		generated: true,
-	}*/}
+	}}
 
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
@@ -91,17 +91,17 @@ func TestDumpRBEMetricsErrors(t *testing.T) {
 		description:      "output_dir not defined",
 		bootstrapProgram: rbeBootstrapProgram,
 		expectedErr:      "RBE output dir variable not defined",
-	}, /*{
+	}, {
 		description:         "stopRBE failed",
 		rbeOutputDirDefined: true,
-		bootstrapProgram:    "#!/bin/bash\nexit 1",
+		bootstrapProgram:    "#!/bin/bash\nexit 1\n",
 		expectedErr:         "shutdown failed",
 	}, {
 		description:         "failed to copy metrics file",
 		rbeOutputDirDefined: true,
-		bootstrapProgram:    "#!/bin/bash",
+		bootstrapProgram:    "#!/bin/bash\n",
 		expectedErr:         "failed to copy",
-	}*/}
+	}}
 
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
@@ -139,4 +139,4 @@ func TestDumpRBEMetricsErrors(t *testing.T) {
 	}
 }
 
-var rbeBootstrapProgram = fmt.Sprintf("#!/bin/bash\necho 1 > $RBE_output_dir/%s", rbeMetricsPBFilename)
+var rbeBootstrapProgram = fmt.Sprintf("#!/bin/bash\necho 1 > $RBE_output_dir/%s\n", rbeMetricsPBFilename)
