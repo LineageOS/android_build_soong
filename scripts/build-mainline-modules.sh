@@ -51,6 +51,13 @@ echo_and_run() {
   "$@"
 }
 
+lib_dir() {
+  case $1 in
+    (aosp_arm|aosp_x86) echo "lib";;
+    (aosp_arm64|aosp_x86_64) echo "lib64";;
+  esac
+}
+
 OUT_DIR=$(source build/envsetup.sh > /dev/null; TARGET_PRODUCT= get_build_var OUT_DIR)
 DIST_DIR=$(source build/envsetup.sh > /dev/null; TARGET_PRODUCT= get_build_var DIST_DIR)
 
@@ -68,7 +75,8 @@ for product in "${PRODUCTS[@]}"; do
     echo_and_run cp ${PWD}/${PRODUCT_OUT}/system/apex/${module}.apex ${DIST_DIR}/${TARGET_ARCH}/
   done
   for library in "${PLATFORM_LIBRARIES[@]}"; do
-    echo_and_run cp ${PWD}/${PRODUCT_OUT}/system/lib/${library}.so ${DIST_DIR}/${TARGET_ARCH}/
+    libdir=$(lib_dir $product)
+    echo_and_run cp ${PWD}/${PRODUCT_OUT}/system/${libdir}/${library}.so ${DIST_DIR}/${TARGET_ARCH}/
   done
 done
 
