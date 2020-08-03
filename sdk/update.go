@@ -323,19 +323,37 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	// Add properties common to all os types.
 	s.addMemberPropertiesToPropertySet(builder, snapshotModule, commonDynamicMemberProperties)
 
+	// Optimize other per-variant properties, besides the dynamic member lists.
+	type variantProperties struct {
+		Compile_multilib string `android:"arch_variant"`
+	}
+	var variantPropertiesContainers []propertiesContainer
+	variantToProperties := make(map[*sdk]*variantProperties)
+	for _, sdkVariant := range sdkVariants {
+		props := &variantProperties{
+			Compile_multilib: sdkVariant.multilibUsages.String(),
+		}
+		variantPropertiesContainers = append(variantPropertiesContainers, &dynamicMemberPropertiesContainer{sdkVariant, props})
+		variantToProperties[sdkVariant] = props
+	}
+	commonVariantProperties := variantProperties{}
+	extractor = newCommonValueExtractor(commonVariantProperties)
+	extractCommonProperties(ctx, extractor, &commonVariantProperties, variantPropertiesContainers)
+	if commonVariantProperties.Compile_multilib != "" && commonVariantProperties.Compile_multilib != "both" {
+		// Compile_multilib defaults to both so only needs to be set when it's
+		// specified and not both.
+		snapshotModule.AddProperty("compile_multilib", commonVariantProperties.Compile_multilib)
+	}
+
 	// Iterate over the os types in a fixed order.
 	targetPropertySet := snapshotModule.AddPropertySet("target")
 	for _, osType := range s.getPossibleOsTypes() {
 		if sdkVariant, ok := osTypeToMemberProperties[osType]; ok {
 			osPropertySet := targetPropertySet.AddPropertySet(sdkVariant.Target().Os.Name)
 
-			// Compile_multilib defaults to both and must always be set to both on the
-			// device and so only needs to be set when targeted at the host and is neither
-			// unspecified or both.
-			multilib := sdkVariant.multilibUsages
-			if (osType.Class == android.Host || osType.Class == android.HostCross) &&
-				multilib != multilibNone && multilib != multilibBoth {
-				osPropertySet.AddProperty("compile_multilib", multilib.String())
+			variantProps := variantToProperties[sdkVariant]
+			if variantProps.Compile_multilib != "" && variantProps.Compile_multilib != "both" {
+				osPropertySet.AddProperty("compile_multilib", variantProps.Compile_multilib)
 			}
 
 			s.addMemberPropertiesToPropertySet(builder, osPropertySet, sdkVariant.dynamicMemberTypeListProperties)
