@@ -116,7 +116,7 @@ func appendLibraryAndDeps(ctx android.SingletonContext, project *rustProjectJson
 	crate := rustProjectCrate{Deps: make([]rustProjectDep, 0), Cfgs: make([]string, 0)}
 	src := rustLib.baseCompiler.Properties.Srcs[0]
 	crate.RootModule = path.Join(ctx.ModuleDir(rModule), src)
-	crate.Edition = getEdition(rustLib.baseCompiler)
+	crate.Edition = rustLib.baseCompiler.edition()
 
 	deps := make(map[string]int)
 	mergeDependencies(ctx, project, knownCrates, module, &crate, deps)

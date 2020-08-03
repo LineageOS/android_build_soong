@@ -24,7 +24,7 @@ import (
 	"android/soong/rust/config"
 )
 
-func getEdition(compiler *baseCompiler) string {
+func (compiler *baseCompiler) edition() string {
 	return proptools.StringDefault(compiler.Properties.Edition, config.DefaultEdition)
 }
 
@@ -149,7 +149,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	}
 	flags.RustFlags = append(flags.RustFlags, compiler.Properties.Flags...)
 	flags.RustFlags = append(flags.RustFlags, compiler.featuresToFlags(compiler.Properties.Features)...)
-	flags.RustFlags = append(flags.RustFlags, "--edition="+getEdition(compiler))
+	flags.RustFlags = append(flags.RustFlags, "--edition="+compiler.edition())
 	flags.LinkFlags = append(flags.LinkFlags, compiler.Properties.Ld_flags...)
 	flags.GlobalRustFlags = append(flags.GlobalRustFlags, config.GlobalRustFlags...)
 	flags.GlobalRustFlags = append(flags.GlobalRustFlags, ctx.toolchain().ToolchainRustFlags())
