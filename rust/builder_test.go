@@ -28,12 +28,14 @@ func TestSourceProviderCollision(t *testing.T) {
 		}
 		rust_bindgen {
 			name: "libbindings1",
-			stem: "bindings",
+			source_stem: "bindings",
+			crate_name: "bindings1",
 			wrapper_src: "src/any.h",
 		}
 		rust_bindgen {
 			name: "libbindings2",
-			stem: "bindings",
+			source_stem: "bindings",
+			crate_name: "bindings2",
 			wrapper_src: "src/any.h",
 		}
 	`)
