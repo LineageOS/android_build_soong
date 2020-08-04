@@ -63,7 +63,8 @@ type BaseProperties struct {
 	AndroidMkSharedLibs    []string
 	AndroidMkStaticLibs    []string
 
-	SubName        string `blueprint:"mutated"`
+	SubName string `blueprint:"mutated"`
+
 	PreventInstall bool
 	HideFromMake   bool
 }
@@ -83,9 +84,9 @@ type Module struct {
 	cachedToolchain  config.Toolchain
 	sourceProvider   SourceProvider
 	subAndroidMkOnce map[subAndroidMkProvider]bool
-	outputFile       android.OptionalPath
 
-	subName string
+	outputFile    android.OptionalPath
+	generatedFile android.OptionalPath
 }
 
 func (mod *Module) OutputFiles(tag string) (android.Paths, error) {
@@ -285,6 +286,9 @@ type compiler interface {
 	relativeInstallPath() string
 
 	nativeCoverage() bool
+
+	Disabled() bool
+	SetDisabled()
 }
 
 type exportedFlagsProducer interface {
@@ -667,16 +671,21 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		flags, deps = mod.clippy.flags(ctx, flags, deps)
 	}
 
-	if mod.compiler != nil {
+	// SourceProvider needs to call generateSource() before compiler calls compile() so it can provide the source.
+	// TODO(b/162588681) This shouldn't have to run for every variant.
+	if mod.sourceProvider != nil {
+		generatedFile := mod.sourceProvider.generateSource(ctx, deps)
+		mod.generatedFile = android.OptionalPathForPath(generatedFile)
+		mod.sourceProvider.setSubName(ctx.ModuleSubDir())
+	}
+
+	if mod.compiler != nil && !mod.compiler.Disabled() {
 		outputFile := mod.compiler.compile(ctx, flags, deps)
+
 		mod.outputFile = android.OptionalPathForPath(outputFile)
-		if !mod.Properties.PreventInstall {
+		if mod.outputFile.Valid() && !mod.Properties.PreventInstall {
 			mod.compiler.install(ctx, mod.outputFile.Path())
 		}
-	} else if mod.sourceProvider != nil {
-		outputFile := mod.sourceProvider.generateSource(ctx, deps)
-		mod.outputFile = android.OptionalPathForPath(outputFile)
-		mod.subName = ctx.ModuleSubDir()
 	}
 }
 
@@ -685,7 +694,8 @@ func (mod *Module) deps(ctx DepsContext) Deps {
 
 	if mod.compiler != nil {
 		deps = mod.compiler.compilerDeps(ctx, deps)
-	} else if mod.sourceProvider != nil {
+	}
+	if mod.sourceProvider != nil {
 		deps = mod.sourceProvider.sourceProviderDeps(ctx, deps)
 	}
 
@@ -755,11 +765,6 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		if rustDep, ok := dep.(*Module); ok && !rustDep.CcLibraryInterface() {
 			//Handle Rust Modules
 
-			linkFile := rustDep.outputFile
-			if !linkFile.Valid() {
-				ctx.ModuleErrorf("Invalid output file when adding dep %q to %q", depName, ctx.ModuleName())
-			}
-
 			switch depTag {
 			case dylibDepTag:
 				dylib, ok := rustDep.compiler.(libraryInterface)
@@ -808,6 +813,12 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 
 			if depTag == dylibDepTag || depTag == rlibDepTag || depTag == procMacroDepTag {
+				linkFile := rustDep.outputFile
+				if !linkFile.Valid() {
+					ctx.ModuleErrorf("Invalid output file when adding dep %q to %q",
+						depName, ctx.ModuleName())
+					return
+				}
 				linkDir := linkPathFromFilePath(linkFile.Path())
 				if lib, ok := mod.compiler.(exportedFlagsProducer); ok {
 					lib.exportLinkDirs(linkDir)
@@ -826,7 +837,6 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					return
 				}
 			}
-
 			linkFile := ccDep.OutputFile()
 			linkPath := linkPathFromFilePath(linkFile.Path())
 			libName := libNameFromFilePath(linkFile.Path())
