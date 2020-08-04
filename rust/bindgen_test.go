@@ -24,8 +24,10 @@ func TestRustBindgen(t *testing.T) {
 		rust_bindgen {
 			name: "libbindgen",
 			wrapper_src: "src/any.h",
-			stem: "bindings",
-			flags: ["--bindgen-flag"],
+			crate_name: "bindgen",
+			stem: "libbindgen",
+			source_stem: "bindings",
+			bindgen_flags: ["--bindgen-flag"],
 			cflags: ["--clang-flag"],
 			shared_libs: ["libfoo_shared"],
 			static_libs: ["libfoo_static"],
@@ -38,7 +40,6 @@ func TestRustBindgen(t *testing.T) {
 			name: "libfoo_static",
 			export_include_dirs: ["static_include"],
 		}
-
 	`)
 	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a").Output("bindings.rs")
 	if !strings.Contains(libbindgen.Args["flags"], "--bindgen-flag") {

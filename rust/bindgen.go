@@ -61,7 +61,7 @@ type BindgenProperties struct {
 	Wrapper_src *string `android:"path,arch_variant"`
 
 	// list of bindgen-specific flags and options
-	Flags []string `android:"arch_variant"`
+	Bindgen_flags []string `android:"arch_variant"`
 
 	// list of clang flags required to correctly interpret the headers.
 	Cflags []string `android:"arch_variant"`
@@ -121,7 +121,7 @@ func (b *bindgenDecorator) generateSource(ctx android.ModuleContext, deps PathDe
 	}
 
 	bindgenFlags := defaultBindgenFlags
-	bindgenFlags = append(bindgenFlags, strings.Join(b.Properties.Flags, " "))
+	bindgenFlags = append(bindgenFlags, strings.Join(b.Properties.Bindgen_flags, " "))
 
 	wrapperFile := android.OptionalPathForModuleSrc(ctx, b.Properties.Wrapper_src)
 	if !wrapperFile.Valid() {
@@ -170,7 +170,13 @@ func NewRustBindgen(hod android.HostOrDeviceSupported) (*Module, *bindgenDecorat
 		baseSourceProvider: NewSourceProvider(),
 		Properties:         BindgenProperties{},
 	}
+
+	_, library := NewRustLibrary(hod)
+	library.BuildOnlyRust()
+	library.sourceProvider = bindgen
+
 	module.sourceProvider = bindgen
+	module.compiler = library
 
 	return module, bindgen
 }
