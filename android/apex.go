@@ -137,6 +137,7 @@ type ApexProperties struct {
 	//
 	// "//apex_available:anyapex" is a pseudo APEX name that matches to any APEX.
 	// "//apex_available:platform" refers to non-APEX partitions like "system.img".
+	// "com.android.gki.*" matches any APEX module name with the prefix "com.android.gki.".
 	// Default is ["//apex_available:platform"].
 	Apex_available []string
 
@@ -213,6 +214,7 @@ func (m *ApexModuleBase) IsInstallableToApex() bool {
 const (
 	AvailableToPlatform = "//apex_available:platform"
 	AvailableToAnyApex  = "//apex_available:anyapex"
+	AvailableToGkiApex  = "com.android.gki.*"
 )
 
 func CheckAvailableForApex(what string, apex_available []string) bool {
@@ -222,7 +224,8 @@ func CheckAvailableForApex(what string, apex_available []string) bool {
 		return what == AvailableToPlatform
 	}
 	return InList(what, apex_available) ||
-		(what != AvailableToPlatform && InList(AvailableToAnyApex, apex_available))
+		(what != AvailableToPlatform && InList(AvailableToAnyApex, apex_available)) ||
+		(strings.HasPrefix(what, "com.android.gki.") && InList(AvailableToGkiApex, apex_available))
 }
 
 func (m *ApexModuleBase) AvailableFor(what string) bool {
@@ -256,7 +259,7 @@ func (m *ApexModuleBase) ChooseSdkVersion(versionList []string, maxSdkVersion in
 
 func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 	for _, n := range m.ApexProperties.Apex_available {
-		if n == AvailableToPlatform || n == AvailableToAnyApex {
+		if n == AvailableToPlatform || n == AvailableToAnyApex || n == AvailableToGkiApex {
 			continue
 		}
 		if !mctx.OtherModuleExists(n) && !mctx.Config().AllowMissingDependencies() {
