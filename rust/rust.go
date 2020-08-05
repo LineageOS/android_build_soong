@@ -1037,6 +1037,12 @@ func (mod *Module) Name() string {
 	return name
 }
 
+func (mod *Module) setClippy(clippy bool) {
+	if mod.clippy != nil {
+		mod.clippy.Properties.Clippy = proptools.BoolPtr(clippy)
+	}
+}
+
 var _ android.HostToolProvider = (*Module)(nil)
 
 func (mod *Module) HostToolPath() android.OptionalPath {
