@@ -41,6 +41,9 @@ type TestProperties struct {
 	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
 	// explicitly.
 	Auto_gen_config *bool
+
+	// if set, build with the standard Rust test harness. Defaults to true.
+	Test_harness *bool
 }
 
 // A test module is a binary module with extra --test compiler flag
@@ -54,6 +57,10 @@ type testDecorator struct {
 
 func (test *testDecorator) nativeCoverage() bool {
 	return true
+}
+
+func (test *testDecorator) testHarness() bool {
+	return BoolDefault(test.Properties.Test_harness, true)
 }
 
 func NewRustTest(hod android.HostOrDeviceSupported) (*Module, *testDecorator) {
@@ -101,7 +108,9 @@ func (test *testDecorator) install(ctx ModuleContext, file android.Path) {
 
 func (test *testDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = test.binaryDecorator.compilerFlags(ctx, flags)
-	flags.RustFlags = append(flags.RustFlags, "--test")
+	if test.testHarness() {
+		flags.RustFlags = append(flags.RustFlags, "--test")
+	}
 	return flags
 }
 
