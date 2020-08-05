@@ -484,18 +484,22 @@ type vendorSnapshotSingleton struct {
 
 var (
 	// Modules under following directories are ignored. They are OEM's and vendor's
-	// proprietary modules(device/, vendor/, and hardware/).
+	// proprietary modules(device/, kernel/, vendor/, and hardware/).
 	// TODO(b/65377115): Clean up these with more maintainable way
 	vendorProprietaryDirs = []string{
 		"device",
+		"kernel",
 		"vendor",
 		"hardware",
 	}
 
 	// Modules under following directories are included as they are in AOSP,
-	// although hardware/ is normally for vendor's own.
+	// although hardware/ and kernel/ are normally for vendor's own.
 	// TODO(b/65377115): Clean up these with more maintainable way
 	aospDirsUnderProprietary = []string{
+		"kernel/configs",
+		"kernel/prebuilts",
+		"kernel/tests",
 		"hardware/interfaces",
 		"hardware/libhardware",
 		"hardware/libhardware_legacy",
