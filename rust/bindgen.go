@@ -178,6 +178,7 @@ func NewRustBindgen(hod android.HostOrDeviceSupported) (*Module, *bindgenDecorat
 
 	module.sourceProvider = bindgen
 	module.compiler = library
+	module.setClippy(false)
 
 	return module, bindgen
 }
