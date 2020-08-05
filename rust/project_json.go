@@ -92,7 +92,7 @@ func mergeDependencies(ctx android.SingletonContext, project *rustProjectJson,
 // appendLibraryAndDeps creates a rustProjectCrate for the module argument and
 // appends it to the rustProjectJson struct.  It visits the dependencies of the
 // module depth-first. If the current module is already in knownCrates, its
-// its dependencies are merged. Returns a tuple (id, crate_name, ok).
+// dependencies are merged. Returns a tuple (id, crate_name, ok).
 func appendLibraryAndDeps(ctx android.SingletonContext, project *rustProjectJson,
 	knownCrates map[string]crateInfo, module android.Module) (int, string, bool) {
 	rModule, ok := module.(*Module)
@@ -111,6 +111,7 @@ func appendLibraryAndDeps(ctx android.SingletonContext, project *rustProjectJson
 		// We have seen this crate already; merge any new dependencies.
 		crate := project.Crates[cInfo.ID]
 		mergeDependencies(ctx, project, knownCrates, module, &crate, cInfo.Deps)
+		project.Crates[cInfo.ID] = crate
 		return cInfo.ID, crateName, true
 	}
 	crate := rustProjectCrate{Deps: make([]rustProjectDep, 0), Cfgs: make([]string, 0)}

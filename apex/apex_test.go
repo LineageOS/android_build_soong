@@ -414,7 +414,14 @@ func TestBasicApex(t *testing.T) {
 			system_shared_libs: [],
 			static_executable: true,
 			stl: "none",
-			apex_available: [ "myapex" ],
+			apex_available: [ "myapex", "com.android.gki.*" ],
+		}
+
+		apex {
+			name: "com.android.gki.fake",
+			binaries: ["foo"],
+			key: "myapex.key",
+			file_contexts: ":myapex-file_contexts",
 		}
 
 		cc_library_shared {
