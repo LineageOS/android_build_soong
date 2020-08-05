@@ -32,6 +32,10 @@ func (compiler *baseCompiler) setNoStdlibs() {
 	compiler.Properties.No_stdlibs = proptools.BoolPtr(true)
 }
 
+func (compiler *baseCompiler) setNoLint() {
+	compiler.Properties.No_lint = proptools.BoolPtr(true)
+}
+
 func NewBaseCompiler(dir, dir64 string, location installLocation) *baseCompiler {
 	return &baseCompiler{
 		Properties: BaseCompilerProperties{},
