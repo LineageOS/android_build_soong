@@ -1591,6 +1591,9 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 		configurationName := j.ConfigurationName()
 		primary := configurationName == ctx.ModuleName()
+		// If the prebuilt is being used rather than the from source, skip this
+		// module to prevent duplicated classes
+		primary = primary && !j.IsReplacedByPrebuilt()
 
 		// Hidden API CSV generation and dex encoding
 		dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, configurationName, primary, dexOutputFile, j.implementationJarFile,
@@ -2580,6 +2583,13 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		if ctx.Failed() {
 			return
 		}
+
+		configurationName := j.BaseModuleName()
+		primary := j.Prebuilt().UsePrebuilt()
+
+		// Hidden API CSV generation and dex encoding
+		dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, configurationName, primary, dexOutputFile, outputFile,
+			proptools.Bool(j.dexProperties.Uncompress_dex))
 
 		j.dexJarFile = dexOutputFile
 	}
