@@ -22,6 +22,8 @@ import (
 	"android/soong/android"
 )
 
+const profileInstrFlag = "-fprofile-instr-generate=/data/misc/trace/clang-%p-%m.profraw"
+
 type CoverageProperties struct {
 	Native_coverage *bool
 
@@ -92,7 +94,7 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 			// flags that the module may use.
 			flags.Local.CFlags = append(flags.Local.CFlags, "-Wno-frame-larger-than=", "-O0")
 		} else if clangCoverage {
-			flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-fprofile-instr-generate", "-fcoverage-mapping", "-Wno-pass-failed")
+			flags.Local.CommonFlags = append(flags.Local.CommonFlags, profileInstrFlag, "-fcoverage-mapping", "-Wno-pass-failed")
 		}
 	}
 
@@ -139,7 +141,7 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 
 			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,--wrap,getenv")
 		} else if clangCoverage {
-			flags.Local.LdFlags = append(flags.Local.LdFlags, "-fprofile-instr-generate")
+			flags.Local.LdFlags = append(flags.Local.LdFlags, profileInstrFlag)
 
 			coverage := ctx.GetDirectDepWithTag(getClangProfileLibraryName(ctx), CoverageDepTag).(*Module)
 			deps.WholeStaticLibs = append(deps.WholeStaticLibs, coverage.OutputFile().Path())
