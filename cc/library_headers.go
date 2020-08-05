@@ -25,8 +25,9 @@ func init() {
 
 var headersLibrarySdkMemberType = &librarySdkMemberType{
 	SdkMemberTypeBase: android.SdkMemberTypeBase{
-		PropertyName: "native_header_libs",
-		SupportsSdk:  true,
+		PropertyName:    "native_header_libs",
+		SupportsSdk:     true,
+		HostOsDependent: true,
 	},
 	prebuiltModuleType: "cc_prebuilt_library_headers",
 	noOutputFiles:      true,
