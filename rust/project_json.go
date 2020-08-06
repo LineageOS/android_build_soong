@@ -75,6 +75,7 @@ func mergeDependencies(ctx android.SingletonContext, project *rustProjectJson,
 	knownCrates map[string]crateInfo, module android.Module,
 	crate *rustProjectCrate, deps map[string]int) {
 
+	//TODO(tweek): The stdlib dependencies do not appear here. We need to manually add them.
 	ctx.VisitDirectDeps(module, func(child android.Module) {
 		childId, childName, ok := appendLibraryAndDeps(ctx, project, knownCrates, child)
 		if !ok {
@@ -114,11 +115,8 @@ func appendLibraryAndDeps(ctx android.SingletonContext, project *rustProjectJson
 		return cInfo.ID, crateName, true
 	}
 	crate := rustProjectCrate{Deps: make([]rustProjectDep, 0), Cfgs: make([]string, 0)}
-	srcs := rustLib.baseCompiler.Properties.Srcs
-	if len(srcs) == 0 {
-		return 0, "", false
-	}
-	crate.RootModule = path.Join(ctx.ModuleDir(rModule), srcs[0])
+	src := rustLib.baseCompiler.Properties.Srcs[0]
+	crate.RootModule = path.Join(ctx.ModuleDir(rModule), src)
 	crate.Edition = rustLib.baseCompiler.edition()
 
 	deps := make(map[string]int)
