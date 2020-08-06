@@ -24,6 +24,7 @@ MODULES_SDK_AND_EXPORTS=(
   i18n-module-test-exports
   i18n-module-sdk
   platform-mainline-sdk
+  platform-mainline-test-exports
 )
 
 # List of libraries installed on the platform that are needed for ART chroot
