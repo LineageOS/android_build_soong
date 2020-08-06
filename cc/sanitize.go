@@ -160,6 +160,9 @@ type SanitizeProperties struct {
 		Scudo            *bool    `android:"arch_variant"`
 		Scs              *bool    `android:"arch_variant"`
 
+		// A modifier for ASAN and HWASAN for write only instrumentation
+		Writeonly *bool `android:"arch_variant"`
+
 		// Sanitizers to run in the diagnostic mode (as opposed to the release mode).
 		// Replaces abort() on error with a human-readable error message.
 		// Address and Thread sanitizers always run in diagnostic mode.
@@ -281,6 +284,15 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 		if found, globalSanitizers = removeFromList("hwaddress", globalSanitizers); found && s.Hwaddress == nil {
 			s.Hwaddress = boolPtr(true)
+		}
+
+		if found, globalSanitizers = removeFromList("writeonly", globalSanitizers); found && s.Writeonly == nil {
+			// Hwaddress and Address are set before, so we can check them here
+			// If they aren't explicitly set in the blueprint/SANITIZE_(HOST|TARGET), they would be nil instead of false
+			if s.Address == nil && s.Hwaddress == nil {
+				ctx.ModuleErrorf("writeonly modifier cannot be used without 'address' or 'hwaddress'")
+			}
+			s.Writeonly = boolPtr(true)
 		}
 
 		if len(globalSanitizers) > 0 {
@@ -460,6 +472,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.Local.CFlags = append(flags.Local.CFlags, asanCflags...)
 		flags.Local.LdFlags = append(flags.Local.LdFlags, asanLdflags...)
 
+		if Bool(sanitize.Properties.Sanitize.Writeonly) {
+			flags.Local.CFlags = append(flags.Local.CFlags, "-mllvm", "-asan-instrument-reads=0")
+		}
+
 		if ctx.Host() {
 			// -nodefaultlibs (provided with libc++) prevents the driver from linking
 			// libraries needed with -fsanitize=address. http://b/18650275 (WAI)
@@ -479,6 +495,9 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if Bool(sanitize.Properties.Sanitize.Hwaddress) {
 		flags.Local.CFlags = append(flags.Local.CFlags, hwasanCflags...)
+		if Bool(sanitize.Properties.Sanitize.Writeonly) {
+			flags.Local.CFlags = append(flags.Local.CFlags, "-mllvm", "-hwasan-instrument-reads=0")
+		}
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Fuzzer) {
