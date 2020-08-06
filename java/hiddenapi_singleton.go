@@ -257,18 +257,18 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 		FlagWithInput("--csv ", stubFlags).
 		Inputs(flagsCSV).
 		FlagWithInput("--unsupported ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist.txt")).
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-unsupported.txt")).
 		FlagWithInput("--unsupported-ignore-conflicts ", combinedRemovedApis).
 		FlagWithInput("--max-target-q ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-q.txt")).
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-q.txt")).
 		FlagWithInput("--max-target-p ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-p.txt")).
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-p.txt")).
 		FlagWithInput("--max-target-o-ignore-conflicts ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-max-o.txt")).
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-o.txt")).
 		FlagWithInput("--blocked ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-force-blacklist.txt")).
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-force-blocked.txt")).
 		FlagWithInput("--unsupported-packages ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-greylist-packages.txt")).
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-unsupported-packages.txt")).
 		FlagWithOutput("--output ", tempPath)
 
 	commitChangeForRestat(rule, tempPath, outputPath)
