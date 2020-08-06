@@ -718,8 +718,14 @@ func (sanitize *sanitize) isSanitizerEnabled(t sanitizerType) bool {
 }
 
 func isSanitizableDependencyTag(tag blueprint.DependencyTag) bool {
-	t, ok := tag.(DependencyTag)
-	return ok && t.Library || t == reuseObjTag || t == objDepTag
+	switch t := tag.(type) {
+	case dependencyTag:
+		return t == reuseObjTag || t == objDepTag
+	case libraryDependencyTag:
+		return true
+	default:
+		return false
+	}
 }
 
 // Propagate sanitizer requirements down from binaries
@@ -961,10 +967,11 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				}
 
 				// static executable gets static runtime libs
+				depTag := libraryDependencyTag{Kind: staticLibraryDependency}
 				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
 					{Mutator: "link", Variation: "static"},
 					c.ImageVariation(),
-				}...), StaticDepTag, deps...)
+				}...), depTag, deps...)
 			} else if !c.static() && !c.header() {
 				// If we're using snapshots and in vendor, redirect to snapshot whenever possible
 				if c.VndkVersion() == mctx.DeviceConfig().VndkVersion() {
@@ -975,10 +982,11 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				}
 
 				// dynamic executable and shared libs get shared runtime libs
+				depTag := libraryDependencyTag{Kind: sharedLibraryDependency, Order: earlyLibraryDependency}
 				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
 					{Mutator: "link", Variation: "shared"},
 					c.ImageVariation(),
-				}...), earlySharedDepTag, runtimeLibrary)
+				}...), depTag, runtimeLibrary)
 			}
 			// static lib does not have dependency to the runtime library. The
 			// dependency will be added to the executables or shared libs using

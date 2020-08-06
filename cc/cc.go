@@ -425,44 +425,130 @@ type xref interface {
 	XrefCcFiles() android.Paths
 }
 
+type libraryDependencyKind int
+
+const (
+	headerLibraryDependency = iota
+	sharedLibraryDependency
+	staticLibraryDependency
+)
+
+func (k libraryDependencyKind) String() string {
+	switch k {
+	case headerLibraryDependency:
+		return "headerLibraryDependency"
+	case sharedLibraryDependency:
+		return "sharedLibraryDependency"
+	case staticLibraryDependency:
+		return "staticLibraryDependency"
+	default:
+		panic(fmt.Errorf("unknown libraryDependencyKind %d", k))
+	}
+}
+
+type libraryDependencyOrder int
+
+const (
+	earlyLibraryDependency  = -1
+	normalLibraryDependency = 0
+	lateLibraryDependency   = 1
+)
+
+func (o libraryDependencyOrder) String() string {
+	switch o {
+	case earlyLibraryDependency:
+		return "earlyLibraryDependency"
+	case normalLibraryDependency:
+		return "normalLibraryDependency"
+	case lateLibraryDependency:
+		return "lateLibraryDependency"
+	default:
+		panic(fmt.Errorf("unknown libraryDependencyOrder %d", o))
+	}
+}
+
+// libraryDependencyTag is used to tag dependencies on libraries.  Unlike many dependency
+// tags that have a set of predefined tag objects that are reused for each dependency, a
+// libraryDependencyTag is designed to contain extra metadata and is constructed as needed.
+// That means that comparing a libraryDependencyTag for equality will only be equal if all
+// of the metadata is equal.  Most usages will want to type assert to libraryDependencyTag and
+// then check individual metadata fields instead.
+type libraryDependencyTag struct {
+	blueprint.BaseDependencyTag
+
+	// These are exported so that fmt.Printf("%#v") can call their String methods.
+	Kind  libraryDependencyKind
+	Order libraryDependencyOrder
+
+	wholeStatic bool
+
+	reexportFlags       bool
+	explicitlyVersioned bool
+	dataLib             bool
+	ndk                 bool
+
+	staticUnwinder bool
+
+	makeSuffix string
+}
+
+// header returns true if the libraryDependencyTag is tagging a header lib dependency.
+func (d libraryDependencyTag) header() bool {
+	return d.Kind == headerLibraryDependency
+}
+
+// shared returns true if the libraryDependencyTag is tagging a shared lib dependency.
+func (d libraryDependencyTag) shared() bool {
+	return d.Kind == sharedLibraryDependency
+}
+
+// shared returns true if the libraryDependencyTag is tagging a static lib dependency.
+func (d libraryDependencyTag) static() bool {
+	return d.Kind == staticLibraryDependency
+}
+
+// dependencyTag is used for tagging miscellanous dependency types that don't fit into
+// libraryDependencyTag.  Each tag object is created globally and reused for multiple
+// dependencies (although since the object contains no references, assigning a tag to a
+// variable and modifying it will not modify the original).  Users can compare the tag
+// returned by ctx.OtherModuleDependencyTag against the global original
+type dependencyTag struct {
+	blueprint.BaseDependencyTag
+	name string
+}
+
 var (
-	dataLibDepTag         = DependencyTag{Name: "data_lib", Library: true, Shared: true}
-	sharedExportDepTag    = DependencyTag{Name: "shared", Library: true, Shared: true, ReexportFlags: true}
-	earlySharedDepTag     = DependencyTag{Name: "early_shared", Library: true, Shared: true}
-	lateSharedDepTag      = DependencyTag{Name: "late shared", Library: true, Shared: true}
-	staticExportDepTag    = DependencyTag{Name: "static", Library: true, ReexportFlags: true}
-	lateStaticDepTag      = DependencyTag{Name: "late static", Library: true}
-	staticUnwinderDepTag  = DependencyTag{Name: "static unwinder", Library: true}
-	wholeStaticDepTag     = DependencyTag{Name: "whole static", Library: true, ReexportFlags: true}
-	headerDepTag          = DependencyTag{Name: "header", Library: true}
-	headerExportDepTag    = DependencyTag{Name: "header", Library: true, ReexportFlags: true}
-	genSourceDepTag       = DependencyTag{Name: "gen source"}
-	genHeaderDepTag       = DependencyTag{Name: "gen header"}
-	genHeaderExportDepTag = DependencyTag{Name: "gen header", ReexportFlags: true}
-	objDepTag             = DependencyTag{Name: "obj"}
-	linkerFlagsDepTag     = DependencyTag{Name: "linker flags file"}
-	dynamicLinkerDepTag   = DependencyTag{Name: "dynamic linker"}
-	reuseObjTag           = DependencyTag{Name: "reuse objects"}
-	staticVariantTag      = DependencyTag{Name: "static variant"}
-	ndkStubDepTag         = DependencyTag{Name: "ndk stub", Library: true}
-	ndkLateStubDepTag     = DependencyTag{Name: "ndk late stub", Library: true}
-	vndkExtDepTag         = DependencyTag{Name: "vndk extends", Library: true}
-	runtimeDepTag         = DependencyTag{Name: "runtime lib"}
-	testPerSrcDepTag      = DependencyTag{Name: "test_per_src"}
+	genSourceDepTag       = dependencyTag{name: "gen source"}
+	genHeaderDepTag       = dependencyTag{name: "gen header"}
+	genHeaderExportDepTag = dependencyTag{name: "gen header export"}
+	objDepTag             = dependencyTag{name: "obj"}
+	linkerFlagsDepTag     = dependencyTag{name: "linker flags file"}
+	dynamicLinkerDepTag   = dependencyTag{name: "dynamic linker"}
+	reuseObjTag           = dependencyTag{name: "reuse objects"}
+	staticVariantTag      = dependencyTag{name: "static variant"}
+	vndkExtDepTag         = dependencyTag{name: "vndk extends"}
+	dataLibDepTag         = dependencyTag{name: "data lib"}
+	runtimeDepTag         = dependencyTag{name: "runtime lib"}
+	testPerSrcDepTag      = dependencyTag{name: "test_per_src"}
 )
 
 func IsSharedDepTag(depTag blueprint.DependencyTag) bool {
-	ccDepTag, ok := depTag.(DependencyTag)
-	return ok && ccDepTag.Shared
+	ccLibDepTag, ok := depTag.(libraryDependencyTag)
+	return ok && ccLibDepTag.shared()
+}
+
+func IsStaticDepTag(depTag blueprint.DependencyTag) bool {
+	ccLibDepTag, ok := depTag.(libraryDependencyTag)
+	return ok && ccLibDepTag.static()
 }
 
 func IsRuntimeDepTag(depTag blueprint.DependencyTag) bool {
-	ccDepTag, ok := depTag.(DependencyTag)
+	ccDepTag, ok := depTag.(dependencyTag)
 	return ok && ccDepTag == runtimeDepTag
 }
 
 func IsTestPerSrcDepTag(depTag blueprint.DependencyTag) bool {
-	ccDepTag, ok := depTag.(DependencyTag)
+	ccDepTag, ok := depTag.(dependencyTag)
 	return ok && ccDepTag == testPerSrcDepTag
 }
 
@@ -1859,9 +1945,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	vendorSnapshotHeaderLibs := vendorSnapshotHeaderLibs(actx.Config())
 	for _, lib := range deps.HeaderLibs {
-		depTag := headerDepTag
+		depTag := libraryDependencyTag{Kind: headerLibraryDependency}
 		if inList(lib, deps.ReexportHeaderLibHeaders) {
-			depTag = headerExportDepTag
+			depTag.reexportFlags = true
 		}
 
 		lib = rewriteSnapshotLibs(lib, vendorSnapshotHeaderLibs)
@@ -1884,7 +1970,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	vendorSnapshotStaticLibs := vendorSnapshotStaticLibs(actx.Config())
 
 	for _, lib := range deps.WholeStaticLibs {
-		depTag := wholeStaticDepTag
+		depTag := libraryDependencyTag{Kind: staticLibraryDependency, wholeStatic: true, reexportFlags: true}
 		if impl, ok := syspropImplLibraries[lib]; ok {
 			lib = impl
 		}
@@ -1897,9 +1983,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 
 	for _, lib := range deps.StaticLibs {
-		depTag := StaticDepTag
+		depTag := libraryDependencyTag{Kind: staticLibraryDependency}
 		if inList(lib, deps.ReexportStaticLibHeaders) {
-			depTag = staticExportDepTag
+			depTag.reexportFlags = true
 		}
 
 		if impl, ok := syspropImplLibraries[lib]; ok {
@@ -1917,24 +2003,26 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	// so that native libraries/binaries are linked with static unwinder
 	// because Q libc doesn't have unwinder APIs
 	if deps.StaticUnwinderIfLegacy {
+		depTag := libraryDependencyTag{Kind: staticLibraryDependency, staticUnwinder: true}
 		actx.AddVariationDependencies([]blueprint.Variation{
 			{Mutator: "link", Variation: "static"},
-		}, staticUnwinderDepTag, rewriteSnapshotLibs(staticUnwinder(actx), vendorSnapshotStaticLibs))
+		}, depTag, rewriteSnapshotLibs(staticUnwinder(actx), vendorSnapshotStaticLibs))
 	}
 
 	for _, lib := range deps.LateStaticLibs {
+		depTag := libraryDependencyTag{Kind: staticLibraryDependency, Order: lateLibraryDependency}
 		actx.AddVariationDependencies([]blueprint.Variation{
 			{Mutator: "link", Variation: "static"},
-		}, lateStaticDepTag, rewriteSnapshotLibs(lib, vendorSnapshotStaticLibs))
+		}, depTag, rewriteSnapshotLibs(lib, vendorSnapshotStaticLibs))
 	}
 
-	addSharedLibDependencies := func(depTag DependencyTag, name string, version string) {
+	addSharedLibDependencies := func(depTag libraryDependencyTag, name string, version string) {
 		var variations []blueprint.Variation
 		variations = append(variations, blueprint.Variation{Mutator: "link", Variation: "shared"})
 		if version != "" && VersionVariantAvailable(c) {
 			// Version is explicitly specified. i.e. libFoo#30
 			variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
-			depTag.ExplicitlyVersioned = true
+			depTag.explicitlyVersioned = true
 		}
 		actx.AddVariationDependencies(variations, depTag, name)
 
@@ -1956,12 +2044,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	var sharedLibNames []string
 
 	for _, lib := range deps.SharedLibs {
-		depTag := SharedDepTag
-		if c.static() {
-			depTag = SharedFromStaticDepTag
-		}
+		depTag := libraryDependencyTag{Kind: sharedLibraryDependency}
 		if inList(lib, deps.ReexportSharedLibHeaders) {
-			depTag = sharedExportDepTag
+			depTag.reexportFlags = true
 		}
 
 		if impl, ok := syspropImplLibraries[lib]; ok {
@@ -1981,7 +2066,8 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			// linking against both the stubs lib and the non-stubs lib at the same time.
 			continue
 		}
-		addSharedLibDependencies(lateSharedDepTag, lib, "")
+		depTag := libraryDependencyTag{Kind: sharedLibraryDependency, Order: lateLibraryDependency}
+		addSharedLibDependencies(depTag, lib, "")
 	}
 
 	actx.AddVariationDependencies([]blueprint.Variation{
@@ -2020,10 +2106,14 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 
 	version := ctx.sdkVersion()
+
+	ndkStubDepTag := libraryDependencyTag{Kind: sharedLibraryDependency, ndk: true, makeSuffix: "." + version}
 	actx.AddVariationDependencies([]blueprint.Variation{
 		{Mutator: "ndk_api", Variation: version},
 		{Mutator: "link", Variation: "shared"},
 	}, ndkStubDepTag, variantNdkLibs...)
+
+	ndkLateStubDepTag := libraryDependencyTag{Kind: sharedLibraryDependency, Order: lateLibraryDependency, ndk: true, makeSuffix: "." + version}
 	actx.AddVariationDependencies([]blueprint.Variation{
 		{Mutator: "ndk_api", Variation: version},
 		{Mutator: "link", Variation: "shared"},
@@ -2047,7 +2137,19 @@ func BeginMutator(ctx android.BottomUpMutatorContext) {
 
 // Whether a module can link to another module, taking into
 // account NDK linking.
-func checkLinkType(ctx android.ModuleContext, from LinkableInterface, to LinkableInterface, tag DependencyTag) {
+func checkLinkType(ctx android.ModuleContext, from LinkableInterface, to LinkableInterface,
+	tag blueprint.DependencyTag) {
+
+	switch t := tag.(type) {
+	case dependencyTag:
+		if t != vndkExtDepTag {
+			return
+		}
+	case libraryDependencyTag:
+	default:
+		return
+	}
+
 	if from.Module().Target().Os != android.Android {
 		// Host code is not restricted
 		return
@@ -2205,8 +2307,6 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	directStaticDeps := []LinkableInterface{}
 	directSharedDeps := []LinkableInterface{}
 
-	vendorPublicLibraries := vendorPublicLibraries(ctx.Config())
-
 	reexportExporter := func(exporter exportedFlagsProducer) {
 		depPaths.ReexportedDirs = append(depPaths.ReexportedDirs, exporter.exportedDirs()...)
 		depPaths.ReexportedSystemDirs = append(depPaths.ReexportedSystemDirs, exporter.exportedSystemDirs()...)
@@ -2316,39 +2416,24 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 		}
 
-		if depTag == staticUnwinderDepTag {
-			// Use static unwinder for legacy (min_sdk_version = 29) apexes (b/144430859)
-			if c.apexSdkVersion <= android.SdkVersion_Android10 {
-				depTag = StaticDepTag
-			} else {
+		checkLinkType(ctx, c, ccDep, depTag)
+
+		linkFile := ccDep.OutputFile()
+
+		if libDepTag, ok := depTag.(libraryDependencyTag); ok {
+			// Only use static unwinder for legacy (min_sdk_version = 29) apexes (b/144430859)
+			if libDepTag.staticUnwinder && c.apexSdkVersion > android.SdkVersion_Android10 {
 				return
 			}
-		}
 
-		// Extract ExplicitlyVersioned field from the depTag and reset it inside the struct.
-		// Otherwise, SharedDepTag and lateSharedDepTag with ExplicitlyVersioned set to true
-		// won't be matched to SharedDepTag and lateSharedDepTag.
-		explicitlyVersioned := false
-		if t, ok := depTag.(DependencyTag); ok {
-			explicitlyVersioned = t.ExplicitlyVersioned
-			t.ExplicitlyVersioned = false
-			depTag = t
-		}
-
-		if t, ok := depTag.(DependencyTag); ok && t.Library {
-			depIsStatic := false
-			switch depTag {
-			case StaticDepTag, staticExportDepTag, lateStaticDepTag, wholeStaticDepTag:
-				depIsStatic = true
-			}
-			if ccDep.CcLibrary() && !depIsStatic {
+			if ccDep.CcLibrary() && !libDepTag.static() {
 				depIsStubs := ccDep.BuildStubs()
 				depHasStubs := VersionVariantAvailable(c) && ccDep.HasStubsVariants()
 				depInSameApex := android.DirectlyInApex(c.ApexName(), depName)
 				depInPlatform := !android.DirectlyInAnyApex(ctx, depName)
 
 				var useThisDep bool
-				if depIsStubs && explicitlyVersioned {
+				if depIsStubs && libDepTag.explicitlyVersioned {
 					// Always respect dependency to the versioned stubs (i.e. libX#10)
 					useThisDep = true
 				} else if !depHasStubs {
@@ -2380,7 +2465,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				}
 
 				// when to use (unspecified) stubs, check min_sdk_version and choose the right one
-				if useThisDep && depIsStubs && !explicitlyVersioned {
+				if useThisDep && depIsStubs && !libDepTag.explicitlyVersioned {
 					versionToUse, err := c.ChooseSdkVersion(ccDep.StubsVersions(), c.apexSdkVersion)
 					if err != nil {
 						ctx.OtherModuleErrorf(dep, err.Error())
@@ -2425,7 +2510,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					depPaths.GeneratedDeps = append(depPaths.GeneratedDeps, i.exportedDeps()...)
 					depPaths.Flags = append(depPaths.Flags, i.exportedFlags()...)
 
-					if t.ReexportFlags {
+					if libDepTag.reexportFlags {
 						reexportExporter(i)
 						// Add these re-exported flags to help header-abi-dumper to infer the abi exported by a library.
 						// Re-exported shared library headers must be included as well since they can help us with type information
@@ -2437,210 +2522,178 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					}
 				}
 			}
-			checkLinkType(ctx, c, ccDep, t)
-		}
 
-		var ptr *android.Paths
-		var depPtr *android.Paths
+			var ptr *android.Paths
+			var depPtr *android.Paths
 
-		linkFile := ccDep.OutputFile()
-		depFile := android.OptionalPath{}
+			depFile := android.OptionalPath{}
 
-		switch depTag {
-		case ndkStubDepTag, SharedDepTag, SharedFromStaticDepTag, sharedExportDepTag:
-			ptr = &depPaths.SharedLibs
-			depPtr = &depPaths.SharedLibsDeps
-			depFile = ccDep.Toc()
-			directSharedDeps = append(directSharedDeps, ccDep)
-
-		case earlySharedDepTag:
-			ptr = &depPaths.EarlySharedLibs
-			depPtr = &depPaths.EarlySharedLibsDeps
-			depFile = ccDep.Toc()
-			directSharedDeps = append(directSharedDeps, ccDep)
-		case lateSharedDepTag, ndkLateStubDepTag:
-			ptr = &depPaths.LateSharedLibs
-			depPtr = &depPaths.LateSharedLibsDeps
-			depFile = ccDep.Toc()
-		case StaticDepTag, staticExportDepTag:
-			ptr = nil
-			directStaticDeps = append(directStaticDeps, ccDep)
-		case lateStaticDepTag:
-			ptr = &depPaths.LateStaticLibs
-		case wholeStaticDepTag:
-			ptr = &depPaths.WholeStaticLibs
-			if !ccDep.CcLibraryInterface() || !ccDep.Static() {
-				ctx.ModuleErrorf("module %q not a static library", depName)
-				return
-			}
-
-			// Because the static library objects are included, this only makes sense
-			// in the context of proper cc.Modules.
-			if ccWholeStaticLib, ok := ccDep.(*Module); ok {
-				staticLib := ccWholeStaticLib.linker.(libraryInterface)
-				if missingDeps := staticLib.getWholeStaticMissingDeps(); missingDeps != nil {
-					postfix := " (required by " + ctx.OtherModuleName(dep) + ")"
-					for i := range missingDeps {
-						missingDeps[i] += postfix
-					}
-					ctx.AddMissingDependencies(missingDeps)
+			switch {
+			case libDepTag.header():
+				// nothing
+			case libDepTag.shared():
+				ptr = &depPaths.SharedLibs
+				switch libDepTag.Order {
+				case earlyLibraryDependency:
+					ptr = &depPaths.EarlySharedLibs
+					depPtr = &depPaths.EarlySharedLibsDeps
+				case normalLibraryDependency:
+					ptr = &depPaths.SharedLibs
+					depPtr = &depPaths.SharedLibsDeps
+					directSharedDeps = append(directSharedDeps, ccDep)
+				case lateLibraryDependency:
+					ptr = &depPaths.LateSharedLibs
+					depPtr = &depPaths.LateSharedLibsDeps
+				default:
+					panic(fmt.Errorf("unexpected library dependency order %d", libDepTag.Order))
 				}
-				if _, ok := ccWholeStaticLib.linker.(prebuiltLinkerInterface); ok {
-					depPaths.WholeStaticLibsFromPrebuilts = append(depPaths.WholeStaticLibsFromPrebuilts, linkFile.Path())
-				} else {
-					depPaths.WholeStaticLibObjs = depPaths.WholeStaticLibObjs.Append(staticLib.objs())
-				}
-			} else {
-				ctx.ModuleErrorf(
-					"non-cc.Modules cannot be included as whole static libraries.", depName)
-				return
-			}
-		case headerDepTag:
-			// Nothing
-		case objDepTag:
-			depPaths.Objs.objFiles = append(depPaths.Objs.objFiles, linkFile.Path())
-		case CrtBeginDepTag:
-			depPaths.CrtBegin = linkFile
-		case CrtEndDepTag:
-			depPaths.CrtEnd = linkFile
-		case dynamicLinkerDepTag:
-			depPaths.DynamicLinker = linkFile
-		}
-
-		switch depTag {
-		case StaticDepTag, staticExportDepTag, lateStaticDepTag:
-			if !ccDep.CcLibraryInterface() || !ccDep.Static() {
-				ctx.ModuleErrorf("module %q not a static library", depName)
-				return
-			}
-
-			// When combining coverage files for shared libraries and executables, coverage files
-			// in static libraries act as if they were whole static libraries. The same goes for
-			// source based Abi dump files.
-			if c, ok := ccDep.(*Module); ok {
-				staticLib := c.linker.(libraryInterface)
-				depPaths.StaticLibObjs.coverageFiles = append(depPaths.StaticLibObjs.coverageFiles,
-					staticLib.objs().coverageFiles...)
-				depPaths.StaticLibObjs.sAbiDumpFiles = append(depPaths.StaticLibObjs.sAbiDumpFiles,
-					staticLib.objs().sAbiDumpFiles...)
-			} else if c, ok := ccDep.(LinkableInterface); ok {
-				// Handle non-CC modules here
-				depPaths.StaticLibObjs.coverageFiles = append(depPaths.StaticLibObjs.coverageFiles,
-					c.CoverageFiles()...)
-			}
-		}
-
-		if ptr != nil {
-			if !linkFile.Valid() {
-				if !ctx.Config().AllowMissingDependencies() {
-					ctx.ModuleErrorf("module %q missing output file", depName)
-				} else {
-					ctx.AddMissingDependencies([]string{depName})
-				}
-				return
-			}
-			*ptr = append(*ptr, linkFile.Path())
-		}
-
-		if depPtr != nil {
-			dep := depFile
-			if !dep.Valid() {
-				dep = linkFile
-			}
-			*depPtr = append(*depPtr, dep.Path())
-		}
-
-		vendorSuffixModules := vendorSuffixModules(ctx.Config())
-
-		baseLibName := func(depName string) string {
-			libName := strings.TrimSuffix(depName, llndkLibrarySuffix)
-			libName = strings.TrimSuffix(libName, vendorPublicLibrarySuffix)
-			libName = strings.TrimPrefix(libName, "prebuilt_")
-			return libName
-		}
-
-		makeLibName := func(depName string) string {
-			libName := baseLibName(depName)
-			isLLndk := isLlndkLibrary(libName, ctx.Config())
-			isVendorPublicLib := inList(libName, *vendorPublicLibraries)
-			bothVendorAndCoreVariantsExist := ccDep.HasVendorVariant() || isLLndk
-
-			if c, ok := ccDep.(*Module); ok {
-				// Use base module name for snapshots when exporting to Makefile.
-				if c.isSnapshotPrebuilt() {
-					baseName := c.BaseModuleName()
-
-					if c.IsVndk() {
-						return baseName + ".vendor"
+				depFile = ccDep.Toc()
+			case libDepTag.static():
+				if libDepTag.wholeStatic {
+					ptr = &depPaths.WholeStaticLibs
+					if !ccDep.CcLibraryInterface() || !ccDep.Static() {
+						ctx.ModuleErrorf("module %q not a static library", depName)
+						return
 					}
 
-					if vendorSuffixModules[baseName] {
-						return baseName + ".vendor"
+					// Because the static library objects are included, this only makes sense
+					// in the context of proper cc.Modules.
+					if ccWholeStaticLib, ok := ccDep.(*Module); ok {
+						staticLib := ccWholeStaticLib.linker.(libraryInterface)
+						if missingDeps := staticLib.getWholeStaticMissingDeps(); missingDeps != nil {
+							postfix := " (required by " + ctx.OtherModuleName(dep) + ")"
+							for i := range missingDeps {
+								missingDeps[i] += postfix
+							}
+							ctx.AddMissingDependencies(missingDeps)
+						}
+						if _, ok := ccWholeStaticLib.linker.(prebuiltLinkerInterface); ok {
+							depPaths.WholeStaticLibsFromPrebuilts = append(depPaths.WholeStaticLibsFromPrebuilts, linkFile.Path())
+						} else {
+							depPaths.WholeStaticLibObjs = depPaths.WholeStaticLibObjs.Append(staticLib.objs())
+						}
 					} else {
-						return baseName
+						ctx.ModuleErrorf(
+							"non-cc.Modules cannot be included as whole static libraries.", depName)
+						return
+					}
+
+				} else {
+					switch libDepTag.Order {
+					case earlyLibraryDependency:
+						panic(fmt.Errorf("early static libs not suppported"))
+					case normalLibraryDependency:
+						// static dependencies will be handled separately so they can be ordered
+						// using transitive dependencies.
+						ptr = nil
+						directStaticDeps = append(directStaticDeps, ccDep)
+					case lateLibraryDependency:
+						ptr = &depPaths.LateStaticLibs
+					default:
+						panic(fmt.Errorf("unexpected library dependency order %d", libDepTag.Order))
 					}
 				}
 			}
 
-			if ctx.DeviceConfig().VndkUseCoreVariant() && ccDep.IsVndk() && !ccDep.MustUseVendorVariant() && !c.InRamdisk() && !c.InRecovery() {
-				// The vendor module is a no-vendor-variant VNDK library.  Depend on the
-				// core module instead.
-				return libName
-			} else if c.UseVndk() && bothVendorAndCoreVariantsExist {
-				// The vendor module in Make will have been renamed to not conflict with the core
-				// module, so update the dependency name here accordingly.
-				return libName + c.getNameSuffixWithVndkVersion(ctx)
-			} else if (ctx.Platform() || ctx.ProductSpecific()) && isVendorPublicLib {
-				return libName + vendorPublicLibrarySuffix
-			} else if ccDep.InRamdisk() && !ccDep.OnlyInRamdisk() {
-				return libName + ramdiskSuffix
-			} else if ccDep.InRecovery() && !ccDep.OnlyInRecovery() {
-				return libName + recoverySuffix
-			} else if ccDep.Module().Target().NativeBridge == android.NativeBridgeEnabled {
-				return libName + nativeBridgeSuffix
-			} else {
-				return libName
-			}
-		}
+			if libDepTag.static() && !libDepTag.wholeStatic {
+				if !ccDep.CcLibraryInterface() || !ccDep.Static() {
+					ctx.ModuleErrorf("module %q not a static library", depName)
+					return
+				}
 
-		// Export the shared libs to Make.
-		switch depTag {
-		case SharedDepTag, sharedExportDepTag, lateSharedDepTag, earlySharedDepTag:
-			if ccDep.CcLibrary() {
-				if ccDep.BuildStubs() && android.InAnyApex(depName) {
-					// Add the dependency to the APEX(es) providing the library so that
-					// m <module> can trigger building the APEXes as well.
-					for _, an := range android.GetApexesForModule(depName) {
-						c.Properties.ApexesProvidingSharedLibs = append(
-							c.Properties.ApexesProvidingSharedLibs, an)
-					}
+				// When combining coverage files for shared libraries and executables, coverage files
+				// in static libraries act as if they were whole static libraries. The same goes for
+				// source based Abi dump files.
+				if c, ok := ccDep.(*Module); ok {
+					staticLib := c.linker.(libraryInterface)
+					depPaths.StaticLibObjs.coverageFiles = append(depPaths.StaticLibObjs.coverageFiles,
+						staticLib.objs().coverageFiles...)
+					depPaths.StaticLibObjs.sAbiDumpFiles = append(depPaths.StaticLibObjs.sAbiDumpFiles,
+						staticLib.objs().sAbiDumpFiles...)
+				} else if c, ok := ccDep.(LinkableInterface); ok {
+					// Handle non-CC modules here
+					depPaths.StaticLibObjs.coverageFiles = append(depPaths.StaticLibObjs.coverageFiles,
+						c.CoverageFiles()...)
 				}
 			}
 
-			// Note: the order of libs in this list is not important because
-			// they merely serve as Make dependencies and do not affect this lib itself.
-			c.Properties.AndroidMkSharedLibs = append(
-				c.Properties.AndroidMkSharedLibs, makeLibName(depName))
-			// Record baseLibName for snapshots.
-			c.Properties.SnapshotSharedLibs = append(c.Properties.SnapshotSharedLibs, baseLibName(depName))
-		case ndkStubDepTag, ndkLateStubDepTag:
-			c.Properties.AndroidMkSharedLibs = append(
-				c.Properties.AndroidMkSharedLibs,
-				depName+"."+ccDep.ApiLevel())
-		case StaticDepTag, staticExportDepTag, lateStaticDepTag:
-			c.Properties.AndroidMkStaticLibs = append(
-				c.Properties.AndroidMkStaticLibs, makeLibName(depName))
-		case runtimeDepTag:
-			c.Properties.AndroidMkRuntimeLibs = append(
-				c.Properties.AndroidMkRuntimeLibs, makeLibName(depName))
-			// Record baseLibName for snapshots.
-			c.Properties.SnapshotRuntimeLibs = append(c.Properties.SnapshotRuntimeLibs, baseLibName(depName))
-		case wholeStaticDepTag:
-			c.Properties.AndroidMkWholeStaticLibs = append(
-				c.Properties.AndroidMkWholeStaticLibs, makeLibName(depName))
-		case headerDepTag:
-			c.Properties.AndroidMkHeaderLibs = append(
-				c.Properties.AndroidMkHeaderLibs, makeLibName(depName))
+			if ptr != nil {
+				if !linkFile.Valid() {
+					if !ctx.Config().AllowMissingDependencies() {
+						ctx.ModuleErrorf("module %q missing output file", depName)
+					} else {
+						ctx.AddMissingDependencies([]string{depName})
+					}
+					return
+				}
+				*ptr = append(*ptr, linkFile.Path())
+			}
+
+			if depPtr != nil {
+				dep := depFile
+				if !dep.Valid() {
+					dep = linkFile
+				}
+				*depPtr = append(*depPtr, dep.Path())
+			}
+
+			makeLibName := c.makeLibName(ctx, ccDep, depName) + libDepTag.makeSuffix
+			switch {
+			case libDepTag.header():
+				// TODO(ccross): The reexportFlags check is there to maintain previous
+				//   behavior when adding libraryDependencyTag and should be removed.
+				if !libDepTag.reexportFlags {
+					c.Properties.AndroidMkHeaderLibs = append(
+						c.Properties.AndroidMkHeaderLibs, makeLibName)
+				}
+			case libDepTag.shared():
+				if ccDep.CcLibrary() {
+					if ccDep.BuildStubs() && android.InAnyApex(depName) {
+						// Add the dependency to the APEX(es) providing the library so that
+						// m <module> can trigger building the APEXes as well.
+						for _, an := range android.GetApexesForModule(depName) {
+							c.Properties.ApexesProvidingSharedLibs = append(
+								c.Properties.ApexesProvidingSharedLibs, an)
+						}
+					}
+				}
+
+				// Note: the order of libs in this list is not important because
+				// they merely serve as Make dependencies and do not affect this lib itself.
+				// TODO(ccross): The reexportFlags, order and ndk checks are there to
+				//   maintain previous behavior when adding libraryDependencyTag and
+				//   should be removed.
+				if !c.static() || libDepTag.reexportFlags || libDepTag.Order == lateLibraryDependency || libDepTag.ndk {
+					c.Properties.AndroidMkSharedLibs = append(
+						c.Properties.AndroidMkSharedLibs, makeLibName)
+				}
+				// Record baseLibName for snapshots.
+				c.Properties.SnapshotSharedLibs = append(c.Properties.SnapshotSharedLibs, baseLibName(depName))
+			case libDepTag.static():
+				if libDepTag.wholeStatic {
+					c.Properties.AndroidMkWholeStaticLibs = append(
+						c.Properties.AndroidMkWholeStaticLibs, makeLibName)
+				} else {
+					c.Properties.AndroidMkStaticLibs = append(
+						c.Properties.AndroidMkStaticLibs, makeLibName)
+				}
+			}
+		} else {
+			switch depTag {
+			case runtimeDepTag:
+				c.Properties.AndroidMkRuntimeLibs = append(
+					c.Properties.AndroidMkRuntimeLibs, c.makeLibName(ctx, ccDep, depName)+libDepTag.makeSuffix)
+				// Record baseLibName for snapshots.
+				c.Properties.SnapshotRuntimeLibs = append(c.Properties.SnapshotRuntimeLibs, baseLibName(depName))
+			case objDepTag:
+				depPaths.Objs.objFiles = append(depPaths.Objs.objFiles, linkFile.Path())
+			case CrtBeginDepTag:
+				depPaths.CrtBegin = linkFile
+			case CrtEndDepTag:
+				depPaths.CrtEnd = linkFile
+			case dynamicLinkerDepTag:
+				depPaths.DynamicLinker = linkFile
+			}
 		}
 	})
 
@@ -2663,6 +2716,61 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	}
 
 	return depPaths
+}
+
+// baseLibName trims known prefixes and suffixes
+func baseLibName(depName string) string {
+	libName := strings.TrimSuffix(depName, llndkLibrarySuffix)
+	libName = strings.TrimSuffix(libName, vendorPublicLibrarySuffix)
+	libName = strings.TrimPrefix(libName, "prebuilt_")
+	return libName
+}
+
+func (c *Module) makeLibName(ctx android.ModuleContext, ccDep LinkableInterface, depName string) string {
+	vendorSuffixModules := vendorSuffixModules(ctx.Config())
+	vendorPublicLibraries := vendorPublicLibraries(ctx.Config())
+
+	libName := baseLibName(depName)
+	isLLndk := isLlndkLibrary(libName, ctx.Config())
+	isVendorPublicLib := inList(libName, *vendorPublicLibraries)
+	bothVendorAndCoreVariantsExist := ccDep.HasVendorVariant() || isLLndk
+
+	if c, ok := ccDep.(*Module); ok {
+		// Use base module name for snapshots when exporting to Makefile.
+		if c.isSnapshotPrebuilt() {
+			baseName := c.BaseModuleName()
+
+			if c.IsVndk() {
+				return baseName + ".vendor"
+			}
+
+			if vendorSuffixModules[baseName] {
+				return baseName + ".vendor"
+			} else {
+				return baseName
+			}
+		}
+	}
+
+	if ctx.DeviceConfig().VndkUseCoreVariant() && ccDep.IsVndk() && !ccDep.MustUseVendorVariant() && !c.InRamdisk() && !c.InRecovery() {
+		// The vendor module is a no-vendor-variant VNDK library.  Depend on the
+		// core module instead.
+		return libName
+	} else if c.UseVndk() && bothVendorAndCoreVariantsExist {
+		// The vendor module in Make will have been renamed to not conflict with the core
+		// module, so update the dependency name here accordingly.
+		return libName + c.getNameSuffixWithVndkVersion(ctx)
+	} else if (ctx.Platform() || ctx.ProductSpecific()) && isVendorPublicLib {
+		return libName + vendorPublicLibrarySuffix
+	} else if ccDep.InRamdisk() && !ccDep.OnlyInRamdisk() {
+		return libName + ramdiskSuffix
+	} else if ccDep.InRecovery() && !ccDep.OnlyInRecovery() {
+		return libName + recoverySuffix
+	} else if ccDep.Module().Target().NativeBridge == android.NativeBridgeEnabled {
+		return libName + nativeBridgeSuffix
+	} else {
+		return libName
+	}
 }
 
 func (c *Module) InstallInData() bool {
@@ -2876,26 +2984,30 @@ func (c *Module) AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Write
 }
 
 func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
-	if depTag, ok := ctx.OtherModuleDependencyTag(dep).(DependencyTag); ok {
-		if cc, ok := dep.(*Module); ok {
-			if cc.HasStubsVariants() {
-				if depTag.Shared && depTag.Library {
-					// dynamic dep to a stubs lib crosses APEX boundary
-					return false
-				}
-				if IsRuntimeDepTag(depTag) {
-					// runtime dep to a stubs lib also crosses APEX boundary
-					return false
-				}
+	depTag := ctx.OtherModuleDependencyTag(dep)
+	libDepTag, isLibDepTag := depTag.(libraryDependencyTag)
+
+	if cc, ok := dep.(*Module); ok {
+		if cc.HasStubsVariants() {
+			if isLibDepTag && libDepTag.shared() {
+				// dynamic dep to a stubs lib crosses APEX boundary
+				return false
 			}
-			if depTag.FromStatic {
-				// shared_lib dependency from a static lib is considered as crossing
-				// the APEX boundary because the dependency doesn't actually is
-				// linked; the dependency is used only during the compilation phase.
+			if IsRuntimeDepTag(depTag) {
+				// runtime dep to a stubs lib also crosses APEX boundary
 				return false
 			}
 		}
-	} else if ctx.OtherModuleDependencyTag(dep) == llndkImplDep {
+		// TODO(ccross): The libDepTag.reexportFlags is there to maintain previous behavior
+		//   when adding libraryDependencyTag and should be removed.
+		if isLibDepTag && c.static() && libDepTag.shared() && !libDepTag.reexportFlags {
+			// shared_lib dependency from a static lib is considered as crossing
+			// the APEX boundary because the dependency doesn't actually is
+			// linked; the dependency is used only during the compilation phase.
+			return false
+		}
+	}
+	if depTag == llndkImplDep {
 		// We don't track beyond LLNDK
 		return false
 	}
