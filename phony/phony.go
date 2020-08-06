@@ -44,11 +44,6 @@ func (p *phony) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.requiredModuleNames = ctx.RequiredModuleNames()
 	p.hostRequiredModuleNames = ctx.HostRequiredModuleNames()
 	p.targetRequiredModuleNames = ctx.TargetRequiredModuleNames()
-	if len(p.requiredModuleNames) == 0 &&
-		len(p.hostRequiredModuleNames) == 0 && len(p.targetRequiredModuleNames) == 0 {
-		ctx.PropertyErrorf("required", "phony must not have empty required dependencies "+
-			"in order to be useful(and therefore permitted).")
-	}
 }
 
 func (p *phony) AndroidMk() android.AndroidMkData {
