@@ -722,10 +722,11 @@ type dependencyTag struct {
 }
 
 var (
-	rlibDepTag       = dependencyTag{name: "rlibTag", library: true}
-	dylibDepTag      = dependencyTag{name: "dylib", library: true}
-	procMacroDepTag  = dependencyTag{name: "procMacro", proc_macro: true}
-	testPerSrcDepTag = dependencyTag{name: "rust_unit_tests"}
+	customBindgenDepTag = dependencyTag{name: "customBindgenTag"}
+	rlibDepTag          = dependencyTag{name: "rlibTag", library: true}
+	dylibDepTag         = dependencyTag{name: "dylib", library: true}
+	procMacroDepTag     = dependencyTag{name: "procMacro", proc_macro: true}
+	testPerSrcDepTag    = dependencyTag{name: "rust_unit_tests"}
 )
 
 type autoDep struct {
@@ -1009,6 +1010,13 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		actx.AddVariationDependencies(commonDepVariations, cc.CrtEndDepTag, deps.CrtEnd)
 	}
 
+	if mod.sourceProvider != nil {
+		if bindgen, ok := mod.sourceProvider.(*bindgenDecorator); ok &&
+			bindgen.Properties.Custom_bindgen != "" {
+			actx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(), customBindgenDepTag,
+				bindgen.Properties.Custom_bindgen)
+		}
+	}
 	// proc_macros are compiler plugins, and so we need the host arch variant as a dependendcy.
 	actx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(), procMacroDepTag, deps.ProcMacros...)
 }
