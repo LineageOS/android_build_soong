@@ -19,9 +19,8 @@ import (
 )
 
 type SourceProviderProperties struct {
-	// name for the generated source file. Defaults to module name (e.g. moduleNameFoo.rs is produced by default).
-	// Importantly, the inherited "stem" property for this module sets the output filename for the generated library
-	// variants only
+	// filename for the generated source file (<source_stem>.rs). This field is required.
+	// The inherited "stem" property sets the output filename for the generated library variants only.
 	Source_stem *string `android:"arch_variant"`
 
 	// crate name, used for the library variant of this source provider. See additional details in rust_library.
@@ -65,11 +64,11 @@ func NewSourceProvider() *baseSourceProvider {
 }
 
 func (sp *baseSourceProvider) getStem(ctx android.ModuleContext) string {
-	stem := ctx.ModuleName()
-	if String(sp.Properties.Source_stem) != "" {
-		stem = String(sp.Properties.Source_stem)
+	if String(sp.Properties.Source_stem) == "" {
+		ctx.PropertyErrorf("source_stem",
+			"source_stem property is undefined but required for rust_bindgen modules")
 	}
-	return stem
+	return String(sp.Properties.Source_stem)
 }
 
 func (sp *baseSourceProvider) sourceProviderDeps(ctx DepsContext, deps Deps) Deps {
