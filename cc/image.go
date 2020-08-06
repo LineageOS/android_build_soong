@@ -24,6 +24,33 @@ import (
 
 var _ android.ImageInterface = (*Module)(nil)
 
+type imageVariantType string
+
+const (
+	coreImageVariant     imageVariantType = "core"
+	vendorImageVariant   imageVariantType = "vendor"
+	productImageVariant  imageVariantType = "product"
+	ramdiskImageVariant  imageVariantType = "ramdisk"
+	recoveryImageVariant imageVariantType = "recovery"
+	hostImageVariant     imageVariantType = "host"
+)
+
+func (c *Module) getImageVariantType() imageVariantType {
+	if c.Host() {
+		return hostImageVariant
+	} else if c.inVendor() {
+		return vendorImageVariant
+	} else if c.inProduct() {
+		return productImageVariant
+	} else if c.InRamdisk() {
+		return ramdiskImageVariant
+	} else if c.InRecovery() {
+		return recoveryImageVariant
+	} else {
+		return coreImageVariant
+	}
+}
+
 const (
 	// VendorVariationPrefix is the variant prefix used for /vendor code that compiles
 	// against the VNDK.
