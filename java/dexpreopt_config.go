@@ -37,14 +37,12 @@ func systemServerClasspath(ctx android.MakeVarsContext) []string {
 				filepath.Join("/system/framework", m+".jar"))
 		}
 		// 2) The jars that are from an updatable apex.
-		for _, m := range global.UpdatableSystemServerJars {
-			systemServerClasspathLocations = append(systemServerClasspathLocations,
-				dexpreopt.GetJarLocationFromApexJarPair(ctx, m))
-		}
-		if len(systemServerClasspathLocations) != len(global.SystemServerJars)+len(global.UpdatableSystemServerJars) {
+		systemServerClasspathLocations = append(systemServerClasspathLocations,
+			global.UpdatableSystemServerJars.DevicePaths(ctx.Config(), android.Android)...)
+		if len(systemServerClasspathLocations) != len(global.SystemServerJars)+global.UpdatableSystemServerJars.Len() {
 			panic(fmt.Errorf("Wrong number of system server jars, got %d, expected %d",
 				len(systemServerClasspathLocations),
-				len(global.SystemServerJars)+len(global.UpdatableSystemServerJars)))
+				len(global.SystemServerJars)+global.UpdatableSystemServerJars.Len()))
 		}
 		return systemServerClasspathLocations
 	})
@@ -69,39 +67,6 @@ func dexpreoptTargets(ctx android.PathContext) []android.Target {
 	return targets
 }
 
-func stemOf(moduleName string) string {
-	// b/139391334: the stem of framework-minus-apex is framework
-	// This is hard coded here until we find a good way to query the stem
-	// of a module before any other mutators are run
-	if moduleName == "framework-minus-apex" {
-		return "framework"
-	}
-	return moduleName
-}
-
-func getDexLocation(ctx android.PathContext, target android.Target, module string) string {
-	apex, jar := android.SplitApexJarPair(ctx, module)
-
-	name := stemOf(jar) + ".jar"
-
-	var subdir string
-	if apex == "platform" {
-		// Special apex name "platform" denotes jars do not come from an apex, but are part
-		// of the platform. Such jars are installed on the /system partition on device.
-		subdir = "system/framework"
-	} else if apex == "system_ext" {
-		subdir = "system_ext/framework"
-	} else {
-		subdir = filepath.Join("apex", apex, "javalib")
-	}
-
-	if target.Os.Class == android.Host {
-		return filepath.Join(ctx.Config().Getenv("OUT_DIR"), "host", ctx.Config().PrebuiltOS(), subdir, name)
-	} else {
-		return filepath.Join("/", subdir, name)
-	}
-}
-
 var (
 	bootImageConfigKey     = android.NewOnceKey("bootImageConfig")
 	artBootImageName       = "art"
@@ -116,12 +81,13 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		targets := dexpreoptTargets(ctx)
 		deviceDir := android.PathForOutput(ctx, ctx.Config().DeviceName())
 
-		artModules := global.ArtApexJars
+		artModules := global.ArtApexJars.CopyOf()
 		// With EMMA_INSTRUMENT_FRAMEWORK=true the Core libraries depend on jacoco.
 		if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
-			artModules = append(artModules, "com.android.art:jacocoagent")
+			artModules.Append("com.android.art", "jacocoagent")
 		}
-		frameworkModules := android.RemoveListFromList(global.BootJars, artModules)
+		frameworkModules := global.BootJars.CopyOf()
+		frameworkModules.RemoveList(artModules)
 
 		artSubdir := "apex/com.android.art/javalib"
 		frameworkSubdir := "system/framework"
@@ -163,10 +129,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 			// Set up known paths for them, the singleton rules will copy them there.
 			// TODO(b/143682396): use module dependencies instead
 			inputDir := deviceDir.Join(ctx, "dex_"+c.name+"jars_input")
-			for _, m := range c.modules {
-				_, jar := android.SplitApexJarPair(ctx, m)
-				c.dexPaths = append(c.dexPaths, inputDir.Join(ctx, stemOf(jar)+".jar"))
-			}
+			c.dexPaths = c.modules.BuildPaths(ctx, inputDir)
 			c.dexPathsDeps = c.dexPaths
 
 			// Create target-specific variants.
@@ -178,9 +141,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 					target:          target,
 					images:          imageDir.Join(ctx, imageName),
 					imagesDeps:      c.moduleFiles(ctx, imageDir, ".art", ".oat", ".vdex"),
-				}
-				for _, m := range c.modules {
-					variant.dexLocations = append(variant.dexLocations, getDexLocation(ctx, target, m))
+					dexLocations:    c.modules.DevicePaths(ctx.Config(), target.Os),
 				}
 				variant.dexLocationsDeps = variant.dexLocations
 				c.variants = append(c.variants, variant)
@@ -213,10 +174,7 @@ func defaultBootclasspath(ctx android.PathContext) []string {
 		global := dexpreopt.GetGlobalConfig(ctx)
 		image := defaultBootImageConfig(ctx)
 
-		updatableBootclasspath := make([]string, len(global.UpdatableBootJars))
-		for i, p := range global.UpdatableBootJars {
-			updatableBootclasspath[i] = dexpreopt.GetJarLocationFromApexJarPair(ctx, p)
-		}
+		updatableBootclasspath := global.UpdatableBootJars.DevicePaths(ctx.Config(), android.Android)
 
 		bootclasspath := append(copyOf(image.getAnyAndroidVariant().dexLocationsDeps), updatableBootclasspath...)
 		return bootclasspath
@@ -236,5 +194,5 @@ func dexpreoptConfigMakevars(ctx android.MakeVarsContext) {
 	ctx.Strict("PRODUCT_DEX2OAT_BOOTCLASSPATH", strings.Join(defaultBootImageConfig(ctx).getAnyAndroidVariant().dexLocationsDeps, ":"))
 	ctx.Strict("PRODUCT_SYSTEM_SERVER_CLASSPATH", strings.Join(systemServerClasspath(ctx), ":"))
 
-	ctx.Strict("DEXPREOPT_BOOT_JARS_MODULES", strings.Join(defaultBootImageConfig(ctx).modules, ":"))
+	ctx.Strict("DEXPREOPT_BOOT_JARS_MODULES", strings.Join(defaultBootImageConfig(ctx).modules.CopyOfApexJarPairs(), ":"))
 }

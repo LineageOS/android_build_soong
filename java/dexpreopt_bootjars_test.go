@@ -48,7 +48,7 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 
 	pathCtx := android.PathContextForTesting(config)
 	dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
-	dexpreoptConfig.BootJars = []string{"platform:foo", "platform:bar", "platform:baz"}
+	dexpreoptConfig.BootJars = android.CreateConfiguredJarList(pathCtx, []string{"platform:foo", "platform:bar", "platform:baz"})
 	dexpreopt.SetTestGlobalConfig(config, dexpreoptConfig)
 
 	ctx := testContext()
