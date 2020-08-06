@@ -29,7 +29,8 @@ func init() {
 
 var ccBinarySdkMemberType = &binarySdkMemberType{
 	SdkMemberTypeBase: android.SdkMemberTypeBase{
-		PropertyName: "native_binaries",
+		PropertyName:    "native_binaries",
+		HostOsDependent: true,
 	},
 }
 
