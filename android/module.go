@@ -1840,7 +1840,7 @@ func (b *baseModuleContext) GetTagPath() []blueprint.DependencyTag {
 
 // A regexp for removing boilerplate from BaseDependencyTag from the string representation of
 // a dependency tag.
-var tagCleaner = regexp.MustCompile(`\QBaseDependencyTag:blueprint.BaseDependencyTag{}\E(, )?`)
+var tagCleaner = regexp.MustCompile(`\QBaseDependencyTag:{}\E(, )?`)
 
 // PrettyPrintTag returns string representation of the tag, but prefers
 // custom String() method if available.
@@ -1851,7 +1851,7 @@ func PrettyPrintTag(tag blueprint.DependencyTag) string {
 	}
 
 	// Otherwise, get a default string representation of the tag's struct.
-	tagString := fmt.Sprintf("%#v", tag)
+	tagString := fmt.Sprintf("%T: %+v", tag, tag)
 
 	// Remove the boilerplate from BaseDependencyTag as it adds no value.
 	tagString = tagCleaner.ReplaceAllString(tagString, "")

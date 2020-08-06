@@ -83,10 +83,7 @@ func sabiDepsMutator(mctx android.TopDownMutatorContext) {
 		((c.IsVndk() && c.UseVndk()) || c.isLlndk(mctx.Config()) ||
 			(c.sabi != nil && c.sabi.Properties.CreateSAbiDumps)) {
 		mctx.VisitDirectDeps(func(m android.Module) {
-			tag := mctx.OtherModuleDependencyTag(m)
-			switch tag {
-			case StaticDepTag, staticExportDepTag, lateStaticDepTag, wholeStaticDepTag:
-
+			if tag, ok := mctx.OtherModuleDependencyTag(m).(libraryDependencyTag); ok && tag.static() {
 				cc, _ := m.(*Module)
 				if cc == nil {
 					return
