@@ -148,24 +148,33 @@ func ltoDepsMutator(mctx android.TopDownMutatorContext) {
 
 		mctx.WalkDeps(func(dep android.Module, parent android.Module) bool {
 			tag := mctx.OtherModuleDependencyTag(dep)
-			switch tag {
-			case StaticDepTag, staticExportDepTag, lateStaticDepTag, wholeStaticDepTag, objDepTag, reuseObjTag:
-				if dep, ok := dep.(*Module); ok && dep.lto != nil &&
-					!dep.lto.Disabled() {
-					if full && !Bool(dep.lto.Properties.Lto.Full) {
-						dep.lto.Properties.FullDep = true
-					}
-					if thin && !Bool(dep.lto.Properties.Lto.Thin) {
-						dep.lto.Properties.ThinDep = true
-					}
-				}
-
-				// Recursively walk static dependencies
-				return true
-			}
+			libTag, isLibTag := tag.(libraryDependencyTag)
 
 			// Do not recurse down non-static dependencies
-			return false
+			if isLibTag {
+				// TODO(ccross): the staticUnwinder check is there to maintain existing behavior
+				//   when adding libraryDependencyTag and should be removed.
+				if !libTag.static() || libTag.staticUnwinder {
+					return false
+				}
+			} else {
+				if tag != objDepTag && tag != reuseObjTag {
+					return false
+				}
+			}
+
+			if dep, ok := dep.(*Module); ok && dep.lto != nil &&
+				!dep.lto.Disabled() {
+				if full && !Bool(dep.lto.Properties.Lto.Full) {
+					dep.lto.Properties.FullDep = true
+				}
+				if thin && !Bool(dep.lto.Properties.Lto.Thin) {
+					dep.lto.Properties.ThinDep = true
+				}
+			}
+
+			// Recursively walk static dependencies
+			return true
 		})
 	}
 }
