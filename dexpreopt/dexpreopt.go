@@ -83,7 +83,7 @@ func GenerateDexpreoptRule(ctx android.PathContext, globalSoong *GlobalSoongConf
 
 	if !dexpreoptDisabled(ctx, global, module) {
 		// Don't preopt individual boot jars, they will be preopted together.
-		if !contains(android.GetJarsFromApexJarPairs(ctx, global.BootJars), module.Name) {
+		if !global.BootJars.ContainsJar(module.Name) {
 			appImage := (generateProfile || module.ForceCreateAppImage || global.DefaultAppImages) &&
 				!module.NoCreateAppImage
 
@@ -104,17 +104,15 @@ func dexpreoptDisabled(ctx android.PathContext, global *GlobalConfig, module *Mo
 	}
 
 	// Don't preopt system server jars that are updatable.
-	for _, p := range global.UpdatableSystemServerJars {
-		if _, jar := android.SplitApexJarPair(ctx, p); jar == module.Name {
-			return true
-		}
+	if global.UpdatableSystemServerJars.ContainsJar(module.Name) {
+		return true
 	}
 
 	// If OnlyPreoptBootImageAndSystemServer=true and module is not in boot class path skip
 	// Also preopt system server jars since selinux prevents system server from loading anything from
 	// /data. If we don't do this they will need to be extracted which is not favorable for RAM usage
 	// or performance. If PreoptExtractedApk is true, we ignore the only preopt boot image options.
-	if global.OnlyPreoptBootImageAndSystemServer && !contains(android.GetJarsFromApexJarPairs(ctx, global.BootJars), module.Name) &&
+	if global.OnlyPreoptBootImageAndSystemServer && !global.BootJars.ContainsJar(module.Name) &&
 		!contains(global.SystemServerJars, module.Name) && !module.PreoptExtractedApk {
 		return true
 	}
@@ -571,20 +569,13 @@ func makefileMatch(pattern, s string) bool {
 	}
 }
 
-// Expected format for apexJarValue = <apex name>:<jar name>
-func GetJarLocationFromApexJarPair(ctx android.PathContext, apexJarValue string) string {
-	apex, jar := android.SplitApexJarPair(ctx, apexJarValue)
-	return filepath.Join("/apex", apex, "javalib", jar+".jar")
-}
-
 var nonUpdatableSystemServerJarsKey = android.NewOnceKey("nonUpdatableSystemServerJars")
 
 // TODO: eliminate the superficial global config parameter by moving global config definition
 // from java subpackage to dexpreopt.
 func NonUpdatableSystemServerJars(ctx android.PathContext, global *GlobalConfig) []string {
 	return ctx.Config().Once(nonUpdatableSystemServerJarsKey, func() interface{} {
-		return android.RemoveListFromList(global.SystemServerJars,
-			android.GetJarsFromApexJarPairs(ctx, global.UpdatableSystemServerJars))
+		return android.RemoveListFromList(global.SystemServerJars, global.UpdatableSystemServerJars.CopyOfJars())
 	}).([]string)
 }
 
