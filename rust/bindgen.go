@@ -41,12 +41,12 @@ var (
 	bindgen = pctx.AndroidStaticRule("bindgen",
 		blueprint.RuleParams{
 			Command: "CLANG_PATH=$bindgenClang LIBCLANG_PATH=$bindgenLibClang RUSTFMT=${config.RustBin}/rustfmt " +
-				"$bindgenCmd $flags $in -o $out -- -MD -MF $out.d $cflags",
-			CommandDeps: []string{"$bindgenCmd"},
+				"$cmd $flags $in -o $out -- -MD -MF $out.d $cflags",
+			CommandDeps: []string{"$cmd"},
 			Deps:        blueprint.DepsGCC,
 			Depfile:     "$out.d",
 		},
-		"flags", "cflags")
+		"cmd", "flags", "cflags")
 )
 
 func init() {
@@ -75,6 +75,12 @@ type BindgenProperties struct {
 
 	// list of shared libraries that provide headers for this binding.
 	Shared_libs []string `android:"arch_variant"`
+
+	// module name of a custom binary/script which should be used instead of the 'bindgen' binary. This custom
+	// binary must expect arguments in a similar fashion to bindgen, e.g.
+	//
+	// "my_bindgen [flags] wrapper_header.h -o [output_path] -- [clang flags]"
+	Custom_bindgen string `android:"path"`
 
 	//TODO(b/161141999) Add support for headers from cc_library_header modules.
 }
@@ -130,17 +136,28 @@ func (b *bindgenDecorator) generateSource(ctx android.ModuleContext, deps PathDe
 
 	outputFile := android.PathForModuleOut(ctx, b.baseSourceProvider.getStem(ctx)+".rs")
 
+	var cmd, cmdDesc string
+	if b.Properties.Custom_bindgen != "" {
+		cmd = ctx.GetDirectDepWithTag(b.Properties.Custom_bindgen, customBindgenDepTag).(*Module).HostToolPath().String()
+		cmdDesc = b.Properties.Custom_bindgen
+	} else {
+		cmd = "$bindgenCmd"
+		cmdDesc = "bindgen"
+	}
+
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        bindgen,
-		Description: "bindgen " + wrapperFile.Path().Rel(),
+		Description: strings.Join([]string{cmdDesc, wrapperFile.Path().Rel()}, " "),
 		Output:      outputFile,
 		Input:       wrapperFile.Path(),
 		Implicits:   implicits,
 		Args: map[string]string{
+			"cmd":    cmd,
 			"flags":  strings.Join(bindgenFlags, " "),
 			"cflags": strings.Join(cflags, " "),
 		},
 	})
+
 	b.baseSourceProvider.outputFile = outputFile
 	return outputFile
 }
