@@ -173,6 +173,7 @@ func NewRustBindgen(hod android.HostOrDeviceSupported) (*Module, *bindgenDecorat
 
 	_, library := NewRustLibrary(hod)
 	library.BuildOnlyRust()
+	library.setNoLint()
 	library.sourceProvider = bindgen
 
 	module.sourceProvider = bindgen
