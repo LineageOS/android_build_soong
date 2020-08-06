@@ -327,6 +327,12 @@ type SdkMemberType interface {
 	// SdkAware and be added with an SdkMemberTypeDependencyTag tag.
 	HasTransitiveSdkMembers() bool
 
+	// Return true if prebuilt host artifacts may be specific to the host OS. Only
+	// applicable to modules where HostSupported() is true. If this is true,
+	// snapshots will list each host OS variant explicitly and disable all other
+	// host OS'es.
+	IsHostOsDependent() bool
+
 	// Add dependencies from the SDK module to all the module variants the member
 	// type contributes to the SDK. `names` is the list of module names given in
 	// the member type property (as returned by SdkPropertyName()) in the SDK
@@ -389,6 +395,7 @@ type SdkMemberTypeBase struct {
 	PropertyName         string
 	SupportsSdk          bool
 	TransitiveSdkMembers bool
+	HostOsDependent      bool
 }
 
 func (b *SdkMemberTypeBase) SdkPropertyName() string {
@@ -401,6 +408,10 @@ func (b *SdkMemberTypeBase) UsableWithSdkAndSdkSnapshot() bool {
 
 func (b *SdkMemberTypeBase) HasTransitiveSdkMembers() bool {
 	return b.TransitiveSdkMembers
+}
+
+func (b *SdkMemberTypeBase) IsHostOsDependent() bool {
+	return b.HostOsDependent
 }
 
 // Encapsulates the information about registered SdkMemberTypes.
