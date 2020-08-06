@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	ccConfig "android/soong/cc/config"
@@ -119,15 +120,17 @@ func (b *bindgenDecorator) generateSource(ctx android.ModuleContext, deps PathDe
 		cflags = append(cflags, "-isystem "+include.String())
 	}
 
+	esc := proptools.NinjaAndShellEscapeList
+
 	// Module defined clang flags and include paths
-	cflags = append(cflags, b.Properties.Cflags...)
+	cflags = append(cflags, esc(b.Properties.Cflags)...)
 	for _, include := range b.Properties.Local_include_dirs {
 		cflags = append(cflags, "-I"+android.PathForModuleSrc(ctx, include).String())
 		implicits = append(implicits, android.PathForModuleSrc(ctx, include))
 	}
 
 	bindgenFlags := defaultBindgenFlags
-	bindgenFlags = append(bindgenFlags, strings.Join(b.Properties.Bindgen_flags, " "))
+	bindgenFlags = append(bindgenFlags, esc(b.Properties.Bindgen_flags)...)
 
 	wrapperFile := android.OptionalPathForModuleSrc(ctx, b.Properties.Wrapper_src)
 	if !wrapperFile.Valid() {
