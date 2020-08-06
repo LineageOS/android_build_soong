@@ -61,9 +61,7 @@ var (
 	cfiAsflags = []string{"-flto", "-fvisibility=default"}
 	cfiLdflags = []string{"-flto", "-fsanitize-cfi-cross-dso", "-fsanitize=cfi",
 		"-Wl,-plugin-opt,O1"}
-	cfiExportsMapPath     = "build/soong/cc/config/cfi_exports.map"
-	cfiStaticLibsMutex    sync.Mutex
-	hwasanStaticLibsMutex sync.Mutex
+	cfiExportsMapPath = "build/soong/cc/config/cfi_exports.map"
 
 	intOverflowCflags = []string{"-fsanitize-blacklist=build/soong/cc/config/integer_overflow_blocklist.txt"}
 
@@ -1054,15 +1052,9 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 					// Export the static lib name to make
 					if c.static() && c.ExportedToMake() {
 						if t == cfi {
-							appendStringSync(c.Name(), cfiStaticLibs(mctx.Config()), &cfiStaticLibsMutex)
+							cfiStaticLibs(mctx.Config()).add(c, c.Name())
 						} else if t == hwasan {
-							if c.UseVndk() {
-								appendStringSync(c.Name(), hwasanVendorStaticLibs(mctx.Config()),
-									&hwasanStaticLibsMutex)
-							} else {
-								appendStringSync(c.Name(), hwasanStaticLibs(mctx.Config()),
-									&hwasanStaticLibsMutex)
-							}
+							hwasanStaticLibs(mctx.Config()).add(c, c.Name())
 						}
 					}
 				} else {
@@ -1092,34 +1084,74 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 	}
 }
 
+type sanitizerStaticLibsMap struct {
+	// libsMap contains one list of modules per each image and each arch.
+	// e.g. libs[vendor]["arm"] contains arm modules installed to vendor
+	libsMap       map[imageVariantType]map[string][]string
+	libsMapLock   sync.Mutex
+	sanitizerType sanitizerType
+}
+
+func newSanitizerStaticLibsMap(t sanitizerType) *sanitizerStaticLibsMap {
+	return &sanitizerStaticLibsMap{
+		sanitizerType: t,
+		libsMap:       make(map[imageVariantType]map[string][]string),
+	}
+}
+
+// Add the current module to sanitizer static libs maps
+// Each module should pass its exported name as names of Make and Soong can differ.
+func (s *sanitizerStaticLibsMap) add(c *Module, name string) {
+	image := c.getImageVariantType()
+	arch := c.Arch().ArchType.String()
+
+	s.libsMapLock.Lock()
+	defer s.libsMapLock.Unlock()
+
+	if _, ok := s.libsMap[image]; !ok {
+		s.libsMap[image] = make(map[string][]string)
+	}
+
+	s.libsMap[image][arch] = append(s.libsMap[image][arch], name)
+}
+
+// Exports makefile variables in the following format:
+// SOONG_{sanitizer}_{image}_{arch}_STATIC_LIBRARIES
+// e.g. SOONG_cfi_core_x86_STATIC_LIBRARIES
+// These are to be used by use_soong_sanitized_static_libraries.
+// See build/make/core/binary.mk for more details.
+func (s *sanitizerStaticLibsMap) exportToMake(ctx android.MakeVarsContext) {
+	for _, image := range android.SortedStringKeys(s.libsMap) {
+		archMap := s.libsMap[imageVariantType(image)]
+		for _, arch := range android.SortedStringKeys(archMap) {
+			libs := archMap[arch]
+			sort.Strings(libs)
+
+			key := fmt.Sprintf(
+				"SOONG_%s_%s_%s_STATIC_LIBRARIES",
+				s.sanitizerType.variationName(),
+				image, // already upper
+				arch)
+
+			ctx.Strict(key, strings.Join(libs, " "))
+		}
+	}
+}
+
 var cfiStaticLibsKey = android.NewOnceKey("cfiStaticLibs")
 
-func cfiStaticLibs(config android.Config) *[]string {
+func cfiStaticLibs(config android.Config) *sanitizerStaticLibsMap {
 	return config.Once(cfiStaticLibsKey, func() interface{} {
-		return &[]string{}
-	}).(*[]string)
+		return newSanitizerStaticLibsMap(cfi)
+	}).(*sanitizerStaticLibsMap)
 }
 
 var hwasanStaticLibsKey = android.NewOnceKey("hwasanStaticLibs")
 
-func hwasanStaticLibs(config android.Config) *[]string {
+func hwasanStaticLibs(config android.Config) *sanitizerStaticLibsMap {
 	return config.Once(hwasanStaticLibsKey, func() interface{} {
-		return &[]string{}
-	}).(*[]string)
-}
-
-var hwasanVendorStaticLibsKey = android.NewOnceKey("hwasanVendorStaticLibs")
-
-func hwasanVendorStaticLibs(config android.Config) *[]string {
-	return config.Once(hwasanVendorStaticLibsKey, func() interface{} {
-		return &[]string{}
-	}).(*[]string)
-}
-
-func appendStringSync(item string, list *[]string, mutex *sync.Mutex) {
-	mutex.Lock()
-	*list = append(*list, item)
-	mutex.Unlock()
+		return newSanitizerStaticLibsMap(hwasan)
+	}).(*sanitizerStaticLibsMap)
 }
 
 func enableMinimalRuntime(sanitize *sanitize) bool {
@@ -1149,17 +1181,9 @@ func enableUbsanRuntime(sanitize *sanitize) bool {
 }
 
 func cfiMakeVarsProvider(ctx android.MakeVarsContext) {
-	cfiStaticLibs := cfiStaticLibs(ctx.Config())
-	sort.Strings(*cfiStaticLibs)
-	ctx.Strict("SOONG_CFI_STATIC_LIBRARIES", strings.Join(*cfiStaticLibs, " "))
+	cfiStaticLibs(ctx.Config()).exportToMake(ctx)
 }
 
 func hwasanMakeVarsProvider(ctx android.MakeVarsContext) {
-	hwasanStaticLibs := hwasanStaticLibs(ctx.Config())
-	sort.Strings(*hwasanStaticLibs)
-	ctx.Strict("SOONG_HWASAN_STATIC_LIBRARIES", strings.Join(*hwasanStaticLibs, " "))
-
-	hwasanVendorStaticLibs := hwasanVendorStaticLibs(ctx.Config())
-	sort.Strings(*hwasanVendorStaticLibs)
-	ctx.Strict("SOONG_HWASAN_VENDOR_STATIC_LIBRARIES", strings.Join(*hwasanVendorStaticLibs, " "))
+	hwasanStaticLibs(ctx.Config()).exportToMake(ctx)
 }
