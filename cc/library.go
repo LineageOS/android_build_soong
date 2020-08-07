@@ -1469,6 +1469,12 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 			static.linker.(prebuiltLibraryInterface).setStatic()
 			shared.linker.(prebuiltLibraryInterface).setShared()
 
+			if library.buildShared() {
+				mctx.AliasVariation("shared")
+			} else if library.buildStatic() {
+				mctx.AliasVariation("static")
+			}
+
 			if !library.buildStatic() {
 				static.linker.(prebuiltLibraryInterface).disablePrebuilt()
 			}
@@ -1500,18 +1506,22 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 			if _, ok := library.(*Module); ok {
 				reuseStaticLibrary(mctx, static.(*Module), shared.(*Module))
 			}
+			mctx.AliasVariation("shared")
 		} else if library.BuildStaticVariant() {
 			variations := append([]string{"static"}, variations...)
 
 			modules := mctx.CreateLocalVariations(variations...)
 			modules[0].(LinkableInterface).SetStatic()
+			mctx.AliasVariation("static")
 		} else if library.BuildSharedVariant() {
 			variations := append([]string{"shared"}, variations...)
 
 			modules := mctx.CreateLocalVariations(variations...)
 			modules[0].(LinkableInterface).SetShared()
+			mctx.AliasVariation("shared")
 		} else if len(variations) > 0 {
 			mctx.CreateLocalVariations(variations...)
+			mctx.AliasVariation(variations[0])
 		}
 	}
 }
