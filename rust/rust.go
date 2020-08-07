@@ -807,8 +807,8 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				directSrcProvidersDeps = append(directSrcProvidersDeps, rustDep)
 			}
 
-			//Append the dependencies exportedDirs
-			if lib, ok := rustDep.compiler.(exportedFlagsProducer); ok {
+			//Append the dependencies exportedDirs, except for proc-macros which target a different arch/OS
+			if lib, ok := rustDep.compiler.(exportedFlagsProducer); ok && depTag != procMacroDepTag {
 				depPaths.linkDirs = append(depPaths.linkDirs, lib.exportedLinkDirs()...)
 				depPaths.depFlags = append(depPaths.depFlags, lib.exportedDepFlags()...)
 			}
