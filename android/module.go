@@ -257,6 +257,7 @@ type Module interface {
 	InstallForceOS() *OsType
 	SkipInstall()
 	IsSkipInstall() bool
+	MakeUninstallable()
 	ExportedToMake() bool
 	InitRc() Paths
 	VintfFragments() Paths
@@ -1045,6 +1046,15 @@ func (m *ModuleBase) SkipInstall() {
 
 func (m *ModuleBase) IsSkipInstall() bool {
 	return m.commonProperties.SkipInstall == true
+}
+
+// Similar to SkipInstall, but if the AndroidMk entry would set
+// LOCAL_UNINSTALLABLE_MODULE then this variant may still output that entry
+// rather than leaving it out altogether. That happens in cases where it would
+// have other side effects, in particular when it adds a NOTICE file target,
+// which other install targets might depend on.
+func (m *ModuleBase) MakeUninstallable() {
+	m.SkipInstall()
 }
 
 func (m *ModuleBase) ExportedToMake() bool {
