@@ -44,7 +44,28 @@ func GatherRequiredDepsForTest() string {
                                 },
 				host_supported: true,
 		}
-
+		rust_prebuilt_library {
+				name: "libstd_x86_64-apple-darwin",
+                                crate_name: "std",
+                                rlib: {
+                                    srcs: ["libstd.rlib"],
+                                },
+                                dylib: {
+                                    srcs: ["libstd.so"],
+                                },
+				host_supported: true,
+		}
+		rust_prebuilt_library {
+				name: "libtest_x86_64-apple-darwin",
+                                crate_name: "test",
+                                rlib: {
+                                    srcs: ["libtest.rlib"],
+                                },
+                                dylib: {
+                                    srcs: ["libtest.so"],
+                                },
+				host_supported: true,
+		}
 		//////////////////////////////
 		// Device module requirements
 
