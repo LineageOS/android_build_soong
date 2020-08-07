@@ -567,6 +567,7 @@ func CreateTestContext() *android.TestContext {
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", VndkLibrariesTxtFactory)
+	ctx.RegisterModuleType("vendor_snapshot_static", VendorSnapshotStaticFactory)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	android.RegisterPrebuiltMutators(ctx)
 	RegisterRequiredBuildComponentsForTest(ctx)
