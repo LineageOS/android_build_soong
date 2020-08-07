@@ -80,22 +80,74 @@ func vendorSnapshotObjects(config android.Config) *snapshotMap {
 	}).(*snapshotMap)
 }
 
-type vendorSnapshotLibraryProperties struct {
+type vendorSnapshotBaseProperties struct {
 	// snapshot version.
 	Version string
 
 	// Target arch name of the snapshot (e.g. 'arm64' for variant 'aosp_arm64')
 	Target_arch string
+}
 
+// vendorSnapshotModuleBase provides common basic functions for all snapshot modules.
+type vendorSnapshotModuleBase struct {
+	baseProperties vendorSnapshotBaseProperties
+	moduleSuffix   string
+}
+
+func (p *vendorSnapshotModuleBase) Name(name string) string {
+	return name + p.NameSuffix()
+}
+
+func (p *vendorSnapshotModuleBase) NameSuffix() string {
+	versionSuffix := p.version()
+	if p.arch() != "" {
+		versionSuffix += "." + p.arch()
+	}
+
+	return p.moduleSuffix + versionSuffix
+}
+
+func (p *vendorSnapshotModuleBase) version() string {
+	return p.baseProperties.Version
+}
+
+func (p *vendorSnapshotModuleBase) arch() string {
+	return p.baseProperties.Target_arch
+}
+
+func (p *vendorSnapshotModuleBase) isSnapshotPrebuilt() bool {
+	return true
+}
+
+// Call this after creating a snapshot module with module suffix
+// such as vendorSnapshotSharedSuffix
+func (p *vendorSnapshotModuleBase) init(m *Module, suffix string) {
+	p.moduleSuffix = suffix
+	m.AddProperties(&p.baseProperties)
+	android.AddLoadHook(m, func(ctx android.LoadHookContext) {
+		vendorSnapshotLoadHook(ctx, p)
+	})
+}
+
+func vendorSnapshotLoadHook(ctx android.LoadHookContext, p *vendorSnapshotModuleBase) {
+	if p.version() != ctx.DeviceConfig().VndkVersion() {
+		ctx.Module().Disable()
+		return
+	}
+}
+
+type vendorSnapshotLibraryProperties struct {
 	// Prebuilt file for each arch.
 	Src *string `android:"arch_variant"`
 
+	// list of directories that will be added to the include path (using -I).
+	Export_include_dirs []string `android:"arch_variant"`
+
+	// list of directories that will be added to the system path (using -isystem).
+	Export_system_include_dirs []string `android:"arch_variant"`
+
 	// list of flags that will be used for any module that links against this module.
 	Export_flags []string `android:"arch_variant"`
-
-	// Check the prebuilt ELF files (e.g. DT_SONAME, DT_NEEDED, resolution of undefined symbols,
-	// etc).
-	Check_elf_files *bool
 
 	// Whether this prebuilt needs to depend on sanitize ubsan runtime or not.
 	Sanitize_ubsan_dep *bool `android:"arch_variant"`
@@ -104,40 +156,22 @@ type vendorSnapshotLibraryProperties struct {
 	Sanitize_minimal_dep *bool `android:"arch_variant"`
 }
 
+type snapshotSanitizer interface {
+	isSanitizerEnabled(t sanitizerType) bool
+	setSanitizerVariation(t sanitizerType, enabled bool)
+}
+
 type vendorSnapshotLibraryDecorator struct {
+	vendorSnapshotModuleBase
 	*libraryDecorator
-	properties            vendorSnapshotLibraryProperties
+	properties          vendorSnapshotLibraryProperties
+	sanitizerProperties struct {
+		CfiEnabled bool `blueprint:"mutated"`
+
+		// Library flags for cfi variant.
+		Cfi vendorSnapshotLibraryProperties `android:"arch_variant"`
+	}
 	androidMkVendorSuffix bool
-}
-
-func (p *vendorSnapshotLibraryDecorator) Name(name string) string {
-	return name + p.NameSuffix()
-}
-
-func (p *vendorSnapshotLibraryDecorator) NameSuffix() string {
-	versionSuffix := p.version()
-	if p.arch() != "" {
-		versionSuffix += "." + p.arch()
-	}
-
-	var linkageSuffix string
-	if p.buildShared() {
-		linkageSuffix = vendorSnapshotSharedSuffix
-	} else if p.buildStatic() {
-		linkageSuffix = vendorSnapshotStaticSuffix
-	} else {
-		linkageSuffix = vendorSnapshotHeaderSuffix
-	}
-
-	return linkageSuffix + versionSuffix
-}
-
-func (p *vendorSnapshotLibraryDecorator) version() string {
-	return p.properties.Version
-}
-
-func (p *vendorSnapshotLibraryDecorator) arch() string {
-	return p.properties.Target_arch
 }
 
 func (p *vendorSnapshotLibraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
@@ -165,11 +199,16 @@ func (p *vendorSnapshotLibraryDecorator) link(ctx ModuleContext,
 		return p.libraryDecorator.link(ctx, flags, deps, objs)
 	}
 
+	if p.sanitizerProperties.CfiEnabled {
+		p.properties = p.sanitizerProperties.Cfi
+	}
+
 	if !p.matchesWithDevice(ctx.DeviceConfig()) {
 		return nil
 	}
 
-	p.libraryDecorator.exportIncludes(ctx)
+	p.libraryDecorator.reexportDirs(android.PathsForModuleSrc(ctx, p.properties.Export_include_dirs)...)
+	p.libraryDecorator.reexportSystemDirs(android.PathsForModuleSrc(ctx, p.properties.Export_system_include_dirs)...)
 	p.libraryDecorator.reexportFlags(p.properties.Export_flags...)
 
 	in := android.PathForModuleSrc(ctx, *p.properties.Src)
@@ -189,32 +228,38 @@ func (p *vendorSnapshotLibraryDecorator) link(ctx ModuleContext,
 	return in
 }
 
-func (p *vendorSnapshotLibraryDecorator) nativeCoverage() bool {
-	return false
-}
-
-func (p *vendorSnapshotLibraryDecorator) isSnapshotPrebuilt() bool {
-	return true
-}
-
 func (p *vendorSnapshotLibraryDecorator) install(ctx ModuleContext, file android.Path) {
 	if p.matchesWithDevice(ctx.DeviceConfig()) && (p.shared() || p.static()) {
 		p.baseInstaller.install(ctx, file)
 	}
 }
 
-type vendorSnapshotInterface interface {
-	version() string
+func (p *vendorSnapshotLibraryDecorator) nativeCoverage() bool {
+	return false
 }
 
-func vendorSnapshotLoadHook(ctx android.LoadHookContext, p vendorSnapshotInterface) {
-	if p.version() != ctx.DeviceConfig().VndkVersion() {
-		ctx.Module().Disable()
+func (p *vendorSnapshotLibraryDecorator) isSanitizerEnabled(t sanitizerType) bool {
+	switch t {
+	case cfi:
+		return p.sanitizerProperties.Cfi.Src != nil
+	default:
+		return false
+	}
+}
+
+func (p *vendorSnapshotLibraryDecorator) setSanitizerVariation(t sanitizerType, enabled bool) {
+	if !enabled {
+		return
+	}
+	switch t {
+	case cfi:
+		p.sanitizerProperties.CfiEnabled = true
+	default:
 		return
 	}
 }
 
-func vendorSnapshotLibrary() (*Module, *vendorSnapshotLibraryDecorator) {
+func vendorSnapshotLibrary(suffix string) (*Module, *vendorSnapshotLibraryDecorator) {
 	module, library := NewLibrary(android.DeviceSupported)
 
 	module.stl = nil
@@ -237,75 +282,45 @@ func vendorSnapshotLibrary() (*Module, *vendorSnapshotLibraryDecorator) {
 	module.linker = prebuilt
 	module.installer = prebuilt
 
+	prebuilt.init(module, suffix)
 	module.AddProperties(
 		&prebuilt.properties,
+		&prebuilt.sanitizerProperties,
 	)
 
 	return module, prebuilt
 }
 
 func VendorSnapshotSharedFactory() android.Module {
-	module, prebuilt := vendorSnapshotLibrary()
+	module, prebuilt := vendorSnapshotLibrary(vendorSnapshotSharedSuffix)
 	prebuilt.libraryDecorator.BuildOnlyShared()
-	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
-		vendorSnapshotLoadHook(ctx, prebuilt)
-	})
 	return module.Init()
 }
 
 func VendorSnapshotStaticFactory() android.Module {
-	module, prebuilt := vendorSnapshotLibrary()
+	module, prebuilt := vendorSnapshotLibrary(vendorSnapshotStaticSuffix)
 	prebuilt.libraryDecorator.BuildOnlyStatic()
-	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
-		vendorSnapshotLoadHook(ctx, prebuilt)
-	})
 	return module.Init()
 }
 
 func VendorSnapshotHeaderFactory() android.Module {
-	module, prebuilt := vendorSnapshotLibrary()
+	module, prebuilt := vendorSnapshotLibrary(vendorSnapshotHeaderSuffix)
 	prebuilt.libraryDecorator.HeaderOnly()
-	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
-		vendorSnapshotLoadHook(ctx, prebuilt)
-	})
 	return module.Init()
 }
 
+var _ snapshotSanitizer = (*vendorSnapshotLibraryDecorator)(nil)
+
 type vendorSnapshotBinaryProperties struct {
-	// snapshot version.
-	Version string
-
-	// Target arch name of the snapshot (e.g. 'arm64' for variant 'aosp_arm64_ab')
-	Target_arch string
-
 	// Prebuilt file for each arch.
 	Src *string `android:"arch_variant"`
 }
 
 type vendorSnapshotBinaryDecorator struct {
+	vendorSnapshotModuleBase
 	*binaryDecorator
 	properties            vendorSnapshotBinaryProperties
 	androidMkVendorSuffix bool
-}
-
-func (p *vendorSnapshotBinaryDecorator) Name(name string) string {
-	return name + p.NameSuffix()
-}
-
-func (p *vendorSnapshotBinaryDecorator) NameSuffix() string {
-	versionSuffix := p.version()
-	if p.arch() != "" {
-		versionSuffix += "." + p.arch()
-	}
-	return vendorSnapshotBinarySuffix + versionSuffix
-}
-
-func (p *vendorSnapshotBinaryDecorator) version() string {
-	return p.properties.Version
-}
-
-func (p *vendorSnapshotBinaryDecorator) arch() string {
-	return p.properties.Target_arch
 }
 
 func (p *vendorSnapshotBinaryDecorator) matchesWithDevice(config android.DeviceConfig) bool {
@@ -349,8 +364,8 @@ func (p *vendorSnapshotBinaryDecorator) link(ctx ModuleContext,
 	return outputFile
 }
 
-func (p *vendorSnapshotBinaryDecorator) isSnapshotPrebuilt() bool {
-	return true
+func (p *vendorSnapshotBinaryDecorator) nativeCoverage() bool {
+	return false
 }
 
 func VendorSnapshotBinaryFactory() android.Module {
@@ -372,49 +387,21 @@ func VendorSnapshotBinaryFactory() android.Module {
 	module.stl = nil
 	module.linker = prebuilt
 
-	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
-		vendorSnapshotLoadHook(ctx, prebuilt)
-	})
-
+	prebuilt.init(module, vendorSnapshotBinarySuffix)
 	module.AddProperties(&prebuilt.properties)
 	return module.Init()
 }
 
 type vendorSnapshotObjectProperties struct {
-	// snapshot version.
-	Version string
-
-	// Target arch name of the snapshot (e.g. 'arm64' for variant 'aosp_arm64_ab')
-	Target_arch string
-
 	// Prebuilt file for each arch.
 	Src *string `android:"arch_variant"`
 }
 
 type vendorSnapshotObjectLinker struct {
+	vendorSnapshotModuleBase
 	objectLinker
 	properties            vendorSnapshotObjectProperties
 	androidMkVendorSuffix bool
-}
-
-func (p *vendorSnapshotObjectLinker) Name(name string) string {
-	return name + p.NameSuffix()
-}
-
-func (p *vendorSnapshotObjectLinker) NameSuffix() string {
-	versionSuffix := p.version()
-	if p.arch() != "" {
-		versionSuffix += "." + p.arch()
-	}
-	return vendorSnapshotObjectSuffix + versionSuffix
-}
-
-func (p *vendorSnapshotObjectLinker) version() string {
-	return p.properties.Version
-}
-
-func (p *vendorSnapshotObjectLinker) arch() string {
-	return p.properties.Target_arch
 }
 
 func (p *vendorSnapshotObjectLinker) matchesWithDevice(config android.DeviceConfig) bool {
@@ -443,10 +430,6 @@ func (p *vendorSnapshotObjectLinker) nativeCoverage() bool {
 	return false
 }
 
-func (p *vendorSnapshotObjectLinker) isSnapshotPrebuilt() bool {
-	return true
-}
-
 func VendorSnapshotObjectFactory() android.Module {
 	module := newObject()
 
@@ -457,10 +440,7 @@ func VendorSnapshotObjectFactory() android.Module {
 	}
 	module.linker = prebuilt
 
-	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
-		vendorSnapshotLoadHook(ctx, prebuilt)
-	})
-
+	prebuilt.init(module, vendorSnapshotObjectSuffix)
 	module.AddProperties(&prebuilt.properties)
 	return module.Init()
 }
@@ -568,12 +548,16 @@ func isVendorSnapshotModule(m *Module, moduleDir string) bool {
 	if l, ok := m.linker.(snapshotLibraryInterface); ok {
 		// TODO(b/65377115): add full support for sanitizer
 		if m.sanitize != nil {
-			// cfi, scs and hwasan export both sanitized and unsanitized variants for static and header
+			// scs and hwasan export both sanitized and unsanitized variants for static and header
 			// Always use unsanitized variants of them.
-			for _, t := range []sanitizerType{cfi, scs, hwasan} {
+			for _, t := range []sanitizerType{scs, hwasan} {
 				if !l.shared() && m.sanitize.isSanitizerEnabled(t) {
 					return false
 				}
+			}
+			// cfi also exports both variants. But for static, we capture both.
+			if !l.static() && !l.shared() && m.sanitize.isSanitizerEnabled(cfi) {
+				return false
 			}
 		}
 		if l.static() {
@@ -668,6 +652,7 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 			ExportedDirs       []string `json:",omitempty"`
 			ExportedSystemDirs []string `json:",omitempty"`
 			ExportedFlags      []string `json:",omitempty"`
+			Sanitize           string   `json:",omitempty"`
 			SanitizeMinimalDep bool     `json:",omitempty"`
 			SanitizeUbsanDep   bool     `json:",omitempty"`
 
@@ -717,6 +702,7 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 		var propOut string
 
 		if l, ok := m.linker.(snapshotLibraryInterface); ok {
+
 			// library flags
 			prop.ExportedFlags = l.exportedFlags()
 			for _, dir := range l.exportedDirs() {
@@ -749,6 +735,15 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 			if libType != "header" {
 				libPath := m.outputFile.Path()
 				stem = libPath.Base()
+				if l.static() && m.sanitize != nil && m.sanitize.isSanitizerEnabled(cfi) {
+					// both cfi and non-cfi variant for static libraries can exist.
+					// attach .cfi to distinguish between cfi and non-cfi.
+					// e.g. libbase.a -> libbase.cfi.a
+					ext := filepath.Ext(stem)
+					stem = strings.TrimSuffix(stem, ext) + ".cfi" + ext
+					prop.Sanitize = "cfi"
+					prop.ModuleName += ".cfi"
+				}
 				snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, libType, stem)
 				ret = append(ret, copyFile(ctx, libPath, snapshotLibOut))
 			} else {
