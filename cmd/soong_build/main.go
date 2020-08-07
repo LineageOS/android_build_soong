@@ -26,11 +26,13 @@ import (
 )
 
 var (
-	docFile string
+	docFile         string
+	bazelOverlayDir string
 )
 
 func init() {
 	flag.StringVar(&docFile, "soong_docs", "", "build documentation file to output")
+	flag.StringVar(&bazelOverlayDir, "bazel_overlay_dir", "", "path to the bazel overlay directory")
 }
 
 func newNameResolver(config android.Config) *android.NameResolver {
@@ -65,7 +67,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if docFile != "" {
+	if !shouldPrepareBuildActions() {
 		configuration.SetStopBefore(bootstrap.StopBeforePrepareBuildActions)
 	}
 
@@ -85,6 +87,13 @@ func main() {
 
 	bootstrap.Main(ctx.Context, configuration, extraNinjaDeps...)
 
+	if bazelOverlayDir != "" {
+		if err := createBazelOverlay(ctx, bazelOverlayDir); err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
+	}
+
 	if docFile != "" {
 		if err := writeDocs(ctx, docFile); err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -94,7 +103,7 @@ func main() {
 
 	// TODO(ccross): make this a command line argument.  Requires plumbing through blueprint
 	//  to affect the command line of the primary builder.
-	if docFile == "" {
+	if shouldPrepareBuildActions() {
 		metricsFile := filepath.Join(bootstrap.BuildDir, "soong_build_metrics.pb")
 		err = android.WriteMetrics(configuration, metricsFile)
 		if err != nil {
@@ -102,4 +111,10 @@ func main() {
 			os.Exit(1)
 		}
 	}
+}
+
+func shouldPrepareBuildActions() bool {
+	// If we're writing soong_docs or bazel_overlay, don't write build.ninja or
+	// collect metrics.
+	return docFile == "" && bazelOverlayDir == ""
 }
