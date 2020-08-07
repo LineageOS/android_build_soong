@@ -140,12 +140,14 @@ type vendorSnapshotLibraryProperties struct {
 	// Prebuilt file for each arch.
 	Src *string `android:"arch_variant"`
 
+	// list of directories that will be added to the include path (using -I).
+	Export_include_dirs []string `android:"arch_variant"`
+
+	// list of directories that will be added to the system path (using -isystem).
+	Export_system_include_dirs []string `android:"arch_variant"`
+
 	// list of flags that will be used for any module that links against this module.
 	Export_flags []string `android:"arch_variant"`
-
-	// Check the prebuilt ELF files (e.g. DT_SONAME, DT_NEEDED, resolution of undefined symbols,
-	// etc).
-	Check_elf_files *bool
 
 	// Whether this prebuilt needs to depend on sanitize ubsan runtime or not.
 	Sanitize_ubsan_dep *bool `android:"arch_variant"`
@@ -154,10 +156,21 @@ type vendorSnapshotLibraryProperties struct {
 	Sanitize_minimal_dep *bool `android:"arch_variant"`
 }
 
+type snapshotSanitizer interface {
+	isSanitizerEnabled(t sanitizerType) bool
+	setSanitizerVariation(t sanitizerType, enabled bool)
+}
+
 type vendorSnapshotLibraryDecorator struct {
 	vendorSnapshotModuleBase
 	*libraryDecorator
-	properties            vendorSnapshotLibraryProperties
+	properties          vendorSnapshotLibraryProperties
+	sanitizerProperties struct {
+		CfiEnabled bool `blueprint:"mutated"`
+
+		// Library flags for cfi variant.
+		Cfi vendorSnapshotLibraryProperties `android:"arch_variant"`
+	}
 	androidMkVendorSuffix bool
 }
 
@@ -186,11 +199,16 @@ func (p *vendorSnapshotLibraryDecorator) link(ctx ModuleContext,
 		return p.libraryDecorator.link(ctx, flags, deps, objs)
 	}
 
+	if p.sanitizerProperties.CfiEnabled {
+		p.properties = p.sanitizerProperties.Cfi
+	}
+
 	if !p.matchesWithDevice(ctx.DeviceConfig()) {
 		return nil
 	}
 
-	p.libraryDecorator.exportIncludes(ctx)
+	p.libraryDecorator.reexportDirs(android.PathsForModuleSrc(ctx, p.properties.Export_include_dirs)...)
+	p.libraryDecorator.reexportSystemDirs(android.PathsForModuleSrc(ctx, p.properties.Export_system_include_dirs)...)
 	p.libraryDecorator.reexportFlags(p.properties.Export_flags...)
 
 	in := android.PathForModuleSrc(ctx, *p.properties.Src)
@@ -220,6 +238,27 @@ func (p *vendorSnapshotLibraryDecorator) nativeCoverage() bool {
 	return false
 }
 
+func (p *vendorSnapshotLibraryDecorator) isSanitizerEnabled(t sanitizerType) bool {
+	switch t {
+	case cfi:
+		return p.sanitizerProperties.Cfi.Src != nil
+	default:
+		return false
+	}
+}
+
+func (p *vendorSnapshotLibraryDecorator) setSanitizerVariation(t sanitizerType, enabled bool) {
+	if !enabled {
+		return
+	}
+	switch t {
+	case cfi:
+		p.sanitizerProperties.CfiEnabled = true
+	default:
+		return
+	}
+}
+
 func vendorSnapshotLibrary(suffix string) (*Module, *vendorSnapshotLibraryDecorator) {
 	module, library := NewLibrary(android.DeviceSupported)
 
@@ -244,7 +283,10 @@ func vendorSnapshotLibrary(suffix string) (*Module, *vendorSnapshotLibraryDecora
 	module.installer = prebuilt
 
 	prebuilt.init(module, suffix)
-	module.AddProperties(&prebuilt.properties)
+	module.AddProperties(
+		&prebuilt.properties,
+		&prebuilt.sanitizerProperties,
+	)
 
 	return module, prebuilt
 }
@@ -266,6 +308,8 @@ func VendorSnapshotHeaderFactory() android.Module {
 	prebuilt.libraryDecorator.HeaderOnly()
 	return module.Init()
 }
+
+var _ snapshotSanitizer = (*vendorSnapshotLibraryDecorator)(nil)
 
 type vendorSnapshotBinaryProperties struct {
 	// Prebuilt file for each arch.
@@ -504,12 +548,16 @@ func isVendorSnapshotModule(m *Module, moduleDir string) bool {
 	if l, ok := m.linker.(snapshotLibraryInterface); ok {
 		// TODO(b/65377115): add full support for sanitizer
 		if m.sanitize != nil {
-			// cfi, scs and hwasan export both sanitized and unsanitized variants for static and header
+			// scs and hwasan export both sanitized and unsanitized variants for static and header
 			// Always use unsanitized variants of them.
-			for _, t := range []sanitizerType{cfi, scs, hwasan} {
+			for _, t := range []sanitizerType{scs, hwasan} {
 				if !l.shared() && m.sanitize.isSanitizerEnabled(t) {
 					return false
 				}
+			}
+			// cfi also exports both variants. But for static, we capture both.
+			if !l.static() && !l.shared() && m.sanitize.isSanitizerEnabled(cfi) {
+				return false
 			}
 		}
 		if l.static() {
@@ -604,6 +652,7 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 			ExportedDirs       []string `json:",omitempty"`
 			ExportedSystemDirs []string `json:",omitempty"`
 			ExportedFlags      []string `json:",omitempty"`
+			Sanitize           string   `json:",omitempty"`
 			SanitizeMinimalDep bool     `json:",omitempty"`
 			SanitizeUbsanDep   bool     `json:",omitempty"`
 
@@ -653,6 +702,7 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 		var propOut string
 
 		if l, ok := m.linker.(snapshotLibraryInterface); ok {
+
 			// library flags
 			prop.ExportedFlags = l.exportedFlags()
 			for _, dir := range l.exportedDirs() {
@@ -685,6 +735,15 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 			if libType != "header" {
 				libPath := m.outputFile.Path()
 				stem = libPath.Base()
+				if l.static() && m.sanitize != nil && m.sanitize.isSanitizerEnabled(cfi) {
+					// both cfi and non-cfi variant for static libraries can exist.
+					// attach .cfi to distinguish between cfi and non-cfi.
+					// e.g. libbase.a -> libbase.cfi.a
+					ext := filepath.Ext(stem)
+					stem = strings.TrimSuffix(stem, ext) + ".cfi" + ext
+					prop.Sanitize = "cfi"
+					prop.ModuleName += ".cfi"
+				}
 				snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, libType, stem)
 				ret = append(ret, copyFile(ctx, libPath, snapshotLibOut))
 			} else {

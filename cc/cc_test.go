@@ -1013,17 +1013,25 @@ func TestVendorSnapshot(t *testing.T) {
 			filepath.Join(sharedDir, "libvendor_available.so.json"))
 
 		// For static libraries, all vendor:true and vendor_available modules (including VNDK) are captured.
+		// Also cfi variants are captured, except for prebuilts like toolchain_library
 		staticVariant := fmt.Sprintf("android_vendor.VER_%s_%s_static", archType, archVariant)
+		staticCfiVariant := fmt.Sprintf("android_vendor.VER_%s_%s_static_cfi", archType, archVariant)
 		staticDir := filepath.Join(snapshotVariantPath, archDir, "static")
 		checkSnapshot(t, ctx, snapshotSingleton, "libb", "libb.a", staticDir, staticVariant)
 		checkSnapshot(t, ctx, snapshotSingleton, "libvndk", "libvndk.a", staticDir, staticVariant)
+		checkSnapshot(t, ctx, snapshotSingleton, "libvndk", "libvndk.cfi.a", staticDir, staticCfiVariant)
 		checkSnapshot(t, ctx, snapshotSingleton, "libvendor", "libvendor.a", staticDir, staticVariant)
+		checkSnapshot(t, ctx, snapshotSingleton, "libvendor", "libvendor.cfi.a", staticDir, staticCfiVariant)
 		checkSnapshot(t, ctx, snapshotSingleton, "libvendor_available", "libvendor_available.a", staticDir, staticVariant)
+		checkSnapshot(t, ctx, snapshotSingleton, "libvendor_available", "libvendor_available.cfi.a", staticDir, staticCfiVariant)
 		jsonFiles = append(jsonFiles,
 			filepath.Join(staticDir, "libb.a.json"),
 			filepath.Join(staticDir, "libvndk.a.json"),
+			filepath.Join(staticDir, "libvndk.cfi.a.json"),
 			filepath.Join(staticDir, "libvendor.a.json"),
-			filepath.Join(staticDir, "libvendor_available.a.json"))
+			filepath.Join(staticDir, "libvendor.cfi.a.json"),
+			filepath.Join(staticDir, "libvendor_available.a.json"),
+			filepath.Join(staticDir, "libvendor_available.cfi.a.json"))
 
 		// For binary executables, all vendor:true and vendor_available modules are captured.
 		if archType == "arm64" {
@@ -1053,6 +1061,39 @@ func TestVendorSnapshot(t *testing.T) {
 			t.Errorf("%q expected but not found", jsonFile)
 		}
 	}
+}
+
+func TestVendorSnapshotSanitizer(t *testing.T) {
+	bp := `
+	vendor_snapshot_static {
+		name: "libsnapshot",
+		vendor: true,
+		target_arch: "arm64",
+		version: "BOARD",
+		arch: {
+			arm64: {
+				src: "libsnapshot.a",
+				cfi: {
+					src: "libsnapshot.cfi.a",
+				}
+			},
+		},
+	}
+`
+	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("BOARD")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	ctx := testCcWithConfig(t, config)
+
+	// Check non-cfi and cfi variant.
+	staticVariant := "android_vendor.BOARD_arm64_armv8-a_static"
+	staticCfiVariant := "android_vendor.BOARD_arm64_armv8-a_static_cfi"
+
+	staticModule := ctx.ModuleForTests("libsnapshot.vendor_static.BOARD.arm64", staticVariant).Module().(*Module)
+	assertString(t, staticModule.outputFile.Path().Base(), "libsnapshot.a")
+
+	staticCfiModule := ctx.ModuleForTests("libsnapshot.vendor_static.BOARD.arm64", staticCfiVariant).Module().(*Module)
+	assertString(t, staticCfiModule.outputFile.Path().Base(), "libsnapshot.cfi.a")
 }
 
 func TestDoubleLoadableDepError(t *testing.T) {
