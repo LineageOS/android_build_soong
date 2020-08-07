@@ -19,6 +19,7 @@ bootstrap_go_package {
         "check.go",
         "coverage.go",
         "gen.go",
+        "image.go",
         "linkable.go",
         "lto.go",
         "makevars.go",

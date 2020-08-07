@@ -55,3 +55,29 @@ func TestRustBindgen(t *testing.T) {
 		t.Errorf("missing static_libs exported includes in rust_bindgen rule: cflags %#v", libbindgen.Args["cflags"])
 	}
 }
+
+func TestRustBindgenCustomBindgen(t *testing.T) {
+	ctx := testRust(t, `
+		rust_bindgen {
+			name: "libbindgen",
+			wrapper_src: "src/any.h",
+			crate_name: "bindgen",
+			stem: "libbindgen",
+			source_stem: "bindings",
+			custom_bindgen: "my_bindgen"
+		}
+		rust_binary_host {
+			name: "my_bindgen",
+			srcs: ["foo.rs"],
+		}
+	`)
+
+	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a").Output("bindings.rs")
+
+	// The rule description should contain the custom binary name rather than bindgen, so checking the description
+	// should be sufficient.
+	if !strings.Contains(libbindgen.Description, "my_bindgen") {
+		t.Errorf("Custom bindgen binary %s not used for libbindgen: rule description %#v", "my_bindgen",
+			libbindgen.Description)
+	}
+}

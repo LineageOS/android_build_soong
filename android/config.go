@@ -913,34 +913,6 @@ func (c *config) ModulesLoadedByPrivilegedModules() []string {
 	return c.productVariables.ModulesLoadedByPrivilegedModules
 }
 
-// Expected format for apexJarValue = <apex name>:<jar name>
-func SplitApexJarPair(ctx PathContext, str string) (string, string) {
-	pair := strings.SplitN(str, ":", 2)
-	if len(pair) == 2 {
-		return pair[0], pair[1]
-	} else {
-		reportPathErrorf(ctx, "malformed (apex, jar) pair: '%s', expected format: <apex>:<jar>", str)
-		return "error-apex", "error-jar"
-	}
-}
-
-func GetJarsFromApexJarPairs(ctx PathContext, apexJarPairs []string) []string {
-	modules := make([]string, len(apexJarPairs))
-	for i, p := range apexJarPairs {
-		_, jar := SplitApexJarPair(ctx, p)
-		modules[i] = jar
-	}
-	return modules
-}
-
-func (c *config) BootJars() []string {
-	ctx := NullPathContext{Config{
-		config: c,
-	}}
-	return append(GetJarsFromApexJarPairs(ctx, c.productVariables.BootJars),
-		GetJarsFromApexJarPairs(ctx, c.productVariables.UpdatableBootJars)...)
-}
-
 func (c *config) DexpreoptGlobalConfig(ctx PathContext) ([]byte, error) {
 	if c.productVariables.DexpreoptGlobalConfig == nil {
 		return nil, nil
@@ -1274,4 +1246,182 @@ func (c *deviceConfig) BoardUsesRecoveryAsBoot() bool {
 
 func (c *deviceConfig) BoardKernelBinaries() []string {
 	return c.config.productVariables.BoardKernelBinaries
+}
+
+// The ConfiguredJarList struct provides methods for handling a list of (apex, jar) pairs.
+// Such lists are used in the build system for things like bootclasspath jars or system server jars.
+// The apex part is either an apex name, or a special names "platform" or "system_ext". Jar is a
+// module name. The pairs come from Make product variables as a list of colon-separated strings.
+//
+// Examples:
+//   - "com.android.art:core-oj"
+//   - "platform:framework"
+//   - "system_ext:foo"
+//
+type ConfiguredJarList struct {
+	apexes []string // A list of apex components.
+	jars   []string // A list of jar components.
+}
+
+// The length of the list.
+func (l *ConfiguredJarList) Len() int {
+	return len(l.jars)
+}
+
+// Apex component of idx-th pair on the list.
+func (l *ConfiguredJarList) apex(idx int) string {
+	return l.apexes[idx]
+}
+
+// Jar component of idx-th pair on the list.
+func (l *ConfiguredJarList) Jar(idx int) string {
+	return l.jars[idx]
+}
+
+// If the list contains a pair with the given jar.
+func (l *ConfiguredJarList) ContainsJar(jar string) bool {
+	return InList(jar, l.jars)
+}
+
+// If the list contains the given (apex, jar) pair.
+func (l *ConfiguredJarList) containsApexJarPair(apex, jar string) bool {
+	for i := 0; i < l.Len(); i++ {
+		if apex == l.apex(i) && jar == l.Jar(i) {
+			return true
+		}
+	}
+	return false
+}
+
+// Index of the first pair with the given jar on the list, or -1 if none.
+func (l *ConfiguredJarList) IndexOfJar(jar string) int {
+	return IndexList(jar, l.jars)
+}
+
+// Append an (apex, jar) pair to the list.
+func (l *ConfiguredJarList) Append(apex string, jar string) {
+	l.apexes = append(l.apexes, apex)
+	l.jars = append(l.jars, jar)
+}
+
+// Filter out sublist.
+func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) {
+	apexes := make([]string, 0, l.Len())
+	jars := make([]string, 0, l.Len())
+
+	for i, jar := range l.jars {
+		apex := l.apex(i)
+		if !list.containsApexJarPair(apex, jar) {
+			apexes = append(apexes, apex)
+			jars = append(jars, jar)
+		}
+	}
+
+	l.apexes = apexes
+	l.jars = jars
+}
+
+// A copy of itself.
+func (l *ConfiguredJarList) CopyOf() ConfiguredJarList {
+	return ConfiguredJarList{CopyOf(l.apexes), CopyOf(l.jars)}
+}
+
+// A copy of the list of strings containing jar components.
+func (l *ConfiguredJarList) CopyOfJars() []string {
+	return CopyOf(l.jars)
+}
+
+// A copy of the list of strings with colon-separated (apex, jar) pairs.
+func (l *ConfiguredJarList) CopyOfApexJarPairs() []string {
+	pairs := make([]string, 0, l.Len())
+
+	for i, jar := range l.jars {
+		apex := l.apex(i)
+		pairs = append(pairs, apex+":"+jar)
+	}
+
+	return pairs
+}
+
+// A list of build paths based on the given directory prefix.
+func (l *ConfiguredJarList) BuildPaths(ctx PathContext, dir OutputPath) WritablePaths {
+	paths := make(WritablePaths, l.Len())
+	for i, jar := range l.jars {
+		paths[i] = dir.Join(ctx, ModuleStem(jar)+".jar")
+	}
+	return paths
+}
+
+func ModuleStem(module string) string {
+	// b/139391334: the stem of framework-minus-apex is framework. This is hard coded here until we
+	// find a good way to query the stem of a module before any other mutators are run.
+	if module == "framework-minus-apex" {
+		return "framework"
+	}
+	return module
+}
+
+// A list of on-device paths.
+func (l *ConfiguredJarList) DevicePaths(cfg Config, ostype OsType) []string {
+	paths := make([]string, l.Len())
+	for i, jar := range l.jars {
+		apex := l.apexes[i]
+		name := ModuleStem(jar) + ".jar"
+
+		var subdir string
+		if apex == "platform" {
+			subdir = "system/framework"
+		} else if apex == "system_ext" {
+			subdir = "system_ext/framework"
+		} else {
+			subdir = filepath.Join("apex", apex, "javalib")
+		}
+
+		if ostype.Class == Host {
+			paths[i] = filepath.Join(cfg.Getenv("OUT_DIR"), "host", cfg.PrebuiltOS(), subdir, name)
+		} else {
+			paths[i] = filepath.Join("/", subdir, name)
+		}
+	}
+	return paths
+}
+
+// Expected format for apexJarValue = <apex name>:<jar name>
+func splitConfiguredJarPair(ctx PathContext, str string) (string, string) {
+	pair := strings.SplitN(str, ":", 2)
+	if len(pair) == 2 {
+		return pair[0], pair[1]
+	} else {
+		reportPathErrorf(ctx, "malformed (apex, jar) pair: '%s', expected format: <apex>:<jar>", str)
+		return "error-apex", "error-jar"
+	}
+}
+
+func CreateConfiguredJarList(ctx PathContext, list []string) ConfiguredJarList {
+	apexes := make([]string, 0, len(list))
+	jars := make([]string, 0, len(list))
+
+	l := ConfiguredJarList{apexes, jars}
+
+	for _, apexjar := range list {
+		apex, jar := splitConfiguredJarPair(ctx, apexjar)
+		l.Append(apex, jar)
+	}
+
+	return l
+}
+
+func EmptyConfiguredJarList() ConfiguredJarList {
+	return ConfiguredJarList{}
+}
+
+var earlyBootJarsKey = NewOnceKey("earlyBootJars")
+
+func (c *config) BootJars() []string {
+	return c.Once(earlyBootJarsKey, func() interface{} {
+		ctx := NullPathContext{Config{c}}
+		list := CreateConfiguredJarList(ctx,
+			append(CopyOf(c.productVariables.BootJars), c.productVariables.UpdatableBootJars...))
+		return list.CopyOfJars()
+	}).([]string)
 }

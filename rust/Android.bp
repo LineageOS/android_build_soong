@@ -34,6 +34,7 @@ bootstrap_go_package {
         "library_test.go",
         "project_json_test.go",
         "rust_test.go",
+        "source_provider_test.go",
         "test_test.go",
     ],
     pluginFor: ["soong_build"],

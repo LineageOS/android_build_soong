@@ -1,9 +1,9 @@
 package cc
 
 import (
-	"github.com/google/blueprint"
-
 	"android/soong/android"
+
+	"github.com/google/blueprint"
 )
 
 type LinkableInterface interface {
@@ -63,27 +63,16 @@ type LinkableInterface interface {
 	StubDecorator() bool
 }
 
-type DependencyTag struct {
-	blueprint.BaseDependencyTag
-	Name    string
-	Library bool
-	Shared  bool
+var (
+	CrtBeginDepTag = dependencyTag{name: "crtbegin"}
+	CrtEndDepTag   = dependencyTag{name: "crtend"}
+	CoverageDepTag = dependencyTag{name: "coverage"}
+)
 
-	ReexportFlags bool
-
-	ExplicitlyVersioned bool
-
-	FromStatic bool
+func SharedDepTag() blueprint.DependencyTag {
+	return libraryDependencyTag{Kind: sharedLibraryDependency}
 }
 
-var (
-	SharedDepTag = DependencyTag{Name: "shared", Library: true, Shared: true}
-	StaticDepTag = DependencyTag{Name: "static", Library: true}
-
-	// Same as SharedDepTag, but from a static lib
-	SharedFromStaticDepTag = DependencyTag{Name: "shared from static", Library: true, Shared: true, FromStatic: true}
-
-	CrtBeginDepTag = DependencyTag{Name: "crtbegin"}
-	CrtEndDepTag   = DependencyTag{Name: "crtend"}
-	CoverageDepTag = DependencyTag{Name: "coverage"}
-)
+func StaticDepTag() blueprint.DependencyTag {
+	return libraryDependencyTag{Kind: staticLibraryDependency}
+}

@@ -27,8 +27,9 @@ import (
 
 var sharedLibrarySdkMemberType = &librarySdkMemberType{
 	SdkMemberTypeBase: android.SdkMemberTypeBase{
-		PropertyName: "native_shared_libs",
-		SupportsSdk:  true,
+		PropertyName:    "native_shared_libs",
+		SupportsSdk:     true,
+		HostOsDependent: true,
 	},
 	prebuiltModuleType: "cc_prebuilt_library_shared",
 	linkTypes:          []string{"shared"},
@@ -36,8 +37,9 @@ var sharedLibrarySdkMemberType = &librarySdkMemberType{
 
 var staticLibrarySdkMemberType = &librarySdkMemberType{
 	SdkMemberTypeBase: android.SdkMemberTypeBase{
-		PropertyName: "native_static_libs",
-		SupportsSdk:  true,
+		PropertyName:    "native_static_libs",
+		SupportsSdk:     true,
+		HostOsDependent: true,
 	},
 	prebuiltModuleType: "cc_prebuilt_library_static",
 	linkTypes:          []string{"static"},
@@ -45,8 +47,9 @@ var staticLibrarySdkMemberType = &librarySdkMemberType{
 
 var staticAndSharedLibrarySdkMemberType = &librarySdkMemberType{
 	SdkMemberTypeBase: android.SdkMemberTypeBase{
-		PropertyName: "native_libs",
-		SupportsSdk:  true,
+		PropertyName:    "native_libs",
+		SupportsSdk:     true,
+		HostOsDependent: true,
 	},
 	prebuiltModuleType: "cc_prebuilt_library",
 	linkTypes:          []string{"static", "shared"},

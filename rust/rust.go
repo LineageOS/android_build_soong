@@ -722,10 +722,11 @@ type dependencyTag struct {
 }
 
 var (
-	rlibDepTag       = dependencyTag{name: "rlibTag", library: true}
-	dylibDepTag      = dependencyTag{name: "dylib", library: true}
-	procMacroDepTag  = dependencyTag{name: "procMacro", proc_macro: true}
-	testPerSrcDepTag = dependencyTag{name: "rust_unit_tests"}
+	customBindgenDepTag = dependencyTag{name: "customBindgenTag"}
+	rlibDepTag          = dependencyTag{name: "rlibTag", library: true}
+	dylibDepTag         = dependencyTag{name: "dylib", library: true}
+	procMacroDepTag     = dependencyTag{name: "procMacro", proc_macro: true}
+	testPerSrcDepTag    = dependencyTag{name: "rust_unit_tests"}
 )
 
 type autoDep struct {
@@ -847,8 +848,8 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 
 			exportDep := false
-			switch depTag {
-			case cc.StaticDepTag:
+			switch {
+			case cc.IsStaticDepTag(depTag):
 				depFlag = "-lstatic=" + libName
 				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
 				depPaths.depFlags = append(depPaths.depFlags, depFlag)
@@ -860,7 +861,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depPaths.coverageFiles = append(depPaths.coverageFiles, ccDep.CoverageFiles()...)
 				directStaticLibDeps = append(directStaticLibDeps, ccDep)
 				mod.Properties.AndroidMkStaticLibs = append(mod.Properties.AndroidMkStaticLibs, depName)
-			case cc.SharedDepTag:
+			case cc.IsSharedDepTag(depTag):
 				depFlag = "-ldylib=" + libName
 				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
 				depPaths.depFlags = append(depPaths.depFlags, depFlag)
@@ -872,9 +873,9 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				directSharedLibDeps = append(directSharedLibDeps, ccDep)
 				mod.Properties.AndroidMkSharedLibs = append(mod.Properties.AndroidMkSharedLibs, depName)
 				exportDep = true
-			case cc.CrtBeginDepTag:
+			case depTag == cc.CrtBeginDepTag:
 				depPaths.CrtBegin = linkFile
-			case cc.CrtEndDepTag:
+			case depTag == cc.CrtEndDepTag:
 				depPaths.CrtEnd = linkFile
 			}
 
@@ -997,10 +998,10 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	actx.AddVariationDependencies(append(commonDepVariations,
 		blueprint.Variation{Mutator: "link", Variation: "shared"}),
-		cc.SharedDepTag, deps.SharedLibs...)
+		cc.SharedDepTag(), deps.SharedLibs...)
 	actx.AddVariationDependencies(append(commonDepVariations,
 		blueprint.Variation{Mutator: "link", Variation: "static"}),
-		cc.StaticDepTag, deps.StaticLibs...)
+		cc.StaticDepTag(), deps.StaticLibs...)
 
 	if deps.CrtBegin != "" {
 		actx.AddVariationDependencies(commonDepVariations, cc.CrtBeginDepTag, deps.CrtBegin)
@@ -1009,6 +1010,13 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		actx.AddVariationDependencies(commonDepVariations, cc.CrtEndDepTag, deps.CrtEnd)
 	}
 
+	if mod.sourceProvider != nil {
+		if bindgen, ok := mod.sourceProvider.(*bindgenDecorator); ok &&
+			bindgen.Properties.Custom_bindgen != "" {
+			actx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(), customBindgenDepTag,
+				bindgen.Properties.Custom_bindgen)
+		}
+	}
 	// proc_macros are compiler plugins, and so we need the host arch variant as a dependendcy.
 	actx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(), procMacroDepTag, deps.ProcMacros...)
 }
@@ -1035,6 +1043,12 @@ func (mod *Module) Name() string {
 		name = p.Name(name)
 	}
 	return name
+}
+
+func (mod *Module) setClippy(clippy bool) {
+	if mod.clippy != nil {
+		mod.clippy.Properties.Clippy = proptools.BoolPtr(clippy)
+	}
 }
 
 var _ android.HostToolProvider = (*Module)(nil)

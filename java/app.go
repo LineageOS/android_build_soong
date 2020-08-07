@@ -604,11 +604,11 @@ func (a *AndroidApp) installPath(ctx android.ModuleContext) android.InstallPath 
 
 func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 	a.dexpreopter.installPath = a.installPath(ctx)
-	if a.deviceProperties.Uncompress_dex == nil {
+	if a.dexProperties.Uncompress_dex == nil {
 		// If the value was not force-set by the user, use reasonable default based on the module.
-		a.deviceProperties.Uncompress_dex = proptools.BoolPtr(a.shouldUncompressDex(ctx))
+		a.dexProperties.Uncompress_dex = proptools.BoolPtr(a.shouldUncompressDex(ctx))
 	}
-	a.dexpreopter.uncompressedDex = *a.deviceProperties.Uncompress_dex
+	a.dexpreopter.uncompressedDex = *a.dexProperties.Uncompress_dex
 	a.dexpreopter.enforceUsesLibs = a.usesLibrary.enforceUsesLibraries()
 	a.dexpreopter.usesLibs = a.usesLibrary.usesLibraryProperties.Uses_libs
 	a.dexpreopter.optionalUsesLibs = a.usesLibrary.presentOptionalUsesLibs(ctx)
@@ -875,7 +875,9 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 		otherName := ctx.OtherModuleName(module)
 		tag := ctx.OtherModuleDependencyTag(module)
 
-		if IsJniDepTag(tag) || tag == cc.SharedDepTag {
+		// TODO(ccross): The tag == cc.SharedDepTag() check should be cc.IsSharedDepTag(tag) but
+		//   was left to maintain behavior when adding libraryDependencyTag.
+		if IsJniDepTag(tag) || tag == cc.SharedDepTag() {
 			if dep, ok := module.(*cc.Module); ok {
 				if dep.IsNdk() || dep.IsStubs() {
 					return false
@@ -1025,8 +1027,8 @@ var _ cc.Coverage = (*AndroidApp)(nil)
 func AndroidAppFactory() android.Module {
 	module := &AndroidApp{}
 
-	module.Module.deviceProperties.Optimize.EnabledByDefault = true
-	module.Module.deviceProperties.Optimize.Shrink = proptools.BoolPtr(true)
+	module.Module.dexProperties.Optimize.EnabledByDefault = true
+	module.Module.dexProperties.Optimize.Shrink = proptools.BoolPtr(true)
 
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
@@ -1140,7 +1142,7 @@ func (a *AndroidTest) OverridablePropertiesDepsMutator(ctx android.BottomUpMutat
 func AndroidTestFactory() android.Module {
 	module := &AndroidTest{}
 
-	module.Module.deviceProperties.Optimize.EnabledByDefault = true
+	module.Module.dexProperties.Optimize.EnabledByDefault = true
 
 	module.Module.properties.Instrument = true
 	module.Module.properties.Installable = proptools.BoolPtr(true)
@@ -1191,7 +1193,7 @@ func (a *AndroidTestHelperApp) InstallInTestcases() bool {
 func AndroidTestHelperAppFactory() android.Module {
 	module := &AndroidTestHelperApp{}
 
-	module.Module.deviceProperties.Optimize.EnabledByDefault = true
+	module.Module.dexProperties.Optimize.EnabledByDefault = true
 
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 	module.appProperties.Use_embedded_native_libs = proptools.BoolPtr(true)
