@@ -43,6 +43,15 @@ func (w *Writer) CopyFrom(orig *File, newName string) error {
 		offset:     uint64(w.cw.count),
 	}
 	w.dir = append(w.dir, h)
+	if !fh.isZip64() {
+		// Some writers will generate 64 bit sizes and set 32 bit fields to
+		// uint32max even if the actual size fits in 32 bit. So we should
+		// make sure CompressedSize contains the correct value in such
+		// cases. With out the two lines below we would be writing invalid(-1)
+		// sizes in such case.
+		fh.CompressedSize = uint32(fh.CompressedSize64)
+		fh.UncompressedSize = uint32(fh.UncompressedSize64)
+	}
 
 	if err := writeHeader(w.cw, fh); err != nil {
 		return err
