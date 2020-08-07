@@ -107,6 +107,6 @@ func (installer *baseInstaller) relativeInstallPath() string {
 	return String(installer.Properties.Relative_install_path)
 }
 
-func (installer *baseInstaller) skipInstall(mod *Module) {
-	mod.ModuleBase.SkipInstall()
+func (installer *baseInstaller) makeUninstallable(mod *Module) {
+	mod.ModuleBase.MakeUninstallable()
 }

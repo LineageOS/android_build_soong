@@ -418,7 +418,7 @@ type installer interface {
 	inSanitizerDir() bool
 	hostToolPath() android.OptionalPath
 	relativeInstallPath() string
-	skipInstall(mod *Module)
+	makeUninstallable(mod *Module)
 }
 
 type xref interface {
@@ -2730,12 +2730,12 @@ func (c *Module) InstallInRecovery() bool {
 	return c.InRecovery()
 }
 
-func (c *Module) SkipInstall() {
+func (c *Module) MakeUninstallable() {
 	if c.installer == nil {
-		c.ModuleBase.SkipInstall()
+		c.ModuleBase.MakeUninstallable()
 		return
 	}
-	c.installer.skipInstall(c)
+	c.installer.makeUninstallable(c)
 }
 
 func (c *Module) HostToolPath() android.OptionalPath {
