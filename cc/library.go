@@ -28,7 +28,6 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc/config"
-	"android/soong/genrule"
 )
 
 type LibraryProperties struct {
@@ -1559,13 +1558,14 @@ func createVersionVariations(mctx android.BottomUpMutatorContext, versions []str
 	// "" is for the non-stubs variant
 	versions = append([]string{""}, versions...)
 
-	modules := mctx.CreateVariations(versions...)
+	modules := mctx.CreateLocalVariations(versions...)
 	for i, m := range modules {
 		if versions[i] != "" {
 			m.(LinkableInterface).SetBuildStubs()
 			m.(LinkableInterface).SetStubsVersions(versions[i])
 		}
 	}
+	mctx.AliasVariation("")
 }
 
 func VersionVariantAvailable(module interface {
@@ -1600,7 +1600,7 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 		if c, ok := library.(*Module); ok && c.IsStubs() {
 			stubsVersionsLock.Lock()
 			defer stubsVersionsLock.Unlock()
-			// For LLNDK llndk_library, we borrow vstubs.ersions from its implementation library.
+			// For LLNDK llndk_library, we borrow stubs.versions from its implementation library.
 			// Since llndk_library has dependency to its implementation library,
 			// we can safely access stubsVersionsFor() with its baseModuleName.
 			versions := stubsVersionsFor(mctx.Config())[c.BaseModuleName()]
@@ -1611,16 +1611,9 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 			return
 		}
 
-		mctx.CreateVariations("")
+		mctx.CreateLocalVariations("")
+		mctx.AliasVariation("")
 		return
-	}
-	if genrule, ok := mctx.Module().(*genrule.Module); ok {
-		if _, ok := genrule.Extra.(*GenruleExtraProperties); ok {
-			if VersionVariantAvailable(genrule) {
-				mctx.CreateVariations("")
-				return
-			}
-		}
 	}
 }
 
