@@ -1365,16 +1365,15 @@ func (library *libraryDecorator) availableFor(what string) bool {
 	return android.CheckAvailableForApex(what, list)
 }
 
-func (library *libraryDecorator) skipInstall(mod *Module) {
+func (library *libraryDecorator) makeUninstallable(mod *Module) {
 	if library.static() && library.buildStatic() && !library.buildStubs() {
-		// If we're asked to skip installation of a static library (in particular
-		// when it's not //apex_available:platform) we still want an AndroidMk entry
-		// for it to ensure we get the relevant NOTICE file targets (cf.
-		// notice_files.mk) that other libraries might depend on. AndroidMkEntries
-		// always sets LOCAL_UNINSTALLABLE_MODULE for these entries.
+		// If we're asked to make a static library uninstallable we don't do
+		// anything since AndroidMkEntries always sets LOCAL_UNINSTALLABLE_MODULE
+		// for these entries. This is done to still get the make targets for NOTICE
+		// files from notice_files.mk, which other libraries might depend on.
 		return
 	}
-	mod.ModuleBase.SkipInstall()
+	mod.ModuleBase.MakeUninstallable()
 }
 
 var versioningMacroNamesListKey = android.NewOnceKey("versioningMacroNamesList")
