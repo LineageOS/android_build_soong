@@ -296,7 +296,10 @@ func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Mod
 		for i, mod := range modules {
 			platformVariation := i == 0
 			if platformVariation && !mctx.Host() && !mod.(ApexModule).AvailableFor(AvailableToPlatform) {
-				mod.SkipInstall()
+				// Do not install the module for platform, but still allow it to output
+				// uninstallable AndroidMk entries in certain cases when they have
+				// side effects.
+				mod.MakeUninstallable()
 			}
 			if !platformVariation {
 				mod.(ApexModule).apexModuleBase().ApexProperties.Info = m.apexVariations[i-1]

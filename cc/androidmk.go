@@ -286,10 +286,8 @@ func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries 
 			entries.SubName = "." + library.stubsVersion()
 		}
 		entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
-			// Note library.skipInstall() has a special case to get here for static
-			// libraries that otherwise would have skipped installation and hence not
-			// have executed AndroidMkEntries at all. The reason is to ensure they get
-			// a NOTICE file make target which other libraries might depend on.
+			// library.makeUninstallable() depends on this to bypass SkipInstall() for
+			// static libraries.
 			entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
 			if library.buildStubs() {
 				entries.SetBool("LOCAL_NO_NOTICE_FILE", true)
@@ -518,10 +516,14 @@ func (c *vendorSnapshotLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, 
 		entries.Class = "HEADER_LIBRARIES"
 	}
 
+	entries.SubName = ""
+
+	if c.sanitizerProperties.CfiEnabled {
+		entries.SubName += ".cfi"
+	}
+
 	if c.androidMkVendorSuffix {
-		entries.SubName = vendorSuffix
-	} else {
-		entries.SubName = ""
+		entries.SubName += vendorSuffix
 	}
 
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {

@@ -160,6 +160,9 @@ type SanitizeProperties struct {
 		Scudo            *bool    `android:"arch_variant"`
 		Scs              *bool    `android:"arch_variant"`
 
+		// A modifier for ASAN and HWASAN for write only instrumentation
+		Writeonly *bool `android:"arch_variant"`
+
 		// Sanitizers to run in the diagnostic mode (as opposed to the release mode).
 		// Replaces abort() on error with a human-readable error message.
 		// Address and Thread sanitizers always run in diagnostic mode.
@@ -283,6 +286,15 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			s.Hwaddress = boolPtr(true)
 		}
 
+		if found, globalSanitizers = removeFromList("writeonly", globalSanitizers); found && s.Writeonly == nil {
+			// Hwaddress and Address are set before, so we can check them here
+			// If they aren't explicitly set in the blueprint/SANITIZE_(HOST|TARGET), they would be nil instead of false
+			if s.Address == nil && s.Hwaddress == nil {
+				ctx.ModuleErrorf("writeonly modifier cannot be used without 'address' or 'hwaddress'")
+			}
+			s.Writeonly = boolPtr(true)
+		}
+
 		if len(globalSanitizers) > 0 {
 			ctx.ModuleErrorf("unknown global sanitizer option %s", globalSanitizers[0])
 		}
@@ -313,14 +325,14 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	// Is CFI actually enabled?
 	if !ctx.Config().EnableCFI() {
-		s.Cfi = nil
-		s.Diag.Cfi = nil
+		s.Cfi = boolPtr(false)
+		s.Diag.Cfi = boolPtr(false)
 	}
 
 	// Also disable CFI for arm32 until b/35157333 is fixed.
 	if ctx.Arch().ArchType == android.Arm {
-		s.Cfi = nil
-		s.Diag.Cfi = nil
+		s.Cfi = boolPtr(false)
+		s.Diag.Cfi = boolPtr(false)
 	}
 
 	// HWASan requires AArch64 hardware feature (top-byte-ignore).
@@ -335,14 +347,14 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	// Also disable CFI if ASAN is enabled.
 	if Bool(s.Address) || Bool(s.Hwaddress) {
-		s.Cfi = nil
-		s.Diag.Cfi = nil
+		s.Cfi = boolPtr(false)
+		s.Diag.Cfi = boolPtr(false)
 	}
 
 	// Disable sanitizers that depend on the UBSan runtime for windows/darwin builds.
 	if !ctx.Os().Linux() {
-		s.Cfi = nil
-		s.Diag.Cfi = nil
+		s.Cfi = boolPtr(false)
+		s.Diag.Cfi = boolPtr(false)
 		s.Misc_undefined = nil
 		s.Undefined = nil
 		s.All_undefined = nil
@@ -351,14 +363,15 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	// Also disable CFI for VNDK variants of components
 	if ctx.isVndk() && ctx.useVndk() {
-		s.Cfi = nil
-		s.Diag.Cfi = nil
-	}
-
-	// Also disable CFI if building against snapshot.
-	vndkVersion := ctx.DeviceConfig().VndkVersion()
-	if ctx.useVndk() && vndkVersion != "current" && vndkVersion != "" {
-		s.Cfi = nil
+		if ctx.static() {
+			// Cfi variant for static vndk should be captured as vendor snapshot,
+			// so don't strictly disable Cfi.
+			s.Cfi = nil
+			s.Diag.Cfi = nil
+		} else {
+			s.Cfi = boolPtr(false)
+			s.Diag.Cfi = boolPtr(false)
+		}
 	}
 
 	// HWASan ramdisk (which is built from recovery) goes over some bootloader limit.
@@ -403,7 +416,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 	// TODO(b/131771163): CFI transiently depends on LTO, and thus Fuzzer is
 	// mutually incompatible.
 	if Bool(s.Fuzzer) {
-		s.Cfi = nil
+		s.Cfi = boolPtr(false)
 	}
 }
 
@@ -460,6 +473,10 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 		flags.Local.CFlags = append(flags.Local.CFlags, asanCflags...)
 		flags.Local.LdFlags = append(flags.Local.LdFlags, asanLdflags...)
 
+		if Bool(sanitize.Properties.Sanitize.Writeonly) {
+			flags.Local.CFlags = append(flags.Local.CFlags, "-mllvm", "-asan-instrument-reads=0")
+		}
+
 		if ctx.Host() {
 			// -nodefaultlibs (provided with libc++) prevents the driver from linking
 			// libraries needed with -fsanitize=address. http://b/18650275 (WAI)
@@ -479,6 +496,9 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 
 	if Bool(sanitize.Properties.Sanitize.Hwaddress) {
 		flags.Local.CFlags = append(flags.Local.CFlags, hwasanCflags...)
+		if Bool(sanitize.Properties.Sanitize.Writeonly) {
+			flags.Local.CFlags = append(flags.Local.CFlags, "-mllvm", "-hwasan-instrument-reads=0")
+		}
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Fuzzer) {
@@ -726,27 +746,64 @@ func isSanitizableDependencyTag(tag blueprint.DependencyTag) bool {
 	}
 }
 
+// Determines if the current module is a static library going to be captured
+// as vendor snapshot. Such modules must create both cfi and non-cfi variants,
+// except for ones which explicitly disable cfi.
+func needsCfiForVendorSnapshot(mctx android.TopDownMutatorContext) bool {
+	if isVendorProprietaryPath(mctx.ModuleDir()) {
+		return false
+	}
+
+	c := mctx.Module().(*Module)
+
+	if !c.inVendor() {
+		return false
+	}
+
+	if !c.static() {
+		return false
+	}
+
+	if c.Prebuilt() != nil {
+		return false
+	}
+
+	return c.sanitize != nil &&
+		!Bool(c.sanitize.Properties.Sanitize.Never) &&
+		!c.sanitize.isSanitizerExplicitlyDisabled(cfi)
+}
+
 // Propagate sanitizer requirements down from binaries
 func sanitizerDepsMutator(t sanitizerType) func(android.TopDownMutatorContext) {
 	return func(mctx android.TopDownMutatorContext) {
-		if c, ok := mctx.Module().(*Module); ok && c.sanitize.isSanitizerEnabled(t) {
-			mctx.WalkDeps(func(child, parent android.Module) bool {
-				if !isSanitizableDependencyTag(mctx.OtherModuleDependencyTag(child)) {
-					return false
-				}
-				if d, ok := child.(*Module); ok && d.sanitize != nil &&
-					!Bool(d.sanitize.Properties.Sanitize.Never) &&
-					!d.sanitize.isSanitizerExplicitlyDisabled(t) {
-					if t == cfi || t == hwasan || t == scs {
-						if d.static() {
+		if c, ok := mctx.Module().(*Module); ok {
+			enabled := c.sanitize.isSanitizerEnabled(t)
+			if t == cfi && needsCfiForVendorSnapshot(mctx) {
+				// We shouldn't change the result of isSanitizerEnabled(cfi) to correctly
+				// determine defaultVariation in sanitizerMutator below.
+				// Instead, just mark SanitizeDep to forcefully create cfi variant.
+				enabled = true
+				c.sanitize.Properties.SanitizeDep = true
+			}
+			if enabled {
+				mctx.WalkDeps(func(child, parent android.Module) bool {
+					if !isSanitizableDependencyTag(mctx.OtherModuleDependencyTag(child)) {
+						return false
+					}
+					if d, ok := child.(*Module); ok && d.sanitize != nil &&
+						!Bool(d.sanitize.Properties.Sanitize.Never) &&
+						!d.sanitize.isSanitizerExplicitlyDisabled(t) {
+						if t == cfi || t == hwasan || t == scs {
+							if d.static() {
+								d.sanitize.Properties.SanitizeDep = true
+							}
+						} else {
 							d.sanitize.Properties.SanitizeDep = true
 						}
-					} else {
-						d.sanitize.Properties.SanitizeDep = true
 					}
-				}
-				return true
-			})
+					return true
+				})
+			}
 		} else if sanitizeable, ok := mctx.Module().(Sanitizeable); ok {
 			// If an APEX module includes a lib which is enabled for a sanitizer T, then
 			// the APEX module is also enabled for the same sanitizer type.
@@ -1080,6 +1137,24 @@ func sanitizerMutator(t sanitizerType) func(android.BottomUpMutatorContext) {
 			// APEX modules fall here
 			sanitizeable.AddSanitizerDependencies(mctx, t.name())
 			mctx.CreateVariations(t.variationName())
+		} else if c, ok := mctx.Module().(*Module); ok {
+			// Check if it's a snapshot module supporting sanitizer
+			if s, ok := c.linker.(snapshotSanitizer); ok && s.isSanitizerEnabled(t) {
+				// Set default variation as above.
+				defaultVariation := t.variationName()
+				mctx.SetDefaultDependencyVariation(&defaultVariation)
+				modules := mctx.CreateVariations("", t.variationName())
+				modules[0].(*Module).linker.(snapshotSanitizer).setSanitizerVariation(t, false)
+				modules[1].(*Module).linker.(snapshotSanitizer).setSanitizerVariation(t, true)
+
+				// Export the static lib name to make
+				if c.static() && c.ExportedToMake() {
+					if t == cfi {
+						// use BaseModuleName which is the name for Make.
+						cfiStaticLibs(mctx.Config()).add(c, c.BaseModuleName())
+					}
+				}
+			}
 		}
 	}
 }

@@ -27,8 +27,8 @@ func TestRustBindgen(t *testing.T) {
 			crate_name: "bindgen",
 			stem: "libbindgen",
 			source_stem: "bindings",
-			bindgen_flags: ["--bindgen-flag"],
-			cflags: ["--clang-flag"],
+			bindgen_flags: ["--bindgen-flag.*"],
+			cflags: ["--clang-flag()"],
 			shared_libs: ["libfoo_shared"],
 			static_libs: ["libfoo_static"],
 		}
@@ -42,10 +42,11 @@ func TestRustBindgen(t *testing.T) {
 		}
 	`)
 	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a").Output("bindings.rs")
-	if !strings.Contains(libbindgen.Args["flags"], "--bindgen-flag") {
+	// Ensure that the flags are present and escaped
+	if !strings.Contains(libbindgen.Args["flags"], "'--bindgen-flag.*'") {
 		t.Errorf("missing bindgen flags in rust_bindgen rule: flags %#v", libbindgen.Args["flags"])
 	}
-	if !strings.Contains(libbindgen.Args["cflags"], "--clang-flag") {
+	if !strings.Contains(libbindgen.Args["cflags"], "'--clang-flag()'") {
 		t.Errorf("missing clang cflags in rust_bindgen rule: cflags %#v", libbindgen.Args["cflags"])
 	}
 	if !strings.Contains(libbindgen.Args["cflags"], "-Ishared_include") {
