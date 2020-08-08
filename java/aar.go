@@ -641,9 +641,11 @@ func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 var unzipAAR = pctx.AndroidStaticRule("unzipAAR",
 	blueprint.RuleParams{
 		Command: `rm -rf $outDir && mkdir -p $outDir && ` +
-			`unzip -qoDD -d $outDir $in && rm -rf $outDir/res && touch $out`,
+			`unzip -qoDD -d $outDir $in && rm -rf $outDir/res && touch $out && ` +
+			`${config.MergeZipsCmd} $combinedClassesJar $$(ls $outDir/classes.jar 2> /dev/null) $$(ls $outDir/libs/*.jar 2> /dev/null)`,
+		CommandDeps: []string{"${config.MergeZipsCmd}"},
 	},
-	"outDir")
+	"outDir", "combinedClassesJar")
 
 func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(a.properties.Aars) != 1 {
@@ -661,7 +663,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	extractedAARDir := android.PathForModuleOut(ctx, "aar")
-	a.classpathFile = extractedAARDir.Join(ctx, "classes.jar")
+	a.classpathFile = extractedAARDir.Join(ctx, "classes-combined.jar")
 	a.proguardFlags = extractedAARDir.Join(ctx, "proguard.txt")
 	a.manifest = extractedAARDir.Join(ctx, "AndroidManifest.xml")
 
@@ -671,7 +673,8 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Outputs:     android.WritablePaths{a.classpathFile, a.proguardFlags, a.manifest},
 		Description: "unzip AAR",
 		Args: map[string]string{
-			"outDir": extractedAARDir.String(),
+			"outDir":             extractedAARDir.String(),
+			"combinedClassesJar": a.classpathFile.String(),
 		},
 	})
 
