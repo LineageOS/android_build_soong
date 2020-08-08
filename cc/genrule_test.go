@@ -76,3 +76,42 @@ func TestArchGenruleCmd(t *testing.T) {
 		t.Errorf(`want arm64 inputs %v, got %v`, expected, gen.Inputs.Strings())
 	}
 }
+
+func TestLibraryGenruleCmd(t *testing.T) {
+	bp := `
+		cc_library {
+			name: "libboth",
+		}
+
+		cc_library_shared {
+			name: "libshared",
+		}
+
+		cc_library_static {
+			name: "libstatic",
+		}
+
+		cc_genrule {
+			name: "gen",
+			tool_files: ["tool"],
+			srcs: [
+				":libboth",
+				":libshared",
+				":libstatic",
+			],
+			cmd: "$(location tool) $(in) $(out)",
+			out: ["out"],
+		}
+		`
+	ctx := testCc(t, bp)
+
+	gen := ctx.ModuleForTests("gen", "android_arm_armv7-a-neon").Output("out")
+	expected := []string{"libboth.so", "libshared.so", "libstatic.a"}
+	var got []string
+	for _, input := range gen.Inputs {
+		got = append(got, input.Base())
+	}
+	if !reflect.DeepEqual(expected, got) {
+		t.Errorf(`want inputs %v, got %v`, expected, got)
+	}
+}
