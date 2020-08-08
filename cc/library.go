@@ -28,7 +28,6 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc/config"
-	"android/soong/genrule"
 )
 
 type LibraryProperties struct {
@@ -1469,6 +1468,12 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 			static.linker.(prebuiltLibraryInterface).setStatic()
 			shared.linker.(prebuiltLibraryInterface).setShared()
 
+			if library.buildShared() {
+				mctx.AliasVariation("shared")
+			} else if library.buildStatic() {
+				mctx.AliasVariation("static")
+			}
+
 			if !library.buildStatic() {
 				static.linker.(prebuiltLibraryInterface).disablePrebuilt()
 			}
@@ -1500,18 +1505,22 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 			if _, ok := library.(*Module); ok {
 				reuseStaticLibrary(mctx, static.(*Module), shared.(*Module))
 			}
+			mctx.AliasVariation("shared")
 		} else if library.BuildStaticVariant() {
 			variations := append([]string{"static"}, variations...)
 
 			modules := mctx.CreateLocalVariations(variations...)
 			modules[0].(LinkableInterface).SetStatic()
+			mctx.AliasVariation("static")
 		} else if library.BuildSharedVariant() {
 			variations := append([]string{"shared"}, variations...)
 
 			modules := mctx.CreateLocalVariations(variations...)
 			modules[0].(LinkableInterface).SetShared()
+			mctx.AliasVariation("shared")
 		} else if len(variations) > 0 {
 			mctx.CreateLocalVariations(variations...)
+			mctx.AliasVariation(variations[0])
 		}
 	}
 }
@@ -1558,13 +1567,14 @@ func createVersionVariations(mctx android.BottomUpMutatorContext, versions []str
 	// "" is for the non-stubs variant
 	versions = append([]string{""}, versions...)
 
-	modules := mctx.CreateVariations(versions...)
+	modules := mctx.CreateLocalVariations(versions...)
 	for i, m := range modules {
 		if versions[i] != "" {
 			m.(LinkableInterface).SetBuildStubs()
 			m.(LinkableInterface).SetStubsVersions(versions[i])
 		}
 	}
+	mctx.AliasVariation("")
 }
 
 func VersionVariantAvailable(module interface {
@@ -1599,7 +1609,7 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 		if c, ok := library.(*Module); ok && c.IsStubs() {
 			stubsVersionsLock.Lock()
 			defer stubsVersionsLock.Unlock()
-			// For LLNDK llndk_library, we borrow vstubs.ersions from its implementation library.
+			// For LLNDK llndk_library, we borrow stubs.versions from its implementation library.
 			// Since llndk_library has dependency to its implementation library,
 			// we can safely access stubsVersionsFor() with its baseModuleName.
 			versions := stubsVersionsFor(mctx.Config())[c.BaseModuleName()]
@@ -1610,16 +1620,9 @@ func VersionMutator(mctx android.BottomUpMutatorContext) {
 			return
 		}
 
-		mctx.CreateVariations("")
+		mctx.CreateLocalVariations("")
+		mctx.AliasVariation("")
 		return
-	}
-	if genrule, ok := mctx.Module().(*genrule.Module); ok {
-		if _, ok := genrule.Extra.(*GenruleExtraProperties); ok {
-			if VersionVariantAvailable(genrule) {
-				mctx.CreateVariations("")
-				return
-			}
-		}
 	}
 }
 
