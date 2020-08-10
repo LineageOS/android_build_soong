@@ -159,7 +159,9 @@ func (compiler *baseCompiler) featuresToFlags(features []string) []string {
 
 func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 
-	if !Bool(compiler.Properties.No_lint) {
+	if Bool(compiler.Properties.No_lint) {
+		flags.RustFlags = append(flags.RustFlags, config.AllowAllLints)
+	} else {
 		flags.RustFlags = append(flags.RustFlags, config.RustcLintsForDir(ctx.ModuleDir()))
 	}
 	flags.RustFlags = append(flags.RustFlags, compiler.Properties.Flags...)
