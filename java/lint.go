@@ -309,7 +309,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 	rule.Command().Text("mkdir -p").Flag(cacheDir.String()).Flag(homeDir.String())
 
 	var annotationsZipPath, apiVersionsXMLPath android.Path
-	if ctx.Config().UnbundledBuildUsePrebuiltSdks() {
+	if ctx.Config().AlwaysUsePrebuiltSdks() {
 		annotationsZipPath = android.PathForSource(ctx, "prebuilts/sdk/current/public/data/annotations.zip")
 		apiVersionsXMLPath = android.PathForSource(ctx, "prebuilts/sdk/current/public/data/api-versions.xml")
 	} else {
@@ -395,7 +395,7 @@ func (l *lintSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 }
 
 func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
-	if ctx.Config().UnbundledBuildUsePrebuiltSdks() {
+	if ctx.Config().AlwaysUsePrebuiltSdks() {
 		return
 	}
 
