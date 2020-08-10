@@ -1809,7 +1809,7 @@ func (module *SdkLibraryImport) Name() string {
 func (module *SdkLibraryImport) createInternalModules(mctx android.DefaultableHookContext) {
 
 	// If the build is configured to use prebuilts then force this to be preferred.
-	if mctx.Config().UnbundledBuildUsePrebuiltSdks() {
+	if mctx.Config().AlwaysUsePrebuiltSdks() {
 		module.prebuilt.ForcePrefer()
 	}
 
