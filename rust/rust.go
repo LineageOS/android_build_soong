@@ -83,7 +83,7 @@ type Module struct {
 	clippy           *clippy
 	cachedToolchain  config.Toolchain
 	sourceProvider   SourceProvider
-	subAndroidMkOnce map[subAndroidMkProvider]bool
+	subAndroidMkOnce map[SubAndroidMkProvider]bool
 
 	outputFile    android.OptionalPath
 	generatedFile android.OptionalPath
@@ -537,7 +537,7 @@ func (mod *Module) Init() android.Module {
 		mod.AddProperties(mod.clippy.props()...)
 	}
 	if mod.sourceProvider != nil {
-		mod.AddProperties(mod.sourceProvider.sourceProviderProps()...)
+		mod.AddProperties(mod.sourceProvider.SourceProviderProps()...)
 	}
 
 	android.InitAndroidArchModule(mod, mod.hod, mod.multilib)
@@ -671,10 +671,10 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		flags, deps = mod.clippy.flags(ctx, flags, deps)
 	}
 
-	// SourceProvider needs to call generateSource() before compiler calls compile() so it can provide the source.
+	// SourceProvider needs to call GenerateSource() before compiler calls compile() so it can provide the source.
 	// TODO(b/162588681) This shouldn't have to run for every variant.
 	if mod.sourceProvider != nil {
-		generatedFile := mod.sourceProvider.generateSource(ctx, deps)
+		generatedFile := mod.sourceProvider.GenerateSource(ctx, deps)
 		mod.generatedFile = android.OptionalPathForPath(generatedFile)
 		mod.sourceProvider.setSubName(ctx.ModuleSubDir())
 	}
@@ -696,7 +696,7 @@ func (mod *Module) deps(ctx DepsContext) Deps {
 		deps = mod.compiler.compilerDeps(ctx, deps)
 	}
 	if mod.sourceProvider != nil {
-		deps = mod.sourceProvider.sourceProviderDeps(ctx, deps)
+		deps = mod.sourceProvider.SourceProviderDeps(ctx, deps)
 	}
 
 	if mod.coverage != nil {

@@ -27,43 +27,60 @@ type SourceProviderProperties struct {
 	Crate_name string `android:"arch_variant"`
 }
 
-type baseSourceProvider struct {
+type BaseSourceProvider struct {
 	Properties SourceProviderProperties
 
-	outputFile       android.Path
-	subAndroidMkOnce map[subAndroidMkProvider]bool
+	OutputFile       android.Path
+	subAndroidMkOnce map[SubAndroidMkProvider]bool
 	subName          string
 }
 
-var _ SourceProvider = (*baseSourceProvider)(nil)
+var _ SourceProvider = (*BaseSourceProvider)(nil)
 
 type SourceProvider interface {
-	generateSource(ctx android.ModuleContext, deps PathDeps) android.Path
+	GenerateSource(ctx android.ModuleContext, deps PathDeps) android.Path
 	Srcs() android.Paths
-	sourceProviderProps() []interface{}
-	sourceProviderDeps(ctx DepsContext, deps Deps) Deps
+	SourceProviderProps() []interface{}
+	SourceProviderDeps(ctx DepsContext, deps Deps) Deps
 	setSubName(subName string)
 }
 
-func (sp *baseSourceProvider) Srcs() android.Paths {
-	return android.Paths{sp.outputFile}
+func (sp *BaseSourceProvider) Srcs() android.Paths {
+	return android.Paths{sp.OutputFile}
 }
 
-func (sp *baseSourceProvider) generateSource(ctx android.ModuleContext, deps PathDeps) android.Path {
-	panic("baseSourceProviderModule does not implement generateSource()")
+func (sp *BaseSourceProvider) GenerateSource(ctx android.ModuleContext, deps PathDeps) android.Path {
+	panic("BaseSourceProviderModule does not implement GenerateSource()")
 }
 
-func (sp *baseSourceProvider) sourceProviderProps() []interface{} {
+func (sp *BaseSourceProvider) SourceProviderProps() []interface{} {
 	return []interface{}{&sp.Properties}
 }
 
-func NewSourceProvider() *baseSourceProvider {
-	return &baseSourceProvider{
+func NewSourceProvider() *BaseSourceProvider {
+	return &BaseSourceProvider{
 		Properties: SourceProviderProperties{},
 	}
 }
 
-func (sp *baseSourceProvider) getStem(ctx android.ModuleContext) string {
+func NewSourceProviderModule(hod android.HostOrDeviceSupported, sourceProvider SourceProvider, enableLints bool) *Module {
+	_, library := NewRustLibrary(hod)
+	library.BuildOnlyRust()
+	library.sourceProvider = sourceProvider
+
+	module := newModule(hod, android.MultilibBoth)
+	module.sourceProvider = sourceProvider
+	module.compiler = library
+
+	if !enableLints {
+		library.setNoLint()
+		module.setClippy(false)
+	}
+
+	return module
+}
+
+func (sp *BaseSourceProvider) getStem(ctx android.ModuleContext) string {
 	if String(sp.Properties.Source_stem) == "" {
 		ctx.PropertyErrorf("source_stem",
 			"source_stem property is undefined but required for rust_bindgen modules")
@@ -71,10 +88,10 @@ func (sp *baseSourceProvider) getStem(ctx android.ModuleContext) string {
 	return String(sp.Properties.Source_stem)
 }
 
-func (sp *baseSourceProvider) sourceProviderDeps(ctx DepsContext, deps Deps) Deps {
+func (sp *BaseSourceProvider) SourceProviderDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
-func (sp *baseSourceProvider) setSubName(subName string) {
+func (sp *BaseSourceProvider) setSubName(subName string) {
 	sp.subName = subName
 }
