@@ -625,7 +625,7 @@ func (a *AARImport) JacocoReportClassesFile() android.Path {
 }
 
 func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if !ctx.Config().UnbundledBuildUsePrebuiltSdks() {
+	if !ctx.Config().AlwaysUsePrebuiltSdks() {
 		sdkDep := decodeSdkDep(ctx, sdkContext(a))
 		if sdkDep.useModule && sdkDep.frameworkResModule != "" {
 			ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
