@@ -559,15 +559,21 @@ func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
 	// are created in make if only the api txt file is being generated. This is
 	// needed because an invalid output file would prevent the make entries from
 	// being written.
+	//
+	// Note that dstubs.apiFile can be also be nil if WITHOUT_CHECKS_API is true.
 	// TODO(b/146727827): Revert when we do not need to generate stubs and API separately.
-	distFile := dstubs.apiFile
+
+	var distFiles android.TaggedDistFiles
+	if dstubs.apiFile != nil {
+		distFiles = android.MakeDefaultDistFiles(dstubs.apiFile)
+	}
 	outputFile := android.OptionalPathForPath(dstubs.stubsSrcJar)
 	if !outputFile.Valid() {
-		outputFile = android.OptionalPathForPath(distFile)
+		outputFile = android.OptionalPathForPath(dstubs.apiFile)
 	}
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
-		DistFiles:  android.MakeDefaultDistFiles(distFile),
+		DistFiles:  distFiles,
 		OutputFile: outputFile,
 		Include:    "$(BUILD_SYSTEM)/soong_droiddoc_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
