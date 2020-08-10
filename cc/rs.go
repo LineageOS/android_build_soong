@@ -25,7 +25,7 @@ import (
 
 func init() {
 	pctx.VariableFunc("rsCmd", func(ctx android.PackageVarContext) string {
-		if ctx.Config().UnbundledBuild() {
+		if ctx.Config().AlwaysUsePrebuiltSdks() {
 			// Use RenderScript prebuilts for unbundled builds but not PDK builds
 			return filepath.Join("prebuilts/sdk/tools", runtime.GOOS, "bin/llvm-rs-cc")
 		} else {
