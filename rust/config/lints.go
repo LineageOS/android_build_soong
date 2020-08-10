@@ -128,6 +128,7 @@ var DefaultLocalClippyChecks = []PathBasedClippyConfig{
 	{"vendor/google", rustcDefault, true, clippyDefault},
 	{"vendor/", rustcVendor, true, clippyVendor},
 }
+var AllowAllLints = rustcAllowAll
 
 // ClippyLintsForDir returns a boolean if Clippy should be executed and if so, the lints to be used.
 func ClippyLintsForDir(dir string) (bool, string) {
