@@ -570,6 +570,12 @@ type commonProperties struct {
 type TaggedDistFiles map[string]Paths
 
 func MakeDefaultDistFiles(paths ...Path) TaggedDistFiles {
+	for _, path := range paths {
+		if path == nil {
+			panic("The path to a dist file cannot be nil.")
+		}
+	}
+
 	// The default OutputFile tag is the empty "" string.
 	return TaggedDistFiles{"": paths}
 }
