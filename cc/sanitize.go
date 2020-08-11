@@ -178,8 +178,6 @@ type SanitizeProperties struct {
 		Recover []string
 
 		// value to pass to -fsanitize-blacklist
-		Blacklist *string
-		// value to pass to -fsanitize-blacklist
 		Blocklist *string
 	} `android:"arch_variant"`
 
@@ -612,12 +610,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags) Flags {
 	if sanitize.Properties.Sanitize.Diag.No_recover != nil {
 		flags.Local.CFlags = append(flags.Local.CFlags, "-fno-sanitize-recover="+
 			strings.Join(sanitize.Properties.Sanitize.Diag.No_recover, ","))
-	}
-
-	blacklist := android.OptionalPathForModuleSrc(ctx, sanitize.Properties.Sanitize.Blacklist)
-	if blacklist.Valid() {
-		flags.Local.CFlags = append(flags.Local.CFlags, "-fsanitize-blacklist="+blacklist.String())
-		flags.CFlagsDeps = append(flags.CFlagsDeps, blacklist.Path())
 	}
 
 	blocklist := android.OptionalPathForModuleSrc(ctx, sanitize.Properties.Sanitize.Blocklist)
