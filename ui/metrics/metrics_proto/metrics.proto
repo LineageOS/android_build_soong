@@ -91,6 +91,14 @@ message MetricsBase {
 
   // The metrics for calling Ninja.
   repeated PerfInfo ninja_runs = 20;
+
+  optional BuildConfig build_config = 23;
+}
+
+message BuildConfig {
+  optional bool use_goma = 1;
+
+  optional bool use_rbe = 2;
 }
 
 message PerfInfo {

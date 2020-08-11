@@ -64,6 +64,10 @@ func (m *Metrics) SetTimeMetrics(perf metrics_proto.PerfInfo) {
 	}
 }
 
+func (m *Metrics) BuildConfig(b *metrics_proto.BuildConfig) {
+	m.metrics.BuildConfig = b
+}
+
 func (m *Metrics) SetMetadataMetrics(metadata map[string]string) {
 	for k, v := range metadata {
 		switch k {
