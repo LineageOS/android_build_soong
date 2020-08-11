@@ -154,11 +154,11 @@ func TestBasicSdkWithCc(t *testing.T) {
 		}
 	`)
 
-	sdkMemberV1 := result.ModuleForTests("sdkmember_mysdk_1", "android_arm64_armv8-a_shared_myapex").Rule("toc").Output
-	sdkMemberV2 := result.ModuleForTests("sdkmember_mysdk_2", "android_arm64_armv8-a_shared_myapex2").Rule("toc").Output
+	sdkMemberV1 := result.ModuleForTests("sdkmember_mysdk_1", "android_arm64_armv8-a_shared_apex10000_mysdk_1").Rule("toc").Output
+	sdkMemberV2 := result.ModuleForTests("sdkmember_mysdk_2", "android_arm64_armv8-a_shared_apex10000_mysdk_2").Rule("toc").Output
 
-	cpplibForMyApex := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_shared_myapex")
-	cpplibForMyApex2 := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_shared_myapex2")
+	cpplibForMyApex := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_shared_apex10000_mysdk_1")
+	cpplibForMyApex2 := result.ModuleForTests("mycpplib", "android_arm64_armv8-a_shared_apex10000_mysdk_2")
 
 	// Depending on the uses_sdks value, different libs are linked
 	ensureListContains(t, pathsToStrings(cpplibForMyApex.Rule("ld").Implicits), sdkMemberV1.String())

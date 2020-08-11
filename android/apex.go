@@ -34,6 +34,17 @@ type ApexInfo struct {
 
 	MinSdkVersion int
 	Updatable     bool
+	RequiredSdks  SdkRefs
+
+	InApexes []string
+}
+
+func (i ApexInfo) mergedName() string {
+	name := "apex" + strconv.Itoa(i.MinSdkVersion)
+	for _, sdk := range i.RequiredSdks {
+		name += "_" + sdk.Name + "_" + sdk.Version
+	}
+	return name
 }
 
 // Extracted from ApexModule to make it easier to define custom subsets of the
@@ -69,16 +80,19 @@ type ApexModule interface {
 	// Call this before apex.apexMutator is run.
 	BuildForApex(apex ApexInfo)
 
-	// Returns the APEXes that this module will be built for
-	ApexVariations() []ApexInfo
-
 	// Returns the name of APEX variation that this module will be built for.
-	//Empty string is returned when 'IsForPlatform() == true'. Note that a
-	// module can be included in multiple APEXes, in which case, the module
-	// is mutated into multiple modules each of which for an APEX. This method
-	// returns the name of the APEX that a variant module is for.
+	// Empty string is returned when 'IsForPlatform() == true'. Note that a
+	// module can beincluded in multiple APEXes, in which case, the module
+	// is mutated into one or more variants, each of which is for one or
+	// more APEXes.  This method returns the name of the APEX variation of
+	// the module.
 	// Call this after apex.apexMutator is run.
 	ApexVariationName() string
+
+	// Returns the name of the APEX modules that this variant of this module
+	// is present in.
+	// Call this after apex.apexMutator is run.
+	InApexes() []string
 
 	// Tests whether this module will be built for the platform or not.
 	// This is a shortcut for ApexVariationName() == ""
@@ -124,6 +138,15 @@ type ApexModule interface {
 	// the private part of the listed APEXes even when it is not included in the
 	// APEXes.
 	TestFor() []string
+
+	// Returns true if this module needs a unique variation per apex, for example if
+	// use_apex_name_macro is set.
+	UniqueApexVariations() bool
+
+	// UpdateUniqueApexVariationsForDeps sets UniqueApexVariationsForDeps if any dependencies
+	// that are in the same APEX have unique APEX variations so that the module can link against
+	// the right variant.
+	UpdateUniqueApexVariationsForDeps(mctx BottomUpMutatorContext)
 }
 
 type ApexProperties struct {
@@ -139,6 +162,8 @@ type ApexProperties struct {
 	Info ApexInfo `blueprint:"mutated"`
 
 	NotAvailableForPlatform bool `blueprint:"mutated"`
+
+	UniqueApexVariationsForDeps bool `blueprint:"mutated"`
 }
 
 // Marker interface that identifies dependencies that are excluded from APEX
@@ -174,6 +199,47 @@ func (m *ApexModuleBase) TestFor() []string {
 	return nil
 }
 
+func (m *ApexModuleBase) UniqueApexVariations() bool {
+	return false
+}
+
+func (m *ApexModuleBase) UpdateUniqueApexVariationsForDeps(mctx BottomUpMutatorContext) {
+	// anyInSameApex returns true if the two ApexInfo lists contain any values in an InApexes list
+	// in common.  It is used instead of DepIsInSameApex because it needs to determine if the dep
+	// is in the same APEX due to being directly included, not only if it is included _because_ it
+	// is a dependency.
+	anyInSameApex := func(a, b []ApexInfo) bool {
+		collectApexes := func(infos []ApexInfo) []string {
+			var ret []string
+			for _, info := range infos {
+				ret = append(ret, info.InApexes...)
+			}
+			return ret
+		}
+
+		aApexes := collectApexes(a)
+		bApexes := collectApexes(b)
+		sort.Strings(bApexes)
+		for _, aApex := range aApexes {
+			index := sort.SearchStrings(bApexes, aApex)
+			if index < len(bApexes) && bApexes[index] == aApex {
+				return true
+			}
+		}
+		return false
+	}
+
+	mctx.VisitDirectDeps(func(dep Module) {
+		if depApexModule, ok := dep.(ApexModule); ok {
+			if anyInSameApex(depApexModule.apexModuleBase().apexVariations, m.apexVariations) &&
+				(depApexModule.UniqueApexVariations() ||
+					depApexModule.apexModuleBase().ApexProperties.UniqueApexVariationsForDeps) {
+				m.ApexProperties.UniqueApexVariationsForDeps = true
+			}
+		}
+	})
+}
+
 func (m *ApexModuleBase) BuildForApex(apex ApexInfo) {
 	m.apexVariationsLock.Lock()
 	defer m.apexVariationsLock.Unlock()
@@ -185,12 +251,12 @@ func (m *ApexModuleBase) BuildForApex(apex ApexInfo) {
 	m.apexVariations = append(m.apexVariations, apex)
 }
 
-func (m *ApexModuleBase) ApexVariations() []ApexInfo {
-	return m.apexVariations
-}
-
 func (m *ApexModuleBase) ApexVariationName() string {
 	return m.ApexProperties.Info.ApexVariationName
+}
+
+func (m *ApexModuleBase) InApexes() []string {
+	return m.ApexProperties.Info.InApexes
 }
 
 func (m *ApexModuleBase) IsForPlatform() bool {
@@ -271,14 +337,45 @@ func (a byApexName) Len() int           { return len(a) }
 func (a byApexName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byApexName) Less(i, j int) bool { return a[i].ApexVariationName < a[j].ApexVariationName }
 
+// mergeApexVariations deduplicates APEX variations that would build identically into a common
+// variation.  It returns the reduced list of variations and a list of aliases from the original
+// variation names to the new variation names.
+func mergeApexVariations(apexVariations []ApexInfo) (merged []ApexInfo, aliases [][2]string) {
+	sort.Sort(byApexName(apexVariations))
+	seen := make(map[string]int)
+	for _, apexInfo := range apexVariations {
+		apexName := apexInfo.ApexVariationName
+		mergedName := apexInfo.mergedName()
+		if index, exists := seen[mergedName]; exists {
+			merged[index].InApexes = append(merged[index].InApexes, apexName)
+			merged[index].Updatable = merged[index].Updatable || apexInfo.Updatable
+		} else {
+			seen[mergedName] = len(merged)
+			apexInfo.ApexVariationName = apexInfo.mergedName()
+			apexInfo.InApexes = CopyOf(apexInfo.InApexes)
+			merged = append(merged, apexInfo)
+		}
+		aliases = append(aliases, [2]string{apexName, mergedName})
+	}
+	return merged, aliases
+}
+
 func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Module {
 	if len(m.apexVariations) > 0 {
 		m.checkApexAvailableProperty(mctx)
 
-		sort.Sort(byApexName(m.apexVariations))
+		var apexVariations []ApexInfo
+		var aliases [][2]string
+		if !mctx.Module().(ApexModule).UniqueApexVariations() && !m.ApexProperties.UniqueApexVariationsForDeps {
+			apexVariations, aliases = mergeApexVariations(m.apexVariations)
+		} else {
+			apexVariations = m.apexVariations
+		}
+
+		sort.Sort(byApexName(apexVariations))
 		variations := []string{}
 		variations = append(variations, "") // Original variation for platform
-		for _, apex := range m.apexVariations {
+		for _, apex := range apexVariations {
 			variations = append(variations, apex.ApexVariationName)
 		}
 
@@ -292,9 +389,14 @@ func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Mod
 				mod.SkipInstall()
 			}
 			if !platformVariation {
-				mod.(ApexModule).apexModuleBase().ApexProperties.Info = m.apexVariations[i-1]
+				mod.(ApexModule).apexModuleBase().ApexProperties.Info = apexVariations[i-1]
 			}
 		}
+
+		for _, alias := range aliases {
+			mctx.CreateAliasVariation(alias[0], alias[1])
+		}
+
 		return modules
 	}
 	return nil
@@ -329,6 +431,9 @@ func UpdateApexDependency(apex ApexInfo, moduleName string, directDep bool) {
 		apexNamesMap()[moduleName] = apexesForModule
 	}
 	apexesForModule[apex.ApexVariationName] = apexesForModule[apex.ApexVariationName] || directDep
+	for _, apexName := range apex.InApexes {
+		apexesForModule[apexName] = apexesForModule[apex.ApexVariationName] || directDep
+	}
 }
 
 // TODO(b/146393795): remove this when b/146393795 is fixed
@@ -344,10 +449,24 @@ func ClearApexDependency() {
 func DirectlyInApex(apexName string, moduleName string) bool {
 	apexNamesMapMutex.Lock()
 	defer apexNamesMapMutex.Unlock()
-	if apexNames, ok := apexNamesMap()[moduleName]; ok {
-		return apexNames[apexName]
+	if apexNamesForModule, ok := apexNamesMap()[moduleName]; ok {
+		return apexNamesForModule[apexName]
 	}
 	return false
+}
+
+// Tests whether a module named moduleName is directly depended on by all APEXes
+// in a list of apexNames.
+func DirectlyInAllApexes(apexNames []string, moduleName string) bool {
+	apexNamesMapMutex.Lock()
+	defer apexNamesMapMutex.Unlock()
+	for _, apexName := range apexNames {
+		apexNamesForModule := apexNamesMap()[moduleName]
+		if !apexNamesForModule[apexName] {
+			return false
+		}
+	}
+	return true
 }
 
 type hostContext interface {
