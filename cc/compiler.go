@@ -548,6 +548,10 @@ func (compiler *baseCompiler) hasSrcExt(ext string) bool {
 	return false
 }
 
+func (compiler *baseCompiler) uniqueApexVariations() bool {
+	return Bool(compiler.Properties.Use_apex_name_macro)
+}
+
 // makeDefineString transforms a name of an APEX module into a value to be used as value for C define
 // For example, com.android.foo => COM_ANDROID_FOO
 func makeDefineString(name string) string {

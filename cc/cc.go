@@ -2323,7 +2323,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			if ccDep.CcLibrary() && !depIsStatic {
 				depIsStubs := ccDep.BuildStubs()
 				depHasStubs := VersionVariantAvailable(c) && ccDep.HasStubsVariants()
-				depInSameApex := android.DirectlyInApex(c.ApexVariationName(), depName)
+				depInSameApexes := android.DirectlyInAllApexes(c.InApexes(), depName)
 				depInPlatform := !android.DirectlyInAnyApex(ctx, depName)
 
 				var useThisDep bool
@@ -2353,9 +2353,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						}
 					}
 				} else {
-					// If building for APEX, use stubs only when it is not from
-					// the same APEX
-					useThisDep = (depInSameApex != depIsStubs)
+					// If building for APEX, use stubs when the parent is in any APEX that
+					// the child is not in.
+					useThisDep = (depInSameApexes != depIsStubs)
 				}
 
 				// when to use (unspecified) stubs, check min_sdk_version and choose the right one
@@ -2803,6 +2803,16 @@ func (c *Module) TestFor() []string {
 		return test.testFor()
 	} else {
 		return c.ApexModuleBase.TestFor()
+	}
+}
+
+func (c *Module) UniqueApexVariations() bool {
+	if u, ok := c.compiler.(interface {
+		uniqueApexVariations() bool
+	}); ok {
+		return u.uniqueApexVariations()
+	} else {
+		return false
 	}
 }
 

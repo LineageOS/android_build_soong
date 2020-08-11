@@ -781,6 +781,7 @@ func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
 
 func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
 	ctx.TopDown("apex_deps", apexDepsMutator).Parallel()
+	ctx.BottomUp("apex_unique", apexUniqueVariationsMutator).Parallel()
 	ctx.BottomUp("apex", apexMutator).Parallel()
 	ctx.BottomUp("apex_flattened", apexFlattenedMutator).Parallel()
 	ctx.BottomUp("apex_uses", apexUsesMutator).Parallel()
@@ -800,7 +801,9 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 	apexInfo := android.ApexInfo{
 		ApexVariationName: mctx.ModuleName(),
 		MinSdkVersion:     a.minSdkVersion(mctx),
+		RequiredSdks:      a.RequiredSdks(),
 		Updatable:         a.Updatable(),
+		InApexes:          []string{mctx.ModuleName()},
 	}
 	mctx.WalkDeps(func(child, parent android.Module) bool {
 		am, ok := child.(android.ApexModule)
@@ -818,6 +821,17 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		am.BuildForApex(apexInfo)
 		return true
 	})
+}
+
+func apexUniqueVariationsMutator(mctx android.BottomUpMutatorContext) {
+	if !mctx.Module().Enabled() {
+		return
+	}
+	if am, ok := mctx.Module().(android.ApexModule); ok {
+		// Check if any dependencies use unique apex variations.  If so, use unique apex variations
+		// for this module.
+		am.UpdateUniqueApexVariationsForDeps(mctx)
+	}
 }
 
 // mark if a module cannot be available to platform. A module cannot be available
@@ -1842,7 +1856,7 @@ func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext, do payloadDepsCa
 		}
 
 		// Check for the indirect dependencies if it is considered as part of the APEX
-		if am.ApexVariationName() != "" {
+		if android.InList(ctx.ModuleName(), am.InApexes()) {
 			return do(ctx, parent, am, false /* externalDep */)
 		}
 
