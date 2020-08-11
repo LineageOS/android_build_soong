@@ -1081,9 +1081,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	rule.Build(pctx, ctx, "javadoc", desc)
 
-	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") &&
-		!ctx.Config().IsPdkBuild() {
-
+	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") {
 		apiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Api_file))
 		removedApiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Removed_api_file))
 
@@ -1150,9 +1148,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		rule.Build(pctx, ctx, "doclavaCurrentApiUpdate", "update current API")
 	}
 
-	if apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") &&
-		!ctx.Config().IsPdkBuild() {
-
+	if apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") {
 		apiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Last_released.Api_file))
 		removedApiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Last_released.Removed_api_file))
 
@@ -1444,7 +1440,7 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 }
 
 func (d *Droidstubs) apiToXmlFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
-	if Bool(d.properties.Jdiff_enabled) && !ctx.Config().IsPdkBuild() && d.apiFile != nil {
+	if Bool(d.properties.Jdiff_enabled) && d.apiFile != nil {
 		if d.apiFile.String() == "" {
 			ctx.ModuleErrorf("API signature file has to be specified in Metalava when jdiff is enabled.")
 		}
@@ -1592,7 +1588,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Add API lint options.
 
-	if BoolDefault(d.properties.Check_api.Api_lint.Enabled, false) && !ctx.Config().IsPdkBuild() {
+	if BoolDefault(d.properties.Check_api.Api_lint.Enabled, false) {
 		doApiLint = true
 
 		newSince := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Api_lint.New_since)
@@ -1659,8 +1655,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Add "check released" options. (Detect incompatible API changes from the last public release)
 
-	if apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") &&
-		!ctx.Config().IsPdkBuild() {
+	if apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") {
 		doCheckReleased = true
 
 		if len(d.Javadoc.properties.Out) > 0 {
@@ -1737,8 +1732,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	rule.Build(pctx, ctx, "metalava", "metalava merged")
 
-	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") &&
-		!ctx.Config().IsPdkBuild() {
+	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") {
 
 		if len(d.Javadoc.properties.Out) > 0 {
 			ctx.PropertyErrorf("out", "out property may not be combined with check_api")
@@ -1852,7 +1846,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		rule.Build(pctx, ctx, "nullabilityWarningsCheck", "nullability warnings check")
 	}
 
-	if Bool(d.properties.Jdiff_enabled) && !ctx.Config().IsPdkBuild() {
+	if Bool(d.properties.Jdiff_enabled) {
 		if len(d.Javadoc.properties.Out) > 0 {
 			ctx.PropertyErrorf("out", "out property may not be combined with jdiff")
 		}
