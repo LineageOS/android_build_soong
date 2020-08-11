@@ -742,10 +742,6 @@ func (c *config) Fuchsia() bool {
 	return Bool(c.productVariables.Fuchsia)
 }
 
-func (c *config) IsPdkBuild() bool {
-	return Bool(c.productVariables.Pdk)
-}
-
 func (c *config) MinimizeJavaDebugInfo() bool {
 	return Bool(c.productVariables.MinimizeJavaDebugInfo) && !Bool(c.productVariables.Eng)
 }
