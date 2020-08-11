@@ -1057,8 +1057,8 @@ func (mod *Module) HostToolPath() android.OptionalPath {
 	if !mod.Host() {
 		return android.OptionalPath{}
 	}
-	if _, ok := mod.compiler.(*binaryDecorator); ok {
-		return mod.outputFile
+	if binary, ok := mod.compiler.(*binaryDecorator); ok {
+		return android.OptionalPathForPath(binary.baseCompiler.path)
 	}
 	return android.OptionalPath{}
 }
