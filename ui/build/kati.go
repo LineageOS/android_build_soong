@@ -134,12 +134,8 @@ func runKatiBuild(ctx Context, config Config) {
 
 	args := []string{
 		"--writable", config.OutDir() + "/",
+		"--werror_implicit_rules",
 		"-f", "build/make/core/main.mk",
-	}
-
-	// PDK builds still uses a few implicit rules
-	if !config.IsPdkBuild() {
-		args = append(args, "--werror_implicit_rules")
 	}
 
 	if !config.BuildBrokenDupRules() {

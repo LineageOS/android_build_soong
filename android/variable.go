@@ -233,7 +233,6 @@ type productVariables struct {
 	Eng                          *bool `json:",omitempty"`
 	Treble_linker_namespaces     *bool `json:",omitempty"`
 	Enforce_vintf_manifest       *bool `json:",omitempty"`
-	Pdk                          *bool `json:",omitempty"`
 	Uml                          *bool `json:",omitempty"`
 	Use_lmkd_stats_log           *bool `json:",omitempty"`
 	Arc                          *bool `json:",omitempty"`

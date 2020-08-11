@@ -191,23 +191,6 @@ func (s sdkSpec) prebuiltSdkAvailableForUnbundledBuild() bool {
 	return s.kind != sdkPrivate && s.kind != sdkNone && s.kind != sdkCorePlatform
 }
 
-// forPdkBuild converts this sdkSpec into another sdkSpec that is for the PDK builds.
-func (s sdkSpec) forPdkBuild(ctx android.EarlyModuleContext) sdkSpec {
-	// For PDK builds, use the latest SDK version instead of "current" or ""
-	if s.kind == sdkPrivate || s.kind == sdkPublic {
-		kind := s.kind
-		if kind == sdkPrivate {
-			// We don't have prebuilt SDK for private APIs, so use the public SDK
-			// instead. This looks odd, but that's how it has been done.
-			// TODO(b/148271073): investigate the need for this.
-			kind = sdkPublic
-		}
-		version := sdkVersion(LatestSdkVersionInt(ctx))
-		return sdkSpec{kind, version, s.raw}
-	}
-	return s
-}
-
 // usePrebuilt determines whether prebuilt SDK should be used for this sdkSpec with the given context.
 func (s sdkSpec) usePrebuilt(ctx android.EarlyModuleContext) bool {
 	if s.version.isCurrent() {
@@ -232,9 +215,6 @@ func (s sdkSpec) usePrebuilt(ctx android.EarlyModuleContext) bool {
 func (s sdkSpec) effectiveVersion(ctx android.EarlyModuleContext) (sdkVersion, error) {
 	if !s.valid() {
 		return s.version, fmt.Errorf("invalid sdk version %q", s.raw)
-	}
-	if ctx.Config().IsPdkBuild() {
-		s = s.forPdkBuild(ctx)
 	}
 	if s.version.isNumbered() {
 		return s.version, nil
@@ -350,9 +330,6 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		return sdkDep{}
 	}
 
-	if ctx.Config().IsPdkBuild() {
-		sdkVersion = sdkVersion.forPdkBuild(ctx)
-	}
 	if !sdkVersion.validateSystemSdk(ctx) {
 		return sdkDep{}
 	}
@@ -511,7 +488,7 @@ func sdkSingletonFactory() android.Singleton {
 type sdkSingleton struct{}
 
 func (sdkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	if ctx.Config().AlwaysUsePrebuiltSdks() || ctx.Config().IsPdkBuild() {
+	if ctx.Config().AlwaysUsePrebuiltSdks() {
 		return
 	}
 
@@ -631,9 +608,6 @@ func createAPIFingerprint(ctx android.SingletonContext) {
 
 	if ctx.Config().PlatformSdkCodename() == "REL" {
 		cmd.Text("echo REL >").Output(out)
-	} else if ctx.Config().IsPdkBuild() {
-		// TODO: get this from the PDK artifacts?
-		cmd.Text("echo PDK >").Output(out)
 	} else if !ctx.Config().AlwaysUsePrebuiltSdks() {
 		in, err := ctx.GlobWithDeps("frameworks/base/api/*current.txt", nil)
 		if err != nil {
@@ -663,7 +637,7 @@ func ApiFingerprintPath(ctx android.PathContext) android.OutputPath {
 }
 
 func sdkMakeVars(ctx android.MakeVarsContext) {
-	if ctx.Config().AlwaysUsePrebuiltSdks() || ctx.Config().IsPdkBuild() {
+	if ctx.Config().AlwaysUsePrebuiltSdks() {
 		return
 	}
 
