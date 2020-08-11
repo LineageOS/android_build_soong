@@ -194,7 +194,7 @@ func createCcSdkVariantRules() []Rule {
 		// This sometimes works because the APEX modules that contain derive_sdk and
 		// derive_sdk_prefer32 suppress the platform installation rules, but fails when
 		// the APEX modules contain the SDK variant and the platform variant still exists.
-		"frameworks/base/apex/sdkextensions/derive_sdk",
+		"packages/modules/SdkExtensions/derive_sdk",
 		// These are for apps and shouldn't be used by non-SDK variant modules.
 		"prebuilts/ndk",
 		"tools/test/graphicsbenchmark/apps/sample_app",
