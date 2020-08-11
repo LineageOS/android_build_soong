@@ -382,7 +382,7 @@ func FailIfNoMatchingErrors(t *testing.T, pattern string, errs []error) {
 	if !found {
 		t.Errorf("missing the expected error %q (checked %d error(s))", pattern, len(errs))
 		for i, err := range errs {
-			t.Errorf("errs[%d] = %s", i, err)
+			t.Errorf("errs[%d] = %q", i, err)
 		}
 	}
 }
