@@ -87,12 +87,12 @@ type BindgenProperties struct {
 }
 
 type bindgenDecorator struct {
-	*baseSourceProvider
+	*BaseSourceProvider
 
 	Properties BindgenProperties
 }
 
-func (b *bindgenDecorator) generateSource(ctx android.ModuleContext, deps PathDeps) android.Path {
+func (b *bindgenDecorator) GenerateSource(ctx android.ModuleContext, deps PathDeps) android.Path {
 	ccToolchain := ccConfig.FindToolchain(ctx.Os(), ctx.Arch())
 
 	var cflags []string
@@ -137,7 +137,7 @@ func (b *bindgenDecorator) generateSource(ctx android.ModuleContext, deps PathDe
 		ctx.PropertyErrorf("wrapper_src", "invalid path to wrapper source")
 	}
 
-	outputFile := android.PathForModuleOut(ctx, b.baseSourceProvider.getStem(ctx)+".rs")
+	outputFile := android.PathForModuleOut(ctx, b.BaseSourceProvider.getStem(ctx)+".rs")
 
 	var cmd, cmdDesc string
 	if b.Properties.Custom_bindgen != "" {
@@ -161,12 +161,12 @@ func (b *bindgenDecorator) generateSource(ctx android.ModuleContext, deps PathDe
 		},
 	})
 
-	b.baseSourceProvider.outputFile = outputFile
+	b.BaseSourceProvider.OutputFile = outputFile
 	return outputFile
 }
 
-func (b *bindgenDecorator) sourceProviderProps() []interface{} {
-	return append(b.baseSourceProvider.sourceProviderProps(),
+func (b *bindgenDecorator) SourceProviderProps() []interface{} {
+	return append(b.BaseSourceProvider.SourceProviderProps(),
 		&b.Properties)
 }
 
@@ -184,27 +184,18 @@ func RustBindgenHostFactory() android.Module {
 }
 
 func NewRustBindgen(hod android.HostOrDeviceSupported) (*Module, *bindgenDecorator) {
-	module := newModule(hod, android.MultilibBoth)
-
 	bindgen := &bindgenDecorator{
-		baseSourceProvider: NewSourceProvider(),
+		BaseSourceProvider: NewSourceProvider(),
 		Properties:         BindgenProperties{},
 	}
 
-	_, library := NewRustLibrary(hod)
-	library.BuildOnlyRust()
-	library.setNoLint()
-	library.sourceProvider = bindgen
-
-	module.sourceProvider = bindgen
-	module.compiler = library
-	module.setClippy(false)
+	module := NewSourceProviderModule(hod, bindgen, false)
 
 	return module, bindgen
 }
 
-func (b *bindgenDecorator) sourceProviderDeps(ctx DepsContext, deps Deps) Deps {
-	deps = b.baseSourceProvider.sourceProviderDeps(ctx, deps)
+func (b *bindgenDecorator) SourceProviderDeps(ctx DepsContext, deps Deps) Deps {
+	deps = b.BaseSourceProvider.SourceProviderDeps(ctx, deps)
 	if ctx.toolchain().Bionic() {
 		deps = bionicDeps(deps)
 	}

@@ -357,7 +357,7 @@ func (r *robolectricRuntimes) TestSuites() []string {
 var _ android.TestSuiteModule = (*robolectricRuntimes)(nil)
 
 func (r *robolectricRuntimes) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if !ctx.Config().UnbundledBuildUsePrebuiltSdks() && r.props.Lib != nil {
+	if !ctx.Config().AlwaysUsePrebuiltSdks() && r.props.Lib != nil {
 		ctx.AddVariationDependencies(nil, libTag, String(r.props.Lib))
 	}
 }
@@ -371,8 +371,16 @@ func (r *robolectricRuntimes) GenerateAndroidBuildActions(ctx android.ModuleCont
 		r.runtimes = append(r.runtimes, installedRuntime)
 	}
 
-	if !ctx.Config().UnbundledBuildUsePrebuiltSdks() && r.props.Lib != nil {
+	if !ctx.Config().AlwaysUsePrebuiltSdks() && r.props.Lib != nil {
 		runtimeFromSourceModule := ctx.GetDirectDepWithTag(String(r.props.Lib), libTag)
+		if runtimeFromSourceModule == nil {
+			if ctx.Config().AllowMissingDependencies() {
+				ctx.AddMissingDependencies([]string{String(r.props.Lib)})
+			} else {
+				ctx.PropertyErrorf("lib", "missing dependency %q", String(r.props.Lib))
+			}
+			return
+		}
 		runtimeFromSourceJar := android.OutputFileForModule(ctx, runtimeFromSourceModule, "")
 
 		runtimeName := fmt.Sprintf("android-all-%s-robolectric-r0.jar",
