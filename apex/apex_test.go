@@ -77,6 +77,7 @@ func testApex(t *testing.T, bp string, handlers ...testCustomizer) *android.Test
 		ctx.BottomUp("version", cc.VersionMutator).Parallel()
 		ctx.BottomUp("begin", cc.BeginMutator).Parallel()
 	})
+	ctx.RegisterSingletonType("apex_keys_text", android.SingletonFactoryAdaptor(apexKeysTextFactory))
 
 	ctx.Register()
 
@@ -1330,4 +1331,37 @@ func TestApexSet(t *testing.T) {
 	if actual != expected {
 		t.Errorf("Unexpected abis parameter - expected %q vs actual %q", expected, actual)
 	}
+}
+
+func TestApexKeysTxt(t *testing.T) {
+	ctx := testApex(t, `
+		prebuilt_apex {
+			name: "myapex",
+			prefer: true,
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+		}
+
+		apex_set {
+			name: "myapex_set",
+			set: "myapex.apks",
+			filename: "myapex_set.apex",
+			overrides: ["myapex"],
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		config.TestProductVariables.Platform_sdk_version = intPtr(30)
+		config.TestProductVariables.DeviceArch = proptools.StringPtr("arm")
+		config.TestProductVariables.DeviceSecondaryArch = proptools.StringPtr("arm64")
+	})
+
+	apexKeysText := ctx.SingletonForTests("apex_keys_text")
+	content := apexKeysText.MaybeDescription("apexkeys.txt").BuildParams.Args["content"]
+	ensureContains(t, content, `name="myapex_set.apex" public_key="PRESIGNED" private_key="PRESIGNED" container_certificate="PRESIGNED" container_private_key="PRESIGNED"`)
+	ensureNotContains(t, content, "myapex.apex")
 }
