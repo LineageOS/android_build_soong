@@ -23,8 +23,8 @@ import (
 )
 
 var hiddenAPIGenerateCSVRule = pctx.AndroidStaticRule("hiddenAPIGenerateCSV", blueprint.RuleParams{
-	Command:     "${config.Class2Greylist} --stub-api-flags ${stubAPIFlags} $in $outFlag $out",
-	CommandDeps: []string{"${config.Class2Greylist}"},
+	Command:     "${config.Class2NonSdkList} --stub-api-flags ${stubAPIFlags} $in $outFlag $out",
+	CommandDeps: []string{"${config.Class2NonSdkList}"},
 }, "outFlag", "stubAPIFlags")
 
 type hiddenAPI struct {
