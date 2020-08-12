@@ -261,7 +261,9 @@ func init() {
 
 	pctx.VariableFunc("RECXXPool", remoteexec.EnvOverrideFunc("RBE_CXX_POOL", remoteexec.DefaultPool))
 	pctx.VariableFunc("RECXXLinksPool", remoteexec.EnvOverrideFunc("RBE_CXX_LINKS_POOL", remoteexec.DefaultPool))
+	pctx.VariableFunc("REClangTidyPool", remoteexec.EnvOverrideFunc("RBE_CLANG_TIDY_POOL", remoteexec.DefaultPool))
 	pctx.VariableFunc("RECXXLinksExecStrategy", remoteexec.EnvOverrideFunc("RBE_CXX_LINKS_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
+	pctx.VariableFunc("REClangTidyExecStrategy", remoteexec.EnvOverrideFunc("RBE_CLANG_TIDY_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
 	pctx.VariableFunc("REAbiDumperExecStrategy", remoteexec.EnvOverrideFunc("RBE_ABI_DUMPER_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
 	pctx.VariableFunc("REAbiLinkerExecStrategy", remoteexec.EnvOverrideFunc("RBE_ABI_LINKER_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
 }
