@@ -607,6 +607,7 @@ func (apkSet *AndroidAppSet) AndroidMk() android.AndroidMkData {
 					fmt.Fprintln(w, "LOCAL_PRIVILEGED_MODULE := true")
 				}
 				fmt.Fprintln(w, "LOCAL_APK_SET_MASTER_FILE := ", apkSet.masterFile)
+				fmt.Fprintln(w, "LOCAL_APKCERTS_FILE := ", apkSet.apkcertsFile)
 				fmt.Fprintln(w, "LOCAL_OVERRIDES_PACKAGES :=", strings.Join(apkSet.properties.Overrides, " "))
 			},
 		},
