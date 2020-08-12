@@ -533,16 +533,6 @@ func TestUpdatableApps_JniLibShouldBeBuiltAgainstMinSdkVersion(t *testing.T) {
 			system_shared_libs: [],
 			sdk_version: "29",
 		}
-
-		ndk_prebuilt_object {
-			name: "ndk_crtbegin_so.29",
-			sdk_version: "29",
-		}
-
-		ndk_prebuilt_object {
-			name: "ndk_crtend_so.29",
-			sdk_version: "29",
-		}
 	`
 	fs := map[string][]byte{
 		"prebuilts/ndk/current/platforms/android-29/arch-arm64/usr/lib/crtbegin_so.o": nil,
@@ -555,16 +545,28 @@ func TestUpdatableApps_JniLibShouldBeBuiltAgainstMinSdkVersion(t *testing.T) {
 
 	inputs := ctx.ModuleForTests("libjni", "android_arm64_armv8-a_sdk_shared").Description("link").Implicits
 	var crtbeginFound, crtendFound bool
+	expectedCrtBegin := ctx.ModuleForTests("crtbegin_so",
+		"android_arm64_armv8-a_sdk_29").Rule("partialLd").Output
+	expectedCrtEnd := ctx.ModuleForTests("crtend_so",
+		"android_arm64_armv8-a_sdk_29").Rule("partialLd").Output
+	implicits := []string{}
 	for _, input := range inputs {
-		switch input.String() {
-		case "prebuilts/ndk/current/platforms/android-29/arch-arm64/usr/lib/crtbegin_so.o":
+		implicits = append(implicits, input.String())
+		if strings.HasSuffix(input.String(), expectedCrtBegin.String()) {
 			crtbeginFound = true
-		case "prebuilts/ndk/current/platforms/android-29/arch-arm64/usr/lib/crtend_so.o":
+		} else if strings.HasSuffix(input.String(), expectedCrtEnd.String()) {
 			crtendFound = true
 		}
 	}
-	if !crtbeginFound || !crtendFound {
-		t.Error("should link with ndk_crtbegin_so.29 and ndk_crtend_so.29")
+	if !crtbeginFound {
+		t.Error(fmt.Sprintf(
+			"expected implicit with suffix %q, have the following implicits:\n%s",
+			expectedCrtBegin, strings.Join(implicits, "\n")))
+	}
+	if !crtendFound {
+		t.Error(fmt.Sprintf(
+			"expected implicit with suffix %q, have the following implicits:\n%s",
+			expectedCrtEnd, strings.Join(implicits, "\n")))
 	}
 }
 
