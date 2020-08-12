@@ -92,7 +92,7 @@ type Module struct {
 func (mod *Module) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
 	case "":
-		if mod.sourceProvider != nil {
+		if mod.sourceProvider != nil && (mod.compiler == nil || mod.compiler.Disabled()) {
 			return mod.sourceProvider.Srcs(), nil
 		} else {
 			if mod.outputFile.Valid() {
