@@ -110,6 +110,10 @@ func intMax(a int, b int) int {
 func normalizeNdkApiLevel(ctx android.BaseModuleContext, apiLevel string,
 	arch android.Arch) (string, error) {
 
+	if apiLevel == "" {
+		panic("empty apiLevel not allowed")
+	}
+
 	if apiLevel == "current" {
 		return apiLevel, nil
 	}
@@ -136,7 +140,8 @@ func normalizeNdkApiLevel(ctx android.BaseModuleContext, apiLevel string,
 	// supported version here instead.
 	version, err := strconv.Atoi(apiLevel)
 	if err != nil {
-		return "", fmt.Errorf("API level must be an integer (is %q)", apiLevel)
+		// Non-integer API levels are codenames.
+		return apiLevel, nil
 	}
 	version = intMax(version, minVersion)
 
@@ -182,40 +187,61 @@ func shouldUseVersionScript(ctx android.BaseModuleContext, stub *stubDecorator) 
 	return version >= unversionedUntil, nil
 }
 
-func generateStubApiVariants(mctx android.BottomUpMutatorContext, c *stubDecorator) {
-	platformVersion := mctx.Config().PlatformSdkVersionInt()
+func generatePerApiVariants(ctx android.BottomUpMutatorContext, m *Module,
+	propName string, propValue string, perSplit func(*Module, string)) {
+	platformVersion := ctx.Config().PlatformSdkVersionInt()
 
-	firstSupportedVersion, err := normalizeNdkApiLevel(mctx, String(c.properties.First_version),
-		mctx.Arch())
+	firstSupportedVersion, err := normalizeNdkApiLevel(ctx, propValue,
+		ctx.Arch())
 	if err != nil {
-		mctx.PropertyErrorf("first_version", err.Error())
+		ctx.PropertyErrorf(propName, err.Error())
 	}
 
-	firstGenVersion, err := getFirstGeneratedVersion(firstSupportedVersion, platformVersion)
+	firstGenVersion, err := getFirstGeneratedVersion(firstSupportedVersion,
+		platformVersion)
 	if err != nil {
 		// In theory this is impossible because we've already run this through
 		// normalizeNdkApiLevel above.
-		mctx.PropertyErrorf("first_version", err.Error())
+		ctx.PropertyErrorf(propName, err.Error())
 	}
 
 	var versionStrs []string
 	for version := firstGenVersion; version <= platformVersion; version++ {
 		versionStrs = append(versionStrs, strconv.Itoa(version))
 	}
-	versionStrs = append(versionStrs, mctx.Config().PlatformVersionActiveCodenames()...)
+	versionStrs = append(versionStrs, ctx.Config().PlatformVersionActiveCodenames()...)
 	versionStrs = append(versionStrs, "current")
 
-	modules := mctx.CreateVariations(versionStrs...)
+	modules := ctx.CreateVariations(versionStrs...)
 	for i, module := range modules {
-		module.(*Module).compiler.(*stubDecorator).properties.ApiLevel = versionStrs[i]
+		perSplit(module.(*Module), versionStrs[i])
 	}
 }
 
-func NdkApiMutator(mctx android.BottomUpMutatorContext) {
-	if m, ok := mctx.Module().(*Module); ok {
+func NdkApiMutator(ctx android.BottomUpMutatorContext) {
+	if m, ok := ctx.Module().(*Module); ok {
 		if m.Enabled() {
 			if compiler, ok := m.compiler.(*stubDecorator); ok {
-				generateStubApiVariants(mctx, compiler)
+				if ctx.Os() != android.Android {
+					// These modules are always android.DeviceEnabled only, but
+					// those include Fuchsia devices, which we don't support.
+					ctx.Module().Disable()
+					return
+				}
+				generatePerApiVariants(ctx, m, "first_version",
+					String(compiler.properties.First_version),
+					func(m *Module, version string) {
+						m.compiler.(*stubDecorator).properties.ApiLevel =
+							version
+					})
+			} else if m.SplitPerApiLevel() && m.IsSdkVariant() {
+				if ctx.Os() != android.Android {
+					return
+				}
+				generatePerApiVariants(ctx, m, "min_sdk_version",
+					m.MinSdkVersion(), func(m *Module, version string) {
+						m.Properties.Sdk_version = &version
+					})
 			}
 		}
 	}
