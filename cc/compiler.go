@@ -565,7 +565,7 @@ func makeDefineString(name string) string {
 var gnuToCReplacer = strings.NewReplacer("gnu", "c")
 
 func ndkPathDeps(ctx ModuleContext) android.Paths {
-	if ctx.useSdk() {
+	if ctx.Module().(*Module).IsSdkVariant() {
 		// The NDK sysroot timestamp file depends on all the NDK sysroot files
 		// (headers and libraries).
 		return android.Paths{getNdkBaseTimestampFile(ctx)}
