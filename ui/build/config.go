@@ -23,6 +23,9 @@ import (
 	"time"
 
 	"android/soong/shared"
+	"github.com/golang/protobuf/proto"
+
+	smpb "android/soong/ui/metrics/metrics_proto"
 )
 
 type Config struct{ *configImpl }
@@ -263,13 +266,29 @@ func NewConfig(ctx Context, args ...string) Config {
 		}
 	}
 
-	return Config{ret}
+	c := Config{ret}
+	storeConfigMetrics(ctx, c)
+	return c
 }
 
 // NewBuildActionConfig returns a build configuration based on the build action. The arguments are
 // processed based on the build action and extracts any arguments that belongs to the build action.
 func NewBuildActionConfig(action BuildAction, dir string, ctx Context, args ...string) Config {
 	return NewConfig(ctx, getConfigArgs(action, dir, ctx, args)...)
+}
+
+// storeConfigMetrics selects a set of configuration information and store in
+// the metrics system for further analysis.
+func storeConfigMetrics(ctx Context, config Config) {
+	if ctx.Metrics == nil {
+		return
+	}
+
+	b := &smpb.BuildConfig{
+		UseGoma: proto.Bool(config.UseGoma()),
+		UseRbe:  proto.Bool(config.UseRBE()),
+	}
+	ctx.Metrics.BuildConfig(b)
 }
 
 // getConfigArgs processes the command arguments based on the build action and creates a set of new
