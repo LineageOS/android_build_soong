@@ -53,8 +53,6 @@ type configImpl struct {
 	// Autodetected
 	totalRAM uint64
 
-	pdkBuild bool
-
 	brokenDupRules     bool
 	brokenUsesNetwork  bool
 	brokenNinjaEnvVars []string
@@ -966,14 +964,6 @@ func (c *configImpl) SetTargetDeviceDir(dir string) {
 
 func (c *configImpl) TargetDeviceDir() string {
 	return c.targetDeviceDir
-}
-
-func (c *configImpl) SetPdkBuild(pdk bool) {
-	c.pdkBuild = pdk
-}
-
-func (c *configImpl) IsPdkBuild() bool {
-	return c.pdkBuild
 }
 
 func (c *configImpl) BuildDateTime() string {
