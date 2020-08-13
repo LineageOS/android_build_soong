@@ -969,7 +969,7 @@ func (c *Module) isCoverageVariant() bool {
 }
 
 func (c *Module) IsNdk() bool {
-	return inList(c.Name(), ndkKnownLibs)
+	return inList(c.BaseModuleName(), ndkKnownLibs)
 }
 
 func (c *Module) isLlndk(config android.Config) bool {
