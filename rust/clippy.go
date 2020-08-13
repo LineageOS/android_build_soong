@@ -19,8 +19,14 @@ import (
 )
 
 type ClippyProperties struct {
-	// whether to run clippy.
-	Clippy *bool
+	// name of the lint set that should be used to validate this module.
+	//
+	// Possible values are "default" (for using a sensible set of lints
+	// depending on the module's location), "android" (for the strictest
+	// lint set that applies to all Android platform code), "vendor" (for a
+	// relaxed set) and "none" (to disable the execution of clippy).  The
+	// default value is "default". See also the `lints` property.
+	Clippy_lints *string
 }
 
 type clippy struct {
@@ -32,10 +38,10 @@ func (c *clippy) props() []interface{} {
 }
 
 func (c *clippy) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags, PathDeps) {
-	if c.Properties.Clippy != nil && !*c.Properties.Clippy {
-		return flags, deps
+	enabled, lints, err := config.ClippyLintsForDir(ctx.ModuleDir(), c.Properties.Clippy_lints)
+	if err != nil {
+		ctx.PropertyErrorf("clippy_lints", err.Error())
 	}
-	enabled, lints := config.ClippyLintsForDir(ctx.ModuleDir())
 	flags.Clippy = enabled
 	flags.ClippyFlags = append(flags.ClippyFlags, lints)
 	return flags, deps
