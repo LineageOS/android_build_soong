@@ -6,6 +6,7 @@ var (
 		"external/rust",
 		"external/crosvm",
 		"external/adhd",
+		"frameworks/native/libs/binder/rust",
 		"prebuilts/rust",
 		"system/extras/profcollectd",
 		"system/security",
