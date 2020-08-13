@@ -54,6 +54,7 @@ func getRBEVars(ctx Context, config Config) map[string]string {
 	rand.Seed(time.Now().UnixNano())
 	vars := map[string]string{
 		"RBE_log_path":   config.rbeLogPath(),
+		"RBE_log_dir":    config.logDir(),
 		"RBE_re_proxy":   config.rbeReproxy(),
 		"RBE_exec_root":  config.rbeExecRoot(),
 		"RBE_output_dir": config.rbeStatsOutputDir(),
