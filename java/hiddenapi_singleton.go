@@ -43,7 +43,7 @@ func hiddenAPISingletonPaths(ctx android.PathContext) hiddenAPISingletonPathsStr
 		return hiddenAPISingletonPathsStruct{
 			flags:     android.PathForOutput(ctx, "hiddenapi", "hiddenapi-flags.csv"),
 			index:     android.PathForOutput(ctx, "hiddenapi", "hiddenapi-index.csv"),
-			metadata:  android.PathForOutput(ctx, "hiddenapi", "hiddenapi-greylist.csv"),
+			metadata:  android.PathForOutput(ctx, "hiddenapi", "hiddenapi-unsupported.csv"),
 			stubFlags: android.PathForOutput(ctx, "hiddenapi", "hiddenapi-stub-flags.txt"),
 		}
 	}).(hiddenAPISingletonPathsStruct)
@@ -293,7 +293,7 @@ func emptyFlagsRule(ctx android.SingletonContext) android.Path {
 	return outputPath
 }
 
-// metadataRule creates a rule to build hiddenapi-greylist.csv out of the metadata.csv files generated for boot image
+// metadataRule creates a rule to build hiddenapi-unsupported.csv out of the metadata.csv files generated for boot image
 // modules.
 func metadataRule(ctx android.SingletonContext) android.Path {
 	var metadataCSV android.Paths

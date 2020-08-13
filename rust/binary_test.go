@@ -36,6 +36,11 @@ func TestPreferDynamicBinary(t *testing.T) {
 	fizzBuzz := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Output("fizz-buzz")
 	fizzBuzzDynamic := ctx.ModuleForTests("fizz-buzz-dynamic", "linux_glibc_x86_64").Output("fizz-buzz-dynamic")
 
+	path := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module).HostToolPath()
+	if g, w := path.String(), "/host/linux-x86/bin/fizz-buzz"; !strings.Contains(g, w) {
+		t.Errorf("wrong host tool path, expected %q got %q", w, g)
+	}
+
 	// Do not compile binary modules with the --test flag.
 	flags := fizzBuzzDynamic.Args["rustcFlags"]
 	if strings.Contains(flags, "--test") {

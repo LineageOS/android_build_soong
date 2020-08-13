@@ -94,6 +94,14 @@ message MetricsBase {
   optional PerfInfo total = 21;
 
   optional SoongBuildMetrics soong_build_metrics = 22;
+
+  optional BuildConfig build_config = 23;
+}
+
+message BuildConfig {
+  optional bool use_goma = 1;
+
+  optional bool use_rbe = 2;
 }
 
 message PerfInfo {

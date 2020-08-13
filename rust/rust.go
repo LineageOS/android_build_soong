@@ -92,7 +92,7 @@ type Module struct {
 func (mod *Module) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
 	case "":
-		if mod.sourceProvider != nil {
+		if mod.sourceProvider != nil && (mod.compiler == nil || mod.compiler.Disabled()) {
 			return mod.sourceProvider.Srcs(), nil
 		} else {
 			if mod.outputFile.Valid() {
@@ -1057,8 +1057,8 @@ func (mod *Module) HostToolPath() android.OptionalPath {
 	if !mod.Host() {
 		return android.OptionalPath{}
 	}
-	if _, ok := mod.compiler.(*binaryDecorator); ok {
-		return mod.outputFile
+	if binary, ok := mod.compiler.(*binaryDecorator); ok {
+		return android.OptionalPathForPath(binary.baseCompiler.path)
 	}
 	return android.OptionalPath{}
 }
