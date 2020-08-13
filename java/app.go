@@ -875,9 +875,7 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 		otherName := ctx.OtherModuleName(module)
 		tag := ctx.OtherModuleDependencyTag(module)
 
-		// TODO(ccross): The tag == cc.SharedDepTag() check should be cc.IsSharedDepTag(tag) but
-		//   was left to maintain behavior when adding libraryDependencyTag.
-		if IsJniDepTag(tag) || tag == cc.SharedDepTag() {
+		if IsJniDepTag(tag) || cc.IsSharedDepTag(tag) {
 			if dep, ok := module.(*cc.Module); ok {
 				if dep.IsNdk() || dep.IsStubs() {
 					return false
