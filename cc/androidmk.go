@@ -206,29 +206,15 @@ func (library *libraryDecorator) androidMkWriteExportedFlags(entries *android.An
 }
 
 func (library *libraryDecorator) androidMkEntriesWriteAdditionalDependenciesForSourceAbiDiff(entries *android.AndroidMkEntries) {
-	if library.sAbiOutputFile.Valid() {
-		entries.SetString("LOCAL_ADDITIONAL_DEPENDENCIES",
-			"$(LOCAL_ADDITIONAL_DEPENDENCIES) "+library.sAbiOutputFile.String())
-		if library.sAbiDiff.Valid() && !library.static() {
-			entries.SetString("LOCAL_ADDITIONAL_DEPENDENCIES",
-				"$(LOCAL_ADDITIONAL_DEPENDENCIES) "+library.sAbiDiff.String())
-			entries.SetString("HEADER_ABI_DIFFS",
-				"$(HEADER_ABI_DIFFS) "+library.sAbiDiff.String())
-		}
+	if library.sAbiDiff.Valid() && !library.static() {
+		entries.AddStrings("LOCAL_ADDITIONAL_DEPENDENCIES", library.sAbiDiff.String())
 	}
 }
 
 // TODO(ccross): remove this once apex/androidmk.go is converted to AndroidMkEntries
 func (library *libraryDecorator) androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
-	if library.sAbiOutputFile.Valid() {
-		fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_ADDITIONAL_DEPENDENCIES) ",
-			library.sAbiOutputFile.String())
-		if library.sAbiDiff.Valid() && !library.static() {
-			fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES := $(LOCAL_ADDITIONAL_DEPENDENCIES) ",
-				library.sAbiDiff.String())
-			fmt.Fprintln(w, "HEADER_ABI_DIFFS := $(HEADER_ABI_DIFFS) ",
-				library.sAbiDiff.String())
-		}
+	if library.sAbiDiff.Valid() && !library.static() {
+		fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES +=", library.sAbiDiff.String())
 	}
 }
 
