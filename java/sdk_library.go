@@ -1408,7 +1408,7 @@ func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s sdkSpec) and
 // Get the apex name for module, "" if it is for platform.
 func getApexNameForModule(module android.Module) string {
 	if apex, ok := module.(android.ApexModule); ok {
-		return apex.ApexName()
+		return apex.ApexVariationName()
 	}
 
 	return ""
@@ -1419,7 +1419,7 @@ func getApexNameForModule(module android.Module) string {
 // If either this or the other module are on the platform then this will return
 // false.
 func withinSameApexAs(module android.ApexModule, other android.Module) bool {
-	name := module.ApexName()
+	name := module.ApexVariationName()
 	return name != "" && getApexNameForModule(other) == name
 }
 
@@ -2116,8 +2116,8 @@ func (module *sdkLibraryXml) DepsMutator(ctx android.BottomUpMutatorContext) {
 // File path to the runtime implementation library
 func (module *sdkLibraryXml) implPath() string {
 	implName := proptools.String(module.properties.Lib_name)
-	if apexName := module.ApexName(); apexName != "" {
-		// TODO(b/146468504): ApexName() is only a soong module name, not apex name.
+	if apexName := module.ApexVariationName(); apexName != "" {
+		// TODO(b/146468504): ApexVariationName() is only a soong module name, not apex name.
 		// In most cases, this works fine. But when apex_name is set or override_apex is used
 		// this can be wrong.
 		return fmt.Sprintf("/apex/%s/javalib/%s.jar", apexName, implName)

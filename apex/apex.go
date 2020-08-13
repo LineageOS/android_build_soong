@@ -798,9 +798,9 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 		return
 	}
 	apexInfo := android.ApexInfo{
-		ApexName:      mctx.ModuleName(),
-		MinSdkVersion: a.minSdkVersion(mctx),
-		Updatable:     a.Updatable(),
+		ApexVariationName: mctx.ModuleName(),
+		MinSdkVersion:     a.minSdkVersion(mctx),
+		Updatable:         a.Updatable(),
 	}
 	mctx.WalkDeps(func(child, parent android.Module) bool {
 		am, ok := child.(android.ApexModule)
@@ -1842,7 +1842,7 @@ func (a *apexBundle) walkPayloadDeps(ctx android.ModuleContext, do payloadDepsCa
 		}
 
 		// Check for the indirect dependencies if it is considered as part of the APEX
-		if am.ApexName() != "" {
+		if am.ApexVariationName() != "" {
 			return do(ctx, parent, am, false /* externalDep */)
 		}
 
