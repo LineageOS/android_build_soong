@@ -156,6 +156,7 @@ var legacyCorePlatformApiModules = []string{
 	"saminterfacelibrary",
 	"sammanagerlibrary",
 	"service-blobstore",
+	"service-connectivity",
 	"service-jobscheduler",
 	"services",
 	"services.accessibility",
