@@ -1235,7 +1235,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		suffix = append(suffix, ctx.Arch().ArchType.String())
 	}
 	if apex, ok := m.module.(ApexModule); ok && !apex.IsForPlatform() {
-		suffix = append(suffix, apex.ApexName())
+		suffix = append(suffix, apex.ApexVariationName())
 	}
 
 	ctx.Variable(pctx, "moduleDesc", desc)

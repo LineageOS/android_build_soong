@@ -29,8 +29,8 @@ const (
 )
 
 type ApexInfo struct {
-	// Name of the apex variant that this module is mutated into
-	ApexName string
+	// Name of the apex variation that this module is mutated into
+	ApexVariationName string
 
 	MinSdkVersion int
 	Updatable     bool
@@ -72,16 +72,16 @@ type ApexModule interface {
 	// Returns the APEXes that this module will be built for
 	ApexVariations() []ApexInfo
 
-	// Returns the name of APEX that this module will be built for. Empty string
-	// is returned when 'IsForPlatform() == true'. Note that a module can be
-	// included in multiple APEXes, in which case, the module is mutated into
-	// multiple modules each of which for an APEX. This method returns the
-	// name of the APEX that a variant module is for.
+	// Returns the name of APEX variation that this module will be built for.
+	//Empty string is returned when 'IsForPlatform() == true'. Note that a
+	// module can be included in multiple APEXes, in which case, the module
+	// is mutated into multiple modules each of which for an APEX. This method
+	// returns the name of the APEX that a variant module is for.
 	// Call this after apex.apexMutator is run.
-	ApexName() string
+	ApexVariationName() string
 
 	// Tests whether this module will be built for the platform or not.
-	// This is a shortcut for ApexName() == ""
+	// This is a shortcut for ApexVariationName() == ""
 	IsForPlatform() bool
 
 	// Tests if this module could have APEX variants. APEX variants are
@@ -178,7 +178,7 @@ func (m *ApexModuleBase) BuildForApex(apex ApexInfo) {
 	m.apexVariationsLock.Lock()
 	defer m.apexVariationsLock.Unlock()
 	for _, v := range m.apexVariations {
-		if v.ApexName == apex.ApexName {
+		if v.ApexVariationName == apex.ApexVariationName {
 			return
 		}
 	}
@@ -189,12 +189,12 @@ func (m *ApexModuleBase) ApexVariations() []ApexInfo {
 	return m.apexVariations
 }
 
-func (m *ApexModuleBase) ApexName() string {
-	return m.ApexProperties.Info.ApexName
+func (m *ApexModuleBase) ApexVariationName() string {
+	return m.ApexProperties.Info.ApexVariationName
 }
 
 func (m *ApexModuleBase) IsForPlatform() bool {
-	return m.ApexProperties.Info.ApexName == ""
+	return m.ApexProperties.Info.ApexVariationName == ""
 }
 
 func (m *ApexModuleBase) CanHaveApexVariants() bool {
@@ -269,7 +269,7 @@ type byApexName []ApexInfo
 
 func (a byApexName) Len() int           { return len(a) }
 func (a byApexName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byApexName) Less(i, j int) bool { return a[i].ApexName < a[j].ApexName }
+func (a byApexName) Less(i, j int) bool { return a[i].ApexVariationName < a[j].ApexVariationName }
 
 func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Module {
 	if len(m.apexVariations) > 0 {
@@ -279,7 +279,7 @@ func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Mod
 		variations := []string{}
 		variations = append(variations, "") // Original variation for platform
 		for _, apex := range m.apexVariations {
-			variations = append(variations, apex.ApexName)
+			variations = append(variations, apex.ApexVariationName)
 		}
 
 		defaultVariation := ""
@@ -328,7 +328,7 @@ func UpdateApexDependency(apex ApexInfo, moduleName string, directDep bool) {
 		apexesForModule = make(map[string]bool)
 		apexNamesMap()[moduleName] = apexesForModule
 	}
-	apexesForModule[apex.ApexName] = apexesForModule[apex.ApexName] || directDep
+	apexesForModule[apex.ApexVariationName] = apexesForModule[apex.ApexVariationName] || directDep
 }
 
 // TODO(b/146393795): remove this when b/146393795 is fixed
