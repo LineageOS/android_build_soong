@@ -152,9 +152,7 @@ func ltoDepsMutator(mctx android.TopDownMutatorContext) {
 
 			// Do not recurse down non-static dependencies
 			if isLibTag {
-				// TODO(ccross): the staticUnwinder check is there to maintain existing behavior
-				//   when adding libraryDependencyTag and should be removed.
-				if !libTag.static() || libTag.staticUnwinder {
+				if !libTag.static() {
 					return false
 				}
 			} else {
