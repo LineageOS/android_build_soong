@@ -583,7 +583,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"android.hardware.tetheroffload.config-V1.0-java",
 		"android.hardware.tetheroffload.control-V1.0-java",
 		"android.hidl.base-V1.0-java",
-		"ipmemorystore-aidl-interfaces-java",
 		"libcgrouprc",
 		"libcgrouprc_format",
 		"libtetherutilsjni",
