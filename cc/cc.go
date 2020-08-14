@@ -681,6 +681,13 @@ func (c *Module) MinSdkVersion() string {
 	return String(c.Properties.Min_sdk_version)
 }
 
+func (c *Module) SplitPerApiLevel() bool {
+	if linker, ok := c.linker.(*objectLinker); ok {
+		return linker.isCrt()
+	}
+	return false
+}
+
 func (c *Module) AlwaysSdk() bool {
 	return c.Properties.AlwaysSdk || Bool(c.Properties.Sdk_variant_only)
 }
@@ -952,7 +959,7 @@ func (c *Module) canUseSdk() bool {
 
 func (c *Module) UseSdk() bool {
 	if c.canUseSdk() {
-		return String(c.Properties.Sdk_version) != ""
+		return String(c.Properties.Sdk_version) != "" || c.SplitPerApiLevel()
 	}
 	return false
 }
@@ -962,7 +969,7 @@ func (c *Module) isCoverageVariant() bool {
 }
 
 func (c *Module) IsNdk() bool {
-	return inList(c.Name(), ndkKnownLibs)
+	return inList(c.BaseModuleName(), ndkKnownLibs)
 }
 
 func (c *Module) isLlndk(config android.Config) bool {
@@ -1485,8 +1492,11 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		c.Properties.SubName += ramdiskSuffix
 	} else if c.InRecovery() && !c.OnlyInRecovery() {
 		c.Properties.SubName += recoverySuffix
-	} else if c.Properties.IsSdkVariant && c.Properties.SdkAndPlatformVariantVisibleToMake {
+	} else if c.IsSdkVariant() && (c.Properties.SdkAndPlatformVariantVisibleToMake || c.SplitPerApiLevel()) {
 		c.Properties.SubName += sdkSuffix
+		if c.SplitPerApiLevel() {
+			c.Properties.SubName += "." + c.SdkVersion()
+		}
 	}
 
 	ctx := &moduleContext{
@@ -1659,7 +1669,7 @@ func (c *Module) begin(ctx BaseModuleContext) {
 	for _, feature := range c.features {
 		feature.begin(ctx)
 	}
-	if ctx.useSdk() {
+	if ctx.useSdk() && c.IsSdkVariant() {
 		version, err := normalizeNdkApiLevel(ctx, ctx.sdkVersion(), ctx.Arch())
 		if err != nil {
 			ctx.PropertyErrorf("sdk_version", err.Error())
@@ -1760,6 +1770,22 @@ func StubsLibNameAndVersion(name string) (string, string) {
 		return libname, version
 	}
 	return name, ""
+}
+
+func GetCrtVariations(ctx android.BottomUpMutatorContext,
+	m LinkableInterface) []blueprint.Variation {
+	if ctx.Os() != android.Android {
+		return nil
+	}
+	if m.UseSdk() {
+		return []blueprint.Variation{
+			{Mutator: "sdk", Variation: "sdk"},
+			{Mutator: "ndk_api", Variation: m.SdkVersion()},
+		}
+	}
+	return []blueprint.Variation{
+		{Mutator: "sdk", Variation: ""},
+	}
 }
 
 func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
@@ -2024,11 +2050,14 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	vendorSnapshotObjects := vendorSnapshotObjects(actx.Config())
 
+	crtVariations := GetCrtVariations(ctx, c)
 	if deps.CrtBegin != "" {
-		actx.AddVariationDependencies(nil, CrtBeginDepTag, rewriteSnapshotLibs(deps.CrtBegin, vendorSnapshotObjects))
+		actx.AddVariationDependencies(crtVariations, CrtBeginDepTag,
+			rewriteSnapshotLibs(deps.CrtBegin, vendorSnapshotObjects))
 	}
 	if deps.CrtEnd != "" {
-		actx.AddVariationDependencies(nil, CrtEndDepTag, rewriteSnapshotLibs(deps.CrtEnd, vendorSnapshotObjects))
+		actx.AddVariationDependencies(crtVariations, CrtEndDepTag,
+			rewriteSnapshotLibs(deps.CrtEnd, vendorSnapshotObjects))
 	}
 	if deps.LinkerFlagsFile != "" {
 		actx.AddDependency(c, linkerFlagsDepTag, deps.LinkerFlagsFile)
@@ -2572,12 +2601,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			makeLibName := c.makeLibName(ctx, ccDep, depName) + libDepTag.makeSuffix
 			switch {
 			case libDepTag.header():
-				// TODO(ccross): The reexportFlags check is there to maintain previous
-				//   behavior when adding libraryDependencyTag and should be removed.
-				if !libDepTag.reexportFlags {
-					c.Properties.AndroidMkHeaderLibs = append(
-						c.Properties.AndroidMkHeaderLibs, makeLibName)
-				}
+				c.Properties.AndroidMkHeaderLibs = append(
+					c.Properties.AndroidMkHeaderLibs, makeLibName)
 			case libDepTag.shared():
 				if ccDep.CcLibrary() {
 					if ccDep.BuildStubs() && android.InAnyApex(depName) {
@@ -2592,13 +2617,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 				// Note: the order of libs in this list is not important because
 				// they merely serve as Make dependencies and do not affect this lib itself.
-				// TODO(ccross): The reexportFlags, order and ndk checks are there to
-				//   maintain previous behavior when adding libraryDependencyTag and
-				//   should be removed.
-				if !c.static() || libDepTag.reexportFlags || libDepTag.Order == lateLibraryDependency || libDepTag.ndk {
-					c.Properties.AndroidMkSharedLibs = append(
-						c.Properties.AndroidMkSharedLibs, makeLibName)
-				}
+				c.Properties.AndroidMkSharedLibs = append(
+					c.Properties.AndroidMkSharedLibs, makeLibName)
 				// Record baseLibName for snapshots.
 				c.Properties.SnapshotSharedLibs = append(c.Properties.SnapshotSharedLibs, baseLibName(depName))
 			case libDepTag.static():
@@ -2930,9 +2950,7 @@ func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 				return false
 			}
 		}
-		// TODO(ccross): The libDepTag.reexportFlags is there to maintain previous behavior
-		//   when adding libraryDependencyTag and should be removed.
-		if isLibDepTag && c.static() && libDepTag.shared() && !libDepTag.reexportFlags {
+		if isLibDepTag && c.static() && libDepTag.shared() {
 			// shared_lib dependency from a static lib is considered as crossing
 			// the APEX boundary because the dependency doesn't actually is
 			// linked; the dependency is used only during the compilation phase.
@@ -3076,7 +3094,7 @@ func squashRecoverySrcs(m *Module) {
 }
 
 func (c *Module) IsSdkVariant() bool {
-	return c.Properties.IsSdkVariant
+	return c.Properties.IsSdkVariant || c.AlwaysSdk()
 }
 
 func getCurrentNdkPrebuiltVersion(ctx DepsContext) string {
