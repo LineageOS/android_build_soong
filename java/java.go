@@ -578,7 +578,6 @@ var (
 	bootClasspathTag      = dependencyTag{name: "bootclasspath"}
 	systemModulesTag      = dependencyTag{name: "system modules"}
 	frameworkResTag       = dependencyTag{name: "framework-res"}
-	frameworkApkTag       = dependencyTag{name: "framework-apk"}
 	kotlinStdlibTag       = dependencyTag{name: "kotlin-stdlib"}
 	kotlinAnnotationsTag  = dependencyTag{name: "kotlin-annotations"}
 	proguardRaiseTag      = dependencyTag{name: "proguard-raise"}
@@ -702,12 +701,6 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		}
 		if sdkDep.systemModules != "" {
 			ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
-		}
-
-		if ctx.ModuleName() == "android_stubs_current" ||
-			ctx.ModuleName() == "android_system_stubs_current" ||
-			ctx.ModuleName() == "android_test_stubs_current" {
-			ctx.AddVariationDependencies(nil, frameworkApkTag, "framework-res")
 		}
 	}
 
@@ -1056,18 +1049,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 					}
 				} else {
 					ctx.PropertyErrorf("exported_plugins", "%q is not a java_plugin module", otherName)
-				}
-			case frameworkApkTag:
-				if ctx.ModuleName() == "android_stubs_current" ||
-					ctx.ModuleName() == "android_system_stubs_current" ||
-					ctx.ModuleName() == "android_test_stubs_current" {
-					// framework stubs.jar need to depend on framework-res.apk, in order to pull the
-					// resource files out of there for aapt.
-					//
-					// Normally the package rule runs aapt, which includes the resource,
-					// but we're not running that in our package rule so just copy in the
-					// resource files here.
-					deps.staticResourceJars = append(deps.staticResourceJars, dep.(*AndroidApp).exportPackage)
 				}
 			case kotlinStdlibTag:
 				deps.kotlinStdlib = append(deps.kotlinStdlib, dep.HeaderJars()...)
