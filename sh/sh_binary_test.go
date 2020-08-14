@@ -211,7 +211,8 @@ func TestShTestHost_dataDeviceModules(t *testing.T) {
 		}
 	`)
 
-	variant := ctx.ModuleForTests("foo", "linux_glibc_x86_64")
+	buildOS := android.BuildOs.String()
+	variant := ctx.ModuleForTests("foo", buildOS+"_x86_64")
 
 	relocated := variant.Output("relocated/lib64/libbar.so")
 	expectedInput := filepath.Join(buildDir, ".intermediates/libbar/android_arm64_armv8-a_shared/libbar.so")
