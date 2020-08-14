@@ -53,11 +53,13 @@ func rbeCommand(ctx Context, config Config, rbeCmd string) string {
 func getRBEVars(ctx Context, config Config) map[string]string {
 	rand.Seed(time.Now().UnixNano())
 	vars := map[string]string{
-		"RBE_server_address": fmt.Sprintf("unix://%v/reproxy_%v.sock", absPath(ctx, config.TempDir()), rand.Intn(1000)),
-		"RBE_log_path":       config.rbeLogPath(),
-		"RBE_re_proxy":       config.rbeReproxy(),
-		"RBE_exec_root":      config.rbeExecRoot(),
-		"RBE_output_dir":     config.rbeStatsOutputDir(),
+		"RBE_log_path":   config.rbeLogPath(),
+		"RBE_re_proxy":   config.rbeReproxy(),
+		"RBE_exec_root":  config.rbeExecRoot(),
+		"RBE_output_dir": config.rbeStatsOutputDir(),
+	}
+	if config.StartRBE() {
+		vars["RBE_server_address"] = fmt.Sprintf("unix://%v/reproxy_%v.sock", absPath(ctx, config.TempDir()), rand.Intn(1000))
 	}
 	k, v := config.rbeAuth()
 	vars[k] = v
