@@ -119,14 +119,24 @@ func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {
 
 	if module == nil {
 		// find all the modules that do exist
-		allModuleNames := []string{}
+		var allModuleNames []string
+		var allVariants []string
 		ctx.VisitAllModules(func(m blueprint.Module) {
-			allModuleNames = append(allModuleNames, m.(Module).Name()+"("+ctx.ModuleSubDir(m)+")")
+			allModuleNames = append(allModuleNames, ctx.ModuleName(m))
+			if ctx.ModuleName(m) == name {
+				allVariants = append(allVariants, ctx.ModuleSubDir(m))
+			}
 		})
 		sort.Strings(allModuleNames)
+		sort.Strings(allVariants)
 
-		panic(fmt.Errorf("failed to find module %q variant %q. All modules:\n  %s",
-			name, variant, strings.Join(allModuleNames, "\n  ")))
+		if len(allVariants) == 0 {
+			panic(fmt.Errorf("failed to find module %q. All modules:\n  %s",
+				name, strings.Join(allModuleNames, "\n  ")))
+		} else {
+			panic(fmt.Errorf("failed to find module %q variant %q. All variants:\n  %s",
+				name, variant, strings.Join(allVariants, "\n  ")))
+		}
 	}
 
 	return TestingModule{module}
