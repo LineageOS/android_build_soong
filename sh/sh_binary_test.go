@@ -140,7 +140,8 @@ func TestShTest_dataModules(t *testing.T) {
 		}
 	`)
 
-	arches := []string{"android_arm64_armv8-a", "linux_glibc_x86_64"}
+	buildOS := android.BuildOs.String()
+	arches := []string{"android_arm64_armv8-a", buildOS + "_x86_64"}
 	for _, arch := range arches {
 		variant := ctx.ModuleForTests("foo", arch)
 
@@ -226,7 +227,7 @@ func TestShTestHost_dataDeviceModules(t *testing.T) {
 	expectedData := []string{
 		filepath.Join(buildDir, ".intermediates/bar/android_arm64_armv8-a/:bar"),
 		// libbar has been relocated, and so has a variant that matches the host arch.
-		filepath.Join(buildDir, ".intermediates/foo/linux_glibc_x86_64/relocated/:lib64/libbar.so"),
+		filepath.Join(buildDir, ".intermediates/foo/"+buildOS+"_x86_64/relocated/:lib64/libbar.so"),
 	}
 	actualData := entries.EntryMap["LOCAL_TEST_DATA"]
 	if !reflect.DeepEqual(expectedData, actualData) {
