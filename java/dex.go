@@ -55,13 +55,17 @@ var d8, d8RE = remoteexec.MultiCommandStaticRules(pctx, "d8",
 var r8, r8RE = remoteexec.MultiCommandStaticRules(pctx, "r8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`rm -f "$outDict" && ` +
+			`rm -f "$outDict" && rm -rf "${outUsageDir}" && ` +
+			`mkdir -p $$(dirname ${outUsage}) && ` +
 			`$r8Template${config.R8Cmd} ${config.DexFlags} -injars $in --output $outDir ` +
 			`--force-proguard-compatibility ` +
 			`--no-data-resources ` +
-			`-printmapping $outDict ` +
+			`-printmapping ${outDict} ` +
+			`-printusage ${outUsage} ` +
 			`$r8Flags && ` +
-			`touch "$outDict" && ` +
+			`touch "${outDict}" "${outUsage}" && ` +
+			`${config.SoongZipCmd} -o ${outUsageZip} -C ${outUsageDir} -f ${outUsage} && ` +
+			`rm -rf ${outUsageDir} && ` +
 			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
@@ -84,7 +88,15 @@ var r8, r8RE = remoteexec.MultiCommandStaticRules(pctx, "r8",
 			ExecStrategy: "${config.RER8ExecStrategy}",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
-	}, []string{"outDir", "outDict", "r8Flags", "zipFlags"}, []string{"implicits"})
+		"$zipUsageTemplate": &remoteexec.REParams{
+			Labels:       map[string]string{"type": "tool", "name": "soong_zip"},
+			Inputs:       []string{"${config.SoongZipCmd}", "${outUsage}"},
+			OutputFiles:  []string{"${outUsageZip}"},
+			ExecStrategy: "${config.RER8ExecStrategy}",
+			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
+	}, []string{"outDir", "outDict", "outUsage", "outUsageZip", "outUsageDir",
+		"r8Flags", "zipFlags"}, []string{"implicits"})
 
 func (j *Module) dexCommonFlags(ctx android.ModuleContext) []string {
 	flags := j.deviceProperties.Dxflags
@@ -214,26 +226,34 @@ func (j *Module) compileDex(ctx android.ModuleContext, flags javaBuilderFlags,
 	if useR8 {
 		proguardDictionary := android.PathForModuleOut(ctx, "proguard_dictionary")
 		j.proguardDictionary = proguardDictionary
+		proguardUsageDir := android.PathForModuleOut(ctx, "proguard_usage")
+		proguardUsage := proguardUsageDir.Join(ctx, ctx.Namespace().Path,
+			android.ModuleNameWithPossibleOverride(ctx), "unused.txt")
+		proguardUsageZip := android.PathForModuleOut(ctx, "proguard_usage.zip")
+		j.proguardUsageZip = android.OptionalPathForPath(proguardUsageZip)
 		r8Flags, r8Deps := j.r8Flags(ctx, flags)
 		rule := r8
 		args := map[string]string{
-			"r8Flags":  strings.Join(r8Flags, " "),
-			"zipFlags": zipFlags,
-			"outDict":  j.proguardDictionary.String(),
-			"outDir":   outDir.String(),
+			"r8Flags":     strings.Join(r8Flags, " "),
+			"zipFlags":    zipFlags,
+			"outDict":     j.proguardDictionary.String(),
+			"outUsageDir": proguardUsageDir.String(),
+			"outUsage":    proguardUsage.String(),
+			"outUsageZip": proguardUsageZip.String(),
+			"outDir":      outDir.String(),
 		}
 		if ctx.Config().IsEnvTrue("RBE_R8") {
 			rule = r8RE
 			args["implicits"] = strings.Join(r8Deps.Strings(), ",")
 		}
 		ctx.Build(pctx, android.BuildParams{
-			Rule:           rule,
-			Description:    "r8",
-			Output:         javalibJar,
-			ImplicitOutput: proguardDictionary,
-			Input:          classesJar,
-			Implicits:      r8Deps,
-			Args:           args,
+			Rule:            rule,
+			Description:     "r8",
+			Output:          javalibJar,
+			ImplicitOutputs: android.WritablePaths{proguardDictionary, proguardUsageZip},
+			Input:           classesJar,
+			Implicits:       r8Deps,
+			Args:            args,
 		})
 	} else {
 		d8Flags, d8Deps := j.d8Flags(ctx, flags)
