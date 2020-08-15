@@ -216,6 +216,7 @@ type BottomUpMutatorContext interface {
 	ReplaceDependencies(string)
 	ReplaceDependenciesIf(string, blueprint.ReplaceDependencyPredicate)
 	AliasVariation(variationName string)
+	CreateAliasVariation(fromVariationName, toVariationName string)
 }
 
 type bottomUpMutatorContext struct {
@@ -435,4 +436,8 @@ func (b *bottomUpMutatorContext) ReplaceDependenciesIf(name string, predicate bl
 
 func (b *bottomUpMutatorContext) AliasVariation(variationName string) {
 	b.bp.AliasVariation(variationName)
+}
+
+func (b *bottomUpMutatorContext) CreateAliasVariation(fromVariationName, toVariationName string) {
+	b.bp.CreateAliasVariation(fromVariationName, toVariationName)
 }
