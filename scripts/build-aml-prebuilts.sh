@@ -84,6 +84,8 @@ cat > ${SOONG_VARS}.new << EOF
     "CrossHostArch": "x86_64",
     "Aml_abis": true,
 
+    "Allow_missing_dependencies": ${SOONG_ALLOW_MISSING_DEPENDENCIES:-false},
+    "Unbundled_build": ${TARGET_BUILD_UNBUNDLED:-false},
     "UseGoma": ${USE_GOMA}
 }
 EOF
