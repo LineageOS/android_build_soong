@@ -16,31 +16,77 @@ package rust
 
 import (
 	"testing"
+
+	"android/soong/android"
 )
 
 func TestClippy(t *testing.T) {
-	ctx := testRust(t, `
+
+	bp := `
+		// foo uses the default value of clippy_lints
 		rust_library {
 			name: "libfoo",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
 		}
+		// bar forces the use of the "android" lint set
+		rust_library {
+			name: "libbar",
+			srcs: ["foo.rs"],
+			crate_name: "bar",
+			clippy_lints: "android",
+		}
+		// foobar explicitly disable clippy
 		rust_library {
 			name: "libfoobar",
 			srcs: ["foo.rs"],
 			crate_name: "foobar",
-			clippy: false,
-		}`)
+			clippy_lints: "none",
+		}`
 
-	ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").Output("libfoo.dylib.so")
-	fooClippy := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").MaybeRule("clippy")
-	if fooClippy.Rule.String() != "android/soong/rust.clippy" {
-		t.Errorf("Clippy output (default) for libfoo was not generated: %+v", fooClippy)
+	bp = bp + GatherRequiredDepsForTest()
+
+	fs := map[string][]byte{
+		// Reuse the same blueprint file for subdirectories.
+		"external/Android.bp": []byte(bp),
+		"hardware/Android.bp": []byte(bp),
 	}
 
-	ctx.ModuleForTests("libfoobar", "android_arm64_armv8-a_dylib").Output("libfoobar.dylib.so")
-	foobarClippy := ctx.ModuleForTests("libfoobar", "android_arm64_armv8-a_dylib").MaybeRule("clippy")
-	if foobarClippy.Rule != nil {
-		t.Errorf("Clippy output for libfoobar is not empty")
+	var clippyLintTests = []struct {
+		modulePath string
+		fooFlags   string
+	}{
+		{"", "${config.ClippyDefaultLints}"},
+		{"external/", ""},
+		{"hardware/", "${config.ClippyVendorLints}"},
+	}
+
+	for _, tc := range clippyLintTests {
+		t.Run("path="+tc.modulePath, func(t *testing.T) {
+
+			config := android.TestArchConfig(buildDir, nil, bp, fs)
+			ctx := CreateTestContext()
+			ctx.Register(config)
+			_, errs := ctx.ParseFileList(".", []string{tc.modulePath + "Android.bp"})
+			android.FailIfErrored(t, errs)
+			_, errs = ctx.PrepareBuildActions(config)
+			android.FailIfErrored(t, errs)
+
+			r := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").MaybeRule("clippy")
+			if r.Args["clippyFlags"] != tc.fooFlags {
+				t.Errorf("Incorrect flags for libfoo: %q, want %q", r.Args["clippyFlags"], tc.fooFlags)
+			}
+
+			r = ctx.ModuleForTests("libbar", "android_arm64_armv8-a_dylib").MaybeRule("clippy")
+			if r.Args["clippyFlags"] != "${config.ClippyDefaultLints}" {
+				t.Errorf("Incorrect flags for libbar: %q, want %q", r.Args["clippyFlags"], "${config.ClippyDefaultLints}")
+			}
+
+			r = ctx.ModuleForTests("libfoobar", "android_arm64_armv8-a_dylib").MaybeRule("clippy")
+			if r.Rule != nil {
+				t.Errorf("libfoobar is setup to use clippy when explicitly disabled: clippyFlags=%q", r.Args["clippyFlags"])
+			}
+
+		})
 	}
 }
