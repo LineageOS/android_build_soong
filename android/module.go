@@ -97,6 +97,8 @@ type EarlyModuleContext interface {
 	GlobFiles(globPattern string, excludes []string) Paths
 	IsSymlink(path Path) bool
 	Readlink(path Path) string
+
+	Namespace() *Namespace
 }
 
 // BaseModuleContext is the same as blueprint.BaseModuleContext except that Config() returns
@@ -219,7 +221,6 @@ type ModuleContext interface {
 	VisitAllModuleVariants(visit func(Module))
 
 	GetMissingDependencies() []string
-	Namespace() blueprint.Namespace
 }
 
 type Module interface {
@@ -1188,7 +1189,7 @@ func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 
 	var deps Paths
 
-	namespacePrefix := ctx.Namespace().(*Namespace).id
+	namespacePrefix := ctx.Namespace().id
 	if namespacePrefix != "" {
 		namespacePrefix = namespacePrefix + "-"
 	}
@@ -1497,6 +1498,10 @@ func (e *earlyModuleContext) ProductSpecific() bool {
 
 func (e *earlyModuleContext) SystemExtSpecific() bool {
 	return e.kind == systemExtSpecificModule
+}
+
+func (e *earlyModuleContext) Namespace() *Namespace {
+	return e.EarlyModuleContext.Namespace().(*Namespace)
 }
 
 type baseModuleContext struct {
