@@ -17,6 +17,8 @@ package rust
 import (
 	"strings"
 	"testing"
+
+	"android/soong/android"
 )
 
 // Test that feature flags are being correctly generated.
@@ -102,5 +104,76 @@ func TestInstallDir(t *testing.T) {
 	}
 	if !strings.HasSuffix(install_path_bin, "system/bin/fizzbuzz") {
 		t.Fatalf("unexpected install path for binary: %#v", install_path_bin)
+	}
+}
+
+func TestLints(t *testing.T) {
+
+	bp := `
+		// foo uses the default value of lints
+		rust_library {
+			name: "libfoo",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+		}
+		// bar forces the use of the "android" lint set
+		rust_library {
+			name: "libbar",
+			srcs: ["foo.rs"],
+			crate_name: "bar",
+			lints: "android",
+		}
+		// foobar explicitly disable all lints
+		rust_library {
+			name: "libfoobar",
+			srcs: ["foo.rs"],
+			crate_name: "foobar",
+			lints: "none",
+		}`
+
+	bp = bp + GatherRequiredDepsForTest()
+
+	fs := map[string][]byte{
+		// Reuse the same blueprint file for subdirectories.
+		"external/Android.bp": []byte(bp),
+		"hardware/Android.bp": []byte(bp),
+	}
+
+	var lintTests = []struct {
+		modulePath string
+		fooFlags   string
+	}{
+		{"", "${config.RustDefaultLints}"},
+		{"external/", "${config.RustAllowAllLints}"},
+		{"hardware/", "${config.RustVendorLints}"},
+	}
+
+	for _, tc := range lintTests {
+		t.Run("path="+tc.modulePath, func(t *testing.T) {
+
+			config := android.TestArchConfig(buildDir, nil, bp, fs)
+			ctx := CreateTestContext()
+			ctx.Register(config)
+			_, errs := ctx.ParseFileList(".", []string{tc.modulePath + "Android.bp"})
+			android.FailIfErrored(t, errs)
+			_, errs = ctx.PrepareBuildActions(config)
+			android.FailIfErrored(t, errs)
+
+			r := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
+			if !strings.Contains(r.Args["rustcFlags"], tc.fooFlags) {
+				t.Errorf("Incorrect flags for libfoo: %q, want %q", r.Args["rustcFlags"], tc.fooFlags)
+			}
+
+			r = ctx.ModuleForTests("libbar", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
+			if !strings.Contains(r.Args["rustcFlags"], "${config.RustDefaultLints}") {
+				t.Errorf("Incorrect flags for libbar: %q, want %q", r.Args["rustcFlags"], "${config.RustDefaultLints}")
+			}
+
+			r = ctx.ModuleForTests("libfoobar", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
+			if !strings.Contains(r.Args["rustcFlags"], "${config.RustAllowAllLints}") {
+				t.Errorf("Incorrect flags for libfoobar: %q, want %q", r.Args["rustcFlags"], "${config.RustAllowAllLints}")
+			}
+
+		})
 	}
 }
