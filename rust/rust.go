@@ -1046,9 +1046,9 @@ func (mod *Module) Name() string {
 	return name
 }
 
-func (mod *Module) setClippy(clippy bool) {
+func (mod *Module) disableClippy() {
 	if mod.clippy != nil {
-		mod.clippy.Properties.Clippy = proptools.BoolPtr(clippy)
+		mod.clippy.Properties.Clippy_lints = proptools.StringPtr("none")
 	}
 }
 
