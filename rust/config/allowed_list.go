@@ -10,6 +10,7 @@ var (
 		"prebuilts/rust",
 		"system/extras/profcollectd",
 		"system/security",
+		"system/tools/aidl",
 	}
 
 	RustModuleTypes = []string{
