@@ -73,8 +73,8 @@ func NewSourceProviderModule(hod android.HostOrDeviceSupported, sourceProvider S
 	module.compiler = library
 
 	if !enableLints {
-		library.setNoLint()
-		module.setClippy(false)
+		library.disableLints()
+		module.disableClippy()
 	}
 
 	return module

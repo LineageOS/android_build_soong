@@ -32,8 +32,8 @@ func (compiler *baseCompiler) setNoStdlibs() {
 	compiler.Properties.No_stdlibs = proptools.BoolPtr(true)
 }
 
-func (compiler *baseCompiler) setNoLint() {
-	compiler.Properties.No_lint = proptools.BoolPtr(true)
+func (compiler *baseCompiler) disableLints() {
+	compiler.Properties.Lints = proptools.StringPtr("none")
 }
 
 func NewBaseCompiler(dir, dir64 string, location installLocation) *baseCompiler {
@@ -58,8 +58,14 @@ type BaseCompilerProperties struct {
 	// path to the source file that is the main entry point of the program (e.g. main.rs or lib.rs)
 	Srcs []string `android:"path,arch_variant"`
 
-	// whether to suppress the standard lint flags - default to false
-	No_lint *bool
+	// name of the lint set that should be used to validate this module.
+	//
+	// Possible values are "default" (for using a sensible set of lints
+	// depending on the module's location), "android" (for the strictest
+	// lint set that applies to all Android platform code), "vendor" (for
+	// a relaxed set) and "none" (for ignoring all lint warnings and
+	// errors). The default value is "default".
+	Lints *string
 
 	// flags to pass to rustc
 	Flags []string `android:"path,arch_variant"`
@@ -159,11 +165,11 @@ func (compiler *baseCompiler) featuresToFlags(features []string) []string {
 
 func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 
-	if Bool(compiler.Properties.No_lint) {
-		flags.RustFlags = append(flags.RustFlags, config.AllowAllLints)
-	} else {
-		flags.RustFlags = append(flags.RustFlags, config.RustcLintsForDir(ctx.ModuleDir()))
+	lintFlags, err := config.RustcLintsForDir(ctx.ModuleDir(), compiler.Properties.Lints)
+	if err != nil {
+		ctx.PropertyErrorf("lints", err.Error())
 	}
+	flags.RustFlags = append(flags.RustFlags, lintFlags)
 	flags.RustFlags = append(flags.RustFlags, compiler.Properties.Flags...)
 	flags.RustFlags = append(flags.RustFlags, compiler.featuresToFlags(compiler.Properties.Features)...)
 	flags.RustFlags = append(flags.RustFlags, "--edition="+compiler.edition())

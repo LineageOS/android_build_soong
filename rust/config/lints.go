@@ -15,6 +15,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"android/soong/android"
@@ -24,18 +25,21 @@ import (
 // The Android build system tries to avoid reporting warnings during the build.
 // Therefore, by default, we upgrade warnings to denials. For some of these
 // lints, an allow exception is setup, using the variables below.
-// There are different default lints depending on the repository location (see
-// DefaultLocalClippyChecks).
+//
 // The lints are split into two categories. The first one contains the built-in
 // lints (https://doc.rust-lang.org/rustc/lints/index.html). The second is
 // specific to Clippy lints (https://rust-lang.github.io/rust-clippy/master/).
 //
-// When developing a module, it is possible to use the `no_lint` property to
-// disable the built-in lints configuration. It is also possible to set
-// `clippy` to false to disable the clippy verification. Expect some
-// questioning during review if you enable one of these options. For external/
-// code, if you need to use them, it is likely a bug. Otherwise, it may be
-// useful to add an exception (that is, move a lint from deny to allow).
+// For both categories, there are 3 levels of linting possible:
+// - "android", for the strictest lints that applies to all Android platform code.
+// - "vendor", for relaxed rules.
+// - "none", to disable the linting.
+// There is a fourth option ("default") which automatically selects the linting level
+// based on the module's location. See defaultLintSetForPath.
+//
+// When developing a module, you may set `lints = "none"` and `clippy_lints =
+// "none"` to disable all the linting. Expect some questioning during code review
+// if you enable one of these options.
 var (
 	// Default Rust lints that applies to Google-authored modules.
 	defaultRustcLints = []string{
@@ -102,13 +106,6 @@ func init() {
 	pctx.StaticVariable("RustAllowAllLints", strings.Join(allowAllLints, " "))
 }
 
-type PathBasedClippyConfig struct {
-	PathPrefix    string
-	RustcConfig   string
-	ClippyEnabled bool
-	ClippyConfig  string
-}
-
 const noLint = ""
 const rustcDefault = "${config.RustDefaultLints}"
 const rustcVendor = "${config.RustVendorLints}"
@@ -116,36 +113,78 @@ const rustcAllowAll = "${config.RustAllowAllLints}"
 const clippyDefault = "${config.ClippyDefaultLints}"
 const clippyVendor = "${config.ClippyVendorLints}"
 
-// This is a map of local path prefixes to a set of parameters for the linting:
-// - a string for the lints to apply to rustc.
-// - a boolean to indicate if clippy should be executed.
-// - a string for the lints to apply to clippy.
-// The first entry matching will be used.
-var DefaultLocalClippyChecks = []PathBasedClippyConfig{
-	{"external/", rustcAllowAll, false, noLint},
-	{"hardware/", rustcVendor, true, clippyVendor},
-	{"prebuilts/", rustcAllowAll, false, noLint},
-	{"vendor/google", rustcDefault, true, clippyDefault},
-	{"vendor/", rustcVendor, true, clippyVendor},
+// lintConfig defines a set of lints and clippy configuration.
+type lintConfig struct {
+	rustcConfig   string // for the lints to apply to rustc.
+	clippyEnabled bool   // to indicate if clippy should be executed.
+	clippyConfig  string // for the lints to apply to clippy.
 }
-var AllowAllLints = rustcAllowAll
+
+const (
+	androidLints = "android"
+	vendorLints  = "vendor"
+	noneLints    = "none"
+)
+
+// lintSets defines the categories of linting for Android and their mapping to lintConfigs.
+var lintSets = map[string]lintConfig{
+	androidLints: {rustcDefault, true, clippyDefault},
+	vendorLints:  {rustcVendor, true, clippyVendor},
+	noneLints:    {rustcAllowAll, false, noLint},
+}
+
+type pathLintSet struct {
+	prefix string
+	set    string
+}
+
+// This is a map of local path prefixes to a lint set.  The first entry
+// matching will be used. If no entry matches, androidLints ("android") will be
+// used.
+var defaultLintSetForPath = []pathLintSet{
+	{"external", noneLints},
+	{"hardware", vendorLints},
+	{"prebuilts", noneLints},
+	{"vendor/google", androidLints},
+	{"vendor", vendorLints},
+}
 
 // ClippyLintsForDir returns a boolean if Clippy should be executed and if so, the lints to be used.
-func ClippyLintsForDir(dir string) (bool, string) {
-	for _, pathCheck := range DefaultLocalClippyChecks {
-		if strings.HasPrefix(dir, pathCheck.PathPrefix) {
-			return pathCheck.ClippyEnabled, pathCheck.ClippyConfig
+func ClippyLintsForDir(dir string, clippyLintsProperty *string) (bool, string, error) {
+	if clippyLintsProperty != nil {
+		set, ok := lintSets[*clippyLintsProperty]
+		if ok {
+			return set.clippyEnabled, set.clippyConfig, nil
+		}
+		if *clippyLintsProperty != "default" {
+			return false, "", fmt.Errorf("unknown value for `clippy_lints`: %v, valid options are: default, android, vendor or none", *clippyLintsProperty)
 		}
 	}
-	return true, clippyDefault
+	for _, p := range defaultLintSetForPath {
+		if strings.HasPrefix(dir, p.prefix) {
+			setConfig := lintSets[p.set]
+			return setConfig.clippyEnabled, setConfig.clippyConfig, nil
+		}
+	}
+	return true, clippyDefault, nil
 }
 
 // RustcLintsForDir returns the standard lints to be used for a repository.
-func RustcLintsForDir(dir string) string {
-	for _, pathCheck := range DefaultLocalClippyChecks {
-		if strings.HasPrefix(dir, pathCheck.PathPrefix) {
-			return pathCheck.RustcConfig
+func RustcLintsForDir(dir string, lintProperty *string) (string, error) {
+	if lintProperty != nil {
+		set, ok := lintSets[*lintProperty]
+		if ok {
+			return set.rustcConfig, nil
+		}
+		if *lintProperty != "default" {
+			return "", fmt.Errorf("unknown value for `lints`: %v, valid options are: default, android, vendor or none", *lintProperty)
+		}
+
+	}
+	for _, p := range defaultLintSetForPath {
+		if strings.HasPrefix(dir, p.prefix) {
+			return lintSets[p.set].rustcConfig, nil
 		}
 	}
-	return rustcDefault
+	return rustcDefault, nil
 }
