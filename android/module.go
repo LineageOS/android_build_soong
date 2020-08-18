@@ -1770,9 +1770,6 @@ func (b *baseModuleContext) VisitDirectDepsBlueprint(visit func(blueprint.Module
 
 func (b *baseModuleContext) VisitDirectDeps(visit func(Module)) {
 	b.bp.VisitDirectDeps(func(module blueprint.Module) {
-		if module == nil {
-			panic("Unexpected nil module in VisitDirectDeps")
-		}
 		if aModule := b.validateAndroidModule(module, b.strictVisitDeps); aModule != nil {
 			visit(aModule)
 		}
