@@ -26,8 +26,10 @@ type LinkableInterface interface {
 	StubsVersions() []string
 	BuildStubs() bool
 	SetBuildStubs()
-	SetStubsVersions(string)
+	SetStubsVersion(string)
 	StubsVersion() string
+	SetAllStubsVersions([]string)
+	AllStubsVersions() []string
 	HasStubsVariants() bool
 	SelectedStl() string
 	ApiLevel() string
