@@ -109,7 +109,8 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 		tidyChecks += config.TidyChecksForDir(ctx.ModuleDir())
 	}
 	if len(tidy.Properties.Tidy_checks) > 0 {
-		tidyChecks = tidyChecks + "," + strings.Join(esc(tidy.Properties.Tidy_checks), ",")
+		tidyChecks = tidyChecks + "," + strings.Join(esc(
+			config.ClangRewriteTidyChecks(tidy.Properties.Tidy_checks)), ",")
 	}
 	if ctx.Windows() {
 		// https://b.corp.google.com/issues/120614316
