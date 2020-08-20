@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/dexpreopt"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -99,7 +100,7 @@ type aapt struct {
 	useEmbeddedNativeLibs   bool
 	useEmbeddedDex          bool
 	usesNonSdkApis          bool
-	sdkLibraries            []string
+	sdkLibraries            dexpreopt.LibraryPaths
 	hasNoCode               bool
 	LoggingParent           string
 	resourceFiles           android.Paths
@@ -231,6 +232,8 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 	transitiveStaticLibs, transitiveStaticLibManifests, staticRRODirs, assetPackages, libDeps, libFlags, sdkLibraries :=
 		aaptLibs(ctx, sdkContext)
 
+	a.sdkLibraries = sdkLibraries
+
 	// App manifest file
 	manifestFile := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
@@ -357,7 +360,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 
 // aaptLibs collects libraries from dependencies and sdk_version and converts them into paths
 func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStaticLibs, transitiveStaticLibManifests android.Paths,
-	staticRRODirs []rroDir, assets, deps android.Paths, flags []string, sdkLibraries []string) {
+	staticRRODirs []rroDir, assets, deps android.Paths, flags []string, sdkLibraries dexpreopt.LibraryPaths) {
 
 	var sharedLibs android.Paths
 
@@ -365,6 +368,8 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 	if sdkDep.useFiles {
 		sharedLibs = append(sharedLibs, sdkDep.jars...)
 	}
+
+	sdkLibraries = make(dexpreopt.LibraryPaths)
 
 	ctx.VisitDirectDeps(func(module android.Module) {
 		var exportPackage android.Path
@@ -385,7 +390,8 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 			// (including the java_sdk_library) itself then append any implicit sdk library
 			// names to the list of sdk libraries to be added to the manifest.
 			if component, ok := module.(SdkLibraryComponentDependency); ok {
-				sdkLibraries = append(sdkLibraries, component.OptionalImplicitSdkLibrary()...)
+				sdkLibraries.AddLibraryPath(ctx, component.OptionalImplicitSdkLibrary(),
+					component.DexJarBuildPath(), component.DexJarInstallPath())
 			}
 
 		case frameworkResTag:
@@ -397,7 +403,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 				transitiveStaticLibs = append(transitiveStaticLibs, aarDep.ExportedStaticPackages()...)
 				transitiveStaticLibs = append(transitiveStaticLibs, exportPackage)
 				transitiveStaticLibManifests = append(transitiveStaticLibManifests, aarDep.ExportedManifests()...)
-				sdkLibraries = append(sdkLibraries, aarDep.ExportedSdkLibs()...)
+				sdkLibraries.AddLibraryPaths(aarDep.ExportedSdkLibs())
 				if aarDep.ExportedAssets().Valid() {
 					assets = append(assets, aarDep.ExportedAssets().Path())
 				}
@@ -428,7 +434,6 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 
 	transitiveStaticLibs = android.FirstUniquePaths(transitiveStaticLibs)
 	transitiveStaticLibManifests = android.FirstUniquePaths(transitiveStaticLibManifests)
-	sdkLibraries = android.FirstUniqueStrings(sdkLibraries)
 
 	return transitiveStaticLibs, transitiveStaticLibManifests, staticRRODirs, assets, deps, flags, sdkLibraries
 }
@@ -465,8 +470,8 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.aapt.isLibrary = true
-	a.aapt.sdkLibraries = a.exportedSdkLibs
 	a.aapt.buildActions(ctx, sdkContext(a))
+	a.exportedSdkLibs = a.aapt.sdkLibraries
 
 	ctx.CheckbuildFile(a.proguardOptionsFile)
 	ctx.CheckbuildFile(a.exportPackage)
@@ -749,7 +754,7 @@ func (a *AARImport) AidlIncludeDirs() android.Paths {
 	return nil
 }
 
-func (a *AARImport) ExportedSdkLibs() []string {
+func (a *AARImport) ExportedSdkLibs() dexpreopt.LibraryPaths {
 	return nil
 }
 
