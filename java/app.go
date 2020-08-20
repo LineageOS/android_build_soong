@@ -614,6 +614,7 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 	a.dexpreopter.optionalUsesLibs = a.usesLibrary.presentOptionalUsesLibs(ctx)
 	a.dexpreopter.libraryPaths = a.usesLibrary.usesLibraryPaths(ctx)
 	a.dexpreopter.manifestFile = a.mergedManifestFile
+	a.exportedSdkLibs = make(dexpreopt.LibraryPaths)
 
 	if ctx.ModuleName() != "framework-res" {
 		a.Module.compile(ctx, a.aaptSrcJar)
