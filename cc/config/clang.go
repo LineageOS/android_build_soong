@@ -15,6 +15,7 @@
 package config
 
 import (
+	"android/soong/android"
 	"sort"
 	"strings"
 )
@@ -87,6 +88,12 @@ var ClangUnknownLldflags = sorted([]string{
 })
 
 var ClangLibToolingUnknownCflags = sorted([]string{})
+
+// List of tidy checks that should be disabled globally. When the compiler is
+// updated, some checks enabled by this module may be disabled if they have
+// become more strict, or if they are a new match for a wildcard group like
+// `modernize-*`.
+var ClangTidyDisableChecks = []string{}
 
 func init() {
 	pctx.StaticVariable("ClangExtraCflags", strings.Join([]string{
@@ -202,25 +209,34 @@ func init() {
 }
 
 func ClangFilterUnknownCflags(cflags []string) []string {
-	ret := make([]string, 0, len(cflags))
-	for _, f := range cflags {
-		if !inListSorted(f, ClangUnknownCflags) {
-			ret = append(ret, f)
+	result, _ := android.FilterList(cflags, ClangUnknownCflags)
+	return result
+}
+
+func clangTidyNegateChecks(checks []string) []string {
+	ret := make([]string, 0, len(checks))
+	for _, c := range checks {
+		if strings.HasPrefix(c, "-") {
+			ret = append(ret, c)
+		} else {
+			ret = append(ret, "-"+c)
 		}
 	}
-
 	return ret
 }
 
-func ClangFilterUnknownLldflags(lldflags []string) []string {
-	ret := make([]string, 0, len(lldflags))
-	for _, f := range lldflags {
-		if !inListSorted(f, ClangUnknownLldflags) {
-			ret = append(ret, f)
-		}
-	}
+func ClangRewriteTidyChecks(checks []string) []string {
+	checks = append(checks, clangTidyNegateChecks(ClangTidyDisableChecks)...)
+	// clang-tidy does not allow later arguments to override earlier arguments,
+	// so if we just disabled an argument that was explicitly enabled we must
+	// remove the enabling argument from the list.
+	result, _ := android.FilterList(checks, ClangTidyDisableChecks)
+	return result
+}
 
-	return ret
+func ClangFilterUnknownLldflags(lldflags []string) []string {
+	result, _ := android.FilterList(lldflags, ClangUnknownLldflags)
+	return result
 }
 
 func inListSorted(s string, list []string) bool {
