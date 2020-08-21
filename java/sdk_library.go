@@ -879,7 +879,6 @@ var _ SdkLibraryComponentDependency = (*SdkLibraryImport)(nil)
 // Provides access to sdk_version related header and implentation jars.
 type SdkLibraryDependency interface {
 	SdkLibraryComponentDependency
-	UsesLibraryDependency
 
 	// Get the header jars appropriate for the supplied sdk_version.
 	//
