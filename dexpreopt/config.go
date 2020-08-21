@@ -17,7 +17,6 @@ package dexpreopt
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -140,16 +139,6 @@ func (libPaths LibraryPaths) AddLibraryPaths(otherPaths LibraryPaths) {
 			libPaths[lib] = path
 		}
 	}
-}
-
-// Return sorted names of the libraries in the map.
-func (libPaths LibraryPaths) Names() []string {
-	keys := make([]string, 0, len(libPaths))
-	for k := range libPaths {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }
 
 type ModuleConfig struct {

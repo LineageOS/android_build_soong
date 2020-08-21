@@ -37,7 +37,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -208,15 +207,6 @@ type classLoaderContextMap map[int]*classLoaderContext
 
 const anySdkVersion int = 9999 // should go last in class loader context
 
-func (m classLoaderContextMap) getSortedKeys() []int {
-	keys := make([]int, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
-	return keys
-}
-
 func (m classLoaderContextMap) getValue(sdkVer int) *classLoaderContext {
 	if _, ok := m[sdkVer]; !ok {
 		m[sdkVer] = &classLoaderContext{}
@@ -342,7 +332,7 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 		cmd := rule.Command().
 			Text(`eval "$(`).Tool(globalSoong.ConstructContext).
 			Text(` --target-sdk-version ${target_sdk_version}`)
-		for _, ver := range classLoaderContexts.getSortedKeys() {
+		for _, ver := range android.SortedIntKeys(classLoaderContexts) {
 			clc := classLoaderContexts.getValue(ver)
 			verString := fmt.Sprintf("%d", ver)
 			if ver == anySdkVersion {
