@@ -313,3 +313,15 @@ func replaceDepsOnOverridingModuleMutator(ctx BottomUpMutatorContext) {
 		}
 	}
 }
+
+// ModuleNameWithPossibleOverride returns the name of the OverrideModule that overrides the current
+// variant of this OverridableModule, or ctx.ModuleName() if this module is not an OverridableModule
+// or if this variant is not overridden.
+func ModuleNameWithPossibleOverride(ctx ModuleContext) string {
+	if overridable, ok := ctx.Module().(OverridableModule); ok {
+		if o := overridable.GetOverriddenBy(); o != "" {
+			return o
+		}
+	}
+	return ctx.ModuleName()
+}
