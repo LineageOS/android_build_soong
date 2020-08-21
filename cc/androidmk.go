@@ -167,6 +167,14 @@ func AndroidMkDataPaths(data []android.DataPath) []string {
 	return testFiles
 }
 
+func androidMkWriteExtraTestConfigs(extraTestConfigs android.Paths, entries *android.AndroidMkEntries) {
+	if len(extraTestConfigs) > 0 {
+		entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
+			entries.AddStrings("LOCAL_EXTRA_FULL_TEST_CONFIGS", extraTestConfigs.Strings()...)
+		})
+	}
+}
+
 func androidMkWriteTestData(data []android.DataPath, ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	testFiles := AndroidMkDataPaths(data)
 	if len(testFiles) > 0 {
@@ -372,6 +380,7 @@ func (test *testBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.
 	})
 
 	androidMkWriteTestData(test.data, ctx, entries)
+	androidMkWriteExtraTestConfigs(test.extraTestConfigs, entries)
 }
 
 func (fuzz *fuzzBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
