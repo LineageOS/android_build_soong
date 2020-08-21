@@ -2128,6 +2128,12 @@ func LibraryHostFactory() android.Module {
 // Java Tests
 //
 
+// Test option struct.
+type TestOptions struct {
+	// a list of extra test configuration files that should be installed with the module.
+	Extra_test_configs []string `android:"path,arch_variant"`
+}
+
 type testProperties struct {
 	// list of compatibility suites (for example "cts", "vts") that the module should be
 	// installed into.
@@ -2153,6 +2159,9 @@ type testProperties struct {
 	// Add parameterized mainline modules to auto generated test config. The options will be
 	// handled by TradeFed to do downloading and installing the specified modules on the device.
 	Test_mainline_modules []string
+
+	// Test options.
+	Test_options TestOptions
 }
 
 type hostTestProperties struct {
@@ -2181,8 +2190,9 @@ type Test struct {
 
 	testProperties testProperties
 
-	testConfig android.Path
-	data       android.Paths
+	testConfig       android.Path
+	extraTestConfigs android.Paths
+	data             android.Paths
 }
 
 type TestHost struct {
@@ -2220,6 +2230,8 @@ func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.testProperties.Test_suites, j.testProperties.Auto_gen_config)
 
 	j.data = android.PathsForModuleSrc(ctx, j.testProperties.Data)
+
+	j.extraTestConfigs = android.PathsForModuleSrc(ctx, j.testProperties.Test_options.Extra_test_configs)
 
 	ctx.VisitDirectDepsWithTag(dataNativeBinsTag, func(dep android.Module) {
 		j.data = append(j.data, android.OutputFileForModule(ctx, dep, ""))
