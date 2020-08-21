@@ -1064,8 +1064,9 @@ type AndroidTest struct {
 
 	testProperties testProperties
 
-	testConfig android.Path
-	data       android.Paths
+	testConfig       android.Path
+	extraTestConfigs android.Paths
+	data             android.Paths
 }
 
 func (a *AndroidTest) InstallInTestcases() bool {
@@ -1093,6 +1094,7 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	testConfig := tradefed.AutoGenInstrumentationTestConfig(ctx, a.testProperties.Test_config,
 		a.testProperties.Test_config_template, a.manifestPath, a.testProperties.Test_suites, a.testProperties.Auto_gen_config, configs)
 	a.testConfig = a.FixTestConfig(ctx, testConfig)
+	a.extraTestConfigs = android.PathsForModuleSrc(ctx, a.testProperties.Test_options.Extra_test_configs)
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
 }
 
