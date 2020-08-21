@@ -399,6 +399,9 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 				sharedLibs = append(sharedLibs, exportPackage)
 			}
 		case staticLibTag:
+			if dep, ok := module.(Dependency); ok {
+				sdkLibraries.AddLibraryPaths(dep.ExportedSdkLibs())
+			}
 			if exportPackage != nil {
 				transitiveStaticLibs = append(transitiveStaticLibs, aarDep.ExportedStaticPackages()...)
 				transitiveStaticLibs = append(transitiveStaticLibs, exportPackage)
