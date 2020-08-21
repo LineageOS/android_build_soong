@@ -40,8 +40,12 @@ type TestProperties struct {
 type TestOptions struct {
 	// The UID that you want to run the test as on a device.
 	Run_test_as *string
+
 	// A list of free-formed strings without spaces that categorize the test.
 	Test_suite_tag []string
+
+	// a list of extra test configuration files that should be installed with the module.
+	Extra_test_configs []string `android:"path,arch_variant"`
 }
 
 type TestBinaryProperties struct {
@@ -309,9 +313,10 @@ type testBinary struct {
 	testDecorator
 	*binaryDecorator
 	*baseCompiler
-	Properties TestBinaryProperties
-	data       []android.DataPath
-	testConfig android.Path
+	Properties       TestBinaryProperties
+	data             []android.DataPath
+	testConfig       android.Path
+	extraTestConfigs android.Paths
 }
 
 func (test *testBinary) linkerProps() []interface{} {
@@ -407,6 +412,8 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 
 	test.testConfig = tradefed.AutoGenNativeTestConfig(ctx, test.Properties.Test_config,
 		test.Properties.Test_config_template, test.Properties.Test_suites, configs, test.Properties.Auto_gen_config)
+
+	test.extraTestConfigs = android.PathsForModuleSrc(ctx, test.Properties.Test_options.Extra_test_configs)
 
 	test.binaryDecorator.baseInstaller.dir = "nativetest"
 	test.binaryDecorator.baseInstaller.dir64 = "nativetest64"
