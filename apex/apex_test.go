@@ -5399,29 +5399,6 @@ func TestApexMutatorsDontRunIfDisabled(t *testing.T) {
 	}
 }
 
-func TestApexWithJniLibs_Errors(t *testing.T) {
-	testApexError(t, `jni_libs: "xxx" is not a cc_library`, `
-		apex {
-			name: "myapex",
-			key: "myapex.key",
-			jni_libs: ["xxx"],
-		}
-
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-
-		prebuilt_etc {
-			name: "xxx",
-			src: "xxx",
-		}
-	`, withFiles(map[string][]byte{
-		"xxx": nil,
-	}))
-}
-
 func TestAppBundle(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
