@@ -17,6 +17,7 @@ package dexpreopt
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -100,6 +101,8 @@ type GlobalSoongConfig struct {
 	ConstructContext android.Path
 }
 
+const UnknownInstallLibraryPath = "error"
+
 // LibraryPath contains paths to the library DEX jar on host and on device.
 type LibraryPath struct {
 	Host   android.Path
@@ -108,6 +111,46 @@ type LibraryPath struct {
 
 // LibraryPaths is a map from library name to on-host and on-device paths to its DEX jar.
 type LibraryPaths map[string]*LibraryPath
+
+// Add a new path to the map of library paths, unless a path for this library already exists.
+func (libPaths LibraryPaths) AddLibraryPath(ctx android.PathContext, lib *string, hostPath, installPath android.Path) {
+	if lib == nil {
+		return
+	}
+	if _, present := libPaths[*lib]; !present {
+		var devicePath string
+		if installPath != nil {
+			devicePath = android.InstallPathToOnDevicePath(ctx, installPath.(android.InstallPath))
+		} else {
+			// For some stub libraries the only known thing is the name of their implementation
+			// library, but the library itself is unavailable (missing or part of a prebuilt). In
+			// such cases we still need to add the library to <uses-library> tags in the manifest,
+			// but we cannot use if for dexpreopt.
+			devicePath = UnknownInstallLibraryPath
+		}
+		libPaths[*lib] = &LibraryPath{hostPath, devicePath}
+	}
+	return
+}
+
+// Add library paths from the second map to the first map (do not override existing entries).
+func (libPaths LibraryPaths) AddLibraryPaths(otherPaths LibraryPaths) {
+	for lib, path := range otherPaths {
+		if _, present := libPaths[lib]; !present {
+			libPaths[lib] = path
+		}
+	}
+}
+
+// Return sorted names of the libraries in the map.
+func (libPaths LibraryPaths) Names() []string {
+	keys := make([]string, 0, len(libPaths))
+	for k := range libPaths {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 type ModuleConfig struct {
 	Name            string

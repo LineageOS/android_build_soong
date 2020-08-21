@@ -19,6 +19,7 @@ import (
 	"io"
 
 	"android/soong/android"
+	"android/soong/dexpreopt"
 )
 
 type DeviceHostConverter struct {
@@ -162,7 +163,7 @@ func (d *DeviceHostConverter) AidlIncludeDirs() android.Paths {
 	return nil
 }
 
-func (d *DeviceHostConverter) ExportedSdkLibs() []string {
+func (d *DeviceHostConverter) ExportedSdkLibs() dexpreopt.LibraryPaths {
 	return nil
 }
 
