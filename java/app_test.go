@@ -2665,10 +2665,24 @@ func TestUsesLibraries(t *testing.T) {
 			sdk_version: "current",
 		}
 
+		java_sdk_library {
+			name: "runtime-library",
+			srcs: ["a.java"],
+			sdk_version: "current",
+		}
+
+		java_library {
+			name: "static-runtime-helper",
+			srcs: ["a.java"],
+			libs: ["runtime-library"],
+			sdk_version: "current",
+		}
+
 		android_app {
 			name: "app",
 			srcs: ["a.java"],
 			libs: ["qux", "quuz.stubs"],
+			static_libs: ["static-runtime-helper"],
 			uses_libs: ["foo"],
 			sdk_version: "current",
 			optional_uses_libs: [
@@ -2701,11 +2715,10 @@ func TestUsesLibraries(t *testing.T) {
 
 	// Test that implicit dependencies on java_sdk_library instances are passed to the manifest.
 	manifestFixerArgs := app.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
-	if w := "--uses-library qux"; !strings.Contains(manifestFixerArgs, w) {
-		t.Errorf("unexpected manifest_fixer args: wanted %q in %q", w, manifestFixerArgs)
-	}
-	if w := "--uses-library quuz"; !strings.Contains(manifestFixerArgs, w) {
-		t.Errorf("unexpected manifest_fixer args: wanted %q in %q", w, manifestFixerArgs)
+	for _, w := range []string{"qux", "quuz", "runtime-library"} {
+		if !strings.Contains(manifestFixerArgs, "--uses-library "+w) {
+			t.Errorf("unexpected manifest_fixer args: wanted %q in %q", w, manifestFixerArgs)
+		}
 	}
 
 	// Test that all libraries are verified
