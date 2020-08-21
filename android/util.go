@@ -79,6 +79,20 @@ func JoinWithSuffix(strs []string, suffix string, separator string) string {
 	return string(ret)
 }
 
+func SortedIntKeys(m interface{}) []int {
+	v := reflect.ValueOf(m)
+	if v.Kind() != reflect.Map {
+		panic(fmt.Sprintf("%#v is not a map", m))
+	}
+	keys := v.MapKeys()
+	s := make([]int, 0, len(keys))
+	for _, key := range keys {
+		s = append(s, int(key.Int()))
+	}
+	sort.Ints(s)
+	return s
+}
+
 func SortedStringKeys(m interface{}) []string {
 	v := reflect.ValueOf(m)
 	if v.Kind() != reflect.Map {

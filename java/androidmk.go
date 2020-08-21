@@ -121,7 +121,7 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 						entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", library.jacocoReportClassesFile)
 					}
 
-					entries.AddStrings("LOCAL_EXPORT_SDK_LIBRARIES", library.exportedSdkLibs.Names()...)
+					entries.AddStrings("LOCAL_EXPORT_SDK_LIBRARIES", android.SortedStringKeys(library.exportedSdkLibs)...)
 
 					if len(library.additionalCheckedModules) != 0 {
 						entries.AddStrings("LOCAL_ADDITIONAL_CHECKED_MODULE", library.additionalCheckedModules.Strings()...)
