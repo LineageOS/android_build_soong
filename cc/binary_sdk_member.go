@@ -46,9 +46,13 @@ func (mt *binarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorConte
 			if version == "" {
 				version = LatestStubsVersionFor(mctx.Config(), name)
 			}
-			mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
-				{Mutator: "version", Variation: version},
-			}...), dependencyTag, name)
+			variations := target.Variations()
+			if mctx.Device() {
+				variations = append(variations,
+					blueprint.Variation{Mutator: "image", Variation: android.CoreVariation},
+					blueprint.Variation{Mutator: "version", Variation: version})
+			}
+			mctx.AddFarVariationDependencies(variations, dependencyTag, name)
 		}
 	}
 }
