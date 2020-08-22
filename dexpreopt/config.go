@@ -17,7 +17,6 @@ package dexpreopt
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -140,16 +139,6 @@ func (libPaths LibraryPaths) AddLibraryPaths(otherPaths LibraryPaths) {
 			libPaths[lib] = path
 		}
 	}
-}
-
-// Return sorted names of the libraries in the map.
-func (libPaths LibraryPaths) Names() []string {
-	keys := make([]string, 0, len(libPaths))
-	for k := range libPaths {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }
 
 type ModuleConfig struct {
@@ -403,7 +392,33 @@ func RegisterToolDeps(ctx android.BottomUpMutatorContext) {
 func dex2oatPathFromDep(ctx android.ModuleContext) android.Path {
 	dex2oatBin := dex2oatModuleName(ctx.Config())
 
-	dex2oatModule := ctx.GetDirectDepWithTag(dex2oatBin, dex2oatDepTag)
+	// Find the right dex2oat module, trying to follow PrebuiltDepTag from source
+	// to prebuilt if there is one. We wouldn't have to do this if the
+	// prebuilt_postdeps mutator that replaces source deps with prebuilt deps was
+	// run after RegisterToolDeps above, but changing that leads to ordering
+	// problems between mutators (RegisterToolDeps needs to run late to act on
+	// final variants, while prebuilt_postdeps needs to run before many of the
+	// PostDeps mutators, like the APEX mutators). Hence we need to dig out the
+	// prebuilt explicitly here instead.
+	var dex2oatModule android.Module
+	ctx.WalkDeps(func(child, parent android.Module) bool {
+		if parent == ctx.Module() && ctx.OtherModuleDependencyTag(child) == dex2oatDepTag {
+			// Found the source module, or prebuilt module that has replaced the source.
+			dex2oatModule = child
+			if p, ok := child.(android.PrebuiltInterface); ok && p.Prebuilt() != nil {
+				return false // If it's the prebuilt we're done.
+			} else {
+				return true // Recurse to check if the source has a prebuilt dependency.
+			}
+		}
+		if parent == dex2oatModule && ctx.OtherModuleDependencyTag(child) == android.PrebuiltDepTag {
+			if p, ok := child.(android.PrebuiltInterface); ok && p.Prebuilt() != nil && p.Prebuilt().UsePrebuilt() {
+				dex2oatModule = child // Found a prebuilt that should be used.
+			}
+		}
+		return false
+	})
+
 	if dex2oatModule == nil {
 		// If this happens there's probably a missing call to AddToolDeps in DepsMutator.
 		panic(fmt.Sprintf("Failed to lookup %s dependency", dex2oatBin))

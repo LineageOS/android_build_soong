@@ -121,15 +121,14 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 						entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", library.jacocoReportClassesFile)
 					}
 
-					entries.AddStrings("LOCAL_EXPORT_SDK_LIBRARIES", library.exportedSdkLibs.Names()...)
+					entries.AddStrings("LOCAL_EXPORT_SDK_LIBRARIES", android.SortedStringKeys(library.exportedSdkLibs)...)
 
 					if len(library.additionalCheckedModules) != 0 {
 						entries.AddStrings("LOCAL_ADDITIONAL_CHECKED_MODULE", library.additionalCheckedModules.Strings()...)
 					}
 
-					if library.dexer.proguardDictionary.Valid() {
-						entries.SetPath("LOCAL_SOONG_PROGUARD_DICT", library.dexer.proguardDictionary.Path())
-					}
+					entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_DICT", library.dexer.proguardDictionary)
+					entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_USAGE_ZIP", library.dexer.proguardUsageZip)
 					entries.SetString("LOCAL_MODULE_STEM", library.Stem())
 
 					entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", library.linter.reports)
@@ -162,6 +161,7 @@ func (j *Test) AndroidMkEntries() []android.AndroidMkEntries {
 		if j.testConfig != nil {
 			entries.SetPath("LOCAL_FULL_TEST_CONFIG", j.testConfig)
 		}
+		androidMkWriteExtraTestConfigs(j.extraTestConfigs, entries)
 		androidMkWriteTestData(j.data, entries)
 		if !BoolDefault(j.testProperties.Auto_gen_config, true) {
 			entries.SetString("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", "true")
@@ -169,6 +169,12 @@ func (j *Test) AndroidMkEntries() []android.AndroidMkEntries {
 	})
 
 	return entriesList
+}
+
+func androidMkWriteExtraTestConfigs(extraTestConfigs android.Paths, entries *android.AndroidMkEntries) {
+	if len(extraTestConfigs) > 0 {
+		entries.AddStrings("LOCAL_EXTRA_FULL_TEST_CONFIGS", extraTestConfigs.Strings()...)
+	}
 }
 
 func (j *TestHelperLibrary) AndroidMkEntries() []android.AndroidMkEntries {
@@ -332,9 +338,8 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				if app.jacocoReportClassesFile != nil {
 					entries.SetPath("LOCAL_SOONG_JACOCO_REPORT_CLASSES_JAR", app.jacocoReportClassesFile)
 				}
-				if app.dexer.proguardDictionary.Valid() {
-					entries.SetPath("LOCAL_SOONG_PROGUARD_DICT", app.dexer.proguardDictionary.Path())
-				}
+				entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_DICT", app.dexer.proguardDictionary)
+				entries.SetOptionalPath("LOCAL_SOONG_PROGUARD_USAGE_ZIP", app.dexer.proguardUsageZip)
 
 				if app.Name() == "framework-res" {
 					entries.SetString("LOCAL_MODULE_PATH", "$(TARGET_OUT_JAVA_LIBRARIES)")
@@ -433,6 +438,7 @@ func (a *AndroidTest) AndroidMkEntries() []android.AndroidMkEntries {
 		if a.testConfig != nil {
 			entries.SetPath("LOCAL_FULL_TEST_CONFIG", a.testConfig)
 		}
+		androidMkWriteExtraTestConfigs(a.extraTestConfigs, entries)
 		androidMkWriteTestData(a.data, entries)
 	})
 
