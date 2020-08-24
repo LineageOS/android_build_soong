@@ -220,7 +220,6 @@ var (
 			ExecStrategy: "${config.REAbiDumperExecStrategy}",
 			Platform: map[string]string{
 				remoteexec.PoolKey:      "${config.RECXXPool}",
-				"InputRootAbsolutePath": android.AbsSrcDirForExistingUseCases(),
 			},
 		}, []string{"cFlags", "exportDirs"}, nil)
 
