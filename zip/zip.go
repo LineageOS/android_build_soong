@@ -150,6 +150,30 @@ func (b *FileArgsBuilder) List(name string) *FileArgsBuilder {
 	return b
 }
 
+func (b *FileArgsBuilder) RspFile(name string) *FileArgsBuilder {
+	if b.err != nil {
+		return b
+	}
+
+	f, err := b.fs.Open(name)
+	if err != nil {
+		b.err = err
+		return b
+	}
+	defer f.Close()
+
+	list, err := ioutil.ReadAll(f)
+	if err != nil {
+		b.err = err
+		return b
+	}
+
+	arg := b.state
+	arg.SourceFiles = ReadRespFile(list)
+	b.fileArgs = append(b.fileArgs, arg)
+	return b
+}
+
 func (b *FileArgsBuilder) Error() error {
 	if b == nil {
 		return nil

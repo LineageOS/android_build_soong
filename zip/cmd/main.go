@@ -62,6 +62,15 @@ func (listFiles) Set(s string) error {
 	return nil
 }
 
+type rspFiles struct{}
+
+func (rspFiles) String() string { return `""` }
+
+func (rspFiles) Set(s string) error {
+	fileArgsBuilder.RspFile(s)
+	return nil
+}
+
 type dir struct{}
 
 func (dir) String() string { return `""` }
@@ -143,7 +152,8 @@ func main() {
 	traceFile := flags.String("trace", "", "write trace to file")
 
 	flags.Var(&rootPrefix{}, "P", "path prefix within the zip at which to place files")
-	flags.Var(&listFiles{}, "l", "file containing list of .class files")
+	flags.Var(&listFiles{}, "l", "file containing list of files to zip")
+	flags.Var(&rspFiles{}, "r", "file containing list of files to zip with Ninja rsp file escaping")
 	flags.Var(&dir{}, "D", "directory to include in zip")
 	flags.Var(&file{}, "f", "file to include in zip")
 	flags.Var(&nonDeflatedFiles, "s", "file path to be stored within the zip without compression")

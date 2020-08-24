@@ -186,8 +186,8 @@ var (
 			// OutputFile here is $in for remote-execution since its possible that
 			// clang-tidy modifies the given input file itself and $out refers to the
 			// ".tidy" file generated for ninja-dependency reasons.
-			OutputFiles:  []string{"$in"},
-			Platform:     map[string]string{remoteexec.PoolKey: "${config.REClangTidyPool}"},
+			OutputFiles: []string{"$in"},
+			Platform:    map[string]string{remoteexec.PoolKey: "${config.REClangTidyPool}"},
 		}, []string{"cFlags", "tidyFlags"}, []string{})
 
 	_ = pctx.SourcePathVariable("yasmCmd", "prebuilts/misc/${config.HostPrebuiltTag}/yasm/yasm")
@@ -265,9 +265,9 @@ var (
 
 	zip = pctx.AndroidStaticRule("zip",
 		blueprint.RuleParams{
-			Command:        "cat $out.rsp | tr ' ' '\\n' | tr -d \\' | sort -u > ${out}.tmp && ${SoongZipCmd} -o ${out} -C $$OUT_DIR -l ${out}.tmp",
+			Command:        "${SoongZipCmd} -o ${out} -C $$OUT_DIR -r ${out}.rsp",
 			CommandDeps:    []string{"${SoongZipCmd}"},
-			Rspfile:        "$out.rsp",
+			Rspfile:        "${out}.rsp",
 			RspfileContent: "$in",
 		})
 
