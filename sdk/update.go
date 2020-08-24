@@ -43,7 +43,7 @@ var (
 
 	zipFiles = pctx.AndroidStaticRule("SnapshotZipFiles",
 		blueprint.RuleParams{
-			Command: `${config.SoongZipCmd} -C $basedir -l $out.rsp -o $out`,
+			Command: `${config.SoongZipCmd} -C $basedir -r $out.rsp -o $out`,
 			CommandDeps: []string{
 				"${config.SoongZipCmd}",
 			},

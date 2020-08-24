@@ -513,7 +513,7 @@ func lintZip(ctx android.BuilderContext, paths android.Paths, outputPath android
 	rule.Command().BuiltTool(ctx, "soong_zip").
 		FlagWithOutput("-o ", outputPath).
 		FlagWithArg("-C ", android.PathForIntermediates(ctx).String()).
-		FlagWithRspFileInputList("-l ", paths)
+		FlagWithRspFileInputList("-r ", paths)
 
 	rule.Build(pctx, ctx, outputPath.Base(), outputPath.Base())
 }
