@@ -49,6 +49,9 @@ var mockFs = pathtools.MockFs(map[string][]byte{
 	"l_nl":                []byte("a/a/a\na/a/b\nc\n"),
 	"l_sp":                []byte("a/a/a a/a/b c"),
 	"l2":                  []byte("missing\n"),
+	"rsp":                 []byte("'a/a/a'\na/a/b\n'@'\n'foo'\\''bar'"),
+	"@ -> c":              nil,
+	"foo'bar -> c":        nil,
 	"manifest.txt":        fileCustomManifest,
 })
 
@@ -244,6 +247,19 @@ func TestZip(t *testing.T) {
 				fh("a/a/a", fileA, zip.Deflate),
 				fh("a/a/b", fileB, zip.Deflate),
 				fh("c", fileC, zip.Deflate),
+			},
+		},
+		{
+			name: "rsp",
+			args: fileArgsBuilder().
+				RspFile("rsp"),
+			compressionLevel: 9,
+
+			files: []zip.FileHeader{
+				fh("a/a/a", fileA, zip.Deflate),
+				fh("a/a/b", fileB, zip.Deflate),
+				fh("@", fileC, zip.Deflate),
+				fh("foo'bar", fileC, zip.Deflate),
 			},
 		},
 		{
@@ -567,6 +583,11 @@ func TestReadRespFile(t *testing.T) {
 			name: "double quoting test case 3",
 			in:   `./cmd "\""-C`,
 			out:  []string{"./cmd", `"-C`},
+		},
+		{
+			name: "ninja rsp file",
+			in:   "'a'\nb\n'@'\n'foo'\\''bar'\n'foo\"bar'",
+			out:  []string{"a", "b", "@", "foo'bar", `foo"bar`},
 		},
 	}
 
