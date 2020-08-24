@@ -340,6 +340,9 @@ func TestSnapshotWithObject(t *testing.T) {
 		cc_object {
 			name: "crtobj",
 			stl: "none",
+			sanitize: {
+				never: true,
+			},
 		}
 	`)
 
@@ -352,6 +355,9 @@ cc_prebuilt_object {
     sdk_member_name: "crtobj",
     stl: "none",
     compile_multilib: "both",
+    sanitize: {
+        never: true,
+    },
     arch: {
         arm64: {
             srcs: ["arm64/lib/crtobj.o"],
@@ -367,6 +373,9 @@ cc_prebuilt_object {
     prefer: false,
     stl: "none",
     compile_multilib: "both",
+    sanitize: {
+        never: true,
+    },
     arch: {
         arm64: {
             srcs: ["arm64/lib/crtobj.o"],
