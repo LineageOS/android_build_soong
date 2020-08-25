@@ -75,7 +75,7 @@ func TestGenerateBazelOverlayFromBlueprint(t *testing.T) {
     module_name = "foo",
     module_type = "custom",
     module_variant = "",
-    deps = [
+    module_deps = [
     ],
 )`,
 		},
@@ -90,7 +90,7 @@ func TestGenerateBazelOverlayFromBlueprint(t *testing.T) {
     module_name = "foo",
     module_type = "custom",
     module_variant = "",
-    deps = [
+    module_deps = [
     ],
     ramdisk = True,
 )`,
@@ -106,7 +106,7 @@ func TestGenerateBazelOverlayFromBlueprint(t *testing.T) {
     module_name = "foo",
     module_type = "custom",
     module_variant = "",
-    deps = [
+    module_deps = [
     ],
     owner = "a_string_with\"quotes\"_and_\\backslashes\\\\",
 )`,
@@ -122,7 +122,7 @@ func TestGenerateBazelOverlayFromBlueprint(t *testing.T) {
     module_name = "foo",
     module_type = "custom",
     module_variant = "",
-    deps = [
+    module_deps = [
     ],
     required = [
         "bar",
@@ -140,7 +140,7 @@ func TestGenerateBazelOverlayFromBlueprint(t *testing.T) {
     module_name = "foo",
     module_type = "custom",
     module_variant = "",
-    deps = [
+    module_deps = [
     ],
     target_required = [
         "qux",
@@ -168,7 +168,7 @@ func TestGenerateBazelOverlayFromBlueprint(t *testing.T) {
     module_name = "foo",
     module_type = "custom",
     module_variant = "",
-    deps = [
+    module_deps = [
     ],
     dist = {
         "tag": ".foo",
@@ -206,7 +206,7 @@ func TestGenerateBazelOverlayFromBlueprint(t *testing.T) {
     module_name = "foo",
     module_type = "custom",
     module_variant = "",
-    deps = [
+    module_deps = [
     ],
     dists = [
         {
