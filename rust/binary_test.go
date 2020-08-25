@@ -58,3 +58,21 @@ func TestPreferDynamicBinary(t *testing.T) {
 		t.Errorf("unexpected prefer-dynamic flag, rustcFlags: %#v", flags)
 	}
 }
+
+func TestLinkObjects(t *testing.T) {
+	ctx := testRust(t, `
+		rust_binary {
+			name: "fizz-buzz",
+			srcs: ["foo.rs"],
+			shared_libs: ["libfoo"],
+		}
+		cc_library {
+			name: "libfoo",
+		}`)
+
+	fizzBuzz := ctx.ModuleForTests("fizz-buzz", "android_arm64_armv8-a").Output("fizz-buzz")
+	linkFlags := fizzBuzz.Args["linkFlags"]
+	if !strings.Contains(linkFlags, "/libfoo.so") {
+		t.Errorf("missing shared dependency 'libfoo.so' in linkFlags: %#v", linkFlags)
+	}
+}
