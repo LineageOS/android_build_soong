@@ -39,7 +39,7 @@ load("//:soong_module.bzl", "soong_module")
     module_name = "%s",
     module_type = "%s",
     module_variant = "%s",
-    deps = %s,
+    module_deps = %s,
 %s)`
 
 	// The soong_module rule implementation in a .bzl file
@@ -74,7 +74,7 @@ _COMMON_ATTRS = {
     "module_name": attr.string(mandatory = True),
     "module_type": attr.string(mandatory = True),
     "module_variant": attr.string(),
-    "deps": attr.label_list(providers = [SoongModuleInfo]),
+    "module_deps": attr.label_list(providers = [SoongModuleInfo]),
 }
 
 
@@ -115,7 +115,7 @@ def soong_module(name, module_type, **kwargs):
             module_type = module_type,
             module_name = kwargs.pop("module_name", ""),
             module_variant = kwargs.pop("module_variant", ""),
-            deps = kwargs.pop("deps", []),
+            module_deps = kwargs.pop("module_deps", []),
         )
     else:
         soong_module_rule(
