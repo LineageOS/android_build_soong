@@ -202,7 +202,7 @@ func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", !Bool(prebuilt.properties.Installable))
 				entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.combinedClasspathFile)
 				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.combinedClasspathFile)
-				entries.SetString("LOCAL_SDK_VERSION", prebuilt.sdkVersion().raw)
+				entries.SetString("LOCAL_SDK_VERSION", prebuilt.makeSdkVersion())
 				entries.SetString("LOCAL_MODULE_STEM", prebuilt.Stem())
 			},
 		},
