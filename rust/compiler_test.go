@@ -177,3 +177,30 @@ func TestLints(t *testing.T) {
 		})
 	}
 }
+
+// Test that devices are linking the stdlib dynamically
+func TestStdDeviceLinkage(t *testing.T) {
+	ctx := testRust(t, `
+		rust_binary {
+			name: "fizz",
+			srcs: ["foo.rs"],
+		}
+		rust_library {
+			name: "libfoo",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+		}`)
+	fizz := ctx.ModuleForTests("fizz", "android_arm64_armv8-a").Module().(*Module)
+	fooRlib := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_rlib").Module().(*Module)
+	fooDylib := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").Module().(*Module)
+
+	if !android.InList("libstd", fizz.Properties.AndroidMkDylibs) {
+		t.Errorf("libstd is not linked dynamically for device binaries")
+	}
+	if !android.InList("libstd", fooRlib.Properties.AndroidMkDylibs) {
+		t.Errorf("libstd is not linked dynamically for rlibs")
+	}
+	if !android.InList("libstd", fooDylib.Properties.AndroidMkDylibs) {
+		t.Errorf("libstd is not linked dynamically for dylibs")
+	}
+}

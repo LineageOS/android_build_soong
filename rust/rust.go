@@ -289,6 +289,8 @@ type compiler interface {
 
 	Disabled() bool
 	SetDisabled()
+
+	static() bool
 }
 
 type exportedFlagsProducer interface {
@@ -740,7 +742,7 @@ var (
 )
 
 type autoDeppable interface {
-	autoDep() autoDep
+	autoDep(ctx BaseModuleContext) autoDep
 }
 
 func (mod *Module) begin(ctx BaseModuleContext) {
@@ -988,8 +990,8 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			{Mutator: "rust_libraries", Variation: "dylib"}}...),
 		dylibDepTag, deps.Dylibs...)
 
-	if deps.Rustlibs != nil {
-		autoDep := mod.compiler.(autoDeppable).autoDep()
+	if deps.Rustlibs != nil && !mod.compiler.Disabled() {
+		autoDep := mod.compiler.(autoDeppable).autoDep(ctx)
 		actx.AddVariationDependencies(
 			append(commonDepVariations, []blueprint.Variation{
 				{Mutator: "rust_libraries", Variation: autoDep.variation}}...),
