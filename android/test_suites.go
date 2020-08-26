@@ -68,7 +68,7 @@ func robolectricTestSuite(ctx SingletonContext, files map[string]InstallPaths) W
 		FlagWithOutput("-o ", outputFile).
 		FlagWithArg("-P ", "host/testcases").
 		FlagWithArg("-C ", testCasesDir.String()).
-		FlagWithRspFileInputList("-l ", installedPaths.Paths())
+		FlagWithRspFileInputList("-r ", installedPaths.Paths())
 	rule.Build(pctx, ctx, "robolectric_tests_zip", "robolectric-tests.zip")
 
 	return outputFile
