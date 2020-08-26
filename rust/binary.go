@@ -24,9 +24,6 @@ func init() {
 }
 
 type BinaryCompilerProperties struct {
-	// passes -C prefer-dynamic to rustc, which tells it to dynamically link the stdlib
-	// (assuming it has no dylib dependencies already)
-	Prefer_dynamic *bool
 }
 
 type binaryDecorator struct {
@@ -60,10 +57,6 @@ func NewRustBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator
 	return module, binary
 }
 
-func (binary *binaryDecorator) preferDynamic() bool {
-	return Bool(binary.Properties.Prefer_dynamic)
-}
-
 func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = binary.baseCompiler.compilerFlags(ctx, flags)
 
@@ -76,9 +69,6 @@ func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Fla
 			"-Wl,--no-undefined-version")
 	}
 
-	if binary.preferDynamic() {
-		flags.RustFlags = append(flags.RustFlags, "-C prefer-dynamic")
-	}
 	return flags
 }
 
@@ -132,8 +122,9 @@ func (binary *binaryDecorator) coverageOutputZipPath() android.OptionalPath {
 	return binary.coverageOutputZipFile
 }
 
-func (binary *binaryDecorator) autoDep() autoDep {
-	if binary.preferDynamic() {
+func (binary *binaryDecorator) autoDep(ctx BaseModuleContext) autoDep {
+	// Binaries default to dylib dependencies for device, rlib for host.
+	if ctx.Device() {
 		return dylibAutoDep
 	} else {
 		return rlibAutoDep

@@ -144,6 +144,22 @@ func TestSharedLibrary(t *testing.T) {
 	}
 }
 
+func TestStaticLibraryLinkage(t *testing.T) {
+	ctx := testRust(t, `
+		rust_ffi_static {
+			name: "libfoo",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+		}`)
+
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static")
+
+	if !android.InList("libstd", libfoo.Module().(*Module).Properties.AndroidMkRlibs) {
+		t.Errorf("Static libstd rlib expected to be a dependency of Rust static libraries. Rlib deps are: %#v",
+			libfoo.Module().(*Module).Properties.AndroidMkDylibs)
+	}
+}
+
 // Test that variants pull in the right type of rustlib autodep
 func TestAutoDeps(t *testing.T) {
 
