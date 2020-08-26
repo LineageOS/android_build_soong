@@ -176,13 +176,13 @@ func (library *libraryDecorator) setStatic() {
 	library.MutatedProperties.VariantIsDylib = false
 }
 
-func (library *libraryDecorator) autoDep() autoDep {
+func (library *libraryDecorator) autoDep(ctx BaseModuleContext) autoDep {
 	if library.rlib() || library.static() {
 		return rlibAutoDep
 	} else if library.dylib() || library.shared() {
 		return dylibAutoDep
 	} else {
-		return rlibAutoDep
+		panic("autoDep called on library" + ctx.ModuleName() + "that has no enabled variants.")
 	}
 }
 
