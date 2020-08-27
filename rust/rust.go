@@ -23,6 +23,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	cc_config "android/soong/cc/config"
 	"android/soong/rust/config"
 )
 
@@ -654,6 +655,10 @@ func (mod *Module) toolchain(ctx android.BaseModuleContext) config.Toolchain {
 		mod.cachedToolchain = config.FindToolchain(ctx.Os(), ctx.Arch())
 	}
 	return mod.cachedToolchain
+}
+
+func (mod *Module) ccToolchain(ctx android.BaseModuleContext) cc_config.Toolchain {
+	return cc_config.FindToolchain(ctx.Os(), ctx.Arch())
 }
 
 func (d *Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
