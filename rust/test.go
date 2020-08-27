@@ -114,7 +114,7 @@ func (test *testDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func (test *testDecorator) autoDep() autoDep {
+func (test *testDecorator) autoDep(ctx BaseModuleContext) autoDep {
 	return rlibAutoDep
 }
 

@@ -17,44 +17,64 @@ package rust
 import (
 	"strings"
 	"testing"
+
+	"android/soong/android"
 )
 
-// Test that the prefer_dynamic property is handled correctly.
-func TestPreferDynamicBinary(t *testing.T) {
+// Test that rustlibs default linkage is correct for binaries.
+func TestBinaryLinkage(t *testing.T) {
+	ctx := testRust(t, `
+		rust_binary {
+			name: "fizz-buzz",
+			srcs: ["foo.rs"],
+			rustlibs: ["libfoo"],
+			host_supported: true,
+		}
+		rust_library {
+			name: "libfoo",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+			host_supported: true,
+		}`)
+
+	fizzBuzzHost := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module)
+	fizzBuzzDevice := ctx.ModuleForTests("fizz-buzz", "android_arm64_armv8-a").Module().(*Module)
+
+	if !android.InList("libfoo", fizzBuzzHost.Properties.AndroidMkRlibs) {
+		t.Errorf("rustlibs dependency libfoo should be an rlib dep for host modules")
+	}
+
+	if !android.InList("libfoo", fizzBuzzDevice.Properties.AndroidMkDylibs) {
+		t.Errorf("rustlibs dependency libfoo should be an dylib dep for device modules")
+	}
+}
+
+// Test that the path returned by HostToolPath is correct
+func TestHostToolPath(t *testing.T) {
 	ctx := testRust(t, `
 		rust_binary_host {
-			name: "fizz-buzz-dynamic",
+			name: "fizz-buzz",
 			srcs: ["foo.rs"],
-			prefer_dynamic: true,
-		}
+		}`)
 
+	path := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module).HostToolPath()
+	if g, w := path.String(), "/host/linux-x86/bin/fizz-buzz"; !strings.Contains(g, w) {
+		t.Errorf("wrong host tool path, expected %q got %q", w, g)
+	}
+}
+
+// Test that the flags being passed to rust_binary modules are as expected
+func TestBinaryFlags(t *testing.T) {
+	ctx := testRust(t, `
 		rust_binary_host {
 			name: "fizz-buzz",
 			srcs: ["foo.rs"],
 		}`)
 
 	fizzBuzz := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Output("fizz-buzz")
-	fizzBuzzDynamic := ctx.ModuleForTests("fizz-buzz-dynamic", "linux_glibc_x86_64").Output("fizz-buzz-dynamic")
 
-	path := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module).HostToolPath()
-	if g, w := path.String(), "/host/linux-x86/bin/fizz-buzz"; !strings.Contains(g, w) {
-		t.Errorf("wrong host tool path, expected %q got %q", w, g)
-	}
-
-	// Do not compile binary modules with the --test flag.
-	flags := fizzBuzzDynamic.Args["rustcFlags"]
+	flags := fizzBuzz.Args["rustcFlags"]
 	if strings.Contains(flags, "--test") {
 		t.Errorf("extra --test flag, rustcFlags: %#v", flags)
-	}
-	if !strings.Contains(flags, "prefer-dynamic") {
-		t.Errorf("missing prefer-dynamic flag, rustcFlags: %#v", flags)
-	}
-
-	flags = fizzBuzz.Args["rustcFlags"]
-	if strings.Contains(flags, "--test") {
-		t.Errorf("extra --test flag, rustcFlags: %#v", flags)
-	}
-	if strings.Contains(flags, "prefer-dynamic") {
-		t.Errorf("unexpected prefer-dynamic flag, rustcFlags: %#v", flags)
 	}
 }
