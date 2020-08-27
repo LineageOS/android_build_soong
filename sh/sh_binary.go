@@ -64,6 +64,12 @@ type shBinaryProperties struct {
 
 	// install symlinks to the binary
 	Symlinks []string `android:"arch_variant"`
+
+	// Make this module available when building for ramdisk.
+	Ramdisk_available *bool
+
+	// Make this module available when building for recovery.
+	Recovery_available *bool
 }
 
 type TestProperties struct {
@@ -156,6 +162,29 @@ func (s *ShBinary) Installable() bool {
 
 func (s *ShBinary) Symlinks() []string {
 	return s.properties.Symlinks
+}
+
+var _ android.ImageInterface = (*ShBinary)(nil)
+
+func (s *ShBinary) ImageMutatorBegin(ctx android.BaseModuleContext) {}
+
+func (s *ShBinary) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
+	return !s.ModuleBase.InstallInRecovery() && !s.ModuleBase.InstallInRamdisk()
+}
+
+func (s *ShBinary) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+	return proptools.Bool(s.properties.Ramdisk_available) || s.ModuleBase.InstallInRamdisk()
+}
+
+func (s *ShBinary) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
+	return proptools.Bool(s.properties.Recovery_available) || s.ModuleBase.InstallInRecovery()
+}
+
+func (s *ShBinary) ExtraImageVariations(ctx android.BaseModuleContext) []string {
+	return nil
+}
+
+func (s *ShBinary) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {
 }
 
 func (s *ShBinary) generateAndroidBuildActions(ctx android.ModuleContext) {
