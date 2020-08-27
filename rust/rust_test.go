@@ -132,25 +132,6 @@ func testRustError(t *testing.T, pattern string, bp string) {
 	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
 }
 
-// Test that we can extract the lib name from a lib path.
-func TestLibNameFromFilePath(t *testing.T) {
-	libBarPath := android.PathForTesting("out/soong/.intermediates/external/libbar/libbar/linux_glibc_x86_64_shared/libbar.so.so")
-	libLibPath := android.PathForTesting("out/soong/.intermediates/external/libbar/libbar/linux_glibc_x86_64_shared/liblib.dylib.so")
-
-	libBarName := libNameFromFilePath(libBarPath)
-	libLibName := libNameFromFilePath(libLibPath)
-
-	expectedResult := "bar.so"
-	if libBarName != expectedResult {
-		t.Errorf("libNameFromFilePath returned the wrong name; expected '%#v', got '%#v'", expectedResult, libBarName)
-	}
-
-	expectedResult = "lib.dylib"
-	if libLibName != expectedResult {
-		t.Errorf("libNameFromFilePath returned the wrong name; expected '%#v', got '%#v'", expectedResult, libLibPath)
-	}
-}
-
 // Test that we can extract the link path from a lib path.
 func TestLinkPathFromFilePath(t *testing.T) {
 	barPath := android.PathForTesting("out/soong/.intermediates/external/libbar/libbar/linux_glibc_x86_64_shared/libbar.so")
