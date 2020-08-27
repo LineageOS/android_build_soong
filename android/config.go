@@ -1393,7 +1393,7 @@ func splitConfiguredJarPair(ctx PathContext, str string) (string, string) {
 	if len(pair) == 2 {
 		return pair[0], pair[1]
 	} else {
-		reportPathErrorf(ctx, "malformed (apex, jar) pair: '%s', expected format: <apex>:<jar>", str)
+		ReportPathErrorf(ctx, "malformed (apex, jar) pair: '%s', expected format: <apex>:<jar>", str)
 		return "error-apex", "error-jar"
 	}
 }
