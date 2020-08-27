@@ -2246,7 +2246,7 @@ func OutputFileForModule(ctx PathContext, module blueprint.Module, tag string) P
 		return nil
 	}
 	if len(paths) > 1 {
-		reportPathErrorf(ctx, "got multiple output files from module %q, expected exactly one",
+		ReportPathErrorf(ctx, "got multiple output files from module %q, expected exactly one",
 			pathContextName(ctx, module))
 		return nil
 	}
