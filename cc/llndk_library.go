@@ -179,7 +179,7 @@ func NewLLndkStubLibrary() *Module {
 	library.BuildOnlyShared()
 	module.stl = nil
 	module.sanitize = nil
-	library.StripProperties.Strip.None = BoolPtr(true)
+	library.disableStripping()
 
 	stub := &llndkStubDecorator{
 		libraryDecorator: library,

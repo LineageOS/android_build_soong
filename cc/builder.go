@@ -349,18 +349,21 @@ type builderFlags struct {
 
 	groupStaticLibs bool
 
-	stripKeepSymbols              bool
-	stripKeepSymbolsList          string
-	stripKeepSymbolsAndDebugFrame bool
-	stripKeepMiniDebugInfo        bool
-	stripAddGnuDebuglink          bool
-	stripUseGnuStrip              bool
-
 	proto            android.ProtoFlags
 	protoC           bool
 	protoOptionsFile bool
 
 	yacc *YaccProperties
+}
+
+type StripFlags struct {
+	Toolchain                     config.Toolchain
+	StripKeepSymbols              bool
+	StripKeepSymbolsList          string
+	StripKeepSymbolsAndDebugFrame bool
+	StripKeepMiniDebugInfo        bool
+	StripAddGnuDebuglink          bool
+	StripUseGnuStrip              bool
 }
 
 type Objects struct {
@@ -939,26 +942,26 @@ func TransformBinaryPrefixSymbols(ctx android.ModuleContext, prefix string, inpu
 }
 
 func TransformStrip(ctx android.ModuleContext, inputFile android.Path,
-	outputFile android.WritablePath, flags builderFlags) {
+	outputFile android.WritablePath, flags StripFlags) {
 
-	crossCompile := gccCmd(flags.toolchain, "")
+	crossCompile := gccCmd(flags.Toolchain, "")
 	args := ""
-	if flags.stripAddGnuDebuglink {
+	if flags.StripAddGnuDebuglink {
 		args += " --add-gnu-debuglink"
 	}
-	if flags.stripKeepMiniDebugInfo {
+	if flags.StripKeepMiniDebugInfo {
 		args += " --keep-mini-debug-info"
 	}
-	if flags.stripKeepSymbols {
+	if flags.StripKeepSymbols {
 		args += " --keep-symbols"
 	}
-	if flags.stripKeepSymbolsList != "" {
-		args += " -k" + flags.stripKeepSymbolsList
+	if flags.StripKeepSymbolsList != "" {
+		args += " -k" + flags.StripKeepSymbolsList
 	}
-	if flags.stripKeepSymbolsAndDebugFrame {
+	if flags.StripKeepSymbolsAndDebugFrame {
 		args += " --keep-symbols-and-debug-frame"
 	}
-	if flags.stripUseGnuStrip {
+	if flags.StripUseGnuStrip {
 		args += " --use-gnu-strip"
 	}
 
