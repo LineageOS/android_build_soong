@@ -187,19 +187,21 @@ func newTestingBuildParams(provider testBuildProvider, bparams BuildParams) Test
 	}
 }
 
-func maybeBuildParamsFromRule(provider testBuildProvider, rule string) TestingBuildParams {
+func maybeBuildParamsFromRule(provider testBuildProvider, rule string) (TestingBuildParams, []string) {
+	var searchedRules []string
 	for _, p := range provider.BuildParamsForTests() {
+		searchedRules = append(searchedRules, p.Rule.String())
 		if strings.Contains(p.Rule.String(), rule) {
-			return newTestingBuildParams(provider, p)
+			return newTestingBuildParams(provider, p), searchedRules
 		}
 	}
-	return TestingBuildParams{}
+	return TestingBuildParams{}, searchedRules
 }
 
 func buildParamsFromRule(provider testBuildProvider, rule string) TestingBuildParams {
-	p := maybeBuildParamsFromRule(provider, rule)
+	p, searchRules := maybeBuildParamsFromRule(provider, rule)
 	if p.Rule == nil {
-		panic(fmt.Errorf("couldn't find rule %q", rule))
+		panic(fmt.Errorf("couldn't find rule %q.\nall rules: %v", rule, searchRules))
 	}
 	return p
 }
@@ -275,7 +277,8 @@ func (m TestingModule) Module() Module {
 // MaybeRule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Returns an empty
 // BuildParams if no rule is found.
 func (m TestingModule) MaybeRule(rule string) TestingBuildParams {
-	return maybeBuildParamsFromRule(m.module, rule)
+	r, _ := maybeBuildParamsFromRule(m.module, rule)
+	return r
 }
 
 // Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
@@ -328,7 +331,8 @@ func (s TestingSingleton) Singleton() Singleton {
 // MaybeRule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Returns an empty
 // BuildParams if no rule is found.
 func (s TestingSingleton) MaybeRule(rule string) TestingBuildParams {
-	return maybeBuildParamsFromRule(s.provider, rule)
+	r, _ := maybeBuildParamsFromRule(s.provider, rule)
+	return r
 }
 
 // Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
