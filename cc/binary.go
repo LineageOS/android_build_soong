@@ -83,7 +83,7 @@ func binaryHostFactory() android.Module {
 type binaryDecorator struct {
 	*baseLinker
 	*baseInstaller
-	stripper
+	stripper Stripper
 
 	Properties BinaryLinkerProperties
 
@@ -317,14 +317,14 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	}
 
 	builderFlags := flagsToBuilderFlags(flags)
-
-	if binary.stripper.needsStrip(ctx) {
+	stripFlags := flagsToStripFlags(flags)
+	if binary.stripper.NeedsStrip(ctx) {
 		if ctx.Darwin() {
-			builderFlags.stripUseGnuStrip = true
+			stripFlags.StripUseGnuStrip = true
 		}
 		strippedOutputFile := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
-		binary.stripper.stripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile, builderFlags)
+		binary.stripper.StripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile, stripFlags)
 	}
 
 	binary.unstrippedOutputFile = outputFile
@@ -333,7 +333,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		afterPrefixSymbols := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unprefixed", fileName)
 		TransformBinaryPrefixSymbols(ctx, String(binary.Properties.Prefix_symbols), outputFile,
-			flagsToBuilderFlags(flags), afterPrefixSymbols)
+			builderFlags, afterPrefixSymbols)
 	}
 
 	outputFile = maybeInjectBoringSSLHash(ctx, outputFile, binary.Properties.Inject_bssl_hash, fileName)
@@ -347,10 +347,10 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
 			binary.distFiles = android.MakeDefaultDistFiles(versionedOutputFile)
 
-			if binary.stripper.needsStrip(ctx) {
+			if binary.stripper.NeedsStrip(ctx) {
 				out := android.PathForModuleOut(ctx, "versioned-stripped", fileName)
 				binary.distFiles = android.MakeDefaultDistFiles(out)
-				binary.stripper.stripExecutableOrSharedLib(ctx, versionedOutputFile, out, builderFlags)
+				binary.stripper.StripExecutableOrSharedLib(ctx, versionedOutputFile, out, stripFlags)
 			}
 
 			binary.injectVersionSymbol(ctx, outputFile, versionedOutputFile)

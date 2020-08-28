@@ -30,42 +30,42 @@ type StripProperties struct {
 	} `android:"arch_variant"`
 }
 
-type stripper struct {
+type Stripper struct {
 	StripProperties StripProperties
 }
 
-func (stripper *stripper) needsStrip(ctx ModuleContext) bool {
+func (stripper *Stripper) NeedsStrip(actx android.ModuleContext) bool {
 	// TODO(ccross): enable host stripping when embedded in make?  Make never had support for stripping host binaries.
-	return (!ctx.Config().EmbeddedInMake() || ctx.Device()) && !Bool(stripper.StripProperties.Strip.None)
+	return (!actx.Config().EmbeddedInMake() || actx.Device()) && !Bool(stripper.StripProperties.Strip.None)
 }
 
-func (stripper *stripper) strip(ctx ModuleContext, in android.Path, out android.ModuleOutPath,
-	flags builderFlags, isStaticLib bool) {
-	if ctx.Darwin() {
-		TransformDarwinStrip(ctx, in, out)
+func (stripper *Stripper) strip(actx android.ModuleContext, in android.Path, out android.ModuleOutPath,
+	flags StripFlags, isStaticLib bool) {
+	if actx.Darwin() {
+		TransformDarwinStrip(actx, in, out)
 	} else {
 		if Bool(stripper.StripProperties.Strip.Keep_symbols) {
-			flags.stripKeepSymbols = true
+			flags.StripKeepSymbols = true
 		} else if Bool(stripper.StripProperties.Strip.Keep_symbols_and_debug_frame) {
-			flags.stripKeepSymbolsAndDebugFrame = true
+			flags.StripKeepSymbolsAndDebugFrame = true
 		} else if len(stripper.StripProperties.Strip.Keep_symbols_list) > 0 {
-			flags.stripKeepSymbolsList = strings.Join(stripper.StripProperties.Strip.Keep_symbols_list, ",")
+			flags.StripKeepSymbolsList = strings.Join(stripper.StripProperties.Strip.Keep_symbols_list, ",")
 		} else if !Bool(stripper.StripProperties.Strip.All) {
-			flags.stripKeepMiniDebugInfo = true
+			flags.StripKeepMiniDebugInfo = true
 		}
-		if ctx.Config().Debuggable() && !flags.stripKeepMiniDebugInfo && !isStaticLib {
-			flags.stripAddGnuDebuglink = true
+		if actx.Config().Debuggable() && !flags.StripKeepMiniDebugInfo && !isStaticLib {
+			flags.StripAddGnuDebuglink = true
 		}
-		TransformStrip(ctx, in, out, flags)
+		TransformStrip(actx, in, out, flags)
 	}
 }
 
-func (stripper *stripper) stripExecutableOrSharedLib(ctx ModuleContext, in android.Path,
-	out android.ModuleOutPath, flags builderFlags) {
-	stripper.strip(ctx, in, out, flags, false)
+func (stripper *Stripper) StripExecutableOrSharedLib(actx android.ModuleContext, in android.Path,
+	out android.ModuleOutPath, flags StripFlags) {
+	stripper.strip(actx, in, out, flags, false)
 }
 
-func (stripper *stripper) stripStaticLib(ctx ModuleContext, in android.Path, out android.ModuleOutPath,
-	flags builderFlags) {
-	stripper.strip(ctx, in, out, flags, true)
+func (stripper *Stripper) StripStaticLib(actx android.ModuleContext, in android.Path, out android.ModuleOutPath,
+	flags StripFlags) {
+	stripper.strip(actx, in, out, flags, true)
 }
