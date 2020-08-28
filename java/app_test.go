@@ -2757,6 +2757,19 @@ func TestUsesLibraries(t *testing.T) {
 		android_app {
 			name: "app",
 			srcs: ["a.java"],
+			libs: ["qux", "quuz"],
+			static_libs: ["static-runtime-helper"],
+			uses_libs: ["foo"],
+			sdk_version: "current",
+			optional_uses_libs: [
+				"bar",
+				"baz",
+			],
+		}
+
+		android_app {
+			name: "app_with_stub_deps",
+			srcs: ["a.java"],
 			libs: ["qux", "quuz.stubs"],
 			static_libs: ["static-runtime-helper"],
 			uses_libs: ["foo"],
@@ -2787,6 +2800,7 @@ func TestUsesLibraries(t *testing.T) {
 	run(t, ctx, config)
 
 	app := ctx.ModuleForTests("app", "android_common")
+	appWithStubDeps := ctx.ModuleForTests("app_with_stub_deps", "android_common")
 	prebuilt := ctx.ModuleForTests("prebuilt", "android_common")
 
 	// Test that implicit dependencies on java_sdk_library instances are passed to the manifest.
@@ -2817,15 +2831,24 @@ func TestUsesLibraries(t *testing.T) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
 
-	// Test that only present libraries are preopted
+	// Test that all present libraries are preopted, including implicit SDK dependencies
 	cmd = app.Rule("dexpreopt").RuleParams.Command
-
-	if w := `--target-classpath-for-sdk any /system/framework/foo.jar:/system/framework/bar.jar`; !strings.Contains(cmd, w) {
+	w := `--target-classpath-for-sdk any` +
+		` /system/framework/foo.jar` +
+		`:/system/framework/quuz.jar` +
+		`:/system/framework/qux.jar` +
+		`:/system/framework/runtime-library.jar` +
+		`:/system/framework/bar.jar`
+	if !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
 
-	cmd = prebuilt.Rule("dexpreopt").RuleParams.Command
+	// TODO(skvadrik) fix dexpreopt for stub libraries for which the implementation is present
+	if appWithStubDeps.MaybeRule("dexpreopt").RuleParams.Command != "" {
+		t.Errorf("dexpreopt should be disabled for apps with dependencies on stub libraries")
+	}
 
+	cmd = prebuilt.Rule("dexpreopt").RuleParams.Command
 	if w := `--target-classpath-for-sdk any /system/framework/foo.jar:/system/framework/bar.jar`; !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
