@@ -586,7 +586,7 @@ func (a *AndroidApp) installPath(ctx android.ModuleContext) android.InstallPath 
 	return android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
 }
 
-func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
+func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext, sdkLibs dexpreopt.LibraryPaths) android.Path {
 	a.dexpreopter.installPath = a.installPath(ctx)
 	if a.dexProperties.Uncompress_dex == nil {
 		// If the value was not force-set by the user, use reasonable default based on the module.
@@ -597,6 +597,7 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 	a.dexpreopter.usesLibs = a.usesLibrary.usesLibraryProperties.Uses_libs
 	a.dexpreopter.optionalUsesLibs = a.usesLibrary.presentOptionalUsesLibs(ctx)
 	a.dexpreopter.libraryPaths = a.usesLibrary.usesLibraryPaths(ctx)
+	a.dexpreopter.libraryPaths.AddLibraryPaths(sdkLibs)
 	a.dexpreopter.manifestFile = a.mergedManifestFile
 	a.exportedSdkLibs = make(dexpreopt.LibraryPaths)
 
@@ -767,6 +768,15 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	// Process all building blocks, from AAPT to certificates.
 	a.aaptBuildActions(ctx)
 
+	// The decision to enforce <uses-library> checks is made before adding implicit SDK libraries.
+	a.usesLibrary.freezeEnforceUsesLibraries()
+
+	// Add implicit SDK libraries to <uses-library> list.
+	for _, usesLib := range android.SortedStringKeys(a.aapt.sdkLibraries) {
+		a.usesLibrary.addLib(usesLib, inList(usesLib, optionalUsesLibs))
+	}
+
+	// Check that the <uses-library> list is coherent with the manifest.
 	if a.usesLibrary.enforceUsesLibraries() {
 		manifestCheckFile := a.usesLibrary.verifyUsesLibrariesManifest(ctx, a.mergedManifestFile)
 		apkDeps = append(apkDeps, manifestCheckFile)
@@ -779,7 +789,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.linter.resources = a.aapt.resourceFiles
 	a.linter.buildModuleReportZip = ctx.Config().UnbundledBuildApps()
 
-	dexJarFile := a.dexBuildActions(ctx)
+	dexJarFile := a.dexBuildActions(ctx, a.aapt.sdkLibraries)
 
 	jniLibs, certificateDeps := collectAppDeps(ctx, a, a.shouldEmbedJnis(ctx), !Bool(a.appProperties.Jni_uses_platform_apis))
 	jniJarFile := a.jniBuildActions(jniLibs, ctx)
@@ -1888,6 +1898,16 @@ type usesLibrary struct {
 	usesLibraryProperties UsesLibraryProperties
 }
 
+func (u *usesLibrary) addLib(lib string, optional bool) {
+	if !android.InList(lib, u.usesLibraryProperties.Uses_libs) && !android.InList(lib, u.usesLibraryProperties.Optional_uses_libs) {
+		if optional {
+			u.usesLibraryProperties.Optional_uses_libs = append(u.usesLibraryProperties.Optional_uses_libs, lib)
+		} else {
+			u.usesLibraryProperties.Uses_libs = append(u.usesLibraryProperties.Uses_libs, lib)
+		}
+	}
+}
+
 func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, hasFrameworkLibs bool) {
 	if !ctx.Config().UnbundledBuild() {
 		ctx.AddVariationDependencies(nil, usesLibTag, u.usesLibraryProperties.Uses_libs...)
@@ -1958,6 +1978,12 @@ func (u *usesLibrary) enforceUsesLibraries() bool {
 	defaultEnforceUsesLibs := len(u.usesLibraryProperties.Uses_libs) > 0 ||
 		len(u.usesLibraryProperties.Optional_uses_libs) > 0
 	return BoolDefault(u.usesLibraryProperties.Enforce_uses_libs, defaultEnforceUsesLibs)
+}
+
+// Freeze the value of `enforce_uses_libs` based on the current values of `uses_libs` and `optional_uses_libs`.
+func (u *usesLibrary) freezeEnforceUsesLibraries() {
+	enforce := u.enforceUsesLibraries()
+	u.usesLibraryProperties.Enforce_uses_libs = &enforce
 }
 
 // verifyUsesLibrariesManifest checks the <uses-library> tags in an AndroidManifest.xml against the ones specified
