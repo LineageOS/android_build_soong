@@ -1040,6 +1040,35 @@ func TestAndroidResources(t *testing.T) {
 	}
 }
 
+func checkSdkVersion(t *testing.T, config android.Config, expectedSdkVersion string) {
+	ctx := testContext()
+
+	run(t, ctx, config)
+
+	foo := ctx.ModuleForTests("foo", "android_common")
+	link := foo.Output("package-res.apk")
+	linkFlags := strings.Split(link.Args["flags"], " ")
+	min := android.IndexList("--min-sdk-version", linkFlags)
+	target := android.IndexList("--target-sdk-version", linkFlags)
+
+	if min == -1 || target == -1 || min == len(linkFlags)-1 || target == len(linkFlags)-1 {
+		t.Fatalf("missing --min-sdk-version or --target-sdk-version in link flags: %q", linkFlags)
+	}
+
+	gotMinSdkVersion := linkFlags[min+1]
+	gotTargetSdkVersion := linkFlags[target+1]
+
+	if gotMinSdkVersion != expectedSdkVersion {
+		t.Errorf("incorrect --min-sdk-version, expected %q got %q",
+			expectedSdkVersion, gotMinSdkVersion)
+	}
+
+	if gotTargetSdkVersion != expectedSdkVersion {
+		t.Errorf("incorrect --target-sdk-version, expected %q got %q",
+			expectedSdkVersion, gotTargetSdkVersion)
+	}
+}
+
 func TestAppSdkVersion(t *testing.T) {
 	testCases := []struct {
 		name                  string
@@ -1109,34 +1138,81 @@ func TestAppSdkVersion(t *testing.T) {
 				config.TestProductVariables.Platform_sdk_version = &test.platformSdkInt
 				config.TestProductVariables.Platform_sdk_codename = &test.platformSdkCodename
 				config.TestProductVariables.Platform_sdk_final = &test.platformSdkFinal
+				checkSdkVersion(t, config, test.expectedMinSdkVersion)
 
-				ctx := testContext()
-
-				run(t, ctx, config)
-
-				foo := ctx.ModuleForTests("foo", "android_common")
-				link := foo.Output("package-res.apk")
-				linkFlags := strings.Split(link.Args["flags"], " ")
-				min := android.IndexList("--min-sdk-version", linkFlags)
-				target := android.IndexList("--target-sdk-version", linkFlags)
-
-				if min == -1 || target == -1 || min == len(linkFlags)-1 || target == len(linkFlags)-1 {
-					t.Fatalf("missing --min-sdk-version or --target-sdk-version in link flags: %q", linkFlags)
-				}
-
-				gotMinSdkVersion := linkFlags[min+1]
-				gotTargetSdkVersion := linkFlags[target+1]
-
-				if gotMinSdkVersion != test.expectedMinSdkVersion {
-					t.Errorf("incorrect --min-sdk-version, expected %q got %q",
-						test.expectedMinSdkVersion, gotMinSdkVersion)
-				}
-
-				if gotTargetSdkVersion != test.expectedMinSdkVersion {
-					t.Errorf("incorrect --target-sdk-version, expected %q got %q",
-						test.expectedMinSdkVersion, gotTargetSdkVersion)
-				}
 			})
+		}
+	}
+}
+
+func TestVendorAppSdkVersion(t *testing.T) {
+	testCases := []struct {
+		name                                  string
+		sdkVersion                            string
+		platformSdkInt                        int
+		platformSdkCodename                   string
+		platformSdkFinal                      bool
+		deviceCurrentApiLevelForVendorModules string
+		expectedMinSdkVersion                 string
+	}{
+		{
+			name:                                  "current final SDK",
+			sdkVersion:                            "current",
+			platformSdkInt:                        29,
+			platformSdkCodename:                   "REL",
+			platformSdkFinal:                      true,
+			deviceCurrentApiLevelForVendorModules: "29",
+			expectedMinSdkVersion:                 "29",
+		},
+		{
+			name:                                  "current final SDK",
+			sdkVersion:                            "current",
+			platformSdkInt:                        29,
+			platformSdkCodename:                   "REL",
+			platformSdkFinal:                      true,
+			deviceCurrentApiLevelForVendorModules: "28",
+			expectedMinSdkVersion:                 "28",
+		},
+		{
+			name:                                  "current final SDK",
+			sdkVersion:                            "current",
+			platformSdkInt:                        29,
+			platformSdkCodename:                   "Q",
+			platformSdkFinal:                      false,
+			deviceCurrentApiLevelForVendorModules: "current",
+			expectedMinSdkVersion:                 "Q",
+		},
+		{
+			name:                                  "current final SDK",
+			sdkVersion:                            "current",
+			platformSdkInt:                        29,
+			platformSdkCodename:                   "Q",
+			platformSdkFinal:                      false,
+			deviceCurrentApiLevelForVendorModules: "28",
+			expectedMinSdkVersion:                 "28",
+		},
+	}
+
+	for _, moduleType := range []string{"android_app", "android_library"} {
+		for _, sdkKind := range []string{"", "system_"} {
+			for _, test := range testCases {
+				t.Run(moduleType+" "+test.name, func(t *testing.T) {
+					bp := fmt.Sprintf(`%s {
+						name: "foo",
+						srcs: ["a.java"],
+						sdk_version: "%s%s",
+						vendor: true,
+					}`, moduleType, sdkKind, test.sdkVersion)
+
+					config := testAppConfig(nil, bp, nil)
+					config.TestProductVariables.Platform_sdk_version = &test.platformSdkInt
+					config.TestProductVariables.Platform_sdk_codename = &test.platformSdkCodename
+					config.TestProductVariables.Platform_sdk_final = &test.platformSdkFinal
+					config.TestProductVariables.DeviceCurrentApiLevelForVendorModules = &test.deviceCurrentApiLevelForVendorModules
+					config.TestProductVariables.DeviceSystemSdkVersions = []string{"28", "29"}
+					checkSdkVersion(t, config, test.expectedMinSdkVersion)
+				})
+			}
 		}
 	}
 }
