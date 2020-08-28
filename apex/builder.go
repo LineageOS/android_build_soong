@@ -195,7 +195,7 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 	// collect jniLibs. Notice that a.filesInfo is already sorted
 	var jniLibs []string
 	for _, fi := range a.filesInfo {
-		if fi.isJniLib {
+		if fi.isJniLib && !android.InList(fi.Stem(), jniLibs) {
 			jniLibs = append(jniLibs, fi.Stem())
 		}
 	}
