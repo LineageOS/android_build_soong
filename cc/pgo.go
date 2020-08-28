@@ -290,16 +290,17 @@ func (pgo *pgo) flags(ctx ModuleContext, flags Flags) Flags {
 
 	// Add flags to profile this module based on its profile_kind
 	if props.ShouldProfileModule && props.isInstrumentation() {
+		props.addInstrumentationProfileGatherFlags(ctx, flags)
 		// Instrumentation PGO use and gather flags cannot coexist.
-		return props.addInstrumentationProfileGatherFlags(ctx, flags)
+		return flags
 	} else if props.ShouldProfileModule && props.isSampling() {
-		flags = props.addSamplingProfileGatherFlags(ctx, flags)
+		props.addSamplingProfileGatherFlags(ctx, flags)
 	} else if ctx.DeviceConfig().SamplingPGO() {
-		flags = props.addSamplingProfileGatherFlags(ctx, flags)
+		props.addSamplingProfileGatherFlags(ctx, flags)
 	}
 
 	if !ctx.Config().IsEnvTrue("ANDROID_PGO_NO_PROFILE_USE") {
-		flags = props.addProfileUseFlags(ctx, flags)
+		props.addProfileUseFlags(ctx, flags)
 	}
 
 	return flags
