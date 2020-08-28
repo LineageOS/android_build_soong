@@ -191,6 +191,26 @@ func (s sdkSpec) prebuiltSdkAvailableForUnbundledBuild() bool {
 	return s.kind != sdkPrivate && s.kind != sdkNone && s.kind != sdkCorePlatform
 }
 
+func (s sdkSpec) forVendorPartition(ctx android.EarlyModuleContext) sdkSpec {
+	// If BOARD_CURRENT_API_LEVEL_FOR_VENDOR_MODULES has a numeric value,
+	// use it instead of "current" for the vendor partition.
+	currentSdkVersion := ctx.DeviceConfig().CurrentApiLevelForVendorModules()
+	if currentSdkVersion == "current" {
+		return s
+	}
+
+	if s.kind == sdkPublic || s.kind == sdkSystem {
+		if s.version.isCurrent() {
+			if i, err := strconv.Atoi(currentSdkVersion); err == nil {
+				version := sdkVersion(i)
+				return sdkSpec{s.kind, version, s.raw}
+			}
+			panic(fmt.Errorf("BOARD_CURRENT_API_LEVEL_FOR_VENDOR_MODULES must be either \"current\" or a number, but was %q", currentSdkVersion))
+		}
+	}
+	return s
+}
+
 // usePrebuilt determines whether prebuilt SDK should be used for this sdkSpec with the given context.
 func (s sdkSpec) usePrebuilt(ctx android.EarlyModuleContext) bool {
 	if s.version.isCurrent() {
@@ -215,6 +235,10 @@ func (s sdkSpec) usePrebuilt(ctx android.EarlyModuleContext) bool {
 func (s sdkSpec) effectiveVersion(ctx android.EarlyModuleContext) (sdkVersion, error) {
 	if !s.valid() {
 		return s.version, fmt.Errorf("invalid sdk version %q", s.raw)
+	}
+
+	if ctx.DeviceSpecific() || ctx.SocSpecific() {
+		s = s.forVendorPartition(ctx)
 	}
 	if s.version.isNumbered() {
 		return s.version, nil
@@ -328,6 +352,10 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 	if !sdkVersion.valid() {
 		ctx.PropertyErrorf("sdk_version", "invalid version %q", sdkVersion.raw)
 		return sdkDep{}
+	}
+
+	if ctx.DeviceSpecific() || ctx.SocSpecific() {
+		sdkVersion = sdkVersion.forVendorPartition(ctx)
 	}
 
 	if !sdkVersion.validateSystemSdk(ctx) {

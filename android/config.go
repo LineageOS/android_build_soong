@@ -35,6 +35,7 @@ import (
 
 var Bool = proptools.Bool
 var String = proptools.String
+var StringDefault = proptools.StringDefault
 
 const FutureApiLevel = 10000
 
@@ -956,6 +957,10 @@ func (c *deviceConfig) VendorPath() string {
 
 func (c *deviceConfig) VndkVersion() string {
 	return String(c.config.productVariables.DeviceVndkVersion)
+}
+
+func (c *deviceConfig) CurrentApiLevelForVendorModules() string {
+	return StringDefault(c.config.productVariables.DeviceCurrentApiLevelForVendorModules, "current")
 }
 
 func (c *deviceConfig) PlatformVndkVersion() string {
