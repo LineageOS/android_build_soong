@@ -142,9 +142,10 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 		builderFlags := flagsToBuilderFlags(flags)
 		p.unstrippedOutputFile = in
 		libName := in.Base()
-		if p.needsStrip(ctx) {
+		if p.stripper.NeedsStrip(ctx) {
+			stripFlags := flagsToStripFlags(flags)
 			stripped := android.PathForModuleOut(ctx, "stripped", libName)
-			p.stripExecutableOrSharedLib(ctx, in, stripped, builderFlags)
+			p.stripper.StripExecutableOrSharedLib(ctx, in, stripped, stripFlags)
 			in = stripped
 		}
 
@@ -213,7 +214,7 @@ func vndkPrebuiltSharedLibrary() *Module {
 	library.BuildOnlyShared()
 	module.stl = nil
 	module.sanitize = nil
-	library.StripProperties.Strip.None = BoolPtr(true)
+	library.disableStripping()
 
 	prebuilt := &vndkPrebuiltLibraryDecorator{
 		libraryDecorator: library,
