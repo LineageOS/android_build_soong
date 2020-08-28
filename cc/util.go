@@ -100,6 +100,10 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 	}
 }
 
+func flagsToStripFlags(in Flags) StripFlags {
+	return StripFlags{Toolchain: in.Toolchain}
+}
+
 func addPrefix(list []string, prefix string) []string {
 	for i := range list {
 		list[i] = prefix + list[i]

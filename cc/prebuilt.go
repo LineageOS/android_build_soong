@@ -125,9 +125,10 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 			outputFile := android.PathForModuleOut(ctx, libName)
 			var implicits android.Paths
 
-			if p.needsStrip(ctx) {
+			if p.stripper.NeedsStrip(ctx) {
+				stripFlags := flagsToStripFlags(flags)
 				stripped := android.PathForModuleOut(ctx, "stripped", libName)
-				p.stripExecutableOrSharedLib(ctx, in, stripped, builderFlags)
+				p.stripper.StripExecutableOrSharedLib(ctx, in, stripped, stripFlags)
 				in = stripped
 			}
 
@@ -331,16 +332,16 @@ func (p *prebuiltBinaryLinker) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 	// TODO(ccross): verify shared library dependencies
 	if len(p.properties.Srcs) > 0 {
-		builderFlags := flagsToBuilderFlags(flags)
+		stripFlags := flagsToStripFlags(flags)
 
 		fileName := p.getStem(ctx) + flags.Toolchain.ExecutableSuffix()
 		in := p.Prebuilt.SingleSourcePath(ctx)
 
 		p.unstrippedOutputFile = in
 
-		if p.needsStrip(ctx) {
+		if p.stripper.NeedsStrip(ctx) {
 			stripped := android.PathForModuleOut(ctx, "stripped", fileName)
-			p.stripExecutableOrSharedLib(ctx, in, stripped, builderFlags)
+			p.stripper.StripExecutableOrSharedLib(ctx, in, stripped, stripFlags)
 			in = stripped
 		}
 
