@@ -166,13 +166,14 @@ type productVariables struct {
 	Platform_min_supported_target_sdk_version *string  `json:",omitempty"`
 	Platform_base_os                          *string  `json:",omitempty"`
 
-	DeviceName              *string  `json:",omitempty"`
-	DeviceArch              *string  `json:",omitempty"`
-	DeviceArchVariant       *string  `json:",omitempty"`
-	DeviceCpuVariant        *string  `json:",omitempty"`
-	DeviceAbi               []string `json:",omitempty"`
-	DeviceVndkVersion       *string  `json:",omitempty"`
-	DeviceSystemSdkVersions []string `json:",omitempty"`
+	DeviceName                            *string  `json:",omitempty"`
+	DeviceArch                            *string  `json:",omitempty"`
+	DeviceArchVariant                     *string  `json:",omitempty"`
+	DeviceCpuVariant                      *string  `json:",omitempty"`
+	DeviceAbi                             []string `json:",omitempty"`
+	DeviceVndkVersion                     *string  `json:",omitempty"`
+	DeviceCurrentApiLevelForVendorModules *string  `json:",omitempty"`
+	DeviceSystemSdkVersions               []string `json:",omitempty"`
 
 	DeviceSecondaryArch        *string  `json:",omitempty"`
 	DeviceSecondaryArchVariant *string  `json:",omitempty"`

@@ -97,7 +97,12 @@ func flagsToBuilderFlags(in Flags) builderFlags {
 		protoOptionsFile: in.protoOptionsFile,
 
 		yacc: in.Yacc,
+		lex:  in.Lex,
 	}
+}
+
+func flagsToStripFlags(in Flags) StripFlags {
+	return StripFlags{Toolchain: in.Toolchain}
 }
 
 func addPrefix(list []string, prefix string) []string {

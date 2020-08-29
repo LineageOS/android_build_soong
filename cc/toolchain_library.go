@@ -36,8 +36,7 @@ type toolchainLibraryProperties struct {
 
 type toolchainLibraryDecorator struct {
 	*libraryDecorator
-
-	stripper
+	stripper Stripper
 
 	Properties toolchainLibraryProperties
 }
@@ -89,8 +88,8 @@ func (library *toolchainLibraryDecorator) link(ctx ModuleContext,
 	if library.stripper.StripProperties.Strip.Keep_symbols_list != nil {
 		fileName := ctx.ModuleName() + staticLibraryExtension
 		outputFile := android.PathForModuleOut(ctx, fileName)
-		buildFlags := flagsToBuilderFlags(flags)
-		library.stripper.stripStaticLib(ctx, srcPath, outputFile, buildFlags)
+		stripFlags := flagsToStripFlags(flags)
+		library.stripper.StripStaticLib(ctx, srcPath, outputFile, stripFlags)
 		return outputFile
 	}
 

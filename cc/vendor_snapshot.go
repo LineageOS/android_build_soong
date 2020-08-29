@@ -264,7 +264,7 @@ func vendorSnapshotLibrary(suffix string) (*Module, *vendorSnapshotLibraryDecora
 
 	module.stl = nil
 	module.sanitize = nil
-	library.StripProperties.Strip.None = BoolPtr(true)
+	library.disableStripping()
 
 	prebuilt := &vendorSnapshotLibraryDecorator{
 		libraryDecorator: library,
@@ -340,12 +340,12 @@ func (p *vendorSnapshotBinaryDecorator) link(ctx ModuleContext,
 	}
 
 	in := android.PathForModuleSrc(ctx, *p.properties.Src)
-	builderFlags := flagsToBuilderFlags(flags)
+	stripFlags := flagsToStripFlags(flags)
 	p.unstrippedOutputFile = in
 	binName := in.Base()
-	if p.needsStrip(ctx) {
+	if p.stripper.NeedsStrip(ctx) {
 		stripped := android.PathForModuleOut(ctx, "stripped", binName)
-		p.stripExecutableOrSharedLib(ctx, in, stripped, builderFlags)
+		p.stripper.StripExecutableOrSharedLib(ctx, in, stripped, stripFlags)
 		in = stripped
 	}
 

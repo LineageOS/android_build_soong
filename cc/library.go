@@ -336,7 +336,7 @@ type libraryDecorator struct {
 	tocFile android.OptionalPath
 
 	flagExporter
-	stripper
+	stripper Stripper
 
 	// If we're used as a whole_static_lib, our missing dependencies need
 	// to be given
@@ -955,13 +955,14 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	library.tocFile = android.OptionalPathForPath(tocFile)
 	TransformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
 
-	if library.stripper.needsStrip(ctx) {
+	stripFlags := flagsToStripFlags(flags)
+	if library.stripper.NeedsStrip(ctx) {
 		if ctx.Darwin() {
-			builderFlags.stripUseGnuStrip = true
+			stripFlags.StripUseGnuStrip = true
 		}
 		strippedOutputFile := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
-		library.stripper.stripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile, builderFlags)
+		library.stripper.StripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile, stripFlags)
 	}
 	library.unstrippedOutputFile = outputFile
 
@@ -976,10 +977,10 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
 			library.distFile = versionedOutputFile
 
-			if library.stripper.needsStrip(ctx) {
+			if library.stripper.NeedsStrip(ctx) {
 				out := android.PathForModuleOut(ctx, "versioned-stripped", fileName)
 				library.distFile = out
-				library.stripper.stripExecutableOrSharedLib(ctx, versionedOutputFile, out, builderFlags)
+				library.stripper.StripExecutableOrSharedLib(ctx, versionedOutputFile, out, stripFlags)
 			}
 
 			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
@@ -1025,6 +1026,10 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 func (library *libraryDecorator) unstrippedOutputFilePath() android.Path {
 	return library.unstrippedOutputFile
+}
+
+func (library *libraryDecorator) disableStripping() {
+	library.stripper.StripProperties.Strip.None = BoolPtr(true)
 }
 
 func (library *libraryDecorator) nativeCoverage() bool {

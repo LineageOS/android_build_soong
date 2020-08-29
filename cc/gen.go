@@ -34,9 +34,9 @@ func init() {
 var (
 	lex = pctx.AndroidStaticRule("lex",
 		blueprint.RuleParams{
-			Command:     "M4=$m4Cmd $lexCmd -o$out $in",
+			Command:     "M4=$m4Cmd $lexCmd $flags -o$out $in",
 			CommandDeps: []string{"$lexCmd", "$m4Cmd"},
-		})
+		}, "flags")
 
 	sysprop = pctx.AndroidStaticRule("sysprop",
 		blueprint.RuleParams{
@@ -153,12 +153,23 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 	}
 }
 
-func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.ModuleGenPath) {
+type LexProperties struct {
+	// list of module-specific flags that will be used for .l and .ll compiles
+	Flags []string
+}
+
+func genLex(ctx android.ModuleContext, lexFile android.Path, outFile android.ModuleGenPath, props *LexProperties) {
+	var flags []string
+	if props != nil {
+		flags = props.Flags
+	}
+	flagsString := strings.Join(flags[:], " ")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        lex,
 		Description: "lex " + lexFile.Rel(),
 		Output:      outFile,
 		Input:       lexFile,
+		Args:        map[string]string{"flags": flagsString},
 	})
 }
 
@@ -235,11 +246,11 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 		case ".l":
 			cFile := android.GenPathWithExt(ctx, "lex", srcFile, "c")
 			srcFiles[i] = cFile
-			genLex(ctx, srcFile, cFile)
+			genLex(ctx, srcFile, cFile, buildFlags.lex)
 		case ".ll":
 			cppFile := android.GenPathWithExt(ctx, "lex", srcFile, "cpp")
 			srcFiles[i] = cppFile
-			genLex(ctx, srcFile, cppFile)
+			genLex(ctx, srcFile, cppFile, buildFlags.lex)
 		case ".proto":
 			ccFile, headerFile := genProto(ctx, srcFile, buildFlags)
 			srcFiles[i] = ccFile

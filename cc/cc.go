@@ -210,6 +210,7 @@ type Flags struct {
 	protoOptionsFile bool // Whether to look for a .options file next to the .proto
 
 	Yacc *YaccProperties
+	Lex  *LexProperties
 }
 
 // Properties used to compile all C or C++ modules
