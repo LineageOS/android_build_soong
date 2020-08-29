@@ -98,6 +98,13 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	// Module separator
 	//
+	m["com.android.appsearch"] = []string{
+		"icing-java-proto-lite",
+		"libprotobuf-java-lite",
+	}
+	//
+	// Module separator
+	//
 	m["com.android.bluetooth.updatable"] = []string{
 		"android.hardware.audio.common@5.0",
 		"android.hardware.bluetooth.a2dp@1.0",
@@ -177,6 +184,19 @@ func makeApexAvailableBaseline() map[string][]string {
 	// Module separator
 	//
 	m["com.android.cellbroadcast"] = []string{"CellBroadcastApp", "CellBroadcastServiceModule"}
+	//
+	// Module separator
+	//
+	m["com.android.extservices"] = []string{
+		"error_prone_annotations",
+		"ExtServices-core",
+		"ExtServices",
+		"libtextclassifier-java",
+		"libz_current",
+		"textclassifier-statsd",
+		"TextClassifierNotificationLibNoManifest",
+		"TextClassifierServiceLibNoManifest",
+	}
 	//
 	// Module separator
 	//
@@ -295,7 +315,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libpdx_headers",
 		"libpdx_uds",
 		"libprocinfo",
-		"libsonivox",
 		"libspeexresampler",
 		"libspeexresampler",
 		"libstagefright_esds",
@@ -332,6 +351,7 @@ func makeApexAvailableBaseline() map[string][]string {
 		"android.hardware.configstore@1.1",
 		"android.hardware.graphics.allocator@2.0",
 		"android.hardware.graphics.allocator@3.0",
+		"android.hardware.graphics.allocator@4.0",
 		"android.hardware.graphics.bufferqueue@1.0",
 		"android.hardware.graphics.bufferqueue@2.0",
 		"android.hardware.graphics.common-ndk_platform",
@@ -344,6 +364,7 @@ func makeApexAvailableBaseline() map[string][]string {
 		"android.hardware.graphics.mapper@4.0",
 		"android.hardware.media.bufferpool@2.0",
 		"android.hardware.media.c2@1.0",
+		"android.hardware.media.c2@1.1",
 		"android.hardware.media.omx@1.0",
 		"android.hardware.media@1.0",
 		"android.hardware.media@1.0",
@@ -437,6 +458,7 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libpdx_headers",
 		"libscudo_wrapper",
 		"libsfplugin_ccodec_utils",
+		"libspeexresampler",
 		"libstagefright_amrnb_common",
 		"libstagefright_amrnbdec",
 		"libstagefright_amrnbenc",
@@ -479,6 +501,8 @@ func makeApexAvailableBaseline() map[string][]string {
 	// Module separator
 	//
 	m["com.android.permission"] = []string{
+		"car-ui-lib",
+		"iconloader",
 		"kotlin-annotations",
 		"kotlin-stdlib",
 		"kotlin-stdlib-jdk7",
@@ -488,6 +512,17 @@ func makeApexAvailableBaseline() map[string][]string {
 		"kotlinx-coroutines-core",
 		"kotlinx-coroutines-core-nodeps",
 		"permissioncontroller-statsd",
+		"GooglePermissionController",
+		"PermissionController",
+		"SettingsLibActionBarShadow",
+		"SettingsLibAppPreference",
+		"SettingsLibBarChartPreference",
+		"SettingsLibLayoutPreference",
+		"SettingsLibProgressBar",
+		"SettingsLibSearchWidget",
+		"SettingsLibSettingsTheme",
+		"SettingsLibRestrictedLockUtils",
+		"SettingsLibHelpUtils",
 	}
 	//
 	// Module separator
@@ -646,6 +681,55 @@ func makeApexAvailableBaseline() map[string][]string {
 	return m
 }
 
+// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART.
+// Adding code to the bootclasspath in new packages will cause issues on module update.
+func qModulesPackages() map[string][]string {
+	return map[string][]string{
+		"com.android.conscrypt": []string{
+			"android.net.ssl",
+			"com.android.org.conscrypt",
+		},
+		"com.android.media": []string{
+			"android.media",
+		},
+	}
+}
+
+// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART.
+// Adding code to the bootclasspath in new packages will cause issues on module update.
+func rModulesPackages() map[string][]string {
+	return map[string][]string{
+		"com.android.mediaprovider": []string{
+			"android.provider",
+		},
+		"com.android.permission": []string{
+			"android.permission",
+			"android.app.role",
+			"com.android.permission",
+			"com.android.role",
+		},
+		"com.android.sdkext": []string{
+			"android.os.ext",
+		},
+		"com.android.os.statsd": []string{
+			"android.app",
+			"android.os",
+			"android.util",
+			"com.android.internal.statsd",
+			"com.android.server.stats",
+		},
+		"com.android.wifi": []string{
+			"com.android.server.wifi",
+			"com.android.wifi.x",
+			"android.hardware.wifi",
+			"android.net.wifi",
+		},
+		"com.android.tethering": []string{
+			"android.net",
+		},
+	}
+}
+
 func init() {
 	android.RegisterModuleType("apex", BundleFactory)
 	android.RegisterModuleType("apex_test", testApexBundleFactory)
@@ -663,6 +747,24 @@ func init() {
 		sort.Strings(*apexFileContextsInfos)
 		ctx.Strict("APEX_FILE_CONTEXTS_INFOS", strings.Join(*apexFileContextsInfos, " "))
 	})
+
+	android.AddNeverAllowRules(createApexPermittedPackagesRules(qModulesPackages())...)
+	android.AddNeverAllowRules(createApexPermittedPackagesRules(rModulesPackages())...)
+}
+
+func createApexPermittedPackagesRules(modules_packages map[string][]string) []android.Rule {
+	rules := make([]android.Rule, 0, len(modules_packages))
+	for module_name, module_packages := range modules_packages {
+		permitted_packages_rule := android.NeverAllow().
+			BootclasspathJar().
+			With("apex_available", module_name).
+			WithMatcher("permitted_packages", android.NotInList(module_packages)).
+			Because("jars that are part of the " + module_name +
+				" module may only allow these packages: " + strings.Join(module_packages, ",") +
+				". Please jarjar or move code around.")
+		rules = append(rules, permitted_packages_rule)
+	}
+	return rules
 }
 
 func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
@@ -1960,13 +2062,6 @@ func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext
 			// do any of its dependencies.
 			if am, ok := from.(android.DepIsInSameApex); ok && !am.DepIsInSameApex(ctx, to) {
 				// As soon as the dependency graph crosses the APEX boundary, don't go further.
-				return false
-			}
-
-			// TODO(jiyong) remove this check when R is published to AOSP. Currently, libstatssocket
-			// is capable of providing a stub variant, but is being statically linked from the bluetooth
-			// APEX.
-			if toName == "libstatssocket" {
 				return false
 			}
 

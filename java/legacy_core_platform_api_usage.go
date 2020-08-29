@@ -19,6 +19,10 @@ import (
 	"android/soong/java/config"
 )
 
+// This variable is effectively unused in pre-master branches, and is
+// included (with the same value as it has in AOSP) only to ease
+// merges between branches (see the comment in the
+// useLegacyCorePlatformApi() function):
 var legacyCorePlatformApiModules = []string{
 	"ahat-test-dump",
 	"android.car",
@@ -132,6 +136,10 @@ var legacyCorePlatformApiModules = []string{
 	"wifi-service",
 }
 
+// This variable is effectively unused in pre-master branches, and is
+// included (with the same value as it has in AOSP) only to ease
+// merges between branches (see the comment in the
+// useLegacyCorePlatformApi() function):
 var legacyCorePlatformApiLookup = make(map[string]struct{})
 
 func init() {
@@ -141,8 +149,12 @@ func init() {
 }
 
 func useLegacyCorePlatformApi(ctx android.EarlyModuleContext) bool {
-	_, found := legacyCorePlatformApiLookup[ctx.ModuleName()]
-	return found
+	// In pre-master branches, we don't attempt to force usage of the stable
+	// version of the core/platform API. Instead, we always use the legacy
+	// version --- except in tests, where we always use stable, so that we
+	// can make the test assertions the same as other branches.
+	// This should be false in tests and true otherwise:
+	return ctx.Config().TestProductVariables == nil
 }
 
 func corePlatformSystemModules(ctx android.EarlyModuleContext) string {
