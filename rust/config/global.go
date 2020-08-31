@@ -56,7 +56,7 @@ var (
 		"-Wl,--no-undefined",
 		"-Wl,--hash-style=gnu",
 
-		"-B${ccConfig.ClangBin}",
+		"-B${cc_config.ClangBin}",
 		"-fuse-ld=lld",
 	}
 )
@@ -82,8 +82,8 @@ func init() {
 	pctx.StaticVariable("RustPath", "${RustBase}/${HostPrebuiltTag}/${RustVersion}")
 	pctx.StaticVariable("RustBin", "${RustPath}/bin")
 
-	pctx.ImportAs("ccConfig", "android/soong/cc/config")
-	pctx.StaticVariable("RustLinker", "${ccConfig.ClangBin}/clang++")
+	pctx.ImportAs("cc_config", "android/soong/cc/config")
+	pctx.StaticVariable("RustLinker", "${cc_config.ClangBin}/clang++")
 	pctx.StaticVariable("RustLinkerArgs", "")
 
 	pctx.StaticVariable("DeviceGlobalLinkFlags", strings.Join(deviceGlobalLinkFlags, " "))
