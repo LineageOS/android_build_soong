@@ -43,7 +43,7 @@ func init() {
 		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
 	})
 	pctx.Import("android/soong/rust/config")
-	pctx.ImportAs("ccConfig", "android/soong/cc/config")
+	pctx.ImportAs("cc_config", "android/soong/cc/config")
 }
 
 type Flags struct {
