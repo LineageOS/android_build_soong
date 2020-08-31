@@ -21,7 +21,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	ccConfig "android/soong/cc/config"
 )
 
 var (
@@ -92,8 +91,8 @@ type bindgenDecorator struct {
 	Properties BindgenProperties
 }
 
-func (b *bindgenDecorator) GenerateSource(ctx android.ModuleContext, deps PathDeps) android.Path {
-	ccToolchain := ccConfig.FindToolchain(ctx.Os(), ctx.Arch())
+func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) android.Path {
+	ccToolchain := ctx.RustModule().ccToolchain(ctx)
 
 	var cflags []string
 	var implicits android.Paths
