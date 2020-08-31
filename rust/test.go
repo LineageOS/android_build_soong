@@ -88,7 +88,7 @@ func (test *testDecorator) compilerProps() []interface{} {
 	return append(test.binaryDecorator.compilerProps(), &test.Properties)
 }
 
-func (test *testDecorator) install(ctx ModuleContext, file android.Path) {
+func (test *testDecorator) install(ctx ModuleContext) {
 	test.testConfig = tradefed.AutoGenRustTestConfig(ctx,
 		test.Properties.Test_config,
 		test.Properties.Test_config_template,
@@ -103,7 +103,7 @@ func (test *testDecorator) install(ctx ModuleContext, file android.Path) {
 		ctx.PropertyErrorf("no_named_install_directory", "Module install directory may only be disabled if relative_install_path is set")
 	}
 
-	test.binaryDecorator.install(ctx, file)
+	test.binaryDecorator.install(ctx)
 }
 
 func (test *testDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {

@@ -96,7 +96,6 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 
 	ret.Class = "EXECUTABLES"
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", binary.unstrippedOutputFile.String())
 		if binary.coverageOutputZipFile.Valid() {
 			fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE := "+binary.coverageOutputZipFile.String())
 		}
@@ -139,9 +138,6 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 	}
 
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		if !library.rlib() {
-			fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", library.unstrippedOutputFile.String())
-		}
 		if library.coverageOutputZipFile.Valid() {
 			fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE := "+library.coverageOutputZipFile.String())
 		}
@@ -180,12 +176,19 @@ func (bindgen *bindgenDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 }
 
 func (compiler *baseCompiler) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	var unstrippedOutputFile android.OptionalPath
 	// Soong installation is only supported for host modules. Have Make
 	// installation trigger Soong installation.
 	if ctx.Target().Os.Class == android.Host {
 		ret.OutputFile = android.OptionalPathForPath(compiler.path)
+	} else if compiler.strippedOutputFile.Valid() {
+		unstrippedOutputFile = ret.OutputFile
+		ret.OutputFile = compiler.strippedOutputFile
 	}
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+		if compiler.strippedOutputFile.Valid() {
+			fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", unstrippedOutputFile)
+		}
 		path, file := filepath.Split(compiler.path.ToMakePath().String())
 		stem, suffix, _ := android.SplitFileExt(file)
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
