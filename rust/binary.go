@@ -28,6 +28,7 @@ type BinaryCompilerProperties struct {
 
 type binaryDecorator struct {
 	*baseCompiler
+	stripper Stripper
 
 	Properties BinaryCompilerProperties
 }
@@ -86,7 +87,8 @@ func (binary *binaryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 
 func (binary *binaryDecorator) compilerProps() []interface{} {
 	return append(binary.baseCompiler.compilerProps(),
-		&binary.Properties)
+		&binary.Properties,
+		&binary.stripper.StripProperties)
 }
 
 func (binary *binaryDecorator) nativeCoverage() bool {
@@ -95,16 +97,20 @@ func (binary *binaryDecorator) nativeCoverage() bool {
 
 func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
 	fileName := binary.getStem(ctx) + ctx.toolchain().ExecutableSuffix()
-
 	srcPath, _ := srcPathFromModuleSrcs(ctx, binary.baseCompiler.Properties.Srcs)
-
 	outputFile := android.PathForModuleOut(ctx, fileName)
-	binary.unstrippedOutputFile = outputFile
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects...)
 
 	outputs := TransformSrcToBinary(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
+
+	if binary.stripper.NeedsStrip(ctx) {
+		strippedOutputFile := android.PathForModuleOut(ctx, "stripped", fileName)
+		binary.stripper.StripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile)
+		binary.strippedOutputFile = android.OptionalPathForPath(strippedOutputFile)
+	}
+
 	binary.coverageFile = outputs.coverageFile
 
 	var coverageFiles android.Paths

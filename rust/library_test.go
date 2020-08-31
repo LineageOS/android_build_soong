@@ -206,3 +206,35 @@ func TestAutoDeps(t *testing.T) {
 
 	}
 }
+
+// Test that stripped versions are correctly generated and used.
+func TestStrippedLibrary(t *testing.T) {
+	ctx := testRust(t, `
+		rust_library_dylib {
+			name: "libfoo",
+			crate_name: "foo",
+			srcs: ["foo.rs"],
+		}
+		rust_library_dylib {
+			name: "libbar",
+			crate_name: "bar",
+			srcs: ["foo.rs"],
+			strip: {
+				none: true
+			}
+		}
+	`)
+
+	foo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib")
+	foo.Output("stripped/libfoo.dylib.so")
+	// Check that the `cp` rule is using the stripped version as input.
+	cp := foo.Rule("android.Cp")
+	if !strings.HasSuffix(cp.Input.String(), "stripped/libfoo.dylib.so") {
+		t.Errorf("installed binary not based on stripped version: %v", cp.Input)
+	}
+
+	fizzBar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_dylib").MaybeOutput("stripped/libbar.dylib.so")
+	if fizzBar.Rule != nil {
+		t.Errorf("stripped version of bar has been generated")
+	}
+}
