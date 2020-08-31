@@ -20,6 +20,7 @@ bootstrap_go_package {
         "proc_macro.go",
         "project_json.go",
         "rust.go",
+        "strip.go",
         "source_provider.go",
         "test.go",
         "testing.go",
