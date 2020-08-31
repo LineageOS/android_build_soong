@@ -129,8 +129,9 @@ type baseCompiler struct {
 	location installLocation
 
 	coverageOutputZipFile android.OptionalPath
-	unstrippedOutputFile  android.Path
 	distFile              android.OptionalPath
+	// Stripped output file. If Valid(), this file will be installed instead of outputFile.
+	strippedOutputFile android.OptionalPath
 }
 
 func (compiler *baseCompiler) Disabled() bool {
@@ -269,8 +270,12 @@ func (compiler *baseCompiler) nativeCoverage() bool {
 	return false
 }
 
-func (compiler *baseCompiler) install(ctx ModuleContext, file android.Path) {
-	compiler.path = ctx.InstallFile(compiler.installDir(ctx), file.Base(), file)
+func (compiler *baseCompiler) install(ctx ModuleContext) {
+	path := ctx.RustModule().outputFile
+	if compiler.strippedOutputFile.Valid() {
+		path = compiler.strippedOutputFile
+	}
+	compiler.path = ctx.InstallFile(compiler.installDir(ctx), path.Path().Base(), path.Path())
 }
 
 func (compiler *baseCompiler) getStem(ctx ModuleContext) string {
