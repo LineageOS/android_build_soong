@@ -851,18 +851,6 @@ func markPlatformAvailability(mctx android.BottomUpMutatorContext) {
 	if am, ok := mctx.Module().(android.ApexModule); ok {
 		availableToPlatform := am.AvailableFor(android.AvailableToPlatform)
 
-		// In a rare case when a lib is marked as available only to an apex
-		// but the apex doesn't exist. This can happen in a partial manifest branch
-		// like master-art. Currently, libstatssocket in the stats APEX is causing
-		// this problem.
-		// Include the lib in platform because the module SDK that ought to provide
-		// it doesn't exist, so it would otherwise be left out completely.
-		// TODO(b/154888298) remove this by adding those libraries in module SDKS and skipping
-		// this check for libraries provided by SDKs.
-		if !availableToPlatform && !android.InAnyApex(am.Name()) {
-			availableToPlatform = true
-		}
-
 		// If any of the dep is not available to platform, this module is also considered
 		// as being not available to platform even if it has "//apex_available:platform"
 		mctx.VisitDirectDeps(func(child android.Module) {
