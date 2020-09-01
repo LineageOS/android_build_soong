@@ -198,7 +198,7 @@ type ModuleContext interface {
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
-	InstallForceOS() *OsType
+	InstallForceOS() (*OsType, *ArchType)
 
 	RequiredModuleNames() []string
 	HostRequiredModuleNames() []string
@@ -254,7 +254,7 @@ type Module interface {
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
-	InstallForceOS() *OsType
+	InstallForceOS() (*OsType, *ArchType)
 	SkipInstall()
 	IsSkipInstall() bool
 	MakeUninstallable()
@@ -1120,8 +1120,8 @@ func (m *ModuleBase) InstallBypassMake() bool {
 	return false
 }
 
-func (m *ModuleBase) InstallForceOS() *OsType {
-	return nil
+func (m *ModuleBase) InstallForceOS() (*OsType, *ArchType) {
+	return nil, nil
 }
 
 func (m *ModuleBase) Owner() string {
@@ -2021,7 +2021,7 @@ func (m *moduleContext) InstallBypassMake() bool {
 	return m.module.InstallBypassMake()
 }
 
-func (m *moduleContext) InstallForceOS() *OsType {
+func (m *moduleContext) InstallForceOS() (*OsType, *ArchType) {
 	return m.module.InstallForceOS()
 }
 

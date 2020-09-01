@@ -61,7 +61,7 @@ type ModuleInstallPathContext interface {
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
-	InstallForceOS() *OsType
+	InstallForceOS() (*OsType, *ArchType)
 }
 
 var _ ModuleInstallPathContext = ModuleContext(nil)
@@ -1278,12 +1278,17 @@ func (p InstallPath) ToMakePath() InstallPath {
 // module appended with paths...
 func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string) InstallPath {
 	os := ctx.Os()
-	if forceOS := ctx.InstallForceOS(); forceOS != nil {
+	arch := ctx.Arch().ArchType
+	forceOS, forceArch := ctx.InstallForceOS()
+	if forceOS != nil {
 		os = *forceOS
+	}
+	if forceArch != nil {
+		arch = *forceArch
 	}
 	partition := modulePartition(ctx, os)
 
-	ret := pathForInstall(ctx, os, partition, ctx.Debug(), pathComponents...)
+	ret := pathForInstall(ctx, os, arch, partition, ctx.Debug(), pathComponents...)
 
 	if ctx.InstallBypassMake() && ctx.Config().EmbeddedInMake() {
 		ret = ret.ToMakePath()
@@ -1292,7 +1297,7 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 	return ret
 }
 
-func pathForInstall(ctx PathContext, os OsType, partition string, debug bool,
+func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string, debug bool,
 	pathComponents ...string) InstallPath {
 
 	var outPaths []string
@@ -1300,15 +1305,21 @@ func pathForInstall(ctx PathContext, os OsType, partition string, debug bool,
 	if os.Class == Device {
 		outPaths = []string{"target", "product", ctx.Config().DeviceName(), partition}
 	} else {
-		switch os {
-		case Linux:
-			outPaths = []string{"host", "linux-x86", partition}
-		case LinuxBionic:
-			// TODO: should this be a separate top level, or shared with linux-x86?
-			outPaths = []string{"host", "linux_bionic-x86", partition}
-		default:
-			outPaths = []string{"host", os.String() + "-x86", partition}
+		osName := os.String()
+		if os == Linux {
+			// instead of linux_glibc
+			osName = "linux"
 		}
+		// SOONG_HOST_OUT is set to out/host/$(HOST_OS)-$(HOST_PREBUILT_ARCH)
+		// and HOST_PREBUILT_ARCH is forcibly set to x86 even on x86_64 hosts. We don't seem
+		// to have a plan to fix it (see the comment in build/make/core/envsetup.mk).
+		// Let's keep using x86 for the existing cases until we have a need to support
+		// other architectures.
+		archName := arch.String()
+		if os.Class == Host && (arch == X86_64 || arch == Common) {
+			archName = "x86"
+		}
+		outPaths = []string{"host", osName + "-" + archName, partition}
 	}
 	if debug {
 		outPaths = append([]string{"debug"}, outPaths...)
