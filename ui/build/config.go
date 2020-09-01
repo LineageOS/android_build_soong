@@ -256,9 +256,6 @@ func NewConfig(ctx Context, args ...string) Config {
 		ret.buildDateTime = strconv.FormatInt(time.Now().Unix(), 10)
 	}
 
-	if ctx.Metrics != nil {
-		ctx.Metrics.SetBuildDateTime(ret.buildDateTime)
-	}
 	ret.environ.Set("BUILD_DATETIME_FILE", buildDateTimeFile)
 
 	return Config{ret}
