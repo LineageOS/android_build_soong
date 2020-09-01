@@ -17,7 +17,8 @@ package metrics
 import (
 	"io/ioutil"
 	"os"
-	"strconv"
+	"runtime"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 
@@ -25,12 +26,13 @@ import (
 )
 
 const (
-	RunSetupTool = "setup"
-	RunKati      = "kati"
-	RunSoong     = "soong"
-	PrimaryNinja = "ninja"
-	TestRun      = "test"
-	Total        = "total"
+	PrimaryNinja    = "ninja"
+	RunKati         = "kati"
+	RunSetupTool    = "setup"
+	RunShutdownTool = "shutdown"
+	RunSoong        = "soong"
+	TestRun         = "test"
+	Total           = "total"
 )
 
 type Metrics struct {
@@ -62,6 +64,10 @@ func (m *Metrics) SetTimeMetrics(perf soong_metrics_proto.PerfInfo) {
 	default:
 		// ignored
 	}
+}
+
+func (m *Metrics) BuildConfig(b *soong_metrics_proto.BuildConfig) {
+	m.metrics.BuildConfig = b
 }
 
 func (m *Metrics) SetMetadataMetrics(metadata map[string]string) {
@@ -97,8 +103,6 @@ func (m *Metrics) SetMetadataMetrics(metadata map[string]string) {
 			m.metrics.HostArch = m.getArch(v)
 		case "HOST_2ND_ARCH":
 			m.metrics.Host_2NdArch = m.getArch(v)
-		case "HOST_OS":
-			m.metrics.HostOs = proto.String(v)
 		case "HOST_OS_EXTRA":
 			m.metrics.HostOsExtra = proto.String(v)
 		case "HOST_CROSS_OS":
@@ -130,18 +134,13 @@ func (m *Metrics) getArch(arch string) *soong_metrics_proto.MetricsBase_Arch {
 	}
 }
 
-func (m *Metrics) SetBuildDateTime(date_time string) {
-	if date_time != "" {
-		date_time_timestamp, err := strconv.ParseInt(date_time, 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		m.metrics.BuildDateTimestamp = &date_time_timestamp
-	}
+func (m *Metrics) SetBuildDateTime(buildTimestamp time.Time) {
+	m.metrics.BuildDateTimestamp = proto.Int64(buildTimestamp.UnixNano() / int64(time.Second))
 }
 
 // exports the output to the file at outputPath
 func (m *Metrics) Dump(outputPath string) (err error) {
+	m.metrics.HostOs = proto.String(runtime.GOOS)
 	return writeMessageToFile(&m.metrics, outputPath)
 }
 

@@ -23,6 +23,9 @@ import (
 	"time"
 
 	"android/soong/shared"
+	"github.com/golang/protobuf/proto"
+
+	smpb "android/soong/ui/metrics/metrics_proto"
 )
 
 type Config struct{ *configImpl }
@@ -256,18 +259,31 @@ func NewConfig(ctx Context, args ...string) Config {
 		ret.buildDateTime = strconv.FormatInt(time.Now().Unix(), 10)
 	}
 
-	if ctx.Metrics != nil {
-		ctx.Metrics.SetBuildDateTime(ret.buildDateTime)
-	}
 	ret.environ.Set("BUILD_DATETIME_FILE", buildDateTimeFile)
 
-	return Config{ret}
+	c := Config{ret}
+	storeConfigMetrics(ctx, c)
+	return c
 }
 
 // NewBuildActionConfig returns a build configuration based on the build action. The arguments are
 // processed based on the build action and extracts any arguments that belongs to the build action.
 func NewBuildActionConfig(action BuildAction, dir string, ctx Context, args ...string) Config {
 	return NewConfig(ctx, getConfigArgs(action, dir, ctx, args)...)
+}
+
+// storeConfigMetrics selects a set of configuration information and store in
+// the metrics system for further analysis.
+func storeConfigMetrics(ctx Context, config Config) {
+	if ctx.Metrics == nil {
+		return
+	}
+
+	b := &smpb.BuildConfig{
+		UseGoma: proto.Bool(config.UseGoma()),
+		UseRbe:  proto.Bool(config.UseRBE()),
+	}
+	ctx.Metrics.BuildConfig(b)
 }
 
 // getConfigArgs processes the command arguments based on the build action and creates a set of new
@@ -804,6 +820,15 @@ func (c *configImpl) StartRBE() bool {
 	return true
 }
 
+func (c *configImpl) RBEStatsOutputDir() string {
+	for _, f := range []string{"RBE_output_dir", "FLAG_output_dir"} {
+		if v, ok := c.environ.Get(f); ok {
+			return v
+		}
+	}
+	return ""
+}
+
 func (c *configImpl) UseRemoteBuild() bool {
 	return c.UseGoma() || c.UseRBE()
 }
@@ -961,4 +986,15 @@ func (c *configImpl) SetPdkBuild(pdk bool) {
 
 func (c *configImpl) IsPdkBuild() bool {
 	return c.pdkBuild
+}
+
+func (c *configImpl) BuildDateTime() string {
+	return c.buildDateTime
+}
+
+func (c *configImpl) MetricsUploaderApp() string {
+	if p, ok := c.environ.Get("ANDROID_ENABLE_METRICS_UPLOAD"); ok {
+		return p
+	}
+	return ""
 }
