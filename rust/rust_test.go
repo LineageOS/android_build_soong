@@ -62,6 +62,7 @@ func testConfig(bp string) android.Config {
 		"foo.c":      nil,
 		"src/bar.rs": nil,
 		"src/any.h":  nil,
+		"buf.proto":  nil,
 		"liby.so":    nil,
 		"libz.so":    nil,
 	}
