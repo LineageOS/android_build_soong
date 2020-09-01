@@ -17,7 +17,7 @@ package metrics
 import (
 	"io/ioutil"
 	"os"
-	"strconv"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 
@@ -131,14 +131,8 @@ func (m *Metrics) getArch(arch string) *soong_metrics_proto.MetricsBase_Arch {
 	}
 }
 
-func (m *Metrics) SetBuildDateTime(date_time string) {
-	if date_time != "" {
-		date_time_timestamp, err := strconv.ParseInt(date_time, 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		m.metrics.BuildDateTimestamp = &date_time_timestamp
-	}
+func (m *Metrics) SetBuildDateTime(buildTimestamp time.Time) {
+	m.metrics.BuildDateTimestamp = proto.Int64(buildTimestamp.UnixNano() / int64(time.Second))
 }
 
 // exports the output to the file at outputPath
