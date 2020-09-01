@@ -19,13 +19,18 @@ import (
 
 	"android/soong/ui/metrics/metrics_proto"
 	"android/soong/ui/tracer"
+	"github.com/golang/protobuf/proto"
 )
+
+// for testing purpose only
+var _now = now
 
 type timeEvent struct {
 	desc string
 	name string
 
-	atNanos uint64 // timestamp measured in nanoseconds since the reference date
+	// the time that the event started to occur.
+	start time.Time
 }
 
 type TimeTracer interface {
@@ -39,33 +44,26 @@ type timeTracerImpl struct {
 
 var _ TimeTracer = &timeTracerImpl{}
 
-func (t *timeTracerImpl) now() uint64 {
-	return uint64(time.Now().UnixNano())
+func now() time.Time {
+	return time.Now()
 }
 
-func (t *timeTracerImpl) Begin(name, desc string, thread tracer.Thread) {
-	t.beginAt(name, desc, t.now())
+func (t *timeTracerImpl) Begin(name, desc string, _ tracer.Thread) {
+	t.activeEvents = append(t.activeEvents, timeEvent{name: name, desc: desc, start: _now()})
 }
 
-func (t *timeTracerImpl) beginAt(name, desc string, atNanos uint64) {
-	t.activeEvents = append(t.activeEvents, timeEvent{name: name, desc: desc, atNanos: atNanos})
-}
-
-func (t *timeTracerImpl) End(thread tracer.Thread) soong_metrics_proto.PerfInfo {
-	return t.endAt(t.now())
-}
-
-func (t *timeTracerImpl) endAt(atNanos uint64) soong_metrics_proto.PerfInfo {
+func (t *timeTracerImpl) End(tracer.Thread) soong_metrics_proto.PerfInfo {
 	if len(t.activeEvents) < 1 {
 		panic("Internal error: No pending events for endAt to end!")
 	}
 	lastEvent := t.activeEvents[len(t.activeEvents)-1]
 	t.activeEvents = t.activeEvents[:len(t.activeEvents)-1]
-	realTime := atNanos - lastEvent.atNanos
+	realTime := uint64(_now().Sub(lastEvent.start).Nanoseconds())
 
 	return soong_metrics_proto.PerfInfo{
-		Desc:      &lastEvent.desc,
-		Name:      &lastEvent.name,
-		StartTime: &lastEvent.atNanos,
-		RealTime:  &realTime}
+		Desc:      proto.String(lastEvent.desc),
+		Name:      proto.String(lastEvent.name),
+		StartTime: proto.Uint64(uint64(lastEvent.start.UnixNano())),
+		RealTime:  proto.Uint64(realTime),
+	}
 }
