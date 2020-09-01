@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"android/soong/ui/logger"
+	"android/soong/ui/status"
 )
 
 func testContext() Context {
@@ -33,6 +34,7 @@ func testContext() Context {
 		Context: context.Background(),
 		Logger:  logger.New(&bytes.Buffer{}),
 		Writer:  &bytes.Buffer{},
+		Status:  &status.Status{},
 	}}
 }
 
