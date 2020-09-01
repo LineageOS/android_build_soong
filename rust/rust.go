@@ -23,6 +23,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	cc_config "android/soong/cc/config"
 	"android/soong/rust/config"
 )
 
@@ -42,7 +43,7 @@ func init() {
 		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
 	})
 	pctx.Import("android/soong/rust/config")
-	pctx.ImportAs("ccConfig", "android/soong/cc/config")
+	pctx.ImportAs("cc_config", "android/soong/cc/config")
 }
 
 type Flags struct {
@@ -283,7 +284,7 @@ type compiler interface {
 	crateName() string
 
 	inData() bool
-	install(ctx ModuleContext, path android.Path)
+	install(ctx ModuleContext)
 	relativeInstallPath() string
 
 	nativeCoverage() bool
@@ -656,6 +657,10 @@ func (mod *Module) toolchain(ctx android.BaseModuleContext) config.Toolchain {
 	return mod.cachedToolchain
 }
 
+func (mod *Module) ccToolchain(ctx android.BaseModuleContext) cc_config.Toolchain {
+	return cc_config.FindToolchain(ctx.Os(), ctx.Arch())
+}
+
 func (d *Defaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
@@ -699,7 +704,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 		mod.outputFile = android.OptionalPathForPath(outputFile)
 		if mod.outputFile.Valid() && !mod.Properties.PreventInstall {
-			mod.compiler.install(ctx, mod.outputFile.Path())
+			mod.compiler.install(ctx)
 		}
 	}
 }

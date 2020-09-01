@@ -21,7 +21,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	ccConfig "android/soong/cc/config"
 )
 
 var (
@@ -34,9 +33,9 @@ var (
 	//TODO(b/160803703) Use a prebuilt bindgen instead of the built bindgen.
 	_ = pctx.SourcePathVariable("bindgenCmd", "out/host/${config.HostPrebuiltTag}/bin/bindgen")
 	_ = pctx.SourcePathVariable("bindgenClang",
-		"${ccConfig.ClangBase}/${config.HostPrebuiltTag}/"+bindgenClangVersion+"/bin/clang")
+		"${cc_config.ClangBase}/${config.HostPrebuiltTag}/"+bindgenClangVersion+"/bin/clang")
 	_ = pctx.SourcePathVariable("bindgenLibClang",
-		"${ccConfig.ClangBase}/${config.HostPrebuiltTag}/"+bindgenClangVersion+"/lib64/libclang.so."+bindgenLibClangSoGit)
+		"${cc_config.ClangBase}/${config.HostPrebuiltTag}/"+bindgenClangVersion+"/lib64/libclang.so."+bindgenLibClangSoGit)
 
 	//TODO(ivanlozano) Switch this to RuleBuilder
 	bindgen = pctx.AndroidStaticRule("bindgen",
@@ -92,8 +91,8 @@ type bindgenDecorator struct {
 	Properties BindgenProperties
 }
 
-func (b *bindgenDecorator) GenerateSource(ctx android.ModuleContext, deps PathDeps) android.Path {
-	ccToolchain := ccConfig.FindToolchain(ctx.Os(), ctx.Arch())
+func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) android.Path {
+	ccToolchain := ctx.RustModule().ccToolchain(ctx)
 
 	var cflags []string
 	var implicits android.Paths
@@ -102,14 +101,14 @@ func (b *bindgenDecorator) GenerateSource(ctx android.ModuleContext, deps PathDe
 	implicits = append(implicits, deps.depSystemIncludePaths...)
 
 	// Default clang flags
-	cflags = append(cflags, "${ccConfig.CommonClangGlobalCflags}")
+	cflags = append(cflags, "${cc_config.CommonClangGlobalCflags}")
 	if ctx.Device() {
-		cflags = append(cflags, "${ccConfig.DeviceClangGlobalCflags}")
+		cflags = append(cflags, "${cc_config.DeviceClangGlobalCflags}")
 	}
 
 	// Toolchain clang flags
 	cflags = append(cflags, "-target "+ccToolchain.ClangTriple())
-	cflags = append(cflags, strings.ReplaceAll(ccToolchain.ToolchainClangCflags(), "${config.", "${ccConfig."))
+	cflags = append(cflags, strings.ReplaceAll(ccToolchain.ToolchainClangCflags(), "${config.", "${cc_config."))
 
 	// Dependency clang flags and include paths
 	cflags = append(cflags, deps.depClangFlags...)

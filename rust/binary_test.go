@@ -96,3 +96,33 @@ func TestLinkObjects(t *testing.T) {
 		t.Errorf("missing shared dependency 'libfoo.so' in linkFlags: %#v", linkFlags)
 	}
 }
+
+// Test that stripped versions are correctly generated and used.
+func TestStrippedBinary(t *testing.T) {
+	ctx := testRust(t, `
+		rust_binary {
+			name: "foo",
+			srcs: ["foo.rs"],
+		}
+		rust_binary {
+			name: "bar",
+			srcs: ["foo.rs"],
+			strip: {
+				none: true
+			}
+		}
+	`)
+
+	foo := ctx.ModuleForTests("foo", "android_arm64_armv8-a")
+	foo.Output("stripped/foo")
+	// Check that the `cp` rules is using the stripped version as input.
+	cp := foo.Rule("android.Cp")
+	if !strings.HasSuffix(cp.Input.String(), "stripped/foo") {
+		t.Errorf("installed binary not based on stripped version: %v", cp.Input)
+	}
+
+	fizzBar := ctx.ModuleForTests("bar", "android_arm64_armv8-a").MaybeOutput("stripped/bar")
+	if fizzBar.Rule != nil {
+		t.Errorf("stripped version of bar has been generated")
+	}
+}

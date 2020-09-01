@@ -99,9 +99,6 @@ func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags
 	if len(paths) > 0 {
 		ctx.PropertyErrorf("srcs", "prebuilt libraries can only have one entry in srcs (the prebuilt path)")
 	}
-
-	prebuilt.unstrippedOutputFile = srcPath
-
 	return srcPath
 }
 
