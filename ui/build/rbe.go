@@ -19,6 +19,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"android/soong/ui/metrics"
@@ -50,8 +51,25 @@ func rbeCommand(ctx Context, config Config, rbeCmd string) string {
 	return cmdPath
 }
 
-func getRBEVars(ctx Context, config Config) map[string]string {
+func sockAddr(dir string) (string, error) {
+	maxNameLen := len(syscall.RawSockaddrUnix{}.Path)
 	rand.Seed(time.Now().UnixNano())
+	base := fmt.Sprintf("reproxy_%v.sock", rand.Intn(1000))
+
+	name := filepath.Join(dir, base)
+	if len(name) < maxNameLen {
+		return name, nil
+	}
+
+	name = filepath.Join("/tmp", base)
+	if len(name) < maxNameLen {
+		return name, nil
+	}
+
+	return "", fmt.Errorf("cannot generate a proxy socket address shorter than the limit of %v", maxNameLen)
+}
+
+func getRBEVars(ctx Context, config Config) map[string]string {
 	vars := map[string]string{
 		"RBE_log_path":   config.rbeLogPath(),
 		"RBE_log_dir":    config.logDir(),
@@ -60,7 +78,12 @@ func getRBEVars(ctx Context, config Config) map[string]string {
 		"RBE_output_dir": config.rbeStatsOutputDir(),
 	}
 	if config.StartRBE() {
-		vars["RBE_server_address"] = fmt.Sprintf("unix://%v/reproxy_%v.sock", absPath(ctx, config.TempDir()), rand.Intn(1000))
+		name, err := sockAddr(absPath(ctx, config.TempDir()))
+		if err != nil {
+			ctx.Fatalf("Error retrieving socket address: %v", err)
+			return nil
+		}
+		vars["RBE_server_address"] = fmt.Sprintf("unix://%v", name)
 	}
 	k, v := config.rbeAuth()
 	vars[k] = v
