@@ -95,11 +95,10 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		MAIN_FILE = '%main%'`),
 
 		// For java_sdk_library
-		"api/module-lib-current.txt":                        nil,
-		"api/module-lib-removed.txt":                        nil,
-		"api/system-server-current.txt":                     nil,
-		"api/system-server-removed.txt":                     nil,
-		"build/soong/scripts/gen-java-current-api-files.sh": nil,
+		"api/module-lib-current.txt":    nil,
+		"api/module-lib-removed.txt":    nil,
+		"api/system-server-current.txt": nil,
+		"api/system-server-removed.txt": nil,
 	}
 
 	cc.GatherRequiredFilesForTest(mockFS)
