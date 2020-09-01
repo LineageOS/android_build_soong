@@ -25,6 +25,9 @@ bootstrap_go_package {
         "metrics.go",
         "time.go",
     ],
+    testSrcs: [
+        "time_test.go",
+    ],
 }
 
 bootstrap_go_package {
