@@ -507,53 +507,14 @@ func (jd *Javadoc) AndroidMkEntries() []android.AndroidMkEntries {
 func (ddoc *Droiddoc) AndroidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "JAVA_LIBRARIES",
-		OutputFile: android.OptionalPathForPath(ddoc.stubsSrcJar),
+		OutputFile: android.OptionalPathForPath(ddoc.Javadoc.docZip),
 		Include:    "$(BUILD_SYSTEM)/soong_droiddoc_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(entries *android.AndroidMkEntries) {
-				if BoolDefault(ddoc.Javadoc.properties.Installable, true) && ddoc.Javadoc.docZip != nil {
+				if ddoc.Javadoc.docZip != nil {
 					entries.SetPath("LOCAL_DROIDDOC_DOC_ZIP", ddoc.Javadoc.docZip)
 				}
-				if ddoc.Javadoc.stubsSrcJar != nil {
-					entries.SetPath("LOCAL_DROIDDOC_STUBS_SRCJAR", ddoc.Javadoc.stubsSrcJar)
-				}
-			},
-		},
-		ExtraFooters: []android.AndroidMkExtraFootersFunc{
-			func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
-				if ddoc.checkCurrentApiTimestamp != nil {
-					fmt.Fprintln(w, ".PHONY:", ddoc.Name()+"-check-current-api")
-					fmt.Fprintln(w, ddoc.Name()+"-check-current-api:",
-						ddoc.checkCurrentApiTimestamp.String())
-
-					fmt.Fprintln(w, ".PHONY: checkapi")
-					fmt.Fprintln(w, "checkapi:",
-						ddoc.checkCurrentApiTimestamp.String())
-
-					fmt.Fprintln(w, ".PHONY: droidcore")
-					fmt.Fprintln(w, "droidcore: checkapi")
-				}
-				if ddoc.updateCurrentApiTimestamp != nil {
-					fmt.Fprintln(w, ".PHONY:", ddoc.Name()+"-update-current-api")
-					fmt.Fprintln(w, ddoc.Name()+"-update-current-api:",
-						ddoc.updateCurrentApiTimestamp.String())
-
-					fmt.Fprintln(w, ".PHONY: update-api")
-					fmt.Fprintln(w, "update-api:",
-						ddoc.updateCurrentApiTimestamp.String())
-				}
-				if ddoc.checkLastReleasedApiTimestamp != nil {
-					fmt.Fprintln(w, ".PHONY:", ddoc.Name()+"-check-last-released-api")
-					fmt.Fprintln(w, ddoc.Name()+"-check-last-released-api:",
-						ddoc.checkLastReleasedApiTimestamp.String())
-
-					fmt.Fprintln(w, ".PHONY: checkapi")
-					fmt.Fprintln(w, "checkapi:",
-						ddoc.checkLastReleasedApiTimestamp.String())
-
-					fmt.Fprintln(w, ".PHONY: droidcore")
-					fmt.Fprintln(w, "droidcore: checkapi")
-				}
+				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !BoolDefault(ddoc.Javadoc.properties.Installable, true))
 			},
 		},
 	}}
