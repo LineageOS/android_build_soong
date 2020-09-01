@@ -15,6 +15,7 @@
 package build
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -48,4 +49,73 @@ func TestEnsureEmptyDirs(t *testing.T) {
 	}
 
 	ensureEmptyDirectoriesExist(ctx, filepath.Join(tmpDir, "a"))
+}
+
+func TestCopyFile(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "test_copy_file")
+	if err != nil {
+		t.Fatalf("failed to create temporary directory to hold test text files: %v", err)
+	}
+	defer os.Remove(tmpDir)
+
+	data := []byte("fake data")
+	src := filepath.Join(tmpDir, "src.txt")
+	if err := ioutil.WriteFile(src, data, 0755); err != nil {
+		t.Fatalf("failed to create a src file %q for copying: %v", src, err)
+	}
+
+	dst := filepath.Join(tmpDir, "dst.txt")
+
+	l, err := copyFile(src, dst)
+	if err != nil {
+		t.Fatalf("got %v, expecting nil error on copyFile operation", err)
+	}
+
+	if l != int64(len(data)) {
+		t.Errorf("got %d, expecting %d for copied bytes", l, len(data))
+	}
+
+	dstData, err := ioutil.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("got %v, expecting nil error reading dst %q file", err, dst)
+	}
+
+	if bytes.Compare(data, dstData) != 0 {
+		t.Errorf("got %q, expecting data %q from dst %q text file", string(data), string(dstData), dst)
+	}
+}
+
+func TestCopyFileErrors(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "test_copy_file_errors")
+	if err != nil {
+		t.Fatalf("failed to create temporary directory to hold test text files: %v", err)
+	}
+	defer os.Remove(tmpDir)
+
+	srcExists := filepath.Join(tmpDir, "src_exist.txt")
+	if err := ioutil.WriteFile(srcExists, []byte("fake data"), 0755); err != nil {
+		t.Fatalf("failed to create a src file %q for copying: %v", srcExists, err)
+	}
+
+	tests := []struct {
+		description string
+		src         string
+		dst         string
+	}{{
+		description: "src file does not exist",
+		src:         "/src/not/exist",
+		dst:         "/dst/not/exist",
+	}, {
+		description: "dst directory does not exist",
+		src:         srcExists,
+		dst:         "/dst/not/exist",
+	}}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			if _, err := copyFile(tt.src, tt.dst); err == nil {
+				t.Errorf("got nil, expecting error")
+			}
+		})
+	}
 }
