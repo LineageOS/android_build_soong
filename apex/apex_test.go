@@ -248,7 +248,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("cc_test", cc.TestFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
 	ctx.RegisterModuleType("vndk_libraries_txt", cc.VndkLibrariesTxtFactory)
-	ctx.RegisterModuleType("prebuilt_etc", prebuilt_etc.PrebuiltEtcFactory)
+	prebuilt_etc.RegisterPrebuiltEtcBuildComponents(ctx)
 	ctx.RegisterModuleType("platform_compat_config", java.PlatformCompatConfigFactory)
 	ctx.RegisterModuleType("sh_binary", sh.ShBinaryFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
@@ -2270,6 +2270,32 @@ func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
 	requireNativeLibs := names(apexManifestRule.Args["requireNativeLibs"])
 	ensureListContains(t, requireNativeLibs, ":vndk")
+}
+
+func TestVendorApex_withPrebuiltFirmware(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			prebuilts: ["myfirmware"],
+			vendor: true,
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+		prebuilt_firmware {
+			name: "myfirmware",
+			src: "myfirmware.bin",
+			filename_from_src: true,
+			vendor: true,
+		}
+	`)
+
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"firmware/myfirmware.bin",
+	})
 }
 
 func TestAndroidMk_UseVendorRequired(t *testing.T) {
