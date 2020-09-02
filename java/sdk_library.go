@@ -1089,10 +1089,24 @@ func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) stri
 	return ":" + module.BaseModuleName() + "-removed.api." + apiScope.name + ".latest"
 }
 
+func childModuleVisibility(childVisibility []string) []string {
+	if childVisibility == nil {
+		// No child visibility set. The child will use the visibility of the sdk_library.
+		return nil
+	}
+
+	// Prepend an override to ignore the sdk_library's visibility, and rely on the child visibility.
+	var visibility []string
+	visibility = append(visibility, "//visibility:override")
+	visibility = append(visibility, childVisibility...)
+	return visibility
+}
+
 // Creates the implementation java library
 func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext) {
-
 	moduleNamePtr := proptools.StringPtr(module.BaseModuleName())
+
+	visibility := childModuleVisibility(module.sdkLibraryProperties.Impl_library_visibility)
 
 	props := struct {
 		Name              *string
@@ -1101,7 +1115,7 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 		ConfigurationName *string
 	}{
 		Name:       proptools.StringPtr(module.implLibraryModuleName()),
-		Visibility: module.sdkLibraryProperties.Impl_library_visibility,
+		Visibility: visibility,
 		// Set the instrument property to ensure it is instrumented when instrumentation is required.
 		Instrument: true,
 
@@ -1148,12 +1162,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	}{}
 
 	props.Name = proptools.StringPtr(module.stubsLibraryModuleName(apiScope))
-
-	// If stubs_library_visibility is not set then the created module will use the
-	// visibility of this module.
-	visibility := module.sdkLibraryProperties.Stubs_library_visibility
-	props.Visibility = visibility
-
+	props.Visibility = childModuleVisibility(module.sdkLibraryProperties.Stubs_library_visibility)
 	// sources are generated from the droiddoc
 	props.Srcs = []string{":" + module.stubsSourceModuleName(apiScope)}
 	sdkVersion := module.sdkVersionForStubsLibrary(mctx, apiScope)
@@ -1234,12 +1243,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	// * libs (static_libs/libs)
 
 	props.Name = proptools.StringPtr(name)
-
-	// If stubs_source_visibility is not set then the created module will use the
-	// visibility of this module.
-	visibility := module.sdkLibraryProperties.Stubs_source_visibility
-	props.Visibility = visibility
-
+	props.Visibility = childModuleVisibility(module.sdkLibraryProperties.Stubs_source_visibility)
 	props.Srcs = append(props.Srcs, module.properties.Srcs...)
 	props.Sdk_version = module.deviceProperties.Sdk_version
 	props.System_modules = module.deviceProperties.System_modules
