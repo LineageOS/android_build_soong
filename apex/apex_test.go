@@ -27,6 +27,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/bpf"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
 	prebuilt_etc "android/soong/etc"
@@ -232,6 +233,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	java.RegisterAppBuildComponents(ctx)
 	java.RegisterSdkLibraryBuildComponents(ctx)
 	ctx.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
+	ctx.RegisterModuleType("bpf", bpf.BpfFactory)
 
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
@@ -556,6 +558,7 @@ func TestDefaults(t *testing.T) {
 			native_shared_libs: ["mylib"],
 			java_libs: ["myjar"],
 			apps: ["AppFoo"],
+			bpfs: ["bpf"],
 		}
 
 		prebuilt_etc {
@@ -596,12 +599,20 @@ func TestDefaults(t *testing.T) {
 			system_modules: "none",
 			apex_available: [ "myapex" ],
 		}
+
+		bpf {
+			name: "bpf",
+			srcs: ["bpf.c", "bpf2.c"],
+		}
+
 	`)
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
 		"etc/myetc",
 		"javalib/myjar.jar",
 		"lib64/mylib.so",
 		"app/AppFoo/AppFoo.apk",
+		"etc/bpf/bpf.o",
+		"etc/bpf/bpf2.o",
 	})
 }
 

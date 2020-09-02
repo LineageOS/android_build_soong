@@ -28,6 +28,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/bpf"
 	"android/soong/cc"
 	prebuilt_etc "android/soong/etc"
 	"android/soong/java"
@@ -63,6 +64,7 @@ var (
 	certificateTag = dependencyTag{name: "certificate"}
 	usesTag        = dependencyTag{name: "uses"}
 	androidAppTag  = dependencyTag{name: "androidApp", payload: true}
+	bpfTag         = dependencyTag{name: "bpf", payload: true}
 
 	apexAvailBaseline = makeApexAvailableBaseline()
 
@@ -1062,6 +1064,9 @@ type apexBundleProperties struct {
 	// List of tests that are embedded inside this APEX bundle
 	Tests []string
 
+	// List of BPF programs inside APEX
+	Bpfs []string
+
 	// Name of the apex_key module that provides the private key to sign APEX
 	Key *string
 
@@ -1552,6 +1557,9 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
 		javaLibTag, a.properties.Java_libs...)
 
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+		bpfTag, a.properties.Bpfs...)
+
 	// With EMMA_INSTRUMENT_FRAMEWORK=true the ART boot image includes jacoco library.
 	if a.artApex && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
 		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
@@ -1811,6 +1819,11 @@ func apexFileForAndroidApp(ctx android.BaseModuleContext, aapp interface {
 		af.overriddenPackageName = app.OverriddenManifestPackageName()
 	}
 	return af
+}
+
+func apexFileForBpfProgram(ctx android.BaseModuleContext, builtFile android.Path, bpfProgram bpf.BpfModule) apexFile {
+	dirInApex := filepath.Join("etc", "bpf")
+	return newApexFile(ctx, builtFile, builtFile.Base(), dirInApex, etc, bpfProgram)
 }
 
 // Context "decorator", overriding the InstallBypassMake method to always reply `true`.
@@ -2078,6 +2091,15 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					filesInfo = append(filesInfo, af)
 				} else {
 					ctx.PropertyErrorf("apps", "%q is not an android_app module", depName)
+				}
+			case bpfTag:
+				if bpfProgram, ok := child.(bpf.BpfModule); ok {
+					filesToCopy, _ := bpfProgram.OutputFiles("")
+					for _, bpfFile := range filesToCopy {
+						filesInfo = append(filesInfo, apexFileForBpfProgram(ctx, bpfFile, bpfProgram))
+					}
+				} else {
+					ctx.PropertyErrorf("bpfs", "%q is not a bpf module", depName)
 				}
 			case prebuiltTag:
 				if prebuilt, ok := child.(prebuilt_etc.PrebuiltEtcModule); ok {
