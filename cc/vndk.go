@@ -505,16 +505,23 @@ func (txt *vndkLibrariesTxt) AndroidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
+// PrebuiltEtcModule interface
 func (txt *vndkLibrariesTxt) OutputFile() android.OutputPath {
 	return txt.outputFile
 }
 
-func (txt *vndkLibrariesTxt) OutputFiles(tag string) (android.Paths, error) {
-	return android.Paths{txt.outputFile}, nil
+// PrebuiltEtcModule interface
+func (txt *vndkLibrariesTxt) BaseDir() string {
+	return "etc"
 }
 
+// PrebuiltEtcModule interface
 func (txt *vndkLibrariesTxt) SubDir() string {
 	return ""
+}
+
+func (txt *vndkLibrariesTxt) OutputFiles(tag string) (android.Paths, error) {
+	return android.Paths{txt.outputFile}, nil
 }
 
 func VndkSnapshotSingleton() android.Singleton {
