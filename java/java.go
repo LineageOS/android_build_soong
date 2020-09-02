@@ -439,6 +439,9 @@ type Module struct {
 	// output file containing mapping of obfuscated names
 	proguardDictionary android.Path
 
+	// output file containing list of unused methods
+	proguardUsageZip android.OptionalPath
+
 	// output file of the module, which may be a classes jar or a dex jar
 	outputFile       android.Path
 	extraOutputFiles android.Paths
