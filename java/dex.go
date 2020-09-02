@@ -22,10 +22,10 @@ import (
 	"android/soong/android"
 )
 
-var d8 = pctx.AndroidStaticRule("d8",
+var d8 = pctx.AndroidRemoteStaticRule("d8", android.RemoteRuleSupports{RBE: true, RBEFlag: android.RBE_D8},
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
-			`${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $in && ` +
+			`${config.D8Wrapper}${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $in && ` +
 			`${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
 			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $out $outDir/classes.dex.jar $in`,
 		CommandDeps: []string{
@@ -36,11 +36,11 @@ var d8 = pctx.AndroidStaticRule("d8",
 	},
 	"outDir", "d8Flags", "zipFlags")
 
-var r8 = pctx.AndroidStaticRule("r8",
+var r8 = pctx.AndroidRemoteStaticRule("r8", android.RemoteRuleSupports{RBE: true, RBEFlag: android.RBE_R8},
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`rm -f "$outDict" && ` +
-			`${config.R8Cmd} ${config.DexFlags} -injars $in --output $outDir ` +
+			`${config.R8Wrapper}${config.R8Cmd} ${config.DexFlags} -injars $in --output $outDir ` +
 			`--force-proguard-compatibility ` +
 			`--no-data-resources ` +
 			`-printmapping $outDict ` +

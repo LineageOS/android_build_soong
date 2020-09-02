@@ -193,6 +193,9 @@ type productVariables struct {
 	Binder32bit                      *bool `json:",omitempty"`
 	UseGoma                          *bool `json:",omitempty"`
 	UseRBE                           *bool `json:",omitempty"`
+	UseRBEJAVAC                      *bool `json:",omitempty"`
+	UseRBER8                         *bool `json:",omitempty"`
+	UseRBED8                         *bool `json:",omitempty"`
 	Debuggable                       *bool `json:",omitempty"`
 	Eng                              *bool `json:",omitempty"`
 	Treble_linker_namespaces         *bool `json:",omitempty"`

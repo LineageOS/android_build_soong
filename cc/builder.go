@@ -46,7 +46,7 @@ var (
 var (
 	pctx = android.NewPackageContext("android/soong/cc")
 
-	cc = pctx.AndroidRemoteStaticRule("cc", android.SUPPORTS_BOTH,
+	cc = pctx.AndroidRemoteStaticRule("cc", android.RemoteRuleSupports{Goma: true, RBE: true},
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
@@ -55,7 +55,7 @@ var (
 		},
 		"ccCmd", "cFlags")
 
-	ccNoDeps = pctx.AndroidRemoteStaticRule("ccNoDeps", android.SUPPORTS_GOMA,
+	ccNoDeps = pctx.AndroidRemoteStaticRule("ccNoDeps", android.RemoteRuleSupports{Goma: true},
 		blueprint.RuleParams{
 			Command:     "$relPwd ${config.CcWrapper}$ccCmd -c $cFlags -o $out $in",
 			CommandDeps: []string{"$ccCmd"},
