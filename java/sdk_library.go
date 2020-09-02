@@ -2070,6 +2070,11 @@ func (module *sdkLibraryXml) UniqueApexVariations() bool {
 }
 
 // from android.PrebuiltEtcModule
+func (module *sdkLibraryXml) BaseDir() string {
+	return "etc"
+}
+
+// from android.PrebuiltEtcModule
 func (module *sdkLibraryXml) SubDir() string {
 	return "permissions"
 }
