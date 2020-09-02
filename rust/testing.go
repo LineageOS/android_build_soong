@@ -91,6 +91,12 @@ func GatherRequiredDepsForTest() string {
 			host_supported: true,
                         native_coverage: false,
 		}
+		rust_library {
+			name: "libprotobuf",
+			crate_name: "protobuf",
+			srcs: ["foo.rs"],
+			host_supported: true,
+		}
 
 ` + cc.GatherRequiredDepsForTest(android.NoOsType)
 	return bp
@@ -120,6 +126,8 @@ func CreateTestContext() *android.TestContext {
 	ctx.RegisterModuleType("rust_ffi_host_shared", RustFFISharedHostFactory)
 	ctx.RegisterModuleType("rust_ffi_host_static", RustFFIStaticHostFactory)
 	ctx.RegisterModuleType("rust_proc_macro", ProcMacroFactory)
+	ctx.RegisterModuleType("rust_protobuf", RustProtobufFactory)
+	ctx.RegisterModuleType("rust_protobuf_host", RustProtobufHostFactory)
 	ctx.RegisterModuleType("rust_prebuilt_library", PrebuiltLibraryFactory)
 	ctx.RegisterModuleType("rust_prebuilt_dylib", PrebuiltDylibFactory)
 	ctx.RegisterModuleType("rust_prebuilt_rlib", PrebuiltRlibFactory)

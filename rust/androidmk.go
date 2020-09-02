@@ -165,14 +165,16 @@ func (sourceProvider *BaseSourceProvider) AndroidMk(ctx AndroidMkContext, ret *a
 		stem, suffix, _ := android.SplitFileExt(file)
 		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+suffix)
 		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
+		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 	})
 }
 
 func (bindgen *bindgenDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ctx.SubAndroidMk(ret, bindgen.BaseSourceProvider)
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
-	})
+}
+
+func (proto *protobufDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
+	ctx.SubAndroidMk(ret, proto.BaseSourceProvider)
 }
 
 func (compiler *baseCompiler) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
