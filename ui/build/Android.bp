@@ -52,6 +52,7 @@ bootstrap_go_package {
         "ninja.go",
         "path.go",
         "proc_sync.go",
+        "rbe.go",
         "signal.go",
         "soong.go",
         "test_build.go",
