@@ -525,6 +525,8 @@ func TestPrebuilts(t *testing.T) {
 		java_import {
 			name: "baz",
 			jars: ["b.jar"],
+			sdk_version: "current",
+			compile_dex: true,
 		}
 
 		dex_import {
@@ -555,8 +557,10 @@ func TestPrebuilts(t *testing.T) {
 	fooModule := ctx.ModuleForTests("foo", "android_common")
 	javac := fooModule.Rule("javac")
 	combineJar := ctx.ModuleForTests("foo", "android_common").Description("for javac")
-	barJar := ctx.ModuleForTests("bar", "android_common").Rule("combineJar").Output
-	bazJar := ctx.ModuleForTests("baz", "android_common").Rule("combineJar").Output
+	barModule := ctx.ModuleForTests("bar", "android_common")
+	barJar := barModule.Rule("combineJar").Output
+	bazModule := ctx.ModuleForTests("baz", "android_common")
+	bazJar := bazModule.Rule("combineJar").Output
 	sdklibStubsJar := ctx.ModuleForTests("sdklib.stubs", "android_common").Rule("combineJar").Output
 
 	fooLibrary := fooModule.Module().(*Library)
@@ -571,12 +575,23 @@ func TestPrebuilts(t *testing.T) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], barJar.String())
 	}
 
+	barDexJar := barModule.Module().(*Import).DexJarBuildPath()
+	if barDexJar != nil {
+		t.Errorf("bar dex jar build path expected to be nil, got %q", barDexJar)
+	}
+
 	if !strings.Contains(javac.Args["classpath"], sdklibStubsJar.String()) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], sdklibStubsJar.String())
 	}
 
 	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != bazJar.String() {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, bazJar.String())
+	}
+
+	bazDexJar := bazModule.Module().(*Import).DexJarBuildPath().String()
+	expectedDexJar := buildDir + "/.intermediates/baz/android_common/dex/baz.jar"
+	if bazDexJar != expectedDexJar {
+		t.Errorf("baz dex jar build path expected %q, got %q", expectedDexJar, bazDexJar)
 	}
 
 	ctx.ModuleForTests("qux", "android_common").Rule("Cp")
