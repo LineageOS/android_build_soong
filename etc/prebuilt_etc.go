@@ -28,14 +28,17 @@ var pctx = android.NewPackageContext("android/soong/etc")
 
 func init() {
 	pctx.Import("android/soong/android")
+	RegisterPrebuiltEtcBuildComponents(android.InitRegistrationContext)
+}
 
-	android.RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
-	android.RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
-	android.RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
-	android.RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
-	android.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
-	android.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
-	android.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
+func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
+	ctx.RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
+	ctx.RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
+	ctx.RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
+	ctx.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
+	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
+	ctx.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
 }
 
 type prebuiltEtcProperties struct {
@@ -70,6 +73,7 @@ type prebuiltEtcProperties struct {
 
 type PrebuiltEtcModule interface {
 	android.Module
+	BaseDir() string
 	SubDir() string
 	OutputFile() android.OutputPath
 }
@@ -167,6 +171,16 @@ func (p *PrebuiltEtc) SubDir() string {
 	return proptools.String(p.properties.Relative_install_path)
 }
 
+func (p *PrebuiltEtc) BaseDir() string {
+	// If soc install dir was specified and SOC specific is set, set the installDirPath to the specified
+	// socInstallDirBase.
+	installBaseDir := p.installDirBase
+	if p.SocSpecific() && p.socInstallDirBase != "" {
+		installBaseDir = p.socInstallDirBase
+	}
+	return installBaseDir
+}
+
 func (p *PrebuiltEtc) Installable() bool {
 	return p.properties.Installable == nil || android.Bool(p.properties.Installable)
 }
@@ -191,13 +205,7 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("sub_dir", "relative_install_path is set. Cannot set sub_dir")
 	}
 
-	// If soc install dir was specified and SOC specific is set, set the installDirPath to the specified
-	// socInstallDirBase.
-	installBaseDir := p.installDirBase
-	if ctx.SocSpecific() && p.socInstallDirBase != "" {
-		installBaseDir = p.socInstallDirBase
-	}
-	p.installDirPath = android.PathForModuleInstall(ctx, installBaseDir, p.SubDir())
+	p.installDirPath = android.PathForModuleInstall(ctx, p.BaseDir(), p.SubDir())
 
 	// This ensures that outputFilePath has the correct name for others to
 	// use, as the source file may have a different name.
