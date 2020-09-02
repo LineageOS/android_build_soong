@@ -82,18 +82,19 @@ func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorCont
 			if version == "" {
 				version = LatestStubsVersionFor(mctx.Config(), name)
 			}
+			variations := target.Variations()
+			if mctx.Device() {
+				variations = append(variations,
+					blueprint.Variation{Mutator: "image", Variation: android.CoreVariation},
+					blueprint.Variation{Mutator: "version", Variation: version})
+			}
 			if mt.linkTypes == nil {
-				mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
-					{Mutator: "image", Variation: android.CoreVariation},
-					{Mutator: "version", Variation: version},
-				}...), dependencyTag, name)
+				mctx.AddFarVariationDependencies(variations, dependencyTag, name)
 			} else {
 				for _, linkType := range mt.linkTypes {
-					mctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
-						{Mutator: "image", Variation: android.CoreVariation},
-						{Mutator: "link", Variation: linkType},
-						{Mutator: "version", Variation: version},
-					}...), dependencyTag, name)
+					libVariations := append(variations,
+						blueprint.Variation{Mutator: "link", Variation: linkType})
+					mctx.AddFarVariationDependencies(libVariations, dependencyTag, name)
 				}
 			}
 		}
