@@ -195,7 +195,8 @@ func InitDefaultsModule(module DefaultsModule) {
 	module.AddProperties(
 		&hostAndDeviceProperties{},
 		commonProperties,
-		&ApexProperties{})
+		&ApexProperties{},
+		&distProperties{})
 
 	initAndroidModuleBase(module)
 	initProductVariableModule(module)
