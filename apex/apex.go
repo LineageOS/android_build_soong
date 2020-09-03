@@ -1841,7 +1841,7 @@ func apexFileForJavaLibrary(ctx android.BaseModuleContext, module javaModule) ap
 }
 
 func apexFileForPrebuiltEtc(ctx android.BaseModuleContext, prebuilt prebuilt_etc.PrebuiltEtcModule, depName string) apexFile {
-	dirInApex := filepath.Join("etc", prebuilt.SubDir())
+	dirInApex := filepath.Join(prebuilt.BaseDir(), prebuilt.SubDir())
 	fileToCopy := prebuilt.OutputFile()
 	return newApexFile(ctx, fileToCopy, depName, dirInApex, etc, prebuilt)
 }
