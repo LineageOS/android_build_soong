@@ -344,6 +344,12 @@ func (test *testBinary) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 }
 
 func (test *testBinary) install(ctx ModuleContext, file android.Path) {
+	// TODO: (b/167308193) Switch to /data/local/tests/unrestricted as the default install base.
+	testInstallBase := "/data/local/tmp"
+	if ctx.inVendor() || ctx.useVndk() {
+		testInstallBase = "/data/local/tests/vendor"
+	}
+
 	dataSrcPaths := android.PathsForModuleSrc(ctx, test.Properties.Data)
 
 	for _, dataSrcPath := range dataSrcPaths {
@@ -411,7 +417,7 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	}
 
 	test.testConfig = tradefed.AutoGenNativeTestConfig(ctx, test.Properties.Test_config,
-		test.Properties.Test_config_template, test.Properties.Test_suites, configs, test.Properties.Auto_gen_config)
+		test.Properties.Test_config_template, test.Properties.Test_suites, configs, test.Properties.Auto_gen_config, testInstallBase)
 
 	test.extraTestConfigs = android.PathsForModuleSrc(ctx, test.Properties.Test_options.Extra_test_configs)
 
