@@ -61,7 +61,7 @@ func (s *snapshotMap) get(name string, arch android.ArchType) (snapshot string, 
 func isSnapshotAware(ctx android.ModuleContext, m *Module) bool {
 	if _, _, ok := isVndkSnapshotLibrary(ctx.DeviceConfig(), m); ok {
 		return ctx.Config().VndkSnapshotBuildArtifacts()
-	} else if isVendorSnapshotModule(m, ctx.ModuleDir()) {
+	} else if isVendorSnapshotModule(m, isVendorProprietaryPath(ctx.ModuleDir())) {
 		return true
 	}
 	return false
