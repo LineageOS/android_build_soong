@@ -385,7 +385,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 		"outDir":        android.PathForModuleOut(ctx, "turbine", "classes").String(),
 		"javaVersion":   flags.javaVersion.String(),
 	}
-	if ctx.Config().IsEnvTrue("RBE_TURBINE") {
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_TURBINE") {
 		rule = turbineRE
 		args["implicits"] = strings.Join(deps.Strings(), ",")
 	}
@@ -452,7 +452,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		annoDir = filepath.Join(shardDir, annoDir)
 	}
 	rule := javac
-	if ctx.Config().IsEnvTrue("RBE_JAVAC") {
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_JAVAC") {
 		rule = javacRE
 	}
 	ctx.Build(pctx, android.BuildParams{
@@ -480,7 +480,7 @@ func TransformResourcesToJar(ctx android.ModuleContext, outputFile android.Writa
 	jarArgs []string, deps android.Paths) {
 
 	rule := jar
-	if ctx.Config().IsEnvTrue("RBE_JAR") {
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_JAR") {
 		rule = jarRE
 	}
 	ctx.Build(pctx, android.BuildParams{
