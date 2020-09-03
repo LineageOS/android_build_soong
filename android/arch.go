@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -690,23 +689,14 @@ func (target Target) Variations() []blueprint.Variation {
 	}
 }
 
-func osMutator(bpctx blueprint.BottomUpMutatorContext) {
+func osMutator(mctx BottomUpMutatorContext) {
 	var module Module
 	var ok bool
-	if module, ok = bpctx.Module().(Module); !ok {
-		if _, ok := bpctx.Module().(bootstrap.GoBinaryTool); ok {
-			// Go tools are always build OS tools.
-			bpctx.CreateVariations(bpctx.Config().(Config).BuildOSTarget.OsVariation())
-		}
+	if module, ok = mctx.Module().(Module); !ok {
 		return
 	}
 
 	base := module.base()
-
-	// GoBinaryTool support above requires this mutator to be a blueprint.BottomUpMutatorContext
-	// because android.BottomUpMutatorContext filters out non-Soong modules.  Now that we've
-	// handled them, create a normal android.BottomUpMutatorContext.
-	mctx := bottomUpMutatorContextFactory(bpctx, module, false)
 
 	if !base.ArchSpecific() {
 		return
@@ -829,23 +819,14 @@ func GetOsSpecificVariantsOfCommonOSVariant(mctx BaseModuleContext) []Module {
 //
 // Modules can be initialized with InitAndroidMultiTargetsArchModule, in which case they will be split by OsClass,
 // but will have a common Target that is expected to handle all other selected Targets via ctx.MultiTargets().
-func archMutator(bpctx blueprint.BottomUpMutatorContext) {
+func archMutator(mctx BottomUpMutatorContext) {
 	var module Module
 	var ok bool
-	if module, ok = bpctx.Module().(Module); !ok {
-		if _, ok := bpctx.Module().(bootstrap.GoBinaryTool); ok {
-			// Go tools are always build OS tools.
-			bpctx.CreateVariations(bpctx.Config().(Config).BuildOSTarget.ArchVariation())
-		}
+	if module, ok = mctx.Module().(Module); !ok {
 		return
 	}
 
 	base := module.base()
-
-	// GoBinaryTool support above requires this mutator to be a blueprint.BottomUpMutatorContext
-	// because android.BottomUpMutatorContext filters out non-Soong modules.  Now that we've
-	// handled them, create a normal android.BottomUpMutatorContext.
-	mctx := bottomUpMutatorContextFactory(bpctx, module, false)
 
 	if !base.ArchSpecific() {
 		return
@@ -922,7 +903,7 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	modules := mctx.CreateVariations(targetNames...)
 	for i, m := range modules {
 		addTargetProperties(m, targets[i], multiTargets, i == 0)
-		m.base().setArchProperties(mctx)
+		m.(Module).base().setArchProperties(mctx)
 	}
 }
 
