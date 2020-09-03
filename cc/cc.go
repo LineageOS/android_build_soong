@@ -280,6 +280,13 @@ type BaseProperties struct {
 	// Set when both SDK and platform variants are exported to Make to trigger renaming the SDK
 	// variant to have a ".sdk" suffix.
 	SdkAndPlatformVariantVisibleToMake bool `blueprint:"mutated"`
+
+	// Normally Soong uses the directory structure to decide which modules
+	// should be included (framework) or excluded (non-framework) from the
+	// vendor snapshot, but this property allows a partner to exclude a
+	// module normally thought of as a framework module from the vendor
+	// snapshot.
+	Exclude_from_vendor_snapshot *bool
 }
 
 type VendorProperties struct {
@@ -1106,6 +1113,10 @@ func (c *Module) ExportedGeneratedHeaders() android.Paths {
 		return flagsProducer.exportedGeneratedHeaders()
 	}
 	return nil
+}
+
+func (c *Module) ExcludeFromVendorSnapshot() bool {
+	return Bool(c.Properties.Exclude_from_vendor_snapshot)
 }
 
 func isBionic(name string) bool {
