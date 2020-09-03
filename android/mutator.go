@@ -75,6 +75,7 @@ type registerMutatorsContext struct {
 type RegisterMutatorsContext interface {
 	TopDown(name string, m TopDownMutator) MutatorHandle
 	BottomUp(name string, m BottomUpMutator) MutatorHandle
+	BottomUpBlueprint(name string, m blueprint.BottomUpMutator) MutatorHandle
 }
 
 type RegisterMutatorFunc func(RegisterMutatorsContext)
@@ -143,9 +144,9 @@ var preArch = []RegisterMutatorFunc{
 }
 
 func registerArchMutator(ctx RegisterMutatorsContext) {
-	ctx.BottomUp("os", osMutator).Parallel()
+	ctx.BottomUpBlueprint("os", osMutator).Parallel()
 	ctx.BottomUp("image", imageMutator).Parallel()
-	ctx.BottomUp("arch", archMutator).Parallel()
+	ctx.BottomUpBlueprint("arch", archMutator).Parallel()
 }
 
 var preDeps = []RegisterMutatorFunc{
@@ -225,19 +226,30 @@ type bottomUpMutatorContext struct {
 	finalPhase bool
 }
 
+func bottomUpMutatorContextFactory(ctx blueprint.BottomUpMutatorContext, a Module,
+	finalPhase bool) BottomUpMutatorContext {
+
+	return &bottomUpMutatorContext{
+		bp:                ctx,
+		baseModuleContext: a.base().baseModuleContextFactory(ctx),
+		finalPhase:        finalPhase,
+	}
+}
+
 func (x *registerMutatorsContext) BottomUp(name string, m BottomUpMutator) MutatorHandle {
 	finalPhase := x.finalPhase
 	f := func(ctx blueprint.BottomUpMutatorContext) {
 		if a, ok := ctx.Module().(Module); ok {
-			actx := &bottomUpMutatorContext{
-				bp:                ctx,
-				baseModuleContext: a.base().baseModuleContextFactory(ctx),
-				finalPhase:        finalPhase,
-			}
-			m(actx)
+			m(bottomUpMutatorContextFactory(ctx, a, finalPhase))
 		}
 	}
 	mutator := &mutator{name: name, bottomUpMutator: f}
+	x.mutators = append(x.mutators, mutator)
+	return mutator
+}
+
+func (x *registerMutatorsContext) BottomUpBlueprint(name string, m blueprint.BottomUpMutator) MutatorHandle {
+	mutator := &mutator{name: name, bottomUpMutator: m}
 	x.mutators = append(x.mutators, mutator)
 	return mutator
 }
