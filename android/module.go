@@ -491,14 +491,6 @@ type commonProperties struct {
 	// relative path to a file to include in the list of notices for the device
 	Notice *string `android:"path"`
 
-	// configuration to distribute output files from this module to the distribution
-	// directory (default: $OUT/dist, configurable with $DIST_DIR)
-	Dist Dist `android:"arch_variant"`
-
-	// a list of configurations to distribute output files from this module to the
-	// distribution directory (default: $OUT/dist, configurable with $DIST_DIR)
-	Dists []Dist `android:"arch_variant"`
-
 	// The OsType of artifacts that this module variant is responsible for creating.
 	//
 	// Set by osMutator
@@ -565,6 +557,16 @@ type commonProperties struct {
 
 	// set by ImageMutator
 	ImageVariation string `blueprint:"mutated"`
+}
+
+type distProperties struct {
+	// configuration to distribute output files from this module to the distribution
+	// directory (default: $OUT/dist, configurable with $DIST_DIR)
+	Dist Dist `android:"arch_variant"`
+
+	// a list of configurations to distribute output files from this module to the
+	// distribution directory (default: $OUT/dist, configurable with $DIST_DIR)
+	Dists []Dist `android:"arch_variant"`
 }
 
 // A map of OutputFile tag keys to Paths, for disting purposes.
@@ -662,7 +664,8 @@ func InitAndroidModule(m Module) {
 
 	m.AddProperties(
 		&base.nameProperties,
-		&base.commonProperties)
+		&base.commonProperties,
+		&base.distProperties)
 
 	initProductVariableModule(m)
 
@@ -753,6 +756,7 @@ type ModuleBase struct {
 
 	nameProperties          nameProperties
 	commonProperties        commonProperties
+	distProperties          distProperties
 	variableProperties      interface{}
 	hostAndDeviceProperties hostAndDeviceProperties
 	generalProperties       []interface{}
@@ -862,13 +866,13 @@ func (m *ModuleBase) visibilityProperties() []visibilityProperty {
 }
 
 func (m *ModuleBase) Dists() []Dist {
-	if len(m.commonProperties.Dist.Targets) > 0 {
+	if len(m.distProperties.Dist.Targets) > 0 {
 		// Make a copy of the underlying Dists slice to protect against
 		// backing array modifications with repeated calls to this method.
-		distsCopy := append([]Dist(nil), m.commonProperties.Dists...)
-		return append(distsCopy, m.commonProperties.Dist)
+		distsCopy := append([]Dist(nil), m.distProperties.Dists...)
+		return append(distsCopy, m.distProperties.Dist)
 	} else {
-		return m.commonProperties.Dists
+		return m.distProperties.Dists
 	}
 }
 
@@ -1345,20 +1349,20 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	ctx.Variable(pctx, "moduleDescSuffix", s)
 
 	// Some common property checks for properties that will be used later in androidmk.go
-	if m.commonProperties.Dist.Dest != nil {
-		_, err := validateSafePath(*m.commonProperties.Dist.Dest)
+	if m.distProperties.Dist.Dest != nil {
+		_, err := validateSafePath(*m.distProperties.Dist.Dest)
 		if err != nil {
 			ctx.PropertyErrorf("dist.dest", "%s", err.Error())
 		}
 	}
-	if m.commonProperties.Dist.Dir != nil {
-		_, err := validateSafePath(*m.commonProperties.Dist.Dir)
+	if m.distProperties.Dist.Dir != nil {
+		_, err := validateSafePath(*m.distProperties.Dist.Dir)
 		if err != nil {
 			ctx.PropertyErrorf("dist.dir", "%s", err.Error())
 		}
 	}
-	if m.commonProperties.Dist.Suffix != nil {
-		if strings.Contains(*m.commonProperties.Dist.Suffix, "/") {
+	if m.distProperties.Dist.Suffix != nil {
+		if strings.Contains(*m.distProperties.Dist.Suffix, "/") {
 			ctx.PropertyErrorf("dist.suffix", "Suffix may not contain a '/' character.")
 		}
 	}
