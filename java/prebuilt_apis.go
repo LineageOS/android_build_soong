@@ -38,6 +38,9 @@ type prebuiltApisProperties struct {
 	// The sdk_version of java_import modules generated based on jar files.
 	// Defaults to "current"
 	Imports_sdk_version *string
+
+	// If set to true, compile dex for java_import modules. Defaults to false.
+	Imports_compile_dex *bool
 }
 
 type prebuiltApis struct {
@@ -78,17 +81,19 @@ func prebuiltApiModuleName(mctx android.LoadHookContext, module string, scope st
 	return mctx.ModuleName() + "_" + scope + "_" + apiver + "_" + module
 }
 
-func createImport(mctx android.LoadHookContext, module, scope, apiver, path, sdk_version string) {
+func createImport(mctx android.LoadHookContext, module, scope, apiver, path, sdkVersion string, compileDex bool) {
 	props := struct {
 		Name        *string
 		Jars        []string
 		Sdk_version *string
 		Installable *bool
+		Compile_dex *bool
 	}{}
 	props.Name = proptools.StringPtr(prebuiltApiModuleName(mctx, module, scope, apiver))
 	props.Jars = append(props.Jars, path)
-	props.Sdk_version = proptools.StringPtr(sdk_version)
+	props.Sdk_version = proptools.StringPtr(sdkVersion)
 	props.Installable = proptools.BoolPtr(false)
+	props.Compile_dex = proptools.BoolPtr(compileDex)
 
 	mctx.CreateModule(ImportFactory, &props)
 }
@@ -124,13 +129,14 @@ func prebuiltSdkStubs(mctx android.LoadHookContext, p *prebuiltApis) {
 	// <apiver>/<scope>/<module>.jar
 	files := getPrebuiltFiles(mctx, p, "*.jar")
 
-	sdk_version := proptools.StringDefault(p.properties.Imports_sdk_version, "current")
+	sdkVersion := proptools.StringDefault(p.properties.Imports_sdk_version, "current")
+	compileDex := proptools.BoolDefault(p.properties.Imports_compile_dex, false)
 
 	for _, f := range files {
 		// create a Import module for each jar file
 		localPath := strings.TrimPrefix(f, mydir)
 		module, apiver, scope := parseJarPath(localPath)
-		createImport(mctx, module, scope, apiver, localPath, sdk_version)
+		createImport(mctx, module, scope, apiver, localPath, sdkVersion, compileDex)
 	}
 }
 
