@@ -115,11 +115,6 @@ type DefaultsVisibilityProperties struct {
 
 type DefaultsModuleBase struct {
 	DefaultableModuleBase
-
-	// Container for defaults of the common properties
-	commonProperties commonProperties
-
-	defaultsVisibilityProperties DefaultsVisibilityProperties
 }
 
 // The common pattern for defaults modules is to register separate instances of
@@ -153,12 +148,6 @@ type Defaults interface {
 	properties() []interface{}
 
 	productVariableProperties() interface{}
-
-	// Return the defaults common properties.
-	common() *commonProperties
-
-	// Return the defaults visibility properties.
-	defaultsVisibility() *DefaultsVisibilityProperties
 }
 
 func (d *DefaultsModuleBase) isDefaults() bool {
@@ -178,24 +167,17 @@ func (d *DefaultsModuleBase) productVariableProperties() interface{} {
 	return d.defaultableVariableProperties
 }
 
-func (d *DefaultsModuleBase) common() *commonProperties {
-	return &d.commonProperties
-}
-
-func (d *DefaultsModuleBase) defaultsVisibility() *DefaultsVisibilityProperties {
-	return &d.defaultsVisibilityProperties
-}
-
 func (d *DefaultsModuleBase) GenerateAndroidBuildActions(ctx ModuleContext) {
 }
 
 func InitDefaultsModule(module DefaultsModule) {
-	commonProperties := module.common()
+	commonProperties := &commonProperties{}
 
 	module.AddProperties(
 		&hostAndDeviceProperties{},
 		commonProperties,
-		&ApexProperties{})
+		&ApexProperties{},
+		&distProperties{})
 
 	initAndroidModuleBase(module)
 	initProductVariableModule(module)
@@ -204,7 +186,7 @@ func InitDefaultsModule(module DefaultsModule) {
 
 	// Add properties that will not have defaults applied to them.
 	base := module.base()
-	defaultsVisibility := module.defaultsVisibility()
+	defaultsVisibility := &DefaultsVisibilityProperties{}
 	module.AddProperties(&base.nameProperties, defaultsVisibility)
 
 	// Unlike non-defaults modules the visibility property is not stored in m.base().commonProperties.

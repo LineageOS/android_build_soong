@@ -742,7 +742,7 @@ func isSanitizableDependencyTag(tag blueprint.DependencyTag) bool {
 // as vendor snapshot. Such modules must create both cfi and non-cfi variants,
 // except for ones which explicitly disable cfi.
 func needsCfiForVendorSnapshot(mctx android.TopDownMutatorContext) bool {
-	if isVendorProprietaryPath(mctx.ModuleDir()) {
+	if isVendorProprietaryModule(mctx) {
 		return false
 	}
 
@@ -1015,10 +1015,12 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 
 				// static executable gets static runtime libs
 				depTag := libraryDependencyTag{Kind: staticLibraryDependency}
-				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
-					{Mutator: "link", Variation: "static"},
-					c.ImageVariation(),
-				}...), depTag, deps...)
+				variations := append(mctx.Target().Variations(),
+					blueprint.Variation{Mutator: "link", Variation: "static"})
+				if c.Device() {
+					variations = append(variations, c.ImageVariation())
+				}
+				mctx.AddFarVariationDependencies(variations, depTag, deps...)
 			} else if !c.static() && !c.header() {
 				// If we're using snapshots and in vendor, redirect to snapshot whenever possible
 				if c.VndkVersion() == mctx.DeviceConfig().VndkVersion() {
@@ -1030,10 +1032,12 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 
 				// dynamic executable and shared libs get shared runtime libs
 				depTag := libraryDependencyTag{Kind: sharedLibraryDependency, Order: earlyLibraryDependency}
-				mctx.AddFarVariationDependencies(append(mctx.Target().Variations(), []blueprint.Variation{
-					{Mutator: "link", Variation: "shared"},
-					c.ImageVariation(),
-				}...), depTag, runtimeLibrary)
+				variations := append(mctx.Target().Variations(),
+					blueprint.Variation{Mutator: "link", Variation: "shared"})
+				if c.Device() {
+					variations = append(variations, c.ImageVariation())
+				}
+				mctx.AddFarVariationDependencies(variations, depTag, runtimeLibrary)
 			}
 			// static lib does not have dependency to the runtime library. The
 			// dependency will be added to the executables or shared libs using

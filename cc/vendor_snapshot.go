@@ -508,18 +508,46 @@ func isVendorProprietaryPath(dir string) bool {
 	return false
 }
 
+func isVendorProprietaryModule(ctx android.BaseModuleContext) bool {
+
+	// Any module in a vendor proprietary path is a vendor proprietary
+	// module.
+
+	if isVendorProprietaryPath(ctx.ModuleDir()) {
+		return true
+	}
+
+	// However if the module is not in a vendor proprietary path, it may
+	// still be a vendor proprietary module. This happens for cc modules
+	// that are excluded from the vendor snapshot, and it means that the
+	// vendor has assumed control of the framework-provided module.
+
+	if c, ok := ctx.Module().(*Module); ok {
+		if c.ExcludeFromVendorSnapshot() {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Determine if a module is going to be included in vendor snapshot or not.
 //
 // Targets of vendor snapshot are "vendor: true" or "vendor_available: true" modules in
 // AOSP. They are not guaranteed to be compatible with older vendor images. (e.g. might
 // depend on newer VNDK) So they are captured as vendor snapshot To build older vendor
 // image and newer system image altogether.
-func isVendorSnapshotModule(m *Module, moduleDir string) bool {
+func isVendorSnapshotModule(m *Module, inVendorProprietaryPath bool) bool {
 	if !m.Enabled() || m.Properties.HideFromMake {
 		return false
 	}
 	// skip proprietary modules, but include all VNDK (static)
-	if isVendorProprietaryPath(moduleDir) && !m.IsVndk() {
+	if inVendorProprietaryPath && !m.IsVndk() {
+		return false
+	}
+	// If the module would be included based on its path, check to see if
+	// the module is marked to be excluded. If so, skip it.
+	if m.ExcludeFromVendorSnapshot() {
 		return false
 	}
 	if m.Target().Os.Class != android.Device {
@@ -791,7 +819,25 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 		}
 
 		moduleDir := ctx.ModuleDir(module)
-		if !isVendorSnapshotModule(m, moduleDir) {
+		inVendorProprietaryPath := isVendorProprietaryPath(moduleDir)
+
+		if m.ExcludeFromVendorSnapshot() {
+			if inVendorProprietaryPath {
+				// Error: exclude_from_vendor_snapshot applies
+				// to framework-path modules only.
+				ctx.Errorf("module %q in vendor proprietary path %q may not use \"exclude_from_vendor_snapshot: true\"", m.String(), moduleDir)
+				return
+			}
+			if Bool(m.VendorProperties.Vendor_available) {
+				// Error: may not combine "vendor_available:
+				// true" with "exclude_from_vendor_snapshot:
+				// true".
+				ctx.Errorf("module %q may not use both \"vendor_available: true\" and \"exclude_from_vendor_snapshot: true\"", m.String())
+				return
+			}
+		}
+
+		if !isVendorSnapshotModule(m, inVendorProprietaryPath) {
 			return
 		}
 

@@ -1437,26 +1437,30 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
 	// conflicting variations with this module. This is required since
 	// arch variant of an APEX bundle is 'common' but it is 'arm' or 'arm64'
 	// for native shared libs.
-	ctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
-		{Mutator: "image", Variation: imageVariation},
-		{Mutator: "link", Variation: "shared"},
-		{Mutator: "version", Variation: ""}, // "" is the non-stub variant
-	}...), sharedLibTag, nativeModules.Native_shared_libs...)
 
-	ctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
-		{Mutator: "image", Variation: imageVariation},
-		{Mutator: "link", Variation: "shared"},
-		{Mutator: "version", Variation: ""}, // "" is the non-stub variant
-	}...), jniLibTag, nativeModules.Jni_libs...)
+	binVariations := target.Variations()
+	libVariations := append(target.Variations(),
+		blueprint.Variation{Mutator: "link", Variation: "shared"})
+	testVariations := append(target.Variations(),
+		blueprint.Variation{Mutator: "test_per_src", Variation: ""}) // "" is the all-tests variant
 
-	ctx.AddFarVariationDependencies(append(target.Variations(),
-		blueprint.Variation{Mutator: "image", Variation: imageVariation}),
-		executableTag, nativeModules.Binaries...)
+	if ctx.Device() {
+		binVariations = append(binVariations,
+			blueprint.Variation{Mutator: "image", Variation: imageVariation})
+		libVariations = append(libVariations,
+			blueprint.Variation{Mutator: "image", Variation: imageVariation},
+			blueprint.Variation{Mutator: "version", Variation: ""}) // "" is the non-stub variant
+		testVariations = append(testVariations,
+			blueprint.Variation{Mutator: "image", Variation: imageVariation})
+	}
 
-	ctx.AddFarVariationDependencies(append(target.Variations(), []blueprint.Variation{
-		{Mutator: "image", Variation: imageVariation},
-		{Mutator: "test_per_src", Variation: ""}, // "" is the all-tests variant
-	}...), testTag, nativeModules.Tests...)
+	ctx.AddFarVariationDependencies(libVariations, sharedLibTag, nativeModules.Native_shared_libs...)
+
+	ctx.AddFarVariationDependencies(libVariations, jniLibTag, nativeModules.Jni_libs...)
+
+	ctx.AddFarVariationDependencies(binVariations, executableTag, nativeModules.Binaries...)
+
+	ctx.AddFarVariationDependencies(testVariations, testTag, nativeModules.Tests...)
 }
 
 func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
