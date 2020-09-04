@@ -80,7 +80,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 		args = append(args, "--use-embedded-dex")
 	}
 
-	for usesLib, _ := range sdkLibraries {
+	for _, usesLib := range android.SortedStringKeys(sdkLibraries) {
 		if inList(usesLib, optionalUsesLibs) {
 			args = append(args, "--optional-uses-library", usesLib)
 		} else {
