@@ -26,7 +26,7 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("bpf", bpfFactory)
+	android.RegisterModuleType("bpf", BpfFactory)
 	pctx.Import("android/soong/cc/config")
 }
 
@@ -42,6 +42,13 @@ var (
 		},
 		"ccCmd", "cFlags")
 )
+
+// BpfModule interface is used by the apex package to gather information from a bpf module.
+type BpfModule interface {
+	android.Module
+
+	OutputFiles(tag string) (android.Paths, error)
+}
 
 type BpfProperties struct {
 	Srcs         []string `android:"path"`
@@ -141,7 +148,7 @@ func (bpf *bpf) OutputFiles(tag string) (android.Paths, error) {
 
 var _ android.OutputFileProducer = (*bpf)(nil)
 
-func bpfFactory() android.Module {
+func BpfFactory() android.Module {
 	module := &bpf{}
 
 	module.AddProperties(&module.properties)
