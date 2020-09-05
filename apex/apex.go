@@ -26,6 +26,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/bpf"
 	"android/soong/cc"
 	prebuilt_etc "android/soong/etc"
 	"android/soong/java"
@@ -66,6 +67,7 @@ var (
 	usesTag        = dependencyTag{name: "uses"}
 	androidAppTag  = dependencyTag{name: "androidApp", payload: true}
 	rroTag         = dependencyTag{name: "rro", payload: true}
+	bpfTag         = dependencyTag{name: "bpf", payload: true}
 
 	apexAvailBaseline = makeApexAvailableBaseline()
 
@@ -1062,6 +1064,9 @@ type apexBundleProperties struct {
 	// List of prebuilt files that are embedded inside this APEX bundle
 	Prebuilts []string
 
+	// List of BPF programs inside APEX
+	Bpfs []string
+
 	// Name of the apex_key module that provides the private key to sign APEX
 	Key *string
 
@@ -1578,6 +1583,9 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
 		javaLibTag, a.properties.Java_libs...)
 
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+		bpfTag, a.properties.Bpfs...)
+
 	// With EMMA_INSTRUMENT_FRAMEWORK=true the ART boot image includes jacoco library.
 	if a.artApex && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
 		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
@@ -1896,6 +1904,11 @@ func apexFileForRuntimeResourceOverlay(ctx android.BaseModuleContext, rro java.R
 		af.overriddenPackageName = a.OverriddenManifestPackageName()
 	}
 	return af
+}
+
+func apexFileForBpfProgram(ctx android.BaseModuleContext, builtFile android.Path, bpfProgram bpf.BpfModule) apexFile {
+	dirInApex := filepath.Join("etc", "bpf")
+	return newApexFile(ctx, builtFile, builtFile.Base(), dirInApex, etc, bpfProgram)
 }
 
 // Context "decorator", overriding the InstallBypassMake method to always reply `true`.
@@ -2225,6 +2238,15 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					filesInfo = append(filesInfo, apexFileForRuntimeResourceOverlay(ctx, rro))
 				} else {
 					ctx.PropertyErrorf("rros", "%q is not an runtime_resource_overlay module", depName)
+				}
+			case bpfTag:
+				if bpfProgram, ok := child.(bpf.BpfModule); ok {
+					filesToCopy, _ := bpfProgram.OutputFiles("")
+					for _, bpfFile := range filesToCopy {
+						filesInfo = append(filesInfo, apexFileForBpfProgram(ctx, bpfFile, bpfProgram))
+					}
+				} else {
+					ctx.PropertyErrorf("bpfs", "%q is not a bpf module", depName)
 				}
 			case prebuiltTag:
 				if prebuilt, ok := child.(prebuilt_etc.PrebuiltEtcModule); ok {

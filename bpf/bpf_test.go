@@ -59,7 +59,7 @@ func testConfig(buildDir string, env map[string]string, bp string) android.Confi
 
 func testContext(config android.Config) *android.TestContext {
 	ctx := cc.CreateTestContext()
-	ctx.RegisterModuleType("bpf", bpfFactory)
+	ctx.RegisterModuleType("bpf", BpfFactory)
 	ctx.Register(config)
 
 	return ctx
