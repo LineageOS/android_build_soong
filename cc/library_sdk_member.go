@@ -119,6 +119,10 @@ func (mt *librarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, 
 
 	ccModule := member.Variants()[0].(*Module)
 
+	if proptools.Bool(ccModule.VendorProperties.Vendor_available) {
+		pbm.AddProperty("vendor_available", true)
+	}
+
 	sdkVersion := ccModule.SdkVersion()
 	if sdkVersion != "" {
 		pbm.AddProperty("sdk_version", sdkVersion)
