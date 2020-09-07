@@ -437,6 +437,7 @@ type Module struct {
 	hiddenAPI
 	dexer
 	dexpreopter
+	usesLibrary
 	linter
 
 	// list of the xref extraction files
@@ -452,6 +453,7 @@ func (j *Module) addHostProperties() {
 	j.AddProperties(
 		&j.properties,
 		&j.protoProperties,
+		&j.usesLibraryProperties,
 	)
 }
 
@@ -1975,6 +1977,11 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// that, if necessary, a <uses-library> element for that java_sdk_library is
 	// added to the Android manifest.
 	j.exportedSdkLibs.MaybeAddLibraryPath(ctx, j.OptionalImplicitSdkLibrary(), j.DexJarBuildPath(), j.DexJarInstallPath())
+
+	// If this is a non-SDK uses-library, export itself.
+	if proptools.Bool(j.usesLibraryProperties.Is_uses_lib) {
+		j.exportedSdkLibs.AddLibraryPath(ctx, ctx.ModuleName(), j.DexJarBuildPath(), j.DexJarInstallPath())
+	}
 
 	j.distFiles = j.GenerateTaggedDistFiles(ctx)
 }
