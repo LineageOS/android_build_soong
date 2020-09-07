@@ -1672,6 +1672,7 @@ func TestSnapshotWithCcLibrary(t *testing.T) {
 			],
 			export_include_dirs: ["include"],
 			stl: "none",
+			vendor_available: true,
 		}
 	`)
 
@@ -1683,6 +1684,7 @@ cc_prebuilt_library {
     name: "myexports_mynativelib@current",
     sdk_member_name: "mynativelib",
     installable: false,
+    vendor_available: true,
     stl: "none",
     compile_multilib: "both",
     export_include_dirs: ["include/include"],
@@ -1709,6 +1711,7 @@ cc_prebuilt_library {
 cc_prebuilt_library {
     name: "mynativelib",
     prefer: false,
+    vendor_available: true,
     stl: "none",
     compile_multilib: "both",
     export_include_dirs: ["include/include"],
