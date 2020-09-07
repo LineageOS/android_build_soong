@@ -287,8 +287,6 @@ type AndroidApp struct {
 	aapt
 	android.OverridableModuleBase
 
-	usesLibrary usesLibrary
-
 	certificate Certificate
 
 	appProperties appProperties
@@ -1048,8 +1046,7 @@ func AndroidAppFactory() android.Module {
 	module.AddProperties(
 		&module.aaptProperties,
 		&module.appProperties,
-		&module.overridableAppProperties,
-		&module.usesLibrary.usesLibraryProperties)
+		&module.overridableAppProperties)
 
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
@@ -1170,7 +1167,6 @@ func AndroidTestFactory() android.Module {
 		&module.appProperties,
 		&module.appTestProperties,
 		&module.overridableAppProperties,
-		&module.usesLibrary.usesLibraryProperties,
 		&module.testProperties)
 
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
@@ -1219,8 +1215,7 @@ func AndroidTestHelperAppFactory() android.Module {
 		&module.aaptProperties,
 		&module.appProperties,
 		&module.appTestHelperAppProperties,
-		&module.overridableAppProperties,
-		&module.usesLibrary.usesLibraryProperties)
+		&module.overridableAppProperties)
 
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
@@ -1734,7 +1729,6 @@ func AndroidTestImportFactory() android.Module {
 	module := &AndroidTestImport{}
 	module.AddProperties(&module.properties)
 	module.AddProperties(&module.dexpreoptProperties)
-	module.AddProperties(&module.usesLibrary.usesLibraryProperties)
 	module.AddProperties(&module.testProperties)
 	module.AddProperties(&module.testImportProperties)
 	module.populateAllVariantStructs()
@@ -1918,6 +1912,9 @@ type UsesLibraryProperties struct {
 	// If true, the list of uses_libs and optional_uses_libs modules must match the AndroidManifest.xml file.  Defaults
 	// to true if either uses_libs or optional_uses_libs is set.  Will unconditionally default to true in the future.
 	Enforce_uses_libs *bool
+
+	// If the library itself is a uses-library (this is needed for non-SDK libraries).
+	Is_uses_lib *bool
 }
 
 // usesLibrary provides properties and helper functions for AndroidApp and AndroidAppImport to verify that the
