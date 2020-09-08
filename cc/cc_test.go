@@ -946,7 +946,7 @@ func TestDoubleLoadbleDep(t *testing.T) {
 	`)
 }
 
-func TestVendorSnapshot(t *testing.T) {
+func TestVendorSnapshotCapture(t *testing.T) {
 	bp := `
 	cc_library {
 		name: "libvndk",
@@ -1076,6 +1076,215 @@ func TestVendorSnapshot(t *testing.T) {
 		if snapshotSingleton.MaybeOutput(jsonFile).Rule == nil {
 			t.Errorf("%q expected but not found", jsonFile)
 		}
+	}
+}
+
+func TestVendorSnapshotUse(t *testing.T) {
+	frameworkBp := `
+	cc_library {
+		name: "libvndk",
+		vendor_available: true,
+		vndk: {
+			enabled: true,
+		},
+		nocrt: true,
+		compile_multilib: "64",
+	}
+
+	cc_library {
+		name: "libvendor",
+		vendor: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+		compile_multilib: "64",
+	}
+
+	cc_binary {
+		name: "bin",
+		vendor: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+		compile_multilib: "64",
+	}
+`
+
+	vndkBp := `
+	vndk_prebuilt_shared {
+		name: "libvndk",
+		version: "BOARD",
+		target_arch: "arm64",
+		vendor_available: true,
+		vndk: {
+			enabled: true,
+		},
+		arch: {
+			arm64: {
+				srcs: ["libvndk.so"],
+			},
+		},
+	}
+`
+
+	vendorProprietaryBp := `
+	cc_library {
+		name: "libvendor_without_snapshot",
+		vendor: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+		compile_multilib: "64",
+	}
+
+	cc_library_shared {
+		name: "libclient",
+		vendor: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+		shared_libs: ["libvndk"],
+		static_libs: ["libvendor", "libvendor_without_snapshot"],
+		compile_multilib: "64",
+	}
+
+	cc_binary {
+		name: "bin_without_snapshot",
+		vendor: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+		static_libs: ["libvndk"],
+		compile_multilib: "64",
+	}
+
+	vendor_snapshot_static {
+		name: "libvndk",
+		version: "BOARD",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "libvndk.a",
+			},
+		},
+	}
+
+	vendor_snapshot_shared {
+		name: "libvendor",
+		version: "BOARD",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "libvendor.so",
+			},
+		},
+	}
+
+	vendor_snapshot_static {
+		name: "libvendor",
+		version: "BOARD",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "libvendor.a",
+			},
+		},
+	}
+
+	vendor_snapshot_binary {
+		name: "bin",
+		version: "BOARD",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "bin",
+			},
+		},
+	}
+`
+	depsBp := GatherRequiredDepsForTest(android.Android)
+
+	mockFS := map[string][]byte{
+		"deps/Android.bp":      []byte(depsBp),
+		"framework/Android.bp": []byte(frameworkBp),
+		"vendor/Android.bp":    []byte(vendorProprietaryBp),
+		"vendor/libvndk.a":     nil,
+		"vendor/libvendor.a":   nil,
+		"vendor/libvendor.so":  nil,
+		"vendor/bin":           nil,
+		"vndk/Android.bp":      []byte(vndkBp),
+		"vndk/libvndk.so":      nil,
+	}
+
+	config := TestConfig(buildDir, android.Android, nil, "", mockFS)
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("BOARD")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	ctx := CreateTestContext()
+	ctx.Register(config)
+
+	_, errs := ctx.ParseFileList(".", []string{"deps/Android.bp", "framework/Android.bp", "vendor/Android.bp", "vndk/Android.bp"})
+	android.FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	android.FailIfErrored(t, errs)
+
+	sharedVariant := "android_vendor.BOARD_arm64_armv8-a_shared"
+	staticVariant := "android_vendor.BOARD_arm64_armv8-a_static"
+	binaryVariant := "android_vendor.BOARD_arm64_armv8-a"
+
+	// libclient uses libvndk.vndk.BOARD.arm64, libvendor.vendor_static.BOARD.arm64, libvendor_without_snapshot
+	libclientLdRule := ctx.ModuleForTests("libclient", sharedVariant).Rule("ld")
+	libclientFlags := libclientLdRule.Args["libFlags"]
+
+	for _, input := range [][]string{
+		[]string{sharedVariant, "libvndk.vndk.BOARD.arm64"},
+		[]string{staticVariant, "libvendor.vendor_static.BOARD.arm64"},
+		[]string{staticVariant, "libvendor_without_snapshot"},
+	} {
+		outputPaths := getOutputPaths(ctx, input[0] /* variant */, []string{input[1]} /* module name */)
+		if !strings.Contains(libclientFlags, outputPaths[0].String()) {
+			t.Errorf("libflags for libclient must contain %#v, but was %#v", outputPaths[0], libclientFlags)
+		}
+	}
+
+	// bin_without_snapshot uses libvndk.vendor_static.BOARD.arm64
+	binWithoutSnapshotLdRule := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("ld")
+	binWithoutSnapshotFlags := binWithoutSnapshotLdRule.Args["libFlags"]
+	libVndkStaticOutputPaths := getOutputPaths(ctx, staticVariant, []string{"libvndk.vendor_static.BOARD.arm64"})
+	if !strings.Contains(binWithoutSnapshotFlags, libVndkStaticOutputPaths[0].String()) {
+		t.Errorf("libflags for bin_without_snapshot must contain %#v, but was %#v",
+			libVndkStaticOutputPaths[0], binWithoutSnapshotFlags)
+	}
+
+	// libvendor.so is installed by libvendor.vendor_shared.BOARD.arm64
+	ctx.ModuleForTests("libvendor.vendor_shared.BOARD.arm64", sharedVariant).Output("libvendor.so")
+
+	// libvendor_without_snapshot.so is installed by libvendor_without_snapshot
+	ctx.ModuleForTests("libvendor_without_snapshot", sharedVariant).Output("libvendor_without_snapshot.so")
+
+	// bin is installed by bin.vendor_binary.BOARD.arm64
+	ctx.ModuleForTests("bin.vendor_binary.BOARD.arm64", binaryVariant).Output("bin")
+
+	// bin_without_snapshot is installed by bin_without_snapshot
+	ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Output("bin_without_snapshot")
+
+	// libvendor and bin don't have vendor.BOARD variant
+	libvendorVariants := ctx.ModuleVariantsForTests("libvendor")
+	if inList(sharedVariant, libvendorVariants) {
+		t.Errorf("libvendor must not have variant %#v, but it does", sharedVariant)
+	}
+
+	binVariants := ctx.ModuleVariantsForTests("bin")
+	if inList(binaryVariant, binVariants) {
+		t.Errorf("bin must not have variant %#v, but it does", sharedVariant)
 	}
 }
 
