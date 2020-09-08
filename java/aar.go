@@ -378,6 +378,10 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 			exportPackage = aarDep.ExportPackage()
 		}
 
+		if dep, ok := module.(Dependency); ok {
+			sdkLibraries.AddLibraryPaths(dep.ExportedSdkLibs())
+		}
+
 		switch ctx.OtherModuleDependencyTag(module) {
 		case instrumentationForTag:
 			// Nothing, instrumentationForTag is treated as libTag for javac but not for aapt2.
@@ -399,9 +403,6 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 				sharedLibs = append(sharedLibs, exportPackage)
 			}
 		case staticLibTag:
-			if dep, ok := module.(Dependency); ok {
-				sdkLibraries.AddLibraryPaths(dep.ExportedSdkLibs())
-			}
 			if exportPackage != nil {
 				transitiveStaticLibs = append(transitiveStaticLibs, aarDep.ExportedStaticPackages()...)
 				transitiveStaticLibs = append(transitiveStaticLibs, exportPackage)
