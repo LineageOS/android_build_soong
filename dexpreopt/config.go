@@ -130,14 +130,20 @@ func (libPaths LibraryPaths) addLibraryPath(ctx android.PathContext, lib string,
 
 // Add a new library path to the map. Ensure that the build path to the library exists.
 func (libPaths LibraryPaths) AddLibraryPath(ctx android.PathContext, lib string, hostPath, installPath android.Path) {
-	if hostPath != nil {
-		// Add a library only if the build path to it is known.
+	if hostPath != nil && installPath != nil {
+		// Add a library only if the build and install path to it is known.
 		libPaths.addLibraryPath(ctx, lib, hostPath, installPath)
-	} else if !ctx.Config().AllowMissingDependencies() {
-		// Error on libraries with unknown build paths, unless missing dependencies are allowed.
-		android.ReportPathErrorf(ctx, "unknown build path to <uses-library> '%s'", lib)
+	} else if ctx.Config().AllowMissingDependencies() {
+		// If missing dependencies are allowed, the build shouldn't fail when a <uses-library> is
+		// not found. However, this is likely to result is disabling dexpreopt, as it won't be
+		// possible to construct class loader context without on-host and on-device library paths.
 	} else {
-		// Not adding a library to the map will likely result in disabling dexpreopt.
+		// Error on libraries with unknown paths.
+		if hostPath == nil {
+			android.ReportPathErrorf(ctx, "unknown build path to <uses-library> '%s'", lib)
+		} else {
+			android.ReportPathErrorf(ctx, "unknown install path to <uses-library> '%s'", lib)
+		}
 	}
 }
 
