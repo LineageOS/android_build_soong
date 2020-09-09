@@ -25,6 +25,7 @@ var (
 	LinuxRustLinkFlags = []string{
 		"-B${cc_config.ClangBin}",
 		"-fuse-ld=lld",
+		"-Wl,--undefined-version",
 	}
 	linuxX86Rustflags   = []string{}
 	linuxX86Linkflags   = []string{}
@@ -77,7 +78,9 @@ func (t *toolchainLinuxX8664) RustTriple() string {
 }
 
 func (t *toolchainLinuxX8664) ToolchainLinkFlags() string {
-	return "${config.LinuxToolchainLinkFlags} ${config.LinuxToolchainX8664LinkFlags}"
+	// Prepend the lld flags from cc_config so we stay in sync with cc
+	return "${cc_config.LinuxClangLldflags} ${cc_config.LinuxX8664ClangLldflags} " +
+		"${config.LinuxToolchainLinkFlags} ${config.LinuxToolchainX8664LinkFlags}"
 }
 
 func (t *toolchainLinuxX8664) ToolchainRustFlags() string {
@@ -105,7 +108,9 @@ func (t *toolchainLinuxX86) RustTriple() string {
 }
 
 func (t *toolchainLinuxX86) ToolchainLinkFlags() string {
-	return "${config.LinuxToolchainLinkFlags} ${config.LinuxToolchainX86LinkFlags}"
+	// Prepend the lld flags from cc_config so we stay in sync with cc
+	return "${cc_config.LinuxClangLldflags} ${cc_config.LinuxX86ClangLldflags} " +
+		"${config.LinuxToolchainLinkFlags} ${config.LinuxToolchainX86LinkFlags}"
 }
 
 func (t *toolchainLinuxX86) ToolchainRustFlags() string {
