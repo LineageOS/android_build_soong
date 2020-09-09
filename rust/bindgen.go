@@ -96,8 +96,7 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	var cflags []string
 	var implicits android.Paths
 
-	implicits = append(implicits, deps.depIncludePaths...)
-	implicits = append(implicits, deps.depSystemIncludePaths...)
+	implicits = append(implicits, deps.depGeneratedHeaders...)
 
 	// Default clang flags
 	cflags = append(cflags, "${cc_config.CommonClangGlobalCflags}")
