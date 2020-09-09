@@ -27,15 +27,14 @@ var (
 	defaultBindgenFlags = []string{""}
 
 	// bindgen should specify its own Clang revision so updating Clang isn't potentially blocked on bindgen failures.
-	bindgenClangVersion  = "clang-r383902c"
-	bindgenLibClangSoGit = "11git"
+	bindgenClangVersion = "clang-r383902c"
 
 	//TODO(b/160803703) Use a prebuilt bindgen instead of the built bindgen.
 	_ = pctx.SourcePathVariable("bindgenCmd", "out/host/${config.HostPrebuiltTag}/bin/bindgen")
 	_ = pctx.SourcePathVariable("bindgenClang",
 		"${cc_config.ClangBase}/${config.HostPrebuiltTag}/"+bindgenClangVersion+"/bin/clang")
 	_ = pctx.SourcePathVariable("bindgenLibClang",
-		"${cc_config.ClangBase}/${config.HostPrebuiltTag}/"+bindgenClangVersion+"/lib64/libclang.so."+bindgenLibClangSoGit)
+		"${cc_config.ClangBase}/${config.HostPrebuiltTag}/"+bindgenClangVersion+"/lib64/")
 
 	//TODO(ivanlozano) Switch this to RuleBuilder
 	bindgen = pctx.AndroidStaticRule("bindgen",
