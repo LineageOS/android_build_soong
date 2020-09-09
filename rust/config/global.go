@@ -42,22 +42,18 @@ var (
 	deviceGlobalRustFlags = []string{}
 
 	deviceGlobalLinkFlags = []string{
+		// Prepend the lld flags from cc_config so we stay in sync with cc
+		"${cc_config.DeviceGlobalLldflags}",
+
+		// Override cc's --no-undefined-version to allow rustc's generated alloc functions
+		"-Wl,--undefined-version",
+
 		"-Bdynamic",
 		"-nostdlib",
-		"-Wl,-z,noexecstack",
-		"-Wl,-z,relro",
-		"-Wl,-z,now",
-		"-Wl,--build-id=md5",
-		"-Wl,--warn-shared-textrel",
-		"-Wl,--fatal-warnings",
-
 		"-Wl,--pack-dyn-relocs=android+relr",
 		"-Wl,--use-android-relr-tags",
 		"-Wl,--no-undefined",
-		"-Wl,--hash-style=gnu",
-
 		"-B${cc_config.ClangBin}",
-		"-fuse-ld=lld",
 	}
 )
 
