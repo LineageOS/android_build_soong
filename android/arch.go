@@ -551,6 +551,15 @@ var BuildOs = func() OsType {
 	}
 }()
 
+var BuildArch = func() ArchType {
+	switch runtime.GOARCH {
+	case "amd64":
+		return X86_64
+	default:
+		panic(fmt.Sprintf("unsupported Arch: %s", runtime.GOARCH))
+	}
+}()
+
 var (
 	OsTypeList      []OsType
 	commonTargetMap = make(map[string]Target)
