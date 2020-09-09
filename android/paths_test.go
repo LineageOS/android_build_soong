@@ -207,6 +207,7 @@ type moduleInstallPathContextImpl struct {
 	inRecovery     bool
 	inRoot         bool
 	forceOS        *OsType
+	forceArch      *ArchType
 }
 
 func (m moduleInstallPathContextImpl) Config() Config {
@@ -243,8 +244,8 @@ func (m moduleInstallPathContextImpl) InstallBypassMake() bool {
 	return false
 }
 
-func (m moduleInstallPathContextImpl) InstallForceOS() *OsType {
-	return m.forceOS
+func (m moduleInstallPathContextImpl) InstallForceOS() (*OsType, *ArchType) {
+	return m.forceOS, m.forceArch
 }
 
 func pathTestConfig(buildDir string) Config {
@@ -254,8 +255,8 @@ func pathTestConfig(buildDir string) Config {
 func TestPathForModuleInstall(t *testing.T) {
 	testConfig := pathTestConfig("")
 
-	hostTarget := Target{Os: Linux}
-	deviceTarget := Target{Os: Android}
+	hostTarget := Target{Os: Linux, Arch: Arch{ArchType: X86}}
+	deviceTarget := Target{Os: Android, Arch: Arch{ArchType: Arm64}}
 
 	testCases := []struct {
 		name string
@@ -635,6 +636,7 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inTestcases: true,
 				forceOS:     &Linux,
+				forceArch:   &X86,
 			},
 			in:  []string{"my_test", "my_test_bin"},
 			out: "host/linux-x86/testcases/my_test/my_test_bin",
