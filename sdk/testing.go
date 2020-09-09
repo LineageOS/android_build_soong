@@ -217,6 +217,22 @@ func (h *TestHelper) AssertDeepEquals(message string, expected interface{}, actu
 	}
 }
 
+func (h *TestHelper) AssertPanic(message string, funcThatShouldPanic func()) {
+	h.t.Helper()
+	panicked := false
+	func() {
+		defer func() {
+			if x := recover(); x != nil {
+				panicked = true
+			}
+		}()
+		funcThatShouldPanic()
+	}()
+	if !panicked {
+		h.t.Error(message)
+	}
+}
+
 // Encapsulates result of processing an SDK definition. Provides support for
 // checking the state of the build structures.
 type testSdkResult struct {
