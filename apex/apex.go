@@ -1273,6 +1273,8 @@ type apexFile struct {
 	lintDepSets             java.LintDepSets // only for javalibs and apps
 	certificate             java.Certificate // only for apps
 	overriddenPackageName   string           // only for apps
+
+	noticeFile android.OptionalPath
 }
 
 func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, moduleName string, installDir string, class apexFileClass, module android.Module) apexFile {
@@ -1288,6 +1290,7 @@ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, moduleNa
 		ret.requiredModuleNames = module.RequiredModuleNames()
 		ret.targetRequiredModuleNames = module.TargetRequiredModuleNames()
 		ret.hostRequiredModuleNames = module.HostRequiredModuleNames()
+		ret.noticeFile = module.NoticeFile()
 	}
 	return ret
 }

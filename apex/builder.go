@@ -237,6 +237,12 @@ func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName st
 		return true
 	})
 
+	for _, fi := range a.filesInfo {
+		if fi.noticeFile.Valid() {
+			noticeFiles = append(noticeFiles, fi.noticeFile.Path())
+		}
+	}
+
 	if len(noticeFiles) == 0 {
 		return android.NoticeOutputs{}
 	}
