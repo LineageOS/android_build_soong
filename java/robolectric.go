@@ -326,9 +326,11 @@ func RobolectricTestFactory() android.Module {
 	return module
 }
 
-func (r *robolectricTest) InstallBypassMake() bool         { return true }
-func (r *robolectricTest) InstallInTestcases() bool        { return true }
-func (r *robolectricTest) InstallForceOS() *android.OsType { return &android.BuildOs }
+func (r *robolectricTest) InstallBypassMake() bool  { return true }
+func (r *robolectricTest) InstallInTestcases() bool { return true }
+func (r *robolectricTest) InstallForceOS() (*android.OsType, *android.ArchType) {
+	return &android.BuildOs, &android.BuildArch
+}
 
 func robolectricRuntimesFactory() android.Module {
 	module := &robolectricRuntimes{}
@@ -390,6 +392,8 @@ func (r *robolectricRuntimes) GenerateAndroidBuildActions(ctx android.ModuleCont
 	}
 }
 
-func (r *robolectricRuntimes) InstallBypassMake() bool         { return true }
-func (r *robolectricRuntimes) InstallInTestcases() bool        { return true }
-func (r *robolectricRuntimes) InstallForceOS() *android.OsType { return &android.BuildOs }
+func (r *robolectricRuntimes) InstallBypassMake() bool  { return true }
+func (r *robolectricRuntimes) InstallInTestcases() bool { return true }
+func (r *robolectricRuntimes) InstallForceOS() (*android.OsType, *android.ArchType) {
+	return &android.BuildOs, &android.BuildArch
+}
