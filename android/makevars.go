@@ -234,7 +234,7 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 
 	ctx.VisitAllModules(func(m Module) {
-		if provider, ok := m.(ModuleMakeVarsProvider); ok {
+		if provider, ok := m.(ModuleMakeVarsProvider); ok && m.Enabled() {
 			mctx := &makeVarsContext{
 				SingletonContext: ctx,
 			}
