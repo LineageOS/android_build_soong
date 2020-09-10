@@ -324,6 +324,10 @@ type CompilerDeviceProperties struct {
 	Stem *string
 
 	IsSDKLibrary bool `blueprint:"mutated"`
+
+	// If true, generate the signature file of APK Signing Scheme V4, along side the signed APK file.
+	// Defaults to false.
+	V4_signature *bool
 }
 
 // Functionality common to Module and Import

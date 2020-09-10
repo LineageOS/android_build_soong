@@ -199,6 +199,7 @@ func createCcSdkVariantRules() []Rule {
 		"prebuilts/ndk",
 		"tools/test/graphicsbenchmark/apps/sample_app",
 		"tools/test/graphicsbenchmark/functional_tests/java",
+		"vendor/xts/gts-tests/hostsidetests/gamedevicecert/apps/javatests",
 	}
 
 	platformVariantPropertiesAllowedList := []string{
@@ -274,6 +275,10 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 			continue
 		}
 
+		if !n.appliesToBootclasspathJar(ctx) {
+			continue
+		}
+
 		ctx.ModuleErrorf("violates " + n.String())
 	}
 }
@@ -332,6 +337,18 @@ func (m *regexMatcher) String() string {
 	return ".regexp(" + m.re.String() + ")"
 }
 
+type notInListMatcher struct {
+	allowed []string
+}
+
+func (m *notInListMatcher) Test(value string) bool {
+	return !InList(value, m.allowed)
+}
+
+func (m *notInListMatcher) String() string {
+	return ".not-in-list(" + strings.Join(m.allowed, ",") + ")"
+}
+
 type isSetMatcher struct{}
 
 func (m *isSetMatcher) Test(value string) bool {
@@ -363,6 +380,8 @@ type Rule interface {
 
 	NotModuleType(types ...string) Rule
 
+	BootclasspathJar() Rule
+
 	With(properties, value string) Rule
 
 	WithMatcher(properties string, matcher ValueMatcher) Rule
@@ -390,6 +409,8 @@ type rule struct {
 
 	props       []ruleProperty
 	unlessProps []ruleProperty
+
+	onlyBootclasspathJar bool
 }
 
 // Create a new NeverAllow rule.
@@ -465,6 +486,11 @@ func (r *rule) Because(reason string) Rule {
 	return r
 }
 
+func (r *rule) BootclasspathJar() Rule {
+	r.onlyBootclasspathJar = true
+	return r
+}
+
 func (r *rule) String() string {
 	s := "neverallow"
 	for _, v := range r.paths {
@@ -490,6 +516,9 @@ func (r *rule) String() string {
 	}
 	for _, v := range r.osClasses {
 		s += " os:" + v.String()
+	}
+	if r.onlyBootclasspathJar {
+		s += " inBcp"
 	}
 	if len(r.reason) != 0 {
 		s += " which is restricted because " + r.reason
@@ -517,6 +546,14 @@ func (r *rule) appliesToDirectDeps(ctx BottomUpMutatorContext) bool {
 	})
 
 	return matches
+}
+
+func (r *rule) appliesToBootclasspathJar(ctx BottomUpMutatorContext) bool {
+	if !r.onlyBootclasspathJar {
+		return true
+	}
+
+	return InList(ctx.ModuleName(), ctx.Config().BootJars())
 }
 
 func (r *rule) appliesToOsClass(osClass OsClass) bool {
@@ -553,6 +590,10 @@ func Regexp(re string) ValueMatcher {
 		panic(err)
 	}
 	return &regexMatcher{r}
+}
+
+func NotInList(allowed []string) ValueMatcher {
+	return &notInListMatcher{allowed}
 }
 
 // assorted utils

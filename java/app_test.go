@@ -176,16 +176,17 @@ func TestAndroidAppSet_Variants(t *testing.T) {
 			set: "prebuilts/apks/app.apks",
 		}`
 	testCases := []struct {
-		name                string
-		deviceArch          *string
-		deviceSecondaryArch *string
-		aaptPrebuiltDPI     []string
-		sdkVersion          int
-		expected            map[string]string
+		name            string
+		targets         []android.Target
+		aaptPrebuiltDPI []string
+		sdkVersion      int
+		expected        map[string]string
 	}{
 		{
-			name:            "One",
-			deviceArch:      proptools.StringPtr("x86"),
+			name: "One",
+			targets: []android.Target{
+				{Os: android.Android, Arch: android.Arch{ArchType: android.X86}},
+			},
 			aaptPrebuiltDPI: []string{"ldpi", "xxhdpi"},
 			sdkVersion:      29,
 			expected: map[string]string{
@@ -197,11 +198,13 @@ func TestAndroidAppSet_Variants(t *testing.T) {
 			},
 		},
 		{
-			name:                "Two",
-			deviceArch:          proptools.StringPtr("x86_64"),
-			deviceSecondaryArch: proptools.StringPtr("x86"),
-			aaptPrebuiltDPI:     nil,
-			sdkVersion:          30,
+			name: "Two",
+			targets: []android.Target{
+				{Os: android.Android, Arch: android.Arch{ArchType: android.X86_64}},
+				{Os: android.Android, Arch: android.Arch{ArchType: android.X86}},
+			},
+			aaptPrebuiltDPI: nil,
+			sdkVersion:      30,
 			expected: map[string]string{
 				"abis":              "X86_64,X86",
 				"allow-prereleased": "false",
@@ -216,8 +219,7 @@ func TestAndroidAppSet_Variants(t *testing.T) {
 		config := testAppConfig(nil, bp, nil)
 		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
 		config.TestProductVariables.Platform_sdk_version = &test.sdkVersion
-		config.TestProductVariables.DeviceArch = test.deviceArch
-		config.TestProductVariables.DeviceSecondaryArch = test.deviceSecondaryArch
+		config.Targets[android.Android] = test.targets
 		ctx := testContext()
 		run(t, ctx, config)
 		module := ctx.ModuleForTests("foo", "android_common")
@@ -1655,6 +1657,66 @@ func TestCertificates(t *testing.T) {
 	}
 }
 
+func TestRequestV4SigningFlag(t *testing.T) {
+	testCases := []struct {
+		name     string
+		bp       string
+		expected string
+	}{
+		{
+			name: "default",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+				}
+			`,
+			expected: "",
+		},
+		{
+			name: "default",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+					v4_signature: false,
+				}
+			`,
+			expected: "",
+		},
+		{
+			name: "module certificate property",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					sdk_version: "current",
+					v4_signature: true,
+				}
+			`,
+			expected: "--enable-v4",
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			config := testAppConfig(nil, test.bp, nil)
+			ctx := testContext()
+
+			run(t, ctx, config)
+			foo := ctx.ModuleForTests("foo", "android_common")
+
+			signapk := foo.Output("foo.apk")
+			signFlags := signapk.Args["flags"]
+			if test.expected != signFlags {
+				t.Errorf("Incorrect signing flags, expected: %q, got: %q", test.expected, signFlags)
+			}
+		})
+	}
+}
+
 func TestPackageNameOverride(t *testing.T) {
 	testCases := []struct {
 		name                string
@@ -1777,52 +1839,125 @@ func TestOverrideAndroidApp(t *testing.T) {
 			base: "foo",
 			package_name: "org.dandroid.bp",
 		}
+
+		override_android_app {
+			name: "baz_no_rename_resources",
+			base: "foo",
+			package_name: "org.dandroid.bp",
+			rename_resources_package: false,
+		}
+
+		android_app {
+			name: "foo_no_rename_resources",
+			srcs: ["a.java"],
+			certificate: "expiredkey",
+			overrides: ["qux"],
+			rename_resources_package: false,
+			sdk_version: "current",
+		}
+
+		override_android_app {
+			name: "baz_base_no_rename_resources",
+			base: "foo_no_rename_resources",
+			package_name: "org.dandroid.bp",
+		}
+
+		override_android_app {
+			name: "baz_override_base_rename_resources",
+			base: "foo_no_rename_resources",
+			package_name: "org.dandroid.bp",
+			rename_resources_package: true,
+		}
 		`)
 
 	expectedVariants := []struct {
-		moduleName     string
-		variantName    string
-		apkName        string
-		apkPath        string
-		certFlag       string
-		lineageFlag    string
-		overrides      []string
-		aaptFlag       string
-		logging_parent string
+		name            string
+		moduleName      string
+		variantName     string
+		apkName         string
+		apkPath         string
+		certFlag        string
+		lineageFlag     string
+		overrides       []string
+		packageFlag     string
+		renameResources bool
+		logging_parent  string
 	}{
 		{
-			moduleName:     "foo",
-			variantName:    "android_common",
-			apkPath:        "/target/product/test_device/system/app/foo/foo.apk",
-			certFlag:       "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			lineageFlag:    "",
-			overrides:      []string{"qux"},
-			aaptFlag:       "",
-			logging_parent: "",
+			name:            "foo",
+			moduleName:      "foo",
+			variantName:     "android_common",
+			apkPath:         "/target/product/test_device/system/app/foo/foo.apk",
+			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			lineageFlag:     "",
+			overrides:       []string{"qux"},
+			packageFlag:     "",
+			renameResources: false,
+			logging_parent:  "",
 		},
 		{
-			moduleName:     "bar",
-			variantName:    "android_common_bar",
-			apkPath:        "/target/product/test_device/system/app/bar/bar.apk",
-			certFlag:       "cert/new_cert.x509.pem cert/new_cert.pk8",
-			lineageFlag:    "--lineage lineage.bin",
-			overrides:      []string{"qux", "foo"},
-			aaptFlag:       "",
-			logging_parent: "bah",
+			name:            "foo",
+			moduleName:      "bar",
+			variantName:     "android_common_bar",
+			apkPath:         "/target/product/test_device/system/app/bar/bar.apk",
+			certFlag:        "cert/new_cert.x509.pem cert/new_cert.pk8",
+			lineageFlag:     "--lineage lineage.bin",
+			overrides:       []string{"qux", "foo"},
+			packageFlag:     "",
+			renameResources: false,
+			logging_parent:  "bah",
 		},
 		{
-			moduleName:     "baz",
-			variantName:    "android_common_baz",
-			apkPath:        "/target/product/test_device/system/app/baz/baz.apk",
-			certFlag:       "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
-			lineageFlag:    "",
-			overrides:      []string{"qux", "foo"},
-			aaptFlag:       "--rename-manifest-package org.dandroid.bp",
-			logging_parent: "",
+			name:            "foo",
+			moduleName:      "baz",
+			variantName:     "android_common_baz",
+			apkPath:         "/target/product/test_device/system/app/baz/baz.apk",
+			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			lineageFlag:     "",
+			overrides:       []string{"qux", "foo"},
+			packageFlag:     "org.dandroid.bp",
+			renameResources: true,
+			logging_parent:  "",
+		},
+		{
+			name:            "foo",
+			moduleName:      "baz_no_rename_resources",
+			variantName:     "android_common_baz_no_rename_resources",
+			apkPath:         "/target/product/test_device/system/app/baz_no_rename_resources/baz_no_rename_resources.apk",
+			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			lineageFlag:     "",
+			overrides:       []string{"qux", "foo"},
+			packageFlag:     "org.dandroid.bp",
+			renameResources: false,
+			logging_parent:  "",
+		},
+		{
+			name:            "foo_no_rename_resources",
+			moduleName:      "baz_base_no_rename_resources",
+			variantName:     "android_common_baz_base_no_rename_resources",
+			apkPath:         "/target/product/test_device/system/app/baz_base_no_rename_resources/baz_base_no_rename_resources.apk",
+			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			lineageFlag:     "",
+			overrides:       []string{"qux", "foo_no_rename_resources"},
+			packageFlag:     "org.dandroid.bp",
+			renameResources: false,
+			logging_parent:  "",
+		},
+		{
+			name:            "foo_no_rename_resources",
+			moduleName:      "baz_override_base_rename_resources",
+			variantName:     "android_common_baz_override_base_rename_resources",
+			apkPath:         "/target/product/test_device/system/app/baz_override_base_rename_resources/baz_override_base_rename_resources.apk",
+			certFlag:        "build/make/target/product/security/expiredkey.x509.pem build/make/target/product/security/expiredkey.pk8",
+			lineageFlag:     "",
+			overrides:       []string{"qux", "foo_no_rename_resources"},
+			packageFlag:     "org.dandroid.bp",
+			renameResources: true,
+			logging_parent:  "",
 		},
 	}
 	for _, expected := range expectedVariants {
-		variant := ctx.ModuleForTests("foo", expected.variantName)
+		variant := ctx.ModuleForTests(expected.name, expected.variantName)
 
 		// Check the final apk name
 		outputs := variant.AllOutputs()
@@ -1868,9 +2003,12 @@ func TestOverrideAndroidApp(t *testing.T) {
 		// Check the package renaming flag, if exists.
 		res := variant.Output("package-res.apk")
 		aapt2Flags := res.Args["flags"]
-		if !strings.Contains(aapt2Flags, expected.aaptFlag) {
-			t.Errorf("package renaming flag, %q is missing in aapt2 link flags, %q", expected.aaptFlag, aapt2Flags)
+		checkAapt2LinkFlag(t, aapt2Flags, "rename-manifest-package", expected.packageFlag)
+		expectedPackage := expected.packageFlag
+		if !expected.renameResources {
+			expectedPackage = ""
 		}
+		checkAapt2LinkFlag(t, aapt2Flags, "rename-resources-package", expectedPackage)
 	}
 }
 
@@ -2007,6 +2145,7 @@ func TestOverrideAndroidTest(t *testing.T) {
 		res := variant.Output("package-res.apk")
 		aapt2Flags := res.Args["flags"]
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-manifest-package", expected.packageFlag)
+		checkAapt2LinkFlag(t, aapt2Flags, "rename-resources-package", expected.packageFlag)
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-instrumentation-target-package", expected.targetPackageFlag)
 	}
 }
@@ -3131,6 +3270,65 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 	}
 }
 
+func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
+	ctx, config := testJava(t, `
+		java_defaults {
+			name: "rro_defaults",
+			theme: "default_theme",
+			product_specific: true,
+			aaptflags: ["--keep-raw-values"],
+		}
+
+		runtime_resource_overlay {
+			name: "foo_with_defaults",
+			defaults: ["rro_defaults"],
+		}
+
+		runtime_resource_overlay {
+			name: "foo_barebones",
+		}
+		`)
+
+	//
+	// RRO module with defaults
+	//
+	m := ctx.ModuleForTests("foo_with_defaults", "android_common")
+
+	// Check AAPT2 link flags.
+	aapt2Flags := strings.Split(m.Output("package-res.apk").Args["flags"], " ")
+	expectedFlags := []string{"--keep-raw-values", "--no-resource-deduping", "--no-resource-removal"}
+	absentFlags := android.RemoveListFromList(expectedFlags, aapt2Flags)
+	if len(absentFlags) > 0 {
+		t.Errorf("expected values, %q are missing in aapt2 link flags, %q", absentFlags, aapt2Flags)
+	}
+
+	// Check device location.
+	path := android.AndroidMkEntriesForTest(t, config, "", m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
+	expectedPath := []string{"/tmp/target/product/test_device/product/overlay/default_theme"}
+	if !reflect.DeepEqual(path, expectedPath) {
+		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %q, expected: %q", path, expectedPath)
+	}
+
+	//
+	// RRO module without defaults
+	//
+	m = ctx.ModuleForTests("foo_barebones", "android_common")
+
+	// Check AAPT2 link flags.
+	aapt2Flags = strings.Split(m.Output("package-res.apk").Args["flags"], " ")
+	unexpectedFlags := "--keep-raw-values"
+	if inList(unexpectedFlags, aapt2Flags) {
+		t.Errorf("unexpected value, %q is present in aapt2 link flags, %q", unexpectedFlags, aapt2Flags)
+	}
+
+	// Check device location.
+	path = android.AndroidMkEntriesForTest(t, config, "", m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
+	expectedPath = []string{"/tmp/target/product/test_device/system/overlay"}
+	if !reflect.DeepEqual(path, expectedPath) {
+		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
+	}
+}
+
 func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 	ctx, _ := testJava(t, `
 		runtime_resource_overlay {
@@ -3202,65 +3400,7 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 		res := variant.Output("package-res.apk")
 		aapt2Flags := res.Args["flags"]
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-manifest-package", expected.packageFlag)
+		checkAapt2LinkFlag(t, aapt2Flags, "rename-resources-package", "")
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-overlay-target-package", expected.targetPackageFlag)
-	}
-}
-
-func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
-	ctx, config := testJava(t, `
-		java_defaults {
-			name: "rro_defaults",
-			theme: "default_theme",
-			product_specific: true,
-			aaptflags: ["--keep-raw-values"],
-		}
-
-		runtime_resource_overlay {
-			name: "foo_with_defaults",
-			defaults: ["rro_defaults"],
-		}
-
-		runtime_resource_overlay {
-			name: "foo_barebones",
-		}
-		`)
-
-	//
-	// RRO module with defaults
-	//
-	m := ctx.ModuleForTests("foo_with_defaults", "android_common")
-
-	// Check AAPT2 link flags.
-	aapt2Flags := strings.Split(m.Output("package-res.apk").Args["flags"], " ")
-	expectedFlags := []string{"--keep-raw-values", "--no-resource-deduping", "--no-resource-removal"}
-	absentFlags := android.RemoveListFromList(expectedFlags, aapt2Flags)
-	if len(absentFlags) > 0 {
-		t.Errorf("expected values, %q are missing in aapt2 link flags, %q", absentFlags, aapt2Flags)
-	}
-
-	// Check device location.
-	path := android.AndroidMkEntriesForTest(t, config, "", m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath := []string{"/tmp/target/product/test_device/product/overlay/default_theme"}
-	if !reflect.DeepEqual(path, expectedPath) {
-		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %q, expected: %q", path, expectedPath)
-	}
-
-	//
-	// RRO module without defaults
-	//
-	m = ctx.ModuleForTests("foo_barebones", "android_common")
-
-	// Check AAPT2 link flags.
-	aapt2Flags = strings.Split(m.Output("package-res.apk").Args["flags"], " ")
-	unexpectedFlags := "--keep-raw-values"
-	if inList(unexpectedFlags, aapt2Flags) {
-		t.Errorf("unexpected value, %q is present in aapt2 link flags, %q", unexpectedFlags, aapt2Flags)
-	}
-
-	// Check device location.
-	path = android.AndroidMkEntriesForTest(t, config, "", m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath = []string{"/tmp/target/product/test_device/system/overlay"}
-	if !reflect.DeepEqual(path, expectedPath) {
-		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
 	}
 }
