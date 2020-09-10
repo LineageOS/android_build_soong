@@ -258,6 +258,7 @@ type PathDeps struct {
 	// Used by bindgen modules which call clang
 	depClangFlags         []string
 	depIncludePaths       android.Paths
+	depGeneratedHeaders   android.Paths
 	depSystemIncludePaths android.Paths
 
 	coverageFiles android.Paths
@@ -875,6 +876,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				if mod, ok := ccDep.(*cc.Module); ok {
 					depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, mod.ExportedSystemIncludeDirs()...)
 					depPaths.depClangFlags = append(depPaths.depClangFlags, mod.ExportedFlags()...)
+					depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, mod.ExportedGeneratedHeaders()...)
 				}
 				depPaths.coverageFiles = append(depPaths.coverageFiles, ccDep.CoverageFiles()...)
 				directStaticLibDeps = append(directStaticLibDeps, ccDep)
@@ -886,6 +888,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				if mod, ok := ccDep.(*cc.Module); ok {
 					depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, mod.ExportedSystemIncludeDirs()...)
 					depPaths.depClangFlags = append(depPaths.depClangFlags, mod.ExportedFlags()...)
+					depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, mod.ExportedGeneratedHeaders()...)
 				}
 				directSharedLibDeps = append(directSharedLibDeps, ccDep)
 				mod.Properties.AndroidMkSharedLibs = append(mod.Properties.AndroidMkSharedLibs, depName)
