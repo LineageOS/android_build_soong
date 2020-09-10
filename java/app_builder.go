@@ -102,7 +102,7 @@ func SignAppPackage(ctx android.ModuleContext, signedApk android.WritablePath, u
 		"certificates": strings.Join(certificateArgs, " "),
 		"flags":        strings.Join(flags, " "),
 	}
-	if ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
 		rule = SignapkRE
 		args["implicits"] = strings.Join(deps.Strings(), ",")
 		args["outCommaList"] = strings.Join(outputFiles.Strings(), ",")
@@ -241,7 +241,7 @@ func TransformJniLibsToJar(ctx android.ModuleContext, outputFile android.Writabl
 	args := map[string]string{
 		"jarArgs": strings.Join(proptools.NinjaAndShellEscapeList(jarArgs), " "),
 	}
-	if ctx.Config().IsEnvTrue("RBE_ZIP") {
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_ZIP") {
 		rule = zipRE
 		args["implicits"] = strings.Join(deps.Strings(), ",")
 	}
