@@ -656,7 +656,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		a.container_certificate_file,
 		a.container_private_key_file,
 	}
-	if ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
 		rule = java.SignapkRE
 		args["implicits"] = strings.Join(implicits.Strings(), ",")
 		args["outCommaList"] = a.outputFile.String()
