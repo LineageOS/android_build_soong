@@ -1464,7 +1464,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	// Metalava uses lots of memory, restrict the number of metalava jobs that can run in parallel.
 	rule.HighMem()
 	cmd := rule.Command()
-	if ctx.Config().IsEnvTrue("RBE_METALAVA") {
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_METALAVA") {
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
 		pool := ctx.Config().GetenvWithDefault("RBE_METALAVA_POOL", "metalava")
 		execStrategy := ctx.Config().GetenvWithDefault("RBE_METALAVA_EXEC_STRATEGY", remoteexec.LocalExecStrategy)

@@ -1494,7 +1494,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		args := map[string]string{
 			"jarArgs": "-P META-INF/services/ " + strings.Join(proptools.NinjaAndShellEscapeList(zipargs), " "),
 		}
-		if ctx.Config().IsEnvTrue("RBE_ZIP") {
+		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_ZIP") {
 			rule = zipRE
 			args["implicits"] = strings.Join(services.Strings(), ",")
 		}
