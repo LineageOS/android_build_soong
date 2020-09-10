@@ -539,6 +539,11 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 }
 
 func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
+	if len(ctx.DeviceConfig().TargetSpecificHeaderPath()) > 0 {
+		split := strings.Split(ctx.DeviceConfig().TargetSpecificHeaderPath(), " ")
+		flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-I" + strings.Join(split, " -I"))
+	}
+
 	exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
 	if len(exportIncludeDirs) > 0 {
 		f := includeDirsToFlags(exportIncludeDirs)
