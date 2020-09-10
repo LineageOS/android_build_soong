@@ -1913,8 +1913,10 @@ type UsesLibraryProperties struct {
 	// to true if either uses_libs or optional_uses_libs is set.  Will unconditionally default to true in the future.
 	Enforce_uses_libs *bool
 
-	// If the library itself is a uses-library (this is needed for non-SDK libraries).
-	Is_uses_lib *bool
+	// Optional name of the <uses-library> provided by this module. This is needed for non-SDK
+	// libraries, because SDK ones are automatically picked up by Soong. The <uses-library> name
+	// normally is the same as the module name, but there are exceptions.
+	Provides_uses_lib *string
 }
 
 // usesLibrary provides properties and helper functions for AndroidApp and AndroidAppImport to verify that the
