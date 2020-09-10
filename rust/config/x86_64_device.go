@@ -61,7 +61,8 @@ func (t *toolchainX86_64) RustTriple() string {
 }
 
 func (t *toolchainX86_64) ToolchainLinkFlags() string {
-	return "${config.DeviceGlobalLinkFlags} ${config.X86_64ToolchainLinkFlags}"
+	// Prepend the lld flags from cc_config so we stay in sync with cc
+	return "${config.DeviceGlobalLinkFlags} ${cc_config.X86_64Lldflags} ${config.X86_64ToolchainLinkFlags}"
 }
 
 func (t *toolchainX86_64) ToolchainRustFlags() string {
