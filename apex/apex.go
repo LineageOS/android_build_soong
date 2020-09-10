@@ -1290,6 +1290,8 @@ type apexFile struct {
 	overriddenPackageName   string           // only for apps
 
 	isJniLib bool
+
+	noticeFiles android.Paths
 }
 
 func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidMkModuleName string, installDir string, class apexFileClass, module android.Module) apexFile {
@@ -1305,6 +1307,7 @@ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidM
 		ret.requiredModuleNames = module.RequiredModuleNames()
 		ret.targetRequiredModuleNames = module.TargetRequiredModuleNames()
 		ret.hostRequiredModuleNames = module.HostRequiredModuleNames()
+		ret.noticeFiles = module.NoticeFiles()
 	}
 	return ret
 }
