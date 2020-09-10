@@ -1120,6 +1120,10 @@ func (c *deviceConfig) DeviceKernelHeaderDirs() []string {
 	return c.config.productVariables.DeviceKernelHeaders
 }
 
+func (c *deviceConfig) TargetSpecificHeaderPath() string {
+	return String(c.config.productVariables.TargetSpecificHeaderPath)
+}
+
 func (c *deviceConfig) SamplingPGO() bool {
 	return Bool(c.config.productVariables.SamplingPGO)
 }
