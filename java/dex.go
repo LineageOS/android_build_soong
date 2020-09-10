@@ -288,7 +288,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 			"outUsageZip": proguardUsageZip.String(),
 			"outDir":      outDir.String(),
 		}
-		if ctx.Config().IsEnvTrue("RBE_R8") {
+		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_R8") {
 			rule = r8RE
 			args["implicits"] = strings.Join(r8Deps.Strings(), ",")
 		}
@@ -304,7 +304,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, mi
 	} else {
 		d8Flags, d8Deps := d8Flags(flags)
 		rule := d8
-		if ctx.Config().IsEnvTrue("RBE_D8") {
+		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_D8") {
 			rule = d8RE
 		}
 		ctx.Build(pctx, android.BuildParams{
