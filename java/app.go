@@ -118,17 +118,17 @@ var TargetCpuAbi = map[string]string{
 }
 
 func SupportedAbis(ctx android.ModuleContext) []string {
-	abiName := func(archVar string, deviceArch string) string {
+	abiName := func(targetIdx int, deviceArch string) string {
 		if abi, found := TargetCpuAbi[deviceArch]; found {
 			return abi
 		}
-		ctx.ModuleErrorf("Invalid %s: %s", archVar, deviceArch)
+		ctx.ModuleErrorf("Target %d has invalid Arch: %s", targetIdx, deviceArch)
 		return "BAD_ABI"
 	}
 
-	result := []string{abiName("TARGET_ARCH", ctx.DeviceConfig().DeviceArch())}
-	if s := ctx.DeviceConfig().DeviceSecondaryArch(); s != "" {
-		result = append(result, abiName("TARGET_2ND_ARCH", s))
+	var result []string
+	for i, target := range ctx.Config().Targets[android.Android] {
+		result = append(result, abiName(i, target.Arch.ArchType.String()))
 	}
 	return result
 }
@@ -268,6 +268,9 @@ type overridableAppProperties struct {
 
 	// the logging parent of this app.
 	Logging_parent *string
+
+	// Whether to rename the package in resources to the override name rather than the base name. Defaults to true.
+	Rename_resources_package *bool
 }
 
 // runtime_resource_overlay properties that can be overridden by override_runtime_resource_overlay
@@ -505,8 +508,21 @@ func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
 		!a.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
 }
 
+func generateAaptRenamePackageFlags(packageName string, renameResourcesPackage bool) []string {
+	aaptFlags := []string{"--rename-manifest-package " + packageName}
+	if renameResourcesPackage {
+		// Required to rename the package name in the resources table.
+		aaptFlags = append(aaptFlags, "--rename-resources-package "+packageName)
+	}
+	return aaptFlags
+}
+
 func (a *AndroidApp) OverriddenManifestPackageName() string {
 	return a.overriddenManifestPackageName
+}
+
+func (a *AndroidApp) renameResourcesPackage() bool {
+	return proptools.BoolDefault(a.overridableAppProperties.Rename_resources_package, true)
 }
 
 func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
@@ -541,7 +557,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 		if !overridden {
 			manifestPackageName = *a.overridableAppProperties.Package_name
 		}
-		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
+		aaptLinkFlags = append(aaptLinkFlags, generateAaptRenamePackageFlags(manifestPackageName, a.renameResourcesPackage())...)
 		a.overriddenManifestPackageName = manifestPackageName
 	}
 
@@ -801,18 +817,32 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Build a final signed app package.
 	packageFile := android.PathForModuleOut(ctx, a.installApkName+".apk")
+	v4SigningRequested := Bool(a.Module.deviceProperties.V4_signature)
+	var v4SignatureFile android.WritablePath = nil
+	if v4SigningRequested {
+		v4SignatureFile = android.PathForModuleOut(ctx, a.installApkName+".apk.idsig")
+	}
 	var lineageFile android.Path
 	if lineage := String(a.overridableAppProperties.Lineage); lineage != "" {
 		lineageFile = android.PathForModuleSrc(ctx, lineage)
 	}
-	CreateAndSignAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates, apkDeps, lineageFile)
+	CreateAndSignAppPackage(ctx, packageFile, a.exportPackage, jniJarFile, dexJarFile, certificates, apkDeps, v4SignatureFile, lineageFile)
 	a.outputFile = packageFile
+	if v4SigningRequested {
+		a.extraOutputFiles = append(a.extraOutputFiles, v4SignatureFile)
+	}
 
 	for _, split := range a.aapt.splits {
 		// Sign the split APKs
 		packageFile := android.PathForModuleOut(ctx, a.installApkName+"_"+split.suffix+".apk")
-		CreateAndSignAppPackage(ctx, packageFile, split.path, nil, nil, certificates, apkDeps, lineageFile)
+		if v4SigningRequested {
+			v4SignatureFile = android.PathForModuleOut(ctx, a.installApkName+"_"+split.suffix+".apk.idsig")
+		}
+		CreateAndSignAppPackage(ctx, packageFile, split.path, nil, nil, certificates, apkDeps, v4SignatureFile, lineageFile)
 		a.extraOutputFiles = append(a.extraOutputFiles, packageFile)
+		if v4SigningRequested {
+			a.extraOutputFiles = append(a.extraOutputFiles, v4SignatureFile)
+		}
 	}
 
 	// Build an app bundle.
@@ -1528,7 +1558,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		if lineage := String(a.properties.Lineage); lineage != "" {
 			lineageFile = android.PathForModuleSrc(ctx, lineage)
 		}
-		SignAppPackage(ctx, signed, dexOutput, certificates, lineageFile)
+		SignAppPackage(ctx, signed, dexOutput, certificates, nil, lineageFile)
 		a.outputFile = signed
 	} else {
 		alignedApk := android.PathForModuleOut(ctx, "zip-aligned", apkFilename)
@@ -1801,7 +1831,7 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 		if !overridden {
 			manifestPackageName = *r.overridableProperties.Package_name
 		}
-		aaptLinkFlags = append(aaptLinkFlags, "--rename-manifest-package "+manifestPackageName)
+		aaptLinkFlags = append(aaptLinkFlags, generateAaptRenamePackageFlags(manifestPackageName, false)...)
 	}
 	if r.overridableProperties.Target_package_name != nil {
 		aaptLinkFlags = append(aaptLinkFlags,
@@ -1817,7 +1847,7 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 	if lineage := String(r.properties.Lineage); lineage != "" {
 		lineageFile = android.PathForModuleSrc(ctx, lineage)
 	}
-	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates, lineageFile)
+	SignAppPackage(ctx, signed, r.aapt.exportPackage, certificates, nil, lineageFile)
 	r.certificate = certificates[0]
 
 	r.outputFile = signed

@@ -41,6 +41,7 @@ var (
 
 	InstrumentFrameworkModules = []string{
 		"framework",
+		"framework-minus-apex",
 		"telephony-common",
 		"services",
 		"android.car",
@@ -51,6 +52,7 @@ var (
 		"core-libart",
 		// TODO: Could this be all updatable bootclasspath jars?
 		"updatable-media",
+		"framework-mediaprovider",
 		"framework-sdkextensions",
 		"android.net.ipsec.ike",
 	}
