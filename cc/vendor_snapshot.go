@@ -541,6 +541,11 @@ func isVendorSnapshotModule(m *Module, inVendorProprietaryPath bool) bool {
 	if !m.Enabled() || m.Properties.HideFromMake {
 		return false
 	}
+	// When android/prebuilt.go selects between source and prebuilt, it sets
+	// SkipInstall on the other one to avoid duplicate install rules in make.
+	if m.IsSkipInstall() {
+		return false
+	}
 	// skip proprietary modules, but include all VNDK (static)
 	if inVendorProprietaryPath && !m.IsVndk() {
 		return false
