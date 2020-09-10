@@ -297,7 +297,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		annoDir = filepath.Join(shardDir, annoDir)
 	}
 	rule := javac
-	if ctx.Config().IsEnvTrue("RBE_JAVAC") {
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_JAVAC") {
 		rule = javacRE
 	}
 	ctx.Build(pctx, android.BuildParams{

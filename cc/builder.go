@@ -517,7 +517,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			sAbiDumpFiles = append(sAbiDumpFiles, sAbiDumpFile)
 
 			dumpRule := sAbiDump
-			if ctx.Config().IsEnvTrue("RBE_ABI_DUMPER") {
+			if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_ABI_DUMPER") {
 				dumpRule = sAbiDumpRE
 			}
 			ctx.Build(pctx, android.BuildParams{
@@ -702,7 +702,7 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 	}
 
 	rule := ld
-	if ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
 		rule = ldRE
 	}
 
@@ -848,7 +848,7 @@ func TransformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
 		"ldCmd":   ldCmd,
 		"ldFlags": flags.ldFlags,
 	}
-	if ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
 		rule = partialLdRE
 		args["inCommaList"] = strings.Join(objFiles.Strings(), ",")
 	}
