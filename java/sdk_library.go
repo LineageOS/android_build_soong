@@ -575,9 +575,7 @@ func (paths *scopePaths) extractStubsSourceAndApiInfoFromApiStubsProvider(dep an
 type commonToSdkLibraryAndImportProperties struct {
 	// The naming scheme to use for the components that this module creates.
 	//
-	// If not specified then it defaults to "default". The other allowable value is
-	// "framework-modules" which matches the scheme currently used by framework modules
-	// for the equivalent components represented as separate Soong modules.
+	// If not specified then it defaults to "default".
 	//
 	// This is a temporary mechanism to simplify conversion from separate modules for each
 	// component that follow a different naming pattern to the default one.
@@ -621,8 +619,6 @@ func (c *commonToSdkLibraryAndImport) initCommonAfterDefaultsApplied(ctx android
 	switch schemeProperty {
 	case "default":
 		c.namingScheme = &defaultNamingScheme{}
-	case "framework-modules":
-		c.namingScheme = &frameworkModulesNamingScheme{}
 	default:
 		ctx.PropertyErrorf("naming_scheme", "expected 'default' but was %q", schemeProperty)
 		return false
@@ -1587,31 +1583,6 @@ func (s *defaultNamingScheme) apiModuleName(scope *apiScope, baseName string) st
 }
 
 var _ sdkLibraryComponentNamingScheme = (*defaultNamingScheme)(nil)
-
-type frameworkModulesNamingScheme struct {
-}
-
-func (s *frameworkModulesNamingScheme) moduleSuffix(scope *apiScope) string {
-	suffix := scope.name
-	if scope == apiScopeModuleLib {
-		suffix = "module_libs_"
-	}
-	return suffix
-}
-
-func (s *frameworkModulesNamingScheme) stubsLibraryModuleName(scope *apiScope, baseName string) string {
-	return fmt.Sprintf("%s-stubs-%sapi", baseName, s.moduleSuffix(scope))
-}
-
-func (s *frameworkModulesNamingScheme) stubsSourceModuleName(scope *apiScope, baseName string) string {
-	return fmt.Sprintf("%s-stubs-srcs-%sapi", baseName, s.moduleSuffix(scope))
-}
-
-func (s *frameworkModulesNamingScheme) apiModuleName(scope *apiScope, baseName string) string {
-	return fmt.Sprintf("%s-api-%sapi", baseName, s.moduleSuffix(scope))
-}
-
-var _ sdkLibraryComponentNamingScheme = (*frameworkModulesNamingScheme)(nil)
 
 func moduleStubLinkType(name string) (stub bool, ret linkType) {
 	// This suffix-based approach is fragile and could potentially mis-trigger.
