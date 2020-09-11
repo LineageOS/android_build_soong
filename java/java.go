@@ -1494,7 +1494,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		args := map[string]string{
 			"jarArgs": "-P META-INF/services/ " + strings.Join(proptools.NinjaAndShellEscapeList(zipargs), " "),
 		}
-		if ctx.Config().IsEnvTrue("RBE_ZIP") {
+		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_ZIP") {
 			rule = zipRE
 			args["implicits"] = strings.Join(services.Strings(), ",")
 		}
@@ -1983,9 +1983,9 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// added to the Android manifest.
 	j.exportedSdkLibs.MaybeAddLibraryPath(ctx, j.OptionalImplicitSdkLibrary(), j.DexJarBuildPath(), j.DexJarInstallPath())
 
-	// If this is a non-SDK uses-library, export itself.
-	if proptools.Bool(j.usesLibraryProperties.Is_uses_lib) {
-		j.exportedSdkLibs.AddLibraryPath(ctx, ctx.ModuleName(), j.DexJarBuildPath(), j.DexJarInstallPath())
+	// A non-SDK library may provide a <uses-library> (the name may be different from the module name).
+	if lib := proptools.String(j.usesLibraryProperties.Provides_uses_lib); lib != "" {
+		j.exportedSdkLibs.AddLibraryPath(ctx, lib, j.DexJarBuildPath(), j.DexJarInstallPath())
 	}
 
 	j.distFiles = j.GenerateTaggedDistFiles(ctx)
