@@ -239,11 +239,6 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.Local.CppFlags = append(flags.Local.CppFlags, "-nostdinc++")
 			flags.extraLibFlags = append(flags.extraLibFlags, "-nostdlib++")
 			if ctx.Windows() {
-				// Use SjLj exceptions for 32-bit.  libgcc_eh implements SjLj
-				// exception model for 32-bit.
-				if ctx.Arch().ArchType == android.X86 {
-					flags.Local.CppFlags = append(flags.Local.CppFlags, "-fsjlj-exceptions")
-				}
 				flags.Local.CppFlags = append(flags.Local.CppFlags,
 					// Disable visiblity annotations since we're using static
 					// libc++.
