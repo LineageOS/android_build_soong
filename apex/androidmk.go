@@ -36,7 +36,9 @@ func (a *apexBundle) AndroidMk() android.AndroidMkData {
 	return a.androidMkForType()
 }
 
-func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, moduleDir string) []string {
+func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, moduleDir string,
+	apexAndroidMkData android.AndroidMkData) []string {
+
 	// apexBundleName comes from the 'name' property; apexName comes from 'apex_name' property.
 	// An apex is installed to /system/apex/<apexBundleName> and is activated at /apex/<apexName>
 	// In many cases, the two names are the same, but could be different in general.
@@ -236,6 +238,17 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.Stem())
 			if fi.builtFile == a.manifestPbOut && apexType == flattenedApex {
 				if a.primaryApexType {
+					// To install companion files (init_rc, vintf_fragments)
+					// Copy some common properties of apexBundle to apex_manifest
+					commonProperties := []string{
+						"LOCAL_INIT_RC", "LOCAL_VINTF_FRAGMENTS",
+					}
+					for _, name := range commonProperties {
+						if value, ok := apexAndroidMkData.Entries.EntryMap[name]; ok {
+							fmt.Fprintln(w, name+" := "+strings.Join(value, " "))
+						}
+					}
+
 					// Make apex_manifest.pb module for this APEX to override all other
 					// modules in the APEXes being overridden by this APEX
 					var patterns []string
@@ -294,7 +307,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 			apexType := a.properties.ApexType
 			if a.installable() {
 				apexName := proptools.StringDefault(a.properties.Apex_name, name)
-				moduleNames = a.androidMkForFiles(w, name, apexName, moduleDir)
+				moduleNames = a.androidMkForFiles(w, name, apexName, moduleDir, data)
 			}
 
 			if apexType == flattenedApex {
