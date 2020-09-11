@@ -49,7 +49,11 @@ var (
 
 	windowsClangCppflags = []string{}
 
-	windowsX86ClangCppflags = []string{}
+	windowsX86ClangCppflags = []string{
+		// Use SjLj exceptions for 32-bit.  libgcc_eh implements SjLj
+		// exception model for 32-bit.
+		"-fsjlj-exceptions",
+	}
 
 	windowsX8664ClangCppflags = []string{}
 
