@@ -100,18 +100,17 @@ type GlobalSoongConfig struct {
 	ConstructContext android.Path
 }
 
-// These two libs are added as optional dependencies (<uses-library> with
-// android:required set to false). This is because they haven't existed in pre-P
-// devices, but classes in them were in bootclasspath jars, etc. So making them
-// hard dependencies (android:required=true) would prevent apps from being
-// installed to such legacy devices.
+// These libs are added as optional dependencies (<uses-library> with android:required set to false).
+// This is because they haven't existed prior to certain SDK version, but classes in them were in
+// bootclasspath jars, etc. So making them hard dependencies (android:required=true) would prevent
+// apps from being installed to such legacy devices.
 var OptionalCompatUsesLibs = []string{
+	"org.apache.http.legacy",
 	"android.test.base",
 	"android.test.mock",
 }
 
 var CompatUsesLibs = []string{
-	"org.apache.http.legacy",
 	"android.hidl.base-V1.0-java",
 	"android.hidl.manager-V1.0-java",
 }
