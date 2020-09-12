@@ -291,8 +291,8 @@ func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, b
 	}
 
 	// Add the collated include dir properties to the output.
-	for property, dirs := range includeDirs {
-		outputProperties.AddProperty(property, dirs)
+	for _, property := range android.SortedStringKeys(includeDirs) {
+		outputProperties.AddProperty(property, includeDirs[property])
 	}
 
 	if len(libInfo.StubsVersion) > 0 {
