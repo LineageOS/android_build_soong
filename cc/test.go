@@ -223,6 +223,7 @@ func TestPerSrcMutator(mctx android.BottomUpMutatorContext) {
 					tests[i].(*Module).linker.(testPerSrc).setSrc(testNames[i], src)
 					mctx.AddInterVariantDependency(testPerSrcDepTag, all_tests, tests[i])
 				}
+				mctx.AliasVariation("")
 			}
 		}
 	}
