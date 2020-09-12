@@ -573,10 +573,12 @@ func (compiler *baseCompiler) uniqueApexVariations() bool {
 	return compiler.useApexNameMacro()
 }
 
+var invalidDefineCharRegex = regexp.MustCompile("[^a-zA-Z0-9_]")
+
 // makeDefineString transforms a name of an APEX module into a value to be used as value for C define
 // For example, com.android.foo => COM_ANDROID_FOO
 func makeDefineString(name string) string {
-	return strings.ReplaceAll(strings.ToUpper(name), ".", "_")
+	return invalidDefineCharRegex.ReplaceAllString(strings.ToUpper(name), "_")
 }
 
 var gnuToCReplacer = strings.NewReplacer("gnu", "c")

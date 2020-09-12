@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -698,12 +699,30 @@ func (target Target) Variations() []blueprint.Variation {
 	}
 }
 
-func osMutator(mctx BottomUpMutatorContext) {
+func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 	var module Module
 	var ok bool
-	if module, ok = mctx.Module().(Module); !ok {
+	if module, ok = bpctx.Module().(Module); !ok {
+		if bootstrap.IsBootstrapModule(bpctx.Module()) {
+			// Bootstrap Go modules are always the build OS or linux bionic.
+			config := bpctx.Config().(Config)
+			osNames := []string{config.BuildOSTarget.OsVariation()}
+			for _, hostCrossTarget := range config.Targets[LinuxBionic] {
+				if hostCrossTarget.Arch.ArchType == config.BuildOSTarget.Arch.ArchType {
+					osNames = append(osNames, hostCrossTarget.OsVariation())
+				}
+			}
+			osNames = FirstUniqueStrings(osNames)
+			bpctx.CreateVariations(osNames...)
+		}
 		return
 	}
+
+	// Bootstrap Go module support above requires this mutator to be a
+	// blueprint.BottomUpMutatorContext because android.BottomUpMutatorContext
+	// filters out non-Soong modules.  Now that we've handled them, create a
+	// normal android.BottomUpMutatorContext.
+	mctx := bottomUpMutatorContextFactory(bpctx, module, false)
 
 	base := module.base()
 
@@ -828,12 +847,22 @@ func GetOsSpecificVariantsOfCommonOSVariant(mctx BaseModuleContext) []Module {
 //
 // Modules can be initialized with InitAndroidMultiTargetsArchModule, in which case they will be split by OsClass,
 // but will have a common Target that is expected to handle all other selected Targets via ctx.MultiTargets().
-func archMutator(mctx BottomUpMutatorContext) {
+func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	var module Module
 	var ok bool
-	if module, ok = mctx.Module().(Module); !ok {
+	if module, ok = bpctx.Module().(Module); !ok {
+		if bootstrap.IsBootstrapModule(bpctx.Module()) {
+			// Bootstrap Go modules are always the build architecture.
+			bpctx.CreateVariations(bpctx.Config().(Config).BuildOSTarget.ArchVariation())
+		}
 		return
 	}
+
+	// Bootstrap Go module support above requires this mutator to be a
+	// blueprint.BottomUpMutatorContext because android.BottomUpMutatorContext
+	// filters out non-Soong modules.  Now that we've handled them, create a
+	// normal android.BottomUpMutatorContext.
+	mctx := bottomUpMutatorContextFactory(bpctx, module, false)
 
 	base := module.base()
 
@@ -912,7 +941,7 @@ func archMutator(mctx BottomUpMutatorContext) {
 	modules := mctx.CreateVariations(targetNames...)
 	for i, m := range modules {
 		addTargetProperties(m, targets[i], multiTargets, i == 0)
-		m.(Module).base().setArchProperties(mctx)
+		m.base().setArchProperties(mctx)
 	}
 }
 

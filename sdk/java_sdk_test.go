@@ -1534,7 +1534,7 @@ func TestSnapshotWithJavaSdkLibrary_NamingScheme(t *testing.T) {
 			apex_available: ["//apex_available:anyapex"],
 			srcs: ["Test.java"],
 			sdk_version: "current",
-			naming_scheme: "framework-modules",
+			naming_scheme: "default",
 			public: {
 				enabled: true,
 			},
@@ -1549,7 +1549,7 @@ java_sdk_library_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
     apex_available: ["//apex_available:anyapex"],
-    naming_scheme: "framework-modules",
+    naming_scheme: "default",
     shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
@@ -1564,7 +1564,7 @@ java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
     apex_available: ["//apex_available:anyapex"],
-    naming_scheme: "framework-modules",
+    naming_scheme: "default",
     shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
@@ -1581,9 +1581,9 @@ sdk_snapshot {
 }
 `),
 		checkAllCopyRules(`
-.intermediates/myjavalib-stubs-publicapi/android_common/javac/myjavalib-stubs-publicapi.jar -> sdk_library/public/myjavalib-stubs.jar
-.intermediates/myjavalib-stubs-srcs-publicapi/android_common/myjavalib-stubs-srcs-publicapi_api.txt -> sdk_library/public/myjavalib.txt
-.intermediates/myjavalib-stubs-srcs-publicapi/android_common/myjavalib-stubs-srcs-publicapi_removed.txt -> sdk_library/public/myjavalib-removed.txt
+.intermediates/myjavalib.stubs/android_common/javac/myjavalib.stubs.jar -> sdk_library/public/myjavalib-stubs.jar
+.intermediates/myjavalib.stubs.source/android_common/myjavalib.stubs.source_api.txt -> sdk_library/public/myjavalib.txt
+.intermediates/myjavalib.stubs.source/android_common/myjavalib.stubs.source_removed.txt -> sdk_library/public/myjavalib-removed.txt
 `),
 		checkMergeZips(
 			".intermediates/mysdk/common_os/tmp/sdk_library/public/myjavalib_stub_sources.zip",
