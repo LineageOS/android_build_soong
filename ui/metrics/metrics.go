@@ -17,6 +17,7 @@ package metrics
 import (
 	"io/ioutil"
 	"os"
+	"runtime"
 	"time"
 
 	"android/soong/ui/metrics/metrics_proto"
@@ -94,8 +95,6 @@ func (m *Metrics) SetMetadataMetrics(metadata map[string]string) {
 			m.metrics.HostArch = m.getArch(v)
 		case "HOST_2ND_ARCH":
 			m.metrics.Host_2NdArch = m.getArch(v)
-		case "HOST_OS":
-			m.metrics.HostOs = proto.String(v)
 		case "HOST_OS_EXTRA":
 			m.metrics.HostOsExtra = proto.String(v)
 		case "HOST_CROSS_OS":
@@ -137,6 +136,7 @@ func (m *Metrics) Serialize() (data []byte, err error) {
 
 // exports the output to the file at outputPath
 func (m *Metrics) Dump(outputPath string) (err error) {
+	m.metrics.HostOs = proto.String(runtime.GOOS)
 	data, err := m.Serialize()
 	if err != nil {
 		return err
