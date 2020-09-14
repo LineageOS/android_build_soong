@@ -50,6 +50,7 @@ func main() {
 	buildStartedMilli := time.Now().UnixNano() / int64(time.Millisecond)
 	var stdio terminal.StdioInterface
 	stdio = terminal.StdioImpl{}
+	simpleOutput := false
 	logsPrefix := ""
 
 	// dumpvar uses stdout, everything else should be in stderr
@@ -58,6 +59,7 @@ func main() {
 		// collected to further aggregate the metrics. For dump-var mode, it is usually
 		// related to the execution of lunch command.
 		logsPrefix = "dumpvars-"
+		simpleOutput = true
 		stdio = terminal.NewCustomStdio(os.Stdin, os.Stderr, os.Stderr)
 	}
 
@@ -118,7 +120,7 @@ func main() {
 
 	rbeMetricsFile := filepath.Join(logsDir, logsPrefix+"rbe_metrics.pb")
 	soongMetricsFile := filepath.Join(logsDir, logsPrefix+"soong_metrics")
-	defer build.UploadMetrics(buildCtx, config, buildStartedMilli, rbeMetricsFile, soongMetricsFile)
+	defer build.UploadMetrics(buildCtx, config, simpleOutput, buildStartedMilli, rbeMetricsFile, soongMetricsFile)
 
 	os.MkdirAll(logsDir, 0777)
 
