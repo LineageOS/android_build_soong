@@ -950,9 +950,9 @@ func (c *Module) Init() android.Module {
 		c.AddProperties(feature.props()...)
 	}
 
-	c.Prefer32(func(ctx android.BaseModuleContext, base *android.ModuleBase, class android.OsClass) bool {
+	c.Prefer32(func(ctx android.BaseModuleContext, base *android.ModuleBase, os android.OsType) bool {
 		// Windows builds always prefer 32-bit
-		return class == android.HostCross
+		return os == android.Windows
 	})
 	android.InitAndroidArchModule(c, c.hod, c.multilib)
 	android.InitApexModule(c)

@@ -923,7 +923,7 @@ type ModuleBase struct {
 	initRcPaths         Paths
 	vintfFragmentsPaths Paths
 
-	prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool
+	prefer32 func(ctx BaseModuleContext, base *ModuleBase, os OsType) bool
 }
 
 func (m *ModuleBase) ComponentDepsMutator(BottomUpMutatorContext) {}
@@ -950,7 +950,7 @@ func (m *ModuleBase) VariablesForTests() map[string]string {
 	return m.variables
 }
 
-func (m *ModuleBase) Prefer32(prefer32 func(ctx BaseModuleContext, base *ModuleBase, class OsClass) bool) {
+func (m *ModuleBase) Prefer32(prefer32 func(ctx BaseModuleContext, base *ModuleBase, os OsType) bool) {
 	m.prefer32 = prefer32
 }
 
@@ -1046,7 +1046,7 @@ func (m *ModuleBase) Os() OsType {
 }
 
 func (m *ModuleBase) Host() bool {
-	return m.Os().Class == Host || m.Os().Class == HostCross
+	return m.Os().Class == Host
 }
 
 func (m *ModuleBase) Device() bool {
@@ -1066,28 +1066,28 @@ func (m *ModuleBase) IsCommonOSVariant() bool {
 	return m.commonProperties.CommonOSVariant
 }
 
-func (m *ModuleBase) OsClassSupported() []OsClass {
+func (m *ModuleBase) supportsTarget(target Target, config Config) bool {
 	switch m.commonProperties.HostOrDeviceSupported {
 	case HostSupported:
-		return []OsClass{Host, HostCross}
+		return target.Os.Class == Host
 	case HostSupportedNoCross:
-		return []OsClass{Host}
+		return target.Os.Class == Host && !target.HostCross
 	case DeviceSupported:
-		return []OsClass{Device}
+		return target.Os.Class == Device
 	case HostAndDeviceSupported, HostAndDeviceDefault:
-		var supported []OsClass
+		supported := false
 		if Bool(m.hostAndDeviceProperties.Host_supported) ||
 			(m.commonProperties.HostOrDeviceSupported == HostAndDeviceDefault &&
 				m.hostAndDeviceProperties.Host_supported == nil) {
-			supported = append(supported, Host, HostCross)
+			supported = supported || target.Os.Class == Host
 		}
 		if m.hostAndDeviceProperties.Device_supported == nil ||
 			*m.hostAndDeviceProperties.Device_supported {
-			supported = append(supported, Device)
+			supported = supported || target.Os.Class == Device
 		}
 		return supported
 	default:
-		return nil
+		return false
 	}
 }
 
@@ -2075,7 +2075,7 @@ func (b *baseModuleContext) Os() OsType {
 }
 
 func (b *baseModuleContext) Host() bool {
-	return b.os.Class == Host || b.os.Class == HostCross
+	return b.os.Class == Host
 }
 
 func (b *baseModuleContext) Device() bool {
@@ -2535,30 +2535,36 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 
 	// Create (host|host-cross|target)-<OS> phony rules to build a reduced checkbuild.
-	osDeps := map[OsType]Paths{}
+	type osAndCross struct {
+		os        OsType
+		hostCross bool
+	}
+	osDeps := map[osAndCross]Paths{}
 	ctx.VisitAllModules(func(module Module) {
 		if module.Enabled() {
-			os := module.Target().Os
-			osDeps[os] = append(osDeps[os], module.base().checkbuildFiles...)
+			key := osAndCross{os: module.Target().Os, hostCross: module.Target().HostCross}
+			osDeps[key] = append(osDeps[key], module.base().checkbuildFiles...)
 		}
 	})
 
 	osClass := make(map[string]Paths)
-	for os, deps := range osDeps {
+	for key, deps := range osDeps {
 		var className string
 
-		switch os.Class {
+		switch key.os.Class {
 		case Host:
-			className = "host"
-		case HostCross:
-			className = "host-cross"
+			if key.hostCross {
+				className = "host-cross"
+			} else {
+				className = "host"
+			}
 		case Device:
 			className = "target"
 		default:
 			continue
 		}
 
-		name := className + "-" + os.Name
+		name := className + "-" + key.os.Name
 		osClass[className] = append(osClass[className], PathForPhony(ctx, name))
 
 		ctx.Phony(name, deps...)

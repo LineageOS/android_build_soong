@@ -157,13 +157,14 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 			host := false
 			switch fi.module.Target().Os.Class {
 			case android.Host:
-				if fi.module.Target().Arch.ArchType != android.Common {
-					fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH :=", archStr)
-				}
-				host = true
-			case android.HostCross:
-				if fi.module.Target().Arch.ArchType != android.Common {
-					fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH :=", archStr)
+				if fi.module.Target().HostCross {
+					if fi.module.Target().Arch.ArchType != android.Common {
+						fmt.Fprintln(w, "LOCAL_MODULE_HOST_CROSS_ARCH :=", archStr)
+					}
+				} else {
+					if fi.module.Target().Arch.ArchType != android.Common {
+						fmt.Fprintln(w, "LOCAL_MODULE_HOST_ARCH :=", archStr)
+					}
 				}
 				host = true
 			case android.Device:
