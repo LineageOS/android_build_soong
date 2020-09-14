@@ -46,7 +46,7 @@ type AndroidMkDataProvider interface {
 type AndroidMkData struct {
 	Class           string
 	SubName         string
-	DistFile        OptionalPath
+	DistFiles       TaggedDistFiles
 	OutputFile      OptionalPath
 	Disabled        bool
 	Include         string
@@ -72,7 +72,7 @@ type AndroidMkEntriesProvider interface {
 type AndroidMkEntries struct {
 	Class           string
 	SubName         string
-	DistFile        OptionalPath
+	DistFiles       TaggedDistFiles
 	OutputFile      OptionalPath
 	Disabled        bool
 	Include         string
@@ -176,6 +176,96 @@ func (a *AndroidMkEntries) AddStrings(name string, value ...string) {
 	a.EntryMap[name] = append(a.EntryMap[name], value...)
 }
 
+// Compute the list of Make strings to declare phone goals and dist-for-goals
+// calls from the module's dist and dists properties.
+func (a *AndroidMkEntries) GetDistForGoals(mod blueprint.Module) []string {
+	amod := mod.(Module).base()
+	name := amod.BaseModuleName()
+
+	var ret []string
+
+	availableTaggedDists := TaggedDistFiles{}
+	if a.DistFiles != nil && len(a.DistFiles[""]) > 0 {
+		availableTaggedDists = a.DistFiles
+	} else if a.OutputFile.Valid() {
+		availableTaggedDists = MakeDefaultDistFiles(a.OutputFile.Path())
+	}
+
+	// Iterate over this module's dist structs, merged from the dist and dists properties.
+	for _, dist := range amod.Dists() {
+		// Get the list of goals this dist should be enabled for. e.g. sdk, droidcore
+		goals := strings.Join(dist.Targets, " ")
+
+		// Get the tag representing the output files to be dist'd. e.g. ".jar", ".proguard_map"
+		var tag string
+		if dist.Tag == nil {
+			// If the dist struct does not specify a tag, use the default output files tag.
+			tag = ""
+		} else {
+			tag = *dist.Tag
+		}
+
+		// Get the paths of the output files to be dist'd, represented by the tag.
+		// Can be an empty list.
+		tagPaths := availableTaggedDists[tag]
+		if len(tagPaths) == 0 {
+			// Nothing to dist for this tag, continue to the next dist.
+			continue
+		}
+
+		if len(tagPaths) > 1 && (dist.Dest != nil || dist.Suffix != nil) {
+			errorMessage := "Cannot apply dest/suffix for more than one dist " +
+				"file for %s goals in module %s. The list of dist files, " +
+				"which should have a single element, is:\n%s"
+			panic(fmt.Errorf(errorMessage, goals, name, tagPaths))
+		}
+
+		ret = append(ret, fmt.Sprintf(".PHONY: %s\n", goals))
+
+		// Create dist-for-goals calls for each path in the dist'd files.
+		for _, path := range tagPaths {
+			// It's possible that the Path is nil from errant modules. Be defensive here.
+			if path == nil {
+				tagName := "default" // for error message readability
+				if dist.Tag != nil {
+					tagName = *dist.Tag
+				}
+				panic(fmt.Errorf("Dist file should not be nil for the %s tag in %s", tagName, name))
+			}
+
+			dest := filepath.Base(path.String())
+
+			if dist.Dest != nil {
+				var err error
+				if dest, err = validateSafePath(*dist.Dest); err != nil {
+					// This was checked in ModuleBase.GenerateBuildActions
+					panic(err)
+				}
+			}
+
+			if dist.Suffix != nil {
+				ext := filepath.Ext(dest)
+				suffix := *dist.Suffix
+				dest = strings.TrimSuffix(dest, ext) + suffix + ext
+			}
+
+			if dist.Dir != nil {
+				var err error
+				if dest, err = validateSafePath(*dist.Dir, dest); err != nil {
+					// This was checked in ModuleBase.GenerateBuildActions
+					panic(err)
+				}
+			}
+
+			ret = append(
+				ret,
+				fmt.Sprintf("$(call dist-for-goals,%s,%s:%s)\n", goals, path.String(), dest))
+		}
+	}
+
+	return ret
+}
+
 func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod blueprint.Module) {
 	a.EntryMap = make(map[string][]string)
 	amod := mod.(Module).base()
@@ -188,42 +278,8 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 	a.Host_required = append(a.Host_required, amod.commonProperties.Host_required...)
 	a.Target_required = append(a.Target_required, amod.commonProperties.Target_required...)
 
-	// Fill in the header part.
-	if len(amod.commonProperties.Dist.Targets) > 0 {
-		distFile := a.DistFile
-		if !distFile.Valid() {
-			distFile = a.OutputFile
-		}
-		if distFile.Valid() {
-			dest := filepath.Base(distFile.String())
-
-			if amod.commonProperties.Dist.Dest != nil {
-				var err error
-				if dest, err = validateSafePath(*amod.commonProperties.Dist.Dest); err != nil {
-					// This was checked in ModuleBase.GenerateBuildActions
-					panic(err)
-				}
-			}
-
-			if amod.commonProperties.Dist.Suffix != nil {
-				ext := filepath.Ext(dest)
-				suffix := *amod.commonProperties.Dist.Suffix
-				dest = strings.TrimSuffix(dest, ext) + suffix + ext
-			}
-
-			if amod.commonProperties.Dist.Dir != nil {
-				var err error
-				if dest, err = validateSafePath(*amod.commonProperties.Dist.Dir, dest); err != nil {
-					// This was checked in ModuleBase.GenerateBuildActions
-					panic(err)
-				}
-			}
-
-			goals := strings.Join(amod.commonProperties.Dist.Targets, " ")
-			fmt.Fprintln(&a.header, ".PHONY:", goals)
-			fmt.Fprintf(&a.header, "$(call dist-for-goals,%s,%s:%s)\n",
-				goals, distFile.String(), dest)
-		}
+	for _, distString := range a.GetDistForGoals(mod) {
+		fmt.Fprintf(&a.header, distString)
 	}
 
 	fmt.Fprintln(&a.header, "\ninclude $(CLEAR_VARS)")
@@ -469,7 +525,7 @@ func (data *AndroidMkData) fillInData(config Config, bpPath string, mod blueprin
 	entries := AndroidMkEntries{
 		Class:           data.Class,
 		SubName:         data.SubName,
-		DistFile:        data.DistFile,
+		DistFiles:       data.DistFiles,
 		OutputFile:      data.OutputFile,
 		Disabled:        data.Disabled,
 		Include:         data.Include,

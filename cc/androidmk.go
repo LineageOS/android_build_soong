@@ -241,7 +241,10 @@ func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries 
 		entries.Class = "HEADER_LIBRARIES"
 	}
 
-	entries.DistFile = library.distFile
+	if library.distFile != nil {
+		entries.DistFiles = android.MakeDefaultDistFiles(library.distFile)
+	}
+
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		library.androidMkWriteExportedFlags(entries)
 		library.androidMkEntriesWriteAdditionalDependenciesForSourceAbiDiff(entries)
@@ -310,7 +313,7 @@ func (binary *binaryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *a
 	ctx.subAndroidMk(entries, binary.baseInstaller)
 
 	entries.Class = "EXECUTABLES"
-	entries.DistFile = binary.distFile
+	entries.DistFiles = binary.distFiles
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		entries.SetString("LOCAL_SOONG_UNSTRIPPED_BINARY", binary.unstrippedOutputFile.String())
 		if len(binary.symlinks) > 0 {

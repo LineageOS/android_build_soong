@@ -80,8 +80,11 @@ func (mod *Module) AndroidMk() android.AndroidMkData {
 func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
 	ctx.subAndroidMk(ret, binary.baseCompiler)
 
+	if binary.distFile.Valid() {
+		ret.DistFiles = android.MakeDefaultDistFiles(binary.distFile.Path())
+	}
+
 	ret.Class = "EXECUTABLES"
-	ret.DistFile = binary.distFile
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", binary.unstrippedOutputFile.String())
 	})
@@ -119,7 +122,10 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		ret.Class = "SHARED_LIBRARIES"
 	}
 
-	ret.DistFile = library.distFile
+	if library.distFile.Valid() {
+		ret.DistFiles = android.MakeDefaultDistFiles(library.distFile.Path())
+	}
+
 	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
 		if !library.rlib() {
 			fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", library.unstrippedOutputFile.String())
@@ -131,7 +137,9 @@ func (procMacro *procMacroDecorator) AndroidMk(ctx AndroidMkContext, ret *androi
 	ctx.subAndroidMk(ret, procMacro.baseCompiler)
 
 	ret.Class = "PROC_MACRO_LIBRARIES"
-	ret.DistFile = procMacro.distFile
+	if procMacro.distFile.Valid() {
+		ret.DistFiles = android.MakeDefaultDistFiles(procMacro.distFile.Path())
+	}
 
 }
 
