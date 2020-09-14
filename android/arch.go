@@ -1609,13 +1609,15 @@ func decodeMultilibTargets(multilib string, targets []Target, prefer32 bool) ([]
 		} else {
 			buildTargets = firstTarget(targets, "lib64", "lib32")
 		}
+	case "first_prefer32":
+		buildTargets = firstTarget(targets, "lib32", "lib64")
 	case "prefer32":
 		buildTargets = filterMultilibTargets(targets, "lib32")
 		if len(buildTargets) == 0 {
 			buildTargets = filterMultilibTargets(targets, "lib64")
 		}
 	default:
-		return nil, fmt.Errorf(`compile_multilib must be "both", "first", "32", "64", or "prefer32" found %q`,
+		return nil, fmt.Errorf(`compile_multilib must be "both", "first", "32", "64", "prefer32" or "first_prefer32" found %q`,
 			multilib)
 	}
 
