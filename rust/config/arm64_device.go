@@ -71,9 +71,16 @@ func (t *toolchainArm64) Supported() bool {
 }
 
 func Arm64ToolchainFactory(arch android.Arch) Toolchain {
+	archVariant := arch.ArchVariant
+	if archVariant == "" {
+		// arch variants defaults to armv8-a. This is mostly for
+		// the host target which borrows toolchain configs from here.
+		archVariant = "armv8-a"
+	}
+
 	toolchainRustFlags := []string{
 		"${config.Arm64ToolchainRustFlags}",
-		"${config.Arm64" + arch.ArchVariant + "VariantRustFlags}",
+		"${config.Arm64" + archVariant + "VariantRustFlags}",
 	}
 
 	toolchainRustFlags = append(toolchainRustFlags, deviceGlobalRustFlags...)
