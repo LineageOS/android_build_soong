@@ -23,6 +23,8 @@ bootstrap_go_package {
         "x86_linux_host.go",
         "x86_linux_bionic_host.go",
         "x86_windows_host.go",
+
+        "arm64_linux_host.go",
     ],
     testSrcs: [
         "tidy_test.go",
