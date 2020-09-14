@@ -17,6 +17,7 @@ bootstrap_go_package {
     pkgPath: "android/soong/ui/metrics",
     deps: [
         "golang-protobuf-proto",
+        "soong-ui-metrics_upload_proto",
         "soong-ui-metrics_proto",
         "soong-ui-tracer",
     ],
@@ -35,3 +36,11 @@ bootstrap_go_package {
     ],
 }
 
+bootstrap_go_package {
+    name: "soong-ui-metrics_upload_proto",
+    pkgPath: "android/soong/ui/metrics/upload_proto",
+    deps: ["golang-protobuf-proto"],
+    srcs: [
+        "upload_proto/upload.pb.go",
+    ],
+}
