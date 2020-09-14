@@ -42,16 +42,6 @@ var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 	},
 	"args", "libs")
 
-// These two libs are added as optional dependencies (<uses-library> with
-// android:required set to false). This is because they haven't existed in pre-P
-// devices, but classes in them were in bootclasspath jars, etc. So making them
-// hard dependencies (android:required=true) would prevent apps from being
-// installed to such legacy devices.
-var optionalUsesLibs = []string{
-	"android.test.base",
-	"android.test.mock",
-}
-
 // Uses manifest_fixer.py to inject minSdkVersion, etc. into an AndroidManifest.xml
 func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext sdkContext, sdkLibraries dexpreopt.LibraryPaths,
 	isLibrary, useEmbeddedNativeLibs, usesNonSdkApis, useEmbeddedDex, hasNoCode bool, loggingParent string) android.Path {
@@ -81,7 +71,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 	}
 
 	for _, usesLib := range android.SortedStringKeys(sdkLibraries) {
-		if inList(usesLib, optionalUsesLibs) {
+		if inList(usesLib, dexpreopt.OptionalCompatUsesLibs) {
 			args = append(args, "--optional-uses-library", usesLib)
 		} else {
 			args = append(args, "--uses-library", usesLib)
