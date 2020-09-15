@@ -95,14 +95,17 @@ func moduleTypeDocsToTemplates(moduleTypeList []*bpdoc.ModuleType) []moduleTypeT
 	return result
 }
 
-func writeDocs(ctx *android.Context, filename string) error {
+func getPackages(ctx *android.Context) ([]*bpdoc.Package, error) {
 	moduleTypeFactories := android.ModuleTypeFactories()
 	bpModuleTypeFactories := make(map[string]reflect.Value)
 	for moduleType, factory := range moduleTypeFactories {
 		bpModuleTypeFactories[moduleType] = reflect.ValueOf(factory)
 	}
+	return bootstrap.ModuleTypeDocs(ctx.Context, bpModuleTypeFactories)
+}
 
-	packages, err := bootstrap.ModuleTypeDocs(ctx.Context, bpModuleTypeFactories)
+func writeDocs(ctx *android.Context, filename string) error {
+	packages, err := getPackages(ctx)
 	if err != nil {
 		return err
 	}

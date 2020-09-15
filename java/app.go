@@ -787,7 +787,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Add implicit SDK libraries to <uses-library> list.
 	for _, usesLib := range android.SortedStringKeys(a.aapt.sdkLibraries) {
-		a.usesLibrary.addLib(usesLib, inList(usesLib, optionalUsesLibs))
+		a.usesLibrary.addLib(usesLib, inList(usesLib, dexpreopt.OptionalCompatUsesLibs))
 	}
 
 	// Check that the <uses-library> list is coherent with the manifest.
@@ -1947,11 +1947,8 @@ func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, hasFrameworkLibs 
 		if hasFrameworkLibs {
 			// Dexpreopt needs paths to the dex jars of these libraries in order to construct
 			// class loader context for dex2oat. Add them as a dependency with a special tag.
-			ctx.AddVariationDependencies(nil, usesLibCompatTag,
-				"org.apache.http.legacy",
-				"android.hidl.base-V1.0-java",
-				"android.hidl.manager-V1.0-java")
-			ctx.AddVariationDependencies(nil, usesLibCompatTag, optionalUsesLibs...)
+			ctx.AddVariationDependencies(nil, usesLibTag, dexpreopt.CompatUsesLibs...)
+			ctx.AddVariationDependencies(nil, usesLibTag, dexpreopt.OptionalCompatUsesLibs...)
 		}
 	}
 }
@@ -1969,27 +1966,14 @@ func (u *usesLibrary) usesLibraryPaths(ctx android.ModuleContext) dexpreopt.Libr
 	usesLibPaths := make(dexpreopt.LibraryPaths)
 
 	if !ctx.Config().UnbundledBuild() {
-		ctx.VisitDirectDeps(func(m android.Module) {
-			tag := ctx.OtherModuleDependencyTag(m)
-			if tag == usesLibTag || tag == usesLibCompatTag {
-				dep := ctx.OtherModuleName(m)
-
-				if lib, ok := m.(Dependency); ok {
-					buildPath := lib.DexJarBuildPath()
-					installPath := lib.DexJarInstallPath()
-					if installPath == nil && tag == usesLibCompatTag {
-						// assume that compatibility libraries are in /system/framework
-						installPath = android.PathForModuleInstall(ctx, "framework", dep+".jar")
-					}
-					usesLibPaths.AddLibraryPath(ctx, dep, buildPath, installPath)
-
-				} else if ctx.Config().AllowMissingDependencies() {
-					ctx.AddMissingDependencies([]string{dep})
-
-				} else {
-					ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must be "+
-						"a java library", dep)
-				}
+		ctx.VisitDirectDepsWithTag(usesLibTag, func(m android.Module) {
+			dep := ctx.OtherModuleName(m)
+			if lib, ok := m.(Dependency); ok {
+				usesLibPaths.AddLibraryPath(ctx, dep, lib.DexJarBuildPath(), lib.DexJarInstallPath())
+			} else if ctx.Config().AllowMissingDependencies() {
+				ctx.AddMissingDependencies([]string{dep})
+			} else {
+				ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must be a java library", dep)
 			}
 		})
 	}

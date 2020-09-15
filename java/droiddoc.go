@@ -181,12 +181,6 @@ type DroiddocProperties struct {
 	// filegroup or genrule can be included within this property.
 	Knowntags []string `android:"path"`
 
-	// the generated public API filename by Doclava.
-	Api_filename *string
-
-	// the generated removed API filename by Doclava.
-	Removed_api_filename *string
-
 	// if set to true, generate docs through Dokka instead of Doclava.
 	Dokka_enabled *bool
 
@@ -195,10 +189,10 @@ type DroiddocProperties struct {
 }
 
 type DroidstubsProperties struct {
-	// the generated public API filename by Metalava.
+	// The generated public API filename by Metalava, defaults to <module>_api.txt
 	Api_filename *string
 
-	// the generated removed API filename by Metalava.
+	// the generated removed API filename by Metalava, defaults to <module>_removed.txt
 	Removed_api_filename *string
 
 	// the generated removed Dex API filename by Metalava.
@@ -1127,7 +1121,8 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
 		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
 		String(d.properties.Api_filename) != "" {
-		d.apiFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"_api.txt")
+		filename := proptools.StringDefault(d.properties.Api_filename, ctx.ModuleName()+"_api.txt")
+		d.apiFile = android.PathForModuleOut(ctx, filename)
 		cmd.FlagWithOutput("--api ", d.apiFile)
 		d.apiFilePath = d.apiFile
 	}
@@ -1135,7 +1130,8 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
 		apiCheckEnabled(ctx, d.properties.Check_api.Last_released, "last_released") ||
 		String(d.properties.Removed_api_filename) != "" {
-		d.removedApiFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"_removed.txt")
+		filename := proptools.StringDefault(d.properties.Removed_api_filename, ctx.ModuleName()+"_removed.txt")
+		d.removedApiFile = android.PathForModuleOut(ctx, filename)
 		cmd.FlagWithOutput("--removed-api ", d.removedApiFile)
 	}
 
