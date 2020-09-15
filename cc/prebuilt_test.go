@@ -274,6 +274,10 @@ func TestPrebuiltLibrarySharedStem(t *testing.T) {
 }
 
 func TestPrebuiltSymlinkedHostBinary(t *testing.T) {
+	if android.BuildOs != android.Linux {
+		t.Skipf("Skipping host prebuilt testing that is only supported on %s not %s", android.Linux, android.BuildOs)
+	}
+
 	ctx := testPrebuilt(t, `
 	cc_prebuilt_library_shared {
 		name: "libfoo",
