@@ -109,12 +109,13 @@ func TestDexPreoptSystemOther(t *testing.T) {
 				{module: productModule, expectedPartition: "product"},
 			},
 		},
+		// product/app/% only applies to product apps inside the system partition
 		{
 			patterns: []string{"app/%", "product/app/%"},
 			moduleTests: []moduleTest{
 				{module: systemModule, expectedPartition: "system_other/system"},
 				{module: systemProductModule, expectedPartition: "system_other/system/product"},
-				{module: productModule, expectedPartition: "system_other/product"},
+				{module: productModule, expectedPartition: "product"},
 			},
 		},
 	}
@@ -134,7 +135,7 @@ func TestDexPreoptSystemOther(t *testing.T) {
 			}
 
 			if rule.Installs().String() != wantInstalls.String() {
-				t.Errorf("\npatterns: %v\nwant installs:\n   %v\ngot:\n   %v", test.patterns, wantInstalls, rule.Installs())
+				t.Errorf("\nwant installs:\n   %v\ngot:\n   %v", wantInstalls, rule.Installs())
 			}
 		}
 	}
