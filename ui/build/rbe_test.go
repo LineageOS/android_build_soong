@@ -94,24 +94,13 @@ func TestDumpRBEMetrics(t *testing.T) {
 func TestDumpRBEMetricsErrors(t *testing.T) {
 	ctx := testContext()
 	tests := []struct {
-		description         string
-		rbeOutputDirDefined bool
-		bootstrapProgram    string
-		expectedErr         string
+		description      string
+		bootstrapProgram string
+		expectedErr      string
 	}{{
-		description:      "output_dir not defined",
-		bootstrapProgram: rbeBootstrapProgram,
-		expectedErr:      "RBE output dir variable not defined",
-	}, {
-		description:         "stopRBE failed",
-		rbeOutputDirDefined: true,
-		bootstrapProgram:    "#!/bin/bash\nexit 1\n",
-		expectedErr:         "shutdown failed",
-	}, {
-		description:         "failed to copy metrics file",
-		rbeOutputDirDefined: true,
-		bootstrapProgram:    "#!/bin/bash\n",
-		expectedErr:         "failed to copy",
+		description:      "stopRBE failed",
+		bootstrapProgram: "#!/bin/bash\nexit 1\n",
+		expectedErr:      "shutdown failed",
 	}}
 
 	for _, tt := range tests {
@@ -138,15 +127,6 @@ func TestDumpRBEMetricsErrors(t *testing.T) {
 			env.Set("USE_RBE", "true")
 			env.Set("OUT_DIR", tmpDir)
 			env.Set("RBE_DIR", tmpDir)
-
-			if tt.rbeOutputDirDefined {
-				tmpRBEDir, err := ioutil.TempDir("", "")
-				if err != nil {
-					t.Fatalf("failed to create a temp directory for RBE: %v", err)
-				}
-				defer os.RemoveAll(tmpRBEDir)
-				env.Set("RBE_output_dir", tmpRBEDir)
-			}
 
 			config := Config{&configImpl{
 				environ: env,
