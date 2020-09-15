@@ -221,10 +221,7 @@ var includeDirProperties = []includeDirsProperty{
 // Add properties that may, or may not, be arch specific.
 func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, builder android.SnapshotBuilder, libInfo *nativeLibInfoProperties, outputProperties android.BpPropertySet) {
 
-	if libInfo.SanitizeNever {
-		sanitizeSet := outputProperties.AddPropertySet("sanitize")
-		sanitizeSet.AddProperty("never", true)
-	}
+	outputProperties.AddProperty("sanitize", &libInfo.Sanitize)
 
 	// Copy the generated library to the snapshot and add a reference to it in the .bp module.
 	if libInfo.outputFile != nil {
@@ -373,8 +370,10 @@ type nativeLibInfoProperties struct {
 	// not vary by arch so cannot be android specific.
 	StubsVersion string `sdk:"ignored-on-host"`
 
-	// Value of SanitizeProperties.Sanitize.Never. Needs to be propagated for CRT objects.
-	SanitizeNever bool `android:"arch_variant"`
+	// Value of SanitizeProperties.Sanitize. Several - but not all - of these
+	// affect the expanded variants. All are propagated to avoid entangling the
+	// sanitizer logic with the snapshot generation.
+	Sanitize SanitizeUserProps `android:"arch_variant"`
 
 	// outputFile is not exported as it is always arch specific.
 	outputFile android.Path
@@ -423,8 +422,8 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 		p.StubsVersion = ccModule.StubsVersion()
 	}
 
-	if ccModule.sanitize != nil && proptools.Bool(ccModule.sanitize.Properties.Sanitize.Never) {
-		p.SanitizeNever = true
+	if ccModule.sanitize != nil {
+		p.Sanitize = ccModule.sanitize.Properties.Sanitize
 	}
 }
 
