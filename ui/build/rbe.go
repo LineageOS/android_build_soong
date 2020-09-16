@@ -37,10 +37,8 @@ const (
 
 func rbeCommand(ctx Context, config Config, rbeCmd string) string {
 	var cmdPath string
-	if rbeDir, ok := config.Environment().Get("RBE_DIR"); ok {
+	if rbeDir := config.rbeDir(); rbeDir != "" {
 		cmdPath = filepath.Join(rbeDir, rbeCmd)
-	} else if home, ok := config.Environment().Get("HOME"); ok {
-		cmdPath = filepath.Join(home, "rbe", rbeCmd)
 	} else {
 		ctx.Fatalf("rbe command path not found")
 	}
@@ -52,9 +50,21 @@ func rbeCommand(ctx Context, config Config, rbeCmd string) string {
 	return cmdPath
 }
 
-func getRBEVars(ctx Context, tmpDir string) map[string]string {
+func getRBEVars(ctx Context, config Config) map[string]string {
 	rand.Seed(time.Now().UnixNano())
-	return map[string]string{"RBE_server_address": fmt.Sprintf("unix://%v/reproxy_%v.sock", tmpDir, rand.Intn(1000))}
+	vars := map[string]string{
+		"RBE_log_path":   config.rbeLogPath(),
+		"RBE_log_dir":    config.logDir(),
+		"RBE_re_proxy":   config.rbeReproxy(),
+		"RBE_exec_root":  config.rbeExecRoot(),
+		"RBE_output_dir": config.rbeStatsOutputDir(),
+	}
+	if config.StartRBE() {
+		vars["RBE_server_address"] = fmt.Sprintf("unix://%v/reproxy_%v.sock", absPath(ctx, config.TempDir()), rand.Intn(1000))
+	}
+	k, v := config.rbeAuth()
+	vars[k] = v
+	return vars
 }
 
 func startRBE(ctx Context, config Config) {
@@ -102,7 +112,7 @@ func DumpRBEMetrics(ctx Context, config Config, filename string) {
 		return
 	}
 
-	outputDir := config.RBEStatsOutputDir()
+	outputDir := config.rbeStatsOutputDir()
 	if outputDir == "" {
 		ctx.Fatal("RBE output dir variable not defined. Aborting metrics dumping.")
 	}
@@ -111,7 +121,20 @@ func DumpRBEMetrics(ctx Context, config Config, filename string) {
 	// Stop the proxy first in order to generate the RBE metrics protobuf file.
 	stopRBE(ctx, config)
 
+	if metricsFile == filename {
+		return
+	}
 	if _, err := copyFile(metricsFile, filename); err != nil {
 		ctx.Fatalf("failed to copy %q to %q: %v\n", metricsFile, filename, err)
+	}
+}
+
+// PrintGomaDeprecation prints a PSA on the deprecation of Goma if it is set for the build.
+func PrintGomaDeprecation(ctx Context, config Config) {
+	if config.UseGoma() {
+		fmt.Fprintln(ctx.Writer, "")
+		fmt.Fprintln(ctx.Writer, "Goma for Android is being deprecated and replaced with RBE.")
+		fmt.Fprintln(ctx.Writer, "See go/goma_android_deprecation for more details.")
+		fmt.Fprintln(ctx.Writer, "")
 	}
 }
