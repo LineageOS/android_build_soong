@@ -119,9 +119,11 @@ func main() {
 		logsDir = filepath.Join(config.DistDir(), "logs")
 	}
 
+	buildErrorFile := filepath.Join(logsDir, logsPrefix+"build_error")
 	rbeMetricsFile := filepath.Join(logsDir, logsPrefix+"rbe_metrics.pb")
 	soongMetricsFile := filepath.Join(logsDir, logsPrefix+"soong_metrics")
-	defer build.UploadMetrics(buildCtx, config, simpleOutput, buildStarted, rbeMetricsFile, soongMetricsFile)
+	defer build.UploadMetrics(buildCtx, config, simpleOutput, buildStarted, buildErrorFile, rbeMetricsFile, soongMetricsFile)
+	defer build.PrintGomaDeprecation(buildCtx, config)
 
 	os.MkdirAll(logsDir, 0777)
 
