@@ -187,6 +187,10 @@ func createCcSdkVariantRules() []Rule {
 		// derive_sdk_prefer32 suppress the platform installation rules, but fails when
 		// the APEX modules contain the SDK variant and the platform variant still exists.
 		"frameworks/base/apex/sdkextensions/derive_sdk",
+
+		// libtextclassifier_tests needs to use the SDK variant so that the coverage data
+		// aligns with the usage in a mainline module. b/166040889
+		"external/libtextclassifier/native",
 	}
 
 	platformVariantPropertiesAllowedList := []string{
