@@ -152,7 +152,8 @@ func NewConfig(ctx Context, args ...string) Config {
 	// Tell python not to spam the source tree with .pyc files.
 	ret.environ.Set("PYTHONDONTWRITEBYTECODE", "1")
 
-	ret.environ.Set("TMPDIR", absPath(ctx, ret.TempDir()))
+	tmpDir := absPath(ctx, ret.TempDir())
+	ret.environ.Set("TMPDIR", tmpDir)
 
 	// Precondition: the current directory is the top of the source tree
 	if _, err := os.Stat(srcDirFileCheck); err != nil {
@@ -218,11 +219,18 @@ func NewConfig(ctx Context, args ...string) Config {
 	} else {
 		content = strconv.FormatInt(time.Now().Unix(), 10)
 	}
+
 	err := ioutil.WriteFile(buildDateTimeFile, []byte(content), 0777)
 	if err != nil {
 		ctx.Fatalln("Failed to write BUILD_DATETIME to file:", err)
 	}
 	ret.environ.Set("BUILD_DATETIME_FILE", buildDateTimeFile)
+
+	if ret.UseRBE() {
+		for k, v := range getRBEVars(ctx, tmpDir) {
+			ret.environ.Set(k, v)
+		}
+	}
 
 	return Config{ret}
 }

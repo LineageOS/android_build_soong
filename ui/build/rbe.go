@@ -15,7 +15,10 @@
 package build
 
 import (
+	"fmt"
+	"math/rand"
 	"path/filepath"
+	"time"
 
 	"android/soong/ui/metrics"
 )
@@ -23,6 +26,11 @@ import (
 const bootstrapCmd = "bootstrap"
 const rbeLeastNProcs = 2500
 const rbeLeastNFiles = 16000
+
+func getRBEVars(ctx Context, tmpDir string) map[string]string {
+	rand.Seed(time.Now().UnixNano())
+	return map[string]string{"RBE_server_address": fmt.Sprintf("unix://%v/reproxy_%v.sock", tmpDir, rand.Intn(1000))}
+}
 
 func startRBE(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunSetupTool, "rbe_bootstrap")
