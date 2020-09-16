@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"path/filepath"
 	"testing"
 
 	"android/soong/android"
@@ -270,4 +271,53 @@ func TestPrebuiltLibrarySharedStem(t *testing.T) {
 
 	shared := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module().(*Module)
 	assertString(t, shared.OutputFile().Path().Base(), "libbar.so")
+}
+
+func TestPrebuiltSymlinkedHostBinary(t *testing.T) {
+	if android.BuildOs != android.Linux {
+		t.Skipf("Skipping host prebuilt testing that is only supported on %s not %s", android.Linux, android.BuildOs)
+	}
+
+	ctx := testPrebuilt(t, `
+	cc_prebuilt_library_shared {
+		name: "libfoo",
+		device_supported: false,
+		host_supported: true,
+		target: {
+			linux_glibc_x86_64: {
+				srcs: ["linux_glibc_x86_64/lib64/libfoo.so"],
+			},
+		},
+	}
+
+	cc_prebuilt_binary {
+		name: "foo",
+		device_supported: false,
+		host_supported: true,
+		shared_libs: ["libfoo"],
+		target: {
+			linux_glibc_x86_64: {
+				srcs: ["linux_glibc_x86_64/bin/foo"],
+			},
+		},
+	}
+	`, map[string][]byte{
+		"libfoo.so": nil,
+		"foo":       nil,
+	})
+
+	fooRule := ctx.ModuleForTests("foo", "linux_glibc_x86_64").Rule("Symlink")
+	assertString(t, fooRule.Output.String(),
+		filepath.Join(buildDir, ".intermediates/foo/linux_glibc_x86_64/foo"))
+	assertString(t, fooRule.Args["fromPath"], "$$PWD/linux_glibc_x86_64/bin/foo")
+
+	var libfooDep android.Path
+	for _, dep := range fooRule.Implicits {
+		if dep.Base() == "libfoo.so" {
+			libfooDep = dep
+			break
+		}
+	}
+	assertString(t, libfooDep.String(),
+		filepath.Join(buildDir, ".intermediates/libfoo/linux_glibc_x86_64_shared/libfoo.so"))
 }

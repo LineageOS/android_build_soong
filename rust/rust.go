@@ -560,21 +560,6 @@ func (mod *Module) Init() android.Module {
 	android.InitAndroidArchModule(mod, mod.hod, mod.multilib)
 
 	android.InitDefaultableModule(mod)
-
-	// Explicitly disable unsupported targets.
-	android.AddLoadHook(mod, func(ctx android.LoadHookContext) {
-		disableTargets := struct {
-			Target struct {
-				Linux_bionic struct {
-					Enabled *bool
-				}
-			}
-		}{}
-		disableTargets.Target.Linux_bionic.Enabled = proptools.BoolPtr(false)
-
-		ctx.AppendProperties(&disableTargets)
-	})
-
 	return mod
 }
 
