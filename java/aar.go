@@ -477,6 +477,8 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	a.aapt.buildActions(ctx, sdkContext(a))
 	a.exportedSdkLibs = a.aapt.sdkLibraries
 
+	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
+
 	ctx.CheckbuildFile(a.proguardOptionsFile)
 	ctx.CheckbuildFile(a.exportPackage)
 	ctx.CheckbuildFile(a.aaptSrcJar)
@@ -569,6 +571,8 @@ type AARImport struct {
 	manifest              android.WritablePath
 
 	exportedStaticPackages android.Paths
+
+	hideApexVariantFromMake bool
 }
 
 func (a *AARImport) sdkVersion() sdkSpec {
@@ -661,6 +665,8 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("aars", "exactly one aar is required")
 		return
 	}
+
+	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
 
 	aarName := ctx.ModuleName() + ".aar"
 	var aar android.Path

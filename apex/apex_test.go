@@ -125,8 +125,6 @@ func withUnbundledBuild(_ map[string][]byte, config android.Config) {
 }
 
 func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
-	android.ClearApexDependency()
-
 	bp = bp + `
 		filegroup {
 			name: "myapex-file_contexts",
@@ -1607,10 +1605,12 @@ func TestPlatformUsesLatestStubsFromApexes(t *testing.T) {
 	`)
 
 	expectLink := func(from, from_variant, to, to_variant string) {
+		t.Helper()
 		ldArgs := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld").Args["libFlags"]
 		ensureContains(t, ldArgs, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
 	}
 	expectNoLink := func(from, from_variant, to, to_variant string) {
+		t.Helper()
 		ldArgs := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld").Args["libFlags"]
 		ensureNotContains(t, ldArgs, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
 	}
@@ -3643,16 +3643,13 @@ func TestNonTestApex(t *testing.T) {
 	// Ensure that the platform variant ends with _shared
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib_common"), "android_arm64_armv8-a_shared")
 
-	if !android.InAnyApex("mylib_common") {
+	if !ctx.ModuleForTests("mylib_common", "android_arm64_armv8-a_shared_apex10000").Module().(*cc.Module).InAnyApex() {
 		t.Log("Found mylib_common not in any apex!")
 		t.Fail()
 	}
 }
 
 func TestTestApex(t *testing.T) {
-	if android.InAnyApex("mylib_common_test") {
-		t.Fatal("mylib_common_test must not be used in any other tests since this checks that global state is not updated in an illegal way!")
-	}
 	ctx, _ := testApex(t, `
 		apex_test {
 			name: "myapex",
@@ -5845,7 +5842,6 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 
 func testApexPermittedPackagesRules(t *testing.T, errmsg, bp string, apexBootJars []string, rules []android.Rule) {
 	t.Helper()
-	android.ClearApexDependency()
 	bp += `
 	apex_key {
 		name: "myapex.key",

@@ -161,10 +161,9 @@ func stubFlagsRule(ctx android.SingletonContext) {
 				// For a java lib included in an APEX, only take the one built for
 				// the platform variant, and skip the variants for APEXes.
 				// Otherwise, the hiddenapi tool will complain about duplicated classes
-				if a, ok := module.(android.ApexModule); ok {
-					if android.InAnyApex(module.Name()) && !a.IsForPlatform() {
-						return
-					}
+				apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+				if !apexInfo.IsForPlatform() {
+					return
 				}
 
 				bootDexJars = append(bootDexJars, jar)
