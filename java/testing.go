@@ -132,6 +132,7 @@ func GatherRequiredDepsForTest() string {
 				srcs: ["a.java"],
 				sdk_version: "none",
 				system_modules: "core-platform-api-stubs-system-modules",
+				compile_dex: true,
 			}
 		`, extra)
 	}
