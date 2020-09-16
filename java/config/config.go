@@ -126,9 +126,9 @@ func init() {
 	pctx.HostBinToolVariable("DexpreoptGen", "dexpreopt_gen")
 
 	pctx.VariableFunc("REJavaPool", remoteexec.EnvOverrideFunc("RBE_JAVA_POOL", "java16"))
-	pctx.VariableFunc("REJavacExecStrategy", remoteexec.EnvOverrideFunc("RBE_JAVAC_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
-	pctx.VariableFunc("RED8ExecStrategy", remoteexec.EnvOverrideFunc("RBE_D8_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
-	pctx.VariableFunc("RER8ExecStrategy", remoteexec.EnvOverrideFunc("RBE_R8_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
+	pctx.VariableFunc("REJavacExecStrategy", remoteexec.EnvOverrideFunc("RBE_JAVAC_EXEC_STRATEGY", remoteexec.RemoteLocalFallbackExecStrategy))
+	pctx.VariableFunc("RED8ExecStrategy", remoteexec.EnvOverrideFunc("RBE_D8_EXEC_STRATEGY", remoteexec.RemoteLocalFallbackExecStrategy))
+	pctx.VariableFunc("RER8ExecStrategy", remoteexec.EnvOverrideFunc("RBE_R8_EXEC_STRATEGY", remoteexec.RemoteLocalFallbackExecStrategy))
 
 	pctx.HostJavaToolVariable("JacocoCLIJar", "jacoco-cli.jar")
 
