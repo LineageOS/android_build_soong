@@ -46,8 +46,9 @@ const productVariablesFileName = "soong.variables"
 // A FileConfigurableOptions contains options which can be configured by the
 // config file. These will be included in the config struct.
 type FileConfigurableOptions struct {
-	Mega_device *bool `json:",omitempty"`
-	Host_bionic *bool `json:",omitempty"`
+	Mega_device       *bool `json:",omitempty"`
+	Host_bionic       *bool `json:",omitempty"`
+	Host_bionic_arm64 *bool `json:",omitempty"`
 }
 
 func (f *FileConfigurableOptions) SetDefaultConfig() {
