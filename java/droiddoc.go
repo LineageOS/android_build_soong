@@ -1411,9 +1411,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		// TODO(b/154317059): Clean up this whitelist by baselining and/or checking in last-released.
 		if d.Name() != "android.car-system-stubs-docs" &&
-			d.Name() != "android.car-stubs-docs" &&
-			d.Name() != "system-api-stubs-docs" &&
-			d.Name() != "test-api-stubs-docs" {
+			d.Name() != "android.car-stubs-docs" {
 			cmd.Flag("--lints-as-errors")
 			cmd.Flag("--warnings-as-errors") // Most lints are actually warnings.
 		}
