@@ -58,6 +58,7 @@ func testHiddenAPIUnbundled(t *testing.T, unbundled bool) (*android.TestContext,
 }
 
 func TestHiddenAPISingleton(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testHiddenAPIBootJars(t, `
 		java_library {
 			name: "foo",
@@ -75,6 +76,7 @@ func TestHiddenAPISingleton(t *testing.T) {
 }
 
 func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testHiddenAPIBootJars(t, `
 		java_import {
 			name: "foo",
@@ -92,6 +94,7 @@ func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {
 }
 
 func TestHiddenAPISingletonWithPrebuiltUseSource(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testHiddenAPIBootJars(t, `
 		java_library {
 			name: "foo",
@@ -121,6 +124,7 @@ func TestHiddenAPISingletonWithPrebuiltUseSource(t *testing.T) {
 }
 
 func TestHiddenAPISingletonWithPrebuiltOverrideSource(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testHiddenAPIBootJars(t, `
 		java_library {
 			name: "foo",
@@ -150,6 +154,7 @@ func TestHiddenAPISingletonWithPrebuiltOverrideSource(t *testing.T) {
 }
 
 func TestHiddenAPISingletonSdks(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name             string
 		unbundledBuild   bool

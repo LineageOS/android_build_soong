@@ -20,6 +20,7 @@ import (
 
 // Ensure that module_exports generates a module_exports_snapshot module.
 func TestModuleExportsSnapshot(t *testing.T) {
+	t.Parallel()
 	packageBp := `
 		module_exports {
 			name: "myexports",

@@ -25,6 +25,7 @@ import (
 )
 
 func TestStatusOutput(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		calls  func(stat status.StatusOutput)
@@ -266,6 +267,7 @@ func actionWithOuptutWithAnsiCodes(stat status.StatusOutput) {
 }
 
 func TestSmartStatusOutputWidthChange(t *testing.T) {
+	t.Parallel()
 	os.Setenv(tableHeightEnVar, "")
 
 	smart := &fakeSmartTerminal{termWidth: 40}

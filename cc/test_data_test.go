@@ -109,6 +109,7 @@ var testDataTests = []struct {
 }
 
 func TestDataTests(t *testing.T) {
+	t.Parallel()
 	buildDir, err := ioutil.TempDir("", "soong_test_test")
 	if err != nil {
 		t.Fatal(err)

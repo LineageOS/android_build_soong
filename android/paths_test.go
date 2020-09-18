@@ -110,6 +110,7 @@ var validatePathTestCases = append(commonValidatePathTestCases, []strsTestCase{
 }...)
 
 func TestValidateSafePath(t *testing.T) {
+	t.Parallel()
 	for _, testCase := range validateSafePathTestCases {
 		t.Run(strings.Join(testCase.in, ","), func(t *testing.T) {
 			ctx := &configErrorWrapper{}
@@ -123,6 +124,7 @@ func TestValidateSafePath(t *testing.T) {
 }
 
 func TestValidatePath(t *testing.T) {
+	t.Parallel()
 	for _, testCase := range validatePathTestCases {
 		t.Run(strings.Join(testCase.in, ","), func(t *testing.T) {
 			ctx := &configErrorWrapper{}
@@ -136,6 +138,7 @@ func TestValidatePath(t *testing.T) {
 }
 
 func TestOptionalPath(t *testing.T) {
+	t.Parallel()
 	var path OptionalPath
 	checkInvalidOptionalPath(t, path)
 
@@ -253,6 +256,7 @@ func pathTestConfig(buildDir string) Config {
 }
 
 func TestPathForModuleInstall(t *testing.T) {
+	t.Parallel()
 	testConfig := pathTestConfig("")
 
 	hostTarget := Target{Os: Linux, Arch: Arch{ArchType: X86}}
@@ -657,6 +661,7 @@ func TestPathForModuleInstall(t *testing.T) {
 }
 
 func TestDirectorySortedPaths(t *testing.T) {
+	t.Parallel()
 	config := TestConfig("out", nil, "", map[string][]byte{
 		"Android.bp": nil,
 		"a.txt":      nil,
@@ -739,6 +744,7 @@ func TestDirectorySortedPaths(t *testing.T) {
 }
 
 func TestMaybeRel(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name   string
 		base   string
@@ -796,6 +802,7 @@ func TestMaybeRel(t *testing.T) {
 }
 
 func TestPathForSource(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		buildDir string
@@ -1028,6 +1035,7 @@ func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSr
 }
 
 func TestPathsForModuleSrc(t *testing.T) {
+	t.Parallel()
 	tests := []pathForModuleSrcTestCase{
 		{
 			name: "path",
@@ -1123,6 +1131,7 @@ func TestPathsForModuleSrc(t *testing.T) {
 }
 
 func TestPathForModuleSrc(t *testing.T) {
+	t.Parallel()
 	tests := []pathForModuleSrcTestCase{
 		{
 			name: "path",
@@ -1190,6 +1199,7 @@ func TestPathForModuleSrc(t *testing.T) {
 }
 
 func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
+	t.Parallel()
 	bp := `
 		test {
 			name: "foo",
