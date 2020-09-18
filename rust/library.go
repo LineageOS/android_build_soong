@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/cc"
 )
 
 var (
@@ -484,10 +485,34 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	library.coverageOutputZipFile = TransformCoverageFilesToZip(ctx, coverageFiles, library.getStem(ctx))
 
 	if library.rlib() || library.dylib() {
-		library.exportLinkDirs(deps.linkDirs...)
-		library.exportDepFlags(deps.depFlags...)
-		library.exportLinkObjects(deps.linkObjects...)
+		library.flagExporter.exportLinkDirs(deps.linkDirs...)
+		library.flagExporter.exportDepFlags(deps.depFlags...)
+		library.flagExporter.exportLinkObjects(deps.linkObjects...)
 	}
+
+	if library.static() || library.shared() {
+		ctx.SetProvider(cc.FlagExporterInfoProvider, cc.FlagExporterInfo{
+			IncludeDirs: library.includeDirs,
+		})
+	}
+
+	if library.shared() {
+		ctx.SetProvider(cc.SharedLibraryInfoProvider, cc.SharedLibraryInfo{
+			SharedLibrary:           outputFile,
+			UnstrippedSharedLibrary: outputFile,
+		})
+	}
+
+	if library.static() {
+		depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(outputFile).Build()
+		ctx.SetProvider(cc.StaticLibraryInfoProvider, cc.StaticLibraryInfo{
+			StaticLibrary: outputFile,
+
+			TransitiveStaticLibrariesForOrdering: depSet,
+		})
+	}
+
+	library.flagExporter.setProvider(ctx)
 
 	return outputFile
 }
