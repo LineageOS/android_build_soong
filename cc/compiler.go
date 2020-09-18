@@ -333,6 +333,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		}
 	}
 
+	if ctx.Target().NativeBridge == android.NativeBridgeEnabled {
+		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_NATIVE_BRIDGE__")
+	}
+
 	instructionSet := String(compiler.Properties.Instruction_set)
 	if flags.RequiredInstructionSet != "" {
 		instructionSet = flags.RequiredInstructionSet
