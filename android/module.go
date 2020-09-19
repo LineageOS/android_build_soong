@@ -61,18 +61,44 @@ type ModuleBuildParams BuildParams
 // EarlyModuleContext provides methods that can be called early, as soon as the properties have
 // been parsed into the module and before any mutators have run.
 type EarlyModuleContext interface {
+	// Module returns the current module as a Module.  It should rarely be necessary, as the module already has a
+	// reference to itself.
 	Module() Module
+
+	// ModuleName returns the name of the module.  This is generally the value that was returned by Module.Name() when
+	// the module was created, but may have been modified by calls to BaseMutatorContext.Rename.
 	ModuleName() string
+
+	// ModuleDir returns the path to the directory that contains the definition of the module.
 	ModuleDir() string
+
+	// ModuleType returns the name of the module type that was used to create the module, as specified in
+	// RegisterModuleType.
 	ModuleType() string
+
+	// BlueprintFile returns the name of the blueprint file that contains the definition of this
+	// module.
 	BlueprintsFile() string
 
+	// ContainsProperty returns true if the specified property name was set in the module definition.
 	ContainsProperty(name string) bool
+
+	// Errorf reports an error at the specified position of the module definition file.
 	Errorf(pos scanner.Position, fmt string, args ...interface{})
+
+	// ModuleErrorf reports an error at the line number of the module type in the module definition.
 	ModuleErrorf(fmt string, args ...interface{})
+
+	// PropertyErrorf reports an error at the line number of a property in the module definition.
 	PropertyErrorf(property, fmt string, args ...interface{})
+
+	// Failed returns true if any errors have been reported.  In most cases the module can continue with generating
+	// build rules after an error, allowing it to report additional errors in a single run, but in cases where the error
+	// has prevented the module from creating necessary data it can return early when Failed returns true.
 	Failed() bool
 
+	// AddNinjaFileDeps adds dependencies on the specified files to the rule that creates the ninja manifest.  The
+	// primary builder will be rerun whenever the specified files are modified.
 	AddNinjaFileDeps(deps ...string)
 
 	DeviceSpecific() bool
@@ -98,6 +124,8 @@ type EarlyModuleContext interface {
 	IsSymlink(path Path) bool
 	Readlink(path Path) string
 
+	// Namespace returns the Namespace object provided by the NameInterface set by Context.SetNameInterface, or the
+	// default SimpleNameInterface if Context.SetNameInterface was not called.
 	Namespace() *Namespace
 }
 
@@ -110,29 +138,109 @@ type BaseModuleContext interface {
 
 	blueprintBaseModuleContext() blueprint.BaseModuleContext
 
+	// OtherModuleName returns the name of another Module.  See BaseModuleContext.ModuleName for more information.
+	// It is intended for use inside the visit functions of Visit* and WalkDeps.
 	OtherModuleName(m blueprint.Module) string
+
+	// OtherModuleDir returns the directory of another Module.  See BaseModuleContext.ModuleDir for more information.
+	// It is intended for use inside the visit functions of Visit* and WalkDeps.
 	OtherModuleDir(m blueprint.Module) string
+
+	// OtherModuleErrorf reports an error on another Module.  See BaseModuleContext.ModuleErrorf for more information.
+	// It is intended for use inside the visit functions of Visit* and WalkDeps.
 	OtherModuleErrorf(m blueprint.Module, fmt string, args ...interface{})
+
+	// OtherModuleDependencyTag returns the dependency tag used to depend on a module, or nil if there is no dependency
+	// on the module.  When called inside a Visit* method with current module being visited, and there are multiple
+	// dependencies on the module being visited, it returns the dependency tag used for the current dependency.
 	OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag
+
+	// OtherModuleExists returns true if a module with the specified name exists, as determined by the NameInterface
+	// passed to Context.SetNameInterface, or SimpleNameInterface if it was not called.
 	OtherModuleExists(name string) bool
+
+	// OtherModuleDependencyVariantExists returns true if a module with the
+	// specified name and variant exists. The variant must match the given
+	// variations. It must also match all the non-local variations of the current
+	// module. In other words, it checks for the module AddVariationDependencies
+	// would add a dependency on with the same arguments.
 	OtherModuleDependencyVariantExists(variations []blueprint.Variation, name string) bool
+
+	// OtherModuleReverseDependencyVariantExists returns true if a module with the
+	// specified name exists with the same variations as the current module. In
+	// other words, it checks for the module AddReverseDependency would add a
+	// dependency on with the same argument.
 	OtherModuleReverseDependencyVariantExists(name string) bool
+
+	// OtherModuleType returns the type of another Module.  See BaseModuleContext.ModuleType for more information.
+	// It is intended for use inside the visit functions of Visit* and WalkDeps.
 	OtherModuleType(m blueprint.Module) string
 
 	GetDirectDepsWithTag(tag blueprint.DependencyTag) []Module
+
+	// GetDirectDepWithTag returns the Module the direct dependency with the specified name, or nil if
+	// none exists.  It panics if the dependency does not have the specified tag.  It skips any
+	// dependencies that are not an android.Module.
 	GetDirectDepWithTag(name string, tag blueprint.DependencyTag) blueprint.Module
+
+	// GetDirectDep returns the Module and DependencyTag for the  direct dependency with the specified
+	// name, or nil if none exists.  If there are multiple dependencies on the same module it returns
+	// the first DependencyTag.  It skips any dependencies that are not an android.Module.
 	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
 
+	// VisitDirectDepsBlueprint calls visit for each direct dependency.  If there are multiple
+	// direct dependencies on the same module visit will be called multiple times on that module
+	// and OtherModuleDependencyTag will return a different tag for each.
+	//
+	// The Module passed to the visit function should not be retained outside of the visit
+	// function, it may be invalidated by future mutators.
 	VisitDirectDepsBlueprint(visit func(blueprint.Module))
+
+	// VisitDirectDeps calls visit for each direct dependency.  If there are multiple
+	// direct dependencies on the same module visit will be called multiple times on that module
+	// and OtherModuleDependencyTag will return a different tag for each.  It skips any
+	// dependencies that are not an android.Module.
+	//
+	// The Module passed to the visit function should not be retained outside of the visit
+	// function, it may be invalidated by future mutators.
 	VisitDirectDeps(visit func(Module))
+
 	VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module))
+
+	// VisitDirectDepsIf calls pred for each direct dependency, and if pred returns true calls visit.  If there are
+	// multiple direct dependencies on the same module pred and visit will be called multiple times on that module and
+	// OtherModuleDependencyTag will return a different tag for each.  It skips any
+	// dependencies that are not an android.Module.
+	//
+	// The Module passed to the visit function should not be retained outside of the visit function, it may be
+	// invalidated by future mutators.
 	VisitDirectDepsIf(pred func(Module) bool, visit func(Module))
 	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
 	VisitDepsDepthFirst(visit func(Module))
 	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
 	VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module))
+
+	// WalkDeps calls visit for each transitive dependency, traversing the dependency tree in top down order.  visit may
+	// be called multiple times for the same (child, parent) pair if there are multiple direct dependencies between the
+	// child and parent with different tags.  OtherModuleDependencyTag will return the tag for the currently visited
+	// (child, parent) pair.  If visit returns false WalkDeps will not continue recursing down to child.  It skips
+	// any dependencies that are not an android.Module.
+	//
+	// The Modules passed to the visit function should not be retained outside of the visit function, they may be
+	// invalidated by future mutators.
 	WalkDeps(visit func(Module, Module) bool)
+
+	// WalkDepsBlueprint calls visit for each transitive dependency, traversing the dependency
+	// tree in top down order.  visit may be called multiple times for the same (child, parent)
+	// pair if there are multiple direct dependencies between the child and parent with different
+	// tags.  OtherModuleDependencyTag will return the tag for the currently visited
+	// (child, parent) pair.  If visit returns false WalkDeps will not continue recursing down
+	// to child.
+	//
+	// The Modules passed to the visit function should not be retained outside of the visit function, they may be
+	// invalidated by future mutators.
 	WalkDepsBlueprint(visit func(blueprint.Module, blueprint.Module) bool)
+
 	// GetWalkPath is supposed to be called in visit function passed in WalkDeps()
 	// and returns a top-down dependency path from a start module to current child module.
 	GetWalkPath() []Module
@@ -216,10 +324,26 @@ type ModuleContext interface {
 	// additional dependencies.
 	Phony(phony string, deps ...Path)
 
+	// PrimaryModule returns the first variant of the current module.  Variants of a module are always visited in
+	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from the
+	// Module returned by PrimaryModule without data races.  This can be used to perform singleton actions that are
+	// only done once for all variants of a module.
 	PrimaryModule() Module
+
+	// FinalModule returns the last variant of the current module.  Variants of a module are always visited in
+	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from all
+	// variants using VisitAllModuleVariants if the current module == FinalModule().  This can be used to perform
+	// singleton actions that are only done once for all variants of a module.
 	FinalModule() Module
+
+	// VisitAllModuleVariants calls visit for each variant of the current module.  Variants of a module are always
+	// visited in order by mutators and GenerateBuildActions, so the data created by the current mutator can be read
+	// from all variants if the current module == FinalModule().  Otherwise, care must be taken to not access any
+	// data modified by the current mutator.
 	VisitAllModuleVariants(visit func(Module))
 
+	// GetMissingDependencies returns the list of dependencies that were passed to AddDependencies or related methods,
+	// but do not exist.
 	GetMissingDependencies() []string
 }
 
