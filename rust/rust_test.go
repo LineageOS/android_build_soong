@@ -189,7 +189,7 @@ func TestDepsTracking(t *testing.T) {
 		t.Errorf("Dylib dependency not detected (dependency missing from AndroidMkDylibs)")
 	}
 
-	if !android.InList("librlib", module.Properties.AndroidMkRlibs) {
+	if !android.InList("librlib.rlib-std", module.Properties.AndroidMkRlibs) {
 		t.Errorf("Rlib dependency not detected (dependency missing from AndroidMkRlibs)")
 	}
 
@@ -253,7 +253,7 @@ func TestSourceProviderDeps(t *testing.T) {
         }
 	`)
 
-	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_rlib").Rule("rustc")
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_rlib_dylib-std").Rule("rustc")
 	if !android.SuffixInList(libfoo.Implicits.Strings(), "/out/bindings.rs") {
 		t.Errorf("rust_bindgen generated source not included as implicit input for libfoo; Implicits %#v", libfoo.Implicits.Strings())
 	}
@@ -279,15 +279,15 @@ func TestSourceProviderDeps(t *testing.T) {
 
 	// Check that our bindings are picked up as crate dependencies as well
 	libfooMod := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").Module().(*Module)
-	if !android.InList("libbindings", libfooMod.Properties.AndroidMkRlibs) {
+	if !android.InList("libbindings.dylib-std", libfooMod.Properties.AndroidMkRlibs) {
 		t.Errorf("bindgen dependency not detected as a rlib dependency (dependency missing from AndroidMkRlibs)")
 	}
 	fizzBuzzMod := ctx.ModuleForTests("fizz-buzz-dep", "android_arm64_armv8-a").Module().(*Module)
-	if !android.InList("libbindings", fizzBuzzMod.Properties.AndroidMkRlibs) {
+	if !android.InList("libbindings.dylib-std", fizzBuzzMod.Properties.AndroidMkRlibs) {
 		t.Errorf("bindgen dependency not detected as a rlib dependency (dependency missing from AndroidMkRlibs)")
 	}
 	libprocmacroMod := ctx.ModuleForTests("libprocmacro", "linux_glibc_x86_64").Module().(*Module)
-	if !android.InList("libbindings", libprocmacroMod.Properties.AndroidMkRlibs) {
+	if !android.InList("libbindings.rlib-std", libprocmacroMod.Properties.AndroidMkRlibs) {
 		t.Errorf("bindgen dependency not detected as a rlib dependency (dependency missing from AndroidMkRlibs)")
 	}
 
@@ -365,6 +365,6 @@ func TestMultilib(t *testing.T) {
 			crate_name: "foo",
 		}`)
 
-	_ = ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_rlib")
-	_ = ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_rlib")
+	_ = ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_rlib_dylib-std")
+	_ = ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_rlib_dylib-std")
 }
