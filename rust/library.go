@@ -21,6 +21,11 @@ import (
 	"android/soong/android"
 )
 
+var (
+	DylibStdlibSuffix = ".dylib-std"
+	RlibStdlibSuffix  = ".rlib-std"
+)
+
 func init() {
 	android.RegisterModuleType("rust_library", RustLibraryFactory)
 	android.RegisterModuleType("rust_library_dylib", RustLibraryDylibFactory)
@@ -49,6 +54,9 @@ type LibraryCompilerProperties struct {
 
 	// path to include directories to pass to cc_* modules, only relevant for static/shared variants.
 	Include_dirs []string `android:"path,arch_variant"`
+
+	// Whether this library is part of the Rust toolchain sysroot.
+	Sysroot *bool
 }
 
 type LibraryMutatedProperties struct {
@@ -73,6 +81,9 @@ type LibraryMutatedProperties struct {
 	// This variant is disabled and should not be compiled
 	// (used for SourceProvider variants that produce only source)
 	VariantIsDisabled bool `blueprint:"mutated"`
+
+	// Whether this library variant should be link libstd via rlibs
+	VariantIsStaticStd bool `blueprint:"mutated"`
 }
 
 type libraryDecorator struct {
@@ -91,6 +102,7 @@ type libraryInterface interface {
 	dylib() bool
 	static() bool
 	shared() bool
+	sysroot() bool
 
 	// Returns true if the build options for the module have selected a particular build type
 	buildRlib() bool
@@ -103,6 +115,10 @@ type libraryInterface interface {
 	setDylib()
 	setShared()
 	setStatic()
+
+	// Set libstd linkage
+	setRlibStd()
+	setDylibStd()
 
 	// Build a specific library variant
 	BuildOnlyFFI()
@@ -121,6 +137,10 @@ func (library *libraryDecorator) rlib() bool {
 	return library.MutatedProperties.VariantIsRlib
 }
 
+func (library *libraryDecorator) sysroot() bool {
+	return Bool(library.Properties.Sysroot)
+}
+
 func (library *libraryDecorator) dylib() bool {
 	return library.MutatedProperties.VariantIsDylib
 }
@@ -131,6 +151,11 @@ func (library *libraryDecorator) shared() bool {
 
 func (library *libraryDecorator) static() bool {
 	return library.MutatedProperties.VariantIsStatic
+}
+
+func (library *libraryDecorator) staticStd(ctx *depsContext) bool {
+	// libraries should only request the staticStd when building a static FFI or when variant is staticStd
+	return library.static() || library.MutatedProperties.VariantIsStaticStd
 }
 
 func (library *libraryDecorator) buildRlib() bool {
@@ -161,6 +186,14 @@ func (library *libraryDecorator) setDylib() {
 	library.MutatedProperties.VariantIsDylib = true
 	library.MutatedProperties.VariantIsStatic = false
 	library.MutatedProperties.VariantIsShared = false
+}
+
+func (library *libraryDecorator) setRlibStd() {
+	library.MutatedProperties.VariantIsStaticStd = true
+}
+
+func (library *libraryDecorator) setDylibStd() {
+	library.MutatedProperties.VariantIsStaticStd = false
 }
 
 func (library *libraryDecorator) setShared() {
@@ -450,6 +483,13 @@ func (library *libraryDecorator) getStem(ctx ModuleContext) string {
 	return stem + String(library.baseCompiler.Properties.Suffix)
 }
 
+func (library *libraryDecorator) install(ctx ModuleContext) {
+	// Only shared and dylib variants make sense to install.
+	if library.shared() || library.dylib() {
+		library.baseCompiler.install(ctx)
+	}
+}
+
 func (library *libraryDecorator) Disabled() bool {
 	return library.MutatedProperties.VariantIsDisabled
 }
@@ -493,7 +533,6 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 				dylib := modules[1].(*Module)
 				rlib.compiler.(libraryInterface).setRlib()
 				dylib.compiler.(libraryInterface).setDylib()
-
 				if m.sourceProvider != nil {
 					// This library is SourceProvider generated, so the non-library-producing
 					// variant needs to disable it's compiler and skip installation.
@@ -511,6 +550,26 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 			if m.sourceProvider != nil {
 				// Alias the non-library variant to the empty-string variant.
 				mctx.AliasVariation("")
+			}
+		}
+	}
+}
+
+func LibstdMutator(mctx android.BottomUpMutatorContext) {
+	if m, ok := mctx.Module().(*Module); ok && m.compiler != nil && !m.compiler.Disabled() {
+		switch library := m.compiler.(type) {
+		case libraryInterface:
+			// Only create a variant if a library is actually being built.
+			if library.rlib() && !library.sysroot() {
+				variants := []string{"rlib-std", "dylib-std"}
+				modules := mctx.CreateLocalVariations(variants...)
+
+				rlib := modules[0].(*Module)
+				dylib := modules[1].(*Module)
+				rlib.compiler.(libraryInterface).setRlibStd()
+				dylib.compiler.(libraryInterface).setDylibStd()
+				rlib.Properties.SubName += RlibStdlibSuffix
+				dylib.Properties.SubName += DylibStdlibSuffix
 			}
 		}
 	}
