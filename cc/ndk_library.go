@@ -16,7 +16,6 @@ package cc
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -52,6 +51,10 @@ var (
 	ndkKnownLibsLock sync.Mutex
 )
 
+// The First_version and Unversioned_until properties of this struct should not
+// be used directly, but rather through the ApiLevel returning methods
+// firstVersion() and unversionedUntil().
+
 // Creates a stub shared library based on the provided version file.
 //
 // Example:
@@ -77,9 +80,7 @@ type libraryProperties struct {
 	// https://github.com/android-ndk/ndk/issues/265.
 	Unversioned_until *string
 
-	// Private property for use by the mutator that splits per-API level. Can be
-	// one of <number:sdk_version> or <codename> or "current" passed to
-	// "ndkstubgen.py" as it is
+	// Use via apiLevel on the stubDecorator.
 	ApiLevel string `blueprint:"mutated"`
 
 	// True if this API is not yet ready to be shipped in the NDK. It will be
@@ -96,125 +97,33 @@ type stubDecorator struct {
 	versionScriptPath     android.ModuleGenPath
 	parsedCoverageXmlPath android.ModuleOutPath
 	installPath           android.Path
+
+	apiLevel         android.ApiLevel
+	firstVersion     android.ApiLevel
+	unversionedUntil android.ApiLevel
 }
 
-// OMG GO
-func intMax(a int, b int) int {
-	if a > b {
-		return a
-	} else {
-		return b
-	}
-}
-
-func normalizeNdkApiLevel(ctx android.BaseModuleContext, apiLevel string,
-	arch android.Arch) (string, error) {
-
-	if apiLevel == "" {
-		panic("empty apiLevel not allowed")
-	}
-
-	if apiLevel == "current" {
-		return apiLevel, nil
-	}
-
-	minVersion := ctx.Config().MinSupportedSdkVersion()
-	firstArchVersions := map[android.ArchType]int{
-		android.Arm:    minVersion,
-		android.Arm64:  21,
-		android.X86:    minVersion,
-		android.X86_64: 21,
-	}
-
-	firstArchVersion, ok := firstArchVersions[arch.ArchType]
-	if !ok {
-		panic(fmt.Errorf("Arch %q not found in firstArchVersions", arch.ArchType))
-	}
-
-	if apiLevel == "minimum" {
-		return strconv.Itoa(firstArchVersion), nil
-	}
-
-	// If the NDK drops support for a platform version, we don't want to have to
-	// fix up every module that was using it as its SDK version. Clip to the
-	// supported version here instead.
-	version, err := strconv.Atoi(apiLevel)
-	if err != nil {
-		// Non-integer API levels are codenames.
-		return apiLevel, nil
-	}
-	version = intMax(version, minVersion)
-
-	return strconv.Itoa(intMax(version, firstArchVersion)), nil
-}
-
-func getFirstGeneratedVersion(firstSupportedVersion string, platformVersion int) (int, error) {
-	if firstSupportedVersion == "current" {
-		return platformVersion + 1, nil
-	}
-
-	return strconv.Atoi(firstSupportedVersion)
-}
-
-func shouldUseVersionScript(ctx android.BaseModuleContext, stub *stubDecorator) (bool, error) {
-	// unversioned_until is normally empty, in which case we should use the version script.
-	if String(stub.properties.Unversioned_until) == "" {
-		return true, nil
-	}
-
-	if String(stub.properties.Unversioned_until) == "current" {
-		if stub.properties.ApiLevel == "current" {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	}
-
-	if stub.properties.ApiLevel == "current" {
-		return true, nil
-	}
-
-	unversionedUntil, err := android.ApiStrToNum(ctx, String(stub.properties.Unversioned_until))
-	if err != nil {
-		return true, err
-	}
-
-	version, err := android.ApiStrToNum(ctx, stub.properties.ApiLevel)
-	if err != nil {
-		return true, err
-	}
-
-	return version >= unversionedUntil, nil
+func shouldUseVersionScript(ctx BaseModuleContext, stub *stubDecorator) bool {
+	return stub.apiLevel.GreaterThanOrEqualTo(stub.unversionedUntil)
 }
 
 func generatePerApiVariants(ctx android.BottomUpMutatorContext, m *Module,
-	propName string, propValue string, perSplit func(*Module, string)) {
-	platformVersion := ctx.Config().PlatformSdkVersionInt()
+	from android.ApiLevel, perSplit func(*Module, android.ApiLevel)) {
 
-	firstSupportedVersion, err := normalizeNdkApiLevel(ctx, propValue,
-		ctx.Arch())
-	if err != nil {
-		ctx.PropertyErrorf(propName, err.Error())
+	var versions []android.ApiLevel
+	versionStrs := []string{}
+	for _, version := range ctx.Config().AllSupportedApiLevels() {
+		if version.GreaterThanOrEqualTo(from) {
+			versions = append(versions, version)
+			versionStrs = append(versionStrs, version.String())
+		}
 	}
-
-	firstGenVersion, err := getFirstGeneratedVersion(firstSupportedVersion,
-		platformVersion)
-	if err != nil {
-		// In theory this is impossible because we've already run this through
-		// normalizeNdkApiLevel above.
-		ctx.PropertyErrorf(propName, err.Error())
-	}
-
-	var versionStrs []string
-	for version := firstGenVersion; version <= platformVersion; version++ {
-		versionStrs = append(versionStrs, strconv.Itoa(version))
-	}
-	versionStrs = append(versionStrs, ctx.Config().PlatformVersionActiveCodenames()...)
-	versionStrs = append(versionStrs, "current")
+	versions = append(versions, android.CurrentApiLevel)
+	versionStrs = append(versionStrs, android.CurrentApiLevel.String())
 
 	modules := ctx.CreateVariations(versionStrs...)
 	for i, module := range modules {
-		perSplit(module.(*Module), versionStrs[i])
+		perSplit(module.(*Module), versions[i])
 	}
 }
 
@@ -228,23 +137,54 @@ func NdkApiMutator(ctx android.BottomUpMutatorContext) {
 					ctx.Module().Disable()
 					return
 				}
-				generatePerApiVariants(ctx, m, "first_version",
-					String(compiler.properties.First_version),
-					func(m *Module, version string) {
+				firstVersion, err := nativeApiLevelFromUser(ctx,
+					String(compiler.properties.First_version))
+				if err != nil {
+					ctx.PropertyErrorf("first_version", err.Error())
+					return
+				}
+				generatePerApiVariants(ctx, m, firstVersion,
+					func(m *Module, version android.ApiLevel) {
 						m.compiler.(*stubDecorator).properties.ApiLevel =
-							version
+							version.String()
 					})
 			} else if m.SplitPerApiLevel() && m.IsSdkVariant() {
 				if ctx.Os() != android.Android {
 					return
 				}
-				generatePerApiVariants(ctx, m, "min_sdk_version",
-					m.MinSdkVersion(), func(m *Module, version string) {
-						m.Properties.Sdk_version = &version
+				from, err := nativeApiLevelFromUser(ctx, m.MinSdkVersion())
+				if err != nil {
+					ctx.PropertyErrorf("min_sdk_version", err.Error())
+					return
+				}
+				generatePerApiVariants(ctx, m, from,
+					func(m *Module, version android.ApiLevel) {
+						m.Properties.Sdk_version = StringPtr(version.String())
 					})
 			}
 		}
 	}
+}
+
+func (this *stubDecorator) initializeProperties(ctx BaseModuleContext) bool {
+	this.apiLevel = nativeApiLevelOrPanic(ctx, this.properties.ApiLevel)
+
+	var err error
+	this.firstVersion, err = nativeApiLevelFromUser(ctx,
+		String(this.properties.First_version))
+	if err != nil {
+		ctx.PropertyErrorf("first_version", err.Error())
+		return false
+	}
+
+	this.unversionedUntil, err = nativeApiLevelFromUserWithDefault(ctx,
+		String(this.properties.Unversioned_until), "minimum")
+	if err != nil {
+		ctx.PropertyErrorf("unversioned_until", err.Error())
+		return false
+	}
+
+	return true
 }
 
 func (c *stubDecorator) compilerInit(ctx BaseModuleContext) {
@@ -340,11 +280,16 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) O
 		ctx.PropertyErrorf("symbol_file", "must end with .map.txt")
 	}
 
+	if !c.initializeProperties(ctx) {
+		// Emits its own errors, so we don't need to.
+		return Objects{}
+	}
+
 	symbolFile := String(c.properties.Symbol_file)
 	objs, versionScript := compileStubLibrary(ctx, flags, symbolFile,
-		c.properties.ApiLevel, "")
+		c.apiLevel.String(), "")
 	c.versionScriptPath = versionScript
-	if c.properties.ApiLevel == "current" && ctx.PrimaryArch() {
+	if c.apiLevel.IsCurrent() && ctx.PrimaryArch() {
 		c.parsedCoverageXmlPath = parseSymbolFileForCoverage(ctx, symbolFile)
 	}
 	return objs
@@ -366,12 +311,7 @@ func (stub *stubDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 func (stub *stubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 	objs Objects) android.Path {
 
-	useVersionScript, err := shouldUseVersionScript(ctx, stub)
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-	}
-
-	if useVersionScript {
+	if shouldUseVersionScript(ctx, stub) {
 		linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
 		flags.Local.LdFlags = append(flags.Local.LdFlags, linkerScriptFlag)
 		flags.LdFlagsDeps = append(flags.LdFlagsDeps, stub.versionScriptPath)
@@ -386,8 +326,6 @@ func (stub *stubDecorator) nativeCoverage() bool {
 
 func (stub *stubDecorator) install(ctx ModuleContext, path android.Path) {
 	arch := ctx.Target().Arch.ArchType.Name
-	apiLevel := stub.properties.ApiLevel
-
 	// arm64 isn't actually a multilib toolchain, so unlike the other LP64
 	// architectures it's just installed to lib.
 	libDir := "lib"
@@ -396,7 +334,7 @@ func (stub *stubDecorator) install(ctx ModuleContext, path android.Path) {
 	}
 
 	installDir := getNdkInstallBase(ctx).Join(ctx, fmt.Sprintf(
-		"platforms/android-%s/arch-%s/usr/%s", apiLevel, arch, libDir))
+		"platforms/android-%s/arch-%s/usr/%s", stub.apiLevel, arch, libDir))
 	stub.installPath = ctx.InstallFile(installDir, path.Base(), path)
 }
 
