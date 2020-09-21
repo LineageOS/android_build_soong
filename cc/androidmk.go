@@ -451,7 +451,7 @@ func (installer *baseInstaller) AndroidMkEntries(ctx AndroidMkContext, entries *
 }
 
 func (c *stubDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
-	entries.SubName = ndkLibrarySuffix + "." + c.properties.ApiLevel
+	entries.SubName = ndkLibrarySuffix + "." + c.apiLevel.String()
 	entries.Class = "SHARED_LIBRARIES"
 
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
