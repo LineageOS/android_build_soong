@@ -172,13 +172,7 @@ func (p *PrebuiltEtc) SubDir() string {
 }
 
 func (p *PrebuiltEtc) BaseDir() string {
-	// If soc install dir was specified and SOC specific is set, set the installDirPath to the specified
-	// socInstallDirBase.
-	installBaseDir := p.installDirBase
-	if p.SocSpecific() && p.socInstallDirBase != "" {
-		installBaseDir = p.socInstallDirBase
-	}
-	return installBaseDir
+	return p.installDirBase
 }
 
 func (p *PrebuiltEtc) Installable() bool {
@@ -205,7 +199,13 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("sub_dir", "relative_install_path is set. Cannot set sub_dir")
 	}
 
-	p.installDirPath = android.PathForModuleInstall(ctx, p.BaseDir(), p.SubDir())
+	// If soc install dir was specified and SOC specific is set, set the installDirPath to the specified
+	// socInstallDirBase.
+	installBaseDir := p.installDirBase
+	if p.SocSpecific() && p.socInstallDirBase != "" {
+		installBaseDir = p.socInstallDirBase
+	}
+	p.installDirPath = android.PathForModuleInstall(ctx, installBaseDir, p.SubDir())
 
 	// This ensures that outputFilePath has the correct name for others to
 	// use, as the source file may have a different name.

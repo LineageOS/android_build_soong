@@ -2282,30 +2282,40 @@ func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 	ensureListContains(t, requireNativeLibs, ":vndk")
 }
 
-func TestVendorApex_withPrebuiltFirmware(t *testing.T) {
-	ctx, _ := testApex(t, `
-		apex {
-			name: "myapex",
-			key: "myapex.key",
-			prebuilts: ["myfirmware"],
-			vendor: true,
-		}
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-		prebuilt_firmware {
-			name: "myfirmware",
-			src: "myfirmware.bin",
-			filename_from_src: true,
-			vendor: true,
-		}
-	`)
-
-	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
-		"firmware/myfirmware.bin",
-	})
+func TestApex_withPrebuiltFirmware(t *testing.T) {
+	testCases := []struct {
+		name           string
+		additionalProp string
+	}{
+		{"system apex with prebuilt_firmware", ""},
+		{"vendor apex with prebuilt_firmware", "vendor: true,"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, _ := testApex(t, `
+				apex {
+					name: "myapex",
+					key: "myapex.key",
+					prebuilts: ["myfirmware"],
+					`+tc.additionalProp+`
+				}
+				apex_key {
+					name: "myapex.key",
+					public_key: "testkey.avbpubkey",
+					private_key: "testkey.pem",
+				}
+				prebuilt_firmware {
+					name: "myfirmware",
+					src: "myfirmware.bin",
+					filename_from_src: true,
+					`+tc.additionalProp+`
+				}
+			`)
+			ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+				"etc/firmware/myfirmware.bin",
+			})
+		})
+	}
 }
 
 func TestAndroidMk_UseVendorRequired(t *testing.T) {
