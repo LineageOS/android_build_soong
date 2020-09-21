@@ -32,6 +32,7 @@ func GatherRequiredDepsForTest() string {
                                     srcs: ["libstd.so"],
                                 },
 				host_supported: true,
+				sysroot: true,
 		}
 		rust_prebuilt_library {
 				name: "libtest_x86_64-unknown-linux-gnu",
@@ -43,6 +44,7 @@ func GatherRequiredDepsForTest() string {
                                     srcs: ["libtest.so"],
                                 },
 				host_supported: true,
+				sysroot: true,
 		}
 		rust_prebuilt_library {
 				name: "libstd_x86_64-apple-darwin",
@@ -54,6 +56,7 @@ func GatherRequiredDepsForTest() string {
                                     srcs: ["libstd.so"],
                                 },
 				host_supported: true,
+				sysroot: true,
 		}
 		rust_prebuilt_library {
 				name: "libtest_x86_64-apple-darwin",
@@ -65,6 +68,7 @@ func GatherRequiredDepsForTest() string {
                                     srcs: ["libtest.so"],
                                 },
 				host_supported: true,
+				sysroot: true,
 		}
 		//////////////////////////////
 		// Device module requirements
@@ -82,6 +86,7 @@ func GatherRequiredDepsForTest() string {
 			no_stdlibs: true,
 			host_supported: true,
                         native_coverage: false,
+			sysroot: true,
 		}
 		rust_library {
 			name: "libtest",
@@ -90,6 +95,7 @@ func GatherRequiredDepsForTest() string {
 			no_stdlibs: true,
 			host_supported: true,
                         native_coverage: false,
+			sysroot: true,
 		}
 		rust_library {
 			name: "libprotobuf",
@@ -134,6 +140,7 @@ func CreateTestContext() *android.TestContext {
 	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		// rust mutators
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
+		ctx.BottomUp("rust_stdlinkage", LibstdMutator).Parallel()
 		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
 	})
 	ctx.RegisterSingletonType("rust_project_generator", rustProjectGeneratorSingleton)
