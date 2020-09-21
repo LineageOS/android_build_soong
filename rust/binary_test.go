@@ -40,7 +40,7 @@ func TestBinaryLinkage(t *testing.T) {
 	fizzBuzzHost := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module)
 	fizzBuzzDevice := ctx.ModuleForTests("fizz-buzz", "android_arm64_armv8-a").Module().(*Module)
 
-	if !android.InList("libfoo", fizzBuzzHost.Properties.AndroidMkRlibs) {
+	if !android.InList("libfoo.rlib-std", fizzBuzzHost.Properties.AndroidMkRlibs) {
 		t.Errorf("rustlibs dependency libfoo should be an rlib dep for host modules")
 	}
 

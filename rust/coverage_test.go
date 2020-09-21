@@ -154,12 +154,12 @@ func TestCoverageZip(t *testing.T) {
 	}
 
 	// Make sure the expected inputs are provided to the zip rule.
-	if !android.SuffixInList(fizzZipInputs, "android_arm64_armv8-a_rlib_cov/librlib.gcno") ||
+	if !android.SuffixInList(fizzZipInputs, "android_arm64_armv8-a_rlib_dylib-std_cov/librlib.gcno") ||
 		!android.SuffixInList(fizzZipInputs, "android_arm64_armv8-a_static_cov/libbaz.gcno") ||
 		!android.SuffixInList(fizzZipInputs, "android_arm64_armv8-a_cov/fizz.gcno") {
 		t.Fatalf("missing expected coverage files for rust 'fizz' binary: %#v", fizzZipInputs)
 	}
-	if !android.SuffixInList(libfooZipInputs, "android_arm64_armv8-a_rlib_cov/librlib.gcno") ||
+	if !android.SuffixInList(libfooZipInputs, "android_arm64_armv8-a_rlib_dylib-std_cov/librlib.gcno") ||
 		!android.SuffixInList(libfooZipInputs, "android_arm64_armv8-a_dylib_cov/libfoo.dylib.gcno") {
 		t.Fatalf("missing expected coverage files for rust 'fizz' binary: %#v", libfooZipInputs)
 	}
