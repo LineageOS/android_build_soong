@@ -191,7 +191,7 @@ func TestStdDeviceLinkage(t *testing.T) {
 			crate_name: "foo",
 		}`)
 	fizz := ctx.ModuleForTests("fizz", "android_arm64_armv8-a").Module().(*Module)
-	fooRlib := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_rlib").Module().(*Module)
+	fooRlib := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_rlib_dylib-std").Module().(*Module)
 	fooDylib := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").Module().(*Module)
 
 	if !android.InList("libstd", fizz.Properties.AndroidMkDylibs) {
