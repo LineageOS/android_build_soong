@@ -133,7 +133,7 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 				}
 			}
 			if len(newDataPaths) > 0 {
-				fmt.Fprintln(w, "LOCAL_TEST_DATA :=", strings.Join(cc.AndroidMkDataPaths(newDataPaths), " "))
+				fmt.Fprintln(w, "LOCAL_TEST_DATA :=", strings.Join(android.AndroidMkDataPaths(newDataPaths), " "))
 			}
 
 			if fi.module != nil && len(fi.module.NoticeFiles()) > 0 {

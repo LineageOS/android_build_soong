@@ -149,24 +149,6 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{entries}
 }
 
-func AndroidMkDataPaths(data []android.DataPath) []string {
-	var testFiles []string
-	for _, d := range data {
-		rel := d.SrcPath.Rel()
-		path := d.SrcPath.String()
-		if !strings.HasSuffix(path, rel) {
-			panic(fmt.Errorf("path %q does not end with %q", path, rel))
-		}
-		path = strings.TrimSuffix(path, rel)
-		testFileString := path + ":" + rel
-		if len(d.RelativeInstallPath) > 0 {
-			testFileString += ":" + d.RelativeInstallPath
-		}
-		testFiles = append(testFiles, testFileString)
-	}
-	return testFiles
-}
-
 func androidMkWriteExtraTestConfigs(extraTestConfigs android.Paths, entries *android.AndroidMkEntries) {
 	if len(extraTestConfigs) > 0 {
 		entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
@@ -176,7 +158,7 @@ func androidMkWriteExtraTestConfigs(extraTestConfigs android.Paths, entries *and
 }
 
 func androidMkWriteTestData(data []android.DataPath, ctx AndroidMkContext, entries *android.AndroidMkEntries) {
-	testFiles := AndroidMkDataPaths(data)
+	testFiles := android.AndroidMkDataPaths(data)
 	if len(testFiles) > 0 {
 		entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 			entries.AddStrings("LOCAL_TEST_DATA", testFiles...)

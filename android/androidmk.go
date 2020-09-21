@@ -634,3 +634,21 @@ func shouldSkipAndroidMkProcessing(module *ModuleBase) bool {
 		// Make does not understand LinuxBionic
 		module.Os() == LinuxBionic
 }
+
+func AndroidMkDataPaths(data []DataPath) []string {
+	var testFiles []string
+	for _, d := range data {
+		rel := d.SrcPath.Rel()
+		path := d.SrcPath.String()
+		if !strings.HasSuffix(path, rel) {
+			panic(fmt.Errorf("path %q does not end with %q", path, rel))
+		}
+		path = strings.TrimSuffix(path, rel)
+		testFileString := path + ":" + rel
+		if len(d.RelativeInstallPath) > 0 {
+			testFileString += ":" + d.RelativeInstallPath
+		}
+		testFiles = append(testFiles, testFileString)
+	}
+	return testFiles
+}
