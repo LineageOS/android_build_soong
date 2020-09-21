@@ -40,6 +40,7 @@ func init() {
 	android.RegisterModuleType("rust_defaults", defaultsFactory)
 	android.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
+		ctx.BottomUp("rust_stdlinkage", LibstdMutator).Parallel()
 		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
 	})
 	pctx.Import("android/soong/rust/config")
@@ -237,6 +238,7 @@ type Deps struct {
 	Dylibs     []string
 	Rlibs      []string
 	Rustlibs   []string
+	Stdlibs    []string
 	ProcMacros []string
 	SharedLibs []string
 	StaticLibs []string
@@ -293,7 +295,7 @@ type compiler interface {
 	Disabled() bool
 	SetDisabled()
 
-	static() bool
+	staticStd(ctx *depsContext) bool
 }
 
 type exportedFlagsProducer interface {
@@ -782,14 +784,15 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				directDylibDeps = append(directDylibDeps, rustDep)
 				mod.Properties.AndroidMkDylibs = append(mod.Properties.AndroidMkDylibs, depName)
 			case rlibDepTag:
+
 				rlib, ok := rustDep.compiler.(libraryInterface)
 				if !ok || !rlib.rlib() {
-					ctx.ModuleErrorf("mod %q not an rlib library", depName)
+					ctx.ModuleErrorf("mod %q not an rlib library", depName+rustDep.Properties.SubName)
 					return
 				}
 				depPaths.coverageFiles = append(depPaths.coverageFiles, rustDep.CoverageFiles()...)
 				directRlibDeps = append(directRlibDeps, rustDep)
-				mod.Properties.AndroidMkRlibs = append(mod.Properties.AndroidMkRlibs, depName)
+				mod.Properties.AndroidMkRlibs = append(mod.Properties.AndroidMkRlibs, depName+rustDep.Properties.SubName)
 			case procMacroDepTag:
 				directProcMacroDeps = append(directProcMacroDeps, rustDep)
 				mod.Properties.AndroidMkProcMacroLibs = append(mod.Properties.AndroidMkProcMacroLibs, depName)
@@ -976,8 +979,19 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		commonDepVariations = append(commonDepVariations,
 			blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
 	}
+	stdLinkage := "dylib-std"
+	if mod.compiler.staticStd(ctx) {
+		stdLinkage = "rlib-std"
+	}
+
+	rlibDepVariations := commonDepVariations
+	if lib, ok := mod.compiler.(libraryInterface); !ok || !lib.sysroot() {
+		rlibDepVariations = append(rlibDepVariations,
+			blueprint.Variation{Mutator: "rust_stdlinkage", Variation: stdLinkage})
+	}
+
 	actx.AddVariationDependencies(
-		append(commonDepVariations, []blueprint.Variation{
+		append(rlibDepVariations, []blueprint.Variation{
 			{Mutator: "rust_libraries", Variation: "rlib"}}...),
 		rlibDepTag, deps.Rlibs...)
 	actx.AddVariationDependencies(
@@ -987,12 +1001,27 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	if deps.Rustlibs != nil && !mod.compiler.Disabled() {
 		autoDep := mod.compiler.(autoDeppable).autoDep(ctx)
-		actx.AddVariationDependencies(
-			append(commonDepVariations, []blueprint.Variation{
-				{Mutator: "rust_libraries", Variation: autoDep.variation}}...),
-			autoDep.depTag, deps.Rustlibs...)
+		if autoDep.depTag == rlibDepTag {
+			actx.AddVariationDependencies(
+				append(rlibDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: autoDep.variation}),
+				autoDep.depTag, deps.Rustlibs...)
+		} else {
+			actx.AddVariationDependencies(
+				append(commonDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: autoDep.variation}),
+				autoDep.depTag, deps.Rustlibs...)
+		}
 	}
-
+	if deps.Stdlibs != nil {
+		if mod.compiler.staticStd(ctx) {
+			actx.AddVariationDependencies(
+				append(commonDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: "rlib"}),
+				rlibDepTag, deps.Stdlibs...)
+		} else {
+			actx.AddVariationDependencies(
+				append(commonDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: "dylib"}),
+				dylibDepTag, deps.Stdlibs...)
+		}
+	}
 	actx.AddVariationDependencies(append(commonDepVariations,
 		blueprint.Variation{Mutator: "link", Variation: "shared"}),
 		cc.SharedDepTag(), deps.SharedLibs...)
