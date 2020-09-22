@@ -39,6 +39,9 @@ var (
 		// Get 64-bit off_t and related functions.
 		"-D_FILE_OFFSET_BITS=64",
 
+		// Don't adjust the layout of bitfields like msvc does.
+		"-mno-ms-bitfields",
+
 		"--sysroot ${WindowsGccRoot}/${WindowsGccTriple}",
 	}
 	windowsClangCflags = append(ClangFilterUnknownCflags(windowsCflags), []string{}...)
