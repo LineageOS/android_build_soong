@@ -42,7 +42,6 @@ var ClangUnknownCflags = sorted([]string{
 	"-Wno-literal-suffix",
 	"-Wno-maybe-uninitialized",
 	"-Wno-old-style-declaration",
-	"-Wno-psabi",
 	"-Wno-unused-but-set-parameter",
 	"-Wno-unused-but-set-variable",
 	"-Wno-unused-local-typedefs",
@@ -93,7 +92,9 @@ var ClangLibToolingUnknownCflags = sorted([]string{})
 // updated, some checks enabled by this module may be disabled if they have
 // become more strict, or if they are a new match for a wildcard group like
 // `modernize-*`.
-var ClangTidyDisableChecks = []string{}
+var ClangTidyDisableChecks = []string{
+	"misc-no-recursion",
+}
 
 func init() {
 	pctx.StaticVariable("ClangExtraCflags", strings.Join([]string{
@@ -102,6 +103,10 @@ func init() {
 		// Emit address-significance table which allows linker to perform safe ICF. Clang does
 		// not emit the table by default on Android since NDK still uses GNU binutils.
 		"-faddrsig",
+
+		// Turn on -fcommon explicitly, since Clang now defaults to -fno-common. The cleanup bug
+		// tracking this is http://b/151457797.
+		"-fcommon",
 
 		// Help catch common 32/64-bit errors.
 		"-Werror=int-conversion",
@@ -183,6 +188,8 @@ func init() {
 		"-Wno-enum-enum-conversion",                 // http://b/154138986
 		"-Wno-enum-float-conversion",                // http://b/154255917
 		"-Wno-pessimizing-move",                     // http://b/154270751
+		// New warnings to be fixed after clang-r399163
+		"-Wno-non-c-typedef-for-linkage", // http://b/161304145
 	}, " "))
 
 	// Extra cflags for external third-party projects to disable warnings that
@@ -205,6 +212,9 @@ func init() {
 		"-Wno-xor-used-as-pow",
 		// http://b/145211022
 		"-Wno-final-dtor-non-final-class",
+
+		// http://b/165945989
+		"-Wno-psabi",
 	}, " "))
 }
 
