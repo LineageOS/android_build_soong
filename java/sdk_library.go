@@ -852,6 +852,12 @@ func (e *EmbeddableSdkLibraryComponent) OptionalImplicitSdkLibrary() *string {
 	return e.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack
 }
 
+// to satisfy SdkLibraryComponentDependency
+func (e *EmbeddableSdkLibraryComponent) OptionalSdkLibraryImplementation() *string {
+	// Currently implementation library name is the same as the SDK library name.
+	return e.sdkLibraryComponentProperties.SdkLibraryToImplicitlyTrack
+}
+
 // Implemented by modules that are (or possibly could be) a component of a java_sdk_library
 // (including the java_sdk_library) itself.
 type SdkLibraryComponentDependency interface {
@@ -862,6 +868,9 @@ type SdkLibraryComponentDependency interface {
 	//
 	// Returns the name of the optional implicit SDK library or nil, if there isn't one.
 	OptionalImplicitSdkLibrary() *string
+
+	// The name of the implementation library for the optional SDK library or nil, if there isn't one.
+	OptionalSdkLibraryImplementation() *string
 }
 
 // Make sure that all the module types that are components of java_sdk_library/_import
