@@ -460,12 +460,20 @@ func (mod *Module) SetBuildStubs() {
 	panic("SetBuildStubs not yet implemented for rust modules")
 }
 
-func (mod *Module) SetStubsVersions(string) {
-	panic("SetStubsVersions not yet implemented for rust modules")
+func (mod *Module) SetStubsVersion(string) {
+	panic("SetStubsVersion not yet implemented for rust modules")
 }
 
 func (mod *Module) StubsVersion() string {
-	panic("SetStubsVersions not yet implemented for rust modules")
+	panic("StubsVersion not yet implemented for rust modules")
+}
+
+func (mod *Module) SetAllStubsVersions([]string) {
+	panic("SetAllStubsVersions not yet implemented for rust modules")
+}
+
+func (mod *Module) AllStubsVersions() []string {
+	return nil
 }
 
 func (mod *Module) BuildStaticVariant() bool {

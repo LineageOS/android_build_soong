@@ -3025,6 +3025,7 @@ func TestStaticLibDepReorderingWithShared(t *testing.T) {
 }
 
 func checkEquals(t *testing.T, message string, expected, actual interface{}) {
+	t.Helper()
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf(message+
 			"\nactual:   %v"+
