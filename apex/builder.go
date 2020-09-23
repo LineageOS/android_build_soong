@@ -257,15 +257,34 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) {
 
 	output := android.PathForModuleOut(ctx, "file_contexts")
 	rule := android.NewRuleBuilder()
-	// remove old file
-	rule.Command().Text("rm").FlagWithOutput("-f ", output)
-	// copy file_contexts
-	rule.Command().Text("cat").Input(fileContexts).Text(">>").Output(output)
-	// new line
-	rule.Command().Text("echo").Text(">>").Output(output)
-	// force-label /apex_manifest.pb and / as system_file so that apexd can read them
-	rule.Command().Text("echo").Flag("/apex_manifest\\\\.pb u:object_r:system_file:s0").Text(">>").Output(output)
-	rule.Command().Text("echo").Flag("/ u:object_r:system_file:s0").Text(">>").Output(output)
+
+	if a.properties.ApexType == imageApex {
+		// remove old file
+		rule.Command().Text("rm").FlagWithOutput("-f ", output)
+		// copy file_contexts
+		rule.Command().Text("cat").Input(fileContexts).Text(">>").Output(output)
+		// new line
+		rule.Command().Text("echo").Text(">>").Output(output)
+		// force-label /apex_manifest.pb and / as system_file so that apexd can read them
+		rule.Command().Text("echo").Flag("/apex_manifest\\\\.pb u:object_r:system_file:s0").Text(">>").Output(output)
+		rule.Command().Text("echo").Flag("/ u:object_r:system_file:s0").Text(">>").Output(output)
+	} else {
+		// For flattened apexes, install path should be prepended.
+		// File_contexts file should be emiited to make via LOCAL_FILE_CONTEXTS
+		// so that it can be merged into file_contexts.bin
+		apexPath := android.InstallPathToOnDevicePath(ctx, a.installDir.Join(ctx, a.Name()))
+		apexPath = strings.ReplaceAll(apexPath, ".", `\\.`)
+		// remove old file
+		rule.Command().Text("rm").FlagWithOutput("-f ", output)
+		// copy file_contexts
+		rule.Command().Text("awk").Text(`'/object_r/{printf("` + apexPath + `%s\n", $0)}'`).Input(fileContexts).Text(">").Output(output)
+		// new line
+		rule.Command().Text("echo").Text(">>").Output(output)
+		// force-label /apex_manifest.pb and / as system_file so that apexd can read them
+		rule.Command().Text("echo").Flag(apexPath + `/apex_manifest\\.pb u:object_r:system_file:s0`).Text(">>").Output(output)
+		rule.Command().Text("echo").Flag(apexPath + "/ u:object_r:system_file:s0").Text(">>").Output(output)
+	}
+
 	rule.Build(pctx, ctx, "file_contexts."+a.Name(), "Generate file_contexts")
 
 	a.fileContexts = output.OutputPath
@@ -687,14 +706,7 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	// instead of `android.PathForOutput`) to return the correct path to the flattened
 	// APEX (as its contents is installed by Make, not Soong).
 	factx := flattenedApexContext{ctx}
-	apexBundleName := a.Name()
-	a.outputFile = android.PathForModuleInstall(&factx, "apex", apexBundleName)
-
-	if a.installable() {
-		installPath := android.PathForModuleInstall(ctx, "apex", apexBundleName)
-		devicePath := android.InstallPathToOnDevicePath(ctx, installPath)
-		addFlattenedFileContextsInfos(ctx, apexBundleName+":"+devicePath+":"+a.fileContexts.String())
-	}
+	a.outputFile = android.PathForModuleInstall(&factx, "apex", a.Name())
 	a.buildFilesInfo(ctx)
 }
 
