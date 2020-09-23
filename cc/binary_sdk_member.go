@@ -44,7 +44,7 @@ func (mt *binarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorConte
 		for _, target := range targets {
 			name, version := StubsLibNameAndVersion(lib)
 			if version == "" {
-				version = LatestStubsVersionFor(mctx.Config(), name)
+				version = "latest"
 			}
 			variations := target.Variations()
 			if mctx.Device() {
