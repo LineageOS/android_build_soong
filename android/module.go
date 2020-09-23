@@ -541,7 +541,7 @@ type commonProperties struct {
 	// control whether this module compiles for 32-bit, 64-bit, or both.  Possible values
 	// are "32" (compile for 32-bit only), "64" (compile for 64-bit only), "both" (compile for both
 	// architectures), or "first" (compile for 64-bit on a 64-bit platform, and 32-bit on a 32-bit
-	// platform
+	// platform).
 	Compile_multilib *string `android:"arch_variant"`
 
 	Target struct {
