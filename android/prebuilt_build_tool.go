@@ -14,6 +14,8 @@
 
 package android
 
+import "path/filepath"
+
 func init() {
 	RegisterModuleType("prebuilt_build_tool", prebuiltBuildToolFactory)
 }
@@ -58,13 +60,18 @@ func (t *prebuiltBuildTool) GenerateAndroidBuildActions(ctx ModuleContext) {
 	installedPath := PathForModuleOut(ctx, t.ModuleBase.Name())
 	deps := PathsForModuleSrc(ctx, t.properties.Deps)
 
+	var fromPath = sourcePath.String()
+	if !filepath.IsAbs(fromPath) {
+		fromPath = "$$PWD/" + fromPath
+	}
+
 	ctx.Build(pctx, BuildParams{
 		Rule:      Symlink,
 		Output:    installedPath,
 		Input:     sourcePath,
 		Implicits: deps,
 		Args: map[string]string{
-			"fromPath": "$$PWD/" + sourcePath.String(),
+			"fromPath": fromPath,
 		},
 	})
 

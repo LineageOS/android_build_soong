@@ -16,6 +16,7 @@ package cc
 
 import (
 	"android/soong/android"
+	"path/filepath"
 )
 
 func init() {
@@ -360,13 +361,18 @@ func (p *prebuiltBinaryLinker) link(ctx ModuleContext,
 			sharedLibPaths = append(sharedLibPaths, deps.SharedLibs...)
 			sharedLibPaths = append(sharedLibPaths, deps.LateSharedLibs...)
 
+			var fromPath = in.String()
+			if !filepath.IsAbs(fromPath) {
+				fromPath = "$$PWD/" + fromPath
+			}
+
 			ctx.Build(pctx, android.BuildParams{
 				Rule:      android.Symlink,
 				Output:    outputFile,
 				Input:     in,
 				Implicits: sharedLibPaths,
 				Args: map[string]string{
-					"fromPath": "$$PWD/" + in.String(),
+					"fromPath": fromPath,
 				},
 			})
 
