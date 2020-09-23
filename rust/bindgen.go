@@ -169,7 +169,9 @@ func (b *bindgenDecorator) SourceProviderProps() []interface{} {
 
 // rust_bindgen generates Rust FFI bindings to C libraries using bindgen given a wrapper header as the primary input.
 // Bindgen has a number of flags to control the generated source, and additional flags can be passed to clang to ensure
-// the header and generated source is appropriately handled.
+// the header and generated source is appropriately handled. It is recommended to add it as a dependency in the
+// rlibs, dylibs or rustlibs property. It may also be added in the srcs property for external crates, using the ":"
+// prefix.
 func RustBindgenFactory() android.Module {
 	module, _ := NewRustBindgen(android.HostAndDeviceSupported)
 	return module.Init()
