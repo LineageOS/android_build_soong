@@ -210,10 +210,14 @@ type BottomUpMutator func(BottomUpMutatorContext)
 type BottomUpMutatorContext interface {
 	BaseMutatorContext
 
-	// AddDependency adds a dependency to the given module.
-	// Does not affect the ordering of the current mutator pass, but will be ordered
-	// correctly for all future mutator passes.
-	AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string)
+	// AddDependency adds a dependency to the given module.  It returns a slice of modules for each
+	// dependency (some entries may be nil).
+	//
+	// If the mutator is parallel (see MutatorHandle.Parallel), this method will pause until the
+	// new dependencies have had the current mutator called on them.  If the mutator is not
+	// parallel this method does not affect the ordering of the current mutator pass, but will
+	// be ordered correctly for all future mutator passes.
+	AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string) []blueprint.Module
 
 	// AddReverseDependency adds a dependency from the destination to the given module.
 	// Does not affect the ordering of the current mutator pass, but will be ordered
@@ -253,19 +257,30 @@ type BottomUpMutatorContext interface {
 	SetDefaultDependencyVariation(*string)
 
 	// AddVariationDependencies adds deps as dependencies of the current module, but uses the variations
-	// argument to select which variant of the dependency to use.  A variant of the dependency must
-	// exist that matches the all of the non-local variations of the current module, plus the variations
-	// argument.
-	AddVariationDependencies([]blueprint.Variation, blueprint.DependencyTag, ...string)
+	// argument to select which variant of the dependency to use.  It returns a slice of modules for
+	// each dependency (some entries may be nil).  A variant of the dependency must exist that matches
+	// the all of the non-local variations of the current module, plus the variations argument.
+	//
+	// If the mutator is parallel (see MutatorHandle.Parallel), this method will pause until the
+	// new dependencies have had the current mutator called on them.  If the mutator is not
+	// parallel this method does not affect the ordering of the current mutator pass, but will
+	// be ordered correctly for all future mutator passes.
+	AddVariationDependencies([]blueprint.Variation, blueprint.DependencyTag, ...string) []blueprint.Module
 
 	// AddFarVariationDependencies adds deps as dependencies of the current module, but uses the
-	// variations argument to select which variant of the dependency to use.  A variant of the
-	// dependency must exist that matches the variations argument, but may also have other variations.
+	// variations argument to select which variant of the dependency to use.  It returns a slice of
+	// modules for each dependency (some entries may be nil).  A variant of the dependency must
+	// exist that matches the variations argument, but may also have other variations.
 	// For any unspecified variation the first variant will be used.
 	//
 	// Unlike AddVariationDependencies, the variations of the current module are ignored - the
 	// dependency only needs to match the supplied variations.
-	AddFarVariationDependencies([]blueprint.Variation, blueprint.DependencyTag, ...string)
+	//
+	// If the mutator is parallel (see MutatorHandle.Parallel), this method will pause until the
+	// new dependencies have had the current mutator called on them.  If the mutator is not
+	// parallel this method does not affect the ordering of the current mutator pass, but will
+	// be ordered correctly for all future mutator passes.
+	AddFarVariationDependencies([]blueprint.Variation, blueprint.DependencyTag, ...string) []blueprint.Module
 
 	// AddInterVariantDependency adds a dependency between two variants of the same module.  Variants are always
 	// ordered in the same orderas they were listed in CreateVariations, and AddInterVariantDependency does not change
@@ -452,8 +467,8 @@ func (b *bottomUpMutatorContext) Rename(name string) {
 	b.Module().base().commonProperties.DebugName = name
 }
 
-func (b *bottomUpMutatorContext) AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string) {
-	b.bp.AddDependency(module, tag, name...)
+func (b *bottomUpMutatorContext) AddDependency(module blueprint.Module, tag blueprint.DependencyTag, name ...string) []blueprint.Module {
+	return b.bp.AddDependency(module, tag, name...)
 }
 
 func (b *bottomUpMutatorContext) AddReverseDependency(module blueprint.Module, tag blueprint.DependencyTag, name string) {
@@ -505,15 +520,15 @@ func (b *bottomUpMutatorContext) SetDefaultDependencyVariation(variation *string
 }
 
 func (b *bottomUpMutatorContext) AddVariationDependencies(variations []blueprint.Variation, tag blueprint.DependencyTag,
-	names ...string) {
+	names ...string) []blueprint.Module {
 
-	b.bp.AddVariationDependencies(variations, tag, names...)
+	return b.bp.AddVariationDependencies(variations, tag, names...)
 }
 
 func (b *bottomUpMutatorContext) AddFarVariationDependencies(variations []blueprint.Variation,
-	tag blueprint.DependencyTag, names ...string) {
+	tag blueprint.DependencyTag, names ...string) []blueprint.Module {
 
-	b.bp.AddFarVariationDependencies(variations, tag, names...)
+	return b.bp.AddFarVariationDependencies(variations, tag, names...)
 }
 
 func (b *bottomUpMutatorContext) AddInterVariantDependency(tag blueprint.DependencyTag, from, to blueprint.Module) {
