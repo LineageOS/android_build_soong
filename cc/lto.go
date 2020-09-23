@@ -52,6 +52,9 @@ type LTOProperties struct {
 
 	// Use clang lld instead of gnu ld.
 	Use_clang_lld *bool
+
+	// Use -fwhole-program-vtables cflag.
+	Whole_program_vtables *bool
 }
 
 type lto struct {
@@ -96,6 +99,10 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 
 		flags.Local.CFlags = append(flags.Local.CFlags, ltoFlag)
 		flags.Local.LdFlags = append(flags.Local.LdFlags, ltoFlag)
+
+		if Bool(lto.Properties.Whole_program_vtables) {
+			flags.Local.CFlags = append(flags.Local.CFlags, "-fwhole-program-vtables")
+		}
 
 		if ctx.Config().IsEnvTrue("USE_THINLTO_CACHE") && Bool(lto.Properties.Lto.Thin) && lto.useClangLld(ctx) {
 			// Set appropriate ThinLTO cache policy

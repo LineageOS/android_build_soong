@@ -16,8 +16,11 @@ package java
 
 import (
 	"android/soong/android"
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/google/blueprint/proptools"
 )
 
 func testConfigWithBootJars(bp string, bootJars []string) android.Config {
@@ -32,19 +35,30 @@ func testContextWithHiddenAPI() *android.TestContext {
 	return ctx
 }
 
-func testHiddenAPI(t *testing.T, bp string, bootJars []string) (*android.TestContext, android.Config) {
+func testHiddenAPIWithConfig(t *testing.T, config android.Config) *android.TestContext {
 	t.Helper()
 
-	config := testConfigWithBootJars(bp, bootJars)
 	ctx := testContextWithHiddenAPI()
 
 	run(t, ctx, config)
+	return ctx
+}
 
-	return ctx, config
+func testHiddenAPIBootJars(t *testing.T, bp string, bootJars []string) (*android.TestContext, android.Config) {
+	config := testConfigWithBootJars(bp, bootJars)
+
+	return testHiddenAPIWithConfig(t, config), config
+}
+
+func testHiddenAPIUnbundled(t *testing.T, unbundled bool) (*android.TestContext, android.Config) {
+	config := testConfig(nil, ``, nil)
+	config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(unbundled)
+
+	return testHiddenAPIWithConfig(t, config), config
 }
 
 func TestHiddenAPISingleton(t *testing.T) {
-	ctx, _ := testHiddenAPI(t, `
+	ctx, _ := testHiddenAPIBootJars(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -61,7 +75,7 @@ func TestHiddenAPISingleton(t *testing.T) {
 }
 
 func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {
-	ctx, _ := testHiddenAPI(t, `
+	ctx, _ := testHiddenAPIBootJars(t, `
 		java_import {
 			name: "foo",
 			jars: ["a.jar"],
@@ -78,7 +92,7 @@ func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {
 }
 
 func TestHiddenAPISingletonWithPrebuiltUseSource(t *testing.T) {
-	ctx, _ := testHiddenAPI(t, `
+	ctx, _ := testHiddenAPIBootJars(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -107,7 +121,7 @@ func TestHiddenAPISingletonWithPrebuiltUseSource(t *testing.T) {
 }
 
 func TestHiddenAPISingletonWithPrebuiltOverrideSource(t *testing.T) {
-	ctx, _ := testHiddenAPI(t, `
+	ctx, _ := testHiddenAPIBootJars(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -133,4 +147,73 @@ func TestHiddenAPISingletonWithPrebuiltOverrideSource(t *testing.T) {
 	if strings.Contains(hiddenapiRule.RuleParams.Command, fromSourceJarArg) {
 		t.Errorf("Did not expect %s in hiddenapi command, but it was present: %s", fromSourceJarArg, hiddenapiRule.RuleParams.Command)
 	}
+}
+
+func TestHiddenAPISingletonSdks(t *testing.T) {
+	testCases := []struct {
+		name             string
+		unbundledBuild   bool
+		publicStub       string
+		systemStub       string
+		testStub         string
+		corePlatformStub string
+	}{
+		{
+			name:             "testBundled",
+			unbundledBuild:   false,
+			publicStub:       "android_stubs_current",
+			systemStub:       "android_system_stubs_current",
+			testStub:         "android_test_stubs_current",
+			corePlatformStub: "legacy.core.platform.api.stubs",
+		}, {
+			name:             "testUnbundled",
+			unbundledBuild:   true,
+			publicStub:       "sdk_public_current_android",
+			systemStub:       "sdk_system_current_android",
+			testStub:         "sdk_test_current_android",
+			corePlatformStub: "legacy.core.platform.api.stubs",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, _ := testHiddenAPIUnbundled(t, tc.unbundledBuild)
+
+			hiddenAPI := ctx.SingletonForTests("hiddenapi")
+			hiddenapiRule := hiddenAPI.Rule("hiddenapi")
+			wantPublicStubs := "--public-stub-classpath=" + generateSdkDexPath(tc.publicStub, tc.unbundledBuild)
+			if !strings.Contains(hiddenapiRule.RuleParams.Command, wantPublicStubs) {
+				t.Errorf("Expected %s in hiddenapi command, but it was not present: %s", wantPublicStubs, hiddenapiRule.RuleParams.Command)
+			}
+
+			wantSystemStubs := "--system-stub-classpath=" + generateSdkDexPath(tc.systemStub, tc.unbundledBuild)
+			if !strings.Contains(hiddenapiRule.RuleParams.Command, wantSystemStubs) {
+				t.Errorf("Expected %s in hiddenapi command, but it was not present: %s", wantSystemStubs, hiddenapiRule.RuleParams.Command)
+			}
+
+			wantTestStubs := "--test-stub-classpath=" + generateSdkDexPath(tc.testStub, tc.unbundledBuild)
+			if !strings.Contains(hiddenapiRule.RuleParams.Command, wantTestStubs) {
+				t.Errorf("Expected %s in hiddenapi command, but it was not present: %s", wantTestStubs, hiddenapiRule.RuleParams.Command)
+			}
+
+			wantCorePlatformStubs := "--core-platform-stub-classpath=" + generateDexPath(tc.corePlatformStub)
+			if !strings.Contains(hiddenapiRule.RuleParams.Command, wantCorePlatformStubs) {
+				t.Errorf("Expected %s in hiddenapi command, but it was not present: %s", wantCorePlatformStubs, hiddenapiRule.RuleParams.Command)
+			}
+		})
+	}
+}
+
+func generateDexedPath(subDir, dex, module string) string {
+	return fmt.Sprintf("%s/.intermediates/%s/android_common/%s/%s.jar", buildDir, subDir, dex, module)
+}
+
+func generateDexPath(module string) string {
+	return generateDexedPath(module, "dex", module)
+}
+
+func generateSdkDexPath(module string, unbundled bool) string {
+	if unbundled {
+		return generateDexedPath("prebuilts/sdk/"+module, "dex", module)
+	}
+	return generateDexPath(module)
 }
