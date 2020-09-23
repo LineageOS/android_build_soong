@@ -70,6 +70,7 @@ type PgoProperties struct {
 	PgoPresent          bool `blueprint:"mutated"`
 	ShouldProfileModule bool `blueprint:"mutated"`
 	PgoCompile          bool `blueprint:"mutated"`
+	PgoInstrLink        bool `blueprint:"mutated"`
 }
 
 type pgo struct {
@@ -89,13 +90,12 @@ func (pgo *pgo) props() []interface{} {
 }
 
 func (props *PgoProperties) addInstrumentationProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
-	flags.Local.CFlags = append(flags.Local.CFlags, props.Pgo.Cflags...)
-
-	flags.Local.CFlags = append(flags.Local.CFlags, profileInstrumentFlag)
-	// The profile runtime is added below in deps().  Add the below
-	// flag, which is the only other link-time action performed by
-	// the Clang driver during link.
-	flags.Local.LdFlags = append(flags.Local.LdFlags, "-u__llvm_profile_runtime")
+	// Add to C flags iff PGO is explicitly enabled for this module.
+	if props.ShouldProfileModule {
+		flags.Local.CFlags = append(flags.Local.CFlags, props.Pgo.Cflags...)
+		flags.Local.CFlags = append(flags.Local.CFlags, profileInstrumentFlag)
+	}
+	flags.Local.LdFlags = append(flags.Local.LdFlags, profileInstrumentFlag)
 	return flags
 }
 func (props *PgoProperties) addSamplingProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
@@ -250,10 +250,12 @@ func (pgo *pgo) begin(ctx BaseModuleContext) {
 
 	if pgoBenchmarksMap["all"] == true || pgoBenchmarksMap["ALL"] == true {
 		pgo.Properties.ShouldProfileModule = true
+		pgo.Properties.PgoInstrLink = pgo.Properties.isInstrumentation()
 	} else {
 		for _, b := range pgo.Properties.Pgo.Benchmarks {
 			if pgoBenchmarksMap[b] == true {
 				pgo.Properties.ShouldProfileModule = true
+				pgo.Properties.PgoInstrLink = pgo.Properties.isInstrumentation()
 				break
 			}
 		}
@@ -286,10 +288,42 @@ func (pgo *pgo) flags(ctx ModuleContext, flags Flags) Flags {
 		return flags
 	}
 
-	props := pgo.Properties
+	// Deduce PgoInstrLink property i.e. whether this module needs to be
+	// linked with profile-generation flags.  Here, we're setting it if any
+	// dependency needs PGO instrumentation.  It is initially set in
+	// begin() if PGO is directly enabled for this module.
+	if ctx.static() && !ctx.staticBinary() {
+		// For static libraries, check if any whole_static_libs are
+		// linked with profile generation
+		ctx.VisitDirectDeps(func(m android.Module) {
+			if depTag, ok := ctx.OtherModuleDependencyTag(m).(libraryDependencyTag); ok {
+				if depTag.static() && depTag.wholeStatic {
+					if cc, ok := m.(*Module); ok {
+						if cc.pgo.Properties.PgoInstrLink {
+							pgo.Properties.PgoInstrLink = true
+						}
+					}
+				}
+			}
+		})
+	} else {
+		// For executables and shared libraries, check all static dependencies.
+		ctx.VisitDirectDeps(func(m android.Module) {
+			if depTag, ok := ctx.OtherModuleDependencyTag(m).(libraryDependencyTag); ok {
+				if depTag.static() {
+					if cc, ok := m.(*Module); ok {
+						if cc.pgo.Properties.PgoInstrLink {
+							pgo.Properties.PgoInstrLink = true
+						}
+					}
+				}
+			}
+		})
+	}
 
+	props := pgo.Properties
 	// Add flags to profile this module based on its profile_kind
-	if props.ShouldProfileModule && props.isInstrumentation() {
+	if (props.ShouldProfileModule && props.isInstrumentation()) || props.PgoInstrLink {
 		// Instrumentation PGO use and gather flags cannot coexist.
 		return props.addInstrumentationProfileGatherFlags(ctx, flags)
 	} else if props.ShouldProfileModule && props.isSampling() {
