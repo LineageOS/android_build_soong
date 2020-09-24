@@ -78,13 +78,22 @@ module {
     },
     target: {
         android: {
-            // Device variants
+            // Device variants (implies Bionic)
         },
         host: {
             // Host variants
         },
+        bionic: {
+            // Bionic (device and host) variants
+        },
+        linux_bionic: {
+            // Bionic host variants
+        },
+        linux: {
+            // Bionic (device and host) and Linux glibc variants
+        },
         linux_glibc: {
-            // Linux host variants
+            // Linux host variants (using non-Bionic libc)
         },
         darwin: {
             // Darwin host variants
@@ -94,6 +103,9 @@ module {
         },
         not_windows: {
             // Non-windows host variants
+        },
+        android_arm: {
+            // Any <os>_<arch> combination restricts to that os and arch
         },
     },
 }
