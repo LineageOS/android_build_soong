@@ -354,7 +354,7 @@ type ModuleContextIntf interface {
 	useClangLld(actx ModuleContext) bool
 	isForPlatform() bool
 	apexVariationName() string
-	apexSdkVersion() int
+	apexSdkVersion() android.ApiLevel
 	hasStubsVariants() bool
 	isStubs() bool
 	bootstrap() bool
@@ -615,7 +615,7 @@ type Module struct {
 	kytheFiles android.Paths
 
 	// For apex variants, this is set as apex.min_sdk_version
-	apexSdkVersion int
+	apexSdkVersion android.ApiLevel
 }
 
 func (c *Module) Toc() android.OptionalPath {
@@ -1328,7 +1328,7 @@ func (ctx *moduleContextImpl) apexVariationName() string {
 	return ctx.mod.ApexVariationName()
 }
 
-func (ctx *moduleContextImpl) apexSdkVersion() int {
+func (ctx *moduleContextImpl) apexSdkVersion() android.ApiLevel {
 	return ctx.mod.apexSdkVersion
 }
 
@@ -2317,7 +2317,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	// For the dependency from platform to apex, use the latest stubs
 	c.apexSdkVersion = android.FutureApiLevel
 	if !c.IsForPlatform() {
-		c.apexSdkVersion = c.ApexProperties.Info.MinSdkVersion
+		c.apexSdkVersion = c.ApexProperties.Info.MinSdkVersion(ctx)
 	}
 
 	if android.InList("hwaddress", ctx.Config().SanitizeDevice()) {
@@ -2421,7 +2421,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 		if libDepTag, ok := depTag.(libraryDependencyTag); ok {
 			// Only use static unwinder for legacy (min_sdk_version = 29) apexes (b/144430859)
-			if libDepTag.staticUnwinder && c.apexSdkVersion > android.SdkVersion_Android10 {
+			if libDepTag.staticUnwinder && c.apexSdkVersion.GreaterThan(android.SdkVersion_Android10) {
 				return
 			}
 
@@ -2465,7 +2465,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 				// when to use (unspecified) stubs, check min_sdk_version and choose the right one
 				if useThisDep && depIsStubs && !libDepTag.explicitlyVersioned {
-					versionToUse, err := c.ChooseSdkVersion(ccDep.StubsVersions(), c.apexSdkVersion)
+					versionToUse, err := c.ChooseSdkVersion(ccDep.StubsVersions(), c.apexSdkVersion.FinalOrFutureInt())
 					if err != nil {
 						ctx.OtherModuleErrorf(dep, err.Error())
 						return
@@ -2488,7 +2488,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// if this is for use_vendor apex && dep has stubsVersions
 						// apply the same rule of apex sdk enforcement to choose right version
 						var err error
-						versionToUse, err = c.ChooseSdkVersion(versions, c.apexSdkVersion)
+						versionToUse, err = c.ChooseSdkVersion(versions, c.apexSdkVersion.FinalOrFutureInt())
 						if err != nil {
 							ctx.OtherModuleErrorf(dep, err.Error())
 							return
@@ -3012,21 +3012,8 @@ func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 	return true
 }
 
-// b/154667674: refactor this to handle "current" in a consistent way
-func decodeSdkVersionString(ctx android.BaseModuleContext, versionString string) (int, error) {
-	if versionString == "" {
-		return 0, fmt.Errorf("not specified")
-	}
-	if versionString == "current" {
-		if ctx.Config().PlatformSdkCodename() == "REL" {
-			return ctx.Config().PlatformSdkVersionInt(), nil
-		}
-		return android.FutureApiLevel, nil
-	}
-	return android.ApiStrToNum(ctx, versionString)
-}
-
-func (c *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion int) error {
+func (c *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
+	sdkVersion android.ApiLevel) error {
 	// We ignore libclang_rt.* prebuilt libs since they declare sdk_version: 14(b/121358700)
 	if strings.HasPrefix(ctx.OtherModuleName(c), "libclang_rt") {
 		return nil
@@ -3050,11 +3037,17 @@ func (c *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersi
 		// non-SDK variant resets sdk_version, which works too.
 		minSdkVersion = c.SdkVersion()
 	}
-	ver, err := decodeSdkVersionString(ctx, minSdkVersion)
+	if minSdkVersion == "" {
+		return fmt.Errorf("neither min_sdk_version nor sdk_version specificed")
+	}
+	// Not using nativeApiLevelFromUser because the context here is not
+	// necessarily a native context.
+	ver, err := android.ApiLevelFromUser(ctx, minSdkVersion)
 	if err != nil {
 		return err
 	}
-	if ver > sdkVersion {
+
+	if ver.GreaterThan(sdkVersion) {
 		return fmt.Errorf("newer SDK(%v)", ver)
 	}
 	return nil

@@ -107,7 +107,7 @@ type sdkVersion int
 
 const (
 	// special version number for a not-yet-frozen SDK
-	sdkVersionCurrent sdkVersion = sdkVersion(android.FutureApiLevel)
+	sdkVersionCurrent sdkVersion = sdkVersion(android.FutureApiLevelInt)
 	// special version number to be used for SDK specs where version number doesn't
 	// make sense, e.g. "none", "", etc.
 	sdkVersionNone sdkVersion = sdkVersion(0)
@@ -131,6 +131,10 @@ func (v sdkVersion) String() string {
 		return strconv.Itoa(int(v))
 	}
 	return "(no version)"
+}
+
+func (v sdkVersion) ApiLevel(ctx android.EarlyModuleContext) android.ApiLevel {
+	return android.ApiLevelOrPanic(ctx, v.String())
 }
 
 // asNumberString directly converts the numeric value of this sdk version as a string.
@@ -243,7 +247,7 @@ func (s sdkSpec) effectiveVersion(ctx android.EarlyModuleContext) (sdkVersion, e
 	if s.version.isNumbered() {
 		return s.version, nil
 	}
-	return sdkVersion(ctx.Config().DefaultAppTargetSdkInt()), nil
+	return sdkVersion(ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt()), nil
 }
 
 // effectiveVersionString converts an sdkSpec into the concrete version string that the module
@@ -251,8 +255,8 @@ func (s sdkSpec) effectiveVersion(ctx android.EarlyModuleContext) (sdkVersion, e
 // it returns the codename (P, Q, R, etc.)
 func (s sdkSpec) effectiveVersionString(ctx android.EarlyModuleContext) (string, error) {
 	ver, err := s.effectiveVersion(ctx)
-	if err == nil && int(ver) == ctx.Config().DefaultAppTargetSdkInt() {
-		return ctx.Config().DefaultAppTargetSdk(), nil
+	if err == nil && int(ver) == ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt() {
+		return ctx.Config().DefaultAppTargetSdk(ctx).String(), nil
 	}
 	return ver.String(), err
 }
