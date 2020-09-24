@@ -2330,7 +2330,11 @@ cc_prebuilt_library_shared {
     installable: false,
     compile_multilib: "both",
     stubs: {
-        versions: ["3"],
+        versions: [
+            "1",
+            "2",
+            "3",
+        ],
     },
     arch: {
         arm64: {
@@ -2347,7 +2351,11 @@ cc_prebuilt_library_shared {
     prefer: false,
     compile_multilib: "both",
     stubs: {
-        versions: ["3"],
+        versions: [
+            "1",
+            "2",
+            "3",
+        ],
     },
     arch: {
         arm64: {
@@ -2401,7 +2409,11 @@ cc_prebuilt_library_shared {
     installable: false,
     compile_multilib: "both",
     stubs: {
-        versions: ["3"],
+        versions: [
+            "1",
+            "2",
+            "3",
+        ],
     },
     target: {
         host: {
@@ -2431,7 +2443,11 @@ cc_prebuilt_library_shared {
     host_supported: true,
     compile_multilib: "both",
     stubs: {
-        versions: ["3"],
+        versions: [
+            "1",
+            "2",
+            "3",
+        ],
     },
     target: {
         host: {
