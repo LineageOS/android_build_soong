@@ -207,7 +207,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	config.TestProductVariables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
 	config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("Q")
 	config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(false)
-	config.TestProductVariables.Platform_version_active_codenames = []string{"R"}
+	config.TestProductVariables.Platform_version_active_codenames = []string{"Q"}
 	config.TestProductVariables.Platform_vndk_version = proptools.StringPtr("VER")
 
 	for _, handler := range handlers {
