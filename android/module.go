@@ -270,6 +270,24 @@ type BaseModuleContext interface {
 	// and returns a top-down dependency path from a start module to current child module.
 	GetWalkPath() []Module
 
+	// PrimaryModule returns the first variant of the current module.  Variants of a module are always visited in
+	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from the
+	// Module returned by PrimaryModule without data races.  This can be used to perform singleton actions that are
+	// only done once for all variants of a module.
+	PrimaryModule() Module
+
+	// FinalModule returns the last variant of the current module.  Variants of a module are always visited in
+	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from all
+	// variants using VisitAllModuleVariants if the current module == FinalModule().  This can be used to perform
+	// singleton actions that are only done once for all variants of a module.
+	FinalModule() Module
+
+	// VisitAllModuleVariants calls visit for each variant of the current module.  Variants of a module are always
+	// visited in order by mutators and GenerateBuildActions, so the data created by the current mutator can be read
+	// from all variants if the current module == FinalModule().  Otherwise, care must be taken to not access any
+	// data modified by the current mutator.
+	VisitAllModuleVariants(visit func(Module))
+
 	// GetTagPath is supposed to be called in visit function passed in WalkDeps()
 	// and returns a top-down dependency tags path from a start module to current child module.
 	// It has one less entry than GetWalkPath() as it contains the dependency tags that
@@ -348,24 +366,6 @@ type ModuleContext interface {
 	// phony rules or real files.  Phony can be called on the same name multiple times to add
 	// additional dependencies.
 	Phony(phony string, deps ...Path)
-
-	// PrimaryModule returns the first variant of the current module.  Variants of a module are always visited in
-	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from the
-	// Module returned by PrimaryModule without data races.  This can be used to perform singleton actions that are
-	// only done once for all variants of a module.
-	PrimaryModule() Module
-
-	// FinalModule returns the last variant of the current module.  Variants of a module are always visited in
-	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from all
-	// variants using VisitAllModuleVariants if the current module == FinalModule().  This can be used to perform
-	// singleton actions that are only done once for all variants of a module.
-	FinalModule() Module
-
-	// VisitAllModuleVariants calls visit for each variant of the current module.  Variants of a module are always
-	// visited in order by mutators and GenerateBuildActions, so the data created by the current mutator can be read
-	// from all variants if the current module == FinalModule().  Otherwise, care must be taken to not access any
-	// data modified by the current mutator.
-	VisitAllModuleVariants(visit func(Module))
 
 	// GetMissingDependencies returns the list of dependencies that were passed to AddDependencies or related methods,
 	// but do not exist.
@@ -2041,6 +2041,20 @@ func (b *baseModuleContext) GetTagPath() []blueprint.DependencyTag {
 	return b.tagPath
 }
 
+func (b *baseModuleContext) VisitAllModuleVariants(visit func(Module)) {
+	b.bp.VisitAllModuleVariants(func(module blueprint.Module) {
+		visit(module.(Module))
+	})
+}
+
+func (b *baseModuleContext) PrimaryModule() Module {
+	return b.bp.PrimaryModule().(Module)
+}
+
+func (b *baseModuleContext) FinalModule() Module {
+	return b.bp.FinalModule().(Module)
+}
+
 // A regexp for removing boilerplate from BaseDependencyTag from the string representation of
 // a dependency tag.
 var tagCleaner = regexp.MustCompile(`\QBaseDependencyTag:{}\E(, )?`)
@@ -2074,20 +2088,6 @@ func (b *baseModuleContext) GetPathString(skipFirst bool) string {
 		sb.WriteString(fmt.Sprintf("    -> %s", m.String()))
 	}
 	return sb.String()
-}
-
-func (m *moduleContext) VisitAllModuleVariants(visit func(Module)) {
-	m.bp.VisitAllModuleVariants(func(module blueprint.Module) {
-		visit(module.(Module))
-	})
-}
-
-func (m *moduleContext) PrimaryModule() Module {
-	return m.bp.PrimaryModule().(Module)
-}
-
-func (m *moduleContext) FinalModule() Module {
-	return m.bp.FinalModule().(Module)
 }
 
 func (m *moduleContext) ModuleSubDir() string {
