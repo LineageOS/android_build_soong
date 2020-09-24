@@ -1955,7 +1955,7 @@ func (a *apexBundle) WalkPayloadDeps(ctx android.ModuleContext, do android.Paylo
 func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) android.ApiLevel {
 	ver := proptools.String(a.properties.Min_sdk_version)
 	if ver == "" {
-		return android.CurrentApiLevel
+		return android.FutureApiLevel
 	}
 	apiLevel, err := android.ApiLevelFromUser(ctx, ver)
 	if err != nil {
@@ -1964,7 +1964,7 @@ func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) android.ApiLev
 	}
 	if apiLevel.IsPreview() {
 		// All codenames should build against "current".
-		return android.CurrentApiLevel
+		return android.FutureApiLevel
 	}
 	return apiLevel
 }
