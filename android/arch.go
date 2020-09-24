@@ -590,7 +590,7 @@ var (
 	Linux       = NewOsType("linux_glibc", Host, false)
 	Darwin      = NewOsType("darwin", Host, false)
 	LinuxBionic = NewOsType("linux_bionic", Host, false)
-	Windows     = NewOsType("windows", HostCross, true)
+	Windows     = NewOsType("windows", Host, true)
 	Android     = NewOsType("android", Device, false)
 	Fuchsia     = NewOsType("fuchsia", Device, false)
 
@@ -621,7 +621,6 @@ const (
 	Generic OsClass = iota
 	Device
 	Host
-	HostCross
 )
 
 func (class OsClass) String() string {
@@ -632,8 +631,6 @@ func (class OsClass) String() string {
 		return "device"
 	case Host:
 		return "host"
-	case HostCross:
-		return "host cross"
 	default:
 		panic(fmt.Errorf("unknown class %d", class))
 	}
@@ -693,6 +690,11 @@ type Target struct {
 	NativeBridge             NativeBridgeSupport
 	NativeBridgeHostArchName string
 	NativeBridgeRelativePath string
+
+	// HostCross is true when the target cannot run natively on the current build host.
+	// For example, linux_glibc_x86 returns true on a regular x86/i686/Linux machines, but returns false
+	// on Mac (different OS), or on 64-bit only i686/Linux machines (unsupported arch).
+	HostCross bool
 }
 
 func (target Target) String() string {
@@ -751,26 +753,15 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 		return
 	}
 
-	osClasses := base.OsClassSupported()
-
 	var moduleOSList []OsType
 
 	for _, os := range OsTypeList {
-		supportedClass := false
-		for _, osClass := range osClasses {
-			if os.Class == osClass {
-				supportedClass = true
+		for _, t := range mctx.Config().Targets[os] {
+			if base.supportsTarget(t, mctx.Config()) {
+				moduleOSList = append(moduleOSList, os)
+				break
 			}
 		}
-		if !supportedClass {
-			continue
-		}
-
-		if len(mctx.Config().Targets[os]) == 0 {
-			continue
-		}
-
-		moduleOSList = append(moduleOSList, os)
 	}
 
 	if len(moduleOSList) == 0 {
@@ -925,7 +916,7 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 
 	prefer32 := false
 	if base.prefer32 != nil {
-		prefer32 = base.prefer32(mctx, base, os.Class)
+		prefer32 = base.prefer32(mctx, base, os)
 	}
 
 	multilib, extraMultilib := decodeMultilib(base, os.Class)
@@ -976,7 +967,7 @@ func decodeMultilib(base *ModuleBase, class OsClass) (multilib, extraMultilib st
 	switch class {
 	case Device:
 		multilib = String(base.commonProperties.Target.Android.Compile_multilib)
-	case Host, HostCross:
+	case Host:
 		multilib = String(base.commonProperties.Target.Host.Compile_multilib)
 	}
 	if multilib == "" {
@@ -1252,7 +1243,7 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 			//         key: value,
 			//     },
 			// },
-			if os.Class == Host || os.Class == HostCross {
+			if os.Class == Host {
 				field := "Host"
 				prefix := "target.host"
 				m.appendProperties(ctx, genProps, targetProp, field, prefix)
@@ -1292,7 +1283,7 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 			prefix := "target." + os.Name
 			m.appendProperties(ctx, genProps, targetProp, field, prefix)
 
-			if (os.Class == Host || os.Class == HostCross) && os != Windows {
+			if os.Class == Host && os != Windows {
 				field := "Not_windows"
 				prefix := "target.not_windows"
 				m.appendProperties(ctx, genProps, targetProp, field, prefix)
@@ -1520,6 +1511,36 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 			nativeBridgeRelativePathStr = arch.ArchType.String()
 		}
 
+		// A target is considered as HostCross if it's a host target which can't run natively on
+		// the currently configured build machine (either because the OS is different or because of
+		// the unsupported arch)
+		hostCross := false
+		if os.Class == Host {
+			var osSupported bool
+			if os == BuildOs {
+				osSupported = true
+			} else if BuildOs.Linux() && os.Linux() {
+				// LinuxBionic and Linux are compatible
+				osSupported = true
+			} else {
+				osSupported = false
+			}
+
+			var archSupported bool
+			if arch.ArchType == Common {
+				archSupported = true
+			} else if arch.ArchType.Name == *variables.HostArch {
+				archSupported = true
+			} else if variables.HostSecondaryArch != nil && arch.ArchType.Name == *variables.HostSecondaryArch {
+				archSupported = true
+			} else {
+				archSupported = false
+			}
+			if !osSupported || !archSupported {
+				hostCross = true
+			}
+		}
+
 		targets[os] = append(targets[os],
 			Target{
 				Os:                       os,
@@ -1527,6 +1548,7 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 				NativeBridge:             nativeBridgeEnabled,
 				NativeBridgeHostArchName: nativeBridgeHostArchNameStr,
 				NativeBridgeRelativePath: nativeBridgeRelativePathStr,
+				HostCross:                hostCross,
 			})
 	}
 
@@ -1542,6 +1564,9 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 
 	if Bool(config.Host_bionic) {
 		addTarget(LinuxBionic, "x86_64", nil, nil, nil, NativeBridgeDisabled, nil, nil)
+	}
+	if Bool(config.Host_bionic_arm64) {
+		addTarget(LinuxBionic, "arm64", nil, nil, nil, NativeBridgeDisabled, nil, nil)
 	}
 
 	if String(variables.CrossHost) != "" {
@@ -1783,13 +1808,22 @@ func getCommonTargets(targets []Target) []Target {
 }
 
 func firstTarget(targets []Target, filters ...string) []Target {
+	// find the first target from each OS
+	var ret []Target
+	hasHost := false
+	set := make(map[OsType]bool)
+
 	for _, filter := range filters {
 		buildTargets := filterMultilibTargets(targets, filter)
-		if len(buildTargets) > 0 {
-			return buildTargets[:1]
+		for _, t := range buildTargets {
+			if _, found := set[t.Os]; !found {
+				hasHost = hasHost || (t.Os.Class == Host)
+				set[t.Os] = true
+				ret = append(ret, t)
+			}
 		}
 	}
-	return nil
+	return ret
 }
 
 // Use the module multilib setting to select one or more targets from a target list
