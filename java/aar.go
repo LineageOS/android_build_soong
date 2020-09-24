@@ -774,7 +774,8 @@ func (a *AARImport) DepIsInSameApex(ctx android.BaseModuleContext, dep android.M
 	return a.depIsInSameApex(ctx, dep)
 }
 
-func (g *AARImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion int) error {
+func (g *AARImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
+	sdkVersion android.ApiLevel) error {
 	return nil
 }
 
