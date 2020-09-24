@@ -1863,6 +1863,42 @@ func GetCrtVariations(ctx android.BottomUpMutatorContext,
 	}
 }
 
+func (c *Module) addSharedLibDependenciesWithVersions(ctx android.BottomUpMutatorContext,
+	variations []blueprint.Variation, depTag libraryDependencyTag, name, version string, far bool) {
+
+	variations = append([]blueprint.Variation(nil), variations...)
+
+	if version != "" && VersionVariantAvailable(c) {
+		// Version is explicitly specified. i.e. libFoo#30
+		variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
+		depTag.explicitlyVersioned = true
+	}
+	var deps []blueprint.Module
+	if far {
+		deps = ctx.AddFarVariationDependencies(variations, depTag, name)
+	} else {
+		deps = ctx.AddVariationDependencies(variations, depTag, name)
+	}
+
+	// If the version is not specified, add dependency to all stubs libraries.
+	// The stubs library will be used when the depending module is built for APEX and
+	// the dependent module is not in the same APEX.
+	if version == "" && VersionVariantAvailable(c) {
+		if dep, ok := deps[0].(*Module); ok {
+			for _, ver := range dep.AllStubsVersions() {
+				// Note that depTag.ExplicitlyVersioned is false in this case.
+				versionVariations := append(variations,
+					blueprint.Variation{Mutator: "version", Variation: ver})
+				if far {
+					ctx.AddFarVariationDependencies(versionVariations, depTag, name)
+				} else {
+					ctx.AddVariationDependencies(versionVariations, depTag, name)
+				}
+			}
+		}
+	}
+}
+
 func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	if !c.Enabled() {
 		return
@@ -2056,32 +2092,6 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		}, depTag, rewriteSnapshotLibs(lib, vendorSnapshotStaticLibs))
 	}
 
-	addSharedLibDependencies := func(depTag libraryDependencyTag, name string, version string) {
-		var variations []blueprint.Variation
-		variations = append(variations, blueprint.Variation{Mutator: "link", Variation: "shared"})
-		if version != "" && VersionVariantAvailable(c) {
-			// Version is explicitly specified. i.e. libFoo#30
-			variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
-			depTag.explicitlyVersioned = true
-		}
-		deps := actx.AddVariationDependencies(variations, depTag, name)
-
-		// If the version is not specified, add dependency to all stubs libraries.
-		// The stubs library will be used when the depending module is built for APEX and
-		// the dependent module is not in the same APEX.
-		if version == "" && VersionVariantAvailable(c) {
-			if dep, ok := deps[0].(*Module); ok {
-				for _, ver := range dep.AllStubsVersions() {
-					// Note that depTag.ExplicitlyVersioned is false in this case.
-					ctx.AddVariationDependencies([]blueprint.Variation{
-						{Mutator: "link", Variation: "shared"},
-						{Mutator: "version", Variation: ver},
-					}, depTag, name)
-				}
-			}
-		}
-	}
-
 	// shared lib names without the #version suffix
 	var sharedLibNames []string
 
@@ -2098,7 +2108,10 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		name, version := StubsLibNameAndVersion(lib)
 		sharedLibNames = append(sharedLibNames, name)
 
-		addSharedLibDependencies(depTag, name, version)
+		variations := []blueprint.Variation{
+			{Mutator: "link", Variation: "shared"},
+		}
+		c.addSharedLibDependenciesWithVersions(ctx, variations, depTag, name, version, false)
 	}
 
 	for _, lib := range deps.LateSharedLibs {
@@ -2109,7 +2122,10 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			continue
 		}
 		depTag := libraryDependencyTag{Kind: sharedLibraryDependency, Order: lateLibraryDependency}
-		addSharedLibDependencies(depTag, lib, "")
+		variations := []blueprint.Variation{
+			{Mutator: "link", Variation: "shared"},
+		}
+		c.addSharedLibDependenciesWithVersions(ctx, variations, depTag, lib, "", false)
 	}
 
 	actx.AddVariationDependencies([]blueprint.Variation{
