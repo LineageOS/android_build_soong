@@ -195,7 +195,7 @@ func TestStubsVersions(t *testing.T) {
 			name: "libfoo",
 			srcs: ["foo.c"],
 			stubs: {
-				versions: ["29", "R", "10000"],
+				versions: ["29", "R", "current"],
 			},
 		}
 	`
@@ -204,7 +204,7 @@ func TestStubsVersions(t *testing.T) {
 	ctx := testCcWithConfig(t, config)
 
 	variants := ctx.ModuleVariantsForTests("libfoo")
-	for _, expectedVer := range []string{"29", "9000", "10000"} {
+	for _, expectedVer := range []string{"29", "R", "current"} {
 		expectedVariant := "android_arm_armv7-a-neon_shared_" + expectedVer
 		if !inList(expectedVariant, variants) {
 			t.Errorf("missing expected variant: %q", expectedVariant)
@@ -218,7 +218,7 @@ func TestStubsVersions_NotSorted(t *testing.T) {
 			name: "libfoo",
 			srcs: ["foo.c"],
 			stubs: {
-				versions: ["29", "10000", "R"],
+				versions: ["29", "current", "R"],
 			},
 		}
 	`
@@ -233,10 +233,10 @@ func TestStubsVersions_ParseError(t *testing.T) {
 			name: "libfoo",
 			srcs: ["foo.c"],
 			stubs: {
-				versions: ["29", "10000", "X"],
+				versions: ["29", "current", "X"],
 			},
 		}
 	`
 
-	testCcError(t, `"libfoo" .*: versions: SDK version should be`, bp)
+	testCcError(t, `"libfoo" .*: versions: "X" could not be parsed as an integer and is not a recognized codename`, bp)
 }

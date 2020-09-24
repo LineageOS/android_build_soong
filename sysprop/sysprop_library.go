@@ -310,7 +310,8 @@ func (m *syspropLibrary) AndroidMk() android.AndroidMkData {
 		}}
 }
 
-func (m *syspropLibrary) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion int) error {
+func (m *syspropLibrary) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
+	sdkVersion android.ApiLevel) error {
 	return fmt.Errorf("sysprop_library is not supposed to be part of apex modules")
 }
 

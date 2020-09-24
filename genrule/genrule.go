@@ -555,7 +555,8 @@ func (g *Module) AndroidMk() android.AndroidMkData {
 	}
 }
 
-func (g *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion int) error {
+func (g *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
+	sdkVersion android.ApiLevel) error {
 	// Because generated outputs are checked by client modules(e.g. cc_library, ...)
 	// we can safely ignore the check here.
 	return nil
