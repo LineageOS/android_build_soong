@@ -47,7 +47,8 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("link", LinkageMutator).Parallel()
 		ctx.BottomUp("ndk_api", NdkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", TestPerSrcMutator).Parallel()
-		ctx.BottomUp("version", VersionMutator).Parallel()
+		ctx.BottomUp("version_selector", versionSelectorMutator).Parallel()
+		ctx.BottomUp("version", versionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
 		ctx.BottomUp("sysprop_cc", SyspropMutator).Parallel()
 		ctx.BottomUp("vendor_snapshot", VendorSnapshotMutator).Parallel()
@@ -784,7 +785,28 @@ func (c *Module) BuildStubs() bool {
 	panic(fmt.Errorf("BuildStubs called on non-library module: %q", c.BaseModuleName()))
 }
 
-func (c *Module) SetStubsVersions(version string) {
+func (c *Module) SetAllStubsVersions(versions []string) {
+	if library, ok := c.linker.(*libraryDecorator); ok {
+		library.MutatedProperties.AllStubsVersions = versions
+		return
+	}
+	if llndk, ok := c.linker.(*llndkStubDecorator); ok {
+		llndk.libraryDecorator.MutatedProperties.AllStubsVersions = versions
+		return
+	}
+}
+
+func (c *Module) AllStubsVersions() []string {
+	if library, ok := c.linker.(*libraryDecorator); ok {
+		return library.MutatedProperties.AllStubsVersions
+	}
+	if llndk, ok := c.linker.(*llndkStubDecorator); ok {
+		return llndk.libraryDecorator.MutatedProperties.AllStubsVersions
+	}
+	return nil
+}
+
+func (c *Module) SetStubsVersion(version string) {
 	if c.linker != nil {
 		if library, ok := c.linker.(*libraryDecorator); ok {
 			library.MutatedProperties.StubsVersion = version
@@ -795,7 +817,7 @@ func (c *Module) SetStubsVersions(version string) {
 			return
 		}
 	}
-	panic(fmt.Errorf("SetStubsVersions called on non-library module: %q", c.BaseModuleName()))
+	panic(fmt.Errorf("SetStubsVersion called on non-library module: %q", c.BaseModuleName()))
 }
 
 func (c *Module) StubsVersion() string {
@@ -1996,18 +2018,20 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
 			depTag.explicitlyVersioned = true
 		}
-		actx.AddVariationDependencies(variations, depTag, name)
+		deps := actx.AddVariationDependencies(variations, depTag, name)
 
 		// If the version is not specified, add dependency to all stubs libraries.
 		// The stubs library will be used when the depending module is built for APEX and
 		// the dependent module is not in the same APEX.
 		if version == "" && VersionVariantAvailable(c) {
-			for _, ver := range stubsVersionsFor(actx.Config())[name] {
-				// Note that depTag.ExplicitlyVersioned is false in this case.
-				actx.AddVariationDependencies([]blueprint.Variation{
-					{Mutator: "link", Variation: "shared"},
-					{Mutator: "version", Variation: ver},
-				}, depTag, name)
+			if dep, ok := deps[0].(*Module); ok {
+				for _, ver := range dep.AllStubsVersions() {
+					// Note that depTag.ExplicitlyVersioned is false in this case.
+					ctx.AddVariationDependencies([]blueprint.Variation{
+						{Mutator: "link", Variation: "shared"},
+						{Mutator: "version", Variation: ver},
+					}, depTag, name)
+				}
 			}
 		}
 	}
@@ -2459,7 +2483,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				if m, ok := ccDep.(*Module); ok && m.IsStubs() { // LLNDK
 					// by default, use current version of LLNDK
 					versionToUse := ""
-					versions := stubsVersionsFor(ctx.Config())[depName]
+					versions := m.AllStubsVersions()
 					if c.ApexVariationName() != "" && len(versions) > 0 {
 						// if this is for use_vendor apex && dep has stubsVersions
 						// apply the same rule of apex sdk enforcement to choose right version

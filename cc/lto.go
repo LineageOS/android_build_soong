@@ -117,12 +117,11 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 			flags.Local.LdFlags = append(flags.Local.LdFlags, cachePolicyFormat+policy)
 		}
 
-		// If the module does not have a profile, be conservative and do not inline
-		// or unroll loops during LTO, in order to prevent significant size bloat.
+		// If the module does not have a profile, be conservative and limit cross TU inline
+		// limit to 5 LLVM IR instructions, to balance binary size increase and performance.
 		if !ctx.isPgoCompile() {
 			flags.Local.LdFlags = append(flags.Local.LdFlags,
-				"-Wl,-plugin-opt,-inline-threshold=0",
-				"-Wl,-plugin-opt,-unroll-threshold=0")
+				"-Wl,-plugin-opt,-import-instr-limit=5")
 		}
 	}
 	return flags
