@@ -115,8 +115,8 @@ func TestRustBindgenStdVersions(t *testing.T) {
 		}
 	`)
 
-	libbindgen_cstd := ctx.ModuleForTests("libbindgen_cstd", "android_arm64_armv8-a").Output("bindings.rs")
-	libbindgen_cppstd := ctx.ModuleForTests("libbindgen_cppstd", "android_arm64_armv8-a").Output("bindings.rs")
+	libbindgen_cstd := ctx.ModuleForTests("libbindgen_cstd", "android_arm64_armv8-a_source").Output("bindings.rs")
+	libbindgen_cppstd := ctx.ModuleForTests("libbindgen_cppstd", "android_arm64_armv8-a_source").Output("bindings.rs")
 
 	if !strings.Contains(libbindgen_cstd.Args["cflags"], "-std=foo") {
 		t.Errorf("c_std value not passed in to rust_bindgen as a clang flag")
