@@ -304,15 +304,16 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 	host := false
 	switch amod.Os().Class {
 	case Host:
-		// Make cannot identify LOCAL_MODULE_HOST_ARCH:= common.
-		if amod.Arch().ArchType != Common {
-			a.SetString("LOCAL_MODULE_HOST_ARCH", archStr)
-		}
-		host = true
-	case HostCross:
-		// Make cannot identify LOCAL_MODULE_HOST_CROSS_ARCH:= common.
-		if amod.Arch().ArchType != Common {
-			a.SetString("LOCAL_MODULE_HOST_CROSS_ARCH", archStr)
+		if amod.Target().HostCross {
+			// Make cannot identify LOCAL_MODULE_HOST_CROSS_ARCH:= common.
+			if amod.Arch().ArchType != Common {
+				a.SetString("LOCAL_MODULE_HOST_CROSS_ARCH", archStr)
+			}
+		} else {
+			// Make cannot identify LOCAL_MODULE_HOST_ARCH:= common.
+			if amod.Arch().ArchType != Common {
+				a.SetString("LOCAL_MODULE_HOST_ARCH", archStr)
+			}
 		}
 		host = true
 	case Device:
@@ -359,9 +360,11 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 	if amod.ArchSpecific() {
 		switch amod.Os().Class {
 		case Host:
-			prefix = "HOST_"
-		case HostCross:
-			prefix = "HOST_CROSS_"
+			if amod.Target().HostCross {
+				prefix = "HOST_CROSS_"
+			} else {
+				prefix = "HOST_"
+			}
 		case Device:
 			prefix = "TARGET_"
 
@@ -563,9 +566,11 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, mod blueprint.Mod
 	if amod.ArchSpecific() {
 		switch amod.Os().Class {
 		case Host:
-			prefix = "HOST_"
-		case HostCross:
-			prefix = "HOST_CROSS_"
+			if amod.Target().HostCross {
+				prefix = "HOST_CROSS_"
+			} else {
+				prefix = "HOST_"
+			}
 		case Device:
 			prefix = "TARGET_"
 
