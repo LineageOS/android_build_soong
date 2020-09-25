@@ -52,7 +52,7 @@ type toolchainArm struct {
 }
 
 func (t *toolchainArm) RustTriple() string {
-	return "arm-linux-androideabi"
+	return "armv7-linux-androideabi"
 }
 
 func (t *toolchainArm) ToolchainLinkFlags() string {
