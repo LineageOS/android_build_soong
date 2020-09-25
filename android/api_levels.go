@@ -49,6 +49,14 @@ type ApiLevel struct {
 	isPreview bool
 }
 
+func (this ApiLevel) FinalOrFutureInt() int {
+	if this.IsPreview() {
+		return FutureApiLevel
+	} else {
+		return this.number
+	}
+}
+
 // Returns the canonical name for this API level. For a finalized API level
 // this will be the API number as a string. For a preview API level this
 // will be the codename, or "current".
@@ -261,6 +269,17 @@ func getFinalCodenamesMap(config Config) map[string]int {
 			"R":     30,
 		}
 
+		// TODO: Differentiate "current" and "future".
+		// The code base calls it FutureApiLevel, but the spelling is "current",
+		// and these are really two different things. When defining APIs it
+		// means the API has not yet been added to a specific release. When
+		// choosing an API level to build for it means that the future API level
+		// should be used, except in the case where the build is finalized in
+		// which case the platform version should be used. This is *weird*,
+		// because in the circumstance where API foo was added in R and bar was
+		// added in S, both of these are usable when building for "current" when
+		// neither R nor S are final, but the S APIs stop being available in a
+		// final R build.
 		if Bool(config.productVariables.Platform_sdk_final) {
 			apiLevelsMap["current"] = config.PlatformSdkVersionInt()
 		}
@@ -298,24 +317,6 @@ func getApiLevelsMap(config Config) map[string]int {
 
 		return apiLevelsMap
 	}).(map[string]int)
-}
-
-// Converts an API level string into its numeric form.
-// * Codenames are decoded.
-// * Numeric API levels are simply converted.
-// * "current" is mapped to FutureApiLevel(10000)
-// * "minimum" is NDK specific and not handled with this. (refer normalizeNdkApiLevel in cc.go)
-func ApiStrToNum(ctx BaseModuleContext, apiLevel string) (int, error) {
-	if apiLevel == "current" {
-		return FutureApiLevel, nil
-	}
-	if num, ok := getApiLevelsMap(ctx.Config())[apiLevel]; ok {
-		return num, nil
-	}
-	if num, err := strconv.Atoi(apiLevel); err == nil {
-		return num, nil
-	}
-	return 0, fmt.Errorf("SDK version should be one of \"current\", <number> or <codename>: %q", apiLevel)
 }
 
 func (a *apiLevelsSingleton) GenerateBuildActions(ctx SingletonContext) {
