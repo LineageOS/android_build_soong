@@ -87,8 +87,7 @@ type Module struct {
 	sourceProvider   SourceProvider
 	subAndroidMkOnce map[SubAndroidMkProvider]bool
 
-	outputFile    android.OptionalPath
-	generatedFile android.OptionalPath
+	outputFile android.OptionalPath
 }
 
 func (mod *Module) OutputFiles(tag string) (android.Paths, error) {
@@ -687,12 +686,20 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		flags, deps = mod.clippy.flags(ctx, flags, deps)
 	}
 
-	// SourceProvider needs to call GenerateSource() before compiler calls compile() so it can provide the source.
-	// TODO(b/162588681) This shouldn't have to run for every variant.
+	// SourceProvider needs to call GenerateSource() before compiler calls
+	// compile() so it can provide the source. A SourceProvider has
+	// multiple variants (e.g. source, rlib, dylib). Only the "source"
+	// variant is responsible for effectively generating the source. The
+	// remaining variants relies on the "source" variant output.
 	if mod.sourceProvider != nil {
-		generatedFile := mod.sourceProvider.GenerateSource(ctx, deps)
-		mod.generatedFile = android.OptionalPathForPath(generatedFile)
-		mod.sourceProvider.setSubName(ctx.ModuleSubDir())
+		if mod.compiler.(libraryInterface).source() {
+			mod.sourceProvider.GenerateSource(ctx, deps)
+			mod.sourceProvider.setSubName(ctx.ModuleSubDir())
+		} else {
+			sourceMod := actx.GetDirectDepWithTag(mod.Name(), sourceDepTag)
+			sourceLib := sourceMod.(*Module).compiler.(*libraryDecorator)
+			mod.sourceProvider.setOutputFile(sourceLib.sourceProvider.Srcs()[0])
+		}
 	}
 
 	if mod.compiler != nil && !mod.compiler.Disabled() {
@@ -743,6 +750,7 @@ var (
 	dylibDepTag         = dependencyTag{name: "dylib", library: true}
 	procMacroDepTag     = dependencyTag{name: "procMacro", proc_macro: true}
 	testPerSrcDepTag    = dependencyTag{name: "rust_unit_tests"}
+	sourceDepTag        = dependencyTag{name: "source"}
 )
 
 type autoDep struct {
@@ -751,8 +759,10 @@ type autoDep struct {
 }
 
 var (
-	rlibAutoDep  = autoDep{variation: "rlib", depTag: rlibDepTag}
-	dylibAutoDep = autoDep{variation: "dylib", depTag: dylibDepTag}
+	rlibVariation  = "rlib"
+	dylibVariation = "dylib"
+	rlibAutoDep    = autoDep{variation: rlibVariation, depTag: rlibDepTag}
+	dylibAutoDep   = autoDep{variation: dylibVariation, depTag: dylibDepTag}
 )
 
 type autoDeppable interface {
@@ -1000,11 +1010,11 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	actx.AddVariationDependencies(
 		append(rlibDepVariations, []blueprint.Variation{
-			{Mutator: "rust_libraries", Variation: "rlib"}}...),
+			{Mutator: "rust_libraries", Variation: rlibVariation}}...),
 		rlibDepTag, deps.Rlibs...)
 	actx.AddVariationDependencies(
 		append(commonDepVariations, []blueprint.Variation{
-			{Mutator: "rust_libraries", Variation: "dylib"}}...),
+			{Mutator: "rust_libraries", Variation: dylibVariation}}...),
 		dylibDepTag, deps.Dylibs...)
 
 	if deps.Rustlibs != nil && !mod.compiler.Disabled() {
