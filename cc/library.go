@@ -19,8 +19,6 @@ import (
 	"io"
 	"path/filepath"
 	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -1520,20 +1518,18 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 }
 
 func normalizeVersions(ctx android.BaseModuleContext, versions []string) {
-	numVersions := make([]int, len(versions))
+	var previous android.ApiLevel
 	for i, v := range versions {
-		numVer, err := android.ApiStrToNum(ctx, v)
+		ver, err := android.ApiLevelFromUser(ctx, v)
 		if err != nil {
 			ctx.PropertyErrorf("versions", "%s", err.Error())
 			return
 		}
-		numVersions[i] = numVer
-	}
-	if !sort.IsSorted(sort.IntSlice(numVersions)) {
-		ctx.PropertyErrorf("versions", "not sorted: %v", versions)
-	}
-	for i, v := range numVersions {
-		versions[i] = strconv.Itoa(v)
+		if i > 0 && ver.LessThanOrEqualTo(previous) {
+			ctx.PropertyErrorf("versions", "not sorted: %v", versions)
+		}
+		versions[i] = ver.String()
+		previous = ver
 	}
 }
 
