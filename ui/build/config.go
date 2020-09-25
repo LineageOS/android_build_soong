@@ -851,6 +851,11 @@ func (c *configImpl) StartRBE() bool {
 }
 
 func (c *configImpl) logDir() string {
+	for _, f := range []string{"RBE_log_dir", "FLAG_log_dir"} {
+		if v, ok := c.environ.Get(f); ok {
+			return v
+		}
+	}
 	if c.Dist() {
 		return filepath.Join(c.DistDir(), "logs")
 	}
