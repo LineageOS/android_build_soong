@@ -26,7 +26,7 @@ func init() {
 }
 
 func PythonLibraryHostFactory() android.Module {
-	module := newModule(android.HostSupportedNoCross, android.MultilibFirst)
+	module := newModule(android.HostSupported, android.MultilibFirst)
 
 	return module.Init()
 }

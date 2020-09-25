@@ -285,7 +285,7 @@ func TestPrebuilts(t *testing.T) {
 				t.Errorf("windows is assumed to be disabled by default")
 			}
 			config.config.Targets[Windows] = []Target{
-				{Windows, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", ""},
+				{Windows, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", true},
 			}
 
 			ctx := NewTestArchContext()
