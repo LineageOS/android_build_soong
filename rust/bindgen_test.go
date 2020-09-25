@@ -82,3 +82,47 @@ func TestRustBindgenCustomBindgen(t *testing.T) {
 			libbindgen.Description)
 	}
 }
+
+func TestRustBindgenStdVersions(t *testing.T) {
+	testRustError(t, "c_std and cpp_std cannot both be defined at the same time.", `
+		rust_bindgen {
+			name: "libbindgen",
+			wrapper_src: "src/any.h",
+			crate_name: "bindgen",
+			stem: "libbindgen",
+			source_stem: "bindings",
+			c_std: "somevalue",
+			cpp_std: "somevalue",
+		}
+	`)
+
+	ctx := testRust(t, `
+		rust_bindgen {
+			name: "libbindgen_cstd",
+			wrapper_src: "src/any.h",
+			crate_name: "bindgen",
+			stem: "libbindgen",
+			source_stem: "bindings",
+			c_std: "foo"
+		}
+		rust_bindgen {
+			name: "libbindgen_cppstd",
+			wrapper_src: "src/any.h",
+			crate_name: "bindgen",
+			stem: "libbindgen",
+			source_stem: "bindings",
+			cpp_std: "foo"
+		}
+	`)
+
+	libbindgen_cstd := ctx.ModuleForTests("libbindgen_cstd", "android_arm64_armv8-a").Output("bindings.rs")
+	libbindgen_cppstd := ctx.ModuleForTests("libbindgen_cppstd", "android_arm64_armv8-a").Output("bindings.rs")
+
+	if !strings.Contains(libbindgen_cstd.Args["cflags"], "-std=foo") {
+		t.Errorf("c_std value not passed in to rust_bindgen as a clang flag")
+	}
+
+	if !strings.Contains(libbindgen_cppstd.Args["cflags"], "-std=foo") {
+		t.Errorf("cpp_std value not passed in to rust_bindgen as a clang flag")
+	}
+}
