@@ -21,6 +21,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/cc"
 	cc_config "android/soong/cc/config"
 )
 
@@ -67,48 +68,18 @@ type BindgenProperties struct {
 	// list of bindgen-specific flags and options
 	Bindgen_flags []string `android:"arch_variant"`
 
-	// list of clang flags required to correctly interpret the headers.
-	Cflags []string `android:"arch_variant"`
-
-	// list of directories relative to the Blueprints file that will
-	// be added to the include path using -I
-	Local_include_dirs []string `android:"arch_variant,variant_prepend"`
-
-	// list of static libraries that provide headers for this binding.
-	Static_libs []string `android:"arch_variant,variant_prepend"`
-
-	// list of shared libraries that provide headers for this binding.
-	Shared_libs []string `android:"arch_variant"`
-
 	// module name of a custom binary/script which should be used instead of the 'bindgen' binary. This custom
 	// binary must expect arguments in a similar fashion to bindgen, e.g.
 	//
 	// "my_bindgen [flags] wrapper_header.h -o [output_path] -- [clang flags]"
 	Custom_bindgen string `android:"path"`
-
-	// C standard version to use. Can be a specific version (such as "gnu11"),
-	// "experimental" (which will use draft versions like C1x when available),
-	// or the empty string (which will use the default).
-	//
-	// If this is set, the file extension will be ignored and this will be used as the std version value. Setting this
-	// to "default" will use the build system default version. This cannot be set at the same time as cpp_std.
-	C_std *string
-
-	// C++ standard version to use. Can be a specific version (such as
-	// "gnu++11"), "experimental" (which will use draft versions like C++1z when
-	// available), or the empty string (which will use the default).
-	//
-	// If this is set, the file extension will be ignored and this will be used as the std version value. Setting this
-	// to "default" will use the build system default version. This cannot be set at the same time as c_std.
-	Cpp_std *string
-
-	//TODO(b/161141999) Add support for headers from cc_library_header modules.
 }
 
 type bindgenDecorator struct {
 	*BaseSourceProvider
 
-	Properties BindgenProperties
+	Properties      BindgenProperties
+	ClangProperties cc.RustBindgenClangProperties
 }
 
 func (b *bindgenDecorator) getStdVersion(ctx ModuleContext, src android.Path) (string, bool) {
@@ -121,25 +92,25 @@ func (b *bindgenDecorator) getStdVersion(ctx ModuleContext, src android.Path) (s
 		isCpp = true
 	}
 
-	if String(b.Properties.Cpp_std) != "" && String(b.Properties.C_std) != "" {
+	if String(b.ClangProperties.Cpp_std) != "" && String(b.ClangProperties.C_std) != "" {
 		ctx.PropertyErrorf("c_std", "c_std and cpp_std cannot both be defined at the same time.")
 	}
 
-	if String(b.Properties.Cpp_std) != "" {
-		if String(b.Properties.Cpp_std) == "experimental" {
+	if String(b.ClangProperties.Cpp_std) != "" {
+		if String(b.ClangProperties.Cpp_std) == "experimental" {
 			stdVersion = cc_config.ExperimentalCppStdVersion
-		} else if String(b.Properties.Cpp_std) == "default" {
+		} else if String(b.ClangProperties.Cpp_std) == "default" {
 			stdVersion = cc_config.CppStdVersion
 		} else {
-			stdVersion = String(b.Properties.Cpp_std)
+			stdVersion = String(b.ClangProperties.Cpp_std)
 		}
-	} else if b.Properties.C_std != nil {
-		if String(b.Properties.C_std) == "experimental" {
+	} else if b.ClangProperties.C_std != nil {
+		if String(b.ClangProperties.C_std) == "experimental" {
 			stdVersion = cc_config.ExperimentalCStdVersion
-		} else if String(b.Properties.C_std) == "default" {
+		} else if String(b.ClangProperties.C_std) == "default" {
 			stdVersion = cc_config.CStdVersion
 		} else {
-			stdVersion = String(b.Properties.C_std)
+			stdVersion = String(b.ClangProperties.C_std)
 		}
 	} else if isCpp {
 		stdVersion = cc_config.CppStdVersion
@@ -180,8 +151,8 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	esc := proptools.NinjaAndShellEscapeList
 
 	// Module defined clang flags and include paths
-	cflags = append(cflags, esc(b.Properties.Cflags)...)
-	for _, include := range b.Properties.Local_include_dirs {
+	cflags = append(cflags, esc(b.ClangProperties.Cflags)...)
+	for _, include := range b.ClangProperties.Local_include_dirs {
 		cflags = append(cflags, "-I"+android.PathForModuleSrc(ctx, include).String())
 		implicits = append(implicits, android.PathForModuleSrc(ctx, include))
 	}
@@ -201,6 +172,8 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	// Specify the header source language to avoid ambiguity.
 	if isCpp {
 		cflags = append(cflags, "-x c++")
+		// Add any C++ only flags.
+		cflags = append(cflags, esc(b.ClangProperties.Cppflags)...)
 	} else {
 		cflags = append(cflags, "-x c")
 	}
@@ -235,7 +208,7 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 
 func (b *bindgenDecorator) SourceProviderProps() []interface{} {
 	return append(b.BaseSourceProvider.SourceProviderProps(),
-		&b.Properties)
+		&b.Properties, &b.ClangProperties)
 }
 
 // rust_bindgen generates Rust FFI bindings to C libraries using bindgen given a wrapper header as the primary input.
@@ -257,6 +230,7 @@ func NewRustBindgen(hod android.HostOrDeviceSupported) (*Module, *bindgenDecorat
 	bindgen := &bindgenDecorator{
 		BaseSourceProvider: NewSourceProvider(),
 		Properties:         BindgenProperties{},
+		ClangProperties:    cc.RustBindgenClangProperties{},
 	}
 
 	module := NewSourceProviderModule(hod, bindgen, false)
@@ -270,7 +244,7 @@ func (b *bindgenDecorator) SourceProviderDeps(ctx DepsContext, deps Deps) Deps {
 		deps = bionicDeps(deps)
 	}
 
-	deps.SharedLibs = append(deps.SharedLibs, b.Properties.Shared_libs...)
-	deps.StaticLibs = append(deps.StaticLibs, b.Properties.Static_libs...)
+	deps.SharedLibs = append(deps.SharedLibs, b.ClangProperties.Shared_libs...)
+	deps.StaticLibs = append(deps.StaticLibs, b.ClangProperties.Static_libs...)
 	return deps
 }

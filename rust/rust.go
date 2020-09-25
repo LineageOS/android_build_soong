@@ -387,6 +387,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	module.AddProperties(props...)
 	module.AddProperties(
 		&BaseProperties{},
+		&BindgenProperties{},
 		&BaseCompilerProperties{},
 		&BinaryCompilerProperties{},
 		&LibraryCompilerProperties{},
@@ -395,6 +396,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&SourceProviderProperties{},
 		&TestProperties{},
 		&cc.CoverageProperties{},
+		&cc.RustBindgenClangProperties{},
 		&ClippyProperties{},
 	)
 
