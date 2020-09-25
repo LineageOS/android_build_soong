@@ -836,6 +836,105 @@ func TestApexWithStubs(t *testing.T) {
 	})
 }
 
+func TestApexWithStubsWithMinSdkVersion(t *testing.T) {
+	t.Parallel()
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib", "mylib3"],
+			min_sdk_version: "29",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["mylib2", "mylib3"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+			min_sdk_version: "28",
+		}
+
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			cflags: ["-include mylib.h"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["28", "29", "30", "current"],
+			},
+			min_sdk_version: "28",
+		}
+
+		cc_library {
+			name: "mylib3",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["mylib4"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["28", "29", "30", "current"],
+			},
+			apex_available: [ "myapex" ],
+			min_sdk_version: "28",
+		}
+
+		cc_library {
+			name: "mylib4",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: [ "myapex" ],
+			min_sdk_version: "28",
+		}
+	`)
+
+	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+
+	// Ensure that direct non-stubs dep is always included
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
+
+	// Ensure that indirect stubs dep is not included
+	ensureNotContains(t, copyCmds, "image.apex/lib64/mylib2.so")
+
+	// Ensure that direct stubs dep is included
+	ensureContains(t, copyCmds, "image.apex/lib64/mylib3.so")
+
+	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_apex29").Rule("ld").Args["libFlags"]
+
+	// Ensure that mylib is linking with the version 29 stubs for mylib2
+	ensureContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared_29/mylib2.so")
+	// ... and not linking to the non-stub (impl) variant of mylib2
+	ensureNotContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared/mylib2.so")
+
+	// Ensure that mylib is linking with the non-stub (impl) of mylib3 (because mylib3 is in the same apex)
+	ensureContains(t, mylibLdFlags, "mylib3/android_arm64_armv8-a_shared_apex29/mylib3.so")
+	// .. and not linking to the stubs variant of mylib3
+	ensureNotContains(t, mylibLdFlags, "mylib3/android_arm64_armv8-a_shared_29/mylib3.so")
+
+	// Ensure that stubs libs are built without -include flags
+	mylib2Cflags := ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
+	ensureNotContains(t, mylib2Cflags, "-include ")
+
+	// Ensure that genstub is invoked with --apex
+	ensureContains(t, "--apex", ctx.ModuleForTests("mylib2", "android_arm64_armv8-a_static_29").Rule("genStubSrc").Args["flags"])
+
+	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
+		"lib64/mylib.so",
+		"lib64/mylib3.so",
+		"lib64/mylib4.so",
+	})
+}
+
 func TestApexWithExplicitStubsDependency(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {

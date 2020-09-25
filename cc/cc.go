@@ -2465,7 +2465,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 				// when to use (unspecified) stubs, check min_sdk_version and choose the right one
 				if useThisDep && depIsStubs && !libDepTag.explicitlyVersioned {
-					versionToUse, err := c.ChooseSdkVersion(ccDep.StubsVersions(), c.apexSdkVersion.FinalOrFutureInt())
+					versionToUse, err := c.ChooseSdkVersion(ctx, ccDep.StubsVersions(), c.apexSdkVersion)
 					if err != nil {
 						ctx.OtherModuleErrorf(dep, err.Error())
 						return
@@ -2488,7 +2488,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// if this is for use_vendor apex && dep has stubsVersions
 						// apply the same rule of apex sdk enforcement to choose right version
 						var err error
-						versionToUse, err = c.ChooseSdkVersion(versions, c.apexSdkVersion.FinalOrFutureInt())
+						versionToUse, err = c.ChooseSdkVersion(ctx, versions, c.apexSdkVersion)
 						if err != nil {
 							ctx.OtherModuleErrorf(dep, err.Error())
 							return

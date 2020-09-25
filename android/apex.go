@@ -136,7 +136,7 @@ type ApexModule interface {
 	// Returns the highest version which is <= maxSdkVersion.
 	// For example, with maxSdkVersion is 10 and versionList is [9,11]
 	// it returns 9 as string
-	ChooseSdkVersion(versionList []string, maxSdkVersion int) (string, error)
+	ChooseSdkVersion(ctx BaseModuleContext, versionList []string, maxSdkVersion ApiLevel) (string, error)
 
 	// Tests if the module comes from an updatable APEX.
 	Updatable() bool
@@ -320,14 +320,18 @@ func (m *ApexModuleBase) DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
 	return true
 }
 
-func (m *ApexModuleBase) ChooseSdkVersion(versionList []string, maxSdkVersion int) (string, error) {
+func (m *ApexModuleBase) ChooseSdkVersion(ctx BaseModuleContext, versionList []string, maxSdkVersion ApiLevel) (string, error) {
 	for i := range versionList {
-		ver, _ := strconv.Atoi(versionList[len(versionList)-i-1])
-		if ver <= maxSdkVersion {
-			return versionList[len(versionList)-i-1], nil
+		version := versionList[len(versionList)-i-1]
+		ver, err := ApiLevelFromUser(ctx, version)
+		if err != nil {
+			return "", err
+		}
+		if ver.LessThanOrEqualTo(maxSdkVersion) {
+			return version, nil
 		}
 	}
-	return "", fmt.Errorf("not found a version(<=%d) in versionList: %v", maxSdkVersion, versionList)
+	return "", fmt.Errorf("not found a version(<=%s) in versionList: %v", maxSdkVersion, versionList)
 }
 
 func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
