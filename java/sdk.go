@@ -247,7 +247,7 @@ func (s sdkSpec) effectiveVersion(ctx android.EarlyModuleContext) (sdkVersion, e
 	if s.version.isNumbered() {
 		return s.version, nil
 	}
-	return sdkVersion(ctx.Config().DefaultAppTargetSdkInt()), nil
+	return sdkVersion(ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt()), nil
 }
 
 // effectiveVersionString converts an sdkSpec into the concrete version string that the module
@@ -255,8 +255,8 @@ func (s sdkSpec) effectiveVersion(ctx android.EarlyModuleContext) (sdkVersion, e
 // it returns the codename (P, Q, R, etc.)
 func (s sdkSpec) effectiveVersionString(ctx android.EarlyModuleContext) (string, error) {
 	ver, err := s.effectiveVersion(ctx)
-	if err == nil && int(ver) == ctx.Config().DefaultAppTargetSdkInt() {
-		return ctx.Config().DefaultAppTargetSdk(), nil
+	if err == nil && int(ver) == ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt() {
+		return ctx.Config().DefaultAppTargetSdk(ctx).String(), nil
 	}
 	return ver.String(), err
 }
