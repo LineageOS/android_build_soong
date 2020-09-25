@@ -45,6 +45,8 @@ type LTOProperties struct {
 		Thin  *bool `android:"arch_variant"`
 	} `android:"arch_variant"`
 
+	GlobalThin *bool `blueprint:"mutated"`
+
 	// Dep properties indicate that this module needs to be built with LTO
 	// since it is an object dependency of an LTO module.
 	FullDep bool `blueprint:"mutated"`
@@ -68,6 +70,8 @@ func (lto *lto) props() []interface{} {
 func (lto *lto) begin(ctx BaseModuleContext) {
 	if ctx.Config().IsEnvTrue("DISABLE_LTO") {
 		lto.Properties.Lto.Never = boolPtr(true)
+	} else if ctx.Config().IsEnvTrue("GLOBAL_THINLTO") {
+		lto.Properties.GlobalThin = boolPtr(true)
 	}
 }
 
@@ -91,7 +95,7 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 
 	if lto.LTO() {
 		var ltoFlag string
-		if Bool(lto.Properties.Lto.Thin) {
+		if lto.ThinLTO() {
 			ltoFlag = "-flto=thin -fsplit-lto-unit"
 		} else {
 			ltoFlag = "-flto"
@@ -104,7 +108,7 @@ func (lto *lto) flags(ctx BaseModuleContext, flags Flags) Flags {
 			flags.Local.CFlags = append(flags.Local.CFlags, "-fwhole-program-vtables")
 		}
 
-		if ctx.Config().IsEnvTrue("USE_THINLTO_CACHE") && Bool(lto.Properties.Lto.Thin) && lto.useClangLld(ctx) {
+		if lto.ThinLTO() && ctx.Config().IsEnvTrue("USE_THINLTO_CACHE") && lto.useClangLld(ctx) {
 			// Set appropriate ThinLTO cache policy
 			cacheDirFormat := "-Wl,--thinlto-cache-dir="
 			cacheDir := android.PathForOutput(ctx, "thinlto-cache").String()
@@ -133,9 +137,21 @@ func (lto *lto) LTO() bool {
 		return false
 	}
 
-	full := Bool(lto.Properties.Lto.Full)
-	thin := Bool(lto.Properties.Lto.Thin)
-	return full || thin
+	return lto.FullLTO() || lto.ThinLTO()
+}
+
+func (lto *lto) FullLTO() bool {
+	return Bool(lto.Properties.Lto.Full)
+}
+
+func (lto *lto) ThinLTO() bool {
+	if Bool(lto.Properties.GlobalThin) {
+		if !lto.Disabled() && !lto.FullLTO() {
+			return true
+		}
+	}
+
+	return Bool(lto.Properties.Lto.Thin)
 }
 
 // Is lto.never explicitly set to true?
@@ -146,8 +162,8 @@ func (lto *lto) Disabled() bool {
 // Propagate lto requirements down from binaries
 func ltoDepsMutator(mctx android.TopDownMutatorContext) {
 	if m, ok := mctx.Module().(*Module); ok && m.lto.LTO() {
-		full := Bool(m.lto.Properties.Lto.Full)
-		thin := Bool(m.lto.Properties.Lto.Thin)
+		full := m.lto.FullLTO()
+		thin := m.lto.ThinLTO()
 		if full && thin {
 			mctx.PropertyErrorf("LTO", "FullLTO and ThinLTO are mutually exclusive")
 		}
@@ -169,10 +185,10 @@ func ltoDepsMutator(mctx android.TopDownMutatorContext) {
 
 			if dep, ok := dep.(*Module); ok && dep.lto != nil &&
 				!dep.lto.Disabled() {
-				if full && !Bool(dep.lto.Properties.Lto.Full) {
+				if full && !dep.lto.FullLTO() {
 					dep.lto.Properties.FullDep = true
 				}
-				if thin && !Bool(dep.lto.Properties.Lto.Thin) {
+				if thin && !dep.lto.ThinLTO() {
 					dep.lto.Properties.ThinDep = true
 				}
 			}
@@ -189,19 +205,19 @@ func ltoMutator(mctx android.BottomUpMutatorContext) {
 		// Create variations for LTO types required as static
 		// dependencies
 		variationNames := []string{""}
-		if m.lto.Properties.FullDep && !Bool(m.lto.Properties.Lto.Full) {
+		if m.lto.Properties.FullDep && !m.lto.FullLTO() {
 			variationNames = append(variationNames, "lto-full")
 		}
-		if m.lto.Properties.ThinDep && !Bool(m.lto.Properties.Lto.Thin) {
+		if m.lto.Properties.ThinDep && !m.lto.ThinLTO() {
 			variationNames = append(variationNames, "lto-thin")
 		}
 
 		// Use correct dependencies if LTO property is explicitly set
 		// (mutually exclusive)
-		if Bool(m.lto.Properties.Lto.Full) {
+		if m.lto.FullLTO() {
 			mctx.SetDependencyVariation("lto-full")
 		}
-		if Bool(m.lto.Properties.Lto.Thin) {
+		if m.lto.ThinLTO() {
 			mctx.SetDependencyVariation("lto-thin")
 		}
 
