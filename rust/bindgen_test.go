@@ -41,7 +41,7 @@ func TestRustBindgen(t *testing.T) {
 			export_include_dirs: ["static_include"],
 		}
 	`)
-	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a").Output("bindings.rs")
+	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a_source").Output("bindings.rs")
 	// Ensure that the flags are present and escaped
 	if !strings.Contains(libbindgen.Args["flags"], "'--bindgen-flag.*'") {
 		t.Errorf("missing bindgen flags in rust_bindgen rule: flags %#v", libbindgen.Args["flags"])
@@ -73,7 +73,7 @@ func TestRustBindgenCustomBindgen(t *testing.T) {
 		}
 	`)
 
-	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a").Output("bindings.rs")
+	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a_source").Output("bindings.rs")
 
 	// The rule description should contain the custom binary name rather than bindgen, so checking the description
 	// should be sufficient.
