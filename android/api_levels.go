@@ -51,7 +51,7 @@ type ApiLevel struct {
 
 func (this ApiLevel) FinalOrFutureInt() int {
 	if this.IsPreview() {
-		return FutureApiLevel
+		return FutureApiLevelInt
 	} else {
 		return this.number
 	}
@@ -127,13 +127,6 @@ func uncheckedFinalApiLevel(num int) ApiLevel {
 	}
 }
 
-// TODO: Merge with FutureApiLevel
-var CurrentApiLevel = ApiLevel{
-	value:     "current",
-	number:    10000,
-	isPreview: true,
-}
-
 var NoneApiLevel = ApiLevel{
 	value: "(no version)",
 	// Not 0 because we don't want this to compare equal with the first preview.
@@ -188,7 +181,7 @@ func ApiLevelFromUser(ctx EarlyModuleContext, raw string) (ApiLevel, error) {
 	}
 
 	if raw == "current" {
-		return CurrentApiLevel, nil
+		return FutureApiLevel, nil
 	}
 
 	for _, preview := range ctx.Config().PreviewApiLevels() {

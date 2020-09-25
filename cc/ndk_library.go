@@ -118,8 +118,8 @@ func generatePerApiVariants(ctx android.BottomUpMutatorContext, m *Module,
 			versionStrs = append(versionStrs, version.String())
 		}
 	}
-	versions = append(versions, android.CurrentApiLevel)
-	versionStrs = append(versionStrs, android.CurrentApiLevel.String())
+	versions = append(versions, android.FutureApiLevel)
+	versionStrs = append(versionStrs, android.FutureApiLevel.String())
 
 	modules := ctx.CreateVariations(versionStrs...)
 	for i, module := range modules {

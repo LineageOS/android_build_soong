@@ -107,7 +107,7 @@ type sdkVersion int
 
 const (
 	// special version number for a not-yet-frozen SDK
-	sdkVersionCurrent sdkVersion = sdkVersion(android.FutureApiLevel)
+	sdkVersionCurrent sdkVersion = sdkVersion(android.FutureApiLevelInt)
 	// special version number to be used for SDK specs where version number doesn't
 	// make sense, e.g. "none", "", etc.
 	sdkVersionNone sdkVersion = sdkVersion(0)
