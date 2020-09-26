@@ -1545,14 +1545,16 @@ func CanBeOrLinkAgainstVersionVariants(module interface {
 	Host() bool
 	InRamdisk() bool
 	InRecovery() bool
+	UseSdk() bool
 }) bool {
-	return !module.Host() && !module.InRamdisk() && !module.InRecovery()
+	return !module.Host() && !module.InRamdisk() && !module.InRecovery() && !module.UseSdk()
 }
 
 func CanBeVersionVariant(module interface {
 	Host() bool
 	InRamdisk() bool
 	InRecovery() bool
+	UseSdk() bool
 	CcLibraryInterface() bool
 	Shared() bool
 	Static() bool
