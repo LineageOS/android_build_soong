@@ -24,27 +24,34 @@ import (
 	"github.com/google/blueprint"
 )
 
-const (
-	SdkVersion_Android10 = 29
+var (
+	SdkVersion_Android10 = uncheckedFinalApiLevel(29)
 )
 
 type ApexInfo struct {
 	// Name of the apex variation that this module is mutated into
 	ApexVariationName string
 
-	MinSdkVersion int
-	Updatable     bool
-	RequiredSdks  SdkRefs
+	// Serialized ApiLevel. Use via MinSdkVersion() method. Cannot be stored in
+	// its struct form because this is cloned into properties structs, and
+	// ApiLevel has private members.
+	MinSdkVersionStr string
+	Updatable        bool
+	RequiredSdks     SdkRefs
 
 	InApexes []string
 }
 
-func (i ApexInfo) mergedName() string {
-	name := "apex" + strconv.Itoa(i.MinSdkVersion)
+func (i ApexInfo) mergedName(ctx EarlyModuleContext) string {
+	name := "apex" + strconv.Itoa(i.MinSdkVersion(ctx).FinalOrFutureInt())
 	for _, sdk := range i.RequiredSdks {
 		name += "_" + sdk.Name + "_" + sdk.Version
 	}
 	return name
+}
+
+func (this *ApexInfo) MinSdkVersion(ctx EarlyModuleContext) ApiLevel {
+	return ApiLevelOrPanic(ctx, this.MinSdkVersionStr)
 }
 
 // Extracted from ApexModule to make it easier to define custom subsets of the
@@ -141,7 +148,7 @@ type ApexModule interface {
 
 	// Returns nil if this module supports sdkVersion
 	// Otherwise, returns error with reason
-	ShouldSupportSdkVersion(ctx BaseModuleContext, sdkVersion int) error
+	ShouldSupportSdkVersion(ctx BaseModuleContext, sdkVersion ApiLevel) error
 
 	// Returns true if this module needs a unique variation per apex, for example if
 	// use_apex_name_macro is set.
@@ -347,18 +354,18 @@ func (a byApexName) Less(i, j int) bool { return a[i].ApexVariationName < a[j].A
 // mergeApexVariations deduplicates APEX variations that would build identically into a common
 // variation.  It returns the reduced list of variations and a list of aliases from the original
 // variation names to the new variation names.
-func mergeApexVariations(apexVariations []ApexInfo) (merged []ApexInfo, aliases [][2]string) {
+func mergeApexVariations(ctx EarlyModuleContext, apexVariations []ApexInfo) (merged []ApexInfo, aliases [][2]string) {
 	sort.Sort(byApexName(apexVariations))
 	seen := make(map[string]int)
 	for _, apexInfo := range apexVariations {
 		apexName := apexInfo.ApexVariationName
-		mergedName := apexInfo.mergedName()
+		mergedName := apexInfo.mergedName(ctx)
 		if index, exists := seen[mergedName]; exists {
 			merged[index].InApexes = append(merged[index].InApexes, apexName)
 			merged[index].Updatable = merged[index].Updatable || apexInfo.Updatable
 		} else {
 			seen[mergedName] = len(merged)
-			apexInfo.ApexVariationName = apexInfo.mergedName()
+			apexInfo.ApexVariationName = apexInfo.mergedName(ctx)
 			apexInfo.InApexes = CopyOf(apexInfo.InApexes)
 			merged = append(merged, apexInfo)
 		}
@@ -374,7 +381,7 @@ func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Mod
 		var apexVariations []ApexInfo
 		var aliases [][2]string
 		if !mctx.Module().(ApexModule).UniqueApexVariations() && !m.ApexProperties.UniqueApexVariationsForDeps {
-			apexVariations, aliases = mergeApexVariations(m.apexVariations)
+			apexVariations, aliases = mergeApexVariations(mctx, m.apexVariations)
 		} else {
 			apexVariations = m.apexVariations
 		}
@@ -603,7 +610,13 @@ func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, minSdkVersion
 }
 
 // TODO(b/158059172): remove minSdkVersion allowlist
-var minSdkVersionAllowlist = map[string]int{
+var minSdkVersionAllowlist = func(apiMap map[string]int) map[string]ApiLevel {
+	list := make(map[string]ApiLevel, len(apiMap))
+	for name, finalApiInt := range apiMap {
+		list[name] = uncheckedFinalApiLevel(finalApiInt)
+	}
+	return list
+}(map[string]int{
 	"adbd":                  30,
 	"android.net.ipsec.ike": 30,
 	"androidx-constraintlayout_constraintlayout-solver": 30,
@@ -672,7 +685,7 @@ var minSdkVersionAllowlist = map[string]int{
 	"statsd":                                            30,
 	"tensorflow_headers":                                30,
 	"xz-java":                                           29,
-}
+})
 
 // Function called while walking an APEX's payload dependencies.
 //
@@ -686,7 +699,7 @@ type UpdatableModule interface {
 }
 
 // CheckMinSdkVersion checks if every dependency of an updatable module sets min_sdk_version accordingly
-func CheckMinSdkVersion(m UpdatableModule, ctx ModuleContext, minSdkVersion int) {
+func CheckMinSdkVersion(m UpdatableModule, ctx ModuleContext, minSdkVersion ApiLevel) {
 	// do not enforce min_sdk_version for host
 	if ctx.Host() {
 		return
@@ -699,7 +712,7 @@ func CheckMinSdkVersion(m UpdatableModule, ctx ModuleContext, minSdkVersion int)
 
 	// do not enforce deps.min_sdk_version if APEX/APK doesn't set min_sdk_version or
 	// min_sdk_version is not finalized (e.g. current or codenames)
-	if minSdkVersion == FutureApiLevel {
+	if minSdkVersion.IsCurrent() {
 		return
 	}
 
@@ -714,7 +727,7 @@ func CheckMinSdkVersion(m UpdatableModule, ctx ModuleContext, minSdkVersion int)
 		}
 		if err := to.ShouldSupportSdkVersion(ctx, minSdkVersion); err != nil {
 			toName := ctx.OtherModuleName(to)
-			if ver, ok := minSdkVersionAllowlist[toName]; !ok || ver > minSdkVersion {
+			if ver, ok := minSdkVersionAllowlist[toName]; !ok || ver.GreaterThan(minSdkVersion) {
 				ctx.OtherModuleErrorf(to, "should support min_sdk_version(%v) for %q: %v. Dependency path: %s",
 					minSdkVersion, ctx.ModuleName(), err.Error(), ctx.GetPathString(false))
 				return false

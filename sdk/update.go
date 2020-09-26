@@ -371,8 +371,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 			osPropertySet := targetPropertySet.AddPropertySet(sdkVariant.Target().Os.Name)
 
 			// Enable the variant explicitly when we've disabled it by default on host.
-			if hasHostOsDependentMember &&
-				(osType.Class == android.Host || osType.Class == android.HostCross) {
+			if hasHostOsDependentMember && osType.Class == android.Host {
 				osPropertySet.AddProperty("enabled", true)
 			}
 
@@ -731,7 +730,7 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 
 	for _, variant := range member.Variants() {
 		osClass := variant.Target().Os.Class
-		if osClass == android.Host || osClass == android.HostCross {
+		if osClass == android.Host {
 			hostSupported = true
 		} else if osClass == android.Device {
 			deviceSupported = true
@@ -1061,8 +1060,7 @@ func (osInfo *osTypeSpecificInfo) addToPropertySet(ctx *memberContext, bpModule 
 		archPropertySet = targetPropertySet
 
 		// Enable the variant explicitly when we've disabled it by default on host.
-		if ctx.memberType.IsHostOsDependent() &&
-			(osType.Class == android.Host || osType.Class == android.HostCross) {
+		if ctx.memberType.IsHostOsDependent() && osType.Class == android.Host {
 			osPropertySet.AddProperty("enabled", true)
 		}
 
@@ -1086,7 +1084,7 @@ func (osInfo *osTypeSpecificInfo) addToPropertySet(ctx *memberContext, bpModule 
 
 func (osInfo *osTypeSpecificInfo) isHostVariant() bool {
 	osClass := osInfo.osType.Class
-	return osClass == android.Host || osClass == android.HostCross
+	return osClass == android.Host
 }
 
 var _ isHostVariant = (*osTypeSpecificInfo)(nil)
@@ -1323,7 +1321,7 @@ func (s *sdk) getPossibleOsTypes() []android.OsType {
 			}
 		}
 		if s.HostSupported() {
-			if osType.Class == android.Host || osType.Class == android.HostCross {
+			if osType.Class == android.Host {
 				osTypes = append(osTypes, osType)
 			}
 		}

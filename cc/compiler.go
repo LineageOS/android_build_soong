@@ -354,7 +354,9 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 			flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_APEX_NAME__='\""+ctx.apexVariationName()+"\"'")
 		}
 		if ctx.Device() {
-			flags.Global.CommonFlags = append(flags.Global.CommonFlags, "-D__ANDROID_SDK_VERSION__="+strconv.Itoa(ctx.apexSdkVersion()))
+			flags.Global.CommonFlags = append(flags.Global.CommonFlags,
+				fmt.Sprintf("-D__ANDROID_SDK_VERSION__=%d",
+					ctx.apexSdkVersion().FinalOrFutureInt()))
 		}
 	}
 
@@ -390,7 +392,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	if ctx.Os().Class == android.Device {
 		version := ctx.sdkVersion()
 		if version == "" || version == "current" {
-			target += strconv.Itoa(android.FutureApiLevel)
+			target += strconv.Itoa(android.FutureApiLevelInt)
 		} else {
 			target += version
 		}

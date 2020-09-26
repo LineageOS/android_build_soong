@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -37,7 +36,13 @@ var Bool = proptools.Bool
 var String = proptools.String
 var StringDefault = proptools.StringDefault
 
-const FutureApiLevel = 10000
+const FutureApiLevelInt = 10000
+
+var FutureApiLevel = ApiLevel{
+	value:     "current",
+	number:    FutureApiLevelInt,
+	isPreview: true,
+}
 
 // The configuration file name
 const configFileName = "soong.config"
@@ -46,8 +51,9 @@ const productVariablesFileName = "soong.variables"
 // A FileConfigurableOptions contains options which can be configured by the
 // config file. These will be included in the config struct.
 type FileConfigurableOptions struct {
-	Mega_device *bool `json:",omitempty"`
-	Host_bionic *bool `json:",omitempty"`
+	Mega_device       *bool `json:",omitempty"`
+	Host_bionic       *bool `json:",omitempty"`
+	Host_bionic_arm64 *bool `json:",omitempty"`
 }
 
 func (f *FileConfigurableOptions) SetDefaultConfig() {
@@ -222,15 +228,17 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 
 	config := &config{
 		productVariables: productVariables{
-			DeviceName:                  stringPtr("test_device"),
-			Platform_sdk_version:        intPtr(30),
-			DeviceSystemSdkVersions:     []string{"14", "15"},
-			Platform_systemsdk_versions: []string{"29", "30"},
-			AAPTConfig:                  []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
-			AAPTPreferredConfig:         stringPtr("xhdpi"),
-			AAPTCharacteristics:         stringPtr("nosdcard"),
-			AAPTPrebuiltDPI:             []string{"xhdpi", "xxhdpi"},
-			UncompressPrivAppDex:        boolPtr(true),
+			DeviceName:                        stringPtr("test_device"),
+			Platform_sdk_version:              intPtr(30),
+			Platform_sdk_codename:             stringPtr("S"),
+			Platform_version_active_codenames: []string{"S"},
+			DeviceSystemSdkVersions:           []string{"14", "15"},
+			Platform_systemsdk_versions:       []string{"29", "30"},
+			AAPTConfig:                        []string{"normal", "large", "xlarge", "hdpi", "xhdpi", "xxhdpi"},
+			AAPTPreferredConfig:               stringPtr("xhdpi"),
+			AAPTCharacteristics:               stringPtr("nosdcard"),
+			AAPTPrebuiltDPI:                   []string{"xhdpi", "xxhdpi"},
+			UncompressPrivAppDex:              boolPtr(true),
 		},
 
 		buildDir:     buildDir,
@@ -260,10 +268,10 @@ func TestArchConfigNativeBridge(buildDir string, env map[string]string, bp strin
 	config := testConfig.config
 
 	config.Targets[Android] = []Target{
-		{Android, Arch{ArchType: X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", ""},
-		{Android, Arch{ArchType: X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", ""},
-		{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeEnabled, "x86_64", "arm64"},
-		{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeEnabled, "x86", "arm"},
+		{Android, Arch{ArchType: X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
+		{Android, Arch{ArchType: X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", "", false},
+		{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeEnabled, "x86_64", "arm64", false},
+		{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeEnabled, "x86", "arm", false},
 	}
 
 	return testConfig
@@ -275,10 +283,10 @@ func TestArchConfigFuchsia(buildDir string, env map[string]string, bp string, fs
 
 	config.Targets = map[OsType][]Target{
 		Fuchsia: []Target{
-			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", ""},
+			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
 		},
 		BuildOs: []Target{
-			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", ""},
+			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", false},
 		},
 	}
 
@@ -292,12 +300,12 @@ func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[st
 
 	config.Targets = map[OsType][]Target{
 		Android: []Target{
-			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", ""},
-			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", ""},
+			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
+			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", "", false},
 		},
 		BuildOs: []Target{
-			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", ""},
-			{BuildOs, Arch{ArchType: X86}, NativeBridgeDisabled, "", ""},
+			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", false},
+			{BuildOs, Arch{ArchType: X86}, NativeBridgeDisabled, "", "", false},
 		},
 	}
 
@@ -614,12 +622,8 @@ func (c *config) PlatformVersionName() string {
 	return String(c.productVariables.Platform_version_name)
 }
 
-func (c *config) PlatformSdkVersionInt() int {
-	return *c.productVariables.Platform_sdk_version
-}
-
-func (c *config) PlatformSdkVersion() string {
-	return strconv.Itoa(c.PlatformSdkVersionInt())
+func (c *config) PlatformSdkVersion() ApiLevel {
+	return uncheckedFinalApiLevel(*c.productVariables.Platform_sdk_version)
 }
 
 func (c *config) PlatformSdkCodename() string {
@@ -648,7 +652,7 @@ func (c *config) MinSupportedSdkVersion() ApiLevel {
 
 func (c *config) FinalApiLevels() []ApiLevel {
 	var levels []ApiLevel
-	for i := 1; i <= c.PlatformSdkVersionInt(); i++ {
+	for i := 1; i <= c.PlatformSdkVersion().FinalOrFutureInt(); i++ {
 		levels = append(levels, uncheckedFinalApiLevel(i))
 	}
 	return levels
@@ -672,19 +676,18 @@ func (c *config) AllSupportedApiLevels() []ApiLevel {
 	return append(levels, c.PreviewApiLevels()...)
 }
 
-func (c *config) DefaultAppTargetSdkInt() int {
-	if Bool(c.productVariables.Platform_sdk_final) {
-		return c.PlatformSdkVersionInt()
-	} else {
-		return FutureApiLevel
-	}
-}
-
-func (c *config) DefaultAppTargetSdk() string {
+func (c *config) DefaultAppTargetSdk(ctx EarlyModuleContext) ApiLevel {
 	if Bool(c.productVariables.Platform_sdk_final) {
 		return c.PlatformSdkVersion()
 	} else {
-		return c.PlatformSdkCodename()
+		codename := c.PlatformSdkCodename()
+		if codename == "" {
+			return NoneApiLevel
+		}
+		if codename == "REL" {
+			panic("Platform_sdk_codename should not be REL when Platform_sdk_final is true")
+		}
+		return ApiLevelOrPanic(ctx, codename)
 	}
 }
 

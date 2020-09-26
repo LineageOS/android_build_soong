@@ -157,7 +157,7 @@ func (as *AndroidAppSet) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 				"abis":              strings.Join(SupportedAbis(ctx), ","),
 				"allow-prereleased": strconv.FormatBool(proptools.Bool(as.properties.Prerelease)),
 				"screen-densities":  screenDensities,
-				"sdk-version":       ctx.Config().PlatformSdkVersion(),
+				"sdk-version":       ctx.Config().PlatformSdkVersion().String(),
 				"stem":              as.BaseModuleName(),
 				"apkcerts":          as.apkcertsFile.String(),
 				"partition":         as.PartitionTag(ctx.DeviceConfig()),
@@ -436,7 +436,7 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 
 		if minSdkVersion, err := a.minSdkVersion().effectiveVersion(ctx); err == nil {
 			a.checkJniLibsSdkVersion(ctx, minSdkVersion)
-			android.CheckMinSdkVersion(a, ctx, int(minSdkVersion))
+			android.CheckMinSdkVersion(a, ctx, minSdkVersion.ApiLevel(ctx))
 		} else {
 			ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
 		}
@@ -678,7 +678,7 @@ func (a *AndroidApp) noticeBuildActions(ctx android.ModuleContext) {
 		seenModules[child] = true
 
 		// Skip host modules.
-		if child.Target().Os.Class == android.Host || child.Target().Os.Class == android.HostCross {
+		if child.Target().Os.Class == android.Host {
 			return false
 		}
 
@@ -1637,7 +1637,8 @@ func (a *AndroidAppImport) minSdkVersion() sdkSpec {
 	return sdkSpecFrom("")
 }
 
-func (j *AndroidAppImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion int) error {
+func (j *AndroidAppImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
+	sdkVersion android.ApiLevel) error {
 	// Do not check for prebuilts against the min_sdk_version of enclosing APEX
 	return nil
 }

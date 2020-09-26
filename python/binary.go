@@ -79,7 +79,7 @@ func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 }
 
 func PythonBinaryHostFactory() android.Module {
-	module, _ := NewBinary(android.HostSupportedNoCross)
+	module, _ := NewBinary(android.HostSupported)
 
 	return module.Init()
 }

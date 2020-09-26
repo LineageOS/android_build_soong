@@ -794,7 +794,7 @@ func apexDepsMutator(mctx android.TopDownMutatorContext) {
 	}
 	apexInfo := android.ApexInfo{
 		ApexVariationName: mctx.ModuleName(),
-		MinSdkVersion:     a.minSdkVersion(mctx),
+		MinSdkVersionStr:  a.minSdkVersion(mctx).String(),
 		RequiredSdks:      a.RequiredSdks(),
 		Updatable:         a.Updatable(),
 		InApexes:          []string{mctx.ModuleName()},
@@ -1951,27 +1951,21 @@ func (a *apexBundle) WalkPayloadDeps(ctx android.ModuleContext, do android.Paylo
 	})
 }
 
-func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) int {
+func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) android.ApiLevel {
 	ver := proptools.String(a.properties.Min_sdk_version)
 	if ver == "" {
 		return android.FutureApiLevel
 	}
-	// Treat the current codenames as "current", which means future API version (10000)
-	// Otherwise, ApiStrToNum converts codename(non-finalized) to a value from [9000...]
-	// and would fail to build against "current".
-	if android.InList(ver, ctx.Config().PlatformVersionActiveCodenames()) {
-		return android.FutureApiLevel
-	}
-	// In "REL" branch, "current" is mapped to finalized sdk version
-	if ctx.Config().PlatformSdkCodename() == "REL" && ver == "current" {
-		return ctx.Config().PlatformSdkVersionInt()
-	}
-	// Finalized codenames are OKAY and will be converted to int
-	intVer, err := android.ApiStrToNum(ctx, ver)
+	apiLevel, err := android.ApiLevelFromUser(ctx, ver)
 	if err != nil {
 		ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
+		return android.NoneApiLevel
 	}
-	return intVer
+	if apiLevel.IsPreview() {
+		// All codenames should build against "current".
+		return android.FutureApiLevel
+	}
+	return apiLevel
 }
 
 func (a *apexBundle) Updatable() bool {
@@ -2045,7 +2039,9 @@ func (a *apexBundle) checkMinSdkVersion(ctx android.ModuleContext) {
 	if proptools.Bool(a.properties.Use_vendor) && ctx.DeviceConfig().VndkVersion() == "" {
 		return
 	}
-	android.CheckMinSdkVersion(a, ctx, a.minSdkVersion(ctx))
+	// apexBundle::minSdkVersion reports its own errors.
+	minSdkVersion := a.minSdkVersion(ctx)
+	android.CheckMinSdkVersion(a, ctx, minSdkVersion)
 }
 
 // Ensures that a lib providing stub isn't statically linked
