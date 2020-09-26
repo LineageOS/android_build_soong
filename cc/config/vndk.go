@@ -19,6 +19,7 @@ package config
 // has VndkUseCoreVariant set.
 var VndkMustUseVendorVariantList = []string{
 	"android.hardware.automotive.occupant_awareness-ndk_platform",
+	"android.hardware.gnss-unstable-ndk_platform",
 	"android.hardware.light-ndk_platform",
 	"android.hardware.identity-ndk_platform",
 	"android.hardware.nfc@1.2",
