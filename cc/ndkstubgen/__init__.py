@@ -20,13 +20,16 @@ import json
 import logging
 import os
 import sys
+from typing import Iterable, TextIO
 
 import symbolfile
+from symbolfile import Arch, Version
 
 
 class Generator:
     """Output generator that writes stub source files and version scripts."""
-    def __init__(self, src_file, version_script, arch, api, llndk, apex):
+    def __init__(self, src_file: TextIO, version_script: TextIO, arch: Arch,
+                 api: int, llndk: bool, apex: bool) -> None:
         self.src_file = src_file
         self.version_script = version_script
         self.arch = arch
@@ -34,12 +37,12 @@ class Generator:
         self.llndk = llndk
         self.apex = apex
 
-    def write(self, versions):
+    def write(self, versions: Iterable[Version]) -> None:
         """Writes all symbol data to the output files."""
         for version in versions:
             self.write_version(version)
 
-    def write_version(self, version):
+    def write_version(self, version: Version) -> None:
         """Writes a single version block's data to the output files."""
         if symbolfile.should_omit_version(version, self.arch, self.api,
                                           self.llndk, self.apex):
@@ -84,7 +87,7 @@ class Generator:
                 self.version_script.write('}' + base + ';\n')
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parses and returns command line arguments."""
     parser = argparse.ArgumentParser()
 
@@ -100,23 +103,31 @@ def parse_args():
     parser.add_argument(
         '--apex', action='store_true', help='Use the APEX variant.')
 
+    # https://github.com/python/mypy/issues/1317
+    # mypy has issues with using os.path.realpath as an argument here.
     parser.add_argument(
-        '--api-map', type=os.path.realpath, required=True,
+        '--api-map',
+        type=os.path.realpath,  # type: ignore
+        required=True,
         help='Path to the API level map JSON file.')
 
     parser.add_argument(
-        'symbol_file', type=os.path.realpath, help='Path to symbol file.')
+        'symbol_file',
+        type=os.path.realpath,  # type: ignore
+        help='Path to symbol file.')
     parser.add_argument(
-        'stub_src', type=os.path.realpath,
+        'stub_src',
+        type=os.path.realpath,  # type: ignore
         help='Path to output stub source file.')
     parser.add_argument(
-        'version_script', type=os.path.realpath,
+        'version_script',
+        type=os.path.realpath,  # type: ignore
         help='Path to output version script.')
 
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     """Program entry point."""
     args = parse_args()
 
