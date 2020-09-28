@@ -237,9 +237,25 @@ type BpPropertySet interface {
 	// * string
 	// * array of the above
 	// * bool
+	// For these types it is an error if multiple properties with the same name
+	// are added.
+	//
+	// * pointer to a struct
 	// * BpPropertySet
 	//
-	// It is an error if multiple properties with the same name are added.
+	// A pointer to a Blueprint-style property struct is first converted into a
+	// BpPropertySet by traversing the fields and adding their values as
+	// properties in a BpPropertySet. A field with a struct value is itself
+	// converted into a BpPropertySet before adding.
+	//
+	// Adding a BpPropertySet is done as follows:
+	// * If no property with the name exists then the BpPropertySet is added
+	//   directly to this property. Care must be taken to ensure that it does not
+	//   introduce a cycle.
+	// * If a property exists with the name and the current value is a
+	//   BpPropertySet then every property of the new BpPropertySet is added to
+	//   the existing BpPropertySet.
+	// * Otherwise, if a property exists with the name then it is an error.
 	AddProperty(name string, value interface{})
 
 	// Add a property with an associated tag
