@@ -338,10 +338,6 @@ type libraryDecorator struct {
 	flagExporter
 	stripper Stripper
 
-	// If we're used as a whole_static_lib, our missing dependencies need
-	// to be given
-	wholeStaticMissingDeps []string
-
 	// For whole_static_libs
 	objects Objects
 
@@ -682,7 +678,6 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 }
 
 type libraryInterface interface {
-	getWholeStaticMissingDeps() []string
 	static() bool
 	shared() bool
 	objs() Objects
@@ -888,8 +883,6 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 	TransformObjToStaticLib(ctx, library.objects.objFiles, deps.WholeStaticLibsFromPrebuilts, builderFlags, outputFile, objs.tidyFiles)
 
 	library.coverageOutputFile = TransformCoverageFilesToZip(ctx, library.objects, ctx.ModuleName())
-
-	library.wholeStaticMissingDeps = ctx.GetMissingDependencies()
 
 	ctx.CheckbuildFile(outputFile)
 
@@ -1180,10 +1173,6 @@ func (library *libraryDecorator) buildStatic() bool {
 func (library *libraryDecorator) buildShared() bool {
 	return library.MutatedProperties.BuildShared &&
 		BoolDefault(library.SharedProperties.Shared.Enabled, true)
-}
-
-func (library *libraryDecorator) getWholeStaticMissingDeps() []string {
-	return append([]string(nil), library.wholeStaticMissingDeps...)
 }
 
 func (library *libraryDecorator) objs() Objects {
