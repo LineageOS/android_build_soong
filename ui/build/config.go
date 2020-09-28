@@ -261,8 +261,9 @@ func storeConfigMetrics(ctx Context, config Config) {
 	}
 
 	b := &smpb.BuildConfig{
-		UseGoma: proto.Bool(config.UseGoma()),
-		UseRbe:  proto.Bool(config.UseRBE()),
+		ForceUseGoma: proto.Bool(config.ForceUseGoma()),
+		UseGoma:      proto.Bool(config.UseGoma()),
+		UseRbe:       proto.Bool(config.UseRBE()),
 	}
 	ctx.Metrics.BuildConfig(b)
 }
