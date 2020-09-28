@@ -695,6 +695,11 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		if mod.compiler.(libraryInterface).source() {
 			mod.sourceProvider.GenerateSource(ctx, deps)
 			mod.sourceProvider.setSubName(ctx.ModuleSubDir())
+			if lib, ok := mod.compiler.(*libraryDecorator); ok {
+				lib.flagExporter.linkDirs = nil
+				lib.flagExporter.linkObjects = nil
+				lib.flagExporter.depFlags = nil
+			}
 		} else {
 			sourceMod := actx.GetDirectDepWithTag(mod.Name(), sourceDepTag)
 			sourceLib := sourceMod.(*Module).compiler.(*libraryDecorator)
