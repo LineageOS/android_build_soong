@@ -30,16 +30,6 @@ import (
 //
 //   $ SOONG_GEN_RUST_PROJECT=1 m nothing
 
-func init() {
-	android.RegisterSingletonType("rust_project_generator", rustProjectGeneratorSingleton)
-}
-
-func rustProjectGeneratorSingleton() android.Singleton {
-	return &projectGeneratorSingleton{}
-}
-
-type projectGeneratorSingleton struct{}
-
 const (
 	// Environment variables used to control the behavior of this singleton.
 	envVariableCollectRustDeps = "SOONG_GEN_RUST_PROJECT"
@@ -49,6 +39,7 @@ const (
 // The format of rust-project.json is not yet finalized. A current description is available at:
 // https://github.com/rust-analyzer/rust-analyzer/blob/master/docs/user/manual.adoc#non-cargo-based-projects
 type rustProjectDep struct {
+	// The Crate attribute is the index of the dependency in the Crates array in rustProjectJson.
 	Crate int    `json:"crate"`
 	Name  string `json:"name"`
 }
@@ -71,12 +62,24 @@ type crateInfo struct {
 	Deps map[string]int
 }
 
-func mergeDependencies(ctx android.SingletonContext, project *rustProjectJson,
-	knownCrates map[string]crateInfo, module android.Module,
-	crate *rustProjectCrate, deps map[string]int) {
+type projectGeneratorSingleton struct {
+	project     rustProjectJson
+	knownCrates map[string]crateInfo
+}
+
+func rustProjectGeneratorSingleton() android.Singleton {
+	return &projectGeneratorSingleton{}
+}
+
+func init() {
+	android.RegisterSingletonType("rust_project_generator", rustProjectGeneratorSingleton)
+}
+
+func (singleton *projectGeneratorSingleton) mergeDependencies(ctx android.SingletonContext,
+	module android.Module, crate *rustProjectCrate, deps map[string]int) {
 
 	ctx.VisitDirectDeps(module, func(child android.Module) {
-		childId, childCrateName, ok := appendLibraryAndDeps(ctx, project, knownCrates, child)
+		childId, childCrateName, ok := singleton.appendLibraryAndDeps(ctx, child)
 		if !ok {
 			return
 		}
@@ -88,12 +91,10 @@ func mergeDependencies(ctx android.SingletonContext, project *rustProjectJson,
 	})
 }
 
-// appendLibraryAndDeps creates a rustProjectCrate for the module argument and
-// appends it to the rustProjectJson struct.  It visits the dependencies of the
-// module depth-first. If the current module is already in knownCrates, its
-// dependencies are merged. Returns a tuple (id, crate_name, ok).
-func appendLibraryAndDeps(ctx android.SingletonContext, project *rustProjectJson,
-	knownCrates map[string]crateInfo, module android.Module) (int, string, bool) {
+// appendLibraryAndDeps creates a rustProjectCrate for the module argument and appends it to singleton.project.
+// It visits the dependencies of the module depth-first so the dependency ID can be added to the current module. If the
+// current module is already in singleton.knownCrates, its dependencies are merged. Returns a tuple (id, crate_name, ok).
+func (singleton *projectGeneratorSingleton) appendLibraryAndDeps(ctx android.SingletonContext, module android.Module) (int, string, bool) {
 	rModule, ok := module.(*Module)
 	if !ok {
 		return 0, "", false
@@ -107,11 +108,11 @@ func appendLibraryAndDeps(ctx android.SingletonContext, project *rustProjectJson
 	}
 	moduleName := ctx.ModuleName(module)
 	crateName := rModule.CrateName()
-	if cInfo, ok := knownCrates[moduleName]; ok {
+	if cInfo, ok := singleton.knownCrates[moduleName]; ok {
 		// We have seen this crate already; merge any new dependencies.
-		crate := project.Crates[cInfo.ID]
-		mergeDependencies(ctx, project, knownCrates, module, &crate, cInfo.Deps)
-		project.Crates[cInfo.ID] = crate
+		crate := singleton.project.Crates[cInfo.ID]
+		singleton.mergeDependencies(ctx, module, &crate, cInfo.Deps)
+		singleton.project.Crates[cInfo.ID] = crate
 		return cInfo.ID, crateName, true
 	}
 	crate := rustProjectCrate{Deps: make([]rustProjectDep, 0), Cfgs: make([]string, 0)}
@@ -123,30 +124,29 @@ func appendLibraryAndDeps(ctx android.SingletonContext, project *rustProjectJson
 	crate.Edition = rustLib.baseCompiler.edition()
 
 	deps := make(map[string]int)
-	mergeDependencies(ctx, project, knownCrates, module, &crate, deps)
+	singleton.mergeDependencies(ctx, module, &crate, deps)
 
-	id := len(project.Crates)
-	knownCrates[moduleName] = crateInfo{ID: id, Deps: deps}
-	project.Crates = append(project.Crates, crate)
+	id := len(singleton.project.Crates)
+	singleton.knownCrates[moduleName] = crateInfo{ID: id, Deps: deps}
+	singleton.project.Crates = append(singleton.project.Crates, crate)
 	// rust-analyzer requires that all crates belong to at least one root:
 	// https://github.com/rust-analyzer/rust-analyzer/issues/4735.
-	project.Roots = append(project.Roots, path.Dir(crate.RootModule))
+	singleton.project.Roots = append(singleton.project.Roots, path.Dir(crate.RootModule))
 	return id, crateName, true
 }
 
-func (r *projectGeneratorSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+func (singleton *projectGeneratorSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	if !ctx.Config().IsEnvTrue(envVariableCollectRustDeps) {
 		return
 	}
 
-	project := rustProjectJson{}
-	knownCrates := make(map[string]crateInfo)
+	singleton.knownCrates = make(map[string]crateInfo)
 	ctx.VisitAllModules(func(module android.Module) {
-		appendLibraryAndDeps(ctx, &project, knownCrates, module)
+		singleton.appendLibraryAndDeps(ctx, module)
 	})
 
 	path := android.PathForOutput(ctx, rustProjectJsonFileName)
-	err := createJsonFile(project, path)
+	err := createJsonFile(singleton.project, path)
 	if err != nil {
 		ctx.Errorf(err.Error())
 	}
