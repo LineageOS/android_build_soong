@@ -435,7 +435,7 @@ type Module interface {
 	HostRequiredModuleNames() []string
 	TargetRequiredModuleNames() []string
 
-	filesToInstall() InstallPaths
+	FilesToInstall() InstallPaths
 }
 
 // Qualified id for a module
@@ -1241,14 +1241,14 @@ func (m *ModuleBase) computeInstallDeps(ctx blueprint.ModuleContext) InstallPath
 	// TODO(ccross): we need to use WalkDeps and have some way to know which dependencies require installation
 	ctx.VisitDepsDepthFirst(func(m blueprint.Module) {
 		if a, ok := m.(Module); ok {
-			result = append(result, a.filesToInstall()...)
+			result = append(result, a.FilesToInstall()...)
 		}
 	})
 
 	return result
 }
 
-func (m *ModuleBase) filesToInstall() InstallPaths {
+func (m *ModuleBase) FilesToInstall() InstallPaths {
 	return m.installFiles
 }
 
