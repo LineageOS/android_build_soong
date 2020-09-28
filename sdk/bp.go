@@ -16,6 +16,8 @@ package sdk
 
 import (
 	"fmt"
+	"reflect"
+	"strings"
 
 	"android/soong/android"
 )
@@ -33,7 +35,82 @@ func (s *bpPropertySet) init() {
 	s.tags = make(map[string]android.BpPropertyTag)
 }
 
+// Converts the given value, which is assumed to be a struct, to a
+// bpPropertySet.
+func convertToPropertySet(value reflect.Value) *bpPropertySet {
+	res := newPropertySet()
+	structType := value.Type()
+
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		fieldVal := value.Field(i)
+
+		switch fieldVal.Type().Kind() {
+		case reflect.Ptr:
+			if fieldVal.IsNil() {
+				continue // nil pointer means the property isn't set.
+			}
+			fieldVal = fieldVal.Elem()
+		case reflect.Slice:
+			if fieldVal.IsNil() {
+				continue // Ignore a nil slice (but not one with length zero).
+			}
+		}
+
+		if fieldVal.Type().Kind() == reflect.Struct {
+			fieldVal = fieldVal.Addr() // Avoid struct copy below.
+		}
+		res.AddProperty(strings.ToLower(field.Name), fieldVal.Interface())
+	}
+
+	return res
+}
+
+// Converts the given value to something that can be set in a property.
+func coercePropertyValue(value interface{}) interface{} {
+	val := reflect.ValueOf(value)
+	switch val.Kind() {
+	case reflect.Struct:
+		// convertToPropertySet requires an addressable struct, and this is probably
+		// a mistake.
+		panic(fmt.Sprintf("Value is a struct, not a pointer to one: %v", value))
+	case reflect.Ptr:
+		if _, ok := value.(*bpPropertySet); !ok {
+			derefValue := reflect.Indirect(val)
+			if derefValue.Kind() != reflect.Struct {
+				panic(fmt.Sprintf("A pointer must be to a struct, got: %v", value))
+			}
+			return convertToPropertySet(derefValue)
+		}
+	}
+	return value
+}
+
+// Merges the fields of the given property set into s.
+func (s *bpPropertySet) mergePropertySet(propSet *bpPropertySet) {
+	for _, name := range propSet.order {
+		if tag, ok := propSet.tags[name]; ok {
+			s.AddPropertyWithTag(name, propSet.properties[name], tag)
+		} else {
+			s.AddProperty(name, propSet.properties[name])
+		}
+	}
+}
+
 func (s *bpPropertySet) AddProperty(name string, value interface{}) {
+	value = coercePropertyValue(value)
+
+	if propSetValue, ok := value.(*bpPropertySet); ok {
+		if curValue, ok := s.properties[name]; ok {
+			if curSet, ok := curValue.(*bpPropertySet); ok {
+				curSet.mergePropertySet(propSetValue)
+				return
+			}
+			// If the current value isn't a property set we got conflicting types.
+			// Continue down to the check below to complain about it.
+		}
+	}
+
 	if s.properties[name] != nil {
 		panic(fmt.Sprintf("Property %q already exists in property set", name))
 	}
@@ -48,9 +125,8 @@ func (s *bpPropertySet) AddPropertyWithTag(name string, value interface{}, tag a
 }
 
 func (s *bpPropertySet) AddPropertySet(name string) android.BpPropertySet {
-	set := newPropertySet()
-	s.AddProperty(name, set)
-	return set
+	s.AddProperty(name, newPropertySet())
+	return s.properties[name].(android.BpPropertySet)
 }
 
 func (s *bpPropertySet) getValue(name string) interface{} {
