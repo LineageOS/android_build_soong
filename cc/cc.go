@@ -100,6 +100,9 @@ type Deps struct {
 	// Used for data dependencies adjacent to tests
 	DataLibs []string
 
+	// Used by DepsMutator to pass system_shared_libs information to check_elf_file.py.
+	SystemSharedLibs []string
+
 	StaticUnwinderIfLegacy bool
 
 	ReexportSharedLibHeaders, ReexportStaticLibHeaders, ReexportHeaderLibHeaders []string
@@ -237,6 +240,9 @@ type BaseProperties struct {
 	HideFromMake              bool     `blueprint:"mutated"`
 	PreventInstall            bool     `blueprint:"mutated"`
 	ApexesProvidingSharedLibs []string `blueprint:"mutated"`
+
+	// Set by DepsMutator.
+	AndroidMkSystemSharedLibs []string `blueprint:"mutated"`
 
 	ImageVariationPrefix string `blueprint:"mutated"`
 	VndkVersion          string `blueprint:"mutated"`
@@ -1838,6 +1844,8 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	ctx.ctx = ctx
 
 	deps := c.deps(ctx)
+
+	c.Properties.AndroidMkSystemSharedLibs = deps.SystemSharedLibs
 
 	variantNdkLibs := []string{}
 	variantLateNdkLibs := []string{}
