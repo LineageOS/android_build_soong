@@ -278,19 +278,19 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			deps.LateStaticLibs = append(deps.LateStaticLibs, "libatomic")
 		}
 
-		systemSharedLibs := linker.Properties.System_shared_libs
-		if systemSharedLibs == nil {
+		deps.SystemSharedLibs = linker.Properties.System_shared_libs
+		if deps.SystemSharedLibs == nil {
 			// Provide a default system_shared_libs if it is unspecified. Note: If an
 			// empty list [] is specified, it implies that the module declines the
 			// default system_shared_libs.
-			systemSharedLibs = []string{"libc", "libm", "libdl"}
+			deps.SystemSharedLibs = []string{"libc", "libm", "libdl"}
 		}
 
 		if inList("libdl", deps.SharedLibs) {
 			// If system_shared_libs has libc but not libdl, make sure shared_libs does not
 			// have libdl to avoid loading libdl before libc.
-			if inList("libc", systemSharedLibs) {
-				if !inList("libdl", systemSharedLibs) {
+			if inList("libc", deps.SystemSharedLibs) {
+				if !inList("libdl", deps.SystemSharedLibs) {
 					ctx.PropertyErrorf("shared_libs",
 						"libdl must be in system_shared_libs, not shared_libs")
 				}
@@ -300,12 +300,12 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 
 		// If libc and libdl are both in system_shared_libs make sure libdl comes after libc
 		// to avoid loading libdl before libc.
-		if inList("libdl", systemSharedLibs) && inList("libc", systemSharedLibs) &&
-			indexList("libdl", systemSharedLibs) < indexList("libc", systemSharedLibs) {
+		if inList("libdl", deps.SystemSharedLibs) && inList("libc", deps.SystemSharedLibs) &&
+			indexList("libdl", deps.SystemSharedLibs) < indexList("libc", deps.SystemSharedLibs) {
 			ctx.PropertyErrorf("system_shared_libs", "libdl must be after libc")
 		}
 
-		deps.LateSharedLibs = append(deps.LateSharedLibs, systemSharedLibs...)
+		deps.LateSharedLibs = append(deps.LateSharedLibs, deps.SystemSharedLibs...)
 	}
 
 	if ctx.Fuchsia() {
