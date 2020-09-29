@@ -1270,3 +1270,49 @@ func newMockParentFactory() Module {
 	})
 	return m
 }
+
+func testVisibilityRuleSet(t *testing.T, rules, extra, expected []string) {
+	t.Helper()
+	set := &visibilityRuleSet{rules}
+	err := set.Widen(extra)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	actual := set.Strings()
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("mismatching rules after extend: expected %#v, actual %#v", expected, actual)
+	}
+}
+
+func TestVisibilityRuleSet(t *testing.T) {
+	t.Run("extend empty", func(t *testing.T) {
+		testVisibilityRuleSet(t, nil, []string{"//foo"}, []string{"//foo"})
+	})
+	t.Run("extend", func(t *testing.T) {
+		testVisibilityRuleSet(t, []string{"//foo"}, []string{"//bar"}, []string{"//bar", "//foo"})
+	})
+	t.Run("extend duplicate", func(t *testing.T) {
+		testVisibilityRuleSet(t, []string{"//foo"}, []string{"//bar", "//foo"}, []string{"//bar", "//foo"})
+	})
+	t.Run("extend public", func(t *testing.T) {
+		testVisibilityRuleSet(t, []string{"//visibility:public"}, []string{"//foo"}, []string{"//visibility:public"})
+	})
+	t.Run("extend private", func(t *testing.T) {
+		testVisibilityRuleSet(t, []string{"//visibility:private"}, []string{"//foo"}, []string{"//foo"})
+	})
+	t.Run("extend with public", func(t *testing.T) {
+		testVisibilityRuleSet(t, []string{"//foo"}, []string{"//visibility:public"}, []string{"//visibility:public"})
+	})
+	t.Run("extend with private", func(t *testing.T) {
+		t.Helper()
+		set := &visibilityRuleSet{[]string{"//foo"}}
+		err := set.Widen([]string{"//visibility:private"})
+		expectedError := `"//visibility:private" does not widen the visibility`
+		if err == nil {
+			t.Errorf("missing error")
+		} else if err.Error() != expectedError {
+			t.Errorf("expected error %q found error %q", expectedError, err)
+		}
+	})
+}
