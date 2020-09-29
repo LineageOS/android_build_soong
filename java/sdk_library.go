@@ -1203,6 +1203,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		Sdk_version                      *string
 		System_modules                   *string
 		Libs                             []string
+		Output_javadoc_comments          *bool
 		Arg_files                        []string
 		Args                             *string
 		Java_version                     *string
@@ -1277,6 +1278,11 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		"Typo",
 	}
 	droidstubsArgs = append(droidstubsArgs, android.JoinWithPrefix(disabledWarnings, "--hide "))
+
+	// Output Javadoc comments for public scope.
+	if apiScope == apiScopePublic {
+		props.Output_javadoc_comments = proptools.BoolPtr(true)
+	}
 
 	// Add in scope specific arguments.
 	droidstubsArgs = append(droidstubsArgs, scopeSpecificDroidstubsArgs...)

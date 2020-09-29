@@ -83,6 +83,13 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 				if len(c.Properties.Logtags) > 0 {
 					entries.AddStrings("LOCAL_LOGTAGS_FILES", c.Properties.Logtags...)
 				}
+				// Note: Pass the exact value of AndroidMkSystemSharedLibs to the Make
+				// world, even if it is an empty list. In the Make world,
+				// LOCAL_SYSTEM_SHARED_LIBRARIES defaults to "none", which is expanded
+				// to the default list of system shared libs by the build system.
+				// Soong computes the exact list of system shared libs, so we have to
+				// override the default value when the list of libs is actually empty.
+				entries.SetString("LOCAL_SYSTEM_SHARED_LIBRARIES", strings.Join(c.Properties.AndroidMkSystemSharedLibs, " "))
 				if len(c.Properties.AndroidMkSharedLibs) > 0 {
 					entries.AddStrings("LOCAL_SHARED_LIBRARIES", c.Properties.AndroidMkSharedLibs...)
 				}

@@ -253,6 +253,10 @@ type DroidstubsProperties struct {
 	// if set to true, allow Metalava to generate doc_stubs source files. Defaults to false.
 	Create_doc_stubs *bool
 
+	// if set to true, cause Metalava to output Javadoc comments in the stubs source files. Defaults to false.
+	// Has no effect if create_doc_stubs: true.
+	Output_javadoc_comments *bool
+
 	// if set to false then do not write out stubs. Defaults to true.
 	//
 	// TODO(b/146727827): Remove capability when we do not need to generate stubs and API separately.
@@ -1150,7 +1154,9 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 			cmd.FlagWithArg("--doc-stubs ", stubsDir.String())
 		} else {
 			cmd.FlagWithArg("--stubs ", stubsDir.String())
-			cmd.Flag("--exclude-documentation-from-stubs")
+			if !Bool(d.properties.Output_javadoc_comments) {
+				cmd.Flag("--exclude-documentation-from-stubs")
+			}
 		}
 	}
 }
