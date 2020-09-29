@@ -139,56 +139,59 @@ func (t sanitizerType) incompatibleWithCfi() bool {
 	return t == asan || t == fuzzer || t == hwasan
 }
 
-type SanitizeProperties struct {
-	// enable AddressSanitizer, ThreadSanitizer, or UndefinedBehaviorSanitizer
-	Sanitize struct {
-		Never *bool `android:"arch_variant"`
+type SanitizeUserProps struct {
+	Never *bool `android:"arch_variant"`
 
-		// main sanitizers
-		Address   *bool `android:"arch_variant"`
-		Thread    *bool `android:"arch_variant"`
-		Hwaddress *bool `android:"arch_variant"`
+	// main sanitizers
+	Address   *bool `android:"arch_variant"`
+	Thread    *bool `android:"arch_variant"`
+	Hwaddress *bool `android:"arch_variant"`
 
-		// local sanitizers
+	// local sanitizers
+	Undefined        *bool    `android:"arch_variant"`
+	All_undefined    *bool    `android:"arch_variant"`
+	Misc_undefined   []string `android:"arch_variant"`
+	Fuzzer           *bool    `android:"arch_variant"`
+	Safestack        *bool    `android:"arch_variant"`
+	Cfi              *bool    `android:"arch_variant"`
+	Integer_overflow *bool    `android:"arch_variant"`
+	Scudo            *bool    `android:"arch_variant"`
+	Scs              *bool    `android:"arch_variant"`
+
+	// A modifier for ASAN and HWASAN for write only instrumentation
+	Writeonly *bool `android:"arch_variant"`
+
+	// Sanitizers to run in the diagnostic mode (as opposed to the release mode).
+	// Replaces abort() on error with a human-readable error message.
+	// Address and Thread sanitizers always run in diagnostic mode.
+	Diag struct {
 		Undefined        *bool    `android:"arch_variant"`
-		All_undefined    *bool    `android:"arch_variant"`
-		Misc_undefined   []string `android:"arch_variant"`
-		Fuzzer           *bool    `android:"arch_variant"`
-		Safestack        *bool    `android:"arch_variant"`
 		Cfi              *bool    `android:"arch_variant"`
 		Integer_overflow *bool    `android:"arch_variant"`
-		Scudo            *bool    `android:"arch_variant"`
-		Scs              *bool    `android:"arch_variant"`
+		Misc_undefined   []string `android:"arch_variant"`
+		No_recover       []string
+	}
 
-		// A modifier for ASAN and HWASAN for write only instrumentation
-		Writeonly *bool `android:"arch_variant"`
+	// value to pass to -fsanitize-recover=
+	Recover []string
 
-		// Sanitizers to run in the diagnostic mode (as opposed to the release mode).
-		// Replaces abort() on error with a human-readable error message.
-		// Address and Thread sanitizers always run in diagnostic mode.
-		Diag struct {
-			Undefined        *bool    `android:"arch_variant"`
-			Cfi              *bool    `android:"arch_variant"`
-			Integer_overflow *bool    `android:"arch_variant"`
-			Misc_undefined   []string `android:"arch_variant"`
-			No_recover       []string
-		}
+	// value to pass to -fsanitize-blacklist
+	Blocklist *string
+}
 
-		// value to pass to -fsanitize-recover=
-		Recover []string
-
-		// value to pass to -fsanitize-blacklist
-		Blocklist *string
-	} `android:"arch_variant"`
-
-	SanitizerEnabled  bool     `blueprint:"mutated"`
-	SanitizeDep       bool     `blueprint:"mutated"`
-	MinimalRuntimeDep bool     `blueprint:"mutated"`
-	BuiltinsDep       bool     `blueprint:"mutated"`
-	UbsanRuntimeDep   bool     `blueprint:"mutated"`
-	InSanitizerDir    bool     `blueprint:"mutated"`
-	Sanitizers        []string `blueprint:"mutated"`
-	DiagSanitizers    []string `blueprint:"mutated"`
+type SanitizeProperties struct {
+	// Enable AddressSanitizer, ThreadSanitizer, UndefinedBehaviorSanitizer, and
+	// others. Please see SanitizerUserProps in build/soong/cc/sanitize.go for
+	// details.
+	Sanitize          SanitizeUserProps `android:"arch_variant"`
+	SanitizerEnabled  bool              `blueprint:"mutated"`
+	SanitizeDep       bool              `blueprint:"mutated"`
+	MinimalRuntimeDep bool              `blueprint:"mutated"`
+	BuiltinsDep       bool              `blueprint:"mutated"`
+	UbsanRuntimeDep   bool              `blueprint:"mutated"`
+	InSanitizerDir    bool              `blueprint:"mutated"`
+	Sanitizers        []string          `blueprint:"mutated"`
+	DiagSanitizers    []string          `blueprint:"mutated"`
 }
 
 type sanitize struct {
