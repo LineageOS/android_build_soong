@@ -292,9 +292,9 @@ func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, b
 		outputProperties.AddProperty(property, includeDirs[property])
 	}
 
-	if len(libInfo.StubsVersion) > 0 {
+	if len(libInfo.StubsVersions) > 0 {
 		stubsSet := outputProperties.AddPropertySet("stubs")
-		stubsSet.AddProperty("versions", []string{libInfo.StubsVersion})
+		stubsSet.AddProperty("versions", libInfo.StubsVersions)
 	}
 }
 
@@ -365,10 +365,10 @@ type nativeLibInfoProperties struct {
 	// The specific stubs version for the lib variant, or empty string if stubs
 	// are not in use.
 	//
-	// Marked 'ignored-on-host' as the StubsVersion() from which this is initialized is
-	// not set on host and the stubs.versions property which this is written to is does
-	// not vary by arch so cannot be android specific.
-	StubsVersion string `sdk:"ignored-on-host"`
+	// Marked 'ignored-on-host' as the AllStubsVersions() from which this is
+	// initialized is not set on host and the stubs.versions property which this
+	// is written to does not vary by arch so cannot be android specific.
+	StubsVersions []string `sdk:"ignored-on-host"`
 
 	// Value of SanitizeProperties.Sanitize. Several - but not all - of these
 	// affect the expanded variants. All are propagated to avoid entangling the
@@ -419,7 +419,11 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 	p.exportedGeneratedHeaders = ccModule.ExportedGeneratedHeaders()
 
 	if ccModule.HasStubsVariants() {
-		p.StubsVersion = ccModule.StubsVersion()
+		// TODO(b/169373910): 1. Only output the specific version (from
+		// ccModule.StubsVersion()) if the module is versioned. 2. Ensure that all
+		// the versioned stub libs are retained in the prebuilt tree; currently only
+		// the stub corresponding to ccModule.StubsVersion() is.
+		p.StubsVersions = ccModule.AllStubsVersions()
 	}
 
 	if ccModule.sanitize != nil {
