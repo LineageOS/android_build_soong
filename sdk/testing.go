@@ -94,6 +94,7 @@ func testSdkContext(bp string, fs map[string][]byte, extraOsTypes []android.OsTy
 
 	// from android package
 	android.RegisterPackageBuildComponents(ctx)
+	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterComponentsMutator)
