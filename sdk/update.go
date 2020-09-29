@@ -1346,7 +1346,8 @@ type isHostVariant interface {
 
 // A property that can be optimized by the commonValueExtractor.
 type extractorProperty struct {
-	// The name of the field for this property.
+	// The name of the field for this property. It is a "."-separated path for
+	// fields in non-anonymous substructs.
 	name string
 
 	// Filter that can use metadata associated with the properties being optimized
@@ -1383,18 +1384,18 @@ type commonValueExtractor struct {
 func newCommonValueExtractor(propertiesStruct interface{}) *commonValueExtractor {
 	structType := getStructValue(reflect.ValueOf(propertiesStruct)).Type()
 	extractor := &commonValueExtractor{}
-	extractor.gatherFields(structType, nil)
+	extractor.gatherFields(structType, nil, "")
 	return extractor
 }
 
 // Gather the fields from the supplied structure type from which common values will
 // be extracted.
 //
-// This is recursive function. If it encounters an embedded field (no field name)
-// that is a struct then it will recurse into that struct passing in the accessor
-// for the field. That will then be used in the accessors for the fields in the
-// embedded struct.
-func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingStructAccessor fieldAccessorFunc) {
+// This is recursive function. If it encounters a struct then it will recurse
+// into it, passing in the accessor for the field and the struct name as prefix
+// for the nested fields. That will then be used in the accessors for the fields
+// in the embedded struct.
+func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingStructAccessor fieldAccessorFunc, namePrefix string) {
 	for f := 0; f < structType.NumField(); f++ {
 		field := structType.Field(f)
 		if field.PkgPath != "" {
@@ -1424,7 +1425,7 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 		// Save a copy of the field index for use in the function.
 		fieldIndex := f
 
-		name := field.Name
+		name := namePrefix + field.Name
 
 		fieldGetter := func(value reflect.Value) reflect.Value {
 			if containingStructAccessor != nil {
@@ -1446,9 +1447,15 @@ func (e *commonValueExtractor) gatherFields(structType reflect.Type, containingS
 			return value.Field(fieldIndex)
 		}
 
-		if field.Type.Kind() == reflect.Struct && field.Anonymous {
-			// Gather fields from the embedded structure.
-			e.gatherFields(field.Type, fieldGetter)
+		if field.Type.Kind() == reflect.Struct {
+			// Gather fields from the nested or embedded structure.
+			var subNamePrefix string
+			if field.Anonymous {
+				subNamePrefix = namePrefix
+			} else {
+				subNamePrefix = name + "."
+			}
+			e.gatherFields(field.Type, fieldGetter, subNamePrefix)
 		} else {
 			property := extractorProperty{
 				name,
@@ -1512,7 +1519,8 @@ func (c dynamicMemberPropertiesContainer) String() string {
 // Iterates over each exported field (capitalized name) and checks to see whether they
 // have the same value (using DeepEquals) across all the input properties. If it does not then no
 // change is made. Otherwise, the common value is stored in the field in the commonProperties
-// and the field in each of the input properties structure is set to its default value.
+// and the field in each of the input properties structure is set to its default value. Nested
+// structs are visited recursively and their non-struct fields are compared.
 func (e *commonValueExtractor) extractCommonProperties(commonProperties interface{}, inputPropertiesSlice interface{}) error {
 	commonPropertiesValue := reflect.ValueOf(commonProperties)
 	commonStructValue := commonPropertiesValue.Elem()
