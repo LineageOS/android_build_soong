@@ -435,8 +435,10 @@ include/Test.h -> include/include/Test.h
 	)
 }
 
-// Verify that when the shared library has some common and some arch specific properties that the generated
-// snapshot is optimized properly.
+// Verify that when the shared library has some common and some arch specific
+// properties that the generated snapshot is optimized properly. Substruct
+// handling is tested with the sanitize clauses (but note there's a lot of
+// built-in logic in sanitize.go that can affect those flags).
 func TestSnapshotWithCcSharedLibraryCommonProperties(t *testing.T) {
 	result := testSdkWithCc(t, `
 		sdk {
@@ -451,9 +453,18 @@ func TestSnapshotWithCcSharedLibraryCommonProperties(t *testing.T) {
 				"aidl/foo/bar/Test.aidl",
 			],
 			export_include_dirs: ["include"],
+			sanitize: {
+				fuzzer: false,
+				integer_overflow: true,
+				diag: { undefined: false },
+			},
 			arch: {
 				arm64: {
 					export_system_include_dirs: ["arm64/include"],
+					sanitize: {
+						hwaddress: true,
+						integer_overflow: false,
+					},
 				},
 			},
 			stl: "none",
@@ -471,13 +482,26 @@ cc_prebuilt_library_shared {
     stl: "none",
     compile_multilib: "both",
     export_include_dirs: ["include/include"],
+    sanitize: {
+        fuzzer: false,
+        diag: {
+            undefined: false,
+        },
+    },
     arch: {
         arm64: {
             srcs: ["arm64/lib/mynativelib.so"],
             export_system_include_dirs: ["arm64/include/arm64/include"],
+            sanitize: {
+                hwaddress: true,
+                integer_overflow: false,
+            },
         },
         arm: {
             srcs: ["arm/lib/mynativelib.so"],
+            sanitize: {
+                integer_overflow: true,
+            },
         },
     },
 }
@@ -488,13 +512,26 @@ cc_prebuilt_library_shared {
     stl: "none",
     compile_multilib: "both",
     export_include_dirs: ["include/include"],
+    sanitize: {
+        fuzzer: false,
+        diag: {
+            undefined: false,
+        },
+    },
     arch: {
         arm64: {
             srcs: ["arm64/lib/mynativelib.so"],
             export_system_include_dirs: ["arm64/include/arm64/include"],
+            sanitize: {
+                hwaddress: true,
+                integer_overflow: false,
+            },
         },
         arm: {
             srcs: ["arm/lib/mynativelib.so"],
+            sanitize: {
+                integer_overflow: true,
+            },
         },
     },
 }
@@ -506,7 +543,7 @@ sdk_snapshot {
 `),
 		checkAllCopyRules(`
 include/Test.h -> include/include/Test.h
-.intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
+.intermediates/mynativelib/android_arm64_armv8-a_shared_hwasan/mynativelib.so -> arm64/lib/mynativelib.so
 arm64/include/Arm64Test.h -> arm64/include/arm64/include/Arm64Test.h
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so`),
 	)
