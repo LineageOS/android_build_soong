@@ -45,8 +45,6 @@ type LTOProperties struct {
 		Thin  *bool `android:"arch_variant"`
 	} `android:"arch_variant"`
 
-	GlobalThin *bool `blueprint:"mutated"`
-
 	// Dep properties indicate that this module needs to be built with LTO
 	// since it is an object dependency of an LTO module.
 	FullDep bool `blueprint:"mutated"`
@@ -71,7 +69,13 @@ func (lto *lto) begin(ctx BaseModuleContext) {
 	if ctx.Config().IsEnvTrue("DISABLE_LTO") {
 		lto.Properties.Lto.Never = boolPtr(true)
 	} else if ctx.Config().IsEnvTrue("GLOBAL_THINLTO") {
-		lto.Properties.GlobalThin = boolPtr(true)
+		staticLib := ctx.static() && !ctx.staticBinary()
+		hostBin := ctx.Host()
+		if !staticLib && !hostBin {
+			if !lto.Never() && !lto.FullLTO() {
+				lto.Properties.Lto.Thin = boolPtr(true)
+			}
+		}
 	}
 }
 
@@ -145,12 +149,6 @@ func (lto *lto) FullLTO() bool {
 }
 
 func (lto *lto) ThinLTO() bool {
-	if Bool(lto.Properties.GlobalThin) {
-		if !lto.Never() && !lto.FullLTO() {
-			return true
-		}
-	}
-
 	return Bool(lto.Properties.Lto.Thin)
 }
 
