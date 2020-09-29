@@ -346,7 +346,7 @@ type libraryDecorator struct {
 	// Location of the file that should be copied to dist dir when requested
 	distFile android.Path
 
-	versionScriptPath android.ModuleGenPath
+	versionScriptPath android.OptionalPath
 
 	post_install_cmds []string
 
@@ -608,7 +608,7 @@ func (library *libraryDecorator) shouldCreateSourceAbiDump(ctx ModuleContext) bo
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
 	if library.buildStubs() {
 		objs, versionScript := compileStubLibrary(ctx, flags, String(library.Properties.Stubs.Symbol_file), library.MutatedProperties.StubsVersion, "--apex")
-		library.versionScriptPath = versionScript
+		library.versionScriptPath = android.OptionalPathForPath(versionScript)
 		return objs
 	}
 
@@ -928,10 +928,10 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 			linkerDeps = append(linkerDeps, forceWeakSymbols.Path())
 		}
 	}
-	if library.buildStubs() {
+	if library.versionScriptPath.Valid() {
 		linkerScriptFlags := "-Wl,--version-script," + library.versionScriptPath.String()
 		flags.Local.LdFlags = append(flags.Local.LdFlags, linkerScriptFlags)
-		linkerDeps = append(linkerDeps, library.versionScriptPath)
+		linkerDeps = append(linkerDeps, library.versionScriptPath.Path())
 	}
 
 	fileName := library.getLibName(ctx) + flags.Toolchain.ShlibSuffix()
@@ -1198,7 +1198,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	}
 
 	if library.buildStubs() {
-		library.reexportFlags("-D" + versioningMacroName(ctx.ModuleName()) + "=" + library.stubsVersion())
+		library.reexportFlags("-D" + versioningMacroName(ctx.baseModuleName()) + "=" + library.stubsVersion())
 	}
 
 	library.flagExporter.setProvider(ctx)
