@@ -589,6 +589,9 @@ type commonToSdkLibraryAndImportProperties struct {
 	// An Android shared library is one that can be referenced in a <uses-library> element
 	// in an AndroidManifest.xml.
 	Shared_library *bool
+
+	// Files containing information about supported java doc tags.
+	Doctag_files []string `android:"path"`
 }
 
 // Common code between sdk library and sdk library import
@@ -600,6 +603,9 @@ type commonToSdkLibraryAndImport struct {
 	namingScheme sdkLibraryComponentNamingScheme
 
 	commonSdkLibraryProperties commonToSdkLibraryAndImportProperties
+
+	// Paths to commonSdkLibraryProperties.Doctag_files
+	doctagPaths android.Paths
 
 	// Functionality related to this being used as a component of a java_sdk_library.
 	EmbeddableSdkLibraryComponent
@@ -631,6 +637,10 @@ func (c *commonToSdkLibraryAndImport) initCommonAfterDefaultsApplied(ctx android
 	}
 
 	return true
+}
+
+func (c *commonToSdkLibraryAndImport) generateCommonBuildActions(ctx android.ModuleContext) {
+	c.doctagPaths = android.PathsForModuleSrc(ctx, c.commonSdkLibraryProperties.Doctag_files)
 }
 
 // Module name of the runtime implementation library
@@ -732,6 +742,14 @@ func (c *commonToSdkLibraryAndImport) commonOutputFiles(tag string) (android.Pat
 		}
 
 	} else {
+		switch tag {
+		case ".doctags":
+			if c.doctagPaths != nil {
+				return c.doctagPaths, nil
+			} else {
+				return nil, fmt.Errorf("no doctag_files specified on %s", c.moduleBase.BaseModuleName())
+			}
+		}
 		return nil, nil
 	}
 }
@@ -1014,6 +1032,8 @@ func (module *SdkLibrary) OutputFiles(tag string) (android.Paths, error) {
 }
 
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	module.generateCommonBuildActions(ctx)
+
 	// Only build an implementation library if required.
 	if module.requiresRuntimeImplementationLibrary() {
 		module.Library.GenerateAndroidBuildActions(ctx)
@@ -1895,6 +1915,8 @@ func (module *SdkLibraryImport) OutputFiles(tag string) (android.Paths, error) {
 }
 
 func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	module.generateCommonBuildActions(ctx)
+
 	// Record the paths to the prebuilt stubs library and stubs source.
 	ctx.VisitDirectDeps(func(to android.Module) {
 		tag := ctx.OtherModuleDependencyTag(to)
@@ -2187,6 +2209,9 @@ type sdkLibrarySdkMemberProperties struct {
 	// True if the java_sdk_library_import is for a shared library, false
 	// otherwise.
 	Shared_library *bool
+
+	// The paths to the doctag files to add to the prebuilt.
+	Doctag_paths android.Paths
 }
 
 type scopeProperties struct {
@@ -2226,6 +2251,7 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 	s.Libs = sdk.properties.Libs
 	s.Naming_scheme = sdk.commonSdkLibraryProperties.Naming_scheme
 	s.Shared_library = proptools.BoolPtr(sdk.sharedLibrary())
+	s.Doctag_paths = sdk.doctagPaths
 }
 
 func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
@@ -2272,6 +2298,16 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 				scopeSet.AddProperty("sdk_version", properties.SdkVersion)
 			}
 		}
+	}
+
+	if len(s.Doctag_paths) > 0 {
+		dests := []string{}
+		for _, p := range s.Doctag_paths {
+			dest := filepath.Join("doctags", p.Rel())
+			ctx.SnapshotBuilder().CopyToSnapshot(p, dest)
+			dests = append(dests, dest)
+		}
+		propertySet.AddProperty("doctag_files", dests)
 	}
 
 	if len(s.Libs) > 0 {
