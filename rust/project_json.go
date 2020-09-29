@@ -75,6 +75,32 @@ func init() {
 	android.RegisterSingletonType("rust_project_generator", rustProjectGeneratorSingleton)
 }
 
+// librarySource finds the main source file (.rs) for a crate.
+func librarySource(ctx android.SingletonContext, rModule *Module, rustLib *libraryDecorator) (string, bool) {
+	srcs := rustLib.baseCompiler.Properties.Srcs
+	if len(srcs) != 0 {
+		return path.Join(ctx.ModuleDir(rModule), srcs[0]), true
+	}
+	if !rustLib.source() {
+		return "", false
+	}
+	// It is a SourceProvider module. If this module is host only, uses the variation for the host.
+	// Otherwise, use the variation for the primary target.
+	switch rModule.hod {
+	case android.HostSupported:
+	case android.HostSupportedNoCross:
+		if rModule.Target().String() != ctx.Config().BuildOSTarget.String() {
+			return "", false
+		}
+	default:
+		if rModule.Target().String() != ctx.Config().Targets[android.Android][0].String() {
+			return "", false
+		}
+	}
+	src := rustLib.sourceProvider.Srcs()[0]
+	return src.String(), true
+}
+
 func (singleton *projectGeneratorSingleton) mergeDependencies(ctx android.SingletonContext,
 	module android.Module, crate *rustProjectCrate, deps map[string]int) {
 
@@ -116,11 +142,11 @@ func (singleton *projectGeneratorSingleton) appendLibraryAndDeps(ctx android.Sin
 		return cInfo.ID, crateName, true
 	}
 	crate := rustProjectCrate{Deps: make([]rustProjectDep, 0), Cfgs: make([]string, 0)}
-	srcs := rustLib.baseCompiler.Properties.Srcs
-	if len(srcs) == 0 {
+	rootModule, ok := librarySource(ctx, rModule, rustLib)
+	if !ok {
 		return 0, "", false
 	}
-	crate.RootModule = path.Join(ctx.ModuleDir(rModule), srcs[0])
+	crate.RootModule = rootModule
 	crate.Edition = rustLib.baseCompiler.edition()
 
 	deps := make(map[string]int)
