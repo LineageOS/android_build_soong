@@ -85,6 +85,8 @@ type config struct {
 	// Only available on configs created by TestConfig
 	TestProductVariables *productVariables
 
+	BazelContext BazelContext
+
 	PrimaryBuilder           string
 	ConfigFileName           string
 	ProductVariablesFileName string
@@ -248,6 +250,8 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		// Set testAllowNonExistentPaths so that test contexts don't need to specify every path
 		// passed to PathForSource or PathForModuleSrc.
 		testAllowNonExistentPaths: true,
+
+		BazelContext: noopBazelContext{},
 	}
 	config.deviceConfig = &deviceConfig{
 		config: config,
@@ -322,6 +326,20 @@ func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[st
 	config.TestProductVariables.DeviceSecondaryArchVariant = proptools.StringPtr("armv7-a-neon")
 
 	return testConfig
+}
+
+// Returns a config object which is "reset" for another bootstrap run.
+// Only per-run data is reset. Data which needs to persist across multiple
+// runs in the same program execution is carried over (such as Bazel context
+// or environment deps).
+func ConfigForAdditionalRun(c Config) (Config, error) {
+	newConfig, err := NewConfig(c.srcDir, c.buildDir, c.moduleListFile)
+	if err != nil {
+		return Config{}, err
+	}
+	newConfig.BazelContext = c.BazelContext
+	newConfig.envDeps = c.envDeps
+	return newConfig, nil
 }
 
 // New creates a new Config object.  The srcDir argument specifies the path to
@@ -425,6 +443,10 @@ func NewConfig(srcDir, buildDir string, moduleListFile string) (Config, error) {
 		Bool(config.productVariables.GcovCoverage) ||
 			Bool(config.productVariables.ClangCoverage))
 
+	config.BazelContext, err = NewBazelContext(config)
+	if err != nil {
+		return Config{}, err
+	}
 	return Config{config}, nil
 }
 
