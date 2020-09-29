@@ -128,13 +128,3 @@ func DumpRBEMetrics(ctx Context, config Config, filename string) {
 		ctx.Fatalf("failed to copy %q to %q: %v\n", metricsFile, filename, err)
 	}
 }
-
-// PrintGomaDeprecation prints a PSA on the deprecation of Goma if it is set for the build.
-func PrintGomaDeprecation(ctx Context, config Config) {
-	if config.UseGoma() {
-		fmt.Fprintln(ctx.Writer, "")
-		fmt.Fprintln(ctx.Writer, "Goma for Android is being deprecated and replaced with RBE.")
-		fmt.Fprintln(ctx.Writer, "See go/goma_android_deprecation for more details.")
-		fmt.Fprintln(ctx.Writer, "")
-	}
-}

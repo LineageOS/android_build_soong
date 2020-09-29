@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"android/soong/shared"
+
 	"github.com/golang/protobuf/proto"
 
 	smpb "android/soong/ui/metrics/metrics_proto"
@@ -184,6 +185,17 @@ func NewConfig(ctx Context, args ...string) Config {
 		// Only set in multiproduct_kati after config generation
 		"EMPTY_NINJA_FILE",
 	)
+
+	if ret.UseGoma() {
+		ctx.Println("Goma for Android is being deprecated and replaced with RBE. See go/rbe_for_android for instructions on how to use RBE.")
+		ctx.Println()
+		ctx.Println("See go/goma_android_exceptions for exceptions.")
+		ctx.Fatalln("USE_GOMA flag is no longer supported.")
+	}
+
+	if ret.ForceUseGoma() {
+		ret.environ.Set("USE_GOMA", "true")
+	}
 
 	// Tell python not to spam the source tree with .pyc files.
 	ret.environ.Set("PYTHONDONTWRITEBYTECODE", "1")
@@ -778,6 +790,18 @@ func (c *configImpl) HighmemParallel() int {
 
 func (c *configImpl) TotalRAM() uint64 {
 	return c.totalRAM
+}
+
+// ForceUseGoma determines whether we should override Goma deprecation
+// and use Goma for the current build or not.
+func (c *configImpl) ForceUseGoma() bool {
+	if v, ok := c.environ.Get("FORCE_USE_GOMA"); ok {
+		v = strings.TrimSpace(v)
+		if v != "" && v != "false" {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *configImpl) UseGoma() bool {
