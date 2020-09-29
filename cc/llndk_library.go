@@ -19,13 +19,9 @@ import (
 	"strings"
 
 	"android/soong/android"
-
-	"github.com/google/blueprint"
 )
 
-var llndkImplDep = struct {
-	blueprint.DependencyTag
-}{}
+var llndkImplDep = dependencyTag{name: "llndk impl"}
 
 var (
 	llndkLibrarySuffix = ".llndk"
@@ -180,6 +176,12 @@ func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDe
 func (stub *llndkStubDecorator) nativeCoverage() bool {
 	return false
 }
+
+func (stub *llndkStubDecorator) buildStubs() bool {
+	return true
+}
+
+func (stub *llndkStubDecorator) setBuildStubs() {}
 
 func NewLLndkStubLibrary() *Module {
 	module, library := NewLibrary(android.DeviceSupported)
