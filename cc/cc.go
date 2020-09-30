@@ -45,7 +45,6 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("sdk", sdkMutator).Parallel()
 		ctx.BottomUp("vndk", VndkMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
-		ctx.BottomUp("ndk_api", NdkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", TestPerSrcMutator).Parallel()
 		ctx.BottomUp("version_selector", versionSelectorMutator).Parallel()
 		ctx.BottomUp("version", versionMutator).Parallel()
@@ -1688,7 +1687,7 @@ func GetCrtVariations(ctx android.BottomUpMutatorContext,
 	if m.UseSdk() {
 		return []blueprint.Variation{
 			{Mutator: "sdk", Variation: "sdk"},
-			{Mutator: "ndk_api", Variation: m.SdkVersion()},
+			{Mutator: "version", Variation: m.SdkVersion()},
 		}
 	}
 	return []blueprint.Variation{
@@ -1954,11 +1953,10 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		actx.AddDependency(c, depTag, gen)
 	}
 
-	actx.AddVariationDependencies(nil, objDepTag, deps.ObjFiles...)
-
 	vendorSnapshotObjects := vendorSnapshotObjects(actx.Config())
 
 	crtVariations := GetCrtVariations(ctx, c)
+	actx.AddVariationDependencies(crtVariations, objDepTag, deps.ObjFiles...)
 	if deps.CrtBegin != "" {
 		actx.AddVariationDependencies(crtVariations, CrtBeginDepTag,
 			rewriteSnapshotLibs(deps.CrtBegin, vendorSnapshotObjects))

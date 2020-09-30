@@ -1611,6 +1611,21 @@ func createVersionVariations(mctx android.BottomUpMutatorContext, versions []str
 	mctx.CreateAliasVariation("latest", latestVersion)
 }
 
+func createPerApiVersionVariations(mctx android.BottomUpMutatorContext, minSdkVersion string) {
+	from, err := nativeApiLevelFromUser(mctx, minSdkVersion)
+	if err != nil {
+		mctx.PropertyErrorf("min_sdk_version", err.Error())
+		return
+	}
+
+	versionStrs := ndkLibraryVersions(mctx, from)
+	modules := mctx.CreateLocalVariations(versionStrs...)
+
+	for i, module := range modules {
+		module.(*Module).Properties.Sdk_version = StringPtr(versionStrs[i])
+	}
+}
+
 func CanBeOrLinkAgainstVersionVariants(module interface {
 	Host() bool
 	InRamdisk() bool
@@ -1646,6 +1661,23 @@ func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
 				}
 				return
 			}
+
+			if compiler, ok := c.linker.(*stubDecorator); ok {
+				if mctx.Os() != android.Android {
+					// These modules are always android.DeviceEnabled only, but
+					// those include Fuchsia devices, which we don't support.
+					mctx.Module().Disable()
+					return
+				}
+				firstVersion, err := nativeApiLevelFromUser(mctx,
+					String(compiler.properties.First_version))
+				if err != nil {
+					mctx.PropertyErrorf("first_version", err.Error())
+					return
+				}
+				c.SetAllStubsVersions(ndkLibraryVersions(mctx, firstVersion))
+				return
+			}
 		}
 
 		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 && !library.UseSdk() {
@@ -1659,7 +1691,6 @@ func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
 			library.SetAllStubsVersions(versions)
 			return
 		}
-
 	}
 }
 
@@ -1668,6 +1699,16 @@ func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
 func versionMutator(mctx android.BottomUpMutatorContext) {
 	if library, ok := mctx.Module().(LinkableInterface); ok && CanBeVersionVariant(library) {
 		createVersionVariations(mctx, library.AllStubsVersions())
+		return
+	}
+
+	if m, ok := mctx.Module().(*Module); ok {
+		if m.SplitPerApiLevel() && m.IsSdkVariant() {
+			if mctx.Os() != android.Android {
+				return
+			}
+			createPerApiVersionVariations(mctx, m.MinSdkVersion())
+		}
 	}
 }
 

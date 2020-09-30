@@ -118,53 +118,6 @@ func ndkLibraryVersions(ctx android.BottomUpMutatorContext, from android.ApiLeve
 	return versionStrs
 }
 
-func generatePerApiVariants(ctx android.BottomUpMutatorContext,
-	from android.ApiLevel, perSplit func(*Module, android.ApiLevel)) {
-
-	versionStrs := ndkLibraryVersions(ctx, from)
-	modules := ctx.CreateVariations(versionStrs...)
-
-	for i, module := range modules {
-		perSplit(module.(*Module), android.ApiLevelOrPanic(ctx, versionStrs[i]))
-
-	}
-}
-
-func NdkApiMutator(ctx android.BottomUpMutatorContext) {
-	if m, ok := ctx.Module().(*Module); ok {
-		if m.Enabled() {
-			if compiler, ok := m.compiler.(*stubDecorator); ok {
-				if ctx.Os() != android.Android {
-					// These modules are always android.DeviceEnabled only, but
-					// those include Fuchsia devices, which we don't support.
-					ctx.Module().Disable()
-					return
-				}
-				firstVersion, err := nativeApiLevelFromUser(ctx,
-					String(compiler.properties.First_version))
-				if err != nil {
-					ctx.PropertyErrorf("first_version", err.Error())
-					return
-				}
-				m.SetAllStubsVersions(ndkLibraryVersions(ctx, firstVersion))
-			} else if m.SplitPerApiLevel() && m.IsSdkVariant() {
-				if ctx.Os() != android.Android {
-					return
-				}
-				from, err := nativeApiLevelFromUser(ctx, m.MinSdkVersion())
-				if err != nil {
-					ctx.PropertyErrorf("min_sdk_version", err.Error())
-					return
-				}
-				generatePerApiVariants(ctx, from,
-					func(m *Module, version android.ApiLevel) {
-						m.Properties.Sdk_version = StringPtr(version.String())
-					})
-			}
-		}
-	}
-}
-
 func (this *stubDecorator) initializeProperties(ctx BaseModuleContext) bool {
 	this.apiLevel = nativeApiLevelOrPanic(ctx, this.stubsVersion())
 
