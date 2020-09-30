@@ -997,11 +997,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 
 	deps := mod.deps(ctx)
-	commonDepVariations := []blueprint.Variation{}
-	if cc.VersionVariantAvailable(mod) {
-		commonDepVariations = append(commonDepVariations,
-			blueprint.Variation{Mutator: "version", Variation: ""})
-	}
+	var commonDepVariations []blueprint.Variation
 	if !mod.Host() {
 		commonDepVariations = append(commonDepVariations,
 			blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
