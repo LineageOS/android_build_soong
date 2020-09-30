@@ -173,7 +173,6 @@ func main() {
 	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
 	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
 	defer build.UploadMetrics(buildCtx, config, c.forceDumbOutput, buildStarted, buildErrorFile, rbeMetricsFile, soongMetricsFile)
-	defer build.PrintGomaDeprecation(buildCtx, config)
 
 	os.MkdirAll(logsDir, 0777)
 	log.SetOutput(filepath.Join(logsDir, c.logsPrefix+"soong.log"))
