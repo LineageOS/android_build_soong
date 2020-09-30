@@ -139,10 +139,11 @@ func TestProjectJsonBindGen(t *testing.T) {
 			t.Fatalf("Unexpected type for root_module: %v", crate["root_module"])
 		}
 		if strings.Contains(rootModule, "libbindings1") && !strings.Contains(rootModule, "android_arm64") {
-			t.Errorf("The source for libbindings1 does not contain android_arm64, got %v", rootModule)
+			t.Errorf("The source path for libbindings1 does not contain android_arm64, got %v", rootModule)
 		}
-		if strings.Contains(rootModule, "libbindings2") && !strings.Contains(rootModule, "linux_glibc") {
-			t.Errorf("The source for libbindings2 does not contain linux_glibc, got %v", rootModule)
+		if strings.Contains(rootModule, "libbindings2") && !strings.Contains(rootModule, android.BuildOs.String()) {
+			t.Errorf("The source path for libbindings2 does not contain the BuildOs, got %v; want %v",
+				rootModule, android.BuildOs.String())
 		}
 	}
 }
