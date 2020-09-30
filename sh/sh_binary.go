@@ -313,6 +313,15 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		options := []tradefed.Option{{Name: "force-root", Value: "false"}}
 		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", options})
 	}
+	if len(s.testProperties.Data_device_bins) > 0 {
+		moduleName := s.Name()
+		remoteDir := "/data/local/tests/unrestricted/" + moduleName + "/"
+		options := []tradefed.Option{{Name: "cleanup", Value: "true"}}
+		for _, bin := range s.testProperties.Data_device_bins {
+			options = append(options, tradefed.Option{Name: "push-file", Key: bin, Value: remoteDir + bin})
+		}
+		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.PushFilePreparer", options})
+	}
 	s.testConfig = tradefed.AutoGenShellTestConfig(ctx, s.testProperties.Test_config,
 		s.testProperties.Test_config_template, s.testProperties.Test_suites, configs, s.testProperties.Auto_gen_config, s.outputFilePath.Base())
 

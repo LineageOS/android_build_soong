@@ -1498,6 +1498,12 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 	for i, target := range targets {
+		if target.HostCross {
+			// Don't include artifats for the host cross targets because there is no way
+			// for us to run those artifacts natively on host
+			continue
+		}
+
 		// When multilib.* is omitted for native_shared_libs/jni_libs/tests, it implies
 		// multilib.both
 		addDependenciesForNativeModules(ctx,

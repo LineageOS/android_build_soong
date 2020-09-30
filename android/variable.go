@@ -365,12 +365,12 @@ func (v *productVariables) SetDefaultConfig() {
 	*v = productVariables{
 		BuildNumberFile: stringPtr("build_number.txt"),
 
-		Platform_version_name:             stringPtr("Q"),
-		Platform_sdk_version:              intPtr(28),
-		Platform_sdk_codename:             stringPtr("Q"),
+		Platform_version_name:             stringPtr("S"),
+		Platform_sdk_version:              intPtr(30),
+		Platform_sdk_codename:             stringPtr("S"),
 		Platform_sdk_final:                boolPtr(false),
-		Platform_version_active_codenames: []string{"Q"},
-		Platform_vndk_version:             stringPtr("Q"),
+		Platform_version_active_codenames: []string{"S"},
+		Platform_vndk_version:             stringPtr("S"),
 
 		HostArch:                   stringPtr("x86_64"),
 		HostSecondaryArch:          stringPtr("x86"),

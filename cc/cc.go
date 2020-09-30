@@ -2473,7 +2473,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 				// when to use (unspecified) stubs, check min_sdk_version and choose the right one
 				if useThisDep && depIsStubs && !libDepTag.explicitlyVersioned {
-					versionToUse, err := c.ChooseSdkVersion(ccDep.StubsVersions(), c.apexSdkVersion.FinalOrFutureInt())
+					versionToUse, err := c.ChooseSdkVersion(ctx, ccDep.StubsVersions(), c.apexSdkVersion)
 					if err != nil {
 						ctx.OtherModuleErrorf(dep, err.Error())
 						return
@@ -2496,7 +2496,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// if this is for use_vendor apex && dep has stubsVersions
 						// apply the same rule of apex sdk enforcement to choose right version
 						var err error
-						versionToUse, err = c.ChooseSdkVersion(versions, c.apexSdkVersion.FinalOrFutureInt())
+						versionToUse, err = c.ChooseSdkVersion(ctx, versions, c.apexSdkVersion)
 						if err != nil {
 							ctx.OtherModuleErrorf(dep, err.Error())
 							return
@@ -2567,17 +2567,20 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					// in the context of proper cc.Modules.
 					if ccWholeStaticLib, ok := ccDep.(*Module); ok {
 						staticLib := ccWholeStaticLib.linker.(libraryInterface)
-						if missingDeps := staticLib.getWholeStaticMissingDeps(); missingDeps != nil {
-							postfix := " (required by " + ctx.OtherModuleName(dep) + ")"
-							for i := range missingDeps {
-								missingDeps[i] += postfix
-							}
-							ctx.AddMissingDependencies(missingDeps)
-						}
-						if _, ok := ccWholeStaticLib.linker.(prebuiltLinkerInterface); ok {
-							depPaths.WholeStaticLibsFromPrebuilts = append(depPaths.WholeStaticLibsFromPrebuilts, linkFile.Path())
+						if objs := staticLib.objs(); len(objs.objFiles) > 0 {
+							depPaths.WholeStaticLibObjs = depPaths.WholeStaticLibObjs.Append(objs)
 						} else {
-							depPaths.WholeStaticLibObjs = depPaths.WholeStaticLibObjs.Append(staticLib.objs())
+							// This case normally catches prebuilt static
+							// libraries, but it can also occur when
+							// AllowMissingDependencies is on and the
+							// dependencies has no sources of its own
+							// but has a whole_static_libs dependency
+							// on a missing library.  We want to depend
+							// on the .a file so that there is something
+							// in the dependency tree that contains the
+							// error rule for the missing transitive
+							// dependency.
+							depPaths.WholeStaticLibsFromPrebuilts = append(depPaths.WholeStaticLibsFromPrebuilts, linkFile.Path())
 						}
 					} else {
 						ctx.ModuleErrorf(

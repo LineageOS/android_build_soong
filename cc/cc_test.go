@@ -3780,3 +3780,46 @@ func TestProductVariableDefaults(t *testing.T) {
 		t.Errorf("expected -DBAR in cppflags, got %q", libfoo.flags.Local.CppFlags)
 	}
 }
+
+func TestEmptyWholeStaticLibsAllowMissingDependencies(t *testing.T) {
+	t.Parallel()
+	bp := `
+		cc_library_static {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			whole_static_libs: ["libbar"],
+		}
+
+		cc_library_static {
+			name: "libbar",
+			whole_static_libs: ["libmissing"],
+		}
+	`
+
+	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config.TestProductVariables.Allow_missing_dependencies = BoolPtr(true)
+
+	ctx := CreateTestContext()
+	ctx.SetAllowMissingDependencies(true)
+	ctx.Register(config)
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	android.FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	android.FailIfErrored(t, errs)
+
+	libbar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_static").Output("libbar.a")
+	if g, w := libbar.Rule, android.ErrorRule; g != w {
+		t.Fatalf("Expected libbar rule to be %q, got %q", w, g)
+	}
+
+	if g, w := libbar.Args["error"], "missing dependencies: libmissing"; !strings.Contains(g, w) {
+		t.Errorf("Expected libbar error to contain %q, was %q", w, g)
+	}
+
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static").Output("libfoo.a")
+	if g, w := libfoo.Inputs.Strings(), libbar.Output.String(); !android.InList(w, g) {
+		t.Errorf("Expected libfoo.a to depend on %q, got %q", w, g)
+	}
+
+}
