@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"android/soong/android"
@@ -100,14 +101,26 @@ func TestProjectJsonBindGen(t *testing.T) {
 	rust_library {
 		name: "liba",
 		srcs: ["src/lib.rs"],
-		rlibs: ["libbindings"],
+		rlibs: ["libbindings1"],
 		crate_name: "a"
 	}
 	rust_bindgen {
-		name: "libbindings",
-		crate_name: "bindings",
-		source_stem: "bindings",
+		name: "libbindings1",
+		crate_name: "bindings1",
+		source_stem: "bindings1",
 		host_supported: true,
+		wrapper_src: "src/any.h",
+	}
+	rust_library_host {
+		name: "libb",
+		srcs: ["src/lib.rs"],
+		rustlibs: ["libbindings2"],
+		crate_name: "b"
+	}
+	rust_bindgen_host {
+		name: "libbindings2",
+		crate_name: "bindings2",
+		source_stem: "bindings2",
 		wrapper_src: "src/any.h",
 	}
 	` + GatherRequiredDepsForTest()
@@ -115,7 +128,23 @@ func TestProjectJsonBindGen(t *testing.T) {
 		"src/lib.rs": nil,
 	}
 	jsonContent := testProjectJson(t, bp, fs)
-	validateJsonCrates(t, jsonContent)
+	crates := validateJsonCrates(t, jsonContent)
+	for _, c := range crates {
+		crate, ok := c.(map[string]interface{})
+		if !ok {
+			t.Fatalf("Unexpected type for crate: %v", c)
+		}
+		rootModule, ok := crate["root_module"].(string)
+		if !ok {
+			t.Fatalf("Unexpected type for root_module: %v", crate["root_module"])
+		}
+		if strings.Contains(rootModule, "libbindings1") && !strings.Contains(rootModule, "android_arm64") {
+			t.Errorf("The source for libbindings1 does not contain android_arm64, got %v", rootModule)
+		}
+		if strings.Contains(rootModule, "libbindings2") && !strings.Contains(rootModule, "linux_glibc") {
+			t.Errorf("The source for libbindings2 does not contain linux_glibc, got %v", rootModule)
+		}
+	}
 }
 
 func TestProjectJsonMultiVersion(t *testing.T) {
