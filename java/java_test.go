@@ -1303,6 +1303,12 @@ func TestJavaSdkLibrary(t *testing.T) {
 			libs: ["foo"],
 			sdk_version: "system_29",
 		}
+		java_library {
+			name: "baz-module-30",
+			srcs: ["c.java"],
+			libs: ["foo"],
+			sdk_version: "module_30",
+		}
 		`)
 
 	// check the existence of the internal modules
@@ -1347,6 +1353,13 @@ func TestJavaSdkLibrary(t *testing.T) {
 	if !strings.Contains(baz29Javac.Args["classpath"], "prebuilts/sdk/29/system/foo.jar") {
 		t.Errorf("baz-29 javac classpath %v does not contain %q", baz29Javac.Args["classpath"],
 			"prebuilts/sdk/29/system/foo.jar")
+	}
+
+	bazModule30Javac := ctx.ModuleForTests("baz-module-30", "android_common").Rule("javac")
+	// tests if "baz-module-30" is actually linked to the module 30 stubs lib
+	if !strings.Contains(bazModule30Javac.Args["classpath"], "prebuilts/sdk/30/module-lib/foo.jar") {
+		t.Errorf("baz-module-30 javac classpath %v does not contain %q", bazModule30Javac.Args["classpath"],
+			"prebuilts/sdk/30/module-lib/foo.jar")
 	}
 
 	// test if baz has exported SDK lib names foo and bar to qux

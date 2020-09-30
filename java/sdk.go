@@ -215,7 +215,7 @@ func (s sdkSpec) usePrebuilt(ctx android.EarlyModuleContext) bool {
 		return ctx.Config().UnbundledBuildUsePrebuiltSdks()
 	} else if s.version.isNumbered() {
 		// sanity check
-		if s.kind != sdkPublic && s.kind != sdkSystem && s.kind != sdkTest {
+		if s.kind != sdkPublic && s.kind != sdkSystem && s.kind != sdkTest && s.kind != sdkModule {
 			panic(fmt.Errorf("prebuilt SDK is not not available for sdkKind=%q", s.kind))
 			return false
 		}
