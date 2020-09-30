@@ -355,6 +355,8 @@ type libraryDecorator struct {
 	useCoreVariant       bool
 	checkSameCoreVariant bool
 
+	skipAPIDefine bool
+
 	// Decorated interfaces
 	*baseCompiler
 	*baseLinker
@@ -1197,7 +1199,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 		library.addExportedGeneratedHeaders(library.baseCompiler.pathDeps...)
 	}
 
-	if library.buildStubs() {
+	if library.buildStubs() && !library.skipAPIDefine {
 		library.reexportFlags("-D" + versioningMacroName(ctx.baseModuleName()) + "=" + library.stubsVersion())
 	}
 
@@ -1613,16 +1615,14 @@ func CanBeOrLinkAgainstVersionVariants(module interface {
 	Host() bool
 	InRamdisk() bool
 	InRecovery() bool
-	UseSdk() bool
 }) bool {
-	return !module.Host() && !module.InRamdisk() && !module.InRecovery() && !module.UseSdk()
+	return !module.Host() && !module.InRamdisk() && !module.InRecovery()
 }
 
 func CanBeVersionVariant(module interface {
 	Host() bool
 	InRamdisk() bool
 	InRecovery() bool
-	UseSdk() bool
 	CcLibraryInterface() bool
 	Shared() bool
 	Static() bool
@@ -1648,7 +1648,7 @@ func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
 			}
 		}
 
-		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 {
+		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 && !library.UseSdk() {
 			versions := library.StubsVersions()
 			normalizeVersions(mctx, versions)
 			if mctx.Failed() {
