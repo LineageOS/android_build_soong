@@ -762,6 +762,13 @@ func cflags(ctx variableAssignmentContext) error {
 	return includeVariableNow(bpVariable{"cflags", bpparser.ListType}, ctx)
 }
 
+func exportCflags(ctx variableAssignmentContext) error {
+	// The Soong replacement for EXPORT_CFLAGS doesn't need the same extra escaped quotes that were present in Make
+	ctx.mkvalue = ctx.mkvalue.Clone()
+	ctx.mkvalue.ReplaceLiteral(`\"`, `"`)
+	return includeVariableNow(bpVariable{"export_cflags", bpparser.ListType}, ctx)
+}
+
 func protoOutputParams(ctx variableAssignmentContext) error {
 	// The Soong replacement for LOCAL_PROTO_JAVA_OUTPUT_PARAMS doesn't need ","
 	ctx.mkvalue = ctx.mkvalue.Clone()
