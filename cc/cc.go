@@ -697,6 +697,9 @@ func (c *Module) MinSdkVersion() string {
 }
 
 func (c *Module) SplitPerApiLevel() bool {
+	if !c.canUseSdk() {
+		return false
+	}
 	if linker, ok := c.linker.(*objectLinker); ok {
 		return linker.isCrt()
 	}
@@ -1026,7 +1029,7 @@ func (c *Module) canUseSdk() bool {
 
 func (c *Module) UseSdk() bool {
 	if c.canUseSdk() {
-		return String(c.Properties.Sdk_version) != "" || c.SplitPerApiLevel()
+		return String(c.Properties.Sdk_version) != ""
 	}
 	return false
 }

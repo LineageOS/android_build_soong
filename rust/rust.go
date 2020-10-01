@@ -221,6 +221,10 @@ func (mod *Module) IsSdkVariant() bool {
 	return false
 }
 
+func (mod *Module) SplitPerApiLevel() bool {
+	return false
+}
+
 func (mod *Module) ToolchainLibrary() bool {
 	return false
 }
