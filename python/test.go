@@ -34,6 +34,10 @@ type TestProperties struct {
 	// the name of the test configuration template (for example "AndroidTestTemplate.xml") that
 	// should be installed with the module.
 	Test_config_template *string `android:"path,arch_variant"`
+
+	// list of files or filegroup modules that provide data that should be installed alongside
+	// the test
+	Data []string `android:"path,arch_variant"`
 }
 
 type testDecorator struct {
@@ -42,6 +46,8 @@ type testDecorator struct {
 	testProperties TestProperties
 
 	testConfig android.Path
+
+	data []android.DataPath
 }
 
 func (test *testDecorator) bootstrapperProps() []interface{} {
@@ -59,6 +65,12 @@ func (test *testDecorator) install(ctx android.ModuleContext, file android.Path)
 	test.binaryDecorator.pythonInstaller.relative = ctx.ModuleName()
 
 	test.binaryDecorator.pythonInstaller.install(ctx, file)
+
+	dataSrcPaths := android.PathsForModuleSrc(ctx, test.testProperties.Data)
+
+	for _, dataSrcPath := range dataSrcPaths {
+		test.data = append(test.data, android.DataPath{SrcPath: dataSrcPath})
+	}
 }
 
 func NewTest(hod android.HostOrDeviceSupported) *Module {
