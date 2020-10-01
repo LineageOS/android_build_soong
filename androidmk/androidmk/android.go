@@ -758,6 +758,13 @@ func cflags(ctx variableAssignmentContext) error {
 	return includeVariableNow(bpVariable{"cflags", bpparser.ListType}, ctx)
 }
 
+func exportCflags(ctx variableAssignmentContext) error {
+	// The Soong replacement for EXPORT_CFLAGS doesn't need the same extra escaped quotes that were present in Make
+	ctx.mkvalue = ctx.mkvalue.Clone()
+	ctx.mkvalue.ReplaceLiteral(`\"`, `"`)
+	return includeVariableNow(bpVariable{"export_cflags", bpparser.ListType}, ctx)
+}
+
 func proguardEnabled(ctx variableAssignmentContext) error {
 	val, err := makeVariableToBlueprint(ctx.file, ctx.mkvalue, bpparser.ListType)
 	if err != nil {
