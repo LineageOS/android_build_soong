@@ -162,6 +162,9 @@ type FlagExporterProperties struct {
 	// using -isystem for this module and any module that links against this module.
 	Export_system_include_dirs []string `android:"arch_variant"`
 
+	// list of plain cc flags to be used for any module that links against this module.
+	Export_cflags []string  `android:"arch_variant"`
+
 	Target struct {
 		Vendor struct {
 			// list of exported include directories, like
@@ -254,6 +257,10 @@ func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
 func (f *flagExporter) exportIncludes(ctx ModuleContext) {
 	f.dirs = append(f.dirs, f.exportedIncludes(ctx)...)
 	f.systemDirs = append(f.systemDirs, android.PathsForModuleSrc(ctx, f.Properties.Export_system_include_dirs)...)
+}
+
+func (f *flagExporter) exportExtraFlags(ctx ModuleContext) {
+	f.flags = append(f.flags, f.Properties.Export_cflags...)
 }
 
 func (f *flagExporter) exportIncludesAsSystem(ctx ModuleContext) {
@@ -1124,6 +1131,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	}
 
 	library.exportIncludes(ctx)
+	library.exportExtraFlags(ctx)
 	library.reexportDirs(deps.ReexportedDirs...)
 	library.reexportSystemDirs(deps.ReexportedSystemDirs...)
 	library.reexportFlags(deps.ReexportedFlags...)
