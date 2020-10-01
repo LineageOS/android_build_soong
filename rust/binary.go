@@ -145,6 +145,9 @@ func (binary *binaryDecorator) autoDep(ctx BaseModuleContext) autoDep {
 	}
 }
 
-func (binary *binaryDecorator) staticStd(ctx *depsContext) bool {
-	return binary.baseCompiler.staticStd(ctx) || Bool(binary.Properties.Prefer_rlib)
+func (binary *binaryDecorator) stdLinkage(ctx *depsContext) RustLinkage {
+	if Bool(binary.Properties.Prefer_rlib) {
+		return RlibLinkage
+	}
+	return binary.baseCompiler.stdLinkage(ctx)
 }
