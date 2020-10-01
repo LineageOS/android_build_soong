@@ -294,7 +294,7 @@ type compiler interface {
 	Disabled() bool
 	SetDisabled()
 
-	staticStd(ctx *depsContext) bool
+	stdLinkage(ctx *depsContext) RustLinkage
 }
 
 type exportedFlagsProducer interface {
@@ -1002,8 +1002,9 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		commonDepVariations = append(commonDepVariations,
 			blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
 	}
+
 	stdLinkage := "dylib-std"
-	if mod.compiler.staticStd(ctx) {
+	if mod.compiler.stdLinkage(ctx) == RlibLinkage {
 		stdLinkage = "rlib-std"
 	}
 
@@ -1035,7 +1036,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		}
 	}
 	if deps.Stdlibs != nil {
-		if mod.compiler.staticStd(ctx) {
+		if mod.compiler.stdLinkage(ctx) == RlibLinkage {
 			actx.AddVariationDependencies(
 				append(commonDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: "rlib"}),
 				rlibDepTag, deps.Stdlibs...)
