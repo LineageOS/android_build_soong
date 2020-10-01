@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -168,6 +169,17 @@ func (stub *llndkStubDecorator) nativeCoverage() bool {
 
 func (stub *llndkStubDecorator) buildStubs() bool {
 	return true
+}
+
+func (stub *llndkStubDecorator) stubsVersions(ctx android.BaseMutatorContext) []string {
+	// Get the versions from the implementation module.
+	impls := ctx.GetDirectDepsWithTag(llndkImplDep)
+	if len(impls) > 1 {
+		panic(fmt.Errorf("Expected single implmenetation library, got %d", len(impls)))
+	} else if len(impls) == 1 {
+		return impls[0].(*Module).AllStubsVersions()
+	}
+	return nil
 }
 
 func NewLLndkStubLibrary() *Module {

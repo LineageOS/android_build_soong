@@ -717,9 +717,9 @@ func (c *Module) AlwaysSdk() bool {
 	return c.Properties.AlwaysSdk || Bool(c.Properties.Sdk_variant_only)
 }
 
-func (c *Module) StubsVersions() []string {
+func (c *Module) StubsVersions(ctx android.BaseMutatorContext) []string {
 	if versioned, ok := c.linker.(versionedInterface); ok {
-		return versioned.stubsVersions()
+		return versioned.stubsVersions(ctx)
 	}
 	panic(fmt.Errorf("StubsVersions called on non-library module: %q", c.BaseModuleName()))
 }

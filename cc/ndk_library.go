@@ -104,7 +104,7 @@ func shouldUseVersionScript(ctx BaseModuleContext, stub *stubDecorator) bool {
 	return stub.apiLevel.GreaterThanOrEqualTo(stub.unversionedUntil)
 }
 
-func ndkLibraryVersions(ctx android.BottomUpMutatorContext, from android.ApiLevel) []string {
+func ndkLibraryVersions(ctx android.BaseMutatorContext, from android.ApiLevel) []string {
 	var versions []android.ApiLevel
 	versionStrs := []string{}
 	for _, version := range ctx.Config().AllSupportedApiLevels() {
@@ -116,6 +116,19 @@ func ndkLibraryVersions(ctx android.BottomUpMutatorContext, from android.ApiLeve
 	versionStrs = append(versionStrs, android.FutureApiLevel.String())
 
 	return versionStrs
+}
+
+func (this *stubDecorator) stubsVersions(ctx android.BaseMutatorContext) []string {
+	if !ctx.Module().Enabled() {
+		return nil
+	}
+	firstVersion, err := nativeApiLevelFromUser(ctx,
+		String(this.properties.First_version))
+	if err != nil {
+		ctx.PropertyErrorf("first_version", err.Error())
+		return nil
+	}
+	return ndkLibraryVersions(ctx, firstVersion)
 }
 
 func (this *stubDecorator) initializeProperties(ctx BaseModuleContext) bool {

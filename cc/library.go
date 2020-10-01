@@ -660,6 +660,8 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 }
 
 type libraryInterface interface {
+	versionedInterface
+
 	static() bool
 	shared() bool
 	objs() Objects
@@ -687,7 +689,7 @@ type versionedInterface interface {
 	setStubsVersion(string)
 	stubsVersion() string
 
-	stubsVersions() []string
+	stubsVersions(ctx android.BaseMutatorContext) []string
 	setAllStubsVersions([]string)
 	allStubsVersions() []string
 }
@@ -1371,7 +1373,7 @@ func (library *libraryDecorator) hasStubsVariants() bool {
 	return len(library.Properties.Stubs.Versions) > 0
 }
 
-func (library *libraryDecorator) stubsVersions() []string {
+func (library *libraryDecorator) stubsVersions(ctx android.BaseMutatorContext) []string {
 	return library.Properties.Stubs.Versions
 }
 
@@ -1650,46 +1652,18 @@ func CanBeVersionVariant(module interface {
 // and propagates the value from implementation libraries to llndk libraries with the same name.
 func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
 	if library, ok := mctx.Module().(LinkableInterface); ok && CanBeVersionVariant(library) {
-		if c, ok := library.(*Module); ok {
-			if _, ok := c.linker.(*llndkStubDecorator); ok {
-				// Get the versions from the implementation module.
-				impls := mctx.GetDirectDepsWithTag(llndkImplDep)
-				if len(impls) > 1 {
-					panic(fmt.Errorf("Expected single implmenetation library, got %d", len(impls)))
-				} else if len(impls) == 1 {
-					c.SetAllStubsVersions(impls[0].(*Module).AllStubsVersions())
-				}
-				return
-			}
-
-			if compiler, ok := c.linker.(*stubDecorator); ok {
-				if mctx.Os() != android.Android {
-					// These modules are always android.DeviceEnabled only, but
-					// those include Fuchsia devices, which we don't support.
-					mctx.Module().Disable()
+		if library.CcLibraryInterface() && library.BuildSharedVariant() {
+			versions := library.StubsVersions(mctx)
+			if len(versions) > 0 {
+				normalizeVersions(mctx, versions)
+				if mctx.Failed() {
 					return
 				}
-				firstVersion, err := nativeApiLevelFromUser(mctx,
-					String(compiler.properties.First_version))
-				if err != nil {
-					mctx.PropertyErrorf("first_version", err.Error())
-					return
-				}
-				c.SetAllStubsVersions(ndkLibraryVersions(mctx, firstVersion))
+				// Set the versions on the pre-mutated module so they can be read by any llndk modules that
+				// depend on the implementation library and haven't been mutated yet.
+				library.SetAllStubsVersions(versions)
 				return
 			}
-		}
-
-		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 && !library.UseSdk() {
-			versions := library.StubsVersions()
-			normalizeVersions(mctx, versions)
-			if mctx.Failed() {
-				return
-			}
-			// Set the versions on the pre-mutated module so they can be read by any llndk modules that
-			// depend on the implementation library and haven't been mutated yet.
-			library.SetAllStubsVersions(versions)
-			return
 		}
 	}
 }
