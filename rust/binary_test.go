@@ -114,6 +114,34 @@ func TestBinaryFlags(t *testing.T) {
 	}
 }
 
+func TestStaticBinaryFlags(t *testing.T) {
+	ctx := testRust(t, `
+		rust_binary {
+			name: "fizz",
+			srcs: ["foo.rs"],
+			static_executable: true,
+		}`)
+
+	fizzOut := ctx.ModuleForTests("fizz", "android_arm64_armv8-a").Output("fizz")
+	fizzMod := ctx.ModuleForTests("fizz", "android_arm64_armv8-a").Module().(*Module)
+
+	flags := fizzOut.Args["rustcFlags"]
+	linkFlags := fizzOut.Args["linkFlags"]
+	if !strings.Contains(flags, "-C relocation-model=static") {
+		t.Errorf("static binary missing '-C relocation-model=static' in rustcFlags, found: %#v", flags)
+	}
+	if !strings.Contains(linkFlags, "-static") {
+		t.Errorf("static binary missing '-static' in linkFlags, found: %#v", flags)
+	}
+
+	if !android.InList("libc", fizzMod.Properties.AndroidMkStaticLibs) {
+		t.Errorf("static binary not linking against libc as a static library")
+	}
+	if len(fizzMod.Properties.AndroidMkSharedLibs) > 0 {
+		t.Errorf("static binary incorrectly linking against shared libraries")
+	}
+}
+
 func TestLinkObjects(t *testing.T) {
 	ctx := testRust(t, `
 		rust_binary {
