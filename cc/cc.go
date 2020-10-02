@@ -740,6 +740,9 @@ func (c *Module) StubsVersions() []string {
 		if library, ok := c.linker.(*libraryDecorator); ok {
 			return library.Properties.Stubs.Versions
 		}
+		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
+			return library.Properties.Stubs.Versions
+		}
 	}
 	panic(fmt.Errorf("StubsVersions called on non-library module: %q", c.BaseModuleName()))
 }
@@ -747,6 +750,9 @@ func (c *Module) StubsVersions() []string {
 func (c *Module) CcLibrary() bool {
 	if c.linker != nil {
 		if _, ok := c.linker.(*libraryDecorator); ok {
+			return true
+		}
+		if _, ok := c.linker.(*prebuiltLibraryLinker); ok {
 			return true
 		}
 	}
@@ -774,6 +780,14 @@ func (c *Module) SetBuildStubs() {
 			c.Properties.PreventInstall = true
 			return
 		}
+		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
+			library.MutatedProperties.BuildStubs = true
+			c.Properties.HideFromMake = true
+			c.sanitize = nil
+			c.stl = nil
+			c.Properties.PreventInstall = true
+			return
+		}
 		if _, ok := c.linker.(*llndkStubDecorator); ok {
 			c.Properties.HideFromMake = true
 			return
@@ -787,12 +801,19 @@ func (c *Module) BuildStubs() bool {
 		if library, ok := c.linker.(*libraryDecorator); ok {
 			return library.buildStubs()
 		}
+		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
+			return library.buildStubs()
+		}
 	}
 	panic(fmt.Errorf("BuildStubs called on non-library module: %q", c.BaseModuleName()))
 }
 
 func (c *Module) SetAllStubsVersions(versions []string) {
 	if library, ok := c.linker.(*libraryDecorator); ok {
+		library.MutatedProperties.AllStubsVersions = versions
+		return
+	}
+	if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
 		library.MutatedProperties.AllStubsVersions = versions
 		return
 	}
@@ -804,6 +825,9 @@ func (c *Module) SetAllStubsVersions(versions []string) {
 
 func (c *Module) AllStubsVersions() []string {
 	if library, ok := c.linker.(*libraryDecorator); ok {
+		return library.MutatedProperties.AllStubsVersions
+	}
+	if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
 		return library.MutatedProperties.AllStubsVersions
 	}
 	if llndk, ok := c.linker.(*llndkStubDecorator); ok {
@@ -818,6 +842,10 @@ func (c *Module) SetStubsVersion(version string) {
 			library.MutatedProperties.StubsVersion = version
 			return
 		}
+		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
+			library.MutatedProperties.StubsVersion = version
+			return
+		}
 		if llndk, ok := c.linker.(*llndkStubDecorator); ok {
 			llndk.libraryDecorator.MutatedProperties.StubsVersion = version
 			return
@@ -829,6 +857,9 @@ func (c *Module) SetStubsVersion(version string) {
 func (c *Module) StubsVersion() string {
 	if c.linker != nil {
 		if library, ok := c.linker.(*libraryDecorator); ok {
+			return library.MutatedProperties.StubsVersion
+		}
+		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
 			return library.MutatedProperties.StubsVersion
 		}
 		if llndk, ok := c.linker.(*llndkStubDecorator); ok {
@@ -1072,6 +1103,8 @@ func (c *Module) getVndkExtendsModuleName() string {
 
 func (c *Module) IsStubs() bool {
 	if library, ok := c.linker.(*libraryDecorator); ok {
+		return library.buildStubs()
+	} else if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
 		return library.buildStubs()
 	} else if _, ok := c.linker.(*llndkStubDecorator); ok {
 		return true
@@ -1830,6 +1863,42 @@ func GetCrtVariations(ctx android.BottomUpMutatorContext,
 	}
 }
 
+func (c *Module) addSharedLibDependenciesWithVersions(ctx android.BottomUpMutatorContext,
+	variations []blueprint.Variation, depTag libraryDependencyTag, name, version string, far bool) {
+
+	variations = append([]blueprint.Variation(nil), variations...)
+
+	if version != "" && VersionVariantAvailable(c) {
+		// Version is explicitly specified. i.e. libFoo#30
+		variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
+		depTag.explicitlyVersioned = true
+	}
+	var deps []blueprint.Module
+	if far {
+		deps = ctx.AddFarVariationDependencies(variations, depTag, name)
+	} else {
+		deps = ctx.AddVariationDependencies(variations, depTag, name)
+	}
+
+	// If the version is not specified, add dependency to all stubs libraries.
+	// The stubs library will be used when the depending module is built for APEX and
+	// the dependent module is not in the same APEX.
+	if version == "" && VersionVariantAvailable(c) {
+		if dep, ok := deps[0].(*Module); ok {
+			for _, ver := range dep.AllStubsVersions() {
+				// Note that depTag.ExplicitlyVersioned is false in this case.
+				versionVariations := append(variations,
+					blueprint.Variation{Mutator: "version", Variation: ver})
+				if far {
+					ctx.AddFarVariationDependencies(versionVariations, depTag, name)
+				} else {
+					ctx.AddVariationDependencies(versionVariations, depTag, name)
+				}
+			}
+		}
+	}
+}
+
 func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	if !c.Enabled() {
 		return
@@ -1930,6 +1999,11 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 				buildStubs = true
 			}
 		}
+		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
+			if library.buildStubs() {
+				buildStubs = true
+			}
+		}
 	}
 
 	rewriteSnapshotLibs := func(lib string, snapshotMap *snapshotMap) string {
@@ -2018,32 +2092,6 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		}, depTag, rewriteSnapshotLibs(lib, vendorSnapshotStaticLibs))
 	}
 
-	addSharedLibDependencies := func(depTag libraryDependencyTag, name string, version string) {
-		var variations []blueprint.Variation
-		variations = append(variations, blueprint.Variation{Mutator: "link", Variation: "shared"})
-		if version != "" && VersionVariantAvailable(c) {
-			// Version is explicitly specified. i.e. libFoo#30
-			variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
-			depTag.explicitlyVersioned = true
-		}
-		deps := actx.AddVariationDependencies(variations, depTag, name)
-
-		// If the version is not specified, add dependency to all stubs libraries.
-		// The stubs library will be used when the depending module is built for APEX and
-		// the dependent module is not in the same APEX.
-		if version == "" && VersionVariantAvailable(c) {
-			if dep, ok := deps[0].(*Module); ok {
-				for _, ver := range dep.AllStubsVersions() {
-					// Note that depTag.ExplicitlyVersioned is false in this case.
-					ctx.AddVariationDependencies([]blueprint.Variation{
-						{Mutator: "link", Variation: "shared"},
-						{Mutator: "version", Variation: ver},
-					}, depTag, name)
-				}
-			}
-		}
-	}
-
 	// shared lib names without the #version suffix
 	var sharedLibNames []string
 
@@ -2060,7 +2108,10 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		name, version := StubsLibNameAndVersion(lib)
 		sharedLibNames = append(sharedLibNames, name)
 
-		addSharedLibDependencies(depTag, name, version)
+		variations := []blueprint.Variation{
+			{Mutator: "link", Variation: "shared"},
+		}
+		c.addSharedLibDependenciesWithVersions(ctx, variations, depTag, name, version, false)
 	}
 
 	for _, lib := range deps.LateSharedLibs {
@@ -2071,7 +2122,10 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			continue
 		}
 		depTag := libraryDependencyTag{Kind: sharedLibraryDependency, Order: lateLibraryDependency}
-		addSharedLibDependencies(depTag, lib, "")
+		variations := []blueprint.Variation{
+			{Mutator: "link", Variation: "shared"},
+		}
+		c.addSharedLibDependenciesWithVersions(ctx, variations, depTag, lib, "", false)
 	}
 
 	actx.AddVariationDependencies([]blueprint.Variation{
