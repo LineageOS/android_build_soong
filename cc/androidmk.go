@@ -33,7 +33,7 @@ var (
 )
 
 type AndroidMkContext interface {
-	Name() string
+	BaseModuleName() string
 	Target() android.Target
 	subAndroidMk(*android.AndroidMkEntries, interface{})
 	Arch() android.Arch
@@ -278,7 +278,7 @@ func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries 
 		})
 	}
 	if len(library.Properties.Stubs.Versions) > 0 &&
-		android.DirectlyInAnyApex(ctx, ctx.Name()) && !ctx.InRamdisk() && !ctx.InRecovery() && !ctx.UseVndk() &&
+		android.DirectlyInAnyApex(ctx, ctx.BaseModuleName()) && !ctx.InRamdisk() && !ctx.InRecovery() && !ctx.UseVndk() &&
 		!ctx.static() {
 		if library.buildStubs() && library.isLatestStubVersion() {
 			// reference the latest version via its name without suffix when it is provided by apex
