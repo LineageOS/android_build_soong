@@ -441,12 +441,19 @@ func visibilityRuleEnforcer(ctx TopDownMutatorContext) {
 		}
 
 		rule := effectiveVisibilityRules(ctx.Config(), depQualified)
-		if rule != nil && !rule.matches(qualified) {
+		if !rule.matches(qualified) {
 			ctx.ModuleErrorf("depends on %s which is not visible to this module", depQualified)
 		}
 	})
 }
 
+// Default visibility is public.
+var defaultVisibility = compositeRule{publicRule{}}
+
+// Return the effective visibility rules.
+//
+// If no rules have been specified this will return the default visibility rule
+// which is currently //visibility:public.
 func effectiveVisibilityRules(config Config, qualified qualifiedModuleName) compositeRule {
 	moduleToVisibilityRule := moduleToVisibilityRuleMap(config)
 	value, ok := moduleToVisibilityRule.Load(qualified)
@@ -455,6 +462,12 @@ func effectiveVisibilityRules(config Config, qualified qualifiedModuleName) comp
 		rule = value.(compositeRule)
 	} else {
 		rule = packageDefaultVisibility(config, qualified)
+	}
+
+	// If no rule is specified then return the default visibility rule to avoid
+	// every caller having to treat nil as public.
+	if rule == nil {
+		rule = defaultVisibility
 	}
 	return rule
 }
@@ -499,7 +512,7 @@ func EffectiveVisibilityRules(ctx BaseModuleContext, module Module) []string {
 	// Modules are implicitly visible to other modules in the same package,
 	// without checking the visibility rules. Here we need to add that visibility
 	// explicitly.
-	if rule != nil && !rule.matches(qualified) {
+	if !rule.matches(qualified) {
 		if len(rule) == 1 {
 			if _, ok := rule[0].(privateRule); ok {
 				// If the rule is //visibility:private we can't append another
@@ -508,7 +521,7 @@ func EffectiveVisibilityRules(ctx BaseModuleContext, module Module) []string {
 				// modules are implicitly visible within the package we get the same
 				// result without any rule at all, so just make it an empty list to be
 				// appended below.
-				rule = compositeRule{}
+				rule = nil
 			}
 		}
 		rule = append(rule, packageRule{dir})
