@@ -24,6 +24,14 @@ import (
 	"android/soong/rust/config"
 )
 
+type RustLinkage int
+
+const (
+	DefaultLinkage RustLinkage = iota
+	RlibLinkage
+	DylibLinkage
+)
+
 func (compiler *baseCompiler) edition() string {
 	return proptools.StringDefault(compiler.Properties.Edition, config.DefaultEdition)
 }
@@ -146,12 +154,12 @@ func (compiler *baseCompiler) coverageOutputZipPath() android.OptionalPath {
 	panic("baseCompiler does not implement coverageOutputZipPath()")
 }
 
-func (compiler *baseCompiler) staticStd(ctx *depsContext) bool {
+func (compiler *baseCompiler) stdLinkage(ctx *depsContext) RustLinkage {
 	// For devices, we always link stdlibs in as dylibs by default.
 	if ctx.Device() {
-		return false
+		return DylibLinkage
 	} else {
-		return true
+		return RlibLinkage
 	}
 }
 
