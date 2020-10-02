@@ -1040,7 +1040,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				if c.Device() {
 					variations = append(variations, c.ImageVariation())
 				}
-				mctx.AddFarVariationDependencies(variations, depTag, runtimeLibrary)
+				c.addSharedLibDependenciesWithVersions(mctx, variations, depTag, runtimeLibrary, "", true)
 			}
 			// static lib does not have dependency to the runtime library. The
 			// dependency will be added to the executables or shared libs using
