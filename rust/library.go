@@ -396,7 +396,7 @@ func (library *libraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = library.baseCompiler.compilerDeps(ctx, deps)
 
 	if ctx.toolchain().Bionic() && (library.dylib() || library.shared()) {
-		deps = bionicDeps(deps)
+		deps = bionicDeps(deps, false)
 		deps.CrtBegin = "crtbegin_so"
 		deps.CrtEnd = "crtend_so"
 	}
