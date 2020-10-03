@@ -23,6 +23,7 @@ func TestRustBindgen(t *testing.T) {
 	ctx := testRust(t, `
 		rust_bindgen {
 			name: "libbindgen",
+			defaults: ["cc_defaults_flags"],
 			wrapper_src: "src/any.h",
 			crate_name: "bindgen",
 			stem: "libbindgen",
@@ -40,6 +41,10 @@ func TestRustBindgen(t *testing.T) {
 			name: "libfoo_static",
 			export_include_dirs: ["static_include"],
 		}
+		cc_defaults {
+			name: "cc_defaults_flags",
+			cflags: ["--default-flag"],
+		}
 	`)
 	libbindgen := ctx.ModuleForTests("libbindgen", "android_arm64_armv8-a_source").Output("bindings.rs")
 	// Ensure that the flags are present and escaped
@@ -54,6 +59,9 @@ func TestRustBindgen(t *testing.T) {
 	}
 	if !strings.Contains(libbindgen.Args["cflags"], "-Istatic_include") {
 		t.Errorf("missing static_libs exported includes in rust_bindgen rule: cflags %#v", libbindgen.Args["cflags"])
+	}
+	if !strings.Contains(libbindgen.Args["cflags"], "--default-flag") {
+		t.Errorf("rust_bindgen missing cflags defined in cc_defaults: cflags %#v", libbindgen.Args["cflags"])
 	}
 }
 
