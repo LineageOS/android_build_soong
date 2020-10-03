@@ -28,6 +28,12 @@ type BinaryCompilerProperties struct {
 	// Also link libstd as an rlib as well on device targets.
 	// Note: This is the default behavior for host targets.
 	Prefer_rlib *bool `android:"arch_variant"`
+
+	// Builds this binary as a static binary. Implies prefer_rlib true.
+	//
+	// Static executables currently only support for bionic targets. Non-bionic targets will not produce a fully static
+	// binary, but will still implicitly imply prefer_rlib true.
+	Static_executable *bool `android:"arch_variant"`
 }
 
 type binaryDecorator struct {
@@ -72,6 +78,11 @@ func (binary *binaryDecorator) compilerFlags(ctx ModuleContext, flags Flags) Fla
 			"-Wl,--gc-sections",
 			"-Wl,-z,nocopyreloc",
 			"-Wl,--no-undefined-version")
+
+		if Bool(binary.Properties.Static_executable) {
+			flags.LinkFlags = append(flags.LinkFlags, "-static")
+			flags.RustFlags = append(flags.RustFlags, "-C relocation-model=static")
+		}
 	}
 
 	return flags
@@ -81,8 +92,12 @@ func (binary *binaryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = binary.baseCompiler.compilerDeps(ctx, deps)
 
 	if ctx.toolchain().Bionic() {
-		deps = bionicDeps(deps)
-		deps.CrtBegin = "crtbegin_dynamic"
+		deps = bionicDeps(deps, Bool(binary.Properties.Static_executable))
+		if Bool(binary.Properties.Static_executable) {
+			deps.CrtBegin = "crtbegin_static"
+		} else {
+			deps.CrtBegin = "crtbegin_dynamic"
+		}
 		deps.CrtEnd = "crtend_android"
 	}
 
@@ -97,6 +112,10 @@ func (binary *binaryDecorator) compilerProps() []interface{} {
 
 func (binary *binaryDecorator) nativeCoverage() bool {
 	return true
+}
+
+func (binary *binaryDecorator) preferRlib() bool {
+	return Bool(binary.Properties.Prefer_rlib) || Bool(binary.Properties.Static_executable)
 }
 
 func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
@@ -135,7 +154,7 @@ func (binary *binaryDecorator) coverageOutputZipPath() android.OptionalPath {
 
 func (binary *binaryDecorator) autoDep(ctx BaseModuleContext) autoDep {
 	// Binaries default to dylib dependencies for device, rlib for host.
-	if Bool(binary.Properties.Prefer_rlib) {
+	if binary.preferRlib() {
 		return rlibAutoDep
 	}
 	if ctx.Device() {
@@ -146,7 +165,7 @@ func (binary *binaryDecorator) autoDep(ctx BaseModuleContext) autoDep {
 }
 
 func (binary *binaryDecorator) stdLinkage(ctx *depsContext) RustLinkage {
-	if Bool(binary.Properties.Prefer_rlib) {
+	if binary.preferRlib() {
 		return RlibLinkage
 	}
 	return binary.baseCompiler.stdLinkage(ctx)

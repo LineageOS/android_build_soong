@@ -3166,6 +3166,8 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&LTOProperties{},
 		&PgoProperties{},
 		&android.ProtoProperties{},
+		// RustBindgenProperties is included here so that cc_defaults can be used for rust_bindgen modules.
+		&RustBindgenClangProperties{},
 	)
 
 	android.InitDefaultsModule(module)
