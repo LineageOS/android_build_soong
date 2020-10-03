@@ -652,3 +652,43 @@ func isThirdParty(path string) bool {
 	}
 	return true
 }
+
+// Properties for rust_bindgen related to generating rust bindings.
+// This exists here so these properties can be included in a cc_default
+// which can be used in both cc and rust modules.
+type RustBindgenClangProperties struct {
+	// list of directories relative to the Blueprints file that will
+	// be added to the include path using -I
+	Local_include_dirs []string `android:"arch_variant,variant_prepend"`
+
+	// list of static libraries that provide headers for this binding.
+	Static_libs []string `android:"arch_variant,variant_prepend"`
+
+	// list of shared libraries that provide headers for this binding.
+	Shared_libs []string `android:"arch_variant"`
+
+	// list of clang flags required to correctly interpret the headers.
+	Cflags []string `android:"arch_variant"`
+
+	// list of c++ specific clang flags required to correctly interpret the headers.
+	// This is provided primarily to make sure cppflags defined in cc_defaults are pulled in.
+	Cppflags []string `android:"arch_variant"`
+
+	// C standard version to use. Can be a specific version (such as "gnu11"),
+	// "experimental" (which will use draft versions like C1x when available),
+	// or the empty string (which will use the default).
+	//
+	// If this is set, the file extension will be ignored and this will be used as the std version value. Setting this
+	// to "default" will use the build system default version. This cannot be set at the same time as cpp_std.
+	C_std *string
+
+	// C++ standard version to use. Can be a specific version (such as
+	// "gnu++11"), "experimental" (which will use draft versions like C++1z when
+	// available), or the empty string (which will use the default).
+	//
+	// If this is set, the file extension will be ignored and this will be used as the std version value. Setting this
+	// to "default" will use the build system default version. This cannot be set at the same time as c_std.
+	Cpp_std *string
+
+	//TODO(b/161141999) Add support for headers from cc_library_header modules.
+}
