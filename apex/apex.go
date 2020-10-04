@@ -565,7 +565,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libdebuggerd_handler_fallback",
 		"libdexfile_external_headers",
 		"libdexfile_support",
-		"libdexfile_support_static",
 		"libdl_static",
 		"libjemalloc5",
 		"liblinker_main",
