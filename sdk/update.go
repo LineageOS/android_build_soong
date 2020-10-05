@@ -300,7 +300,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	snapshotModule.AddProperty("name", snapshotName)
 
 	// Make sure that the snapshot has the same visibility as the sdk.
-	visibility := android.EffectiveVisibilityRules(ctx, s)
+	visibility := android.EffectiveVisibilityRules(ctx, s).Strings()
 	if len(visibility) != 0 {
 		snapshotModule.AddProperty("visibility", visibility)
 	}
@@ -719,7 +719,15 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 	} else {
 		// Extract visibility information from a member variant. All variants have the same
 		// visibility so it doesn't matter which one is used.
-		visibility := android.EffectiveVisibilityRules(s.ctx, variant)
+		visibilityRules := android.EffectiveVisibilityRules(s.ctx, variant)
+
+		// Add any additional visibility rules needed for the prebuilts to reference each other.
+		err := visibilityRules.Widen(s.sdk.properties.Prebuilt_visibility)
+		if err != nil {
+			s.ctx.PropertyErrorf("prebuilt_visibility", "%s", err)
+		}
+
+		visibility := visibilityRules.Strings()
 		if len(visibility) != 0 {
 			m.AddProperty("visibility", visibility)
 		}
