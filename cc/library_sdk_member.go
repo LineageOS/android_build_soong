@@ -85,8 +85,11 @@ func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorCont
 			variations := target.Variations()
 			if mctx.Device() {
 				variations = append(variations,
-					blueprint.Variation{Mutator: "image", Variation: android.CoreVariation},
-					blueprint.Variation{Mutator: "version", Variation: version})
+					blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
+				if mt.linkTypes != nil {
+					variations = append(variations,
+						blueprint.Variation{Mutator: "version", Variation: version})
+				}
 			}
 			if mt.linkTypes == nil {
 				mctx.AddFarVariationDependencies(variations, dependencyTag, name)

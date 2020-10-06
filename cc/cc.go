@@ -697,6 +697,9 @@ func (c *Module) MinSdkVersion() string {
 }
 
 func (c *Module) SplitPerApiLevel() bool {
+	if !c.canUseSdk() {
+		return false
+	}
 	if linker, ok := c.linker.(*objectLinker); ok {
 		return linker.isCrt()
 	}
@@ -1026,7 +1029,7 @@ func (c *Module) canUseSdk() bool {
 
 func (c *Module) UseSdk() bool {
 	if c.canUseSdk() {
-		return String(c.Properties.Sdk_version) != "" || c.SplitPerApiLevel()
+		return String(c.Properties.Sdk_version) != ""
 	}
 	return false
 }
@@ -1868,7 +1871,7 @@ func (c *Module) addSharedLibDependenciesWithVersions(ctx android.BottomUpMutato
 
 	variations = append([]blueprint.Variation(nil), variations...)
 
-	if version != "" && VersionVariantAvailable(c) {
+	if version != "" && CanBeOrLinkAgainstVersionVariants(c) {
 		// Version is explicitly specified. i.e. libFoo#30
 		variations = append(variations, blueprint.Variation{Mutator: "version", Variation: version})
 		depTag.explicitlyVersioned = true
@@ -1883,7 +1886,7 @@ func (c *Module) addSharedLibDependenciesWithVersions(ctx android.BottomUpMutato
 	// If the version is not specified, add dependency to all stubs libraries.
 	// The stubs library will be used when the depending module is built for APEX and
 	// the dependent module is not in the same APEX.
-	if version == "" && VersionVariantAvailable(c) {
+	if version == "" && CanBeOrLinkAgainstVersionVariants(c) {
 		if dep, ok := deps[0].(*Module); ok {
 			for _, ver := range dep.AllStubsVersions() {
 				// Note that depTag.ExplicitlyVersioned is false in this case.
@@ -2489,7 +2492,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 			if ccDep.CcLibrary() && !libDepTag.static() {
 				depIsStubs := ccDep.BuildStubs()
-				depHasStubs := VersionVariantAvailable(c) && ccDep.HasStubsVariants()
+				depHasStubs := CanBeOrLinkAgainstVersionVariants(c) && ccDep.HasStubsVariants()
 				depInSameApexes := android.DirectlyInAllApexes(c.InApexes(), depName)
 				depInPlatform := !android.DirectlyInAnyApex(ctx, depName)
 
