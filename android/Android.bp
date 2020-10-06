@@ -63,6 +63,7 @@ bootstrap_go_package {
     testSrcs: [
         "android_test.go",
         "androidmk_test.go",
+        "apex_test.go",
         "arch_test.go",
         "config_test.go",
         "csuite_config_test.go",
