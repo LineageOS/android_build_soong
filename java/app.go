@@ -1981,7 +1981,7 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 			if tag, ok := ctx.OtherModuleDependencyTag(m).(usesLibraryDependencyTag); ok {
 				dep := ctx.OtherModuleName(m)
 				if lib, ok := m.(Dependency); ok {
-					clcMap.AddContextForSdk(ctx, tag.sdkVersion, dep,
+					clcMap.AddContextForSdk(ctx, tag.sdkVersion, dep, isSharedSdkLibrary(m),
 						lib.DexJarBuildPath(), lib.DexJarInstallPath(), lib.ExportedSdkLibs())
 				} else if ctx.Config().AllowMissingDependencies() {
 					ctx.AddMissingDependencies([]string{dep})
@@ -1993,6 +1993,11 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 	}
 
 	return clcMap
+}
+
+func isSharedSdkLibrary(m android.Module) bool {
+	lib, ok := m.(SdkLibraryDependency)
+	return ok && lib.IsSharedLibrary()
 }
 
 // enforceUsesLibraries returns true of <uses-library> tags should be checked against uses_libs and optional_uses_libs
