@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"android/soong/android"
+	"android/soong/genrule"
 )
 
 func init() {
@@ -224,30 +225,26 @@ func moduleForGreyListRemovedApis(ctx android.SingletonContext, module android.M
 // the unsupported API.
 func flagsRule(ctx android.SingletonContext) android.Path {
 	var flagsCSV android.Paths
-	var greylistRemovedApis android.Paths
+	var combinedRemovedApis android.Path
 
 	ctx.VisitAllModules(func(module android.Module) {
 		if h, ok := module.(hiddenAPIIntf); ok {
 			if csv := h.flagsCSV(); csv != nil {
 				flagsCSV = append(flagsCSV, csv)
 			}
-		} else if ds, ok := module.(*Droidstubs); ok {
-			// Track @removed public and system APIs via corresponding droidstubs targets.
-			// These APIs are not present in the stubs, however, we have to keep allowing access
-			// to them at runtime.
-			if moduleForGreyListRemovedApis(ctx, module) {
-				greylistRemovedApis = append(greylistRemovedApis, ds.removedDexApiFile)
+		} else if g, ok := module.(*genrule.Module); ok {
+			if ctx.ModuleName(module) == "combined-removed-dex" {
+				if len(g.GeneratedSourceFiles()) != 1 || combinedRemovedApis != nil {
+					ctx.Errorf("Expected 1 combined-removed-dex module that generates 1 output file.")
+				}
+				combinedRemovedApis = g.GeneratedSourceFiles()[0]
 			}
 		}
 	})
 
-	combinedRemovedApis := android.PathForOutput(ctx, "hiddenapi", "combined-removed-dex.txt")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        android.Cat,
-		Inputs:      greylistRemovedApis,
-		Output:      combinedRemovedApis,
-		Description: "Combine removed apis for " + combinedRemovedApis.String(),
-	})
+	if combinedRemovedApis == nil {
+		ctx.Errorf("Failed to find combined-removed-dex.")
+	}
 
 	rule := android.NewRuleBuilder()
 
