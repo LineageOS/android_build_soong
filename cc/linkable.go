@@ -63,6 +63,8 @@ type LinkableInterface interface {
 	ToolchainLibrary() bool
 	NdkPrebuiltStl() bool
 	StubDecorator() bool
+
+	SplitPerApiLevel() bool
 }
 
 var (
