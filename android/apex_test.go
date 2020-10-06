@@ -29,10 +29,10 @@ func Test_mergeApexVariations(t *testing.T) {
 		{
 			name: "single",
 			in: []ApexInfo{
-				{"foo", 10000, false, nil, []string{"foo"}},
+				{"foo", "current", false, nil, []string{"foo"}},
 			},
 			wantMerged: []ApexInfo{
-				{"apex10000", 10000, false, nil, []string{"foo"}},
+				{"apex10000", "current", false, nil, []string{"foo"}},
 			},
 			wantAliases: [][2]string{
 				{"foo", "apex10000"},
@@ -41,11 +41,11 @@ func Test_mergeApexVariations(t *testing.T) {
 		{
 			name: "merge",
 			in: []ApexInfo{
-				{"foo", 10000, false, SdkRefs{{"baz", "1"}}, []string{"foo"}},
-				{"bar", 10000, false, SdkRefs{{"baz", "1"}}, []string{"bar"}},
+				{"foo", "current", false, SdkRefs{{"baz", "1"}}, []string{"foo"}},
+				{"bar", "current", false, SdkRefs{{"baz", "1"}}, []string{"bar"}},
 			},
 			wantMerged: []ApexInfo{
-				{"apex10000_baz_1", 10000, false, SdkRefs{{"baz", "1"}}, []string{"bar", "foo"}},
+				{"apex10000_baz_1", "current", false, SdkRefs{{"baz", "1"}}, []string{"bar", "foo"}},
 			},
 			wantAliases: [][2]string{
 				{"bar", "apex10000_baz_1"},
@@ -55,12 +55,12 @@ func Test_mergeApexVariations(t *testing.T) {
 		{
 			name: "don't merge version",
 			in: []ApexInfo{
-				{"foo", 10000, false, nil, []string{"foo"}},
-				{"bar", 30, false, nil, []string{"bar"}},
+				{"foo", "current", false, nil, []string{"foo"}},
+				{"bar", "30", false, nil, []string{"bar"}},
 			},
 			wantMerged: []ApexInfo{
-				{"apex30", 30, false, nil, []string{"bar"}},
-				{"apex10000", 10000, false, nil, []string{"foo"}},
+				{"apex30", "30", false, nil, []string{"bar"}},
+				{"apex10000", "current", false, nil, []string{"foo"}},
 			},
 			wantAliases: [][2]string{
 				{"bar", "apex30"},
@@ -70,11 +70,11 @@ func Test_mergeApexVariations(t *testing.T) {
 		{
 			name: "merge updatable",
 			in: []ApexInfo{
-				{"foo", 10000, false, nil, []string{"foo"}},
-				{"bar", 10000, true, nil, []string{"bar"}},
+				{"foo", "current", false, nil, []string{"foo"}},
+				{"bar", "current", true, nil, []string{"bar"}},
 			},
 			wantMerged: []ApexInfo{
-				{"apex10000", 10000, true, nil, []string{"bar", "foo"}},
+				{"apex10000", "current", true, nil, []string{"bar", "foo"}},
 			},
 			wantAliases: [][2]string{
 				{"bar", "apex10000"},
@@ -84,12 +84,12 @@ func Test_mergeApexVariations(t *testing.T) {
 		{
 			name: "don't merge sdks",
 			in: []ApexInfo{
-				{"foo", 10000, false, SdkRefs{{"baz", "1"}}, []string{"foo"}},
-				{"bar", 10000, false, SdkRefs{{"baz", "2"}}, []string{"bar"}},
+				{"foo", "current", false, SdkRefs{{"baz", "1"}}, []string{"foo"}},
+				{"bar", "current", false, SdkRefs{{"baz", "2"}}, []string{"bar"}},
 			},
 			wantMerged: []ApexInfo{
-				{"apex10000_baz_2", 10000, false, SdkRefs{{"baz", "2"}}, []string{"bar"}},
-				{"apex10000_baz_1", 10000, false, SdkRefs{{"baz", "1"}}, []string{"foo"}},
+				{"apex10000_baz_2", "current", false, SdkRefs{{"baz", "2"}}, []string{"bar"}},
+				{"apex10000_baz_1", "current", false, SdkRefs{{"baz", "1"}}, []string{"foo"}},
 			},
 			wantAliases: [][2]string{
 				{"bar", "apex10000_baz_2"},
@@ -99,7 +99,9 @@ func Test_mergeApexVariations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotMerged, gotAliases := mergeApexVariations(tt.in)
+			config := TestConfig(buildDir, nil, "", nil)
+			ctx := &configErrorWrapper{config: config}
+			gotMerged, gotAliases := mergeApexVariations(ctx, tt.in)
 			if !reflect.DeepEqual(gotMerged, tt.wantMerged) {
 				t.Errorf("mergeApexVariations() gotMerged = %v, want %v", gotMerged, tt.wantMerged)
 			}

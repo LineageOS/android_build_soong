@@ -1541,18 +1541,33 @@ func createVersionVariations(mctx android.BottomUpMutatorContext, versions []str
 	mctx.CreateAliasVariation("latest", latestVersion)
 }
 
-func VersionVariantAvailable(module interface {
+func CanBeOrLinkAgainstVersionVariants(module interface {
 	Host() bool
 	InRamdisk() bool
 	InRecovery() bool
+	UseSdk() bool
 }) bool {
-	return !module.Host() && !module.InRamdisk() && !module.InRecovery()
+	return !module.Host() && !module.InRamdisk() && !module.InRecovery() && !module.UseSdk()
+}
+
+func CanBeVersionVariant(module interface {
+	Host() bool
+	InRamdisk() bool
+	InRecovery() bool
+	UseSdk() bool
+	CcLibraryInterface() bool
+	Shared() bool
+	Static() bool
+}) bool {
+	return CanBeOrLinkAgainstVersionVariants(module) &&
+		module.CcLibraryInterface() && (module.Shared() || module.Static())
 }
 
 // versionSelector normalizes the versions in the Stubs.Versions property into MutatedProperties.AllStubsVersions,
 // and propagates the value from implementation libraries to llndk libraries with the same name.
 func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
-	if library, ok := mctx.Module().(LinkableInterface); ok && VersionVariantAvailable(library) {
+	if library, ok := mctx.Module().(LinkableInterface); ok && CanBeVersionVariant(library) {
+
 		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 &&
 			!library.IsSdkVariant() {
 
@@ -1582,7 +1597,7 @@ func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
 // versionMutator splits a module into the mandatory non-stubs variant
 // (which is unnamed) and zero or more stubs variants.
 func versionMutator(mctx android.BottomUpMutatorContext) {
-	if library, ok := mctx.Module().(LinkableInterface); ok && VersionVariantAvailable(library) {
+	if library, ok := mctx.Module().(LinkableInterface); ok && CanBeVersionVariant(library) {
 		createVersionVariations(mctx, library.AllStubsVersions())
 	}
 }

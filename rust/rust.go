@@ -221,6 +221,10 @@ func (mod *Module) IsSdkVariant() bool {
 	return false
 }
 
+func (mod *Module) SplitPerApiLevel() bool {
+	return false
+}
+
 func (mod *Module) ToolchainLibrary() bool {
 	return false
 }
@@ -995,11 +999,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 
 	deps := mod.deps(ctx)
-	commonDepVariations := []blueprint.Variation{}
-	if cc.VersionVariantAvailable(mod) {
-		commonDepVariations = append(commonDepVariations,
-			blueprint.Variation{Mutator: "version", Variation: ""})
-	}
+	var commonDepVariations []blueprint.Variation
 	if !mod.Host() {
 		commonDepVariations = append(commonDepVariations,
 			blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
@@ -1055,7 +1055,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		blueprint.Variation{Mutator: "link", Variation: "static"}),
 		cc.StaticDepTag(), deps.StaticLibs...)
 
-	crtVariations := append(cc.GetCrtVariations(ctx, mod), commonDepVariations...)
+	crtVariations := cc.GetCrtVariations(ctx, mod)
 	if deps.CrtBegin != "" {
 		actx.AddVariationDependencies(crtVariations, cc.CrtBeginDepTag, deps.CrtBegin)
 	}
