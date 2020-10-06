@@ -238,6 +238,13 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 	dumpOatRules(ctx, d.defaultBootImage)
 }
 
+func isHostdex(module android.Module) bool {
+	if lib, ok := module.(*Library); ok {
+		return Bool(lib.deviceProperties.Hostdex)
+	}
+	return false
+}
+
 // Inspect this module to see if it contains a bootclasspath dex jar.
 // Note that the same jar may occur in multiple modules.
 // This logic is tested in the apex package to avoid import cycle apex <-> java.
@@ -264,7 +271,7 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 	if image.name == artBootImageName {
 		if isApexModule && len(apex.InApexes()) > 0 && allHavePrefix(apex.InApexes(), "com.android.art.") {
 			// ok: found the jar in the ART apex
-		} else if isApexModule && apex.IsForPlatform() && Bool(module.(*Library).deviceProperties.Hostdex) {
+		} else if isApexModule && apex.IsForPlatform() && isHostdex(module) {
 			// exception (skip and continue): special "hostdex" platform variant
 			return -1, nil
 		} else if name == "jacocoagent" && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
