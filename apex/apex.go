@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
@@ -743,12 +742,6 @@ func init() {
 	android.PreDepsMutators(RegisterPreDepsMutators)
 	android.PostDepsMutators(RegisterPostDepsMutators)
 
-	android.RegisterMakeVarsProvider(pctx, func(ctx android.MakeVarsContext) {
-		apexFileContextsInfos := apexFileContextsInfos(ctx.Config())
-		sort.Strings(*apexFileContextsInfos)
-		ctx.Strict("APEX_FILE_CONTEXTS_INFOS", strings.Join(*apexFileContextsInfos, " "))
-	})
-
 	android.AddNeverAllowRules(createApexPermittedPackagesRules(qModulesPackages())...)
 	android.AddNeverAllowRules(createApexPermittedPackagesRules(rModulesPackages())...)
 }
@@ -914,24 +907,6 @@ func apexMutator(mctx android.BottomUpMutatorContext) {
 		mctx.CreateVariations(apexBundleName)
 	}
 
-}
-
-var (
-	apexFileContextsInfosKey   = android.NewOnceKey("apexFileContextsInfosKey")
-	apexFileContextsInfosMutex sync.Mutex
-)
-
-func apexFileContextsInfos(config android.Config) *[]string {
-	return config.Once(apexFileContextsInfosKey, func() interface{} {
-		return &[]string{}
-	}).(*[]string)
-}
-
-func addFlattenedFileContextsInfos(ctx android.BaseModuleContext, fileContextsInfo string) {
-	apexFileContextsInfosMutex.Lock()
-	defer apexFileContextsInfosMutex.Unlock()
-	apexFileContextsInfos := apexFileContextsInfos(ctx.Config())
-	*apexFileContextsInfos = append(*apexFileContextsInfos, fileContextsInfo)
 }
 
 func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
