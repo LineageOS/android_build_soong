@@ -1412,7 +1412,31 @@ func TestJavaLibrary(t *testing.T) {
 						name: "core",
 						sdk_version: "none",
 						system_modules: "none",
-				}`),
+				}
+
+				filegroup {
+					name: "core-jar",
+					srcs: [":core{.jar}"],
+				}
+`),
+	})
+	ctx := testContext()
+	run(t, ctx, config)
+}
+
+func TestJavaImport(t *testing.T) {
+	config := testConfig(nil, "", map[string][]byte{
+		"libcore/Android.bp": []byte(`
+				java_import {
+						name: "core",
+						sdk_version: "none",
+				}
+
+				filegroup {
+					name: "core-jar",
+					srcs: [":core{.jar}"],
+				}
+`),
 	})
 	ctx := testContext()
 	run(t, ctx, config)

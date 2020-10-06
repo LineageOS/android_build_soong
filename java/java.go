@@ -2699,6 +2699,17 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 }
 
+func (j *Import) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case ".jar":
+		return android.Paths{j.combinedClasspathFile}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
+}
+
+var _ android.OutputFileProducer = (*Import)(nil)
+
 var _ Dependency = (*Import)(nil)
 
 func (j *Import) HeaderJars() android.Paths {
