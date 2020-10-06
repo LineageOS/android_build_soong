@@ -13,6 +13,7 @@ var (
 		"frameworks/native/libs/binder/rust",
 		"prebuilts/rust",
 		"system/extras/profcollectd",
+		"system/hardware/interfaces/keystore2",
 		"system/security",
 		"system/tools/aidl",
 	}
