@@ -42,7 +42,7 @@ type ApexInfo struct {
 	InApexes []string
 }
 
-func (i ApexInfo) mergedName(ctx EarlyModuleContext) string {
+func (i ApexInfo) mergedName(ctx PathContext) string {
 	name := "apex" + strconv.Itoa(i.MinSdkVersion(ctx).FinalOrFutureInt())
 	for _, sdk := range i.RequiredSdks {
 		name += "_" + sdk.Name + "_" + sdk.Version
@@ -50,7 +50,7 @@ func (i ApexInfo) mergedName(ctx EarlyModuleContext) string {
 	return name
 }
 
-func (this *ApexInfo) MinSdkVersion(ctx EarlyModuleContext) ApiLevel {
+func (this *ApexInfo) MinSdkVersion(ctx PathContext) ApiLevel {
 	return ApiLevelOrPanic(ctx, this.MinSdkVersionStr)
 }
 
@@ -358,7 +358,7 @@ func (a byApexName) Less(i, j int) bool { return a[i].ApexVariationName < a[j].A
 // mergeApexVariations deduplicates APEX variations that would build identically into a common
 // variation.  It returns the reduced list of variations and a list of aliases from the original
 // variation names to the new variation names.
-func mergeApexVariations(ctx EarlyModuleContext, apexVariations []ApexInfo) (merged []ApexInfo, aliases [][2]string) {
+func mergeApexVariations(ctx PathContext, apexVariations []ApexInfo) (merged []ApexInfo, aliases [][2]string) {
 	sort.Sort(byApexName(apexVariations))
 	seen := make(map[string]int)
 	for _, apexInfo := range apexVariations {

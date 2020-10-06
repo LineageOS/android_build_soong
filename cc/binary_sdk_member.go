@@ -40,19 +40,14 @@ type binarySdkMemberType struct {
 
 func (mt *binarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
 	targets := mctx.MultiTargets()
-	for _, lib := range names {
+	for _, bin := range names {
 		for _, target := range targets {
-			name, version := StubsLibNameAndVersion(lib)
-			if version == "" {
-				version = "latest"
-			}
 			variations := target.Variations()
 			if mctx.Device() {
 				variations = append(variations,
-					blueprint.Variation{Mutator: "image", Variation: android.CoreVariation},
-					blueprint.Variation{Mutator: "version", Variation: version})
+					blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
 			}
-			mctx.AddFarVariationDependencies(variations, dependencyTag, name)
+			mctx.AddFarVariationDependencies(variations, dependencyTag, bin)
 		}
 	}
 }
