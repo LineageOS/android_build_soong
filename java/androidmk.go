@@ -23,8 +23,7 @@ import (
 
 func (library *Library) AndroidMkEntriesHostDex() android.AndroidMkEntries {
 	hostDexNeeded := Bool(library.deviceProperties.Hostdex) && !library.Host()
-	if !library.IsForPlatform() {
-		// Don't emit hostdex modules from the APEX variants
+	if library.hideApexVariantFromMake {
 		hostDexNeeded = false
 	}
 
@@ -61,22 +60,15 @@ func (library *Library) AndroidMkEntriesHostDex() android.AndroidMkEntries {
 func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 	var entriesList []android.AndroidMkEntries
 
-	mainEntries := android.AndroidMkEntries{Disabled: true}
-
-	// For a java library built for an APEX, we don't need Make module
-	hideFromMake := !library.IsForPlatform()
-	// If not available for platform, don't emit to make.
-	if !library.ApexModuleBase.AvailableFor(android.AvailableToPlatform) {
-		hideFromMake = true
-	}
-	if hideFromMake {
-		// May still need to add some additional dependencies. This will be called
-		// once for the platform variant (even if it is not being used) and once each
-		// for the APEX specific variants. In order to avoid adding the dependency
-		// multiple times only add it for the platform variant.
+	if library.hideApexVariantFromMake {
+		// For a java library built for an APEX we don't need Make module
+		entriesList = append(entriesList, android.AndroidMkEntries{Disabled: true})
+	} else if !library.ApexModuleBase.AvailableFor(android.AvailableToPlatform) {
+		// Platform variant.  If not available for the platform, we don't need Make module.
+		// May still need to add some additional dependencies.
 		checkedModulePaths := library.additionalCheckedModules
-		if library.IsForPlatform() && len(checkedModulePaths) != 0 {
-			mainEntries = android.AndroidMkEntries{
+		if len(checkedModulePaths) != 0 {
+			entriesList = append(entriesList, android.AndroidMkEntries{
 				Class: "FAKE",
 				// Need at least one output file in order for this to take effect.
 				OutputFile: android.OptionalPathForPath(checkedModulePaths[0]),
@@ -86,10 +78,12 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 						entries.AddStrings("LOCAL_ADDITIONAL_CHECKED_MODULE", checkedModulePaths.Strings()...)
 					},
 				},
-			}
+			})
+		} else {
+			entriesList = append(entriesList, android.AndroidMkEntries{Disabled: true})
 		}
 	} else {
-		mainEntries = android.AndroidMkEntries{
+		entriesList = append(entriesList, android.AndroidMkEntries{
 			Class:      "JAVA_LIBRARIES",
 			DistFiles:  library.distFiles,
 			OutputFile: android.OptionalPathForPath(library.outputFile),
@@ -134,12 +128,11 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", library.linter.reports)
 				},
 			},
-		}
+		})
 	}
 
-	hostDexEntries := library.AndroidMkEntriesHostDex()
+	entriesList = append(entriesList, library.AndroidMkEntriesHostDex())
 
-	entriesList = append(entriesList, mainEntries, hostDexEntries)
 	return entriesList
 }
 
@@ -189,7 +182,7 @@ func (j *TestHelperLibrary) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
-	if !prebuilt.IsForPlatform() || !prebuilt.ContainingSdk().Unversioned() {
+	if prebuilt.hideApexVariantFromMake || !prebuilt.ContainingSdk().Unversioned() {
 		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Disabled: true,
 		}}
@@ -211,7 +204,7 @@ func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (prebuilt *DexImport) AndroidMkEntries() []android.AndroidMkEntries {
-	if !prebuilt.IsForPlatform() {
+	if prebuilt.hideApexVariantFromMake {
 		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Disabled: true,
 		}}
@@ -239,7 +232,7 @@ func (prebuilt *DexImport) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (prebuilt *AARImport) AndroidMkEntries() []android.AndroidMkEntries {
-	if !prebuilt.IsForPlatform() {
+	if prebuilt.hideApexVariantFromMake {
 		return []android.AndroidMkEntries{{
 			Disabled: true,
 		}}
@@ -309,7 +302,7 @@ func (binary *Binary) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
-	if !app.IsForPlatform() || app.appProperties.HideFromMake {
+	if app.hideApexVariantFromMake || app.appProperties.HideFromMake {
 		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Disabled: true,
 		}}
@@ -458,7 +451,7 @@ func (a *AndroidTestHelperApp) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (a *AndroidLibrary) AndroidMkEntries() []android.AndroidMkEntries {
-	if !a.IsForPlatform() {
+	if a.hideApexVariantFromMake {
 		return []android.AndroidMkEntries{{
 			Disabled: true,
 		}}
@@ -638,7 +631,7 @@ func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
 }
 
 func (a *AndroidAppImport) AndroidMkEntries() []android.AndroidMkEntries {
-	if !a.IsForPlatform() {
+	if a.hideApexVariantFromMake {
 		// The non-platform variant is placed inside APEX. No reason to
 		// make it available to Make.
 		return nil

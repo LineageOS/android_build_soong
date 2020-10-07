@@ -72,8 +72,11 @@ func (s *apexDepsInfoSingleton) GenerateBuildActions(ctx android.SingletonContex
 	updatableFlatLists := android.Paths{}
 	ctx.VisitAllModules(func(module android.Module) {
 		if binaryInfo, ok := module.(android.ApexBundleDepsInfoIntf); ok {
-			if path := binaryInfo.FlatListPath(); path != nil && binaryInfo.Updatable() {
-				updatableFlatLists = append(updatableFlatLists, path)
+			apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+			if path := binaryInfo.FlatListPath(); path != nil {
+				if binaryInfo.Updatable() || apexInfo.Updatable {
+					updatableFlatLists = append(updatableFlatLists, path)
+				}
 			}
 		}
 	})

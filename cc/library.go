@@ -1231,18 +1231,19 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 					library.baseInstaller.subDir += "-" + vndkVersion
 				}
 			}
-		} else if len(library.Properties.Stubs.Versions) > 0 && android.DirectlyInAnyApex(ctx, ctx.ModuleName()) {
+		} else if len(library.Properties.Stubs.Versions) > 0 && !ctx.Host() && ctx.directlyInAnyApex() {
 			// Bionic libraries (e.g. libc.so) is installed to the bootstrap subdirectory.
 			// The original path becomes a symlink to the corresponding file in the
 			// runtime APEX.
 			translatedArch := ctx.Target().NativeBridge == android.NativeBridgeEnabled
-			if InstallToBootstrap(ctx.baseModuleName(), ctx.Config()) && !library.buildStubs() && !translatedArch && !ctx.inRamdisk() && !ctx.inRecovery() {
+			if InstallToBootstrap(ctx.baseModuleName(), ctx.Config()) && !library.buildStubs() &&
+				!translatedArch && !ctx.inRamdisk() && !ctx.inRecovery() {
 				if ctx.Device() {
 					library.installSymlinkToRuntimeApex(ctx, file)
 				}
 				library.baseInstaller.subDir = "bootstrap"
 			}
-		} else if android.DirectlyInAnyApex(ctx, ctx.ModuleName()) && ctx.isLlndk(ctx.Config()) && !isBionic(ctx.baseModuleName()) {
+		} else if ctx.directlyInAnyApex() && ctx.isLlndk(ctx.Config()) && !isBionic(ctx.baseModuleName()) {
 			// Skip installing LLNDK (non-bionic) libraries moved to APEX.
 			ctx.Module().SkipInstall()
 		}
@@ -1531,6 +1532,8 @@ func createVersionVariations(mctx android.BottomUpMutatorContext, versions []str
 		if variants[i] != "" {
 			m.(LinkableInterface).SetBuildStubs()
 			m.(LinkableInterface).SetStubsVersion(variants[i])
+			// The stubs depend on the implementation
+			mctx.AddInterVariantDependency(stubImplDepTag, modules[i], modules[0])
 		}
 	}
 	mctx.AliasVariation("")
