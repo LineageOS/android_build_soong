@@ -59,6 +59,7 @@ func defaultsTestDefaultsFactory() Module {
 }
 
 func TestDefaults(t *testing.T) {
+	t.Parallel()
 	bp := `
 		defaults {
 			name: "transitive",
@@ -102,6 +103,7 @@ func TestDefaults(t *testing.T) {
 }
 
 func TestDefaultsAllowMissingDependencies(t *testing.T) {
+	t.Parallel()
 	bp := `
 		defaults {
 			name: "defaults",

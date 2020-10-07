@@ -20,6 +20,7 @@ import (
 )
 
 func Test_mergeApexVariations(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		in          []ApexInfo

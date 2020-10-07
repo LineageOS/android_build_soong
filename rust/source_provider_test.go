@@ -21,6 +21,7 @@ import (
 var stemRequiredError = "source_stem property is undefined but required for rust_bindgen modules"
 
 func TestSourceProviderRequiredFields(t *testing.T) {
+	t.Parallel()
 	testRustError(t, stemRequiredError, `
 		rust_bindgen {
 			name: "libbindgen",

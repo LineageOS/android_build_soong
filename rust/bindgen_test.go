@@ -20,6 +20,7 @@ import (
 )
 
 func TestRustBindgen(t *testing.T) {
+	t.Parallel()
 	ctx := testRust(t, `
 		rust_bindgen {
 			name: "libbindgen",
@@ -66,6 +67,7 @@ func TestRustBindgen(t *testing.T) {
 }
 
 func TestRustBindgenCustomBindgen(t *testing.T) {
+	t.Parallel()
 	ctx := testRust(t, `
 		rust_bindgen {
 			name: "libbindgen",

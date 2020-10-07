@@ -21,6 +21,7 @@ import (
 )
 
 func TestGen(t *testing.T) {
+	t.Parallel()
 	t.Run("simple", func(t *testing.T) {
 		ctx := testCc(t, `
 		cc_library_shared {
