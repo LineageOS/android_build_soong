@@ -480,8 +480,9 @@ func (a *AndroidApp) useEmbeddedNativeLibs(ctx android.ModuleContext) bool {
 		ctx.PropertyErrorf("min_sdk_version", "invalid value %q: %s", a.minSdkVersion(), err)
 	}
 
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	return (minSdkVersion >= 23 && Bool(a.appProperties.Use_embedded_native_libs)) ||
-		!a.IsForPlatform()
+		!apexInfo.IsForPlatform()
 }
 
 // Returns whether this module should have the dex file stored uncompressed in the APK.
@@ -504,8 +505,9 @@ func (a *AndroidApp) shouldUncompressDex(ctx android.ModuleContext) bool {
 }
 
 func (a *AndroidApp) shouldEmbedJnis(ctx android.BaseModuleContext) bool {
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	return ctx.Config().UnbundledBuild() || Bool(a.appProperties.Use_embedded_native_libs) ||
-		!a.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
+		!apexInfo.IsForPlatform() || a.appProperties.AlwaysPackageNativeLibs
 }
 
 func generateAaptRenamePackageFlags(packageName string, renameResourcesPackage bool) []string {
@@ -756,6 +758,10 @@ func (a *AndroidApp) InstallApkName() string {
 func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	var apkDeps android.Paths
 
+	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
+		a.hideApexVariantFromMake = true
+	}
+
 	a.aapt.useEmbeddedNativeLibs = a.useEmbeddedNativeLibs(ctx)
 	a.aapt.useEmbeddedDex = Bool(a.appProperties.Use_embedded_dex)
 
@@ -850,8 +856,10 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	BuildBundleModule(ctx, bundleFile, a.exportPackage, jniJarFile, dexJarFile)
 	a.bundleFile = bundleFile
 
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+
 	// Install the app package.
-	if (Bool(a.Module.properties.Installable) || ctx.Host()) && a.IsForPlatform() {
+	if (Bool(a.Module.properties.Installable) || ctx.Host()) && apexInfo.IsForPlatform() {
 		ctx.InstallFile(a.installDir, a.outputFile.Base(), a.outputFile)
 		for _, extra := range a.extraOutputFiles {
 			ctx.InstallFile(a.installDir, extra.Base(), extra)
@@ -979,7 +987,7 @@ func (a *AndroidApp) buildAppDependencyInfo(ctx android.ModuleContext) {
 }
 
 func (a *AndroidApp) Updatable() bool {
-	return Bool(a.appProperties.Updatable) || a.ApexModuleBase.Updatable()
+	return Bool(a.appProperties.Updatable)
 }
 
 func (a *AndroidApp) getCertString(ctx android.BaseModuleContext) string {
@@ -1335,6 +1343,8 @@ type AndroidAppImport struct {
 	preprocessed bool
 
 	installPath android.InstallPath
+
+	hideApexVariantFromMake bool
 }
 
 type AndroidAppImportProperties struct {
@@ -1481,6 +1491,11 @@ func (a *AndroidAppImport) InstallApkName() string {
 }
 
 func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext) {
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	if !apexInfo.IsForPlatform() {
+		a.hideApexVariantFromMake = true
+	}
+
 	numCertPropsSet := 0
 	if String(a.properties.Certificate) != "" {
 		numCertPropsSet++
@@ -1569,7 +1584,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	// TODO: Optionally compress the output apk.
 
-	if a.IsForPlatform() {
+	if apexInfo.IsForPlatform() {
 		a.installPath = ctx.InstallFile(installDir, apkFilename, a.outputFile)
 	}
 
