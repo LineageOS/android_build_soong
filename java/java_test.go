@@ -102,6 +102,10 @@ func testContext() *android.TestContext {
 
 	dexpreopt.RegisterToolModulesForTest(ctx)
 
+	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("propagate_rro_enforcement", propagateRROEnforcementMutator).Parallel()
+	})
+
 	return ctx
 }
 
