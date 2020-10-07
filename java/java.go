@@ -735,8 +735,20 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		return ret
 	}
 
-	ctx.AddVariationDependencies(nil, libTag, rewriteSyspropLibs(j.properties.Libs, "libs")...)
+	libDeps := ctx.AddVariationDependencies(nil, libTag, rewriteSyspropLibs(j.properties.Libs, "libs")...)
 	ctx.AddVariationDependencies(nil, staticLibTag, rewriteSyspropLibs(j.properties.Static_libs, "static_libs")...)
+
+	// For library dependencies that are component libraries (like stubs), add the implementation
+	// as a dependency (dexpreopt needs to be against the implementation library, not stubs).
+	for _, dep := range libDeps {
+		if dep != nil {
+			if component, ok := dep.(SdkLibraryComponentDependency); ok {
+				if lib := component.OptionalSdkLibraryImplementation(); lib != nil {
+					ctx.AddVariationDependencies(nil, usesLibTag, *lib)
+				}
+			}
+		}
+	}
 
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), pluginTag, j.properties.Plugins...)
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), exportedPluginTag, j.properties.Exported_plugins...)

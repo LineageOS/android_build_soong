@@ -218,13 +218,21 @@ func (m classLoaderContextMap) getValue(sdkVer int) *classLoaderContext {
 	return m[sdkVer]
 }
 
-func (m classLoaderContextMap) addLibs(sdkVer int, module *ModuleConfig, libs ...string) bool {
+func (m classLoaderContextMap) addLibs(ctx android.PathContext, sdkVer int, module *ModuleConfig, libs ...string) bool {
 	clc := m.getValue(sdkVer)
 	for _, lib := range libs {
-		if p := pathForLibrary(module, lib); p != nil {
+		if p, ok := module.LibraryPaths[lib]; ok && p.Host != nil && p.Device != UnknownInstallLibraryPath {
 			clc.Host = append(clc.Host, p.Host)
 			clc.Target = append(clc.Target, p.Device)
 		} else {
+			if sdkVer == anySdkVersion {
+				// Fail the build if dexpreopt doesn't know paths to one of the <uses-library>
+				// dependencies. In the future we may need to relax this and just disable dexpreopt.
+				android.ReportPathErrorf(ctx, "dexpreopt cannot find path for <uses-library> '%s'", lib)
+			} else {
+				// No error for compatibility libraries, as Soong doesn't know if they are needed
+				// (this depends on the targetSdkVersion in the manifest).
+			}
 			return false
 		}
 	}
@@ -270,14 +278,14 @@ func genClassLoaderContext(ctx android.PathContext, global *GlobalConfig, module
 	} else if module.EnforceUsesLibraries {
 		// Unconditional class loader context.
 		usesLibs := append(copyOf(module.UsesLibraries), module.OptionalUsesLibraries...)
-		if !classLoaderContexts.addLibs(anySdkVersion, module, usesLibs...) {
+		if !classLoaderContexts.addLibs(ctx, anySdkVersion, module, usesLibs...) {
 			return nil
 		}
 
 		// Conditional class loader context for API version < 28.
 		const httpLegacy = "org.apache.http.legacy"
 		if !contains(usesLibs, httpLegacy) {
-			if !classLoaderContexts.addLibs(28, module, httpLegacy) {
+			if !classLoaderContexts.addLibs(ctx, 28, module, httpLegacy) {
 				return nil
 			}
 		}
@@ -287,14 +295,14 @@ func genClassLoaderContext(ctx android.PathContext, global *GlobalConfig, module
 			"android.hidl.base-V1.0-java",
 			"android.hidl.manager-V1.0-java",
 		}
-		if !classLoaderContexts.addLibs(29, module, usesLibs29...) {
+		if !classLoaderContexts.addLibs(ctx, 29, module, usesLibs29...) {
 			return nil
 		}
 
 		// Conditional class loader context for API version < 30.
 		const testBase = "android.test.base"
 		if !contains(usesLibs, testBase) {
-			if !classLoaderContexts.addLibs(30, module, testBase) {
+			if !classLoaderContexts.addLibs(ctx, 30, module, testBase) {
 				return nil
 			}
 		}
@@ -587,14 +595,6 @@ func PathToLocation(path android.Path, arch android.ArchType) string {
 		panic(fmt.Errorf("last directory in %q must be %q", path, arch.String()))
 	}
 	return filepath.Join(filepath.Dir(filepath.Dir(path.String())), filepath.Base(path.String()))
-}
-
-func pathForLibrary(module *ModuleConfig, lib string) *LibraryPath {
-	if path, ok := module.LibraryPaths[lib]; ok && path.Host != nil && path.Device != "error" {
-		return path
-	} else {
-		return nil
-	}
 }
 
 func makefileMatch(pattern, s string) bool {
