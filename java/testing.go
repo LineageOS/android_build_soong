@@ -22,6 +22,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/dexpreopt"
 	"android/soong/python"
 
 	"github.com/google/blueprint"
@@ -152,6 +153,24 @@ func GatherRequiredDepsForTest() string {
 		`, extra)
 	}
 
+	// For class loader context and <uses-library> tests.
+	dexpreoptModules := []string{"android.test.runner"}
+	dexpreoptModules = append(dexpreoptModules, dexpreopt.CompatUsesLibs...)
+	dexpreoptModules = append(dexpreoptModules, dexpreopt.OptionalCompatUsesLibs...)
+
+	for _, extra := range dexpreoptModules {
+		bp += fmt.Sprintf(`
+			java_library {
+				name: "%s",
+				srcs: ["a.java"],
+				sdk_version: "none",
+				system_modules: "stable-core-platform-api-stubs-system-modules",
+				compile_dex: true,
+				installable: true,
+			}
+		`, extra)
+	}
+
 	bp += `
 		java_library {
 			name: "framework",
@@ -166,48 +185,7 @@ func GatherRequiredDepsForTest() string {
 		android_app {
 			name: "framework-res",
 			sdk_version: "core_platform",
-		}
-
-		java_library {
-			name: "android.hidl.base-V1.0-java",
-			srcs: ["a.java"],
-			sdk_version: "none",
-			system_modules: "stable-core-platform-api-stubs-system-modules",
-			installable: true,
-		}
-
-		java_library {
-			name: "android.hidl.manager-V1.0-java",
-			srcs: ["a.java"],
-			sdk_version: "none",
-			system_modules: "stable-core-platform-api-stubs-system-modules",
-			installable: true,
-		}
-
-		java_library {
-			name: "org.apache.http.legacy",
-			srcs: ["a.java"],
-			sdk_version: "none",
-			system_modules: "stable-core-platform-api-stubs-system-modules",
-			installable: true,
-		}
-
-		java_library {
-			name: "android.test.base",
-			srcs: ["a.java"],
-			sdk_version: "none",
-			system_modules: "stable-core-platform-api-stubs-system-modules",
-			installable: true,
-		}
-  
-		java_library {
-			name: "android.test.mock",
-			srcs: ["a.java"],
-			sdk_version: "none",
-			system_modules: "stable-core-platform-api-stubs-system-modules",
-			installable: true,
-		}
-	`
+		}`
 
 	systemModules := []string{
 		"core-current-stubs-system-modules",
