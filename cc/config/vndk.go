@@ -28,6 +28,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.power.stats-unstable-ndk_platform",
 	"android.hardware.rebootescrow-ndk_platform",
 	"android.hardware.vibrator-ndk_platform",
+	"android.system.keystore2-unstable-ndk_platform",
 	"libbinder",
 	"libcrypto",
 	"libexpat",
