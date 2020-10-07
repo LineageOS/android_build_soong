@@ -125,6 +125,7 @@ func testConfig(bp string, fs map[string][]byte) android.Config {
 }
 
 func TestGenruleCmd(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name string
 		prop string
@@ -503,6 +504,7 @@ func TestGenruleCmd(t *testing.T) {
 }
 
 func TestGenruleHashInputs(t *testing.T) {
+	t.Parallel()
 
 	// The basic idea here is to verify that the sbox command (which is
 	// in the Command field of the generate rule) contains a hash of the
@@ -590,6 +592,7 @@ func TestGenruleHashInputs(t *testing.T) {
 }
 
 func TestGenSrcs(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name string
 		prop string
@@ -682,6 +685,7 @@ func TestGenSrcs(t *testing.T) {
 }
 
 func TestGenruleDefaults(t *testing.T) {
+	t.Parallel()
 	bp := `
 				genrule_defaults {
 					name: "gen_defaults1",

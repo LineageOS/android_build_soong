@@ -32,6 +32,7 @@ func testVtsConfig(test *testing.T, bpFileContents string) *TestContext {
 }
 
 func TestVtsConfig(t *testing.T) {
+	t.Parallel()
 	ctx := testVtsConfig(t, `
 vts_config { name: "plain"}
 vts_config { name: "with_manifest", test_config: "manifest.xml" }

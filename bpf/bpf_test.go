@@ -66,6 +66,7 @@ func testContext(config android.Config) *android.TestContext {
 }
 
 func TestBpfDataDependency(t *testing.T) {
+	t.Parallel()
 	bp := `
 		bpf {
 			name: "bpf.o",

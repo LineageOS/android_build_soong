@@ -53,6 +53,7 @@ func (c counterOutput) Expect(t *testing.T, counts Counts) {
 }
 
 func TestBasicUse(t *testing.T) {
+	t.Parallel()
 	status := &Status{}
 	counts := &counterOutput{}
 	status.AddOutput(counts)
@@ -101,6 +102,7 @@ func TestBasicUse(t *testing.T) {
 
 // For when a tool claims to have 2 actions, but finishes after one.
 func TestFinishEarly(t *testing.T) {
+	t.Parallel()
 	status := &Status{}
 	counts := &counterOutput{}
 	status.AddOutput(counts)
@@ -129,6 +131,7 @@ func TestFinishEarly(t *testing.T) {
 
 // For when a tool claims to have 1 action, but starts two.
 func TestExtraActions(t *testing.T) {
+	t.Parallel()
 	status := &Status{}
 	counts := &counterOutput{}
 	status.AddOutput(counts)
@@ -149,6 +152,7 @@ func TestExtraActions(t *testing.T) {
 
 // When a tool calls Finish() with a running Action
 func TestRunningWhenFinished(t *testing.T) {
+	t.Parallel()
 	status := &Status{}
 	counts := &counterOutput{}
 	status.AddOutput(counts)

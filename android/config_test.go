@@ -58,6 +58,7 @@ func (c *configType) SetDefaultConfig() {
 
 // tests that ValidateConfigAnnotation works
 func TestValidateConfigAnnotations(t *testing.T) {
+	t.Parallel()
 	config := configType{}
 	err := validateConfigAnnotations(&config)
 	expectedError := `Field configType.PopulateMe has tag json:"omitempty" which specifies to change its json field name to "omitempty".
@@ -74,6 +75,7 @@ Did you mean to use an annotation of ",omitempty"?
 
 // run validateConfigAnnotations against each type that might have json annotations
 func TestProductConfigAnnotations(t *testing.T) {
+	t.Parallel()
 	err := validateConfigAnnotations(&productVariables{})
 	if err != nil {
 		t.Errorf(err.Error())
@@ -86,6 +88,7 @@ func TestProductConfigAnnotations(t *testing.T) {
 }
 
 func TestMissingVendorConfig(t *testing.T) {
+	t.Parallel()
 	c := &config{}
 	if c.VendorConfig("test").Bool("not_set") {
 		t.Errorf("Expected false")

@@ -23,6 +23,7 @@ import (
 
 // Test that variants are being generated correctly, and that crate-types are correct.
 func TestLibraryVariants(t *testing.T) {
+	t.Parallel()
 
 	ctx := testRust(t, `
 		rust_library_host {
@@ -71,6 +72,7 @@ func TestLibraryVariants(t *testing.T) {
 
 // Test that dylibs are not statically linking the standard library.
 func TestDylibPreferDynamic(t *testing.T) {
+	t.Parallel()
 	ctx := testRust(t, `
 		rust_library_host_dylib {
 			name: "libfoo",
@@ -86,6 +88,7 @@ func TestDylibPreferDynamic(t *testing.T) {
 }
 
 func TestValidateLibraryStem(t *testing.T) {
+	t.Parallel()
 	testRustError(t, "crate_name must be defined.", `
 			rust_library_host {
 				name: "libfoo",
@@ -123,6 +126,7 @@ func TestValidateLibraryStem(t *testing.T) {
 }
 
 func TestSharedLibrary(t *testing.T) {
+	t.Parallel()
 	ctx := testRust(t, `
 		rust_ffi_shared {
 			name: "libfoo",
@@ -145,6 +149,7 @@ func TestSharedLibrary(t *testing.T) {
 }
 
 func TestStaticLibraryLinkage(t *testing.T) {
+	t.Parallel()
 	ctx := testRust(t, `
 		rust_ffi_static {
 			name: "libfoo",
@@ -162,6 +167,7 @@ func TestStaticLibraryLinkage(t *testing.T) {
 
 // Test that variants pull in the right type of rustlib autodep
 func TestAutoDeps(t *testing.T) {
+	t.Parallel()
 
 	ctx := testRust(t, `
                 rust_library_host {
@@ -209,6 +215,7 @@ func TestAutoDeps(t *testing.T) {
 
 // Test that stripped versions are correctly generated and used.
 func TestStrippedLibrary(t *testing.T) {
+	t.Parallel()
 	ctx := testRust(t, `
 		rust_library_dylib {
 			name: "libfoo",
@@ -240,6 +247,7 @@ func TestStrippedLibrary(t *testing.T) {
 }
 
 func TestLibstdLinkage(t *testing.T) {
+	t.Parallel()
 	ctx := testRust(t, `
 		rust_library {
 			name: "libfoo",

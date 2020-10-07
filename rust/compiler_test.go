@@ -23,6 +23,7 @@ import (
 
 // Test that feature flags are being correctly generated.
 func TestFeaturesToFlags(t *testing.T) {
+	t.Parallel()
 	ctx := testRust(t, `
 		rust_library_host_dylib {
 			name: "libfoo",
@@ -44,6 +45,7 @@ func TestFeaturesToFlags(t *testing.T) {
 
 // Test that we reject multiple source files.
 func TestEnforceSingleSourceFile(t *testing.T) {
+	t.Parallel()
 
 	singleSrcError := "srcs can only contain one path for a rust file and source providers prefixed by \":\""
 
@@ -78,6 +80,7 @@ func TestEnforceSingleSourceFile(t *testing.T) {
 }
 
 func TestInstallDir(t *testing.T) {
+	t.Parallel()
 	ctx := testRust(t, `
 		rust_library_dylib {
 			name: "libfoo",
@@ -108,6 +111,7 @@ func TestInstallDir(t *testing.T) {
 }
 
 func TestLints(t *testing.T) {
+	t.Parallel()
 
 	bp := `
 		// foo uses the default value of lints
@@ -180,6 +184,7 @@ func TestLints(t *testing.T) {
 
 // Test that devices are linking the stdlib dynamically
 func TestStdDeviceLinkage(t *testing.T) {
+	t.Parallel()
 	ctx := testRust(t, `
 		rust_binary {
 			name: "fizz",

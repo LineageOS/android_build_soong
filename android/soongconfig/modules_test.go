@@ -20,6 +20,7 @@ import (
 )
 
 func Test_CanonicalizeToProperty(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		arg  string
@@ -66,6 +67,7 @@ func Test_CanonicalizeToProperty(t *testing.T) {
 }
 
 func Test_typeForPropertyFromPropertyStruct(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		ps       interface{}
@@ -186,6 +188,7 @@ func Test_typeForPropertyFromPropertyStruct(t *testing.T) {
 }
 
 func Test_createAffectablePropertiesType(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name                 string
 		affectableProperties []string

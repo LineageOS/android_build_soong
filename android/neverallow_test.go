@@ -343,6 +343,7 @@ var neverallowTests = []struct {
 }
 
 func TestNeverallow(t *testing.T) {
+	t.Parallel()
 	for _, test := range neverallowTests {
 		// Create a test per config to allow for test specific config, e.g. test rules.
 		config := TestConfig(buildDir, nil, "", test.fs)

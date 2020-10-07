@@ -43,6 +43,7 @@ func testPrebuilt(t *testing.T, bp string, fs map[string][]byte) *android.TestCo
 }
 
 func TestPrebuilt(t *testing.T) {
+	t.Parallel()
 	bp := `
 		cc_library {
 			name: "liba",
@@ -172,6 +173,7 @@ func TestPrebuilt(t *testing.T) {
 }
 
 func TestPrebuiltLibraryShared(t *testing.T) {
+	t.Parallel()
 	ctx := testPrebuilt(t, `
 	cc_prebuilt_library_shared {
 		name: "libtest",
@@ -189,6 +191,7 @@ func TestPrebuiltLibraryShared(t *testing.T) {
 }
 
 func TestPrebuiltLibraryStatic(t *testing.T) {
+	t.Parallel()
 	ctx := testPrebuilt(t, `
 	cc_prebuilt_library_static {
 		name: "libtest",
@@ -203,6 +206,7 @@ func TestPrebuiltLibraryStatic(t *testing.T) {
 }
 
 func TestPrebuiltLibrary(t *testing.T) {
+	t.Parallel()
 	ctx := testPrebuilt(t, `
 	cc_prebuilt_library {
 		name: "libtest",
@@ -229,6 +233,7 @@ func TestPrebuiltLibrary(t *testing.T) {
 }
 
 func TestPrebuiltLibraryStem(t *testing.T) {
+	t.Parallel()
 	ctx := testPrebuilt(t, `
 	cc_prebuilt_library {
 		name: "libfoo",
@@ -256,6 +261,7 @@ func TestPrebuiltLibraryStem(t *testing.T) {
 }
 
 func TestPrebuiltLibrarySharedStem(t *testing.T) {
+	t.Parallel()
 	ctx := testPrebuilt(t, `
 	cc_prebuilt_library_shared {
 		name: "libfoo",
@@ -274,6 +280,7 @@ func TestPrebuiltLibrarySharedStem(t *testing.T) {
 }
 
 func TestPrebuiltSymlinkedHostBinary(t *testing.T) {
+	t.Parallel()
 	if android.BuildOs != android.Linux {
 		t.Skipf("Skipping host prebuilt testing that is only supported on %s not %s", android.Linux, android.BuildOs)
 	}

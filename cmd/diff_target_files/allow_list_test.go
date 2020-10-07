@@ -58,6 +58,7 @@ c
 var f2 = bytesToZipArtifactFile("dir/f2", nil)
 
 func Test_applyAllowLists(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		diff       zipDiff
 		allowLists []allowList
