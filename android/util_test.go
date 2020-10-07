@@ -60,6 +60,7 @@ var firstUniqueStringsTestCases = []struct {
 }
 
 func TestFirstUniqueStrings(t *testing.T) {
+	t.Parallel()
 	f := func(t *testing.T, imp func([]string) []string, in, want []string) {
 		t.Helper()
 		out := imp(in)
@@ -120,6 +121,7 @@ var lastUniqueStringsTestCases = []struct {
 }
 
 func TestLastUniqueStrings(t *testing.T) {
+	t.Parallel()
 	for _, testCase := range lastUniqueStringsTestCases {
 		out := LastUniqueStrings(testCase.in)
 		if !reflect.DeepEqual(out, testCase.out) {
@@ -132,6 +134,7 @@ func TestLastUniqueStrings(t *testing.T) {
 }
 
 func TestJoinWithPrefix(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name     string
 		input    []string
@@ -171,6 +174,7 @@ func TestJoinWithPrefix(t *testing.T) {
 }
 
 func TestIndexList(t *testing.T) {
+	t.Parallel()
 	input := []string{"a", "b", "c"}
 
 	testcases := []struct {
@@ -210,6 +214,7 @@ func TestIndexList(t *testing.T) {
 }
 
 func TestInList(t *testing.T) {
+	t.Parallel()
 	input := []string{"a"}
 
 	testcases := []struct {
@@ -241,6 +246,7 @@ func TestInList(t *testing.T) {
 }
 
 func TestPrefixInList(t *testing.T) {
+	t.Parallel()
 	prefixes := []string{"a", "b"}
 
 	testcases := []struct {
@@ -276,6 +282,7 @@ func TestPrefixInList(t *testing.T) {
 }
 
 func TestFilterList(t *testing.T) {
+	t.Parallel()
 	input := []string{"a", "b", "c", "c", "b", "d", "a"}
 	filter := []string{"a", "c"}
 	remainder, filtered := FilterList(input, filter)
@@ -300,6 +307,7 @@ func TestFilterList(t *testing.T) {
 }
 
 func TestRemoveListFromList(t *testing.T) {
+	t.Parallel()
 	input := []string{"a", "b", "c", "d", "a", "c", "d"}
 	filter := []string{"a", "c"}
 	expected := []string{"b", "d", "d"}
@@ -314,6 +322,7 @@ func TestRemoveListFromList(t *testing.T) {
 }
 
 func TestRemoveFromList(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name          string
 		key           string
@@ -417,6 +426,7 @@ func ExampleCopyOf_append() {
 }
 
 func TestSplitFileExt(t *testing.T) {
+	t.Parallel()
 	t.Run("soname with version", func(t *testing.T) {
 		root, suffix, ext := SplitFileExt("libtest.so.1.0.30")
 		expected := "libtest"
@@ -482,6 +492,7 @@ func TestSplitFileExt(t *testing.T) {
 }
 
 func Test_Shard(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		strings   []string
 		shardSize int

@@ -38,6 +38,7 @@ func soongConfigTestModuleFactory() Module {
 func (t soongConfigTestModule) GenerateAndroidBuildActions(ModuleContext) {}
 
 func TestSoongConfigModule(t *testing.T) {
+	t.Parallel()
 	configBp := `
 		soong_config_module_type {
 			name: "acme_test_defaults",

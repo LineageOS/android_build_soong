@@ -22,6 +22,7 @@ import (
 )
 
 func TestTemplate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		params *REParams
@@ -67,6 +68,7 @@ func TestTemplate(t *testing.T) {
 }
 
 func TestNoVarTemplate(t *testing.T) {
+	t.Parallel()
 	params := &REParams{
 		Labels:      map[string]string{"type": "compile", "lang": "cpp", "compiler": "clang"},
 		Inputs:      []string{"$in"},
@@ -83,6 +85,7 @@ func TestNoVarTemplate(t *testing.T) {
 }
 
 func TestTemplateDeterminism(t *testing.T) {
+	t.Parallel()
 	r := &REParams{
 		Labels:      map[string]string{"type": "compile", "lang": "cpp", "compiler": "clang"},
 		Inputs:      []string{"$in"},

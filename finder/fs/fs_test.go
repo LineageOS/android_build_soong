@@ -20,6 +20,7 @@ import (
 )
 
 func TestMockFs_LstatStatSymlinks(t *testing.T) {
+	t.Parallel()
 	// setup filesystem
 	filesystem := NewMockFs(nil)
 	Create(t, "/tmp/realdir/hi.txt", filesystem)

@@ -92,6 +92,7 @@ java_import {
 // Contains tests for SDK members provided by the java package.
 
 func TestSdkDependsOnSourceEvenWhenPrebuiltPreferred(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -141,6 +142,7 @@ sdk_snapshot {
 }
 
 func TestBasicSdkWithJavaLibrary(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -220,6 +222,7 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 }
 
 func TestSnapshotWithJavaHeaderLibrary(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -272,6 +275,7 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestHostSnapshotWithJavaHeaderLibrary(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -332,6 +336,7 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestDeviceAndHostSnapshotWithJavaHeaderLibrary(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -398,6 +403,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaImplLibrary(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		module_exports {
 			name: "myexports",
@@ -451,6 +457,7 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestHostSnapshotWithJavaImplLibrary(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		module_exports {
 			name: "myexports",
@@ -511,6 +518,7 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestSnapshotWithJavaTest(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		module_exports {
 			name: "myexports",
@@ -561,6 +569,7 @@ module_exports_snapshot {
 }
 
 func TestHostSnapshotWithJavaTest(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		module_exports {
 			name: "myexports",
@@ -633,6 +642,7 @@ func testSdkWithDroidstubs(t *testing.T, bp string) *testSdkResult {
 // directly or indirectly from an APEX as droidstubs can never be a part of an
 // apex.
 func TestBasicSdkWithDroidstubs(t *testing.T) {
+	t.Parallel()
 	testSdkWithDroidstubs(t, `
 		sdk {
 				name: "mysdk",
@@ -663,6 +673,7 @@ func TestBasicSdkWithDroidstubs(t *testing.T) {
 }
 
 func TestSnapshotWithDroidstubs(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithDroidstubs(t, `
 		module_exports {
 			name: "myexports",
@@ -708,6 +719,7 @@ module_exports_snapshot {
 }
 
 func TestHostSnapshotWithDroidstubs(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithDroidstubs(t, `
 		module_exports {
 			name: "myexports",
@@ -762,6 +774,7 @@ module_exports_snapshot {
 }
 
 func TestSnapshotWithJavaSystemModules(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -856,6 +869,7 @@ sdk_snapshot {
 }
 
 func TestHostSnapshotWithJavaSystemModules(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -934,6 +948,7 @@ sdk_snapshot {
 }
 
 func TestDeviceAndHostSnapshotWithOsSpecificMembers(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		module_exports {
 			name: "myexports",
@@ -1061,6 +1076,7 @@ module_exports_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -1165,6 +1181,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_SdkVersion_None(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -1229,6 +1246,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -1296,6 +1314,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_ApiScopes(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -1386,6 +1405,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_ModuleLib(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -1497,6 +1517,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_SystemServer(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",
@@ -1587,6 +1608,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_NamingScheme(t *testing.T) {
+	t.Parallel()
 	result := testSdkWithJava(t, `
 		sdk {
 			name: "mysdk",

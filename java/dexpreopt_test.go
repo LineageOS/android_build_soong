@@ -19,6 +19,7 @@ import (
 )
 
 func TestDexpreoptEnabled(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		bp      string

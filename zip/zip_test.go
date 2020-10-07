@@ -102,6 +102,7 @@ func fileArgsBuilder() *FileArgsBuilder {
 }
 
 func TestZip(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name               string
 		args               *FileArgsBuilder
@@ -530,6 +531,7 @@ func TestZip(t *testing.T) {
 }
 
 func TestReadRespFile(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name, in string
 		out      []string
@@ -602,6 +604,7 @@ func TestReadRespFile(t *testing.T) {
 }
 
 func TestSrcJar(t *testing.T) {
+	t.Parallel()
 	mockFs := pathtools.MockFs(map[string][]byte{
 		"wrong_package.java":       []byte("package foo;"),
 		"foo/correct_package.java": []byte("package foo;"),

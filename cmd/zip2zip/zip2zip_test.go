@@ -416,6 +416,7 @@ func errorString(e error) string {
 }
 
 func TestZip2Zip(t *testing.T) {
+	t.Parallel()
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			inputBuf := &bytes.Buffer{}
@@ -472,6 +473,7 @@ func TestZip2Zip(t *testing.T) {
 }
 
 func TestConstantPartOfPattern(t *testing.T) {
+	t.Parallel()
 	testCases := []struct{ in, out string }{
 		{
 			in:  "",

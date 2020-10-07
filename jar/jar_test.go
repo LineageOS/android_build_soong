@@ -21,6 +21,7 @@ import (
 )
 
 func TestGetJavaPackage(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		r   io.Reader
 		src string
@@ -78,6 +79,7 @@ func TestGetJavaPackage(t *testing.T) {
 }
 
 func Test_javaIdentRune(t *testing.T) {
+	t.Parallel()
 	// runes that should be valid anywhere in an identifier
 	validAnywhere := []rune{
 		// letters, $, _
