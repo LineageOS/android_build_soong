@@ -451,6 +451,8 @@ type Module struct {
 
 	// Collect the module directory for IDE info in java/jdeps.go.
 	modulePaths []string
+
+	hideApexVariantFromMake bool
 }
 
 func (j *Module) addHostProperties() {
@@ -638,8 +640,9 @@ func (j *Module) shouldInstrumentInApex(ctx android.BaseModuleContext) bool {
 	// Force enable the instrumentation for java code that is built for APEXes ...
 	// except for the jacocoagent itself (because instrumenting jacocoagent using jacocoagent
 	// doesn't make sense) or framework libraries (e.g. libraries found in the InstrumentFrameworkModules list) unless EMMA_INSTRUMENT_FRAMEWORK is true.
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	isJacocoAgent := ctx.ModuleName() == "jacocoagent"
-	if android.DirectlyInAnyApex(ctx, ctx.ModuleName()) && !isJacocoAgent && !j.IsForPlatform() {
+	if j.DirectlyInAnyApex() && !isJacocoAgent && !apexInfo.IsForPlatform() {
 		if !inList(ctx.ModuleName(), config.InstrumentFrameworkModules) {
 			return true
 		} else if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
@@ -1602,7 +1605,8 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	j.implementationAndResourcesJar = implementationAndResourcesJar
 
 	// Enable dex compilation for the APEX variants, unless it is disabled explicitly
-	if android.DirectlyInAnyApex(ctx, ctx.ModuleName()) && !j.IsForPlatform() {
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	if j.DirectlyInAnyApex() && !apexInfo.IsForPlatform() {
 		if j.dexProperties.Compile_dex == nil {
 			j.dexProperties.Compile_dex = proptools.BoolPtr(true)
 		}
@@ -1684,7 +1688,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		j.linter.compileSdkVersion = lintSDKVersionString(j.sdkVersion())
 		j.linter.javaLanguageLevel = flags.javaVersion.String()
 		j.linter.kotlinLanguageLevel = "1.3"
-		if j.ApexVariationName() != "" && ctx.Config().UnbundledBuildApps() {
+		if !apexInfo.IsForPlatform() && ctx.Config().UnbundledBuildApps() {
 			j.linter.buildModuleReportZip = true
 		}
 		j.linter.lint(ctx)
@@ -1946,7 +1950,7 @@ func (j *Library) PermittedPackagesForUpdatableBootJars() []string {
 
 func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bool {
 	// Store uncompressed (and aligned) any dex files from jars in APEXes.
-	if am, ok := ctx.Module().(android.ApexModule); ok && !am.IsForPlatform() {
+	if apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo); !apexInfo.IsForPlatform() {
 		return true
 	}
 
@@ -1968,6 +1972,11 @@ func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bo
 }
 
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	if !apexInfo.IsForPlatform() {
+		j.hideApexVariantFromMake = true
+	}
+
 	j.checkSdkVersions(ctx)
 	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar")
 	j.dexpreopter.isSDKLibrary = j.deviceProperties.IsSDKLibrary
@@ -1982,7 +1991,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Collect the module directory for IDE info in java/jdeps.go.
 	j.modulePaths = append(j.modulePaths, ctx.ModuleDir())
 
-	exclusivelyForApex := android.InAnyApex(ctx.ModuleName()) && !j.IsForPlatform()
+	exclusivelyForApex := !apexInfo.IsForPlatform()
 	if (Bool(j.properties.Installable) || ctx.Host()) && !exclusivelyForApex {
 		var extraInstallDeps android.Paths
 		if j.InstallMixin != nil {
@@ -2574,6 +2583,8 @@ type Import struct {
 	combinedClasspathFile android.Path
 	exportedSdkLibs       dexpreopt.LibraryPaths
 	exportAidlIncludeDirs android.Paths
+
+	hideApexVariantFromMake bool
 }
 
 func (j *Import) sdkVersion() sdkSpec {
@@ -2629,6 +2640,10 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
+		j.hideApexVariantFromMake = true
+	}
+
 	jars := android.PathsForModuleSrc(ctx, j.properties.Jars)
 
 	jarName := j.Stem() + ".jar"
@@ -2872,6 +2887,8 @@ type DexImport struct {
 	maybeStrippedDexJarFile android.Path
 
 	dexpreopter
+
+	hideApexVariantFromMake bool
 }
 
 func (j *DexImport) Prebuilt() *android.Prebuilt {
@@ -2905,6 +2922,11 @@ func (j *DexImport) IsInstallable() bool {
 func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(j.properties.Jars) != 1 {
 		ctx.PropertyErrorf("jars", "exactly one jar must be provided")
+	}
+
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	if !apexInfo.IsForPlatform() {
+		j.hideApexVariantFromMake = true
 	}
 
 	j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar")
@@ -2951,7 +2973,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	j.maybeStrippedDexJarFile = dexOutputFile
 
-	if j.IsForPlatform() {
+	if apexInfo.IsForPlatform() {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 			j.Stem()+".jar", dexOutputFile)
 	}
