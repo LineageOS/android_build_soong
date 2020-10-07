@@ -22,6 +22,7 @@ import (
 )
 
 func TestDeviceForHost(t *testing.T) {
+	t.Parallel()
 	bp := `
 		java_library {
 			name: "device_module",
@@ -102,6 +103,7 @@ func TestDeviceForHost(t *testing.T) {
 }
 
 func TestHostForDevice(t *testing.T) {
+	t.Parallel()
 	bp := `
 		java_library_host {
 			name: "host_module",

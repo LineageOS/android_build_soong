@@ -21,6 +21,7 @@ import (
 )
 
 func TestSdkMutator(t *testing.T) {
+	t.Parallel()
 	bp := `
 		cc_library {
 			name: "libsdk",

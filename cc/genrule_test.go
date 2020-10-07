@@ -30,6 +30,7 @@ func testGenruleContext(config android.Config) *android.TestContext {
 }
 
 func TestArchGenruleCmd(t *testing.T) {
+	t.Parallel()
 	fs := map[string][]byte{
 		"tool": nil,
 		"foo":  nil,
@@ -78,6 +79,7 @@ func TestArchGenruleCmd(t *testing.T) {
 }
 
 func TestLibraryGenruleCmd(t *testing.T) {
+	t.Parallel()
 	bp := `
 		cc_library {
 			name: "libboth",

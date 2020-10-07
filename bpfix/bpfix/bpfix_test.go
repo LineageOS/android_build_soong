@@ -116,6 +116,7 @@ func implFilterListTest(t *testing.T, local_include_dirs []string, export_includ
 }
 
 func TestSimplifyKnownVariablesDuplicatingEachOther(t *testing.T) {
+	t.Parallel()
 	// TODO use []Expression{} once buildTree above can support it (which is after b/38325146 is done)
 	implFilterListTest(t, []string{"include"}, []string{"include"}, nil)
 	implFilterListTest(t, []string{"include1"}, []string{"include2"}, []string{"include1"})
@@ -169,6 +170,7 @@ func runPass(t *testing.T, in, out string, innerTest func(*Fixer) error) {
 }
 
 func TestMergeMatchingProperties(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -258,6 +260,7 @@ func TestMergeMatchingProperties(t *testing.T) {
 }
 
 func TestReorderCommonProperties(t *testing.T) {
+	t.Parallel()
 	var tests = []struct {
 		name string
 		in   string
@@ -344,6 +347,7 @@ func TestReorderCommonProperties(t *testing.T) {
 }
 
 func TestRemoveMatchingModuleListProperties(t *testing.T) {
+	t.Parallel()
 	var tests = []struct {
 		name string
 		in   string
@@ -499,6 +503,7 @@ func TestRemoveMatchingModuleListProperties(t *testing.T) {
 }
 
 func TestReplaceJavaStaticLibs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -557,6 +562,7 @@ func TestReplaceJavaStaticLibs(t *testing.T) {
 }
 
 func TestRewritePrebuilts(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -623,6 +629,7 @@ func TestRewritePrebuilts(t *testing.T) {
 }
 
 func TestRewriteCtsModuleTypes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -694,6 +701,7 @@ func TestRewriteCtsModuleTypes(t *testing.T) {
 }
 
 func TestRewritePrebuiltEtc(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -769,6 +777,7 @@ func TestRewritePrebuiltEtc(t *testing.T) {
 }
 
 func TestRewriteAndroidTest(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -802,6 +811,7 @@ func TestRewriteAndroidTest(t *testing.T) {
 }
 
 func TestRewriteAndroidAppImport(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -851,6 +861,7 @@ func TestRewriteAndroidAppImport(t *testing.T) {
 }
 
 func TestRemoveEmptyLibDependencies(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -905,6 +916,7 @@ func TestRemoveEmptyLibDependencies(t *testing.T) {
 }
 
 func TestRemoveHidlInterfaceTypes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -936,6 +948,7 @@ func TestRemoveHidlInterfaceTypes(t *testing.T) {
 }
 
 func TestRemoveSoongConfigBoolVariable(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -1000,6 +1013,7 @@ func TestRemoveSoongConfigBoolVariable(t *testing.T) {
 }
 
 func TestRemovePdkProperty(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string

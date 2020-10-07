@@ -112,6 +112,7 @@ var printfIntoPropertyTestCases = []printfIntoPropertyTestCase{
 }
 
 func TestPrintfIntoProperty(t *testing.T) {
+	t.Parallel()
 	for _, testCase := range printfIntoPropertyTestCases {
 		s := testCase.in
 		v := reflect.ValueOf(&s).Elem()
@@ -157,6 +158,7 @@ func testProductVariableModuleFactoryFactory(props interface{}) func() Module {
 }
 
 func TestProductVariables(t *testing.T) {
+	t.Parallel()
 	ctx := NewTestContext()
 	// A module type that has a srcs property but not a cflags property.
 	ctx.RegisterModuleType("module1", testProductVariableModuleFactoryFactory(&struct {
@@ -265,6 +267,7 @@ func productVariablesDefaultsTestDefaultsFactory() Module {
 
 // Test a defaults module that supports more product variable properties than the target module.
 func TestProductVariablesDefaults(t *testing.T) {
+	t.Parallel()
 	bp := `
 		defaults {
 			name: "defaults",

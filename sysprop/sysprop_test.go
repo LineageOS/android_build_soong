@@ -158,6 +158,7 @@ func test(t *testing.T, bp string) *android.TestContext {
 }
 
 func TestSyspropLibrary(t *testing.T) {
+	t.Parallel()
 	ctx := test(t, `
 		sysprop_library {
 			name: "sysprop-platform",

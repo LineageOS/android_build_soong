@@ -22,6 +22,7 @@ import (
 )
 
 func TestEnd(t *testing.T) {
+	t.Parallel()
 	startTime := time.Date(2020, time.July, 13, 13, 0, 0, 0, time.UTC)
 	dur := time.Nanosecond * 10
 	initialNow := _now
