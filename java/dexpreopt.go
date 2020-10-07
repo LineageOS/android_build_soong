@@ -94,7 +94,7 @@ func (d *dexpreopter) dexpreoptDisabled(ctx android.BaseModuleContext) bool {
 	}
 
 	// Don't preopt APEX variant module
-	if am, ok := ctx.Module().(android.ApexModule); ok && !am.IsForPlatform() {
+	if apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo); !apexInfo.IsForPlatform() {
 		return true
 	}
 
