@@ -25,6 +25,7 @@ import (
 )
 
 func TestEnsureEmptyDirs(t *testing.T) {
+	t.Parallel()
 	ctx := testContext()
 	defer logger.Recover(func(err error) {
 		t.Error(err)
@@ -52,6 +53,7 @@ func TestEnsureEmptyDirs(t *testing.T) {
 }
 
 func TestCopyFile(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "test_copy_file")
 	if err != nil {
 		t.Fatalf("failed to create temporary directory to hold test text files: %v", err)
@@ -86,6 +88,7 @@ func TestCopyFile(t *testing.T) {
 }
 
 func TestCopyFileErrors(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "test_copy_file_errors")
 	if err != nil {
 		t.Fatalf("failed to create temporary directory to hold test text files: %v", err)

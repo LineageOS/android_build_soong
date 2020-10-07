@@ -93,6 +93,7 @@ warning: [options] bootstrap class path not set in conjunction with -source 1.9\
 }
 
 func TestJavacColorize(t *testing.T) {
+	t.Parallel()
 	for i, test := range testCases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			buf := new(bytes.Buffer)
@@ -110,6 +111,7 @@ func TestJavacColorize(t *testing.T) {
 }
 
 func TestSubprocess(t *testing.T) {
+	t.Parallel()
 	t.Run("failure", func(t *testing.T) {
 		exitCode, err := Main(ioutil.Discard, "test", []string{"sh", "-c", "exit 9"})
 		if err != nil {

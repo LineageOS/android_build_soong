@@ -61,6 +61,7 @@ func setup(t *testing.T) string {
 }
 
 func TestInterposer(t *testing.T) {
+	t.Parallel()
 	interposer := setup(t)
 
 	logConfig := func(name string) paths.PathConfig {
@@ -180,6 +181,7 @@ func TestInterposer(t *testing.T) {
 }
 
 func TestMissingPath(t *testing.T) {
+	t.Parallel()
 	interposer := setup(t)
 	err := os.Remove(interposer + "_origpath")
 	if err != nil {

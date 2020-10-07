@@ -59,6 +59,7 @@ func addMissingDependenciesMutator(ctx TopDownMutatorContext) {
 }
 
 func TestMutatorAddMissingDependencies(t *testing.T) {
+	t.Parallel()
 	bp := `
 		test {
 			name: "foo",
@@ -92,6 +93,7 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 }
 
 func TestModuleString(t *testing.T) {
+	t.Parallel()
 	ctx := NewTestContext()
 
 	var moduleStrings []string
@@ -190,6 +192,7 @@ func TestModuleString(t *testing.T) {
 }
 
 func TestFinalDepsPhase(t *testing.T) {
+	t.Parallel()
 	ctx := NewTestContext()
 
 	finalGot := map[string]int{}
@@ -267,6 +270,7 @@ func TestFinalDepsPhase(t *testing.T) {
 }
 
 func TestNoCreateVariationsInFinalDeps(t *testing.T) {
+	t.Parallel()
 	ctx := NewTestContext()
 
 	checkErr := func() {
