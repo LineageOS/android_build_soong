@@ -388,6 +388,9 @@ type sdkLibraryProperties struct {
 	// visibility property.
 	Stubs_source_visibility []string
 
+	// List of Java libraries that will be in the classpath when building the implementation lib
+	Impl_only_libs []string `android:"arch_variant"`
+
 	// List of Java libraries that will be in the classpath when building stubs
 	Stub_only_libs []string `android:"arch_variant"`
 
@@ -1137,12 +1140,16 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 		Name              *string
 		Visibility        []string
 		Instrument        bool
+		Libs              []string
 		ConfigurationName *string
 	}{
 		Name:       proptools.StringPtr(module.implLibraryModuleName()),
 		Visibility: visibility,
 		// Set the instrument property to ensure it is instrumented when instrumentation is required.
 		Instrument: true,
+		// Set the impl_only libs. Note that the module's "Libs" get appended as well, via the
+		// addition of &module.properties below.
+		Libs: module.sdkLibraryProperties.Impl_only_libs,
 
 		// Make the created library behave as if it had the same name as this module.
 		ConfigurationName: moduleNamePtr,
@@ -1573,6 +1580,9 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 		defer javaSdkLibrariesLock.Unlock()
 		*javaSdkLibraries = append(*javaSdkLibraries, module.BaseModuleName())
 	}
+
+	// Add the impl_only_libs *after* we're done using the Libs prop in submodules.
+	module.properties.Libs = append(module.properties.Libs, module.sdkLibraryProperties.Impl_only_libs...)
 }
 
 func (module *SdkLibrary) InitSdkLibraryProperties() {
