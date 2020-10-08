@@ -44,7 +44,7 @@ var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 
 // Uses manifest_fixer.py to inject minSdkVersion, etc. into an AndroidManifest.xml
 func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext sdkContext,
-	sdkLibraries dexpreopt.ClassLoaderContextMap, isLibrary, useEmbeddedNativeLibs, usesNonSdkApis,
+	classLoaderContexts dexpreopt.ClassLoaderContextMap, isLibrary, useEmbeddedNativeLibs, usesNonSdkApis,
 	useEmbeddedDex, hasNoCode bool, loggingParent string) android.Path {
 
 	var args []string
@@ -71,7 +71,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 		args = append(args, "--use-embedded-dex")
 	}
 
-	for _, usesLib := range sdkLibraries.UsesLibs() {
+	for _, usesLib := range classLoaderContexts.UsesLibs() {
 		if inList(usesLib, dexpreopt.OptionalCompatUsesLibs) {
 			args = append(args, "--optional-uses-library", usesLib)
 		} else {
