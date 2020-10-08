@@ -20,6 +20,7 @@ import (
 )
 
 func TestElfSymbolTable(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		file         *mockElfFile
 		symbol       string

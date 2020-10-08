@@ -28,19 +28,28 @@ var (
 	SdkVersion_Android10 = uncheckedFinalApiLevel(29)
 )
 
+// ApexInfo describes the metadata common to all modules in an apexBundle.
 type ApexInfo struct {
-	// Name of the apex variation that this module is mutated into
+	// Name of the apex variation that this module is mutated into, or "" for
+	// a platform variant.  Note that a module can be included in multiple APEXes,
+	// in which case, the module is mutated into one or more variants, each of
+	// which is for one or more APEXes.
 	ApexVariationName string
 
 	// Serialized ApiLevel. Use via MinSdkVersion() method. Cannot be stored in
 	// its struct form because this is cloned into properties structs, and
 	// ApiLevel has private members.
 	MinSdkVersionStr string
-	Updatable        bool
-	RequiredSdks     SdkRefs
 
-	InApexes []string
+	// True if the module comes from an updatable APEX.
+	Updatable    bool
+	RequiredSdks SdkRefs
+
+	InApexes     []string
+	ApexContents []*ApexContents
 }
+
+var ApexInfoProvider = blueprint.NewMutatorProvider(ApexInfo{}, "apex")
 
 func (i ApexInfo) mergedName(ctx PathContext) string {
 	name := "apex" + strconv.Itoa(i.MinSdkVersion(ctx).FinalOrFutureInt())
@@ -53,6 +62,18 @@ func (i ApexInfo) mergedName(ctx PathContext) string {
 func (this *ApexInfo) MinSdkVersion(ctx PathContext) ApiLevel {
 	return ApiLevelOrPanic(ctx, this.MinSdkVersionStr)
 }
+
+func (i ApexInfo) IsForPlatform() bool {
+	return i.ApexVariationName == ""
+}
+
+// ApexTestForInfo stores the contents of APEXes for which this module is a test and thus has
+// access to APEX internals.
+type ApexTestForInfo struct {
+	ApexContents []*ApexContents
+}
+
+var ApexTestForInfoProvider = blueprint.NewMutatorProvider(ApexTestForInfo{}, "apex_test_for")
 
 // Extracted from ApexModule to make it easier to define custom subsets of the
 // ApexModule interface and improve code navigation within the IDE.
@@ -87,23 +108,18 @@ type ApexModule interface {
 	// Call this before apex.apexMutator is run.
 	BuildForApex(apex ApexInfo)
 
-	// Returns the name of APEX variation that this module will be built for.
-	// Empty string is returned when 'IsForPlatform() == true'. Note that a
-	// module can beincluded in multiple APEXes, in which case, the module
-	// is mutated into one or more variants, each of which is for one or
-	// more APEXes.  This method returns the name of the APEX variation of
-	// the module.
+	// Returns true if this module is present in any APEXes
+	// directly or indirectly.
 	// Call this after apex.apexMutator is run.
-	ApexVariationName() string
+	InAnyApex() bool
 
-	// Returns the name of the APEX modules that this variant of this module
-	// is present in.
+	// Returns true if this module is directly in any APEXes.
 	// Call this after apex.apexMutator is run.
-	InApexes() []string
+	DirectlyInAnyApex() bool
 
-	// Tests whether this module will be built for the platform or not.
-	// This is a shortcut for ApexVariationName() == ""
-	IsForPlatform() bool
+	// Returns true if any variant of this module is directly in any APEXes.
+	// Call this after apex.apexMutator is run.
+	AnyVariantDirectlyInAnyApex() bool
 
 	// Tests if this module could have APEX variants. APEX variants are
 	// created only for the modules that returns true here. This is useful
@@ -115,10 +131,6 @@ type ApexModule interface {
 	// this would return true for shared libs while return false for static
 	// libs.
 	IsInstallableToApex() bool
-
-	// Mutate this module into one or more variants each of which is built
-	// for an APEX marked via BuildForApex().
-	CreateApexVariations(mctx BottomUpMutatorContext) []Module
 
 	// Tests if this module is available for the specified APEX or ":platform"
 	AvailableFor(what string) bool
@@ -138,9 +150,6 @@ type ApexModule interface {
 	// it returns 9 as string
 	ChooseSdkVersion(ctx BaseModuleContext, versionList []string, maxSdkVersion ApiLevel) (string, error)
 
-	// Tests if the module comes from an updatable APEX.
-	Updatable() bool
-
 	// List of APEXes that this module tests. The module has access to
 	// the private part of the listed APEXes even when it is not included in the
 	// APEXes.
@@ -153,11 +162,6 @@ type ApexModule interface {
 	// Returns true if this module needs a unique variation per apex, for example if
 	// use_apex_name_macro is set.
 	UniqueApexVariations() bool
-
-	// UpdateUniqueApexVariationsForDeps sets UniqueApexVariationsForDeps if any dependencies
-	// that are in the same APEX have unique APEX variations so that the module can link against
-	// the right variant.
-	UpdateUniqueApexVariationsForDeps(mctx BottomUpMutatorContext)
 }
 
 type ApexProperties struct {
@@ -171,7 +175,21 @@ type ApexProperties struct {
 	// Default is ["//apex_available:platform"].
 	Apex_available []string
 
-	Info ApexInfo `blueprint:"mutated"`
+	// AnyVariantDirectlyInAnyApex is true in the primary variant of a module if _any_ variant
+	// of the module is directly in any apex.  This includes host, arch, asan, etc. variants.
+	// It is unused in any variant that is not the primary variant.
+	// Ideally this wouldn't be used, as it incorrectly mixes arch variants if only one arch
+	// is in an apex, but a few places depend on it, for example when an ASAN variant is
+	// created before the apexMutator.
+	AnyVariantDirectlyInAnyApex bool `blueprint:"mutated"`
+
+	// DirectlyInAnyApex is true if any APEX variant (including the "" variant used for the
+	// platform) of this module is directly in any APEX.
+	DirectlyInAnyApex bool `blueprint:"mutated"`
+
+	// DirectlyInAnyApex is true if any APEX variant (including the "" variant used for the
+	// platform) of this module is directly or indirectly in any APEX.
+	InAnyApex bool `blueprint:"mutated"`
 
 	NotAvailableForPlatform bool `blueprint:"mutated"`
 
@@ -185,6 +203,15 @@ type ExcludeFromApexContentsTag interface {
 
 	// Method that differentiates this interface from others.
 	ExcludeFromApexContents()
+}
+
+// Marker interface that identifies dependencies that should inherit the DirectlyInAnyApex
+// state from the parent to the child.  For example, stubs libraries are marked as
+// DirectlyInAnyApex if their implementation is in an apex.
+type CopyDirectlyInAnyApexTag interface {
+	blueprint.DependencyTag
+
+	CopyDirectlyInAnyApex()
 }
 
 // Provides default implementation for the ApexModule interface. APEX-aware
@@ -215,43 +242,6 @@ func (m *ApexModuleBase) UniqueApexVariations() bool {
 	return false
 }
 
-func (m *ApexModuleBase) UpdateUniqueApexVariationsForDeps(mctx BottomUpMutatorContext) {
-	// anyInSameApex returns true if the two ApexInfo lists contain any values in an InApexes list
-	// in common.  It is used instead of DepIsInSameApex because it needs to determine if the dep
-	// is in the same APEX due to being directly included, not only if it is included _because_ it
-	// is a dependency.
-	anyInSameApex := func(a, b []ApexInfo) bool {
-		collectApexes := func(infos []ApexInfo) []string {
-			var ret []string
-			for _, info := range infos {
-				ret = append(ret, info.InApexes...)
-			}
-			return ret
-		}
-
-		aApexes := collectApexes(a)
-		bApexes := collectApexes(b)
-		sort.Strings(bApexes)
-		for _, aApex := range aApexes {
-			index := sort.SearchStrings(bApexes, aApex)
-			if index < len(bApexes) && bApexes[index] == aApex {
-				return true
-			}
-		}
-		return false
-	}
-
-	mctx.VisitDirectDeps(func(dep Module) {
-		if depApexModule, ok := dep.(ApexModule); ok {
-			if anyInSameApex(depApexModule.apexModuleBase().apexVariations, m.apexVariations) &&
-				(depApexModule.UniqueApexVariations() ||
-					depApexModule.apexModuleBase().ApexProperties.UniqueApexVariationsForDeps) {
-				m.ApexProperties.UniqueApexVariationsForDeps = true
-			}
-		}
-	})
-}
-
 func (m *ApexModuleBase) BuildForApex(apex ApexInfo) {
 	m.apexVariationsLock.Lock()
 	defer m.apexVariationsLock.Unlock()
@@ -263,16 +253,16 @@ func (m *ApexModuleBase) BuildForApex(apex ApexInfo) {
 	m.apexVariations = append(m.apexVariations, apex)
 }
 
-func (m *ApexModuleBase) ApexVariationName() string {
-	return m.ApexProperties.Info.ApexVariationName
+func (m *ApexModuleBase) DirectlyInAnyApex() bool {
+	return m.ApexProperties.DirectlyInAnyApex
 }
 
-func (m *ApexModuleBase) InApexes() []string {
-	return m.ApexProperties.Info.InApexes
+func (m *ApexModuleBase) AnyVariantDirectlyInAnyApex() bool {
+	return m.ApexProperties.AnyVariantDirectlyInAnyApex
 }
 
-func (m *ApexModuleBase) IsForPlatform() bool {
-	return m.ApexProperties.Info.ApexVariationName == ""
+func (m *ApexModuleBase) InAnyApex() bool {
+	return m.ApexProperties.InAnyApex
 }
 
 func (m *ApexModuleBase) CanHaveApexVariants() bool {
@@ -345,10 +335,6 @@ func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {
 	}
 }
 
-func (m *ApexModuleBase) Updatable() bool {
-	return m.ApexProperties.Info.Updatable
-}
-
 type byApexName []ApexInfo
 
 func (a byApexName) Len() int           { return len(a) }
@@ -366,11 +352,13 @@ func mergeApexVariations(ctx PathContext, apexVariations []ApexInfo) (merged []A
 		mergedName := apexInfo.mergedName(ctx)
 		if index, exists := seen[mergedName]; exists {
 			merged[index].InApexes = append(merged[index].InApexes, apexName)
+			merged[index].ApexContents = append(merged[index].ApexContents, apexInfo.ApexContents...)
 			merged[index].Updatable = merged[index].Updatable || apexInfo.Updatable
 		} else {
 			seen[mergedName] = len(merged)
 			apexInfo.ApexVariationName = apexInfo.mergedName(ctx)
 			apexInfo.InApexes = CopyOf(apexInfo.InApexes)
+			apexInfo.ApexContents = append([]*ApexContents(nil), apexInfo.ApexContents...)
 			merged = append(merged, apexInfo)
 		}
 		aliases = append(aliases, [2]string{apexName, mergedName})
@@ -378,17 +366,23 @@ func mergeApexVariations(ctx PathContext, apexVariations []ApexInfo) (merged []A
 	return merged, aliases
 }
 
-func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Module {
-	if len(m.apexVariations) > 0 {
-		m.checkApexAvailableProperty(mctx)
+func CreateApexVariations(mctx BottomUpMutatorContext, module ApexModule) []Module {
+	base := module.apexModuleBase()
+	if len(base.apexVariations) > 0 {
+		base.checkApexAvailableProperty(mctx)
 
 		var apexVariations []ApexInfo
 		var aliases [][2]string
-		if !mctx.Module().(ApexModule).UniqueApexVariations() && !m.ApexProperties.UniqueApexVariationsForDeps {
-			apexVariations, aliases = mergeApexVariations(mctx, m.apexVariations)
+		if !mctx.Module().(ApexModule).UniqueApexVariations() && !base.ApexProperties.UniqueApexVariationsForDeps {
+			apexVariations, aliases = mergeApexVariations(mctx, base.apexVariations)
 		} else {
-			apexVariations = m.apexVariations
+			apexVariations = base.apexVariations
 		}
+		// base.apexVariations is only needed to propagate the list of apexes from
+		// apexDepsMutator to apexMutator.  It is no longer accurate after
+		// mergeApexVariations, and won't be copied to all but the first created
+		// variant.  Clear it so it doesn't accidentally get used later.
+		base.apexVariations = nil
 
 		sort.Sort(byApexName(apexVariations))
 		variations := []string{}
@@ -400,6 +394,16 @@ func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Mod
 		defaultVariation := ""
 		mctx.SetDefaultDependencyVariation(&defaultVariation)
 
+		var inApex ApexMembership
+		for _, a := range apexVariations {
+			for _, apexContents := range a.ApexContents {
+				inApex = inApex.merge(apexContents.contents[mctx.ModuleName()])
+			}
+		}
+
+		base.ApexProperties.InAnyApex = true
+		base.ApexProperties.DirectlyInAnyApex = inApex == directlyInApex
+
 		modules := mctx.CreateVariations(variations...)
 		for i, mod := range modules {
 			platformVariation := i == 0
@@ -410,7 +414,7 @@ func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Mod
 				mod.MakeUninstallable()
 			}
 			if !platformVariation {
-				mod.(ApexModule).apexModuleBase().ApexProperties.Info = apexVariations[i-1]
+				mctx.SetVariationProvider(mod, ApexInfoProvider, apexVariations[i-1])
 			}
 		}
 
@@ -423,114 +427,137 @@ func (m *ApexModuleBase) CreateApexVariations(mctx BottomUpMutatorContext) []Mod
 	return nil
 }
 
-var apexData OncePer
-var apexNamesMapMutex sync.Mutex
-var apexNamesKey = NewOnceKey("apexNames")
+// UpdateUniqueApexVariationsForDeps sets UniqueApexVariationsForDeps if any dependencies
+// that are in the same APEX have unique APEX variations so that the module can link against
+// the right variant.
+func UpdateUniqueApexVariationsForDeps(mctx BottomUpMutatorContext, am ApexModule) {
+	// anyInSameApex returns true if the two ApexInfo lists contain any values in an InApexes list
+	// in common.  It is used instead of DepIsInSameApex because it needs to determine if the dep
+	// is in the same APEX due to being directly included, not only if it is included _because_ it
+	// is a dependency.
+	anyInSameApex := func(a, b []ApexInfo) bool {
+		collectApexes := func(infos []ApexInfo) []string {
+			var ret []string
+			for _, info := range infos {
+				ret = append(ret, info.InApexes...)
+			}
+			return ret
+		}
 
-// This structure maintains the global mapping in between modules and APEXes.
-// Examples:
-//
-// apexNamesMap()["foo"]["bar"] == true: module foo is directly depended on by APEX bar
-// apexNamesMap()["foo"]["bar"] == false: module foo is indirectly depended on by APEX bar
-// apexNamesMap()["foo"]["bar"] doesn't exist: foo is not built for APEX bar
-func apexNamesMap() map[string]map[string]bool {
-	return apexData.Once(apexNamesKey, func() interface{} {
-		return make(map[string]map[string]bool)
-	}).(map[string]map[string]bool)
+		aApexes := collectApexes(a)
+		bApexes := collectApexes(b)
+		sort.Strings(bApexes)
+		for _, aApex := range aApexes {
+			index := sort.SearchStrings(bApexes, aApex)
+			if index < len(bApexes) && bApexes[index] == aApex {
+				return true
+			}
+		}
+		return false
+	}
+
+	mctx.VisitDirectDeps(func(dep Module) {
+		if depApexModule, ok := dep.(ApexModule); ok {
+			if anyInSameApex(depApexModule.apexModuleBase().apexVariations, am.apexModuleBase().apexVariations) &&
+				(depApexModule.UniqueApexVariations() ||
+					depApexModule.apexModuleBase().ApexProperties.UniqueApexVariationsForDeps) {
+				am.apexModuleBase().ApexProperties.UniqueApexVariationsForDeps = true
+			}
+		}
+	})
 }
 
-// Update the map to mark that a module named moduleName is directly or indirectly
-// depended on by the specified APEXes. Directly depending means that a module
-// is explicitly listed in the build definition of the APEX via properties like
-// native_shared_libs, java_libs, etc.
-func UpdateApexDependency(apex ApexInfo, moduleName string, directDep bool) {
-	apexNamesMapMutex.Lock()
-	defer apexNamesMapMutex.Unlock()
-	apexesForModule, ok := apexNamesMap()[moduleName]
-	if !ok {
-		apexesForModule = make(map[string]bool)
-		apexNamesMap()[moduleName] = apexesForModule
+// UpdateDirectlyInAnyApex uses the final module to store if any variant of this
+// module is directly in any APEX, and then copies the final value to all the modules.
+// It also copies the DirectlyInAnyApex value to any direct dependencies with a
+// CopyDirectlyInAnyApexTag dependency tag.
+func UpdateDirectlyInAnyApex(mctx BottomUpMutatorContext, am ApexModule) {
+	base := am.apexModuleBase()
+	// Copy DirectlyInAnyApex and InAnyApex from any direct dependencies with a
+	// CopyDirectlyInAnyApexTag dependency tag.
+	mctx.VisitDirectDeps(func(dep Module) {
+		if _, ok := mctx.OtherModuleDependencyTag(dep).(CopyDirectlyInAnyApexTag); ok {
+			depBase := dep.(ApexModule).apexModuleBase()
+			base.ApexProperties.DirectlyInAnyApex = depBase.ApexProperties.DirectlyInAnyApex
+			base.ApexProperties.InAnyApex = depBase.ApexProperties.InAnyApex
+		}
+	})
+
+	if base.ApexProperties.DirectlyInAnyApex {
+		// Variants of a module are always visited sequentially in order, so it is safe to
+		// write to another variant of this module.
+		// For a BottomUpMutator the PrimaryModule() is visited first and FinalModule() is
+		// visited last.
+		mctx.FinalModule().(ApexModule).apexModuleBase().ApexProperties.AnyVariantDirectlyInAnyApex = true
 	}
-	apexesForModule[apex.ApexVariationName] = apexesForModule[apex.ApexVariationName] || directDep
-	for _, apexName := range apex.InApexes {
-		apexesForModule[apexName] = apexesForModule[apex.ApexVariationName] || directDep
+
+	// If this is the FinalModule (last visited module) copy AnyVariantDirectlyInAnyApex to
+	// all the other variants
+	if am == mctx.FinalModule().(ApexModule) {
+		mctx.VisitAllModuleVariants(func(variant Module) {
+			variant.(ApexModule).apexModuleBase().ApexProperties.AnyVariantDirectlyInAnyApex =
+				base.ApexProperties.AnyVariantDirectlyInAnyApex
+		})
 	}
 }
 
-// TODO(b/146393795): remove this when b/146393795 is fixed
-func ClearApexDependency() {
-	m := apexNamesMap()
-	for k := range m {
-		delete(m, k)
+type ApexMembership int
+
+const (
+	notInApex        ApexMembership = 0
+	indirectlyInApex                = iota
+	directlyInApex
+)
+
+// Each apexBundle has an apexContents, and modules in that apex have a provider containing the
+// apexContents of each apexBundle they are part of.
+type ApexContents struct {
+	ApexName string
+	contents map[string]ApexMembership
+}
+
+func NewApexContents(name string, contents map[string]ApexMembership) *ApexContents {
+	return &ApexContents{
+		ApexName: name,
+		contents: contents,
 	}
 }
 
-// Tests whether a module named moduleName is directly depended on by an APEX
-// named apexName.
-func DirectlyInApex(apexName string, moduleName string) bool {
-	apexNamesMapMutex.Lock()
-	defer apexNamesMapMutex.Unlock()
-	if apexNamesForModule, ok := apexNamesMap()[moduleName]; ok {
-		return apexNamesForModule[apexName]
+func (i ApexMembership) Add(direct bool) ApexMembership {
+	if direct || i == directlyInApex {
+		return directlyInApex
 	}
-	return false
+	return indirectlyInApex
+}
+
+func (i ApexMembership) merge(other ApexMembership) ApexMembership {
+	if other == directlyInApex || i == directlyInApex {
+		return directlyInApex
+	}
+
+	if other == indirectlyInApex || i == indirectlyInApex {
+		return indirectlyInApex
+	}
+	return notInApex
+}
+
+func (ac *ApexContents) DirectlyInApex(name string) bool {
+	return ac.contents[name] == directlyInApex
+}
+
+func (ac *ApexContents) InApex(name string) bool {
+	return ac.contents[name] != notInApex
 }
 
 // Tests whether a module named moduleName is directly depended on by all APEXes
-// in a list of apexNames.
-func DirectlyInAllApexes(apexNames []string, moduleName string) bool {
-	apexNamesMapMutex.Lock()
-	defer apexNamesMapMutex.Unlock()
-	for _, apexName := range apexNames {
-		apexNamesForModule := apexNamesMap()[moduleName]
-		if !apexNamesForModule[apexName] {
+// in an ApexInfo.
+func DirectlyInAllApexes(apexInfo ApexInfo, moduleName string) bool {
+	for _, contents := range apexInfo.ApexContents {
+		if !contents.DirectlyInApex(moduleName) {
 			return false
 		}
 	}
 	return true
-}
-
-type hostContext interface {
-	Host() bool
-}
-
-// Tests whether a module named moduleName is directly depended on by any APEX.
-func DirectlyInAnyApex(ctx hostContext, moduleName string) bool {
-	if ctx.Host() {
-		// Host has no APEX.
-		return false
-	}
-	apexNamesMapMutex.Lock()
-	defer apexNamesMapMutex.Unlock()
-	if apexNames, ok := apexNamesMap()[moduleName]; ok {
-		for an := range apexNames {
-			if apexNames[an] {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// Tests whether a module named module is depended on (including both
-// direct and indirect dependencies) by any APEX.
-func InAnyApex(moduleName string) bool {
-	apexNamesMapMutex.Lock()
-	defer apexNamesMapMutex.Unlock()
-	apexNames, ok := apexNamesMap()[moduleName]
-	return ok && len(apexNames) > 0
-}
-
-func GetApexesForModule(moduleName string) []string {
-	ret := []string{}
-	apexNamesMapMutex.Lock()
-	defer apexNamesMapMutex.Unlock()
-	if apexNames, ok := apexNamesMap()[moduleName]; ok {
-		for an := range apexNames {
-			ret = append(ret, an)
-		}
-	}
-	return ret
 }
 
 func InitApexModule(m ApexModule) {

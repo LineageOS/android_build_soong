@@ -238,6 +238,13 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 	dumpOatRules(ctx, d.defaultBootImage)
 }
 
+func isHostdex(module android.Module) bool {
+	if lib, ok := module.(*Library); ok {
+		return Bool(lib.deviceProperties.Hostdex)
+	}
+	return false
+}
+
 // Inspect this module to see if it contains a bootclasspath dex jar.
 // Note that the same jar may occur in multiple modules.
 // This logic is tested in the apex package to avoid import cycle apex <-> java.
@@ -259,12 +266,13 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 	}
 
 	// Check that this module satisfies constraints for a particular boot image.
-	apex, isApexModule := module.(android.ApexModule)
-	fromUpdatableApex := isApexModule && apex.Updatable()
+	_, isApexModule := module.(android.ApexModule)
+	apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+	fromUpdatableApex := isApexModule && apexInfo.Updatable
 	if image.name == artBootImageName {
-		if isApexModule && len(apex.InApexes()) > 0 && allHavePrefix(apex.InApexes(), "com.android.art.") {
+		if isApexModule && len(apexInfo.InApexes) > 0 && allHavePrefix(apexInfo.InApexes, "com.android.art.") {
 			// ok: found the jar in the ART apex
-		} else if isApexModule && apex.IsForPlatform() && Bool(module.(*Library).deviceProperties.Hostdex) {
+		} else if isApexModule && apexInfo.IsForPlatform() && isHostdex(module) {
 			// exception (skip and continue): special "hostdex" platform variant
 			return -1, nil
 		} else if name == "jacocoagent" && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
@@ -272,7 +280,7 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 			return -1, nil
 		} else if fromUpdatableApex {
 			// error: this jar is part of an updatable apex other than ART
-			ctx.Errorf("module %q from updatable apexes %q is not allowed in the ART boot image", name, apex.InApexes())
+			ctx.Errorf("module %q from updatable apexes %q is not allowed in the ART boot image", name, apexInfo.InApexes)
 		} else {
 			// error: this jar is part of the platform or a non-updatable apex
 			ctx.Errorf("module %q is not allowed in the ART boot image", name)
@@ -282,7 +290,7 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 			// ok: this jar is part of the platform or a non-updatable apex
 		} else {
 			// error: this jar is part of an updatable apex
-			ctx.Errorf("module %q from updatable apexes %q is not allowed in the framework boot image", name, apex.InApexes())
+			ctx.Errorf("module %q from updatable apexes %q is not allowed in the framework boot image", name, apexInfo.InApexes)
 		}
 	} else {
 		panic("unknown boot image: " + image.name)

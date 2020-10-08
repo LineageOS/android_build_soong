@@ -20,6 +20,7 @@ import (
 )
 
 func TestLibraryHeaders(t *testing.T) {
+	t.Parallel()
 	ctx := testCc(t, `
 	cc_library_headers {
 		name: "headers",
@@ -41,6 +42,7 @@ func TestLibraryHeaders(t *testing.T) {
 }
 
 func TestPrebuiltLibraryHeaders(t *testing.T) {
+	t.Parallel()
 	ctx := testCc(t, `
 	cc_prebuilt_library_headers {
 		name: "headers",

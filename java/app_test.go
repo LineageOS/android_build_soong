@@ -67,6 +67,7 @@ func testApp(t *testing.T, bp string) *android.TestContext {
 }
 
 func TestApp(t *testing.T) {
+	t.Parallel()
 	for _, moduleType := range []string{"android_app", "android_library"} {
 		t.Run(moduleType, func(t *testing.T) {
 			ctx := testApp(t, moduleType+` {
@@ -113,6 +114,7 @@ func TestApp(t *testing.T) {
 }
 
 func TestAppSplits(t *testing.T) {
+	t.Parallel()
 	ctx := testApp(t, `
 				android_app {
 					name: "foo",
@@ -142,6 +144,7 @@ func TestAppSplits(t *testing.T) {
 }
 
 func TestAndroidAppSet(t *testing.T) {
+	t.Parallel()
 	ctx, config := testJava(t, `
 		android_app_set {
 			name: "foo",
@@ -170,6 +173,7 @@ func TestAndroidAppSet(t *testing.T) {
 }
 
 func TestAndroidAppSet_Variants(t *testing.T) {
+	t.Parallel()
 	bp := `
 		android_app_set {
 			name: "foo",
@@ -235,6 +239,7 @@ func TestAndroidAppSet_Variants(t *testing.T) {
 }
 
 func TestPlatformAPIs(t *testing.T) {
+	t.Parallel()
 	testJava(t, `
 		android_app {
 			name: "foo",
@@ -269,6 +274,7 @@ func TestPlatformAPIs(t *testing.T) {
 }
 
 func TestAndroidAppLinkType(t *testing.T) {
+	t.Parallel()
 	testJava(t, `
 		android_app {
 			name: "foo",
@@ -358,6 +364,7 @@ func TestAndroidAppLinkType(t *testing.T) {
 }
 
 func TestUpdatableApps(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name          string
 		bp            string
@@ -479,6 +486,7 @@ func TestUpdatableApps(t *testing.T) {
 }
 
 func TestUpdatableApps_TransitiveDepsShouldSetMinSdkVersion(t *testing.T) {
+	t.Parallel()
 	testJavaError(t, `module "bar".*: should support min_sdk_version\(29\)`, cc.GatherRequiredDepsForTest(android.Android)+`
 		android_app {
 			name: "foo",
@@ -497,6 +505,7 @@ func TestUpdatableApps_TransitiveDepsShouldSetMinSdkVersion(t *testing.T) {
 }
 
 func TestUpdatableApps_JniLibsShouldShouldSupportMinSdkVersion(t *testing.T) {
+	t.Parallel()
 	testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		android_app {
 			name: "foo",
@@ -517,6 +526,7 @@ func TestUpdatableApps_JniLibsShouldShouldSupportMinSdkVersion(t *testing.T) {
 }
 
 func TestUpdatableApps_JniLibShouldBeBuiltAgainstMinSdkVersion(t *testing.T) {
+	t.Parallel()
 	bp := cc.GatherRequiredDepsForTest(android.Android) + `
 		android_app {
 			name: "foo",
@@ -571,6 +581,7 @@ func TestUpdatableApps_JniLibShouldBeBuiltAgainstMinSdkVersion(t *testing.T) {
 }
 
 func TestUpdatableApps_ErrorIfJniLibDoesntSupportMinSdkVersion(t *testing.T) {
+	t.Parallel()
 	bp := cc.GatherRequiredDepsForTest(android.Android) + `
 		android_app {
 			name: "foo",
@@ -591,6 +602,7 @@ func TestUpdatableApps_ErrorIfJniLibDoesntSupportMinSdkVersion(t *testing.T) {
 }
 
 func TestUpdatableApps_ErrorIfDepSdkVersionIsHigher(t *testing.T) {
+	t.Parallel()
 	bp := cc.GatherRequiredDepsForTest(android.Android) + `
 		android_app {
 			name: "foo",
@@ -620,6 +632,7 @@ func TestUpdatableApps_ErrorIfDepSdkVersionIsHigher(t *testing.T) {
 }
 
 func TestResourceDirs(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name      string
 		prop      string
@@ -679,6 +692,7 @@ func TestResourceDirs(t *testing.T) {
 }
 
 func TestLibraryAssets(t *testing.T) {
+	t.Parallel()
 	bp := `
 			android_app {
 				name: "foo",
@@ -780,6 +794,7 @@ func TestLibraryAssets(t *testing.T) {
 }
 
 func TestAndroidResources(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name                       string
 		enforceRROTargets          []string
@@ -1070,6 +1085,7 @@ func checkSdkVersion(t *testing.T, config android.Config, expectedSdkVersion str
 }
 
 func TestAppSdkVersion(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name                  string
 		sdkVersion            string
@@ -1152,6 +1168,7 @@ func TestAppSdkVersion(t *testing.T) {
 }
 
 func TestVendorAppSdkVersion(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name                                  string
 		sdkVersion                            string
@@ -1215,6 +1232,7 @@ func TestVendorAppSdkVersion(t *testing.T) {
 }
 
 func TestJNIABI(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
 			name: "libjni",
@@ -1289,6 +1307,7 @@ func TestJNIABI(t *testing.T) {
 }
 
 func TestAppSdkVersionByPartition(t *testing.T) {
+	t.Parallel()
 	testJavaError(t, "sdk_version must have a value when the module is located at vendor or product", `
 		android_app {
 			name: "foo",
@@ -1327,6 +1346,7 @@ func TestAppSdkVersionByPartition(t *testing.T) {
 }
 
 func TestJNIPackaging(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
 			name: "libjni",
@@ -1418,6 +1438,7 @@ func TestJNIPackaging(t *testing.T) {
 }
 
 func TestJNISDK(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
 			name: "libjni",
@@ -1535,6 +1556,7 @@ func TestJNISDK(t *testing.T) {
 }
 
 func TestCertificates(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name                string
 		bp                  string
@@ -1655,6 +1677,7 @@ func TestCertificates(t *testing.T) {
 }
 
 func TestRequestV4SigningFlag(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		bp       string
@@ -1715,6 +1738,7 @@ func TestRequestV4SigningFlag(t *testing.T) {
 }
 
 func TestPackageNameOverride(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name                string
 		bp                  string
@@ -1780,6 +1804,7 @@ func TestPackageNameOverride(t *testing.T) {
 }
 
 func TestInstrumentationTargetOverridden(t *testing.T) {
+	t.Parallel()
 	bp := `
 		android_app {
 			name: "foo",
@@ -1809,6 +1834,7 @@ func TestInstrumentationTargetOverridden(t *testing.T) {
 }
 
 func TestOverrideAndroidApp(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 		android_app {
 			name: "foo",
@@ -2010,6 +2036,7 @@ func TestOverrideAndroidApp(t *testing.T) {
 }
 
 func TestOverrideAndroidAppDependency(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 		android_app {
 			name: "foo",
@@ -2052,6 +2079,7 @@ func TestOverrideAndroidAppDependency(t *testing.T) {
 }
 
 func TestOverrideAndroidTest(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 		android_app {
 			name: "foo",
@@ -2148,6 +2176,7 @@ func TestOverrideAndroidTest(t *testing.T) {
 }
 
 func TestAndroidTest_FixTestConfig(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 		android_app {
 			name: "foo",
@@ -2229,6 +2258,7 @@ func TestAndroidTest_FixTestConfig(t *testing.T) {
 }
 
 func TestAndroidAppImport(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 		android_app_import {
 			name: "foo",
@@ -2258,6 +2288,7 @@ func TestAndroidAppImport(t *testing.T) {
 }
 
 func TestAndroidAppImport_NoDexPreopt(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 		android_app_import {
 			name: "foo",
@@ -2279,6 +2310,7 @@ func TestAndroidAppImport_NoDexPreopt(t *testing.T) {
 }
 
 func TestAndroidAppImport_Presigned(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 		android_app_import {
 			name: "foo",
@@ -2307,6 +2339,7 @@ func TestAndroidAppImport_Presigned(t *testing.T) {
 }
 
 func TestAndroidAppImport_SigningLineage(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 	  android_app_import {
 			name: "foo",
@@ -2328,6 +2361,7 @@ func TestAndroidAppImport_SigningLineage(t *testing.T) {
 }
 
 func TestAndroidAppImport_DefaultDevCert(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 		android_app_import {
 			name: "foo",
@@ -2357,6 +2391,7 @@ func TestAndroidAppImport_DefaultDevCert(t *testing.T) {
 }
 
 func TestAndroidAppImport_DpiVariants(t *testing.T) {
+	t.Parallel()
 	bp := `
 		android_app_import {
 			name: "foo",
@@ -2435,6 +2470,7 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 }
 
 func TestAndroidAppImport_Filename(t *testing.T) {
+	t.Parallel()
 	ctx, config := testJava(t, `
 		android_app_import {
 			name: "foo",
@@ -2482,6 +2518,7 @@ func TestAndroidAppImport_Filename(t *testing.T) {
 }
 
 func TestAndroidAppImport_ArchVariants(t *testing.T) {
+	t.Parallel()
 	// The test config's target arch is ARM64.
 	testCases := []struct {
 		name     string
@@ -2545,6 +2582,7 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 }
 
 func TestAndroidTestImport(t *testing.T) {
+	t.Parallel()
 	ctx, config := testJava(t, `
 		android_test_import {
 			name: "foo",
@@ -2573,6 +2611,7 @@ func TestAndroidTestImport(t *testing.T) {
 }
 
 func TestAndroidTestImport_NoJinUncompressForPresigned(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 		android_test_import {
 			name: "foo",
@@ -2610,6 +2649,7 @@ func TestAndroidTestImport_NoJinUncompressForPresigned(t *testing.T) {
 }
 
 func TestAndroidTestImport_Preprocessed(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 		android_test_import {
 			name: "foo",
@@ -2646,6 +2686,7 @@ func TestAndroidTestImport_Preprocessed(t *testing.T) {
 }
 
 func TestStl(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		cc_library {
 			name: "libjni",
@@ -2709,6 +2750,7 @@ func TestStl(t *testing.T) {
 }
 
 func TestUsesLibraries(t *testing.T) {
+	t.Parallel()
 	bp := `
 		java_sdk_library {
 			name: "foo",
@@ -2754,19 +2796,6 @@ func TestUsesLibraries(t *testing.T) {
 		android_app {
 			name: "app",
 			srcs: ["a.java"],
-			libs: ["qux", "quuz"],
-			static_libs: ["static-runtime-helper"],
-			uses_libs: ["foo"],
-			sdk_version: "current",
-			optional_uses_libs: [
-				"bar",
-				"baz",
-			],
-		}
-
-		android_app {
-			name: "app_with_stub_deps",
-			srcs: ["a.java"],
 			libs: ["qux", "quuz.stubs"],
 			static_libs: ["static-runtime-helper"],
 			uses_libs: ["foo"],
@@ -2797,7 +2826,6 @@ func TestUsesLibraries(t *testing.T) {
 	run(t, ctx, config)
 
 	app := ctx.ModuleForTests("app", "android_common")
-	appWithStubDeps := ctx.ModuleForTests("app_with_stub_deps", "android_common")
 	prebuilt := ctx.ModuleForTests("prebuilt", "android_common")
 
 	// Test that implicit dependencies on java_sdk_library instances are passed to the manifest.
@@ -2828,7 +2856,7 @@ func TestUsesLibraries(t *testing.T) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
 
-	// Test that all present libraries are preopted, including implicit SDK dependencies
+	// Test that all present libraries are preopted, including implicit SDK dependencies, possibly stubs
 	cmd = app.Rule("dexpreopt").RuleParams.Command
 	w := `--target-classpath-for-sdk any` +
 		` /system/framework/foo.jar` +
@@ -2840,11 +2868,6 @@ func TestUsesLibraries(t *testing.T) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
 
-	// TODO(skvadrik) fix dexpreopt for stub libraries for which the implementation is present
-	if appWithStubDeps.MaybeRule("dexpreopt").RuleParams.Command != "" {
-		t.Errorf("dexpreopt should be disabled for apps with dependencies on stub libraries")
-	}
-
 	cmd = prebuilt.Rule("dexpreopt").RuleParams.Command
 	if w := `--target-classpath-for-sdk any /system/framework/foo.jar:/system/framework/bar.jar`; !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)
@@ -2852,6 +2875,7 @@ func TestUsesLibraries(t *testing.T) {
 }
 
 func TestCodelessApp(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name   string
 		bp     string
@@ -2928,6 +2952,7 @@ func TestCodelessApp(t *testing.T) {
 }
 
 func TestEmbedNotice(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJavaWithFS(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		android_app {
 			name: "foo",
@@ -3037,6 +3062,7 @@ func TestEmbedNotice(t *testing.T) {
 }
 
 func TestUncompressDex(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name string
 		bp   string
@@ -3164,6 +3190,7 @@ func checkAapt2LinkFlag(t *testing.T, aapt2Flags, flagName, expectedValue string
 }
 
 func TestRuntimeResourceOverlay(t *testing.T) {
+	t.Parallel()
 	fs := map[string][]byte{
 		"baz/res/res/values/strings.xml": nil,
 		"bar/res/res/values/strings.xml": nil,
@@ -3268,6 +3295,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 }
 
 func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
+	t.Parallel()
 	ctx, config := testJava(t, `
 		java_defaults {
 			name: "rro_defaults",
@@ -3327,6 +3355,7 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 }
 
 func TestOverrideRuntimeResourceOverlay(t *testing.T) {
+	t.Parallel()
 	ctx, _ := testJava(t, `
 		runtime_resource_overlay {
 			name: "foo_overlay",

@@ -26,6 +26,7 @@ import (
 )
 
 func TestSendLog(t *testing.T) {
+	t.Parallel()
 	t.Run("Short name", func(t *testing.T) {
 		d, err := ioutil.TempDir("", "s")
 		if err != nil {
@@ -105,6 +106,7 @@ func testSendLog(t *testing.T, socket string, lookup socketAddrFunc) {
 }
 
 func TestSendLogError(t *testing.T) {
+	t.Parallel()
 	d, err := ioutil.TempDir("", "log_socket")
 	if err != nil {
 		t.Fatal(err)

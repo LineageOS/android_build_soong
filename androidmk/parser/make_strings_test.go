@@ -89,6 +89,7 @@ var splitNTestCases = []struct {
 }
 
 func TestMakeStringSplitN(t *testing.T) {
+	t.Parallel()
 	for _, test := range splitNTestCases {
 		got := test.in.SplitN(test.sep, test.n)
 		gotString := dumpArray(got)
@@ -118,6 +119,7 @@ var valueTestCases = []struct {
 }
 
 func TestMakeStringValue(t *testing.T) {
+	t.Parallel()
 	for _, test := range valueTestCases {
 		got := test.in.Value(nil)
 		if got != test.expected {
@@ -161,6 +163,7 @@ var splitWordsTestCases = []struct {
 }
 
 func TestMakeStringWords(t *testing.T) {
+	t.Parallel()
 	for _, test := range splitWordsTestCases {
 		got := test.in.Words()
 		gotString := dumpArray(got)

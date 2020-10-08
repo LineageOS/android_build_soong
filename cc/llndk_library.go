@@ -74,6 +74,8 @@ type llndkStubDecorator struct {
 
 	exportHeadersTimestamp android.OptionalPath
 	versionScriptPath      android.ModuleGenPath
+
+	movedToApex bool
 }
 
 func (stub *llndkStubDecorator) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
@@ -134,6 +136,11 @@ func (stub *llndkStubDecorator) processHeaders(ctx ModuleContext, srcHeaderDir s
 
 func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 	objs Objects) android.Path {
+
+	impl := ctx.GetDirectDepWithTag(ctx.baseModuleName(), llndkImplDep)
+	if implApexModule, ok := impl.(android.ApexModule); ok {
+		stub.movedToApex = implApexModule.DirectlyInAnyApex()
+	}
 
 	if !Bool(stub.Properties.Unversioned) {
 		linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
