@@ -113,8 +113,10 @@ type generatorProperties struct {
 
 	// input files to exclude
 	Exclude_srcs []string `android:"path,arch_variant"`
-}
 
+	// in bazel-enabled mode, the bazel label to evaluate instead of this module
+	Bazel_module string
+}
 type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
@@ -186,6 +188,20 @@ func toolDepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
+// Returns true if information was available from Bazel, false if bazel invocation still needs to occur.
+func (c *Module) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+	bazelCtx := ctx.Config().BazelContext
+	filePaths, ok := bazelCtx.GetAllFiles(label)
+	if ok {
+		var bazelOutputFiles android.Paths
+		for _, bazelOutputFile := range filePaths {
+			bazelOutputFiles = append(bazelOutputFiles, android.PathForSource(ctx, bazelOutputFile))
+		}
+		c.outputFiles = bazelOutputFiles
+		c.outputDeps = bazelOutputFiles
+	}
+	return ok
+}
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	g.subName = ctx.ModuleSubDir()
 
@@ -456,26 +472,29 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	g.outputFiles = outputFiles.Paths()
 
-	// For <= 6 outputs, just embed those directly in the users. Right now, that covers >90% of
-	// the genrules on AOSP. That will make things simpler to look at the graph in the common
-	// case. For larger sets of outputs, inject a phony target in between to limit ninja file
-	// growth.
-	if len(g.outputFiles) <= 6 {
-		g.outputDeps = g.outputFiles
-	} else {
-		phonyFile := android.PathForModuleGen(ctx, "genrule-phony")
-
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   blueprint.Phony,
-			Output: phonyFile,
-			Inputs: g.outputFiles,
-		})
-
-		g.outputDeps = android.Paths{phonyFile}
+	bazelModuleLabel := g.properties.Bazel_module
+	bazelActionsUsed := false
+	if ctx.Config().BazelContext.BazelEnabled() && len(bazelModuleLabel) > 0 {
+		bazelActionsUsed = g.generateBazelBuildActions(ctx, bazelModuleLabel)
 	}
-
+	if !bazelActionsUsed {
+		// For <= 6 outputs, just embed those directly in the users. Right now, that covers >90% of
+		// the genrules on AOSP. That will make things simpler to look at the graph in the common
+		// case. For larger sets of outputs, inject a phony target in between to limit ninja file
+		// growth.
+		if len(g.outputFiles) <= 6 {
+			g.outputDeps = g.outputFiles
+		} else {
+			phonyFile := android.PathForModuleGen(ctx, "genrule-phony")
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   blueprint.Phony,
+				Output: phonyFile,
+				Inputs: g.outputFiles,
+			})
+			g.outputDeps = android.Paths{phonyFile}
+		}
+	}
 }
-
 func hashSrcFiles(srcFiles android.Paths) string {
 	h := sha256.New()
 	for _, src := range srcFiles {
