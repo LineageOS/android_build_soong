@@ -725,6 +725,39 @@ func TestGenruleDefaults(t *testing.T) {
 	}
 }
 
+func TestGenruleWithBazel(t *testing.T) {
+	bp := `
+		genrule {
+				name: "foo",
+				out: ["one.txt", "two.txt"],
+				bazel_module: "//foo/bar:bar",
+		}
+	`
+
+	config := testConfig(bp, nil)
+	config.BazelContext = android.MockBazelContext{
+		AllFiles: map[string][]string{
+			"//foo/bar:bar": []string{"bazelone.txt", "bazeltwo.txt"}}}
+
+	ctx := testContext(config)
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	if errs == nil {
+		_, errs = ctx.PrepareBuildActions(config)
+	}
+	if errs != nil {
+		t.Fatal(errs)
+	}
+	gen := ctx.ModuleForTests("foo", "").Module().(*Module)
+
+	expectedOutputFiles := []string{"bazelone.txt", "bazeltwo.txt"}
+	if !reflect.DeepEqual(gen.outputFiles.Strings(), expectedOutputFiles) {
+		t.Errorf("Expected output files: %q, actual: %q", expectedOutputFiles, gen.outputFiles)
+	}
+	if !reflect.DeepEqual(gen.outputDeps.Strings(), expectedOutputFiles) {
+		t.Errorf("Expected output deps: %q, actual: %q", expectedOutputFiles, gen.outputDeps)
+	}
+}
+
 type testTool struct {
 	android.ModuleBase
 	outputFile android.Path
