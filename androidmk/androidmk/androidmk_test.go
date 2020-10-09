@@ -1257,19 +1257,6 @@ prebuilt_firmware {
 `,
 	},
 	{
-		desc: "vts_config",
-		in: `
-include $(CLEAR_VARS)
-LOCAL_MODULE := vtsconf
-include test/vts/tools/build/Android.host_config.mk
-`,
-		expected: `
-vts_config {
-	name: "vtsconf",
-}
-`,
-	},
-	{
 		desc: "comment with ESC",
 		in: `
 # Comment line 1 \
