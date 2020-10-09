@@ -1,1 +1,3 @@
 per-file vndk.go = smoreland@google.com, victoryang@google.com
+per-file clang.go,global.go = srhines@google.com, chh@google.com, pirama@google.com, yikong@google.com
+

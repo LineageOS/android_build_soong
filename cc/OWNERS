@@ -1,0 +1,4 @@
+per-file ndk_*.go = danalbert@google.com
+per-file tidy.go = srhines@google.com, chh@google.com
+per-file lto.go,pgo.go = srhines@google.com, pirama@google.com, yikong@google.com
+
