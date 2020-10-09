@@ -257,7 +257,7 @@ var (
 	})
 	apiScopeTest = initApiScope(&apiScope{
 		name:                "test",
-		extends:             apiScopePublic,
+		extends:             apiScopeSystem,
 		legacyEnabledStatus: (*SdkLibrary).generateTestAndSystemScopesByDefault,
 		scopeSpecificProperties: func(module *SdkLibrary) *ApiScopeProperties {
 			return &module.sdkLibraryProperties.Test
