@@ -22,22 +22,15 @@ import (
 	"testing"
 
 	"android/soong/android"
-	"android/soong/cc"
 )
 
 // testProjectJson run the generation of rust-project.json. It returns the raw
 // content of the generated file.
-func testProjectJson(t *testing.T, bp string, fs map[string][]byte) []byte {
-	cc.GatherRequiredFilesForTest(fs)
-
-	env := map[string]string{"SOONG_GEN_RUST_PROJECT": "1"}
-	config := android.TestArchConfig(buildDir, env, bp, fs)
-	ctx := CreateTestContext()
-	ctx.Register(config)
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
+func testProjectJson(t *testing.T, bp string) []byte {
+	tctx := newTestRustCtx(t, bp)
+	tctx.env = map[string]string{"SOONG_GEN_RUST_PROJECT": "1"}
+	tctx.generateConfig()
+	tctx.parse(t)
 
 	// The JSON file is generated via WriteFileToOutputDir. Therefore, it
 	// won't appear in the Output of the TestingSingleton. Manually verify
@@ -87,12 +80,8 @@ func TestProjectJsonDep(t *testing.T) {
 		crate_name: "b",
 		rlibs: ["liba"],
 	}
-	` + GatherRequiredDepsForTest()
-	fs := map[string][]byte{
-		"a/src/lib.rs": nil,
-		"b/src/lib.rs": nil,
-	}
-	jsonContent := testProjectJson(t, bp, fs)
+	`
+	jsonContent := testProjectJson(t, bp)
 	validateJsonCrates(t, jsonContent)
 }
 
@@ -123,11 +112,8 @@ func TestProjectJsonBindGen(t *testing.T) {
 		source_stem: "bindings2",
 		wrapper_src: "src/any.h",
 	}
-	` + GatherRequiredDepsForTest()
-	fs := map[string][]byte{
-		"src/lib.rs": nil,
-	}
-	jsonContent := testProjectJson(t, bp, fs)
+	`
+	jsonContent := testProjectJson(t, bp)
 	crates := validateJsonCrates(t, jsonContent)
 	for _, c := range crates {
 		crate, ok := c.(map[string]interface{})
@@ -166,13 +152,8 @@ func TestProjectJsonMultiVersion(t *testing.T) {
 		crate_name: "b",
 		rustlibs: ["liba1", "liba2"],
 	}
-	` + GatherRequiredDepsForTest()
-	fs := map[string][]byte{
-		"a1/src/lib.rs": nil,
-		"a2/src/lib.rs": nil,
-		"b/src/lib.rs":  nil,
-	}
-	jsonContent := testProjectJson(t, bp, fs)
+	`
+	jsonContent := testProjectJson(t, bp)
 	crates := validateJsonCrates(t, jsonContent)
 	for _, crate := range crates {
 		c := crate.(map[string]interface{})
