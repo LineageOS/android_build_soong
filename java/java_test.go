@@ -467,9 +467,8 @@ func TestBinary(t *testing.T) {
 	barWrapperDeps := barWrapper.Output("bar").Implicits.Strings()
 
 	// Test that the install binary wrapper depends on the installed jar file
-	if len(barWrapperDeps) != 1 || barWrapperDeps[0] != barJar {
-		t.Errorf("expected binary wrapper implicits [%q], got %v",
-			barJar, barWrapperDeps)
+	if g, w := barWrapperDeps, barJar; !android.InList(w, g) {
+		t.Errorf("expected binary wrapper implicits to contain %q, got %q", w, g)
 	}
 }
 

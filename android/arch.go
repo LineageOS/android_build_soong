@@ -811,10 +811,16 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 	}
 }
 
-// Identifies the dependency from CommonOS variant to the os specific variants.
-type commonOSTag struct{ blueprint.BaseDependencyTag }
+type archDepTag struct {
+	blueprint.BaseDependencyTag
+	name string
+}
 
-var commonOsToOsSpecificVariantTag = commonOSTag{}
+// Identifies the dependency from CommonOS variant to the os specific variants.
+var commonOsToOsSpecificVariantTag = archDepTag{name: "common os to os specific"}
+
+// Identifies the dependency from arch variant to the common variant for a "common_first" multilib.
+var firstArchToCommonArchDepTag = archDepTag{name: "first arch to common arch"}
 
 // Get the OsType specific variants for the current CommonOS variant.
 //
@@ -831,7 +837,6 @@ func GetOsSpecificVariantsOfCommonOSVariant(mctx BaseModuleContext) []Module {
 			}
 		}
 	})
-
 	return variants
 }
 
@@ -954,6 +959,12 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	for i, m := range modules {
 		addTargetProperties(m, targets[i], multiTargets, i == 0)
 		m.base().setArchProperties(mctx)
+	}
+
+	if multilib == "common_first" && len(modules) >= 2 {
+		for i := range modules[1:] {
+			mctx.AddInterVariantDependency(firstArchToCommonArchDepTag, modules[i+1], modules[0])
+		}
 	}
 }
 

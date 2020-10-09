@@ -2472,12 +2472,11 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			j.wrapperFile = android.PathForSource(ctx, "build/soong/scripts/jar-wrapper.sh")
 		}
 
-		// Depend on the installed jar so that the wrapper doesn't get executed by
-		// another build rule before the jar has been installed.
-		jarFile := ctx.PrimaryModule().(*Binary).installFile
-
+		// The host installation rules make the installed wrapper depend on all the dependencies
+		// of the wrapper variant, which will include the common variant's jar file.  This is
+		// verified by TestBinary.
 		j.binaryFile = ctx.InstallExecutable(android.PathForModuleInstall(ctx, "bin"),
-			ctx.ModuleName(), j.wrapperFile, jarFile)
+			ctx.ModuleName(), j.wrapperFile)
 	}
 }
 
