@@ -37,7 +37,6 @@ var parserTestCases = []struct {
 }
 
 func TestParse(t *testing.T) {
-	t.Parallel()
 	for _, test := range parserTestCases {
 		t.Run(test.name, func(t *testing.T) {
 			p := NewParser(test.name, bytes.NewBufferString(test.in))

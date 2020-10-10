@@ -22,7 +22,6 @@ import (
 )
 
 func TestRustTest(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_test_host {
 			name: "my_test",
@@ -38,7 +37,6 @@ func TestRustTest(t *testing.T) {
 }
 
 func TestRustTestLinkage(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_test {
 			name: "my_test",

@@ -64,7 +64,6 @@ func ExampleDepSet_ToSortedList() {
 // Tests based on Bazel's ExpanderTestBase.java to ensure compatibility
 // https://github.com/bazelbuild/bazel/blob/master/src/test/java/com/google/devtools/build/lib/collect/nestedset/ExpanderTestBase.java
 func TestDepSet(t *testing.T) {
-	t.Parallel()
 	a := PathForTesting("a")
 	b := PathForTesting("b")
 	c := PathForTesting("c")
@@ -275,7 +274,6 @@ func TestDepSet(t *testing.T) {
 }
 
 func TestDepSetInvalidOrder(t *testing.T) {
-	t.Parallel()
 	orders := []DepSetOrder{POSTORDER, PREORDER, TOPOLOGICAL}
 
 	run := func(t *testing.T, order1, order2 DepSetOrder) {

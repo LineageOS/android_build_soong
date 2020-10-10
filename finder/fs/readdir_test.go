@@ -22,7 +22,6 @@ import (
 )
 
 func TestParseDirent(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		name string
 		in   []byte

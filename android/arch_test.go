@@ -36,7 +36,6 @@ type NamedNoneFiltered struct {
 }
 
 func TestFilterArchStruct(t *testing.T) {
-	t.Parallel()
 	tests := []struct {
 		name     string
 		in       interface{}
@@ -275,7 +274,6 @@ func archTestModuleFactory() Module {
 }
 
 func TestArchMutator(t *testing.T) {
-	t.Parallel()
 	var buildOSVariants []string
 	var buildOS32Variants []string
 	switch runtime.GOOS {
@@ -387,7 +385,6 @@ func TestArchMutator(t *testing.T) {
 }
 
 func TestArchMutatorNativeBridge(t *testing.T) {
-	t.Parallel()
 	bp := `
 		// This module is only enabled for x86.
 		module {

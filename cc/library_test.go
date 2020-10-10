@@ -22,7 +22,6 @@ import (
 )
 
 func TestLibraryReuse(t *testing.T) {
-	t.Parallel()
 	t.Run("simple", func(t *testing.T) {
 		ctx := testCc(t, `
 		cc_library {
@@ -191,7 +190,6 @@ func TestLibraryReuse(t *testing.T) {
 }
 
 func TestStubsVersions(t *testing.T) {
-	t.Parallel()
 	bp := `
 		cc_library {
 			name: "libfoo",
@@ -215,7 +213,6 @@ func TestStubsVersions(t *testing.T) {
 }
 
 func TestStubsVersions_NotSorted(t *testing.T) {
-	t.Parallel()
 	bp := `
 		cc_library {
 			name: "libfoo",
@@ -231,7 +228,6 @@ func TestStubsVersions_NotSorted(t *testing.T) {
 }
 
 func TestStubsVersions_ParseError(t *testing.T) {
-	t.Parallel()
 	bp := `
 		cc_library {
 			name: "libfoo",

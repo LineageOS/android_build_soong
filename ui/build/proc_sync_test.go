@@ -108,7 +108,6 @@ func (c *countLock) Unlock() (err error) {
 
 // simple test
 func TestGetLock(t *testing.T) {
-	t.Parallel()
 	lockfile := lockOrFail(t)
 	defer removeTestLock(lockfile)
 }
@@ -120,7 +119,6 @@ var unexpectedError = 1
 var busyStatus = 2
 
 func TestTrylock(t *testing.T) {
-	t.Parallel()
 	lockpath := os.Getenv(lockPathVariable)
 	if len(lockpath) < 1 {
 		checkTrylockMainProcess(t)
@@ -206,7 +204,6 @@ func getLockAndExit(lockpath string) {
 }
 
 func TestLockFirstTrySucceeds(t *testing.T) {
-	t.Parallel()
 	noopLogger := logger.New(ioutil.Discard)
 	lock := testLockCountingTo(0)
 	waiter := newCountWaiter(0)
@@ -219,7 +216,6 @@ func TestLockFirstTrySucceeds(t *testing.T) {
 	}
 }
 func TestLockThirdTrySucceeds(t *testing.T) {
-	t.Parallel()
 	noopLogger := logger.New(ioutil.Discard)
 	lock := testLockCountingTo(2)
 	waiter := newCountWaiter(2)
@@ -232,7 +228,6 @@ func TestLockThirdTrySucceeds(t *testing.T) {
 	}
 }
 func TestLockTimedOut(t *testing.T) {
-	t.Parallel()
 	noopLogger := logger.New(ioutil.Discard)
 	lock := testLockCountingTo(3)
 	waiter := newCountWaiter(2)

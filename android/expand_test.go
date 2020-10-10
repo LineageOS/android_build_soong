@@ -163,7 +163,6 @@ var expandTestCases = []struct {
 }
 
 func TestExpand(t *testing.T) {
-	t.Parallel()
 	for _, test := range expandTestCases {
 		got, err := Expand(test.in, func(s string) (string, error) {
 			s, _, err := expander(s)
@@ -180,7 +179,6 @@ func TestExpand(t *testing.T) {
 }
 
 func TestExpandNinjaEscaped(t *testing.T) {
-	t.Parallel()
 	for _, test := range expandTestCases {
 		got, err := ExpandNinjaEscaped(test.in, expander)
 		if err != nil && !test.err {

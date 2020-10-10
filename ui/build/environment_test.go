@@ -21,7 +21,6 @@ import (
 )
 
 func TestEnvUnset(t *testing.T) {
-	t.Parallel()
 	initial := &Environment{"TEST=1", "TEST2=0"}
 	initial.Unset("TEST")
 	got := initial.Environ()
@@ -31,7 +30,6 @@ func TestEnvUnset(t *testing.T) {
 }
 
 func TestEnvUnsetMissing(t *testing.T) {
-	t.Parallel()
 	initial := &Environment{"TEST2=0"}
 	initial.Unset("TEST")
 	got := initial.Environ()
@@ -41,7 +39,6 @@ func TestEnvUnsetMissing(t *testing.T) {
 }
 
 func TestEnvSet(t *testing.T) {
-	t.Parallel()
 	initial := &Environment{}
 	initial.Set("TEST", "0")
 	got := initial.Environ()
@@ -51,7 +48,6 @@ func TestEnvSet(t *testing.T) {
 }
 
 func TestEnvSetDup(t *testing.T) {
-	t.Parallel()
 	initial := &Environment{"TEST=1"}
 	initial.Set("TEST", "0")
 	got := initial.Environ()
@@ -61,7 +57,6 @@ func TestEnvSetDup(t *testing.T) {
 }
 
 func TestEnvAllow(t *testing.T) {
-	t.Parallel()
 	initial := &Environment{"TEST=1", "TEST2=0", "TEST3=2"}
 	initial.Allow("TEST3", "TEST")
 	got := initial.Environ()
@@ -78,7 +73,6 @@ export 'BUILD_ID'='NYC'
 `
 
 func TestEnvAppendFromKati(t *testing.T) {
-	t.Parallel()
 	initial := &Environment{"CLANG=/usr/bin/clang", "TEST=0"}
 	err := initial.appendFromKati(strings.NewReader(testKatiEnvFileContents))
 	if err != nil {

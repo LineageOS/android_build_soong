@@ -43,7 +43,6 @@ func (l *lastOutput) Message(level MsgLevel, msg string) {
 func (l *lastOutput) Flush() {}
 
 func TestKatiNormalCase(t *testing.T) {
-	t.Parallel()
 	status := &Status{}
 	output := &lastOutput{}
 	status.AddOutput(output)
@@ -111,7 +110,6 @@ func TestKatiNormalCase(t *testing.T) {
 }
 
 func TestKatiExtraIncludes(t *testing.T) {
-	t.Parallel()
 	status := &Status{}
 	output := &lastOutput{}
 	status.AddOutput(output)
@@ -158,7 +156,6 @@ func TestKatiExtraIncludes(t *testing.T) {
 }
 
 func TestKatiFailOnError(t *testing.T) {
-	t.Parallel()
 	status := &Status{}
 	output := &lastOutput{}
 	status.AddOutput(output)
