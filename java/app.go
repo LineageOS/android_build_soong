@@ -641,7 +641,7 @@ func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext
 					// Work with the team to come up with a new format that handles multilib modules properly
 					// and change this.
 					if len(ctx.Config().Targets[android.Android]) == 1 ||
-						ctx.Config().Targets[android.Android][0].Arch.ArchType == jni.target.Arch.ArchType {
+						ctx.Config().AndroidFirstDeviceTarget.Arch.ArchType == jni.target.Arch.ArchType {
 						a.jniCoverageOutputs = append(a.jniCoverageOutputs, jni.coverageFile.Path())
 					}
 				}
@@ -1392,7 +1392,7 @@ func (a *AndroidAppImport) processVariants(ctx android.LoadHookContext) {
 	}
 
 	archProps := reflect.ValueOf(a.archVariants).Elem().FieldByName("Arch")
-	archType := ctx.Config().Targets[android.Android][0].Arch.ArchType
+	archType := ctx.Config().AndroidFirstDeviceTarget.Arch.ArchType
 	MergePropertiesFromVariant(ctx, &a.properties, archProps, archType.Name)
 }
 
