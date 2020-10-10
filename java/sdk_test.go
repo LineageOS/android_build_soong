@@ -27,7 +27,6 @@ import (
 )
 
 func TestClasspath(t *testing.T) {
-	t.Parallel()
 	var classpathTestcases = []struct {
 		name       string
 		unbundled  bool

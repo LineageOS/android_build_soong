@@ -19,7 +19,6 @@ import (
 )
 
 func TestSrcIsModule(t *testing.T) {
-	t.Parallel()
 	type args struct {
 		s string
 	}
@@ -67,7 +66,6 @@ func TestSrcIsModule(t *testing.T) {
 }
 
 func TestSrcIsModuleWithTag(t *testing.T) {
-	t.Parallel()
 	type args struct {
 		s string
 	}
@@ -166,7 +164,6 @@ func depsModuleFactory() Module {
 }
 
 func TestErrorDependsOnDisabledModule(t *testing.T) {
-	t.Parallel()
 	ctx := NewTestContext()
 	ctx.RegisterModuleType("deps", depsModuleFactory)
 

@@ -51,7 +51,6 @@ var bytesToAsmTestCases = []struct {
 }
 
 func TestBytesToAsm(t *testing.T) {
-	t.Parallel()
 	for _, testcase := range bytesToAsmTestCases {
 		t.Run(testcase.name, func(t *testing.T) {
 			buf := bytes.Buffer{}

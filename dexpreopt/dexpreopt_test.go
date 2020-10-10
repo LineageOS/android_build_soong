@@ -61,7 +61,6 @@ func testModuleConfig(ctx android.PathContext, name, partition string) *ModuleCo
 }
 
 func TestDexPreopt(t *testing.T) {
-	t.Parallel()
 	config := android.TestConfig("out", nil, "", nil)
 	ctx := android.PathContextForTesting(config)
 	globalSoong := GlobalSoongConfigForTests(config)
@@ -84,7 +83,6 @@ func TestDexPreopt(t *testing.T) {
 }
 
 func TestDexPreoptSystemOther(t *testing.T) {
-	t.Parallel()
 	config := android.TestConfig("out", nil, "", nil)
 	ctx := android.PathContextForTesting(config)
 	globalSoong := GlobalSoongConfigForTests(config)
@@ -145,7 +143,6 @@ func TestDexPreoptSystemOther(t *testing.T) {
 }
 
 func TestDexPreoptProfile(t *testing.T) {
-	t.Parallel()
 	config := android.TestConfig("out", nil, "", nil)
 	ctx := android.PathContextForTesting(config)
 	globalSoong := GlobalSoongConfigForTests(config)

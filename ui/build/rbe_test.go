@@ -26,7 +26,6 @@ import (
 )
 
 func TestDumpRBEMetrics(t *testing.T) {
-	t.Parallel()
 	ctx := testContext()
 	tests := []struct {
 		description string
@@ -82,7 +81,6 @@ func TestDumpRBEMetrics(t *testing.T) {
 }
 
 func TestDumpRBEMetricsErrors(t *testing.T) {
-	t.Parallel()
 	ctx := testContext()
 	tests := []struct {
 		description      string

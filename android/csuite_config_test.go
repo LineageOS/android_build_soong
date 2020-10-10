@@ -32,7 +32,6 @@ func testCSuiteConfig(test *testing.T, bpFileContents string) *TestContext {
 }
 
 func TestCSuiteConfig(t *testing.T) {
-	t.Parallel()
 	ctx := testCSuiteConfig(t, `
 csuite_config { name: "plain"}
 csuite_config { name: "with_manifest", test_config: "manifest.xml" }

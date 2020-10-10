@@ -85,7 +85,6 @@ func (tiz *testInputZip) IsOpen() bool {
 }
 
 func TestMergeZips(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		name             string
 		in               [][]testZipEntry
@@ -362,7 +361,6 @@ func (diz *DummyInpuZip) IsOpen() bool {
 }
 
 func TestInputZipsManager(t *testing.T) {
-	t.Parallel()
 	const nInputZips = 20
 	const nMaxOpenZips = 10
 	izm := NewInputZipsManager(20, 10)

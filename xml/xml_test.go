@@ -78,7 +78,6 @@ func assertEqual(t *testing.T, name, expected, actual string) {
 
 // Minimal test
 func TestPrebuiltEtcXml(t *testing.T) {
-	t.Parallel()
 	ctx := testXml(t, `
 		prebuilt_etc_xml {
 			name: "foo.xml",

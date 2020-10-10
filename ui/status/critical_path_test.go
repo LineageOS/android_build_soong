@@ -51,7 +51,6 @@ func (t *testCriticalPath) finish(id int, endTime time.Duration) {
 }
 
 func TestCriticalPath(t *testing.T) {
-	t.Parallel()
 	tests := []struct {
 		name     string
 		msgs     func(*testCriticalPath)

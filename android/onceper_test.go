@@ -20,7 +20,6 @@ import (
 )
 
 func TestOncePer_Once(t *testing.T) {
-	t.Parallel()
 	once := OncePer{}
 	key := NewOnceKey("key")
 
@@ -37,7 +36,6 @@ func TestOncePer_Once(t *testing.T) {
 }
 
 func TestOncePer_Once_wait(t *testing.T) {
-	t.Parallel()
 	once := OncePer{}
 	key := NewOnceKey("key")
 
@@ -53,7 +51,6 @@ func TestOncePer_Once_wait(t *testing.T) {
 }
 
 func TestOncePer_Get(t *testing.T) {
-	t.Parallel()
 	once := OncePer{}
 	key := NewOnceKey("key")
 
@@ -70,7 +67,6 @@ func TestOncePer_Get(t *testing.T) {
 }
 
 func TestOncePer_Get_panic(t *testing.T) {
-	t.Parallel()
 	once := OncePer{}
 	key := NewOnceKey("key")
 
@@ -86,7 +82,6 @@ func TestOncePer_Get_panic(t *testing.T) {
 }
 
 func TestOncePer_Get_wait(t *testing.T) {
-	t.Parallel()
 	once := OncePer{}
 	key := NewOnceKey("key")
 
@@ -102,7 +97,6 @@ func TestOncePer_Get_wait(t *testing.T) {
 }
 
 func TestOncePer_OnceStringSlice(t *testing.T) {
-	t.Parallel()
 	once := OncePer{}
 	key := NewOnceKey("key")
 
@@ -119,7 +113,6 @@ func TestOncePer_OnceStringSlice(t *testing.T) {
 }
 
 func TestOncePer_Once2StringSlice(t *testing.T) {
-	t.Parallel()
 	once := OncePer{}
 	key := NewOnceKey("key")
 
@@ -136,7 +129,6 @@ func TestOncePer_Once2StringSlice(t *testing.T) {
 }
 
 func TestNewOnceKey(t *testing.T) {
-	t.Parallel()
 	once := OncePer{}
 	key1 := NewOnceKey("key")
 	key2 := NewOnceKey("key")
@@ -154,7 +146,6 @@ func TestNewOnceKey(t *testing.T) {
 }
 
 func TestNewCustomOnceKey(t *testing.T) {
-	t.Parallel()
 	type key struct {
 		key string
 	}
@@ -175,7 +166,6 @@ func TestNewCustomOnceKey(t *testing.T) {
 }
 
 func TestOncePerReentrant(t *testing.T) {
-	t.Parallel()
 	once := OncePer{}
 	key1 := NewOnceKey("key")
 	key2 := NewOnceKey("key")
@@ -188,7 +178,6 @@ func TestOncePerReentrant(t *testing.T) {
 
 // Test that a recovered panic in a Once function doesn't deadlock
 func TestOncePerPanic(t *testing.T) {
-	t.Parallel()
 	once := OncePer{}
 	key := NewOnceKey("key")
 

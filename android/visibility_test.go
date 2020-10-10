@@ -1140,7 +1140,6 @@ var visibilityTests = []struct {
 }
 
 func TestVisibility(t *testing.T) {
-	t.Parallel()
 	for _, test := range visibilityTests {
 		t.Run(test.name, func(t *testing.T) {
 			ctx, errs := testVisibility(buildDir, test.fs)

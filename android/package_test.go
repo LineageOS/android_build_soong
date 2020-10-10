@@ -56,7 +56,6 @@ var packageTests = []struct {
 }
 
 func TestPackage(t *testing.T) {
-	t.Parallel()
 	for _, test := range packageTests {
 		t.Run(test.name, func(t *testing.T) {
 			_, errs := testPackage(test.fs)
