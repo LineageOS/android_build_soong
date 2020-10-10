@@ -71,7 +71,8 @@ func (lto *lto) begin(ctx BaseModuleContext) {
 	} else if ctx.Config().IsEnvTrue("GLOBAL_THINLTO") {
 		staticLib := ctx.static() && !ctx.staticBinary()
 		hostBin := ctx.Host()
-		if !staticLib && !hostBin {
+		vndk := ctx.isVndk() // b/169217596
+		if !staticLib && !hostBin && !vndk {
 			if !lto.Never() && !lto.FullLTO() {
 				lto.Properties.Lto.Thin = boolPtr(true)
 			}

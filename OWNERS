@@ -1,13 +1,20 @@
-per-file * = asmundak@google.com
-per-file * = ccross@android.com
-per-file * = dwillemsen@google.com
-per-file * = eakammer@google.com
-per-file * = jungjw@google.com
-per-file * = patricearruda@google.com
-per-file * = paulduffin@google.com
+# This file is included by several other projects as the list of people
+# approving build related projects.
 
-per-file ndk_*.go = danalbert@google.com
-per-file clang.go,global.go = srhines@google.com, chh@google.com, pirama@google.com, yikong@google.com
-per-file tidy.go = srhines@google.com, chh@google.com
-per-file lto.go,pgo.go = srhines@google.com, pirama@google.com, yikong@google.com
-per-file docs/map_files.md = danalbert@google.com, enh@google.com, jiyong@google.com
+ahumesky@google.com
+asmundak@google.com
+ccross@android.com
+cparsons@google.com
+dwillemsen@google.com
+eakammer@google.com
+jingwen@google.com
+joeo@google.com
+jungjw@google.com
+lberki@google.com
+patricearruda@google.com
+ruperts@google.com
+
+# To expedite LON reviews
+hansson@google.com
+paulduffin@google.com
+

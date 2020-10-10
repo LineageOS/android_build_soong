@@ -15,6 +15,7 @@ bootstrap_go_package {
         "apex.go",
         "api_levels.go",
         "arch.go",
+        "bazel_handler.go",
         "bazel_overlay.go",
         "config.go",
         "csuite_config.go",
@@ -54,7 +55,6 @@ bootstrap_go_package {
         "util.go",
         "variable.go",
         "visibility.go",
-        "vts_config.go",
         "writedocs.go",
 
         // Lock down environment access last
@@ -83,6 +83,5 @@ bootstrap_go_package {
         "util_test.go",
         "variable_test.go",
         "visibility_test.go",
-        "vts_config_test.go",
     ],
 }
