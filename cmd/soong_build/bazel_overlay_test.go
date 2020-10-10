@@ -64,7 +64,6 @@ func customModuleFactory() android.Module {
 }
 
 func TestGenerateBazelOverlayFromBlueprint(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		bp                  string
 		expectedBazelTarget string

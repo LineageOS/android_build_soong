@@ -22,7 +22,6 @@ import (
 )
 
 func TestKotlin(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
@@ -85,7 +84,6 @@ func TestKotlin(t *testing.T) {
 }
 
 func TestKapt(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
@@ -165,7 +163,6 @@ func TestKapt(t *testing.T) {
 }
 
 func TestKaptEncodeFlags(t *testing.T) {
-	t.Parallel()
 	// Compares the kaptEncodeFlags against the results of the example implementation at
 	// https://kotlinlang.org/docs/reference/kapt.html#apjavac-options-encoding
 	tests := []struct {

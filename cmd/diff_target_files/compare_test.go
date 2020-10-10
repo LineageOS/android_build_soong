@@ -21,7 +21,6 @@ import (
 )
 
 func TestDiffTargetFilesLists(t *testing.T) {
-	t.Parallel()
 	zipArtifactFile := func(name string, crc32 uint32, size uint64) *ZipArtifactFile {
 		return &ZipArtifactFile{
 			File: &zip.File{

@@ -40,7 +40,6 @@ func testSdkWithCc(t *testing.T, bp string) *testSdkResult {
 // Contains tests for SDK members provided by the cc package.
 
 func TestSingleDeviceOsAssumption(t *testing.T) {
-	t.Parallel()
 	// Mock a module with DeviceSupported() == true.
 	s := &sdk{}
 	android.InitAndroidArchModule(s, android.DeviceSupported, android.MultilibCommon)
@@ -55,7 +54,6 @@ func TestSingleDeviceOsAssumption(t *testing.T) {
 }
 
 func TestSdkIsCompileMultilibBoth(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -86,7 +84,6 @@ func TestSdkIsCompileMultilibBoth(t *testing.T) {
 }
 
 func TestSdkCompileMultilibOverride(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -178,7 +175,6 @@ sdk_snapshot {
 }
 
 func TestBasicSdkWithCc(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -285,7 +281,6 @@ func TestBasicSdkWithCc(t *testing.T) {
 
 // Make sure the sdk can use host specific cc libraries static/shared and both.
 func TestHostSdkWithCc(t *testing.T) {
-	t.Parallel()
 	testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -309,7 +304,6 @@ func TestHostSdkWithCc(t *testing.T) {
 
 // Make sure the sdk can use cc libraries static/shared and both.
 func TestSdkWithCc(t *testing.T) {
-	t.Parallel()
 	testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -340,7 +334,6 @@ func TestSdkWithCc(t *testing.T) {
 }
 
 func TestSnapshotWithObject(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -412,7 +405,6 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithCcDuplicateHeaders(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -454,7 +446,6 @@ include/Test.h -> include/include/Test.h
 // handling is tested with the sanitize clauses (but note there's a lot of
 // built-in logic in sanitize.go that can affect those flags).
 func TestSnapshotWithCcSharedLibraryCommonProperties(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -568,7 +559,6 @@ arm64/include/Arm64Test.h -> arm64/include/arm64/include/Arm64Test.h
 }
 
 func TestSnapshotWithCcBinary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		module_exports {
 			name: "mymodule_exports",
@@ -633,7 +623,6 @@ module_exports_snapshot {
 }
 
 func TestMultipleHostOsTypesSnapshotWithCcBinary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		module_exports {
 			name: "myexports",
@@ -760,7 +749,6 @@ module_exports_snapshot {
 }
 
 func TestSnapshotWithSingleHostOsType(t *testing.T) {
-	t.Parallel()
 	ctx, config := testSdkContext(`
 		cc_defaults {
 			name: "mydefaults",
@@ -924,7 +912,6 @@ module_exports_snapshot {
 // Test that we support the necessary flags for the linker binary, which is
 // special in several ways.
 func TestSnapshotWithCcStaticNocrtBinary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		module_exports {
 			name: "mymodule_exports",
@@ -1027,7 +1014,6 @@ module_exports_snapshot {
 }
 
 func TestSnapshotWithCcSharedLibrary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -1121,7 +1107,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestSnapshotWithCcSharedLibrarySharedLibs(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -1316,7 +1301,6 @@ sdk_snapshot {
 }
 
 func TestHostSnapshotWithCcSharedLibrary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -1434,7 +1418,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestMultipleHostOsTypesSnapshotWithCcSharedLibrary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -1560,7 +1543,6 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithCcStaticLibrary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		module_exports {
 			name: "myexports",
@@ -1645,7 +1627,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestHostSnapshotWithCcStaticLibrary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		module_exports {
 			name: "myexports",
@@ -1760,7 +1741,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestSnapshotWithCcLibrary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		module_exports {
 			name: "myexports",
@@ -1858,7 +1838,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestHostSnapshotWithMultiLib64(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		module_exports {
 			name: "myexports",
@@ -1966,7 +1945,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestSnapshotWithCcHeadersLibrary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -2015,7 +1993,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestHostSnapshotWithCcHeadersLibrary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -2098,7 +2075,6 @@ include/Test.h -> include/include/Test.h
 }
 
 func TestDeviceAndHostSnapshotWithCcHeadersLibrary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -2194,7 +2170,6 @@ include-host/HostTest.h -> linux_glibc/include/include-host/HostTest.h
 }
 
 func TestSystemSharedLibPropagation(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -2432,7 +2407,6 @@ sdk_snapshot {
 }
 
 func TestStubsLibrary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -2511,7 +2485,6 @@ sdk_snapshot {
 }
 
 func TestDeviceAndHostSnapshotWithStubsLibrary(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",
@@ -2628,7 +2601,6 @@ sdk_snapshot {
 }
 
 func TestUniqueHostSoname(t *testing.T) {
-	t.Parallel()
 	result := testSdkWithCc(t, `
 		sdk {
 			name: "mysdk",

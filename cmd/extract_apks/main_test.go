@@ -37,7 +37,6 @@ type testDesc struct {
 }
 
 func TestSelectApks_ApkSet(t *testing.T) {
-	t.Parallel()
 	testCases := []testDesc{
 		{
 			protoText: `
@@ -267,7 +266,6 @@ variant {
 }
 
 func TestSelectApks_ApexSet(t *testing.T) {
-	t.Parallel()
 	testCases := []testDesc{
 		{
 			protoText: `
@@ -444,7 +442,6 @@ type testCaseWriteApks struct {
 }
 
 func TestWriteApks(t *testing.T) {
-	t.Parallel()
 	testCases := []testCaseWriteApks{
 		{
 			name:       "splits",

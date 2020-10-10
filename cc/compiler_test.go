@@ -19,7 +19,6 @@ import (
 )
 
 func TestIsThirdParty(t *testing.T) {
-	t.Parallel()
 	shouldFail := []string{
 		"external/foo/",
 		"vendor/bar/",

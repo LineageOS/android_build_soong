@@ -24,7 +24,6 @@ import (
 )
 
 func TestDependingOnModuleInSameNamespace(t *testing.T) {
-	t.Parallel()
 	ctx := setupTest(t,
 		map[string]string{
 			"dir1": `
@@ -49,7 +48,6 @@ func TestDependingOnModuleInSameNamespace(t *testing.T) {
 }
 
 func TestDependingOnModuleInRootNamespace(t *testing.T) {
-	t.Parallel()
 	ctx := setupTest(t,
 		map[string]string{
 			".": `
@@ -72,7 +70,6 @@ func TestDependingOnModuleInRootNamespace(t *testing.T) {
 }
 
 func TestImplicitlyImportRootNamespace(t *testing.T) {
-	t.Parallel()
 	_ = setupTest(t,
 		map[string]string{
 			".": `
@@ -95,7 +92,6 @@ func TestImplicitlyImportRootNamespace(t *testing.T) {
 }
 
 func TestDependingOnBlueprintModuleInRootNamespace(t *testing.T) {
-	t.Parallel()
 	_ = setupTest(t,
 		map[string]string{
 			".": `
@@ -118,7 +114,6 @@ func TestDependingOnBlueprintModuleInRootNamespace(t *testing.T) {
 }
 
 func TestDependingOnModuleInImportedNamespace(t *testing.T) {
-	t.Parallel()
 	ctx := setupTest(t,
 		map[string]string{
 			"dir1": `
@@ -148,7 +143,6 @@ func TestDependingOnModuleInImportedNamespace(t *testing.T) {
 }
 
 func TestDependingOnModuleInNonImportedNamespace(t *testing.T) {
-	t.Parallel()
 	_, errs := setupTestExpectErrs(
 		map[string]string{
 			"dir1": `
@@ -189,7 +183,6 @@ Module "a" can be found in these namespaces: ["dir1" "dir2"]`),
 }
 
 func TestDependingOnModuleByFullyQualifiedReference(t *testing.T) {
-	t.Parallel()
 	ctx := setupTest(t,
 		map[string]string{
 			"dir1": `
@@ -217,7 +210,6 @@ func TestDependingOnModuleByFullyQualifiedReference(t *testing.T) {
 }
 
 func TestSameNameInTwoNamespaces(t *testing.T) {
-	t.Parallel()
 	ctx := setupTest(t,
 		map[string]string{
 			"dir1": `
@@ -268,7 +260,6 @@ func TestSameNameInTwoNamespaces(t *testing.T) {
 }
 
 func TestSearchOrder(t *testing.T) {
-	t.Parallel()
 	ctx := setupTest(t,
 		map[string]string{
 			"dir1": `
@@ -357,7 +348,6 @@ func TestSearchOrder(t *testing.T) {
 }
 
 func TestTwoNamespacesCanImportEachOther(t *testing.T) {
-	t.Parallel()
 	_ = setupTest(t,
 		map[string]string{
 			"dir1": `
@@ -388,7 +378,6 @@ func TestTwoNamespacesCanImportEachOther(t *testing.T) {
 }
 
 func TestImportingNonexistentNamespace(t *testing.T) {
-	t.Parallel()
 	_, errs := setupTestExpectErrs(
 		map[string]string{
 			"dir1": `
@@ -413,7 +402,6 @@ func TestImportingNonexistentNamespace(t *testing.T) {
 }
 
 func TestNamespacesDontInheritParentNamespaces(t *testing.T) {
-	t.Parallel()
 	_, errs := setupTestExpectErrs(
 		map[string]string{
 			"dir1": `
@@ -445,7 +433,6 @@ Module "a" can be found in these namespaces: ["dir1"]`),
 }
 
 func TestModulesDoReceiveParentNamespace(t *testing.T) {
-	t.Parallel()
 	_ = setupTest(t,
 		map[string]string{
 			"dir1": `
@@ -468,7 +455,6 @@ func TestModulesDoReceiveParentNamespace(t *testing.T) {
 }
 
 func TestNamespaceImportsNotTransitive(t *testing.T) {
-	t.Parallel()
 	_, errs := setupTestExpectErrs(
 		map[string]string{
 			"dir1": `
@@ -510,7 +496,6 @@ Module "a" can be found in these namespaces: ["dir1"]`),
 }
 
 func TestTwoNamepacesInSameDir(t *testing.T) {
-	t.Parallel()
 	_, errs := setupTestExpectErrs(
 		map[string]string{
 			"dir1": `
@@ -531,7 +516,6 @@ func TestTwoNamepacesInSameDir(t *testing.T) {
 }
 
 func TestNamespaceNotAtTopOfFile(t *testing.T) {
-	t.Parallel()
 	_, errs := setupTestExpectErrs(
 		map[string]string{
 			"dir1": `
@@ -553,7 +537,6 @@ func TestNamespaceNotAtTopOfFile(t *testing.T) {
 }
 
 func TestTwoModulesWithSameNameInSameNamespace(t *testing.T) {
-	t.Parallel()
 	_, errs := setupTestExpectErrs(
 		map[string]string{
 			"dir1": `
@@ -579,7 +562,6 @@ func TestTwoModulesWithSameNameInSameNamespace(t *testing.T) {
 }
 
 func TestDeclaringNamespaceInNonAndroidBpFile(t *testing.T) {
-	t.Parallel()
 	_, errs := setupTestFromFiles(
 		map[string][]byte{
 			"Android.bp": []byte(`
@@ -603,7 +585,6 @@ func TestDeclaringNamespaceInNonAndroidBpFile(t *testing.T) {
 
 // so that the generated .ninja file will have consistent names
 func TestConsistentNamespaceNames(t *testing.T) {
-	t.Parallel()
 	ctx := setupTest(t,
 		map[string]string{
 			"dir1": "soong_namespace{}",
@@ -623,7 +604,6 @@ func TestConsistentNamespaceNames(t *testing.T) {
 
 // so that the generated .ninja file will have consistent names
 func TestRename(t *testing.T) {
-	t.Parallel()
 	_ = setupTest(t,
 		map[string]string{
 			"dir1": `

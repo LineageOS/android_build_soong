@@ -22,7 +22,6 @@ import (
 )
 
 func TestCollectJavaLibraryPropertiesAddLibsDeps(t *testing.T) {
-	t.Parallel()
 	expected := []string{"Foo", "Bar"}
 	module := LibraryFactory().(*Library)
 	module.properties.Libs = append(module.properties.Libs, expected...)
@@ -36,7 +35,6 @@ func TestCollectJavaLibraryPropertiesAddLibsDeps(t *testing.T) {
 }
 
 func TestCollectJavaLibraryPropertiesAddStaticLibsDeps(t *testing.T) {
-	t.Parallel()
 	expected := []string{"Foo", "Bar"}
 	module := LibraryFactory().(*Library)
 	module.properties.Static_libs = append(module.properties.Static_libs, expected...)
@@ -50,7 +48,6 @@ func TestCollectJavaLibraryPropertiesAddStaticLibsDeps(t *testing.T) {
 }
 
 func TestCollectJavaLibraryPropertiesAddScrs(t *testing.T) {
-	t.Parallel()
 	expected := []string{"Foo", "Bar"}
 	module := LibraryFactory().(*Library)
 	module.expandIDEInfoCompiledSrcs = append(module.expandIDEInfoCompiledSrcs, expected...)
@@ -64,7 +61,6 @@ func TestCollectJavaLibraryPropertiesAddScrs(t *testing.T) {
 }
 
 func TestCollectJavaLibraryPropertiesAddAidlIncludeDirs(t *testing.T) {
-	t.Parallel()
 	expected := []string{"Foo", "Bar"}
 	module := LibraryFactory().(*Library)
 	module.deviceProperties.Aidl.Include_dirs = append(module.deviceProperties.Aidl.Include_dirs, expected...)
@@ -78,7 +74,6 @@ func TestCollectJavaLibraryPropertiesAddAidlIncludeDirs(t *testing.T) {
 }
 
 func TestCollectJavaLibraryPropertiesAddJarjarRules(t *testing.T) {
-	t.Parallel()
 	expected := "Jarjar_rules.txt"
 	module := LibraryFactory().(*Library)
 	module.expandJarjarRules = android.PathForTesting(expected)

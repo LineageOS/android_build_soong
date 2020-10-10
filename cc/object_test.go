@@ -19,7 +19,6 @@ import (
 )
 
 func TestLinkerScript(t *testing.T) {
-	t.Parallel()
 	t.Run("script", func(t *testing.T) {
 		testCc(t, `
 		cc_object {

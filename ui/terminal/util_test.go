@@ -19,7 +19,6 @@ import (
 )
 
 func TestStripAnsiEscapes(t *testing.T) {
-	t.Parallel()
 	testcases := []struct {
 		input  string
 		output string

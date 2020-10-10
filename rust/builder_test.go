@@ -17,7 +17,6 @@ package rust
 import "testing"
 
 func TestSourceProviderCollision(t *testing.T) {
-	t.Parallel()
 	testRustError(t, "multiple source providers generate the same filename output: bindings.rs", `
 		rust_binary {
 			name: "source_collider",

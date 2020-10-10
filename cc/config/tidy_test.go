@@ -19,7 +19,6 @@ import (
 )
 
 func TestTidyChecksForDir(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		input    string
 		expected string

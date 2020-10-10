@@ -20,7 +20,6 @@ import (
 )
 
 func TestRustProtobuf(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_protobuf {
 			name: "librust_proto",

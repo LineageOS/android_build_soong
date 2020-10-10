@@ -326,7 +326,6 @@ var (
 )
 
 func TestPythonModule(t *testing.T) {
-	t.Parallel()
 	for _, d := range data {
 		t.Run(d.desc, func(t *testing.T) {
 			config := android.TestConfig(buildDir, nil, "", d.mockFiles)
