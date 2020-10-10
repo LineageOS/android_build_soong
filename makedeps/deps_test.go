@@ -23,7 +23,6 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		name   string
 		input  string
@@ -340,7 +339,6 @@ func BenchmarkParsing(b *testing.B) {
 }
 
 func TestDepPrint(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		name   string
 		input  Deps

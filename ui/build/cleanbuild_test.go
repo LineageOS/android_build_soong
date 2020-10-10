@@ -27,7 +27,6 @@ import (
 )
 
 func TestCleanOldFiles(t *testing.T) {
-	t.Parallel()
 	dir, err := ioutil.TempDir("", "testcleanoldfiles")
 	if err != nil {
 		t.Fatal(err)

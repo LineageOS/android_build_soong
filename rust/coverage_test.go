@@ -23,7 +23,6 @@ import (
 
 // Test that coverage flags are being correctly generated.
 func TestCoverageFlags(t *testing.T) {
-	t.Parallel()
 	ctx := testRustCov(t, `
 		rust_library {
 			name: "libfoo_cov",
@@ -99,7 +98,6 @@ func TestCoverageFlags(t *testing.T) {
 
 // Test coverage files are included correctly
 func TestCoverageZip(t *testing.T) {
-	t.Parallel()
 	ctx := testRustCov(t, `
 		rust_library {
 			name: "libfoo",
@@ -176,7 +174,6 @@ func TestCoverageZip(t *testing.T) {
 }
 
 func TestCoverageDeps(t *testing.T) {
-	t.Parallel()
 	ctx := testRustCov(t, `
 		rust_binary {
 			name: "fizz",

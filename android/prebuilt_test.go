@@ -262,7 +262,6 @@ var prebuiltsTests = []struct {
 }
 
 func TestPrebuilts(t *testing.T) {
-	t.Parallel()
 	fs := map[string][]byte{
 		"prebuilt_file": nil,
 		"source_file":   nil,

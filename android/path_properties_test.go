@@ -59,7 +59,6 @@ func (p *pathDepsMutatorTestModule) GenerateAndroidBuildActions(ctx ModuleContex
 }
 
 func TestPathDepsMutator(t *testing.T) {
-	t.Parallel()
 	tests := []struct {
 		name string
 		bp   string

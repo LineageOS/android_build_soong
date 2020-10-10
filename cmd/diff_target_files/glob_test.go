@@ -19,7 +19,6 @@ import (
 )
 
 func TestMatch(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		pattern, name string
 		match         bool

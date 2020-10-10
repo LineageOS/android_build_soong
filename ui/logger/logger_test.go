@@ -29,7 +29,6 @@ import (
 )
 
 func TestCreateFileWithRotation(t *testing.T) {
-	t.Parallel()
 	dir, err := ioutil.TempDir("", "test-rotation")
 	if err != nil {
 		t.Fatalf("Failed to get TempDir: %v", err)
@@ -97,7 +96,6 @@ func TestCreateFileWithRotation(t *testing.T) {
 }
 
 func TestPanic(t *testing.T) {
-	t.Parallel()
 	if os.Getenv("ACTUALLY_PANIC") == "1" {
 		panicValue := "foo"
 		log := New(&bytes.Buffer{})
@@ -130,7 +128,6 @@ func TestPanic(t *testing.T) {
 }
 
 func TestFatal(t *testing.T) {
-	t.Parallel()
 	if os.Getenv("ACTUALLY_FATAL") == "1" {
 		log := New(&bytes.Buffer{})
 		defer func() {
@@ -153,7 +150,6 @@ func TestFatal(t *testing.T) {
 }
 
 func TestNonFatal(t *testing.T) {
-	t.Parallel()
 	if os.Getenv("ACTUAL_TEST") == "1" {
 		log := New(&bytes.Buffer{})
 		defer log.Cleanup()
@@ -170,7 +166,6 @@ func TestNonFatal(t *testing.T) {
 }
 
 func TestRecoverFatal(t *testing.T) {
-	t.Parallel()
 	log := New(&bytes.Buffer{})
 	defer func() {
 		if p := recover(); p != nil {
@@ -187,7 +182,6 @@ func TestRecoverFatal(t *testing.T) {
 }
 
 func TestRecoverNonFatal(t *testing.T) {
-	t.Parallel()
 	log := New(&bytes.Buffer{})
 	defer func() {
 		if p := recover(); p == nil {
@@ -204,7 +198,6 @@ func TestRecoverNonFatal(t *testing.T) {
 }
 
 func TestRuntimePanic(t *testing.T) {
-	t.Parallel()
 	defer func() {
 		if p := recover(); p == nil {
 			t.Errorf("Panic not thrown")

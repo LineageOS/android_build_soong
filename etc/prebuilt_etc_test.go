@@ -102,7 +102,6 @@ func testPrebuiltEtcError(t *testing.T, pattern, bp string) {
 	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
 }
 func TestPrebuiltEtcVariants(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testPrebuiltEtc(t, `
 		prebuilt_etc {
 			name: "foo.conf",
@@ -137,7 +136,6 @@ func TestPrebuiltEtcVariants(t *testing.T) {
 }
 
 func TestPrebuiltEtcOutputPath(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testPrebuiltEtc(t, `
 		prebuilt_etc {
 			name: "foo.conf",
@@ -153,7 +151,6 @@ func TestPrebuiltEtcOutputPath(t *testing.T) {
 }
 
 func TestPrebuiltEtcGlob(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testPrebuiltEtc(t, `
 		prebuilt_etc {
 			name: "my_foo",
@@ -178,7 +175,6 @@ func TestPrebuiltEtcGlob(t *testing.T) {
 }
 
 func TestPrebuiltEtcAndroidMk(t *testing.T) {
-	t.Parallel()
 	ctx, config := testPrebuiltEtc(t, `
 		prebuilt_etc {
 			name: "foo",
@@ -215,7 +211,6 @@ func TestPrebuiltEtcAndroidMk(t *testing.T) {
 }
 
 func TestPrebuiltEtcRelativeInstallPathInstallDirPath(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testPrebuiltEtc(t, `
 		prebuilt_etc {
 			name: "foo.conf",
@@ -232,7 +227,6 @@ func TestPrebuiltEtcRelativeInstallPathInstallDirPath(t *testing.T) {
 }
 
 func TestPrebuiltEtcCannotSetRelativeInstallPathAndSubDir(t *testing.T) {
-	t.Parallel()
 	testPrebuiltEtcError(t, "relative_install_path is set. Cannot set sub_dir", `
 		prebuilt_etc {
 			name: "foo.conf",
@@ -244,7 +238,6 @@ func TestPrebuiltEtcCannotSetRelativeInstallPathAndSubDir(t *testing.T) {
 }
 
 func TestPrebuiltEtcHost(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testPrebuiltEtc(t, `
 		prebuilt_etc_host {
 			name: "foo.conf",
@@ -260,7 +253,6 @@ func TestPrebuiltEtcHost(t *testing.T) {
 }
 
 func TestPrebuiltUserShareInstallDirPath(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testPrebuiltEtc(t, `
 		prebuilt_usr_share {
 			name: "foo.conf",
@@ -277,7 +269,6 @@ func TestPrebuiltUserShareInstallDirPath(t *testing.T) {
 }
 
 func TestPrebuiltUserShareHostInstallDirPath(t *testing.T) {
-	t.Parallel()
 	ctx, config := testPrebuiltEtc(t, `
 		prebuilt_usr_share_host {
 			name: "foo.conf",
@@ -295,7 +286,6 @@ func TestPrebuiltUserShareHostInstallDirPath(t *testing.T) {
 }
 
 func TestPrebuiltFontInstallDirPath(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testPrebuiltEtc(t, `
 		prebuilt_font {
 			name: "foo.conf",
@@ -311,7 +301,6 @@ func TestPrebuiltFontInstallDirPath(t *testing.T) {
 }
 
 func TestPrebuiltFirmwareDirPath(t *testing.T) {
-	t.Parallel()
 	targetPath := buildDir + "/target/product/test_device"
 	tests := []struct {
 		description  string
@@ -348,7 +337,6 @@ func TestPrebuiltFirmwareDirPath(t *testing.T) {
 }
 
 func TestPrebuiltDSPDirPath(t *testing.T) {
-	t.Parallel()
 	targetPath := filepath.Join(buildDir, "/target/product/test_device")
 	tests := []struct {
 		description  string

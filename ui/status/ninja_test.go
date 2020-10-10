@@ -26,7 +26,6 @@ import (
 
 // Tests that closing the ninja reader when nothing has opened the other end of the fifo is fast.
 func TestNinjaReader_Close(t *testing.T) {
-	t.Parallel()
 	tempDir, err := ioutil.TempDir("", "ninja_test")
 	if err != nil {
 		t.Fatal(err)
