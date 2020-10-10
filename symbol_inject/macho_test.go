@@ -21,7 +21,6 @@ import (
 )
 
 func TestMachoSymbolTable(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		file         *macho.File
 		symbol       string

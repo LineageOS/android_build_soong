@@ -100,7 +100,6 @@ func linkerOffset() []elf.Symbol {
 }
 
 func TestCheckLinker(t *testing.T) {
-	t.Parallel()
 	cases := []struct {
 		name   string
 		err    error

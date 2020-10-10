@@ -21,7 +21,6 @@ import (
 )
 
 func TestSplitList(t *testing.T) {
-	t.Parallel()
 	testcases := []struct {
 		inputCount int
 		shardCount int

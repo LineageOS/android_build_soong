@@ -122,7 +122,6 @@ func testAgainstSeveralThreadcounts(t *testing.T, tester func(t *testing.T, numT
 // end of utils, start of individual tests
 
 func TestSingleFile(t *testing.T) {
-	t.Parallel()
 	runSimpleTest(t,
 		[]string{"findme.txt"},
 		[]string{"findme.txt"},
@@ -130,7 +129,6 @@ func TestSingleFile(t *testing.T) {
 }
 
 func TestIncludeFiles(t *testing.T) {
-	t.Parallel()
 	runSimpleTest(t,
 		[]string{"findme.txt", "skipme.txt"},
 		[]string{"findme.txt"},
@@ -138,7 +136,6 @@ func TestIncludeFiles(t *testing.T) {
 }
 
 func TestNestedDirectories(t *testing.T) {
-	t.Parallel()
 	runSimpleTest(t,
 		[]string{"findme.txt", "skipme.txt", "subdir/findme.txt", "subdir/skipme.txt"},
 		[]string{"findme.txt", "subdir/findme.txt"},
@@ -146,7 +143,6 @@ func TestNestedDirectories(t *testing.T) {
 }
 
 func TestEmptyDirectory(t *testing.T) {
-	t.Parallel()
 	runSimpleTest(t,
 		[]string{},
 		[]string{},
@@ -154,7 +150,6 @@ func TestEmptyDirectory(t *testing.T) {
 }
 
 func TestEmptyPath(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 	root := "/tmp"
 	fs.Create(t, filepath.Join(root, "findme.txt"), filesystem)
@@ -175,7 +170,6 @@ func TestEmptyPath(t *testing.T) {
 }
 
 func TestFilesystemRoot(t *testing.T) {
-	t.Parallel()
 
 	testWithNumThreads := func(t *testing.T, numThreads int) {
 		filesystem := newFs()
@@ -203,7 +197,6 @@ func TestFilesystemRoot(t *testing.T) {
 }
 
 func TestNonexistentDir(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 	fs.Create(t, "/tmp/findme.txt", filesystem)
 
@@ -222,7 +215,6 @@ func TestNonexistentDir(t *testing.T) {
 }
 
 func TestExcludeDirs(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 	fs.Create(t, "/tmp/exclude/findme.txt", filesystem)
 	fs.Create(t, "/tmp/exclude/subdir/findme.txt", filesystem)
@@ -251,7 +243,6 @@ func TestExcludeDirs(t *testing.T) {
 }
 
 func TestPruneFiles(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 	fs.Create(t, "/tmp/out/findme.txt", filesystem)
 	fs.Create(t, "/tmp/out/.ignore-out-dir", filesystem)
@@ -284,7 +275,6 @@ func TestPruneFiles(t *testing.T) {
 // TestRootDir tests that the value of RootDirs is used
 // tests of the filesystem root are in TestFilesystemRoot
 func TestRootDir(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 	fs.Create(t, "/tmp/a/findme.txt", filesystem)
 	fs.Create(t, "/tmp/a/subdir/findme.txt", filesystem)
@@ -309,7 +299,6 @@ func TestRootDir(t *testing.T) {
 }
 
 func TestUncachedDir(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 	fs.Create(t, "/tmp/a/findme.txt", filesystem)
 	fs.Create(t, "/tmp/a/subdir/findme.txt", filesystem)
@@ -337,7 +326,6 @@ func TestUncachedDir(t *testing.T) {
 }
 
 func TestSearchingForFilesExcludedFromCache(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/findme.txt", filesystem)
@@ -365,7 +353,6 @@ func TestSearchingForFilesExcludedFromCache(t *testing.T) {
 }
 
 func TestRelativeFilePaths(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 
 	fs.Create(t, "/tmp/ignore/hi.txt", filesystem)
@@ -410,7 +397,6 @@ func TestRelativeFilePaths(t *testing.T) {
 // have to run this test with the race-detector (`go test -race src/android/soong/finder/*.go`)
 // for there to be much chance of the test actually detecting any error that may be present
 func TestRootDirsContainedInOtherRootDirs(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 
 	fs.Create(t, "/tmp/a/b/c/d/e/f/g/h/i/j/findme.txt", filesystem)
@@ -432,7 +418,6 @@ func TestRootDirsContainedInOtherRootDirs(t *testing.T) {
 }
 
 func TestFindFirst(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 	fs.Create(t, "/tmp/a/hi.txt", filesystem)
 	fs.Create(t, "/tmp/b/hi.txt", filesystem)
@@ -457,7 +442,6 @@ func TestFindFirst(t *testing.T) {
 }
 
 func TestConcurrentFindSameDirectory(t *testing.T) {
-	t.Parallel()
 
 	testWithNumThreads := func(t *testing.T, numThreads int) {
 		filesystem := newFs()
@@ -509,7 +493,6 @@ func TestConcurrentFindSameDirectory(t *testing.T) {
 }
 
 func TestConcurrentFindDifferentDirectories(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 
 	// create a bunch of files and directories
@@ -573,7 +556,6 @@ func TestConcurrentFindDifferentDirectories(t *testing.T) {
 }
 
 func TestStrangelyFormattedPaths(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 
 	fs.Create(t, "/tmp/findme.txt", filesystem)
@@ -599,7 +581,6 @@ func TestStrangelyFormattedPaths(t *testing.T) {
 }
 
 func TestCorruptedCacheHeader(t *testing.T) {
-	t.Parallel()
 	filesystem := newFs()
 
 	fs.Create(t, "/tmp/findme.txt", filesystem)
@@ -624,7 +605,6 @@ func TestCorruptedCacheHeader(t *testing.T) {
 }
 
 func TestCanUseCache(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/findme.txt", filesystem)
@@ -671,7 +651,6 @@ func TestCanUseCache(t *testing.T) {
 }
 
 func TestCorruptedCacheBody(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/findme.txt", filesystem)
@@ -736,7 +715,6 @@ func TestCorruptedCacheBody(t *testing.T) {
 }
 
 func TestStatCalls(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/a/findme.txt", filesystem)
@@ -760,7 +738,6 @@ func TestStatCalls(t *testing.T) {
 }
 
 func TestFileAdded(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/ignoreme.txt", filesystem)
@@ -803,7 +780,6 @@ func TestFileAdded(t *testing.T) {
 }
 
 func TestDirectoriesAdded(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/ignoreme.txt", filesystem)
@@ -848,7 +824,6 @@ func TestDirectoriesAdded(t *testing.T) {
 }
 
 func TestDirectoryAndSubdirectoryBothUpdated(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/hi1.txt", filesystem)
@@ -889,7 +864,6 @@ func TestDirectoryAndSubdirectoryBothUpdated(t *testing.T) {
 }
 
 func TestFileDeleted(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/ignoreme.txt", filesystem)
@@ -930,7 +904,6 @@ func TestFileDeleted(t *testing.T) {
 }
 
 func TestDirectoriesDeleted(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/findme.txt", filesystem)
@@ -986,7 +959,6 @@ func TestDirectoriesDeleted(t *testing.T) {
 }
 
 func TestDirectoriesMoved(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/findme.txt", filesystem)
@@ -1045,7 +1017,6 @@ func TestDirectoriesMoved(t *testing.T) {
 }
 
 func TestDirectoriesSwapped(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/findme.txt", filesystem)
@@ -1161,7 +1132,6 @@ func runFsReplacementTest(t *testing.T, fs1 *fs.MockFs, fs2 *fs.MockFs) {
 }
 
 func TestChangeOfDevice(t *testing.T) {
-	t.Parallel()
 	fs1 := newFs()
 	// not as fine-grained mounting controls as a real filesystem, but should be adequate
 	fs1.SetDeviceNumber(0)
@@ -1173,7 +1143,6 @@ func TestChangeOfDevice(t *testing.T) {
 }
 
 func TestChangeOfUserOrHost(t *testing.T) {
-	t.Parallel()
 	fs1 := newFs()
 	fs1.SetViewId("me@here")
 
@@ -1184,7 +1153,6 @@ func TestChangeOfUserOrHost(t *testing.T) {
 }
 
 func TestConsistentCacheOrdering(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	for i := 0; i < 5; i++ {
@@ -1237,7 +1205,6 @@ func TestConsistentCacheOrdering(t *testing.T) {
 }
 
 func TestNumSyscallsOfSecondFind(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/findme.txt", filesystem)
@@ -1268,7 +1235,6 @@ func TestNumSyscallsOfSecondFind(t *testing.T) {
 }
 
 func TestChangingParamsOfSecondFind(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/findme.txt", filesystem)
@@ -1299,7 +1265,6 @@ func TestChangingParamsOfSecondFind(t *testing.T) {
 }
 
 func TestSymlinkPointingToFile(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/a/hi.txt", filesystem)
@@ -1336,7 +1301,6 @@ func TestSymlinkPointingToFile(t *testing.T) {
 }
 
 func TestSymlinkPointingToDirectory(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/dir/hi.txt", filesystem)
@@ -1371,7 +1335,6 @@ func TestSymlinkPointingToDirectory(t *testing.T) {
 // TestAddPruneFile confirms that adding a prune-file (into a directory for which we
 // already had a cache) causes the directory to be ignored
 func TestAddPruneFile(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/out/hi.txt", filesystem)
@@ -1410,7 +1373,6 @@ func TestAddPruneFile(t *testing.T) {
 }
 
 func TestUpdatingDbIffChanged(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/a/hi.txt", filesystem)
@@ -1470,7 +1432,6 @@ func TestUpdatingDbIffChanged(t *testing.T) {
 }
 
 func TestDirectoryNotPermitted(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/hi.txt", filesystem)
@@ -1519,7 +1480,6 @@ func TestDirectoryNotPermitted(t *testing.T) {
 }
 
 func TestFileNotPermitted(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/hi.txt", filesystem)
@@ -1542,7 +1502,6 @@ func TestFileNotPermitted(t *testing.T) {
 }
 
 func TestCacheEntryPathUnexpectedError(t *testing.T) {
-	t.Parallel()
 	// setup filesystem
 	filesystem := newFs()
 	fs.Create(t, "/tmp/a/hi.txt", filesystem)

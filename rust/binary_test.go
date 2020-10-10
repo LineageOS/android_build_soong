@@ -23,7 +23,6 @@ import (
 
 // Test that rustlibs default linkage is correct for binaries.
 func TestBinaryLinkage(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_binary {
 			name: "fizz-buzz",
@@ -87,7 +86,6 @@ func TestBinaryPreferRlib(t *testing.T) {
 
 // Test that the path returned by HostToolPath is correct
 func TestHostToolPath(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_binary_host {
 			name: "fizz-buzz",
@@ -102,7 +100,6 @@ func TestHostToolPath(t *testing.T) {
 
 // Test that the flags being passed to rust_binary modules are as expected
 func TestBinaryFlags(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_binary_host {
 			name: "fizz-buzz",
@@ -146,7 +143,6 @@ func TestStaticBinaryFlags(t *testing.T) {
 }
 
 func TestLinkObjects(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_binary {
 			name: "fizz-buzz",
@@ -166,7 +162,6 @@ func TestLinkObjects(t *testing.T) {
 
 // Test that stripped versions are correctly generated and used.
 func TestStrippedBinary(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_binary {
 			name: "foo",

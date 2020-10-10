@@ -21,7 +21,6 @@ import (
 )
 
 func TestCopyAndInject(t *testing.T) {
-	t.Parallel()
 	s := "abcdefghijklmnopqrstuvwxyz"
 	testCases := []struct {
 		offset   uint64

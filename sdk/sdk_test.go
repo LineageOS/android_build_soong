@@ -35,7 +35,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestDepNotInRequiredSdks(t *testing.T) {
-	t.Parallel()
 	testSdkError(t, `module "myjavalib".*depends on "otherlib".*that isn't part of the required SDKs:.*`, `
 		sdk {
 			name: "mysdk",
@@ -96,7 +95,6 @@ func TestDepNotInRequiredSdks(t *testing.T) {
 // Ensure that prebuilt modules have the same effective visibility as the source
 // modules.
 func TestSnapshotVisibility(t *testing.T) {
-	t.Parallel()
 	packageBp := `
 		package {
 			default_visibility: ["//other/foo"],
@@ -304,7 +302,6 @@ func TestPrebuiltVisibilityProperty_AddPrivate(t *testing.T) {
 }
 
 func TestSDkInstall(t *testing.T) {
-	t.Parallel()
 	sdk := `
 		sdk {
 			name: "mysdk",
@@ -349,7 +346,6 @@ func (p *testPropertiesStruct) String() string {
 var _ propertiesContainer = (*testPropertiesStruct)(nil)
 
 func TestCommonValueOptimization(t *testing.T) {
-	t.Parallel()
 	common := &testPropertiesStruct{name: "common"}
 	structs := []propertiesContainer{
 		&testPropertiesStruct{
@@ -447,7 +443,6 @@ func TestCommonValueOptimization(t *testing.T) {
 }
 
 func TestCommonValueOptimization_InvalidArchSpecificVariants(t *testing.T) {
-	t.Parallel()
 	common := &testPropertiesStruct{name: "common"}
 	structs := []propertiesContainer{
 		&testPropertiesStruct{

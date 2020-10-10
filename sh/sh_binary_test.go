@@ -61,7 +61,6 @@ func testShBinary(t *testing.T, bp string) (*android.TestContext, android.Config
 }
 
 func TestShTestSubDir(t *testing.T) {
-	t.Parallel()
 	ctx, config := testShBinary(t, `
 		sh_test {
 			name: "foo",
@@ -82,7 +81,6 @@ func TestShTestSubDir(t *testing.T) {
 }
 
 func TestShTest(t *testing.T) {
-	t.Parallel()
 	ctx, config := testShBinary(t, `
 		sh_test {
 			name: "foo",
@@ -113,7 +111,6 @@ func TestShTest(t *testing.T) {
 }
 
 func TestShTest_dataModules(t *testing.T) {
-	t.Parallel()
 	ctx, config := testShBinary(t, `
 		sh_test {
 			name: "foo",
@@ -173,7 +170,6 @@ func TestShTest_dataModules(t *testing.T) {
 }
 
 func TestShTestHost(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testShBinary(t, `
 		sh_test_host {
 			name: "foo",
@@ -194,7 +190,6 @@ func TestShTestHost(t *testing.T) {
 }
 
 func TestShTestHost_dataDeviceModules(t *testing.T) {
-	t.Parallel()
 	ctx, config := testShBinary(t, `
 		sh_test_host {
 			name: "foo",
