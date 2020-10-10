@@ -68,7 +68,6 @@ func customModuleFactory() Module {
 }
 
 func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testing.T) {
-	t.Parallel()
 	bp := `
 	custom {
 		name: "foo",
@@ -104,7 +103,6 @@ func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testin
 }
 
 func TestGetDistForGoals(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		bp                     string
 		expectedAndroidMkLines []string

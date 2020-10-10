@@ -177,7 +177,6 @@ func (tctx testRustCtx) parseError(t *testing.T, pattern string) {
 
 // Test that we can extract the link path from a lib path.
 func TestLinkPathFromFilePath(t *testing.T) {
-	t.Parallel()
 	barPath := android.PathForTesting("out/soong/.intermediates/external/libbar/libbar/linux_glibc_x86_64_shared/libbar.so")
 	libName := linkPathFromFilePath(barPath)
 	expectedResult := "out/soong/.intermediates/external/libbar/libbar/linux_glibc_x86_64_shared/"
@@ -189,7 +188,6 @@ func TestLinkPathFromFilePath(t *testing.T) {
 
 // Test to make sure dependencies are being picked up correctly.
 func TestDepsTracking(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_ffi_host_static {
 			name: "libstatic",
@@ -251,7 +249,6 @@ func TestDepsTracking(t *testing.T) {
 }
 
 func TestSourceProviderDeps(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_binary {
 			name: "fizz-buzz-dep",
@@ -339,7 +336,6 @@ func TestSourceProviderDeps(t *testing.T) {
 }
 
 func TestSourceProviderTargetMismatch(t *testing.T) {
-	t.Parallel()
 	// This might error while building the dependency tree or when calling depsToPaths() depending on the lunched
 	// target, which results in two different errors. So don't check the error, just confirm there is one.
 	testRustError(t, ".*", `
@@ -362,7 +358,6 @@ func TestSourceProviderTargetMismatch(t *testing.T) {
 
 // Test to make sure proc_macros use host variants when building device modules.
 func TestProcMacroDeviceDeps(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_library_host_rlib {
 			name: "libbar",
@@ -390,7 +385,6 @@ func TestProcMacroDeviceDeps(t *testing.T) {
 
 // Test that no_stdlibs suppresses dependencies on rust standard libraries
 func TestNoStdlibs(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_binary {
 			name: "fizz-buzz",
@@ -406,7 +400,6 @@ func TestNoStdlibs(t *testing.T) {
 
 // Test that libraries provide both 32-bit and 64-bit variants.
 func TestMultilib(t *testing.T) {
-	t.Parallel()
 	ctx := testRust(t, `
 		rust_library_rlib {
 			name: "libfoo",

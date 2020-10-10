@@ -180,7 +180,6 @@ func (t removeFredTransformation) transformPropertySetAfterContents(name string,
 }
 
 func TestTransformRemoveProperty(t *testing.T) {
-	t.Parallel()
 
 	helper := &TestHelper{t}
 
@@ -196,7 +195,6 @@ func TestTransformRemoveProperty(t *testing.T) {
 }
 
 func TestTransformRemovePropertySet(t *testing.T) {
-	t.Parallel()
 
 	helper := &TestHelper{t}
 

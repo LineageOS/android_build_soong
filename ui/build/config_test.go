@@ -39,7 +39,6 @@ func testContext() Context {
 }
 
 func TestConfigParseArgsJK(t *testing.T) {
-	t.Parallel()
 	ctx := testContext()
 
 	testCases := []struct {
@@ -112,7 +111,6 @@ func TestConfigParseArgsJK(t *testing.T) {
 }
 
 func TestConfigParseArgsVars(t *testing.T) {
-	t.Parallel()
 	ctx := testContext()
 
 	testCases := []struct {
@@ -640,7 +638,6 @@ func TestConfigFindBuildFile(t *testing.T) {
 }
 
 func TestConfigSplitArgs(t *testing.T) {
-	t.Parallel()
 	tests := []struct {
 		// ********* Setup *********
 		// Test description.

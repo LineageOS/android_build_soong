@@ -23,7 +23,6 @@ import (
 )
 
 func TestRequired(t *testing.T) {
-	t.Parallel()
 	ctx, config := testJava(t, `
 		java_library {
 			name: "foo",
@@ -43,7 +42,6 @@ func TestRequired(t *testing.T) {
 }
 
 func TestHostdex(t *testing.T) {
-	t.Parallel()
 	ctx, config := testJava(t, `
 		java_library {
 			name: "foo",
@@ -74,7 +72,6 @@ func TestHostdex(t *testing.T) {
 }
 
 func TestHostdexRequired(t *testing.T) {
-	t.Parallel()
 	ctx, config := testJava(t, `
 		java_library {
 			name: "foo",
@@ -106,7 +103,6 @@ func TestHostdexRequired(t *testing.T) {
 }
 
 func TestHostdexSpecificRequired(t *testing.T) {
-	t.Parallel()
 	ctx, config := testJava(t, `
 		java_library {
 			name: "foo",
@@ -140,7 +136,6 @@ func TestHostdexSpecificRequired(t *testing.T) {
 }
 
 func TestDistWithTag(t *testing.T) {
-	t.Parallel()
 	ctx, config := testJava(t, `
 		java_library {
 			name: "foo_without_tag",
@@ -177,7 +172,6 @@ func TestDistWithTag(t *testing.T) {
 }
 
 func TestDistWithDest(t *testing.T) {
-	t.Parallel()
 	ctx, config := testJava(t, `
 		java_library {
 			name: "foo",
@@ -214,7 +208,6 @@ func TestDistWithDest(t *testing.T) {
 }
 
 func TestDistsWithAllProperties(t *testing.T) {
-	t.Parallel()
 	ctx, config := testJava(t, `
 		java_library {
 			name: "foo",
@@ -272,7 +265,6 @@ func TestDistsWithAllProperties(t *testing.T) {
 }
 
 func TestDistsWithTag(t *testing.T) {
-	t.Parallel()
 	ctx, config := testJava(t, `
 		java_library {
 			name: "foo_without_tag",
@@ -320,7 +312,6 @@ func TestDistsWithTag(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_RequireXmlPermissionFile(t *testing.T) {
-	t.Parallel()
 	ctx, config := testJava(t, `
 		java_sdk_library {
 			name: "foo-shared_library",

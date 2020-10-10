@@ -21,7 +21,6 @@ import (
 )
 
 func TestClippy(t *testing.T) {
-	t.Parallel()
 
 	bp := `
 		// foo uses the default value of clippy_lints

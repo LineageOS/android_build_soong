@@ -84,7 +84,6 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 }
 
 func TestDexpreoptBootJars(t *testing.T) {
-	t.Parallel()
 	ruleFile := "boot-foo.art"
 
 	expectedInputs := []string{
@@ -115,7 +114,6 @@ func TestDexpreoptBootJars(t *testing.T) {
 
 // Changes to the boot.zip structure may break the ART APK scanner.
 func TestDexpreoptBootZip(t *testing.T) {
-	t.Parallel()
 	ruleFile := "boot.zip"
 
 	ctx := android.PathContextForTesting(testConfig(nil, "", nil))

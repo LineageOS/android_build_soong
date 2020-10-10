@@ -264,7 +264,6 @@ func ExampleRuleBuilderCommand_NinjaEscapedString() {
 }
 
 func TestRuleBuilder(t *testing.T) {
-	t.Parallel()
 	fs := map[string][]byte{
 		"dep_fixer":  nil,
 		"input":      nil,
@@ -456,7 +455,6 @@ func testRuleBuilder_Build(ctx BuilderContext, in Path, out, outDep, outDir Writ
 }
 
 func TestRuleBuilder_Build(t *testing.T) {
-	t.Parallel()
 	fs := map[string][]byte{
 		"bar": nil,
 		"cp":  nil,
@@ -548,7 +546,6 @@ func TestRuleBuilder_Build(t *testing.T) {
 }
 
 func Test_ninjaEscapeExceptForSpans(t *testing.T) {
-	t.Parallel()
 	type args struct {
 		s     string
 		spans [][2]int

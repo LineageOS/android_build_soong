@@ -20,7 +20,6 @@ import (
 )
 
 func TestNoPlugin(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
@@ -45,7 +44,6 @@ func TestNoPlugin(t *testing.T) {
 }
 
 func TestPlugin(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",
@@ -85,7 +83,6 @@ func TestPlugin(t *testing.T) {
 }
 
 func TestPluginGeneratesApi(t *testing.T) {
-	t.Parallel()
 	ctx, _ := testJava(t, `
 		java_library {
 			name: "foo",

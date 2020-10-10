@@ -21,7 +21,6 @@ import (
 )
 
 func TestPESymbolTable(t *testing.T) {
-	t.Parallel()
 	testCases := []struct {
 		file         *pe.File
 		symbol       string
