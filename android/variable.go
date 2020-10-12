@@ -304,8 +304,8 @@ type productVariables struct {
 
 	BoardVendorSepolicyDirs      []string `json:",omitempty"`
 	BoardOdmSepolicyDirs         []string `json:",omitempty"`
-	BoardPlatPublicSepolicyDirs  []string `json:",omitempty"`
-	BoardPlatPrivateSepolicyDirs []string `json:",omitempty"`
+	SystemExtPublicSepolicyDirs  []string `json:",omitempty"`
+	SystemExtPrivateSepolicyDirs []string `json:",omitempty"`
 	BoardSepolicyM4Defs          []string `json:",omitempty"`
 
 	VendorVars map[string]map[string]string `json:",omitempty"`
