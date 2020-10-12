@@ -1580,6 +1580,39 @@ func TestJavaSdkLibrary(t *testing.T) {
 	}
 }
 
+func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_sdk_library {
+			name: "sdk_lib",
+			srcs: ["a.java"],
+			impl_only_libs: ["foo"],
+			stub_only_libs: ["bar"],
+		}
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+			sdk_version: "current",
+		}
+		java_library {
+			name: "bar",
+			srcs: ["a.java"],
+			sdk_version: "current",
+		}
+		`)
+
+	for _, implName := range []string{"sdk_lib", "sdk_lib.impl"} {
+		implJavacCp := ctx.ModuleForTests(implName, "android_common").Rule("javac").Args["classpath"]
+		if !strings.Contains(implJavacCp, "/foo.jar") || strings.Contains(implJavacCp, "/bar.jar") {
+			t.Errorf("%v javac classpath %v does not contain foo and not bar", implName, implJavacCp)
+		}
+	}
+	stubName := apiScopePublic.stubsLibraryModuleName("sdk_lib")
+	stubsJavacCp := ctx.ModuleForTests(stubName, "android_common").Rule("javac").Args["classpath"]
+	if strings.Contains(stubsJavacCp, "/foo.jar") || !strings.Contains(stubsJavacCp, "/bar.jar") {
+		t.Errorf("stubs javac classpath %v does not contain bar and not foo", stubsJavacCp)
+	}
+}
+
 func TestJavaSdkLibrary_DoNotAccessImplWhenItIsNotBuilt(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_sdk_library {
