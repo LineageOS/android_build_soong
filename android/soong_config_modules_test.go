@@ -19,8 +19,24 @@ import (
 	"testing"
 )
 
+type soongConfigTestDefaultsModuleProperties struct {
+}
+
+type soongConfigTestDefaultsModule struct {
+	ModuleBase
+	DefaultsModuleBase
+}
+
+func soongConfigTestDefaultsModuleFactory() Module {
+	m := &soongConfigTestDefaultsModule{}
+	m.AddProperties(&soongConfigTestModuleProperties{})
+	InitDefaultsModule(m)
+	return m
+}
+
 type soongConfigTestModule struct {
 	ModuleBase
+	DefaultableModuleBase
 	props soongConfigTestModuleProperties
 }
 
@@ -32,6 +48,7 @@ func soongConfigTestModuleFactory() Module {
 	m := &soongConfigTestModule{}
 	m.AddProperties(&m.props)
 	InitAndroidModule(m)
+	InitDefaultableModule(m)
 	return m
 }
 
@@ -40,13 +57,13 @@ func (t soongConfigTestModule) GenerateAndroidBuildActions(ModuleContext) {}
 func TestSoongConfigModule(t *testing.T) {
 	configBp := `
 		soong_config_module_type {
-			name: "acme_test_defaults",
-			module_type: "test_defaults",
+			name: "acme_test",
+			module_type: "test",
 			config_namespace: "acme",
 			variables: ["board", "feature1", "FEATURE3"],
 			bool_variables: ["feature2"],
 			value_variables: ["size"],
-			properties: ["cflags", "srcs"],
+			properties: ["cflags", "srcs", "defaults"],
 		}
 
 		soong_config_string_variable {
@@ -66,14 +83,20 @@ func TestSoongConfigModule(t *testing.T) {
 	importBp := `
 		soong_config_module_type_import {
 			from: "SoongConfig.bp",
-			module_types: ["acme_test_defaults"],
+			module_types: ["acme_test"],
 		}
 	`
 
 	bp := `
-		acme_test_defaults {
+		test_defaults {
+			name: "foo_defaults",
+			cflags: ["DEFAULT"],
+		}
+
+		acme_test {
 			name: "foo",
 			cflags: ["-DGENERIC"],
+			defaults: ["foo_defaults"],
 			soong_config_variables: {
 				board: {
 					soc_a: {
@@ -81,6 +104,46 @@ func TestSoongConfigModule(t *testing.T) {
 					},
 					soc_b: {
 						cflags: ["-DSOC_B"],
+					},
+				},
+				size: {
+					cflags: ["-DSIZE=%s"],
+				},
+				feature1: {
+					cflags: ["-DFEATURE1"],
+				},
+				feature2: {
+					cflags: ["-DFEATURE2"],
+				},
+				FEATURE3: {
+					cflags: ["-DFEATURE3"],
+				},
+			},
+		}
+
+		test_defaults {
+			name: "foo_defaults_a",
+			cflags: ["DEFAULT_A"],
+		}
+
+		test_defaults {
+			name: "foo_defaults_b",
+			cflags: ["DEFAULT_B"],
+		}
+
+		acme_test {
+			name: "foo_with_defaults",
+			cflags: ["-DGENERIC"],
+			defaults: ["foo_defaults"],
+			soong_config_variables: {
+				board: {
+					soc_a: {
+						cflags: ["-DSOC_A"],
+						defaults: ["foo_defaults_a"],
+					},
+					soc_b: {
+						cflags: ["-DSOC_B"],
+						defaults: ["foo_defaults_b"],
 					},
 				},
 				size: {
@@ -117,7 +180,9 @@ func TestSoongConfigModule(t *testing.T) {
 		ctx.RegisterModuleType("soong_config_module_type", soongConfigModuleTypeFactory)
 		ctx.RegisterModuleType("soong_config_string_variable", soongConfigStringVariableDummyFactory)
 		ctx.RegisterModuleType("soong_config_bool_variable", soongConfigBoolVariableDummyFactory)
-		ctx.RegisterModuleType("test_defaults", soongConfigTestModuleFactory)
+		ctx.RegisterModuleType("test_defaults", soongConfigTestDefaultsModuleFactory)
+		ctx.RegisterModuleType("test", soongConfigTestModuleFactory)
+		ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
 		ctx.Register(config)
 
 		_, errs := ctx.ParseBlueprintsFiles("Android.bp")
@@ -125,10 +190,18 @@ func TestSoongConfigModule(t *testing.T) {
 		_, errs = ctx.PrepareBuildActions(config)
 		FailIfErrored(t, errs)
 
+		basicCFlags := []string{"DEFAULT", "-DGENERIC", "-DSIZE=42", "-DSOC_A", "-DFEATURE1"}
+
 		foo := ctx.ModuleForTests("foo", "").Module().(*soongConfigTestModule)
-		if g, w := foo.props.Cflags, []string{"-DGENERIC", "-DSIZE=42", "-DSOC_A", "-DFEATURE1"}; !reflect.DeepEqual(g, w) {
+		if g, w := foo.props.Cflags, basicCFlags; !reflect.DeepEqual(g, w) {
 			t.Errorf("wanted foo cflags %q, got %q", w, g)
 		}
+
+		fooDefaults := ctx.ModuleForTests("foo_with_defaults", "").Module().(*soongConfigTestModule)
+		if g, w := fooDefaults.props.Cflags, append([]string{"DEFAULT_A"}, basicCFlags...); !reflect.DeepEqual(g, w) {
+			t.Errorf("wanted foo_with_defaults cflags %q, got %q", w, g)
+		}
+
 	}
 
 	t.Run("single file", func(t *testing.T) {
