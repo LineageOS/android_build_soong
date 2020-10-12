@@ -141,7 +141,12 @@ func (m *Metrics) Serialize() (data []byte, err error) {
 }
 
 // exports the output to the file at outputPath
-func (m *Metrics) Dump(outputPath string) (err error) {
+func (m *Metrics) Dump(outputPath string) error {
+	// ignore the error if the hostname could not be retrieved as it
+	// is not a critical metric to extract.
+	if hostname, err := os.Hostname(); err == nil {
+		m.metrics.Hostname = proto.String(hostname)
+	}
 	m.metrics.HostOs = proto.String(runtime.GOOS)
 	data, err := m.Serialize()
 	if err != nil {
