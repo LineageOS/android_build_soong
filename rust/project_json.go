@@ -93,7 +93,7 @@ func librarySource(ctx android.SingletonContext, rModule *Module, rustLib *libra
 			return "", false
 		}
 	default:
-		if rModule.Target().String() != ctx.Config().Targets[android.Android][0].String() {
+		if rModule.Target().String() != ctx.Config().AndroidFirstDeviceTarget.String() {
 			return "", false
 		}
 	}
