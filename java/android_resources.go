@@ -66,13 +66,13 @@ type globbedResourceDir struct {
 	files android.Paths
 }
 
-func overlayResourceGlob(ctx android.ModuleContext, dir android.Path) (res []globbedResourceDir,
+func overlayResourceGlob(ctx android.ModuleContext, a *aapt, dir android.Path) (res []globbedResourceDir,
 	rroDirs []rroDir) {
 
 	overlayData := ctx.Config().Get(overlayDataKey).([]overlayGlobResult)
 
 	// Runtime resource overlays (RRO) may be turned on by the product config for some modules
-	rroEnabled := ctx.Config().EnforceRROForModule(ctx.ModuleName())
+	rroEnabled := a.IsRROEnforced(ctx)
 
 	for _, data := range overlayData {
 		files := data.paths.PathsInDirectory(filepath.Join(data.dir, dir.String()))

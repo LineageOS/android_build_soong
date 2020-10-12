@@ -848,19 +848,17 @@ func TestAndroidResources(t *testing.T) {
 				"lib": {
 					buildDir + "/.intermediates/lib2/android_common/package-res.apk",
 					"lib/res/res/values/strings.xml",
-					"device/vendor/blah/overlay/lib/res/values/strings.xml",
 				},
 			},
 
 			rroDirs: map[string][]string{
 				"foo": {
 					"device:device/vendor/blah/overlay/foo/res",
-					// Enforce RRO on "foo" could imply RRO on static dependencies, but for now it doesn't.
-					// "device/vendor/blah/overlay/lib/res",
 					"product:product/vendor/blah/overlay/foo/res",
+					"device:device/vendor/blah/overlay/lib/res",
 				},
 				"bar": nil,
-				"lib": nil,
+				"lib": {"device:device/vendor/blah/overlay/lib/res"},
 			},
 		},
 		{
@@ -3380,5 +3378,116 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-manifest-package", expected.packageFlag)
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-resources-package", "")
 		checkAapt2LinkFlag(t, aapt2Flags, "rename-overlay-target-package", expected.targetPackageFlag)
+	}
+}
+
+func TestEnforceRRO_propagatesToDependencies(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		enforceRROTargets       []string
+		enforceRROExemptTargets []string
+		rroDirs                 map[string][]string
+	}{
+		{
+			name:                    "no RRO",
+			enforceRROTargets:       nil,
+			enforceRROExemptTargets: nil,
+			rroDirs: map[string][]string{
+				"foo": nil,
+				"bar": nil,
+			},
+		},
+		{
+			name:                    "enforce RRO on all",
+			enforceRROTargets:       []string{"*"},
+			enforceRROExemptTargets: nil,
+			rroDirs: map[string][]string{
+				"foo": {"product/vendor/blah/overlay/lib2/res"},
+				"bar": {"product/vendor/blah/overlay/lib2/res"},
+			},
+		},
+		{
+			name:                    "enforce RRO on foo",
+			enforceRROTargets:       []string{"foo"},
+			enforceRROExemptTargets: nil,
+			rroDirs: map[string][]string{
+				"foo": {"product/vendor/blah/overlay/lib2/res"},
+				"bar": {"product/vendor/blah/overlay/lib2/res"},
+			},
+		},
+		{
+			name:                    "enforce RRO on foo, bar exempted",
+			enforceRROTargets:       []string{"foo"},
+			enforceRROExemptTargets: []string{"bar"},
+			rroDirs: map[string][]string{
+				"foo": {"product/vendor/blah/overlay/lib2/res"},
+				"bar": nil,
+			},
+		},
+	}
+
+	productResourceOverlays := []string{
+		"product/vendor/blah/overlay",
+	}
+
+	fs := map[string][]byte{
+		"lib2/res/values/strings.xml":                             nil,
+		"product/vendor/blah/overlay/lib2/res/values/strings.xml": nil,
+	}
+
+	bp := `
+			android_app {
+				name: "foo",
+				sdk_version: "current",
+				resource_dirs: [],
+				static_libs: ["lib"],
+			}
+
+			android_app {
+				name: "bar",
+				sdk_version: "current",
+				resource_dirs: [],
+				static_libs: ["lib"],
+			}
+
+			android_library {
+				name: "lib",
+				sdk_version: "current",
+				resource_dirs: [],
+				static_libs: ["lib2"],
+			}
+
+			android_library {
+				name: "lib2",
+				sdk_version: "current",
+				resource_dirs: ["lib2/res"],
+			}
+		`
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			config := testAppConfig(nil, bp, fs)
+			config.TestProductVariables.ProductResourceOverlays = productResourceOverlays
+			if testCase.enforceRROTargets != nil {
+				config.TestProductVariables.EnforceRROTargets = testCase.enforceRROTargets
+			}
+			if testCase.enforceRROExemptTargets != nil {
+				config.TestProductVariables.EnforceRROExemptedTargets = testCase.enforceRROExemptTargets
+			}
+
+			ctx := testContext()
+			run(t, ctx, config)
+
+			modules := []string{"foo", "bar"}
+			for _, moduleName := range modules {
+				module := ctx.ModuleForTests(moduleName, "android_common")
+				mkEntries := android.AndroidMkEntriesForTest(t, config, "", module.Module())[0]
+				actualRRODirs := mkEntries.EntryMap["LOCAL_SOONG_PRODUCT_RRO_DIRS"]
+				if !reflect.DeepEqual(actualRRODirs, testCase.rroDirs[moduleName]) {
+					t.Errorf("exected %s LOCAL_SOONG_PRODUCT_RRO_DIRS entry: %v\ngot:%q",
+						moduleName, testCase.rroDirs[moduleName], actualRRODirs)
+				}
+			}
+		})
 	}
 }

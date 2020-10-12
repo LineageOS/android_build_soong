@@ -34,10 +34,16 @@ type AndroidLibraryDependency interface {
 	ExportedStaticPackages() android.Paths
 	ExportedManifests() android.Paths
 	ExportedAssets() android.OptionalPath
+	SetRROEnforcedForDependent(enforce bool)
+	IsRROEnforced(ctx android.BaseModuleContext) bool
 }
 
 func init() {
 	RegisterAARBuildComponents(android.InitRegistrationContext)
+
+	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("propagate_rro_enforcement", propagateRROEnforcementMutator).Parallel()
+	})
 }
 
 func RegisterAARBuildComponents(ctx android.RegistrationContext) {
@@ -82,6 +88,9 @@ type aaptProperties struct {
 
 	// do not include AndroidManifest from dependent libraries
 	Dont_merge_manifests *bool
+
+	// true if RRO is enforced for any of the dependent modules
+	RROEnforcedForDependent bool `blueprint:"mutated"`
 }
 
 type aapt struct {
@@ -117,6 +126,18 @@ type split struct {
 	path   android.Path
 }
 
+// Propagate RRO enforcement flag to static lib dependencies transitively.
+func propagateRROEnforcementMutator(ctx android.TopDownMutatorContext) {
+	m := ctx.Module()
+	if d, ok := m.(AndroidLibraryDependency); ok && d.IsRROEnforced(ctx) {
+		ctx.VisitDirectDepsWithTag(staticLibTag, func(d android.Module) {
+			if a, ok := d.(AndroidLibraryDependency); ok {
+				a.SetRROEnforcedForDependent(true)
+			}
+		})
+	}
+}
+
 func (a *aapt) ExportPackage() android.Path {
 	return a.exportPackage
 }
@@ -131,6 +152,17 @@ func (a *aapt) ExportedManifests() android.Paths {
 
 func (a *aapt) ExportedAssets() android.OptionalPath {
 	return a.assetPackage
+}
+
+func (a *aapt) SetRROEnforcedForDependent(enforce bool) {
+	a.aaptProperties.RROEnforcedForDependent = enforce
+}
+
+func (a *aapt) IsRROEnforced(ctx android.BaseModuleContext) bool {
+	// True if RRO is enforced for this module or...
+	return ctx.Config().EnforceRROForModule(ctx.ModuleName()) ||
+		// if RRO is enforced for any of its dependents, and this module is not exempted.
+		(a.aaptProperties.RROEnforcedForDependent && !ctx.Config().EnforceRROExemptedForModule(ctx.ModuleName()))
 }
 
 func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext,
@@ -156,7 +188,7 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext,
 			dir:   dir,
 			files: androidResourceGlob(ctx, dir),
 		})
-		resOverlayDirs, resRRODirs := overlayResourceGlob(ctx, dir)
+		resOverlayDirs, resRRODirs := overlayResourceGlob(ctx, a, dir)
 		overlayDirs = append(overlayDirs, resOverlayDirs...)
 		rroDirs = append(rroDirs, resRRODirs...)
 	}
@@ -412,14 +444,16 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 					assets = append(assets, aarDep.ExportedAssets().Path())
 				}
 
-			outer:
-				for _, d := range aarDep.ExportedRRODirs() {
-					for _, e := range staticRRODirs {
-						if d.path == e.path {
-							continue outer
+				if !ctx.Config().EnforceRROExemptedForModule(ctx.ModuleName()) {
+				outer:
+					for _, d := range aarDep.ExportedRRODirs() {
+						for _, e := range staticRRODirs {
+							if d.path == e.path {
+								continue outer
+							}
 						}
+						staticRRODirs = append(staticRRODirs, d)
 					}
-					staticRRODirs = append(staticRRODirs, d)
 				}
 			}
 		}
@@ -623,6 +657,17 @@ func (a *AARImport) ExportedManifests() android.Paths {
 // TODO(jungjw): Decide whether we want to implement this.
 func (a *AARImport) ExportedAssets() android.OptionalPath {
 	return android.OptionalPath{}
+}
+
+// RRO enforcement is not available on aar_import since its RRO dirs are not
+// exported.
+func (a *AARImport) SetRROEnforcedForDependent(enforce bool) {
+}
+
+// RRO enforcement is not available on aar_import since its RRO dirs are not
+// exported.
+func (a *AARImport) IsRROEnforced(ctx android.BaseModuleContext) bool {
+	return false
 }
 
 func (a *AARImport) Prebuilt() *android.Prebuilt {
