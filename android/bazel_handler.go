@@ -188,8 +188,8 @@ func (context *bazelContext) issueBazelCommand(command string, labels []string,
 	bazelCmd.Dir = context.workspaceDir
 	bazelCmd.Env = append(os.Environ(), "HOME="+context.homeDir, pwdPrefix())
 
-	var stderr bytes.Buffer
-	bazelCmd.Stderr = &stderr
+	stderr := &bytes.Buffer{}
+	bazelCmd.Stderr = stderr
 
 	if output, err := bazelCmd.Output(); err != nil {
 		return "", fmt.Errorf("bazel command failed. command: [%s], error [%s]", bazelCmd, stderr)
