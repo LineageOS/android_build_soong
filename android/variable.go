@@ -390,7 +390,7 @@ func (v *productVariables) SetDefaultConfig() {
 		AAPTPrebuiltDPI:     []string{"xhdpi", "xxhdpi"},
 
 		Malloc_not_svelte:            boolPtr(true),
-		Malloc_zero_contents:         boolPtr(false),
+		Malloc_zero_contents:         boolPtr(true),
 		Malloc_pattern_fill_contents: boolPtr(false),
 		Safestack:                    boolPtr(false),
 	}
