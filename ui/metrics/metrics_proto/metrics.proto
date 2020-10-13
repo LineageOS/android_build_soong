@@ -96,6 +96,9 @@ message MetricsBase {
   optional SoongBuildMetrics soong_build_metrics = 22;
 
   optional BuildConfig build_config = 23;
+
+  // The hostname of the machine.
+  optional string hostname = 24;
 }
 
 message BuildConfig {
