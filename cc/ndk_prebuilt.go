@@ -166,7 +166,7 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 		ctx.ModuleErrorf("NDK prebuilt libraries must have an ndk_lib prefixed name")
 	}
 
-	ndk.exportIncludesAsSystem(ctx)
+	ndk.libraryDecorator.flagExporter.exportIncludesAsSystem(ctx)
 
 	libName := strings.TrimPrefix(ctx.ModuleName(), "ndk_")
 	libExt := flags.Toolchain.ShlibSuffix()
@@ -175,5 +175,23 @@ func (ndk *ndkPrebuiltStlLinker) link(ctx ModuleContext, flags Flags,
 	}
 
 	libDir := getNdkStlLibDir(ctx)
-	return libDir.Join(ctx, libName+libExt)
+	lib := libDir.Join(ctx, libName+libExt)
+
+	ndk.libraryDecorator.flagExporter.setProvider(ctx)
+
+	if ndk.static() {
+		depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(lib).Build()
+		ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
+			StaticLibrary: lib,
+
+			TransitiveStaticLibrariesForOrdering: depSet,
+		})
+	} else {
+		ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+			SharedLibrary:           lib,
+			UnstrippedSharedLibrary: lib,
+		})
+	}
+
+	return lib
 }
