@@ -274,10 +274,6 @@ type DroidstubsProperties struct {
 	// if set to true, collect the values used by the Dev tools and
 	// write them in files packaged with the SDK. Defaults to false.
 	Write_sdk_values *bool
-
-	// If set to true, .xml based public API file will be also generated, and
-	// JDiff tool will be invoked to genreate javadoc files. Defaults to false.
-	Jdiff_enabled *bool
 }
 
 //
@@ -586,9 +582,8 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	srcFiles = filterByPackage(srcFiles, j.properties.Filter_packages)
 
 	// While metalava needs package html files, it does not need them to be explicit on the command
-	// line. More importantly, the metalava rsp file is also used by the subsequent jdiff action if
-	// jdiff_enabled=true. javadoc complains if it receives html files on the command line. The filter
-	// below excludes html files from the rsp file for both metalava and jdiff. Note that the html
+	// line. javadoc complains if it receives html files on the command line. The filter
+	// below excludes html files from the rsp file metalava. Note that the html
 	// files are still included as implicit inputs for successful remote execution and correct
 	// incremental builds.
 	filterHtml := func(srcs []android.Path) []android.Path {
@@ -1023,9 +1018,6 @@ type Droidstubs struct {
 
 	apiFilePath android.Path
 
-	jdiffDocZip      android.WritablePath
-	jdiffStubsSrcJar android.WritablePath
-
 	metadataZip android.WritablePath
 	metadataDir android.WritablePath
 }
@@ -1258,26 +1250,6 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 	})
 }
 
-func (d *Droidstubs) apiToXmlFlags(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
-	if Bool(d.properties.Jdiff_enabled) && d.apiFile != nil {
-		if d.apiFile.String() == "" {
-			ctx.ModuleErrorf("API signature file has to be specified in Metalava when jdiff is enabled.")
-		}
-
-		d.apiXmlFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"_api.xml")
-		cmd.FlagWithOutput("--api-xml ", d.apiXmlFile)
-
-		if String(d.properties.Check_api.Last_released.Api_file) == "" {
-			ctx.PropertyErrorf("check_api.last_released.api_file",
-				"has to be non-empty if jdiff was enabled!")
-		}
-
-		lastReleasedApi := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Last_released.Api_file))
-		d.lastReleasedApiXmlFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"_last_released_api.xml")
-		cmd.FlagWithInput("--convert-to-jdiff ", lastReleasedApi).Output(d.lastReleasedApiXmlFile)
-	}
-}
-
 func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersion javaVersion, srcs android.Paths,
 	srcJarList android.Path, bootclasspath, classpath classpath, sourcepaths android.Paths, implicitsRsp android.WritablePath, sandbox bool) *android.RuleBuilderCommand {
 	// Metalava uses lots of memory, restrict the number of metalava jobs that can run in parallel.
@@ -1386,7 +1358,6 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	d.annotationsFlags(ctx, cmd)
 	d.inclusionAnnotationsFlags(ctx, cmd)
 	d.apiLevelsAnnotationsFlags(ctx, cmd)
-	d.apiToXmlFlags(ctx, cmd)
 
 	if android.InList("--generate-documentation", d.Javadoc.args) {
 		// Currently Metalava have the ability to invoke Javadoc in a seperate process.
@@ -1662,74 +1633,6 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			Text(")")
 
 		rule.Build(pctx, ctx, "nullabilityWarningsCheck", "nullability warnings check")
-	}
-
-	if Bool(d.properties.Jdiff_enabled) {
-		if len(d.Javadoc.properties.Out) > 0 {
-			ctx.PropertyErrorf("out", "out property may not be combined with jdiff")
-		}
-
-		outDir := android.PathForModuleOut(ctx, "jdiff-out")
-		srcJarDir := android.PathForModuleOut(ctx, "jdiff-srcjars")
-		stubsDir := android.PathForModuleOut(ctx, "jdiff-stubsDir")
-
-		rule := android.NewRuleBuilder()
-
-		// Please sync with android-api-council@ before making any changes for the name of jdiffDocZip below
-		// since there's cron job downstream that fetch this .zip file periodically.
-		// See b/116221385 for reference.
-		d.jdiffDocZip = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"jdiff-docs.zip")
-		d.jdiffStubsSrcJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"jdiff-stubs.srcjar")
-
-		jdiff := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "jdiff.jar")
-
-		rule.Command().Text("rm -rf").Text(outDir.String()).Text(stubsDir.String())
-		rule.Command().Text("mkdir -p").Text(outDir.String()).Text(stubsDir.String())
-
-		srcJarList := zipSyncCmd(ctx, rule, srcJarDir, d.Javadoc.srcJars)
-
-		cmd := javadocBootclasspathCmd(ctx, rule, d.Javadoc.srcFiles, outDir, srcJarDir, srcJarList,
-			deps.bootClasspath, deps.classpath, d.sourcepaths)
-
-		cmd.Flag("-J-Xmx1600m").
-			Flag("-XDignore.symbol.file").
-			FlagWithArg("-doclet ", "jdiff.JDiff").
-			FlagWithInput("-docletpath ", jdiff).
-			Flag("-quiet")
-
-		if d.apiXmlFile != nil {
-			cmd.FlagWithArg("-newapi ", strings.TrimSuffix(d.apiXmlFile.Base(), d.apiXmlFile.Ext())).
-				FlagWithArg("-newapidir ", filepath.Dir(d.apiXmlFile.String())).
-				Implicit(d.apiXmlFile)
-		}
-
-		if d.lastReleasedApiXmlFile != nil {
-			cmd.FlagWithArg("-oldapi ", strings.TrimSuffix(d.lastReleasedApiXmlFile.Base(), d.lastReleasedApiXmlFile.Ext())).
-				FlagWithArg("-oldapidir ", filepath.Dir(d.lastReleasedApiXmlFile.String())).
-				Implicit(d.lastReleasedApiXmlFile)
-		}
-
-		rule.Command().
-			BuiltTool(ctx, "soong_zip").
-			Flag("-write_if_changed").
-			Flag("-d").
-			FlagWithOutput("-o ", d.jdiffDocZip).
-			FlagWithArg("-C ", outDir.String()).
-			FlagWithArg("-D ", outDir.String())
-
-		rule.Command().
-			BuiltTool(ctx, "soong_zip").
-			Flag("-write_if_changed").
-			Flag("-jar").
-			FlagWithOutput("-o ", d.jdiffStubsSrcJar).
-			FlagWithArg("-C ", stubsDir.String()).
-			FlagWithArg("-D ", stubsDir.String())
-
-		rule.Restat()
-
-		zipSyncCleanupCmd(rule, srcJarDir)
-
-		rule.Build(pctx, ctx, "jdiff", "jdiff")
 	}
 }
 
