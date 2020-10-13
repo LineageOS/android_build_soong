@@ -1260,7 +1260,7 @@ func ExampleOutputPath_ReplaceExtension() {
 	// boot.art boot.oat
 }
 
-func ExampleOutputPath_FileInSameDir() {
+func ExampleOutputPath_InSameDir() {
 	ctx := &configErrorWrapper{
 		config: TestConfig("out", nil, "", nil),
 	}
