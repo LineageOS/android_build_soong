@@ -547,13 +547,8 @@ type dependencyTag struct {
 	name string
 }
 
-type jniDependencyTag struct {
-	blueprint.BaseDependencyTag
-}
-
 func IsJniDepTag(depTag blueprint.DependencyTag) bool {
-	_, ok := depTag.(*jniDependencyTag)
-	return ok
+	return depTag == jniLibTag
 }
 
 var (
@@ -573,6 +568,7 @@ var (
 	instrumentationForTag = dependencyTag{name: "instrumentation_for"}
 	usesLibTag            = dependencyTag{name: "uses-library"}
 	extraLintCheckTag     = dependencyTag{name: "extra-lint-check"}
+	jniLibTag             = dependencyTag{name: "jnilib"}
 )
 
 func IsLibDepTag(depTag blueprint.DependencyTag) bool {
@@ -1001,7 +997,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		otherName := ctx.OtherModuleName(module)
 		tag := ctx.OtherModuleDependencyTag(module)
 
-		if _, ok := tag.(*jniDependencyTag); ok {
+		if IsJniDepTag(tag) {
 			// Handled by AndroidApp.collectAppDeps
 			return
 		}
@@ -2436,6 +2432,10 @@ type binaryProperties struct {
 
 	// Name of the class containing main to be inserted into the manifest as Main-Class.
 	Main_class *string
+
+	// Names of modules containing JNI libraries that should be installed alongside the host
+	// variant of the binary.
+	Jni_libs []string
 }
 
 type Binary struct {
@@ -2476,18 +2476,21 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			j.wrapperFile = android.PathForSource(ctx, "build/soong/scripts/jar-wrapper.sh")
 		}
 
-		// Depend on the installed jar so that the wrapper doesn't get executed by
-		// another build rule before the jar has been installed.
-		jarFile := ctx.PrimaryModule().(*Binary).installFile
-
+		// The host installation rules make the installed wrapper depend on all the dependencies
+		// of the wrapper variant, which will include the common variant's jar file and any JNI
+		// libraries.  This is verified by TestBinary.
 		j.binaryFile = ctx.InstallExecutable(android.PathForModuleInstall(ctx, "bin"),
-			ctx.ModuleName(), j.wrapperFile, jarFile)
+			ctx.ModuleName(), j.wrapperFile)
 	}
 }
 
 func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if ctx.Arch().ArchType == android.Common {
 		j.deps(ctx)
+	} else {
+		// This dependency ensures the host installation rules will install the jni libraries
+		// when the wrapper is installed.
+		ctx.AddVariationDependencies(nil, jniLibTag, j.binaryProperties.Jni_libs...)
 	}
 }
 
