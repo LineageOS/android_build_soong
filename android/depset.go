@@ -71,24 +71,26 @@ func (o DepSetOrder) String() string {
 // NewDepSet returns an immutable DepSet with the given order, direct and transitive contents.
 func NewDepSet(order DepSetOrder, direct Paths, transitive []*DepSet) *DepSet {
 	var directCopy Paths
-	var transitiveCopy []*DepSet
+	transitiveCopy := make([]*DepSet, 0, len(transitive))
+
+	for _, dep := range transitive {
+		if dep != nil {
+			if dep.order != order {
+				panic(fmt.Errorf("incompatible order, new DepSet is %s but transitive DepSet is %s",
+					order, dep.order))
+			}
+			transitiveCopy = append(transitiveCopy, dep)
+		}
+	}
+
 	if order == TOPOLOGICAL {
 		directCopy = ReversePaths(direct)
-		transitiveCopy = reverseDepSets(transitive)
+		reverseDepSetsInPlace(transitiveCopy)
 	} else {
 		// Use copy instead of append(nil, ...) to make a slice that is exactly the size of the input
 		// slice.  The DepSet is immutable, there is no need for additional capacity.
 		directCopy = make(Paths, len(direct))
 		copy(directCopy, direct)
-		transitiveCopy = make([]*DepSet, len(transitive))
-		copy(transitiveCopy, transitive)
-	}
-
-	for _, dep := range transitive {
-		if dep.order != order {
-			panic(fmt.Errorf("incompatible order, new DepSet is %s but transitive DepSet is %s",
-				order, dep.order))
-		}
 	}
 
 	return &DepSet{
@@ -157,6 +159,9 @@ func (d *DepSet) walk(visit func(Paths)) {
 // its transitive dependencies, in which case the ordering of the duplicated element is not
 // guaranteed).
 func (d *DepSet) ToList() Paths {
+	if d == nil {
+		return nil
+	}
 	var list Paths
 	d.walk(func(paths Paths) {
 		list = append(list, paths...)
@@ -181,10 +186,9 @@ func reversePathsInPlace(list Paths) {
 	}
 }
 
-func reverseDepSets(list []*DepSet) []*DepSet {
-	ret := make([]*DepSet, len(list))
-	for i := range list {
-		ret[i] = list[len(list)-1-i]
+func reverseDepSetsInPlace(list []*DepSet) {
+	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
+		list[i], list[j] = list[j], list[i]
 	}
-	return ret
+
 }
