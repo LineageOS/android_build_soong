@@ -620,7 +620,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 	var headers android.Paths
 
-	installVndkSnapshotLib := func(m *Module, l snapshotLibraryInterface, vndkType string) (android.Paths, bool) {
+	installVndkSnapshotLib := func(m *Module, vndkType string) (android.Paths, bool) {
 		var ret android.Paths
 
 		targetArch := "arch-" + m.Target().Arch.ArchType.String()
@@ -639,9 +639,10 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 				ExportedFlags       []string `json:",omitempty"`
 				RelativeInstallPath string   `json:",omitempty"`
 			}{}
-			prop.ExportedFlags = l.exportedFlags()
-			prop.ExportedDirs = l.exportedDirs().Strings()
-			prop.ExportedSystemDirs = l.exportedSystemDirs().Strings()
+			exportedInfo := ctx.ModuleProvider(m, FlagExporterInfoProvider).(FlagExporterInfo)
+			prop.ExportedFlags = exportedInfo.Flags
+			prop.ExportedDirs = exportedInfo.IncludeDirs.Strings()
+			prop.ExportedSystemDirs = exportedInfo.SystemIncludeDirs.Strings()
 			prop.RelativeInstallPath = m.RelativeInstallPath()
 
 			propOut := snapshotLibOut + ".json"
@@ -671,7 +672,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 		// install .so files for appropriate modules.
 		// Also install .json files if VNDK_SNAPSHOT_BUILD_ARTIFACTS
-		libs, ok := installVndkSnapshotLib(m, l, vndkType)
+		libs, ok := installVndkSnapshotLib(m, vndkType)
 		if !ok {
 			return
 		}
