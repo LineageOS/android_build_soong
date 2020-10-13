@@ -23,7 +23,7 @@ import (
 	"github.com/google/blueprint"
 )
 
-func testPrebuilt(t *testing.T, bp string, fs map[string][]byte) *android.TestContext {
+func testPrebuilt(t *testing.T, bp string, fs map[string][]byte, handlers ...configCustomizer) *android.TestContext {
 	config := TestConfig(buildDir, android.Android, nil, bp, fs)
 	ctx := CreateTestContext()
 
@@ -34,6 +34,10 @@ func testPrebuilt(t *testing.T, bp string, fs map[string][]byte) *android.TestCo
 	android.RegisterAndroidMkBuildComponents(ctx)
 	android.SetInMakeForTests(config)
 
+	for _, handler := range handlers {
+		handler(config)
+	}
+
 	ctx.Register(config)
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
@@ -41,6 +45,8 @@ func testPrebuilt(t *testing.T, bp string, fs map[string][]byte) *android.TestCo
 	android.FailIfErrored(t, errs)
 	return ctx
 }
+
+type configCustomizer func(config android.Config)
 
 func TestPrebuilt(t *testing.T) {
 	bp := `
@@ -320,4 +326,63 @@ func TestPrebuiltSymlinkedHostBinary(t *testing.T) {
 	}
 	assertString(t, libfooDep.String(),
 		filepath.Join(buildDir, ".intermediates/libfoo/linux_glibc_x86_64_shared/libfoo.so"))
+}
+
+func TestPrebuiltLibrarySanitized(t *testing.T) {
+	bp := `cc_prebuilt_library {
+	name: "libtest",
+		static: {
+                        sanitized: { none: { srcs: ["libf.a"], }, hwaddress: { srcs: ["libf.hwasan.a"], }, },
+		},
+		shared: {
+                        sanitized: { none: { srcs: ["libf.so"], }, hwaddress: { srcs: ["hwasan/libf.so"], }, },
+		},
+	}
+	cc_prebuilt_library_static {
+		name: "libtest_static",
+                sanitized: { none: { srcs: ["libf.a"], }, hwaddress: { srcs: ["libf.hwasan.a"], }, },
+	}
+	cc_prebuilt_library_shared {
+		name: "libtest_shared",
+                sanitized: { none: { srcs: ["libf.so"], }, hwaddress: { srcs: ["hwasan/libf.so"], }, },
+	}`
+
+	fs := map[string][]byte{
+		"libf.a":         nil,
+		"libf.hwasan.a":  nil,
+		"libf.so":        nil,
+		"hwasan/libf.so": nil,
+	}
+
+	// Without SANITIZE_TARGET.
+	ctx := testPrebuilt(t, bp, fs)
+
+	shared_rule := ctx.ModuleForTests("libtest", "android_arm64_armv8-a_shared").Rule("android/soong/cc.strip")
+	assertString(t, shared_rule.Input.String(), "libf.so")
+
+	static := ctx.ModuleForTests("libtest", "android_arm64_armv8-a_static").Module().(*Module)
+	assertString(t, static.OutputFile().Path().Base(), "libf.a")
+
+	shared_rule2 := ctx.ModuleForTests("libtest_shared", "android_arm64_armv8-a_shared").Rule("android/soong/cc.strip")
+	assertString(t, shared_rule2.Input.String(), "libf.so")
+
+	static2 := ctx.ModuleForTests("libtest_static", "android_arm64_armv8-a_static").Module().(*Module)
+	assertString(t, static2.OutputFile().Path().Base(), "libf.a")
+
+	// With SANITIZE_TARGET=hwaddress
+	ctx = testPrebuilt(t, bp, fs, func(config android.Config) {
+		config.TestProductVariables.SanitizeDevice = []string{"hwaddress"}
+	})
+
+	shared_rule = ctx.ModuleForTests("libtest", "android_arm64_armv8-a_shared_hwasan").Rule("android/soong/cc.strip")
+	assertString(t, shared_rule.Input.String(), "hwasan/libf.so")
+
+	static = ctx.ModuleForTests("libtest", "android_arm64_armv8-a_static_hwasan").Module().(*Module)
+	assertString(t, static.OutputFile().Path().Base(), "libf.hwasan.a")
+
+	shared_rule2 = ctx.ModuleForTests("libtest_shared", "android_arm64_armv8-a_shared_hwasan").Rule("android/soong/cc.strip")
+	assertString(t, shared_rule2.Input.String(), "hwasan/libf.so")
+
+	static2 = ctx.ModuleForTests("libtest_static", "android_arm64_armv8-a_static_hwasan").Module().(*Module)
+	assertString(t, static2.OutputFile().Path().Base(), "libf.hwasan.a")
 }
