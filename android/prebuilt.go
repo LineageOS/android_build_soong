@@ -93,7 +93,7 @@ func (p *Prebuilt) Prefer() bool {
 // more modules like this.
 func (p *Prebuilt) SingleSourcePath(ctx ModuleContext) Path {
 	if p.srcsSupplier != nil {
-		srcs := p.srcsSupplier()
+		srcs := p.srcsSupplier(ctx)
 
 		if len(srcs) == 0 {
 			ctx.PropertyErrorf(p.srcsPropertyName, "missing prebuilt source file")
@@ -122,7 +122,7 @@ func (p *Prebuilt) UsePrebuilt() bool {
 // Called to provide the srcs value for the prebuilt module.
 //
 // Return the src value or nil if it is not available.
-type PrebuiltSrcsSupplier func() []string
+type PrebuiltSrcsSupplier func(ctx BaseModuleContext) []string
 
 // Initialize the module as a prebuilt module that uses the provided supplier to access the
 // prebuilt sources of the module.
@@ -156,7 +156,7 @@ func InitPrebuiltModule(module PrebuiltInterface, srcs *[]string) {
 		panic(fmt.Errorf("srcs must not be nil"))
 	}
 
-	srcsSupplier := func() []string {
+	srcsSupplier := func(ctx BaseModuleContext) []string {
 		return *srcs
 	}
 
@@ -177,7 +177,7 @@ func InitSingleSourcePrebuiltModule(module PrebuiltInterface, srcProps interface
 	srcFieldIndex := srcStructField.Index
 	srcPropertyName := proptools.PropertyNameForField(srcField)
 
-	srcsSupplier := func() []string {
+	srcsSupplier := func(ctx BaseModuleContext) []string {
 		value := srcPropsValue.FieldByIndex(srcFieldIndex)
 		if value.Kind() == reflect.Ptr {
 			value = value.Elem()
@@ -287,7 +287,7 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
 // will be used if it is marked "prefer" or if the source module is disabled.
 func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module) bool {
-	if p.srcsSupplier != nil && len(p.srcsSupplier()) == 0 {
+	if p.srcsSupplier != nil && len(p.srcsSupplier(ctx)) == 0 {
 		return false
 	}
 
