@@ -162,6 +162,13 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 			p.androidMkSuffix = ""
 		}
 
+		ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+			SharedLibrary:           in,
+			UnstrippedSharedLibrary: p.unstrippedOutputFile,
+
+			TableOfContents: p.tocFile,
+		})
+
 		return in
 	}
 

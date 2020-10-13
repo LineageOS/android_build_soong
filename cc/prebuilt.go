@@ -98,12 +98,14 @@ func (p *prebuiltLibraryLinker) linkerProps() []interface{} {
 func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
-	p.libraryDecorator.exportIncludes(ctx)
-	p.libraryDecorator.reexportDirs(deps.ReexportedDirs...)
-	p.libraryDecorator.reexportSystemDirs(deps.ReexportedSystemDirs...)
-	p.libraryDecorator.reexportFlags(deps.ReexportedFlags...)
-	p.libraryDecorator.reexportDeps(deps.ReexportedDeps...)
-	p.libraryDecorator.addExportedGeneratedHeaders(deps.ReexportedGeneratedHeaders...)
+	p.libraryDecorator.flagExporter.exportIncludes(ctx)
+	p.libraryDecorator.flagExporter.reexportDirs(deps.ReexportedDirs...)
+	p.libraryDecorator.flagExporter.reexportSystemDirs(deps.ReexportedSystemDirs...)
+	p.libraryDecorator.flagExporter.reexportFlags(deps.ReexportedFlags...)
+	p.libraryDecorator.flagExporter.reexportDeps(deps.ReexportedDeps...)
+	p.libraryDecorator.flagExporter.addExportedGeneratedHeaders(deps.ReexportedGeneratedHeaders...)
+
+	p.libraryDecorator.flagExporter.setProvider(ctx)
 
 	// TODO(ccross): verify shared library dependencies
 	srcs := p.prebuiltSrcs(ctx)
@@ -118,6 +120,12 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 		in := android.PathForModuleSrc(ctx, srcs[0])
 
 		if p.static() {
+			depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(in).Build()
+			ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
+				StaticLibrary: in,
+
+				TransitiveStaticLibrariesForOrdering: depSet,
+			})
 			return in
 		}
 
@@ -169,6 +177,13 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 				Args: map[string]string{
 					"cpFlags": "-L",
 				},
+			})
+
+			ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+				SharedLibrary:           outputFile,
+				UnstrippedSharedLibrary: p.unstrippedOutputFile,
+
+				TableOfContents: p.tocFile,
 			})
 
 			return outputFile
