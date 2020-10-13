@@ -607,6 +607,22 @@ type AARImport struct {
 	exportedStaticPackages android.Paths
 
 	hideApexVariantFromMake bool
+
+	aarPath android.Path
+}
+
+var _ android.OutputFileProducer = (*AARImport)(nil)
+
+// For OutputFileProducer interface
+func (a *AARImport) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case ".aar":
+		return []android.Path{a.aarPath}, nil
+	case "":
+		return []android.Path{a.classpathFile}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
 }
 
 func (a *AARImport) sdkVersion() sdkSpec {
@@ -714,12 +730,12 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
 
 	aarName := ctx.ModuleName() + ".aar"
-	var aar android.Path
-	aar = android.PathForModuleSrc(ctx, a.properties.Aars[0])
+	a.aarPath = android.PathForModuleSrc(ctx, a.properties.Aars[0])
+
 	if Bool(a.properties.Jetifier) {
-		inputFile := aar
-		aar = android.PathForModuleOut(ctx, "jetifier", aarName)
-		TransformJetifier(ctx, aar.(android.WritablePath), inputFile)
+		inputFile := a.aarPath
+		a.aarPath = android.PathForModuleOut(ctx, "jetifier", aarName)
+		TransformJetifier(ctx, a.aarPath.(android.WritablePath), inputFile)
 	}
 
 	extractedAARDir := android.PathForModuleOut(ctx, "aar")
@@ -729,7 +745,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        unzipAAR,
-		Input:       aar,
+		Input:       a.aarPath,
 		Outputs:     android.WritablePaths{a.classpathFile, a.proguardFlags, a.manifest},
 		Description: "unzip AAR",
 		Args: map[string]string{
@@ -743,7 +759,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	compileFlags := []string{"--pseudo-localize"}
 	compiledResDir := android.PathForModuleOut(ctx, "flat-res")
 	flata := compiledResDir.Join(ctx, "gen_res.flata")
-	aapt2CompileZip(ctx, flata, aar, "res", compileFlags)
+	aapt2CompileZip(ctx, flata, a.aarPath, "res", compileFlags)
 
 	a.exportPackage = android.PathForModuleOut(ctx, "package-res.apk")
 	// the subdir "android" is required to be filtered by package names
