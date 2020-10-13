@@ -63,10 +63,13 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 			"AndroidProducts.mk",
 			"Android.bp",
 			"Blueprints",
+			"BUILD.bazel",
 			"CleanSpec.mk",
 			"OWNERS",
 			"TEST_MAPPING",
+			"WORKSPACE",
 		},
+		IncludeSuffixes: []string{".bzl"},
 	}
 	dumpDir := config.FileListDir()
 	f, err = finder.New(cacheParams, filesystem, logger.New(ioutil.Discard),
@@ -75,6 +78,16 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 		ctx.Fatalf("Could not create module-finder: %v", err)
 	}
 	return f
+}
+
+func findBazelFiles(entries finder.DirEntries) (dirNames []string, fileNames []string) {
+	matches := []string{}
+	for _, foundName := range entries.FileNames {
+		if foundName == "BUILD.bazel" || foundName == "WORKSPACE" || strings.HasSuffix(foundName, ".bzl") {
+			matches = append(matches, foundName)
+		}
+	}
+	return entries.DirNames, matches
 }
 
 // FindSources searches for source files known to <f> and writes them to the filesystem for
@@ -97,6 +110,12 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 	err = dumpListToFile(ctx, config, androidProductsMks, filepath.Join(dumpDir, "AndroidProducts.mk.list"))
 	if err != nil {
 		ctx.Fatalf("Could not export product list: %v", err)
+	}
+
+	bazelFiles := f.FindMatching(".", findBazelFiles)
+	err = dumpListToFile(ctx, config, bazelFiles, filepath.Join(dumpDir, "bazel.list"))
+	if err != nil {
+		ctx.Fatalf("Could not export bazel BUILD list: %v", err)
 	}
 
 	cleanSpecs := f.FindFirstNamedAt(".", "CleanSpec.mk")

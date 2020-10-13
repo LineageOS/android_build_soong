@@ -18,11 +18,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/google/blueprint/bootstrap"
 )
 
 // Map key to describe bazel cquery requests.
@@ -236,4 +240,29 @@ func (context *bazelContext) InvokeBazel() error {
 	// Clear requests.
 	context.requests = map[cqueryKey]bool{}
 	return nil
+}
+
+// Singleton used for registering BUILD file ninja dependencies (needed
+// for correctness of builds which use Bazel.
+func BazelSingleton() Singleton {
+	return &bazelSingleton{}
+}
+
+type bazelSingleton struct{}
+
+func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
+	if ctx.Config().BazelContext.BazelEnabled() {
+		bazelBuildList := absolutePath(filepath.Join(
+			filepath.Dir(bootstrap.ModuleListFile), "bazel.list"))
+		ctx.AddNinjaFileDeps(bazelBuildList)
+
+		data, err := ioutil.ReadFile(bazelBuildList)
+		if err != nil {
+			ctx.Errorf(err.Error())
+		}
+		files := strings.Split(strings.TrimSpace(string(data)), "\n")
+		for _, file := range files {
+			ctx.AddNinjaFileDeps(file)
+		}
+	}
 }
