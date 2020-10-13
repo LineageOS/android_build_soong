@@ -460,6 +460,14 @@ func TestBinary(t *testing.T) {
 			name: "bar",
 			srcs: ["b.java"],
 			static_libs: ["foo"],
+			jni_libs: ["libjni"],
+		}
+
+		cc_library_shared {
+			name: "libjni",
+			host_supported: true,
+			device_supported: false,
+			stl: "none",
 		}
 	`)
 
@@ -470,10 +478,17 @@ func TestBinary(t *testing.T) {
 	barWrapper := ctx.ModuleForTests("bar", buildOS+"_x86_64")
 	barWrapperDeps := barWrapper.Output("bar").Implicits.Strings()
 
+	libjni := ctx.ModuleForTests("libjni", buildOS+"_x86_64_shared")
+	libjniSO := libjni.Rule("Cp").Output.String()
+
 	// Test that the install binary wrapper depends on the installed jar file
-	if len(barWrapperDeps) != 1 || barWrapperDeps[0] != barJar {
-		t.Errorf("expected binary wrapper implicits [%q], got %v",
-			barJar, barWrapperDeps)
+	if g, w := barWrapperDeps, barJar; !android.InList(w, g) {
+		t.Errorf("expected binary wrapper implicits to contain %q, got %q", w, g)
+	}
+
+	// Test that the install binary wrapper depends on the installed JNI libraries
+	if g, w := barWrapperDeps, libjniSO; !android.InList(w, g) {
+		t.Errorf("expected binary wrapper implicits to contain %q, got %q", w, g)
 	}
 }
 
