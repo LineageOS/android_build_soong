@@ -223,6 +223,22 @@ func (p *vendorSnapshotLibraryDecorator) link(ctx ModuleContext,
 		tocFile := android.PathForModuleOut(ctx, libName+".toc")
 		p.tocFile = android.OptionalPathForPath(tocFile)
 		TransformSharedObjectToToc(ctx, in, tocFile, builderFlags)
+
+		ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
+			SharedLibrary:           in,
+			UnstrippedSharedLibrary: p.unstrippedOutputFile,
+
+			TableOfContents: p.tocFile,
+		})
+	}
+
+	if p.static() {
+		depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(in).Build()
+		ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
+			StaticLibrary: in,
+
+			TransitiveStaticLibrariesForOrdering: depSet,
+		})
 	}
 
 	return in
@@ -735,13 +751,14 @@ func (c *vendorSnapshotSingleton) GenerateBuildActions(ctx android.SingletonCont
 		var propOut string
 
 		if l, ok := m.linker.(snapshotLibraryInterface); ok {
+			exporterInfo := ctx.ModuleProvider(m, FlagExporterInfoProvider).(FlagExporterInfo)
 
 			// library flags
-			prop.ExportedFlags = l.exportedFlags()
-			for _, dir := range l.exportedDirs() {
+			prop.ExportedFlags = exporterInfo.Flags
+			for _, dir := range exporterInfo.IncludeDirs {
 				prop.ExportedDirs = append(prop.ExportedDirs, filepath.Join("include", dir.String()))
 			}
-			for _, dir := range l.exportedSystemDirs() {
+			for _, dir := range exporterInfo.SystemIncludeDirs {
 				prop.ExportedSystemDirs = append(prop.ExportedSystemDirs, filepath.Join("include", dir.String()))
 			}
 			// shared libs dependencies aren't meaningful on static or header libs
