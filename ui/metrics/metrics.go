@@ -70,6 +70,10 @@ func (m *Metrics) BuildConfig(b *soong_metrics_proto.BuildConfig) {
 	m.metrics.BuildConfig = b
 }
 
+func (m *Metrics) SystemResourceInfo(b *soong_metrics_proto.SystemResourceInfo) {
+	m.metrics.SystemResourceInfo = b
+}
+
 func (m *Metrics) SetMetadataMetrics(metadata map[string]string) {
 	for k, v := range metadata {
 		switch k {
