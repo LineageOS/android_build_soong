@@ -103,6 +103,9 @@ type CacheParams struct {
 
 	// IncludeFiles are file names to include as matches
 	IncludeFiles []string
+
+	// IncludeSuffixes are filename suffixes to include as matches.
+	IncludeSuffixes []string
 }
 
 // a cacheConfig stores the inputs that determine what should be included in the cache
@@ -1310,6 +1313,20 @@ func (f *Finder) statDirSync(path string) statResponse {
 	return stats
 }
 
+func (f *Finder) shouldIncludeFile(fileName string) bool {
+	for _, includedName := range f.cacheMetadata.Config.IncludeFiles {
+		if fileName == includedName {
+			return true
+		}
+	}
+	for _, includeSuffix := range f.cacheMetadata.Config.IncludeSuffixes {
+		if strings.HasSuffix(fileName, includeSuffix) {
+			return true
+		}
+	}
+	return false
+}
+
 // pruneCacheCandidates removes the items that we don't want to include in our persistent cache
 func (f *Finder) pruneCacheCandidates(items *DirEntries) {
 
@@ -1326,13 +1343,9 @@ func (f *Finder) pruneCacheCandidates(items *DirEntries) {
 	// remove any files that aren't the ones we want to include
 	writeIndex := 0
 	for _, fileName := range items.FileNames {
-		// include only these files
-		for _, includedName := range f.cacheMetadata.Config.IncludeFiles {
-			if fileName == includedName {
-				items.FileNames[writeIndex] = fileName
-				writeIndex++
-				break
-			}
+		if f.shouldIncludeFile(fileName) {
+			items.FileNames[writeIndex] = fileName
+			writeIndex++
 		}
 	}
 	// resize
