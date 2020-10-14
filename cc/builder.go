@@ -44,14 +44,14 @@ var (
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
-			Command:     "$relPwd ${config.CcWrapper}$ccCmd -c $cFlags -MD -MF ${out}.d -o $out $in",
+			Command:     "${config.CcWrapper}$ccCmd -c $cFlags -MD -MF ${out}.d -o $out $in",
 			CommandDeps: []string{"$ccCmd"},
 		},
 		"ccCmd", "cFlags")
 
 	ccNoDeps = pctx.AndroidStaticRule("ccNoDeps",
 		blueprint.RuleParams{
-			Command:     "$relPwd $ccCmd -c $cFlags -o $out $in",
+			Command:     "$ccCmd -c $cFlags -o $out $in",
 			CommandDeps: []string{"$ccCmd"},
 		},
 		"ccCmd", "cFlags")
@@ -220,7 +220,7 @@ var (
 			Labels:       map[string]string{"type": "abi-dump", "tool": "header-abi-dumper"},
 			ExecStrategy: "${config.REAbiDumperExecStrategy}",
 			Platform: map[string]string{
-				remoteexec.PoolKey:      "${config.RECXXPool}",
+				remoteexec.PoolKey: "${config.RECXXPool}",
 			},
 		}, []string{"cFlags", "exportDirs"}, nil)
 
