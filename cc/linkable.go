@@ -16,7 +16,7 @@ type LinkableInterface interface {
 
 	NonCcVariants() bool
 
-	StubsVersions() []string
+	StubsVersions(android.BaseMutatorContext) []string
 	BuildStubs() bool
 	SetBuildStubs()
 	SetStubsVersion(string)

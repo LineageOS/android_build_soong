@@ -15,17 +15,14 @@
 package cc
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
 	"android/soong/android"
-
-	"github.com/google/blueprint"
 )
 
-var llndkImplDep = struct {
-	blueprint.DependencyTag
-}{}
+var llndkImplDep = dependencyTag{name: "llndk impl"}
 
 var (
 	llndkLibrarySuffix = ".llndk"
@@ -72,9 +69,6 @@ type llndkStubDecorator struct {
 
 	Properties llndkLibraryProperties
 
-	exportHeadersTimestamp android.OptionalPath
-	versionScriptPath      android.ModuleGenPath
-
 	movedToApex bool
 }
 
@@ -93,7 +87,9 @@ func (stub *llndkStubDecorator) compile(ctx ModuleContext, flags Flags, deps Pat
 		vndkVer = stub.stubsVersion()
 	}
 	objs, versionScript := compileStubLibrary(ctx, flags, String(stub.Properties.Symbol_file), vndkVer, "--llndk")
-	stub.versionScriptPath = versionScript
+	if !Bool(stub.Properties.Unversioned) {
+		stub.versionScriptPath = android.OptionalPathForPath(versionScript)
+	}
 	return objs
 }
 
@@ -142,12 +138,6 @@ func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDe
 		stub.movedToApex = implApexModule.DirectlyInAnyApex()
 	}
 
-	if !Bool(stub.Properties.Unversioned) {
-		linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
-		flags.Local.LdFlags = append(flags.Local.LdFlags, linkerScriptFlag)
-		flags.LdFlagsDeps = append(flags.LdFlagsDeps, stub.versionScriptPath)
-	}
-
 	if len(stub.Properties.Export_preprocessed_headers) > 0 {
 		genHeaderOutDir := android.PathForModuleGen(ctx, "include")
 
@@ -170,15 +160,26 @@ func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDe
 		stub.libraryDecorator.flagExporter.Properties.Export_include_dirs = []string{}
 	}
 
-	if stub.stubsVersion() != "" {
-		stub.reexportFlags("-D" + versioningMacroName(ctx.baseModuleName()) + "=" + stub.stubsVersion())
-	}
-
 	return stub.libraryDecorator.link(ctx, flags, deps, objs)
 }
 
 func (stub *llndkStubDecorator) nativeCoverage() bool {
 	return false
+}
+
+func (stub *llndkStubDecorator) buildStubs() bool {
+	return true
+}
+
+func (stub *llndkStubDecorator) stubsVersions(ctx android.BaseMutatorContext) []string {
+	// Get the versions from the implementation module.
+	impls := ctx.GetDirectDepsWithTag(llndkImplDep)
+	if len(impls) > 1 {
+		panic(fmt.Errorf("Expected single implmenetation library, got %d", len(impls)))
+	} else if len(impls) == 1 {
+		return impls[0].(*Module).AllStubsVersions()
+	}
+	return nil
 }
 
 func NewLLndkStubLibrary() *Module {

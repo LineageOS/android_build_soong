@@ -45,7 +45,6 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("sdk", sdkMutator).Parallel()
 		ctx.BottomUp("vndk", VndkMutator).Parallel()
 		ctx.BottomUp("link", LinkageMutator).Parallel()
-		ctx.BottomUp("ndk_api", NdkApiMutator).Parallel()
 		ctx.BottomUp("test_per_src", TestPerSrcMutator).Parallel()
 		ctx.BottomUp("version_selector", versionSelectorMutator).Parallel()
 		ctx.BottomUp("version", versionMutator).Parallel()
@@ -718,14 +717,9 @@ func (c *Module) AlwaysSdk() bool {
 	return c.Properties.AlwaysSdk || Bool(c.Properties.Sdk_variant_only)
 }
 
-func (c *Module) StubsVersions() []string {
-	if c.linker != nil {
-		if library, ok := c.linker.(*libraryDecorator); ok {
-			return library.Properties.Stubs.Versions
-		}
-		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
-			return library.Properties.Stubs.Versions
-		}
+func (c *Module) StubsVersions(ctx android.BaseMutatorContext) []string {
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		return versioned.stubsVersions(ctx)
 	}
 	panic(fmt.Errorf("StubsVersions called on non-library module: %q", c.BaseModuleName()))
 }
@@ -754,100 +748,48 @@ func (c *Module) NonCcVariants() bool {
 }
 
 func (c *Module) SetBuildStubs() {
-	if c.linker != nil {
-		if library, ok := c.linker.(*libraryDecorator); ok {
-			library.MutatedProperties.BuildStubs = true
-			c.Properties.HideFromMake = true
-			c.sanitize = nil
-			c.stl = nil
-			c.Properties.PreventInstall = true
-			return
-		}
-		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
-			library.MutatedProperties.BuildStubs = true
-			c.Properties.HideFromMake = true
-			c.sanitize = nil
-			c.stl = nil
-			c.Properties.PreventInstall = true
-			return
-		}
-		if _, ok := c.linker.(*llndkStubDecorator); ok {
-			c.Properties.HideFromMake = true
-			return
-		}
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		versioned.setBuildStubs()
+		c.Properties.HideFromMake = true
+		c.sanitize = nil
+		c.stl = nil
+		c.Properties.PreventInstall = true
+		return
 	}
 	panic(fmt.Errorf("SetBuildStubs called on non-library module: %q", c.BaseModuleName()))
 }
 
 func (c *Module) BuildStubs() bool {
-	if c.linker != nil {
-		if library, ok := c.linker.(*libraryDecorator); ok {
-			return library.buildStubs()
-		}
-		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
-			return library.buildStubs()
-		}
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		return versioned.buildStubs()
 	}
 	panic(fmt.Errorf("BuildStubs called on non-library module: %q", c.BaseModuleName()))
 }
 
 func (c *Module) SetAllStubsVersions(versions []string) {
-	if library, ok := c.linker.(*libraryDecorator); ok {
-		library.MutatedProperties.AllStubsVersions = versions
-		return
-	}
-	if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
-		library.MutatedProperties.AllStubsVersions = versions
-		return
-	}
-	if llndk, ok := c.linker.(*llndkStubDecorator); ok {
-		llndk.libraryDecorator.MutatedProperties.AllStubsVersions = versions
-		return
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		versioned.setAllStubsVersions(versions)
 	}
 }
 
 func (c *Module) AllStubsVersions() []string {
-	if library, ok := c.linker.(*libraryDecorator); ok {
-		return library.MutatedProperties.AllStubsVersions
-	}
-	if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
-		return library.MutatedProperties.AllStubsVersions
-	}
-	if llndk, ok := c.linker.(*llndkStubDecorator); ok {
-		return llndk.libraryDecorator.MutatedProperties.AllStubsVersions
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		return versioned.allStubsVersions()
 	}
 	return nil
 }
 
 func (c *Module) SetStubsVersion(version string) {
-	if c.linker != nil {
-		if library, ok := c.linker.(*libraryDecorator); ok {
-			library.MutatedProperties.StubsVersion = version
-			return
-		}
-		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
-			library.MutatedProperties.StubsVersion = version
-			return
-		}
-		if llndk, ok := c.linker.(*llndkStubDecorator); ok {
-			llndk.libraryDecorator.MutatedProperties.StubsVersion = version
-			return
-		}
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		versioned.setStubsVersion(version)
+		return
 	}
 	panic(fmt.Errorf("SetStubsVersion called on non-library module: %q", c.BaseModuleName()))
 }
 
 func (c *Module) StubsVersion() string {
-	if c.linker != nil {
-		if library, ok := c.linker.(*libraryDecorator); ok {
-			return library.MutatedProperties.StubsVersion
-		}
-		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
-			return library.MutatedProperties.StubsVersion
-		}
-		if llndk, ok := c.linker.(*llndkStubDecorator); ok {
-			return llndk.libraryDecorator.MutatedProperties.StubsVersion
-		}
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		return versioned.stubsVersion()
 	}
 	panic(fmt.Errorf("StubsVersion called on non-library module: %q", c.BaseModuleName()))
 }
@@ -1085,22 +1027,15 @@ func (c *Module) getVndkExtendsModuleName() string {
 }
 
 func (c *Module) IsStubs() bool {
-	if library, ok := c.linker.(*libraryDecorator); ok {
-		return library.buildStubs()
-	} else if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
-		return library.buildStubs()
-	} else if _, ok := c.linker.(*llndkStubDecorator); ok {
-		return true
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		return versioned.buildStubs()
 	}
 	return false
 }
 
 func (c *Module) HasStubsVariants() bool {
-	if library, ok := c.linker.(*libraryDecorator); ok {
-		return len(library.Properties.Stubs.Versions) > 0
-	}
-	if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
-		return len(library.Properties.Stubs.Versions) > 0
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		return versioned.hasStubsVariants()
 	}
 	return false
 }
@@ -1752,7 +1687,7 @@ func GetCrtVariations(ctx android.BottomUpMutatorContext,
 	if m.UseSdk() {
 		return []blueprint.Variation{
 			{Mutator: "sdk", Variation: "sdk"},
-			{Mutator: "ndk_api", Variation: m.SdkVersion()},
+			{Mutator: "version", Variation: m.SdkVersion()},
 		}
 	}
 	return []blueprint.Variation{
@@ -1872,16 +1807,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	}
 
 	buildStubs := false
-	if c.linker != nil {
-		if library, ok := c.linker.(*libraryDecorator); ok {
-			if library.buildStubs() {
-				buildStubs = true
-			}
-		}
-		if library, ok := c.linker.(*prebuiltLibraryLinker); ok {
-			if library.buildStubs() {
-				buildStubs = true
-			}
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		if versioned.buildStubs() {
+			buildStubs = true
 		}
 	}
 
@@ -2025,11 +1953,10 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		actx.AddDependency(c, depTag, gen)
 	}
 
-	actx.AddVariationDependencies(nil, objDepTag, deps.ObjFiles...)
-
 	vendorSnapshotObjects := vendorSnapshotObjects(actx.Config())
 
 	crtVariations := GetCrtVariations(ctx, c)
+	actx.AddVariationDependencies(crtVariations, objDepTag, deps.ObjFiles...)
 	if deps.CrtBegin != "" {
 		actx.AddVariationDependencies(crtVariations, CrtBeginDepTag,
 			rewriteSnapshotLibs(deps.CrtBegin, vendorSnapshotObjects))
@@ -2049,13 +1976,13 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	ndkStubDepTag := libraryDependencyTag{Kind: sharedLibraryDependency, ndk: true, makeSuffix: "." + version}
 	actx.AddVariationDependencies([]blueprint.Variation{
-		{Mutator: "ndk_api", Variation: version},
+		{Mutator: "version", Variation: version},
 		{Mutator: "link", Variation: "shared"},
 	}, ndkStubDepTag, variantNdkLibs...)
 
 	ndkLateStubDepTag := libraryDependencyTag{Kind: sharedLibraryDependency, Order: lateLibraryDependency, ndk: true, makeSuffix: "." + version}
 	actx.AddVariationDependencies([]blueprint.Variation{
-		{Mutator: "ndk_api", Variation: version},
+		{Mutator: "version", Variation: version},
 		{Mutator: "link", Variation: "shared"},
 	}, ndkLateStubDepTag, variantLateNdkLibs...)
 
