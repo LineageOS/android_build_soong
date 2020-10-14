@@ -104,6 +104,8 @@ func (ctx *Context) Register() {
 
 	registerMutators(ctx.Context, preArch, preDeps, postDeps, finalDeps)
 
+	ctx.RegisterSingletonType("bazeldeps", SingletonFactoryAdaptor(BazelSingleton))
+
 	// Register phony just before makevars so it can write out its phony rules as Make rules
 	ctx.RegisterSingletonType("phony", SingletonFactoryAdaptor(phonySingletonFactory))
 
