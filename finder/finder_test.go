@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"android/soong/finder/fs"
@@ -92,11 +93,52 @@ func runSimpleTest(t *testing.T, existentPaths []string, expectedMatches []strin
 			nil,
 			nil,
 			[]string{"findme.txt", "skipme.txt"},
+			nil,
 		},
 	)
 	defer finder.Shutdown()
 
 	foundPaths := finder.FindNamedAt(root, "findme.txt")
+	absoluteMatches := []string{}
+	for i := range expectedMatches {
+		absoluteMatches = append(absoluteMatches, filepath.Join(root, expectedMatches[i]))
+	}
+	fs.AssertSameResponse(t, foundPaths, absoluteMatches)
+}
+
+// runTestWithSuffixes creates a few files, searches for findme.txt or any file
+// with suffix `.findme_ext` and checks for the expected matches
+func runTestWithSuffixes(t *testing.T, existentPaths []string, expectedMatches []string) {
+	filesystem := newFs()
+	root := "/tmp"
+	filesystem.MkDirs(root)
+	for _, path := range existentPaths {
+		fs.Create(t, filepath.Join(root, path), filesystem)
+	}
+
+	finder := newFinder(t,
+		filesystem,
+		CacheParams{
+			"/cwd",
+			[]string{root},
+			nil,
+			nil,
+			[]string{"findme.txt", "skipme.txt"},
+			[]string{".findme_ext"},
+		},
+	)
+	defer finder.Shutdown()
+
+	foundPaths := finder.FindMatching(root,
+		func(entries DirEntries) (dirs []string, files []string) {
+			matches := []string{}
+			for _, foundName := range entries.FileNames {
+				if foundName == "findme.txt" || strings.HasSuffix(foundName, ".findme_ext") {
+					matches = append(matches, foundName)
+				}
+			}
+			return entries.DirNames, matches
+		})
 	absoluteMatches := []string{}
 	for i := range expectedMatches {
 		absoluteMatches = append(absoluteMatches, filepath.Join(root, expectedMatches[i]))
@@ -135,10 +177,24 @@ func TestIncludeFiles(t *testing.T) {
 	)
 }
 
+func TestIncludeFilesAndSuffixes(t *testing.T) {
+	runTestWithSuffixes(t,
+		[]string{"findme.txt", "skipme.txt", "alsome.findme_ext"},
+		[]string{"findme.txt", "alsome.findme_ext"},
+	)
+}
+
 func TestNestedDirectories(t *testing.T) {
 	runSimpleTest(t,
 		[]string{"findme.txt", "skipme.txt", "subdir/findme.txt", "subdir/skipme.txt"},
 		[]string{"findme.txt", "subdir/findme.txt"},
+	)
+}
+
+func TestNestedDirectoriesWithSuffixes(t *testing.T) {
+	runTestWithSuffixes(t,
+		[]string{"findme.txt", "skipme.txt", "subdir/findme.txt", "subdir/skipme.txt", "subdir/alsome.findme_ext"},
+		[]string{"findme.txt", "subdir/findme.txt", "subdir/alsome.findme_ext"},
 	)
 }
 
