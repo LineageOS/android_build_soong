@@ -2383,11 +2383,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							// system libraries.
 							if !am.DirectlyInAnyApex() {
 								// we need a module name for Make
-								name := cc.BaseModuleName() + cc.Properties.SubName
-								if proptools.Bool(a.properties.Use_vendor) {
+								name := cc.ImplementationModuleName(ctx)
+
+								if !proptools.Bool(a.properties.Use_vendor) {
 									// we don't use subName(.vendor) for a "use_vendor: true" apex
 									// which is supposed to be installed in /system
-									name = cc.BaseModuleName()
+									name += cc.Properties.SubName
 								}
 								if !android.InList(name, a.requiredDeps) {
 									a.requiredDeps = append(a.requiredDeps, name)

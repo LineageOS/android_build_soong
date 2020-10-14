@@ -247,7 +247,7 @@ func vndkSpLibraries(config android.Config) map[string]string {
 }
 
 func isLlndkLibrary(baseModuleName string, config android.Config) bool {
-	_, ok := llndkLibraries(config)[baseModuleName]
+	_, ok := llndkLibraries(config)[strings.TrimSuffix(baseModuleName, llndkLibrarySuffix)]
 	return ok
 }
 
@@ -290,8 +290,8 @@ func setVndkMustUseVendorVariantListForTest(config android.Config, mustUseVendor
 
 func processLlndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 	lib := m.linker.(*llndkStubDecorator)
-	name := m.BaseModuleName()
-	filename := m.BaseModuleName() + ".so"
+	name := m.ImplementationModuleName(mctx)
+	filename := name + ".so"
 
 	vndkLibrariesLock.Lock()
 	defer vndkLibrariesLock.Unlock()
@@ -834,8 +834,8 @@ func (c *vndkSnapshotSingleton) MakeVars(ctx android.MakeVarsContext) {
 		if m, ok := module.(*Module); ok {
 			if llndk, ok := m.linker.(*llndkStubDecorator); ok {
 				// Skip bionic libs, they are handled in different manner
-				name := m.BaseModuleName()
-				if llndk.movedToApex && !isBionic(m.BaseModuleName()) {
+				name := llndk.implementationModuleName(m.BaseModuleName())
+				if llndk.movedToApex && !isBionic(name) {
 					movedToApexLlndkLibraries[name] = true
 				}
 			}

@@ -72,6 +72,7 @@ type AndroidMkEntriesProvider interface {
 type AndroidMkEntries struct {
 	Class           string
 	SubName         string
+	OverrideName    string
 	DistFiles       TaggedDistFiles
 	OutputFile      OptionalPath
 	Disabled        bool
@@ -273,6 +274,9 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 	a.EntryMap = make(map[string][]string)
 	amod := mod.(Module).base()
 	name := amod.BaseModuleName()
+	if a.OverrideName != "" {
+		name = a.OverrideName
+	}
 
 	if a.Include == "" {
 		a.Include = "$(BUILD_PREBUILT)"

@@ -172,9 +172,10 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			stubs: {
 				versions: ["27", "28", "29"],
 			},
-		}
+			llndk_stubs: "libc.llndk",
+}
 		llndk_library {
-			name: "libc",
+			name: "libc.llndk",
 			symbol_file: "",
 			sdk_version: "current",
 		}
@@ -193,9 +194,10 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 				"//apex_available:platform",
 				"myapex"
 			],
+			llndk_stubs: "libm.llndk",
 		}
 		llndk_library {
-			name: "libm",
+			name: "libm.llndk",
 			symbol_file: "",
 			sdk_version: "current",
 		}
@@ -253,9 +255,10 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 				"//apex_available:platform",
 				"myapex"
 			],
+			llndk_stubs: "libdl.llndk",
 		}
 		llndk_library {
-			name: "libdl",
+			name: "libdl.llndk",
 			symbol_file: "",
 			sdk_version: "current",
 		}
@@ -265,9 +268,10 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			nocrt: true,
 			system_shared_libs: [],
 			recovery_available: true,
+			llndk_stubs: "libft2.llndk",
 		}
 		llndk_library {
-			name: "libft2",
+			name: "libft2.llndk",
 			symbol_file: "",
 			vendor_available: false,
 			sdk_version: "current",

@@ -1040,6 +1040,16 @@ func (c *Module) HasStubsVariants() bool {
 	return false
 }
 
+// If this is a stubs library, ImplementationModuleName returns the name of the module that contains
+// the implementation.  If it is an implementation library it returns its own name.
+func (c *Module) ImplementationModuleName(ctx android.BaseModuleContext) string {
+	name := ctx.OtherModuleName(c)
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		name = versioned.implementationModuleName(name)
+	}
+	return name
+}
+
 func (c *Module) bootstrap() bool {
 	return Bool(c.Properties.Bootstrap)
 }

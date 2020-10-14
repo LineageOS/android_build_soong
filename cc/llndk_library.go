@@ -72,6 +72,8 @@ type llndkStubDecorator struct {
 	movedToApex bool
 }
 
+var _ versionedInterface = (*llndkStubDecorator)(nil)
+
 func (stub *llndkStubDecorator) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
 	flags = stub.baseCompiler.compilerFlags(ctx, flags, deps)
 	return addStubLibraryCompilerFlags(flags)
@@ -101,12 +103,14 @@ func (stub *llndkStubDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 }
 
 func (stub *llndkStubDecorator) Name(name string) string {
+	if strings.HasSuffix(name, llndkLibrarySuffix) {
+		return name
+	}
 	return name + llndkLibrarySuffix
 }
 
 func (stub *llndkStubDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
-	stub.libraryDecorator.libName = strings.TrimSuffix(ctx.ModuleName(),
-		llndkLibrarySuffix)
+	stub.libraryDecorator.libName = stub.implementationModuleName(ctx.ModuleName())
 	return stub.libraryDecorator.linkerFlags(ctx, flags)
 }
 
@@ -133,7 +137,7 @@ func (stub *llndkStubDecorator) processHeaders(ctx ModuleContext, srcHeaderDir s
 func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 	objs Objects) android.Path {
 
-	impl := ctx.GetDirectDepWithTag(ctx.baseModuleName(), llndkImplDep)
+	impl := ctx.GetDirectDepWithTag(stub.implementationModuleName(ctx.ModuleName()), llndkImplDep)
 	if implApexModule, ok := impl.(android.ApexModule); ok {
 		stub.movedToApex = implApexModule.DirectlyInAnyApex()
 	}
@@ -165,6 +169,10 @@ func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDe
 
 func (stub *llndkStubDecorator) nativeCoverage() bool {
 	return false
+}
+
+func (stub *llndkStubDecorator) implementationModuleName(name string) string {
+	return strings.TrimSuffix(name, llndkLibrarySuffix)
 }
 
 func (stub *llndkStubDecorator) buildStubs() bool {
