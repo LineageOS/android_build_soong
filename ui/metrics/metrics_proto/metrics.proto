@@ -99,6 +99,9 @@ message MetricsBase {
 
   // The hostname of the machine.
   optional string hostname = 24;
+
+  // The system resource information such as total physical memory.
+  optional SystemResourceInfo system_resource_info = 25;
 }
 
 message BuildConfig {
@@ -107,6 +110,14 @@ message BuildConfig {
   optional bool use_rbe = 2;
 
   optional bool force_use_goma = 3;
+}
+
+message SystemResourceInfo {
+  // The total physical memory in bytes.
+  optional uint64 total_physical_memory = 1;
+
+  // The total of available cores for building
+  optional int32 available_cpus = 2;
 }
 
 message PerfInfo {

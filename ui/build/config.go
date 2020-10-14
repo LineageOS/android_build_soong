@@ -303,6 +303,12 @@ func storeConfigMetrics(ctx Context, config Config) {
 		UseRbe:       proto.Bool(config.UseRBE()),
 	}
 	ctx.Metrics.BuildConfig(b)
+
+	s := &smpb.SystemResourceInfo{
+		TotalPhysicalMemory: proto.Uint64(config.TotalRAM()),
+		AvailableCpus:       proto.Int32(int32(runtime.NumCPU())),
+	}
+	ctx.Metrics.SystemResourceInfo(s)
 }
 
 // getConfigArgs processes the command arguments based on the build action and creates a set of new
