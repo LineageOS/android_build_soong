@@ -2,7 +2,7 @@ package config
 
 var (
 	// When adding a new path below, add a rustfmt.toml file at the root of
-	// the repository and enable the rustfmt repo hook. See aosp/1347562
+	// the repository and enable the rustfmt repo hook. See aosp/1458238
 	// for an example.
 	// TODO(b/160223496): enable rustfmt globally.
 	RustAllowedPaths = []string{
