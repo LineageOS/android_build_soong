@@ -11,6 +11,7 @@ var (
 		"external/crosvm",
 		"external/adhd",
 		"frameworks/native/libs/binder/rust",
+		"packages/modules/Virtualization",
 		"prebuilts/rust",
 		"system/extras/profcollectd",
 		"system/hardware/interfaces/keystore2",
