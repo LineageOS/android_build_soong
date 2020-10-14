@@ -127,6 +127,7 @@ func installClean(ctx Context, config Config, what int) {
 		productOut("system"),
 		productOut("system_other"),
 		productOut("vendor"),
+		productOut("vendor_dlkm"),
 		productOut("product"),
 		productOut("system_ext"),
 		productOut("oem"),
@@ -136,6 +137,7 @@ func installClean(ctx Context, config Config, what int) {
 		productOut("coverage"),
 		productOut("installer"),
 		productOut("odm"),
+		productOut("odm_dlkm"),
 		productOut("sysloader"),
 		productOut("testcases"))
 }
