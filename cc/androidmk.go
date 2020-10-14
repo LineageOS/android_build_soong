@@ -442,6 +442,11 @@ func (c *stubDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.
 	entries.SubName = ndkLibrarySuffix + "." + c.apiLevel.String()
 	entries.Class = "SHARED_LIBRARIES"
 
+	if !c.buildStubs() {
+		entries.Disabled = true
+		return
+	}
+
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		path, file := filepath.Split(c.installPath.String())
 		stem, suffix, _ := android.SplitFileExt(file)
