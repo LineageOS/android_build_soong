@@ -349,7 +349,7 @@ type libraryDecorator struct {
 	// Location of the file that should be copied to dist dir when requested
 	distFile android.Path
 
-	versionScriptPath android.ModuleGenPath
+	versionScriptPath android.OptionalPath
 
 	post_install_cmds []string
 
@@ -357,6 +357,8 @@ type libraryDecorator struct {
 	// not installed.
 	useCoreVariant       bool
 	checkSameCoreVariant bool
+
+	skipAPIDefine bool
 
 	// Decorated interfaces
 	*baseCompiler
@@ -611,7 +613,7 @@ func (library *libraryDecorator) shouldCreateSourceAbiDump(ctx ModuleContext) bo
 func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
 	if library.buildStubs() {
 		objs, versionScript := compileStubLibrary(ctx, flags, String(library.Properties.Stubs.Symbol_file), library.MutatedProperties.StubsVersion, "--apex")
-		library.versionScriptPath = versionScript
+		library.versionScriptPath = android.OptionalPathForPath(versionScript)
 		return objs
 	}
 
@@ -661,6 +663,8 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 }
 
 type libraryInterface interface {
+	versionedInterface
+
 	static() bool
 	shared() bool
 	objs() Objects
@@ -680,6 +684,21 @@ type libraryInterface interface {
 
 	availableFor(string) bool
 }
+
+type versionedInterface interface {
+	buildStubs() bool
+	setBuildStubs()
+	hasStubsVariants() bool
+	setStubsVersion(string)
+	stubsVersion() string
+
+	stubsVersions(ctx android.BaseMutatorContext) []string
+	setAllStubsVersions([]string)
+	allStubsVersions() []string
+}
+
+var _ libraryInterface = (*libraryDecorator)(nil)
+var _ versionedInterface = (*libraryDecorator)(nil)
 
 func (library *libraryDecorator) getLibNameHelper(baseModuleName string, useVndk bool) string {
 	name := library.libName
@@ -916,10 +935,10 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 			linkerDeps = append(linkerDeps, forceWeakSymbols.Path())
 		}
 	}
-	if library.buildStubs() {
+	if library.versionScriptPath.Valid() {
 		linkerScriptFlags := "-Wl,--version-script," + library.versionScriptPath.String()
 		flags.Local.LdFlags = append(flags.Local.LdFlags, linkerScriptFlags)
-		linkerDeps = append(linkerDeps, library.versionScriptPath)
+		linkerDeps = append(linkerDeps, library.versionScriptPath.Path())
 	}
 
 	fileName := library.getLibName(ctx) + flags.Toolchain.ShlibSuffix()
@@ -1185,8 +1204,8 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 		library.addExportedGeneratedHeaders(library.baseCompiler.pathDeps...)
 	}
 
-	if library.buildStubs() {
-		library.reexportFlags("-D" + versioningMacroName(ctx.ModuleName()) + "=" + library.stubsVersion())
+	if library.buildStubs() && !library.skipAPIDefine {
+		library.reexportFlags("-D" + versioningMacroName(ctx.baseModuleName()) + "=" + library.stubsVersion())
 	}
 
 	library.flagExporter.setProvider(ctx)
@@ -1353,8 +1372,32 @@ func (library *libraryDecorator) symbolFileForAbiCheck(ctx ModuleContext) *strin
 	return nil
 }
 
+func (library *libraryDecorator) hasStubsVariants() bool {
+	return len(library.Properties.Stubs.Versions) > 0
+}
+
+func (library *libraryDecorator) stubsVersions(ctx android.BaseMutatorContext) []string {
+	return library.Properties.Stubs.Versions
+}
+
+func (library *libraryDecorator) setStubsVersion(version string) {
+	library.MutatedProperties.StubsVersion = version
+}
+
 func (library *libraryDecorator) stubsVersion() string {
 	return library.MutatedProperties.StubsVersion
+}
+
+func (library *libraryDecorator) setBuildStubs() {
+	library.MutatedProperties.BuildStubs = true
+}
+
+func (library *libraryDecorator) setAllStubsVersions(versions []string) {
+	library.MutatedProperties.AllStubsVersions = versions
+}
+
+func (library *libraryDecorator) allStubsVersions() []string {
+	return library.MutatedProperties.AllStubsVersions
 }
 
 func (library *libraryDecorator) isLatestStubVersion() bool {
@@ -1573,20 +1616,33 @@ func createVersionVariations(mctx android.BottomUpMutatorContext, versions []str
 	mctx.CreateAliasVariation("latest", latestVersion)
 }
 
+func createPerApiVersionVariations(mctx android.BottomUpMutatorContext, minSdkVersion string) {
+	from, err := nativeApiLevelFromUser(mctx, minSdkVersion)
+	if err != nil {
+		mctx.PropertyErrorf("min_sdk_version", err.Error())
+		return
+	}
+
+	versionStrs := ndkLibraryVersions(mctx, from)
+	modules := mctx.CreateLocalVariations(versionStrs...)
+
+	for i, module := range modules {
+		module.(*Module).Properties.Sdk_version = StringPtr(versionStrs[i])
+	}
+}
+
 func CanBeOrLinkAgainstVersionVariants(module interface {
 	Host() bool
 	InRamdisk() bool
 	InRecovery() bool
-	UseSdk() bool
 }) bool {
-	return !module.Host() && !module.InRamdisk() && !module.InRecovery() && !module.UseSdk()
+	return !module.Host() && !module.InRamdisk() && !module.InRecovery()
 }
 
 func CanBeVersionVariant(module interface {
 	Host() bool
 	InRamdisk() bool
 	InRecovery() bool
-	UseSdk() bool
 	CcLibraryInterface() bool
 	Shared() bool
 	Static() bool
@@ -1599,26 +1655,17 @@ func CanBeVersionVariant(module interface {
 // and propagates the value from implementation libraries to llndk libraries with the same name.
 func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
 	if library, ok := mctx.Module().(LinkableInterface); ok && CanBeVersionVariant(library) {
-		if library.CcLibrary() && library.BuildSharedVariant() && len(library.StubsVersions()) > 0 {
-
-			versions := library.StubsVersions()
-			normalizeVersions(mctx, versions)
-			if mctx.Failed() {
+		if library.CcLibraryInterface() && library.BuildSharedVariant() {
+			versions := library.StubsVersions(mctx)
+			if len(versions) > 0 {
+				normalizeVersions(mctx, versions)
+				if mctx.Failed() {
+					return
+				}
+				// Set the versions on the pre-mutated module so they can be read by any llndk modules that
+				// depend on the implementation library and haven't been mutated yet.
+				library.SetAllStubsVersions(versions)
 				return
-			}
-			// Set the versions on the pre-mutated module so they can be read by any llndk modules that
-			// depend on the implementation library and haven't been mutated yet.
-			library.SetAllStubsVersions(versions)
-			return
-		}
-
-		if c, ok := library.(*Module); ok && c.IsStubs() {
-			// Get the versions from the implementation module.
-			impls := mctx.GetDirectDepsWithTag(llndkImplDep)
-			if len(impls) > 1 {
-				panic(fmt.Errorf("Expected single implmenetation library, got %d", len(impls)))
-			} else if len(impls) == 1 {
-				c.SetAllStubsVersions(impls[0].(*Module).AllStubsVersions())
 			}
 		}
 	}
@@ -1629,6 +1676,16 @@ func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
 func versionMutator(mctx android.BottomUpMutatorContext) {
 	if library, ok := mctx.Module().(LinkableInterface); ok && CanBeVersionVariant(library) {
 		createVersionVariations(mctx, library.AllStubsVersions())
+		return
+	}
+
+	if m, ok := mctx.Module().(*Module); ok {
+		if m.SplitPerApiLevel() && m.IsSdkVariant() {
+			if mctx.Os() != android.Android {
+				return
+			}
+			createPerApiVersionVariations(mctx, m.MinSdkVersion())
+		}
 	}
 }
 
