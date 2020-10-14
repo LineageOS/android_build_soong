@@ -41,7 +41,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 					files[testSuite] = make(map[string]InstallPaths)
 				}
 				name := ctx.ModuleName(m)
-				files[testSuite][name] = append(files[testSuite][name], tsm.filesToInstall()...)
+				files[testSuite][name] = append(files[testSuite][name], tsm.FilesToInstall()...)
 			}
 		}
 	})

@@ -49,6 +49,10 @@ type prebuiltCommon struct {
 	properties prebuiltCommonProperties
 }
 
+type sanitizedPrebuilt interface {
+	hasSanitizedSource(sanitizer string) bool
+}
+
 type prebuiltCommonProperties struct {
 	ForceDisable bool `blueprint:"mutated"`
 }
@@ -74,9 +78,10 @@ func (p *prebuiltCommon) checkForceDisable(ctx android.ModuleContext) bool {
 	forceDisable = forceDisable || ctx.DeviceConfig().NativeCoverageEnabled()
 	forceDisable = forceDisable || ctx.Config().IsEnvTrue("EMMA_INSTRUMENT")
 
-	// b/137216042 don't use prebuilts when address sanitizer is on
-	forceDisable = forceDisable || android.InList("address", ctx.Config().SanitizeDevice()) ||
-		android.InList("hwaddress", ctx.Config().SanitizeDevice())
+	// b/137216042 don't use prebuilts when address sanitizer is on, unless the prebuilt has a sanitized source
+	sanitized := ctx.Module().(sanitizedPrebuilt)
+	forceDisable = forceDisable || (android.InList("address", ctx.Config().SanitizeDevice()) && !sanitized.hasSanitizedSource("address"))
+	forceDisable = forceDisable || (android.InList("hwaddress", ctx.Config().SanitizeDevice()) && !sanitized.hasSanitizedSource("hwaddress"))
 
 	if forceDisable && p.prebuilt.SourceExists() {
 		p.properties.ForceDisable = true
@@ -132,6 +137,10 @@ type PrebuiltProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
+}
+
+func (a *Prebuilt) hasSanitizedSource(sanitizer string) bool {
+	return false
 }
 
 func (p *Prebuilt) installable() bool {
@@ -262,6 +271,18 @@ type ApexSetProperties struct {
 	// the .apks file path that contains prebuilt apex files to be extracted.
 	Set *string
 
+	Sanitized struct {
+		None struct {
+			Set *string
+		}
+		Address struct {
+			Set *string
+		}
+		Hwaddress struct {
+			Set *string
+		}
+	}
+
 	// whether the extracted apex file installable.
 	Installable *bool
 
@@ -278,6 +299,41 @@ type ApexSetProperties struct {
 
 	// apexes in this set use prerelease SDK version
 	Prerelease *bool
+}
+
+func (a *ApexSet) prebuiltSrcs(ctx android.BaseModuleContext) []string {
+	var srcs []string
+	if a.properties.Set != nil {
+		srcs = append(srcs, *a.properties.Set)
+	}
+
+	var sanitizers []string
+	if ctx.Host() {
+		sanitizers = ctx.Config().SanitizeHost()
+	} else {
+		sanitizers = ctx.Config().SanitizeDevice()
+	}
+
+	if android.InList("address", sanitizers) && a.properties.Sanitized.Address.Set != nil {
+		srcs = append(srcs, *a.properties.Sanitized.Address.Set)
+	} else if android.InList("hwaddress", sanitizers) && a.properties.Sanitized.Hwaddress.Set != nil {
+		srcs = append(srcs, *a.properties.Sanitized.Hwaddress.Set)
+	} else if a.properties.Sanitized.None.Set != nil {
+		srcs = append(srcs, *a.properties.Sanitized.None.Set)
+	}
+
+	return srcs
+}
+
+func (a *ApexSet) hasSanitizedSource(sanitizer string) bool {
+	if sanitizer == "address" {
+		return a.properties.Sanitized.Address.Set != nil
+	}
+	if sanitizer == "hwaddress" {
+		return a.properties.Sanitized.Hwaddress.Set != nil
+	}
+
+	return false
 }
 
 func (a *ApexSet) installable() bool {
@@ -300,7 +356,12 @@ func (a *ApexSet) Overrides() []string {
 func apexSetFactory() android.Module {
 	module := &ApexSet{}
 	module.AddProperties(&module.properties)
-	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Set")
+
+	srcsSupplier := func(ctx android.BaseModuleContext) []string {
+		return module.prebuiltSrcs(ctx)
+	}
+
+	android.InitPrebuiltModuleWithSrcSupplier(module, srcsSupplier, "set")
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
 }
