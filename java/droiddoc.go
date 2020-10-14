@@ -1016,7 +1016,8 @@ type Droidstubs struct {
 	annotationsZip android.WritablePath
 	apiVersionsXml android.WritablePath
 
-	apiFilePath android.Path
+	apiFilePath        android.Path
+	removedApiFilePath android.Path
 
 	metadataZip android.WritablePath
 	metadataDir android.WritablePath
@@ -1059,7 +1060,7 @@ func (d *Droidstubs) OutputFiles(tag string) (android.Paths, error) {
 	case ".api.txt":
 		return android.Paths{d.apiFilePath}, nil
 	case ".removed-api.txt":
-		return android.Paths{d.removedApiFile}, nil
+		return android.Paths{d.removedApiFilePath}, nil
 	case ".annotations.zip":
 		return android.Paths{d.annotationsZip}, nil
 	case ".api_versions.xml":
@@ -1074,7 +1075,7 @@ func (d *Droidstubs) ApiFilePath() android.Path {
 }
 
 func (d *Droidstubs) RemovedApiFilePath() android.Path {
-	return d.removedApiFile
+	return d.removedApiFilePath
 }
 
 func (d *Droidstubs) StubsSrcJar() android.Path {
@@ -1125,6 +1126,9 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 		d.apiFile = android.PathForModuleOut(ctx, filename)
 		cmd.FlagWithOutput("--api ", d.apiFile)
 		d.apiFilePath = d.apiFile
+	} else if sourceApiFile := proptools.String(d.properties.Check_api.Current.Api_file); sourceApiFile != "" {
+		// If check api is disabled then make the source file available for export.
+		d.apiFilePath = android.PathForModuleSrc(ctx, sourceApiFile)
 	}
 
 	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") ||
@@ -1133,6 +1137,10 @@ func (d *Droidstubs) stubsFlags(ctx android.ModuleContext, cmd *android.RuleBuil
 		filename := proptools.StringDefault(d.properties.Removed_api_filename, ctx.ModuleName()+"_removed.txt")
 		d.removedApiFile = android.PathForModuleOut(ctx, filename)
 		cmd.FlagWithOutput("--removed-api ", d.removedApiFile)
+		d.removedApiFilePath = d.removedApiFile
+	} else if sourceRemovedApiFile := proptools.String(d.properties.Check_api.Current.Removed_api_file); sourceRemovedApiFile != "" {
+		// If check api is disabled then make the source removed api file available for export.
+		d.removedApiFilePath = android.PathForModuleSrc(ctx, sourceRemovedApiFile)
 	}
 
 	if String(d.properties.Removed_dex_api_filename) != "" {
