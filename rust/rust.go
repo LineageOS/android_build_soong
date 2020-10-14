@@ -500,7 +500,7 @@ func (mod *Module) Module() android.Module {
 	return mod
 }
 
-func (mod *Module) StubsVersions() []string {
+func (mod *Module) StubsVersions(ctx android.BaseMutatorContext) []string {
 	// For now, Rust has no stubs versions.
 	if mod.compiler != nil {
 		if _, ok := mod.compiler.(libraryInterface); ok {

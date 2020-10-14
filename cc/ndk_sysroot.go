@@ -131,7 +131,7 @@ func (n *ndkSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		}
 
 		if m, ok := module.(*Module); ok {
-			if installer, ok := m.installer.(*stubDecorator); ok {
+			if installer, ok := m.installer.(*stubDecorator); ok && m.BuildStubs() {
 				if ctx.Config().ExcludeDraftNdkApis() &&
 					installer.properties.Draft {
 					return
