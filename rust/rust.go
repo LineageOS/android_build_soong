@@ -684,7 +684,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		} else {
 			sourceMod := actx.GetDirectDepWithTag(mod.Name(), sourceDepTag)
 			sourceLib := sourceMod.(*Module).compiler.(*libraryDecorator)
-			mod.sourceProvider.setOutputFile(sourceLib.sourceProvider.Srcs()[0])
+			mod.sourceProvider.setOutputFiles(sourceLib.sourceProvider.Srcs())
 		}
 	}
 

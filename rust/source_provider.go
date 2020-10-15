@@ -30,7 +30,7 @@ type SourceProviderProperties struct {
 type BaseSourceProvider struct {
 	Properties SourceProviderProperties
 
-	OutputFile       android.Path
+	OutputFiles      android.Paths
 	subAndroidMkOnce map[SubAndroidMkProvider]bool
 	subName          string
 }
@@ -43,11 +43,11 @@ type SourceProvider interface {
 	SourceProviderProps() []interface{}
 	SourceProviderDeps(ctx DepsContext, deps Deps) Deps
 	setSubName(subName string)
-	setOutputFile(outputFile android.Path)
+	setOutputFiles(outputFiles android.Paths)
 }
 
 func (sp *BaseSourceProvider) Srcs() android.Paths {
-	return android.Paths{sp.OutputFile}
+	return sp.OutputFiles
 }
 
 func (sp *BaseSourceProvider) GenerateSource(ctx ModuleContext, deps PathDeps) android.Path {
@@ -97,6 +97,6 @@ func (sp *BaseSourceProvider) setSubName(subName string) {
 	sp.subName = subName
 }
 
-func (sp *BaseSourceProvider) setOutputFile(outputFile android.Path) {
-	sp.OutputFile = outputFile
+func (sp *BaseSourceProvider) setOutputFiles(outputFiles android.Paths) {
+	sp.OutputFiles = outputFiles
 }
