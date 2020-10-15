@@ -93,6 +93,9 @@ message MetricsBase {
   repeated PerfInfo ninja_runs = 20;
 
   optional BuildConfig build_config = 23;
+
+  // The hostname of the machine.
+  optional string hostname = 24;
 }
 
 message BuildConfig {
