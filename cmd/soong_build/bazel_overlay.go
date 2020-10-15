@@ -149,31 +149,6 @@ var (
 		"string":      true, // e.g. "a"
 	}
 
-	// TODO(b/166563303): Specific properties of some module types aren't
-	// recognized by the documentation generator. As a workaround, hardcode a
-	// mapping of the module type to prop name to prop type here, and ultimately
-	// fix the documentation generator to also parse these properties correctly.
-	additionalPropTypes = map[string]map[string]string{
-		// sdk and module_exports props are created at runtime using reflection.
-		// bpdocs isn't wired up to read runtime generated structs.
-		"sdk": {
-			"java_header_libs":    "string_list",
-			"java_sdk_libs":       "string_list",
-			"java_system_modules": "string_list",
-			"native_header_libs":  "string_list",
-			"native_libs":         "string_list",
-			"native_objects":      "string_list",
-			"native_shared_libs":  "string_list",
-			"native_static_libs":  "string_list",
-		},
-		"module_exports": {
-			"java_libs":          "string_list",
-			"java_tests":         "string_list",
-			"native_binaries":    "string_list",
-			"native_shared_libs": "string_list",
-		},
-	}
-
 	// Certain module property names are blocklisted/ignored here, for the reasons commented.
 	ignoredPropNames = map[string]bool{
 		"name":       true, // redundant, since this is explicitly generated for every target
@@ -439,8 +414,19 @@ func createRuleShims(packages []*bpdoc.Package) (map[string]RuleShim, error) {
 				attrs += propToAttr(prop, prop.Name)
 			}
 
-			for propName, propType := range additionalPropTypes[moduleTypeTemplate.Name] {
-				attrs += fmt.Sprintf("        %q: attr.%s(),\n", propName, propType)
+			moduleTypeName := moduleTypeTemplate.Name
+
+			// Certain SDK-related module types dynamically inject properties, instead of declaring
+			// them as structs. These properties are registered in an SdkMemberTypesRegistry. If
+			// the module type name matches, add these properties into the rule definition.
+			var registeredTypes []android.SdkMemberType
+			if moduleTypeName == "module_exports" || moduleTypeName == "module_exports_snapshot" {
+				registeredTypes = android.ModuleExportsMemberTypes.RegisteredTypes()
+			} else if moduleTypeName == "sdk" || moduleTypeName == "sdk_snapshot" {
+				registeredTypes = android.SdkMemberTypes.RegisteredTypes()
+			}
+			for _, memberType := range registeredTypes {
+				attrs += fmt.Sprintf("        %q: attr.string_list(),\n", memberType.SdkPropertyName())
 			}
 
 			attrs += "    },"
