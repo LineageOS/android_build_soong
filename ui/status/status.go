@@ -54,6 +54,37 @@ type ActionResult struct {
 	// Error is nil if the Action succeeded, or set to an error if it
 	// failed.
 	Error error
+
+	Stats ActionResultStats
+}
+
+type ActionResultStats struct {
+	// Number of milliseconds spent executing in user mode
+	UserTime uint32
+
+	// Number of milliseconds spent executing in kernel mode
+	SystemTime uint32
+
+	// Max resident set size in kB
+	MaxRssKB uint64
+
+	// Minor page faults
+	MinorPageFaults uint64
+
+	// Major page faults
+	MajorPageFaults uint64
+
+	// IO input in kB
+	IOInputKB uint64
+
+	// IO output in kB
+	IOOutputKB uint64
+
+	// Voluntary context switches
+	VoluntaryContextSwitches uint64
+
+	// Involuntary context switches
+	InvoluntaryContextSwitches uint64
 }
 
 // Counts describes the number of actions in each state
