@@ -302,9 +302,6 @@ type compiler interface {
 }
 
 type exportedFlagsProducer interface {
-	exportedLinkDirs() []string
-	exportedDepFlags() []string
-	exportedLinkObjects() []string
 	exportLinkDirs(...string)
 	exportDepFlags(...string)
 	exportLinkObjects(...string)
@@ -314,18 +311,6 @@ type flagExporter struct {
 	depFlags    []string
 	linkDirs    []string
 	linkObjects []string
-}
-
-func (flagExporter *flagExporter) exportedLinkDirs() []string {
-	return flagExporter.linkDirs
-}
-
-func (flagExporter *flagExporter) exportedDepFlags() []string {
-	return flagExporter.depFlags
-}
-
-func (flagExporter *flagExporter) exportedLinkObjects() []string {
-	return flagExporter.linkObjects
 }
 
 func (flagExporter *flagExporter) exportLinkDirs(dirs ...string) {
@@ -340,15 +325,27 @@ func (flagExporter *flagExporter) exportLinkObjects(flags ...string) {
 	flagExporter.linkObjects = android.FirstUniqueStrings(append(flagExporter.linkObjects, flags...))
 }
 
+func (flagExporter *flagExporter) setProvider(ctx ModuleContext) {
+	ctx.SetProvider(FlagExporterInfoProvider, FlagExporterInfo{
+		Flags:       flagExporter.depFlags,
+		LinkDirs:    flagExporter.linkDirs,
+		LinkObjects: flagExporter.linkObjects,
+	})
+}
+
 var _ exportedFlagsProducer = (*flagExporter)(nil)
 
 func NewFlagExporter() *flagExporter {
-	return &flagExporter{
-		depFlags:    []string{},
-		linkDirs:    []string{},
-		linkObjects: []string{},
-	}
+	return &flagExporter{}
 }
+
+type FlagExporterInfo struct {
+	Flags       []string
+	LinkDirs    []string // TODO: this should be android.Paths
+	LinkObjects []string // TODO: this should be android.Paths
+}
+
+var FlagExporterInfoProvider = blueprint.NewProvider(FlagExporterInfo{})
 
 func (mod *Module) isCoverageVariant() bool {
 	return mod.coverage.Properties.IsCoverageVariant
@@ -499,22 +496,11 @@ func (mod *Module) BuildSharedVariant() bool {
 	panic(fmt.Errorf("BuildSharedVariant called on non-library module: %q", mod.BaseModuleName()))
 }
 
-// Rust module deps don't have a link order (?)
-func (mod *Module) SetDepsInLinkOrder([]android.Path) {}
-
-func (mod *Module) GetDepsInLinkOrder() []android.Path {
-	return []android.Path{}
-}
-
-func (mod *Module) GetStaticVariant() cc.LinkableInterface {
-	return nil
-}
-
 func (mod *Module) Module() android.Module {
 	return mod
 }
 
-func (mod *Module) StubsVersions() []string {
+func (mod *Module) StubsVersions(ctx android.BaseMutatorContext) []string {
 	// For now, Rust has no stubs versions.
 	if mod.compiler != nil {
 		if _, ok := mod.compiler.(libraryInterface); ok {
@@ -530,12 +516,6 @@ func (mod *Module) OutputFile() android.OptionalPath {
 
 func (mod *Module) InRecovery() bool {
 	// For now, Rust has no notion of the recovery image
-	return false
-}
-func (mod *Module) HasStaticVariant() bool {
-	if mod.GetStaticVariant() != nil {
-		return true
-	}
 	return false
 }
 
@@ -701,11 +681,6 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		if mod.compiler.(libraryInterface).source() {
 			mod.sourceProvider.GenerateSource(ctx, deps)
 			mod.sourceProvider.setSubName(ctx.ModuleSubDir())
-			if lib, ok := mod.compiler.(*libraryDecorator); ok {
-				lib.flagExporter.linkDirs = nil
-				lib.flagExporter.linkObjects = nil
-				lib.flagExporter.depFlags = nil
-			}
 		} else {
 			sourceMod := actx.GetDirectDepWithTag(mod.Name(), sourceDepTag)
 			sourceLib := sourceMod.(*Module).compiler.(*libraryDecorator)
@@ -846,10 +821,11 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 
 			//Append the dependencies exportedDirs, except for proc-macros which target a different arch/OS
-			if lib, ok := rustDep.compiler.(exportedFlagsProducer); ok && depTag != procMacroDepTag {
-				depPaths.linkDirs = append(depPaths.linkDirs, lib.exportedLinkDirs()...)
-				depPaths.depFlags = append(depPaths.depFlags, lib.exportedDepFlags()...)
-				depPaths.linkObjects = append(depPaths.linkObjects, lib.exportedLinkObjects()...)
+			if depTag != procMacroDepTag {
+				exportedInfo := ctx.OtherModuleProvider(dep, FlagExporterInfoProvider).(FlagExporterInfo)
+				depPaths.linkDirs = append(depPaths.linkDirs, exportedInfo.LinkDirs...)
+				depPaths.depFlags = append(depPaths.depFlags, exportedInfo.Flags...)
+				depPaths.linkObjects = append(depPaths.linkObjects, exportedInfo.LinkObjects...)
 			}
 
 			if depTag == dylibDepTag || depTag == rlibDepTag || depTag == procMacroDepTag {
@@ -889,24 +865,22 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			case cc.IsStaticDepTag(depTag):
 				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
 				depPaths.linkObjects = append(depPaths.linkObjects, linkObject.String())
-				depPaths.depIncludePaths = append(depPaths.depIncludePaths, ccDep.IncludeDirs()...)
-				if mod, ok := ccDep.(*cc.Module); ok {
-					depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, mod.ExportedSystemIncludeDirs()...)
-					depPaths.depClangFlags = append(depPaths.depClangFlags, mod.ExportedFlags()...)
-					depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, mod.ExportedGeneratedHeaders()...)
-				}
+				exportedInfo := ctx.OtherModuleProvider(dep, cc.FlagExporterInfoProvider).(cc.FlagExporterInfo)
+				depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
+				depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, exportedInfo.SystemIncludeDirs...)
+				depPaths.depClangFlags = append(depPaths.depClangFlags, exportedInfo.Flags...)
+				depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, exportedInfo.GeneratedHeaders...)
 				depPaths.coverageFiles = append(depPaths.coverageFiles, ccDep.CoverageFiles()...)
 				directStaticLibDeps = append(directStaticLibDeps, ccDep)
 				mod.Properties.AndroidMkStaticLibs = append(mod.Properties.AndroidMkStaticLibs, depName)
 			case cc.IsSharedDepTag(depTag):
 				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
 				depPaths.linkObjects = append(depPaths.linkObjects, linkObject.String())
-				depPaths.depIncludePaths = append(depPaths.depIncludePaths, ccDep.IncludeDirs()...)
-				if mod, ok := ccDep.(*cc.Module); ok {
-					depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, mod.ExportedSystemIncludeDirs()...)
-					depPaths.depClangFlags = append(depPaths.depClangFlags, mod.ExportedFlags()...)
-					depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, mod.ExportedGeneratedHeaders()...)
-				}
+				exportedInfo := ctx.OtherModuleProvider(dep, cc.FlagExporterInfoProvider).(cc.FlagExporterInfo)
+				depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
+				depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, exportedInfo.SystemIncludeDirs...)
+				depPaths.depClangFlags = append(depPaths.depClangFlags, exportedInfo.Flags...)
+				depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, exportedInfo.GeneratedHeaders...)
 				directSharedLibDeps = append(directSharedLibDeps, ccDep)
 				mod.Properties.AndroidMkSharedLibs = append(mod.Properties.AndroidMkSharedLibs, depName)
 				exportDep = true

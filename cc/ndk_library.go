@@ -80,9 +80,6 @@ type libraryProperties struct {
 	// https://github.com/android-ndk/ndk/issues/265.
 	Unversioned_until *string
 
-	// Use via apiLevel on the stubDecorator.
-	ApiLevel string `blueprint:"mutated"`
-
 	// True if this API is not yet ready to be shipped in the NDK. It will be
 	// available in the platform for testing, but will be excluded from the
 	// sysroot provided to the NDK proper.
@@ -107,9 +104,7 @@ func shouldUseVersionScript(ctx BaseModuleContext, stub *stubDecorator) bool {
 	return stub.apiLevel.GreaterThanOrEqualTo(stub.unversionedUntil)
 }
 
-func generatePerApiVariants(ctx android.BottomUpMutatorContext, m *Module,
-	from android.ApiLevel, perSplit func(*Module, android.ApiLevel)) {
-
+func ndkLibraryVersions(ctx android.BaseMutatorContext, from android.ApiLevel) []string {
 	var versions []android.ApiLevel
 	versionStrs := []string{}
 	for _, version := range ctx.Config().AllSupportedApiLevels() {
@@ -118,56 +113,26 @@ func generatePerApiVariants(ctx android.BottomUpMutatorContext, m *Module,
 			versionStrs = append(versionStrs, version.String())
 		}
 	}
-	versions = append(versions, android.FutureApiLevel)
 	versionStrs = append(versionStrs, android.FutureApiLevel.String())
 
-	modules := ctx.CreateVariations(versionStrs...)
-	for i, module := range modules {
-		perSplit(module.(*Module), versions[i])
-	}
+	return versionStrs
 }
 
-func NdkApiMutator(ctx android.BottomUpMutatorContext) {
-	if m, ok := ctx.Module().(*Module); ok {
-		if m.Enabled() {
-			if compiler, ok := m.compiler.(*stubDecorator); ok {
-				if ctx.Os() != android.Android {
-					// These modules are always android.DeviceEnabled only, but
-					// those include Fuchsia devices, which we don't support.
-					ctx.Module().Disable()
-					return
-				}
-				firstVersion, err := nativeApiLevelFromUser(ctx,
-					String(compiler.properties.First_version))
-				if err != nil {
-					ctx.PropertyErrorf("first_version", err.Error())
-					return
-				}
-				generatePerApiVariants(ctx, m, firstVersion,
-					func(m *Module, version android.ApiLevel) {
-						m.compiler.(*stubDecorator).properties.ApiLevel =
-							version.String()
-					})
-			} else if m.SplitPerApiLevel() && m.IsSdkVariant() {
-				if ctx.Os() != android.Android {
-					return
-				}
-				from, err := nativeApiLevelFromUser(ctx, m.MinSdkVersion())
-				if err != nil {
-					ctx.PropertyErrorf("min_sdk_version", err.Error())
-					return
-				}
-				generatePerApiVariants(ctx, m, from,
-					func(m *Module, version android.ApiLevel) {
-						m.Properties.Sdk_version = StringPtr(version.String())
-					})
-			}
-		}
+func (this *stubDecorator) stubsVersions(ctx android.BaseMutatorContext) []string {
+	if !ctx.Module().Enabled() {
+		return nil
 	}
+	firstVersion, err := nativeApiLevelFromUser(ctx,
+		String(this.properties.First_version))
+	if err != nil {
+		ctx.PropertyErrorf("first_version", err.Error())
+		return nil
+	}
+	return ndkLibraryVersions(ctx, firstVersion)
 }
 
 func (this *stubDecorator) initializeProperties(ctx BaseModuleContext) bool {
-	this.apiLevel = nativeApiLevelOrPanic(ctx, this.properties.ApiLevel)
+	this.apiLevel = nativeApiLevelOrPanic(ctx, this.stubsVersion())
 
 	var err error
 	this.firstVersion, err = nativeApiLevelFromUser(ctx,
@@ -280,6 +245,11 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) O
 		ctx.PropertyErrorf("symbol_file", "must end with .map.txt")
 	}
 
+	if !c.buildStubs() {
+		// NDK libraries have no implementation variant, nothing to do
+		return Objects{}
+	}
+
 	if !c.initializeProperties(ctx) {
 		// Emits its own errors, so we don't need to.
 		return Objects{}
@@ -311,12 +281,18 @@ func (stub *stubDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 func (stub *stubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 	objs Objects) android.Path {
 
+	if !stub.buildStubs() {
+		// NDK libraries have no implementation variant, nothing to do
+		return nil
+	}
+
 	if shouldUseVersionScript(ctx, stub) {
 		linkerScriptFlag := "-Wl,--version-script," + stub.versionScriptPath.String()
 		flags.Local.LdFlags = append(flags.Local.LdFlags, linkerScriptFlag)
 		flags.LdFlagsDeps = append(flags.LdFlagsDeps, stub.versionScriptPath)
 	}
 
+	stub.libraryDecorator.skipAPIDefine = true
 	return stub.libraryDecorator.link(ctx, flags, deps, objs)
 }
 

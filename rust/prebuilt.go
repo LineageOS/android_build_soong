@@ -93,7 +93,8 @@ func (prebuilt *prebuiltLibraryDecorator) compilerProps() []interface{} {
 }
 
 func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
-	prebuilt.exportLinkDirs(android.PathsForModuleSrc(ctx, prebuilt.Properties.Link_dirs).Strings()...)
+	prebuilt.flagExporter.exportLinkDirs(android.PathsForModuleSrc(ctx, prebuilt.Properties.Link_dirs).Strings()...)
+	prebuilt.flagExporter.setProvider(ctx)
 
 	srcPath, paths := srcPathFromModuleSrcs(ctx, prebuilt.prebuiltSrcs())
 	if len(paths) > 0 {

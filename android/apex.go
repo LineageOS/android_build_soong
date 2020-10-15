@@ -145,11 +145,6 @@ type ApexModule interface {
 	// check-platform-availability mutator in the apex package.
 	SetNotAvailableForPlatform()
 
-	// Returns the highest version which is <= maxSdkVersion.
-	// For example, with maxSdkVersion is 10 and versionList is [9,11]
-	// it returns 9 as string
-	ChooseSdkVersion(ctx BaseModuleContext, versionList []string, maxSdkVersion ApiLevel) (string, error)
-
 	// List of APEXes that this module tests. The module has access to
 	// the private part of the listed APEXes even when it is not included in the
 	// APEXes.
@@ -308,20 +303,6 @@ func (m *ApexModuleBase) DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
 	// unless B is explicitly from outside of the APEX (i.e. a stubs lib). Thus, returning true.
 	// This is overridden by some module types like apex.ApexBundle, cc.Module, java.Module, etc.
 	return true
-}
-
-func (m *ApexModuleBase) ChooseSdkVersion(ctx BaseModuleContext, versionList []string, maxSdkVersion ApiLevel) (string, error) {
-	for i := range versionList {
-		version := versionList[len(versionList)-i-1]
-		ver, err := ApiLevelFromUser(ctx, version)
-		if err != nil {
-			return "", err
-		}
-		if ver.LessThanOrEqualTo(maxSdkVersion) {
-			return version, nil
-		}
-	}
-	return "", fmt.Errorf("not found a version(<=%s) in versionList: %v", maxSdkVersion, versionList)
 }
 
 func (m *ApexModuleBase) checkApexAvailableProperty(mctx BaseModuleContext) {

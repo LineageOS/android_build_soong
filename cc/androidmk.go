@@ -186,17 +186,17 @@ func makeOverrideModuleNames(ctx AndroidMkContext, overrides []string) []string 
 }
 
 func (library *libraryDecorator) androidMkWriteExportedFlags(entries *android.AndroidMkEntries) {
-	exportedFlags := library.exportedFlags()
-	for _, dir := range library.exportedDirs() {
+	exportedFlags := library.flagExporter.flags
+	for _, dir := range library.flagExporter.dirs {
 		exportedFlags = append(exportedFlags, "-I"+dir.String())
 	}
-	for _, dir := range library.exportedSystemDirs() {
+	for _, dir := range library.flagExporter.systemDirs {
 		exportedFlags = append(exportedFlags, "-isystem "+dir.String())
 	}
 	if len(exportedFlags) > 0 {
 		entries.AddStrings("LOCAL_EXPORT_CFLAGS", exportedFlags...)
 	}
-	exportedDeps := library.exportedDeps()
+	exportedDeps := library.flagExporter.deps
 	if len(exportedDeps) > 0 {
 		entries.AddStrings("LOCAL_EXPORT_C_INCLUDE_DEPS", exportedDeps.Strings()...)
 	}
@@ -441,6 +441,11 @@ func (installer *baseInstaller) AndroidMkEntries(ctx AndroidMkContext, entries *
 func (c *stubDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	entries.SubName = ndkLibrarySuffix + "." + c.apiLevel.String()
 	entries.Class = "SHARED_LIBRARIES"
+
+	if !c.buildStubs() {
+		entries.Disabled = true
+		return
+	}
 
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		path, file := filepath.Split(c.installPath.String())

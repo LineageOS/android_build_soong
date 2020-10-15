@@ -14,16 +14,9 @@ type LinkableInterface interface {
 	OutputFile() android.OptionalPath
 	CoverageFiles() android.Paths
 
-	IncludeDirs() android.Paths
-	SetDepsInLinkOrder([]android.Path)
-	GetDepsInLinkOrder() []android.Path
-
-	HasStaticVariant() bool
-	GetStaticVariant() LinkableInterface
-
 	NonCcVariants() bool
 
-	StubsVersions() []string
+	StubsVersions(android.BaseMutatorContext) []string
 	BuildStubs() bool
 	SetBuildStubs()
 	SetStubsVersion(string)
@@ -80,3 +73,54 @@ func SharedDepTag() blueprint.DependencyTag {
 func StaticDepTag() blueprint.DependencyTag {
 	return libraryDependencyTag{Kind: staticLibraryDependency}
 }
+
+type SharedLibraryInfo struct {
+	SharedLibrary           android.Path
+	UnstrippedSharedLibrary android.Path
+
+	TableOfContents       android.OptionalPath
+	CoverageSharedLibrary android.OptionalPath
+
+	StaticAnalogue *StaticLibraryInfo
+}
+
+var SharedLibraryInfoProvider = blueprint.NewProvider(SharedLibraryInfo{})
+
+type SharedLibraryImplementationStubsInfo struct {
+	SharedLibraryStubsInfos []SharedLibraryStubsInfo
+
+	IsLLNDK bool
+}
+
+var SharedLibraryImplementationStubsInfoProvider = blueprint.NewProvider(SharedLibraryImplementationStubsInfo{})
+
+type SharedLibraryStubsInfo struct {
+	Version           string
+	SharedLibraryInfo SharedLibraryInfo
+	FlagExporterInfo  FlagExporterInfo
+}
+
+var SharedLibraryStubsInfoProvider = blueprint.NewProvider(SharedLibraryStubsInfo{})
+
+type StaticLibraryInfo struct {
+	StaticLibrary android.Path
+	Objects       Objects
+	ReuseObjects  Objects
+
+	// This isn't the actual transitive DepSet, shared library dependencies have been
+	// converted into static library analogues.  It is only used to order the static
+	// library dependencies that were specified for the current module.
+	TransitiveStaticLibrariesForOrdering *android.DepSet
+}
+
+var StaticLibraryInfoProvider = blueprint.NewProvider(StaticLibraryInfo{})
+
+type FlagExporterInfo struct {
+	IncludeDirs       android.Paths
+	SystemIncludeDirs android.Paths
+	Flags             []string
+	Deps              android.Paths
+	GeneratedHeaders  android.Paths
+}
+
+var FlagExporterInfoProvider = blueprint.NewProvider(FlagExporterInfo{})
