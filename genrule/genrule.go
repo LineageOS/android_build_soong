@@ -81,6 +81,12 @@ type hostToolDependencyTag struct {
 	label string
 }
 
+// TODO(cparsons): Move to a common location when there is more than just
+// genrule with a bazel_module property.
+type bazelModuleProperties struct {
+	Label string
+}
+
 type generatorProperties struct {
 	// The command to run on one or more input files. Cmd supports substitution of a few variables
 	//
@@ -115,7 +121,7 @@ type generatorProperties struct {
 	Exclude_srcs []string `android:"path,arch_variant"`
 
 	// in bazel-enabled mode, the bazel label to evaluate instead of this module
-	Bazel_module string
+	Bazel_module bazelModuleProperties
 }
 type Module struct {
 	android.ModuleBase
@@ -472,7 +478,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	g.outputFiles = outputFiles.Paths()
 
-	bazelModuleLabel := g.properties.Bazel_module
+	bazelModuleLabel := g.properties.Bazel_module.Label
 	bazelActionsUsed := false
 	if ctx.Config().BazelContext.BazelEnabled() && len(bazelModuleLabel) > 0 {
 		bazelActionsUsed = g.generateBazelBuildActions(ctx, bazelModuleLabel)
