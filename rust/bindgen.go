@@ -202,7 +202,7 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 		},
 	})
 
-	b.BaseSourceProvider.OutputFile = outputFile
+	b.BaseSourceProvider.OutputFiles = android.Paths{outputFile}
 	return outputFile
 }
 
