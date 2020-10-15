@@ -726,7 +726,7 @@ func TestGenruleWithBazel(t *testing.T) {
 		genrule {
 				name: "foo",
 				out: ["one.txt", "two.txt"],
-				bazel_module: "//foo/bar:bar",
+				bazel_module: { label: "//foo/bar:bar" },
 		}
 	`
 
