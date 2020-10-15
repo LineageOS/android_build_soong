@@ -119,9 +119,9 @@ func inList(s string, list []string) bool {
 func main() {
 	buildStarted := time.Now()
 
-	c, args := getCommand(os.Args)
-	if c == nil {
-		fmt.Fprintf(os.Stderr, "The `soong` native UI is not yet available.\n")
+	c, args, err := getCommand(os.Args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing `soong` args: %s.\n", err)
 		os.Exit(1)
 	}
 
@@ -479,14 +479,14 @@ func make(ctx build.Context, config build.Config, _ []string, logsDir string) {
 
 // getCommand finds the appropriate command based on args[1] flag. args[0]
 // is the soong_ui filename.
-func getCommand(args []string) (*command, []string) {
+func getCommand(args []string) (*command, []string, error) {
 	if len(args) < 2 {
-		return nil, args
+		return nil, nil, fmt.Errorf("Too few arguments: %q", args)
 	}
 
 	for _, c := range commands {
 		if c.flag == args[1] {
-			return &c, args[2:]
+			return &c, args[2:], nil
 		}
 
 		// special case for --make-mode: if soong_ui was called from
@@ -495,11 +495,11 @@ func getCommand(args []string) (*command, []string) {
 		// TODO: Remove this hack once it has been fixed.
 		if c.flag == makeModeFlagName {
 			if inList(makeModeFlagName, args) {
-				return &c, args[1:]
+				return &c, args[1:], nil
 			}
 		}
 	}
 
 	// command not found
-	return nil, args
+	return nil, nil, fmt.Errorf("Command not found: %q", args)
 }
