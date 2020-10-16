@@ -150,6 +150,18 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 
 	esc := proptools.NinjaAndShellEscapeList
 
+	// Filter out invalid cflags
+	for _, flag := range b.ClangProperties.Cflags {
+		if flag == "-x c++" || flag == "-xc++" {
+			ctx.PropertyErrorf("cflags",
+				"-x c++ should not be specified in cflags; setting cpp_std specifies this is a C++ header, or change the file extension to '.hpp' or '.hh'")
+		}
+		if strings.HasPrefix(flag, "-std=") {
+			ctx.PropertyErrorf("cflags",
+				"-std should not be specified in cflags; instead use c_std or cpp_std")
+		}
+	}
+
 	// Module defined clang flags and include paths
 	cflags = append(cflags, esc(b.ClangProperties.Cflags)...)
 	for _, include := range b.ClangProperties.Local_include_dirs {
