@@ -969,6 +969,8 @@ func (a *AndroidApp) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
 	case ".aapt.srcjar":
 		return []android.Path{a.aaptSrcJar}, nil
+	case ".export-package.apk":
+		return []android.Path{a.exportPackage}, nil
 	}
 	return a.Library.OutputFiles(tag)
 }
