@@ -169,6 +169,8 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 			TableOfContents: p.tocFile,
 		})
 
+		p.libraryDecorator.flagExporter.setProvider(ctx)
+
 		return in
 	}
 
