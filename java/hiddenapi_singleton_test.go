@@ -215,5 +215,5 @@ func generateSdkDexPath(module string, unbundled bool) string {
 	if unbundled {
 		return generateDexedPath("prebuilts/sdk/"+module, "dex", module)
 	}
-	return generateDexedPath(module, "dex-withres", module)
+	return generateDexPath(module)
 }
