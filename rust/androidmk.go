@@ -156,7 +156,7 @@ func (procMacro *procMacroDecorator) AndroidMk(ctx AndroidMkContext, ret *androi
 }
 
 func (sourceProvider *BaseSourceProvider) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkData) {
-	outFile := sourceProvider.OutputFile
+	outFile := sourceProvider.OutputFiles[0]
 	ret.Class = "ETC"
 	ret.OutputFile = android.OptionalPathForPath(outFile)
 	ret.SubName += sourceProvider.subName

@@ -61,15 +61,22 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 	}
 
 	outDir := android.PathForModuleOut(ctx)
-	depFile := android.PathForModuleOut(ctx, proto.BaseSourceProvider.getStem(ctx)+".d")
-	outputs := android.WritablePaths{android.PathForModuleOut(ctx, proto.BaseSourceProvider.getStem(ctx)+".rs")}
+	stem := proto.BaseSourceProvider.getStem(ctx)
+	// rust protobuf-codegen output <stem>.rs
+	stemFile := android.PathForModuleOut(ctx, stem+".rs")
+	// add mod_<stem>.rs to import <stem>.rs
+	modFile := android.PathForModuleOut(ctx, "mod_"+stem+".rs")
+	// mod_<stem>.rs is the main/first output file to be included/compiled
+	outputs := android.WritablePaths{modFile, stemFile}
+	depFile := android.PathForModuleOut(ctx, "mod_"+stem+".d")
 
 	rule := android.NewRuleBuilder()
 	android.ProtoRule(ctx, rule, protoFile.Path(), protoFlags, protoFlags.Deps, outDir, depFile, outputs)
+	rule.Command().Text("printf '// @generated\\npub mod %s;\\n' '" + stem + "' >").Output(modFile)
 	rule.Build(pctx, ctx, "protoc_"+protoFile.Path().Rel(), "protoc "+protoFile.Path().Rel())
 
-	proto.BaseSourceProvider.OutputFile = outputs[0]
-	return outputs[0]
+	proto.BaseSourceProvider.OutputFiles = android.Paths{modFile, stemFile}
+	return modFile
 }
 
 func (proto *protobufDecorator) SourceProviderProps() []interface{} {
