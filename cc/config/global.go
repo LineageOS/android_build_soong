@@ -53,6 +53,13 @@ var (
 		"-Werror=pragma-pack",
 		"-Werror=pragma-pack-suspicious-include",
 		"-Werror=unreachable-code-loop-increment",
+
+		// -fdebug-compilation-dir=. is used to make both the action command line and the output
+		// independent of the working directory of the action.
+		// Using cc1 flags since RBE's input processor does not yet have the updated version
+		// of LLVM that promotes the cc1 flag to driver level flag.
+		// See: https://reviews.llvm.org/D63387
+		"-Xclang,-fdebug-compilation-dir,.",
 	}
 
 	commonGlobalConlyflags = []string{}
@@ -150,10 +157,6 @@ var (
 var pctx = android.NewPackageContext("android/soong/cc/config")
 
 func init() {
-	if android.BuildOs == android.Linux {
-		commonGlobalCflags = append(commonGlobalCflags, "-fdebug-prefix-map=/proc/self/cwd=")
-	}
-
 	pctx.StaticVariable("CommonGlobalConlyflags", strings.Join(commonGlobalConlyflags, " "))
 	pctx.StaticVariable("DeviceGlobalCppflags", strings.Join(deviceGlobalCppflags, " "))
 	pctx.StaticVariable("DeviceGlobalLdflags", strings.Join(deviceGlobalLdflags, " "))
@@ -205,7 +208,7 @@ func init() {
 	pctx.PrefixedExistentPathsForSourcesVariable("CommonGlobalIncludes", "-I",
 		[]string{
 			"system/core/include",
-			"system/core/liblog/include",
+			"system/logging/liblog/include",
 			"system/media/audio/include",
 			"hardware/libhardware/include",
 			"hardware/libhardware_legacy/include",
