@@ -94,6 +94,9 @@ message MetricsBase {
   optional PerfInfo total = 21;
 
   optional BuildConfig build_config = 23;
+
+  // The hostname of the machine.
+  optional string hostname = 24;
 }
 
 message BuildConfig {
