@@ -15,7 +15,7 @@ bootstrap_go_package {
 
 bootstrap_go_package {
     name: "soong-suite-harness",
-    pkgPath: "android/soong/suite_harness",
+    pkgPath: "android/soong/tradefed/suite_harness",
     deps: [
         "blueprint",
         "blueprint-pathtools",
@@ -25,7 +25,7 @@ bootstrap_go_package {
         "soong-java",
     ],
     srcs: [
-        "tradefed_binary.go",
+        "suite_harness/tradefed_binary.go",
     ],
     pluginFor: ["soong_build"],
 }
