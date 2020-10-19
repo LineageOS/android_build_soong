@@ -28,14 +28,14 @@ func TestEnd(t *testing.T) {
 	_now = func() time.Time { return startTime.Add(dur) }
 	defer func() { _now = initialNow }()
 
-	timeTracer := &timeTracerImpl{}
-	timeTracer.activeEvents = append(timeTracer.activeEvents, timeEvent{
+	eventTracer := &eventTracerImpl{}
+	eventTracer.activeEvents = append(eventTracer.activeEvents, event{
 		desc:  "test",
 		name:  "test",
 		start: startTime,
 	})
 
-	perf := timeTracer.End(tracer.Thread(0))
+	perf := eventTracer.End(tracer.Thread(0))
 	if perf.GetRealTime() != uint64(dur.Nanoseconds()) {
 		t.Errorf("got %d, want %d nanoseconds for event duration", perf.GetRealTime(), dur.Nanoseconds())
 	}

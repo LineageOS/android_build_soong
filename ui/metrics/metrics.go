@@ -36,14 +36,14 @@ const (
 )
 
 type Metrics struct {
-	metrics    soong_metrics_proto.MetricsBase
-	TimeTracer TimeTracer
+	metrics     soong_metrics_proto.MetricsBase
+	EventTracer EventTracer
 }
 
 func New() (metrics *Metrics) {
 	m := &Metrics{
-		metrics:    soong_metrics_proto.MetricsBase{},
-		TimeTracer: &timeTracerImpl{},
+		metrics:     soong_metrics_proto.MetricsBase{},
+		EventTracer: &eventTracerImpl{},
 	}
 	return m
 }
