@@ -31,7 +31,7 @@ import (
 const (
 	// The default `load` preamble for every generated BUILD file.
 	soongModuleLoad = `package(default_visibility = ["//visibility:public"])
-load("//:soong_module.bzl", "soong_module")
+load("//build/bazel/overlay_rules:soong_module.bzl", "soong_module")
 
 `
 
@@ -62,7 +62,7 @@ load("//:soong_module.bzl", "soong_module")
 	soongModuleBzl = `
 %s
 
-load(":providers.bzl", "SoongModuleInfo")
+load("//build/bazel/overlay_rules:providers.bzl", "SoongModuleInfo")
 
 def _generic_soong_module_impl(ctx):
     return [
@@ -396,7 +396,7 @@ func createRuleShims(packages []*bpdoc.Package) (map[string]RuleShim, error) {
 
 	ruleShims := map[string]RuleShim{}
 	for _, pkg := range packages {
-		content := "load(\":providers.bzl\", \"SoongModuleInfo\")\n"
+		content := "load(\"//build/bazel/overlay_rules:providers.bzl\", \"SoongModuleInfo\")\n"
 
 		bzlFileName := strings.ReplaceAll(pkg.Path, "android/soong/", "")
 		bzlFileName = strings.ReplaceAll(bzlFileName, ".", "_")
@@ -452,16 +452,15 @@ func createBazelOverlay(ctx *android.Context, bazelOverlayDir string) error {
 		buildFile.Write([]byte(generateSoongModuleTarget(blueprintCtx, module) + "\n\n"))
 		buildFile.Close()
 	})
+	var err error
 
-	if err := writeReadOnlyFile(bazelOverlayDir, "WORKSPACE", ""); err != nil {
+	// Write top level files: WORKSPACE and BUILD. These files are empty.
+	if err = writeReadOnlyFile(bazelOverlayDir, "WORKSPACE", ""); err != nil {
 		return err
 	}
 
-	if err := writeReadOnlyFile(bazelOverlayDir, "BUILD", ""); err != nil {
-		return err
-	}
-
-	if err := writeReadOnlyFile(bazelOverlayDir, "providers.bzl", providersBzl); err != nil {
+	// Used to denote that the top level directory is a package.
+	if err = writeReadOnlyFile(bazelOverlayDir, "BUILD", ""); err != nil {
 		return err
 	}
 
@@ -474,13 +473,22 @@ func createBazelOverlay(ctx *android.Context, bazelOverlayDir string) error {
 		return err
 	}
 
+	// Write .bzl Starlark files into the bazel_rules top level directory (provider and rule definitions)
+	bazelRulesDir := bazelOverlayDir + "/build/bazel/overlay_rules"
+	if err = writeReadOnlyFile(bazelRulesDir, "BUILD", ""); err != nil {
+		return err
+	}
+	if err = writeReadOnlyFile(bazelRulesDir, "providers.bzl", providersBzl); err != nil {
+		return err
+	}
+
 	for bzlFileName, ruleShim := range ruleShims {
-		if err := writeReadOnlyFile(bazelOverlayDir, bzlFileName+".bzl", ruleShim.content); err != nil {
+		if err = writeReadOnlyFile(bazelRulesDir, bzlFileName+".bzl", ruleShim.content); err != nil {
 			return err
 		}
 	}
 
-	return writeReadOnlyFile(bazelOverlayDir, "soong_module.bzl", generateSoongModuleBzl(ruleShims))
+	return writeReadOnlyFile(bazelRulesDir, "soong_module.bzl", generateSoongModuleBzl(ruleShims))
 }
 
 // Generate the content of soong_module.bzl with the rule shim load statements
@@ -489,7 +497,7 @@ func generateSoongModuleBzl(bzlLoads map[string]RuleShim) string {
 	var loadStmts string
 	var moduleRuleMap string
 	for bzlFileName, ruleShim := range bzlLoads {
-		loadStmt := "load(\"//:"
+		loadStmt := "load(\"//build/bazel/overlay_rules:"
 		loadStmt += bzlFileName
 		loadStmt += ".bzl\""
 		for _, rule := range ruleShim.rules {
@@ -558,9 +566,7 @@ func generateSoongModuleTarget(
 func buildFileForModule(ctx *blueprint.Context, module blueprint.Module) (*os.File, error) {
 	// Create nested directories for the BUILD file
 	dirPath := filepath.Join(bazelOverlayDir, packagePath(ctx, module))
-	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		os.MkdirAll(dirPath, os.ModePerm)
-	}
+	createDirectoryIfNonexistent(dirPath)
 	// Open the file for appending, and create it if it doesn't exist
 	f, err := os.OpenFile(
 		filepath.Join(dirPath, "BUILD.bazel"),
@@ -582,10 +588,17 @@ func buildFileForModule(ctx *blueprint.Context, module blueprint.Module) (*os.Fi
 	return f, nil
 }
 
+func createDirectoryIfNonexistent(dir string) {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		os.MkdirAll(dir, os.ModePerm)
+	}
+}
+
 // The overlay directory should be read-only, sufficient for bazel query. The files
 // are not intended to be edited by end users.
 func writeReadOnlyFile(dir string, baseName string, content string) error {
-	pathToFile := filepath.Join(bazelOverlayDir, baseName)
+	createDirectoryIfNonexistent(dir)
+	pathToFile := filepath.Join(dir, baseName)
 	// 0444 is read-only
 	return ioutil.WriteFile(pathToFile, []byte(content), 0444)
 }
