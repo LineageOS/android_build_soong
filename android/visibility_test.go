@@ -731,7 +731,7 @@ var visibilityTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			`module "libnamespace" variant "android_common": depends on //top:libexample which is not visible to this module`,
+			`module "libnamespace" variant "android_common": depends on //top:libexample which is not visible to this module\nYou may need to add "//namespace" to its visibility`,
 		},
 	},
 	{
@@ -760,7 +760,7 @@ var visibilityTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			`module "libnamespace" variant "android_common": depends on //top:libexample which is not visible to this module`,
+			`module "libnamespace" variant "android_common": depends on //top:libexample which is not visible to this module\nYou may need to add "//namespace" to its visibility`,
 		},
 	},
 	{
