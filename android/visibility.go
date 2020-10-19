@@ -443,7 +443,7 @@ func visibilityRuleEnforcer(ctx TopDownMutatorContext) {
 
 		rule := effectiveVisibilityRules(ctx.Config(), depQualified)
 		if !rule.matches(qualified) {
-			ctx.ModuleErrorf("depends on %s which is not visible to this module", depQualified)
+			ctx.ModuleErrorf("depends on %s which is not visible to this module\nYou may need to add %q to its visibility", depQualified, "//"+ctx.ModuleDir())
 		}
 	})
 }
