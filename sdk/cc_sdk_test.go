@@ -120,10 +120,8 @@ cc_prebuilt_library_shared {
         android_arm64: {
             srcs: ["android/arm64/lib/sdkmember.so"],
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/lib/sdkmember.so"],
         },
     },
@@ -143,10 +141,8 @@ cc_prebuilt_library_shared {
         android_arm64: {
             srcs: ["android/arm64/lib/sdkmember.so"],
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/lib/sdkmember.so"],
         },
     },
@@ -162,7 +158,7 @@ sdk_snapshot {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
             enabled: true,
         },
     },
@@ -670,20 +666,21 @@ cc_prebuilt_binary {
             enabled: false,
         },
         linux_glibc: {
-            enabled: true,
             compile_multilib: "both",
         },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/bin/mynativebinary"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["linux_glibc/x86/bin/mynativebinary"],
         },
         windows: {
-            enabled: true,
             compile_multilib: "64",
         },
         windows_x86_64: {
+            enabled: true,
             srcs: ["windows/x86_64/bin/mynativebinary.exe"],
         },
     },
@@ -701,20 +698,21 @@ cc_prebuilt_binary {
             enabled: false,
         },
         linux_glibc: {
-            enabled: true,
             compile_multilib: "both",
         },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/bin/mynativebinary"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["linux_glibc/x86/bin/mynativebinary"],
         },
         windows: {
-            enabled: true,
             compile_multilib: "64",
         },
         windows_x86_64: {
+            enabled: true,
             srcs: ["windows/x86_64/bin/mynativebinary.exe"],
         },
     },
@@ -727,15 +725,20 @@ module_exports_snapshot {
     host_supported: true,
     native_binaries: ["myexports_mynativebinary@current"],
     target: {
+        windows: {
+            compile_multilib: "64",
+        },
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
             enabled: true,
         },
-        windows: {
+        linux_glibc_x86: {
             enabled: true,
-            compile_multilib: "64",
+        },
+        windows_x86_64: {
+            enabled: true,
         },
     },
 }
@@ -811,10 +814,8 @@ cc_prebuilt_binary {
         host: {
             enabled: false,
         },
-        linux_bionic: {
-            enabled: true,
-        },
         linux_bionic_x86_64: {
+            enabled: true,
             srcs: ["x86_64/bin/mynativebinary"],
         },
     },
@@ -832,10 +833,8 @@ cc_prebuilt_binary {
         host: {
             enabled: false,
         },
-        linux_bionic: {
-            enabled: true,
-        },
         linux_bionic_x86_64: {
+            enabled: true,
             srcs: ["x86_64/bin/mynativebinary"],
         },
     },
@@ -854,10 +853,8 @@ cc_prebuilt_library_shared {
         host: {
             enabled: false,
         },
-        linux_bionic: {
-            enabled: true,
-        },
         linux_bionic_x86_64: {
+            enabled: true,
             srcs: ["x86_64/lib/mynativelib.so"],
         },
     },
@@ -875,10 +872,8 @@ cc_prebuilt_library_shared {
         host: {
             enabled: false,
         },
-        linux_bionic: {
-            enabled: true,
-        },
         linux_bionic_x86_64: {
+            enabled: true,
             srcs: ["x86_64/lib/mynativelib.so"],
         },
     },
@@ -896,7 +891,7 @@ module_exports_snapshot {
         host: {
             enabled: false,
         },
-        linux_bionic: {
+        linux_bionic_x86_64: {
             enabled: true,
         },
     },
@@ -952,13 +947,12 @@ cc_prebuilt_binary {
         host: {
             enabled: false,
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["x86_64/bin/linker"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["x86/bin/linker"],
         },
     },
@@ -978,13 +972,12 @@ cc_prebuilt_binary {
         host: {
             enabled: false,
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["x86_64/bin/linker"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["x86/bin/linker"],
         },
     },
@@ -1000,7 +993,10 @@ module_exports_snapshot {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
             enabled: true,
         },
     },
@@ -1345,14 +1341,13 @@ cc_prebuilt_library_shared {
         host: {
             enabled: false,
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["x86_64/lib/mynativelib.so"],
             export_include_dirs: ["x86_64/include_gen/mynativelib"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["x86/lib/mynativelib.so"],
             export_include_dirs: ["x86/include_gen/mynativelib"],
         },
@@ -1373,14 +1368,13 @@ cc_prebuilt_library_shared {
         host: {
             enabled: false,
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["x86_64/lib/mynativelib.so"],
             export_include_dirs: ["x86_64/include_gen/mynativelib"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["x86/lib/mynativelib.so"],
             export_include_dirs: ["x86/include_gen/mynativelib"],
         },
@@ -1397,7 +1391,10 @@ sdk_snapshot {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
             enabled: true,
         },
     },
@@ -1464,20 +1461,21 @@ cc_prebuilt_library_shared {
             enabled: false,
         },
         linux_glibc: {
-            enabled: true,
             compile_multilib: "both",
         },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/lib/mynativelib.so"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["linux_glibc/x86/lib/mynativelib.so"],
         },
         windows: {
-            enabled: true,
             compile_multilib: "64",
         },
         windows_x86_64: {
+            enabled: true,
             srcs: ["windows/x86_64/lib/mynativelib.dll"],
         },
     },
@@ -1495,20 +1493,21 @@ cc_prebuilt_library_shared {
             enabled: false,
         },
         linux_glibc: {
-            enabled: true,
             compile_multilib: "both",
         },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/lib/mynativelib.so"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["linux_glibc/x86/lib/mynativelib.so"],
         },
         windows: {
-            enabled: true,
             compile_multilib: "64",
         },
         windows_x86_64: {
+            enabled: true,
             srcs: ["windows/x86_64/lib/mynativelib.dll"],
         },
     },
@@ -1521,15 +1520,20 @@ sdk_snapshot {
     host_supported: true,
     native_shared_libs: ["mysdk_mynativelib@current"],
     target: {
+        windows: {
+            compile_multilib: "64",
+        },
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
             enabled: true,
         },
-        windows: {
+        linux_glibc_x86: {
             enabled: true,
-            compile_multilib: "64",
+        },
+        windows_x86_64: {
+            enabled: true,
         },
     },
 }
@@ -1669,14 +1673,13 @@ cc_prebuilt_library_static {
         host: {
             enabled: false,
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["x86_64/lib/mynativelib.a"],
             export_include_dirs: ["x86_64/include_gen/mynativelib"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["x86/lib/mynativelib.a"],
             export_include_dirs: ["x86/include_gen/mynativelib"],
         },
@@ -1696,14 +1699,13 @@ cc_prebuilt_library_static {
         host: {
             enabled: false,
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["x86_64/lib/mynativelib.a"],
             export_include_dirs: ["x86_64/include_gen/mynativelib"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["x86/lib/mynativelib.a"],
             export_include_dirs: ["x86/include_gen/mynativelib"],
         },
@@ -1720,7 +1722,10 @@ module_exports_snapshot {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
             enabled: true,
         },
     },
@@ -1885,10 +1890,8 @@ cc_prebuilt_library_static {
         host: {
             enabled: false,
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["x86_64/lib/mynativelib.a"],
             export_include_dirs: ["x86_64/include_gen/mynativelib"],
         },
@@ -1908,10 +1911,8 @@ cc_prebuilt_library_static {
         host: {
             enabled: false,
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["x86_64/lib/mynativelib.a"],
             export_include_dirs: ["x86_64/include_gen/mynativelib"],
         },
@@ -1929,7 +1930,7 @@ module_exports_snapshot {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
             enabled: true,
         },
     },
@@ -2027,7 +2028,10 @@ cc_prebuilt_library_headers {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
             enabled: true,
         },
     },
@@ -2046,7 +2050,10 @@ cc_prebuilt_library_headers {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
             enabled: true,
         },
     },
@@ -2062,7 +2069,10 @@ sdk_snapshot {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
             enabled: true,
         },
     },
@@ -2118,8 +2128,13 @@ cc_prebuilt_library_headers {
             export_include_dirs: ["android/include/include-android"],
         },
         linux_glibc: {
-            enabled: true,
             export_include_dirs: ["linux_glibc/include/include-host"],
+        },
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
+            enabled: true,
         },
     },
 }
@@ -2140,8 +2155,13 @@ cc_prebuilt_library_headers {
             export_include_dirs: ["android/include/include-android"],
         },
         linux_glibc: {
-            enabled: true,
             export_include_dirs: ["linux_glibc/include/include-host"],
+        },
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
+            enabled: true,
         },
     },
 }
@@ -2155,7 +2175,10 @@ sdk_snapshot {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
             enabled: true,
         },
     },
@@ -2346,13 +2369,12 @@ cc_prebuilt_library_shared {
         android_arm: {
             srcs: ["android/arm/lib/sslvariants.so"],
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/lib/sslvariants.so"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["linux_glibc/x86/lib/sslvariants.so"],
         },
     },
@@ -2377,13 +2399,12 @@ cc_prebuilt_library_shared {
         android_arm: {
             srcs: ["android/arm/lib/sslvariants.so"],
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/lib/sslvariants.so"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["linux_glibc/x86/lib/sslvariants.so"],
         },
     },
@@ -2398,7 +2419,10 @@ sdk_snapshot {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
             enabled: true,
         },
     },
@@ -2536,13 +2560,12 @@ cc_prebuilt_library_shared {
         android_arm: {
             srcs: ["android/arm/lib/stubslib.so"],
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/lib/stubslib.so"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["linux_glibc/x86/lib/stubslib.so"],
         },
     },
@@ -2571,13 +2594,12 @@ cc_prebuilt_library_shared {
         android_arm: {
             srcs: ["android/arm/lib/stubslib.so"],
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/lib/stubslib.so"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["linux_glibc/x86/lib/stubslib.so"],
         },
     },
@@ -2592,7 +2614,10 @@ sdk_snapshot {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
             enabled: true,
         },
     },
@@ -2637,13 +2662,12 @@ cc_prebuilt_library_shared {
         android_arm: {
             srcs: ["android/arm/lib/mylib.so"],
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/lib/mylib-host.so"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["linux_glibc/x86/lib/mylib-host.so"],
         },
     },
@@ -2666,13 +2690,12 @@ cc_prebuilt_library_shared {
         android_arm: {
             srcs: ["android/arm/lib/mylib.so"],
         },
-        linux_glibc: {
-            enabled: true,
-        },
         linux_glibc_x86_64: {
+            enabled: true,
             srcs: ["linux_glibc/x86_64/lib/mylib-host.so"],
         },
         linux_glibc_x86: {
+            enabled: true,
             srcs: ["linux_glibc/x86/lib/mylib-host.so"],
         },
     },
@@ -2687,7 +2710,10 @@ sdk_snapshot {
         host: {
             enabled: false,
         },
-        linux_glibc: {
+        linux_glibc_x86_64: {
+            enabled: true,
+        },
+        linux_glibc_x86: {
             enabled: true,
         },
     },
