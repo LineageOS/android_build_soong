@@ -1123,6 +1123,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		arch: {
 			arm64: {
 				srcs: ["libvndk.so"],
+				export_include_dirs: ["include/libvndk"],
 			},
 		},
 	}
@@ -1149,6 +1150,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		shared_libs: ["libvndk"],
 		static_libs: ["libvendor", "libvendor_without_snapshot"],
 		compile_multilib: "64",
+		srcs: ["client.cpp"],
 	}
 
 	cc_binary {
@@ -1160,6 +1162,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		system_shared_libs: [],
 		static_libs: ["libvndk"],
 		compile_multilib: "64",
+		srcs: ["bin.cpp"],
 	}
 
 	vendor_snapshot_static {
@@ -1170,6 +1173,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		arch: {
 			arm64: {
 				src: "libvndk.a",
+				export_include_dirs: ["include/libvndk"],
 			},
 		},
 	}
@@ -1182,6 +1186,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		arch: {
 			arm64: {
 				src: "libvendor.so",
+				export_include_dirs: ["include/libvendor"],
 			},
 		},
 	}
@@ -1194,6 +1199,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		arch: {
 			arm64: {
 				src: "libvendor.a",
+				export_include_dirs: ["include/libvendor"],
 			},
 		},
 	}
@@ -1213,15 +1219,20 @@ func TestVendorSnapshotUse(t *testing.T) {
 	depsBp := GatherRequiredDepsForTest(android.Android)
 
 	mockFS := map[string][]byte{
-		"deps/Android.bp":      []byte(depsBp),
-		"framework/Android.bp": []byte(frameworkBp),
-		"vendor/Android.bp":    []byte(vendorProprietaryBp),
-		"vendor/libvndk.a":     nil,
-		"vendor/libvendor.a":   nil,
-		"vendor/libvendor.so":  nil,
-		"vendor/bin":           nil,
-		"vndk/Android.bp":      []byte(vndkBp),
-		"vndk/libvndk.so":      nil,
+		"deps/Android.bp":              []byte(depsBp),
+		"framework/Android.bp":         []byte(frameworkBp),
+		"vendor/Android.bp":            []byte(vendorProprietaryBp),
+		"vendor/bin":                   nil,
+		"vendor/bin.cpp":               nil,
+		"vendor/client.cpp":            nil,
+		"vendor/include/libvndk/a.h":   nil,
+		"vendor/include/libvendor/b.h": nil,
+		"vendor/libvndk.a":             nil,
+		"vendor/libvendor.a":           nil,
+		"vendor/libvendor.so":          nil,
+		"vndk/Android.bp":              []byte(vndkBp),
+		"vndk/include/libvndk/a.h":     nil,
+		"vndk/libvndk.so":              nil,
 	}
 
 	config := TestConfig(buildDir, android.Android, nil, "", mockFS)
@@ -1240,27 +1251,41 @@ func TestVendorSnapshotUse(t *testing.T) {
 	binaryVariant := "android_vendor.BOARD_arm64_armv8-a"
 
 	// libclient uses libvndk.vndk.BOARD.arm64, libvendor.vendor_static.BOARD.arm64, libvendor_without_snapshot
-	libclientLdRule := ctx.ModuleForTests("libclient", sharedVariant).Rule("ld")
-	libclientFlags := libclientLdRule.Args["libFlags"]
+	libclientCcFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("cc").Args["cFlags"]
+	for _, includeFlags := range []string{
+		"-Ivndk/include/libvndk",     // libvndk
+		"-Ivendor/include/libvendor", // libvendor
+	} {
+		if !strings.Contains(libclientCcFlags, includeFlags) {
+			t.Errorf("flags for libclient must contain %#v, but was %#v.",
+				includeFlags, libclientCcFlags)
+		}
+	}
 
+	libclientLdFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("ld").Args["libFlags"]
 	for _, input := range [][]string{
 		[]string{sharedVariant, "libvndk.vndk.BOARD.arm64"},
 		[]string{staticVariant, "libvendor.vendor_static.BOARD.arm64"},
 		[]string{staticVariant, "libvendor_without_snapshot"},
 	} {
 		outputPaths := getOutputPaths(ctx, input[0] /* variant */, []string{input[1]} /* module name */)
-		if !strings.Contains(libclientFlags, outputPaths[0].String()) {
-			t.Errorf("libflags for libclient must contain %#v, but was %#v", outputPaths[0], libclientFlags)
+		if !strings.Contains(libclientLdFlags, outputPaths[0].String()) {
+			t.Errorf("libflags for libclient must contain %#v, but was %#v", outputPaths[0], libclientLdFlags)
 		}
 	}
 
 	// bin_without_snapshot uses libvndk.vendor_static.BOARD.arm64
-	binWithoutSnapshotLdRule := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("ld")
-	binWithoutSnapshotFlags := binWithoutSnapshotLdRule.Args["libFlags"]
+	binWithoutSnapshotCcFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("cc").Args["cFlags"]
+	if !strings.Contains(binWithoutSnapshotCcFlags, "-Ivendor/include/libvndk") {
+		t.Errorf("flags for bin_without_snapshot must contain %#v, but was %#v.",
+			"-Ivendor/include/libvndk", binWithoutSnapshotCcFlags)
+	}
+
+	binWithoutSnapshotLdFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("ld").Args["libFlags"]
 	libVndkStaticOutputPaths := getOutputPaths(ctx, staticVariant, []string{"libvndk.vendor_static.BOARD.arm64"})
-	if !strings.Contains(binWithoutSnapshotFlags, libVndkStaticOutputPaths[0].String()) {
+	if !strings.Contains(binWithoutSnapshotLdFlags, libVndkStaticOutputPaths[0].String()) {
 		t.Errorf("libflags for bin_without_snapshot must contain %#v, but was %#v",
-			libVndkStaticOutputPaths[0], binWithoutSnapshotFlags)
+			libVndkStaticOutputPaths[0], binWithoutSnapshotLdFlags)
 	}
 
 	// libvendor.so is installed by libvendor.vendor_shared.BOARD.arm64

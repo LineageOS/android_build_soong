@@ -241,6 +241,8 @@ func (p *vendorSnapshotLibraryDecorator) link(ctx ModuleContext,
 		})
 	}
 
+	p.libraryDecorator.flagExporter.setProvider(ctx)
+
 	return in
 }
 
