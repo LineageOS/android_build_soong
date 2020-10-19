@@ -15,6 +15,8 @@
 package metrics
 
 import (
+	"os"
+	"syscall"
 	"time"
 
 	"android/soong/ui/metrics/metrics_proto"
@@ -31,11 +33,15 @@ type event struct {
 
 	// the time that the event started to occur.
 	start time.Time
+
+	// The list of process resource information that was executed
+	procResInfo []*soong_metrics_proto.ProcessResourceInfo
 }
 
 type EventTracer interface {
 	Begin(name, desc string, thread tracer.Thread)
 	End(thread tracer.Thread) soong_metrics_proto.PerfInfo
+	AddProcResInfo(string, *os.ProcessState)
 }
 
 type eventTracerImpl struct {
@@ -46,6 +52,34 @@ var _ EventTracer = &eventTracerImpl{}
 
 func now() time.Time {
 	return time.Now()
+}
+
+// AddProcResInfo adds information on an executed process such as max resident set memory
+// and the number of voluntary context switches.
+func (t *eventTracerImpl) AddProcResInfo(name string, state *os.ProcessState) {
+	if len(t.activeEvents) < 1 {
+		return
+	}
+
+	rusage := state.SysUsage().(*syscall.Rusage)
+	// The implementation of the metrics system is a stacked based system. The steps of the
+	// build system in the UI layer is sequential so the Begin function is invoked when a
+	// function (or scoped code) is invoked. That is translated to a new event which is added
+	// at the end of the activeEvents array. When the invoking function is completed, End is
+	// invoked which is a pop operation from activeEvents.
+	curEvent := &t.activeEvents[len(t.activeEvents)-1]
+	curEvent.procResInfo = append(curEvent.procResInfo, &soong_metrics_proto.ProcessResourceInfo{
+		Name:             proto.String(name),
+		UserTimeMicros:   proto.Uint64(uint64(rusage.Utime.Usec)),
+		SystemTimeMicros: proto.Uint64(uint64(rusage.Stime.Usec)),
+		MinorPageFaults:  proto.Uint64(uint64(rusage.Minflt)),
+		MajorPageFaults:  proto.Uint64(uint64(rusage.Majflt)),
+		// ru_inblock and ru_oublock are measured in blocks of 512 bytes.
+		IoInputKb:                  proto.Uint64(uint64(rusage.Inblock / 2)),
+		IoOutputKb:                 proto.Uint64(uint64(rusage.Oublock / 2)),
+		VoluntaryContextSwitches:   proto.Uint64(uint64(rusage.Nvcsw)),
+		InvoluntaryContextSwitches: proto.Uint64(uint64(rusage.Nivcsw)),
+	})
 }
 
 func (t *eventTracerImpl) Begin(name, desc string, _ tracer.Thread) {
@@ -61,9 +95,10 @@ func (t *eventTracerImpl) End(tracer.Thread) soong_metrics_proto.PerfInfo {
 	realTime := uint64(_now().Sub(lastEvent.start).Nanoseconds())
 
 	return soong_metrics_proto.PerfInfo{
-		Desc:      proto.String(lastEvent.desc),
-		Name:      proto.String(lastEvent.name),
-		StartTime: proto.Uint64(uint64(lastEvent.start.UnixNano())),
-		RealTime:  proto.Uint64(realTime),
+		Desc:                  proto.String(lastEvent.desc),
+		Name:                  proto.String(lastEvent.name),
+		StartTime:             proto.Uint64(uint64(lastEvent.start.UnixNano())),
+		RealTime:              proto.Uint64(realTime),
+		ProcessesResourceInfo: lastEvent.procResInfo,
 	}
 }
