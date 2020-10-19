@@ -103,6 +103,7 @@ func testCcErrorWithConfig(t *testing.T, pattern string, config android.Config) 
 }
 
 func testCcError(t *testing.T, pattern string, bp string) {
+	t.Helper()
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
@@ -111,6 +112,7 @@ func testCcError(t *testing.T, pattern string, bp string) {
 }
 
 func testCcErrorProductVndk(t *testing.T, pattern string, bp string) {
+	t.Helper()
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.ProductVndkVersion = StringPtr("current")
@@ -1632,6 +1634,35 @@ func TestDoubleLoadableDepError(t *testing.T) {
 		// indirect dependency of LLNDK
 		cc_library {
 			name: "libvendoravailable",
+			vendor_available: true,
+		}
+	`)
+}
+
+func TestCheckVndkMembershipBeforeDoubleLoadable(t *testing.T) {
+	testCcError(t, "module \"libvndksp\" variant .*: .*: VNDK-SP must only depend on VNDK-SP", `
+		cc_library {
+			name: "libvndksp",
+			shared_libs: ["libanothervndksp"],
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+			}
+		}
+
+		cc_library {
+			name: "libllndk",
+			shared_libs: ["libanothervndksp"],
+		}
+
+		llndk_library {
+			name: "libllndk",
+			symbol_file: "",
+		}
+
+		cc_library {
+			name: "libanothervndksp",
 			vendor_available: true,
 		}
 	`)
