@@ -23,7 +23,7 @@ import (
 	"android/soong/java"
 )
 
-var pctx = android.NewPackageContext("android/soong/suite_harness")
+var pctx = android.NewPackageContext("android/soong/tradefed/suite_harness")
 
 func init() {
 	android.RegisterModuleType("tradefed_binary_host", tradefedBinaryFactory)
