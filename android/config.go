@@ -1263,6 +1263,14 @@ func (c *config) EnforceProductPartitionInterface() bool {
 	return Bool(c.productVariables.EnforceProductPartitionInterface)
 }
 
+func (c *config) EnforceInterPartitionJavaSdkLibrary() bool {
+	return Bool(c.productVariables.EnforceInterPartitionJavaSdkLibrary)
+}
+
+func (c *config) InterPartitionJavaLibraryAllowList() []string {
+	return c.productVariables.InterPartitionJavaLibraryAllowList
+}
+
 func (c *config) InstallExtraFlattenedApexes() bool {
 	return Bool(c.productVariables.InstallExtraFlattenedApexes)
 }
