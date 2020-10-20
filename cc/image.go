@@ -63,12 +63,12 @@ const (
 
 func (ctx *moduleContext) ProductSpecific() bool {
 	return ctx.ModuleContext.ProductSpecific() ||
-		(ctx.mod.HasVendorVariant() && ctx.mod.inProduct() && !ctx.mod.IsVndk())
+		(ctx.mod.HasVendorVariant() && ctx.mod.inProduct())
 }
 
 func (ctx *moduleContext) SocSpecific() bool {
 	return ctx.ModuleContext.SocSpecific() ||
-		(ctx.mod.HasVendorVariant() && ctx.mod.inVendor() && !ctx.mod.IsVndk())
+		(ctx.mod.HasVendorVariant() && ctx.mod.inVendor())
 }
 
 func (ctx *moduleContextImpl) inProduct() bool {
