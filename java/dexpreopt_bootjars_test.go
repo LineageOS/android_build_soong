@@ -87,7 +87,7 @@ func TestDexpreoptBootJars(t *testing.T) {
 	ruleFile := "boot-foo.art"
 
 	expectedInputs := []string{
-		"dex_artjars/android/apex/com.android.art/javalib/arm64/boot.art",
+		"dex_artjars/android/apex/art_boot_images/javalib/arm64/boot.art",
 		"dex_bootjars_input/foo.jar",
 		"dex_bootjars_input/bar.jar",
 		"dex_bootjars_input/baz.jar",
