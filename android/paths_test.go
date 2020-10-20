@@ -259,10 +259,11 @@ func TestPathForModuleInstall(t *testing.T) {
 	deviceTarget := Target{Os: Android, Arch: Arch{ArchType: Arm64}}
 
 	testCases := []struct {
-		name string
-		ctx  *moduleInstallPathContextImpl
-		in   []string
-		out  string
+		name         string
+		ctx          *moduleInstallPathContextImpl
+		in           []string
+		out          string
+		partitionDir string
 	}{
 		{
 			name: "host binary",
@@ -272,8 +273,9 @@ func TestPathForModuleInstall(t *testing.T) {
 					target: hostTarget,
 				},
 			},
-			in:  []string{"bin", "my_test"},
-			out: "host/linux-x86/bin/my_test",
+			in:           []string{"bin", "my_test"},
+			out:          "host/linux-x86/bin/my_test",
+			partitionDir: "host/linux-x86",
 		},
 
 		{
@@ -284,8 +286,9 @@ func TestPathForModuleInstall(t *testing.T) {
 					target: deviceTarget,
 				},
 			},
-			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/system/bin/my_test",
+			in:           []string{"bin", "my_test"},
+			out:          "target/product/test_device/system/bin/my_test",
+			partitionDir: "target/product/test_device/system",
 		},
 		{
 			name: "vendor binary",
@@ -298,8 +301,9 @@ func TestPathForModuleInstall(t *testing.T) {
 					},
 				},
 			},
-			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/vendor/bin/my_test",
+			in:           []string{"bin", "my_test"},
+			out:          "target/product/test_device/vendor/bin/my_test",
+			partitionDir: "target/product/test_device/vendor",
 		},
 		{
 			name: "odm binary",
@@ -312,8 +316,9 @@ func TestPathForModuleInstall(t *testing.T) {
 					},
 				},
 			},
-			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/odm/bin/my_test",
+			in:           []string{"bin", "my_test"},
+			out:          "target/product/test_device/odm/bin/my_test",
+			partitionDir: "target/product/test_device/odm",
 		},
 		{
 			name: "product binary",
@@ -326,8 +331,9 @@ func TestPathForModuleInstall(t *testing.T) {
 					},
 				},
 			},
-			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/product/bin/my_test",
+			in:           []string{"bin", "my_test"},
+			out:          "target/product/test_device/product/bin/my_test",
+			partitionDir: "target/product/test_device/product",
 		},
 		{
 			name: "system_ext binary",
@@ -340,8 +346,9 @@ func TestPathForModuleInstall(t *testing.T) {
 					},
 				},
 			},
-			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/system_ext/bin/my_test",
+			in:           []string{"bin", "my_test"},
+			out:          "target/product/test_device/system_ext/bin/my_test",
+			partitionDir: "target/product/test_device/system_ext",
 		},
 		{
 			name: "root binary",
@@ -352,8 +359,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inRoot: true,
 			},
-			in:  []string{"my_test"},
-			out: "target/product/test_device/root/my_test",
+			in:           []string{"my_test"},
+			out:          "target/product/test_device/root/my_test",
+			partitionDir: "target/product/test_device/root",
 		},
 		{
 			name: "recovery binary",
@@ -364,8 +372,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inRecovery: true,
 			},
-			in:  []string{"bin/my_test"},
-			out: "target/product/test_device/recovery/root/system/bin/my_test",
+			in:           []string{"bin/my_test"},
+			out:          "target/product/test_device/recovery/root/system/bin/my_test",
+			partitionDir: "target/product/test_device/recovery/root/system",
 		},
 		{
 			name: "recovery root binary",
@@ -377,8 +386,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				inRecovery: true,
 				inRoot:     true,
 			},
-			in:  []string{"my_test"},
-			out: "target/product/test_device/recovery/root/my_test",
+			in:           []string{"my_test"},
+			out:          "target/product/test_device/recovery/root/my_test",
+			partitionDir: "target/product/test_device/recovery/root",
 		},
 
 		{
@@ -390,8 +400,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inData: true,
 			},
-			in:  []string{"nativetest", "my_test"},
-			out: "target/product/test_device/data/nativetest/my_test",
+			in:           []string{"nativetest", "my_test"},
+			out:          "target/product/test_device/data/nativetest/my_test",
+			partitionDir: "target/product/test_device/data",
 		},
 		{
 			name: "vendor native test binary",
@@ -405,8 +416,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inData: true,
 			},
-			in:  []string{"nativetest", "my_test"},
-			out: "target/product/test_device/data/nativetest/my_test",
+			in:           []string{"nativetest", "my_test"},
+			out:          "target/product/test_device/data/nativetest/my_test",
+			partitionDir: "target/product/test_device/data",
 		},
 		{
 			name: "odm native test binary",
@@ -420,8 +432,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inData: true,
 			},
-			in:  []string{"nativetest", "my_test"},
-			out: "target/product/test_device/data/nativetest/my_test",
+			in:           []string{"nativetest", "my_test"},
+			out:          "target/product/test_device/data/nativetest/my_test",
+			partitionDir: "target/product/test_device/data",
 		},
 		{
 			name: "product native test binary",
@@ -435,8 +448,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inData: true,
 			},
-			in:  []string{"nativetest", "my_test"},
-			out: "target/product/test_device/data/nativetest/my_test",
+			in:           []string{"nativetest", "my_test"},
+			out:          "target/product/test_device/data/nativetest/my_test",
+			partitionDir: "target/product/test_device/data",
 		},
 
 		{
@@ -451,8 +465,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inData: true,
 			},
-			in:  []string{"nativetest", "my_test"},
-			out: "target/product/test_device/data/nativetest/my_test",
+			in:           []string{"nativetest", "my_test"},
+			out:          "target/product/test_device/data/nativetest/my_test",
+			partitionDir: "target/product/test_device/data",
 		},
 
 		{
@@ -464,8 +479,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inSanitizerDir: true,
 			},
-			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/data/asan/system/bin/my_test",
+			in:           []string{"bin", "my_test"},
+			out:          "target/product/test_device/data/asan/system/bin/my_test",
+			partitionDir: "target/product/test_device/data/asan/system",
 		},
 		{
 			name: "sanitized vendor binary",
@@ -479,8 +495,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inSanitizerDir: true,
 			},
-			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/data/asan/vendor/bin/my_test",
+			in:           []string{"bin", "my_test"},
+			out:          "target/product/test_device/data/asan/vendor/bin/my_test",
+			partitionDir: "target/product/test_device/data/asan/vendor",
 		},
 		{
 			name: "sanitized odm binary",
@@ -494,8 +511,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inSanitizerDir: true,
 			},
-			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/data/asan/odm/bin/my_test",
+			in:           []string{"bin", "my_test"},
+			out:          "target/product/test_device/data/asan/odm/bin/my_test",
+			partitionDir: "target/product/test_device/data/asan/odm",
 		},
 		{
 			name: "sanitized product binary",
@@ -509,8 +527,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inSanitizerDir: true,
 			},
-			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/data/asan/product/bin/my_test",
+			in:           []string{"bin", "my_test"},
+			out:          "target/product/test_device/data/asan/product/bin/my_test",
+			partitionDir: "target/product/test_device/data/asan/product",
 		},
 
 		{
@@ -525,8 +544,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inSanitizerDir: true,
 			},
-			in:  []string{"bin", "my_test"},
-			out: "target/product/test_device/data/asan/system_ext/bin/my_test",
+			in:           []string{"bin", "my_test"},
+			out:          "target/product/test_device/data/asan/system_ext/bin/my_test",
+			partitionDir: "target/product/test_device/data/asan/system_ext",
 		},
 
 		{
@@ -539,8 +559,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				inData:         true,
 				inSanitizerDir: true,
 			},
-			in:  []string{"nativetest", "my_test"},
-			out: "target/product/test_device/data/asan/data/nativetest/my_test",
+			in:           []string{"nativetest", "my_test"},
+			out:          "target/product/test_device/data/asan/data/nativetest/my_test",
+			partitionDir: "target/product/test_device/data/asan/data",
 		},
 		{
 			name: "sanitized vendor native test binary",
@@ -555,8 +576,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				inData:         true,
 				inSanitizerDir: true,
 			},
-			in:  []string{"nativetest", "my_test"},
-			out: "target/product/test_device/data/asan/data/nativetest/my_test",
+			in:           []string{"nativetest", "my_test"},
+			out:          "target/product/test_device/data/asan/data/nativetest/my_test",
+			partitionDir: "target/product/test_device/data/asan/data",
 		},
 		{
 			name: "sanitized odm native test binary",
@@ -571,8 +593,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				inData:         true,
 				inSanitizerDir: true,
 			},
-			in:  []string{"nativetest", "my_test"},
-			out: "target/product/test_device/data/asan/data/nativetest/my_test",
+			in:           []string{"nativetest", "my_test"},
+			out:          "target/product/test_device/data/asan/data/nativetest/my_test",
+			partitionDir: "target/product/test_device/data/asan/data",
 		},
 		{
 			name: "sanitized product native test binary",
@@ -587,8 +610,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				inData:         true,
 				inSanitizerDir: true,
 			},
-			in:  []string{"nativetest", "my_test"},
-			out: "target/product/test_device/data/asan/data/nativetest/my_test",
+			in:           []string{"nativetest", "my_test"},
+			out:          "target/product/test_device/data/asan/data/nativetest/my_test",
+			partitionDir: "target/product/test_device/data/asan/data",
 		},
 		{
 			name: "sanitized system_ext native test binary",
@@ -603,8 +627,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				inData:         true,
 				inSanitizerDir: true,
 			},
-			in:  []string{"nativetest", "my_test"},
-			out: "target/product/test_device/data/asan/data/nativetest/my_test",
+			in:           []string{"nativetest", "my_test"},
+			out:          "target/product/test_device/data/asan/data/nativetest/my_test",
+			partitionDir: "target/product/test_device/data/asan/data",
 		}, {
 			name: "device testcases",
 			ctx: &moduleInstallPathContextImpl{
@@ -614,8 +639,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inTestcases: true,
 			},
-			in:  []string{"my_test", "my_test_bin"},
-			out: "target/product/test_device/testcases/my_test/my_test_bin",
+			in:           []string{"my_test", "my_test_bin"},
+			out:          "target/product/test_device/testcases/my_test/my_test_bin",
+			partitionDir: "target/product/test_device/testcases",
 		}, {
 			name: "host testcases",
 			ctx: &moduleInstallPathContextImpl{
@@ -625,8 +651,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				},
 				inTestcases: true,
 			},
-			in:  []string{"my_test", "my_test_bin"},
-			out: "host/linux-x86/testcases/my_test/my_test_bin",
+			in:           []string{"my_test", "my_test_bin"},
+			out:          "host/linux-x86/testcases/my_test/my_test_bin",
+			partitionDir: "host/linux-x86/testcases",
 		}, {
 			name: "forced host testcases",
 			ctx: &moduleInstallPathContextImpl{
@@ -638,8 +665,9 @@ func TestPathForModuleInstall(t *testing.T) {
 				forceOS:     &Linux,
 				forceArch:   &X86,
 			},
-			in:  []string{"my_test", "my_test_bin"},
-			out: "host/linux-x86/testcases/my_test/my_test_bin",
+			in:           []string{"my_test", "my_test_bin"},
+			out:          "host/linux-x86/testcases/my_test/my_test_bin",
+			partitionDir: "host/linux-x86/testcases",
 		},
 	}
 
@@ -652,7 +680,45 @@ func TestPathForModuleInstall(t *testing.T) {
 					output.basePath.path,
 					tc.out)
 			}
+			if output.partitionDir != tc.partitionDir {
+				t.Errorf("unexpected partitionDir:\n got: %q\nwant: %q\n",
+					output.partitionDir, tc.partitionDir)
+			}
 		})
+	}
+}
+
+func TestBaseDirForInstallPath(t *testing.T) {
+	testConfig := pathTestConfig("")
+	deviceTarget := Target{Os: Android, Arch: Arch{ArchType: Arm64}}
+
+	ctx := &moduleInstallPathContextImpl{
+		baseModuleContext: baseModuleContext{
+			os:     deviceTarget.Os,
+			target: deviceTarget,
+		},
+	}
+	ctx.baseModuleContext.config = testConfig
+
+	actual := PathForModuleInstall(ctx, "foo", "bar")
+	expectedBaseDir := "target/product/test_device/system"
+	if actual.partitionDir != expectedBaseDir {
+		t.Errorf("unexpected partitionDir:\n got: %q\nwant: %q\n", actual.partitionDir, expectedBaseDir)
+	}
+	expectedRelPath := "foo/bar"
+	if actual.Rel() != expectedRelPath {
+		t.Errorf("unexpected Rel():\n got: %q\nwant: %q\n", actual.Rel(), expectedRelPath)
+	}
+
+	actualAfterJoin := actual.Join(ctx, "baz")
+	// partitionDir is preserved even after joining
+	if actualAfterJoin.partitionDir != expectedBaseDir {
+		t.Errorf("unexpected partitionDir after joining:\n got: %q\nwant: %q\n", actualAfterJoin.partitionDir, expectedBaseDir)
+	}
+	// Rel() is updated though
+	expectedRelAfterJoin := "baz"
+	if actualAfterJoin.Rel() != expectedRelAfterJoin {
+		t.Errorf("unexpected Rel() after joining:\n got: %q\nwant: %q\n", actualAfterJoin.Rel(), expectedRelAfterJoin)
 	}
 }
 
