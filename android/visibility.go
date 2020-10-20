@@ -351,7 +351,10 @@ func parseRules(ctx BaseModuleContext, currentPkg, property string, visibility [
 			case "__subpackages__":
 				r = subpackagesRule{pkg}
 			default:
-				continue
+				ctx.PropertyErrorf(property, "invalid visibility pattern %q. Must match "+
+					" //<package>:<scope>, //<package> or :<scope> "+
+					"where <scope> is one of \"__pkg__\", \"__subpackages__\"",
+					v)
 			}
 		}
 
@@ -397,7 +400,8 @@ func splitRule(ctx BaseModuleContext, ruleExpression string, currentPkg, propert
 		// ensure all the rules on this module are checked.
 		ctx.PropertyErrorf(property,
 			"invalid visibility pattern %q must match"+
-				" //<package>:<module>, //<package> or :<module>",
+				" //<package>:<scope>, //<package> or :<scope> "+
+				"where <scope> is one of \"__pkg__\", \"__subpackages__\"",
 			ruleExpression)
 		return false, "", ""
 	}
@@ -443,7 +447,7 @@ func visibilityRuleEnforcer(ctx TopDownMutatorContext) {
 
 		rule := effectiveVisibilityRules(ctx.Config(), depQualified)
 		if !rule.matches(qualified) {
-			ctx.ModuleErrorf("depends on %s which is not visible to this module", depQualified)
+			ctx.ModuleErrorf("depends on %s which is not visible to this module\nYou may need to add %q to its visibility", depQualified, "//"+ctx.ModuleDir())
 		}
 	})
 }
