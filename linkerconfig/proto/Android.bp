@@ -1,0 +1,28 @@
+cc_library_static {
+    name: "lib_linker_config_proto_lite",
+    host_supported: true,
+    recovery_available: true,
+    proto: {
+        export_proto_headers: true,
+        type: "lite",
+    },
+    srcs: ["linker_config.proto"],
+}
+
+python_library_host {
+    name: "linker_config_proto",
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+        },
+    },
+    srcs: [
+        "linker_config.proto",
+    ],
+    proto: {
+        canonical_path_from_root: false,
+    },
+}
