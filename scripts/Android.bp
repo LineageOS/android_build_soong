@@ -206,3 +206,22 @@ python_binary_host {
         "ninja_rsp.py",
     ],
 }
+
+python_binary_host {
+    name: "conv_linker_config",
+    srcs: [
+        "conv_linker_config.py",
+    ],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+            embedded_launcher: true,
+        },
+    },
+    libs: [
+        "linker_config_proto",
+    ],
+}
