@@ -186,15 +186,9 @@ func NewConfig(ctx Context, args ...string) Config {
 		"EMPTY_NINJA_FILE",
 	)
 
-	if ret.UseGoma() {
-		ctx.Println("Goma for Android is being deprecated and replaced with RBE. See go/rbe_for_android for instructions on how to use RBE.")
-		ctx.Println()
-		ctx.Println("See go/goma_android_exceptions for exceptions.")
-		ctx.Fatalln("USE_GOMA flag is no longer supported.")
-	}
-
-	if ret.ForceUseGoma() {
-		ret.environ.Set("USE_GOMA", "true")
+	if ret.UseGoma() || ret.ForceUseGoma() {
+		ctx.Println("Goma for Android has been deprecated and replaced with RBE. See go/rbe_for_android for instructions on how to use RBE.")
+		ctx.Fatalln("USE_GOMA / FORCE_USE_GOMA flag is no longer supported.")
 	}
 
 	// Tell python not to spam the source tree with .pyc files.
