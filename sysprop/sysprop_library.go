@@ -404,13 +404,21 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	// ctx's Platform or Specific functions represent where this sysprop_library installed.
 	installedInSystem := ctx.Platform() || ctx.SystemExtSpecific()
 	installedInVendorOrOdm := ctx.SocSpecific() || ctx.DeviceSpecific()
+	installedInProduct := ctx.ProductSpecific()
 	isOwnerPlatform := false
-	stub := "sysprop-library-stub-"
+	var stub string
+
+	if installedInVendorOrOdm {
+		stub = "sysprop-library-stub-vendor"
+	} else if installedInProduct {
+		stub = "sysprop-library-stub-product"
+	} else {
+		stub = "sysprop-library-stub-platform"
+	}
 
 	switch m.Owner() {
 	case "Platform":
 		// Every partition can access platform-defined properties
-		stub += "platform"
 		isOwnerPlatform = true
 	case "Vendor":
 		// System can't access vendor's properties
@@ -418,14 +426,12 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 			ctx.ModuleErrorf("None of soc_specific, device_specific, product_specific is true. " +
 				"System can't access sysprop_library owned by Vendor")
 		}
-		stub += "vendor"
 	case "Odm":
 		// Only vendor can access Odm-defined properties
 		if !installedInVendorOrOdm {
 			ctx.ModuleErrorf("Neither soc_speicifc nor device_specific is true. " +
 				"Odm-defined properties should be accessed only in Vendor or Odm")
 		}
-		stub += "vendor"
 	default:
 		ctx.PropertyErrorf("property_owner",
 			"Unknown value %s: must be one of Platform, Vendor or Odm", m.Owner())
