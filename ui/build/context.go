@@ -48,7 +48,7 @@ func (c ContextImpl) BeginTrace(name, desc string) {
 		c.Tracer.Begin(desc, c.Thread)
 	}
 	if c.Metrics != nil {
-		c.Metrics.TimeTracer.Begin(name, desc, c.Thread)
+		c.Metrics.EventTracer.Begin(name, desc, c.Thread)
 	}
 }
 
@@ -58,7 +58,7 @@ func (c ContextImpl) EndTrace() {
 		c.Tracer.End(c.Thread)
 	}
 	if c.Metrics != nil {
-		c.Metrics.SetTimeMetrics(c.Metrics.TimeTracer.End(c.Thread))
+		c.Metrics.SetTimeMetrics(c.Metrics.EventTracer.End(c.Thread))
 	}
 }
 

@@ -135,8 +135,43 @@ message PerfInfo {
   // The number of nanoseconds elapsed since start_time.
   optional uint64 real_time = 4;
 
-  // The number of MB for memory use.
-  optional uint64 memory_use = 5;
+  // The number of MB for memory use (deprecated as it is too generic).
+  optional uint64 memory_use = 5 [deprecated=true];
+
+  // The resource information of each executed process.
+  repeated ProcessResourceInfo processes_resource_info = 6;
+}
+
+message ProcessResourceInfo {
+  // The name of the process for identification.
+  optional string name = 1;
+
+  // The amount of time spent executing in user space in microseconds.
+  optional uint64 user_time_micros = 2;
+
+  // The amount of time spent executing in kernel mode in microseconds.
+  optional uint64 system_time_micros = 3;
+
+  // The maximum resident set size memory used in kilobytes.
+  optional uint64 max_rss_kb = 4;
+
+  // The number of minor page faults serviced without any I/O activity.
+  optional uint64 minor_page_faults = 5;
+
+  // The number of major page faults serviced that required I/O activity.
+  optional uint64 major_page_faults = 6;
+
+  // Total IO input in kilobytes.
+  optional uint64 io_input_kb= 7;
+
+  // Total IO output in kilobytes.
+  optional uint64 io_output_kb = 8;
+
+  // The number of voluntary context switches
+  optional uint64 voluntary_context_switches = 9;
+
+  // The number of involuntary context switches
+  optional uint64 involuntary_context_switches = 10;
 }
 
 message ModuleTypeInfo {
