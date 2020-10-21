@@ -80,7 +80,30 @@ func (s *statusOutput) FinishAction(result status.ActionResult, counts status.Co
 		Dur:   uint64(time.Since(start.start).Nanoseconds()) / 1000,
 		Pid:   1,
 		Tid:   uint64(start.cpu),
+		Arg: &statsArg{
+			UserTime:                   result.Stats.UserTime,
+			SystemTime:                 result.Stats.SystemTime,
+			MaxRssKB:                   result.Stats.MaxRssKB,
+			MinorPageFaults:            result.Stats.MinorPageFaults,
+			MajorPageFaults:            result.Stats.MajorPageFaults,
+			IOInputKB:                  result.Stats.IOInputKB,
+			IOOutputKB:                 result.Stats.IOOutputKB,
+			VoluntaryContextSwitches:   result.Stats.VoluntaryContextSwitches,
+			InvoluntaryContextSwitches: result.Stats.InvoluntaryContextSwitches,
+		},
 	})
+}
+
+type statsArg struct {
+	UserTime                   uint32 `json:"user_time"`
+	SystemTime                 uint32 `json:"system_time_ms"`
+	MaxRssKB                   uint64 `json:"max_rss_kb"`
+	MinorPageFaults            uint64 `json:"minor_page_faults"`
+	MajorPageFaults            uint64 `json:"major_page_faults"`
+	IOInputKB                  uint64 `json:"io_input_kb"`
+	IOOutputKB                 uint64 `json:"io_output_kb"`
+	VoluntaryContextSwitches   uint64 `json:"voluntary_context_switches"`
+	InvoluntaryContextSwitches uint64 `json:"involuntary_context_switches"`
 }
 
 func (s *statusOutput) Flush()                                        {}
