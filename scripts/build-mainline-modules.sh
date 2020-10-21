@@ -3,13 +3,13 @@
 # Non exhaustive list of modules where we want prebuilts. More can be added as
 # needed.
 MAINLINE_MODULES=(
+  com.android.art
   com.android.art.debug
-  com.android.art.release
   com.android.art.testing
   com.android.conscrypt
+  com.android.i18n
   com.android.runtime
   com.android.tzdata
-  com.android.i18n
 )
 
 # List of SDKs and module exports we know of.
