@@ -201,21 +201,7 @@ func (p *vndkPrebuiltLibraryDecorator) isSnapshotPrebuilt() bool {
 }
 
 func (p *vndkPrebuiltLibraryDecorator) install(ctx ModuleContext, file android.Path) {
-	arches := ctx.DeviceConfig().Arches()
-	if len(arches) == 0 || arches[0].ArchType.String() != p.arch() {
-		return
-	}
-	if ctx.DeviceConfig().BinderBitness() != p.binderBit() {
-		return
-	}
-	if p.shared() {
-		if ctx.isVndkSp() {
-			p.baseInstaller.subDir = "vndk-sp-" + p.version()
-		} else if ctx.isVndk() {
-			p.baseInstaller.subDir = "vndk-" + p.version()
-		}
-		p.baseInstaller.install(ctx, file)
-	}
+	// do not install vndk libs
 }
 
 func vndkPrebuiltSharedLibrary() *Module {
