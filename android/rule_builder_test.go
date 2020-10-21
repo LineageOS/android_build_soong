@@ -35,6 +35,7 @@ func pathContext() PathContext {
 		"a":       nil,
 		"b":       nil,
 		"ls":      nil,
+		"ln":      nil,
 		"turbine": nil,
 		"java":    nil,
 		"javac":   nil,
@@ -65,6 +66,32 @@ func ExampleRuleBuilder() {
 	// tools: ["ld"]
 	// inputs: ["a.o" "b.o"]
 	// outputs: ["out/linked"]
+}
+
+func ExampleRuleBuilder_SymlinkOutputs() {
+	rule := NewRuleBuilder()
+
+	ctx := pathContext()
+
+	rule.Command().
+		Tool(PathForSource(ctx, "ln")).
+		FlagWithInput("-s ", PathForTesting("a.o")).
+		SymlinkOutput(PathForOutput(ctx, "a"))
+	rule.Command().Text("cp out/a out/b").
+		ImplicitSymlinkOutput(PathForOutput(ctx, "b"))
+
+	fmt.Printf("commands: %q\n", strings.Join(rule.Commands(), " && "))
+	fmt.Printf("tools: %q\n", rule.Tools())
+	fmt.Printf("inputs: %q\n", rule.Inputs())
+	fmt.Printf("outputs: %q\n", rule.Outputs())
+	fmt.Printf("symlink_outputs: %q\n", rule.SymlinkOutputs())
+
+	// Output:
+	// commands: "ln -s a.o out/a && cp out/a out/b"
+	// tools: ["ln"]
+	// inputs: ["a.o"]
+	// outputs: ["out/a" "out/b"]
+	// symlink_outputs: ["out/a" "out/b"]
 }
 
 func ExampleRuleBuilder_Temporary() {
@@ -293,6 +320,8 @@ func TestRuleBuilder(t *testing.T) {
 			Input(PathForSource(ctx, "Input")).
 			Output(PathForOutput(ctx, "Output")).
 			OrderOnly(PathForSource(ctx, "OrderOnly")).
+			SymlinkOutput(PathForOutput(ctx, "SymlinkOutput")).
+			ImplicitSymlinkOutput(PathForOutput(ctx, "ImplicitSymlinkOutput")).
 			Text("Text").
 			Tool(PathForSource(ctx, "Tool"))
 
@@ -318,17 +347,18 @@ func TestRuleBuilder(t *testing.T) {
 	}
 
 	wantInputs := PathsForSource(ctx, []string{"Implicit", "Input", "input", "input2", "input3"})
-	wantOutputs := PathsForOutput(ctx, []string{"ImplicitOutput", "Output", "output", "output2", "output3"})
+	wantOutputs := PathsForOutput(ctx, []string{"ImplicitOutput", "ImplicitSymlinkOutput", "Output", "SymlinkOutput", "output", "output2", "output3"})
 	wantDepFiles := PathsForOutput(ctx, []string{"DepFile", "depfile", "ImplicitDepFile", "depfile2"})
 	wantTools := PathsForSource(ctx, []string{"Tool", "tool2"})
 	wantOrderOnlys := PathsForSource(ctx, []string{"OrderOnly", "OrderOnlys"})
+	wantSymlinkOutputs := PathsForOutput(ctx, []string{"ImplicitSymlinkOutput", "SymlinkOutput"})
 
 	t.Run("normal", func(t *testing.T) {
 		rule := NewRuleBuilder()
 		addCommands(rule)
 
 		wantCommands := []string{
-			"out/DepFile Flag FlagWithArg=arg FlagWithDepFile=out/depfile FlagWithInput=input FlagWithOutput=out/output Input out/Output Text Tool after command2 old cmd",
+			"out/DepFile Flag FlagWithArg=arg FlagWithDepFile=out/depfile FlagWithInput=input FlagWithOutput=out/output Input out/Output out/SymlinkOutput Text Tool after command2 old cmd",
 			"command2 out/depfile2 input2 out/output2 tool2",
 			"command3 input3 out/output2 out/output3",
 		}
@@ -344,6 +374,9 @@ func TestRuleBuilder(t *testing.T) {
 		}
 		if g, w := rule.Outputs(), wantOutputs; !reflect.DeepEqual(w, g) {
 			t.Errorf("\nwant rule.Outputs() = %#v\n                  got %#v", w, g)
+		}
+		if g, w := rule.SymlinkOutputs(), wantSymlinkOutputs; !reflect.DeepEqual(w, g) {
+			t.Errorf("\nwant rule.SymlinkOutputs() = %#v\n                  got %#v", w, g)
 		}
 		if g, w := rule.DepFiles(), wantDepFiles; !reflect.DeepEqual(w, g) {
 			t.Errorf("\nwant rule.DepFiles() = %#v\n                  got %#v", w, g)
@@ -365,7 +398,7 @@ func TestRuleBuilder(t *testing.T) {
 		addCommands(rule)
 
 		wantCommands := []string{
-			"__SBOX_OUT_DIR__/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_OUT_DIR__/depfile FlagWithInput=input FlagWithOutput=__SBOX_OUT_DIR__/output Input __SBOX_OUT_DIR__/Output Text Tool after command2 old cmd",
+			"__SBOX_OUT_DIR__/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_OUT_DIR__/depfile FlagWithInput=input FlagWithOutput=__SBOX_OUT_DIR__/output Input __SBOX_OUT_DIR__/Output __SBOX_OUT_DIR__/SymlinkOutput Text Tool after command2 old cmd",
 			"command2 __SBOX_OUT_DIR__/depfile2 input2 __SBOX_OUT_DIR__/output2 tool2",
 			"command3 input3 __SBOX_OUT_DIR__/output2 __SBOX_OUT_DIR__/output3",
 		}

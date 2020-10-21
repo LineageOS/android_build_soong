@@ -68,6 +68,7 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 		"--ninja_suffix=" + config.KatiSuffix() + extraSuffix,
 		"--no_ninja_prelude",
 		"--use_ninja_phony_output",
+		"--use_ninja_symlink_outputs",
 		"--regen",
 		"--ignore_optional_include=" + filepath.Join(config.OutDir(), "%.P"),
 		"--detect_android_echo",
