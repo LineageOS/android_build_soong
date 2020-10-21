@@ -23,10 +23,10 @@ bootstrap_go_package {
     ],
     srcs: [
         "metrics.go",
-        "time.go",
+        "event.go",
     ],
     testSrcs: [
-        "time_test.go",
+        "event_test.go",
     ],
 }
 

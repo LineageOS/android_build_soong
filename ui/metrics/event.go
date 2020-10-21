@@ -25,7 +25,7 @@ import (
 // for testing purpose only
 var _now = now
 
-type timeEvent struct {
+type event struct {
 	desc string
 	name string
 
@@ -33,26 +33,26 @@ type timeEvent struct {
 	start time.Time
 }
 
-type TimeTracer interface {
+type EventTracer interface {
 	Begin(name, desc string, thread tracer.Thread)
 	End(thread tracer.Thread) soong_metrics_proto.PerfInfo
 }
 
-type timeTracerImpl struct {
-	activeEvents []timeEvent
+type eventTracerImpl struct {
+	activeEvents []event
 }
 
-var _ TimeTracer = &timeTracerImpl{}
+var _ EventTracer = &eventTracerImpl{}
 
 func now() time.Time {
 	return time.Now()
 }
 
-func (t *timeTracerImpl) Begin(name, desc string, _ tracer.Thread) {
-	t.activeEvents = append(t.activeEvents, timeEvent{name: name, desc: desc, start: _now()})
+func (t *eventTracerImpl) Begin(name, desc string, _ tracer.Thread) {
+	t.activeEvents = append(t.activeEvents, event{name: name, desc: desc, start: _now()})
 }
 
-func (t *timeTracerImpl) End(tracer.Thread) soong_metrics_proto.PerfInfo {
+func (t *eventTracerImpl) End(tracer.Thread) soong_metrics_proto.PerfInfo {
 	if len(t.activeEvents) < 1 {
 		panic("Internal error: No pending events for endAt to end!")
 	}
