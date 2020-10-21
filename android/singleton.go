@@ -168,6 +168,10 @@ func (s *singletonContextAdaptor) Build(pctx PackageContext, params BuildParams)
 		s.buildParams = append(s.buildParams, params)
 	}
 	bparams := convertBuildParams(params)
+	err := validateBuildParams(bparams)
+	if err != nil {
+		s.Errorf("%s: build parameter validation failed: %s", s.Name(), err.Error())
+	}
 	s.SingletonContext.Build(pctx.PackageContext, bparams)
 
 }
