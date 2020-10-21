@@ -89,7 +89,7 @@ func genBootImageConfigs(ctx android.PathContext) map[string]*bootImageConfig {
 		frameworkModules := global.BootJars.CopyOf()
 		frameworkModules.RemoveList(artModules)
 
-		artSubdir := "apex/com.android.art/javalib"
+		artSubdir := "apex/art_boot_images/javalib"
 		frameworkSubdir := "system/framework"
 
 		// ART config for the primary boot image in the ART apex.
