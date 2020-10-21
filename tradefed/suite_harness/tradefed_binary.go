@@ -80,7 +80,6 @@ func tradefedBinaryLoadHook(tfb *TradefedBinaryProperties) func(ctx android.Load
 			"tradefed",
 			"tradefed-test-framework",
 			"loganalysis",
-			"hosttestlib",
 			"compatibility-host-util",
 		}
 
