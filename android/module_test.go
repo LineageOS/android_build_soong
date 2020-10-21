@@ -187,3 +187,49 @@ func TestErrorDependsOnDisabledModule(t *testing.T) {
 	_, errs = ctx.PrepareBuildActions(config)
 	FailIfNoMatchingErrors(t, `module "foo": depends on disabled module "bar"`, errs)
 }
+
+func TestValidateCorrectBuildParams(t *testing.T) {
+	config := TestConfig(buildDir, nil, "", nil)
+	pathContext := PathContextForTesting(config)
+	bparams := convertBuildParams(BuildParams{
+		// Test with Output
+		Output:        PathForOutput(pathContext, "undeclared_symlink"),
+		SymlinkOutput: PathForOutput(pathContext, "undeclared_symlink"),
+	})
+
+	err := validateBuildParams(bparams)
+	if err != nil {
+		t.Error(err)
+	}
+
+	bparams = convertBuildParams(BuildParams{
+		// Test with ImplicitOutput
+		ImplicitOutput: PathForOutput(pathContext, "undeclared_symlink"),
+		SymlinkOutput:  PathForOutput(pathContext, "undeclared_symlink"),
+	})
+
+	err = validateBuildParams(bparams)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestValidateIncorrectBuildParams(t *testing.T) {
+	config := TestConfig(buildDir, nil, "", nil)
+	pathContext := PathContextForTesting(config)
+	params := BuildParams{
+		Output:          PathForOutput(pathContext, "regular_output"),
+		Outputs:         PathsForOutput(pathContext, []string{"out1", "out2"}),
+		ImplicitOutput:  PathForOutput(pathContext, "implicit_output"),
+		ImplicitOutputs: PathsForOutput(pathContext, []string{"i_out1", "_out2"}),
+		SymlinkOutput:   PathForOutput(pathContext, "undeclared_symlink"),
+	}
+
+	bparams := convertBuildParams(params)
+	err := validateBuildParams(bparams)
+	if err != nil {
+		FailIfNoMatchingErrors(t, "undeclared_symlink is not a declared output or implicit output", []error{err})
+	} else {
+		t.Errorf("Expected build params to fail validation: %+v", bparams)
+	}
+}
