@@ -1246,16 +1246,20 @@ func (library *libraryDecorator) installSymlinkToRuntimeApex(ctx ModuleContext, 
 func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 	if library.shared() {
 		if ctx.Device() && ctx.useVndk() {
-			if ctx.isVndkSp() {
-				library.baseInstaller.subDir = "vndk-sp"
-			} else if ctx.isVndk() {
+			// set subDir for VNDK extensions
+			if ctx.isVndkExt() {
+				if ctx.isVndkSp() {
+					library.baseInstaller.subDir = "vndk-sp"
+				} else {
+					library.baseInstaller.subDir = "vndk"
+				}
+			}
+
+			// In some cases we want to use core variant for VNDK-Core libs
+			if ctx.isVndk() && !ctx.isVndkSp() && !ctx.isVndkExt() {
 				mayUseCoreVariant := true
 
 				if ctx.mustUseVendorVariant() {
-					mayUseCoreVariant = false
-				}
-
-				if ctx.isVndkExt() {
 					mayUseCoreVariant = false
 				}
 
@@ -1269,15 +1273,12 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 						library.useCoreVariant = true
 					}
 				}
-				library.baseInstaller.subDir = "vndk"
 			}
 
-			// Append a version to vndk or vndk-sp directories on the system partition.
+			// do not install vndk libs
+			// vndk libs are packaged into VNDK APEX
 			if ctx.isVndk() && !ctx.isVndkExt() {
-				vndkVersion := ctx.DeviceConfig().PlatformVndkVersion()
-				if vndkVersion != "current" && vndkVersion != "" {
-					library.baseInstaller.subDir += "-" + vndkVersion
-				}
+				return
 			}
 		} else if len(library.Properties.Stubs.Versions) > 0 && !ctx.Host() && ctx.directlyInAnyApex() {
 			// Bionic libraries (e.g. libc.so) is installed to the bootstrap subdirectory.
