@@ -95,6 +95,8 @@ func InitDefaultableModule(module DefaultableModule) {
 	module.setProperties(module.(Module).GetProperties(), module.(Module).base().variableProperties)
 
 	module.AddProperties(module.defaults())
+
+	module.base().customizableProperties = module.GetProperties()
 }
 
 // A restricted subset of context methods, similar to LoadHookContext.
