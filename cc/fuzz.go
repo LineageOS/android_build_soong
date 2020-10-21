@@ -388,10 +388,10 @@ func (s *fuzzPackager) GenerateBuildActions(ctx android.SingletonContext) {
 			return
 		}
 
-		// Discard ramdisk + recovery modules, they're duplicates of
+		// Discard ramdisk + vendor_ramdisk + recovery modules, they're duplicates of
 		// fuzz targets we're going to package anyway.
 		if !ccModule.Enabled() || ccModule.Properties.PreventInstall ||
-			ccModule.InRamdisk() || ccModule.InRecovery() {
+			ccModule.InRamdisk() || ccModule.InVendorRamdisk() || ccModule.InRecovery() {
 			return
 		}
 

@@ -118,6 +118,10 @@ func (mod *Module) RamdiskVariantNeeded(android.BaseModuleContext) bool {
 	return mod.InRamdisk()
 }
 
+func (mod *Module) VendorRamdiskVariantNeeded(android.BaseModuleContext) bool {
+	return mod.InVendorRamdisk()
+}
+
 func (mod *Module) RecoveryVariantNeeded(android.BaseModuleContext) bool {
 	return mod.InRecovery()
 }
@@ -182,6 +186,10 @@ func (mod *Module) Toc() android.OptionalPath {
 }
 
 func (mod *Module) OnlyInRamdisk() bool {
+	return false
+}
+
+func (mod *Module) OnlyInVendorRamdisk() bool {
 	return false
 }
 

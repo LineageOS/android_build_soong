@@ -257,14 +257,18 @@ type BaseProperties struct {
 	// Make this module available when building for ramdisk
 	Ramdisk_available *bool
 
+	// Make this module available when building for vendor ramdisk
+	Vendor_ramdisk_available *bool
+
 	// Make this module available when building for recovery
 	Recovery_available *bool
 
 	// Set by imageMutator
-	CoreVariantNeeded     bool     `blueprint:"mutated"`
-	RamdiskVariantNeeded  bool     `blueprint:"mutated"`
-	RecoveryVariantNeeded bool     `blueprint:"mutated"`
-	ExtraVariants         []string `blueprint:"mutated"`
+	CoreVariantNeeded          bool     `blueprint:"mutated"`
+	RamdiskVariantNeeded       bool     `blueprint:"mutated"`
+	VendorRamdiskVariantNeeded bool     `blueprint:"mutated"`
+	RecoveryVariantNeeded      bool     `blueprint:"mutated"`
+	ExtraVariants              []string `blueprint:"mutated"`
 
 	// Allows this module to use non-APEX version of libraries. Useful
 	// for building binaries that are started before APEXes are activated.
@@ -352,6 +356,7 @@ type ModuleContextIntf interface {
 	inProduct() bool
 	inVendor() bool
 	inRamdisk() bool
+	inVendorRamdisk() bool
 	inRecovery() bool
 	shouldCreateSourceAbiDump() bool
 	selectedStl() string
@@ -946,7 +951,7 @@ func (c *Module) UseVndk() bool {
 }
 
 func (c *Module) canUseSdk() bool {
-	return c.Os() == android.Android && !c.UseVndk() && !c.InRamdisk() && !c.InRecovery()
+	return c.Os() == android.Android && !c.UseVndk() && !c.InRamdisk() && !c.InRecovery() && !c.InVendorRamdisk()
 }
 
 func (c *Module) UseSdk() bool {
@@ -1396,6 +1401,8 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		c.Properties.SubName += vendorSuffix
 	} else if c.InRamdisk() && !c.OnlyInRamdisk() {
 		c.Properties.SubName += ramdiskSuffix
+	} else if c.InVendorRamdisk() && !c.OnlyInVendorRamdisk() {
+		c.Properties.SubName += vendorRamdiskSuffix
 	} else if c.InRecovery() && !c.OnlyInRecovery() {
 		c.Properties.SubName += recoverySuffix
 	} else if c.IsSdkVariant() && (c.Properties.SdkAndPlatformVariantVisibleToMake || c.SplitPerApiLevel()) {
@@ -1508,7 +1515,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		// module is marked with 'bootstrap: true').
 		if c.HasStubsVariants() && c.AnyVariantDirectlyInAnyApex() && !c.InRamdisk() &&
 			!c.InRecovery() && !c.UseVndk() && !c.static() && !c.isCoverageVariant() &&
-			c.IsStubs() {
+			c.IsStubs() && !c.InVendorRamdisk() {
 			c.Properties.HideFromMake = false // unhide
 			// Note: this is still non-installable
 		}
@@ -2044,6 +2051,10 @@ func checkLinkType(ctx android.ModuleContext, from LinkableInterface, to Linkabl
 		// Ramdisk code is not NDK
 		return
 	}
+	if from.InVendorRamdisk() {
+		// Vendor ramdisk code is not NDK
+		return
+	}
 	if from.InRecovery() {
 		// Recovery code is not NDK
 		return
@@ -2348,7 +2359,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					} else if apexInfo.IsForPlatform() {
 						// If not building for APEX, use stubs only when it is from
 						// an APEX (and not from platform)
-						// However, for host, ramdisk, recovery or bootstrap modules,
+						// However, for host, ramdisk, vendor_ramdisk, recovery or bootstrap modules,
 						// always link to non-stub variant
 						useStubs = dep.(android.ApexModule).AnyVariantDirectlyInAnyApex() && !c.bootstrap()
 						// Another exception: if this module is bundled with an APEX, then
@@ -2642,7 +2653,8 @@ func (c *Module) makeLibName(ctx android.ModuleContext, ccDep LinkableInterface,
 		}
 	}
 
-	if ctx.DeviceConfig().VndkUseCoreVariant() && ccDep.IsVndk() && !ccDep.MustUseVendorVariant() && !c.InRamdisk() && !c.InRecovery() {
+	if ctx.DeviceConfig().VndkUseCoreVariant() && ccDep.IsVndk() && !ccDep.MustUseVendorVariant() &&
+		!c.InRamdisk() && !c.InVendorRamdisk() && !c.InRecovery() {
 		// The vendor module is a no-vendor-variant VNDK library.  Depend on the
 		// core module instead.
 		return libName
@@ -2654,6 +2666,8 @@ func (c *Module) makeLibName(ctx android.ModuleContext, ccDep LinkableInterface,
 		return libName + vendorPublicLibrarySuffix
 	} else if ccDep.InRamdisk() && !ccDep.OnlyInRamdisk() {
 		return libName + ramdiskSuffix
+	} else if ccDep.InVendorRamdisk() && !ccDep.OnlyInVendorRamdisk() {
+		return libName + vendorRamdiskSuffix
 	} else if ccDep.InRecovery() && !ccDep.OnlyInRecovery() {
 		return libName + recoverySuffix
 	} else if ccDep.Module().Target().NativeBridge == android.NativeBridgeEnabled {
@@ -2682,6 +2696,10 @@ func (c *Module) InstallInSanitizerDir() bool {
 
 func (c *Module) InstallInRamdisk() bool {
 	return c.InRamdisk()
+}
+
+func (c *Module) InstallInVendorRamdisk() bool {
+	return c.InVendorRamdisk()
 }
 
 func (c *Module) InstallInRecovery() bool {
@@ -2784,6 +2802,8 @@ func (c *Module) getMakeLinkType(actx android.ModuleContext) string {
 		return "native:vendor"
 	} else if c.InRamdisk() {
 		return "native:ramdisk"
+	} else if c.InVendorRamdisk() {
+		return "native:vendor_ramdisk"
 	} else if c.InRecovery() {
 		return "native:recovery"
 	} else if c.Target().Os == android.Android && String(c.Properties.Sdk_version) != "" {
