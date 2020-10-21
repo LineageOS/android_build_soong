@@ -352,6 +352,8 @@ type productVariables struct {
 
 	BoardKernelBinaries                []string `json:",omitempty"`
 	BoardKernelModuleInterfaceVersions []string `json:",omitempty"`
+
+	BoardMoveRecoveryResourcesToVendorBoot *bool `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {

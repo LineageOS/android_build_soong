@@ -1378,8 +1378,14 @@ func modulePartition(ctx ModuleInstallPathContext, os OsType) string {
 				partition += "/system"
 			}
 		} else if ctx.InstallInVendorRamdisk() {
-			// TODO(elsk): Should be conditional on move_recovery_res_to_vendor_boot
-			partition = "vendor-ramdisk"
+			if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
+				partition = "recovery/root/first_stage_ramdisk"
+			} else {
+				partition = "vendor-ramdisk"
+			}
+			if !ctx.InstallInRoot() {
+				partition += "/system"
+			}
 		} else if ctx.InstallInRecovery() {
 			if ctx.InstallInRoot() {
 				partition = "recovery/root"
