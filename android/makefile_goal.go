@@ -93,7 +93,6 @@ func (p *makefileGoal) AndroidMkEntries() []AndroidMkEntries {
 func MakefileGoalFactory() Module {
 	module := &makefileGoal{}
 	module.AddProperties(&module.properties)
-	// This module is device-only
-	InitAndroidArchModule(module, DeviceSupported, MultilibFirst)
+	InitAndroidModule(module)
 	return module
 }
