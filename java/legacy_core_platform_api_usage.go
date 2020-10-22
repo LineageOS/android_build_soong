@@ -90,6 +90,7 @@ var legacyCorePlatformApiModules = []string{
 	"framework-all",
 	"framework-jobscheduler",
 	"framework-minus-apex",
+	"framework-minus-apex-intdefs",
 	"FrameworkOverlayG6QU3",
 	"FrameworksCoreTests",
 	"FrameworksIkeTests",

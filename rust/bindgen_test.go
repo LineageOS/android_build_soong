@@ -134,3 +134,29 @@ func TestRustBindgenStdVersions(t *testing.T) {
 		t.Errorf("cpp_std value not passed in to rust_bindgen as a clang flag")
 	}
 }
+
+func TestBindgenDisallowedFlags(t *testing.T) {
+	// Make sure passing '-x c++' to cflags generates an error
+	testRustError(t, "cflags: -x c\\+\\+ should not be specified in cflags.*", `
+		rust_bindgen {
+			name: "libbad_flag",
+			wrapper_src: "src/any.h",
+			crate_name: "bindgen",
+			stem: "libbindgen",
+			source_stem: "bindings",
+			cflags: ["-x c++"]
+		}
+	`)
+
+	// Make sure passing '-std=' to cflags generates an error
+	testRustError(t, "cflags: -std should not be specified in cflags.*", `
+		rust_bindgen {
+			name: "libbad_flag",
+			wrapper_src: "src/any.h",
+			crate_name: "bindgen",
+			stem: "libbindgen",
+			source_stem: "bindings",
+			cflags: ["-std=foo"]
+		}
+	`)
+}

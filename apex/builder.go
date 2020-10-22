@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"android/soong/android"
@@ -552,14 +553,16 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
 		}
 
-		targetSdkVersion := ctx.Config().DefaultAppTargetSdk(ctx).String()
-		// TODO(b/157078772): propagate min_sdk_version to apexer.
-		minSdkVersion := ctx.Config().DefaultAppTargetSdk(ctx).String()
-
 		moduleMinSdkVersion := a.minSdkVersion(ctx)
-		if moduleMinSdkVersion.EqualTo(android.SdkVersion_Android10) {
-			minSdkVersion = moduleMinSdkVersion.String()
+		minSdkVersion := moduleMinSdkVersion.String()
+
+		// bundletool doesn't understand what "current" is. We need to transform it to codename
+		if moduleMinSdkVersion.IsCurrent() {
+			minSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
 		}
+		// apex module doesn't have a concept of target_sdk_version, hence for the time being
+		// targetSdkVersion == default targetSdkVersion of the branch.
+		targetSdkVersion := strconv.Itoa(ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt())
 
 		if java.UseApiFingerprint(ctx) {
 			targetSdkVersion = ctx.Config().PlatformSdkCodename() + fmt.Sprintf(".$$(cat %s)", java.ApiFingerprintPath(ctx).String())

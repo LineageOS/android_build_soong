@@ -43,6 +43,8 @@ type BuildParams struct {
 	Description     string
 	Output          WritablePath
 	Outputs         WritablePaths
+	SymlinkOutput   WritablePath
+	SymlinkOutputs  WritablePaths
 	ImplicitOutput  WritablePath
 	ImplicitOutputs WritablePaths
 	Input           Path
@@ -1763,6 +1765,27 @@ func (m *moduleContext) ModuleBuild(pctx PackageContext, params ModuleBuildParam
 	m.Build(pctx, BuildParams(params))
 }
 
+func validateBuildParams(params blueprint.BuildParams) error {
+	// Validate that the symlink outputs are declared outputs or implicit outputs
+	allOutputs := map[string]bool{}
+	for _, output := range params.Outputs {
+		allOutputs[output] = true
+	}
+	for _, output := range params.ImplicitOutputs {
+		allOutputs[output] = true
+	}
+	for _, symlinkOutput := range params.SymlinkOutputs {
+		if !allOutputs[symlinkOutput] {
+			return fmt.Errorf(
+				"Symlink output %s is not a declared output or implicit output",
+				symlinkOutput)
+		}
+	}
+	return nil
+}
+
+// Convert build parameters from their concrete Android types into their string representations,
+// and combine the singular and plural fields of the same type (e.g. Output and Outputs).
 func convertBuildParams(params BuildParams) blueprint.BuildParams {
 	bparams := blueprint.BuildParams{
 		Rule:            params.Rule,
@@ -1770,6 +1793,7 @@ func convertBuildParams(params BuildParams) blueprint.BuildParams {
 		Deps:            params.Deps,
 		Outputs:         params.Outputs.Strings(),
 		ImplicitOutputs: params.ImplicitOutputs.Strings(),
+		SymlinkOutputs:  params.SymlinkOutputs.Strings(),
 		Inputs:          params.Inputs.Strings(),
 		Implicits:       params.Implicits.Strings(),
 		OrderOnly:       params.OrderOnly.Strings(),
@@ -1783,6 +1807,9 @@ func convertBuildParams(params BuildParams) blueprint.BuildParams {
 	}
 	if params.Output != nil {
 		bparams.Outputs = append(bparams.Outputs, params.Output.String())
+	}
+	if params.SymlinkOutput != nil {
+		bparams.SymlinkOutputs = append(bparams.SymlinkOutputs, params.SymlinkOutput.String())
 	}
 	if params.ImplicitOutput != nil {
 		bparams.ImplicitOutputs = append(bparams.ImplicitOutputs, params.ImplicitOutput.String())
@@ -1799,6 +1826,7 @@ func convertBuildParams(params BuildParams) blueprint.BuildParams {
 
 	bparams.Outputs = proptools.NinjaEscapeList(bparams.Outputs)
 	bparams.ImplicitOutputs = proptools.NinjaEscapeList(bparams.ImplicitOutputs)
+	bparams.SymlinkOutputs = proptools.NinjaEscapeList(bparams.SymlinkOutputs)
 	bparams.Inputs = proptools.NinjaEscapeList(bparams.Inputs)
 	bparams.Implicits = proptools.NinjaEscapeList(bparams.Implicits)
 	bparams.OrderOnly = proptools.NinjaEscapeList(bparams.OrderOnly)
@@ -1855,7 +1883,15 @@ func (m *moduleContext) Build(pctx PackageContext, params BuildParams) {
 		m.buildParams = append(m.buildParams, params)
 	}
 
-	m.bp.Build(pctx.PackageContext, convertBuildParams(params))
+	bparams := convertBuildParams(params)
+	err := validateBuildParams(bparams)
+	if err != nil {
+		m.ModuleErrorf(
+			"%s: build parameter validation failed: %s",
+			m.ModuleName(),
+			err.Error())
+	}
+	m.bp.Build(pctx.PackageContext, bparams)
 }
 
 func (m *moduleContext) Phony(name string, deps ...Path) {
