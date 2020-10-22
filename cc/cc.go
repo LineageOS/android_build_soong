@@ -84,6 +84,7 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.TopDown("lto_deps", ltoDepsMutator)
 		ctx.BottomUp("lto", ltoMutator).Parallel()
 
+		ctx.BottomUp("check_linktype", checkLinkTypeMutator).Parallel()
 		ctx.TopDown("double_loadable", checkDoubleLoadableLibraries).Parallel()
 	})
 
@@ -2004,7 +2005,7 @@ func BeginMutator(ctx android.BottomUpMutatorContext) {
 
 // Whether a module can link to another module, taking into
 // account NDK linking.
-func checkLinkType(ctx android.ModuleContext, from LinkableInterface, to LinkableInterface,
+func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to LinkableInterface,
 	tag blueprint.DependencyTag) {
 
 	switch t := tag.(type) {
@@ -2124,6 +2125,18 @@ func checkLinkType(ctx android.ModuleContext, from LinkableInterface, to Linkabl
 	}
 }
 
+func checkLinkTypeMutator(ctx android.BottomUpMutatorContext) {
+	if c, ok := ctx.Module().(*Module); ok {
+		ctx.VisitDirectDeps(func(dep android.Module) {
+			depTag := ctx.OtherModuleDependencyTag(dep)
+			ccDep, ok := dep.(LinkableInterface)
+			if ok {
+				checkLinkType(ctx, c, ccDep, depTag)
+			}
+		})
+	}
+}
+
 // Tests whether the dependent library is okay to be double loaded inside a single process.
 // If a library has a vendor variant and is a (transitive) dependency of an LLNDK library,
 // it is subject to be double loaded. Such lib should be explicitly marked as double_loadable: true
@@ -2132,15 +2145,15 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 	check := func(child, parent android.Module) bool {
 		to, ok := child.(*Module)
 		if !ok {
-			// follow thru cc.Defaults, etc.
-			return true
+			return false
 		}
 
 		if lib, ok := to.linker.(*libraryDecorator); !ok || !lib.shared() {
 			return false
 		}
 
-		// if target lib has no vendor variant, keep checking dependency graph
+		// Even if target lib has no vendor variant, keep checking dependency graph
+		// in case it depends on vendor_available but not double_loadable transtively.
 		if !to.HasVendorVariant() {
 			return true
 		}
@@ -2303,8 +2316,6 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			reexportExporter(depExporterInfo)
 			return
 		}
-
-		checkLinkType(ctx, c, ccDep, depTag)
 
 		linkFile := ccDep.OutputFile()
 
