@@ -162,6 +162,17 @@ func (n *NinjaReader) run() {
 					Action: started,
 					Output: msg.EdgeFinished.GetOutput(),
 					Error:  err,
+					Stats: ActionResultStats{
+						UserTime:                   msg.EdgeFinished.GetUserTime(),
+						SystemTime:                 msg.EdgeFinished.GetSystemTime(),
+						MaxRssKB:                   msg.EdgeFinished.GetMaxRssKb(),
+						MinorPageFaults:            msg.EdgeFinished.GetMinorPageFaults(),
+						MajorPageFaults:            msg.EdgeFinished.GetMajorPageFaults(),
+						IOInputKB:                  msg.EdgeFinished.GetIoInputKb(),
+						IOOutputKB:                 msg.EdgeFinished.GetIoOutputKb(),
+						VoluntaryContextSwitches:   msg.EdgeFinished.GetVoluntaryContextSwitches(),
+						InvoluntaryContextSwitches: msg.EdgeFinished.GetInvoluntaryContextSwitches(),
+					},
 				})
 			}
 		}
