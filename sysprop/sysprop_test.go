@@ -277,6 +277,7 @@ func TestSyspropLibrary(t *testing.T) {
 			system_shared_libs: [],
 			recovery_available: true,
 			host_supported: true,
+			llndk_stubs: "liblog.llndk",
 		}
 
 		cc_binary_host {
@@ -285,7 +286,7 @@ func TestSyspropLibrary(t *testing.T) {
 		}
 
 		llndk_library {
-			name: "liblog",
+			name: "liblog.llndk",
 			symbol_file: "",
 		}
 

@@ -850,10 +850,11 @@ func TestDoubleLoadbleDep(t *testing.T) {
 		cc_library {
 			name: "libllndk",
 			shared_libs: ["libdoubleloadable"],
+			llndk_stubs: "libllndk.llndk",
 		}
 
 		llndk_library {
-			name: "libllndk",
+			name: "libllndk.llndk",
 			symbol_file: "",
 		}
 
@@ -871,10 +872,11 @@ func TestDoubleLoadbleDep(t *testing.T) {
 		cc_library {
 			name: "libllndk",
 			shared_libs: ["libvndksp"],
+			llndk_stubs: "libllndk.llndk",
 		}
 
 		llndk_library {
-			name: "libllndk",
+			name: "libllndk.llndk",
 			symbol_file: "",
 		}
 
@@ -928,10 +930,11 @@ func TestDoubleLoadbleDep(t *testing.T) {
 		cc_library {
 			name: "libllndk",
 			shared_libs: ["libcoreonly"],
+			llndk_stubs: "libllndk.llndk",
 		}
 
 		llndk_library {
-			name: "libllndk",
+			name: "libllndk.llndk",
 			symbol_file: "",
 		}
 
@@ -1552,10 +1555,11 @@ func TestDoubleLoadableDepError(t *testing.T) {
 		cc_library {
 			name: "libllndk",
 			shared_libs: ["libnondoubleloadable"],
+			llndk_stubs: "libllndk.llndk",
 		}
 
 		llndk_library {
-			name: "libllndk",
+			name: "libllndk.llndk",
 			symbol_file: "",
 		}
 
@@ -1574,10 +1578,11 @@ func TestDoubleLoadableDepError(t *testing.T) {
 			name: "libllndk",
 			no_libcrt: true,
 			shared_libs: ["libnondoubleloadable"],
+			llndk_stubs: "libllndk.llndk",
 		}
 
 		llndk_library {
-			name: "libllndk",
+			name: "libllndk.llndk",
 			symbol_file: "",
 		}
 
@@ -1646,10 +1651,11 @@ func TestDoubleLoadableDepError(t *testing.T) {
 		cc_library {
 			name: "libllndk",
 			shared_libs: ["libcoreonly"],
+			llndk_stubs: "libllndk.llndk",
 		}
 
 		llndk_library {
-			name: "libllndk",
+			name: "libllndk.llndk",
 			symbol_file: "",
 		}
 
@@ -2419,9 +2425,10 @@ func TestEnforceProductVndkVersion(t *testing.T) {
 	bp := `
 		cc_library {
 			name: "libllndk",
+			llndk_stubs: "libllndk.llndk",
 		}
 		llndk_library {
-			name: "libllndk",
+			name: "libllndk.llndk",
 			symbol_file: "",
 		}
 		cc_library {
@@ -2622,16 +2629,18 @@ func TestMakeLinkType(t *testing.T) {
 		}
 		cc_library {
 			name: "libllndk",
+			llndk_stubs: "libllndk.llndk",
 		}
 		llndk_library {
-			name: "libllndk",
+			name: "libllndk.llndk",
 			symbol_file: "",
 		}
 		cc_library {
 			name: "libllndkprivate",
+			llndk_stubs: "libllndkprivate.llndk",
 		}
 		llndk_library {
-			name: "libllndkprivate",
+			name: "libllndkprivate.llndk",
 			vendor_available: false,
 			symbol_file: "",
 		}`
@@ -3045,9 +3054,10 @@ func TestLlndkLibrary(t *testing.T) {
 	cc_library {
 		name: "libllndk",
 		stubs: { versions: ["1", "2"] },
+		llndk_stubs: "libllndk.llndk",
 	}
 	llndk_library {
-		name: "libllndk",
+		name: "libllndk.llndk",
 	}
 	`)
 	actual := ctx.ModuleVariantsForTests("libllndk.llndk")
@@ -3075,9 +3085,14 @@ func TestLlndkHeaders(t *testing.T) {
 		export_include_dirs: ["my_include"],
 	}
 	llndk_library {
-		name: "libllndk",
+		name: "libllndk.llndk",
 		export_llndk_headers: ["libllndk_headers"],
 	}
+	cc_library {
+		name: "libllndk",
+		llndk_stubs: "libllndk.llndk",
+	}
+
 	cc_library {
 		name: "libvendor",
 		shared_libs: ["libllndk"],
