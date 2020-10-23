@@ -1336,11 +1336,6 @@ func (l *ConfiguredJarList) Len() int {
 	return len(l.jars)
 }
 
-// Apex component of idx-th pair on the list.
-func (l *ConfiguredJarList) apex(idx int) string {
-	return l.apexes[idx]
-}
-
 // Jar component of idx-th pair on the list.
 func (l *ConfiguredJarList) Jar(idx int) string {
 	return l.jars[idx]
@@ -1354,7 +1349,7 @@ func (l *ConfiguredJarList) ContainsJar(jar string) bool {
 // If the list contains the given (apex, jar) pair.
 func (l *ConfiguredJarList) containsApexJarPair(apex, jar string) bool {
 	for i := 0; i < l.Len(); i++ {
-		if apex == l.apex(i) && jar == l.Jar(i) {
+		if apex == l.apexes[i] && jar == l.jars[i] {
 			return true
 		}
 	}
@@ -1378,7 +1373,7 @@ func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) {
 	jars := make([]string, 0, l.Len())
 
 	for i, jar := range l.jars {
-		apex := l.apex(i)
+		apex := l.apexes[i]
 		if !list.containsApexJarPair(apex, jar) {
 			apexes = append(apexes, apex)
 			jars = append(jars, jar)
@@ -1404,7 +1399,7 @@ func (l *ConfiguredJarList) CopyOfApexJarPairs() []string {
 	pairs := make([]string, 0, l.Len())
 
 	for i, jar := range l.jars {
-		apex := l.apex(i)
+		apex := l.apexes[i]
 		pairs = append(pairs, apex+":"+jar)
 	}
 
