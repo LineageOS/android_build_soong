@@ -3491,3 +3491,34 @@ func TestEnforceRRO_propagatesToDependencies(t *testing.T) {
 		})
 	}
 }
+
+func TestExportedProguardFlagFiles(t *testing.T) {
+	ctx, _ := testJava(t, `
+		android_app {
+			name: "foo",
+			sdk_version: "current",
+			static_libs: ["lib1"],
+		}
+
+		android_library {
+			name: "lib1",
+			sdk_version: "current",
+			optimize: {
+				proguard_flags_files: ["lib1proguard.cfg"],
+			}
+		}
+	`)
+
+	m := ctx.ModuleForTests("foo", "android_common")
+	hasLib1Proguard := false
+	for _, s := range m.Rule("java.r8").Implicits.Strings() {
+		if s == "lib1proguard.cfg" {
+			hasLib1Proguard = true
+			break
+		}
+	}
+
+	if !hasLib1Proguard {
+		t.Errorf("App does not use library proguard config")
+	}
+}
