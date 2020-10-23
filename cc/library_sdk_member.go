@@ -86,10 +86,6 @@ func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorCont
 			if mctx.Device() {
 				variations = append(variations,
 					blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
-				if mt.linkTypes != nil {
-					variations = append(variations,
-						blueprint.Variation{Mutator: "version", Variation: version})
-				}
 			}
 			if mt.linkTypes == nil {
 				mctx.AddFarVariationDependencies(variations, dependencyTag, name)
@@ -97,6 +93,10 @@ func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorCont
 				for _, linkType := range mt.linkTypes {
 					libVariations := append(variations,
 						blueprint.Variation{Mutator: "link", Variation: linkType})
+					if mctx.Device() && linkType == "shared" {
+						libVariations = append(libVariations,
+							blueprint.Variation{Mutator: "version", Variation: version})
+					}
 					mctx.AddFarVariationDependencies(libVariations, dependencyTag, name)
 				}
 			}

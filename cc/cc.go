@@ -2337,12 +2337,17 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		}
 
 		if depTag == reuseObjTag {
-			// reusing objects only make sense for cc.Modules.
-			staticAnalogue := ctx.OtherModuleProvider(dep, StaticLibraryInfoProvider).(StaticLibraryInfo)
-			objs := staticAnalogue.ReuseObjects
-			depPaths.Objs = depPaths.Objs.Append(objs)
-			depExporterInfo := ctx.OtherModuleProvider(dep, FlagExporterInfoProvider).(FlagExporterInfo)
-			reexportExporter(depExporterInfo)
+			// Skip reused objects for stub libraries, they use their own stub object file instead.
+			// The reuseObjTag dependency still exists because the LinkageMutator runs before the
+			// version mutator, so the stubs variant is created from the shared variant that
+			// already has the reuseObjTag dependency on the static variant.
+			if !c.BuildStubs() {
+				staticAnalogue := ctx.OtherModuleProvider(dep, StaticLibraryInfoProvider).(StaticLibraryInfo)
+				objs := staticAnalogue.ReuseObjects
+				depPaths.Objs = depPaths.Objs.Append(objs)
+				depExporterInfo := ctx.OtherModuleProvider(dep, FlagExporterInfoProvider).(FlagExporterInfo)
+				reexportExporter(depExporterInfo)
+			}
 			return
 		}
 
