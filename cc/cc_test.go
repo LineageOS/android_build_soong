@@ -103,6 +103,7 @@ func testCcErrorWithConfig(t *testing.T, pattern string, config android.Config) 
 }
 
 func testCcError(t *testing.T, pattern string, bp string) {
+	t.Helper()
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
@@ -111,6 +112,7 @@ func testCcError(t *testing.T, pattern string, bp string) {
 }
 
 func testCcErrorProductVndk(t *testing.T, pattern string, bp string) {
+	t.Helper()
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.ProductVndkVersion = StringPtr("current")
@@ -388,10 +390,12 @@ func TestVndk(t *testing.T) {
 
 	ctx := testCcWithConfig(t, config)
 
-	checkVndkModule(t, ctx, "libvndk", "vndk-VER", false, "", vendorVariant)
-	checkVndkModule(t, ctx, "libvndk_private", "vndk-VER", false, "", vendorVariant)
-	checkVndkModule(t, ctx, "libvndk_sp", "vndk-sp-VER", true, "", vendorVariant)
-	checkVndkModule(t, ctx, "libvndk_sp_private", "vndk-sp-VER", true, "", vendorVariant)
+	// subdir == "" because VNDK libs are not supposed to be installed separately.
+	// They are installed as part of VNDK APEX instead.
+	checkVndkModule(t, ctx, "libvndk", "", false, "", vendorVariant)
+	checkVndkModule(t, ctx, "libvndk_private", "", false, "", vendorVariant)
+	checkVndkModule(t, ctx, "libvndk_sp", "", true, "", vendorVariant)
+	checkVndkModule(t, ctx, "libvndk_sp_private", "", true, "", vendorVariant)
 
 	// Check VNDK snapshot output.
 
@@ -1662,6 +1666,35 @@ func TestDoubleLoadableDepError(t *testing.T) {
 	`)
 }
 
+func TestCheckVndkMembershipBeforeDoubleLoadable(t *testing.T) {
+	testCcError(t, "module \"libvndksp\" variant .*: .*: VNDK-SP must only depend on VNDK-SP", `
+		cc_library {
+			name: "libvndksp",
+			shared_libs: ["libanothervndksp"],
+			vendor_available: true,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+			}
+		}
+
+		cc_library {
+			name: "libllndk",
+			shared_libs: ["libanothervndksp"],
+		}
+
+		llndk_library {
+			name: "libllndk",
+			symbol_file: "",
+		}
+
+		cc_library {
+			name: "libanothervndksp",
+			vendor_available: true,
+		}
+	`)
+}
+
 func TestVndkExt(t *testing.T) {
 	// This test checks the VNDK-Ext properties.
 	bp := `
@@ -2452,8 +2485,8 @@ func TestEnforceProductVndkVersion(t *testing.T) {
 
 	ctx := testCcWithConfig(t, config)
 
-	checkVndkModule(t, ctx, "libvndk", "vndk-VER", false, "", productVariant)
-	checkVndkModule(t, ctx, "libvndk_sp", "vndk-sp-VER", true, "", productVariant)
+	checkVndkModule(t, ctx, "libvndk", "", false, "", productVariant)
+	checkVndkModule(t, ctx, "libvndk_sp", "", true, "", productVariant)
 }
 
 func TestEnforceProductVndkVersionErrors(t *testing.T) {

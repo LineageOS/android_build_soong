@@ -129,7 +129,7 @@ func (vndk *vndkdep) typeName() string {
 	return "native:vendor:vndkspext"
 }
 
-func (vndk *vndkdep) vndkCheckLinkType(ctx android.ModuleContext, to *Module, tag blueprint.DependencyTag) {
+func (vndk *vndkdep) vndkCheckLinkType(ctx android.BaseModuleContext, to *Module, tag blueprint.DependencyTag) {
 	if to.linker == nil {
 		return
 	}
@@ -540,6 +540,9 @@ func isVndkSnapshotLibrary(config android.DeviceConfig, m *Module,
 	if m.Target().NativeBridge == android.NativeBridgeEnabled {
 		return nil, "", false
 	}
+	// !inVendor: There's product/vendor variants for VNDK libs. We only care about vendor variants.
+	// !installable: Snapshot only cares about "installable" modules.
+	// isSnapshotPrebuilt: Snapshotting a snapshot doesn't make sense.
 	if !m.inVendor() || !m.installable(apexInfo) || m.isSnapshotPrebuilt() {
 		return nil, "", false
 	}

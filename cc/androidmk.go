@@ -483,12 +483,6 @@ func (c *vndkPrebuiltLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, en
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		c.libraryDecorator.androidMkWriteExportedFlags(entries)
 
-		path, file := filepath.Split(c.path.ToMakePath().String())
-		stem, suffix, ext := android.SplitFileExt(file)
-		entries.SetString("LOCAL_BUILT_MODULE_STEM", "$(LOCAL_MODULE)"+ext)
-		entries.SetString("LOCAL_MODULE_SUFFIX", suffix)
-		entries.SetString("LOCAL_MODULE_PATH", path)
-		entries.SetString("LOCAL_MODULE_STEM", stem)
 		if c.tocFile.Valid() {
 			entries.SetString("LOCAL_SOONG_TOC", c.tocFile.String())
 		}
