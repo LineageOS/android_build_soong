@@ -100,8 +100,14 @@ type stubDecorator struct {
 	unversionedUntil android.ApiLevel
 }
 
+var _ versionedInterface = (*stubDecorator)(nil)
+
 func shouldUseVersionScript(ctx BaseModuleContext, stub *stubDecorator) bool {
 	return stub.apiLevel.GreaterThanOrEqualTo(stub.unversionedUntil)
+}
+
+func (stub *stubDecorator) implementationModuleName(name string) string {
+	return strings.TrimSuffix(name, ndkLibrarySuffix)
 }
 
 func ndkLibraryVersions(ctx android.BaseMutatorContext, from android.ApiLevel) []string {

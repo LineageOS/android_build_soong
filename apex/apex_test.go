@@ -1270,10 +1270,11 @@ func TestApexDependsOnLLNDKTransitively(t *testing.T) {
 				system_shared_libs: [],
 				stl: "none",
 				stubs: { versions: ["29","30"] },
+				llndk_stubs: "libbar.llndk",
 			}
 
 			llndk_library {
-				name: "libbar",
+				name: "libbar.llndk",
 				symbol_file: "",
 			}
 			`, func(fs map[string][]byte, config android.Config) {
