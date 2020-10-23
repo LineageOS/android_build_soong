@@ -536,6 +536,8 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		ctx.CheckbuildFile(a.aarFile)
 	}
 
+	a.exportedProguardFlagFiles = append(a.exportedProguardFlagFiles,
+		android.PathsForModuleSrc(ctx, a.dexProperties.Optimize.Proguard_flags_files)...)
 	ctx.VisitDirectDeps(func(m android.Module) {
 		if lib, ok := m.(AndroidLibraryDependency); ok && ctx.OtherModuleDependencyTag(m) == staticLibTag {
 			a.exportedProguardFlagFiles = append(a.exportedProguardFlagFiles, lib.ExportedProguardFlagFiles()...)
