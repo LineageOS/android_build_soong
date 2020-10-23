@@ -152,7 +152,7 @@ func makeCompatSymlinks(name string, ctx android.ModuleContext) (symlinks []stri
 	}
 
 	// TODO(b/124106384): Clean up compat symlinks for ART binaries.
-	if strings.HasPrefix(name, "com.android.art.") {
+	if name == "com.android.art" || strings.HasPrefix(name, "com.android.art.") {
 		addSymlink("/apex/com.android.art/bin/dalvikvm", "$(TARGET_OUT)/bin", "dalvikvm")
 		dex2oat := "dex2oat32"
 		if ctx.Config().Android64() {
