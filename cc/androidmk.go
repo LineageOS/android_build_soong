@@ -71,10 +71,11 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 
 	entries := android.AndroidMkEntries{
 		OutputFile: c.outputFile,
-		// TODO(jiyong): add the APEXes providing shared libs to the required modules
-		// Currently, adding c.Properties.ApexesProvidingSharedLibs is causing multiple
-		// ART APEXes (com.android.art.debug|release) to be installed. And this
-		// is breaking some older devices (like marlin) where system.img is small.
+		// TODO(jiyong): add the APEXes providing shared libs to the required
+		// modules Currently, adding c.Properties.ApexesProvidingSharedLibs is
+		// causing multiple ART APEXes (com.android.art and com.android.art.debug)
+		// to be installed. And this is breaking some older devices (like marlin)
+		// where system.img is small.
 		Required: c.Properties.AndroidMkRuntimeLibs,
 		Include:  "$(BUILD_SYSTEM)/soong_cc_prebuilt.mk",
 
