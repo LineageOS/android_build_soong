@@ -270,7 +270,7 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 	apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
 	fromUpdatableApex := isApexModule && apexInfo.Updatable
 	if image.name == artBootImageName {
-		if isApexModule && len(apexInfo.InApexes) > 0 && allHavePrefix(apexInfo.InApexes, "com.android.art.") {
+		if isApexModule && len(apexInfo.InApexes) > 0 && allHavePrefix(apexInfo.InApexes, "com.android.art") {
 			// ok: found the jar in the ART apex
 		} else if isApexModule && apexInfo.IsForPlatform() && isHostdex(module) {
 			// exception (skip and continue): special "hostdex" platform variant
@@ -301,7 +301,7 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 
 func allHavePrefix(list []string, prefix string) bool {
 	for _, s := range list {
-		if !strings.HasPrefix(s, prefix) {
+		if s != prefix && !strings.HasPrefix(s, prefix+".") {
 			return false
 		}
 	}
