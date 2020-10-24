@@ -110,6 +110,9 @@ type LibraryProperties struct {
 
 	// Inject boringssl hash into the shared library.  This is only intended for use by external/boringssl.
 	Inject_bssl_hash *bool `android:"arch_variant"`
+
+	// If this is an LLNDK library, the name of the equivalent llndk_library module.
+	Llndk_stubs *string
 }
 
 type StaticProperties struct {
@@ -695,6 +698,8 @@ type versionedInterface interface {
 	stubsVersions(ctx android.BaseMutatorContext) []string
 	setAllStubsVersions([]string)
 	allStubsVersions() []string
+
+	implementationModuleName(name string) string
 }
 
 var _ libraryInterface = (*libraryDecorator)(nil)
@@ -1205,7 +1210,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	}
 
 	if library.buildStubs() && !library.skipAPIDefine {
-		library.reexportFlags("-D" + versioningMacroName(ctx.baseModuleName()) + "=" + library.stubsVersion())
+		library.reexportFlags("-D" + versioningMacroName(ctx.Module().(*Module).ImplementationModuleName(ctx)) + "=" + library.stubsVersion())
 	}
 
 	library.flagExporter.setProvider(ctx)
@@ -1357,6 +1362,10 @@ func (library *libraryDecorator) BuildOnlyShared() {
 func (library *libraryDecorator) HeaderOnly() {
 	library.MutatedProperties.BuildShared = false
 	library.MutatedProperties.BuildStatic = false
+}
+
+func (library *libraryDecorator) implementationModuleName(name string) string {
+	return name
 }
 
 func (library *libraryDecorator) buildStubs() bool {
