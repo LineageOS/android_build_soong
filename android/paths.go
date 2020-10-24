@@ -58,6 +58,7 @@ type ModuleInstallPathContext interface {
 	InstallInTestcases() bool
 	InstallInSanitizerDir() bool
 	InstallInRamdisk() bool
+	InstallInVendorRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
@@ -1372,6 +1373,15 @@ func modulePartition(ctx ModuleInstallPathContext, os OsType) string {
 				partition = "recovery/root/first_stage_ramdisk"
 			} else {
 				partition = "ramdisk"
+			}
+			if !ctx.InstallInRoot() {
+				partition += "/system"
+			}
+		} else if ctx.InstallInVendorRamdisk() {
+			if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
+				partition = "recovery/root/first_stage_ramdisk"
+			} else {
+				partition = "vendor-ramdisk"
 			}
 			if !ctx.InstallInRoot() {
 				partition += "/system"

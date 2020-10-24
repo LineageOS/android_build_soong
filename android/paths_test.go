@@ -200,14 +200,15 @@ func p(in interface{}) string {
 type moduleInstallPathContextImpl struct {
 	baseModuleContext
 
-	inData         bool
-	inTestcases    bool
-	inSanitizerDir bool
-	inRamdisk      bool
-	inRecovery     bool
-	inRoot         bool
-	forceOS        *OsType
-	forceArch      *ArchType
+	inData          bool
+	inTestcases     bool
+	inSanitizerDir  bool
+	inRamdisk       bool
+	inVendorRamdisk bool
+	inRecovery      bool
+	inRoot          bool
+	forceOS         *OsType
+	forceArch       *ArchType
 }
 
 func (m moduleInstallPathContextImpl) Config() Config {
@@ -230,6 +231,10 @@ func (m moduleInstallPathContextImpl) InstallInSanitizerDir() bool {
 
 func (m moduleInstallPathContextImpl) InstallInRamdisk() bool {
 	return m.inRamdisk
+}
+
+func (m moduleInstallPathContextImpl) InstallInVendorRamdisk() bool {
+	return m.inVendorRamdisk
 }
 
 func (m moduleInstallPathContextImpl) InstallInRecovery() bool {
