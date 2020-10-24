@@ -40,6 +40,9 @@ type LinkableInterface interface {
 	InRamdisk() bool
 	OnlyInRamdisk() bool
 
+	InVendorRamdisk() bool
+	OnlyInVendorRamdisk() bool
+
 	InRecovery() bool
 	OnlyInRecovery() bool
 
