@@ -605,6 +605,7 @@ type noopImageInterface struct{}
 func (x noopImageInterface) ImageMutatorBegin(android.BaseModuleContext)                 {}
 func (x noopImageInterface) CoreVariantNeeded(android.BaseModuleContext) bool            { return false }
 func (x noopImageInterface) RamdiskVariantNeeded(android.BaseModuleContext) bool         { return false }
+func (x noopImageInterface) VendorRamdiskVariantNeeded(android.BaseModuleContext) bool   { return false }
 func (x noopImageInterface) RecoveryVariantNeeded(android.BaseModuleContext) bool        { return false }
 func (x noopImageInterface) ExtraImageVariations(ctx android.BaseModuleContext) []string { return nil }
 func (x noopImageInterface) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {

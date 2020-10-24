@@ -27,12 +27,13 @@ var _ android.ImageInterface = (*Module)(nil)
 type imageVariantType string
 
 const (
-	coreImageVariant     imageVariantType = "core"
-	vendorImageVariant   imageVariantType = "vendor"
-	productImageVariant  imageVariantType = "product"
-	ramdiskImageVariant  imageVariantType = "ramdisk"
-	recoveryImageVariant imageVariantType = "recovery"
-	hostImageVariant     imageVariantType = "host"
+	coreImageVariant          imageVariantType = "core"
+	vendorImageVariant        imageVariantType = "vendor"
+	productImageVariant       imageVariantType = "product"
+	ramdiskImageVariant       imageVariantType = "ramdisk"
+	vendorRamdiskImageVariant imageVariantType = "vendor_ramdisk"
+	recoveryImageVariant      imageVariantType = "recovery"
+	hostImageVariant          imageVariantType = "host"
 )
 
 func (c *Module) getImageVariantType() imageVariantType {
@@ -44,6 +45,8 @@ func (c *Module) getImageVariantType() imageVariantType {
 		return productImageVariant
 	} else if c.InRamdisk() {
 		return ramdiskImageVariant
+	} else if c.InVendorRamdisk() {
+		return vendorRamdiskImageVariant
 	} else if c.InRecovery() {
 		return recoveryImageVariant
 	} else {
@@ -83,6 +86,10 @@ func (ctx *moduleContextImpl) inRamdisk() bool {
 	return ctx.mod.InRamdisk()
 }
 
+func (ctx *moduleContextImpl) inVendorRamdisk() bool {
+	return ctx.mod.InVendorRamdisk()
+}
+
 func (ctx *moduleContextImpl) inRecovery() bool {
 	return ctx.mod.InRecovery()
 }
@@ -107,12 +114,20 @@ func (c *Module) InRamdisk() bool {
 	return c.ModuleBase.InRamdisk() || c.ModuleBase.InstallInRamdisk()
 }
 
+func (c *Module) InVendorRamdisk() bool {
+	return c.ModuleBase.InVendorRamdisk() || c.ModuleBase.InstallInVendorRamdisk()
+}
+
 func (c *Module) InRecovery() bool {
 	return c.ModuleBase.InRecovery() || c.ModuleBase.InstallInRecovery()
 }
 
 func (c *Module) OnlyInRamdisk() bool {
 	return c.ModuleBase.InstallInRamdisk()
+}
+
+func (c *Module) OnlyInVendorRamdisk() bool {
+	return c.ModuleBase.InstallInVendorRamdisk()
 }
 
 func (c *Module) OnlyInRecovery() bool {
@@ -165,6 +180,7 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 
 	var coreVariantNeeded bool = false
 	var ramdiskVariantNeeded bool = false
+	var vendorRamdiskVariantNeeded bool = false
 	var recoveryVariantNeeded bool = false
 
 	var vendorVariants []string
@@ -283,6 +299,15 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		coreVariantNeeded = false
 	}
 
+	if Bool(m.Properties.Vendor_ramdisk_available) {
+		vendorRamdiskVariantNeeded = true
+	}
+
+	if m.ModuleBase.InstallInVendorRamdisk() {
+		vendorRamdiskVariantNeeded = true
+		coreVariantNeeded = false
+	}
+
 	if Bool(m.Properties.Recovery_available) {
 		recoveryVariantNeeded = true
 	}
@@ -301,6 +326,7 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	}
 
 	m.Properties.RamdiskVariantNeeded = ramdiskVariantNeeded
+	m.Properties.VendorRamdiskVariantNeeded = vendorRamdiskVariantNeeded
 	m.Properties.RecoveryVariantNeeded = recoveryVariantNeeded
 	m.Properties.CoreVariantNeeded = coreVariantNeeded
 }
@@ -313,6 +339,10 @@ func (c *Module) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
 	return c.Properties.RamdiskVariantNeeded
 }
 
+func (c *Module) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+	return c.Properties.VendorRamdiskVariantNeeded
+}
+
 func (c *Module) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
 	return c.Properties.RecoveryVariantNeeded
 }
@@ -323,7 +353,7 @@ func (c *Module) ExtraImageVariations(ctx android.BaseModuleContext) []string {
 
 func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
 	m := module.(*Module)
-	if variant == android.RamdiskVariation {
+	if variant == android.RamdiskVariation || variant == android.VendorRamdiskVariation {
 		m.MakeAsPlatform()
 	} else if variant == android.RecoveryVariation {
 		m.MakeAsPlatform()
