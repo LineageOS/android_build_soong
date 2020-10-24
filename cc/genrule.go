@@ -24,10 +24,11 @@ func init() {
 }
 
 type GenruleExtraProperties struct {
-	Vendor_available   *bool
-	Ramdisk_available  *bool
-	Recovery_available *bool
-	Sdk_version        *string
+	Vendor_available         *bool
+	Ramdisk_available        *bool
+	Vendor_ramdisk_available *bool
+	Recovery_available       *bool
+	Sdk_version              *string
 }
 
 // cc_genrule is a genrule that can depend on other cc_* objects.
@@ -66,6 +67,10 @@ func (g *GenruleExtraProperties) CoreVariantNeeded(ctx android.BaseModuleContext
 
 func (g *GenruleExtraProperties) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
 	return Bool(g.Ramdisk_available)
+}
+
+func (g *GenruleExtraProperties) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+	return Bool(g.Vendor_ramdisk_available)
 }
 
 func (g *GenruleExtraProperties) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
