@@ -66,6 +66,7 @@ func ToolchainLibraryFactory() android.Module {
 	module.stl = nil
 	module.sanitize = nil
 	module.installer = nil
+	module.library = toolchainLibrary
 	module.Properties.Sdk_version = StringPtr("current")
 	return module.Init()
 }

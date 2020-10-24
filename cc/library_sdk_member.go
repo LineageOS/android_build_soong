@@ -428,21 +428,21 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 		specifiedDeps := specifiedDeps{}
 		specifiedDeps = ccModule.linker.linkerSpecifiedDeps(specifiedDeps)
 
-		if !ccModule.HasStubsVariants() {
-			// Propagate dynamic dependencies for implementation libs, but not stubs.
-			p.SharedLibs = specifiedDeps.sharedLibs
+		if lib := ccModule.library; lib != nil {
+			if !lib.hasStubsVariants() {
+				// Propagate dynamic dependencies for implementation libs, but not stubs.
+				p.SharedLibs = specifiedDeps.sharedLibs
+			} else {
+				// TODO(b/169373910): 1. Only output the specific version (from
+				// ccModule.StubsVersion()) if the module is versioned. 2. Ensure that all
+				// the versioned stub libs are retained in the prebuilt tree; currently only
+				// the stub corresponding to ccModule.StubsVersion() is.
+				p.StubsVersions = lib.allStubsVersions()
+			}
 		}
 		p.SystemSharedLibs = specifiedDeps.systemSharedLibs
 	}
 	p.exportedGeneratedHeaders = exportedInfo.GeneratedHeaders
-
-	if ccModule.HasStubsVariants() {
-		// TODO(b/169373910): 1. Only output the specific version (from
-		// ccModule.StubsVersion()) if the module is versioned. 2. Ensure that all
-		// the versioned stub libs are retained in the prebuilt tree; currently only
-		// the stub corresponding to ccModule.StubsVersion() is.
-		p.StubsVersions = ccModule.AllStubsVersions()
-	}
 
 	if !p.memberType.noOutputFiles && addOutputFile {
 		p.outputFile = getRequiredMemberOutputFile(ctx, ccModule)

@@ -377,8 +377,6 @@ type ModuleContextIntf interface {
 	isForPlatform() bool
 	apexVariationName() string
 	apexSdkVersion() android.ApiLevel
-	hasStubsVariants() bool
-	isStubs() bool
 	bootstrap() bool
 	mustUseVendorVariant() bool
 	nativeCoverage() bool
@@ -623,6 +621,8 @@ type Module struct {
 	lto       *lto
 	pgo       *pgo
 
+	library libraryInterface
+
 	outputFile android.OptionalPath
 
 	cachedToolchain config.Toolchain
@@ -731,13 +731,6 @@ func (c *Module) AlwaysSdk() bool {
 	return c.Properties.AlwaysSdk || Bool(c.Properties.Sdk_variant_only)
 }
 
-func (c *Module) StubsVersions(ctx android.BaseMutatorContext) []string {
-	if versioned, ok := c.linker.(versionedInterface); ok {
-		return versioned.stubsVersions(ctx)
-	}
-	panic(fmt.Errorf("StubsVersions called on non-library module: %q", c.BaseModuleName()))
-}
-
 func (c *Module) CcLibrary() bool {
 	if c.linker != nil {
 		if _, ok := c.linker.(*libraryDecorator); ok {
@@ -759,53 +752,6 @@ func (c *Module) CcLibraryInterface() bool {
 
 func (c *Module) NonCcVariants() bool {
 	return false
-}
-
-func (c *Module) SetBuildStubs() {
-	if versioned, ok := c.linker.(versionedInterface); ok {
-		versioned.setBuildStubs()
-		c.Properties.HideFromMake = true
-		c.sanitize = nil
-		c.stl = nil
-		c.Properties.PreventInstall = true
-		return
-	}
-	panic(fmt.Errorf("SetBuildStubs called on non-library module: %q", c.BaseModuleName()))
-}
-
-func (c *Module) BuildStubs() bool {
-	if versioned, ok := c.linker.(versionedInterface); ok {
-		return versioned.buildStubs()
-	}
-	panic(fmt.Errorf("BuildStubs called on non-library module: %q", c.BaseModuleName()))
-}
-
-func (c *Module) SetAllStubsVersions(versions []string) {
-	if versioned, ok := c.linker.(versionedInterface); ok {
-		versioned.setAllStubsVersions(versions)
-	}
-}
-
-func (c *Module) AllStubsVersions() []string {
-	if versioned, ok := c.linker.(versionedInterface); ok {
-		return versioned.allStubsVersions()
-	}
-	return nil
-}
-
-func (c *Module) SetStubsVersion(version string) {
-	if versioned, ok := c.linker.(versionedInterface); ok {
-		versioned.setStubsVersion(version)
-		return
-	}
-	panic(fmt.Errorf("SetStubsVersion called on non-library module: %q", c.BaseModuleName()))
-}
-
-func (c *Module) StubsVersion() string {
-	if versioned, ok := c.linker.(versionedInterface); ok {
-		return versioned.stubsVersion()
-	}
-	panic(fmt.Errorf("StubsVersion called on non-library module: %q", c.BaseModuleName()))
 }
 
 func (c *Module) SetStatic() {
@@ -1041,15 +987,15 @@ func (c *Module) getVndkExtendsModuleName() string {
 }
 
 func (c *Module) IsStubs() bool {
-	if versioned, ok := c.linker.(versionedInterface); ok {
-		return versioned.buildStubs()
+	if lib := c.library; lib != nil {
+		return lib.buildStubs()
 	}
 	return false
 }
 
 func (c *Module) HasStubsVariants() bool {
-	if versioned, ok := c.linker.(versionedInterface); ok {
-		return versioned.hasStubsVariants()
+	if lib := c.library; lib != nil {
+		return lib.hasStubsVariants()
 	}
 	return false
 }
@@ -1240,10 +1186,15 @@ func (ctx *moduleContextImpl) shouldCreateSourceAbiDump() bool {
 		// Host modules do not need ABI dumps.
 		return false
 	}
-	if ctx.isStubs() || ctx.isNDKStubLibrary() {
+	if ctx.isNDKStubLibrary() {
 		// Stubs do not need ABI dumps.
 		return false
 	}
+	if lib := ctx.mod.library; lib != nil && lib.buildStubs() {
+		// Stubs do not need ABI dumps.
+		return false
+	}
+
 	return true
 }
 
@@ -1276,14 +1227,6 @@ func (ctx *moduleContextImpl) apexVariationName() string {
 
 func (ctx *moduleContextImpl) apexSdkVersion() android.ApiLevel {
 	return ctx.mod.apexSdkVersion
-}
-
-func (ctx *moduleContextImpl) hasStubsVariants() bool {
-	return ctx.mod.HasStubsVariants()
-}
-
-func (ctx *moduleContextImpl) isStubs() bool {
-	return ctx.mod.IsStubs()
 }
 
 func (ctx *moduleContextImpl) bootstrap() bool {
@@ -2078,18 +2021,20 @@ func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to Lin
 		// Recovery code is not NDK
 		return
 	}
-	if to.ToolchainLibrary() {
-		// These are always allowed
-		return
-	}
-	if to.NdkPrebuiltStl() {
-		// These are allowed, but they don't set sdk_version
-		return
-	}
-	if to.StubDecorator() {
-		// These aren't real libraries, but are the stub shared libraries that are included in
-		// the NDK.
-		return
+	if c, ok := to.(*Module); ok {
+		if c.ToolchainLibrary() {
+			// These are always allowed
+			return
+		}
+		if c.NdkPrebuiltStl() {
+			// These are allowed, but they don't set sdk_version
+			return
+		}
+		if c.StubDecorator() {
+			// These aren't real libraries, but are the stub shared libraries that are included in
+			// the NDK.
+			return
+		}
 	}
 
 	if strings.HasPrefix(ctx.ModuleName(), "libclang_rt.") && to.Module().Name() == "libc++" {
@@ -2341,7 +2286,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			// The reuseObjTag dependency still exists because the LinkageMutator runs before the
 			// version mutator, so the stubs variant is created from the shared variant that
 			// already has the reuseObjTag dependency on the static variant.
-			if !c.BuildStubs() {
+			if !c.library.buildStubs() {
 				staticAnalogue := ctx.OtherModuleProvider(dep, StaticLibraryInfoProvider).(StaticLibraryInfo)
 				objs := staticAnalogue.ReuseObjects
 				depPaths.Objs = depPaths.Objs.Append(objs)
@@ -2383,7 +2328,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 				if !libDepTag.explicitlyVersioned && len(sharedLibraryStubsInfo.SharedLibraryStubsInfos) > 0 {
 					useStubs := false
-					if m, ok := ccDep.(*Module); ok && m.IsStubs() && c.UseVndk() { // LLNDK
+
+					if lib := moduleLibraryInterface(dep); lib.buildStubs() && c.UseVndk() { // LLNDK
 						if !apexInfo.IsForPlatform() {
 							// For platform libraries, use current version of LLNDK
 							// If this is for use_vendor apex we will apply the same rules
@@ -2552,8 +2498,8 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				c.Properties.AndroidMkHeaderLibs = append(
 					c.Properties.AndroidMkHeaderLibs, makeLibName)
 			case libDepTag.shared():
-				if ccDep.CcLibrary() {
-					if ccDep.BuildStubs() && dep.(android.ApexModule).InAnyApex() {
+				if lib := moduleLibraryInterface(dep); lib != nil {
+					if lib.buildStubs() && dep.(android.ApexModule).InAnyApex() {
 						// Add the dependency to the APEX(es) providing the library so that
 						// m <module> can trigger building the APEXes as well.
 						depApexInfo := ctx.OtherModuleProvider(dep, android.ApexInfoProvider).(android.ApexInfo)
@@ -2855,12 +2801,10 @@ func (c *Module) getMakeLinkType(actx android.ModuleContext) string {
 // Overrides ApexModule.IsInstallabeToApex()
 // Only shared/runtime libraries and "test_per_src" tests are installable to APEX.
 func (c *Module) IsInstallableToApex() bool {
-	if shared, ok := c.linker.(interface {
-		shared() bool
-	}); ok {
+	if lib := c.library; lib != nil {
 		// Stub libs and prebuilt libs in a versioned SDK are not
 		// installable to APEX even though they are shared libs.
-		return shared.shared() && !c.IsStubs() && c.ContainingSdk().Unversioned()
+		return lib.shared() && !lib.buildStubs() && c.ContainingSdk().Unversioned()
 	} else if _, ok := c.linker.(testPerSrc); ok {
 		return true
 	}
