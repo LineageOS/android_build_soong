@@ -39,6 +39,7 @@ bootstrap_go_package {
         "blueprint-microfactory",
     ],
     srcs: [
+        "bazel.go",
         "build.go",
         "cleanbuild.go",
         "config.go",
