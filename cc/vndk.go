@@ -740,7 +740,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 	/*
 		module_paths.txt contains paths on which VNDK modules are defined.
 		e.g.,
-			libbase.so system/core/base
+			libbase.so system/libbase
 			libc.so bionic/libc
 			...
 	*/
