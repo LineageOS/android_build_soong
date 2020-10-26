@@ -1362,13 +1362,22 @@ func (l *ConfiguredJarList) IndexOfJar(jar string) int {
 }
 
 // Append an (apex, jar) pair to the list.
-func (l *ConfiguredJarList) Append(apex string, jar string) {
-	l.apexes = append(l.apexes, apex)
-	l.jars = append(l.jars, jar)
+func (l *ConfiguredJarList) Append(apex string, jar string) ConfiguredJarList {
+	// Create a copy of the backing arrays before appending to avoid sharing backing
+	// arrays that are mutated across instances.
+	apexes := make([]string, 0, len(l.apexes)+1)
+	copy(apexes, l.apexes)
+	apexes = append(apexes, apex)
+
+	jars := make([]string, 0, len(l.jars)+1)
+	copy(jars, l.jars)
+	jars = append(l.jars, jar)
+
+	return ConfiguredJarList{apexes, jars}
 }
 
 // Filter out sublist.
-func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) {
+func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) ConfiguredJarList {
 	apexes := make([]string, 0, l.Len())
 	jars := make([]string, 0, l.Len())
 
@@ -1380,13 +1389,7 @@ func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) {
 		}
 	}
 
-	l.apexes = apexes
-	l.jars = jars
-}
-
-// A copy of itself.
-func (l *ConfiguredJarList) CopyOf() ConfiguredJarList {
-	return ConfiguredJarList{CopyOf(l.apexes), CopyOf(l.jars)}
+	return ConfiguredJarList{apexes, jars}
 }
 
 // A copy of the list of strings containing jar components.
@@ -1461,17 +1464,16 @@ func splitConfiguredJarPair(ctx PathContext, str string) (string, string) {
 }
 
 func CreateConfiguredJarList(ctx PathContext, list []string) ConfiguredJarList {
-	apexes := make([]string, 0, len(list))
-	jars := make([]string, 0, len(list))
+	apexes := make([]string, len(list))
+	jars := make([]string, len(list))
 
-	l := ConfiguredJarList{apexes, jars}
-
-	for _, apexjar := range list {
+	for i, apexjar := range list {
 		apex, jar := splitConfiguredJarPair(ctx, apexjar)
-		l.Append(apex, jar)
+		apexes[i] = apex
+		jars[i] = jar
 	}
 
-	return l
+	return ConfiguredJarList{apexes, jars}
 }
 
 func EmptyConfiguredJarList() ConfiguredJarList {
