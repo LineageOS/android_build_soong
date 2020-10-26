@@ -258,17 +258,17 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 		Inputs(flagsCSV).
 		FlagWithInput("--unsupported ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-unsupported.txt")).
-		FlagWithInput("--unsupported-ignore-conflicts ", combinedRemovedApis).
+		FlagWithInput("--unsupported ", combinedRemovedApis).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed").
 		FlagWithInput("--max-target-q ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-q.txt")).
 		FlagWithInput("--max-target-p ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-p.txt")).
-		FlagWithInput("--max-target-o-ignore-conflicts ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-o.txt")).
+		FlagWithInput("--max-target-o ", android.PathForSource(
+			ctx, "frameworks/base/config/hiddenapi-max-target-o.txt")).Flag("--ignore-conflicts ").
 		FlagWithInput("--blocked ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-force-blocked.txt")).
-		FlagWithInput("--unsupported-packages ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-unsupported-packages.txt")).
+		FlagWithInput("--unsupported ", android.PathForSource(
+			ctx, "frameworks/base/config/hiddenapi-unsupported-packages.txt")).Flag("--packages ").
 		FlagWithOutput("--output ", tempPath)
 
 	commitChangeForRestat(rule, tempPath, outputPath)
