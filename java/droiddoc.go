@@ -262,6 +262,10 @@ type DroidstubsProperties struct {
 	// TODO(b/146727827): Remove capability when we do not need to generate stubs and API separately.
 	Generate_stubs *bool
 
+	// if set to true, provides a hint to the build system that this rule uses a lot of memory,
+	// whicih can be used for scheduling purposes
+	High_mem *bool
+
 	// is set to true, Metalava will allow framework SDK to contain API levels annotations.
 	Api_levels_annotations_enabled *bool
 
@@ -1260,8 +1264,6 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 
 func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersion javaVersion, srcs android.Paths,
 	srcJarList android.Path, bootclasspath, classpath classpath, sourcepaths android.Paths, implicitsRsp android.WritablePath, sandbox bool) *android.RuleBuilderCommand {
-	// Metalava uses lots of memory, restrict the number of metalava jobs that can run in parallel.
-	rule.HighMem()
 	cmd := rule.Command()
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_METALAVA") {
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
@@ -1342,6 +1344,11 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	srcJarDir := android.PathForModuleOut(ctx, "srcjars")
 
 	rule := android.NewRuleBuilder()
+
+	if BoolDefault(d.properties.High_mem, false) {
+		// This metalava run uses lots of memory, restrict the number of metalava jobs that can run in parallel.
+		rule.HighMem()
+	}
 
 	generateStubs := BoolDefault(d.properties.Generate_stubs, true)
 	var stubsDir android.OptionalPath
