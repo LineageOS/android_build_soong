@@ -66,9 +66,17 @@ type shBinaryProperties struct {
 	Symlinks []string `android:"arch_variant"`
 
 	// Make this module available when building for ramdisk.
+	// On device without a dedicated recovery partition, the module is only
+	// available after switching root into
+	// /first_stage_ramdisk. To expose the module before switching root, install
+	// the recovery variant instead.
 	Ramdisk_available *bool
 
 	// Make this module available when building for vendor ramdisk.
+	// On device without a dedicated recovery partition, the module is only
+	// available after switching root into
+	// /first_stage_ramdisk. To expose the module before switching root, install
+	// the recovery variant instead.
 	Vendor_ramdisk_available *bool
 
 	// Make this module available when building for recovery.
