@@ -43,5 +43,16 @@ case $(uname) in
     ;;
 esac
 
+function bazel_cleanup {
+  "${TOP}/tools/bazel" shutdown
+}
+trap bazel_cleanup EXIT
+
+echo
+echo "Running Bazel smoke test..."
+"${TOP}/tools/bazel" info
+
+echo
+echo "Running Soong test..."
 soong_build_go multiproduct_kati android/soong/cmd/multiproduct_kati
 exec "$(getoutdir)/multiproduct_kati" "$@"
