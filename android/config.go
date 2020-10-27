@@ -1415,6 +1415,26 @@ func (l *ConfiguredJarList) BuildPaths(ctx PathContext, dir OutputPath) Writable
 	return paths
 }
 
+// Called when loading configuration from JSON into a configuration structure.
+func (l *ConfiguredJarList) UnmarshalJSON(b []byte) error {
+	// Try and unmarshal into a []string each item of which contains a pair
+	// <apex>:<jar>.
+	var list []string
+	err := json.Unmarshal(b, &list)
+	if err != nil {
+		// Did not work so return
+		return err
+	}
+
+	apexes, jars, err := splitListOfPairsIntoPairOfLists(list)
+	if err != nil {
+		return err
+	}
+	l.apexes = apexes
+	l.jars = jars
+	return nil
+}
+
 func ModuleStem(module string) string {
 	// b/139391334: the stem of framework-minus-apex is framework. This is hard coded here until we
 	// find a good way to query the stem of a module before any other mutators are run.
@@ -1494,9 +1514,8 @@ var earlyBootJarsKey = NewOnceKey("earlyBootJars")
 
 func (c *config) BootJars() []string {
 	return c.Once(earlyBootJarsKey, func() interface{} {
-		ctx := NullPathContext{Config{c}}
-		list := CreateConfiguredJarList(ctx,
-			append(CopyOf(c.productVariables.BootJars), c.productVariables.UpdatableBootJars...))
-		return list.CopyOfJars()
+		list := c.productVariables.BootJars.CopyOfJars()
+		list = append(list, c.productVariables.UpdatableBootJars.CopyOfJars()...)
+		return list
 	}).([]string)
 }
