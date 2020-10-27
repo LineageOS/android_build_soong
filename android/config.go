@@ -1449,29 +1449,41 @@ func (l *ConfiguredJarList) DevicePaths(cfg Config, ostype OsType) []string {
 	return paths
 }
 
+func splitListOfPairsIntoPairOfLists(list []string) ([]string, []string, error) {
+	// Now we need to populate this list by splitting each item in the slice of
+	// pairs and appending them to the appropriate list of apexes or jars.
+	apexes := make([]string, len(list))
+	jars := make([]string, len(list))
+
+	for i, apexjar := range list {
+		apex, jar, err := splitConfiguredJarPair(apexjar)
+		if err != nil {
+			return nil, nil, err
+		}
+		apexes[i] = apex
+		jars[i] = jar
+	}
+
+	return apexes, jars, nil
+}
+
 // Expected format for apexJarValue = <apex name>:<jar name>
-func splitConfiguredJarPair(ctx PathContext, str string) (string, string) {
+func splitConfiguredJarPair(str string) (string, string, error) {
 	pair := strings.SplitN(str, ":", 2)
 	if len(pair) == 2 {
-		return pair[0], pair[1]
+		return pair[0], pair[1], nil
 	} else {
-		ReportPathErrorf(ctx, "malformed (apex, jar) pair: '%s', expected format: <apex>:<jar>", str)
-		return "error-apex", "error-jar"
+		return "error-apex", "error-jar", fmt.Errorf("malformed (apex, jar) pair: '%s', expected format: <apex>:<jar>", str)
 	}
 }
 
 func CreateConfiguredJarList(ctx PathContext, list []string) ConfiguredJarList {
-	apexes := make([]string, 0, len(list))
-	jars := make([]string, 0, len(list))
-
-	l := ConfiguredJarList{apexes, jars}
-
-	for _, apexjar := range list {
-		apex, jar := splitConfiguredJarPair(ctx, apexjar)
-		l.Append(apex, jar)
+	apexes, jars, err := splitListOfPairsIntoPairOfLists(list)
+	if err != nil {
+		ReportPathErrorf(ctx, "%s", err)
 	}
 
-	return l
+	return ConfiguredJarList{apexes, jars}
 }
 
 func EmptyConfiguredJarList() ConfiguredJarList {
