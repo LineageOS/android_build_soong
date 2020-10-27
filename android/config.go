@@ -1362,22 +1362,13 @@ func (l *ConfiguredJarList) IndexOfJar(jar string) int {
 }
 
 // Append an (apex, jar) pair to the list.
-func (l *ConfiguredJarList) Append(apex string, jar string) ConfiguredJarList {
-	// Create a copy of the backing arrays before appending to avoid sharing backing
-	// arrays that are mutated across instances.
-	apexes := make([]string, 0, len(l.apexes)+1)
-	copy(apexes, l.apexes)
-	apexes = append(apexes, apex)
-
-	jars := make([]string, 0, len(l.jars)+1)
-	copy(jars, l.jars)
-	jars = append(l.jars, jar)
-
-	return ConfiguredJarList{apexes, jars}
+func (l *ConfiguredJarList) Append(apex string, jar string) {
+	l.apexes = append(l.apexes, apex)
+	l.jars = append(l.jars, jar)
 }
 
 // Filter out sublist.
-func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) ConfiguredJarList {
+func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) {
 	apexes := make([]string, 0, l.Len())
 	jars := make([]string, 0, l.Len())
 
@@ -1389,7 +1380,13 @@ func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) ConfiguredJarList
 		}
 	}
 
-	return ConfiguredJarList{apexes, jars}
+	l.apexes = apexes
+	l.jars = jars
+}
+
+// A copy of itself.
+func (l *ConfiguredJarList) CopyOf() ConfiguredJarList {
+	return ConfiguredJarList{CopyOf(l.apexes), CopyOf(l.jars)}
 }
 
 // A copy of the list of strings containing jar components.
@@ -1464,16 +1461,17 @@ func splitConfiguredJarPair(ctx PathContext, str string) (string, string) {
 }
 
 func CreateConfiguredJarList(ctx PathContext, list []string) ConfiguredJarList {
-	apexes := make([]string, len(list))
-	jars := make([]string, len(list))
+	apexes := make([]string, 0, len(list))
+	jars := make([]string, 0, len(list))
 
-	for i, apexjar := range list {
+	l := ConfiguredJarList{apexes, jars}
+
+	for _, apexjar := range list {
 		apex, jar := splitConfiguredJarPair(ctx, apexjar)
-		apexes[i] = apex
-		jars[i] = jar
+		l.Append(apex, jar)
 	}
 
-	return ConfiguredJarList{apexes, jars}
+	return l
 }
 
 func EmptyConfiguredJarList() ConfiguredJarList {
