@@ -1232,31 +1232,24 @@ func TestDroiddocArgsAndFlagsCausesError(t *testing.T) {
 func TestDroidstubs(t *testing.T) {
 	ctx, _ := testJavaWithFS(t, `
 		droiddoc_exported_dir {
-		    name: "droiddoc-templates-sdk",
-		    path: ".",
+			name: "droiddoc-templates-sdk",
+			path: ".",
 		}
 
 		droidstubs {
-		    name: "bar-stubs",
-		    srcs: [
-		        "bar-doc/a.java",
-				],
-				api_levels_annotations_dirs: [
-					"droiddoc-templates-sdk",
-				],
-				api_levels_annotations_enabled: true,
+			name: "bar-stubs",
+			srcs: ["bar-doc/a.java"],
+			api_levels_annotations_dirs: ["droiddoc-templates-sdk"],
+			api_levels_annotations_enabled: true,
 		}
 
 		droidstubs {
-		    name: "bar-stubs-other",
-		    srcs: [
-		        "bar-doc/a.java",
-				],
-				api_levels_annotations_dirs: [
-					"droiddoc-templates-sdk",
-				],
-				api_levels_annotations_enabled: true,
-				api_levels_jar_filename: "android.other.jar",
+			name: "bar-stubs-other",
+			srcs: ["bar-doc/a.java"],
+			high_mem: true,
+			api_levels_annotations_dirs: ["droiddoc-templates-sdk"],
+			api_levels_annotations_enabled: true,
+			api_levels_jar_filename: "android.other.jar",
 		}
 		`,
 		map[string][]byte{
@@ -1265,22 +1258,30 @@ func TestDroidstubs(t *testing.T) {
 	testcases := []struct {
 		moduleName          string
 		expectedJarFilename string
+		high_mem            bool
 	}{
 		{
 			moduleName:          "bar-stubs",
 			expectedJarFilename: "android.jar",
+			high_mem:            false,
 		},
 		{
 			moduleName:          "bar-stubs-other",
 			expectedJarFilename: "android.other.jar",
+			high_mem:            true,
 		},
 	}
 	for _, c := range testcases {
 		m := ctx.ModuleForTests(c.moduleName, "android_common")
 		metalava := m.Rule("metalava")
+		rp := metalava.RuleParams
 		expected := "--android-jar-pattern ./%/public/" + c.expectedJarFilename
-		if actual := metalava.RuleParams.Command; !strings.Contains(actual, expected) {
+		if actual := rp.Command; !strings.Contains(actual, expected) {
 			t.Errorf("For %q, expected metalava argument %q, but was not found %q", c.moduleName, expected, actual)
+		}
+
+		if actual := rp.Pool != nil && strings.Contains(rp.Pool.String(), "highmem"); actual != c.high_mem {
+			t.Errorf("Expected %q high_mem to be %v, was %v", c.moduleName, c.high_mem, actual)
 		}
 	}
 }
