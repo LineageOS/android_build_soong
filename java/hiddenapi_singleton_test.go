@@ -25,7 +25,7 @@ import (
 
 func testConfigWithBootJars(bp string, bootJars []string) android.Config {
 	config := testConfig(nil, bp, nil)
-	config.TestProductVariables.BootJars = bootJars
+	config.TestProductVariables.BootJars = android.CreateConfiguredJarList(nil, bootJars)
 	return config
 }
 
