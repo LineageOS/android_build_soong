@@ -268,12 +268,8 @@ func ParseGlobalConfig(ctx android.PathContext, data []byte) (*GlobalConfig, err
 
 		// Copies of entries in GlobalConfig that are not constructable without extra parameters.  They will be
 		// used to construct the real value manually below.
-		BootJars                  []string
-		UpdatableBootJars         []string
-		ArtApexJars               []string
-		UpdatableSystemServerJars []string
-		DirtyImageObjects         string
-		BootImageProfiles         []string
+		DirtyImageObjects string
+		BootImageProfiles []string
 	}
 
 	config := GlobalJSONConfig{}
@@ -283,10 +279,6 @@ func ParseGlobalConfig(ctx android.PathContext, data []byte) (*GlobalConfig, err
 	}
 
 	// Construct paths that require a PathContext.
-	config.GlobalConfig.BootJars = android.CreateConfiguredJarList(ctx, config.BootJars)
-	config.GlobalConfig.UpdatableBootJars = android.CreateConfiguredJarList(ctx, config.UpdatableBootJars)
-	config.GlobalConfig.ArtApexJars = android.CreateConfiguredJarList(ctx, config.ArtApexJars)
-	config.GlobalConfig.UpdatableSystemServerJars = android.CreateConfiguredJarList(ctx, config.UpdatableSystemServerJars)
 	config.GlobalConfig.DirtyImageObjects = android.OptionalPathForPath(constructPath(ctx, config.DirtyImageObjects))
 	config.GlobalConfig.BootImageProfiles = constructPaths(ctx, config.BootImageProfiles)
 
