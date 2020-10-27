@@ -84,8 +84,10 @@ const (
 	BuildSoong         = 1 << iota
 	BuildKati          = 1 << iota
 	BuildNinja         = 1 << iota
+	BuildBazel         = 1 << iota
 	RunBuildTests      = 1 << iota
 	BuildAll           = BuildProductConfig | BuildSoong | BuildKati | BuildNinja
+	BuildAllWithBazel  = BuildProductConfig | BuildSoong | BuildKati | BuildBazel
 )
 
 func checkProblematicFiles(ctx Context) {
@@ -256,6 +258,10 @@ func Build(ctx Context, config Config, what int) {
 
 		// Run ninja
 		runNinja(ctx, config)
+	}
+
+	if what&BuildBazel != 0 {
+		runBazel(ctx, config)
 	}
 }
 
