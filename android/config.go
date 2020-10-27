@@ -1497,10 +1497,10 @@ func splitConfiguredJarPair(str string) (string, string, error) {
 	}
 }
 
-func CreateConfiguredJarList(ctx PathContext, list []string) ConfiguredJarList {
+func CreateTestConfiguredJarList(list []string) ConfiguredJarList {
 	apexes, jars, err := splitListOfPairsIntoPairOfLists(list)
 	if err != nil {
-		ReportPathErrorf(ctx, "%s", err)
+		panic(err)
 	}
 
 	return ConfiguredJarList{apexes, jars}
