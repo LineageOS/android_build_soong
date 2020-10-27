@@ -5905,7 +5905,7 @@ func testApexPermittedPackagesRules(t *testing.T, errmsg, bp string, apexBootJar
 	for _, apexBootJar := range apexBootJars {
 		updatableBootJars = append(updatableBootJars, "myapex:"+apexBootJar)
 	}
-	config.TestProductVariables.UpdatableBootJars = updatableBootJars
+	config.TestProductVariables.UpdatableBootJars = android.CreateConfiguredJarList(nil, updatableBootJars)
 
 	ctx.Register(config)
 
