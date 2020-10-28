@@ -232,6 +232,14 @@ func vndkPrebuiltSharedLibrary() *Module {
 		&prebuilt.properties,
 	)
 
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		// empty BOARD_VNDK_VERSION implies that the device won't support
+		// system only OTA. In this case, VNDK snapshots aren't needed.
+		if ctx.DeviceConfig().VndkVersion() == "" {
+			ctx.Module().Disable()
+		}
+	})
+
 	return module
 }
 
