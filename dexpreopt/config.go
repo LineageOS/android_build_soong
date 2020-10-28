@@ -100,20 +100,30 @@ type GlobalSoongConfig struct {
 	ConstructContext android.Path
 }
 
-// These libs are added as optional dependencies (<uses-library> with android:required set to false).
-// This is because they haven't existed prior to certain SDK version, but classes in them were in
-// bootclasspath jars, etc. So making them hard dependencies (android:required=true) would prevent
-// apps from being installed to such legacy devices.
-var OptionalCompatUsesLibs = []string{
-	"org.apache.http.legacy",
-	"android.test.base",
-	"android.test.mock",
-}
+// These libs are added as <uses-library> dependencies for apps if the targetSdkVersion in the
+// app manifest is less than the specified version. This is needed because these libraries haven't
+// existed prior to certain SDK version, but classes in them were in bootclasspath jars, etc.
+// Some of the compatibility libraries are optional (their <uses-library> tag has "required=false"),
+// so that if this library is missing this in not a build or run-time error.
+var OrgApacheHttpLegacy = "org.apache.http.legacy"
+var AndroidTestBase = "android.test.base"
+var AndroidTestMock = "android.test.mock"
+var AndroidHidlBase = "android.hidl.base-V1.0-java"
+var AndroidHidlManager = "android.hidl.manager-V1.0-java"
 
-var CompatUsesLibs = []string{
-	"android.hidl.base-V1.0-java",
-	"android.hidl.manager-V1.0-java",
+var OptionalCompatUsesLibs28 = []string{
+	OrgApacheHttpLegacy,
 }
+var OptionalCompatUsesLibs30 = []string{
+	AndroidTestBase,
+	AndroidTestMock,
+}
+var CompatUsesLibs29 = []string{
+	AndroidHidlBase,
+	AndroidHidlManager,
+}
+var OptionalCompatUsesLibs = append(android.CopyOf(OptionalCompatUsesLibs28), OptionalCompatUsesLibs30...)
+var CompatUsesLibs = android.CopyOf(CompatUsesLibs29)
 
 const UnknownInstallLibraryPath = "error"
 
