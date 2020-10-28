@@ -254,40 +254,11 @@ func genClassLoaderContext(ctx android.PathContext, global *GlobalConfig, module
 	return &classLoaderContexts
 }
 
-// Find build and install paths to "android.hidl.base". The library must be present in conditional
-// class loader context for SDK version 29, because it's one of the compatibility libraries.
-func findHidlBasePaths(ctx android.PathContext, clcMap classLoaderContextMap) (android.Path, string) {
-	var hostPath android.Path
-	targetPath := UnknownInstallLibraryPath
-
-	if clc, ok := clcMap[29]; ok {
-		for i, lib := range clc.Names {
-			if lib == AndroidHidlBase {
-				hostPath = clc.Host[i]
-				targetPath = clc.Target[i]
-				break
-			}
-		}
-	}
-
-	// Fail if the library paths were not found. This may happen if the function is called at the
-	// wrong time (either before the compatibility libraries were added to context, or after they
-	// have been removed for some reason).
-	if hostPath == nil {
-		android.ReportPathErrorf(ctx, "dexpreopt cannot find build path to '%s'", AndroidHidlBase)
-	} else if targetPath == UnknownInstallLibraryPath {
-		android.ReportPathErrorf(ctx, "dexpreopt cannot find install path to '%s'", AndroidHidlBase)
-	}
-
-	return hostPath, targetPath
-}
-
 // Now that the full unconditional context is known, reconstruct conditional context.
 // Apply filters for individual libraries, mirroring what the PackageManager does when it
 // constructs class loader context on device.
 //
 // TODO(b/132357300):
-//   - move handling of android.hidl.manager -> android.hidl.base dependency here
 //   - remove android.hidl.manager and android.hidl.base unless the app is a system app.
 //
 func fixConditionalClassLoaderContext(clcMap classLoaderContextMap) {
@@ -313,8 +284,6 @@ func fixConditionalClassLoaderContext(clcMap classLoaderContextMap) {
 
 // Return the class loader context as a string and a slice of build paths for all dependencies.
 func computeClassLoaderContext(ctx android.PathContext, clcMap classLoaderContextMap) (clcStr string, paths android.Paths) {
-	hidlBaseHostPath, hidlBaseTargetPath := findHidlBasePaths(ctx, clcMap)
-
 	for _, ver := range android.SortedIntKeys(clcMap) {
 		clc := clcMap.getValue(ver)
 
@@ -329,14 +298,6 @@ func computeClassLoaderContext(ctx android.PathContext, clcMap classLoaderContex
 		for i := 0; i < clcLen; i++ {
 			hostStr := "PCL[" + clc.Host[i].String() + "]"
 			targetStr := "PCL[" + clc.Target[i] + "]"
-
-			// Add dependency of android.hidl.manager on android.hidl.base (it is not tracked as
-			// a regular dependency by the build system, so it needs special handling).
-			if clc.Names[i] == AndroidHidlManager {
-				hostStr += "{PCL[" + hidlBaseHostPath.String() + "]}"
-				targetStr += "{PCL[" + hidlBaseTargetPath + "]}"
-				hostPaths = append(hostPaths, hidlBaseHostPath)
-			}
 
 			hostClc = append(hostClc, hostStr)
 			targetClc = append(targetClc, targetStr)
