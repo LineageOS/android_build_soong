@@ -30,6 +30,7 @@ type SourceProviderProperties struct {
 type BaseSourceProvider struct {
 	Properties SourceProviderProperties
 
+	// The first file in OutputFiles must be the library entry point.
 	OutputFiles      android.Paths
 	subAndroidMkOnce map[SubAndroidMkProvider]bool
 	subName          string

@@ -25,7 +25,7 @@ func TestRustProtobuf(t *testing.T) {
 	ctx := testRust(t, `
 		rust_protobuf {
 			name: "librust_proto",
-			proto: "buf.proto",
+			protos: ["buf.proto", "proto.proto"],
 			crate_name: "rust_proto",
 			source_stem: "buf",
 			shared_libs: ["libfoo_shared"],
@@ -60,13 +60,20 @@ func TestRustProtobuf(t *testing.T) {
 	if w := "-Istatic_include"; !strings.Contains(cmd, w) {
 		t.Errorf("expected %q in %q", w, cmd)
 	}
+
+	// Check proto.rs, the second protobuf, is listed as an output
+	librust_proto_outputs := ctx.ModuleForTests("librust_proto", "android_arm64_armv8-a_source").AllOutputs()
+	if android.InList("proto.rs", librust_proto_outputs) {
+		t.Errorf("rust_protobuf is not producing multiple outputs; expected 'proto.rs' in list, got: %#v ",
+			librust_proto_outputs)
+	}
 }
 
 func TestRustGrpcio(t *testing.T) {
 	ctx := testRust(t, `
 		rust_grpcio {
 			name: "librust_grpcio",
-			proto: "buf.proto",
+			protos: ["buf.proto", "proto.proto"],
 			crate_name: "rust_grpcio",
 			source_stem: "buf",
 			shared_libs: ["libfoo_shared"],
@@ -116,5 +123,12 @@ func TestRustGrpcio(t *testing.T) {
 	// Check that we're including the exported directory from libprotobuf-cpp-full
 	if w := "-Ilibprotobuf-cpp-full-includes"; !strings.Contains(cmd, w) {
 		t.Errorf("expected %q in %q", w, cmd)
+	}
+
+	// Check proto.rs, the second protobuf, is listed as an output
+	librust_grpcio_outputs := ctx.ModuleForTests("librust_grpcio", "android_arm64_armv8-a_source").AllOutputs()
+	if android.InList("proto_grpc.rs", librust_grpcio_outputs) {
+		t.Errorf("rust_protobuf is not producing multiple outputs; expected 'proto_grpc.rs' in list, got: %#v ",
+			librust_grpcio_outputs)
 	}
 }
