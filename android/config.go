@@ -1361,14 +1361,31 @@ func (l *ConfiguredJarList) IndexOfJar(jar string) int {
 	return IndexList(jar, l.jars)
 }
 
+func copyAndAppend(list []string, item string) []string {
+	// Create the result list to be 1 longer than the input.
+	result := make([]string, len(list)+1)
+
+	// Copy the whole input list into the result.
+	count := copy(result, list)
+
+	// Insert the extra item at the end.
+	result[count] = item
+
+	return result
+}
+
 // Append an (apex, jar) pair to the list.
-func (l *ConfiguredJarList) Append(apex string, jar string) {
-	l.apexes = append(l.apexes, apex)
-	l.jars = append(l.jars, jar)
+func (l *ConfiguredJarList) Append(apex string, jar string) ConfiguredJarList {
+	// Create a copy of the backing arrays before appending to avoid sharing backing
+	// arrays that are mutated across instances.
+	apexes := copyAndAppend(l.apexes, apex)
+	jars := copyAndAppend(l.jars, jar)
+
+	return ConfiguredJarList{apexes, jars}
 }
 
 // Filter out sublist.
-func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) {
+func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) ConfiguredJarList {
 	apexes := make([]string, 0, l.Len())
 	jars := make([]string, 0, l.Len())
 
@@ -1380,13 +1397,7 @@ func (l *ConfiguredJarList) RemoveList(list ConfiguredJarList) {
 		}
 	}
 
-	l.apexes = apexes
-	l.jars = jars
-}
-
-// A copy of itself.
-func (l *ConfiguredJarList) CopyOf() ConfiguredJarList {
-	return ConfiguredJarList{CopyOf(l.apexes), CopyOf(l.jars)}
+	return ConfiguredJarList{apexes, jars}
 }
 
 // A copy of the list of strings containing jar components.
@@ -1467,6 +1478,14 @@ func (l *ConfiguredJarList) DevicePaths(cfg Config, ostype OsType) []string {
 		}
 	}
 	return paths
+}
+
+func (l *ConfiguredJarList) String() string {
+	var pairs []string
+	for i := 0; i < l.Len(); i++ {
+		pairs = append(pairs, l.apexes[i]+":"+l.jars[i])
+	}
+	return strings.Join(pairs, ",")
 }
 
 func splitListOfPairsIntoPairOfLists(list []string) ([]string, []string, error) {
