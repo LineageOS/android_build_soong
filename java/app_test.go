@@ -2766,7 +2766,7 @@ func TestUsesLibraries(t *testing.T) {
 			name: "prebuilt",
 			apk: "prebuilts/apk/app.apk",
 			certificate: "platform",
-			uses_libs: ["foo"],
+			uses_libs: ["foo", "android.test.runner"],
 			optional_uses_libs: [
 				"bar",
 				"baz",
@@ -2804,7 +2804,7 @@ func TestUsesLibraries(t *testing.T) {
 
 	cmd = prebuilt.Rule("verify_uses_libraries").RuleParams.Command
 
-	if w := `uses_library_names="foo"`; !strings.Contains(cmd, w) {
+	if w := `uses_library_names="foo android.test.runner"`; !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
 
@@ -2812,20 +2812,48 @@ func TestUsesLibraries(t *testing.T) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
 
-	// Test that all present libraries are preopted, including implicit SDK dependencies, possibly stubs
+	// Test that all present libraries are preopted, including implicit SDK dependencies, possibly stubs.
 	cmd = app.Rule("dexpreopt").RuleParams.Command
 	w := `--target-classpath-for-sdk any` +
 		` /system/framework/foo.jar` +
 		`:/system/framework/quuz.jar` +
 		`:/system/framework/qux.jar` +
 		`:/system/framework/runtime-library.jar` +
-		`:/system/framework/bar.jar`
+		`:/system/framework/bar.jar `
 	if !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
 
+	// Test conditional context for target SDK version 28.
+	if w := `--target-classpath-for-sdk 28` +
+		` /system/framework/org.apache.http.legacy.jar `; !strings.Contains(cmd, w) {
+		t.Errorf("wanted %q in %q", w, cmd)
+	}
+
+	// Test conditional context for target SDK version 29.
+	if w := `--target-classpath-for-sdk 29` +
+		` /system/framework/android.hidl.base-V1.0-java.jar` +
+		`:/system/framework/android.hidl.manager-V1.0-java.jar `; !strings.Contains(cmd, w) {
+		t.Errorf("wanted %q in %q", w, cmd)
+	}
+
+	// Test conditional context for target SDK version 30.
+	if w := `--target-classpath-for-sdk 30` +
+		` /system/framework/android.test.base.jar `; !strings.Contains(cmd, w) {
+		t.Errorf("wanted %q in %q", w, cmd)
+	}
+
 	cmd = prebuilt.Rule("dexpreopt").RuleParams.Command
-	if w := `--target-classpath-for-sdk any /system/framework/foo.jar:/system/framework/bar.jar`; !strings.Contains(cmd, w) {
+	if w := `--target-classpath-for-sdk any` +
+		` /system/framework/foo.jar` +
+		`:/system/framework/android.test.runner.jar` +
+		`:/system/framework/bar.jar `; !strings.Contains(cmd, w) {
+		t.Errorf("wanted %q in %q", w, cmd)
+	}
+
+	// Test conditional context for target SDK version 30.
+	if w := `--target-classpath-for-sdk 30` +
+		` /system/framework/android.test.base.jar `; !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
 }
