@@ -91,3 +91,49 @@ func TestMissingVendorConfig(t *testing.T) {
 		t.Errorf("Expected false")
 	}
 }
+
+func assertStringEquals(t *testing.T, expected, actual string) {
+	if actual != expected {
+		t.Errorf("expected %q found %q", expected, actual)
+	}
+}
+
+func TestConfiguredJarList(t *testing.T) {
+	list1 := CreateTestConfiguredJarList([]string{"apex1:jarA"})
+
+	t.Run("create", func(t *testing.T) {
+		assertStringEquals(t, "apex1:jarA", list1.String())
+	})
+
+	list2 := list1.Append("apex2", "jarB")
+	t.Run("append", func(t *testing.T) {
+		assertStringEquals(t, "apex1:jarA,apex2:jarB", list2.String())
+	})
+
+	t.Run("append does not modify", func(t *testing.T) {
+		assertStringEquals(t, "apex1:jarA", list1.String())
+	})
+
+	// Make sure that two lists created by appending to the same list do not share storage.
+	list3 := list1.Append("apex3", "jarC")
+	t.Run("append does not share", func(t *testing.T) {
+		assertStringEquals(t, "apex1:jarA,apex2:jarB", list2.String())
+		assertStringEquals(t, "apex1:jarA,apex3:jarC", list3.String())
+	})
+
+	list4 := list3.RemoveList(list1)
+	t.Run("remove", func(t *testing.T) {
+		assertStringEquals(t, "apex3:jarC", list4.String())
+	})
+
+	t.Run("remove does not modify", func(t *testing.T) {
+		assertStringEquals(t, "apex1:jarA,apex3:jarC", list3.String())
+	})
+
+	// Make sure that two lists created by removing from the same list do not share storage.
+	list5 := list3.RemoveList(CreateTestConfiguredJarList([]string{"apex3:jarC"}))
+	t.Run("remove", func(t *testing.T) {
+		assertStringEquals(t, "apex3:jarC", list4.String())
+		assertStringEquals(t, "apex1:jarA", list5.String())
+	})
+}
