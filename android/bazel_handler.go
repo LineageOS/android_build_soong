@@ -119,7 +119,9 @@ func (n noopBazelContext) BazelEnabled() bool {
 }
 
 func NewBazelContext(c *config) (BazelContext, error) {
-	if c.Getenv("USE_BAZEL") != "1" {
+	// TODO(cparsons): Assess USE_BAZEL=1 instead once "mixed Soong/Bazel builds"
+	// are production ready.
+	if c.Getenv("USE_BAZEL_ANALYSIS") != "1" {
 		return noopBazelContext{}, nil
 	}
 

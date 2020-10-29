@@ -59,12 +59,16 @@ if [ -z "$BAZEL_PATH" ] ; then
     export BAZEL_PATH="$(which bazel)"
 fi
 
-export USE_BAZEL=1
+# TODO(cparsons): Use USE_BAZEL=1 instead once "mixed Soong/Bazel builds" are
+# production ready.
+export USE_BAZEL_ANALYSIS=1
+# TODO(cparsons): Retrieve this information in either envsetup.sh or 
+# bazel.sh.
 export BAZEL_HOME="$BASE_DIR/bazelhome"
 export BAZEL_OUTPUT_BASE="$BASE_DIR/output"
 export BAZEL_WORKSPACE="$(gettop)"
 
-echo "USE_BAZEL=${USE_BAZEL}"
+echo "USE_BAZEL_ANALYSIS=${USE_BAZEL_ANALYSIS}"
 echo "BAZEL_PATH=${BAZEL_PATH}"
 echo "BAZEL_HOME=${BAZEL_HOME}"
 echo "BAZEL_OUTPUT_BASE=${BAZEL_OUTPUT_BASE}"
