@@ -487,9 +487,21 @@ func (c *vndkPrebuiltLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, en
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		c.libraryDecorator.androidMkWriteExportedFlags(entries)
 
+		// Specifying stem is to pass check_elf_files when vendor modules link against vndk prebuilt.
+		// We can't use install path because VNDKs are not installed. Instead, Srcs is directly used.
+		_, file := filepath.Split(c.properties.Srcs[0])
+		stem, suffix, ext := android.SplitFileExt(file)
+		entries.SetString("LOCAL_BUILT_MODULE_STEM", "$(LOCAL_MODULE)"+ext)
+		entries.SetString("LOCAL_MODULE_SUFFIX", suffix)
+		entries.SetString("LOCAL_MODULE_STEM", stem)
+
 		if c.tocFile.Valid() {
 			entries.SetString("LOCAL_SOONG_TOC", c.tocFile.String())
 		}
+
+		// VNDK libraries available to vendor are not installed because
+		// they are packaged in VNDK APEX and installed by APEX packages (apex/apex.go)
+		entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
 	})
 }
 
