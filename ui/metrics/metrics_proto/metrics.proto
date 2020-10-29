@@ -102,6 +102,9 @@ message MetricsBase {
 
   // The system resource information such as total physical memory.
   optional SystemResourceInfo system_resource_info = 25;
+
+  // The build command that the user entered to the build system.
+  optional string build_command = 26;
 }
 
 message BuildConfig {
