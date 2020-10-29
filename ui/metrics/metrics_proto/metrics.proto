@@ -97,6 +97,9 @@ message MetricsBase {
 
   // The hostname of the machine.
   optional string hostname = 24;
+
+  // The build command that the user entered to the build system.
+  optional string build_command = 26;
 }
 
 message BuildConfig {
