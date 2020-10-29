@@ -47,6 +47,7 @@ toolchain_library {
     defaults: ["linux_bionic_supported"],
     vendor_available: true,
     ramdisk_available: true,
+    vendor_ramdisk_available: true,
     recovery_available: true,
     native_bridge_supported: true,
 
@@ -94,6 +95,7 @@ toolchain_library {
     defaults: ["linux_bionic_supported"],
     vendor_available: true,
     ramdisk_available: true,
+    vendor_ramdisk_available: true,
     recovery_available: true,
     native_bridge_supported: true,
     sdk_version: "current",
