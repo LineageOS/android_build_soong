@@ -3085,6 +3085,12 @@ func squashRecoverySrcs(m *Module) {
 	}
 }
 
+func squashVendorRamdiskSrcs(m *Module) {
+	if lib, ok := m.compiler.(*libraryDecorator); ok {
+		lib.baseCompiler.Properties.Exclude_srcs = append(lib.baseCompiler.Properties.Exclude_srcs, lib.baseCompiler.Properties.Target.Vendor_ramdisk.Exclude_srcs...)
+	}
+}
+
 func (c *Module) IsSdkVariant() bool {
 	return c.Properties.IsSdkVariant || c.AlwaysSdk()
 }

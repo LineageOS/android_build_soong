@@ -177,6 +177,15 @@ type BaseCompilerProperties struct {
 			// build the recovery variant of the C/C++ module.
 			Exclude_generated_sources []string
 		}
+		Vendor_ramdisk struct {
+			// list of source files that should not be used to
+			// build the vendor ramdisk variant of the C/C++ module.
+			Exclude_srcs []string `android:"path"`
+
+			// List of additional cflags that should be used to build the vendor ramdisk
+			// variant of the C/C++ module.
+			Cflags []string
+		}
 	}
 
 	Proto struct {
@@ -290,6 +299,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	CheckBadCompilerFlags(ctx, "asflags", compiler.Properties.Asflags)
 	CheckBadCompilerFlags(ctx, "vendor.cflags", compiler.Properties.Target.Vendor.Cflags)
 	CheckBadCompilerFlags(ctx, "recovery.cflags", compiler.Properties.Target.Recovery.Cflags)
+	CheckBadCompilerFlags(ctx, "vendor_ramdisk.cflags", compiler.Properties.Target.Vendor_ramdisk.Cflags)
 
 	esc := proptools.NinjaAndShellEscapeList
 
@@ -469,6 +479,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	if ctx.inRecovery() {
 		flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Target.Recovery.Cflags)...)
+	}
+
+	if ctx.inVendorRamdisk() {
+		flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Target.Vendor_ramdisk.Cflags)...)
 	}
 
 	// We can enforce some rules more strictly in the code we own. strict
