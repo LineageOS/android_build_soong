@@ -353,8 +353,11 @@ func (c *Module) ExtraImageVariations(ctx android.BaseModuleContext) []string {
 
 func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
 	m := module.(*Module)
-	if variant == android.RamdiskVariation || variant == android.VendorRamdiskVariation {
+	if variant == android.RamdiskVariation {
 		m.MakeAsPlatform()
+	} else if variant == android.VendorRamdiskVariation {
+		m.MakeAsPlatform()
+		squashVendorRamdiskSrcs(m)
 	} else if variant == android.RecoveryVariation {
 		m.MakeAsPlatform()
 		squashRecoverySrcs(m)
