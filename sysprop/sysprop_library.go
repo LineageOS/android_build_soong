@@ -143,6 +143,9 @@ type syspropLibraryProperties struct {
 	// Make this module available when building for vendor
 	Vendor_available *bool
 
+	// Make this module available when building for product
+	Product_available *bool
+
 	// list of .sysprop files which defines the properties.
 	Srcs []string `android:"path"`
 
@@ -353,6 +356,7 @@ type ccLibraryProperties struct {
 	Recovery           *bool
 	Recovery_available *bool
 	Vendor_available   *bool
+	Product_available  *bool
 	Host_supported     *bool
 	Apex_available     []string
 	Min_sdk_version    *string
@@ -449,6 +453,7 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	ccProps.Target.Host.Static_libs = []string{"libbase", "liblog"}
 	ccProps.Recovery_available = m.properties.Recovery_available
 	ccProps.Vendor_available = m.properties.Vendor_available
+	ccProps.Product_available = m.properties.Product_available
 	ccProps.Host_supported = m.properties.Host_supported
 	ccProps.Apex_available = m.ApexProperties.Apex_available
 	ccProps.Min_sdk_version = m.properties.Cpp.Min_sdk_version

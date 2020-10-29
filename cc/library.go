@@ -72,7 +72,7 @@ type LibraryProperties struct {
 	Suffix *string `android:"arch_variant"`
 
 	Target struct {
-		Vendor struct {
+		Vendor, Product struct {
 			// set suffix of the name of the output
 			Suffix *string `android:"arch_variant"`
 		}
@@ -172,11 +172,11 @@ type FlagExporterProperties struct {
 	Export_system_include_dirs []string `android:"arch_variant"`
 
 	Target struct {
-		Vendor struct {
+		Vendor, Product struct {
 			// list of exported include directories, like
-			// export_include_dirs, that will be applied to the
-			// vendor variant of this library. This will overwrite
-			// any other declarations.
+			// export_include_dirs, that will be applied to
+			// vendor or product variant of this library.
+			// This will overwrite any other declarations.
 			Override_export_include_dirs []string
 		}
 	}
@@ -253,6 +253,7 @@ type flagExporter struct {
 }
 
 func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
+	// TODO(b/150902910): product variant must use Target.Product
 	if ctx.useVndk() && f.Properties.Target.Vendor.Override_export_include_dirs != nil {
 		return android.PathsForModuleSrc(ctx, f.Properties.Target.Vendor.Override_export_include_dirs)
 	} else {
@@ -716,6 +717,7 @@ func (library *libraryDecorator) getLibNameHelper(baseModuleName string, useVndk
 
 	suffix := ""
 	if useVndk {
+		// TODO(b/150902910): product variant must use Target.Product
 		suffix = String(library.Properties.Target.Vendor.Suffix)
 	}
 	if suffix == "" {
@@ -812,6 +814,7 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, library.SharedProperties.Shared.Export_shared_lib_headers...)
 		deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, library.SharedProperties.Shared.Export_static_lib_headers...)
 	}
+	// TODO(b/150902910): product variant must use Target.Product
 	if ctx.useVndk() {
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, library.baseLinker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.SharedLibs = removeListFromList(deps.SharedLibs, library.baseLinker.Properties.Target.Vendor.Exclude_shared_libs)

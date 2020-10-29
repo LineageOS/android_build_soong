@@ -34,6 +34,7 @@ var (
 //     version: "27",
 //     target_arch: "arm64",
 //     vendor_available: true,
+//     product_available: true,
 //     vndk: {
 //         enabled: true,
 //     },
@@ -251,6 +252,7 @@ func vndkPrebuiltSharedLibrary() *Module {
 //        version: "27",
 //        target_arch: "arm64",
 //        vendor_available: true,
+//        product_available: true,
 //        vndk: {
 //            enabled: true,
 //        },
