@@ -263,8 +263,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.WholeStaticLibs = append(deps.WholeStaticLibs, "libbuildversion")
 	}
 
-	// TODO(b/150902910): product variant must use Target.Product
-	if ctx.useVndk() {
+	if ctx.inVendor() {
 		deps.SharedLibs = append(deps.SharedLibs, linker.Properties.Target.Vendor.Shared_libs...)
 		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Vendor.Exclude_shared_libs)
 		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, linker.Properties.Target.Vendor.Exclude_shared_libs)
@@ -274,6 +273,18 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Target.Vendor.Exclude_runtime_libs)
+	}
+
+	if ctx.inProduct() {
+		deps.SharedLibs = append(deps.SharedLibs, linker.Properties.Target.Product.Shared_libs...)
+		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Product.Exclude_shared_libs)
+		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, linker.Properties.Target.Product.Exclude_shared_libs)
+		deps.StaticLibs = append(deps.StaticLibs, linker.Properties.Target.Product.Static_libs...)
+		deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Target.Product.Exclude_static_libs)
+		deps.HeaderLibs = removeListFromList(deps.HeaderLibs, linker.Properties.Target.Product.Exclude_header_libs)
+		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, linker.Properties.Target.Product.Exclude_static_libs)
+		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Target.Product.Exclude_static_libs)
+		deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Target.Product.Exclude_runtime_libs)
 	}
 
 	if ctx.inRecovery() {
@@ -500,11 +511,14 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		versionScript := ctx.ExpandOptionalSource(
 			linker.Properties.Version_script, "version_script")
 
-		// TODO(b/150902910): product variant must use Target.Product
-		if ctx.useVndk() && linker.Properties.Target.Vendor.Version_script != nil {
+		if ctx.inVendor() && linker.Properties.Target.Vendor.Version_script != nil {
 			versionScript = ctx.ExpandOptionalSource(
 				linker.Properties.Target.Vendor.Version_script,
 				"target.vendor.version_script")
+		} else if ctx.inProduct() && linker.Properties.Target.Product.Version_script != nil {
+			versionScript = ctx.ExpandOptionalSource(
+				linker.Properties.Target.Product.Version_script,
+				"target.product.version_script")
 		}
 
 		if versionScript.Valid() {

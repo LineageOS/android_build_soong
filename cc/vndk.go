@@ -140,18 +140,26 @@ func (vndk *vndkdep) vndkCheckLinkType(ctx android.BaseModuleContext, to *Module
 		// or those installed to /product or /system/product can't depend
 		// on modules marked with product_available: false.
 		violation := false
+		variant := "vendor"
 		if lib, ok := to.linker.(*llndkStubDecorator); ok && !Bool(lib.Properties.Vendor_available) {
 			violation = true
-		} else {
-			if _, ok := to.linker.(libraryInterface); ok && to.VendorProperties.Vendor_available != nil && !Bool(to.VendorProperties.Vendor_available) {
-				// Vendor_available == nil && !Bool(Vendor_available) should be okay since
-				// it means a vendor-only, or product-only library which is a valid dependency
-				// for non-VNDK modules.
+			if to.InProduct() {
+				variant = "product"
+			}
+		} else if _, ok := to.linker.(libraryInterface); ok {
+			if to.inVendor() && to.VendorProperties.Vendor_available != nil && !Bool(to.VendorProperties.Vendor_available) {
+				// A vendor module with Vendor_available == nil should be okay since it means a
+				// vendor-only library which is a valid dependency for non-VNDK vendor modules.
 				violation = true
+			} else if to.InProduct() && to.VendorProperties.Product_available != nil && !Bool(to.VendorProperties.Product_available) {
+				// A product module with Product_available == nil should be okay since it means a
+				// product-only library which is a valid dependency for non-VNDK product modules.
+				violation = true
+				variant = "product"
 			}
 		}
 		if violation {
-			ctx.ModuleErrorf("Vendor module that is not VNDK should not link to %q which is marked as `vendor_available: false`", to.Name())
+			ctx.ModuleErrorf("%s module that is not VNDK should not link to %q which is marked as `%s_available: false`", variant, to.Name(), variant)
 		}
 	}
 	if lib, ok := to.linker.(*libraryDecorator); !ok || !lib.shared() {
@@ -183,10 +191,15 @@ func (vndk *vndkdep) vndkCheckLinkType(ctx android.BaseModuleContext, to *Module
 				to.Name())
 			return
 		}
-		// TODO(b/150902910): vndk-ext for product must check product_available.
-		if !Bool(to.VendorProperties.Vendor_available) {
+		if to.inVendor() && !Bool(to.VendorProperties.Vendor_available) {
 			ctx.ModuleErrorf(
 				"`extends` refers module %q which does not have `vendor_available: true`",
+				to.Name())
+			return
+		}
+		if to.InProduct() && !Bool(to.VendorProperties.Product_available) {
+			ctx.ModuleErrorf(
+				"`extends` refers module %q which does not have `product_available: true`",
 				to.Name())
 			return
 		}
@@ -323,6 +336,12 @@ func processVndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 
 	vndkLibrariesLock.Lock()
 	defer vndkLibrariesLock.Unlock()
+
+	if m.InProduct() {
+		// We may skip the other steps for the product variants because they
+		// are already covered by the vendor variants.
+		return
+	}
 
 	if inList(name, vndkMustUseVendorVariantList(mctx.Config())) {
 		m.Properties.MustUseVendorVariant = true
@@ -796,10 +815,10 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 func getVndkFileName(m *Module) (string, error) {
 	if library, ok := m.linker.(*libraryDecorator); ok {
-		return library.getLibNameHelper(m.BaseModuleName(), true) + ".so", nil
+		return library.getLibNameHelper(m.BaseModuleName(), true, false) + ".so", nil
 	}
 	if prebuilt, ok := m.linker.(*prebuiltLibraryLinker); ok {
-		return prebuilt.libraryDecorator.getLibNameHelper(m.BaseModuleName(), true) + ".so", nil
+		return prebuilt.libraryDecorator.getLibNameHelper(m.BaseModuleName(), true, false) + ".so", nil
 	}
 	return "", fmt.Errorf("VNDK library should have libraryDecorator or prebuiltLibraryLinker as linker: %T", m.linker)
 }
