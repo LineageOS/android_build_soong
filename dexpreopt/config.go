@@ -100,104 +100,6 @@ type GlobalSoongConfig struct {
 	ConstructContext android.Path
 }
 
-// These libs are added as <uses-library> dependencies for apps if the targetSdkVersion in the
-// app manifest is less than the specified version. This is needed because these libraries haven't
-// existed prior to certain SDK version, but classes in them were in bootclasspath jars, etc.
-// Some of the compatibility libraries are optional (their <uses-library> tag has "required=false"),
-// so that if this library is missing this in not a build or run-time error.
-var OrgApacheHttpLegacy = "org.apache.http.legacy"
-var AndroidTestBase = "android.test.base"
-var AndroidTestMock = "android.test.mock"
-var AndroidHidlBase = "android.hidl.base-V1.0-java"
-var AndroidHidlManager = "android.hidl.manager-V1.0-java"
-
-var OptionalCompatUsesLibs28 = []string{
-	OrgApacheHttpLegacy,
-}
-var OptionalCompatUsesLibs30 = []string{
-	AndroidTestBase,
-	AndroidTestMock,
-}
-var CompatUsesLibs29 = []string{
-	AndroidHidlBase,
-	AndroidHidlManager,
-}
-var OptionalCompatUsesLibs = append(android.CopyOf(OptionalCompatUsesLibs28), OptionalCompatUsesLibs30...)
-var CompatUsesLibs = android.CopyOf(CompatUsesLibs29)
-
-const UnknownInstallLibraryPath = "error"
-
-// LibraryPath contains paths to the library DEX jar on host and on device.
-type LibraryPath struct {
-	Host   android.Path
-	Device string
-}
-
-// LibraryPaths is a map from library name to on-host and on-device paths to its DEX jar.
-type LibraryPaths map[string]*LibraryPath
-
-// Add a new library path to the map, unless a path for this library already exists.
-// If necessary, check that the build and install paths exist.
-func (libPaths LibraryPaths) addLibraryPath(ctx android.ModuleContext, lib string,
-	hostPath, installPath android.Path, strict bool) {
-
-	// If missing dependencies are allowed, the build shouldn't fail when a <uses-library> is
-	// not found. However, this is likely to result is disabling dexpreopt, as it won't be
-	// possible to construct class loader context without on-host and on-device library paths.
-	strict = strict && !ctx.Config().AllowMissingDependencies()
-
-	if hostPath == nil && strict {
-		android.ReportPathErrorf(ctx, "unknown build path to <uses-library> '%s'", lib)
-	}
-
-	if installPath == nil {
-		if android.InList(lib, CompatUsesLibs) || android.InList(lib, OptionalCompatUsesLibs) {
-			// Assume that compatibility libraries are installed in /system/framework.
-			installPath = android.PathForModuleInstall(ctx, "framework", lib+".jar")
-		} else if strict {
-			android.ReportPathErrorf(ctx, "unknown install path to <uses-library> '%s'", lib)
-		}
-	}
-
-	// Add a library only if the build and install path to it is known.
-	if _, present := libPaths[lib]; !present {
-		var devicePath string
-		if installPath != nil {
-			devicePath = android.InstallPathToOnDevicePath(ctx, installPath.(android.InstallPath))
-		} else {
-			// For some stub libraries the only known thing is the name of their implementation
-			// library, but the library itself is unavailable (missing or part of a prebuilt). In
-			// such cases we still need to add the library to <uses-library> tags in the manifest,
-			// but we cannot use if for dexpreopt.
-			devicePath = UnknownInstallLibraryPath
-		}
-		libPaths[lib] = &LibraryPath{hostPath, devicePath}
-	}
-}
-
-// Add a new library path to the map. Enforce checks that the library paths exist.
-func (libPaths LibraryPaths) AddLibraryPath(ctx android.ModuleContext, lib string, hostPath, installPath android.Path) {
-	libPaths.addLibraryPath(ctx, lib, hostPath, installPath, true)
-}
-
-// Add a new library path to the map, if the library exists (name is not nil).
-// Don't enforce checks that the library paths exist. Some libraries may be missing from the build,
-// but their names still need to be added to <uses-library> tags in the manifest.
-func (libPaths LibraryPaths) MaybeAddLibraryPath(ctx android.ModuleContext, lib *string, hostPath, installPath android.Path) {
-	if lib != nil {
-		libPaths.addLibraryPath(ctx, *lib, hostPath, installPath, false)
-	}
-}
-
-// Add library paths from the second map to the first map (do not override existing entries).
-func (libPaths LibraryPaths) AddLibraryPaths(otherPaths LibraryPaths) {
-	for lib, path := range otherPaths {
-		if _, present := libPaths[lib]; !present {
-			libPaths[lib] = path
-		}
-	}
-}
-
 type ModuleConfig struct {
 	Name            string
 	DexLocation     string // dex location on device
@@ -354,13 +256,6 @@ func SetTestGlobalConfig(config android.Config, globalConfig *GlobalConfig) {
 // from Make to read the module dexpreopt.config written in the Make config
 // stage.
 func ParseModuleConfig(ctx android.PathContext, data []byte) (*ModuleConfig, error) {
-	type jsonLibraryPath struct {
-		Host   string
-		Device string
-	}
-
-	type jsonLibraryPaths map[string]jsonLibraryPath
-
 	type ModuleJSONConfig struct {
 		*ModuleConfig
 
@@ -374,18 +269,6 @@ func ParseModuleConfig(ctx android.PathContext, data []byte) (*ModuleConfig, err
 		DexPreoptImages             []string
 		DexPreoptImageLocations     []string
 		PreoptBootClassPathDexFiles []string
-	}
-
-	// convert JSON map of library paths to LibraryPaths
-	constructLibraryPaths := func(ctx android.PathContext, paths jsonLibraryPaths) LibraryPaths {
-		m := LibraryPaths{}
-		for lib, path := range paths {
-			m[lib] = &LibraryPath{
-				constructPath(ctx, path.Host),
-				path.Device,
-			}
-		}
-		return m
 	}
 
 	config := ModuleJSONConfig{}
