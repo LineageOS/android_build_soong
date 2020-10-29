@@ -547,6 +547,18 @@ type dependencyTag struct {
 	name string
 }
 
+type usesLibraryDependencyTag struct {
+	dependencyTag
+	sdkVersion int // SDK version in which the library appared as a standalone library.
+}
+
+func makeUsesLibraryDependencyTag(sdkVersion int) usesLibraryDependencyTag {
+	return usesLibraryDependencyTag{
+		dependencyTag: dependencyTag{name: fmt.Sprintf("uses-library-%d", sdkVersion)},
+		sdkVersion:    sdkVersion,
+	}
+}
+
 func IsJniDepTag(depTag blueprint.DependencyTag) bool {
 	return depTag == jniLibTag
 }
@@ -566,9 +578,12 @@ var (
 	proguardRaiseTag      = dependencyTag{name: "proguard-raise"}
 	certificateTag        = dependencyTag{name: "certificate"}
 	instrumentationForTag = dependencyTag{name: "instrumentation_for"}
-	usesLibTag            = dependencyTag{name: "uses-library"}
 	extraLintCheckTag     = dependencyTag{name: "extra-lint-check"}
 	jniLibTag             = dependencyTag{name: "jnilib"}
+	usesLibTag            = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion)
+	usesLibCompat28Tag    = makeUsesLibraryDependencyTag(28)
+	usesLibCompat29Tag    = makeUsesLibraryDependencyTag(29)
+	usesLibCompat30Tag    = makeUsesLibraryDependencyTag(30)
 )
 
 func IsLibDepTag(depTag blueprint.DependencyTag) bool {
