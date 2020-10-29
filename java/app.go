@@ -1962,8 +1962,9 @@ func (u *usesLibrary) deps(ctx android.BottomUpMutatorContext, hasFrameworkLibs 
 		if hasFrameworkLibs {
 			// Dexpreopt needs paths to the dex jars of these libraries in order to construct
 			// class loader context for dex2oat. Add them as a dependency with a special tag.
-			ctx.AddVariationDependencies(nil, usesLibTag, dexpreopt.CompatUsesLibs...)
-			ctx.AddVariationDependencies(nil, usesLibTag, dexpreopt.OptionalCompatUsesLibs...)
+			ctx.AddVariationDependencies(nil, usesLibCompat29Tag, dexpreopt.CompatUsesLibs29...)
+			ctx.AddVariationDependencies(nil, usesLibCompat28Tag, dexpreopt.OptionalCompatUsesLibs28...)
+			ctx.AddVariationDependencies(nil, usesLibCompat30Tag, dexpreopt.OptionalCompatUsesLibs30...)
 		}
 	}
 }
@@ -1981,14 +1982,16 @@ func (u *usesLibrary) usesLibraryPaths(ctx android.ModuleContext) dexpreopt.Libr
 	usesLibPaths := make(dexpreopt.LibraryPaths)
 
 	if !ctx.Config().UnbundledBuild() {
-		ctx.VisitDirectDepsWithTag(usesLibTag, func(m android.Module) {
-			dep := ctx.OtherModuleName(m)
-			if lib, ok := m.(Dependency); ok {
-				usesLibPaths.AddLibraryPath(ctx, dep, lib.DexJarBuildPath(), lib.DexJarInstallPath())
-			} else if ctx.Config().AllowMissingDependencies() {
-				ctx.AddMissingDependencies([]string{dep})
-			} else {
-				ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must be a java library", dep)
+		ctx.VisitDirectDeps(func(m android.Module) {
+			if _, ok := ctx.OtherModuleDependencyTag(m).(usesLibraryDependencyTag); ok {
+				dep := ctx.OtherModuleName(m)
+				if lib, ok := m.(Dependency); ok {
+					usesLibPaths.AddLibraryPath(ctx, dep, lib.DexJarBuildPath(), lib.DexJarInstallPath())
+				} else if ctx.Config().AllowMissingDependencies() {
+					ctx.AddMissingDependencies([]string{dep})
+				} else {
+					ctx.ModuleErrorf("module %q in uses_libs or optional_uses_libs must be a java library", dep)
+				}
 			}
 		})
 	}
