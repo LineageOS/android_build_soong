@@ -464,7 +464,6 @@ func TestSnapshotWithCcSharedLibraryCommonProperties(t *testing.T) {
 				arm64: {
 					export_system_include_dirs: ["arm64/include"],
 					sanitize: {
-						hwaddress: true,
 						integer_overflow: false,
 					},
 				},
@@ -496,7 +495,6 @@ cc_prebuilt_library_shared {
             srcs: ["arm64/lib/mynativelib.so"],
             export_system_include_dirs: ["arm64/include/arm64/include"],
             sanitize: {
-                hwaddress: true,
                 integer_overflow: false,
             },
         },
@@ -527,7 +525,6 @@ cc_prebuilt_library_shared {
             srcs: ["arm64/lib/mynativelib.so"],
             export_system_include_dirs: ["arm64/include/arm64/include"],
             sanitize: {
-                hwaddress: true,
                 integer_overflow: false,
             },
         },
@@ -548,7 +545,7 @@ sdk_snapshot {
 `),
 		checkAllCopyRules(`
 include/Test.h -> include/include/Test.h
-.intermediates/mynativelib/android_arm64_armv8-a_shared_hwasan/mynativelib.so -> arm64/lib/mynativelib.so
+.intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
 arm64/include/Arm64Test.h -> arm64/include/arm64/include/Arm64Test.h
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so`),
 	)
@@ -2725,5 +2722,77 @@ sdk_snapshot {
 .intermediates/mylib/linux_glibc_x86_64_shared/mylib-host.so -> linux_glibc/x86_64/lib/mylib-host.so
 .intermediates/mylib/linux_glibc_x86_shared/mylib-host.so -> linux_glibc/x86/lib/mylib-host.so
 `),
+	)
+}
+
+func TestNoSanitizerMembers(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: ["mynativelib"],
+		}
+
+		cc_library_shared {
+			name: "mynativelib",
+			srcs: ["Test.cpp"],
+			export_include_dirs: ["include"],
+			arch: {
+				arm64: {
+					export_system_include_dirs: ["arm64/include"],
+					sanitize: {
+						hwaddress: true,
+					},
+				},
+			},
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_shared {
+    name: "mysdk_mynativelib@current",
+    sdk_member_name: "mynativelib",
+    visibility: ["//visibility:public"],
+    installable: false,
+    compile_multilib: "both",
+    export_include_dirs: ["include/include"],
+    arch: {
+        arm64: {
+            export_system_include_dirs: ["arm64/include/arm64/include"],
+        },
+        arm: {
+            srcs: ["arm/lib/mynativelib.so"],
+        },
+    },
+}
+
+cc_prebuilt_library_shared {
+    name: "mynativelib",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    compile_multilib: "both",
+    export_include_dirs: ["include/include"],
+    arch: {
+        arm64: {
+            export_system_include_dirs: ["arm64/include/arm64/include"],
+        },
+        arm: {
+            srcs: ["arm/lib/mynativelib.so"],
+        },
+    },
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    visibility: ["//visibility:public"],
+    native_shared_libs: ["mysdk_mynativelib@current"],
+}
+`),
+		checkAllCopyRules(`
+include/Test.h -> include/include/Test.h
+arm64/include/Arm64Test.h -> arm64/include/arm64/include/Arm64Test.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so`),
 	)
 }
