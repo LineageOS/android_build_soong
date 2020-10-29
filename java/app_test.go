@@ -2838,6 +2838,7 @@ func TestUsesLibraries(t *testing.T) {
 	}
 
 	// Test conditional context for target SDK version 30.
+	// "android.test.mock" is absent because "android.test.runner" is not used.
 	if w := `--target-classpath-for-sdk 30` +
 		` /system/framework/android.test.base.jar `; !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)
@@ -2852,8 +2853,10 @@ func TestUsesLibraries(t *testing.T) {
 	}
 
 	// Test conditional context for target SDK version 30.
+	// "android.test.mock" is present because "android.test.runner" is used.
 	if w := `--target-classpath-for-sdk 30` +
-		` /system/framework/android.test.base.jar `; !strings.Contains(cmd, w) {
+		` /system/framework/android.test.base.jar` +
+		`:/system/framework/android.test.mock.jar `; !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
 }
