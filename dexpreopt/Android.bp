@@ -2,6 +2,7 @@ bootstrap_go_package {
     name: "soong-dexpreopt",
     pkgPath: "android/soong/dexpreopt",
     srcs: [
+        "class_loader_context.go",
         "config.go",
         "dexpreopt.go",
         "testing.go",
