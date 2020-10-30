@@ -104,7 +104,7 @@ func (ctx *TestContext) RegisterModuleType(name string, factory ModuleFactory) {
 }
 
 func (ctx *TestContext) RegisterSingletonType(name string, factory SingletonFactory) {
-	ctx.Context.RegisterSingletonType(name, SingletonFactoryAdaptor(factory))
+	ctx.Context.RegisterSingletonType(name, SingletonFactoryAdaptor(ctx.Context, factory))
 }
 
 func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {
