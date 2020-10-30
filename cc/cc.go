@@ -368,7 +368,7 @@ type ModuleContextIntf interface {
 	useSdk() bool
 	sdkVersion() string
 	useVndk() bool
-	isNdk() bool
+	isNdk(config android.Config) bool
 	isLlndk(config android.Config) bool
 	isLlndkPublic(config android.Config) bool
 	isVndkPrivate(config android.Config) bool
@@ -938,8 +938,8 @@ func (c *Module) isCoverageVariant() bool {
 	return c.coverage.Properties.IsCoverageVariant
 }
 
-func (c *Module) IsNdk() bool {
-	return inList(c.BaseModuleName(), ndkKnownLibs)
+func (c *Module) IsNdk(config android.Config) bool {
+	return inList(c.BaseModuleName(), *getNDKKnownLibs(config))
 }
 
 func (c *Module) isLlndk(config android.Config) bool {
@@ -1140,8 +1140,8 @@ func (ctx *moduleContextImpl) useVndk() bool {
 	return ctx.mod.UseVndk()
 }
 
-func (ctx *moduleContextImpl) isNdk() bool {
-	return ctx.mod.IsNdk()
+func (ctx *moduleContextImpl) isNdk(config android.Config) bool {
+	return ctx.mod.IsNdk(config)
 }
 
 func (ctx *moduleContextImpl) isLlndk(config android.Config) bool {
@@ -1761,7 +1761,7 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 			for _, entry := range list {
 				// strip #version suffix out
 				name, _ := StubsLibNameAndVersion(entry)
-				if ctx.useSdk() && inList(name, ndkKnownLibs) {
+				if ctx.useSdk() && inList(name, *getNDKKnownLibs(ctx.Config())) {
 					variantLibs = append(variantLibs, name+ndkLibrarySuffix)
 				} else if ctx.useVndk() {
 					nonvariantLibs = append(nonvariantLibs, rewriteVendorLibs(entry))
