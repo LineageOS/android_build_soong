@@ -14,6 +14,7 @@ var (
 		"frameworks/native/libs/binder/rust",
 		"packages/modules/Virtualization",
 		"prebuilts/rust",
+		"system/bt",
 		"system/extras/profcollectd",
 		"system/hardware/interfaces/keystore2",
 		"system/security",
