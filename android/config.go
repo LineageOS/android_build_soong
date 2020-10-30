@@ -793,6 +793,11 @@ func (c *config) AlwaysUsePrebuiltSdks() bool {
 	return Bool(c.productVariables.Always_use_prebuilt_sdks)
 }
 
+// Returns true if the boot jars check should be skipped.
+func (c *config) SkipBootJarsCheck() bool {
+	return Bool(c.productVariables.Skip_boot_jars_check)
+}
+
 func (c *config) Fuchsia() bool {
 	return Bool(c.productVariables.Fuchsia)
 }
@@ -1341,6 +1346,11 @@ func (l *ConfiguredJarList) Jar(idx int) string {
 	return l.jars[idx]
 }
 
+// Apex component of idx-th pair on the list.
+func (l *ConfiguredJarList) Apex(idx int) string {
+	return l.apexes[idx]
+}
+
 // If the list contains a pair with the given jar.
 func (l *ConfiguredJarList) ContainsJar(jar string) bool {
 	return InList(jar, l.jars)
@@ -1537,4 +1547,12 @@ func (c *config) BootJars() []string {
 		list = append(list, c.productVariables.UpdatableBootJars.CopyOfJars()...)
 		return list
 	}).([]string)
+}
+
+func (c *config) NonUpdatableBootJars() ConfiguredJarList {
+	return c.productVariables.BootJars
+}
+
+func (c *config) UpdatableBootJars() ConfiguredJarList {
+	return c.productVariables.UpdatableBootJars
 }
