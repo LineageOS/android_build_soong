@@ -52,7 +52,7 @@ func newNameResolver(config android.Config) *android.NameResolver {
 }
 
 func newContext(srcDir string, configuration android.Config) *android.Context {
-	ctx := android.NewContext()
+	ctx := android.NewContext(configuration)
 	ctx.Register()
 	if !shouldPrepareBuildActions() {
 		configuration.SetStopBefore(bootstrap.StopBeforePrepareBuildActions)
