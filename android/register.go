@@ -113,8 +113,10 @@ func (ctx *Context) Register() {
 	// Register makevars after other singletons so they can export values through makevars
 	ctx.RegisterSingletonType("makevars", SingletonFactoryAdaptor(ctx, makeVarsSingletonFunc))
 
-	// Register env last so that it can track all used environment variables
+	// Register env and ninjadeps last so that they can track all used environment variables and
+	// Ninja file dependencies stored in the config.
 	ctx.RegisterSingletonType("env", SingletonFactoryAdaptor(ctx, EnvSingleton))
+	ctx.RegisterSingletonType("ninjadeps", SingletonFactoryAdaptor(ctx, ninjaDepsSingletonFactory))
 }
 
 func ModuleTypeFactories() map[string]ModuleFactory {
