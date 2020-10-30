@@ -1246,7 +1246,8 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	return flags
 }
 
-func (j *Module) collectJavacFlags(ctx android.ModuleContext, flags javaBuilderFlags) javaBuilderFlags {
+func (j *Module) collectJavacFlags(
+	ctx android.ModuleContext, flags javaBuilderFlags, srcFiles android.Paths) javaBuilderFlags {
 	// javac flags.
 	javacFlags := j.properties.Javacflags
 
@@ -1262,14 +1263,48 @@ func (j *Module) collectJavacFlags(ctx android.ModuleContext, flags javaBuilderF
 
 		if j.properties.Patch_module != nil {
 			// Manually specify build directory in case it is not under the repo root.
-			// (javac doesn't seem to expand into symbolc links when searching for patch-module targets, so
+			// (javac doesn't seem to expand into symbolic links when searching for patch-module targets, so
 			// just adding a symlink under the root doesn't help.)
-			patchPaths := ".:" + ctx.Config().BuildDir()
+			patchPaths := []string{".", ctx.Config().BuildDir()}
+
+			// b/150878007
+			//
+			// Workaround to support *Bazel-executed* JDK9 javac in Bazel's
+			// execution root for --patch-module. If this javac command line is
+			// invoked within Bazel's execution root working directory, the top
+			// level directories (e.g. libcore/, tools/, frameworks/) are all
+			// symlinks. JDK9 javac does not traverse into symlinks, which causes
+			// --patch-module to fail source file lookups when invoked in the
+			// execution root.
+			//
+			// Short of patching javac or enumerating *all* directories as possible
+			// input dirs, manually add the top level dir of the source files to be
+			// compiled.
+			topLevelDirs := map[string]bool{}
+			for _, srcFilePath := range srcFiles {
+				srcFileParts := strings.Split(srcFilePath.String(), "/")
+				// Ignore source files that are already in the top level directory
+				// as well as generated files in the out directory. The out
+				// directory may be an absolute path, which means srcFileParts[0] is the
+				// empty string, so check that as well. Note that "out" in Bazel's execution
+				// root is *not* a symlink, which doesn't cause problems for --patch-modules
+				// anyway, so it's fine to not apply this workaround for generated
+				// source files.
+				if len(srcFileParts) > 1 &&
+					srcFileParts[0] != "" &&
+					srcFileParts[0] != "out" {
+					topLevelDirs[srcFileParts[0]] = true
+				}
+			}
+			patchPaths = append(patchPaths, android.SortedStringKeys(topLevelDirs)...)
+
 			classPath := flags.classpath.FormJavaClassPath("")
 			if classPath != "" {
-				patchPaths += ":" + classPath
+				patchPaths = append(patchPaths, classPath)
 			}
-			javacFlags = append(javacFlags, "--patch-module="+String(j.properties.Patch_module)+"="+patchPaths)
+			javacFlags = append(
+				javacFlags,
+				"--patch-module="+String(j.properties.Patch_module)+"="+strings.Join(patchPaths, ":"))
 		}
 	}
 
@@ -1303,7 +1338,9 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	srcFiles = j.genSources(ctx, srcFiles, flags)
 
-	flags = j.collectJavacFlags(ctx, flags)
+	// Collect javac flags only after computing the full set of srcFiles to
+	// ensure that the --patch-module lookup paths are complete.
+	flags = j.collectJavacFlags(ctx, flags, srcFiles)
 
 	srcJars := srcFiles.FilterByExt(".srcjar")
 	srcJars = append(srcJars, deps.srcJars...)
