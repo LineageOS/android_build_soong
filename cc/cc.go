@@ -88,7 +88,7 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.TopDown("double_loadable", checkDoubleLoadableLibraries).Parallel()
 	})
 
-	android.RegisterSingletonType("kythe_extract_all", kytheExtractAllFactory)
+	ctx.RegisterSingletonType("kythe_extract_all", kytheExtractAllFactory)
 }
 
 type Deps struct {
