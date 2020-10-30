@@ -22,6 +22,7 @@ bootstrap_go_package {
         "androidmk.go",
         "app_builder.go",
         "app.go",
+        "boot_jars.go",
         "builder.go",
         "device_host_converter.go",
         "dex.go",
