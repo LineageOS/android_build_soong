@@ -194,162 +194,6 @@ func bootProfileCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig,
 	return profilePath
 }
 
-type classLoaderContext struct {
-	// Library names
-	Names []string
-
-	// The class loader context using paths in the build.
-	Host android.Paths
-
-	// The class loader context using paths as they will be on the device.
-	Target []string
-}
-
-// A map of class loader contexts for each SDK version.
-// A map entry for "any" version contains libraries that are unconditionally added to class loader
-// context. Map entries for existing versions contains libraries that were in the default classpath
-// until that API version, and should be added to class loader context if and only if the
-// targetSdkVersion in the manifest or APK is less than that API version.
-type classLoaderContextMap map[int]*classLoaderContext
-
-const AnySdkVersion int = 9999 // should go last in class loader context
-
-func (m classLoaderContextMap) getValue(sdkVer int) *classLoaderContext {
-	if _, ok := m[sdkVer]; !ok {
-		m[sdkVer] = &classLoaderContext{}
-	}
-	return m[sdkVer]
-}
-
-func (clc *classLoaderContext) addLib(lib string, hostPath android.Path, targetPath string) {
-	clc.Names = append(clc.Names, lib)
-	clc.Host = append(clc.Host, hostPath)
-	clc.Target = append(clc.Target, targetPath)
-}
-
-func (m classLoaderContextMap) addLibs(ctx android.PathContext, sdkVer int, module *ModuleConfig, libs ...string) bool {
-	clc := m.getValue(sdkVer)
-	for _, lib := range libs {
-		if p, ok := module.LibraryPaths[lib]; ok && p.Host != nil && p.Device != UnknownInstallLibraryPath {
-			clc.addLib(lib, p.Host, p.Device)
-		} else {
-			if sdkVer == AnySdkVersion {
-				// Fail the build if dexpreopt doesn't know paths to one of the <uses-library>
-				// dependencies. In the future we may need to relax this and just disable dexpreopt.
-				android.ReportPathErrorf(ctx, "dexpreopt cannot find path for <uses-library> '%s'", lib)
-			} else {
-				// No error for compatibility libraries, as Soong doesn't know if they are needed
-				// (this depends on the targetSdkVersion in the manifest).
-			}
-			return false
-		}
-	}
-	return true
-}
-
-func (m classLoaderContextMap) usesLibs() []string {
-	if clc, ok := m[AnySdkVersion]; ok {
-		return clc.Names
-	}
-	return nil
-}
-
-func (m classLoaderContextMap) addSystemServerLibs(sdkVer int, ctx android.PathContext, module *ModuleConfig, libs ...string) {
-	clc := m.getValue(sdkVer)
-	for _, lib := range libs {
-		clc.addLib(lib, SystemServerDexJarHostPath(ctx, lib), filepath.Join("/system/framework", lib+".jar"))
-	}
-}
-
-// genClassLoaderContext generates host and target class loader context to be passed to the dex2oat
-// command for the dexpreopted module. There are three possible cases:
-//
-// 1. System server jars. They have a special class loader context that includes other system
-//    server jars.
-//
-// 2. Library jars or APKs which have precise list of their <uses-library> libs. Their class loader
-//    context includes build and on-device paths to these libs. In some cases it may happen that
-//    the path to a <uses-library> is unknown (e.g. the dexpreopted module may depend on stubs
-//    library, whose implementation library is missing from the build altogether). In such case
-//    dexpreopting with the <uses-library> is impossible, and dexpreopting without it is pointless,
-//    as the runtime classpath won't match and the dexpreopted code will be discarded. Therefore in
-//    such cases the function returns nil, which disables dexpreopt.
-//
-// 3. All other library jars or APKs for which the exact <uses-library> list is unknown. They use
-//    the unsafe &-classpath workaround that means empty class loader context and absence of runtime
-//    check that the class loader context provided by the PackageManager agrees with the stored
-//    class loader context recorded in the .odex file.
-//
-func genClassLoaderContext(ctx android.PathContext, global *GlobalConfig, module *ModuleConfig) *classLoaderContextMap {
-	classLoaderContexts := make(classLoaderContextMap)
-	systemServerJars := NonUpdatableSystemServerJars(ctx, global)
-
-	if jarIndex := android.IndexList(module.Name, systemServerJars); jarIndex >= 0 {
-		// System server jars should be dexpreopted together: class loader context of each jar
-		// should include all preceding jars on the system server classpath.
-		classLoaderContexts.addSystemServerLibs(AnySdkVersion, ctx, module, systemServerJars[:jarIndex]...)
-
-	} else if module.EnforceUsesLibraries {
-		// Unconditional class loader context.
-		usesLibs := append(copyOf(module.UsesLibraries), module.OptionalUsesLibraries...)
-		if !classLoaderContexts.addLibs(ctx, AnySdkVersion, module, usesLibs...) {
-			return nil
-		}
-
-		// Conditional class loader context for API version < 28.
-		const httpLegacy = "org.apache.http.legacy"
-		if !classLoaderContexts.addLibs(ctx, 28, module, httpLegacy) {
-			return nil
-		}
-
-		// Conditional class loader context for API version < 29.
-		usesLibs29 := []string{
-			"android.hidl.base-V1.0-java",
-			"android.hidl.manager-V1.0-java",
-		}
-		if !classLoaderContexts.addLibs(ctx, 29, module, usesLibs29...) {
-			return nil
-		}
-
-		// Conditional class loader context for API version < 30.
-		const testBase = "android.test.base"
-		if !classLoaderContexts.addLibs(ctx, 30, module, testBase) {
-			return nil
-		}
-
-	} else {
-		// Pass special class loader context to skip the classpath and collision check.
-		// This will get removed once LOCAL_USES_LIBRARIES is enforced.
-		// Right now LOCAL_USES_LIBRARIES is opt in, for the case where it's not specified we still default
-		// to the &.
-	}
-
-	fixConditionalClassLoaderContext(classLoaderContexts)
-
-	return &classLoaderContexts
-}
-
-// Now that the full unconditional context is known, reconstruct conditional context.
-// Apply filters for individual libraries, mirroring what the PackageManager does when it
-// constructs class loader context on device.
-func fixConditionalClassLoaderContext(clcMap classLoaderContextMap) {
-	usesLibs := clcMap.usesLibs()
-
-	for sdkVer, clc := range clcMap {
-		if sdkVer == AnySdkVersion {
-			continue
-		}
-		clcMap[sdkVer] = &classLoaderContext{}
-		for i, lib := range clc.Names {
-			if android.InList(lib, usesLibs) {
-				// skip compatibility libraries that are already included in unconditional context
-			} else {
-				clcMap[sdkVer].addLib(lib, clc.Host[i], clc.Target[i])
-			}
-		}
-	}
-}
-
 func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, global *GlobalConfig,
 	module *ModuleConfig, rule *android.RuleBuilder, archIdx int, classLoaderContexts classLoaderContextMap,
 	profile android.WritablePath, appImage bool, generateDM bool) {
@@ -420,20 +264,11 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 		}
 
 		// Generate command that saves host and target class loader context in shell variables.
+		clc, paths := computeClassLoaderContext(ctx, classLoaderContexts)
 		cmd := rule.Command().
 			Text(`eval "$(`).Tool(globalSoong.ConstructContext).
-			Text(` --target-sdk-version ${target_sdk_version}`)
-		for _, ver := range android.SortedIntKeys(classLoaderContexts) {
-			if clc := classLoaderContexts.getValue(ver); len(clc.Host) > 0 {
-				verString := fmt.Sprintf("%d", ver)
-				if ver == AnySdkVersion {
-					verString = "any" // a special keyword that means any SDK version
-				}
-				cmd.Textf(`--host-classpath-for-sdk %s %s`, verString, strings.Join(clc.Host.Strings(), ":")).
-					Implicits(clc.Host).
-					Textf(`--target-classpath-for-sdk %s %s`, verString, strings.Join(clc.Target, ":"))
-			}
-		}
+			Text(` --target-sdk-version ${target_sdk_version}`).
+			Text(clc).Implicits(paths)
 		cmd.Text(`)"`)
 	} else {
 		// Pass special class loader context to skip the classpath and collision check.

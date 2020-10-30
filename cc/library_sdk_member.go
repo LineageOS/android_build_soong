@@ -383,12 +383,25 @@ type nativeLibInfoProperties struct {
 }
 
 func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
+	addOutputFile := true
 	ccModule := variant.(*Module)
 
-	// If the library has some link types then it produces an output binary file, otherwise it
-	// is header only.
-	if !p.memberType.noOutputFiles {
-		p.outputFile = getRequiredMemberOutputFile(ctx, ccModule)
+	if s := ccModule.sanitize; s != nil {
+		// We currently do not capture sanitizer flags for libs with sanitizers
+		// enabled, because they may vary among variants that cannot be represented
+		// in the input blueprint files. In particular, sanitizerDepsMutator enables
+		// various sanitizers on dependencies, but in many cases only on static
+		// ones, and we cannot specify sanitizer flags at the link type level (i.e.
+		// in StaticOrSharedProperties).
+		if s.isUnsanitizedVariant() {
+			// This still captures explicitly disabled sanitizers, which may be
+			// necessary to avoid cyclic dependencies.
+			p.Sanitize = s.Properties.Sanitize
+		} else {
+			// Do not add the output file to the snapshot if we don't represent it
+			// properly.
+			addOutputFile = false
+		}
 	}
 
 	exportedInfo := ctx.SdkModuleContext().OtherModuleProvider(variant, FlagExporterInfoProvider).(FlagExporterInfo)
@@ -431,8 +444,8 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 		p.StubsVersions = ccModule.AllStubsVersions()
 	}
 
-	if ccModule.sanitize != nil {
-		p.Sanitize = ccModule.sanitize.Properties.Sanitize
+	if !p.memberType.noOutputFiles && addOutputFile {
+		p.outputFile = getRequiredMemberOutputFile(ctx, ccModule)
 	}
 }
 
