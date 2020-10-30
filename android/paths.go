@@ -1557,6 +1557,72 @@ func PathContextForTesting(config Config) PathContext {
 	}
 }
 
+type testModuleInstallPathContext struct {
+	baseModuleContext
+
+	inData          bool
+	inTestcases     bool
+	inSanitizerDir  bool
+	inRamdisk       bool
+	inVendorRamdisk bool
+	inRecovery      bool
+	inRoot          bool
+	forceOS         *OsType
+	forceArch       *ArchType
+}
+
+func (m testModuleInstallPathContext) Config() Config {
+	return m.baseModuleContext.config
+}
+
+func (testModuleInstallPathContext) AddNinjaFileDeps(deps ...string) {}
+
+func (m testModuleInstallPathContext) InstallInData() bool {
+	return m.inData
+}
+
+func (m testModuleInstallPathContext) InstallInTestcases() bool {
+	return m.inTestcases
+}
+
+func (m testModuleInstallPathContext) InstallInSanitizerDir() bool {
+	return m.inSanitizerDir
+}
+
+func (m testModuleInstallPathContext) InstallInRamdisk() bool {
+	return m.inRamdisk
+}
+
+func (m testModuleInstallPathContext) InstallInVendorRamdisk() bool {
+	return m.inVendorRamdisk
+}
+
+func (m testModuleInstallPathContext) InstallInRecovery() bool {
+	return m.inRecovery
+}
+
+func (m testModuleInstallPathContext) InstallInRoot() bool {
+	return m.inRoot
+}
+
+func (m testModuleInstallPathContext) InstallBypassMake() bool {
+	return false
+}
+
+func (m testModuleInstallPathContext) InstallForceOS() (*OsType, *ArchType) {
+	return m.forceOS, m.forceArch
+}
+
+// Construct a minimal ModuleInstallPathContext for testing. Note that baseModuleContext is
+// default-initialized, which leaves blueprint.baseModuleContext set to nil, so methods that are
+// delegated to it will panic.
+func ModuleInstallPathContextForTesting(config Config) ModuleInstallPathContext {
+	ctx := &testModuleInstallPathContext{}
+	ctx.config = config
+	ctx.os = Android
+	return ctx
+}
+
 // Rel performs the same function as filepath.Rel, but reports errors to a PathContext, and reports an error if
 // targetPath is not inside basePath.
 func Rel(ctx PathContext, basePath string, targetPath string) string {
