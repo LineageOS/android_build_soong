@@ -67,6 +67,15 @@ func (i ApexInfo) IsForPlatform() bool {
 	return i.ApexVariationName == ""
 }
 
+func (i ApexInfo) InApex(apex string) bool {
+	for _, a := range i.InApexes {
+		if a == apex {
+			return true
+		}
+	}
+	return false
+}
+
 // ApexTestForInfo stores the contents of APEXes for which this module is a test and thus has
 // access to APEX internals.
 type ApexTestForInfo struct {
