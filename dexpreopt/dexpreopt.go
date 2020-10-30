@@ -81,7 +81,9 @@ func GenerateDexpreoptRule(ctx android.PathContext, globalSoong *GlobalSoongConf
 	}
 
 	if !dexpreoptDisabled(ctx, global, module) {
-		if clc := genClassLoaderContext(ctx, global, module); clc != nil {
+		if clc, err := genClassLoaderContext(ctx, global, module); err != nil {
+			android.ReportPathErrorf(ctx, err.Error())
+		} else if clc != nil {
 			appImage := (generateProfile || module.ForceCreateAppImage || global.DefaultAppImages) &&
 				!module.NoCreateAppImage
 
