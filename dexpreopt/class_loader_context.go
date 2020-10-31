@@ -80,8 +80,8 @@ type classLoaderContextMap map[int]*classLoaderContext
 
 // Add a new library path to the map, unless a path for this library already exists.
 // If necessary, check that the build and install paths exist.
-func (libPaths LibraryPaths) addLibraryPath(ctx android.ModuleContext, lib string,
-	hostPath, installPath android.Path, strict bool) {
+func (libPaths LibraryPaths) addLibraryPath(ctx android.ModuleInstallPathContext, lib string,
+	hostPath, installPath android.Path, strict bool) error {
 
 	// If missing dependencies are allowed, the build shouldn't fail when a <uses-library> is
 	// not found. However, this is likely to result is disabling dexpreopt, as it won't be
@@ -89,7 +89,7 @@ func (libPaths LibraryPaths) addLibraryPath(ctx android.ModuleContext, lib strin
 	strict = strict && !ctx.Config().AllowMissingDependencies()
 
 	if hostPath == nil && strict {
-		android.ReportPathErrorf(ctx, "unknown build path to <uses-library> '%s'", lib)
+		return fmt.Errorf("unknown build path to <uses-library> '%s'", lib)
 	}
 
 	if installPath == nil {
@@ -97,7 +97,7 @@ func (libPaths LibraryPaths) addLibraryPath(ctx android.ModuleContext, lib strin
 			// Assume that compatibility libraries are installed in /system/framework.
 			installPath = android.PathForModuleInstall(ctx, "framework", lib+".jar")
 		} else if strict {
-			android.ReportPathErrorf(ctx, "unknown install path to <uses-library> '%s'", lib)
+			return fmt.Errorf("unknown install path to <uses-library> '%s'", lib)
 		}
 	}
 
@@ -115,19 +115,30 @@ func (libPaths LibraryPaths) addLibraryPath(ctx android.ModuleContext, lib strin
 		}
 		libPaths[lib] = &LibraryPath{hostPath, devicePath}
 	}
+	return nil
+}
+
+// Wrapper around addLibraryPath that does error reporting.
+func (libPaths LibraryPaths) addLibraryPathOrReportError(ctx android.ModuleInstallPathContext, lib string,
+	hostPath, installPath android.Path, strict bool) {
+
+	err := libPaths.addLibraryPath(ctx, lib, hostPath, installPath, strict)
+	if err != nil {
+		android.ReportPathErrorf(ctx, err.Error())
+	}
 }
 
 // Add a new library path to the map. Enforce checks that the library paths exist.
-func (libPaths LibraryPaths) AddLibraryPath(ctx android.ModuleContext, lib string, hostPath, installPath android.Path) {
-	libPaths.addLibraryPath(ctx, lib, hostPath, installPath, true)
+func (libPaths LibraryPaths) AddLibraryPath(ctx android.ModuleInstallPathContext, lib string, hostPath, installPath android.Path) {
+	libPaths.addLibraryPathOrReportError(ctx, lib, hostPath, installPath, true)
 }
 
 // Add a new library path to the map, if the library exists (name is not nil).
 // Don't enforce checks that the library paths exist. Some libraries may be missing from the build,
 // but their names still need to be added to <uses-library> tags in the manifest.
-func (libPaths LibraryPaths) MaybeAddLibraryPath(ctx android.ModuleContext, lib *string, hostPath, installPath android.Path) {
+func (libPaths LibraryPaths) MaybeAddLibraryPath(ctx android.ModuleInstallPathContext, lib *string, hostPath, installPath android.Path) {
 	if lib != nil {
-		libPaths.addLibraryPath(ctx, *lib, hostPath, installPath, false)
+		libPaths.addLibraryPathOrReportError(ctx, *lib, hostPath, installPath, false)
 	}
 }
 
@@ -153,7 +164,9 @@ func (clc *classLoaderContext) addLib(lib string, hostPath android.Path, targetP
 	clc.Target = append(clc.Target, targetPath)
 }
 
-func (m classLoaderContextMap) addLibs(ctx android.PathContext, sdkVer int, module *ModuleConfig, libs ...string) bool {
+func (m classLoaderContextMap) addLibs(ctx android.PathContext, sdkVer int, module *ModuleConfig,
+	libs ...string) (bool, error) {
+
 	clc := m.getValue(sdkVer)
 	for _, lib := range libs {
 		if p, ok := module.LibraryPaths[lib]; ok && p.Host != nil && p.Device != UnknownInstallLibraryPath {
@@ -162,15 +175,15 @@ func (m classLoaderContextMap) addLibs(ctx android.PathContext, sdkVer int, modu
 			if sdkVer == AnySdkVersion {
 				// Fail the build if dexpreopt doesn't know paths to one of the <uses-library>
 				// dependencies. In the future we may need to relax this and just disable dexpreopt.
-				android.ReportPathErrorf(ctx, "dexpreopt cannot find path for <uses-library> '%s'", lib)
+				return false, fmt.Errorf("dexpreopt cannot find path for <uses-library> '%s'", lib)
 			} else {
 				// No error for compatibility libraries, as Soong doesn't know if they are needed
 				// (this depends on the targetSdkVersion in the manifest).
+				return false, nil
 			}
-			return false
 		}
 	}
-	return true
+	return true, nil
 }
 
 func (m classLoaderContextMap) addSystemServerLibs(sdkVer int, ctx android.PathContext, module *ModuleConfig, libs ...string) {
@@ -206,7 +219,7 @@ func (m classLoaderContextMap) usesLibs() []string {
 //    check that the class loader context provided by the PackageManager agrees with the stored
 //    class loader context recorded in the .odex file.
 //
-func genClassLoaderContext(ctx android.PathContext, global *GlobalConfig, module *ModuleConfig) *classLoaderContextMap {
+func genClassLoaderContext(ctx android.PathContext, global *GlobalConfig, module *ModuleConfig) (*classLoaderContextMap, error) {
 	classLoaderContexts := make(classLoaderContextMap)
 	systemServerJars := NonUpdatableSystemServerJars(ctx, global)
 
@@ -218,14 +231,14 @@ func genClassLoaderContext(ctx android.PathContext, global *GlobalConfig, module
 	} else if module.EnforceUsesLibraries {
 		// Unconditional class loader context.
 		usesLibs := append(copyOf(module.UsesLibraries), module.OptionalUsesLibraries...)
-		if !classLoaderContexts.addLibs(ctx, AnySdkVersion, module, usesLibs...) {
-			return nil
+		if ok, err := classLoaderContexts.addLibs(ctx, AnySdkVersion, module, usesLibs...); !ok {
+			return nil, err
 		}
 
 		// Conditional class loader context for API version < 28.
 		const httpLegacy = "org.apache.http.legacy"
-		if !classLoaderContexts.addLibs(ctx, 28, module, httpLegacy) {
-			return nil
+		if ok, err := classLoaderContexts.addLibs(ctx, 28, module, httpLegacy); !ok {
+			return nil, err
 		}
 
 		// Conditional class loader context for API version < 29.
@@ -233,13 +246,13 @@ func genClassLoaderContext(ctx android.PathContext, global *GlobalConfig, module
 			"android.hidl.base-V1.0-java",
 			"android.hidl.manager-V1.0-java",
 		}
-		if !classLoaderContexts.addLibs(ctx, 29, module, usesLibs29...) {
-			return nil
+		if ok, err := classLoaderContexts.addLibs(ctx, 29, module, usesLibs29...); !ok {
+			return nil, err
 		}
 
 		// Conditional class loader context for API version < 30.
-		if !classLoaderContexts.addLibs(ctx, 30, module, OptionalCompatUsesLibs30...) {
-			return nil
+		if ok, err := classLoaderContexts.addLibs(ctx, 30, module, OptionalCompatUsesLibs30...); !ok {
+			return nil, err
 		}
 
 	} else {
@@ -251,7 +264,7 @@ func genClassLoaderContext(ctx android.PathContext, global *GlobalConfig, module
 
 	fixConditionalClassLoaderContext(classLoaderContexts)
 
-	return &classLoaderContexts
+	return &classLoaderContexts, nil
 }
 
 // Now that the full unconditional context is known, reconstruct conditional context.

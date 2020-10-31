@@ -217,10 +217,6 @@ func (prebuilt *DexImport) AndroidMkEntries() []android.AndroidMkEntries {
 			func(entries *android.AndroidMkEntries) {
 				if prebuilt.dexJarFile != nil {
 					entries.SetPath("LOCAL_SOONG_DEX_JAR", prebuilt.dexJarFile)
-					// TODO(b/125517186): export the dex jar as a classes jar to match some mis-uses in Make until
-					// boot_jars_package_check.mk can check dex jars.
-					entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.dexJarFile)
-					entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.dexJarFile)
 				}
 				if len(prebuilt.dexpreopter.builtInstalled) > 0 {
 					entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", prebuilt.dexpreopter.builtInstalled)
