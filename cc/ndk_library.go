@@ -333,6 +333,7 @@ func newStubLibrary() *Module {
 	module.compiler = stub
 	module.linker = stub
 	module.installer = stub
+	module.library = stub
 
 	module.Properties.AlwaysSdk = true
 	module.Properties.Sdk_version = StringPtr("current")
