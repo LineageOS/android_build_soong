@@ -1001,8 +1001,13 @@ func TestDroiddoc(t *testing.T) {
 			"bar-doc/a.java": nil,
 			"bar-doc/b.java": nil,
 		})
+	barDocModule := ctx.ModuleForTests("bar-doc", "android_common")
+	barDoc := barDocModule.Rule("javadoc")
+	notExpected := " -stubs "
+	if strings.Contains(barDoc.RuleParams.Command, notExpected) {
+		t.Errorf("bar-doc command contains flag %q to create stubs, but should not", notExpected)
+	}
 
-	barDoc := ctx.ModuleForTests("bar-doc", "android_common").Rule("javadoc")
 	var javaSrcs []string
 	for _, i := range barDoc.Inputs {
 		javaSrcs = append(javaSrcs, i.Base())
@@ -1011,7 +1016,7 @@ func TestDroiddoc(t *testing.T) {
 		t.Errorf("inputs of bar-doc must be []string{\"a.java\"}, but was %#v.", javaSrcs)
 	}
 
-	aidl := ctx.ModuleForTests("bar-doc", "android_common").Rule("aidl")
+	aidl := barDocModule.Rule("aidl")
 	if g, w := barDoc.Implicits.Strings(), aidl.Output.String(); !inList(w, g) {
 		t.Errorf("implicits of bar-doc must contain %q, but was %q.", w, g)
 	}
