@@ -185,7 +185,7 @@ func (stub *llndkStubDecorator) stubsVersions(ctx android.BaseMutatorContext) []
 	if len(impls) > 1 {
 		panic(fmt.Errorf("Expected single implmenetation library, got %d", len(impls)))
 	} else if len(impls) == 1 {
-		return impls[0].(*Module).AllStubsVersions()
+		return moduleLibraryInterface(impls[0]).allStubsVersions()
 	}
 	return nil
 }
@@ -204,6 +204,7 @@ func NewLLndkStubLibrary() *Module {
 	module.compiler = stub
 	module.linker = stub
 	module.installer = nil
+	module.library = stub
 
 	module.AddProperties(
 		&module.Properties,
@@ -251,6 +252,7 @@ func llndkHeadersFactory() android.Module {
 	module.compiler = nil
 	module.linker = decorator
 	module.installer = nil
+	module.library = decorator
 
 	module.AddProperties(
 		&module.Properties,
