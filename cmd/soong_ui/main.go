@@ -139,6 +139,7 @@ func main() {
 
 	met := metrics.New()
 	met.SetBuildDateTime(buildStarted)
+	met.SetBuildCommand(os.Args)
 
 	stat := &status.Status{}
 	defer stat.Finish()

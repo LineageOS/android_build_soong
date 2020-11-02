@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -136,6 +137,10 @@ func (m *Metrics) getArch(arch string) *soong_metrics_proto.MetricsBase_Arch {
 
 func (m *Metrics) SetBuildDateTime(buildTimestamp time.Time) {
 	m.metrics.BuildDateTimestamp = proto.Int64(buildTimestamp.UnixNano() / int64(time.Second))
+}
+
+func (m *Metrics) SetBuildCommand(cmd []string) {
+	m.metrics.BuildCommand = proto.String(strings.Join(cmd, " "))
 }
 
 // exports the output to the file at outputPath
