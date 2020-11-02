@@ -412,7 +412,9 @@ func buildProduct(mpctx *mpContext, product string) {
 	ctx.Status.AddOutput(terminal.NewStatusOutput(ctx.Writer, "", false,
 		build.OsEnvironment().IsEnvTrue("ANDROID_QUIET_BUILD")))
 
-	config := build.NewConfig(ctx, flag.Args()...)
+	args := append([]string(nil), flag.Args()...)
+	args = append(args, "--skip-soong-tests")
+	config := build.NewConfig(ctx, args...)
 	config.Environment().Set("OUT_DIR", outDir)
 	if !*keepArtifacts {
 		config.Environment().Set("EMPTY_NINJA_FILE", "true")
