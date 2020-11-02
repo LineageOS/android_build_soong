@@ -64,6 +64,14 @@ type ApexInfo struct {
 	// module is part of. The ApexContents gives information about which modules the apexBundle
 	// has and whether a module became part of the apexBundle via a direct dependency or not.
 	ApexContents []*ApexContents
+
+	// True if this is for a prebuilt_apex.
+	//
+	// If true then this will customize the apex processing to make it suitable for handling
+	// prebuilt_apex, e.g. it will prevent ApexInfos from being merged together.
+	//
+	// See Prebuilt.ApexInfoMutator for more information.
+	ForPrebuiltApex bool
 }
 
 var ApexInfoProvider = blueprint.NewMutatorProvider(ApexInfo{}, "apex")
@@ -412,6 +420,16 @@ func mergeApexVariations(ctx PathContext, apexInfos []ApexInfo) (merged []ApexIn
 	sort.Sort(byApexName(apexInfos))
 	seen := make(map[string]int)
 	for _, apexInfo := range apexInfos {
+		// If this is for a prebuilt apex then use the actual name of the apex variation to prevent this
+		// from being merged with other ApexInfo. See Prebuilt.ApexInfoMutator for more information.
+		if apexInfo.ForPrebuiltApex {
+			merged = append(merged, apexInfo)
+			continue
+		}
+
+		// Merge the ApexInfo together. If a compatible ApexInfo exists then merge the information from
+		// this one into it, otherwise create a new merged ApexInfo from this one and save it away so
+		// other ApexInfo instances can be merged into it.
 		apexName := apexInfo.ApexVariationName
 		mergedName := apexInfo.mergedName(ctx)
 		if index, exists := seen[mergedName]; exists {
@@ -582,10 +600,14 @@ const (
 // apexContents, and modules in that apex have a provider containing the apexContents of each
 // apexBundle they are part of.
 type ApexContents struct {
-	// map from a module name to its membership to this apexBUndle
+	// map from a module name to its membership in this apexBundle
 	contents map[string]ApexMembership
 }
 
+// NewApexContents creates and initializes an ApexContents that is suitable
+// for use with an apex module.
+// * contents is a map from a module name to information about its membership within
+//   the apex.
 func NewApexContents(contents map[string]ApexMembership) *ApexContents {
 	return &ApexContents{
 		contents: contents,
