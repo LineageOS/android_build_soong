@@ -16,16 +16,7 @@ type LinkableInterface interface {
 
 	NonCcVariants() bool
 
-	StubsVersions(android.BaseMutatorContext) []string
-	BuildStubs() bool
-	SetBuildStubs()
-	SetStubsVersion(string)
-	StubsVersion() string
-	SetAllStubsVersions([]string)
-	AllStubsVersions() []string
-	HasStubsVariants() bool
 	SelectedStl() string
-	ApiLevel() string
 
 	BuildStaticVariant() bool
 	BuildSharedVariant() bool
@@ -55,10 +46,6 @@ type LinkableInterface interface {
 	SdkVersion() string
 	AlwaysSdk() bool
 	IsSdkVariant() bool
-
-	ToolchainLibrary() bool
-	NdkPrebuiltStl() bool
-	StubDecorator() bool
 
 	SplitPerApiLevel() bool
 }
