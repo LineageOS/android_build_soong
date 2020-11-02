@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"android/soong/ui/metrics/metrics_proto"
@@ -138,6 +139,10 @@ func (m *Metrics) SetBuildDateTime(buildTimestamp time.Time) {
 
 func (m *Metrics) Serialize() (data []byte, err error) {
 	return proto.Marshal(&m.metrics)
+}
+
+func (m *Metrics) SetBuildCommand(cmd []string) {
+	m.metrics.BuildCommand = proto.String(strings.Join(cmd, " "))
 }
 
 // exports the output to the file at outputPath
