@@ -561,13 +561,12 @@ func (g *Module) IDEInfo(dpInfo *android.IdeInfo) {
 
 func (g *Module) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
-		Include:    "$(BUILD_PHONY_PACKAGE)",
-		Class:      "FAKE",
+		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(g.outputFiles[0]),
 		SubName:    g.subName,
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
-				fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES :=", strings.Join(g.outputDeps.Strings(), " "))
+				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
 			},
 		},
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
