@@ -122,6 +122,7 @@ java_import {
     name: "mysdk_sdkmember@current",
     sdk_member_name: "sdkmember",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/sdkmember.jar"],
 }
 
@@ -129,6 +130,7 @@ java_import {
     name: "sdkmember",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/sdkmember.jar"],
 }
 
@@ -247,6 +249,7 @@ java_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myjavalib.jar"],
 }
 
@@ -254,6 +257,7 @@ java_import {
     name: "myjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myjavalib.jar"],
 }
 
@@ -302,6 +306,7 @@ java_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     device_supported: false,
     host_supported: true,
     jars: ["java/myjavalib.jar"],
@@ -311,6 +316,7 @@ java_import {
     name: "myjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     device_supported: false,
     host_supported: true,
     jars: ["java/myjavalib.jar"],
@@ -357,6 +363,7 @@ java_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     host_supported: true,
     target: {
         android: {
@@ -372,6 +379,7 @@ java_import {
     name: "myjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     host_supported: true,
     target: {
         android: {
@@ -426,6 +434,7 @@ java_import {
     name: "myexports_myjavalib@current",
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myjavalib.jar"],
 }
 
@@ -433,6 +442,7 @@ java_import {
     name: "myjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myjavalib.jar"],
 }
 
@@ -481,6 +491,7 @@ java_import {
     name: "myexports_myjavalib@current",
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     device_supported: false,
     host_supported: true,
     jars: ["java/myjavalib.jar"],
@@ -490,6 +501,7 @@ java_import {
     name: "myjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     device_supported: false,
     host_supported: true,
     jars: ["java/myjavalib.jar"],
@@ -535,6 +547,7 @@ java_test_import {
     name: "myexports_myjavatests@current",
     sdk_member_name: "myjavatests",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myjavatests.jar"],
     test_config: "java/myjavatests-AndroidTest.xml",
 }
@@ -543,6 +556,7 @@ java_test_import {
     name: "myjavatests",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myjavatests.jar"],
     test_config: "java/myjavatests-AndroidTest.xml",
 }
@@ -588,6 +602,7 @@ java_test_import {
     name: "myexports_myjavatests@current",
     sdk_member_name: "myjavatests",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     device_supported: false,
     host_supported: true,
     jars: ["java/myjavatests.jar"],
@@ -598,6 +613,7 @@ java_test_import {
     name: "myjavatests",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     device_supported: false,
     host_supported: true,
     jars: ["java/myjavatests.jar"],
@@ -797,6 +813,7 @@ java_import {
     name: "mysdk_exported-system-module@current",
     sdk_member_name: "exported-system-module",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/exported-system-module.jar"],
 }
 
@@ -804,6 +821,7 @@ java_import {
     name: "exported-system-module",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/exported-system-module.jar"],
 }
 
@@ -811,6 +829,7 @@ java_import {
     name: "mysdk_system-module@current",
     sdk_member_name: "system-module",
     visibility: ["//visibility:private"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/system-module.jar"],
 }
 
@@ -818,6 +837,7 @@ java_import {
     name: "mysdk_system-module",
     prefer: false,
     visibility: ["//visibility:private"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/system-module.jar"],
 }
 
@@ -889,6 +909,7 @@ java_import {
     name: "mysdk_system-module@current",
     sdk_member_name: "system-module",
     visibility: ["//visibility:private"],
+    apex_available: ["//apex_available:platform"],
     device_supported: false,
     host_supported: true,
     jars: ["java/system-module.jar"],
@@ -898,6 +919,7 @@ java_import {
     name: "mysdk_system-module",
     prefer: false,
     visibility: ["//visibility:private"],
+    apex_available: ["//apex_available:platform"],
     device_supported: false,
     host_supported: true,
     jars: ["java/system-module.jar"],
@@ -978,6 +1000,7 @@ java_import {
     name: "myexports_hostjavalib@current",
     sdk_member_name: "hostjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     device_supported: false,
     host_supported: true,
     jars: ["java/hostjavalib.jar"],
@@ -987,6 +1010,7 @@ java_import {
     name: "hostjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     device_supported: false,
     host_supported: true,
     jars: ["java/hostjavalib.jar"],
@@ -996,6 +1020,7 @@ java_import {
     name: "myexports_androidjavalib@current",
     sdk_member_name: "androidjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/androidjavalib.jar"],
 }
 
@@ -1003,6 +1028,7 @@ java_import {
     name: "androidjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/androidjavalib.jar"],
 }
 
@@ -1010,6 +1036,7 @@ java_import {
     name: "myexports_myjavalib@current",
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     host_supported: true,
     target: {
         android: {
@@ -1025,6 +1052,7 @@ java_import {
     name: "myjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     host_supported: true,
     target: {
         android: {
@@ -1187,6 +1215,7 @@ java_sdk_library_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
@@ -1201,6 +1230,7 @@ java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
@@ -1254,6 +1284,7 @@ java_sdk_library_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
@@ -1268,6 +1299,7 @@ java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     shared_library: true,
     public: {
         jars: ["sdk_library/public/myjavalib-stubs.jar"],
@@ -1689,6 +1721,7 @@ java_sdk_library_import {
     name: "mysdk_myjavalib@current",
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     shared_library: true,
     doctag_files: ["doctags/docs/known_doctags"],
     public: {
@@ -1704,6 +1737,7 @@ java_sdk_library_import {
     name: "myjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     shared_library: true,
     doctag_files: ["doctags/docs/known_doctags"],
     public: {
