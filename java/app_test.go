@@ -2815,11 +2815,11 @@ func TestUsesLibraries(t *testing.T) {
 	// Test that all present libraries are preopted, including implicit SDK dependencies, possibly stubs
 	cmd = app.Rule("dexpreopt").RuleParams.Command
 	w := `--target-context-for-sdk any ` +
-		`PCL[/system/framework/foo.jar]#` +
-		`PCL[/system/framework/quuz.jar]#` +
 		`PCL[/system/framework/qux.jar]#` +
-		`PCL[/system/framework/runtime-library.jar]#` +
-		`PCL[/system/framework/bar.jar]`
+		`PCL[/system/framework/quuz.jar]#` +
+		`PCL[/system/framework/foo.jar]#` +
+		`PCL[/system/framework/bar.jar]#` +
+		`PCL[/system/framework/runtime-library.jar]`
 	if !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
