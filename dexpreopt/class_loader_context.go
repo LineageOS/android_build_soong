@@ -171,7 +171,23 @@ func (clcMap ClassLoaderContextMap) AddContextForSdk(ctx android.ModuleInstallPa
 }
 
 // Merge the other class loader context map into this one, do not override existing entries.
-func (clcMap ClassLoaderContextMap) AddContextMap(otherClcMap ClassLoaderContextMap) {
+// The implicitRootLib parameter is the name of the library for which the other class loader
+// context map was constructed. If the implicitRootLib is itself a <uses-library>, it should be
+// already present in the class loader context (with the other context as its subcontext) -- in
+// that case do not re-add the other context. Otherwise add the other context at the top-level.
+func (clcMap ClassLoaderContextMap) AddContextMap(otherClcMap ClassLoaderContextMap, implicitRootLib string) {
+	if otherClcMap == nil {
+		return
+	}
+
+	// If the implicit root of the merged map is already present as one of top-level subtrees, do
+	// not merge it second time.
+	for _, clc := range clcMap[AnySdkVersion] {
+		if clc.Name == implicitRootLib {
+			return
+		}
+	}
+
 	for sdkVer, otherClcs := range otherClcMap {
 		for _, otherClc := range otherClcs {
 			alreadyHave := false
