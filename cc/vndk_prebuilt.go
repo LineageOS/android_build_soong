@@ -52,7 +52,7 @@ type vndkPrebuiltProperties struct {
 	// VNDK snapshot version.
 	Version *string
 
-	// Target arch name of the snapshot (e.g. 'arm64' for variant 'aosp_arm64_ab')
+	// Target arch name of the snapshot (e.g. 'arm64' for variant 'aosp_arm64')
 	Target_arch *string
 
 	// If the prebuilt snapshot lib is built with 32 bit binder, this must be set to true.
