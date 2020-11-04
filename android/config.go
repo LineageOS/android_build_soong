@@ -974,13 +974,21 @@ func (c *config) ModulesLoadedByPrivilegedModules() []string {
 	return c.productVariables.ModulesLoadedByPrivilegedModules
 }
 
-func (c *config) DexpreoptGlobalConfig(ctx PathContext) ([]byte, error) {
+func (c *config) DexpreoptGlobalConfigPath(ctx PathContext) OptionalPath {
 	if c.productVariables.DexpreoptGlobalConfig == nil {
+		return OptionalPathForPath(nil)
+	}
+	return OptionalPathForPath(
+		pathForBuildToolDep(ctx, *c.productVariables.DexpreoptGlobalConfig))
+}
+
+func (c *config) DexpreoptGlobalConfig(ctx PathContext) ([]byte, error) {
+	path := c.DexpreoptGlobalConfigPath(ctx)
+	if !path.Valid() {
 		return nil, nil
 	}
-	path := absolutePath(*c.productVariables.DexpreoptGlobalConfig)
-	ctx.AddNinjaFileDeps(path)
-	return ioutil.ReadFile(path)
+	ctx.AddNinjaFileDeps(path.String())
+	return ioutil.ReadFile(absolutePath(path.String()))
 }
 
 func (c *config) FrameworksBaseDirExists(ctx PathContext) bool {
