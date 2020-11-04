@@ -41,7 +41,6 @@ var (
 var pgoProfileProjectsConfigKey = android.NewOnceKey("PgoProfileProjects")
 
 const profileInstrumentFlag = "-fprofile-generate=/data/local/tmp"
-const profileSamplingFlag = "-gmlt -fdebug-info-for-profiling"
 const profileUseInstrumentFormat = "-fprofile-use=%s"
 const profileUseSamplingFormat = "-fprofile-sample-accurate -fprofile-sample-use=%s"
 
@@ -100,9 +99,6 @@ func (props *PgoProperties) addInstrumentationProfileGatherFlags(ctx ModuleConte
 }
 func (props *PgoProperties) addSamplingProfileGatherFlags(ctx ModuleContext, flags Flags) Flags {
 	flags.Local.CFlags = append(flags.Local.CFlags, props.Pgo.Cflags...)
-
-	flags.Local.CFlags = append(flags.Local.CFlags, profileSamplingFlag)
-	flags.Local.LdFlags = append(flags.Local.LdFlags, profileSamplingFlag)
 	return flags
 }
 
