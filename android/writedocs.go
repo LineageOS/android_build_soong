@@ -48,6 +48,13 @@ func (c *docsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	deps = append(deps, pathForBuildToolDep(ctx, ctx.Config().moduleListFile))
 	deps = append(deps, pathForBuildToolDep(ctx, ctx.Config().ProductVariablesFileName))
 
+	// The dexpreopt configuration may not exist, but if it does, it's a dependency
+	// of soong_build.
+	dexpreoptConfigPath := ctx.Config().DexpreoptGlobalConfigPath(ctx)
+	if dexpreoptConfigPath.Valid() {
+		deps = append(deps, dexpreoptConfigPath.Path())
+	}
+
 	// Generate build system docs for the primary builder.  Generating docs reads the source
 	// files used to build the primary builder, but that dependency will be picked up through
 	// the dependency on the primary builder itself.  There are no dependencies on the
