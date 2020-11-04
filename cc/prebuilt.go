@@ -228,6 +228,7 @@ func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDec
 		libraryDecorator: library,
 	}
 	module.linker = prebuilt
+	module.library = prebuilt
 
 	module.AddProperties(&prebuilt.properties)
 

@@ -41,12 +41,13 @@ type configImpl struct {
 	buildDateTime string
 
 	// From the arguments
-	parallel   int
-	keepGoing  int
-	verbose    bool
-	checkbuild bool
-	dist       bool
-	skipMake   bool
+	parallel       int
+	keepGoing      int
+	verbose        bool
+	checkbuild     bool
+	dist           bool
+	skipMake       bool
+	skipSoongTests bool
 
 	// From the product config
 	katiArgs        []string
@@ -526,6 +527,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			c.verbose = true
 		} else if arg == "--skip-make" {
 			c.skipMake = true
+		} else if arg == "--skip-soong-tests" {
+			c.skipSoongTests = true
 		} else if len(arg) > 0 && arg[0] == '-' {
 			parseArgNum := func(def int) int {
 				if len(arg) > 2 {

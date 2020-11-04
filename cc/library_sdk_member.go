@@ -86,10 +86,6 @@ func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorCont
 			if mctx.Device() {
 				variations = append(variations,
 					blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
-				if mt.linkTypes != nil {
-					variations = append(variations,
-						blueprint.Variation{Mutator: "version", Variation: version})
-				}
 			}
 			if mt.linkTypes == nil {
 				mctx.AddFarVariationDependencies(variations, dependencyTag, name)
@@ -97,6 +93,10 @@ func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorCont
 				for _, linkType := range mt.linkTypes {
 					libVariations := append(variations,
 						blueprint.Variation{Mutator: "link", Variation: linkType})
+					if mctx.Device() && linkType == "shared" {
+						libVariations = append(libVariations,
+							blueprint.Variation{Mutator: "version", Variation: version})
+					}
 					mctx.AddFarVariationDependencies(libVariations, dependencyTag, name)
 				}
 			}
@@ -428,21 +428,21 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 		specifiedDeps := specifiedDeps{}
 		specifiedDeps = ccModule.linker.linkerSpecifiedDeps(specifiedDeps)
 
-		if !ccModule.HasStubsVariants() {
-			// Propagate dynamic dependencies for implementation libs, but not stubs.
-			p.SharedLibs = specifiedDeps.sharedLibs
+		if lib := ccModule.library; lib != nil {
+			if !lib.hasStubsVariants() {
+				// Propagate dynamic dependencies for implementation libs, but not stubs.
+				p.SharedLibs = specifiedDeps.sharedLibs
+			} else {
+				// TODO(b/169373910): 1. Only output the specific version (from
+				// ccModule.StubsVersion()) if the module is versioned. 2. Ensure that all
+				// the versioned stub libs are retained in the prebuilt tree; currently only
+				// the stub corresponding to ccModule.StubsVersion() is.
+				p.StubsVersions = lib.allStubsVersions()
+			}
 		}
 		p.SystemSharedLibs = specifiedDeps.systemSharedLibs
 	}
 	p.exportedGeneratedHeaders = exportedInfo.GeneratedHeaders
-
-	if ccModule.HasStubsVariants() {
-		// TODO(b/169373910): 1. Only output the specific version (from
-		// ccModule.StubsVersion()) if the module is versioned. 2. Ensure that all
-		// the versioned stub libs are retained in the prebuilt tree; currently only
-		// the stub corresponding to ccModule.StubsVersion() is.
-		p.StubsVersions = ccModule.AllStubsVersions()
-	}
 
 	if !p.memberType.noOutputFiles && addOutputFile {
 		p.outputFile = getRequiredMemberOutputFile(ctx, ccModule)

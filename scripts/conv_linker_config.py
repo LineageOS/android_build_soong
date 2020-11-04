@@ -25,8 +25,12 @@ from google.protobuf.text_format import MessageToString
 
 
 def Proto(args):
+  json_content = ''
   with open(args.source) as f:
-    obj = json.load(f, object_pairs_hook=collections.OrderedDict)
+    for line in f:
+      if not line.lstrip().startswith('//'):
+        json_content += line
+  obj = json.loads(json_content, object_pairs_hook=collections.OrderedDict)
   pb = ParseDict(obj, linker_config_pb2.LinkerConfig())
   with open(args.output, 'wb') as f:
     f.write(pb.SerializeToString())

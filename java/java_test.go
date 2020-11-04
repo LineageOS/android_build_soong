@@ -2046,7 +2046,14 @@ func TestPatchModule(t *testing.T) {
 
 			java_library {
 				name: "baz",
-				srcs: ["c.java"],
+				srcs: [
+					"c.java",
+					// Tests for b/150878007
+					"dir/d.java",
+					"dir2/e.java",
+					"dir2/f.java",
+					"nested/dir/g.java"
+				],
 				patch_module: "java.base",
 			}
 		`
@@ -2055,7 +2062,8 @@ func TestPatchModule(t *testing.T) {
 		checkPatchModuleFlag(t, ctx, "foo", "")
 		expected := "java.base=.:" + buildDir
 		checkPatchModuleFlag(t, ctx, "bar", expected)
-		expected = "java.base=" + strings.Join([]string{".", buildDir, moduleToPath("ext"), moduleToPath("framework")}, ":")
+		expected = "java.base=" + strings.Join([]string{
+			".", buildDir, "dir", "dir2", "nested", moduleToPath("ext"), moduleToPath("framework")}, ":")
 		checkPatchModuleFlag(t, ctx, "baz", expected)
 	})
 }
