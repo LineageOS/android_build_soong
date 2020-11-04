@@ -68,6 +68,12 @@ func testForDanglingRules(ctx Context, config Config) {
 	miniBootstrapDir := filepath.Join(outDir, "soong", ".minibootstrap")
 	modulePathsDir := filepath.Join(outDir, ".module_paths")
 	variablesFilePath := filepath.Join(outDir, "soong", "soong.variables")
+	// dexpreopt.config is an input to the soong_docs action, which runs the
+	// soong_build primary builder. However, this file is created from $(shell)
+	// invocation at Kati parse time, so it's not an explicit output of any
+	// Ninja action, but it is present during the build itself and can be
+	// treated as an source file.
+	dexpreoptConfigFilePath := filepath.Join(outDir, "soong", "dexpreopt.config")
 
 	danglingRules := make(map[string]bool)
 
@@ -81,7 +87,8 @@ func testForDanglingRules(ctx Context, config Config) {
 		if strings.HasPrefix(line, bootstrapDir) ||
 			strings.HasPrefix(line, miniBootstrapDir) ||
 			strings.HasPrefix(line, modulePathsDir) ||
-			line == variablesFilePath {
+			line == variablesFilePath ||
+			line == dexpreoptConfigFilePath {
 			// Leaf node is in one of Soong's bootstrap directories, which do not have
 			// full build rules in the primary build.ninja file.
 			continue
