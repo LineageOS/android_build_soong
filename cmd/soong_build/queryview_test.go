@@ -28,7 +28,7 @@ var buildDir string
 
 func setUp() {
 	var err error
-	buildDir, err = ioutil.TempDir("", "bazel_overlay_test")
+	buildDir, err = ioutil.TempDir("", "bazel_queryview_test")
 	if err != nil {
 		panic(err)
 	}
@@ -63,7 +63,7 @@ func customModuleFactory() android.Module {
 	return module
 }
 
-func TestGenerateBazelOverlayFromBlueprint(t *testing.T) {
+func TestGenerateBazelQueryViewFromBlueprint(t *testing.T) {
 	testCases := []struct {
 		bp                  string
 		expectedBazelTarget string
@@ -362,7 +362,7 @@ func TestGenerateModuleRuleShims(t *testing.T) {
 		}
 	}
 
-	expectedBzl := `load("//build/bazel/overlay_rules:providers.bzl", "SoongModuleInfo")
+	expectedBzl := `load("//build/bazel/queryview_rules:providers.bzl", "SoongModuleInfo")
 
 def _foo_binary_impl(ctx):
     return [SoongModuleInfo()]
@@ -440,7 +440,7 @@ func TestGenerateSoongModuleBzl(t *testing.T) {
 	}
 	actualSoongModuleBzl := generateSoongModuleBzl(ruleShims)
 
-	expectedLoad := "load(\"//build/bazel/overlay_rules:foo.bzl\", \"foo_binary\", \"foo_library\", \"foo_test_\")"
+	expectedLoad := "load(\"//build/bazel/queryview_rules:foo.bzl\", \"foo_binary\", \"foo_library\", \"foo_test_\")"
 	expectedRuleMap := `soong_module_rule_map = {
     "foo_binary": foo_binary,
     "foo_library": foo_library,

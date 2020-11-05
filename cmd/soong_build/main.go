@@ -26,13 +26,13 @@ import (
 )
 
 var (
-	docFile         string
-	bazelOverlayDir string
+	docFile           string
+	bazelQueryViewDir string
 )
 
 func init() {
 	flag.StringVar(&docFile, "soong_docs", "", "build documentation file to output")
-	flag.StringVar(&bazelOverlayDir, "bazel_overlay_dir", "", "path to the bazel overlay directory")
+	flag.StringVar(&bazelQueryViewDir, "bazel_queryview_dir", "", "path to the bazel queryview directory")
 }
 
 func newNameResolver(config android.Config) *android.NameResolver {
@@ -113,8 +113,8 @@ func main() {
 		ctx = newContext(srcDir, configuration)
 		bootstrap.Main(ctx.Context, configuration, extraNinjaDeps...)
 	}
-	if bazelOverlayDir != "" {
-		if err := createBazelOverlay(ctx, bazelOverlayDir); err != nil {
+	if bazelQueryViewDir != "" {
+		if err := createBazelQueryView(ctx, bazelQueryViewDir); err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
@@ -140,7 +140,7 @@ func main() {
 }
 
 func shouldPrepareBuildActions() bool {
-	// If we're writing soong_docs or bazel_overlay, don't write build.ninja or
+	// If we're writing soong_docs or queryview, don't write build.ninja or
 	// collect metrics.
-	return docFile == "" && bazelOverlayDir == ""
+	return docFile == "" && bazelQueryViewDir == ""
 }

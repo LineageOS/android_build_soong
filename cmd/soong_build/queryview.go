@@ -31,7 +31,7 @@ import (
 const (
 	// The default `load` preamble for every generated BUILD file.
 	soongModuleLoad = `package(default_visibility = ["//visibility:public"])
-load("//build/bazel/overlay_rules:soong_module.bzl", "soong_module")
+load("//build/bazel/queryview_rules:soong_module.bzl", "soong_module")
 
 `
 
@@ -62,7 +62,7 @@ load("//build/bazel/overlay_rules:soong_module.bzl", "soong_module")
 	soongModuleBzl = `
 %s
 
-load("//build/bazel/overlay_rules:providers.bzl", "SoongModuleInfo")
+load("//build/bazel/queryview_rules:providers.bzl", "SoongModuleInfo")
 
 def _generic_soong_module_impl(ctx):
     return [
@@ -396,7 +396,7 @@ func createRuleShims(packages []*bpdoc.Package) (map[string]RuleShim, error) {
 
 	ruleShims := map[string]RuleShim{}
 	for _, pkg := range packages {
-		content := "load(\"//build/bazel/overlay_rules:providers.bzl\", \"SoongModuleInfo\")\n"
+		content := "load(\"//build/bazel/queryview_rules:providers.bzl\", \"SoongModuleInfo\")\n"
 
 		bzlFileName := strings.ReplaceAll(pkg.Path, "android/soong/", "")
 		bzlFileName = strings.ReplaceAll(bzlFileName, ".", "_")
@@ -441,10 +441,10 @@ func createRuleShims(packages []*bpdoc.Package) (map[string]RuleShim, error) {
 	return ruleShims, nil
 }
 
-func createBazelOverlay(ctx *android.Context, bazelOverlayDir string) error {
+func createBazelQueryView(ctx *android.Context, bazelQueryViewDir string) error {
 	blueprintCtx := ctx.Context
 	blueprintCtx.VisitAllModules(func(module blueprint.Module) {
-		buildFile, err := buildFileForModule(blueprintCtx, module)
+		buildFile, err := buildFileForModule(blueprintCtx, module, bazelQueryViewDir)
 		if err != nil {
 			panic(err)
 		}
@@ -455,12 +455,12 @@ func createBazelOverlay(ctx *android.Context, bazelOverlayDir string) error {
 	var err error
 
 	// Write top level files: WORKSPACE and BUILD. These files are empty.
-	if err = writeReadOnlyFile(bazelOverlayDir, "WORKSPACE", ""); err != nil {
+	if err = writeReadOnlyFile(bazelQueryViewDir, "WORKSPACE", ""); err != nil {
 		return err
 	}
 
 	// Used to denote that the top level directory is a package.
-	if err = writeReadOnlyFile(bazelOverlayDir, "BUILD", ""); err != nil {
+	if err = writeReadOnlyFile(bazelQueryViewDir, "BUILD", ""); err != nil {
 		return err
 	}
 
@@ -474,7 +474,7 @@ func createBazelOverlay(ctx *android.Context, bazelOverlayDir string) error {
 	}
 
 	// Write .bzl Starlark files into the bazel_rules top level directory (provider and rule definitions)
-	bazelRulesDir := bazelOverlayDir + "/build/bazel/overlay_rules"
+	bazelRulesDir := bazelQueryViewDir + "/build/bazel/queryview_rules"
 	if err = writeReadOnlyFile(bazelRulesDir, "BUILD", ""); err != nil {
 		return err
 	}
@@ -497,7 +497,7 @@ func generateSoongModuleBzl(bzlLoads map[string]RuleShim) string {
 	var loadStmts string
 	var moduleRuleMap string
 	for bzlFileName, ruleShim := range bzlLoads {
-		loadStmt := "load(\"//build/bazel/overlay_rules:"
+		loadStmt := "load(\"//build/bazel/queryview_rules:"
 		loadStmt += bzlFileName
 		loadStmt += ".bzl\""
 		for _, rule := range ruleShim.rules {
@@ -563,9 +563,10 @@ func generateSoongModuleTarget(
 		attributes)
 }
 
-func buildFileForModule(ctx *blueprint.Context, module blueprint.Module) (*os.File, error) {
+func buildFileForModule(
+	ctx *blueprint.Context, module blueprint.Module, bazelQueryViewDir string) (*os.File, error) {
 	// Create nested directories for the BUILD file
-	dirPath := filepath.Join(bazelOverlayDir, packagePath(ctx, module))
+	dirPath := filepath.Join(bazelQueryViewDir, packagePath(ctx, module))
 	createDirectoryIfNonexistent(dirPath)
 	// Open the file for appending, and create it if it doesn't exist
 	f, err := os.OpenFile(
@@ -594,7 +595,7 @@ func createDirectoryIfNonexistent(dir string) {
 	}
 }
 
-// The overlay directory should be read-only, sufficient for bazel query. The files
+// The QueryView directory should be read-only, sufficient for bazel query. The files
 // are not intended to be edited by end users.
 func writeReadOnlyFile(dir string, baseName string, content string) error {
 	createDirectoryIfNonexistent(dir)
