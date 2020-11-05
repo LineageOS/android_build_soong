@@ -15,8 +15,10 @@
 package rust
 
 import (
-	"android/soong/android"
+	"strings"
 	"testing"
+
+	"android/soong/android"
 )
 
 func TestRustProtobuf(t *testing.T) {
@@ -28,12 +30,41 @@ func TestRustProtobuf(t *testing.T) {
 			source_stem: "buf",
 		}
 	`)
-	// Check that there's a rule to generate the expected output
-	_ = ctx.ModuleForTests("librust_proto", "android_arm64_armv8-a_source").Output("buf.rs")
-
 	// Check that libprotobuf is added as a dependency.
 	librust_proto := ctx.ModuleForTests("librust_proto", "android_arm64_armv8-a_dylib").Module().(*Module)
 	if !android.InList("libprotobuf", librust_proto.Properties.AndroidMkDylibs) {
 		t.Errorf("libprotobuf dependency missing for rust_protobuf (dependency missing from AndroidMkDylibs)")
+	}
+
+	// Make sure the correct plugin is being used.
+	librust_proto_out := ctx.ModuleForTests("librust_proto", "android_arm64_armv8-a_source").Output("buf.rs")
+	cmd := librust_proto_out.RuleParams.Command
+	if w := "protoc-gen-rust"; !strings.Contains(cmd, w) {
+		t.Errorf("expected %q in %q", w, cmd)
+	}
+
+}
+
+func TestRustGrpcio(t *testing.T) {
+	ctx := testRust(t, `
+		rust_grpcio {
+			name: "librust_grpcio",
+			proto: "buf.proto",
+			crate_name: "rust_grpcio",
+			source_stem: "buf",
+		}
+	`)
+
+	// Check that libprotobuf is added as a dependency.
+	librust_grpcio_module := ctx.ModuleForTests("librust_grpcio", "android_arm64_armv8-a_dylib").Module().(*Module)
+	if !android.InList("libprotobuf", librust_grpcio_module.Properties.AndroidMkDylibs) {
+		t.Errorf("libprotobuf dependency missing for rust_grpcio (dependency missing from AndroidMkDylibs)")
+	}
+
+	// Make sure the correct plugin is being used.
+	librust_grpcio_out := ctx.ModuleForTests("librust_grpcio", "android_arm64_armv8-a_source").Output("buf.rs")
+	cmd := librust_grpcio_out.RuleParams.Command
+	if w := "protoc-gen-grpc"; !strings.Contains(cmd, w) {
+		t.Errorf("expected %q in %q", w, cmd)
 	}
 }
