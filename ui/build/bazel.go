@@ -32,12 +32,6 @@ func runBazel(ctx Context, config Config) {
 	bazelExecutable := filepath.Join("tools", "bazel")
 	args := []string{
 		"build",
-		"--verbose_failures",
-		"--show_progress_rate_limit=0.05",
-		"--color=yes",
-		"--curses=yes",
-		"--show_timestamps",
-		"--announce_rc",
 		"--output_groups=" + outputGroups,
 		"//:" + config.TargetProduct() + "-" + config.TargetBuildVariant(),
 	}
