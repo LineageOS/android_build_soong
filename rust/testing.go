@@ -132,6 +132,8 @@ func CreateTestContext() *android.TestContext {
 	ctx.RegisterModuleType("rust_ffi_host", RustFFIHostFactory)
 	ctx.RegisterModuleType("rust_ffi_host_shared", RustFFISharedHostFactory)
 	ctx.RegisterModuleType("rust_ffi_host_static", RustFFIStaticHostFactory)
+	ctx.RegisterModuleType("rust_grpcio", RustGrpcioFactory)
+	ctx.RegisterModuleType("rust_grpcio_host", RustGrpcioHostFactory)
 	ctx.RegisterModuleType("rust_proc_macro", ProcMacroFactory)
 	ctx.RegisterModuleType("rust_protobuf", RustProtobufFactory)
 	ctx.RegisterModuleType("rust_protobuf_host", RustProtobufHostFactory)
