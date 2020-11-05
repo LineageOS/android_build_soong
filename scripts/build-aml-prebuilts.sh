@@ -37,6 +37,14 @@ my_get_build_var() {
   OUT_DIR=${OUT_DIR}/get_build_var get_build_var "$@"
 }
 
+readonly SOONG_OUT=${OUT_DIR}/soong
+mkdir -p ${SOONG_OUT}
+
+# Some Soong build rules may require this, and the failure mode if it's missing
+# is confusing (b/172548608).
+readonly BUILD_NUMBER="$(my_get_build_var BUILD_NUMBER)"
+echo -n ${BUILD_NUMBER} > ${SOONG_OUT}/build_number.txt
+
 readonly PLATFORM_SDK_VERSION="$(my_get_build_var PLATFORM_SDK_VERSION)"
 readonly PLATFORM_VERSION="$(my_get_build_var PLATFORM_VERSION)"
 PLATFORM_VERSION_ALL_CODENAMES="$(my_get_build_var PLATFORM_VERSION_ALL_CODENAMES)"
@@ -61,8 +69,6 @@ else
   USE_GOMA=false
 fi
 
-readonly SOONG_OUT=${OUT_DIR}/soong
-mkdir -p ${SOONG_OUT}
 readonly SOONG_VARS=${SOONG_OUT}/soong.variables
 
 # Aml_abis: true
@@ -73,6 +79,8 @@ readonly SOONG_VARS=${SOONG_OUT}/soong.variables
 #   -  Enable Bionic on host as ART needs prebuilts for it.
 cat > ${SOONG_VARS}.new << EOF
 {
+    "BuildNumberFile": "build_number.txt",
+
     "Platform_sdk_version": ${PLATFORM_SDK_VERSION},
     "Platform_sdk_codename": "${PLATFORM_VERSION}",
     "Platform_version_active_codenames": ${PLATFORM_VERSION_ALL_CODENAMES},
