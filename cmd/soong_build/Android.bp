@@ -26,10 +26,10 @@ bootstrap_go_binary {
     srcs: [
         "main.go",
         "writedocs.go",
-        "bazel_overlay.go",
+        "queryview.go",
     ],
     testSrcs: [
-        "bazel_overlay_test.go",
+        "queryview_test.go",
     ],
     primaryBuilder: true,
 }
