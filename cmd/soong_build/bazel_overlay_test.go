@@ -277,7 +277,7 @@ func createPackageFixtures() []*bpdoc.Package {
 		},
 		bpdoc.Property{
 			Name: "string_list_prop",
-			Type: "list of strings",
+			Type: "list of string",
 		},
 		bpdoc.Property{
 			Name: "nested_prop",

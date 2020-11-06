@@ -370,7 +370,7 @@ func createRuleShims(packages []*bpdoc.Package) (map[string]RuleShim, error) {
 
 		// Canonicalize and normalize module property types to Bazel attribute types
 		starlarkAttrType := prop.Type
-		if starlarkAttrType == "list of strings" {
+		if starlarkAttrType == "list of string" {
 			starlarkAttrType = "string_list"
 		} else if starlarkAttrType == "int64" {
 			starlarkAttrType = "int"
