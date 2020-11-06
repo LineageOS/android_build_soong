@@ -22,55 +22,55 @@ import (
 	"github.com/google/blueprint"
 )
 
-// The Bazel Overlay singleton is responsible for generating the Ninja actions
+// The Bazel QueryView singleton is responsible for generating the Ninja actions
 // for calling the soong_build primary builder in the main build.ninja file.
 func init() {
-	RegisterSingletonType("bazel_overlay", BazelOverlaySingleton)
+	RegisterSingletonType("bazel_queryView", BazelQueryViewSingleton)
 }
 
-func BazelOverlaySingleton() Singleton {
-	return &bazelOverlaySingleton{}
+func BazelQueryViewSingleton() Singleton {
+	return &bazelQueryViewSingleton{}
 }
 
-type bazelOverlaySingleton struct{}
+type bazelQueryViewSingleton struct{}
 
-func (c *bazelOverlaySingleton) GenerateBuildActions(ctx SingletonContext) {
-	// Create a build and rule statement, using the Bazel overlay's WORKSPACE
+func (c *bazelQueryViewSingleton) GenerateBuildActions(ctx SingletonContext) {
+	// Create a build and rule statement, using the Bazel QueryView's WORKSPACE
 	// file as the output file marker.
 	var deps Paths
 	moduleListFilePath := pathForBuildToolDep(ctx, ctx.Config().moduleListFile)
 	deps = append(deps, moduleListFilePath)
 	deps = append(deps, pathForBuildToolDep(ctx, ctx.Config().ProductVariablesFileName))
 
-	bazelOverlayDirectory := PathForOutput(ctx, "bazel_overlay")
-	bazelOverlayWorkspaceFile := bazelOverlayDirectory.Join(ctx, "WORKSPACE")
+	bazelQueryViewDirectory := PathForOutput(ctx, "queryview")
+	bazelQueryViewWorkspaceFile := bazelQueryViewDirectory.Join(ctx, "WORKSPACE")
 	primaryBuilder := primaryBuilderPath(ctx)
-	bazelOverlay := ctx.Rule(pctx, "bazelOverlay",
+	bazelQueryView := ctx.Rule(pctx, "bazelQueryView",
 		blueprint.RuleParams{
 			Command: fmt.Sprintf(
-				"rm -rf ${outDir}/* && %s --bazel_overlay_dir ${outDir} %s && echo WORKSPACE: `cat %s` > ${outDir}/.overlay-depfile.d",
+				"rm -rf ${outDir}/* && %s --bazel_queryview_dir ${outDir} %s && echo WORKSPACE: `cat %s` > ${outDir}/.queryview-depfile.d",
 				primaryBuilder.String(),
 				strings.Join(os.Args[1:], " "),
 				moduleListFilePath.String(), // Use the contents of Android.bp.list as the depfile.
 			),
 			CommandDeps: []string{primaryBuilder.String()},
 			Description: fmt.Sprintf(
-				"Creating the Bazel overlay workspace with %s at $outDir",
+				"Creating the Bazel QueryView workspace with %s at $outDir",
 				primaryBuilder.Base()),
 			Deps:    blueprint.DepsGCC,
-			Depfile: "${outDir}/.overlay-depfile.d",
+			Depfile: "${outDir}/.queryview-depfile.d",
 		},
 		"outDir")
 
 	ctx.Build(pctx, BuildParams{
-		Rule:   bazelOverlay,
-		Output: bazelOverlayWorkspaceFile,
+		Rule:   bazelQueryView,
+		Output: bazelQueryViewWorkspaceFile,
 		Inputs: deps,
 		Args: map[string]string{
-			"outDir": bazelOverlayDirectory.String(),
+			"outDir": bazelQueryViewDirectory.String(),
 		},
 	})
 
-	// Add a phony target for building the bazel overlay
-	ctx.Phony("bazel_overlay", bazelOverlayWorkspaceFile)
+	// Add a phony target for building the Bazel QueryView
+	ctx.Phony("queryview", bazelQueryViewWorkspaceFile)
 }
