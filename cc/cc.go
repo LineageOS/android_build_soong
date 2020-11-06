@@ -579,6 +579,11 @@ func IsStaticDepTag(depTag blueprint.DependencyTag) bool {
 	return ok && ccLibDepTag.static()
 }
 
+func IsHeaderDepTag(depTag blueprint.DependencyTag) bool {
+	ccLibDepTag, ok := depTag.(libraryDependencyTag)
+	return ok && ccLibDepTag.header()
+}
+
 func IsRuntimeDepTag(depTag blueprint.DependencyTag) bool {
 	ccDepTag, ok := depTag.(dependencyTag)
 	return ok && ccDepTag == runtimeDepTag

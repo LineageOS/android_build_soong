@@ -64,6 +64,10 @@ func StaticDepTag() blueprint.DependencyTag {
 	return libraryDependencyTag{Kind: staticLibraryDependency}
 }
 
+func HeaderDepTag() blueprint.DependencyTag {
+	return libraryDependencyTag{Kind: headerLibraryDependency}
+}
+
 type SharedLibraryInfo struct {
 	SharedLibrary           android.Path
 	UnstrippedSharedLibrary android.Path
