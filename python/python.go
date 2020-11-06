@@ -101,6 +101,13 @@ type BaseProperties struct {
 	// this property name is hidden from users' perspectives, and soong will populate it during
 	// runtime.
 	Actual_version string `blueprint:"mutated"`
+
+	// true, if the module is required to be built with actual_version.
+	Enabled *bool `blueprint:"mutated"`
+
+	// true, if the binary is required to be built with embedded launcher.
+	// TODO(nanzhang): Remove this flag when embedded Python3 is supported later.
+	Embedded_launcher *bool `blueprint:"mutated"`
 }
 
 type pathMapping struct {
@@ -228,15 +235,18 @@ func versionSplitMutator() func(android.BottomUpMutatorContext) {
 	return func(mctx android.BottomUpMutatorContext) {
 		if base, ok := mctx.Module().(*Module); ok {
 			versionNames := []string{}
+			versionProps := []VersionProperties{}
 			// PY3 is first so that we alias the PY3 variant rather than PY2 if both
 			// are available
 			if !(base.properties.Version.Py3.Enabled != nil &&
 				*(base.properties.Version.Py3.Enabled) == false) {
 				versionNames = append(versionNames, pyVersion3)
+				versionProps = append(versionProps, base.properties.Version.Py3)
 			}
 			if base.properties.Version.Py2.Enabled != nil &&
 				*(base.properties.Version.Py2.Enabled) == true {
 				versionNames = append(versionNames, pyVersion2)
+				versionProps = append(versionProps, base.properties.Version.Py2)
 			}
 			modules := mctx.CreateVariations(versionNames...)
 			if len(versionNames) > 0 {
@@ -245,6 +255,11 @@ func versionSplitMutator() func(android.BottomUpMutatorContext) {
 			for i, v := range versionNames {
 				// set the actual version for Python module.
 				modules[i].(*Module).properties.Actual_version = v
+				// append versioned properties for the Python module
+				err := proptools.AppendMatchingProperties([]interface{}{&modules[i].(*Module).properties}, &versionProps[i], nil)
+				if err != nil {
+					panic(err)
+				}
 			}
 		}
 	}
@@ -270,15 +285,8 @@ func (p *Module) OutputFiles(tag string) (android.Paths, error) {
 	}
 }
 
-func (p *Module) isEmbeddedLauncherEnabled(actual_version string) bool {
-	switch actual_version {
-	case pyVersion2:
-		return Bool(p.properties.Version.Py2.Embedded_launcher)
-	case pyVersion3:
-		return Bool(p.properties.Version.Py3.Embedded_launcher)
-	}
-
-	return false
+func (p *Module) isEmbeddedLauncherEnabled() bool {
+	return Bool(p.properties.Embedded_launcher)
 }
 
 func hasSrcExt(srcs []string, ext string) bool {
@@ -292,18 +300,7 @@ func hasSrcExt(srcs []string, ext string) bool {
 }
 
 func (p *Module) hasSrcExt(ctx android.BottomUpMutatorContext, ext string) bool {
-	if hasSrcExt(p.properties.Srcs, protoExt) {
-		return true
-	}
-	switch p.properties.Actual_version {
-	case pyVersion2:
-		return hasSrcExt(p.properties.Version.Py2.Srcs, protoExt)
-	case pyVersion3:
-		return hasSrcExt(p.properties.Version.Py3.Srcs, protoExt)
-	default:
-		panic(fmt.Errorf("unknown Python Actual_version: %q for module: %q.",
-			p.properties.Actual_version, ctx.ModuleName()))
-	}
+	return hasSrcExt(p.properties.Srcs, protoExt)
 }
 
 func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -312,13 +309,12 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if p.hasSrcExt(ctx, protoExt) && p.Name() != "libprotobuf-python" {
 		ctx.AddVariationDependencies(nil, pythonLibTag, "libprotobuf-python")
 	}
+	ctx.AddVariationDependencies(nil, pythonLibTag, android.LastUniqueStrings(p.properties.Libs)...)
+
 	switch p.properties.Actual_version {
 	case pyVersion2:
-		ctx.AddVariationDependencies(nil, pythonLibTag,
-			uniqueLibs(ctx, p.properties.Libs, "version.py2.libs",
-				p.properties.Version.Py2.Libs)...)
 
-		if p.bootstrapper != nil && p.isEmbeddedLauncherEnabled(pyVersion2) {
+		if p.bootstrapper != nil && p.isEmbeddedLauncherEnabled() {
 			ctx.AddVariationDependencies(nil, pythonLibTag, "py2-stdlib")
 
 			launcherModule := "py2-launcher"
@@ -340,11 +336,8 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 
 	case pyVersion3:
-		ctx.AddVariationDependencies(nil, pythonLibTag,
-			uniqueLibs(ctx, p.properties.Libs, "version.py3.libs",
-				p.properties.Version.Py3.Libs)...)
 
-		if p.bootstrapper != nil && p.isEmbeddedLauncherEnabled(pyVersion3) {
+		if p.bootstrapper != nil && p.isEmbeddedLauncherEnabled() {
 			ctx.AddVariationDependencies(nil, pythonLibTag, "py3-stdlib")
 
 			launcherModule := "py3-launcher"
@@ -375,34 +368,6 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
-// check "libs" duplicates from current module dependencies.
-func uniqueLibs(ctx android.BottomUpMutatorContext,
-	commonLibs []string, versionProp string, versionLibs []string) []string {
-	set := make(map[string]string)
-	ret := []string{}
-
-	// deps from "libs" property.
-	for _, l := range commonLibs {
-		if _, found := set[l]; found {
-			ctx.PropertyErrorf("libs", "%q has duplicates within libs.", l)
-		} else {
-			set[l] = "libs"
-			ret = append(ret, l)
-		}
-	}
-	// deps from "version.pyX.libs" property.
-	for _, l := range versionLibs {
-		if _, found := set[l]; found {
-			ctx.PropertyErrorf(versionProp, "%q has duplicates within %q.", set[l])
-		} else {
-			set[l] = versionProp
-			ret = append(ret, l)
-		}
-	}
-
-	return ret
-}
-
 func (p *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.GeneratePythonBuildActions(ctx)
 
@@ -410,11 +375,7 @@ func (p *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if p.bootstrapper != nil {
 		p.walkTransitiveDeps(ctx)
 		embeddedLauncher := false
-		if p.properties.Actual_version == pyVersion2 {
-			embeddedLauncher = p.isEmbeddedLauncherEnabled(pyVersion2)
-		} else {
-			embeddedLauncher = p.isEmbeddedLauncherEnabled(pyVersion3)
-		}
+		embeddedLauncher = p.isEmbeddedLauncherEnabled()
 		p.installSource = p.bootstrapper.bootstrap(ctx, p.properties.Actual_version,
 			embeddedLauncher, p.srcsPathMappings, p.srcsZip, p.depsSrcsZips)
 	}
@@ -439,17 +400,6 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 	// expand python files from "srcs" property.
 	srcs := p.properties.Srcs
 	exclude_srcs := p.properties.Exclude_srcs
-	switch p.properties.Actual_version {
-	case pyVersion2:
-		srcs = append(srcs, p.properties.Version.Py2.Srcs...)
-		exclude_srcs = append(exclude_srcs, p.properties.Version.Py2.Exclude_srcs...)
-	case pyVersion3:
-		srcs = append(srcs, p.properties.Version.Py3.Srcs...)
-		exclude_srcs = append(exclude_srcs, p.properties.Version.Py3.Exclude_srcs...)
-	default:
-		panic(fmt.Errorf("unknown Python Actual_version: %q for module: %q.",
-			p.properties.Actual_version, ctx.ModuleName()))
-	}
 	expandedSrcs := android.PathsForModuleSrcExcludes(ctx, srcs, exclude_srcs)
 	requiresSrcs := true
 	if p.bootstrapper != nil && !p.bootstrapper.autorun() {

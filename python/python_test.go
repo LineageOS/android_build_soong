@@ -395,10 +395,11 @@ func expectModule(t *testing.T, ctx *android.TestContext, buildDir, name, varian
 
 	if !reflect.DeepEqual(actualPyRunfiles, expectedPyRunfiles) {
 		testErrs = append(testErrs, errors.New(fmt.Sprintf(
-			`binary "%s" variant "%s" has unexpected pyRunfiles: %q!`,
+			`binary "%s" variant "%s" has unexpected pyRunfiles: %q! (expected: %q)`,
 			base.Name(),
 			base.properties.Actual_version,
-			actualPyRunfiles)))
+			actualPyRunfiles,
+			expectedPyRunfiles)))
 	}
 
 	if base.srcsZip.String() != strings.Replace(expectedSrcsZip, "@prefix@", buildDir, 1) {
