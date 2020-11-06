@@ -18,6 +18,11 @@ package mk2rbc
 type starlarkType int
 
 const (
+	// Variable types. Initially we only know the types of the  product
+	// configuration variables that are lists, and the types of some
+	// hardwired variables. The remaining variables are first entered as
+	// having an unknown type and treated as strings, but sometimes we
+	//  can infer variable's type from the value assigned to it.
 	starlarkTypeUnknown starlarkType = iota
 	starlarkTypeList    starlarkType = iota
 	starlarkTypeString  starlarkType = iota
