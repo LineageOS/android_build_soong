@@ -22,6 +22,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/rust/config"
 )
 
 var (
@@ -137,6 +138,13 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	output.outputFile = outputFile
 	crate_name := ctx.RustModule().CrateName()
 	targetTriple := ctx.toolchain().RustTriple()
+
+	// libstd requires a specific environment variable to be set. This is
+	// not officially documented and may be removed in the future. See
+	// https://github.com/rust-lang/rust/blob/master/library/std/src/env.rs#L866.
+	if crate_name == "std" {
+		envVars = append(envVars, "STD_ENV_ARCH="+config.StdEnvArch[ctx.RustModule().Arch().ArchType])
+	}
 
 	inputs = append(inputs, main)
 
