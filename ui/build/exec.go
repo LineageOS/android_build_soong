@@ -66,8 +66,11 @@ func (c *Cmd) prepare() {
 }
 
 func (c *Cmd) report() {
-	if c.Cmd.ProcessState != nil {
-		rusage := c.Cmd.ProcessState.SysUsage().(*syscall.Rusage)
+	if state := c.Cmd.ProcessState; state != nil {
+		if c.ctx.Metrics != nil {
+			c.ctx.Metrics.EventTracer.AddProcResInfo(c.name, state)
+		}
+		rusage := state.SysUsage().(*syscall.Rusage)
 		c.ctx.Verbosef("%q finished with exit code %d (%s real, %s user, %s system, %dMB maxrss)",
 			c.name, c.Cmd.ProcessState.ExitCode(),
 			time.Since(c.started).Round(time.Millisecond),
