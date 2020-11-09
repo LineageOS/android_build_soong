@@ -23,6 +23,8 @@ import (
 
 func runBazel(ctx Context, config Config) {
 	// "droid" is the default ninja target.
+	// TODO(b/160568333): stop hardcoding 'droid' to support building any
+	// Ninja target.
 	outputGroups := "droid"
 	if len(config.ninjaArgs) > 0 {
 		// At this stage, the residue slice of args passed to ninja
