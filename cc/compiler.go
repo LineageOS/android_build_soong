@@ -143,21 +143,21 @@ type BaseCompilerProperties struct {
 	} `android:"arch_variant"`
 
 	Target struct {
-		Vendor struct {
-			// list of source files that should only be used in the
-			// vendor variant of the C/C++ module.
+		Vendor, Product struct {
+			// list of source files that should only be used in vendor or
+			// product variant of the C/C++ module.
 			Srcs []string `android:"path"`
 
-			// list of source files that should not be used to
-			// build the vendor variant of the C/C++ module.
+			// list of source files that should not be used to build vendor
+			// or product variant of the C/C++ module.
 			Exclude_srcs []string `android:"path"`
 
-			// List of additional cflags that should be used to build the vendor
-			// variant of the C/C++ module.
+			// List of additional cflags that should be used to build vendor
+			// or product variant of the C/C++ module.
 			Cflags []string
 
-			// list of generated sources that should not be used to
-			// build the vendor variant of the C/C++ module.
+			// list of generated sources that should not be used to build
+			// vendor or product variant of the C/C++ module.
 			Exclude_generated_sources []string
 		}
 		Recovery struct {
@@ -298,6 +298,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	CheckBadCompilerFlags(ctx, "conlyflags", compiler.Properties.Conlyflags)
 	CheckBadCompilerFlags(ctx, "asflags", compiler.Properties.Asflags)
 	CheckBadCompilerFlags(ctx, "vendor.cflags", compiler.Properties.Target.Vendor.Cflags)
+	CheckBadCompilerFlags(ctx, "product.cflags", compiler.Properties.Target.Product.Cflags)
 	CheckBadCompilerFlags(ctx, "recovery.cflags", compiler.Properties.Target.Recovery.Cflags)
 	CheckBadCompilerFlags(ctx, "vendor_ramdisk.cflags", compiler.Properties.Target.Vendor_ramdisk.Cflags)
 
@@ -473,7 +474,12 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	flags.Local.ConlyFlags = append([]string{"-std=" + cStd}, flags.Local.ConlyFlags...)
 	flags.Local.CppFlags = append([]string{"-std=" + cppStd}, flags.Local.CppFlags...)
 
-	if ctx.useVndk() {
+	if ctx.inVendor() {
+		flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Target.Vendor.Cflags)...)
+	}
+
+	if ctx.inProduct() {
+		// TODO(b/150902910): must use 'compiler.Properties.Target.Product.Cflags'
 		flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Target.Vendor.Cflags)...)
 	}
 

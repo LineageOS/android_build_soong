@@ -96,32 +96,32 @@ type BaseLinkerProperties struct {
 	Runtime_libs []string `android:"arch_variant"`
 
 	Target struct {
-		Vendor struct {
-			// list of shared libs that only should be used to build the vendor
-			// variant of the C/C++ module.
+		Vendor, Product struct {
+			// list of shared libs that only should be used to build vendor or
+			// product variant of the C/C++ module.
 			Shared_libs []string
 
-			// list of static libs that only should be used to build the vendor
-			// variant of the C/C++ module.
+			// list of static libs that only should be used to build vendor or
+			// product variant of the C/C++ module.
 			Static_libs []string
 
-			// list of shared libs that should not be used to build the vendor variant
-			// of the C/C++ module.
+			// list of shared libs that should not be used to build vendor or
+			// product variant of the C/C++ module.
 			Exclude_shared_libs []string
 
-			// list of static libs that should not be used to build the vendor variant
-			// of the C/C++ module.
+			// list of static libs that should not be used to build vendor or
+			// product variant of the C/C++ module.
 			Exclude_static_libs []string
 
-			// list of header libs that should not be used to build the vendor variant
-			// of the C/C++ module.
+			// list of header libs that should not be used to build vendor or
+			// product variant of the C/C++ module.
 			Exclude_header_libs []string
 
-			// list of runtime libs that should not be installed along with the vendor
-			// variant of the C/C++ module.
+			// list of runtime libs that should not be installed along with
+			// vendor or variant of the C/C++ module.
 			Exclude_runtime_libs []string
 
-			// version script for this vendor variant
+			// version script for vendor or product variant
 			Version_script *string `android:"arch_variant"`
 		}
 		Recovery struct {
@@ -243,6 +243,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.WholeStaticLibs = append(deps.WholeStaticLibs, "libbuildversion")
 	}
 
+	// TODO(b/150902910): product variant must use Target.Product
 	if ctx.useVndk() {
 		deps.SharedLibs = append(deps.SharedLibs, linker.Properties.Target.Vendor.Shared_libs...)
 		deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Target.Vendor.Exclude_shared_libs)
@@ -479,6 +480,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 		versionScript := ctx.ExpandOptionalSource(
 			linker.Properties.Version_script, "version_script")
 
+		// TODO(b/150902910): product variant must use Target.Product
 		if ctx.useVndk() && linker.Properties.Target.Vendor.Version_script != nil {
 			versionScript = ctx.ExpandOptionalSource(
 				linker.Properties.Target.Vendor.Version_script,

@@ -314,25 +314,38 @@ type BaseProperties struct {
 type VendorProperties struct {
 	// whether this module should be allowed to be directly depended by other
 	// modules with `vendor: true`, `proprietary: true`, or `vendor_available:true`.
-	// In addition, this module should be allowed to be directly depended by
-	// product modules with `product_specific: true`.
-	// If set to true, three variants will be built separately, one like
-	// normal, another limited to the set of libraries and headers
-	// that are exposed to /vendor modules, and the other to /product modules.
+	// If set to true, two variants will be built separately, one like
+	// normal, and the other limited to the set of libraries and headers
+	// that are exposed to /vendor modules.
 	//
-	// The vendor and product variants may be used with a different (newer) /system,
+	// The vendor variant may be used with a different (newer) /system,
 	// so it shouldn't have any unversioned runtime dependencies, or
 	// make assumptions about the system that may not be true in the
 	// future.
 	//
-	// If set to false, this module becomes inaccessible from /vendor or /product
-	// modules.
+	// If set to false, this module becomes inaccessible from /vendor modules.
 	//
 	// Default value is true when vndk: {enabled: true} or vendor: true.
 	//
 	// Nothing happens if BOARD_VNDK_VERSION isn't set in the BoardConfig.mk
-	// If PRODUCT_PRODUCT_VNDK_VERSION isn't set, product variant will not be used.
 	Vendor_available *bool
+
+	// whether this module should be allowed to be directly depended by other
+	// modules with `product_specific: true` or `product_available: true`.
+	// If set to true, an additional product variant will be built separately
+	// that is limited to the set of libraries and headers that are exposed to
+	// /product modules.
+	//
+	// The product variant may be used with a different (newer) /system,
+	// so it shouldn't have any unversioned runtime dependencies, or
+	// make assumptions about the system that may not be true in the
+	// future.
+	//
+	// It must be set to true by default for vndk: {enabled: true} modules.
+	//
+	// Nothing happens if BOARD_VNDK_VERSION isn't set in the BoardConfig.mk
+	// and PRODUCT_PRODUCT_VNDK_VERSION isn't set.
+	Product_available *bool
 
 	// whether this module is capable of being loaded with other instance
 	// (possibly an older version) of the same module in the same process.
@@ -899,7 +912,7 @@ func (c *Module) isDependencyRoot() bool {
 // "product" and "vendor" variant modules return true for this function.
 // When BOARD_VNDK_VERSION is set, vendor variants of "vendor_available: true", "vendor: true",
 // "soc_specific: true" and more vendor installed modules are included here.
-// When PRODUCT_PRODUCT_VNDK_VERSION is set, product variants of "vendor_available: true" or
+// When PRODUCT_PRODUCT_VNDK_VERSION is set, product variants of "product_available: true" or
 // "product_specific: true" modules are included here.
 func (c *Module) UseVndk() bool {
 	return c.Properties.VndkVersion != ""
@@ -1352,7 +1365,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	_, llndk := c.linker.(*llndkStubDecorator)
 	_, llndkHeader := c.linker.(*llndkHeadersDecorator)
-	if llndk || llndkHeader || (c.UseVndk() && c.HasVendorVariant()) {
+	if llndk || llndkHeader || (c.UseVndk() && c.HasNonSystemVariants()) {
 		// .vendor.{version} suffix is added for vendor variant or .product.{version} suffix is
 		// added for product variant only when we have vendor and product variants with core
 		// variant. The suffix is not added for vendor-only or product-only module.
@@ -1993,9 +2006,9 @@ func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to Lin
 
 	// VNDK is cc.Module supported only for now.
 	if ccFrom, ok := from.(*Module); ok && from.UseVndk() {
-		// Though vendor code is limited by the vendor mutator,
-		// each vendor-available module needs to check
-		// link-type for VNDK.
+		// Though allowed dependency is limited by the image mutator,
+		// each vendor and product module needs to check link-type
+		// for VNDK.
 		if ccTo, ok := to.(*Module); ok {
 			if ccFrom.vndkdep != nil {
 				ccFrom.vndkdep.vndkCheckLinkType(ctx, ccTo, tag)
@@ -2126,9 +2139,10 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 			return false
 		}
 
-		// Even if target lib has no vendor variant, keep checking dependency graph
-		// in case it depends on vendor_available but not double_loadable transtively.
-		if !to.HasVendorVariant() {
+		// Even if target lib has no vendor variant, keep checking dependency
+		// graph in case it depends on vendor_available or product_available
+		// but not double_loadable transtively.
+		if !to.HasNonSystemVariants() {
 			return true
 		}
 
@@ -2771,6 +2785,7 @@ func (c *Module) getMakeLinkType(actx android.ModuleContext) string {
 			return "native:vndk_private"
 		}
 		if c.IsVndk() && !c.isVndkExt() {
+			// Product_available, if defined, must have the same value with Vendor_available.
 			if Bool(c.VendorProperties.Vendor_available) {
 				return "native:vndk"
 			}
@@ -3006,38 +3021,6 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	android.InitDefaultsModule(module)
 
 	return module
-}
-
-func squashVendorSrcs(m *Module) {
-	if lib, ok := m.compiler.(*libraryDecorator); ok {
-		lib.baseCompiler.Properties.Srcs = append(lib.baseCompiler.Properties.Srcs,
-			lib.baseCompiler.Properties.Target.Vendor.Srcs...)
-
-		lib.baseCompiler.Properties.Exclude_srcs = append(lib.baseCompiler.Properties.Exclude_srcs,
-			lib.baseCompiler.Properties.Target.Vendor.Exclude_srcs...)
-
-		lib.baseCompiler.Properties.Exclude_generated_sources = append(lib.baseCompiler.Properties.Exclude_generated_sources,
-			lib.baseCompiler.Properties.Target.Vendor.Exclude_generated_sources...)
-	}
-}
-
-func squashRecoverySrcs(m *Module) {
-	if lib, ok := m.compiler.(*libraryDecorator); ok {
-		lib.baseCompiler.Properties.Srcs = append(lib.baseCompiler.Properties.Srcs,
-			lib.baseCompiler.Properties.Target.Recovery.Srcs...)
-
-		lib.baseCompiler.Properties.Exclude_srcs = append(lib.baseCompiler.Properties.Exclude_srcs,
-			lib.baseCompiler.Properties.Target.Recovery.Exclude_srcs...)
-
-		lib.baseCompiler.Properties.Exclude_generated_sources = append(lib.baseCompiler.Properties.Exclude_generated_sources,
-			lib.baseCompiler.Properties.Target.Recovery.Exclude_generated_sources...)
-	}
-}
-
-func squashVendorRamdiskSrcs(m *Module) {
-	if lib, ok := m.compiler.(*libraryDecorator); ok {
-		lib.baseCompiler.Properties.Exclude_srcs = append(lib.baseCompiler.Properties.Exclude_srcs, lib.baseCompiler.Properties.Target.Vendor_ramdisk.Exclude_srcs...)
-	}
 }
 
 func (c *Module) IsSdkVariant() bool {
