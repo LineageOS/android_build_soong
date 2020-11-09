@@ -76,6 +76,7 @@ bootstrap_go_package {
         "neverallow_test.go",
         "onceper_test.go",
         "package_test.go",
+        "packaging_test.go",
         "path_properties_test.go",
         "paths_test.go",
         "prebuilt_test.go",
