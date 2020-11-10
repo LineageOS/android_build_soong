@@ -264,7 +264,7 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 		FlagWithInput("--max-target-p ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-p.txt")).
 		FlagWithInput("--max-target-o ", android.PathForSource(
-			ctx, "frameworks/base/config/hiddenapi-max-target-o.txt")).Flag("--ignore-conflicts ").
+			ctx, "frameworks/base/config/hiddenapi-max-target-o.txt")).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio").
 		FlagWithInput("--blocked ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-force-blocked.txt")).
 		FlagWithInput("--unsupported ", android.PathForSource(
