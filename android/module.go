@@ -331,6 +331,8 @@ type BaseContext interface {
 type ModuleContext interface {
 	BaseModuleContext
 
+	blueprintModuleContext() blueprint.ModuleContext
+
 	// Deprecated: use ModuleContext.Build instead.
 	ModuleBuild(pctx PackageContext, params ModuleBuildParams)
 
@@ -2542,6 +2544,10 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 
 func (m *moduleContext) CheckbuildFile(srcPath Path) {
 	m.checkbuildFiles = append(m.checkbuildFiles, srcPath)
+}
+
+func (m *moduleContext) blueprintModuleContext() blueprint.ModuleContext {
+	return m.bp
 }
 
 // SrcIsModule decodes module references in the format ":name" into the module name, or empty string if the input

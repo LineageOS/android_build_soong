@@ -17,6 +17,7 @@ package java
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"android/soong/android"
@@ -192,22 +193,31 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext,
 		rroDirs = append(rroDirs, resRRODirs...)
 	}
 
-	var assetFiles android.Paths
-	for _, dir := range assetDirs {
-		assetFiles = append(assetFiles, androidResourceGlob(ctx, dir)...)
+	var assetDeps android.Paths
+	for i, dir := range assetDirs {
+		// Add a dependency on every file in the asset directory.  This ensures the aapt2
+		// rule will be rerun if one of the files in the asset directory is modified.
+		assetDeps = append(assetDeps, androidResourceGlob(ctx, dir)...)
+
+		// Add a dependency on a file that contains a list of all the files in the asset directory.
+		// This ensures the aapt2 rule will be run if a file is removed from the asset directory,
+		// or a file is added whose timestamp is older than the output of aapt2.
+		assetFileListFile := android.PathForModuleOut(ctx, "asset_dir_globs", strconv.Itoa(i)+".glob")
+		androidResourceGlobList(ctx, dir, assetFileListFile)
+		assetDeps = append(assetDeps, assetFileListFile)
 	}
 
 	assetDirStrings := assetDirs.Strings()
 	if a.noticeFile.Valid() {
 		assetDirStrings = append(assetDirStrings, filepath.Dir(a.noticeFile.Path().String()))
-		assetFiles = append(assetFiles, a.noticeFile.Path())
+		assetDeps = append(assetDeps, a.noticeFile.Path())
 	}
 
 	linkFlags = append(linkFlags, "--manifest "+manifestPath.String())
 	linkDeps = append(linkDeps, manifestPath)
 
 	linkFlags = append(linkFlags, android.JoinWithPrefix(assetDirStrings, "-A "))
-	linkDeps = append(linkDeps, assetFiles...)
+	linkDeps = append(linkDeps, assetDeps...)
 
 	// SDK version flags
 	minSdkVersion, err := sdkContext.minSdkVersion().effectiveVersionString(ctx)
