@@ -33,6 +33,11 @@ func runBazel(ctx Context, config Config) {
 		outputGroups = strings.Join(config.ninjaArgs, ",")
 	}
 
+	config.environ.Set("COMBINED_NINJA", config.CombinedNinjaFile())
+	config.environ.Set("KATI_NINJA", config.KatiBuildNinjaFile())
+	config.environ.Set("PACKAGE_NINJA", config.KatiPackageNinjaFile())
+	config.environ.Set("SOONG_NINJA", config.SoongNinjaFile())
+
 	bazelExecutable := filepath.Join("tools", "bazel")
 	cmd := Command(ctx, config, "bazel", bazelExecutable)
 
