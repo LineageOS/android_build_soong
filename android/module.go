@@ -1885,19 +1885,11 @@ type earlyModuleContext struct {
 }
 
 func (e *earlyModuleContext) Glob(globPattern string, excludes []string) Paths {
-	ret, err := e.GlobWithDeps(globPattern, excludes)
-	if err != nil {
-		e.ModuleErrorf("glob: %s", err.Error())
-	}
-	return pathsForModuleSrcFromFullPath(e, ret, true)
+	return Glob(e, globPattern, excludes)
 }
 
 func (e *earlyModuleContext) GlobFiles(globPattern string, excludes []string) Paths {
-	ret, err := e.GlobWithDeps(globPattern, excludes)
-	if err != nil {
-		e.ModuleErrorf("glob: %s", err.Error())
-	}
-	return pathsForModuleSrcFromFullPath(e, ret, false)
+	return GlobFiles(e, globPattern, excludes)
 }
 
 func (b *earlyModuleContext) IsSymlink(path Path) bool {
