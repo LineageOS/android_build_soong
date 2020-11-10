@@ -211,15 +211,6 @@ func stubFlagsRule(ctx android.SingletonContext) {
 	rule.Build(pctx, ctx, "hiddenAPIStubFlagsFile", "hiddenapi stub flags")
 }
 
-func moduleForGreyListRemovedApis(ctx android.SingletonContext, module android.Module) bool {
-	switch ctx.ModuleName(module) {
-	case "api-stubs-docs", "system-api-stubs-docs", "android.car-stubs-docs", "android.car-system-stubs-docs":
-		return true
-	default:
-		return false
-	}
-}
-
 // flagsRule creates a rule to build hiddenapi-flags.csv out of flags.csv files generated for boot image modules and
 // the unsupported API.
 func flagsRule(ctx android.SingletonContext) android.Path {
