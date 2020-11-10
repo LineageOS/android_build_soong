@@ -28,4 +28,10 @@ message LinkerConfig {
 
   // Force APEX namespace visible
   bool visible = 2;
+
+  // Providing libs from the module
+  repeated string provideLibs = 3;
+
+  // Required libs from the module
+  repeated string requireLibs = 4;
 }
