@@ -34,13 +34,24 @@ func runBazel(ctx Context, config Config) {
 	}
 
 	bazelExecutable := filepath.Join("tools", "bazel")
-	args := []string{
-		"build",
-		"--output_groups=" + outputGroups,
-		"//:" + config.TargetProduct() + "-" + config.TargetBuildVariant(),
+	cmd := Command(ctx, config, "bazel", bazelExecutable)
+
+	if extra_startup_args, ok := cmd.Environment.Get("BAZEL_STARTUP_ARGS"); ok {
+		cmd.Args = append(cmd.Args, strings.Fields(extra_startup_args)...)
 	}
 
-	cmd := Command(ctx, config, "bazel", bazelExecutable, args...)
+	cmd.Args = append(cmd.Args,
+		"build",
+		"--output_groups="+outputGroups,
+	)
+
+	if extra_build_args, ok := cmd.Environment.Get("BAZEL_BUILD_ARGS"); ok {
+		cmd.Args = append(cmd.Args, strings.Fields(extra_build_args)...)
+	}
+
+	cmd.Args = append(cmd.Args,
+		"//:"+config.TargetProduct()+"-"+config.TargetBuildVariant(),
+	)
 
 	cmd.Environment.Set("DIST_DIR", config.DistDir())
 	cmd.Environment.Set("SHELL", "/bin/bash")
@@ -51,12 +62,16 @@ func runBazel(ctx Context, config Config) {
 	cmd.RunAndStreamOrFatal()
 
 	// Obtain the Bazel output directory for ninja_build.
-	infoArgs := []string{
-		"info",
-		"output_path",
+	infoCmd := Command(ctx, config, "bazel", bazelExecutable)
+
+	if extra_startup_args, ok := infoCmd.Environment.Get("BAZEL_STARTUP_ARGS"); ok {
+		infoCmd.Args = append(infoCmd.Args, strings.Fields(extra_startup_args)...)
 	}
 
-	infoCmd := Command(ctx, config, "bazel", bazelExecutable, infoArgs...)
+	infoCmd.Args = append(infoCmd.Args,
+		"info",
+		"output_path",
+	)
 
 	infoCmd.Environment.Set("DIST_DIR", config.DistDir())
 	infoCmd.Environment.Set("SHELL", "/bin/bash")
