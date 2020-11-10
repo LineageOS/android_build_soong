@@ -25,6 +25,7 @@ func TestVndkApexForVndkLite(t *testing.T) {
 			name: "libvndk",
 			srcs: ["mylib.cpp"],
 			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
 			},
@@ -37,6 +38,7 @@ func TestVndkApexForVndkLite(t *testing.T) {
 			name: "libvndksp",
 			srcs: ["mylib.cpp"],
 			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
 				support_system_process: true,
@@ -73,6 +75,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 		cc_library {
 			name: "libfoo",
 			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
 			},

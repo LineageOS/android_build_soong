@@ -55,9 +55,11 @@ type llndkLibraryProperties struct {
 	// Whether the system library uses symbol versions.
 	Unversioned *bool
 
-	// whether this module can be directly depended upon by libs that are installed to /vendor.
-	// When set to false, this module can only be depended on by VNDK libraries, not vendor
-	// libraries. This effectively hides this module from vendors. Default value is true.
+	// whether this module can be directly depended upon by libs that are installed
+	// to /vendor and /product.
+	// When set to false, this module can only be depended on by VNDK libraries, not
+	// vendor nor product libraries. This effectively hides this module from
+	// non-system modules. Default value is true.
 	Vendor_available *bool
 
 	// list of llndk headers to re-export include directories from.

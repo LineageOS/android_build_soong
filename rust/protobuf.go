@@ -55,17 +55,17 @@ type protobufDecorator struct {
 
 func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) android.Path {
 	var protoFlags android.ProtoFlags
-	var pluginPath android.Path
+	var pluginPaths android.Paths
 
 	protoFlags.OutTypeFlag = "--rust_out"
 	outDir := android.PathForModuleOut(ctx)
 
-	pluginPath, protoFlags = proto.setupPlugin(ctx, protoFlags, outDir)
+	pluginPaths, protoFlags = proto.setupPlugin(ctx, protoFlags, outDir)
 
 	protoFlags.Flags = append(protoFlags.Flags, defaultProtobufFlags...)
 	protoFlags.Flags = append(protoFlags.Flags, proto.Properties.Proto_flags...)
 
-	protoFlags.Deps = append(protoFlags.Deps, pluginPath)
+	protoFlags.Deps = append(protoFlags.Deps, pluginPaths...)
 
 	protoFile := android.OptionalPathForModuleSrc(ctx, proto.Properties.Proto)
 	if !protoFile.Valid() {
@@ -90,21 +90,25 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 	return modFile
 }
 
-func (proto *protobufDecorator) setupPlugin(ctx ModuleContext, protoFlags android.ProtoFlags, outDir android.ModuleOutPath) (android.Path, android.ProtoFlags) {
-	var pluginPath android.Path
+func (proto *protobufDecorator) setupPlugin(ctx ModuleContext, protoFlags android.ProtoFlags, outDir android.ModuleOutPath) (android.Paths, android.ProtoFlags) {
+	pluginPaths := []android.Path{}
 
 	if proto.plugin == Protobuf {
-		pluginPath = ctx.Config().HostToolPath(ctx, "protoc-gen-rust")
+		pluginPath := ctx.Config().HostToolPath(ctx, "protoc-gen-rust")
+		pluginPaths = append(pluginPaths, pluginPath)
 		protoFlags.Flags = append(protoFlags.Flags, "--plugin="+pluginPath.String())
 	} else if proto.plugin == Grpc {
-		pluginPath = ctx.Config().HostToolPath(ctx, "grpc_rust_plugin")
+		grpcPath := ctx.Config().HostToolPath(ctx, "grpc_rust_plugin")
+		protobufPath := ctx.Config().HostToolPath(ctx, "protoc-gen-rust")
+		pluginPaths = append(pluginPaths, grpcPath, protobufPath)
 		protoFlags.Flags = append(protoFlags.Flags, "--grpc_out="+outDir.String())
-		protoFlags.Flags = append(protoFlags.Flags, "--plugin=protoc-gen-grpc="+pluginPath.String())
+		protoFlags.Flags = append(protoFlags.Flags, "--plugin=protoc-gen-grpc="+grpcPath.String())
+		protoFlags.Flags = append(protoFlags.Flags, "--plugin=protoc-gen-rust="+protobufPath.String())
 	} else {
 		ctx.ModuleErrorf("Unknown protobuf plugin type requested")
 	}
 
-	return pluginPath, protoFlags
+	return pluginPaths, protoFlags
 }
 
 func (proto *protobufDecorator) SourceProviderProps() []interface{} {
