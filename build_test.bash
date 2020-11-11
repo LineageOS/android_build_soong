@@ -43,14 +43,9 @@ case $(uname) in
     ;;
 esac
 
-function bazel_cleanup {
-  "${TOP}/tools/bazel" shutdown
-}
-trap bazel_cleanup EXIT
-
 echo
 echo "Running Bazel smoke test..."
-"${TOP}/tools/bazel" info
+"${TOP}/tools/bazel" --batch --max_idle_secs=1 info
 
 echo
 echo "Running Soong test..."
