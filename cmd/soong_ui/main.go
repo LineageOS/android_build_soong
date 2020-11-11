@@ -471,11 +471,9 @@ func make(ctx build.Context, config build.Config, _ []string, logsDir string) {
 		ctx.Fatal("done")
 	}
 
-	var toBuild int
-	if _, ok := config.Environment().Get("USE_BAZEL"); ok {
+	toBuild := build.BuildAll
+	if config.UseBazel() {
 		toBuild = build.BuildAllWithBazel
-	} else {
-		toBuild = build.BuildAll
 	}
 
 	if config.Checkbuild() {
