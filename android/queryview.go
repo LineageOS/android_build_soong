@@ -25,7 +25,7 @@ import (
 // The Bazel QueryView singleton is responsible for generating the Ninja actions
 // for calling the soong_build primary builder in the main build.ninja file.
 func init() {
-	RegisterSingletonType("bazel_queryView", BazelQueryViewSingleton)
+	RegisterSingletonType("bazel_queryview", BazelQueryViewSingleton)
 }
 
 func BazelQueryViewSingleton() Singleton {
@@ -48,14 +48,16 @@ func (c *bazelQueryViewSingleton) GenerateBuildActions(ctx SingletonContext) {
 	bazelQueryView := ctx.Rule(pctx, "bazelQueryView",
 		blueprint.RuleParams{
 			Command: fmt.Sprintf(
-				"rm -rf ${outDir}/* && %s --bazel_queryview_dir ${outDir} %s && echo WORKSPACE: `cat %s` > ${outDir}/.queryview-depfile.d",
+				"rm -rf ${outDir}/* && "+
+					"%s --bazel_queryview_dir ${outDir} %s && "+
+					"echo WORKSPACE: `cat %s` > ${outDir}/.queryview-depfile.d",
 				primaryBuilder.String(),
 				strings.Join(os.Args[1:], " "),
 				moduleListFilePath.String(), // Use the contents of Android.bp.list as the depfile.
 			),
 			CommandDeps: []string{primaryBuilder.String()},
 			Description: fmt.Sprintf(
-				"Creating the Bazel QueryView workspace with %s at $outDir",
+				"[EXPERIMENTAL] Creating the Bazel QueryView workspace with %s at $outDir",
 				primaryBuilder.Base()),
 			Deps:    blueprint.DepsGCC,
 			Depfile: "${outDir}/.queryview-depfile.d",

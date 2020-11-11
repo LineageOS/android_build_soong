@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -30,16 +29,6 @@ import (
 func init() {
 	RegisterDocsBuildComponents(android.InitRegistrationContext)
 	RegisterStubsBuildComponents(android.InitRegistrationContext)
-
-	// Register sdk member type.
-	android.RegisterSdkMemberType(&droidStubsSdkMemberType{
-		SdkMemberTypeBase: android.SdkMemberTypeBase{
-			PropertyName: "stubs_sources",
-			// stubs_sources can be used with sdk to provide the source stubs for APIs provided by
-			// the APEX.
-			SupportsSdk: true,
-		},
-	})
 }
 
 func RegisterDocsBuildComponents(ctx android.RegistrationContext) {
@@ -1828,48 +1817,4 @@ func PrebuiltStubsSourcesFactory() android.Module {
 	android.InitSdkAwareModule(module)
 	InitDroiddocModule(module, android.HostAndDeviceSupported)
 	return module
-}
-
-type droidStubsSdkMemberType struct {
-	android.SdkMemberTypeBase
-}
-
-func (mt *droidStubsSdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
-	mctx.AddVariationDependencies(nil, dependencyTag, names...)
-}
-
-func (mt *droidStubsSdkMemberType) IsInstance(module android.Module) bool {
-	_, ok := module.(*Droidstubs)
-	return ok
-}
-
-func (mt *droidStubsSdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
-	return ctx.SnapshotBuilder().AddPrebuiltModule(member, "prebuilt_stubs_sources")
-}
-
-func (mt *droidStubsSdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
-	return &droidStubsInfoProperties{}
-}
-
-type droidStubsInfoProperties struct {
-	android.SdkMemberPropertiesBase
-
-	StubsSrcJar android.Path
-}
-
-func (p *droidStubsInfoProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
-	droidstubs := variant.(*Droidstubs)
-	p.StubsSrcJar = droidstubs.stubsSrcJar
-}
-
-func (p *droidStubsInfoProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
-	if p.StubsSrcJar != nil {
-		builder := ctx.SnapshotBuilder()
-
-		snapshotRelativeDir := filepath.Join("java", ctx.Name()+"_stubs_sources")
-
-		builder.UnzipToSnapshot(p.StubsSrcJar, snapshotRelativeDir)
-
-		propertySet.AddProperty("srcs", []string{snapshotRelativeDir})
-	}
 }

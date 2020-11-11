@@ -29,6 +29,10 @@ var (
 		// which stands for "Android device target". Keeping PIC on is required because
 		// many modules we have (e.g. Bionic) assume PIC.
 		"-fpic",
+
+		// This is normally in ClangExtraTargetCflags, but that's for device and we need
+		// the same for host
+		"-nostdlibinc",
 	))
 
 	linuxCrossLdflags = ClangFilterUnknownCflags([]string{
