@@ -87,6 +87,7 @@ func (b *bootJarsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 
 	rule := android.NewRuleBuilder()
 	checkBootJars := rule.Command().BuiltTool(ctx, "check_boot_jars").
+		Input(ctx.Config().HostToolPath(ctx, "dexdump")).
 		Input(android.PathForSource(ctx, "build/soong/scripts/check_boot_jars/package_allowed_list.txt"))
 
 	// If this is not an unbundled build and missing dependencies are not allowed
@@ -96,14 +97,9 @@ func (b *bootJarsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	// Iterate over the module names on the boot classpath in order
 	for _, name := range android.SortedStringKeys(moduleToApex) {
 		if apexVariant, ok := nameToApexVariant[name]; ok {
-			if dep, ok := apexVariant.(Dependency); ok {
-				// Add the implementation jars for the module to be checked. This uses implementation
-				// and resources jar as that is what the previous make based check uses.
-				for _, jar := range dep.ImplementationAndResourcesJars() {
-					checkBootJars.Input(jar)
-				}
-			} else if _, ok := apexVariant.(*DexImport); ok {
-				// TODO(b/171479578): ignore deximport when doing package check until boot_jars.go can check dex jars.
+			if dep, ok := apexVariant.(interface{ DexJarBuildPath() android.Path }); ok {
+				// Add the dex implementation jar for the module to be checked.
+				checkBootJars.Input(dep.DexJarBuildPath())
 			} else {
 				ctx.Errorf("module %q is of type %q which is not supported as a boot jar", name, ctx.ModuleType(apexVariant))
 			}
