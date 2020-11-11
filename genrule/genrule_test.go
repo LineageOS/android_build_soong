@@ -57,7 +57,7 @@ func testContext(config android.Config) *android.TestContext {
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("tool", toolFactory)
 
-	registerGenruleBuildComponents(ctx)
+	RegisterGenruleBuildComponents(ctx)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.Register()
