@@ -28,6 +28,16 @@ func TestRustProtobuf(t *testing.T) {
 			proto: "buf.proto",
 			crate_name: "rust_proto",
 			source_stem: "buf",
+			shared_libs: ["libfoo_shared"],
+			static_libs: ["libfoo_static"],
+		}
+		cc_library_shared {
+			name: "libfoo_shared",
+			export_include_dirs: ["shared_include"],
+		}
+		cc_library_static {
+			name: "libfoo_static",
+			export_include_dirs: ["static_include"],
 		}
 	`)
 	// Check that libprotobuf is added as a dependency.
@@ -43,6 +53,13 @@ func TestRustProtobuf(t *testing.T) {
 		t.Errorf("expected %q in %q", w, cmd)
 	}
 
+	// Check exported include directories
+	if w := "-Ishared_include"; !strings.Contains(cmd, w) {
+		t.Errorf("expected %q in %q", w, cmd)
+	}
+	if w := "-Istatic_include"; !strings.Contains(cmd, w) {
+		t.Errorf("expected %q in %q", w, cmd)
+	}
 }
 
 func TestRustGrpcio(t *testing.T) {
@@ -52,6 +69,16 @@ func TestRustGrpcio(t *testing.T) {
 			proto: "buf.proto",
 			crate_name: "rust_grpcio",
 			source_stem: "buf",
+			shared_libs: ["libfoo_shared"],
+			static_libs: ["libfoo_static"],
+		}
+		cc_library_shared {
+			name: "libfoo_shared",
+			export_include_dirs: ["shared_include"],
+		}
+		cc_library_static {
+			name: "libfoo_static",
+			export_include_dirs: ["static_include"],
 		}
 	`)
 
@@ -61,10 +88,33 @@ func TestRustGrpcio(t *testing.T) {
 		t.Errorf("libprotobuf dependency missing for rust_grpcio (dependency missing from AndroidMkDylibs)")
 	}
 
+	// Check that libgrpcio is added as a dependency.
+	if !android.InList("libgrpcio", librust_grpcio_module.Properties.AndroidMkDylibs) {
+		t.Errorf("libgrpcio dependency missing for rust_grpcio (dependency missing from AndroidMkDylibs)")
+	}
+
+	// Check that libfutures is added as a dependency.
+	if !android.InList("libfutures", librust_grpcio_module.Properties.AndroidMkDylibs) {
+		t.Errorf("libfutures dependency missing for rust_grpcio (dependency missing from AndroidMkDylibs)")
+	}
+
 	// Make sure the correct plugin is being used.
-	librust_grpcio_out := ctx.ModuleForTests("librust_grpcio", "android_arm64_armv8-a_source").Output("buf.rs")
+	librust_grpcio_out := ctx.ModuleForTests("librust_grpcio", "android_arm64_armv8-a_source").Output("buf_grpc.rs")
 	cmd := librust_grpcio_out.RuleParams.Command
 	if w := "protoc-gen-grpc"; !strings.Contains(cmd, w) {
+		t.Errorf("expected %q in %q", w, cmd)
+	}
+
+	// Check exported include directories
+	if w := "-Ishared_include"; !strings.Contains(cmd, w) {
+		t.Errorf("expected %q in %q", w, cmd)
+	}
+	if w := "-Istatic_include"; !strings.Contains(cmd, w) {
+		t.Errorf("expected %q in %q", w, cmd)
+	}
+
+	// Check that we're including the exported directory from libprotobuf-cpp-full
+	if w := "-Ilibprotobuf-cpp-full-includes"; !strings.Contains(cmd, w) {
 		t.Errorf("expected %q in %q", w, cmd)
 	}
 }
