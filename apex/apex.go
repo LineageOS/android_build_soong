@@ -1399,6 +1399,9 @@ type apexBundle struct {
 
 	// Optional list of lint report zip files for apexes that contain java or app modules
 	lintReports android.Paths
+
+	// Path of API coverage generate file
+	coverageOutputPath android.ModuleOutPath
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
