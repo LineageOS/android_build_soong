@@ -307,6 +307,7 @@ func (a *apexBundle) writeRequiredModules(w io.Writer) {
 
 func (a *apexBundle) androidMkForType() android.AndroidMkData {
 	return android.AndroidMkData{
+		DistFiles: a.distFiles,
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			moduleNames := []string{}
 			apexType := a.properties.ApexType
@@ -390,6 +391,9 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 					fmt.Fprintln(w, ".PHONY:", goal)
 					fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s)\n",
 						goal, a.installedFilesFile.String(), distFile)
+				}
+				for _, dist := range data.Entries.GetDistForGoals(a) {
+					fmt.Fprintf(w, dist)
 				}
 			}
 		}}
