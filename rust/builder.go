@@ -15,6 +15,7 @@
 package rust
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -235,7 +236,18 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 			},
 		})
 		implicits = append(implicits, outputs.Paths()...)
-		envVars = append(envVars, "OUT_DIR=$$PWD/"+moduleGenDir.String())
+
+		// We must calculate an absolute path for OUT_DIR since Rust's include! macro (which normally consumes this)
+		// assumes that paths are relative to the source file.
+		var outDirPrefix string
+		if !filepath.IsAbs(moduleGenDir.String()) {
+			// If OUT_DIR is not absolute, we use $$PWD to generate an absolute path (os.Getwd() returns '/')
+			outDirPrefix = "$$PWD/"
+		} else {
+			// If OUT_DIR is absolute, then moduleGenDir will be an absolute path, so we don't need to set this to anything.
+			outDirPrefix = ""
+		}
+		envVars = append(envVars, "OUT_DIR="+filepath.Join(outDirPrefix, moduleGenDir.String()))
 	}
 
 	if flags.Clippy {
