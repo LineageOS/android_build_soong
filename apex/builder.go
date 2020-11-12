@@ -37,6 +37,7 @@ var (
 
 func init() {
 	pctx.Import("android/soong/android")
+	pctx.Import("android/soong/cc/config")
 	pctx.Import("android/soong/java")
 	pctx.HostBinToolVariable("apexer", "apexer")
 	// ART minimal builds (using the master-art manifest) do not have the "frameworks/base"
@@ -65,6 +66,7 @@ func init() {
 	pctx.HostBinToolVariable("extract_apks", "extract_apks")
 	pctx.HostBinToolVariable("make_f2fs", "make_f2fs")
 	pctx.HostBinToolVariable("sload_f2fs", "sload_f2fs")
+	pctx.SourcePathVariable("genNdkUsedbyApexPath", "build/soong/scripts/gen_ndk_usedby_apex.sh")
 }
 
 var (
@@ -175,6 +177,12 @@ var (
 			`exit 1); touch ${out}`,
 		Description: "Diff ${image_content_file} and ${allowed_files_file}",
 	}, "image_content_file", "allowed_files_file", "apex_module_name")
+
+	generateAPIsUsedbyApexRule = pctx.StaticRule("generateAPIsUsedbyApexRule", blueprint.RuleParams{
+		Command:     "$genNdkUsedbyApexPath ${image_dir} ${readelf} ${out}",
+		CommandDeps: []string{"${genNdkUsedbyApexPath}"},
+		Description: "Generate symbol list used by Apex",
+	}, "image_dir", "readelf")
 
 	// Don't add more rules here. Consider using android.NewRuleBuilder instead.
 )
@@ -674,6 +682,22 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			Output:      apexProtoFile,
 			Description: "apex proto convert",
 		})
+
+		implicitInputs = append(implicitInputs, unsignedOutputFile)
+
+		// Run coverage analysis
+		apisUsedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+".txt")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        generateAPIsUsedbyApexRule,
+			Implicits:   implicitInputs,
+			Description: "coverage",
+			Output:      apisUsedbyOutputFile,
+			Args: map[string]string{
+				"image_dir": imageDir.String(),
+				"readelf":   "${config.ClangBin}/llvm-readelf",
+			},
+		})
+		a.coverageOutputPath = apisUsedbyOutputFile
 
 		bundleConfig := a.buildBundleConfig(ctx)
 
