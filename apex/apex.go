@@ -1477,6 +1477,8 @@ type apexBundle struct {
 	lintReports android.Paths
 
 	payloadFsType fsType
+
+	distFiles android.TaggedDistFiles
 }
 
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
@@ -2522,6 +2524,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.buildApexDependencyInfo(ctx)
 
 	a.buildLintReports(ctx)
+
+	a.distFiles = a.GenerateTaggedDistFiles(ctx)
 }
 
 // Enforce that Java deps of the apex are using stable SDKs to compile
