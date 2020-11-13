@@ -1551,6 +1551,8 @@ func TestVendorSnapshotExcludeInVendorProprietaryPathErrors(t *testing.T) {
 	android.CheckErrorsAgainstExpectations(t, errs, []string{
 		`module "libvendor\{.+,image:vendor.+,arch:arm64_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
 		`module "libvendor\{.+,image:vendor.+,arch:arm_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
+		`module "libvendor\{.+,image:vendor.+,arch:arm64_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
+		`module "libvendor\{.+,image:vendor.+,arch:arm_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
 	})
 }
 
@@ -1595,6 +1597,132 @@ func TestVendorSnapshotExcludeWithVendorAvailable(t *testing.T) {
 		`module "libinclude\{.+,image:vendor.+,arch:arm64_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
 		`module "libinclude\{.+,image:vendor.+,arch:arm_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
 	})
+}
+
+func TestRecoverySnapshotCapture(t *testing.T) {
+	bp := `
+	cc_library {
+		name: "libvndk",
+		vendor_available: true,
+		recovery_available: true,
+		product_available: true,
+		vndk: {
+			enabled: true,
+		},
+		nocrt: true,
+	}
+
+	cc_library {
+		name: "librecovery",
+		recovery: true,
+		nocrt: true,
+	}
+
+	cc_library {
+		name: "librecovery_available",
+		recovery_available: true,
+		nocrt: true,
+	}
+
+	cc_library_headers {
+		name: "librecovery_headers",
+		recovery_available: true,
+		nocrt: true,
+	}
+
+	cc_binary {
+		name: "recovery_bin",
+		recovery: true,
+		nocrt: true,
+	}
+
+	cc_binary {
+		name: "recovery_available_bin",
+		recovery_available: true,
+		nocrt: true,
+	}
+
+	toolchain_library {
+		name: "libb",
+		recovery_available: true,
+		src: "libb.a",
+	}
+
+	cc_object {
+		name: "obj",
+		recovery_available: true,
+	}
+`
+	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	ctx := testCcWithConfig(t, config)
+
+	// Check Recovery snapshot output.
+
+	snapshotDir := "recovery-snapshot"
+	snapshotVariantPath := filepath.Join(buildDir, snapshotDir, "arm64")
+	snapshotSingleton := ctx.SingletonForTests("recovery-snapshot")
+
+	var jsonFiles []string
+
+	for _, arch := range [][]string{
+		[]string{"arm64", "armv8-a"},
+	} {
+		archType := arch[0]
+		archVariant := arch[1]
+		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
+
+		// For shared libraries, only recovery_available modules are captured.
+		sharedVariant := fmt.Sprintf("android_recovery_%s_%s_shared", archType, archVariant)
+		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
+		checkSnapshot(t, ctx, snapshotSingleton, "libvndk", "libvndk.so", sharedDir, sharedVariant)
+		checkSnapshot(t, ctx, snapshotSingleton, "librecovery", "librecovery.so", sharedDir, sharedVariant)
+		checkSnapshot(t, ctx, snapshotSingleton, "librecovery_available", "librecovery_available.so", sharedDir, sharedVariant)
+		jsonFiles = append(jsonFiles,
+			filepath.Join(sharedDir, "libvndk.so.json"),
+			filepath.Join(sharedDir, "librecovery.so.json"),
+			filepath.Join(sharedDir, "librecovery_available.so.json"))
+
+		// For static libraries, all recovery:true and recovery_available modules are captured.
+		staticVariant := fmt.Sprintf("android_recovery_%s_%s_static", archType, archVariant)
+		staticDir := filepath.Join(snapshotVariantPath, archDir, "static")
+		checkSnapshot(t, ctx, snapshotSingleton, "libb", "libb.a", staticDir, staticVariant)
+		checkSnapshot(t, ctx, snapshotSingleton, "librecovery", "librecovery.a", staticDir, staticVariant)
+		checkSnapshot(t, ctx, snapshotSingleton, "librecovery_available", "librecovery_available.a", staticDir, staticVariant)
+		jsonFiles = append(jsonFiles,
+			filepath.Join(staticDir, "libb.a.json"),
+			filepath.Join(staticDir, "librecovery.a.json"),
+			filepath.Join(staticDir, "librecovery_available.a.json"))
+
+		// For binary executables, all recovery:true and recovery_available modules are captured.
+		if archType == "arm64" {
+			binaryVariant := fmt.Sprintf("android_recovery_%s_%s", archType, archVariant)
+			binaryDir := filepath.Join(snapshotVariantPath, archDir, "binary")
+			checkSnapshot(t, ctx, snapshotSingleton, "recovery_bin", "recovery_bin", binaryDir, binaryVariant)
+			checkSnapshot(t, ctx, snapshotSingleton, "recovery_available_bin", "recovery_available_bin", binaryDir, binaryVariant)
+			jsonFiles = append(jsonFiles,
+				filepath.Join(binaryDir, "recovery_bin.json"),
+				filepath.Join(binaryDir, "recovery_available_bin.json"))
+		}
+
+		// For header libraries, all vendor:true and vendor_available modules are captured.
+		headerDir := filepath.Join(snapshotVariantPath, archDir, "header")
+		jsonFiles = append(jsonFiles, filepath.Join(headerDir, "librecovery_headers.json"))
+
+		// For object modules, all vendor:true and vendor_available modules are captured.
+		objectVariant := fmt.Sprintf("android_recovery_%s_%s", archType, archVariant)
+		objectDir := filepath.Join(snapshotVariantPath, archDir, "object")
+		checkSnapshot(t, ctx, snapshotSingleton, "obj", "obj.o", objectDir, objectVariant)
+		jsonFiles = append(jsonFiles, filepath.Join(objectDir, "obj.o.json"))
+	}
+
+	for _, jsonFile := range jsonFiles {
+		// verify all json files exist
+		if snapshotSingleton.MaybeOutput(jsonFile).Rule == nil {
+			t.Errorf("%q expected but not found", jsonFile)
+		}
+	}
 }
 
 func TestDoubleLoadableDepError(t *testing.T) {

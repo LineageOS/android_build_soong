@@ -847,7 +847,7 @@ func sanitizerRuntimeDepsMutator(mctx android.TopDownMutatorContext) {
 				return true
 			}
 
-			if p, ok := d.linker.(*vendorSnapshotLibraryDecorator); ok {
+			if p, ok := d.linker.(*snapshotLibraryDecorator); ok {
 				if Bool(p.properties.Sanitize_minimal_dep) {
 					c.sanitize.Properties.MinimalRuntimeDep = true
 				}
