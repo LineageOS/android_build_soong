@@ -274,6 +274,16 @@ func NewConfig(ctx Context, args ...string) Config {
 		}
 	}
 
+	bpd := shared.BazelMetricsDir(ret.OutDir())
+	if err := os.RemoveAll(bpd); err != nil {
+		ctx.Fatalf("Unable to remove bazel profile directory %q: %v", bpd, err)
+	}
+	if ret.UseBazel() {
+		if err := os.MkdirAll(bpd, 0777); err != nil {
+			ctx.Fatalf("Failed to create bazel profile directory %q: %v", bpd, err)
+		}
+	}
+
 	c := Config{ret}
 	storeConfigMetrics(ctx, c)
 	return c
