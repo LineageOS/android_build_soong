@@ -95,6 +95,7 @@ func main() {
 		// TODO(cparsons): Don't output any ninja file, as the second pass will overwrite
 		// the incorrect results from the first pass, and file I/O is expensive.
 		firstCtx := newContext(srcDir, configuration)
+		configuration.SetStopBefore(bootstrap.StopBeforeWriteNinja)
 		bootstrap.Main(firstCtx.Context, configuration, extraNinjaDeps...)
 		// Invoke bazel commands and save results for second pass.
 		if err := configuration.BazelContext.InvokeBazel(); err != nil {
