@@ -370,6 +370,9 @@ func (test *testBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.
 			entries.SetBool("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", true)
 		}
 		entries.AddStrings("LOCAL_TEST_MAINLINE_MODULES", test.Properties.Test_mainline_modules...)
+		if Bool(test.Properties.Test_options.Unit_test) {
+			entries.SetBool("LOCAL_IS_UNIT_TEST", true)
+		}
 	})
 
 	androidMkWriteTestData(test.data, ctx, entries)
