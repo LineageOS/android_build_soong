@@ -146,7 +146,8 @@ func installClean(ctx Context, config Config) {
 		productOut("odm_dlkm"),
 		productOut("sysloader"),
 		productOut("testcases"),
-		productOut("symbols"))
+		productOut("symbols"),
+		productOut("install"))
 }
 
 // Since products and build variants (unfortunately) shared the same
