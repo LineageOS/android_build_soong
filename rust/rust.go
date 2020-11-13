@@ -229,6 +229,7 @@ type Deps struct {
 	ProcMacros []string
 	SharedLibs []string
 	StaticLibs []string
+	HeaderLibs []string
 
 	CrtBegin, CrtEnd string
 }
@@ -838,6 +839,11 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				directSharedLibDeps = append(directSharedLibDeps, ccDep)
 				mod.Properties.AndroidMkSharedLibs = append(mod.Properties.AndroidMkSharedLibs, depName)
 				exportDep = true
+			case cc.IsHeaderDepTag(depTag):
+				exportedInfo := ctx.OtherModuleProvider(dep, cc.FlagExporterInfoProvider).(cc.FlagExporterInfo)
+				depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
+				depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, exportedInfo.SystemIncludeDirs...)
+				depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, exportedInfo.GeneratedHeaders...)
 			case depTag == cc.CrtBeginDepTag:
 				depPaths.CrtBegin = linkObject
 			case depTag == cc.CrtEndDepTag:
@@ -982,6 +988,8 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	actx.AddVariationDependencies(append(commonDepVariations,
 		blueprint.Variation{Mutator: "link", Variation: "static"}),
 		cc.StaticDepTag(), deps.StaticLibs...)
+
+	actx.AddVariationDependencies(nil, cc.HeaderDepTag(), deps.HeaderLibs...)
 
 	crtVariations := cc.GetCrtVariations(ctx, mod)
 	if deps.CrtBegin != "" {
