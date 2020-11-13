@@ -15,8 +15,12 @@
 package android
 
 import (
+	"strings"
+	"testing"
+
 	"github.com/google/blueprint"
 	_ "github.com/google/blueprint/bootstrap"
+	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -91,9 +95,9 @@ var (
 	// ubuntu 14.04 offcially use dash for /bin/sh, and its builtin echo command
 	// doesn't support -e option. Therefore we force to use /bin/bash when writing out
 	// content to file.
-	WriteFile = pctx.AndroidStaticRule("WriteFile",
+	writeFile = pctx.AndroidStaticRule("writeFile",
 		blueprint.RuleParams{
-			Command:     "/bin/bash -c 'echo -e $$0 > $out' '$content'",
+			Command:     `/bin/bash -c 'echo -e "$$0" > $out' $content`,
 			Description: "writing file $out",
 		},
 		"content")
@@ -110,4 +114,65 @@ var (
 
 func init() {
 	pctx.Import("github.com/google/blueprint/bootstrap")
+}
+
+var (
+	// echoEscaper escapes a string such that passing it to "echo -e" will produce the input value.
+	echoEscaper = strings.NewReplacer(
+		`\`, `\\`, // First escape existing backslashes so they aren't interpreted by `echo -e`.
+		"\n", `\n`, // Then replace newlines with \n
+	)
+
+	// echoEscaper reverses echoEscaper.
+	echoUnescaper = strings.NewReplacer(
+		`\n`, "\n",
+		`\\`, `\`,
+	)
+
+	// shellUnescaper reverses the replacer in proptools.ShellEscape
+	shellUnescaper = strings.NewReplacer(`'\''`, `'`)
+)
+
+// WriteFileRule creates a ninja rule to write contents to a file.  The contents will be escaped
+// so that the file contains exactly the contents passed to the function, plus a trailing newline.
+func WriteFileRule(ctx BuilderContext, outputFile WritablePath, content string) {
+	content = echoEscaper.Replace(content)
+	content = proptools.ShellEscape(content)
+	if content == "" {
+		content = "''"
+	}
+	ctx.Build(pctx, BuildParams{
+		Rule:        writeFile,
+		Output:      outputFile,
+		Description: "write " + outputFile.Base(),
+		Args: map[string]string{
+			"content": content,
+		},
+	})
+}
+
+// shellUnescape reverses proptools.ShellEscape
+func shellUnescape(s string) string {
+	// Remove leading and trailing quotes if present
+	if len(s) >= 2 && s[0] == '\'' {
+		s = s[1 : len(s)-1]
+	}
+	s = shellUnescaper.Replace(s)
+	return s
+}
+
+// ContentFromFileRuleForTests returns the content that was passed to a WriteFileRule for use
+// in tests.
+func ContentFromFileRuleForTests(t *testing.T, params TestingBuildParams) string {
+	t.Helper()
+	if g, w := params.Rule, writeFile; g != w {
+		t.Errorf("expected params.Rule to be %q, was %q", w, g)
+		return ""
+	}
+
+	content := params.Args["content"]
+	content = shellUnescape(content)
+	content = echoUnescaper.Replace(content)
+
+	return content
 }

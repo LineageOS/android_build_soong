@@ -296,8 +296,8 @@ func checkSnapshotExclude(t *testing.T, ctx *android.TestContext, singleton andr
 
 func checkWriteFileOutput(t *testing.T, params android.TestingBuildParams, expected []string) {
 	t.Helper()
-	assertString(t, params.Rule.String(), android.WriteFile.String())
-	actual := strings.FieldsFunc(strings.ReplaceAll(params.Args["content"], "\\n", "\n"), func(r rune) bool { return r == '\n' })
+	content := android.ContentFromFileRuleForTests(t, params)
+	actual := strings.FieldsFunc(content, func(r rune) bool { return r == '\n' })
 	assertArrayString(t, actual, expected)
 }
 

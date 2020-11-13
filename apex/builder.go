@@ -373,14 +373,7 @@ func (a *apexBundle) buildBundleConfig(ctx android.ModuleContext) android.Output
 		panic(fmt.Errorf("error while marshalling to %q: %#v", output, err))
 	}
 
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        android.WriteFile,
-		Output:      output,
-		Description: "Bundle Config " + output.String(),
-		Args: map[string]string{
-			"content": string(j),
-		},
-	})
+	android.WriteFileRule(ctx, output, string(j))
 
 	return output.OutputPath
 }
