@@ -19,6 +19,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"android/soong/shared"
 )
 
 func runBazel(ctx Context, config Config) {
@@ -45,9 +47,12 @@ func runBazel(ctx Context, config Config) {
 		cmd.Args = append(cmd.Args, strings.Fields(extra_startup_args)...)
 	}
 
+	actionName := "build"
 	cmd.Args = append(cmd.Args,
-		"build",
+		actionName,
 		"--output_groups="+outputGroups,
+		"--profile="+filepath.Join(shared.BazelMetricsFilename(config.OutDir(), actionName)),
+		"--slim_profile=true",
 	)
 
 	if extra_build_args, ok := cmd.Environment.Get("BAZEL_BUILD_ARGS"); ok {
