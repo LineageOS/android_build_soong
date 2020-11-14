@@ -21,9 +21,13 @@ import (
 	"strings"
 
 	"android/soong/shared"
+	"android/soong/ui/metrics"
 )
 
 func runBazel(ctx Context, config Config) {
+	ctx.BeginTrace(metrics.RunBazel, "bazel")
+	defer ctx.EndTrace()
+
 	// "droid" is the default ninja target.
 	// TODO(b/160568333): stop hardcoding 'droid' to support building any
 	// Ninja target.
