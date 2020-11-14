@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -441,7 +442,7 @@ func testRuleBuilderFactory() Module {
 type testRuleBuilderModule struct {
 	ModuleBase
 	properties struct {
-		Src string
+		Srcs []string
 
 		Restat bool
 		Sbox   bool
@@ -449,7 +450,7 @@ type testRuleBuilderModule struct {
 }
 
 func (t *testRuleBuilderModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	in := PathForSource(ctx, t.properties.Src)
+	in := PathsForSource(ctx, t.properties.Srcs)
 	out := PathForModuleOut(ctx, ctx.ModuleName())
 	outDep := PathForModuleOut(ctx, ctx.ModuleName()+".d")
 	outDir := PathForModuleOut(ctx)
@@ -468,17 +469,17 @@ func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
 	out := PathForOutput(ctx, "baz")
 	outDep := PathForOutput(ctx, "baz.d")
 	outDir := PathForOutput(ctx)
-	testRuleBuilder_Build(ctx, in, out, outDep, outDir, true, false)
+	testRuleBuilder_Build(ctx, Paths{in}, out, outDep, outDir, true, false)
 }
 
-func testRuleBuilder_Build(ctx BuilderContext, in Path, out, outDep, outDir WritablePath, restat, sbox bool) {
+func testRuleBuilder_Build(ctx BuilderContext, in Paths, out, outDep, outDir WritablePath, restat, sbox bool) {
 	rule := NewRuleBuilder()
 
 	if sbox {
 		rule.Sbox(outDir)
 	}
 
-	rule.Command().Tool(PathForSource(ctx, "cp")).Input(in).Output(out).ImplicitDepFile(outDep)
+	rule.Command().Tool(PathForSource(ctx, "cp")).Inputs(in).Output(out).ImplicitDepFile(outDep)
 
 	if restat {
 		rule.Restat()
@@ -496,12 +497,12 @@ func TestRuleBuilder_Build(t *testing.T) {
 	bp := `
 		rule_builder_test {
 			name: "foo",
-			src: "bar",
+			srcs: ["bar"],
 			restat: true,
 		}
 		rule_builder_test {
 			name: "foo_sbox",
-			src: "bar",
+			srcs: ["bar"],
 			sbox: true,
 		}
 	`
@@ -519,7 +520,10 @@ func TestRuleBuilder_Build(t *testing.T) {
 
 	check := func(t *testing.T, params TestingBuildParams, wantCommand, wantOutput, wantDepfile string, wantRestat bool, extraCmdDeps []string) {
 		t.Helper()
-		if params.RuleParams.Command != wantCommand {
+		command := params.RuleParams.Command
+		re := regexp.MustCompile(" (# hash of input list:|--input-hash) [a-z0-9]*")
+		command = re.ReplaceAllLiteralString(command, "")
+		if command != wantCommand {
 			t.Errorf("\nwant RuleParams.Command = %q\n                      got %q", wantCommand, params.RuleParams.Command)
 		}
 
@@ -648,6 +652,81 @@ func Test_ninjaEscapeExceptForSpans(t *testing.T) {
 			if got := ninjaEscapeExceptForSpans(tt.args.s, tt.args.spans); got != tt.want {
 				t.Errorf("ninjaEscapeExceptForSpans() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestRuleBuilderHashInputs(t *testing.T) {
+	// The basic idea here is to verify that the command (in the case of a
+	// non-sbox rule) or the sbox textproto manifest contain a hash of the
+	// inputs.
+
+	// By including a hash of the inputs, we cause the rule to re-run if
+	// the list of inputs changes because the command line or a dependency
+	// changes.
+
+	bp := `
+			rule_builder_test {
+				name: "hash0",
+				srcs: ["in1.txt", "in2.txt"],
+			}
+			rule_builder_test {
+				name: "hash0_sbox",
+				srcs: ["in1.txt", "in2.txt"],
+				sbox: true,
+			}
+			rule_builder_test {
+				name: "hash1",
+				srcs: ["in1.txt", "in2.txt", "in3.txt"],
+			}
+			rule_builder_test {
+				name: "hash1_sbox",
+				srcs: ["in1.txt", "in2.txt", "in3.txt"],
+				sbox: true,
+			}
+		`
+	testcases := []struct {
+		name         string
+		expectedHash string
+	}{
+		{
+			name: "hash0",
+			// sha256 value obtained from: echo -en 'in1.txt\nin2.txt' | sha256sum
+			expectedHash: "18da75b9b1cc74b09e365b4ca2e321b5d618f438cc632b387ad9dc2ab4b20e9d",
+		},
+		{
+			name: "hash1",
+			// sha256 value obtained from: echo -en 'in1.txt\nin2.txt\nin3.txt' | sha256sum
+			expectedHash: "a38d432a4b19df93140e1f1fe26c97ff0387dae01fe506412b47208f0595fb45",
+		},
+	}
+
+	config := TestConfig(buildDir, nil, bp, nil)
+	ctx := NewTestContext(config)
+	ctx.RegisterModuleType("rule_builder_test", testRuleBuilderFactory)
+	ctx.Register()
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	FailIfErrored(t, errs)
+
+	for _, test := range testcases {
+		t.Run(test.name, func(t *testing.T) {
+			t.Run("sbox", func(t *testing.T) {
+				gen := ctx.ModuleForTests(test.name+"_sbox", "")
+				command := gen.Output(test.name + "_sbox").RuleParams.Command
+				if g, w := command, " --input-hash "+test.expectedHash; !strings.Contains(g, w) {
+					t.Errorf("Expected command line to end with %q, got %q", w, g)
+				}
+			})
+			t.Run("", func(t *testing.T) {
+				gen := ctx.ModuleForTests(test.name+"", "")
+				command := gen.Output(test.name).RuleParams.Command
+				if g, w := command, " # hash of input list: "+test.expectedHash; !strings.HasSuffix(g, w) {
+					t.Errorf("Expected command line to end with %q, got %q", w, g)
+				}
+			})
 		})
 	}
 }
