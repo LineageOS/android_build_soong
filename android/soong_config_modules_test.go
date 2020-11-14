@@ -175,7 +175,7 @@ func TestSoongConfigModule(t *testing.T) {
 			},
 		}
 
-		ctx := NewTestContext()
+		ctx := NewTestContext(config)
 		ctx.RegisterModuleType("soong_config_module_type_import", soongConfigModuleTypeImportFactory)
 		ctx.RegisterModuleType("soong_config_module_type", soongConfigModuleTypeFactory)
 		ctx.RegisterModuleType("soong_config_string_variable", soongConfigStringVariableDummyFactory)
@@ -183,7 +183,7 @@ func TestSoongConfigModule(t *testing.T) {
 		ctx.RegisterModuleType("test_defaults", soongConfigTestDefaultsModuleFactory)
 		ctx.RegisterModuleType("test", soongConfigTestModuleFactory)
 		ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
-		ctx.Register(config)
+		ctx.Register()
 
 		_, errs := ctx.ParseBlueprintsFiles("Android.bp")
 		FailIfErrored(t, errs)

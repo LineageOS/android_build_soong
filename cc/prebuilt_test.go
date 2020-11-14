@@ -25,7 +25,7 @@ import (
 
 func testPrebuilt(t *testing.T, bp string, fs map[string][]byte, handlers ...configCustomizer) *android.TestContext {
 	config := TestConfig(buildDir, android.Android, nil, bp, fs)
-	ctx := CreateTestContext()
+	ctx := CreateTestContext(config)
 
 	// Enable androidmk support.
 	// * Register the singleton
@@ -38,7 +38,7 @@ func testPrebuilt(t *testing.T, bp string, fs map[string][]byte, handlers ...con
 		handler(config)
 	}
 
-	ctx.Register(config)
+	ctx.Register()
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)

@@ -507,10 +507,10 @@ func TestRuleBuilder_Build(t *testing.T) {
 	`
 
 	config := TestConfig(buildDir, nil, bp, fs)
-	ctx := NewTestContext()
+	ctx := NewTestContext(config)
 	ctx.RegisterModuleType("rule_builder_test", testRuleBuilderFactory)
 	ctx.RegisterSingletonType("rule_builder_test", testRuleBuilderSingletonFactory)
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)

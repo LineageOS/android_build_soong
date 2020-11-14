@@ -122,10 +122,10 @@ func TestDataTests(t *testing.T) {
 				"dir/baz":        nil,
 				"dir/bar/baz":    nil,
 			})
-			ctx := android.NewTestContext()
+			ctx := android.NewTestContext(config)
 			ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 			ctx.RegisterModuleType("test", newTest)
-			ctx.Register(config)
+			ctx.Register()
 
 			_, errs := ctx.ParseBlueprintsFiles("Blueprints")
 			android.FailIfErrored(t, errs)

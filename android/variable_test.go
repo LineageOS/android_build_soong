@@ -157,23 +157,6 @@ func testProductVariableModuleFactoryFactory(props interface{}) func() Module {
 }
 
 func TestProductVariables(t *testing.T) {
-	ctx := NewTestContext()
-	// A module type that has a srcs property but not a cflags property.
-	ctx.RegisterModuleType("module1", testProductVariableModuleFactoryFactory(&struct {
-		Srcs []string
-	}{}))
-	// A module type that has a cflags property but not a srcs property.
-	ctx.RegisterModuleType("module2", testProductVariableModuleFactoryFactory(&struct {
-		Cflags []string
-	}{}))
-	// A module type that does not have any properties that match product_variables.
-	ctx.RegisterModuleType("module3", testProductVariableModuleFactoryFactory(&struct {
-		Foo []string
-	}{}))
-	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
-		ctx.BottomUp("variable", VariableMutator).Parallel()
-	})
-
 	// Test that a module can use one product variable even if it doesn't have all the properties
 	// supported by that product variable.
 	bp := `
@@ -201,7 +184,24 @@ func TestProductVariables(t *testing.T) {
 	config := TestConfig(buildDir, nil, bp, nil)
 	config.TestProductVariables.Eng = proptools.BoolPtr(true)
 
-	ctx.Register(config)
+	ctx := NewTestContext(config)
+	// A module type that has a srcs property but not a cflags property.
+	ctx.RegisterModuleType("module1", testProductVariableModuleFactoryFactory(&struct {
+		Srcs []string
+	}{}))
+	// A module type that has a cflags property but not a srcs property.
+	ctx.RegisterModuleType("module2", testProductVariableModuleFactoryFactory(&struct {
+		Cflags []string
+	}{}))
+	// A module type that does not have any properties that match product_variables.
+	ctx.RegisterModuleType("module3", testProductVariableModuleFactoryFactory(&struct {
+		Foo []string
+	}{}))
+	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
+		ctx.BottomUp("variable", VariableMutator).Parallel()
+	})
+
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)
@@ -293,7 +293,7 @@ func TestProductVariablesDefaults(t *testing.T) {
 	config := TestConfig(buildDir, nil, bp, nil)
 	config.TestProductVariables.Eng = boolPtr(true)
 
-	ctx := NewTestContext()
+	ctx := NewTestContext(config)
 
 	ctx.RegisterModuleType("test", productVariablesDefaultsTestModuleFactory)
 	ctx.RegisterModuleType("defaults", productVariablesDefaultsTestDefaultsFactory)
@@ -303,7 +303,7 @@ func TestProductVariablesDefaults(t *testing.T) {
 		ctx.BottomUp("variable", VariableMutator).Parallel()
 	})
 
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)

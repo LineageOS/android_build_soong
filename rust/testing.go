@@ -127,8 +127,8 @@ func GatherRequiredDepsForTest() string {
 	return bp
 }
 
-func CreateTestContext() *android.TestContext {
-	ctx := android.NewTestArchContext()
+func CreateTestContext(config android.Config) *android.TestContext {
+	ctx := android.NewTestArchContext(config)
 	android.RegisterPrebuiltMutators(ctx)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	cc.RegisterRequiredBuildComponentsForTest(ctx)

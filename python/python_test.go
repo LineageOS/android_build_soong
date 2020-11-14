@@ -329,13 +329,13 @@ func TestPythonModule(t *testing.T) {
 	for _, d := range data {
 		t.Run(d.desc, func(t *testing.T) {
 			config := android.TestConfig(buildDir, nil, "", d.mockFiles)
-			ctx := android.NewTestContext()
+			ctx := android.NewTestContext(config)
 			ctx.PreDepsMutators(RegisterPythonPreDepsMutators)
 			ctx.RegisterModuleType("python_library_host", PythonLibraryHostFactory)
 			ctx.RegisterModuleType("python_binary_host", PythonBinaryHostFactory)
 			ctx.RegisterModuleType("python_defaults", defaultsFactory)
 			ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-			ctx.Register(config)
+			ctx.Register()
 			_, testErrs := ctx.ParseBlueprintsFiles(bpFile)
 			android.FailIfErrored(t, testErrs)
 			_, actErrs := ctx.PrepareBuildActions(config)
