@@ -152,8 +152,8 @@ func TestLints(t *testing.T) {
 		t.Run("path="+tc.modulePath, func(t *testing.T) {
 
 			config := android.TestArchConfig(buildDir, nil, bp, fs)
-			ctx := CreateTestContext()
-			ctx.Register(config)
+			ctx := CreateTestContext(config)
+			ctx.Register()
 			_, errs := ctx.ParseFileList(".", []string{tc.modulePath + "Android.bp"})
 			android.FailIfErrored(t, errs)
 			_, errs = ctx.PrepareBuildActions(config)

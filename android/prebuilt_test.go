@@ -288,10 +288,10 @@ func TestPrebuilts(t *testing.T) {
 				{Windows, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", true},
 			}
 
-			ctx := NewTestArchContext()
+			ctx := NewTestArchContext(config)
 			registerTestPrebuiltBuildComponents(ctx)
 			ctx.RegisterModuleType("filegroup", FileGroupFactory)
-			ctx.Register(config)
+			ctx.Register()
 
 			_, errs := ctx.ParseBlueprintsFiles("Android.bp")
 			FailIfErrored(t, errs)

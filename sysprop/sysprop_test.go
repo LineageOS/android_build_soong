@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 
 func testContext(config android.Config) *android.TestContext {
 
-	ctx := android.NewTestArchContext()
+	ctx := android.NewTestArchContext(config)
 	java.RegisterJavaBuildComponents(ctx)
 	java.RegisterAppBuildComponents(ctx)
 	java.RegisterSystemModulesBuildComponents(ctx)
@@ -76,7 +76,7 @@ func testContext(config android.Config) *android.TestContext {
 
 	ctx.RegisterModuleType("sysprop_library", syspropLibraryFactory)
 
-	ctx.Register(config)
+	ctx.Register()
 
 	return ctx
 }
