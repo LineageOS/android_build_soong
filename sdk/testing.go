@@ -80,7 +80,7 @@ func testSdkContext(bp string, fs map[string][]byte, extraOsTypes []android.OsTy
 		}
 	}
 
-	ctx := android.NewTestArchContext()
+	ctx := android.NewTestArchContext(config)
 
 	// Enable androidmk support.
 	// * Register the singleton
@@ -129,7 +129,7 @@ func testSdkContext(bp string, fs map[string][]byte, extraOsTypes []android.OsTy
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
 
-	ctx.Register(config)
+	ctx.Register()
 
 	return ctx, config
 }

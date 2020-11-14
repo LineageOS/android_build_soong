@@ -359,14 +359,14 @@ func TestNeverallow(t *testing.T) {
 }
 
 func testNeverallow(config Config) (*TestContext, []error) {
-	ctx := NewTestContext()
+	ctx := NewTestContext(config)
 	ctx.RegisterModuleType("cc_library", newMockCcLibraryModule)
 	ctx.RegisterModuleType("java_library", newMockJavaLibraryModule)
 	ctx.RegisterModuleType("java_library_host", newMockJavaLibraryModule)
 	ctx.RegisterModuleType("java_device_for_host", newMockJavaLibraryModule)
 	ctx.RegisterModuleType("makefile_goal", newMockMakefileGoalModule)
 	ctx.PostDepsMutators(RegisterNeverallowMutator)
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
 	if len(errs) > 0 {

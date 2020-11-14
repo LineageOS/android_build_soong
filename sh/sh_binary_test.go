@@ -45,13 +45,13 @@ func testShBinary(t *testing.T, bp string) (*android.TestContext, android.Config
 
 	config := android.TestArchConfig(buildDir, nil, bp, fs)
 
-	ctx := android.NewTestArchContext()
+	ctx := android.NewTestArchContext(config)
 	ctx.RegisterModuleType("sh_test", ShTestFactory)
 	ctx.RegisterModuleType("sh_test_host", ShTestHostFactory)
 
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 
-	ctx.Register(config)
+	ctx.Register()
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)

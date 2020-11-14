@@ -70,9 +70,9 @@ func testConfig(env map[string]string, bp string, fs map[string][]byte) android.
 	return config
 }
 
-func testContext() *android.TestContext {
+func testContext(config android.Config) *android.TestContext {
 
-	ctx := android.NewTestArchContext()
+	ctx := android.NewTestArchContext(config)
 	RegisterJavaBuildComponents(ctx)
 	RegisterAppBuildComponents(ctx)
 	RegisterAARBuildComponents(ctx)
@@ -115,7 +115,7 @@ func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	pathCtx := android.PathContextForTesting(config)
 	dexpreopt.SetTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
 
-	ctx.Register(config)
+	ctx.Register()
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
@@ -129,12 +129,12 @@ func testJavaError(t *testing.T, pattern string, bp string) (*android.TestContex
 
 func testJavaErrorWithConfig(t *testing.T, pattern string, config android.Config) (*android.TestContext, android.Config) {
 	t.Helper()
-	ctx := testContext()
+	ctx := testContext(config)
 
 	pathCtx := android.PathContextForTesting(config)
 	dexpreopt.SetTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
 
-	ctx.Register(config)
+	ctx.Register()
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
 	if len(errs) > 0 {
 		android.FailIfNoMatchingErrors(t, pattern, errs)
@@ -163,7 +163,7 @@ func testJava(t *testing.T, bp string) (*android.TestContext, android.Config) {
 
 func testJavaWithConfig(t *testing.T, config android.Config) (*android.TestContext, android.Config) {
 	t.Helper()
-	ctx := testContext()
+	ctx := testContext(config)
 	run(t, ctx, config)
 
 	return ctx, config
@@ -1440,7 +1440,7 @@ func TestJavaLibrary(t *testing.T) {
 				}
 `),
 	})
-	ctx := testContext()
+	ctx := testContext(config)
 	run(t, ctx, config)
 }
 
@@ -1458,7 +1458,7 @@ func TestJavaImport(t *testing.T) {
 				}
 `),
 	})
-	ctx := testContext()
+	ctx := testContext(config)
 	run(t, ctx, config)
 }
 

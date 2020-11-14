@@ -1168,7 +1168,7 @@ func testVisibility(buildDir string, fs map[string][]byte) (*TestContext, []erro
 	// Create a new config per test as visibility information is stored in the config.
 	config := TestArchConfig(buildDir, nil, "", fs)
 
-	ctx := NewTestArchContext()
+	ctx := NewTestArchContext(config)
 	ctx.RegisterModuleType("mock_library", newMockLibraryModule)
 	ctx.RegisterModuleType("mock_parent", newMockParentFactory)
 	ctx.RegisterModuleType("mock_defaults", defaultsFactory)
@@ -1180,7 +1180,7 @@ func testVisibility(buildDir string, fs map[string][]byte) (*TestContext, []erro
 	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(RegisterVisibilityRuleGatherer)
 	ctx.PostDepsMutators(RegisterVisibilityRuleEnforcer)
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseBlueprintsFiles(".")
 	if len(errs) > 0 {
