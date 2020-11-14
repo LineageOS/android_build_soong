@@ -32,6 +32,7 @@ const (
 	RunSetupTool    = "setup"
 	RunShutdownTool = "shutdown"
 	RunSoong        = "soong"
+	RunBazel        = "bazel"
 	TestRun         = "test"
 	Total           = "total"
 )
@@ -57,6 +58,8 @@ func (m *Metrics) SetTimeMetrics(perf soong_metrics_proto.PerfInfo) {
 	case RunSoong:
 		m.metrics.SoongRuns = append(m.metrics.SoongRuns, &perf)
 		break
+	case RunBazel:
+		m.metrics.BazelRuns = append(m.metrics.BazelRuns, &perf)
 	case PrimaryNinja:
 		m.metrics.NinjaRuns = append(m.metrics.NinjaRuns, &perf)
 		break
