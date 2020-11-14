@@ -70,7 +70,7 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 	config := TestConfig(buildDir, nil, bp, nil)
 	config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 
-	ctx := NewTestContext()
+	ctx := NewTestContext(config)
 	ctx.SetAllowMissingDependencies(true)
 
 	ctx.RegisterModuleType("test", mutatorTestModuleFactory)
@@ -78,7 +78,7 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 		ctx.TopDown("add_missing_dependencies", addMissingDependenciesMutator)
 	})
 
-	ctx.Register(config)
+	ctx.Register()
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
@@ -92,7 +92,15 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 }
 
 func TestModuleString(t *testing.T) {
-	ctx := NewTestContext()
+	bp := `
+		test {
+			name: "foo",
+		}
+	`
+
+	config := TestConfig(buildDir, nil, bp, nil)
+
+	ctx := NewTestContext(config)
 
 	var moduleStrings []string
 
@@ -130,15 +138,7 @@ func TestModuleString(t *testing.T) {
 
 	ctx.RegisterModuleType("test", mutatorTestModuleFactory)
 
-	bp := `
-		test {
-			name: "foo",
-		}
-	`
-
-	config := TestConfig(buildDir, nil, bp, nil)
-
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)
@@ -190,7 +190,21 @@ func TestModuleString(t *testing.T) {
 }
 
 func TestFinalDepsPhase(t *testing.T) {
-	ctx := NewTestContext()
+	bp := `
+		test {
+			name: "common_dep_1",
+		}
+		test {
+			name: "common_dep_2",
+		}
+		test {
+			name: "foo",
+		}
+	`
+
+	config := TestConfig(buildDir, nil, bp, nil)
+
+	ctx := NewTestContext(config)
 
 	finalGot := map[string]int{}
 
@@ -228,20 +242,7 @@ func TestFinalDepsPhase(t *testing.T) {
 
 	ctx.RegisterModuleType("test", mutatorTestModuleFactory)
 
-	bp := `
-		test {
-			name: "common_dep_1",
-		}
-		test {
-			name: "common_dep_2",
-		}
-		test {
-			name: "foo",
-		}
-	`
-
-	config := TestConfig(buildDir, nil, bp, nil)
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)
@@ -267,7 +268,8 @@ func TestFinalDepsPhase(t *testing.T) {
 }
 
 func TestNoCreateVariationsInFinalDeps(t *testing.T) {
-	ctx := NewTestContext()
+	config := TestConfig(buildDir, nil, `test {name: "foo"}`, nil)
+	ctx := NewTestContext(config)
 
 	checkErr := func() {
 		if err := recover(); err == nil || !strings.Contains(fmt.Sprintf("%s", err), "not allowed in FinalDepsMutators") {
@@ -287,8 +289,7 @@ func TestNoCreateVariationsInFinalDeps(t *testing.T) {
 	})
 
 	ctx.RegisterModuleType("test", mutatorTestModuleFactory)
-	config := TestConfig(buildDir, nil, `test {name: "foo"}`, nil)
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)

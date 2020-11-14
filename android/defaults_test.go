@@ -80,14 +80,14 @@ func TestDefaults(t *testing.T) {
 
 	config := TestConfig(buildDir, nil, bp, nil)
 
-	ctx := NewTestContext()
+	ctx := NewTestContext(config)
 
 	ctx.RegisterModuleType("test", defaultsTestModuleFactory)
 	ctx.RegisterModuleType("defaults", defaultsTestDefaultsFactory)
 
 	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
 
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)
@@ -125,7 +125,7 @@ func TestDefaultsAllowMissingDependencies(t *testing.T) {
 	config := TestConfig(buildDir, nil, bp, nil)
 	config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 
-	ctx := NewTestContext()
+	ctx := NewTestContext(config)
 	ctx.SetAllowMissingDependencies(true)
 
 	ctx.RegisterModuleType("test", defaultsTestModuleFactory)
@@ -133,7 +133,7 @@ func TestDefaultsAllowMissingDependencies(t *testing.T) {
 
 	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
 
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)

@@ -80,10 +80,10 @@ func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testin
 	config := TestConfig(buildDir, nil, bp, nil)
 	config.inMake = true // Enable androidmk Singleton
 
-	ctx := NewTestContext()
+	ctx := NewTestContext(config)
 	ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
 	ctx.RegisterModuleType("custom", customModuleFactory)
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)
@@ -252,10 +252,10 @@ func TestGetDistForGoals(t *testing.T) {
 		config := TestConfig(buildDir, nil, testCase.bp, nil)
 		config.inMake = true // Enable androidmk Singleton
 
-		ctx := NewTestContext()
+		ctx := NewTestContext(config)
 		ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
 		ctx.RegisterModuleType("custom", customModuleFactory)
-		ctx.Register(config)
+		ctx.Register()
 
 		_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 		FailIfErrored(t, errs)

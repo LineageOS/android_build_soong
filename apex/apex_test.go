@@ -216,7 +216,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 		handler(tempFS, config)
 	}
 
-	ctx := android.NewTestArchContext()
+	ctx := android.NewTestArchContext(config)
 
 	// from android package
 	android.RegisterPackageBuildComponents(ctx)
@@ -261,7 +261,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
 
-	ctx.Register(config)
+	ctx.Register()
 
 	return ctx, config
 }
@@ -5746,7 +5746,9 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpre
 	}
 	cc.GatherRequiredFilesForTest(fs)
 
-	ctx := android.NewTestArchContext()
+	config := android.TestArchConfig(buildDir, nil, bp, fs)
+
+	ctx := android.NewTestArchContext(config)
 	ctx.RegisterModuleType("apex", BundleFactory)
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
@@ -5761,8 +5763,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpre
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
 
-	config := android.TestArchConfig(buildDir, nil, bp, fs)
-	ctx.Register(config)
+	ctx.Register()
 
 	_ = dexpreopt.GlobalSoongConfigForTests(config)
 	dexpreopt.RegisterToolModulesForTest(ctx)
@@ -5897,7 +5898,15 @@ func testApexPermittedPackagesRules(t *testing.T, errmsg, bp string, apexBootJar
 		"system/sepolicy/apex/myapex-file_contexts": nil,
 	}
 
-	ctx := android.NewTestArchContext()
+	config := android.TestArchConfig(buildDir, nil, bp, fs)
+	android.SetTestNeverallowRules(config, rules)
+	updatableBootJars := make([]string, 0, len(apexBootJars))
+	for _, apexBootJar := range apexBootJars {
+		updatableBootJars = append(updatableBootJars, "myapex:"+apexBootJar)
+	}
+	config.TestProductVariables.UpdatableBootJars = android.CreateTestConfiguredJarList(updatableBootJars)
+
+	ctx := android.NewTestArchContext(config)
 	ctx.RegisterModuleType("apex", BundleFactory)
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
@@ -5910,15 +5919,7 @@ func testApexPermittedPackagesRules(t *testing.T, errmsg, bp string, apexBootJar
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
 	ctx.PostDepsMutators(android.RegisterNeverallowMutator)
 
-	config := android.TestArchConfig(buildDir, nil, bp, fs)
-	android.SetTestNeverallowRules(config, rules)
-	updatableBootJars := make([]string, 0, len(apexBootJars))
-	for _, apexBootJar := range apexBootJars {
-		updatableBootJars = append(updatableBootJars, "myapex:"+apexBootJar)
-	}
-	config.TestProductVariables.UpdatableBootJars = android.CreateTestConfiguredJarList(updatableBootJars)
-
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
 	android.FailIfErrored(t, errs)

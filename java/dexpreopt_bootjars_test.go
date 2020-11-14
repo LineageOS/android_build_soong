@@ -51,7 +51,7 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 	dexpreoptConfig.BootJars = android.CreateTestConfiguredJarList([]string{"platform:foo", "platform:bar", "platform:baz"})
 	dexpreopt.SetTestGlobalConfig(config, dexpreoptConfig)
 
-	ctx := testContext()
+	ctx := testContext(config)
 	RegisterDexpreoptBootJarsComponents(ctx)
 	run(t, ctx, config)
 

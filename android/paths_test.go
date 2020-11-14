@@ -980,12 +980,6 @@ type pathForModuleSrcTestCase struct {
 func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSrcTestCase) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := NewTestContext()
-
-			ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
-			ctx.RegisterModuleType("output_file_provider", pathForModuleSrcOutputFileProviderModuleFactory)
-			ctx.RegisterModuleType("filegroup", FileGroupFactory)
-
 			fgBp := `
 				filegroup {
 					name: "a",
@@ -1015,7 +1009,13 @@ func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSr
 
 			config := TestConfig(buildDir, nil, "", mockFS)
 
-			ctx.Register(config)
+			ctx := NewTestContext(config)
+
+			ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
+			ctx.RegisterModuleType("output_file_provider", pathForModuleSrcOutputFileProviderModuleFactory)
+			ctx.RegisterModuleType("filegroup", FileGroupFactory)
+
+			ctx.Register()
 			_, errs := ctx.ParseFileList(".", []string{"fg/Android.bp", "foo/Android.bp", "ofp/Android.bp"})
 			FailIfErrored(t, errs)
 			_, errs = ctx.PrepareBuildActions(config)
@@ -1224,12 +1224,12 @@ func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
 	config := TestConfig(buildDir, nil, bp, nil)
 	config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 
-	ctx := NewTestContext()
+	ctx := NewTestContext(config)
 	ctx.SetAllowMissingDependencies(true)
 
 	ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
 
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	FailIfErrored(t, errs)
