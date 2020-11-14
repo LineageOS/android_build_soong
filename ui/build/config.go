@@ -840,6 +840,16 @@ func (c *configImpl) UseRBE() bool {
 	return false
 }
 
+func (c *configImpl) UseBazel() bool {
+	if v, ok := c.environ.Get("USE_BAZEL"); ok {
+		v = strings.TrimSpace(v)
+		if v != "" && v != "false" {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *configImpl) StartRBE() bool {
 	if !c.UseRBE() {
 		return false
