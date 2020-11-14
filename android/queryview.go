@@ -57,7 +57,7 @@ func (c *bazelQueryViewSingleton) GenerateBuildActions(ctx SingletonContext) {
 			),
 			CommandDeps: []string{primaryBuilder.String()},
 			Description: fmt.Sprintf(
-				"[EXPERIMENTAL] Creating the Bazel QueryView workspace with %s at $outDir",
+				"[EXPERIMENTAL, PRE-PRODUCTION] Creating the Bazel QueryView workspace with %s at $outDir",
 				primaryBuilder.Base()),
 			Deps:    blueprint.DepsGCC,
 			Depfile: "${outDir}/.queryview-depfile.d",
