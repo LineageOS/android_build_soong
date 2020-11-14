@@ -635,7 +635,7 @@ func mockFiles(bps map[string]string) (files map[string][]byte) {
 func setupTestFromFiles(bps map[string][]byte) (ctx *TestContext, errs []error) {
 	config := TestConfig(buildDir, nil, "", bps)
 
-	ctx = NewTestContext()
+	ctx = NewTestContext(config)
 	ctx.RegisterModuleType("test_module", newTestModule)
 	ctx.RegisterModuleType("soong_namespace", NamespaceFactory)
 	ctx.Context.RegisterModuleType("blueprint_test_module", newBlueprintTestModule)
@@ -643,7 +643,7 @@ func setupTestFromFiles(bps map[string][]byte) (ctx *TestContext, errs []error) 
 	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("rename", renameMutator)
 	})
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs = ctx.ParseBlueprintsFiles("Android.bp")
 	if len(errs) > 0 {

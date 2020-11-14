@@ -59,7 +59,7 @@ func testAppConfig(env map[string]string, bp string, fs map[string][]byte) andro
 func testApp(t *testing.T, bp string) *android.TestContext {
 	config := testAppConfig(nil, bp, nil)
 
-	ctx := testContext()
+	ctx := testContext(config)
 
 	run(t, ctx, config)
 
@@ -220,7 +220,7 @@ func TestAndroidAppSet_Variants(t *testing.T) {
 		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
 		config.TestProductVariables.Platform_sdk_version = &test.sdkVersion
 		config.Targets[android.Android] = test.targets
-		ctx := testContext()
+		ctx := testContext(config)
 		run(t, ctx, config)
 		module := ctx.ModuleForTests("foo", "android_common")
 		const packedSplitApks = "foo.zip"
@@ -657,7 +657,7 @@ func TestResourceDirs(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			config := testConfig(nil, fmt.Sprintf(bp, testCase.prop), fs)
-			ctx := testContext()
+			ctx := testContext(config)
 			run(t, ctx, config)
 
 			module := ctx.ModuleForTests("foo", "android_common")
@@ -973,7 +973,7 @@ func TestAndroidResources(t *testing.T) {
 				config.TestProductVariables.EnforceRROExcludedOverlays = testCase.enforceRROExcludedOverlays
 			}
 
-			ctx := testContext()
+			ctx := testContext(config)
 			run(t, ctx, config)
 
 			resourceListToFiles := func(module android.TestingModule, list []string) (files []string) {
@@ -1039,7 +1039,7 @@ func TestAndroidResources(t *testing.T) {
 }
 
 func checkSdkVersion(t *testing.T, config android.Config, expectedSdkVersion string) {
-	ctx := testContext()
+	ctx := testContext(config)
 
 	run(t, ctx, config)
 
@@ -1633,7 +1633,7 @@ func TestCertificates(t *testing.T) {
 			if test.certificateOverride != "" {
 				config.TestProductVariables.CertificateOverrides = []string{test.certificateOverride}
 			}
-			ctx := testContext()
+			ctx := testContext(config)
 
 			run(t, ctx, config)
 			foo := ctx.ModuleForTests("foo", "android_common")
@@ -1698,7 +1698,7 @@ func TestRequestV4SigningFlag(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			config := testAppConfig(nil, test.bp, nil)
-			ctx := testContext()
+			ctx := testContext(config)
 
 			run(t, ctx, config)
 			foo := ctx.ModuleForTests("foo", "android_common")
@@ -1758,7 +1758,7 @@ func TestPackageNameOverride(t *testing.T) {
 			if test.packageNameOverride != "" {
 				config.TestProductVariables.PackageNameOverrides = []string{test.packageNameOverride}
 			}
-			ctx := testContext()
+			ctx := testContext(config)
 
 			run(t, ctx, config)
 			foo := ctx.ModuleForTests("foo", "android_common")
@@ -1793,7 +1793,7 @@ func TestInstrumentationTargetOverridden(t *testing.T) {
 		`
 	config := testAppConfig(nil, bp, nil)
 	config.TestProductVariables.ManifestPackageNameOverrides = []string{"foo:org.dandroid.bp"}
-	ctx := testContext()
+	ctx := testContext(config)
 
 	run(t, ctx, config)
 
@@ -2416,7 +2416,7 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 		config := testAppConfig(nil, bp, nil)
 		config.TestProductVariables.AAPTPreferredConfig = test.aaptPreferredConfig
 		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
-		ctx := testContext()
+		ctx := testContext(config)
 
 		run(t, ctx, config)
 
@@ -2777,7 +2777,7 @@ func TestUsesLibraries(t *testing.T) {
 	config := testAppConfig(nil, bp, nil)
 	config.TestProductVariables.MissingUsesLibraries = []string{"baz"}
 
-	ctx := testContext()
+	ctx := testContext(config)
 
 	run(t, ctx, config)
 
@@ -3129,7 +3129,7 @@ func TestUncompressDex(t *testing.T) {
 			config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
 		}
 
-		ctx := testContext()
+		ctx := testContext(config)
 
 		run(t, ctx, config)
 
@@ -3209,7 +3209,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 		}
 		`
 	config := testAppConfig(nil, bp, fs)
-	ctx := testContext()
+	ctx := testContext(config)
 	run(t, ctx, config)
 
 	m := ctx.ModuleForTests("foo", "android_common")
@@ -3506,7 +3506,7 @@ func TestEnforceRRO_propagatesToDependencies(t *testing.T) {
 				config.TestProductVariables.EnforceRROExemptedTargets = testCase.enforceRROExemptTargets
 			}
 
-			ctx := testContext()
+			ctx := testContext(config)
 			run(t, ctx, config)
 
 			modules := []string{"foo", "bar"}

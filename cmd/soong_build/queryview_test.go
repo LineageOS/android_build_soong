@@ -234,9 +234,9 @@ func TestGenerateBazelQueryViewFromBlueprint(t *testing.T) {
 
 	for _, testCase := range testCases {
 		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
-		ctx := android.NewTestContext()
+		ctx := android.NewTestContext(config)
 		ctx.RegisterModuleType("custom", customModuleFactory)
-		ctx.Register(config)
+		ctx.Register()
 
 		_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 		android.FailIfErrored(t, errs)

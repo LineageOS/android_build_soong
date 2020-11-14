@@ -353,9 +353,9 @@ func TestArchMutator(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config := TestArchConfig(buildDir, nil, bp, nil)
 
-			ctx := NewTestArchContext()
+			ctx := NewTestArchContext(config)
 			ctx.RegisterModuleType("module", archTestModuleFactory)
-			ctx.Register(config)
+			ctx.Register()
 			if tt.config != nil {
 				tt.config(config)
 			}
@@ -442,9 +442,9 @@ func TestArchMutatorNativeBridge(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config := TestArchConfigNativeBridge(buildDir, nil, bp, nil)
 
-			ctx := NewTestArchContext()
+			ctx := NewTestArchContext(config)
 			ctx.RegisterModuleType("module", archTestModuleFactory)
-			ctx.Register(config)
+			ctx.Register()
 			if tt.config != nil {
 				tt.config(config)
 			}

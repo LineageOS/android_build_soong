@@ -56,9 +56,9 @@ func testContext(t *testing.T, bp string) (*android.TestContext, android.Config)
 
 	config := android.TestArchConfig(buildDir, nil, bp, fs)
 
-	ctx := android.NewTestArchContext()
+	ctx := android.NewTestArchContext(config)
 	ctx.RegisterModuleType("linker_config", linkerConfigFactory)
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)

@@ -58,7 +58,7 @@ func testPrebuiltEtcContext(t *testing.T, bp string) (*android.TestContext, andr
 
 	config := android.TestArchConfig(buildDir, nil, bp, fs)
 
-	ctx := android.NewTestArchContext()
+	ctx := android.NewTestArchContext(config)
 	ctx.RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
 	ctx.RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
 	ctx.RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
@@ -66,7 +66,7 @@ func testPrebuiltEtcContext(t *testing.T, bp string) (*android.TestContext, andr
 	ctx.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
 	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
 	ctx.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
-	ctx.Register(config)
+	ctx.Register()
 
 	return ctx, config
 }
