@@ -19,9 +19,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"android/soong/shared"
+	"android/soong/ui/metrics"
 )
 
 func runBazel(ctx Context, config Config) {
+	ctx.BeginTrace(metrics.RunBazel, "bazel")
+	defer ctx.EndTrace()
+
 	// "droid" is the default ninja target.
 	// TODO(b/160568333): stop hardcoding 'droid' to support building any
 	// Ninja target.
@@ -45,9 +51,12 @@ func runBazel(ctx Context, config Config) {
 		cmd.Args = append(cmd.Args, strings.Fields(extra_startup_args)...)
 	}
 
+	actionName := "build"
 	cmd.Args = append(cmd.Args,
-		"build",
+		actionName,
 		"--output_groups="+outputGroups,
+		"--profile="+filepath.Join(shared.BazelMetricsFilename(config.OutDir(), actionName)),
+		"--slim_profile=true",
 	)
 
 	if extra_build_args, ok := cmd.Environment.Get("BAZEL_BUILD_ARGS"); ok {

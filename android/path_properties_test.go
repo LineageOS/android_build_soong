@@ -116,12 +116,12 @@ func TestPathDepsMutator(t *testing.T) {
 			`
 
 			config := TestArchConfig(buildDir, nil, bp, nil)
-			ctx := NewTestArchContext()
+			ctx := NewTestArchContext(config)
 
 			ctx.RegisterModuleType("test", pathDepsMutatorTestModuleFactory)
 			ctx.RegisterModuleType("filegroup", FileGroupFactory)
 
-			ctx.Register(config)
+			ctx.Register()
 			_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 			FailIfErrored(t, errs)
 			_, errs = ctx.PrepareBuildActions(config)

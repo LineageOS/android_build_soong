@@ -356,7 +356,7 @@ func TestClasspath(t *testing.T) {
 					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 					config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
 				}
-				ctx := testContext()
+				ctx := testContext(config)
 				run(t, ctx, config)
 
 				checkClasspath(t, ctx, true /* isJava8 */)
@@ -377,7 +377,7 @@ func TestClasspath(t *testing.T) {
 					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 					config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
 				}
-				ctx := testContext()
+				ctx := testContext(config)
 				run(t, ctx, config)
 
 				checkClasspath(t, ctx, false /* isJava8 */)
@@ -401,7 +401,7 @@ func TestClasspath(t *testing.T) {
 					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 					config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
 				}
-				ctx := testContext()
+				ctx := testContext(config)
 				run(t, ctx, config)
 
 				checkClasspath(t, ctx, true /* isJava8 */)
@@ -417,7 +417,7 @@ func TestClasspath(t *testing.T) {
 					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 					config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
 				}
-				ctx := testContext()
+				ctx := testContext(config)
 				run(t, ctx, config)
 
 				checkClasspath(t, ctx, false /* isJava8 */)

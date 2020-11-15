@@ -86,9 +86,9 @@ func testPackage(fs map[string][]byte) (*TestContext, []error) {
 	// Create a new config per test as visibility information is stored in the config.
 	config := TestArchConfig(buildDir, nil, "", fs)
 
-	ctx := NewTestArchContext()
+	ctx := NewTestArchContext(config)
 	RegisterPackageBuildComponents(ctx)
-	ctx.Register(config)
+	ctx.Register()
 
 	_, errs := ctx.ParseBlueprintsFiles(".")
 	if len(errs) > 0 {

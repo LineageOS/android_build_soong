@@ -142,8 +142,8 @@ func (tctx testRustCtx) parse(t *testing.T) *android.TestContext {
 	if tctx.config == nil {
 		t.Fatalf("tctx.config not been generated yet. Please call generateConfig first.")
 	}
-	ctx := CreateTestContext()
-	ctx.Register(*tctx.config)
+	ctx := CreateTestContext(*tctx.config)
+	ctx.Register()
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(*tctx.config)
@@ -157,8 +157,8 @@ func (tctx testRustCtx) parseError(t *testing.T, pattern string) {
 	if tctx.config == nil {
 		t.Fatalf("tctx.config not been generated yet. Please call generateConfig first.")
 	}
-	ctx := CreateTestContext()
-	ctx.Register(*tctx.config)
+	ctx := CreateTestContext(*tctx.config)
+	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	if len(errs) > 0 {

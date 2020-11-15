@@ -53,14 +53,14 @@ func TestMain(m *testing.M) {
 
 func testContext(config android.Config) *android.TestContext {
 
-	ctx := android.NewTestArchContext()
+	ctx := android.NewTestArchContext(config)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("tool", toolFactory)
 
 	registerGenruleBuildComponents(ctx)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	ctx.Register(config)
+	ctx.Register()
 
 	return ctx
 }

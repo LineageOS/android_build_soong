@@ -25,14 +25,14 @@ import (
 	"github.com/google/blueprint"
 )
 
-func NewTestContext() *TestContext {
+func NewTestContext(config Config) *TestContext {
 	namespaceExportFilter := func(namespace *Namespace) bool {
 		return true
 	}
 
 	nameResolver := NewNameResolver(namespaceExportFilter)
 	ctx := &TestContext{
-		Context:      &Context{blueprint.NewContext()},
+		Context:      &Context{blueprint.NewContext(), config},
 		NameResolver: nameResolver,
 	}
 
@@ -40,11 +40,16 @@ func NewTestContext() *TestContext {
 
 	ctx.postDeps = append(ctx.postDeps, registerPathDepsMutator)
 
+	ctx.SetFs(ctx.config.fs)
+	if ctx.config.mockBpList != "" {
+		ctx.SetModuleListFile(ctx.config.mockBpList)
+	}
+
 	return ctx
 }
 
-func NewTestArchContext() *TestContext {
-	ctx := NewTestContext()
+func NewTestArchContext(config Config) *TestContext {
+	ctx := NewTestContext(config)
 	ctx.preDeps = append(ctx.preDeps, registerArchMutator)
 	return ctx
 }
@@ -53,7 +58,6 @@ type TestContext struct {
 	*Context
 	preArch, preDeps, postDeps, finalDeps []RegisterMutatorFunc
 	NameResolver                          *NameResolver
-	config                                Config
 }
 
 func (ctx *TestContext) PreArchMutators(f RegisterMutatorFunc) {
@@ -77,16 +81,10 @@ func (ctx *TestContext) FinalDepsMutators(f RegisterMutatorFunc) {
 	ctx.finalDeps = append(ctx.finalDeps, f)
 }
 
-func (ctx *TestContext) Register(config Config) {
-	ctx.SetFs(config.fs)
-	if config.mockBpList != "" {
-		ctx.SetModuleListFile(config.mockBpList)
-	}
+func (ctx *TestContext) Register() {
 	registerMutators(ctx.Context.Context, ctx.preArch, ctx.preDeps, ctx.postDeps, ctx.finalDeps)
 
 	ctx.RegisterSingletonType("env", EnvSingleton)
-
-	ctx.config = config
 }
 
 func (ctx *TestContext) ParseFileList(rootDir string, filePaths []string) (deps []string, errs []error) {

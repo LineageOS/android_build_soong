@@ -57,10 +57,10 @@ func testXml(t *testing.T, bp string) *android.TestContext {
 		"baz.xml": nil,
 	}
 	config := android.TestArchConfig(buildDir, nil, bp, fs)
-	ctx := android.NewTestArchContext()
+	ctx := android.NewTestArchContext(config)
 	ctx.RegisterModuleType("prebuilt_etc", etc.PrebuiltEtcFactory)
 	ctx.RegisterModuleType("prebuilt_etc_xml", PrebuiltEtcXmlFactory)
-	ctx.Register(config)
+	ctx.Register()
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
