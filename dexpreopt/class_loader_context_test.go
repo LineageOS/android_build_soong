@@ -194,6 +194,16 @@ func TestCLCMaybeAdd(t *testing.T) {
 	})
 }
 
+// An attempt to add conditional nested subcontext should fail.
+func TestCLCNestedConditional(t *testing.T) {
+	ctx := testContext()
+	m1 := make(ClassLoaderContextMap)
+	m1.AddContextForSdk(ctx, 42, "a", buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+	m := make(ClassLoaderContextMap)
+	err := m.addContext(ctx, AnySdkVersion, "b", buildPath(ctx, "b"), installPath(ctx, "b"), true, m1)
+	checkError(t, err, "nested class loader context shouldn't have conditional part")
+}
+
 func checkError(t *testing.T, have error, want string) {
 	if have == nil {
 		t.Errorf("\nwant error: '%s'\nhave: none", want)
