@@ -80,7 +80,12 @@ func TestCLC(t *testing.T) {
 	// from conditional context.
 	m.AddContextForSdk(ctx, 42, "f", buildPath(ctx, "f"), installPath(ctx, "f"), nil)
 	m.AddContextForSdk(ctx, AnySdkVersion, "f", buildPath(ctx, "f"), installPath(ctx, "f"), nil)
-	m.AddContextMap(m3)
+
+	// Merge map with implicit root library that is among toplevel contexts => does nothing.
+	m.AddContextMap(m1, "c")
+	// Merge map with implicit root library that is not among toplevel contexts => all subcontexts
+	// of the other map are added as toplevel contexts.
+	m.AddContextMap(m3, "m_g")
 
 	// Compatibility libraries with unknown install paths get default paths.
 	m.AddContextForSdk(ctx, 29, AndroidHidlManager, buildPath(ctx, AndroidHidlManager), nil, nil)
