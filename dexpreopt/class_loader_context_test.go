@@ -37,91 +37,74 @@ func TestCLC(t *testing.T) {
 	//     ├── b
 	//     ├── c
 	//     ├── d
-	//     ├── a2
-	//     ├── b2
-	//     ├── c2
-	//     ├── a1
-	//     ├── b1
+	//     │   ├── a2
+	//     │   ├── b2
+	//     │   └── c2
+	//     │       ├── a1
+	//     │       └── b1
 	//     ├── f
 	//     ├── a3
 	//     └── b3
 	//
 	ctx := testContext()
 
-	lp := make(LibraryPaths)
+	m := make(ClassLoaderContextMap)
 
-	lp.AddLibraryPath(ctx, "a", buildPath(ctx, "a"), installPath(ctx, "a"))
-	lp.AddLibraryPath(ctx, "b", buildPath(ctx, "b"), installPath(ctx, "b"))
+	m.AddContext(ctx, "a", buildPath(ctx, "a"), installPath(ctx, "a"))
+	m.AddContext(ctx, "b", buildPath(ctx, "b"), installPath(ctx, "b"))
 
 	// "Maybe" variant in the good case: add as usual.
 	c := "c"
-	lp.MaybeAddLibraryPath(ctx, &c, buildPath(ctx, "c"), installPath(ctx, "c"))
+	m.MaybeAddContext(ctx, &c, buildPath(ctx, "c"), installPath(ctx, "c"))
 
 	// "Maybe" variant in the bad case: don't add library with unknown name, keep going.
-	lp.MaybeAddLibraryPath(ctx, nil, nil, nil)
+	m.MaybeAddContext(ctx, nil, nil, nil)
 
 	// Add some libraries with nested subcontexts.
 
-	lp1 := make(LibraryPaths)
-	lp1.AddLibraryPath(ctx, "a1", buildPath(ctx, "a1"), installPath(ctx, "a1"))
-	lp1.AddLibraryPath(ctx, "b1", buildPath(ctx, "b1"), installPath(ctx, "b1"))
+	m1 := make(ClassLoaderContextMap)
+	m1.AddContext(ctx, "a1", buildPath(ctx, "a1"), installPath(ctx, "a1"))
+	m1.AddContext(ctx, "b1", buildPath(ctx, "b1"), installPath(ctx, "b1"))
 
-	lp2 := make(LibraryPaths)
-	lp2.AddLibraryPath(ctx, "a2", buildPath(ctx, "a2"), installPath(ctx, "a2"))
-	lp2.AddLibraryPath(ctx, "b2", buildPath(ctx, "b2"), installPath(ctx, "b2"))
-	lp2.AddLibraryPath(ctx, "c2", buildPath(ctx, "c2"), installPath(ctx, "c2"))
-	lp2.AddLibraryPaths(lp1)
+	m2 := make(ClassLoaderContextMap)
+	m2.AddContext(ctx, "a2", buildPath(ctx, "a2"), installPath(ctx, "a2"))
+	m2.AddContext(ctx, "b2", buildPath(ctx, "b2"), installPath(ctx, "b2"))
+	m2.AddContextForSdk(ctx, AnySdkVersion, "c2", buildPath(ctx, "c2"), installPath(ctx, "c2"), m1)
 
-	lp.AddLibraryPath(ctx, "d", buildPath(ctx, "d"), installPath(ctx, "d"))
-	lp.AddLibraryPaths(lp2)
+	m3 := make(ClassLoaderContextMap)
+	m3.AddContext(ctx, "a3", buildPath(ctx, "a3"), installPath(ctx, "a3"))
+	m3.AddContext(ctx, "b3", buildPath(ctx, "b3"), installPath(ctx, "b3"))
 
-	lp3 := make(LibraryPaths)
-	lp3.AddLibraryPath(ctx, "f", buildPath(ctx, "f"), installPath(ctx, "f"))
-	lp3.AddLibraryPath(ctx, "a3", buildPath(ctx, "a3"), installPath(ctx, "a3"))
-	lp3.AddLibraryPath(ctx, "b3", buildPath(ctx, "b3"), installPath(ctx, "b3"))
-	lp.AddLibraryPaths(lp3)
+	m.AddContextForSdk(ctx, AnySdkVersion, "d", buildPath(ctx, "d"), installPath(ctx, "d"), m2)
+	// When the same library is both in conditional and unconditional context, it should be removed
+	// from conditional context.
+	m.AddContextForSdk(ctx, 42, "f", buildPath(ctx, "f"), installPath(ctx, "f"), nil)
+	m.AddContextForSdk(ctx, AnySdkVersion, "f", buildPath(ctx, "f"), installPath(ctx, "f"), nil)
+	m.AddContextMap(m3)
 
 	// Compatibility libraries with unknown install paths get default paths.
-	lp.AddLibraryPath(ctx, AndroidHidlBase, buildPath(ctx, AndroidHidlBase), nil)
-	lp.AddLibraryPath(ctx, AndroidHidlManager, buildPath(ctx, AndroidHidlManager), nil)
-	lp.AddLibraryPath(ctx, AndroidTestMock, buildPath(ctx, AndroidTestMock), nil)
-
-	module := testSystemModuleConfig(ctx, "test")
-	module.LibraryPaths = lp
-
-	m := make(classLoaderContextMap)
-	valid := true
-
-	ok, err := m.addLibs(ctx, AnySdkVersion, module, "a", "b", "c", "d", "a2", "b2", "c2", "a1", "b1", "f", "a3", "b3")
-	valid = valid && ok && err == nil
-
-	// Add compatibility libraries to conditional CLC for SDK level 29.
-	ok, err = m.addLibs(ctx, 29, module, AndroidHidlManager, AndroidHidlBase)
-	valid = valid && ok && err == nil
+	m.AddContextForSdk(ctx, 29, AndroidHidlManager, buildPath(ctx, AndroidHidlManager), nil, nil)
+	m.AddContextForSdk(ctx, 29, AndroidHidlBase, buildPath(ctx, AndroidHidlBase), nil, nil)
 
 	// Add "android.test.mock" to conditional CLC, observe that is gets removed because it is only
 	// needed as a compatibility library if "android.test.runner" is in CLC as well.
-	ok, err = m.addLibs(ctx, 30, module, AndroidTestMock)
-	valid = valid && ok && err == nil
+	m.AddContextForSdk(ctx, 30, AndroidTestMock, buildPath(ctx, AndroidTestMock), nil, nil)
 
-	// When the same library is both in conditional and unconditional context, it should be removed
-	// from conditional context.
-	ok, err = m.addLibs(ctx, 42, module, "f")
-	valid = valid && ok && err == nil
+	valid, validationError := validateClassLoaderContext(m)
 
-	fixConditionalClassLoaderContext(m)
+	fixClassLoaderContext(m)
 
 	var haveStr string
 	var havePaths android.Paths
 	var haveUsesLibs []string
-	if valid {
-		haveStr, havePaths = computeClassLoaderContext(ctx, m)
-		haveUsesLibs = m.usesLibs()
+	if valid && validationError == nil {
+		haveStr, havePaths = ComputeClassLoaderContext(m)
+		haveUsesLibs = m.UsesLibs()
 	}
 
 	// Test that validation is successful (all paths are known).
 	t.Run("validate", func(t *testing.T) {
-		if !valid {
+		if !(valid && validationError == nil) {
 			t.Errorf("invalid class loader context")
 		}
 	})
@@ -135,14 +118,14 @@ func TestCLC(t *testing.T) {
 			"PCL[/system/framework/" + AndroidHidlManager + ".jar]#" +
 			"PCL[/system/framework/" + AndroidHidlBase + ".jar]" +
 			" --host-context-for-sdk any " +
-			"PCL[out/a.jar]#PCL[out/b.jar]#PCL[out/c.jar]#PCL[out/d.jar]#" +
-			"PCL[out/a2.jar]#PCL[out/b2.jar]#PCL[out/c2.jar]#" +
-			"PCL[out/a1.jar]#PCL[out/b1.jar]#" +
+			"PCL[out/a.jar]#PCL[out/b.jar]#PCL[out/c.jar]#PCL[out/d.jar]" +
+			"{PCL[out/a2.jar]#PCL[out/b2.jar]#PCL[out/c2.jar]" +
+			"{PCL[out/a1.jar]#PCL[out/b1.jar]}}#" +
 			"PCL[out/f.jar]#PCL[out/a3.jar]#PCL[out/b3.jar]" +
 			" --target-context-for-sdk any " +
-			"PCL[/system/a.jar]#PCL[/system/b.jar]#PCL[/system/c.jar]#PCL[/system/d.jar]#" +
-			"PCL[/system/a2.jar]#PCL[/system/b2.jar]#PCL[/system/c2.jar]#" +
-			"PCL[/system/a1.jar]#PCL[/system/b1.jar]#" +
+			"PCL[/system/a.jar]#PCL[/system/b.jar]#PCL[/system/c.jar]#PCL[/system/d.jar]" +
+			"{PCL[/system/a2.jar]#PCL[/system/b2.jar]#PCL[/system/c2.jar]" +
+			"{PCL[/system/a1.jar]#PCL[/system/b1.jar]}}#" +
 			"PCL[/system/f.jar]#PCL[/system/a3.jar]#PCL[/system/b3.jar]"
 		if wantStr != haveStr {
 			t.Errorf("\nwant class loader context: %s\nhave class loader context: %s", wantStr, haveStr)
@@ -175,32 +158,40 @@ func TestCLC(t *testing.T) {
 // Test that an unexpected unknown build path causes immediate error.
 func TestCLCUnknownBuildPath(t *testing.T) {
 	ctx := testContext()
-	lp := make(LibraryPaths)
-	err := lp.addLibraryPath(ctx, "a", nil, nil, true)
-	checkError(t, err, "unknown build path to <uses-library> 'a'")
+	m := make(ClassLoaderContextMap)
+	err := m.addContext(ctx, AnySdkVersion, "a", nil, nil, true, nil)
+	checkError(t, err, "unknown build path to <uses-library> \"a\"")
 }
 
 // Test that an unexpected unknown install path causes immediate error.
 func TestCLCUnknownInstallPath(t *testing.T) {
 	ctx := testContext()
-	lp := make(LibraryPaths)
-	err := lp.addLibraryPath(ctx, "a", buildPath(ctx, "a"), nil, true)
-	checkError(t, err, "unknown install path to <uses-library> 'a'")
+	m := make(ClassLoaderContextMap)
+	err := m.addContext(ctx, AnySdkVersion, "a", buildPath(ctx, "a"), nil, true, nil)
+	checkError(t, err, "unknown install path to <uses-library> \"a\"")
 }
 
 func TestCLCMaybeAdd(t *testing.T) {
 	ctx := testContext()
 
-	lp := make(LibraryPaths)
+	m := make(ClassLoaderContextMap)
 	a := "a"
-	lp.MaybeAddLibraryPath(ctx, &a, nil, nil)
+	m.MaybeAddContext(ctx, &a, nil, nil)
 
-	module := testSystemModuleConfig(ctx, "test")
-	module.LibraryPaths = lp
+	// The library should be added to <uses-library> tags by the manifest_fixer.
+	t.Run("maybe add", func(t *testing.T) {
+		haveUsesLibs := m.UsesLibs()
+		wantUsesLibs := []string{"a"}
+		if !reflect.DeepEqual(wantUsesLibs, haveUsesLibs) {
+			t.Errorf("\nwant uses libs: %s\nhave uses libs: %s", wantUsesLibs, haveUsesLibs)
+		}
+	})
 
-	m := make(classLoaderContextMap)
-	_, err := m.addLibs(ctx, AnySdkVersion, module, "a")
-	checkError(t, err, "dexpreopt cannot find path for <uses-library> 'a'")
+	// But class loader context in such cases should raise an error on validation.
+	t.Run("validate", func(t *testing.T) {
+		_, err := validateClassLoaderContext(m)
+		checkError(t, err, "invalid path for <uses-library> \"a\"")
+	})
 }
 
 func checkError(t *testing.T, have error, want string) {
