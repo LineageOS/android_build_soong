@@ -114,10 +114,8 @@ type ModuleConfig struct {
 	ProfileIsTextListing bool
 	ProfileBootListing   android.OptionalPath
 
-	EnforceUsesLibraries  bool
-	OptionalUsesLibraries []string
-	UsesLibraries         []string
-	LibraryPaths          LibraryPaths
+	EnforceUsesLibraries bool
+	ClassLoaderContexts  ClassLoaderContextMap
 
 	Archs                   []android.ArchType
 	DexPreoptImages         []android.Path
@@ -265,7 +263,7 @@ func ParseModuleConfig(ctx android.PathContext, data []byte) (*ModuleConfig, err
 		DexPath                     string
 		ManifestPath                string
 		ProfileClassListing         string
-		LibraryPaths                jsonLibraryPaths
+		ClassLoaderContexts         jsonClassLoaderContextMap
 		DexPreoptImages             []string
 		DexPreoptImageLocations     []string
 		PreoptBootClassPathDexFiles []string
@@ -283,7 +281,7 @@ func ParseModuleConfig(ctx android.PathContext, data []byte) (*ModuleConfig, err
 	config.ModuleConfig.DexPath = constructPath(ctx, config.DexPath)
 	config.ModuleConfig.ManifestPath = constructPath(ctx, config.ManifestPath)
 	config.ModuleConfig.ProfileClassListing = android.OptionalPathForPath(constructPath(ctx, config.ProfileClassListing))
-	config.ModuleConfig.LibraryPaths = constructLibraryPaths(ctx, config.LibraryPaths)
+	config.ModuleConfig.ClassLoaderContexts = fromJsonClassLoaderContext(ctx, config.ClassLoaderContexts)
 	config.ModuleConfig.DexPreoptImages = constructPaths(ctx, config.DexPreoptImages)
 	config.ModuleConfig.DexPreoptImageLocations = config.DexPreoptImageLocations
 	config.ModuleConfig.PreoptBootClassPathDexFiles = constructPaths(ctx, config.PreoptBootClassPathDexFiles)
