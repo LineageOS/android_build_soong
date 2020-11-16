@@ -44,7 +44,7 @@ var (
 	pkgPathErrTemplate       = moduleVariantErrTemplate +
 		"pkg_path: %q must be a relative path contained in par file."
 	badIdentifierErrTemplate = moduleVariantErrTemplate +
-		"srcs: the path %q contains invalid token %q."
+		"srcs: the path %q contains invalid subpath %q."
 	dupRunfileErrTemplate = moduleVariantErrTemplate +
 		"found two files to be placed at the same location within zip %q." +
 		" First file: in module %s at path %q." +
@@ -370,7 +370,7 @@ func expectErrors(t *testing.T, actErrs []error, expErrs []string) (testErrs []e
 	} else {
 		sort.Strings(expErrs)
 		for i, v := range actErrStrs {
-			if v != expErrs[i] {
+			if !strings.Contains(v, expErrs[i]) {
 				testErrs = append(testErrs, errors.New(v))
 			}
 		}
