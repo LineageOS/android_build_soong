@@ -24,6 +24,8 @@ import (
 	"android/soong/ui/metrics"
 )
 
+// Main entry point to construct the Bazel build command line, environment variables
+// and post-processing steps (e.g. converge output directories)
 func runBazel(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunBazel, "bazel")
 	defer ctx.EndTrace()
@@ -67,6 +69,10 @@ func runBazel(ctx Context, config Config) {
 		"//:"+config.TargetProduct()+"-"+config.TargetBuildVariant(),
 	)
 
+	if pathEnvValue, ok := config.environ.Get("PATH"); ok {
+		cmd.Environment.Set("PATH", pathEnvValue)
+		cmd.Args = append(cmd.Args, "--action_env=PATH="+pathEnvValue)
+	}
 	cmd.Environment.Set("DIST_DIR", config.DistDir())
 	cmd.Environment.Set("SHELL", "/bin/bash")
 
