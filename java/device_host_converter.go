@@ -163,7 +163,7 @@ func (d *DeviceHostConverter) AidlIncludeDirs() android.Paths {
 	return nil
 }
 
-func (d *DeviceHostConverter) ExportedSdkLibs() dexpreopt.LibraryPaths {
+func (d *DeviceHostConverter) ExportedSdkLibs() dexpreopt.ClassLoaderContextMap {
 	return nil
 }
 
