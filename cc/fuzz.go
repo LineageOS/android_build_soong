@@ -278,14 +278,7 @@ func (fuzz *fuzzBinary) install(ctx ModuleContext, file android.Path) {
 
 	if fuzz.Properties.Fuzz_config != nil {
 		configPath := android.PathForModuleOut(ctx, "config").Join(ctx, "config.json")
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        android.WriteFile,
-			Description: "fuzzer infrastructure configuration",
-			Output:      configPath,
-			Args: map[string]string{
-				"content": fuzz.Properties.Fuzz_config.String(),
-			},
-		})
+		android.WriteFileRule(ctx, configPath, fuzz.Properties.Fuzz_config.String())
 		fuzz.config = configPath
 	}
 
