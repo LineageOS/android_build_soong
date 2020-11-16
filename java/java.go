@@ -1039,7 +1039,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			case libTag, instrumentationForTag:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
 				// sdk lib names from dependencies are re-exported
-				j.exportedSdkLibs.AddContextMap(dep.ExportedSdkLibs())
+				j.exportedSdkLibs.AddContextMap(dep.ExportedSdkLibs(), otherName)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
 				pluginJars, pluginClasses := dep.ExportedPlugins()
 				addPlugins(&deps, pluginJars, pluginClasses...)
@@ -1051,7 +1051,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.HeaderJars()...)
 				deps.staticResourceJars = append(deps.staticResourceJars, dep.ResourceJars()...)
 				// sdk lib names from dependencies are re-exported
-				j.exportedSdkLibs.AddContextMap(dep.ExportedSdkLibs())
+				j.exportedSdkLibs.AddContextMap(dep.ExportedSdkLibs(), otherName)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
 				pluginJars, pluginClasses := dep.ExportedPlugins()
 				addPlugins(&deps, pluginJars, pluginClasses...)
@@ -2735,7 +2735,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case libTag, staticLibTag:
 				flags.classpath = append(flags.classpath, dep.HeaderJars()...)
 				// sdk lib names from dependencies are re-exported
-				j.exportedSdkLibs.AddContextMap(dep.ExportedSdkLibs())
+				j.exportedSdkLibs.AddContextMap(dep.ExportedSdkLibs(), otherName)
 			case bootClasspathTag:
 				flags.bootClasspath = append(flags.bootClasspath, dep.HeaderJars()...)
 			}
