@@ -487,14 +487,7 @@ func (txt *vndkLibrariesTxt) GenerateAndroidBuildActions(ctx android.ModuleConte
 	}
 
 	txt.outputFile = android.PathForModuleOut(ctx, filename).OutputPath
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        android.WriteFile,
-		Output:      txt.outputFile,
-		Description: "Writing " + txt.outputFile.String(),
-		Args: map[string]string{
-			"content": strings.Join(list, "\\n"),
-		},
-	})
+	android.WriteFileRule(ctx, txt.outputFile, strings.Join(list, "\n"))
 
 	installPath := android.PathForModuleInstall(ctx, "etc")
 	ctx.InstallFile(installPath, filename, txt.outputFile)
@@ -825,14 +818,7 @@ func (c *vndkSnapshotSingleton) buildVndkLibrariesTxtFiles(ctx android.Singleton
 	merged = append(merged, addPrefix(filterOutLibClangRt(vndkcore), "VNDK-core: ")...)
 	merged = append(merged, addPrefix(vndkprivate, "VNDK-private: ")...)
 	c.vndkLibrariesFile = android.PathForOutput(ctx, "vndk", "vndk.libraries.txt")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        android.WriteFile,
-		Output:      c.vndkLibrariesFile,
-		Description: "Writing " + c.vndkLibrariesFile.String(),
-		Args: map[string]string{
-			"content": strings.Join(merged, "\\n"),
-		},
-	})
+	android.WriteFileRule(ctx, c.vndkLibrariesFile, strings.Join(merged, "\n"))
 }
 
 func (c *vndkSnapshotSingleton) MakeVars(ctx android.MakeVarsContext) {
