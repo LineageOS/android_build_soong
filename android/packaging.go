@@ -40,6 +40,15 @@ type PackagingSpec struct {
 	executable bool
 }
 
+// Get file name of installed package
+func (p *PackagingSpec) FileName() string {
+	if p.relPathInPackage != "" {
+		return filepath.Base(p.relPathInPackage)
+	}
+
+	return ""
+}
+
 type PackageModule interface {
 	Module
 	packagingBase() *PackagingBase
