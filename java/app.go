@@ -565,9 +565,8 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 	aaptLinkFlags = append(aaptLinkFlags, a.additionalAaptFlags...)
 
 	a.aapt.splitNames = a.appProperties.Package_splits
-	a.aapt.sdkLibraries = a.exportedSdkLibs
 	a.aapt.LoggingParent = String(a.overridableAppProperties.Logging_parent)
-	a.aapt.buildActions(ctx, sdkContext(a), aaptLinkFlags...)
+	a.aapt.buildActions(ctx, sdkContext(a), a.exportedSdkLibs, aaptLinkFlags...)
 
 	// apps manifests are handled by aapt, don't let Module see them
 	a.properties.Manifest = nil
@@ -601,7 +600,7 @@ func (a *AndroidApp) installPath(ctx android.ModuleContext) android.InstallPath 
 	return android.PathForModuleInstall(ctx, installDir, a.installApkName+".apk")
 }
 
-func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext, sdkLibs dexpreopt.ClassLoaderContextMap) android.Path {
+func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 	a.dexpreopter.installPath = a.installPath(ctx)
 	if a.dexProperties.Uncompress_dex == nil {
 		// If the value was not force-set by the user, use reasonable default based on the module.
@@ -609,10 +608,8 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext, sdkLibs dexpreop
 	}
 	a.dexpreopter.uncompressedDex = *a.dexProperties.Uncompress_dex
 	a.dexpreopter.enforceUsesLibs = a.usesLibrary.enforceUsesLibraries()
-	a.dexpreopter.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
-	a.dexpreopter.classLoaderContexts.AddContextMap(sdkLibs)
+	a.dexpreopter.classLoaderContexts = a.exportedSdkLibs
 	a.dexpreopter.manifestFile = a.mergedManifestFile
-	a.exportedSdkLibs = make(dexpreopt.ClassLoaderContextMap)
 
 	if ctx.ModuleName() != "framework-res" {
 		a.Module.compile(ctx, a.aaptSrcJar)
@@ -782,6 +779,8 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		a.aapt.noticeFile = a.noticeOutputs.HtmlGzOutput
 	}
 
+	a.exportedSdkLibs = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
+
 	// Process all building blocks, from AAPT to certificates.
 	a.aaptBuildActions(ctx)
 
@@ -789,7 +788,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.usesLibrary.freezeEnforceUsesLibraries()
 
 	// Add implicit SDK libraries to <uses-library> list.
-	for _, usesLib := range a.aapt.sdkLibraries.UsesLibs() {
+	for _, usesLib := range a.exportedSdkLibs.UsesLibs() {
 		a.usesLibrary.addLib(usesLib, inList(usesLib, dexpreopt.OptionalCompatUsesLibs))
 	}
 
@@ -806,7 +805,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.linter.resources = a.aapt.resourceFiles
 	a.linter.buildModuleReportZip = ctx.Config().UnbundledBuildApps()
 
-	dexJarFile := a.dexBuildActions(ctx, a.aapt.sdkLibraries)
+	dexJarFile := a.dexBuildActions(ctx)
 
 	jniLibs, certificateDeps := collectAppDeps(ctx, a, a.shouldEmbedJnis(ctx), !Bool(a.appProperties.Jni_uses_platform_apis))
 	jniJarFile := a.jniBuildActions(jniLibs, ctx)
@@ -1848,7 +1847,7 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 		aaptLinkFlags = append(aaptLinkFlags,
 			"--rename-overlay-target-package "+*r.overridableProperties.Target_package_name)
 	}
-	r.aapt.buildActions(ctx, r, aaptLinkFlags...)
+	r.aapt.buildActions(ctx, r, nil, aaptLinkFlags...)
 
 	// Sign the built package
 	_, certificates := collectAppDeps(ctx, r, false, false)
