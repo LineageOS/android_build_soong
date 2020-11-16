@@ -300,7 +300,7 @@ func hasSrcExt(srcs []string, ext string) bool {
 }
 
 func (p *Module) hasSrcExt(ctx android.BottomUpMutatorContext, ext string) bool {
-	return hasSrcExt(p.properties.Srcs, protoExt)
+	return hasSrcExt(p.properties.Srcs, ext)
 }
 
 func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
