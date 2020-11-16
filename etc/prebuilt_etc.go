@@ -14,9 +14,20 @@
 
 package etc
 
-import (
-	"strconv"
+// This file implements module types that install prebuilt artifacts.
+//
+// There exist two classes of prebuilt modules in the Android tree. The first class are the ones
+// based on `android.Prebuilt`, such as `cc_prebuilt_library` and `java_import`. This kind of
+// modules may exist both as prebuilts and source at the same time, though only one would be
+// installed and the other would be marked disabled. The `prebuilt_postdeps` mutator would select
+// the actual modules to be installed. More details in android/prebuilt.go.
+//
+// The second class is described in this file. Unlike `android.Prebuilt` based module types,
+// `prebuilt_etc` exist only as prebuilts and cannot have a same-named source module counterpart.
+// This makes the logic of `prebuilt_etc` to be much simpler as they don't need to go through the
+// various `prebuilt_*` mutators.
 
+import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -42,7 +53,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 }
 
 type prebuiltEtcProperties struct {
-	// Source file of this prebuilt.
+	// Source file of this prebuilt. Can reference a genrule type module with the ":module" syntax.
 	Src *string `android:"path,arch_variant"`
 
 	// optional subdirectory under which this file is installed into, cannot be specified with relative_install_path, prefer relative_install_path
@@ -209,6 +220,11 @@ func (p *PrebuiltEtc) Installable() bool {
 
 func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.sourceFilePath = android.PathForModuleSrc(ctx, android.String(p.properties.Src))
+
+	// Determine the output file basename.
+	// If Filename is set, use the name specified by the property.
+	// If Filename_from_src is set, use the source file name.
+	// Otherwise use the module name.
 	filename := android.String(p.properties.Filename)
 	filename_from_src := android.Bool(p.properties.Filename_from_src)
 	if filename == "" {
@@ -274,11 +290,9 @@ func (p *PrebuiltEtc) AndroidMkEntries() []android.AndroidMkEntries {
 				if len(p.properties.Symlinks) > 0 {
 					entries.AddStrings("LOCAL_MODULE_SYMLINKS", p.properties.Symlinks...)
 				}
-				entries.SetString("LOCAL_UNINSTALLABLE_MODULE", strconv.FormatBool(!p.Installable()))
+				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.Installable())
 				if p.additionalDependencies != nil {
-					for _, path := range *p.additionalDependencies {
-						entries.AddStrings("LOCAL_ADDITIONAL_DEPENDENCIES", path.String())
-					}
+					entries.AddStrings("LOCAL_ADDITIONAL_DEPENDENCIES", p.additionalDependencies.Strings()...)
 				}
 			},
 		},
