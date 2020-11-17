@@ -505,7 +505,7 @@ func (c *vndkPrebuiltLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, en
 	})
 }
 
-func (c *vendorSnapshotLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+func (c *snapshotLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	// Each vendor snapshot is exported to androidMk only when BOARD_VNDK_VERSION != current
 	// and the version of the prebuilt is same as BOARD_VNDK_VERSION.
 	if c.shared() {
@@ -549,7 +549,7 @@ func (c *vendorSnapshotLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, 
 	})
 }
 
-func (c *vendorSnapshotBinaryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+func (c *snapshotBinaryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	entries.Class = "EXECUTABLES"
 
 	if c.androidMkVendorSuffix {
@@ -563,7 +563,7 @@ func (c *vendorSnapshotBinaryDecorator) AndroidMkEntries(ctx AndroidMkContext, e
 	})
 }
 
-func (c *vendorSnapshotObjectLinker) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+func (c *snapshotObjectLinker) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	entries.Class = "STATIC_LIBRARIES"
 
 	if c.androidMkVendorSuffix {
