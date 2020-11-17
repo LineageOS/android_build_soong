@@ -5447,7 +5447,7 @@ func TestAppBundle(t *testing.T) {
 		}
 		`, withManifestPackageNameOverrides([]string{"AppFoo:com.android.foo"}))
 
-	bundleConfigRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Description("Bundle Config")
+	bundleConfigRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("bundle_config.json")
 	content := bundleConfigRule.Args["content"]
 
 	ensureContains(t, content, `"compression":{"uncompressed_glob":["apex_payload.img","apex_manifest.*"]}`)
@@ -5473,7 +5473,7 @@ func TestAppSetBundle(t *testing.T) {
 			set: "AppSet.apks",
 		}`)
 	mod := ctx.ModuleForTests("myapex", "android_common_myapex_image")
-	bundleConfigRule := mod.Description("Bundle Config")
+	bundleConfigRule := mod.Output("bundle_config.json")
 	content := bundleConfigRule.Args["content"]
 	ensureContains(t, content, `"compression":{"uncompressed_glob":["apex_payload.img","apex_manifest.*"]}`)
 	s := mod.Rule("apexRule").Args["copy_commands"]

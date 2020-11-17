@@ -225,14 +225,7 @@ func createApiLevelsJson(ctx SingletonContext, file WritablePath,
 		ctx.Errorf(err.Error())
 	}
 
-	ctx.Build(pctx, BuildParams{
-		Rule:        WriteFile,
-		Description: "generate " + file.Base(),
-		Output:      file,
-		Args: map[string]string{
-			"content": string(jsonStr[:]),
-		},
-	})
+	WriteFileRule(ctx, file, string(jsonStr))
 }
 
 func GetApiLevelsJson(ctx PathContext) WritablePath {
