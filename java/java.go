@@ -547,14 +547,6 @@ type dependencyTag struct {
 	name string
 }
 
-// installDependencyTag is a dependency tag that is annotated to cause the installed files of the
-// dependency to be installed when the parent module is installed.
-type installDependencyTag struct {
-	blueprint.BaseDependencyTag
-	android.InstallAlwaysNeededDependencyTag
-	name string
-}
-
 type usesLibraryDependencyTag struct {
 	dependencyTag
 	sdkVersion int // SDK version in which the library appared as a standalone library.
@@ -588,8 +580,6 @@ var (
 	instrumentationForTag = dependencyTag{name: "instrumentation_for"}
 	extraLintCheckTag     = dependencyTag{name: "extra-lint-check"}
 	jniLibTag             = dependencyTag{name: "jnilib"}
-	jniInstallTag         = installDependencyTag{name: "jni install"}
-	binaryInstallTag      = installDependencyTag{name: "binary install"}
 	usesLibTag            = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion)
 	usesLibCompat28Tag    = makeUsesLibraryDependencyTag(28)
 	usesLibCompat29Tag    = makeUsesLibraryDependencyTag(29)
@@ -2558,12 +2548,9 @@ func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if ctx.Arch().ArchType == android.Common {
 		j.deps(ctx)
 	} else {
-		// These dependencies ensure the host installation rules will install the jar file and
-		// the jni libraries when the wrapper is installed.
-		ctx.AddVariationDependencies(nil, jniInstallTag, j.binaryProperties.Jni_libs...)
-		ctx.AddVariationDependencies(
-			[]blueprint.Variation{{Mutator: "arch", Variation: android.CommonArch.String()}},
-			binaryInstallTag, ctx.ModuleName())
+		// This dependency ensures the host installation rules will install the jni libraries
+		// when the wrapper is installed.
+		ctx.AddVariationDependencies(nil, jniLibTag, j.binaryProperties.Jni_libs...)
 	}
 }
 

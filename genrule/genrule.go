@@ -31,10 +31,10 @@ import (
 )
 
 func init() {
-	RegisterGenruleBuildComponents(android.InitRegistrationContext)
+	registerGenruleBuildComponents(android.InitRegistrationContext)
 }
 
-func RegisterGenruleBuildComponents(ctx android.RegistrationContext) {
+func registerGenruleBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("genrule_defaults", defaultsFactory)
 
 	ctx.RegisterModuleType("gensrcs", GenSrcsFactory)
