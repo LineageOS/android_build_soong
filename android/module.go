@@ -1242,18 +1242,14 @@ func (m *ModuleBase) ExportedToMake() bool {
 	return m.commonProperties.NamespaceExportedToMake
 }
 
-// computeInstallDeps finds the installed paths of all dependencies that have a dependency
-// tag that is annotated as needing installation via the IsInstallDepNeeded method.
 func (m *ModuleBase) computeInstallDeps(ctx blueprint.ModuleContext) InstallPaths {
+
 	var result InstallPaths
-	ctx.WalkDeps(func(child, parent blueprint.Module) bool {
-		if a, ok := child.(Module); ok {
-			if IsInstallDepNeeded(ctx.OtherModuleDependencyTag(child)) {
-				result = append(result, a.FilesToInstall()...)
-				return true
-			}
+	// TODO(ccross): we need to use WalkDeps and have some way to know which dependencies require installation
+	ctx.VisitDepsDepthFirst(func(m blueprint.Module) {
+		if a, ok := m.(Module); ok {
+			result = append(result, a.FilesToInstall()...)
 		}
-		return false
 	})
 
 	return result

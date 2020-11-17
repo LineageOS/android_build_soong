@@ -550,30 +550,13 @@ func (d libraryDependencyTag) static() bool {
 	return d.Kind == staticLibraryDependency
 }
 
-// InstallDepNeeded returns true for shared libraries so that shared library dependencies of
-// binaries or other shared libraries are installed as dependencies.
-func (d libraryDependencyTag) InstallDepNeeded() bool {
-	return d.shared()
-}
-
-var _ android.InstallNeededDependencyTag = libraryDependencyTag{}
-
-// dependencyTag is used for tagging miscellaneous dependency types that don't fit into
+// dependencyTag is used for tagging miscellanous dependency types that don't fit into
 // libraryDependencyTag.  Each tag object is created globally and reused for multiple
 // dependencies (although since the object contains no references, assigning a tag to a
 // variable and modifying it will not modify the original).  Users can compare the tag
 // returned by ctx.OtherModuleDependencyTag against the global original
 type dependencyTag struct {
 	blueprint.BaseDependencyTag
-	name string
-}
-
-// installDependencyTag is used for tagging miscellaneous dependency types that don't fit into
-// libraryDependencyTag, but where the dependency needs to be installed when the parent is
-// installed.
-type installDependencyTag struct {
-	blueprint.BaseDependencyTag
-	android.InstallAlwaysNeededDependencyTag
 	name string
 }
 
@@ -588,7 +571,7 @@ var (
 	staticVariantTag      = dependencyTag{name: "static variant"}
 	vndkExtDepTag         = dependencyTag{name: "vndk extends"}
 	dataLibDepTag         = dependencyTag{name: "data lib"}
-	runtimeDepTag         = installDependencyTag{name: "runtime lib"}
+	runtimeDepTag         = dependencyTag{name: "runtime lib"}
 	testPerSrcDepTag      = dependencyTag{name: "test_per_src"}
 	stubImplDepTag        = dependencyTag{name: "stub_impl"}
 )
@@ -615,7 +598,8 @@ func IsHeaderDepTag(depTag blueprint.DependencyTag) bool {
 }
 
 func IsRuntimeDepTag(depTag blueprint.DependencyTag) bool {
-	return depTag == runtimeDepTag
+	ccDepTag, ok := depTag.(dependencyTag)
+	return ok && ccDepTag == runtimeDepTag
 }
 
 func IsTestPerSrcDepTag(depTag blueprint.DependencyTag) bool {
