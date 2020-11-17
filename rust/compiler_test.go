@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/cc"
 )
 
 // Test that feature flags are being correctly generated.
@@ -132,6 +133,7 @@ func TestLints(t *testing.T) {
 		}`
 
 	bp = bp + GatherRequiredDepsForTest()
+	bp = bp + cc.GatherRequiredDepsForTest(android.NoOsType)
 
 	fs := map[string][]byte{
 		// Reuse the same blueprint file for subdirectories.
