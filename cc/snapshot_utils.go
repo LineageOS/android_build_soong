@@ -60,7 +60,8 @@ func (s *snapshotMap) get(name string, arch android.ArchType) (snapshot string, 
 func isSnapshotAware(ctx android.ModuleContext, m *Module, apexInfo android.ApexInfo) bool {
 	if _, _, ok := isVndkSnapshotLibrary(ctx.DeviceConfig(), m, apexInfo); ok {
 		return ctx.Config().VndkSnapshotBuildArtifacts()
-	} else if isVendorSnapshotModule(m, isVendorProprietaryPath(ctx.ModuleDir()), apexInfo) {
+	} else if isVendorSnapshotModule(m, isVendorProprietaryPath(ctx.ModuleDir()), apexInfo) ||
+		isRecoverySnapshotModule(m, isVendorProprietaryPath(ctx.ModuleDir()), apexInfo) {
 		return true
 	}
 	return false
