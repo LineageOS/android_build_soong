@@ -200,7 +200,9 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		profileEmitArg := strings.TrimPrefix(cc.PwdPrefix(), "PWD=") + "/"
 
 		if outputFile.Ext() != "" {
-			gcnoFile = android.PathForModuleOut(ctx, pathtools.ReplaceExtension(outputFile.Base(), "gcno"))
+			// rustc seems to split the output filename at the first '.' when determining the gcno filename
+			// so we need to do the same here.
+			gcnoFile = android.PathForModuleOut(ctx, strings.Split(outputFile.Base(), ".")[0]+".gcno")
 			rustcFlags = append(rustcFlags, "-Z profile-emit="+profileEmitArg+android.PathForModuleOut(
 				ctx, pathtools.ReplaceExtension(outputFile.Base(), "gcda")).String())
 		} else {
