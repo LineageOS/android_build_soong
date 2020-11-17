@@ -50,6 +50,7 @@ java_import {
     name: "myexports_myjavalib@current",
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myjavalib.jar"],
 }
 
@@ -57,6 +58,7 @@ java_import {
     name: "myjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myjavalib.jar"],
 }
 

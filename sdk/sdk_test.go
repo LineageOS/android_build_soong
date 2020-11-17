@@ -181,6 +181,7 @@ java_import {
         "//package",
         "//prebuilts/mysdk",
     ],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myjavalib.jar"],
 }
 
@@ -192,6 +193,7 @@ java_import {
         "//package",
         "//prebuilts/mysdk",
     ],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myjavalib.jar"],
 }
 
@@ -199,6 +201,7 @@ java_import {
     name: "mysdk_mypublicjavalib@current",
     sdk_member_name: "mypublicjavalib",
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/mypublicjavalib.jar"],
 }
 
@@ -206,6 +209,7 @@ java_import {
     name: "mypublicjavalib",
     prefer: false,
     visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/mypublicjavalib.jar"],
 }
 
@@ -217,6 +221,7 @@ java_import {
         "//package",
         "//prebuilts/mysdk",
     ],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/mydefaultedjavalib.jar"],
 }
 
@@ -228,6 +233,7 @@ java_import {
         "//package",
         "//prebuilts/mysdk",
     ],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/mydefaultedjavalib.jar"],
 }
 
@@ -238,6 +244,7 @@ java_import {
         "//package",
         "//prebuilts/mysdk",
     ],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myprivatejavalib.jar"],
 }
 
@@ -248,6 +255,7 @@ java_import {
         "//package",
         "//prebuilts/mysdk",
     ],
+    apex_available: ["//apex_available:platform"],
     jars: ["java/myprivatejavalib.jar"],
 }
 
