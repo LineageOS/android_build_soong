@@ -572,14 +572,7 @@ func TransformJetifier(ctx android.ModuleContext, outputFile android.WritablePat
 }
 
 func GenerateMainClassManifest(ctx android.ModuleContext, outputFile android.WritablePath, mainClass string) {
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        android.WriteFile,
-		Description: "manifest",
-		Output:      outputFile,
-		Args: map[string]string{
-			"content": "Main-Class: " + mainClass + "\n",
-		},
-	})
+	android.WriteFileRule(ctx, outputFile, "Main-Class: "+mainClass+"\n")
 }
 
 func TransformZipAlign(ctx android.ModuleContext, outputFile android.WritablePath, inputFile android.Path) {
