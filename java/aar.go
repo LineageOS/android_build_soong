@@ -259,16 +259,16 @@ var extractAssetsRule = pctx.AndroidStaticRule("extractAssets",
 	})
 
 func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext,
-	sdkLibraries dexpreopt.ClassLoaderContextMap, extraLinkFlags ...string) {
+	classLoaderContexts dexpreopt.ClassLoaderContextMap, extraLinkFlags ...string) {
 
 	transitiveStaticLibs, transitiveStaticLibManifests, staticRRODirs, assetPackages, libDeps, libFlags :=
-		aaptLibs(ctx, sdkContext, sdkLibraries)
+		aaptLibs(ctx, sdkContext, classLoaderContexts)
 
 	// App manifest file
 	manifestFile := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
 	manifestSrcPath := android.PathForModuleSrc(ctx, manifestFile)
 
-	manifestPath := manifestFixer(ctx, manifestSrcPath, sdkContext, sdkLibraries,
+	manifestPath := manifestFixer(ctx, manifestSrcPath, sdkContext, classLoaderContexts,
 		a.isLibrary, a.useEmbeddedNativeLibs, a.usesNonSdkApis, a.useEmbeddedDex, a.hasNoCode,
 		a.LoggingParent)
 
@@ -389,15 +389,15 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext,
 }
 
 // aaptLibs collects libraries from dependencies and sdk_version and converts them into paths
-func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, sdkLibraries dexpreopt.ClassLoaderContextMap) (
+func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, classLoaderContexts dexpreopt.ClassLoaderContextMap) (
 	transitiveStaticLibs, transitiveStaticLibManifests android.Paths, staticRRODirs []rroDir, assets, deps android.Paths, flags []string) {
 
 	var sharedLibs android.Paths
 
-	if sdkLibraries == nil {
+	if classLoaderContexts == nil {
 		// Not all callers need to compute class loader context, those who don't just pass nil.
 		// Create a temporary class loader context here (it will be computed, but not used).
-		sdkLibraries = make(dexpreopt.ClassLoaderContextMap)
+		classLoaderContexts = make(dexpreopt.ClassLoaderContextMap)
 	}
 
 	sdkDep := decodeSdkDep(ctx, sdkContext)
@@ -426,7 +426,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, sdkLibraries dex
 			// (including the java_sdk_library) itself then append any implicit sdk library
 			// names to the list of sdk libraries to be added to the manifest.
 			if component, ok := module.(SdkLibraryComponentDependency); ok {
-				sdkLibraries.MaybeAddContext(ctx, component.OptionalImplicitSdkLibrary(),
+				classLoaderContexts.MaybeAddContext(ctx, component.OptionalImplicitSdkLibrary(), true,
 					component.DexJarBuildPath(), component.DexJarInstallPath())
 			}
 
@@ -439,7 +439,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, sdkLibraries dex
 				transitiveStaticLibs = append(transitiveStaticLibs, aarDep.ExportedStaticPackages()...)
 				transitiveStaticLibs = append(transitiveStaticLibs, exportPackage)
 				transitiveStaticLibManifests = append(transitiveStaticLibManifests, aarDep.ExportedManifests()...)
-				sdkLibraries.AddContextMap(aarDep.ExportedSdkLibs(), depName)
+				classLoaderContexts.AddContextMap(aarDep.ClassLoaderContexts(), depName)
 				if aarDep.ExportedAssets().Valid() {
 					assets = append(assets, aarDep.ExportedAssets().Path())
 				}
@@ -461,7 +461,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, sdkLibraries dex
 		// Add nested dependencies after processing the direct dependency: if it is a <uses-library>,
 		// nested context is added as its subcontext, and should not be re-added at the top-level.
 		if dep, ok := module.(Dependency); ok {
-			sdkLibraries.AddContextMap(dep.ExportedSdkLibs(), depName)
+			classLoaderContexts.AddContextMap(dep.ClassLoaderContexts(), depName)
 		}
 	})
 
@@ -514,8 +514,8 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.aapt.isLibrary = true
-	a.exportedSdkLibs = make(dexpreopt.ClassLoaderContextMap)
-	a.aapt.buildActions(ctx, sdkContext(a), a.exportedSdkLibs)
+	a.classLoaderContexts = make(dexpreopt.ClassLoaderContextMap)
+	a.aapt.buildActions(ctx, sdkContext(a), a.classLoaderContexts)
 
 	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
 
@@ -832,7 +832,7 @@ func (a *AARImport) AidlIncludeDirs() android.Paths {
 	return nil
 }
 
-func (a *AARImport) ExportedSdkLibs() dexpreopt.ClassLoaderContextMap {
+func (a *AARImport) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
 	return nil
 }
 
