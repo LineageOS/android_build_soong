@@ -389,8 +389,10 @@ func (r *robolectricRuntimes) GenerateAndroidBuildActions(ctx android.ModuleCont
 		}
 		runtimeFromSourceJar := android.OutputFileForModule(ctx, runtimeFromSourceModule, "")
 
+		// TODO(murj) Update this to ctx.Config().PlatformSdkCodename() once the platform
+		// classes like android.os.Build are updated to S.
 		runtimeName := fmt.Sprintf("android-all-%s-robolectric-r0.jar",
-			ctx.Config().PlatformSdkCodename())
+			"R")
 		installedRuntime := ctx.InstallFile(androidAllDir, runtimeName, runtimeFromSourceJar)
 		r.runtimes = append(r.runtimes, installedRuntime)
 	}
