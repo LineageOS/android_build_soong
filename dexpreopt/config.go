@@ -486,13 +486,7 @@ func (s *globalSoongConfigSingleton) GenerateBuildActions(ctx android.SingletonC
 		return
 	}
 
-	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.WriteFile,
-		Output: android.PathForOutput(ctx, "dexpreopt_soong.config"),
-		Args: map[string]string{
-			"content": string(data),
-		},
-	})
+	android.WriteFileRule(ctx, android.PathForOutput(ctx, "dexpreopt_soong.config"), string(data))
 }
 
 func (s *globalSoongConfigSingleton) MakeVars(ctx android.MakeVarsContext) {

@@ -93,13 +93,6 @@ func combineNotices(ctx android.SingletonContext, paths android.Paths, out strin
 
 func writeStringToFile(ctx android.SingletonContext, content, out string) android.OutputPath {
 	outPath := android.PathForOutput(ctx, out)
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        android.WriteFile,
-		Output:      outPath,
-		Description: "WriteFile " + out,
-		Args: map[string]string{
-			"content": content,
-		},
-	})
+	android.WriteFileRule(ctx, outPath, content)
 	return outPath
 }
