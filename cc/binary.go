@@ -95,6 +95,10 @@ type binaryDecorator struct {
 	// Names of symlinks to be installed for use in LOCAL_MODULE_SYMLINKS
 	symlinks []string
 
+	// If the module has symlink_preferred_arch set, the name of the symlink to the
+	// binary for the preferred arch.
+	preferredArchSymlink string
+
 	// Output archive of gcno coverage information
 	coverageOutputFile android.OptionalPath
 
@@ -402,7 +406,9 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 			ctx.PropertyErrorf("symlink_preferred_arch", "must also specify suffix")
 		}
 		if ctx.TargetPrimary() {
-			binary.symlinks = append(binary.symlinks, binary.getStemWithoutSuffix(ctx))
+			symlinkName := binary.getStemWithoutSuffix(ctx)
+			binary.symlinks = append(binary.symlinks, symlinkName)
+			binary.preferredArchSymlink = symlinkName
 		}
 	}
 
@@ -455,12 +461,26 @@ func (binary *binaryDecorator) install(ctx ModuleContext, file android.Path) {
 		binary.baseInstaller.subDir = "bootstrap"
 	}
 	binary.baseInstaller.install(ctx, file)
+
+	var preferredArchSymlinkPath android.OptionalPath
 	for _, symlink := range binary.symlinks {
-		ctx.InstallSymlink(binary.baseInstaller.installDir(ctx), symlink, binary.baseInstaller.path)
+		installedSymlink := ctx.InstallSymlink(binary.baseInstaller.installDir(ctx), symlink,
+			binary.baseInstaller.path)
+		if symlink == binary.preferredArchSymlink {
+			// If this is the preferred arch symlink, save the installed path for use as the
+			// tool path.
+			preferredArchSymlinkPath = android.OptionalPathForPath(installedSymlink)
+		}
 	}
 
 	if ctx.Os().Class == android.Host {
-		binary.toolPath = android.OptionalPathForPath(binary.baseInstaller.path)
+		// If the binary is multilib with a symlink to the preferred architecture, use the
+		// symlink instead of the binary because that's the more "canonical" name.
+		if preferredArchSymlinkPath.Valid() {
+			binary.toolPath = preferredArchSymlinkPath
+		} else {
+			binary.toolPath = android.OptionalPathForPath(binary.baseInstaller.path)
+		}
 	}
 }
 
