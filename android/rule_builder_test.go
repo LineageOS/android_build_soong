@@ -27,8 +27,8 @@ import (
 	"android/soong/shared"
 )
 
-func pathContext() PathContext {
-	return PathContextForTesting(TestConfig("out", nil, "", map[string][]byte{
+func builderContext() BuilderContext {
+	return BuilderContextForTesting(TestConfig("out", nil, "", map[string][]byte{
 		"ld":      nil,
 		"a.o":     nil,
 		"b.o":     nil,
@@ -44,9 +44,9 @@ func pathContext() PathContext {
 }
 
 func ExampleRuleBuilder() {
-	rule := NewRuleBuilder()
+	ctx := builderContext()
 
-	ctx := pathContext()
+	rule := NewRuleBuilder(pctx, ctx)
 
 	rule.Command().
 		Tool(PathForSource(ctx, "ld")).
@@ -55,7 +55,7 @@ func ExampleRuleBuilder() {
 	rule.Command().Text("echo success")
 
 	// To add the command to the build graph:
-	// rule.Build(pctx, ctx, "link", "link")
+	// rule.Build("link", "link")
 
 	fmt.Printf("commands: %q\n", strings.Join(rule.Commands(), " && "))
 	fmt.Printf("tools: %q\n", rule.Tools())
@@ -70,9 +70,9 @@ func ExampleRuleBuilder() {
 }
 
 func ExampleRuleBuilder_SymlinkOutputs() {
-	rule := NewRuleBuilder()
+	ctx := builderContext()
 
-	ctx := pathContext()
+	rule := NewRuleBuilder(pctx, ctx)
 
 	rule.Command().
 		Tool(PathForSource(ctx, "ln")).
@@ -96,9 +96,9 @@ func ExampleRuleBuilder_SymlinkOutputs() {
 }
 
 func ExampleRuleBuilder_Temporary() {
-	rule := NewRuleBuilder()
+	ctx := builderContext()
 
-	ctx := pathContext()
+	rule := NewRuleBuilder(pctx, ctx)
 
 	rule.Command().
 		Tool(PathForSource(ctx, "cp")).
@@ -123,9 +123,9 @@ func ExampleRuleBuilder_Temporary() {
 }
 
 func ExampleRuleBuilder_DeleteTemporaryFiles() {
-	rule := NewRuleBuilder()
+	ctx := builderContext()
 
-	ctx := pathContext()
+	rule := NewRuleBuilder(pctx, ctx)
 
 	rule.Command().
 		Tool(PathForSource(ctx, "cp")).
@@ -151,9 +151,9 @@ func ExampleRuleBuilder_DeleteTemporaryFiles() {
 }
 
 func ExampleRuleBuilder_Installs() {
-	rule := NewRuleBuilder()
+	ctx := builderContext()
 
-	ctx := pathContext()
+	rule := NewRuleBuilder(pctx, ctx)
 
 	out := PathForOutput(ctx, "linked")
 
@@ -171,9 +171,9 @@ func ExampleRuleBuilder_Installs() {
 }
 
 func ExampleRuleBuilderCommand() {
-	rule := NewRuleBuilder()
+	ctx := builderContext()
 
-	ctx := pathContext()
+	rule := NewRuleBuilder(pctx, ctx)
 
 	// chained
 	rule.Command().
@@ -194,24 +194,24 @@ func ExampleRuleBuilderCommand() {
 }
 
 func ExampleRuleBuilderCommand_Flag() {
-	ctx := pathContext()
-	fmt.Println(NewRuleBuilder().Command().
+	ctx := builderContext()
+	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Tool(PathForSource(ctx, "ls")).Flag("-l"))
 	// Output:
 	// ls -l
 }
 
 func ExampleRuleBuilderCommand_Flags() {
-	ctx := pathContext()
-	fmt.Println(NewRuleBuilder().Command().
+	ctx := builderContext()
+	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Tool(PathForSource(ctx, "ls")).Flags([]string{"-l", "-a"}))
 	// Output:
 	// ls -l -a
 }
 
 func ExampleRuleBuilderCommand_FlagWithArg() {
-	ctx := pathContext()
-	fmt.Println(NewRuleBuilder().Command().
+	ctx := builderContext()
+	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Tool(PathForSource(ctx, "ls")).
 		FlagWithArg("--sort=", "time"))
 	// Output:
@@ -219,8 +219,8 @@ func ExampleRuleBuilderCommand_FlagWithArg() {
 }
 
 func ExampleRuleBuilderCommand_FlagForEachArg() {
-	ctx := pathContext()
-	fmt.Println(NewRuleBuilder().Command().
+	ctx := builderContext()
+	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Tool(PathForSource(ctx, "ls")).
 		FlagForEachArg("--sort=", []string{"time", "size"}))
 	// Output:
@@ -228,8 +228,8 @@ func ExampleRuleBuilderCommand_FlagForEachArg() {
 }
 
 func ExampleRuleBuilderCommand_FlagForEachInput() {
-	ctx := pathContext()
-	fmt.Println(NewRuleBuilder().Command().
+	ctx := builderContext()
+	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Tool(PathForSource(ctx, "turbine")).
 		FlagForEachInput("--classpath ", PathsForTesting("a.jar", "b.jar")))
 	// Output:
@@ -237,8 +237,8 @@ func ExampleRuleBuilderCommand_FlagForEachInput() {
 }
 
 func ExampleRuleBuilderCommand_FlagWithInputList() {
-	ctx := pathContext()
-	fmt.Println(NewRuleBuilder().Command().
+	ctx := builderContext()
+	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Tool(PathForSource(ctx, "java")).
 		FlagWithInputList("-classpath=", PathsForTesting("a.jar", "b.jar"), ":"))
 	// Output:
@@ -246,8 +246,8 @@ func ExampleRuleBuilderCommand_FlagWithInputList() {
 }
 
 func ExampleRuleBuilderCommand_FlagWithInput() {
-	ctx := pathContext()
-	fmt.Println(NewRuleBuilder().Command().
+	ctx := builderContext()
+	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Tool(PathForSource(ctx, "java")).
 		FlagWithInput("-classpath=", PathForSource(ctx, "a")))
 	// Output:
@@ -255,8 +255,8 @@ func ExampleRuleBuilderCommand_FlagWithInput() {
 }
 
 func ExampleRuleBuilderCommand_FlagWithList() {
-	ctx := pathContext()
-	fmt.Println(NewRuleBuilder().Command().
+	ctx := builderContext()
+	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Tool(PathForSource(ctx, "ls")).
 		FlagWithList("--sort=", []string{"time", "size"}, ","))
 	// Output:
@@ -264,8 +264,8 @@ func ExampleRuleBuilderCommand_FlagWithList() {
 }
 
 func ExampleRuleBuilderCommand_FlagWithRspFileInputList() {
-	ctx := pathContext()
-	fmt.Println(NewRuleBuilder().Command().
+	ctx := builderContext()
+	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Tool(PathForSource(ctx, "javac")).
 		FlagWithRspFileInputList("@", PathsForTesting("a.java", "b.java")).
 		NinjaEscapedString())
@@ -274,7 +274,8 @@ func ExampleRuleBuilderCommand_FlagWithRspFileInputList() {
 }
 
 func ExampleRuleBuilderCommand_String() {
-	fmt.Println(NewRuleBuilder().Command().
+	ctx := builderContext()
+	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Text("FOO=foo").
 		Text("echo $FOO").
 		String())
@@ -283,7 +284,8 @@ func ExampleRuleBuilderCommand_String() {
 }
 
 func ExampleRuleBuilderCommand_NinjaEscapedString() {
-	fmt.Println(NewRuleBuilder().Command().
+	ctx := builderContext()
+	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Text("FOO=foo").
 		Text("echo $FOO").
 		NinjaEscapedString())
@@ -305,7 +307,10 @@ func TestRuleBuilder(t *testing.T) {
 		"input3":     nil,
 	}
 
-	ctx := PathContextForTesting(TestConfig("out", nil, "", fs))
+	pathCtx := PathContextForTesting(TestConfig("out", nil, "", fs))
+	ctx := builderContextForTests{
+		PathContext: pathCtx,
+	}
 
 	addCommands := func(rule *RuleBuilder) {
 		cmd := rule.Command().
@@ -355,7 +360,7 @@ func TestRuleBuilder(t *testing.T) {
 	wantSymlinkOutputs := PathsForOutput(ctx, []string{"ImplicitSymlinkOutput", "SymlinkOutput"})
 
 	t.Run("normal", func(t *testing.T) {
-		rule := NewRuleBuilder()
+		rule := NewRuleBuilder(pctx, ctx)
 		addCommands(rule)
 
 		wantCommands := []string{
@@ -389,13 +394,13 @@ func TestRuleBuilder(t *testing.T) {
 			t.Errorf("\nwant rule.OrderOnlys() = %#v\n                got %#v", w, g)
 		}
 
-		if g, w := rule.depFileMergerCmd(ctx, rule.DepFiles()).String(), wantDepMergerCommand; g != w {
+		if g, w := rule.depFileMergerCmd(rule.DepFiles()).String(), wantDepMergerCommand; g != w {
 			t.Errorf("\nwant rule.depFileMergerCmd() = %#v\n                   got %#v", w, g)
 		}
 	})
 
 	t.Run("sbox", func(t *testing.T) {
-		rule := NewRuleBuilder().Sbox(PathForOutput(ctx, ""),
+		rule := NewRuleBuilder(pctx, ctx).Sbox(PathForOutput(ctx, ""),
 			PathForOutput(ctx, "sbox.textproto"))
 		addCommands(rule)
 
@@ -427,7 +432,7 @@ func TestRuleBuilder(t *testing.T) {
 			t.Errorf("\nwant rule.OrderOnlys() = %#v\n                got %#v", w, g)
 		}
 
-		if g, w := rule.depFileMergerCmd(ctx, rule.DepFiles()).String(), wantDepMergerCommand; g != w {
+		if g, w := rule.depFileMergerCmd(rule.DepFiles()).String(), wantDepMergerCommand; g != w {
 			t.Errorf("\nwant rule.depFileMergerCmd() = %#v\n                   got %#v", w, g)
 		}
 	})
@@ -476,7 +481,7 @@ func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
 }
 
 func testRuleBuilder_Build(ctx BuilderContext, in Paths, out, outDep, outDir, manifestPath WritablePath, restat, sbox bool) {
-	rule := NewRuleBuilder()
+	rule := NewRuleBuilder(pctx, ctx)
 
 	if sbox {
 		rule.Sbox(outDir, manifestPath)
@@ -488,7 +493,7 @@ func testRuleBuilder_Build(ctx BuilderContext, in Paths, out, outDep, outDir, ma
 		rule.Restat()
 	}
 
-	rule.Build(pctx, ctx, "rule", "desc")
+	rule.Build("rule", "desc")
 }
 
 func TestRuleBuilder_Build(t *testing.T) {

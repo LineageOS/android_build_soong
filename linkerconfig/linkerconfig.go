@@ -68,13 +68,13 @@ func (l *linkerConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	inputFile := android.PathForModuleSrc(ctx, android.String(l.properties.Src))
 	l.outputFilePath = android.PathForModuleOut(ctx, "linker.config.pb").OutputPath
 	l.installDirPath = android.PathForModuleInstall(ctx, "etc")
-	linkerConfigRule := android.NewRuleBuilder()
+	linkerConfigRule := android.NewRuleBuilder(pctx, ctx)
 	linkerConfigRule.Command().
-		BuiltTool(ctx, "conv_linker_config").
+		BuiltTool("conv_linker_config").
 		Flag("proto").
 		FlagWithInput("-s ", inputFile).
 		FlagWithOutput("-o ", l.outputFilePath)
-	linkerConfigRule.Build(pctx, ctx, "conv_linker_config",
+	linkerConfigRule.Build("conv_linker_config",
 		"Generate linker config protobuf "+l.outputFilePath.String())
 
 	if proptools.BoolDefault(l.properties.Installable, true) {

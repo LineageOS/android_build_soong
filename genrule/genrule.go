@@ -342,8 +342,27 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			return
 		}
 
+		// Pick a unique path outside the task.genDir for the sbox manifest textproto,
+		// a unique rule name, and the user-visible description.
+		manifestName := "genrule.sbox.textproto"
+		desc := "generate"
+		name := "generator"
+		if task.shards > 0 {
+			manifestName = "genrule_" + strconv.Itoa(task.shard) + ".sbox.textproto"
+			desc += " " + strconv.Itoa(task.shard)
+			name += strconv.Itoa(task.shard)
+		} else if len(task.out) == 1 {
+			desc += " " + task.out[0].Base()
+		}
+
+		manifestPath := android.PathForModuleOut(ctx, manifestName)
+
+		// Use a RuleBuilder to create a rule that runs the command inside an sbox sandbox.
+		rule := android.NewRuleBuilder(pctx, ctx).Sbox(task.genDir, manifestPath)
+		cmd := rule.Command()
+
 		for _, out := range task.out {
-			addLocationLabel(out.Rel(), []string{android.SboxPathForOutput(out, task.genDir)})
+			addLocationLabel(out.Rel(), []string{cmd.PathForOutput(out)})
 		}
 
 		referencedDepfile := false
@@ -374,7 +393,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case "out":
 				var sandboxOuts []string
 				for _, out := range task.out {
-					sandboxOuts = append(sandboxOuts, android.SboxPathForOutput(out, task.genDir))
+					sandboxOuts = append(sandboxOuts, cmd.PathForOutput(out))
 				}
 				return strings.Join(sandboxOuts, " "), nil
 			case "depfile":
@@ -384,7 +403,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 				return "__SBOX_DEPFILE__", nil
 			case "genDir":
-				return android.SboxPathForOutput(task.genDir, task.genDir), nil
+				return cmd.PathForOutput(task.genDir), nil
 			default:
 				if strings.HasPrefix(name, "location ") {
 					label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
@@ -426,24 +445,6 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 		g.rawCommands = append(g.rawCommands, rawCommand)
 
-		// Pick a unique path outside the task.genDir for the sbox manifest textproto,
-		// a unique rule name, and the user-visible description.
-		manifestName := "genrule.sbox.textproto"
-		desc := "generate"
-		name := "generator"
-		if task.shards > 0 {
-			manifestName = "genrule_" + strconv.Itoa(task.shard) + ".sbox.textproto"
-			desc += " " + strconv.Itoa(task.shard)
-			name += strconv.Itoa(task.shard)
-		} else if len(task.out) == 1 {
-			desc += " " + task.out[0].Base()
-		}
-
-		manifestPath := android.PathForModuleOut(ctx, manifestName)
-
-		// Use a RuleBuilder to create a rule that runs the command inside an sbox sandbox.
-		rule := android.NewRuleBuilder().Sbox(task.genDir, manifestPath)
-		cmd := rule.Command()
 		cmd.Text(rawCommand)
 		cmd.ImplicitOutputs(task.out)
 		cmd.Implicits(task.in)
@@ -454,7 +455,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 
 		// Create the rule to run the genrule command inside sbox.
-		rule.Build(pctx, ctx, name, desc)
+		rule.Build(name, desc)
 
 		if len(task.copyTo) > 0 {
 			// If copyTo is set, multiple shards need to be copied into a single directory.
@@ -612,6 +613,10 @@ func NewGenSrcs() *Module {
 			}
 
 			genDir := android.PathForModuleGen(ctx, genSubDir)
+			// TODO(ccross): this RuleBuilder is a hack to be able to call
+			// rule.Command().PathForOutput.  Replace this with passing the rule into the
+			// generator.
+			rule := android.NewRuleBuilder(pctx, ctx).Sbox(genDir, nil)
 
 			for _, in := range shard {
 				outFile := android.GenPathWithExt(ctx, finalSubDir, in, String(properties.Output_extension))
@@ -634,11 +639,11 @@ func NewGenSrcs() *Module {
 					case "in":
 						return in.String(), nil
 					case "out":
-						return android.SboxPathForOutput(outFile, genDir), nil
+						return rule.Command().PathForOutput(outFile), nil
 					case "depfile":
 						// Generate a depfile for each output file.  Store the list for
 						// later in order to combine them all into a single depfile.
-						depFile := android.SboxPathForOutput(outFile.ReplaceExtension(ctx, "d"), genDir)
+						depFile := rule.Command().PathForOutput(outFile.ReplaceExtension(ctx, "d"))
 						commandDepFiles = append(commandDepFiles, depFile)
 						return depFile, nil
 					default:

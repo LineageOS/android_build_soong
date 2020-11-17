@@ -86,15 +86,15 @@ func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.Singlet
 		return
 	}
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	outputPath := platformCompatConfigPath(ctx)
 
 	rule.Command().
-		BuiltTool(ctx, "process-compat-config").
+		BuiltTool("process-compat-config").
 		FlagForEachInput("--xml ", compatConfigMetadata).
 		FlagWithOutput("--merged-config ", outputPath)
 
-	rule.Build(pctx, ctx, "merged-compat-config", "Merge compat config")
+	rule.Build("merged-compat-config", "Merge compat config")
 
 	p.metadata = outputPath
 }
@@ -106,7 +106,7 @@ func (p *platformCompatConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
 }
 
 func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 
 	configFileName := p.Name() + ".xml"
 	metadataFileName := p.Name() + "_meta.xml"
@@ -115,13 +115,13 @@ func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleCon
 	path := android.PathForModuleSrc(ctx, String(p.properties.Src))
 
 	rule.Command().
-		BuiltTool(ctx, "process-compat-config").
+		BuiltTool("process-compat-config").
 		FlagWithInput("--jar ", path).
 		FlagWithOutput("--device-config ", p.configFile).
 		FlagWithOutput("--merged-config ", p.metadataFile)
 
 	p.installDirPath = android.PathForModuleInstall(ctx, "etc", "compatconfig")
-	rule.Build(pctx, ctx, configFileName, "Extract compat/compat_config.xml and install it")
+	rule.Build(configFileName, "Extract compat/compat_config.xml and install it")
 
 }
 

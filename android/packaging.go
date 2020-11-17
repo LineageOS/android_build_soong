@@ -163,7 +163,7 @@ func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut OutputPath) (ent
 		return true
 	})
 
-	builder := NewRuleBuilder()
+	builder := NewRuleBuilder(pctx, ctx)
 
 	dir := PathForModuleOut(ctx, ".zip").OutputPath
 	builder.Command().Text("rm").Flag("-rf").Text(dir.String())
@@ -190,13 +190,13 @@ func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut OutputPath) (ent
 	}
 
 	builder.Command().
-		BuiltTool(ctx, "soong_zip").
+		BuiltTool("soong_zip").
 		FlagWithOutput("-o ", zipOut).
 		FlagWithArg("-C ", dir.String()).
 		Flag("-L 0"). // no compression because this will be unzipped soon
 		FlagWithArg("-D ", dir.String())
 	builder.Command().Text("rm").Flag("-rf").Text(dir.String())
 
-	builder.Build(pctx, ctx, "zip_deps", fmt.Sprintf("Zipping deps for %s", ctx.ModuleName()))
+	builder.Build("zip_deps", fmt.Sprintf("Zipping deps for %s", ctx.ModuleName()))
 	return entries
 }

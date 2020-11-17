@@ -3049,21 +3049,21 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	dexOutputFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".jar")
 
 	if j.dexpreopter.uncompressedDex {
-		rule := android.NewRuleBuilder()
+		rule := android.NewRuleBuilder(pctx, ctx)
 
 		temporary := android.PathForModuleOut(ctx, ctx.ModuleName()+".jar.unaligned")
 		rule.Temporary(temporary)
 
 		// use zip2zip to uncompress classes*.dex files
 		rule.Command().
-			BuiltTool(ctx, "zip2zip").
+			BuiltTool("zip2zip").
 			FlagWithInput("-i ", inputJar).
 			FlagWithOutput("-o ", temporary).
 			FlagWithArg("-0 ", "'classes*.dex'")
 
 		// use zipalign to align uncompressed classes*.dex files
 		rule.Command().
-			BuiltTool(ctx, "zipalign").
+			BuiltTool("zipalign").
 			Flag("-f").
 			Text("4").
 			Input(temporary).
@@ -3071,7 +3071,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		rule.DeleteTemporaryFiles()
 
-		rule.Build(pctx, ctx, "uncompress_dex", "uncompress dex")
+		rule.Build("uncompress_dex", "uncompress dex")
 	} else {
 		ctx.Build(pctx, android.BuildParams{
 			Rule:   android.Cp,

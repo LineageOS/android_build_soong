@@ -189,7 +189,7 @@ func stubFlagsRule(ctx android.SingletonContext) {
 	}
 
 	// Singleton rule which applies hiddenapi on all boot class path dex files.
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 
 	outputPath := hiddenAPISingletonPaths(ctx).stubFlags
 	tempPath := android.PathForOutput(ctx, outputPath.Rel()+".tmp")
@@ -208,7 +208,7 @@ func stubFlagsRule(ctx android.SingletonContext) {
 
 	commitChangeForRestat(rule, tempPath, outputPath)
 
-	rule.Build(pctx, ctx, "hiddenAPIStubFlagsFile", "hiddenapi stub flags")
+	rule.Build("hiddenAPIStubFlagsFile", "hiddenapi stub flags")
 }
 
 // flagsRule creates a rule to build hiddenapi-flags.csv out of flags.csv files generated for boot image modules and
@@ -236,7 +236,7 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 		ctx.Errorf("Failed to find combined-removed-dex.")
 	}
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 
 	outputPath := hiddenAPISingletonPaths(ctx).flags
 	tempPath := android.PathForOutput(ctx, outputPath.Rel()+".tmp")
@@ -266,7 +266,7 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 
 	commitChangeForRestat(rule, tempPath, outputPath)
 
-	rule.Build(pctx, ctx, "hiddenAPIFlagsFile", "hiddenapi flags")
+	rule.Build("hiddenAPIFlagsFile", "hiddenapi flags")
 
 	return outputPath
 }
@@ -274,14 +274,14 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 // emptyFlagsRule creates a rule to build an empty hiddenapi-flags.csv, which is needed by master-art-host builds that
 // have a partial manifest without frameworks/base but still need to build a boot image.
 func emptyFlagsRule(ctx android.SingletonContext) android.Path {
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 
 	outputPath := hiddenAPISingletonPaths(ctx).flags
 
 	rule.Command().Text("rm").Flag("-f").Output(outputPath)
 	rule.Command().Text("touch").Output(outputPath)
 
-	rule.Build(pctx, ctx, "emptyHiddenAPIFlagsFile", "empty hiddenapi flags")
+	rule.Build("emptyHiddenAPIFlagsFile", "empty hiddenapi flags")
 
 	return outputPath
 }
@@ -299,16 +299,16 @@ func metadataRule(ctx android.SingletonContext) android.Path {
 		}
 	})
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 
 	outputPath := hiddenAPISingletonPaths(ctx).metadata
 
 	rule.Command().
-		BuiltTool(ctx, "merge_csv").
+		BuiltTool("merge_csv").
 		FlagWithOutput("--output=", outputPath).
 		Inputs(metadataCSV)
 
-	rule.Build(pctx, ctx, "hiddenAPIGreylistMetadataFile", "hiddenapi greylist metadata")
+	rule.Build("hiddenAPIGreylistMetadataFile", "hiddenapi greylist metadata")
 
 	return outputPath
 }
@@ -399,13 +399,13 @@ func (h *hiddenAPIIndexSingleton) GenerateBuildActions(ctx android.SingletonCont
 		}
 	})
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
-		BuiltTool(ctx, "merge_csv").
+		BuiltTool("merge_csv").
 		FlagWithArg("--header=", "signature,file,startline,startcol,endline,endcol,properties").
 		FlagWithOutput("--output=", hiddenAPISingletonPaths(ctx).index).
 		Inputs(indexes)
-	rule.Build(pctx, ctx, "singleton-merged-hiddenapi-index", "Singleton merged Hidden API index")
+	rule.Build("singleton-merged-hiddenapi-index", "Singleton merged Hidden API index")
 
 	h.index = hiddenAPISingletonPaths(ctx).index
 }
