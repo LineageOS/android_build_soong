@@ -200,7 +200,7 @@ func TestJavaLinkType(t *testing.T) {
 		}
 	`)
 
-	testJavaError(t, "Adjust sdk_version: property of the source or target module so that target module is built with the same or smaller API set than the source.", `
+	testJavaError(t, "consider adjusting sdk_version: OR platform_apis:", `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -244,7 +244,7 @@ func TestJavaLinkType(t *testing.T) {
 		}
 	`)
 
-	testJavaError(t, "Adjust sdk_version: property of the source or target module so that target module is built with the same or smaller API set than the source.", `
+	testJavaError(t, "consider adjusting sdk_version: OR platform_apis:", `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
