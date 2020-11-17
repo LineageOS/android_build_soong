@@ -109,7 +109,6 @@ type aapt struct {
 	useEmbeddedNativeLibs   bool
 	useEmbeddedDex          bool
 	usesNonSdkApis          bool
-	sdkLibraries            dexpreopt.LibraryPaths
 	hasNoCode               bool
 	LoggingParent           string
 	resourceFiles           android.Paths
@@ -259,12 +258,11 @@ var extractAssetsRule = pctx.AndroidStaticRule("extractAssets",
 		CommandDeps: []string{"${config.Zip2ZipCmd}"},
 	})
 
-func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, extraLinkFlags ...string) {
+func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext,
+	sdkLibraries dexpreopt.ClassLoaderContextMap, extraLinkFlags ...string) {
 
-	transitiveStaticLibs, transitiveStaticLibManifests, staticRRODirs, assetPackages, libDeps, libFlags, sdkLibraries :=
-		aaptLibs(ctx, sdkContext)
-
-	a.sdkLibraries = sdkLibraries
+	transitiveStaticLibs, transitiveStaticLibManifests, staticRRODirs, assetPackages, libDeps, libFlags :=
+		aaptLibs(ctx, sdkContext, sdkLibraries)
 
 	// App manifest file
 	manifestFile := proptools.StringDefault(a.aaptProperties.Manifest, "AndroidManifest.xml")
@@ -391,27 +389,29 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext, ex
 }
 
 // aaptLibs collects libraries from dependencies and sdk_version and converts them into paths
-func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStaticLibs, transitiveStaticLibManifests android.Paths,
-	staticRRODirs []rroDir, assets, deps android.Paths, flags []string, sdkLibraries dexpreopt.LibraryPaths) {
+func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, sdkLibraries dexpreopt.ClassLoaderContextMap) (
+	transitiveStaticLibs, transitiveStaticLibManifests android.Paths, staticRRODirs []rroDir, assets, deps android.Paths, flags []string) {
 
 	var sharedLibs android.Paths
+
+	if sdkLibraries == nil {
+		// Not all callers need to compute class loader context, those who don't just pass nil.
+		// Create a temporary class loader context here (it will be computed, but not used).
+		sdkLibraries = make(dexpreopt.ClassLoaderContextMap)
+	}
 
 	sdkDep := decodeSdkDep(ctx, sdkContext)
 	if sdkDep.useFiles {
 		sharedLibs = append(sharedLibs, sdkDep.jars...)
 	}
 
-	sdkLibraries = make(dexpreopt.LibraryPaths)
-
 	ctx.VisitDirectDeps(func(module android.Module) {
+		depName := ctx.OtherModuleName(module)
+
 		var exportPackage android.Path
 		aarDep, _ := module.(AndroidLibraryDependency)
 		if aarDep != nil {
 			exportPackage = aarDep.ExportPackage()
-		}
-
-		if dep, ok := module.(Dependency); ok {
-			sdkLibraries.AddLibraryPaths(dep.ExportedSdkLibs())
 		}
 
 		switch ctx.OtherModuleDependencyTag(module) {
@@ -426,7 +426,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 			// (including the java_sdk_library) itself then append any implicit sdk library
 			// names to the list of sdk libraries to be added to the manifest.
 			if component, ok := module.(SdkLibraryComponentDependency); ok {
-				sdkLibraries.MaybeAddLibraryPath(ctx, component.OptionalImplicitSdkLibrary(),
+				sdkLibraries.MaybeAddContext(ctx, component.OptionalImplicitSdkLibrary(),
 					component.DexJarBuildPath(), component.DexJarInstallPath())
 			}
 
@@ -439,7 +439,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 				transitiveStaticLibs = append(transitiveStaticLibs, aarDep.ExportedStaticPackages()...)
 				transitiveStaticLibs = append(transitiveStaticLibs, exportPackage)
 				transitiveStaticLibManifests = append(transitiveStaticLibManifests, aarDep.ExportedManifests()...)
-				sdkLibraries.AddLibraryPaths(aarDep.ExportedSdkLibs())
+				sdkLibraries.AddContextMap(aarDep.ExportedSdkLibs(), depName)
 				if aarDep.ExportedAssets().Valid() {
 					assets = append(assets, aarDep.ExportedAssets().Path())
 				}
@@ -457,6 +457,12 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 				}
 			}
 		}
+
+		// Add nested dependencies after processing the direct dependency: if it is a <uses-library>,
+		// nested context is added as its subcontext, and should not be re-added at the top-level.
+		if dep, ok := module.(Dependency); ok {
+			sdkLibraries.AddContextMap(dep.ExportedSdkLibs(), depName)
+		}
 	})
 
 	deps = append(deps, sharedLibs...)
@@ -473,7 +479,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext) (transitiveStati
 	transitiveStaticLibs = android.FirstUniquePaths(transitiveStaticLibs)
 	transitiveStaticLibManifests = android.FirstUniquePaths(transitiveStaticLibManifests)
 
-	return transitiveStaticLibs, transitiveStaticLibManifests, staticRRODirs, assets, deps, flags, sdkLibraries
+	return transitiveStaticLibs, transitiveStaticLibManifests, staticRRODirs, assets, deps, flags
 }
 
 type AndroidLibrary struct {
@@ -508,8 +514,8 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.aapt.isLibrary = true
-	a.aapt.buildActions(ctx, sdkContext(a))
-	a.exportedSdkLibs = a.aapt.sdkLibraries
+	a.exportedSdkLibs = make(dexpreopt.ClassLoaderContextMap)
+	a.aapt.buildActions(ctx, sdkContext(a), a.exportedSdkLibs)
 
 	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
 
@@ -781,12 +787,11 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	linkFlags = append(linkFlags, "--manifest "+a.manifest.String())
 	linkDeps = append(linkDeps, a.manifest)
 
-	transitiveStaticLibs, staticLibManifests, staticRRODirs, transitiveAssets, libDeps, libFlags, sdkLibraries :=
-		aaptLibs(ctx, sdkContext(a))
+	transitiveStaticLibs, staticLibManifests, staticRRODirs, transitiveAssets, libDeps, libFlags :=
+		aaptLibs(ctx, sdkContext(a), nil)
 
 	_ = staticLibManifests
 	_ = staticRRODirs
-	_ = sdkLibraries
 
 	linkDeps = append(linkDeps, libDeps...)
 	linkFlags = append(linkFlags, libFlags...)
@@ -827,7 +832,7 @@ func (a *AARImport) AidlIncludeDirs() android.Paths {
 	return nil
 }
 
-func (a *AARImport) ExportedSdkLibs() dexpreopt.LibraryPaths {
+func (a *AARImport) ExportedSdkLibs() dexpreopt.ClassLoaderContextMap {
 	return nil
 }
 
