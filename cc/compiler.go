@@ -366,7 +366,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		}
 		if ctx.Device() {
 			flags.Global.CommonFlags = append(flags.Global.CommonFlags,
-				fmt.Sprintf("-D__ANDROID_SDK_VERSION__=%d",
+				fmt.Sprintf("-D__ANDROID_APEX_MIN_SDK_VERSION__=%d",
 					ctx.apexSdkVersion().FinalOrFutureInt()))
 		}
 	}
