@@ -171,6 +171,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.StrictRaw("SRC_HEADERS", strings.Join(includes, " "))
 	ctx.StrictRaw("SRC_SYSTEM_HEADERS", strings.Join(systemIncludes, " "))
 
+	ndkKnownLibs := *getNDKKnownLibs(ctx.Config())
 	sort.Strings(ndkKnownLibs)
 	ctx.Strict("NDK_KNOWN_LIBS", strings.Join(ndkKnownLibs, " "))
 
