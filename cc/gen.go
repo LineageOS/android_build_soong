@@ -75,7 +75,11 @@ func genYacc(ctx android.ModuleContext, rule *android.RuleBuilder, yaccFile andr
 	cmd := rule.Command()
 
 	// Fix up #line markers to not use the sbox temporary directory
-	sedCmd := "sed -i.bak 's#__SBOX_OUT_DIR__#" + outDir.String() + "#'"
+	// android.SboxPathForOutput(outDir, outDir) returns the sbox placeholder for the out
+	// directory itself, without any filename appended.
+	// TODO(ccross): make this cmd.PathForOutput(outDir) instead.
+	sboxOutDir := android.SboxPathForOutput(outDir, outDir)
+	sedCmd := "sed -i.bak 's#" + sboxOutDir + "#" + outDir.String() + "#'"
 	rule.Command().Text(sedCmd).Input(outFile)
 	rule.Command().Text(sedCmd).Input(headerFile)
 
