@@ -45,8 +45,7 @@ var (
 
 	ndkLibrarySuffix = ".ndk"
 
-	// Added as a variation dependency via depsMutator.
-	ndkKnownLibs = []string{}
+	ndkKnownLibsKey = android.NewOnceKey("ndkKnownLibsKey")
 	// protects ndkKnownLibs writes during parallel BeginMutator.
 	ndkKnownLibsLock sync.Mutex
 )
@@ -158,6 +157,12 @@ func (this *stubDecorator) initializeProperties(ctx BaseModuleContext) bool {
 	return true
 }
 
+func getNDKKnownLibs(config android.Config) *[]string {
+	return config.Once(ndkKnownLibsKey, func() interface{} {
+		return &[]string{}
+	}).(*[]string)
+}
+
 func (c *stubDecorator) compilerInit(ctx BaseModuleContext) {
 	c.baseCompiler.compilerInit(ctx)
 
@@ -168,12 +173,13 @@ func (c *stubDecorator) compilerInit(ctx BaseModuleContext) {
 
 	ndkKnownLibsLock.Lock()
 	defer ndkKnownLibsLock.Unlock()
-	for _, lib := range ndkKnownLibs {
+	ndkKnownLibs := getNDKKnownLibs(ctx.Config())
+	for _, lib := range *ndkKnownLibs {
 		if lib == name {
 			return
 		}
 	}
-	ndkKnownLibs = append(ndkKnownLibs, name)
+	*ndkKnownLibs = append(*ndkKnownLibs, name)
 }
 
 func addStubLibraryCompilerFlags(flags Flags) Flags {

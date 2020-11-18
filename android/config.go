@@ -126,6 +126,8 @@ type config struct {
 	// in tests when a path doesn't exist.
 	testAllowNonExistentPaths bool
 
+	ninjaFileDepsSet sync.Map
+
 	OncePer
 }
 
