@@ -15,6 +15,7 @@
 package java
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -620,6 +621,35 @@ func assertDeepEquals(t *testing.T, message string, expected interface{}, actual
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("%s: expected %q, found %q", message, expected, actual)
 	}
+}
+
+func TestPrebuiltStubsSources(t *testing.T) {
+	test := func(t *testing.T, sourcesPath string, expectedInputs []string) {
+		ctx, _ := testJavaWithFS(t, fmt.Sprintf(`
+prebuilt_stubs_sources {
+  name: "stubs-source",
+	srcs: ["%s"],
+}`, sourcesPath), map[string][]byte{
+			"stubs/sources/pkg/A.java": nil,
+			"stubs/sources/pkg/B.java": nil,
+		})
+
+		zipSrc := ctx.ModuleForTests("stubs-source", "android_common").Rule("zip_src")
+		if expected, actual := expectedInputs, zipSrc.Inputs.Strings(); !reflect.DeepEqual(expected, actual) {
+			t.Errorf("mismatch of inputs to soong_zip: expected %q, actual %q", expected, actual)
+		}
+	}
+
+	t.Run("empty/missing directory", func(t *testing.T) {
+		test(t, "empty-directory", []string{})
+	})
+
+	t.Run("non-empty set of sources", func(t *testing.T) {
+		test(t, "stubs/sources", []string{
+			"stubs/sources/pkg/A.java",
+			"stubs/sources/pkg/B.java",
+		})
+	})
 }
 
 func TestJavaSdkLibraryImport(t *testing.T) {
