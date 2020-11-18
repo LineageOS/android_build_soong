@@ -66,14 +66,14 @@ func TestArchGenruleCmd(t *testing.T) {
 
 	gen := ctx.ModuleForTests("gen", "android_arm_armv7-a-neon").Output("out_arm")
 	expected := []string{"foo"}
-	if !reflect.DeepEqual(expected, gen.Inputs.Strings()) {
-		t.Errorf(`want arm inputs %v, got %v`, expected, gen.Inputs.Strings())
+	if !reflect.DeepEqual(expected, gen.Implicits.Strings()[:len(expected)]) {
+		t.Errorf(`want arm inputs %v, got %v`, expected, gen.Implicits.Strings())
 	}
 
 	gen = ctx.ModuleForTests("gen", "android_arm64_armv8-a").Output("out_arm64")
 	expected = []string{"bar"}
-	if !reflect.DeepEqual(expected, gen.Inputs.Strings()) {
-		t.Errorf(`want arm64 inputs %v, got %v`, expected, gen.Inputs.Strings())
+	if !reflect.DeepEqual(expected, gen.Implicits.Strings()[:len(expected)]) {
+		t.Errorf(`want arm64 inputs %v, got %v`, expected, gen.Implicits.Strings())
 	}
 }
 
@@ -108,10 +108,10 @@ func TestLibraryGenruleCmd(t *testing.T) {
 	gen := ctx.ModuleForTests("gen", "android_arm_armv7-a-neon").Output("out")
 	expected := []string{"libboth.so", "libshared.so", "libstatic.a"}
 	var got []string
-	for _, input := range gen.Inputs {
+	for _, input := range gen.Implicits {
 		got = append(got, input.Base())
 	}
-	if !reflect.DeepEqual(expected, got) {
+	if !reflect.DeepEqual(expected, got[:len(expected)]) {
 		t.Errorf(`want inputs %v, got %v`, expected, got)
 	}
 }
