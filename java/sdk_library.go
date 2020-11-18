@@ -2300,11 +2300,10 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 			scopeSet.AddProperty("jars", jars)
 
 			// Merge the stubs source jar into the snapshot zip so that when it is unpacked
-			// the source files are also unpacked. Use a glob so that if the directory is missing
-			// (because there are no stubs sources for this scope) it will not fail.
+			// the source files are also unpacked.
 			snapshotRelativeDir := filepath.Join(scopeDir, ctx.Name()+"_stub_sources")
 			ctx.SnapshotBuilder().UnzipToSnapshot(properties.StubsSrcJar, snapshotRelativeDir)
-			scopeSet.AddProperty("stub_srcs", []string{snapshotRelativeDir + "/**/*.java"})
+			scopeSet.AddProperty("stub_srcs", []string{snapshotRelativeDir})
 
 			if properties.CurrentApiFile != nil {
 				currentApiSnapshotPath := filepath.Join(scopeDir, ctx.Name()+".txt")
