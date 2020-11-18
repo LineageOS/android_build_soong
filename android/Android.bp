@@ -37,6 +37,7 @@ bootstrap_go_package {
         "override_module.go",
         "package.go",
         "package_ctx.go",
+        "packaging.go",
         "path_properties.go",
         "paths.go",
         "phony.go",
