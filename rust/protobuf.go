@@ -53,7 +53,7 @@ type ProtobufProperties struct {
 	Proto_flags []string `android:"arch_variant"`
 
 	// List of libraries which export include paths required for this module
-	Header_libs []string `android:"arch_variant"`
+	Header_libs []string `android:"arch_variant,variant_prepend"`
 }
 
 type protobufDecorator struct {

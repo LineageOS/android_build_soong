@@ -32,6 +32,7 @@ func TestRustBindgen(t *testing.T) {
 			cflags: ["--clang-flag()"],
 			shared_libs: ["libfoo_shared"],
 			static_libs: ["libfoo_static"],
+			header_libs: ["libfoo_header"],
 		}
 		cc_library_shared {
 			name: "libfoo_shared",
@@ -40,6 +41,10 @@ func TestRustBindgen(t *testing.T) {
 		cc_library_static {
 			name: "libfoo_static",
 			export_include_dirs: ["static_include"],
+		}
+		cc_library_headers {
+			name: "libfoo_header",
+			export_include_dirs: ["header_include"],
 		}
 		cc_defaults {
 			name: "cc_defaults_flags",
@@ -58,6 +63,9 @@ func TestRustBindgen(t *testing.T) {
 		t.Errorf("missing shared_libs exported includes in rust_bindgen rule: cflags %#v", libbindgen.Args["cflags"])
 	}
 	if !strings.Contains(libbindgen.Args["cflags"], "-Istatic_include") {
+		t.Errorf("missing static_libs exported includes in rust_bindgen rule: cflags %#v", libbindgen.Args["cflags"])
+	}
+	if !strings.Contains(libbindgen.Args["cflags"], "-Iheader_include") {
 		t.Errorf("missing static_libs exported includes in rust_bindgen rule: cflags %#v", libbindgen.Args["cflags"])
 	}
 	if !strings.Contains(libbindgen.Args["cflags"], "--default-flag") {

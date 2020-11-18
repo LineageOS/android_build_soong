@@ -258,5 +258,6 @@ func (b *bindgenDecorator) SourceProviderDeps(ctx DepsContext, deps Deps) Deps {
 
 	deps.SharedLibs = append(deps.SharedLibs, b.ClangProperties.Shared_libs...)
 	deps.StaticLibs = append(deps.StaticLibs, b.ClangProperties.Static_libs...)
+	deps.HeaderLibs = append(deps.StaticLibs, b.ClangProperties.Header_libs...)
 	return deps
 }
