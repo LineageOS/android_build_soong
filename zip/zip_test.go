@@ -442,7 +442,7 @@ func TestZip(t *testing.T) {
 			args.Stderr = &bytes.Buffer{}
 
 			buf := &bytes.Buffer{}
-			err := ZipTo(args, buf)
+			err := zipTo(args, buf)
 
 			if (err != nil) != (test.err != nil) {
 				t.Fatalf("want error %v, got %v", test.err, err)
@@ -627,7 +627,7 @@ func TestSrcJar(t *testing.T) {
 	args.Stderr = &bytes.Buffer{}
 
 	buf := &bytes.Buffer{}
-	err := ZipTo(args, buf)
+	err := zipTo(args, buf)
 	if err != nil {
 		t.Fatalf("got error %v", err)
 	}
