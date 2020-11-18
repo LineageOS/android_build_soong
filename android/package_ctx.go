@@ -56,7 +56,7 @@ func (e *configErrorWrapper) Errorf(format string, args ...interface{}) {
 	e.errors = append(e.errors, fmt.Errorf(format, args...))
 }
 func (e *configErrorWrapper) AddNinjaFileDeps(deps ...string) {
-	e.pctx.AddNinjaFileDeps(deps...)
+	e.config.addNinjaFileDeps(deps...)
 }
 
 type PackageVarContext interface {

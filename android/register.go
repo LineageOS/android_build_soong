@@ -29,7 +29,7 @@ var moduleTypes []moduleType
 
 type singleton struct {
 	name    string
-	factory blueprint.SingletonFactory
+	factory SingletonFactory
 }
 
 var singletons []singleton
@@ -57,11 +57,11 @@ type SingletonFactory func() Singleton
 
 // SingletonFactoryAdaptor wraps a SingletonFactory into a blueprint.SingletonFactory by converting
 // a Singleton into a blueprint.Singleton
-func SingletonFactoryAdaptor(factory SingletonFactory) blueprint.SingletonFactory {
+func SingletonFactoryAdaptor(ctx *Context, factory SingletonFactory) blueprint.SingletonFactory {
 	return func() blueprint.Singleton {
 		singleton := factory()
 		if makevars, ok := singleton.(SingletonMakeVarsProvider); ok {
-			registerSingletonMakeVarsProvider(makevars)
+			registerSingletonMakeVarsProvider(ctx.config, makevars)
 		}
 		return &singletonAdaptor{Singleton: singleton}
 	}
@@ -72,11 +72,11 @@ func RegisterModuleType(name string, factory ModuleFactory) {
 }
 
 func RegisterSingletonType(name string, factory SingletonFactory) {
-	singletons = append(singletons, singleton{name, SingletonFactoryAdaptor(factory)})
+	singletons = append(singletons, singleton{name, factory})
 }
 
 func RegisterPreSingletonType(name string, factory SingletonFactory) {
-	preSingletons = append(preSingletons, singleton{name, SingletonFactoryAdaptor(factory)})
+	preSingletons = append(preSingletons, singleton{name, factory})
 }
 
 type Context struct {
@@ -92,7 +92,7 @@ func NewContext(config Config) *Context {
 
 func (ctx *Context) Register() {
 	for _, t := range preSingletons {
-		ctx.RegisterPreSingletonType(t.name, t.factory)
+		ctx.RegisterPreSingletonType(t.name, SingletonFactoryAdaptor(ctx, t.factory))
 	}
 
 	for _, t := range moduleTypes {
@@ -100,21 +100,23 @@ func (ctx *Context) Register() {
 	}
 
 	for _, t := range singletons {
-		ctx.RegisterSingletonType(t.name, t.factory)
+		ctx.RegisterSingletonType(t.name, SingletonFactoryAdaptor(ctx, t.factory))
 	}
 
 	registerMutators(ctx.Context, preArch, preDeps, postDeps, finalDeps)
 
-	ctx.RegisterSingletonType("bazeldeps", SingletonFactoryAdaptor(BazelSingleton))
+	ctx.RegisterSingletonType("bazeldeps", SingletonFactoryAdaptor(ctx, BazelSingleton))
 
 	// Register phony just before makevars so it can write out its phony rules as Make rules
-	ctx.RegisterSingletonType("phony", SingletonFactoryAdaptor(phonySingletonFactory))
+	ctx.RegisterSingletonType("phony", SingletonFactoryAdaptor(ctx, phonySingletonFactory))
 
 	// Register makevars after other singletons so they can export values through makevars
-	ctx.RegisterSingletonType("makevars", SingletonFactoryAdaptor(makeVarsSingletonFunc))
+	ctx.RegisterSingletonType("makevars", SingletonFactoryAdaptor(ctx, makeVarsSingletonFunc))
 
-	// Register env last so that it can track all used environment variables
-	ctx.RegisterSingletonType("env", SingletonFactoryAdaptor(EnvSingleton))
+	// Register env and ninjadeps last so that they can track all used environment variables and
+	// Ninja file dependencies stored in the config.
+	ctx.RegisterSingletonType("env", SingletonFactoryAdaptor(ctx, EnvSingleton))
+	ctx.RegisterSingletonType("ninjadeps", SingletonFactoryAdaptor(ctx, ninjaDepsSingletonFactory))
 }
 
 func ModuleTypeFactories() map[string]ModuleFactory {
