@@ -214,6 +214,8 @@ func init() {
 
 			"LOCAL_PRIVATE_PLATFORM_APIS": "platform_apis",
 			"LOCAL_JETIFIER_ENABLED":      "jetifier",
+
+			"LOCAL_IS_UNIT_TEST": "unit_test",
 		})
 }
 
