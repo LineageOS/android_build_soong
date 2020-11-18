@@ -1247,6 +1247,10 @@ func (c *config) ProductPrivateSepolicyDirs() []string {
 	return c.productVariables.ProductPrivateSepolicyDirs
 }
 
+func (c *config) ProductCompatibleProperty() bool {
+	return Bool(c.productVariables.ProductCompatibleProperty)
+}
+
 func (c *config) MissingUsesLibraries() []string {
 	return c.productVariables.MissingUsesLibraries
 }
