@@ -80,6 +80,10 @@ func (p *testDecorator) AndroidMk(base *Module, ret *android.AndroidMkData) {
 			fmt.Fprintln(w, "LOCAL_TEST_DATA :=",
 				strings.Join(android.AndroidMkDataPaths(p.data), " "))
 		}
+
+		if Bool(p.testProperties.Test_options.Unit_test) {
+			fmt.Fprintln(w, "LOCAL_IS_UNIT_TEST := true")
+		}
 	})
 	base.subAndroidMk(ret, p.binaryDecorator.pythonInstaller)
 }
