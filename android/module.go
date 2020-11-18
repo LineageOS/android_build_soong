@@ -440,6 +440,7 @@ type Module interface {
 	TargetRequiredModuleNames() []string
 
 	FilesToInstall() InstallPaths
+	PackagingSpecs() []PackagingSpec
 }
 
 // Qualified id for a module
@@ -934,6 +935,7 @@ type ModuleBase struct {
 	noAddressSanitizer bool
 	installFiles       InstallPaths
 	checkbuildFiles    Paths
+	packagingSpecs     []PackagingSpec
 	noticeFiles        Paths
 	phonies            map[string]Paths
 
@@ -1259,6 +1261,10 @@ func (m *ModuleBase) FilesToInstall() InstallPaths {
 	return m.installFiles
 }
 
+func (m *ModuleBase) PackagingSpecs() []PackagingSpec {
+	return m.packagingSpecs
+}
+
 func (m *ModuleBase) NoAddressSanitizer() bool {
 	return m.noAddressSanitizer
 }
@@ -1581,6 +1587,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 		m.installFiles = append(m.installFiles, ctx.installFiles...)
 		m.checkbuildFiles = append(m.checkbuildFiles, ctx.checkbuildFiles...)
+		m.packagingSpecs = append(m.packagingSpecs, ctx.packagingSpecs...)
 		m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
 		m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
 		for k, v := range ctx.phonies {
@@ -1748,6 +1755,7 @@ func (b *baseModuleContext) blueprintBaseModuleContext() blueprint.BaseModuleCon
 type moduleContext struct {
 	bp blueprint.ModuleContext
 	baseModuleContext
+	packagingSpecs  []PackagingSpec
 	installDeps     InstallPaths
 	installFiles    InstallPaths
 	checkbuildFiles Paths
@@ -2284,16 +2292,15 @@ func (m *moduleContext) skipInstall(fullInstallPath InstallPath) bool {
 
 func (m *moduleContext) InstallFile(installPath InstallPath, name string, srcPath Path,
 	deps ...Path) InstallPath {
-	return m.installFile(installPath, name, srcPath, Cp, deps)
+	return m.installFile(installPath, name, srcPath, deps, false)
 }
 
 func (m *moduleContext) InstallExecutable(installPath InstallPath, name string, srcPath Path,
 	deps ...Path) InstallPath {
-	return m.installFile(installPath, name, srcPath, CpExecutable, deps)
+	return m.installFile(installPath, name, srcPath, deps, true)
 }
 
-func (m *moduleContext) installFile(installPath InstallPath, name string, srcPath Path,
-	rule blueprint.Rule, deps []Path) InstallPath {
+func (m *moduleContext) installFile(installPath InstallPath, name string, srcPath Path, deps []Path, executable bool) InstallPath {
 
 	fullInstallPath := installPath.Join(m, name)
 	m.module.base().hooks.runInstallHooks(m, srcPath, fullInstallPath, false)
@@ -2312,6 +2319,11 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 			orderOnlyDeps = deps
 		}
 
+		rule := Cp
+		if executable {
+			rule = CpExecutable
+		}
+
 		m.Build(pctx, BuildParams{
 			Rule:        rule,
 			Description: "install " + fullInstallPath.Base(),
@@ -2324,6 +2336,14 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 
 		m.installFiles = append(m.installFiles, fullInstallPath)
 	}
+
+	m.packagingSpecs = append(m.packagingSpecs, PackagingSpec{
+		relPathInPackage: Rel(m, fullInstallPath.PartitionDir(), fullInstallPath.String()),
+		srcPath:          srcPath,
+		symlinkTarget:    "",
+		executable:       executable,
+	})
+
 	m.checkbuildFiles = append(m.checkbuildFiles, srcPath)
 	return fullInstallPath
 }
@@ -2332,12 +2352,12 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 	fullInstallPath := installPath.Join(m, name)
 	m.module.base().hooks.runInstallHooks(m, srcPath, fullInstallPath, true)
 
+	relPath, err := filepath.Rel(path.Dir(fullInstallPath.String()), srcPath.String())
+	if err != nil {
+		panic(fmt.Sprintf("Unable to generate symlink between %q and %q: %s", fullInstallPath.Base(), srcPath.Base(), err))
+	}
 	if !m.skipInstall(fullInstallPath) {
 
-		relPath, err := filepath.Rel(path.Dir(fullInstallPath.String()), srcPath.String())
-		if err != nil {
-			panic(fmt.Sprintf("Unable to generate symlink between %q and %q: %s", fullInstallPath.Base(), srcPath.Base(), err))
-		}
 		m.Build(pctx, BuildParams{
 			Rule:        Symlink,
 			Description: "install symlink " + fullInstallPath.Base(),
@@ -2352,6 +2372,14 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 		m.installFiles = append(m.installFiles, fullInstallPath)
 		m.checkbuildFiles = append(m.checkbuildFiles, srcPath)
 	}
+
+	m.packagingSpecs = append(m.packagingSpecs, PackagingSpec{
+		relPathInPackage: Rel(m, fullInstallPath.PartitionDir(), fullInstallPath.String()),
+		srcPath:          nil,
+		symlinkTarget:    relPath,
+		executable:       false,
+	})
+
 	return fullInstallPath
 }
 
@@ -2374,6 +2402,14 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 
 		m.installFiles = append(m.installFiles, fullInstallPath)
 	}
+
+	m.packagingSpecs = append(m.packagingSpecs, PackagingSpec{
+		relPathInPackage: Rel(m, fullInstallPath.PartitionDir(), fullInstallPath.String()),
+		srcPath:          nil,
+		symlinkTarget:    absPath,
+		executable:       false,
+	})
+
 	return fullInstallPath
 }
 
