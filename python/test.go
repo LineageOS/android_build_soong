@@ -26,6 +26,12 @@ func init() {
 	android.RegisterModuleType("python_test", PythonTestFactory)
 }
 
+// Test option struct.
+type TestOptions struct {
+	// If the test is a hostside(no device required) unittest that shall be run during presubmit check.
+	Unit_test *bool
+}
+
 type TestProperties struct {
 	// the name of the test configuration (for example "AndroidTest.xml") that should be
 	// installed with the module.
@@ -38,6 +44,9 @@ type TestProperties struct {
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test
 	Data []string `android:"path,arch_variant"`
+
+	// Test options.
+	Test_options TestOptions
 }
 
 type testDecorator struct {
