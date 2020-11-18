@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// soong_zip is a utility used during the build to create a zip archive by pulling the entries from
+// various sources:
+//  * explicitly specified files
+//  * files whose paths are read from a file
+//  * directories traversed recursively
+// It can optionally change the recorded path of an entry.
+
 package main
 
 import (
