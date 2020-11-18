@@ -192,8 +192,7 @@ func pwdPrefix() string {
 func (context *bazelContext) issueBazelCommand(command string, labels []string,
 	extraFlags ...string) (string, error) {
 
-	cmdFlags := []string{"--bazelrc=build/bazel/common.bazelrc",
-		"--output_base=" + context.outputBase, command}
+	cmdFlags := []string{"--output_base=" + context.outputBase, command}
 	cmdFlags = append(cmdFlags, labels...)
 	cmdFlags = append(cmdFlags, extraFlags...)
 
