@@ -27,8 +27,10 @@ import (
 	"android/soong/ui/metrics"
 )
 
-// This file provides an interface to the Finder for use in Soong UI
-// This file stores configuration information about which files to find
+// This file provides an interface to the Finder type for soong_ui. Finder is
+// used to recursively traverse the source tree to gather paths of files, such
+// as Android.bp or Android.mk, and store the lists/database of paths in files
+// under `$OUT_DIR/.module_paths`. This directory can also be dist'd.
 
 // NewSourceFinder returns a new Finder configured to search for source files.
 // Callers of NewSourceFinder should call <f.Shutdown()> when done
@@ -36,14 +38,18 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 	ctx.BeginTrace(metrics.RunSetupTool, "find modules")
 	defer ctx.EndTrace()
 
+	// Set up the working directory for the Finder.
 	dir, err := os.Getwd()
 	if err != nil {
 		ctx.Fatalf("No working directory for module-finder: %v", err.Error())
 	}
 	filesystem := fs.OsFs
 
-	// if the root dir is ignored, then the subsequent error messages are very confusing,
-	// so check for that upfront
+	// .out-dir and .find-ignore are markers for Finder to ignore siblings and
+	// subdirectories of the directory Finder finds them in, hence stopping the
+	// search recursively down those branches. It's possible that these files
+	// are in the root directory, and if they are, then the subsequent error
+	// messages are very confusing, so check for that here.
 	pruneFiles := []string{".out-dir", ".find-ignore"}
 	for _, name := range pruneFiles {
 		prunePath := filepath.Join(dir, name)
@@ -53,22 +59,34 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 		}
 	}
 
+	// Set up configuration parameters for the Finder cache.
 	cacheParams := finder.CacheParams{
 		WorkingDirectory: dir,
 		RootDirs:         []string{"."},
 		ExcludeDirs:      []string{".git", ".repo"},
 		PruneFiles:       pruneFiles,
 		IncludeFiles: []string{
+			// Kati build definitions.
 			"Android.mk",
+			// Product configuration files.
 			"AndroidProducts.mk",
+			// General Soong build definitions, using the Blueprint syntax.
 			"Android.bp",
+			// build/blueprint build definitions, using the Blueprint syntax.
 			"Blueprints",
+			// Bazel build definitions.
 			"BUILD.bazel",
+			// Kati clean definitions.
 			"CleanSpec.mk",
+			// Ownership definition.
 			"OWNERS",
+			// Test configuration for modules in directories that contain this
+			// file.
 			"TEST_MAPPING",
+			// Bazel top-level file to mark a directory as a Bazel workspace.
 			"WORKSPACE",
 		},
+		// Bazel Starlark configuration files.
 		IncludeSuffixes: []string{".bzl"},
 	}
 	dumpDir := config.FileListDir()
@@ -80,6 +98,7 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 	return f
 }
 
+// Finds the list of Bazel-related files (BUILD, WORKSPACE and Starlark) in the tree.
 func findBazelFiles(entries finder.DirEntries) (dirNames []string, fileNames []string) {
 	matches := []string{}
 	for _, foundName := range entries.FileNames {
@@ -98,12 +117,21 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 	dumpDir := config.FileListDir()
 	os.MkdirAll(dumpDir, 0777)
 
+	// Stop searching a subdirectory recursively after finding an Android.mk.
 	androidMks := f.FindFirstNamedAt(".", "Android.mk")
 	err := dumpListToFile(ctx, config, androidMks, filepath.Join(dumpDir, "Android.mk.list"))
 	if err != nil {
 		ctx.Fatalf("Could not export module list: %v", err)
 	}
 
+	// Stop searching a subdirectory recursively after finding a CleanSpec.mk.
+	cleanSpecs := f.FindFirstNamedAt(".", "CleanSpec.mk")
+	err = dumpListToFile(ctx, config, cleanSpecs, filepath.Join(dumpDir, "CleanSpec.mk.list"))
+	if err != nil {
+		ctx.Fatalf("Could not export module list: %v", err)
+	}
+
+	// Only consider AndroidProducts.mk in device/, vendor/ and product/, recursively in these directories.
 	androidProductsMks := f.FindNamedAt("device", "AndroidProducts.mk")
 	androidProductsMks = append(androidProductsMks, f.FindNamedAt("vendor", "AndroidProducts.mk")...)
 	androidProductsMks = append(androidProductsMks, f.FindNamedAt("product", "AndroidProducts.mk")...)
@@ -112,31 +140,30 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 		ctx.Fatalf("Could not export product list: %v", err)
 	}
 
+	// Recursively look for all Bazel related files.
 	bazelFiles := f.FindMatching(".", findBazelFiles)
 	err = dumpListToFile(ctx, config, bazelFiles, filepath.Join(dumpDir, "bazel.list"))
 	if err != nil {
 		ctx.Fatalf("Could not export bazel BUILD list: %v", err)
 	}
 
-	cleanSpecs := f.FindFirstNamedAt(".", "CleanSpec.mk")
-	err = dumpListToFile(ctx, config, cleanSpecs, filepath.Join(dumpDir, "CleanSpec.mk.list"))
-	if err != nil {
-		ctx.Fatalf("Could not export module list: %v", err)
-	}
-
+	// Recursively look for all OWNERS files.
 	owners := f.FindNamedAt(".", "OWNERS")
 	err = dumpListToFile(ctx, config, owners, filepath.Join(dumpDir, "OWNERS.list"))
 	if err != nil {
 		ctx.Fatalf("Could not find OWNERS: %v", err)
 	}
 
+	// Recursively look for all TEST_MAPPING files.
 	testMappings := f.FindNamedAt(".", "TEST_MAPPING")
 	err = dumpListToFile(ctx, config, testMappings, filepath.Join(dumpDir, "TEST_MAPPING.list"))
 	if err != nil {
 		ctx.Fatalf("Could not find TEST_MAPPING: %v", err)
 	}
 
+	// Recursively look for all Android.bp files
 	androidBps := f.FindNamedAt(".", "Android.bp")
+	// The files are named "Blueprints" only in the build/blueprint directory.
 	androidBps = append(androidBps, f.FindNamedAt("build/blueprint", "Blueprints")...)
 	if len(androidBps) == 0 {
 		ctx.Fatalf("No Android.bp found")
@@ -148,10 +175,12 @@ func FindSources(ctx Context, config Config, f *finder.Finder) {
 
 	if config.Dist() {
 		f.WaitForDbDump()
+		// Dist the files.db plain text database.
 		distFile(ctx, config, f.DbPath, "module_paths")
 	}
 }
 
+// Write the .list files to disk.
 func dumpListToFile(ctx Context, config Config, list []string, filePath string) (err error) {
 	desiredText := strings.Join(list, "\n")
 	desiredBytes := []byte(desiredText)
