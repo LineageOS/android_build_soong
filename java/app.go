@@ -890,7 +890,7 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 
 		if IsJniDepTag(tag) || cc.IsSharedDepTag(tag) {
 			if dep, ok := module.(*cc.Module); ok {
-				if dep.IsNdk() || dep.IsStubs() {
+				if dep.IsNdk(ctx.Config()) || dep.IsStubs() {
 					return false
 				}
 
