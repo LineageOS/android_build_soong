@@ -56,16 +56,19 @@ type prebuiltEtcProperties struct {
 	// Source file of this prebuilt. Can reference a genrule type module with the ":module" syntax.
 	Src *string `android:"path,arch_variant"`
 
-	// optional subdirectory under which this file is installed into, cannot be specified with relative_install_path, prefer relative_install_path
+	// Optional subdirectory under which this file is installed into, cannot be specified with
+	// relative_install_path, prefer relative_install_path.
 	Sub_dir *string `android:"arch_variant"`
 
-	// optional subdirectory under which this file is installed into, cannot be specified with sub_dir
+	// Optional subdirectory under which this file is installed into, cannot be specified with
+	// sub_dir.
 	Relative_install_path *string `android:"arch_variant"`
 
-	// optional name for the installed file. If unspecified, name of the module is used as the file name
+	// Optional name for the installed file. If unspecified, name of the module is used as the file
+	// name.
 	Filename *string `android:"arch_variant"`
 
-	// when set to true, and filename property is not set, the name for the installed file
+	// When set to true, and filename property is not set, the name for the installed file
 	// is the same as the file name of the source file.
 	Filename_from_src *bool `android:"arch_variant"`
 
@@ -95,8 +98,15 @@ type prebuiltEtcProperties struct {
 
 type PrebuiltEtcModule interface {
 	android.Module
+
+	// Returns the base install directory, such as "etc", "usr/share".
 	BaseDir() string
+
+	// Returns the sub install directory relative to BaseDir().
 	SubDir() string
+
+	// Returns an android.OutputPath to the intermeidate file, which is the renamed prebuilt source
+	// file.
 	OutputFile() android.OutputPath
 }
 
@@ -109,7 +119,8 @@ type PrebuiltEtc struct {
 	outputFilePath android.OutputPath
 	// The base install location, e.g. "etc" for prebuilt_etc, "usr/share" for prebuilt_usr_share.
 	installDirBase string
-	// The base install location when soc_specific property is set to true, e.g. "firmware" for prebuilt_firmware.
+	// The base install location when soc_specific property is set to true, e.g. "firmware" for
+	// prebuilt_firmware.
 	socInstallDirBase      string
 	installDirPath         android.InstallPath
 	additionalDependencies *android.Paths
@@ -179,14 +190,8 @@ func (p *PrebuiltEtc) ExtraImageVariations(ctx android.BaseModuleContext) []stri
 func (p *PrebuiltEtc) SetImageVariation(ctx android.BaseModuleContext, variation string, module android.Module) {
 }
 
-func (p *PrebuiltEtc) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if p.properties.Src == nil {
-		ctx.PropertyErrorf("src", "missing prebuilt source file")
-	}
-}
-
 func (p *PrebuiltEtc) SourceFilePath(ctx android.ModuleContext) android.Path {
-	return android.PathForModuleSrc(ctx, android.String(p.properties.Src))
+	return android.PathForModuleSrc(ctx, proptools.String(p.properties.Src))
 }
 
 func (p *PrebuiltEtc) InstallDirPath() android.InstallPath {
@@ -215,36 +220,41 @@ func (p *PrebuiltEtc) BaseDir() string {
 }
 
 func (p *PrebuiltEtc) Installable() bool {
-	return p.properties.Installable == nil || android.Bool(p.properties.Installable)
+	return p.properties.Installable == nil || proptools.Bool(p.properties.Installable)
 }
 
 func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	p.sourceFilePath = android.PathForModuleSrc(ctx, android.String(p.properties.Src))
+	if p.properties.Src == nil {
+		ctx.PropertyErrorf("src", "missing prebuilt source file")
+		return
+	}
+	p.sourceFilePath = android.PathForModuleSrc(ctx, proptools.String(p.properties.Src))
 
 	// Determine the output file basename.
 	// If Filename is set, use the name specified by the property.
 	// If Filename_from_src is set, use the source file name.
 	// Otherwise use the module name.
-	filename := android.String(p.properties.Filename)
-	filename_from_src := android.Bool(p.properties.Filename_from_src)
-	if filename == "" {
-		if filename_from_src {
-			filename = p.sourceFilePath.Base()
-		} else {
-			filename = ctx.ModuleName()
+	filename := proptools.String(p.properties.Filename)
+	filenameFromSrc := proptools.Bool(p.properties.Filename_from_src)
+	if filename != "" {
+		if filenameFromSrc {
+			ctx.PropertyErrorf("filename_from_src", "filename is set. filename_from_src can't be true")
+			return
 		}
-	} else if filename_from_src {
-		ctx.PropertyErrorf("filename_from_src", "filename is set. filename_from_src can't be true")
-		return
+	} else if filenameFromSrc {
+		filename = p.sourceFilePath.Base()
+	} else {
+		filename = ctx.ModuleName()
 	}
 	p.outputFilePath = android.PathForModuleOut(ctx, filename).OutputPath
 
+	// Check that `sub_dir` and `relative_install_path` are not set at the same time.
 	if p.properties.Sub_dir != nil && p.properties.Relative_install_path != nil {
 		ctx.PropertyErrorf("sub_dir", "relative_install_path is set. Cannot set sub_dir")
 	}
 
-	// If soc install dir was specified and SOC specific is set, set the installDirPath to the specified
-	// socInstallDirBase.
+	// If soc install dir was specified and SOC specific is set, set the installDirPath to the
+	// specified socInstallDirBase.
 	installBaseDir := p.installDirBase
 	if p.SocSpecific() && p.socInstallDirBase != "" {
 		installBaseDir = p.socInstallDirBase
@@ -353,9 +363,10 @@ func PrebuiltFontFactory() android.Module {
 	return module
 }
 
-// prebuilt_firmware installs a firmware file to <partition>/etc/firmware directory for system image.
-// If soc_specific property is set to true, the firmware file is installed to the vendor <partition>/firmware
-// directory for vendor image.
+// prebuilt_firmware installs a firmware file to <partition>/etc/firmware directory for system
+// image.
+// If soc_specific property is set to true, the firmware file is installed to the
+// vendor <partition>/firmware directory for vendor image.
 func PrebuiltFirmwareFactory() android.Module {
 	module := &PrebuiltEtc{}
 	module.socInstallDirBase = "firmware"
@@ -366,8 +377,8 @@ func PrebuiltFirmwareFactory() android.Module {
 }
 
 // prebuilt_dsp installs a DSP related file to <partition>/etc/dsp directory for system image.
-// If soc_specific property is set to true, the DSP related file is installed to the vendor <partition>/dsp
-// directory for vendor image.
+// If soc_specific property is set to true, the DSP related file is installed to the
+// vendor <partition>/dsp directory for vendor image.
 func PrebuiltDSPFactory() android.Module {
 	module := &PrebuiltEtc{}
 	module.socInstallDirBase = "dsp"
