@@ -337,6 +337,7 @@ type productVariables struct {
 
 	ProductPublicSepolicyDirs  []string `json:",omitempty"`
 	ProductPrivateSepolicyDirs []string `json:",omitempty"`
+	ProductCompatibleProperty  *bool    `json:",omitempty"`
 
 	ProductVndkVersion *string `json:",omitempty"`
 
