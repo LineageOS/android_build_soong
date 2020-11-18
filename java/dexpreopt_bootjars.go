@@ -651,14 +651,8 @@ func updatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConf
 		updatableBcpPackagesName := "updatable-bcp-packages.txt"
 		updatableBcpPackages := image.dir.Join(ctx, updatableBcpPackagesName)
 
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.WriteFile,
-			Output: updatableBcpPackages,
-			Args: map[string]string{
-				// WriteFile automatically adds the last end-of-line.
-				"content": strings.Join(updatablePackages, "\\n"),
-			},
-		})
+		// WriteFileRule automatically adds the last end-of-line.
+		android.WriteFileRule(ctx, updatableBcpPackages, strings.Join(updatablePackages, "\n"))
 
 		rule := android.NewRuleBuilder()
 		rule.MissingDeps(missingDeps)
@@ -720,13 +714,7 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
 func writeGlobalConfigForMake(ctx android.SingletonContext, path android.WritablePath) {
 	data := dexpreopt.GetGlobalConfigRawData(ctx)
 
-	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.WriteFile,
-		Output: path,
-		Args: map[string]string{
-			"content": string(data),
-		},
-	})
+	android.WriteFileRule(ctx, path, string(data))
 }
 
 // Export paths for default boot image to Make
