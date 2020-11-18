@@ -567,7 +567,7 @@ func (library *libraryDecorator) classifySourceAbiDump(ctx ModuleContext) string
 		return ""
 	}
 	// Return NDK if the library is both NDK and LLNDK.
-	if ctx.isNdk() {
+	if ctx.isNdk(ctx.Config()) {
 		return "NDK"
 	}
 	if ctx.isLlndkPublic(ctx.Config()) {
@@ -1099,7 +1099,7 @@ func (library *libraryDecorator) coverageOutputFilePath() android.OptionalPath {
 
 func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.Path {
 	// The logic must be consistent with classifySourceAbiDump.
-	isNdk := ctx.isNdk()
+	isNdk := ctx.isNdk(ctx.Config())
 	isLlndkOrVndk := ctx.isLlndkPublic(ctx.Config()) || (ctx.useVndk() && ctx.isVndk())
 
 	refAbiDumpTextFile := android.PathForVndkRefAbiDump(ctx, vndkVersion, fileName, isNdk, isLlndkOrVndk, false)
@@ -1153,7 +1153,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
 				refAbiDumpFile, fileName, exportedHeaderFlags,
 				Bool(library.Properties.Header_abi_checker.Check_all_apis),
-				ctx.isLlndk(ctx.Config()), ctx.isNdk(), ctx.isVndkExt())
+				ctx.isLlndk(ctx.Config()), ctx.isNdk(ctx.Config()), ctx.isVndkExt())
 		}
 	}
 }
