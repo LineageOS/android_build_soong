@@ -33,18 +33,455 @@ import (
 	"android/soong/sh"
 )
 
+func init() {
+	android.RegisterModuleType("apex", BundleFactory)
+	android.RegisterModuleType("apex_test", testApexBundleFactory)
+	android.RegisterModuleType("apex_vndk", vndkApexBundleFactory)
+	android.RegisterModuleType("apex_defaults", defaultsFactory)
+	android.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
+	android.RegisterModuleType("override_apex", overrideApexFactory)
+	android.RegisterModuleType("apex_set", apexSetFactory)
+
+	android.PreDepsMutators(RegisterPreDepsMutators)
+	android.PostDepsMutators(RegisterPostDepsMutators)
+}
+
+func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
+	ctx.TopDown("apex_vndk", apexVndkMutator).Parallel()
+	ctx.BottomUp("apex_vndk_deps", apexVndkDepsMutator).Parallel()
+}
+
+func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
+	ctx.TopDown("apex_deps", apexDepsMutator).Parallel()
+	ctx.BottomUp("apex_unique", apexUniqueVariationsMutator).Parallel()
+	ctx.BottomUp("apex_test_for_deps", apexTestForDepsMutator).Parallel()
+	ctx.BottomUp("apex_test_for", apexTestForMutator).Parallel()
+	ctx.BottomUp("apex", apexMutator).Parallel()
+	ctx.BottomUp("apex_directly_in_any", apexDirectlyInAnyMutator).Parallel()
+	ctx.BottomUp("apex_flattened", apexFlattenedMutator).Parallel()
+	ctx.BottomUp("mark_platform_availability", markPlatformAvailability).Parallel()
+}
+
+type apexBundleProperties struct {
+	// Json manifest file describing meta info of this APEX bundle. Default:
+	// "apex_manifest.json"
+	Manifest *string `android:"path"`
+
+	// AndroidManifest.xml file used for the zip container of this APEX bundle.
+	// If unspecified, a default one is automatically generated.
+	AndroidManifest *string `android:"path"`
+
+	// Canonical name of the APEX bundle. Used to determine the path to the activated APEX on
+	// device (/apex/<apex_name>).
+	// If unspecified, defaults to the value of name.
+	Apex_name *string
+
+	// Determines the file contexts file for setting security context to each file in this APEX bundle.
+	// For platform APEXes, this should points to a file under /system/sepolicy
+	// Default: /system/sepolicy/apex/<module_name>_file_contexts.
+	File_contexts *string `android:"path"`
+
+	ApexNativeDependencies
+
+	// List of java libraries that are embedded inside this APEX bundle
+	Java_libs []string
+
+	// List of prebuilt files that are embedded inside this APEX bundle
+	Prebuilts []string
+
+	// List of BPF programs inside APEX
+	Bpfs []string
+
+	// Name of the apex_key module that provides the private key to sign APEX
+	Key *string
+
+	// The type of APEX to build. Controls what the APEX payload is. Either
+	// 'image', 'zip' or 'both'. Default: 'image'.
+	Payload_type *string
+
+	// The name of a certificate in the default certificate directory, blank to use the default product certificate,
+	// or an android_app_certificate module name in the form ":module".
+	Certificate *string
+
+	// Whether this APEX is installable to one of the partitions. Default: true.
+	Installable *bool
+
+	// For native libraries and binaries, use the vendor variant instead of the core (platform) variant.
+	// Default is false.
+	Use_vendor *bool
+
+	// For telling the apex to ignore special handling for system libraries such as bionic. Default is false.
+	Ignore_system_library_special_case *bool
+
+	Multilib apexMultilibProperties
+
+	// List of sanitizer names that this APEX is enabled for
+	SanitizerNames []string `blueprint:"mutated"`
+
+	PreventInstall bool `blueprint:"mutated"`
+
+	HideFromMake bool `blueprint:"mutated"`
+
+	// package format of this apex variant; could be non-flattened, flattened, or zip.
+	// imageApex, zipApex or flattened
+	ApexType apexPackaging `blueprint:"mutated"`
+
+	// List of SDKs that are used to build this APEX. A reference to an SDK should be either
+	// `name#version` or `name` which is an alias for `name#current`. If left empty, `platform#current`
+	// is implied. This value affects all modules included in this APEX. In other words, they are
+	// also built with the SDKs specified here.
+	Uses_sdks []string
+
+	// Whenever apex_payload.img of the APEX should include dm-verity hashtree.
+	// Should be only used in tests#.
+	Test_only_no_hashtree *bool
+
+	// Whenever apex_payload.img of the APEX should not be dm-verity signed.
+	// Should be only used in tests#.
+	Test_only_unsigned_payload *bool
+
+	IsCoverageVariant bool `blueprint:"mutated"`
+
+	// Whether this APEX is considered updatable or not. When set to true, this will enforce additional
+	// rules for making sure that the APEX is truly updatable.
+	// - To be updatable, min_sdk_version should be set as well
+	// This will also disable the size optimizations like symlinking to the system libs.
+	// Default is false.
+	Updatable *bool
+
+	// The minimum SDK version that this apex must be compatibile with.
+	Min_sdk_version *string
+
+	// If set true, VNDK libs are considered as stable libs and are not included in this apex.
+	// Should be only used in non-system apexes (e.g. vendor: true).
+	// Default is false.
+	Use_vndk_as_stable *bool
+
+	// The type of filesystem to use for an image apex. Either 'ext4' or 'f2fs'.
+	// Default 'ext4'.
+	Payload_fs_type *string
+}
+
+type ApexNativeDependencies struct {
+	// List of native libraries
+	Native_shared_libs []string
+
+	// List of JNI libraries
+	Jni_libs []string
+
+	// List of native executables
+	Binaries []string
+
+	// List of native tests
+	Tests []string
+}
+
+type apexMultilibProperties struct {
+	// Native dependencies whose compile_multilib is "first"
+	First ApexNativeDependencies
+
+	// Native dependencies whose compile_multilib is "both"
+	Both ApexNativeDependencies
+
+	// Native dependencies whose compile_multilib is "prefer32"
+	Prefer32 ApexNativeDependencies
+
+	// Native dependencies whose compile_multilib is "32"
+	Lib32 ApexNativeDependencies
+
+	// Native dependencies whose compile_multilib is "64"
+	Lib64 ApexNativeDependencies
+}
+
+type apexTargetBundleProperties struct {
+	Target struct {
+		// Multilib properties only for android.
+		Android struct {
+			Multilib apexMultilibProperties
+		}
+
+		// Multilib properties only for host.
+		Host struct {
+			Multilib apexMultilibProperties
+		}
+
+		// Multilib properties only for host linux_bionic.
+		Linux_bionic struct {
+			Multilib apexMultilibProperties
+		}
+
+		// Multilib properties only for host linux_glibc.
+		Linux_glibc struct {
+			Multilib apexMultilibProperties
+		}
+	}
+}
+
+type overridableProperties struct {
+	// List of APKs to package inside APEX
+	Apps []string
+
+	// List of runtime resource overlays (RROs) inside APEX
+	Rros []string
+
+	// Names of modules to be overridden. Listed modules can only be other binaries
+	// (in Make or Soong).
+	// This does not completely prevent installation of the overridden binaries, but if both
+	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
+	// from PRODUCT_PACKAGES.
+	Overrides []string
+
+	// Logging Parent value
+	Logging_parent string
+
+	// Apex Container Package Name.
+	// Override value for attribute package:name in AndroidManifest.xml
+	Package_name string
+
+	// A txt file containing list of files that are allowed to be included in this APEX.
+	Allowed_files *string `android:"path"`
+}
+
+type apexBundle struct {
+	android.ModuleBase
+	android.DefaultableModuleBase
+	android.OverridableModuleBase
+	android.SdkBase
+
+	properties            apexBundleProperties
+	targetProperties      apexTargetBundleProperties
+	overridableProperties overridableProperties
+
+	// specific to apex_vndk modules
+	vndkProperties apexVndkProperties
+
+	bundleModuleFile android.WritablePath
+	outputFile       android.WritablePath
+	installDir       android.InstallPath
+
+	prebuiltFileToDelete string
+
+	public_key_file  android.Path
+	private_key_file android.Path
+
+	container_certificate_file android.Path
+	container_private_key_file android.Path
+
+	fileContexts android.WritablePath
+
+	// list of files to be included in this apex
+	filesInfo []apexFile
+
+	// list of module names that should be installed along with this APEX
+	requiredDeps []string
+
+	// list of module names that this APEX is including (to be shown via *-deps-info target)
+	android.ApexBundleDepsInfo
+
+	testApex        bool
+	vndkApex        bool
+	artApex         bool
+	primaryApexType bool
+
+	manifestJsonOut android.WritablePath
+	manifestPbOut   android.WritablePath
+
+	// list of commands to create symlinks for backward compatibility.
+	// these commands will be attached as LOCAL_POST_INSTALL_CMD to
+	// apex package itself(for unflattened build) or apex_manifest(for flattened build)
+	// so that compat symlinks are always installed regardless of TARGET_FLATTEN_APEX setting.
+	compatSymlinks []string
+
+	// Suffix of module name in Android.mk
+	// ".flattened", ".apex", ".zipapex", or ""
+	suffix string
+
+	installedFilesFile android.WritablePath
+
+	// Whether to create symlink to the system file instead of having a file
+	// inside the apex or not
+	linkToSystemLib bool
+
+	// Struct holding the merged notice file paths in different formats
+	mergedNotices android.NoticeOutputs
+
+	// Optional list of lint report zip files for apexes that contain java or app modules
+	lintReports android.Paths
+
+	payloadFsType fsType
+
+	distFiles android.TaggedDistFiles
+}
+
+type apexFileClass int
+
 const (
-	imageApexSuffix = ".apex"
-	zipApexSuffix   = ".zipapex"
-	flattenedSuffix = ".flattened"
-
-	imageApexType     = "image"
-	zipApexType       = "zip"
-	flattenedApexType = "flattened"
-
-	ext4FsType = "ext4"
-	f2fsFsType = "f2fs"
+	etc apexFileClass = iota
+	nativeSharedLib
+	nativeExecutable
+	shBinary
+	pyBinary
+	goBinary
+	javaSharedLib
+	nativeTest
+	app
+	appSet
 )
+
+func (class apexFileClass) NameInMake() string {
+	switch class {
+	case etc:
+		return "ETC"
+	case nativeSharedLib:
+		return "SHARED_LIBRARIES"
+	case nativeExecutable, shBinary, pyBinary, goBinary:
+		return "EXECUTABLES"
+	case javaSharedLib:
+		return "JAVA_LIBRARIES"
+	case nativeTest:
+		return "NATIVE_TESTS"
+	case app, appSet:
+		// b/142537672 Why isn't this APP? We want to have full control over
+		// the paths and file names of the apk file under the flattend APEX.
+		// If this is set to APP, then the paths and file names are modified
+		// by the Make build system. For example, it is installed to
+		// /system/apex/<apexname>/app/<Appname>/<apexname>.<Appname>/ instead of
+		// /system/apex/<apexname>/app/<Appname> because the build system automatically
+		// appends module name (which is <apexname>.<Appname> to the path.
+		return "ETC"
+	default:
+		panic(fmt.Errorf("unknown class %d", class))
+	}
+}
+
+// apexFile represents a file in an APEX bundle
+type apexFile struct {
+	builtFile android.Path
+	stem      string
+	// Module name of `module` in AndroidMk. Note the generated AndroidMk module for
+	// apexFile is named something like <AndroidMk module name>.<apex name>[<apex suffix>]
+	androidMkModuleName string
+	installDir          string
+	class               apexFileClass
+	module              android.Module
+	// list of symlinks that will be created in installDir that point to this apexFile
+	symlinks      []string
+	dataPaths     []android.DataPath
+	transitiveDep bool
+	moduleDir     string
+
+	requiredModuleNames       []string
+	targetRequiredModuleNames []string
+	hostRequiredModuleNames   []string
+
+	jacocoReportClassesFile android.Path     // only for javalibs and apps
+	lintDepSets             java.LintDepSets // only for javalibs and apps
+	certificate             java.Certificate // only for apps
+	overriddenPackageName   string           // only for apps
+
+	isJniLib bool
+
+	noticeFiles android.Paths
+}
+
+func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidMkModuleName string, installDir string, class apexFileClass, module android.Module) apexFile {
+	ret := apexFile{
+		builtFile:           builtFile,
+		androidMkModuleName: androidMkModuleName,
+		installDir:          installDir,
+		class:               class,
+		module:              module,
+	}
+	if module != nil {
+		ret.moduleDir = ctx.OtherModuleDir(module)
+		ret.requiredModuleNames = module.RequiredModuleNames()
+		ret.targetRequiredModuleNames = module.TargetRequiredModuleNames()
+		ret.hostRequiredModuleNames = module.HostRequiredModuleNames()
+		ret.noticeFiles = module.NoticeFiles()
+	}
+	return ret
+}
+
+func (af *apexFile) Ok() bool {
+	return af.builtFile != nil && af.builtFile.String() != ""
+}
+
+func (af *apexFile) apexRelativePath(path string) string {
+	return filepath.Join(af.installDir, path)
+}
+
+// Path() returns path of this apex file relative to the APEX root
+func (af *apexFile) Path() string {
+	return af.apexRelativePath(af.Stem())
+}
+
+func (af *apexFile) Stem() string {
+	if af.stem != "" {
+		return af.stem
+	}
+	return af.builtFile.Base()
+}
+
+// SymlinkPaths() returns paths of the symlinks (if any) relative to the APEX root
+func (af *apexFile) SymlinkPaths() []string {
+	var ret []string
+	for _, symlink := range af.symlinks {
+		ret = append(ret, af.apexRelativePath(symlink))
+	}
+	return ret
+}
+
+func (af *apexFile) AvailableToPlatform() bool {
+	if af.module == nil {
+		return false
+	}
+	if am, ok := af.module.(android.ApexModule); ok {
+		return am.AvailableFor(android.AvailableToPlatform)
+	}
+	return false
+}
+
+func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
+	nativeModules ApexNativeDependencies,
+	target android.Target, imageVariation string) {
+	// Use *FarVariation* to be able to depend on modules having
+	// conflicting variations with this module. This is required since
+	// arch variant of an APEX bundle is 'common' but it is 'arm' or 'arm64'
+	// for native shared libs.
+
+	binVariations := target.Variations()
+	libVariations := append(target.Variations(),
+		blueprint.Variation{Mutator: "link", Variation: "shared"})
+
+	if ctx.Device() {
+		binVariations = append(binVariations,
+			blueprint.Variation{Mutator: "image", Variation: imageVariation})
+		libVariations = append(libVariations,
+			blueprint.Variation{Mutator: "image", Variation: imageVariation},
+			blueprint.Variation{Mutator: "version", Variation: ""}) // "" is the non-stub variant
+	}
+
+	ctx.AddFarVariationDependencies(libVariations, sharedLibTag, nativeModules.Native_shared_libs...)
+
+	ctx.AddFarVariationDependencies(libVariations, jniLibTag, nativeModules.Jni_libs...)
+
+	ctx.AddFarVariationDependencies(binVariations, executableTag, nativeModules.Binaries...)
+
+	ctx.AddFarVariationDependencies(binVariations, testTag, nativeModules.Tests...)
+}
+
+func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
+	if ctx.Os().Class == android.Device {
+		proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Android.Multilib, nil)
+	} else {
+		proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Host.Multilib, nil)
+		if ctx.Os().Bionic() {
+			proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Linux_bionic.Multilib, nil)
+		} else {
+			proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Linux_glibc.Multilib, nil)
+		}
+	}
+}
 
 type dependencyTag struct {
 	blueprint.BaseDependencyTag
@@ -67,704 +504,162 @@ var (
 	rroTag         = dependencyTag{name: "rro", payload: true}
 	bpfTag         = dependencyTag{name: "bpf", payload: true}
 	testForTag     = dependencyTag{name: "test for"}
-
-	apexAvailBaseline = makeApexAvailableBaseline()
-
-	inverseApexAvailBaseline = invertApexBaseline(apexAvailBaseline)
 )
 
-// Transform the map of apex -> modules to module -> apexes.
-func invertApexBaseline(m map[string][]string) map[string][]string {
-	r := make(map[string][]string)
-	for apex, modules := range m {
-		for _, module := range modules {
-			r[module] = append(r[module], apex)
+func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if proptools.Bool(a.properties.Use_vendor) && !android.InList(a.Name(), useVendorAllowList(ctx.Config())) {
+		ctx.PropertyErrorf("use_vendor", "not allowed to set use_vendor: true")
+	}
+
+	targets := ctx.MultiTargets()
+	config := ctx.DeviceConfig()
+	imageVariation := a.getImageVariation(ctx)
+
+	a.combineProperties(ctx)
+
+	has32BitTarget := false
+	for _, target := range targets {
+		if target.Arch.ArchType.Multilib == "lib32" {
+			has32BitTarget = true
 		}
 	}
-	return r
-}
+	for i, target := range targets {
+		if target.HostCross {
+			// Don't include artifats for the host cross targets because there is no way
+			// for us to run those artifacts natively on host
+			continue
+		}
 
-// Retrieve the baseline of apexes to which the supplied module belongs.
-func BaselineApexAvailable(moduleName string) []string {
-	return inverseApexAvailBaseline[normalizeModuleName(moduleName)]
-}
+		// When multilib.* is omitted for native_shared_libs/jni_libs/tests, it implies
+		// multilib.both
+		addDependenciesForNativeModules(ctx,
+			ApexNativeDependencies{
+				Native_shared_libs: a.properties.Native_shared_libs,
+				Tests:              a.properties.Tests,
+				Jni_libs:           a.properties.Jni_libs,
+				Binaries:           nil,
+			},
+			target, imageVariation)
 
-// This is a map from apex to modules, which overrides the
-// apex_available setting for that particular module to make
-// it available for the apex regardless of its setting.
-// TODO(b/147364041): remove this
-func makeApexAvailableBaseline() map[string][]string {
-	// The "Module separator"s below are employed to minimize merge conflicts.
-	m := make(map[string][]string)
-	//
-	// Module separator
-	//
-	m["com.android.appsearch"] = []string{
-		"icing-java-proto-lite",
-		"libprotobuf-java-lite",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.bluetooth.updatable"] = []string{
-		"android.hardware.audio.common@5.0",
-		"android.hardware.bluetooth.a2dp@1.0",
-		"android.hardware.bluetooth.audio@2.0",
-		"android.hardware.bluetooth@1.0",
-		"android.hardware.bluetooth@1.1",
-		"android.hardware.graphics.bufferqueue@1.0",
-		"android.hardware.graphics.bufferqueue@2.0",
-		"android.hardware.graphics.common@1.0",
-		"android.hardware.graphics.common@1.1",
-		"android.hardware.graphics.common@1.2",
-		"android.hardware.media@1.0",
-		"android.hidl.safe_union@1.0",
-		"android.hidl.token@1.0",
-		"android.hidl.token@1.0-utils",
-		"avrcp-target-service",
-		"avrcp_headers",
-		"bluetooth-protos-lite",
-		"bluetooth.mapsapi",
-		"com.android.vcard",
-		"dnsresolver_aidl_interface-V2-java",
-		"ipmemorystore-aidl-interfaces-V5-java",
-		"ipmemorystore-aidl-interfaces-java",
-		"internal_include_headers",
-		"lib-bt-packets",
-		"lib-bt-packets-avrcp",
-		"lib-bt-packets-base",
-		"libFraunhoferAAC",
-		"libaudio-a2dp-hw-utils",
-		"libaudio-hearing-aid-hw-utils",
-		"libbinder_headers",
-		"libbluetooth",
-		"libbluetooth-types",
-		"libbluetooth-types-header",
-		"libbluetooth_gd",
-		"libbluetooth_headers",
-		"libbluetooth_jni",
-		"libbt-audio-hal-interface",
-		"libbt-bta",
-		"libbt-common",
-		"libbt-hci",
-		"libbt-platform-protos-lite",
-		"libbt-protos-lite",
-		"libbt-sbc-decoder",
-		"libbt-sbc-encoder",
-		"libbt-stack",
-		"libbt-utils",
-		"libbtcore",
-		"libbtdevice",
-		"libbte",
-		"libbtif",
-		"libchrome",
-		"libevent",
-		"libfmq",
-		"libg722codec",
-		"libgui_headers",
-		"libmedia_headers",
-		"libmodpb64",
-		"libosi",
-		"libstagefright_foundation_headers",
-		"libstagefright_headers",
-		"libstatslog",
-		"libstatssocket",
-		"libtinyxml2",
-		"libudrv-uipc",
-		"libz",
-		"media_plugin_headers",
-		"net-utils-services-common",
-		"netd_aidl_interface-unstable-java",
-		"netd_event_listener_interface-java",
-		"netlink-client",
-		"networkstack-client",
-		"sap-api-java-static",
-		"services.net",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.cellbroadcast"] = []string{"CellBroadcastApp", "CellBroadcastServiceModule"}
-	//
-	// Module separator
-	//
-	m["com.android.extservices"] = []string{
-		"error_prone_annotations",
-		"ExtServices-core",
-		"ExtServices",
-		"libtextclassifier-java",
-		"libz_current",
-		"textclassifier-statsd",
-		"TextClassifierNotificationLibNoManifest",
-		"TextClassifierServiceLibNoManifest",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.neuralnetworks"] = []string{
-		"android.hardware.neuralnetworks@1.0",
-		"android.hardware.neuralnetworks@1.1",
-		"android.hardware.neuralnetworks@1.2",
-		"android.hardware.neuralnetworks@1.3",
-		"android.hidl.allocator@1.0",
-		"android.hidl.memory.token@1.0",
-		"android.hidl.memory@1.0",
-		"android.hidl.safe_union@1.0",
-		"libarect",
-		"libbuildversion",
-		"libmath",
-		"libprocpartition",
-		"libsync",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.media"] = []string{
-		"android.frameworks.bufferhub@1.0",
-		"android.hardware.cas.native@1.0",
-		"android.hardware.cas@1.0",
-		"android.hardware.configstore-utils",
-		"android.hardware.configstore@1.0",
-		"android.hardware.configstore@1.1",
-		"android.hardware.graphics.allocator@2.0",
-		"android.hardware.graphics.allocator@3.0",
-		"android.hardware.graphics.bufferqueue@1.0",
-		"android.hardware.graphics.bufferqueue@2.0",
-		"android.hardware.graphics.common@1.0",
-		"android.hardware.graphics.common@1.1",
-		"android.hardware.graphics.common@1.2",
-		"android.hardware.graphics.mapper@2.0",
-		"android.hardware.graphics.mapper@2.1",
-		"android.hardware.graphics.mapper@3.0",
-		"android.hardware.media.omx@1.0",
-		"android.hardware.media@1.0",
-		"android.hidl.allocator@1.0",
-		"android.hidl.memory.token@1.0",
-		"android.hidl.memory@1.0",
-		"android.hidl.token@1.0",
-		"android.hidl.token@1.0-utils",
-		"bionic_libc_platform_headers",
-		"exoplayer2-extractor",
-		"exoplayer2-extractor-annotation-stubs",
-		"gl_headers",
-		"jsr305",
-		"libEGL",
-		"libEGL_blobCache",
-		"libEGL_getProcAddress",
-		"libFLAC",
-		"libFLAC-config",
-		"libFLAC-headers",
-		"libGLESv2",
-		"libaacextractor",
-		"libamrextractor",
-		"libarect",
-		"libaudio_system_headers",
-		"libaudioclient",
-		"libaudioclient_headers",
-		"libaudiofoundation",
-		"libaudiofoundation_headers",
-		"libaudiomanager",
-		"libaudiopolicy",
-		"libaudioutils",
-		"libaudioutils_fixedfft",
-		"libbinder_headers",
-		"libbluetooth-types-header",
-		"libbufferhub",
-		"libbufferhub_headers",
-		"libbufferhubqueue",
-		"libc_malloc_debug_backtrace",
-		"libcamera_client",
-		"libcamera_metadata",
-		"libdvr_headers",
-		"libexpat",
-		"libfifo",
-		"libflacextractor",
-		"libgrallocusage",
-		"libgraphicsenv",
-		"libgui",
-		"libgui_headers",
-		"libhardware_headers",
-		"libinput",
-		"liblzma",
-		"libmath",
-		"libmedia",
-		"libmedia_codeclist",
-		"libmedia_headers",
-		"libmedia_helper",
-		"libmedia_helper_headers",
-		"libmedia_midiiowrapper",
-		"libmedia_omx",
-		"libmediautils",
-		"libmidiextractor",
-		"libmkvextractor",
-		"libmp3extractor",
-		"libmp4extractor",
-		"libmpeg2extractor",
-		"libnativebase_headers",
-		"libnativewindow_headers",
-		"libnblog",
-		"liboggextractor",
-		"libpackagelistparser",
-		"libpdx",
-		"libpdx_default_transport",
-		"libpdx_headers",
-		"libpdx_uds",
-		"libprocinfo",
-		"libspeexresampler",
-		"libspeexresampler",
-		"libstagefright_esds",
-		"libstagefright_flacdec",
-		"libstagefright_flacdec",
-		"libstagefright_foundation",
-		"libstagefright_foundation_headers",
-		"libstagefright_foundation_without_imemory",
-		"libstagefright_headers",
-		"libstagefright_id3",
-		"libstagefright_metadatautils",
-		"libstagefright_mpeg2extractor",
-		"libstagefright_mpeg2support",
-		"libsync",
-		"libui",
-		"libui_headers",
-		"libunwindstack",
-		"libvibrator",
-		"libvorbisidec",
-		"libwavextractor",
-		"libwebm",
-		"media_ndk_headers",
-		"media_plugin_headers",
-		"updatable-media",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.media.swcodec"] = []string{
-		"android.frameworks.bufferhub@1.0",
-		"android.hardware.common-ndk_platform",
-		"android.hardware.configstore-utils",
-		"android.hardware.configstore@1.0",
-		"android.hardware.configstore@1.1",
-		"android.hardware.graphics.allocator@2.0",
-		"android.hardware.graphics.allocator@3.0",
-		"android.hardware.graphics.allocator@4.0",
-		"android.hardware.graphics.bufferqueue@1.0",
-		"android.hardware.graphics.bufferqueue@2.0",
-		"android.hardware.graphics.common-ndk_platform",
-		"android.hardware.graphics.common@1.0",
-		"android.hardware.graphics.common@1.1",
-		"android.hardware.graphics.common@1.2",
-		"android.hardware.graphics.mapper@2.0",
-		"android.hardware.graphics.mapper@2.1",
-		"android.hardware.graphics.mapper@3.0",
-		"android.hardware.graphics.mapper@4.0",
-		"android.hardware.media.bufferpool@2.0",
-		"android.hardware.media.c2@1.0",
-		"android.hardware.media.c2@1.1",
-		"android.hardware.media.omx@1.0",
-		"android.hardware.media@1.0",
-		"android.hardware.media@1.0",
-		"android.hidl.memory.token@1.0",
-		"android.hidl.memory@1.0",
-		"android.hidl.safe_union@1.0",
-		"android.hidl.token@1.0",
-		"android.hidl.token@1.0-utils",
-		"libEGL",
-		"libFLAC",
-		"libFLAC-config",
-		"libFLAC-headers",
-		"libFraunhoferAAC",
-		"libLibGuiProperties",
-		"libarect",
-		"libaudio_system_headers",
-		"libaudioutils",
-		"libaudioutils",
-		"libaudioutils_fixedfft",
-		"libavcdec",
-		"libavcenc",
-		"libavservices_minijail",
-		"libavservices_minijail",
-		"libbinder_headers",
-		"libbinderthreadstateutils",
-		"libbluetooth-types-header",
-		"libbufferhub_headers",
-		"libcodec2",
-		"libcodec2_headers",
-		"libcodec2_hidl@1.0",
-		"libcodec2_hidl@1.1",
-		"libcodec2_internal",
-		"libcodec2_soft_aacdec",
-		"libcodec2_soft_aacenc",
-		"libcodec2_soft_amrnbdec",
-		"libcodec2_soft_amrnbenc",
-		"libcodec2_soft_amrwbdec",
-		"libcodec2_soft_amrwbenc",
-		"libcodec2_soft_av1dec_gav1",
-		"libcodec2_soft_avcdec",
-		"libcodec2_soft_avcenc",
-		"libcodec2_soft_common",
-		"libcodec2_soft_flacdec",
-		"libcodec2_soft_flacenc",
-		"libcodec2_soft_g711alawdec",
-		"libcodec2_soft_g711mlawdec",
-		"libcodec2_soft_gsmdec",
-		"libcodec2_soft_h263dec",
-		"libcodec2_soft_h263enc",
-		"libcodec2_soft_hevcdec",
-		"libcodec2_soft_hevcenc",
-		"libcodec2_soft_mp3dec",
-		"libcodec2_soft_mpeg2dec",
-		"libcodec2_soft_mpeg4dec",
-		"libcodec2_soft_mpeg4enc",
-		"libcodec2_soft_opusdec",
-		"libcodec2_soft_opusenc",
-		"libcodec2_soft_rawdec",
-		"libcodec2_soft_vorbisdec",
-		"libcodec2_soft_vp8dec",
-		"libcodec2_soft_vp8enc",
-		"libcodec2_soft_vp9dec",
-		"libcodec2_soft_vp9enc",
-		"libcodec2_vndk",
-		"libdvr_headers",
-		"libfmq",
-		"libfmq",
-		"libgav1",
-		"libgralloctypes",
-		"libgrallocusage",
-		"libgraphicsenv",
-		"libgsm",
-		"libgui_bufferqueue_static",
-		"libgui_headers",
-		"libhardware",
-		"libhardware_headers",
-		"libhevcdec",
-		"libhevcenc",
-		"libion",
-		"libjpeg",
-		"liblzma",
-		"libmath",
-		"libmedia_codecserviceregistrant",
-		"libmedia_headers",
-		"libmpeg2dec",
-		"libnativebase_headers",
-		"libnativewindow_headers",
-		"libpdx_headers",
-		"libscudo_wrapper",
-		"libsfplugin_ccodec_utils",
-		"libspeexresampler",
-		"libstagefright_amrnb_common",
-		"libstagefright_amrnbdec",
-		"libstagefright_amrnbenc",
-		"libstagefright_amrwbdec",
-		"libstagefright_amrwbenc",
-		"libstagefright_bufferpool@2.0.1",
-		"libstagefright_bufferqueue_helper",
-		"libstagefright_enc_common",
-		"libstagefright_flacdec",
-		"libstagefright_foundation",
-		"libstagefright_foundation_headers",
-		"libstagefright_headers",
-		"libstagefright_m4vh263dec",
-		"libstagefright_m4vh263enc",
-		"libstagefright_mp3dec",
-		"libsync",
-		"libui",
-		"libui_headers",
-		"libunwindstack",
-		"libvorbisidec",
-		"libvpx",
-		"libyuv",
-		"libyuv_static",
-		"media_ndk_headers",
-		"media_plugin_headers",
-		"mediaswcodec",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.mediaprovider"] = []string{
-		"MediaProvider",
-		"MediaProviderGoogle",
-		"fmtlib_ndk",
-		"libbase_ndk",
-		"libfuse",
-		"libfuse_jni",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.permission"] = []string{
-		"car-ui-lib",
-		"iconloader",
-		"kotlin-annotations",
-		"kotlin-stdlib",
-		"kotlin-stdlib-jdk7",
-		"kotlin-stdlib-jdk8",
-		"kotlinx-coroutines-android",
-		"kotlinx-coroutines-android-nodeps",
-		"kotlinx-coroutines-core",
-		"kotlinx-coroutines-core-nodeps",
-		"permissioncontroller-statsd",
-		"GooglePermissionController",
-		"PermissionController",
-		"SettingsLibActionBarShadow",
-		"SettingsLibAppPreference",
-		"SettingsLibBarChartPreference",
-		"SettingsLibLayoutPreference",
-		"SettingsLibProgressBar",
-		"SettingsLibSearchWidget",
-		"SettingsLibSettingsTheme",
-		"SettingsLibRestrictedLockUtils",
-		"SettingsLibHelpUtils",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.runtime"] = []string{
-		"bionic_libc_platform_headers",
-		"libarm-optimized-routines-math",
-		"libc_aeabi",
-		"libc_bionic",
-		"libc_bionic_ndk",
-		"libc_bootstrap",
-		"libc_common",
-		"libc_common_shared",
-		"libc_common_static",
-		"libc_dns",
-		"libc_dynamic_dispatch",
-		"libc_fortify",
-		"libc_freebsd",
-		"libc_freebsd_large_stack",
-		"libc_gdtoa",
-		"libc_init_dynamic",
-		"libc_init_static",
-		"libc_jemalloc_wrapper",
-		"libc_netbsd",
-		"libc_nomalloc",
-		"libc_nopthread",
-		"libc_openbsd",
-		"libc_openbsd_large_stack",
-		"libc_openbsd_ndk",
-		"libc_pthread",
-		"libc_static_dispatch",
-		"libc_syscalls",
-		"libc_tzcode",
-		"libc_unwind_static",
-		"libdebuggerd",
-		"libdebuggerd_common_headers",
-		"libdebuggerd_handler_core",
-		"libdebuggerd_handler_fallback",
-		"libdl_static",
-		"libjemalloc5",
-		"liblinker_main",
-		"liblinker_malloc",
-		"liblz4",
-		"liblzma",
-		"libprocinfo",
-		"libpropertyinfoparser",
-		"libscudo",
-		"libstdc++",
-		"libsystemproperties",
-		"libtombstoned_client_static",
-		"libunwindstack",
-		"libz",
-		"libziparchive",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.tethering"] = []string{
-		"android.hardware.tetheroffload.config-V1.0-java",
-		"android.hardware.tetheroffload.control-V1.0-java",
-		"android.hidl.base-V1.0-java",
-		"libcgrouprc",
-		"libcgrouprc_format",
-		"libtetherutilsjni",
-		"libvndksupport",
-		"net-utils-framework-common",
-		"netd_aidl_interface-V3-java",
-		"netlink-client",
-		"networkstack-aidl-interfaces-java",
-		"tethering-aidl-interfaces-java",
-		"TetheringApiCurrentLib",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.wifi"] = []string{
-		"PlatformProperties",
-		"android.hardware.wifi-V1.0-java",
-		"android.hardware.wifi-V1.0-java-constants",
-		"android.hardware.wifi-V1.1-java",
-		"android.hardware.wifi-V1.2-java",
-		"android.hardware.wifi-V1.3-java",
-		"android.hardware.wifi-V1.4-java",
-		"android.hardware.wifi.hostapd-V1.0-java",
-		"android.hardware.wifi.hostapd-V1.1-java",
-		"android.hardware.wifi.hostapd-V1.2-java",
-		"android.hardware.wifi.supplicant-V1.0-java",
-		"android.hardware.wifi.supplicant-V1.1-java",
-		"android.hardware.wifi.supplicant-V1.2-java",
-		"android.hardware.wifi.supplicant-V1.3-java",
-		"android.hidl.base-V1.0-java",
-		"android.hidl.manager-V1.0-java",
-		"android.hidl.manager-V1.1-java",
-		"android.hidl.manager-V1.2-java",
-		"bouncycastle-unbundled",
-		"dnsresolver_aidl_interface-V2-java",
-		"error_prone_annotations",
-		"framework-wifi-pre-jarjar",
-		"framework-wifi-util-lib",
-		"ipmemorystore-aidl-interfaces-V3-java",
-		"ipmemorystore-aidl-interfaces-java",
-		"ksoap2",
-		"libnanohttpd",
-		"libwifi-jni",
-		"net-utils-services-common",
-		"netd_aidl_interface-V2-java",
-		"netd_aidl_interface-unstable-java",
-		"netd_event_listener_interface-java",
-		"netlink-client",
-		"networkstack-client",
-		"services.net",
-		"wifi-lite-protos",
-		"wifi-nano-protos",
-		"wifi-service-pre-jarjar",
-		"wifi-service-resources",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.sdkext"] = []string{
-		"fmtlib_ndk",
-		"libbase_ndk",
-		"libprotobuf-cpp-lite-ndk",
-	}
-	//
-	// Module separator
-	//
-	m["com.android.os.statsd"] = []string{
-		"libstatssocket",
-	}
-	//
-	// Module separator
-	//
-	m[android.AvailableToAnyApex] = []string{
-		// TODO(b/156996905) Set apex_available/min_sdk_version for androidx/extras support libraries
-		"androidx",
-		"androidx-constraintlayout_constraintlayout",
-		"androidx-constraintlayout_constraintlayout-nodeps",
-		"androidx-constraintlayout_constraintlayout-solver",
-		"androidx-constraintlayout_constraintlayout-solver-nodeps",
-		"com.google.android.material_material",
-		"com.google.android.material_material-nodeps",
+		// Add native modules targetting both ABIs
+		addDependenciesForNativeModules(ctx,
+			a.properties.Multilib.Both,
+			target,
+			imageVariation)
 
-		"libatomic",
-		"libclang_rt",
-		"libgcc_stripped",
-		"libprofile-clang-extras",
-		"libprofile-clang-extras_ndk",
-		"libprofile-extras",
-		"libprofile-extras_ndk",
-		"libunwind_llvm",
-	}
-	return m
-}
+		isPrimaryAbi := i == 0
+		if isPrimaryAbi {
+			// When multilib.* is omitted for binaries, it implies
+			// multilib.first
+			addDependenciesForNativeModules(ctx,
+				ApexNativeDependencies{
+					Native_shared_libs: nil,
+					Tests:              nil,
+					Jni_libs:           nil,
+					Binaries:           a.properties.Binaries,
+				},
+				target, imageVariation)
 
-// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART.
-// Adding code to the bootclasspath in new packages will cause issues on module update.
-func qModulesPackages() map[string][]string {
-	return map[string][]string{
-		"com.android.conscrypt": []string{
-			"android.net.ssl",
-			"com.android.org.conscrypt",
-		},
-		"com.android.media": []string{
-			"android.media",
-		},
+			// Add native modules targetting the first ABI
+			addDependenciesForNativeModules(ctx,
+				a.properties.Multilib.First,
+				target,
+				imageVariation)
+		}
+
+		switch target.Arch.ArchType.Multilib {
+		case "lib32":
+			// Add native modules targetting 32-bit ABI
+			addDependenciesForNativeModules(ctx,
+				a.properties.Multilib.Lib32,
+				target,
+				imageVariation)
+
+			addDependenciesForNativeModules(ctx,
+				a.properties.Multilib.Prefer32,
+				target,
+				imageVariation)
+		case "lib64":
+			// Add native modules targetting 64-bit ABI
+			addDependenciesForNativeModules(ctx,
+				a.properties.Multilib.Lib64,
+				target,
+				imageVariation)
+
+			if !has32BitTarget {
+				addDependenciesForNativeModules(ctx,
+					a.properties.Multilib.Prefer32,
+					target,
+					imageVariation)
+			}
+		}
+	}
+
+	// For prebuilt_etc, use the first variant (64 on 64/32bit device,
+	// 32 on 32bit device) regardless of the TARGET_PREFER_* setting.
+	// b/144532908
+	archForPrebuiltEtc := config.Arches()[0]
+	for _, arch := range config.Arches() {
+		// Prefer 64-bit arch if there is any
+		if arch.ArchType.Multilib == "lib64" {
+			archForPrebuiltEtc = arch
+			break
+		}
+	}
+	ctx.AddFarVariationDependencies([]blueprint.Variation{
+		{Mutator: "os", Variation: ctx.Os().String()},
+		{Mutator: "arch", Variation: archForPrebuiltEtc.String()},
+	}, prebuiltTag, a.properties.Prebuilts...)
+
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+		javaLibTag, a.properties.Java_libs...)
+
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+		bpfTag, a.properties.Bpfs...)
+
+	// With EMMA_INSTRUMENT_FRAMEWORK=true the ART boot image includes jacoco library.
+	if a.artApex && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+			javaLibTag, "jacocoagent")
+	}
+
+	if String(a.properties.Key) == "" {
+		ctx.ModuleErrorf("key is missing")
+		return
+	}
+	ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
+
+	cert := android.SrcIsModule(a.getCertString(ctx))
+	if cert != "" {
+		ctx.AddDependency(ctx.Module(), certificateTag, cert)
+	}
+
+	// TODO(jiyong): ensure that all apexes are with non-empty uses_sdks
+	if len(a.properties.Uses_sdks) > 0 {
+		sdkRefs := []android.SdkRef{}
+		for _, str := range a.properties.Uses_sdks {
+			parsed := android.ParseSdkRef(ctx, str, "uses_sdks")
+			sdkRefs = append(sdkRefs, parsed)
+		}
+		a.BuildWithSdks(sdkRefs)
 	}
 }
 
-// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART.
-// Adding code to the bootclasspath in new packages will cause issues on module update.
-func rModulesPackages() map[string][]string {
-	return map[string][]string{
-		"com.android.mediaprovider": []string{
-			"android.provider",
-		},
-		"com.android.permission": []string{
-			"android.permission",
-			"android.app.role",
-			"com.android.permission",
-			"com.android.role",
-		},
-		"com.android.sdkext": []string{
-			"android.os.ext",
-		},
-		"com.android.os.statsd": []string{
-			"android.app",
-			"android.os",
-			"android.util",
-			"com.android.internal.statsd",
-			"com.android.server.stats",
-		},
-		"com.android.wifi": []string{
-			"com.android.server.wifi",
-			"com.android.wifi.x",
-			"android.hardware.wifi",
-			"android.net.wifi",
-		},
-		"com.android.tethering": []string{
-			"android.net",
-		},
+func (a *apexBundle) OverridablePropertiesDepsMutator(ctx android.BottomUpMutatorContext) {
+	if a.overridableProperties.Allowed_files != nil {
+		android.ExtractSourceDeps(ctx, a.overridableProperties.Allowed_files)
 	}
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+		androidAppTag, a.overridableProperties.Apps...)
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
+		rroTag, a.overridableProperties.Rros...)
 }
 
-func init() {
-	android.RegisterModuleType("apex", BundleFactory)
-	android.RegisterModuleType("apex_test", testApexBundleFactory)
-	android.RegisterModuleType("apex_vndk", vndkApexBundleFactory)
-	android.RegisterModuleType("apex_defaults", defaultsFactory)
-	android.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
-	android.RegisterModuleType("override_apex", overrideApexFactory)
-	android.RegisterModuleType("apex_set", apexSetFactory)
-
-	android.PreDepsMutators(RegisterPreDepsMutators)
-	android.PostDepsMutators(RegisterPostDepsMutators)
-
-	android.AddNeverAllowRules(createApexPermittedPackagesRules(qModulesPackages())...)
-	android.AddNeverAllowRules(createApexPermittedPackagesRules(rModulesPackages())...)
+type ApexBundleInfo struct {
+	Contents *android.ApexContents
 }
 
-func createApexPermittedPackagesRules(modules_packages map[string][]string) []android.Rule {
-	rules := make([]android.Rule, 0, len(modules_packages))
-	for module_name, module_packages := range modules_packages {
-		permitted_packages_rule := android.NeverAllow().
-			BootclasspathJar().
-			With("apex_available", module_name).
-			WithMatcher("permitted_packages", android.NotInList(module_packages)).
-			Because("jars that are part of the " + module_name +
-				" module may only allow these packages: " + strings.Join(module_packages, ",") +
-				". Please jarjar or move code around.")
-		rules = append(rules, permitted_packages_rule)
-	}
-	return rules
-}
-
-func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
-	ctx.TopDown("apex_vndk", apexVndkMutator).Parallel()
-	ctx.BottomUp("apex_vndk_deps", apexVndkDepsMutator).Parallel()
-}
-
-func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
-	ctx.TopDown("apex_deps", apexDepsMutator).Parallel()
-	ctx.BottomUp("apex_unique", apexUniqueVariationsMutator).Parallel()
-	ctx.BottomUp("apex_test_for_deps", apexTestForDepsMutator).Parallel()
-	ctx.BottomUp("apex_test_for", apexTestForMutator).Parallel()
-	ctx.BottomUp("apex", apexMutator).Parallel()
-	ctx.BottomUp("apex_directly_in_any", apexDirectlyInAnyMutator).Parallel()
-	ctx.BottomUp("apex_flattened", apexFlattenedMutator).Parallel()
-	ctx.BottomUp("mark_platform_availability", markPlatformAvailability).Parallel()
-}
+var ApexBundleInfoProvider = blueprint.NewMutatorProvider(ApexBundleInfo{}, "apex_deps")
 
 // Mark the direct and transitive dependencies of apex bundles so that they
 // can be built for the apex bundles.
@@ -967,6 +862,50 @@ func apexDirectlyInAnyMutator(mctx android.BottomUpMutatorContext) {
 	}
 }
 
+type apexPackaging int
+
+const (
+	imageApex apexPackaging = iota
+	zipApex
+	flattenedApex
+)
+
+const (
+	imageApexSuffix = ".apex"
+	zipApexSuffix   = ".zipapex"
+	flattenedSuffix = ".flattened"
+
+	imageApexType     = "image"
+	zipApexType       = "zip"
+	flattenedApexType = "flattened"
+
+	ext4FsType = "ext4"
+	f2fsFsType = "f2fs"
+)
+
+// The suffix for the output "file", not the module
+func (a apexPackaging) suffix() string {
+	switch a {
+	case imageApex:
+		return imageApexSuffix
+	case zipApex:
+		return zipApexSuffix
+	default:
+		panic(fmt.Errorf("unknown APEX type %d", a))
+	}
+}
+
+func (a apexPackaging) name() string {
+	switch a {
+	case imageApex:
+		return imageApexType
+	case zipApex:
+		return zipApexType
+	default:
+		panic(fmt.Errorf("unknown APEX type %d", a))
+	}
+}
+
 func apexFlattenedMutator(mctx android.BottomUpMutatorContext) {
 	if !mctx.Module().Enabled() {
 		return
@@ -1033,351 +972,6 @@ func setUseVendorAllowListForTest(config android.Config, allowList []string) {
 	})
 }
 
-type ApexNativeDependencies struct {
-	// List of native libraries
-	Native_shared_libs []string
-
-	// List of JNI libraries
-	Jni_libs []string
-
-	// List of native executables
-	Binaries []string
-
-	// List of native tests
-	Tests []string
-}
-
-type apexMultilibProperties struct {
-	// Native dependencies whose compile_multilib is "first"
-	First ApexNativeDependencies
-
-	// Native dependencies whose compile_multilib is "both"
-	Both ApexNativeDependencies
-
-	// Native dependencies whose compile_multilib is "prefer32"
-	Prefer32 ApexNativeDependencies
-
-	// Native dependencies whose compile_multilib is "32"
-	Lib32 ApexNativeDependencies
-
-	// Native dependencies whose compile_multilib is "64"
-	Lib64 ApexNativeDependencies
-}
-
-type apexBundleProperties struct {
-	// Json manifest file describing meta info of this APEX bundle. Default:
-	// "apex_manifest.json"
-	Manifest *string `android:"path"`
-
-	// AndroidManifest.xml file used for the zip container of this APEX bundle.
-	// If unspecified, a default one is automatically generated.
-	AndroidManifest *string `android:"path"`
-
-	// Canonical name of the APEX bundle. Used to determine the path to the activated APEX on
-	// device (/apex/<apex_name>).
-	// If unspecified, defaults to the value of name.
-	Apex_name *string
-
-	// Determines the file contexts file for setting security context to each file in this APEX bundle.
-	// For platform APEXes, this should points to a file under /system/sepolicy
-	// Default: /system/sepolicy/apex/<module_name>_file_contexts.
-	File_contexts *string `android:"path"`
-
-	ApexNativeDependencies
-
-	// List of java libraries that are embedded inside this APEX bundle
-	Java_libs []string
-
-	// List of prebuilt files that are embedded inside this APEX bundle
-	Prebuilts []string
-
-	// List of BPF programs inside APEX
-	Bpfs []string
-
-	// Name of the apex_key module that provides the private key to sign APEX
-	Key *string
-
-	// The type of APEX to build. Controls what the APEX payload is. Either
-	// 'image', 'zip' or 'both'. Default: 'image'.
-	Payload_type *string
-
-	// The name of a certificate in the default certificate directory, blank to use the default product certificate,
-	// or an android_app_certificate module name in the form ":module".
-	Certificate *string
-
-	// Whether this APEX is installable to one of the partitions. Default: true.
-	Installable *bool
-
-	// For native libraries and binaries, use the vendor variant instead of the core (platform) variant.
-	// Default is false.
-	Use_vendor *bool
-
-	// For telling the apex to ignore special handling for system libraries such as bionic. Default is false.
-	Ignore_system_library_special_case *bool
-
-	Multilib apexMultilibProperties
-
-	// List of sanitizer names that this APEX is enabled for
-	SanitizerNames []string `blueprint:"mutated"`
-
-	PreventInstall bool `blueprint:"mutated"`
-
-	HideFromMake bool `blueprint:"mutated"`
-
-	// package format of this apex variant; could be non-flattened, flattened, or zip.
-	// imageApex, zipApex or flattened
-	ApexType apexPackaging `blueprint:"mutated"`
-
-	// List of SDKs that are used to build this APEX. A reference to an SDK should be either
-	// `name#version` or `name` which is an alias for `name#current`. If left empty, `platform#current`
-	// is implied. This value affects all modules included in this APEX. In other words, they are
-	// also built with the SDKs specified here.
-	Uses_sdks []string
-
-	// Whenever apex_payload.img of the APEX should include dm-verity hashtree.
-	// Should be only used in tests#.
-	Test_only_no_hashtree *bool
-
-	// Whenever apex_payload.img of the APEX should not be dm-verity signed.
-	// Should be only used in tests#.
-	Test_only_unsigned_payload *bool
-
-	IsCoverageVariant bool `blueprint:"mutated"`
-
-	// Whether this APEX is considered updatable or not. When set to true, this will enforce additional
-	// rules for making sure that the APEX is truly updatable.
-	// - To be updatable, min_sdk_version should be set as well
-	// This will also disable the size optimizations like symlinking to the system libs.
-	// Default is false.
-	Updatable *bool
-
-	// The minimum SDK version that this apex must be compatibile with.
-	Min_sdk_version *string
-
-	// If set true, VNDK libs are considered as stable libs and are not included in this apex.
-	// Should be only used in non-system apexes (e.g. vendor: true).
-	// Default is false.
-	Use_vndk_as_stable *bool
-
-	// The type of filesystem to use for an image apex. Either 'ext4' or 'f2fs'.
-	// Default 'ext4'.
-	Payload_fs_type *string
-}
-
-type ApexBundleInfo struct {
-	Contents *android.ApexContents
-}
-
-var ApexBundleInfoProvider = blueprint.NewMutatorProvider(ApexBundleInfo{}, "apex_deps")
-
-type apexTargetBundleProperties struct {
-	Target struct {
-		// Multilib properties only for android.
-		Android struct {
-			Multilib apexMultilibProperties
-		}
-
-		// Multilib properties only for host.
-		Host struct {
-			Multilib apexMultilibProperties
-		}
-
-		// Multilib properties only for host linux_bionic.
-		Linux_bionic struct {
-			Multilib apexMultilibProperties
-		}
-
-		// Multilib properties only for host linux_glibc.
-		Linux_glibc struct {
-			Multilib apexMultilibProperties
-		}
-	}
-}
-
-type overridableProperties struct {
-	// List of APKs to package inside APEX
-	Apps []string
-
-	// List of runtime resource overlays (RROs) inside APEX
-	Rros []string
-
-	// Names of modules to be overridden. Listed modules can only be other binaries
-	// (in Make or Soong).
-	// This does not completely prevent installation of the overridden binaries, but if both
-	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
-	// from PRODUCT_PACKAGES.
-	Overrides []string
-
-	// Logging Parent value
-	Logging_parent string
-
-	// Apex Container Package Name.
-	// Override value for attribute package:name in AndroidManifest.xml
-	Package_name string
-
-	// A txt file containing list of files that are allowed to be included in this APEX.
-	Allowed_files *string `android:"path"`
-}
-
-type apexPackaging int
-
-const (
-	imageApex apexPackaging = iota
-	zipApex
-	flattenedApex
-)
-
-// The suffix for the output "file", not the module
-func (a apexPackaging) suffix() string {
-	switch a {
-	case imageApex:
-		return imageApexSuffix
-	case zipApex:
-		return zipApexSuffix
-	default:
-		panic(fmt.Errorf("unknown APEX type %d", a))
-	}
-}
-
-func (a apexPackaging) name() string {
-	switch a {
-	case imageApex:
-		return imageApexType
-	case zipApex:
-		return zipApexType
-	default:
-		panic(fmt.Errorf("unknown APEX type %d", a))
-	}
-}
-
-type apexFileClass int
-
-const (
-	etc apexFileClass = iota
-	nativeSharedLib
-	nativeExecutable
-	shBinary
-	pyBinary
-	goBinary
-	javaSharedLib
-	nativeTest
-	app
-	appSet
-)
-
-func (class apexFileClass) NameInMake() string {
-	switch class {
-	case etc:
-		return "ETC"
-	case nativeSharedLib:
-		return "SHARED_LIBRARIES"
-	case nativeExecutable, shBinary, pyBinary, goBinary:
-		return "EXECUTABLES"
-	case javaSharedLib:
-		return "JAVA_LIBRARIES"
-	case nativeTest:
-		return "NATIVE_TESTS"
-	case app, appSet:
-		// b/142537672 Why isn't this APP? We want to have full control over
-		// the paths and file names of the apk file under the flattend APEX.
-		// If this is set to APP, then the paths and file names are modified
-		// by the Make build system. For example, it is installed to
-		// /system/apex/<apexname>/app/<Appname>/<apexname>.<Appname>/ instead of
-		// /system/apex/<apexname>/app/<Appname> because the build system automatically
-		// appends module name (which is <apexname>.<Appname> to the path.
-		return "ETC"
-	default:
-		panic(fmt.Errorf("unknown class %d", class))
-	}
-}
-
-// apexFile represents a file in an APEX bundle
-type apexFile struct {
-	builtFile android.Path
-	stem      string
-	// Module name of `module` in AndroidMk. Note the generated AndroidMk module for
-	// apexFile is named something like <AndroidMk module name>.<apex name>[<apex suffix>]
-	androidMkModuleName string
-	installDir          string
-	class               apexFileClass
-	module              android.Module
-	// list of symlinks that will be created in installDir that point to this apexFile
-	symlinks      []string
-	dataPaths     []android.DataPath
-	transitiveDep bool
-	moduleDir     string
-
-	requiredModuleNames       []string
-	targetRequiredModuleNames []string
-	hostRequiredModuleNames   []string
-
-	jacocoReportClassesFile android.Path     // only for javalibs and apps
-	lintDepSets             java.LintDepSets // only for javalibs and apps
-	certificate             java.Certificate // only for apps
-	overriddenPackageName   string           // only for apps
-
-	isJniLib bool
-
-	noticeFiles android.Paths
-}
-
-func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidMkModuleName string, installDir string, class apexFileClass, module android.Module) apexFile {
-	ret := apexFile{
-		builtFile:           builtFile,
-		androidMkModuleName: androidMkModuleName,
-		installDir:          installDir,
-		class:               class,
-		module:              module,
-	}
-	if module != nil {
-		ret.moduleDir = ctx.OtherModuleDir(module)
-		ret.requiredModuleNames = module.RequiredModuleNames()
-		ret.targetRequiredModuleNames = module.TargetRequiredModuleNames()
-		ret.hostRequiredModuleNames = module.HostRequiredModuleNames()
-		ret.noticeFiles = module.NoticeFiles()
-	}
-	return ret
-}
-
-func (af *apexFile) Ok() bool {
-	return af.builtFile != nil && af.builtFile.String() != ""
-}
-
-func (af *apexFile) apexRelativePath(path string) string {
-	return filepath.Join(af.installDir, path)
-}
-
-// Path() returns path of this apex file relative to the APEX root
-func (af *apexFile) Path() string {
-	return af.apexRelativePath(af.Stem())
-}
-
-func (af *apexFile) Stem() string {
-	if af.stem != "" {
-		return af.stem
-	}
-	return af.builtFile.Base()
-}
-
-// SymlinkPaths() returns paths of the symlinks (if any) relative to the APEX root
-func (af *apexFile) SymlinkPaths() []string {
-	var ret []string
-	for _, symlink := range af.symlinks {
-		ret = append(ret, af.apexRelativePath(symlink))
-	}
-	return ret
-}
-
-func (af *apexFile) AvailableToPlatform() bool {
-	if af.module == nil {
-		return false
-	}
-	if am, ok := af.module.(android.ApexModule); ok {
-		return am.AvailableFor(android.AvailableToPlatform)
-	}
-	return false
-}
-
 type fsType int
 
 const (
@@ -1394,268 +988,6 @@ func (f fsType) string() string {
 	default:
 		panic(fmt.Errorf("unknown APEX payload type %d", f))
 	}
-}
-
-type apexBundle struct {
-	android.ModuleBase
-	android.DefaultableModuleBase
-	android.OverridableModuleBase
-	android.SdkBase
-
-	properties            apexBundleProperties
-	targetProperties      apexTargetBundleProperties
-	overridableProperties overridableProperties
-
-	// specific to apex_vndk modules
-	vndkProperties apexVndkProperties
-
-	bundleModuleFile android.WritablePath
-	outputFile       android.WritablePath
-	installDir       android.InstallPath
-
-	prebuiltFileToDelete string
-
-	public_key_file  android.Path
-	private_key_file android.Path
-
-	container_certificate_file android.Path
-	container_private_key_file android.Path
-
-	fileContexts android.WritablePath
-
-	// list of files to be included in this apex
-	filesInfo []apexFile
-
-	// list of module names that should be installed along with this APEX
-	requiredDeps []string
-
-	// list of module names that this APEX is including (to be shown via *-deps-info target)
-	android.ApexBundleDepsInfo
-
-	testApex        bool
-	vndkApex        bool
-	artApex         bool
-	primaryApexType bool
-
-	manifestJsonOut android.WritablePath
-	manifestPbOut   android.WritablePath
-
-	// list of commands to create symlinks for backward compatibility.
-	// these commands will be attached as LOCAL_POST_INSTALL_CMD to
-	// apex package itself(for unflattened build) or apex_manifest(for flattened build)
-	// so that compat symlinks are always installed regardless of TARGET_FLATTEN_APEX setting.
-	compatSymlinks []string
-
-	// Suffix of module name in Android.mk
-	// ".flattened", ".apex", ".zipapex", or ""
-	suffix string
-
-	installedFilesFile android.WritablePath
-
-	// Whether to create symlink to the system file instead of having a file
-	// inside the apex or not
-	linkToSystemLib bool
-
-	// Struct holding the merged notice file paths in different formats
-	mergedNotices android.NoticeOutputs
-
-	// Optional list of lint report zip files for apexes that contain java or app modules
-	lintReports android.Paths
-
-	payloadFsType fsType
-
-	distFiles android.TaggedDistFiles
-}
-
-func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext,
-	nativeModules ApexNativeDependencies,
-	target android.Target, imageVariation string) {
-	// Use *FarVariation* to be able to depend on modules having
-	// conflicting variations with this module. This is required since
-	// arch variant of an APEX bundle is 'common' but it is 'arm' or 'arm64'
-	// for native shared libs.
-
-	binVariations := target.Variations()
-	libVariations := append(target.Variations(),
-		blueprint.Variation{Mutator: "link", Variation: "shared"})
-
-	if ctx.Device() {
-		binVariations = append(binVariations,
-			blueprint.Variation{Mutator: "image", Variation: imageVariation})
-		libVariations = append(libVariations,
-			blueprint.Variation{Mutator: "image", Variation: imageVariation},
-			blueprint.Variation{Mutator: "version", Variation: ""}) // "" is the non-stub variant
-	}
-
-	ctx.AddFarVariationDependencies(libVariations, sharedLibTag, nativeModules.Native_shared_libs...)
-
-	ctx.AddFarVariationDependencies(libVariations, jniLibTag, nativeModules.Jni_libs...)
-
-	ctx.AddFarVariationDependencies(binVariations, executableTag, nativeModules.Binaries...)
-
-	ctx.AddFarVariationDependencies(binVariations, testTag, nativeModules.Tests...)
-}
-
-func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
-	if ctx.Os().Class == android.Device {
-		proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Android.Multilib, nil)
-	} else {
-		proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Host.Multilib, nil)
-		if ctx.Os().Bionic() {
-			proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Linux_bionic.Multilib, nil)
-		} else {
-			proptools.AppendProperties(&a.properties.Multilib, &a.targetProperties.Target.Linux_glibc.Multilib, nil)
-		}
-	}
-}
-
-func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if proptools.Bool(a.properties.Use_vendor) && !android.InList(a.Name(), useVendorAllowList(ctx.Config())) {
-		ctx.PropertyErrorf("use_vendor", "not allowed to set use_vendor: true")
-	}
-
-	targets := ctx.MultiTargets()
-	config := ctx.DeviceConfig()
-	imageVariation := a.getImageVariation(ctx)
-
-	a.combineProperties(ctx)
-
-	has32BitTarget := false
-	for _, target := range targets {
-		if target.Arch.ArchType.Multilib == "lib32" {
-			has32BitTarget = true
-		}
-	}
-	for i, target := range targets {
-		if target.HostCross {
-			// Don't include artifats for the host cross targets because there is no way
-			// for us to run those artifacts natively on host
-			continue
-		}
-
-		// When multilib.* is omitted for native_shared_libs/jni_libs/tests, it implies
-		// multilib.both
-		addDependenciesForNativeModules(ctx,
-			ApexNativeDependencies{
-				Native_shared_libs: a.properties.Native_shared_libs,
-				Tests:              a.properties.Tests,
-				Jni_libs:           a.properties.Jni_libs,
-				Binaries:           nil,
-			},
-			target, imageVariation)
-
-		// Add native modules targetting both ABIs
-		addDependenciesForNativeModules(ctx,
-			a.properties.Multilib.Both,
-			target,
-			imageVariation)
-
-		isPrimaryAbi := i == 0
-		if isPrimaryAbi {
-			// When multilib.* is omitted for binaries, it implies
-			// multilib.first
-			addDependenciesForNativeModules(ctx,
-				ApexNativeDependencies{
-					Native_shared_libs: nil,
-					Tests:              nil,
-					Jni_libs:           nil,
-					Binaries:           a.properties.Binaries,
-				},
-				target, imageVariation)
-
-			// Add native modules targetting the first ABI
-			addDependenciesForNativeModules(ctx,
-				a.properties.Multilib.First,
-				target,
-				imageVariation)
-		}
-
-		switch target.Arch.ArchType.Multilib {
-		case "lib32":
-			// Add native modules targetting 32-bit ABI
-			addDependenciesForNativeModules(ctx,
-				a.properties.Multilib.Lib32,
-				target,
-				imageVariation)
-
-			addDependenciesForNativeModules(ctx,
-				a.properties.Multilib.Prefer32,
-				target,
-				imageVariation)
-		case "lib64":
-			// Add native modules targetting 64-bit ABI
-			addDependenciesForNativeModules(ctx,
-				a.properties.Multilib.Lib64,
-				target,
-				imageVariation)
-
-			if !has32BitTarget {
-				addDependenciesForNativeModules(ctx,
-					a.properties.Multilib.Prefer32,
-					target,
-					imageVariation)
-			}
-		}
-	}
-
-	// For prebuilt_etc, use the first variant (64 on 64/32bit device,
-	// 32 on 32bit device) regardless of the TARGET_PREFER_* setting.
-	// b/144532908
-	archForPrebuiltEtc := config.Arches()[0]
-	for _, arch := range config.Arches() {
-		// Prefer 64-bit arch if there is any
-		if arch.ArchType.Multilib == "lib64" {
-			archForPrebuiltEtc = arch
-			break
-		}
-	}
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "os", Variation: ctx.Os().String()},
-		{Mutator: "arch", Variation: archForPrebuiltEtc.String()},
-	}, prebuiltTag, a.properties.Prebuilts...)
-
-	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
-		javaLibTag, a.properties.Java_libs...)
-
-	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
-		bpfTag, a.properties.Bpfs...)
-
-	// With EMMA_INSTRUMENT_FRAMEWORK=true the ART boot image includes jacoco library.
-	if a.artApex && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
-		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
-			javaLibTag, "jacocoagent")
-	}
-
-	if String(a.properties.Key) == "" {
-		ctx.ModuleErrorf("key is missing")
-		return
-	}
-	ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
-
-	cert := android.SrcIsModule(a.getCertString(ctx))
-	if cert != "" {
-		ctx.AddDependency(ctx.Module(), certificateTag, cert)
-	}
-
-	// TODO(jiyong): ensure that all apexes are with non-empty uses_sdks
-	if len(a.properties.Uses_sdks) > 0 {
-		sdkRefs := []android.SdkRef{}
-		for _, str := range a.properties.Uses_sdks {
-			parsed := android.ParseSdkRef(ctx, str, "uses_sdks")
-			sdkRefs = append(sdkRefs, parsed)
-		}
-		a.BuildWithSdks(sdkRefs)
-	}
-}
-
-func (a *apexBundle) OverridablePropertiesDepsMutator(ctx android.BottomUpMutatorContext) {
-	if a.overridableProperties.Allowed_files != nil {
-		android.ExtractSourceDeps(ctx, a.overridableProperties.Allowed_files)
-	}
-	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
-		androidAppTag, a.overridableProperties.Apps...)
-	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(),
-		rroTag, a.overridableProperties.Rros...)
 }
 
 func (a *apexBundle) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
@@ -2614,4 +1946,675 @@ func overrideApexFactory() android.Module {
 	android.InitAndroidMultiTargetsArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	android.InitOverrideModule(m)
 	return m
+}
+
+var (
+	apexAvailBaseline        = makeApexAvailableBaseline()
+	inverseApexAvailBaseline = invertApexBaseline(apexAvailBaseline)
+)
+
+// Transform the map of apex -> modules to module -> apexes.
+func invertApexBaseline(m map[string][]string) map[string][]string {
+	r := make(map[string][]string)
+	for apex, modules := range m {
+		for _, module := range modules {
+			r[module] = append(r[module], apex)
+		}
+	}
+	return r
+}
+
+// Retrieve the baseline of apexes to which the supplied module belongs.
+func BaselineApexAvailable(moduleName string) []string {
+	return inverseApexAvailBaseline[normalizeModuleName(moduleName)]
+}
+
+// This is a map from apex to modules, which overrides the
+// apex_available setting for that particular module to make
+// it available for the apex regardless of its setting.
+// TODO(b/147364041): remove this
+func makeApexAvailableBaseline() map[string][]string {
+	// The "Module separator"s below are employed to minimize merge conflicts.
+	m := make(map[string][]string)
+	//
+	// Module separator
+	//
+	m["com.android.appsearch"] = []string{
+		"icing-java-proto-lite",
+		"libprotobuf-java-lite",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.bluetooth.updatable"] = []string{
+		"android.hardware.audio.common@5.0",
+		"android.hardware.bluetooth.a2dp@1.0",
+		"android.hardware.bluetooth.audio@2.0",
+		"android.hardware.bluetooth@1.0",
+		"android.hardware.bluetooth@1.1",
+		"android.hardware.graphics.bufferqueue@1.0",
+		"android.hardware.graphics.bufferqueue@2.0",
+		"android.hardware.graphics.common@1.0",
+		"android.hardware.graphics.common@1.1",
+		"android.hardware.graphics.common@1.2",
+		"android.hardware.media@1.0",
+		"android.hidl.safe_union@1.0",
+		"android.hidl.token@1.0",
+		"android.hidl.token@1.0-utils",
+		"avrcp-target-service",
+		"avrcp_headers",
+		"bluetooth-protos-lite",
+		"bluetooth.mapsapi",
+		"com.android.vcard",
+		"dnsresolver_aidl_interface-V2-java",
+		"ipmemorystore-aidl-interfaces-V5-java",
+		"ipmemorystore-aidl-interfaces-java",
+		"internal_include_headers",
+		"lib-bt-packets",
+		"lib-bt-packets-avrcp",
+		"lib-bt-packets-base",
+		"libFraunhoferAAC",
+		"libaudio-a2dp-hw-utils",
+		"libaudio-hearing-aid-hw-utils",
+		"libbinder_headers",
+		"libbluetooth",
+		"libbluetooth-types",
+		"libbluetooth-types-header",
+		"libbluetooth_gd",
+		"libbluetooth_headers",
+		"libbluetooth_jni",
+		"libbt-audio-hal-interface",
+		"libbt-bta",
+		"libbt-common",
+		"libbt-hci",
+		"libbt-platform-protos-lite",
+		"libbt-protos-lite",
+		"libbt-sbc-decoder",
+		"libbt-sbc-encoder",
+		"libbt-stack",
+		"libbt-utils",
+		"libbtcore",
+		"libbtdevice",
+		"libbte",
+		"libbtif",
+		"libchrome",
+		"libevent",
+		"libfmq",
+		"libg722codec",
+		"libgui_headers",
+		"libmedia_headers",
+		"libmodpb64",
+		"libosi",
+		"libstagefright_foundation_headers",
+		"libstagefright_headers",
+		"libstatslog",
+		"libstatssocket",
+		"libtinyxml2",
+		"libudrv-uipc",
+		"libz",
+		"media_plugin_headers",
+		"net-utils-services-common",
+		"netd_aidl_interface-unstable-java",
+		"netd_event_listener_interface-java",
+		"netlink-client",
+		"networkstack-client",
+		"sap-api-java-static",
+		"services.net",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.cellbroadcast"] = []string{"CellBroadcastApp", "CellBroadcastServiceModule"}
+	//
+	// Module separator
+	//
+	m["com.android.extservices"] = []string{
+		"error_prone_annotations",
+		"ExtServices-core",
+		"ExtServices",
+		"libtextclassifier-java",
+		"libz_current",
+		"textclassifier-statsd",
+		"TextClassifierNotificationLibNoManifest",
+		"TextClassifierServiceLibNoManifest",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.neuralnetworks"] = []string{
+		"android.hardware.neuralnetworks@1.0",
+		"android.hardware.neuralnetworks@1.1",
+		"android.hardware.neuralnetworks@1.2",
+		"android.hardware.neuralnetworks@1.3",
+		"android.hidl.allocator@1.0",
+		"android.hidl.memory.token@1.0",
+		"android.hidl.memory@1.0",
+		"android.hidl.safe_union@1.0",
+		"libarect",
+		"libbuildversion",
+		"libmath",
+		"libprocpartition",
+		"libsync",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.media"] = []string{
+		"android.frameworks.bufferhub@1.0",
+		"android.hardware.cas.native@1.0",
+		"android.hardware.cas@1.0",
+		"android.hardware.configstore-utils",
+		"android.hardware.configstore@1.0",
+		"android.hardware.configstore@1.1",
+		"android.hardware.graphics.allocator@2.0",
+		"android.hardware.graphics.allocator@3.0",
+		"android.hardware.graphics.bufferqueue@1.0",
+		"android.hardware.graphics.bufferqueue@2.0",
+		"android.hardware.graphics.common@1.0",
+		"android.hardware.graphics.common@1.1",
+		"android.hardware.graphics.common@1.2",
+		"android.hardware.graphics.mapper@2.0",
+		"android.hardware.graphics.mapper@2.1",
+		"android.hardware.graphics.mapper@3.0",
+		"android.hardware.media.omx@1.0",
+		"android.hardware.media@1.0",
+		"android.hidl.allocator@1.0",
+		"android.hidl.memory.token@1.0",
+		"android.hidl.memory@1.0",
+		"android.hidl.token@1.0",
+		"android.hidl.token@1.0-utils",
+		"bionic_libc_platform_headers",
+		"exoplayer2-extractor",
+		"exoplayer2-extractor-annotation-stubs",
+		"gl_headers",
+		"jsr305",
+		"libEGL",
+		"libEGL_blobCache",
+		"libEGL_getProcAddress",
+		"libFLAC",
+		"libFLAC-config",
+		"libFLAC-headers",
+		"libGLESv2",
+		"libaacextractor",
+		"libamrextractor",
+		"libarect",
+		"libaudio_system_headers",
+		"libaudioclient",
+		"libaudioclient_headers",
+		"libaudiofoundation",
+		"libaudiofoundation_headers",
+		"libaudiomanager",
+		"libaudiopolicy",
+		"libaudioutils",
+		"libaudioutils_fixedfft",
+		"libbinder_headers",
+		"libbluetooth-types-header",
+		"libbufferhub",
+		"libbufferhub_headers",
+		"libbufferhubqueue",
+		"libc_malloc_debug_backtrace",
+		"libcamera_client",
+		"libcamera_metadata",
+		"libdvr_headers",
+		"libexpat",
+		"libfifo",
+		"libflacextractor",
+		"libgrallocusage",
+		"libgraphicsenv",
+		"libgui",
+		"libgui_headers",
+		"libhardware_headers",
+		"libinput",
+		"liblzma",
+		"libmath",
+		"libmedia",
+		"libmedia_codeclist",
+		"libmedia_headers",
+		"libmedia_helper",
+		"libmedia_helper_headers",
+		"libmedia_midiiowrapper",
+		"libmedia_omx",
+		"libmediautils",
+		"libmidiextractor",
+		"libmkvextractor",
+		"libmp3extractor",
+		"libmp4extractor",
+		"libmpeg2extractor",
+		"libnativebase_headers",
+		"libnativewindow_headers",
+		"libnblog",
+		"liboggextractor",
+		"libpackagelistparser",
+		"libpdx",
+		"libpdx_default_transport",
+		"libpdx_headers",
+		"libpdx_uds",
+		"libprocinfo",
+		"libspeexresampler",
+		"libspeexresampler",
+		"libstagefright_esds",
+		"libstagefright_flacdec",
+		"libstagefright_flacdec",
+		"libstagefright_foundation",
+		"libstagefright_foundation_headers",
+		"libstagefright_foundation_without_imemory",
+		"libstagefright_headers",
+		"libstagefright_id3",
+		"libstagefright_metadatautils",
+		"libstagefright_mpeg2extractor",
+		"libstagefright_mpeg2support",
+		"libsync",
+		"libui",
+		"libui_headers",
+		"libunwindstack",
+		"libvibrator",
+		"libvorbisidec",
+		"libwavextractor",
+		"libwebm",
+		"media_ndk_headers",
+		"media_plugin_headers",
+		"updatable-media",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.media.swcodec"] = []string{
+		"android.frameworks.bufferhub@1.0",
+		"android.hardware.common-ndk_platform",
+		"android.hardware.configstore-utils",
+		"android.hardware.configstore@1.0",
+		"android.hardware.configstore@1.1",
+		"android.hardware.graphics.allocator@2.0",
+		"android.hardware.graphics.allocator@3.0",
+		"android.hardware.graphics.allocator@4.0",
+		"android.hardware.graphics.bufferqueue@1.0",
+		"android.hardware.graphics.bufferqueue@2.0",
+		"android.hardware.graphics.common-ndk_platform",
+		"android.hardware.graphics.common@1.0",
+		"android.hardware.graphics.common@1.1",
+		"android.hardware.graphics.common@1.2",
+		"android.hardware.graphics.mapper@2.0",
+		"android.hardware.graphics.mapper@2.1",
+		"android.hardware.graphics.mapper@3.0",
+		"android.hardware.graphics.mapper@4.0",
+		"android.hardware.media.bufferpool@2.0",
+		"android.hardware.media.c2@1.0",
+		"android.hardware.media.c2@1.1",
+		"android.hardware.media.omx@1.0",
+		"android.hardware.media@1.0",
+		"android.hardware.media@1.0",
+		"android.hidl.memory.token@1.0",
+		"android.hidl.memory@1.0",
+		"android.hidl.safe_union@1.0",
+		"android.hidl.token@1.0",
+		"android.hidl.token@1.0-utils",
+		"libEGL",
+		"libFLAC",
+		"libFLAC-config",
+		"libFLAC-headers",
+		"libFraunhoferAAC",
+		"libLibGuiProperties",
+		"libarect",
+		"libaudio_system_headers",
+		"libaudioutils",
+		"libaudioutils",
+		"libaudioutils_fixedfft",
+		"libavcdec",
+		"libavcenc",
+		"libavservices_minijail",
+		"libavservices_minijail",
+		"libbinder_headers",
+		"libbinderthreadstateutils",
+		"libbluetooth-types-header",
+		"libbufferhub_headers",
+		"libcodec2",
+		"libcodec2_headers",
+		"libcodec2_hidl@1.0",
+		"libcodec2_hidl@1.1",
+		"libcodec2_internal",
+		"libcodec2_soft_aacdec",
+		"libcodec2_soft_aacenc",
+		"libcodec2_soft_amrnbdec",
+		"libcodec2_soft_amrnbenc",
+		"libcodec2_soft_amrwbdec",
+		"libcodec2_soft_amrwbenc",
+		"libcodec2_soft_av1dec_gav1",
+		"libcodec2_soft_avcdec",
+		"libcodec2_soft_avcenc",
+		"libcodec2_soft_common",
+		"libcodec2_soft_flacdec",
+		"libcodec2_soft_flacenc",
+		"libcodec2_soft_g711alawdec",
+		"libcodec2_soft_g711mlawdec",
+		"libcodec2_soft_gsmdec",
+		"libcodec2_soft_h263dec",
+		"libcodec2_soft_h263enc",
+		"libcodec2_soft_hevcdec",
+		"libcodec2_soft_hevcenc",
+		"libcodec2_soft_mp3dec",
+		"libcodec2_soft_mpeg2dec",
+		"libcodec2_soft_mpeg4dec",
+		"libcodec2_soft_mpeg4enc",
+		"libcodec2_soft_opusdec",
+		"libcodec2_soft_opusenc",
+		"libcodec2_soft_rawdec",
+		"libcodec2_soft_vorbisdec",
+		"libcodec2_soft_vp8dec",
+		"libcodec2_soft_vp8enc",
+		"libcodec2_soft_vp9dec",
+		"libcodec2_soft_vp9enc",
+		"libcodec2_vndk",
+		"libdvr_headers",
+		"libfmq",
+		"libfmq",
+		"libgav1",
+		"libgralloctypes",
+		"libgrallocusage",
+		"libgraphicsenv",
+		"libgsm",
+		"libgui_bufferqueue_static",
+		"libgui_headers",
+		"libhardware",
+		"libhardware_headers",
+		"libhevcdec",
+		"libhevcenc",
+		"libion",
+		"libjpeg",
+		"liblzma",
+		"libmath",
+		"libmedia_codecserviceregistrant",
+		"libmedia_headers",
+		"libmpeg2dec",
+		"libnativebase_headers",
+		"libnativewindow_headers",
+		"libpdx_headers",
+		"libscudo_wrapper",
+		"libsfplugin_ccodec_utils",
+		"libspeexresampler",
+		"libstagefright_amrnb_common",
+		"libstagefright_amrnbdec",
+		"libstagefright_amrnbenc",
+		"libstagefright_amrwbdec",
+		"libstagefright_amrwbenc",
+		"libstagefright_bufferpool@2.0.1",
+		"libstagefright_bufferqueue_helper",
+		"libstagefright_enc_common",
+		"libstagefright_flacdec",
+		"libstagefright_foundation",
+		"libstagefright_foundation_headers",
+		"libstagefright_headers",
+		"libstagefright_m4vh263dec",
+		"libstagefright_m4vh263enc",
+		"libstagefright_mp3dec",
+		"libsync",
+		"libui",
+		"libui_headers",
+		"libunwindstack",
+		"libvorbisidec",
+		"libvpx",
+		"libyuv",
+		"libyuv_static",
+		"media_ndk_headers",
+		"media_plugin_headers",
+		"mediaswcodec",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.mediaprovider"] = []string{
+		"MediaProvider",
+		"MediaProviderGoogle",
+		"fmtlib_ndk",
+		"libbase_ndk",
+		"libfuse",
+		"libfuse_jni",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.permission"] = []string{
+		"car-ui-lib",
+		"iconloader",
+		"kotlin-annotations",
+		"kotlin-stdlib",
+		"kotlin-stdlib-jdk7",
+		"kotlin-stdlib-jdk8",
+		"kotlinx-coroutines-android",
+		"kotlinx-coroutines-android-nodeps",
+		"kotlinx-coroutines-core",
+		"kotlinx-coroutines-core-nodeps",
+		"permissioncontroller-statsd",
+		"GooglePermissionController",
+		"PermissionController",
+		"SettingsLibActionBarShadow",
+		"SettingsLibAppPreference",
+		"SettingsLibBarChartPreference",
+		"SettingsLibLayoutPreference",
+		"SettingsLibProgressBar",
+		"SettingsLibSearchWidget",
+		"SettingsLibSettingsTheme",
+		"SettingsLibRestrictedLockUtils",
+		"SettingsLibHelpUtils",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.runtime"] = []string{
+		"bionic_libc_platform_headers",
+		"libarm-optimized-routines-math",
+		"libc_aeabi",
+		"libc_bionic",
+		"libc_bionic_ndk",
+		"libc_bootstrap",
+		"libc_common",
+		"libc_common_shared",
+		"libc_common_static",
+		"libc_dns",
+		"libc_dynamic_dispatch",
+		"libc_fortify",
+		"libc_freebsd",
+		"libc_freebsd_large_stack",
+		"libc_gdtoa",
+		"libc_init_dynamic",
+		"libc_init_static",
+		"libc_jemalloc_wrapper",
+		"libc_netbsd",
+		"libc_nomalloc",
+		"libc_nopthread",
+		"libc_openbsd",
+		"libc_openbsd_large_stack",
+		"libc_openbsd_ndk",
+		"libc_pthread",
+		"libc_static_dispatch",
+		"libc_syscalls",
+		"libc_tzcode",
+		"libc_unwind_static",
+		"libdebuggerd",
+		"libdebuggerd_common_headers",
+		"libdebuggerd_handler_core",
+		"libdebuggerd_handler_fallback",
+		"libdl_static",
+		"libjemalloc5",
+		"liblinker_main",
+		"liblinker_malloc",
+		"liblz4",
+		"liblzma",
+		"libprocinfo",
+		"libpropertyinfoparser",
+		"libscudo",
+		"libstdc++",
+		"libsystemproperties",
+		"libtombstoned_client_static",
+		"libunwindstack",
+		"libz",
+		"libziparchive",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.tethering"] = []string{
+		"android.hardware.tetheroffload.config-V1.0-java",
+		"android.hardware.tetheroffload.control-V1.0-java",
+		"android.hidl.base-V1.0-java",
+		"libcgrouprc",
+		"libcgrouprc_format",
+		"libtetherutilsjni",
+		"libvndksupport",
+		"net-utils-framework-common",
+		"netd_aidl_interface-V3-java",
+		"netlink-client",
+		"networkstack-aidl-interfaces-java",
+		"tethering-aidl-interfaces-java",
+		"TetheringApiCurrentLib",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.wifi"] = []string{
+		"PlatformProperties",
+		"android.hardware.wifi-V1.0-java",
+		"android.hardware.wifi-V1.0-java-constants",
+		"android.hardware.wifi-V1.1-java",
+		"android.hardware.wifi-V1.2-java",
+		"android.hardware.wifi-V1.3-java",
+		"android.hardware.wifi-V1.4-java",
+		"android.hardware.wifi.hostapd-V1.0-java",
+		"android.hardware.wifi.hostapd-V1.1-java",
+		"android.hardware.wifi.hostapd-V1.2-java",
+		"android.hardware.wifi.supplicant-V1.0-java",
+		"android.hardware.wifi.supplicant-V1.1-java",
+		"android.hardware.wifi.supplicant-V1.2-java",
+		"android.hardware.wifi.supplicant-V1.3-java",
+		"android.hidl.base-V1.0-java",
+		"android.hidl.manager-V1.0-java",
+		"android.hidl.manager-V1.1-java",
+		"android.hidl.manager-V1.2-java",
+		"bouncycastle-unbundled",
+		"dnsresolver_aidl_interface-V2-java",
+		"error_prone_annotations",
+		"framework-wifi-pre-jarjar",
+		"framework-wifi-util-lib",
+		"ipmemorystore-aidl-interfaces-V3-java",
+		"ipmemorystore-aidl-interfaces-java",
+		"ksoap2",
+		"libnanohttpd",
+		"libwifi-jni",
+		"net-utils-services-common",
+		"netd_aidl_interface-V2-java",
+		"netd_aidl_interface-unstable-java",
+		"netd_event_listener_interface-java",
+		"netlink-client",
+		"networkstack-client",
+		"services.net",
+		"wifi-lite-protos",
+		"wifi-nano-protos",
+		"wifi-service-pre-jarjar",
+		"wifi-service-resources",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.sdkext"] = []string{
+		"fmtlib_ndk",
+		"libbase_ndk",
+		"libprotobuf-cpp-lite-ndk",
+	}
+	//
+	// Module separator
+	//
+	m["com.android.os.statsd"] = []string{
+		"libstatssocket",
+	}
+	//
+	// Module separator
+	//
+	m[android.AvailableToAnyApex] = []string{
+		// TODO(b/156996905) Set apex_available/min_sdk_version for androidx/extras support libraries
+		"androidx",
+		"androidx-constraintlayout_constraintlayout",
+		"androidx-constraintlayout_constraintlayout-nodeps",
+		"androidx-constraintlayout_constraintlayout-solver",
+		"androidx-constraintlayout_constraintlayout-solver-nodeps",
+		"com.google.android.material_material",
+		"com.google.android.material_material-nodeps",
+
+		"libatomic",
+		"libclang_rt",
+		"libgcc_stripped",
+		"libprofile-clang-extras",
+		"libprofile-clang-extras_ndk",
+		"libprofile-extras",
+		"libprofile-extras_ndk",
+		"libunwind_llvm",
+	}
+	return m
+}
+
+func init() {
+	android.AddNeverAllowRules(createApexPermittedPackagesRules(qModulesPackages())...)
+	android.AddNeverAllowRules(createApexPermittedPackagesRules(rModulesPackages())...)
+}
+
+func createApexPermittedPackagesRules(modules_packages map[string][]string) []android.Rule {
+	rules := make([]android.Rule, 0, len(modules_packages))
+	for module_name, module_packages := range modules_packages {
+		permitted_packages_rule := android.NeverAllow().
+			BootclasspathJar().
+			With("apex_available", module_name).
+			WithMatcher("permitted_packages", android.NotInList(module_packages)).
+			Because("jars that are part of the " + module_name +
+				" module may only allow these packages: " + strings.Join(module_packages, ",") +
+				". Please jarjar or move code around.")
+		rules = append(rules, permitted_packages_rule)
+	}
+	return rules
+}
+
+// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART.
+// Adding code to the bootclasspath in new packages will cause issues on module update.
+func qModulesPackages() map[string][]string {
+	return map[string][]string{
+		"com.android.conscrypt": []string{
+			"android.net.ssl",
+			"com.android.org.conscrypt",
+		},
+		"com.android.media": []string{
+			"android.media",
+		},
+	}
+}
+
+// DO NOT EDIT! These are the package prefixes that are exempted from being AOT'ed by ART.
+// Adding code to the bootclasspath in new packages will cause issues on module update.
+func rModulesPackages() map[string][]string {
+	return map[string][]string{
+		"com.android.mediaprovider": []string{
+			"android.provider",
+		},
+		"com.android.permission": []string{
+			"android.permission",
+			"android.app.role",
+			"com.android.permission",
+			"com.android.role",
+		},
+		"com.android.sdkext": []string{
+			"android.os.ext",
+		},
+		"com.android.os.statsd": []string{
+			"android.app",
+			"android.os",
+			"android.util",
+			"com.android.internal.statsd",
+			"com.android.server.stats",
+		},
+		"com.android.wifi": []string{
+			"com.android.server.wifi",
+			"com.android.wifi.x",
+			"android.hardware.wifi",
+			"android.net.wifi",
+		},
+		"com.android.tethering": []string{
+			"android.net",
+		},
+	}
 }
