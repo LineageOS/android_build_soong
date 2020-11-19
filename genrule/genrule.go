@@ -26,6 +26,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/bazel"
 )
 
 func init() {
@@ -78,13 +79,6 @@ type hostToolDependencyTag struct {
 	blueprint.BaseDependencyTag
 	label string
 }
-
-// TODO(cparsons): Move to a common location when there is more than just
-// genrule with a bazel_module property.
-type bazelModuleProperties struct {
-	Label string
-}
-
 type generatorProperties struct {
 	// The command to run on one or more input files. Cmd supports substitution of a few variables
 	//
@@ -118,8 +112,8 @@ type generatorProperties struct {
 	// input files to exclude
 	Exclude_srcs []string `android:"path,arch_variant"`
 
-	// in bazel-enabled mode, the bazel label to evaluate instead of this module
-	Bazel_module bazelModuleProperties
+	// Properties for Bazel migration purposes.
+	bazel.Properties
 }
 type Module struct {
 	android.ModuleBase
