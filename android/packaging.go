@@ -14,6 +14,13 @@
 
 package android
 
+import (
+	"fmt"
+	"path/filepath"
+
+	"github.com/google/blueprint"
+)
+
 // PackagingSpec abstracts a request to place a built artifact at a certain path in a package.
 // A package can be the traditional <partition>.img, but isn't limited to those. Other examples could
 // be a new filesystem image that is a subset of system.img (e.g. for an Android-like mini OS running
@@ -31,4 +38,168 @@ type PackagingSpec struct {
 
 	// Whether relPathInPackage should be marked as executable or not
 	executable bool
+}
+
+type PackageModule interface {
+	Module
+	packagingBase() *PackagingBase
+
+	// AddDeps adds dependencies to the `deps` modules. This should be called in DepsMutator.
+	AddDeps(ctx BottomUpMutatorContext)
+
+	// CopyDepsToZip zips the built artifacts of the dependencies into the given zip file and
+	// returns zip entries in it.  This is expected to be called in GenerateAndroidBuildActions,
+	// followed by a build rule that unzips it and creates the final output (img, zip, tar.gz,
+	// etc.) from the extracted files
+	CopyDepsToZip(ctx ModuleContext, zipOut OutputPath) []string
+}
+
+// PackagingBase provides basic functionality for packaging dependencies. A module is expected to
+// include this struct and call InitPackageModule.
+type PackagingBase struct {
+	properties PackagingProperties
+
+	// Allows this module to skip missing dependencies. In most cases, this
+	// is not required, but for rare cases like when there's a dependency
+	// to a module which exists in certain repo checkouts, this is needed.
+	IgnoreMissingDependencies bool
+}
+
+type depsProperty struct {
+	// Modules to include in this package
+	Deps []string `android:"arch_variant"`
+}
+
+type packagingMultilibProperties struct {
+	First  depsProperty `android:"arch_variant"`
+	Common depsProperty `android:"arch_variant"`
+	Lib32  depsProperty `android:"arch_variant"`
+	Lib64  depsProperty `android:"arch_variant"`
+}
+
+type PackagingProperties struct {
+	Deps     []string                    `android:"arch_variant"`
+	Multilib packagingMultilibProperties `android:"arch_variant"`
+}
+
+type packagingDependencyTag struct{ blueprint.BaseDependencyTag }
+
+var depTag = packagingDependencyTag{}
+
+func InitPackageModule(p PackageModule) {
+	base := p.packagingBase()
+	p.AddProperties(&base.properties)
+}
+
+func (p *PackagingBase) packagingBase() *PackagingBase {
+	return p
+}
+
+// From deps and multilib.*.deps, select the dependencies that are for the given arch
+// deps is for the current archicture when this module is not configured for multi target.
+// When configured for multi target, deps is selected for each of the targets and is NOT
+// selected for the current architecture which would be Common.
+func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) []string {
+	var ret []string
+	if arch == ctx.Target().Arch.ArchType && len(ctx.MultiTargets()) == 0 {
+		ret = append(ret, p.properties.Deps...)
+	} else if arch.Multilib == "lib32" {
+		ret = append(ret, p.properties.Multilib.Lib32.Deps...)
+	} else if arch.Multilib == "lib64" {
+		ret = append(ret, p.properties.Multilib.Lib64.Deps...)
+	} else if arch == Common {
+		ret = append(ret, p.properties.Multilib.Common.Deps...)
+	}
+	for i, t := range ctx.MultiTargets() {
+		if t.Arch.ArchType == arch {
+			ret = append(ret, p.properties.Deps...)
+			if i == 0 {
+				ret = append(ret, p.properties.Multilib.First.Deps...)
+			}
+		}
+	}
+	return FirstUniqueStrings(ret)
+}
+
+func (p *PackagingBase) getSupportedTargets(ctx BaseModuleContext) []Target {
+	var ret []Target
+	// The current and the common OS targets are always supported
+	ret = append(ret, ctx.Target())
+	if ctx.Arch().ArchType != Common {
+		ret = append(ret, Target{Os: ctx.Os(), Arch: Arch{ArchType: Common}})
+	}
+	// If this module is configured for multi targets, those should be supported as well
+	ret = append(ret, ctx.MultiTargets()...)
+	return ret
+}
+
+// See PackageModule.AddDeps
+func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext) {
+	for _, t := range p.getSupportedTargets(ctx) {
+		for _, dep := range p.getDepsForArch(ctx, t.Arch.ArchType) {
+			if p.IgnoreMissingDependencies && !ctx.OtherModuleExists(dep) {
+				continue
+			}
+			ctx.AddFarVariationDependencies(t.Variations(), depTag, dep)
+		}
+	}
+}
+
+// See PackageModule.CopyDepsToZip
+func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut OutputPath) (entries []string) {
+	var supportedArches []string
+	for _, t := range p.getSupportedTargets(ctx) {
+		supportedArches = append(supportedArches, t.Arch.ArchType.String())
+	}
+	m := make(map[string]PackagingSpec)
+	ctx.WalkDeps(func(child Module, parent Module) bool {
+		// Don't track modules with unsupported arch
+		// TODO(jiyong): remove this when aosp/1501613 lands.
+		if !InList(child.Target().Arch.ArchType.String(), supportedArches) {
+			return false
+		}
+		for _, ps := range child.PackagingSpecs() {
+			if _, ok := m[ps.relPathInPackage]; !ok {
+				m[ps.relPathInPackage] = ps
+			}
+		}
+		return true
+	})
+
+	builder := NewRuleBuilder()
+
+	dir := PathForModuleOut(ctx, ".zip").OutputPath
+	builder.Command().Text("rm").Flag("-rf").Text(dir.String())
+	builder.Command().Text("mkdir").Flag("-p").Text(dir.String())
+
+	seenDir := make(map[string]bool)
+	for _, k := range SortedStringKeys(m) {
+		ps := m[k]
+		destPath := dir.Join(ctx, ps.relPathInPackage).String()
+		destDir := filepath.Dir(destPath)
+		entries = append(entries, ps.relPathInPackage)
+		if _, ok := seenDir[destDir]; !ok {
+			seenDir[destDir] = true
+			builder.Command().Text("mkdir").Flag("-p").Text(destDir)
+		}
+		if ps.symlinkTarget == "" {
+			builder.Command().Text("cp").Input(ps.srcPath).Text(destPath)
+		} else {
+			builder.Command().Text("ln").Flag("-sf").Text(ps.symlinkTarget).Text(destPath)
+		}
+		if ps.executable {
+			builder.Command().Text("chmod").Flag("a+x").Text(destPath)
+		}
+	}
+
+	builder.Command().
+		BuiltTool(ctx, "soong_zip").
+		FlagWithOutput("-o ", zipOut).
+		FlagWithArg("-C ", dir.String()).
+		Flag("-L 0"). // no compression because this will be unzipped soon
+		FlagWithArg("-D ", dir.String())
+	builder.Command().Text("rm").Flag("-rf").Text(dir.String())
+
+	builder.Build(pctx, ctx, "zip_deps", fmt.Sprintf("Zipping deps for %s", ctx.ModuleName()))
+	return entries
 }
