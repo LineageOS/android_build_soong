@@ -22,6 +22,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.light-ndk_platform",
 	"android.hardware.identity-ndk_platform",
 	"android.hardware.keymint-ndk_platform",
+	"android.hardware.keymint-unstable-ndk_platform",
 	"android.hardware.nfc@1.2",
 	"android.hardware.power-ndk_platform",
 	"android.hardware.rebootescrow-ndk_platform",
