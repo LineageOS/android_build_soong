@@ -596,7 +596,7 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags, d
 
 // Returns a string that represents the class of the ABI dump.
 // Returns an empty string if ABI check is disabled for this library.
-func (library *libraryDecorator) classifySourceAbiDump(ctx ModuleContext) string {
+func (library *libraryDecorator) classifySourceAbiDump(ctx BaseModuleContext) string {
 	enabled := library.Properties.Header_abi_checker.Enabled
 	if enabled != nil && !Bool(enabled) {
 		return ""
@@ -629,7 +629,7 @@ func (library *libraryDecorator) classifySourceAbiDump(ctx ModuleContext) string
 	return ""
 }
 
-func (library *libraryDecorator) shouldCreateSourceAbiDump(ctx ModuleContext) bool {
+func (library *libraryDecorator) shouldCreateSourceAbiDump(ctx BaseModuleContext) bool {
 	if !ctx.shouldCreateSourceAbiDump() {
 		return false
 	}

@@ -79,13 +79,17 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("sanitize_runtime", sanitizerRuntimeMutator).Parallel()
 
 		ctx.BottomUp("coverage", coverageMutator).Parallel()
-		ctx.TopDown("vndk_deps", sabiDepsMutator)
 
 		ctx.TopDown("lto_deps", ltoDepsMutator)
 		ctx.BottomUp("lto", ltoMutator).Parallel()
 
 		ctx.BottomUp("check_linktype", checkLinkTypeMutator).Parallel()
 		ctx.TopDown("double_loadable", checkDoubleLoadableLibraries).Parallel()
+	})
+
+	ctx.FinalDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		// sabi mutator needs to be run after apex mutator finishes.
+		ctx.TopDown("sabi_deps", sabiDepsMutator)
 	})
 
 	ctx.RegisterSingletonType("kythe_extract_all", kytheExtractAllFactory)

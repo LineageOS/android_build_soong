@@ -15,7 +15,6 @@
 package cc
 
 import (
-	"strings"
 	"sync"
 
 	"android/soong/android"
@@ -23,12 +22,16 @@ import (
 )
 
 var (
-	lsdumpPaths []string
-	sabiLock    sync.Mutex
+	lsdumpPaths     []string
+	lsdumpPathsLock sync.Mutex
 )
 
 type SAbiProperties struct {
-	CreateSAbiDumps    bool     `blueprint:"mutated"`
+	// True if need to generate ABI dump.
+	CreateSAbiDumps bool `blueprint:"mutated"`
+
+	// Include directories that may contain ABI information exported by a library.
+	// These directories are passed to the header-abi-dumper.
 	ReexportedIncludes []string `blueprint:"mutated"`
 }
 
@@ -46,56 +49,55 @@ func (sabimod *sabi) deps(ctx BaseModuleContext, deps Deps) Deps {
 	return deps
 }
 
-func inListWithPrefixSearch(flag string, filter []string) bool {
-	// Assuming the filter is small enough.
-	// If the suffix of a filter element is *, try matching prefixes as well.
-	for _, f := range filter {
-		if (f == flag) || (strings.HasSuffix(f, "*") && strings.HasPrefix(flag, strings.TrimSuffix(f, "*"))) {
-			return true
-		}
-	}
-	return false
-}
-
-func filterOutWithPrefix(list []string, filter []string) (remainder []string) {
-	// Go through the filter, matching and optionally doing a prefix search for list elements.
-	for _, l := range list {
-		if !inListWithPrefixSearch(l, filter) {
-			remainder = append(remainder, l)
-		}
-	}
-	return
-}
-
 func (sabimod *sabi) flags(ctx ModuleContext, flags Flags) Flags {
-	// Assuming that the cflags which clang LibTooling tools cannot
-	// understand have not been converted to ninja variables yet.
-	flags.Local.ToolingCFlags = filterOutWithPrefix(flags.Local.CFlags, config.ClangLibToolingUnknownCflags)
-	flags.Global.ToolingCFlags = filterOutWithPrefix(flags.Global.CFlags, config.ClangLibToolingUnknownCflags)
-	flags.Local.ToolingCppFlags = filterOutWithPrefix(flags.Local.CppFlags, config.ClangLibToolingUnknownCflags)
-	flags.Global.ToolingCppFlags = filterOutWithPrefix(flags.Global.CppFlags, config.ClangLibToolingUnknownCflags)
-
+	// Filter out flags which libTooling don't understand.
+	// This is here for legacy reasons and future-proof, in case the version of libTooling and clang
+	// diverge.
+	flags.Local.ToolingCFlags = config.ClangLibToolingFilterUnknownCflags(flags.Local.CFlags)
+	flags.Global.ToolingCFlags = config.ClangLibToolingFilterUnknownCflags(flags.Global.CFlags)
+	flags.Local.ToolingCppFlags = config.ClangLibToolingFilterUnknownCflags(flags.Local.CppFlags)
+	flags.Global.ToolingCppFlags = config.ClangLibToolingFilterUnknownCflags(flags.Global.CppFlags)
 	return flags
 }
 
+func shouldSkipSabiDepsMutator(mctx android.TopDownMutatorContext, m *Module) bool {
+	if m.sabi != nil && m.sabi.Properties.CreateSAbiDumps {
+		return false
+	}
+	if library, ok := m.linker.(*libraryDecorator); ok {
+		ctx := &baseModuleContext{
+			BaseModuleContext: mctx,
+			moduleContextImpl: moduleContextImpl{
+				mod: m,
+			},
+		}
+		ctx.ctx = ctx
+		return !library.shouldCreateSourceAbiDump(ctx)
+	}
+	return true
+}
+
+// Mark the direct and transitive dependencies of libraries that need ABI check, so that ABI dumps
+// of their dependencies would be generated.
 func sabiDepsMutator(mctx android.TopDownMutatorContext) {
-	if c, ok := mctx.Module().(*Module); ok &&
-		((c.IsVndk() && c.UseVndk()) || c.isLlndk(mctx.Config()) ||
-			(c.sabi != nil && c.sabi.Properties.CreateSAbiDumps)) {
+	if c, ok := mctx.Module().(*Module); ok {
+		if shouldSkipSabiDepsMutator(mctx, c) {
+			return
+		}
 		mctx.VisitDirectDeps(func(m android.Module) {
 			if tag, ok := mctx.OtherModuleDependencyTag(m).(libraryDependencyTag); ok && tag.static() {
-				cc, _ := m.(*Module)
-				if cc == nil {
-					return
+				if cc, ok := m.(*Module); ok {
+					cc.sabi.Properties.CreateSAbiDumps = true
 				}
-				cc.sabi.Properties.CreateSAbiDumps = true
 			}
 		})
 	}
 }
 
+// Add an entry to the global list of lsdump. The list is exported to a Make variable by
+// `cc.makeVarsProvider`.
 func addLsdumpPath(lsdumpPath string) {
-	sabiLock.Lock()
+	lsdumpPathsLock.Lock()
+	defer lsdumpPathsLock.Unlock()
 	lsdumpPaths = append(lsdumpPaths, lsdumpPath)
-	sabiLock.Unlock()
 }
