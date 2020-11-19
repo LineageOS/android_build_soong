@@ -29,7 +29,7 @@ func registerPathDepsMutator(ctx RegisterMutatorsContext) {
 // property that is tagged with android:"path".
 func pathDepsMutator(ctx BottomUpMutatorContext) {
 	m := ctx.Module().(Module)
-	if m == nil || !m.Enabled() {
+	if m == nil {
 		return
 	}
 
