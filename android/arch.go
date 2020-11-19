@@ -757,7 +757,7 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 
 	for _, os := range OsTypeList {
 		for _, t := range mctx.Config().Targets[os] {
-			if base.supportsTarget(t) && base.osEnabled(os) {
+			if base.supportsTarget(t) {
 				moduleOSList = append(moduleOSList, os)
 				break
 			}
@@ -1183,16 +1183,6 @@ func InitArchModule(m Module) {
 		}
 		base.archProperties = append(base.archProperties, archProperties)
 		m.AddProperties(archProperties...)
-
-		// Special case the enabled property so the osMutator can skip creating variants that
-		// are disabled.
-		if properties == &base.enabledProperties {
-			if len(archProperties) != 1 {
-				panic(fmt.Errorf("expected a single arch-specific enabledProperties type, found %d",
-					len(archProperties)))
-			}
-			base.archEnabledProperties = archProperties[0].(*archPropRoot)
-		}
 	}
 
 	base.customizableProperties = m.GetProperties()

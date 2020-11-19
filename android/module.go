@@ -19,7 +19,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 	"text/scanner"
@@ -513,7 +512,7 @@ type nameProperties struct {
 	Name *string
 }
 
-type enabledProperties struct {
+type commonProperties struct {
 	// emit build rules for this module
 	//
 	// Disabling a module should only be done for those modules that cannot be built
@@ -522,9 +521,7 @@ type enabledProperties struct {
 	// disabled as that will prevent them from being built by the checkbuild target
 	// and so prevent early detection of changes that have broken those modules.
 	Enabled *bool `android:"arch_variant"`
-}
 
-type commonProperties struct {
 	// Controls the visibility of this module to other modules. Allowable values are one or more of
 	// these formats:
 	//
@@ -833,7 +830,6 @@ func InitAndroidModule(m Module) {
 
 	m.AddProperties(
 		&base.nameProperties,
-		&base.enabledProperties,
 		&base.commonProperties,
 		&base.distProperties)
 
@@ -931,11 +927,6 @@ type ModuleBase struct {
 	generalProperties       []interface{}
 	archProperties          [][]interface{}
 	customizableProperties  []interface{}
-
-	// The enabled property is special-cased so that the osMutator can skip creating variants
-	// that are disabled.
-	enabledProperties     enabledProperties
-	archEnabledProperties *archPropRoot
 
 	// Information about all the properties on the module that contains visibility rules that need
 	// checking.
@@ -1127,33 +1118,6 @@ func (m *ModuleBase) supportsTarget(target Target) bool {
 	}
 }
 
-// osEnabled returns true if the given OS is enabled for the current module.
-func (m *ModuleBase) osEnabled(os OsType) bool {
-	targetStruct := reflect.ValueOf(m.archEnabledProperties.Target)
-
-	if targetStruct.Kind() != reflect.Ptr || targetStruct.Type().Elem().Kind() != reflect.Struct {
-		panic(fmt.Errorf("expected a pointer to a struct, found %s", targetStruct.Type()))
-	}
-
-	if targetStruct.IsNil() {
-		return !os.DefaultDisabled
-	}
-
-	osStruct := targetStruct.Elem().FieldByName(os.Field)
-
-	if targetStruct.Kind() != reflect.Ptr || targetStruct.Type().Elem().Kind() != reflect.Struct {
-		panic(fmt.Errorf("expected a pointer to a struct, found %s", targetStruct.Type()))
-	}
-
-	if osStruct.IsNil() {
-		return !os.DefaultDisabled
-	}
-
-	enabledField := osStruct.Elem().FieldByName("Enabled")
-
-	return proptools.BoolDefault(enabledField.Interface().(*bool), !os.DefaultDisabled)
-}
-
 // DeviceSupported returns true if the current module is supported and enabled for device targets,
 // i.e. the factory method set the HostOrDeviceSupported value to include device support and
 // the device support is enabled by default or enabled by the device_supported property.
@@ -1253,7 +1217,10 @@ func (m *ModuleBase) Enabled() bool {
 	if m.commonProperties.ForcedDisabled {
 		return false
 	}
-	return proptools.BoolDefault(m.enabledProperties.Enabled, !m.Os().DefaultDisabled)
+	if m.commonProperties.Enabled == nil {
+		return !m.Os().DefaultDisabled
+	}
+	return *m.commonProperties.Enabled
 }
 
 func (m *ModuleBase) Disable() {
