@@ -21,27 +21,31 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+// This file implements support for automatically adding dependencies on any module referenced
+// with the ":module" module reference syntax in a property that is annotated with `android:"path"`.
+// The dependency is used by android.PathForModuleSrc to convert the module reference into the path
+// to the output file of the referenced module.
+
 func registerPathDepsMutator(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("pathdeps", pathDepsMutator).Parallel()
 }
 
-// The pathDepsMutator automatically adds dependencies on any module that is listed with ":module" syntax in a
-// property that is tagged with android:"path".
+// The pathDepsMutator automatically adds dependencies on any module that is listed with the
+// ":module" module reference syntax in a property that is tagged with `android:"path"`.
 func pathDepsMutator(ctx BottomUpMutatorContext) {
-	m := ctx.Module().(Module)
-	if m == nil {
-		return
-	}
+	props := ctx.Module().base().generalProperties
 
-	props := m.base().generalProperties
-
+	// Iterate through each property struct of the module extracting the contents of all properties
+	// tagged with `android:"path"`.
 	var pathProperties []string
 	for _, ps := range props {
-		pathProperties = append(pathProperties, pathPropertiesForPropertyStruct(ctx, ps)...)
+		pathProperties = append(pathProperties, pathPropertiesForPropertyStruct(ps)...)
 	}
 
+	// Remove duplicates to avoid multiple dependencies.
 	pathProperties = FirstUniqueStrings(pathProperties)
 
+	// Add dependencies to anything that is a module reference.
 	for _, s := range pathProperties {
 		if m, t := SrcIsModuleWithTag(s); m != "" {
 			ctx.AddDependency(ctx.Module(), sourceOrOutputDepTag(t), m)
@@ -49,34 +53,45 @@ func pathDepsMutator(ctx BottomUpMutatorContext) {
 	}
 }
 
-// pathPropertiesForPropertyStruct uses the indexes of properties that are tagged with android:"path" to extract
-// all their values from a property struct, returning them as a single slice of strings..
-func pathPropertiesForPropertyStruct(ctx BottomUpMutatorContext, ps interface{}) []string {
+// pathPropertiesForPropertyStruct uses the indexes of properties that are tagged with
+// android:"path" to extract all their values from a property struct, returning them as a single
+// slice of strings.
+func pathPropertiesForPropertyStruct(ps interface{}) []string {
 	v := reflect.ValueOf(ps)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
 		panic(fmt.Errorf("type %s is not a pointer to a struct", v.Type()))
 	}
+
+	// If the property struct is a nil pointer it can't have any paths set in it.
 	if v.IsNil() {
 		return nil
 	}
+
+	// v is now the reflect.Value for the concrete property struct.
 	v = v.Elem()
 
+	// Get or create the list of indexes of properties that are tagged with `android:"path"`.
 	pathPropertyIndexes := pathPropertyIndexesForPropertyStruct(ps)
 
 	var ret []string
 
 	for _, i := range pathPropertyIndexes {
+		// Turn an index into a field.
 		sv := fieldByIndex(v, i)
 		if !sv.IsValid() {
+			// Skip properties inside a nil pointer.
 			continue
 		}
 
+		// If the field is a non-nil pointer step into it.
 		if sv.Kind() == reflect.Ptr {
 			if sv.IsNil() {
 				continue
 			}
 			sv = sv.Elem()
 		}
+
+		// Collect paths from all strings and slices of strings.
 		switch sv.Kind() {
 		case reflect.String:
 			ret = append(ret, sv.String())
@@ -91,8 +106,8 @@ func pathPropertiesForPropertyStruct(ctx BottomUpMutatorContext, ps interface{})
 	return ret
 }
 
-// fieldByIndex is like reflect.Value.FieldByIndex, but returns an invalid reflect.Value when traversing a nil pointer
-// to a struct.
+// fieldByIndex is like reflect.Value.FieldByIndex, but returns an invalid reflect.Value when
+// traversing a nil pointer to a struct.
 func fieldByIndex(v reflect.Value, index []int) reflect.Value {
 	if len(index) == 1 {
 		return v.Field(index[0])
@@ -111,9 +126,9 @@ func fieldByIndex(v reflect.Value, index []int) reflect.Value {
 
 var pathPropertyIndexesCache OncePer
 
-// pathPropertyIndexesForPropertyStruct returns a list of all of the indexes of properties in property struct type that
-// are tagged with android:"path".  Each index is a []int suitable for passing to reflect.Value.FieldByIndex.  The value
-// is cached in a global cache by type.
+// pathPropertyIndexesForPropertyStruct returns a list of all of the indexes of properties in
+// property struct type that are tagged with `android:"path"`.  Each index is a []int suitable for
+// passing to reflect.Value.FieldByIndex.  The value is cached in a global cache by type.
 func pathPropertyIndexesForPropertyStruct(ps interface{}) [][]int {
 	key := NewCustomOnceKey(reflect.TypeOf(ps))
 	return pathPropertyIndexesCache.Once(key, func() interface{} {
