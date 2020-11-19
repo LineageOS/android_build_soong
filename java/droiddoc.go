@@ -1748,8 +1748,6 @@ type PrebuiltStubsSources struct {
 
 	properties PrebuiltStubsSourcesProperties
 
-	// The source directories containing stubs source files.
-	srcDirs     android.Paths
 	stubsSrcJar android.ModuleOutPath
 }
 
@@ -1769,21 +1767,29 @@ func (d *PrebuiltStubsSources) StubsSrcJar() android.Path {
 func (p *PrebuiltStubsSources) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.stubsSrcJar = android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"stubs.srcjar")
 
-	p.srcDirs = android.PathsForModuleSrc(ctx, p.properties.Srcs)
+	if len(p.properties.Srcs) != 1 {
+		ctx.PropertyErrorf("srcs", "must only specify one directory path, contains %d paths", len(p.properties.Srcs))
+		return
+	}
+
+	localSrcDir := p.properties.Srcs[0]
+	// Although PathForModuleSrc can return nil if either the path doesn't exist or
+	// the path components are invalid it won't in this case because no components
+	// are specified and the module directory must exist in order to get this far.
+	srcDir := android.PathForModuleSrc(ctx).(android.SourcePath).Join(ctx, localSrcDir)
+
+	// Glob the contents of the directory just in case the directory does not exist.
+	srcGlob := localSrcDir + "/**/*"
+	srcPaths := android.PathsForModuleSrc(ctx, []string{srcGlob})
 
 	rule := android.NewRuleBuilder()
-	command := rule.Command().
+	rule.Command().
 		BuiltTool(ctx, "soong_zip").
 		Flag("-write_if_changed").
 		Flag("-jar").
-		FlagWithOutput("-o ", p.stubsSrcJar)
-
-	for _, d := range p.srcDirs {
-		dir := d.String()
-		command.
-			FlagWithArg("-C ", dir).
-			FlagWithInput("-D ", d)
-	}
+		FlagWithOutput("-o ", p.stubsSrcJar).
+		FlagWithArg("-C ", srcDir.String()).
+		FlagWithRspFileInputList("-r ", srcPaths)
 
 	rule.Restat()
 
