@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"text/scanner"
@@ -513,7 +514,7 @@ type nameProperties struct {
 	Name *string
 }
 
-type commonProperties struct {
+type enabledProperties struct {
 	// emit build rules for this module
 	//
 	// Disabling a module should only be done for those modules that cannot be built
@@ -522,7 +523,9 @@ type commonProperties struct {
 	// disabled as that will prevent them from being built by the checkbuild target
 	// and so prevent early detection of changes that have broken those modules.
 	Enabled *bool `android:"arch_variant"`
+}
 
+type commonProperties struct {
 	// Controls the visibility of this module to other modules. Allowable values are one or more of
 	// these formats:
 	//
@@ -766,27 +769,32 @@ const (
 type HostOrDeviceSupported int
 
 const (
-	_ HostOrDeviceSupported = iota
+	hostSupported = 1 << iota
+	hostCrossSupported
+	deviceSupported
+	hostDefault
+	deviceDefault
 
 	// Host and HostCross are built by default. Device is not supported.
-	HostSupported
+	HostSupported = hostSupported | hostCrossSupported | hostDefault
 
 	// Host is built by default. HostCross and Device are not supported.
-	HostSupportedNoCross
+	HostSupportedNoCross = hostSupported | hostDefault
 
 	// Device is built by default. Host and HostCross are not supported.
-	DeviceSupported
+	DeviceSupported = deviceSupported | deviceDefault
 
 	// Device is built by default. Host and HostCross are supported.
-	HostAndDeviceSupported
+	HostAndDeviceSupported = hostSupported | hostCrossSupported | deviceSupported | deviceDefault
 
 	// Host, HostCross, and Device are built by default.
-	HostAndDeviceDefault
+	HostAndDeviceDefault = hostSupported | hostCrossSupported | hostDefault |
+		deviceSupported | deviceDefault
 
 	// Nothing is supported. This is not exposed to the user, but used to mark a
 	// host only module as unsupported when the module type is not supported on
 	// the host OS. E.g. benchmarks are supported on Linux but not Darwin.
-	NeitherHostNorDeviceSupported
+	NeitherHostNorDeviceSupported = 0
 )
 
 type moduleKind int
@@ -826,6 +834,7 @@ func InitAndroidModule(m Module) {
 
 	m.AddProperties(
 		&base.nameProperties,
+		&base.enabledProperties,
 		&base.commonProperties,
 		&base.distProperties)
 
@@ -848,8 +857,7 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 	base.commonProperties.ArchSpecific = true
 	base.commonProperties.UseTargetVariants = true
 
-	switch hod {
-	case HostAndDeviceSupported, HostAndDeviceDefault:
+	if hod&hostSupported != 0 && hod&deviceSupported != 0 {
 		m.AddProperties(&base.hostAndDeviceProperties)
 	}
 
@@ -924,6 +932,11 @@ type ModuleBase struct {
 	generalProperties       []interface{}
 	archProperties          [][]interface{}
 	customizableProperties  []interface{}
+
+	// The enabled property is special-cased so that the osMutator can skip creating variants
+	// that are disabled.
+	enabledProperties     enabledProperties
+	archEnabledProperties *archPropRoot
 
 	// Information about all the properties on the module that contains visibility rules that need
 	// checking.
@@ -1100,43 +1113,81 @@ func (m *ModuleBase) IsCommonOSVariant() bool {
 	return m.commonProperties.CommonOSVariant
 }
 
-func (m *ModuleBase) supportsTarget(target Target, config Config) bool {
-	switch m.commonProperties.HostOrDeviceSupported {
-	case HostSupported:
-		return target.Os.Class == Host
-	case HostSupportedNoCross:
-		return target.Os.Class == Host && !target.HostCross
-	case DeviceSupported:
-		return target.Os.Class == Device
-	case HostAndDeviceSupported, HostAndDeviceDefault:
-		supported := false
-		if Bool(m.hostAndDeviceProperties.Host_supported) ||
-			(m.commonProperties.HostOrDeviceSupported == HostAndDeviceDefault &&
-				m.hostAndDeviceProperties.Host_supported == nil) {
-			supported = supported || target.Os.Class == Host
+// supportsTarget returns true if the given Target is supported by the current module.
+func (m *ModuleBase) supportsTarget(target Target) bool {
+	switch target.Os.Class {
+	case Host:
+		if target.HostCross {
+			return m.HostCrossSupported()
+		} else {
+			return m.HostSupported()
 		}
-		if m.hostAndDeviceProperties.Device_supported == nil ||
-			*m.hostAndDeviceProperties.Device_supported {
-			supported = supported || target.Os.Class == Device
-		}
-		return supported
+	case Device:
+		return m.DeviceSupported()
 	default:
 		return false
 	}
 }
 
-func (m *ModuleBase) DeviceSupported() bool {
-	return m.commonProperties.HostOrDeviceSupported == DeviceSupported ||
-		m.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
-			(m.hostAndDeviceProperties.Device_supported == nil ||
-				*m.hostAndDeviceProperties.Device_supported)
+// osEnabled returns true if the given OS is enabled for the current module.
+func (m *ModuleBase) osEnabled(os OsType) bool {
+	targetStruct := reflect.ValueOf(m.archEnabledProperties.Target)
+
+	if targetStruct.Kind() != reflect.Ptr || targetStruct.Type().Elem().Kind() != reflect.Struct {
+		panic(fmt.Errorf("expected a pointer to a struct, found %s", targetStruct.Type()))
+	}
+
+	if targetStruct.IsNil() {
+		return !os.DefaultDisabled
+	}
+
+	osStruct := targetStruct.Elem().FieldByName(os.Field)
+
+	if targetStruct.Kind() != reflect.Ptr || targetStruct.Type().Elem().Kind() != reflect.Struct {
+		panic(fmt.Errorf("expected a pointer to a struct, found %s", targetStruct.Type()))
+	}
+
+	if osStruct.IsNil() {
+		return !os.DefaultDisabled
+	}
+
+	enabledField := osStruct.Elem().FieldByName("Enabled")
+
+	return proptools.BoolDefault(enabledField.Interface().(*bool), !os.DefaultDisabled)
 }
 
+// DeviceSupported returns true if the current module is supported and enabled for device targets,
+// i.e. the factory method set the HostOrDeviceSupported value to include device support and
+// the device support is enabled by default or enabled by the device_supported property.
+func (m *ModuleBase) DeviceSupported() bool {
+	hod := m.commonProperties.HostOrDeviceSupported
+	// deviceEnabled is true if the device_supported property is true or the HostOrDeviceSupported
+	// value has the deviceDefault bit set.
+	deviceEnabled := proptools.BoolDefault(m.hostAndDeviceProperties.Device_supported, hod&deviceDefault != 0)
+	return hod&deviceSupported != 0 && deviceEnabled
+}
+
+// HostSupported returns true if the current module is supported and enabled for host targets,
+// i.e. the factory method set the HostOrDeviceSupported value to include host support and
+// the host support is enabled by default or enabled by the host_supported property.
 func (m *ModuleBase) HostSupported() bool {
-	return m.commonProperties.HostOrDeviceSupported == HostSupported ||
-		m.commonProperties.HostOrDeviceSupported == HostAndDeviceSupported &&
-			(m.hostAndDeviceProperties.Host_supported != nil &&
-				*m.hostAndDeviceProperties.Host_supported)
+	hod := m.commonProperties.HostOrDeviceSupported
+	// hostEnabled is true if the host_supported property is true or the HostOrDeviceSupported
+	// value has the hostDefault bit set.
+	hostEnabled := proptools.BoolDefault(m.hostAndDeviceProperties.Host_supported, hod&hostDefault != 0)
+	return hod&hostSupported != 0 && hostEnabled
+}
+
+// HostCrossSupported returns true if the current module is supported and enabled for host cross
+// targets, i.e. the factory method set the HostOrDeviceSupported value to include host cross
+// support and the host cross support is enabled by default or enabled by the
+// host_supported property.
+func (m *ModuleBase) HostCrossSupported() bool {
+	hod := m.commonProperties.HostOrDeviceSupported
+	// hostEnabled is true if the host_supported property is true or the HostOrDeviceSupported
+	// value has the hostDefault bit set.
+	hostEnabled := proptools.BoolDefault(m.hostAndDeviceProperties.Host_supported, hod&hostDefault != 0)
+	return hod&hostCrossSupported != 0 && hostEnabled
 }
 
 func (m *ModuleBase) Platform() bool {
@@ -1204,10 +1255,7 @@ func (m *ModuleBase) Enabled() bool {
 	if m.commonProperties.ForcedDisabled {
 		return false
 	}
-	if m.commonProperties.Enabled == nil {
-		return !m.Os().DefaultDisabled
-	}
-	return *m.commonProperties.Enabled
+	return proptools.BoolDefault(m.enabledProperties.Enabled, !m.Os().DefaultDisabled)
 }
 
 func (m *ModuleBase) Disable() {

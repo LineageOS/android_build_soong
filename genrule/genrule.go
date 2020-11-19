@@ -182,6 +182,9 @@ func (g *Module) GeneratedDeps() android.Paths {
 
 func toolDepsMutator(ctx android.BottomUpMutatorContext) {
 	if g, ok := ctx.Module().(*Module); ok {
+		if !g.Enabled() {
+			return
+		}
 		for _, tool := range g.properties.Tools {
 			tag := hostToolDependencyTag{label: tool}
 			if m := android.SrcIsModule(tool); m != "" {
