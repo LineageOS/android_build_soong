@@ -2325,7 +2325,7 @@ func (j *TestHost) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config, j.testProperties.Test_config_template,
-		j.testProperties.Test_suites, j.testProperties.Auto_gen_config)
+		j.testProperties.Test_suites, j.testProperties.Auto_gen_config, j.testProperties.Test_options.Unit_test)
 
 	j.data = android.PathsForModuleSrc(ctx, j.testProperties.Data)
 
@@ -2344,7 +2344,7 @@ func (j *TestHelperLibrary) GenerateAndroidBuildActions(ctx android.ModuleContex
 
 func (j *JavaTestImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.prebuiltTestProperties.Test_config, nil,
-		j.prebuiltTestProperties.Test_suites, nil)
+		j.prebuiltTestProperties.Test_suites, nil, nil)
 
 	j.Import.GenerateAndroidBuildActions(ctx)
 }
