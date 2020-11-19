@@ -687,6 +687,9 @@ type RustBindgenClangProperties struct {
 	// list of shared libraries that provide headers for this binding.
 	Shared_libs []string `android:"arch_variant"`
 
+	// List of libraries which export include paths required for this module
+	Header_libs []string `android:"arch_variant,variant_prepend"`
+
 	// list of clang flags required to correctly interpret the headers.
 	Cflags []string `android:"arch_variant"`
 

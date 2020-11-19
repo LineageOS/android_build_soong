@@ -126,6 +126,7 @@ func (b *FileArgsBuilder) Dir(name string) *FileArgsBuilder {
 	return b
 }
 
+// List reads the file names from the given file and adds them to the source files list.
 func (b *FileArgsBuilder) List(name string) *FileArgsBuilder {
 	if b.err != nil {
 		return b
@@ -150,6 +151,7 @@ func (b *FileArgsBuilder) List(name string) *FileArgsBuilder {
 	return b
 }
 
+// RspFile reads the file names from given .rsp file and adds them to the source files list.
 func (b *FileArgsBuilder) RspFile(name string) *FileArgsBuilder {
 	if b.err != nil {
 		return b
@@ -291,7 +293,7 @@ func ReadRespFile(bytes []byte) []string {
 	return args
 }
 
-func ZipTo(args ZipArgs, w io.Writer) error {
+func zipTo(args ZipArgs, w io.Writer) error {
 	if args.EmulateJar {
 		args.AddDirectoryEntriesToZip = true
 	}
@@ -392,6 +394,7 @@ func ZipTo(args ZipArgs, w io.Writer) error {
 	return z.write(w, pathMappings, args.ManifestSourcePath, args.EmulateJar, args.SrcJar, args.NumParallelJobs)
 }
 
+// Zip creates an output zip archive from given sources.
 func Zip(args ZipArgs) error {
 	if args.OutputFilePath == "" {
 		return fmt.Errorf("output file path must be nonempty")
@@ -416,7 +419,7 @@ func Zip(args ZipArgs) error {
 		out = f
 	}
 
-	err := ZipTo(args, out)
+	err := zipTo(args, out)
 	if err != nil {
 		return err
 	}
@@ -450,7 +453,6 @@ func fillPathPairs(fa FileArg, src string, pathMappings *[]pathMapping,
 				RelativeRoot: fa.SourcePrefixToStrip,
 			}
 		}
-
 	}
 	dest = filepath.Join(fa.PathPrefixInZip, dest)
 
@@ -465,10 +467,9 @@ func fillPathPairs(fa FileArg, src string, pathMappings *[]pathMapping,
 }
 
 func jarSort(mappings []pathMapping) {
-	less := func(i int, j int) (smaller bool) {
+	sort.SliceStable(mappings, func(i int, j int) bool {
 		return jar.EntryNamesLess(mappings[i].dest, mappings[j].dest)
-	}
-	sort.SliceStable(mappings, less)
+	})
 }
 
 func (z *ZipWriter) write(f io.Writer, pathMappings []pathMapping, manifest string, emulateJar, srcJar bool,
@@ -709,7 +710,7 @@ func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar, srcJar 
 	}
 }
 
-func (z *ZipWriter) addManifest(dest string, src string, method uint16) error {
+func (z *ZipWriter) addManifest(dest string, src string, _ uint16) error {
 	if prev, exists := z.createdDirs[dest]; exists {
 		return fmt.Errorf("destination %q is both a directory %q and a file %q", dest, prev, src)
 	}
@@ -963,7 +964,7 @@ func (z *ZipWriter) writeDirectory(dir string, src string, emulateJar bool) erro
 	dir = filepath.Clean(dir)
 
 	// discover any uncreated directories in the path
-	zipDirs := []string{}
+	var zipDirs []string
 	for dir != "" && dir != "." {
 		if _, exists := z.createdDirs[dir]; exists {
 			break

@@ -116,6 +116,9 @@ func (test *testDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidM
 		if !BoolDefault(test.Properties.Auto_gen_config, true) {
 			fmt.Fprintln(w, "LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG := true")
 		}
+		if Bool(test.Properties.Test_options.Unit_test) {
+			fmt.Fprintln(w, "LOCAL_IS_UNIT_TEST := true")
+		}
 	})
 	// TODO(chh): add test data with androidMkWriteTestData(test.data, ctx, ret)
 }

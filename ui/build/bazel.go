@@ -24,8 +24,8 @@ import (
 	"android/soong/ui/metrics"
 )
 
-// Main entry point to construct the Bazel build command line, environment variables
-// and post-processing steps (e.g. converge output directories)
+// Main entry point to construct the Bazel build command line, environment
+// variables and post-processing steps (e.g. converge output directories)
 func runBazel(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunBazel, "bazel")
 	defer ctx.EndTrace()
@@ -41,53 +41,86 @@ func runBazel(ctx Context, config Config) {
 		outputGroups = strings.Join(config.ninjaArgs, ",")
 	}
 
+	// Environment variables are the primary mechanism to pass information from
+	// soong_ui configuration or context to Bazel.
+	//
+	// Use *_NINJA variables to pass the root-relative path of the combined,
+	// kati-generated, soong-generated, and packaging Ninja files to Bazel.
+	// Bazel reads these from the lunch() repository rule.
 	config.environ.Set("COMBINED_NINJA", config.CombinedNinjaFile())
 	config.environ.Set("KATI_NINJA", config.KatiBuildNinjaFile())
 	config.environ.Set("PACKAGE_NINJA", config.KatiPackageNinjaFile())
 	config.environ.Set("SOONG_NINJA", config.SoongNinjaFile())
 
+	// `tools/bazel` is the default entry point for executing Bazel in the AOSP
+	// source tree.
 	bazelExecutable := filepath.Join("tools", "bazel")
 	cmd := Command(ctx, config, "bazel", bazelExecutable)
 
-	if extra_startup_args, ok := cmd.Environment.Get("BAZEL_STARTUP_ARGS"); ok {
-		cmd.Args = append(cmd.Args, strings.Fields(extra_startup_args)...)
+	// Append custom startup flags to the Bazel command. Startup flags affect
+	// the Bazel server itself, and any changes to these flags would incur a
+	// restart of the server, losing much of the in-memory incrementality.
+	if extraStartupArgs, ok := cmd.Environment.Get("BAZEL_STARTUP_ARGS"); ok {
+		cmd.Args = append(cmd.Args, strings.Fields(extraStartupArgs)...)
 	}
 
+	// Start constructing the `build` command.
 	actionName := "build"
 	cmd.Args = append(cmd.Args,
 		actionName,
+		// Use output_groups to select the set of outputs to produce from a
+		// ninja_build target.
 		"--output_groups="+outputGroups,
+		// Generate a performance profile
 		"--profile="+filepath.Join(shared.BazelMetricsFilename(config.OutDir(), actionName)),
 		"--slim_profile=true",
 	)
 
-	if extra_build_args, ok := cmd.Environment.Get("BAZEL_BUILD_ARGS"); ok {
-		cmd.Args = append(cmd.Args, strings.Fields(extra_build_args)...)
+	// Append custom build flags to the Bazel command. Changes to these flags
+	// may invalidate Bazel's analysis cache.
+	if extraBuildArgs, ok := cmd.Environment.Get("BAZEL_BUILD_ARGS"); ok {
+		cmd.Args = append(cmd.Args, strings.Fields(extraBuildArgs)...)
 	}
 
+	// Append the label of the default ninja_build target.
 	cmd.Args = append(cmd.Args,
 		"//:"+config.TargetProduct()+"-"+config.TargetBuildVariant(),
 	)
 
+	// Ensure that the PATH environment variable value used in the action
+	// environment is the restricted set computed from soong_ui, and not a
+	// user-provided one, for hermeticity reasons.
 	if pathEnvValue, ok := config.environ.Get("PATH"); ok {
 		cmd.Environment.Set("PATH", pathEnvValue)
 		cmd.Args = append(cmd.Args, "--action_env=PATH="+pathEnvValue)
 	}
+
 	cmd.Environment.Set("DIST_DIR", config.DistDir())
 	cmd.Environment.Set("SHELL", "/bin/bash")
 
+	// Print the full command line for debugging purposes.
 	ctx.Println(cmd.Cmd)
+
+	// Execute the command at the root of the directory.
 	cmd.Dir = filepath.Join(config.OutDir(), "..")
 	ctx.Status.Status("Starting Bazel..")
+
+	// Execute the build command.
 	cmd.RunAndStreamOrFatal()
+
+	// Post-processing steps start here. Once the Bazel build completes, the
+	// output files are still stored in the execution root, not in $OUT_DIR.
+	// Ensure that the $OUT_DIR contains the expected set of files by symlinking
+	// the files from the execution root's output direction into $OUT_DIR.
 
 	// Obtain the Bazel output directory for ninja_build.
 	infoCmd := Command(ctx, config, "bazel", bazelExecutable)
 
-	if extra_startup_args, ok := infoCmd.Environment.Get("BAZEL_STARTUP_ARGS"); ok {
-		infoCmd.Args = append(infoCmd.Args, strings.Fields(extra_startup_args)...)
+	if extraStartupArgs, ok := infoCmd.Environment.Get("BAZEL_STARTUP_ARGS"); ok {
+		infoCmd.Args = append(infoCmd.Args, strings.Fields(extraStartupArgs)...)
 	}
 
+	// Obtain the output directory path in the execution root.
 	infoCmd.Args = append(infoCmd.Args,
 		"info",
 		"output_path",
