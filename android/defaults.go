@@ -174,22 +174,20 @@ func (d *DefaultsModuleBase) GenerateAndroidBuildActions(ctx ModuleContext) {
 
 func InitDefaultsModule(module DefaultsModule) {
 	commonProperties := &commonProperties{}
-	enabledProperties := &enabledProperties{}
 
 	module.AddProperties(
 		&hostAndDeviceProperties{},
-		enabledProperties,
 		commonProperties,
 		&ApexProperties{},
 		&distProperties{})
 
-	base := module.base()
 	initAndroidModuleBase(module)
 	initProductVariableModule(module)
 	InitArchModule(module)
 	InitDefaultableModule(module)
 
 	// Add properties that will not have defaults applied to them.
+	base := module.base()
 	defaultsVisibility := &DefaultsVisibilityProperties{}
 	module.AddProperties(&base.nameProperties, defaultsVisibility)
 
