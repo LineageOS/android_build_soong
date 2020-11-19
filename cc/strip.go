@@ -20,20 +20,32 @@ import (
 	"android/soong/android"
 )
 
+// StripProperties defines the type of stripping applied to the module.
 type StripProperties struct {
 	Strip struct {
-		None                         *bool    `android:"arch_variant"`
-		All                          *bool    `android:"arch_variant"`
-		Keep_symbols                 *bool    `android:"arch_variant"`
-		Keep_symbols_list            []string `android:"arch_variant"`
-		Keep_symbols_and_debug_frame *bool    `android:"arch_variant"`
+		// whether to disable all stripping.
+		None *bool `android:"arch_variant"`
+
+		// whether to strip everything, including the mini debug info.
+		All *bool `android:"arch_variant"`
+
+		// whether to keep the symbols.
+		Keep_symbols *bool `android:"arch_variant"`
+
+		// keeps only the symbols defined here.
+		Keep_symbols_list []string `android:"arch_variant"`
+
+		// whether to keep the symbols and the debug frames.
+		Keep_symbols_and_debug_frame *bool `android:"arch_variant"`
 	} `android:"arch_variant"`
 }
 
+// Stripper defines the stripping actions and properties for a module.
 type Stripper struct {
 	StripProperties StripProperties
 }
 
+// NeedsStrip determines if stripping is required for a module.
 func (stripper *Stripper) NeedsStrip(actx android.ModuleContext) bool {
 	// TODO(ccross): enable host stripping when embedded in make?  Make never had support for stripping host binaries.
 	return (!actx.Config().EmbeddedInMake() || actx.Device()) && !Bool(stripper.StripProperties.Strip.None)
@@ -60,11 +72,17 @@ func (stripper *Stripper) strip(actx android.ModuleContext, in android.Path, out
 	}
 }
 
+// StripExecutableOrSharedLib strips a binary or shared library from its debug
+// symbols and other debugging information. The helper function
+// flagsToStripFlags may be used to generate the flags argument.
 func (stripper *Stripper) StripExecutableOrSharedLib(actx android.ModuleContext, in android.Path,
 	out android.ModuleOutPath, flags StripFlags) {
 	stripper.strip(actx, in, out, flags, false)
 }
 
+// StripStaticLib strips a static library from its debug symbols and other
+// debugging information. The helper function flagsToStripFlags may be used to
+// generate the flags argument.
 func (stripper *Stripper) StripStaticLib(actx android.ModuleContext, in android.Path, out android.ModuleOutPath,
 	flags StripFlags) {
 	stripper.strip(actx, in, out, flags, true)
