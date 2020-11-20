@@ -14,8 +14,20 @@
 
 blueprint_go_binary {
     name: "sbox",
-    deps: ["soong-makedeps"],
+    deps: [
+        "sbox_proto",
+        "soong-makedeps",
+    ],
     srcs: [
         "sbox.go",
+    ],
+}
+
+bootstrap_go_package {
+    name: "sbox_proto",
+    pkgPath: "android/soong/cmd/sbox/sbox_proto",
+    deps: ["golang-protobuf-proto"],
+    srcs: [
+        "sbox_proto/sbox.pb.go",
     ],
 }

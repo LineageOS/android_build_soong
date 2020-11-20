@@ -1,0 +1,58 @@
+// Copyright 2020 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+
+package sbox;
+option go_package = "sbox_proto";
+
+// A set of commands to run in a sandbox.
+message Manifest {
+  // A list of commands to run in the sandbox.
+  repeated Command commands = 1;
+
+  // If set, GCC-style dependency files from any command that references __SBOX_DEPFILE__ will be
+  // merged into the given output file relative to the $PWD when sbox was started.
+  optional string output_depfile = 2;
+}
+
+// SandboxManifest describes a command to run in the sandbox.
+message Command {
+  // A list of copy rules to run before the sandboxed command.  The from field is relative to the
+  // $PWD when sbox was run, the to field is relative to the top of the temporary sandbox directory.
+  repeated Copy copy_before = 1;
+
+  // If true, change the working directory to the top of the temporary sandbox directory before
+  // running the command.  If false, leave the working directory where it was when sbox was started.
+  optional bool chdir = 2;
+
+  // The command to run.
+  required string command = 3;
+
+  // A list of copy rules to run after the sandboxed command.  The from field is relative to the
+  // top of the temporary sandbox directory, the to field is relative to the $PWD when sbox was run.
+  repeated Copy copy_after = 4;
+
+  // An optional hash of the input files to ensure the textproto files and the sbox rule reruns
+  // when the lists of inputs changes, even if the inputs are not on the command line.
+  optional string input_hash = 5;
+}
+
+// Copy describes a from-to pair of files to copy.  The paths may be relative, the root that they
+// are relative to is specific to the context the Copy is used in and will be different for
+// from and to.
+message Copy {
+  required string from = 1;
+  required string to = 2;
+}
