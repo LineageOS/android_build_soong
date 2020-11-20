@@ -137,7 +137,14 @@ func ConvertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 
 		switch x := node.(type) {
 		case *mkparser.Comment:
-			file.insertComment("//" + x.Comment)
+			// Split the comment on escaped newlines and then
+			// add each chunk separately.
+			chunks := strings.Split(x.Comment, "\\\n")
+			file.insertComment("//" + chunks[0])
+			for i := 1; i < len(chunks); i++ {
+				file.bpPos.Line++
+				file.insertComment("//" + chunks[i])
+			}
 		case *mkparser.Assignment:
 			handleAssignment(file, x, assignmentCond)
 		case *mkparser.Directive:
