@@ -717,7 +717,9 @@ type commonProperties struct {
 	DebugMutators   []string `blueprint:"mutated"`
 	DebugVariations []string `blueprint:"mutated"`
 
-	// set by ImageMutator
+	// ImageVariation is set by ImageMutator to specify which image this variation is for,
+	// for example "" for core or "recovery" for recovery.  It will often be set to one of the
+	// constants in image.go, but can also be set to a custom value by individual module types.
 	ImageVariation string `blueprint:"mutated"`
 }
 
@@ -825,6 +827,8 @@ func initAndroidModuleBase(m Module) {
 	m.base().module = m
 }
 
+// InitAndroidModule initializes the Module as an Android module that is not architecture-specific.
+// It adds the common properties, for example "name" and "enabled".
 func InitAndroidModule(m Module) {
 	initAndroidModuleBase(m)
 	base := m.base()
@@ -844,6 +848,12 @@ func InitAndroidModule(m Module) {
 	setPrimaryVisibilityProperty(m, "visibility", &base.commonProperties.Visibility)
 }
 
+// InitAndroidArchModule initializes the Module as an Android module that is architecture-specific.
+// It adds the common properties, for example "name" and "enabled", as well as runtime generated
+// property structs for architecture-specific versions of generic properties tagged with
+// `android:"arch_variant"`.
+//
+//  InitAndroidModule should not be called if InitAndroidArchModule was called.
 func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib) {
 	InitAndroidModule(m)
 
@@ -857,16 +867,33 @@ func InitAndroidArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib 
 		m.AddProperties(&base.hostAndDeviceProperties)
 	}
 
-	InitArchModule(m)
+	initArchModule(m)
 }
 
+// InitAndroidMultiTargetsArchModule initializes the Module as an Android module that is
+// architecture-specific, but will only have a single variant per OS that handles all the
+// architectures simultaneously.  The list of Targets that it must handle will be available from
+// ModuleContext.MultiTargets. It adds the common properties, for example "name" and "enabled", as
+// well as runtime generated property structs for architecture-specific versions of generic
+// properties tagged with `android:"arch_variant"`.
+//
+// InitAndroidModule or InitAndroidArchModule should not be called if
+// InitAndroidMultiTargetsArchModule was called.
 func InitAndroidMultiTargetsArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib) {
 	InitAndroidArchModule(m, hod, defaultMultilib)
 	m.base().commonProperties.UseTargetVariants = false
 }
 
-// As InitAndroidMultiTargetsArchModule except it creates an additional CommonOS variant that
-// has dependencies on all the OsType specific variants.
+// InitCommonOSAndroidMultiTargetsArchModule initializes the Module as an Android module that is
+// architecture-specific, but will only have a single variant per OS that handles all the
+// architectures simultaneously, and will also have an additional CommonOS variant that has
+// dependencies on all the OS-specific variants.  The list of Targets that it must handle will be
+// available from ModuleContext.MultiTargets.  It adds the common properties, for example "name" and
+// "enabled", as well as runtime generated property structs for architecture-specific versions of
+// generic properties tagged with `android:"arch_variant"`.
+//
+// InitAndroidModule, InitAndroidArchModule or InitAndroidMultiTargetsArchModule should not be
+// called if InitCommonOSAndroidMultiTargetsArchModule was called.
 func InitCommonOSAndroidMultiTargetsArchModule(m Module, hod HostOrDeviceSupported, defaultMultilib Multilib) {
 	InitAndroidArchModule(m, hod, defaultMultilib)
 	m.base().commonProperties.UseTargetVariants = false

@@ -183,7 +183,7 @@ func InitDefaultsModule(module DefaultsModule) {
 
 	initAndroidModuleBase(module)
 	initProductVariableModule(module)
-	InitArchModule(module)
+	initArchModule(module)
 	InitDefaultableModule(module)
 
 	// Add properties that will not have defaults applied to them.
