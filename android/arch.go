@@ -27,28 +27,6 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-const COMMON_VARIANT = "common"
-
-var (
-	archTypeList []ArchType
-
-	Arm    = newArch("arm", "lib32")
-	Arm64  = newArch("arm64", "lib64")
-	X86    = newArch("x86", "lib32")
-	X86_64 = newArch("x86_64", "lib64")
-
-	Common = ArchType{
-		Name: COMMON_VARIANT,
-	}
-)
-
-var archTypeMap = map[string]ArchType{
-	"arm":    Arm,
-	"arm64":  Arm64,
-	"x86":    X86,
-	"x86_64": X86_64,
-}
-
 /*
 Example blueprints file containing all variant property groups, with comment listing what type
 of variants get properties in that group:
@@ -111,405 +89,26 @@ module {
 }
 */
 
-var archVariants = map[ArchType][]string{
-	Arm: {
-		"armv7-a",
-		"armv7-a-neon",
-		"armv8-a",
-		"armv8-2a",
-		"cortex-a7",
-		"cortex-a8",
-		"cortex-a9",
-		"cortex-a15",
-		"cortex-a53",
-		"cortex-a53-a57",
-		"cortex-a55",
-		"cortex-a72",
-		"cortex-a73",
-		"cortex-a75",
-		"cortex-a76",
-		"krait",
-		"kryo",
-		"kryo385",
-		"exynos-m1",
-		"exynos-m2",
-	},
-	Arm64: {
-		"armv8_a",
-		"armv8_2a",
-		"armv8-2a-dotprod",
-		"cortex-a53",
-		"cortex-a55",
-		"cortex-a72",
-		"cortex-a73",
-		"cortex-a75",
-		"cortex-a76",
-		"kryo",
-		"kryo385",
-		"exynos-m1",
-		"exynos-m2",
-	},
-	X86: {
-		"amberlake",
-		"atom",
-		"broadwell",
-		"haswell",
-		"icelake",
-		"ivybridge",
-		"kabylake",
-		"sandybridge",
-		"silvermont",
-		"skylake",
-		"stoneyridge",
-		"tigerlake",
-		"whiskeylake",
-		"x86_64",
-	},
-	X86_64: {
-		"amberlake",
-		"broadwell",
-		"haswell",
-		"icelake",
-		"ivybridge",
-		"kabylake",
-		"sandybridge",
-		"silvermont",
-		"skylake",
-		"stoneyridge",
-		"tigerlake",
-		"whiskeylake",
-	},
-}
-
-var archFeatures = map[ArchType][]string{
-	Arm: {
-		"neon",
-	},
-	Arm64: {
-		"dotprod",
-	},
-	X86: {
-		"ssse3",
-		"sse4",
-		"sse4_1",
-		"sse4_2",
-		"aes_ni",
-		"avx",
-		"avx2",
-		"avx512",
-		"popcnt",
-		"movbe",
-	},
-	X86_64: {
-		"ssse3",
-		"sse4",
-		"sse4_1",
-		"sse4_2",
-		"aes_ni",
-		"avx",
-		"avx2",
-		"avx512",
-		"popcnt",
-	},
-}
-
-var archFeatureMap = map[ArchType]map[string][]string{
-	Arm: {
-		"armv7-a-neon": {
-			"neon",
-		},
-		"armv8-a": {
-			"neon",
-		},
-		"armv8-2a": {
-			"neon",
-		},
-	},
-	Arm64: {
-		"armv8-2a-dotprod": {
-			"dotprod",
-		},
-	},
-	X86: {
-		"amberlake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"aes_ni",
-			"popcnt",
-		},
-		"atom": {
-			"ssse3",
-			"movbe",
-		},
-		"broadwell": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"aes_ni",
-			"popcnt",
-		},
-		"haswell": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"aes_ni",
-			"avx",
-			"popcnt",
-			"movbe",
-		},
-		"icelake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"avx512",
-			"aes_ni",
-			"popcnt",
-		},
-		"ivybridge": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"aes_ni",
-			"avx",
-			"popcnt",
-		},
-		"kabylake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"aes_ni",
-			"popcnt",
-		},
-		"sandybridge": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"popcnt",
-		},
-		"silvermont": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"aes_ni",
-			"popcnt",
-			"movbe",
-		},
-		"skylake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"avx512",
-			"aes_ni",
-			"popcnt",
-		},
-		"stoneyridge": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"aes_ni",
-			"avx",
-			"avx2",
-			"popcnt",
-			"movbe",
-		},
-		"tigerlake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"avx512",
-			"aes_ni",
-			"popcnt",
-		},
-		"whiskeylake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"avx512",
-			"aes_ni",
-			"popcnt",
-		},
-		"x86_64": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"popcnt",
-		},
-	},
-	X86_64: {
-		"amberlake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"aes_ni",
-			"popcnt",
-		},
-		"broadwell": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"aes_ni",
-			"popcnt",
-		},
-		"haswell": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"aes_ni",
-			"avx",
-			"popcnt",
-		},
-		"icelake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"avx512",
-			"aes_ni",
-			"popcnt",
-		},
-		"ivybridge": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"aes_ni",
-			"avx",
-			"popcnt",
-		},
-		"kabylake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"aes_ni",
-			"popcnt",
-		},
-		"sandybridge": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"popcnt",
-		},
-		"silvermont": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"aes_ni",
-			"popcnt",
-		},
-		"skylake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"avx512",
-			"aes_ni",
-			"popcnt",
-		},
-		"stoneyridge": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"aes_ni",
-			"avx",
-			"avx2",
-			"popcnt",
-		},
-		"tigerlake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"avx512",
-			"aes_ni",
-			"popcnt",
-		},
-		"whiskeylake": {
-			"ssse3",
-			"sse4",
-			"sse4_1",
-			"sse4_2",
-			"avx",
-			"avx2",
-			"avx512",
-			"aes_ni",
-			"popcnt",
-		},
-	},
-}
-
-var defaultArchFeatureMap = map[OsType]map[ArchType][]string{}
-
-func RegisterDefaultArchVariantFeatures(os OsType, arch ArchType, features ...string) {
-	checkCalledFromInit()
-
-	for _, feature := range features {
-		if !InList(feature, archFeatures[arch]) {
-			panic(fmt.Errorf("Invalid feature %q for arch %q variant \"\"", feature, arch))
-		}
-	}
-
-	if defaultArchFeatureMap[os] == nil {
-		defaultArchFeatureMap[os] = make(map[ArchType][]string)
-	}
-	defaultArchFeatureMap[os][arch] = features
-}
-
 // An Arch indicates a single CPU architecture.
 type Arch struct {
-	ArchType     ArchType
-	ArchVariant  string
-	CpuVariant   string
-	Abi          []string
+	// The type of the architecture (arm, arm64, x86, or x86_64).
+	ArchType ArchType
+
+	// The variant of the architecture, for example "armv7-a" or "armv7-a-neon" for arm.
+	ArchVariant string
+
+	// The variant of the CPU, for example "cortex-a53" for arm64.
+	CpuVariant string
+
+	// The list of Android app ABIs supported by the CPU architecture, for example "arm64-v8a".
+	Abi []string
+
+	// The list of arch-specific features supported by the CPU architecture, for example "neon".
 	ArchFeatures []string
 }
 
+// String returns the Arch as a string.  The value is used as the name of the variant created
+// by archMutator.
 func (a Arch) String() string {
 	s := a.ArchType.String()
 	if a.ArchVariant != "" {
@@ -521,11 +120,41 @@ func (a Arch) String() string {
 	return s
 }
 
+// ArchType is used to define the 4 supported architecture types (arm, arm64, x86, x86_64), as
+// well as the "common" architecture used for modules that support multiple architectures, for
+// example Java modules.
 type ArchType struct {
-	Name     string
-	Field    string
+	// Name is the name of the architecture type, "arm", "arm64", "x86", or "x86_64".
+	Name string
+
+	// Field is the name of the field used in properties that refer to the architecture, e.g. "Arm64".
+	Field string
+
+	// Multilib is either "lib32" or "lib64" for 32-bit or 64-bit architectures.
 	Multilib string
 }
+
+// String returns the name of the ArchType.
+func (a ArchType) String() string {
+	return a.Name
+}
+
+const COMMON_VARIANT = "common"
+
+var (
+	archTypeList []ArchType
+
+	Arm    = newArch("arm", "lib32")
+	Arm64  = newArch("arm64", "lib64")
+	X86    = newArch("x86", "lib32")
+	X86_64 = newArch("x86_64", "lib64")
+
+	Common = ArchType{
+		Name: COMMON_VARIANT,
+	}
+)
+
+var archTypeMap = map[string]ArchType{}
 
 func newArch(name, multilib string) ArchType {
 	archType := ArchType{
@@ -534,25 +163,25 @@ func newArch(name, multilib string) ArchType {
 		Multilib: multilib,
 	}
 	archTypeList = append(archTypeList, archType)
+	archTypeMap[name] = archType
 	return archType
 }
 
+// ArchTypeList returns the 4 supported ArchTypes for arm, arm64, x86 and x86_64.
 func ArchTypeList() []ArchType {
 	return append([]ArchType(nil), archTypeList...)
 }
 
-func (a ArchType) String() string {
-	return a.Name
-}
-
-var _ encoding.TextMarshaler = ArchType{}
-
+// MarshalText allows an ArchType to be serialized through any encoder that supports
+// encoding.TextMarshaler.
 func (a ArchType) MarshalText() ([]byte, error) {
 	return []byte(strconv.Quote(a.String())), nil
 }
 
-var _ encoding.TextUnmarshaler = &ArchType{}
+var _ encoding.TextMarshaler = ArchType{}
 
+// UnmarshalText allows an ArchType to be deserialized through any decoder that supports
+// encoding.TextUnmarshaler.
 func (a *ArchType) UnmarshalText(text []byte) error {
 	if u, ok := archTypeMap[string(text)]; ok {
 		*a = u
@@ -562,67 +191,22 @@ func (a *ArchType) UnmarshalText(text []byte) error {
 	return fmt.Errorf("unknown ArchType %q", text)
 }
 
-var BuildOs = func() OsType {
-	switch runtime.GOOS {
-	case "linux":
-		return Linux
-	case "darwin":
-		return Darwin
-	default:
-		panic(fmt.Sprintf("unsupported OS: %s", runtime.GOOS))
-	}
-}()
+var _ encoding.TextUnmarshaler = &ArchType{}
 
-var BuildArch = func() ArchType {
-	switch runtime.GOARCH {
-	case "amd64":
-		return X86_64
-	default:
-		panic(fmt.Sprintf("unsupported Arch: %s", runtime.GOARCH))
-	}
-}()
-
-var (
-	OsTypeList      []OsType
-	commonTargetMap = make(map[string]Target)
-
-	NoOsType    OsType
-	Linux       = NewOsType("linux_glibc", Host, false)
-	Darwin      = NewOsType("darwin", Host, false)
-	LinuxBionic = NewOsType("linux_bionic", Host, false)
-	Windows     = NewOsType("windows", Host, true)
-	Android     = NewOsType("android", Device, false)
-	Fuchsia     = NewOsType("fuchsia", Device, false)
-
-	// A pseudo OSType for a common os variant, which is OSType agnostic and which
-	// has dependencies on all the OS variants.
-	CommonOS = NewOsType("common_os", Generic, false)
-
-	osArchTypeMap = map[OsType][]ArchType{
-		Linux:       []ArchType{X86, X86_64},
-		LinuxBionic: []ArchType{Arm64, X86_64},
-		Darwin:      []ArchType{X86_64},
-		Windows:     []ArchType{X86, X86_64},
-		Android:     []ArchType{Arm, Arm64, X86, X86_64},
-		Fuchsia:     []ArchType{Arm64, X86_64},
-	}
-)
-
-type OsType struct {
-	Name, Field string
-	Class       OsClass
-
-	DefaultDisabled bool
-}
-
+// OsClass is an enum that describes whether a variant of a module runs on the host, on the device,
+// or is generic.
 type OsClass int
 
 const (
+	// Generic is used for variants of modules that are not OS-specific.
 	Generic OsClass = iota
+	// Device is used for variants of modules that run on the device.
 	Device
+	// Host is used for variants of modules that run on the host.
 	Host
 )
 
+// String returns the OsClass as a string.
 func (class OsClass) String() string {
 	switch class {
 	case Generic:
@@ -636,22 +220,48 @@ func (class OsClass) String() string {
 	}
 }
 
+// OsType describes an OS variant of a module.
+type OsType struct {
+	// Name is the name of the OS.  It is also used as the name of the property in Android.bp
+	// files.
+	Name string
+
+	// Field is the name of the OS converted to an exported field name, i.e. with the first
+	// character capitalized.
+	Field string
+
+	// Class is the OsClass of the OS.
+	Class OsClass
+
+	// DefaultDisabled is set when the module variants for the OS should not be created unless
+	// the module explicitly requests them.  This is used to limit Windows cross compilation to
+	// only modules that need it.
+	DefaultDisabled bool
+}
+
+// String returns the name of the OsType.
 func (os OsType) String() string {
 	return os.Name
 }
 
+// Bionic returns true if the OS uses the Bionic libc runtime, i.e. if the OS is Android or
+// is Linux with Bionic.
 func (os OsType) Bionic() bool {
 	return os == Android || os == LinuxBionic
 }
 
+// Linux returns true if the OS uses the Linux kernel, i.e. if the OS is Android or is Linux
+// with or without the Bionic libc runtime.
 func (os OsType) Linux() bool {
 	return os == Android || os == Linux || os == LinuxBionic
 }
 
-func NewOsType(name string, class OsClass, defDisabled bool) OsType {
+// newOsType constructs an OsType and adds it to the global lists.
+func newOsType(name string, class OsClass, defDisabled bool, archTypes ...ArchType) OsType {
+	checkCalledFromInit()
 	os := OsType{
 		Name:  name,
-		Field: strings.Title(name),
+		Field: proptools.FieldNameForProperty(name),
 		Class: class,
 
 		DefaultDisabled: defDisabled,
@@ -663,10 +273,12 @@ func NewOsType(name string, class OsClass, defDisabled bool) OsType {
 	} else {
 		commonTargetMap[name] = Target{Os: os, Arch: Arch{ArchType: Common}}
 	}
+	osArchTypeMap[os] = archTypes
 
 	return os
 }
 
+// osByName returns the OsType that has the given name, or NoOsType if none match.
 func osByName(name string) OsType {
 	for _, os := range OsTypeList {
 		if os.Name == name {
@@ -677,18 +289,74 @@ func osByName(name string) OsType {
 	return NoOsType
 }
 
-type NativeBridgeSupport bool
+// BuildOs returns the OsType for the OS that the build is running on.
+var BuildOs = func() OsType {
+	switch runtime.GOOS {
+	case "linux":
+		return Linux
+	case "darwin":
+		return Darwin
+	default:
+		panic(fmt.Sprintf("unsupported OS: %s", runtime.GOOS))
+	}
+}()
 
-const (
-	NativeBridgeDisabled NativeBridgeSupport = false
-	NativeBridgeEnabled  NativeBridgeSupport = true
+// BuildArch returns the ArchType for the CPU that the build is running on.
+var BuildArch = func() ArchType {
+	switch runtime.GOARCH {
+	case "amd64":
+		return X86_64
+	default:
+		panic(fmt.Sprintf("unsupported Arch: %s", runtime.GOARCH))
+	}
+}()
+
+var (
+	// OsTypeList contains a list of all the supported OsTypes, including ones not supported
+	// by the current build host or the target device.
+	OsTypeList []OsType
+	// commonTargetMap maps names of OsTypes to the corresponding common Target, i.e. the
+	// Target with the same OsType and the common ArchType.
+	commonTargetMap = make(map[string]Target)
+	// osArchTypeMap maps OsTypes to the list of supported ArchTypes for that OS.
+	osArchTypeMap = map[OsType][]ArchType{}
+
+	// NoOsType is a placeholder for when no OS is needed.
+	NoOsType OsType
+	// Linux is the OS for the Linux kernel plus the glibc runtime.
+	Linux = newOsType("linux_glibc", Host, false, X86, X86_64)
+	// Darwin is the OS for MacOS/Darwin host machines.
+	Darwin = newOsType("darwin", Host, false, X86_64)
+	// LinuxBionic is the OS for the Linux kernel plus the Bionic libc runtime, but without the
+	// rest of Android.
+	LinuxBionic = newOsType("linux_bionic", Host, false, Arm64, X86_64)
+	// Windows the OS for Windows host machines.
+	Windows = newOsType("windows", Host, true, X86, X86_64)
+	// Android is the OS for target devices that run all of Android, including the Linux kernel
+	// and the Bionic libc runtime.
+	Android = newOsType("android", Device, false, Arm, Arm64, X86, X86_64)
+	// Fuchsia is the OS for target devices that run Fuchsia.
+	Fuchsia = newOsType("fuchsia", Device, false, Arm64, X86_64)
+
+	// CommonOS is a pseudo OSType for a common OS variant, which is OsType agnostic and which
+	// has dependencies on all the OS variants.
+	CommonOS = newOsType("common_os", Generic, false)
 )
 
+// Target specifies the OS and architecture that a module is being compiled for.
 type Target struct {
-	Os                       OsType
-	Arch                     Arch
-	NativeBridge             NativeBridgeSupport
+	// Os the OS that the module is being compiled for (e.g. "linux_glibc", "android").
+	Os OsType
+	// Arch is the architecture that the module is being compiled for.
+	Arch Arch
+	// NativeBridge is NativeBridgeEnabled if the architecture is supported using NativeBridge
+	// (i.e. arm on x86) for this device.
+	NativeBridge NativeBridgeSupport
+	// NativeBridgeHostArchName is the name of the real architecture that is used to implement
+	// the NativeBridge architecture.  For example, for arm on x86 this would be "x86".
 	NativeBridgeHostArchName string
+	// NativeBridgeRelativePath is the name of the subdirectory that will contain NativeBridge
+	// libraries and binaries.
 	NativeBridgeRelativePath string
 
 	// HostCross is true when the target cannot run natively on the current build host.
@@ -697,14 +365,25 @@ type Target struct {
 	HostCross bool
 }
 
+// NativeBridgeSupport is an enum that specifies if a Target supports NativeBridge.
+type NativeBridgeSupport bool
+
+const (
+	NativeBridgeDisabled NativeBridgeSupport = false
+	NativeBridgeEnabled  NativeBridgeSupport = true
+)
+
+// String returns the OS and arch variations used for the Target.
 func (target Target) String() string {
 	return target.OsVariation() + "_" + target.ArchVariation()
 }
 
+// OsVariation returns the name of the variation used by the osMutator for the Target.
 func (target Target) OsVariation() string {
 	return target.Os.String()
 }
 
+// ArchVariation returns the name of the variation used by the archMutator for the Target.
 func (target Target) ArchVariation() string {
 	var variation string
 	if target.NativeBridge {
@@ -715,6 +394,8 @@ func (target Target) ArchVariation() string {
 	return variation
 }
 
+// Variations returns a list of blueprint.Variations for the osMutator and archMutator for the
+// Target.
 func (target Target) Variations() []blueprint.Variation {
 	return []blueprint.Variation{
 		{Mutator: "os", Variation: target.OsVariation()},
@@ -722,10 +403,16 @@ func (target Target) Variations() []blueprint.Variation {
 	}
 }
 
+// osMutator splits an arch-specific module into a variant for each OS that is enabled for the
+// module.  It uses the HostOrDevice value passed to InitAndroidArchModule and the
+// device_supported and host_supported properties to determine which OsTypes are enabled for this
+// module, then searches through the Targets to determine which have enabled Targets for this
+// module.
 func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 	var module Module
 	var ok bool
 	if module, ok = bpctx.Module().(Module); !ok {
+		// The module is not a Soong module, it is a Blueprint module.
 		if bootstrap.IsBootstrapModule(bpctx.Module()) {
 			// Bootstrap Go modules are always the build OS or linux bionic.
 			config := bpctx.Config().(Config)
@@ -749,12 +436,14 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 
 	base := module.base()
 
+	// Nothing to do for modules that are not architecture specific (e.g. a genrule).
 	if !base.ArchSpecific() {
 		return
 	}
 
+	// Collect a list of OSTypes supported by this module based on the HostOrDevice value
+	// passed to InitAndroidArchModule and the device_supported and host_supported properties.
 	var moduleOSList []OsType
-
 	for _, os := range OsTypeList {
 		for _, t := range mctx.Config().Targets[os] {
 			if base.supportsTarget(t) {
@@ -764,20 +453,21 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 		}
 	}
 
+	// If there are no supported OSes then disable the module.
 	if len(moduleOSList) == 0 {
 		base.Disable()
 		return
 	}
 
+	// Convert the list of supported OsTypes to the variation names.
 	osNames := make([]string, len(moduleOSList))
-
 	for i, os := range moduleOSList {
 		osNames[i] = os.String()
 	}
 
 	createCommonOSVariant := base.commonProperties.CreateCommonOSVariant
 	if createCommonOSVariant {
-		// A CommonOS variant was requested so add it to the list of OS's variants to
+		// A CommonOS variant was requested so add it to the list of OS variants to
 		// create. It needs to be added to the end because it needs to depend on the
 		// the other variants in the list returned by CreateVariations(...) and inter
 		// variant dependencies can only be created from a later variant in that list to
@@ -787,6 +477,8 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 		moduleOSList = append(moduleOSList, CommonOS)
 	}
 
+	// Create the variations, annotate each one with which OS it was created for, and
+	// squash the appropriate OS-specific properties into the top level properties.
 	modules := mctx.CreateVariations(osNames...)
 	for i, m := range modules {
 		m.base().commonProperties.CompileOS = moduleOSList[i]
@@ -841,7 +533,7 @@ func GetOsSpecificVariantsOfCommonOSVariant(mctx BaseModuleContext) []Module {
 }
 
 // archMutator splits a module into a variant for each Target requested by the module.  Target selection
-// for a module is in three levels, OsClass, mulitlib, and then Target.
+// for a module is in three levels, OsClass, multilib, and then Target.
 // OsClass selection is determined by:
 //    - The HostOrDeviceSupported value passed in to InitAndroidArchModule by the module type factory, which selects
 //      whether the module type can compile for host, device or both.
@@ -858,7 +550,11 @@ func GetOsSpecificVariantsOfCommonOSVariant(mctx BaseModuleContext) []Module {
 //        but may be arm for a 32-bit only build.
 //    "32": compile for only a single 32-bit Target supported by the OsClass.
 //    "64": compile for only a single 64-bit Target supported by the OsClass.
-//    "common": compile a for a single Target that will work on all Targets suported by the OsClass (for example Java).
+//    "common": compile a for a single Target that will work on all Targets supported by the OsClass (for example Java).
+//    "common_first": compile a for a Target that will work on all Targets supported by the OsClass
+//        (same as "common"), plus a second Target for the preferred Target supported by the OsClass
+//        (same as "first").  This is used for java_binary that produces a common .jar and a wrapper
+//        executable script.
 //
 // Once the list of Targets is determined, the module is split into a variant for each Target.
 //
@@ -899,8 +595,8 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 
 	osTargets := mctx.Config().Targets[os]
 	image := base.commonProperties.ImageVariation
-	// Filter NativeBridge targets unless they are explicitly supported
-	// Skip creating native bridge variants for vendor modules
+	// Filter NativeBridge targets unless they are explicitly supported.
+	// Skip creating native bridge variants for non-core modules.
 	if os == Android &&
 		!(Bool(base.commonProperties.Native_bridge_supported) && image == CoreVariation) {
 
@@ -919,17 +615,24 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 		osTargets = []Target{osTargets[0]}
 	}
 
+	// Some modules want compile_multilib: "first" to mean 32-bit, not 64-bit.
+	// This is used for Windows support and for HOST_PREFER_32_BIT=true support for Art modules.
 	prefer32 := false
 	if base.prefer32 != nil {
 		prefer32 = base.prefer32(mctx, base, os)
 	}
 
+	// Determine the multilib selection for this module.
 	multilib, extraMultilib := decodeMultilib(base, os.Class)
+
+	// Convert the multilib selection into a list of Targets.
 	targets, err := decodeMultilibTargets(multilib, osTargets, prefer32)
 	if err != nil {
 		mctx.ModuleErrorf("%s", err.Error())
 	}
 
+	// If the module is using extraMultilib, decode the extraMultilib selection into
+	// a separate list of Targets.
 	var multiTargets []Target
 	if extraMultilib != "" {
 		multiTargets, err = decodeMultilibTargets(extraMultilib, osTargets, prefer32)
@@ -938,23 +641,27 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 		}
 	}
 
+	// Recovery is always the primary architecture, filter out any other architectures.
 	if image == RecoveryVariation {
 		primaryArch := mctx.Config().DevicePrimaryArchType()
 		targets = filterToArch(targets, primaryArch)
 		multiTargets = filterToArch(multiTargets, primaryArch)
 	}
 
+	// If there are no supported targets disable the module.
 	if len(targets) == 0 {
 		base.Disable()
 		return
 	}
 
+	// Convert the targets into a list of arch variation names.
 	targetNames := make([]string, len(targets))
-
 	for i, target := range targets {
 		targetNames[i] = target.ArchVariation()
 	}
 
+	// Create the variations, annotate each one with which Target it was created for, and
+	// squash the appropriate arch-specific properties into the top level properties.
 	modules := mctx.CreateVariations(targetNames...)
 	for i, m := range modules {
 		addTargetProperties(m, targets[i], multiTargets, i == 0)
@@ -968,22 +675,34 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	}
 }
 
+// addTargetProperties annotates a variant with the Target is is being compiled for, the list
+// of additional Targets it is supporting (if any), and whether it is the primary Target for
+// the module.
 func addTargetProperties(m Module, target Target, multiTargets []Target, primaryTarget bool) {
 	m.base().commonProperties.CompileTarget = target
 	m.base().commonProperties.CompileMultiTargets = multiTargets
 	m.base().commonProperties.CompilePrimary = primaryTarget
 }
 
+// decodeMultilib returns the appropriate compile_multilib property for the module, or the default
+// multilib from the factory's call to InitAndroidArchModule if none was set.  For modules that
+// called InitAndroidMultiTargetsArchModule it always returns "common" for multilib, and returns
+// the actual multilib in extraMultilib.
 func decodeMultilib(base *ModuleBase, class OsClass) (multilib, extraMultilib string) {
+	// First check the "android.compile_multilib" or "host.compile_multilib" properties.
 	switch class {
 	case Device:
 		multilib = String(base.commonProperties.Target.Android.Compile_multilib)
 	case Host:
 		multilib = String(base.commonProperties.Target.Host.Compile_multilib)
 	}
+
+	// If those aren't set, try the "compile_multilib" property.
 	if multilib == "" {
 		multilib = String(base.commonProperties.Compile_multilib)
 	}
+
+	// If that wasn't set, use the default multilib set by the factory.
 	if multilib == "" {
 		multilib = base.commonProperties.Default_multilib
 	}
@@ -1000,6 +719,8 @@ func decodeMultilib(base *ModuleBase, class OsClass) (multilib, extraMultilib st
 	}
 }
 
+// filterToArch takes a list of Targets and an ArchType, and returns a modified list that contains
+// only Targets that have the specified ArchType.
 func filterToArch(targets []Target, arch ArchType) []Target {
 	for i := 0; i < len(targets); i++ {
 		if targets[i].Arch.ArchType != arch {
@@ -1010,17 +731,27 @@ func filterToArch(targets []Target, arch ArchType) []Target {
 	return targets
 }
 
-type archPropTypeDesc struct {
-	arch, multilib, target reflect.Type
-}
-
+// archPropRoot is a struct type used as the top level of the arch-specific properties.  It
+// contains the "arch", "multilib", and "target" property structs.  It is used to split up the
+// property structs to limit how much is allocated when a single arch-specific property group is
+// used.  The types are interface{} because they will hold instances of runtime-created types.
 type archPropRoot struct {
 	Arch, Multilib, Target interface{}
+}
+
+// archPropTypeDesc holds the runtime-created types for the property structs to instantiate to
+// create an archPropRoot property struct.
+type archPropTypeDesc struct {
+	arch, multilib, target reflect.Type
 }
 
 // createArchPropTypeDesc takes a reflect.Type that is either a struct or a pointer to a struct, and
 // returns lists of reflect.Types that contains the arch-variant properties inside structs for each
 // arch, multilib and target property.
+//
+// This is a relatively expensive operation, so the results are cached in the global
+// archPropTypeMap.  It is constructed entirely based on compile-time data, so there is no need
+// to isolate the results between multiple tests running in parallel.
 func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 	// Each property struct shard will be nested many times under the runtime generated arch struct,
 	// which can hit the limit of 64kB for the name of runtime generated structs.  They are nested
@@ -1029,7 +760,12 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 	// could cause problems if a single deeply nested property no longer fits in the name.
 	const maxArchTypeNameSize = 500
 
+	// Convert the type to a new set of types that contains only the arch-specific properties
+	// (those that are tagged with `android:"arch_specific"`), and sharded into multiple types
+	// to keep the runtime-generated names under the limit.
 	propShards, _ := proptools.FilterPropertyStructSharded(props, maxArchTypeNameSize, filterArchStruct)
+
+	// If the type has no arch-specific properties there is nothing to do.
 	if len(propShards) == 0 {
 		return nil
 	}
@@ -1037,6 +773,8 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 	var ret []archPropTypeDesc
 	for _, props := range propShards {
 
+		// variantFields takes a list of variant property field names and returns a list the
+		// StructFields with the names and the type of the current shard.
 		variantFields := func(names []string) []reflect.StructField {
 			ret := make([]reflect.StructField, len(names))
 
@@ -1048,9 +786,11 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 			return ret
 		}
 
+		// Create a type that contains the properties in this shard repeated for each
+		// architecture, architecture variant, and architecture feature.
 		archFields := make([]reflect.StructField, len(archTypeList))
 		for i, arch := range archTypeList {
-			variants := []string{}
+			var variants []string
 
 			for _, archVariant := range archVariants[arch] {
 				archVariant := variantReplacer.Replace(archVariant)
@@ -1061,8 +801,13 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 				variants = append(variants, proptools.FieldNameForProperty(feature))
 			}
 
+			// Create the StructFields for each architecture variant architecture feature
+			// (e.g. "arch.arm.cortex-a53" or "arch.arm.neon").
 			fields := variantFields(variants)
 
+			// Create the StructField for the architecture itself (e.g. "arch.arm").  The special
+			// "BlueprintEmbed" name is used by Blueprint to put the properties in the
+			// parent struct.
 			fields = append([]reflect.StructField{{
 				Name:      "BlueprintEmbed",
 				Type:      props,
@@ -1074,10 +819,15 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 				Type: reflect.StructOf(fields),
 			}
 		}
+
+		// Create the type of the "arch" property struct for this shard.
 		archType := reflect.StructOf(archFields)
 
+		// Create the type for the "multilib" property struct for this shard, containing the
+		// "multilib.lib32" and "multilib.lib64" property structs.
 		multilibType := reflect.StructOf(variantFields([]string{"Lib32", "Lib64"}))
 
+		// Start with a list of the special targets
 		targets := []string{
 			"Host",
 			"Android64",
@@ -1090,11 +840,14 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 			"Native_bridge",
 		}
 		for _, os := range OsTypeList {
+			// Add all the OSes.
 			targets = append(targets, os.Field)
 
+			// Add the OS/Arch combinations, e.g. "android_arm64".
 			for _, archType := range osArchTypeMap[os] {
 				targets = append(targets, os.Field+"_"+archType.Name)
 
+				// Also add the special "linux_<arch>" and "bionic_<arch>" property structs.
 				if os.Linux() {
 					target := "Linux_" + archType.Name
 					if !InList(target, targets) {
@@ -1110,8 +863,10 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 			}
 		}
 
+		// Create the type for the "target" property struct for this shard.
 		targetType := reflect.StructOf(variantFields(targets))
 
+		// Return a descriptor of the 3 runtime-created types.
 		ret = append(ret, archPropTypeDesc{
 			arch:     reflect.PtrTo(archType),
 			multilib: reflect.PtrTo(multilibType),
@@ -1121,6 +876,11 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 	return ret
 }
 
+// variantReplacer converts architecture variant or architecture feature names into names that
+// are valid for an Android.bp file.
+var variantReplacer = strings.NewReplacer("-", "_", ".", "_")
+
+// filterArchStruct returns true if the given field is an architecture specific property.
 func filterArchStruct(field reflect.StructField, prefix string) (bool, reflect.StructField) {
 	if proptools.HasTag(field, "android", "arch_variant") {
 		// The arch_variant field isn't necessary past this point
@@ -1147,12 +907,17 @@ func filterArchStruct(field reflect.StructField, prefix string) (bool, reflect.S
 	return false, field
 }
 
+// archPropTypeMap contains a cache of the results of createArchPropTypeDesc for each type.  It is
+// shared across all Contexts, but is constructed based only on compile-time information so there
+// is no risk of contaminating one Context with data from another.
 var archPropTypeMap OncePer
 
-func InitArchModule(m Module) {
+// initArchModule adds the architecture-specific property structs to a Module.
+func initArchModule(m Module) {
 
 	base := m.base()
 
+	// Store the original list of top level property structs
 	base.generalProperties = m.GetProperties()
 
 	for _, properties := range base.generalProperties {
@@ -1169,10 +934,13 @@ func InitArchModule(m Module) {
 				propertiesValue.Interface()))
 		}
 
+		// Get or create the arch-specific property struct types for this property struct type.
 		archPropTypes := archPropTypeMap.Once(NewCustomOnceKey(t), func() interface{} {
 			return createArchPropTypeDesc(t)
 		}).([]archPropTypeDesc)
 
+		// Instantiate one of each arch-specific property struct type and add it to the
+		// properties for the Module.
 		var archProperties []interface{}
 		for _, t := range archPropTypes {
 			archProperties = append(archProperties, &archPropRoot{
@@ -1185,14 +953,18 @@ func InitArchModule(m Module) {
 		m.AddProperties(archProperties...)
 	}
 
+	// Update the list of properties that can be set by a defaults module or a call to
+	// AppendMatchingProperties or PrependMatchingProperties.
 	base.customizableProperties = m.GetProperties()
 }
 
-var variantReplacer = strings.NewReplacer("-", "_", ".", "_")
-
+// appendProperties squashes properties from the given field of the given src property struct
+// into the dst property struct.  Returns the reflect.Value of the field in the src property
+// struct to be used for further appendProperties calls on fields of that property struct.
 func (m *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 	dst interface{}, src reflect.Value, field, srcPrefix string) reflect.Value {
 
+	// Step into non-nil pointers to structs in the src value.
 	if src.Kind() == reflect.Ptr {
 		if src.IsNil() {
 			return src
@@ -1200,18 +972,25 @@ func (m *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 		src = src.Elem()
 	}
 
+	// Find the requested field in the src struct.
 	src = src.FieldByName(field)
 	if !src.IsValid() {
 		ctx.ModuleErrorf("field %q does not exist", srcPrefix)
 		return src
 	}
 
+	// Save the value of the field in the src struct to return.
 	ret := src
 
+	// If the value of the field is a struct (as opposed to a pointer to a struct) then step
+	// into the BlueprintEmbed field.
 	if src.Kind() == reflect.Struct {
 		src = src.FieldByName("BlueprintEmbed")
 	}
 
+	// order checks the `android:"variant_prepend"` tag to handle properties where the
+	// arch-specific value needs to come before the generic value, for example for lists of
+	// include directories.
 	order := func(property string,
 		dstField, srcField reflect.StructField,
 		dstValue, srcValue interface{}) (proptools.Order, error) {
@@ -1222,6 +1001,7 @@ func (m *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 		}
 	}
 
+	// Squash the located property struct into the destination property struct.
 	err := proptools.ExtendMatchingProperties([]interface{}{dst}, src.Interface(), nil, order)
 	if err != nil {
 		if propertyErr, ok := err.(*proptools.ExtendPropertyError); ok {
@@ -1234,7 +1014,8 @@ func (m *ModuleBase) appendProperties(ctx BottomUpMutatorContext,
 	return ret
 }
 
-// Rewrite the module's properties structs to contain os-specific values.
+// Squash the appropriate OS-specific property structs into the matching top level property structs
+// based on the CompileOS value that was annotated on the variant.
 func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 	os := m.commonProperties.CompileOS
 
@@ -1328,7 +1109,8 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 	}
 }
 
-// Rewrite the module's properties structs to contain arch-specific values.
+// Squash the appropriate arch-specific property structs into the matching top level property
+// structs based on the CompileTarget value that was annotated on the variant.
 func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 	arch := m.Arch()
 	os := m.Os()
@@ -1480,22 +1262,7 @@ func (m *ModuleBase) setArchProperties(ctx BottomUpMutatorContext) {
 	}
 }
 
-func forEachInterface(v reflect.Value, f func(reflect.Value)) {
-	switch v.Kind() {
-	case reflect.Interface:
-		f(v)
-	case reflect.Struct:
-		for i := 0; i < v.NumField(); i++ {
-			forEachInterface(v.Field(i), f)
-		}
-	case reflect.Ptr:
-		forEachInterface(v.Elem(), f)
-	default:
-		panic(fmt.Errorf("Unsupported kind %s", v.Kind()))
-	}
-}
-
-// Convert the arch product variables into a list of targets for each os class structs
+// Convert the arch product variables into a list of targets for each OsType.
 func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 	variables := config.productVariables
 
@@ -1567,19 +1334,26 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 		return nil, fmt.Errorf("No host primary architecture set")
 	}
 
+	// The primary host target, which must always exist.
 	addTarget(BuildOs, *variables.HostArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
 
+	// An optional secondary host target.
 	if variables.HostSecondaryArch != nil && *variables.HostSecondaryArch != "" {
 		addTarget(BuildOs, *variables.HostSecondaryArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
 	}
 
+	// An optional host target that uses the Bionic glibc runtime.
 	if Bool(config.Host_bionic) {
 		addTarget(LinuxBionic, "x86_64", nil, nil, nil, NativeBridgeDisabled, nil, nil)
 	}
+
+	// An optional cross-compiled host target that uses the Bionic glibc runtime on an arm64
+	// architecture.
 	if Bool(config.Host_bionic_arm64) {
 		addTarget(LinuxBionic, "arm64", nil, nil, nil, NativeBridgeDisabled, nil, nil)
 	}
 
+	// Optional cross-compiled host targets, generally Windows.
 	if String(variables.CrossHost) != "" {
 		crossHostOs := osByName(*variables.CrossHost)
 		if crossHostOs == NoOsType {
@@ -1590,28 +1364,34 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 			return nil, fmt.Errorf("No cross-host primary architecture set")
 		}
 
+		// The primary cross-compiled host target.
 		addTarget(crossHostOs, *variables.CrossHostArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
 
+		// An optional secondary cross-compiled host target.
 		if variables.CrossHostSecondaryArch != nil && *variables.CrossHostSecondaryArch != "" {
 			addTarget(crossHostOs, *variables.CrossHostSecondaryArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
 		}
 	}
 
+	// Optional device targets
 	if variables.DeviceArch != nil && *variables.DeviceArch != "" {
 		var target = Android
 		if Bool(variables.Fuchsia) {
 			target = Fuchsia
 		}
 
+		// The primary device target.
 		addTarget(target, *variables.DeviceArch, variables.DeviceArchVariant,
 			variables.DeviceCpuVariant, variables.DeviceAbi, NativeBridgeDisabled, nil, nil)
 
+		// An optional secondary device target.
 		if variables.DeviceSecondaryArch != nil && *variables.DeviceSecondaryArch != "" {
 			addTarget(Android, *variables.DeviceSecondaryArch,
 				variables.DeviceSecondaryArchVariant, variables.DeviceSecondaryCpuVariant,
 				variables.DeviceSecondaryAbi, NativeBridgeDisabled, nil, nil)
 		}
 
+		// An optional NativeBridge device target.
 		if variables.NativeBridgeArch != nil && *variables.NativeBridgeArch != "" {
 			addTarget(Android, *variables.NativeBridgeArch,
 				variables.NativeBridgeArchVariant, variables.NativeBridgeCpuVariant,
@@ -1619,6 +1399,7 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 				variables.NativeBridgeRelativePath)
 		}
 
+		// An optional secondary NativeBridge device target.
 		if variables.DeviceSecondaryArch != nil && *variables.DeviceSecondaryArch != "" &&
 			variables.NativeBridgeSecondaryArch != nil && *variables.NativeBridgeSecondaryArch != "" {
 			addTarget(Android, *variables.NativeBridgeSecondaryArch,
@@ -1653,6 +1434,7 @@ func hasArmAndroidArch(targets []Target) bool {
 	return false
 }
 
+// archConfig describes a built-in configuration.
 type archConfig struct {
 	arch        string
 	archVariant string
@@ -1660,6 +1442,7 @@ type archConfig struct {
 	abi         []string
 }
 
+// getMegaDeviceConfig returns a list of archConfigs for every architecture simultaneously.
 func getMegaDeviceConfig() []archConfig {
 	return []archConfig{
 		{"arm", "armv7-a", "generic", []string{"armeabi-v7a"}},
@@ -1706,6 +1489,7 @@ func getMegaDeviceConfig() []archConfig {
 	}
 }
 
+// getNdkAbisConfig returns a list of archConfigs for the ABIs supported by the NDK.
 func getNdkAbisConfig() []archConfig {
 	return []archConfig{
 		{"arm", "armv7-a", "", []string{"armeabi-v7a"}},
@@ -1715,6 +1499,7 @@ func getNdkAbisConfig() []archConfig {
 	}
 }
 
+// getAmlAbisConfig returns a list of archConfigs for the ABIs supported by mainline modules.
 func getAmlAbisConfig() []archConfig {
 	return []archConfig{
 		{"arm", "armv7-a-neon", "", []string{"armeabi-v7a"}},
@@ -1724,6 +1509,7 @@ func getAmlAbisConfig() []archConfig {
 	}
 }
 
+// decodeArchSettings converts a list of archConfigs into a list of Targets for the given OsType.
 func decodeArchSettings(os OsType, archConfigs []archConfig) ([]Target, error) {
 	var ret []Target
 
@@ -1743,15 +1529,9 @@ func decodeArchSettings(os OsType, archConfigs []archConfig) ([]Target, error) {
 	return ret, nil
 }
 
-// Convert a set of strings from product variables into a single Arch struct
+// decodeArch converts a set of strings from product variables into an Arch struct.
 func decodeArch(os OsType, arch string, archVariant, cpuVariant *string, abi []string) (Arch, error) {
-	stringPtr := func(p *string) string {
-		if p != nil {
-			return *p
-		}
-		return ""
-	}
-
+	// Verify the arch is valid
 	archType, ok := archTypeMap[arch]
 	if !ok {
 		return Arch{}, fmt.Errorf("unknown arch %q", arch)
@@ -1759,19 +1539,22 @@ func decodeArch(os OsType, arch string, archVariant, cpuVariant *string, abi []s
 
 	a := Arch{
 		ArchType:    archType,
-		ArchVariant: stringPtr(archVariant),
-		CpuVariant:  stringPtr(cpuVariant),
+		ArchVariant: String(archVariant),
+		CpuVariant:  String(cpuVariant),
 		Abi:         abi,
 	}
 
+	// Convert generic arch variants into the empty string.
 	if a.ArchVariant == a.ArchType.Name || a.ArchVariant == "generic" {
 		a.ArchVariant = ""
 	}
 
+	// Convert generic CPU variants into the empty string.
 	if a.CpuVariant == a.ArchType.Name || a.CpuVariant == "generic" {
 		a.CpuVariant = ""
 	}
 
+	// Filter empty ABIs out of the list.
 	for i := 0; i < len(a.Abi); i++ {
 		if a.Abi[i] == "" {
 			a.Abi = append(a.Abi[:i], a.Abi[i+1:]...)
@@ -1780,10 +1563,12 @@ func decodeArch(os OsType, arch string, archVariant, cpuVariant *string, abi []s
 	}
 
 	if a.ArchVariant == "" {
+		// Set ArchFeatures from the default arch features.
 		if featureMap, ok := defaultArchFeatureMap[os]; ok {
 			a.ArchFeatures = featureMap[archType]
 		}
 	} else {
+		// Set ArchFeatures from the arch type.
 		if featureMap, ok := archFeatureMap[archType]; ok {
 			a.ArchFeatures = featureMap[a.ArchVariant]
 		}
@@ -1792,6 +1577,8 @@ func decodeArch(os OsType, arch string, archVariant, cpuVariant *string, abi []s
 	return a, nil
 }
 
+// filterMultilibTargets takes a list of Targets and a multilib value and returns a new list of
+// Targets containing only those that have the given multilib value.
 func filterMultilibTargets(targets []Target, multilib string) []Target {
 	var ret []Target
 	for _, t := range targets {
@@ -1802,8 +1589,8 @@ func filterMultilibTargets(targets []Target, multilib string) []Target {
 	return ret
 }
 
-// Return the set of Os specific common architecture targets for each Os in a list of
-// targets.
+// getCommonTargets returns the set of Os specific common architecture targets for each Os in a list
+// of targets.
 func getCommonTargets(targets []Target) []Target {
 	var ret []Target
 	set := make(map[string]bool)
@@ -1818,6 +1605,9 @@ func getCommonTargets(targets []Target) []Target {
 	return ret
 }
 
+// firstTarget takes a list of Targets and a list of multilib values and returns a list of Targets
+// that contains zero or one Target for each OsType, selecting the one that matches the earliest
+// filter.
 func firstTarget(targets []Target, filters ...string) []Target {
 	// find the first target from each OS
 	var ret []Target
@@ -1837,9 +1627,10 @@ func firstTarget(targets []Target, filters ...string) []Target {
 	return ret
 }
 
-// Use the module multilib setting to select one or more targets from a target list
+// decodeMultilibTargets uses the module's multilib setting to select one or more targets from a
+// list of Targets.
 func decodeMultilibTargets(multilib string, targets []Target, prefer32 bool) ([]Target, error) {
-	buildTargets := []Target{}
+	var buildTargets []Target
 
 	switch multilib {
 	case "common":
