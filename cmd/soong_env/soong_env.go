@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// soong_glob is the command line tool that checks if the list of files matching a glob has
-// changed, and only updates the output file list if it has changed.  It is used to optimize
-// out build.ninja regenerations when non-matching files are added.  See
-// android/soong/android/glob.go for a longer description.
+// soong_env determines if the given soong environment file (usually ".soong.environment") is stale
+// by comparing its contents to the current corresponding environment variable values.
+// It fails if the file cannot be opened or corrupted, or its contents differ from the current
+// values.
+
 package main
 
 import (
@@ -34,6 +35,7 @@ func usage() {
 	os.Exit(2)
 }
 
+// This is a simple executable packaging, and the real work happens in env.StaleEnvFile.
 func main() {
 	flag.Parse()
 

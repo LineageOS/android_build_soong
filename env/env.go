@@ -27,6 +27,15 @@ import (
 type envFileEntry struct{ Key, Value string }
 type envFileData []envFileEntry
 
+// Serializes the given environment variable name/value map into JSON formatted bytes by converting
+// to envFileEntry values and marshaling them.
+//
+// e.g. OUT_DIR = "out"
+// is converted to:
+// {
+//     "Key": "OUT_DIR",
+//     "Value": "out",
+// },
 func EnvFileContents(envDeps map[string]string) ([]byte, error) {
 	contents := make(envFileData, 0, len(envDeps))
 	for key, value := range envDeps {
@@ -45,8 +54,11 @@ func EnvFileContents(envDeps map[string]string) ([]byte, error) {
 	return data, nil
 }
 
-func StaleEnvFile(filename string) (bool, error) {
-	data, err := ioutil.ReadFile(filename)
+// Reads and deserializes a Soong environment file located at the given file path to determine its
+// staleness. If any environment variable values have changed, it prints them out and returns true.
+// Failing to read or parse the file also causes it to return true.
+func StaleEnvFile(filepath string) (bool, error) {
+	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		return true, err
 	}
@@ -79,6 +91,7 @@ func StaleEnvFile(filename string) (bool, error) {
 	return false, nil
 }
 
+// Implements sort.Interface so that we can use sort.Sort on envFileData arrays.
 func (e envFileData) Len() int {
 	return len(e)
 }
@@ -90,3 +103,5 @@ func (e envFileData) Less(i, j int) bool {
 func (e envFileData) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
+
+var _ sort.Interface = envFileData{}

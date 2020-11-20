@@ -757,7 +757,7 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 
 	for _, os := range OsTypeList {
 		for _, t := range mctx.Config().Targets[os] {
-			if base.supportsTarget(t, mctx.Config()) {
+			if base.supportsTarget(t) {
 				moduleOSList = append(moduleOSList, os)
 				break
 			}

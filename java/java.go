@@ -952,7 +952,9 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to linkTypeContext, 
 		return
 	}
 	otherLinkType, _ := to.getLinkType(ctx.OtherModuleName(to))
-	commonMessage := "Adjust sdk_version: property of the source or target module so that target module is built with the same or smaller API set than the source."
+	commonMessage := " In order to fix this, consider adjusting sdk_version: OR platform_apis: " +
+		"property of the source or target module so that target module is built with the same " +
+		"or smaller API set when compared to the source."
 
 	switch myLinkType {
 	case javaCore:

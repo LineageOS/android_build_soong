@@ -1,0 +1,15 @@
+bootstrap_go_package {
+    name: "soong-filesystem",
+    pkgPath: "android/soong/filesystem",
+    deps: [
+        "blueprint",
+        "soong",
+        "soong-android",
+    ],
+    srcs: [
+        "filesystem.go",
+    ],
+    testSrcs: [
+    ],
+    pluginFor: ["soong_build"],
+}
