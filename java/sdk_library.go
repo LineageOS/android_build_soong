@@ -1482,10 +1482,6 @@ func (module *SdkLibrary) SdkImplementationJars(ctx android.BaseModuleContext, s
 	return module.sdkJars(ctx, sdkVersion, false /*headerJars*/)
 }
 
-func (module *SdkLibrary) SetNoDist() {
-	module.sdkLibraryProperties.No_dist = proptools.BoolPtr(true)
-}
-
 var javaSdkLibrariesKey = android.NewOnceKey("javaSdkLibraries")
 
 func javaSdkLibraries(config android.Config) *[]string {
