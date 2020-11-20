@@ -211,6 +211,7 @@ func (linker *baseLinker) appendLdflags(flags []string) {
 	linker.Properties.Ldflags = append(linker.Properties.Ldflags, flags...)
 }
 
+// linkerInit initializes dynamic properties of the linker (such as runpath).
 func (linker *baseLinker) linkerInit(ctx BaseModuleContext) {
 	if ctx.toolchain().Is64Bit() {
 		linker.dynamicProperties.RunPaths = append(linker.dynamicProperties.RunPaths, "../lib64", "lib64")
