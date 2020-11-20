@@ -28,6 +28,7 @@ import (
 	"android/soong/cc/config"
 )
 
+// LibraryProperties is a collection of properties shared by cc library rules.
 type LibraryProperties struct {
 	// local file name to pass to the linker as -unexported_symbols_list
 	Unexported_symbols_list *string `android:"path,arch_variant"`
@@ -115,14 +116,23 @@ type LibraryProperties struct {
 	Llndk_stubs *string
 }
 
+// StaticProperties is a properties stanza to affect only attributes of the "static" variants of a
+// library module.
 type StaticProperties struct {
 	Static StaticOrSharedProperties `android:"arch_variant"`
 }
 
+// SharedProperties is a properties stanza to affect only attributes of the "shared" variants of a
+// library module.
 type SharedProperties struct {
 	Shared StaticOrSharedProperties `android:"arch_variant"`
 }
 
+// StaticOrSharedProperties is an embedded struct representing properties to affect attributes of
+// either only the "static" variants or only the "shared" variants of a library module. These override
+// the base properties of the same name.
+// Use `StaticProperties` or `SharedProperties`, depending on which variant is needed.
+// `StaticOrSharedProperties` exists only to avoid duplication.
 type StaticOrSharedProperties struct {
 	Srcs []string `android:"path,arch_variant"`
 
@@ -242,16 +252,23 @@ func LibraryHostSharedFactory() android.Module {
 	return module.Init()
 }
 
+// flagExporter is a separated portion of libraryDecorator pertaining to exported
+// include paths and flags. Keeping this dependency-related information separate
+// from the rest of library information is helpful in keeping data more structured
+// and explicit.
 type flagExporter struct {
 	Properties FlagExporterProperties
 
-	dirs       android.Paths
-	systemDirs android.Paths
-	flags      []string
+	dirs       android.Paths // Include directories to be included with -I
+	systemDirs android.Paths // System include directories to be included with -isystem
+	flags      []string      // Exported raw flags.
 	deps       android.Paths
 	headers    android.Paths
 }
 
+// exportedIncludes returns the effective include paths for this module and
+// any module that links against this module. This is obtained from
+// the export_include_dirs property in the appropriate target stanza.
 func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
 	// TODO(b/150902910): product variant must use Target.Product
 	if ctx.useVndk() && f.Properties.Target.Vendor.Override_export_include_dirs != nil {
@@ -261,25 +278,35 @@ func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
 	}
 }
 
+// exportIncludes registers the include directories and system include directories to be exported
+// transitively to modules depending on this module.
 func (f *flagExporter) exportIncludes(ctx ModuleContext) {
 	f.dirs = append(f.dirs, f.exportedIncludes(ctx)...)
 	f.systemDirs = append(f.systemDirs, android.PathsForModuleSrc(ctx, f.Properties.Export_system_include_dirs)...)
 }
 
+// exportIncludesAsSystem registers the include directories and system include directories to be
+// exported transitively both as system include directories to modules depending on this module.
 func (f *flagExporter) exportIncludesAsSystem(ctx ModuleContext) {
 	// all dirs are force exported as system
 	f.systemDirs = append(f.systemDirs, f.exportedIncludes(ctx)...)
 	f.systemDirs = append(f.systemDirs, android.PathsForModuleSrc(ctx, f.Properties.Export_system_include_dirs)...)
 }
 
+// reexportDirs registers the given directories as include directories to be exported transitively
+// to modules depending on this module.
 func (f *flagExporter) reexportDirs(dirs ...android.Path) {
 	f.dirs = append(f.dirs, dirs...)
 }
 
+// reexportSystemDirs registers the given directories as system include directories
+// to be exported transitively to modules depending on this module.
 func (f *flagExporter) reexportSystemDirs(dirs ...android.Path) {
 	f.systemDirs = append(f.systemDirs, dirs...)
 }
 
+// reexportFlags registers the flags to be exported transitively to modules depending on this
+// module.
 func (f *flagExporter) reexportFlags(flags ...string) {
 	if android.PrefixInList(flags, "-I") || android.PrefixInList(flags, "-isystem") {
 		panic(fmt.Errorf("Exporting invalid flag %q: "+
@@ -457,6 +484,8 @@ func (l *libraryDecorator) snapshotHeaders() android.Paths {
 	return l.collectedSnapshotHeaders
 }
 
+// linkerProps returns the list of properties structs relevant for this library. (For example, if
+// the library is cc_shared_library, then static-library properties are omitted.)
 func (library *libraryDecorator) linkerProps() []interface{} {
 	var props []interface{}
 	props = append(props, library.baseLinker.linkerProps()...)
@@ -476,6 +505,9 @@ func (library *libraryDecorator) linkerProps() []interface{} {
 	return props
 }
 
+// linkerFlags takes a Flags struct and augments it to contain linker flags that are defined by this
+// library, or that are implied by attributes of this library (such as whether this library is a
+// shared library).
 func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = library.baseLinker.linkerFlags(ctx, flags)
 
@@ -526,6 +558,9 @@ func (library *libraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Fla
 	return flags
 }
 
+// compilerFlags takes a Flags and augments it to contain compile flags from global values,
+// per-target values, module type values, per-module Blueprints properties, extra flags from
+// `flags`, and generated sources from `deps`.
 func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
 	exportIncludeDirs := library.flagExporter.exportedIncludes(ctx)
 	if len(exportIncludeDirs) > 0 {
@@ -727,6 +762,8 @@ func (library *libraryDecorator) getLibNameHelper(baseModuleName string, useVndk
 	return name + suffix
 }
 
+// getLibName returns the actual canonical name of the library (the name which
+// should be passed to the linker via linker flags).
 func (library *libraryDecorator) getLibName(ctx BaseModuleContext) string {
 	name := library.getLibNameHelper(ctx.baseModuleName(), ctx.useVndk())
 
@@ -1058,18 +1095,18 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	stubs := ctx.GetDirectDepsWithTag(stubImplDepTag)
 	if len(stubs) > 0 {
-		var stubsInfo []SharedLibraryStubsInfo
+		var stubsInfo []SharedStubLibrary
 		for _, stub := range stubs {
 			stubInfo := ctx.OtherModuleProvider(stub, SharedLibraryInfoProvider).(SharedLibraryInfo)
 			flagInfo := ctx.OtherModuleProvider(stub, FlagExporterInfoProvider).(FlagExporterInfo)
-			stubsInfo = append(stubsInfo, SharedLibraryStubsInfo{
+			stubsInfo = append(stubsInfo, SharedStubLibrary{
 				Version:           moduleLibraryInterface(stub).stubsVersion(),
 				SharedLibraryInfo: stubInfo,
 				FlagExporterInfo:  flagInfo,
 			})
 		}
-		ctx.SetProvider(SharedLibraryImplementationStubsInfoProvider, SharedLibraryImplementationStubsInfo{
-			SharedLibraryStubsInfos: stubsInfo,
+		ctx.SetProvider(SharedLibraryStubsProvider, SharedLibraryStubsInfo{
+			SharedStubLibraries: stubsInfo,
 
 			IsLLNDK: ctx.isLlndk(ctx.Config()),
 		})
@@ -1158,9 +1195,15 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 	}
 }
 
+// link registers actions to link this library, and sets various fields
+// on this library to reflect information that should be exported up the build
+// tree (for example, exported flags and include paths).
 func (library *libraryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
+	// Linking this library consists of linking `deps.Objs` (.o files in dependencies
+	// of this library), together with `objs` (.o files created by compiling this
+	// library).
 	objs = deps.Objs.Copy().Append(objs)
 	var out android.Path
 	if library.static() || library.header() {
@@ -1169,6 +1212,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 		out = library.linkShared(ctx, flags, deps, objs)
 	}
 
+	// Export include paths and flags to be propagated up the tree.
 	library.exportIncludes(ctx)
 	library.reexportDirs(deps.ReexportedDirs...)
 	library.reexportSystemDirs(deps.ReexportedSystemDirs...)
@@ -1176,6 +1220,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	library.reexportDeps(deps.ReexportedDeps...)
 	library.addExportedGeneratedHeaders(deps.ReexportedGeneratedHeaders...)
 
+	// Optionally export aidl headers.
 	if Bool(library.Properties.Aidl.Export_aidl_headers) {
 		if library.baseCompiler.hasSrcExt(".aidl") {
 			dir := android.PathForModuleGen(ctx, "aidl")
@@ -1187,6 +1232,7 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 		}
 	}
 
+	// Optionally export proto headers.
 	if Bool(library.Properties.Proto.Export_proto_headers) {
 		if library.baseCompiler.hasSrcExt(".proto") {
 			var includes android.Paths
@@ -1221,25 +1267,30 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			}
 		}
 
+		// Add sysprop-related directories to the exported directories of this library.
 		library.reexportDirs(dir)
 		library.reexportDeps(library.baseCompiler.pathDeps...)
 		library.addExportedGeneratedHeaders(library.baseCompiler.pathDeps...)
 	}
 
+	// Add stub-related flags if this library is a stub library.
 	if library.buildStubs() && !library.skipAPIDefine {
 		library.reexportFlags("-D" + versioningMacroName(ctx.Module().(*Module).ImplementationModuleName(ctx)) + "=" + library.stubsVersion())
 	}
 
+	// Propagate a Provider containing information about exported flags, deps, and include paths.
 	library.flagExporter.setProvider(ctx)
 
 	return out
 }
 
+// buildStatic returns true if this library should be built as a static library.
 func (library *libraryDecorator) buildStatic() bool {
 	return library.MutatedProperties.BuildStatic &&
 		BoolDefault(library.StaticProperties.Static.Enabled, true)
 }
 
+// buildShared returns true if this library should be built as a shared library.
 func (library *libraryDecorator) buildShared() bool {
 	return library.MutatedProperties.BuildShared &&
 		BoolDefault(library.SharedProperties.Shared.Enabled, true)
@@ -1346,36 +1397,46 @@ func (library *libraryDecorator) everInstallable() bool {
 	return library.shared() || library.static()
 }
 
+// static returns true if this library is for a "static' variant.
 func (library *libraryDecorator) static() bool {
 	return library.MutatedProperties.VariantIsStatic
 }
 
+// shared returns true if this library is for a "shared' variant.
 func (library *libraryDecorator) shared() bool {
 	return library.MutatedProperties.VariantIsShared
 }
 
+// header returns true if this library is for a header-only variant.
 func (library *libraryDecorator) header() bool {
+	// Neither "static" nor "shared" implies this library is header-only.
 	return !library.static() && !library.shared()
 }
 
+// setStatic marks the library variant as "static".
 func (library *libraryDecorator) setStatic() {
 	library.MutatedProperties.VariantIsStatic = true
 	library.MutatedProperties.VariantIsShared = false
 }
 
+// setShared marks the library variant as "shared".
 func (library *libraryDecorator) setShared() {
 	library.MutatedProperties.VariantIsStatic = false
 	library.MutatedProperties.VariantIsShared = true
 }
 
+// BuildOnlyStatic disables building this library as a shared library.
 func (library *libraryDecorator) BuildOnlyStatic() {
 	library.MutatedProperties.BuildShared = false
 }
 
+// BuildOnlyShared disables building this library as a static library.
 func (library *libraryDecorator) BuildOnlyShared() {
 	library.MutatedProperties.BuildStatic = false
 }
 
+// HeaderOnly disables building this library as a shared or static library;
+// the library only exists to propagate header file dependencies up the build graph.
 func (library *libraryDecorator) HeaderOnly() {
 	library.MutatedProperties.BuildShared = false
 	library.MutatedProperties.BuildStatic = false
@@ -1458,6 +1519,17 @@ func (library *libraryDecorator) makeUninstallable(mod *Module) {
 
 var versioningMacroNamesListKey = android.NewOnceKey("versioningMacroNamesList")
 
+// versioningMacroNamesList returns a singleton map, where keys are "version macro names",
+// and values are the module name responsible for registering the version macro name.
+//
+// Version macros are used when building against stubs, to provide version information about
+// the stub. Only stub libraries should have an entry in this list.
+//
+// For example, when building against libFoo#ver, __LIBFOO_API__ macro is set to ver so
+// that headers from libFoo can be conditionally compiled (this may hide APIs
+// that are not available for the version).
+//
+// This map is used to ensure that there aren't conflicts between these version macro names.
 func versioningMacroNamesList(config android.Config) *map[string]string {
 	return config.Once(versioningMacroNamesListKey, func() interface{} {
 		m := make(map[string]string)
@@ -1469,12 +1541,17 @@ func versioningMacroNamesList(config android.Config) *map[string]string {
 // other characters are all converted to _
 var charsNotForMacro = regexp.MustCompile("[^a-zA-Z0-9_]+")
 
+// versioningMacroName returns the canonical version macro name for the given module.
 func versioningMacroName(moduleName string) string {
 	macroName := charsNotForMacro.ReplaceAllString(moduleName, "_")
 	macroName = strings.ToUpper(macroName)
 	return "__" + macroName + "_API__"
 }
 
+// NewLibrary builds and returns a new Module corresponding to a C++ library.
+// Individual module implementations which comprise a C++ library (or something like
+// a C++ library) should call this function, set some fields on the result, and
+// then call the Init function.
 func NewLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
 	module := newModule(hod, android.MultilibBoth)
 
@@ -1530,6 +1607,8 @@ func reuseStaticLibrary(mctx android.BottomUpMutatorContext, static, shared *Mod
 	}
 }
 
+// LinkageMutator adds "static" or "shared" variants for modules depending
+// on whether the module can be built as a static library or a shared library.
 func LinkageMutator(mctx android.BottomUpMutatorContext) {
 	cc_prebuilt := false
 	if m, ok := mctx.Module().(*Module); ok && m.linker != nil {
@@ -1607,6 +1686,9 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 	}
 }
 
+// normalizeVersions modifies `versions` in place, so that each raw version
+// string becomes its normalized canonical form.
+// Validates that the versions in `versions` are specified in least to greatest order.
 func normalizeVersions(ctx android.BaseModuleContext, versions []string) {
 	var previous android.ApiLevel
 	for i, v := range versions {
