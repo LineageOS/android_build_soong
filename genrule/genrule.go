@@ -206,6 +206,7 @@ func (c *Module) generateBazelBuildActions(ctx android.ModuleContext, label stri
 	}
 	return ok
 }
+
 func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	g.subName = ctx.ModuleSubDir()
 
@@ -461,9 +462,10 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		// Create a rule that zips all the per-shard directories into a single zip and then
 		// uses zipsync to unzip it into the final directory.
 		ctx.Build(pctx, android.BuildParams{
-			Rule:      gensrcsMerge,
-			Implicits: copyFrom,
-			Outputs:   outputFiles,
+			Rule:        gensrcsMerge,
+			Implicits:   copyFrom,
+			Outputs:     outputFiles,
+			Description: "merge shards",
 			Args: map[string]string{
 				"zipArgs": zipArgs.String(),
 				"tmpZip":  android.PathForModuleGen(ctx, g.subDir+".zip").String(),
@@ -564,13 +566,19 @@ func (x noopImageInterface) SetImageVariation(ctx android.BaseModuleContext, var
 func NewGenSrcs() *Module {
 	properties := &genSrcsProperties{}
 
+	// finalSubDir is the name of the subdirectory that output files will be generated into.
+	// It is used so that per-shard directories can be placed alongside it an then finally
+	// merged into it.
+	const finalSubDir = "gensrcs"
+
 	taskGenerator := func(ctx android.ModuleContext, rawCommand string, srcFiles android.Paths) []generateTask {
-		genDir := android.PathForModuleGen(ctx, "gensrcs")
 		shardSize := defaultShardSize
 		if s := properties.Shard_size; s != nil {
 			shardSize = int(*s)
 		}
 
+		// gensrcs rules can easily hit command line limits by repeating the command for
+		// every input file.  Shard the input files into groups.
 		shards := android.ShardPaths(srcFiles, shardSize)
 		var generateTasks []generateTask
 
@@ -578,35 +586,45 @@ func NewGenSrcs() *Module {
 			var commands []string
 			var outFiles android.WritablePaths
 			var copyTo android.WritablePaths
-			var shardDir android.WritablePath
 			var depFile android.WritablePath
 
+			// When sharding is enabled (i.e. len(shards) > 1), the sbox rules for each
+			// shard will be write to their own directories and then be merged together
+			// into finalSubDir.  If sharding is not enabled (i.e. len(shards) == 1),
+			// the sbox rule will write directly to finalSubDir.
+			genSubDir := finalSubDir
 			if len(shards) > 1 {
-				shardDir = android.PathForModuleGen(ctx, strconv.Itoa(i))
-			} else {
-				shardDir = genDir
+				genSubDir = strconv.Itoa(i)
 			}
 
-			for j, in := range shard {
-				outFile := android.GenPathWithExt(ctx, "gensrcs", in, String(properties.Output_extension))
-				if j == 0 {
-					depFile = outFile.ReplaceExtension(ctx, "d")
-				}
+			genDir := android.PathForModuleGen(ctx, genSubDir)
 
+			for j, in := range shard {
+				outFile := android.GenPathWithExt(ctx, finalSubDir, in, String(properties.Output_extension))
+
+				// If sharding is enabled, then outFile is the path to the output file in
+				// the shard directory, and copyTo is the path to the output file in the
+				// final directory.
 				if len(shards) > 1 {
-					shardFile := android.GenPathWithExt(ctx, strconv.Itoa(i), in, String(properties.Output_extension))
+					shardFile := android.GenPathWithExt(ctx, genSubDir, in, String(properties.Output_extension))
 					copyTo = append(copyTo, outFile)
 					outFile = shardFile
 				}
 
+				if j == 0 {
+					depFile = outFile.ReplaceExtension(ctx, "d")
+				}
+
 				outFiles = append(outFiles, outFile)
 
+				// pre-expand the command line to replace $in and $out with references to
+				// a single input and output file.
 				command, err := android.Expand(rawCommand, func(name string) (string, error) {
 					switch name {
 					case "in":
 						return in.String(), nil
 					case "out":
-						return android.SboxPathForOutput(outFile, shardDir), nil
+						return android.SboxPathForOutput(outFile, genDir), nil
 					default:
 						return "$(" + name + ")", nil
 					}
@@ -626,7 +644,7 @@ func NewGenSrcs() *Module {
 				out:     outFiles,
 				depFile: depFile,
 				copyTo:  copyTo,
-				genDir:  shardDir,
+				genDir:  genDir,
 				cmd:     fullCommand,
 				shard:   i,
 				shards:  len(shards),
@@ -637,7 +655,7 @@ func NewGenSrcs() *Module {
 	}
 
 	g := generatorFactory(taskGenerator, properties)
-	g.subDir = "gensrcs"
+	g.subDir = finalSubDir
 	return g
 }
 
