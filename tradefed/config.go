@@ -27,6 +27,7 @@ func init() {
 	pctx.SourcePathVariable("InstrumentationTestConfigTemplate", "build/make/core/instrumentation_test_config_template.xml")
 	pctx.SourcePathVariable("JavaTestConfigTemplate", "build/make/core/java_test_config_template.xml")
 	pctx.SourcePathVariable("JavaHostTestConfigTemplate", "build/make/core/java_host_test_config_template.xml")
+	pctx.SourcePathVariable("JavaHostUnitTestConfigTemplate", "build/make/core/java_host_unit_test_config_template.xml")
 	pctx.SourcePathVariable("NativeBenchmarkTestConfigTemplate", "build/make/core/native_benchmark_test_config_template.xml")
 	pctx.SourcePathVariable("NativeHostTestConfigTemplate", "build/make/core/native_host_test_config_template.xml")
 	pctx.SourcePathVariable("NativeTestConfigTemplate", "build/make/core/native_test_config_template.xml")
