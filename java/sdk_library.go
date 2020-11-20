@@ -1514,12 +1514,6 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 	hasSystemAndTestApis := sdkDep.hasStandardLibs()
 	module.sdkLibraryProperties.Generate_system_and_test_apis = hasSystemAndTestApis
 
-	// Unless explicitly specified assume that any module that does not provide system
-	// and test APIs should not contribute to the dist build.
-	if module.sdkLibraryProperties.No_dist == nil {
-		module.sdkLibraryProperties.No_dist = proptools.BoolPtr(!hasSystemAndTestApis)
-	}
-
 	missing_current_api := false
 
 	generatedScopes := module.getGeneratedApiScopes(mctx)
