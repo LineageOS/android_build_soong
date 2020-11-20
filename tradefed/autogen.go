@@ -188,7 +188,7 @@ func AutoGenNativeBenchmarkTestConfig(ctx android.ModuleContext, testConfigProp 
 }
 
 func AutoGenJavaTestConfig(ctx android.ModuleContext, testConfigProp *string, testConfigTemplateProp *string,
-	testSuites []string, autoGenConfig *bool) android.Path {
+	testSuites []string, autoGenConfig *bool, unitTest *bool) android.Path {
 	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites, autoGenConfig, testConfigTemplateProp)
 	if autogenPath != nil {
 		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
@@ -198,7 +198,11 @@ func AutoGenJavaTestConfig(ctx android.ModuleContext, testConfigProp *string, te
 			if ctx.Device() {
 				autogenTemplate(ctx, autogenPath, "${JavaTestConfigTemplate}", nil, "")
 			} else {
-				autogenTemplate(ctx, autogenPath, "${JavaHostTestConfigTemplate}", nil, "")
+				if Bool(unitTest) {
+					autogenTemplate(ctx, autogenPath, "${JavaHostUnitTestConfigTemplate}", nil, "")
+				} else {
+					autogenTemplate(ctx, autogenPath, "${JavaHostTestConfigTemplate}", nil, "")
+				}
 			}
 		}
 		return autogenPath
