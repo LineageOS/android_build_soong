@@ -1260,10 +1260,10 @@ prebuilt_firmware {
 		desc: "comment with ESC",
 		in: `
 # Comment line 1 \
-# Comment line 2
+ Comment line 2
 `,
 		expected: `
-// Comment line 1 \
+// Comment line 1
 // Comment line 2
 `,
 	},
