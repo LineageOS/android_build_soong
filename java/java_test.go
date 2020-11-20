@@ -315,8 +315,9 @@ func TestSimple(t *testing.T) {
 
 func TestExportedPlugins(t *testing.T) {
 	type Result struct {
-		library    string
-		processors string
+		library        string
+		processors     string
+		disableTurbine bool
 	}
 	var tests = []struct {
 		name    string
@@ -375,6 +376,18 @@ func TestExportedPlugins(t *testing.T) {
 				{library: "foo", processors: "-processor com.android.TestPlugin,com.android.TestPlugin2"},
 			},
 		},
+		{
+			name: "Exports plugin to with generates_api to dependee",
+			extra: `
+				java_library{name: "exports", exported_plugins: ["plugin_generates_api"]}
+				java_library{name: "foo", srcs: ["a.java"], libs: ["exports"]}
+				java_library{name: "bar", srcs: ["a.java"], static_libs: ["exports"]}
+			`,
+			results: []Result{
+				{library: "foo", processors: "-processor com.android.TestPlugin", disableTurbine: true},
+				{library: "bar", processors: "-processor com.android.TestPlugin", disableTurbine: true},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -384,12 +397,22 @@ func TestExportedPlugins(t *testing.T) {
 					name: "plugin",
 					processor_class: "com.android.TestPlugin",
 				}
+				java_plugin {
+					name: "plugin_generates_api",
+					generates_api: true,
+					processor_class: "com.android.TestPlugin",
+				}
 			`+test.extra)
 
 			for _, want := range test.results {
 				javac := ctx.ModuleForTests(want.library, "android_common").Rule("javac")
 				if javac.Args["processor"] != want.processors {
 					t.Errorf("For library %v, expected %v, found %v", want.library, want.processors, javac.Args["processor"])
+				}
+				turbine := ctx.ModuleForTests(want.library, "android_common").MaybeRule("turbine")
+				disableTurbine := turbine.BuildParams.Rule == nil
+				if disableTurbine != want.disableTurbine {
+					t.Errorf("For library %v, expected disableTurbine %v, found %v", want.library, want.disableTurbine, disableTurbine)
 				}
 			}
 		})
