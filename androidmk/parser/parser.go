@@ -497,12 +497,6 @@ loop:
 		switch p.tok {
 		case '\\':
 			p.parseEscape()
-			if p.tok == '\n' {
-				// Special case: '\' does not "escape" newline in comment (b/127521510)
-				comment += "\\"
-				p.accept(p.tok)
-				break loop
-			}
 			comment += "\\" + p.scanner.TokenText()
 			p.accept(p.tok)
 		case '\n':
