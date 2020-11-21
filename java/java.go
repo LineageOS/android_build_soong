@@ -248,6 +248,9 @@ type CompilerProperties struct {
 	Errorprone struct {
 		// List of javac flags that should only be used when running errorprone.
 		Javacflags []string
+
+		// List of java_plugin modules that provide extra errorprone checks.
+		Extra_check_modules []string
 	}
 
 	Proto struct {
@@ -569,6 +572,7 @@ var (
 	libTag                = dependencyTag{name: "javalib"}
 	java9LibTag           = dependencyTag{name: "java9lib"}
 	pluginTag             = dependencyTag{name: "plugin"}
+	errorpronePluginTag   = dependencyTag{name: "errorprone-plugin"}
 	exportedPluginTag     = dependencyTag{name: "exported-plugin"}
 	bootClasspathTag      = dependencyTag{name: "bootclasspath"}
 	systemModulesTag      = dependencyTag{name: "system modules"}
@@ -765,6 +769,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	}
 
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), pluginTag, j.properties.Plugins...)
+	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), errorpronePluginTag, j.properties.Errorprone.Extra_check_modules...)
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), exportedPluginTag, j.properties.Exported_plugins...)
 
 	android.ProtoDeps(ctx, &j.protoProperties)
@@ -852,21 +857,22 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 }
 
 type deps struct {
-	classpath          classpath
-	java9Classpath     classpath
-	bootClasspath      classpath
-	processorPath      classpath
-	processorClasses   []string
-	staticJars         android.Paths
-	staticHeaderJars   android.Paths
-	staticResourceJars android.Paths
-	aidlIncludeDirs    android.Paths
-	srcs               android.Paths
-	srcJars            android.Paths
-	systemModules      *systemModules
-	aidlPreprocess     android.OptionalPath
-	kotlinStdlib       android.Paths
-	kotlinAnnotations  android.Paths
+	classpath               classpath
+	java9Classpath          classpath
+	bootClasspath           classpath
+	processorPath           classpath
+	errorProneProcessorPath classpath
+	processorClasses        []string
+	staticJars              android.Paths
+	staticHeaderJars        android.Paths
+	staticResourceJars      android.Paths
+	aidlIncludeDirs         android.Paths
+	srcs                    android.Paths
+	srcJars                 android.Paths
+	systemModules           *systemModules
+	aidlPreprocess          android.OptionalPath
+	kotlinStdlib            android.Paths
+	kotlinAnnotations       android.Paths
 
 	disableTurbine bool
 }
@@ -1068,6 +1074,12 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				} else {
 					ctx.PropertyErrorf("plugins", "%q is not a java_plugin module", otherName)
 				}
+			case errorpronePluginTag:
+				if plugin, ok := dep.(*Plugin); ok {
+					deps.errorProneProcessorPath = append(deps.errorProneProcessorPath, plugin.ImplementationAndResourcesJars()...)
+				} else {
+					ctx.PropertyErrorf("plugins", "%q is not a java_plugin module", otherName)
+				}
 			case exportedPluginTag:
 				if plugin, ok := dep.(*Plugin); ok {
 					if plugin.pluginProperties.Generates_api != nil && *plugin.pluginProperties.Generates_api {
@@ -1191,7 +1203,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	flags.javaVersion = getJavaVersion(ctx, String(j.properties.Java_version), sdkContext(j))
 
 	if ctx.Config().RunErrorProne() {
-		if config.ErrorProneClasspath == nil {
+		if config.ErrorProneClasspath == nil && ctx.Config().TestProductVariables == nil {
 			ctx.ModuleErrorf("cannot build with Error Prone, missing external/error_prone?")
 		}
 
@@ -1211,6 +1223,7 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	flags.classpath = append(flags.classpath, deps.classpath...)
 	flags.java9Classpath = append(flags.java9Classpath, deps.java9Classpath...)
 	flags.processorPath = append(flags.processorPath, deps.processorPath...)
+	flags.errorProneProcessorPath = append(flags.errorProneProcessorPath, deps.errorProneProcessorPath...)
 
 	flags.processors = append(flags.processors, deps.processorClasses...)
 	flags.processors = android.FirstUniqueStrings(flags.processors)
@@ -2327,7 +2340,7 @@ func (j *TestHost) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config, j.testProperties.Test_config_template,
-		j.testProperties.Test_suites, j.testProperties.Auto_gen_config)
+		j.testProperties.Test_suites, j.testProperties.Auto_gen_config, j.testProperties.Test_options.Unit_test)
 
 	j.data = android.PathsForModuleSrc(ctx, j.testProperties.Data)
 
@@ -2346,7 +2359,7 @@ func (j *TestHelperLibrary) GenerateAndroidBuildActions(ctx android.ModuleContex
 
 func (j *JavaTestImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.prebuiltTestProperties.Test_config, nil,
-		j.prebuiltTestProperties.Test_suites, nil)
+		j.prebuiltTestProperties.Test_suites, nil, nil)
 
 	j.Import.GenerateAndroidBuildActions(ctx)
 }

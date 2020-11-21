@@ -435,8 +435,8 @@ type sdkLibraryProperties struct {
 	// If set to true, the path of dist files is apistubs/core. Defaults to false.
 	Core_lib *bool
 
-	// don't create dist rules.
-	No_dist *bool `blueprint:"mutated"`
+	// If set to true then don't create dist rules.
+	No_dist *bool
 
 	// indicates whether system and test apis should be generated.
 	Generate_system_and_test_apis bool `blueprint:"mutated"`
@@ -1482,10 +1482,6 @@ func (module *SdkLibrary) SdkImplementationJars(ctx android.BaseModuleContext, s
 	return module.sdkJars(ctx, sdkVersion, false /*headerJars*/)
 }
 
-func (module *SdkLibrary) SetNoDist() {
-	module.sdkLibraryProperties.No_dist = proptools.BoolPtr(true)
-}
-
 var javaSdkLibrariesKey = android.NewOnceKey("javaSdkLibraries")
 
 func javaSdkLibraries(config android.Config) *[]string {
@@ -1513,12 +1509,10 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 	}
 
 	// If this builds against standard libraries (i.e. is not part of the core libraries)
-	// then assume it provides both system and test apis. Otherwise, assume it does not and
-	// also assume it does not contribute to the dist build.
+	// then assume it provides both system and test apis.
 	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
 	hasSystemAndTestApis := sdkDep.hasStandardLibs()
 	module.sdkLibraryProperties.Generate_system_and_test_apis = hasSystemAndTestApis
-	module.sdkLibraryProperties.No_dist = proptools.BoolPtr(!hasSystemAndTestApis)
 
 	missing_current_api := false
 
