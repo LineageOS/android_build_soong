@@ -1841,6 +1841,11 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		return
 	}
 
+	// sysprop_library has to support both C++ and Java. So sysprop_library internally creates one
+	// C++ implementation library and one Java implementation library. When a module links against
+	// sysprop_library, the C++ implementation library has to be linked. syspropImplLibraries is a
+	// map from sysprop_library to implementation library; it will be used in whole_static_libs,
+	// static_libs, and shared_libs.
 	syspropImplLibraries := syspropImplLibraries(actx.Config())
 	vendorSnapshotStaticLibs := vendorSnapshotStaticLibs(actx.Config())
 
