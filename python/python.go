@@ -86,6 +86,9 @@ type BaseProperties struct {
 	// the test. the file extension can be arbitrary except for (.py).
 	Data []string `android:"path,arch_variant"`
 
+	// list of java modules that provide data that should be installed alongside the test.
+	Java_data []string
+
 	// list of the Python libraries compatible both with Python2 and Python3.
 	Libs []string `android:"arch_variant"`
 
@@ -216,6 +219,7 @@ type dependencyTag struct {
 
 var (
 	pythonLibTag         = dependencyTag{name: "pythonLib"}
+	javaDataTag          = dependencyTag{name: "javaData"}
 	launcherTag          = dependencyTag{name: "launcher"}
 	launcherSharedLibTag = dependencyTag{name: "launcherSharedLib"}
 	pyIdentifierRegexp   = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
@@ -370,6 +374,11 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 		panic(fmt.Errorf("unknown Python Actual_version: %q for module: %q.",
 			p.properties.Actual_version, ctx.ModuleName()))
 	}
+
+	// Emulate the data property for java_data but with the arch variation overridden to "common"
+	// so that it can point to java modules.
+	javaDataVariation := []blueprint.Variation{{"arch", android.Common.String()}}
+	ctx.AddVariationDependencies(javaDataVariation, javaDataTag, p.properties.Java_data...)
 }
 
 func (p *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -415,6 +424,11 @@ func (p *Module) GeneratePythonBuildActions(ctx android.ModuleContext) {
 
 	// expand data files from "data" property.
 	expandedData := android.PathsForModuleSrc(ctx, p.properties.Data)
+
+	// Emulate the data property for java_data dependencies.
+	for _, javaData := range ctx.GetDirectDepsWithTag(javaDataTag) {
+		expandedData = append(expandedData, android.OutputFilesForModule(ctx, javaData, "")...)
+	}
 
 	// sanitize pkg_path.
 	pkgPath := String(p.properties.Pkg_path)
