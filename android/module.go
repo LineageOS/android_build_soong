@@ -2578,6 +2578,15 @@ func outputFilesForModule(ctx PathContext, module blueprint.Module, tag string) 
 			return nil, fmt.Errorf("failed to get output files from module %q", pathContextName(ctx, module))
 		}
 		return paths, nil
+	} else if sourceFileProducer, ok := module.(SourceFileProducer); ok {
+		if tag != "" {
+			return nil, fmt.Errorf("module %q is a SourceFileProducer, not an OutputFileProducer, and so does not support tag %q", pathContextName(ctx, module), tag)
+		}
+		paths := sourceFileProducer.Srcs()
+		if len(paths) == 0 {
+			return nil, fmt.Errorf("failed to get output files from module %q", pathContextName(ctx, module))
+		}
+		return paths, nil
 	} else {
 		return nil, fmt.Errorf("module %q is not an OutputFileProducer", pathContextName(ctx, module))
 	}
