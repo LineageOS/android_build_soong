@@ -1010,6 +1010,9 @@ type ModuleBase struct {
 	noticeFiles        Paths
 	phonies            map[string]Paths
 
+	// The files to copy to the dist as explicitly specified in the .bp file.
+	distFiles TaggedDistFiles
+
 	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
 	// Only set on the final variant of each module
 	installTarget    WritablePath
@@ -1117,18 +1120,25 @@ func (m *ModuleBase) GenerateTaggedDistFiles(ctx BaseModuleContext) TaggedDistFi
 		// the special tag name which represents that.
 		tag := proptools.StringDefault(dist.Tag, DefaultDistTag)
 
-		// Call the OutputFiles(tag) method to get the paths associated with the tag.
-		distFilesForTag, err := m.base().module.(OutputFileProducer).OutputFiles(tag)
+		if outputFileProducer, ok := m.module.(OutputFileProducer); ok {
+			// Call the OutputFiles(tag) method to get the paths associated with the tag.
+			distFilesForTag, err := outputFileProducer.OutputFiles(tag)
 
-		// If the tag was not supported and is not DefaultDistTag then it is an error.
-		// Failing to find paths for DefaultDistTag is not an error. It just means
-		// that the module type requires the legacy behavior.
-		if err != nil && tag != DefaultDistTag {
-			ctx.PropertyErrorf("dist.tag", "%s", err.Error())
-			continue
+			// If the tag was not supported and is not DefaultDistTag then it is an error.
+			// Failing to find paths for DefaultDistTag is not an error. It just means
+			// that the module type requires the legacy behavior.
+			if err != nil && tag != DefaultDistTag {
+				ctx.PropertyErrorf("dist.tag", "%s", err.Error())
+			}
+
+			distFiles = distFiles.addPathsForTag(tag, distFilesForTag...)
+		} else if tag != DefaultDistTag {
+			// If the tag was specified then it is an error if the module does not
+			// implement OutputFileProducer because there is no other way of accessing
+			// the paths for the specified tag.
+			ctx.PropertyErrorf("dist.tag",
+				"tag %s not supported because the module does not implement OutputFileProducer", tag)
 		}
-
-		distFiles = distFiles.addPathsForTag(tag, distFilesForTag...)
 	}
 
 	return distFiles
@@ -1654,6 +1664,15 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		}
 
 		m.module.GenerateAndroidBuildActions(ctx)
+		if ctx.Failed() {
+			return
+		}
+
+		// Create the set of tagged dist files after calling GenerateAndroidBuildActions
+		// as GenerateTaggedDistFiles() calls OutputFiles(tag) and so relies on the
+		// output paths being set which must be done before or during
+		// GenerateAndroidBuildActions.
+		m.distFiles = m.GenerateTaggedDistFiles(ctx)
 		if ctx.Failed() {
 			return
 		}
