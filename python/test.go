@@ -45,6 +45,9 @@ type TestProperties struct {
 	// the test
 	Data []string `android:"path,arch_variant"`
 
+	// list of java modules that provide data that should be installed alongside the test.
+	Java_data []string
+
 	// Test options.
 	Test_options TestOptions
 }
@@ -79,6 +82,13 @@ func (test *testDecorator) install(ctx android.ModuleContext, file android.Path)
 
 	for _, dataSrcPath := range dataSrcPaths {
 		test.data = append(test.data, android.DataPath{SrcPath: dataSrcPath})
+	}
+
+	// Emulate the data property for java_data dependencies.
+	for _, javaData := range ctx.GetDirectDepsWithTag(javaDataTag) {
+		for _, javaDataSrcPath := range android.OutputFilesForModule(ctx, javaData, "") {
+			test.data = append(test.data, android.DataPath{SrcPath: javaDataSrcPath})
+		}
 	}
 }
 
