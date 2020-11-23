@@ -34,7 +34,7 @@ func init() {
 }
 
 func RegisterPythonPreDepsMutators(ctx android.RegisterMutatorsContext) {
-	ctx.BottomUp("version_split", versionSplitMutator()).Parallel()
+	ctx.BottomUp("python_version", versionSplitMutator()).Parallel()
 }
 
 // the version properties that apply to python libraries and binaries.
@@ -248,7 +248,7 @@ func versionSplitMutator() func(android.BottomUpMutatorContext) {
 				versionNames = append(versionNames, pyVersion2)
 				versionProps = append(versionProps, base.properties.Version.Py2)
 			}
-			modules := mctx.CreateVariations(versionNames...)
+			modules := mctx.CreateLocalVariations(versionNames...)
 			if len(versionNames) > 0 {
 				mctx.AliasVariation(versionNames[0])
 			}
@@ -306,16 +306,20 @@ func (p *Module) hasSrcExt(ctx android.BottomUpMutatorContext, ext string) bool 
 func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	android.ProtoDeps(ctx, &p.protoProperties)
 
-	if p.hasSrcExt(ctx, protoExt) && p.Name() != "libprotobuf-python" {
-		ctx.AddVariationDependencies(nil, pythonLibTag, "libprotobuf-python")
+	versionVariation := []blueprint.Variation{
+		{"python_version", p.properties.Actual_version},
 	}
-	ctx.AddVariationDependencies(nil, pythonLibTag, android.LastUniqueStrings(p.properties.Libs)...)
+
+	if p.hasSrcExt(ctx, protoExt) && p.Name() != "libprotobuf-python" {
+		ctx.AddVariationDependencies(versionVariation, pythonLibTag, "libprotobuf-python")
+	}
+	ctx.AddVariationDependencies(versionVariation, pythonLibTag, android.LastUniqueStrings(p.properties.Libs)...)
 
 	switch p.properties.Actual_version {
 	case pyVersion2:
 
 		if p.bootstrapper != nil && p.isEmbeddedLauncherEnabled() {
-			ctx.AddVariationDependencies(nil, pythonLibTag, "py2-stdlib")
+			ctx.AddVariationDependencies(versionVariation, pythonLibTag, "py2-stdlib")
 
 			launcherModule := "py2-launcher"
 			if p.bootstrapper.autorun() {
@@ -338,7 +342,7 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 	case pyVersion3:
 
 		if p.bootstrapper != nil && p.isEmbeddedLauncherEnabled() {
-			ctx.AddVariationDependencies(nil, pythonLibTag, "py3-stdlib")
+			ctx.AddVariationDependencies(versionVariation, pythonLibTag, "py3-stdlib")
 
 			launcherModule := "py3-launcher"
 			if p.bootstrapper.autorun() {
