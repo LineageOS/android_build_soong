@@ -167,8 +167,8 @@ func (d *DeviceHostConverter) ClassLoaderContexts() dexpreopt.ClassLoaderContext
 	return nil
 }
 
-func (d *DeviceHostConverter) ExportedPlugins() (android.Paths, []string) {
-	return nil, nil
+func (d *DeviceHostConverter) ExportedPlugins() (android.Paths, []string, bool) {
+	return nil, nil, false
 }
 
 func (d *DeviceHostConverter) SrcJarArgs() ([]string, android.Paths) {
