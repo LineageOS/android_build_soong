@@ -32,7 +32,7 @@ func testPrebuilt(t *testing.T, bp string, fs map[string][]byte, handlers ...con
 	// * Configure that we are inside make
 	// * Add CommonOS to ensure that androidmk processing works.
 	android.RegisterAndroidMkBuildComponents(ctx)
-	android.SetInMakeForTests(config)
+	android.SetKatiEnabledForTests(config)
 
 	for _, handler := range handlers {
 		handler(config)

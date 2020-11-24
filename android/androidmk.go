@@ -417,7 +417,7 @@ func AndroidMkSingleton() Singleton {
 type androidMkSingleton struct{}
 
 func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
-	if !ctx.Config().EmbeddedInMake() {
+	if !ctx.Config().KatiEnabled() {
 		return
 	}
 

@@ -112,7 +112,9 @@ type config struct {
 	envDeps   map[string]string
 	envFrozen bool
 
-	inMake bool
+	// Changes behavior based on whether Kati runs after soong_build, or if soong_build
+	// runs standalone.
+	katiEnabled bool
 
 	captureBuild      bool // true for tests, saves build parameters for each module
 	ignoreEnvironment bool // true for tests, returns empty from all Getenv calls
@@ -386,9 +388,9 @@ func NewConfig(srcDir, buildDir string, moduleListFile string) (Config, error) {
 		return Config{}, err
 	}
 
-	inMakeFile := filepath.Join(buildDir, ".soong.in_make")
-	if _, err := os.Stat(absolutePath(inMakeFile)); err == nil {
-		config.inMake = true
+	KatiEnabledMarkerFile := filepath.Join(buildDir, ".soong.kati_enabled")
+	if _, err := os.Stat(absolutePath(KatiEnabledMarkerFile)); err == nil {
+		config.katiEnabled = true
 	}
 
 	targets, err := decodeTargetProductVariables(config)
@@ -600,8 +602,8 @@ func (c *config) EnvDeps() map[string]string {
 	return c.envDeps
 }
 
-func (c *config) EmbeddedInMake() bool {
-	return c.inMake
+func (c *config) KatiEnabled() bool {
+	return c.katiEnabled
 }
 
 func (c *config) BuildId() string {
