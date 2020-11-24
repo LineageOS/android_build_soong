@@ -438,6 +438,21 @@ type sdkLibraryProperties struct {
 	// If set to true then don't create dist rules.
 	No_dist *bool
 
+	// The stem for the artifacts that are copied to the dist, if not specified
+	// then defaults to the base module name.
+	//
+	// For each scope the following artifacts are copied to the apistubs/<scope>
+	// directory in the dist.
+	// * stubs impl jar -> <dist-stem>.jar
+	// * API specification file -> api/<dist-stem>.txt
+	// * Removed API specification file -> api/<dist-stem>-removed.txt
+	//
+	// Also used to construct the name of the filegroup (created by prebuilt_apis)
+	// that references the latest released API and remove API specification files.
+	// * API specification filegroup -> <dist-stem>.api.<scope>.latest
+	// * Removed API specification filegroup -> <dist-stem>-removed.api.<scope>.latest
+	Dist_stem *string
+
 	// indicates whether system and test apis should be generated.
 	Generate_system_and_test_apis bool `blueprint:"mutated"`
 
@@ -1117,12 +1132,16 @@ func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.EarlyModuleCont
 	}
 }
 
+func (module *SdkLibrary) distStem() string {
+	return proptools.StringDefault(module.sdkLibraryProperties.Dist_stem, module.BaseModuleName())
+}
+
 func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {
-	return ":" + module.BaseModuleName() + ".api." + apiScope.name + ".latest"
+	return ":" + module.distStem() + ".api." + apiScope.name + ".latest"
 }
 
 func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) string {
-	return ":" + module.BaseModuleName() + "-removed.api." + apiScope.name + ".latest"
+	return ":" + module.distStem() + "-removed.api." + apiScope.name + ".latest"
 }
 
 func childModuleVisibility(childVisibility []string) []string {
@@ -1228,7 +1247,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	// Dist the class jar artifact for sdk builds.
 	if !Bool(module.sdkLibraryProperties.No_dist) {
 		props.Dist.Targets = []string{"sdk", "win_sdk"}
-		props.Dist.Dest = proptools.StringPtr(fmt.Sprintf("%v.jar", module.BaseModuleName()))
+		props.Dist.Dest = proptools.StringPtr(fmt.Sprintf("%v.jar", module.distStem()))
 		props.Dist.Dir = proptools.StringPtr(module.apiDistPath(apiScope))
 		props.Dist.Tag = proptools.StringPtr(".jar")
 	}
@@ -1377,7 +1396,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	// Dist the api txt artifact for sdk builds.
 	if !Bool(module.sdkLibraryProperties.No_dist) {
 		props.Dist.Targets = []string{"sdk", "win_sdk"}
-		props.Dist.Dest = proptools.StringPtr(fmt.Sprintf("%v.txt", module.BaseModuleName()))
+		props.Dist.Dest = proptools.StringPtr(fmt.Sprintf("%v.txt", module.distStem()))
 		props.Dist.Dir = proptools.StringPtr(path.Join(module.apiDistPath(apiScope), "api"))
 	}
 
