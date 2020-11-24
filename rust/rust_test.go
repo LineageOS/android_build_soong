@@ -286,6 +286,12 @@ func TestSourceProviderDeps(t *testing.T) {
 			srcs: ["src/any.h"],
 			out: ["src/any.rs"],
 		}
+		rust_binary_host {
+			name: "any_rust_binary",
+			srcs: [
+				"foo.rs",
+			],
+		}
 		rust_bindgen {
 			name: "libbindings",
 			crate_name: "bindings",

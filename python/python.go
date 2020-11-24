@@ -217,11 +217,17 @@ type dependencyTag struct {
 	name string
 }
 
+type installDependencyTag struct {
+	blueprint.BaseDependencyTag
+	android.InstallAlwaysNeededDependencyTag
+	name string
+}
+
 var (
 	pythonLibTag         = dependencyTag{name: "pythonLib"}
 	javaDataTag          = dependencyTag{name: "javaData"}
 	launcherTag          = dependencyTag{name: "launcher"}
-	launcherSharedLibTag = dependencyTag{name: "launcherSharedLib"}
+	launcherSharedLibTag = installDependencyTag{name: "launcherSharedLib"}
 	pyIdentifierRegexp   = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]*$`)
 	pyExt                = ".py"
 	protoExt             = ".proto"
@@ -336,6 +342,7 @@ func (p *Module) DepsMutator(ctx android.BottomUpMutatorContext) {
 			// cannot read the property at this stage and it will be too late to add
 			// dependencies later.
 			ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherSharedLibTag, "libsqlite")
+			ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherSharedLibTag, "libc++")
 
 			if ctx.Target().Os.Bionic() {
 				ctx.AddFarVariationDependencies(ctx.Target().Variations(), launcherSharedLibTag,

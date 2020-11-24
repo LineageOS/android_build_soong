@@ -4069,3 +4069,98 @@ func TestEmptyWholeStaticLibsAllowMissingDependencies(t *testing.T) {
 	}
 
 }
+
+func TestInstallSharedLibs(t *testing.T) {
+	bp := `
+		cc_binary {
+			name: "bin",
+			host_supported: true,
+			shared_libs: ["libshared"],
+			runtime_libs: ["libruntime"],
+			srcs: [":gen"],
+		}
+
+		cc_library_shared {
+			name: "libshared",
+			host_supported: true,
+			shared_libs: ["libtransitive"],
+		}
+
+		cc_library_shared {
+			name: "libtransitive",
+			host_supported: true,
+		}
+
+		cc_library_shared {
+			name: "libruntime",
+			host_supported: true,
+		}
+
+		cc_binary_host {
+			name: "tool",
+			srcs: ["foo.cpp"],
+		}
+
+		genrule {
+			name: "gen",
+			tools: ["tool"],
+			out: ["gen.cpp"],
+			cmd: "$(location tool) $(out)",
+		}
+	`
+
+	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	ctx := testCcWithConfig(t, config)
+
+	hostBin := ctx.ModuleForTests("bin", config.BuildOSTarget.String()).Description("install")
+	hostShared := ctx.ModuleForTests("libshared", config.BuildOSTarget.String()+"_shared").Description("install")
+	hostRuntime := ctx.ModuleForTests("libruntime", config.BuildOSTarget.String()+"_shared").Description("install")
+	hostTransitive := ctx.ModuleForTests("libtransitive", config.BuildOSTarget.String()+"_shared").Description("install")
+	hostTool := ctx.ModuleForTests("tool", config.BuildOSTarget.String()).Description("install")
+
+	if g, w := hostBin.Implicits.Strings(), hostShared.Output.String(); !android.InList(w, g) {
+		t.Errorf("expected host bin dependency %q, got %q", w, g)
+	}
+
+	if g, w := hostBin.Implicits.Strings(), hostTransitive.Output.String(); !android.InList(w, g) {
+		t.Errorf("expected host bin dependency %q, got %q", w, g)
+	}
+
+	if g, w := hostShared.Implicits.Strings(), hostTransitive.Output.String(); !android.InList(w, g) {
+		t.Errorf("expected host bin dependency %q, got %q", w, g)
+	}
+
+	if g, w := hostBin.Implicits.Strings(), hostRuntime.Output.String(); !android.InList(w, g) {
+		t.Errorf("expected host bin dependency %q, got %q", w, g)
+	}
+
+	if g, w := hostBin.Implicits.Strings(), hostTool.Output.String(); android.InList(w, g) {
+		t.Errorf("expected no host bin dependency %q, got %q", w, g)
+	}
+
+	deviceBin := ctx.ModuleForTests("bin", "android_arm64_armv8-a").Description("install")
+	deviceShared := ctx.ModuleForTests("libshared", "android_arm64_armv8-a_shared").Description("install")
+	deviceTransitive := ctx.ModuleForTests("libtransitive", "android_arm64_armv8-a_shared").Description("install")
+	deviceRuntime := ctx.ModuleForTests("libruntime", "android_arm64_armv8-a_shared").Description("install")
+
+	if g, w := deviceBin.OrderOnly.Strings(), deviceShared.Output.String(); !android.InList(w, g) {
+		t.Errorf("expected device bin dependency %q, got %q", w, g)
+	}
+
+	if g, w := deviceBin.OrderOnly.Strings(), deviceTransitive.Output.String(); !android.InList(w, g) {
+		t.Errorf("expected device bin dependency %q, got %q", w, g)
+	}
+
+	if g, w := deviceShared.OrderOnly.Strings(), deviceTransitive.Output.String(); !android.InList(w, g) {
+		t.Errorf("expected device bin dependency %q, got %q", w, g)
+	}
+
+	if g, w := deviceBin.OrderOnly.Strings(), deviceRuntime.Output.String(); !android.InList(w, g) {
+		t.Errorf("expected device bin dependency %q, got %q", w, g)
+	}
+
+	if g, w := deviceBin.OrderOnly.Strings(), hostTool.Output.String(); android.InList(w, g) {
+		t.Errorf("expected no device bin dependency %q, got %q", w, g)
+	}
+
+}
