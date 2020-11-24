@@ -42,6 +42,7 @@ type BinaryLinkerProperties struct {
 	// extension (if any) appended
 	Symlinks []string `android:"arch_variant"`
 
+	// override the dynamic linker
 	DynamicLinker string `blueprint:"mutated"`
 
 	// Names of modules to be overridden. Listed modules can only be other binaries
@@ -80,6 +81,7 @@ func binaryHostFactory() android.Module {
 // Executables
 //
 
+// binaryDecorator is a decorator containing information for C++ binary modules.
 type binaryDecorator struct {
 	*baseLinker
 	*baseInstaller
@@ -105,11 +107,15 @@ type binaryDecorator struct {
 	// Location of the files that should be copied to dist dir when requested
 	distFiles android.TaggedDistFiles
 
+	// Action command lines to run directly after the binary is installed. For example,
+	// may be used to symlink runtime dependencies (such as bionic) alongside installation.
 	post_install_cmds []string
 }
 
 var _ linker = (*binaryDecorator)(nil)
 
+// linkerProps returns the list of individual properties objects relevant
+// for this binary.
 func (binary *binaryDecorator) linkerProps() []interface{} {
 	return append(binary.baseLinker.linkerProps(),
 		&binary.Properties,
@@ -117,6 +123,10 @@ func (binary *binaryDecorator) linkerProps() []interface{} {
 
 }
 
+// getStemWithoutSuffix returns the main section of the name to use for the symlink of
+// the main output file of this binary module. This may be derived from the module name
+// or other property overrides.
+// For the full symlink name, the `Suffix` property of a binary module must be appended.
 func (binary *binaryDecorator) getStemWithoutSuffix(ctx BaseModuleContext) string {
 	stem := ctx.baseModuleName()
 	if String(binary.Properties.Stem) != "" {
@@ -126,10 +136,14 @@ func (binary *binaryDecorator) getStemWithoutSuffix(ctx BaseModuleContext) strin
 	return stem
 }
 
+// getStem returns the full name to use for the symlink of the main output file of this binary
+// module. This may be derived from the module name and/or other property overrides.
 func (binary *binaryDecorator) getStem(ctx BaseModuleContext) string {
 	return binary.getStemWithoutSuffix(ctx) + String(binary.Properties.Suffix)
 }
 
+// linkerDeps augments and returns the given `deps` to contain dependencies on
+// modules common to most binaries, such as bionic libraries.
 func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = binary.baseLinker.linkerDeps(ctx, deps)
 	if ctx.toolchain().Bionic() {
@@ -155,6 +169,13 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 			deps.LateStaticLibs = append(groupLibs, deps.LateStaticLibs...)
 		}
 
+		// Embed the linker into host bionic binaries. This is needed to support host bionic,
+		// as the linux kernel requires that the ELF interpreter referenced by PT_INTERP be
+		// either an absolute path, or relative from CWD. To work around this, we extract
+		// the load sections from the runtime linker ELF binary and embed them into each host
+		// bionic binary, omitting the PT_INTERP declaration. The kernel will treat it as a static
+		// binary, and then we use a special entry point to fix up the arguments passed by
+		// the kernel before jumping to the embedded linker.
 		if ctx.Os() == android.LinuxBionic && !binary.static() {
 			deps.DynamicLinker = "linker"
 			deps.LinkerFlagsFile = "host_bionic_linker_flags"
@@ -170,9 +191,13 @@ func (binary *binaryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 }
 
 func (binary *binaryDecorator) isDependencyRoot() bool {
+	// Binaries are always the dependency root.
 	return true
 }
 
+// NewBinary builds and returns a new Module corresponding to a C++ binary.
+// Individual module implementations which comprise a C++ binary should call this function,
+// set some fields on the result, and then call the Init function.
 func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 	module := newModule(hod, android.MultilibFirst)
 	binary := &binaryDecorator{
@@ -190,11 +215,15 @@ func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 	return module, binary
 }
 
+// linkerInit initializes dynamic properties of the linker (such as runpath) based
+// on properties of this binary.
 func (binary *binaryDecorator) linkerInit(ctx BaseModuleContext) {
 	binary.baseLinker.linkerInit(ctx)
 
 	if !ctx.toolchain().Bionic() {
 		if ctx.Os() == android.Linux {
+			// Unless explicitly specified otherwise, host static binaries are built with -static
+			// if HostStaticBinaries is true for the product configuration.
 			if binary.Properties.Static_executable == nil && ctx.Config().HostStaticBinaries() {
 				binary.Properties.Static_executable = BoolPtr(true)
 			}
@@ -217,9 +246,13 @@ func (binary *binaryDecorator) binary() bool {
 	return true
 }
 
+// linkerFlags returns a Flags object containing linker flags that are defined
+// by this binary, or that are implied by attributes of this binary. These flags are
+// combined with the given flags.
 func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = binary.baseLinker.linkerFlags(ctx, flags)
 
+	// Passing -pie to clang for Windows binaries causes a warning that -pie is unused.
 	if ctx.Host() && !ctx.Windows() && !binary.static() {
 		if !ctx.Config().IsEnvTrue("DISABLE_HOST_PIE") {
 			flags.Global.LdFlags = append(flags.Global.LdFlags, "-pie")
@@ -248,7 +281,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 				"-Bstatic",
 				"-Wl,--gc-sections",
 			)
-		} else {
+		} else { // not static
 			if flags.DynamicLinker == "" {
 				if binary.Properties.DynamicLinker != "" {
 					flags.DynamicLinker = binary.Properties.DynamicLinker
@@ -288,7 +321,7 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 				"-Wl,-z,nocopyreloc",
 			)
 		}
-	} else {
+	} else { // not bionic
 		if binary.static() {
 			flags.Global.LdFlags = append(flags.Global.LdFlags, "-static")
 		}
@@ -300,6 +333,9 @@ func (binary *binaryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags
 	return flags
 }
 
+// link registers actions to link this binary, and sets various fields
+// on this binary to reflect information that should be exported up the build
+// tree (for example, exported flags and include paths).
 func (binary *binaryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
@@ -309,6 +345,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	var linkerDeps android.Paths
 
+	// Add flags from linker flags file.
 	if deps.LinkerFlagsFile.Valid() {
 		flags.Local.LdFlags = append(flags.Local.LdFlags, "$$(cat "+deps.LinkerFlagsFile.String()+")")
 		linkerDeps = append(linkerDeps, deps.LinkerFlagsFile.Path())
@@ -342,12 +379,15 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 
 	outputFile = maybeInjectBoringSSLHash(ctx, outputFile, binary.Properties.Inject_bssl_hash, fileName)
 
+	// If use_version_lib is true, make an android::build::GetBuildNumber() function available.
 	if Bool(binary.baseLinker.Properties.Use_version_lib) {
 		if ctx.Host() {
 			versionedOutputFile := outputFile
 			outputFile = android.PathForModuleOut(ctx, "unversioned", fileName)
 			binary.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 		} else {
+			// When dist'ing a library or binary that has use_version_lib set, always
+			// distribute the stamped version, even for the device.
 			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
 			binary.distFiles = android.MakeDefaultDistFiles(versionedOutputFile)
 
@@ -361,6 +401,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 		}
 	}
 
+	// Handle host bionic linker symbols.
 	if ctx.Os() == android.LinuxBionic && !binary.static() {
 		injectedOutputFile := outputFile
 		outputFile = android.PathForModuleOut(ctx, "prelinker", fileName)
@@ -386,6 +427,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	linkerDeps = append(linkerDeps, objs.tidyFiles...)
 	linkerDeps = append(linkerDeps, flags.LdFlagsDeps...)
 
+	// Register link action.
 	TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, true,
 		builderFlags, outputFile, nil)
@@ -406,6 +448,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 			ctx.PropertyErrorf("symlink_preferred_arch", "must also specify suffix")
 		}
 		if ctx.TargetPrimary() {
+			// Install a symlink to the preferred architecture
 			symlinkName := binary.getStemWithoutSuffix(ctx)
 			binary.symlinks = append(binary.symlinks, symlinkName)
 			binary.preferredArchSymlink = symlinkName
