@@ -201,7 +201,10 @@ type CompilerProperties struct {
 	// List of modules to use as annotation processors
 	Plugins []string
 
-	// List of modules to export to libraries that directly depend on this library as annotation processors
+	// List of modules to export to libraries that directly depend on this library as annotation
+	// processors.  Note that if the plugins set generates_api: true this will disable the turbine
+	// optimization on modules that depend on this module, which will reduce parallelism and cause
+	// more recompilation.
 	Exported_plugins []string
 
 	// The number of Java source entries each Javac instance can process
@@ -428,6 +431,9 @@ type Module struct {
 	// list of plugins that this java module is exporting
 	exportedPluginClasses []string
 
+	// if true, the exported plugins generate API and require disabling turbine.
+	exportedDisableTurbine bool
+
 	// list of source files, collected from srcFiles with unique java and all kt files,
 	// will be used by android.IDEInfo struct
 	expandIDEInfoCompiledSrcs []string
@@ -513,7 +519,7 @@ type Dependency interface {
 	ResourceJars() android.Paths
 	AidlIncludeDirs() android.Paths
 	ClassLoaderContexts() dexpreopt.ClassLoaderContextMap
-	ExportedPlugins() (android.Paths, []string)
+	ExportedPlugins() (android.Paths, []string, bool)
 	SrcJarArgs() ([]string, android.Paths)
 	BaseModuleName() string
 	JacocoReportClassesFile() android.Path
@@ -1049,8 +1055,9 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				// sdk lib names from dependencies are re-exported
 				j.classLoaderContexts.AddContextMap(dep.ClassLoaderContexts(), otherName)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
-				pluginJars, pluginClasses := dep.ExportedPlugins()
+				pluginJars, pluginClasses, disableTurbine := dep.ExportedPlugins()
 				addPlugins(&deps, pluginJars, pluginClasses...)
+				deps.disableTurbine = deps.disableTurbine || disableTurbine
 			case java9LibTag:
 				deps.java9Classpath = append(deps.java9Classpath, dep.HeaderJars()...)
 			case staticLibTag:
@@ -1061,8 +1068,12 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				// sdk lib names from dependencies are re-exported
 				j.classLoaderContexts.AddContextMap(dep.ClassLoaderContexts(), otherName)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
-				pluginJars, pluginClasses := dep.ExportedPlugins()
+				pluginJars, pluginClasses, disableTurbine := dep.ExportedPlugins()
 				addPlugins(&deps, pluginJars, pluginClasses...)
+				// Turbine doesn't run annotation processors, so any module that uses an
+				// annotation processor that generates API is incompatible with the turbine
+				// optimization.
+				deps.disableTurbine = deps.disableTurbine || disableTurbine
 			case pluginTag:
 				if plugin, ok := dep.(*Plugin); ok {
 					if plugin.pluginProperties.Processor_class != nil {
@@ -1070,6 +1081,9 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 					} else {
 						addPlugins(&deps, plugin.ImplementationAndResourcesJars())
 					}
+					// Turbine doesn't run annotation processors, so any module that uses an
+					// annotation processor that generates API is incompatible with the turbine
+					// optimization.
 					deps.disableTurbine = deps.disableTurbine || Bool(plugin.pluginProperties.Generates_api)
 				} else {
 					ctx.PropertyErrorf("plugins", "%q is not a java_plugin module", otherName)
@@ -1082,13 +1096,14 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				}
 			case exportedPluginTag:
 				if plugin, ok := dep.(*Plugin); ok {
-					if plugin.pluginProperties.Generates_api != nil && *plugin.pluginProperties.Generates_api {
-						ctx.PropertyErrorf("exported_plugins", "Cannot export plugins with generates_api = true, found %v", otherName)
-					}
 					j.exportedPluginJars = append(j.exportedPluginJars, plugin.ImplementationAndResourcesJars()...)
 					if plugin.pluginProperties.Processor_class != nil {
 						j.exportedPluginClasses = append(j.exportedPluginClasses, *plugin.pluginProperties.Processor_class)
 					}
+					// Turbine doesn't run annotation processors, so any module that uses an
+					// annotation processor that generates API is incompatible with the turbine
+					// optimization.
+					j.exportedDisableTurbine = Bool(plugin.pluginProperties.Generates_api)
 				} else {
 					ctx.PropertyErrorf("exported_plugins", "%q is not a java_plugin module", otherName)
 				}
@@ -1922,8 +1937,11 @@ func (j *Module) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
 	return j.classLoaderContexts
 }
 
-func (j *Module) ExportedPlugins() (android.Paths, []string) {
-	return j.exportedPluginJars, j.exportedPluginClasses
+// ExportedPlugins returns the list of jars needed to run the exported plugins, the list of
+// classes for the plugins, and a boolean for whether turbine needs to be disabled due to plugins
+// that generate APIs.
+func (j *Module) ExportedPlugins() (android.Paths, []string, bool) {
+	return j.exportedPluginJars, j.exportedPluginClasses, j.exportedDisableTurbine
 }
 
 func (j *Module) SrcJarArgs() ([]string, android.Paths) {
@@ -2865,8 +2883,8 @@ func (j *Import) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
 	return j.classLoaderContexts
 }
 
-func (j *Import) ExportedPlugins() (android.Paths, []string) {
-	return nil, nil
+func (j *Import) ExportedPlugins() (android.Paths, []string, bool) {
+	return nil, nil, false
 }
 
 func (j *Import) SrcJarArgs() ([]string, android.Paths) {
