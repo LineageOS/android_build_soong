@@ -395,16 +395,17 @@ func TestRuleBuilder(t *testing.T) {
 	})
 
 	t.Run("sbox", func(t *testing.T) {
-		rule := NewRuleBuilder().Sbox(PathForOutput(ctx))
+		rule := NewRuleBuilder().Sbox(PathForOutput(ctx, ""),
+			PathForOutput(ctx, "sbox.textproto"))
 		addCommands(rule)
 
 		wantCommands := []string{
-			"__SBOX_OUT_DIR__/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_OUT_DIR__/depfile FlagWithInput=input FlagWithOutput=__SBOX_OUT_DIR__/output Input __SBOX_OUT_DIR__/Output __SBOX_OUT_DIR__/SymlinkOutput Text Tool after command2 old cmd",
-			"command2 __SBOX_OUT_DIR__/depfile2 input2 __SBOX_OUT_DIR__/output2 tool2",
-			"command3 input3 __SBOX_OUT_DIR__/output2 __SBOX_OUT_DIR__/output3",
+			"__SBOX_SANDBOX_DIR__/out/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_SANDBOX_DIR__/out/depfile FlagWithInput=input FlagWithOutput=__SBOX_SANDBOX_DIR__/out/output Input __SBOX_SANDBOX_DIR__/out/Output __SBOX_SANDBOX_DIR__/out/SymlinkOutput Text Tool after command2 old cmd",
+			"command2 __SBOX_SANDBOX_DIR__/out/depfile2 input2 __SBOX_SANDBOX_DIR__/out/output2 tool2",
+			"command3 input3 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/out/output3",
 		}
 
-		wantDepMergerCommand := "out/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer __SBOX_OUT_DIR__/DepFile __SBOX_OUT_DIR__/depfile __SBOX_OUT_DIR__/ImplicitDepFile __SBOX_OUT_DIR__/depfile2"
+		wantDepMergerCommand := "out/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
 
 		if g, w := rule.Commands(), wantCommands; !reflect.DeepEqual(g, w) {
 			t.Errorf("\nwant rule.Commands() = %#v\n                   got %#v", w, g)
@@ -451,11 +452,12 @@ type testRuleBuilderModule struct {
 
 func (t *testRuleBuilderModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	in := PathsForSource(ctx, t.properties.Srcs)
-	out := PathForModuleOut(ctx, ctx.ModuleName())
-	outDep := PathForModuleOut(ctx, ctx.ModuleName()+".d")
-	outDir := PathForModuleOut(ctx)
+	out := PathForModuleOut(ctx, "gen", ctx.ModuleName())
+	outDep := PathForModuleOut(ctx, "gen", ctx.ModuleName()+".d")
+	outDir := PathForModuleOut(ctx, "gen")
+	manifestPath := PathForModuleOut(ctx, "sbox.textproto")
 
-	testRuleBuilder_Build(ctx, in, out, outDep, outDir, t.properties.Restat, t.properties.Sbox)
+	testRuleBuilder_Build(ctx, in, out, outDep, outDir, manifestPath, t.properties.Restat, t.properties.Sbox)
 }
 
 type testRuleBuilderSingleton struct{}
@@ -466,17 +468,18 @@ func testRuleBuilderSingletonFactory() Singleton {
 
 func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
 	in := PathForSource(ctx, "bar")
-	out := PathForOutput(ctx, "baz")
-	outDep := PathForOutput(ctx, "baz.d")
-	outDir := PathForOutput(ctx)
-	testRuleBuilder_Build(ctx, Paths{in}, out, outDep, outDir, true, false)
+	out := PathForOutput(ctx, "singleton/gen/baz")
+	outDep := PathForOutput(ctx, "singleton/gen/baz.d")
+	outDir := PathForOutput(ctx, "singleton/gen")
+	manifestPath := PathForOutput(ctx, "singleton/sbox.textproto")
+	testRuleBuilder_Build(ctx, Paths{in}, out, outDep, outDir, manifestPath, true, false)
 }
 
-func testRuleBuilder_Build(ctx BuilderContext, in Paths, out, outDep, outDir WritablePath, restat, sbox bool) {
+func testRuleBuilder_Build(ctx BuilderContext, in Paths, out, outDep, outDir, manifestPath WritablePath, restat, sbox bool) {
 	rule := NewRuleBuilder()
 
 	if sbox {
-		rule.Sbox(outDir)
+		rule.Sbox(outDir, manifestPath)
 	}
 
 	rule.Command().Tool(PathForSource(ctx, "cp")).Inputs(in).Output(out).ImplicitDepFile(outDep)
@@ -518,10 +521,10 @@ func TestRuleBuilder_Build(t *testing.T) {
 	_, errs = ctx.PrepareBuildActions(config)
 	FailIfErrored(t, errs)
 
-	check := func(t *testing.T, params TestingBuildParams, wantCommand, wantOutput, wantDepfile string, wantRestat bool, extraCmdDeps []string) {
+	check := func(t *testing.T, params TestingBuildParams, wantCommand, wantOutput, wantDepfile string, wantRestat bool, extraImplicits, extraCmdDeps []string) {
 		t.Helper()
 		command := params.RuleParams.Command
-		re := regexp.MustCompile(" (# hash of input list:|--input-hash) [a-z0-9]*")
+		re := regexp.MustCompile(" # hash of input list: [a-z0-9]*$")
 		command = re.ReplaceAllLiteralString(command, "")
 		if command != wantCommand {
 			t.Errorf("\nwant RuleParams.Command = %q\n                      got %q", wantCommand, params.RuleParams.Command)
@@ -536,7 +539,8 @@ func TestRuleBuilder_Build(t *testing.T) {
 			t.Errorf("want RuleParams.Restat = %v, got %v", wantRestat, params.RuleParams.Restat)
 		}
 
-		if len(params.Implicits) != 1 || params.Implicits[0].String() != "bar" {
+		wantImplicits := append([]string{"bar"}, extraImplicits...)
+		if !reflect.DeepEqual(params.Implicits.Strings(), wantImplicits) {
 			t.Errorf("want Implicits = [%q], got %q", "bar", params.Implicits.Strings())
 		}
 
@@ -558,27 +562,29 @@ func TestRuleBuilder_Build(t *testing.T) {
 	}
 
 	t.Run("module", func(t *testing.T) {
-		outFile := filepath.Join(buildDir, ".intermediates", "foo", "foo")
+		outFile := filepath.Join(buildDir, ".intermediates", "foo", "gen", "foo")
 		check(t, ctx.ModuleForTests("foo", "").Rule("rule"),
 			"cp bar "+outFile,
-			outFile, outFile+".d", true, nil)
+			outFile, outFile+".d", true, nil, nil)
 	})
 	t.Run("sbox", func(t *testing.T) {
 		outDir := filepath.Join(buildDir, ".intermediates", "foo_sbox")
-		outFile := filepath.Join(outDir, "foo_sbox")
-		depFile := filepath.Join(outDir, "foo_sbox.d")
+		outFile := filepath.Join(outDir, "gen/foo_sbox")
+		depFile := filepath.Join(outDir, "gen/foo_sbox.d")
+		manifest := filepath.Join(outDir, "sbox.textproto")
 		sbox := filepath.Join(buildDir, "host", config.PrebuiltOS(), "bin/sbox")
 		sandboxPath := shared.TempDirForOutDir(buildDir)
 
-		cmd := sbox + ` -c 'cp bar __SBOX_OUT_DIR__/foo_sbox' --sandbox-path ` + sandboxPath + " --output-root " + outDir + " --depfile-out " + depFile + " __SBOX_OUT_DIR__/foo_sbox"
+		cmd := `rm -rf ` + outDir + `/gen && ` +
+			sbox + ` --sandbox-path ` + sandboxPath + ` --manifest ` + manifest
 
-		check(t, ctx.ModuleForTests("foo_sbox", "").Rule("rule"),
-			cmd, outFile, depFile, false, []string{sbox})
+		check(t, ctx.ModuleForTests("foo_sbox", "").Output("gen/foo_sbox"),
+			cmd, outFile, depFile, false, []string{manifest}, []string{sbox})
 	})
 	t.Run("singleton", func(t *testing.T) {
-		outFile := filepath.Join(buildDir, "baz")
+		outFile := filepath.Join(buildDir, "singleton/gen/baz")
 		check(t, ctx.SingletonForTests("rule_builder_test").Rule("rule"),
-			"cp bar "+outFile, outFile, outFile+".d", true, nil)
+			"cp bar "+outFile, outFile, outFile+".d", true, nil, nil)
 	})
 }
 
@@ -715,14 +721,16 @@ func TestRuleBuilderHashInputs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Run("sbox", func(t *testing.T) {
 				gen := ctx.ModuleForTests(test.name+"_sbox", "")
-				command := gen.Output(test.name + "_sbox").RuleParams.Command
-				if g, w := command, " --input-hash "+test.expectedHash; !strings.Contains(g, w) {
-					t.Errorf("Expected command line to end with %q, got %q", w, g)
+				manifest := RuleBuilderSboxProtoForTests(t, gen.Output("sbox.textproto"))
+				hash := manifest.Commands[0].GetInputHash()
+
+				if g, w := hash, test.expectedHash; g != w {
+					t.Errorf("Expected has %q, got %q", w, g)
 				}
 			})
 			t.Run("", func(t *testing.T) {
 				gen := ctx.ModuleForTests(test.name+"", "")
-				command := gen.Output(test.name).RuleParams.Command
+				command := gen.Output("gen/" + test.name).RuleParams.Command
 				if g, w := command, " # hash of input list: "+test.expectedHash; !strings.HasSuffix(g, w) {
 					t.Errorf("Expected command line to end with %q, got %q", w, g)
 				}
