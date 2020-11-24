@@ -15,6 +15,7 @@
 package android
 
 import (
+	"android/soong/bazel"
 	"strings"
 )
 
@@ -37,6 +38,9 @@ type fileGroupProperties struct {
 	// Create a make variable with the specified name that contains the list of files in the
 	// filegroup, relative to the root of the source tree.
 	Export_to_make_var *string
+
+	// Properties for Bazel migration purposes.
+	bazel.Properties
 }
 
 type fileGroup struct {
