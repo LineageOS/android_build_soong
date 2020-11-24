@@ -35,8 +35,8 @@ type Stripper struct {
 }
 
 func (stripper *Stripper) NeedsStrip(actx android.ModuleContext) bool {
-	// TODO(ccross): enable host stripping when embedded in make?  Make never had support for stripping host binaries.
-	return (!actx.Config().EmbeddedInMake() || actx.Device()) && !Bool(stripper.StripProperties.Strip.None)
+	// TODO(ccross): enable host stripping when Kati is enabled? Make never had support for stripping host binaries.
+	return (!actx.Config().KatiEnabled() || actx.Device()) && !Bool(stripper.StripProperties.Strip.None)
 }
 
 func (stripper *Stripper) strip(actx android.ModuleContext, in android.Path, out android.ModuleOutPath,

@@ -78,7 +78,7 @@ func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testin
 	`
 
 	config := TestConfig(buildDir, nil, bp, nil)
-	config.inMake = true // Enable androidmk Singleton
+	config.katiEnabled = true // Enable androidmk Singleton
 
 	ctx := NewTestContext(config)
 	ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
@@ -250,7 +250,7 @@ func TestGetDistForGoals(t *testing.T) {
 
 	for _, testCase := range testCases {
 		config := TestConfig(buildDir, nil, testCase.bp, nil)
-		config.inMake = true // Enable androidmk Singleton
+		config.katiEnabled = true // Enable androidmk Singleton
 
 		ctx := NewTestContext(config)
 		ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
