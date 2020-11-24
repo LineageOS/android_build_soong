@@ -263,10 +263,6 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 
 	config.mockFileSystem(bp, fs)
 
-	if err := config.fromEnv(); err != nil {
-		panic(err)
-	}
-
 	return Config{config}
 }
 
@@ -436,10 +432,6 @@ func NewConfig(srcDir, buildDir string, moduleListFile string) (Config, error) {
 		config.AndroidFirstDeviceTarget = firstTarget(config.Targets[Android], "lib64", "lib32")[0]
 	}
 
-	if err := config.fromEnv(); err != nil {
-		return Config{}, err
-	}
-
 	if Bool(config.productVariables.GcovCoverage) && Bool(config.productVariables.ClangCoverage) {
 		return Config{}, fmt.Errorf("GcovCoverage and ClangCoverage cannot both be set")
 	}
@@ -485,17 +477,6 @@ func (c *config) mockFileSystem(bp string, fs map[string][]byte) {
 
 	c.fs = pathtools.MockFs(mockFS)
 	c.mockBpList = blueprint.MockModuleListFile
-}
-
-func (c *config) fromEnv() error {
-	switch c.Getenv("EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9") {
-	case "", "true":
-		// Do nothing
-	default:
-		return fmt.Errorf("The environment variable EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9 is no longer supported. Java language level 9 is now the global default.")
-	}
-
-	return nil
 }
 
 func (c *config) StopBefore() bootstrap.StopBefore {
