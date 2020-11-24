@@ -19,11 +19,14 @@ import (
 	"android/soong/cc"
 )
 
-// Stripper encapsulates cc.Stripper.
+// Stripper defines the stripping actions and properties for a module. The Rust
+// implementation reuses the C++ implementation.
 type Stripper struct {
 	cc.Stripper
 }
 
+// StripExecutableOrSharedLib strips a binary or shared library from its debug
+// symbols and other debug information.
 func (s *Stripper) StripExecutableOrSharedLib(ctx ModuleContext, in android.Path, out android.ModuleOutPath) {
 	ccFlags := cc.StripFlags{Toolchain: ctx.RustModule().ccToolchain(ctx)}
 	s.Stripper.StripExecutableOrSharedLib(ctx, in, out, ccFlags)
