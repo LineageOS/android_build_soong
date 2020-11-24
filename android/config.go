@@ -230,7 +230,8 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		envCopy[k] = v
 	}
 
-	// Copy the real PATH value to the test environment, it's needed by HostSystemTool() used in x86_darwin_host.go
+	// Copy the real PATH value to the test environment, it's needed by
+	// NonHermeticHostSystemTool() used in x86_darwin_host.go
 	envCopy["PATH"] = originalEnv["PATH"]
 
 	config := &config{
@@ -513,9 +514,12 @@ func (c *config) HostJavaToolPath(ctx PathContext, path string) Path {
 	return PathForOutput(ctx, "host", c.PrebuiltOS(), "framework", path)
 }
 
-// HostSystemTool looks for non-hermetic tools from the system we're running on.
-// Generally shouldn't be used, but useful to find the XCode SDK, etc.
-func (c *config) HostSystemTool(name string) string {
+// NonHermeticHostSystemTool looks for non-hermetic tools from the system we're
+// running on. These tools are not checked-in to AOSP, and therefore could lead
+// to reproducibility problems. Should not be used for other than finding the
+// XCode SDK (xcrun, sw_vers), etc. See ui/build/paths/config.go for the
+// allowlist of host system tools.
+func (c *config) NonHermeticHostSystemTool(name string) string {
 	for _, dir := range filepath.SplitList(c.Getenv("PATH")) {
 		path := filepath.Join(dir, name)
 		if s, err := os.Stat(path); err != nil {
@@ -524,7 +528,10 @@ func (c *config) HostSystemTool(name string) string {
 			return path
 		}
 	}
-	return name
+	panic(fmt.Errorf(
+		"Unable to use '%s' as a host system tool for build system "+
+			"hermeticity reasons. See build/soong/ui/build/paths/config.go "+
+			"for the full list of allowed host tools on your system.", name))
 }
 
 // PrebuiltOS returns the name of the host OS used in prebuilts directories
