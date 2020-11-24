@@ -447,7 +447,7 @@ func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
 	var outputs []*lintOutputs
 	var dirs []string
 	ctx.VisitAllModules(func(m android.Module) {
-		if ctx.Config().EmbeddedInMake() && !m.ExportedToMake() {
+		if ctx.Config().KatiEnabled() && !m.ExportedToMake() {
 			return
 		}
 

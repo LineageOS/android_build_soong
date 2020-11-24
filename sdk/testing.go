@@ -87,7 +87,7 @@ func testSdkContext(bp string, fs map[string][]byte, extraOsTypes []android.OsTy
 	// * Configure that we are inside make
 	// * Add CommonOS to ensure that androidmk processing works.
 	android.RegisterAndroidMkBuildComponents(ctx)
-	android.SetInMakeForTests(config)
+	android.SetKatiEnabledForTests(config)
 	config.Targets[android.CommonOS] = []android.Target{
 		{android.CommonOS, android.Arch{ArchType: android.Common}, android.NativeBridgeDisabled, "", "", true},
 	}
