@@ -44,7 +44,7 @@ func (me *CSuiteConfig) AndroidMkEntries() []AndroidMkEntries {
 			if me.properties.Test_config != nil {
 				entries.SetString("LOCAL_TEST_CONFIG", *me.properties.Test_config)
 			}
-			entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", "csuite")
+			entries.AddCompatibilityTestSuites("csuite")
 		},
 	}
 	return []AndroidMkEntries{androidMkEntries}
