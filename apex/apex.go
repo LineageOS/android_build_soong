@@ -1786,14 +1786,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.linkToSystemLib = false
 	}
 
-	a.setCertificateAndPrivateKey(ctx)
-
 	a.compatSymlinks = makeCompatSymlinks(a.BaseModuleName(), ctx)
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 4) generate the build rules to create the APEX. This is done in builder.go.
 	a.buildManifest(ctx, provideNativeLibs, requireNativeLibs)
-	a.buildFileContexts(ctx)
 	if a.properties.ApexType == flattenedApex {
 		a.buildFlattenedApex(ctx)
 	} else {
@@ -1802,6 +1799,25 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.buildApexDependencyInfo(ctx)
 	a.buildLintReports(ctx)
 	a.distFiles = a.GenerateTaggedDistFiles(ctx)
+
+	// Append meta-files to the filesInfo list so that they are reflected in Android.mk as well.
+	if a.installable() {
+		// For flattened APEX, make sure that APEX manifest and apex_pubkey are also copied
+		// along with other ordinary files. (Note that this is done by apexer for
+		// non-flattened APEXes)
+		a.filesInfo = append(a.filesInfo, newApexFile(ctx, a.manifestPbOut, "apex_manifest.pb", ".", etc, nil))
+
+		// Place the public key as apex_pubkey. This is also done by apexer for
+		// non-flattened APEXes case.
+		// TODO(jiyong): Why do we need this CP rule?
+		copiedPubkey := android.PathForModuleOut(ctx, "apex_pubkey")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Input:  a.public_key_file,
+			Output: copiedPubkey,
+		})
+		a.filesInfo = append(a.filesInfo, newApexFile(ctx, copiedPubkey, "apex_pubkey", ".", etc, nil))
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
