@@ -213,7 +213,7 @@ type dist struct {
 }
 
 func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
-	if !ctx.Config().EmbeddedInMake() {
+	if !ctx.Config().KatiEnabled() {
 		return
 	}
 
