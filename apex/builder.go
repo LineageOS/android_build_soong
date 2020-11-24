@@ -195,8 +195,8 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 	// collect jniLibs. Notice that a.filesInfo is already sorted
 	var jniLibs []string
 	for _, fi := range a.filesInfo {
-		if fi.isJniLib && !android.InList(fi.Stem(), jniLibs) {
-			jniLibs = append(jniLibs, fi.Stem())
+		if fi.isJniLib && !android.InList(fi.stem(), jniLibs) {
+			jniLibs = append(jniLibs, fi.stem())
 		}
 	}
 	if len(jniLibs) > 0 {
@@ -363,7 +363,7 @@ func (a *apexBundle) buildBundleConfig(ctx android.ModuleContext) android.Output
 				config.Apex_config.Apex_embedded_apk_config,
 				ApkConfig{
 					Package_name: packageName,
-					Apk_path:     fi.Path(),
+					Apk_path:     fi.path(),
 				})
 		}
 	}
@@ -396,15 +396,15 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	// TODO(jiyong): construct the copy rules using RuleBuilder
 	var copyCommands []string
 	for _, fi := range a.filesInfo {
-		destPath := android.PathForModuleOut(ctx, "image"+suffix, fi.Path()).String()
+		destPath := android.PathForModuleOut(ctx, "image"+suffix, fi.path()).String()
 		destPathDir := filepath.Dir(destPath)
 		if fi.class == appSet {
 			copyCommands = append(copyCommands, "rm -rf "+destPathDir)
 		}
 		copyCommands = append(copyCommands, "mkdir -p "+destPathDir)
-		if a.linkToSystemLib && fi.transitiveDep && fi.AvailableToPlatform() {
+		if a.linkToSystemLib && fi.transitiveDep && fi.availableToPlatform() {
 			// TODO(jiyong): pathOnDevice should come from fi.module, not being calculated here
-			pathOnDevice := filepath.Join("/system", fi.Path())
+			pathOnDevice := filepath.Join("/system", fi.path())
 			copyCommands = append(copyCommands, "ln -sfn "+pathOnDevice+" "+destPath)
 		} else {
 			if fi.class == appSet {
@@ -416,7 +416,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			implicitInputs = append(implicitInputs, fi.builtFile)
 		}
 		// create additional symlinks pointing the file inside the APEX
-		for _, symlinkPath := range fi.SymlinkPaths() {
+		for _, symlinkPath := range fi.symlinkPaths() {
 			symlinkDest := android.PathForModuleOut(ctx, "image"+suffix, symlinkPath).String()
 			copyCommands = append(copyCommands, "ln -sfn "+filepath.Base(destPath)+" "+symlinkDest)
 		}
@@ -444,7 +444,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		emitCommands = append(emitCommands, "echo ./apex_manifest.json >> "+imageContentFile.String())
 	}
 	for _, fi := range a.filesInfo {
-		emitCommands = append(emitCommands, "echo './"+fi.Path()+"' >> "+imageContentFile.String())
+		emitCommands = append(emitCommands, "echo './"+fi.path()+"' >> "+imageContentFile.String())
 	}
 	emitCommands = append(emitCommands, "sort -o "+imageContentFile.String()+" "+imageContentFile.String())
 	implicitInputs = append(implicitInputs, a.manifestPbOut)
@@ -489,7 +489,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		var extractedAppSetPaths android.Paths
 		var extractedAppSetDirs []string
 		for _, f := range a.filesInfo {
-			pathInApex := f.Path()
+			pathInApex := f.path()
 			if f.installDir == "bin" || strings.HasPrefix(f.installDir, "bin/") {
 				executablePaths = append(executablePaths, pathInApex)
 				for _, d := range f.dataPaths {
@@ -697,6 +697,15 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	a.installedFilesFile = a.buildInstalledFilesFile(ctx, a.outputFile, imageDir)
 }
 
+// Context "decorator", overriding the InstallBypassMake method to always reply `true`.
+type flattenedApexContext struct {
+	android.ModuleContext
+}
+
+func (c *flattenedApexContext) InstallBypassMake() bool {
+	return true
+}
+
 func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 	// Temporarily wrap the original `ctx` into a `flattenedApexContext` to have it
 	// reply true to `InstallBypassMake()` (thus making the call
@@ -742,7 +751,7 @@ func (a *apexBundle) buildFilesInfo(ctx android.ModuleContext) {
 			apexBundleName := a.Name()
 			for _, fi := range a.filesInfo {
 				dir := filepath.Join("apex", apexBundleName, fi.installDir)
-				target := ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.Stem(), fi.builtFile)
+				target := ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.stem(), fi.builtFile)
 				for _, sym := range fi.symlinks {
 					ctx.InstallSymlink(android.PathForModuleInstall(ctx, dir), sym, target)
 				}
