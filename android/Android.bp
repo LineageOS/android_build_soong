@@ -6,6 +6,7 @@ bootstrap_go_package {
         "blueprint-bootstrap",
         "soong",
         "soong-android-soongconfig",
+        "soong-bazel",
         "soong-env",
         "soong-shared",
         "soong-ui-metrics_proto",
