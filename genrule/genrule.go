@@ -148,14 +148,16 @@ type Module struct {
 type taskFunc func(ctx android.ModuleContext, rawCommand string, srcFiles android.Paths) []generateTask
 
 type generateTask struct {
-	in      android.Paths
-	out     android.WritablePaths
-	depFile android.WritablePath
-	copyTo  android.WritablePaths
-	genDir  android.WritablePath
-	cmd     string
-	shard   int
-	shards  int
+	in         android.Paths
+	out        android.WritablePaths
+	depFile    android.WritablePath
+	copyTo     android.WritablePaths
+	genDir     android.WritablePath
+	extraTools android.Paths // dependencies on tools used by the generator
+
+	cmd    string
+	shard  int
+	shards int
 }
 
 func (g *Module) GeneratedSourceFiles() android.Paths {
@@ -434,6 +436,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.ImplicitOutputs(task.out)
 		cmd.Implicits(task.in)
 		cmd.Implicits(g.deps)
+		cmd.Implicits(task.extraTools)
 		if Bool(g.properties.Depfile) {
 			cmd.ImplicitDepFile(task.depFile)
 		}
@@ -584,8 +587,8 @@ func NewGenSrcs() *Module {
 		for i, shard := range shards {
 			var commands []string
 			var outFiles android.WritablePaths
+			var commandDepFiles []string
 			var copyTo android.WritablePaths
-			var depFile android.WritablePath
 
 			// When sharding is enabled (i.e. len(shards) > 1), the sbox rules for each
 			// shard will be write to their own directories and then be merged together
@@ -598,7 +601,7 @@ func NewGenSrcs() *Module {
 
 			genDir := android.PathForModuleGen(ctx, genSubDir)
 
-			for j, in := range shard {
+			for _, in := range shard {
 				outFile := android.GenPathWithExt(ctx, finalSubDir, in, String(properties.Output_extension))
 
 				// If sharding is enabled, then outFile is the path to the output file in
@@ -608,10 +611,6 @@ func NewGenSrcs() *Module {
 					shardFile := android.GenPathWithExt(ctx, genSubDir, in, String(properties.Output_extension))
 					copyTo = append(copyTo, outFile)
 					outFile = shardFile
-				}
-
-				if j == 0 {
-					depFile = outFile.ReplaceExtension(ctx, "d")
 				}
 
 				outFiles = append(outFiles, outFile)
@@ -624,6 +623,12 @@ func NewGenSrcs() *Module {
 						return in.String(), nil
 					case "out":
 						return android.SboxPathForOutput(outFile, genDir), nil
+					case "depfile":
+						// Generate a depfile for each output file.  Store the list for
+						// later in order to combine them all into a single depfile.
+						depFile := android.SboxPathForOutput(outFile.ReplaceExtension(ctx, "d"), genDir)
+						commandDepFiles = append(commandDepFiles, depFile)
+						return depFile, nil
 					default:
 						return "$(" + name + ")", nil
 					}
@@ -638,15 +643,29 @@ func NewGenSrcs() *Module {
 			}
 			fullCommand := strings.Join(commands, " && ")
 
+			var outputDepfile android.WritablePath
+			var extraTools android.Paths
+			if len(commandDepFiles) > 0 {
+				// Each command wrote to a depfile, but ninja can only handle one
+				// depfile per rule.  Use the dep_fixer tool at the end of the
+				// command to combine all the depfiles into a single output depfile.
+				outputDepfile = android.PathForModuleGen(ctx, genSubDir, "gensrcs.d")
+				depFixerTool := ctx.Config().HostToolPath(ctx, "dep_fixer")
+				fullCommand += fmt.Sprintf(" && %s -o $(depfile) %s",
+					depFixerTool.String(), strings.Join(commandDepFiles, " "))
+				extraTools = append(extraTools, depFixerTool)
+			}
+
 			generateTasks = append(generateTasks, generateTask{
-				in:      shard,
-				out:     outFiles,
-				depFile: depFile,
-				copyTo:  copyTo,
-				genDir:  genDir,
-				cmd:     fullCommand,
-				shard:   i,
-				shards:  len(shards),
+				in:         shard,
+				out:        outFiles,
+				depFile:    outputDepfile,
+				copyTo:     copyTo,
+				genDir:     genDir,
+				cmd:        fullCommand,
+				shard:      i,
+				shards:     len(shards),
+				extraTools: extraTools,
 			})
 		}
 
