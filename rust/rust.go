@@ -685,6 +685,14 @@ type dependencyTag struct {
 	proc_macro bool
 }
 
+// InstallDepNeeded returns true for rlibs, dylibs, and proc macros so that they or their transitive
+// dependencies (especially C/C++ shared libs) are installed as dependencies of a rust binary.
+func (d dependencyTag) InstallDepNeeded() bool {
+	return d.library || d.proc_macro
+}
+
+var _ android.InstallNeededDependencyTag = dependencyTag{}
+
 var (
 	customBindgenDepTag = dependencyTag{name: "customBindgenTag"}
 	rlibDepTag          = dependencyTag{name: "rlibTag", library: true}
