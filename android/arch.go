@@ -1337,17 +1337,6 @@ func decodeTargetProductVariables(config *config) (map[OsType][]Target, error) {
 		addTarget(BuildOs, *variables.HostSecondaryArch, nil, nil, nil, NativeBridgeDisabled, nil, nil)
 	}
 
-	// An optional host target that uses the Bionic glibc runtime.
-	if Bool(config.Host_bionic) {
-		addTarget(LinuxBionic, "x86_64", nil, nil, nil, NativeBridgeDisabled, nil, nil)
-	}
-
-	// An optional cross-compiled host target that uses the Bionic glibc runtime on an arm64
-	// architecture.
-	if Bool(config.Host_bionic_arm64) {
-		addTarget(LinuxBionic, "arm64", nil, nil, nil, NativeBridgeDisabled, nil, nil)
-	}
-
 	// Optional cross-compiled host targets, generally Windows.
 	if String(variables.CrossHost) != "" {
 		crossHostOs := osByName(*variables.CrossHost)
@@ -1435,53 +1424,6 @@ type archConfig struct {
 	archVariant string
 	cpuVariant  string
 	abi         []string
-}
-
-// getMegaDeviceConfig returns a list of archConfigs for every architecture simultaneously.
-func getMegaDeviceConfig() []archConfig {
-	return []archConfig{
-		{"arm", "armv7-a", "generic", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "generic", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "cortex-a7", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "cortex-a8", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "cortex-a9", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "cortex-a15", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "cortex-a53", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "cortex-a53.a57", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "cortex-a72", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "cortex-a73", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "cortex-a75", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "cortex-a76", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "krait", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "kryo", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "kryo385", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "exynos-m1", []string{"armeabi-v7a"}},
-		{"arm", "armv7-a-neon", "exynos-m2", []string{"armeabi-v7a"}},
-		{"arm64", "armv8-a", "cortex-a53", []string{"arm64-v8a"}},
-		{"arm64", "armv8-a", "cortex-a72", []string{"arm64-v8a"}},
-		{"arm64", "armv8-a", "cortex-a73", []string{"arm64-v8a"}},
-		{"arm64", "armv8-a", "kryo", []string{"arm64-v8a"}},
-		{"arm64", "armv8-a", "exynos-m1", []string{"arm64-v8a"}},
-		{"arm64", "armv8-a", "exynos-m2", []string{"arm64-v8a"}},
-		{"arm64", "armv8-2a", "kryo385", []string{"arm64-v8a"}},
-		{"arm64", "armv8-2a-dotprod", "cortex-a55", []string{"arm64-v8a"}},
-		{"arm64", "armv8-2a-dotprod", "cortex-a75", []string{"arm64-v8a"}},
-		{"arm64", "armv8-2a-dotprod", "cortex-a76", []string{"arm64-v8a"}},
-		{"x86", "", "", []string{"x86"}},
-		{"x86", "atom", "", []string{"x86"}},
-		{"x86", "haswell", "", []string{"x86"}},
-		{"x86", "ivybridge", "", []string{"x86"}},
-		{"x86", "sandybridge", "", []string{"x86"}},
-		{"x86", "silvermont", "", []string{"x86"}},
-		{"x86", "stoneyridge", "", []string{"x86"}},
-		{"x86", "x86_64", "", []string{"x86"}},
-		{"x86_64", "", "", []string{"x86_64"}},
-		{"x86_64", "haswell", "", []string{"x86_64"}},
-		{"x86_64", "ivybridge", "", []string{"x86_64"}},
-		{"x86_64", "sandybridge", "", []string{"x86_64"}},
-		{"x86_64", "silvermont", "", []string{"x86_64"}},
-		{"x86_64", "stoneyridge", "", []string{"x86_64"}},
-	}
 }
 
 // getNdkAbisConfig returns a list of archConfigs for the ABIs supported by the NDK.
