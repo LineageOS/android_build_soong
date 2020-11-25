@@ -1286,14 +1286,18 @@ func (m *ModuleBase) ExportedToMake() bool {
 	return m.commonProperties.NamespaceExportedToMake
 }
 
+// computeInstallDeps finds the installed paths of all dependencies that have a dependency
+// tag that is annotated as needing installation via the IsInstallDepNeeded method.
 func (m *ModuleBase) computeInstallDeps(ctx blueprint.ModuleContext) InstallPaths {
-
 	var result InstallPaths
-	// TODO(ccross): we need to use WalkDeps and have some way to know which dependencies require installation
-	ctx.VisitDepsDepthFirst(func(m blueprint.Module) {
-		if a, ok := m.(Module); ok {
-			result = append(result, a.FilesToInstall()...)
+	ctx.WalkDeps(func(child, parent blueprint.Module) bool {
+		if a, ok := child.(Module); ok {
+			if IsInstallDepNeeded(ctx.OtherModuleDependencyTag(child)) {
+				result = append(result, a.FilesToInstall()...)
+				return true
+			}
 		}
+		return false
 	})
 
 	return result
@@ -1440,7 +1444,7 @@ func (m *ModuleBase) generateModuleTarget(ctx ModuleContext) {
 
 	if len(deps) > 0 {
 		suffix := ""
-		if ctx.Config().EmbeddedInMake() {
+		if ctx.Config().KatiEnabled() {
 			suffix = "-soong"
 		}
 
@@ -2320,7 +2324,7 @@ func (m *moduleContext) skipInstall(fullInstallPath InstallPath) bool {
 	}
 
 	if m.Device() {
-		if m.Config().EmbeddedInMake() && !m.InstallBypassMake() {
+		if m.Config().KatiEnabled() && !m.InstallBypassMake() {
 			return true
 		}
 
@@ -2373,7 +2377,7 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 			Input:       srcPath,
 			Implicits:   implicitDeps,
 			OrderOnly:   orderOnlyDeps,
-			Default:     !m.Config().EmbeddedInMake(),
+			Default:     !m.Config().KatiEnabled(),
 		})
 
 		m.installFiles = append(m.installFiles, fullInstallPath)
@@ -2405,7 +2409,7 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 			Description: "install symlink " + fullInstallPath.Base(),
 			Output:      fullInstallPath,
 			Input:       srcPath,
-			Default:     !m.Config().EmbeddedInMake(),
+			Default:     !m.Config().KatiEnabled(),
 			Args: map[string]string{
 				"fromPath": relPath,
 			},
@@ -2436,7 +2440,7 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 			Rule:        Symlink,
 			Description: "install symlink " + fullInstallPath.Base() + " -> " + absPath,
 			Output:      fullInstallPath,
-			Default:     !m.Config().EmbeddedInMake(),
+			Default:     !m.Config().KatiEnabled(),
 			Args: map[string]string{
 				"fromPath": absPath,
 			},
@@ -2578,6 +2582,15 @@ func outputFilesForModule(ctx PathContext, module blueprint.Module, tag string) 
 			return nil, fmt.Errorf("failed to get output files from module %q", pathContextName(ctx, module))
 		}
 		return paths, nil
+	} else if sourceFileProducer, ok := module.(SourceFileProducer); ok {
+		if tag != "" {
+			return nil, fmt.Errorf("module %q is a SourceFileProducer, not an OutputFileProducer, and so does not support tag %q", pathContextName(ctx, module), tag)
+		}
+		paths := sourceFileProducer.Srcs()
+		if len(paths) == 0 {
+			return nil, fmt.Errorf("failed to get output files from module %q", pathContextName(ctx, module))
+		}
+		return paths, nil
 	} else {
 		return nil, fmt.Errorf("module %q is not an OutputFileProducer", pathContextName(ctx, module))
 	}
@@ -2665,7 +2678,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	})
 
 	suffix := ""
-	if ctx.Config().EmbeddedInMake() {
+	if ctx.Config().KatiEnabled() {
 		suffix = "-soong"
 	}
 
@@ -2673,7 +2686,7 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	ctx.Phony("checkbuild"+suffix, checkbuildDeps...)
 
 	// Make will generate the MODULES-IN-* targets
-	if ctx.Config().EmbeddedInMake() {
+	if ctx.Config().KatiEnabled() {
 		return
 	}
 

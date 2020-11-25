@@ -4,8 +4,10 @@ bootstrap_go_package {
     deps: [
         "blueprint",
         "blueprint-pathtools",
+        "sbox_proto",
         "soong",
         "soong-android",
+        "soong-bazel",
         "soong-shared",
     ],
     srcs: [

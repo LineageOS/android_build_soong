@@ -424,8 +424,8 @@ func CheckErrorsAgainstExpectations(t *testing.T, errs []error, expectedErrorPat
 
 }
 
-func SetInMakeForTests(config Config) {
-	config.inMake = true
+func SetKatiEnabledForTests(config Config) {
+	config.katiEnabled = true
 }
 
 func AndroidMkEntriesForTest(t *testing.T, config Config, bpPath string, mod blueprint.Module) []AndroidMkEntries {

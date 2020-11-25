@@ -271,7 +271,7 @@ func newOsType(name string, class OsClass, defDisabled bool, archTypes ...ArchTy
 	if _, found := commonTargetMap[name]; found {
 		panic(fmt.Errorf("Found Os type duplicate during OsType registration: %q", name))
 	} else {
-		commonTargetMap[name] = Target{Os: os, Arch: Arch{ArchType: Common}}
+		commonTargetMap[name] = Target{Os: os, Arch: CommonArch}
 	}
 	osArchTypeMap[os] = archTypes
 
@@ -341,6 +341,10 @@ var (
 	// CommonOS is a pseudo OSType for a common OS variant, which is OsType agnostic and which
 	// has dependencies on all the OS variants.
 	CommonOS = newOsType("common_os", Generic, false)
+
+	// CommonArch is the Arch for all modules that are os-specific but not arch specific,
+	// for example most Java modules.
+	CommonArch = Arch{ArchType: Common}
 )
 
 // Target specifies the OS and architecture that a module is being compiled for.
@@ -511,9 +515,6 @@ type archDepTag struct {
 // Identifies the dependency from CommonOS variant to the os specific variants.
 var commonOsToOsSpecificVariantTag = archDepTag{name: "common os to os specific"}
 
-// Identifies the dependency from arch variant to the common variant for a "common_first" multilib.
-var firstArchToCommonArchDepTag = archDepTag{name: "first arch to common arch"}
-
 // Get the OsType specific variants for the current CommonOS variant.
 //
 // The returned list will only contain enabled OsType specific variants of the
@@ -666,12 +667,6 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	for i, m := range modules {
 		addTargetProperties(m, targets[i], multiTargets, i == 0)
 		m.base().setArchProperties(mctx)
-	}
-
-	if multilib == "common_first" && len(modules) >= 2 {
-		for i := range modules[1:] {
-			mctx.AddInterVariantDependency(firstArchToCommonArchDepTag, modules[i+1], modules[0])
-		}
 	}
 }
 

@@ -1312,7 +1312,7 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 
 	ret := pathForInstall(ctx, os, arch, partition, ctx.Debug(), pathComponents...)
 
-	if ctx.InstallBypassMake() && ctx.Config().EmbeddedInMake() {
+	if ctx.InstallBypassMake() && ctx.Config().KatiEnabled() {
 		ret = ret.ToMakePath()
 	}
 

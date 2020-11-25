@@ -12,22 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rust
+package bazel
 
-import (
-	"android/soong/android"
-	"android/soong/cc"
-)
-
-// Stripper defines the stripping actions and properties for a module. The Rust
-// implementation reuses the C++ implementation.
-type Stripper struct {
-	cc.Stripper
+type bazelModuleProperties struct {
+	// The label of the Bazel target replacing this Soong module.
+	Label string
 }
 
-// StripExecutableOrSharedLib strips a binary or shared library from its debug
-// symbols and other debug information.
-func (s *Stripper) StripExecutableOrSharedLib(ctx ModuleContext, in android.Path, out android.ModuleOutPath) {
-	ccFlags := cc.StripFlags{Toolchain: ctx.RustModule().ccToolchain(ctx)}
-	s.Stripper.StripExecutableOrSharedLib(ctx, in, out, ccFlags)
+// Properties contains common module properties for migration purposes.
+type Properties struct {
+	// In USE_BAZEL_ANALYSIS=1 mode, this represents the Bazel target replacing
+	// this Soong module.
+	Bazel_module bazelModuleProperties
 }

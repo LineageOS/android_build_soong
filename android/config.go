@@ -112,7 +112,9 @@ type config struct {
 	envDeps   map[string]string
 	envFrozen bool
 
-	inMake bool
+	// Changes behavior based on whether Kati runs after soong_build, or if soong_build
+	// runs standalone.
+	katiEnabled bool
 
 	captureBuild      bool // true for tests, saves build parameters for each module
 	ignoreEnvironment bool // true for tests, returns empty from all Getenv calls
@@ -228,7 +230,8 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		envCopy[k] = v
 	}
 
-	// Copy the real PATH value to the test environment, it's needed by HostSystemTool() used in x86_darwin_host.go
+	// Copy the real PATH value to the test environment, it's needed by
+	// NonHermeticHostSystemTool() used in x86_darwin_host.go
 	envCopy["PATH"] = originalEnv["PATH"]
 
 	config := &config{
@@ -262,10 +265,6 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	config.TestProductVariables = &config.productVariables
 
 	config.mockFileSystem(bp, fs)
-
-	if err := config.fromEnv(); err != nil {
-		panic(err)
-	}
 
 	return Config{config}
 }
@@ -390,9 +389,9 @@ func NewConfig(srcDir, buildDir string, moduleListFile string) (Config, error) {
 		return Config{}, err
 	}
 
-	inMakeFile := filepath.Join(buildDir, ".soong.in_make")
-	if _, err := os.Stat(absolutePath(inMakeFile)); err == nil {
-		config.inMake = true
+	KatiEnabledMarkerFile := filepath.Join(buildDir, ".soong.kati_enabled")
+	if _, err := os.Stat(absolutePath(KatiEnabledMarkerFile)); err == nil {
+		config.katiEnabled = true
 	}
 
 	targets, err := decodeTargetProductVariables(config)
@@ -434,10 +433,6 @@ func NewConfig(srcDir, buildDir string, moduleListFile string) (Config, error) {
 	if len(config.Targets[Android]) > 0 {
 		config.AndroidCommonTarget = getCommonTargets(config.Targets[Android])[0]
 		config.AndroidFirstDeviceTarget = firstTarget(config.Targets[Android], "lib64", "lib32")[0]
-	}
-
-	if err := config.fromEnv(); err != nil {
-		return Config{}, err
 	}
 
 	if Bool(config.productVariables.GcovCoverage) && Bool(config.productVariables.ClangCoverage) {
@@ -487,17 +482,6 @@ func (c *config) mockFileSystem(bp string, fs map[string][]byte) {
 	c.mockBpList = blueprint.MockModuleListFile
 }
 
-func (c *config) fromEnv() error {
-	switch c.Getenv("EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9") {
-	case "", "true":
-		// Do nothing
-	default:
-		return fmt.Errorf("The environment variable EXPERIMENTAL_JAVA_LANGUAGE_LEVEL_9 is no longer supported. Java language level 9 is now the global default.")
-	}
-
-	return nil
-}
-
 func (c *config) StopBefore() bootstrap.StopBefore {
 	return c.stopBefore
 }
@@ -530,9 +514,12 @@ func (c *config) HostJavaToolPath(ctx PathContext, path string) Path {
 	return PathForOutput(ctx, "host", c.PrebuiltOS(), "framework", path)
 }
 
-// HostSystemTool looks for non-hermetic tools from the system we're running on.
-// Generally shouldn't be used, but useful to find the XCode SDK, etc.
-func (c *config) HostSystemTool(name string) string {
+// NonHermeticHostSystemTool looks for non-hermetic tools from the system we're
+// running on. These tools are not checked-in to AOSP, and therefore could lead
+// to reproducibility problems. Should not be used for other than finding the
+// XCode SDK (xcrun, sw_vers), etc. See ui/build/paths/config.go for the
+// allowlist of host system tools.
+func (c *config) NonHermeticHostSystemTool(name string) string {
 	for _, dir := range filepath.SplitList(c.Getenv("PATH")) {
 		path := filepath.Join(dir, name)
 		if s, err := os.Stat(path); err != nil {
@@ -541,7 +528,10 @@ func (c *config) HostSystemTool(name string) string {
 			return path
 		}
 	}
-	return name
+	panic(fmt.Errorf(
+		"Unable to use '%s' as a host system tool for build system "+
+			"hermeticity reasons. See build/soong/ui/build/paths/config.go "+
+			"for the full list of allowed host tools on your system.", name))
 }
 
 // PrebuiltOS returns the name of the host OS used in prebuilts directories
@@ -619,8 +609,8 @@ func (c *config) EnvDeps() map[string]string {
 	return c.envDeps
 }
 
-func (c *config) EmbeddedInMake() bool {
-	return c.inMake
+func (c *config) KatiEnabled() bool {
+	return c.katiEnabled
 }
 
 func (c *config) BuildId() string {

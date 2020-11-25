@@ -836,8 +836,8 @@ func (a *AARImport) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
 	return nil
 }
 
-func (d *AARImport) ExportedPlugins() (android.Paths, []string) {
-	return nil, nil
+func (d *AARImport) ExportedPlugins() (android.Paths, []string, bool) {
+	return nil, nil, false
 }
 
 func (a *AARImport) SrcJarArgs() ([]string, android.Paths) {

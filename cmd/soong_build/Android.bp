@@ -27,6 +27,7 @@ bootstrap_go_binary {
         "main.go",
         "writedocs.go",
         "queryview.go",
+        "queryview_templates.go",
     ],
     testSrcs: [
         "queryview_test.go",
