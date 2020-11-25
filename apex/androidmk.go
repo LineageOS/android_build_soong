@@ -334,7 +334,6 @@ func (a *apexBundle) writeRequiredModules(w io.Writer) {
 
 func (a *apexBundle) androidMkForType() android.AndroidMkData {
 	return android.AndroidMkData{
-		DistFiles: a.distFiles,
 		Custom: func(w io.Writer, name, prefix, moduleDir string, data android.AndroidMkData) {
 			moduleNames := []string{}
 			apexType := a.properties.ApexType
