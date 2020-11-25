@@ -1202,15 +1202,21 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 		}
 	}
 
+	// If the library is sysprop_library, expose either public or internal header selectively.
 	if library.baseCompiler.hasSrcExt(".sysprop") {
 		dir := android.PathForModuleGen(ctx, "sysprop", "include")
 		if library.Properties.Sysprop.Platform != nil {
-			isProduct := ctx.ProductSpecific() && !ctx.useVndk()
-			isVendor := ctx.useVndk()
+			isClientProduct := ctx.ProductSpecific() && !ctx.useVndk()
+			isClientVendor := ctx.useVndk()
 			isOwnerPlatform := Bool(library.Properties.Sysprop.Platform)
 
+			// If the owner is different from the user, expose public header. That is,
+			// 1) if the user is product (as owner can only be platform / vendor)
+			// 2) if one is platform and the other is vendor
+			// Exceptions are ramdisk and recovery. They are not enforced at all. So
+			// they always use internal header.
 			if !ctx.inRamdisk() && !ctx.inVendorRamdisk() && !ctx.inRecovery() &&
-				(isProduct || (isOwnerPlatform == isVendor)) {
+				(isClientProduct || (isOwnerPlatform == isClientVendor)) {
 				dir = android.PathForModuleGen(ctx, "sysprop/public", "include")
 			}
 		}
