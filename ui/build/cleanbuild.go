@@ -26,8 +26,11 @@ import (
 	"android/soong/ui/metrics"
 )
 
+// Given a series of glob patterns, remove matching files and directories from the filesystem.
+// For example, "malware*" would remove all files and directories in the current directory that begin with "malware".
 func removeGlobs(ctx Context, globs ...string) {
 	for _, glob := range globs {
+		// Find files and directories that match this glob pattern.
 		files, err := filepath.Glob(glob)
 		if err != nil {
 			// Only possible error is ErrBadPattern
@@ -45,13 +48,15 @@ func removeGlobs(ctx Context, globs ...string) {
 
 // Remove everything under the out directory. Don't remove the out directory
 // itself in case it's a symlink.
-func clean(ctx Context, config Config, what int) {
+func clean(ctx Context, config Config) {
 	removeGlobs(ctx, filepath.Join(config.OutDir(), "*"))
 	ctx.Println("Entire build directory removed.")
 }
 
-func dataClean(ctx Context, config Config, what int) {
+// Remove everything in the data directory.
+func dataClean(ctx Context, config Config) {
 	removeGlobs(ctx, filepath.Join(config.ProductOut(), "data", "*"))
+	ctx.Println("Entire data directory removed.")
 }
 
 // installClean deletes all of the installed files -- the intent is to remove
@@ -61,8 +66,8 @@ func dataClean(ctx Context, config Config, what int) {
 //
 // This is faster than a full clean, since we're not deleting the
 // intermediates.  Instead of recompiling, we can just copy the results.
-func installClean(ctx Context, config Config, what int) {
-	dataClean(ctx, config, what)
+func installClean(ctx Context, config Config) {
+	dataClean(ctx, config)
 
 	if hostCrossOutPath := config.hostCrossOut(); hostCrossOutPath != "" {
 		hostCrossOut := func(path string) string {
@@ -145,85 +150,95 @@ func installClean(ctx Context, config Config, what int) {
 // Since products and build variants (unfortunately) shared the same
 // PRODUCT_OUT staging directory, things can get out of sync if different
 // build configurations are built in the same tree. This function will
-// notice when the configuration has changed and call installclean to
+// notice when the configuration has changed and call installClean to
 // remove the files necessary to keep things consistent.
 func installCleanIfNecessary(ctx Context, config Config) {
 	configFile := config.DevicePreviousProductConfig()
 	prefix := "PREVIOUS_BUILD_CONFIG := "
 	suffix := "\n"
-	currentProduct := prefix + config.TargetProduct() + "-" + config.TargetBuildVariant() + suffix
+	currentConfig := prefix + config.TargetProduct() + "-" + config.TargetBuildVariant() + suffix
 
 	ensureDirectoriesExist(ctx, filepath.Dir(configFile))
 
 	writeConfig := func() {
-		err := ioutil.WriteFile(configFile, []byte(currentProduct), 0666)
+		err := ioutil.WriteFile(configFile, []byte(currentConfig), 0666) // a+rw
 		if err != nil {
 			ctx.Fatalln("Failed to write product config:", err)
 		}
 	}
 
-	prev, err := ioutil.ReadFile(configFile)
+	previousConfigBytes, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		if os.IsNotExist(err) {
+			// Just write the new config file, no old config file to worry about.
 			writeConfig()
 			return
 		} else {
 			ctx.Fatalln("Failed to read previous product config:", err)
 		}
-	} else if string(prev) == currentProduct {
+	}
+
+	previousConfig := string(previousConfigBytes)
+	if previousConfig == currentConfig {
+		// Same config as before - nothing to clean.
 		return
 	}
 
-	if disable, _ := config.Environment().Get("DISABLE_AUTO_INSTALLCLEAN"); disable == "true" {
-		ctx.Println("DISABLE_AUTO_INSTALLCLEAN is set; skipping auto-clean. Your tree may be in an inconsistent state.")
+	if config.Environment().IsEnvTrue("DISABLE_AUTO_INSTALLCLEAN") {
+		ctx.Println("DISABLE_AUTO_INSTALLCLEAN is set and true; skipping auto-clean. Your tree may be in an inconsistent state.")
 		return
 	}
 
 	ctx.BeginTrace(metrics.PrimaryNinja, "installclean")
 	defer ctx.EndTrace()
 
-	prevConfig := strings.TrimPrefix(strings.TrimSuffix(string(prev), suffix), prefix)
-	currentConfig := strings.TrimPrefix(strings.TrimSuffix(currentProduct, suffix), prefix)
+	previousProductAndVariant := strings.TrimPrefix(strings.TrimSuffix(previousConfig, suffix), prefix)
+	currentProductAndVariant := strings.TrimPrefix(strings.TrimSuffix(currentConfig, suffix), prefix)
 
-	ctx.Printf("Build configuration changed: %q -> %q, forcing installclean\n", prevConfig, currentConfig)
+	ctx.Printf("Build configuration changed: %q -> %q, forcing installclean\n", previousProductAndVariant, currentProductAndVariant)
 
-	installClean(ctx, config, 0)
+	installClean(ctx, config)
 
 	writeConfig()
 }
 
 // cleanOldFiles takes an input file (with all paths relative to basePath), and removes files from
 // the filesystem if they were removed from the input file since the last execution.
-func cleanOldFiles(ctx Context, basePath, file string) {
-	file = filepath.Join(basePath, file)
-	oldFile := file + ".previous"
+func cleanOldFiles(ctx Context, basePath, newFile string) {
+	newFile = filepath.Join(basePath, newFile)
+	oldFile := newFile + ".previous"
 
-	if _, err := os.Stat(file); err != nil {
-		ctx.Fatalf("Expected %q to be readable", file)
+	if _, err := os.Stat(newFile); err != nil {
+		ctx.Fatalf("Expected %q to be readable", newFile)
 	}
 
 	if _, err := os.Stat(oldFile); os.IsNotExist(err) {
-		if err := os.Rename(file, oldFile); err != nil {
-			ctx.Fatalf("Failed to rename file list (%q->%q): %v", file, oldFile, err)
+		if err := os.Rename(newFile, oldFile); err != nil {
+			ctx.Fatalf("Failed to rename file list (%q->%q): %v", newFile, oldFile, err)
 		}
 		return
 	}
 
-	var newPaths, oldPaths []string
-	if newData, err := ioutil.ReadFile(file); err == nil {
-		if oldData, err := ioutil.ReadFile(oldFile); err == nil {
-			// Common case: nothing has changed
-			if bytes.Equal(newData, oldData) {
-				return
-			}
-			newPaths = strings.Fields(string(newData))
-			oldPaths = strings.Fields(string(oldData))
-		} else {
-			ctx.Fatalf("Failed to read list of installable files (%q): %v", oldFile, err)
-		}
+	var newData, oldData []byte
+	if data, err := ioutil.ReadFile(newFile); err == nil {
+		newData = data
 	} else {
-		ctx.Fatalf("Failed to read list of installable files (%q): %v", file, err)
+		ctx.Fatalf("Failed to read list of installable files (%q): %v", newFile, err)
 	}
+	if data, err := ioutil.ReadFile(oldFile); err == nil {
+		oldData = data
+	} else {
+		ctx.Fatalf("Failed to read list of installable files (%q): %v", oldFile, err)
+	}
+
+	// Common case: nothing has changed
+	if bytes.Equal(newData, oldData) {
+		return
+	}
+
+	var newPaths, oldPaths []string
+	newPaths = strings.Fields(string(newData))
+	oldPaths = strings.Fields(string(oldData))
 
 	// These should be mostly sorted by make already, but better make sure Go concurs
 	sort.Strings(newPaths)
@@ -242,42 +257,55 @@ func cleanOldFiles(ctx Context, basePath, file string) {
 				continue
 			}
 		}
+
 		// File only exists in the old list; remove if it exists
-		old := filepath.Join(basePath, oldPaths[0])
+		oldPath := filepath.Join(basePath, oldPaths[0])
 		oldPaths = oldPaths[1:]
-		if fi, err := os.Stat(old); err == nil {
-			if fi.IsDir() {
-				if err := os.Remove(old); err == nil {
-					ctx.Println("Removed directory that is no longer installed: ", old)
-					cleanEmptyDirs(ctx, filepath.Dir(old))
+
+		if oldFile, err := os.Stat(oldPath); err == nil {
+			if oldFile.IsDir() {
+				if err := os.Remove(oldPath); err == nil {
+					ctx.Println("Removed directory that is no longer installed: ", oldPath)
+					cleanEmptyDirs(ctx, filepath.Dir(oldPath))
 				} else {
-					ctx.Println("Failed to remove directory that is no longer installed (%q): %v", old, err)
+					ctx.Println("Failed to remove directory that is no longer installed (%q): %v", oldPath, err)
 					ctx.Println("It's recommended to run `m installclean`")
 				}
 			} else {
-				if err := os.Remove(old); err == nil {
-					ctx.Println("Removed file that is no longer installed: ", old)
-					cleanEmptyDirs(ctx, filepath.Dir(old))
+				// Removing a file, not a directory.
+				if err := os.Remove(oldPath); err == nil {
+					ctx.Println("Removed file that is no longer installed: ", oldPath)
+					cleanEmptyDirs(ctx, filepath.Dir(oldPath))
 				} else if !os.IsNotExist(err) {
-					ctx.Fatalf("Failed to remove file that is no longer installed (%q): %v", old, err)
+					ctx.Fatalf("Failed to remove file that is no longer installed (%q): %v", oldPath, err)
 				}
 			}
 		}
 	}
 
 	// Use the new list as the base for the next build
-	os.Rename(file, oldFile)
+	os.Rename(newFile, oldFile)
 }
 
+// cleanEmptyDirs will delete a directory if it contains no files.
+// If a deletion occurs, then it also recurses upwards to try and delete empty parent directories.
 func cleanEmptyDirs(ctx Context, dir string) {
 	files, err := ioutil.ReadDir(dir)
-	if err != nil || len(files) > 0 {
+	if err != nil {
+		ctx.Println("Could not read directory while trying to clean empty dirs: ", dir)
 		return
 	}
-	if err := os.Remove(dir); err == nil {
-		ctx.Println("Removed directory that is no longer installed: ", dir)
-	} else {
-		ctx.Fatalf("Failed to remove directory that is no longer installed (%q): %v", dir, err)
+	if len(files) > 0 {
+		// Directory is not empty.
+		return
 	}
+
+	if err := os.Remove(dir); err == nil {
+		ctx.Println("Removed empty directory (may no longer be installed?): ", dir)
+	} else {
+		ctx.Fatalf("Failed to remove empty directory (which may no longer be installed?) %q: (%v)", dir, err)
+	}
+
+	// Try and delete empty parent directories too.
 	cleanEmptyDirs(ctx, filepath.Dir(dir))
 }
