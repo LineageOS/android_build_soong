@@ -207,7 +207,7 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 	}
 
 	// Copy in any files specified by the manifest.
-	err = linkOrCopyFiles(command.CopyBefore, "", tempDir)
+	err = copyFiles(command.CopyBefore, "", tempDir)
 	if err != nil {
 		return "", err
 	}
@@ -315,12 +315,12 @@ func validateOutputFiles(copies []*sbox_proto.Copy, sandboxDir string) []error {
 	return missingOutputErrors
 }
 
-// linkOrCopyFiles hardlinks or copies files in or out of the sandbox.
-func linkOrCopyFiles(copies []*sbox_proto.Copy, fromDir, toDir string) error {
+// copyFiles copies files in or out of the sandbox.
+func copyFiles(copies []*sbox_proto.Copy, fromDir, toDir string) error {
 	for _, copyPair := range copies {
 		fromPath := joinPath(fromDir, copyPair.GetFrom())
 		toPath := joinPath(toDir, copyPair.GetTo())
-		err := linkOrCopyOneFile(fromPath, toPath)
+		err := copyOneFile(fromPath, toPath)
 		if err != nil {
 			return fmt.Errorf("error copying %q to %q: %w", fromPath, toPath, err)
 		}
@@ -328,30 +328,13 @@ func linkOrCopyFiles(copies []*sbox_proto.Copy, fromDir, toDir string) error {
 	return nil
 }
 
-// linkOrCopyOneFile first attempts to hardlink a file to a destination, and falls back to making
-// a copy if the hardlink fails.
-func linkOrCopyOneFile(from string, to string) error {
+// copyOneFile copies a file.
+func copyOneFile(from string, to string) error {
 	err := os.MkdirAll(filepath.Dir(to), 0777)
 	if err != nil {
 		return err
 	}
 
-	// First try hardlinking
-	err = os.Link(from, to)
-	if err != nil {
-		// Retry with copying in case the source an destination are on different filesystems.
-		// TODO: check for specific hardlink error?
-		err = copyOneFile(from, to)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// copyOneFile copies a file.
-func copyOneFile(from string, to string) error {
 	stat, err := os.Stat(from)
 	if err != nil {
 		return err
