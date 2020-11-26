@@ -35,6 +35,9 @@ type singleton struct {
 var singletons []singleton
 var preSingletons []singleton
 
+var bazelConverterSingletons []singleton
+var bazelConverterPreSingletons []singleton
+
 type mutator struct {
 	name            string
 	bottomUpMutator blueprint.BottomUpMutator
@@ -79,6 +82,14 @@ func RegisterPreSingletonType(name string, factory SingletonFactory) {
 	preSingletons = append(preSingletons, singleton{name, factory})
 }
 
+func RegisterBazelConverterSingletonType(name string, factory SingletonFactory) {
+	bazelConverterSingletons = append(bazelConverterSingletons, singleton{name, factory})
+}
+
+func RegisterBazelConverterPreSingletonType(name string, factory SingletonFactory) {
+	bazelConverterPreSingletons = append(bazelConverterPreSingletons, singleton{name, factory})
+}
+
 type Context struct {
 	*blueprint.Context
 	config Config
@@ -94,13 +105,17 @@ func NewContext(config Config) *Context {
 // singletons, module types and mutators to register for converting Blueprint
 // files to semantically equivalent BUILD files.
 func (ctx *Context) RegisterForBazelConversion() {
+	for _, t := range bazelConverterPreSingletons {
+		ctx.RegisterPreSingletonType(t.name, SingletonFactoryAdaptor(ctx, t.factory))
+	}
+
 	for _, t := range moduleTypes {
 		ctx.RegisterModuleType(t.name, ModuleFactoryAdaptor(t.factory))
 	}
 
-	bazelConverterSingleton := singleton{"bp2build", BazelConverterSingleton}
-	ctx.RegisterSingletonType(bazelConverterSingleton.name,
-		SingletonFactoryAdaptor(ctx, bazelConverterSingleton.factory))
+	for _, t := range bazelConverterSingletons {
+		ctx.RegisterSingletonType(t.name, SingletonFactoryAdaptor(ctx, t.factory))
+	}
 
 	registerMutatorsForBazelConversion(ctx.Context)
 }

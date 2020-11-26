@@ -1742,6 +1742,19 @@ func WriteFileToOutputDir(path WritablePath, data []byte, perm os.FileMode) erro
 	return ioutil.WriteFile(absolutePath(path.String()), data, perm)
 }
 
+func RemoveAllOutputDir(path WritablePath) error {
+	return os.RemoveAll(absolutePath(path.String()))
+}
+
+func CreateOutputDirIfNonexistent(path WritablePath, perm os.FileMode) error {
+	dir := absolutePath(path.String())
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return os.MkdirAll(dir, os.ModePerm)
+	} else {
+		return err
+	}
+}
+
 func absolutePath(path string) string {
 	if filepath.IsAbs(path) {
 		return path
