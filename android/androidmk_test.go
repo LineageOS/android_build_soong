@@ -104,10 +104,12 @@ func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testin
 
 func TestGetDistForGoals(t *testing.T) {
 	testCases := []struct {
+		name                   string
 		bp                     string
 		expectedAndroidMkLines []string
 	}{
 		{
+			name: "dist-without-tag",
 			bp: `
 			custom {
 				name: "foo",
@@ -122,6 +124,7 @@ func TestGetDistForGoals(t *testing.T) {
 			},
 		},
 		{
+			name: "dist-with-tag",
 			bp: `
 			custom {
 				name: "foo",
@@ -137,6 +140,7 @@ func TestGetDistForGoals(t *testing.T) {
 			},
 		},
 		{
+			name: "dists-with-tag",
 			bp: `
 			custom {
 				name: "foo",
@@ -154,6 +158,7 @@ func TestGetDistForGoals(t *testing.T) {
 			},
 		},
 		{
+			name: "multiple-dists-with-and-without-tag",
 			bp: `
 			custom {
 				name: "foo",
@@ -175,6 +180,7 @@ func TestGetDistForGoals(t *testing.T) {
 			},
 		},
 		{
+			name: "dist-plus-dists-without-tags",
 			bp: `
 			custom {
 				name: "foo",
@@ -196,6 +202,7 @@ func TestGetDistForGoals(t *testing.T) {
 			},
 		},
 		{
+			name: "dist-plus-dists-with-tags",
 			bp: `
 			custom {
 				name: "foo",
@@ -249,43 +256,45 @@ func TestGetDistForGoals(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		config := TestConfig(buildDir, nil, testCase.bp, nil)
-		config.katiEnabled = true // Enable androidmk Singleton
+		t.Run(testCase.name, func(t *testing.T) {
+			config := TestConfig(buildDir, nil, testCase.bp, nil)
+			config.katiEnabled = true // Enable androidmk Singleton
 
-		ctx := NewTestContext(config)
-		ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
-		ctx.RegisterModuleType("custom", customModuleFactory)
-		ctx.Register()
+			ctx := NewTestContext(config)
+			ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
+			ctx.RegisterModuleType("custom", customModuleFactory)
+			ctx.Register()
 
-		_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-		FailIfErrored(t, errs)
-		_, errs = ctx.PrepareBuildActions(config)
-		FailIfErrored(t, errs)
+			_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+			FailIfErrored(t, errs)
+			_, errs = ctx.PrepareBuildActions(config)
+			FailIfErrored(t, errs)
 
-		module := ctx.ModuleForTests("foo", "").Module().(*customModule)
-		entries := AndroidMkEntriesForTest(t, config, "", module)
-		if len(entries) != 1 {
-			t.Errorf("Expected a single AndroidMk entry, got %d", len(entries))
-		}
-		androidMkLines := entries[0].GetDistForGoals(module)
+			module := ctx.ModuleForTests("foo", "").Module().(*customModule)
+			entries := AndroidMkEntriesForTest(t, config, "", module)
+			if len(entries) != 1 {
+				t.Errorf("Expected a single AndroidMk entry, got %d", len(entries))
+			}
+			androidMkLines := entries[0].GetDistForGoals(module)
 
-		if len(androidMkLines) != len(testCase.expectedAndroidMkLines) {
-			t.Errorf(
-				"Expected %d AndroidMk lines, got %d:\n%v",
-				len(testCase.expectedAndroidMkLines),
-				len(androidMkLines),
-				androidMkLines,
-			)
-		}
-		for idx, line := range androidMkLines {
-			expectedLine := testCase.expectedAndroidMkLines[idx]
-			if line != expectedLine {
+			if len(androidMkLines) != len(testCase.expectedAndroidMkLines) {
 				t.Errorf(
-					"Expected AndroidMk line to be '%s', got '%s'",
-					line,
-					expectedLine,
+					"Expected %d AndroidMk lines, got %d:\n%v",
+					len(testCase.expectedAndroidMkLines),
+					len(androidMkLines),
+					androidMkLines,
 				)
 			}
-		}
+			for idx, line := range androidMkLines {
+				expectedLine := testCase.expectedAndroidMkLines[idx]
+				if line != expectedLine {
+					t.Errorf(
+						"Expected AndroidMk line to be '%s', got '%s'",
+						expectedLine,
+						line,
+					)
+				}
+			}
+		})
 	}
 }
