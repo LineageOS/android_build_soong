@@ -131,6 +131,22 @@ func TestProjectJsonBindGen(t *testing.T) {
 			t.Errorf("The source path for libbindings2 does not contain the BuildOs, got %v; want %v",
 				rootModule, android.BuildOs.String())
 		}
+		// Check that libbindings1 does not depend on itself.
+		if strings.Contains(rootModule, "libbindings1") {
+			deps, ok := crate["deps"].([]interface{})
+			if !ok {
+				t.Errorf("Unexpected format for deps: %v", crate["deps"])
+			}
+			for _, dep := range deps {
+				d, ok := dep.(map[string]interface{})
+				if !ok {
+					t.Errorf("Unexpected format for dep: %v", dep)
+				}
+				if d["name"] == "bindings1" {
+					t.Errorf("libbindings1 depends on itself")
+				}
+			}
+		}
 	}
 }
 
