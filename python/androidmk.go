@@ -15,8 +15,6 @@
 package python
 
 import (
-	"fmt"
-	"io"
 	"path/filepath"
 	"strings"
 
@@ -24,86 +22,72 @@ import (
 )
 
 type subAndroidMkProvider interface {
-	AndroidMk(*Module, *android.AndroidMkData)
+	AndroidMk(*Module, *android.AndroidMkEntries)
 }
 
-func (p *Module) subAndroidMk(data *android.AndroidMkData, obj interface{}) {
+func (p *Module) subAndroidMk(entries *android.AndroidMkEntries, obj interface{}) {
 	if p.subAndroidMkOnce == nil {
 		p.subAndroidMkOnce = make(map[subAndroidMkProvider]bool)
 	}
 	if androidmk, ok := obj.(subAndroidMkProvider); ok {
 		if !p.subAndroidMkOnce[androidmk] {
 			p.subAndroidMkOnce[androidmk] = true
-			androidmk.AndroidMk(p, data)
+			androidmk.AndroidMk(p, entries)
 		}
 	}
 }
 
-func (p *Module) AndroidMk() android.AndroidMkData {
-	ret := android.AndroidMkData{OutputFile: p.installSource}
+func (p *Module) AndroidMkEntries() []android.AndroidMkEntries {
+	entries := android.AndroidMkEntries{OutputFile: p.installSource}
 
-	p.subAndroidMk(&ret, p.installer)
+	p.subAndroidMk(&entries, p.installer)
 
-	return ret
+	return []android.AndroidMkEntries{entries}
 }
 
-func (p *binaryDecorator) AndroidMk(base *Module, ret *android.AndroidMkData) {
-	ret.Class = "EXECUTABLES"
+func (p *binaryDecorator) AndroidMk(base *Module, entries *android.AndroidMkEntries) {
+	entries.Class = "EXECUTABLES"
 
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		if len(p.binaryProperties.Test_suites) > 0 {
-			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
-				strings.Join(p.binaryProperties.Test_suites, " "))
-		}
+	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
+		entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", p.binaryProperties.Test_suites...)
 	})
-	base.subAndroidMk(ret, p.pythonInstaller)
+	base.subAndroidMk(entries, p.pythonInstaller)
 }
 
-func (p *testDecorator) AndroidMk(base *Module, ret *android.AndroidMkData) {
-	ret.Class = "NATIVE_TESTS"
+func (p *testDecorator) AndroidMk(base *Module, entries *android.AndroidMkEntries) {
+	entries.Class = "NATIVE_TESTS"
 
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
-		if len(p.binaryDecorator.binaryProperties.Test_suites) > 0 {
-			fmt.Fprintln(w, "LOCAL_COMPATIBILITY_SUITE :=",
-				strings.Join(p.binaryDecorator.binaryProperties.Test_suites, " "))
-		}
+	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
+		entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", p.binaryDecorator.binaryProperties.Test_suites...)
 		if p.testConfig != nil {
-			fmt.Fprintln(w, "LOCAL_FULL_TEST_CONFIG :=",
-				p.testConfig.String())
+			entries.SetString("LOCAL_FULL_TEST_CONFIG", p.testConfig.String())
 		}
 
-		if !BoolDefault(p.binaryProperties.Auto_gen_config, true) {
-			fmt.Fprintln(w, "LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG := true")
-		}
+		entries.SetBoolIfTrue("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", !BoolDefault(p.binaryProperties.Auto_gen_config, true))
 
-		if len(p.data) > 0 {
-			fmt.Fprintln(w, "LOCAL_TEST_DATA :=",
-				strings.Join(android.AndroidMkDataPaths(p.data), " "))
-		}
+		entries.AddStrings("LOCAL_TEST_DATA", android.AndroidMkDataPaths(p.data)...)
 
-		if Bool(p.testProperties.Test_options.Unit_test) {
-			fmt.Fprintln(w, "LOCAL_IS_UNIT_TEST := true")
-		}
+		entries.SetBoolIfTrue("LOCAL_IS_UNIT_TEST", Bool(p.testProperties.Test_options.Unit_test))
 	})
-	base.subAndroidMk(ret, p.binaryDecorator.pythonInstaller)
+	base.subAndroidMk(entries, p.binaryDecorator.pythonInstaller)
 }
 
-func (installer *pythonInstaller) AndroidMk(base *Module, ret *android.AndroidMkData) {
+func (installer *pythonInstaller) AndroidMk(base *Module, entries *android.AndroidMkEntries) {
 	// Soong installation is only supported for host modules. Have Make
 	// installation trigger Soong installation.
 	if base.Target().Os.Class == android.Host {
-		ret.OutputFile = android.OptionalPathForPath(installer.path)
+		entries.OutputFile = android.OptionalPathForPath(installer.path)
 	}
 
-	ret.Required = append(ret.Required, "libc++")
-	ret.Extra = append(ret.Extra, func(w io.Writer, outputFile android.Path) {
+	entries.Required = append(entries.Required, "libc++")
+	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		path, file := filepath.Split(installer.path.ToMakePath().String())
 		stem := strings.TrimSuffix(file, filepath.Ext(file))
 
-		fmt.Fprintln(w, "LOCAL_MODULE_SUFFIX := "+filepath.Ext(file))
-		fmt.Fprintln(w, "LOCAL_MODULE_PATH := "+path)
-		fmt.Fprintln(w, "LOCAL_MODULE_STEM := "+stem)
-		fmt.Fprintln(w, "LOCAL_SHARED_LIBRARIES := "+strings.Join(installer.androidMkSharedLibs, " "))
-		fmt.Fprintln(w, "LOCAL_CHECK_ELF_FILES := false")
+		entries.SetString("LOCAL_MODULE_SUFFIX", filepath.Ext(file))
+		entries.SetString("LOCAL_MODULE_PATH", path)
+		entries.SetString("LOCAL_MODULE_STEM", stem)
+		entries.AddStrings("LOCAL_SHARED_LIBRARIES", installer.androidMkSharedLibs...)
+		entries.SetBool("LOCAL_CHECK_ELF_FILES", false)
 	})
 }
