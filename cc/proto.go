@@ -130,6 +130,8 @@ func protoFlags(ctx ModuleContext, flags Flags, p *android.ProtoProperties) Flag
 			flags.protoC = true
 			flags.protoOptionsFile = true
 			flags.proto.OutTypeFlag = "--nanopb_out"
+			// Disable nanopb timestamps to support remote caching.
+			flags.proto.OutParams = append(flags.proto.OutParams, "-T")
 			plugin = "protoc-gen-nanopb"
 		case "full":
 			flags.proto.OutTypeFlag = "--cpp_out"
