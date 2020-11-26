@@ -37,8 +37,8 @@ func OsEnvironment() *Environment {
 // It's equivalent to the os.LookupEnv function, but with this copy of the
 // Environment.
 func (e *Environment) Get(key string) (string, bool) {
-	for _, env := range *e {
-		if k, v, ok := decodeKeyValue(env); ok && k == key {
+	for _, envVar := range *e {
+		if k, v, ok := decodeKeyValue(envVar); ok && k == key {
 			return v, true
 		}
 	}
@@ -65,37 +65,40 @@ func (e *Environment) Set(key, value string) {
 
 // Unset removes the specified keys from the Environment.
 func (e *Environment) Unset(keys ...string) {
-	out := (*e)[:0]
-	for _, env := range *e {
-		if key, _, ok := decodeKeyValue(env); ok && inList(key, keys) {
+	newEnv := (*e)[:0]
+	for _, envVar := range *e {
+		if key, _, ok := decodeKeyValue(envVar); ok && inList(key, keys) {
+			// Delete this key.
 			continue
 		}
-		out = append(out, env)
+		newEnv = append(newEnv, envVar)
 	}
-	*e = out
+	*e = newEnv
 }
 
 // UnsetWithPrefix removes all keys that start with prefix.
 func (e *Environment) UnsetWithPrefix(prefix string) {
-	out := (*e)[:0]
-	for _, env := range *e {
-		if key, _, ok := decodeKeyValue(env); ok && strings.HasPrefix(key, prefix) {
+	newEnv := (*e)[:0]
+	for _, envVar := range *e {
+		if key, _, ok := decodeKeyValue(envVar); ok && strings.HasPrefix(key, prefix) {
+			// Delete this key.
 			continue
 		}
-		out = append(out, env)
+		newEnv = append(newEnv, envVar)
 	}
-	*e = out
+	*e = newEnv
 }
 
 // Allow removes all keys that are not present in the input list
 func (e *Environment) Allow(keys ...string) {
-	out := (*e)[:0]
-	for _, env := range *e {
-		if key, _, ok := decodeKeyValue(env); ok && inList(key, keys) {
-			out = append(out, env)
+	newEnv := (*e)[:0]
+	for _, envVar := range *e {
+		if key, _, ok := decodeKeyValue(envVar); ok && inList(key, keys) {
+			// Keep this key.
+			newEnv = append(newEnv, envVar)
 		}
 	}
-	*e = out
+	*e = newEnv
 }
 
 // Environ returns the []string required for exec.Cmd.Env
@@ -105,11 +108,11 @@ func (e *Environment) Environ() []string {
 
 // Copy returns a copy of the Environment so that independent changes may be made.
 func (e *Environment) Copy() *Environment {
-	ret := Environment(make([]string, len(*e)))
-	for i, v := range *e {
-		ret[i] = v
+	envCopy := Environment(make([]string, len(*e)))
+	for i, envVar := range *e {
+		envCopy[i] = envVar
 	}
-	return &ret
+	return &envCopy
 }
 
 // IsTrue returns whether an environment variable is set to a positive value (1,y,yes,on,true)
@@ -140,15 +143,20 @@ func (e *Environment) AppendFromKati(filename string) error {
 	return e.appendFromKati(file)
 }
 
+// Helper function for AppendFromKati. Accepts an io.Reader to make testing easier.
 func (e *Environment) appendFromKati(reader io.Reader) error {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		text := strings.TrimSpace(scanner.Text())
 
 		if len(text) == 0 || text[0] == '#' {
+			// Skip blank lines and comments.
 			continue
 		}
 
+		// We expect two space-delimited strings, like:
+		// unset 'HOME'
+		// export 'BEST_PIZZA_CITY'='NYC'
 		cmd := strings.SplitN(text, " ", 2)
 		if len(cmd) != 2 {
 			return fmt.Errorf("Unknown kati environment line: %q", text)
@@ -159,6 +167,8 @@ func (e *Environment) appendFromKati(reader io.Reader) error {
 			if !ok {
 				return fmt.Errorf("Failed to unquote kati line: %q", text)
 			}
+
+			// Actually unset it.
 			e.Unset(str)
 		} else if cmd[0] == "export" {
 			key, value, ok := decodeKeyValue(cmd[1])
@@ -175,6 +185,7 @@ func (e *Environment) appendFromKati(reader io.Reader) error {
 				return fmt.Errorf("Failed to unquote kati line: %q", text)
 			}
 
+			// Actually set it.
 			e.Set(key, value)
 		} else {
 			return fmt.Errorf("Unknown kati environment command: %q", text)

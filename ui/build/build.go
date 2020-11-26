@@ -183,7 +183,7 @@ func Build(ctx Context, config Config, what int) {
 		help(ctx, config, what)
 		return
 	} else if inList("clean", config.Arguments()) || inList("clobber", config.Arguments()) {
-		clean(ctx, config, what)
+		clean(ctx, config)
 		return
 	}
 
@@ -218,12 +218,12 @@ func Build(ctx Context, config Config, what int) {
 
 	if inList("installclean", config.Arguments()) ||
 		inList("install-clean", config.Arguments()) {
-		installClean(ctx, config, what)
+		installClean(ctx, config)
 		ctx.Println("Deleted images and staging directories.")
 		return
 	} else if inList("dataclean", config.Arguments()) ||
 		inList("data-clean", config.Arguments()) {
-		dataClean(ctx, config, what)
+		dataClean(ctx, config)
 		ctx.Println("Deleted data files.")
 		return
 	}
