@@ -109,6 +109,10 @@ func (singleton *projectGeneratorSingleton) mergeDependencies(ctx android.Single
 		if !ok {
 			return
 		}
+		// Skip intra-module dependencies (i.e., generated-source library depending on the source variant).
+		if module.Name() == child.Name() {
+			return
+		}
 		if _, ok = deps[ctx.ModuleName(child)]; ok {
 			return
 		}
