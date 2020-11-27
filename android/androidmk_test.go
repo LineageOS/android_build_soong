@@ -133,107 +133,7 @@ $(call dist-for-goals,my_goal,two.out:other.out)
 }
 
 func TestGetDistForGoals(t *testing.T) {
-	testCases := []struct {
-		name                   string
-		bp                     string
-		expectedAndroidMkLines []string
-	}{
-		{
-			name: "dist-without-tag",
-			bp: `
-			custom {
-				name: "foo",
-				dist: {
-					targets: ["my_goal"]
-				}
-			}
-			`,
-			expectedAndroidMkLines: []string{
-				".PHONY: my_goal\n",
-				"$(call dist-for-goals,my_goal,one.out:one.out)\n",
-			},
-		},
-		{
-			name: "dist-with-tag",
-			bp: `
-			custom {
-				name: "foo",
-				dist: {
-					targets: ["my_goal"],
-					tag: ".another-tag",
-				}
-			}
-			`,
-			expectedAndroidMkLines: []string{
-				".PHONY: my_goal\n",
-				"$(call dist-for-goals,my_goal,another.out:another.out)\n",
-			},
-		},
-		{
-			name: "dists-with-tag",
-			bp: `
-			custom {
-				name: "foo",
-				dists: [
-					{
-						targets: ["my_goal"],
-						tag: ".another-tag",
-					},
-				],
-			}
-			`,
-			expectedAndroidMkLines: []string{
-				".PHONY: my_goal\n",
-				"$(call dist-for-goals,my_goal,another.out:another.out)\n",
-			},
-		},
-		{
-			name: "multiple-dists-with-and-without-tag",
-			bp: `
-			custom {
-				name: "foo",
-				dists: [
-					{
-						targets: ["my_goal"],
-					},
-					{
-						targets: ["my_second_goal", "my_third_goal"],
-					},
-				],
-			}
-			`,
-			expectedAndroidMkLines: []string{
-				".PHONY: my_goal\n",
-				"$(call dist-for-goals,my_goal,one.out:one.out)\n",
-				".PHONY: my_second_goal my_third_goal\n",
-				"$(call dist-for-goals,my_second_goal my_third_goal,one.out:one.out)\n",
-			},
-		},
-		{
-			name: "dist-plus-dists-without-tags",
-			bp: `
-			custom {
-				name: "foo",
-				dist: {
-					targets: ["my_goal"],
-				},
-				dists: [
-					{
-						targets: ["my_second_goal", "my_third_goal"],
-					},
-				],
-			}
-			`,
-			expectedAndroidMkLines: []string{
-				".PHONY: my_second_goal my_third_goal\n",
-				"$(call dist-for-goals,my_second_goal my_third_goal,one.out:one.out)\n",
-				".PHONY: my_goal\n",
-				"$(call dist-for-goals,my_goal,one.out:one.out)\n",
-			},
-		},
-		{
-			name: "dist-plus-dists-with-tags",
-			bp: `
+	bp := `
 			custom {
 				name: "foo",
 				dist: {
@@ -265,54 +165,49 @@ func TestGetDistForGoals(t *testing.T) {
 					},
 				],
 			}
-			`,
-			expectedAndroidMkLines: []string{
-				".PHONY: my_second_goal\n",
-				"$(call dist-for-goals,my_second_goal,two.out:two.out)\n",
-				"$(call dist-for-goals,my_second_goal,three/four.out:four.out)\n",
-				".PHONY: my_third_goal\n",
-				"$(call dist-for-goals,my_third_goal,one.out:test/dir/one.out)\n",
-				".PHONY: my_fourth_goal\n",
-				"$(call dist-for-goals,my_fourth_goal,one.out:one.suffix.out)\n",
-				".PHONY: my_fifth_goal\n",
-				"$(call dist-for-goals,my_fifth_goal,one.out:new-name)\n",
-				".PHONY: my_sixth_goal\n",
-				"$(call dist-for-goals,my_sixth_goal,one.out:some/dir/new-name.suffix)\n",
-				".PHONY: my_goal my_other_goal\n",
-				"$(call dist-for-goals,my_goal my_other_goal,two.out:two.out)\n",
-				"$(call dist-for-goals,my_goal my_other_goal,three/four.out:four.out)\n",
-			},
-		},
+			`
+
+	expectedAndroidMkLines := []string{
+		".PHONY: my_second_goal\n",
+		"$(call dist-for-goals,my_second_goal,two.out:two.out)\n",
+		"$(call dist-for-goals,my_second_goal,three/four.out:four.out)\n",
+		".PHONY: my_third_goal\n",
+		"$(call dist-for-goals,my_third_goal,one.out:test/dir/one.out)\n",
+		".PHONY: my_fourth_goal\n",
+		"$(call dist-for-goals,my_fourth_goal,one.out:one.suffix.out)\n",
+		".PHONY: my_fifth_goal\n",
+		"$(call dist-for-goals,my_fifth_goal,one.out:new-name)\n",
+		".PHONY: my_sixth_goal\n",
+		"$(call dist-for-goals,my_sixth_goal,one.out:some/dir/new-name.suffix)\n",
+		".PHONY: my_goal my_other_goal\n",
+		"$(call dist-for-goals,my_goal my_other_goal,two.out:two.out)\n",
+		"$(call dist-for-goals,my_goal my_other_goal,three/four.out:four.out)\n",
 	}
 
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			config, module := buildConfigAndCustomModuleFoo(t, testCase.bp)
-			entries := AndroidMkEntriesForTest(t, config, "", module)
-			if len(entries) != 1 {
-				t.Errorf("Expected a single AndroidMk entry, got %d", len(entries))
-			}
-			androidMkLines := entries[0].GetDistForGoals(module)
+	config, module := buildConfigAndCustomModuleFoo(t, bp)
+	entries := AndroidMkEntriesForTest(t, config, "", module)
+	if len(entries) != 1 {
+		t.Errorf("Expected a single AndroidMk entry, got %d", len(entries))
+	}
+	androidMkLines := entries[0].GetDistForGoals(module)
 
-			if len(androidMkLines) != len(testCase.expectedAndroidMkLines) {
-				t.Errorf(
-					"Expected %d AndroidMk lines, got %d:\n%v",
-					len(testCase.expectedAndroidMkLines),
-					len(androidMkLines),
-					androidMkLines,
-				)
-			}
-			for idx, line := range androidMkLines {
-				expectedLine := testCase.expectedAndroidMkLines[idx]
-				if line != expectedLine {
-					t.Errorf(
-						"Expected AndroidMk line to be '%s', got '%s'",
-						expectedLine,
-						line,
-					)
-				}
-			}
-		})
+	if len(androidMkLines) != len(expectedAndroidMkLines) {
+		t.Errorf(
+			"Expected %d AndroidMk lines, got %d:\n%v",
+			len(expectedAndroidMkLines),
+			len(androidMkLines),
+			androidMkLines,
+		)
+	}
+	for idx, line := range androidMkLines {
+		expectedLine := expectedAndroidMkLines[idx]
+		if line != expectedLine {
+			t.Errorf(
+				"Expected AndroidMk line to be '%s', got '%s'",
+				expectedLine,
+				line,
+			)
+		}
 	}
 }
 
