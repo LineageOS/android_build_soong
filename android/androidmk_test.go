@@ -20,16 +20,51 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/google/blueprint/proptools"
 )
 
 type customModule struct {
 	ModuleBase
-	data      AndroidMkData
-	distFiles TaggedDistFiles
+
+	properties struct {
+		Default_dist_files *string
+		Dist_output_file   *bool
+	}
+
+	data       AndroidMkData
+	distFiles  TaggedDistFiles
+	outputFile OptionalPath
 }
 
+const (
+	defaultDistFiles_None    = "none"
+	defaultDistFiles_Default = "default"
+	defaultDistFiles_Tagged  = "tagged"
+)
+
 func (m *customModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	m.distFiles = m.GenerateTaggedDistFiles(ctx)
+
+	// If the dist_output_file: true then create an output file that is stored in
+	// the OutputFile property of the AndroidMkEntry.
+	if proptools.BoolDefault(m.properties.Dist_output_file, true) {
+		m.outputFile = OptionalPathForPath(PathForTesting("dist-output-file.out"))
+	}
+
+	// Based on the setting of the default_dist_files property possibly create a
+	// TaggedDistFiles structure that will be stored in the DistFiles property of
+	// the AndroidMkEntry.
+	defaultDistFiles := proptools.StringDefault(m.properties.Default_dist_files, defaultDistFiles_Tagged)
+	switch defaultDistFiles {
+	case defaultDistFiles_None:
+		// Do nothing
+
+	case defaultDistFiles_Default:
+		m.distFiles = MakeDefaultDistFiles(PathForTesting("default-dist.out"))
+
+	case defaultDistFiles_Tagged:
+		m.distFiles = m.GenerateTaggedDistFiles(ctx)
+	}
 }
 
 func (m *customModule) AndroidMk() AndroidMkData {
@@ -56,14 +91,18 @@ func (m *customModule) OutputFiles(tag string) (Paths, error) {
 func (m *customModule) AndroidMkEntries() []AndroidMkEntries {
 	return []AndroidMkEntries{
 		{
-			Class:     "CUSTOM_MODULE",
-			DistFiles: m.distFiles,
+			Class:      "CUSTOM_MODULE",
+			DistFiles:  m.distFiles,
+			OutputFile: m.outputFile,
 		},
 	}
 }
 
 func customModuleFactory() Module {
 	module := &customModule{}
+
+	module.AddProperties(&module.properties)
+
 	InitAndroidModule(module)
 	return module
 }
@@ -486,4 +525,178 @@ func TestGetDistContributions(t *testing.T) {
 				},
 			},
 		})
+
+	// The above test the default values of default_dist_files and use_output_file.
+
+	// The following tests explicitly test the different combinations of those settings.
+	testHelper(t, "tagged-dist-files-no-output", `
+			custom {
+				name: "foo",
+				default_dist_files: "tagged",
+				dist_output_file: false,
+				dists: [
+					{
+						targets: ["my_goal"],
+					},
+					{
+						targets: ["my_goal"],
+						tag: ".multiple",
+					},
+				],
+			}
+`, &distContributions{
+		copiesForGoals: []*copiesForGoals{
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("one.out", "one.out"),
+				},
+			},
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("two.out", "two.out"),
+					distCopyForTest("three/four.out", "four.out"),
+				},
+			},
+		},
+	})
+
+	testHelper(t, "default-dist-files-no-output", `
+			custom {
+				name: "foo",
+				default_dist_files: "default",
+				dist_output_file: false,
+				dists: [
+					{
+						targets: ["my_goal"],
+					},
+					// The following is silently ignored because the dist files do not
+					// contain the tagged files.
+					{
+						targets: ["my_goal"],
+						tag: ".multiple",
+					},
+				],
+			}
+`, &distContributions{
+		copiesForGoals: []*copiesForGoals{
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("default-dist.out", "default-dist.out"),
+				},
+			},
+		},
+	})
+
+	testHelper(t, "no-dist-files-no-output", `
+			custom {
+				name: "foo",
+				default_dist_files: "none",
+				dist_output_file: false,
+				dists: [
+					// The following is silently ignored because there is not default file
+					// in either the dist files or the output file.
+					{
+						targets: ["my_goal"],
+					},
+					// The following is silently ignored because the dist files do not
+					// contain the tagged files.
+					{
+						targets: ["my_goal"],
+						tag: ".multiple",
+					},
+				],
+			}
+`, nil)
+
+	testHelper(t, "tagged-dist-files-default-output", `
+			custom {
+				name: "foo",
+				default_dist_files: "tagged",
+				dist_output_file: true,
+				dists: [
+					{
+						targets: ["my_goal"],
+					},
+					{
+						targets: ["my_goal"],
+						tag: ".multiple",
+					},
+				],
+			}
+`, &distContributions{
+		copiesForGoals: []*copiesForGoals{
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("one.out", "one.out"),
+				},
+			},
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("two.out", "two.out"),
+					distCopyForTest("three/four.out", "four.out"),
+				},
+			},
+		},
+	})
+
+	testHelper(t, "default-dist-files-default-output", `
+			custom {
+				name: "foo",
+				default_dist_files: "default",
+				dist_output_file: true,
+				dists: [
+					{
+						targets: ["my_goal"],
+					},
+					// The following is silently ignored because the dist files do not
+					// contain the tagged files.
+					{
+						targets: ["my_goal"],
+						tag: ".multiple",
+					},
+				],
+			}
+`, &distContributions{
+		copiesForGoals: []*copiesForGoals{
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("default-dist.out", "default-dist.out"),
+				},
+			},
+		},
+	})
+
+	testHelper(t, "no-dist-files-default-output", `
+			custom {
+				name: "foo",
+				default_dist_files: "none",
+				dist_output_file: true,
+				dists: [
+					{
+						targets: ["my_goal"],
+					},
+					// The following is silently ignored because the dist files do not
+					// contain the tagged files.
+					{
+						targets: ["my_goal"],
+						tag: ".multiple",
+					},
+				],
+			}
+`, &distContributions{
+		copiesForGoals: []*copiesForGoals{
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("dist-output-file.out", "dist-output-file.out"),
+				},
+			},
+		},
+	})
 }
