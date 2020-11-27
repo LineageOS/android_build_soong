@@ -177,13 +177,51 @@ func (a *AndroidMkEntries) AddStrings(name string, value ...string) {
 	a.EntryMap[name] = append(a.EntryMap[name], value...)
 }
 
-// Compute the list of Make strings to declare phone goals and dist-for-goals
-// calls from the module's dist and dists properties.
-func (a *AndroidMkEntries) GetDistForGoals(mod blueprint.Module) []string {
+// The contributions to the dist.
+type distContributions struct {
+	// List of goals and the dist copy instructions.
+	copiesForGoals []*copiesForGoals
+}
+
+// getCopiesForGoals returns a copiesForGoals into which copy instructions that
+// must be processed when building one or more of those goals can be added.
+func (d *distContributions) getCopiesForGoals(goals string) *copiesForGoals {
+	copiesForGoals := &copiesForGoals{goals: goals}
+	d.copiesForGoals = append(d.copiesForGoals, copiesForGoals)
+	return copiesForGoals
+}
+
+// Associates a list of dist copy instructions with a set of goals for which they
+// should be run.
+type copiesForGoals struct {
+	// goals are a space separated list of build targets that will trigger the
+	// copy instructions.
+	goals string
+
+	// A list of instructions to copy a module's output files to somewhere in the
+	// dist directory.
+	copies []distCopy
+}
+
+// Adds a copy instruction.
+func (d *copiesForGoals) addCopyInstruction(from Path, dest string) {
+	d.copies = append(d.copies, distCopy{from, dest})
+}
+
+// Instruction on a path that must be copied into the dist.
+type distCopy struct {
+	// The path to copy from.
+	from Path
+
+	// The destination within the dist directory to copy to.
+	dest string
+}
+
+// Compute the contributions that the module makes to the dist.
+func (a *AndroidMkEntries) getDistContributions(mod blueprint.Module) *distContributions {
 	amod := mod.(Module).base()
 	name := amod.BaseModuleName()
 
-	var ret []string
 	var availableTaggedDists TaggedDistFiles
 
 	if a.DistFiles != nil {
@@ -194,6 +232,9 @@ func (a *AndroidMkEntries) GetDistForGoals(mod blueprint.Module) []string {
 		// Nothing dist-able for this module.
 		return nil
 	}
+
+	// Collate the contributions this module makes to the dist.
+	distContributions := &distContributions{}
 
 	// Iterate over this module's dist structs, merged from the dist and dists properties.
 	for _, dist := range amod.Dists() {
@@ -224,9 +265,9 @@ func (a *AndroidMkEntries) GetDistForGoals(mod blueprint.Module) []string {
 			panic(fmt.Errorf(errorMessage, goals, name, tagPaths))
 		}
 
-		ret = append(ret, fmt.Sprintf(".PHONY: %s\n", goals))
+		copiesForGoals := distContributions.getCopiesForGoals(goals)
 
-		// Create dist-for-goals calls for each path in the dist'd files.
+		// Iterate over each path adding a copy instruction to copiesForGoals
 		for _, path := range tagPaths {
 			// It's possible that the Path is nil from errant modules. Be defensive here.
 			if path == nil {
@@ -261,13 +302,39 @@ func (a *AndroidMkEntries) GetDistForGoals(mod blueprint.Module) []string {
 				}
 			}
 
+			copiesForGoals.addCopyInstruction(path, dest)
+		}
+	}
+
+	return distContributions
+}
+
+// generateDistContributionsForMake generates make rules that will generate the
+// dist according to the instructions in the supplied distContribution.
+func generateDistContributionsForMake(distContributions *distContributions) []string {
+	var ret []string
+	for _, d := range distContributions.copiesForGoals {
+		ret = append(ret, fmt.Sprintf(".PHONY: %s\n", d.goals))
+		// Create dist-for-goals calls for each of the copy instructions.
+		for _, c := range d.copies {
 			ret = append(
 				ret,
-				fmt.Sprintf("$(call dist-for-goals,%s,%s:%s)\n", goals, path.String(), dest))
+				fmt.Sprintf("$(call dist-for-goals,%s,%s:%s)\n", d.goals, c.from.String(), c.dest))
 		}
 	}
 
 	return ret
+}
+
+// Compute the list of Make strings to declare phony goals and dist-for-goals
+// calls from the module's dist and dists properties.
+func (a *AndroidMkEntries) GetDistForGoals(mod blueprint.Module) []string {
+	distContributions := a.getDistContributions(mod)
+	if distContributions == nil {
+		return nil
+	}
+
+	return generateDistContributionsForMake(distContributions)
 }
 
 func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod blueprint.Module) {
