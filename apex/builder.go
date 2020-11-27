@@ -40,7 +40,7 @@ func init() {
 	pctx.Import("android/soong/java")
 	pctx.HostBinToolVariable("apexer", "apexer")
 	// ART minimal builds (using the master-art manifest) do not have the "frameworks/base"
-	// projects, and hence cannot built 'aapt2'. Use the SDK prebuilt instead.
+	// projects, and hence cannot build 'aapt2'. Use the SDK prebuilt instead.
 	hostBinToolVariableWithPrebuilt := func(name, prebuiltDir, tool string) {
 		pctx.VariableFunc(name, func(ctx android.PackageVarContext) string {
 			if !ctx.Config().FrameworksBaseDirExists(ctx) {
@@ -175,24 +175,29 @@ var (
 			`exit 1); touch ${out}`,
 		Description: "Diff ${image_content_file} and ${allowed_files_file}",
 	}, "image_content_file", "allowed_files_file", "apex_module_name")
+
+	// Don't add more rules here. Consider using android.NewRuleBuilder instead.
 )
 
+// buildManifest creates buile rules to modify the input apex_manifest.json to add information
+// gathered by the build system such as provided/required native libraries. Two output files having
+// different formats are generated. a.manifestJsonOut is JSON format for Q devices, and
+// a.manifest.PbOut is protobuf format for R+ devices.
+// TODO(jiyong): make this to return paths instead of directly storing the paths to apexBundle
 func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs, requireNativeLibs []string) {
-	manifestSrc := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
+	src := android.PathForModuleSrc(ctx, proptools.StringDefault(a.properties.Manifest, "apex_manifest.json"))
 
-	manifestJsonFullOut := android.PathForModuleOut(ctx, "apex_manifest_full.json")
-
-	// put dependency({provide|require}NativeLibs) in apex_manifest.json
+	// Put dependency({provide|require}NativeLibs) in apex_manifest.json
 	provideNativeLibs = android.SortedUniqueStrings(provideNativeLibs)
 	requireNativeLibs = android.SortedUniqueStrings(android.RemoveListFromList(requireNativeLibs, provideNativeLibs))
 
-	// apex name can be overridden
+	// APEX name can be overridden
 	optCommands := []string{}
 	if a.properties.Apex_name != nil {
 		optCommands = append(optCommands, "-v name "+*a.properties.Apex_name)
 	}
 
-	// collect jniLibs. Notice that a.filesInfo is already sorted
+	// Collect jniLibs. Notice that a.filesInfo is already sorted
 	var jniLibs []string
 	for _, fi := range a.filesInfo {
 		if fi.isJniLib && !android.InList(fi.stem(), jniLibs) {
@@ -203,9 +208,10 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 		optCommands = append(optCommands, "-a jniLibs "+strings.Join(jniLibs, " "))
 	}
 
+	manifestJsonFullOut := android.PathForModuleOut(ctx, "apex_manifest_full.json")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   apexManifestRule,
-		Input:  manifestSrc,
+		Input:  src,
 		Output: manifestJsonFullOut,
 		Args: map[string]string{
 			"provideNativeLibs": strings.Join(provideNativeLibs, " "),
@@ -214,10 +220,10 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 		},
 	})
 
+	// b/143654022 Q apexd can't understand newly added keys in apex_manifest.json prepare
+	// stripped-down version so that APEX modules built from R+ can be installed to Q
 	minSdkVersion := a.minSdkVersion(ctx)
 	if minSdkVersion.EqualTo(android.SdkVersion_Android10) {
-		// b/143654022 Q apexd can't understand newly added keys in apex_manifest.json
-		// prepare stripped-down version so that APEX modules built from R+ can be installed to Q
 		a.manifestJsonOut = android.PathForModuleOut(ctx, "apex_manifest.json")
 		ctx.Build(pctx, android.BuildParams{
 			Rule:   stripApexManifestRule,
@@ -226,7 +232,7 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 		})
 	}
 
-	// from R+, protobuf binary format (.pb) is the standard format for apex_manifest
+	// From R+, protobuf binary format (.pb) is the standard format for apex_manifest
 	a.manifestPbOut = android.PathForModuleOut(ctx, "apex_manifest.pb")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   pbApexManifestRule,
@@ -235,10 +241,11 @@ func (a *apexBundle) buildManifest(ctx android.ModuleContext, provideNativeLibs,
 	})
 }
 
-func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) {
-	if a.properties.ApexType == zipApex {
-		return
-	}
+// buildFileContexts create build rules to append an entry for apex_manifest.pb to the file_contexts
+// file for this APEX which is either from /systme/sepolicy/apex/<apexname>-file_contexts or from
+// the file_contexts property of this APEX. This is to make sure that the manifest file is correctly
+// labeled as system_file.
+func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.OutputPath {
 	var fileContexts android.Path
 	if a.properties.File_contexts == nil {
 		fileContexts = android.PathForSource(ctx, "system/sepolicy/apex", ctx.ModuleName()+"-file_contexts")
@@ -248,18 +255,17 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) {
 	if a.Platform() {
 		if matched, err := path.Match("system/sepolicy/**/*", fileContexts.String()); err != nil || !matched {
 			ctx.PropertyErrorf("file_contexts", "should be under system/sepolicy, but %q", fileContexts)
-			return
 		}
 	}
 	if !android.ExistentPathForSource(ctx, fileContexts.String()).Valid() {
-		ctx.PropertyErrorf("file_contexts", "cannot find file_contexts file: %q", a.fileContexts)
-		return
+		ctx.PropertyErrorf("file_contexts", "cannot find file_contexts file: %q", fileContexts.String())
 	}
 
 	output := android.PathForModuleOut(ctx, "file_contexts")
 	rule := android.NewRuleBuilder()
 
-	if a.properties.ApexType == imageApex {
+	switch a.properties.ApexType {
+	case imageApex:
 		// remove old file
 		rule.Command().Text("rm").FlagWithOutput("-f ", output)
 		// copy file_contexts
@@ -269,7 +275,7 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) {
 		// force-label /apex_manifest.pb and / as system_file so that apexd can read them
 		rule.Command().Text("echo").Flag("/apex_manifest\\\\.pb u:object_r:system_file:s0").Text(">>").Output(output)
 		rule.Command().Text("echo").Flag("/ u:object_r:system_file:s0").Text(">>").Output(output)
-	} else {
+	case flattenedApex:
 		// For flattened apexes, install path should be prepended.
 		// File_contexts file should be emiited to make via LOCAL_FILE_CONTEXTS
 		// so that it can be merged into file_contexts.bin
@@ -284,13 +290,16 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) {
 		// force-label /apex_manifest.pb and / as system_file so that apexd can read them
 		rule.Command().Text("echo").Flag(apexPath + `/apex_manifest\\.pb u:object_r:system_file:s0`).Text(">>").Output(output)
 		rule.Command().Text("echo").Flag(apexPath + "/ u:object_r:system_file:s0").Text(">>").Output(output)
+	default:
+		panic(fmt.Errorf("unsupported type %v", a.properties.ApexType))
 	}
 
 	rule.Build(pctx, ctx, "file_contexts."+a.Name(), "Generate file_contexts")
-
-	a.fileContexts = output.OutputPath
+	return output.OutputPath
 }
 
+// buildNoticeFiles creates a buile rule for aggregating notice files from the modules that
+// contributes to this APEX. The notice files are merged into a big notice file.
 func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName string) android.NoticeOutputs {
 	var noticeFiles android.Paths
 
@@ -299,13 +308,11 @@ func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName st
 			// As soon as the dependency graph crosses the APEX boundary, don't go further.
 			return false
 		}
-
-		notices := to.NoticeFiles()
-		noticeFiles = append(noticeFiles, notices...)
-
+		noticeFiles = append(noticeFiles, to.NoticeFiles()...)
 		return true
 	})
 
+	// TODO(jiyong): why do we need this? WalkPayloadDeps should have already covered this.
 	for _, fi := range a.filesInfo {
 		noticeFiles = append(noticeFiles, fi.noticeFiles...)
 	}
@@ -317,6 +324,9 @@ func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName st
 	return android.BuildNoticeOutput(ctx, a.installDir, apexFileName, android.SortedUniquePaths(noticeFiles))
 }
 
+// buildInstalledFilesFile creates a build rule for the installed-files.txt file where the list of
+// files included in this APEX is shown. The text file is dist'ed so that people can see what's
+// included in the APEX without actually downloading and extracting it.
 func (a *apexBundle) buildInstalledFilesFile(ctx android.ModuleContext, builtApex android.Path, imageDir android.Path) android.OutputPath {
 	output := android.PathForModuleOut(ctx, "installed-files.txt")
 	rule := android.NewRuleBuilder()
@@ -330,6 +340,8 @@ func (a *apexBundle) buildInstalledFilesFile(ctx android.ModuleContext, builtApe
 	return output.OutputPath
 }
 
+// buildBundleConfig creates a build rule for the bundle config file that will control the bundle
+// creation process.
 func (a *apexBundle) buildBundleConfig(ctx android.ModuleContext) android.OutputPath {
 	output := android.PathForModuleOut(ctx, "bundle_config.json")
 
@@ -351,8 +363,8 @@ func (a *apexBundle) buildBundleConfig(ctx android.ModuleContext) android.Output
 		"apex_manifest.*",
 	}
 
-	// collect the manifest names and paths of android apps
-	// if their manifest names are overridden
+	// Collect the manifest names and paths of android apps if their manifest names are
+	// overridden.
 	for _, fi := range a.filesInfo {
 		if fi.class != app && fi.class != appSet {
 			continue
@@ -378,30 +390,31 @@ func (a *apexBundle) buildBundleConfig(ctx android.ModuleContext) android.Output
 	return output.OutputPath
 }
 
+// buildUnflattendApex creates build rules to build an APEX using apexer.
 func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
-	var abis []string
-	for _, target := range ctx.MultiTargets() {
-		if len(target.Arch.Abi) > 0 {
-			abis = append(abis, target.Arch.Abi[0])
-		}
-	}
-
-	abis = android.FirstUniqueStrings(abis)
-
 	apexType := a.properties.ApexType
 	suffix := apexType.suffix()
-	var implicitInputs []android.Path
-	unsignedOutputFile := android.PathForModuleOut(ctx, a.Name()+suffix+".unsigned")
 
-	// TODO(jiyong): construct the copy rules using RuleBuilder
+	////////////////////////////////////////////////////////////////////////////////////////////
+	// Step 1: copy built files to appropriate directories under the image directory
+
+	imageDir := android.PathForModuleOut(ctx, "image"+suffix)
+
+	// TODO(jiyong): use the RuleBuilder
 	var copyCommands []string
+	var implicitInputs []android.Path
 	for _, fi := range a.filesInfo {
-		destPath := android.PathForModuleOut(ctx, "image"+suffix, fi.path()).String()
+		destPath := imageDir.Join(ctx, fi.path()).String()
+
+		// Prepare the destination path
 		destPathDir := filepath.Dir(destPath)
 		if fi.class == appSet {
 			copyCommands = append(copyCommands, "rm -rf "+destPathDir)
 		}
 		copyCommands = append(copyCommands, "mkdir -p "+destPathDir)
+
+		// Copy the built file to the directory. But if the symlink optimization is turned
+		// on, place a symlink to the corresponding file in /system partition instead.
 		if a.linkToSystemLib && fi.transitiveDep && fi.availableToPlatform() {
 			// TODO(jiyong): pathOnDevice should come from fi.module, not being calculated here
 			pathOnDevice := filepath.Join("/system", fi.path())
@@ -415,11 +428,15 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			}
 			implicitInputs = append(implicitInputs, fi.builtFile)
 		}
-		// create additional symlinks pointing the file inside the APEX
+
+		// Create additional symlinks pointing the file inside the APEX (if any). Note that
+		// this is independent from the symlink optimization.
 		for _, symlinkPath := range fi.symlinkPaths() {
-			symlinkDest := android.PathForModuleOut(ctx, "image"+suffix, symlinkPath).String()
+			symlinkDest := imageDir.Join(ctx, symlinkPath).String()
 			copyCommands = append(copyCommands, "ln -sfn "+filepath.Base(destPath)+" "+symlinkDest)
 		}
+
+		// Copy the test files (if any)
 		for _, d := range fi.dataPaths {
 			// TODO(eakammer): This is now the third repetition of ~this logic for test paths, refactoring should be possible
 			relPath := d.SrcPath.Rel()
@@ -428,28 +445,37 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				panic(fmt.Errorf("path %q does not end with %q", dataPath, relPath))
 			}
 
-			dataDest := android.PathForModuleOut(ctx, "image"+suffix, fi.apexRelativePath(relPath), d.RelativeInstallPath).String()
+			dataDest := imageDir.Join(ctx, fi.apexRelativePath(relPath), d.RelativeInstallPath).String()
 
 			copyCommands = append(copyCommands, "cp -f "+d.SrcPath.String()+" "+dataDest)
 			implicitInputs = append(implicitInputs, d.SrcPath)
 		}
 	}
-
-	// TODO(jiyong): use RuleBuilder
-	var emitCommands []string
-	imageContentFile := android.PathForModuleOut(ctx, "content.txt")
-	emitCommands = append(emitCommands, "echo ./apex_manifest.pb >> "+imageContentFile.String())
-	minSdkVersion := a.minSdkVersion(ctx)
-	if minSdkVersion.EqualTo(android.SdkVersion_Android10) {
-		emitCommands = append(emitCommands, "echo ./apex_manifest.json >> "+imageContentFile.String())
-	}
-	for _, fi := range a.filesInfo {
-		emitCommands = append(emitCommands, "echo './"+fi.path()+"' >> "+imageContentFile.String())
-	}
-	emitCommands = append(emitCommands, "sort -o "+imageContentFile.String()+" "+imageContentFile.String())
 	implicitInputs = append(implicitInputs, a.manifestPbOut)
 
+	////////////////////////////////////////////////////////////////////////////////////////////
+	// Step 1.a: Write the list of files in this APEX to a txt file and compare it against
+	// the allowed list given via the allowed_files property. Build fails when the two lists
+	// differ.
+	//
+	// TODO(jiyong): consider removing this. Nobody other than com.android.apex.cts.shim.* seems
+	// to be using this at this moment. Furthermore, this looks very similar to what
+	// buildInstalledFilesFile does. At least, move this to somewhere else so that this doesn't
+	// hurt readability.
+	// TODO(jiyong): use RuleBuilder
 	if a.overridableProperties.Allowed_files != nil {
+		// Build content.txt
+		var emitCommands []string
+		imageContentFile := android.PathForModuleOut(ctx, "content.txt")
+		emitCommands = append(emitCommands, "echo ./apex_manifest.pb >> "+imageContentFile.String())
+		minSdkVersion := a.minSdkVersion(ctx)
+		if minSdkVersion.EqualTo(android.SdkVersion_Android10) {
+			emitCommands = append(emitCommands, "echo ./apex_manifest.json >> "+imageContentFile.String())
+		}
+		for _, fi := range a.filesInfo {
+			emitCommands = append(emitCommands, "echo './"+fi.path()+"' >> "+imageContentFile.String())
+		}
+		emitCommands = append(emitCommands, "sort -o "+imageContentFile.String()+" "+imageContentFile.String())
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        emitApexContentRule,
 			Implicits:   implicitInputs,
@@ -460,8 +486,9 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			},
 		})
 		implicitInputs = append(implicitInputs, imageContentFile)
-		allowedFilesFile := android.PathForModuleSrc(ctx, proptools.String(a.overridableProperties.Allowed_files))
 
+		// Compare content.txt against allowed_files.
+		allowedFilesFile := android.PathForModuleSrc(ctx, proptools.String(a.overridableProperties.Allowed_files))
 		phonyOutput := android.PathForModuleOut(ctx, a.Name()+"-diff-phony-output")
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        diffApexContentRule,
@@ -474,16 +501,19 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				"apex_module_name":   a.Name(),
 			},
 		})
-
 		implicitInputs = append(implicitInputs, phonyOutput)
 	}
 
+	unsignedOutputFile := android.PathForModuleOut(ctx, a.Name()+suffix+".unsigned")
 	outHostBinDir := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "bin").String()
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
 
-	imageDir := android.PathForModuleOut(ctx, "image"+suffix)
 	if apexType == imageApex {
-		// files and dirs that will be created in APEX
+		////////////////////////////////////////////////////////////////////////////////////
+		// Step 2: create canned_fs_config which encodes filemode,uid,gid of each files
+		// in this APEX. The file will be used by apexer in later steps.
+		// TODO(jiyong): make this as a function
+		// TODO(jiyong): use the RuleBuilder
 		var readOnlyPaths = []string{"apex_manifest.json", "apex_manifest.pb"}
 		var executablePaths []string // this also includes dirs
 		var extractedAppSetPaths android.Paths
@@ -528,11 +558,17 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				"apk_paths":  strings.Join(extractedAppSetDirs, " "),
 			},
 		})
+		implicitInputs = append(implicitInputs, cannedFsConfig)
 
+		////////////////////////////////////////////////////////////////////////////////////
+		// Step 3: Prepare option flags for apexer and invoke it to create an unsigned APEX.
+		// TODO(jiyong): use the RuleBuilder
 		optFlags := []string{}
 
-		// Additional implicit inputs.
-		implicitInputs = append(implicitInputs, cannedFsConfig, a.fileContexts, a.private_key_file, a.public_key_file)
+		fileContexts := a.buildFileContexts(ctx)
+		implicitInputs = append(implicitInputs, fileContexts)
+
+		implicitInputs = append(implicitInputs, a.private_key_file, a.public_key_file)
 		optFlags = append(optFlags, "--pubkey "+a.public_key_file.String())
 
 		manifestPackageName := a.getOverrideManifestPackageName(ctx)
@@ -546,15 +582,18 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			optFlags = append(optFlags, "--android_manifest "+androidManifestFile.String())
 		}
 
+		// Determine target/min sdk version from the context
+		// TODO(jiyong): make this as a function
 		moduleMinSdkVersion := a.minSdkVersion(ctx)
 		minSdkVersion := moduleMinSdkVersion.String()
 
-		// bundletool doesn't understand what "current" is. We need to transform it to codename
+		// bundletool doesn't understand what "current" is. We need to transform it to
+		// codename
 		if moduleMinSdkVersion.IsCurrent() {
 			minSdkVersion = ctx.Config().DefaultAppTargetSdk(ctx).String()
 		}
-		// apex module doesn't have a concept of target_sdk_version, hence for the time being
-		// targetSdkVersion == default targetSdkVersion of the branch.
+		// apex module doesn't have a concept of target_sdk_version, hence for the time
+		// being targetSdkVersion == default targetSdkVersion of the branch.
 		targetSdkVersion := strconv.Itoa(ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt())
 
 		if java.UseApiFingerprint(ctx) {
@@ -595,8 +634,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		}
 
 		if a.properties.Apex_name != nil {
-			// If apex_name is set, apexer can skip checking if key name matches with apex name.
-			// Note that apex_manifest is also mended.
+			// If apex_name is set, apexer can skip checking if key name matches with
+			// apex name.  Note that apex_manifest is also mended.
 			optFlags = append(optFlags, "--do_not_check_keyname")
 		}
 
@@ -617,13 +656,14 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				"image_dir":        imageDir.String(),
 				"copy_commands":    strings.Join(copyCommands, " && "),
 				"manifest":         a.manifestPbOut.String(),
-				"file_contexts":    a.fileContexts.String(),
+				"file_contexts":    fileContexts.String(),
 				"canned_fs_config": cannedFsConfig.String(),
 				"key":              a.private_key_file.String(),
 				"opt_flags":        strings.Join(optFlags, " "),
 			},
 		})
 
+		// TODO(jiyong): make the two rules below as separate functions
 		apexProtoFile := android.PathForModuleOut(ctx, a.Name()+".pb"+suffix)
 		bundleModuleFile := android.PathForModuleOut(ctx, a.Name()+suffix+"-base.zip")
 		a.bundleModuleFile = bundleModuleFile
@@ -637,6 +677,15 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 
 		bundleConfig := a.buildBundleConfig(ctx)
 
+		var abis []string
+		for _, target := range ctx.MultiTargets() {
+			if len(target.Arch.Abi) > 0 {
+				abis = append(abis, target.Arch.Abi[0])
+			}
+		}
+
+		abis = android.FirstUniqueStrings(abis)
+
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        apexBundleRule,
 			Input:       apexProtoFile,
@@ -648,7 +697,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				"config": bundleConfig.String(),
 			},
 		})
-	} else {
+	} else { // zipApex
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        zipApexRule,
 			Implicits:   implicitInputs,
@@ -663,16 +712,17 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		})
 	}
 
+	////////////////////////////////////////////////////////////////////////////////////
+	// Step 4: Sign the APEX using signapk
 	a.outputFile = android.PathForModuleOut(ctx, a.Name()+suffix)
+
+	pem, key := a.getCertificateAndPrivateKey(ctx)
 	rule := java.Signapk
 	args := map[string]string{
-		"certificates": a.container_certificate_file.String() + " " + a.container_private_key_file.String(),
+		"certificates": pem.String() + " " + key.String(),
 		"flags":        "-a 4096", //alignment
 	}
-	implicits := android.Paths{
-		a.container_certificate_file,
-		a.container_private_key_file,
-	}
+	implicits := android.Paths{pem, key}
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
 		rule = java.SignapkRE
 		args["implicits"] = strings.Join(implicits.Strings(), ",")
@@ -691,7 +741,6 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	if a.installable() {
 		ctx.InstallFile(a.installDir, a.Name()+suffix, a.outputFile)
 	}
-	a.buildFilesInfo(ctx)
 
 	// installed-files.txt is dist'ed
 	a.installedFilesFile = a.buildInstalledFilesFile(ctx, a.outputFile, imageDir)
@@ -706,58 +755,50 @@ func (c *flattenedApexContext) InstallBypassMake() bool {
 	return true
 }
 
+// buildFlattenedApex creates rules for a flattened APEX. Flattened APEX actually doesn't have a
+// single output file. It is a phony target for all the files under /system/apex/<name> directory.
+// This function creates the installation rules for the files.
 func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
-	// Temporarily wrap the original `ctx` into a `flattenedApexContext` to have it
-	// reply true to `InstallBypassMake()` (thus making the call
-	// `android.PathForModuleInstall` below use `android.pathForInstallInMakeDir`
-	// instead of `android.PathForOutput`) to return the correct path to the flattened
-	// APEX (as its contents is installed by Make, not Soong).
-	factx := flattenedApexContext{ctx}
-	a.outputFile = android.PathForModuleInstall(&factx, "apex", a.Name())
-	a.buildFilesInfo(ctx)
-}
-
-func (a *apexBundle) setCertificateAndPrivateKey(ctx android.ModuleContext) {
-	if a.container_certificate_file == nil {
-		cert := String(a.properties.Certificate)
-		if cert == "" {
-			pem, key := ctx.Config().DefaultAppCertificate(ctx)
-			a.container_certificate_file = pem
-			a.container_private_key_file = key
-		} else {
-			defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
-			a.container_certificate_file = defaultDir.Join(ctx, cert+".x509.pem")
-			a.container_private_key_file = defaultDir.Join(ctx, cert+".pk8")
-		}
-	}
-}
-
-func (a *apexBundle) buildFilesInfo(ctx android.ModuleContext) {
+	bundleName := a.Name()
 	if a.installable() {
-		// For flattened APEX, do nothing but make sure that APEX manifest and apex_pubkey are also copied along
-		// with other ordinary files.
-		a.filesInfo = append(a.filesInfo, newApexFile(ctx, a.manifestPbOut, "apex_manifest.pb", ".", etc, nil))
-
-		// rename to apex_pubkey
-		copiedPubkey := android.PathForModuleOut(ctx, "apex_pubkey")
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Cp,
-			Input:  a.public_key_file,
-			Output: copiedPubkey,
-		})
-		a.filesInfo = append(a.filesInfo, newApexFile(ctx, copiedPubkey, "apex_pubkey", ".", etc, nil))
-
-		if a.properties.ApexType == flattenedApex {
-			apexBundleName := a.Name()
-			for _, fi := range a.filesInfo {
-				dir := filepath.Join("apex", apexBundleName, fi.installDir)
-				target := ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.stem(), fi.builtFile)
-				for _, sym := range fi.symlinks {
-					ctx.InstallSymlink(android.PathForModuleInstall(ctx, dir), sym, target)
-				}
+		for _, fi := range a.filesInfo {
+			dir := filepath.Join("apex", bundleName, fi.installDir)
+			target := ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.stem(), fi.builtFile)
+			for _, sym := range fi.symlinks {
+				ctx.InstallSymlink(android.PathForModuleInstall(ctx, dir), sym, target)
 			}
 		}
 	}
+
+	a.fileContexts = a.buildFileContexts(ctx)
+
+	// Temporarily wrap the original `ctx` into a `flattenedApexContext` to have it reply true
+	// to `InstallBypassMake()` (thus making the call `android.PathForModuleInstall` below use
+	// `android.pathForInstallInMakeDir` instead of `android.PathForOutput`) to return the
+	// correct path to the flattened APEX (as its contents is installed by Make, not Soong).
+	// TODO(jiyong): Why do we need to set outputFile for flattened APEX? We don't seem to use
+	// it and it actually points to a path that can never be built. Remove this.
+	factx := flattenedApexContext{ctx}
+	a.outputFile = android.PathForModuleInstall(&factx, "apex", bundleName)
+}
+
+// getCertificateAndPrivateKey retrieves the cert and the private key that will be used to sign
+// the zip container of this APEX. See the description of the 'certificate' property for how
+// the cert and the private key are found.
+func (a *apexBundle) getCertificateAndPrivateKey(ctx android.PathContext) (pem, key android.Path) {
+	if a.container_certificate_file != nil {
+		return a.container_certificate_file, a.container_private_key_file
+	}
+
+	cert := String(a.properties.Certificate)
+	if cert == "" {
+		return ctx.Config().DefaultAppCertificate(ctx)
+	}
+
+	defaultDir := ctx.Config().DefaultAppCertificateDir(ctx)
+	pem = defaultDir.Join(ctx, cert+".x509.pem")
+	key = defaultDir.Join(ctx, cert+".pk8")
+	return pem, key
 }
 
 func (a *apexBundle) getOverrideManifestPackageName(ctx android.ModuleContext) string {
