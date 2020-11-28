@@ -426,7 +426,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, classLoaderConte
 			// (including the java_sdk_library) itself then append any implicit sdk library
 			// names to the list of sdk libraries to be added to the manifest.
 			if component, ok := module.(SdkLibraryComponentDependency); ok {
-				classLoaderContexts.MaybeAddContext(ctx, component.OptionalImplicitSdkLibrary(), true,
+				classLoaderContexts.MaybeAddContext(ctx, component.OptionalImplicitSdkLibrary(),
 					component.DexJarBuildPath(), component.DexJarInstallPath())
 			}
 

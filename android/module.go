@@ -1579,22 +1579,9 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	ctx.Variable(pctx, "moduleDescSuffix", s)
 
 	// Some common property checks for properties that will be used later in androidmk.go
-	if m.distProperties.Dist.Dest != nil {
-		_, err := validateSafePath(*m.distProperties.Dist.Dest)
-		if err != nil {
-			ctx.PropertyErrorf("dist.dest", "%s", err.Error())
-		}
-	}
-	if m.distProperties.Dist.Dir != nil {
-		_, err := validateSafePath(*m.distProperties.Dist.Dir)
-		if err != nil {
-			ctx.PropertyErrorf("dist.dir", "%s", err.Error())
-		}
-	}
-	if m.distProperties.Dist.Suffix != nil {
-		if strings.Contains(*m.distProperties.Dist.Suffix, "/") {
-			ctx.PropertyErrorf("dist.suffix", "Suffix may not contain a '/' character.")
-		}
+	checkDistProperties(ctx, "dist", &m.distProperties.Dist)
+	for i, _ := range m.distProperties.Dists {
+		checkDistProperties(ctx, fmt.Sprintf("dists[%d]", i), &m.distProperties.Dists[i])
 	}
 
 	if m.Enabled() {
@@ -1657,6 +1644,32 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	m.buildParams = ctx.buildParams
 	m.ruleParams = ctx.ruleParams
 	m.variables = ctx.variables
+}
+
+// Check the supplied dist structure to make sure that it is valid.
+//
+// property - the base property, e.g. dist or dists[1], which is combined with the
+// name of the nested property to produce the full property, e.g. dist.dest or
+// dists[1].dir.
+func checkDistProperties(ctx *moduleContext, property string, dist *Dist) {
+	if dist.Dest != nil {
+		_, err := validateSafePath(*dist.Dest)
+		if err != nil {
+			ctx.PropertyErrorf(property+".dest", "%s", err.Error())
+		}
+	}
+	if dist.Dir != nil {
+		_, err := validateSafePath(*dist.Dir)
+		if err != nil {
+			ctx.PropertyErrorf(property+".dir", "%s", err.Error())
+		}
+	}
+	if dist.Suffix != nil {
+		if strings.Contains(*dist.Suffix, "/") {
+			ctx.PropertyErrorf(property+".suffix", "Suffix may not contain a '/' character.")
+		}
+	}
+
 }
 
 type earlyModuleContext struct {

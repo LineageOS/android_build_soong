@@ -127,13 +127,14 @@ func (s *apexKeysText) GenerateBuildActions(ctx android.SingletonContext) {
 	apexKeyMap := make(map[string]apexKeyEntry)
 	ctx.VisitAllModules(func(module android.Module) {
 		if m, ok := module.(*apexBundle); ok && m.Enabled() && m.installable() {
+			pem, key := m.getCertificateAndPrivateKey(ctx)
 			apexKeyMap[m.Name()] = apexKeyEntry{
 				name:                  m.Name() + ".apex",
 				presigned:             false,
 				public_key:            m.public_key_file.String(),
 				private_key:           m.private_key_file.String(),
-				container_certificate: m.container_certificate_file.String(),
-				container_private_key: m.container_private_key_file.String(),
+				container_certificate: pem.String(),
+				container_private_key: key.String(),
 				partition:             m.PartitionTag(ctx.DeviceConfig()),
 			}
 		}

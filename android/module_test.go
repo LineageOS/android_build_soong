@@ -232,3 +232,51 @@ func TestValidateIncorrectBuildParams(t *testing.T) {
 		t.Errorf("Expected build params to fail validation: %+v", bparams)
 	}
 }
+
+func TestDistErrorChecking(t *testing.T) {
+	bp := `
+		deps {
+			name: "foo",
+      dist: {
+        dest: "../invalid-dest",
+        dir: "../invalid-dir",
+        suffix: "invalid/suffix",
+      },
+      dists: [
+        {
+          dest: "../invalid-dest0",
+          dir: "../invalid-dir0",
+          suffix: "invalid/suffix0",
+        },
+        {
+          dest: "../invalid-dest1",
+          dir: "../invalid-dir1",
+          suffix: "invalid/suffix1",
+        },
+      ],
+ 		}
+	`
+
+	config := TestConfig(buildDir, nil, bp, nil)
+
+	ctx := NewTestContext(config)
+	ctx.RegisterModuleType("deps", depsModuleFactory)
+	ctx.Register()
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
+	FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+
+	expectedErrs := []string{
+		"\\QAndroid.bp:5:13: module \"foo\": dist.dest: Path is outside directory: ../invalid-dest\\E",
+		"\\QAndroid.bp:6:12: module \"foo\": dist.dir: Path is outside directory: ../invalid-dir\\E",
+		"\\QAndroid.bp:7:15: module \"foo\": dist.suffix: Suffix may not contain a '/' character.\\E",
+		"\\QAndroid.bp:11:15: module \"foo\": dists[0].dest: Path is outside directory: ../invalid-dest0\\E",
+		"\\QAndroid.bp:12:14: module \"foo\": dists[0].dir: Path is outside directory: ../invalid-dir0\\E",
+		"\\QAndroid.bp:13:17: module \"foo\": dists[0].suffix: Suffix may not contain a '/' character.\\E",
+		"\\QAndroid.bp:16:15: module \"foo\": dists[1].dest: Path is outside directory: ../invalid-dest1\\E",
+		"\\QAndroid.bp:17:14: module \"foo\": dists[1].dir: Path is outside directory: ../invalid-dir1\\E",
+		"\\QAndroid.bp:18:17: module \"foo\": dists[1].suffix: Suffix may not contain a '/' character.\\E",
+	}
+	CheckErrorsAgainstExpectations(t, errs, expectedErrs)
+}
