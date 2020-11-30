@@ -130,6 +130,16 @@ func shouldCreateSourceAbiDumpForLibrary(ctx android.BaseModuleContext) bool {
 
 	// Module is shared library type.
 
+	// Don't check uninstallable modules.
+	if m.IsSkipInstall() {
+		return false
+	}
+
+	// Don't check ramdisk or recovery variants. Only check core, vendor or product variants.
+	if m.InRamdisk() || m.InVendorRamdisk() || m.InRecovery() {
+		return false
+	}
+
 	// Don't create ABI dump for prebuilts.
 	if m.Prebuilt() != nil || m.isSnapshotPrebuilt() {
 		return false
@@ -150,17 +160,17 @@ func shouldCreateSourceAbiDumpForLibrary(ctx android.BaseModuleContext) bool {
 		return false
 	}
 
-	// Special case for APEX variants.
-	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
-		// Don't create ABI dump if this library is for APEX but isn't exported.
-		if !m.HasStubsVariants() {
+	isPlatformVariant := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
+	if isPlatformVariant {
+		// Bionic libraries that are installed to the bootstrap directory are not ABI checked.
+		// Only the runtime APEX variants, which are the implementation libraries of bionic NDK stubs,
+		// are checked.
+		if InstallToBootstrap(m.BaseModuleName(), ctx.Config()) {
 			return false
 		}
-		if !m.library.headerAbiCheckerEnabled() {
-			// Skip ABI checks if this library is for APEX and did not explicitly enable
-			// ABI checks.
-			// TODO(b/145608479): ABI checks should be enabled by default. Remove this
-			// after evaluating the extra build time.
+	} else {
+		// Don't create ABI dump if this library is for APEX but isn't exported.
+		if !m.HasStubsVariants() {
 			return false
 		}
 	}
