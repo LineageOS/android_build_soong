@@ -166,6 +166,10 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			product_available: true,
 			recovery_available: true,
 			src: "",
+			apex_available: [
+				"//apex_available:platform",
+				"//apex_available:anyapex",
+			],
 		}
 
 		toolchain_library {

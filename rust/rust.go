@@ -74,6 +74,7 @@ type BaseProperties struct {
 type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.ApexModuleBase
 
 	Properties BaseProperties
 
@@ -88,6 +89,8 @@ type Module struct {
 	subAndroidMkOnce map[SubAndroidMkProvider]bool
 
 	outputFile android.OptionalPath
+
+	hideApexVariantFromMake bool
 }
 
 func (mod *Module) OutputFiles(tag string) (android.Paths, error) {
@@ -508,6 +511,7 @@ func (mod *Module) Init() android.Module {
 	}
 
 	android.InitAndroidArchModule(mod, mod.hod, mod.multilib)
+	android.InitApexModule(mod)
 
 	android.InitDefaultableModule(mod)
 	return mod
@@ -605,6 +609,11 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		ModuleContext: actx,
 	}
 
+	apexInfo := actx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	if !apexInfo.IsForPlatform() {
+		mod.hideApexVariantFromMake = true
+	}
+
 	toolchain := mod.toolchain(ctx)
 
 	if !toolchain.Supported() {
@@ -693,6 +702,11 @@ var (
 	testPerSrcDepTag    = dependencyTag{name: "rust_unit_tests"}
 	sourceDepTag        = dependencyTag{name: "source"}
 )
+
+func IsDylibDepTag(depTag blueprint.DependencyTag) bool {
+	tag, ok := depTag.(dependencyTag)
+	return ok && tag == dylibDepTag
+}
 
 type autoDep struct {
 	variation string
@@ -1050,6 +1064,58 @@ func (mod *Module) HostToolPath() android.OptionalPath {
 		return android.OptionalPathForPath(binary.baseCompiler.path)
 	}
 	return android.OptionalPath{}
+}
+
+var _ android.ApexModule = (*Module)(nil)
+
+func (mod *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
+	return nil
+}
+
+func (mod *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	depTag := ctx.OtherModuleDependencyTag(dep)
+
+	if ccm, ok := dep.(*cc.Module); ok {
+		if ccm.HasStubsVariants() {
+			if cc.IsSharedDepTag(depTag) {
+				// dynamic dep to a stubs lib crosses APEX boundary
+				return false
+			}
+			if cc.IsRuntimeDepTag(depTag) {
+				// runtime dep to a stubs lib also crosses APEX boundary
+				return false
+			}
+
+			if cc.IsHeaderDepTag(depTag) {
+				return false
+			}
+		}
+		if mod.Static() && cc.IsSharedDepTag(depTag) {
+			// shared_lib dependency from a static lib is considered as crossing
+			// the APEX boundary because the dependency doesn't actually is
+			// linked; the dependency is used only during the compilation phase.
+			return false
+		}
+	}
+
+	if depTag == procMacroDepTag {
+		return false
+	}
+
+	return true
+}
+
+// Overrides ApexModule.IsInstallabeToApex()
+func (mod *Module) IsInstallableToApex() bool {
+	if mod.compiler != nil {
+		if lib, ok := mod.compiler.(*libraryDecorator); ok && (lib.shared() || lib.dylib()) {
+			return true
+		}
+		if _, ok := mod.compiler.(*binaryDecorator); ok {
+			return true
+		}
+	}
+	return false
 }
 
 var Bool = proptools.Bool
