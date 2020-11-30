@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/cc"
 )
 
 func TestClippy(t *testing.T) {
@@ -45,6 +46,7 @@ func TestClippy(t *testing.T) {
 		}`
 
 	bp = bp + GatherRequiredDepsForTest()
+	bp = bp + cc.GatherRequiredDepsForTest(android.NoOsType)
 
 	fs := map[string][]byte{
 		// Reuse the same blueprint file for subdirectories.
