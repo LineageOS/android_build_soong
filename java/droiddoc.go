@@ -1050,7 +1050,8 @@ func (d *Droidstubs) OutputFiles(tag string) (android.Paths, error) {
 		return android.Paths{d.stubsSrcJar}, nil
 	case ".docs.zip":
 		return android.Paths{d.docZip}, nil
-	case ".api.txt":
+	case ".api.txt", android.DefaultDistTag:
+		// This is the default dist path for dist properties that have no tag property.
 		return android.Paths{d.apiFilePath}, nil
 	case ".removed-api.txt":
 		return android.Paths{d.removedApiFilePath}, nil
