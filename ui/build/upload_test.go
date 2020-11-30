@@ -62,16 +62,16 @@ func TestUploadMetrics(t *testing.T) {
 			}
 			defer os.RemoveAll(outDir)
 
-			// Supply our own getTmpDir to delete the temp dir once the test is done.
-			orgGetTmpDir := getTmpDir
-			getTmpDir = func(string, string) (string, error) {
+			// Supply our own tmpDir to delete the temp dir once the test is done.
+			orgTmpDir := tmpDir
+			tmpDir = func(string, string) (string, error) {
 				retDir := filepath.Join(outDir, "tmp_upload_dir")
 				if err := os.Mkdir(retDir, 0755); err != nil {
 					t.Fatalf("failed to create temporary directory %q: %v", retDir, err)
 				}
 				return retDir, nil
 			}
-			defer func() { getTmpDir = orgGetTmpDir }()
+			defer func() { tmpDir = orgTmpDir }()
 
 			metricsUploadDir := filepath.Join(outDir, ".metrics_uploader")
 			if err := os.Mkdir(metricsUploadDir, 0755); err != nil {
@@ -134,11 +134,11 @@ func TestUploadMetricsErrors(t *testing.T) {
 			}
 			defer os.RemoveAll(outDir)
 
-			orgGetTmpDir := getTmpDir
-			getTmpDir = func(string, string) (string, error) {
+			orgTmpDir := tmpDir
+			tmpDir = func(string, string) (string, error) {
 				return tt.tmpDir, tt.tmpDirErr
 			}
-			defer func() { getTmpDir = orgGetTmpDir }()
+			defer func() { tmpDir = orgTmpDir }()
 
 			metricsFile := filepath.Join(outDir, "metrics_file_1")
 			if err := ioutil.WriteFile(metricsFile, []byte("test file"), 0644); err != nil {
