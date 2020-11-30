@@ -1281,11 +1281,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 			Include_dirs       []string
 			Local_include_dirs []string
 		}
-		Dist struct {
-			Targets []string
-			Dest    *string
-			Dir     *string
-		}
+		Dists []android.Dist
 	}{}
 
 	// The stubs source processing uses the same compile time classpath when extracting the
@@ -1385,11 +1381,23 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		}
 	}
 
-	// Dist the api txt artifact for sdk builds.
 	if !Bool(module.sdkLibraryProperties.No_dist) {
-		props.Dist.Targets = []string{"sdk", "win_sdk"}
-		props.Dist.Dest = proptools.StringPtr(fmt.Sprintf("%v.txt", module.distStem()))
-		props.Dist.Dir = proptools.StringPtr(path.Join(module.apiDistPath(apiScope), "api"))
+		// Dist the api txt and removed api txt artifacts for sdk builds.
+		distDir := proptools.StringPtr(path.Join(module.apiDistPath(apiScope), "api"))
+		for _, p := range []struct {
+			tag     string
+			pattern string
+		}{
+			{tag: ".api.txt", pattern: "%s.txt"},
+			{tag: ".removed-api.txt", pattern: "%s-removed.txt"},
+		} {
+			props.Dists = append(props.Dists, android.Dist{
+				Targets: []string{"sdk", "win_sdk"},
+				Dir:     distDir,
+				Dest:    proptools.StringPtr(fmt.Sprintf(p.pattern, module.distStem())),
+				Tag:     proptools.StringPtr(p.tag),
+			})
+		}
 	}
 
 	mctx.CreateModule(DroidstubsFactory, &props)
