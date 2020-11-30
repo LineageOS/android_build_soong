@@ -75,6 +75,10 @@ toolchain_library {
     product_available: true,
     recovery_available: true,
     native_bridge_supported: true,
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
 
     arch: {
         arm: {
