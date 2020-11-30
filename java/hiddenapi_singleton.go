@@ -259,7 +259,7 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 		FlagWithInput("--blocked ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-force-blocked.txt")).
 		FlagWithInput("--blocked ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-temp-blocklist.txt")).
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-temp-blocklist.txt")).FlagWithArg("--tag ", "lo-prio").
 		FlagWithInput("--unsupported ", android.PathForSource(
 			ctx, "frameworks/base/config/hiddenapi-unsupported-packages.txt")).Flag("--packages ").
 		FlagWithOutput("--output ", tempPath)
