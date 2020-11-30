@@ -486,6 +486,8 @@ func (j *Module) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
 	case "":
 		return append(android.Paths{j.outputFile}, j.extraOutputFiles...), nil
+	case android.DefaultDistTag:
+		return android.Paths{j.outputFile}, nil
 	case ".jar":
 		return android.Paths{j.implementationAndResourcesJar}, nil
 	case ".proguard_map":

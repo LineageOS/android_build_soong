@@ -1096,7 +1096,8 @@ var _ android.OutputFileProducer = (*apexBundle)(nil)
 // Implements android.OutputFileProducer
 func (a *apexBundle) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
-	case "":
+	case "", android.DefaultDistTag:
+		// This is the default dist path.
 		return android.Paths{a.outputFile}, nil
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
