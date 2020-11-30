@@ -35,6 +35,10 @@ type customModule struct {
 	data       AndroidMkData
 	distFiles  TaggedDistFiles
 	outputFile OptionalPath
+
+	// The paths that will be used as the default dist paths if no tag is
+	// specified.
+	defaultDistPaths Paths
 }
 
 const (
@@ -48,7 +52,14 @@ func (m *customModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	// If the dist_output_file: true then create an output file that is stored in
 	// the OutputFile property of the AndroidMkEntry.
 	if proptools.BoolDefault(m.properties.Dist_output_file, true) {
-		m.outputFile = OptionalPathForPath(PathForTesting("dist-output-file.out"))
+		path := PathForTesting("dist-output-file.out")
+		m.outputFile = OptionalPathForPath(path)
+
+		// Previous code would prioritize the DistFiles property over the OutputFile
+		// property in AndroidMkEntry when determining the default dist paths.
+		// Setting this first allows it to be overridden based on the
+		// default_dist_files setting replicating that previous behavior.
+		m.defaultDistPaths = Paths{path}
 	}
 
 	// Based on the setting of the default_dist_files property possibly create a
@@ -60,9 +71,22 @@ func (m *customModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 		// Do nothing
 
 	case defaultDistFiles_Default:
-		m.distFiles = MakeDefaultDistFiles(PathForTesting("default-dist.out"))
+		path := PathForTesting("default-dist.out")
+		m.defaultDistPaths = Paths{path}
+		m.distFiles = MakeDefaultDistFiles(path)
 
 	case defaultDistFiles_Tagged:
+		// Module types that set AndroidMkEntry.DistFiles to the result of calling
+		// GenerateTaggedDistFiles(ctx) relied on no tag being treated as "" which
+		// meant that the default dist paths would be whatever was returned by
+		// OutputFiles(""). In order to preserve that behavior when treating no tag
+		// as being equal to DefaultDistTag this ensures that
+		// OutputFiles(DefaultDistTag) will return the same as OutputFiles("").
+		m.defaultDistPaths = PathsForTesting("one.out")
+
+		// This must be called after setting defaultDistPaths/outputFile as
+		// GenerateTaggedDistFiles calls into OutputFiles(tag) which may use those
+		// fields.
 		m.distFiles = m.GenerateTaggedDistFiles(ctx)
 	}
 }
@@ -77,6 +101,12 @@ func (m *customModule) AndroidMk() AndroidMkData {
 
 func (m *customModule) OutputFiles(tag string) (Paths, error) {
 	switch tag {
+	case DefaultDistTag:
+		if m.defaultDistPaths != nil {
+			return m.defaultDistPaths, nil
+		} else {
+			return nil, fmt.Errorf("default dist tag is not available")
+		}
 	case "":
 		return PathsForTesting("one.out"), nil
 	case ".multiple":
