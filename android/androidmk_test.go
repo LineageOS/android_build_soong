@@ -601,8 +601,6 @@ func TestGetDistContributions(t *testing.T) {
 					{
 						targets: ["my_goal"],
 					},
-					// The following is silently ignored because the dist files do not
-					// contain the tagged files.
 					{
 						targets: ["my_goal"],
 						tag: ".multiple",
@@ -615,6 +613,13 @@ func TestGetDistContributions(t *testing.T) {
 				goals: "my_goal",
 				copies: []distCopy{
 					distCopyForTest("default-dist.out", "default-dist.out"),
+				},
+			},
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("two.out", "two.out"),
+					distCopyForTest("three/four.out", "four.out"),
 				},
 			},
 		},
@@ -631,15 +636,23 @@ func TestGetDistContributions(t *testing.T) {
 					{
 						targets: ["my_goal"],
 					},
-					// The following is silently ignored because the dist files do not
-					// contain the tagged files.
 					{
 						targets: ["my_goal"],
 						tag: ".multiple",
 					},
 				],
 			}
-`, nil)
+`, &distContributions{
+		copiesForGoals: []*copiesForGoals{
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("two.out", "two.out"),
+					distCopyForTest("three/four.out", "four.out"),
+				},
+			},
+		},
+	})
 
 	testHelper(t, "tagged-dist-files-default-output", `
 			custom {
@@ -683,8 +696,6 @@ func TestGetDistContributions(t *testing.T) {
 					{
 						targets: ["my_goal"],
 					},
-					// The following is silently ignored because the dist files do not
-					// contain the tagged files.
 					{
 						targets: ["my_goal"],
 						tag: ".multiple",
@@ -699,6 +710,13 @@ func TestGetDistContributions(t *testing.T) {
 					distCopyForTest("default-dist.out", "default-dist.out"),
 				},
 			},
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("two.out", "two.out"),
+					distCopyForTest("three/four.out", "four.out"),
+				},
+			},
 		},
 	})
 
@@ -711,8 +729,6 @@ func TestGetDistContributions(t *testing.T) {
 					{
 						targets: ["my_goal"],
 					},
-					// The following is silently ignored because the dist files do not
-					// contain the tagged files.
 					{
 						targets: ["my_goal"],
 						tag: ".multiple",
@@ -725,6 +741,13 @@ func TestGetDistContributions(t *testing.T) {
 				goals: "my_goal",
 				copies: []distCopy{
 					distCopyForTest("dist-output-file.out", "dist-output-file.out"),
+				},
+			},
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("two.out", "two.out"),
+					distCopyForTest("three/four.out", "four.out"),
 				},
 			},
 		},

@@ -238,6 +238,15 @@ func (a *AndroidMkEntries) getDistContributions(mod blueprint.Module) *distContr
 		availableTaggedDists = availableTaggedDists.addPathsForTag(DefaultDistTag, a.OutputFile.Path())
 	}
 
+	// If the distFiles created by GenerateTaggedDistFiles contains paths for the
+	// DefaultDistTag then that takes priority so delete any existing paths.
+	if _, ok := amod.distFiles[DefaultDistTag]; ok {
+		delete(availableTaggedDists, DefaultDistTag)
+	}
+
+	// Finally, merge the distFiles created by GenerateTaggedDistFiles.
+	availableTaggedDists = availableTaggedDists.merge(amod.distFiles)
+
 	if len(availableTaggedDists) == 0 {
 		// Nothing dist-able for this module.
 		return nil
