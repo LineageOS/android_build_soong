@@ -53,6 +53,12 @@ type customModule struct {
 	android.ModuleBase
 }
 
+// OutputFiles is needed because some instances of this module use dist with a
+// tag property which requires the module implements OutputFileProducer.
+func (m *customModule) OutputFiles(tag string) (android.Paths, error) {
+	return android.PathsForTesting("path" + tag), nil
+}
+
 func (m *customModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// nothing for now.
 }
