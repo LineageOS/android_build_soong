@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// A genrule module takes a list of source files ("srcs" property), an optional
+// list of tools ("tools" property), and a command line ("cmd" property), to
+// generate output files ("out" property).
+
 package genrule
 
 import (
@@ -47,6 +51,8 @@ func RegisterGenruleBuildComponents(ctx android.RegistrationContext) {
 var (
 	pctx = android.NewPackageContext("android/soong/genrule")
 
+	// Used by gensrcs when there is more than 1 shard to merge the outputs
+	// of each shard into a zip file.
 	gensrcsMerge = pctx.AndroidStaticRule("gensrcsMerge", blueprint.RuleParams{
 		Command:        "${soongZip} -o ${tmpZip} @${tmpZip}.rsp && ${zipSync} -d ${genDir} ${tmpZip}",
 		CommandDeps:    []string{"${soongZip}", "${zipSync}"},
@@ -115,6 +121,7 @@ type generatorProperties struct {
 	// Properties for Bazel migration purposes.
 	bazel.Properties
 }
+
 type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
@@ -127,6 +134,9 @@ type Module struct {
 
 	properties generatorProperties
 
+	// For the different tasks that genrule and gensrc generate. genrule will
+	// generate 1 task, and gensrc will generate 1 or more tasks based on the
+	// number of shards the input files are sharded into.
 	taskGenerator taskFunc
 
 	deps        android.Paths
@@ -151,11 +161,12 @@ type generateTask struct {
 	in         android.Paths
 	out        android.WritablePaths
 	depFile    android.WritablePath
-	copyTo     android.WritablePaths
+	copyTo     android.WritablePaths // For gensrcs to set on gensrcsMerge rule.
 	genDir     android.WritablePath
 	extraTools android.Paths // dependencies on tools used by the generator
 
-	cmd    string
+	cmd string
+	// For gensrsc sharding.
 	shard  int
 	shards int
 }
@@ -324,6 +335,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var outputFiles android.WritablePaths
 	var zipArgs strings.Builder
 
+	// Generate tasks, either from genrule or gensrcs.
 	for _, task := range g.taskGenerator(ctx, String(g.properties.Cmd), srcFiles) {
 		if len(task.out) == 0 {
 			ctx.ModuleErrorf("must have at least one output file")

@@ -665,7 +665,7 @@ func (p DirectorySortedPaths) PathsInDirectory(dir string) Paths {
 	return Paths(ret)
 }
 
-// WritablePaths is a slice of WritablePaths, used for multiple outputs.
+// WritablePaths is a slice of WritablePath, used for multiple outputs.
 type WritablePaths []WritablePath
 
 // Strings returns the string forms of the writable paths.
