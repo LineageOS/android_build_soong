@@ -46,7 +46,7 @@ func init() {
 var _ SourceProvider = (*protobufDecorator)(nil)
 
 type ProtobufProperties struct {
-	// List of realtive paths to proto files that will be used to generate the source
+	// List of relative paths to proto files that will be used to generate the source
 	Protos []string `android:"path,arch_variant"`
 
 	// List of additional flags to pass to aprotoc
@@ -80,6 +80,10 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 
 	protoFiles := android.PathsForModuleSrc(ctx, proto.Properties.Protos)
 
+	if len(protoFiles) == 0 {
+		ctx.PropertyErrorf("protos", "at least one protobuf must be defined.")
+	}
+
 	// Add exported dependency include paths
 	for _, include := range deps.depIncludePaths {
 		protoFlags.Flags = append(protoFlags.Flags, "-I"+include.String())
@@ -91,7 +95,7 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 	stemFile := android.PathForModuleOut(ctx, "mod_"+stem+".rs")
 
 	// stemFile must be first here as the first path in BaseSourceProvider.OutputFiles is the library entry-point.
-	outputs := android.WritablePaths{stemFile}
+	var outputs android.WritablePaths
 
 	rule := android.NewRuleBuilder(pctx, ctx)
 	for _, protoFile := range protoFiles {
@@ -112,14 +116,12 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 		outputs = append(outputs, ruleOutputs...)
 	}
 
-	rule.Command().
-		Implicits(outputs.Paths()).
-		Text("printf '" + proto.genModFileContents(ctx, protoNames) + "' >").
-		Output(stemFile)
+	android.WriteFileRule(ctx, stemFile, proto.genModFileContents(ctx, protoNames))
 
 	rule.Build("protoc_"+ctx.ModuleName(), "protoc "+ctx.ModuleName())
 
-	proto.BaseSourceProvider.OutputFiles = outputs.Paths()
+	// stemFile must be first here as the first path in BaseSourceProvider.OutputFiles is the library entry-point.
+	proto.BaseSourceProvider.OutputFiles = append(android.Paths{stemFile}, outputs.Paths()...)
 
 	// mod_stem.rs is the entry-point for our library modules, so this is what we return.
 	return stemFile
@@ -145,7 +147,7 @@ func (proto *protobufDecorator) genModFileContents(ctx ModuleContext, protoNames
 			"}")
 	}
 
-	return strings.Join(lines, "\\n")
+	return strings.Join(lines, "\n")
 }
 
 func (proto *protobufDecorator) setupPlugin(ctx ModuleContext, protoFlags android.ProtoFlags, outDir android.ModuleOutPath) (android.Paths, android.ProtoFlags) {
