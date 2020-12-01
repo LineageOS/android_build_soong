@@ -229,8 +229,7 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(entries *android.AndroidMkEntries) {
 				s.customAndroidMkEntries(entries)
-
-				entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", s.testProperties.Test_suites...)
+				entries.AddCompatibilityTestSuites(s.testProperties.Test_suites...)
 				if s.testConfig != nil {
 					entries.SetPath("LOCAL_FULL_TEST_CONFIG", s.testConfig)
 				}

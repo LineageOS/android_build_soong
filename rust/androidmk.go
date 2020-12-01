@@ -82,7 +82,7 @@ func (test *testDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidM
 	ret.Class = "NATIVE_TESTS"
 	ret.SubName = test.getMutatedModuleSubName(ctx.Name())
 	ret.ExtraEntries = append(ret.ExtraEntries, func(entries *android.AndroidMkEntries) {
-		entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", test.Properties.Test_suites...)
+		entries.AddCompatibilityTestSuites(test.Properties.Test_suites...)
 		if test.testConfig != nil {
 			entries.SetString("LOCAL_FULL_TEST_CONFIG", test.testConfig.String())
 		}

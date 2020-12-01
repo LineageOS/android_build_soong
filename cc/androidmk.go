@@ -338,8 +338,7 @@ func (benchmark *benchmarkDecorator) AndroidMkEntries(ctx AndroidMkContext, entr
 	entries.Class = "NATIVE_TESTS"
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		if len(benchmark.Properties.Test_suites) > 0 {
-			entries.SetString("LOCAL_COMPATIBILITY_SUITE",
-				strings.Join(benchmark.Properties.Test_suites, " "))
+			entries.AddCompatibilityTestSuites(benchmark.Properties.Test_suites...)
 		}
 		if benchmark.testConfig != nil {
 			entries.SetString("LOCAL_FULL_TEST_CONFIG", benchmark.testConfig.String())
@@ -361,8 +360,7 @@ func (test *testBinary) AndroidMkEntries(ctx AndroidMkContext, entries *android.
 	}
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		if len(test.Properties.Test_suites) > 0 {
-			entries.SetString("LOCAL_COMPATIBILITY_SUITE",
-				strings.Join(test.Properties.Test_suites, " "))
+			entries.AddCompatibilityTestSuites(test.Properties.Test_suites...)
 		}
 		if test.testConfig != nil {
 			entries.SetString("LOCAL_FULL_TEST_CONFIG", test.testConfig.String())

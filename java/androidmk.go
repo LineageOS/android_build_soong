@@ -151,9 +151,9 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 func testSuiteComponent(entries *android.AndroidMkEntries, test_suites []string) {
 	entries.SetString("LOCAL_MODULE_TAGS", "tests")
 	if len(test_suites) > 0 {
-		entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", test_suites...)
+		entries.AddCompatibilityTestSuites(test_suites...)
 	} else {
-		entries.SetString("LOCAL_COMPATIBILITY_SUITE", "null-suite")
+		entries.AddCompatibilityTestSuites("null-suite")
 	}
 }
 
