@@ -29,56 +29,44 @@ func CopyOf(s []string) []string {
 	return append([]string(nil), s...)
 }
 
+// JoinWithPrefix prepends the prefix to each string in the list and
+// returns them joined together with " " as separator.
 func JoinWithPrefix(strs []string, prefix string) string {
 	if len(strs) == 0 {
 		return ""
 	}
 
-	if len(strs) == 1 {
-		return prefix + strs[0]
+	var buf strings.Builder
+	buf.WriteString(prefix)
+	buf.WriteString(strs[0])
+	for i := 1; i < len(strs); i++ {
+		buf.WriteString(" ")
+		buf.WriteString(prefix)
+		buf.WriteString(strs[i])
 	}
-
-	n := len(" ") * (len(strs) - 1)
-	for _, s := range strs {
-		n += len(prefix) + len(s)
-	}
-
-	ret := make([]byte, 0, n)
-	for i, s := range strs {
-		if i != 0 {
-			ret = append(ret, ' ')
-		}
-		ret = append(ret, prefix...)
-		ret = append(ret, s...)
-	}
-	return string(ret)
+	return buf.String()
 }
 
+// JoinWithSuffix appends the suffix to each string in the list and
+// returns them joined together with given separator.
 func JoinWithSuffix(strs []string, suffix string, separator string) string {
 	if len(strs) == 0 {
 		return ""
 	}
 
-	if len(strs) == 1 {
-		return strs[0] + suffix
+	var buf strings.Builder
+	buf.WriteString(strs[0])
+	buf.WriteString(suffix)
+	for i := 1; i < len(strs); i++ {
+		buf.WriteString(separator)
+		buf.WriteString(strs[i])
+		buf.WriteString(suffix)
 	}
-
-	n := len(" ") * (len(strs) - 1)
-	for _, s := range strs {
-		n += len(suffix) + len(s)
-	}
-
-	ret := make([]byte, 0, n)
-	for i, s := range strs {
-		if i != 0 {
-			ret = append(ret, separator...)
-		}
-		ret = append(ret, s...)
-		ret = append(ret, suffix...)
-	}
-	return string(ret)
+	return buf.String()
 }
 
+// SortedIntKeys returns the keys of the given integer-keyed map in the ascending order
+// TODO(asmundak): once Go has generics, combine this with SortedStringKeys below.
 func SortedIntKeys(m interface{}) []int {
 	v := reflect.ValueOf(m)
 	if v.Kind() != reflect.Map {
@@ -93,6 +81,7 @@ func SortedIntKeys(m interface{}) []int {
 	return s
 }
 
+// SorterStringKeys returns the keys of the given string-keyed map in the ascending order
 func SortedStringKeys(m interface{}) []string {
 	v := reflect.ValueOf(m)
 	if v.Kind() != reflect.Map {
@@ -107,6 +96,7 @@ func SortedStringKeys(m interface{}) []string {
 	return s
 }
 
+// SortedStringMapValues returns the values of the string-values map in the ascending order
 func SortedStringMapValues(m interface{}) []string {
 	v := reflect.ValueOf(m)
 	if v.Kind() != reflect.Map {
@@ -121,6 +111,7 @@ func SortedStringMapValues(m interface{}) []string {
 	return s
 }
 
+// IndexList returns the index of the first occurrence of the given string in the list or -1
 func IndexList(s string, list []string) int {
 	for i, l := range list {
 		if l == s {
@@ -131,6 +122,7 @@ func IndexList(s string, list []string) int {
 	return -1
 }
 
+// InList checks if the string belongs to the list
 func InList(s string, list []string) bool {
 	return IndexList(s, list) != -1
 }
@@ -176,7 +168,10 @@ func IndexListPred(pred func(s string) bool, list []string) int {
 	return -1
 }
 
+// FilterList divides the string list into two lists: one with the strings belonging
+// to the given filter list, and the other with the remaining ones
 func FilterList(list []string, filter []string) (remainder []string, filtered []string) {
+	// InList is O(n). May be worth using more efficient lookup for longer lists.
 	for _, l := range list {
 		if InList(l, filter) {
 			filtered = append(filtered, l)
@@ -188,6 +183,8 @@ func FilterList(list []string, filter []string) (remainder []string, filtered []
 	return
 }
 
+// RemoveListFromList removes the strings belonging to the filter list from the
+// given list and returns the result
 func RemoveListFromList(list []string, filter_out []string) (result []string) {
 	result = make([]string, 0, len(list))
 	for _, l := range list {
@@ -198,20 +195,18 @@ func RemoveListFromList(list []string, filter_out []string) (result []string) {
 	return
 }
 
+// RemoveFromList removes given string from the string list.
 func RemoveFromList(s string, list []string) (bool, []string) {
-	i := IndexList(s, list)
-	if i == -1 {
-		return false, list
-	}
-
-	result := make([]string, 0, len(list)-1)
-	result = append(result, list[:i]...)
-	for _, l := range list[i+1:] {
-		if l != s {
-			result = append(result, l)
+	result := make([]string, 0, len(list))
+	var removed bool
+	for _, item := range list {
+		if item != s {
+			result = append(result, item)
+		} else {
+			removed = true
 		}
 	}
-	return true, result
+	return removed, result
 }
 
 // FirstUniqueStrings returns all unique elements of a slice of strings, keeping the first copy of
@@ -317,11 +312,10 @@ func callerName(skip int) (pkgPath, funcName string, ok bool) {
 	return s[1], s[2], true
 }
 
+// GetNumericSdkVersion removes the first occurrence of system_ in a string,
+// which is assumed to be something like "system_1.2.3"
 func GetNumericSdkVersion(v string) string {
-	if strings.Contains(v, "system_") {
-		return strings.Replace(v, "system_", "", 1)
-	}
-	return v
+	return strings.Replace(v, "system_", "", 1)
 }
 
 // copied from build/kati/strutil.go
@@ -334,17 +328,17 @@ func substPattern(pat, repl, str string) string {
 		return str
 	}
 	in := str
-	trimed := str
+	trimmed := str
 	if ps[0] != "" {
-		trimed = strings.TrimPrefix(in, ps[0])
-		if trimed == in {
+		trimmed = strings.TrimPrefix(in, ps[0])
+		if trimmed == in {
 			return str
 		}
 	}
-	in = trimed
+	in = trimmed
 	if ps[1] != "" {
-		trimed = strings.TrimSuffix(in, ps[1])
-		if trimed == in {
+		trimmed = strings.TrimSuffix(in, ps[1])
+		if trimmed == in {
 			return str
 		}
 	}
@@ -353,7 +347,7 @@ func substPattern(pat, repl, str string) string {
 	if len(rs) != 2 {
 		return repl
 	}
-	return rs[0] + trimed + rs[1]
+	return rs[0] + trimmed + rs[1]
 }
 
 // copied from build/kati/strutil.go
@@ -424,13 +418,15 @@ func ShardStrings(s []string, shardSize int) [][]string {
 	return ret
 }
 
+// CheckDuplicate checks if there are duplicates in given string list.
+// If there are, it returns first such duplicate and true.
 func CheckDuplicate(values []string) (duplicate string, found bool) {
 	seen := make(map[string]string)
 	for _, v := range values {
 		if duplicate, found = seen[v]; found {
-			return
+			return duplicate, true
 		}
 		seen[v] = v
 	}
-	return
+	return "", false
 }
