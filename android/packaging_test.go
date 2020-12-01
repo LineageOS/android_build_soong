@@ -17,6 +17,8 @@ package android
 import (
 	"reflect"
 	"testing"
+
+	"github.com/google/blueprint"
 )
 
 // Module to be packaged
@@ -61,7 +63,7 @@ func packageTestModuleFactory() Module {
 }
 
 func (m *packageTestModule) DepsMutator(ctx BottomUpMutatorContext) {
-	m.AddDeps(ctx)
+	m.AddDeps(ctx, struct{ blueprint.BaseDependencyTag }{})
 }
 
 func (m *packageTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
