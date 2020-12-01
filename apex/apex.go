@@ -1697,6 +1697,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						filesInfo = append(filesInfo, af)
 						return true // track transitive dependencies
 					}
+				} else if cc.IsHeaderDepTag(depTag) {
+					// nothing
 				} else if java.IsJniDepTag(depTag) {
 					// Because APK-in-APEX embeds jni_libs transitively, we don't need to track transitive deps
 					return false
