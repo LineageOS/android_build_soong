@@ -18,6 +18,8 @@ import (
 	"fmt"
 
 	"android/soong/android"
+
+	"github.com/google/blueprint"
 )
 
 func init() {
@@ -36,8 +38,10 @@ func filesystemFactory() android.Module {
 	return module
 }
 
+var dependencyTag = struct{ blueprint.BaseDependencyTag }{}
+
 func (f *filesystem) DepsMutator(ctx android.BottomUpMutatorContext) {
-	f.AddDeps(ctx)
+	f.AddDeps(ctx, dependencyTag)
 }
 
 var pctx = android.NewPackageContext("android/soong/filesystem")

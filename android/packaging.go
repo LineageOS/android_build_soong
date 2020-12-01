@@ -45,7 +45,8 @@ type PackageModule interface {
 	packagingBase() *PackagingBase
 
 	// AddDeps adds dependencies to the `deps` modules. This should be called in DepsMutator.
-	AddDeps(ctx BottomUpMutatorContext)
+	// When adding the dependencies, depTag is used as the tag.
+	AddDeps(ctx BottomUpMutatorContext, depTag blueprint.DependencyTag)
 
 	// CopyDepsToZip zips the built artifacts of the dependencies into the given zip file and
 	// returns zip entries in it.  This is expected to be called in GenerateAndroidBuildActions,
@@ -81,10 +82,6 @@ type PackagingProperties struct {
 	Deps     []string                    `android:"arch_variant"`
 	Multilib packagingMultilibProperties `android:"arch_variant"`
 }
-
-type packagingDependencyTag struct{ blueprint.BaseDependencyTag }
-
-var depTag = packagingDependencyTag{}
 
 func InitPackageModule(p PackageModule) {
 	base := p.packagingBase()
@@ -134,7 +131,7 @@ func (p *PackagingBase) getSupportedTargets(ctx BaseModuleContext) []Target {
 }
 
 // See PackageModule.AddDeps
-func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext) {
+func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.DependencyTag) {
 	for _, t := range p.getSupportedTargets(ctx) {
 		for _, dep := range p.getDepsForArch(ctx, t.Arch.ArchType) {
 			if p.IgnoreMissingDependencies && !ctx.OtherModuleExists(dep) {
