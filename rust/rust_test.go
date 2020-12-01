@@ -120,6 +120,7 @@ func (tctx *testRustCtx) useMockedFs() {
 // attributes of the testRustCtx.
 func (tctx *testRustCtx) generateConfig() {
 	tctx.bp = tctx.bp + GatherRequiredDepsForTest()
+	tctx.bp = tctx.bp + cc.GatherRequiredDepsForTest(android.NoOsType)
 	cc.GatherRequiredFilesForTest(tctx.fs)
 	config := android.TestArchConfig(buildDir, tctx.env, tctx.bp, tctx.fs)
 	tctx.config = &config

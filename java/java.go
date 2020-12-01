@@ -456,8 +456,6 @@ type Module struct {
 	// list of the xref extraction files
 	kytheFiles android.Paths
 
-	distFiles android.TaggedDistFiles
-
 	// Collect the module directory for IDE info in java/jdeps.go.
 	modulePaths []string
 
@@ -486,6 +484,8 @@ func (j *Module) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
 	case "":
 		return append(android.Paths{j.outputFile}, j.extraOutputFiles...), nil
+	case android.DefaultDistTag:
+		return android.Paths{j.outputFile}, nil
 	case ".jar":
 		return android.Paths{j.implementationAndResourcesJar}, nil
 	case ".proguard_map":
@@ -2112,8 +2112,6 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if lib := proptools.String(j.usesLibraryProperties.Provides_uses_lib); lib != "" {
 		j.classLoaderContexts.AddContext(ctx, lib, j.DexJarBuildPath(), j.DexJarInstallPath())
 	}
-
-	j.distFiles = j.GenerateTaggedDistFiles(ctx)
 }
 
 func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {

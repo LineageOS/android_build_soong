@@ -503,8 +503,12 @@ type Dist struct {
 	// A suffix to add to the artifact file name (before any extension).
 	Suffix *string `android:"arch_variant"`
 
-	// A string tag to select the OutputFiles associated with the tag. Defaults to the
-	// the empty "" string.
+	// A string tag to select the OutputFiles associated with the tag.
+	//
+	// If no tag is specified then it will select the default dist paths provided
+	// by the module type. If a tag of "" is specified then it will return the
+	// default output files provided by the modules, i.e. the result of calling
+	// OutputFiles("").
 	Tag *string `android:"arch_variant"`
 }
 
@@ -733,8 +737,44 @@ type distProperties struct {
 	Dists []Dist `android:"arch_variant"`
 }
 
+// The key to use in TaggedDistFiles when a Dist structure does not specify a
+// tag property. This intentionally does not use "" as the default because that
+// would mean that an empty tag would have a different meaning when used in a dist
+// structure that when used to reference a specific set of output paths using the
+// :module{tag} syntax, which passes tag to the OutputFiles(tag) method.
+const DefaultDistTag = "<default-dist-tag>"
+
 // A map of OutputFile tag keys to Paths, for disting purposes.
 type TaggedDistFiles map[string]Paths
+
+// addPathsForTag adds a mapping from the tag to the paths. If the map is nil
+// then it will create a map, update it and then return it. If a mapping already
+// exists for the tag then the paths are appended to the end of the current list
+// of paths, ignoring any duplicates.
+func (t TaggedDistFiles) addPathsForTag(tag string, paths ...Path) TaggedDistFiles {
+	if t == nil {
+		t = make(TaggedDistFiles)
+	}
+
+	for _, distFile := range paths {
+		if distFile != nil && !t[tag].containsPath(distFile) {
+			t[tag] = append(t[tag], distFile)
+		}
+	}
+
+	return t
+}
+
+// merge merges the entries from the other TaggedDistFiles object into this one.
+// If the TaggedDistFiles is nil then it will create a new instance, merge the
+// other into it, and then return it.
+func (t TaggedDistFiles) merge(other TaggedDistFiles) TaggedDistFiles {
+	for tag, paths := range other {
+		t = t.addPathsForTag(tag, paths...)
+	}
+
+	return t
+}
 
 func MakeDefaultDistFiles(paths ...Path) TaggedDistFiles {
 	for _, path := range paths {
@@ -744,7 +784,7 @@ func MakeDefaultDistFiles(paths ...Path) TaggedDistFiles {
 	}
 
 	// The default OutputFile tag is the empty "" string.
-	return TaggedDistFiles{"": paths}
+	return TaggedDistFiles{DefaultDistTag: paths}
 }
 
 type hostAndDeviceProperties struct {
@@ -970,6 +1010,9 @@ type ModuleBase struct {
 	noticeFiles        Paths
 	phonies            map[string]Paths
 
+	// The files to copy to the dist as explicitly specified in the .bp file.
+	distFiles TaggedDistFiles
+
 	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
 	// Only set on the final variant of each module
 	installTarget    WritablePath
@@ -1071,23 +1114,30 @@ func (m *ModuleBase) Dists() []Dist {
 }
 
 func (m *ModuleBase) GenerateTaggedDistFiles(ctx BaseModuleContext) TaggedDistFiles {
-	distFiles := make(TaggedDistFiles)
+	var distFiles TaggedDistFiles
 	for _, dist := range m.Dists() {
-		var tag string
-		var distFilesForTag Paths
-		if dist.Tag == nil {
-			tag = ""
-		} else {
-			tag = *dist.Tag
-		}
-		distFilesForTag, err := m.base().module.(OutputFileProducer).OutputFiles(tag)
-		if err != nil {
-			ctx.PropertyErrorf("dist.tag", "%s", err.Error())
-		}
-		for _, distFile := range distFilesForTag {
-			if distFile != nil && !distFiles[tag].containsPath(distFile) {
-				distFiles[tag] = append(distFiles[tag], distFile)
+		// If no tag is specified then it means to use the default dist paths so use
+		// the special tag name which represents that.
+		tag := proptools.StringDefault(dist.Tag, DefaultDistTag)
+
+		if outputFileProducer, ok := m.module.(OutputFileProducer); ok {
+			// Call the OutputFiles(tag) method to get the paths associated with the tag.
+			distFilesForTag, err := outputFileProducer.OutputFiles(tag)
+
+			// If the tag was not supported and is not DefaultDistTag then it is an error.
+			// Failing to find paths for DefaultDistTag is not an error. It just means
+			// that the module type requires the legacy behavior.
+			if err != nil && tag != DefaultDistTag {
+				ctx.PropertyErrorf("dist.tag", "%s", err.Error())
 			}
+
+			distFiles = distFiles.addPathsForTag(tag, distFilesForTag...)
+		} else if tag != DefaultDistTag {
+			// If the tag was specified then it is an error if the module does not
+			// implement OutputFileProducer because there is no other way of accessing
+			// the paths for the specified tag.
+			ctx.PropertyErrorf("dist.tag",
+				"tag %s not supported because the module does not implement OutputFileProducer", tag)
 		}
 	}
 
@@ -1614,6 +1664,15 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		}
 
 		m.module.GenerateAndroidBuildActions(ctx)
+		if ctx.Failed() {
+			return
+		}
+
+		// Create the set of tagged dist files after calling GenerateAndroidBuildActions
+		// as GenerateTaggedDistFiles() calls OutputFiles(tag) and so relies on the
+		// output paths being set which must be done before or during
+		// GenerateAndroidBuildActions.
+		m.distFiles = m.GenerateTaggedDistFiles(ctx)
 		if ctx.Failed() {
 			return
 		}
