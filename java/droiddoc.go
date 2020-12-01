@@ -1567,7 +1567,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			`   1. You can add '@hide' javadoc comments (and remove @SystemApi/@TestApi/etc)\n`+
 			`      to the new methods, etc. shown in the above diff.\n\n`+
 			`   2. You can update current.txt and/or removed.txt by executing the following command:\n`+
-			`         make %s-update-current-api\n\n`+
+			`         m %s-update-current-api\n\n`+
 			`      To submit the revised current.txt to the main Android repository,\n`+
 			`      you will need approval.\n`+
 			`******************************\n`, ctx.ModuleName())
