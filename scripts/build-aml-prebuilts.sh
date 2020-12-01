@@ -94,7 +94,13 @@ cat > ${SOONG_VARS}.new << EOF
 
     "Allow_missing_dependencies": ${SOONG_ALLOW_MISSING_DEPENDENCIES:-false},
     "Unbundled_build": ${TARGET_BUILD_UNBUNDLED:-false},
-    "UseGoma": ${USE_GOMA}
+    "UseGoma": ${USE_GOMA},
+
+    "VendorVars": {
+        "art_module": {
+            "source_build": "${ENABLE_ART_SOURCE_BUILD:-false}"
+        }
+    }
 }
 EOF
 
