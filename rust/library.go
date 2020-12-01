@@ -428,6 +428,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	var srcPath android.Path
 
 	if library.sourceProvider != nil {
+		// Assume the first source from the source provider is the library entry point.
 		srcPath = library.sourceProvider.Srcs()[0]
 	} else {
 		srcPath, _ = srcPathFromModuleSrcs(ctx, library.baseCompiler.Properties.Srcs)
