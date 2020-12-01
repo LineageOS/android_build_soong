@@ -46,8 +46,8 @@ func init() {
 var _ SourceProvider = (*protobufDecorator)(nil)
 
 type ProtobufProperties struct {
-	// Path to the proto file that will be used to generate the source
-	Proto *string `android:"path,arch_variant"`
+	// List of realtive paths to proto files that will be used to generate the source
+	Protos []string `android:"path,arch_variant"`
 
 	// List of additional flags to pass to aprotoc
 	Proto_flags []string `android:"arch_variant"`
@@ -66,6 +66,7 @@ type protobufDecorator struct {
 func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) android.Path {
 	var protoFlags android.ProtoFlags
 	var pluginPaths android.Paths
+	var protoNames []string
 
 	protoFlags.OutTypeFlag = "--rust_out"
 	outDir := android.PathForModuleOut(ctx)
@@ -77,10 +78,7 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 
 	protoFlags.Deps = append(protoFlags.Deps, pluginPaths...)
 
-	protoFile := android.OptionalPathForModuleSrc(ctx, proto.Properties.Proto)
-	if !protoFile.Valid() {
-		ctx.PropertyErrorf("proto", "invalid path to proto file")
-	}
+	protoFiles := android.PathsForModuleSrc(ctx, proto.Properties.Protos)
 
 	// Add exported dependency include paths
 	for _, include := range deps.depIncludePaths {
@@ -88,35 +86,58 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 	}
 
 	stem := proto.BaseSourceProvider.getStem(ctx)
-	// rust protobuf-codegen output <stem>.rs
-	stemFile := android.PathForModuleOut(ctx, stem+".rs")
-	// add mod_<stem>.rs to import <stem>.rs
-	modFile := android.PathForModuleOut(ctx, "mod_"+stem+".rs")
-	// mod_<stem>.rs is the main/first output file to be included/compiled
-	outputs := android.WritablePaths{modFile, stemFile}
-	if proto.plugin == Grpc {
-		outputs = append(outputs, android.PathForModuleOut(ctx, stem+grpcSuffix+".rs"))
-	}
-	depFile := android.PathForModuleOut(ctx, "mod_"+stem+".d")
+
+	// The mod_stem.rs file is used to avoid collisions if this is not included as a crate.
+	stemFile := android.PathForModuleOut(ctx, "mod_"+stem+".rs")
+
+	// stemFile must be first here as the first path in BaseSourceProvider.OutputFiles is the library entry-point.
+	outputs := android.WritablePaths{stemFile}
 
 	rule := android.NewRuleBuilder()
-	android.ProtoRule(ctx, rule, protoFile.Path(), protoFlags, protoFlags.Deps, outDir, depFile, outputs)
-	rule.Command().Text("printf '" + proto.getModFileContents(ctx) + "' >").Output(modFile)
-	rule.Build(pctx, ctx, "protoc_"+protoFile.Path().Rel(), "protoc "+protoFile.Path().Rel())
+	for _, protoFile := range protoFiles {
+		protoName := strings.TrimSuffix(protoFile.Base(), ".proto")
+		protoNames = append(protoNames, protoName)
 
-	proto.BaseSourceProvider.OutputFiles = android.Paths{modFile, stemFile}
-	return modFile
+		protoOut := android.PathForModuleOut(ctx, protoName+".rs")
+		ruleOutputs := android.WritablePaths{android.WritablePath(protoOut)}
+
+		if proto.plugin == Grpc {
+			grpcOut := android.PathForModuleOut(ctx, protoName+grpcSuffix+".rs")
+			ruleOutputs = append(ruleOutputs, android.WritablePath(grpcOut))
+		}
+
+		depFile := android.PathForModuleOut(ctx, protoName+".d")
+
+		android.ProtoRule(ctx, rule, protoFile, protoFlags, protoFlags.Deps, outDir, depFile, ruleOutputs)
+		outputs = append(outputs, ruleOutputs...)
+	}
+
+	rule.Command().
+		Implicits(outputs.Paths()).
+		Text("printf '" + proto.genModFileContents(ctx, protoNames) + "' >").
+		Output(stemFile)
+
+	rule.Build(pctx, ctx, "protoc_"+ctx.ModuleName(), "protoc "+ctx.ModuleName())
+
+	proto.BaseSourceProvider.OutputFiles = outputs.Paths()
+
+	// mod_stem.rs is the entry-point for our library modules, so this is what we return.
+	return stemFile
 }
 
-func (proto *protobufDecorator) getModFileContents(ctx ModuleContext) string {
-	stem := proto.BaseSourceProvider.getStem(ctx)
+func (proto *protobufDecorator) genModFileContents(ctx ModuleContext, protoNames []string) string {
 	lines := []string{
-		"// @generated",
-		fmt.Sprintf("pub mod %s;", stem),
+		"// @Soong generated Source",
+	}
+	for _, protoName := range protoNames {
+		lines = append(lines, fmt.Sprintf("pub mod %s;", protoName))
+
+		if proto.plugin == Grpc {
+			lines = append(lines, fmt.Sprintf("pub mod %s%s;", protoName, grpcSuffix))
+		}
 	}
 
 	if proto.plugin == Grpc {
-		lines = append(lines, fmt.Sprintf("pub mod %s%s;", stem, grpcSuffix))
 		lines = append(
 			lines,
 			"pub mod empty {",
