@@ -177,6 +177,18 @@ func (a *AndroidMkEntries) AddStrings(name string, value ...string) {
 	a.EntryMap[name] = append(a.EntryMap[name], value...)
 }
 
+// AddCompatibilityTestSuites adds the supplied test suites to the EntryMap, with special handling
+// for partial MTS test suites.
+func (a *AndroidMkEntries) AddCompatibilityTestSuites(suites ...string) {
+	// MTS supports a full test suite and partial per-module MTS test suites, with naming mts-${MODULE}.
+	// To reduce repetition, if we find a partial MTS test suite without an full MTS test suite,
+	// we add the full test suite to our list.
+	if PrefixInList(suites, "mts-") && !InList("mts", suites) {
+		suites = append(suites, "mts")
+	}
+	a.AddStrings("LOCAL_COMPATIBILITY_SUITE", suites...)
+}
+
 // The contributions to the dist.
 type distContributions struct {
 	// List of goals and the dist copy instructions.
