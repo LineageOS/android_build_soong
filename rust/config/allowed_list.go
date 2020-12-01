@@ -6,6 +6,7 @@ var (
 	// for an example.
 	// TODO(b/160223496): enable rustfmt globally.
 	RustAllowedPaths = []string{
+		"device/google/cuttlefish",
 		"external/adhd",
 		"external/crosvm",
 		"external/minijail",
