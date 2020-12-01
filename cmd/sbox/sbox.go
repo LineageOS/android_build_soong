@@ -16,6 +16,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -121,7 +123,22 @@ func run() error {
 		return fmt.Errorf("failed to create %q: %w", sandboxesRoot, err)
 	}
 
-	tempDir, err := ioutil.TempDir(sandboxesRoot, "sbox")
+	// This tool assumes that there are no two concurrent runs with the same
+	// manifestFile. It should therefore be safe to use the hash of the
+	// manifestFile as the temporary directory name. We do this because it
+	// makes the temporary directory name deterministic. There are some
+	// tools that embed the name of the temporary output in the output, and
+	// they otherwise cause non-determinism, which then poisons actions
+	// depending on this one.
+	hash := sha1.New()
+	hash.Write([]byte(manifestFile))
+	tempDir := filepath.Join(sandboxesRoot, "sbox", hex.EncodeToString(hash.Sum(nil)))
+
+	err = os.RemoveAll(tempDir)
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(tempDir, 0777)
 	if err != nil {
 		return fmt.Errorf("failed to create temporary dir in %q: %w", sandboxesRoot, err)
 	}
