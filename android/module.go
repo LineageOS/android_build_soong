@@ -441,6 +441,10 @@ type Module interface {
 
 	FilesToInstall() InstallPaths
 	PackagingSpecs() []PackagingSpec
+
+	// TransitivePackagingSpecs returns the PackagingSpecs for this module and any transitive
+	// dependencies with dependency tags for which IsInstallDepNeeded() returns true.
+	TransitivePackagingSpecs() []PackagingSpec
 }
 
 // Qualified id for a module
@@ -1003,13 +1007,14 @@ type ModuleBase struct {
 	// The primary visibility property, may be nil, that controls access to the module.
 	primaryVisibilityProperty visibilityProperty
 
-	noAddressSanitizer bool
-	installFiles       InstallPaths
-	installFilesDepSet *installPathsDepSet
-	checkbuildFiles    Paths
-	packagingSpecs     []PackagingSpec
-	noticeFiles        Paths
-	phonies            map[string]Paths
+	noAddressSanitizer   bool
+	installFiles         InstallPaths
+	installFilesDepSet   *installPathsDepSet
+	checkbuildFiles      Paths
+	packagingSpecs       []PackagingSpec
+	packagingSpecsDepSet *packagingSpecsDepSet
+	noticeFiles          Paths
+	phonies              map[string]Paths
 
 	// The files to copy to the dist as explicitly specified in the .bp file.
 	distFiles TaggedDistFiles
@@ -1339,15 +1344,17 @@ func (m *ModuleBase) ExportedToMake() bool {
 
 // computeInstallDeps finds the installed paths of all dependencies that have a dependency
 // tag that is annotated as needing installation via the IsInstallDepNeeded method.
-func (m *ModuleBase) computeInstallDeps(ctx ModuleContext) []*installPathsDepSet {
+func (m *ModuleBase) computeInstallDeps(ctx ModuleContext) ([]*installPathsDepSet, []*packagingSpecsDepSet) {
 	var installDeps []*installPathsDepSet
+	var packagingSpecs []*packagingSpecsDepSet
 	ctx.VisitDirectDeps(func(dep Module) {
 		if IsInstallDepNeeded(ctx.OtherModuleDependencyTag(dep)) {
 			installDeps = append(installDeps, dep.base().installFilesDepSet)
+			packagingSpecs = append(packagingSpecs, dep.base().packagingSpecsDepSet)
 		}
 	})
 
-	return installDeps
+	return installDeps, packagingSpecs
 }
 
 func (m *ModuleBase) FilesToInstall() InstallPaths {
@@ -1356,6 +1363,10 @@ func (m *ModuleBase) FilesToInstall() InstallPaths {
 
 func (m *ModuleBase) PackagingSpecs() []PackagingSpec {
 	return m.packagingSpecs
+}
+
+func (m *ModuleBase) TransitivePackagingSpecs() []PackagingSpec {
+	return m.packagingSpecsDepSet.ToList()
 }
 
 func (m *ModuleBase) NoAddressSanitizer() bool {
@@ -1587,7 +1598,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		variables:         make(map[string]string),
 	}
 
-	dependencyInstallFiles := m.computeInstallDeps(ctx)
+	dependencyInstallFiles, dependencyPackagingSpecs := m.computeInstallDeps(ctx)
 	// set m.installFilesDepSet to only the transitive dependencies to be used as the dependencies
 	// of installed files of this module.  It will be replaced by a depset including the installed
 	// files of this module at the end for use by modules that depend on this one.
@@ -1702,6 +1713,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}
 
 	m.installFilesDepSet = newInstallPathsDepSet(m.installFiles, dependencyInstallFiles)
+	m.packagingSpecsDepSet = newPackagingSpecsDepSet(m.packagingSpecs, dependencyPackagingSpecs)
 
 	m.buildParams = ctx.buildParams
 	m.ruleParams = ctx.ruleParams
