@@ -21,10 +21,10 @@ import (
 	"github.com/google/blueprint"
 )
 
-// PackagingSpec abstracts a request to place a built artifact at a certain path in a package.
-// A package can be the traditional <partition>.img, but isn't limited to those. Other examples could
-// be a new filesystem image that is a subset of system.img (e.g. for an Android-like mini OS running
-// on a VM), or a zip archive for some of the host tools.
+// PackagingSpec abstracts a request to place a built artifact at a certain path in a package. A
+// package can be the traditional <partition>.img, but isn't limited to those. Other examples could
+// be a new filesystem image that is a subset of system.img (e.g. for an Android-like mini OS
+// running on a VM), or a zip archive for some of the host tools.
 type PackagingSpec struct {
 	// Path relative to the root of the package
 	relPathInPackage string
@@ -49,7 +49,7 @@ type PackageModule interface {
 	AddDeps(ctx BottomUpMutatorContext, depTag blueprint.DependencyTag)
 
 	// CopyDepsToZip zips the built artifacts of the dependencies into the given zip file and
-	// returns zip entries in it.  This is expected to be called in GenerateAndroidBuildActions,
+	// returns zip entries in it. This is expected to be called in GenerateAndroidBuildActions,
 	// followed by a build rule that unzips it and creates the final output (img, zip, tar.gz,
 	// etc.) from the extracted files
 	CopyDepsToZip(ctx ModuleContext, zipOut OutputPath) []string
@@ -60,9 +60,9 @@ type PackageModule interface {
 type PackagingBase struct {
 	properties PackagingProperties
 
-	// Allows this module to skip missing dependencies. In most cases, this
-	// is not required, but for rare cases like when there's a dependency
-	// to a module which exists in certain repo checkouts, this is needed.
+	// Allows this module to skip missing dependencies. In most cases, this is not required, but
+	// for rare cases like when there's a dependency to a module which exists in certain repo
+	// checkouts, this is needed.
 	IgnoreMissingDependencies bool
 }
 
@@ -92,10 +92,10 @@ func (p *PackagingBase) packagingBase() *PackagingBase {
 	return p
 }
 
-// From deps and multilib.*.deps, select the dependencies that are for the given arch
-// deps is for the current archicture when this module is not configured for multi target.
-// When configured for multi target, deps is selected for each of the targets and is NOT
-// selected for the current architecture which would be Common.
+// From deps and multilib.*.deps, select the dependencies that are for the given arch deps is for
+// the current archicture when this module is not configured for multi target. When configured for
+// multi target, deps is selected for each of the targets and is NOT selected for the current
+// architecture which would be Common.
 func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) []string {
 	var ret []string
 	if arch == ctx.Target().Arch.ArchType && len(ctx.MultiTargets()) == 0 {
