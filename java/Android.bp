@@ -48,6 +48,7 @@ bootstrap_go_package {
         "robolectric.go",
         "sdk.go",
         "sdk_library.go",
+        "sdk_library_external.go",
         "support_libraries.go",
         "sysprop.go",
         "system_modules.go",

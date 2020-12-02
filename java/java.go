@@ -772,6 +772,37 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	libDeps := ctx.AddVariationDependencies(nil, libTag, rewriteSyspropLibs(j.properties.Libs, "libs")...)
 	ctx.AddVariationDependencies(nil, staticLibTag, rewriteSyspropLibs(j.properties.Static_libs, "static_libs")...)
 
+	if ctx.DeviceConfig().VndkVersion() != "" && ctx.Config().EnforceInterPartitionJavaSdkLibrary() {
+		// Require java_sdk_library at inter-partition java dependency to ensure stable
+		// interface between partitions. If inter-partition java_library dependency is detected,
+		// raise build error because java_library doesn't have a stable interface.
+		//
+		// Inputs:
+		//    PRODUCT_ENFORCE_INTER_PARTITION_JAVA_SDK_LIBRARY
+		//      if true, enable enforcement
+		//    PRODUCT_INTER_PARTITION_JAVA_LIBRARY_ALLOWLIST
+		//      exception list of java_library names to allow inter-partition dependency
+		for idx, lib := range j.properties.Libs {
+			if libDeps[idx] == nil {
+				continue
+			}
+
+			if _, ok := syspropPublicStubs[lib]; ok {
+				continue
+			}
+
+			if javaDep, ok := libDeps[idx].(javaSdkLibraryEnforceContext); ok {
+				// java_sdk_library is always allowed at inter-partition dependency.
+				// So, skip check.
+				if _, ok := javaDep.(*SdkLibrary); ok {
+					continue
+				}
+
+				j.checkPartitionsForJavaDependency(ctx, "libs", javaDep)
+			}
+		}
+	}
+
 	// For library dependencies that are component libraries (like stubs), add the implementation
 	// as a dependency (dexpreopt needs to be against the implementation library, not stubs).
 	for _, dep := range libDeps {
