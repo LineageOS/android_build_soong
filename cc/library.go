@@ -897,9 +897,9 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 		}
 	}
 
-	TransformObjToStaticLib(ctx, library.objects.objFiles, deps.WholeStaticLibsFromPrebuilts, builderFlags, outputFile, objs.tidyFiles)
+	transformObjToStaticLib(ctx, library.objects.objFiles, deps.WholeStaticLibsFromPrebuilts, builderFlags, outputFile, objs.tidyFiles)
 
-	library.coverageOutputFile = TransformCoverageFilesToZip(ctx, library.objects, ctx.ModuleName())
+	library.coverageOutputFile = transformCoverageFilesToZip(ctx, library.objects, ctx.ModuleName())
 
 	ctx.CheckbuildFile(outputFile)
 
@@ -974,7 +974,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	// depending on a table of contents file instead of the library itself.
 	tocFile := outputFile.ReplaceExtension(ctx, flags.Toolchain.ShlibSuffix()[1:]+".toc")
 	library.tocFile = android.OptionalPathForPath(tocFile)
-	TransformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
+	transformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
 
 	stripFlags := flagsToStripFlags(flags)
 	if library.stripper.NeedsStrip(ctx) {
@@ -1019,7 +1019,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 
 	if Bool(library.Properties.Sort_bss_symbols_by_size) {
 		unsortedOutputFile := android.PathForModuleOut(ctx, "unsorted", fileName)
-		TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
+		transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 			deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
 			linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, unsortedOutputFile, implicitOutputs)
 
@@ -1029,7 +1029,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		linkerDeps = append(linkerDeps, symbolOrderingFile)
 	}
 
-	TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
+	transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs,
 		linkerDeps, deps.CrtBegin, deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs)
 
@@ -1039,7 +1039,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.StaticLibObjs.sAbiDumpFiles...)
 	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.WholeStaticLibObjs.sAbiDumpFiles...)
 
-	library.coverageOutputFile = TransformCoverageFilesToZip(ctx, objs, library.getLibName(ctx))
+	library.coverageOutputFile = transformCoverageFilesToZip(ctx, objs, library.getLibName(ctx))
 	library.linkSAbiDumpFiles(ctx, objs, fileName, unstrippedOutputFile)
 
 	var staticAnalogue *StaticLibraryInfo
@@ -1115,7 +1115,7 @@ func getRefAbiDumpFile(ctx ModuleContext, vndkVersion, fileName string) android.
 		return refAbiDumpTextFile.Path()
 	}
 	if refAbiDumpGzipFile.Valid() {
-		return UnzipRefDump(ctx, refAbiDumpGzipFile.Path(), fileName)
+		return unzipRefDump(ctx, refAbiDumpGzipFile.Path(), fileName)
 	}
 	return nil
 }
@@ -1141,7 +1141,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 			SourceAbiFlags = append(SourceAbiFlags, "-I"+reexportedInclude)
 		}
 		exportedHeaderFlags := strings.Join(SourceAbiFlags, " ")
-		library.sAbiOutputFile = TransformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags,
+		library.sAbiOutputFile = transformDumpToLinkedDump(ctx, objs.sAbiDumpFiles, soFile, fileName, exportedHeaderFlags,
 			android.OptionalPathForModuleSrc(ctx, library.symbolFileForAbiCheck(ctx)),
 			library.Properties.Header_abi_checker.Exclude_symbol_versions,
 			library.Properties.Header_abi_checker.Exclude_symbol_tags)
@@ -1150,7 +1150,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 
 		refAbiDumpFile := getRefAbiDumpFile(ctx, vndkVersion, fileName)
 		if refAbiDumpFile != nil {
-			library.sAbiDiff = SourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
+			library.sAbiDiff = sourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
 				refAbiDumpFile, fileName, exportedHeaderFlags,
 				Bool(library.Properties.Header_abi_checker.Check_all_apis),
 				ctx.isLlndk(ctx.Config()), ctx.isNdk(ctx.Config()), ctx.isVndkExt())

@@ -124,7 +124,7 @@ func (object *objectLinker) link(ctx ModuleContext,
 
 		if String(object.Properties.Prefix_symbols) != "" {
 			output := android.PathForModuleOut(ctx, ctx.ModuleName()+objectExtension)
-			TransformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), outputFile,
+			transformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), outputFile,
 				builderFlags, output)
 			outputFile = output
 		}
@@ -134,12 +134,12 @@ func (object *objectLinker) link(ctx ModuleContext,
 
 		if String(object.Properties.Prefix_symbols) != "" {
 			input := android.PathForModuleOut(ctx, "unprefixed", ctx.ModuleName()+objectExtension)
-			TransformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), input,
+			transformBinaryPrefixSymbols(ctx, String(object.Properties.Prefix_symbols), input,
 				builderFlags, output)
 			output = input
 		}
 
-		TransformObjsToObj(ctx, objs.objFiles, builderFlags, output, flags.LdFlagsDeps)
+		transformObjsToObj(ctx, objs.objFiles, builderFlags, output, flags.LdFlagsDeps)
 	}
 
 	ctx.CheckbuildFile(outputFile)

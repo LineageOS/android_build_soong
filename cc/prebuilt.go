@@ -146,7 +146,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 			// depending on a table of contents file instead of the library itself.
 			tocFile := android.PathForModuleOut(ctx, libName+".toc")
 			p.tocFile = android.OptionalPathForPath(tocFile)
-			TransformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
+			transformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
 
 			if ctx.Windows() && p.properties.Windows_import_lib != nil {
 				// Consumers of this library actually links to the import library in build
