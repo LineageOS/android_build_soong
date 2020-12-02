@@ -153,15 +153,9 @@ func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.Dep
 
 // See PackageModule.CopyDepsToZip
 func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut OutputPath) (entries []string) {
-	var supportedArches []string
-	for _, t := range p.getSupportedTargets(ctx) {
-		supportedArches = append(supportedArches, t.Arch.ArchType.String())
-	}
 	m := make(map[string]PackagingSpec)
 	ctx.WalkDeps(func(child Module, parent Module) bool {
-		// Don't track modules with unsupported arch
-		// TODO(jiyong): remove this when aosp/1501613 lands.
-		if !InList(child.Target().Arch.ArchType.String(), supportedArches) {
+		if !IsInstallDepNeeded(ctx.OtherModuleDependencyTag(child)) {
 			return false
 		}
 		for _, ps := range child.PackagingSpecs() {
