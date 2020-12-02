@@ -72,6 +72,8 @@ bootstrap_go_package {
         "vendor_public_library.go",
 
         "testing.go",
+
+        "stub_library.go",
     ],
     testSrcs: [
         "cc_test.go",
