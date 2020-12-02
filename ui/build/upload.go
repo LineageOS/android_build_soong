@@ -30,32 +30,34 @@ import (
 )
 
 const (
+	// Used to generate a raw protobuf file that contains information
+	// of the list of metrics files from host to destination storage.
 	uploadPbFilename = ".uploader.pb"
 )
 
 var (
-	// For testing purpose
-	getTmpDir = ioutil.TempDir
+	// For testing purpose.
+	tmpDir = ioutil.TempDir
 )
 
 // UploadMetrics uploads a set of metrics files to a server for analysis. An
-// uploader full path is required to be specified in order to upload the set
-// of metrics files. This is accomplished by defining the ANDROID_ENABLE_METRICS_UPLOAD
-// environment variable. The metrics files are copied to a temporary directory
-// and the uploader is then executed in the background to allow the user to continue
-// working.
+// uploader full path is specified in ANDROID_ENABLE_METRICS_UPLOAD environment
+// variable in order to upload the set of metrics files. The metrics files are
+// first copied to a temporary directory and the uploader is then executed in
+// the background to allow the user/system to continue working. Soong communicates
+// to the uploader through the upload_proto raw protobuf file.
 func UploadMetrics(ctx Context, config Config, simpleOutput bool, buildStarted time.Time, files ...string) {
 	ctx.BeginTrace(metrics.RunSetupTool, "upload_metrics")
 	defer ctx.EndTrace()
 
 	uploader := config.MetricsUploaderApp()
-	// No metrics to upload if the path to the uploader was not specified.
 	if uploader == "" {
+		// If the uploader path was not specified, no metrics shall be uploaded.
 		return
 	}
 
-	// Some files may not exist. For example, build errors protobuf file
-	// may not exist since the build was successful.
+	// Some files passed in to this function may not exist. For example,
+	// build errors protobuf file may not exist since the build was successful.
 	var metricsFiles []string
 	for _, f := range files {
 		if _, err := os.Stat(f); err == nil {
@@ -70,7 +72,7 @@ func UploadMetrics(ctx Context, config Config, simpleOutput bool, buildStarted t
 	// The temporary directory cannot be deleted as the metrics uploader is started
 	// in the background and requires to exist until the operation is done. The
 	// uploader can delete the directory as it is specified in the upload proto.
-	tmpDir, err := getTmpDir("", "upload_metrics")
+	tmpDir, err := tmpDir("", "upload_metrics")
 	if err != nil {
 		ctx.Fatalf("failed to create a temporary directory to store the list of metrics files: %v\n", err)
 	}
@@ -103,7 +105,7 @@ func UploadMetrics(ctx Context, config Config, simpleOutput bool, buildStarted t
 	}
 
 	// Start the uploader in the background as it takes several milliseconds to start the uploader
-	// and prepare the metrics for upload. This affects small commands like "lunch".
+	// and prepare the metrics for upload. This affects small shell commands like "lunch".
 	cmd := Command(ctx, config, "upload metrics", uploader, "--upload-metrics", pbFile)
 	if simpleOutput {
 		cmd.RunOrFatal()
