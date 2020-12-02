@@ -805,6 +805,165 @@ func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
 	})
 }
 
+func TestJavaSdkLibraryEnforce(t *testing.T) {
+	partitionToBpOption := func(partition string) string {
+		switch partition {
+		case "system":
+			return ""
+		case "vendor":
+			return "soc_specific: true,"
+		case "product":
+			return "product_specific: true,"
+		default:
+			panic("Invalid partition group name: " + partition)
+		}
+	}
+
+	type testConfigInfo struct {
+		libraryType                string
+		fromPartition              string
+		toPartition                string
+		enforceVendorInterface     bool
+		enforceProductInterface    bool
+		enforceJavaSdkLibraryCheck bool
+		allowList                  []string
+	}
+
+	createTestConfig := func(info testConfigInfo) android.Config {
+		bpFileTemplate := `
+			java_library {
+				name: "foo",
+				srcs: ["foo.java"],
+				libs: ["bar"],
+				sdk_version: "current",
+				%s
+			}
+
+			%s {
+				name: "bar",
+				srcs: ["bar.java"],
+				sdk_version: "current",
+				%s
+			}
+		`
+
+		bpFile := fmt.Sprintf(bpFileTemplate,
+			partitionToBpOption(info.fromPartition),
+			info.libraryType,
+			partitionToBpOption(info.toPartition))
+
+		config := testConfig(nil, bpFile, nil)
+		configVariables := config.TestProductVariables
+
+		configVariables.EnforceProductPartitionInterface = proptools.BoolPtr(info.enforceProductInterface)
+		if info.enforceVendorInterface {
+			configVariables.DeviceVndkVersion = proptools.StringPtr("current")
+		}
+		configVariables.EnforceInterPartitionJavaSdkLibrary = proptools.BoolPtr(info.enforceJavaSdkLibraryCheck)
+		configVariables.InterPartitionJavaLibraryAllowList = info.allowList
+
+		return config
+	}
+
+	isValidDependency := func(configInfo testConfigInfo) bool {
+		if configInfo.enforceVendorInterface == false {
+			return true
+		}
+
+		if configInfo.enforceJavaSdkLibraryCheck == false {
+			return true
+		}
+
+		if inList("bar", configInfo.allowList) {
+			return true
+		}
+
+		if configInfo.libraryType == "java_library" {
+			if configInfo.fromPartition != configInfo.toPartition {
+				if !configInfo.enforceProductInterface &&
+					((configInfo.fromPartition == "system" && configInfo.toPartition == "product") ||
+						(configInfo.fromPartition == "product" && configInfo.toPartition == "system")) {
+					return true
+				}
+				return false
+			}
+		}
+
+		return true
+	}
+
+	errorMessage := "is not allowed across the partitions"
+
+	allPartitionCombinations := func() [][2]string {
+		var result [][2]string
+		partitions := []string{"system", "vendor", "product"}
+
+		for _, fromPartition := range partitions {
+			for _, toPartition := range partitions {
+				result = append(result, [2]string{fromPartition, toPartition})
+			}
+		}
+
+		return result
+	}
+
+	allFlagCombinations := func() [][3]bool {
+		var result [][3]bool
+		flagValues := [2]bool{false, true}
+
+		for _, vendorInterface := range flagValues {
+			for _, productInterface := range flagValues {
+				for _, enableEnforce := range flagValues {
+					result = append(result, [3]bool{vendorInterface, productInterface, enableEnforce})
+				}
+			}
+		}
+
+		return result
+	}
+
+	for _, libraryType := range []string{"java_library", "java_sdk_library"} {
+		for _, partitionValues := range allPartitionCombinations() {
+			for _, flagValues := range allFlagCombinations() {
+				testInfo := testConfigInfo{
+					libraryType:                libraryType,
+					fromPartition:              partitionValues[0],
+					toPartition:                partitionValues[1],
+					enforceVendorInterface:     flagValues[0],
+					enforceProductInterface:    flagValues[1],
+					enforceJavaSdkLibraryCheck: flagValues[2],
+				}
+
+				if isValidDependency(testInfo) {
+					testJavaWithConfig(t, createTestConfig(testInfo))
+				} else {
+					testJavaErrorWithConfig(t, errorMessage, createTestConfig(testInfo))
+				}
+			}
+		}
+	}
+
+	testJavaWithConfig(t, createTestConfig(testConfigInfo{
+		libraryType:                "java_library",
+		fromPartition:              "vendor",
+		toPartition:                "system",
+		enforceVendorInterface:     true,
+		enforceProductInterface:    true,
+		enforceJavaSdkLibraryCheck: true,
+		allowList:                  []string{"bar"},
+	}))
+
+	testJavaErrorWithConfig(t, errorMessage, createTestConfig(testConfigInfo{
+		libraryType:                "java_library",
+		fromPartition:              "vendor",
+		toPartition:                "system",
+		enforceVendorInterface:     true,
+		enforceProductInterface:    true,
+		enforceJavaSdkLibraryCheck: true,
+		allowList:                  []string{"foo"},
+	}))
+}
+
 func TestDefaults(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_defaults {
