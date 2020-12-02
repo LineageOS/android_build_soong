@@ -44,6 +44,11 @@ func registerMutatorsToContext(ctx *blueprint.Context, mutators []*mutator) {
 	}
 }
 
+func registerMutatorsForBazelConversion(ctx *blueprint.Context) {
+	// FIXME(b/171263886): Start bringing in mutators to make the Bionic
+	// module subgraph suitable for automated conversion.
+}
+
 func registerMutators(ctx *blueprint.Context, preArch, preDeps, postDeps, finalDeps []RegisterMutatorFunc) {
 	mctx := &registerMutatorsContext{}
 
