@@ -339,7 +339,7 @@ func (p *snapshotLibraryDecorator) link(ctx ModuleContext,
 		// depending on a table of contents file instead of the library itself.
 		tocFile := android.PathForModuleOut(ctx, libName+".toc")
 		p.tocFile = android.OptionalPathForPath(tocFile)
-		TransformSharedObjectToToc(ctx, in, tocFile, builderFlags)
+		transformSharedObjectToToc(ctx, in, tocFile, builderFlags)
 
 		ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
 			SharedLibrary:           in,

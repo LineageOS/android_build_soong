@@ -373,7 +373,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	if String(binary.Properties.Prefix_symbols) != "" {
 		afterPrefixSymbols := outputFile
 		outputFile = android.PathForModuleOut(ctx, "unprefixed", fileName)
-		TransformBinaryPrefixSymbols(ctx, String(binary.Properties.Prefix_symbols), outputFile,
+		transformBinaryPrefixSymbols(ctx, String(binary.Properties.Prefix_symbols), outputFile,
 			builderFlags, afterPrefixSymbols)
 	}
 
@@ -428,13 +428,13 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	linkerDeps = append(linkerDeps, flags.LdFlagsDeps...)
 
 	// Register link action.
-	TransformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs, deps.StaticLibs,
+	transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs, deps.StaticLibs,
 		deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin, deps.CrtEnd, true,
 		builderFlags, outputFile, nil)
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
-	binary.coverageOutputFile = TransformCoverageFilesToZip(ctx, objs, binary.getStem(ctx))
+	binary.coverageOutputFile = transformCoverageFilesToZip(ctx, objs, binary.getStem(ctx))
 
 	// Need to determine symlinks early since some targets (ie APEX) need this
 	// information but will not call 'install'
