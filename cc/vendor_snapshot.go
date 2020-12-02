@@ -842,7 +842,7 @@ func isSnapshotModule(m *Module, inProprietaryPath bool, apexInfo android.ApexIn
 				if !m.IsVndk() {
 					return true
 				}
-				return m.isVndkExt()
+				return m.IsVndkExt()
 			}
 		}
 		return true
@@ -944,7 +944,7 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 
 		// Common properties among snapshots.
 		prop.ModuleName = ctx.ModuleName(m)
-		if c.supportsVndkExt && m.isVndkExt() {
+		if c.supportsVndkExt && m.IsVndkExt() {
 			// vndk exts are installed to /vendor/lib(64)?/vndk(-sp)?
 			if m.isVndkSp() {
 				prop.RelativeInstallPath = "vndk-sp"

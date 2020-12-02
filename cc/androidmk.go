@@ -113,7 +113,7 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 						entries.SetString("LOCAL_SOONG_VNDK_VERSION", c.VndkVersion())
 						// VNDK libraries available to vendor are not installed because
 						// they are packaged in VNDK APEX and installed by APEX packages (apex/apex.go)
-						if !c.isVndkExt() {
+						if !c.IsVndkExt() {
 							entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
 						}
 					}

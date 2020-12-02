@@ -7,6 +7,8 @@ import (
 )
 
 type LinkableInterface interface {
+	android.Module
+
 	Module() android.Module
 	CcLibrary() bool
 	CcLibraryInterface() bool
@@ -41,7 +43,10 @@ type LinkableInterface interface {
 	UseVndk() bool
 	MustUseVendorVariant() bool
 	IsVndk() bool
+	IsVndkExt() bool
+	IsVndkPrivate(config android.Config) bool
 	HasVendorVariant() bool
+	InProduct() bool
 
 	SdkVersion() string
 	AlwaysSdk() bool

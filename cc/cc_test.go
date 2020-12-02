@@ -250,8 +250,8 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 
 	// Check VNDK extension properties.
 	isVndkExt := extends != ""
-	if mod.isVndkExt() != isVndkExt {
-		t.Errorf("%q isVndkExt() must equal to %t", name, isVndkExt)
+	if mod.IsVndkExt() != isVndkExt {
+		t.Errorf("%q IsVndkExt() must equal to %t", name, isVndkExt)
 	}
 
 	if actualExtends := mod.getVndkExtendsModuleName(); actualExtends != extends {

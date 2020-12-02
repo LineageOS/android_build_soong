@@ -41,7 +41,7 @@ func (c *Module) getImageVariantType() imageVariantType {
 		return hostImageVariant
 	} else if c.inVendor() {
 		return vendorImageVariant
-	} else if c.inProduct() {
+	} else if c.InProduct() {
 		return productImageVariant
 	} else if c.InRamdisk() {
 		return ramdiskImageVariant
@@ -67,7 +67,7 @@ const (
 func (ctx *moduleContext) ProductSpecific() bool {
 	//TODO(b/150902910): Replace HasNonSystemVariants() with HasProductVariant()
 	return ctx.ModuleContext.ProductSpecific() ||
-		(ctx.mod.HasNonSystemVariants() && ctx.mod.inProduct())
+		(ctx.mod.HasNonSystemVariants() && ctx.mod.InProduct())
 }
 
 func (ctx *moduleContext) SocSpecific() bool {
@@ -76,7 +76,7 @@ func (ctx *moduleContext) SocSpecific() bool {
 }
 
 func (ctx *moduleContextImpl) inProduct() bool {
-	return ctx.mod.inProduct()
+	return ctx.mod.InProduct()
 }
 
 func (ctx *moduleContextImpl) inVendor() bool {
@@ -111,7 +111,7 @@ func (c *Module) HasNonSystemVariants() bool {
 }
 
 // Returns true if the module is "product" variant. Usually these modules are installed in /product
-func (c *Module) inProduct() bool {
+func (c *Module) InProduct() bool {
 	return c.Properties.ImageVariationPrefix == ProductVariationPrefix
 }
 
@@ -265,7 +265,7 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		} else {
 			mctx.ModuleErrorf("version is unknown for snapshot prebuilt")
 		}
-	} else if m.HasNonSystemVariants() && !m.isVndkExt() {
+	} else if m.HasNonSystemVariants() && !m.IsVndkExt() {
 		// This will be available to /system unless it is product_specific
 		// which will be handled later.
 		coreVariantNeeded = true
