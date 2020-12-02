@@ -584,7 +584,7 @@ var (
 	genHeaderExportDepTag = dependencyTag{name: "gen header export"}
 	objDepTag             = dependencyTag{name: "obj"}
 	linkerFlagsDepTag     = dependencyTag{name: "linker flags file"}
-	dynamicLinkerDepTag   = dependencyTag{name: "dynamic linker"}
+	dynamicLinkerDepTag   = installDependencyTag{name: "dynamic linker"}
 	reuseObjTag           = dependencyTag{name: "reuse objects"}
 	staticVariantTag      = dependencyTag{name: "static variant"}
 	vndkExtDepTag         = dependencyTag{name: "vndk extends"}

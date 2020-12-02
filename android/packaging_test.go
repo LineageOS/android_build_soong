@@ -29,6 +29,12 @@ type componentTestModule struct {
 	}
 }
 
+// dep tag used in this test. All dependencies are considered as installable.
+type installDepTag struct {
+	blueprint.BaseDependencyTag
+	InstallAlwaysNeededDependencyTag
+}
+
 func componentTestModuleFactory() Module {
 	m := &componentTestModule{}
 	m.AddProperties(&m.props)
@@ -37,7 +43,7 @@ func componentTestModuleFactory() Module {
 }
 
 func (m *componentTestModule) DepsMutator(ctx BottomUpMutatorContext) {
-	ctx.AddDependency(ctx.Module(), nil, m.props.Deps...)
+	ctx.AddDependency(ctx.Module(), installDepTag{}, m.props.Deps...)
 }
 
 func (m *componentTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
@@ -63,7 +69,7 @@ func packageTestModuleFactory() Module {
 }
 
 func (m *packageTestModule) DepsMutator(ctx BottomUpMutatorContext) {
-	m.AddDeps(ctx, struct{ blueprint.BaseDependencyTag }{})
+	m.AddDeps(ctx, installDepTag{})
 }
 
 func (m *packageTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
