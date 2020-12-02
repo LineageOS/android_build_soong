@@ -19,7 +19,6 @@ package cc
 // functions.
 
 import (
-	"fmt"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -40,6 +39,7 @@ const (
 var (
 	pctx = android.NewPackageContext("android/soong/cc")
 
+	// Rule to invoke gcc with given command, flags, and dependencies. Outputs a .d depfile.
 	cc = pctx.AndroidRemoteStaticRule("cc", android.RemoteRuleSupports{Goma: true, RBE: true},
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
@@ -49,6 +49,7 @@ var (
 		},
 		"ccCmd", "cFlags")
 
+	// Rule to invoke gcc with given command and flags, but no dependencies.
 	ccNoDeps = pctx.AndroidStaticRule("ccNoDeps",
 		blueprint.RuleParams{
 			Command:     "$relPwd $ccCmd -c $cFlags -o $out $in",
@@ -56,6 +57,8 @@ var (
 		},
 		"ccCmd", "cFlags")
 
+	// Rules to invoke ld to link binaries. Uses a .rsp file to list dependencies, as there may
+	// be many.
 	ld, ldRE = remoteexec.StaticRules(pctx, "ld",
 		blueprint.RuleParams{
 			Command: "$reTemplate$ldCmd ${crtBegin} @${out}.rsp " +
@@ -76,6 +79,7 @@ var (
 			Platform:        map[string]string{remoteexec.PoolKey: "${config.RECXXLinksPool}"},
 		}, []string{"ldCmd", "crtBegin", "libFlags", "crtEnd", "ldFlags", "extraLibFlags"}, []string{"implicitInputs", "implicitOutputs"})
 
+	// Rules for .o files to combine to other .o files, using ld partial linking.
 	partialLd, partialLdRE = remoteexec.StaticRules(pctx, "partialLd",
 		blueprint.RuleParams{
 			// Without -no-pie, clang 7.0 adds -pie to link Android files,
@@ -91,6 +95,7 @@ var (
 			Platform:        map[string]string{remoteexec.PoolKey: "${config.RECXXLinksPool}"},
 		}, []string{"ldCmd", "ldFlags"}, []string{"implicitInputs", "inCommaList", "implicitOutputs"})
 
+	// Rule to invoke `ar` with given cmd and flags, but no static library depenencies.
 	ar = pctx.AndroidStaticRule("ar",
 		blueprint.RuleParams{
 			Command:        "rm -f ${out} && $arCmd $arFlags $out @${out}.rsp",
@@ -100,6 +105,8 @@ var (
 		},
 		"arCmd", "arFlags")
 
+	// Rule to invoke `ar` with given cmd, flags, and library dependencies. Generates a .a
+	// (archive) file from .o files.
 	arWithLibs = pctx.AndroidStaticRule("arWithLibs",
 		blueprint.RuleParams{
 			Command:        "rm -f ${out} && $arCmd $arObjFlags $out @${out}.rsp && $arCmd $arLibFlags $out $arLibs",
@@ -109,12 +116,7 @@ var (
 		},
 		"arCmd", "arObjFlags", "arObjs", "arLibFlags", "arLibs")
 
-	darwinStrip = pctx.AndroidStaticRule("darwinStrip",
-		blueprint.RuleParams{
-			Command:     "${config.MacStripPath} -u -r -o $out $in",
-			CommandDeps: []string{"${config.MacStripPath}"},
-		})
-
+	// Rule to run objcopy --prefix-symbols (to prefix all symbols in a file with a given string).
 	prefixSymbols = pctx.AndroidStaticRule("prefixSymbols",
 		blueprint.RuleParams{
 			Command:     "$objcopyCmd --prefix-symbols=${prefix} ${in} ${out}",
@@ -124,6 +126,24 @@ var (
 
 	_ = pctx.SourcePathVariable("stripPath", "build/soong/scripts/strip.sh")
 	_ = pctx.SourcePathVariable("xzCmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/xz")
+
+	// Rule to invoke `strip` (to discard symbols and data from object files).
+	strip = pctx.AndroidStaticRule("strip",
+		blueprint.RuleParams{
+			Depfile:     "${out}.d",
+			Deps:        blueprint.DepsGCC,
+			Command:     "CROSS_COMPILE=$crossCompile XZ=$xzCmd CLANG_BIN=${config.ClangBin} $stripPath ${args} -i ${in} -o ${out} -d ${out}.d",
+			CommandDeps: []string{"$stripPath", "$xzCmd"},
+			Pool:        darwinStripPool,
+		},
+		"args", "crossCompile")
+
+	// Rule to invoke `strip` (to discard symbols and data from object files) on darwin architecture.
+	darwinStrip = pctx.AndroidStaticRule("darwinStrip",
+		blueprint.RuleParams{
+			Command:     "${config.MacStripPath} -u -r -o $out $in",
+			CommandDeps: []string{"${config.MacStripPath}"},
+		})
 
 	// b/132822437: objcopy uses a file descriptor per .o file when called on .a files, which runs the system out of
 	// file descriptors on darwin.  Limit concurrent calls to 5 on darwin.
@@ -137,18 +157,9 @@ var (
 		}
 	}()
 
-	strip = pctx.AndroidStaticRule("strip",
-		blueprint.RuleParams{
-			Depfile:     "${out}.d",
-			Deps:        blueprint.DepsGCC,
-			Command:     "CROSS_COMPILE=$crossCompile XZ=$xzCmd CLANG_BIN=${config.ClangBin} $stripPath ${args} -i ${in} -o ${out} -d ${out}.d",
-			CommandDeps: []string{"$stripPath", "$xzCmd"},
-			Pool:        darwinStripPool,
-		},
-		"args", "crossCompile")
-
 	_ = pctx.SourcePathVariable("archiveRepackPath", "build/soong/scripts/archive_repack.sh")
 
+	// Rule to repack an archive (.a) file with a subset of object files.
 	archiveRepack = pctx.AndroidStaticRule("archiveRepack",
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
@@ -158,6 +169,7 @@ var (
 		},
 		"objects")
 
+	// Rule to create an empty file at a given path.
 	emptyFile = pctx.AndroidStaticRule("emptyFile",
 		blueprint.RuleParams{
 			Command: "rm -f $out && touch $out",
@@ -165,6 +177,7 @@ var (
 
 	_ = pctx.SourcePathVariable("tocPath", "build/soong/scripts/toc.sh")
 
+	// A rule for extracting a table of contents from a shared library (.so).
 	toc = pctx.AndroidStaticRule("toc",
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
@@ -175,6 +188,7 @@ var (
 		},
 		"crossCompile", "format")
 
+	// Rule for invoking clang-tidy (a clang-based linter).
 	clangTidy, clangTidyRE = remoteexec.StaticRules(pctx, "clangTidy",
 		blueprint.RuleParams{
 			Command:     "rm -f $out && $reTemplate${config.ClangBin}/clang-tidy $tidyFlags $in -- $cFlags && touch $out",
@@ -193,6 +207,7 @@ var (
 
 	_ = pctx.SourcePathVariable("yasmCmd", "prebuilts/misc/${config.HostPrebuiltTag}/yasm/yasm")
 
+	// Rule for invoking yasm to compile .asm assembly files.
 	yasm = pctx.AndroidStaticRule("yasm",
 		blueprint.RuleParams{
 			Command:     "$yasmCmd $asFlags -o $out $in && $yasmCmd $asFlags -M $in >$out.d",
@@ -202,6 +217,7 @@ var (
 		},
 		"asFlags")
 
+	// Rule to invoke windres, for interaction with Windows resources.
 	windres = pctx.AndroidStaticRule("windres",
 		blueprint.RuleParams{
 			Command:     "$windresCmd $flags -I$$(dirname $in) -i $in -o $out --preprocessor \"${config.ClangBin}/clang -E -xc-header -DRC_INVOKED\"",
@@ -220,13 +236,15 @@ var (
 			Labels:       map[string]string{"type": "abi-dump", "tool": "header-abi-dumper"},
 			ExecStrategy: "${config.REAbiDumperExecStrategy}",
 			Platform: map[string]string{
-				remoteexec.PoolKey:      "${config.RECXXPool}",
+				remoteexec.PoolKey: "${config.RECXXPool}",
 			},
 		}, []string{"cFlags", "exportDirs"}, nil)
 
 	_ = pctx.SourcePathVariable("sAbiLinker", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-linker")
 	_ = pctx.SourcePathVariable("sAbiLinkerLibs", "prebuilts/clang-tools/${config.HostPrebuiltTag}/lib64")
 
+	// Rule to combine .dump sAbi dump files from multiple source files into a single .ldump
+	// sAbi dump file.
 	sAbiLink, sAbiLinkRE = remoteexec.StaticRules(pctx, "sAbiLink",
 		blueprint.RuleParams{
 			Command:        "$reTemplate$sAbiLinker -o ${out} $symbolFilter -arch $arch  $exportedHeaderFlags @${out}.rsp ",
@@ -245,6 +263,7 @@ var (
 
 	_ = pctx.SourcePathVariable("sAbiDiffer", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-diff")
 
+	// Rule to compare linked sAbi dump files (.ldump).
 	sAbiDiff = pctx.RuleFunc("sAbiDiff",
 		func(ctx android.PackageRuleContext) blueprint.RuleParams {
 			commandStr := "($sAbiDiffer ${extraFlags} -lib ${libName} -arch ${arch} -o ${out} -new ${in} -old ${referenceDump})"
@@ -258,11 +277,13 @@ var (
 		},
 		"extraFlags", "referenceDump", "libName", "arch", "createReferenceDumpFlags")
 
+	// Rule to unzip a reference abi dump.
 	unzipRefSAbiDump = pctx.AndroidStaticRule("unzipRefSAbiDump",
 		blueprint.RuleParams{
 			Command: "gunzip -c $in > $out",
 		})
 
+	// Rule to zip files.
 	zip = pctx.AndroidStaticRule("zip",
 		blueprint.RuleParams{
 			Command:        "${SoongZipCmd} -o ${out} -C $$OUT_DIR -r ${out}.rsp",
@@ -278,6 +299,8 @@ var (
 		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCorpusName() })
 	_ = pctx.VariableFunc("kytheCuEncoding",
 		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCuEncoding() })
+
+	// Rule to use kythe extractors to generate .kzip files, used to build code cross references.
 	kytheExtract = pctx.StaticRule("kythe",
 		blueprint.RuleParams{
 			Command: `rm -f $out && ` +
@@ -310,7 +333,11 @@ func init() {
 	pctx.Import("android/soong/remoteexec")
 }
 
+// builderFlags contains various types of command line flags (and settings) for use in building
+// build statements related to C++.
 type builderFlags struct {
+	// Global flags (which build system or toolchain is responsible for). These are separate from
+	// local flags because they should appear first (so that they may be overridden by local flags).
 	globalCommonFlags     string
 	globalAsFlags         string
 	globalYasmFlags       string
@@ -321,6 +348,7 @@ type builderFlags struct {
 	globalCppFlags        string
 	globalLdFlags         string
 
+	// Local flags (which individual modules are responsible for). These may override global flags.
 	localCommonFlags     string
 	localAsFlags         string
 	localYasmFlags       string
@@ -331,32 +359,37 @@ type builderFlags struct {
 	localCppFlags        string
 	localLdFlags         string
 
-	libFlags      string
-	extraLibFlags string
-	tidyFlags     string
-	sAbiFlags     string
-	aidlFlags     string
-	rsFlags       string
+	libFlags      string // Flags to add to the linker directly after specifying libraries to link.
+	extraLibFlags string // Flags to add to the linker last.
+	tidyFlags     string // Flags that apply to clang-tidy
+	sAbiFlags     string // Flags that apply to header-abi-dumps
+	aidlFlags     string // Flags that apply to aidl source files
+	rsFlags       string // Flags that apply to renderscript source files
 	toolchain     config.Toolchain
-	tidy          bool
-	gcovCoverage  bool
-	sAbiDump      bool
-	emitXrefs     bool
 
-	assemblerWithCpp bool
+	// True if these extra features are enabled.
+	tidy         bool
+	gcovCoverage bool
+	sAbiDump     bool
+	emitXrefs    bool
+
+	assemblerWithCpp bool // True if .s files should be processed with the c preprocessor.
 
 	systemIncludeFlags string
 
+	// True if static libraries should be grouped (using `-Wl,--start-group` and `-Wl,--end-group`).
 	groupStaticLibs bool
 
 	proto            android.ProtoFlags
-	protoC           bool
-	protoOptionsFile bool
+	protoC           bool // If true, compile protos as `.c` files. Otherwise, output as `.cc`.
+	protoOptionsFile bool // If true, output a proto options file.
 
 	yacc *YaccProperties
 	lex  *LexProperties
 }
 
+// StripFlags represents flags related to stripping. This is separate from builderFlags, as these
+// flags are useful outside of this package (such as for Rust).
 type StripFlags struct {
 	Toolchain                     config.Toolchain
 	StripKeepSymbols              bool
@@ -367,6 +400,7 @@ type StripFlags struct {
 	StripUseGnuStrip              bool
 }
 
+// Objects is a collection of file paths corresponding to outputs for C++ related build statements.
 type Objects struct {
 	objFiles      android.Paths
 	tidyFiles     android.Paths
@@ -396,9 +430,10 @@ func (a Objects) Append(b Objects) Objects {
 }
 
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
-func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles android.Paths,
+func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles android.Paths,
 	flags builderFlags, pathDeps android.Paths, cFlagsDeps android.Paths) Objects {
 
+	// Source files are one-to-one with tidy, coverage, or kythe files, if enabled.
 	objFiles := make(android.Paths, len(srcFiles))
 	var tidyFiles android.Paths
 	if flags.tidy {
@@ -468,6 +503,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 
 		objFiles[i] = objFile
 
+		// Register compilation build statements. The actual rule used depends on the source file type.
 		switch srcFile.Ext() {
 		case ".asm":
 			ctx.Build(pctx, android.BuildParams{
@@ -562,6 +598,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			},
 		})
 
+		// Register post-process build statements (such as for tidy or kythe).
 		if emitXref {
 			kytheFile := android.ObjPathWithExt(ctx, subdir, srcFile, "kzip")
 			ctx.Build(pctx, android.BuildParams{
@@ -639,7 +676,7 @@ func TransformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 }
 
 // Generate a rule for compiling multiple .o files to a static library (.a)
-func TransformObjToStaticLib(ctx android.ModuleContext,
+func transformObjToStaticLib(ctx android.ModuleContext,
 	objFiles android.Paths, wholeStaticLibs android.Paths,
 	flags builderFlags, outputFile android.ModuleOutPath, deps android.Paths) {
 
@@ -682,7 +719,7 @@ func TransformObjToStaticLib(ctx android.ModuleContext,
 
 // Generate a rule for compiling multiple .o files, plus static libraries, whole static libraries,
 // and shared libraries, to a shared library (.so) or dynamic executable
-func TransformObjToDynamicBinary(ctx android.ModuleContext,
+func transformObjToDynamicBinary(ctx android.ModuleContext,
 	objFiles, sharedLibs, staticLibs, lateStaticLibs, wholeStaticLibs, deps android.Paths,
 	crtBegin, crtEnd android.OptionalPath, groupLate bool, flags builderFlags, outputFile android.WritablePath, implicitOutputs android.WritablePaths) {
 
@@ -763,7 +800,7 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 
 // Generate a rule to combine .dump sAbi dump files from multiple source files
 // into a single .ldump sAbi dump file
-func TransformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Paths, soFile android.Path,
+func transformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Paths, soFile android.Path,
 	baseName, exportedHeaderFlags string, symbolFile android.OptionalPath,
 	excludedSymbolVersions, excludedSymbolTags []string) android.OptionalPath {
 
@@ -810,7 +847,8 @@ func TransformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 	return android.OptionalPathForPath(outputFile)
 }
 
-func UnzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseName string) android.Path {
+// unzipRefDump registers a build statement to unzip a reference abi dump.
+func unzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseName string) android.Path {
 	outputFile := android.PathForModuleOut(ctx, baseName+"_ref.lsdump")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        unzipRefSAbiDump,
@@ -821,7 +859,8 @@ func UnzipRefDump(ctx android.ModuleContext, zippedRefDump android.Path, baseNam
 	return outputFile
 }
 
-func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
+// sourceAbiDiff registers a build statement to compare linked sAbi dump files (.ldump).
+func sourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceDump android.Path,
 	baseName, exportedHeaderFlags string, checkAllApis, isLlndk, isNdk, isVndkExt bool) android.OptionalPath {
 
 	outputFile := android.PathForModuleOut(ctx, baseName+".abidiff")
@@ -872,7 +911,7 @@ func SourceAbiDiff(ctx android.ModuleContext, inputDump android.Path, referenceD
 }
 
 // Generate a rule for extracting a table of contents from a shared library (.so)
-func TransformSharedObjectToToc(ctx android.ModuleContext, inputFile android.Path,
+func transformSharedObjectToToc(ctx android.ModuleContext, inputFile android.Path,
 	outputFile android.WritablePath, flags builderFlags) {
 
 	var format string
@@ -901,7 +940,7 @@ func TransformSharedObjectToToc(ctx android.ModuleContext, inputFile android.Pat
 }
 
 // Generate a rule for compiling multiple .o files to a .o using ld partial linking
-func TransformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
+func transformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
 	flags builderFlags, outputFile android.WritablePath, deps android.Paths) {
 
 	ldCmd := "${config.ClangBin}/clang++"
@@ -926,8 +965,8 @@ func TransformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
 	})
 }
 
-// Generate a rule for runing objcopy --prefix-symbols on a binary
-func TransformBinaryPrefixSymbols(ctx android.ModuleContext, prefix string, inputFile android.Path,
+// Generate a rule for running objcopy --prefix-symbols on a binary
+func transformBinaryPrefixSymbols(ctx android.ModuleContext, prefix string, inputFile android.Path,
 	flags builderFlags, outputFile android.WritablePath) {
 
 	objcopyCmd := gccCmd(flags.toolchain, "objcopy")
@@ -944,7 +983,8 @@ func TransformBinaryPrefixSymbols(ctx android.ModuleContext, prefix string, inpu
 	})
 }
 
-func TransformStrip(ctx android.ModuleContext, inputFile android.Path,
+// Registers a build statement to invoke `strip` (to discard symbols and data from object files).
+func transformStrip(ctx android.ModuleContext, inputFile android.Path,
 	outputFile android.WritablePath, flags StripFlags) {
 
 	crossCompile := gccCmd(flags.Toolchain, "")
@@ -980,7 +1020,8 @@ func TransformStrip(ctx android.ModuleContext, inputFile android.Path,
 	})
 }
 
-func TransformDarwinStrip(ctx android.ModuleContext, inputFile android.Path,
+// Registers build statement to invoke `strip` on darwin architecture.
+func transformDarwinStrip(ctx android.ModuleContext, inputFile android.Path,
 	outputFile android.WritablePath) {
 
 	ctx.Build(pctx, android.BuildParams{
@@ -991,7 +1032,8 @@ func TransformDarwinStrip(ctx android.ModuleContext, inputFile android.Path,
 	})
 }
 
-func TransformCoverageFilesToZip(ctx android.ModuleContext,
+// Registers build statement to zip one or more coverage files.
+func transformCoverageFilesToZip(ctx android.ModuleContext,
 	inputs Objects, baseName string) android.OptionalPath {
 
 	if len(inputs.coverageFiles) > 0 {
@@ -1010,7 +1052,8 @@ func TransformCoverageFilesToZip(ctx android.ModuleContext,
 	return android.OptionalPath{}
 }
 
-func TransformArchiveRepack(ctx android.ModuleContext, inputFile android.Path,
+// Rule to repack an archive (.a) file with a subset of object files.
+func transformArchiveRepack(ctx android.ModuleContext, inputFile android.Path,
 	outputFile android.WritablePath, objects []string) {
 
 	ctx.Build(pctx, android.BuildParams{
@@ -1026,34 +1069,4 @@ func TransformArchiveRepack(ctx android.ModuleContext, inputFile android.Path,
 
 func gccCmd(toolchain config.Toolchain, cmd string) string {
 	return filepath.Join(toolchain.GccRoot(), "bin", toolchain.GccTriple()+"-"+cmd)
-}
-
-func splitListForSize(list android.Paths, limit int) (lists []android.Paths, err error) {
-	var i int
-
-	start := 0
-	bytes := 0
-	for i = range list {
-		l := len(list[i].String())
-		if l > limit {
-			return nil, fmt.Errorf("list element greater than size limit (%d)", limit)
-		}
-		if bytes+l > limit {
-			lists = append(lists, list[start:i])
-			start = i
-			bytes = 0
-		}
-		bytes += l + 1 // count a space between each list element
-	}
-
-	lists = append(lists, list[start:])
-
-	totalLen := 0
-	for _, l := range lists {
-		totalLen += len(l)
-	}
-	if totalLen != len(list) {
-		panic(fmt.Errorf("Failed breaking up list, %d != %d", len(list), totalLen))
-	}
-	return lists, nil
 }
