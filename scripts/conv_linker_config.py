@@ -18,8 +18,10 @@
 import argparse
 import collections
 import json
+import os
 
 import linker_config_pb2
+from google.protobuf.descriptor import FieldDescriptor
 from google.protobuf.json_format import ParseDict
 from google.protobuf.text_format import MessageToString
 
@@ -41,6 +43,25 @@ def Print(args):
     pb = linker_config_pb2.LinkerConfig()
     pb.ParseFromString(f.read())
   print(MessageToString(pb))
+
+
+def SystemProvide(args):
+  pb = linker_config_pb2.LinkerConfig()
+  with open(args.source, 'rb') as f:
+    pb.ParseFromString(f.read())
+  libraries = args.value.split()
+
+  def IsInLibPath(lib_name):
+    lib_path = os.path.join(args.system, 'lib', lib_name)
+    lib64_path = os.path.join(args.system, 'lib64', lib_name)
+    return os.path.exists(lib_path) or os.path.islink(lib_path) or os.path.exists(lib64_path) or os.path.islink(lib64_path)
+
+  installed_libraries = list(filter(IsInLibPath, libraries))
+  for item in installed_libraries:
+    if item not in getattr(pb, 'provideLibs'):
+      getattr(pb, 'provideLibs').append(item)
+  with open(args.output, 'wb') as f:
+    f.write(pb.SerializeToString())
 
 
 def GetArgParser():
@@ -72,6 +93,32 @@ def GetArgParser():
       type=str,
       help='Source linker configuration file in protobuf.')
   print_proto.set_defaults(func=Print)
+
+  system_provide_libs = subparsers.add_parser(
+      'systemprovide', help='Append system provide libraries into the configuration.')
+  system_provide_libs.add_argument(
+      '-s',
+      '--source',
+      required=True,
+      type=str,
+      help='Source linker configuration file in protobuf.')
+  system_provide_libs.add_argument(
+      '-o',
+      '--output',
+      required=True,
+      type=str,
+      help='Target linker configuration file to write in protobuf.')
+  system_provide_libs.add_argument(
+      '--value',
+      required=True,
+      type=str,
+      help='Values of the libraries to append. If there are more than one it should be separated by empty space')
+  system_provide_libs.add_argument(
+      '--system',
+      required=True,
+      type=str,
+      help='Path of the system image.')
+  system_provide_libs.set_defaults(func=SystemProvide)
 
   return parser
 
