@@ -28,7 +28,7 @@ import (
 func SetupOutDir(ctx Context, config Config) {
 	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), "Android.mk"))
 	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), "CleanSpec.mk"))
-	if !config.SkipMake() {
+	if !config.SkipKati() {
 		// Run soong_build with Kati for a hybrid build, e.g. running the
 		// AndroidMk singleton and postinstall commands. Communicate this to
 		// soong_build by writing an empty .soong.kati_enabled marker file in the
@@ -67,8 +67,8 @@ subninja {{.SoongNinjaFile}}
 `))
 
 func createCombinedBuildNinjaFile(ctx Context, config Config) {
-	// If we're in SkipMake mode, skip creating this file if it already exists
-	if config.SkipMake() {
+	// If we're in SkipKati mode, skip creating this file if it already exists
+	if config.SkipKati() {
 		if _, err := os.Stat(config.CombinedNinjaFile()); err == nil || !os.IsNotExist(err) {
 			return
 		}
@@ -208,10 +208,14 @@ func Build(ctx Context, config Config, what int) {
 
 	SetupPath(ctx, config)
 
-	if config.SkipMake() {
-		ctx.Verboseln("Skipping Make/Kati as requested")
-		// If Make/Kati is disabled, then explicitly build using Soong and Ninja.
-		what = what & (BuildSoong | BuildNinja)
+	if config.SkipConfig() {
+		ctx.Verboseln("Skipping Config as requested")
+		what = what &^ BuildProductConfig
+	}
+
+	if config.SkipKati() {
+		ctx.Verboseln("Skipping Kati as requested")
+		what = what &^ BuildKati
 	}
 
 	if config.StartGoma() {
@@ -276,7 +280,7 @@ func Build(ctx Context, config Config, what int) {
 	}
 
 	if what&BuildNinja != 0 {
-		if !config.SkipMake() {
+		if what&BuildKati != 0 {
 			installCleanIfNecessary(ctx, config)
 		}
 
