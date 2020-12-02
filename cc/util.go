@@ -125,3 +125,52 @@ func makeSymlinkCmd(linkDirOnDevice string, linkName string, target string) stri
 	return "mkdir -p " + dir + " && " +
 		"ln -sf " + target + " " + filepath.Join(dir, linkName)
 }
+
+func copyFileRule(ctx android.SingletonContext, path android.Path, out string) android.OutputPath {
+	outPath := android.PathForOutput(ctx, out)
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        android.Cp,
+		Input:       path,
+		Output:      outPath,
+		Description: "copy " + path.String() + " -> " + out,
+		Args: map[string]string{
+			"cpFlags": "-f -L",
+		},
+	})
+	return outPath
+}
+
+func combineNoticesRule(ctx android.SingletonContext, paths android.Paths, out string) android.OutputPath {
+	outPath := android.PathForOutput(ctx, out)
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        android.Cat,
+		Inputs:      paths,
+		Output:      outPath,
+		Description: "combine notices for " + out,
+	})
+	return outPath
+}
+
+func writeStringToFileRule(ctx android.SingletonContext, content, out string) android.OutputPath {
+	outPath := android.PathForOutput(ctx, out)
+	android.WriteFileRule(ctx, outPath, content)
+	return outPath
+}
+
+// Dump a map to a list file as:
+//
+// {key1} {value1}
+// {key2} {value2}
+// ...
+func installMapListFileRule(ctx android.SingletonContext, m map[string]string, path string) android.OutputPath {
+	var txtBuilder strings.Builder
+	for idx, k := range android.SortedStringKeys(m) {
+		if idx > 0 {
+			txtBuilder.WriteString("\n")
+		}
+		txtBuilder.WriteString(k)
+		txtBuilder.WriteString(" ")
+		txtBuilder.WriteString(m[k])
+	}
+	return writeStringToFileRule(ctx, txtBuilder.String(), path)
+}
