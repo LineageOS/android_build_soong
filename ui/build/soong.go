@@ -173,7 +173,7 @@ func runSoong(ctx Context, config Config) {
 
 	distGzipFile(ctx, config, config.SoongNinjaFile(), "soong")
 
-	if !config.SkipMake() {
+	if !config.SkipKati() {
 		distGzipFile(ctx, config, config.SoongAndroidMk(), "soong")
 		distGzipFile(ctx, config, config.SoongMakeVarsMk(), "soong")
 	}

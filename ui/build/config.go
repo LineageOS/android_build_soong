@@ -46,7 +46,8 @@ type configImpl struct {
 	verbose        bool
 	checkbuild     bool
 	dist           bool
-	skipMake       bool
+	skipConfig     bool
+	skipKati       bool
 	skipSoongTests bool
 
 	// From the product config
@@ -536,7 +537,10 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 		} else if arg == "showcommands" {
 			c.verbose = true
 		} else if arg == "--skip-make" {
-			c.skipMake = true
+			c.skipConfig = true
+			c.skipKati = true
+		} else if arg == "--skip-kati" {
+			c.skipKati = true
 		} else if arg == "--skip-soong-tests" {
 			c.skipSoongTests = true
 		} else if len(arg) > 0 && arg[0] == '-' {
@@ -697,7 +701,7 @@ func (c *configImpl) DistDir() string {
 }
 
 func (c *configImpl) NinjaArgs() []string {
-	if c.skipMake {
+	if c.skipKati {
 		return c.arguments
 	}
 	return c.ninjaArgs
@@ -740,8 +744,12 @@ func (c *configImpl) IsVerbose() bool {
 	return c.verbose
 }
 
-func (c *configImpl) SkipMake() bool {
-	return c.skipMake
+func (c *configImpl) SkipKati() bool {
+	return c.skipKati
+}
+
+func (c *configImpl) SkipConfig() bool {
+	return c.skipConfig
 }
 
 func (c *configImpl) TargetProduct() string {
