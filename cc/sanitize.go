@@ -169,14 +169,14 @@ type SanitizeUserProps struct {
 		Cfi              *bool    `android:"arch_variant"`
 		Integer_overflow *bool    `android:"arch_variant"`
 		Misc_undefined   []string `android:"arch_variant"`
-		No_recover       []string
-	}
+		No_recover       []string `android:"arch_variant"`
+	} `android:"arch_variant"`
 
 	// Sanitizers to run with flag configuration specified
 	Config struct {
 		// Enables CFI support flags for assembly-heavy libraries
 		Cfi_assembly_support *bool `android:"arch_variant"`
-	}
+	} `android:"arch_variant"`
 
 	// value to pass to -fsanitize-recover=
 	Recover []string
