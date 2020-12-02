@@ -6186,6 +6186,57 @@ func TestNonPreferredPrebuiltDependency(t *testing.T) {
 	`)
 }
 
+func TestPreferredPrebuiltSharedLibDep(t *testing.T) {
+	ctx, config := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			apex_available: ["myapex"],
+			shared_libs: ["otherlib"],
+			system_shared_libs: [],
+		}
+
+		cc_library {
+			name: "otherlib",
+			srcs: ["mylib.cpp"],
+			stubs: {
+				versions: ["current"],
+			},
+		}
+
+		cc_prebuilt_library_shared {
+			name: "otherlib",
+			prefer: true,
+			srcs: ["prebuilt.so"],
+			stubs: {
+				versions: ["current"],
+			},
+		}
+	`)
+
+	ab := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
+	data := android.AndroidMkDataForTest(t, config, "", ab)
+	var builder strings.Builder
+	data.Custom(&builder, ab.BaseModuleName(), "TARGET_", "", data)
+	androidMk := builder.String()
+
+	// The make level dependency needs to be on otherlib - prebuilt_otherlib isn't
+	// a thing there.
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += otherlib\n")
+}
+
 func TestMain(m *testing.M) {
 	run := func() int {
 		setUp()
