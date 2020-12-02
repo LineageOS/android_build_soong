@@ -44,7 +44,7 @@ func SetupOutDir(ctx Context, config Config) {
 	ensureEmptyFileExists(ctx, filepath.Join(config.OutDir(), ".out-dir"))
 
 	if buildDateTimeFile, ok := config.environ.Get("BUILD_DATETIME_FILE"); ok {
-		err := ioutil.WriteFile(buildDateTimeFile, []byte(config.buildDateTime), 0777)
+		err := ioutil.WriteFile(buildDateTimeFile, []byte(config.buildDateTime), 0666) // a+rw
 		if err != nil {
 			ctx.Fatalln("Failed to write BUILD_DATETIME to file:", err)
 		}
@@ -85,6 +85,7 @@ func createCombinedBuildNinjaFile(ctx Context, config Config) {
 	}
 }
 
+// These are bitmasks which can be used to check whether various flags are set e.g. whether to use Bazel.
 const (
 	BuildNone          = iota
 	BuildProductConfig = 1 << iota
@@ -97,6 +98,7 @@ const (
 	BuildAllWithBazel  = BuildProductConfig | BuildSoong | BuildKati | BuildBazel
 )
 
+// checkProblematicFiles fails the build if existing Android.mk or CleanSpec.mk files are found at the root of the tree.
 func checkProblematicFiles(ctx Context) {
 	files := []string{"Android.mk", "CleanSpec.mk"}
 	for _, file := range files {
@@ -108,6 +110,7 @@ func checkProblematicFiles(ctx Context) {
 	}
 }
 
+// checkCaseSensitivity issues a warning if a case-insensitive file system is being used.
 func checkCaseSensitivity(ctx Context, config Config) {
 	outDir := config.OutDir()
 	lowerCase := filepath.Join(outDir, "casecheck.txt")
@@ -115,13 +118,11 @@ func checkCaseSensitivity(ctx Context, config Config) {
 	lowerData := "a"
 	upperData := "B"
 
-	err := ioutil.WriteFile(lowerCase, []byte(lowerData), 0777)
-	if err != nil {
+	if err := ioutil.WriteFile(lowerCase, []byte(lowerData), 0666); err != nil { // a+rw
 		ctx.Fatalln("Failed to check case sensitivity:", err)
 	}
 
-	err = ioutil.WriteFile(upperCase, []byte(upperData), 0777)
-	if err != nil {
+	if err := ioutil.WriteFile(upperCase, []byte(upperData), 0666); err != nil { // a+rw
 		ctx.Fatalln("Failed to check case sensitivity:", err)
 	}
 
@@ -139,18 +140,15 @@ func checkCaseSensitivity(ctx Context, config Config) {
 	}
 }
 
-func help(ctx Context, config Config, what int) {
+// help prints a help/usage message, via the build/make/help.sh script.
+func help(ctx Context, config Config) {
 	cmd := Command(ctx, config, "help.sh", "build/make/help.sh")
 	cmd.Sandbox = dumpvarsSandbox
 	cmd.RunAndPrintOrFatal()
 }
 
-// Build the tree. The 'what' argument can be used to chose which components of
-// the build to run.
-func Build(ctx Context, config Config, what int) {
-	ctx.Verboseln("Starting build with args:", config.Arguments())
-	ctx.Verboseln("Environment:", config.Environment().Environ())
-
+// checkRAM warns if there probably isn't enough RAM to complete a build.
+func checkRAM(ctx Context, config Config) {
 	if totalRAM := config.TotalRAM(); totalRAM != 0 {
 		ram := float32(totalRAM) / (1024 * 1024 * 1024)
 		ctx.Verbosef("Total RAM: %.3vGB", ram)
@@ -166,24 +164,24 @@ func Build(ctx Context, config Config, what int) {
 			ctx.Println("-j value.")
 			ctx.Println("************************************************************")
 		} else if ram <= float32(config.Parallel()) {
+			// Want at least 1GB of RAM per job.
 			ctx.Printf("Warning: high -j%d count compared to %.3vGB of RAM", config.Parallel(), ram)
 			ctx.Println("If you run into segfaults or other errors, try a lower -j value")
 		}
 	}
+}
+
+// Build the tree. The 'what' argument can be used to chose which components of
+// the build to run, via checking various bitmasks.
+func Build(ctx Context, config Config, what int) {
+	ctx.Verboseln("Starting build with args:", config.Arguments())
+	ctx.Verboseln("Environment:", config.Environment().Environ())
 
 	ctx.BeginTrace(metrics.Total, "total")
 	defer ctx.EndTrace()
 
-	if config.SkipMake() {
-		ctx.Verboseln("Skipping Make/Kati as requested")
-		what = what & (BuildSoong | BuildNinja)
-	}
-
 	if inList("help", config.Arguments()) {
-		help(ctx, config, what)
-		return
-	} else if inList("clean", config.Arguments()) || inList("clobber", config.Arguments()) {
-		clean(ctx, config)
+		help(ctx, config)
 		return
 	}
 
@@ -191,15 +189,30 @@ func Build(ctx Context, config Config, what int) {
 	buildLock := BecomeSingletonOrFail(ctx, config)
 	defer buildLock.Unlock()
 
+	if inList("clean", config.Arguments()) || inList("clobber", config.Arguments()) {
+		clean(ctx, config)
+		return
+	}
+
+	// checkProblematicFiles aborts the build if Android.mk or CleanSpec.mk are found at the root of the tree.
 	checkProblematicFiles(ctx)
+
+	checkRAM(ctx, config)
 
 	SetupOutDir(ctx, config)
 
+	// checkCaseSensitivity issues a warning if a case-insensitive file system is being used.
 	checkCaseSensitivity(ctx, config)
 
 	ensureEmptyDirectoriesExist(ctx, config.TempDir())
 
 	SetupPath(ctx, config)
+
+	if config.SkipMake() {
+		ctx.Verboseln("Skipping Make/Kati as requested")
+		// If Make/Kati is disabled, then explicitly build using Soong and Ninja.
+		what = what & (BuildSoong | BuildNinja)
+	}
 
 	if config.StartGoma() {
 		// Ensure start Goma compiler_proxy
@@ -216,12 +229,16 @@ func Build(ctx Context, config Config, what int) {
 		runMakeProductConfig(ctx, config)
 	}
 
+	// Everything below here depends on product config.
+
 	if inList("installclean", config.Arguments()) ||
 		inList("install-clean", config.Arguments()) {
 		installClean(ctx, config)
 		ctx.Println("Deleted images and staging directories.")
 		return
-	} else if inList("dataclean", config.Arguments()) ||
+	}
+
+	if inList("dataclean", config.Arguments()) ||
 		inList("data-clean", config.Arguments()) {
 		dataClean(ctx, config)
 		ctx.Println("Deleted data files.")
@@ -240,7 +257,7 @@ func Build(ctx Context, config Config, what int) {
 		runKatiBuild(ctx, config)
 		runKatiPackage(ctx, config)
 
-		ioutil.WriteFile(config.LastKatiSuffixFile(), []byte(config.KatiSuffix()), 0777)
+		ioutil.WriteFile(config.LastKatiSuffixFile(), []byte(config.KatiSuffix()), 0666) // a+rw
 	} else {
 		// Load last Kati Suffix if it exists
 		if katiSuffix, err := ioutil.ReadFile(config.LastKatiSuffixFile()); err == nil {
@@ -267,6 +284,7 @@ func Build(ctx Context, config Config, what int) {
 		runNinja(ctx, config)
 	}
 
+	// Currently, using Bazel requires Kati and Soong to run first, so check whether to run Bazel last.
 	if what&BuildBazel != 0 {
 		runBazel(ctx, config)
 	}
@@ -282,14 +300,11 @@ func distGzipFile(ctx Context, config Config, src string, subDirs ...string) {
 	subDir := filepath.Join(subDirs...)
 	destDir := filepath.Join(config.DistDir(), "soong_ui", subDir)
 
-	err := os.MkdirAll(destDir, 0777)
-	if err != nil {
+	if err := os.MkdirAll(destDir, 0777); err != nil { // a+rwx
 		ctx.Printf("failed to mkdir %s: %s", destDir, err.Error())
-
 	}
 
-	err = gzipFileToDir(src, destDir)
-	if err != nil {
+	if err := gzipFileToDir(src, destDir); err != nil {
 		ctx.Printf("failed to dist %s: %s", filepath.Base(src), err.Error())
 	}
 }
@@ -304,14 +319,11 @@ func distFile(ctx Context, config Config, src string, subDirs ...string) {
 	subDir := filepath.Join(subDirs...)
 	destDir := filepath.Join(config.DistDir(), "soong_ui", subDir)
 
-	err := os.MkdirAll(destDir, 0777)
-	if err != nil {
+	if err := os.MkdirAll(destDir, 0777); err != nil { // a+rwx
 		ctx.Printf("failed to mkdir %s: %s", destDir, err.Error())
-
 	}
 
-	_, err = copyFile(src, filepath.Join(destDir, filepath.Base(src)))
-	if err != nil {
+	if _, err := copyFile(src, filepath.Join(destDir, filepath.Base(src))); err != nil {
 		ctx.Printf("failed to dist %s: %s", filepath.Base(src), err.Error())
 	}
 }
