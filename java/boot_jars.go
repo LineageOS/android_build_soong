@@ -85,8 +85,8 @@ func (b *bootJarsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 
 	timestamp := android.PathForOutput(ctx, "boot-jars-package-check/stamp")
 
-	rule := android.NewRuleBuilder()
-	checkBootJars := rule.Command().BuiltTool(ctx, "check_boot_jars").
+	rule := android.NewRuleBuilder(pctx, ctx)
+	checkBootJars := rule.Command().BuiltTool("check_boot_jars").
 		Input(ctx.Config().HostToolPath(ctx, "dexdump")).
 		Input(android.PathForSource(ctx, "build/soong/scripts/check_boot_jars/package_allowed_list.txt"))
 
@@ -109,7 +109,7 @@ func (b *bootJarsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	}
 
 	checkBootJars.Text("&& touch").Output(timestamp)
-	rule.Build(pctx, ctx, "boot_jars_package_check", "check boot jar packages")
+	rule.Build("boot_jars_package_check", "check boot jar packages")
 
 	// The check-boot-jars phony target depends on the timestamp created if the check succeeds.
 	ctx.Phony("check-boot-jars", timestamp)

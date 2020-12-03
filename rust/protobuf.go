@@ -93,7 +93,7 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 	// stemFile must be first here as the first path in BaseSourceProvider.OutputFiles is the library entry-point.
 	outputs := android.WritablePaths{stemFile}
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	for _, protoFile := range protoFiles {
 		protoName := strings.TrimSuffix(protoFile.Base(), ".proto")
 		protoNames = append(protoNames, protoName)
@@ -108,7 +108,7 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 
 		depFile := android.PathForModuleOut(ctx, protoName+".d")
 
-		android.ProtoRule(ctx, rule, protoFile, protoFlags, protoFlags.Deps, outDir, depFile, ruleOutputs)
+		android.ProtoRule(rule, protoFile, protoFlags, protoFlags.Deps, outDir, depFile, ruleOutputs)
 		outputs = append(outputs, ruleOutputs...)
 	}
 
@@ -117,7 +117,7 @@ func (proto *protobufDecorator) GenerateSource(ctx ModuleContext, deps PathDeps)
 		Text("printf '" + proto.genModFileContents(ctx, protoNames) + "' >").
 		Output(stemFile)
 
-	rule.Build(pctx, ctx, "protoc_"+ctx.ModuleName(), "protoc "+ctx.ModuleName())
+	rule.Build("protoc_"+ctx.ModuleName(), "protoc "+ctx.ModuleName())
 
 	proto.BaseSourceProvider.OutputFiles = outputs.Paths()
 

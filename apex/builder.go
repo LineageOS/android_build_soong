@@ -262,7 +262,7 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Output
 	}
 
 	output := android.PathForModuleOut(ctx, "file_contexts")
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 
 	switch a.properties.ApexType {
 	case imageApex:
@@ -294,7 +294,7 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Output
 		panic(fmt.Errorf("unsupported type %v", a.properties.ApexType))
 	}
 
-	rule.Build(pctx, ctx, "file_contexts."+a.Name(), "Generate file_contexts")
+	rule.Build("file_contexts."+a.Name(), "Generate file_contexts")
 	return output.OutputPath
 }
 
@@ -329,14 +329,14 @@ func (a *apexBundle) buildNoticeFiles(ctx android.ModuleContext, apexFileName st
 // included in the APEX without actually downloading and extracting it.
 func (a *apexBundle) buildInstalledFilesFile(ctx android.ModuleContext, builtApex android.Path, imageDir android.Path) android.OutputPath {
 	output := android.PathForModuleOut(ctx, "installed-files.txt")
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
 		Implicit(builtApex).
 		Text("(cd " + imageDir.String() + " ; ").
 		Text("find . \\( -type f -o -type l \\) -printf \"%s %p\\n\") ").
 		Text(" | sort -nr > ").
 		Output(output)
-	rule.Build(pctx, ctx, "installed-files."+a.Name(), "Installed files")
+	rule.Build("installed-files."+a.Name(), "Installed files")
 	return output.OutputPath
 }
 
