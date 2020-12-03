@@ -727,7 +727,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		var txtBuilder strings.Builder
 		for idx, k := range android.SortedStringKeys(m) {
 			if idx > 0 {
-				txtBuilder.WriteString("\\n")
+				txtBuilder.WriteString("\n")
 			}
 			txtBuilder.WriteString(k)
 			txtBuilder.WriteString(" ")
