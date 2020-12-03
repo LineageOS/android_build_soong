@@ -2399,10 +2399,6 @@ func (m *moduleContext) skipInstall(fullInstallPath InstallPath) bool {
 		if m.Config().KatiEnabled() && !m.InstallBypassMake() {
 			return true
 		}
-
-		if m.Config().SkipMegaDeviceInstall(fullInstallPath.String()) {
-			return true
-		}
 	}
 
 	return false
