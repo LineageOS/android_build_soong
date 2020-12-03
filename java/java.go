@@ -1050,7 +1050,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			switch tag {
 			case libTag:
 				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
-				// names of sdk libs that are directly depended are exported
 				j.classLoaderContexts.MaybeAddContext(ctx, dep.OptionalImplicitSdkLibrary(),
 					dep.DexJarBuildPath(), dep.DexJarInstallPath())
 			case staticLibTag:
@@ -1062,7 +1061,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.bootClasspath = append(deps.bootClasspath, dep.HeaderJars()...)
 			case libTag, instrumentationForTag:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
-				// sdk lib names from dependencies are re-exported
 				j.classLoaderContexts.AddContextMap(dep.ClassLoaderContexts(), otherName)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
 				pluginJars, pluginClasses, disableTurbine := dep.ExportedPlugins()
@@ -1075,8 +1073,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.staticJars = append(deps.staticJars, dep.ImplementationJars()...)
 				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.HeaderJars()...)
 				deps.staticResourceJars = append(deps.staticResourceJars, dep.ResourceJars()...)
-				// sdk lib names from dependencies are re-exported
-				j.classLoaderContexts.AddContextMap(dep.ClassLoaderContexts(), otherName)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
 				pluginJars, pluginClasses, disableTurbine := dep.ExportedPlugins()
 				addPlugins(&deps, pluginJars, pluginClasses...)
@@ -1151,6 +1147,9 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.systemModules = &systemModules{outputDir, outputDeps}
 			}
 		}
+
+		// Merge dep's CLC after processing the dep itself (which may add its own <uses-library>).
+		maybeAddCLCFromDep(module, tag, otherName, j.classLoaderContexts)
 	})
 
 	return deps
@@ -2781,8 +2780,6 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			switch tag {
 			case libTag, staticLibTag:
 				flags.classpath = append(flags.classpath, dep.HeaderJars()...)
-				// sdk lib names from dependencies are re-exported
-				j.classLoaderContexts.AddContextMap(dep.ClassLoaderContexts(), otherName)
 			case bootClasspathTag:
 				flags.bootClasspath = append(flags.bootClasspath, dep.HeaderJars()...)
 			}
@@ -2790,10 +2787,12 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			switch tag {
 			case libTag:
 				flags.classpath = append(flags.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
-				// names of sdk libs that are directly depended are exported
 				j.classLoaderContexts.AddContext(ctx, otherName, dep.DexJarBuildPath(), dep.DexJarInstallPath())
 			}
 		}
+
+		// Merge dep's CLC after processing the dep itself (which may add its own <uses-library>).
+		maybeAddCLCFromDep(module, tag, otherName, j.classLoaderContexts)
 	})
 
 	var installFile android.Path
@@ -3214,3 +3213,31 @@ var Bool = proptools.Bool
 var BoolDefault = proptools.BoolDefault
 var String = proptools.String
 var inList = android.InList
+
+// Add class loader context of a given dependency to the given class loader context, provided that
+// all the necessary conditions are met.
+func maybeAddCLCFromDep(depModule android.Module, depTag blueprint.DependencyTag,
+	depName string, clcMap dexpreopt.ClassLoaderContextMap) {
+
+	if dep, ok := depModule.(Dependency); ok {
+		if depTag == libTag {
+			// Ok, propagate <uses-library> through non-static library dependencies.
+		} else if depTag == staticLibTag {
+			// Propagate <uses-library> through static library dependencies, unless it is a
+			// component library (such as stubs). Component libraries have a dependency on their
+			// SDK library, which should not be pulled just because of a static component library.
+			if comp, isComp := depModule.(SdkLibraryComponentDependency); isComp {
+				if compName := comp.OptionalImplicitSdkLibrary(); compName != nil {
+					dep = nil
+				}
+			}
+		} else {
+			// Don't propagate <uses-library> for other dependency tags.
+			dep = nil
+		}
+
+		if dep != nil {
+			clcMap.AddContextMap(dep.ClassLoaderContexts(), depName)
+		}
+	}
+}
