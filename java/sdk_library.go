@@ -2176,12 +2176,12 @@ func (module *sdkLibraryXml) GenerateAndroidBuildActions(ctx android.ModuleConte
 	xmlContent := fmt.Sprintf(permissionsTemplate, libName, module.implPath(ctx))
 
 	module.outputFilePath = android.PathForModuleOut(ctx, libName+".xml").OutputPath
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
 		Text("/bin/bash -c \"echo -e '" + xmlContent + "'\" > ").
 		Output(module.outputFilePath)
 
-	rule.Build(pctx, ctx, "java_sdk_xml", "Permission XML")
+	rule.Build("java_sdk_xml", "Permission XML")
 
 	module.installDirPath = android.PathForModuleInstall(ctx, "etc", module.SubDir())
 }

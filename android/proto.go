@@ -122,7 +122,7 @@ type ProtoProperties struct {
 	} `android:"arch_variant"`
 }
 
-func ProtoRule(ctx ModuleContext, rule *RuleBuilder, protoFile Path, flags ProtoFlags, deps Paths,
+func ProtoRule(rule *RuleBuilder, protoFile Path, flags ProtoFlags, deps Paths,
 	outDir WritablePath, depFile WritablePath, outputs WritablePaths) {
 
 	var protoBase string
@@ -134,7 +134,7 @@ func ProtoRule(ctx ModuleContext, rule *RuleBuilder, protoFile Path, flags Proto
 	}
 
 	rule.Command().
-		BuiltTool(ctx, "aprotoc").
+		BuiltTool("aprotoc").
 		FlagWithArg(flags.OutTypeFlag+"=", strings.Join(flags.OutParams, ",")+":"+outDir.String()).
 		FlagWithDepFile("--dependency_out=", depFile).
 		FlagWithArg("-I ", protoBase).
@@ -144,5 +144,5 @@ func ProtoRule(ctx ModuleContext, rule *RuleBuilder, protoFile Path, flags Proto
 		ImplicitOutputs(outputs)
 
 	rule.Command().
-		BuiltTool(ctx, "dep_fixer").Flag(depFile.String())
+		BuiltTool("dep_fixer").Flag(depFile.String())
 }
