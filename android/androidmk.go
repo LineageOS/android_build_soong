@@ -499,7 +499,9 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 			}
 		}
 
-		a.AddStrings("LOCAL_INIT_RC", amod.commonProperties.Init_rc...)
+		if !amod.InRamdisk() && !amod.InVendorRamdisk() {
+			a.AddStrings("LOCAL_INIT_RC", amod.commonProperties.Init_rc...)
+		}
 		a.AddStrings("LOCAL_VINTF_FRAGMENTS", amod.commonProperties.Vintf_fragments...)
 		a.SetBoolIfTrue("LOCAL_PROPRIETARY_MODULE", Bool(amod.commonProperties.Proprietary))
 		if Bool(amod.commonProperties.Vendor) || Bool(amod.commonProperties.Soc_specific) {
