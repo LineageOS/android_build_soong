@@ -29,8 +29,16 @@ func init() {
 type filesystem struct {
 	android.ModuleBase
 	android.PackagingBase
+
+	output     android.OutputPath
+	installDir android.InstallPath
 }
 
+// android_filesystem packages a set of modules and their transitive dependencies into a filesystem
+// image. The filesystem images are expected to be mounted in the target device, which means the
+// modules in the filesystem image are built for the target device (i.e. Android, not Linux host).
+// The modules are placed in the filesystem image just like they are installed to the ordinary
+// partitions like system.img. For example, cc_library modules are placed under ./lib[64] directory.
 func filesystemFactory() android.Module {
 	module := &filesystem{}
 	android.InitPackageModule(module)
@@ -42,6 +50,10 @@ var dependencyTag = struct{ blueprint.BaseDependencyTag }{}
 
 func (f *filesystem) DepsMutator(ctx android.BottomUpMutatorContext) {
 	f.AddDeps(ctx, dependencyTag)
+}
+
+func (f *filesystem) installFileName() string {
+	return f.BaseModuleName() + ".img"
 }
 
 var pctx = android.NewPackageContext("android/soong/filesystem")
@@ -68,13 +80,32 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Text(">").Output(propFile).
 		Implicit(mkuserimg)
 
-	image := android.PathForModuleOut(ctx, "filesystem.img").OutputPath
+	f.output = android.PathForModuleOut(ctx, "filesystem.img").OutputPath
 	builder.Command().BuiltTool(ctx, "build_image").
 		Text(rootDir.String()). // input directory
 		Input(propFile).
-		Output(image).
+		Output(f.output).
 		Text(rootDir.String()) // directory where to find fs_config_files|dirs
 
 	// rootDir is not deleted. Might be useful for quick inspection.
 	builder.Build(pctx, ctx, "build_filesystem_image", fmt.Sprintf("Creating filesystem %s", f.BaseModuleName()))
+
+	f.installDir = android.PathForModuleInstall(ctx, "etc")
+	ctx.InstallFile(f.installDir, f.installFileName(), f.output)
+}
+
+var _ android.AndroidMkEntriesProvider = (*filesystem)(nil)
+
+// Implements android.AndroidMkEntriesProvider
+func (f *filesystem) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
+		Class:      "ETC",
+		OutputFile: android.OptionalPathForPath(f.output),
+		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+			func(entries *android.AndroidMkEntries) {
+				entries.SetString("LOCAL_MODULE_PATH", f.installDir.ToMakePath().String())
+				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", f.installFileName())
+			},
+		},
+	}}
 }

@@ -49,7 +49,7 @@ func (p *binaryDecorator) AndroidMk(base *Module, entries *android.AndroidMkEntr
 	entries.Class = "EXECUTABLES"
 
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
-		entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", p.binaryProperties.Test_suites...)
+		entries.AddCompatibilityTestSuites(p.binaryProperties.Test_suites...)
 	})
 	base.subAndroidMk(entries, p.pythonInstaller)
 }
@@ -58,7 +58,7 @@ func (p *testDecorator) AndroidMk(base *Module, entries *android.AndroidMkEntrie
 	entries.Class = "NATIVE_TESTS"
 
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
-		entries.AddStrings("LOCAL_COMPATIBILITY_SUITE", p.binaryDecorator.binaryProperties.Test_suites...)
+		entries.AddCompatibilityTestSuites(p.binaryDecorator.binaryProperties.Test_suites...)
 		if p.testConfig != nil {
 			entries.SetString("LOCAL_FULL_TEST_CONFIG", p.testConfig.String())
 		}

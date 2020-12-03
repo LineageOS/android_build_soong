@@ -54,7 +54,7 @@ func (stripper *Stripper) NeedsStrip(actx android.ModuleContext) bool {
 func (stripper *Stripper) strip(actx android.ModuleContext, in android.Path, out android.ModuleOutPath,
 	flags StripFlags, isStaticLib bool) {
 	if actx.Darwin() {
-		TransformDarwinStrip(actx, in, out)
+		transformDarwinStrip(actx, in, out)
 	} else {
 		if Bool(stripper.StripProperties.Strip.Keep_symbols) {
 			flags.StripKeepSymbols = true
@@ -68,7 +68,7 @@ func (stripper *Stripper) strip(actx android.ModuleContext, in android.Path, out
 		if actx.Config().Debuggable() && !flags.StripKeepMiniDebugInfo && !isStaticLib {
 			flags.StripAddGnuDebuglink = true
 		}
-		TransformStrip(actx, in, out, flags)
+		transformStrip(actx, in, out, flags)
 	}
 }
 

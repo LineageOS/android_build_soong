@@ -30,16 +30,33 @@ import (
 	"android/soong/ui/status"
 )
 
+// This uses Android.bp files and various tools to generate <builddir>/build.ninja.
+//
+// However, the execution of <builddir>/build.ninja happens later in build/soong/ui/build/build.go#Build()
+//
+// We want to rely on as few prebuilts as possible, so there is some bootstrapping here.
+//
+// "Microfactory" is a tool for compiling Go code. We use it to build two other tools:
+// - minibp, used to generate build.ninja files. This is really build/blueprint/bootstrap/command.go#Main()
+// - bpglob, used during incremental builds to identify files in a glob that have changed
+//
+// In reality, several build.ninja files are generated and/or used during the bootstrapping and build process.
+// See build/blueprint/bootstrap/doc.go for more information.
+//
 func runSoong(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunSoong, "soong")
 	defer ctx.EndTrace()
 
+	// Use an anonymous inline function for tracing purposes (this pattern is used several times below).
 	func() {
 		ctx.BeginTrace(metrics.RunSoong, "blueprint bootstrap")
 		defer ctx.EndTrace()
 
+		// Use validations to depend on tests.
 		args := []string{"-n"}
+
 		if !config.skipSoongTests {
+			// Run tests.
 			args = append(args, "-t")
 		}
 
@@ -145,7 +162,10 @@ func runSoong(ctx Context, config Config) {
 		cmd.RunAndStreamOrFatal()
 	}
 
+	// This build generates .bootstrap/build.ninja, which is used in the next step.
 	ninja("minibootstrap", ".minibootstrap/build.ninja")
+
+	// This build generates <builddir>/build.ninja, which is used later by build/soong/ui/build/build.go#Build().
 	ninja("bootstrap", ".bootstrap/build.ninja")
 
 	soongBuildMetrics := loadSoongBuildMetrics(ctx, config)
@@ -153,7 +173,7 @@ func runSoong(ctx Context, config Config) {
 
 	distGzipFile(ctx, config, config.SoongNinjaFile(), "soong")
 
-	if !config.SkipMake() {
+	if !config.SkipKati() {
 		distGzipFile(ctx, config, config.SoongAndroidMk(), "soong")
 		distGzipFile(ctx, config, config.SoongMakeVarsMk(), "soong")
 	}
