@@ -703,7 +703,7 @@ type genSrcsProperties struct {
 	Shard_size *int64
 }
 
-const defaultShardSize = 100
+const defaultShardSize = 50
 
 func NewGenRule() *Module {
 	properties := &genRuleProperties{}
