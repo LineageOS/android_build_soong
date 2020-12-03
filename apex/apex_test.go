@@ -6237,6 +6237,55 @@ func TestPreferredPrebuiltSharedLibDep(t *testing.T) {
 	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += otherlib\n")
 }
 
+func TestExcludeDependency(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			apex_available: ["myapex"],
+			shared_libs: ["mylib2"],
+			target: {
+				apex: {
+					exclude_shared_libs: ["mylib2"],
+				},
+			},
+		}
+
+		cc_library {
+			name: "mylib2",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+		}
+	`)
+
+	// Check if mylib is linked to mylib2 for the non-apex target
+	ldFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared").Rule("ld").Args["libFlags"]
+	ensureContains(t, ldFlags, "mylib2/android_arm64_armv8-a_shared/mylib2.so")
+
+	// Make sure that the link doesn't occur for the apex target
+	ldFlags = ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_apex10000").Rule("ld").Args["libFlags"]
+	ensureNotContains(t, ldFlags, "mylib2/android_arm64_armv8-a_shared_apex10000/mylib2.so")
+
+	// It shouldn't appear in the copy cmd as well.
+	copyCmds := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule").Args["copy_commands"]
+	ensureNotContains(t, copyCmds, "image.apex/lib64/mylib2.so")
+}
+
 func TestMain(m *testing.M) {
 	run := func() int {
 		setUp()
