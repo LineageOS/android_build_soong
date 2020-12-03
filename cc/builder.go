@@ -568,8 +568,11 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles and
 			ccCmd = "clang++"
 			moduleFlags = cppflags
 			moduleToolingFlags = toolingCppflags
+		case ".h", ".hpp":
+			ctx.PropertyErrorf("srcs", "Header file %s is not supported, instead use export_include_dirs or local_include_dirs.", srcFile)
+			continue
 		default:
-			ctx.ModuleErrorf("File %s has unknown extension", srcFile)
+			ctx.PropertyErrorf("srcs", "File %s has unknown extension. Supported extensions: .s, .S, .c, .cpp, .cc, .cxx, .mm", srcFile)
 			continue
 		}
 
