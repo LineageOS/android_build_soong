@@ -176,9 +176,9 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext,
 		// we can't use the rsp file because it is already being used for srcs.
 		// Insert a second rule to write out the list of resources to a file.
 		resourcesList = android.PathForModuleOut(ctx, "lint", "resources.list")
-		resListRule := android.NewRuleBuilder()
+		resListRule := android.NewRuleBuilder(pctx, ctx)
 		resListRule.Command().Text("cp").FlagWithRspFileInputList("", l.resources).Output(resourcesList)
-		resListRule.Build(pctx, ctx, "lint_resources_list", "lint resources list")
+		resListRule.Build("lint_resources_list", "lint resources list")
 		deps = append(deps, l.resources...)
 	}
 
@@ -192,7 +192,7 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext,
 	srcJarList := zipSyncCmd(ctx, rule, srcJarDir, l.srcJars)
 
 	cmd := rule.Command().
-		BuiltTool(ctx, "lint-project-xml").
+		BuiltTool("lint-project-xml").
 		FlagWithOutput("--project_out ", projectXMLPath).
 		FlagWithOutput("--config_out ", configXMLPath).
 		FlagWithArg("--name ", ctx.ModuleName())
@@ -284,7 +284,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		}
 	}
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 
 	if l.manifest == nil {
 		manifest := l.generateManifest(ctx, rule)
@@ -347,7 +347,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	rule.Command().Text("rm -rf").Flag(cacheDir.String()).Flag(homeDir.String())
 
-	rule.Build(pctx, ctx, "lint", "lint")
+	rule.Build("lint", "lint")
 
 	l.outputs = lintOutputs{
 		html: html,
@@ -511,12 +511,12 @@ func lintZip(ctx android.BuilderContext, paths android.Paths, outputPath android
 		return paths[i].String() < paths[j].String()
 	})
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 
-	rule.Command().BuiltTool(ctx, "soong_zip").
+	rule.Command().BuiltTool("soong_zip").
 		FlagWithOutput("-o ", outputPath).
 		FlagWithArg("-C ", android.PathForIntermediates(ctx).String()).
 		FlagWithRspFileInputList("-r ", paths)
 
-	rule.Build(pctx, ctx, outputPath.Base(), outputPath.Base())
+	rule.Build(outputPath.Base(), outputPath.Base())
 }

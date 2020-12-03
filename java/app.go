@@ -1115,8 +1115,8 @@ func (a *AndroidTest) FixTestConfig(ctx android.ModuleContext, testConfig androi
 	}
 
 	fixedConfig := android.PathForModuleOut(ctx, "test_config_fixer", "AndroidTest.xml")
-	rule := android.NewRuleBuilder()
-	command := rule.Command().BuiltTool(ctx, "test_config_fixer").Input(testConfig).Output(fixedConfig)
+	rule := android.NewRuleBuilder(pctx, ctx)
+	command := rule.Command().BuiltTool("test_config_fixer").Input(testConfig).Output(fixedConfig)
 	fixNeeded := false
 
 	if ctx.ModuleName() != a.installApkName {
@@ -1131,7 +1131,7 @@ func (a *AndroidTest) FixTestConfig(ctx android.ModuleContext, testConfig androi
 	}
 
 	if fixNeeded {
-		rule.Build(pctx, ctx, "fix_test_config", "fix test config")
+		rule.Build("fix_test_config", "fix test config")
 		return fixedConfig
 	}
 	return testConfig
@@ -1440,15 +1440,15 @@ func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
 		})
 		return
 	}
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
 		Textf(`if (zipinfo %s 'lib/*.so' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then`, inputPath).
-		BuiltTool(ctx, "zip2zip").
+		BuiltTool("zip2zip").
 		FlagWithInput("-i ", inputPath).
 		FlagWithOutput("-o ", outputPath).
 		FlagWithArg("-0 ", "'lib/**/*.so'").
 		Textf(`; else cp -f %s %s; fi`, inputPath, outputPath)
-	rule.Build(pctx, ctx, "uncompress-embedded-jni-libs", "Uncompress embedded JIN libs")
+	rule.Build("uncompress-embedded-jni-libs", "Uncompress embedded JIN libs")
 }
 
 // Returns whether this module should have the dex file stored uncompressed in the APK.
@@ -1467,15 +1467,15 @@ func (a *AndroidAppImport) shouldUncompressDex(ctx android.ModuleContext) bool {
 
 func (a *AndroidAppImport) uncompressDex(
 	ctx android.ModuleContext, inputPath android.Path, outputPath android.OutputPath) {
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
 		Textf(`if (zipinfo %s '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then`, inputPath).
-		BuiltTool(ctx, "zip2zip").
+		BuiltTool("zip2zip").
 		FlagWithInput("-i ", inputPath).
 		FlagWithOutput("-o ", outputPath).
 		FlagWithArg("-0 ", "'classes*.dex'").
 		Textf(`; else cp -f %s %s; fi`, inputPath, outputPath)
-	rule.Build(pctx, ctx, "uncompress-dex", "Uncompress dex files")
+	rule.Build("uncompress-dex", "Uncompress dex files")
 }
 
 func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -2015,8 +2015,8 @@ func (u *usesLibrary) freezeEnforceUsesLibraries() {
 func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, manifest android.Path) android.Path {
 	outputFile := android.PathForModuleOut(ctx, "manifest_check", "AndroidManifest.xml")
 
-	rule := android.NewRuleBuilder()
-	cmd := rule.Command().BuiltTool(ctx, "manifest_check").
+	rule := android.NewRuleBuilder(pctx, ctx)
+	cmd := rule.Command().BuiltTool("manifest_check").
 		Flag("--enforce-uses-libraries").
 		Input(manifest).
 		FlagWithOutput("-o ", outputFile)
@@ -2029,7 +2029,7 @@ func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, man
 		cmd.FlagWithArg("--optional-uses-library ", lib)
 	}
 
-	rule.Build(pctx, ctx, "verify_uses_libraries", "verify <uses-library>")
+	rule.Build("verify_uses_libraries", "verify <uses-library>")
 
 	return outputFile
 }
@@ -2039,7 +2039,7 @@ func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, man
 func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk android.Path) android.Path {
 	outputFile := android.PathForModuleOut(ctx, "verify_uses_libraries", apk.Base())
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	aapt := ctx.Config().HostToolPath(ctx, "aapt")
 	rule.Command().
 		Textf("aapt_binary=%s", aapt.String()).Implicit(aapt).
@@ -2048,7 +2048,7 @@ func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk andr
 		Tool(android.PathForSource(ctx, "build/make/core/verify_uses_libraries.sh")).Input(apk)
 	rule.Command().Text("cp -f").Input(apk).Output(outputFile)
 
-	rule.Build(pctx, ctx, "verify_uses_libraries", "verify <uses-library>")
+	rule.Build("verify_uses_libraries", "verify <uses-library>")
 
 	return outputFile
 }

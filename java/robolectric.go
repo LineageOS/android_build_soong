@@ -199,7 +199,7 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 
 func generateRoboTestConfig(ctx android.ModuleContext, outputFile android.WritablePath,
 	instrumentedApp *AndroidApp) {
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 
 	manifest := instrumentedApp.mergedManifestFile
 	resourceApk := instrumentedApp.outputFile
@@ -213,11 +213,11 @@ func generateRoboTestConfig(ctx android.ModuleContext, outputFile android.Writab
 		Implicit(manifest).
 		Implicit(resourceApk)
 
-	rule.Build(pctx, ctx, "generate_test_config", "generate test_config.properties")
+	rule.Build("generate_test_config", "generate test_config.properties")
 }
 
 func generateSameDirRoboTestConfigJar(ctx android.ModuleContext, outputFile android.ModuleOutPath) {
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 
 	outputDir := outputFile.InSameDir(ctx)
 	configFile := outputDir.Join(ctx, "com/android/tools/test_config.properties")
@@ -230,12 +230,12 @@ func generateSameDirRoboTestConfigJar(ctx android.ModuleContext, outputFile andr
 		Textf(`echo "android_resource_apk=%s.apk"`, ctx.ModuleName()).
 		Text(") >>").Output(configFile)
 	rule.Command().
-		BuiltTool(ctx, "soong_zip").
+		BuiltTool("soong_zip").
 		FlagWithArg("-C ", outputDir.String()).
 		FlagWithInput("-f ", configFile).
 		FlagWithOutput("-o ", outputFile)
 
-	rule.Build(pctx, ctx, "generate_test_config_samedir", "generate test_config.properties")
+	rule.Build("generate_test_config_samedir", "generate test_config.properties")
 }
 
 func (r *robolectricTest) generateRoboSrcJar(ctx android.ModuleContext, outputFile android.WritablePath,

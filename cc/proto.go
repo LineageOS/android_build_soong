@@ -50,11 +50,11 @@ func genProto(ctx android.ModuleContext, protoFile android.Path, flags builderFl
 	depFile := ccFile.ReplaceExtension(ctx, "d")
 	outputs := android.WritablePaths{ccFile, headerFile}
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 
-	android.ProtoRule(ctx, rule, protoFile, flags.proto, protoDeps, outDir, depFile, outputs)
+	android.ProtoRule(rule, protoFile, flags.proto, protoDeps, outDir, depFile, outputs)
 
-	rule.Build(pctx, ctx, "protoc_"+protoFile.Rel(), "protoc "+protoFile.Rel())
+	rule.Build("protoc_"+protoFile.Rel(), "protoc "+protoFile.Rel())
 
 	return ccFile, headerFile
 }

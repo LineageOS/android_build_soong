@@ -135,12 +135,12 @@ func (h *hiddenAPI) hiddenAPIGenerateCSV(ctx android.ModuleContext, flagsCSV, me
 	})
 	h.metadataCSVPath = metadataCSV
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
-		BuiltTool(ctx, "merge_csv").
+		BuiltTool("merge_csv").
 		FlagWithInput("--zip_input=", classesJar).
 		FlagWithOutput("--output=", indexCSV)
-	rule.Build(pctx, ctx, "merged-hiddenapi-index", "Merged Hidden API index")
+	rule.Build("merged-hiddenapi-index", "Merged Hidden API index")
 	h.indexCSVPath = indexCSV
 }
 

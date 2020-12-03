@@ -539,14 +539,14 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 	}
 
 	if image.zip != nil {
-		rule := android.NewRuleBuilder()
+		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.Command().
-			BuiltTool(ctx, "soong_zip").
+			BuiltTool("soong_zip").
 			FlagWithOutput("-o ", image.zip).
 			FlagWithArg("-C ", image.dir.Join(ctx, android.Android.String()).String()).
 			FlagWithInputList("-f ", zipFiles, " -f ")
 
-		rule.Build(pctx, ctx, "zip_"+image.name, "zip "+image.name+" image")
+		rule.Build("zip_"+image.name, "zip "+image.name+" image")
 	}
 
 	return image
@@ -568,7 +568,7 @@ func buildBootImageVariant(ctx android.SingletonContext, image *bootImageVariant
 	oatLocation := dexpreopt.PathToLocation(outputPath, arch)
 	imagePath := outputPath.ReplaceExtension(ctx, "art")
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.MissingDeps(missingDeps)
 
 	rule.Command().Text("mkdir").Flag("-p").Flag(symbolsDir.String())
@@ -689,7 +689,7 @@ func buildBootImageVariant(ctx android.SingletonContext, image *bootImageVariant
 			android.RuleBuilderInstall{unstrippedOat, filepath.Join(installDir, unstrippedOat.Base())})
 	}
 
-	rule.Build(pctx, ctx, image.name+"JarsDexpreopt_"+image.target.String(), "dexpreopt "+image.name+" jars "+arch.String())
+	rule.Build(image.name+"JarsDexpreopt_"+image.target.String(), "dexpreopt "+image.name+" jars "+arch.String())
 
 	// save output and installed files for makevars
 	image.installs = rule.Installs()
@@ -713,7 +713,7 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImageConfig, 
 	profile := ctx.Config().Once(bootImageProfileRuleKey, func() interface{} {
 		defaultProfile := "frameworks/base/config/boot-image-profile.txt"
 
-		rule := android.NewRuleBuilder()
+		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.MissingDeps(missingDeps)
 
 		var bootImageProfile android.Path
@@ -744,7 +744,7 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImageConfig, 
 
 		rule.Install(profile, "/system/etc/boot-image.prof")
 
-		rule.Build(pctx, ctx, "bootJarsProfile", "profile boot jars")
+		rule.Build("bootJarsProfile", "profile boot jars")
 
 		image.profileInstalls = rule.Installs()
 
@@ -766,7 +766,7 @@ func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImageConf
 		return nil
 	}
 	return ctx.Config().Once(bootFrameworkProfileRuleKey, func() interface{} {
-		rule := android.NewRuleBuilder()
+		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.MissingDeps(missingDeps)
 
 		// Some branches like master-art-host don't have frameworks/base, so manually
@@ -794,7 +794,7 @@ func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImageConf
 			FlagWithOutput("--reference-profile-file=", profile)
 
 		rule.Install(profile, "/system/etc/boot-image.bprof")
-		rule.Build(pctx, ctx, "bootFrameworkProfile", "profile boot framework jars")
+		rule.Build("bootFrameworkProfile", "profile boot framework jars")
 		image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
 
 		return profile
@@ -839,7 +839,7 @@ func updatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConf
 		// WriteFileRule automatically adds the last end-of-line.
 		android.WriteFileRule(ctx, updatableBcpPackages, strings.Join(updatablePackages, "\n"))
 
-		rule := android.NewRuleBuilder()
+		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.MissingDeps(missingDeps)
 		rule.Install(updatableBcpPackages, "/system/etc/"+updatableBcpPackagesName)
 		// TODO: Rename `profileInstalls` to `extraInstalls`?
@@ -863,25 +863,25 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
 		}
 		// Create a rule to call oatdump.
 		output := android.PathForOutput(ctx, "boot."+suffix+".oatdump.txt")
-		rule := android.NewRuleBuilder()
+		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.Command().
 			// TODO: for now, use the debug version for better error reporting
-			BuiltTool(ctx, "oatdumpd").
+			BuiltTool("oatdumpd").
 			FlagWithInputList("--runtime-arg -Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
 			FlagWithList("--runtime-arg -Xbootclasspath-locations:", image.dexLocationsDeps, ":").
 			FlagWithArg("--image=", strings.Join(image.imageLocations(), ":")).Implicits(image.imagesDeps.Paths()).
 			FlagWithOutput("--output=", output).
 			FlagWithArg("--instruction-set=", arch.String())
-		rule.Build(pctx, ctx, "dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
+		rule.Build("dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
 
 		// Create a phony rule that depends on the output file and prints the path.
 		phony := android.PathForPhony(ctx, "dump-oat-boot-"+suffix)
-		rule = android.NewRuleBuilder()
+		rule = android.NewRuleBuilder(pctx, ctx)
 		rule.Command().
 			Implicit(output).
 			ImplicitOutput(phony).
 			Text("echo").FlagWithArg("Output in ", output.String())
-		rule.Build(pctx, ctx, "phony-dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
+		rule.Build("phony-dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
 
 		allPhonies = append(allPhonies, phony)
 	}
