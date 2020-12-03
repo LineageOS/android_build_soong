@@ -79,7 +79,7 @@ func main() {
 	srcDir := filepath.Dir(flag.Arg(0))
 	var ctx *android.Context
 	configuration := newConfig(srcDir)
-	extraNinjaDeps := []string{configuration.ConfigFileName, configuration.ProductVariablesFileName}
+	extraNinjaDeps := []string{configuration.ProductVariablesFileName}
 
 	// Read the SOONG_DELVE again through configuration so that there is a dependency on the environment variable
 	// and soong_build will rerun when it is set for the first time.
