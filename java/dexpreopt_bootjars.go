@@ -495,6 +495,12 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 	bootDexJars := make(android.Paths, image.modules.Len())
 	ctx.VisitAllModules(func(module android.Module) {
 		if i, j := getBootImageJar(ctx, image, module); i != -1 {
+			if existing := bootDexJars[i]; existing != nil {
+				ctx.Errorf("Multiple dex jars found for %s:%s - %s and %s",
+					image.modules.Apex(i), image.modules.Jar(i), existing, j)
+				return
+			}
+
 			bootDexJars[i] = j
 		}
 	})
