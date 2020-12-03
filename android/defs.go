@@ -15,6 +15,7 @@
 package android
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -97,7 +98,7 @@ var (
 	// content to file.
 	writeFile = pctx.AndroidStaticRule("writeFile",
 		blueprint.RuleParams{
-			Command:     `/bin/bash -c 'echo -e "$$0" > $out' $content`,
+			Command:     `/bin/bash -c 'echo -e -n "$$0" > $out' $content`,
 			Description: "writing file $out",
 		},
 		"content")
@@ -133,9 +134,7 @@ var (
 	shellUnescaper = strings.NewReplacer(`'\''`, `'`)
 )
 
-// WriteFileRule creates a ninja rule to write contents to a file.  The contents will be escaped
-// so that the file contains exactly the contents passed to the function, plus a trailing newline.
-func WriteFileRule(ctx BuilderContext, outputFile WritablePath, content string) {
+func buildWriteFileRule(ctx BuilderContext, outputFile WritablePath, content string) {
 	content = echoEscaper.Replace(content)
 	content = proptools.ShellEscape(content)
 	if content == "" {
@@ -149,6 +148,31 @@ func WriteFileRule(ctx BuilderContext, outputFile WritablePath, content string) 
 			"content": content,
 		},
 	})
+}
+
+// WriteFileRule creates a ninja rule to write contents to a file.  The contents will be escaped
+// so that the file contains exactly the contents passed to the function, plus a trailing newline.
+func WriteFileRule(ctx BuilderContext, outputFile WritablePath, content string) {
+	// This is MAX_ARG_STRLEN subtracted with some safety to account for shell escapes
+	const SHARD_SIZE = 131072 - 10000
+
+	content += "\n"
+	if len(content) > SHARD_SIZE {
+		var chunks WritablePaths
+		for i, c := range ShardString(content, SHARD_SIZE) {
+			tempPath := outputFile.ReplaceExtension(ctx, fmt.Sprintf("%s.%d", outputFile.Ext(), i))
+			buildWriteFileRule(ctx, tempPath, c)
+			chunks = append(chunks, tempPath)
+		}
+		ctx.Build(pctx, BuildParams{
+			Rule:        Cat,
+			Inputs:      chunks.Paths(),
+			Output:      outputFile,
+			Description: "Merging to " + outputFile.Base(),
+		})
+		return
+	}
+	buildWriteFileRule(ctx, outputFile, content)
 }
 
 // shellUnescape reverses proptools.ShellEscape
