@@ -64,6 +64,21 @@ def SystemProvide(args):
     f.write(pb.SerializeToString())
 
 
+def Append(args):
+  pb = linker_config_pb2.LinkerConfig()
+  with open(args.source, 'rb') as f:
+    pb.ParseFromString(f.read())
+
+  if getattr(type(pb), args.key).DESCRIPTOR.label == FieldDescriptor.LABEL_REPEATED:
+    for value in args.value.split():
+      getattr(pb, args.key).append(value)
+  else:
+    setattr(pb, args.key, args.value)
+
+  with open(args.output, 'wb') as f:
+    f.write(pb.SerializeToString())
+
+
 def GetArgParser():
   parser = argparse.ArgumentParser()
   subparsers = parser.add_subparsers()
@@ -119,6 +134,32 @@ def GetArgParser():
       type=str,
       help='Path of the system image.')
   system_provide_libs.set_defaults(func=SystemProvide)
+
+  append = subparsers.add_parser(
+      'append', help='Append value(s) to given key.')
+  append.add_argument(
+      '-s',
+      '--source',
+      required=True,
+      type=str,
+      help='Source linker configuration file in protobuf.')
+  append.add_argument(
+      '-o',
+      '--output',
+      required=True,
+      type=str,
+      help='Target linker configuration file to write in protobuf.')
+  append.add_argument(
+      '--key',
+      required=True,
+      type=str,
+      help='.')
+  append.add_argument(
+      '--value',
+      required=True,
+      type=str,
+      help='Values of the libraries to append. If there are more than one it should be separated by empty space')
+  append.set_defaults(func=Append)
 
   return parser
 
