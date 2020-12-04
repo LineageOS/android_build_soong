@@ -13,6 +13,7 @@ var (
 		"external/rust",
 		"external/vm_tools/p9",
 		"frameworks/native/libs/binder/rust",
+		"packages/modules/DnsResolver",
 		"packages/modules/Virtualization",
 		"prebuilts/rust",
 		"system/bt",
