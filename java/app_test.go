@@ -2524,6 +2524,24 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 			`,
 			expected: "prebuilts/apk/app.apk",
 		},
+		{
+			name: "no matching arch without default",
+			bp: `
+				android_app_import {
+					name: "foo",
+					arch: {
+						arm: {
+							apk: "prebuilts/apk/app_arm.apk",
+						},
+					},
+					presigned: true,
+					dex_preopt: {
+						enabled: true,
+					},
+				}
+			`,
+			expected: "",
+		},
 	}
 
 	jniRuleRe := regexp.MustCompile("^if \\(zipinfo (\\S+)")
@@ -2531,6 +2549,12 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 		ctx, _ := testJava(t, test.bp)
 
 		variant := ctx.ModuleForTests("foo", "android_common")
+		if test.expected == "" {
+			if variant.Module().Enabled() {
+				t.Error("module should have been disabled, but wasn't")
+			}
+			continue
+		}
 		jniRuleCommand := variant.Output("jnis-uncompressed/foo.apk").RuleParams.Command
 		matches := jniRuleRe.FindStringSubmatch(jniRuleCommand)
 		if len(matches) != 2 {
