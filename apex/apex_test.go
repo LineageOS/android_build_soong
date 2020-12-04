@@ -1782,6 +1782,31 @@ func TestApexMinSdkVersion_ErrorIfIncompatibleVersion(t *testing.T) {
 			min_sdk_version: "30",
 		}
 	`)
+
+	testApexError(t, `module "libfoo.ffi".*: should support min_sdk_version\(29\)`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libfoo.ffi"],
+			min_sdk_version: "29",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		rust_ffi_shared {
+			name: "libfoo.ffi",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+			apex_available: [
+				"myapex",
+			],
+			min_sdk_version: "30",
+		}
+	`)
 }
 
 func TestApexMinSdkVersion_Okay(t *testing.T) {

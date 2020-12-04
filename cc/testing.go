@@ -334,7 +334,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			},
 			apex_available: [
 				"//apex_available:platform",
-				"myapex"
+				"//apex_available:anyapex",
 			],
 		}
 		cc_library {
