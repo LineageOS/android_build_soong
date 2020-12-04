@@ -23,19 +23,23 @@ import (
 // StripProperties defines the type of stripping applied to the module.
 type StripProperties struct {
 	Strip struct {
-		// whether to disable all stripping.
+		// none forces all stripping to be disabled.
+		// Device modules default to stripping enabled leaving mini debuginfo.
+		// Host modules default to stripping disabled, but can be enabled by setting any other
+		// strip boolean property.
 		None *bool `android:"arch_variant"`
 
-		// whether to strip everything, including the mini debug info.
+		// all forces stripping everything, including the mini debug info.
 		All *bool `android:"arch_variant"`
 
-		// whether to keep the symbols.
+		// keep_symbols enables stripping but keeps all symbols.
 		Keep_symbols *bool `android:"arch_variant"`
 
-		// keeps only the symbols defined here.
+		// keep_symbols_list specifies a list of symbols to keep if keep_symbols is enabled.
+		// If it is unset then all symbols are kept.
 		Keep_symbols_list []string `android:"arch_variant"`
 
-		// whether to keep the symbols and the debug frames.
+		// keep_symbols_and_debug_frame enables stripping but keeps all symbols and debug frames.
 		Keep_symbols_and_debug_frame *bool `android:"arch_variant"`
 	} `android:"arch_variant"`
 }
@@ -47,8 +51,12 @@ type Stripper struct {
 
 // NeedsStrip determines if stripping is required for a module.
 func (stripper *Stripper) NeedsStrip(actx android.ModuleContext) bool {
-	// TODO(ccross): enable host stripping when Kati is enabled? Make never had support for stripping host binaries.
-	return (!actx.Config().KatiEnabled() || actx.Device()) && !Bool(stripper.StripProperties.Strip.None)
+	forceDisable := Bool(stripper.StripProperties.Strip.None)
+	defaultEnable := (!actx.Config().KatiEnabled() || actx.Device())
+	forceEnable := Bool(stripper.StripProperties.Strip.All) ||
+		Bool(stripper.StripProperties.Strip.Keep_symbols) ||
+		Bool(stripper.StripProperties.Strip.Keep_symbols_and_debug_frame)
+	return !forceDisable && (forceEnable || defaultEnable)
 }
 
 func (stripper *Stripper) strip(actx android.ModuleContext, in android.Path, out android.ModuleOutPath,
