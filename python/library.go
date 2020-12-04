@@ -28,11 +28,11 @@ func init() {
 func PythonLibraryHostFactory() android.Module {
 	module := newModule(android.HostSupported, android.MultilibFirst)
 
-	return module.Init()
+	return module.init()
 }
 
 func PythonLibraryFactory() android.Module {
 	module := newModule(android.HostAndDeviceSupported, android.MultilibBoth)
 
-	return module.Init()
+	return module.init()
 }
