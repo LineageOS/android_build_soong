@@ -1666,7 +1666,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							// system libraries.
 							if !am.DirectlyInAnyApex() {
 								// we need a module name for Make
-								name := cc.ImplementationModuleName(ctx)
+								name := cc.ImplementationModuleNameForMake(ctx)
 
 								if !proptools.Bool(a.properties.Use_vendor) {
 									// we don't use subName(.vendor) for a "use_vendor: true" apex
