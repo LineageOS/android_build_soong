@@ -63,9 +63,9 @@ func kotlinCommonSrcsList(ctx android.ModuleContext, commonSrcFiles android.Path
 		// we can't use the rsp file because it is already being used for srcs.
 		// Insert a second rule to write out the list of resources to a file.
 		commonSrcsList := android.PathForModuleOut(ctx, "kotlinc_common_srcs.list")
-		rule := android.NewRuleBuilder()
+		rule := android.NewRuleBuilder(pctx, ctx)
 		rule.Command().Text("cp").FlagWithRspFileInputList("", commonSrcFiles).Output(commonSrcsList)
-		rule.Build(pctx, ctx, "kotlin_common_srcs_list", "kotlin common_srcs list")
+		rule.Build("kotlin_common_srcs_list", "kotlin common_srcs list")
 		return android.OptionalPathForPath(commonSrcsList)
 	}
 	return android.OptionalPath{}
