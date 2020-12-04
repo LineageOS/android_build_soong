@@ -67,6 +67,37 @@ func validateJsonCrates(t *testing.T, rawContent []byte) []interface{} {
 	return crates
 }
 
+// validateCrate ensures that a crate can be parsed as a map.
+func validateCrate(t *testing.T, crate interface{}) map[string]interface{} {
+	c, ok := crate.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Unexpected type for crate: %v", c)
+	}
+	return c
+}
+
+// validateDependencies parses the dependencies for a crate. It returns a list
+// of the dependencies name.
+func validateDependencies(t *testing.T, crate map[string]interface{}) []string {
+	var dependencies []string
+	deps, ok := crate["deps"].([]interface{})
+	if !ok {
+		t.Errorf("Unexpected format for deps: %v", crate["deps"])
+	}
+	for _, dep := range deps {
+		d, ok := dep.(map[string]interface{})
+		if !ok {
+			t.Errorf("Unexpected format for dependency: %v", dep)
+		}
+		name, ok := d["name"].(string)
+		if !ok {
+			t.Errorf("Dependency is missing the name key: %v", d)
+		}
+		dependencies = append(dependencies, name)
+	}
+	return dependencies
+}
+
 func TestProjectJsonDep(t *testing.T) {
 	bp := `
 	rust_library {
@@ -83,6 +114,29 @@ func TestProjectJsonDep(t *testing.T) {
 	`
 	jsonContent := testProjectJson(t, bp)
 	validateJsonCrates(t, jsonContent)
+}
+
+func TestProjectJsonBinary(t *testing.T) {
+	bp := `
+	rust_binary {
+		name: "liba",
+		srcs: ["a/src/lib.rs"],
+		crate_name: "a"
+	}
+	`
+	jsonContent := testProjectJson(t, bp)
+	crates := validateJsonCrates(t, jsonContent)
+	for _, c := range crates {
+		crate := validateCrate(t, c)
+		rootModule, ok := crate["root_module"].(string)
+		if !ok {
+			t.Fatalf("Unexpected type for root_module: %v", crate["root_module"])
+		}
+		if rootModule == "a/src/lib.rs" {
+			return
+		}
+	}
+	t.Errorf("Entry for binary %q not found: %s", "a", jsonContent)
 }
 
 func TestProjectJsonBindGen(t *testing.T) {
@@ -116,10 +170,7 @@ func TestProjectJsonBindGen(t *testing.T) {
 	jsonContent := testProjectJson(t, bp)
 	crates := validateJsonCrates(t, jsonContent)
 	for _, c := range crates {
-		crate, ok := c.(map[string]interface{})
-		if !ok {
-			t.Fatalf("Unexpected type for crate: %v", c)
-		}
+		crate := validateCrate(t, c)
 		rootModule, ok := crate["root_module"].(string)
 		if !ok {
 			t.Fatalf("Unexpected type for root_module: %v", crate["root_module"])
@@ -133,16 +184,8 @@ func TestProjectJsonBindGen(t *testing.T) {
 		}
 		// Check that libbindings1 does not depend on itself.
 		if strings.Contains(rootModule, "libbindings1") {
-			deps, ok := crate["deps"].([]interface{})
-			if !ok {
-				t.Errorf("Unexpected format for deps: %v", crate["deps"])
-			}
-			for _, dep := range deps {
-				d, ok := dep.(map[string]interface{})
-				if !ok {
-					t.Errorf("Unexpected format for dep: %v", dep)
-				}
-				if d["name"] == "bindings1" {
+			for _, depName := range validateDependencies(t, crate) {
+				if depName == "bindings1" {
 					t.Errorf("libbindings1 depends on itself")
 				}
 			}
@@ -171,20 +214,18 @@ func TestProjectJsonMultiVersion(t *testing.T) {
 	`
 	jsonContent := testProjectJson(t, bp)
 	crates := validateJsonCrates(t, jsonContent)
-	for _, crate := range crates {
-		c := crate.(map[string]interface{})
-		if c["root_module"] == "b/src/lib.rs" {
-			deps, ok := c["deps"].([]interface{})
-			if !ok {
-				t.Errorf("Unexpected format for deps: %v", c["deps"])
-			}
+	for _, c := range crates {
+		crate := validateCrate(t, c)
+		rootModule, ok := crate["root_module"].(string)
+		if !ok {
+			t.Fatalf("Unexpected type for root_module: %v", crate["root_module"])
+		}
+		// Make sure that b has 2 different dependencies.
+		if rootModule == "b/src/lib.rs" {
 			aCount := 0
-			for _, dep := range deps {
-				d, ok := dep.(map[string]interface{})
-				if !ok {
-					t.Errorf("Unexpected format for dep: %v", dep)
-				}
-				if d["name"] == "a" {
+			deps := validateDependencies(t, crate)
+			for _, depName := range deps {
+				if depName == "a" {
 					aCount++
 				}
 			}
