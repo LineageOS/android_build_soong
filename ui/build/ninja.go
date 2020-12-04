@@ -139,15 +139,6 @@ func runNinja(ctx Context, config Config) {
 			// b/147197813 - used by art-check-debug-apex-gen
 			"EMMA_INSTRUMENT_FRAMEWORK",
 
-			// Goma -- gomacc may not need all of these
-			"GOMA_DIR",
-			"GOMA_DISABLED",
-			"GOMA_FAIL_FAST",
-			"GOMA_FALLBACK",
-			"GOMA_GCE_SERVICE_ACCOUNT",
-			"GOMA_TMP_DIR",
-			"GOMA_USE_LOCAL",
-
 			// RBE client
 			"RBE_compare",
 			"RBE_exec_root",
