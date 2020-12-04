@@ -24,6 +24,28 @@ import (
 	"android/soong/ui/metrics"
 )
 
+func getBazelInfo(ctx Context, config Config, bazelExecutable string, query string) string {
+	infoCmd := Command(ctx, config, "bazel", bazelExecutable)
+
+	if extraStartupArgs, ok := infoCmd.Environment.Get("BAZEL_STARTUP_ARGS"); ok {
+		infoCmd.Args = append(infoCmd.Args, strings.Fields(extraStartupArgs)...)
+	}
+
+	// Obtain the output directory path in the execution root.
+	infoCmd.Args = append(infoCmd.Args,
+		"info",
+		query,
+	)
+
+	infoCmd.Environment.Set("DIST_DIR", config.DistDir())
+	infoCmd.Environment.Set("SHELL", "/bin/bash")
+
+	infoCmd.Dir = filepath.Join(config.OutDir(), "..")
+
+	queryResult := strings.TrimSpace(string(infoCmd.OutputOrFatal()))
+	return queryResult
+}
+
 // Main entry point to construct the Bazel build command line, environment
 // variables and post-processing steps (e.g. converge output directories)
 func runBazel(ctx Context, config Config) {
@@ -76,16 +98,36 @@ func runBazel(ctx Context, config Config) {
 		"--slim_profile=true",
 	)
 
-	// Append custom build flags to the Bazel command. Changes to these flags
-	// may invalidate Bazel's analysis cache.
-	if extraBuildArgs, ok := cmd.Environment.Get("BAZEL_BUILD_ARGS"); ok {
-		cmd.Args = append(cmd.Args, strings.Fields(extraBuildArgs)...)
-	}
+	if config.UseRBE() {
+		for _, envVar := range []string{
+			// RBE client
+			"RBE_compare",
+			"RBE_exec_strategy",
+			"RBE_invocation_id",
+			"RBE_log_dir",
+			"RBE_platform",
+			"RBE_remote_accept_cache",
+			"RBE_remote_update_cache",
+			"RBE_server_address",
+			// TODO: remove old FLAG_ variables.
+			"FLAG_compare",
+			"FLAG_exec_root",
+			"FLAG_exec_strategy",
+			"FLAG_invocation_id",
+			"FLAG_log_dir",
+			"FLAG_platform",
+			"FLAG_remote_accept_cache",
+			"FLAG_remote_update_cache",
+			"FLAG_server_address",
+		} {
+			cmd.Args = append(cmd.Args,
+				"--action_env="+envVar)
+		}
 
-	// Append the label of the default ninja_build target.
-	cmd.Args = append(cmd.Args,
-		"//:"+config.TargetProduct()+"-"+config.TargetBuildVariant(),
-	)
+		// We need to calculate --RBE_exec_root ourselves
+		ctx.Println("Getting Bazel execution_root...")
+		cmd.Args = append(cmd.Args, "--action_env=RBE_exec_root="+getBazelInfo(ctx, config, bazelExecutable, "execution_root"))
+	}
 
 	// Ensure that the PATH environment variable value used in the action
 	// environment is the restricted set computed from soong_ui, and not a
@@ -94,6 +136,18 @@ func runBazel(ctx Context, config Config) {
 		cmd.Environment.Set("PATH", pathEnvValue)
 		cmd.Args = append(cmd.Args, "--action_env=PATH="+pathEnvValue)
 	}
+
+	// Append custom build flags to the Bazel command. Changes to these flags
+	// may invalidate Bazel's analysis cache.
+	// These should be appended as the final args, so that they take precedence.
+	if extraBuildArgs, ok := cmd.Environment.Get("BAZEL_BUILD_ARGS"); ok {
+		cmd.Args = append(cmd.Args, strings.Fields(extraBuildArgs)...)
+	}
+
+	// Append the label of the default ninja_build target.
+	cmd.Args = append(cmd.Args,
+		"//:"+config.TargetProduct()+"-"+config.TargetBuildVariant(),
+	)
 
 	cmd.Environment.Set("DIST_DIR", config.DistDir())
 	cmd.Environment.Set("SHELL", "/bin/bash")
@@ -113,24 +167,8 @@ func runBazel(ctx Context, config Config) {
 	// Ensure that the $OUT_DIR contains the expected set of files by symlinking
 	// the files from the execution root's output direction into $OUT_DIR.
 
-	// Obtain the Bazel output directory for ninja_build.
-	infoCmd := Command(ctx, config, "bazel", bazelExecutable)
-
-	if extraStartupArgs, ok := infoCmd.Environment.Get("BAZEL_STARTUP_ARGS"); ok {
-		infoCmd.Args = append(infoCmd.Args, strings.Fields(extraStartupArgs)...)
-	}
-
-	// Obtain the output directory path in the execution root.
-	infoCmd.Args = append(infoCmd.Args,
-		"info",
-		"output_path",
-	)
-
-	infoCmd.Environment.Set("DIST_DIR", config.DistDir())
-	infoCmd.Environment.Set("SHELL", "/bin/bash")
-	infoCmd.Dir = filepath.Join(config.OutDir(), "..")
-	ctx.Status.Status("Getting Bazel Info..")
-	outputBasePath := string(infoCmd.OutputOrFatal())
+	ctx.Println("Getting Bazel output_path...")
+	outputBasePath := getBazelInfo(ctx, config, bazelExecutable, "output_path")
 	// TODO: Don't hardcode out/ as the bazel output directory. This is
 	// currently hardcoded as ninja_build.output_root.
 	bazelNinjaBuildOutputRoot := filepath.Join(outputBasePath, "..", "out")
