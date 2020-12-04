@@ -5964,14 +5964,42 @@ func TestTestFor(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
-			shared_libs: ["mylib", "myprivlib"],
+			shared_libs: ["mylib", "myprivlib", "mytestlib"],
 			test_for: ["myapex"]
+		}
+
+		cc_library {
+			name: "mytestlib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			shared_libs: ["mylib", "myprivlib"],
+			stl: "none",
+			test_for: ["myapex"],
+		}
+
+		cc_benchmark {
+			name: "mybench",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			shared_libs: ["mylib", "myprivlib"],
+			stl: "none",
+			test_for: ["myapex"],
 		}
 	`)
 
 	// the test 'mytest' is a test for the apex, therefore is linked to the
 	// actual implementation of mylib instead of its stub.
 	ldFlags := ctx.ModuleForTests("mytest", "android_arm64_armv8-a").Rule("ld").Args["libFlags"]
+	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared/mylib.so")
+	ensureNotContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared_1/mylib.so")
+
+	// The same should be true for cc_library
+	ldFlags = ctx.ModuleForTests("mytestlib", "android_arm64_armv8-a_shared").Rule("ld").Args["libFlags"]
+	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared/mylib.so")
+	ensureNotContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared_1/mylib.so")
+
+	// ... and for cc_benchmark
+	ldFlags = ctx.ModuleForTests("mybench", "android_arm64_armv8-a").Rule("ld").Args["libFlags"]
 	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared/mylib.so")
 	ensureNotContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared_1/mylib.so")
 }
