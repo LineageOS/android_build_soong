@@ -9,6 +9,7 @@ var (
 		"device/google/cuttlefish",
 		"external/adhd",
 		"external/crosvm",
+		"external/libchromeos-rs",
 		"external/minijail",
 		"external/rust",
 		"external/vm_tools/p9",
