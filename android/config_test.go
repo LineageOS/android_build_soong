@@ -78,11 +78,6 @@ func TestProductConfigAnnotations(t *testing.T) {
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-
-	validateConfigAnnotations(&FileConfigurableOptions{})
-	if err != nil {
-		t.Errorf(err.Error())
-	}
 }
 
 func TestMissingVendorConfig(t *testing.T) {
