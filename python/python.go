@@ -185,7 +185,7 @@ func (p *Module) GetSrcsZip() android.Path {
 
 var _ PythonDependency = (*Module)(nil)
 
-var _ android.AndroidMkDataProvider = (*Module)(nil)
+var _ android.AndroidMkEntriesProvider = (*Module)(nil)
 
 func (p *Module) Init() android.Module {
 
