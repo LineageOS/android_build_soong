@@ -92,7 +92,7 @@ func (gc *generatedContents) Printfln(format string, args ...interface{}) {
 }
 
 func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderContext, implicits android.Paths) {
-	rb := android.NewRuleBuilder()
+	rb := android.NewRuleBuilder(pctx, ctx)
 
 	content := gf.content.String()
 
@@ -108,7 +108,7 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 		Text("| sed 's/\\\\n/\\n/g' >").Output(gf.path)
 	rb.Command().
 		Text("chmod a+x").Output(gf.path)
-	rb.Build(pctx, ctx, gf.path.Base(), "Build "+gf.path.Base())
+	rb.Build(gf.path.Base(), "Build "+gf.path.Base())
 }
 
 // Collect all the members.

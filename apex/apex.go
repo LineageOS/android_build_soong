@@ -353,6 +353,9 @@ type apexBundle struct {
 	lintReports android.Paths
 
 	prebuiltFileToDelete string
+
+	// Path of API coverage generate file
+	coverageOutputPath android.ModuleOutPath
 }
 
 // apexFileClass represents a type of file that can be included in APEX.
@@ -1663,7 +1666,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							// system libraries.
 							if !am.DirectlyInAnyApex() {
 								// we need a module name for Make
-								name := cc.ImplementationModuleName(ctx)
+								name := cc.ImplementationModuleNameForMake(ctx)
 
 								if !proptools.Bool(a.properties.Use_vendor) {
 									// we don't use subName(.vendor) for a "use_vendor: true" apex
@@ -2013,7 +2016,9 @@ func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext
 			// The dynamic linker and crash_dump tool in the runtime APEX is the only
 			// exception to this rule. It can't make the static dependencies dynamic
 			// because it can't do the dynamic linking for itself.
-			if apexName == "com.android.runtime" && (fromName == "linker" || fromName == "crash_dump") {
+			// Same rule should be applied to linkerconfig, because it should be executed
+			// only with static linked libraries before linker is available with ld.config.txt
+			if apexName == "com.android.runtime" && (fromName == "linker" || fromName == "crash_dump" || fromName == "linkerconfig") {
 				return false
 			}
 

@@ -51,7 +51,7 @@ var DexpreoptRunningInSoong = false
 
 // GenerateDexpreoptRule generates a set of commands that will preopt a module based on a GlobalConfig and a
 // ModuleConfig.  The produced files and their install locations will be available through rule.Installs().
-func GenerateDexpreoptRule(ctx android.PathContext, globalSoong *GlobalSoongConfig,
+func GenerateDexpreoptRule(ctx android.BuilderContext, globalSoong *GlobalSoongConfig,
 	global *GlobalConfig, module *ModuleConfig) (rule *android.RuleBuilder, err error) {
 
 	defer func() {
@@ -67,7 +67,7 @@ func GenerateDexpreoptRule(ctx android.PathContext, globalSoong *GlobalSoongConf
 		}
 	}()
 
-	rule = android.NewRuleBuilder()
+	rule = android.NewRuleBuilder(pctx, ctx)
 
 	generateProfile := module.ProfileClassListing.Valid() && !global.DisableGenerateProfile
 	generateBootProfile := module.ProfileBootListing.Valid() && !global.DisableGenerateProfile

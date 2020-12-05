@@ -75,10 +75,9 @@ func genYacc(ctx android.ModuleContext, rule *android.RuleBuilder, yaccFile andr
 	cmd := rule.Command()
 
 	// Fix up #line markers to not use the sbox temporary directory
-	// android.SboxPathForOutput(outDir, outDir) returns the sbox placeholder for the out
+	// android.sboxPathForOutput(outDir, outDir) returns the sbox placeholder for the out
 	// directory itself, without any filename appended.
-	// TODO(ccross): make this cmd.PathForOutput(outDir) instead.
-	sboxOutDir := android.SboxPathForOutput(outDir, outDir)
+	sboxOutDir := cmd.PathForOutput(outDir)
 	sedCmd := "sed -i.bak 's#" + sboxOutDir + "#" + outDir.String() + "#'"
 	rule.Command().Text(sedCmd).Input(outFile)
 	rule.Command().Text(sedCmd).Input(headerFile)
@@ -137,7 +136,7 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 	}
 
 	cmd := rule.Command()
-	cmd.BuiltTool(ctx, "aidl-cpp").
+	cmd.BuiltTool("aidl-cpp").
 		FlagWithDepFile("-d", depFile).
 		Flag("--ninja").
 		Flag(aidlFlags).
@@ -232,7 +231,7 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	var yaccRule_ *android.RuleBuilder
 	yaccRule := func() *android.RuleBuilder {
 		if yaccRule_ == nil {
-			yaccRule_ = android.NewRuleBuilder().Sbox(android.PathForModuleGen(ctx, "yacc"),
+			yaccRule_ = android.NewRuleBuilder(pctx, ctx).Sbox(android.PathForModuleGen(ctx, "yacc"),
 				android.PathForModuleGen(ctx, "yacc.sbox.textproto"))
 		}
 		return yaccRule_
@@ -262,7 +261,7 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			deps = append(deps, headerFile)
 		case ".aidl":
 			if aidlRule == nil {
-				aidlRule = android.NewRuleBuilder().Sbox(android.PathForModuleGen(ctx, "aidl"),
+				aidlRule = android.NewRuleBuilder(pctx, ctx).Sbox(android.PathForModuleGen(ctx, "aidl"),
 					android.PathForModuleGen(ctx, "aidl.sbox.textproto"))
 			}
 			cppFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp")
@@ -285,11 +284,11 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 	}
 
 	if aidlRule != nil {
-		aidlRule.Build(pctx, ctx, "aidl", "gen aidl")
+		aidlRule.Build("aidl", "gen aidl")
 	}
 
 	if yaccRule_ != nil {
-		yaccRule_.Build(pctx, ctx, "yacc", "gen yacc")
+		yaccRule_.Build("yacc", "gen yacc")
 	}
 
 	if len(rsFiles) > 0 {

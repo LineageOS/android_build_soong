@@ -57,7 +57,7 @@ func genAidl(ctx android.ModuleContext, aidlFiles android.Paths, aidlFlags strin
 
 		outDir := srcJarFile.ReplaceExtension(ctx, "tmp")
 
-		rule := android.NewRuleBuilder()
+		rule := android.NewRuleBuilder(pctx, ctx)
 
 		rule.Command().Text("rm -rf").Flag(outDir.String())
 		rule.Command().Text("mkdir -p").Flag(outDir.String())
@@ -98,7 +98,7 @@ func genAidl(ctx android.ModuleContext, aidlFiles android.Paths, aidlFlags strin
 			ruleDesc += " " + strconv.Itoa(i)
 		}
 
-		rule.Build(pctx, ctx, ruleName, ruleDesc)
+		rule.Build(ruleName, ruleDesc)
 	}
 
 	return srcJarFiles

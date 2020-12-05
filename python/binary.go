@@ -81,7 +81,7 @@ func NewBinary(hod android.HostOrDeviceSupported) (*Module, *binaryDecorator) {
 func PythonBinaryHostFactory() android.Module {
 	module, _ := NewBinary(android.HostSupported)
 
-	return module.Init()
+	return module.init()
 }
 
 func (binary *binaryDecorator) autorun() bool {

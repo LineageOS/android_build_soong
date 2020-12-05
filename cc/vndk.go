@@ -762,7 +762,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 	})
 
 	zipPath := android.PathForOutput(ctx, snapshotDir, "android-vndk-"+ctx.DeviceConfig().DeviceArch()+".zip")
-	zipRule := android.NewRuleBuilder()
+	zipRule := android.NewRuleBuilder(pctx, ctx)
 
 	// filenames in rspfile from FlagWithRspFileInputList might be single-quoted. Remove it with xargs
 	snapshotOutputList := android.PathForOutput(ctx, snapshotDir, "android-vndk-"+ctx.DeviceConfig().DeviceArch()+"_list")
@@ -775,12 +775,12 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 	zipRule.Temporary(snapshotOutputList)
 
 	zipRule.Command().
-		BuiltTool(ctx, "soong_zip").
+		BuiltTool("soong_zip").
 		FlagWithOutput("-o ", zipPath).
 		FlagWithArg("-C ", android.PathForOutput(ctx, snapshotDir).String()).
 		FlagWithInput("-l ", snapshotOutputList)
 
-	zipRule.Build(pctx, ctx, zipPath.String(), "vndk snapshot "+zipPath.String())
+	zipRule.Build(zipPath.String(), "vndk snapshot "+zipPath.String())
 	zipRule.DeleteTemporaryFiles()
 	c.vndkSnapshotZipFile = android.OptionalPathForPath(zipPath)
 }

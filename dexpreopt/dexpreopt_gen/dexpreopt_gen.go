@@ -27,6 +27,7 @@ import (
 	"android/soong/android"
 	"android/soong/dexpreopt"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/pathtools"
 )
 
@@ -38,12 +39,16 @@ var (
 	outDir                = flag.String("out_dir", "", "path to output directory")
 )
 
-type pathContext struct {
+type builderContext struct {
 	config android.Config
 }
 
-func (x *pathContext) Config() android.Config     { return x.config }
-func (x *pathContext) AddNinjaFileDeps(...string) {}
+func (x *builderContext) Config() android.Config                            { return x.config }
+func (x *builderContext) AddNinjaFileDeps(...string)                        {}
+func (x *builderContext) Build(android.PackageContext, android.BuildParams) {}
+func (x *builderContext) Rule(android.PackageContext, string, blueprint.RuleParams, ...string) blueprint.Rule {
+	return nil
+}
 
 func main() {
 	flag.Parse()
@@ -76,7 +81,7 @@ func main() {
 		usage("--module configuration file is required")
 	}
 
-	ctx := &pathContext{android.NullConfig(*outDir)}
+	ctx := &builderContext{android.NullConfig(*outDir)}
 
 	globalSoongConfigData, err := ioutil.ReadFile(*globalSoongConfigPath)
 	if err != nil {
@@ -133,7 +138,7 @@ func main() {
 	writeScripts(ctx, globalSoongConfig, globalConfig, moduleConfig, *dexpreoptScriptPath)
 }
 
-func writeScripts(ctx android.PathContext, globalSoong *dexpreopt.GlobalSoongConfig,
+func writeScripts(ctx android.BuilderContext, globalSoong *dexpreopt.GlobalSoongConfig,
 	global *dexpreopt.GlobalConfig, module *dexpreopt.ModuleConfig, dexpreoptScriptPath string) {
 	dexpreoptRule, err := dexpreopt.GenerateDexpreoptRule(ctx, globalSoong, global, module)
 	if err != nil {

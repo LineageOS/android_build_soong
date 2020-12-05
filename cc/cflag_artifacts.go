@@ -68,7 +68,7 @@ func (s *cflagArtifactsText) GenCFlagArtifactParts(ctx android.SingletonContext,
 
 	cleanedName := strings.Replace(flag, "=", "_", -1)
 	filename, filepath := s.incrementFile(ctx, cleanedName, part)
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().Textf("rm -f %s", filepath.String())
 
 	if using {
@@ -84,7 +84,7 @@ func (s *cflagArtifactsText) GenCFlagArtifactParts(ctx android.SingletonContext,
 	length := len(modules)
 
 	if length == 0 {
-		rule.Build(pctx, ctx, filename, "gen "+filename)
+		rule.Build(filename, "gen "+filename)
 		part++
 	}
 
@@ -98,11 +98,11 @@ func (s *cflagArtifactsText) GenCFlagArtifactParts(ctx android.SingletonContext,
 				strings.Join(proptools.ShellEscapeList(shard), " ")).
 			FlagWithOutput(">> ", filepath).
 			Text("; done")
-		rule.Build(pctx, ctx, filename, "gen "+filename)
+		rule.Build(filename, "gen "+filename)
 
 		if index+1 != len(moduleShards) {
 			filename, filepath = s.incrementFile(ctx, cleanedName, part+index+1)
-			rule = android.NewRuleBuilder()
+			rule = android.NewRuleBuilder(pctx, ctx)
 			rule.Command().Textf("rm -f %s", filepath.String())
 		}
 	}
@@ -121,14 +121,14 @@ func (s *cflagArtifactsText) GenCFlagArtifacts(ctx android.SingletonContext) {
 	for _, flag := range TrackedCFlags {
 		// Generate build rule to combine related intermediary files into a
 		// C Flag artifact
-		rule := android.NewRuleBuilder()
+		rule := android.NewRuleBuilder(pctx, ctx)
 		filename := s.genFlagFilename(flag)
 		outputpath := android.PathForOutput(ctx, "cflags", filename)
 		rule.Command().
 			Text("cat").
 			Inputs(s.interOutputs[flag].Paths()).
 			FlagWithOutput("> ", outputpath)
-		rule.Build(pctx, ctx, filename, "gen "+filename)
+		rule.Build(filename, "gen "+filename)
 		s.outputs = append(s.outputs, outputpath)
 	}
 }

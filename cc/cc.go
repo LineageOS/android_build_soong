@@ -1099,6 +1099,19 @@ func (c *Module) ImplementationModuleName(ctx android.BaseModuleContext) string 
 	return name
 }
 
+// Similar to ImplementationModuleName, but uses the Make variant of the module
+// name as base name, for use in AndroidMk output. E.g. for a prebuilt module
+// where the Soong name is prebuilt_foo, this returns foo (which works in Make
+// under the premise that the prebuilt module overrides its source counterpart
+// if it is exposed to Make).
+func (c *Module) ImplementationModuleNameForMake(ctx android.BaseModuleContext) string {
+	name := c.BaseModuleName()
+	if versioned, ok := c.linker.(versionedInterface); ok {
+		name = versioned.implementationModuleName(name)
+	}
+	return name
+}
+
 func (c *Module) bootstrap() bool {
 	return Bool(c.Properties.Bootstrap)
 }
@@ -1128,7 +1141,7 @@ func (c *Module) ExcludeFromRecoverySnapshot() bool {
 
 func isBionic(name string) bool {
 	switch name {
-	case "libc", "libm", "libdl", "libdl_android", "linker":
+	case "libc", "libm", "libdl", "libdl_android", "linker", "linkerconfig":
 		return true
 	}
 	return false

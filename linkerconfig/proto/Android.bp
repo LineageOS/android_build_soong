@@ -7,6 +7,10 @@ cc_library_static {
         type: "lite",
     },
     srcs: ["linker_config.proto"],
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
 }
 
 python_library_host {

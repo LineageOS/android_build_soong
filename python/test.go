@@ -108,12 +108,12 @@ func NewTest(hod android.HostOrDeviceSupported) *Module {
 func PythonTestHostFactory() android.Module {
 	module := NewTest(android.HostSupportedNoCross)
 
-	return module.Init()
+	return module.init()
 }
 
 func PythonTestFactory() android.Module {
 	module := NewTest(android.HostAndDeviceSupported)
 	module.multilib = android.MultilibBoth
 
-	return module.Init()
+	return module.init()
 }

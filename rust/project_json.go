@@ -75,11 +75,15 @@ func init() {
 	android.RegisterSingletonType("rust_project_generator", rustProjectGeneratorSingleton)
 }
 
-// librarySource finds the main source file (.rs) for a crate.
-func librarySource(ctx android.SingletonContext, rModule *Module, rustLib *libraryDecorator) (string, bool) {
-	srcs := rustLib.baseCompiler.Properties.Srcs
+// crateSource finds the main source file (.rs) for a crate.
+func crateSource(ctx android.SingletonContext, rModule *Module, comp *baseCompiler) (string, bool) {
+	srcs := comp.Properties.Srcs
 	if len(srcs) != 0 {
 		return path.Join(ctx.ModuleDir(rModule), srcs[0]), true
+	}
+	rustLib, ok := rModule.compiler.(*libraryDecorator)
+	if !ok {
+		return "", false
 	}
 	if !rustLib.source() {
 		return "", false
@@ -132,8 +136,15 @@ func (singleton *projectGeneratorSingleton) appendLibraryAndDeps(ctx android.Sin
 	if rModule.compiler == nil {
 		return 0, "", false
 	}
-	rustLib, ok := rModule.compiler.(*libraryDecorator)
-	if !ok {
+	var comp *baseCompiler
+	switch c := rModule.compiler.(type) {
+	case *libraryDecorator:
+		comp = c.baseCompiler
+	case *binaryDecorator:
+		comp = c.baseCompiler
+	case *testDecorator:
+		comp = c.binaryDecorator.baseCompiler
+	default:
 		return 0, "", false
 	}
 	moduleName := ctx.ModuleName(module)
@@ -146,12 +157,12 @@ func (singleton *projectGeneratorSingleton) appendLibraryAndDeps(ctx android.Sin
 		return cInfo.ID, crateName, true
 	}
 	crate := rustProjectCrate{Deps: make([]rustProjectDep, 0), Cfgs: make([]string, 0)}
-	rootModule, ok := librarySource(ctx, rModule, rustLib)
+	rootModule, ok := crateSource(ctx, rModule, comp)
 	if !ok {
 		return 0, "", false
 	}
 	crate.RootModule = rootModule
-	crate.Edition = rustLib.baseCompiler.edition()
+	crate.Edition = comp.edition()
 
 	deps := make(map[string]int)
 	singleton.mergeDependencies(ctx, module, &crate, deps)
