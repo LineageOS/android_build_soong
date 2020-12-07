@@ -60,6 +60,7 @@ func TestVndkApexForVndkLite(t *testing.T) {
 		"etc/vndkcore.libraries.VER.txt",
 		"etc/vndksp.libraries.VER.txt",
 		"etc/vndkprivate.libraries.VER.txt",
+		"etc/vndkproduct.libraries.VER.txt",
 	})
 }
 
