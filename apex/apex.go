@@ -728,7 +728,9 @@ type ApexBundleInfo struct {
 
 var ApexBundleInfoProvider = blueprint.NewMutatorProvider(ApexBundleInfo{}, "apex_info")
 
-// apexInfoMutator is responsible for collecting modules that need to have apex variants. They are
+var _ ApexInfoMutator = (*apexBundle)(nil)
+
+// ApexInfoMutator is responsible for collecting modules that need to have apex variants. They are
 // identified by doing a graph walk starting from an apexBundle. Basically, all the (direct and
 // indirect) dependencies are collected. But a few types of modules that shouldn't be included in
 // the apexBundle (e.g. stub libraries) are not collected. Note that a single module can be depended
@@ -739,15 +741,7 @@ var ApexBundleInfoProvider = blueprint.NewMutatorProvider(ApexBundleInfo{}, "ape
 // The apexMutator uses that list to create module variants for the apexes to which it belongs.
 // The relationship between module variants and apexes is not one-to-one as variants will be
 // shared between compatible apexes.
-func apexInfoMutator(mctx android.TopDownMutatorContext) {
-	if !mctx.Module().Enabled() {
-		return
-	}
-
-	a, ok := mctx.Module().(*apexBundle)
-	if !ok {
-		return
-	}
+func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	// The VNDK APEX is special. For the APEX, the membership is described in a very different
 	// way. There is no dependency from the VNDK APEX to the VNDK libraries. Instead, VNDK
@@ -824,6 +818,25 @@ func apexInfoMutator(mctx android.TopDownMutatorContext) {
 		child.(android.ApexModule).BuildForApex(apexInfo) // leave a mark!
 		return true
 	})
+}
+
+type ApexInfoMutator interface {
+	// ApexInfoMutator implementations must call BuildForApex(ApexInfo) on any modules that are
+	// depended upon by an apex and which require an apex specific variant.
+	ApexInfoMutator(android.TopDownMutatorContext)
+}
+
+// apexInfoMutator delegates the work of identifying which modules need an ApexInfo and apex
+// specific variant to modules that support the ApexInfoMutator.
+func apexInfoMutator(mctx android.TopDownMutatorContext) {
+	if !mctx.Module().Enabled() {
+		return
+	}
+
+	if a, ok := mctx.Module().(ApexInfoMutator); ok {
+		a.ApexInfoMutator(mctx)
+		return
+	}
 }
 
 // apexUniqueVariationsMutator checks if any dependencies use unique apex variations. If so, use
