@@ -26,64 +26,53 @@ var splitNTestCases = []struct {
 	n        int
 }{
 	{
-		in: &MakeString{
-			Strings: []string{
-				"a b c",
-				"d e f",
-				" h i j",
-			},
-			Variables: []Variable{
-				Variable{Name: SimpleMakeString("var1", NoPos)},
-				Variable{Name: SimpleMakeString("var2", NoPos)},
-			},
-		},
+		// "a b c$(var1)d e f$(var2) h i j"
+		in:  genMakeString("a b c", "var1", "d e f", "var2", " h i j"),
 		sep: " ",
 		n:   -1,
 		expected: []*MakeString{
-			SimpleMakeString("a", NoPos),
-			SimpleMakeString("b", NoPos),
-			&MakeString{
-				Strings: []string{"c", "d"},
-				Variables: []Variable{
-					Variable{Name: SimpleMakeString("var1", NoPos)},
-				},
-			},
-			SimpleMakeString("e", NoPos),
-			&MakeString{
-				Strings: []string{"f", ""},
-				Variables: []Variable{
-					Variable{Name: SimpleMakeString("var2", NoPos)},
-				},
-			},
-			SimpleMakeString("h", NoPos),
-			SimpleMakeString("i", NoPos),
-			SimpleMakeString("j", NoPos),
+			genMakeString("a"),
+			genMakeString("b"),
+			genMakeString("c", "var1", "d"),
+			genMakeString("e"),
+			genMakeString("f", "var2", ""),
+			genMakeString("h"),
+			genMakeString("i"),
+			genMakeString("j"),
 		},
 	},
 	{
-		in: &MakeString{
-			Strings: []string{
-				"a b c",
-				"d e f",
-				" h i j",
-			},
-			Variables: []Variable{
-				Variable{Name: SimpleMakeString("var1", NoPos)},
-				Variable{Name: SimpleMakeString("var2", NoPos)},
-			},
-		},
+		// "a b c$(var1)d e f$(var2) h i j"
+		in:  genMakeString("a b c", "var1", "d e f", "var2", " h i j"),
 		sep: " ",
 		n:   3,
 		expected: []*MakeString{
-			SimpleMakeString("a", NoPos),
-			SimpleMakeString("b", NoPos),
-			&MakeString{
-				Strings: []string{"c", "d e f", " h i j"},
-				Variables: []Variable{
-					Variable{Name: SimpleMakeString("var1", NoPos)},
-					Variable{Name: SimpleMakeString("var2", NoPos)},
-				},
-			},
+			genMakeString("a"),
+			genMakeString("b"),
+			genMakeString("c", "var1", "d e f", "var2", " h i j"),
+		},
+	},
+	{
+		// "$(var1) $(var2)"
+		in:  genMakeString("", "var1", " ", "var2", ""),
+		sep: " ",
+		n:   -1,
+		expected: []*MakeString{
+			genMakeString("", "var1", ""),
+			genMakeString("", "var2", ""),
+		},
+	},
+	{
+		// "a,,b,c,"
+		in:  genMakeString("a,,b,c,"),
+		sep: ",",
+		n:   -1,
+		expected: []*MakeString{
+			genMakeString("a"),
+			genMakeString(""),
+			genMakeString("b"),
+			genMakeString("c"),
+			genMakeString(""),
 		},
 	},
 }
@@ -104,15 +93,15 @@ var valueTestCases = []struct {
 	expected string
 }{
 	{
-		in:       SimpleMakeString("a b", NoPos),
+		in:       genMakeString("a b"),
 		expected: "a b",
 	},
 	{
-		in:       SimpleMakeString("a\\ \\\tb\\\\", NoPos),
+		in:       genMakeString("a\\ \\\tb\\\\"),
 		expected: "a \tb\\",
 	},
 	{
-		in:       SimpleMakeString("a\\b\\", NoPos),
+		in:       genMakeString("a\\b\\"),
 		expected: "a\\b\\",
 	},
 }
@@ -131,31 +120,88 @@ var splitWordsTestCases = []struct {
 	expected []*MakeString
 }{
 	{
-		in:       SimpleMakeString("", NoPos),
+		in:       genMakeString(""),
 		expected: []*MakeString{},
 	},
 	{
-		in: SimpleMakeString(" a b\\ c d", NoPos),
+		in: genMakeString(` a b\ c d`),
 		expected: []*MakeString{
-			SimpleMakeString("a", NoPos),
-			SimpleMakeString("b\\ c", NoPos),
-			SimpleMakeString("d", NoPos),
+			genMakeString("a"),
+			genMakeString(`b\ c`),
+			genMakeString("d"),
 		},
 	},
 	{
-		in: SimpleMakeString("  a\tb\\\t\\ c d  ", NoPos),
+		in: SimpleMakeString("  a\tb"+`\`+"\t"+`\ c d  `, NoPos),
 		expected: []*MakeString{
-			SimpleMakeString("a", NoPos),
-			SimpleMakeString("b\\\t\\ c", NoPos),
-			SimpleMakeString("d", NoPos),
+			genMakeString("a"),
+			genMakeString("b" + `\` + "\t" + `\ c`),
+			genMakeString("d"),
 		},
 	},
 	{
-		in: SimpleMakeString(`a\\ b\\\ c d`, NoPos),
+		in: genMakeString(`a\\ b\\\ c d`),
 		expected: []*MakeString{
-			SimpleMakeString(`a\\`, NoPos),
-			SimpleMakeString(`b\\\ c`, NoPos),
-			SimpleMakeString("d", NoPos),
+			genMakeString(`a\\`),
+			genMakeString(`b\\\ c`),
+			genMakeString("d"),
+		},
+	},
+	{
+		in: genMakeString(`\\ a`),
+		expected: []*MakeString{
+			genMakeString(`\\`),
+			genMakeString("a"),
+		},
+	},
+	{
+		// "  "
+		in: &MakeString{
+			Strings:   []string{" \t \t"},
+			Variables: nil,
+		},
+		expected: []*MakeString{},
+	},
+	{
+		// " a $(X)b c "
+		in: genMakeString(" a ", "X", "b c "),
+		expected: []*MakeString{
+			genMakeString("a"),
+			genMakeString("", "X", "b"),
+			genMakeString("c"),
+		},
+	},
+	{
+		// " a b$(X)c d"
+		in: genMakeString(" a b", "X", "c d"),
+		expected: []*MakeString{
+			genMakeString("a"),
+			genMakeString("b", "X", "c"),
+			genMakeString("d"),
+		},
+	},
+	{
+		// "$(X) $(Y)"
+		in: genMakeString("", "X", " ", "Y", ""),
+		expected: []*MakeString{
+			genMakeString("", "X", ""),
+			genMakeString("", "Y", ""),
+		},
+	},
+	{
+		// " a$(X) b"
+		in: genMakeString(" a", "X", " b"),
+		expected: []*MakeString{
+			genMakeString("a", "X", ""),
+			genMakeString("b"),
+		},
+	},
+	{
+		// "a$(X) b$(Y) "
+		in: genMakeString("a", "X", " b", "Y", " "),
+		expected: []*MakeString{
+			genMakeString("a", "X", ""),
+			genMakeString("b", "Y", ""),
 		},
 	},
 }
@@ -179,4 +225,21 @@ func dumpArray(a []*MakeString) string {
 	}
 
 	return strings.Join(ret, "|||")
+}
+
+// generates MakeString from alternating string chunks and variable names,
+// e.g., genMakeString("a", "X", "b") returns MakeString for "a$(X)b"
+func genMakeString(items ...string) *MakeString {
+	n := len(items) / 2
+	if len(items) != (2*n + 1) {
+		panic("genMakeString expects odd number of arguments")
+	}
+
+	ms := &MakeString{Strings: make([]string, n+1), Variables: make([]Variable, n)}
+	ms.Strings[0] = items[0]
+	for i := 1; i <= n; i++ {
+		ms.Variables[i-1] = Variable{Name: SimpleMakeString(items[2*i-1], NoPos)}
+		ms.Strings[i] = items[2*i]
+	}
+	return ms
 }
