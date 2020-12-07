@@ -506,7 +506,7 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 			m := image.modules.Jar(i)
 			if ctx.Config().AllowMissingDependencies() {
 				missingDeps = append(missingDeps, m)
-				bootDexJars[i] = android.PathForOutput(ctx, "missing")
+				bootDexJars[i] = android.PathForOutput(ctx, "missing/module", m, "from/apex", image.modules.Apex(i))
 			} else {
 				ctx.Errorf("failed to find a dex jar path for module '%s'"+
 					", note that some jars may be filtered out by module constraints", m)
@@ -779,7 +779,7 @@ func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImageConf
 			bootFrameworkProfile = path.Path()
 		} else {
 			missingDeps = append(missingDeps, defaultProfile)
-			bootFrameworkProfile = android.PathForOutput(ctx, "missing")
+			bootFrameworkProfile = android.PathForOutput(ctx, "missing", defaultProfile)
 		}
 
 		profile := image.dir.Join(ctx, "boot.bprof")
