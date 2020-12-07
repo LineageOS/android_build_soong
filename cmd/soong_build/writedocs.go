@@ -44,9 +44,10 @@ var propertyRank = map[string]int{
 	"name":             0,
 	"src":              1,
 	"srcs":             2,
-	"defaults":         3,
-	"host_supported":   4,
-	"device_supported": 5,
+	"exclude_srcs":     3,
+	"defaults":         4,
+	"host_supported":   5,
+	"device_supported": 6,
 }
 
 // For each module type, extract its documentation and convert it to the template data.
