@@ -407,6 +407,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, classLoaderConte
 
 	ctx.VisitDirectDeps(func(module android.Module) {
 		depName := ctx.OtherModuleName(module)
+		depTag := ctx.OtherModuleDependencyTag(module)
 
 		var exportPackage android.Path
 		aarDep, _ := module.(AndroidLibraryDependency)
@@ -414,7 +415,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, classLoaderConte
 			exportPackage = aarDep.ExportPackage()
 		}
 
-		switch ctx.OtherModuleDependencyTag(module) {
+		switch depTag {
 		case instrumentationForTag:
 			// Nothing, instrumentationForTag is treated as libTag for javac but not for aapt2.
 		case libTag:
@@ -439,7 +440,6 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, classLoaderConte
 				transitiveStaticLibs = append(transitiveStaticLibs, aarDep.ExportedStaticPackages()...)
 				transitiveStaticLibs = append(transitiveStaticLibs, exportPackage)
 				transitiveStaticLibManifests = append(transitiveStaticLibManifests, aarDep.ExportedManifests()...)
-				classLoaderContexts.AddContextMap(aarDep.ClassLoaderContexts(), depName)
 				if aarDep.ExportedAssets().Valid() {
 					assets = append(assets, aarDep.ExportedAssets().Path())
 				}
@@ -458,11 +458,8 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, classLoaderConte
 			}
 		}
 
-		// Add nested dependencies after processing the direct dependency: if it is a <uses-library>,
-		// nested context is added as its subcontext, and should not be re-added at the top-level.
-		if dep, ok := module.(Dependency); ok {
-			classLoaderContexts.AddContextMap(dep.ClassLoaderContexts(), depName)
-		}
+		// Merge dep's CLC after processing the dep itself (which may add its own <uses-library>).
+		maybeAddCLCFromDep(module, depTag, depName, classLoaderContexts)
 	})
 
 	deps = append(deps, sharedLibs...)
