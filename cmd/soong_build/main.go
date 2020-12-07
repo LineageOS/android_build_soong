@@ -51,10 +51,22 @@ func newNameResolver(config android.Config) *android.NameResolver {
 	return android.NewNameResolver(exportFilter)
 }
 
+// bazelConversionRequested checks that the user is intending to convert
+// Blueprint to Bazel BUILD files.
+func bazelConversionRequested(configuration android.Config) bool {
+	return configuration.IsEnvTrue("CONVERT_TO_BAZEL")
+}
+
 func newContext(srcDir string, configuration android.Config) *android.Context {
 	ctx := android.NewContext(configuration)
-	ctx.Register()
-	if !shouldPrepareBuildActions() {
+	if bazelConversionRequested(configuration) {
+		// Register an alternate set of singletons and mutators for bazel
+		// conversion for Bazel conversion.
+		ctx.RegisterForBazelConversion()
+	} else {
+		ctx.Register()
+	}
+	if !shouldPrepareBuildActions(configuration) {
 		configuration.SetStopBefore(bootstrap.StopBeforePrepareBuildActions)
 	}
 	ctx.SetNameInterface(newNameResolver(configuration))
@@ -114,6 +126,8 @@ func main() {
 		ctx = newContext(srcDir, configuration)
 		bootstrap.Main(ctx.Context, configuration, extraNinjaDeps...)
 	}
+
+	// Convert the Soong module graph into Bazel BUILD files.
 	if bazelQueryViewDir != "" {
 		if err := createBazelQueryView(ctx, bazelQueryViewDir); err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -130,7 +144,7 @@ func main() {
 
 	// TODO(ccross): make this a command line argument.  Requires plumbing through blueprint
 	//  to affect the command line of the primary builder.
-	if shouldPrepareBuildActions() {
+	if shouldPrepareBuildActions(configuration) {
 		metricsFile := filepath.Join(bootstrap.BuildDir, "soong_build_metrics.pb")
 		err := android.WriteMetrics(configuration, metricsFile)
 		if err != nil {
@@ -140,8 +154,19 @@ func main() {
 	}
 }
 
-func shouldPrepareBuildActions() bool {
-	// If we're writing soong_docs or queryview, don't write build.ninja or
-	// collect metrics.
-	return docFile == "" && bazelQueryViewDir == ""
+// shouldPrepareBuildActions reads configuration and flags if build actions
+// should be generated.
+func shouldPrepareBuildActions(configuration android.Config) bool {
+	// Generating Soong docs
+	if docFile != "" {
+		return false
+	}
+
+	// Generating a directory for Soong query (queryview)
+	if bazelQueryViewDir != "" {
+		return false
+	}
+
+	// Generating a directory for converted Bazel BUILD files
+	return !bazelConversionRequested(configuration)
 }
