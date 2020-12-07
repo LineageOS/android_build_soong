@@ -26,15 +26,40 @@ import (
 // for calling the soong_build primary builder in the main build.ninja file.
 func init() {
 	RegisterSingletonType("bazel_queryview", BazelQueryViewSingleton)
+	RegisterSingletonType("bazel_converter", BazelConverterSingleton)
 }
 
+// BazelQueryViewSingleton is the singleton responsible for registering the
+// soong_build build statement that will convert the Soong module graph after
+// applying *all* mutators, enabing the feature to query the final state of the
+// Soong graph. This mode is meant for querying the build graph state, and not meant
+// for generating BUILD files to be checked in.
 func BazelQueryViewSingleton() Singleton {
 	return &bazelQueryViewSingleton{}
 }
 
-type bazelQueryViewSingleton struct{}
+// BazelConverterSingleton is the singleton responsible for registering the soong_build
+// build statement that will convert the Soong module graph by applying an alternate
+// pipeline of mutators, with the goal of reaching semantic equivalence between the original
+// Blueprint and final BUILD files. Using this mode, the goal is to be able to
+// build with these BUILD files directly in the source tree.
+func BazelConverterSingleton() Singleton {
+	return &bazelConverterSingleton{}
+}
 
-func (c *bazelQueryViewSingleton) GenerateBuildActions(ctx SingletonContext) {
+type bazelQueryViewSingleton struct{}
+type bazelConverterSingleton struct{}
+
+func generateBuildActionsForBazelConversion(ctx SingletonContext, converterMode bool) {
+	name := "queryview"
+	additionalEnvVars := ""
+	descriptionTemplate := "[EXPERIMENTAL, PRE-PRODUCTION] Creating the Bazel QueryView workspace with %s at $outDir"
+	if converterMode {
+		name = "bp2build"
+		additionalEnvVars = "CONVERT_TO_BAZEL=true"
+		descriptionTemplate = "[EXPERIMENTAL, PRE-PRODUCTION] Converting all Android.bp to Bazel BUILD files with %s at $outDir"
+	}
+
 	// Create a build and rule statement, using the Bazel QueryView's WORKSPACE
 	// file as the output file marker.
 	var deps Paths
@@ -42,22 +67,23 @@ func (c *bazelQueryViewSingleton) GenerateBuildActions(ctx SingletonContext) {
 	deps = append(deps, moduleListFilePath)
 	deps = append(deps, pathForBuildToolDep(ctx, ctx.Config().ProductVariablesFileName))
 
-	bazelQueryViewDirectory := PathForOutput(ctx, "queryview")
+	bazelQueryViewDirectory := PathForOutput(ctx, name)
 	bazelQueryViewWorkspaceFile := bazelQueryViewDirectory.Join(ctx, "WORKSPACE")
 	primaryBuilder := primaryBuilderPath(ctx)
 	bazelQueryView := ctx.Rule(pctx, "bazelQueryView",
 		blueprint.RuleParams{
 			Command: fmt.Sprintf(
 				"rm -rf ${outDir}/* && "+
-					"%s --bazel_queryview_dir ${outDir} %s && "+
+					"%s %s --bazel_queryview_dir ${outDir} %s && "+
 					"echo WORKSPACE: `cat %s` > ${outDir}/.queryview-depfile.d",
+				additionalEnvVars,
 				primaryBuilder.String(),
 				strings.Join(os.Args[1:], " "),
 				moduleListFilePath.String(), // Use the contents of Android.bp.list as the depfile.
 			),
 			CommandDeps: []string{primaryBuilder.String()},
 			Description: fmt.Sprintf(
-				"[EXPERIMENTAL, PRE-PRODUCTION] Creating the Bazel QueryView workspace with %s at $outDir",
+				descriptionTemplate,
 				primaryBuilder.Base()),
 			Deps:    blueprint.DepsGCC,
 			Depfile: "${outDir}/.queryview-depfile.d",
@@ -73,6 +99,14 @@ func (c *bazelQueryViewSingleton) GenerateBuildActions(ctx SingletonContext) {
 		},
 	})
 
-	// Add a phony target for building the Bazel QueryView
-	ctx.Phony("queryview", bazelQueryViewWorkspaceFile)
+	// Add a phony target for generating the workspace
+	ctx.Phony(name, bazelQueryViewWorkspaceFile)
+}
+
+func (c *bazelQueryViewSingleton) GenerateBuildActions(ctx SingletonContext) {
+	generateBuildActionsForBazelConversion(ctx, false)
+}
+
+func (c *bazelConverterSingleton) GenerateBuildActions(ctx SingletonContext) {
+	generateBuildActionsForBazelConversion(ctx, true)
 }

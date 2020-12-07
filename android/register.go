@@ -90,6 +90,21 @@ func NewContext(config Config) *Context {
 	return ctx
 }
 
+// RegisterForBazelConversion registers an alternate shadow pipeline of
+// singletons, module types and mutators to register for converting Blueprint
+// files to semantically equivalent BUILD files.
+func (ctx *Context) RegisterForBazelConversion() {
+	for _, t := range moduleTypes {
+		ctx.RegisterModuleType(t.name, ModuleFactoryAdaptor(t.factory))
+	}
+
+	bazelConverterSingleton := singleton{"bp2build", BazelConverterSingleton}
+	ctx.RegisterSingletonType(bazelConverterSingleton.name,
+		SingletonFactoryAdaptor(ctx, bazelConverterSingleton.factory))
+
+	registerMutatorsForBazelConversion(ctx.Context)
+}
+
 func (ctx *Context) Register() {
 	for _, t := range preSingletons {
 		ctx.RegisterPreSingletonType(t.name, SingletonFactoryAdaptor(ctx, t.factory))
