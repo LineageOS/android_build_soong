@@ -15,6 +15,8 @@
 package build
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,7 +26,7 @@ import (
 	"android/soong/ui/metrics"
 )
 
-func getBazelInfo(ctx Context, config Config, bazelExecutable string, query string) string {
+func getBazelInfo(ctx Context, config Config, bazelExecutable string, bazelEnv map[string]string, query string) string {
 	infoCmd := Command(ctx, config, "bazel", bazelExecutable)
 
 	if extraStartupArgs, ok := infoCmd.Environment.Get("BAZEL_STARTUP_ARGS"); ok {
@@ -37,8 +39,9 @@ func getBazelInfo(ctx Context, config Config, bazelExecutable string, query stri
 		query,
 	)
 
-	infoCmd.Environment.Set("DIST_DIR", config.DistDir())
-	infoCmd.Environment.Set("SHELL", "/bin/bash")
+	for k, v := range bazelEnv {
+		infoCmd.Environment.Set(k, v)
+	}
 
 	infoCmd.Dir = filepath.Join(config.OutDir(), "..")
 
@@ -65,14 +68,18 @@ func runBazel(ctx Context, config Config) {
 
 	// Environment variables are the primary mechanism to pass information from
 	// soong_ui configuration or context to Bazel.
-	//
+	bazelEnv := make(map[string]string)
+
 	// Use *_NINJA variables to pass the root-relative path of the combined,
 	// kati-generated, soong-generated, and packaging Ninja files to Bazel.
 	// Bazel reads these from the lunch() repository rule.
-	config.environ.Set("COMBINED_NINJA", config.CombinedNinjaFile())
-	config.environ.Set("KATI_NINJA", config.KatiBuildNinjaFile())
-	config.environ.Set("PACKAGE_NINJA", config.KatiPackageNinjaFile())
-	config.environ.Set("SOONG_NINJA", config.SoongNinjaFile())
+	bazelEnv["COMBINED_NINJA"] = config.CombinedNinjaFile()
+	bazelEnv["KATI_NINJA"] = config.KatiBuildNinjaFile()
+	bazelEnv["PACKAGE_NINJA"] = config.KatiPackageNinjaFile()
+	bazelEnv["SOONG_NINJA"] = config.SoongNinjaFile()
+
+	bazelEnv["DIST_DIR"] = config.DistDir()
+	bazelEnv["SHELL"] = "/bin/bash"
 
 	// `tools/bazel` is the default entry point for executing Bazel in the AOSP
 	// source tree.
@@ -126,7 +133,7 @@ func runBazel(ctx Context, config Config) {
 
 		// We need to calculate --RBE_exec_root ourselves
 		ctx.Println("Getting Bazel execution_root...")
-		cmd.Args = append(cmd.Args, "--action_env=RBE_exec_root="+getBazelInfo(ctx, config, bazelExecutable, "execution_root"))
+		cmd.Args = append(cmd.Args, "--action_env=RBE_exec_root="+getBazelInfo(ctx, config, bazelExecutable, bazelEnv, "execution_root"))
 	}
 
 	// Ensure that the PATH environment variable value used in the action
@@ -149,15 +156,24 @@ func runBazel(ctx Context, config Config) {
 		"//:"+config.TargetProduct()+"-"+config.TargetBuildVariant(),
 	)
 
-	cmd.Environment.Set("DIST_DIR", config.DistDir())
-	cmd.Environment.Set("SHELL", "/bin/bash")
-
 	// Print the full command line for debugging purposes.
 	ctx.Println(cmd.Cmd)
 
 	// Execute the command at the root of the directory.
 	cmd.Dir = filepath.Join(config.OutDir(), "..")
-	ctx.Status.Status("Starting Bazel..")
+
+	for k, v := range bazelEnv {
+		cmd.Environment.Set(k, v)
+	}
+
+	// Make a human-readable version of the bazelEnv map
+	bazelEnvStringBuffer := new(bytes.Buffer)
+	for k, v := range bazelEnv {
+		fmt.Fprintf(bazelEnvStringBuffer, "%s=%s ", k, v)
+	}
+
+	// Print the full command line (including environment variables) for debugging purposes.
+	ctx.Println("Bazel command line: " + bazelEnvStringBuffer.String() + cmd.Cmd.String() + "\n")
 
 	// Execute the build command.
 	cmd.RunAndStreamOrFatal()
@@ -168,7 +184,7 @@ func runBazel(ctx Context, config Config) {
 	// the files from the execution root's output direction into $OUT_DIR.
 
 	ctx.Println("Getting Bazel output_path...")
-	outputBasePath := getBazelInfo(ctx, config, bazelExecutable, "output_path")
+	outputBasePath := getBazelInfo(ctx, config, bazelExecutable, bazelEnv, "output_path")
 	// TODO: Don't hardcode out/ as the bazel output directory. This is
 	// currently hardcoded as ninja_build.output_root.
 	bazelNinjaBuildOutputRoot := filepath.Join(outputBasePath, "..", "out")
