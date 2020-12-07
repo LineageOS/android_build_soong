@@ -130,7 +130,7 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
 			},
 		},
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
-			func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
+			func(w io.Writer, name, prefix, moduleDir string) {
 				if c.Properties.IsSdkVariant && c.Properties.SdkAndPlatformVariantVisibleToMake &&
 					c.CcLibraryInterface() && c.Shared() {
 					// Using the SDK variant as a JNI library needs a copy of the .so that
@@ -296,7 +296,7 @@ func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries 
 func (object *objectLinker) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	entries.Class = "STATIC_LIBRARIES"
 	entries.ExtraFooters = append(entries.ExtraFooters,
-		func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
+		func(w io.Writer, name, prefix, moduleDir string) {
 			out := entries.OutputFile.Path()
 			varname := fmt.Sprintf("SOONG_%sOBJECT_%s%s", prefix, name, entries.SubName)
 
@@ -574,7 +574,7 @@ func (c *snapshotObjectLinker) AndroidMkEntries(ctx AndroidMkContext, entries *a
 	}
 
 	entries.ExtraFooters = append(entries.ExtraFooters,
-		func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
+		func(w io.Writer, name, prefix, moduleDir string) {
 			out := entries.OutputFile.Path()
 			varname := fmt.Sprintf("SOONG_%sOBJECT_%s%s", prefix, name, entries.SubName)
 

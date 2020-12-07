@@ -311,7 +311,7 @@ func (s *sdk) AndroidMkEntries() []android.AndroidMkEntries {
 		DistFiles:  android.MakeDefaultDistFiles(s.snapshotFile.Path()),
 		Include:    "$(BUILD_PHONY_PACKAGE)",
 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
-			func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
+			func(w io.Writer, name, prefix, moduleDir string) {
 				// Allow the sdk to be built by simply passing its name on the command line.
 				fmt.Fprintln(w, ".PHONY:", s.Name())
 				fmt.Fprintln(w, s.Name()+":", s.snapshotFile.String())
