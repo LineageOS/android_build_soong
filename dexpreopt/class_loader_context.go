@@ -437,7 +437,11 @@ func validateClassLoaderContextRec(sdkVer int, clcs []*ClassLoaderContext) (bool
 			if sdkVer == AnySdkVersion {
 				// Return error if dexpreopt doesn't know paths to one of the <uses-library>
 				// dependencies. In the future we may need to relax this and just disable dexpreopt.
-				return false, fmt.Errorf("invalid path for <uses-library> \"%s\"", clc.Name)
+				if clc.Host == nil {
+					return false, fmt.Errorf("invalid build path for <uses-library> \"%s\"", clc.Name)
+				} else {
+					return false, fmt.Errorf("invalid install path for <uses-library> \"%s\"", clc.Name)
+				}
 			} else {
 				// No error for compatibility libraries, as Soong doesn't know if they are needed
 				// (this depends on the targetSdkVersion in the manifest), but the CLC is invalid.

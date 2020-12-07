@@ -195,7 +195,7 @@ func TestCLCMaybeAdd(t *testing.T) {
 	// But class loader context in such cases should raise an error on validation.
 	t.Run("validate", func(t *testing.T) {
 		_, err := validateClassLoaderContext(m)
-		checkError(t, err, "invalid path for <uses-library> \"a\"")
+		checkError(t, err, "invalid build path for <uses-library> \"a\"")
 	})
 }
 
