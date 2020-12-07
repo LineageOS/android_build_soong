@@ -2730,6 +2730,13 @@ func TestUsesLibraries(t *testing.T) {
 		}
 
 		java_sdk_library {
+			name: "fred",
+			srcs: ["a.java"],
+			api_packages: ["fred"],
+			sdk_version: "current",
+		}
+
+		java_sdk_library {
 			name: "bar",
 			srcs: ["a.java"],
 			api_packages: ["bar"],
@@ -2753,7 +2760,12 @@ func TestUsesLibraries(t *testing.T) {
 			name: "app",
 			srcs: ["a.java"],
 			libs: ["qux", "quuz.stubs"],
-			static_libs: ["static-runtime-helper"],
+			static_libs: [
+				"static-runtime-helper",
+				// statically linked component libraries should not pull their SDK libraries,
+				// so "fred" should not be added to class loader context
+				"fred.stubs",
+			],
 			uses_libs: ["foo"],
 			sdk_version: "current",
 			optional_uses_libs: [
