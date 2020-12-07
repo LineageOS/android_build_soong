@@ -156,9 +156,6 @@ func runBazel(ctx Context, config Config) {
 		"//:"+config.TargetProduct()+"-"+config.TargetBuildVariant(),
 	)
 
-	// Print the full command line for debugging purposes.
-	ctx.Println(cmd.Cmd)
-
 	// Execute the command at the root of the directory.
 	cmd.Dir = filepath.Join(config.OutDir(), "..")
 
