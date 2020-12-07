@@ -1400,6 +1400,13 @@ func (a *AndroidAppImport) processVariants(ctx android.LoadHookContext) {
 	archProps := reflect.ValueOf(a.archVariants).Elem().FieldByName("Arch")
 	archType := ctx.Config().AndroidFirstDeviceTarget.Arch.ArchType
 	MergePropertiesFromVariant(ctx, &a.properties, archProps, archType.Name)
+
+	if String(a.properties.Apk) == "" {
+		// Disable this module since the apk property is still empty after processing all matching
+		// variants. This likely means there is no matching variant, and the default variant doesn't
+		// have an apk property value either.
+		a.Disable()
+	}
 }
 
 func MergePropertiesFromVariant(ctx android.EarlyModuleContext,
