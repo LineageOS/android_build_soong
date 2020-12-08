@@ -119,9 +119,9 @@ func TestProjectJsonDep(t *testing.T) {
 func TestProjectJsonBinary(t *testing.T) {
 	bp := `
 	rust_binary {
-		name: "liba",
-		srcs: ["a/src/lib.rs"],
-		crate_name: "a"
+		name: "libz",
+		srcs: ["z/src/lib.rs"],
+		crate_name: "z"
 	}
 	`
 	jsonContent := testProjectJson(t, bp)
@@ -132,7 +132,7 @@ func TestProjectJsonBinary(t *testing.T) {
 		if !ok {
 			t.Fatalf("Unexpected type for root_module: %v", crate["root_module"])
 		}
-		if rootModule == "a/src/lib.rs" {
+		if rootModule == "z/src/lib.rs" {
 			return
 		}
 	}
@@ -142,10 +142,10 @@ func TestProjectJsonBinary(t *testing.T) {
 func TestProjectJsonBindGen(t *testing.T) {
 	bp := `
 	rust_library {
-		name: "liba",
-		srcs: ["src/lib.rs"],
+		name: "libd",
+		srcs: ["d/src/lib.rs"],
 		rlibs: ["libbindings1"],
-		crate_name: "a"
+		crate_name: "d"
 	}
 	rust_bindgen {
 		name: "libbindings1",
@@ -155,10 +155,10 @@ func TestProjectJsonBindGen(t *testing.T) {
 		wrapper_src: "src/any.h",
 	}
 	rust_library_host {
-		name: "libb",
-		srcs: ["src/lib.rs"],
+		name: "libe",
+		srcs: ["e/src/lib.rs"],
 		rustlibs: ["libbindings2"],
-		crate_name: "b"
+		crate_name: "e"
 	}
 	rust_bindgen_host {
 		name: "libbindings2",
@@ -188,6 +188,19 @@ func TestProjectJsonBindGen(t *testing.T) {
 				if depName == "bindings1" {
 					t.Errorf("libbindings1 depends on itself")
 				}
+			}
+		}
+		// Check that liba depends on libbindings1
+		if strings.Contains(rootModule, "d/src/lib.rs") {
+			found := false
+			for _, depName := range validateDependencies(t, crate) {
+				if depName == "bindings1" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("liba does not depend on libbindings1: %v", crate)
 			}
 		}
 	}
