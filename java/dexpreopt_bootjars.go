@@ -418,43 +418,53 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 	dumpOatRules(ctx, d.defaultBootImage)
 }
 
-func isHostdex(module android.Module) bool {
-	if lib, ok := module.(*Library); ok {
-		return Bool(lib.deviceProperties.Hostdex)
-	}
-	return false
-}
-
 // Inspect this module to see if it contains a bootclasspath dex jar.
 // Note that the same jar may occur in multiple modules.
 // This logic is tested in the apex package to avoid import cycle apex <-> java.
 func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, module android.Module) (int, android.Path) {
-	// All apex Java libraries have non-installable platform variants, skip them.
-	if module.IsSkipInstall() {
-		return -1, nil
-	}
-
-	jar, hasJar := module.(interface{ DexJarBuildPath() android.Path })
-	if !hasJar {
-		return -1, nil
-	}
-
+	// Ignore any module that is not listed in the boot image configuration.
 	name := ctx.ModuleName(module)
 	index := image.modules.IndexOfJar(name)
 	if index == -1 {
 		return -1, nil
 	}
 
-	// Check that this module satisfies constraints for a particular boot image.
-	_, isApexModule := module.(android.ApexModule)
+	// It is an error if a module configured in the boot image does not support
+	// accessing the dex jar. This is safe because every module that has the same
+	// name has to have the same module type.
+	jar, hasJar := module.(interface{ DexJarBuildPath() android.Path })
+	if !hasJar {
+		ctx.Errorf("module %q configured in boot image %q does not support accessing dex jar", module, image.name)
+		return -1, nil
+	}
+
+	// It is also an error if the module is not an ApexModule.
+	if _, ok := module.(android.ApexModule); !ok {
+		ctx.Errorf("module %q configured in boot image %q does not support being added to an apex", module, image.name)
+		return -1, nil
+	}
+
 	apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
-	fromUpdatableApex := isApexModule && apexInfo.Updatable
-	if image.name == artBootImageName {
-		if isApexModule && len(apexInfo.InApexes) > 0 && allHavePrefix(apexInfo.InApexes, "com.android.art") {
-			// ok: found the jar in the ART apex
-		} else if isApexModule && apexInfo.IsForPlatform() && isHostdex(module) {
-			// exception (skip and continue): special "hostdex" platform variant
+
+	// Now match the apex part of the boot image configuration.
+	requiredApex := image.modules.Apex(index)
+	if requiredApex == "platform" {
+		if len(apexInfo.InApexes) != 0 {
+			// A platform variant is required but this is for an apex so ignore it.
 			return -1, nil
+		}
+	} else if !android.InList(requiredApex, apexInfo.InApexes) {
+		// An apex variant for a specific apex is required but this is the wrong apex.
+		return -1, nil
+	}
+
+	// Check that this module satisfies any boot image specific constraints.
+	fromUpdatableApex := apexInfo.Updatable
+
+	switch image.name {
+	case artBootImageName:
+		if len(apexInfo.InApexes) > 0 && allHavePrefix(apexInfo.InApexes, "com.android.art") {
+			// ok: found the jar in the ART apex
 		} else if name == "jacocoagent" && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
 			// exception (skip and continue): Jacoco platform variant for a coverage build
 			return -1, nil
@@ -465,14 +475,15 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 			// error: this jar is part of the platform or a non-updatable apex
 			ctx.Errorf("module %q is not allowed in the ART boot image", name)
 		}
-	} else if image.name == frameworkBootImageName {
+
+	case frameworkBootImageName:
 		if !fromUpdatableApex {
 			// ok: this jar is part of the platform or a non-updatable apex
 		} else {
 			// error: this jar is part of an updatable apex
 			ctx.Errorf("module %q from updatable apexes %q is not allowed in the framework boot image", name, apexInfo.InApexes)
 		}
-	} else {
+	default:
 		panic("unknown boot image: " + image.name)
 	}
 
@@ -495,6 +506,12 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 	bootDexJars := make(android.Paths, image.modules.Len())
 	ctx.VisitAllModules(func(module android.Module) {
 		if i, j := getBootImageJar(ctx, image, module); i != -1 {
+			if existing := bootDexJars[i]; existing != nil {
+				ctx.Errorf("Multiple dex jars found for %s:%s - %s and %s",
+					image.modules.Apex(i), image.modules.Jar(i), existing, j)
+				return
+			}
+
 			bootDexJars[i] = j
 		}
 	})
