@@ -2524,6 +2524,24 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 			`,
 			expected: "prebuilts/apk/app.apk",
 		},
+		{
+			name: "no matching arch without default",
+			bp: `
+				android_app_import {
+					name: "foo",
+					arch: {
+						arm: {
+							apk: "prebuilts/apk/app_arm.apk",
+						},
+					},
+					presigned: true,
+					dex_preopt: {
+						enabled: true,
+					},
+				}
+			`,
+			expected: "",
+		},
 	}
 
 	jniRuleRe := regexp.MustCompile("^if \\(zipinfo (\\S+)")
@@ -2531,6 +2549,12 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 		ctx, _ := testJava(t, test.bp)
 
 		variant := ctx.ModuleForTests("foo", "android_common")
+		if test.expected == "" {
+			if variant.Module().Enabled() {
+				t.Error("module should have been disabled, but wasn't")
+			}
+			continue
+		}
 		jniRuleCommand := variant.Output("jnis-uncompressed/foo.apk").RuleParams.Command
 		matches := jniRuleRe.FindStringSubmatch(jniRuleCommand)
 		if len(matches) != 2 {
@@ -2730,6 +2754,13 @@ func TestUsesLibraries(t *testing.T) {
 		}
 
 		java_sdk_library {
+			name: "fred",
+			srcs: ["a.java"],
+			api_packages: ["fred"],
+			sdk_version: "current",
+		}
+
+		java_sdk_library {
 			name: "bar",
 			srcs: ["a.java"],
 			api_packages: ["bar"],
@@ -2753,7 +2784,12 @@ func TestUsesLibraries(t *testing.T) {
 			name: "app",
 			srcs: ["a.java"],
 			libs: ["qux", "quuz.stubs"],
-			static_libs: ["static-runtime-helper"],
+			static_libs: [
+				"static-runtime-helper",
+				// statically linked component libraries should not pull their SDK libraries,
+				// so "fred" should not be added to class loader context
+				"fred.stubs",
+			],
 			uses_libs: ["foo"],
 			sdk_version: "current",
 			optional_uses_libs: [
