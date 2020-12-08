@@ -101,7 +101,7 @@ func runBazel(ctx Context, config Config) {
 		// ninja_build target.
 		"--output_groups="+outputGroups,
 		// Generate a performance profile
-		"--profile="+filepath.Join(shared.BazelMetricsFilename(config.OutDir(), actionName)),
+		"--profile="+filepath.Join(shared.BazelMetricsFilename(config, actionName)),
 		"--slim_profile=true",
 	)
 

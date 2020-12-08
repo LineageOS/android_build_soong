@@ -275,7 +275,7 @@ func NewConfig(ctx Context, args ...string) Config {
 		}
 	}
 
-	bpd := shared.BazelMetricsDir(ret.OutDir())
+	bpd := ret.BazelMetricsDir()
 	if err := os.RemoveAll(bpd); err != nil {
 		ctx.Fatalf("Unable to remove bazel profile directory %q: %v", bpd, err)
 	}
@@ -1120,4 +1120,21 @@ func (c *configImpl) MetricsUploaderApp() string {
 		return p
 	}
 	return ""
+}
+
+// LogsDir returns the logs directory where build log and metrics
+// files are located. By default, the logs directory is the out
+// directory. If the argument dist is specified, the logs directory
+// is <dist_dir>/logs.
+func (c *configImpl) LogsDir() string {
+	if c.Dist() {
+		return filepath.Join(c.DistDir(), "logs")
+	}
+	return c.OutDir()
+}
+
+// BazelMetricsDir returns the <logs dir>/bazel_metrics directory
+// where the bazel profiles are located.
+func (c *configImpl) BazelMetricsDir() string {
+	return filepath.Join(c.LogsDir(), "bazel_metrics")
 }
