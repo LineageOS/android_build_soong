@@ -40,20 +40,55 @@ func init() {
 	// Register sdk member types.
 	android.RegisterSdkMemberType(javaHeaderLibsSdkMemberType)
 
+	// Register java implementation libraries for use only in module_exports (not sdk).
 	android.RegisterSdkMemberType(&librarySdkMemberType{
 		android.SdkMemberTypeBase{
 			PropertyName: "java_libs",
 		},
-		func(j *Library) android.Path {
+		func(_ android.SdkMemberContext, j *Library) android.Path {
 			implementationJars := j.ImplementationAndResourcesJars()
 			if len(implementationJars) != 1 {
 				panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
 			}
-
 			return implementationJars[0]
 		},
+		sdkSnapshotFilePathForJar,
+		copyEverythingToSnapshot,
 	})
 
+	// Register java boot libraries for use in sdk.
+	//
+	// The build has some implicit dependencies (via the boot jars configuration) on a number of
+	// modules, e.g. core-oj, apache-xml, that are part of the java boot class path and which are
+	// provided by mainline modules (e.g. art, conscrypt, runtime-i18n) but which are not otherwise
+	// used outside those mainline modules.
+	//
+	// As they are not needed outside the mainline modules adding them to the sdk/module-exports as
+	// either java_libs, or java_header_libs would end up exporting more information than was strictly
+	// necessary. The java_boot_libs property to allow those modules to be exported as part of the
+	// sdk/module_exports without exposing any unnecessary information.
+	android.RegisterSdkMemberType(&librarySdkMemberType{
+		android.SdkMemberTypeBase{
+			PropertyName: "java_boot_libs",
+			SupportsSdk:  true,
+		},
+		func(ctx android.SdkMemberContext, j *Library) android.Path {
+			// Java boot libs are only provided in the SDK to provide access to their dex implementation
+			// jar for use by dexpreopting and boot jars package check. They do not need to provide an
+			// actual implementation jar but the java_import will need a file that exists so just copy an
+			// empty file. Any attempt to use that file as a jar will cause a build error.
+			return ctx.SnapshotBuilder().EmptyFile()
+		},
+		func(osPrefix, name string) string {
+			// Create a special name for the implementation jar to try and provide some useful information
+			// to a developer that attempts to compile against this.
+			// TODO(b/175714559): Provide a proper error message in Soong not ninja.
+			return filepath.Join(osPrefix, "java_boot_libs", "snapshot", "jars", "are", "invalid", name+jarFileSuffix)
+		},
+		onlyCopyJarToSnapshot,
+	})
+
+	// Register java test libraries for use only in module_exports (not sdk).
 	android.RegisterSdkMemberType(&testSdkMemberType{
 		SdkMemberTypeBase: android.SdkMemberTypeBase{
 			PropertyName: "java_tests",
@@ -2165,8 +2200,21 @@ type librarySdkMemberType struct {
 
 	// Function to retrieve the appropriate output jar (implementation or header) from
 	// the library.
-	jarToExportGetter func(j *Library) android.Path
+	jarToExportGetter func(ctx android.SdkMemberContext, j *Library) android.Path
+
+	// Function to compute the snapshot relative path to which the named library's
+	// jar should be copied.
+	snapshotPathGetter func(osPrefix, name string) string
+
+	// True if only the jar should be copied to the snapshot, false if the jar plus any additional
+	// files like aidl files should also be copied.
+	onlyCopyJarToSnapshot bool
 }
+
+const (
+	onlyCopyJarToSnapshot    = true
+	copyEverythingToSnapshot = false
+)
 
 func (mt *librarySdkMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
 	mctx.AddVariationDependencies(nil, dependencyTag, names...)
@@ -2195,19 +2243,30 @@ type librarySdkMemberProperties struct {
 func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	j := variant.(*Library)
 
-	p.JarToExport = ctx.MemberType().(*librarySdkMemberType).jarToExportGetter(j)
+	p.JarToExport = ctx.MemberType().(*librarySdkMemberType).jarToExportGetter(ctx, j)
+
 	p.AidlIncludeDirs = j.AidlIncludeDirs()
 }
 
 func (p *librarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
 	builder := ctx.SnapshotBuilder()
 
+	memberType := ctx.MemberType().(*librarySdkMemberType)
+
 	exportedJar := p.JarToExport
 	if exportedJar != nil {
-		snapshotRelativeJavaLibPath := sdkSnapshotFilePathForJar(p.OsPrefix(), ctx.Name())
+		// Delegate the creation of the snapshot relative path to the member type.
+		snapshotRelativeJavaLibPath := memberType.snapshotPathGetter(p.OsPrefix(), ctx.Name())
+
+		// Copy the exported jar to the snapshot.
 		builder.CopyToSnapshot(exportedJar, snapshotRelativeJavaLibPath)
 
 		propertySet.AddProperty("jars", []string{snapshotRelativeJavaLibPath})
+	}
+
+	// Do not copy anything else to the snapshot.
+	if memberType.onlyCopyJarToSnapshot {
+		return
 	}
 
 	aidlIncludeDirs := p.AidlIncludeDirs
@@ -2230,7 +2289,7 @@ var javaHeaderLibsSdkMemberType android.SdkMemberType = &librarySdkMemberType{
 		PropertyName: "java_header_libs",
 		SupportsSdk:  true,
 	},
-	func(j *Library) android.Path {
+	func(_ android.SdkMemberContext, j *Library) android.Path {
 		headerJars := j.HeaderJars()
 		if len(headerJars) != 1 {
 			panic(fmt.Errorf("there must be only one header jar from %q", j.Name()))
@@ -2238,6 +2297,8 @@ var javaHeaderLibsSdkMemberType android.SdkMemberType = &librarySdkMemberType{
 
 		return headerJars[0]
 	},
+	sdkSnapshotFilePathForJar,
+	copyEverythingToSnapshot,
 }
 
 // java_library builds and links sources into a `.jar` file for the device, and possibly for the host as well.
