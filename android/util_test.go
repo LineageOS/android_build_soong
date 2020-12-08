@@ -593,6 +593,10 @@ func BenchmarkFirstUniqueStrings(b *testing.B) {
 			name: "map",
 			f:    firstUniqueStringsMap,
 		},
+		{
+			name: "optimal",
+			f:    FirstUniqueStrings,
+		},
 	}
 	const maxSize = 1024
 	uniqueStrings := make([]string, maxSize)
