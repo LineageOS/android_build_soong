@@ -13,6 +13,7 @@ bootstrap_go_package {
         "toolchain.go",
         "allowed_list.go",
         "x86_darwin_host.go",
+        "x86_linux_bionic_host.go",
         "x86_linux_host.go",
         "x86_device.go",
         "x86_64_device.go",
