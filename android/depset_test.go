@@ -17,6 +17,7 @@ package android
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -108,6 +109,7 @@ func TestDepSet(t *testing.T) {
 			name: "builderReuse",
 			depSet: func(t *testing.T, order DepSetOrder) *DepSet {
 				assertEquals := func(t *testing.T, w, g Paths) {
+					t.Helper()
 					if !reflect.DeepEqual(w, g) {
 						t.Errorf("want %q, got %q", w, g)
 					}
@@ -297,6 +299,90 @@ func TestDepSetInvalidOrder(t *testing.T) {
 					if order1 != order2 {
 						run(t, order1, order2)
 					}
+				})
+			}
+		})
+	}
+}
+
+func Test_firstUnique(t *testing.T) {
+	f := func(t *testing.T, imp func([]string) []string, in, want []string) {
+		t.Helper()
+		out := imp(in)
+		if !reflect.DeepEqual(out, want) {
+			t.Errorf("incorrect output:")
+			t.Errorf("     input: %#v", in)
+			t.Errorf("  expected: %#v", want)
+			t.Errorf("       got: %#v", out)
+		}
+	}
+
+	for _, testCase := range firstUniqueStringsTestCases {
+		t.Run("list", func(t *testing.T) {
+			f(t, func(s []string) []string {
+				return firstUniqueList(s).([]string)
+			}, testCase.in, testCase.out)
+		})
+		t.Run("map", func(t *testing.T) {
+			f(t, func(s []string) []string {
+				return firstUniqueMap(s).([]string)
+			}, testCase.in, testCase.out)
+		})
+	}
+}
+
+func Benchmark_firstUnique(b *testing.B) {
+	implementations := []struct {
+		name string
+		f    func([]string) []string
+	}{
+		{
+			name: "list",
+			f: func(slice []string) []string {
+				return firstUniqueList(slice).([]string)
+			},
+		},
+		{
+			name: "map",
+			f: func(slice []string) []string {
+				return firstUniqueMap(slice).([]string)
+			},
+		},
+		{
+			name: "optimal",
+			f: func(slice []string) []string {
+				return firstUnique(slice).([]string)
+			},
+		},
+	}
+	const maxSize = 1024
+	uniqueStrings := make([]string, maxSize)
+	for i := range uniqueStrings {
+		uniqueStrings[i] = strconv.Itoa(i)
+	}
+	sameString := make([]string, maxSize)
+	for i := range sameString {
+		sameString[i] = uniqueStrings[0]
+	}
+
+	f := func(b *testing.B, imp func([]string) []string, s []string) {
+		for i := 0; i < b.N; i++ {
+			b.ReportAllocs()
+			s = append([]string(nil), s...)
+			imp(s)
+		}
+	}
+
+	for n := 1; n <= maxSize; n <<= 1 {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			for _, implementation := range implementations {
+				b.Run(implementation.name, func(b *testing.B) {
+					b.Run("same", func(b *testing.B) {
+						f(b, implementation.f, sameString[:n])
+					})
+					b.Run("unique", func(b *testing.B) {
+						f(b, implementation.f, uniqueStrings[:n])
+					})
 				})
 			}
 		})

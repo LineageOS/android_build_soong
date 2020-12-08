@@ -14,10 +14,7 @@
 
 package android
 
-import "fmt"
-
-// DepSet is designed to be conceptually compatible with Bazel's depsets:
-// https://docs.bazel.build/versions/master/skylark/depsets.html
+// This file implements DepSet, a thin type-safe wrapper around depSet that contains Paths.
 
 // A DepSet efficiently stores Paths from transitive dependencies without copying. It is stored
 // as a DAG of DepSet nodes, each of which has some direct contents and a list of dependency
@@ -33,123 +30,42 @@ import "fmt"
 // A DepSet is created by NewDepSet or NewDepSetBuilder.Build from the Paths for direct contents
 // and the *DepSets of dependencies. A DepSet is immutable once created.
 type DepSet struct {
-	preorder   bool
-	reverse    bool
-	order      DepSetOrder
-	direct     Paths
-	transitive []*DepSet
+	depSet
 }
 
 // DepSetBuilder is used to create an immutable DepSet.
 type DepSetBuilder struct {
-	order      DepSetOrder
-	direct     Paths
-	transitive []*DepSet
-}
-
-type DepSetOrder int
-
-const (
-	PREORDER DepSetOrder = iota
-	POSTORDER
-	TOPOLOGICAL
-)
-
-func (o DepSetOrder) String() string {
-	switch o {
-	case PREORDER:
-		return "PREORDER"
-	case POSTORDER:
-		return "POSTORDER"
-	case TOPOLOGICAL:
-		return "TOPOLOGICAL"
-	default:
-		panic(fmt.Errorf("Invalid DepSetOrder %d", o))
-	}
+	depSetBuilder
 }
 
 // NewDepSet returns an immutable DepSet with the given order, direct and transitive contents.
 func NewDepSet(order DepSetOrder, direct Paths, transitive []*DepSet) *DepSet {
-	var directCopy Paths
-	transitiveCopy := make([]*DepSet, 0, len(transitive))
-
-	for _, dep := range transitive {
-		if dep != nil {
-			if dep.order != order {
-				panic(fmt.Errorf("incompatible order, new DepSet is %s but transitive DepSet is %s",
-					order, dep.order))
-			}
-			transitiveCopy = append(transitiveCopy, dep)
-		}
-	}
-
-	if order == TOPOLOGICAL {
-		directCopy = ReversePaths(direct)
-		reverseDepSetsInPlace(transitiveCopy)
-	} else {
-		// Use copy instead of append(nil, ...) to make a slice that is exactly the size of the input
-		// slice.  The DepSet is immutable, there is no need for additional capacity.
-		directCopy = make(Paths, len(direct))
-		copy(directCopy, direct)
-	}
-
-	return &DepSet{
-		preorder:   order == PREORDER,
-		reverse:    order == TOPOLOGICAL,
-		order:      order,
-		direct:     directCopy,
-		transitive: transitiveCopy,
-	}
+	return &DepSet{*newDepSet(order, direct, transitive)}
 }
 
 // NewDepSetBuilder returns a DepSetBuilder to create an immutable DepSet with the given order.
 func NewDepSetBuilder(order DepSetOrder) *DepSetBuilder {
-	return &DepSetBuilder{order: order}
+	return &DepSetBuilder{*newDepSetBuilder(order, Paths(nil))}
 }
 
 // Direct adds direct contents to the DepSet being built by a DepSetBuilder. Newly added direct
 // contents are to the right of any existing direct contents.
 func (b *DepSetBuilder) Direct(direct ...Path) *DepSetBuilder {
-	b.direct = append(b.direct, direct...)
+	b.depSetBuilder.DirectSlice(direct)
 	return b
 }
 
 // Transitive adds transitive contents to the DepSet being built by a DepSetBuilder. Newly added
 // transitive contents are to the right of any existing transitive contents.
 func (b *DepSetBuilder) Transitive(transitive ...*DepSet) *DepSetBuilder {
-	b.transitive = append(b.transitive, transitive...)
+	b.depSetBuilder.Transitive(transitive)
 	return b
 }
 
 // Returns the DepSet being built by this DepSetBuilder.  The DepSetBuilder retains its contents
 // for creating more DepSets.
 func (b *DepSetBuilder) Build() *DepSet {
-	return NewDepSet(b.order, b.direct, b.transitive)
-}
-
-// walk calls the visit method in depth-first order on a DepSet, preordered if d.preorder is set,
-// otherwise postordered.
-func (d *DepSet) walk(visit func(Paths)) {
-	visited := make(map[*DepSet]bool)
-
-	var dfs func(d *DepSet)
-	dfs = func(d *DepSet) {
-		visited[d] = true
-		if d.preorder {
-			visit(d.direct)
-		}
-		for _, dep := range d.transitive {
-			if !visited[dep] {
-				dfs(dep)
-			}
-		}
-
-		if !d.preorder {
-			visit(d.direct)
-		}
-	}
-
-	dfs(d)
+	return &DepSet{*b.depSetBuilder.Build()}
 }
 
 // ToList returns the DepSet flattened to a list.  The order in the list is based on the order
@@ -162,33 +78,17 @@ func (d *DepSet) ToList() Paths {
 	if d == nil {
 		return nil
 	}
-	var list Paths
-	d.walk(func(paths Paths) {
-		list = append(list, paths...)
-	})
-	list = FirstUniquePaths(list)
-	if d.reverse {
-		reversePathsInPlace(list)
-	}
-	return list
+	return d.toList(func(paths interface{}) interface{} {
+		return FirstUniquePaths(paths.(Paths))
+	}).(Paths)
 }
 
 // ToSortedList returns the direct and transitive contents of a DepSet in lexically sorted order
 // with duplicates removed.
 func (d *DepSet) ToSortedList() Paths {
-	list := d.ToList()
-	return SortedUniquePaths(list)
-}
-
-func reversePathsInPlace(list Paths) {
-	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
-		list[i], list[j] = list[j], list[i]
+	if d == nil {
+		return nil
 	}
-}
-
-func reverseDepSetsInPlace(list []*DepSet) {
-	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
-		list[i], list[j] = list[j], list[i]
-	}
-
+	paths := d.ToList()
+	return SortedUniquePaths(paths)
 }
