@@ -169,8 +169,11 @@ func runBazel(ctx Context, config Config) {
 		fmt.Fprintf(bazelEnvStringBuffer, "%s=%s ", k, v)
 	}
 
-	// Print the full command line (including environment variables) for debugging purposes.
-	ctx.Println("Bazel command line: " + bazelEnvStringBuffer.String() + cmd.Cmd.String() + "\n")
+	// Print the implicit command line
+	ctx.Println("Bazel implicit command line: " + strings.Join(cmd.Environment.Environ(), " ") + " " + cmd.Cmd.String() + "\n")
+
+	// Print the explicit command line too
+	ctx.Println("Bazel explicit command line: " + bazelEnvStringBuffer.String() + cmd.Cmd.String() + "\n")
 
 	// Execute the build command.
 	cmd.RunAndStreamOrFatal()

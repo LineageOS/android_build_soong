@@ -15,8 +15,10 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // A MakeString is a string that may contain variable substitutions in it.
@@ -130,8 +132,85 @@ func (ms *MakeString) SplitN(sep string, n int) []*MakeString {
 	})
 }
 
+// Words splits MakeString into multiple makeStrings separated by whitespace.
+// Thus, " a $(X)b  c " will be split into ["a", "$(X)b", "c"].
+// Splitting a MakeString consisting solely of whitespace yields empty array.
 func (ms *MakeString) Words() []*MakeString {
-	return ms.splitNFunc(-1, splitWords)
+	var ch rune    // current character
+	const EOF = -1 // no more characters
+	const EOS = -2 // at the end of a string chunk
+
+	// Next character's chunk and position
+	iString := 0
+	iChar := 0
+
+	var words []*MakeString
+	word := SimpleMakeString("", ms.Pos())
+
+	nextChar := func() {
+		if iString >= len(ms.Strings) {
+			ch = EOF
+		} else if iChar >= len(ms.Strings[iString]) {
+			iString++
+			iChar = 0
+			ch = EOS
+		} else {
+			var w int
+			ch, w = utf8.DecodeRuneInString(ms.Strings[iString][iChar:])
+			iChar += w
+		}
+	}
+
+	appendVariableAndAdvance := func() {
+		if iString-1 < len(ms.Variables) {
+			word.appendVariable(ms.Variables[iString-1])
+		}
+		nextChar()
+	}
+
+	appendCharAndAdvance := func(c rune) {
+		if c != EOF {
+			word.appendString(string(c))
+		}
+		nextChar()
+	}
+
+	nextChar()
+	for ch != EOF {
+		// Skip whitespace
+		for ch == ' ' || ch == '\t' {
+			nextChar()
+		}
+		if ch == EOS {
+			// "... $(X)... " case. The current word should be empty.
+			if !word.Empty() {
+				panic(fmt.Errorf("%q: EOS while current word %q is not empty, iString=%d",
+					ms.Dump(), word.Dump(), iString))
+			}
+			appendVariableAndAdvance()
+		}
+		// Copy word
+		for ch != EOF {
+			if ch == ' ' || ch == '\t' {
+				words = append(words, word)
+				word = SimpleMakeString("", ms.Pos())
+				break
+			}
+			if ch == EOS {
+				// "...a$(X)..." case. Append variable to the current word
+				appendVariableAndAdvance()
+			} else {
+				if ch == '\\' {
+					appendCharAndAdvance('\\')
+				}
+				appendCharAndAdvance(ch)
+			}
+		}
+	}
+	if !word.Empty() {
+		words = append(words, word)
+	}
+	return words
 }
 
 func (ms *MakeString) splitNFunc(n int, splitFunc func(s string, n int) []string) []*MakeString {
@@ -166,9 +245,7 @@ func (ms *MakeString) splitNFunc(n int, splitFunc func(s string, n int) []string
 		}
 	}
 
-	if !curMs.Empty() {
-		ret = append(ret, curMs)
-	}
+	ret = append(ret, curMs)
 	return ret
 }
 
@@ -216,44 +293,6 @@ func splitAnyN(s, sep string, n int) []string {
 		}
 	}
 	ret = append(ret, s)
-	return ret
-}
-
-func splitWords(s string, n int) []string {
-	ret := []string{}
-	preserve := ""
-	for n == -1 || n > 1 {
-		index := strings.IndexAny(s, " \t")
-		if index == 0 && len(preserve) == 0 {
-			s = s[1:]
-		} else if index >= 0 {
-			escapeCount := 0
-			for i := index - 1; i >= 0; i-- {
-				if s[i] != '\\' {
-					break
-				}
-				escapeCount += 1
-			}
-
-			if escapeCount%2 == 1 {
-				preserve += s[0 : index+1]
-				s = s[index+1:]
-				continue
-			}
-
-			ret = append(ret, preserve+s[0:index])
-			s = s[index+1:]
-			preserve = ""
-			if n > 0 {
-				n--
-			}
-		} else {
-			break
-		}
-	}
-	if preserve != "" || s != "" || len(ret) == 0 {
-		ret = append(ret, preserve+s)
-	}
 	return ret
 }
 
