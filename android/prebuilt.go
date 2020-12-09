@@ -178,7 +178,7 @@ func InitSingleSourcePrebuiltModule(module PrebuiltInterface, srcProps interface
 	srcPropertyName := proptools.PropertyNameForField(srcField)
 
 	srcsSupplier := func(ctx BaseModuleContext) []string {
-		if !ctx.Module().Enabled() {
+		if !module.Enabled() {
 			return nil
 		}
 		value := srcPropsValue.FieldByIndex(srcFieldIndex)
