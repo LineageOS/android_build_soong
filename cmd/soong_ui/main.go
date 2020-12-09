@@ -174,10 +174,7 @@ func main() {
 	build.SetupOutDir(buildCtx, config)
 
 	// Set up files to be outputted in the log directory.
-	logsDir := config.OutDir()
-	if config.Dist() {
-		logsDir = filepath.Join(config.DistDir(), "logs")
-	}
+	logsDir := config.LogsDir()
 
 	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error")
 	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
