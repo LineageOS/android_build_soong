@@ -42,7 +42,7 @@ var (
 	// TODO(b/143658984): goma can't handle the --system argument to javac.
 	javac, javacRE = remoteexec.MultiCommandStaticRules(pctx, "javac",
 		blueprint.RuleParams{
-			Command: `rm -rf "$outDir" "$annoDir" "$srcJarDir" && mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
+			Command: `rm -rf "$outDir" "$annoDir" "$srcJarDir" "$out" && mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
 				`(if [ -s $srcJarDir/list ] || [ -s $out.rsp ] ; then ` +
 				`${config.SoongJavacWrapper} $javaTemplate${config.JavacCmd} ` +
