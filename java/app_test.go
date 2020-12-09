@@ -2566,6 +2566,34 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 	}
 }
 
+func TestAndroidAppImport_overridesDisabledAndroidApp(t *testing.T) {
+	ctx, _ := testJava(t, `
+		android_app {
+			name: "foo",
+			srcs: ["a.java"],
+			enabled: false,
+		}
+ 
+ 		android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			certificate: "platform",
+			prefer: true,
+		}
+		`)
+
+	variant := ctx.ModuleForTests("prebuilt_foo", "android_common")
+	a := variant.Module().(*AndroidAppImport)
+	// The prebuilt module should still be enabled and active even if the source-based counterpart
+	// is disabled.
+	if !a.prebuilt.UsePrebuilt() {
+		t.Errorf("prebuilt foo module is not active")
+	}
+	if !a.Enabled() {
+		t.Errorf("prebuilt foo module is disabled")
+	}
+}
+
 func TestAndroidTestImport(t *testing.T) {
 	ctx, config := testJava(t, `
 		android_test_import {
