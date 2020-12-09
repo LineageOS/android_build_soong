@@ -117,6 +117,8 @@ func inList(s string, list []string) bool {
 // Command is the type of soong_ui execution. Only one type of
 // execution is specified. The args are specific to the command.
 func main() {
+	buildStarted := time.Now()
+
 	c, args := getCommand(os.Args)
 	if c == nil {
 		fmt.Fprintf(os.Stderr, "The `soong` native UI is not yet available.\n")
@@ -136,6 +138,7 @@ func main() {
 	defer trace.Close()
 
 	met := metrics.New()
+	met.SetBuildDateTime(buildStarted)
 
 	stat := &status.Status{}
 	defer stat.Finish()
@@ -166,19 +169,25 @@ func main() {
 		logsDir = filepath.Join(config.DistDir(), "logs")
 	}
 
+	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error")
+	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
+	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
+	defer build.UploadMetrics(buildCtx, config, c.forceDumbOutput, buildStarted, buildErrorFile, rbeMetricsFile, soongMetricsFile)
+
 	os.MkdirAll(logsDir, 0777)
 	log.SetOutput(filepath.Join(logsDir, c.logsPrefix+"soong.log"))
 	trace.SetOutput(filepath.Join(logsDir, c.logsPrefix+"build.trace"))
 	stat.AddOutput(status.NewVerboseLog(log, filepath.Join(logsDir, c.logsPrefix+"verbose.log")))
 	stat.AddOutput(status.NewErrorLog(log, filepath.Join(logsDir, c.logsPrefix+"error.log")))
-	stat.AddOutput(status.NewProtoErrorLog(log, filepath.Join(logsDir, c.logsPrefix+"build_error")))
+	stat.AddOutput(status.NewProtoErrorLog(log, buildErrorFile))
 	stat.AddOutput(status.NewCriticalPath(log))
 
 	buildCtx.Verbosef("Detected %.3v GB total RAM", float32(config.TotalRAM())/(1024*1024*1024))
 	buildCtx.Verbosef("Parallelism (local/remote/highmem): %v/%v/%v",
 		config.Parallel(), config.RemoteParallel(), config.HighmemParallel())
 
-	defer met.Dump(filepath.Join(logsDir, c.logsPrefix+"soong_metrics"))
+	defer met.Dump(soongMetricsFile)
+	defer build.DumpRBEMetrics(buildCtx, config, rbeMetricsFile)
 
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
 		if !strings.HasSuffix(start, "N") {

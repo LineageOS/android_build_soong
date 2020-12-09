@@ -1105,6 +1105,62 @@ func TestDroiddoc(t *testing.T) {
 	}
 }
 
+func TestDroidstubs(t *testing.T) {
+	ctx, _ := testJavaWithFS(t, `
+		droiddoc_exported_dir {
+		    name: "droiddoc-templates-sdk",
+		    path: ".",
+		}
+
+		droidstubs {
+		    name: "bar-stubs",
+		    srcs: [
+		        "bar-doc/a.java",
+				],
+				api_levels_annotations_dirs: [
+					"droiddoc-templates-sdk",
+				],
+				api_levels_annotations_enabled: true,
+		}
+
+		droidstubs {
+		    name: "bar-stubs-other",
+		    srcs: [
+		        "bar-doc/a.java",
+				],
+				api_levels_annotations_dirs: [
+					"droiddoc-templates-sdk",
+				],
+				api_levels_annotations_enabled: true,
+				api_levels_jar_filename: "android.other.jar",
+		}
+		`,
+		map[string][]byte{
+			"bar-doc/a.java": nil,
+		})
+	testcases := []struct {
+		moduleName          string
+		expectedJarFilename string
+	}{
+		{
+			moduleName:          "bar-stubs",
+			expectedJarFilename: "android.jar",
+		},
+		{
+			moduleName:          "bar-stubs-other",
+			expectedJarFilename: "android.other.jar",
+		},
+	}
+	for _, c := range testcases {
+		m := ctx.ModuleForTests(c.moduleName, "android_common")
+		metalava := m.Rule("metalava")
+		expected := "--android-jar-pattern ./%/public/" + c.expectedJarFilename
+		if actual := metalava.RuleParams.Command; !strings.Contains(actual, expected) {
+			t.Errorf("For %q, expected metalava argument %q, but was not found %q", c.moduleName, expected, actual)
+		}
+	}
+}
+
 func TestDroidstubsWithSystemModules(t *testing.T) {
 	ctx, _ := testJava(t, `
 		droidstubs {

@@ -76,12 +76,12 @@ var (
 		&remoteexec.REParams{
 			Labels:          map[string]string{"type": "link", "tool": "clang"},
 			ExecStrategy:    "${config.RECXXLinksExecStrategy}",
-			Inputs:          []string{"${out}.rsp"},
+			Inputs:          []string{"${out}.rsp", "$implicitInputs"},
 			RSPFile:         "${out}.rsp",
 			OutputFiles:     []string{"${out}", "$implicitOutputs"},
 			ToolchainInputs: []string{"$ldCmd"},
 			Platform:        map[string]string{remoteexec.PoolKey: "${config.RECXXLinksPool}"},
-		}, []string{"ldCmd", "crtBegin", "libFlags", "crtEnd", "ldFlags", "extraLibFlags"}, []string{"implicitOutputs"})
+		}, []string{"ldCmd", "crtBegin", "libFlags", "crtEnd", "ldFlags", "extraLibFlags"}, []string{"implicitInputs", "implicitOutputs"})
 
 	partialLd, partialLdRE = remoteexec.StaticRules(pctx, "partialLd",
 		blueprint.RuleParams{
@@ -92,11 +92,11 @@ var (
 		}, &remoteexec.REParams{
 			Labels:          map[string]string{"type": "link", "tool": "clang"},
 			ExecStrategy:    "${config.RECXXLinksExecStrategy}",
-			Inputs:          []string{"$inCommaList"},
+			Inputs:          []string{"$inCommaList", "$implicitInputs"},
 			OutputFiles:     []string{"${out}", "$implicitOutputs"},
 			ToolchainInputs: []string{"$ldCmd"},
 			Platform:        map[string]string{remoteexec.PoolKey: "${config.RECXXLinksPool}"},
-		}, []string{"ldCmd", "ldFlags"}, []string{"inCommaList", "implicitOutputs"})
+		}, []string{"ldCmd", "ldFlags"}, []string{"implicitInputs", "inCommaList", "implicitOutputs"})
 
 	ar = pctx.AndroidStaticRule("ar",
 		blueprint.RuleParams{
@@ -215,15 +215,23 @@ var (
 		}, []string{"cFlags", "exportDirs"}, nil)
 
 	_ = pctx.SourcePathVariable("sAbiLinker", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-linker")
+	_ = pctx.SourcePathVariable("sAbiLinkerLibs", "prebuilts/clang-tools/${config.HostPrebuiltTag}/lib64")
 
-	sAbiLink = pctx.AndroidStaticRule("sAbiLink",
+	sAbiLink, sAbiLinkRE = remoteexec.StaticRules(pctx, "sAbiLink",
 		blueprint.RuleParams{
-			Command:        "$sAbiLinker -o ${out} $symbolFilter -arch $arch  $exportedHeaderFlags @${out}.rsp ",
+			Command:        "$reTemplate$sAbiLinker -o ${out} $symbolFilter -arch $arch  $exportedHeaderFlags @${out}.rsp ",
 			CommandDeps:    []string{"$sAbiLinker"},
 			Rspfile:        "${out}.rsp",
 			RspfileContent: "${in}",
-		},
-		"symbolFilter", "arch", "exportedHeaderFlags")
+		}, &remoteexec.REParams{
+			Labels:          map[string]string{"type": "tool", "name": "abi-linker"},
+			ExecStrategy:    "${config.REAbiLinkerExecStrategy}",
+			Inputs:          []string{"$sAbiLinkerLibs", "${out}.rsp", "$implicitInputs"},
+			RSPFile:         "${out}.rsp",
+			OutputFiles:     []string{"$out"},
+			ToolchainInputs: []string{"$sAbiLinker"},
+			Platform:        map[string]string{remoteexec.PoolKey: "${config.RECXXPool}"},
+		}, []string{"symbolFilter", "arch", "exportedHeaderFlags"}, []string{"implicitInputs"})
 
 	_ = pctx.SourcePathVariable("sAbiDiffer", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-diff")
 
@@ -695,6 +703,7 @@ func TransformObjToDynamicBinary(ctx android.ModuleContext,
 	if ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
 		rule = ldRE
 		args["implicitOutputs"] = strings.Join(implicitOutputs.Strings(), ",")
+		args["implicitInputs"] = strings.Join(deps.Strings(), ",")
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -729,17 +738,30 @@ func TransformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 	for _, tag := range excludedSymbolTags {
 		symbolFilterStr += " --exclude-symbol-tag " + tag
 	}
+	rule := sAbiLink
+	args := map[string]string{
+		"symbolFilter":        symbolFilterStr,
+		"arch":                ctx.Arch().ArchType.Name,
+		"exportedHeaderFlags": exportedHeaderFlags,
+	}
+	if ctx.Config().IsEnvTrue("RBE_ABI_LINKER") {
+		rule = sAbiLinkRE
+		rbeImplicits := implicits.Strings()
+		for _, p := range strings.Split(exportedHeaderFlags, " ") {
+			if len(p) > 2 {
+				// Exclude the -I prefix.
+				rbeImplicits = append(rbeImplicits, p[2:])
+			}
+		}
+		args["implicitInputs"] = strings.Join(rbeImplicits, ",")
+	}
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        sAbiLink,
+		Rule:        rule,
 		Description: "header-abi-linker " + outputFile.Base(),
 		Output:      outputFile,
 		Inputs:      sAbiDumps,
 		Implicits:   implicits,
-		Args: map[string]string{
-			"symbolFilter":        symbolFilterStr,
-			"arch":                ctx.Arch().ArchType.Name,
-			"exportedHeaderFlags": exportedHeaderFlags,
-		},
+		Args:        args,
 	})
 	return android.OptionalPathForPath(outputFile)
 }
@@ -839,6 +861,7 @@ func TransformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
 	if ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
 		rule = partialLdRE
 		args["inCommaList"] = strings.Join(objFiles.Strings(), ",")
+		args["implicitInputs"] = strings.Join(deps.Strings(), ",")
 	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        rule,

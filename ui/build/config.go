@@ -15,6 +15,7 @@
 package build
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -23,6 +24,10 @@ import (
 	"time"
 
 	"android/soong/shared"
+
+	"github.com/golang/protobuf/proto"
+
+	smpb "android/soong/ui/metrics/metrics_proto"
 )
 
 type Config struct{ *configImpl }
@@ -181,10 +186,22 @@ func NewConfig(ctx Context, args ...string) Config {
 		"EMPTY_NINJA_FILE",
 	)
 
+	if ret.UseGoma() {
+		ctx.Println("Goma for Android is being deprecated and replaced with RBE. See go/rbe_for_android for instructions on how to use RBE.")
+		ctx.Println()
+		ctx.Println("See go/goma_android_exceptions for exceptions.")
+		ctx.Fatalln("USE_GOMA flag is no longer supported.")
+	}
+
+	if ret.ForceUseGoma() {
+		ret.environ.Set("USE_GOMA", "true")
+	}
+
 	// Tell python not to spam the source tree with .pyc files.
 	ret.environ.Set("PYTHONDONTWRITEBYTECODE", "1")
 
-	ret.environ.Set("TMPDIR", absPath(ctx, ret.TempDir()))
+	tmpDir := absPath(ctx, ret.TempDir())
+	ret.environ.Set("TMPDIR", tmpDir)
 
 	// Always set ASAN_SYMBOLIZER_PATH so that ASAN-based tools can symbolize any crashes
 	symbolizerPath := filepath.Join("prebuilts/clang/host", ret.HostPrebuiltTag(),
@@ -256,18 +273,38 @@ func NewConfig(ctx Context, args ...string) Config {
 		ret.buildDateTime = strconv.FormatInt(time.Now().Unix(), 10)
 	}
 
-	if ctx.Metrics != nil {
-		ctx.Metrics.SetBuildDateTime(ret.buildDateTime)
-	}
 	ret.environ.Set("BUILD_DATETIME_FILE", buildDateTimeFile)
 
-	return Config{ret}
+	if ret.UseRBE() {
+		for k, v := range getRBEVars(ctx, Config{ret}) {
+			ret.environ.Set(k, v)
+		}
+	}
+
+	c := Config{ret}
+	storeConfigMetrics(ctx, c)
+	return c
 }
 
 // NewBuildActionConfig returns a build configuration based on the build action. The arguments are
 // processed based on the build action and extracts any arguments that belongs to the build action.
 func NewBuildActionConfig(action BuildAction, dir string, ctx Context, args ...string) Config {
 	return NewConfig(ctx, getConfigArgs(action, dir, ctx, args)...)
+}
+
+// storeConfigMetrics selects a set of configuration information and store in
+// the metrics system for further analysis.
+func storeConfigMetrics(ctx Context, config Config) {
+	if ctx.Metrics == nil {
+		return
+	}
+
+	b := &smpb.BuildConfig{
+		ForceUseGoma: proto.Bool(config.ForceUseGoma()),
+		UseGoma:      proto.Bool(config.UseGoma()),
+		UseRbe:       proto.Bool(config.UseRBE()),
+	}
+	ctx.Metrics.BuildConfig(b)
 }
 
 // getConfigArgs processes the command arguments based on the build action and creates a set of new
@@ -756,6 +793,18 @@ func (c *configImpl) TotalRAM() uint64 {
 	return c.totalRAM
 }
 
+// ForceUseGoma determines whether we should override Goma deprecation
+// and use Goma for the current build or not.
+func (c *configImpl) ForceUseGoma() bool {
+	if v, ok := c.environ.Get("FORCE_USE_GOMA"); ok {
+		v = strings.TrimSpace(v)
+		if v != "" && v != "false" {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *configImpl) UseGoma() bool {
 	if v, ok := c.environ.Get("USE_GOMA"); ok {
 		v = strings.TrimSpace(v)
@@ -802,6 +851,75 @@ func (c *configImpl) StartRBE() bool {
 		}
 	}
 	return true
+}
+
+func (c *configImpl) logDir() string {
+	if c.Dist() {
+		return filepath.Join(c.DistDir(), "logs")
+	}
+	return c.OutDir()
+}
+
+func (c *configImpl) rbeStatsOutputDir() string {
+	for _, f := range []string{"RBE_output_dir", "FLAG_output_dir"} {
+		if v, ok := c.environ.Get(f); ok {
+			return v
+		}
+	}
+	return c.logDir()
+}
+
+func (c *configImpl) rbeLogPath() string {
+	for _, f := range []string{"RBE_log_path", "FLAG_log_path"} {
+		if v, ok := c.environ.Get(f); ok {
+			return v
+		}
+	}
+	return fmt.Sprintf("text://%v/reproxy_log.txt", c.logDir())
+}
+
+func (c *configImpl) rbeExecRoot() string {
+	for _, f := range []string{"RBE_exec_root", "FLAG_exec_root"} {
+		if v, ok := c.environ.Get(f); ok {
+			return v
+		}
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	return wd
+}
+
+func (c *configImpl) rbeDir() string {
+	if v, ok := c.environ.Get("RBE_DIR"); ok {
+		return v
+	}
+	return "prebuilts/remoteexecution-client/live/"
+}
+
+func (c *configImpl) rbeReproxy() string {
+	for _, f := range []string{"RBE_re_proxy", "FLAG_re_proxy"} {
+		if v, ok := c.environ.Get(f); ok {
+			return v
+		}
+	}
+	return filepath.Join(c.rbeDir(), "reproxy")
+}
+
+func (c *configImpl) rbeAuth() (string, string) {
+	credFlags := []string{"use_application_default_credentials", "use_gce_credentials", "credential_file"}
+	for _, cf := range credFlags {
+		for _, f := range []string{"RBE_" + cf, "FLAG_" + cf} {
+			if v, ok := c.environ.Get(f); ok {
+				v = strings.TrimSpace(v)
+				if v != "" && v != "false" && v != "0" {
+					return "RBE_" + cf, v
+				}
+			}
+		}
+	}
+	return "RBE_use_application_default_credentials", "true"
 }
 
 func (c *configImpl) UseRemoteBuild() bool {
@@ -961,4 +1079,15 @@ func (c *configImpl) SetPdkBuild(pdk bool) {
 
 func (c *configImpl) IsPdkBuild() bool {
 	return c.pdkBuild
+}
+
+func (c *configImpl) BuildDateTime() string {
+	return c.buildDateTime
+}
+
+func (c *configImpl) MetricsUploaderApp() string {
+	if p, ok := c.environ.Get("ANDROID_ENABLE_METRICS_UPLOAD"); ok {
+		return p
+	}
+	return ""
 }
