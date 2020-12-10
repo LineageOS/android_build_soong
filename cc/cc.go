@@ -2275,8 +2275,8 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 // For example, with maxSdkVersion is 10 and versionList is [9,11]
 // it returns 9 as string.  The list of stubs must be in order from
 // oldest to newest.
-func (c *Module) chooseSdkVersion(ctx android.PathContext, stubsInfo []SharedLibraryStubsInfo,
-	maxSdkVersion android.ApiLevel) (SharedLibraryStubsInfo, error) {
+func (c *Module) chooseSdkVersion(ctx android.PathContext, stubsInfo []SharedStubLibrary,
+	maxSdkVersion android.ApiLevel) (SharedStubLibrary, error) {
 
 	for i := range stubsInfo {
 		stubInfo := stubsInfo[len(stubsInfo)-i-1]
@@ -2287,7 +2287,7 @@ func (c *Module) chooseSdkVersion(ctx android.PathContext, stubsInfo []SharedLib
 			var err error
 			ver, err = android.ApiLevelFromUser(ctx, stubInfo.Version)
 			if err != nil {
-				return SharedLibraryStubsInfo{}, err
+				return SharedStubLibrary{}, err
 			}
 		}
 		if ver.LessThanOrEqualTo(maxSdkVersion) {
@@ -2298,7 +2298,7 @@ func (c *Module) chooseSdkVersion(ctx android.PathContext, stubsInfo []SharedLib
 	for _, stubInfo := range stubsInfo {
 		versionList = append(versionList, stubInfo.Version)
 	}
-	return SharedLibraryStubsInfo{}, fmt.Errorf("not found a version(<=%s) in versionList: %v", maxSdkVersion.String(), versionList)
+	return SharedStubLibrary{}, fmt.Errorf("not found a version(<=%s) in versionList: %v", maxSdkVersion.String(), versionList)
 }
 
 // Convert dependencies to paths.  Returns a PathDeps containing paths
@@ -2441,9 +2441,9 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					return
 				}
 				sharedLibraryInfo := ctx.OtherModuleProvider(dep, SharedLibraryInfoProvider).(SharedLibraryInfo)
-				sharedLibraryStubsInfo := ctx.OtherModuleProvider(dep, SharedLibraryImplementationStubsInfoProvider).(SharedLibraryImplementationStubsInfo)
+				sharedLibraryStubsInfo := ctx.OtherModuleProvider(dep, SharedLibraryStubsProvider).(SharedLibraryStubsInfo)
 
-				if !libDepTag.explicitlyVersioned && len(sharedLibraryStubsInfo.SharedLibraryStubsInfos) > 0 {
+				if !libDepTag.explicitlyVersioned && len(sharedLibraryStubsInfo.SharedStubLibraries) > 0 {
 					useStubs := false
 
 					if lib := moduleLibraryInterface(dep); lib.buildStubs() && c.UseVndk() { // LLNDK
@@ -2478,7 +2478,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					// when to use (unspecified) stubs, check min_sdk_version and choose the right one
 					if useStubs {
 						sharedLibraryStubsInfo, err :=
-							c.chooseSdkVersion(ctx, sharedLibraryStubsInfo.SharedLibraryStubsInfos, c.apexSdkVersion)
+							c.chooseSdkVersion(ctx, sharedLibraryStubsInfo.SharedStubLibraries, c.apexSdkVersion)
 						if err != nil {
 							ctx.OtherModuleErrorf(dep, err.Error())
 							return
