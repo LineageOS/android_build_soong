@@ -553,12 +553,14 @@ var directives = [...]string{
 	"else",
 	"endef",
 	"endif",
+	"export",
 	"ifdef",
 	"ifeq",
 	"ifndef",
 	"ifneq",
 	"include",
 	"-include",
+	"unexport",
 }
 
 var functions = [...]string{
