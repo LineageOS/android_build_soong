@@ -55,4 +55,7 @@ message Command {
 message Copy {
   required string from = 1;
   required string to = 2;
+
+  // If true, make the file executable after copying it.
+  optional bool executable = 3;
 }
