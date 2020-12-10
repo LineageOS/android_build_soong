@@ -24,11 +24,6 @@ func init() {
 }
 
 type BinaryCompilerProperties struct {
-	// Change the rustlibs linkage to select rlib linkage by default for device targets.
-	// Also link libstd as an rlib as well on device targets.
-	// Note: This is the default behavior for host targets.
-	Prefer_rlib *bool `android:"arch_variant"`
-
 	// Builds this binary as a static binary. Implies prefer_rlib true.
 	//
 	// Static executables currently only support for bionic targets. Non-bionic targets will not produce a fully static
@@ -115,7 +110,7 @@ func (binary *binaryDecorator) nativeCoverage() bool {
 }
 
 func (binary *binaryDecorator) preferRlib() bool {
-	return Bool(binary.Properties.Prefer_rlib) || Bool(binary.Properties.Static_executable)
+	return Bool(binary.baseCompiler.Properties.Prefer_rlib) || Bool(binary.Properties.Static_executable)
 }
 
 func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
@@ -156,8 +151,7 @@ func (binary *binaryDecorator) autoDep(ctx BaseModuleContext) autoDep {
 	// Binaries default to dylib dependencies for device, rlib for host.
 	if binary.preferRlib() {
 		return rlibAutoDep
-	}
-	if ctx.Device() {
+	} else if ctx.Device() {
 		return dylibAutoDep
 	} else {
 		return rlibAutoDep

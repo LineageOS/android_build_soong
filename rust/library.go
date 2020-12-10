@@ -159,14 +159,6 @@ func (library *libraryDecorator) static() bool {
 	return library.MutatedProperties.VariantIsStatic
 }
 
-func (library *libraryDecorator) stdLinkage(ctx *depsContext) RustLinkage {
-	// libraries should only request the RlibLinkage when building a static FFI or when variant is StaticStd
-	if library.static() || library.MutatedProperties.VariantIsStaticStd {
-		return RlibLinkage
-	}
-	return DefaultLinkage
-}
-
 func (library *libraryDecorator) source() bool {
 	return library.MutatedProperties.VariantIsSource
 }
@@ -228,13 +220,24 @@ func (library *libraryDecorator) setSource() {
 }
 
 func (library *libraryDecorator) autoDep(ctx BaseModuleContext) autoDep {
-	if library.rlib() || library.static() {
+	if library.preferRlib() {
+		return rlibAutoDep
+	} else if library.rlib() || library.static() {
 		return rlibAutoDep
 	} else if library.dylib() || library.shared() {
 		return dylibAutoDep
 	} else {
 		panic(fmt.Errorf("autoDep called on library %q that has no enabled variants.", ctx.ModuleName()))
 	}
+}
+
+func (library *libraryDecorator) stdLinkage(ctx *depsContext) RustLinkage {
+	if library.static() || library.MutatedProperties.VariantIsStaticStd {
+		return RlibLinkage
+	} else if library.baseCompiler.preferRlib() {
+		return RlibLinkage
+	}
+	return DefaultLinkage
 }
 
 var _ compiler = (*libraryDecorator)(nil)
