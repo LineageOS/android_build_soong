@@ -253,6 +253,12 @@ type CopyDirectlyInAnyApexTag interface {
 	CopyDirectlyInAnyApex()
 }
 
+// Interface that identifies dependencies to skip Apex dependency check
+type SkipApexAllowedDependenciesCheck interface {
+	// Returns true to skip the Apex dependency check, which limits the allowed dependency in build.
+	SkipApexAllowedDependenciesCheck() bool
+}
+
 // ApexModuleBase provides the default implementation for the ApexModule interface. APEX-aware
 // modules are expected to include this struct and call InitApexModule().
 type ApexModuleBase struct {
