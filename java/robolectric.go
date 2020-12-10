@@ -260,7 +260,7 @@ func (r *robolectricTest) AndroidMkEntries() []android.AndroidMkEntries {
 	entries := &entriesList[0]
 
 	entries.ExtraFooters = []android.AndroidMkExtraFootersFunc{
-		func(w io.Writer, name, prefix, moduleDir string, entries *android.AndroidMkEntries) {
+		func(w io.Writer, name, prefix, moduleDir string) {
 			if s := r.robolectricProperties.Test_options.Shards; s != nil && *s > 1 {
 				numShards := int(*s)
 				shardSize := (len(r.tests) + numShards - 1) / numShards
