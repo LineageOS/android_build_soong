@@ -235,6 +235,7 @@ var (
 		}, &remoteexec.REParams{
 			Labels:       map[string]string{"type": "abi-dump", "tool": "header-abi-dumper"},
 			ExecStrategy: "${config.REAbiDumperExecStrategy}",
+			Inputs:       []string{"$sAbiLinkerLibs"},
 			Platform: map[string]string{
 				remoteexec.PoolKey: "${config.RECXXPool}",
 			},
