@@ -141,7 +141,7 @@ type AndroidMkEntries struct {
 }
 
 type AndroidMkExtraEntriesFunc func(entries *AndroidMkEntries)
-type AndroidMkExtraFootersFunc func(w io.Writer, name, prefix, moduleDir string, entries *AndroidMkEntries)
+type AndroidMkExtraFootersFunc func(w io.Writer, name, prefix, moduleDir string)
 
 // Utility funcs to manipulate Android.mk variable entries.
 
@@ -554,7 +554,7 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 	fmt.Fprintln(&a.footer, "include "+a.Include)
 	blueprintDir := filepath.Dir(bpPath)
 	for _, footerFunc := range a.ExtraFooters {
-		footerFunc(&a.footer, name, prefix, blueprintDir, a)
+		footerFunc(&a.footer, name, prefix, blueprintDir)
 	}
 }
 
