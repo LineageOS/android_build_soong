@@ -174,6 +174,15 @@ type BaseLinkerProperties struct {
 			// variants.
 			Shared_libs []string
 		}
+		Apex struct {
+			// list of shared libs that should not be used to build the apex variant of
+			// the C/C++ module.
+			Exclude_shared_libs []string
+
+			// list of static libs that should not be used to build the apex ramdisk
+			// variant of the C/C++ module.
+			Exclude_static_libs []string
+		}
 	}
 
 	// make android::build:GetBuildNumber() available containing the build ID.
@@ -239,6 +248,16 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.SharedLibs = removeListFromList(deps.SharedLibs, linker.Properties.Exclude_shared_libs)
 	deps.StaticLibs = removeListFromList(deps.StaticLibs, linker.Properties.Exclude_static_libs)
 	deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, linker.Properties.Exclude_static_libs)
+
+	// Record the libraries that need to be excluded when building for APEX. Unlike other
+	// target.*.exclude_* properties, SharedLibs and StaticLibs are not modified here because
+	// this module hasn't yet passed the apexMutator. Therefore, we can't tell whether this is
+	// an apex variant of not. Record the exclude list in the deps struct for now. The info is
+	// used to mark the dependency tag when adding dependencies to the deps. Then inside
+	// GenerateAndroidBuildActions, the marked dependencies are ignored (i.e. not used) for APEX
+	// variants.
+	deps.ExcludeLibsForApex = append(deps.ExcludeLibsForApex, linker.Properties.Target.Apex.Exclude_shared_libs...)
+	deps.ExcludeLibsForApex = append(deps.ExcludeLibsForApex, linker.Properties.Target.Apex.Exclude_static_libs...)
 
 	if Bool(linker.Properties.Use_version_lib) {
 		deps.WholeStaticLibs = append(deps.WholeStaticLibs, "libbuildversion")
