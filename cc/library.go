@@ -940,16 +940,22 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 
 	ctx.CheckbuildFile(outputFile)
 
-	ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
-		StaticLibrary: outputFile,
-		ReuseObjects:  library.reuseObjects,
-		Objects:       library.objects,
+	if library.static() {
+		ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
+			StaticLibrary: outputFile,
+			ReuseObjects:  library.reuseObjects,
+			Objects:       library.objects,
 
-		TransitiveStaticLibrariesForOrdering: android.NewDepSetBuilder(android.TOPOLOGICAL).
-			Direct(outputFile).
-			Transitive(deps.TranstiveStaticLibrariesForOrdering).
-			Build(),
-	})
+			TransitiveStaticLibrariesForOrdering: android.NewDepSetBuilder(android.TOPOLOGICAL).
+				Direct(outputFile).
+				Transitive(deps.TranstiveStaticLibrariesForOrdering).
+				Build(),
+		})
+	}
+
+	if library.header() {
+		ctx.SetProvider(HeaderLibraryInfoProvider, HeaderLibraryInfo{})
+	}
 
 	return outputFile
 }
