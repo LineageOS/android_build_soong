@@ -337,7 +337,7 @@ func copyFiles(copies []*sbox_proto.Copy, fromDir, toDir string) error {
 	for _, copyPair := range copies {
 		fromPath := joinPath(fromDir, copyPair.GetFrom())
 		toPath := joinPath(toDir, copyPair.GetTo())
-		err := copyOneFile(fromPath, toPath)
+		err := copyOneFile(fromPath, toPath, copyPair.GetExecutable())
 		if err != nil {
 			return fmt.Errorf("error copying %q to %q: %w", fromPath, toPath, err)
 		}
@@ -346,7 +346,7 @@ func copyFiles(copies []*sbox_proto.Copy, fromDir, toDir string) error {
 }
 
 // copyOneFile copies a file.
-func copyOneFile(from string, to string) error {
+func copyOneFile(from string, to string, executable bool) error {
 	err := os.MkdirAll(filepath.Dir(to), 0777)
 	if err != nil {
 		return err
@@ -358,6 +358,9 @@ func copyOneFile(from string, to string) error {
 	}
 
 	perm := stat.Mode()
+	if executable {
+		perm = perm | 0100 // u+x
+	}
 
 	in, err := os.Open(from)
 	if err != nil {
