@@ -29,11 +29,6 @@ type TestProperties struct {
 
 	// if set, use the isolated gtest runner. Defaults to false.
 	Isolated *bool
-
-	// List of APEXes that this module tests. The module has access to
-	// the private part of the listed APEXes even when it is not included in the
-	// APEXes.
-	Test_for []string
 }
 
 // Test option struct.
@@ -239,10 +234,6 @@ type testDecorator struct {
 
 func (test *testDecorator) gtest() bool {
 	return BoolDefault(test.Properties.Gtest, true)
-}
-
-func (test *testDecorator) testFor() []string {
-	return test.Properties.Test_for
 }
 
 func (test *testDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
