@@ -5691,6 +5691,13 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpre
 			],
 		}
 	`
+
+	testDexpreoptWithApexes(t, bp, errmsg, transformDexpreoptConfig)
+}
+
+func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreoptConfig func(*dexpreopt.GlobalConfig)) {
+	t.Helper()
+
 	bp += cc.GatherRequiredDepsForTest(android.Android)
 	bp += java.GatherRequiredDepsForTest()
 	bp += dexpreopt.BpToolModulesForTest()
