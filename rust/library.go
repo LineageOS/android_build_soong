@@ -433,6 +433,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	if library.sourceProvider != nil {
 		// Assume the first source from the source provider is the library entry point.
 		srcPath = library.sourceProvider.Srcs()[0]
+		deps.srcProviderFiles = append(deps.srcProviderFiles, library.sourceProvider.Srcs()...)
 	} else {
 		srcPath, _ = srcPathFromModuleSrcs(ctx, library.baseCompiler.Properties.Srcs)
 	}

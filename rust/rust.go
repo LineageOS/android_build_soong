@@ -245,7 +245,8 @@ type PathDeps struct {
 	CrtEnd   android.OptionalPath
 
 	// Paths to generated source files
-	SrcDeps android.Paths
+	SrcDeps          android.Paths
+	srcProviderFiles android.Paths
 }
 
 type RustLibraries []RustLibrary
