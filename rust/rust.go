@@ -67,6 +67,9 @@ type BaseProperties struct {
 
 	SubName string `blueprint:"mutated"`
 
+	// Minimum sdk version that the artifact should support when it runs as part of mainline modules(APEX).
+	Min_sdk_version *string
+
 	PreventInstall bool
 	HideFromMake   bool
 }
@@ -1076,7 +1079,29 @@ func (mod *Module) HostToolPath() android.OptionalPath {
 
 var _ android.ApexModule = (*Module)(nil)
 
+func (mod *Module) minSdkVersion() string {
+	return String(mod.Properties.Min_sdk_version)
+}
+
 func (mod *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
+	minSdkVersion := mod.minSdkVersion()
+	if minSdkVersion == "apex_inherit" {
+		return nil
+	}
+	if minSdkVersion == "" {
+		return fmt.Errorf("min_sdk_version is not specificed")
+	}
+
+	// Not using nativeApiLevelFromUser because the context here is not
+	// necessarily a native context.
+	ver, err := android.ApiLevelFromUser(ctx, minSdkVersion)
+	if err != nil {
+		return err
+	}
+
+	if ver.GreaterThan(sdkVersion) {
+		return fmt.Errorf("newer SDK(%v)", ver)
+	}
 	return nil
 }
 
