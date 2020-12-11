@@ -257,7 +257,7 @@ type ApexModuleBase struct {
 	canHaveApexVariants bool
 
 	apexInfos     []ApexInfo
-	apexInfosLock sync.Mutex // protects apexInfos during parallel apexDepsMutator
+	apexInfosLock sync.Mutex // protects apexInfos during parallel apexInfoMutator
 }
 
 // Initializes ApexModuleBase struct. Not calling this (even when inheriting from ApexModuleBase)
@@ -442,7 +442,7 @@ func CreateApexVariations(mctx BottomUpMutatorContext, module ApexModule) []Modu
 	} else {
 		apexInfos = base.apexInfos
 	}
-	// base.apexInfos is only needed to propagate the list of apexes from apexDepsMutator to
+	// base.apexInfos is only needed to propagate the list of apexes from apexInfoMutator to
 	// apexMutator. It is no longer accurate after mergeApexVariations, and won't be copied to
 	// all but the first created variant. Clear it so it doesn't accidentally get used later.
 	base.apexInfos = nil
