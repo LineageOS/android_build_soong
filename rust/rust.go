@@ -211,6 +211,18 @@ func (mod *Module) HasVendorVariant() bool {
 	return false
 }
 
+func (mod *Module) IsVndkExt() bool {
+	return false
+}
+
+func (c *Module) IsVndkPrivate(config android.Config) bool {
+	return false
+}
+
+func (mod *Module) InProduct() bool {
+	return false
+}
+
 func (mod *Module) SdkVersion() string {
 	return ""
 }

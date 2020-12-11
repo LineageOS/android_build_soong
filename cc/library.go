@@ -610,13 +610,13 @@ func (library *libraryDecorator) classifySourceAbiDump(ctx ModuleContext) string
 	}
 	if ctx.useVndk() && ctx.isVndk() && !ctx.isVndkPrivate(ctx.Config()) {
 		if ctx.isVndkSp() {
-			if ctx.isVndkExt() {
+			if ctx.IsVndkExt() {
 				return "VNDK-SP-ext"
 			} else {
 				return "VNDK-SP"
 			}
 		} else {
-			if ctx.isVndkExt() {
+			if ctx.IsVndkExt() {
 				return "VNDK-ext"
 			} else {
 				return "VNDK-core"
@@ -767,7 +767,7 @@ func (library *libraryDecorator) getLibNameHelper(baseModuleName string, useVndk
 func (library *libraryDecorator) getLibName(ctx BaseModuleContext) string {
 	name := library.getLibNameHelper(ctx.baseModuleName(), ctx.useVndk())
 
-	if ctx.isVndkExt() {
+	if ctx.IsVndkExt() {
 		// vndk-ext lib should have the same name with original lib
 		ctx.VisitDirectDepsWithTag(vndkExtDepTag, func(module android.Module) {
 			originalName := module.(*Module).outputFile.Path()
@@ -1190,7 +1190,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, objs Objec
 			library.sAbiDiff = sourceAbiDiff(ctx, library.sAbiOutputFile.Path(),
 				refAbiDumpFile, fileName, exportedHeaderFlags,
 				Bool(library.Properties.Header_abi_checker.Check_all_apis),
-				ctx.isLlndk(ctx.Config()), ctx.isNdk(ctx.Config()), ctx.isVndkExt())
+				ctx.isLlndk(ctx.Config()), ctx.isNdk(ctx.Config()), ctx.IsVndkExt())
 		}
 	}
 }
@@ -1320,7 +1320,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 	if library.shared() {
 		if ctx.Device() && ctx.useVndk() {
 			// set subDir for VNDK extensions
-			if ctx.isVndkExt() {
+			if ctx.IsVndkExt() {
 				if ctx.isVndkSp() {
 					library.baseInstaller.subDir = "vndk-sp"
 				} else {
@@ -1329,7 +1329,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 			}
 
 			// In some cases we want to use core variant for VNDK-Core libs
-			if ctx.isVndk() && !ctx.isVndkSp() && !ctx.isVndkExt() {
+			if ctx.isVndk() && !ctx.isVndkSp() && !ctx.IsVndkExt() {
 				mayUseCoreVariant := true
 
 				if ctx.mustUseVendorVariant() {
@@ -1350,7 +1350,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 
 			// do not install vndk libs
 			// vndk libs are packaged into VNDK APEX
-			if ctx.isVndk() && !ctx.isVndkExt() {
+			if ctx.isVndk() && !ctx.IsVndkExt() {
 				return
 			}
 		} else if len(library.Properties.Stubs.Versions) > 0 && !ctx.Host() && ctx.directlyInAnyApex() {
