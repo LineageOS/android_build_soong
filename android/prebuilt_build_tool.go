@@ -57,7 +57,7 @@ func (t *prebuiltBuildTool) DepsMutator(ctx BottomUpMutatorContext) {
 
 func (t *prebuiltBuildTool) GenerateAndroidBuildActions(ctx ModuleContext) {
 	sourcePath := t.prebuilt.SingleSourcePath(ctx)
-	installedPath := PathForModuleOut(ctx, t.ModuleBase.Name())
+	installedPath := PathForModuleOut(ctx, t.BaseModuleName())
 	deps := PathsForModuleSrc(ctx, t.properties.Deps)
 
 	var fromPath = sourcePath.String()
@@ -74,6 +74,12 @@ func (t *prebuiltBuildTool) GenerateAndroidBuildActions(ctx ModuleContext) {
 			"fromPath": fromPath,
 		},
 	})
+
+	packagingDir := PathForModuleInstall(ctx, t.BaseModuleName())
+	ctx.PackageFile(packagingDir, sourcePath.String(), sourcePath)
+	for _, dep := range deps {
+		ctx.PackageFile(packagingDir, dep.String(), dep)
+	}
 
 	t.toolPath = OptionalPathForPath(installedPath)
 }

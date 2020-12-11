@@ -338,10 +338,51 @@ type ModuleContext interface {
 	ExpandSource(srcFile, prop string) Path
 	ExpandOptionalSource(srcFile *string, prop string) OptionalPath
 
+	// InstallExecutable creates a rule to copy srcPath to name in the installPath directory,
+	// with the given additional dependencies.  The file is marked executable after copying.
+	//
+	// The installed file will be returned by FilesToInstall(), and the PackagingSpec for the
+	// installed file will be returned by PackagingSpecs() on this module or by
+	// TransitivePackagingSpecs() on modules that depend on this module through dependency tags
+	// for which IsInstallDepNeeded returns true.
 	InstallExecutable(installPath InstallPath, name string, srcPath Path, deps ...Path) InstallPath
+
+	// InstallFile creates a rule to copy srcPath to name in the installPath directory,
+	// with the given additional dependencies.
+	//
+	// The installed file will be returned by FilesToInstall(), and the PackagingSpec for the
+	// installed file will be returned by PackagingSpecs() on this module or by
+	// TransitivePackagingSpecs() on modules that depend on this module through dependency tags
+	// for which IsInstallDepNeeded returns true.
 	InstallFile(installPath InstallPath, name string, srcPath Path, deps ...Path) InstallPath
+
+	// InstallSymlink creates a rule to create a symlink from src srcPath to name in the installPath
+	// directory.
+	//
+	// The installed symlink will be returned by FilesToInstall(), and the PackagingSpec for the
+	// installed file will be returned by PackagingSpecs() on this module or by
+	// TransitivePackagingSpecs() on modules that depend on this module through dependency tags
+	// for which IsInstallDepNeeded returns true.
 	InstallSymlink(installPath InstallPath, name string, srcPath InstallPath) InstallPath
+
+	// InstallAbsoluteSymlink creates a rule to create an absolute symlink from src srcPath to name
+	// in the installPath directory.
+	//
+	// The installed symlink will be returned by FilesToInstall(), and the PackagingSpec for the
+	// installed file will be returned by PackagingSpecs() on this module or by
+	// TransitivePackagingSpecs() on modules that depend on this module through dependency tags
+	// for which IsInstallDepNeeded returns true.
 	InstallAbsoluteSymlink(installPath InstallPath, name string, absPath string) InstallPath
+
+	// PackageFile creates a PackagingSpec as if InstallFile was called, but without creating
+	// the rule to copy the file.  This is useful to define how a module would be packaged
+	// without installing it into the global installation directories.
+	//
+	// The created PackagingSpec for the will be returned by PackagingSpecs() on this module or by
+	// TransitivePackagingSpecs() on modules that depend on this module through dependency tags
+	// for which IsInstallDepNeeded returns true.
+	PackageFile(installPath InstallPath, name string, srcPath Path) PackagingSpec
+
 	CheckbuildFile(srcPath Path)
 
 	InstallInData() bool
@@ -2428,6 +2469,22 @@ func (m *moduleContext) InstallExecutable(installPath InstallPath, name string, 
 	return m.installFile(installPath, name, srcPath, deps, true)
 }
 
+func (m *moduleContext) PackageFile(installPath InstallPath, name string, srcPath Path) PackagingSpec {
+	fullInstallPath := installPath.Join(m, name)
+	return m.packageFile(fullInstallPath, srcPath, false)
+}
+
+func (m *moduleContext) packageFile(fullInstallPath InstallPath, srcPath Path, executable bool) PackagingSpec {
+	spec := PackagingSpec{
+		relPathInPackage: Rel(m, fullInstallPath.PartitionDir(), fullInstallPath.String()),
+		srcPath:          srcPath,
+		symlinkTarget:    "",
+		executable:       executable,
+	}
+	m.packagingSpecs = append(m.packagingSpecs, spec)
+	return spec
+}
+
 func (m *moduleContext) installFile(installPath InstallPath, name string, srcPath Path, deps []Path, executable bool) InstallPath {
 
 	fullInstallPath := installPath.Join(m, name)
@@ -2464,12 +2521,7 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 		m.installFiles = append(m.installFiles, fullInstallPath)
 	}
 
-	m.packagingSpecs = append(m.packagingSpecs, PackagingSpec{
-		relPathInPackage: Rel(m, fullInstallPath.PartitionDir(), fullInstallPath.String()),
-		srcPath:          srcPath,
-		symlinkTarget:    "",
-		executable:       executable,
-	})
+	m.packageFile(fullInstallPath, srcPath, executable)
 
 	m.checkbuildFiles = append(m.checkbuildFiles, srcPath)
 	return fullInstallPath
@@ -2677,7 +2729,11 @@ func outputFilesForModule(ctx PathContext, module blueprint.Module, tag string) 
 	}
 }
 
+// Modules can implement HostToolProvider and return a valid OptionalPath from HostToolPath() to
+// specify that they can be used as a tool by a genrule module.
 type HostToolProvider interface {
+	// HostToolPath returns the path to the host tool for the module if it is one, or an invalid
+	// OptionalPath.
 	HostToolPath() OptionalPath
 }
 
