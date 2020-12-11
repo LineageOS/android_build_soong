@@ -122,6 +122,17 @@ type BaseCompilerProperties struct {
 
 	// whether to suppress inclusion of standard crates - defaults to false
 	No_stdlibs *bool
+
+	// Change the rustlibs linkage to select rlib linkage by default for device targets.
+	// Also link libstd as an rlib as well on device targets.
+	// Note: This is the default behavior for host targets.
+	//
+	// This is primarily meant for rust_binary and rust_ffi modules where the default
+	// linkage of libstd might need to be overridden in some use cases. This should
+	// generally be avoided with other module types since it may cause collisions at
+	// linkage if all dependencies of the root binary module do not link against libstd\
+	// the same way.
+	Prefer_rlib *bool `android:"arch_variant"`
 }
 
 type baseCompiler struct {
@@ -154,9 +165,15 @@ func (compiler *baseCompiler) coverageOutputZipPath() android.OptionalPath {
 	panic("baseCompiler does not implement coverageOutputZipPath()")
 }
 
+func (compiler *baseCompiler) preferRlib() bool {
+	return Bool(compiler.Properties.Prefer_rlib)
+}
+
 func (compiler *baseCompiler) stdLinkage(ctx *depsContext) RustLinkage {
 	// For devices, we always link stdlibs in as dylibs by default.
-	if ctx.Device() {
+	if compiler.preferRlib() {
+		return RlibLinkage
+	} else if ctx.Device() {
 		return DylibLinkage
 	} else {
 		return RlibLinkage

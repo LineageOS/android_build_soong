@@ -129,6 +129,9 @@ type Deps struct {
 	// Used for host bionic
 	LinkerFlagsFile string
 	DynamicLinker   string
+
+	// List of libs that need to be excluded for APEX variant
+	ExcludeLibsForApex []string
 }
 
 // PathDeps is a struct containing file paths to dependencies of a module.
@@ -332,6 +335,11 @@ type BaseProperties struct {
 	// framework module from a snapshot.
 	Exclude_from_vendor_snapshot   *bool
 	Exclude_from_recovery_snapshot *bool
+
+	// List of APEXes that this module has private access to for testing purpose. The module
+	// can depend on libraries that are not exported by the APEXes and use private symbols
+	// from the exported libraries.
+	Test_for []string
 }
 
 type VendorProperties struct {
@@ -572,6 +580,9 @@ type libraryDependencyTag struct {
 	staticUnwinder bool
 
 	makeSuffix string
+
+	// Whether or not this dependency has to be followed for the apex variants
+	excludeInApex bool
 }
 
 // header returns true if the libraryDependencyTag is tagging a header lib dependency.
@@ -1950,6 +1961,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		if inList(lib, deps.ReexportStaticLibHeaders) {
 			depTag.reexportFlags = true
 		}
+		if inList(lib, deps.ExcludeLibsForApex) {
+			depTag.excludeInApex = true
+		}
 
 		if impl, ok := syspropImplLibraries[lib]; ok {
 			lib = impl
@@ -1986,6 +2000,9 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		depTag := libraryDependencyTag{Kind: sharedLibraryDependency}
 		if inList(lib, deps.ReexportSharedLibHeaders) {
 			depTag.reexportFlags = true
+		}
+		if inList(lib, deps.ExcludeLibsForApex) {
+			depTag.excludeInApex = true
 		}
 
 		if impl, ok := syspropImplLibraries[lib]; ok {
@@ -2270,8 +2287,8 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 // For example, with maxSdkVersion is 10 and versionList is [9,11]
 // it returns 9 as string.  The list of stubs must be in order from
 // oldest to newest.
-func (c *Module) chooseSdkVersion(ctx android.PathContext, stubsInfo []SharedLibraryStubsInfo,
-	maxSdkVersion android.ApiLevel) (SharedLibraryStubsInfo, error) {
+func (c *Module) chooseSdkVersion(ctx android.PathContext, stubsInfo []SharedStubLibrary,
+	maxSdkVersion android.ApiLevel) (SharedStubLibrary, error) {
 
 	for i := range stubsInfo {
 		stubInfo := stubsInfo[len(stubsInfo)-i-1]
@@ -2282,7 +2299,7 @@ func (c *Module) chooseSdkVersion(ctx android.PathContext, stubsInfo []SharedLib
 			var err error
 			ver, err = android.ApiLevelFromUser(ctx, stubInfo.Version)
 			if err != nil {
-				return SharedLibraryStubsInfo{}, err
+				return SharedStubLibrary{}, err
 			}
 		}
 		if ver.LessThanOrEqualTo(maxSdkVersion) {
@@ -2293,7 +2310,7 @@ func (c *Module) chooseSdkVersion(ctx android.PathContext, stubsInfo []SharedLib
 	for _, stubInfo := range stubsInfo {
 		versionList = append(versionList, stubInfo.Version)
 	}
-	return SharedLibraryStubsInfo{}, fmt.Errorf("not found a version(<=%s) in versionList: %v", maxSdkVersion.String(), versionList)
+	return SharedStubLibrary{}, fmt.Errorf("not found a version(<=%s) in versionList: %v", maxSdkVersion.String(), versionList)
 }
 
 // Convert dependencies to paths.  Returns a PathDeps containing paths
@@ -2416,6 +2433,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				return
 			}
 
+			if !apexInfo.IsForPlatform() && libDepTag.excludeInApex {
+				return
+			}
+
 			depExporterInfo := ctx.OtherModuleProvider(dep, FlagExporterInfoProvider).(FlagExporterInfo)
 
 			var ptr *android.Paths
@@ -2435,10 +2456,11 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					}
 					return
 				}
-				sharedLibraryInfo := ctx.OtherModuleProvider(dep, SharedLibraryInfoProvider).(SharedLibraryInfo)
-				sharedLibraryStubsInfo := ctx.OtherModuleProvider(dep, SharedLibraryImplementationStubsInfoProvider).(SharedLibraryImplementationStubsInfo)
 
-				if !libDepTag.explicitlyVersioned && len(sharedLibraryStubsInfo.SharedLibraryStubsInfos) > 0 {
+				sharedLibraryInfo := ctx.OtherModuleProvider(dep, SharedLibraryInfoProvider).(SharedLibraryInfo)
+				sharedLibraryStubsInfo := ctx.OtherModuleProvider(dep, SharedLibraryStubsProvider).(SharedLibraryStubsInfo)
+
+				if !libDepTag.explicitlyVersioned && len(sharedLibraryStubsInfo.SharedStubLibraries) > 0 {
 					useStubs := false
 
 					if lib := moduleLibraryInterface(dep); lib.buildStubs() && c.UseVndk() { // LLNDK
@@ -2473,7 +2495,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					// when to use (unspecified) stubs, check min_sdk_version and choose the right one
 					if useStubs {
 						sharedLibraryStubsInfo, err :=
-							c.chooseSdkVersion(ctx, sharedLibraryStubsInfo.SharedLibraryStubsInfos, c.apexSdkVersion)
+							c.chooseSdkVersion(ctx, sharedLibraryStubsInfo.SharedStubLibraries, c.apexSdkVersion)
 						if err != nil {
 							ctx.OtherModuleErrorf(dep, err.Error())
 							return
@@ -2935,13 +2957,7 @@ func (c *Module) AvailableFor(what string) bool {
 }
 
 func (c *Module) TestFor() []string {
-	if test, ok := c.linker.(interface {
-		testFor() []string
-	}); ok {
-		return test.testFor()
-	} else {
-		return c.ApexModuleBase.TestFor()
-	}
+	return c.Properties.Test_for
 }
 
 func (c *Module) UniqueApexVariations() bool {
@@ -3013,6 +3029,10 @@ func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 			// shared_lib dependency from a static lib is considered as crossing
 			// the APEX boundary because the dependency doesn't actually is
 			// linked; the dependency is used only during the compilation phase.
+			return false
+		}
+
+		if isLibDepTag && libDepTag.excludeInApex {
 			return false
 		}
 	}
