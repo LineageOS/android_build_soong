@@ -389,7 +389,7 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 
 		useCoreVariant := m.VndkVersion() == mctx.DeviceConfig().PlatformVndkVersion() &&
 			mctx.DeviceConfig().VndkUseCoreVariant() && !m.MustUseVendorVariant()
-		return lib.shared() && m.inVendor() && m.IsVndk() && !m.isVndkExt() && !useCoreVariant
+		return lib.shared() && m.inVendor() && m.IsVndk() && !m.IsVndkExt() && !useCoreVariant
 	}
 	return false
 }
@@ -549,7 +549,7 @@ func isVndkSnapshotAware(config android.DeviceConfig, m *Module,
 	if !ok || !l.shared() {
 		return nil, "", false
 	}
-	if m.VndkVersion() == config.PlatformVndkVersion() && m.IsVndk() && !m.isVndkExt() {
+	if m.VndkVersion() == config.PlatformVndkVersion() && m.IsVndk() && !m.IsVndkExt() {
 		if m.isVndkSp() {
 			return l, "vndk-sp", true
 		} else {
