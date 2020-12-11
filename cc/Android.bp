@@ -31,6 +31,7 @@ bootstrap_go_package {
         "sanitize.go",
         "sabi.go",
         "sdk.go",
+        "snapshot_prebuilt.go",
         "snapshot_utils.go",
         "stl.go",
         "strip.go",

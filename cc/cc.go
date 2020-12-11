@@ -1601,7 +1601,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 		// glob exported headers for snapshot, if BOARD_VNDK_VERSION is current.
 		if i, ok := c.linker.(snapshotLibraryInterface); ok && ctx.DeviceConfig().VndkVersion() == "current" {
-			if isSnapshotAware(ctx, c, apexInfo) {
+			if shouldCollectHeadersForSnapshot(ctx, c, apexInfo) {
 				i.collectHeadersForSnapshot(ctx)
 			}
 		}
