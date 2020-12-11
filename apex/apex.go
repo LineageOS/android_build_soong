@@ -2178,7 +2178,7 @@ func baselineApexAvailable(apex, moduleName string) bool {
 func normalizeModuleName(moduleName string) string {
 	// Prebuilt modules (e.g. java_import, etc.) have "prebuilt_" prefix added by the build
 	// system. Trim the prefix for the check since they are confusing
-	moduleName = strings.TrimPrefix(moduleName, "prebuilt_")
+	moduleName = android.RemoveOptionalPrebuiltPrefix(moduleName)
 	if strings.HasPrefix(moduleName, "libclang_rt.") {
 		// This module has many arch variants that depend on the product being built.
 		// We don't want to list them all
