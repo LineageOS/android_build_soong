@@ -65,6 +65,12 @@ type configImpl struct {
 	brokenNinjaEnvVars []string
 
 	pathReplaced bool
+
+	useBazel bool
+
+	// During Bazel execution, Bazel cannot write outside OUT_DIR.
+	// So if DIST_DIR is set to an external dir (outside of OUT_DIR), we need to rig it temporarily and then migrate files at the end of the build.
+	riggedDistDirForBazel string
 }
 
 const srcDirFileCheck = "build/soong/root.bp"
@@ -221,7 +227,7 @@ func NewConfig(ctx Context, args ...string) Config {
 		ctx.Fatalln("Directory names containing spaces are not supported")
 	}
 
-	if distDir := ret.DistDir(); strings.ContainsRune(distDir, ' ') {
+	if distDir := ret.RealDistDir(); strings.ContainsRune(distDir, ' ') {
 		ctx.Println("The absolute path of your dist directory ($DIST_DIR) contains a space character:")
 		ctx.Println()
 		ctx.Printf("%q\n", distDir)
@@ -279,10 +285,20 @@ func NewConfig(ctx Context, args ...string) Config {
 	if err := os.RemoveAll(bpd); err != nil {
 		ctx.Fatalf("Unable to remove bazel profile directory %q: %v", bpd, err)
 	}
+
+	ret.useBazel = ret.environ.IsEnvTrue("USE_BAZEL")
+
 	if ret.UseBazel() {
 		if err := os.MkdirAll(bpd, 0777); err != nil {
 			ctx.Fatalf("Failed to create bazel profile directory %q: %v", bpd, err)
 		}
+	}
+
+	if ret.UseBazel() {
+		ret.riggedDistDirForBazel = filepath.Join(ret.OutDir(), "dist")
+	} else {
+		// Not rigged
+		ret.riggedDistDirForBazel = ret.distDir
 	}
 
 	c := Config{ret}
@@ -697,6 +713,14 @@ func (c *configImpl) OutDir() string {
 }
 
 func (c *configImpl) DistDir() string {
+	if c.UseBazel() {
+		return c.riggedDistDirForBazel
+	} else {
+		return c.distDir
+	}
+}
+
+func (c *configImpl) RealDistDir() string {
 	return c.distDir
 }
 
@@ -863,13 +887,7 @@ func (c *configImpl) UseRBE() bool {
 }
 
 func (c *configImpl) UseBazel() bool {
-	if v, ok := c.environ.Get("USE_BAZEL"); ok {
-		v = strings.TrimSpace(v)
-		if v != "" && v != "false" {
-			return true
-		}
-	}
-	return false
+	return c.useBazel
 }
 
 func (c *configImpl) StartRBE() bool {
@@ -886,14 +904,14 @@ func (c *configImpl) StartRBE() bool {
 	return true
 }
 
-func (c *configImpl) logDir() string {
+func (c *configImpl) rbeLogDir() string {
 	for _, f := range []string{"RBE_log_dir", "FLAG_log_dir"} {
 		if v, ok := c.environ.Get(f); ok {
 			return v
 		}
 	}
 	if c.Dist() {
-		return filepath.Join(c.DistDir(), "logs")
+		return c.LogsDir()
 	}
 	return c.OutDir()
 }
@@ -904,7 +922,7 @@ func (c *configImpl) rbeStatsOutputDir() string {
 			return v
 		}
 	}
-	return c.logDir()
+	return c.rbeLogDir()
 }
 
 func (c *configImpl) rbeLogPath() string {
@@ -913,7 +931,7 @@ func (c *configImpl) rbeLogPath() string {
 			return v
 		}
 	}
-	return fmt.Sprintf("text://%v/reproxy_log.txt", c.logDir())
+	return fmt.Sprintf("text://%v/reproxy_log.txt", c.rbeLogDir())
 }
 
 func (c *configImpl) rbeExecRoot() string {
@@ -1128,7 +1146,8 @@ func (c *configImpl) MetricsUploaderApp() string {
 // is <dist_dir>/logs.
 func (c *configImpl) LogsDir() string {
 	if c.Dist() {
-		return filepath.Join(c.DistDir(), "logs")
+		// Always write logs to the real dist dir, even if Bazel is using a rigged dist dir for other files
+		return filepath.Join(c.RealDistDir(), "logs")
 	}
 	return c.OutDir()
 }

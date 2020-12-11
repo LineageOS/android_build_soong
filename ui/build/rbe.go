@@ -74,7 +74,7 @@ func sockAddr(dir string) (string, error) {
 func getRBEVars(ctx Context, config Config) map[string]string {
 	vars := map[string]string{
 		"RBE_log_path":   config.rbeLogPath(),
-		"RBE_log_dir":    config.logDir(),
+		"RBE_log_dir":    config.rbeLogDir(),
 		"RBE_re_proxy":   config.rbeReproxy(),
 		"RBE_exec_root":  config.rbeExecRoot(),
 		"RBE_output_dir": config.rbeStatsOutputDir(),
