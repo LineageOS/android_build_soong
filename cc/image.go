@@ -223,6 +223,9 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	platformVndkVersion := mctx.DeviceConfig().PlatformVndkVersion()
 	boardVndkVersion := mctx.DeviceConfig().VndkVersion()
 	productVndkVersion := mctx.DeviceConfig().ProductVndkVersion()
+	recoverySnapshotVersion := mctx.DeviceConfig().RecoverySnapshotVersion()
+	usingRecoverySnapshot := recoverySnapshotVersion != "current" &&
+		recoverySnapshotVersion != ""
 	if boardVndkVersion == "current" {
 		boardVndkVersion = platformVndkVersion
 	}
@@ -261,7 +264,11 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		if snapshot, ok := m.linker.(interface {
 			version() string
 		}); ok {
-			vendorVariants = append(vendorVariants, snapshot.version())
+			if m.InstallInRecovery() {
+				recoveryVariantNeeded = true
+			} else {
+				vendorVariants = append(vendorVariants, snapshot.version())
+			}
 		} else {
 			mctx.ModuleErrorf("version is unknown for snapshot prebuilt")
 		}
@@ -367,6 +374,15 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		coreVariantNeeded = false
 	}
 
+	// If using a snapshot, the recovery variant under AOSP directories is not needed,
+	// except for kernel headers, which needs all variants.
+	if _, ok := m.linker.(*kernelHeadersDecorator); !ok &&
+		!m.isSnapshotPrebuilt() &&
+		usingRecoverySnapshot &&
+		!isRecoveryProprietaryModule(mctx) {
+		recoveryVariantNeeded = false
+	}
+
 	for _, variant := range android.FirstUniqueStrings(vendorVariants) {
 		m.Properties.ExtraVariants = append(m.Properties.ExtraVariants, VendorVariationPrefix+variant)
 	}
@@ -379,6 +395,14 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	m.Properties.VendorRamdiskVariantNeeded = vendorRamdiskVariantNeeded
 	m.Properties.RecoveryVariantNeeded = recoveryVariantNeeded
 	m.Properties.CoreVariantNeeded = coreVariantNeeded
+
+	// Disable the module if no variants are needed.
+	if !ramdiskVariantNeeded &&
+		!recoveryVariantNeeded &&
+		!coreVariantNeeded &&
+		len(m.Properties.ExtraVariants) == 0 {
+		m.Disable()
+	}
 }
 
 func (c *Module) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
