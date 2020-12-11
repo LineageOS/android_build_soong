@@ -425,6 +425,15 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 				for _, dist := range data.Entries.GetDistForGoals(a) {
 					fmt.Fprintf(w, dist)
 				}
+
+				if a.coverageOutputPath.String() != "" {
+					goal := "apps_only"
+					distFile := a.coverageOutputPath.String()
+					fmt.Fprintf(w, "ifneq (,$(filter $(my_register_name),$(TARGET_BUILD_APPS)))\n"+
+						" $(call dist-for-goals,%s,%s:ndk_apis_usedby_apex/$(notdir %s))\n"+
+						"endif",
+						goal, distFile, distFile)
+				}
 			}
 		}}
 }
