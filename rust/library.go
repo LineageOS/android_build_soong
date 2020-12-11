@@ -604,6 +604,11 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 			v.(*Module).compiler.(libraryInterface).setRlib()
 		case dylibVariation:
 			v.(*Module).compiler.(libraryInterface).setDylib()
+			if v.(*Module).ModuleBase.ImageVariation().Variation != android.CoreVariation {
+				// TODO(b/165791368)
+				// Disable dylib non-core variations until we support these.
+				v.(*Module).Disable()
+			}
 		case "source":
 			v.(*Module).compiler.(libraryInterface).setSource()
 			// The source variant does not produce any library.
@@ -640,6 +645,12 @@ func LibstdMutator(mctx android.BottomUpMutatorContext) {
 				dylib := modules[1].(*Module)
 				rlib.compiler.(libraryInterface).setRlibStd()
 				dylib.compiler.(libraryInterface).setDylibStd()
+				if dylib.ModuleBase.ImageVariation().Variation != android.CoreVariation {
+					// TODO(b/165791368)
+					// Disable rlibs that link against dylib-std on non-core variations until non-core dylib
+					// variants are properly supported.
+					dylib.Disable()
+				}
 				rlib.Properties.SubName += RlibStdlibSuffix
 				dylib.Properties.SubName += DylibStdlibSuffix
 			}

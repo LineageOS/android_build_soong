@@ -65,7 +65,13 @@ type BaseProperties struct {
 	AndroidMkSharedLibs    []string
 	AndroidMkStaticLibs    []string
 
-	SubName string `blueprint:"mutated"`
+	ImageVariationPrefix string `blueprint:"mutated"`
+	VndkVersion          string `blueprint:"mutated"`
+	SubName              string `blueprint:"mutated"`
+
+	// Set by imageMutator
+	CoreVariantNeeded bool     `blueprint:"mutated"`
+	ExtraVariants     []string `blueprint:"mutated"`
 
 	// Minimum sdk version that the artifact should support when it runs as part of mainline modules(APEX).
 	Min_sdk_version *string
@@ -79,10 +85,14 @@ type Module struct {
 	android.DefaultableModuleBase
 	android.ApexModuleBase
 
+	VendorProperties cc.VendorProperties
+
 	Properties BaseProperties
 
 	hod      android.HostOrDeviceSupported
 	multilib android.Multilib
+
+	makeLinkType string
 
 	compiler         compiler
 	coverage         *coverage
@@ -110,33 +120,6 @@ func (mod *Module) OutputFiles(tag string) (android.Paths, error) {
 	default:
 		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 	}
-}
-
-var _ android.ImageInterface = (*Module)(nil)
-
-func (mod *Module) ImageMutatorBegin(ctx android.BaseModuleContext) {}
-
-func (mod *Module) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
-	return true
-}
-
-func (mod *Module) RamdiskVariantNeeded(android.BaseModuleContext) bool {
-	return mod.InRamdisk()
-}
-
-func (mod *Module) VendorRamdiskVariantNeeded(android.BaseModuleContext) bool {
-	return mod.InVendorRamdisk()
-}
-
-func (mod *Module) RecoveryVariantNeeded(android.BaseModuleContext) bool {
-	return mod.InRecovery()
-}
-
-func (mod *Module) ExtraImageVariations(android.BaseModuleContext) []string {
-	return nil
-}
-
-func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
 }
 
 func (mod *Module) SelectedStl() string {
@@ -179,24 +162,18 @@ func (mod *Module) Toc() android.OptionalPath {
 	panic(fmt.Errorf("Toc() called on non-library module: %q", mod.BaseModuleName()))
 }
 
-func (mod *Module) OnlyInRamdisk() bool {
-	return false
-}
-
-func (mod *Module) OnlyInVendorRamdisk() bool {
-	return false
-}
-
-func (mod *Module) OnlyInRecovery() bool {
-	return false
-}
-
 func (mod *Module) UseSdk() bool {
 	return false
 }
 
+// Returns true if the module is using VNDK libraries instead of the libraries in /system/lib or /system/lib64.
+// "product" and "vendor" variant modules return true for this function.
+// When BOARD_VNDK_VERSION is set, vendor variants of "vendor_available: true", "vendor: true",
+// "soc_specific: true" and more vendor installed modules are included here.
+// When PRODUCT_PRODUCT_VNDK_VERSION is set, product variants of "vendor_available: true" or
+// "product_specific: true" modules are included here.
 func (mod *Module) UseVndk() bool {
-	return false
+	return mod.Properties.VndkVersion != ""
 }
 
 func (mod *Module) MustUseVendorVariant() bool {
@@ -204,10 +181,7 @@ func (mod *Module) MustUseVendorVariant() bool {
 }
 
 func (mod *Module) IsVndk() bool {
-	return false
-}
-
-func (mod *Module) HasVendorVariant() bool {
+	// TODO(b/165791368)
 	return false
 }
 
@@ -216,10 +190,6 @@ func (mod *Module) IsVndkExt() bool {
 }
 
 func (c *Module) IsVndkPrivate(config android.Config) bool {
-	return false
-}
-
-func (mod *Module) InProduct() bool {
 	return false
 }
 
@@ -391,6 +361,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	module.AddProperties(props...)
 	module.AddProperties(
 		&BaseProperties{},
+		&cc.VendorProperties{},
 		&BindgenProperties{},
 		&BaseCompilerProperties{},
 		&BinaryCompilerProperties{},
@@ -487,11 +458,6 @@ func (mod *Module) OutputFile() android.OptionalPath {
 	return mod.outputFile
 }
 
-func (mod *Module) InRecovery() bool {
-	// For now, Rust has no notion of the recovery image
-	return false
-}
-
 func (mod *Module) CoverageFiles() android.Paths {
 	if mod.compiler != nil {
 		if !mod.compiler.nativeCoverage() {
@@ -511,6 +477,7 @@ var _ cc.LinkableInterface = (*Module)(nil)
 
 func (mod *Module) Init() android.Module {
 	mod.AddProperties(&mod.Properties)
+	mod.AddProperties(&mod.VendorProperties)
 
 	if mod.compiler != nil {
 		mod.AddProperties(mod.compiler.compilerProps()...)
@@ -630,6 +597,12 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 
 	toolchain := mod.toolchain(ctx)
+	mod.makeLinkType = cc.GetMakeLinkType(actx, mod)
+
+	// Differentiate static libraries that are vendor available
+	if mod.UseVndk() {
+		mod.Properties.SubName += ".vendor"
+	}
 
 	if !toolchain.Supported() {
 		// This toolchain's unsupported, there's nothing to do for this mod.
@@ -971,10 +944,6 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	deps := mod.deps(ctx)
 	var commonDepVariations []blueprint.Variation
-	if !mod.Host() {
-		commonDepVariations = append(commonDepVariations,
-			blueprint.Variation{Mutator: "image", Variation: android.CoreVariation})
-	}
 
 	stdLinkage := "dylib-std"
 	if mod.compiler.stdLinkage(ctx) == RlibLinkage {
