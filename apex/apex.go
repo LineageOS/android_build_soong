@@ -2561,7 +2561,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libstagefright_amrwbdec",
 		"libstagefright_amrwbenc",
 		"libstagefright_bufferpool@2.0.1",
-		"libstagefright_bufferqueue_helper",
 		"libstagefright_enc_common",
 		"libstagefright_flacdec",
 		"libstagefright_foundation",
