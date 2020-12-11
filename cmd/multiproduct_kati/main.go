@@ -185,7 +185,11 @@ func main() {
 		Status:  stat,
 	}}
 
-	config := build.NewConfig(buildCtx)
+	args := ""
+	if *alternateResultDir {
+		args = "dist"
+	}
+	config := build.NewConfig(buildCtx, args)
 	if *outDir == "" {
 		name := "multiproduct"
 		if !*incremental {
@@ -212,15 +216,10 @@ func main() {
 	os.MkdirAll(logsDir, 0777)
 
 	build.SetupOutDir(buildCtx, config)
-	if *alternateResultDir {
-		distLogsDir := filepath.Join(config.DistDir(), "logs")
-		os.MkdirAll(distLogsDir, 0777)
-		log.SetOutput(filepath.Join(distLogsDir, "soong.log"))
-		trace.SetOutput(filepath.Join(distLogsDir, "build.trace"))
-	} else {
-		log.SetOutput(filepath.Join(config.OutDir(), "soong.log"))
-		trace.SetOutput(filepath.Join(config.OutDir(), "build.trace"))
-	}
+
+	os.MkdirAll(config.LogsDir(), 0777)
+	log.SetOutput(filepath.Join(config.LogsDir(), "soong.log"))
+	trace.SetOutput(filepath.Join(config.LogsDir(), "build.trace"))
 
 	var jobs = *numJobs
 	if jobs < 1 {
@@ -344,7 +343,7 @@ func main() {
 			FileArgs: []zip.FileArg{
 				{GlobDir: logsDir, SourcePrefixToStrip: logsDir},
 			},
-			OutputFilePath:   filepath.Join(config.DistDir(), "logs.zip"),
+			OutputFilePath:   filepath.Join(config.RealDistDir(), "logs.zip"),
 			NumParallelJobs:  runtime.NumCPU(),
 			CompressionLevel: 5,
 		}
