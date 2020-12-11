@@ -19,6 +19,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -26,6 +28,49 @@ import (
 
 	"android/soong/ui/logger"
 )
+
+func TestPruneMetricsFiles(t *testing.T) {
+	rootDir := t.TempDir()
+
+	dirs := []string{
+		filepath.Join(rootDir, "d1"),
+		filepath.Join(rootDir, "d1", "d2"),
+		filepath.Join(rootDir, "d1", "d2", "d3"),
+	}
+
+	files := []string{
+		filepath.Join(rootDir, "d1", "f1"),
+		filepath.Join(rootDir, "d1", "d2", "f1"),
+		filepath.Join(rootDir, "d1", "d2", "d3", "f1"),
+	}
+
+	for _, d := range dirs {
+		if err := os.MkdirAll(d, 0777); err != nil {
+			t.Fatalf("got %v, expecting nil error for making directory %q", err, d)
+		}
+	}
+
+	for _, f := range files {
+		if err := ioutil.WriteFile(f, []byte{}, 0777); err != nil {
+			t.Fatalf("got %v, expecting nil error on writing file %q", err, f)
+		}
+	}
+
+	want := []string{
+		filepath.Join(rootDir, "d1", "f1"),
+		filepath.Join(rootDir, "d1", "d2", "f1"),
+		filepath.Join(rootDir, "d1", "d2", "d3", "f1"),
+	}
+
+	got := pruneMetricsFiles([]string{rootDir})
+
+	sort.Strings(got)
+	sort.Strings(want)
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q, want %q after pruning metrics files", got, want)
+	}
+}
 
 func TestUploadMetrics(t *testing.T) {
 	ctx := testContext()

@@ -176,10 +176,11 @@ func main() {
 	// Set up files to be outputted in the log directory.
 	logsDir := config.LogsDir()
 
+	// Common list of metric file definition.
 	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error")
 	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
 	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
-	defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, buildErrorFile, rbeMetricsFile, soongMetricsFile)
+
 	build.PrintOutDirWarning(buildCtx, config)
 
 	os.MkdirAll(logsDir, 0777)
@@ -195,8 +196,22 @@ func main() {
 	buildCtx.Verbosef("Parallelism (local/remote/highmem): %v/%v/%v",
 		config.Parallel(), config.RemoteParallel(), config.HighmemParallel())
 
-	defer met.Dump(soongMetricsFile)
-	defer build.DumpRBEMetrics(buildCtx, config, rbeMetricsFile)
+	{
+		// The order of the function calls is important. The last defer function call
+		// is the first one that is executed to save the rbe metrics to a protobuf
+		// file. The soong metrics file is then next. Bazel profiles are written
+		// before the uploadMetrics is invoked. The written files are then uploaded
+		// if the uploading of the metrics is enabled.
+		files := []string{
+			buildErrorFile,           // build error strings
+			rbeMetricsFile,           // high level metrics related to remote build execution.
+			soongMetricsFile,         // high level metrics related to this build system.
+			config.BazelMetricsDir(), // directory that contains a set of bazel metrics.
+		}
+		defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, files...)
+		defer met.Dump(soongMetricsFile)
+		defer build.DumpRBEMetrics(buildCtx, config, rbeMetricsFile)
+	}
 
 	// Read the time at the starting point.
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
