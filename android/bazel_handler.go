@@ -26,6 +26,8 @@ import (
 	"strings"
 	"sync"
 
+	"android/soong/bazel"
+	"android/soong/shared"
 	"github.com/google/blueprint/bootstrap"
 )
 
@@ -68,6 +70,7 @@ type bazelContext struct {
 	outputBase   string
 	workspaceDir string
 	buildDir     string
+	metricsDir   string
 
 	requests     map[cqueryKey]bool // cquery requests that have not yet been issued to Bazel
 	requestMutex sync.Mutex         // requests can be written in parallel
@@ -153,11 +156,20 @@ func NewBazelContext(c *config) (BazelContext, error) {
 	} else {
 		missingEnvVars = append(missingEnvVars, "BAZEL_WORKSPACE")
 	}
+	if len(c.Getenv("BAZEL_METRICS_DIR")) > 1 {
+		bazelCtx.metricsDir = c.Getenv("BAZEL_METRICS_DIR")
+	} else {
+		missingEnvVars = append(missingEnvVars, "BAZEL_METRICS_DIR")
+	}
 	if len(missingEnvVars) > 0 {
 		return nil, errors.New(fmt.Sprintf("missing required env vars to use bazel: %s", missingEnvVars))
 	} else {
 		return &bazelCtx, nil
 	}
+}
+
+func (context *bazelContext) BazelMetricsDir() string {
+	return context.metricsDir
 }
 
 func (context *bazelContext) BazelEnabled() bool {
@@ -189,12 +201,13 @@ func pwdPrefix() string {
 	return ""
 }
 
-func (context *bazelContext) issueBazelCommand(command string, labels []string,
+func (context *bazelContext) issueBazelCommand(runName bazel.RunName, command string, labels []string,
 	extraFlags ...string) (string, error) {
 
 	cmdFlags := []string{"--output_base=" + context.outputBase, command}
 	cmdFlags = append(cmdFlags, labels...)
 	cmdFlags = append(cmdFlags, "--package_path=%workspace%/"+context.intermediatesDir())
+	cmdFlags = append(cmdFlags, "--profile="+shared.BazelMetricsFilename(context, runName))
 	cmdFlags = append(cmdFlags, extraFlags...)
 
 	bazelCmd := exec.Command(context.bazelPath, cmdFlags...)
@@ -341,7 +354,7 @@ func (context *bazelContext) InvokeBazel() error {
 		return err
 	}
 	buildroot_label := "//:buildroot"
-	cqueryOutput, err = context.issueBazelCommand("cquery",
+	cqueryOutput, err = context.issueBazelCommand(bazel.CqueryBuildRootRunName, "cquery",
 		[]string{fmt.Sprintf("deps(%s)", buildroot_label)},
 		"--output=starlark",
 		"--starlark:file="+cquery_file_relpath)
@@ -371,7 +384,7 @@ func (context *bazelContext) InvokeBazel() error {
 	// bazel actions should either be added to the Ninja file and executed later,
 	// or bazel should handle execution.
 	// TODO(cparsons): Use --target_pattern_file to avoid command line limits.
-	_, err = context.issueBazelCommand("build", []string{buildroot_label})
+	_, err = context.issueBazelCommand(bazel.BazelBuildPhonyRootRunName, "build", []string{buildroot_label})
 
 	if err != nil {
 		return err
