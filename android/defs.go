@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/blueprint"
-	_ "github.com/google/blueprint/bootstrap"
+	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -199,4 +199,9 @@ func ContentFromFileRuleForTests(t *testing.T, params TestingBuildParams) string
 	content = echoUnescaper.Replace(content)
 
 	return content
+}
+
+// GlobToListFileRule creates a rule that writes a list of files matching a pattern to a file.
+func GlobToListFileRule(ctx ModuleContext, pattern string, excludes []string, file WritablePath) {
+	bootstrap.GlobFile(ctx.blueprintModuleContext(), pattern, excludes, file.String())
 }
