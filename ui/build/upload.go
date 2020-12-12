@@ -40,13 +40,42 @@ var (
 	tmpDir = ioutil.TempDir
 )
 
+// pruneMetricsFiles iterates the list of paths, checking if a path exist.
+// If a path is a file, it is added to the return list. If the path is a
+// directory, a recursive call is made to add the children files of the
+// path.
+func pruneMetricsFiles(paths []string) []string {
+	var metricsFiles []string
+	for _, p := range paths {
+		fi, err := os.Stat(p)
+		// Some paths passed may not exist. For example, build errors protobuf
+		// file may not exist since the build was successful.
+		if err != nil {
+			continue
+		}
+
+		if fi.IsDir() {
+			if l, err := ioutil.ReadDir(p); err == nil {
+				files := make([]string, 0, len(l))
+				for _, fi := range l {
+					files = append(files, filepath.Join(p, fi.Name()))
+				}
+				metricsFiles = append(metricsFiles, pruneMetricsFiles(files)...)
+			}
+		} else {
+			metricsFiles = append(metricsFiles, p)
+		}
+	}
+	return metricsFiles
+}
+
 // UploadMetrics uploads a set of metrics files to a server for analysis. An
 // uploader full path is specified in ANDROID_ENABLE_METRICS_UPLOAD environment
 // variable in order to upload the set of metrics files. The metrics files are
 // first copied to a temporary directory and the uploader is then executed in
 // the background to allow the user/system to continue working. Soong communicates
 // to the uploader through the upload_proto raw protobuf file.
-func UploadMetrics(ctx Context, config Config, simpleOutput bool, buildStarted time.Time, files ...string) {
+func UploadMetrics(ctx Context, config Config, simpleOutput bool, buildStarted time.Time, paths ...string) {
 	ctx.BeginTrace(metrics.RunSetupTool, "upload_metrics")
 	defer ctx.EndTrace()
 
@@ -56,15 +85,8 @@ func UploadMetrics(ctx Context, config Config, simpleOutput bool, buildStarted t
 		return
 	}
 
-	// Some files passed in to this function may not exist. For example,
-	// build errors protobuf file may not exist since the build was successful.
-	var metricsFiles []string
-	for _, f := range files {
-		if _, err := os.Stat(f); err == nil {
-			metricsFiles = append(metricsFiles, f)
-		}
-	}
-
+	// Several of the files might be directories.
+	metricsFiles := pruneMetricsFiles(paths)
 	if len(metricsFiles) == 0 {
 		return
 	}

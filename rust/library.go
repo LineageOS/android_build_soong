@@ -433,6 +433,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	if library.sourceProvider != nil {
 		// Assume the first source from the source provider is the library entry point.
 		srcPath = library.sourceProvider.Srcs()[0]
+		deps.srcProviderFiles = append(deps.srcProviderFiles, library.sourceProvider.Srcs()...)
 	} else {
 		srcPath, _ = srcPathFromModuleSrcs(ctx, library.baseCompiler.Properties.Srcs)
 	}
@@ -604,6 +605,11 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 			v.(*Module).compiler.(libraryInterface).setRlib()
 		case dylibVariation:
 			v.(*Module).compiler.(libraryInterface).setDylib()
+			if v.(*Module).ModuleBase.ImageVariation().Variation != android.CoreVariation {
+				// TODO(b/165791368)
+				// Disable dylib non-core variations until we support these.
+				v.(*Module).Disable()
+			}
 		case "source":
 			v.(*Module).compiler.(libraryInterface).setSource()
 			// The source variant does not produce any library.
@@ -640,6 +646,12 @@ func LibstdMutator(mctx android.BottomUpMutatorContext) {
 				dylib := modules[1].(*Module)
 				rlib.compiler.(libraryInterface).setRlibStd()
 				dylib.compiler.(libraryInterface).setDylibStd()
+				if dylib.ModuleBase.ImageVariation().Variation != android.CoreVariation {
+					// TODO(b/165791368)
+					// Disable rlibs that link against dylib-std on non-core variations until non-core dylib
+					// variants are properly supported.
+					dylib.Disable()
+				}
 				rlib.Properties.SubName += RlibStdlibSuffix
 				dylib.Properties.SubName += DylibStdlibSuffix
 			}

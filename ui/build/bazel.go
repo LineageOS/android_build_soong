@@ -78,7 +78,10 @@ func runBazel(ctx Context, config Config) {
 	bazelEnv["PACKAGE_NINJA"] = config.KatiPackageNinjaFile()
 	bazelEnv["SOONG_NINJA"] = config.SoongNinjaFile()
 
+	// NOTE: When Bazel is used, config.DistDir() is rigged to return a fake distdir under config.OutDir()
+	// This is to ensure that Bazel can actually write there. See config.go for more details.
 	bazelEnv["DIST_DIR"] = config.DistDir()
+
 	bazelEnv["SHELL"] = "/bin/bash"
 
 	// `tools/bazel` is the default entry point for executing Bazel in the AOSP
@@ -189,13 +192,14 @@ func runBazel(ctx Context, config Config) {
 	// currently hardcoded as ninja_build.output_root.
 	bazelNinjaBuildOutputRoot := filepath.Join(outputBasePath, "..", "out")
 
-	ctx.Println("Creating output symlinks..")
-	symlinkOutdir(ctx, config, bazelNinjaBuildOutputRoot, ".")
+	ctx.Println("Populating output directory...")
+	populateOutdir(ctx, config, bazelNinjaBuildOutputRoot, ".")
 }
 
 // For all files F recursively under rootPath/relativePath, creates symlinks
 // such that OutDir/F resolves to rootPath/F via symlinks.
-func symlinkOutdir(ctx Context, config Config, rootPath string, relativePath string) {
+// NOTE: For distdir paths we rename files instead of creating symlinks, so that the distdir is independent.
+func populateOutdir(ctx Context, config Config, rootPath string, relativePath string) {
 	destDir := filepath.Join(rootPath, relativePath)
 	os.MkdirAll(destDir, 0755)
 	files, err := ioutil.ReadDir(destDir)
@@ -220,7 +224,7 @@ func symlinkOutdir(ctx Context, config Config, rootPath string, relativePath str
 		if srcLstatErr == nil {
 			if srcLstatResult.IsDir() && destLstatResult.IsDir() {
 				// src and dest are both existing dirs - recurse on the dest dir contents...
-				symlinkOutdir(ctx, config, rootPath, filepath.Join(relativePath, f.Name()))
+				populateOutdir(ctx, config, rootPath, filepath.Join(relativePath, f.Name()))
 			} else {
 				// Ignore other pre-existing src files (could be pre-existing files, directories, symlinks, ...)
 				// This can arise for files which are generated under OutDir outside of soong_build, such as .bootstrap files.
@@ -231,9 +235,17 @@ func symlinkOutdir(ctx Context, config Config, rootPath string, relativePath str
 				ctx.Fatalf("Unable to Lstat src %s: %s", srcPath, srcLstatErr)
 			}
 
-			// src does not exist, so try to create a src -> dest symlink (i.e. a Soong path -> Bazel path symlink)
-			if symlinkErr := os.Symlink(destPath, srcPath); symlinkErr != nil {
-				ctx.Fatalf("Unable to create symlink %s -> %s due to error %s", srcPath, destPath, symlinkErr)
+			if strings.Contains(destDir, config.DistDir()) {
+				// We need to make a "real" file/dir instead of making a symlink (because the distdir can't have symlinks)
+				// Rename instead of copy in order to save disk space.
+				if err := os.Rename(destPath, srcPath); err != nil {
+					ctx.Fatalf("Unable to rename %s -> %s due to error %s", srcPath, destPath, err)
+				}
+			} else {
+				// src does not exist, so try to create a src -> dest symlink (i.e. a Soong path -> Bazel path symlink)
+				if err := os.Symlink(destPath, srcPath); err != nil {
+					ctx.Fatalf("Unable to create symlink %s -> %s due to error %s", srcPath, destPath, err)
+				}
 			}
 		}
 	}

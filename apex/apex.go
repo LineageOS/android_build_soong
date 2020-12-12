@@ -55,7 +55,7 @@ func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
 }
 
 func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
-	ctx.TopDown("apex_deps", apexDepsMutator).Parallel()
+	ctx.TopDown("apex_info", apexInfoMutator).Parallel()
 	ctx.BottomUp("apex_unique", apexUniqueVariationsMutator).Parallel()
 	ctx.BottomUp("apex_test_for_deps", apexTestForDepsMutator).Parallel()
 	ctx.BottomUp("apex_test_for", apexTestForMutator).Parallel()
@@ -491,12 +491,12 @@ func (af *apexFile) availableToPlatform() bool {
 // 1) DepsMutator: from the properties like native_shared_libs, java_libs, etc., modules are added
 // to the (direct) dependencies of this APEX bundle.
 //
-// 2) apexDepsMutator: this is a post-deps mutator, so runs after DepsMutator. Its goal is to
+// 2) apexInfoMutator: this is a post-deps mutator, so runs after DepsMutator. Its goal is to
 // collect modules that are direct and transitive dependencies of each APEX bundle. The collected
 // modules are marked as being included in the APEX via BuildForApex().
 //
-// 3) apexMutator: this is a post-deps mutator that runs after apexDepsMutator. For each module that
-// are marked by the apexDepsMutator, apex variations are created using CreateApexVariations().
+// 3) apexMutator: this is a post-deps mutator that runs after apexInfoMutator. For each module that
+// are marked by the apexInfoMutator, apex variations are created using CreateApexVariations().
 
 type dependencyTag struct {
 	blueprint.BaseDependencyTag
@@ -530,11 +530,8 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext, nativeM
 
 	if ctx.Device() {
 		binVariations = append(binVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
-		libVariations = append(libVariations,
-			blueprint.Variation{Mutator: "image", Variation: imageVariation},
-			blueprint.Variation{Mutator: "version", Variation: ""}) // "" is the non-stub variant
-		rustLibVariations = append(rustLibVariations,
-			blueprint.Variation{Mutator: "image", Variation: imageVariation})
+		libVariations = append(libVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
+		rustLibVariations = append(rustLibVariations, blueprint.Variation{Mutator: "image", Variation: imageVariation})
 	}
 
 	// Use *FarVariation* to be able to depend on modules having conflicting variations with
@@ -729,14 +726,20 @@ type ApexBundleInfo struct {
 	Contents *android.ApexContents
 }
 
-var ApexBundleInfoProvider = blueprint.NewMutatorProvider(ApexBundleInfo{}, "apex_deps")
+var ApexBundleInfoProvider = blueprint.NewMutatorProvider(ApexBundleInfo{}, "apex_info")
 
-// apexDepsMutator is responsible for collecting modules that need to have apex variants. They are
+// apexInfoMutator is responsible for collecting modules that need to have apex variants. They are
 // identified by doing a graph walk starting from an apexBundle. Basically, all the (direct and
 // indirect) dependencies are collected. But a few types of modules that shouldn't be included in
 // the apexBundle (e.g. stub libraries) are not collected. Note that a single module can be depended
 // on by multiple apexBundles. In that case, the module is collected for all of the apexBundles.
-func apexDepsMutator(mctx android.TopDownMutatorContext) {
+//
+// For each dependency between an apex and an ApexModule an ApexInfo object describing the apex
+// is passed to that module's BuildForApex(ApexInfo) method which collates them all in a list.
+// The apexMutator uses that list to create module variants for the apexes to which it belongs.
+// The relationship between module variants and apexes is not one-to-one as variants will be
+// shared between compatible apexes.
+func apexInfoMutator(mctx android.TopDownMutatorContext) {
 	if !mctx.Module().Enabled() {
 		return
 	}
@@ -918,7 +921,7 @@ func markPlatformAvailability(mctx android.BottomUpMutatorContext) {
 }
 
 // apexMutator visits each module and creates apex variations if the module was marked in the
-// previous run of apexDepsMutator.
+// previous run of apexInfoMutator.
 func apexMutator(mctx android.BottomUpMutatorContext) {
 	if !mctx.Module().Enabled() {
 		return
@@ -1530,6 +1533,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						provideNativeLibs = append(provideNativeLibs, fi.stem())
 					}
 					return true // track transitive dependencies
+				} else if r, ok := child.(*rust.Module); ok {
+					fi := apexFileForRustLibrary(ctx, r)
+					filesInfo = append(filesInfo, fi)
 				} else {
 					propertyName := "native_shared_libs"
 					if isJniLib {
@@ -1704,6 +1710,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 						filesInfo = append(filesInfo, af)
 						return true // track transitive dependencies
+					} else if rm, ok := child.(*rust.Module); ok {
+						af := apexFileForRustLibrary(ctx, rm)
+						af.transitiveDep = true
+						filesInfo = append(filesInfo, af)
+						return true // track transitive dependencies
 					}
 				} else if cc.IsTestPerSrcDepTag(depTag) {
 					if cc, ok := child.(*cc.Module); ok {
@@ -1718,6 +1729,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						filesInfo = append(filesInfo, af)
 						return true // track transitive dependencies
 					}
+				} else if cc.IsHeaderDepTag(depTag) {
+					// nothing
 				} else if java.IsJniDepTag(depTag) {
 					// Because APK-in-APEX embeds jni_libs transitively, we don't need to track transitive deps
 					return false

@@ -389,7 +389,7 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 
 		useCoreVariant := m.VndkVersion() == mctx.DeviceConfig().PlatformVndkVersion() &&
 			mctx.DeviceConfig().VndkUseCoreVariant() && !m.MustUseVendorVariant()
-		return lib.shared() && m.inVendor() && m.IsVndk() && !m.isVndkExt() && !useCoreVariant
+		return lib.shared() && m.inVendor() && m.IsVndk() && !m.IsVndkExt() && !useCoreVariant
 	}
 	return false
 }
@@ -533,7 +533,7 @@ type vndkSnapshotSingleton struct {
 	vndkSnapshotZipFile android.OptionalPath
 }
 
-func isVndkSnapshotLibrary(config android.DeviceConfig, m *Module,
+func isVndkSnapshotAware(config android.DeviceConfig, m *Module,
 	apexInfo android.ApexInfo) (i snapshotLibraryInterface, vndkType string, isVndkSnapshotLib bool) {
 
 	if m.Target().NativeBridge == android.NativeBridgeEnabled {
@@ -549,7 +549,7 @@ func isVndkSnapshotLibrary(config android.DeviceConfig, m *Module,
 	if !ok || !l.shared() {
 		return nil, "", false
 	}
-	if m.VndkVersion() == config.PlatformVndkVersion() && m.IsVndk() && !m.isVndkExt() {
+	if m.VndkVersion() == config.PlatformVndkVersion() && m.IsVndk() && !m.IsVndkExt() {
 		if m.isVndkSp() {
 			return l, "vndk-sp", true
 		} else {
@@ -622,6 +622,9 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 	var headers android.Paths
 
+	// installVndkSnapshotLib copies built .so file from the module.
+	// Also, if the build artifacts is on, write a json file which contains all exported flags
+	// with FlagExporterInfo.
 	installVndkSnapshotLib := func(m *Module, vndkType string) (android.Paths, bool) {
 		var ret android.Paths
 
@@ -632,7 +635,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 		libPath := m.outputFile.Path()
 		snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, "shared", vndkType, libPath.Base())
-		ret = append(ret, copyFile(ctx, libPath, snapshotLibOut))
+		ret = append(ret, copyFileRule(ctx, libPath, snapshotLibOut))
 
 		if ctx.Config().VndkSnapshotBuildArtifacts() {
 			prop := struct {
@@ -654,7 +657,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 				ctx.Errorf("json marshal to %q failed: %#v", propOut, err)
 				return nil, false
 			}
-			ret = append(ret, writeStringToFile(ctx, string(j), propOut))
+			ret = append(ret, writeStringToFileRule(ctx, string(j), propOut))
 		}
 		return ret, true
 	}
@@ -667,10 +670,20 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 		apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
 
-		l, vndkType, ok := isVndkSnapshotLibrary(ctx.DeviceConfig(), m, apexInfo)
+		l, vndkType, ok := isVndkSnapshotAware(ctx.DeviceConfig(), m, apexInfo)
 		if !ok {
 			return
 		}
+
+		// For all snapshot candidates, the followings are captured.
+		//   - .so files
+		//   - notice files
+		//
+		// The followings are also captured if VNDK_SNAPSHOT_BUILD_ARTIFACTS.
+		//   - .json files containing exported flags
+		//   - exported headers from collectHeadersForSnapshot()
+		//
+		// Headers are deduplicated after visiting all modules.
 
 		// install .so files for appropriate modules.
 		// Also install .json files if VNDK_SNAPSHOT_BUILD_ARTIFACTS
@@ -690,7 +703,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 			// skip already copied notice file
 			if _, ok := noticeBuilt[noticeName]; !ok {
 				noticeBuilt[noticeName] = true
-				snapshotOutputs = append(snapshotOutputs, combineNotices(
+				snapshotOutputs = append(snapshotOutputs, combineNoticesRule(
 					ctx, m.NoticeFiles(), filepath.Join(noticeDir, noticeName)))
 			}
 		}
@@ -702,7 +715,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 	// install all headers after removing duplicates
 	for _, header := range android.FirstUniquePaths(headers) {
-		snapshotOutputs = append(snapshotOutputs, copyFile(
+		snapshotOutputs = append(snapshotOutputs, copyFileRule(
 			ctx, header, filepath.Join(includeDir, header.String())))
 	}
 
@@ -712,29 +725,9 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		if !ok || !m.Enabled() || m.Name() == vndkUsingCoreVariantLibrariesTxt {
 			return
 		}
-		snapshotOutputs = append(snapshotOutputs, copyFile(
+		snapshotOutputs = append(snapshotOutputs, copyFileRule(
 			ctx, m.OutputFile(), filepath.Join(configsDir, m.Name())))
 	})
-
-	/*
-		Dump a map to a list file as:
-
-		{key1} {value1}
-		{key2} {value2}
-		...
-	*/
-	installMapListFile := func(m map[string]string, path string) android.OutputPath {
-		var txtBuilder strings.Builder
-		for idx, k := range android.SortedStringKeys(m) {
-			if idx > 0 {
-				txtBuilder.WriteString("\n")
-			}
-			txtBuilder.WriteString(k)
-			txtBuilder.WriteString(" ")
-			txtBuilder.WriteString(m[k])
-		}
-		return writeStringToFile(ctx, txtBuilder.String(), path)
-	}
 
 	/*
 		module_paths.txt contains paths on which VNDK modules are defined.
@@ -743,7 +736,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 			libc.so bionic/libc
 			...
 	*/
-	snapshotOutputs = append(snapshotOutputs, installMapListFile(modulePaths, filepath.Join(configsDir, "module_paths.txt")))
+	snapshotOutputs = append(snapshotOutputs, installMapListFileRule(ctx, modulePaths, filepath.Join(configsDir, "module_paths.txt")))
 
 	/*
 		module_names.txt contains names as which VNDK modules are defined,
@@ -754,7 +747,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 			libprotobuf-cpp-full-3.9.2.so libprotobuf-cpp-full
 			...
 	*/
-	snapshotOutputs = append(snapshotOutputs, installMapListFile(moduleNames, filepath.Join(configsDir, "module_names.txt")))
+	snapshotOutputs = append(snapshotOutputs, installMapListFileRule(ctx, moduleNames, filepath.Join(configsDir, "module_names.txt")))
 
 	// All artifacts are ready. Sort them to normalize ninja and then zip.
 	sort.Slice(snapshotOutputs, func(i, j int) bool {
@@ -764,7 +757,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 	zipPath := android.PathForOutput(ctx, snapshotDir, "android-vndk-"+ctx.DeviceConfig().DeviceArch()+".zip")
 	zipRule := android.NewRuleBuilder(pctx, ctx)
 
-	// filenames in rspfile from FlagWithRspFileInputList might be single-quoted. Remove it with xargs
+	// filenames in rspfile from FlagWithRspFileInputList might be single-quoted. Remove it with tr
 	snapshotOutputList := android.PathForOutput(ctx, snapshotDir, "android-vndk-"+ctx.DeviceConfig().DeviceArch()+"_list")
 	zipRule.Command().
 		Text("tr").

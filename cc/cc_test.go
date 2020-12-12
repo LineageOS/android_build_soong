@@ -250,8 +250,8 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 
 	// Check VNDK extension properties.
 	isVndkExt := extends != ""
-	if mod.isVndkExt() != isVndkExt {
-		t.Errorf("%q isVndkExt() must equal to %t", name, isVndkExt)
+	if mod.IsVndkExt() != isVndkExt {
+		t.Errorf("%q IsVndkExt() must equal to %t", name, isVndkExt)
 	}
 
 	if actualExtends := mod.getVndkExtendsModuleName(); actualExtends != extends {
@@ -4055,4 +4055,36 @@ func TestInstallSharedLibs(t *testing.T) {
 		t.Errorf("expected no device bin dependency %q, got %q", w, g)
 	}
 
+}
+
+func TestStubsLibReexportsHeaders(t *testing.T) {
+	ctx := testCc(t, `
+		cc_library_shared {
+			name: "libclient",
+			srcs: ["foo.c"],
+			shared_libs: ["libfoo#1"],
+		}
+
+		cc_library_shared {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			shared_libs: ["libbar"],
+			export_shared_lib_headers: ["libbar"],
+			stubs: {
+				symbol_file: "foo.map.txt",
+				versions: ["1", "2", "3"],
+			},
+		}
+
+		cc_library_shared {
+			name: "libbar",
+			export_include_dirs: ["include/libbar"],
+			srcs: ["foo.c"],
+		}`)
+
+	cFlags := ctx.ModuleForTests("libclient", "android_arm64_armv8-a_shared").Rule("cc").Args["cFlags"]
+
+	if !strings.Contains(cFlags, "-Iinclude/libbar") {
+		t.Errorf("expected %q in cflags, got %q", "-Iinclude/libbar", cFlags)
+	}
 }

@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -173,13 +174,18 @@ func main() {
 
 	build.SetupOutDir(buildCtx, config)
 
+	if config.UseBazel() {
+		defer populateExternalDistDir(buildCtx, config)
+	}
+
 	// Set up files to be outputted in the log directory.
 	logsDir := config.LogsDir()
 
+	// Common list of metric file definition.
 	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error")
 	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
 	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
-	defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, buildErrorFile, rbeMetricsFile, soongMetricsFile)
+
 	build.PrintOutDirWarning(buildCtx, config)
 
 	os.MkdirAll(logsDir, 0777)
@@ -195,8 +201,22 @@ func main() {
 	buildCtx.Verbosef("Parallelism (local/remote/highmem): %v/%v/%v",
 		config.Parallel(), config.RemoteParallel(), config.HighmemParallel())
 
-	defer met.Dump(soongMetricsFile)
-	defer build.DumpRBEMetrics(buildCtx, config, rbeMetricsFile)
+	{
+		// The order of the function calls is important. The last defer function call
+		// is the first one that is executed to save the rbe metrics to a protobuf
+		// file. The soong metrics file is then next. Bazel profiles are written
+		// before the uploadMetrics is invoked. The written files are then uploaded
+		// if the uploading of the metrics is enabled.
+		files := []string{
+			buildErrorFile,           // build error strings
+			rbeMetricsFile,           // high level metrics related to remote build execution.
+			soongMetricsFile,         // high level metrics related to this build system.
+			config.BazelMetricsDir(), // directory that contains a set of bazel metrics.
+		}
+		defer build.UploadMetrics(buildCtx, config, c.simpleOutput, buildStarted, files...)
+		defer met.Dump(soongMetricsFile)
+		defer build.DumpRBEMetrics(buildCtx, config, rbeMetricsFile)
+	}
 
 	// Read the time at the starting point.
 	if start, ok := os.LookupEnv("TRACE_BEGIN_SOONG"); ok {
@@ -509,4 +529,73 @@ func getCommand(args []string) (*command, []string, error) {
 
 	// command not found
 	return nil, nil, fmt.Errorf("Command not found: %q", args)
+}
+
+// For Bazel support, this moves files and directories from e.g. out/dist/$f to DIST_DIR/$f if necessary.
+func populateExternalDistDir(ctx build.Context, config build.Config) {
+	// Make sure that internalDistDirPath and externalDistDirPath are both absolute paths, so we can compare them
+	var err error
+	var internalDistDirPath string
+	var externalDistDirPath string
+	if internalDistDirPath, err = filepath.Abs(config.DistDir()); err != nil {
+		ctx.Fatalf("Unable to find absolute path of %s: %s", internalDistDirPath, err)
+	}
+	if externalDistDirPath, err = filepath.Abs(config.RealDistDir()); err != nil {
+		ctx.Fatalf("Unable to find absolute path of %s: %s", externalDistDirPath, err)
+	}
+	if externalDistDirPath == internalDistDirPath {
+		return
+	}
+
+	// Make sure the external DIST_DIR actually exists before trying to write to it
+	if err = os.MkdirAll(externalDistDirPath, 0755); err != nil {
+		ctx.Fatalf("Unable to make directory %s: %s", externalDistDirPath, err)
+	}
+
+	ctx.Println("Populating external DIST_DIR...")
+
+	populateExternalDistDirHelper(ctx, config, internalDistDirPath, externalDistDirPath)
+}
+
+func populateExternalDistDirHelper(ctx build.Context, config build.Config, internalDistDirPath string, externalDistDirPath string) {
+	files, err := ioutil.ReadDir(internalDistDirPath)
+	if err != nil {
+		ctx.Fatalf("Can't read internal distdir %s: %s", internalDistDirPath, err)
+	}
+	for _, f := range files {
+		internalFilePath := filepath.Join(internalDistDirPath, f.Name())
+		externalFilePath := filepath.Join(externalDistDirPath, f.Name())
+
+		if f.IsDir() {
+			// Moving a directory - check if there is an existing directory to merge with
+			externalLstat, err := os.Lstat(externalFilePath)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					ctx.Fatalf("Can't lstat external %s: %s", externalDistDirPath, err)
+				}
+				// Otherwise, if the error was os.IsNotExist, that's fine and we fall through to the rename at the bottom
+			} else {
+				if externalLstat.IsDir() {
+					// Existing dir - try to merge the directories?
+					populateExternalDistDirHelper(ctx, config, internalFilePath, externalFilePath)
+					continue
+				} else {
+					// Existing file being replaced with a directory. Delete the existing file...
+					if err := os.RemoveAll(externalFilePath); err != nil {
+						ctx.Fatalf("Unable to remove existing %s: %s", externalFilePath, err)
+					}
+				}
+			}
+		} else {
+			// Moving a file (not a dir) - delete any existing file or directory
+			if err := os.RemoveAll(externalFilePath); err != nil {
+				ctx.Fatalf("Unable to remove existing %s: %s", externalFilePath, err)
+			}
+		}
+
+		// The actual move - do a rename instead of a copy in order to save disk space.
+		if err := os.Rename(internalFilePath, externalFilePath); err != nil {
+			ctx.Fatalf("Unable to rename %s -> %s due to error %s", internalFilePath, externalFilePath, err)
+		}
+	}
 }

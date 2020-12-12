@@ -362,7 +362,10 @@ func TestBasicApex(t *testing.T) {
 			androidManifest: ":myapex.androidmanifest",
 			key: "myapex.key",
 			binaries: ["foo.rust"],
-			native_shared_libs: ["mylib"],
+			native_shared_libs: [
+				"mylib",
+				"libfoo.ffi",
+			],
 			rust_dyn_libs: ["libfoo.dylib.rust"],
 			multilib: {
 				both: {
@@ -399,7 +402,10 @@ func TestBasicApex(t *testing.T) {
 		cc_library {
 			name: "mylib",
 			srcs: ["mylib.cpp"],
-			shared_libs: ["mylib2"],
+			shared_libs: [
+				"mylib2",
+				"libbar.ffi",
+			],
 			system_shared_libs: [],
 			stl: "none",
 			// TODO: remove //apex_available:platform
@@ -448,6 +454,20 @@ func TestBasicApex(t *testing.T) {
 		        name: "libfoo.dylib.rust",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
+			apex_available: ["myapex"],
+		}
+
+		rust_ffi_shared {
+			name: "libfoo.ffi",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+			apex_available: ["myapex"],
+		}
+
+		rust_ffi_shared {
+			name: "libbar.ffi",
+			srcs: ["foo.rs"],
+			crate_name: "bar",
 			apex_available: ["myapex"],
 		}
 
@@ -566,12 +586,14 @@ func TestBasicApex(t *testing.T) {
 	ensureListContains(t, ctx.ModuleVariantsForTests("myjar"), "android_common_apex10000")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myjar_dex"), "android_common_apex10000")
 	ensureListContains(t, ctx.ModuleVariantsForTests("foo.rust"), "android_arm64_armv8-a_apex10000")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo.ffi"), "android_arm64_armv8-a_shared_apex10000")
 
 	// Ensure that apex variant is created for the indirect dep
 	ensureListContains(t, ctx.ModuleVariantsForTests("mylib2"), "android_arm64_armv8-a_shared_apex10000")
 	ensureListContains(t, ctx.ModuleVariantsForTests("myotherjar"), "android_common_apex10000")
 	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo.rlib.rust"), "android_arm64_armv8-a_rlib_dylib-std_apex10000")
 	ensureListContains(t, ctx.ModuleVariantsForTests("libfoo.dylib.rust"), "android_arm64_armv8-a_dylib_apex10000")
+	ensureListContains(t, ctx.ModuleVariantsForTests("libbar.ffi"), "android_arm64_armv8-a_shared_apex10000")
 
 	// Ensure that both direct and indirect deps are copied into apex
 	ensureContains(t, copyCmds, "image.apex/lib64/mylib.so")
@@ -579,6 +601,8 @@ func TestBasicApex(t *testing.T) {
 	ensureContains(t, copyCmds, "image.apex/javalib/myjar_stem.jar")
 	ensureContains(t, copyCmds, "image.apex/javalib/myjar_dex.jar")
 	ensureContains(t, copyCmds, "image.apex/lib64/libfoo.dylib.rust.dylib.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/libfoo.ffi.so")
+	ensureContains(t, copyCmds, "image.apex/lib64/libbar.ffi.so")
 	// .. but not for java libs
 	ensureNotContains(t, copyCmds, "image.apex/javalib/myotherjar.jar")
 	ensureNotContains(t, copyCmds, "image.apex/javalib/msharedjar.jar")
@@ -1783,6 +1807,31 @@ func TestApexMinSdkVersion_ErrorIfIncompatibleVersion(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			system_shared_libs: [],
 			stl: "none",
+			apex_available: [
+				"myapex",
+			],
+			min_sdk_version: "30",
+		}
+	`)
+
+	testApexError(t, `module "libfoo.ffi".*: should support min_sdk_version\(29\)`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libfoo.ffi"],
+			min_sdk_version: "29",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		rust_ffi_shared {
+			name: "libfoo.ffi",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
 			apex_available: [
 				"myapex",
 			],
@@ -5642,6 +5691,13 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpre
 			],
 		}
 	`
+
+	testDexpreoptWithApexes(t, bp, errmsg, transformDexpreoptConfig)
+}
+
+func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreoptConfig func(*dexpreopt.GlobalConfig)) {
+	t.Helper()
+
 	bp += cc.GatherRequiredDepsForTest(android.Android)
 	bp += java.GatherRequiredDepsForTest()
 	bp += dexpreopt.BpToolModulesForTest()
