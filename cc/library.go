@@ -1274,14 +1274,20 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	}
 
 	// Add stub-related flags if this library is a stub library.
-	if library.buildStubs() && !library.skipAPIDefine {
-		library.reexportFlags("-D" + versioningMacroName(ctx.Module().(*Module).ImplementationModuleName(ctx)) + "=" + library.stubsVersion())
-	}
+	library.exportVersioningMacroIfNeeded(ctx)
 
 	// Propagate a Provider containing information about exported flags, deps, and include paths.
 	library.flagExporter.setProvider(ctx)
 
 	return out
+}
+
+func (library *libraryDecorator) exportVersioningMacroIfNeeded(ctx android.BaseModuleContext) {
+	if library.buildStubs() && !library.skipAPIDefine {
+		name := versioningMacroName(ctx.Module().(*Module).ImplementationModuleName(ctx))
+		ver := library.stubsVersion()
+		library.reexportFlags("-D" + name + "=" + ver)
+	}
 }
 
 // buildStatic returns true if this library should be built as a static library.
