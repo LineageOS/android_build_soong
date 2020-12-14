@@ -2749,7 +2749,7 @@ func orderStaticModuleDeps(staticDeps []StaticLibraryInfo, sharedDeps []SharedLi
 func baseLibName(depName string) string {
 	libName := strings.TrimSuffix(depName, llndkLibrarySuffix)
 	libName = strings.TrimSuffix(libName, vendorPublicLibrarySuffix)
-	libName = strings.TrimPrefix(libName, "prebuilt_")
+	libName = android.RemoveOptionalPrebuiltPrefix(libName)
 	return libName
 }
 
