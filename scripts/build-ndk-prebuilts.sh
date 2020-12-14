@@ -30,6 +30,11 @@ PLATFORM_VERSION_ALL_CODENAMES=$(get_build_var PLATFORM_VERSION_ALL_CODENAMES)
 PLATFORM_VERSION_ALL_CODENAMES=${PLATFORM_VERSION_ALL_CODENAMES/,/'","'}
 PLATFORM_VERSION_ALL_CODENAMES="[\"${PLATFORM_VERSION_ALL_CODENAMES}\"]"
 
+# Get the list of missing <uses-library> modules and convert it to a JSON array
+# (quote module names, add comma separator and wrap in brackets).
+MISSING_USES_LIBRARIES="$(get_build_var INTERNAL_PLATFORM_MISSING_USES_LIBRARIES)"
+MISSING_USES_LIBRARIES="[$(echo $MISSING_USES_LIBRARIES | sed -e 's/\([^ ]\+\)/\"\1\"/g' -e 's/[ ]\+/, /g')]"
+
 SOONG_OUT=${OUT_DIR}/soong
 SOONG_NDK_OUT=${OUT_DIR}/soong/ndk
 rm -rf ${SOONG_OUT}
@@ -49,7 +54,9 @@ cat > ${SOONG_OUT}/soong.variables << EOF
     "Safestack": false,
 
     "Ndk_abis": true,
-    "Exclude_draft_ndk_apis": true
+    "Exclude_draft_ndk_apis": true,
+
+    "MissingUsesLibraries": ${MISSING_USES_LIBRARIES}
 }
 EOF
 m --skip-make ${SOONG_OUT}/ndk.timestamp
