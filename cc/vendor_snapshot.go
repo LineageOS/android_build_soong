@@ -247,7 +247,7 @@ func isSnapshotAware(m *Module, inProprietaryPath bool, apexInfo android.ApexInf
 		if m.sanitize != nil {
 			// scs and hwasan export both sanitized and unsanitized variants for static and header
 			// Always use unsanitized variants of them.
-			for _, t := range []sanitizerType{scs, hwasan} {
+			for _, t := range []SanitizerType{scs, hwasan} {
 				if !l.shared() && m.sanitize.isSanitizerEnabled(t) {
 					return false
 				}
