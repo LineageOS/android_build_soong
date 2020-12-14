@@ -81,6 +81,7 @@ cat > ${SOONG_VARS}.new << EOF
 {
     "BuildNumberFile": "build_number.txt",
 
+    "Platform_version_name": "${PLATFORM_VERSION}",
     "Platform_sdk_version": ${PLATFORM_SDK_VERSION},
     "Platform_sdk_codename": "${PLATFORM_VERSION}",
     "Platform_version_active_codenames": ${PLATFORM_VERSION_ALL_CODENAMES},
