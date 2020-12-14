@@ -200,7 +200,7 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		_, errs = ctx.PrepareBuildActions(config)
 		android.FailIfErrored(t, errs)
 
-		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context)[dir]
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, false)[dir]
 		if g, w := len(bazelTargets), 1; g != w {
 			t.Fatalf("Expected %d bazel target, got %d", w, g)
 		}
@@ -210,7 +210,58 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 			t.Errorf(
 				"Expected generated Bazel target to be '%s', got '%s'",
 				testCase.expectedBazelTarget,
-				actualBazelTarget,
+				actualBazelTarget.content,
+			)
+		}
+	}
+}
+
+func TestGenerateBazelTargetModules(t *testing.T) {
+	testCases := []struct {
+		bp                  string
+		expectedBazelTarget string
+	}{
+		{
+			bp: `custom {
+	name: "foo",
+    string_list_prop: ["a", "b"],
+    string_prop: "a",
+}`,
+			expectedBazelTarget: `custom(
+    name = "foo",
+    string_list_prop = [
+        "a",
+        "b",
+    ],
+    string_prop = "a",
+)`,
+		},
+	}
+
+	dir := "."
+	for _, testCase := range testCases {
+		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
+		ctx := android.NewTestContext(config)
+		ctx.RegisterModuleType("custom", customModuleFactory)
+		ctx.RegisterBp2BuildMutator("custom", customBp2BuildMutator)
+		ctx.RegisterForBazelConversion()
+
+		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
+		android.FailIfErrored(t, errs)
+		_, errs = ctx.ResolveDependencies(config)
+		android.FailIfErrored(t, errs)
+
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, true)[dir]
+		if g, w := len(bazelTargets), 1; g != w {
+			t.Fatalf("Expected %d bazel target, got %d", w, g)
+		}
+
+		actualBazelTarget := bazelTargets[0]
+		if actualBazelTarget.content != testCase.expectedBazelTarget {
+			t.Errorf(
+				"Expected generated Bazel target to be '%s', got '%s'",
+				testCase.expectedBazelTarget,
+				actualBazelTarget.content,
 			)
 		}
 	}

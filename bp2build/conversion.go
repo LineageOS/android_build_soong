@@ -17,7 +17,8 @@ type BazelFile struct {
 
 func CreateBazelFiles(
 	ruleShims map[string]RuleShim,
-	buildToTargets map[string][]BazelTarget) []BazelFile {
+	buildToTargets map[string][]BazelTarget,
+	bp2buildEnabled bool) []BazelFile {
 	files := make([]BazelFile, 0, len(ruleShims)+len(buildToTargets)+numAdditionalFiles)
 
 	// Write top level files: WORKSPACE and BUILD. These files are empty.
@@ -26,22 +27,30 @@ func CreateBazelFiles(
 	files = append(files, newFile("", "BUILD", ""))
 
 	files = append(files, newFile(bazelRulesSubDir, "BUILD", ""))
-	files = append(files, newFile(bazelRulesSubDir, "providers.bzl", providersBzl))
 
-	for bzlFileName, ruleShim := range ruleShims {
-		files = append(files, newFile(bazelRulesSubDir, bzlFileName+".bzl", ruleShim.content))
+	if !bp2buildEnabled {
+		// These files are only used for queryview.
+		files = append(files, newFile(bazelRulesSubDir, "providers.bzl", providersBzl))
+
+		for bzlFileName, ruleShim := range ruleShims {
+			files = append(files, newFile(bazelRulesSubDir, bzlFileName+".bzl", ruleShim.content))
+		}
+		files = append(files, newFile(bazelRulesSubDir, "soong_module.bzl", generateSoongModuleBzl(ruleShims)))
 	}
-	files = append(files, newFile(bazelRulesSubDir, "soong_module.bzl", generateSoongModuleBzl(ruleShims)))
 
-	files = append(files, createBuildFiles(buildToTargets)...)
+	files = append(files, createBuildFiles(buildToTargets, bp2buildEnabled)...)
 
 	return files
 }
 
-func createBuildFiles(buildToTargets map[string][]BazelTarget) []BazelFile {
+func createBuildFiles(buildToTargets map[string][]BazelTarget, bp2buildEnabled bool) []BazelFile {
 	files := make([]BazelFile, 0, len(buildToTargets))
 	for _, dir := range android.SortedStringKeys(buildToTargets) {
 		content := soongModuleLoad
+		if bp2buildEnabled {
+			// No need to load soong_module for bp2build BUILD files.
+			content = ""
+		}
 		targets := buildToTargets[dir]
 		sort.Slice(targets, func(i, j int) bool { return targets[i].name < targets[j].name })
 		for _, t := range targets {
