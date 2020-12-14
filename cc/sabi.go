@@ -27,8 +27,10 @@ var (
 )
 
 type SAbiProperties struct {
-	// True if need to generate ABI dump.
-	CreateSAbiDumps bool `blueprint:"mutated"`
+	// Whether ABI dump should be created for this module.
+	// Set by `sabiDepsMutator` if this module is a shared library that needs ABI check, or a static
+	// library that is depended on by an ABI checked library.
+	ShouldCreateSourceAbiDump bool `blueprint:"mutated"`
 
 	// Include directories that may contain ABI information exported by a library.
 	// These directories are passed to the header-abi-dumper.
@@ -39,17 +41,17 @@ type sabi struct {
 	Properties SAbiProperties
 }
 
-func (sabimod *sabi) props() []interface{} {
-	return []interface{}{&sabimod.Properties}
+func (sabi *sabi) props() []interface{} {
+	return []interface{}{&sabi.Properties}
 }
 
-func (sabimod *sabi) begin(ctx BaseModuleContext) {}
+func (sabi *sabi) begin(ctx BaseModuleContext) {}
 
-func (sabimod *sabi) deps(ctx BaseModuleContext, deps Deps) Deps {
+func (sabi *sabi) deps(ctx BaseModuleContext, deps Deps) Deps {
 	return deps
 }
 
-func (sabimod *sabi) flags(ctx ModuleContext, flags Flags) Flags {
+func (sabi *sabi) flags(ctx ModuleContext, flags Flags) Flags {
 	// Filter out flags which libTooling don't understand.
 	// This is here for legacy reasons and future-proof, in case the version of libTooling and clang
 	// diverge.
@@ -60,37 +62,134 @@ func (sabimod *sabi) flags(ctx ModuleContext, flags Flags) Flags {
 	return flags
 }
 
-func shouldSkipSabiDepsMutator(mctx android.TopDownMutatorContext, m *Module) bool {
-	if m.sabi != nil && m.sabi.Properties.CreateSAbiDumps {
+// Returns true if ABI dump should be created for this library, either because library is ABI
+// checked or is depended on by an ABI checked library.
+// Could be called as a nil receiver.
+func (sabi *sabi) shouldCreateSourceAbiDump() bool {
+	return sabi != nil && sabi.Properties.ShouldCreateSourceAbiDump
+}
+
+// Returns a string that represents the class of the ABI dump.
+// Returns an empty string if ABI check is disabled for this library.
+func classifySourceAbiDump(ctx android.BaseModuleContext) string {
+	m := ctx.Module().(*Module)
+	if m.library.headerAbiCheckerExplicitlyDisabled() {
+		return ""
+	}
+	// Return NDK if the library is both NDK and LLNDK.
+	if m.IsNdk(ctx.Config()) {
+		return "NDK"
+	}
+	if m.isLlndkPublic(ctx.Config()) {
+		return "LLNDK"
+	}
+	if m.UseVndk() && m.IsVndk() && !m.IsVndkPrivate(ctx.Config()) {
+		if m.isVndkSp() {
+			if m.IsVndkExt() {
+				return "VNDK-SP-ext"
+			} else {
+				return "VNDK-SP"
+			}
+		} else {
+			if m.IsVndkExt() {
+				return "VNDK-ext"
+			} else {
+				return "VNDK-core"
+			}
+		}
+	}
+	if m.library.headerAbiCheckerEnabled() || m.library.hasStubsVariants() {
+		return "PLATFORM"
+	}
+	return ""
+}
+
+// Called from sabiDepsMutator to check whether ABI dumps should be created for this module.
+// ctx should be wrapping a native library type module.
+func shouldCreateSourceAbiDumpForLibrary(ctx android.BaseModuleContext) bool {
+	if ctx.Fuchsia() {
 		return false
 	}
-	if library, ok := m.linker.(*libraryDecorator); ok {
-		ctx := &baseModuleContext{
-			BaseModuleContext: mctx,
-			moduleContextImpl: moduleContextImpl{
-				mod: m,
-			},
-		}
-		ctx.ctx = ctx
-		return !library.shouldCreateSourceAbiDump(ctx)
+
+	// Only generate ABI dump for device modules.
+	if !ctx.Device() {
+		return false
 	}
-	return true
+
+	m := ctx.Module().(*Module)
+
+	// Only create ABI dump for native library module types.
+	if m.library == nil {
+		return false
+	}
+
+	// Create ABI dump for static libraries only if they are dependencies of ABI checked libraries.
+	if m.library.static() {
+		return m.sabi.shouldCreateSourceAbiDump()
+	}
+
+	// Module is shared library type.
+
+	// Don't create ABI dump for prebuilts.
+	if m.Prebuilt() != nil || m.isSnapshotPrebuilt() {
+		return false
+	}
+
+	// Coverage builds have extra symbols.
+	if m.isCoverageVariant() {
+		return false
+	}
+
+	// Some sanitizer variants may have different ABI.
+	if m.sanitize != nil && !m.sanitize.isVariantOnProductionDevice() {
+		return false
+	}
+
+	// Don't create ABI dump for stubs.
+	if m.isNDKStubLibrary() || m.IsStubs() {
+		return false
+	}
+
+	// Special case for APEX variants.
+	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
+		// Don't create ABI dump if this library is for APEX but isn't exported.
+		if !m.HasStubsVariants() {
+			return false
+		}
+		if !m.library.headerAbiCheckerEnabled() {
+			// Skip ABI checks if this library is for APEX and did not explicitly enable
+			// ABI checks.
+			// TODO(b/145608479): ABI checks should be enabled by default. Remove this
+			// after evaluating the extra build time.
+			return false
+		}
+	}
+	return classifySourceAbiDump(ctx) != ""
 }
 
 // Mark the direct and transitive dependencies of libraries that need ABI check, so that ABI dumps
 // of their dependencies would be generated.
 func sabiDepsMutator(mctx android.TopDownMutatorContext) {
-	if c, ok := mctx.Module().(*Module); ok {
-		if shouldSkipSabiDepsMutator(mctx, c) {
-			return
-		}
-		mctx.VisitDirectDeps(func(m android.Module) {
-			if tag, ok := mctx.OtherModuleDependencyTag(m).(libraryDependencyTag); ok && tag.static() {
-				if cc, ok := m.(*Module); ok {
-					cc.sabi.Properties.CreateSAbiDumps = true
+	// Escape hatch to not check any ABI dump.
+	if mctx.Config().IsEnvTrue("SKIP_ABI_CHECKS") {
+		return
+	}
+	// Only create ABI dump for native shared libraries and their static library dependencies.
+	if m, ok := mctx.Module().(*Module); ok && m.sabi != nil {
+		if shouldCreateSourceAbiDumpForLibrary(mctx) {
+			// Mark this module so that .sdump / .lsdump for this library can be generated.
+			m.sabi.Properties.ShouldCreateSourceAbiDump = true
+			// Mark all of its static library dependencies.
+			mctx.VisitDirectDeps(func(child android.Module) {
+				depTag := mctx.OtherModuleDependencyTag(child)
+				if libDepTag, ok := depTag.(libraryDependencyTag); ok && libDepTag.static() {
+					if c, ok := child.(*Module); ok && c.sabi != nil {
+						// Mark this module so that .sdump for this static library can be generated.
+						c.sabi.Properties.ShouldCreateSourceAbiDump = true
+					}
 				}
-			}
-		})
+			})
+		}
 	}
 }
 
