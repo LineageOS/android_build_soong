@@ -1586,13 +1586,14 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 		c.outputFile = android.OptionalPathForPath(outputFile)
 
-		// If a lib is directly included in any of the APEXes, unhide the stubs
-		// variant having the latest version gets visible to make. In addition,
-		// the non-stubs variant is renamed to <libname>.bootstrap. This is to
-		// force anything in the make world to link against the stubs library.
-		// (unless it is explicitly referenced via .bootstrap suffix or the
-		// module is marked with 'bootstrap: true').
-		if c.HasStubsVariants() && c.AnyVariantDirectlyInAnyApex() && !c.InRamdisk() &&
+		// If a lib is directly included in any of the APEXes or is not available to the
+		// platform (which is often the case when the stub is provided as a prebuilt),
+		// unhide the stubs variant having the latest version gets visible to make. In
+		// addition, the non-stubs variant is renamed to <libname>.bootstrap. This is to
+		// force anything in the make world to link against the stubs library.  (unless it
+		// is explicitly referenced via .bootstrap suffix or the module is marked with
+		// 'bootstrap: true').
+		if c.HasStubsVariants() && c.NotInPlatform() && !c.InRamdisk() &&
 			!c.InRecovery() && !c.UseVndk() && !c.static() && !c.isCoverageVariant() &&
 			c.IsStubs() && !c.InVendorRamdisk() {
 			c.Properties.HideFromMake = false // unhide
@@ -2472,7 +2473,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// an APEX (and not from platform)
 						// However, for host, ramdisk, vendor_ramdisk, recovery or bootstrap modules,
 						// always link to non-stub variant
-						useStubs = dep.(android.ApexModule).AnyVariantDirectlyInAnyApex() && !c.bootstrap()
+						useStubs = dep.(android.ApexModule).NotInPlatform() && !c.bootstrap()
 						// Another exception: if this module is bundled with an APEX, then
 						// it is linked with the non-stub variant of a module in the APEX
 						// as if this is part of the APEX.
