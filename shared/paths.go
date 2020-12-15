@@ -18,6 +18,8 @@ package shared
 
 import (
 	"path/filepath"
+
+	"android/soong/bazel"
 )
 
 // A SharedPaths represents a list of paths that are shared between
@@ -37,6 +39,6 @@ func TempDirForOutDir(outDir string) (tempPath string) {
 // on the action name. This is to help to store a set of bazel
 // profiles since bazel may execute multiple times during a single
 // build.
-func BazelMetricsFilename(s SharedPaths, actionName string) string {
-	return filepath.Join(s.BazelMetricsDir(), actionName+"_bazel_profile.gz")
+func BazelMetricsFilename(s SharedPaths, actionName bazel.RunName) string {
+	return filepath.Join(s.BazelMetricsDir(), actionName.String()+"_bazel_profile.gz")
 }
