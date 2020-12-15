@@ -39,13 +39,13 @@ const (
 
 type Metrics struct {
 	metrics     soong_metrics_proto.MetricsBase
-	EventTracer EventTracer
+	EventTracer *EventTracer
 }
 
 func New() (metrics *Metrics) {
 	m := &Metrics{
 		metrics:     soong_metrics_proto.MetricsBase{},
-		EventTracer: &eventTracerImpl{},
+		EventTracer: &EventTracer{},
 	}
 	return m
 }
