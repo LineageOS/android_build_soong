@@ -16,15 +16,16 @@ MAINLINE_MODULES=(
 MODULES_SDK_AND_EXPORTS=(
   art-module-sdk
   art-module-test-exports
+  conscrypt-module-host-exports
   conscrypt-module-sdk
   conscrypt-module-test-exports
-  conscrypt-module-host-exports
-  runtime-module-sdk
-  runtime-module-host-exports
-  i18n-module-test-exports
+  i18n-module-host-exports
   i18n-module-sdk
+  i18n-module-test-exports
   platform-mainline-sdk
   platform-mainline-test-exports
+  runtime-module-host-exports
+  runtime-module-sdk
 )
 
 # List of libraries installed on the platform that are needed for ART chroot
