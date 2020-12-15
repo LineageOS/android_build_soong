@@ -15,6 +15,7 @@
 package apex
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -6409,6 +6410,160 @@ func TestExcludeDependency(t *testing.T) {
 	// It shouldn't appear in the copy cmd as well.
 	copyCmds := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule").Args["copy_commands"]
 	ensureNotContains(t, copyCmds, "image.apex/lib64/mylib2.so")
+}
+
+func TestPrebuiltStubLibDep(t *testing.T) {
+	bpBase := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			apex_available: ["myapex"],
+			shared_libs: ["stublib"],
+			system_shared_libs: [],
+		}
+		apex {
+			name: "otherapex",
+			enabled: %s,
+			key: "myapex.key",
+			native_shared_libs: ["stublib"],
+		}
+	`
+
+	stublibSourceBp := `
+		cc_library {
+			name: "stublib",
+			srcs: ["mylib.cpp"],
+			apex_available: ["otherapex"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["1"],
+			},
+		}
+	`
+
+	stublibPrebuiltBp := `
+		cc_prebuilt_library_shared {
+			name: "stublib",
+			srcs: ["prebuilt.so"],
+			apex_available: ["otherapex"],
+			stubs: {
+				versions: ["1"],
+			},
+			%s
+		}
+	`
+
+	tests := []struct {
+		name             string
+		stublibBp        string
+		usePrebuilt      bool
+		modNames         []string // Modules to collect AndroidMkEntries for
+		otherApexEnabled []string
+	}{
+		{
+			name:             "only_source",
+			stublibBp:        stublibSourceBp,
+			usePrebuilt:      false,
+			modNames:         []string{"stublib"},
+			otherApexEnabled: []string{"true", "false"},
+		},
+		{
+			name:             "source_preferred",
+			stublibBp:        stublibSourceBp + fmt.Sprintf(stublibPrebuiltBp, ""),
+			usePrebuilt:      false,
+			modNames:         []string{"stublib", "prebuilt_stublib"},
+			otherApexEnabled: []string{"true", "false"},
+		},
+		{
+			name:             "prebuilt_preferred",
+			stublibBp:        stublibSourceBp + fmt.Sprintf(stublibPrebuiltBp, "prefer: true,"),
+			usePrebuilt:      true,
+			modNames:         []string{"stublib", "prebuilt_stublib"},
+			otherApexEnabled: []string{"false"}, // No "true" since APEX cannot depend on prebuilt.
+		},
+		{
+			name:             "only_prebuilt",
+			stublibBp:        fmt.Sprintf(stublibPrebuiltBp, ""),
+			usePrebuilt:      true,
+			modNames:         []string{"stublib"},
+			otherApexEnabled: []string{"false"}, // No "true" since APEX cannot depend on prebuilt.
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			for _, otherApexEnabled := range test.otherApexEnabled {
+				t.Run("otherapex_enabled_"+otherApexEnabled, func(t *testing.T) {
+					ctx, config := testApex(t, fmt.Sprintf(bpBase, otherApexEnabled)+test.stublibBp)
+
+					type modAndMkEntries struct {
+						mod       *cc.Module
+						mkEntries android.AndroidMkEntries
+					}
+					entries := []*modAndMkEntries{}
+
+					// Gather shared lib modules that are installable
+					for _, modName := range test.modNames {
+						for _, variant := range ctx.ModuleVariantsForTests(modName) {
+							if !strings.HasPrefix(variant, "android_arm64_armv8-a_shared") {
+								continue
+							}
+							mod := ctx.ModuleForTests(modName, variant).Module().(*cc.Module)
+							if !mod.Enabled() || mod.IsSkipInstall() {
+								continue
+							}
+							for _, ent := range android.AndroidMkEntriesForTest(t, config, "", mod) {
+								if ent.Disabled {
+									continue
+								}
+								entries = append(entries, &modAndMkEntries{
+									mod:       mod,
+									mkEntries: ent,
+								})
+							}
+						}
+					}
+
+					var entry *modAndMkEntries = nil
+					for _, ent := range entries {
+						if strings.Join(ent.mkEntries.EntryMap["LOCAL_MODULE"], ",") == "stublib" {
+							if entry != nil {
+								t.Errorf("More than one AndroidMk entry for \"stublib\": %s and %s", entry.mod, ent.mod)
+							} else {
+								entry = ent
+							}
+						}
+					}
+
+					if entry == nil {
+						t.Errorf("AndroidMk entry for \"stublib\" missing")
+					} else {
+						isPrebuilt := entry.mod.Prebuilt() != nil
+						if isPrebuilt != test.usePrebuilt {
+							t.Errorf("Wrong module for \"stublib\" AndroidMk entry: got prebuilt %t, want prebuilt %t", isPrebuilt, test.usePrebuilt)
+						}
+						if !entry.mod.IsStubs() {
+							t.Errorf("Module for \"stublib\" AndroidMk entry isn't a stub: %s", entry.mod)
+						}
+						if entry.mkEntries.EntryMap["LOCAL_NOT_AVAILABLE_FOR_PLATFORM"] != nil {
+							t.Errorf("AndroidMk entry for \"stublib\" has LOCAL_NOT_AVAILABLE_FOR_PLATFORM set: %+v", entry.mkEntries)
+						}
+					}
+				})
+			}
+		})
+	}
 }
 
 func TestMain(m *testing.M) {

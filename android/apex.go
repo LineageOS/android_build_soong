@@ -153,13 +153,12 @@ type ApexModule interface {
 	// run.
 	DirectlyInAnyApex() bool
 
-	// Returns true in the primary variant of a module if _any_ variant of the module is
-	// directly in any apex. This includes host, arch, asan, etc. variants. It is unused in any
-	// variant that is not the primary variant. Ideally this wouldn't be used, as it incorrectly
-	// mixes arch variants if only one arch is in an apex, but a few places depend on it, for
-	// example when an ASAN variant is created before the apexMutator. Call this after
-	// apex.apexMutator is run.
-	AnyVariantDirectlyInAnyApex() bool
+	// NotInPlatform tells whether or not this module is included in an APEX and therefore
+	// shouldn't be exposed to the platform (i.e. outside of the APEX) directly. A module is
+	// considered to be included in an APEX either when there actually is an APEX that
+	// explicitly has the module as its dependency or the module is not available to the
+	// platform, which indicates that the module belongs to at least one or more other APEXes.
+	NotInPlatform() bool
 
 	// Tests if this module could have APEX variants. Even when a module type implements
 	// ApexModule interface, APEX variants are created only for the module instances that return
@@ -221,7 +220,12 @@ type ApexProperties struct {
 	// See ApexModule.DirectlyInAnyApex()
 	DirectlyInAnyApex bool `blueprint:"mutated"`
 
-	// See ApexModule.AnyVariantDirectlyInAnyApex()
+	// AnyVariantDirectlyInAnyApex is true in the primary variant of a module if _any_ variant
+	// of the module is directly in any apex. This includes host, arch, asan, etc. variants. It
+	// is unused in any variant that is not the primary variant. Ideally this wouldn't be used,
+	// as it incorrectly mixes arch variants if only one arch is in an apex, but a few places
+	// depend on it, for example when an ASAN variant is created before the apexMutator. Call
+	// this after apex.apexMutator is run.
 	AnyVariantDirectlyInAnyApex bool `blueprint:"mutated"`
 
 	// See ApexModule.NotAvailableForPlatform()
@@ -302,8 +306,8 @@ func (m *ApexModuleBase) DirectlyInAnyApex() bool {
 }
 
 // Implements ApexModule
-func (m *ApexModuleBase) AnyVariantDirectlyInAnyApex() bool {
-	return m.ApexProperties.AnyVariantDirectlyInAnyApex
+func (m *ApexModuleBase) NotInPlatform() bool {
+	return m.ApexProperties.AnyVariantDirectlyInAnyApex || !m.AvailableFor(AvailableToPlatform)
 }
 
 // Implements ApexModule
