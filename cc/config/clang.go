@@ -249,6 +249,10 @@ func ClangFilterUnknownLldflags(lldflags []string) []string {
 	return result
 }
 
+func ClangLibToolingFilterUnknownCflags(libToolingFlags []string) []string {
+	return android.RemoveListFromList(libToolingFlags, ClangLibToolingUnknownCflags)
+}
+
 func inListSorted(s string, list []string) bool {
 	for _, l := range list {
 		if s == l {
