@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"android/soong/bazel"
 	"android/soong/shared"
 	"android/soong/ui/metrics"
 )
@@ -97,9 +98,9 @@ func runBazel(ctx Context, config Config) {
 	}
 
 	// Start constructing the `build` command.
-	actionName := "build"
+	actionName := bazel.BazelNinjaExecRunName
 	cmd.Args = append(cmd.Args,
-		actionName,
+		"build",
 		// Use output_groups to select the set of outputs to produce from a
 		// ninja_build target.
 		"--output_groups="+outputGroups,
