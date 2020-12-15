@@ -69,31 +69,19 @@ func TestRustProtobuf(t *testing.T) {
 	}
 }
 
-func TestRustGrpcio(t *testing.T) {
+func TestRustGrpc(t *testing.T) {
 	ctx := testRust(t, `
-		rust_grpcio {
+		rust_protobuf {
 			name: "librust_grpcio",
-			protos: ["buf.proto", "proto.proto"],
+			protos: ["buf.proto"],
+			grpc_protos: ["foo.proto", "proto.proto"],
 			crate_name: "rust_grpcio",
 			source_stem: "buf",
-			shared_libs: ["libfoo_shared"],
-			static_libs: ["libfoo_static"],
-		}
-		cc_library_shared {
-			name: "libfoo_shared",
-			export_include_dirs: ["shared_include"],
-		}
-		cc_library_static {
-			name: "libfoo_static",
-			export_include_dirs: ["static_include"],
 		}
 	`)
 
 	// Check that libprotobuf is added as a dependency.
 	librust_grpcio_module := ctx.ModuleForTests("librust_grpcio", "android_arm64_armv8-a_dylib").Module().(*Module)
-	if !android.InList("libprotobuf", librust_grpcio_module.Properties.AndroidMkDylibs) {
-		t.Errorf("libprotobuf dependency missing for rust_grpcio (dependency missing from AndroidMkDylibs)")
-	}
 
 	// Check that libgrpcio is added as a dependency.
 	if !android.InList("libgrpcio", librust_grpcio_module.Properties.AndroidMkDylibs) {
@@ -106,17 +94,9 @@ func TestRustGrpcio(t *testing.T) {
 	}
 
 	// Make sure the correct plugin is being used.
-	librust_grpcio_out := ctx.ModuleForTests("librust_grpcio", "android_arm64_armv8-a_source").Output("buf_grpc.rs")
+	librust_grpcio_out := ctx.ModuleForTests("librust_grpcio", "android_arm64_armv8-a_source").Output("foo_grpc.rs")
 	cmd := librust_grpcio_out.RuleParams.Command
 	if w := "protoc-gen-grpc"; !strings.Contains(cmd, w) {
-		t.Errorf("expected %q in %q", w, cmd)
-	}
-
-	// Check exported include directories
-	if w := "-Ishared_include"; !strings.Contains(cmd, w) {
-		t.Errorf("expected %q in %q", w, cmd)
-	}
-	if w := "-Istatic_include"; !strings.Contains(cmd, w) {
 		t.Errorf("expected %q in %q", w, cmd)
 	}
 
@@ -131,4 +111,26 @@ func TestRustGrpcio(t *testing.T) {
 		t.Errorf("rust_protobuf is not producing multiple outputs; expected 'proto_grpc.rs' in list, got: %#v ",
 			librust_grpcio_outputs)
 	}
+}
+
+func TestRustProtoErrors(t *testing.T) {
+	testRustError(t, "A proto can only be added once to either grpc_protos or protos.*", `
+		rust_protobuf {
+			name: "librust_grpcio",
+			protos: ["buf.proto"],
+			grpc_protos: ["buf.proto"],
+			crate_name: "rust_grpcio",
+			source_stem: "buf",
+		}
+	`)
+
+	testRustError(t, "proto filenames must be unique across  'protos' and 'grpc_protos'.*", `
+		rust_protobuf {
+			name: "librust_grpcio",
+			protos: ["buf.proto"],
+			grpc_protos: ["proto/buf.proto"],
+			crate_name: "rust_grpcio",
+			source_stem: "buf",
+		}
+	`)
 }
