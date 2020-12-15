@@ -977,7 +977,12 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	transformSharedObjectToToc(ctx, outputFile, tocFile, builderFlags)
 
 	stripFlags := flagsToStripFlags(flags)
-	if library.stripper.NeedsStrip(ctx) {
+	needsStrip := library.stripper.NeedsStrip(ctx)
+	if library.buildStubs() {
+		// No need to strip stubs libraries
+		needsStrip = false
+	}
+	if needsStrip {
 		if ctx.Darwin() {
 			stripFlags.StripUseGnuStrip = true
 		}
