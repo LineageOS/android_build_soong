@@ -2411,7 +2411,14 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 			switch {
 			case libDepTag.header():
-				// nothing
+				if !ctx.OtherModuleHasProvider(dep, HeaderLibraryInfoProvider) {
+					if !ctx.Config().AllowMissingDependencies() {
+						ctx.ModuleErrorf("module %q is not a header library", depName)
+					} else {
+						ctx.AddMissingDependencies([]string{depName})
+					}
+					return
+				}
 			case libDepTag.shared():
 				if !ctx.OtherModuleHasProvider(dep, SharedLibraryInfoProvider) {
 					if !ctx.Config().AllowMissingDependencies() {
