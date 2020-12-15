@@ -4,4 +4,7 @@ bootstrap_go_package {
     srcs: [
         "paths.go",
     ],
+    deps: [
+        "soong-bazel",
+    ],
 }
