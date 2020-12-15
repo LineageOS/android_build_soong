@@ -46,7 +46,7 @@ type AndroidMkContext interface {
 	InRamdisk() bool
 	InVendorRamdisk() bool
 	InRecovery() bool
-	AnyVariantDirectlyInAnyApex() bool
+	NotInPlatform() bool
 }
 
 type subAndroidMkProvider interface {
@@ -281,10 +281,15 @@ func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries 
 			}
 		})
 	}
-	if len(library.Properties.Stubs.Versions) > 0 && !ctx.Host() && ctx.AnyVariantDirectlyInAnyApex() &&
+	// If a library providing a stub is included in an APEX, the private APIs of the library
+	// is accessible only inside the APEX. From outside of the APEX, clients can only use the
+	// public APIs via the stub. To enforce this, the (latest version of the) stub gets the
+	// name of the library. The impl library instead gets the `.bootstrap` suffix to so that
+	// they can be exceptionally used directly when APEXes are not available (e.g. during the
+	// very early stage in the boot process).
+	if len(library.Properties.Stubs.Versions) > 0 && !ctx.Host() && ctx.NotInPlatform() &&
 		!ctx.InRamdisk() && !ctx.InVendorRamdisk() && !ctx.InRecovery() && !ctx.UseVndk() && !ctx.static() {
 		if library.buildStubs() && library.isLatestStubVersion() {
-			// reference the latest version via its name without suffix when it is provided by apex
 			entries.SubName = ""
 		}
 		if !library.buildStubs() {
