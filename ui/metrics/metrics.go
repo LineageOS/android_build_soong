@@ -60,6 +60,8 @@ func (m *Metrics) SetTimeMetrics(perf soong_metrics_proto.PerfInfo) {
 		m.metrics.BazelRuns = append(m.metrics.BazelRuns, &perf)
 	case PrimaryNinja:
 		m.metrics.NinjaRuns = append(m.metrics.NinjaRuns, &perf)
+	case RunSetupTool:
+		m.metrics.SetupTools = append(m.metrics.SetupTools, &perf)
 	case Total:
 		m.metrics.Total = &perf
 	}
