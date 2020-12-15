@@ -190,6 +190,12 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 		}
 	}
 
+	if p.header() {
+		ctx.SetProvider(HeaderLibraryInfoProvider, HeaderLibraryInfo{})
+
+		return nil
+	}
+
 	return nil
 }
 
