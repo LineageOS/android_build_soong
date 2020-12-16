@@ -23,7 +23,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
-	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
+	"android/soong/ui/metrics/metrics_proto"
 )
 
 const (
