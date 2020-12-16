@@ -432,6 +432,7 @@ type ModuleContextIntf interface {
 	mustUseVendorVariant() bool
 	nativeCoverage() bool
 	directlyInAnyApex() bool
+	isPreventInstall() bool
 }
 
 type ModuleContext interface {
@@ -1323,6 +1324,10 @@ func (ctx *moduleContextImpl) nativeCoverage() bool {
 
 func (ctx *moduleContextImpl) directlyInAnyApex() bool {
 	return ctx.mod.DirectlyInAnyApex()
+}
+
+func (ctx *moduleContextImpl) isPreventInstall() bool {
+	return ctx.mod.Properties.PreventInstall
 }
 
 func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
