@@ -206,7 +206,7 @@ func (c *Module) generateBazelBuildActions(ctx android.ModuleContext, label stri
 	if ok {
 		var bazelOutputFiles android.Paths
 		for _, bazelOutputFile := range filePaths {
-			bazelOutputFiles = append(bazelOutputFiles, android.PathForSource(ctx, bazelOutputFile))
+			bazelOutputFiles = append(bazelOutputFiles, android.PathForBazelOut(ctx, bazelOutputFile))
 		}
 		c.outputFiles = bazelOutputFiles
 		c.outputDeps = bazelOutputFiles
