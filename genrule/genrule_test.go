@@ -736,7 +736,8 @@ func TestGenruleWithBazel(t *testing.T) {
 	}
 	gen := ctx.ModuleForTests("foo", "").Module().(*Module)
 
-	expectedOutputFiles := []string{"bazelone.txt", "bazeltwo.txt"}
+	expectedOutputFiles := []string{"outputbase/execroot/__main__/bazelone.txt",
+		"outputbase/execroot/__main__/bazeltwo.txt"}
 	if !reflect.DeepEqual(gen.outputFiles.Strings(), expectedOutputFiles) {
 		t.Errorf("Expected output files: %q, actual: %q", expectedOutputFiles, gen.outputFiles)
 	}
