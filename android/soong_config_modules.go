@@ -51,6 +51,16 @@ type soongConfigModuleTypeImportProperties struct {
 // variables from another Android.bp file.  The imported module type will exist for all
 // modules after the import in the Android.bp file.
 //
+// Each soong_config_variable supports an additional value `conditions_default`. The properties
+// specified in `conditions_default` will only be used under the following conditions:
+//   bool variable: the variable is unspecified or not set to a true value
+//   value variable: the variable is unspecified
+//   string variable: the variable is unspecified or the variable is set to a string unused in the
+//                    given module. For example, string variable `test` takes values: "a" and "b",
+//                    if the module contains a property `a` and `conditions_default`, when test=b,
+//                    the properties under `conditions_default` will be used. To specify that no
+//                    properties should be amended for `b`, you can set `b: {},`.
+//
 // For example, an Android.bp file could have:
 //
 //     soong_config_module_type_import {
@@ -69,12 +79,21 @@ type soongConfigModuleTypeImportProperties struct {
 //                 soc_b: {
 //                     cflags: ["-DSOC_B"],
 //                 },
+//                 conditions_default: {
+//                     cflags: ["-DSOC_DEFAULT"],
+//                 },
 //             },
 //             feature: {
 //                 cflags: ["-DFEATURE"],
+//                 conditions_default: {
+//                     cflags: ["-DFEATURE_DEFAULT"],
+//                 },
 //             },
 //             width: {
 //                 cflags: ["-DWIDTH=%s"],
+//                 conditions_default: {
+//                     cflags: ["-DWIDTH=DEFAULT"],
+//                 },
 //             },
 //         },
 //     }
@@ -99,7 +118,7 @@ type soongConfigModuleTypeImportProperties struct {
 //
 //     soong_config_string_variable {
 //         name: "board",
-//         values: ["soc_a", "soc_b"],
+//         values: ["soc_a", "soc_b", "soc_c"],
 //     }
 //
 // If an acme BoardConfig.mk file contained:
@@ -114,6 +133,31 @@ type soongConfigModuleTypeImportProperties struct {
 //     SOONG_CONFIG_acme_width := 200
 //
 // Then libacme_foo would build with cflags "-DGENERIC -DSOC_A -DFEATURE -DWIDTH=200".
+//
+// Alternatively, if acme BoardConfig.mk file contained:
+//
+//     SOONG_CONFIG_NAMESPACES += acme
+//     SOONG_CONFIG_acme += \
+//         board \
+//         feature \
+//
+//     SOONG_CONFIG_acme_feature := false
+//
+// Then libacme_foo would build with cflags:
+//   "-DGENERIC -DSOC_DEFAULT -DFEATURE_DEFAULT -DSIZE=DEFAULT".
+//
+// Similarly, if acme BoardConfig.mk file contained:
+//
+//     SOONG_CONFIG_NAMESPACES += acme
+//     SOONG_CONFIG_acme += \
+//         board \
+//         feature \
+//
+//     SOONG_CONFIG_acme_board := soc_c
+//
+// Then libacme_foo would build with cflags:
+//   "-DGENERIC -DSOC_DEFAULT -DFEATURE_DEFAULT -DSIZE=DEFAULT".
+
 func soongConfigModuleTypeImportFactory() Module {
 	module := &soongConfigModuleTypeImport{}
 
@@ -148,6 +192,16 @@ type soongConfigModuleTypeModule struct {
 // in an Android.bp file, and can be imported into other Android.bp files using
 // soong_config_module_type_import.
 //
+// Each soong_config_variable supports an additional value `conditions_default`. The properties
+// specified in `conditions_default` will only be used under the following conditions:
+//   bool variable: the variable is unspecified or not set to a true value
+//   value variable: the variable is unspecified
+//   string variable: the variable is unspecified or the variable is set to a string unused in the
+//                    given module. For example, string variable `test` takes values: "a" and "b",
+//                    if the module contains a property `a` and `conditions_default`, when test=b,
+//                    the properties under `conditions_default` will be used. To specify that no
+//                    properties should be amended for `b`, you can set `b: {},`.
+//
 // For example, an Android.bp file could have:
 //
 //     soong_config_module_type {
@@ -176,12 +230,21 @@ type soongConfigModuleTypeModule struct {
 //                 soc_b: {
 //                     cflags: ["-DSOC_B"],
 //                 },
+//                 conditions_default: {
+//                     cflags: ["-DSOC_DEFAULT"],
+//                 },
 //             },
 //             feature: {
 //                 cflags: ["-DFEATURE"],
+//                 conditions_default: {
+//                     cflags: ["-DFEATURE_DEFAULT"],
+//                 },
 //             },
 //             width: {
 //	               cflags: ["-DWIDTH=%s"],
+//                 conditions_default: {
+//                     cflags: ["-DWIDTH=DEFAULT"],
+//                 },
 //             },
 //         },
 //     }
