@@ -17,6 +17,7 @@ package cc
 import (
 	"android/soong/android"
 	"path/filepath"
+	"strings"
 )
 
 func init() {
@@ -116,6 +117,8 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 			ctx.PropertyErrorf("srcs", "multiple prebuilt source files")
 			return nil
 		}
+
+		p.libraryDecorator.exportVersioningMacroIfNeeded(ctx)
 
 		in := android.PathForModuleSrc(ctx, srcs[0])
 
@@ -224,6 +227,11 @@ func (p *prebuiltLibraryLinker) nativeCoverage() bool {
 
 func (p *prebuiltLibraryLinker) disablePrebuilt() {
 	p.properties.Srcs = nil
+}
+
+// Implements versionedInterface
+func (p *prebuiltLibraryLinker) implementationModuleName(name string) string {
+	return strings.TrimPrefix(name, "prebuilt_")
 }
 
 func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
