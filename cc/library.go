@@ -1336,7 +1336,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 			}
 		} else if ctx.directlyInAnyApex() && ctx.isLlndk(ctx.Config()) && !isBionic(ctx.baseModuleName()) {
 			// Skip installing LLNDK (non-bionic) libraries moved to APEX.
-			ctx.Module().SkipInstall()
+			ctx.Module().HideFromMake()
 		}
 
 		library.baseInstaller.install(ctx, file)
