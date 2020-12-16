@@ -2,6 +2,7 @@ bootstrap_go_package {
     name: "soong-bazel",
     pkgPath: "android/soong/bazel",
     srcs: [
+        "constants.go",
         "properties.go",
     ],
     pluginFor: [

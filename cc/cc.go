@@ -79,13 +79,17 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("sanitize_runtime", sanitizerRuntimeMutator).Parallel()
 
 		ctx.BottomUp("coverage", coverageMutator).Parallel()
-		ctx.TopDown("vndk_deps", sabiDepsMutator)
 
 		ctx.TopDown("lto_deps", ltoDepsMutator)
 		ctx.BottomUp("lto", ltoMutator).Parallel()
 
 		ctx.BottomUp("check_linktype", checkLinkTypeMutator).Parallel()
 		ctx.TopDown("double_loadable", checkDoubleLoadableLibraries).Parallel()
+	})
+
+	ctx.FinalDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		// sabi mutator needs to be run after apex mutator finishes.
+		ctx.TopDown("sabi_deps", sabiDepsMutator)
 	})
 
 	ctx.RegisterSingletonType("kythe_extract_all", kytheExtractAllFactory)
@@ -415,7 +419,6 @@ type ModuleContextIntf interface {
 	inRamdisk() bool
 	inVendorRamdisk() bool
 	inRecovery() bool
-	shouldCreateSourceAbiDump() bool
 	selectedStl() string
 	baseModuleName() string
 	getVndkExtendsModuleName() string
@@ -1279,42 +1282,6 @@ func (ctx *moduleContextImpl) mustUseVendorVariant() bool {
 	return ctx.mod.MustUseVendorVariant()
 }
 
-// Check whether ABI dumps should be created for this module.
-func (ctx *moduleContextImpl) shouldCreateSourceAbiDump() bool {
-	if ctx.ctx.Config().IsEnvTrue("SKIP_ABI_CHECKS") {
-		return false
-	}
-
-	// Coverage builds have extra symbols.
-	if ctx.mod.isCoverageVariant() {
-		return false
-	}
-
-	if ctx.ctx.Fuchsia() {
-		return false
-	}
-
-	if sanitize := ctx.mod.sanitize; sanitize != nil {
-		if !sanitize.isVariantOnProductionDevice() {
-			return false
-		}
-	}
-	if !ctx.ctx.Device() {
-		// Host modules do not need ABI dumps.
-		return false
-	}
-	if ctx.isNDKStubLibrary() {
-		// Stubs do not need ABI dumps.
-		return false
-	}
-	if lib := ctx.mod.library; lib != nil && lib.buildStubs() {
-		// Stubs do not need ABI dumps.
-		return false
-	}
-
-	return true
-}
-
 func (ctx *moduleContextImpl) selectedStl() string {
 	if stl := ctx.mod.stl; stl != nil {
 		return stl.Properties.SelectedStl
@@ -1586,13 +1553,14 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 		c.outputFile = android.OptionalPathForPath(outputFile)
 
-		// If a lib is directly included in any of the APEXes, unhide the stubs
-		// variant having the latest version gets visible to make. In addition,
-		// the non-stubs variant is renamed to <libname>.bootstrap. This is to
-		// force anything in the make world to link against the stubs library.
-		// (unless it is explicitly referenced via .bootstrap suffix or the
-		// module is marked with 'bootstrap: true').
-		if c.HasStubsVariants() && c.AnyVariantDirectlyInAnyApex() && !c.InRamdisk() &&
+		// If a lib is directly included in any of the APEXes or is not available to the
+		// platform (which is often the case when the stub is provided as a prebuilt),
+		// unhide the stubs variant having the latest version gets visible to make. In
+		// addition, the non-stubs variant is renamed to <libname>.bootstrap. This is to
+		// force anything in the make world to link against the stubs library.  (unless it
+		// is explicitly referenced via .bootstrap suffix or the module is marked with
+		// 'bootstrap: true').
+		if c.HasStubsVariants() && c.NotInPlatform() && !c.InRamdisk() &&
 			!c.InRecovery() && !c.UseVndk() && !c.static() && !c.isCoverageVariant() &&
 			c.IsStubs() && !c.InVendorRamdisk() {
 			c.Properties.HideFromMake = false // unhide
@@ -2443,7 +2411,14 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 			switch {
 			case libDepTag.header():
-				// nothing
+				if !ctx.OtherModuleHasProvider(dep, HeaderLibraryInfoProvider) {
+					if !ctx.Config().AllowMissingDependencies() {
+						ctx.ModuleErrorf("module %q is not a header library", depName)
+					} else {
+						ctx.AddMissingDependencies([]string{depName})
+					}
+					return
+				}
 			case libDepTag.shared():
 				if !ctx.OtherModuleHasProvider(dep, SharedLibraryInfoProvider) {
 					if !ctx.Config().AllowMissingDependencies() {
@@ -2472,7 +2447,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// an APEX (and not from platform)
 						// However, for host, ramdisk, vendor_ramdisk, recovery or bootstrap modules,
 						// always link to non-stub variant
-						useStubs = dep.(android.ApexModule).AnyVariantDirectlyInAnyApex() && !c.bootstrap()
+						useStubs = dep.(android.ApexModule).NotInPlatform() && !c.bootstrap()
 						// Another exception: if this module is bundled with an APEX, then
 						// it is linked with the non-stub variant of a module in the APEX
 						// as if this is part of the APEX.

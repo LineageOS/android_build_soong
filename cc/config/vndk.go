@@ -23,6 +23,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.light-ndk_platform",
 	"android.hardware.identity-ndk_platform",
 	"android.hardware.nfc@1.2",
+	"android.hardware.memtrack-unstable-ndk_platform",
 	"android.hardware.power-ndk_platform",
 	"android.hardware.power.stats-ndk_platform",
 	"android.hardware.power.stats-unstable-ndk_platform",
