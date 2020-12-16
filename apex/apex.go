@@ -1682,8 +1682,15 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						}
 						af := apexFileForNativeLibrary(ctx, cc, handleSpecialLibs)
 						af.transitiveDep = true
+
+						// Always track transitive dependencies for host.
+						if a.Host() {
+							filesInfo = append(filesInfo, af)
+							return true
+						}
+
 						abInfo := ctx.Provider(ApexBundleInfoProvider).(ApexBundleInfo)
-						if !a.Host() && !abInfo.Contents.DirectlyInApex(depName) && (cc.IsStubs() || cc.HasStubsVariants()) {
+						if !abInfo.Contents.DirectlyInApex(depName) && (cc.IsStubs() || cc.HasStubsVariants()) {
 							// If the dependency is a stubs lib, don't include it in this APEX,
 							// but make sure that the lib is installed on the device.
 							// In case no APEX is having the lib, the lib is installed to the system
@@ -1716,7 +1723,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						// else-if clause for the indirect dependencies.
 						// Currently, that's impossible because we would
 						// like to record requiredNativeLibs even when
-						// DepIsInSameAPex is false.
+						// DepIsInSameAPex is false. We also shouldn't do
+						// this for host.
 						if !am.DepIsInSameApex(ctx, am) {
 							return false
 						}
