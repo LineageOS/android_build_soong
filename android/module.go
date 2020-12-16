@@ -2732,7 +2732,6 @@ func outputFilesForModule(ctx PathContext, module blueprint.Module, tag string) 
 // Modules can implement HostToolProvider and return a valid OptionalPath from HostToolPath() to
 // specify that they can be used as a tool by a genrule module.
 type HostToolProvider interface {
-	Module
 	// HostToolPath returns the path to the host tool for the module if it is one, or an invalid
 	// OptionalPath.
 	HostToolPath() OptionalPath
