@@ -1081,8 +1081,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			switch tag {
 			case libTag:
 				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
-				j.classLoaderContexts.MaybeAddContext(ctx, dep.OptionalImplicitSdkLibrary(),
-					dep.DexJarBuildPath(), dep.DexJarInstallPath())
 			case staticLibTag:
 				ctx.ModuleErrorf("dependency on java_sdk_library %q can only be in libs", otherName)
 			}
@@ -1092,7 +1090,6 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.bootClasspath = append(deps.bootClasspath, dep.HeaderJars()...)
 			case libTag, instrumentationForTag:
 				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
-				j.classLoaderContexts.AddContextMap(dep.ClassLoaderContexts(), otherName)
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
 				pluginJars, pluginClasses, disableTurbine := dep.ExportedPlugins()
 				addPlugins(&deps, pluginJars, pluginClasses...)
@@ -1179,8 +1176,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			}
 		}
 
-		// Merge dep's CLC after processing the dep itself (which may add its own <uses-library>).
-		maybeAddCLCFromDep(module, tag, otherName, j.classLoaderContexts)
+		addCLCFromDep(ctx, module, j.classLoaderContexts)
 	})
 
 	return deps
@@ -2133,18 +2129,6 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		j.installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 			j.Stem()+".jar", j.outputFile, extraInstallDeps...)
 	}
-
-	// If this is a component library (stubs, etc.) for a java_sdk_library then
-	// add the name of that java_sdk_library to the exported sdk libs to make sure
-	// that, if necessary, a <uses-library> element for that java_sdk_library is
-	// added to the Android manifest.
-	j.classLoaderContexts.MaybeAddContext(ctx, j.OptionalImplicitSdkLibrary(),
-		j.DexJarBuildPath(), j.DexJarInstallPath())
-
-	// A non-SDK library may provide a <uses-library> (the name may be different from the module name).
-	if lib := proptools.String(j.usesLibraryProperties.Provides_uses_lib); lib != "" {
-		j.classLoaderContexts.AddContext(ctx, lib, j.DexJarBuildPath(), j.DexJarInstallPath())
-	}
 }
 
 func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -2806,7 +2790,6 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var flags javaBuilderFlags
 
 	ctx.VisitDirectDeps(func(module android.Module) {
-		otherName := ctx.OtherModuleName(module)
 		tag := ctx.OtherModuleDependencyTag(module)
 
 		switch dep := module.(type) {
@@ -2821,26 +2804,16 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			switch tag {
 			case libTag:
 				flags.classpath = append(flags.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
-				j.classLoaderContexts.AddContext(ctx, otherName, dep.DexJarBuildPath(), dep.DexJarInstallPath())
 			}
 		}
 
-		// Merge dep's CLC after processing the dep itself (which may add its own <uses-library>).
-		maybeAddCLCFromDep(module, tag, otherName, j.classLoaderContexts)
+		addCLCFromDep(ctx, module, j.classLoaderContexts)
 	})
 
-	var installFile android.Path
 	if Bool(j.properties.Installable) {
-		installFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
+		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
 			jarName, outputFile)
 	}
-
-	// If this is a component library (impl, stubs, etc.) for a java_sdk_library then
-	// add the name of that java_sdk_library to the exported sdk libs to make sure
-	// that, if necessary, a <uses-library> element for that java_sdk_library is
-	// added to the Android manifest.
-	j.classLoaderContexts.MaybeAddContext(ctx, j.OptionalImplicitSdkLibrary(),
-		outputFile, installFile)
 
 	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.properties.Aidl.Export_include_dirs)
 
@@ -3248,30 +3221,63 @@ var BoolDefault = proptools.BoolDefault
 var String = proptools.String
 var inList = android.InList
 
-// Add class loader context of a given dependency to the given class loader context, provided that
-// all the necessary conditions are met.
-func maybeAddCLCFromDep(depModule android.Module, depTag blueprint.DependencyTag,
-	depName string, clcMap dexpreopt.ClassLoaderContextMap) {
+// TODO(b/132357300) Generalize SdkLibrarComponentDependency to non-SDK libraries and merge with
+// this interface.
+type ProvidesUsesLib interface {
+	ProvidesUsesLib() *string
+}
 
-	if dep, ok := depModule.(Dependency); ok {
-		if depTag == libTag {
-			// Ok, propagate <uses-library> through non-static library dependencies.
-		} else if depTag == staticLibTag {
-			// Propagate <uses-library> through static library dependencies, unless it is a
-			// component library (such as stubs). Component libraries have a dependency on their
-			// SDK library, which should not be pulled just because of a static component library.
-			if comp, isComp := depModule.(SdkLibraryComponentDependency); isComp {
-				if compName := comp.OptionalImplicitSdkLibrary(); compName != nil {
-					dep = nil
-				}
-			}
-		} else {
-			// Don't propagate <uses-library> for other dependency tags.
-			dep = nil
-		}
+func (j *Module) ProvidesUsesLib() *string {
+	return j.usesLibraryProperties.Provides_uses_lib
+}
 
-		if dep != nil {
-			clcMap.AddContextMap(dep.ClassLoaderContexts(), depName)
+// Add class loader context (CLC) of a given dependency to the current CLC.
+func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
+	clcMap dexpreopt.ClassLoaderContextMap) {
+
+	dep, ok := depModule.(UsesLibraryDependency)
+	if !ok {
+		return
+	}
+
+	// Find out if the dependency is either an SDK library or an ordinary library that is disguised
+	// as an SDK library by the means of `provides_uses_lib` property. If yes, the library is itself
+	// a <uses-library> and should be added as a node in the CLC tree, and its CLC should be added
+	// as subtree of that node. Otherwise the library is not a <uses_library> and should not be
+	// added to CLC, but the transitive <uses-library> dependencies from its CLC should be added to
+	// the current CLC.
+	var implicitSdkLib *string
+	comp, isComp := depModule.(SdkLibraryComponentDependency)
+	if isComp {
+		implicitSdkLib = comp.OptionalImplicitSdkLibrary()
+		// OptionalImplicitSdkLibrary() may be nil so need to fall through to ProvidesUsesLib().
+	}
+	if implicitSdkLib == nil {
+		if ulib, ok := depModule.(ProvidesUsesLib); ok {
+			implicitSdkLib = ulib.ProvidesUsesLib()
 		}
+	}
+
+	depTag := ctx.OtherModuleDependencyTag(depModule)
+	if depTag == libTag || depTag == usesLibTag {
+		// Ok, propagate <uses-library> through non-static library dependencies.
+	} else if depTag == staticLibTag {
+		// Propagate <uses-library> through static library dependencies, unless it is a component
+		// library (such as stubs). Component libraries have a dependency on their SDK library,
+		// which should not be pulled just because of a static component library.
+		if implicitSdkLib != nil {
+			return
+		}
+	} else {
+		// Don't propagate <uses-library> for other dependency tags.
+		return
+	}
+
+	if implicitSdkLib != nil {
+		clcMap.AddContextForSdk(ctx, dexpreopt.AnySdkVersion, *implicitSdkLib,
+			dep.DexJarBuildPath(), dep.DexJarInstallPath(), dep.ClassLoaderContexts())
+	} else {
+		depName := ctx.OtherModuleName(depModule)
+		clcMap.AddContextMap(dep.ClassLoaderContexts(), depName)
 	}
 }

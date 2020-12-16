@@ -416,7 +416,6 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, classLoaderConte
 	}
 
 	ctx.VisitDirectDeps(func(module android.Module) {
-		depName := ctx.OtherModuleName(module)
 		depTag := ctx.OtherModuleDependencyTag(module)
 
 		var exportPackage android.Path
@@ -432,15 +431,6 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, classLoaderConte
 			if exportPackage != nil {
 				sharedLibs = append(sharedLibs, exportPackage)
 			}
-
-			// If the module is (or possibly could be) a component of a java_sdk_library
-			// (including the java_sdk_library) itself then append any implicit sdk library
-			// names to the list of sdk libraries to be added to the manifest.
-			if component, ok := module.(SdkLibraryComponentDependency); ok {
-				classLoaderContexts.MaybeAddContext(ctx, component.OptionalImplicitSdkLibrary(),
-					component.DexJarBuildPath(), component.DexJarInstallPath())
-			}
-
 		case frameworkResTag:
 			if exportPackage != nil {
 				sharedLibs = append(sharedLibs, exportPackage)
@@ -468,8 +458,7 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, classLoaderConte
 			}
 		}
 
-		// Merge dep's CLC after processing the dep itself (which may add its own <uses-library>).
-		maybeAddCLCFromDep(module, depTag, depName, classLoaderContexts)
+		addCLCFromDep(ctx, module, classLoaderContexts)
 	})
 
 	deps = append(deps, sharedLibs...)
