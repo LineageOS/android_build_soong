@@ -452,8 +452,8 @@ type Module interface {
 	InstallInRoot() bool
 	InstallBypassMake() bool
 	InstallForceOS() (*OsType, *ArchType)
-	SkipInstall()
-	IsSkipInstall() bool
+	HideFromMake()
+	IsHideFromMake() bool
 	MakeUninstallable()
 	ReplacedByPrebuilt()
 	IsReplacedByPrebuilt() bool
@@ -751,6 +751,13 @@ type commonProperties struct {
 	// Set by osMutator.
 	CommonOSVariant bool `blueprint:"mutated"`
 
+	// When HideFromMake is set to true, no entry for this variant will be emitted in the
+	// generated Android.mk file.
+	HideFromMake bool `blueprint:"mutated"`
+
+	// When SkipInstall is set to true, calls to ctx.InstallFile, ctx.InstallExecutable,
+	// ctx.InstallSymlink and ctx.InstallAbsoluteSymlink act like calls to ctx.PackageFile
+	// and don't create a rule to install the file.
 	SkipInstall bool `blueprint:"mutated"`
 
 	// Whether the module has been replaced by a prebuilt
@@ -1355,26 +1362,33 @@ func (m *ModuleBase) Disable() {
 	m.commonProperties.ForcedDisabled = true
 }
 
+// HideFromMake marks this variant so that it is not emitted in the generated Android.mk file.
+func (m *ModuleBase) HideFromMake() {
+	m.commonProperties.HideFromMake = true
+}
+
+// IsHideFromMake returns true if HideFromMake was previously called.
+func (m *ModuleBase) IsHideFromMake() bool {
+	return m.commonProperties.HideFromMake == true
+}
+
+// SkipInstall marks this variant to not create install rules when ctx.Install* are called.
 func (m *ModuleBase) SkipInstall() {
 	m.commonProperties.SkipInstall = true
 }
 
-func (m *ModuleBase) IsSkipInstall() bool {
-	return m.commonProperties.SkipInstall == true
-}
-
-// Similar to SkipInstall, but if the AndroidMk entry would set
+// Similar to HideFromMake, but if the AndroidMk entry would set
 // LOCAL_UNINSTALLABLE_MODULE then this variant may still output that entry
 // rather than leaving it out altogether. That happens in cases where it would
 // have other side effects, in particular when it adds a NOTICE file target,
 // which other install targets might depend on.
 func (m *ModuleBase) MakeUninstallable() {
-	m.SkipInstall()
+	m.HideFromMake()
 }
 
 func (m *ModuleBase) ReplacedByPrebuilt() {
 	m.commonProperties.ReplacedByPrebuilt = true
-	m.SkipInstall()
+	m.HideFromMake()
 }
 
 func (m *ModuleBase) IsReplacedByPrebuilt() bool {
@@ -2440,8 +2454,12 @@ func (m *moduleContext) InstallForceOS() (*OsType, *ArchType) {
 	return m.module.InstallForceOS()
 }
 
-func (m *moduleContext) skipInstall(fullInstallPath InstallPath) bool {
+func (m *moduleContext) skipInstall() bool {
 	if m.module.base().commonProperties.SkipInstall {
+		return true
+	}
+
+	if m.module.base().commonProperties.HideFromMake {
 		return true
 	}
 
@@ -2492,7 +2510,7 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 	fullInstallPath := installPath.Join(m, name)
 	m.module.base().hooks.runInstallHooks(m, srcPath, fullInstallPath, false)
 
-	if !m.skipInstall(fullInstallPath) {
+	if !m.skipInstall() {
 		deps = append(deps, m.module.base().installFilesDepSet.ToList().Paths()...)
 
 		var implicitDeps, orderOnlyDeps Paths
@@ -2526,6 +2544,7 @@ func (m *moduleContext) installFile(installPath InstallPath, name string, srcPat
 	m.packageFile(fullInstallPath, srcPath, executable)
 
 	m.checkbuildFiles = append(m.checkbuildFiles, srcPath)
+
 	return fullInstallPath
 }
 
@@ -2537,7 +2556,7 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 	if err != nil {
 		panic(fmt.Sprintf("Unable to generate symlink between %q and %q: %s", fullInstallPath.Base(), srcPath.Base(), err))
 	}
-	if !m.skipInstall(fullInstallPath) {
+	if !m.skipInstall() {
 
 		m.Build(pctx, BuildParams{
 			Rule:        Symlink,
@@ -2570,7 +2589,7 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 	fullInstallPath := installPath.Join(m, name)
 	m.module.base().hooks.runInstallHooks(m, nil, fullInstallPath, true)
 
-	if !m.skipInstall(fullInstallPath) {
+	if !m.skipInstall() {
 		m.Build(pctx, BuildParams{
 			Rule:        Symlink,
 			Description: "install symlink " + fullInstallPath.Base() + " -> " + absPath,
@@ -2738,6 +2757,7 @@ func outputFilesForModule(ctx PathContext, module blueprint.Module, tag string) 
 // Modules can implement HostToolProvider and return a valid OptionalPath from HostToolPath() to
 // specify that they can be used as a tool by a genrule module.
 type HostToolProvider interface {
+	Module
 	// HostToolPath returns the path to the host tool for the module if it is one, or an invalid
 	// OptionalPath.
 	HostToolPath() OptionalPath
