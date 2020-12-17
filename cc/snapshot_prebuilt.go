@@ -805,7 +805,7 @@ func VendorSnapshotSourceMutator(ctx android.BottomUpMutatorContext) {
 	}
 
 	// .. and also filter out llndk library
-	if module.isLlndk(ctx.Config()) {
+	if module.IsLlndk() {
 		return
 	}
 
