@@ -6559,6 +6559,11 @@ func TestPrebuiltStubLibDep(t *testing.T) {
 						if entry.mkEntries.EntryMap["LOCAL_NOT_AVAILABLE_FOR_PLATFORM"] != nil {
 							t.Errorf("AndroidMk entry for \"stublib\" has LOCAL_NOT_AVAILABLE_FOR_PLATFORM set: %+v", entry.mkEntries)
 						}
+						cflags := entry.mkEntries.EntryMap["LOCAL_EXPORT_CFLAGS"]
+						expected := "-D__STUBLIB_API__=1"
+						if !android.InList(expected, cflags) {
+							t.Errorf("LOCAL_EXPORT_CFLAGS expected to have %q, but got %q", expected, cflags)
+						}
 					}
 				})
 			}

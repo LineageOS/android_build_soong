@@ -1154,6 +1154,17 @@ func pathForModule(ctx ModuleContext) OutputPath {
 	return PathForOutput(ctx, ".intermediates", ctx.ModuleDir(), ctx.ModuleName(), ctx.ModuleSubDir())
 }
 
+type BazelOutPath struct {
+	OutputPath
+}
+
+var _ Path = BazelOutPath{}
+var _ objPathProvider = BazelOutPath{}
+
+func (p BazelOutPath) objPathWithExt(ctx ModuleContext, subdir, ext string) ModuleObjPath {
+	return PathForModuleObj(ctx, subdir, pathtools.ReplaceExtension(p.path, ext))
+}
+
 // PathForVndkRefAbiDump returns an OptionalPath representing the path of the
 // reference abi dump for the given module. This is not guaranteed to be valid.
 func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string,
@@ -1190,6 +1201,24 @@ func PathForVndkRefAbiDump(ctx ModuleContext, version, fileName string,
 	return ExistentPathForSource(ctx, "prebuilts", "abi-dumps", dirName,
 		version, binderBitness, archNameAndVariant, "source-based",
 		fileName+ext)
+}
+
+// PathForBazelOut returns a Path representing the paths... under an output directory dedicated to
+// bazel-owned outputs.
+func PathForBazelOut(ctx PathContext, paths ...string) BazelOutPath {
+	execRootPathComponents := append([]string{"execroot", "__main__"}, paths...)
+	execRootPath := filepath.Join(execRootPathComponents...)
+	validatedExecRootPath, err := validatePath(execRootPath)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+
+	outputPath := OutputPath{basePath{"", ctx.Config(), ""},
+		ctx.Config().BazelContext.OutputBase()}
+
+	return BazelOutPath{
+		OutputPath: outputPath.withRel(validatedExecRootPath),
+	}
 }
 
 // PathForModuleOut returns a Path representing the paths... under the module's
