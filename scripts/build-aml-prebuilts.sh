@@ -82,6 +82,9 @@ readonly SOONG_VARS=${SOONG_OUT}/soong.variables
 # CrossHost: linux_bionic
 # CrossHostArch: x86_64
 #   -  Enable Bionic on host as ART needs prebuilts for it.
+# VendorVars.art_mdoule.source_build
+#   -  TODO(b/172480615): Change default to false when platform uses ART Module
+#      prebuilts by default.
 cat > ${SOONG_VARS}.new << EOF
 {
     "BuildNumberFile": "build_number.txt",
@@ -104,7 +107,7 @@ cat > ${SOONG_VARS}.new << EOF
 
     "VendorVars": {
         "art_module": {
-            "source_build": "${ENABLE_ART_SOURCE_BUILD:-false}"
+            "source_build": "${ENABLE_ART_SOURCE_BUILD:-true}"
         }
     },
 
