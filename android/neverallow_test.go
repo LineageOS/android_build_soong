@@ -215,50 +215,6 @@ var neverallowTests = []struct {
 			"java_device_for_host can only be used in allowed projects",
 		},
 	},
-	// Libcore rule tests
-	{
-		name: "sdk_version: \"none\" inside core libraries",
-		fs: map[string][]byte{
-			"libcore/Android.bp": []byte(`
-				java_library {
-					name: "inside_core_libraries",
-					sdk_version: "none",
-				}`),
-		},
-	},
-	{
-		name: "sdk_version: \"none\" on android_*stubs_current stub",
-		fs: map[string][]byte{
-			"frameworks/base/Android.bp": []byte(`
-				java_library {
-					name: "android_stubs_current",
-					sdk_version: "none",
-				}`),
-		},
-	},
-	{
-		name: "sdk_version: \"none\" outside core libraries",
-		fs: map[string][]byte{
-			"Android.bp": []byte(`
-				java_library {
-					name: "outside_core_libraries",
-					sdk_version: "none",
-				}`),
-		},
-		expectedErrors: []string{
-			"module \"outside_core_libraries\": violates neverallow",
-		},
-	},
-	{
-		name: "sdk_version: \"current\"",
-		fs: map[string][]byte{
-			"Android.bp": []byte(`
-				java_library {
-					name: "outside_core_libraries",
-					sdk_version: "current",
-				}`),
-		},
-	},
 	// CC sdk rule tests
 	{
 		name: `"sdk_variant_only" outside allowed list`,

@@ -51,7 +51,6 @@ var neverallows = []Rule{}
 func init() {
 	AddNeverAllowRules(createIncludeDirsRules()...)
 	AddNeverAllowRules(createTrebleRules()...)
-	AddNeverAllowRules(createLibcoreRules()...)
 	AddNeverAllowRules(createMediaRules()...)
 	AddNeverAllowRules(createJavaDeviceForHostRules()...)
 	AddNeverAllowRules(createCcSdkVariantRules()...)
@@ -130,31 +129,6 @@ func createTrebleRules() []Rule {
 		// Example:
 		// *NeverAllow().with("Srcs", "main.cpp"))
 	}
-}
-
-func createLibcoreRules() []Rule {
-	var coreLibraryProjects = []string{
-		"libcore",
-		"external/apache-harmony",
-		"external/apache-xml",
-		"external/bouncycastle",
-		"external/conscrypt",
-		"external/icu",
-		"external/okhttp",
-		"external/wycheproof",
-		"prebuilts",
-	}
-
-	// Core library constraints. The sdk_version: "none" can only be used in core library projects.
-	// Access to core library targets is restricted using visibility rules.
-	rules := []Rule{
-		NeverAllow().
-			NotIn(coreLibraryProjects...).
-			With("sdk_version", "none").
-			WithoutMatcher("name", Regexp("^android_.*stubs_current$")),
-	}
-
-	return rules
 }
 
 func createMediaRules() []Rule {
