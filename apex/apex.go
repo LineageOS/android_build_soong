@@ -237,6 +237,23 @@ type apexTargetBundleProperties struct {
 	}
 }
 
+type apexArchBundleProperties struct {
+	Arch struct {
+		Arm struct {
+			ApexNativeDependencies
+		}
+		Arm64 struct {
+			ApexNativeDependencies
+		}
+		X86 struct {
+			ApexNativeDependencies
+		}
+		X86_64 struct {
+			ApexNativeDependencies
+		}
+	}
+}
+
 // These properties can be used in override_apex to override the corresponding properties in the
 // base apex.
 type overridableProperties struct {
@@ -273,6 +290,7 @@ type apexBundle struct {
 	// Properties
 	properties            apexBundleProperties
 	targetProperties      apexTargetBundleProperties
+	archProperties        apexArchBundleProperties
 	overridableProperties overridableProperties
 	vndkProperties        apexVndkProperties // only for apex_vndk modules
 
@@ -651,6 +669,20 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 			if !has32BitTarget {
 				depsList = append(depsList, a.properties.Multilib.Prefer32)
 			}
+		}
+
+		// Add native modules targeting a specific arch variant
+		switch target.Arch.ArchType {
+		case android.Arm:
+			depsList = append(depsList, a.archProperties.Arch.Arm.ApexNativeDependencies)
+		case android.Arm64:
+			depsList = append(depsList, a.archProperties.Arch.Arm64.ApexNativeDependencies)
+		case android.X86:
+			depsList = append(depsList, a.archProperties.Arch.X86.ApexNativeDependencies)
+		case android.X86_64:
+			depsList = append(depsList, a.archProperties.Arch.X86_64.ApexNativeDependencies)
+		default:
+			panic(fmt.Errorf("unsupported arch %v\n", ctx.Arch().ArchType))
 		}
 
 		for _, d := range depsList {
@@ -1931,6 +1963,7 @@ func newApexBundle() *apexBundle {
 
 	module.AddProperties(&module.properties)
 	module.AddProperties(&module.targetProperties)
+	module.AddProperties(&module.archProperties)
 	module.AddProperties(&module.overridableProperties)
 
 	android.InitAndroidMultiTargetsArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
