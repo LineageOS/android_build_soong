@@ -510,6 +510,7 @@ type ApexDependency interface {
 type UsesLibraryDependency interface {
 	DexJarBuildPath() android.Path
 	DexJarInstallPath() android.Path
+	ClassLoaderContexts() dexpreopt.ClassLoaderContextMap
 }
 
 type Dependency interface {
@@ -518,7 +519,6 @@ type Dependency interface {
 	ImplementationJars() android.Paths
 	ResourceJars() android.Paths
 	AidlIncludeDirs() android.Paths
-	ClassLoaderContexts() dexpreopt.ClassLoaderContextMap
 	ExportedPlugins() (android.Paths, []string, bool)
 	SrcJarArgs() ([]string, android.Paths)
 	BaseModuleName() string
