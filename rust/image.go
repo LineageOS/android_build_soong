@@ -90,7 +90,7 @@ func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant stri
 		vndkVersion := ctx.DeviceConfig().VndkVersion()
 		if vndkVersion != "current" && vndkVersion != "" && vndkVersion != m.Properties.VndkVersion {
 			m.Properties.HideFromMake = true
-			m.SkipInstall()
+			m.HideFromMake()
 		}
 	}
 }

@@ -181,8 +181,8 @@ func isSnapshotAware(m *Module, inProprietaryPath bool, apexInfo android.ApexInf
 		return false
 	}
 	// When android/prebuilt.go selects between source and prebuilt, it sets
-	// SkipInstall on the other one to avoid duplicate install rules in make.
-	if m.IsSkipInstall() {
+	// HideFromMake on the other one to avoid duplicate install rules in make.
+	if m.IsHideFromMake() {
 		return false
 	}
 	// skip proprietary modules, but (for the vendor snapshot only)

@@ -836,7 +836,7 @@ func VendorSnapshotSourceMutator(ctx android.BottomUpMutatorContext) {
 	// Disables source modules if corresponding snapshot exists.
 	if lib, ok := module.linker.(libraryInterface); ok && lib.buildStatic() && lib.buildShared() {
 		// But do not disable because the shared variant depends on the static variant.
-		module.SkipInstall()
+		module.HideFromMake()
 		module.Properties.HideFromMake = true
 	} else {
 		module.Disable()
