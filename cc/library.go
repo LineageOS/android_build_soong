@@ -1336,7 +1336,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 			}
 		} else if ctx.directlyInAnyApex() && ctx.isLlndk(ctx.Config()) && !isBionic(ctx.baseModuleName()) {
 			// Skip installing LLNDK (non-bionic) libraries moved to APEX.
-			ctx.Module().SkipInstall()
+			ctx.Module().HideFromMake()
 		}
 
 		library.baseInstaller.install(ctx, file)
@@ -1345,7 +1345,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 	if Bool(library.Properties.Static_ndk_lib) && library.static() &&
 		!ctx.useVndk() && !ctx.inRamdisk() && !ctx.inVendorRamdisk() && !ctx.inRecovery() && ctx.Device() &&
 		library.baseLinker.sanitize.isUnsanitizedVariant() &&
-		!library.buildStubs() && ctx.sdkVersion() == "" {
+		ctx.isForPlatform() && !ctx.isPreventInstall() {
 		installPath := getNdkSysrootBase(ctx).Join(
 			ctx, "usr/lib", config.NDKTriple(ctx.toolchain()), file.Base())
 

@@ -432,6 +432,7 @@ type ModuleContextIntf interface {
 	mustUseVendorVariant() bool
 	nativeCoverage() bool
 	directlyInAnyApex() bool
+	isPreventInstall() bool
 }
 
 type ModuleContext interface {
@@ -1325,6 +1326,10 @@ func (ctx *moduleContextImpl) directlyInAnyApex() bool {
 	return ctx.mod.DirectlyInAnyApex()
 }
 
+func (ctx *moduleContextImpl) isPreventInstall() bool {
+	return ctx.mod.Properties.PreventInstall
+}
+
 func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
 	return &Module{
 		hod:      hod,
@@ -1575,18 +1580,24 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 	}
 
-	if c.installable(apexInfo) {
+	if !proptools.BoolDefault(c.Properties.Installable, true) {
+		// If the module has been specifically configure to not be installed then
+		// hide from make as otherwise it will break when running inside make
+		// as the output path to install will not be specified. Not all uninstallable
+		// modules can be hidden from make as some are needed for resolving make side
+		// dependencies.
+		c.HideFromMake()
+	} else if !c.installable(apexInfo) {
+		c.SkipInstall()
+	}
+
+	// Still call c.installer.install though, the installs will be stored as PackageSpecs
+	// to allow using the outputs in a genrule.
+	if c.installer != nil && c.outputFile.Valid() {
 		c.installer.install(ctx, c.outputFile.Path())
 		if ctx.Failed() {
 			return
 		}
-	} else if !proptools.BoolDefault(c.Properties.Installable, true) {
-		// If the module has been specifically configure to not be installed then
-		// skip the installation as otherwise it will break when running inside make
-		// as the output path to install will not be specified. Not all uninstallable
-		// modules can skip installation as some are needed for resolving make side
-		// dependencies.
-		c.SkipInstall()
 	}
 }
 

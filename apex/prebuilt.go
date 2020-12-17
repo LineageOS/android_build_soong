@@ -218,7 +218,7 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	if p.prebuiltCommon.checkForceDisable(ctx) {
-		p.SkipInstall()
+		p.HideFromMake()
 		return
 	}
 
@@ -392,7 +392,7 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		})
 
 	if a.prebuiltCommon.checkForceDisable(ctx) {
-		a.SkipInstall()
+		a.HideFromMake()
 		return
 	}
 

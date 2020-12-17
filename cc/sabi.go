@@ -131,7 +131,7 @@ func shouldCreateSourceAbiDumpForLibrary(ctx android.BaseModuleContext) bool {
 	// Module is shared library type.
 
 	// Don't check uninstallable modules.
-	if m.IsSkipInstall() {
+	if m.IsHideFromMake() {
 		return false
 	}
 

@@ -436,6 +436,44 @@ func TestRuleBuilder(t *testing.T) {
 			t.Errorf("\nwant rule.depFileMergerCmd() = %#v\n                   got %#v", w, g)
 		}
 	})
+
+	t.Run("sbox tools", func(t *testing.T) {
+		rule := NewRuleBuilder(pctx, ctx).Sbox(PathForOutput(ctx, ""),
+			PathForOutput(ctx, "sbox.textproto")).SandboxTools()
+		addCommands(rule)
+
+		wantCommands := []string{
+			"__SBOX_SANDBOX_DIR__/out/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_SANDBOX_DIR__/out/depfile FlagWithInput=input FlagWithOutput=__SBOX_SANDBOX_DIR__/out/output Input __SBOX_SANDBOX_DIR__/out/Output __SBOX_SANDBOX_DIR__/out/SymlinkOutput Text __SBOX_SANDBOX_DIR__/tools/src/Tool after command2 old cmd",
+			"command2 __SBOX_SANDBOX_DIR__/out/depfile2 input2 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/tools/src/tool2",
+			"command3 input3 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/out/output3",
+		}
+
+		wantDepMergerCommand := "__SBOX_SANDBOX_DIR__/tools/out/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
+
+		if g, w := rule.Commands(), wantCommands; !reflect.DeepEqual(g, w) {
+			t.Errorf("\nwant rule.Commands() = %#v\n                   got %#v", w, g)
+		}
+
+		if g, w := rule.Inputs(), wantInputs; !reflect.DeepEqual(w, g) {
+			t.Errorf("\nwant rule.Inputs() = %#v\n                 got %#v", w, g)
+		}
+		if g, w := rule.Outputs(), wantOutputs; !reflect.DeepEqual(w, g) {
+			t.Errorf("\nwant rule.Outputs() = %#v\n                  got %#v", w, g)
+		}
+		if g, w := rule.DepFiles(), wantDepFiles; !reflect.DeepEqual(w, g) {
+			t.Errorf("\nwant rule.DepFiles() = %#v\n                  got %#v", w, g)
+		}
+		if g, w := rule.Tools(), wantTools; !reflect.DeepEqual(w, g) {
+			t.Errorf("\nwant rule.Tools() = %#v\n                got %#v", w, g)
+		}
+		if g, w := rule.OrderOnlys(), wantOrderOnlys; !reflect.DeepEqual(w, g) {
+			t.Errorf("\nwant rule.OrderOnlys() = %#v\n                got %#v", w, g)
+		}
+
+		if g, w := rule.depFileMergerCmd(rule.DepFiles()).String(), wantDepMergerCommand; g != w {
+			t.Errorf("\nwant rule.depFileMergerCmd() = %#v\n                   got %#v", w, g)
+		}
+	})
 }
 
 func testRuleBuilderFactory() Module {
