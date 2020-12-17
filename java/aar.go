@@ -851,10 +851,14 @@ func (a *AARImport) SrcJarArgs() ([]string, android.Paths) {
 	return nil, nil
 }
 
+var _ android.ApexModule = (*AARImport)(nil)
+
+// Implements android.ApexModule
 func (a *AARImport) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	return a.depIsInSameApex(ctx, dep)
 }
 
+// Implements android.ApexModule
 func (g *AARImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
 	return nil
