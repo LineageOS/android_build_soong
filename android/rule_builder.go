@@ -32,6 +32,7 @@ import (
 
 const sboxSandboxBaseDir = "__SBOX_SANDBOX_DIR__"
 const sboxOutSubDir = "out"
+const sboxToolsSubDir = "tools"
 const sboxOutDir = sboxSandboxBaseDir + "/" + sboxOutSubDir
 
 // RuleBuilder provides an alternative to ModuleContext.Rule and ModuleContext.Build to add a command line to the build
@@ -48,6 +49,7 @@ type RuleBuilder struct {
 	highmem          bool
 	remoteable       RemoteRuleSupports
 	outDir           WritablePath
+	sboxTools        bool
 	sboxManifestPath WritablePath
 	missingDeps      []string
 }
@@ -137,6 +139,19 @@ func (r *RuleBuilder) Sbox(outputDir WritablePath, manifestPath WritablePath) *R
 	r.sbox = true
 	r.outDir = outputDir
 	r.sboxManifestPath = manifestPath
+	return r
+}
+
+// SandboxTools enables tool sandboxing for the rule by copying any referenced tools into the
+// sandbox.
+func (r *RuleBuilder) SandboxTools() *RuleBuilder {
+	if !r.sbox {
+		panic("SandboxTools() must be called after Sbox()")
+	}
+	if len(r.commands) > 0 {
+		panic("SandboxTools() may not be called after Command()")
+	}
+	r.sboxTools = true
 	return r
 }
 
@@ -468,8 +483,29 @@ func (r *RuleBuilder) Build(name string, desc string) {
 			manifest.OutputDepfile = proto.String(depFile.String())
 		}
 
+		// If sandboxing tools is enabled, add copy rules to the manifest to copy each tool
+		// into the sbox directory.
+		if r.sboxTools {
+			for _, tool := range tools {
+				command.CopyBefore = append(command.CopyBefore, &sbox_proto.Copy{
+					From: proto.String(tool.String()),
+					To:   proto.String(sboxPathForToolRel(r.ctx, tool)),
+				})
+			}
+			for _, c := range r.commands {
+				for _, tool := range c.packagedTools {
+					command.CopyBefore = append(command.CopyBefore, &sbox_proto.Copy{
+						From:       proto.String(tool.srcPath.String()),
+						To:         proto.String(sboxPathForPackagedToolRel(tool)),
+						Executable: proto.Bool(tool.executable),
+					})
+					tools = append(tools, tool.srcPath)
+				}
+			}
+		}
+
 		// Add copy rules to the manifest to copy each output file from the sbox directory.
-		// to the output directory.
+		// to the output directory after running the commands.
 		sboxOutputs := make([]string, len(outputs))
 		for i, output := range outputs {
 			rel := Rel(r.ctx, r.outDir.String(), output.String())
@@ -582,6 +618,7 @@ type RuleBuilderCommand struct {
 	symlinkOutputs WritablePaths
 	depFiles       WritablePaths
 	tools          Paths
+	packagedTools  []PackagingSpec
 	rspFileInputs  Paths
 
 	// spans [start,end) of the command that should not be ninja escaped
@@ -623,6 +660,79 @@ func (c *RuleBuilderCommand) PathForOutput(path WritablePath) string {
 		return filepath.Join(sboxOutDir, rel)
 	}
 	return path.String()
+}
+
+// SboxPathForTool takes a path to a tool, which may be an output file or a source file, and returns
+// the corresponding path for the tool in the sbox sandbox.  It assumes that sandboxing and tool
+// sandboxing are enabled.
+func SboxPathForTool(ctx BuilderContext, path Path) string {
+	return filepath.Join(sboxSandboxBaseDir, sboxPathForToolRel(ctx, path))
+}
+
+func sboxPathForToolRel(ctx BuilderContext, path Path) string {
+	// Errors will be handled in RuleBuilder.Build where we have a context to report them
+	relOut, isRelOut, _ := maybeRelErr(PathForOutput(ctx, "host", ctx.Config().PrebuiltOS()).String(), path.String())
+	if isRelOut {
+		// The tool is in the output directory, it will be copied to __SBOX_OUT_DIR__/tools/out
+		return filepath.Join(sboxToolsSubDir, "out", relOut)
+	}
+	// The tool is in the source directory, it will be copied to __SBOX_OUT_DIR__/tools/src
+	return filepath.Join(sboxToolsSubDir, "src", path.String())
+}
+
+// SboxPathForPackagedTool takes a PackageSpec for a tool and returns the corresponding path for the
+// tool after copying it into the sandbox.  This can be used  on the RuleBuilder command line to
+// reference the tool.
+func SboxPathForPackagedTool(spec PackagingSpec) string {
+	return filepath.Join(sboxSandboxBaseDir, sboxPathForPackagedToolRel(spec))
+}
+
+func sboxPathForPackagedToolRel(spec PackagingSpec) string {
+	return filepath.Join(sboxToolsSubDir, "out", spec.relPathInPackage)
+}
+
+// PathForTool takes a path to a tool, which may be an output file or a source file, and returns
+// the corresponding path for the tool in the sbox sandbox if sbox is enabled, or the original path
+// if it is not.  This can be used  on the RuleBuilder command line to reference the tool.
+func (c *RuleBuilderCommand) PathForTool(path Path) string {
+	if c.rule.sbox && c.rule.sboxTools {
+		return filepath.Join(sboxSandboxBaseDir, sboxPathForToolRel(c.rule.ctx, path))
+	}
+	return path.String()
+}
+
+// PackagedTool adds the specified tool path to the command line.  It can only be used with tool
+// sandboxing enabled by SandboxTools(), and will copy the tool into the sandbox.
+func (c *RuleBuilderCommand) PackagedTool(spec PackagingSpec) *RuleBuilderCommand {
+	if !c.rule.sboxTools {
+		panic("PackagedTool() requires SandboxTools()")
+	}
+
+	c.packagedTools = append(c.packagedTools, spec)
+	c.Text(sboxPathForPackagedToolRel(spec))
+	return c
+}
+
+// ImplicitPackagedTool copies the specified tool into the sandbox without modifying the command
+// line.  It can only be used with tool sandboxing enabled by SandboxTools().
+func (c *RuleBuilderCommand) ImplicitPackagedTool(spec PackagingSpec) *RuleBuilderCommand {
+	if !c.rule.sboxTools {
+		panic("ImplicitPackagedTool() requires SandboxTools()")
+	}
+
+	c.packagedTools = append(c.packagedTools, spec)
+	return c
+}
+
+// ImplicitPackagedTools copies the specified tools into the sandbox without modifying the command
+// line.  It can only be used with tool sandboxing enabled by SandboxTools().
+func (c *RuleBuilderCommand) ImplicitPackagedTools(specs []PackagingSpec) *RuleBuilderCommand {
+	if !c.rule.sboxTools {
+		panic("ImplicitPackagedTools() requires SandboxTools()")
+	}
+
+	c.packagedTools = append(c.packagedTools, specs...)
+	return c
 }
 
 // Text adds the specified raw text to the command line.  The text should not contain input or output paths or the
@@ -693,7 +803,19 @@ func (c *RuleBuilderCommand) FlagWithList(flag string, list []string, sep string
 // RuleBuilder.Tools.
 func (c *RuleBuilderCommand) Tool(path Path) *RuleBuilderCommand {
 	c.tools = append(c.tools, path)
-	return c.Text(path.String())
+	return c.Text(c.PathForTool(path))
+}
+
+// Tool adds the specified tool path to the dependencies returned by RuleBuilder.Tools.
+func (c *RuleBuilderCommand) ImplicitTool(path Path) *RuleBuilderCommand {
+	c.tools = append(c.tools, path)
+	return c
+}
+
+// Tool adds the specified tool path to the dependencies returned by RuleBuilder.Tools.
+func (c *RuleBuilderCommand) ImplicitTools(paths Paths) *RuleBuilderCommand {
+	c.tools = append(c.tools, paths...)
+	return c
 }
 
 // BuiltTool adds the specified tool path that was built using a host Soong module to the command line.  The path will

@@ -141,7 +141,7 @@ func TestGenruleCmd(t *testing.T) {
 				out: ["out"],
 				cmd: "$(location) > $(out)",
 			`,
-			expect: "out/tool > __SBOX_SANDBOX_DIR__/out/out",
+			expect: "__SBOX_SANDBOX_DIR__/tools/out/bin/tool > __SBOX_SANDBOX_DIR__/out/out",
 		},
 		{
 			name: "empty location tool2",
@@ -150,7 +150,7 @@ func TestGenruleCmd(t *testing.T) {
 				out: ["out"],
 				cmd: "$(location) > $(out)",
 			`,
-			expect: "out/tool > __SBOX_SANDBOX_DIR__/out/out",
+			expect: "__SBOX_SANDBOX_DIR__/tools/out/bin/tool > __SBOX_SANDBOX_DIR__/out/out",
 		},
 		{
 			name: "empty location tool file",
@@ -159,7 +159,7 @@ func TestGenruleCmd(t *testing.T) {
 				out: ["out"],
 				cmd: "$(location) > $(out)",
 			`,
-			expect: "tool_file1 > __SBOX_SANDBOX_DIR__/out/out",
+			expect: "__SBOX_SANDBOX_DIR__/tools/src/tool_file1 > __SBOX_SANDBOX_DIR__/out/out",
 		},
 		{
 			name: "empty location tool file fg",
@@ -168,7 +168,7 @@ func TestGenruleCmd(t *testing.T) {
 				out: ["out"],
 				cmd: "$(location) > $(out)",
 			`,
-			expect: "tool_file1 > __SBOX_SANDBOX_DIR__/out/out",
+			expect: "__SBOX_SANDBOX_DIR__/tools/src/tool_file1 > __SBOX_SANDBOX_DIR__/out/out",
 		},
 		{
 			name: "empty location tool and tool file",
@@ -178,7 +178,7 @@ func TestGenruleCmd(t *testing.T) {
 				out: ["out"],
 				cmd: "$(location) > $(out)",
 			`,
-			expect: "out/tool > __SBOX_SANDBOX_DIR__/out/out",
+			expect: "__SBOX_SANDBOX_DIR__/tools/out/bin/tool > __SBOX_SANDBOX_DIR__/out/out",
 		},
 		{
 			name: "tool",
@@ -187,7 +187,7 @@ func TestGenruleCmd(t *testing.T) {
 				out: ["out"],
 				cmd: "$(location tool) > $(out)",
 			`,
-			expect: "out/tool > __SBOX_SANDBOX_DIR__/out/out",
+			expect: "__SBOX_SANDBOX_DIR__/tools/out/bin/tool > __SBOX_SANDBOX_DIR__/out/out",
 		},
 		{
 			name: "tool2",
@@ -196,7 +196,7 @@ func TestGenruleCmd(t *testing.T) {
 				out: ["out"],
 				cmd: "$(location :tool) > $(out)",
 			`,
-			expect: "out/tool > __SBOX_SANDBOX_DIR__/out/out",
+			expect: "__SBOX_SANDBOX_DIR__/tools/out/bin/tool > __SBOX_SANDBOX_DIR__/out/out",
 		},
 		{
 			name: "tool file",
@@ -205,7 +205,7 @@ func TestGenruleCmd(t *testing.T) {
 				out: ["out"],
 				cmd: "$(location tool_file1) > $(out)",
 			`,
-			expect: "tool_file1 > __SBOX_SANDBOX_DIR__/out/out",
+			expect: "__SBOX_SANDBOX_DIR__/tools/src/tool_file1 > __SBOX_SANDBOX_DIR__/out/out",
 		},
 		{
 			name: "tool file fg",
@@ -214,7 +214,7 @@ func TestGenruleCmd(t *testing.T) {
 				out: ["out"],
 				cmd: "$(location :1tool_file) > $(out)",
 			`,
-			expect: "tool_file1 > __SBOX_SANDBOX_DIR__/out/out",
+			expect: "__SBOX_SANDBOX_DIR__/tools/src/tool_file1 > __SBOX_SANDBOX_DIR__/out/out",
 		},
 		{
 			name: "tool files",
@@ -223,7 +223,7 @@ func TestGenruleCmd(t *testing.T) {
 				out: ["out"],
 				cmd: "$(locations :tool_files) > $(out)",
 			`,
-			expect: "tool_file1 tool_file2 > __SBOX_SANDBOX_DIR__/out/out",
+			expect: "__SBOX_SANDBOX_DIR__/tools/src/tool_file1 __SBOX_SANDBOX_DIR__/tools/src/tool_file2 > __SBOX_SANDBOX_DIR__/out/out",
 		},
 		{
 			name: "in1",
@@ -600,7 +600,7 @@ func TestGenSrcs(t *testing.T) {
 				cmd: "$(location) $(in) > $(out)",
 			`,
 			cmds: []string{
-				"bash -c 'out/tool in1.txt > __SBOX_SANDBOX_DIR__/out/in1.h' && bash -c 'out/tool in2.txt > __SBOX_SANDBOX_DIR__/out/in2.h'",
+				"bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in1.txt > __SBOX_SANDBOX_DIR__/out/in1.h' && bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in2.txt > __SBOX_SANDBOX_DIR__/out/in2.h'",
 			},
 			deps:  []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h"},
 			files: []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h"},
@@ -614,8 +614,8 @@ func TestGenSrcs(t *testing.T) {
 				shard_size: 2,
 			`,
 			cmds: []string{
-				"bash -c 'out/tool in1.txt > __SBOX_SANDBOX_DIR__/out/in1.h' && bash -c 'out/tool in2.txt > __SBOX_SANDBOX_DIR__/out/in2.h'",
-				"bash -c 'out/tool in3.txt > __SBOX_SANDBOX_DIR__/out/in3.h'",
+				"bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in1.txt > __SBOX_SANDBOX_DIR__/out/in1.h' && bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in2.txt > __SBOX_SANDBOX_DIR__/out/in2.h'",
+				"bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in3.txt > __SBOX_SANDBOX_DIR__/out/in3.h'",
 			},
 			deps:  []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h", buildDir + "/.intermediates/gen/gen/gensrcs/in3.h"},
 			files: []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h", buildDir + "/.intermediates/gen/gen/gensrcs/in3.h"},
@@ -758,7 +758,7 @@ func toolFactory() android.Module {
 }
 
 func (t *testTool) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	t.outputFile = android.PathForTesting("out", ctx.ModuleName())
+	t.outputFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "bin"), ctx.ModuleName(), android.PathForOutput(ctx, ctx.ModuleName()))
 }
 
 func (t *testTool) HostToolPath() android.OptionalPath {

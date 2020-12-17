@@ -235,7 +235,7 @@ func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 			return
 		}
 		// See if there's a prebuilt module that overrides this override module with prefer flag,
-		// in which case we call SkipInstall on the corresponding variant later.
+		// in which case we call HideFromMake on the corresponding variant later.
 		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(dep Module) {
 			prebuilt, ok := dep.(PrebuiltInterface)
 			if !ok {
@@ -284,7 +284,7 @@ func performOverrideMutator(ctx BottomUpMutatorContext) {
 			mods[i+1].(OverridableModule).override(ctx, o)
 			if o.getOverriddenByPrebuilt() {
 				// The overriding module itself, too, is overridden by a prebuilt. Skip its installation.
-				mods[i+1].SkipInstall()
+				mods[i+1].HideFromMake()
 			}
 		}
 	} else if o, ok := ctx.Module().(OverrideModule); ok {
