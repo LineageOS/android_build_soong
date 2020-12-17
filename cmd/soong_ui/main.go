@@ -174,7 +174,7 @@ func main() {
 
 	build.SetupOutDir(buildCtx, config)
 
-	if config.UseBazel() {
+	if config.UseBazel() && config.Dist() {
 		defer populateExternalDistDir(buildCtx, config)
 	}
 
@@ -544,6 +544,12 @@ func populateExternalDistDir(ctx build.Context, config build.Config) {
 		ctx.Fatalf("Unable to find absolute path of %s: %s", externalDistDirPath, err)
 	}
 	if externalDistDirPath == internalDistDirPath {
+		return
+	}
+
+	// Make sure the internal DIST_DIR actually exists before trying to read from it
+	if _, err = os.Stat(internalDistDirPath); os.IsNotExist(err) {
+		ctx.Println("Skipping Bazel dist dir migration - nothing to do!")
 		return
 	}
 
