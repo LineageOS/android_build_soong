@@ -1925,6 +1925,9 @@ func (module *SdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) 
 	}
 }
 
+var _ android.ApexModule = (*SdkLibraryImport)(nil)
+
+// Implements android.ApexModule
 func (module *SdkLibraryImport) DepIsInSameApex(mctx android.BaseModuleContext, dep android.Module) bool {
 	depTag := mctx.OtherModuleDependencyTag(dep)
 	if depTag == xmlPermissionsFileTag {
@@ -1936,6 +1939,7 @@ func (module *SdkLibraryImport) DepIsInSameApex(mctx android.BaseModuleContext, 
 	return false
 }
 
+// Implements android.ApexModule
 func (module *SdkLibraryImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
 	// we don't check prebuilt modules for sdk_version
@@ -2141,6 +2145,9 @@ func (module *sdkLibraryXml) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// do nothing
 }
 
+var _ android.ApexModule = (*sdkLibraryXml)(nil)
+
+// Implements android.ApexModule
 func (module *sdkLibraryXml) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
 	// sdkLibraryXml doesn't need to be checked separately because java_sdk_library is checked

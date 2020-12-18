@@ -2021,10 +2021,12 @@ func (j *Module) hasCode(ctx android.ModuleContext) bool {
 	return len(srcFiles) > 0 || len(ctx.GetDirectDepsWithTag(staticLibTag)) > 0
 }
 
+// Implements android.ApexModule
 func (j *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	return j.depIsInSameApex(ctx, dep)
 }
 
+// Implements android.ApexModule
 func (j *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
 	sdkSpec := j.minSdkVersion()
@@ -2069,6 +2071,8 @@ type Library struct {
 
 	InstallMixin func(ctx android.ModuleContext, installPath android.Path) (extraInstallDeps android.Paths)
 }
+
+var _ android.ApexModule = (*Library)(nil)
 
 // Provides access to the list of permitted packages from updatable boot jars.
 type PermittedPackagesForUpdatableBootJars interface {
@@ -2934,10 +2938,14 @@ func (j *Import) SrcJarArgs() ([]string, android.Paths) {
 	return nil, nil
 }
 
+var _ android.ApexModule = (*Import)(nil)
+
+// Implements android.ApexModule
 func (j *Import) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	return j.depIsInSameApex(ctx, dep)
 }
 
+// Implements android.ApexModule
 func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
 	// Do not check for prebuilts against the min_sdk_version of enclosing APEX
@@ -3129,6 +3137,9 @@ func (j *DexImport) DexJarBuildPath() android.Path {
 	return j.dexJarFile
 }
 
+var _ android.ApexModule = (*DexImport)(nil)
+
+// Implements android.ApexModule
 func (j *DexImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
 	// we don't check prebuilt modules for sdk_version

@@ -158,11 +158,7 @@ func processModuleTypeDef(v *SoongConfigDefinition, def *parser.Module) (errs []
 			return []error{fmt.Errorf("bool_variable name must not be blank")}
 		}
 
-		mt.Variables = append(mt.Variables, &boolVariable{
-			baseVariable: baseVariable{
-				variable: name,
-			},
-		})
+		mt.Variables = append(mt.Variables, newBoolVariable(name))
 	}
 
 	for _, name := range props.Value_variables {
@@ -420,6 +416,9 @@ func typeForPropertyFromPropertyStruct(ps interface{}, property string) reflect.
 
 // PropertiesToApply returns the applicable properties from a ModuleType that should be applied
 // based on SoongConfig values.
+// Expects that props contains a struct field with name soong_config_variables. The fields within
+// soong_config_variables are expected to be in the same order as moduleType.Variables. In general,
+// props should be generated via CreateProperties.
 func PropertiesToApply(moduleType *ModuleType, props reflect.Value, config SoongConfig) ([]interface{}, error) {
 	var ret []interface{}
 	props = props.Elem().FieldByName(soongConfigProperty)
@@ -503,6 +502,14 @@ func (s *stringVariable) PropertiesToApply(config SoongConfig, values reflect.Va
 
 type boolVariable struct {
 	baseVariable
+}
+
+func newBoolVariable(name string) *boolVariable {
+	return &boolVariable{
+		baseVariable{
+			variable: name,
+		},
+	}
 }
 
 func (b boolVariable) variableValuesType() reflect.Type {

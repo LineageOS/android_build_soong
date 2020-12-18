@@ -1653,6 +1653,9 @@ func (a *AndroidAppImport) minSdkVersion() sdkSpec {
 	return sdkSpecFrom("")
 }
 
+var _ android.ApexModule = (*AndroidAppImport)(nil)
+
+// Implements android.ApexModule
 func (j *AndroidAppImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
 	// Do not check for prebuilts against the min_sdk_version of enclosing APEX
