@@ -126,13 +126,14 @@ type variableProperties struct {
 		}
 
 		Arc struct {
-			Cflags       []string
-			Exclude_srcs []string
-			Include_dirs []string
-			Shared_libs  []string
-			Static_libs  []string
-			Srcs         []string
-		}
+			Cflags            []string `android:"arch_variant"`
+			Exclude_srcs      []string `android:"arch_variant"`
+			Include_dirs      []string `android:"arch_variant"`
+			Shared_libs       []string `android:"arch_variant"`
+			Static_libs       []string `android:"arch_variant"`
+			Srcs              []string `android:"arch_variant"`
+			Whole_static_libs []string `android:"arch_variant"`
+		} `android:"arch_variant"`
 
 		Flatten_apex struct {
 			Enabled *bool
