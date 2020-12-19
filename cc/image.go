@@ -454,7 +454,7 @@ func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string
 		vndkVersion := ctx.DeviceConfig().VndkVersion()
 		if vndkVersion != "current" && vndkVersion != "" && vndkVersion != m.Properties.VndkVersion {
 			m.Properties.HideFromMake = true
-			m.SkipInstall()
+			m.HideFromMake()
 		}
 	} else if strings.HasPrefix(variant, ProductVariationPrefix) {
 		m.Properties.ImageVariationPrefix = ProductVariationPrefix

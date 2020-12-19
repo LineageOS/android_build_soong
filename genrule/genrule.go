@@ -139,7 +139,6 @@ type Module struct {
 	// number of shards the input files are sharded into.
 	taskGenerator taskFunc
 
-	deps        android.Paths
 	rule        blueprint.Rule
 	rawCommands []string
 
@@ -244,6 +243,8 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
+	var tools android.Paths
+	var packagedTools []android.PackagingSpec
 	if len(g.properties.Tools) > 0 {
 		seenTools := make(map[string]bool)
 
@@ -251,37 +252,52 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			switch tag := ctx.OtherModuleDependencyTag(module).(type) {
 			case hostToolDependencyTag:
 				tool := ctx.OtherModuleName(module)
-				var path android.OptionalPath
 
-				if t, ok := module.(android.HostToolProvider); ok {
+				switch t := module.(type) {
+				case android.HostToolProvider:
+					// A HostToolProvider provides the path to a tool, which will be copied
+					// into the sandbox.
 					if !t.(android.Module).Enabled() {
 						if ctx.Config().AllowMissingDependencies() {
 							ctx.AddMissingDependencies([]string{tool})
 						} else {
 							ctx.ModuleErrorf("depends on disabled module %q", tool)
 						}
-						break
+						return
 					}
-					path = t.HostToolPath()
-				} else if t, ok := module.(bootstrap.GoBinaryTool); ok {
+					path := t.HostToolPath()
+					if !path.Valid() {
+						ctx.ModuleErrorf("host tool %q missing output file", tool)
+						return
+					}
+					if specs := t.TransitivePackagingSpecs(); specs != nil {
+						// If the HostToolProvider has PackgingSpecs, which are definitions of the
+						// required relative locations of the tool and its dependencies, use those
+						// instead.  They will be copied to those relative locations in the sbox
+						// sandbox.
+						packagedTools = append(packagedTools, specs...)
+						// Assume that the first PackagingSpec of the module is the tool.
+						addLocationLabel(tag.label, []string{android.SboxPathForPackagedTool(specs[0])})
+					} else {
+						tools = append(tools, path.Path())
+						addLocationLabel(tag.label, []string{android.SboxPathForTool(ctx, path.Path())})
+					}
+				case bootstrap.GoBinaryTool:
+					// A GoBinaryTool provides the install path to a tool, which will be copied.
 					if s, err := filepath.Rel(android.PathForOutput(ctx).String(), t.InstallPath()); err == nil {
-						path = android.OptionalPathForPath(android.PathForOutput(ctx, s))
+						toolPath := android.PathForOutput(ctx, s)
+						tools = append(tools, toolPath)
+						addLocationLabel(tag.label, []string{android.SboxPathForTool(ctx, toolPath)})
 					} else {
 						ctx.ModuleErrorf("cannot find path for %q: %v", tool, err)
-						break
+						return
 					}
-				} else {
+				default:
 					ctx.ModuleErrorf("%q is not a host tool provider", tool)
-					break
+					return
 				}
 
-				if path.Valid() {
-					g.deps = append(g.deps, path.Path())
-					addLocationLabel(tag.label, []string{path.Path().String()})
-					seenTools[tag.label] = true
-				} else {
-					ctx.ModuleErrorf("host tool %q missing output file", tool)
-				}
+				seenTools[tag.label] = true
 			}
 		})
 
@@ -305,8 +321,12 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	for _, toolFile := range g.properties.Tool_files {
 		paths := android.PathsForModuleSrc(ctx, []string{toolFile})
-		g.deps = append(g.deps, paths...)
-		addLocationLabel(toolFile, paths.Strings())
+		tools = append(tools, paths...)
+		var sandboxPaths []string
+		for _, path := range paths {
+			sandboxPaths = append(sandboxPaths, android.SboxPathForTool(ctx, path))
+		}
+		addLocationLabel(toolFile, sandboxPaths)
 	}
 
 	var srcFiles android.Paths
@@ -358,7 +378,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		manifestPath := android.PathForModuleOut(ctx, manifestName)
 
 		// Use a RuleBuilder to create a rule that runs the command inside an sbox sandbox.
-		rule := android.NewRuleBuilder(pctx, ctx).Sbox(task.genDir, manifestPath)
+		rule := android.NewRuleBuilder(pctx, ctx).Sbox(task.genDir, manifestPath).SandboxTools()
 		cmd := rule.Command()
 
 		for _, out := range task.out {
@@ -448,8 +468,9 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.Text(rawCommand)
 		cmd.ImplicitOutputs(task.out)
 		cmd.Implicits(task.in)
-		cmd.Implicits(g.deps)
-		cmd.Implicits(task.extraTools)
+		cmd.ImplicitTools(tools)
+		cmd.ImplicitTools(task.extraTools)
+		cmd.ImplicitPackagedTools(packagedTools)
 		if Bool(g.properties.Depfile) {
 			cmd.ImplicitDepFile(task.depFile)
 		}
@@ -619,7 +640,7 @@ func NewGenSrcs() *Module {
 			// TODO(ccross): this RuleBuilder is a hack to be able to call
 			// rule.Command().PathForOutput.  Replace this with passing the rule into the
 			// generator.
-			rule := android.NewRuleBuilder(pctx, ctx).Sbox(genDir, nil)
+			rule := android.NewRuleBuilder(pctx, ctx).Sbox(genDir, nil).SandboxTools()
 
 			for _, in := range shard {
 				outFile := android.GenPathWithExt(ctx, finalSubDir, in, String(properties.Output_extension))
@@ -672,7 +693,8 @@ func NewGenSrcs() *Module {
 				outputDepfile = android.PathForModuleGen(ctx, genSubDir, "gensrcs.d")
 				depFixerTool := ctx.Config().HostToolPath(ctx, "dep_fixer")
 				fullCommand += fmt.Sprintf(" && %s -o $(depfile) %s",
-					depFixerTool.String(), strings.Join(commandDepFiles, " "))
+					android.SboxPathForTool(ctx, depFixerTool),
+					strings.Join(commandDepFiles, " "))
 				extraTools = append(extraTools, depFixerTool)
 			}
 

@@ -289,7 +289,7 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 				})
 			}
 		} else {
-			m.SkipInstall()
+			m.HideFromMake()
 		}
 	}
 }

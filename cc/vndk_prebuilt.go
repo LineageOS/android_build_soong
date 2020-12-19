@@ -130,7 +130,7 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 	flags Flags, deps PathDeps, objs Objects) android.Path {
 
 	if !p.matchesWithDevice(ctx.DeviceConfig()) {
-		ctx.Module().SkipInstall()
+		ctx.Module().HideFromMake()
 		return nil
 	}
 
@@ -175,7 +175,7 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 		return in
 	}
 
-	ctx.Module().SkipInstall()
+	ctx.Module().HideFromMake()
 	return nil
 }
 
