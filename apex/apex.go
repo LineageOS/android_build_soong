@@ -1183,6 +1183,9 @@ func (a *apexBundle) PreventInstall() {
 // Implements cc.Coverage
 func (a *apexBundle) HideFromMake() {
 	a.properties.HideFromMake = true
+	// This HideFromMake is shadowing the ModuleBase one, call through to it for now.
+	// TODO(ccross): untangle these
+	a.ModuleBase.HideFromMake()
 }
 
 // Implements cc.Coverage
