@@ -156,9 +156,9 @@ func ConvertFile(filename string, buffer *bytes.Buffer) (string, []error) {
 					continue
 				}
 				switch module {
-				case clear_vars:
+				case clearVarsPath:
 					resetModule(file)
-				case include_ignored:
+				case includeIgnoredPath:
 					// subdirs are already automatically included in Soong
 					continue
 				default:

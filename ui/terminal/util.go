@@ -41,13 +41,13 @@ func isSmartTerminal(w io.Writer) bool {
 func termSize(w io.Writer) (width int, height int, ok bool) {
 	if f, ok := w.(*os.File); ok {
 		var winsize struct {
-			ws_row, ws_column    uint16
-			ws_xpixel, ws_ypixel uint16
+			wsRow, wsColumn    uint16
+			wsXpixel, wsYpixel uint16
 		}
 		_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, f.Fd(),
 			syscall.TIOCGWINSZ, uintptr(unsafe.Pointer(&winsize)),
 			0, 0, 0)
-		return int(winsize.ws_column), int(winsize.ws_row), err == 0
+		return int(winsize.wsColumn), int(winsize.wsRow), err == 0
 	} else if f, ok := w.(*fakeSmartTerminal); ok {
 		return f.termWidth, f.termHeight, true
 	}

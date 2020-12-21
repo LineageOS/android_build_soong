@@ -1505,11 +1505,11 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 	j.compiledJavaSrcs = uniqueSrcFiles
 	j.compiledSrcJars = srcJars
 
-	enable_sharding := false
+	enableSharding := false
 	var headerJarFileWithoutJarjar android.Path
 	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") && !deps.disableTurbine {
 		if j.properties.Javac_shard_size != nil && *(j.properties.Javac_shard_size) > 0 {
-			enable_sharding = true
+			enableSharding = true
 			// Formerly, there was a check here that prevented annotation processors
 			// from being used when sharding was enabled, as some annotation processors
 			// do not function correctly in sharded environments. It was removed to
@@ -1535,7 +1535,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			extraJarDeps = append(extraJarDeps, errorprone)
 		}
 
-		if enable_sharding {
+		if enableSharding {
 			flags.classpath = append(flags.classpath, headerJarFileWithoutJarjar)
 			shardSize := int(*(j.properties.Javac_shard_size))
 			var shardSrcs []android.Paths

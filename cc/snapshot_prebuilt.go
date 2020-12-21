@@ -787,11 +787,11 @@ func VendorSnapshotSourceMutator(ctx android.BottomUpMutatorContext) {
 	if !module.SocSpecific() {
 		// But we can't just check SocSpecific() since we already passed the image mutator.
 		// Check ramdisk and recovery to see if we are real "vendor: true" module.
-		ramdisk_available := module.InRamdisk() && !module.OnlyInRamdisk()
-		vendor_ramdisk_available := module.InVendorRamdisk() && !module.OnlyInVendorRamdisk()
-		recovery_available := module.InRecovery() && !module.OnlyInRecovery()
+		ramdiskAvailable := module.InRamdisk() && !module.OnlyInRamdisk()
+		vendorRamdiskAvailable := module.InVendorRamdisk() && !module.OnlyInVendorRamdisk()
+		recoveryAvailable := module.InRecovery() && !module.OnlyInRecovery()
 
-		if !ramdisk_available && !recovery_available && !vendor_ramdisk_available {
+		if !ramdiskAvailable && !recoveryAvailable && !vendorRamdiskAvailable {
 			vendorSnapshotsLock.Lock()
 			defer vendorSnapshotsLock.Unlock()
 

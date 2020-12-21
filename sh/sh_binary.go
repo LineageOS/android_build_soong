@@ -205,14 +205,14 @@ func (s *ShBinary) SetImageVariation(ctx android.BaseModuleContext, variation st
 func (s *ShBinary) generateAndroidBuildActions(ctx android.ModuleContext) {
 	s.sourceFilePath = android.PathForModuleSrc(ctx, proptools.String(s.properties.Src))
 	filename := proptools.String(s.properties.Filename)
-	filename_from_src := proptools.Bool(s.properties.Filename_from_src)
+	filenameFromSrc := proptools.Bool(s.properties.Filename_from_src)
 	if filename == "" {
-		if filename_from_src {
+		if filenameFromSrc {
 			filename = s.sourceFilePath.Base()
 		} else {
 			filename = ctx.ModuleName()
 		}
-	} else if filename_from_src {
+	} else if filenameFromSrc {
 		ctx.PropertyErrorf("filename_from_src", "filename is set. filename_from_src can't be true")
 		return
 	}
