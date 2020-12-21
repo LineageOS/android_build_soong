@@ -453,6 +453,10 @@ type sdkLibraryProperties struct {
 	// * Removed API specification filegroup -> <dist-stem>-removed.api.<scope>.latest
 	Dist_stem *string
 
+	// A compatibility mode that allows historical API-tracking files to not exist.
+	// Do not use.
+	Unsafe_ignore_missing_latest_api bool
+
 	// indicates whether system and test apis should be generated.
 	Generate_system_and_test_apis bool `blueprint:"mutated"`
 
@@ -1352,6 +1356,8 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	// check against the not-yet-release API
 	props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
 	props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
+	// TODO(b/176092454): change true to module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api
+	props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
 
 	if !apiScope.unstable {
 		// check against the latest released API
@@ -1359,7 +1365,6 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		props.Check_api.Last_released.Api_file = latestApiFilegroupName
 		props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
 			module.latestRemovedApiFilegroupName(apiScope))
-		props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
 
 		if proptools.Bool(module.sdkLibraryProperties.Api_lint.Enabled) {
 			// Enable api lint.

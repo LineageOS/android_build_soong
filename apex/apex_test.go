@@ -259,6 +259,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	java.RegisterSystemModulesBuildComponents(ctx)
 	java.RegisterAppBuildComponents(ctx)
 	java.RegisterSdkLibraryBuildComponents(ctx)
+	java.RegisterPrebuiltApisBuildComponents(ctx)
 	ctx.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
 	ctx.RegisterModuleType("bpf", bpf.BpfFactory)
 
@@ -4994,6 +4995,11 @@ var filesForSdkLibrary = map[string][]byte{
 	"api/test-current.txt":   nil,
 	"api/test-removed.txt":   nil,
 
+	"100/public/api/foo.txt":         nil,
+	"100/public/api/foo-removed.txt": nil,
+	"100/system/api/foo.txt":         nil,
+	"100/system/api/foo-removed.txt": nil,
+
 	// For java_sdk_library_import
 	"a.jar": nil,
 }
@@ -5017,6 +5023,11 @@ func TestJavaSDKLibrary(t *testing.T) {
 			srcs: ["a.java"],
 			api_packages: ["foo"],
 			apex_available: [ "myapex" ],
+		}
+
+		prebuilt_apis {
+			name: "sdk",
+			api_dirs: ["100"],
 		}
 	`, withFiles(filesForSdkLibrary))
 
@@ -5060,6 +5071,11 @@ func TestJavaSDKLibrary_WithinApex(t *testing.T) {
 			apex_available: ["myapex"],
 			sdk_version: "none",
 			system_modules: "none",
+		}
+
+		prebuilt_apis {
+			name: "sdk",
+			api_dirs: ["100"],
 		}
 	`, withFiles(filesForSdkLibrary))
 
@@ -5107,6 +5123,11 @@ func TestJavaSDKLibrary_CrossBoundary(t *testing.T) {
 			sdk_version: "none",
 			system_modules: "none",
 		}
+
+		prebuilt_apis {
+			name: "sdk",
+			api_dirs: ["100"],
+		}
 	`, withFiles(filesForSdkLibrary))
 
 	// java_sdk_library installs both impl jar and permission XML
@@ -5123,7 +5144,11 @@ func TestJavaSDKLibrary_CrossBoundary(t *testing.T) {
 }
 
 func TestJavaSDKLibrary_ImportPreferred(t *testing.T) {
-	ctx, _ := testApex(t, ``,
+	ctx, _ := testApex(t, `
+		prebuilt_apis {
+			name: "sdk",
+			api_dirs: ["100"],
+		}`,
 		withFiles(map[string][]byte{
 			"apex/a.java":             nil,
 			"apex/apex_manifest.json": nil,
@@ -5190,7 +5215,7 @@ func TestJavaSDKLibrary_ImportPreferred(t *testing.T) {
 			},
 		}
 `),
-		}),
+		}), withFiles(filesForSdkLibrary),
 	)
 
 	// java_sdk_library installs both impl jar and permission XML
