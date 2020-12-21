@@ -74,3 +74,69 @@ func TestStripZip64Extras(t *testing.T) {
 		}
 	}
 }
+
+func TestCopyFromZip64(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow test; skipping")
+	}
+
+	const size = uint32max + 1
+	fromZipBytes := &bytes.Buffer{}
+	fromZip := NewWriter(fromZipBytes)
+	w, err := fromZip.CreateHeaderAndroid(&FileHeader{
+		Name:               "large",
+		Method:             Store,
+		UncompressedSize64: size,
+		CompressedSize64:   size,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	_, err = w.Write(make([]byte, size))
+	if err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	err = fromZip.Close()
+	if err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	fromZip = nil
+
+	fromZipReader, err := NewReader(bytes.NewReader(fromZipBytes.Bytes()), int64(fromZipBytes.Len()))
+	if err != nil {
+		t.Fatalf("NewReader: %v", err)
+	}
+
+	toZipBytes := &bytes.Buffer{}
+	toZip := NewWriter(toZipBytes)
+	err = toZip.CopyFrom(fromZipReader.File[0], fromZipReader.File[0].Name)
+	if err != nil {
+		t.Fatalf("CopyFrom: %v", err)
+	}
+
+	err = toZip.Close()
+	if err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	// Save some memory
+	fromZipReader = nil
+	fromZipBytes.Reset()
+
+	toZipReader, err := NewReader(bytes.NewReader(toZipBytes.Bytes()), int64(toZipBytes.Len()))
+	if err != nil {
+		t.Fatalf("NewReader: %v", err)
+	}
+
+	if len(toZipReader.File) != 1 {
+		t.Fatalf("Expected 1 file in toZip, got %d", len(toZipReader.File))
+	}
+
+	if g, w := toZipReader.File[0].CompressedSize64, uint64(size); g != w {
+		t.Errorf("Expected CompressedSize64 %d, got %d", w, g)
+	}
+
+	if g, w := toZipReader.File[0].UncompressedSize64, uint64(size); g != w {
+		t.Errorf("Expected UnompressedSize64 %d, got %d", w, g)
+	}
+}
