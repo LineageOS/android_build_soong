@@ -276,9 +276,6 @@ func writeHeader(w io.Writer, h *FileHeader) error {
 	} else {
 		b.uint32(h.CRC32)
 
-		if h.CompressedSize64 > uint32max || h.UncompressedSize64 > uint32max {
-			panic("skipping writing the data descriptor for a 64-bit value is not yet supported")
-		}
 		compressedSize := uint32(h.CompressedSize64)
 		if compressedSize == 0 {
 			compressedSize = h.CompressedSize
@@ -287,6 +284,21 @@ func writeHeader(w io.Writer, h *FileHeader) error {
 		uncompressedSize := uint32(h.UncompressedSize64)
 		if uncompressedSize == 0 {
 			uncompressedSize = h.UncompressedSize
+		}
+
+		if h.CompressedSize64 > uint32max || h.UncompressedSize64 > uint32max {
+			// Sizes don't fit in a 32-bit field, put them in a zip64 extra instead.
+			compressedSize = uint32max
+			uncompressedSize = uint32max
+
+			// append a zip64 extra block to Extra
+			var buf [20]byte // 2x uint16 + 2x uint64
+			eb := writeBuf(buf[:])
+			eb.uint16(zip64ExtraId)
+			eb.uint16(16) // size = 2x uint64
+			eb.uint64(h.UncompressedSize64)
+			eb.uint64(h.CompressedSize64)
+			h.Extra = append(h.Extra, buf[:]...)
 		}
 
 		b.uint32(compressedSize)
