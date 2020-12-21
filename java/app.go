@@ -1546,11 +1546,11 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	a.dexpreopter.enforceUsesLibs = a.usesLibrary.enforceUsesLibraries()
 	a.dexpreopter.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
 
-	dexOutput := a.dexpreopter.dexpreopt(ctx, jnisUncompressed)
+	a.dexpreopter.dexpreopt(ctx, jnisUncompressed)
 	if a.dexpreopter.uncompressedDex {
 		dexUncompressed := android.PathForModuleOut(ctx, "dex-uncompressed", ctx.ModuleName()+".apk")
-		a.uncompressDex(ctx, dexOutput, dexUncompressed.OutputPath)
-		dexOutput = dexUncompressed
+		a.uncompressDex(ctx, jnisUncompressed, dexUncompressed.OutputPath)
+		jnisUncompressed = dexUncompressed
 	}
 
 	apkFilename := proptools.StringDefault(a.properties.Filename, a.BaseModuleName()+".apk")
@@ -1574,11 +1574,11 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		if lineage := String(a.properties.Lineage); lineage != "" {
 			lineageFile = android.PathForModuleSrc(ctx, lineage)
 		}
-		SignAppPackage(ctx, signed, dexOutput, certificates, nil, lineageFile)
+		SignAppPackage(ctx, signed, jnisUncompressed, certificates, nil, lineageFile)
 		a.outputFile = signed
 	} else {
 		alignedApk := android.PathForModuleOut(ctx, "zip-aligned", apkFilename)
-		TransformZipAlign(ctx, alignedApk, dexOutput)
+		TransformZipAlign(ctx, alignedApk, jnisUncompressed)
 		a.outputFile = alignedApk
 		a.certificate = PresignedCertificate
 	}
