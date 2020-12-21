@@ -56,6 +56,12 @@ cat > ${SOONG_OUT}/soong.variables << EOF
     "Ndk_abis": true,
     "Exclude_draft_ndk_apis": true,
 
+    "VendorVars": {
+        "art_module": {
+            "source_build": "true"
+        }
+    },
+
     "MissingUsesLibraries": ${MISSING_USES_LIBRARIES}
 }
 EOF
