@@ -1082,6 +1082,10 @@ func (d *Droidstubs) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// If requested clear any properties that provide information about the latest version
 	// of an API and which reference non-existent modules.
 	if Bool(d.properties.Check_api.Ignore_missing_latest_api) {
+		previousApi := android.SrcIsModule(String(d.properties.Previous_api))
+		if previousApi != "" && !ctx.OtherModuleExists(previousApi) {
+			d.properties.Previous_api = nil
+		}
 		ignoreMissingModules(ctx, &d.properties.Check_api.Last_released)
 
 		// If the new_since references a module, e.g. :module-latest-api and the module
