@@ -50,11 +50,29 @@ var onlySoong = flag.Bool("only-soong", false, "Only run product config and Soon
 
 var buildVariant = flag.String("variant", "eng", "build variant to use")
 
-var skipProducts = flag.String("skip-products", "", "comma-separated list of products to skip (known failures, etc)")
-var includeProducts = flag.String("products", "", "comma-separated list of products to build")
-
 var shardCount = flag.Int("shard-count", 1, "split the products into multiple shards (to spread the build onto multiple machines, etc)")
 var shard = flag.Int("shard", 1, "1-indexed shard to execute")
+
+var skipProducts multipleStringArg
+var includeProducts multipleStringArg
+
+func init() {
+	flag.Var(&skipProducts, "skip-products", "comma-separated list of products to skip (known failures, etc)")
+	flag.Var(&includeProducts, "products", "comma-separated list of products to build")
+}
+
+// multipleStringArg is a flag.Value that takes comma separated lists and converts them to a
+// []string.  The argument can be passed multiple times to append more values.
+type multipleStringArg []string
+
+func (m *multipleStringArg) String() string {
+	return strings.Join(*m, `, `)
+}
+
+func (m *multipleStringArg) Set(s string) error {
+	*m = append(*m, strings.Split(s, ",")...)
+	return nil
+}
 
 const errorLeadingLines = 20
 const errorTrailingLines = 20
@@ -250,9 +268,9 @@ func main() {
 	var productsList []string
 	allProducts := strings.Fields(vars["all_named_products"])
 
-	if *includeProducts != "" {
-		missingProducts := []string{}
-		for _, product := range strings.Split(*includeProducts, ",") {
+	if len(includeProducts) > 0 {
+		var missingProducts []string
+		for _, product := range includeProducts {
 			if inList(product, allProducts) {
 				productsList = append(productsList, product)
 			} else {
@@ -267,9 +285,8 @@ func main() {
 	}
 
 	finalProductsList := make([]string, 0, len(productsList))
-	skipList := strings.Split(*skipProducts, ",")
 	skipProduct := func(p string) bool {
-		for _, s := range skipList {
+		for _, s := range skipProducts {
 			if p == s {
 				return true
 			}
