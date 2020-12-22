@@ -308,6 +308,18 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		} else {
 			vendorVariants = append(vendorVariants, platformVndkVersion)
 		}
+	} else if lib := moduleLibraryInterface(m); lib != nil && lib.hasLLNDKStubs() {
+		// This is an LLNDK library.  The implementation of the library will be on /system,
+		// and vendor and product variants will be created with LLNDK stubs.
+		coreVariantNeeded = true
+		vendorVariants = append(vendorVariants,
+			platformVndkVersion,
+			boardVndkVersion,
+		)
+		productVariants = append(productVariants,
+			platformVndkVersion,
+			productVndkVersion,
+		)
 	} else {
 		// This is either in /system (or similar: /data), or is a
 		// modules built with the NDK. Modules built with the NDK
