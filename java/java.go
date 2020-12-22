@@ -1786,7 +1786,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		j.dexJarFile = dexOutputFile
 
 		// Dexpreopting
-		dexOutputFile = j.dexpreopt(ctx, dexOutputFile)
+		j.dexpreopt(ctx, dexOutputFile)
 
 		j.maybeStrippedDexJarFile = dexOutputFile
 
@@ -3123,7 +3123,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	j.dexJarFile = dexOutputFile
 
-	dexOutputFile = j.dexpreopt(ctx, dexOutputFile)
+	j.dexpreopt(ctx, dexOutputFile)
 
 	j.maybeStrippedDexJarFile = dexOutputFile
 
