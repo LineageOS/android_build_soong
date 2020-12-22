@@ -28,6 +28,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/dexpreopt"
 )
 
 const (
@@ -2020,7 +2021,7 @@ func (module *SdkLibraryImport) SdkImplementationJars(ctx android.BaseModuleCont
 	return module.sdkJars(ctx, sdkVersion, false)
 }
 
-// to satisfy SdkLibraryDependency interface
+// to satisfy UsesLibraryDependency interface
 func (module *SdkLibraryImport) DexJarBuildPath() android.Path {
 	if module.implLibraryModule == nil {
 		return nil
@@ -2029,13 +2030,18 @@ func (module *SdkLibraryImport) DexJarBuildPath() android.Path {
 	}
 }
 
-// to satisfy SdkLibraryDependency interface
+// to satisfy UsesLibraryDependency interface
 func (module *SdkLibraryImport) DexJarInstallPath() android.Path {
 	if module.implLibraryModule == nil {
 		return nil
 	} else {
 		return module.implLibraryModule.DexJarInstallPath()
 	}
+}
+
+// to satisfy UsesLibraryDependency interface
+func (module *SdkLibraryImport) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
+	return nil
 }
 
 // to satisfy apex.javaDependency interface
