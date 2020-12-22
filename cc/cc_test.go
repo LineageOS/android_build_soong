@@ -1049,6 +1049,16 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		name: "obj",
 		vendor_available: true,
 	}
+
+	cc_library {
+		name: "libllndk",
+		llndk_stubs: "libllndk.llndk",
+	}
+
+	llndk_library {
+		name: "libllndk.llndk",
+		symbol_file: "",
+	}
 `
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
@@ -1079,6 +1089,9 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		jsonFiles = append(jsonFiles,
 			filepath.Join(sharedDir, "libvendor.so.json"),
 			filepath.Join(sharedDir, "libvendor_available.so.json"))
+
+		// LLNDK modules are not captured
+		checkSnapshotExclude(t, ctx, snapshotSingleton, "libllndk", "libllndk.so", sharedDir, sharedVariant)
 
 		// For static libraries, all vendor:true and vendor_available modules (including VNDK) are captured.
 		// Also cfi variants are captured, except for prebuilts like toolchain_library
@@ -2899,7 +2912,7 @@ func TestMakeLinkType(t *testing.T) {
 		{vendorVariant, "libvndkprivate", "native:vndk_private"},
 		{vendorVariant, "libvendor", "native:vendor"},
 		{vendorVariant, "libvndkext", "native:vendor"},
-		{vendorVariant, "libllndk.llndk", "native:vndk"},
+		{vendorVariant, "libllndk", "native:vndk"},
 		{vendorVariant27, "prevndk.vndk.27.arm.binder32", "native:vndk"},
 		{coreVariant, "libvndk", "native:platform"},
 		{coreVariant, "libvndkprivate", "native:platform"},
@@ -3178,8 +3191,39 @@ func TestLlndkLibrary(t *testing.T) {
 	llndk_library {
 		name: "libllndk.llndk",
 	}
+
+	cc_prebuilt_library_shared {
+		name: "libllndkprebuilt",
+		stubs: { versions: ["1", "2"] },
+		llndk_stubs: "libllndkprebuilt.llndk",
+	}
+	llndk_library {
+		name: "libllndkprebuilt.llndk",
+	}
+
+	cc_library {
+		name: "libllndk_with_external_headers",
+		stubs: { versions: ["1", "2"] },
+		llndk_stubs: "libllndk_with_external_headers.llndk",
+		header_libs: ["libexternal_headers"],
+		export_header_lib_headers: ["libexternal_headers"],
+	}
+	llndk_library {
+		name: "libllndk_with_external_headers.llndk",
+	}
+	cc_library_headers {
+		name: "libexternal_headers",
+		export_include_dirs: ["include"],
+		vendor_available: true,
+	}
 	`)
-	actual := ctx.ModuleVariantsForTests("libllndk.llndk")
+	actual := ctx.ModuleVariantsForTests("libllndk")
+	for i := 0; i < len(actual); i++ {
+		if !strings.HasPrefix(actual[i], "android_vendor.VER_") {
+			actual = append(actual[:i], actual[i+1:]...)
+			i--
+		}
+	}
 	expected := []string{
 		"android_vendor.VER_arm64_armv8-a_shared_1",
 		"android_vendor.VER_arm64_armv8-a_shared_2",
@@ -3190,10 +3234,10 @@ func TestLlndkLibrary(t *testing.T) {
 	}
 	checkEquals(t, "variants for llndk stubs", expected, actual)
 
-	params := ctx.ModuleForTests("libllndk.llndk", "android_vendor.VER_arm_armv7-a-neon_shared").Description("generate stub")
+	params := ctx.ModuleForTests("libllndk", "android_vendor.VER_arm_armv7-a-neon_shared").Description("generate stub")
 	checkEquals(t, "use VNDK version for default stubs", "current", params.Args["apiLevel"])
 
-	params = ctx.ModuleForTests("libllndk.llndk", "android_vendor.VER_arm_armv7-a-neon_shared_1").Description("generate stub")
+	params = ctx.ModuleForTests("libllndk", "android_vendor.VER_arm_armv7-a-neon_shared_1").Description("generate stub")
 	checkEquals(t, "override apiLevel for versioned stubs", "1", params.Args["apiLevel"])
 }
 

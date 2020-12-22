@@ -80,10 +80,10 @@ func classifySourceAbiDump(ctx android.BaseModuleContext) string {
 	if m.IsNdk(ctx.Config()) {
 		return "NDK"
 	}
-	if m.isLlndkPublic(ctx.Config()) {
+	if m.isImplementationForLLNDKPublic() {
 		return "LLNDK"
 	}
-	if m.UseVndk() && m.IsVndk() && !m.IsVndkPrivate(ctx.Config()) {
+	if m.UseVndk() && m.IsVndk() && !m.IsVndkPrivate() {
 		if m.isVndkSp() {
 			if m.IsVndkExt() {
 				return "VNDK-SP-ext"
@@ -156,7 +156,7 @@ func shouldCreateSourceAbiDumpForLibrary(ctx android.BaseModuleContext) bool {
 	}
 
 	// Don't create ABI dump for stubs.
-	if m.isNDKStubLibrary() || m.IsStubs() {
+	if m.isNDKStubLibrary() || m.IsLlndk() || m.IsStubs() {
 		return false
 	}
 
