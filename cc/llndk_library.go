@@ -15,21 +15,21 @@
 package cc
 
 import (
-	"fmt"
-	"path/filepath"
 	"strings"
 
 	"android/soong/android"
 )
-
-var llndkImplDep = dependencyTag{name: "llndk impl"}
 
 var (
 	llndkLibrarySuffix = ".llndk"
 	llndkHeadersSuffix = ".llndk"
 )
 
-// Creates a stub shared library based on the provided version file.
+// Holds properties to describe a stub shared library based on the provided version file.
+// The stub library will actually be built by the cc_library module that points to this
+// module with the llndk_stubs property.
+// TODO(ccross): move the properties from llndk_library modules directly into the cc_library
+//  modules and remove the llndk_library modules.
 //
 // Example:
 //
@@ -64,43 +64,32 @@ type llndkLibraryProperties struct {
 
 	// list of llndk headers to re-export include directories from.
 	Export_llndk_headers []string `android:"arch_variant"`
+
+	// whether this module can be directly depended upon by libs that are installed
+	// to /vendor and /product.
+	// When set to true, this module can only be depended on by VNDK libraries, not
+	// vendor nor product libraries. This effectively hides this module from
+	// non-system modules. Default value is false.
+	Private *bool
 }
 
 type llndkStubDecorator struct {
 	*libraryDecorator
 
 	Properties llndkLibraryProperties
-
-	movedToApex bool
 }
 
 var _ versionedInterface = (*llndkStubDecorator)(nil)
 
 func (stub *llndkStubDecorator) compilerFlags(ctx ModuleContext, flags Flags, deps PathDeps) Flags {
-	flags = stub.baseCompiler.compilerFlags(ctx, flags, deps)
-	return addStubLibraryCompilerFlags(flags)
+	return flags
 }
 
 func (stub *llndkStubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) Objects {
-	vndkVer := ctx.Module().(*Module).VndkVersion()
-	if !inList(vndkVer, ctx.Config().PlatformVersionActiveCodenames()) || vndkVer == "" {
-		// For non-enforcing devices, vndkVer is empty. Use "current" in that case, too.
-		vndkVer = "current"
-	}
-	if stub.stubsVersion() != "" {
-		vndkVer = stub.stubsVersion()
-	}
-	objs, versionScript := compileStubLibrary(ctx, flags, String(stub.Properties.Symbol_file), vndkVer, "--llndk")
-	if !Bool(stub.Properties.Unversioned) {
-		stub.versionScriptPath = android.OptionalPathForPath(versionScript)
-	}
-	return objs
+	return Objects{}
 }
 
 func (stub *llndkStubDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
-	headers := addSuffix(stub.Properties.Export_llndk_headers, llndkHeadersSuffix)
-	deps.HeaderLibs = append(deps.HeaderLibs, headers...)
-	deps.ReexportHeaderLibHeaders = append(deps.ReexportHeaderLibHeaders, headers...)
 	return deps
 }
 
@@ -116,57 +105,9 @@ func (stub *llndkStubDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flag
 	return stub.libraryDecorator.linkerFlags(ctx, flags)
 }
 
-func (stub *llndkStubDecorator) processHeaders(ctx ModuleContext, srcHeaderDir string, outDir android.ModuleGenPath) android.Path {
-	srcDir := android.PathForModuleSrc(ctx, srcHeaderDir)
-	srcFiles := ctx.GlobFiles(filepath.Join(srcDir.String(), "**/*.h"), nil)
-
-	var installPaths []android.WritablePath
-	for _, header := range srcFiles {
-		headerDir := filepath.Dir(header.String())
-		relHeaderDir, err := filepath.Rel(srcDir.String(), headerDir)
-		if err != nil {
-			ctx.ModuleErrorf("filepath.Rel(%q, %q) failed: %s",
-				srcDir.String(), headerDir, err)
-			continue
-		}
-
-		installPaths = append(installPaths, outDir.Join(ctx, relHeaderDir, header.Base()))
-	}
-
-	return processHeadersWithVersioner(ctx, srcDir, outDir, srcFiles, installPaths)
-}
-
 func (stub *llndkStubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 	objs Objects) android.Path {
-
-	impl := ctx.GetDirectDepWithTag(stub.implementationModuleName(ctx.ModuleName()), llndkImplDep)
-	if implApexModule, ok := impl.(android.ApexModule); ok {
-		stub.movedToApex = implApexModule.DirectlyInAnyApex()
-	}
-
-	if len(stub.Properties.Export_preprocessed_headers) > 0 {
-		genHeaderOutDir := android.PathForModuleGen(ctx, "include")
-
-		var timestampFiles android.Paths
-		for _, dir := range stub.Properties.Export_preprocessed_headers {
-			timestampFiles = append(timestampFiles, stub.processHeaders(ctx, dir, genHeaderOutDir))
-		}
-
-		if Bool(stub.Properties.Export_headers_as_system) {
-			stub.reexportSystemDirs(genHeaderOutDir)
-		} else {
-			stub.reexportDirs(genHeaderOutDir)
-		}
-
-		stub.reexportDeps(timestampFiles...)
-	}
-
-	if Bool(stub.Properties.Export_headers_as_system) {
-		stub.exportIncludesAsSystem(ctx)
-		stub.libraryDecorator.flagExporter.Properties.Export_include_dirs = []string{}
-	}
-
-	return stub.libraryDecorator.link(ctx, flags, deps, objs)
+	return nil
 }
 
 func (stub *llndkStubDecorator) nativeCoverage() bool {
@@ -181,20 +122,8 @@ func (stub *llndkStubDecorator) buildStubs() bool {
 	return true
 }
 
-func (stub *llndkStubDecorator) stubsVersions(ctx android.BaseMutatorContext) []string {
-	// Get the versions from the implementation module.
-	impls := ctx.GetDirectDepsWithTag(llndkImplDep)
-	if len(impls) > 1 {
-		panic(fmt.Errorf("Expected single implmenetation library, got %d", len(impls)))
-	} else if len(impls) == 1 {
-		return moduleLibraryInterface(impls[0]).allStubsVersions()
-	}
-	return nil
-}
-
 func NewLLndkStubLibrary() *Module {
 	module, library := NewLibrary(android.DeviceSupported)
-	library.BuildOnlyShared()
 	module.stl = nil
 	module.sanitize = nil
 	library.disableStripping()
@@ -233,10 +162,6 @@ func LlndkLibraryFactory() android.Module {
 
 type llndkHeadersDecorator struct {
 	*libraryDecorator
-}
-
-func (headers *llndkHeadersDecorator) Name(name string) string {
-	return name + llndkHeadersSuffix
 }
 
 // llndk_headers contains a set of c/c++ llndk headers files which are imported
