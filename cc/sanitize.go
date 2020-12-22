@@ -1002,9 +1002,6 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 
 		if runtimeLibrary != "" && (toolchain.Bionic() || c.sanitize.Properties.UbsanRuntimeDep) {
 			// UBSan is supported on non-bionic linux host builds as well
-			if isLlndkLibrary(runtimeLibrary, mctx.Config()) && !c.static() && c.UseVndk() {
-				runtimeLibrary = runtimeLibrary + llndkLibrarySuffix
-			}
 
 			// Adding dependency to the runtime library. We are using *FarVariation*
 			// because the runtime libraries themselves are not mutated by sanitizer
