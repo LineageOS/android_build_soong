@@ -1076,11 +1076,27 @@ func (c *Module) isImplementationForLLNDKPublic() bool {
 			c.BaseModuleName() != "libft2")
 }
 
+// Returns true for LLNDK-private, VNDK-SP-private, and VNDK-core-private.
 func (c *Module) IsVndkPrivate() bool {
-	// Returns true for LLNDK-private, VNDK-SP-private, and VNDK-core-private.
-	library, _ := c.library.(*libraryDecorator)
-	return library != nil && !Bool(library.Properties.Llndk.Vendor_available) &&
-		!Bool(c.VendorProperties.Vendor_available) && !c.IsVndkExt()
+	// Check if VNDK-core-private or VNDK-SP-private
+	if c.IsVndk() {
+		if Bool(c.vndkdep.Properties.Vndk.Private) {
+			return true
+		}
+		// TODO(b/175768895) remove this when we clean up "vendor_available: false" use cases.
+		if c.VendorProperties.Vendor_available != nil && !Bool(c.VendorProperties.Vendor_available) {
+			return true
+		}
+		return false
+	}
+
+	// Check if LLNDK-private
+	if library, ok := c.library.(*libraryDecorator); ok && c.IsLlndk() {
+		// TODO(b/175768895) replace this with 'private' property.
+		return !Bool(library.Properties.Llndk.Vendor_available)
+	}
+
+	return false
 }
 
 func (c *Module) IsVndk() bool {

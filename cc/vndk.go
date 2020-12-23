@@ -78,6 +78,13 @@ type VndkProperties struct {
 		// VNDK-SP or LL-NDK modules only.
 		Support_system_process *bool
 
+		// declared as a VNDK-private module.
+		// This module still creates the vendor and product variants refering
+		// to the `vendor_available: true` and `product_available: true`
+		// properties. However, it is only available to the other VNDK modules
+		// but not to the non-VNDK vendor or product modules.
+		Private *bool
+
 		// Extending another module
 		Extends *string
 	}
@@ -135,31 +142,11 @@ func (vndk *vndkdep) vndkCheckLinkType(ctx android.BaseModuleContext, to *Module
 		return
 	}
 	if !vndk.isVndk() {
-		// Non-VNDK modules those installed to /vendor or /system/vendor
-		// can't depend on modules marked with vendor_available: false;
-		// or those installed to /product or /system/product can't depend
-		// on modules marked with product_available: false.
-		violation := false
-		variant := "vendor"
-		if lib, ok := to.linker.(*llndkStubDecorator); ok && !Bool(lib.Properties.Vendor_available) {
-			violation = true
-			if to.InProduct() {
-				variant = "product"
-			}
-		} else if _, ok := to.linker.(libraryInterface); ok {
-			if to.inVendor() && to.VendorProperties.Vendor_available != nil && !Bool(to.VendorProperties.Vendor_available) {
-				// A vendor module with Vendor_available == nil should be okay since it means a
-				// vendor-only library which is a valid dependency for non-VNDK vendor modules.
-				violation = true
-			} else if to.InProduct() && to.VendorProperties.Product_available != nil && !Bool(to.VendorProperties.Product_available) {
-				// A product module with Product_available == nil should be okay since it means a
-				// product-only library which is a valid dependency for non-VNDK product modules.
-				violation = true
-				variant = "product"
-			}
-		}
-		if violation {
-			ctx.ModuleErrorf("%s module that is not VNDK should not link to %q which is marked as `%s_available: false`", variant, to.Name(), variant)
+		// Non-VNDK modules those installed to /vendor, /system/vendor,
+		// /product or /system/product cannot depend on VNDK-private modules
+		// that include VNDK-core-private, VNDK-SP-private and LLNDK-private.
+		if to.IsVndkPrivate() {
+			ctx.ModuleErrorf("non-VNDK module should not link to %q which has `private: true`", to.Name())
 		}
 	}
 	if lib, ok := to.linker.(*libraryDecorator); !ok || !lib.shared() {
@@ -191,15 +178,9 @@ func (vndk *vndkdep) vndkCheckLinkType(ctx android.BaseModuleContext, to *Module
 				to.Name())
 			return
 		}
-		if to.inVendor() && !Bool(to.VendorProperties.Vendor_available) {
+		if to.IsVndkPrivate() {
 			ctx.ModuleErrorf(
-				"`extends` refers module %q which does not have `vendor_available: true`",
-				to.Name())
-			return
-		}
-		if to.InProduct() && !Bool(to.VendorProperties.Product_available) {
-			ctx.ModuleErrorf(
-				"`extends` refers module %q which does not have `product_available: true`",
+				"`extends` refers module %q which has `private: true`",
 				to.Name())
 			return
 		}
@@ -355,9 +336,7 @@ func processVndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 	} else {
 		vndkCoreLibraries(mctx.Config())[name] = filename
 	}
-	// As `vendor_available` and `product_available` has the same value for VNDK modules,
-	// we don't need to check both values.
-	if !Bool(m.VendorProperties.Vendor_available) {
+	if m.IsVndkPrivate() {
 		vndkPrivateLibraries(mctx.Config())[name] = filename
 	}
 }

@@ -245,13 +245,9 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 						"vendor_available must be set to either true or false when `vndk: {enabled: true}`")
 				}
 				if m.VendorProperties.Product_available != nil {
-					// If product_available is defined for a VNDK, make sure vendor_available and
-					// product_available has the same value since `false` for these properties
-					// means the module is VNDK-private.
-					if Bool(m.VendorProperties.Vendor_available) != Bool(m.VendorProperties.Product_available) {
-						mctx.PropertyErrorf("product_available", "may not have different value than `vendor_available` for a VNDK")
-					}
-					// Also, both variants must have the same properties since they share a single VNDK library on runtime.
+					// If a VNDK module creates both product and vendor variants, they
+					// must have the same properties since they share a single VNDK
+					// library on runtime.
 					if !m.compareVendorAndProductProps() {
 						mctx.ModuleErrorf("product properties must have the same values with the vendor properties for VNDK modules")
 					}
