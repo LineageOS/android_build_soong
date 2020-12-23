@@ -1534,7 +1534,7 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 	hasSystemAndTestApis := sdkDep.hasStandardLibs()
 	module.sdkLibraryProperties.Generate_system_and_test_apis = hasSystemAndTestApis
 
-	missing_current_api := false
+	missingCurrentApi := false
 
 	generatedScopes := module.getGeneratedApiScopes(mctx)
 
@@ -1545,12 +1545,12 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 			p := android.ExistentPathForSource(mctx, path)
 			if !p.Valid() {
 				mctx.ModuleErrorf("Current api file %#v doesn't exist", path)
-				missing_current_api = true
+				missingCurrentApi = true
 			}
 		}
 	}
 
-	if missing_current_api {
+	if missingCurrentApi {
 		script := "build/soong/scripts/gen-java-current-api-files.sh"
 		p := android.ExistentPathForSource(mctx, script)
 

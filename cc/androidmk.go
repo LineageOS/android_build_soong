@@ -232,8 +232,8 @@ func (library *libraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries 
 			if len(library.Properties.Overrides) > 0 {
 				entries.SetString("LOCAL_OVERRIDES_MODULES", strings.Join(makeOverrideModuleNames(ctx, library.Properties.Overrides), " "))
 			}
-			if len(library.post_install_cmds) > 0 {
-				entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(library.post_install_cmds, "&& "))
+			if len(library.postInstallCmds) > 0 {
+				entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(library.postInstallCmds, "&& "))
 			}
 		})
 	} else if library.header() {
@@ -328,8 +328,8 @@ func (binary *binaryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *a
 		if len(binary.Properties.Overrides) > 0 {
 			entries.SetString("LOCAL_OVERRIDES_MODULES", strings.Join(makeOverrideModuleNames(ctx, binary.Properties.Overrides), " "))
 		}
-		if len(binary.post_install_cmds) > 0 {
-			entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(binary.post_install_cmds, "&& "))
+		if len(binary.postInstallCmds) > 0 {
+			entries.SetString("LOCAL_POST_INSTALL_CMD", strings.Join(binary.postInstallCmds, "&& "))
 		}
 	})
 }
