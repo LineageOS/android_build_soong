@@ -387,7 +387,7 @@ type libraryDecorator struct {
 
 	versionScriptPath android.OptionalPath
 
-	post_install_cmds []string
+	postInstallCmds []string
 
 	// If useCoreVariant is true, the vendor variant of a VNDK library is
 	// not installed.
@@ -658,9 +658,9 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 			SourceAbiFlags = append(SourceAbiFlags, "-I"+reexportedInclude)
 		}
 		flags.SAbiFlags = SourceAbiFlags
-		total_length := len(library.baseCompiler.Properties.Srcs) + len(deps.GeneratedSources) +
+		totalLength := len(library.baseCompiler.Properties.Srcs) + len(deps.GeneratedSources) +
 			len(library.SharedProperties.Shared.Srcs) + len(library.StaticProperties.Static.Srcs)
-		if total_length > 0 {
+		if totalLength > 0 {
 			flags.SAbiDump = true
 		}
 	}
@@ -1377,7 +1377,7 @@ func (library *libraryDecorator) installSymlinkToRuntimeApex(ctx ModuleContext, 
 	dirOnDevice := android.InstallPathToOnDevicePath(ctx, dir)
 	target := "/" + filepath.Join("apex", "com.android.runtime", dir.Base(), "bionic", file.Base())
 	ctx.InstallAbsoluteSymlink(dir, file.Base(), target)
-	library.post_install_cmds = append(library.post_install_cmds, makeSymlinkCmd(dirOnDevice, file.Base(), target))
+	library.postInstallCmds = append(library.postInstallCmds, makeSymlinkCmd(dirOnDevice, file.Base(), target))
 }
 
 func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
@@ -1682,11 +1682,11 @@ func reuseStaticLibrary(mctx android.BottomUpMutatorContext, static, shared *Mod
 // LinkageMutator adds "static" or "shared" variants for modules depending
 // on whether the module can be built as a static library or a shared library.
 func LinkageMutator(mctx android.BottomUpMutatorContext) {
-	cc_prebuilt := false
+	ccPrebuilt := false
 	if m, ok := mctx.Module().(*Module); ok && m.linker != nil {
-		_, cc_prebuilt = m.linker.(prebuiltLibraryInterface)
+		_, ccPrebuilt = m.linker.(prebuiltLibraryInterface)
 	}
-	if cc_prebuilt {
+	if ccPrebuilt {
 		library := mctx.Module().(*Module).linker.(prebuiltLibraryInterface)
 
 		// Differentiate between header only and building an actual static/shared library

@@ -305,17 +305,17 @@ func apiCheckEnabled(ctx android.ModuleContext, apiToCheck ApiToCheck, apiVersio
 }
 
 func ignoreMissingModules(ctx android.BottomUpMutatorContext, apiToCheck *ApiToCheck) {
-	api_file := String(apiToCheck.Api_file)
-	removed_api_file := String(apiToCheck.Removed_api_file)
+	apiFile := String(apiToCheck.Api_file)
+	removedApiFile := String(apiToCheck.Removed_api_file)
 
-	api_module := android.SrcIsModule(api_file)
-	removed_api_module := android.SrcIsModule(removed_api_file)
+	apiModule := android.SrcIsModule(apiFile)
+	removedApiModule := android.SrcIsModule(removedApiFile)
 
-	if api_module == "" || removed_api_module == "" {
+	if apiModule == "" || removedApiModule == "" {
 		return
 	}
 
-	if ctx.OtherModuleExists(api_module) || ctx.OtherModuleExists(removed_api_module) {
+	if ctx.OtherModuleExists(apiModule) || ctx.OtherModuleExists(removedApiModule) {
 		return
 	}
 
