@@ -210,6 +210,9 @@ func isSnapshotAware(m *Module, inProprietaryPath bool, apexInfo android.ApexInf
 		return false
 	}
 	// skip llndk_library and llndk_headers which are backward compatible
+	if m.IsLlndk() {
+		return false
+	}
 	if _, ok := m.linker.(*llndkStubDecorator); ok {
 		return false
 	}

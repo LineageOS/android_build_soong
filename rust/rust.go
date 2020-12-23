@@ -189,7 +189,15 @@ func (mod *Module) IsVndkExt() bool {
 	return false
 }
 
-func (c *Module) IsVndkPrivate(config android.Config) bool {
+func (c *Module) IsVndkPrivate() bool {
+	return false
+}
+
+func (c *Module) IsLlndk() bool {
+	return false
+}
+
+func (c *Module) IsLlndkPublic() bool {
 	return false
 }
 

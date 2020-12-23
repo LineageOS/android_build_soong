@@ -43,9 +43,11 @@ type LinkableInterface interface {
 	UseSdk() bool
 	UseVndk() bool
 	MustUseVendorVariant() bool
+	IsLlndk() bool
+	IsLlndkPublic() bool
 	IsVndk() bool
 	IsVndkExt() bool
-	IsVndkPrivate(config android.Config) bool
+	IsVndkPrivate() bool
 	HasVendorVariant() bool
 	InProduct() bool
 
