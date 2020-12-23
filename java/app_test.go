@@ -2896,8 +2896,8 @@ func TestUsesLibraries(t *testing.T) {
 
 	// Test conditional context for target SDK version 29.
 	if w := `--target-context-for-sdk 29` +
-		` PCL[/system/framework/android.hidl.base-V1.0-java.jar]` +
-		`#PCL[/system/framework/android.hidl.manager-V1.0-java.jar] `; !strings.Contains(cmd, w) {
+		` PCL[/system/framework/android.hidl.manager-V1.0-java.jar]` +
+		`#PCL[/system/framework/android.hidl.base-V1.0-java.jar] `; !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)
 	}
 
