@@ -784,9 +784,9 @@ func removeSoongConfigBoolVariable(f *Fixer) error {
 			return nil
 		}
 
-		bool_variables, ok := getLiteralListProperty(mod, "bool_variables")
+		boolVariables, ok := getLiteralListProperty(mod, "bool_variables")
 		if ok {
-			patchList.Add(bool_variables.RBracePos.Offset, bool_variables.RBracePos.Offset, ","+boolValues.String())
+			patchList.Add(boolVariables.RBracePos.Offset, boolVariables.RBracePos.Offset, ","+boolValues.String())
 		} else {
 			patchList.Add(variables.RBracePos.Offset+2, variables.RBracePos.Offset+2,
 				fmt.Sprintf(`bool_variables: [%s],`, boolValues.String()))

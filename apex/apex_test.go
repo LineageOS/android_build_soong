@@ -2679,12 +2679,12 @@ func TestKeys(t *testing.T) {
 	// check the APEX keys
 	keys := ctx.ModuleForTests("myapex.key", "android_common").Module().(*apexKey)
 
-	if keys.public_key_file.String() != "vendor/foo/devkeys/testkey.avbpubkey" {
-		t.Errorf("public key %q is not %q", keys.public_key_file.String(),
+	if keys.publicKeyFile.String() != "vendor/foo/devkeys/testkey.avbpubkey" {
+		t.Errorf("public key %q is not %q", keys.publicKeyFile.String(),
 			"vendor/foo/devkeys/testkey.avbpubkey")
 	}
-	if keys.private_key_file.String() != "vendor/foo/devkeys/testkey.pem" {
-		t.Errorf("private key %q is not %q", keys.private_key_file.String(),
+	if keys.privateKeyFile.String() != "vendor/foo/devkeys/testkey.pem" {
+		t.Errorf("private key %q is not %q", keys.privateKeyFile.String(),
 			"vendor/foo/devkeys/testkey.pem")
 	}
 
@@ -4143,12 +4143,12 @@ func TestApexKeyFromOtherModule(t *testing.T) {
 
 	apex_key := ctx.ModuleForTests("myapex.key", "android_common").Module().(*apexKey)
 	expected_pubkey := "testkey2.avbpubkey"
-	actual_pubkey := apex_key.public_key_file.String()
+	actual_pubkey := apex_key.publicKeyFile.String()
 	if actual_pubkey != expected_pubkey {
 		t.Errorf("wrong public key path. expected %q. actual %q", expected_pubkey, actual_pubkey)
 	}
 	expected_privkey := "testkey2.pem"
-	actual_privkey := apex_key.private_key_file.String()
+	actual_privkey := apex_key.privateKeyFile.String()
 	if actual_privkey != expected_privkey {
 		t.Errorf("wrong private key path. expected %q. actual %q", expected_privkey, actual_privkey)
 	}

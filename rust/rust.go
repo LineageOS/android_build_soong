@@ -698,15 +698,15 @@ func (mod *Module) deps(ctx DepsContext) Deps {
 
 type dependencyTag struct {
 	blueprint.BaseDependencyTag
-	name       string
-	library    bool
-	proc_macro bool
+	name      string
+	library   bool
+	procMacro bool
 }
 
 // InstallDepNeeded returns true for rlibs, dylibs, and proc macros so that they or their transitive
 // dependencies (especially C/C++ shared libs) are installed as dependencies of a rust binary.
 func (d dependencyTag) InstallDepNeeded() bool {
-	return d.library || d.proc_macro
+	return d.library || d.procMacro
 }
 
 var _ android.InstallNeededDependencyTag = dependencyTag{}
@@ -715,7 +715,7 @@ var (
 	customBindgenDepTag = dependencyTag{name: "customBindgenTag"}
 	rlibDepTag          = dependencyTag{name: "rlibTag", library: true}
 	dylibDepTag         = dependencyTag{name: "dylib", library: true}
-	procMacroDepTag     = dependencyTag{name: "procMacro", proc_macro: true}
+	procMacroDepTag     = dependencyTag{name: "procMacro", procMacro: true}
 	testPerSrcDepTag    = dependencyTag{name: "rust_unit_tests"}
 	sourceDepTag        = dependencyTag{name: "source"}
 )

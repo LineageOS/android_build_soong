@@ -577,8 +577,8 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		fileContexts := a.buildFileContexts(ctx)
 		implicitInputs = append(implicitInputs, fileContexts)
 
-		implicitInputs = append(implicitInputs, a.private_key_file, a.public_key_file)
-		optFlags = append(optFlags, "--pubkey "+a.public_key_file.String())
+		implicitInputs = append(implicitInputs, a.privateKeyFile, a.publicKeyFile)
+		optFlags = append(optFlags, "--pubkey "+a.publicKeyFile.String())
 
 		manifestPackageName := a.getOverrideManifestPackageName(ctx)
 		if manifestPackageName != "" {
@@ -667,7 +667,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				"manifest":         a.manifestPbOut.String(),
 				"file_contexts":    fileContexts.String(),
 				"canned_fs_config": cannedFsConfig.String(),
-				"key":              a.private_key_file.String(),
+				"key":              a.privateKeyFile.String(),
 				"opt_flags":        strings.Join(optFlags, " "),
 			},
 		})
@@ -842,8 +842,8 @@ func (a *apexBundle) buildFlattenedApex(ctx android.ModuleContext) {
 // the zip container of this APEX. See the description of the 'certificate' property for how
 // the cert and the private key are found.
 func (a *apexBundle) getCertificateAndPrivateKey(ctx android.PathContext) (pem, key android.Path) {
-	if a.container_certificate_file != nil {
-		return a.container_certificate_file, a.container_private_key_file
+	if a.containerCertificateFile != nil {
+		return a.containerCertificateFile, a.containerPrivateKeyFile
 	}
 
 	cert := String(a.properties.Certificate)

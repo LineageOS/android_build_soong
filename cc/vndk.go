@@ -417,19 +417,19 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	lib, is_lib := m.linker.(*libraryDecorator)
-	prebuilt_lib, is_prebuilt_lib := m.linker.(*prebuiltLibraryLinker)
+	lib, isLib := m.linker.(*libraryDecorator)
+	prebuiltLib, isPrebuiltLib := m.linker.(*prebuiltLibraryLinker)
 
-	if m.UseVndk() && is_lib && lib.hasLLNDKStubs() {
+	if m.UseVndk() && isLib && lib.hasLLNDKStubs() {
 		llndk := mctx.AddVariationDependencies(nil, llndkStubDepTag, String(lib.Properties.Llndk_stubs))
 		mergeLLNDKToLib(llndk[0].(*Module), &lib.Properties.Llndk, &lib.flagExporter)
 	}
-	if m.UseVndk() && is_prebuilt_lib && prebuilt_lib.hasLLNDKStubs() {
-		llndk := mctx.AddVariationDependencies(nil, llndkStubDepTag, String(prebuilt_lib.Properties.Llndk_stubs))
-		mergeLLNDKToLib(llndk[0].(*Module), &prebuilt_lib.Properties.Llndk, &prebuilt_lib.flagExporter)
+	if m.UseVndk() && isPrebuiltLib && prebuiltLib.hasLLNDKStubs() {
+		llndk := mctx.AddVariationDependencies(nil, llndkStubDepTag, String(prebuiltLib.Properties.Llndk_stubs))
+		mergeLLNDKToLib(llndk[0].(*Module), &prebuiltLib.Properties.Llndk, &prebuiltLib.flagExporter)
 	}
 
-	if (is_lib && lib.buildShared()) || (is_prebuilt_lib && prebuilt_lib.buildShared()) {
+	if (isLib && lib.buildShared()) || (isPrebuiltLib && prebuiltLib.buildShared()) {
 		if m.vndkdep != nil && m.vndkdep.isVndk() && !m.vndkdep.isVndkExt() {
 			processVndkLibrary(mctx, m)
 			return

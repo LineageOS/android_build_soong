@@ -137,13 +137,13 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	var implicitOutputs android.WritablePaths
 
 	output.outputFile = outputFile
-	crate_name := ctx.RustModule().CrateName()
+	crateName := ctx.RustModule().CrateName()
 	targetTriple := ctx.toolchain().RustTriple()
 
 	// libstd requires a specific environment variable to be set. This is
 	// not officially documented and may be removed in the future. See
 	// https://github.com/rust-lang/rust/blob/master/library/std/src/env.rs#L866.
-	if crate_name == "std" {
+	if crateName == "std" {
 		envVars = append(envVars, "STD_ENV_ARCH="+config.StdEnvArch[ctx.RustModule().Arch().ArchType])
 	}
 
@@ -153,8 +153,8 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	rustcFlags = append(rustcFlags, flags.GlobalRustFlags...)
 	rustcFlags = append(rustcFlags, flags.RustFlags...)
 	rustcFlags = append(rustcFlags, "--crate-type="+crate_type)
-	if crate_name != "" {
-		rustcFlags = append(rustcFlags, "--crate-name="+crate_name)
+	if crateName != "" {
+		rustcFlags = append(rustcFlags, "--crate-name="+crateName)
 	}
 	if targetTriple != "" {
 		rustcFlags = append(rustcFlags, "--target="+targetTriple)
