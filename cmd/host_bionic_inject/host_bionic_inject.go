@@ -58,7 +58,7 @@ func main() {
 		os.Exit(4)
 	}
 
-	start_addr, err := parseElf(r, linker)
+	startAddr, err := parseElf(r, linker)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(5)
@@ -71,7 +71,7 @@ func main() {
 	}
 	defer w.Close()
 
-	err = symbol_inject.InjectUint64Symbol(file, w, "__dlwrap_original_start", start_addr)
+	err = symbol_inject.InjectUint64Symbol(file, w, "__dlwrap_original_start", startAddr)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(7)
@@ -128,7 +128,7 @@ func findSymbol(symbols []elf.Symbol, name string) (elf.Symbol, error) {
 
 // Check that all of the PT_LOAD segments have been embedded properly
 func checkLinker(file, linker *elf.File, fileSyms []elf.Symbol) error {
-	dlwrap_linker_offset, err := findSymbol(fileSyms, "__dlwrap_linker_offset")
+	dlwrapLinkerOffset, err := findSymbol(fileSyms, "__dlwrap_linker_offset")
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func checkLinker(file, linker *elf.File, fileSyms []elf.Symbol) error {
 			continue
 		}
 
-		laddr := lprog.Vaddr + dlwrap_linker_offset.Value
+		laddr := lprog.Vaddr + dlwrapLinkerOffset.Value
 
 		found := false
 		for _, prog := range file.Progs {
@@ -163,7 +163,7 @@ func checkLinker(file, linker *elf.File, fileSyms []elf.Symbol) error {
 		}
 		if !found {
 			return fmt.Errorf("Linker prog %d (0x%x) not found at offset 0x%x",
-				i, lprog.Vaddr, dlwrap_linker_offset.Value)
+				i, lprog.Vaddr, dlwrapLinkerOffset.Value)
 		}
 	}
 

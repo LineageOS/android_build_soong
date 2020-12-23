@@ -211,15 +211,15 @@ func TestPerSrcMutator(mctx android.BottomUpMutatorContext) {
 				// name or even their number.
 				testNames = append(testNames, "")
 				tests := mctx.CreateLocalVariations(testNames...)
-				all_tests := tests[numTests]
-				all_tests.(*Module).linker.(testPerSrc).unsetSrc()
+				allTests := tests[numTests]
+				allTests.(*Module).linker.(testPerSrc).unsetSrc()
 				// Prevent the "all tests" variation from being installable nor
 				// exporting to Make, as it won't create any output file.
-				all_tests.(*Module).Properties.PreventInstall = true
-				all_tests.(*Module).Properties.HideFromMake = true
+				allTests.(*Module).Properties.PreventInstall = true
+				allTests.(*Module).Properties.HideFromMake = true
 				for i, src := range test.srcs() {
 					tests[i].(*Module).linker.(testPerSrc).setSrc(testNames[i], src)
-					mctx.AddInterVariantDependency(testPerSrcDepTag, all_tests, tests[i])
+					mctx.AddInterVariantDependency(testPerSrcDepTag, allTests, tests[i])
 				}
 				mctx.AliasVariation("")
 			}
@@ -369,9 +369,9 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 		}
 	})
 
-	var api_level_prop string
+	var apiLevelProp string
 	var configs []tradefed.Config
-	var min_level string
+	var minLevel string
 	for _, module := range test.Properties.Test_mainline_modules {
 		configs = append(configs, tradefed.Option{Name: "config-descriptor:metadata", Key: "mainline-param", Value: module})
 	}
@@ -398,16 +398,16 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	if test.Properties.Test_min_api_level != nil && test.Properties.Test_min_sdk_version != nil {
 		ctx.PropertyErrorf("test_min_api_level", "'test_min_api_level' and 'test_min_sdk_version' should not be set at the same time.")
 	} else if test.Properties.Test_min_api_level != nil {
-		api_level_prop = "ro.product.first_api_level"
-		min_level = strconv.FormatInt(int64(*test.Properties.Test_min_api_level), 10)
+		apiLevelProp = "ro.product.first_api_level"
+		minLevel = strconv.FormatInt(int64(*test.Properties.Test_min_api_level), 10)
 	} else if test.Properties.Test_min_sdk_version != nil {
-		api_level_prop = "ro.build.version.sdk"
-		min_level = strconv.FormatInt(int64(*test.Properties.Test_min_sdk_version), 10)
+		apiLevelProp = "ro.build.version.sdk"
+		minLevel = strconv.FormatInt(int64(*test.Properties.Test_min_sdk_version), 10)
 	}
-	if api_level_prop != "" {
+	if apiLevelProp != "" {
 		var options []tradefed.Option
-		options = append(options, tradefed.Option{Name: "min-api-level", Value: min_level})
-		options = append(options, tradefed.Option{Name: "api-level-prop", Value: api_level_prop})
+		options = append(options, tradefed.Option{Name: "min-api-level", Value: minLevel})
+		options = append(options, tradefed.Option{Name: "api-level-prop", Value: apiLevelProp})
 		configs = append(configs, tradefed.Object{"module_controller", "com.android.tradefed.testtype.suite.module.MinApiLevelModuleController", options})
 	}
 
