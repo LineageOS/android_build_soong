@@ -39,59 +39,8 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"api/test-current.txt":   nil,
 		"api/test-removed.txt":   nil,
 
-		"prebuilts/sdk/14/public/android.jar":                      nil,
-		"prebuilts/sdk/14/public/framework.aidl":                   nil,
-		"prebuilts/sdk/14/system/android.jar":                      nil,
-		"prebuilts/sdk/17/public/android.jar":                      nil,
-		"prebuilts/sdk/17/public/framework.aidl":                   nil,
-		"prebuilts/sdk/17/system/android.jar":                      nil,
-		"prebuilts/sdk/28/public/android.jar":                      nil,
-		"prebuilts/sdk/28/public/framework.aidl":                   nil,
-		"prebuilts/sdk/28/system/android.jar":                      nil,
-		"prebuilts/sdk/29/public/android.jar":                      nil,
-		"prebuilts/sdk/29/public/framework.aidl":                   nil,
-		"prebuilts/sdk/29/system/android.jar":                      nil,
-		"prebuilts/sdk/29/system/foo.jar":                          nil,
-		"prebuilts/sdk/30/public/android.jar":                      nil,
-		"prebuilts/sdk/30/public/framework.aidl":                   nil,
-		"prebuilts/sdk/30/system/android.jar":                      nil,
-		"prebuilts/sdk/30/system/foo.jar":                          nil,
-		"prebuilts/sdk/30/module-lib/android.jar":                  nil,
-		"prebuilts/sdk/30/module-lib/foo.jar":                      nil,
-		"prebuilts/sdk/30/public/core-for-system-modules.jar":      nil,
-		"prebuilts/sdk/current/core/android.jar":                   nil,
-		"prebuilts/sdk/current/public/android.jar":                 nil,
-		"prebuilts/sdk/current/public/framework.aidl":              nil,
-		"prebuilts/sdk/current/public/core.jar":                    nil,
-		"prebuilts/sdk/current/public/core-for-system-modules.jar": nil,
-		"prebuilts/sdk/current/system/android.jar":                 nil,
-		"prebuilts/sdk/current/test/android.jar":                   nil,
-		"prebuilts/sdk/28/public/api/foo.txt":                      nil,
-		"prebuilts/sdk/28/system/api/foo.txt":                      nil,
-		"prebuilts/sdk/28/test/api/foo.txt":                        nil,
-		"prebuilts/sdk/28/public/api/foo-removed.txt":              nil,
-		"prebuilts/sdk/28/system/api/foo-removed.txt":              nil,
-		"prebuilts/sdk/28/test/api/foo-removed.txt":                nil,
-		"prebuilts/sdk/28/public/api/bar.txt":                      nil,
-		"prebuilts/sdk/28/system/api/bar.txt":                      nil,
-		"prebuilts/sdk/28/test/api/bar.txt":                        nil,
-		"prebuilts/sdk/28/public/api/bar-removed.txt":              nil,
-		"prebuilts/sdk/28/system/api/bar-removed.txt":              nil,
-		"prebuilts/sdk/28/test/api/bar-removed.txt":                nil,
-		"prebuilts/sdk/30/public/api/foo.txt":                      nil,
-		"prebuilts/sdk/30/system/api/foo.txt":                      nil,
-		"prebuilts/sdk/30/test/api/foo.txt":                        nil,
-		"prebuilts/sdk/30/public/api/foo-removed.txt":              nil,
-		"prebuilts/sdk/30/system/api/foo-removed.txt":              nil,
-		"prebuilts/sdk/30/test/api/foo-removed.txt":                nil,
-		"prebuilts/sdk/30/public/api/bar.txt":                      nil,
-		"prebuilts/sdk/30/system/api/bar.txt":                      nil,
-		"prebuilts/sdk/30/test/api/bar.txt":                        nil,
-		"prebuilts/sdk/30/public/api/bar-removed.txt":              nil,
-		"prebuilts/sdk/30/system/api/bar-removed.txt":              nil,
-		"prebuilts/sdk/30/test/api/bar-removed.txt":                nil,
-		"prebuilts/sdk/tools/core-lambda-stubs.jar":                nil,
-		"prebuilts/sdk/Android.bp":                                 []byte(`prebuilt_apis { name: "sdk", api_dirs: ["14", "28", "30", "current"], imports_sdk_version: "none", imports_compile_dex:true,}`),
+		"prebuilts/sdk/tools/core-lambda-stubs.jar": nil,
+		"prebuilts/sdk/Android.bp":                  []byte(`prebuilt_apis { name: "sdk", api_dirs: ["14", "28", "30", "current"], imports_sdk_version: "none", imports_compile_dex:true,}`),
 
 		"bin.py": nil,
 		python.StubTemplateHost: []byte(`PYTHON_BINARY = '%interpreter%'
@@ -102,6 +51,16 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 		"api/module-lib-removed.txt":    nil,
 		"api/system-server-current.txt": nil,
 		"api/system-server-removed.txt": nil,
+	}
+
+	levels := []string{"14", "28", "29", "30", "current"}
+	libs := []string{
+		"android", "foo", "bar", "sdklib", "barney", "betty", "foo-shared_library",
+		"foo-no_shared_library", "core-for-system-modules", "quuz", "qux", "fred",
+		"runtime-library",
+	}
+	for k, v := range prebuiltApisFilesForLibs(levels, libs) {
+		mockFS[k] = v
 	}
 
 	cc.GatherRequiredFilesForTest(mockFS)
@@ -119,6 +78,21 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	config := android.TestArchConfig(buildDir, env, bp, mockFS)
 
 	return config
+}
+
+func prebuiltApisFilesForLibs(apiLevels []string, sdkLibs []string) map[string][]byte {
+	fs := make(map[string][]byte)
+	for _, level := range apiLevels {
+		for _, lib := range sdkLibs {
+			for _, scope := range []string{"public", "system", "module-lib", "system-server", "test"} {
+				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/%s.jar", level, scope, lib)] = nil
+				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s.txt", level, scope, lib)] = nil
+				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s-removed.txt", level, scope, lib)] = nil
+			}
+		}
+		fs[fmt.Sprintf("prebuilts/sdk/%s/public/framework.aidl", level)] = nil
+	}
+	return fs
 }
 
 func GatherRequiredDepsForTest() string {
