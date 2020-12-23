@@ -44,6 +44,14 @@ func testSdkWithJava(t *testing.T, bp string) *testSdkResult {
 		"api/system-server-removed.txt":                     nil,
 		"build/soong/scripts/gen-java-current-api-files.sh": nil,
 		"docs/known_doctags":                                nil,
+		"100/public/api/myjavalib.txt":                      nil,
+		"100/public/api/myjavalib-removed.txt":              nil,
+		"100/system/api/myjavalib.txt":                      nil,
+		"100/system/api/myjavalib-removed.txt":              nil,
+		"100/module-lib/api/myjavalib.txt":                  nil,
+		"100/module-lib/api/myjavalib-removed.txt":          nil,
+		"100/system-server/api/myjavalib.txt":               nil,
+		"100/system-server/api/myjavalib-removed.txt":       nil,
 	}
 
 	// for java_sdk_library tests
@@ -83,6 +91,10 @@ java_import {
 java_import {
 	name: "framework", 
 	sdk_version: "none",
+}
+prebuilt_apis {
+	name: "sdk",
+	api_dirs: ["100"],
 }
 ` + bp
 
