@@ -16,6 +16,7 @@ package dexpreopt
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -238,8 +239,8 @@ var OptionalCompatUsesLibs30 = []string{
 	AndroidTestMock,
 }
 var CompatUsesLibs29 = []string{
-	AndroidHidlBase,
 	AndroidHidlManager,
+	AndroidHidlBase,
 }
 var OptionalCompatUsesLibs = append(android.CopyOf(OptionalCompatUsesLibs28), OptionalCompatUsesLibs30...)
 var CompatUsesLibs = android.CopyOf(CompatUsesLibs29)
@@ -462,7 +463,26 @@ func validateClassLoaderContextRec(sdkVer int, clcs []*ClassLoaderContext) (bool
 // Perform a depth-first preorder traversal of the class loader context tree for each SDK version.
 // Return the resulting string and a slice of on-host build paths to all library dependencies.
 func ComputeClassLoaderContext(clcMap ClassLoaderContextMap) (clcStr string, paths android.Paths) {
-	for _, sdkVer := range android.SortedIntKeys(clcMap) { // determinisitc traversal order
+	// CLC for different SDK versions should come in specific order that agrees with PackageManager.
+	// Since PackageManager processes SDK versions in ascending order and prepends compatibility
+	// libraries at the front, the required order is descending, except for AnySdkVersion that has
+	// numerically the largest order, but must be the last one. Example of correct order: [30, 29,
+	// 28, AnySdkVersion]. There are Soong tests to ensure that someone doesn't change this by
+	// accident, but there is no way to guard against changes in the PackageManager, except for
+	// grepping logcat on the first boot for absence of the following messages:
+	//
+	//   `logcat | grep -E 'ClassLoaderContext [a-z ]+ mismatch`
+	//
+	versions := make([]int, 0, len(clcMap))
+	for ver, _ := range clcMap {
+		if ver != AnySdkVersion {
+			versions = append(versions, ver)
+		}
+	}
+	sort.Sort(sort.Reverse(sort.IntSlice(versions))) // descending order
+	versions = append(versions, AnySdkVersion)
+
+	for _, sdkVer := range versions {
 		sdkVerStr := fmt.Sprintf("%d", sdkVer)
 		if sdkVer == AnySdkVersion {
 			sdkVerStr = "any" // a special keyword that means any SDK version

@@ -209,6 +209,48 @@ func TestCLCNestedConditional(t *testing.T) {
 	checkError(t, err, "nested class loader context shouldn't have conditional part")
 }
 
+// Test for SDK version order in conditional CLC: no matter in what order the libraries are added,
+// they end up in the order that agrees with PackageManager.
+func TestCLCSdkVersionOrder(t *testing.T) {
+	ctx := testContext()
+	m := make(ClassLoaderContextMap)
+	m.AddContextForSdk(ctx, 28, "a", buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+	m.AddContextForSdk(ctx, 29, "b", buildPath(ctx, "b"), installPath(ctx, "b"), nil)
+	m.AddContextForSdk(ctx, 30, "c", buildPath(ctx, "c"), installPath(ctx, "c"), nil)
+	m.AddContextForSdk(ctx, AnySdkVersion, "d", buildPath(ctx, "d"), installPath(ctx, "d"), nil)
+
+	valid, validationError := validateClassLoaderContext(m)
+
+	fixClassLoaderContext(m)
+
+	var haveStr string
+	if valid && validationError == nil {
+		haveStr, _ = ComputeClassLoaderContext(m)
+	}
+
+	// Test that validation is successful (all paths are known).
+	t.Run("validate", func(t *testing.T) {
+		if !(valid && validationError == nil) {
+			t.Errorf("invalid class loader context")
+		}
+	})
+
+	// Test that class loader context structure is correct.
+	t.Run("string", func(t *testing.T) {
+		wantStr := " --host-context-for-sdk 30 PCL[out/c.jar]" +
+			" --target-context-for-sdk 30 PCL[/system/c.jar]" +
+			" --host-context-for-sdk 29 PCL[out/b.jar]" +
+			" --target-context-for-sdk 29 PCL[/system/b.jar]" +
+			" --host-context-for-sdk 28 PCL[out/a.jar]" +
+			" --target-context-for-sdk 28 PCL[/system/a.jar]" +
+			" --host-context-for-sdk any PCL[out/d.jar]" +
+			" --target-context-for-sdk any PCL[/system/d.jar]"
+		if wantStr != haveStr {
+			t.Errorf("\nwant class loader context: %s\nhave class loader context: %s", wantStr, haveStr)
+		}
+	})
+}
+
 func checkError(t *testing.T, have error, want string) {
 	if have == nil {
 		t.Errorf("\nwant error: '%s'\nhave: none", want)
