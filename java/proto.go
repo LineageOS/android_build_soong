@@ -49,7 +49,7 @@ func genProto(ctx android.ModuleContext, protoFiles android.Paths, flags android
 		// into a srcjar.
 		rule.Command().
 			BuiltTool("soong_zip").
-			Flag("-jar").
+			Flag("-srcjar").
 			Flag("-write_if_changed").
 			FlagWithOutput("-o ", srcJarFile).
 			FlagWithArg("-C ", outDir.String()).
