@@ -479,8 +479,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 	}
 
 	if ctx.inProduct() {
-		// TODO(b/150902910): must use 'compiler.Properties.Target.Product.Cflags'
-		flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Target.Vendor.Cflags)...)
+		flags.Local.CFlags = append(flags.Local.CFlags, esc(compiler.Properties.Target.Product.Cflags)...)
 	}
 
 	if ctx.inRecovery() {
