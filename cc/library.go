@@ -1400,8 +1400,9 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 				}
 			}
 
-			// In some cases we want to use core variant for VNDK-Core libs
-			if ctx.isVndk() && !ctx.isVndkSp() && !ctx.IsVndkExt() {
+			// In some cases we want to use core variant for VNDK-Core libs.
+			// Skip product variant since VNDKs use only the vendor variant.
+			if ctx.isVndk() && !ctx.isVndkSp() && !ctx.IsVndkExt() && !ctx.inProduct() {
 				mayUseCoreVariant := true
 
 				if ctx.mustUseVendorVariant() {
