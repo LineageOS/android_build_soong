@@ -392,18 +392,18 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 		ctx.PropertyErrorf("srcs", "sysprop_library must specify srcs")
 	}
 
-	missing_api := false
+	missingApi := false
 
 	for _, txt := range []string{"-current.txt", "-latest.txt"} {
 		path := path.Join(ctx.ModuleDir(), "api", m.BaseModuleName()+txt)
 		file := android.ExistentPathForSource(ctx, path)
 		if !file.Valid() {
 			ctx.ModuleErrorf("API file %#v doesn't exist", path)
-			missing_api = true
+			missingApi = true
 		}
 	}
 
-	if missing_api {
+	if missingApi {
 		script := "build/soong/scripts/gen-sysprop-api-files.sh"
 		p := android.ExistentPathForSource(ctx, script)
 

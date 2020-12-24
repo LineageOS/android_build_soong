@@ -110,6 +110,7 @@ func testSdkContext(bp string, fs map[string][]byte, extraOsTypes []android.OsTy
 	java.RegisterJavaBuildComponents(ctx)
 	java.RegisterAppBuildComponents(ctx)
 	java.RegisterSdkLibraryBuildComponents(ctx)
+	java.RegisterPrebuiltApisBuildComponents(ctx)
 	java.RegisterStubsBuildComponents(ctx)
 	java.RegisterSystemModulesBuildComponents(ctx)
 

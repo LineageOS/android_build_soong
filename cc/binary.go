@@ -109,7 +109,7 @@ type binaryDecorator struct {
 
 	// Action command lines to run directly after the binary is installed. For example,
 	// may be used to symlink runtime dependencies (such as bionic) alongside installation.
-	post_install_cmds []string
+	postInstallCmds []string
 }
 
 var _ linker = (*binaryDecorator)(nil)
@@ -481,11 +481,11 @@ func (binary *binaryDecorator) installSymlinkToRuntimeApex(ctx ModuleContext, fi
 	target := "/" + filepath.Join("apex", "com.android.runtime", dir.Base(), file.Base())
 
 	ctx.InstallAbsoluteSymlink(dir, file.Base(), target)
-	binary.post_install_cmds = append(binary.post_install_cmds, makeSymlinkCmd(dirOnDevice, file.Base(), target))
+	binary.postInstallCmds = append(binary.postInstallCmds, makeSymlinkCmd(dirOnDevice, file.Base(), target))
 
 	for _, symlink := range binary.symlinks {
 		ctx.InstallAbsoluteSymlink(dir, symlink, target)
-		binary.post_install_cmds = append(binary.post_install_cmds, makeSymlinkCmd(dirOnDevice, symlink, target))
+		binary.postInstallCmds = append(binary.postInstallCmds, makeSymlinkCmd(dirOnDevice, symlink, target))
 	}
 }
 

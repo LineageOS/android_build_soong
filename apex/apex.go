@@ -298,12 +298,12 @@ type apexBundle struct {
 	// Inputs
 
 	// Keys for apex_paylaod.img
-	public_key_file  android.Path
-	private_key_file android.Path
+	publicKeyFile  android.Path
+	privateKeyFile android.Path
 
 	// Cert/priv-key for the zip container
-	container_certificate_file android.Path
-	container_private_key_file android.Path
+	containerCertificateFile android.Path
+	containerPrivateKeyFile  android.Path
 
 	// Flags for special variants of APEX
 	testApex bool
@@ -1684,16 +1684,16 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 			case keyTag:
 				if key, ok := child.(*apexKey); ok {
-					a.private_key_file = key.private_key_file
-					a.public_key_file = key.public_key_file
+					a.privateKeyFile = key.privateKeyFile
+					a.publicKeyFile = key.publicKeyFile
 				} else {
 					ctx.PropertyErrorf("key", "%q is not an apex_key module", depName)
 				}
 				return false
 			case certificateTag:
 				if dep, ok := child.(*java.AndroidAppCertificate); ok {
-					a.container_certificate_file = dep.Certificate.Pem
-					a.container_private_key_file = dep.Certificate.Key
+					a.containerCertificateFile = dep.Certificate.Pem
+					a.containerPrivateKeyFile = dep.Certificate.Key
 				} else {
 					ctx.ModuleErrorf("certificate dependency %q must be an android_app_certificate module", depName)
 				}
@@ -1810,7 +1810,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 		return false
 	})
-	if a.private_key_file == nil {
+	if a.privateKeyFile == nil {
 		ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.properties.Key))
 		return
 	}
@@ -1950,7 +1950,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		copiedPubkey := android.PathForModuleOut(ctx, "apex_pubkey")
 		ctx.Build(pctx, android.BuildParams{
 			Rule:   android.Cp,
-			Input:  a.public_key_file,
+			Input:  a.publicKeyFile,
 			Output: copiedPubkey,
 		})
 		a.filesInfo = append(a.filesInfo, newApexFile(ctx, copiedPubkey, "apex_pubkey", ".", etc, nil))
@@ -2618,7 +2618,6 @@ func makeApexAvailableBaseline() map[string][]string {
 		"libstagefright_amrwbdec",
 		"libstagefright_amrwbenc",
 		"libstagefright_bufferpool@2.0.1",
-		"libstagefright_bufferqueue_helper",
 		"libstagefright_enc_common",
 		"libstagefright_flacdec",
 		"libstagefright_foundation",
@@ -2839,14 +2838,14 @@ func init() {
 func createApexPermittedPackagesRules(modules_packages map[string][]string) []android.Rule {
 	rules := make([]android.Rule, 0, len(modules_packages))
 	for module_name, module_packages := range modules_packages {
-		permitted_packages_rule := android.NeverAllow().
+		permittedPackagesRule := android.NeverAllow().
 			BootclasspathJar().
 			With("apex_available", module_name).
 			WithMatcher("permitted_packages", android.NotInList(module_packages)).
 			Because("jars that are part of the " + module_name +
 				" module may only allow these packages: " + strings.Join(module_packages, ",") +
 				". Please jarjar or move code around.")
-		rules = append(rules, permitted_packages_rule)
+		rules = append(rules, permittedPackagesRule)
 	}
 	return rules
 }

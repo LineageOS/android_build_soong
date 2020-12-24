@@ -387,25 +387,25 @@ func (context *bazelContext) InvokeBazel() error {
 	if err != nil {
 		return err
 	}
-	cquery_file_relpath := filepath.Join(context.intermediatesDir(), "buildroot.cquery")
+	cqueryFileRelpath := filepath.Join(context.intermediatesDir(), "buildroot.cquery")
 	err = ioutil.WriteFile(
-		absolutePath(cquery_file_relpath),
+		absolutePath(cqueryFileRelpath),
 		context.cqueryStarlarkFileContents(), 0666)
 	if err != nil {
 		return err
 	}
-	workspace_file_relpath := filepath.Join(context.intermediatesDir(), "WORKSPACE.bazel")
+	workspaceFileRelpath := filepath.Join(context.intermediatesDir(), "WORKSPACE.bazel")
 	err = ioutil.WriteFile(
-		absolutePath(workspace_file_relpath),
+		absolutePath(workspaceFileRelpath),
 		context.workspaceFileContents(), 0666)
 	if err != nil {
 		return err
 	}
-	buildroot_label := "//:buildroot"
+	buildrootLabel := "//:buildroot"
 	cqueryOutput, err = context.issueBazelCommand(bazel.CqueryBuildRootRunName, "cquery",
-		[]string{fmt.Sprintf("deps(%s)", buildroot_label)},
+		[]string{fmt.Sprintf("deps(%s)", buildrootLabel)},
 		"--output=starlark",
-		"--starlark:file="+cquery_file_relpath)
+		"--starlark:file="+cqueryFileRelpath)
 
 	if err != nil {
 		return err
@@ -432,7 +432,7 @@ func (context *bazelContext) InvokeBazel() error {
 	// TODO(cparsons): Use --target_pattern_file to avoid command line limits.
 	var aqueryOutput string
 	aqueryOutput, err = context.issueBazelCommand(bazel.AqueryBuildRootRunName, "aquery",
-		[]string{fmt.Sprintf("deps(%s)", buildroot_label),
+		[]string{fmt.Sprintf("deps(%s)", buildrootLabel),
 			// Use jsonproto instead of proto; actual proto parsing would require a dependency on Bazel's
 			// proto sources, which would add a number of unnecessary dependencies.
 			"--output=jsonproto"})

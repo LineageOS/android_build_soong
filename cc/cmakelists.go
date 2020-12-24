@@ -125,15 +125,15 @@ func generateCLionProject(compiledModule CompiledInterface, ctx android.Singleto
 	}
 
 	// Only write CMakeLists.txt for the first variant of each architecture of each module
-	clionproject_location := getCMakeListsForModule(ccModule, ctx)
-	if seenProjects[clionproject_location] {
+	clionprojectLocation := getCMakeListsForModule(ccModule, ctx)
+	if seenProjects[clionprojectLocation] {
 		return
 	}
 
-	seenProjects[clionproject_location] = true
+	seenProjects[clionprojectLocation] = true
 
 	// Ensure the directory hosting the cmakelists.txt exists
-	projectDir := path.Dir(clionproject_location)
+	projectDir := path.Dir(clionprojectLocation)
 	os.MkdirAll(projectDir, os.ModePerm)
 
 	// Create cmakelists.txt

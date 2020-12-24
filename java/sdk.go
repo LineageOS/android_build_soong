@@ -371,8 +371,8 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		jar := filepath.Join(dir, "android.jar")
 		// There's no aidl for other SDKs yet.
 		// TODO(77525052): Add aidl files for other SDKs too.
-		public_dir := filepath.Join("prebuilts", "sdk", sdkVersion.version.String(), "public")
-		aidl := filepath.Join(public_dir, "framework.aidl")
+		publicDir := filepath.Join("prebuilts", "sdk", sdkVersion.version.String(), "public")
+		aidl := filepath.Join(publicDir, "framework.aidl")
 		jarPath := android.ExistentPathForSource(ctx, jar)
 		aidlPath := android.ExistentPathForSource(ctx, aidl)
 		lambdaStubsPath := android.PathForSource(ctx, config.SdkLambdaStubsPath)

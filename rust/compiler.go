@@ -214,9 +214,9 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 	flags.GlobalLinkFlags = append(flags.GlobalLinkFlags, ctx.toolchain().ToolchainLinkFlags())
 
 	if ctx.Host() && !ctx.Windows() {
-		rpath_prefix := `\$$ORIGIN/`
+		rpathPrefix := `\$$ORIGIN/`
 		if ctx.Darwin() {
-			rpath_prefix = "@loader_path/"
+			rpathPrefix = "@loader_path/"
 		}
 
 		var rpath string
@@ -225,8 +225,8 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		} else {
 			rpath = "lib"
 		}
-		flags.LinkFlags = append(flags.LinkFlags, "-Wl,-rpath,"+rpath_prefix+rpath)
-		flags.LinkFlags = append(flags.LinkFlags, "-Wl,-rpath,"+rpath_prefix+"../"+rpath)
+		flags.LinkFlags = append(flags.LinkFlags, "-Wl,-rpath,"+rpathPrefix+rpath)
+		flags.LinkFlags = append(flags.LinkFlags, "-Wl,-rpath,"+rpathPrefix+"../"+rpath)
 	}
 
 	return flags

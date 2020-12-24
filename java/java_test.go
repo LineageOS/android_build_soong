@@ -83,11 +83,10 @@ func testContext(config android.Config) *android.TestContext {
 	ctx.RegisterModuleType("python_binary_host", python.PythonBinaryHostFactory)
 	RegisterDocsBuildComponents(ctx)
 	RegisterStubsBuildComponents(ctx)
+	RegisterPrebuiltApisBuildComponents(ctx)
 	RegisterSdkLibraryBuildComponents(ctx)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterComponentsMutator)
-
-	RegisterPrebuiltApisBuildComponents(ctx)
 
 	ctx.PreDepsMutators(python.RegisterPythonPreDepsMutators)
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
@@ -1813,7 +1812,7 @@ func TestJavaSdkLibrary(t *testing.T) {
 func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
 	ctx, _ := testJava(t, `
 		java_sdk_library {
-			name: "sdk_lib",
+			name: "sdklib",
 			srcs: ["a.java"],
 			impl_only_libs: ["foo"],
 			stub_only_libs: ["bar"],
@@ -1830,13 +1829,13 @@ func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
 		}
 		`)
 
-	for _, implName := range []string{"sdk_lib", "sdk_lib.impl"} {
+	for _, implName := range []string{"sdklib", "sdklib.impl"} {
 		implJavacCp := ctx.ModuleForTests(implName, "android_common").Rule("javac").Args["classpath"]
 		if !strings.Contains(implJavacCp, "/foo.jar") || strings.Contains(implJavacCp, "/bar.jar") {
 			t.Errorf("%v javac classpath %v does not contain foo and not bar", implName, implJavacCp)
 		}
 	}
-	stubName := apiScopePublic.stubsLibraryModuleName("sdk_lib")
+	stubName := apiScopePublic.stubsLibraryModuleName("sdklib")
 	stubsJavacCp := ctx.ModuleForTests(stubName, "android_common").Rule("javac").Args["classpath"]
 	if strings.Contains(stubsJavacCp, "/foo.jar") || !strings.Contains(stubsJavacCp, "/bar.jar") {
 		t.Errorf("stubs javac classpath %v does not contain bar and not foo", stubsJavacCp)
