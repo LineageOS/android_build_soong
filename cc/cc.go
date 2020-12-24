@@ -360,7 +360,11 @@ type VendorProperties struct {
 	//
 	// If set to false, this module becomes inaccessible from /vendor modules.
 	//
-	// Default value is true when vndk: {enabled: true} or vendor: true.
+	// The modules with vndk: {enabled: true} must define 'vendor_available'
+	// to either 'true' or 'false'. In this case, 'vendor_available: false' has
+	// a different meaning than that of non-VNDK modules.
+	// 'vendor_available: false' for a VNDK module means 'VNDK-private' that
+	// can only be depended on by VNDK libraries, not by non-VNDK vendor modules.
 	//
 	// Nothing happens if BOARD_VNDK_VERSION isn't set in the BoardConfig.mk
 	Vendor_available *bool
@@ -376,7 +380,19 @@ type VendorProperties struct {
 	// make assumptions about the system that may not be true in the
 	// future.
 	//
-	// It must be set to true by default for vndk: {enabled: true} modules.
+	// If set to false, this module becomes inaccessible from /product modules.
+	//
+	// Different from the 'vendor_available' property, the modules with
+	// vndk: {enabled: true} don't have to define 'product_available'. The VNDK
+	// library without 'product_available' may not be depended on by any other
+	// modules that has product variants including the product available VNDKs.
+	// However, for the modules with vndk: {enabled: true},
+	// 'product_available: false' creates the product variant that is available
+	// only for the other product available VNDK modules but not by non-VNDK
+	// product modules.
+	// In the case of the modules with vndk: {enabled: true}, if
+	// 'product_available' is defined, it must have the same value with the
+	// 'vendor_available'.
 	//
 	// Nothing happens if BOARD_VNDK_VERSION isn't set in the BoardConfig.mk
 	// and PRODUCT_PRODUCT_VNDK_VERSION isn't set.
@@ -1060,11 +1076,27 @@ func (c *Module) isImplementationForLLNDKPublic() bool {
 			c.BaseModuleName() != "libft2")
 }
 
+// Returns true for LLNDK-private, VNDK-SP-private, and VNDK-core-private.
 func (c *Module) IsVndkPrivate() bool {
-	// Returns true for LLNDK-private, VNDK-SP-private, and VNDK-core-private.
-	library, _ := c.library.(*libraryDecorator)
-	return library != nil && !Bool(library.Properties.Llndk.Vendor_available) &&
-		!Bool(c.VendorProperties.Vendor_available) && !c.IsVndkExt()
+	// Check if VNDK-core-private or VNDK-SP-private
+	if c.IsVndk() {
+		if Bool(c.vndkdep.Properties.Vndk.Private) {
+			return true
+		}
+		// TODO(b/175768895) remove this when we clean up "vendor_available: false" use cases.
+		if c.VendorProperties.Vendor_available != nil && !Bool(c.VendorProperties.Vendor_available) {
+			return true
+		}
+		return false
+	}
+
+	// Check if LLNDK-private
+	if library, ok := c.library.(*libraryDecorator); ok && c.IsLlndk() {
+		// TODO(b/175768895) replace this with 'private' property.
+		return !Bool(library.Properties.Llndk.Vendor_available)
+	}
+
+	return false
 }
 
 func (c *Module) IsVndk() bool {

@@ -101,8 +101,7 @@ func (g *GenruleExtraProperties) ExtraImageVariations(ctx android.BaseModuleCont
 		return variants
 	}
 
-	// TODO(b/150902910): vendor_available will not create product variant. Remove Bool(g.Vendor_available)
-	if Bool(g.Vendor_available) || Bool(g.Product_available) || ctx.ProductSpecific() {
+	if Bool(g.Product_available) || ctx.ProductSpecific() {
 		variants = append(variants, ProductVariationPrefix+ctx.DeviceConfig().PlatformVndkVersion())
 		if vndkVersion := ctx.DeviceConfig().ProductVndkVersion(); vndkVersion != "current" {
 			variants = append(variants, ProductVariationPrefix+vndkVersion)
