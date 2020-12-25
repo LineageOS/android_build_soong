@@ -17,6 +17,8 @@ package cc
 // functions to determine where a module is installed, etc.
 
 import (
+	"fmt"
+	"reflect"
 	"strings"
 
 	"android/soong/android"
@@ -97,17 +99,23 @@ func (ctx *moduleContextImpl) inRecovery() bool {
 
 // Returns true when this module is configured to have core and vendor variants.
 func (c *Module) HasVendorVariant() bool {
+	// In case of a VNDK, 'vendor_available: false' still creates a vendor variant.
 	return c.IsVndk() || Bool(c.VendorProperties.Vendor_available)
 }
 
 // Returns true when this module is configured to have core and product variants.
 func (c *Module) HasProductVariant() bool {
+	if c.VendorProperties.Product_available == nil {
+		// Without 'product_available', product variant will not be created even for VNDKs.
+		return false
+	}
+	// However, 'product_available: false' in a VNDK still creates a product variant.
 	return c.IsVndk() || Bool(c.VendorProperties.Product_available)
 }
 
 // Returns true when this module is configured to have core and either product or vendor variants.
 func (c *Module) HasNonSystemVariants() bool {
-	return c.IsVndk() || Bool(c.VendorProperties.Vendor_available) || Bool(c.VendorProperties.Product_available)
+	return c.HasVendorVariant() || c.HasProductVariant()
 }
 
 // Returns true if the module is "product" variant. Usually these modules are installed in /product
@@ -144,6 +152,52 @@ func (c *Module) OnlyInRecovery() bool {
 	return c.ModuleBase.InstallInRecovery()
 }
 
+func visitPropsAndCompareVendorAndProductProps(v reflect.Value) bool {
+	if v.Kind() != reflect.Struct {
+		return true
+	}
+	for i := 0; i < v.NumField(); i++ {
+		prop := v.Field(i)
+		if prop.Kind() == reflect.Struct && v.Type().Field(i).Name == "Target" {
+			vendor_prop := prop.FieldByName("Vendor")
+			product_prop := prop.FieldByName("Product")
+			if vendor_prop.Kind() != reflect.Struct && product_prop.Kind() != reflect.Struct {
+				// Neither Target.Vendor nor Target.Product is defined
+				continue
+			}
+			if vendor_prop.Kind() != reflect.Struct || product_prop.Kind() != reflect.Struct ||
+				!reflect.DeepEqual(vendor_prop.Interface(), product_prop.Interface()) {
+				// If only one of either Target.Vendor or Target.Product is
+				// defined or they have different values, it fails the build
+				// since VNDK must have the same properties for both vendor
+				// and product variants.
+				return false
+			}
+		} else if !visitPropsAndCompareVendorAndProductProps(prop) {
+			// Visit the substructures to find Target.Vendor and Target.Product
+			return false
+		}
+	}
+	return true
+}
+
+// In the case of VNDK, vendor and product variants must have the same properties.
+// VNDK installs only one file and shares it for both vendor and product modules on
+// runtime. We may not define different versions of a VNDK lib for each partition.
+// This function is used only for the VNDK modules that is available to both vendor
+// and product partitions.
+func (c *Module) compareVendorAndProductProps() bool {
+	if !c.IsVndk() && c.VendorProperties.Product_available != nil {
+		panic(fmt.Errorf("This is only for product available VNDK libs. %q is not a VNDK library or not product available", c.Name()))
+	}
+	for _, properties := range c.GetProperties() {
+		if !visitPropsAndCompareVendorAndProductProps(reflect.ValueOf(properties).Elem()) {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	// Validation check
 	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
@@ -153,14 +207,6 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		if vendorSpecific {
 			mctx.PropertyErrorf("vendor_available",
 				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific:true`")
-		}
-		// If defined, make sure vendor_available and product_available has the
-		// same value since `false` for these properties means the module is
-		// for system only but provides the variant.
-		if m.VendorProperties.Product_available != nil {
-			if Bool(m.VendorProperties.Vendor_available) != Bool(m.VendorProperties.Product_available) {
-				mctx.PropertyErrorf("product_available", "may not have different value than `vendor_available`")
-			}
 		}
 	}
 
@@ -197,6 +243,14 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 				if m.VendorProperties.Vendor_available == nil {
 					mctx.PropertyErrorf("vndk",
 						"vendor_available must be set to either true or false when `vndk: {enabled: true}`")
+				}
+				if m.VendorProperties.Product_available != nil {
+					// If a VNDK module creates both product and vendor variants, they
+					// must have the same properties since they share a single VNDK
+					// library on runtime.
+					if !m.compareVendorAndProductProps() {
+						mctx.ModuleErrorf("product properties must have the same values with the vendor properties for VNDK modules")
+					}
 				}
 			}
 		} else {
@@ -281,13 +335,13 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 			}
 		}
 
-		// vendor_available modules are also available to /product.
-		// TODO(b/150902910): product variant will be created only if
-		// m.HasProductVariant() is true.
-		productVariants = append(productVariants, platformVndkVersion)
-		// VNDK is always PLATFORM_VNDK_VERSION
-		if !m.IsVndk() {
-			productVariants = append(productVariants, productVndkVersion)
+		// product_available modules are available to /product.
+		if m.HasProductVariant() {
+			productVariants = append(productVariants, platformVndkVersion)
+			// VNDK is always PLATFORM_VNDK_VERSION
+			if !m.IsVndk() {
+				productVariants = append(productVariants, productVndkVersion)
+			}
 		}
 	} else if vendorSpecific && String(m.Properties.Sdk_version) == "" {
 		// This will be available in /vendor (or /odm) only
@@ -471,7 +525,6 @@ func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string
 	} else if strings.HasPrefix(variant, ProductVariationPrefix) {
 		m.Properties.ImageVariationPrefix = ProductVariationPrefix
 		m.Properties.VndkVersion = strings.TrimPrefix(variant, ProductVariationPrefix)
-		// TODO (b/150902910): This will be replaced with squashProductSrcs(m).
-		squashVendorSrcs(m)
+		squashProductSrcs(m)
 	}
 }

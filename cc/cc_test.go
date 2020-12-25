@@ -326,7 +326,6 @@ func TestVndk(t *testing.T) {
 		cc_library {
 			name: "libvndk",
 			vendor_available: true,
-			product_available: true,
 			vndk: {
 				enabled: true,
 			},
@@ -335,19 +334,36 @@ func TestVndk(t *testing.T) {
 
 		cc_library {
 			name: "libvndk_private",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
 			vndk: {
 				enabled: true,
+				private: true,
 			},
 			nocrt: true,
 			stem: "libvndk-private",
 		}
 
 		cc_library {
-			name: "libvndk_sp",
+			name: "libvndk_product",
 			vendor_available: true,
 			product_available: true,
+			vndk: {
+				enabled: true,
+			},
+			nocrt: true,
+			target: {
+				vendor: {
+					cflags: ["-DTEST"],
+				},
+				product: {
+					cflags: ["-DTEST"],
+				},
+			},
+		}
+
+		cc_library {
+			name: "libvndk_sp",
+			vendor_available: true,
 			vndk: {
 				enabled: true,
 				support_system_process: true,
@@ -358,11 +374,11 @@ func TestVndk(t *testing.T) {
 
 		cc_library {
 			name: "libvndk_sp_private",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
 			vndk: {
 				enabled: true,
 				support_system_process: true,
+				private: true,
 			},
 			nocrt: true,
 			target: {
@@ -371,6 +387,27 @@ func TestVndk(t *testing.T) {
 				},
 			},
 		}
+
+		cc_library {
+			name: "libvndk_sp_product_private",
+			vendor_available: true,
+			product_available: true,
+			vndk: {
+				enabled: true,
+				support_system_process: true,
+				private: true,
+			},
+			nocrt: true,
+			target: {
+				vendor: {
+					suffix: "-x",
+				},
+				product: {
+					suffix: "-x",
+				},
+			},
+		}
+
 		vndk_libraries_txt {
 			name: "llndk.libraries.txt",
 		}
@@ -399,13 +436,13 @@ func TestVndk(t *testing.T) {
 	// They are installed as part of VNDK APEX instead.
 	checkVndkModule(t, ctx, "libvndk", "", false, "", vendorVariant)
 	checkVndkModule(t, ctx, "libvndk_private", "", false, "", vendorVariant)
+	checkVndkModule(t, ctx, "libvndk_product", "", false, "", vendorVariant)
 	checkVndkModule(t, ctx, "libvndk_sp", "", true, "", vendorVariant)
 	checkVndkModule(t, ctx, "libvndk_sp_private", "", true, "", vendorVariant)
+	checkVndkModule(t, ctx, "libvndk_sp_product_private", "", true, "", vendorVariant)
 
-	checkVndkModule(t, ctx, "libvndk", "", false, "", productVariant)
-	checkVndkModule(t, ctx, "libvndk_private", "", false, "", productVariant)
-	checkVndkModule(t, ctx, "libvndk_sp", "", true, "", productVariant)
-	checkVndkModule(t, ctx, "libvndk_sp_private", "", true, "", productVariant)
+	checkVndkModule(t, ctx, "libvndk_product", "", false, "", productVariant)
+	checkVndkModule(t, ctx, "libvndk_sp_product_private", "", true, "", productVariant)
 
 	// Check VNDK snapshot output.
 
@@ -429,6 +466,8 @@ func TestVndk(t *testing.T) {
 
 	checkSnapshot(t, ctx, snapshotSingleton, "libvndk", "libvndk.so", vndkCoreLibPath, variant)
 	checkSnapshot(t, ctx, snapshotSingleton, "libvndk", "libvndk.so", vndkCoreLib2ndPath, variant2nd)
+	checkSnapshot(t, ctx, snapshotSingleton, "libvndk_product", "libvndk_product.so", vndkCoreLibPath, variant)
+	checkSnapshot(t, ctx, snapshotSingleton, "libvndk_product", "libvndk_product.so", vndkCoreLib2ndPath, variant2nd)
 	checkSnapshot(t, ctx, snapshotSingleton, "libvndk_sp", "libvndk_sp-x.so", vndkSpLibPath, variant)
 	checkSnapshot(t, ctx, snapshotSingleton, "libvndk_sp", "libvndk_sp-x.so", vndkSpLib2ndPath, variant2nd)
 
@@ -446,16 +485,19 @@ func TestVndk(t *testing.T) {
 		"VNDK-SP: libc++.so",
 		"VNDK-SP: libvndk_sp-x.so",
 		"VNDK-SP: libvndk_sp_private-x.so",
+		"VNDK-SP: libvndk_sp_product_private-x.so",
 		"VNDK-core: libvndk-private.so",
 		"VNDK-core: libvndk.so",
+		"VNDK-core: libvndk_product.so",
 		"VNDK-private: libft2.so",
 		"VNDK-private: libvndk-private.so",
 		"VNDK-private: libvndk_sp_private-x.so",
+		"VNDK-private: libvndk_sp_product_private-x.so",
 	})
 	checkVndkLibrariesOutput(t, ctx, "llndk.libraries.txt", []string{"libc.so", "libdl.so", "libft2.so", "libm.so"})
-	checkVndkLibrariesOutput(t, ctx, "vndkcore.libraries.txt", []string{"libvndk-private.so", "libvndk.so"})
-	checkVndkLibrariesOutput(t, ctx, "vndkprivate.libraries.txt", []string{"libft2.so", "libvndk-private.so", "libvndk_sp_private-x.so"})
-	checkVndkLibrariesOutput(t, ctx, "vndksp.libraries.txt", []string{"libc++.so", "libvndk_sp-x.so", "libvndk_sp_private-x.so"})
+	checkVndkLibrariesOutput(t, ctx, "vndkcore.libraries.txt", []string{"libvndk-private.so", "libvndk.so", "libvndk_product.so"})
+	checkVndkLibrariesOutput(t, ctx, "vndksp.libraries.txt", []string{"libc++.so", "libvndk_sp-x.so", "libvndk_sp_private-x.so", "libvndk_sp_product_private-x.so"})
+	checkVndkLibrariesOutput(t, ctx, "vndkprivate.libraries.txt", []string{"libft2.so", "libvndk-private.so", "libvndk_sp_private-x.so", "libvndk_sp_product_private-x.so"})
 	checkVndkLibrariesOutput(t, ctx, "vndkcorevariant.libraries.txt", nil)
 }
 
@@ -535,10 +577,11 @@ func TestVndkUsingCoreVariant(t *testing.T) {
 
 		cc_library {
 			name: "libvndk2",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
+				private: true,
 			},
 			nocrt: true,
 		}
@@ -683,15 +726,41 @@ func TestVndkWhenVndkVersionIsNotSet(t *testing.T) {
 
 func TestVndkModuleError(t *testing.T) {
 	// Check the error message for vendor_available and product_available properties.
-	testCcError(t, "product_available: may not have different value than `vendor_available`", `
+	testCcErrorProductVndk(t, "vndk: vendor_available must be set to either true or false when `vndk: {enabled: true}`", `
 		cc_library {
 			name: "libvndk",
-			vendor_available: true,
-			product_available: false,
 			vndk: {
 				enabled: true,
 			},
 			nocrt: true,
+		}
+	`)
+
+	testCcErrorProductVndk(t, "vndk: vendor_available must be set to either true or false when `vndk: {enabled: true}`", `
+		cc_library {
+			name: "libvndk",
+			product_available: true,
+			vndk: {
+				enabled: true,
+			},
+			nocrt: true,
+		}
+	`)
+
+	testCcErrorProductVndk(t, "product properties must have the same values with the vendor properties for VNDK modules", `
+		cc_library {
+			name: "libvndkprop",
+			vendor_available: true,
+			product_available: true,
+			vndk: {
+				enabled: true,
+			},
+			nocrt: true,
+			target: {
+				vendor: {
+					cflags: ["-DTEST",],
+				},
+			},
 		}
 	`)
 }
@@ -826,10 +895,11 @@ func TestVndkDepError(t *testing.T) {
 	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
 		cc_library {
 			name: "libvndkprivate",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
+				private: true,
 			},
 			shared_libs: ["libnonvndk"],
 			nocrt: true,
@@ -867,11 +937,12 @@ func TestVndkDepError(t *testing.T) {
 	testCcError(t, "module \".*\" variant \".*\": \\(.*\\) should not link to \".*\"", `
 		cc_library {
 			name: "libvndkspprivate",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
 				support_system_process: true,
+				private: true,
 			},
 			shared_libs: ["libnonvndk"],
 			nocrt: true,
@@ -962,10 +1033,11 @@ func TestDoubleLoadbleDep(t *testing.T) {
 
 		cc_library {
 			name: "libnondoubleloadable",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
+				private: true,
 			},
 			double_loadable: true,
 		}
@@ -1831,10 +1903,11 @@ func TestDoubleLoadableDepError(t *testing.T) {
 
 		cc_library {
 			name: "libnondoubleloadable",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
+				private: true,
 			},
 		}
 	`)
@@ -2185,14 +2258,15 @@ func TestVndkExtInconsistentSupportSystemProcessError(t *testing.T) {
 
 func TestVndkExtVendorAvailableFalseError(t *testing.T) {
 	// This test ensures an error is emitted when a VNDK-Ext library extends a VNDK library
-	// with `vendor_available: false`.
-	testCcError(t, "`extends` refers module \".*\" which does not have `vendor_available: true`", `
+	// with `private: true`.
+	testCcError(t, "`extends` refers module \".*\" which has `private: true`", `
 		cc_library {
 			name: "libvndk",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
+				private: true,
 			},
 			nocrt: true,
 		}
@@ -2208,13 +2282,14 @@ func TestVndkExtVendorAvailableFalseError(t *testing.T) {
 		}
 	`)
 
-	testCcErrorProductVndk(t, "`extends` refers module \".*\" which does not have `vendor_available: true`", `
+	testCcErrorProductVndk(t, "`extends` refers module \".*\" which has `private: true`", `
 		cc_library {
 			name: "libvndk",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
+				private: true,
 			},
 			nocrt: true,
 		}
@@ -2562,7 +2637,6 @@ func TestVndkUseVndkExtError(t *testing.T) {
 		cc_library {
 			name: "libvndk2",
 			vendor_available: true,
-			product_available: true,
 			vndk: {
 				enabled: true,
 			},
@@ -2635,7 +2709,6 @@ func TestVndkUseVndkExtError(t *testing.T) {
 		cc_library {
 			name: "libvndk_sp2",
 			vendor_available: true,
-			product_available: true,
 			vndk: {
 				enabled: true,
 			},
@@ -2689,6 +2762,20 @@ func TestEnforceProductVndkVersion(t *testing.T) {
 			nocrt: true,
 		}
 		cc_library {
+			name: "libboth_available",
+			vendor_available: true,
+			product_available: true,
+			nocrt: true,
+			target: {
+				vendor: {
+					suffix: "-vendor",
+				},
+				product: {
+					suffix: "-product",
+				},
+			}
+		}
+		cc_library {
 			name: "libproduct_va",
 			product_specific: true,
 			vendor_available: true,
@@ -2702,6 +2789,7 @@ func TestEnforceProductVndkVersion(t *testing.T) {
 				"libvndk",
 				"libvndk_sp",
 				"libpa",
+				"libboth_available",
 				"libproduct_va",
 			],
 			nocrt: true,
@@ -2714,6 +2802,7 @@ func TestEnforceProductVndkVersion(t *testing.T) {
 				"libvndk",
 				"libvndk_sp",
 				"libva",
+				"libboth_available",
 				"libproduct_va",
 			],
 			nocrt: true,
@@ -2729,6 +2818,12 @@ func TestEnforceProductVndkVersion(t *testing.T) {
 
 	checkVndkModule(t, ctx, "libvndk", "", false, "", productVariant)
 	checkVndkModule(t, ctx, "libvndk_sp", "", true, "", productVariant)
+
+	mod_vendor := ctx.ModuleForTests("libboth_available", vendorVariant).Module().(*Module)
+	assertString(t, mod_vendor.outputFile.Path().Base(), "libboth_available-vendor.so")
+
+	mod_product := ctx.ModuleForTests("libboth_available", productVariant).Module().(*Module)
+	assertString(t, mod_product.outputFile.Path().Base(), "libboth_available-product.so")
 }
 
 func TestEnforceProductVndkVersionErrors(t *testing.T) {
@@ -2761,7 +2856,22 @@ func TestEnforceProductVndkVersionErrors(t *testing.T) {
 			nocrt: true,
 		}
 	`)
-	testCcErrorProductVndk(t, "Vendor module that is not VNDK should not link to \".*\" which is marked as `vendor_available: false`", `
+	testCcErrorProductVndk(t, "dependency \".*\" of \".*\" missing variant:\n.*image:product.VER", `
+		cc_library {
+			name: "libprod",
+			product_specific: true,
+			shared_libs: [
+				"libva",
+			],
+			nocrt: true,
+		}
+		cc_library {
+			name: "libva",
+			vendor_available: true,
+			nocrt: true,
+		}
+	`)
+	testCcErrorProductVndk(t, "non-VNDK module should not link to \".*\" which has `private: true`", `
 		cc_library {
 			name: "libprod",
 			product_specific: true,
@@ -2772,10 +2882,11 @@ func TestEnforceProductVndkVersionErrors(t *testing.T) {
 		}
 		cc_library {
 			name: "libvndk_private",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
+				private: true,
 			},
 			nocrt: true,
 		}
@@ -2833,10 +2944,11 @@ func TestMakeLinkType(t *testing.T) {
 		}
 		cc_library {
 			name: "libvndkprivate",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
+				private: true,
 			},
 		}
 		cc_library {

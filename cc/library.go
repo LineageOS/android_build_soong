@@ -275,12 +275,13 @@ type flagExporter struct {
 // any module that links against this module. This is obtained from
 // the export_include_dirs property in the appropriate target stanza.
 func (f *flagExporter) exportedIncludes(ctx ModuleContext) android.Paths {
-	// TODO(b/150902910): product variant must use Target.Product
-	if ctx.useVndk() && f.Properties.Target.Vendor.Override_export_include_dirs != nil {
+	if ctx.inVendor() && f.Properties.Target.Vendor.Override_export_include_dirs != nil {
 		return android.PathsForModuleSrc(ctx, f.Properties.Target.Vendor.Override_export_include_dirs)
-	} else {
-		return android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
 	}
+	if ctx.inProduct() && f.Properties.Target.Product.Override_export_include_dirs != nil {
+		return android.PathsForModuleSrc(ctx, f.Properties.Target.Product.Override_export_include_dirs)
+	}
+	return android.PathsForModuleSrc(ctx, f.Properties.Export_include_dirs)
 }
 
 // exportIncludes registers the include directories and system include directories to be exported
@@ -726,7 +727,7 @@ type versionedInterface interface {
 var _ libraryInterface = (*libraryDecorator)(nil)
 var _ versionedInterface = (*libraryDecorator)(nil)
 
-func (library *libraryDecorator) getLibNameHelper(baseModuleName string, useVndk bool) string {
+func (library *libraryDecorator) getLibNameHelper(baseModuleName string, inVendor bool, inProduct bool) string {
 	name := library.libName
 	if name == "" {
 		name = String(library.Properties.Stem)
@@ -736,9 +737,10 @@ func (library *libraryDecorator) getLibNameHelper(baseModuleName string, useVndk
 	}
 
 	suffix := ""
-	if useVndk {
-		// TODO(b/150902910): product variant must use Target.Product
+	if inVendor {
 		suffix = String(library.Properties.Target.Vendor.Suffix)
+	} else if inProduct {
+		suffix = String(library.Properties.Target.Product.Suffix)
 	}
 	if suffix == "" {
 		suffix = String(library.Properties.Suffix)
@@ -750,7 +752,7 @@ func (library *libraryDecorator) getLibNameHelper(baseModuleName string, useVndk
 // getLibName returns the actual canonical name of the library (the name which
 // should be passed to the linker via linker flags).
 func (library *libraryDecorator) getLibName(ctx BaseModuleContext) string {
-	name := library.getLibNameHelper(ctx.baseModuleName(), ctx.useVndk())
+	name := library.getLibNameHelper(ctx.baseModuleName(), ctx.inVendor(), ctx.inProduct())
 
 	if ctx.IsVndkExt() {
 		// vndk-ext lib should have the same name with original lib
@@ -851,13 +853,19 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		deps.ReexportSharedLibHeaders = append(deps.ReexportSharedLibHeaders, library.SharedProperties.Shared.Export_shared_lib_headers...)
 		deps.ReexportStaticLibHeaders = append(deps.ReexportStaticLibHeaders, library.SharedProperties.Shared.Export_static_lib_headers...)
 	}
-	// TODO(b/150902910): product variant must use Target.Product
-	if ctx.useVndk() {
+	if ctx.inVendor() {
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, library.baseLinker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.SharedLibs = removeListFromList(deps.SharedLibs, library.baseLinker.Properties.Target.Vendor.Exclude_shared_libs)
 		deps.StaticLibs = removeListFromList(deps.StaticLibs, library.baseLinker.Properties.Target.Vendor.Exclude_static_libs)
 		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, library.baseLinker.Properties.Target.Vendor.Exclude_shared_libs)
 		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, library.baseLinker.Properties.Target.Vendor.Exclude_static_libs)
+	}
+	if ctx.inProduct() {
+		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, library.baseLinker.Properties.Target.Product.Exclude_static_libs)
+		deps.SharedLibs = removeListFromList(deps.SharedLibs, library.baseLinker.Properties.Target.Product.Exclude_shared_libs)
+		deps.StaticLibs = removeListFromList(deps.StaticLibs, library.baseLinker.Properties.Target.Product.Exclude_static_libs)
+		deps.ReexportSharedLibHeaders = removeListFromList(deps.ReexportSharedLibHeaders, library.baseLinker.Properties.Target.Product.Exclude_shared_libs)
+		deps.ReexportStaticLibHeaders = removeListFromList(deps.ReexportStaticLibHeaders, library.baseLinker.Properties.Target.Product.Exclude_static_libs)
 	}
 	if ctx.inRecovery() {
 		deps.WholeStaticLibs = removeListFromList(deps.WholeStaticLibs, library.baseLinker.Properties.Target.Recovery.Exclude_static_libs)
@@ -1392,8 +1400,9 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 				}
 			}
 
-			// In some cases we want to use core variant for VNDK-Core libs
-			if ctx.isVndk() && !ctx.isVndkSp() && !ctx.IsVndkExt() {
+			// In some cases we want to use core variant for VNDK-Core libs.
+			// Skip product variant since VNDKs use only the vendor variant.
+			if ctx.isVndk() && !ctx.isVndkSp() && !ctx.IsVndkExt() && !ctx.inProduct() {
 				mayUseCoreVariant := true
 
 				if ctx.mustUseVendorVariant() {

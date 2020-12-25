@@ -78,10 +78,7 @@ func genAidl(ctx android.ModuleContext, aidlFiles android.Paths, aidlFlags strin
 
 		rule.Command().
 			Tool(ctx.Config().HostToolPath(ctx, "soong_zip")).
-			// TODO(b/124333557): this can't use -srcjar for now, aidl on parcelables generates java files
-			//  without a package statement, which causes -srcjar to put them in the top level of the zip file.
-			//  Once aidl skips parcelables we can use -srcjar.
-			//Flag("-srcjar").
+			Flag("-srcjar").
 			Flag("-write_if_changed").
 			FlagWithOutput("-o ", srcJarFile).
 			FlagWithArg("-C ", outDir.String()).
