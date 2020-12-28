@@ -134,8 +134,6 @@ func RegisterMakeVarsProvider(pctx PackageContext, provider MakeVarsProvider) {
 
 // SingletonMakeVarsProvider is a Singleton with an extra method to provide extra values to be exported to Make.
 type SingletonMakeVarsProvider interface {
-	Singleton
-
 	// MakeVars uses a MakeVarsContext to provide extra values to be exported to Make.
 	MakeVars(ctx MakeVarsContext)
 }
