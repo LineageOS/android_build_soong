@@ -85,7 +85,7 @@ func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {
 
 	hiddenAPI := ctx.SingletonForTests("hiddenapi")
 	hiddenapiRule := hiddenAPI.Rule("hiddenapi")
-	want := "--boot-dex=" + buildDir + "/.intermediates/foo/android_common/dex/foo.jar"
+	want := "--boot-dex=" + buildDir + "/.intermediates/foo/android_common/aligned/foo.jar"
 	if !strings.Contains(hiddenapiRule.RuleParams.Command, want) {
 		t.Errorf("Expected %s in hiddenapi command, but it was not present: %s", want, hiddenapiRule.RuleParams.Command)
 	}
