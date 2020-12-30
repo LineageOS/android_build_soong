@@ -609,6 +609,9 @@ type libraryDependencyTag struct {
 
 	makeSuffix string
 
+	// Whether or not this dependency should skip the apex dependency check
+	skipApexAllowedDependenciesCheck bool
+
 	// Whether or not this dependency has to be followed for the apex variants
 	excludeInApex bool
 }
