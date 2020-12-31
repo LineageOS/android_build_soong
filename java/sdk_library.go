@@ -1358,8 +1358,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	// check against the not-yet-release API
 	props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
 	props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
-	// TODO(b/176092454): change true to module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api
-	props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(true)
+	props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api)
 
 	if !apiScope.unstable {
 		// check against the latest released API
