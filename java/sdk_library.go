@@ -1271,6 +1271,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		Merge_annotations_dirs           []string
 		Merge_inclusion_annotations_dirs []string
 		Generate_stubs                   *bool
+		Previous_api                     *string
 		Check_api                        struct {
 			Current                   ApiToCheck
 			Last_released             ApiToCheck
@@ -1363,6 +1364,7 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	if !apiScope.unstable {
 		// check against the latest released API
 		latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
+		props.Previous_api = latestApiFilegroupName
 		props.Check_api.Last_released.Api_file = latestApiFilegroupName
 		props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
 			module.latestRemovedApiFilegroupName(apiScope))
