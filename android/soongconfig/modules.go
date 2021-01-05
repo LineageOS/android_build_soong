@@ -541,12 +541,15 @@ func (s *valueVariable) initializeProperties(v reflect.Value, typ reflect.Type) 
 }
 
 func (s *valueVariable) PropertiesToApply(config SoongConfig, values reflect.Value) (interface{}, error) {
-	if !config.IsSet(s.variable) {
+	if !config.IsSet(s.variable) || !values.IsValid() {
 		return nil, nil
 	}
 	configValue := config.String(s.variable)
 
 	propStruct := values.Elem().Elem()
+	if !propStruct.IsValid() {
+		return nil, nil
+	}
 	for i := 0; i < propStruct.NumField(); i++ {
 		field := propStruct.Field(i)
 		kind := field.Kind()
