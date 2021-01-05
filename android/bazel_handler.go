@@ -515,6 +515,6 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 		// build statement have later timestamps than the outputs.
 		rule.Restat()
 
-		rule.Build(fmt.Sprintf("bazel %s", index), buildStatement.Mnemonic)
+		rule.Build(fmt.Sprintf("bazel %d", index), buildStatement.Mnemonic)
 	}
 }
