@@ -1913,9 +1913,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		a.linkToSystemLib = false
 	}
 
+	forced := ctx.Config().ForceApexSymlinkOptimization()
+
 	// We don't need the optimization for updatable APEXes, as it might give false signal
-	// to the system health when the APEXes are still bundled (b/149805758)
-	if a.Updatable() && a.properties.ApexType == imageApex {
+	// to the system health when the APEXes are still bundled (b/149805758).
+	if !forced && a.Updatable() && a.properties.ApexType == imageApex {
 		a.linkToSystemLib = false
 	}
 

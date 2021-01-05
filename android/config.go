@@ -1272,6 +1272,10 @@ func (c *config) FlattenApex() bool {
 	return Bool(c.productVariables.Flatten_apex)
 }
 
+func (c *config) ForceApexSymlinkOptimization() bool {
+	return Bool(c.productVariables.ForceApexSymlinkOptimization)
+}
+
 func (c *config) CompressedApex() bool {
 	return Bool(c.productVariables.CompressedApex)
 }
