@@ -2424,6 +2424,22 @@ func TestAidlExportIncludeDirsFromImports(t *testing.T) {
 	}
 }
 
+func TestAidlFlagsArePassedToTheAidlCompiler(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_library {
+			name: "foo",
+			srcs: ["aidl/foo/IFoo.aidl"],
+			aidl: { flags: ["-Werror"], },
+		}
+	`)
+
+	aidlCommand := ctx.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
+	expectedAidlFlag := "-Werror"
+	if !strings.Contains(aidlCommand, expectedAidlFlag) {
+		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
+	}
+}
+
 func TestDataNativeBinaries(t *testing.T) {
 	ctx, config := testJava(t, `
 		java_test_host {

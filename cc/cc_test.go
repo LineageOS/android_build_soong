@@ -4244,3 +4244,21 @@ func TestStubsLibReexportsHeaders(t *testing.T) {
 		t.Errorf("expected %q in cflags, got %q", "-Iinclude/libbar", cFlags)
 	}
 }
+
+func TestAidlFlagsPassedToTheAidlCompiler(t *testing.T) {
+	ctx := testCc(t, `
+		cc_library {
+			name: "libfoo",
+			srcs: ["a/Foo.aidl"],
+			aidl: { flags: ["-Werror"], },
+		}
+	`)
+
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static")
+	manifest := android.RuleBuilderSboxProtoForTests(t, libfoo.Output("aidl.sbox.textproto"))
+	aidlCommand := manifest.Commands[0].GetCommand()
+	expectedAidlFlag := "-Werror"
+	if !strings.Contains(aidlCommand, expectedAidlFlag) {
+		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
+	}
+}
