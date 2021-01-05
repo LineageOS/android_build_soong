@@ -3300,7 +3300,7 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.Module,
 	}
 
 	if implicitSdkLib != nil {
-		clcMap.AddContextForSdk(ctx, dexpreopt.AnySdkVersion, *implicitSdkLib,
+		clcMap.AddContext(ctx, dexpreopt.AnySdkVersion, *implicitSdkLib,
 			dep.DexJarBuildPath(), dep.DexJarInstallPath(), dep.ClassLoaderContexts())
 	} else {
 		depName := ctx.OtherModuleName(depModule)
