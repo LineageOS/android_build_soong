@@ -99,6 +99,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("GLOBAL_CLANG_CPPFLAGS_NO_OVERRIDE", "")
 
 	ctx.Strict("BOARD_VNDK_VERSION", ctx.DeviceConfig().VndkVersion())
+	ctx.Strict("RECOVERY_SNAPSHOT_VERSION", ctx.DeviceConfig().RecoverySnapshotVersion())
 
 	// Filter vendor_public_library that are exported to make
 	exportedVendorPublicLibraries := []string{}
