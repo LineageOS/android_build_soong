@@ -192,11 +192,19 @@ func GatherRequiredDepsForTest() string {
 			srcs:["foo.rs"],
 			host_supported: true,
 		}
+		rust_library {
+			name: "libcriterion",
+			crate_name: "criterion",
+			srcs:["foo.rs"],
+			host_supported: true,
+		}
 `
 	return bp
 }
 
 func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("rust_benchmark", RustBenchmarkFactory)
+	ctx.RegisterModuleType("rust_benchmark_host", RustBenchmarkHostFactory)
 	ctx.RegisterModuleType("rust_binary", RustBinaryFactory)
 	ctx.RegisterModuleType("rust_binary_host", RustBinaryHostFactory)
 	ctx.RegisterModuleType("rust_bindgen", RustBindgenFactory)
