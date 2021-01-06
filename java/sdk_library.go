@@ -1273,9 +1273,8 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		Generate_stubs                   *bool
 		Previous_api                     *string
 		Check_api                        struct {
-			Current                   ApiToCheck
-			Last_released             ApiToCheck
-			Ignore_missing_latest_api *bool
+			Current       ApiToCheck
+			Last_released ApiToCheck
 
 			Api_lint struct {
 				Enabled       *bool
@@ -1358,9 +1357,8 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 	// check against the not-yet-release API
 	props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
 	props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
-	props.Check_api.Ignore_missing_latest_api = proptools.BoolPtr(module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api)
 
-	if !apiScope.unstable {
+	if !(apiScope.unstable || module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api) {
 		// check against the latest released API
 		latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
 		props.Previous_api = latestApiFilegroupName
