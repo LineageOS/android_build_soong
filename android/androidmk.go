@@ -28,6 +28,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -434,6 +435,17 @@ func (a *AndroidMkEntries) GetDistForGoals(mod blueprint.Module) []string {
 	return generateDistContributionsForMake(distContributions)
 }
 
+// Write the license variables to Make for AndroidMkData.Custom(..) methods that do not call WriteAndroidMkData(..)
+// It's required to propagate the license metadata even for module types that have non-standard interfaces to Make.
+func (a *AndroidMkEntries) WriteLicenseVariables(w io.Writer) {
+	fmt.Fprintln(w, "LOCAL_LICENSE_KINDS :=", strings.Join(a.EntryMap["LOCAL_LICENSE_KINDS"], " "))
+	fmt.Fprintln(w, "LOCAL_LICENSE_CONDITIONS :=", strings.Join(a.EntryMap["LOCAL_LICENSE_CONDITIONS"], " "))
+	fmt.Fprintln(w, "LOCAL_NOTICE_FILE :=", strings.Join(a.EntryMap["LOCAL_NOTICE_FILE"], " "))
+	if pn, ok := a.EntryMap["LOCAL_LICENSE_PACKAGE_NAME"]; ok {
+		fmt.Fprintln(w, "LOCAL_LICENSE_PACKAGE_NAME :=", strings.Join(pn, " "))
+	}
+}
+
 // fillInEntries goes through the common variable processing and calls the extra data funcs to
 // generate and fill in AndroidMkEntries's in-struct data, ready to be flushed to a file.
 func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod blueprint.Module) {
@@ -460,6 +472,13 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 	// Collect make variable assignment entries.
 	a.SetString("LOCAL_PATH", filepath.Dir(bpPath))
 	a.SetString("LOCAL_MODULE", name+a.SubName)
+	a.AddStrings("LOCAL_LICENSE_KINDS", amod.commonProperties.Effective_license_kinds...)
+	a.AddStrings("LOCAL_LICENSE_CONDITIONS", amod.commonProperties.Effective_license_conditions...)
+	a.AddStrings("LOCAL_NOTICE_FILE", amod.commonProperties.Effective_license_text...)
+	// TODO(b/151177513): Does this code need to set LOCAL_MODULE_IS_CONTAINER ?
+	if amod.commonProperties.Effective_package_name != nil {
+		a.SetString("LOCAL_LICENSE_PACKAGE_NAME", *amod.commonProperties.Effective_package_name)
+	}
 	a.SetString("LOCAL_MODULE_CLASS", a.Class)
 	a.SetString("LOCAL_PREBUILT_MODULE_FILE", a.OutputFile.String())
 	a.AddStrings("LOCAL_REQUIRED_MODULES", a.Required...)
@@ -682,6 +701,7 @@ func translateAndroidMkModule(ctx SingletonContext, w io.Writer, mod blueprint.M
 		}
 	}()
 
+	// Additional cases here require review for correct license propagation to make.
 	switch x := mod.(type) {
 	case AndroidMkDataProvider:
 		return translateAndroidModule(ctx, w, mod, x)
@@ -690,6 +710,7 @@ func translateAndroidMkModule(ctx SingletonContext, w io.Writer, mod blueprint.M
 	case AndroidMkEntriesProvider:
 		return translateAndroidMkEntriesModule(ctx, w, mod, x)
 	default:
+		// Not exported to make so no make variables to set.
 		return nil
 	}
 }
@@ -703,6 +724,10 @@ func translateGoBinaryModule(ctx SingletonContext, w io.Writer, mod blueprint.Mo
 	fmt.Fprintln(w, ".PHONY:", name)
 	fmt.Fprintln(w, name+":", goBinary.InstallPath())
 	fmt.Fprintln(w, "")
+	// Assuming no rules in make include go binaries in distributables.
+	// If the assumption is wrong, make will fail to build without the necessary .meta_lic and .meta_module files.
+	// In that case, add the targets and rules here to build a .meta_lic file for `name` and a .meta_module for
+	// `goBinary.InstallPath()` pointing to the `name`.meta_lic file.
 
 	return nil
 }
@@ -768,6 +793,25 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, mod blueprint.Mod
 	blueprintDir := filepath.Dir(ctx.BlueprintFile(mod))
 
 	if data.Custom != nil {
+		// List of module types allowed to use .Custom(...)
+		// Additions to the list require careful review for proper license handling.
+		switch reflect.TypeOf(mod).String() {  // ctx.ModuleType(mod) doesn't work: aidl_interface creates phony without type
+		case "*aidl.aidlApi": // writes non-custom before adding .phony
+		case "*aidl.aidlMapping": // writes non-custom before adding .phony
+		case "*android.customModule": // appears in tests only
+		case "*apex.apexBundle": // license properties written
+		case "*bpf.bpf": // license properties written (both for module and objs)
+		case "*genrule.Module": // writes non-custom before adding .phony
+		case "*java.SystemModules": // doesn't go through base_rules
+		case "*java.systemModulesImport": // doesn't go through base_rules
+		case "*phony.phony": // license properties written
+		case "*selinux.selinuxContextsModule": // license properties written
+		case "*sysprop.syspropLibrary": // license properties written
+		default:
+			if ctx.Config().IsEnvTrue("ANDROID_REQUIRE_LICENSES") {
+				return fmt.Errorf("custom make rules not allowed for %q (%q) module %q", ctx.ModuleType(mod), reflect.TypeOf(mod), ctx.ModuleName(mod))
+			}
+		}
 		data.Custom(w, name, prefix, blueprintDir, data)
 	} else {
 		WriteAndroidMkData(w, data)
@@ -804,6 +848,7 @@ func translateAndroidMkEntriesModule(ctx SingletonContext, w io.Writer, mod blue
 		return nil
 	}
 
+	// Any new or special cases here need review to verify correct propagation of license information.
 	for _, entries := range provider.AndroidMkEntries() {
 		entries.fillInEntries(ctx.Config(), ctx.BlueprintFile(mod), mod)
 		entries.write(w)
