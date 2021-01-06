@@ -3096,6 +3096,12 @@ func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 		// We don't track beyond LLNDK or from an implementation library to its stubs.
 		return false
 	}
+	if depTag == staticVariantTag {
+		// This dependency is for optimization (reuse *.o from the static lib). It doesn't
+		// actually mean that the static lib (and its dependencies) are copied into the
+		// APEX.
+		return false
+	}
 	return true
 }
 
