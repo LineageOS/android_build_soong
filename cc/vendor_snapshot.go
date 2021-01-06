@@ -177,25 +177,6 @@ func isRecoveryProprietaryModule(ctx android.BaseModuleContext) bool {
 	return false
 }
 
-// Determine if a module is going to be included in vendor snapshot or not.
-//
-// Targets of vendor snapshot are "vendor: true" or "vendor_available: true" modules in
-// AOSP. They are not guaranteed to be compatible with older vendor images. (e.g. might
-// depend on newer VNDK) So they are captured as vendor snapshot To build older vendor
-// image and newer system image altogether.
-func isVendorSnapshotAware(m *Module, inVendorProprietaryPath bool, apexInfo android.ApexInfo) bool {
-	return isSnapshotAware(m, inVendorProprietaryPath, apexInfo, vendorSnapshotImageSingleton)
-}
-
-// Determine if a module is going to be included in recovery snapshot or not.
-//
-// Targets of recovery snapshot are "recovery: true" or "recovery_available: true"
-// modules in AOSP. They are not guaranteed to be compatible with older recovery images.
-// So they are captured as recovery snapshot To build older recovery image.
-func isRecoverySnapshotAware(m *Module, inRecoveryProprietaryPath bool, apexInfo android.ApexInfo) bool {
-	return isSnapshotAware(m, inRecoveryProprietaryPath, apexInfo, recoverySnapshotImageSingleton)
-}
-
 // Determines if the module is a candidate for snapshot.
 func isSnapshotAware(m *Module, inProprietaryPath bool, apexInfo android.ApexInfo, image snapshotImage) bool {
 	if !m.Enabled() || m.Properties.HideFromMake {
