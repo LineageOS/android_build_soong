@@ -115,6 +115,11 @@ var preArch = []RegisterMutatorFunc{
 	//
 	RegisterVisibilityRuleChecker,
 
+	// Record the default_applicable_licenses for each package.
+	//
+	// This must run before the defaults so that defaults modules can pick up the package default.
+	RegisterLicensesPackageMapper,
+
 	// Apply properties from defaults modules to the referencing modules.
 	//
 	// Any mutators that are added before this will not see any modules created by
@@ -141,6 +146,12 @@ var preArch = []RegisterMutatorFunc{
 	// prebuilt.
 	RegisterPrebuiltsPreArchMutators,
 
+	// Gather the licenses properties for all modules for use during expansion and enforcement.
+	//
+	// This must come after the defaults mutators to ensure that any licenses supplied
+	// in a defaults module has been successfully applied before the rules are gathered.
+	RegisterLicensesPropertyGatherer,
+
 	// Gather the visibility rules for all modules for us during visibility enforcement.
 	//
 	// This must come after the defaults mutators to ensure that any visibility supplied
@@ -162,6 +173,7 @@ var postDeps = []RegisterMutatorFunc{
 	registerPathDepsMutator,
 	RegisterPrebuiltsPostDepsMutators,
 	RegisterVisibilityRuleEnforcer,
+	RegisterLicensesDependencyChecker,
 	RegisterNeverallowMutator,
 	RegisterOverridePostDepsMutators,
 }
