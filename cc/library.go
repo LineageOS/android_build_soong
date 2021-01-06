@@ -1855,9 +1855,8 @@ func CanBeOrLinkAgainstVersionVariants(module interface {
 	Host() bool
 	InRamdisk() bool
 	InVendorRamdisk() bool
-	InRecovery() bool
 }) bool {
-	return !module.Host() && !module.InRamdisk() && !module.InVendorRamdisk() && !module.InRecovery()
+	return !module.Host() && !module.InRamdisk() && !module.InVendorRamdisk()
 }
 
 func CanBeVersionVariant(module interface {
