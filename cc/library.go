@@ -1738,12 +1738,9 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 
 		isLLNDK := false
 		if m, ok := mctx.Module().(*Module); ok {
-			isLLNDK = m.IsLlndk()
 			// Don't count the vestigial llndk_library module as isLLNDK, it needs a static
 			// variant so that a cc_library_prebuilt can depend on it.
-			if _, ok := m.linker.(*llndkStubDecorator); ok {
-				isLLNDK = false
-			}
+			isLLNDK = m.IsLlndk() && !isVestigialLLNDKModule(m)
 		}
 		buildStatic := library.BuildStaticVariant() && !isLLNDK
 		buildShared := library.BuildSharedVariant()
