@@ -1,0 +1,1082 @@
+//
+// Copyright (C) 2020 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+	default_visibility: ["//visibility:public"],
+	default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+license {
+	name: "Android-Apache-2.0",
+	license_kinds: ["SPDX-license-identifier-Apache-2.0"],
+	copyright_notice: "Copyright (C) The Android Open Source Project",
+	license_text: ["LICENSE"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AFL-1.1",
+	conditions: ["by_exception_only"],
+	url: "https://spdx.org/licenses/AFL-1.1.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AFL-1.2",
+	conditions: ["by_exception_only"],
+	url: "https://spdx.org/licenses/AFL-1.2.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AFL-2.0",
+	conditions: ["by_exception_only"],
+	url: "https://spdx.org/licenses/AFL-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AFL-2.1",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/AFL-2.1.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AFL-3.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/AFL-3.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AGPL",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/AGPL.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AGPL-1.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/AGPL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AGPL-1.0-only",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/AGPL-1.0-only.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AGPL-1.0-or-later",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/AGPL-1.0-or-later.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AGPL-3.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/AGPL-3.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AGPL-3.0-only",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/AGPL-3.0-only.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-AGPL-3.0-or-later",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/AGPL-3.0-or-later.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Apache",
+	conditions: ["notice"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Apache-1.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Apache-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Apache-1.1",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Apache-1.1.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Apache-2.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Apache-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Artistic",
+	conditions: ["notice"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Artistic-1.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Artistic-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Artistic-1.0-Perl",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Artistic-1.0-Perl.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Artistic-1.0-cl8",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Artistic-1.0-cl8.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Artistic-2.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Artistic-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD",
+	conditions: ["notice"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-1-Clause",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-1-Clause.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-2-Clause",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-2-Clause.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-2-Clause-FreeBSD",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-2-Clause-FreeBSD.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-2-Clause-NetBSD",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-2-Clause-NetBSD.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-2-Clause-Patent",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-2-Clause-Patent.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-3-Clause",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-3-Clause.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-3-Clause-Attribution",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-3-Clause-Attribution.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-3-Clause-Clear",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-3-Clause-Clear.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-3-Clause-LBNL",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-3-Clause-LBNL.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-3-Clause-No-Nuclear-License",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-3-Clause-No-Nuclear-License.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-3-Clause-No-Nuclear-License-2014",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-3-Clause-No-Nuclear-License-2014.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-3-Clause-No-Nuclear-Warranty",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-3-Clause-No-Nuclear-Warranty.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-3-Clause-Open-MPI",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-3-Clause-Open-MPI.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-4-Clause",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-4-Clause.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-4-Clause-UC",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-4-Clause-UC.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-Protection",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-Protection.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSD-Source-Code",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSD-Source-Code.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-BSL-1.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/BSL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Beerware",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/Beerware.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY",
+	conditions: ["notice"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-1.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/CC-BY-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-2.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/CC-BY-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-2.5",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/CC-BY-2.5.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-3.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/CC-BY-3.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-4.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/CC-BY-4.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC",
+	conditions: ["by_exception_only", "not_allowed"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-1.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-2.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-2.5",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-2.5.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-3.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-3.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-4.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-4.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-ND-1.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-ND-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-ND-2.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-ND-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-ND-2.5",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-ND-2.5.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-ND-3.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-ND-3.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-ND-4.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-ND-4.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-SA-1.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-SA-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-SA-2.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-SA-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-SA-2.5",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-SA-2.5.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-SA-3.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-SA-3.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-NC-SA-4.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CC-BY-NC-SA-4.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-ND",
+	conditions: ["restricted"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-ND-1.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/CC-BY-ND-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-ND-2.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/CC-BY-ND-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-ND-2.5",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/CC-BY-ND-2.5.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-ND-3.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/CC-BY-ND-3.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-ND-4.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/CC-BY-ND-4.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-SA",
+	conditions: ["restricted"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-SA-1.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/CC-BY-SA-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-SA-2.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/CC-BY-SA-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-SA-2.5",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/CC-BY-SA-2.5.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-SA-3.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/CC-BY-SA-3.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-SA-4.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/CC-BY-SA-4.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC-BY-SA-ND",
+	conditions: ["restricted"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CC0-1.0",
+	conditions: ["unencumbered"],
+	url: "https://spdx.org/licenses/CC0-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CPAL-1.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/CPAL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-CPL-1.0",
+	conditions: ["reciprocal"],
+	url: "https://spdx.org/licenses/CPL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-EPL",
+	conditions: ["reciprocal"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-EPL-1.0",
+	conditions: ["reciprocal"],
+	url: "https://spdx.org/licenses/EPL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-EPL-2.0",
+	conditions: ["reciprocal"],
+	url: "https://spdx.org/licenses/EPL-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-EUPL",
+	conditions: ["by_exception_only", "not_allowed"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-EUPL-1.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/EUPL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-EUPL-1.1",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/EUPL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-EUPL-1.2",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/EUPL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-FTL",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/FTL.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL",
+	conditions: ["restricted"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-1.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-1.0+",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-1.0+.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-1.0-only",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-1.0-only.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-1.0-or-later",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-1.0-or-later.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-2.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-2.0+",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-2.0+.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-2.0-only",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-2.0-only.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-2.0-or-later",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-2.0-or-later.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-2.0-with-GCC-exception",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-2.0-with-GCC-exception.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-2.0-with-autoconf-exception",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-2.0-with-autoconf-exception.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-2.0-with-bison-exception",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-2.0-with-bison-exception.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-2.0-with-classpath-exception",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-2.0-with-classpath-exception.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-2.0-with-font-exception",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-2.0-with-font-exception.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-3.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-3.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-3.0+",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-3.0+.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-3.0-only",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-3.0-only.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-3.0-or-later",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-3.0-or-later.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-3.0-with-GCC-exception",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-3.0-with-GCC-exception.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-3.0-with-autoconf-exception",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/GPL-3.0-with-autoconf-exception.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-GPL-with-classpath-exception",
+	conditions: ["restricted"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-HPND",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/HPND.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-ICU",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/ICU.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-ISC",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/ISC.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-JSON",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/JSON.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL",
+	conditions: ["restricted"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-2.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-2.0+",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-2.0+.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-2.0-only",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-2.0-only.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-2.0-or-later",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-2.0-or-later.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-2.1",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-2.1.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-2.1+",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-2.1+.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-2.1-only",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-2.1-only.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-2.1-or-later",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-2.1-or-later.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-3.0",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-3.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-3.0+",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-3.0+.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-3.0-only",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-3.0-only.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPL-3.0-or-later",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPL-3.0-or-later.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LGPLLR",
+	conditions: ["restricted"],
+	url: "https://spdx.org/licenses/LGPLLR.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-LPL-1.02",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/LPL-1.02.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MIT",
+	conditions: ["notice"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MIT-0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/MIT-0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MIT-CMU",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/MIT-CMU.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MIT-advertising",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/MIT-advertising.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MIT-enna",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/MIT-enna.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MIT-feh",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/MIT-feh.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MITNFA",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/MITNFA.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MPL",
+	conditions: ["reciprocal"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MPL-1.0",
+	conditions: ["reciprocal"],
+	url: "https://spdx.org/licenses/MPL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MPL-1.1",
+	conditions: ["reciprocal"],
+	url: "https://spdx.org/licenses/MPL-1.1.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MPL-2.0",
+	conditions: ["reciprocal"],
+	url: "https://spdx.org/licenses/MPL-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MPL-2.0-no-copyleft-exception",
+	conditions: ["reciprocal"],
+	url: "https://spdx.org/licenses/MPL-2.0-no-copyleft-exception.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-MS-PL",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/MS-PL.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-NCSA",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/NCSA.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-OFL",
+	conditions: ["by_exception_only"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-OFL-1.0",
+	conditions: ["by_exception_only"],
+	url: "https://spdx.org/licenses/OFL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-OFL-1.0-RFN",
+	conditions: ["by_exception_only"],
+	url: "https://spdx.org/licenses/OFL-1.0-RFN.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-OFL-1.0-no-RFN",
+	conditions: ["by_exception_only"],
+	url: "https://spdx.org/licenses/OFL-1.0-no-RFN.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-OFL-1.1",
+	conditions: ["by_exception_only"],
+	url: "https://spdx.org/licenses/OFL-1.1.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-OFL-1.1-RFN",
+	conditions: ["by_exception_only"],
+	url: "https://spdx.org/licenses/OFL-1.1-RFN.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-OFL-1.1-no-RFN",
+	conditions: ["by_exception_only"],
+	url: "https://spdx.org/licenses/OFL-1.1-no-RFN.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-OpenSSL",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/OpenSSL.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-PSF-2.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/PSF-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-SISSL",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/SISSL.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-SISSL-1.2",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/SISSL-1.2.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-SPL-1.0",
+	conditions: ["by_exception_only", "reciprocal"],
+	url: "https://spdx.org/licenses/SPL-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-SSPL",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/SSPL.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-UPL-1.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/UPL-1.-.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Unicode-DFS",
+	conditions: ["notice"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Unicode-DFS-2015",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Unicode-DFS-2015.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Unicode-DFS-2016",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Unicode-DFS-2016.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Unlicense",
+	conditions: ["unencumbered"],
+	url: "https://spdx.org/licenses/Unlicense.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-W3C",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/W3C.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-W3C-19980720",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/W3C-19980720.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-W3C-20150513",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/W3C-20150513.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-WTFPL",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/WTFPL.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Watcom-1.0",
+	conditions: ["by_exception_only", "not_allowed"],
+	url: "https://spdx.org/licenses/Watcom-1.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Xnet",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Xnet.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-ZPL",
+	conditions: ["notice"],
+}
+
+license_kind {
+	name: "SPDX-license-identifier-ZPL-1.1",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/ZPL-1.1.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-ZPL-2.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/ZPL-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-ZPL-2.1",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/ZPL-2.1.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Zend-2.0",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Zend-2.0.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-Zlib",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/Zlib.html",
+}
+
+license_kind {
+	name: "SPDX-license-identifier-libtiff",
+	conditions: ["notice"],
+	url: "https://spdx.org/licenses/libtiff.html",
+}
+
+
+// Legacy license kinds -- do not add new references -- use an spdx kind instead.
+license_kind {
+	name: "legacy_unknown",
+	conditions: ["by_exception_only"],
+}
+
+license_kind {
+	name: "legacy_unencumbered",
+	conditions: ["unencumbered"],
+}
+
+license_kind {
+	name: "legacy_notice",
+	conditions: ["notice"],
+}
+
+license_kind {
+	name: "legacy_reciprocal",
+	conditions: ["reciprocal"],
+}
+
+license_kind {
+	name: "legacy_restricted",
+	conditions: ["restricted"],
+}
+
+license_kind {
+	name: "legacy_by_exception_only",
+	conditions: ["by_exception_only"],
+}
+
+license_kind {
+	name: "legacy_not_allowed",
+	conditions: ["by_exception_only", "not_allowed"],
+}
+
+license_kind {
+	name: "legacy_proprietary",
+	conditions: ["by_exception_only", "not_allowed", "proprietary"],
+}
