@@ -304,6 +304,9 @@ type CompilerDeviceProperties struct {
 
 		// whether to generate Binder#GetTransaction name method.
 		Generate_get_transaction_name *bool
+
+		// list of flags that will be passed to the AIDL compiler
+		Flags []string
 	}
 
 	// If true, export a copy of the module as a -hostdex module for host testing.
@@ -871,6 +874,8 @@ func (j *Module) aidlFlags(ctx android.ModuleContext, aidlPreprocess android.Opt
 
 	var flags []string
 	var deps android.Paths
+
+	flags = append(flags, j.deviceProperties.Aidl.Flags...)
 
 	if aidlPreprocess.Valid() {
 		flags = append(flags, "-p"+aidlPreprocess.String())
