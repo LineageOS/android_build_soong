@@ -100,6 +100,11 @@ func (stub *llndkStubDecorator) Name(name string) string {
 	return name + llndkLibrarySuffix
 }
 
+func (stub *llndkStubDecorator) linkerProps() []interface{} {
+	props := stub.libraryDecorator.linkerProps()
+	return append(props, &stub.Properties)
+}
+
 func (stub *llndkStubDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	stub.libraryDecorator.libName = stub.implementationModuleName(ctx.ModuleName())
 	return stub.libraryDecorator.linkerFlags(ctx, flags)
@@ -137,12 +142,6 @@ func NewLLndkStubLibrary() *Module {
 	module.installer = nil
 	module.library = stub
 
-	module.AddProperties(
-		&module.Properties,
-		&stub.Properties,
-		&library.MutatedProperties,
-		&library.flagExporter.Properties)
-
 	return module
 }
 
@@ -156,8 +155,14 @@ func NewLLndkStubLibrary() *Module {
 //    }
 func LlndkLibraryFactory() android.Module {
 	module := NewLLndkStubLibrary()
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
-	return module
+	return module.Init()
+}
+
+// isVestigialLLNDKModule returns true if m is a vestigial llndk_library module used to provide
+// properties to the LLNDK variant of a cc_library.
+func isVestigialLLNDKModule(m *Module) bool {
+	_, ok := m.linker.(*llndkStubDecorator)
+	return ok
 }
 
 type llndkHeadersDecorator struct {
