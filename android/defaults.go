@@ -204,6 +204,9 @@ func InitDefaultsModule(module DefaultsModule) {
 	// its checking phase and parsing phase so add it to the list as a normal property.
 	AddVisibilityProperty(module, "visibility", &commonProperties.Visibility)
 
+	// The applicable licenses property for defaults is 'licenses'.
+	setPrimaryLicensesProperty(module, "licenses", &commonProperties.Licenses)
+
 	base.module = module
 }
 

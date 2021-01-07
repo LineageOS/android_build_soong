@@ -307,6 +307,7 @@ func (m *syspropLibrary) AndroidMk() android.AndroidMkData {
 			// Actual implementation libraries are created on LoadHookMutator
 			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 			fmt.Fprintf(w, "LOCAL_MODULE := %s\n", m.Name())
+			data.Entries.WriteLicenseVariables(w)
 			fmt.Fprintf(w, "LOCAL_MODULE_CLASS := FAKE\n")
 			fmt.Fprintf(w, "LOCAL_MODULE_TAGS := optional\n")
 			fmt.Fprintf(w, "include $(BUILD_SYSTEM)/base_rules.mk\n\n")

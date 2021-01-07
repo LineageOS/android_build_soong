@@ -52,6 +52,7 @@ func (p *phony) AndroidMk() android.AndroidMkData {
 			fmt.Fprintln(w, "\ninclude $(CLEAR_VARS)")
 			fmt.Fprintln(w, "LOCAL_PATH :=", moduleDir)
 			fmt.Fprintln(w, "LOCAL_MODULE :=", name)
+			data.Entries.WriteLicenseVariables(w)
 			if p.Host() {
 				fmt.Fprintln(w, "LOCAL_IS_HOST_MODULE := true")
 			}
