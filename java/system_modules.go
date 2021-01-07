@@ -192,6 +192,7 @@ func (system *SystemModules) AndroidMk() android.AndroidMkData {
 
 			fmt.Fprintln(w, name+":", "$("+makevar+")")
 			fmt.Fprintln(w, ".PHONY:", name)
+			// TODO(b/151177513): Licenses: Doesn't go through base_rules. May have to generate meta_lic and meta_module here.
 		},
 	}
 }

@@ -767,7 +767,7 @@ type ModuleBase struct {
 	noAddressSanitizer bool
 	installFiles       Paths
 	checkbuildFiles    Paths
-	noticeFiles        Paths
+	noticeFile         OptionalPath
 	phonies            map[string]Paths
 
 	// Used by buildTargetSingleton to create checkbuild and per-directory build targets
@@ -1365,7 +1365,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		notice := proptools.StringDefault(m.commonProperties.Notice, "NOTICE")
 		if module := SrcIsModule(notice); module != "" {
 			m.noticeFile = ctx.ExpandOptionalSource(&notice, "notice")
-		} else {
+		} else if notice != "" {
 			noticePath := filepath.Join(ctx.ModuleDir(), notice)
 			m.noticeFile = ExistentPathForSource(ctx, noticePath)
 		}
