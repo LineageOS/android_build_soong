@@ -418,23 +418,24 @@ func TestVndk(t *testing.T) {
 			},
 		}
 
-		vndk_libraries_txt {
+		llndk_libraries_txt {
 			name: "llndk.libraries.txt",
 		}
-		vndk_libraries_txt {
+		vndkcore_libraries_txt {
 			name: "vndkcore.libraries.txt",
 		}
-		vndk_libraries_txt {
+		vndksp_libraries_txt {
 			name: "vndksp.libraries.txt",
 		}
-		vndk_libraries_txt {
+		vndkprivate_libraries_txt {
 			name: "vndkprivate.libraries.txt",
 		}
-		vndk_libraries_txt {
+		vndkproduct_libraries_txt {
 			name: "vndkproduct.libraries.txt",
 		}
-		vndk_libraries_txt {
+		vndkcorevariant_libraries_txt {
 			name: "vndkcorevariant.libraries.txt",
+			insert_vndk_version: false,
 		}
 	`
 
@@ -546,7 +547,7 @@ func TestVndkWithHostSupported(t *testing.T) {
 			}
 		}
 
-		vndk_libraries_txt {
+		vndkcore_libraries_txt {
 			name: "vndkcore.libraries.txt",
 		}
 	`)
@@ -556,8 +557,9 @@ func TestVndkWithHostSupported(t *testing.T) {
 
 func TestVndkLibrariesTxtAndroidMk(t *testing.T) {
 	bp := `
-		vndk_libraries_txt {
+		llndk_libraries_txt {
 			name: "llndk.libraries.txt",
+			insert_vndk_version: true,
 		}`
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
@@ -603,8 +605,9 @@ func TestVndkUsingCoreVariant(t *testing.T) {
 			nocrt: true,
 		}
 
-		vndk_libraries_txt {
+		vndkcorevariant_libraries_txt {
 			name: "vndkcorevariant.libraries.txt",
+			insert_vndk_version: false,
 		}
 	`
 
