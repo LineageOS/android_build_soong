@@ -56,6 +56,7 @@ type configImpl struct {
 	katiSuffix      string
 	targetDevice    string
 	targetDeviceDir string
+	fullBuild       bool
 
 	// Autodetected
 	totalRAM uint64
@@ -789,6 +790,14 @@ func (c *configImpl) TargetDevice() string {
 
 func (c *configImpl) SetTargetDevice(device string) {
 	c.targetDevice = device
+}
+
+func (c *configImpl) FullBuild() bool {
+	return c.fullBuild
+}
+
+func (c *configImpl) SetFullBuild(fullBuild bool) {
+	c.fullBuild = fullBuild
 }
 
 func (c *configImpl) TargetBuildVariant() string {

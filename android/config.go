@@ -1053,6 +1053,10 @@ func (c *deviceConfig) VndkVersion() string {
 	return String(c.config.productVariables.DeviceVndkVersion)
 }
 
+func (c *deviceConfig) RecoverySnapshotVersion() string {
+	return String(c.config.productVariables.RecoverySnapshotVersion)
+}
+
 func (c *deviceConfig) CurrentApiLevelForVendorModules() string {
 	return StringDefault(c.config.productVariables.DeviceCurrentApiLevelForVendorModules, "current")
 }
@@ -1272,6 +1276,10 @@ func (c *config) FlattenApex() bool {
 	return Bool(c.productVariables.Flatten_apex)
 }
 
+func (c *config) ForceApexSymlinkOptimization() bool {
+	return Bool(c.productVariables.ForceApexSymlinkOptimization)
+}
+
 func (c *config) CompressedApex() bool {
 	return Bool(c.productVariables.CompressedApex)
 }
@@ -1358,6 +1366,18 @@ func (c *deviceConfig) BoardKernelModuleInterfaceVersions() []string {
 
 func (c *deviceConfig) BoardMoveRecoveryResourcesToVendorBoot() bool {
 	return Bool(c.config.productVariables.BoardMoveRecoveryResourcesToVendorBoot)
+}
+
+func (c *deviceConfig) PlatformSepolicyVersion() string {
+	return String(c.config.productVariables.PlatformSepolicyVersion)
+}
+
+func (c *deviceConfig) BoardSepolicyVers() string {
+	return String(c.config.productVariables.BoardSepolicyVers)
+}
+
+func (c *deviceConfig) BoardReqdMaskPolicy() []string {
+	return c.config.productVariables.BoardReqdMaskPolicy
 }
 
 // The ConfiguredJarList struct provides methods for handling a list of (apex, jar) pairs.

@@ -181,6 +181,8 @@ type productVariables struct {
 	DeviceCurrentApiLevelForVendorModules *string  `json:",omitempty"`
 	DeviceSystemSdkVersions               []string `json:",omitempty"`
 
+	RecoverySnapshotVersion *string `json:",omitempty"`
+
 	DeviceSecondaryArch        *string  `json:",omitempty"`
 	DeviceSecondaryArchVariant *string  `json:",omitempty"`
 	DeviceSecondaryCpuVariant  *string  `json:",omitempty"`
@@ -311,18 +313,23 @@ type productVariables struct {
 
 	BoardVendorSepolicyDirs      []string `json:",omitempty"`
 	BoardOdmSepolicyDirs         []string `json:",omitempty"`
+	BoardReqdMaskPolicy          []string `json:",omitempty"`
 	SystemExtPublicSepolicyDirs  []string `json:",omitempty"`
 	SystemExtPrivateSepolicyDirs []string `json:",omitempty"`
 	BoardSepolicyM4Defs          []string `json:",omitempty"`
+
+	BoardSepolicyVers       *string `json:",omitempty"`
+	PlatformSepolicyVersion *string `json:",omitempty"`
 
 	VendorVars map[string]map[string]string `json:",omitempty"`
 
 	Ndk_abis               *bool `json:",omitempty"`
 	Exclude_draft_ndk_apis *bool `json:",omitempty"`
 
-	Flatten_apex   *bool `json:",omitempty"`
-	CompressedApex *bool `json:",omitempty"`
-	Aml_abis       *bool `json:",omitempty"`
+	Flatten_apex                 *bool `json:",omitempty"`
+	ForceApexSymlinkOptimization *bool `json:",omitempty"`
+	CompressedApex               *bool `json:",omitempty"`
+	Aml_abis                     *bool `json:",omitempty"`
 
 	DexpreoptGlobalConfig *string `json:",omitempty"`
 
