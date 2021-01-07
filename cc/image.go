@@ -67,9 +67,8 @@ const (
 )
 
 func (ctx *moduleContext) ProductSpecific() bool {
-	//TODO(b/150902910): Replace HasNonSystemVariants() with HasProductVariant()
 	return ctx.ModuleContext.ProductSpecific() ||
-		(ctx.mod.HasNonSystemVariants() && ctx.mod.InProduct())
+		(ctx.mod.HasProductVariant() && ctx.mod.InProduct())
 }
 
 func (ctx *moduleContext) SocSpecific() bool {
