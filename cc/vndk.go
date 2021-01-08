@@ -394,7 +394,7 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 
 		useCoreVariant := m.VndkVersion() == mctx.DeviceConfig().PlatformVndkVersion() &&
 			mctx.DeviceConfig().VndkUseCoreVariant() && !m.MustUseVendorVariant()
-		return lib.shared() && m.inVendor() && m.IsVndk() && !m.IsVndkExt() && !useCoreVariant
+		return lib.shared() && m.InVendor() && m.IsVndk() && !m.IsVndkExt() && !useCoreVariant
 	}
 	return false
 }
@@ -586,7 +586,7 @@ func isVndkSnapshotAware(config android.DeviceConfig, m *Module,
 	// !inVendor: There's product/vendor variants for VNDK libs. We only care about vendor variants.
 	// !installable: Snapshot only cares about "installable" modules.
 	// isSnapshotPrebuilt: Snapshotting a snapshot doesn't make sense.
-	if !m.inVendor() || !m.installable(apexInfo) || m.isSnapshotPrebuilt() {
+	if !m.InVendor() || !m.installable(apexInfo) || m.isSnapshotPrebuilt() {
 		return nil, "", false
 	}
 	l, ok := m.linker.(snapshotLibraryInterface)
