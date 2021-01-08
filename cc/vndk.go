@@ -302,7 +302,7 @@ func processLlndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 
 	llndkLibraries(mctx.Config())[name] = filename
 	m.VendorProperties.IsLLNDK = true
-	if !Bool(lib.Properties.Vendor_available) {
+	if Bool(lib.Properties.Private) {
 		vndkPrivateLibraries(mctx.Config())[name] = filename
 		m.VendorProperties.IsLLNDKPrivate = true
 	}
@@ -349,7 +349,7 @@ func processVndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
 	if m.IsVndkPrivate() {
 		vndkPrivateLibraries(mctx.Config())[name] = filename
 	}
-	if m.VendorProperties.Product_available != nil {
+	if Bool(m.VendorProperties.Product_available) {
 		vndkProductLibraries(mctx.Config())[name] = filename
 	}
 }

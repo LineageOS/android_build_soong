@@ -419,7 +419,7 @@ type VendorProperties struct {
 	IsLLNDK bool `blueprint:"mutated"`
 
 	// IsLLNDKPrivate is set to true for the vendor variant of a cc_library module that has LLNDK
-	// stubs and also sets llndk.vendor_available: false.
+	// stubs and also sets llndk.private: true.
 	IsLLNDKPrivate bool `blueprint:"mutated"`
 }
 
@@ -1079,11 +1079,11 @@ func (c *Module) IsLlndkPublic() bool {
 func (c *Module) isImplementationForLLNDKPublic() bool {
 	library, _ := c.library.(*libraryDecorator)
 	return library != nil && library.hasLLNDKStubs() &&
-		(Bool(library.Properties.Llndk.Vendor_available) ||
+		(!Bool(library.Properties.Llndk.Private) ||
 			// TODO(b/170784825): until the LLNDK properties are moved into the cc_library,
 			// the non-Vendor variants of the cc_library don't know if the corresponding
-			// llndk_library set vendor_available: false.  Since libft2 is the only
-			// private LLNDK library, hardcode it during the transition.
+			// llndk_library set private: true.  Since libft2 is the only private LLNDK
+			// library, hardcode it during the transition.
 			c.BaseModuleName() != "libft2")
 }
 
@@ -1091,20 +1091,12 @@ func (c *Module) isImplementationForLLNDKPublic() bool {
 func (c *Module) IsVndkPrivate() bool {
 	// Check if VNDK-core-private or VNDK-SP-private
 	if c.IsVndk() {
-		if Bool(c.vndkdep.Properties.Vndk.Private) {
-			return true
-		}
-		// TODO(b/175768895) remove this when we clean up "vendor_available: false" use cases.
-		if c.VendorProperties.Vendor_available != nil && !Bool(c.VendorProperties.Vendor_available) {
-			return true
-		}
-		return false
+		return Bool(c.vndkdep.Properties.Vndk.Private)
 	}
 
 	// Check if LLNDK-private
 	if library, ok := c.library.(*libraryDecorator); ok && c.IsLlndk() {
-		// TODO(b/175768895) replace this with 'private' property.
-		return !Bool(library.Properties.Llndk.Vendor_available)
+		return Bool(library.Properties.Llndk.Private)
 	}
 
 	return false
