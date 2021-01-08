@@ -104,7 +104,7 @@ func (vendorSnapshotImage) shouldGenerateSnapshot(ctx android.SingletonContext) 
 }
 
 func (vendorSnapshotImage) inImage(m *Module) func() bool {
-	return m.inVendor
+	return m.InVendor
 }
 
 func (vendorSnapshotImage) available(m *Module) *bool {
@@ -507,8 +507,8 @@ type snapshotLibraryProperties struct {
 }
 
 type snapshotSanitizer interface {
-	isSanitizerEnabled(t sanitizerType) bool
-	setSanitizerVariation(t sanitizerType, enabled bool)
+	isSanitizerEnabled(t SanitizerType) bool
+	setSanitizerVariation(t SanitizerType, enabled bool)
 }
 
 type snapshotLibraryDecorator struct {
@@ -546,7 +546,7 @@ func (p *snapshotLibraryDecorator) matchesWithDevice(config android.DeviceConfig
 func (p *snapshotLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps, objs Objects) android.Path {
 	m := ctx.Module().(*Module)
 
-	if m.inVendor() && vendorSuffixModules(ctx.Config())[m.BaseModuleName()] {
+	if m.InVendor() && vendorSuffixModules(ctx.Config())[m.BaseModuleName()] {
 		p.androidMkSuffix = vendorSuffix
 	} else if m.InRecovery() && recoverySuffixModules(ctx.Config())[m.BaseModuleName()] {
 		p.androidMkSuffix = recoverySuffix
@@ -613,7 +613,7 @@ func (p *snapshotLibraryDecorator) nativeCoverage() bool {
 	return false
 }
 
-func (p *snapshotLibraryDecorator) isSanitizerEnabled(t sanitizerType) bool {
+func (p *snapshotLibraryDecorator) isSanitizerEnabled(t SanitizerType) bool {
 	switch t {
 	case cfi:
 		return p.sanitizerProperties.Cfi.Src != nil
@@ -622,7 +622,7 @@ func (p *snapshotLibraryDecorator) isSanitizerEnabled(t sanitizerType) bool {
 	}
 }
 
-func (p *snapshotLibraryDecorator) setSanitizerVariation(t sanitizerType, enabled bool) {
+func (p *snapshotLibraryDecorator) setSanitizerVariation(t SanitizerType, enabled bool) {
 	if !enabled {
 		return
 	}
@@ -769,7 +769,7 @@ func (p *snapshotBinaryDecorator) link(ctx ModuleContext, flags Flags, deps Path
 	binName := in.Base()
 
 	m := ctx.Module().(*Module)
-	if m.inVendor() && vendorSuffixModules(ctx.Config())[m.BaseModuleName()] {
+	if m.InVendor() && vendorSuffixModules(ctx.Config())[m.BaseModuleName()] {
 		p.androidMkSuffix = vendorSuffix
 	} else if m.InRecovery() && recoverySuffixModules(ctx.Config())[m.BaseModuleName()] {
 		p.androidMkSuffix = recoverySuffix
@@ -868,7 +868,7 @@ func (p *snapshotObjectLinker) link(ctx ModuleContext, flags Flags, deps PathDep
 
 	m := ctx.Module().(*Module)
 
-	if m.inVendor() && vendorSuffixModules(ctx.Config())[m.BaseModuleName()] {
+	if m.InVendor() && vendorSuffixModules(ctx.Config())[m.BaseModuleName()] {
 		p.androidMkSuffix = vendorSuffix
 	} else if m.InRecovery() && recoverySuffixModules(ctx.Config())[m.BaseModuleName()] {
 		p.androidMkSuffix = recoverySuffix
