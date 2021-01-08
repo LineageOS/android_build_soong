@@ -345,15 +345,8 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		depTag := ctx.OtherModuleDependencyTag(dep)
 		switch depTag {
 		case shTestDataBinsTag, shTestDataDeviceBinsTag:
-			if cc, isCc := dep.(*cc.Module); isCc {
-				s.addToDataModules(ctx, cc.OutputFile().Path().Base(), cc.OutputFile().Path())
-				return
-			}
-			property := "data_bins"
-			if depTag == shTestDataDeviceBinsTag {
-				property = "data_device_bins"
-			}
-			ctx.PropertyErrorf(property, "%q of type %q is not supported", dep.Name(), ctx.OtherModuleType(dep))
+			path := android.OutputFileForModule(ctx, dep, "")
+			s.addToDataModules(ctx, path.Base(), path)
 		case shTestDataLibsTag, shTestDataDeviceLibsTag:
 			if cc, isCc := dep.(*cc.Module); isCc {
 				// Copy to an intermediate output directory to append "lib[64]" to the path,
