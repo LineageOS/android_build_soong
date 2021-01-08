@@ -30,6 +30,7 @@ import (
 	"android/soong/bpf"
 	"android/soong/cc"
 	prebuilt_etc "android/soong/etc"
+	"android/soong/filesystem"
 	"android/soong/java"
 	"android/soong/python"
 	"android/soong/rust"
@@ -95,6 +96,9 @@ type apexBundleProperties struct {
 
 	// List of BPF programs inside this APEX bundle.
 	Bpfs []string
+
+	// List of filesystem images that are embedded inside this APEX bundle.
+	Filesystems []string
 
 	// Name of the apex_key module that provides the private key to sign this APEX bundle.
 	Key *string
@@ -530,6 +534,7 @@ var (
 	bpfTag         = dependencyTag{name: "bpf", payload: true}
 	certificateTag = dependencyTag{name: "certificate"}
 	executableTag  = dependencyTag{name: "executable", payload: true}
+	fsTag          = dependencyTag{name: "filesystem", payload: true}
 	javaLibTag     = dependencyTag{name: "javaLib", payload: true}
 	jniLibTag      = dependencyTag{name: "jniLib", payload: true}
 	keyTag         = dependencyTag{name: "key"}
@@ -709,6 +714,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
 	ctx.AddFarVariationDependencies(commonVariation, javaLibTag, a.properties.Java_libs...)
 	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.properties.Bpfs...)
+	ctx.AddFarVariationDependencies(commonVariation, fsTag, a.properties.Filesystems...)
 
 	// With EMMA_INSTRUMENT_FRAMEWORK=true the ART boot image includes jacoco library.
 	if a.artApex && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
@@ -1481,6 +1487,11 @@ func apexFileForBpfProgram(ctx android.BaseModuleContext, builtFile android.Path
 	return newApexFile(ctx, builtFile, builtFile.Base(), dirInApex, etc, bpfProgram)
 }
 
+func apexFileForFilesystem(ctx android.BaseModuleContext, buildFile android.Path, fs filesystem.Filesystem) apexFile {
+	dirInApex := filepath.Join("etc", "fs")
+	return newApexFile(ctx, buildFile, buildFile.Base(), dirInApex, etc, fs)
+}
+
 // WalyPayloadDeps visits dependencies that contributes to the payload of this APEX. For each of the
 // visited module, the `do` callback is executed. Returning true in the callback continues the visit
 // to the child modules. Returning false makes the visit to continue in the sibling or the parent
@@ -1654,6 +1665,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					}
 				} else {
 					ctx.PropertyErrorf("bpfs", "%q is not a bpf module", depName)
+				}
+			case fsTag:
+				if fs, ok := child.(filesystem.Filesystem); ok {
+					filesInfo = append(filesInfo, apexFileForFilesystem(ctx, fs.OutputPath(), fs))
+				} else {
+					ctx.PropertyErrorf("filesystems", "%q is not a filesystem module", depName)
 				}
 			case prebuiltTag:
 				if prebuilt, ok := child.(prebuilt_etc.PrebuiltEtcModule); ok {
