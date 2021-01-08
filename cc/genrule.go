@@ -25,6 +25,7 @@ func init() {
 
 type GenruleExtraProperties struct {
 	Vendor_available         *bool
+	Odm_available            *bool
 	Product_available        *bool
 	Ramdisk_available        *bool
 	Vendor_ramdisk_available *bool
@@ -63,7 +64,7 @@ func (g *GenruleExtraProperties) CoreVariantNeeded(ctx android.BaseModuleContext
 		return false
 	}
 
-	return Bool(g.Vendor_available) || Bool(g.Product_available) || !(ctx.SocSpecific() || ctx.DeviceSpecific())
+	return !(ctx.SocSpecific() || ctx.DeviceSpecific())
 }
 
 func (g *GenruleExtraProperties) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
@@ -92,7 +93,7 @@ func (g *GenruleExtraProperties) ExtraImageVariations(ctx android.BaseModuleCont
 	}
 
 	var variants []string
-	if Bool(g.Vendor_available) || ctx.SocSpecific() || ctx.DeviceSpecific() {
+	if Bool(g.Vendor_available) || Bool(g.Odm_available) || ctx.SocSpecific() || ctx.DeviceSpecific() {
 		vndkVersion := ctx.DeviceConfig().VndkVersion()
 		// If vndkVersion is current, we can always use PlatformVndkVersion.
 		// If not, we assume modules under proprietary paths are compatible for
