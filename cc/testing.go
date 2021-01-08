@@ -577,6 +577,7 @@ func CreateTestContext(config android.Config) *android.TestContext {
 	RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 	ctx.RegisterSingletonType("vendor-snapshot", VendorSnapshotSingleton)
+	ctx.RegisterSingletonType("vendor-fake-snapshot", VendorFakeSnapshotSingleton)
 	ctx.RegisterSingletonType("recovery-snapshot", RecoverySnapshotSingleton)
 
 	return ctx
