@@ -100,13 +100,13 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	platformVndkVersion := mctx.DeviceConfig().PlatformVndkVersion()
 
 	// Rust does not support installing to the product image yet.
-	if mod.VendorProperties.Product_available != nil {
+	if Bool(mod.VendorProperties.Product_available) {
 		mctx.PropertyErrorf("product_available",
 			"Rust modules do not yet support being available to the product image")
 	} else if mctx.ProductSpecific() {
 		mctx.PropertyErrorf("product_specific",
 			"Rust modules do not yet support installing to the product image.")
-	} else if mod.VendorProperties.Double_loadable != nil {
+	} else if Bool(mod.VendorProperties.Double_loadable) {
 		mctx.PropertyErrorf("double_loadable",
 			"Rust modules do not yet support double loading")
 	}
@@ -114,7 +114,7 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	coreVariantNeeded := true
 	var vendorVariants []string
 
-	if mod.VendorProperties.Vendor_available != nil {
+	if Bool(mod.VendorProperties.Vendor_available) {
 		if vendorSpecific {
 			mctx.PropertyErrorf("vendor_available",
 				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific:true`")
