@@ -6,6 +6,59 @@ import (
 	"github.com/google/blueprint"
 )
 
+// PlatformSanitizeable is an interface for sanitizing platform modules.
+type PlatformSanitizeable interface {
+	LinkableInterface
+
+	// SanitizePropDefined returns whether the Sanitizer properties struct for this module is defined.
+	SanitizePropDefined() bool
+
+	// IsDependencyRoot returns whether a module is of a type which cannot be a linkage dependency
+	// of another module. For example, cc_binary and rust_binary represent dependency roots as other
+	// modules cannot have linkage dependencies against these types.
+	IsDependencyRoot() bool
+
+	// IsSanitizerEnabled returns whether a sanitizer is enabled.
+	IsSanitizerEnabled(t SanitizerType) bool
+
+	// IsSanitizerExplicitlyDisabled returns whether a sanitizer has been explicitly disabled (set to false) rather
+	// than left undefined.
+	IsSanitizerExplicitlyDisabled(t SanitizerType) bool
+
+	// SanitizeDep returns the value of the SanitizeDep flag, which is set if a module is a dependency of a
+	// sanitized module.
+	SanitizeDep() bool
+
+	// SetSanitizer enables or disables the specified sanitizer type if it's supported, otherwise this should panic.
+	SetSanitizer(t SanitizerType, b bool)
+
+	// SetSanitizerDep returns true if the module is statically linked.
+	SetSanitizeDep(b bool)
+
+	// StaticallyLinked returns true if the module is statically linked.
+	StaticallyLinked() bool
+
+	// SetInSanitizerDir sets the module installation to the sanitizer directory.
+	SetInSanitizerDir()
+
+	// SanitizeNever returns true if this module should never be sanitized.
+	SanitizeNever() bool
+
+	// SanitizerSupported returns true if a sanitizer type is supported by this modules compiler.
+	SanitizerSupported(t SanitizerType) bool
+
+	// SanitizableDepTagChecker returns a SantizableDependencyTagChecker function type.
+	SanitizableDepTagChecker() SantizableDependencyTagChecker
+}
+
+// SantizableDependencyTagChecker functions check whether or not a dependency
+// tag can be sanitized. These functions should return true if the tag can be
+// sanitized, otherwise they should return false. These functions should also
+// handle all possible dependency tags in the dependency tree. For example,
+// Rust modules can depend on both Rust and CC libraries, so the Rust module
+// implementation should handle tags from both.
+type SantizableDependencyTagChecker func(tag blueprint.DependencyTag) bool
+
 // LinkableInterface is an interface for a type of module that is linkable in a C++ library.
 type LinkableInterface interface {
 	android.Module
@@ -27,6 +80,8 @@ type LinkableInterface interface {
 	SetShared()
 	Static() bool
 	Shared() bool
+	Header() bool
+	IsPrebuilt() bool
 	Toc() android.OptionalPath
 
 	Host() bool
@@ -39,6 +94,8 @@ type LinkableInterface interface {
 
 	InRecovery() bool
 	OnlyInRecovery() bool
+
+	InVendor() bool
 
 	UseSdk() bool
 	UseVndk() bool
@@ -56,6 +113,11 @@ type LinkableInterface interface {
 	IsSdkVariant() bool
 
 	SplitPerApiLevel() bool
+
+	// SetPreventInstall sets the PreventInstall property to 'true' for this module.
+	SetPreventInstall()
+	// SetHideFromMake sets the HideFromMake property to 'true' for this module.
+	SetHideFromMake()
 }
 
 var (
@@ -66,6 +128,26 @@ var (
 	// Dependency tag for coverage library.
 	CoverageDepTag = dependencyTag{name: "coverage"}
 )
+
+// GetImageVariantType returns the ImageVariantType string value for the given module
+// (these are defined in cc/image.go).
+func GetImageVariantType(c LinkableInterface) ImageVariantType {
+	if c.Host() {
+		return hostImageVariant
+	} else if c.InVendor() {
+		return vendorImageVariant
+	} else if c.InProduct() {
+		return productImageVariant
+	} else if c.InRamdisk() {
+		return ramdiskImageVariant
+	} else if c.InVendorRamdisk() {
+		return vendorRamdiskImageVariant
+	} else if c.InRecovery() {
+		return recoveryImageVariant
+	} else {
+		return coreImageVariant
+	}
+}
 
 // SharedDepTag returns the dependency tag for any C++ shared libraries.
 func SharedDepTag() blueprint.DependencyTag {

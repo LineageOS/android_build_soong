@@ -106,6 +106,42 @@ type Module struct {
 	hideApexVariantFromMake bool
 }
 
+func (mod *Module) Header() bool {
+	//TODO: If Rust libraries provide header variants, this needs to be updated.
+	return false
+}
+
+func (mod *Module) SetPreventInstall() {
+	mod.Properties.PreventInstall = true
+}
+
+// Returns true if the module is "vendor" variant. Usually these modules are installed in /vendor
+func (mod *Module) InVendor() bool {
+	return mod.Properties.ImageVariationPrefix == cc.VendorVariationPrefix
+}
+
+func (mod *Module) SetHideFromMake() {
+	mod.Properties.HideFromMake = true
+}
+
+func (mod *Module) SanitizePropDefined() bool {
+	return false
+}
+
+func (mod *Module) IsDependencyRoot() bool {
+	if mod.compiler != nil {
+		return mod.compiler.isDependencyRoot()
+	}
+	panic("IsDependencyRoot called on a non-compiler Rust module")
+}
+
+func (mod *Module) IsPrebuilt() bool {
+	if _, ok := mod.compiler.(*prebuiltLibraryDecorator); ok {
+		return true
+	}
+	return false
+}
+
 func (mod *Module) OutputFiles(tag string) (android.Paths, error) {
 	switch tag {
 	case "":
@@ -281,6 +317,7 @@ type compiler interface {
 	SetDisabled()
 
 	stdLinkage(ctx *depsContext) RustLinkage
+	isDependencyRoot() bool
 }
 
 type exportedFlagsProducer interface {

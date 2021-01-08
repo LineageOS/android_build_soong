@@ -315,7 +315,7 @@ func NewFuzz(hod android.HostOrDeviceSupported) *Module {
 	module, binary := NewBinary(hod)
 
 	binary.baseInstaller = NewFuzzInstaller()
-	module.sanitize.SetSanitizer(fuzzer, true)
+	module.sanitize.SetSanitizer(Fuzzer, true)
 
 	fuzz := &fuzzBinary{
 		binaryDecorator: binary,
