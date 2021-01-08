@@ -369,10 +369,7 @@ type VendorProperties struct {
 	// If set to false, this module becomes inaccessible from /vendor modules.
 	//
 	// The modules with vndk: {enabled: true} must define 'vendor_available'
-	// to either 'true' or 'false'. In this case, 'vendor_available: false' has
-	// a different meaning than that of non-VNDK modules.
-	// 'vendor_available: false' for a VNDK module means 'VNDK-private' that
-	// can only be depended on by VNDK libraries, not by non-VNDK vendor modules.
+	// to 'true'.
 	//
 	// Nothing happens if BOARD_VNDK_VERSION isn't set in the BoardConfig.mk
 	Vendor_available *bool
@@ -394,13 +391,6 @@ type VendorProperties struct {
 	// vndk: {enabled: true} don't have to define 'product_available'. The VNDK
 	// library without 'product_available' may not be depended on by any other
 	// modules that has product variants including the product available VNDKs.
-	// However, for the modules with vndk: {enabled: true},
-	// 'product_available: false' creates the product variant that is available
-	// only for the other product available VNDK modules but not by non-VNDK
-	// product modules.
-	// In the case of the modules with vndk: {enabled: true}, if
-	// 'product_available' is defined, it must have the same value with the
-	// 'vendor_available'.
 	//
 	// Nothing happens if BOARD_VNDK_VERSION isn't set in the BoardConfig.mk
 	// and PRODUCT_PRODUCT_VNDK_VERSION isn't set.
