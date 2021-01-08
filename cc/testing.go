@@ -299,7 +299,7 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 		llndk_library {
 			name: "libft2.llndk",
 			symbol_file: "",
-			vendor_available: false,
+			private: true,
 			sdk_version: "current",
 		}
 		cc_library {
