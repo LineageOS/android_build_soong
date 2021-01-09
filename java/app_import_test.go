@@ -393,6 +393,69 @@ func TestAndroidAppImport_overridesDisabledAndroidApp(t *testing.T) {
 	}
 }
 
+func TestAndroidAppImport_frameworkRes(t *testing.T) {
+	ctx, config := testJava(t, `
+		android_app_import {
+			name: "framework-res",
+			certificate: "platform",
+			apk: "package-res.apk",
+			prefer: true,
+			export_package_resources: true,
+			// Disable dexpreopt and verify_uses_libraries check as the app
+			// contains no Java code to be dexpreopted.
+			enforce_uses_libs: false,
+			dex_preopt: {
+				enabled: false,
+			},
+		}
+		`)
+
+	mod := ctx.ModuleForTests("prebuilt_framework-res", "android_common").Module()
+	a := mod.(*AndroidAppImport)
+
+	if !a.preprocessed {
+		t.Errorf("prebuilt framework-res is not preprocessed")
+	}
+
+	expectedInstallPath := buildDir + "/target/product/test_device/system/framework/framework-res.apk"
+
+	if a.dexpreopter.installPath.String() != expectedInstallPath {
+		t.Errorf("prebuilt framework-res installed to incorrect location, actual: %s, expected: %s", a.dexpreopter.installPath, expectedInstallPath)
+
+	}
+
+	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
+
+	expectedPath := "."
+	// From apk property above, in the root of the source tree.
+	expectedPrebuiltModuleFile := "package-res.apk"
+	// Verify that the apk is preprocessed: The export package is the same
+	// as the prebuilt.
+	expectedSoongResourceExportPackage := expectedPrebuiltModuleFile
+
+	actualPath := entries.EntryMap["LOCAL_PATH"]
+	actualPrebuiltModuleFile := entries.EntryMap["LOCAL_PREBUILT_MODULE_FILE"]
+	actualSoongResourceExportPackage := entries.EntryMap["LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE"]
+
+	if len(actualPath) != 1 {
+		t.Errorf("LOCAL_PATH incorrect len %d", len(actualPath))
+	} else if actualPath[0] != expectedPath {
+		t.Errorf("LOCAL_PATH mismatch, actual: %s, expected: %s", actualPath[0], expectedPath)
+	}
+
+	if len(actualPrebuiltModuleFile) != 1 {
+		t.Errorf("LOCAL_PREBUILT_MODULE_FILE incorrect len %d", len(actualPrebuiltModuleFile))
+	} else if actualPrebuiltModuleFile[0] != expectedPrebuiltModuleFile {
+		t.Errorf("LOCAL_PREBUILT_MODULE_FILE mismatch, actual: %s, expected: %s", actualPrebuiltModuleFile[0], expectedPrebuiltModuleFile)
+	}
+
+	if len(actualSoongResourceExportPackage) != 1 {
+		t.Errorf("LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE incorrect len %d", len(actualSoongResourceExportPackage))
+	} else if actualSoongResourceExportPackage[0] != expectedSoongResourceExportPackage {
+		t.Errorf("LOCAL_SOONG_RESOURCE_EXPORT_PACKAGE mismatch, actual: %s, expected: %s", actualSoongResourceExportPackage[0], expectedSoongResourceExportPackage)
+	}
+}
+
 func TestAndroidTestImport(t *testing.T) {
 	ctx, config := testJava(t, `
 		android_test_import {
