@@ -250,7 +250,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 
 	ctx.RegisterModuleType("cc_test", cc.TestFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
-	ctx.RegisterModuleType("vndk_libraries_txt", cc.VndkLibrariesTxtFactory)
+	cc.RegisterVndkLibraryTxtTypes(ctx)
 	prebuilt_etc.RegisterPrebuiltEtcBuildComponents(ctx)
 	ctx.RegisterModuleType("platform_compat_config", java.PlatformCompatConfigFactory)
 	ctx.RegisterModuleType("sh_binary", sh.ShBinaryFactory)
@@ -3219,7 +3219,7 @@ func vndkLibrariesTxtFiles(vers ...string) (result string) {
 		if v == "current" {
 			for _, txt := range []string{"llndk", "vndkcore", "vndksp", "vndkprivate", "vndkproduct"} {
 				result += `
-					vndk_libraries_txt {
+					` + txt + `_libraries_txt {
 						name: "` + txt + `.libraries.txt",
 					}
 				`

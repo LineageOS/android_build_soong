@@ -46,7 +46,10 @@ func filesystemFactory() android.Module {
 	return module
 }
 
-var dependencyTag = struct{ blueprint.BaseDependencyTag }{}
+var dependencyTag = struct {
+	blueprint.BaseDependencyTag
+	android.InstallAlwaysNeededDependencyTag
+}{}
 
 func (f *filesystem) DepsMutator(ctx android.BottomUpMutatorContext) {
 	f.AddDeps(ctx, dependencyTag)
@@ -80,7 +83,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Text(">").Output(propFile).
 		Implicit(mkuserimg)
 
-	f.output = android.PathForModuleOut(ctx, "filesystem.img").OutputPath
+	f.output = android.PathForModuleOut(ctx, f.installFileName()).OutputPath
 	builder.Command().BuiltTool("build_image").
 		Text(rootDir.String()). // input directory
 		Input(propFile).
@@ -108,4 +111,17 @@ func (f *filesystem) AndroidMkEntries() []android.AndroidMkEntries {
 			},
 		},
 	}}
+}
+
+// Filesystem is the public interface for the filesystem struct. Currently, it's only for the apex
+// package to have access to the output file.
+type Filesystem interface {
+	android.Module
+	OutputPath() android.Path
+}
+
+var _ Filesystem = (*filesystem)(nil)
+
+func (f *filesystem) OutputPath() android.Path {
+	return f.output
 }

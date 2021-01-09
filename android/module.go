@@ -619,6 +619,20 @@ type commonProperties struct {
 	// more details.
 	Visibility []string
 
+	// Describes the licenses applicable to this module. Must reference license modules.
+	Licenses []string
+
+	// Flattened from direct license dependencies. Equal to Licenses unless particular module adds more.
+	Effective_licenses []string `blueprint:"mutated"`
+	// Override of module name when reporting licenses
+	Effective_package_name *string `blueprint:"mutated"`
+	// Notice files
+	Effective_license_text []string `blueprint:"mutated"`
+	// License names
+	Effective_license_kinds []string `blueprint:"mutated"`
+	// License conditions
+	Effective_license_conditions []string `blueprint:"mutated"`
+
 	// control whether this module compiles for 32-bit, 64-bit, or both.  Possible values
 	// are "32" (compile for 32-bit only), "64" (compile for 64-bit only), "both" (compile for both
 	// architectures), or "first" (compile for 64-bit on a 64-bit platform, and 32-bit on a 32-bit
@@ -940,6 +954,10 @@ func InitAndroidModule(m Module) {
 	// The default_visibility property needs to be checked and parsed by the visibility module during
 	// its checking and parsing phases so make it the primary visibility property.
 	setPrimaryVisibilityProperty(m, "visibility", &base.commonProperties.Visibility)
+
+	// The default_applicable_licenses property needs to be checked and parsed by the licenses module during
+	// its checking and parsing phases so make it the primary licenses property.
+	setPrimaryLicensesProperty(m, "licenses", &base.commonProperties.Licenses)
 }
 
 // InitAndroidArchModule initializes the Module as an Android module that is architecture-specific.
@@ -1056,6 +1074,9 @@ type ModuleBase struct {
 
 	// The primary visibility property, may be nil, that controls access to the module.
 	primaryVisibilityProperty visibilityProperty
+
+	// The primary licenses property, may be nil, records license metadata for the module.
+	primaryLicensesProperty applicableLicensesProperty
 
 	noAddressSanitizer   bool
 	installFiles         InstallPaths
@@ -1730,6 +1751,11 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 					m.noticeFiles = append(m.noticeFiles, optPath.Path())
 				}
 			}
+		}
+
+		licensesPropertyFlattener(ctx)
+		if ctx.Failed() {
+			return
 		}
 
 		m.module.GenerateAndroidBuildActions(ctx)
