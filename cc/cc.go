@@ -456,6 +456,7 @@ type ModuleContextIntf interface {
 	nativeCoverage() bool
 	directlyInAnyApex() bool
 	isPreventInstall() bool
+	isCfiAssemblySupportEnabled() bool
 }
 
 type ModuleContext interface {
@@ -1230,6 +1231,11 @@ func (c *Module) XrefCcFiles() android.Paths {
 	return c.kytheFiles
 }
 
+func (c *Module) isCfiAssemblySupportEnabled() bool {
+	return c.sanitize != nil &&
+		Bool(c.sanitize.Properties.Sanitize.Config.Cfi_assembly_support)
+}
+
 type baseModuleContext struct {
 	android.BaseModuleContext
 	moduleContextImpl
@@ -1393,6 +1399,10 @@ func (ctx *moduleContextImpl) directlyInAnyApex() bool {
 
 func (ctx *moduleContextImpl) isPreventInstall() bool {
 	return ctx.mod.Properties.PreventInstall
+}
+
+func (ctx *moduleContextImpl) isCfiAssemblySupportEnabled() bool {
+	return ctx.mod.isCfiAssemblySupportEnabled()
 }
 
 func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
