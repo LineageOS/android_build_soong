@@ -230,12 +230,12 @@ func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 			panic(fmt.Errorf("prebuilt module did not have InitPrebuiltModule called on it"))
 		}
 		if !p.properties.SourceExists {
-			p.properties.UsePrebuilt = p.usePrebuilt(ctx, nil)
+			p.properties.UsePrebuilt = p.usePrebuilt(ctx, m, nil)
 		}
 	} else if s, ok := ctx.Module().(Module); ok {
 		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(m Module) {
 			p := m.(PrebuiltInterface).Prebuilt()
-			if p.usePrebuilt(ctx, s) {
+			if p.usePrebuilt(ctx, m, s) {
 				p.properties.UsePrebuilt = true
 				s.SkipInstall()
 			}
@@ -270,8 +270,13 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
 // will be used if it is marked "prefer" or if the source module is disabled.
-func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module) bool {
+func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, prebuilt Module, source Module) bool {
 	if p.srcsSupplier != nil && len(p.srcsSupplier()) == 0 {
+		return false
+	}
+
+	// Skip prebuilt modules under unexported namespaces
+	if !prebuilt.ExportedToMake() {
 		return false
 	}
 
