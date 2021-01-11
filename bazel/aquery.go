@@ -16,6 +16,8 @@ package bazel
 
 import (
 	"encoding/json"
+	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -24,8 +26,14 @@ import (
 // artifact contains relevant portions of Bazel's aquery proto, Artifact.
 // Represents a single artifact, whether it's a source file or a derived output file.
 type artifact struct {
-	Id       string
-	ExecPath string
+	Id             int
+	PathFragmentId int
+}
+
+type pathFragment struct {
+	Id       int
+	Label    string
+	ParentId int
 }
 
 // KeyValuePair represents Bazel's aquery proto, KeyValuePair.
@@ -38,9 +46,9 @@ type KeyValuePair struct {
 // Represents a data structure containing one or more files. Depsets in Bazel are an efficient
 // data structure for storing large numbers of file paths.
 type depSetOfFiles struct {
-	Id string
+	Id int
 	// TODO(cparsons): Handle non-flat depsets.
-	DirectArtifactIds []string
+	DirectArtifactIds []int
 }
 
 // action contains relevant portions of Bazel's aquery proto, Action.
@@ -48,9 +56,9 @@ type depSetOfFiles struct {
 type action struct {
 	Arguments            []string
 	EnvironmentVariables []KeyValuePair
-	InputDepSetIds       []string
+	InputDepSetIds       []int
 	Mnemonic             string
-	OutputIds            []string
+	OutputIds            []int
 }
 
 // actionGraphContainer contains relevant portions of Bazel's aquery proto, ActionGraphContainer.
@@ -59,6 +67,7 @@ type actionGraphContainer struct {
 	Artifacts     []artifact
 	Actions       []action
 	DepSetOfFiles []depSetOfFiles
+	PathFragments []pathFragment
 }
 
 // BuildStatement contains information to register a build statement corresponding (one to one)
@@ -80,11 +89,20 @@ func AqueryBuildStatements(aqueryJsonProto []byte) []BuildStatement {
 	var aqueryResult actionGraphContainer
 	json.Unmarshal(aqueryJsonProto, &aqueryResult)
 
-	artifactIdToPath := map[string]string{}
-	for _, artifact := range aqueryResult.Artifacts {
-		artifactIdToPath[artifact.Id] = artifact.ExecPath
+	pathFragments := map[int]pathFragment{}
+	for _, pathFragment := range aqueryResult.PathFragments {
+		pathFragments[pathFragment.Id] = pathFragment
 	}
-	depsetIdToArtifactIds := map[string][]string{}
+	artifactIdToPath := map[int]string{}
+	for _, artifact := range aqueryResult.Artifacts {
+		artifactPath, err := expandPathFragment(artifact.PathFragmentId, pathFragments)
+		if err != nil {
+			// TODO(cparsons): Better error handling.
+			panic(err.Error())
+		}
+		artifactIdToPath[artifact.Id] = artifactPath
+	}
+	depsetIdToArtifactIds := map[int][]int{}
 	for _, depset := range aqueryResult.DepSetOfFiles {
 		depsetIdToArtifactIds[depset.Id] = depset.DirectArtifactIds
 	}
@@ -113,4 +131,19 @@ func AqueryBuildStatements(aqueryJsonProto []byte) []BuildStatement {
 	}
 
 	return buildStatements
+}
+
+func expandPathFragment(id int, pathFragmentsMap map[int]pathFragment) (string, error) {
+	labels := []string{}
+	currId := id
+	// Only positive IDs are valid for path fragments. An ID of zero indicates a terminal node.
+	for currId > 0 {
+		currFragment, ok := pathFragmentsMap[currId]
+		if !ok {
+			return "", fmt.Errorf("undefined path fragment id '%s'", currId)
+		}
+		labels = append([]string{currFragment.Label}, labels...)
+		currId = currFragment.ParentId
+	}
+	return filepath.Join(labels...), nil
 }

@@ -236,6 +236,10 @@ func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathD
 	panic(fmt.Errorf("baseCrater doesn't know how to crate things!"))
 }
 
+func (compiler *baseCompiler) isDependencyRoot() bool {
+	return false
+}
+
 func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.Rlibs = append(deps.Rlibs, compiler.Properties.Rlibs...)
 	deps.Dylibs = append(deps.Dylibs, compiler.Properties.Dylibs...)

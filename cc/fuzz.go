@@ -41,6 +41,12 @@ type FuzzConfig struct {
 	// Specify who should be acknowledged for CVEs in the Android Security
 	// Bulletin.
 	Acknowledgement []string `json:"acknowledgement,omitempty"`
+	// Additional options to be passed to libfuzzer when run in Haiku.
+	Libfuzzer_options []string `json:"libfuzzer_options,omitempty"`
+	// Additional options to be passed to HWASAN when running on-device in Haiku.
+	Hwasan_options []string `json:"hwasan_options,omitempty"`
+	// Additional options to be passed to HWASAN when running on host in Haiku.
+	Asan_options []string `json:"asan_options,omitempty"`
 }
 
 func (f *FuzzConfig) String() string {
@@ -315,7 +321,7 @@ func NewFuzz(hod android.HostOrDeviceSupported) *Module {
 	module, binary := NewBinary(hod)
 
 	binary.baseInstaller = NewFuzzInstaller()
-	module.sanitize.SetSanitizer(fuzzer, true)
+	module.sanitize.SetSanitizer(Fuzzer, true)
 
 	fuzz := &fuzzBinary{
 		binaryDecorator: binary,

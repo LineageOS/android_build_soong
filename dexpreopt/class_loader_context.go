@@ -255,24 +255,13 @@ const AnySdkVersion int = android.FutureApiLevelInt
 
 // Add class loader context for the given library to the map entry for the given SDK version.
 func (clcMap ClassLoaderContextMap) addContext(ctx android.ModuleInstallPathContext, sdkVer int, lib string,
-	hostPath, installPath android.Path, strict bool, nestedClcMap ClassLoaderContextMap) error {
-
-	// If missing dependencies are allowed, the build shouldn't fail when a <uses-library> is
-	// not found. However, this is likely to result is disabling dexpreopt, as it won't be
-	// possible to construct class loader context without on-host and on-device library paths.
-	strict = strict && !ctx.Config().AllowMissingDependencies()
-
-	if hostPath == nil && strict {
-		return fmt.Errorf("unknown build path to <uses-library> \"%s\"", lib)
-	}
+	hostPath, installPath android.Path, nestedClcMap ClassLoaderContextMap) error {
 
 	devicePath := UnknownInstallLibraryPath
 	if installPath == nil {
 		if android.InList(lib, CompatUsesLibs) || android.InList(lib, OptionalCompatUsesLibs) {
 			// Assume that compatibility libraries are installed in /system/framework.
 			installPath = android.PathForModuleInstall(ctx, "framework", lib+".jar")
-		} else if strict {
-			return fmt.Errorf("unknown install path to <uses-library> \"%s\"", lib)
 		} else {
 			// For some stub libraries the only known thing is the name of their implementation
 			// library, but the library itself is unavailable (missing or part of a prebuilt). In
@@ -310,40 +299,17 @@ func (clcMap ClassLoaderContextMap) addContext(ctx android.ModuleInstallPathCont
 	return nil
 }
 
-// Wrapper around addContext that reports errors.
-func (clcMap ClassLoaderContextMap) addContextOrReportError(ctx android.ModuleInstallPathContext, sdkVer int, lib string,
-	hostPath, installPath android.Path, strict bool, nestedClcMap ClassLoaderContextMap) {
-
-	err := clcMap.addContext(ctx, sdkVer, lib, hostPath, installPath, strict, nestedClcMap)
-	if err != nil {
-		ctx.ModuleErrorf(err.Error())
-	}
-}
-
-// Add class loader context. Fail on unknown build/install paths.
-func (clcMap ClassLoaderContextMap) AddContext(ctx android.ModuleInstallPathContext, lib string,
-	hostPath, installPath android.Path) {
-
-	clcMap.addContextOrReportError(ctx, AnySdkVersion, lib, hostPath, installPath, true, nil)
-}
-
-// Add class loader context if the library exists. Don't fail on unknown build/install paths.
-func (clcMap ClassLoaderContextMap) MaybeAddContext(ctx android.ModuleInstallPathContext, lib *string,
-	hostPath, installPath android.Path) {
-
-	if lib != nil {
-		clcMap.addContextOrReportError(ctx, AnySdkVersion, *lib, hostPath, installPath, false, nil)
-	}
-}
-
 // Add class loader context for the given SDK version. Don't fail on unknown build/install paths, as
 // libraries with unknown paths still need to be processed by manifest_fixer (which doesn't care
 // about paths). For the subset of libraries that are used in dexpreopt, their build/install paths
 // are validated later before CLC is used (in validateClassLoaderContext).
-func (clcMap ClassLoaderContextMap) AddContextForSdk(ctx android.ModuleInstallPathContext, sdkVer int,
+func (clcMap ClassLoaderContextMap) AddContext(ctx android.ModuleInstallPathContext, sdkVer int,
 	lib string, hostPath, installPath android.Path, nestedClcMap ClassLoaderContextMap) {
 
-	clcMap.addContextOrReportError(ctx, sdkVer, lib, hostPath, installPath, false, nestedClcMap)
+	err := clcMap.addContext(ctx, sdkVer, lib, hostPath, installPath, nestedClcMap)
+	if err != nil {
+		ctx.ModuleErrorf(err.Error())
+	}
 }
 
 // Merge the other class loader context map into this one, do not override existing entries.

@@ -26,35 +26,17 @@ import (
 
 var _ android.ImageInterface = (*Module)(nil)
 
-type imageVariantType string
+type ImageVariantType string
 
 const (
-	coreImageVariant          imageVariantType = "core"
-	vendorImageVariant        imageVariantType = "vendor"
-	productImageVariant       imageVariantType = "product"
-	ramdiskImageVariant       imageVariantType = "ramdisk"
-	vendorRamdiskImageVariant imageVariantType = "vendor_ramdisk"
-	recoveryImageVariant      imageVariantType = "recovery"
-	hostImageVariant          imageVariantType = "host"
+	coreImageVariant          ImageVariantType = "core"
+	vendorImageVariant        ImageVariantType = "vendor"
+	productImageVariant       ImageVariantType = "product"
+	ramdiskImageVariant       ImageVariantType = "ramdisk"
+	vendorRamdiskImageVariant ImageVariantType = "vendor_ramdisk"
+	recoveryImageVariant      ImageVariantType = "recovery"
+	hostImageVariant          ImageVariantType = "host"
 )
-
-func (c *Module) getImageVariantType() imageVariantType {
-	if c.Host() {
-		return hostImageVariant
-	} else if c.inVendor() {
-		return vendorImageVariant
-	} else if c.InProduct() {
-		return productImageVariant
-	} else if c.InRamdisk() {
-		return ramdiskImageVariant
-	} else if c.InVendorRamdisk() {
-		return vendorRamdiskImageVariant
-	} else if c.InRecovery() {
-		return recoveryImageVariant
-	} else {
-		return coreImageVariant
-	}
-}
 
 const (
 	// VendorVariationPrefix is the variant prefix used for /vendor code that compiles
@@ -67,13 +49,15 @@ const (
 )
 
 func (ctx *moduleContext) ProductSpecific() bool {
-	return ctx.ModuleContext.ProductSpecific() ||
-		(ctx.mod.HasProductVariant() && ctx.mod.InProduct())
+	// Additionally check if this module is inProduct() that means it is a "product" variant of a
+	// module. As well as product specific modules, product variants must be installed to /product.
+	return ctx.ModuleContext.ProductSpecific() || ctx.mod.InProduct()
 }
 
 func (ctx *moduleContext) SocSpecific() bool {
-	return ctx.ModuleContext.SocSpecific() ||
-		(ctx.mod.HasVendorVariant() && ctx.mod.inVendor())
+	// Additionally check if this module is inVendor() that means it is a "vendor" variant of a
+	// module. As well as SoC specific modules, vendor variants must be installed to /vendor.
+	return ctx.ModuleContext.SocSpecific() || ctx.mod.InVendor()
 }
 
 func (ctx *moduleContextImpl) inProduct() bool {
@@ -81,7 +65,7 @@ func (ctx *moduleContextImpl) inProduct() bool {
 }
 
 func (ctx *moduleContextImpl) inVendor() bool {
-	return ctx.mod.inVendor()
+	return ctx.mod.InVendor()
 }
 
 func (ctx *moduleContextImpl) inRamdisk() bool {
@@ -98,18 +82,12 @@ func (ctx *moduleContextImpl) inRecovery() bool {
 
 // Returns true when this module is configured to have core and vendor variants.
 func (c *Module) HasVendorVariant() bool {
-	// In case of a VNDK, 'vendor_available: false' still creates a vendor variant.
-	return c.IsVndk() || Bool(c.VendorProperties.Vendor_available)
+	return Bool(c.VendorProperties.Vendor_available)
 }
 
 // Returns true when this module is configured to have core and product variants.
 func (c *Module) HasProductVariant() bool {
-	if c.VendorProperties.Product_available == nil {
-		// Without 'product_available', product variant will not be created even for VNDKs.
-		return false
-	}
-	// However, 'product_available: false' in a VNDK still creates a product variant.
-	return c.IsVndk() || Bool(c.VendorProperties.Product_available)
+	return Bool(c.VendorProperties.Product_available)
 }
 
 // Returns true when this module is configured to have core and either product or vendor variants.
@@ -123,7 +101,7 @@ func (c *Module) InProduct() bool {
 }
 
 // Returns true if the module is "vendor" variant. Usually these modules are installed in /vendor
-func (c *Module) inVendor() bool {
+func (c *Module) InVendor() bool {
 	return c.Properties.ImageVariationPrefix == VendorVariationPrefix
 }
 
@@ -186,7 +164,7 @@ func visitPropsAndCompareVendorAndProductProps(v reflect.Value) bool {
 // This function is used only for the VNDK modules that is available to both vendor
 // and product partitions.
 func (c *Module) compareVendorAndProductProps() bool {
-	if !c.IsVndk() && c.VendorProperties.Product_available != nil {
+	if !c.IsVndk() && !Bool(c.VendorProperties.Product_available) {
 		panic(fmt.Errorf("This is only for product available VNDK libs. %q is not a VNDK library or not product available", c.Name()))
 	}
 	for _, properties := range c.GetProperties() {
@@ -202,14 +180,14 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
 	productSpecific := mctx.ProductSpecific()
 
-	if m.VendorProperties.Vendor_available != nil {
+	if Bool(m.VendorProperties.Vendor_available) {
 		if vendorSpecific {
 			mctx.PropertyErrorf("vendor_available",
 				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific:true`")
 		}
 	}
 
-	if m.VendorProperties.Product_available != nil {
+	if Bool(m.VendorProperties.Product_available) {
 		if productSpecific {
 			mctx.PropertyErrorf("product_available",
 				"doesn't make sense at the same time as `product_specific: true`")
@@ -226,10 +204,10 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 				if !vndkdep.isVndkExt() {
 					mctx.PropertyErrorf("vndk",
 						"must set `extends: \"...\"` to vndk extension")
-				} else if m.VendorProperties.Vendor_available != nil {
+				} else if Bool(m.VendorProperties.Vendor_available) {
 					mctx.PropertyErrorf("vendor_available",
 						"must not set at the same time as `vndk: {extends: \"...\"}`")
-				} else if m.VendorProperties.Product_available != nil {
+				} else if Bool(m.VendorProperties.Product_available) {
 					mctx.PropertyErrorf("product_available",
 						"must not set at the same time as `vndk: {extends: \"...\"}`")
 				}
@@ -239,11 +217,11 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 						"must set `vendor: true` or `product_specific: true` to set `extends: %q`",
 						m.getVndkExtendsModuleName())
 				}
-				if m.VendorProperties.Vendor_available == nil {
+				if !Bool(m.VendorProperties.Vendor_available) {
 					mctx.PropertyErrorf("vndk",
-						"vendor_available must be set to either true or false when `vndk: {enabled: true}`")
+						"vendor_available must be set to true when `vndk: {enabled: true}`")
 				}
-				if m.VendorProperties.Product_available != nil {
+				if Bool(m.VendorProperties.Product_available) {
 					// If a VNDK module creates both product and vendor variants, they
 					// must have the same properties since they share a single VNDK
 					// library on runtime.

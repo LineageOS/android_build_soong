@@ -34,6 +34,16 @@ var vendorSnapshotSingleton = snapshotSingleton{
 	android.OptionalPath{},
 	true,
 	vendorSnapshotImageSingleton,
+	false, /* fake */
+}
+
+var vendorFakeSnapshotSingleton = snapshotSingleton{
+	"vendor",
+	"SOONG_VENDOR_FAKE_SNAPSHOT_ZIP",
+	android.OptionalPath{},
+	true,
+	vendorSnapshotImageSingleton,
+	true, /* fake */
 }
 
 var recoverySnapshotSingleton = snapshotSingleton{
@@ -42,10 +52,15 @@ var recoverySnapshotSingleton = snapshotSingleton{
 	android.OptionalPath{},
 	false,
 	recoverySnapshotImageSingleton,
+	false, /* fake */
 }
 
 func VendorSnapshotSingleton() android.Singleton {
 	return &vendorSnapshotSingleton
+}
+
+func VendorFakeSnapshotSingleton() android.Singleton {
+	return &vendorFakeSnapshotSingleton
 }
 
 func RecoverySnapshotSingleton() android.Singleton {
@@ -70,6 +85,11 @@ type snapshotSingleton struct {
 	// associated with this snapshot (e.g., specific to the vendor image,
 	// recovery image, etc.).
 	image snapshotImage
+
+	// Whether this singleton is for fake snapshot or not.
+	// Fake snapshot is a snapshot whose prebuilt binaries and headers are empty.
+	// It is much faster to generate, and can be used to inspect dependencies.
+	fake bool
 }
 
 var (
@@ -177,25 +197,6 @@ func isRecoveryProprietaryModule(ctx android.BaseModuleContext) bool {
 	return false
 }
 
-// Determine if a module is going to be included in vendor snapshot or not.
-//
-// Targets of vendor snapshot are "vendor: true" or "vendor_available: true" modules in
-// AOSP. They are not guaranteed to be compatible with older vendor images. (e.g. might
-// depend on newer VNDK) So they are captured as vendor snapshot To build older vendor
-// image and newer system image altogether.
-func isVendorSnapshotAware(m *Module, inVendorProprietaryPath bool, apexInfo android.ApexInfo) bool {
-	return isSnapshotAware(m, inVendorProprietaryPath, apexInfo, vendorSnapshotImageSingleton)
-}
-
-// Determine if a module is going to be included in recovery snapshot or not.
-//
-// Targets of recovery snapshot are "recovery: true" or "recovery_available: true"
-// modules in AOSP. They are not guaranteed to be compatible with older recovery images.
-// So they are captured as recovery snapshot To build older recovery image.
-func isRecoverySnapshotAware(m *Module, inRecoveryProprietaryPath bool, apexInfo android.ApexInfo) bool {
-	return isSnapshotAware(m, inRecoveryProprietaryPath, apexInfo, recoverySnapshotImageSingleton)
-}
-
 // Determines if the module is a candidate for snapshot.
 func isSnapshotAware(m *Module, inProprietaryPath bool, apexInfo android.ApexInfo, image snapshotImage) bool {
 	if !m.Enabled() || m.Properties.HideFromMake {
@@ -246,7 +247,7 @@ func isSnapshotAware(m *Module, inProprietaryPath bool, apexInfo android.ApexInf
 		if m.sanitize != nil {
 			// scs and hwasan export both sanitized and unsanitized variants for static and header
 			// Always use unsanitized variants of them.
-			for _, t := range []sanitizerType{scs, hwasan} {
+			for _, t := range []SanitizerType{scs, hwasan} {
 				if !l.shared() && m.sanitize.isSanitizerEnabled(t) {
 					return false
 				}
@@ -351,6 +352,11 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	*/
 
 	snapshotDir := c.name + "-snapshot"
+	if c.fake {
+		// If this is a fake snapshot singleton, place all files under fake/ subdirectory to avoid
+		// collision with real snapshot files
+		snapshotDir = filepath.Join("fake", snapshotDir)
+	}
 	snapshotArchDir := filepath.Join(snapshotDir, ctx.DeviceConfig().DeviceArch())
 
 	includeDir := filepath.Join(snapshotArchDir, "include")
@@ -361,6 +367,15 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	installedConfigs := make(map[string]bool)
 
 	var headers android.Paths
+
+	copyFile := copyFileRule
+	if c.fake {
+		// All prebuilt binaries and headers are installed by copyFile function. This makes a fake
+		// snapshot just touch prebuilts and headers, rather than installing real files.
+		copyFile = func(ctx android.SingletonContext, path android.Path, out string) android.OutputPath {
+			return writeStringToFileRule(ctx, "", out)
+		}
+	}
 
 	// installSnapshot function copies prebuilt file (.so, .a, or executable) and json flag file.
 	// For executables, init_rc and vintf_fragments files are also copied.
@@ -400,7 +415,7 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 			out := filepath.Join(configsDir, path.Base())
 			if !installedConfigs[out] {
 				installedConfigs[out] = true
-				ret = append(ret, copyFileRule(ctx, path, out))
+				ret = append(ret, copyFile(ctx, path, out))
 			}
 		}
 
@@ -451,7 +466,7 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 					prop.ModuleName += ".cfi"
 				}
 				snapshotLibOut := filepath.Join(snapshotArchDir, targetArch, libType, stem)
-				ret = append(ret, copyFileRule(ctx, libPath, snapshotLibOut))
+				ret = append(ret, copyFile(ctx, libPath, snapshotLibOut))
 			} else {
 				stem = ctx.ModuleName(m)
 			}
@@ -465,7 +480,7 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 			// install bin
 			binPath := m.outputFile.Path()
 			snapshotBinOut := filepath.Join(snapshotArchDir, targetArch, "binary", binPath.Base())
-			ret = append(ret, copyFileRule(ctx, binPath, snapshotBinOut))
+			ret = append(ret, copyFile(ctx, binPath, snapshotBinOut))
 			propOut = snapshotBinOut + ".json"
 		} else if m.object() {
 			// object files aren't installed to the device, so their names can conflict.
@@ -473,7 +488,7 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 			objPath := m.outputFile.Path()
 			snapshotObjOut := filepath.Join(snapshotArchDir, targetArch, "object",
 				ctx.ModuleName(m)+filepath.Ext(objPath.Base()))
-			ret = append(ret, copyFileRule(ctx, objPath, snapshotObjOut))
+			ret = append(ret, copyFile(ctx, objPath, snapshotObjOut))
 			propOut = snapshotObjOut + ".json"
 		} else {
 			ctx.Errorf("unknown module %q in vendor snapshot", m.String())
@@ -538,16 +553,14 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 			// skip already copied notice file
 			if !installedNotices[noticeOut] {
 				installedNotices[noticeOut] = true
-				snapshotOutputs = append(snapshotOutputs, combineNoticesRule(
-					ctx, m.NoticeFiles(), noticeOut))
+				snapshotOutputs = append(snapshotOutputs, combineNoticesRule(ctx, m.NoticeFiles(), noticeOut))
 			}
 		}
 	})
 
 	// install all headers after removing duplicates
 	for _, header := range android.FirstUniquePaths(headers) {
-		snapshotOutputs = append(snapshotOutputs, copyFileRule(
-			ctx, header, filepath.Join(includeDir, header.String())))
+		snapshotOutputs = append(snapshotOutputs, copyFile(ctx, header, filepath.Join(includeDir, header.String())))
 	}
 
 	// All artifacts are ready. Sort them to normalize ninja and then zip.

@@ -234,9 +234,6 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 	t.Helper()
 
 	mod := ctx.ModuleForTests(name, variant).Module().(*Module)
-	if !mod.HasVendorVariant() {
-		t.Errorf("%q must have variant %q", name, variant)
-	}
 
 	// Check library properties.
 	lib, ok := mod.compiler.(*libraryDecorator)
@@ -418,23 +415,24 @@ func TestVndk(t *testing.T) {
 			},
 		}
 
-		vndk_libraries_txt {
+		llndk_libraries_txt {
 			name: "llndk.libraries.txt",
 		}
-		vndk_libraries_txt {
+		vndkcore_libraries_txt {
 			name: "vndkcore.libraries.txt",
 		}
-		vndk_libraries_txt {
+		vndksp_libraries_txt {
 			name: "vndksp.libraries.txt",
 		}
-		vndk_libraries_txt {
+		vndkprivate_libraries_txt {
 			name: "vndkprivate.libraries.txt",
 		}
-		vndk_libraries_txt {
+		vndkproduct_libraries_txt {
 			name: "vndkproduct.libraries.txt",
 		}
-		vndk_libraries_txt {
+		vndkcorevariant_libraries_txt {
 			name: "vndkcorevariant.libraries.txt",
+			insert_vndk_version: false,
 		}
 	`
 
@@ -546,7 +544,7 @@ func TestVndkWithHostSupported(t *testing.T) {
 			}
 		}
 
-		vndk_libraries_txt {
+		vndkcore_libraries_txt {
 			name: "vndkcore.libraries.txt",
 		}
 	`)
@@ -556,8 +554,9 @@ func TestVndkWithHostSupported(t *testing.T) {
 
 func TestVndkLibrariesTxtAndroidMk(t *testing.T) {
 	bp := `
-		vndk_libraries_txt {
+		llndk_libraries_txt {
 			name: "llndk.libraries.txt",
+			insert_vndk_version: true,
 		}`
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
@@ -603,8 +602,9 @@ func TestVndkUsingCoreVariant(t *testing.T) {
 			nocrt: true,
 		}
 
-		vndk_libraries_txt {
+		vndkcorevariant_libraries_txt {
 			name: "vndkcorevariant.libraries.txt",
+			insert_vndk_version: false,
 		}
 	`
 
@@ -730,10 +730,11 @@ func TestVndkWhenVndkVersionIsNotSet(t *testing.T) {
 		}
 		cc_library {
 			name: "libvndk-private",
-			vendor_available: false,
-			product_available: false,
+			vendor_available: true,
+			product_available: true,
 			vndk: {
 				enabled: true,
+				private: true,
 			},
 			nocrt: true,
 		}
@@ -757,7 +758,7 @@ func TestVndkWhenVndkVersionIsNotSet(t *testing.T) {
 
 func TestVndkModuleError(t *testing.T) {
 	// Check the error message for vendor_available and product_available properties.
-	testCcErrorProductVndk(t, "vndk: vendor_available must be set to either true or false when `vndk: {enabled: true}`", `
+	testCcErrorProductVndk(t, "vndk: vendor_available must be set to true when `vndk: {enabled: true}`", `
 		cc_library {
 			name: "libvndk",
 			vndk: {
@@ -767,7 +768,7 @@ func TestVndkModuleError(t *testing.T) {
 		}
 	`)
 
-	testCcErrorProductVndk(t, "vndk: vendor_available must be set to either true or false when `vndk: {enabled: true}`", `
+	testCcErrorProductVndk(t, "vndk: vendor_available must be set to true when `vndk: {enabled: true}`", `
 		cc_library {
 			name: "libvndk",
 			product_available: true,
@@ -1245,6 +1246,15 @@ func TestVendorSnapshotCapture(t *testing.T) {
 			t.Errorf("%q expected but not found", jsonFile)
 		}
 	}
+
+	// fake snapshot should have all outputs in the normal snapshot.
+	fakeSnapshotSingleton := ctx.SingletonForTests("vendor-fake-snapshot")
+	for _, output := range snapshotSingleton.AllOutputs() {
+		fakeOutput := strings.Replace(output, "/vendor-snapshot/", "/fake/vendor-snapshot/", 1)
+		if fakeSnapshotSingleton.MaybeOutput(fakeOutput).Rule == nil {
+			t.Errorf("%q expected but not found", fakeOutput)
+		}
+	}
 }
 
 func TestVendorSnapshotUse(t *testing.T) {
@@ -1676,6 +1686,8 @@ func TestVendorSnapshotExcludeInVendorProprietaryPathErrors(t *testing.T) {
 		`module "libvendor\{.+,image:vendor.+,arch:arm_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
 		`module "libvendor\{.+,image:vendor.+,arch:arm64_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
 		`module "libvendor\{.+,image:vendor.+,arch:arm_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
+		`module "libvendor\{.+,image:vendor.+,arch:arm64_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
+		`module "libvendor\{.+,image:vendor.+,arch:arm_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
 	})
 }
 
@@ -1715,6 +1727,10 @@ func TestVendorSnapshotExcludeWithVendorAvailable(t *testing.T) {
 
 	_, errs = ctx.PrepareBuildActions(config)
 	android.CheckErrorsAgainstExpectations(t, errs, []string{
+		`module "libinclude\{.+,image:,arch:arm64_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
+		`module "libinclude\{.+,image:,arch:arm_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
+		`module "libinclude\{.+,image:vendor.+,arch:arm64_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
+		`module "libinclude\{.+,image:vendor.+,arch:arm_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
 		`module "libinclude\{.+,image:,arch:arm64_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
 		`module "libinclude\{.+,image:,arch:arm_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
 		`module "libinclude\{.+,image:vendor.+,arch:arm64_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
@@ -3136,7 +3152,7 @@ func TestMakeLinkType(t *testing.T) {
 		}
 		llndk_library {
 			name: "libllndkprivate.llndk",
-			vendor_available: false,
+			private: true,
 			symbol_file: "",
 		}`
 
