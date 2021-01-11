@@ -4515,6 +4515,34 @@ func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
 	`)
 }
 
+func TestApexWithJavaImport(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["myjavaimport"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_import {
+			name: "myjavaimport",
+			apex_available: ["myapex"],
+			jars: ["my.jar"],
+			compile_dex: true,
+		}
+	`)
+
+	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	apexRule := module.Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+	ensureContains(t, copyCmds, "image.apex/javalib/myjavaimport.jar")
+}
+
 func TestApexWithApps(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
