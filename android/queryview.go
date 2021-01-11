@@ -26,7 +26,6 @@ import (
 // for calling the soong_build primary builder in the main build.ninja file.
 func init() {
 	RegisterSingletonType("bazel_queryview", BazelQueryViewSingleton)
-	RegisterSingletonType("bazel_converter", BazelConverterSingleton)
 }
 
 // BazelQueryViewSingleton is the singleton responsible for registering the
@@ -52,13 +51,7 @@ type bazelConverterSingleton struct{}
 
 func generateBuildActionsForBazelConversion(ctx SingletonContext, converterMode bool) {
 	name := "queryview"
-	additionalEnvVars := ""
 	descriptionTemplate := "[EXPERIMENTAL, PRE-PRODUCTION] Creating the Bazel QueryView workspace with %s at $outDir"
-	if converterMode {
-		name = "bp2build"
-		additionalEnvVars = "CONVERT_TO_BAZEL=true"
-		descriptionTemplate = "[EXPERIMENTAL, PRE-PRODUCTION] Converting all Android.bp to Bazel BUILD files with %s at $outDir"
-	}
 
 	// Create a build and rule statement, using the Bazel QueryView's WORKSPACE
 	// file as the output file marker.
@@ -74,9 +67,8 @@ func generateBuildActionsForBazelConversion(ctx SingletonContext, converterMode 
 		blueprint.RuleParams{
 			Command: fmt.Sprintf(
 				"rm -rf ${outDir}/* && "+
-					"%s %s --bazel_queryview_dir ${outDir} %s && "+
+					"%s --bazel_queryview_dir ${outDir} %s && "+
 					"echo WORKSPACE: `cat %s` > ${outDir}/.queryview-depfile.d",
-				additionalEnvVars,
 				primaryBuilder.String(),
 				strings.Join(os.Args[1:], " "),
 				moduleListFilePath.String(), // Use the contents of Android.bp.list as the depfile.
