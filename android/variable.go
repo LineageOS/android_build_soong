@@ -139,10 +139,6 @@ type variableProperties struct {
 			Enabled *bool
 		}
 
-		Experimental_mte struct {
-			Cflags []string `android:"arch_variant"`
-		} `android:"arch_variant"`
-
 		Native_coverage struct {
 			Src          *string  `android:"arch_variant"`
 			Srcs         []string `android:"arch_variant"`
@@ -263,8 +259,6 @@ type productVariables struct {
 	CFIIncludePaths []string `json:",omitempty"`
 
 	DisableScudo *bool `json:",omitempty"`
-
-	Experimental_mte *bool `json:",omitempty"`
 
 	VendorPath    *string `json:",omitempty"`
 	OdmPath       *string `json:",omitempty"`
