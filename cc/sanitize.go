@@ -338,7 +338,9 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			s.Writeonly = boolPtr(true)
 		}
 		if found, globalSanitizers = removeFromList("memtag_heap", globalSanitizers); found && s.Memtag_heap == nil {
-			s.Memtag_heap = boolPtr(true)
+			if !ctx.Config().MemtagHeapDisabledForPath(ctx.ModuleDir()) {
+				s.Memtag_heap = boolPtr(true)
+			}
 		}
 
 		if len(globalSanitizers) > 0 {
@@ -363,8 +365,21 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 
 	// cc_test targets default to SYNC MemTag.
 	if ctx.testBinary() && s.Memtag_heap == nil {
-		s.Memtag_heap = boolPtr(true)
-		s.Diag.Memtag_heap = boolPtr(true)
+		if !ctx.Config().MemtagHeapDisabledForPath(ctx.ModuleDir()) {
+			s.Memtag_heap = boolPtr(true)
+			s.Diag.Memtag_heap = boolPtr(true)
+		}
+	}
+
+	// Enable Memtag for all components in the include paths (for Aarch64 only)
+	if s.Memtag_heap == nil && ctx.Arch().ArchType == android.Arm64 {
+		if ctx.Config().MemtagHeapSyncEnabledForPath(ctx.ModuleDir()) {
+			s.Memtag_heap = boolPtr(true)
+			s.Diag.Memtag_heap = boolPtr(true)
+		} else if ctx.Config().MemtagHeapAsyncEnabledForPath(ctx.ModuleDir()) {
+			s.Memtag_heap = boolPtr(true)
+			s.Diag.Memtag_heap = boolPtr(false)
+		}
 	}
 
 	// Enable CFI for all components in the include paths (for Aarch64 only)
