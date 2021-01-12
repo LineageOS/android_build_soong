@@ -264,31 +264,34 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		productVndkVersion = platformVndkVersion
 	}
 
-	if boardVndkVersion == "" {
+	_, isLLNDKLibrary := m.linker.(*llndkStubDecorator)
+	_, isLLNDKHeaders := m.linker.(*llndkHeadersDecorator)
+	lib := moduleLibraryInterface(m)
+	hasLLNDKStubs := lib != nil && lib.hasLLNDKStubs()
+
+	if isLLNDKLibrary || isLLNDKHeaders || hasLLNDKStubs {
+		// This is an LLNDK library.  The implementation of the library will be on /system,
+		// and vendor and product variants will be created with LLNDK stubs.
+		// The LLNDK libraries need vendor variants even if there is no VNDK.
+		// The obsolete llndk_library and llndk_headers modules also need the vendor variants
+		// so the cc_library LLNDK stubs can depend on them.
+		if hasLLNDKStubs {
+			coreVariantNeeded = true
+		}
+		if platformVndkVersion != "" {
+			vendorVariants = append(vendorVariants, platformVndkVersion)
+			productVariants = append(productVariants, platformVndkVersion)
+		}
+		if boardVndkVersion != "" {
+			vendorVariants = append(vendorVariants, boardVndkVersion)
+		}
+		if productVndkVersion != "" {
+			productVariants = append(productVariants, productVndkVersion)
+		}
+	} else if boardVndkVersion == "" {
 		// If the device isn't compiling against the VNDK, we always
 		// use the core mode.
 		coreVariantNeeded = true
-	} else if _, ok := m.linker.(*llndkStubDecorator); ok {
-		// LL-NDK stubs only exist in the vendor and product variants,
-		// since the real libraries will be used in the core variant.
-		vendorVariants = append(vendorVariants,
-			platformVndkVersion,
-			boardVndkVersion,
-		)
-		productVariants = append(productVariants,
-			platformVndkVersion,
-			productVndkVersion,
-		)
-	} else if _, ok := m.linker.(*llndkHeadersDecorator); ok {
-		// ... and LL-NDK headers as well
-		vendorVariants = append(vendorVariants,
-			platformVndkVersion,
-			boardVndkVersion,
-		)
-		productVariants = append(productVariants,
-			platformVndkVersion,
-			productVndkVersion,
-		)
 	} else if m.isSnapshotPrebuilt() {
 		// Make vendor variants only for the versions in BOARD_VNDK_VERSION and
 		// PRODUCT_EXTRA_VNDK_VERSIONS.
@@ -346,18 +349,6 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		} else {
 			vendorVariants = append(vendorVariants, platformVndkVersion)
 		}
-	} else if lib := moduleLibraryInterface(m); lib != nil && lib.hasLLNDKStubs() {
-		// This is an LLNDK library.  The implementation of the library will be on /system,
-		// and vendor and product variants will be created with LLNDK stubs.
-		coreVariantNeeded = true
-		vendorVariants = append(vendorVariants,
-			platformVndkVersion,
-			boardVndkVersion,
-		)
-		productVariants = append(productVariants,
-			platformVndkVersion,
-			productVndkVersion,
-		)
 	} else {
 		// This is either in /system (or similar: /data), or is a
 		// modules built with the NDK. Modules built with the NDK

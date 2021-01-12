@@ -738,12 +738,29 @@ func TestVndkWhenVndkVersionIsNotSet(t *testing.T) {
 			},
 			nocrt: true,
 		}
+
+		cc_library {
+			name: "libllndk",
+			llndk_stubs: "libllndk.llndk",
+		}
+
+		llndk_library {
+			name: "libllndk.llndk",
+			symbol_file: "",
+			export_llndk_headers: ["libllndk_headers"],
+		}
+
+		llndk_headers {
+			name: "libllndk_headers",
+			export_include_dirs: ["include"],
+		}
 	`)
 
 	checkVndkOutput(t, ctx, "vndk/vndk.libraries.txt", []string{
 		"LLNDK: libc.so",
 		"LLNDK: libdl.so",
 		"LLNDK: libft2.so",
+		"LLNDK: libllndk.so",
 		"LLNDK: libm.so",
 		"VNDK-SP: libc++.so",
 		"VNDK-core: libvndk-private.so",
