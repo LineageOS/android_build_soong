@@ -18,6 +18,7 @@ package config
 // For these libraries, the vendor variants must be installed even if the device
 // has VndkUseCoreVariant set.
 var VndkMustUseVendorVariantList = []string{
+	"android.hardware.authsecret-unstable-ndk_platform",
 	"android.hardware.automotive.occupant_awareness-ndk_platform",
 	"android.hardware.gnss-unstable-ndk_platform",
 	"android.hardware.light-ndk_platform",
