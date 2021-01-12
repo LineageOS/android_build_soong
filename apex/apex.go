@@ -168,6 +168,10 @@ type apexBundleProperties struct {
 	// used in tests.
 	Test_only_unsigned_payload *bool
 
+	// Whenever apex should be compressed, regardless of product flag used. Should be only
+	// used in tests.
+	Test_only_force_compression *bool
+
 	IsCoverageVariant bool `blueprint:"mutated"`
 
 	// List of sanitizer names that this APEX is enabled for
@@ -1239,6 +1243,11 @@ func (a *apexBundle) testOnlyShouldSkipHashtreeGeneration() bool {
 // See the test_only_unsigned_payload property
 func (a *apexBundle) testOnlyShouldSkipPayloadSign() bool {
 	return proptools.Bool(a.properties.Test_only_unsigned_payload)
+}
+
+// See the test_only_force_compression property
+func (a *apexBundle) testOnlyShouldForceCompression() bool {
+	return proptools.Bool(a.properties.Test_only_force_compression)
 }
 
 // These functions are interfacing with cc/sanitizer.go. The entire APEX (along with all of its
