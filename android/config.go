@@ -1256,6 +1256,27 @@ func (c *config) CFIEnabledForPath(path string) bool {
 	return HasAnyPrefix(path, c.productVariables.CFIIncludePaths)
 }
 
+func (c *config) MemtagHeapDisabledForPath(path string) bool {
+	if len(c.productVariables.MemtagHeapExcludePaths) == 0 {
+		return false
+	}
+	return HasAnyPrefix(path, c.productVariables.MemtagHeapExcludePaths)
+}
+
+func (c *config) MemtagHeapAsyncEnabledForPath(path string) bool {
+	if len(c.productVariables.MemtagHeapAsyncIncludePaths) == 0 {
+		return false
+	}
+	return HasAnyPrefix(path, c.productVariables.MemtagHeapAsyncIncludePaths)
+}
+
+func (c *config) MemtagHeapSyncEnabledForPath(path string) bool {
+	if len(c.productVariables.MemtagHeapSyncIncludePaths) == 0 {
+		return false
+	}
+	return HasAnyPrefix(path, c.productVariables.MemtagHeapSyncIncludePaths)
+}
+
 func (c *config) VendorConfig(name string) VendorConfig {
 	return soongconfig.Config(c.productVariables.VendorVars[name])
 }
