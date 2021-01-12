@@ -454,6 +454,7 @@ type Module interface {
 	InstallForceOS() (*OsType, *ArchType)
 	HideFromMake()
 	IsHideFromMake() bool
+	IsSkipInstall() bool
 	MakeUninstallable()
 	ReplacedByPrebuilt()
 	IsReplacedByPrebuilt() bool
@@ -1396,6 +1397,12 @@ func (m *ModuleBase) IsHideFromMake() bool {
 // SkipInstall marks this variant to not create install rules when ctx.Install* are called.
 func (m *ModuleBase) SkipInstall() {
 	m.commonProperties.SkipInstall = true
+}
+
+// IsSkipInstall returns true if this variant is marked to not create install
+// rules when ctx.Install* are called.
+func (m *ModuleBase) IsSkipInstall() bool {
+	return m.commonProperties.SkipInstall
 }
 
 // Similar to HideFromMake, but if the AndroidMk entry would set
