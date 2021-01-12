@@ -58,6 +58,8 @@ func getGcovProfileLibraryName(ctx ModuleContextIntf) string {
 func getClangProfileLibraryName(ctx ModuleContextIntf) string {
 	if ctx.useSdk() {
 		return "libprofile-clang-extras_ndk"
+	} else if ctx.isCfiAssemblySupportEnabled() {
+		return "libprofile-clang-extras_cfi_support"
 	} else {
 		return "libprofile-clang-extras"
 	}
