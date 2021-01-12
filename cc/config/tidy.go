@@ -21,23 +21,28 @@ import (
 
 func init() {
 	// Most Android source files are not clang-tidy clean yet.
-	// Global tidy checks include only google*, performance*,
-	// and misc-macro-parentheses, but not google-readability*
-	// or google-runtime-references.
+	// Default global tidy checks must exclude all checks that
+	// have found too many warnings.
 	pctx.VariableFunc("TidyDefaultGlobalChecks", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("DEFAULT_GLOBAL_TIDY_CHECKS"); override != "" {
 			return override
 		}
 		return strings.Join([]string{
-			"-*",
-			"bugprone*",
-			"clang-diagnostic-unused-command-line-argument",
-			"google*",
-			"misc-macro-parentheses",
-			"performance*",
+			"*",
+			"-altera-*",
 			"-bugprone-narrowing-conversions",
-			"-google-readability*",
+			"-cppcoreguidelines-*",
+			"-fuchsia-*",
+			"-google-readability-*",
 			"-google-runtime-references",
+			"-hicpp-*",
+			"-llvm-*",
+			"-llvmlibc-*",
+			"-misc-no-recursion",
+			"-misc-non-private-member-variables-in-classes",
+			"-misc-unused-parameters",
+			"-modernize-*",
+			"-readability-*",
 		}, ",")
 	})
 
