@@ -215,10 +215,6 @@ func init() {
 			"frameworks/native/opengl/include",
 			"frameworks/av/include",
 		})
-	// This is used by non-NDK modules to get jni.h. export_include_dirs doesn't help
-	// with this, since there is no associated library.
-	pctx.PrefixedExistentPathsForSourcesVariable("CommonNativehelperInclude", "-I",
-		[]string{"libnativehelper/include_jni"})
 
 	pctx.SourcePathVariable("ClangDefaultBase", ClangDefaultBase)
 	pctx.VariableFunc("ClangBase", func(ctx android.PackageVarContext) string {
