@@ -251,6 +251,8 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 		FlagWithInput("--unsupported ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-unsupported.txt")).
 		FlagWithInput("--unsupported ", combinedRemovedApis).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed").
+		FlagWithInput("--max-target-r ",
+			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-r-loprio.txt")).FlagWithArg("--tag ", "lo-prio").
 		FlagWithInput("--max-target-q ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-q.txt")).
 		FlagWithInput("--max-target-p ",
@@ -259,8 +261,6 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 			ctx, "frameworks/base/config/hiddenapi-max-target-o.txt")).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio").
 		FlagWithInput("--blocked ",
 			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-force-blocked.txt")).
-		FlagWithInput("--blocked ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-temp-blocklist.txt")).FlagWithArg("--tag ", "lo-prio").
 		FlagWithInput("--unsupported ", android.PathForSource(
 			ctx, "frameworks/base/config/hiddenapi-unsupported-packages.txt")).Flag("--packages ").
 		FlagWithOutput("--output ", tempPath)
