@@ -22,7 +22,7 @@ import (
 func init() {
 	// Most Android source files are not clang-tidy clean yet.
 	// Default global tidy checks must exclude all checks that
-	// have found too many warnings.
+	// have found too many false positives.
 	pctx.VariableFunc("TidyDefaultGlobalChecks", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("DEFAULT_GLOBAL_TIDY_CHECKS"); override != "" {
 			return override
