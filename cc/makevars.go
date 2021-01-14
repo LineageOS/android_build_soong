@@ -154,16 +154,6 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	ctx.Strict("SOONG_STRIP_PATH", "${stripPath}")
 	ctx.Strict("XZ", "${xzCmd}")
 
-	nativeHelperIncludeFlags, err := ctx.Eval("${config.CommonNativehelperInclude}")
-	if err != nil {
-		panic(err)
-	}
-	nativeHelperIncludes, nativeHelperSystemIncludes := splitSystemIncludes(ctx, nativeHelperIncludeFlags)
-	if len(nativeHelperSystemIncludes) > 0 {
-		panic("native helper may not have any system includes")
-	}
-	ctx.Strict("JNI_H_INCLUDE", strings.Join(nativeHelperIncludes, " "))
-
 	includeFlags, err := ctx.Eval("${config.CommonGlobalIncludes}")
 	if err != nil {
 		panic(err)

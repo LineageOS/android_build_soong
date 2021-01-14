@@ -26,6 +26,7 @@ MODULES_SDK_AND_EXPORTS=(
   platform-mainline-test-exports
   runtime-module-host-exports
   runtime-module-sdk
+  tzdata-module-test-exports
 )
 
 # List of libraries installed on the platform that are needed for ART chroot
