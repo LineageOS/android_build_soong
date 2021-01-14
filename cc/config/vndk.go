@@ -20,6 +20,8 @@ package config
 var VndkMustUseVendorVariantList = []string{
 	"android.hardware.authsecret-unstable-ndk_platform",
 	"android.hardware.automotive.occupant_awareness-ndk_platform",
+	"android.hardware.health.storage-ndk_platform",
+	"android.hardware.health.storage-unstable-ndk_platform",
 	"android.hardware.light-ndk_platform",
 	"android.hardware.identity-ndk_platform",
 	"android.hardware.nfc@1.2",
