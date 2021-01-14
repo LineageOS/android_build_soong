@@ -445,6 +445,14 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			stl: "none",
 			system_shared_libs: [],
 		}
+
+		cc_library_static {
+			name: "note_memtag_heap_async",
+		}
+
+		cc_library_static {
+			name: "note_memtag_heap_sync",
+		}
 	`
 
 	supportLinuxBionic := false

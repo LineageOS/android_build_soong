@@ -420,6 +420,7 @@ type VendorProperties struct {
 type ModuleContextIntf interface {
 	static() bool
 	staticBinary() bool
+	testBinary() bool
 	header() bool
 	binary() bool
 	object() bool
@@ -455,6 +456,7 @@ type ModuleContextIntf interface {
 	nativeCoverage() bool
 	directlyInAnyApex() bool
 	isPreventInstall() bool
+	isCfiAssemblySupportEnabled() bool
 }
 
 type ModuleContext interface {
@@ -1229,6 +1231,11 @@ func (c *Module) XrefCcFiles() android.Paths {
 	return c.kytheFiles
 }
 
+func (c *Module) isCfiAssemblySupportEnabled() bool {
+	return c.sanitize != nil &&
+		Bool(c.sanitize.Properties.Sanitize.Config.Cfi_assembly_support)
+}
+
 type baseModuleContext struct {
 	android.BaseModuleContext
 	moduleContextImpl
@@ -1259,6 +1266,10 @@ func (ctx *moduleContextImpl) static() bool {
 
 func (ctx *moduleContextImpl) staticBinary() bool {
 	return ctx.mod.staticBinary()
+}
+
+func (ctx *moduleContextImpl) testBinary() bool {
+	return ctx.mod.testBinary()
 }
 
 func (ctx *moduleContextImpl) header() bool {
@@ -1388,6 +1399,10 @@ func (ctx *moduleContextImpl) directlyInAnyApex() bool {
 
 func (ctx *moduleContextImpl) isPreventInstall() bool {
 	return ctx.mod.Properties.PreventInstall
+}
+
+func (ctx *moduleContextImpl) isCfiAssemblySupportEnabled() bool {
+	return ctx.mod.isCfiAssemblySupportEnabled()
 }
 
 func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
@@ -2957,6 +2972,15 @@ func (c *Module) staticBinary() bool {
 		staticBinary() bool
 	}); ok {
 		return static.staticBinary()
+	}
+	return false
+}
+
+func (c *Module) testBinary() bool {
+	if test, ok := c.linker.(interface {
+		testBinary() bool
+	}); ok {
+		return test.testBinary()
 	}
 	return false
 }

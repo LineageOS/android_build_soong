@@ -738,12 +738,29 @@ func TestVndkWhenVndkVersionIsNotSet(t *testing.T) {
 			},
 			nocrt: true,
 		}
+
+		cc_library {
+			name: "libllndk",
+			llndk_stubs: "libllndk.llndk",
+		}
+
+		llndk_library {
+			name: "libllndk.llndk",
+			symbol_file: "",
+			export_llndk_headers: ["libllndk_headers"],
+		}
+
+		llndk_headers {
+			name: "libllndk_headers",
+			export_include_dirs: ["include"],
+		}
 	`)
 
 	checkVndkOutput(t, ctx, "vndk/vndk.libraries.txt", []string{
 		"LLNDK: libc.so",
 		"LLNDK: libdl.so",
 		"LLNDK: libft2.so",
+		"LLNDK: libllndk.so",
 		"LLNDK: libm.so",
 		"VNDK-SP: libc++.so",
 		"VNDK-core: libvndk-private.so",
@@ -4460,4 +4477,139 @@ func TestAidlFlagsPassedToTheAidlCompiler(t *testing.T) {
 	if !strings.Contains(aidlCommand, expectedAidlFlag) {
 		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
 	}
+}
+
+func checkHasImplicitDep(t *testing.T, m android.TestingModule, name string) {
+	implicits := m.Rule("ld").Implicits
+	for _, lib := range implicits {
+		if strings.Contains(lib.Rel(), name) {
+			return
+		}
+	}
+
+	t.Errorf("%q is not found in implicit deps of module %q", name, m.Module().(*Module).Name())
+}
+
+func checkDoesNotHaveImplicitDep(t *testing.T, m android.TestingModule, name string) {
+	implicits := m.Rule("ld").Implicits
+	for _, lib := range implicits {
+		if strings.Contains(lib.Rel(), name) {
+			t.Errorf("%q is found in implicit deps of module %q", name, m.Module().(*Module).Name())
+		}
+	}
+}
+
+func TestSanitizeMemtagHeap(t *testing.T) {
+	rootBp := `
+		cc_library_static {
+			name: "libstatic",
+			sanitize: { memtag_heap: true },
+		}
+
+		cc_library_shared {
+			name: "libshared",
+			sanitize: { memtag_heap: true },
+		}
+
+		cc_library {
+			name: "libboth",
+			sanitize: { memtag_heap: true },
+		}
+
+		cc_binary {
+			name: "binary",
+			shared_libs: [ "libshared" ],
+			static_libs: [ "libstatic" ],
+		}
+
+		cc_binary {
+			name: "binary_true",
+			sanitize: { memtag_heap: true },
+		}
+
+		cc_binary {
+			name: "binary_true_sync",
+			sanitize: { memtag_heap: true, diag: { memtag_heap: true }, },
+		}
+
+		cc_binary {
+			name: "binary_false",
+			sanitize: { memtag_heap: false },
+		}
+
+		cc_test {
+			name: "test",
+			gtest: false,
+		}
+
+		cc_test {
+			name: "test_true",
+			gtest: false,
+			sanitize: { memtag_heap: true },
+		}
+
+		cc_test {
+			name: "test_false",
+			gtest: false,
+			sanitize: { memtag_heap: false },
+		}
+
+		cc_test {
+			name: "test_true_async",
+			gtest: false,
+			sanitize: { memtag_heap: true, diag: { memtag_heap: false }  },
+		}
+
+		`
+
+	subdirAsyncBp := `
+		cc_binary {
+			name: "binary_async",
+		}
+		`
+
+	subdirSyncBp := `
+		cc_binary {
+			name: "binary_sync",
+		}
+		`
+
+	mockFS := map[string][]byte{
+		"subdir_async/Android.bp": []byte(subdirAsyncBp),
+		"subdir_sync/Android.bp":  []byte(subdirSyncBp),
+	}
+
+	config := TestConfig(buildDir, android.Android, nil, rootBp, mockFS)
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.MemtagHeapAsyncIncludePaths = []string{"subdir_async"}
+	config.TestProductVariables.MemtagHeapSyncIncludePaths = []string{"subdir_sync"}
+	ctx := CreateTestContext(config)
+	ctx.Register()
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp", "subdir_sync/Android.bp", "subdir_async/Android.bp"})
+	android.FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	android.FailIfErrored(t, errs)
+
+	variant := "android_arm64_armv8-a"
+	note_async := "note_memtag_heap_async"
+	note_sync := "note_memtag_heap_sync"
+	note_any := "note_memtag_"
+
+	checkDoesNotHaveImplicitDep(t, ctx.ModuleForTests("libshared", "android_arm64_armv8-a_shared"), note_any)
+	checkDoesNotHaveImplicitDep(t, ctx.ModuleForTests("libboth", "android_arm64_armv8-a_shared"), note_any)
+
+	checkDoesNotHaveImplicitDep(t, ctx.ModuleForTests("binary", variant), note_any)
+	checkHasImplicitDep(t, ctx.ModuleForTests("binary_true", variant), note_async)
+	checkHasImplicitDep(t, ctx.ModuleForTests("binary_true_sync", variant), note_sync)
+	checkDoesNotHaveImplicitDep(t, ctx.ModuleForTests("binary_false", variant), note_any)
+
+	checkHasImplicitDep(t, ctx.ModuleForTests("test", variant), note_sync)
+	checkHasImplicitDep(t, ctx.ModuleForTests("test_true", variant), note_async)
+	checkDoesNotHaveImplicitDep(t, ctx.ModuleForTests("test_false", variant), note_any)
+	checkHasImplicitDep(t, ctx.ModuleForTests("test_true_async", variant), note_async)
+
+	checkHasImplicitDep(t, ctx.ModuleForTests("binary_async", variant), note_async)
+	checkHasImplicitDep(t, ctx.ModuleForTests("binary_sync", variant), note_sync)
 }

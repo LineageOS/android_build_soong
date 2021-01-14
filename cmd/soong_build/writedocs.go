@@ -20,7 +20,6 @@ import (
 	"html/template"
 	"io/ioutil"
 	"path/filepath"
-	"reflect"
 	"sort"
 
 	"github.com/google/blueprint/bootstrap"
@@ -97,12 +96,8 @@ func moduleTypeDocsToTemplates(moduleTypeList []*bpdoc.ModuleType) []moduleTypeT
 }
 
 func getPackages(ctx *android.Context) ([]*bpdoc.Package, error) {
-	moduleTypeFactories := android.ModuleTypeFactories()
-	bpModuleTypeFactories := make(map[string]reflect.Value)
-	for moduleType, factory := range moduleTypeFactories {
-		bpModuleTypeFactories[moduleType] = reflect.ValueOf(factory)
-	}
-	return bootstrap.ModuleTypeDocs(ctx.Context, bpModuleTypeFactories)
+	moduleTypeFactories := android.ModuleTypeFactoriesForDocs()
+	return bootstrap.ModuleTypeDocs(ctx.Context, moduleTypeFactories)
 }
 
 func writeDocs(ctx *android.Context, filename string) error {

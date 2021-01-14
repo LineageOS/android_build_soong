@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/google/blueprint"
 )
@@ -26,6 +27,7 @@ type moduleType struct {
 }
 
 var moduleTypes []moduleType
+var moduleTypesForDocs = map[string]reflect.Value{}
 
 type singleton struct {
 	name    string
@@ -34,6 +36,9 @@ type singleton struct {
 
 var singletons []singleton
 var preSingletons []singleton
+
+var bazelConverterSingletons []singleton
+var bazelConverterPreSingletons []singleton
 
 type mutator struct {
 	name            string
@@ -69,6 +74,16 @@ func SingletonFactoryAdaptor(ctx *Context, factory SingletonFactory) blueprint.S
 
 func RegisterModuleType(name string, factory ModuleFactory) {
 	moduleTypes = append(moduleTypes, moduleType{name, factory})
+	RegisterModuleTypeForDocs(name, reflect.ValueOf(factory))
+}
+
+// RegisterModuleTypeForDocs associates a module type name with a reflect.Value of the factory
+// function that has documentation for the module type.  It is normally called automatically
+// by RegisterModuleType, but can be called manually after RegisterModuleType in order to
+// override the factory method used for documentation, for example if the method passed to
+// RegisterModuleType was a lambda.
+func RegisterModuleTypeForDocs(name string, factory reflect.Value) {
+	moduleTypesForDocs[name] = factory
 }
 
 func RegisterSingletonType(name string, factory SingletonFactory) {
@@ -77,6 +92,14 @@ func RegisterSingletonType(name string, factory SingletonFactory) {
 
 func RegisterPreSingletonType(name string, factory SingletonFactory) {
 	preSingletons = append(preSingletons, singleton{name, factory})
+}
+
+func RegisterBazelConverterSingletonType(name string, factory SingletonFactory) {
+	bazelConverterSingletons = append(bazelConverterSingletons, singleton{name, factory})
+}
+
+func RegisterBazelConverterPreSingletonType(name string, factory SingletonFactory) {
+	bazelConverterPreSingletons = append(bazelConverterPreSingletons, singleton{name, factory})
 }
 
 type Context struct {
@@ -94,13 +117,17 @@ func NewContext(config Config) *Context {
 // singletons, module types and mutators to register for converting Blueprint
 // files to semantically equivalent BUILD files.
 func (ctx *Context) RegisterForBazelConversion() {
+	for _, t := range bazelConverterPreSingletons {
+		ctx.RegisterPreSingletonType(t.name, SingletonFactoryAdaptor(ctx, t.factory))
+	}
+
 	for _, t := range moduleTypes {
 		ctx.RegisterModuleType(t.name, ModuleFactoryAdaptor(t.factory))
 	}
 
-	bazelConverterSingleton := singleton{"bp2build", BazelConverterSingleton}
-	ctx.RegisterSingletonType(bazelConverterSingleton.name,
-		SingletonFactoryAdaptor(ctx, bazelConverterSingleton.factory))
+	for _, t := range bazelConverterSingletons {
+		ctx.RegisterSingletonType(t.name, SingletonFactoryAdaptor(ctx, t.factory))
+	}
 
 	registerMutatorsForBazelConversion(ctx.Context)
 }
@@ -142,12 +169,17 @@ func ModuleTypeFactories() map[string]ModuleFactory {
 	return ret
 }
 
+func ModuleTypeFactoriesForDocs() map[string]reflect.Value {
+	return moduleTypesForDocs
+}
+
 // Interface for registering build components.
 //
 // Provided to allow registration of build components to be shared between the runtime
 // and test environments.
 type RegistrationContext interface {
 	RegisterModuleType(name string, factory ModuleFactory)
+	RegisterSingletonModuleType(name string, factory SingletonModuleFactory)
 	RegisterSingletonType(name string, factory SingletonFactory)
 	PreArchMutators(f RegisterMutatorFunc)
 
@@ -186,8 +218,9 @@ var InitRegistrationContext RegistrationContext = &initRegistrationContext{
 var _ RegistrationContext = (*TestContext)(nil)
 
 type initRegistrationContext struct {
-	moduleTypes    map[string]ModuleFactory
-	singletonTypes map[string]SingletonFactory
+	moduleTypes        map[string]ModuleFactory
+	singletonTypes     map[string]SingletonFactory
+	moduleTypesForDocs map[string]reflect.Value
 }
 
 func (ctx *initRegistrationContext) RegisterModuleType(name string, factory ModuleFactory) {
@@ -196,6 +229,17 @@ func (ctx *initRegistrationContext) RegisterModuleType(name string, factory Modu
 	}
 	ctx.moduleTypes[name] = factory
 	RegisterModuleType(name, factory)
+	RegisterModuleTypeForDocs(name, reflect.ValueOf(factory))
+}
+
+func (ctx *initRegistrationContext) RegisterSingletonModuleType(name string, factory SingletonModuleFactory) {
+	s, m := SingletonModuleFactoryAdaptor(name, factory)
+	ctx.RegisterSingletonType(name, s)
+	ctx.RegisterModuleType(name, m)
+	// Overwrite moduleTypesForDocs with the original factory instead of the lambda returned by
+	// SingletonModuleFactoryAdaptor so that docs can find the module type documentation on the
+	// factory method.
+	RegisterModuleTypeForDocs(name, reflect.ValueOf(factory))
 }
 
 func (ctx *initRegistrationContext) RegisterSingletonType(name string, factory SingletonFactory) {
