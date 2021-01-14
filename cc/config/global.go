@@ -90,9 +90,12 @@ var (
 		"-Wl,--warn-shared-textrel",
 		"-Wl,--fatal-warnings",
 		"-Wl,--no-undefined-version",
+		// TODO: Eventually we should link against a libunwind.a with hidden symbols, and then these
+		// --exclude-libs arguments can be removed.
 		"-Wl,--exclude-libs,libgcc.a",
 		"-Wl,--exclude-libs,libgcc_stripped.a",
 		"-Wl,--exclude-libs,libunwind_llvm.a",
+		"-Wl,--exclude-libs,libunwind.a",
 	}
 
 	deviceGlobalLldflags = append(ClangFilterUnknownLldflags(deviceGlobalLdflags),
