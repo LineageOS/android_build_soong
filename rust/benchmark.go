@@ -16,9 +16,31 @@ package rust
 
 import (
 	"android/soong/android"
+	"android/soong/tradefed"
 )
 
 type BenchmarkProperties struct {
+	// Disables the creation of a test-specific directory when used with
+	// relative_install_path. Useful if several tests need to be in the same
+	// directory, but test_per_src doesn't work.
+	No_named_install_directory *bool
+
+	// the name of the test configuration (for example "AndroidBenchmark.xml") that should be
+	// installed with the module.
+	Test_config *string `android:"path,arch_variant"`
+
+	// the name of the test configuration template (for example "AndroidBenchmarkTemplate.xml") that
+	// should be installed with the module.
+	Test_config_template *string `android:"path,arch_variant"`
+
+	// list of compatibility suites (for example "cts", "vts") that the module should be
+	// installed into.
+	Test_suites []string `android:"arch_variant"`
+
+	// Flag to indicate whether or not to create test config automatically. If AndroidTest.xml
+	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
+	// explicitly.
+	Auto_gen_config *bool
 }
 
 type benchmarkDecorator struct {
@@ -86,4 +108,22 @@ func (benchmark *benchmarkDecorator) compilerDeps(ctx DepsContext, deps Deps) De
 
 func (benchmark *benchmarkDecorator) compilerProps() []interface{} {
 	return append(benchmark.binaryDecorator.compilerProps(), &benchmark.Properties)
+}
+
+func (benchmark *benchmarkDecorator) install(ctx ModuleContext) {
+	benchmark.testConfig = tradefed.AutoGenRustBenchmarkConfig(ctx,
+		benchmark.Properties.Test_config,
+		benchmark.Properties.Test_config_template,
+		benchmark.Properties.Test_suites,
+		nil,
+		benchmark.Properties.Auto_gen_config)
+
+	// default relative install path is module name
+	if !Bool(benchmark.Properties.No_named_install_directory) {
+		benchmark.baseCompiler.relative = ctx.ModuleName()
+	} else if String(benchmark.baseCompiler.Properties.Relative_install_path) == "" {
+		ctx.PropertyErrorf("no_named_install_directory", "Module install directory may only be disabled if relative_install_path is set")
+	}
+
+	benchmark.binaryDecorator.install(ctx)
 }
