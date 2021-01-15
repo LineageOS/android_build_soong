@@ -2336,8 +2336,16 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 			return false
 		}
 
+		// These dependencies are not excercised at runtime. Tracking these will give us
+		// false negative, so skip.
 		depTag := ctx.OtherModuleDependencyTag(child)
 		if IsHeaderDepTag(depTag) {
+			return false
+		}
+		if depTag == staticVariantTag {
+			return false
+		}
+		if depTag == stubImplDepTag {
 			return false
 		}
 
@@ -2348,22 +2356,24 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 			return true
 		}
 
-		if to.isVndkSp() || to.IsLlndk() || Bool(to.VendorProperties.Double_loadable) {
+		// The happy path. Keep tracking dependencies until we hit a non double-loadable
+		// one.
+		if Bool(to.VendorProperties.Double_loadable) {
+			return true
+		}
+
+		if to.isVndkSp() || to.IsLlndk() {
 			return false
 		}
 
-		var stringPath []string
-		for _, m := range ctx.GetWalkPath() {
-			stringPath = append(stringPath, m.Name())
-		}
 		ctx.ModuleErrorf("links a library %q which is not LL-NDK, "+
 			"VNDK-SP, or explicitly marked as 'double_loadable:true'. "+
-			"(dependency: %s)", ctx.OtherModuleName(to), strings.Join(stringPath, " -> "))
+			"Dependency list: %s", ctx.OtherModuleName(to), ctx.GetPathString(false))
 		return false
 	}
 	if module, ok := ctx.Module().(*Module); ok {
 		if lib, ok := module.linker.(*libraryDecorator); ok && lib.shared() {
-			if lib.hasLLNDKStubs() || Bool(module.VendorProperties.Double_loadable) {
+			if lib.hasLLNDKStubs() {
 				ctx.WalkDeps(check)
 			}
 		}
