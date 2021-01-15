@@ -121,7 +121,7 @@ def raise_min_sdk_version(doc, min_sdk_version, target_sdk_version, library):
       # is empty.  Set it to something low so that it will be overriden by the
       # main manifest, but high enough that it doesn't cause implicit
       # permissions grants.
-      target_attr.value = '15'
+      target_attr.value = '16'
     else:
       target_attr.value = target_sdk_version
     element.setAttributeNode(target_attr)
