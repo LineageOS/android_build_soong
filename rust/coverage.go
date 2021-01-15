@@ -20,7 +20,9 @@ import (
 	"android/soong/cc"
 )
 
-var CovLibraryName = "libprofile-extras"
+var CovLibraryName = "libprofile-clang-extras"
+
+const profileInstrFlag = "-fprofile-instr-generate=/data/misc/trace/clang-%p-%m.profraw"
 
 type coverage struct {
 	Properties cc.CoverageProperties
@@ -53,9 +55,9 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 		flags.Coverage = true
 		coverage := ctx.GetDirectDepWithTag(CovLibraryName, cc.CoverageDepTag).(cc.LinkableInterface)
 		flags.RustFlags = append(flags.RustFlags,
-			"-Z profile", "-g", "-C opt-level=0", "-C link-dead-code")
+			"-Z instrument-coverage", "-g", "-C link-dead-code")
 		flags.LinkFlags = append(flags.LinkFlags,
-			"--coverage", "-g", coverage.OutputFile().Path().String(), "-Wl,--wrap,getenv")
+			profileInstrFlag, "-g", coverage.OutputFile().Path().String(), "-Wl,--wrap,open")
 		deps.StaticLibs = append(deps.StaticLibs, coverage.OutputFile().Path())
 	}
 

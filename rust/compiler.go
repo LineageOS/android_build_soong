@@ -136,8 +136,7 @@ type BaseCompilerProperties struct {
 }
 
 type baseCompiler struct {
-	Properties   BaseCompilerProperties
-	coverageFile android.Path //rustc generates a single gcno file
+	Properties BaseCompilerProperties
 
 	// Install related
 	dir      string
@@ -147,8 +146,7 @@ type baseCompiler struct {
 	path     android.InstallPath
 	location installLocation
 
-	coverageOutputZipFile android.OptionalPath
-	distFile              android.OptionalPath
+	distFile android.OptionalPath
 	// Stripped output file. If Valid(), this file will be installed instead of outputFile.
 	strippedOutputFile android.OptionalPath
 }
