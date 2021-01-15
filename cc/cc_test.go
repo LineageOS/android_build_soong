@@ -316,16 +316,8 @@ func checkVndkOutput(t *testing.T, ctx *android.TestContext, output string, expe
 
 func checkVndkLibrariesOutput(t *testing.T, ctx *android.TestContext, module string, expected []string) {
 	t.Helper()
-	vndkLibraries := ctx.ModuleForTests(module, "")
-
-	var output string
-	if module != "vndkcorevariant.libraries.txt" {
-		output = insertVndkVersion(module, "VER")
-	} else {
-		output = module
-	}
-
-	checkWriteFileOutput(t, vndkLibraries.Output(output), expected)
+	got := ctx.ModuleForTests(module, "").Module().(*vndkLibrariesTxt).fileNames
+	assertArrayString(t, got, expected)
 }
 
 func TestVndk(t *testing.T) {
@@ -3171,7 +3163,25 @@ func TestMakeLinkType(t *testing.T) {
 			name: "libllndkprivate.llndk",
 			private: true,
 			symbol_file: "",
-		}`
+		}
+
+		llndk_libraries_txt {
+			name: "llndk.libraries.txt",
+		}
+		vndkcore_libraries_txt {
+			name: "vndkcore.libraries.txt",
+		}
+		vndksp_libraries_txt {
+			name: "vndksp.libraries.txt",
+		}
+		vndkprivate_libraries_txt {
+			name: "vndkprivate.libraries.txt",
+		}
+		vndkcorevariant_libraries_txt {
+			name: "vndkcorevariant.libraries.txt",
+			insert_vndk_version: false,
+		}
+	`
 
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
@@ -3179,14 +3189,14 @@ func TestMakeLinkType(t *testing.T) {
 	// native:vndk
 	ctx := testCcWithConfig(t, config)
 
-	assertMapKeys(t, vndkCoreLibraries(config),
-		[]string{"libvndk", "libvndkprivate"})
-	assertMapKeys(t, vndkSpLibraries(config),
-		[]string{"libc++", "libvndksp"})
-	assertMapKeys(t, llndkLibraries(config),
-		[]string{"libc", "libdl", "libft2", "libllndk", "libllndkprivate", "libm"})
-	assertMapKeys(t, vndkPrivateLibraries(config),
-		[]string{"libft2", "libllndkprivate", "libvndkprivate"})
+	checkVndkLibrariesOutput(t, ctx, "vndkcore.libraries.txt",
+		[]string{"libvndk.so", "libvndkprivate.so"})
+	checkVndkLibrariesOutput(t, ctx, "vndksp.libraries.txt",
+		[]string{"libc++.so", "libvndksp.so"})
+	checkVndkLibrariesOutput(t, ctx, "llndk.libraries.txt",
+		[]string{"libc.so", "libdl.so", "libft2.so", "libllndk.so", "libllndkprivate.so", "libm.so"})
+	checkVndkLibrariesOutput(t, ctx, "vndkprivate.libraries.txt",
+		[]string{"libft2.so", "libllndkprivate.so", "libvndkprivate.so"})
 
 	vendorVariant27 := "android_vendor.27_arm64_armv8-a_shared"
 
