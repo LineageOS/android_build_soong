@@ -173,7 +173,7 @@ class RaiseMinSdkVersionTest(unittest.TestCase):
     """Tests inserting targetSdkVersion when minSdkVersion exists."""
 
     manifest_input = self.manifest_tmpl % self.uses_sdk(min='27')
-    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='15')
+    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='16')
     output = self.raise_min_sdk_version_test(manifest_input, '28', '29', True)
     self.assertEqual(output, expected)
 
@@ -189,7 +189,7 @@ class RaiseMinSdkVersionTest(unittest.TestCase):
     """Tests inserting targetSdkVersion when minSdkVersion does not exist."""
 
     manifest_input = self.manifest_tmpl % ''
-    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='15')
+    expected = self.manifest_tmpl % self.uses_sdk(min='28', target='16')
     output = self.raise_min_sdk_version_test(manifest_input, '28', '29', True)
     self.assertEqual(output, expected)
 
