@@ -2022,64 +2022,6 @@ func TestDoubleLoadableDepError(t *testing.T) {
 		}
 	`)
 
-	// Check whether an error is emitted when a double_loadable lib depends on a non-double_loadable vendor_available lib.
-	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
-		cc_library {
-			name: "libdoubleloadable",
-			vendor_available: true,
-			double_loadable: true,
-			shared_libs: ["libnondoubleloadable"],
-		}
-
-		cc_library {
-			name: "libnondoubleloadable",
-			vendor_available: true,
-		}
-	`)
-
-	// Check whether an error is emitted when a double_loadable lib depends on a non-double_loadable VNDK lib.
-	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
-		cc_library {
-			name: "libdoubleloadable",
-			vendor_available: true,
-			double_loadable: true,
-			shared_libs: ["libnondoubleloadable"],
-		}
-
-		cc_library {
-			name: "libnondoubleloadable",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-		}
-	`)
-
-	// Check whether an error is emitted when a double_loadable VNDK depends on a non-double_loadable VNDK private lib.
-	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
-		cc_library {
-			name: "libdoubleloadable",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			double_loadable: true,
-			shared_libs: ["libnondoubleloadable"],
-		}
-
-		cc_library {
-			name: "libnondoubleloadable",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-				private: true,
-			},
-		}
-	`)
-
 	// Check whether an error is emitted when a LLNDK depends on a non-double_loadable indirectly.
 	testCcError(t, "module \".*\" variant \".*\": link.* \".*\" which is not LL-NDK, VNDK-SP, .*double_loadable", `
 		cc_library {
@@ -2101,6 +2043,29 @@ func TestDoubleLoadableDepError(t *testing.T) {
 		// indirect dependency of LLNDK
 		cc_library {
 			name: "libvendoravailable",
+			vendor_available: true,
+		}
+	`)
+
+	// The error is not from 'client' but from 'libllndk'
+	testCcError(t, "module \"libllndk\".* links a library \"libnondoubleloadable\".*double_loadable", `
+		cc_library {
+			name: "client",
+			vendor_available: true,
+			double_loadable: true,
+			shared_libs: ["libllndk"],
+		}
+		cc_library {
+			name: "libllndk",
+			shared_libs: ["libnondoubleloadable"],
+			llndk_stubs: "libllndk.llndk",
+		}
+		llndk_library {
+			name: "libllndk.llndk",
+			symbol_file: "",
+		}
+		cc_library {
+			name: "libnondoubleloadable",
 			vendor_available: true,
 		}
 	`)
