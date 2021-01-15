@@ -15,6 +15,8 @@
 package rust
 
 import (
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/tradefed"
 )
@@ -127,6 +129,9 @@ func (test *testDecorator) install(ctx ModuleContext) {
 		ctx.PropertyErrorf("no_named_install_directory", "Module install directory may only be disabled if relative_install_path is set")
 	}
 
+	if ctx.Host() && test.Properties.Test_options.Unit_test == nil {
+		test.Properties.Test_options.Unit_test = proptools.BoolPtr(true)
+	}
 	test.binaryDecorator.install(ctx)
 }
 
