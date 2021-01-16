@@ -35,7 +35,9 @@ func init() {
 			"android-*",
 			"bugprone-*",
 			"cert-*",
-			"clang-analyzer-*",
+			// clang-analyzer-* check is slow and enables clang-diagnostic-padded,
+			// which cannot be suppressed yet.
+			// "clang-analyzer-*",
 			"clang-diagnostic-unused-command-line-argument",
 			"google-*",
 			"misc-*",
