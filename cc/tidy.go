@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
@@ -130,7 +131,31 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	tidyChecks = tidyChecks + ",-bugprone-branch-clone"
 	flags.TidyFlags = append(flags.TidyFlags, tidyChecks)
 
-	if len(tidy.Properties.Tidy_checks_as_errors) > 0 {
+	if ctx.Config().IsEnvTrue("WITH_TIDY") {
+		// WITH_TIDY=1 enables clang-tidy globally. There could be many unexpected
+		// warnings from new checks and many local tidy_checks_as_errors and
+		// -warnings-as-errors can break a global build.
+		// So allow all clang-tidy warnings.
+		inserted := false
+		for i, s := range flags.TidyFlags {
+			if strings.Contains(s, "-warnings-as-errors=") {
+				// clang-tidy accepts only one -warnings-as-errors
+				// replace the old one
+				re := regexp.MustCompile(`'?-?-warnings-as-errors=[^ ]* *`)
+				newFlag := re.ReplaceAllString(s, "")
+				if newFlag == "" {
+					flags.TidyFlags[i] = "-warnings-as-errors=-*"
+				} else {
+					flags.TidyFlags[i] = newFlag + " -warnings-as-errors=-*"
+				}
+				inserted = true
+				break
+			}
+		}
+		if !inserted {
+			flags.TidyFlags = append(flags.TidyFlags, "-warnings-as-errors=-*")
+		}
+	} else if len(tidy.Properties.Tidy_checks_as_errors) > 0 {
 		tidyChecksAsErrors := "-warnings-as-errors=" + strings.Join(esc(tidy.Properties.Tidy_checks_as_errors), ",")
 		flags.TidyFlags = append(flags.TidyFlags, tidyChecksAsErrors)
 	}
