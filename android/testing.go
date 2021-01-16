@@ -470,6 +470,10 @@ func AndroidMkDataForTest(t *testing.T, config Config, bpPath string, mod bluepr
 // The build and source paths should be distinguishable based on their contents.
 func NormalizePathForTesting(path Path) string {
 	p := path.String()
+	// Allow absolute paths to /dev/
+	if strings.HasPrefix(p, "/dev/") {
+		return p
+	}
 	if w, ok := path.(WritablePath); ok {
 		rel, err := filepath.Rel(w.buildDir(), p)
 		if err != nil {
