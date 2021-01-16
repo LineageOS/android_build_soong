@@ -177,6 +177,12 @@ type SnapshotBuilder interface {
 	// to the zip
 	CopyToSnapshot(src Path, dest string)
 
+	// Return the path to an empty file.
+	//
+	// This can be used by sdk member types that need to create an empty file in the snapshot, simply
+	// pass the value returned from this to the CopyToSnapshot() method.
+	EmptyFile() Path
+
 	// Unzip the supplied zip into the snapshot relative directory destDir.
 	UnzipToSnapshot(zipPath Path, destDir string)
 
