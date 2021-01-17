@@ -111,6 +111,19 @@ func (i ApexInfo) InApex(apex string) bool {
 	return false
 }
 
+// InApexByBaseName tells whether this apex variant of the module is part of the given APEX or not,
+// where the APEX is specified by its canonical base name, i.e. typically beginning with
+// "com.android.". In particular this function doesn't differentiate between source and prebuilt
+// APEXes, where the latter may have "prebuilt_" prefixes.
+func (i ApexInfo) InApexByBaseName(apex string) bool {
+	for _, a := range i.InApexes {
+		if RemoveOptionalPrebuiltPrefix(a) == apex {
+			return true
+		}
+	}
+	return false
+}
+
 // ApexTestForInfo stores the contents of APEXes for which this module is a test - although this
 // module is not part of the APEX - and thus has access to APEX internals.
 type ApexTestForInfo struct {
