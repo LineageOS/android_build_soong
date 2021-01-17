@@ -20,24 +20,48 @@ import (
 )
 
 func init() {
-	// Most Android source files are not clang-tidy clean yet.
-	// Global tidy checks include only google*, performance*,
-	// and misc-macro-parentheses, but not google-readability*
-	// or google-runtime-references.
+	// Many clang-tidy checks like altera-*, llvm-*, modernize-*
+	// are not designed for Android source code or creating too
+	// many (false-positive) warnings. The global default tidy checks
+	// should include only tested groups and exclude known noisy checks.
+	// See https://clang.llvm.org/extra/clang-tidy/checks/list.html
 	pctx.VariableFunc("TidyDefaultGlobalChecks", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("DEFAULT_GLOBAL_TIDY_CHECKS"); override != "" {
 			return override
 		}
 		return strings.Join([]string{
 			"-*",
-			"bugprone*",
+			"abseil-*",
+			"android-*",
+			"bugprone-*",
+			"cert-*",
+			// clang-analyzer-* check is slow and enables clang-diagnostic-padded,
+			// which cannot be suppressed yet.
+			// "clang-analyzer-*",
 			"clang-diagnostic-unused-command-line-argument",
-			"google*",
-			"misc-macro-parentheses",
-			"performance*",
+			"google-*",
+			"misc-*",
+			"performance-*",
+			"portability-*",
 			"-bugprone-narrowing-conversions",
 			"-google-readability*",
 			"-google-runtime-references",
+			"-misc-no-recursion",
+			"-misc-non-private-member-variables-in-classes",
+			"-misc-unused-parameters",
+			// the following groups are excluded by -*
+			// -altera-*
+			// -cppcoreguidelines-*
+			// -darwin-*
+			// -fuchsia-*
+			// -hicpp-*
+			// -llvm-*
+			// -llvmlibc-*
+			// -modernize-*
+			// -mpi-*
+			// -objc-*
+			// -readability-*
+			// -zircon-*
 		}, ",")
 	})
 
