@@ -20,6 +20,7 @@ import (
 	"android/soong/android"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -30,8 +31,22 @@ type filesystem struct {
 	android.ModuleBase
 	android.PackagingBase
 
+	properties filesystemProperties
+
 	output     android.OutputPath
 	installDir android.InstallPath
+}
+
+type filesystemProperties struct {
+	// When set to true, sign the image with avbtool. Default is false.
+	Use_avb *bool
+
+	// Path to the private key that avbtool will use to sign this filesystem image.
+	// TODO(jiyong): allow apex_key to be specified here
+	Avb_private_key *string `android:"path"`
+
+	// Hash and signing algorithm for avbtool. Default is SHA256_RSA4096.
+	Avb_algorithm *string
 }
 
 // android_filesystem packages a set of modules and their transitive dependencies into a filesystem
@@ -41,6 +56,7 @@ type filesystem struct {
 // partitions like system.img. For example, cc_library modules are placed under ./lib[64] directory.
 func filesystemFactory() android.Module {
 	module := &filesystem{}
+	module.AddProperties(&module.properties)
 	android.InitPackageModule(module)
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
@@ -112,6 +128,17 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 	// b/177813163 deps of the host tools have to be added. Remove this.
 	for _, t := range []string{"mke2fs", "e2fsdroid", "tune2fs"} {
 		deps = append(deps, ctx.Config().HostToolPath(ctx, t))
+	}
+
+	if proptools.Bool(f.properties.Use_avb) {
+		addStr("avb_hashtree_enable", "true")
+		addPath("avb_avbtool", ctx.Config().HostToolPath(ctx, "avbtool"))
+		algorithm := proptools.StringDefault(f.properties.Avb_algorithm, "SHA256_RSA4096")
+		addStr("avb_algorithm", algorithm)
+		key := android.PathForModuleSrc(ctx, proptools.String(f.properties.Avb_private_key))
+		addPath("avb_key_path", key)
+		addStr("avb_add_hashtree_footer_args", "--do_not_generate_fec")
+		addStr("partition_name", f.Name())
 	}
 
 	propFile = android.PathForModuleOut(ctx, "prop").OutputPath
