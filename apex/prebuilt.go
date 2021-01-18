@@ -106,7 +106,7 @@ type Prebuilt struct {
 	compatSymlinks []string
 }
 
-type PrebuiltProperties struct {
+type ApexFileProperties struct {
 	// the path to the prebuilt .apex file to import.
 	Source string `blueprint:"mutated"`
 
@@ -125,6 +125,38 @@ type PrebuiltProperties struct {
 			Src *string
 		}
 	}
+}
+
+func (p *ApexFileProperties) selectSource(ctx android.BottomUpMutatorContext) error {
+	// This is called before prebuilt_select and prebuilt_postdeps mutators
+	// The mutators requires that src to be set correctly for each arch so that
+	// arch variants are disabled when src is not provided for the arch.
+	if len(ctx.MultiTargets()) != 1 {
+		return fmt.Errorf("compile_multilib shouldn't be \"both\" for prebuilt_apex")
+	}
+	var src string
+	switch ctx.MultiTargets()[0].Arch.ArchType {
+	case android.Arm:
+		src = String(p.Arch.Arm.Src)
+	case android.Arm64:
+		src = String(p.Arch.Arm64.Src)
+	case android.X86:
+		src = String(p.Arch.X86.Src)
+	case android.X86_64:
+		src = String(p.Arch.X86_64.Src)
+	default:
+		return fmt.Errorf("prebuilt_apex does not support %q", ctx.MultiTargets()[0].Arch.String())
+	}
+	if src == "" {
+		src = String(p.Src)
+	}
+	p.Source = src
+
+	return nil
+}
+
+type PrebuiltProperties struct {
+	ApexFileProperties
 
 	Installable *bool
 	// Optional name for the installed apex. If unspecified, name of the
@@ -174,31 +206,10 @@ func PrebuiltFactory() android.Module {
 }
 
 func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
-	// This is called before prebuilt_select and prebuilt_postdeps mutators
-	// The mutators requires that src to be set correctly for each arch so that
-	// arch variants are disabled when src is not provided for the arch.
-	if len(ctx.MultiTargets()) != 1 {
-		ctx.ModuleErrorf("compile_multilib shouldn't be \"both\" for prebuilt_apex")
+	if err := p.properties.selectSource(ctx); err != nil {
+		ctx.ModuleErrorf("%s", err)
 		return
 	}
-	var src string
-	switch ctx.MultiTargets()[0].Arch.ArchType {
-	case android.Arm:
-		src = String(p.properties.Arch.Arm.Src)
-	case android.Arm64:
-		src = String(p.properties.Arch.Arm64.Src)
-	case android.X86:
-		src = String(p.properties.Arch.X86.Src)
-	case android.X86_64:
-		src = String(p.properties.Arch.X86_64.Src)
-	default:
-		ctx.ModuleErrorf("prebuilt_apex does not support %q", ctx.MultiTargets()[0].Arch.String())
-		return
-	}
-	if src == "" {
-		src = String(p.properties.Src)
-	}
-	p.properties.Source = src
 }
 
 func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {

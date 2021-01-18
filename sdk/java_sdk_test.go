@@ -472,6 +472,61 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 	)
 }
 
+func TestSnapshotWithJavaBootLibrary(t *testing.T) {
+	result := testSdkWithJava(t, `
+		module_exports {
+			name: "myexports",
+			java_boot_libs: ["myjavalib"],
+		}
+
+		java_library {
+			name: "myjavalib",
+			srcs: ["Test.java"],
+			java_resources: ["resource.txt"],
+			// The aidl files should not be copied to the snapshot because a java_boot_libs member is not
+			// intended to be used for compiling Java, only for accessing the dex implementation jar.
+			aidl: {
+				export_include_dirs: ["aidl"],
+			},
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+		}
+	`)
+
+	result.CheckSnapshot("myexports", "",
+		checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "myexports_myjavalib@current",
+    sdk_member_name: "myjavalib",
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    jars: ["java_boot_libs/snapshot/jars/are/invalid/myjavalib.jar"],
+}
+
+java_import {
+    name: "myjavalib",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    jars: ["java_boot_libs/snapshot/jars/are/invalid/myjavalib.jar"],
+}
+
+module_exports_snapshot {
+    name: "myexports@current",
+    visibility: ["//visibility:public"],
+    java_boot_libs: ["myexports_myjavalib@current"],
+}
+
+`),
+		checkAllCopyRules(`
+.intermediates/myexports/common_os/empty -> java_boot_libs/snapshot/jars/are/invalid/myjavalib.jar
+`),
+	)
+}
+
 func TestHostSnapshotWithJavaImplLibrary(t *testing.T) {
 	result := testSdkWithJava(t, `
 		module_exports {
