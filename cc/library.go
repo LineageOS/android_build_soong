@@ -1318,17 +1318,13 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 	if library.baseCompiler.hasSrcExt(".sysprop") {
 		dir := android.PathForModuleGen(ctx, "sysprop", "include")
 		if library.Properties.Sysprop.Platform != nil {
-			isClientProduct := ctx.ProductSpecific() && !ctx.useVndk()
-			isClientVendor := ctx.useVndk()
 			isOwnerPlatform := Bool(library.Properties.Sysprop.Platform)
 
 			// If the owner is different from the user, expose public header. That is,
 			// 1) if the user is product (as owner can only be platform / vendor)
-			// 2) if one is platform and the other is vendor
-			// Exceptions are ramdisk and recovery. They are not enforced at all. So
-			// they always use internal header.
-			if !ctx.inRamdisk() && !ctx.inVendorRamdisk() && !ctx.inRecovery() &&
-				(isClientProduct || (isOwnerPlatform == isClientVendor)) {
+			// 2) if the owner is platform and the client is vendor
+			// We don't care Platform -> Vendor dependency as it's already forbidden.
+			if ctx.Device() && (ctx.ProductSpecific() || (isOwnerPlatform && ctx.inVendor())) {
 				dir = android.PathForModuleGen(ctx, "sysprop/public", "include")
 			}
 		}
