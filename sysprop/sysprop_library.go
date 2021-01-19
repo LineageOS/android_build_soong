@@ -19,6 +19,7 @@ package sysprop
 import (
 	"fmt"
 	"io"
+	"os"
 	"path"
 	"sync"
 
@@ -125,8 +126,8 @@ type syspropLibrary struct {
 	properties syspropLibraryProperties
 
 	checkApiFileTimeStamp android.WritablePath
-	latestApiFile         android.Path
-	currentApiFile        android.Path
+	latestApiFile         android.OptionalPath
+	currentApiFile        android.OptionalPath
 	dumpedApiFile         android.WritablePath
 }
 
@@ -224,7 +225,7 @@ func (m *syspropLibrary) HasPublicStub() bool {
 	return proptools.Bool(m.properties.Public_stub)
 }
 
-func (m *syspropLibrary) CurrentSyspropApiFile() android.Path {
+func (m *syspropLibrary) CurrentSyspropApiFile() android.OptionalPath {
 	return m.currentApiFile
 }
 
@@ -243,8 +244,11 @@ func (m *syspropLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		return
 	}
 
-	m.currentApiFile = android.PathForSource(ctx, ctx.ModuleDir(), "api", baseModuleName+"-current.txt")
-	m.latestApiFile = android.PathForSource(ctx, ctx.ModuleDir(), "api", baseModuleName+"-latest.txt")
+	apiDirectoryPath := path.Join(ctx.ModuleDir(), "api")
+	currentApiFilePath := path.Join(apiDirectoryPath, baseModuleName+"-current.txt")
+	latestApiFilePath := path.Join(apiDirectoryPath, baseModuleName+"-latest.txt")
+	m.currentApiFile = android.ExistentPathForSource(ctx, currentApiFilePath)
+	m.latestApiFile = android.ExistentPathForSource(ctx, latestApiFilePath)
 
 	// dump API rule
 	rule := android.NewRuleBuilder(pctx, ctx)
@@ -258,19 +262,37 @@ func (m *syspropLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	// check API rule
 	rule = android.NewRuleBuilder(pctx, ctx)
 
+	// We allow that the API txt files don't exist, when the sysprop_library only contains internal
+	// properties. But we have to feed current api file and latest api file to the rule builder.
+	// Currently we can't get android.Path representing the null device, so we add any existing API
+	// txt files to implicits, and then directly feed string paths, rather than calling Input(Path)
+	// method.
+	var apiFileList android.Paths
+	currentApiArgument := os.DevNull
+	if m.currentApiFile.Valid() {
+		apiFileList = append(apiFileList, m.currentApiFile.Path())
+		currentApiArgument = m.currentApiFile.String()
+	}
+
+	latestApiArgument := os.DevNull
+	if m.latestApiFile.Valid() {
+		apiFileList = append(apiFileList, m.latestApiFile.Path())
+		latestApiArgument = m.latestApiFile.String()
+	}
+
 	// 1. compares current.txt to api-dump.txt
 	// current.txt should be identical to api-dump.txt.
 	msg := fmt.Sprintf(`\n******************************\n`+
 		`API of sysprop_library %s doesn't match with current.txt\n`+
 		`Please update current.txt by:\n`+
-		`m %s-dump-api && rm -rf %q && cp -f %q %q\n`+
+		`m %s-dump-api && mkdir -p %q && rm -rf %q && cp -f %q %q\n`+
 		`******************************\n`, baseModuleName, baseModuleName,
-		m.currentApiFile.String(), m.dumpedApiFile.String(), m.currentApiFile.String())
+		apiDirectoryPath, currentApiFilePath, m.dumpedApiFile.String(), currentApiFilePath)
 
 	rule.Command().
 		Text("( cmp").Flag("-s").
 		Input(m.dumpedApiFile).
-		Input(m.currentApiFile).
+		Text(currentApiArgument).
 		Text("|| ( echo").Flag("-e").
 		Flag(`"` + msg + `"`).
 		Text("; exit 38) )")
@@ -285,11 +307,12 @@ func (m *syspropLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	rule.Command().
 		Text("( ").
 		BuiltTool("sysprop_api_checker").
-		Input(m.latestApiFile).
-		Input(m.currentApiFile).
+		Text(latestApiArgument).
+		Text(currentApiArgument).
 		Text(" || ( echo").Flag("-e").
 		Flag(`"` + msg + `"`).
-		Text("; exit 38) )")
+		Text("; exit 38) )").
+		Implicits(apiFileList)
 
 	m.checkApiFileTimeStamp = android.PathForModuleOut(ctx, "check_api.timestamp")
 
@@ -391,31 +414,6 @@ type javaLibraryProperties struct {
 func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	if len(m.properties.Srcs) == 0 {
 		ctx.PropertyErrorf("srcs", "sysprop_library must specify srcs")
-	}
-
-	missingApi := false
-
-	for _, txt := range []string{"-current.txt", "-latest.txt"} {
-		path := path.Join(ctx.ModuleDir(), "api", m.BaseModuleName()+txt)
-		file := android.ExistentPathForSource(ctx, path)
-		if !file.Valid() {
-			ctx.ModuleErrorf("API file %#v doesn't exist", path)
-			missingApi = true
-		}
-	}
-
-	if missingApi {
-		script := "build/soong/scripts/gen-sysprop-api-files.sh"
-		p := android.ExistentPathForSource(ctx, script)
-
-		if !p.Valid() {
-			panic(fmt.Sprintf("script file %s doesn't exist", script))
-		}
-
-		ctx.ModuleErrorf("One or more api files are missing. "+
-			"You can create them by:\n"+
-			"%s %q %q", script, ctx.ModuleDir(), m.BaseModuleName())
-		return
 	}
 
 	// ctx's Platform or Specific functions represent where this sysprop_library installed.
