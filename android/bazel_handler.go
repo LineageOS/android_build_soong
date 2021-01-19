@@ -371,7 +371,11 @@ func (context *bazelContext) InvokeBazel() error {
 	var cqueryOutput string
 	var err error
 
-	err = os.Mkdir(absolutePath(context.intermediatesDir()), 0777)
+	intermediatesDirPath := absolutePath(context.intermediatesDir())
+	if _, err := os.Stat(intermediatesDirPath); os.IsNotExist(err) {
+		err = os.Mkdir(intermediatesDirPath, 0777)
+	}
+
 	if err != nil {
 		return err
 	}
