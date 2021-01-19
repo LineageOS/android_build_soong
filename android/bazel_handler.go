@@ -441,7 +441,10 @@ func (context *bazelContext) InvokeBazel() error {
 		return err
 	}
 
-	context.buildStatements = bazel.AqueryBuildStatements([]byte(aqueryOutput))
+	context.buildStatements, err = bazel.AqueryBuildStatements([]byte(aqueryOutput))
+	if err != nil {
+		return err
+	}
 
 	// Issue a build command of the phony root to generate symlink forests for dependencies of the
 	// Bazel build. This is necessary because aquery invocations do not generate this symlink forest,
