@@ -46,9 +46,9 @@ type KeyValuePair struct {
 // Represents a data structure containing one or more files. Depsets in Bazel are an efficient
 // data structure for storing large numbers of file paths.
 type depSetOfFiles struct {
-	Id int
-	// TODO(cparsons): Handle non-flat depsets.
-	DirectArtifactIds []int
+	Id                  int
+	DirectArtifactIds   []int
+	TransitiveDepSetIds []int
 }
 
 // action contains relevant portions of Bazel's aquery proto, Action.
@@ -105,10 +105,15 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 		}
 		artifactIdToPath[artifact.Id] = artifactPath
 	}
-	depsetIdToArtifactIds := map[int][]int{}
+
+	depsetIdToDepset := map[int]depSetOfFiles{}
 	for _, depset := range aqueryResult.DepSetOfFiles {
-		depsetIdToArtifactIds[depset.Id] = depset.DirectArtifactIds
+		depsetIdToDepset[depset.Id] = depset
 	}
+
+	// depsetIdToArtifactIdsCache is a memoization of depset flattening, because flattening
+	// may be an expensive operation.
+	depsetIdToArtifactIdsCache := map[int][]int{}
 
 	for _, actionEntry := range aqueryResult.Actions {
 		outputPaths := []string{}
@@ -121,9 +126,10 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 		}
 		inputPaths := []string{}
 		for _, inputDepSetId := range actionEntry.InputDepSetIds {
-			inputArtifacts, exists := depsetIdToArtifactIds[inputDepSetId]
-			if !exists {
-				return nil, fmt.Errorf("undefined input depsetId %d", inputDepSetId)
+			inputArtifacts, err :=
+				artifactIdsFromDepsetId(depsetIdToDepset, depsetIdToArtifactIdsCache, inputDepSetId)
+			if err != nil {
+				return nil, err
 			}
 			for _, inputId := range inputArtifacts {
 				inputPath, exists := artifactIdToPath[inputId]
@@ -143,6 +149,28 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 	}
 
 	return buildStatements, nil
+}
+
+func artifactIdsFromDepsetId(depsetIdToDepset map[int]depSetOfFiles,
+	depsetIdToArtifactIdsCache map[int][]int, depsetId int) ([]int, error) {
+	if result, exists := depsetIdToArtifactIdsCache[depsetId]; exists {
+		return result, nil
+	}
+	if depset, exists := depsetIdToDepset[depsetId]; exists {
+		result := depset.DirectArtifactIds
+		for _, childId := range depset.TransitiveDepSetIds {
+			childArtifactIds, err :=
+				artifactIdsFromDepsetId(depsetIdToDepset, depsetIdToArtifactIdsCache, childId)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, childArtifactIds...)
+		}
+		depsetIdToArtifactIdsCache[depsetId] = result
+		return result, nil
+	} else {
+		return nil, fmt.Errorf("undefined input depsetId %d", depsetId)
+	}
 }
 
 func expandPathFragment(id int, pathFragmentsMap map[int]pathFragment) (string, error) {
