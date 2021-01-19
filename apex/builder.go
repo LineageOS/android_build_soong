@@ -786,6 +786,9 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		compressRule.Build("compressRule", "Generate unsigned compressed APEX file")
 
 		signedCompressedOutputFile := android.PathForModuleOut(ctx, a.Name()+".capex")
+		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
+			args["outCommaList"] = signedCompressedOutputFile.String()
+		}
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        rule,
 			Description: "sign compressedApex",
