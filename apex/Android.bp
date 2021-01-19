@@ -18,6 +18,7 @@ bootstrap_go_package {
         "apex.go",
         "apex_singleton.go",
         "builder.go",
+        "deapexer.go",
         "key.go",
         "prebuilt.go",
         "vndk.go",

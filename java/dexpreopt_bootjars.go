@@ -422,16 +422,19 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 // Note that the same jar may occur in multiple modules.
 // This logic is tested in the apex package to avoid import cycle apex <-> java.
 func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, module android.Module) (int, android.Path) {
-	// Ignore any module that is not listed in the boot image configuration.
 	name := ctx.ModuleName(module)
+
+	// Strip a prebuilt_ prefix so that this can access the dex jar from a prebuilt module.
+	name = android.RemoveOptionalPrebuiltPrefix(name)
+
+	// Ignore any module that is not listed in the boot image configuration.
 	index := image.modules.IndexOfJar(name)
 	if index == -1 {
 		return -1, nil
 	}
 
-	// It is an error if a module configured in the boot image does not support
-	// accessing the dex jar. This is safe because every module that has the same
-	// name has to have the same module type.
+	// It is an error if a module configured in the boot image does not support accessing the dex jar.
+	// This is safe because every module that has the same name has to have the same module type.
 	jar, hasJar := module.(interface{ DexJarBuildPath() android.Path })
 	if !hasJar {
 		ctx.Errorf("module %q configured in boot image %q does not support accessing dex jar", module, image.name)

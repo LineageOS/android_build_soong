@@ -21,6 +21,7 @@ bootstrap_go_package {
         "bazel_handler.go",
         "config.go",
         "csuite_config.go",
+        "deapexer.go",
         "defaults.go",
         "defs.go",
         "depset_generic.go",
