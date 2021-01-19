@@ -6,6 +6,9 @@ bootstrap_go_package {
         "constants.go",
         "properties.go",
     ],
+    testSrcs: [
+        "aquery_test.go",
+    ],
     pluginFor: [
         "soong_build",
     ],
