@@ -20,48 +20,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"github.com/google/blueprint"
 )
 
-type queryviewContext struct {
-	bpCtx *blueprint.Context
-}
-
-func (ctx *queryviewContext) ModuleName(module blueprint.Module) string {
-	return ctx.bpCtx.ModuleName(module)
-}
-
-func (ctx *queryviewContext) ModuleDir(module blueprint.Module) string {
-	return ctx.bpCtx.ModuleDir(module)
-}
-
-func (ctx *queryviewContext) ModuleSubDir(module blueprint.Module) string {
-	return ctx.bpCtx.ModuleSubDir(module)
-}
-
-func (ctx *queryviewContext) ModuleType(module blueprint.Module) string {
-	return ctx.bpCtx.ModuleType(module)
-}
-
-func (ctx *queryviewContext) VisitAllModulesBlueprint(visit func(blueprint.Module)) {
-	ctx.bpCtx.VisitAllModules(visit)
-}
-
-func (ctx *queryviewContext) VisitDirectDeps(module android.Module, visit func(android.Module)) {
-	ctx.bpCtx.VisitDirectDeps(module, func(m blueprint.Module) {
-		if aModule, ok := m.(android.Module); ok {
-			visit(aModule)
-		}
-	})
-}
-
 func createBazelQueryView(ctx *android.Context, bazelQueryViewDir string) error {
-	qvCtx := queryviewContext{
-		bpCtx: ctx.Context,
-	}
 	ruleShims := bp2build.CreateRuleShims(android.ModuleTypeFactories())
-	buildToTargets := bp2build.GenerateSoongModuleTargets(&qvCtx)
+	buildToTargets := bp2build.GenerateSoongModuleTargets(*ctx)
 
 	filesToWrite := bp2build.CreateBazelFiles(ruleShims, buildToTargets)
 	for _, f := range filesToWrite {

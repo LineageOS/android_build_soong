@@ -16,52 +16,34 @@ package bp2build
 
 import (
 	"android/soong/android"
+	"fmt"
 	"os"
 )
 
-// The Bazel bp2build singleton is responsible for writing .bzl files that are equivalent to
+// The Bazel bp2build code generator is responsible for writing .bzl files that are equivalent to
 // Android.bp files that are capable of being built with Bazel.
-func init() {
-	android.RegisterBazelConverterPreSingletonType("androidbp_to_build", AndroidBpToBuildSingleton)
-}
-
-func AndroidBpToBuildSingleton() android.Singleton {
-	return &androidBpToBuildSingleton{
-		name: "bp2build",
-	}
-}
-
-type androidBpToBuildSingleton struct {
-	name      string
-	outputDir android.OutputPath
-}
-
-func (s *androidBpToBuildSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	s.outputDir = android.PathForOutput(ctx, s.name)
-	android.RemoveAllOutputDir(s.outputDir)
-
-	if !ctx.Config().IsEnvTrue("CONVERT_TO_BAZEL") {
-		return
-	}
+func Codegen(ctx CodegenContext) {
+	outputDir := android.PathForOutput(ctx, "bp2build")
+	android.RemoveAllOutputDir(outputDir)
 
 	ruleShims := CreateRuleShims(android.ModuleTypeFactories())
 
-	buildToTargets := GenerateSoongModuleTargets(ctx)
+	buildToTargets := GenerateSoongModuleTargets(ctx.Context())
 
 	filesToWrite := CreateBazelFiles(ruleShims, buildToTargets)
 	for _, f := range filesToWrite {
-		if err := s.writeFile(ctx, f); err != nil {
-			ctx.Errorf("Failed to write %q (dir %q) due to %q", f.Basename, f.Dir, err)
+		if err := writeFile(outputDir, ctx, f); err != nil {
+			fmt.Errorf("Failed to write %q (dir %q) due to %q", f.Basename, f.Dir, err)
 		}
 	}
 }
 
-func (s *androidBpToBuildSingleton) getOutputPath(ctx android.PathContext, dir string) android.OutputPath {
-	return s.outputDir.Join(ctx, dir)
+func writeFile(outputDir android.OutputPath, ctx android.PathContext, f BazelFile) error {
+	return writeReadOnlyFile(ctx, getOutputPath(outputDir, ctx, f.Dir), f.Basename, f.Contents)
 }
 
-func (s *androidBpToBuildSingleton) writeFile(ctx android.PathContext, f BazelFile) error {
-	return writeReadOnlyFile(ctx, s.getOutputPath(ctx, f.Dir), f.Basename, f.Contents)
+func getOutputPath(outputDir android.OutputPath, ctx android.PathContext, dir string) android.OutputPath {
+	return outputDir.Join(ctx, dir)
 }
 
 // The auto-conversion directory should be read-only, sufficient for bazel query. The files
