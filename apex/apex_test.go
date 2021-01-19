@@ -190,6 +190,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"testdata/baz":                               nil,
 		"AppSet.apks":                                nil,
 		"foo.rs":                                     nil,
+		"libfoo.jar":                                 nil,
 	}
 
 	cc.GatherRequiredFilesForTest(fs)
@@ -4219,6 +4220,121 @@ func TestPrebuiltOverrides(t *testing.T) {
 	}
 }
 
+func TestPrebuiltExportDexImplementationJars(t *testing.T) {
+	transform := func(config *dexpreopt.GlobalConfig) {
+		config.BootJars = android.CreateTestConfiguredJarList([]string{"myapex:libfoo"})
+	}
+
+	checkDexJarBuildPath := func(ctx *android.TestContext, name string) {
+		// Make sure the import has been given the correct path to the dex jar.
+		p := ctx.ModuleForTests(name, "android_common_myapex").Module().(java.Dependency)
+		dexJarBuildPath := p.DexJarBuildPath()
+		if expected, actual := ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar", android.NormalizePathForTesting(dexJarBuildPath); actual != expected {
+			t.Errorf("Incorrect DexJarBuildPath value '%s', expected '%s'", actual, expected)
+		}
+	}
+
+	ensureNoSourceVariant := func(ctx *android.TestContext) {
+		// Make sure that an apex variant is not created for the source module.
+		if expected, actual := []string{"android_common"}, ctx.ModuleVariantsForTests("libfoo"); !reflect.DeepEqual(expected, actual) {
+			t.Errorf("invalid set of variants for %q: expected %q, found %q", "libfoo", expected, actual)
+		}
+	}
+
+	t.Run("prebuilt only", func(t *testing.T) {
+		bp := `
+		prebuilt_apex {
+			name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_java_libs: ["libfoo"],
+		}
+
+		java_import {
+			name: "libfoo",
+			jars: ["libfoo.jar"],
+		}
+	`
+
+		// Make sure that dexpreopt can access dex implementation files from the prebuilt.
+		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+
+		checkDexJarBuildPath(ctx, "libfoo")
+	})
+
+	t.Run("prebuilt with source preferred", func(t *testing.T) {
+
+		bp := `
+		prebuilt_apex {
+			name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_java_libs: ["libfoo"],
+		}
+
+		java_import {
+			name: "libfoo",
+			jars: ["libfoo.jar"],
+		}
+
+		java_library {
+			name: "libfoo",
+		}
+	`
+
+		// Make sure that dexpreopt can access dex implementation files from the prebuilt.
+		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+
+		checkDexJarBuildPath(ctx, "prebuilt_libfoo")
+		ensureNoSourceVariant(ctx)
+	})
+
+	t.Run("prebuilt preferred with source", func(t *testing.T) {
+		bp := `
+		prebuilt_apex {
+			name: "myapex",
+			prefer: true,
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_java_libs: ["libfoo"],
+		}
+
+		java_import {
+			name: "libfoo",
+			jars: ["libfoo.jar"],
+		}
+
+		java_library {
+			name: "libfoo",
+		}
+	`
+
+		// Make sure that dexpreopt can access dex implementation files from the prebuilt.
+		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+
+		checkDexJarBuildPath(ctx, "prebuilt_libfoo")
+		ensureNoSourceVariant(ctx)
+	})
+}
+
 func TestApexWithTests(t *testing.T) {
 	ctx, config := testApex(t, `
 		apex_test {
@@ -5783,7 +5899,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpre
 	testDexpreoptWithApexes(t, bp, errmsg, transformDexpreoptConfig)
 }
 
-func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreoptConfig func(*dexpreopt.GlobalConfig)) {
+func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreoptConfig func(*dexpreopt.GlobalConfig)) *android.TestContext {
 	t.Helper()
 
 	bp += cc.GatherRequiredDepsForTest(android.Android)
@@ -5808,6 +5924,7 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 	ctx := android.NewTestArchContext(config)
 	ctx.RegisterModuleType("apex", BundleFactory)
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
+	ctx.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	android.RegisterPrebuiltMutators(ctx)
@@ -5837,10 +5954,11 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 		android.FailIfErrored(t, errs)
 	} else if len(errs) > 0 {
 		android.FailIfNoMatchingErrors(t, errmsg, errs)
-		return
 	} else {
 		t.Fatalf("missing expected error %q (0 errors are returned)", errmsg)
 	}
+
+	return ctx
 }
 
 func TestUpdatable_should_set_min_sdk_version(t *testing.T) {
@@ -5938,6 +6056,56 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 			config.BootJars = android.CreateTestConfiguredJarList([]string{"platform:some-platform-lib"})
 		}
 		testNoUpdatableJarsInBootImage(t, "", transform)
+	})
+
+}
+
+func TestDexpreoptAccessDexFilesFromPrebuiltApex(t *testing.T) {
+	transform := func(config *dexpreopt.GlobalConfig) {
+		config.BootJars = android.CreateTestConfiguredJarList([]string{"myapex:libfoo"})
+	}
+	t.Run("prebuilt no source", func(t *testing.T) {
+		testDexpreoptWithApexes(t, `
+			prebuilt_apex {
+				name: "myapex" ,
+				arch: {
+					arm64: {
+						src: "myapex-arm64.apex",
+					},
+					arm: {
+						src: "myapex-arm.apex",
+					},
+				},
+			exported_java_libs: ["libfoo"],
+		}
+
+		java_import {
+			name: "libfoo",
+			jars: ["libfoo.jar"],
+		}
+`, "", transform)
+	})
+
+	t.Run("prebuilt no source", func(t *testing.T) {
+		testDexpreoptWithApexes(t, `
+			prebuilt_apex {
+				name: "myapex" ,
+				arch: {
+					arm64: {
+						src: "myapex-arm64.apex",
+					},
+					arm: {
+						src: "myapex-arm.apex",
+					},
+				},
+			exported_java_libs: ["libfoo"],
+		}
+
+		java_import {
+			name: "libfoo",
+			jars: ["libfoo.jar"],
+		}
+`, "", transform)
 	})
 }
 
