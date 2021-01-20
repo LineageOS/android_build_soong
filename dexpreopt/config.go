@@ -80,12 +80,10 @@ type GlobalConfig struct {
 	CpuVariant             map[android.ArchType]string // cpu variant for each architecture
 	InstructionSetFeatures map[android.ArchType]string // instruction set for each architecture
 
-	// Only used for boot image
-	DirtyImageObjects android.OptionalPath // path to a dirty-image-objects file
-	BootImageProfiles android.Paths        // path to a boot-image-profile.txt file
-	BootFlags         string               // extra flags to pass to dex2oat for the boot image
-	Dex2oatImageXmx   string               // max heap size for dex2oat for the boot image
-	Dex2oatImageXms   string               // initial heap size for dex2oat for the boot image
+	BootImageProfiles android.Paths // path to a boot-image-profile.txt file
+	BootFlags         string        // extra flags to pass to dex2oat for the boot image
+	Dex2oatImageXmx   string        // max heap size for dex2oat for the boot image
+	Dex2oatImageXms   string        // initial heap size for dex2oat for the boot image
 }
 
 // GlobalSoongConfig contains the global config that is generated from Soong,
@@ -179,7 +177,6 @@ func ParseGlobalConfig(ctx android.PathContext, data []byte) (*GlobalConfig, err
 
 		// Copies of entries in GlobalConfig that are not constructable without extra parameters.  They will be
 		// used to construct the real value manually below.
-		DirtyImageObjects string
 		BootImageProfiles []string
 	}
 
@@ -190,7 +187,6 @@ func ParseGlobalConfig(ctx android.PathContext, data []byte) (*GlobalConfig, err
 	}
 
 	// Construct paths that require a PathContext.
-	config.GlobalConfig.DirtyImageObjects = android.OptionalPathForPath(constructPath(ctx, config.DirtyImageObjects))
 	config.GlobalConfig.BootImageProfiles = constructPaths(ctx, config.BootImageProfiles)
 
 	return config.GlobalConfig, nil
@@ -547,7 +543,6 @@ func GlobalConfigForTests(ctx android.PathContext) *GlobalConfig {
 		EmptyDirectory:                     "empty_dir",
 		CpuVariant:                         nil,
 		InstructionSetFeatures:             nil,
-		DirtyImageObjects:                  android.OptionalPath{},
 		BootImageProfiles:                  nil,
 		BootFlags:                          "",
 		Dex2oatImageXmx:                    "",
