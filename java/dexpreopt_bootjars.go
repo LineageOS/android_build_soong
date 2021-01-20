@@ -622,8 +622,10 @@ func buildBootImageVariant(ctx android.SingletonContext, image *bootImageVariant
 		cmd.FlagWithInput("--profile-file=", profile)
 	}
 
-	if global.DirtyImageObjects.Valid() {
-		cmd.FlagWithInput("--dirty-image-objects=", global.DirtyImageObjects.Path())
+	dirtyImageFile := "frameworks/base/config/dirty-image-objects"
+	dirtyImagePath := android.ExistentPathForSource(ctx, dirtyImageFile)
+	if dirtyImagePath.Valid() {
+		cmd.FlagWithInput("--dirty-image-objects=", dirtyImagePath.Path())
 	}
 
 	if image.extends != nil {
