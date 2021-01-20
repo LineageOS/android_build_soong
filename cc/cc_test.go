@@ -1624,17 +1624,19 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 	assertString(t, staticCfiModule.outputFile.Path().Base(), "libsnapshot.cfi.a")
 }
 
-func assertExcludeFromVendorSnapshotIs(t *testing.T, c *Module, expected bool) {
+func assertExcludeFromVendorSnapshotIs(t *testing.T, ctx *android.TestContext, name string, expected bool) {
 	t.Helper()
-	if c.ExcludeFromVendorSnapshot() != expected {
-		t.Errorf("expected %q ExcludeFromVendorSnapshot to be %t", c.String(), expected)
+	m := ctx.ModuleForTests(name, vendorVariant).Module().(*Module)
+	if m.ExcludeFromVendorSnapshot() != expected {
+		t.Errorf("expected %q ExcludeFromVendorSnapshot to be %t", m.String(), expected)
 	}
 }
 
-func assertExcludeFromRecoverySnapshotIs(t *testing.T, c *Module, expected bool) {
+func assertExcludeFromRecoverySnapshotIs(t *testing.T, ctx *android.TestContext, name string, expected bool) {
 	t.Helper()
-	if c.ExcludeFromRecoverySnapshot() != expected {
-		t.Errorf("expected %q ExcludeFromRecoverySnapshot to be %t", c.String(), expected)
+	m := ctx.ModuleForTests(name, recoveryVariant).Module().(*Module)
+	if m.ExcludeFromRecoverySnapshot() != expected {
+		t.Errorf("expected %q ExcludeFromRecoverySnapshot to be %t", m.String(), expected)
 	}
 }
 
@@ -1656,6 +1658,12 @@ func TestVendorSnapshotExclude(t *testing.T) {
 			name: "libexclude",
 			srcs: ["src/exclude.cpp"],
 			vendor: true,
+			exclude_from_vendor_snapshot: true,
+		}
+		cc_library_shared {
+			name: "libavailable_exclude",
+			srcs: ["src/exclude.cpp"],
+			vendor_available: true,
 			exclude_from_vendor_snapshot: true,
 		}
 	`
@@ -1691,13 +1699,13 @@ func TestVendorSnapshotExclude(t *testing.T) {
 	android.FailIfErrored(t, errs)
 
 	// Test an include and exclude framework module.
-	assertExcludeFromVendorSnapshotIs(t, ctx.ModuleForTests("libinclude", coreVariant).Module().(*Module), false)
-	assertExcludeFromVendorSnapshotIs(t, ctx.ModuleForTests("libinclude", vendorVariant).Module().(*Module), false)
-	assertExcludeFromVendorSnapshotIs(t, ctx.ModuleForTests("libexclude", vendorVariant).Module().(*Module), true)
+	assertExcludeFromVendorSnapshotIs(t, ctx, "libinclude", false)
+	assertExcludeFromVendorSnapshotIs(t, ctx, "libexclude", true)
+	assertExcludeFromVendorSnapshotIs(t, ctx, "libavailable_exclude", true)
 
 	// A vendor module is excluded, but by its path, not the
 	// exclude_from_vendor_snapshot property.
-	assertExcludeFromVendorSnapshotIs(t, ctx.ModuleForTests("libvendor", vendorVariant).Module().(*Module), false)
+	assertExcludeFromVendorSnapshotIs(t, ctx, "libvendor", false)
 
 	// Verify the content of the vendor snapshot.
 
@@ -1728,6 +1736,8 @@ func TestVendorSnapshotExclude(t *testing.T) {
 		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libexclude.so.json"))
 		checkSnapshotExclude(t, ctx, snapshotSingleton, "libvendor", "libvendor.so", sharedDir, sharedVariant)
 		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libvendor.so.json"))
+		checkSnapshotExclude(t, ctx, snapshotSingleton, "libavailable_exclude", "libavailable_exclude.so", sharedDir, sharedVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libavailable_exclude.so.json"))
 	}
 
 	// Verify that each json file for an included module has a rule.
@@ -1786,53 +1796,6 @@ func TestVendorSnapshotExcludeInVendorProprietaryPathErrors(t *testing.T) {
 		`module "libvendor\{.+,image:vendor.+,arch:arm_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
 		`module "libvendor\{.+,image:vendor.+,arch:arm64_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
 		`module "libvendor\{.+,image:vendor.+,arch:arm_.+\}" in vendor proprietary path "device" may not use "exclude_from_vendor_snapshot: true"`,
-	})
-}
-
-func TestVendorSnapshotExcludeWithVendorAvailable(t *testing.T) {
-
-	// This test verifies that using the exclude_from_vendor_snapshot
-	// property on a module that is vendor available generates an error. A
-	// vendor available module must be captured in the vendor snapshot and
-	// must not built from source when building the vendor image against
-	// the vendor snapshot.
-
-	frameworkBp := `
-		cc_library_shared {
-			name: "libinclude",
-			srcs: ["src/include.cpp"],
-			vendor_available: true,
-			exclude_from_vendor_snapshot: true,
-		}
-	`
-
-	depsBp := GatherRequiredDepsForTest(android.Android)
-
-	mockFS := map[string][]byte{
-		"deps/Android.bp":       []byte(depsBp),
-		"framework/Android.bp":  []byte(frameworkBp),
-		"framework/include.cpp": nil,
-	}
-
-	config := TestConfig(buildDir, android.Android, nil, "", mockFS)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
-	ctx := CreateTestContext(config)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"deps/Android.bp", "framework/Android.bp"})
-	android.FailIfErrored(t, errs)
-
-	_, errs = ctx.PrepareBuildActions(config)
-	android.CheckErrorsAgainstExpectations(t, errs, []string{
-		`module "libinclude\{.+,image:,arch:arm64_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
-		`module "libinclude\{.+,image:,arch:arm_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
-		`module "libinclude\{.+,image:vendor.+,arch:arm64_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
-		`module "libinclude\{.+,image:vendor.+,arch:arm_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
-		`module "libinclude\{.+,image:,arch:arm64_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
-		`module "libinclude\{.+,image:,arch:arm_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
-		`module "libinclude\{.+,image:vendor.+,arch:arm64_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
-		`module "libinclude\{.+,image:vendor.+,arch:arm_.+\}" may not use both "vendor_available: true" and "exclude_from_vendor_snapshot: true"`,
 	})
 }
 
@@ -1973,7 +1936,7 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 		cc_library_shared {
 			name: "libinclude",
 			srcs: ["src/include.cpp"],
-                        recovery_available: true,
+			recovery_available: true,
 		}
 		cc_library_shared {
 			name: "libexclude",
@@ -1981,12 +1944,18 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 			recovery: true,
 			exclude_from_recovery_snapshot: true,
 		}
+		cc_library_shared {
+			name: "libavailable_exclude",
+			srcs: ["src/exclude.cpp"],
+			recovery_available: true,
+			exclude_from_recovery_snapshot: true,
+		}
 	`
 
 	vendorProprietaryBp := `
 		cc_library_shared {
-			name: "libvendor",
-			srcs: ["vendor.cpp"],
+			name: "librecovery",
+			srcs: ["recovery.cpp"],
 			recovery: true,
 		}
 	`
@@ -1999,7 +1968,7 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 		"framework/include.cpp": nil,
 		"framework/exclude.cpp": nil,
 		"device/Android.bp":     []byte(vendorProprietaryBp),
-		"device/vendor.cpp":     nil,
+		"device/recovery.cpp":   nil,
 	}
 
 	config := TestConfig(buildDir, android.Android, nil, "", mockFS)
@@ -2014,13 +1983,13 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 	android.FailIfErrored(t, errs)
 
 	// Test an include and exclude framework module.
-	assertExcludeFromRecoverySnapshotIs(t, ctx.ModuleForTests("libinclude", coreVariant).Module().(*Module), false)
-	assertExcludeFromRecoverySnapshotIs(t, ctx.ModuleForTests("libinclude", recoveryVariant).Module().(*Module), false)
-	assertExcludeFromRecoverySnapshotIs(t, ctx.ModuleForTests("libexclude", recoveryVariant).Module().(*Module), true)
+	assertExcludeFromRecoverySnapshotIs(t, ctx, "libinclude", false)
+	assertExcludeFromRecoverySnapshotIs(t, ctx, "libexclude", true)
+	assertExcludeFromRecoverySnapshotIs(t, ctx, "libavailable_exclude", true)
 
-	// A vendor module is excluded, but by its path, not the
+	// A recovery module is excluded, but by its path, not the
 	// exclude_from_recovery_snapshot property.
-	assertExcludeFromRecoverySnapshotIs(t, ctx.ModuleForTests("libvendor", recoveryVariant).Module().(*Module), false)
+	assertExcludeFromRecoverySnapshotIs(t, ctx, "librecovery", false)
 
 	// Verify the content of the recovery snapshot.
 
@@ -2048,8 +2017,10 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 		// Excluded modules
 		checkSnapshotExclude(t, ctx, snapshotSingleton, "libexclude", "libexclude.so", sharedDir, sharedVariant)
 		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libexclude.so.json"))
-		checkSnapshotExclude(t, ctx, snapshotSingleton, "libvendor", "libvendor.so", sharedDir, sharedVariant)
-		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libvendor.so.json"))
+		checkSnapshotExclude(t, ctx, snapshotSingleton, "librecovery", "librecovery.so", sharedDir, sharedVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "librecovery.so.json"))
+		checkSnapshotExclude(t, ctx, snapshotSingleton, "libavailable_exclude", "libavailable_exclude.so", sharedDir, sharedVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libavailable_exclude.so.json"))
 	}
 
 	// Verify that each json file for an included module has a rule.
