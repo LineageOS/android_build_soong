@@ -367,6 +367,8 @@ type productVariables struct {
 	BoardKernelModuleInterfaceVersions []string `json:",omitempty"`
 
 	BoardMoveRecoveryResourcesToVendorBoot *bool `json:",omitempty"`
+
+	PrebuiltHiddenApiDir *string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
