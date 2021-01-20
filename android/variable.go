@@ -309,6 +309,9 @@ type productVariables struct {
 	VndkUseCoreVariant         *bool `json:",omitempty"`
 	VndkSnapshotBuildArtifacts *bool `json:",omitempty"`
 
+	DirectedVendorSnapshot bool            `json:",omitempty"`
+	VendorSnapshotModules  map[string]bool `json:",omitempty"`
+
 	BoardVendorSepolicyDirs      []string `json:",omitempty"`
 	BoardOdmSepolicyDirs         []string `json:",omitempty"`
 	BoardReqdMaskPolicy          []string `json:",omitempty"`
