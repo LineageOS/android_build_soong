@@ -2859,6 +2859,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.classLoaderContexts = make(dexpreopt.ClassLoaderContextMap)
 
 	var flags javaBuilderFlags
+	var deapexerModule android.Module
 
 	ctx.VisitDirectDeps(func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
@@ -2879,6 +2880,11 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 
 		addCLCFromDep(ctx, module, j.classLoaderContexts)
+
+		// Save away the `deapexer` module on which this depends, if any.
+		if tag == android.DeapexerTag {
+			deapexerModule = module
+		}
 	})
 
 	if Bool(j.properties.Installable) {
@@ -2888,39 +2894,60 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.properties.Aidl.Export_include_dirs)
 
-	if ctx.Device() && Bool(j.dexProperties.Compile_dex) {
-		sdkDep := decodeSdkDep(ctx, sdkContext(j))
-		if sdkDep.invalidVersion {
-			ctx.AddMissingDependencies(sdkDep.bootclasspath)
-			ctx.AddMissingDependencies(sdkDep.java9Classpath)
-		} else if sdkDep.useFiles {
-			// sdkDep.jar is actually equivalent to turbine header.jar.
-			flags.classpath = append(flags.classpath, sdkDep.jars...)
+	if ctx.Device() {
+		// If this is a variant created for a prebuilt_apex then use the dex implementation jar
+		// obtained from the associated deapexer module.
+		ai := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+		if ai.ForPrebuiltApex {
+			if deapexerModule == nil {
+				// This should never happen as a variant for a prebuilt_apex is only created if the
+				// deapxer module has been configured to export the dex implementation jar for this module.
+				ctx.ModuleErrorf("internal error: module %q does not depend on a `deapexer` module for prebuilt_apex %q",
+					j.Name(), ai.ApexVariationName)
+			}
+
+			// Get the path of the dex implementation jar from the `deapexer` module.
+			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
+			j.dexJarFile = di.PrebuiltExportPath(j.BaseModuleName(), ".dexjar")
+			if j.dexJarFile == nil {
+				// This should never happen as a variant for a prebuilt_apex is only created if the
+				// prebuilt_apex has been configured to export the java library dex file.
+				ctx.ModuleErrorf("internal error: no dex implementation jar available from prebuilt_apex %q", deapexerModule.Name())
+			}
+		} else if Bool(j.dexProperties.Compile_dex) {
+			sdkDep := decodeSdkDep(ctx, sdkContext(j))
+			if sdkDep.invalidVersion {
+				ctx.AddMissingDependencies(sdkDep.bootclasspath)
+				ctx.AddMissingDependencies(sdkDep.java9Classpath)
+			} else if sdkDep.useFiles {
+				// sdkDep.jar is actually equivalent to turbine header.jar.
+				flags.classpath = append(flags.classpath, sdkDep.jars...)
+			}
+
+			// Dex compilation
+
+			j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", jarName)
+			if j.dexProperties.Uncompress_dex == nil {
+				// If the value was not force-set by the user, use reasonable default based on the module.
+				j.dexProperties.Uncompress_dex = proptools.BoolPtr(shouldUncompressDex(ctx, &j.dexpreopter))
+			}
+			j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
+
+			var dexOutputFile android.ModuleOutPath
+			dexOutputFile = j.dexer.compileDex(ctx, flags, j.minSdkVersion(), outputFile, jarName)
+			if ctx.Failed() {
+				return
+			}
+
+			configurationName := j.BaseModuleName()
+			primary := j.Prebuilt().UsePrebuilt()
+
+			// Hidden API CSV generation and dex encoding
+			dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, configurationName, primary, dexOutputFile, outputFile,
+				proptools.Bool(j.dexProperties.Uncompress_dex))
+
+			j.dexJarFile = dexOutputFile
 		}
-
-		// Dex compilation
-
-		j.dexpreopter.installPath = android.PathForModuleInstall(ctx, "framework", jarName)
-		if j.dexProperties.Uncompress_dex == nil {
-			// If the value was not force-set by the user, use reasonable default based on the module.
-			j.dexProperties.Uncompress_dex = proptools.BoolPtr(shouldUncompressDex(ctx, &j.dexpreopter))
-		}
-		j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
-
-		var dexOutputFile android.ModuleOutPath
-		dexOutputFile = j.dexer.compileDex(ctx, flags, j.minSdkVersion(), outputFile, jarName)
-		if ctx.Failed() {
-			return
-		}
-
-		configurationName := j.BaseModuleName()
-		primary := j.Prebuilt().UsePrebuilt()
-
-		// Hidden API CSV generation and dex encoding
-		dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, configurationName, primary, dexOutputFile, outputFile,
-			proptools.Bool(j.dexProperties.Uncompress_dex))
-
-		j.dexJarFile = dexOutputFile
 	}
 }
 

@@ -23,6 +23,7 @@ import (
 	"github.com/google/blueprint/bootstrap"
 
 	"android/soong/android"
+	"android/soong/bp2build"
 )
 
 var (
@@ -54,18 +55,12 @@ func newNameResolver(config android.Config) *android.NameResolver {
 // bazelConversionRequested checks that the user is intending to convert
 // Blueprint to Bazel BUILD files.
 func bazelConversionRequested(configuration android.Config) bool {
-	return configuration.IsEnvTrue("CONVERT_TO_BAZEL")
+	return configuration.IsEnvTrue("GENERATE_BAZEL_FILES")
 }
 
-func newContext(srcDir string, configuration android.Config) *android.Context {
+func newContext(configuration android.Config) *android.Context {
 	ctx := android.NewContext(configuration)
-	if bazelConversionRequested(configuration) {
-		// Register an alternate set of singletons and mutators for bazel
-		// conversion for Bazel conversion.
-		ctx.RegisterForBazelConversion()
-	} else {
-		ctx.Register()
-	}
+	ctx.Register()
 	if !shouldPrepareBuildActions(configuration) {
 		configuration.SetStopBefore(bootstrap.StopBeforePrepareBuildActions)
 	}
@@ -100,13 +95,22 @@ func main() {
 		// enabled even if it completed successfully.
 		extraNinjaDeps = append(extraNinjaDeps, filepath.Join(configuration.BuildDir(), "always_rerun_for_delve"))
 	}
+
+	if bazelConversionRequested(configuration) {
+		// Run the alternate pipeline of bp2build mutators and singleton to convert Blueprint to BUILD files
+		// before everything else.
+		runBp2Build(configuration, extraNinjaDeps)
+		// Short-circuit and return.
+		return
+	}
+
 	if configuration.BazelContext.BazelEnabled() {
 		// Bazel-enabled mode. Soong runs in two passes.
 		// First pass: Analyze the build tree, but only store all bazel commands
 		// needed to correctly evaluate the tree in the second pass.
 		// TODO(cparsons): Don't output any ninja file, as the second pass will overwrite
 		// the incorrect results from the first pass, and file I/O is expensive.
-		firstCtx := newContext(srcDir, configuration)
+		firstCtx := newContext(configuration)
 		configuration.SetStopBefore(bootstrap.StopBeforeWriteNinja)
 		bootstrap.Main(firstCtx.Context, configuration, extraNinjaDeps...)
 		// Invoke bazel commands and save results for second pass.
@@ -120,10 +124,10 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
-		ctx = newContext(srcDir, secondPassConfig)
+		ctx = newContext(secondPassConfig)
 		bootstrap.Main(ctx.Context, secondPassConfig, extraNinjaDeps...)
 	} else {
-		ctx = newContext(srcDir, configuration)
+		ctx = newContext(configuration)
 		bootstrap.Main(ctx.Context, configuration, extraNinjaDeps...)
 	}
 
@@ -152,6 +156,22 @@ func main() {
 			os.Exit(1)
 		}
 	}
+}
+
+// Run Soong in the bp2build mode. This creates a standalone context that registers
+// an alternate pipeline of mutators and singletons specifically for generating
+// Bazel BUILD files instead of Ninja files.
+func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
+	// Register an alternate set of singletons and mutators for bazel
+	// conversion for Bazel conversion.
+	bp2buildCtx := android.NewContext(configuration)
+	bp2buildCtx.RegisterForBazelConversion()
+	configuration.SetStopBefore(bootstrap.StopBeforePrepareBuildActions)
+	bp2buildCtx.SetNameInterface(newNameResolver(configuration))
+	bootstrap.Main(bp2buildCtx.Context, configuration, extraNinjaDeps...)
+
+	codegenContext := bp2build.NewCodegenContext(configuration, *bp2buildCtx)
+	bp2build.Codegen(codegenContext)
 }
 
 // shouldPrepareBuildActions reads configuration and flags if build actions

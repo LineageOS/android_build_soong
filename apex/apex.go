@@ -1501,7 +1501,7 @@ func apexFileForFilesystem(ctx android.BaseModuleContext, buildFile android.Path
 	return newApexFile(ctx, buildFile, buildFile.Base(), dirInApex, etc, fs)
 }
 
-// WalyPayloadDeps visits dependencies that contributes to the payload of this APEX. For each of the
+// WalkPayloadDeps visits dependencies that contributes to the payload of this APEX. For each of the
 // visited module, the `do` callback is executed. Returning true in the callback continues the visit
 // to the child modules. Returning false makes the visit to continue in the sibling or the parent
 // modules. This is used in check* functions below.
