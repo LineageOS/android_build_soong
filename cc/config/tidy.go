@@ -29,15 +29,12 @@ func init() {
 		if override := ctx.Config().Getenv("DEFAULT_GLOBAL_TIDY_CHECKS"); override != "" {
 			return override
 		}
-		return strings.Join([]string{
+		checks := strings.Join([]string{
 			"-*",
 			"abseil-*",
 			"android-*",
 			"bugprone-*",
 			"cert-*",
-			// clang-analyzer-* check is slow and enables clang-diagnostic-padded,
-			// which cannot be suppressed yet.
-			// "clang-analyzer-*",
 			"clang-diagnostic-unused-command-line-argument",
 			"google-*",
 			"misc-*",
@@ -63,6 +60,14 @@ func init() {
 			// -readability-*
 			// -zircon-*
 		}, ",")
+		// clang-analyzer-* checks are too slow to be in the default for WITH_TIDY=1.
+		// nightly builds add CLANG_ANALYZER_CHECKS=1 to run those checks.
+		// Some test code have clang-diagnostic-padded warnings that cannot be
+		// suppressed, but only by disabling clang-analyzer-optin.performance.*.
+		if ctx.Config().IsEnvTrue("CLANG_ANALYZER_CHECKS") {
+			checks += ",clang-analyzer-*,-clang-analyzer-optin.performance.*"
+		}
+		return checks
 	})
 
 	// There are too many clang-tidy warnings in external and vendor projects.
