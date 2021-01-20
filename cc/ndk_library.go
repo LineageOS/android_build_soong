@@ -354,6 +354,5 @@ func newStubLibrary() *Module {
 func NdkLibraryFactory() android.Module {
 	module := newStubLibrary()
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibBoth)
-	module.ModuleBase.EnableNativeBridgeSupportByDefault()
 	return module
 }
