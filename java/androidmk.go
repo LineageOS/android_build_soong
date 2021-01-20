@@ -196,6 +196,9 @@ func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(entries *android.AndroidMkEntries) {
 				entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", !Bool(prebuilt.properties.Installable))
+				if prebuilt.dexJarFile != nil {
+					entries.SetPath("LOCAL_SOONG_DEX_JAR", prebuilt.dexJarFile)
+				}
 				entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.combinedClasspathFile)
 				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.combinedClasspathFile)
 				entries.SetString("LOCAL_SDK_VERSION", prebuilt.makeSdkVersion())
