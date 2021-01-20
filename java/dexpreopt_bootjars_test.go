@@ -52,7 +52,6 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 	dexpreopt.SetTestGlobalConfig(config, dexpreoptConfig)
 
 	ctx := testContext(config)
-	RegisterDexpreoptBootJarsComponents(ctx)
 	run(t, ctx, config)
 
 	dexpreoptBootJars := ctx.SingletonForTests("dex_bootjars")
