@@ -5957,7 +5957,6 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 
 	ctx.Register()
 
-	_ = dexpreopt.GlobalSoongConfigForTests(config)
 	dexpreopt.RegisterToolModulesForTest(ctx)
 	pathCtx := android.PathContextForTesting(config)
 	dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
