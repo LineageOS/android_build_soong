@@ -256,11 +256,27 @@ type BaseProperties struct {
 	// Deprecated. true is the default, false is invalid.
 	Clang *bool `android:"arch_variant"`
 
-	// Minimum sdk version supported when compiling against the ndk. Setting this property causes
-	// two variants to be built, one for the platform and one for apps.
+	// The API level that this module is built against. The APIs of this API level will be
+	// visible at build time, but use of any APIs newer than min_sdk_version will render the
+	// module unloadable on older devices.  In the future it will be possible to weakly-link new
+	// APIs, making the behavior match Java: such modules will load on older devices, but
+	// calling new APIs on devices that do not support them will result in a crash.
+	//
+	// This property has the same behavior as sdk_version does for Java modules. For those
+	// familiar with Android Gradle, the property behaves similarly to how compileSdkVersion
+	// does for Java code.
+	//
+	// In addition, setting this property causes two variants to be built, one for the platform
+	// and one for apps.
 	Sdk_version *string
 
-	// Minimum sdk version that the artifact should support when it runs as part of mainline modules(APEX).
+	// Minimum OS API level supported by this C or C++ module. This property becomes the value
+	// of the __ANDROID_API__ macro. When the C or C++ module is included in an APEX or an APK,
+	// this property is also used to ensure that the min_sdk_version of the containing module is
+	// not older (i.e. less) than this module's min_sdk_version. When not set, this property
+	// defaults to the value of sdk_version.  When this is set to "apex_inherit", this tracks
+	// min_sdk_version of the containing APEX. When the module
+	// is not built for an APEX, "apex_inherit" defaults to sdk_version.
 	Min_sdk_version *string
 
 	// If true, always create an sdk variant and don't create a platform variant.
@@ -441,6 +457,8 @@ type ModuleContextIntf interface {
 	canUseSdk() bool
 	useSdk() bool
 	sdkVersion() string
+	minSdkVersion() string
+	isSdkVariant() bool
 	useVndk() bool
 	isNdk(config android.Config) bool
 	IsLlndk() bool
@@ -1318,6 +1336,29 @@ func (ctx *moduleContextImpl) sdkVersion() string {
 		return String(ctx.mod.Properties.Sdk_version)
 	}
 	return ""
+}
+
+func (ctx *moduleContextImpl) minSdkVersion() string {
+	ver := ctx.mod.MinSdkVersion()
+	if ver == "apex_inherit" && !ctx.isForPlatform() {
+		ver = ctx.apexSdkVersion().String()
+	}
+	if ver == "apex_inherit" || ver == "" {
+		ver = ctx.sdkVersion()
+	}
+	// Also make sure that minSdkVersion is not greater than sdkVersion, if they are both numbers
+	sdkVersionInt, err := strconv.Atoi(ctx.sdkVersion())
+	minSdkVersionInt, err2 := strconv.Atoi(ver)
+	if err == nil && err2 == nil {
+		if sdkVersionInt < minSdkVersionInt {
+			return strconv.Itoa(sdkVersionInt)
+		}
+	}
+	return ver
+}
+
+func (ctx *moduleContextImpl) isSdkVariant() bool {
+	return ctx.mod.IsSdkVariant()
 }
 
 func (ctx *moduleContextImpl) useVndk() bool {
