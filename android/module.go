@@ -2434,10 +2434,6 @@ func (m *ModuleBase) MakeAsPlatform() {
 	m.commonProperties.System_ext_specific = boolPtr(false)
 }
 
-func (m *ModuleBase) EnableNativeBridgeSupportByDefault() {
-	m.commonProperties.Native_bridge_supported = boolPtr(true)
-}
-
 func (m *ModuleBase) MakeAsSystemExt() {
 	m.commonProperties.Vendor = boolPtr(false)
 	m.commonProperties.Proprietary = boolPtr(false)

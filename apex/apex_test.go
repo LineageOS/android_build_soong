@@ -1752,10 +1752,10 @@ func TestQTargetApexUsesStaticUnwinder(t *testing.T) {
 
 	// ensure apex variant of c++ is linked with static unwinder
 	cm := ctx.ModuleForTests("libc++", "android_arm64_armv8-a_shared_apex29").Module().(*cc.Module)
-	ensureListContains(t, cm.Properties.AndroidMkStaticLibs, "libgcc_stripped")
+	ensureListContains(t, cm.Properties.AndroidMkStaticLibs, "libunwind")
 	// note that platform variant is not.
 	cm = ctx.ModuleForTests("libc++", "android_arm64_armv8-a_shared").Module().(*cc.Module)
-	ensureListNotContains(t, cm.Properties.AndroidMkStaticLibs, "libgcc_stripped")
+	ensureListNotContains(t, cm.Properties.AndroidMkStaticLibs, "libunwind")
 }
 
 func TestApexMinSdkVersion_ErrorIfIncompatibleStubs(t *testing.T) {
@@ -4513,6 +4513,34 @@ func TestErrorsIfDepsAreNotEnabled(t *testing.T) {
 			apex_available: ["myapex"],
 		}
 	`)
+}
+
+func TestApexWithJavaImport(t *testing.T) {
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["myjavaimport"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_import {
+			name: "myjavaimport",
+			apex_available: ["myapex"],
+			jars: ["my.jar"],
+			compile_dex: true,
+		}
+	`)
+
+	module := ctx.ModuleForTests("myapex", "android_common_myapex_image")
+	apexRule := module.Rule("apexRule")
+	copyCmds := apexRule.Args["copy_commands"]
+	ensureContains(t, copyCmds, "image.apex/javalib/myjavaimport.jar")
 }
 
 func TestApexWithApps(t *testing.T) {

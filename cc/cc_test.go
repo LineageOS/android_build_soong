@@ -1266,6 +1266,95 @@ func TestVendorSnapshotCapture(t *testing.T) {
 	}
 }
 
+func TestVendorSnapshotDirected(t *testing.T) {
+	bp := `
+	cc_library_shared {
+		name: "libvendor",
+		vendor: true,
+		nocrt: true,
+	}
+
+	cc_library_shared {
+		name: "libvendor_available",
+		vendor_available: true,
+		nocrt: true,
+	}
+
+	genrule {
+		name: "libfoo_gen",
+		cmd: "",
+		out: ["libfoo.so"],
+	}
+
+	cc_prebuilt_library_shared {
+		name: "libfoo",
+		vendor: true,
+		prefer: true,
+		srcs: [":libfoo_gen"],
+	}
+
+	cc_library_shared {
+		name: "libfoo",
+		vendor: true,
+		nocrt: true,
+	}
+`
+	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.DirectedVendorSnapshot = true
+	config.TestProductVariables.VendorSnapshotModules = make(map[string]bool)
+	config.TestProductVariables.VendorSnapshotModules["libvendor"] = true
+	config.TestProductVariables.VendorSnapshotModules["libfoo"] = true
+	ctx := testCcWithConfig(t, config)
+
+	// Check Vendor snapshot output.
+
+	snapshotDir := "vendor-snapshot"
+	snapshotVariantPath := filepath.Join(buildDir, snapshotDir, "arm64")
+	snapshotSingleton := ctx.SingletonForTests("vendor-snapshot")
+
+	var includeJsonFiles []string
+	var excludeJsonFiles []string
+
+	for _, arch := range [][]string{
+		[]string{"arm64", "armv8-a"},
+		[]string{"arm", "armv7-a-neon"},
+	} {
+		archType := arch[0]
+		archVariant := arch[1]
+		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
+
+		sharedVariant := fmt.Sprintf("android_vendor.VER_%s_%s_shared", archType, archVariant)
+		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
+
+		// Included modules
+		checkSnapshot(t, ctx, snapshotSingleton, "libvendor", "libvendor.so", sharedDir, sharedVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libvendor.so.json"))
+		// Check that snapshot captures "prefer: true" prebuilt
+		checkSnapshot(t, ctx, snapshotSingleton, "prebuilt_libfoo", "libfoo.so", sharedDir, sharedVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libfoo.so.json"))
+
+		// Excluded modules
+		checkSnapshotExclude(t, ctx, snapshotSingleton, "libvendor_available", "libvendor_available.so", sharedDir, sharedVariant)
+		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libvendor_available.so.json"))
+	}
+
+	// Verify that each json file for an included module has a rule.
+	for _, jsonFile := range includeJsonFiles {
+		if snapshotSingleton.MaybeOutput(jsonFile).Rule == nil {
+			t.Errorf("include json file %q not found", jsonFile)
+		}
+	}
+
+	// Verify that each json file for an excluded module has no rule.
+	for _, jsonFile := range excludeJsonFiles {
+		if snapshotSingleton.MaybeOutput(jsonFile).Rule != nil {
+			t.Errorf("exclude json file %q found", jsonFile)
+		}
+	}
+}
+
 func TestVendorSnapshotUse(t *testing.T) {
 	frameworkBp := `
 	cc_library {
