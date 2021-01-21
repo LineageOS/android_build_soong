@@ -5680,7 +5680,7 @@ func TestSymlinksFromApexToSystemRequiredModuleNames(t *testing.T) {
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := prebuilt_myotherlib.myapex\n")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := myotherlib.myapex\n")
 	// `myapex` should have `myotherlib` in its required line, not `prebuilt_myotherlib`
-	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += mylib.myapex myotherlib apex_manifest.pb.myapex apex_pubkey.myapex\n")
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += mylib.myapex:64 myotherlib:64 apex_manifest.pb.myapex apex_pubkey.myapex\n")
 }
 
 func TestApexWithJniLibs(t *testing.T) {
