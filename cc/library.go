@@ -481,6 +481,7 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext) 
 			}
 			j++
 		}
+		glob = glob[:j]
 	}
 
 	// Collect generated headers
