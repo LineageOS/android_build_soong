@@ -441,6 +441,8 @@ type apexFile struct {
 	transitiveDep bool
 	isJniLib      bool
 
+	multilib string
+
 	// TODO(jiyong): remove this
 	module android.Module
 }
@@ -460,6 +462,7 @@ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidM
 		ret.requiredModuleNames = module.RequiredModuleNames()
 		ret.targetRequiredModuleNames = module.TargetRequiredModuleNames()
 		ret.hostRequiredModuleNames = module.HostRequiredModuleNames()
+		ret.multilib = module.Target().Arch.ArchType.Multilib
 	}
 	return ret
 }
