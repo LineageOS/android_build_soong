@@ -404,7 +404,12 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 
 	target := "-target " + tc.ClangTriple()
 	if ctx.Os().Class == android.Device {
-		version := ctx.sdkVersion()
+		// When built for the non-updateble part of platform, minSdkVersion doesn't matter.
+		// It matters only when building we are building for modules that can be unbundled.
+		version := "current"
+		if !ctx.isForPlatform() || ctx.isSdkVariant() {
+			version = ctx.minSdkVersion()
+		}
 		if version == "" || version == "current" {
 			target += strconv.Itoa(android.FutureApiLevelInt)
 		} else {
