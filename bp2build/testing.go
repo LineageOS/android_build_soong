@@ -2,8 +2,6 @@ package bp2build
 
 import (
 	"android/soong/android"
-
-	"github.com/google/blueprint"
 )
 
 type nestedProps struct {
@@ -101,36 +99,4 @@ func customDefaultsModuleFactory() android.Module {
 	m := customDefaultsModuleFactoryBase()
 	android.InitDefaultsModule(m)
 	return m
-}
-
-type bp2buildBlueprintWrapContext struct {
-	bpCtx *blueprint.Context
-}
-
-func (ctx *bp2buildBlueprintWrapContext) ModuleName(module blueprint.Module) string {
-	return ctx.bpCtx.ModuleName(module)
-}
-
-func (ctx *bp2buildBlueprintWrapContext) ModuleDir(module blueprint.Module) string {
-	return ctx.bpCtx.ModuleDir(module)
-}
-
-func (ctx *bp2buildBlueprintWrapContext) ModuleSubDir(module blueprint.Module) string {
-	return ctx.bpCtx.ModuleSubDir(module)
-}
-
-func (ctx *bp2buildBlueprintWrapContext) ModuleType(module blueprint.Module) string {
-	return ctx.bpCtx.ModuleType(module)
-}
-
-func (ctx *bp2buildBlueprintWrapContext) VisitAllModulesBlueprint(visit func(blueprint.Module)) {
-	ctx.bpCtx.VisitAllModules(visit)
-}
-
-func (ctx *bp2buildBlueprintWrapContext) VisitDirectDeps(module android.Module, visit func(android.Module)) {
-	ctx.bpCtx.VisitDirectDeps(module, func(m blueprint.Module) {
-		if aModule, ok := m.(android.Module); ok {
-			visit(aModule)
-		}
-	})
 }

@@ -1059,7 +1059,8 @@ func (c *Module) UseVndk() bool {
 }
 
 func (c *Module) canUseSdk() bool {
-	return c.Os() == android.Android && !c.UseVndk() && !c.InRamdisk() && !c.InRecovery() && !c.InVendorRamdisk()
+	return c.Os() == android.Android && c.Target().NativeBridge == android.NativeBridgeDisabled &&
+		!c.UseVndk() && !c.InRamdisk() && !c.InRecovery() && !c.InVendorRamdisk()
 }
 
 func (c *Module) UseSdk() bool {

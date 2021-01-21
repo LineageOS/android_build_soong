@@ -1026,6 +1026,10 @@ func (c *config) HasMultilibConflict(arch ArchType) bool {
 	return c.multilibConflicts[arch]
 }
 
+func (c *config) PrebuiltHiddenApiDir(ctx PathContext) string {
+	return String(c.productVariables.PrebuiltHiddenApiDir)
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {
@@ -1399,6 +1403,14 @@ func (c *deviceConfig) BoardSepolicyVers() string {
 
 func (c *deviceConfig) BoardReqdMaskPolicy() []string {
 	return c.config.productVariables.BoardReqdMaskPolicy
+}
+
+func (c *deviceConfig) DirectedVendorSnapshot() bool {
+	return c.config.productVariables.DirectedVendorSnapshot
+}
+
+func (c *deviceConfig) VendorSnapshotModules() map[string]bool {
+	return c.config.productVariables.VendorSnapshotModules
 }
 
 // The ConfiguredJarList struct provides methods for handling a list of (apex, jar) pairs.

@@ -82,6 +82,11 @@ type snapshotImage interface {
 
 	// Whether to skip the source mutator for a given module.
 	skipSourceMutator(ctx android.BottomUpMutatorContext) bool
+
+	// Whether to exclude a given module from the directed snapshot or not.
+	// If the makefile variable DIRECTED_{IMAGE}_SNAPSHOT is true, directed snapshot is turned on,
+	// and only modules listed in {IMAGE}_SNAPSHOT_MODULES will be captured.
+	excludeFromDirectedSnapshot(cfg android.DeviceConfig, name string) bool
 }
 
 type vendorSnapshotImage struct{}
@@ -193,6 +198,16 @@ func (vendorSnapshotImage) skipSourceMutator(ctx android.BottomUpMutatorContext)
 	return false
 }
 
+// returns true iff a given module SHOULD BE EXCLUDED, false if included
+func (vendorSnapshotImage) excludeFromDirectedSnapshot(cfg android.DeviceConfig, name string) bool {
+	// If we're using full snapshot, not directed snapshot, capture every module
+	if !cfg.DirectedVendorSnapshot() {
+		return false
+	}
+	// Else, checks if name is in VENDOR_SNAPSHOT_MODULES.
+	return !cfg.VendorSnapshotModules()[name]
+}
+
 func (recoverySnapshotImage) init() {
 	android.RegisterSingletonType("recovery-snapshot", RecoverySnapshotSingleton)
 	android.RegisterModuleType("recovery_snapshot_shared", RecoverySnapshotSharedFactory)
@@ -273,6 +288,11 @@ func (recoverySnapshotImage) skipModuleMutator(ctx android.BottomUpMutatorContex
 func (recoverySnapshotImage) skipSourceMutator(ctx android.BottomUpMutatorContext) bool {
 	module, ok := ctx.Module().(*Module)
 	return !ok || !module.InRecovery()
+}
+
+func (recoverySnapshotImage) excludeFromDirectedSnapshot(cfg android.DeviceConfig, name string) bool {
+	// directed recovery snapshot is not implemented yet
+	return false
 }
 
 var vendorSnapshotImageSingleton vendorSnapshotImage

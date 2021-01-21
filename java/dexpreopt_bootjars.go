@@ -347,8 +347,8 @@ func RegisterDexpreoptBootJarsComponents(ctx android.RegistrationContext) {
 	ctx.RegisterSingletonType("dex_bootjars", dexpreoptBootJarsFactory)
 }
 
-func skipDexpreoptBootJars(ctx android.PathContext) bool {
-	return dexpreopt.GetGlobalConfig(ctx).DisablePreopt
+func SkipDexpreoptBootJars(ctx android.PathContext) bool {
+	return dexpreopt.GetGlobalConfig(ctx).DisablePreoptBootImages
 }
 
 // Singleton for generating boot image build rules.
@@ -371,7 +371,7 @@ type dexpreoptBootJars struct {
 
 // Accessor function for the apex package. Returns nil if dexpreopt is disabled.
 func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]android.OutputPaths {
-	if skipDexpreoptBootJars(ctx) {
+	if SkipDexpreoptBootJars(ctx) {
 		return nil
 	}
 	// Include dexpreopt files for the primary boot image.
@@ -387,7 +387,7 @@ func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]and
 
 // Generate build rules for boot images.
 func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
-	if skipDexpreoptBootJars(ctx) {
+	if SkipDexpreoptBootJars(ctx) {
 		return
 	}
 	if dexpreopt.GetCachedGlobalSoongConfig(ctx) == nil {
@@ -422,16 +422,19 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 // Note that the same jar may occur in multiple modules.
 // This logic is tested in the apex package to avoid import cycle apex <-> java.
 func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, module android.Module) (int, android.Path) {
-	// Ignore any module that is not listed in the boot image configuration.
 	name := ctx.ModuleName(module)
+
+	// Strip a prebuilt_ prefix so that this can access the dex jar from a prebuilt module.
+	name = android.RemoveOptionalPrebuiltPrefix(name)
+
+	// Ignore any module that is not listed in the boot image configuration.
 	index := image.modules.IndexOfJar(name)
 	if index == -1 {
 		return -1, nil
 	}
 
-	// It is an error if a module configured in the boot image does not support
-	// accessing the dex jar. This is safe because every module that has the same
-	// name has to have the same module type.
+	// It is an error if a module configured in the boot image does not support accessing the dex jar.
+	// This is safe because every module that has the same name has to have the same module type.
 	jar, hasJar := module.(interface{ DexJarBuildPath() android.Path })
 	if !hasJar {
 		ctx.Errorf("module %q configured in boot image %q does not support accessing dex jar", module, image.name)
@@ -622,8 +625,10 @@ func buildBootImageVariant(ctx android.SingletonContext, image *bootImageVariant
 		cmd.FlagWithInput("--profile-file=", profile)
 	}
 
-	if global.DirtyImageObjects.Valid() {
-		cmd.FlagWithInput("--dirty-image-objects=", global.DirtyImageObjects.Path())
+	dirtyImageFile := "frameworks/base/config/dirty-image-objects"
+	dirtyImagePath := android.ExistentPathForSource(ctx, dirtyImageFile)
+	if dirtyImagePath.Valid() {
+		cmd.FlagWithInput("--dirty-image-objects=", dirtyImagePath.Path())
 	}
 
 	if image.extends != nil {
@@ -724,7 +729,7 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImageConfig, 
 	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
-	if global.DisableGenerateProfile || ctx.Config().UnbundledBuild() {
+	if global.DisableGenerateProfile {
 		return nil
 	}
 	profile := ctx.Config().Once(bootImageProfileRuleKey, func() interface{} {

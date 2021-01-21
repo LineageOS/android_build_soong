@@ -157,6 +157,7 @@ func (p *ApexFileProperties) selectSource(ctx android.BottomUpMutatorContext) er
 
 type PrebuiltProperties struct {
 	ApexFileProperties
+	DeapexerProperties
 
 	Installable *bool
 	// Optional name for the installed apex. If unspecified, name of the
@@ -197,18 +198,151 @@ func (p *Prebuilt) Name() string {
 }
 
 // prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
+//
+// If this needs to make files from within a `.apex` file available for use by other Soong modules,
+// e.g. make dex implementation jars available for java_import modules isted in exported_java_libs,
+// it does so as follows:
+//
+// 1. It creates a `deapexer` module that actually extracts the files from the `.apex` file and
+//    makes them available for use by other modules, at both Soong and ninja levels.
+//
+// 2. It adds a dependency onto those modules and creates an apex specific variant similar to what
+//    an `apex` module does. That ensures that code which looks for specific apex variant, e.g.
+//    dexpreopt, will work the same way from source and prebuilt.
+//
+// 3. The `deapexer` module adds a dependency from the modules that require the exported files onto
+//    itself so that they can retrieve the file paths to those files.
+//
 func PrebuiltFactory() android.Module {
 	module := &Prebuilt{}
 	module.AddProperties(&module.properties)
 	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Source")
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		props := struct {
+			Name *string
+		}{
+			Name: proptools.StringPtr(module.BaseModuleName() + ".deapexer"),
+		}
+		ctx.CreateModule(privateDeapexerFactory,
+			&props,
+			&module.properties.ApexFileProperties,
+			&module.properties.DeapexerProperties,
+		)
+	})
+
 	return module
+}
+
+func prebuiltApexExportedModuleName(ctx android.BottomUpMutatorContext, name string) string {
+	// The prebuilt_apex should be depending on prebuilt modules but as this runs after
+	// prebuilt_rename the prebuilt module may or may not be using the prebuilt_ prefixed named. So,
+	// check to see if the prefixed name is in use first, if it is then use that, otherwise assume
+	// the unprefixed name is the one to use. If the unprefixed one turns out to be a source module
+	// and not a renamed prebuilt module then that will be detected and reported as an error when
+	// processing the dependency in ApexInfoMutator().
+	prebuiltName := "prebuilt_" + name
+	if ctx.OtherModuleExists(prebuiltName) {
+		name = prebuiltName
+	}
+	return name
 }
 
 func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if err := p.properties.selectSource(ctx); err != nil {
 		ctx.ModuleErrorf("%s", err)
 		return
+	}
+
+	// Add dependencies onto the java modules that represent the java libraries that are provided by
+	// and exported from this prebuilt apex.
+	for _, lib := range p.properties.Exported_java_libs {
+		dep := prebuiltApexExportedModuleName(ctx, lib)
+		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), javaLibTag, dep)
+	}
+}
+
+var _ ApexInfoMutator = (*Prebuilt)(nil)
+
+// ApexInfoMutator marks any modules for which this apex exports a file as requiring an apex
+// specific variant and checks that they are supported.
+//
+// The apexMutator will ensure that the ApexInfo objects passed to BuildForApex(ApexInfo) are
+// associated with the apex specific variant using the ApexInfoProvider for later retrieval.
+//
+// Unlike the source apex module type the prebuilt_apex module type cannot share compatible variants
+// across prebuilt_apex modules. That is because there is no way to determine whether two
+// prebuilt_apex modules that export files for the same module are compatible. e.g. they could have
+// been built from different source at different times or they could have been built with different
+// build options that affect the libraries.
+//
+// While it may be possible to provide sufficient information to determine whether two prebuilt_apex
+// modules were compatible it would be a lot of work and would not provide much benefit for a couple
+// of reasons:
+// * The number of prebuilt_apex modules that will be exporting files for the same module will be
+//   low as the prebuilt_apex only exports files for the direct dependencies that require it and
+//   very few modules are direct dependencies of multiple prebuilt_apex modules, e.g. there are a
+//   few com.android.art* apex files that contain the same contents and could export files for the
+//   same modules but only one of them needs to do so. Contrast that with source apex modules which
+//   need apex specific variants for every module that contributes code to the apex, whether direct
+//   or indirect.
+// * The build cost of a prebuilt_apex variant is generally low as at worst it will involve some
+//   extra copying of files. Contrast that with source apex modules that has to build each variant
+//   from source.
+func (p *Prebuilt) ApexInfoMutator(mctx android.TopDownMutatorContext) {
+
+	// Collect direct dependencies into contents.
+	contents := make(map[string]android.ApexMembership)
+
+	// Collect the list of dependencies.
+	var dependencies []android.ApexModule
+	mctx.VisitDirectDeps(func(m android.Module) {
+		tag := mctx.OtherModuleDependencyTag(m)
+		if tag == javaLibTag {
+			depName := mctx.OtherModuleName(m)
+
+			// It is an error if the other module is not a prebuilt.
+			if _, ok := m.(android.PrebuiltInterface); !ok {
+				mctx.PropertyErrorf("exported_java_libs", "%q is not a prebuilt module", depName)
+				return
+			}
+
+			// It is an error if the other module is not an ApexModule.
+			if _, ok := m.(android.ApexModule); !ok {
+				mctx.PropertyErrorf("exported_java_libs", "%q is not usable within an apex", depName)
+				return
+			}
+
+			// Strip off the prebuilt_ prefix if present before storing content to ensure consistent
+			// behavior whether there is a corresponding source module present or not.
+			depName = android.RemoveOptionalPrebuiltPrefix(depName)
+
+			// Remember that this module was added as a direct dependency.
+			contents[depName] = contents[depName].Add(true)
+
+			// Add the module to the list of dependencies that need to have an APEX variant.
+			dependencies = append(dependencies, m.(android.ApexModule))
+		}
+	})
+
+	// Create contents for the prebuilt_apex and store it away for later use.
+	apexContents := android.NewApexContents(contents)
+	mctx.SetProvider(ApexBundleInfoProvider, ApexBundleInfo{
+		Contents: apexContents,
+	})
+
+	// Create an ApexInfo for the prebuilt_apex.
+	apexInfo := android.ApexInfo{
+		ApexVariationName: mctx.ModuleName(),
+		InApexes:          []string{mctx.ModuleName()},
+		ApexContents:      []*android.ApexContents{apexContents},
+		ForPrebuiltApex:   true,
+	}
+
+	// Mark the dependencies of this module as requiring a variant for this module.
+	for _, am := range dependencies {
+		am.BuildForApex(apexInfo)
 	}
 }
 

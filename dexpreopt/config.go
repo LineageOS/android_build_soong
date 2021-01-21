@@ -27,8 +27,9 @@ import (
 // GlobalConfig stores the configuration for dex preopting. The fields are set
 // from product variables via dex_preopt_config.mk.
 type GlobalConfig struct {
-	DisablePreopt        bool     // disable preopt for all modules
-	DisablePreoptModules []string // modules with preopt disabled by product-specific config
+	DisablePreopt           bool     // disable preopt for all modules (excluding boot images)
+	DisablePreoptBootImages bool     // disable prepot for boot images
+	DisablePreoptModules    []string // modules with preopt disabled by product-specific config
 
 	OnlyPreoptBootImageAndSystemServer bool // only preopt jars in the boot image or system server
 
@@ -79,12 +80,10 @@ type GlobalConfig struct {
 	CpuVariant             map[android.ArchType]string // cpu variant for each architecture
 	InstructionSetFeatures map[android.ArchType]string // instruction set for each architecture
 
-	// Only used for boot image
-	DirtyImageObjects android.OptionalPath // path to a dirty-image-objects file
-	BootImageProfiles android.Paths        // path to a boot-image-profile.txt file
-	BootFlags         string               // extra flags to pass to dex2oat for the boot image
-	Dex2oatImageXmx   string               // max heap size for dex2oat for the boot image
-	Dex2oatImageXms   string               // initial heap size for dex2oat for the boot image
+	BootImageProfiles android.Paths // path to a boot-image-profile.txt file
+	BootFlags         string        // extra flags to pass to dex2oat for the boot image
+	Dex2oatImageXmx   string        // max heap size for dex2oat for the boot image
+	Dex2oatImageXms   string        // initial heap size for dex2oat for the boot image
 }
 
 // GlobalSoongConfig contains the global config that is generated from Soong,
@@ -178,7 +177,6 @@ func ParseGlobalConfig(ctx android.PathContext, data []byte) (*GlobalConfig, err
 
 		// Copies of entries in GlobalConfig that are not constructable without extra parameters.  They will be
 		// used to construct the real value manually below.
-		DirtyImageObjects string
 		BootImageProfiles []string
 	}
 
@@ -189,7 +187,6 @@ func ParseGlobalConfig(ctx android.PathContext, data []byte) (*GlobalConfig, err
 	}
 
 	// Construct paths that require a PathContext.
-	config.GlobalConfig.DirtyImageObjects = android.OptionalPathForPath(constructPath(ctx, config.DirtyImageObjects))
 	config.GlobalConfig.BootImageProfiles = constructPaths(ctx, config.BootImageProfiles)
 
 	return config.GlobalConfig, nil
@@ -234,8 +231,9 @@ func getGlobalConfigRaw(ctx android.PathContext) globalConfigAndRaw {
 		return ctx.Config().Once(testGlobalConfigOnceKey, func() interface{} {
 			// Nope, return a config with preopting disabled
 			return globalConfigAndRaw{&GlobalConfig{
-				DisablePreopt:          true,
-				DisableGenerateProfile: true,
+				DisablePreopt:           true,
+				DisablePreoptBootImages: true,
+				DisableGenerateProfile:  true,
 			}, nil}
 		})
 	}).(globalConfigAndRaw)
@@ -305,7 +303,7 @@ func dex2oatModuleName(config android.Config) string {
 	}
 }
 
-var dex2oatDepTag = struct {
+var Dex2oatDepTag = struct {
 	blueprint.BaseDependencyTag
 }{}
 
@@ -316,7 +314,7 @@ var dex2oatDepTag = struct {
 func RegisterToolDeps(ctx android.BottomUpMutatorContext) {
 	dex2oatBin := dex2oatModuleName(ctx.Config())
 	v := ctx.Config().BuildOSTarget.Variations()
-	ctx.AddFarVariationDependencies(v, dex2oatDepTag, dex2oatBin)
+	ctx.AddFarVariationDependencies(v, Dex2oatDepTag, dex2oatBin)
 }
 
 func dex2oatPathFromDep(ctx android.ModuleContext) android.Path {
@@ -332,7 +330,7 @@ func dex2oatPathFromDep(ctx android.ModuleContext) android.Path {
 	// prebuilt explicitly here instead.
 	var dex2oatModule android.Module
 	ctx.WalkDeps(func(child, parent android.Module) bool {
-		if parent == ctx.Module() && ctx.OtherModuleDependencyTag(child) == dex2oatDepTag {
+		if parent == ctx.Module() && ctx.OtherModuleDependencyTag(child) == Dex2oatDepTag {
 			// Found the source module, or prebuilt module that has replaced the source.
 			dex2oatModule = child
 			if p, ok := child.(android.PrebuiltInterface); ok && p.Prebuilt() != nil {
@@ -385,10 +383,10 @@ func createGlobalSoongConfig(ctx android.ModuleContext) *GlobalSoongConfig {
 
 // The main reason for this Once cache for GlobalSoongConfig is to make the
 // dex2oat path available to singletons. In ordinary modules we get it through a
-// dex2oatDepTag dependency, but in singletons there's no simple way to do the
+// Dex2oatDepTag dependency, but in singletons there's no simple way to do the
 // same thing and ensure the right variant is selected, hence this cache to make
 // the resolved path available to singletons. This means we depend on there
-// being at least one ordinary module with a dex2oatDepTag dependency.
+// being at least one ordinary module with a Dex2oatDepTag dependency.
 //
 // TODO(b/147613152): Implement a way to deal with dependencies from singletons,
 // and then possibly remove this cache altogether (but the use in
@@ -545,7 +543,6 @@ func GlobalConfigForTests(ctx android.PathContext) *GlobalConfig {
 		EmptyDirectory:                     "empty_dir",
 		CpuVariant:                         nil,
 		InstructionSetFeatures:             nil,
-		DirtyImageObjects:                  android.OptionalPath{},
 		BootImageProfiles:                  nil,
 		BootFlags:                          "",
 		Dex2oatImageXmx:                    "",
