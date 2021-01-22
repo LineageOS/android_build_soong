@@ -204,6 +204,13 @@ func GatherRequiredDepsForTest() string {
 		`, extra)
 	}
 
+	// Make sure that the dex_bootjars singleton module is instantiated for the tests.
+	bp += `
+		dex_bootjars {
+			name: "dex_bootjars",
+		}
+`
+
 	return bp
 }
 
