@@ -363,13 +363,6 @@ func dex2oatPathFromDep(ctx android.ModuleContext) android.Path {
 // createGlobalSoongConfig creates a GlobalSoongConfig from the current context.
 // Should not be used in dexpreopt_gen.
 func createGlobalSoongConfig(ctx android.ModuleContext) *GlobalSoongConfig {
-	if ctx.Config().TestProductVariables != nil {
-		// If we're called in a test there'll be a confusing error from the path
-		// functions below that gets reported without a stack trace, so let's panic
-		// properly with a more helpful message.
-		panic("This should not be called from tests. Please call GlobalSoongConfigForTests somewhere in the test setup.")
-	}
-
 	return &GlobalSoongConfig{
 		Profman:          ctx.Config().HostToolPath(ctx, "profman"),
 		Dex2oat:          dex2oatPathFromDep(ctx),
@@ -389,8 +382,7 @@ func createGlobalSoongConfig(ctx android.ModuleContext) *GlobalSoongConfig {
 // being at least one ordinary module with a Dex2oatDepTag dependency.
 //
 // TODO(b/147613152): Implement a way to deal with dependencies from singletons,
-// and then possibly remove this cache altogether (but the use in
-// GlobalSoongConfigForTests also needs to be rethought).
+// and then possibly remove this cache altogether.
 var globalSoongConfigOnceKey = android.NewOnceKey("DexpreoptGlobalSoongConfig")
 
 // GetGlobalSoongConfig creates a GlobalSoongConfig the first time it's called,
@@ -550,18 +542,14 @@ func GlobalConfigForTests(ctx android.PathContext) *GlobalConfig {
 	}
 }
 
-func GlobalSoongConfigForTests(config android.Config) *GlobalSoongConfig {
-	// Install the test GlobalSoongConfig in the Once cache so that later calls to
-	// Get(Cached)GlobalSoongConfig returns it without trying to create a real one.
-	return config.Once(globalSoongConfigOnceKey, func() interface{} {
-		return &GlobalSoongConfig{
-			Profman:          android.PathForTesting("profman"),
-			Dex2oat:          android.PathForTesting("dex2oat"),
-			Aapt:             android.PathForTesting("aapt"),
-			SoongZip:         android.PathForTesting("soong_zip"),
-			Zip2zip:          android.PathForTesting("zip2zip"),
-			ManifestCheck:    android.PathForTesting("manifest_check"),
-			ConstructContext: android.PathForTesting("construct_context"),
-		}
-	}).(*GlobalSoongConfig)
+func globalSoongConfigForTests() *GlobalSoongConfig {
+	return &GlobalSoongConfig{
+		Profman:          android.PathForTesting("profman"),
+		Dex2oat:          android.PathForTesting("dex2oat"),
+		Aapt:             android.PathForTesting("aapt"),
+		SoongZip:         android.PathForTesting("soong_zip"),
+		Zip2zip:          android.PathForTesting("zip2zip"),
+		ManifestCheck:    android.PathForTesting("manifest_check"),
+		ConstructContext: android.PathForTesting("construct_context"),
+	}
 }
