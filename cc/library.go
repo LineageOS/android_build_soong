@@ -449,39 +449,24 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext) 
 			}
 			continue
 		}
-		glob, err := ctx.GlobWithDeps(dir+"/**/*", nil)
-		if err != nil {
-			ctx.ModuleErrorf("glob failed: %#v", err)
-			return
+		exts := headerExts
+		// Glob all files under this special directory, because of C++ headers.
+		if strings.HasPrefix(dir, "external/libcxx/include") {
+			exts = []string{""}
 		}
-		isLibcxx := strings.HasPrefix(dir, "external/libcxx/include")
-		j := 0
-		for i, header := range glob {
-			if isLibcxx {
-				// Glob all files under this special directory, because of C++ headers with no
-				// extension.
-				if !strings.HasSuffix(header, "/") {
+		for _, ext := range exts {
+			glob, err := ctx.GlobWithDeps(dir+"/**/*"+ext, nil)
+			if err != nil {
+				ctx.ModuleErrorf("glob failed: %#v", err)
+				return
+			}
+			for _, header := range glob {
+				if strings.HasSuffix(header, "/") {
 					continue
 				}
-			} else {
-				// Filter out only the files with extensions that are headers.
-				found := false
-				for _, ext := range headerExts {
-					if strings.HasSuffix(header, ext) {
-						found = true
-						break
-					}
-				}
-				if !found {
-					continue
-				}
+				ret = append(ret, android.PathForSource(ctx, header))
 			}
-			if i != j {
-				glob[j] = glob[i]
-			}
-			j++
 		}
-		glob = glob[:j]
 	}
 
 	// Collect generated headers
