@@ -117,6 +117,7 @@ func installClean(ctx Context, config Config) {
 		productOut("misc_info.txt"),
 		productOut("apex"),
 		productOut("kernel"),
+		productOut("kernel-*"),
 		productOut("data"),
 		productOut("skin"),
 		productOut("obj/NOTICE_FILES"),
