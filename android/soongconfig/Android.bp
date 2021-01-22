@@ -10,4 +10,7 @@ bootstrap_go_package {
         "config.go",
         "modules.go",
     ],
+    testSrcs: [
+        "modules_test.go",
+    ],
 }
