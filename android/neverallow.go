@@ -51,7 +51,6 @@ var neverallows = []Rule{}
 func init() {
 	AddNeverAllowRules(createIncludeDirsRules()...)
 	AddNeverAllowRules(createTrebleRules()...)
-	AddNeverAllowRules(createMediaRules()...)
 	AddNeverAllowRules(createJavaDeviceForHostRules()...)
 	AddNeverAllowRules(createCcSdkVariantRules()...)
 	AddNeverAllowRules(createUncompressDexRules()...)
@@ -129,14 +128,6 @@ func createTrebleRules() []Rule {
 
 		// Example:
 		// *NeverAllow().with("Srcs", "main.cpp"))
-	}
-}
-
-func createMediaRules() []Rule {
-	return []Rule{
-		NeverAllow().
-			With("libs", "updatable-media").
-			Because("updatable-media includes private APIs. Use updatable_media_stubs instead."),
 	}
 }
 

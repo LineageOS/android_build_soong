@@ -126,8 +126,18 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 
 		moduleName := a.fullModuleName(apexBundleName, &fi)
 
-		if !android.InList(moduleName, moduleNames) {
-			moduleNames = append(moduleNames, moduleName)
+		// This name will be added to LOCAL_REQUIRED_MODULES of the APEX. We need to be
+		// arch-specific otherwise we will end up installing both ABIs even when only
+		// either of the ABI is requested.
+		aName := moduleName
+		switch fi.multilib {
+		case "lib32":
+			aName = aName + ":32"
+		case "lib64":
+			aName = aName + ":64"
+		}
+		if !android.InList(aName, moduleNames) {
+			moduleNames = append(moduleNames, aName)
 		}
 
 		if linkToSystemLib {
