@@ -18,6 +18,7 @@ import (
 	"android/soong/android"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -290,6 +291,16 @@ func TestVendorSnapshotUse(t *testing.T) {
 		compile_multilib: "64",
 	}
 
+	cc_library {
+		name: "libvendor_available",
+		vendor_available: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+		compile_multilib: "64",
+	}
+
 	cc_binary {
 		name: "bin",
 		vendor: true,
@@ -338,7 +349,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		no_libcrt: true,
 		stl: "none",
 		system_shared_libs: [],
-		shared_libs: ["libvndk"],
+		shared_libs: ["libvndk", "libvendor_available"],
 		static_libs: ["libvendor", "libvendor_without_snapshot"],
 		compile_multilib: "64",
 		srcs: ["client.cpp"],
@@ -390,6 +401,32 @@ func TestVendorSnapshotUse(t *testing.T) {
 		arch: {
 			arm64: {
 				src: "libvendor.a",
+				export_include_dirs: ["include/libvendor"],
+			},
+		},
+	}
+
+	vendor_snapshot_shared {
+		name: "libvendor_available",
+		version: "BOARD",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "libvendor_available.so",
+				export_include_dirs: ["include/libvendor"],
+			},
+		},
+	}
+
+	vendor_snapshot_static {
+		name: "libvendor_available",
+		version: "BOARD",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "libvendor_available.a",
 				export_include_dirs: ["include/libvendor"],
 			},
 		},
@@ -465,6 +502,16 @@ func TestVendorSnapshotUse(t *testing.T) {
 		}
 	}
 
+	libclientAndroidMkSharedLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkSharedLibs
+	if g, w := libclientAndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted libclient AndroidMkSharedLibs %q, got %q", w, g)
+	}
+
+	libclientAndroidMkStaticLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkStaticLibs
+	if g, w := libclientAndroidMkStaticLibs, []string{"libvendor", "libvendor_without_snapshot"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("wanted libclient AndroidMkStaticLibs %q, got %q", w, g)
+	}
+
 	// bin_without_snapshot uses libvndk.vendor_static.BOARD.arm64
 	binWithoutSnapshotCcFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("cc").Args["cFlags"]
 	if !strings.Contains(binWithoutSnapshotCcFlags, "-Ivendor/include/libvndk") {
@@ -482,6 +529,9 @@ func TestVendorSnapshotUse(t *testing.T) {
 	// libvendor.so is installed by libvendor.vendor_shared.BOARD.arm64
 	ctx.ModuleForTests("libvendor.vendor_shared.BOARD.arm64", sharedVariant).Output("libvendor.so")
 
+	// libvendor_available.so is installed by libvendor_available.vendor_shared.BOARD.arm64
+	ctx.ModuleForTests("libvendor_available.vendor_shared.BOARD.arm64", sharedVariant).Output("libvendor_available.so")
+
 	// libvendor_without_snapshot.so is installed by libvendor_without_snapshot
 	ctx.ModuleForTests("libvendor_without_snapshot", sharedVariant).Output("libvendor_without_snapshot.so")
 
@@ -491,10 +541,15 @@ func TestVendorSnapshotUse(t *testing.T) {
 	// bin_without_snapshot is installed by bin_without_snapshot
 	ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Output("bin_without_snapshot")
 
-	// libvendor and bin don't have vendor.BOARD variant
+	// libvendor, libvendor_available and bin don't have vendor.BOARD variant
 	libvendorVariants := ctx.ModuleVariantsForTests("libvendor")
 	if inList(sharedVariant, libvendorVariants) {
 		t.Errorf("libvendor must not have variant %#v, but it does", sharedVariant)
+	}
+
+	libvendorAvailableVariants := ctx.ModuleVariantsForTests("libvendor_available")
+	if inList(sharedVariant, libvendorAvailableVariants) {
+		t.Errorf("libvendor_available must not have variant %#v, but it does", sharedVariant)
 	}
 
 	binVariants := ctx.ModuleVariantsForTests("bin")
