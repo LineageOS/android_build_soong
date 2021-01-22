@@ -318,9 +318,7 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	} else if m.isSnapshotPrebuilt() {
 		// Make vendor variants only for the versions in BOARD_VNDK_VERSION and
 		// PRODUCT_EXTRA_VNDK_VERSIONS.
-		if snapshot, ok := m.linker.(interface {
-			version() string
-		}); ok {
+		if snapshot, ok := m.linker.(snapshotInterface); ok {
 			if m.InstallInRecovery() {
 				recoveryVariantNeeded = true
 			} else {
