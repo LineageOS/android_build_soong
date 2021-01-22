@@ -267,14 +267,15 @@ type Deps struct {
 }
 
 type PathDeps struct {
-	DyLibs      RustLibraries
-	RLibs       RustLibraries
-	SharedLibs  android.Paths
-	StaticLibs  android.Paths
-	ProcMacros  RustLibraries
-	linkDirs    []string
-	depFlags    []string
-	linkObjects []string
+	DyLibs        RustLibraries
+	RLibs         RustLibraries
+	SharedLibs    android.Paths
+	SharedLibDeps android.Paths
+	StaticLibs    android.Paths
+	ProcMacros    RustLibraries
+	linkDirs      []string
+	depFlags      []string
+	linkObjects   []string
 	//ReexportedDeps android.Paths
 
 	// Used by bindgen modules which call clang
@@ -952,9 +953,15 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		staticLibDepFiles = append(staticLibDepFiles, dep.OutputFile().Path())
 	}
 
+	var sharedLibFiles android.Paths
 	var sharedLibDepFiles android.Paths
 	for _, dep := range directSharedLibDeps {
-		sharedLibDepFiles = append(sharedLibDepFiles, dep.OutputFile().Path())
+		sharedLibFiles = append(sharedLibFiles, dep.OutputFile().Path())
+		if dep.Toc().Valid() {
+			sharedLibDepFiles = append(sharedLibDepFiles, dep.Toc().Path())
+		} else {
+			sharedLibDepFiles = append(sharedLibDepFiles, dep.OutputFile().Path())
+		}
 	}
 
 	var srcProviderDepFiles android.Paths
@@ -970,12 +977,14 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	depPaths.RLibs = append(depPaths.RLibs, rlibDepFiles...)
 	depPaths.DyLibs = append(depPaths.DyLibs, dylibDepFiles...)
 	depPaths.SharedLibs = append(depPaths.SharedLibs, sharedLibDepFiles...)
+	depPaths.SharedLibDeps = append(depPaths.SharedLibDeps, sharedLibDepFiles...)
 	depPaths.StaticLibs = append(depPaths.StaticLibs, staticLibDepFiles...)
 	depPaths.ProcMacros = append(depPaths.ProcMacros, procMacroDepFiles...)
 	depPaths.SrcDeps = append(depPaths.SrcDeps, srcProviderDepFiles...)
 
 	// Dedup exported flags from dependencies
 	depPaths.linkDirs = android.FirstUniqueStrings(depPaths.linkDirs)
+	depPaths.linkObjects = android.FirstUniqueStrings(depPaths.linkObjects)
 	depPaths.depFlags = android.FirstUniqueStrings(depPaths.depFlags)
 	depPaths.depClangFlags = android.FirstUniqueStrings(depPaths.depClangFlags)
 	depPaths.depIncludePaths = android.FirstUniquePaths(depPaths.depIncludePaths)
