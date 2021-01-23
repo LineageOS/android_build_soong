@@ -23,8 +23,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
 )
 
@@ -177,15 +175,15 @@ func isVendorProprietaryModule(ctx android.BaseModuleContext) bool {
 
 func isRecoveryProprietaryModule(ctx android.BaseModuleContext) bool {
 
-	// Any module in a vendor proprietary path is a vendor proprietary
+	// Any module in a recovery proprietary path is a recovery proprietary
 	// module.
 	if isRecoveryProprietaryPath(ctx.ModuleDir()) {
 		return true
 	}
 
-	// However if the module is not in a vendor proprietary path, it may
-	// still be a vendor proprietary module. This happens for cc modules
-	// that are excluded from the vendor snapshot, and it means that the
+	// However if the module is not in a recovery proprietary path, it may
+	// still be a recovery proprietary module. This happens for cc modules
+	// that are excluded from the recovery snapshot, and it means that the
 	// vendor has assumed control of the framework-provided module.
 
 	if c, ok := ctx.Module().(*Module); ok {
@@ -264,7 +262,7 @@ func isSnapshotAware(cfg android.DeviceConfig, m *Module, inProprietaryPath bool
 			}
 		}
 		if l.static() {
-			return m.outputFile.Valid() && proptools.BoolDefault(image.available(m), true)
+			return m.outputFile.Valid() && !image.private(m)
 		}
 		if l.shared() {
 			if !m.outputFile.Valid() {
@@ -282,7 +280,7 @@ func isSnapshotAware(cfg android.DeviceConfig, m *Module, inProprietaryPath bool
 
 	// Binaries and Objects
 	if m.binary() || m.object() {
-		return m.outputFile.Valid() && proptools.BoolDefault(image.available(m), true)
+		return m.outputFile.Valid()
 	}
 
 	return false
@@ -524,17 +522,6 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 				// Error: exclude_from_vendor_snapshot applies
 				// to framework-path modules only.
 				ctx.Errorf("module %q in vendor proprietary path %q may not use \"exclude_from_vendor_snapshot: true\"", m.String(), moduleDir)
-				return
-			}
-			if Bool(c.image.available(m)) {
-				// Error: may not combine "vendor_available:
-				// true" with "exclude_from_vendor_snapshot:
-				// true".
-				ctx.Errorf(
-					"module %q may not use both \""+
-						c.name+
-						"_available: true\" and \"exclude_from_vendor_snapshot: true\"",
-					m.String())
 				return
 			}
 		}
