@@ -24,9 +24,9 @@ import (
 
 func createBazelQueryView(ctx *android.Context, bazelQueryViewDir string) error {
 	ruleShims := bp2build.CreateRuleShims(android.ModuleTypeFactories())
-	buildToTargets := bp2build.GenerateSoongModuleTargets(*ctx)
+	buildToTargets := bp2build.GenerateSoongModuleTargets(*ctx, false)
 
-	filesToWrite := bp2build.CreateBazelFiles(ruleShims, buildToTargets)
+	filesToWrite := bp2build.CreateBazelFiles(ruleShims, buildToTargets, false)
 	for _, f := range filesToWrite {
 		if err := writeReadOnlyFile(bazelQueryViewDir, f); err != nil {
 			return err
