@@ -1048,6 +1048,30 @@ func (module *SdkLibrary) ComponentDepsMutator(ctx android.BottomUpMutatorContex
 
 // Add other dependencies as normal.
 func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
+	var missingApiModules []string
+	for _, apiScope := range module.getGeneratedApiScopes(ctx) {
+		if apiScope.unstable {
+			continue
+		}
+		if m := android.SrcIsModule(module.latestApiFilegroupName(apiScope)); !ctx.OtherModuleExists(m) {
+			missingApiModules = append(missingApiModules, m)
+		}
+		if m := android.SrcIsModule(module.latestRemovedApiFilegroupName(apiScope)); !ctx.OtherModuleExists(m) {
+			missingApiModules = append(missingApiModules, m)
+		}
+	}
+	if len(missingApiModules) != 0 && !module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api {
+		m := module.Name() + " is missing tracking files for previously released library versions.\n"
+		m += "You need to do one of the following:\n"
+		m += "- Add `unsafe_ignore_missing_latest_api: true` to your blueprint (to disable compat tracking)\n"
+		m += "- Add a set of prebuilt txt files representing the last released version of this library for compat checking.\n"
+		m += "  (the current set of API files can be used as a seed for this compatibility tracking\n"
+		m += "\n"
+		m += "The following filegroup modules are missing:\n  "
+		m += strings.Join(missingApiModules, "\n  ") + "\n"
+		m += "Please see the documentation of the prebuilt_apis module type (and a usage example in prebuilts/sdk) for a convenient way to generate these."
+		ctx.ModuleErrorf(m)
+	}
 	if module.requiresRuntimeImplementationLibrary() {
 		// Only add the deps for the library if it is actually going to be built.
 		module.Library.deps(ctx)

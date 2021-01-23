@@ -61,33 +61,16 @@ func TestMain(m *testing.M) {
 func testConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
 	bp += dexpreopt.BpToolModulesForTest()
 
-	config := TestConfig(buildDir, env, bp, fs)
-
-	// Set up the global Once cache used for dexpreopt.GlobalSoongConfig, so that
-	// it doesn't create a real one, which would fail.
-	_ = dexpreopt.GlobalSoongConfigForTests(config)
-
-	return config
+	return TestConfig(buildDir, env, bp, fs)
 }
 
 func testContext(config android.Config) *android.TestContext {
 
 	ctx := android.NewTestArchContext(config)
-	RegisterJavaBuildComponents(ctx)
-	RegisterAppBuildComponents(ctx)
-	RegisterAppImportBuildComponents(ctx)
-	RegisterAppSetBuildComponents(ctx)
-	RegisterAARBuildComponents(ctx)
-	RegisterGenRuleBuildComponents(ctx)
-	RegisterRuntimeResourceOverlayBuildComponents(ctx)
-	RegisterSystemModulesBuildComponents(ctx)
+	RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterModuleType("java_plugin", PluginFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("python_binary_host", python.PythonBinaryHostFactory)
-	RegisterDocsBuildComponents(ctx)
-	RegisterStubsBuildComponents(ctx)
-	RegisterPrebuiltApisBuildComponents(ctx)
-	RegisterSdkLibraryBuildComponents(ctx)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterComponentsMutator)
 

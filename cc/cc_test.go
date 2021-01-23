@@ -4543,137 +4543,309 @@ func TestAidlFlagsPassedToTheAidlCompiler(t *testing.T) {
 	}
 }
 
-func checkHasImplicitDep(t *testing.T, m android.TestingModule, name string) {
+type MemtagNoteType int
+
+const (
+	None MemtagNoteType = iota + 1
+	Sync
+	Async
+)
+
+func (t MemtagNoteType) str() string {
+	switch t {
+	case None:
+		return "none"
+	case Sync:
+		return "sync"
+	case Async:
+		return "async"
+	default:
+		panic("invalid note type")
+	}
+}
+
+func checkHasMemtagNote(t *testing.T, m android.TestingModule, expected MemtagNoteType) {
+	note_async := "note_memtag_heap_async"
+	note_sync := "note_memtag_heap_sync"
+
+	found := None
 	implicits := m.Rule("ld").Implicits
 	for _, lib := range implicits {
-		if strings.Contains(lib.Rel(), name) {
-			return
+		if strings.Contains(lib.Rel(), note_async) {
+			found = Async
+			break
+		} else if strings.Contains(lib.Rel(), note_sync) {
+			found = Sync
+			break
 		}
 	}
 
-	t.Errorf("%q is not found in implicit deps of module %q", name, m.Module().(*Module).Name())
-}
-
-func checkDoesNotHaveImplicitDep(t *testing.T, m android.TestingModule, name string) {
-	implicits := m.Rule("ld").Implicits
-	for _, lib := range implicits {
-		if strings.Contains(lib.Rel(), name) {
-			t.Errorf("%q is found in implicit deps of module %q", name, m.Module().(*Module).Name())
-		}
+	if found != expected {
+		t.Errorf("Wrong Memtag note in target %q: found %q, expected %q", m.Module().(*Module).Name(), found.str(), expected.str())
 	}
 }
 
-func TestSanitizeMemtagHeap(t *testing.T) {
-	rootBp := `
-		cc_library_static {
-			name: "libstatic",
-			sanitize: { memtag_heap: true },
-		}
-
-		cc_library_shared {
-			name: "libshared",
-			sanitize: { memtag_heap: true },
-		}
-
-		cc_library {
-			name: "libboth",
-			sanitize: { memtag_heap: true },
-		}
-
-		cc_binary {
-			name: "binary",
-			shared_libs: [ "libshared" ],
-			static_libs: [ "libstatic" ],
-		}
-
-		cc_binary {
-			name: "binary_true",
-			sanitize: { memtag_heap: true },
-		}
-
-		cc_binary {
-			name: "binary_true_sync",
-			sanitize: { memtag_heap: true, diag: { memtag_heap: true }, },
-		}
-
-		cc_binary {
-			name: "binary_false",
-			sanitize: { memtag_heap: false },
-		}
-
+func makeMemtagTestConfig(t *testing.T) android.Config {
+	templateBp := `
 		cc_test {
-			name: "test",
+			name: "%[1]s_test",
 			gtest: false,
 		}
 
 		cc_test {
-			name: "test_true",
-			gtest: false,
-			sanitize: { memtag_heap: true },
-		}
-
-		cc_test {
-			name: "test_false",
+			name: "%[1]s_test_false",
 			gtest: false,
 			sanitize: { memtag_heap: false },
 		}
 
 		cc_test {
-			name: "test_true_async",
+			name: "%[1]s_test_true",
+			gtest: false,
+			sanitize: { memtag_heap: true },
+		}
+
+		cc_test {
+			name: "%[1]s_test_true_nodiag",
 			gtest: false,
 			sanitize: { memtag_heap: true, diag: { memtag_heap: false }  },
 		}
 
-		`
+		cc_test {
+			name: "%[1]s_test_true_diag",
+			gtest: false,
+			sanitize: { memtag_heap: true, diag: { memtag_heap: true }  },
+		}
 
-	subdirAsyncBp := `
 		cc_binary {
-			name: "binary_async",
+			name: "%[1]s_binary",
+		}
+
+		cc_binary {
+			name: "%[1]s_binary_false",
+			sanitize: { memtag_heap: false },
+		}
+
+		cc_binary {
+			name: "%[1]s_binary_true",
+			sanitize: { memtag_heap: true },
+		}
+
+		cc_binary {
+			name: "%[1]s_binary_true_nodiag",
+			sanitize: { memtag_heap: true, diag: { memtag_heap: false }  },
+		}
+
+		cc_binary {
+			name: "%[1]s_binary_true_diag",
+			sanitize: { memtag_heap: true, diag: { memtag_heap: true }  },
 		}
 		`
-
-	subdirSyncBp := `
-		cc_binary {
-			name: "binary_sync",
-		}
-		`
+	subdirDefaultBp := fmt.Sprintf(templateBp, "default")
+	subdirExcludeBp := fmt.Sprintf(templateBp, "exclude")
+	subdirSyncBp := fmt.Sprintf(templateBp, "sync")
+	subdirAsyncBp := fmt.Sprintf(templateBp, "async")
 
 	mockFS := map[string][]byte{
-		"subdir_async/Android.bp": []byte(subdirAsyncBp),
-		"subdir_sync/Android.bp":  []byte(subdirSyncBp),
+		"subdir_default/Android.bp": []byte(subdirDefaultBp),
+		"subdir_exclude/Android.bp": []byte(subdirExcludeBp),
+		"subdir_sync/Android.bp":    []byte(subdirSyncBp),
+		"subdir_async/Android.bp":   []byte(subdirAsyncBp),
 	}
 
-	config := TestConfig(buildDir, android.Android, nil, rootBp, mockFS)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
-	config.TestProductVariables.MemtagHeapAsyncIncludePaths = []string{"subdir_async"}
+	return TestConfig(buildDir, android.Android, nil, "", mockFS)
+}
+
+func TestSanitizeMemtagHeap(t *testing.T) {
+	variant := "android_arm64_armv8-a"
+
+	config := makeMemtagTestConfig(t)
+	config.TestProductVariables.MemtagHeapExcludePaths = []string{"subdir_exclude"}
 	config.TestProductVariables.MemtagHeapSyncIncludePaths = []string{"subdir_sync"}
+	config.TestProductVariables.MemtagHeapAsyncIncludePaths = []string{"subdir_async"}
 	ctx := CreateTestContext(config)
 	ctx.Register()
 
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp", "subdir_sync/Android.bp", "subdir_async/Android.bp"})
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp", "subdir_default/Android.bp", "subdir_exclude/Android.bp", "subdir_sync/Android.bp", "subdir_async/Android.bp"})
 	android.FailIfErrored(t, errs)
 	_, errs = ctx.PrepareBuildActions(config)
 	android.FailIfErrored(t, errs)
 
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true_diag", variant), Sync)
+}
+
+func TestSanitizeMemtagHeapWithSanitizeDevice(t *testing.T) {
 	variant := "android_arm64_armv8-a"
-	note_async := "note_memtag_heap_async"
-	note_sync := "note_memtag_heap_sync"
-	note_any := "note_memtag_"
 
-	checkDoesNotHaveImplicitDep(t, ctx.ModuleForTests("libshared", "android_arm64_armv8-a_shared"), note_any)
-	checkDoesNotHaveImplicitDep(t, ctx.ModuleForTests("libboth", "android_arm64_armv8-a_shared"), note_any)
+	config := makeMemtagTestConfig(t)
+	config.TestProductVariables.MemtagHeapExcludePaths = []string{"subdir_exclude"}
+	config.TestProductVariables.MemtagHeapSyncIncludePaths = []string{"subdir_sync"}
+	config.TestProductVariables.MemtagHeapAsyncIncludePaths = []string{"subdir_async"}
+	config.TestProductVariables.SanitizeDevice = []string{"memtag_heap"}
+	ctx := CreateTestContext(config)
+	ctx.Register()
 
-	checkDoesNotHaveImplicitDep(t, ctx.ModuleForTests("binary", variant), note_any)
-	checkHasImplicitDep(t, ctx.ModuleForTests("binary_true", variant), note_async)
-	checkHasImplicitDep(t, ctx.ModuleForTests("binary_true_sync", variant), note_sync)
-	checkDoesNotHaveImplicitDep(t, ctx.ModuleForTests("binary_false", variant), note_any)
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp", "subdir_default/Android.bp", "subdir_exclude/Android.bp", "subdir_sync/Android.bp", "subdir_async/Android.bp"})
+	android.FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	android.FailIfErrored(t, errs)
 
-	checkHasImplicitDep(t, ctx.ModuleForTests("test", variant), note_sync)
-	checkHasImplicitDep(t, ctx.ModuleForTests("test_true", variant), note_async)
-	checkDoesNotHaveImplicitDep(t, ctx.ModuleForTests("test_false", variant), note_any)
-	checkHasImplicitDep(t, ctx.ModuleForTests("test_true_async", variant), note_async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_true_diag", variant), Sync)
 
-	checkHasImplicitDep(t, ctx.ModuleForTests("binary_async", variant), note_async)
-	checkHasImplicitDep(t, ctx.ModuleForTests("binary_sync", variant), note_sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_true", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true_diag", variant), Sync)
+}
+
+func TestSanitizeMemtagHeapWithSanitizeDeviceDiag(t *testing.T) {
+	variant := "android_arm64_armv8-a"
+
+	config := makeMemtagTestConfig(t)
+	config.TestProductVariables.MemtagHeapExcludePaths = []string{"subdir_exclude"}
+	config.TestProductVariables.MemtagHeapSyncIncludePaths = []string{"subdir_sync"}
+	config.TestProductVariables.MemtagHeapAsyncIncludePaths = []string{"subdir_async"}
+	config.TestProductVariables.SanitizeDevice = []string{"memtag_heap"}
+	config.TestProductVariables.SanitizeDeviceDiag = []string{"memtag_heap"}
+	ctx := CreateTestContext(config)
+	ctx.Register()
+
+	_, errs := ctx.ParseFileList(".", []string{"Android.bp", "subdir_default/Android.bp", "subdir_exclude/Android.bp", "subdir_sync/Android.bp", "subdir_async/Android.bp"})
+	android.FailIfErrored(t, errs)
+	_, errs = ctx.PrepareBuildActions(config)
+	android.FailIfErrored(t, errs)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("default_binary_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_test_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("exclude_binary_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_test_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("async_binary_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_test_true_diag", variant), Sync)
+
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_false", variant), None)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true", variant), Sync)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true_nodiag", variant), Async)
+	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true_diag", variant), Sync)
 }

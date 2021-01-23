@@ -25,6 +25,18 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+// =================================================================================================
+// WIP - see http://b/177892522 for details
+//
+// The build support for boot images is currently being migrated away from singleton to modules so
+// the documentation may not be strictly accurate. Rather than update the documentation at every
+// step which will create a lot of churn the changes that have been made will be listed here and the
+// documentation will be updated once it is closer to the final result.
+//
+// Changes:
+// 1) dex_bootjars is now a singleton module and not a plain singleton.
+// =================================================================================================
+
 // This comment describes:
 //   1. ART boot images in general (their types, structure, file layout, etc.)
 //   2. build system support for boot images
@@ -124,7 +136,7 @@ import (
 // The primary ART boot image needs to be compiled with one dex2oat invocation that depends on DEX
 // jars for the core libraries. Framework boot image extension needs to be compiled with one dex2oat
 // invocation that depends on the primary ART boot image and all bootclasspath DEX jars except the
-// Core libraries.
+// core libraries as they are already part of the primary ART boot image.
 //
 // 2.1. Libraries that go in the boot images
 // -----------------------------------------
@@ -339,20 +351,24 @@ func (image *bootImageVariant) imageLocations() (imageLocations []string) {
 	return append(imageLocations, dexpreopt.PathToLocation(image.images, image.target.Arch.ArchType))
 }
 
-func dexpreoptBootJarsFactory() android.Singleton {
-	return &dexpreoptBootJars{}
+func dexpreoptBootJarsFactory() android.SingletonModule {
+	m := &dexpreoptBootJars{}
+	android.InitAndroidModule(m)
+	return m
 }
 
 func RegisterDexpreoptBootJarsComponents(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("dex_bootjars", dexpreoptBootJarsFactory)
+	ctx.RegisterSingletonModuleType("dex_bootjars", dexpreoptBootJarsFactory)
 }
 
 func SkipDexpreoptBootJars(ctx android.PathContext) bool {
 	return dexpreopt.GetGlobalConfig(ctx).DisablePreoptBootImages
 }
 
-// Singleton for generating boot image build rules.
+// Singleton module for generating boot image build rules.
 type dexpreoptBootJars struct {
+	android.SingletonModuleBase
+
 	// Default boot image config (currently always the Framework boot image extension). It should be
 	// noted that JIT-Zygote builds use ART APEX image instead of the Framework boot image extension,
 	// but the switch is handled not here, but in the makefiles (triggered with
@@ -385,8 +401,15 @@ func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]and
 	return files
 }
 
+// Provide paths to boot images for use by modules that depend upon them.
+//
+// The build rules are created in GenerateSingletonBuildActions().
+func (d *dexpreoptBootJars) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Placeholder for now.
+}
+
 // Generate build rules for boot images.
-func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
+func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonContext) {
 	if SkipDexpreoptBootJars(ctx) {
 		return
 	}
