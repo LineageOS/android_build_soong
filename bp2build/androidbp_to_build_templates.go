@@ -15,7 +15,7 @@
 package bp2build
 
 const (
-	// The default `load` preamble for every generated BUILD file.
+	// The default `load` preamble for every generated queryview BUILD file.
 	soongModuleLoad = `package(default_visibility = ["//visibility:public"])
 load("//build/bazel/queryview_rules:soong_module.bzl", "soong_module")
 
@@ -29,6 +29,10 @@ load("//build/bazel/queryview_rules:soong_module.bzl", "soong_module")
     module_type = "%s",
     module_variant = "%s",
     module_deps = %s,
+%s)`
+
+	bazelTarget = `%s(
+    name = "%s",
 %s)`
 
 	// A simple provider to mark and differentiate Soong module rule shims from

@@ -73,14 +73,49 @@ func propsToAttributes(props map[string]string) string {
 	return attributes
 }
 
-func GenerateSoongModuleTargets(ctx bpToBuildContext) map[string][]BazelTarget {
+func GenerateSoongModuleTargets(ctx bpToBuildContext, bp2buildEnabled bool) map[string][]BazelTarget {
 	buildFileToTargets := make(map[string][]BazelTarget)
 	ctx.VisitAllModules(func(m blueprint.Module) {
 		dir := ctx.ModuleDir(m)
-		t := generateSoongModuleTarget(ctx, m)
+		var t BazelTarget
+
+		if bp2buildEnabled {
+			if _, ok := m.(android.BazelTargetModule); !ok {
+				return
+			}
+			t = generateBazelTarget(ctx, m)
+		} else {
+			t = generateSoongModuleTarget(ctx, m)
+		}
+
 		buildFileToTargets[ctx.ModuleDir(m)] = append(buildFileToTargets[dir], t)
 	})
 	return buildFileToTargets
+}
+
+func generateBazelTarget(ctx bpToBuildContext, m blueprint.Module) BazelTarget {
+	// extract the bazel attributes from the module.
+	props := getBuildProperties(ctx, m)
+
+	// extract the rule class name from the attributes. Since the string value
+	// will be string-quoted, remove the quotes here.
+	ruleClass := strings.Replace(props.Attrs["rule_class"], "\"", "", 2)
+	// Delete it from being generated in the BUILD file.
+	delete(props.Attrs, "rule_class")
+
+	// Return the Bazel target with rule class and attributes, ready to be
+	// code-generated.
+	attributes := propsToAttributes(props.Attrs)
+	targetName := targetNameForBp2Build(ctx, m)
+	return BazelTarget{
+		name: targetName,
+		content: fmt.Sprintf(
+			bazelTarget,
+			ruleClass,
+			targetName,
+			attributes,
+		),
+	}
 }
 
 // Convert a module and its deps and props into a Bazel macro/rule
@@ -304,6 +339,10 @@ func makeIndent(indent int) string {
 		panic(fmt.Errorf("indent column cannot be less than 0, but got %d", indent))
 	}
 	return strings.Repeat("    ", indent)
+}
+
+func targetNameForBp2Build(c bpToBuildContext, logicModule blueprint.Module) string {
+	return strings.Replace(c.ModuleName(logicModule), "__bp2build__", "", 1)
 }
 
 func targetNameWithVariant(c bpToBuildContext, logicModule blueprint.Module) string {
