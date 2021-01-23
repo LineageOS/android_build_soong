@@ -26,6 +26,12 @@ license {
 }
 
 license_kind {
+    name: "SPDX-license-identifier-0BSD",
+    conditions: ["unencumbered"],
+    url: "https://spdx.org/licenses/0BSD",
+}
+
+license_kind {
     name: "SPDX-license-identifier-AFL-1.1",
     conditions: ["by_exception_only"],
     url: "https://spdx.org/licenses/AFL-1.1.html",
@@ -619,9 +625,20 @@ license_kind {
 }
 
 license_kind {
+    name: "SPDX-license-identifier-FSFAP",
+    conditions: ["notice"],
+    url: "https://spdx.org/licenses/FSFAP",
+}
+
+license_kind {
     name: "SPDX-license-identifier-FTL",
     conditions: ["notice"],
     url: "https://spdx.org/licenses/FTL.html",
+}
+
+license_kind {
+    name: "SPDX-license-identifier-GFDL",
+    conditions: ["by_exception_only"],
 }
 
 license_kind {
@@ -938,6 +955,12 @@ license_kind {
 }
 
 license_kind {
+    name: "SPDX-license-identifier-MS-RL",
+    conditions: ["by_exception_only"],
+    url: "https://spdx.org/licenses/MS-RL.html",
+}
+
+license_kind {
     name: "SPDX-license-identifier-NCSA",
     conditions: ["notice"],
     url: "https://spdx.org/licenses/NCSA.html",
@@ -1178,6 +1201,14 @@ license_kind {
 license_kind {
     name: "legacy_by_exception_only",
     conditions: ["by_exception_only"],
+}
+
+license_kind {
+    name: "legacy_not_a_contribution",
+    conditions: [
+        "by_exception_only",
+        "not_allowed",
+    ],
 }
 
 license_kind {
