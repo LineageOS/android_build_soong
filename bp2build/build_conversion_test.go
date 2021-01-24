@@ -266,3 +266,68 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 		}
 	}
 }
+
+func TestModuleTypeBp2Build(t *testing.T) {
+	testCases := []struct {
+		moduleTypeUnderTest        string
+		moduleTypeUnderTestFactory android.ModuleFactory
+		bp                         string
+		expectedBazelTarget        string
+	}{
+		{
+			moduleTypeUnderTest:        "filegroup",
+			moduleTypeUnderTestFactory: android.FileGroupFactory,
+			bp: `filegroup {
+	name: "foo",
+	srcs: [],
+}`,
+			expectedBazelTarget: `filegroup(
+    name = "foo",
+    srcs = [
+    ],
+)`,
+		},
+		{
+			moduleTypeUnderTest:        "filegroup",
+			moduleTypeUnderTestFactory: android.FileGroupFactory,
+			bp: `filegroup {
+	name: "foo",
+	srcs: ["a", "b"],
+}`,
+			expectedBazelTarget: `filegroup(
+    name = "foo",
+    srcs = [
+        "a",
+        "b",
+    ],
+)`,
+		},
+	}
+
+	dir := "."
+	for _, testCase := range testCases {
+		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
+		ctx := android.NewTestContext(config)
+		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
+		ctx.RegisterForBazelConversion()
+
+		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
+		android.FailIfErrored(t, errs)
+		_, errs = ctx.ResolveDependencies(config)
+		android.FailIfErrored(t, errs)
+
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, true)[dir]
+		if g, w := len(bazelTargets), 1; g != w {
+			t.Fatalf("Expected %d bazel target, got %d", w, g)
+		}
+
+		actualBazelTarget := bazelTargets[0]
+		if actualBazelTarget.content != testCase.expectedBazelTarget {
+			t.Errorf(
+				"Expected generated Bazel target to be '%s', got '%s'",
+				testCase.expectedBazelTarget,
+				actualBazelTarget.content,
+			)
+		}
+	}
+}
