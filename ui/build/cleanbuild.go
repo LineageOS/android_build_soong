@@ -125,7 +125,6 @@ func installClean(ctx Context, config Config) {
 		productOut("ramdisk"),
 		productOut("debug_ramdisk"),
 		productOut("vendor-ramdisk"),
-		productOut("vendor-ramdisk-debug.cpio.gz"),
 		productOut("vendor_debug_ramdisk"),
 		productOut("test_harness_ramdisk"),
 		productOut("recovery"),
