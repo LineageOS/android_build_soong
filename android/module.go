@@ -15,6 +15,7 @@
 package android
 
 import (
+	"android/soong/bazel"
 	"fmt"
 	"os"
 	"path"
@@ -454,6 +455,7 @@ type Module interface {
 	InstallForceOS() (*OsType, *ArchType)
 	HideFromMake()
 	IsHideFromMake() bool
+	IsSkipInstall() bool
 	MakeUninstallable()
 	ReplacedByPrebuilt()
 	IsReplacedByPrebuilt() bool
@@ -488,6 +490,26 @@ type Module interface {
 	// TransitivePackagingSpecs returns the PackagingSpecs for this module and any transitive
 	// dependencies with dependency tags for which IsInstallDepNeeded() returns true.
 	TransitivePackagingSpecs() []PackagingSpec
+}
+
+type BazelTargetModule interface {
+	Module
+
+	BazelTargetModuleProperties() *bazel.BazelTargetModuleProperties
+}
+
+func InitBazelTargetModule(module BazelTargetModule) {
+	module.AddProperties(module.BazelTargetModuleProperties())
+	InitAndroidModule(module)
+}
+
+type BazelTargetModuleBase struct {
+	ModuleBase
+	Properties bazel.BazelTargetModuleProperties
+}
+
+func (btmb *BazelTargetModuleBase) BazelTargetModuleProperties() *bazel.BazelTargetModuleProperties {
+	return &btmb.Properties
 }
 
 // Qualified id for a module
@@ -1068,6 +1090,9 @@ type ModuleBase struct {
 	archProperties          [][]interface{}
 	customizableProperties  []interface{}
 
+	// Properties specific to the Blueprint to BUILD migration.
+	bazelTargetModuleProperties bazel.BazelTargetModuleProperties
+
 	// Information about all the properties on the module that contains visibility rules that need
 	// checking.
 	visibilityPropertyInfo []visibilityProperty
@@ -1396,6 +1421,12 @@ func (m *ModuleBase) IsHideFromMake() bool {
 // SkipInstall marks this variant to not create install rules when ctx.Install* are called.
 func (m *ModuleBase) SkipInstall() {
 	m.commonProperties.SkipInstall = true
+}
+
+// IsSkipInstall returns true if this variant is marked to not create install
+// rules when ctx.Install* are called.
+func (m *ModuleBase) IsSkipInstall() bool {
+	return m.commonProperties.SkipInstall
 }
 
 // Similar to HideFromMake, but if the AndroidMk entry would set
@@ -2425,10 +2456,6 @@ func (m *ModuleBase) MakeAsPlatform() {
 	m.commonProperties.Soc_specific = boolPtr(false)
 	m.commonProperties.Product_specific = boolPtr(false)
 	m.commonProperties.System_ext_specific = boolPtr(false)
-}
-
-func (m *ModuleBase) EnableNativeBridgeSupportByDefault() {
-	m.commonProperties.Native_bridge_supported = boolPtr(true)
 }
 
 func (m *ModuleBase) MakeAsSystemExt() {

@@ -57,6 +57,7 @@ func NewTestArchContext(config Config) *TestContext {
 type TestContext struct {
 	*Context
 	preArch, preDeps, postDeps, finalDeps []RegisterMutatorFunc
+	bp2buildMutators                      []RegisterMutatorFunc
 	NameResolver                          *NameResolver
 }
 
@@ -81,10 +82,25 @@ func (ctx *TestContext) FinalDepsMutators(f RegisterMutatorFunc) {
 	ctx.finalDeps = append(ctx.finalDeps, f)
 }
 
+// RegisterBp2BuildMutator registers a BazelTargetModule mutator for converting a module
+// type to the equivalent Bazel target.
+func (ctx *TestContext) RegisterBp2BuildMutator(moduleType string, m func(TopDownMutatorContext)) {
+	mutatorName := moduleType + "_bp2build"
+	f := func(ctx RegisterMutatorsContext) {
+		ctx.TopDown(mutatorName, m)
+	}
+	bp2buildMutators = append(bp2buildMutators, f)
+}
+
 func (ctx *TestContext) Register() {
 	registerMutators(ctx.Context.Context, ctx.preArch, ctx.preDeps, ctx.postDeps, ctx.finalDeps)
 
 	ctx.RegisterSingletonType("env", EnvSingleton)
+}
+
+// RegisterForBazelConversion prepares a test context for bp2build conversion.
+func (ctx *TestContext) RegisterForBazelConversion() {
+	RegisterMutatorsForBazelConversion(ctx.Context.Context, bp2buildMutators)
 }
 
 func (ctx *TestContext) ParseFileList(rootDir string, filePaths []string) (deps []string, errs []error) {
@@ -101,6 +117,12 @@ func (ctx *TestContext) ParseBlueprintsFiles(rootDir string) (deps []string, err
 
 func (ctx *TestContext) RegisterModuleType(name string, factory ModuleFactory) {
 	ctx.Context.RegisterModuleType(name, ModuleFactoryAdaptor(factory))
+}
+
+func (ctx *TestContext) RegisterSingletonModuleType(name string, factory SingletonModuleFactory) {
+	s, m := SingletonModuleFactoryAdaptor(name, factory)
+	ctx.RegisterSingletonType(name, s)
+	ctx.RegisterModuleType(name, m)
 }
 
 func (ctx *TestContext) RegisterSingletonType(name string, factory SingletonFactory) {
@@ -463,7 +485,14 @@ func AndroidMkDataForTest(t *testing.T, config Config, bpPath string, mod bluepr
 //
 // The build and source paths should be distinguishable based on their contents.
 func NormalizePathForTesting(path Path) string {
+	if path == nil {
+		return "<nil path>"
+	}
 	p := path.String()
+	// Allow absolute paths to /dev/
+	if strings.HasPrefix(p, "/dev/") {
+		return p
+	}
 	if w, ok := path.(WritablePath); ok {
 		rel, err := filepath.Rel(w.buildDir(), p)
 		if err != nil {

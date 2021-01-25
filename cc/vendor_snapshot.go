@@ -23,8 +23,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
 )
 
@@ -177,15 +175,15 @@ func isVendorProprietaryModule(ctx android.BaseModuleContext) bool {
 
 func isRecoveryProprietaryModule(ctx android.BaseModuleContext) bool {
 
-	// Any module in a vendor proprietary path is a vendor proprietary
+	// Any module in a recovery proprietary path is a recovery proprietary
 	// module.
 	if isRecoveryProprietaryPath(ctx.ModuleDir()) {
 		return true
 	}
 
-	// However if the module is not in a vendor proprietary path, it may
-	// still be a vendor proprietary module. This happens for cc modules
-	// that are excluded from the vendor snapshot, and it means that the
+	// However if the module is not in a recovery proprietary path, it may
+	// still be a recovery proprietary module. This happens for cc modules
+	// that are excluded from the recovery snapshot, and it means that the
 	// vendor has assumed control of the framework-provided module.
 
 	if c, ok := ctx.Module().(*Module); ok {
@@ -198,7 +196,7 @@ func isRecoveryProprietaryModule(ctx android.BaseModuleContext) bool {
 }
 
 // Determines if the module is a candidate for snapshot.
-func isSnapshotAware(m *Module, inProprietaryPath bool, apexInfo android.ApexInfo, image snapshotImage) bool {
+func isSnapshotAware(cfg android.DeviceConfig, m *Module, inProprietaryPath bool, apexInfo android.ApexInfo, image snapshotImage) bool {
 	if !m.Enabled() || m.Properties.HideFromMake {
 		return false
 	}
@@ -241,6 +239,10 @@ func isSnapshotAware(m *Module, inProprietaryPath bool, apexInfo android.ApexInf
 	if _, ok := m.linker.(*llndkHeadersDecorator); ok {
 		return false
 	}
+	// If we are using directed snapshot AND we have to exclude this module, skip this
+	if image.excludeFromDirectedSnapshot(cfg, m.BaseModuleName()) {
+		return false
+	}
 
 	// Libraries
 	if l, ok := m.linker.(snapshotLibraryInterface); ok {
@@ -260,7 +262,7 @@ func isSnapshotAware(m *Module, inProprietaryPath bool, apexInfo android.ApexInf
 			}
 		}
 		if l.static() {
-			return m.outputFile.Valid() && proptools.BoolDefault(image.available(m), true)
+			return m.outputFile.Valid() && !image.private(m)
 		}
 		if l.shared() {
 			if !m.outputFile.Valid() {
@@ -278,7 +280,7 @@ func isSnapshotAware(m *Module, inProprietaryPath bool, apexInfo android.ApexInf
 
 	// Binaries and Objects
 	if m.binary() || m.object() {
-		return m.outputFile.Valid() && proptools.BoolDefault(image.available(m), true)
+		return m.outputFile.Valid()
 	}
 
 	return false
@@ -522,20 +524,9 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 				ctx.Errorf("module %q in vendor proprietary path %q may not use \"exclude_from_vendor_snapshot: true\"", m.String(), moduleDir)
 				return
 			}
-			if Bool(c.image.available(m)) {
-				// Error: may not combine "vendor_available:
-				// true" with "exclude_from_vendor_snapshot:
-				// true".
-				ctx.Errorf(
-					"module %q may not use both \""+
-						c.name+
-						"_available: true\" and \"exclude_from_vendor_snapshot: true\"",
-					m.String())
-				return
-			}
 		}
 
-		if !isSnapshotAware(m, inProprietaryPath, apexInfo, c.image) {
+		if !isSnapshotAware(ctx.DeviceConfig(), m, inProprietaryPath, apexInfo, c.image) {
 			return
 		}
 

@@ -236,6 +236,10 @@ func (test *testDecorator) gtest() bool {
 	return BoolDefault(test.Properties.Gtest, true)
 }
 
+func (test *testDecorator) testBinary() bool {
+	return true
+}
+
 func (test *testDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	if !test.gtest() {
 		return flags

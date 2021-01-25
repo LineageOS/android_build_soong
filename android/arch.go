@@ -617,10 +617,14 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	}
 
 	// Some modules want compile_multilib: "first" to mean 32-bit, not 64-bit.
-	// This is used for Windows support and for HOST_PREFER_32_BIT=true support for Art modules.
+	// This is used for HOST_PREFER_32_BIT=true support for Art modules.
 	prefer32 := false
 	if base.prefer32 != nil {
 		prefer32 = base.prefer32(mctx, base, os)
+	}
+	if os == Windows {
+		// Windows builds always prefer 32-bit
+		prefer32 = true
 	}
 
 	// Determine the multilib selection for this module.

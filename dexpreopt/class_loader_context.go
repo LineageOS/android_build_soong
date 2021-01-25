@@ -488,25 +488,26 @@ func computeClassLoaderContextRec(clcs []*ClassLoaderContext) (string, string, a
 	return clcHost, clcTarget, paths
 }
 
-// JSON representation of <uses-library> paths on host and on device.
-type jsonLibraryPath struct {
-	Host   string
-	Device string
+// Class loader contexts that come from Make via JSON dexpreopt.config. JSON CLC representation is
+// slightly different: it uses a map of library names to their CLC (instead of a list of structs
+// that including the name, as in the Soong CLC representation). The difference is insubstantial, it
+// is caused only by the language differerences between Go and JSON.
+type jsonClassLoaderContext struct {
+	Host        string
+	Device      string
+	Subcontexts map[string]*jsonClassLoaderContext
 }
 
-// Class loader contexts that come from Make (via JSON dexpreopt.config) files have simpler
-// structure than Soong class loader contexts: they are flat maps from a <uses-library> name to its
-// on-host and on-device paths. There are no nested subcontexts. It is a limitation of the current
-// Make implementation.
-type jsonClassLoaderContext map[string]jsonLibraryPath
+// A map of <uses-library> name to its on-host and on-device build paths and CLC.
+type jsonClassLoaderContexts map[string]*jsonClassLoaderContext
 
-// A map from SDK version (represented with a JSON string) to JSON class loader context.
-type jsonClassLoaderContextMap map[string]jsonClassLoaderContext
+// A map from SDK version (represented with a JSON string) to JSON CLCs.
+type jsonClassLoaderContextMap map[string]map[string]*jsonClassLoaderContext
 
-// Convert JSON class loader context map to ClassLoaderContextMap.
+// Convert JSON CLC map to Soong represenation.
 func fromJsonClassLoaderContext(ctx android.PathContext, jClcMap jsonClassLoaderContextMap) ClassLoaderContextMap {
 	clcMap := make(ClassLoaderContextMap)
-	for sdkVerStr, clc := range jClcMap {
+	for sdkVerStr, clcs := range jClcMap {
 		sdkVer, ok := strconv.Atoi(sdkVerStr)
 		if ok != nil {
 			if sdkVerStr == "any" {
@@ -515,14 +516,21 @@ func fromJsonClassLoaderContext(ctx android.PathContext, jClcMap jsonClassLoader
 				android.ReportPathErrorf(ctx, "failed to parse SDK version in dexpreopt.config: '%s'", sdkVerStr)
 			}
 		}
-		for lib, path := range clc {
-			clcMap[sdkVer] = append(clcMap[sdkVer], &ClassLoaderContext{
-				Name:        lib,
-				Host:        constructPath(ctx, path.Host),
-				Device:      path.Device,
-				Subcontexts: nil,
-			})
-		}
+		clcMap[sdkVer] = fromJsonClassLoaderContextRec(ctx, clcs)
 	}
 	return clcMap
+}
+
+// Recursive helper for fromJsonClassLoaderContext.
+func fromJsonClassLoaderContextRec(ctx android.PathContext, jClcs map[string]*jsonClassLoaderContext) []*ClassLoaderContext {
+	clcs := make([]*ClassLoaderContext, 0, len(jClcs))
+	for lib, clc := range jClcs {
+		clcs = append(clcs, &ClassLoaderContext{
+			Name:        lib,
+			Host:        constructPath(ctx, clc.Host),
+			Device:      clc.Device,
+			Subcontexts: fromJsonClassLoaderContextRec(ctx, clc.Subcontexts),
+		})
+	}
+	return clcs
 }

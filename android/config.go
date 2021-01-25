@@ -1026,6 +1026,10 @@ func (c *config) HasMultilibConflict(arch ArchType) bool {
 	return c.multilibConflicts[arch]
 }
 
+func (c *config) PrebuiltHiddenApiDir(ctx PathContext) string {
+	return String(c.productVariables.PrebuiltHiddenApiDir)
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {
@@ -1256,6 +1260,27 @@ func (c *config) CFIEnabledForPath(path string) bool {
 	return HasAnyPrefix(path, c.productVariables.CFIIncludePaths)
 }
 
+func (c *config) MemtagHeapDisabledForPath(path string) bool {
+	if len(c.productVariables.MemtagHeapExcludePaths) == 0 {
+		return false
+	}
+	return HasAnyPrefix(path, c.productVariables.MemtagHeapExcludePaths)
+}
+
+func (c *config) MemtagHeapAsyncEnabledForPath(path string) bool {
+	if len(c.productVariables.MemtagHeapAsyncIncludePaths) == 0 {
+		return false
+	}
+	return HasAnyPrefix(path, c.productVariables.MemtagHeapAsyncIncludePaths)
+}
+
+func (c *config) MemtagHeapSyncEnabledForPath(path string) bool {
+	if len(c.productVariables.MemtagHeapSyncIncludePaths) == 0 {
+		return false
+	}
+	return HasAnyPrefix(path, c.productVariables.MemtagHeapSyncIncludePaths)
+}
+
 func (c *config) VendorConfig(name string) VendorConfig {
 	return soongconfig.Config(c.productVariables.VendorVars[name])
 }
@@ -1378,6 +1403,14 @@ func (c *deviceConfig) BoardSepolicyVers() string {
 
 func (c *deviceConfig) BoardReqdMaskPolicy() []string {
 	return c.config.productVariables.BoardReqdMaskPolicy
+}
+
+func (c *deviceConfig) DirectedVendorSnapshot() bool {
+	return c.config.productVariables.DirectedVendorSnapshot
+}
+
+func (c *deviceConfig) VendorSnapshotModules() map[string]bool {
+	return c.config.productVariables.VendorSnapshotModules
 }
 
 // The ConfiguredJarList struct provides methods for handling a list of (apex, jar) pairs.

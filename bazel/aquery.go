@@ -46,9 +46,9 @@ type KeyValuePair struct {
 // Represents a data structure containing one or more files. Depsets in Bazel are an efficient
 // data structure for storing large numbers of file paths.
 type depSetOfFiles struct {
-	Id int
-	// TODO(cparsons): Handle non-flat depsets.
-	DirectArtifactIds []int
+	Id                  int
+	DirectArtifactIds   []int
+	TransitiveDepSetIds []int
 }
 
 // action contains relevant portions of Bazel's aquery proto, Action.
@@ -83,11 +83,15 @@ type BuildStatement struct {
 // AqueryBuildStatements returns an array of BuildStatements which should be registered (and output
 // to a ninja file) to correspond one-to-one with the given action graph json proto (from a bazel
 // aquery invocation).
-func AqueryBuildStatements(aqueryJsonProto []byte) []BuildStatement {
+func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 	buildStatements := []BuildStatement{}
 
 	var aqueryResult actionGraphContainer
-	json.Unmarshal(aqueryJsonProto, &aqueryResult)
+	err := json.Unmarshal(aqueryJsonProto, &aqueryResult)
+
+	if err != nil {
+		return nil, err
+	}
 
 	pathFragments := map[int]pathFragment{}
 	for _, pathFragment := range aqueryResult.PathFragments {
@@ -97,28 +101,42 @@ func AqueryBuildStatements(aqueryJsonProto []byte) []BuildStatement {
 	for _, artifact := range aqueryResult.Artifacts {
 		artifactPath, err := expandPathFragment(artifact.PathFragmentId, pathFragments)
 		if err != nil {
-			// TODO(cparsons): Better error handling.
-			panic(err.Error())
+			return nil, err
 		}
 		artifactIdToPath[artifact.Id] = artifactPath
 	}
-	depsetIdToArtifactIds := map[int][]int{}
+
+	depsetIdToDepset := map[int]depSetOfFiles{}
 	for _, depset := range aqueryResult.DepSetOfFiles {
-		depsetIdToArtifactIds[depset.Id] = depset.DirectArtifactIds
+		depsetIdToDepset[depset.Id] = depset
 	}
+
+	// depsetIdToArtifactIdsCache is a memoization of depset flattening, because flattening
+	// may be an expensive operation.
+	depsetIdToArtifactIdsCache := map[int][]int{}
 
 	for _, actionEntry := range aqueryResult.Actions {
 		outputPaths := []string{}
 		for _, outputId := range actionEntry.OutputIds {
-			// TODO(cparsons): Validate the id is present.
-			outputPaths = append(outputPaths, artifactIdToPath[outputId])
+			outputPath, exists := artifactIdToPath[outputId]
+			if !exists {
+				return nil, fmt.Errorf("undefined outputId %d", outputId)
+			}
+			outputPaths = append(outputPaths, outputPath)
 		}
 		inputPaths := []string{}
 		for _, inputDepSetId := range actionEntry.InputDepSetIds {
-			// TODO(cparsons): Validate the id is present.
-			for _, inputId := range depsetIdToArtifactIds[inputDepSetId] {
-				// TODO(cparsons): Validate the id is present.
-				inputPaths = append(inputPaths, artifactIdToPath[inputId])
+			inputArtifacts, err :=
+				artifactIdsFromDepsetId(depsetIdToDepset, depsetIdToArtifactIdsCache, inputDepSetId)
+			if err != nil {
+				return nil, err
+			}
+			for _, inputId := range inputArtifacts {
+				inputPath, exists := artifactIdToPath[inputId]
+				if !exists {
+					return nil, fmt.Errorf("undefined input artifactId %d", inputId)
+				}
+				inputPaths = append(inputPaths, inputPath)
 			}
 		}
 		buildStatement := BuildStatement{
@@ -130,7 +148,29 @@ func AqueryBuildStatements(aqueryJsonProto []byte) []BuildStatement {
 		buildStatements = append(buildStatements, buildStatement)
 	}
 
-	return buildStatements
+	return buildStatements, nil
+}
+
+func artifactIdsFromDepsetId(depsetIdToDepset map[int]depSetOfFiles,
+	depsetIdToArtifactIdsCache map[int][]int, depsetId int) ([]int, error) {
+	if result, exists := depsetIdToArtifactIdsCache[depsetId]; exists {
+		return result, nil
+	}
+	if depset, exists := depsetIdToDepset[depsetId]; exists {
+		result := depset.DirectArtifactIds
+		for _, childId := range depset.TransitiveDepSetIds {
+			childArtifactIds, err :=
+				artifactIdsFromDepsetId(depsetIdToDepset, depsetIdToArtifactIdsCache, childId)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, childArtifactIds...)
+		}
+		depsetIdToArtifactIdsCache[depsetId] = result
+		return result, nil
+	} else {
+		return nil, fmt.Errorf("undefined input depsetId %d", depsetId)
+	}
 }
 
 func expandPathFragment(id int, pathFragmentsMap map[int]pathFragment) (string, error) {
@@ -140,7 +180,7 @@ func expandPathFragment(id int, pathFragmentsMap map[int]pathFragment) (string, 
 	for currId > 0 {
 		currFragment, ok := pathFragmentsMap[currId]
 		if !ok {
-			return "", fmt.Errorf("undefined path fragment id '%s'", currId)
+			return "", fmt.Errorf("undefined path fragment id %d", currId)
 		}
 		labels = append([]string{currFragment.Label}, labels...)
 		currId = currFragment.ParentId

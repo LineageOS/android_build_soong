@@ -20,25 +20,54 @@ import (
 )
 
 func init() {
-	// Most Android source files are not clang-tidy clean yet.
-	// Global tidy checks include only google*, performance*,
-	// and misc-macro-parentheses, but not google-readability*
-	// or google-runtime-references.
+	// Many clang-tidy checks like altera-*, llvm-*, modernize-*
+	// are not designed for Android source code or creating too
+	// many (false-positive) warnings. The global default tidy checks
+	// should include only tested groups and exclude known noisy checks.
+	// See https://clang.llvm.org/extra/clang-tidy/checks/list.html
 	pctx.VariableFunc("TidyDefaultGlobalChecks", func(ctx android.PackageVarContext) string {
 		if override := ctx.Config().Getenv("DEFAULT_GLOBAL_TIDY_CHECKS"); override != "" {
 			return override
 		}
-		return strings.Join([]string{
+		checks := strings.Join([]string{
 			"-*",
-			"bugprone*",
+			"abseil-*",
+			"android-*",
+			"bugprone-*",
+			"cert-*",
 			"clang-diagnostic-unused-command-line-argument",
-			"google*",
-			"misc-macro-parentheses",
-			"performance*",
+			"google-*",
+			"misc-*",
+			"performance-*",
+			"portability-*",
 			"-bugprone-narrowing-conversions",
 			"-google-readability*",
 			"-google-runtime-references",
+			"-misc-no-recursion",
+			"-misc-non-private-member-variables-in-classes",
+			"-misc-unused-parameters",
+			// the following groups are excluded by -*
+			// -altera-*
+			// -cppcoreguidelines-*
+			// -darwin-*
+			// -fuchsia-*
+			// -hicpp-*
+			// -llvm-*
+			// -llvmlibc-*
+			// -modernize-*
+			// -mpi-*
+			// -objc-*
+			// -readability-*
+			// -zircon-*
 		}, ",")
+		// clang-analyzer-* checks are too slow to be in the default for WITH_TIDY=1.
+		// nightly builds add CLANG_ANALYZER_CHECKS=1 to run those checks.
+		// Some test code have clang-diagnostic-padded warnings that cannot be
+		// suppressed, but only by disabling clang-analyzer-optin.performance.*.
+		if ctx.Config().IsEnvTrue("CLANG_ANALYZER_CHECKS") {
+			checks += ",clang-analyzer-*,-clang-analyzer-optin.performance.*"
+		}
+		return checks
 	})
 
 	// There are too many clang-tidy warnings in external and vendor projects.

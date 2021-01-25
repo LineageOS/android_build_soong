@@ -20,6 +20,7 @@ import (
 	"android/soong/android"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -30,8 +31,22 @@ type filesystem struct {
 	android.ModuleBase
 	android.PackagingBase
 
+	properties filesystemProperties
+
 	output     android.OutputPath
 	installDir android.InstallPath
+}
+
+type filesystemProperties struct {
+	// When set to true, sign the image with avbtool. Default is false.
+	Use_avb *bool
+
+	// Path to the private key that avbtool will use to sign this filesystem image.
+	// TODO(jiyong): allow apex_key to be specified here
+	Avb_private_key *string `android:"path"`
+
+	// Hash and signing algorithm for avbtool. Default is SHA256_RSA4096.
+	Avb_algorithm *string
 }
 
 // android_filesystem packages a set of modules and their transitive dependencies into a filesystem
@@ -41,6 +56,7 @@ type filesystem struct {
 // partitions like system.img. For example, cc_library modules are placed under ./lib[64] directory.
 func filesystemFactory() android.Module {
 	module := &filesystem{}
+	module.AddProperties(&module.properties)
 	android.InitPackageModule(module)
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
@@ -72,21 +88,12 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		FlagWithArg("-d ", rootDir.String()). // zipsync wipes this. No need to clear.
 		Input(zipFile)
 
-	mkuserimg := ctx.Config().HostToolPath(ctx, "mkuserimg_mke2fs")
-	propFile := android.PathForModuleOut(ctx, "prop").OutputPath
-	// TODO(jiyong): support more filesystem types other than ext4
-	propsText := fmt.Sprintf(`mount_point=system\n`+
-		`fs_type=ext4\n`+
-		`use_dynamic_partition_size=true\n`+
-		`ext_mkuserimg=%s\n`, mkuserimg.String())
-	builder.Command().Text("echo").Flag("-e").Flag(`"` + propsText + `"`).
-		Text(">").Output(propFile).
-		Implicit(mkuserimg)
-
+	propFile, toolDeps := f.buildPropFile(ctx)
 	f.output = android.PathForModuleOut(ctx, f.installFileName()).OutputPath
 	builder.Command().BuiltTool("build_image").
 		Text(rootDir.String()). // input directory
 		Input(propFile).
+		Implicits(toolDeps).
 		Output(f.output).
 		Text(rootDir.String()) // directory where to find fs_config_files|dirs
 
@@ -95,6 +102,56 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	f.installDir = android.PathForModuleInstall(ctx, "etc")
 	ctx.InstallFile(f.installDir, f.installFileName(), f.output)
+}
+
+func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.OutputPath, toolDeps android.Paths) {
+	type prop struct {
+		name  string
+		value string
+	}
+
+	var props []prop
+	var deps android.Paths
+	addStr := func(name string, value string) {
+		props = append(props, prop{name, value})
+	}
+	addPath := func(name string, path android.Path) {
+		props = append(props, prop{name, path.String()})
+		deps = append(deps, path)
+	}
+
+	// TODO(jiyong): support more filesystem types other than ext4
+	addStr("fs_type", "ext4")
+	addStr("mount_point", "system")
+	addStr("use_dynamic_partition_size", "true")
+	addPath("ext_mkuserimg", ctx.Config().HostToolPath(ctx, "mkuserimg_mke2fs"))
+	// b/177813163 deps of the host tools have to be added. Remove this.
+	for _, t := range []string{"mke2fs", "e2fsdroid", "tune2fs"} {
+		deps = append(deps, ctx.Config().HostToolPath(ctx, t))
+	}
+
+	if proptools.Bool(f.properties.Use_avb) {
+		addStr("avb_hashtree_enable", "true")
+		addPath("avb_avbtool", ctx.Config().HostToolPath(ctx, "avbtool"))
+		algorithm := proptools.StringDefault(f.properties.Avb_algorithm, "SHA256_RSA4096")
+		addStr("avb_algorithm", algorithm)
+		key := android.PathForModuleSrc(ctx, proptools.String(f.properties.Avb_private_key))
+		addPath("avb_key_path", key)
+		addStr("avb_add_hashtree_footer_args", "--do_not_generate_fec")
+		addStr("partition_name", f.Name())
+	}
+
+	propFile = android.PathForModuleOut(ctx, "prop").OutputPath
+	builder := android.NewRuleBuilder(pctx, ctx)
+	builder.Command().Text("rm").Flag("-rf").Output(propFile)
+	for _, p := range props {
+		builder.Command().
+			Text("echo").Flag("-e").
+			Flag(`"` + p.name + "=" + p.value + `"`).
+			Text(">>").Output(propFile)
+	}
+	builder.Build("build_filesystem_prop", fmt.Sprintf("Creating filesystem props for %s", f.BaseModuleName()))
+	return propFile, deps
 }
 
 var _ android.AndroidMkEntriesProvider = (*filesystem)(nil)

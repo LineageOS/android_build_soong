@@ -190,19 +190,6 @@ var neverallowTests = []struct {
 		},
 	},
 	{
-		name: "dependency on updatable-media",
-		fs: map[string][]byte{
-			"Android.bp": []byte(`
-				java_library {
-					name: "needs_updatable_media",
-					libs: ["updatable-media"],
-				}`),
-		},
-		expectedErrors: []string{
-			"updatable-media includes private APIs. Use updatable_media_stubs instead.",
-		},
-	},
-	{
 		name: "java_device_for_host",
 		fs: map[string][]byte{
 			"Android.bp": []byte(`

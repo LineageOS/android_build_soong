@@ -139,10 +139,6 @@ type variableProperties struct {
 			Enabled *bool
 		}
 
-		Experimental_mte struct {
-			Cflags []string `android:"arch_variant"`
-		} `android:"arch_variant"`
-
 		Native_coverage struct {
 			Src          *string  `android:"arch_variant"`
 			Srcs         []string `android:"arch_variant"`
@@ -264,7 +260,9 @@ type productVariables struct {
 
 	DisableScudo *bool `json:",omitempty"`
 
-	Experimental_mte *bool `json:",omitempty"`
+	MemtagHeapExcludePaths      []string `json:",omitempty"`
+	MemtagHeapAsyncIncludePaths []string `json:",omitempty"`
+	MemtagHeapSyncIncludePaths  []string `json:",omitempty"`
 
 	VendorPath    *string `json:",omitempty"`
 	OdmPath       *string `json:",omitempty"`
@@ -310,6 +308,9 @@ type productVariables struct {
 
 	VndkUseCoreVariant         *bool `json:",omitempty"`
 	VndkSnapshotBuildArtifacts *bool `json:",omitempty"`
+
+	DirectedVendorSnapshot bool            `json:",omitempty"`
+	VendorSnapshotModules  map[string]bool `json:",omitempty"`
 
 	BoardVendorSepolicyDirs      []string `json:",omitempty"`
 	BoardOdmSepolicyDirs         []string `json:",omitempty"`
@@ -366,6 +367,8 @@ type productVariables struct {
 	BoardKernelModuleInterfaceVersions []string `json:",omitempty"`
 
 	BoardMoveRecoveryResourcesToVendorBoot *bool `json:",omitempty"`
+
+	PrebuiltHiddenApiDir *string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
@@ -437,13 +440,15 @@ func VariableMutator(mctx BottomUpMutatorContext) {
 
 	variableValues := reflect.ValueOf(a.variableProperties).Elem().FieldByName("Product_variables")
 
+	productVariables := reflect.ValueOf(mctx.Config().productVariables)
+
 	for i := 0; i < variableValues.NumField(); i++ {
 		variableValue := variableValues.Field(i)
 		name := variableValues.Type().Field(i).Name
 		property := "product_variables." + proptools.PropertyNameForField(name)
 
 		// Check that the variable was set for the product
-		val := reflect.ValueOf(mctx.Config().productVariables).FieldByName(name)
+		val := productVariables.FieldByName(name)
 		if !val.IsValid() || val.Kind() != reflect.Ptr || val.IsNil() {
 			continue
 		}

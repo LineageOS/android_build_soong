@@ -256,11 +256,27 @@ type BaseProperties struct {
 	// Deprecated. true is the default, false is invalid.
 	Clang *bool `android:"arch_variant"`
 
-	// Minimum sdk version supported when compiling against the ndk. Setting this property causes
-	// two variants to be built, one for the platform and one for apps.
+	// The API level that this module is built against. The APIs of this API level will be
+	// visible at build time, but use of any APIs newer than min_sdk_version will render the
+	// module unloadable on older devices.  In the future it will be possible to weakly-link new
+	// APIs, making the behavior match Java: such modules will load on older devices, but
+	// calling new APIs on devices that do not support them will result in a crash.
+	//
+	// This property has the same behavior as sdk_version does for Java modules. For those
+	// familiar with Android Gradle, the property behaves similarly to how compileSdkVersion
+	// does for Java code.
+	//
+	// In addition, setting this property causes two variants to be built, one for the platform
+	// and one for apps.
 	Sdk_version *string
 
-	// Minimum sdk version that the artifact should support when it runs as part of mainline modules(APEX).
+	// Minimum OS API level supported by this C or C++ module. This property becomes the value
+	// of the __ANDROID_API__ macro. When the C or C++ module is included in an APEX or an APK,
+	// this property is also used to ensure that the min_sdk_version of the containing module is
+	// not older (i.e. less) than this module's min_sdk_version. When not set, this property
+	// defaults to the value of sdk_version.  When this is set to "apex_inherit", this tracks
+	// min_sdk_version of the containing APEX. When the module
+	// is not built for an APEX, "apex_inherit" defaults to sdk_version.
 	Min_sdk_version *string
 
 	// If true, always create an sdk variant and don't create a platform variant.
@@ -408,9 +424,22 @@ type VendorProperties struct {
 	// IsLLNDK is set to true for the vendor variant of a cc_library module that has LLNDK stubs.
 	IsLLNDK bool `blueprint:"mutated"`
 
-	// IsLLNDKPrivate is set to true for the vendor variant of a cc_library module that has LLNDK
-	// stubs and also sets llndk.private: true.
-	IsLLNDKPrivate bool `blueprint:"mutated"`
+	// IsVNDKUsingCoreVariant is true for VNDK modules if the global VndkUseCoreVariant option is
+	// set and the module is not listed in VndkMustUseVendorVariantList.
+	IsVNDKUsingCoreVariant bool `blueprint:"mutated"`
+
+	// IsVNDKCore is set if a VNDK module does not set the vndk.support_system_process property.
+	IsVNDKCore bool `blueprint:"mutated"`
+
+	// IsVNDKSP is set if a VNDK module sets the vndk.support_system_process property.
+	IsVNDKSP bool `blueprint:"mutated"`
+
+	// IsVNDKPrivate is set if a VNDK module sets the vndk.private property or an LLNDK
+	// module sets the llndk.private property.
+	IsVNDKPrivate bool `blueprint:"mutated"`
+
+	// IsVNDKProduct is set if a VNDK module sets the product_available property.
+	IsVNDKProduct bool `blueprint:"mutated"`
 }
 
 // ModuleContextIntf is an interface (on a module context helper) consisting of functions related
@@ -420,6 +449,7 @@ type VendorProperties struct {
 type ModuleContextIntf interface {
 	static() bool
 	staticBinary() bool
+	testBinary() bool
 	header() bool
 	binary() bool
 	object() bool
@@ -427,6 +457,8 @@ type ModuleContextIntf interface {
 	canUseSdk() bool
 	useSdk() bool
 	sdkVersion() string
+	minSdkVersion() string
+	isSdkVariant() bool
 	useVndk() bool
 	isNdk(config android.Config) bool
 	IsLlndk() bool
@@ -455,6 +487,7 @@ type ModuleContextIntf interface {
 	nativeCoverage() bool
 	directlyInAnyApex() bool
 	isPreventInstall() bool
+	isCfiAssemblySupportEnabled() bool
 }
 
 type ModuleContext interface {
@@ -1010,10 +1043,6 @@ func (c *Module) Init() android.Module {
 		c.AddProperties(feature.props()...)
 	}
 
-	c.Prefer32(func(ctx android.BaseModuleContext, base *android.ModuleBase, os android.OsType) bool {
-		// Windows builds always prefer 32-bit
-		return os == android.Windows
-	})
 	android.InitAndroidArchModule(c, c.hod, c.multilib)
 	android.InitApexModule(c)
 	android.InitSdkAwareModule(c)
@@ -1044,7 +1073,8 @@ func (c *Module) UseVndk() bool {
 }
 
 func (c *Module) canUseSdk() bool {
-	return c.Os() == android.Android && !c.UseVndk() && !c.InRamdisk() && !c.InRecovery() && !c.InVendorRamdisk()
+	return c.Os() == android.Android && c.Target().NativeBridge == android.NativeBridgeDisabled &&
+		!c.UseVndk() && !c.InRamdisk() && !c.InRecovery() && !c.InVendorRamdisk()
 }
 
 func (c *Module) UseSdk() bool {
@@ -1069,7 +1099,7 @@ func (c *Module) IsLlndk() bool {
 
 // IsLlndkPublic returns true only for LLNDK (public) libs.
 func (c *Module) IsLlndkPublic() bool {
-	return c.VendorProperties.IsLLNDK && !c.VendorProperties.IsLLNDKPrivate
+	return c.VendorProperties.IsLLNDK && !c.VendorProperties.IsVNDKPrivate
 }
 
 // isImplementationForLLNDKPublic returns true for any variant of a cc_library that has LLNDK stubs
@@ -1229,6 +1259,11 @@ func (c *Module) XrefCcFiles() android.Paths {
 	return c.kytheFiles
 }
 
+func (c *Module) isCfiAssemblySupportEnabled() bool {
+	return c.sanitize != nil &&
+		Bool(c.sanitize.Properties.Sanitize.Config.Cfi_assembly_support)
+}
+
 type baseModuleContext struct {
 	android.BaseModuleContext
 	moduleContextImpl
@@ -1259,6 +1294,10 @@ func (ctx *moduleContextImpl) static() bool {
 
 func (ctx *moduleContextImpl) staticBinary() bool {
 	return ctx.mod.staticBinary()
+}
+
+func (ctx *moduleContextImpl) testBinary() bool {
+	return ctx.mod.testBinary()
 }
 
 func (ctx *moduleContextImpl) header() bool {
@@ -1293,6 +1332,29 @@ func (ctx *moduleContextImpl) sdkVersion() string {
 		return String(ctx.mod.Properties.Sdk_version)
 	}
 	return ""
+}
+
+func (ctx *moduleContextImpl) minSdkVersion() string {
+	ver := ctx.mod.MinSdkVersion()
+	if ver == "apex_inherit" && !ctx.isForPlatform() {
+		ver = ctx.apexSdkVersion().String()
+	}
+	if ver == "apex_inherit" || ver == "" {
+		ver = ctx.sdkVersion()
+	}
+	// Also make sure that minSdkVersion is not greater than sdkVersion, if they are both numbers
+	sdkVersionInt, err := strconv.Atoi(ctx.sdkVersion())
+	minSdkVersionInt, err2 := strconv.Atoi(ver)
+	if err == nil && err2 == nil {
+		if sdkVersionInt < minSdkVersionInt {
+			return strconv.Itoa(sdkVersionInt)
+		}
+	}
+	return ver
+}
+
+func (ctx *moduleContextImpl) isSdkVariant() bool {
+	return ctx.mod.IsSdkVariant()
 }
 
 func (ctx *moduleContextImpl) useVndk() bool {
@@ -1388,6 +1450,10 @@ func (ctx *moduleContextImpl) directlyInAnyApex() bool {
 
 func (ctx *moduleContextImpl) isPreventInstall() bool {
 	return ctx.mod.Properties.PreventInstall
+}
+
+func (ctx *moduleContextImpl) isCfiAssemblySupportEnabled() bool {
+	return ctx.mod.isCfiAssemblySupportEnabled()
 }
 
 func newBaseModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Module {
@@ -2318,8 +2384,16 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 			return false
 		}
 
+		// These dependencies are not excercised at runtime. Tracking these will give us
+		// false negative, so skip.
 		depTag := ctx.OtherModuleDependencyTag(child)
 		if IsHeaderDepTag(depTag) {
+			return false
+		}
+		if depTag == staticVariantTag {
+			return false
+		}
+		if depTag == stubImplDepTag {
 			return false
 		}
 
@@ -2330,22 +2404,24 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 			return true
 		}
 
-		if to.isVndkSp() || to.IsLlndk() || Bool(to.VendorProperties.Double_loadable) {
+		// The happy path. Keep tracking dependencies until we hit a non double-loadable
+		// one.
+		if Bool(to.VendorProperties.Double_loadable) {
+			return true
+		}
+
+		if to.isVndkSp() || to.IsLlndk() {
 			return false
 		}
 
-		var stringPath []string
-		for _, m := range ctx.GetWalkPath() {
-			stringPath = append(stringPath, m.Name())
-		}
 		ctx.ModuleErrorf("links a library %q which is not LL-NDK, "+
 			"VNDK-SP, or explicitly marked as 'double_loadable:true'. "+
-			"(dependency: %s)", ctx.OtherModuleName(to), strings.Join(stringPath, " -> "))
+			"Dependency list: %s", ctx.OtherModuleName(to), ctx.GetPathString(false))
 		return false
 	}
 	if module, ok := ctx.Module().(*Module); ok {
 		if lib, ok := module.linker.(*libraryDecorator); ok && lib.shared() {
-			if lib.hasLLNDKStubs() || Bool(module.VendorProperties.Double_loadable) {
+			if lib.hasLLNDKStubs() {
 				ctx.WalkDeps(check)
 			}
 		}
@@ -2957,6 +3033,15 @@ func (c *Module) staticBinary() bool {
 		staticBinary() bool
 	}); ok {
 		return static.staticBinary()
+	}
+	return false
+}
+
+func (c *Module) testBinary() bool {
+	if test, ok := c.linker.(interface {
+		testBinary() bool
+	}); ok {
+		return test.testBinary()
 	}
 	return false
 }

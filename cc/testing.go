@@ -110,6 +110,16 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 		}
 
 		toolchain_library {
+			name: "libunwind",
+			defaults: ["linux_bionic_supported"],
+			vendor_available: true,
+			product_available: true,
+			recovery_available: true,
+			native_bridge_supported: true,
+			src: "",
+		}
+
+		toolchain_library {
 			name: "libclang_rt.fuzzer-arm-android",
 			vendor_available: true,
 			product_available: true,
@@ -444,6 +454,14 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			sdk_version: "current",
 			stl: "none",
 			system_shared_libs: [],
+		}
+
+		cc_library_static {
+			name: "note_memtag_heap_async",
+		}
+
+		cc_library_static {
+			name: "note_memtag_heap_sync",
 		}
 	`
 

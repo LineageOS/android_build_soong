@@ -107,12 +107,7 @@ func testSdkContext(bp string, fs map[string][]byte, extraOsTypes []android.OsTy
 	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
 
 	// from java package
-	java.RegisterJavaBuildComponents(ctx)
-	java.RegisterAppBuildComponents(ctx)
-	java.RegisterSdkLibraryBuildComponents(ctx)
-	java.RegisterPrebuiltApisBuildComponents(ctx)
-	java.RegisterStubsBuildComponents(ctx)
-	java.RegisterSystemModulesBuildComponents(ctx)
+	java.RegisterRequiredBuildComponentsForTest(ctx)
 
 	// from cc package
 	cc.RegisterRequiredBuildComponentsForTest(ctx)

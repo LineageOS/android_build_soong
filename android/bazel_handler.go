@@ -371,7 +371,11 @@ func (context *bazelContext) InvokeBazel() error {
 	var cqueryOutput string
 	var err error
 
-	err = os.Mkdir(absolutePath(context.intermediatesDir()), 0777)
+	intermediatesDirPath := absolutePath(context.intermediatesDir())
+	if _, err := os.Stat(intermediatesDirPath); os.IsNotExist(err) {
+		err = os.Mkdir(intermediatesDirPath, 0777)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -441,7 +445,10 @@ func (context *bazelContext) InvokeBazel() error {
 		return err
 	}
 
-	context.buildStatements = bazel.AqueryBuildStatements([]byte(aqueryOutput))
+	context.buildStatements, err = bazel.AqueryBuildStatements([]byte(aqueryOutput))
+	if err != nil {
+		return err
+	}
 
 	// Issue a build command of the phony root to generate symlink forests for dependencies of the
 	// Bazel build. This is necessary because aquery invocations do not generate this symlink forest,

@@ -25,6 +25,18 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+// =================================================================================================
+// WIP - see http://b/177892522 for details
+//
+// The build support for boot images is currently being migrated away from singleton to modules so
+// the documentation may not be strictly accurate. Rather than update the documentation at every
+// step which will create a lot of churn the changes that have been made will be listed here and the
+// documentation will be updated once it is closer to the final result.
+//
+// Changes:
+// 1) dex_bootjars is now a singleton module and not a plain singleton.
+// =================================================================================================
+
 // This comment describes:
 //   1. ART boot images in general (their types, structure, file layout, etc.)
 //   2. build system support for boot images
@@ -124,7 +136,7 @@ import (
 // The primary ART boot image needs to be compiled with one dex2oat invocation that depends on DEX
 // jars for the core libraries. Framework boot image extension needs to be compiled with one dex2oat
 // invocation that depends on the primary ART boot image and all bootclasspath DEX jars except the
-// Core libraries.
+// core libraries as they are already part of the primary ART boot image.
 //
 // 2.1. Libraries that go in the boot images
 // -----------------------------------------
@@ -339,20 +351,24 @@ func (image *bootImageVariant) imageLocations() (imageLocations []string) {
 	return append(imageLocations, dexpreopt.PathToLocation(image.images, image.target.Arch.ArchType))
 }
 
-func dexpreoptBootJarsFactory() android.Singleton {
-	return &dexpreoptBootJars{}
+func dexpreoptBootJarsFactory() android.SingletonModule {
+	m := &dexpreoptBootJars{}
+	android.InitAndroidModule(m)
+	return m
 }
 
 func RegisterDexpreoptBootJarsComponents(ctx android.RegistrationContext) {
-	ctx.RegisterSingletonType("dex_bootjars", dexpreoptBootJarsFactory)
+	ctx.RegisterSingletonModuleType("dex_bootjars", dexpreoptBootJarsFactory)
 }
 
-func skipDexpreoptBootJars(ctx android.PathContext) bool {
-	return dexpreopt.GetGlobalConfig(ctx).DisablePreopt
+func SkipDexpreoptBootJars(ctx android.PathContext) bool {
+	return dexpreopt.GetGlobalConfig(ctx).DisablePreoptBootImages
 }
 
-// Singleton for generating boot image build rules.
+// Singleton module for generating boot image build rules.
 type dexpreoptBootJars struct {
+	android.SingletonModuleBase
+
 	// Default boot image config (currently always the Framework boot image extension). It should be
 	// noted that JIT-Zygote builds use ART APEX image instead of the Framework boot image extension,
 	// but the switch is handled not here, but in the makefiles (triggered with
@@ -371,7 +387,7 @@ type dexpreoptBootJars struct {
 
 // Accessor function for the apex package. Returns nil if dexpreopt is disabled.
 func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]android.OutputPaths {
-	if skipDexpreoptBootJars(ctx) {
+	if SkipDexpreoptBootJars(ctx) {
 		return nil
 	}
 	// Include dexpreopt files for the primary boot image.
@@ -385,9 +401,16 @@ func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]and
 	return files
 }
 
+// Provide paths to boot images for use by modules that depend upon them.
+//
+// The build rules are created in GenerateSingletonBuildActions().
+func (d *dexpreoptBootJars) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Placeholder for now.
+}
+
 // Generate build rules for boot images.
-func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
-	if skipDexpreoptBootJars(ctx) {
+func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonContext) {
+	if SkipDexpreoptBootJars(ctx) {
 		return
 	}
 	if dexpreopt.GetCachedGlobalSoongConfig(ctx) == nil {
@@ -422,16 +445,19 @@ func (d *dexpreoptBootJars) GenerateBuildActions(ctx android.SingletonContext) {
 // Note that the same jar may occur in multiple modules.
 // This logic is tested in the apex package to avoid import cycle apex <-> java.
 func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, module android.Module) (int, android.Path) {
-	// Ignore any module that is not listed in the boot image configuration.
 	name := ctx.ModuleName(module)
+
+	// Strip a prebuilt_ prefix so that this can access the dex jar from a prebuilt module.
+	name = android.RemoveOptionalPrebuiltPrefix(name)
+
+	// Ignore any module that is not listed in the boot image configuration.
 	index := image.modules.IndexOfJar(name)
 	if index == -1 {
 		return -1, nil
 	}
 
-	// It is an error if a module configured in the boot image does not support
-	// accessing the dex jar. This is safe because every module that has the same
-	// name has to have the same module type.
+	// It is an error if a module configured in the boot image does not support accessing the dex jar.
+	// This is safe because every module that has the same name has to have the same module type.
 	jar, hasJar := module.(interface{ DexJarBuildPath() android.Path })
 	if !hasJar {
 		ctx.Errorf("module %q configured in boot image %q does not support accessing dex jar", module, image.name)
@@ -622,8 +648,10 @@ func buildBootImageVariant(ctx android.SingletonContext, image *bootImageVariant
 		cmd.FlagWithInput("--profile-file=", profile)
 	}
 
-	if global.DirtyImageObjects.Valid() {
-		cmd.FlagWithInput("--dirty-image-objects=", global.DirtyImageObjects.Path())
+	dirtyImageFile := "frameworks/base/config/dirty-image-objects"
+	dirtyImagePath := android.ExistentPathForSource(ctx, dirtyImageFile)
+	if dirtyImagePath.Valid() {
+		cmd.FlagWithInput("--dirty-image-objects=", dirtyImagePath.Path())
 	}
 
 	if image.extends != nil {
@@ -724,7 +752,7 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImageConfig, 
 	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
-	if global.DisableGenerateProfile || ctx.Config().UnbundledBuild() {
+	if global.DisableGenerateProfile {
 		return nil
 	}
 	profile := ctx.Config().Once(bootImageProfileRuleKey, func() interface{} {
