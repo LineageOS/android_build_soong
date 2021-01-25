@@ -430,14 +430,24 @@ soong_config_module_type {
 
 soong_config_string_variable {
     name: "board",
-    values: ["soc_a", "soc_b"],
+    values: ["soc_a", "soc_b", "soc_c"],
 }
 ```
 
 This example describes a new `acme_cc_defaults` module type that extends the
 `cc_defaults` module type, with three additional conditionals based on
 variables `board`, `feature` and `width`, which can affect properties `cflags`
-and `srcs`.
+and `srcs`. Additionally, each conditional will contain a `conditions_default`
+property can affect `cflags` and `srcs` in the following conditions:
+
+* bool variable (e.g. `feature`): the variable is unspecified or not set to a true value
+* value variable (e.g. `width`): the variable is unspecified
+* string variable (e.g. `board`): the variable is unspecified or the variable is set to a string unused in the
+given module. For example, with `board`, if the `board`
+conditional contains the properties `soc_a` and `conditions_default`, when
+board=soc_b, the `cflags` and `srcs` values under `conditions_default` will be
+used. To specify that no properties should be amended for `soc_b`, you can set
+`soc_b: {},`.
 
 The values of the variables can be set from a product's `BoardConfig.mk` file:
 ```
@@ -445,6 +455,7 @@ SOONG_CONFIG_NAMESPACES += acme
 SOONG_CONFIG_acme += \
     board \
     feature \
+    width \
 
 SOONG_CONFIG_acme_board := soc_a
 SOONG_CONFIG_acme_feature := true
@@ -473,12 +484,21 @@ acme_cc_defaults {
             soc_b: {
                 cflags: ["-DSOC_B"],
             },
+            conditions_default: {
+                cflags: ["-DSOC_DEFAULT"],
+            },
         },
         feature: {
             cflags: ["-DFEATURE"],
+            conditions_default: {
+                cflags: ["-DFEATURE_DEFAULT"],
+            },
         },
         width: {
             cflags: ["-DWIDTH=%s"],
+            conditions_default: {
+                cflags: ["-DWIDTH=DEFAULT"],
+            },
         },
     },
 }
@@ -490,8 +510,37 @@ cc_library {
 }
 ```
 
-With the `BoardConfig.mk` snippet above, libacme_foo would build with
-cflags "-DGENERIC -DSOC_A -DFEATURE -DWIDTH=200".
+With the `BoardConfig.mk` snippet above, `libacme_foo` would build with
+`cflags: "-DGENERIC -DSOC_A -DFEATURE -DWIDTH=200"`.
+
+Alternatively, with `DefaultBoardConfig.mk`:
+
+```
+SOONG_CONFIG_NAMESPACES += acme
+SOONG_CONFIG_acme += \
+    board \
+    feature \
+    width \
+
+SOONG_CONFIG_acme_feature := false
+```
+
+then `libacme_foo` would build with `cflags: "-DGENERIC -DSOC_DEFAULT -DFEATURE_DEFAULT -DSIZE=DEFAULT"`.
+
+Alternatively, with `DefaultBoardConfig.mk`:
+
+```
+SOONG_CONFIG_NAMESPACES += acme
+SOONG_CONFIG_acme += \
+    board \
+    feature \
+    width \
+
+SOONG_CONFIG_acme_board := soc_c
+```
+
+then `libacme_foo` would build with `cflags: "-DGENERIC -DSOC_DEFAULT
+-DFEATURE_DEFAULT -DSIZE=DEFAULT"`.
 
 `soong_config_module_type` modules will work best when used to wrap defaults
 modules (`cc_defaults`, `java_defaults`, etc.), which can then be referenced

@@ -1052,6 +1052,11 @@ license_kind {
 }
 
 license_kind {
+	name: "legacy_permissive",
+	conditions: ["permissive"],
+}
+
+license_kind {
 	name: "legacy_notice",
 	conditions: ["notice"],
 }

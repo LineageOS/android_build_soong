@@ -248,6 +248,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	rust.RegisterRequiredBuildComponentsForTest(ctx)
+	java.RegisterRequiredBuildComponentsForTest(ctx)
 
 	ctx.RegisterModuleType("cc_test", cc.TestFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
@@ -256,14 +257,6 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("platform_compat_config", java.PlatformCompatConfigFactory)
 	ctx.RegisterModuleType("sh_binary", sh.ShBinaryFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	java.RegisterJavaBuildComponents(ctx)
-	java.RegisterSystemModulesBuildComponents(ctx)
-	java.RegisterAppBuildComponents(ctx)
-	java.RegisterAppImportBuildComponents(ctx)
-	java.RegisterAppSetBuildComponents(ctx)
-	java.RegisterRuntimeResourceOverlayBuildComponents(ctx)
-	java.RegisterSdkLibraryBuildComponents(ctx)
-	java.RegisterPrebuiltApisBuildComponents(ctx)
 	ctx.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
 	ctx.RegisterModuleType("bpf", bpf.BpfFactory)
 
@@ -5680,7 +5673,7 @@ func TestSymlinksFromApexToSystemRequiredModuleNames(t *testing.T) {
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := prebuilt_myotherlib.myapex\n")
 	ensureNotContains(t, androidMk, "LOCAL_MODULE := myotherlib.myapex\n")
 	// `myapex` should have `myotherlib` in its required line, not `prebuilt_myotherlib`
-	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += mylib.myapex myotherlib apex_manifest.pb.myapex apex_pubkey.myapex\n")
+	ensureContains(t, androidMk, "LOCAL_REQUIRED_MODULES += mylib.myapex:64 myotherlib:64 apex_manifest.pb.myapex apex_pubkey.myapex\n")
 }
 
 func TestApexWithJniLibs(t *testing.T) {
@@ -5957,17 +5950,13 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	android.RegisterPrebuiltMutators(ctx)
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
-	java.RegisterJavaBuildComponents(ctx)
-	java.RegisterSystemModulesBuildComponents(ctx)
-	java.RegisterAppBuildComponents(ctx)
-	java.RegisterDexpreoptBootJarsComponents(ctx)
+	java.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
 
 	ctx.Register()
 
-	_ = dexpreopt.GlobalSoongConfigForTests(config)
 	dexpreopt.RegisterToolModulesForTest(ctx)
 	pathCtx := android.PathContextForTesting(config)
 	dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
@@ -6164,9 +6153,7 @@ func testApexPermittedPackagesRules(t *testing.T, errmsg, bp string, apexBootJar
 	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
-	java.RegisterJavaBuildComponents(ctx)
-	java.RegisterSystemModulesBuildComponents(ctx)
-	java.RegisterDexpreoptBootJarsComponents(ctx)
+	java.RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)

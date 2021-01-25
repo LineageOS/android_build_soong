@@ -95,6 +95,29 @@ func prebuiltApisFilesForLibs(apiLevels []string, sdkLibs []string) map[string][
 	return fs
 }
 
+// Register build components provided by this package that are needed by tests.
+//
+// In particular this must register all the components that are used in the `Android.bp` snippet
+// returned by GatherRequiredDepsForTest()
+func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
+	RegisterAARBuildComponents(ctx)
+	RegisterAppBuildComponents(ctx)
+	RegisterAppImportBuildComponents(ctx)
+	RegisterAppSetBuildComponents(ctx)
+	RegisterDexpreoptBootJarsComponents(ctx)
+	RegisterDocsBuildComponents(ctx)
+	RegisterGenRuleBuildComponents(ctx)
+	RegisterJavaBuildComponents(ctx)
+	RegisterPrebuiltApisBuildComponents(ctx)
+	RegisterRuntimeResourceOverlayBuildComponents(ctx)
+	RegisterSdkLibraryBuildComponents(ctx)
+	RegisterStubsBuildComponents(ctx)
+	RegisterSystemModulesBuildComponents(ctx)
+}
+
+// Gather the module definitions needed by tests that depend upon code from this package.
+//
+// Returns an `Android.bp` snippet that defines the modules that are needed by this package.
 func GatherRequiredDepsForTest() string {
 	var bp string
 
@@ -180,6 +203,13 @@ func GatherRequiredDepsForTest() string {
 			}
 		`, extra)
 	}
+
+	// Make sure that the dex_bootjars singleton module is instantiated for the tests.
+	bp += `
+		dex_bootjars {
+			name: "dex_bootjars",
+		}
+`
 
 	return bp
 }
