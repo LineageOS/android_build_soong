@@ -146,6 +146,7 @@ type baseCompiler struct {
 	relative string
 	path     android.InstallPath
 	location installLocation
+	sanitize *sanitize
 
 	coverageOutputZipFile android.OptionalPath
 	distFile              android.OptionalPath
