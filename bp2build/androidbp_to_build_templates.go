@@ -25,10 +25,10 @@ load("//build/bazel/queryview_rules:soong_module.bzl", "soong_module")
 	// for expanding more attributes.
 	soongModuleTarget = `soong_module(
     name = "%s",
-    module_name = "%s",
-    module_type = "%s",
-    module_variant = "%s",
-    module_deps = %s,
+    soong_module_name = "%s",
+    soong_module_type = "%s",
+    soong_module_variant = "%s",
+    soong_module_deps = %s,
 %s)`
 
 	bazelTarget = `%s(
@@ -38,7 +38,7 @@ load("//build/bazel/queryview_rules:soong_module.bzl", "soong_module")
 	// A simple provider to mark and differentiate Soong module rule shims from
 	// regular Bazel rules. Every Soong module rule shim returns a
 	// SoongModuleInfo provider, and can only depend on rules returning
-	// SoongModuleInfo in the `module_deps` attribute.
+	// SoongModuleInfo in the `soong_module_deps` attribute.
 	providersBzl = `SoongModuleInfo = provider(
     fields = {
         "name": "Name of module",
@@ -57,19 +57,19 @@ load("//build/bazel/queryview_rules:providers.bzl", "SoongModuleInfo")
 def _generic_soong_module_impl(ctx):
     return [
         SoongModuleInfo(
-            name = ctx.attr.module_name,
-            type = ctx.attr.module_type,
-            variant = ctx.attr.module_variant,
+            name = ctx.attr.soong_module_name,
+            type = ctx.attr.soong_module_type,
+            variant = ctx.attr.soong_module_variant,
         ),
     ]
 
 generic_soong_module = rule(
     implementation = _generic_soong_module_impl,
     attrs = {
-        "module_name": attr.string(mandatory = True),
-        "module_type": attr.string(mandatory = True),
-        "module_variant": attr.string(),
-        "module_deps": attr.label_list(providers = [SoongModuleInfo]),
+        "soong_module_name": attr.string(mandatory = True),
+        "soong_module_type": attr.string(mandatory = True),
+        "soong_module_variant": attr.string(),
+        "soong_module_deps": attr.label_list(providers = [SoongModuleInfo]),
     },
 )
 
@@ -89,20 +89,20 @@ def _is_supported_type(value):
     else:
         return False
 
-# soong_module is a macro that supports arbitrary kwargs, and uses module_type to
+# soong_module is a macro that supports arbitrary kwargs, and uses soong_module_type to
 # expand to the right underlying shim.
-def soong_module(name, module_type, **kwargs):
-    soong_module_rule = soong_module_rule_map.get(module_type)
+def soong_module(name, soong_module_type, **kwargs):
+    soong_module_rule = soong_module_rule_map.get(soong_module_type)
 
     if soong_module_rule == None:
         # This module type does not have an existing rule to map to, so use the
         # generic_soong_module rule instead.
         generic_soong_module(
             name = name,
-            module_type = module_type,
-            module_name = kwargs.pop("module_name", ""),
-            module_variant = kwargs.pop("module_variant", ""),
-            module_deps = kwargs.pop("module_deps", []),
+            soong_module_type = soong_module_type,
+            soong_module_name = kwargs.pop("soong_module_name", ""),
+            soong_module_variant = kwargs.pop("soong_module_variant", ""),
+            soong_module_deps = kwargs.pop("soong_module_deps", []),
         )
     else:
         supported_kwargs = dict()
