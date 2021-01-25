@@ -16,6 +16,7 @@ package bp2build
 
 import (
 	"android/soong/android"
+	"android/soong/genrule"
 	"testing"
 )
 
@@ -299,6 +300,54 @@ func TestModuleTypeBp2Build(t *testing.T) {
     srcs = [
         "a",
         "b",
+    ],
+)`,
+		},
+		{
+			moduleTypeUnderTest:        "genrule",
+			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    tool_files: [":foo.tool"],
+    cmd: "$(location :foo.tool) arg $(in) $(out)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "$(location :foo.tool) arg $(SRCS) $(OUTS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+    tools = [
+        ":foo.tool",
+    ],
+)`,
+		},
+		{
+			moduleTypeUnderTest:        "genrule",
+			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    tools: [":foo.tool"],
+    cmd: "$(location :foo.tool) --out-dir=$(genDir) $(in)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "$(location :foo.tool) --out-dir=$(GENDIR) $(SRCS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+    tools = [
+        ":foo.tool",
     ],
 )`,
 		},
