@@ -46,6 +46,8 @@ func RegisterGenruleBuildComponents(ctx android.RegistrationContext) {
 	ctx.FinalDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.BottomUp("genrule_tool_deps", toolDepsMutator).Parallel()
 	})
+
+	android.RegisterBp2BuildMutator("genrule", bp2buildMutator)
 }
 
 var (
@@ -771,6 +773,70 @@ type genRuleProperties struct {
 	// names of the output files that will be generated
 	Out []string `android:"arch_variant"`
 }
+
+type bazelGenruleAttributes struct {
+	Name  *string
+	Srcs  []string
+	Outs  []string
+	Tools []string
+	Cmd   string
+}
+
+type bazelGenrule struct {
+	android.BazelTargetModuleBase
+	bazelGenruleAttributes
+}
+
+func BazelGenruleFactory() android.Module {
+	module := &bazelGenrule{}
+	module.AddProperties(&module.bazelGenruleAttributes)
+	android.InitBazelTargetModule(module)
+	return module
+}
+
+func bp2buildMutator(ctx android.TopDownMutatorContext) {
+	if m, ok := ctx.Module().(*Module); ok {
+		name := "__bp2build__" + m.Name()
+		// Replace in and out variables with $< and $@
+		var cmd string
+		if m.properties.Cmd != nil {
+			cmd = strings.Replace(*m.properties.Cmd, "$(in)", "$(SRCS)", -1)
+			cmd = strings.Replace(cmd, "$(out)", "$(OUTS)", -1)
+			cmd = strings.Replace(cmd, "$(genDir)", "$(GENDIR)", -1)
+		}
+
+		// The Out prop is not in an immediately accessible field
+		// in the Module struct, so use GetProperties and cast it
+		// to the known struct prop.
+		var outs []string
+		for _, propIntf := range m.GetProperties() {
+			if props, ok := propIntf.(*genRuleProperties); ok {
+				outs = props.Out
+				break
+			}
+		}
+
+		// Bazel only has the "tools" attribute.
+		tools := append(m.properties.Tools, m.properties.Tool_files...)
+
+		// Create the BazelTargetModule.
+		ctx.CreateModule(BazelGenruleFactory, &bazelGenruleAttributes{
+			Name:  proptools.StringPtr(name),
+			Srcs:  m.properties.Srcs,
+			Outs:  outs,
+			Cmd:   cmd,
+			Tools: tools,
+		}, &bazel.BazelTargetModuleProperties{
+			Rule_class: "genrule",
+		})
+	}
+}
+
+func (m *bazelGenrule) Name() string {
+	return m.BaseModuleName()
+}
+
+func (m *bazelGenrule) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
 
 var Bool = proptools.Bool
 var String = proptools.String
