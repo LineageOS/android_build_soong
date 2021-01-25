@@ -103,6 +103,14 @@ func (t *toolchainLinuxX86) Name() string {
 	return "x86"
 }
 
+func (toolchainLinuxX86) LibclangRuntimeLibraryArch() string {
+	return "i386"
+}
+
+func (toolchainLinuxX8664) LibclangRuntimeLibraryArch() string {
+	return "x86_64"
+}
+
 func (t *toolchainLinuxX86) RustTriple() string {
 	return "i686-unknown-linux-gnu"
 }
