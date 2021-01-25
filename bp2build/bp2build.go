@@ -28,9 +28,9 @@ func Codegen(ctx CodegenContext) {
 
 	ruleShims := CreateRuleShims(android.ModuleTypeFactories())
 
-	buildToTargets := GenerateSoongModuleTargets(ctx.Context(), true)
+	buildToTargets := GenerateSoongModuleTargets(ctx.Context(), ctx.mode)
 
-	filesToWrite := CreateBazelFiles(ruleShims, buildToTargets, true)
+	filesToWrite := CreateBazelFiles(ruleShims, buildToTargets, ctx.mode)
 	for _, f := range filesToWrite {
 		if err := writeFile(outputDir, ctx, f); err != nil {
 			fmt.Errorf("Failed to write %q (dir %q) due to %q", f.Basename, f.Dir, err)
