@@ -11,6 +11,7 @@ bootstrap_go_package {
     deps: [
         "soong-android",
         "soong-bazel",
+        "soong-genrule",
     ],
     testSrcs: [
         "build_conversion_test.go",
