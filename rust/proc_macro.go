@@ -51,6 +51,8 @@ func NewProcMacro(hod android.HostOrDeviceSupported) (*Module, *procMacroDecorat
 		flagExporter: NewFlagExporter(),
 	}
 
+	// Don't sanitize procMacros
+	module.sanitize = nil
 	module.compiler = procMacro
 
 	return module, procMacro
