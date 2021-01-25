@@ -393,9 +393,233 @@ func TestInvalidPathFragmentId(t *testing.T) {
 	assertError(t, err, "undefined path fragment id 3")
 }
 
+func TestTransitiveInputDepsets(t *testing.T) {
+	// The input aquery for this test comes from a proof-of-concept starlark rule which registers
+	// a single action with many inputs given via a deep depset.
+	const inputString = `
+{
+  "artifacts": [{
+    "id": 1,
+    "pathFragmentId": 1
+  }, {
+    "id": 2,
+    "pathFragmentId": 7
+  }, {
+    "id": 3,
+    "pathFragmentId": 8
+  }, {
+    "id": 4,
+    "pathFragmentId": 9
+  }, {
+    "id": 5,
+    "pathFragmentId": 10
+  }, {
+    "id": 6,
+    "pathFragmentId": 11
+  }, {
+    "id": 7,
+    "pathFragmentId": 12
+  }, {
+    "id": 8,
+    "pathFragmentId": 13
+  }, {
+    "id": 9,
+    "pathFragmentId": 14
+  }, {
+    "id": 10,
+    "pathFragmentId": 15
+  }, {
+    "id": 11,
+    "pathFragmentId": 16
+  }, {
+    "id": 12,
+    "pathFragmentId": 17
+  }, {
+    "id": 13,
+    "pathFragmentId": 18
+  }, {
+    "id": 14,
+    "pathFragmentId": 19
+  }, {
+    "id": 15,
+    "pathFragmentId": 20
+  }, {
+    "id": 16,
+    "pathFragmentId": 21
+  }, {
+    "id": 17,
+    "pathFragmentId": 22
+  }, {
+    "id": 18,
+    "pathFragmentId": 23
+  }, {
+    "id": 19,
+    "pathFragmentId": 24
+  }, {
+    "id": 20,
+    "pathFragmentId": 25
+  }, {
+    "id": 21,
+    "pathFragmentId": 26
+  }],
+  "actions": [{
+    "targetId": 1,
+    "actionKey": "3b826d17fadbbbcd8313e456b90ec47c078c438088891dd45b4adbcd8889dc50",
+    "mnemonic": "Action",
+    "configurationId": 1,
+    "arguments": ["/bin/bash", "-c", "touch bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_out"],
+    "inputDepSetIds": [1],
+    "outputIds": [21],
+    "primaryOutputId": 21
+  }],
+  "depSetOfFiles": [{
+    "id": 3,
+    "directArtifactIds": [1, 2, 3, 4, 5]
+  }, {
+    "id": 4,
+    "directArtifactIds": [6, 7, 8, 9, 10]
+  }, {
+    "id": 2,
+    "transitiveDepSetIds": [3, 4],
+    "directArtifactIds": [11, 12, 13, 14, 15]
+  }, {
+    "id": 5,
+    "directArtifactIds": [16, 17, 18, 19]
+  }, {
+    "id": 1,
+    "transitiveDepSetIds": [2, 5],
+    "directArtifactIds": [20]
+  }],
+  "pathFragments": [{
+    "id": 6,
+    "label": "bazel-out"
+  }, {
+    "id": 5,
+    "label": "sourceroot",
+    "parentId": 6
+  }, {
+    "id": 4,
+    "label": "k8-fastbuild",
+    "parentId": 5
+  }, {
+    "id": 3,
+    "label": "bin",
+    "parentId": 4
+  }, {
+    "id": 2,
+    "label": "testpkg",
+    "parentId": 3
+  }, {
+    "id": 1,
+    "label": "test_1",
+    "parentId": 2
+  }, {
+    "id": 7,
+    "label": "test_2",
+    "parentId": 2
+  }, {
+    "id": 8,
+    "label": "test_3",
+    "parentId": 2
+  }, {
+    "id": 9,
+    "label": "test_4",
+    "parentId": 2
+  }, {
+    "id": 10,
+    "label": "test_5",
+    "parentId": 2
+  }, {
+    "id": 11,
+    "label": "test_6",
+    "parentId": 2
+  }, {
+    "id": 12,
+    "label": "test_7",
+    "parentId": 2
+  }, {
+    "id": 13,
+    "label": "test_8",
+    "parentId": 2
+  }, {
+    "id": 14,
+    "label": "test_9",
+    "parentId": 2
+  }, {
+    "id": 15,
+    "label": "test_10",
+    "parentId": 2
+  }, {
+    "id": 16,
+    "label": "test_11",
+    "parentId": 2
+  }, {
+    "id": 17,
+    "label": "test_12",
+    "parentId": 2
+  }, {
+    "id": 18,
+    "label": "test_13",
+    "parentId": 2
+  }, {
+    "id": 19,
+    "label": "test_14",
+    "parentId": 2
+  }, {
+    "id": 20,
+    "label": "test_15",
+    "parentId": 2
+  }, {
+    "id": 21,
+    "label": "test_16",
+    "parentId": 2
+  }, {
+    "id": 22,
+    "label": "test_17",
+    "parentId": 2
+  }, {
+    "id": 23,
+    "label": "test_18",
+    "parentId": 2
+  }, {
+    "id": 24,
+    "label": "test_19",
+    "parentId": 2
+  }, {
+    "id": 25,
+    "label": "test_root",
+    "parentId": 2
+  }, {
+    "id": 26,
+    "label": "test_out",
+    "parentId": 2
+  }]
+}`
+
+	actualbuildStatements, _ := AqueryBuildStatements([]byte(inputString))
+	// Inputs for the action are test_{i} from 1 to 20, and test_root. These inputs
+	// are given via a deep depset, but the depset is flattened when returned as a
+	// BuildStatement slice.
+	inputPaths := []string{"bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_root"}
+	for i := 1; i < 20; i++ {
+		inputPaths = append(inputPaths, fmt.Sprintf("bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_%d", i))
+	}
+	expectedBuildStatements := []BuildStatement{
+		BuildStatement{
+			Command:     "/bin/bash -c touch bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_out",
+			OutputPaths: []string{"bazel-out/sourceroot/k8-fastbuild/bin/testpkg/test_out"},
+			InputPaths:  inputPaths,
+			Mnemonic:    "Action",
+		},
+	}
+	assertBuildStatements(t, expectedBuildStatements, actualbuildStatements)
+}
+
 func assertError(t *testing.T, err error, expected string) {
-	if err == nil || err.Error() != expected {
-		t.Errorf("expected error '%s', but got: %s", expected, err)
+	if err == nil {
+		t.Errorf("expected error '%s', but got no error", expected)
+	} else if err.Error() != expected {
+		t.Errorf("expected error '%s', but got: %s", expected, err.Error())
 	}
 }
 
