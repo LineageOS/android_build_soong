@@ -42,6 +42,10 @@ func init() {
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
 		ctx.BottomUp("rust_stdlinkage", LibstdMutator).Parallel()
 		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
+
+	})
+	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("rust_sanitizers", rustSanitizerRuntimeMutator).Parallel()
 	})
 	pctx.Import("android/soong/rust/config")
 	pctx.ImportAs("cc_config", "android/soong/cc/config")
@@ -97,6 +101,7 @@ type Module struct {
 	compiler         compiler
 	coverage         *coverage
 	clippy           *clippy
+	sanitize         *sanitize
 	cachedToolchain  config.Toolchain
 	sourceProvider   SourceProvider
 	subAndroidMkOnce map[SubAndroidMkProvider]bool
@@ -125,7 +130,9 @@ func (mod *Module) SetHideFromMake() {
 }
 
 func (mod *Module) SanitizePropDefined() bool {
-	return false
+	// Because compiler is not set for some Rust modules where sanitize might be set, check that compiler is also not
+	// nil since we need compiler to actually sanitize.
+	return mod.sanitize != nil && mod.compiler != nil
 }
 
 func (mod *Module) IsDependencyRoot() bool {
@@ -420,6 +427,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&cc.CoverageProperties{},
 		&cc.RustBindgenClangProperties{},
 		&ClippyProperties{},
+		&SanitizeProperties{},
 	)
 
 	android.InitDefaultsModule(module)
@@ -548,6 +556,9 @@ func (mod *Module) Init() android.Module {
 	if mod.sourceProvider != nil {
 		mod.AddProperties(mod.sourceProvider.SourceProviderProps()...)
 	}
+	if mod.sanitize != nil {
+		mod.AddProperties(mod.sanitize.props()...)
+	}
 
 	android.InitAndroidArchModule(mod, mod.hod, mod.multilib)
 	android.InitApexModule(mod)
@@ -566,6 +577,7 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 	module := newBaseModule(hod, multilib)
 	module.coverage = &coverage{}
 	module.clippy = &clippy{}
+	module.sanitize = &sanitize{}
 	return module
 }
 
@@ -680,6 +692,9 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if mod.clippy != nil {
 		flags, deps = mod.clippy.flags(ctx, flags, deps)
 	}
+	if mod.sanitize != nil {
+		flags, deps = mod.sanitize.flags(ctx, flags, deps)
+	}
 
 	// SourceProvider needs to call GenerateSource() before compiler calls
 	// compile() so it can provide the source. A SourceProvider has
@@ -721,6 +736,10 @@ func (mod *Module) deps(ctx DepsContext) Deps {
 
 	if mod.coverage != nil {
 		deps = mod.coverage.deps(ctx, deps)
+	}
+
+	if mod.sanitize != nil {
+		deps = mod.sanitize.deps(ctx, deps)
 	}
 
 	deps.Rlibs = android.LastUniqueStrings(deps.Rlibs)
@@ -782,6 +801,9 @@ type autoDeppable interface {
 func (mod *Module) begin(ctx BaseModuleContext) {
 	if mod.coverage != nil {
 		mod.coverage.begin(ctx)
+	}
+	if mod.sanitize != nil {
+		mod.sanitize.begin(ctx)
 	}
 }
 

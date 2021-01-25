@@ -80,6 +80,10 @@ func (t *toolchainX86) Supported() bool {
 	return true
 }
 
+func (toolchainX86) LibclangRuntimeLibraryArch() string {
+	return "i686"
+}
+
 func x86ToolchainFactory(arch android.Arch) Toolchain {
 	toolchainRustFlags := []string{
 		"${config.X86ToolchainRustFlags}",
