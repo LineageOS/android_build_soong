@@ -452,26 +452,22 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		fileName = library.getStem(ctx) + ctx.toolchain().RlibSuffix()
 		outputFile = android.PathForModuleOut(ctx, fileName)
 
-		outputs := TransformSrctoRlib(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
-		library.coverageFile = outputs.coverageFile
+		TransformSrctoRlib(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
 	} else if library.dylib() {
 		fileName = library.getStem(ctx) + ctx.toolchain().DylibSuffix()
 		outputFile = android.PathForModuleOut(ctx, fileName)
 
-		outputs := TransformSrctoDylib(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
-		library.coverageFile = outputs.coverageFile
+		TransformSrctoDylib(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
 	} else if library.static() {
 		fileName = library.getStem(ctx) + ctx.toolchain().StaticLibSuffix()
 		outputFile = android.PathForModuleOut(ctx, fileName)
 
-		outputs := TransformSrctoStatic(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
-		library.coverageFile = outputs.coverageFile
+		TransformSrctoStatic(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
 	} else if library.shared() {
 		fileName = library.sharedLibFilename(ctx)
 		outputFile = android.PathForModuleOut(ctx, fileName)
 
-		outputs := TransformSrctoShared(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
-		library.coverageFile = outputs.coverageFile
+		TransformSrctoShared(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
 	}
 
 	if !library.rlib() && library.stripper.NeedsStrip(ctx) {
@@ -479,15 +475,6 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		library.stripper.StripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile)
 		library.strippedOutputFile = android.OptionalPathForPath(strippedOutputFile)
 	}
-
-	var coverageFiles android.Paths
-	if library.coverageFile != nil {
-		coverageFiles = append(coverageFiles, library.coverageFile)
-	}
-	if len(deps.coverageFiles) > 0 {
-		coverageFiles = append(coverageFiles, deps.coverageFiles...)
-	}
-	library.coverageOutputZipFile = TransformCoverageFilesToZip(ctx, coverageFiles, library.getStem(ctx))
 
 	if library.rlib() || library.dylib() {
 		library.flagExporter.exportLinkDirs(deps.linkDirs...)
