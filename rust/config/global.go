@@ -49,7 +49,9 @@ var (
 		"-C relocation-model=pic",
 	}
 
-	deviceGlobalRustFlags = []string{}
+	deviceGlobalRustFlags = []string{
+		"-C panic=abort",
+	}
 
 	deviceGlobalLinkFlags = []string{
 		// Prepend the lld flags from cc_config so we stay in sync with cc
