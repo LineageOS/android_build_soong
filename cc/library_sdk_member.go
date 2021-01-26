@@ -130,6 +130,10 @@ func (mt *librarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, 
 		pbm.AddProperty("vendor_available", true)
 	}
 
+	if proptools.Bool(ccModule.VendorProperties.Odm_available) {
+		pbm.AddProperty("odm_available", true)
+	}
+
 	if proptools.Bool(ccModule.VendorProperties.Product_available) {
 		pbm.AddProperty("product_available", true)
 	}
