@@ -54,6 +54,8 @@ func init() {
 func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
 	ctx.TopDown("apex_vndk", apexVndkMutator).Parallel()
 	ctx.BottomUp("apex_vndk_deps", apexVndkDepsMutator).Parallel()
+	ctx.BottomUp("prebuilt_apex_select_source", prebuiltSelectSourceMutator).Parallel()
+	ctx.BottomUp("deapexer_select_source", deapexerSelectSourceMutator).Parallel()
 }
 
 func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {

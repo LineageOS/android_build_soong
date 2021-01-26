@@ -2220,10 +2220,17 @@ func (b *baseModuleContext) getDirectDepInternal(name string, tag blueprint.Depe
 	}
 	var deps []dep
 	b.VisitDirectDepsBlueprint(func(module blueprint.Module) {
-		if aModule, _ := module.(Module); aModule != nil && aModule.base().BaseModuleName() == name {
-			returnedTag := b.bp.OtherModuleDependencyTag(aModule)
+		if aModule, _ := module.(Module); aModule != nil {
+			if aModule.base().BaseModuleName() == name {
+				returnedTag := b.bp.OtherModuleDependencyTag(aModule)
+				if tag == nil || returnedTag == tag {
+					deps = append(deps, dep{aModule, returnedTag})
+				}
+			}
+		} else if b.bp.OtherModuleName(module) == name {
+			returnedTag := b.bp.OtherModuleDependencyTag(module)
 			if tag == nil || returnedTag == tag {
-				deps = append(deps, dep{aModule, returnedTag})
+				deps = append(deps, dep{module, returnedTag})
 			}
 		}
 	})
