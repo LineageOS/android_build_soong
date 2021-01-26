@@ -291,8 +291,6 @@ type PathDeps struct {
 	depGeneratedHeaders   android.Paths
 	depSystemIncludePaths android.Paths
 
-	coverageFiles android.Paths
-
 	CrtBegin android.OptionalPath
 	CrtEnd   android.OptionalPath
 
@@ -515,15 +513,7 @@ func (mod *Module) OutputFile() android.OptionalPath {
 
 func (mod *Module) CoverageFiles() android.Paths {
 	if mod.compiler != nil {
-		if !mod.compiler.nativeCoverage() {
-			return android.Paths{}
-		}
-		if library, ok := mod.compiler.(*libraryDecorator); ok {
-			if library.coverageFile != nil {
-				return android.Paths{library.coverageFile}
-			}
-			return android.Paths{}
-		}
+		return android.Paths{}
 	}
 	panic(fmt.Errorf("CoverageFiles called on non-library module: %q", mod.BaseModuleName()))
 }
@@ -840,7 +830,6 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					ctx.ModuleErrorf("mod %q not an rlib library", depName+rustDep.Properties.SubName)
 					return
 				}
-				depPaths.coverageFiles = append(depPaths.coverageFiles, rustDep.CoverageFiles()...)
 				directRlibDeps = append(directRlibDeps, rustDep)
 				mod.Properties.AndroidMkRlibs = append(mod.Properties.AndroidMkRlibs, depName+rustDep.Properties.SubName)
 			case procMacroDepTag:
@@ -916,7 +905,6 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, exportedInfo.SystemIncludeDirs...)
 				depPaths.depClangFlags = append(depPaths.depClangFlags, exportedInfo.Flags...)
 				depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, exportedInfo.GeneratedHeaders...)
-				depPaths.coverageFiles = append(depPaths.coverageFiles, ccDep.CoverageFiles()...)
 				directStaticLibDeps = append(directStaticLibDeps, ccDep)
 				mod.Properties.AndroidMkStaticLibs = append(mod.Properties.AndroidMkStaticLibs, depName)
 			case cc.IsSharedDepTag(depTag):
