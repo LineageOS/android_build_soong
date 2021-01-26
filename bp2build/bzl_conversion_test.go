@@ -172,7 +172,7 @@ func TestGenerateSoongModuleBzl(t *testing.T) {
 			content: "irrelevant",
 		},
 	}
-	files := CreateBazelFiles(ruleShims, make(map[string][]BazelTarget), false)
+	files := CreateBazelFiles(ruleShims, make(map[string][]BazelTarget), QueryView)
 
 	var actualSoongModuleBzl BazelFile
 	for _, f := range files {
