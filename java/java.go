@@ -29,6 +29,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/cc"
 	"android/soong/dexpreopt"
 	"android/soong/java/config"
 	"android/soong/tradefed"
@@ -2387,6 +2388,9 @@ type testProperties struct {
 
 	// Test options.
 	Test_options TestOptions
+
+	// Names of modules containing JNI libraries that should be installed alongside the test.
+	Jni_libs []string
 }
 
 type hostTestProperties struct {
@@ -2448,6 +2452,13 @@ func (j *TestHost) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
+	if len(j.testProperties.Jni_libs) > 0 {
+		for _, target := range ctx.MultiTargets() {
+			sharedLibVariations := append(target.Variations(), blueprint.Variation{Mutator: "link", Variation: "shared"})
+			ctx.AddFarVariationDependencies(sharedLibVariations, jniLibTag, j.testProperties.Jni_libs...)
+		}
+	}
+
 	j.deps(ctx)
 }
 
@@ -2461,6 +2472,29 @@ func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	ctx.VisitDirectDepsWithTag(dataNativeBinsTag, func(dep android.Module) {
 		j.data = append(j.data, android.OutputFileForModule(ctx, dep, ""))
+	})
+
+	ctx.VisitDirectDepsWithTag(jniLibTag, func(dep android.Module) {
+		sharedLibInfo := ctx.OtherModuleProvider(dep, cc.SharedLibraryInfoProvider).(cc.SharedLibraryInfo)
+		if sharedLibInfo.SharedLibrary != nil {
+			// Copy to an intermediate output directory to append "lib[64]" to the path,
+			// so that it's compatible with the default rpath values.
+			var relPath string
+			if sharedLibInfo.Target.Arch.ArchType.Multilib == "lib64" {
+				relPath = filepath.Join("lib64", sharedLibInfo.SharedLibrary.Base())
+			} else {
+				relPath = filepath.Join("lib", sharedLibInfo.SharedLibrary.Base())
+			}
+			relocatedLib := android.PathForModuleOut(ctx, "relocated").Join(ctx, relPath)
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.Cp,
+				Input:  sharedLibInfo.SharedLibrary,
+				Output: relocatedLib,
+			})
+			j.data = append(j.data, relocatedLib)
+		} else {
+			ctx.PropertyErrorf("jni_libs", "%q of type %q is not supported", dep.Name(), ctx.OtherModuleType(dep))
+		}
 	})
 
 	j.Library.GenerateAndroidBuildActions(ctx)
