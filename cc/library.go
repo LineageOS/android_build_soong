@@ -1110,6 +1110,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		UnstrippedSharedLibrary: library.unstrippedOutputFile,
 		CoverageSharedLibrary:   library.coverageOutputFile,
 		StaticAnalogue:          staticAnalogue,
+		Target:                  ctx.Target(),
 	})
 
 	stubs := ctx.GetDirectDepsWithTag(stubImplDepTag)
