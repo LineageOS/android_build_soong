@@ -4213,9 +4213,11 @@ func TestPrebuiltOverrides(t *testing.T) {
 	}
 }
 
+// These tests verify that the prebuilt_apex/deapexer to java_import wiring allows for the
+// propagation of paths to dex implementation jars from the former to the latter.
 func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 	transform := func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = android.CreateTestConfiguredJarList([]string{"myapex:libfoo"})
+		// Empty transformation.
 	}
 
 	checkDexJarBuildPath := func(ctx *android.TestContext, name string) {
@@ -4298,7 +4300,6 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 		bp := `
 		prebuilt_apex {
 			name: "myapex",
-			prefer: true,
 			arch: {
 				arm64: {
 					src: "myapex-arm64.apex",
@@ -4312,6 +4313,7 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 
 		java_import {
 			name: "libfoo",
+			prefer: true,
 			jars: ["libfoo.jar"],
 		}
 
