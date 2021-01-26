@@ -55,7 +55,7 @@ func sortFiles(files []BazelFile) {
 }
 
 func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
-	files := CreateBazelFiles(map[string]RuleShim{}, map[string][]BazelTarget{}, false)
+	files := CreateBazelFiles(map[string]RuleShim{}, map[string][]BazelTarget{}, QueryView)
 	expectedFilePaths := []filepath{
 		{
 			dir:      "",
@@ -85,7 +85,7 @@ func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 }
 
 func TestCreateBazelFiles_Bp2Build_AddsTopLevelFiles(t *testing.T) {
-	files := CreateBazelFiles(map[string]RuleShim{}, map[string][]BazelTarget{}, true)
+	files := CreateBazelFiles(map[string]RuleShim{}, map[string][]BazelTarget{}, Bp2Build)
 	expectedFilePaths := []filepath{
 		{
 			dir:      "",
