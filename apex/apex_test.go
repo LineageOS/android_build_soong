@@ -5925,7 +5925,6 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 
 	bp += cc.GatherRequiredDepsForTest(android.Android)
 	bp += java.GatherRequiredDepsForTest()
-	bp += dexpreopt.BpToolModulesForTest()
 
 	fs := map[string][]byte{
 		"a.java":                             nil,
@@ -5957,7 +5956,6 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 
 	ctx.Register()
 
-	dexpreopt.RegisterToolModulesForTest(ctx)
 	pathCtx := android.PathContextForTesting(config)
 	dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
 	transformDexpreoptConfig(dexpreoptConfig)
