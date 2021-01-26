@@ -687,7 +687,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		implicitInputs = append(implicitInputs, unsignedOutputFile)
 
 		// Run coverage analysis
-		apisUsedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_using.txt")
+		apisUsedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+".txt")
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        generateAPIsUsedbyApexRule,
 			Implicits:   implicitInputs,
@@ -698,19 +698,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 				"readelf":   "${config.ClangBin}/llvm-readelf",
 			},
 		})
-		a.apisUsedByModuleFile = apisUsedbyOutputFile
-
-		apisBackedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_backing.txt")
-		ndkLibraryList := android.PathForSource(ctx, "system/core/rootdir/etc/public.libraries.android.txt")
-		rule := android.NewRuleBuilder(pctx, ctx)
-		rule.Command().
-			Tool(android.PathForSource(ctx, "build/soong/scripts/gen_ndk_backedby_apex.sh")).
-			Text(imageDir.String()).
-			Implicits(implicitInputs).
-			Output(apisBackedbyOutputFile).
-			Input(ndkLibraryList)
-		rule.Build("ndk_backedby_list", "Generate API libraries backed by Apex")
-		a.apisBackedByModuleFile = apisBackedbyOutputFile
+		a.coverageOutputPath = apisUsedbyOutputFile
 
 		bundleConfig := a.buildBundleConfig(ctx)
 

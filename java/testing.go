@@ -86,8 +86,11 @@ func prebuiltApisFilesForLibs(apiLevels []string, sdkLibs []string) map[string][
 		for _, lib := range sdkLibs {
 			for _, scope := range []string{"public", "system", "module-lib", "system-server", "test"} {
 				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/%s.jar", level, scope, lib)] = nil
-				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s.txt", level, scope, lib)] = nil
-				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s-removed.txt", level, scope, lib)] = nil
+				// No finalized API files for "current"
+				if level != "current" {
+					fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s.txt", level, scope, lib)] = nil
+					fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s-removed.txt", level, scope, lib)] = nil
+				}
 			}
 		}
 		fs[fmt.Sprintf("prebuilts/sdk/%s/public/framework.aidl", level)] = nil
