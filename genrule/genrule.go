@@ -797,12 +797,19 @@ func BazelGenruleFactory() android.Module {
 func bp2buildMutator(ctx android.TopDownMutatorContext) {
 	if m, ok := ctx.Module().(*Module); ok {
 		name := "__bp2build__" + m.Name()
+		// Bazel only has the "tools" attribute.
+		tools := append(m.properties.Tools, m.properties.Tool_files...)
+
 		// Replace in and out variables with $< and $@
 		var cmd string
 		if m.properties.Cmd != nil {
 			cmd = strings.Replace(*m.properties.Cmd, "$(in)", "$(SRCS)", -1)
 			cmd = strings.Replace(cmd, "$(out)", "$(OUTS)", -1)
 			cmd = strings.Replace(cmd, "$(genDir)", "$(GENDIR)", -1)
+			if len(tools) > 0 {
+				cmd = strings.Replace(cmd, "$(location)", fmt.Sprintf("$(location %s)", tools[0]), -1)
+				cmd = strings.Replace(cmd, "$(locations)", fmt.Sprintf("$(locations %s)", tools[0]), -1)
+			}
 		}
 
 		// The Out prop is not in an immediately accessible field
@@ -815,9 +822,6 @@ func bp2buildMutator(ctx android.TopDownMutatorContext) {
 				break
 			}
 		}
-
-		// Bazel only has the "tools" attribute.
-		tools := append(m.properties.Tools, m.properties.Tool_files...)
 
 		// Create the BazelTargetModule.
 		ctx.CreateModule(BazelGenruleFactory, &bazelGenruleAttributes{

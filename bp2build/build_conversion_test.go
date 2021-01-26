@@ -274,8 +274,10 @@ func TestModuleTypeBp2Build(t *testing.T) {
 		moduleTypeUnderTestFactory android.ModuleFactory
 		bp                         string
 		expectedBazelTarget        string
+		description                string
 	}{
 		{
+			description:                "filegroup with no srcs",
 			moduleTypeUnderTest:        "filegroup",
 			moduleTypeUnderTestFactory: android.FileGroupFactory,
 			bp: `filegroup {
@@ -289,6 +291,7 @@ func TestModuleTypeBp2Build(t *testing.T) {
 )`,
 		},
 		{
+			description:                "filegroup with srcs",
 			moduleTypeUnderTest:        "filegroup",
 			moduleTypeUnderTestFactory: android.FileGroupFactory,
 			bp: `filegroup {
@@ -304,18 +307,19 @@ func TestModuleTypeBp2Build(t *testing.T) {
 )`,
 		},
 		{
+			description:                "genrule with command line variable replacements",
 			moduleTypeUnderTest:        "genrule",
 			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
-    tool_files: [":foo.tool"],
-    cmd: "$(location :foo.tool) arg $(in) $(out)",
+    tools: [":foo.tool"],
+    cmd: "$(location :foo.tool) --genDir=$(genDir) arg $(in) $(out)",
 }`,
 			expectedBazelTarget: `genrule(
     name = "foo",
-    cmd = "$(location :foo.tool) arg $(SRCS) $(OUTS)",
+    cmd = "$(location :foo.tool) --genDir=$(GENDIR) arg $(SRCS) $(OUTS)",
     outs = [
         "foo.out",
     ],
@@ -328,18 +332,44 @@ func TestModuleTypeBp2Build(t *testing.T) {
 )`,
 		},
 		{
+			description:                "genrule using $(locations :label)",
 			moduleTypeUnderTest:        "genrule",
 			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
-    tools: [":foo.tool"],
-    cmd: "$(location :foo.tool) --out-dir=$(genDir) $(in)",
+    tools: [":foo.tools"],
+    cmd: "$(locations :foo.tools) -s $(out) $(in)",
 }`,
 			expectedBazelTarget: `genrule(
     name = "foo",
-    cmd = "$(location :foo.tool) --out-dir=$(GENDIR) $(SRCS)",
+    cmd = "$(locations :foo.tools) -s $(OUTS) $(SRCS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+    tools = [
+        ":foo.tools",
+    ],
+)`,
+		},
+		{
+			description:                "genrule using $(location) label should substitute first tool label automatically",
+			moduleTypeUnderTest:        "genrule",
+			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    tool_files: [":foo.tool", ":other.tool"],
+    cmd: "$(location) -s $(out) $(in)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "$(location :foo.tool) -s $(OUTS) $(SRCS)",
     outs = [
         "foo.out",
     ],
@@ -348,6 +378,54 @@ func TestModuleTypeBp2Build(t *testing.T) {
     ],
     tools = [
         ":foo.tool",
+        ":other.tool",
+    ],
+)`,
+		},
+		{
+			description:                "genrule using $(locations) label should substitute first tool label automatically",
+			moduleTypeUnderTest:        "genrule",
+			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    tools: [":foo.tool", ":other.tool"],
+    cmd: "$(locations) -s $(out) $(in)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "$(locations :foo.tool) -s $(OUTS) $(SRCS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+    tools = [
+        ":foo.tool",
+        ":other.tool",
+    ],
+)`,
+		},
+		{
+			description:                "genrule without tools or tool_files can convert successfully",
+			moduleTypeUnderTest:        "genrule",
+			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    cmd: "cp $(in) $(out)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "cp $(SRCS) $(OUTS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
     ],
 )`,
 		},
@@ -367,13 +445,14 @@ func TestModuleTypeBp2Build(t *testing.T) {
 
 		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, Bp2Build)[dir]
 		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
-			t.Fatalf("Expected %d bazel target, got %d", expectedCount, actualCount)
+			t.Fatalf("%s: Expected %d bazel target, got %d", testCase.description, expectedCount, actualCount)
 		}
 
 		actualBazelTarget := bazelTargets[0]
 		if actualBazelTarget.content != testCase.expectedBazelTarget {
 			t.Errorf(
-				"Expected generated Bazel target to be '%s', got '%s'",
+				"%s: Expected generated Bazel target to be '%s', got '%s'",
+				testCase.description,
 				testCase.expectedBazelTarget,
 				actualBazelTarget.content,
 			)
