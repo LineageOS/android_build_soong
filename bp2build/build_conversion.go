@@ -67,6 +67,17 @@ const (
 	QueryView
 )
 
+func (mode CodegenMode) String() string {
+	switch mode {
+	case Bp2Build:
+		return "Bp2Build"
+	case QueryView:
+		return "QueryView"
+	default:
+		return fmt.Sprintf("%d", mode)
+	}
+}
+
 func (ctx CodegenContext) AddNinjaFileDeps(...string) {}
 func (ctx CodegenContext) Config() android.Config     { return ctx.config }
 func (ctx CodegenContext) Context() android.Context   { return ctx.context }
