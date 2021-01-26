@@ -46,7 +46,7 @@ func TestVendorLinkage(t *testing.T) {
 
 // Test that shared libraries cannot be made vendor available until proper support is added.
 func TestForbiddenVendorLinkage(t *testing.T) {
-	testRustError(t, "vendor_available can only be set for rust_ffi_static modules", `
+	testRustError(t, "can only be set for rust_ffi_static modules", `
 		rust_ffi_shared {
 			name: "libfoo_vendor",
 			crate_name: "foo",
