@@ -77,6 +77,10 @@ func (t *toolchainX86_64) Supported() bool {
 	return true
 }
 
+func (toolchainX86_64) LibclangRuntimeLibraryArch() string {
+	return "x86_64"
+}
+
 func x86_64ToolchainFactory(arch android.Arch) Toolchain {
 	toolchainRustFlags := []string{
 		"${config.X86_64ToolchainRustFlags}",

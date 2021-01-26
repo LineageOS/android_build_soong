@@ -87,6 +87,7 @@ bootstrap_go_package {
         "prebuilt_test.go",
         "proto_test.go",
         "test_data_test.go",
+        "vendor_snapshot_test.go",
     ],
     pluginFor: ["soong_build"],
 }

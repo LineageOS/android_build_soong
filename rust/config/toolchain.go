@@ -34,6 +34,8 @@ type Toolchain interface {
 	Supported() bool
 
 	Bionic() bool
+
+	LibclangRuntimeLibraryArch() string
 }
 
 type toolchainBase struct {
@@ -104,6 +106,36 @@ func (toolchainBase) ProcMacroSuffix() string {
 
 func (toolchainBase) Supported() bool {
 	return false
+}
+
+func (toolchainBase) LibclangRuntimeLibraryArch() string {
+	return ""
+}
+
+func LibFuzzerRuntimeLibrary(t Toolchain) string {
+	return LibclangRuntimeLibrary(t, "fuzzer")
+}
+
+func LibclangRuntimeLibrary(t Toolchain, library string) string {
+	arch := t.LibclangRuntimeLibraryArch()
+	if arch == "" {
+		return ""
+	}
+	if !t.Bionic() {
+		return "libclang_rt." + library + "-" + arch
+	}
+	return "libclang_rt." + library + "-" + arch + "-android"
+}
+
+func LibRustRuntimeLibrary(t Toolchain, library string) string {
+	arch := t.LibclangRuntimeLibraryArch()
+	if arch == "" {
+		return ""
+	}
+	if !t.Bionic() {
+		return "librustc_rt." + library + "-" + arch
+	}
+	return "librustc_rt." + library + "-" + arch + "-android"
 }
 
 func toolchainBaseFactory() Toolchain {
