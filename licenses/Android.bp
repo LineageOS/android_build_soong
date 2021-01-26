@@ -558,6 +558,23 @@ license_kind {
 }
 
 license_kind {
+    name: "SPDX-license-identifier-CDDL",
+    conditions: ["reciprocal"],
+}
+
+license_kind {
+    name: "SPDX-license-identifier-CDDL-1.0",
+    conditions: ["reciprocal"],
+    url: "https://spdx.org/licenses/CDLL-1.0.html",
+}
+
+license_kind {
+    name: "SPDX-license-identifier-CDDL-1.1",
+    conditions: ["reciprocal"],
+    url: "https://spdx.org/licenses/CDLL-1.1.html",
+}
+
+license_kind {
     name: "SPDX-license-identifier-CPAL-1.0",
     conditions: [
         "by_exception_only",
