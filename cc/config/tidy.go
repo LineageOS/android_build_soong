@@ -62,10 +62,8 @@ func init() {
 		}, ",")
 		// clang-analyzer-* checks are too slow to be in the default for WITH_TIDY=1.
 		// nightly builds add CLANG_ANALYZER_CHECKS=1 to run those checks.
-		// Some test code have clang-diagnostic-padded warnings that cannot be
-		// suppressed, but only by disabling clang-analyzer-optin.performance.*.
 		if ctx.Config().IsEnvTrue("CLANG_ANALYZER_CHECKS") {
-			checks += ",clang-analyzer-*,-clang-analyzer-optin.performance.*"
+			checks += ",clang-analyzer-*"
 		}
 		return checks
 	})

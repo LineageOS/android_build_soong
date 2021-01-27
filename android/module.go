@@ -492,22 +492,39 @@ type Module interface {
 	TransitivePackagingSpecs() []PackagingSpec
 }
 
+// BazelTargetModule is a lightweight wrapper interface around Module for
+// bp2build conversion purposes.
+//
+// In bp2build's bootstrap.Main execution, Soong runs an alternate pipeline of
+// mutators that creates BazelTargetModules from regular Module objects,
+// performing the mapping from Soong properties to Bazel rule attributes in the
+// process. This process may optionally create additional BazelTargetModules,
+// resulting in a 1:many mapping.
+//
+// bp2build.Codegen is then responsible for visiting all modules in the graph,
+// filtering for BazelTargetModules, and code-generating BUILD targets from
+// them.
 type BazelTargetModule interface {
 	Module
 
 	BazelTargetModuleProperties() *bazel.BazelTargetModuleProperties
 }
 
+// InitBazelTargetModule is a wrapper function that decorates BazelTargetModule
+// with property structs containing metadata for bp2build conversion.
 func InitBazelTargetModule(module BazelTargetModule) {
 	module.AddProperties(module.BazelTargetModuleProperties())
 	InitAndroidModule(module)
 }
 
+// BazelTargetModuleBase contains the property structs with metadata for
+// bp2build conversion.
 type BazelTargetModuleBase struct {
 	ModuleBase
 	Properties bazel.BazelTargetModuleProperties
 }
 
+// BazelTargetModuleProperties getter.
 func (btmb *BazelTargetModuleBase) BazelTargetModuleProperties() *bazel.BazelTargetModuleProperties {
 	return &btmb.Properties
 }
@@ -1868,19 +1885,11 @@ type earlyModuleContext struct {
 }
 
 func (e *earlyModuleContext) Glob(globPattern string, excludes []string) Paths {
-	ret, err := e.GlobWithDeps(globPattern, excludes)
-	if err != nil {
-		e.ModuleErrorf("glob: %s", err.Error())
-	}
-	return pathsForModuleSrcFromFullPath(e, ret, true)
+	return Glob(e, globPattern, excludes)
 }
 
 func (e *earlyModuleContext) GlobFiles(globPattern string, excludes []string) Paths {
-	ret, err := e.GlobWithDeps(globPattern, excludes)
-	if err != nil {
-		e.ModuleErrorf("glob: %s", err.Error())
-	}
-	return pathsForModuleSrcFromFullPath(e, ret, false)
+	return GlobFiles(e, globPattern, excludes)
 }
 
 func (b *earlyModuleContext) IsSymlink(path Path) bool {

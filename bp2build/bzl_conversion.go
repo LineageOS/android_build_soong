@@ -109,9 +109,9 @@ func generateRules(moduleTypeFactories map[string]android.ModuleFactory) map[str
 		factoryName := runtime.FuncForPC(reflect.ValueOf(factory).Pointer()).Name()
 		pkg := strings.Split(factoryName, ".")[0]
 		attrs := `{
-        "module_name": attr.string(mandatory = True),
-        "module_variant": attr.string(),
-        "module_deps": attr.label_list(providers = [SoongModuleInfo]),
+        "soong_module_name": attr.string(mandatory = True),
+        "soong_module_variant": attr.string(),
+        "soong_module_deps": attr.label_list(providers = [SoongModuleInfo]),
 `
 		attrs += getAttributes(factory)
 		attrs += "    },"

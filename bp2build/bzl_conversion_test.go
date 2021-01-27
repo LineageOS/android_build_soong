@@ -83,9 +83,9 @@ def _custom_impl(ctx):
 custom = rule(
     implementation = _custom_impl,
     attrs = {
-        "module_name": attr.string(mandatory = True),
-        "module_variant": attr.string(),
-        "module_deps": attr.label_list(providers = [SoongModuleInfo]),
+        "soong_module_name": attr.string(mandatory = True),
+        "soong_module_variant": attr.string(),
+        "soong_module_deps": attr.label_list(providers = [SoongModuleInfo]),
         "bool_prop": attr.bool(),
         "bool_ptr_prop": attr.bool(),
         "int64_ptr_prop": attr.int(),
@@ -107,9 +107,9 @@ def _custom_defaults_impl(ctx):
 custom_defaults = rule(
     implementation = _custom_defaults_impl,
     attrs = {
-        "module_name": attr.string(mandatory = True),
-        "module_variant": attr.string(),
-        "module_deps": attr.label_list(providers = [SoongModuleInfo]),
+        "soong_module_name": attr.string(mandatory = True),
+        "soong_module_variant": attr.string(),
+        "soong_module_deps": attr.label_list(providers = [SoongModuleInfo]),
         "bool_prop": attr.bool(),
         "bool_ptr_prop": attr.bool(),
         "int64_ptr_prop": attr.int(),
@@ -131,9 +131,9 @@ def _custom_test__impl(ctx):
 custom_test_ = rule(
     implementation = _custom_test__impl,
     attrs = {
-        "module_name": attr.string(mandatory = True),
-        "module_variant": attr.string(),
-        "module_deps": attr.label_list(providers = [SoongModuleInfo]),
+        "soong_module_name": attr.string(mandatory = True),
+        "soong_module_variant": attr.string(),
+        "soong_module_deps": attr.label_list(providers = [SoongModuleInfo]),
         "bool_prop": attr.bool(),
         "bool_ptr_prop": attr.bool(),
         "int64_ptr_prop": attr.int(),
@@ -172,7 +172,7 @@ func TestGenerateSoongModuleBzl(t *testing.T) {
 			content: "irrelevant",
 		},
 	}
-	files := CreateBazelFiles(ruleShims, make(map[string][]BazelTarget), false)
+	files := CreateBazelFiles(ruleShims, make(map[string][]BazelTarget), QueryView)
 
 	var actualSoongModuleBzl BazelFile
 	for _, f := range files {

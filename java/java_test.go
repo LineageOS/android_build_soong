@@ -59,8 +59,6 @@ func TestMain(m *testing.M) {
 }
 
 func testConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
-	bp += dexpreopt.BpToolModulesForTest()
-
 	return TestConfig(buildDir, env, bp, fs)
 }
 
@@ -83,8 +81,6 @@ func testContext(config android.Config) *android.TestContext {
 
 	// Register module types and mutators from cc needed for JNI testing
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
-
-	dexpreopt.RegisterToolModulesForTest(ctx)
 
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
 		ctx.TopDown("propagate_rro_enforcement", propagateRROEnforcementMutator).Parallel()
