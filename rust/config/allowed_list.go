@@ -19,6 +19,7 @@ var (
 		"prebuilts/rust",
 		"system/bt",
 		"system/extras/profcollectd",
+		"system/extras/simpleperf",
 		"system/hardware/interfaces/keystore2",
 		"system/security",
 		"system/tools/aidl",
