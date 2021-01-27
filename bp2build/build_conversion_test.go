@@ -16,6 +16,7 @@ package bp2build
 
 import (
 	"android/soong/android"
+	"android/soong/genrule"
 	"testing"
 )
 
@@ -31,10 +32,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
 )`,
 		},
@@ -46,10 +47,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     ramdisk = True,
 )`,
@@ -62,10 +63,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     owner = "a_string_with\"quotes\"_and_\\backslashes\\\\",
 )`,
@@ -78,10 +79,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     required = [
         "bar",
@@ -96,10 +97,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     target_required = [
         "qux",
@@ -124,10 +125,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     dist = {
         "tag": ".foo",
@@ -162,10 +163,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     dists = [
         {
@@ -200,7 +201,7 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		_, errs = ctx.PrepareBuildActions(config)
 		android.FailIfErrored(t, errs)
 
-		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, false)[dir]
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, QueryView)[dir]
 		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
 			t.Fatalf("Expected %d bazel target, got %d", expectedCount, actualCount)
 		}
@@ -251,7 +252,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 		_, errs = ctx.ResolveDependencies(config)
 		android.FailIfErrored(t, errs)
 
-		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, true)[dir]
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, Bp2Build)[dir]
 		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
 			t.Fatalf("Expected %d bazel target, got %d", expectedCount, actualCount)
 		}
@@ -302,6 +303,54 @@ func TestModuleTypeBp2Build(t *testing.T) {
     ],
 )`,
 		},
+		{
+			moduleTypeUnderTest:        "genrule",
+			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    tool_files: [":foo.tool"],
+    cmd: "$(location :foo.tool) arg $(in) $(out)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "$(location :foo.tool) arg $(SRCS) $(OUTS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+    tools = [
+        ":foo.tool",
+    ],
+)`,
+		},
+		{
+			moduleTypeUnderTest:        "genrule",
+			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    tools: [":foo.tool"],
+    cmd: "$(location :foo.tool) --out-dir=$(genDir) $(in)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "$(location :foo.tool) --out-dir=$(GENDIR) $(SRCS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+    tools = [
+        ":foo.tool",
+    ],
+)`,
+		},
 	}
 
 	dir := "."
@@ -316,7 +365,7 @@ func TestModuleTypeBp2Build(t *testing.T) {
 		_, errs = ctx.ResolveDependencies(config)
 		android.FailIfErrored(t, errs)
 
-		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, true)[dir]
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, Bp2Build)[dir]
 		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
 			t.Fatalf("Expected %d bazel target, got %d", expectedCount, actualCount)
 		}

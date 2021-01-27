@@ -56,8 +56,14 @@ func (ctx *moduleContext) ProductSpecific() bool {
 
 func (ctx *moduleContext) SocSpecific() bool {
 	// Additionally check if this module is inVendor() that means it is a "vendor" variant of a
-	// module. As well as SoC specific modules, vendor variants must be installed to /vendor.
-	return ctx.ModuleContext.SocSpecific() || ctx.mod.InVendor()
+	// module. As well as SoC specific modules, vendor variants must be installed to /vendor
+	// unless they have "odm_available: true".
+	return ctx.ModuleContext.SocSpecific() || (ctx.mod.InVendor() && !ctx.mod.VendorVariantToOdm())
+}
+
+func (ctx *moduleContext) DeviceSpecific() bool {
+	// Some vendor variants want to be installed to /odm by setting "odm_available: true".
+	return ctx.ModuleContext.DeviceSpecific() || (ctx.mod.InVendor() && ctx.mod.VendorVariantToOdm())
 }
 
 func (ctx *moduleContextImpl) inProduct() bool {
@@ -82,7 +88,13 @@ func (ctx *moduleContextImpl) inRecovery() bool {
 
 // Returns true when this module is configured to have core and vendor variants.
 func (c *Module) HasVendorVariant() bool {
-	return Bool(c.VendorProperties.Vendor_available)
+	return Bool(c.VendorProperties.Vendor_available) || Bool(c.VendorProperties.Odm_available)
+}
+
+// Returns true when this module creates a vendor variant and wants to install the vendor variant
+// to the odm partition.
+func (c *Module) VendorVariantToOdm() bool {
+	return Bool(c.VendorProperties.Odm_available)
 }
 
 // Returns true when this module is configured to have core and product variants.
@@ -183,7 +195,18 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	if Bool(m.VendorProperties.Vendor_available) {
 		if vendorSpecific {
 			mctx.PropertyErrorf("vendor_available",
-				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific:true`")
+				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific: true`")
+		}
+		if Bool(m.VendorProperties.Odm_available) {
+			mctx.PropertyErrorf("vendor_available",
+				"doesn't make sense at the same time as `odm_available: true`")
+		}
+	}
+
+	if Bool(m.VendorProperties.Odm_available) {
+		if vendorSpecific {
+			mctx.PropertyErrorf("odm_available",
+				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific: true`")
 		}
 	}
 

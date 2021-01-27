@@ -46,6 +46,36 @@ type bpToBuildContext interface {
 type CodegenContext struct {
 	config  android.Config
 	context android.Context
+	mode    CodegenMode
+}
+
+// CodegenMode is an enum to differentiate code-generation modes.
+type CodegenMode int
+
+const (
+	// Bp2Build: generate BUILD files with targets buildable by Bazel directly.
+	//
+	// This mode is used for the Soong->Bazel build definition conversion.
+	Bp2Build CodegenMode = iota
+
+	// QueryView: generate BUILD files with targets representing fully mutated
+	// Soong modules, representing the fully configured Soong module graph with
+	// variants and dependency endges.
+	//
+	// This mode is used for discovering and introspecting the existing Soong
+	// module graph.
+	QueryView
+)
+
+func (mode CodegenMode) String() string {
+	switch mode {
+	case Bp2Build:
+		return "Bp2Build"
+	case QueryView:
+		return "QueryView"
+	default:
+		return fmt.Sprintf("%d", mode)
+	}
 }
 
 func (ctx CodegenContext) AddNinjaFileDeps(...string) {}
@@ -54,10 +84,11 @@ func (ctx CodegenContext) Context() android.Context   { return ctx.context }
 
 // NewCodegenContext creates a wrapper context that conforms to PathContext for
 // writing BUILD files in the output directory.
-func NewCodegenContext(config android.Config, context android.Context) CodegenContext {
+func NewCodegenContext(config android.Config, context android.Context, mode CodegenMode) CodegenContext {
 	return CodegenContext{
 		context: context,
 		config:  config,
+		mode:    mode,
 	}
 }
 
@@ -73,19 +104,22 @@ func propsToAttributes(props map[string]string) string {
 	return attributes
 }
 
-func GenerateSoongModuleTargets(ctx bpToBuildContext, bp2buildEnabled bool) map[string][]BazelTarget {
+func GenerateSoongModuleTargets(ctx bpToBuildContext, codegenMode CodegenMode) map[string][]BazelTarget {
 	buildFileToTargets := make(map[string][]BazelTarget)
 	ctx.VisitAllModules(func(m blueprint.Module) {
 		dir := ctx.ModuleDir(m)
 		var t BazelTarget
 
-		if bp2buildEnabled {
+		switch codegenMode {
+		case Bp2Build:
 			if _, ok := m.(android.BazelTargetModule); !ok {
 				return
 			}
 			t = generateBazelTarget(ctx, m)
-		} else {
+		case QueryView:
 			t = generateSoongModuleTarget(ctx, m)
+		default:
+			panic(fmt.Errorf("Unknown code-generation mode: %s", codegenMode))
 		}
 
 		buildFileToTargets[ctx.ModuleDir(m)] = append(buildFileToTargets[dir], t)

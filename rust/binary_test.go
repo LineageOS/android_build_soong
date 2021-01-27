@@ -130,6 +130,9 @@ func TestStaticBinaryFlags(t *testing.T) {
 	if !strings.Contains(flags, "-C relocation-model=static") {
 		t.Errorf("static binary missing '-C relocation-model=static' in rustcFlags, found: %#v", flags)
 	}
+	if !strings.Contains(flags, "-C panic=abort") {
+		t.Errorf("static binary missing '-C panic=abort' in rustcFlags, found: %#v", flags)
+	}
 	if !strings.Contains(linkFlags, "-static") {
 		t.Errorf("static binary missing '-static' in linkFlags, found: %#v", flags)
 	}

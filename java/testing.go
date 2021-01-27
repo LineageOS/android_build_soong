@@ -116,6 +116,9 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterSdkLibraryBuildComponents(ctx)
 	RegisterStubsBuildComponents(ctx)
 	RegisterSystemModulesBuildComponents(ctx)
+
+	// Make sure that any tool related module types needed by dexpreopt have been registered.
+	dexpreopt.RegisterToolModulesForTest(ctx)
 }
 
 // Gather the module definitions needed by tests that depend upon code from this package.
@@ -206,6 +209,9 @@ func GatherRequiredDepsForTest() string {
 			}
 		`, extra)
 	}
+
+	// Make sure that any tools needed for dexpreopting are defined.
+	bp += dexpreopt.BpToolModulesForTest()
 
 	// Make sure that the dex_bootjars singleton module is instantiated for the tests.
 	bp += `
