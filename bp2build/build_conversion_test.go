@@ -268,6 +268,171 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 	}
 }
 
+func TestLoadStatements(t *testing.T) {
+	testCases := []struct {
+		bazelTargets           BazelTargets
+		expectedLoadStatements string
+	}{
+		{
+			bazelTargets: BazelTargets{
+				BazelTarget{
+					name:            "foo",
+					ruleClass:       "cc_library",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+			},
+			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_library")`,
+		},
+		{
+			bazelTargets: BazelTargets{
+				BazelTarget{
+					name:            "foo",
+					ruleClass:       "cc_library",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+				BazelTarget{
+					name:            "bar",
+					ruleClass:       "cc_library",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+			},
+			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_library")`,
+		},
+		{
+			bazelTargets: BazelTargets{
+				BazelTarget{
+					name:            "foo",
+					ruleClass:       "cc_library",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+				BazelTarget{
+					name:            "bar",
+					ruleClass:       "cc_binary",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+			},
+			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_binary", "cc_library")`,
+		},
+		{
+			bazelTargets: BazelTargets{
+				BazelTarget{
+					name:            "foo",
+					ruleClass:       "cc_library",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+				BazelTarget{
+					name:            "bar",
+					ruleClass:       "cc_binary",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+				BazelTarget{
+					name:            "baz",
+					ruleClass:       "java_binary",
+					bzlLoadLocation: "//build/bazel/rules:java.bzl",
+				},
+			},
+			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_binary", "cc_library")
+load("//build/bazel/rules:java.bzl", "java_binary")`,
+		},
+		{
+			bazelTargets: BazelTargets{
+				BazelTarget{
+					name:            "foo",
+					ruleClass:       "cc_binary",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+				BazelTarget{
+					name:            "bar",
+					ruleClass:       "java_binary",
+					bzlLoadLocation: "//build/bazel/rules:java.bzl",
+				},
+				BazelTarget{
+					name:      "baz",
+					ruleClass: "genrule",
+					// Note: no bzlLoadLocation for native rules
+				},
+			},
+			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_binary")
+load("//build/bazel/rules:java.bzl", "java_binary")`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		actual := testCase.bazelTargets.LoadStatements()
+		expected := testCase.expectedLoadStatements
+		if actual != expected {
+			t.Fatalf("Expected load statements to be %s, got %s", expected, actual)
+		}
+	}
+
+}
+
+func TestGenerateBazelTargetModules_OneToMany_LoadedFromStarlark(t *testing.T) {
+	testCases := []struct {
+		bp                       string
+		expectedBazelTarget      string
+		expectedBazelTargetCount int
+		expectedLoadStatements   string
+	}{
+		{
+			bp: `custom {
+    name: "bar",
+}`,
+			expectedBazelTarget: `my_library(
+    name = "bar",
+)
+
+my_proto_library(
+    name = "bar_my_proto_library_deps",
+)
+
+proto_library(
+    name = "bar_proto_library_deps",
+)`,
+			expectedBazelTargetCount: 3,
+			expectedLoadStatements: `load("//build/bazel/rules:proto.bzl", "my_proto_library", "proto_library")
+load("//build/bazel/rules:rules.bzl", "my_library")`,
+		},
+	}
+
+	dir := "."
+	for _, testCase := range testCases {
+		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
+		ctx := android.NewTestContext(config)
+		ctx.RegisterModuleType("custom", customModuleFactory)
+		ctx.RegisterBp2BuildMutator("custom_starlark", customBp2BuildMutatorFromStarlark)
+		ctx.RegisterForBazelConversion()
+
+		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
+		android.FailIfErrored(t, errs)
+		_, errs = ctx.ResolveDependencies(config)
+		android.FailIfErrored(t, errs)
+
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, Bp2Build)[dir]
+		if actualCount := len(bazelTargets); actualCount != testCase.expectedBazelTargetCount {
+			t.Fatalf("Expected %d bazel target, got %d", testCase.expectedBazelTargetCount, actualCount)
+		}
+
+		actualBazelTargets := bazelTargets.String()
+		if actualBazelTargets != testCase.expectedBazelTarget {
+			t.Errorf(
+				"Expected generated Bazel target to be '%s', got '%s'",
+				testCase.expectedBazelTarget,
+				actualBazelTargets,
+			)
+		}
+
+		actualLoadStatements := bazelTargets.LoadStatements()
+		if actualLoadStatements != testCase.expectedLoadStatements {
+			t.Errorf(
+				"Expected generated load statements to be '%s', got '%s'",
+				testCase.expectedLoadStatements,
+				actualLoadStatements,
+			)
+		}
+	}
+}
+
 func TestModuleTypeBp2Build(t *testing.T) {
 	testCases := []struct {
 		moduleTypeUnderTest                string
