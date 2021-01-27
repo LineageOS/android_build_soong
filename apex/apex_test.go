@@ -5865,7 +5865,7 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpre
 			srcs: ["a.java"],
 			sdk_version: "current",
 			apex_available: [
-				"com.android.art.something",
+				"com.android.art.debug",
 			],
 			hostdex: true,
 		}
@@ -5893,15 +5893,15 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpre
 		}
 
 		apex {
-			name: "com.android.art.something",
-			key: "com.android.art.something.key",
+			name: "com.android.art.debug",
+			key: "com.android.art.debug.key",
 			java_libs: ["some-art-lib"],
 			updatable: true,
 			min_sdk_version: "current",
 		}
 
 		apex_key {
-			name: "com.android.art.something.key",
+			name: "com.android.art.debug.key",
 		}
 
 		filegroup {
@@ -5934,9 +5934,9 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 		"build/make/target/product/security": nil,
 		"apex_manifest.json":                 nil,
 		"AndroidManifest.xml":                nil,
-		"system/sepolicy/apex/some-updatable-apex-file_contexts":       nil,
-		"system/sepolicy/apex/some-non-updatable-apex-file_contexts":   nil,
-		"system/sepolicy/apex/com.android.art.something-file_contexts": nil,
+		"system/sepolicy/apex/some-updatable-apex-file_contexts":     nil,
+		"system/sepolicy/apex/some-non-updatable-apex-file_contexts": nil,
+		"system/sepolicy/apex/com.android.art.debug-file_contexts":   nil,
 		"framework/aidl/a.aidl": nil,
 	}
 	cc.GatherRequiredFilesForTest(fs)
@@ -6000,15 +6000,15 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 
 	t.Run("updatable jar from ART apex in the ART boot image => ok", func(t *testing.T) {
 		transform = func(config *dexpreopt.GlobalConfig) {
-			config.ArtApexJars = android.CreateTestConfiguredJarList([]string{"com.android.art.something:some-art-lib"})
+			config.ArtApexJars = android.CreateTestConfiguredJarList([]string{"com.android.art.debug:some-art-lib"})
 		}
 		testNoUpdatableJarsInBootImage(t, "", transform)
 	})
 
 	t.Run("updatable jar from ART apex in the framework boot image => error", func(t *testing.T) {
-		err = `module "some-art-lib" from updatable apexes \["com.android.art.something"\] is not allowed in the framework boot image`
+		err = `module "some-art-lib" from updatable apexes \["com.android.art.debug"\] is not allowed in the framework boot image`
 		transform = func(config *dexpreopt.GlobalConfig) {
-			config.BootJars = android.CreateTestConfiguredJarList([]string{"com.android.art.something:some-art-lib"})
+			config.BootJars = android.CreateTestConfiguredJarList([]string{"com.android.art.debug:some-art-lib"})
 		}
 		testNoUpdatableJarsInBootImage(t, err, transform)
 	})
