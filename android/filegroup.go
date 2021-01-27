@@ -23,7 +23,7 @@ import (
 
 func init() {
 	RegisterModuleType("filegroup", FileGroupFactory)
-	RegisterBp2BuildMutator("filegroup", bp2buildMutator)
+	RegisterBp2BuildMutator("filegroup", FilegroupBp2Build)
 }
 
 // https://docs.bazel.build/versions/master/be/general.html#filegroup
@@ -51,7 +51,7 @@ func (bfg *bazelFilegroup) Name() string {
 func (bfg *bazelFilegroup) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
 // TODO: Create helper functions to avoid this boilerplate.
-func bp2buildMutator(ctx TopDownMutatorContext) {
+func FilegroupBp2Build(ctx TopDownMutatorContext) {
 	if m, ok := ctx.Module().(*fileGroup); ok {
 		name := "__bp2build__" + m.base().BaseModuleName()
 		ctx.CreateModule(BazelFileGroupFactory, &bazelFilegroupAttributes{

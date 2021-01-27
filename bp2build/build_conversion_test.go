@@ -270,16 +270,18 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 
 func TestModuleTypeBp2Build(t *testing.T) {
 	testCases := []struct {
-		moduleTypeUnderTest        string
-		moduleTypeUnderTestFactory android.ModuleFactory
-		bp                         string
-		expectedBazelTarget        string
-		description                string
+		moduleTypeUnderTest                string
+		moduleTypeUnderTestFactory         android.ModuleFactory
+		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
+		bp                                 string
+		expectedBazelTarget                string
+		description                        string
 	}{
 		{
-			description:                "filegroup with no srcs",
-			moduleTypeUnderTest:        "filegroup",
-			moduleTypeUnderTestFactory: android.FileGroupFactory,
+			description:                        "filegroup with no srcs",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
 			bp: `filegroup {
 	name: "foo",
 	srcs: [],
@@ -291,9 +293,10 @@ func TestModuleTypeBp2Build(t *testing.T) {
 )`,
 		},
 		{
-			description:                "filegroup with srcs",
-			moduleTypeUnderTest:        "filegroup",
-			moduleTypeUnderTestFactory: android.FileGroupFactory,
+			description:                        "filegroup with srcs",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
 			bp: `filegroup {
 	name: "foo",
 	srcs: ["a", "b"],
@@ -307,9 +310,10 @@ func TestModuleTypeBp2Build(t *testing.T) {
 )`,
 		},
 		{
-			description:                "genrule with command line variable replacements",
-			moduleTypeUnderTest:        "genrule",
-			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			description:                        "genrule with command line variable replacements",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -332,9 +336,10 @@ func TestModuleTypeBp2Build(t *testing.T) {
 )`,
 		},
 		{
-			description:                "genrule using $(locations :label)",
-			moduleTypeUnderTest:        "genrule",
-			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			description:                        "genrule using $(locations :label)",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -357,9 +362,10 @@ func TestModuleTypeBp2Build(t *testing.T) {
 )`,
 		},
 		{
-			description:                "genrule using $(location) label should substitute first tool label automatically",
-			moduleTypeUnderTest:        "genrule",
-			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			description:                        "genrule using $(location) label should substitute first tool label automatically",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -383,9 +389,10 @@ func TestModuleTypeBp2Build(t *testing.T) {
 )`,
 		},
 		{
-			description:                "genrule using $(locations) label should substitute first tool label automatically",
-			moduleTypeUnderTest:        "genrule",
-			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			description:                        "genrule using $(locations) label should substitute first tool label automatically",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -409,9 +416,10 @@ func TestModuleTypeBp2Build(t *testing.T) {
 )`,
 		},
 		{
-			description:                "genrule without tools or tool_files can convert successfully",
-			moduleTypeUnderTest:        "genrule",
-			moduleTypeUnderTestFactory: genrule.GenRuleFactory,
+			description:                        "genrule without tools or tool_files can convert successfully",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -436,6 +444,7 @@ func TestModuleTypeBp2Build(t *testing.T) {
 		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
 		ctx := android.NewTestContext(config)
 		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
+		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
