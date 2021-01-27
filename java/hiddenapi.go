@@ -108,11 +108,9 @@ func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bo
 		// not on the list then that will cause failures in the CtsHiddenApiBlacklist...
 		// tests.
 		if inList(bootJarName, ctx.Config().BootJars()) {
-			// Derive the greylist from classes jar.
-			flagsCSV := android.PathForModuleOut(ctx, "hiddenapi", "flags.csv")
-			metadataCSV := android.PathForModuleOut(ctx, "hiddenapi", "metadata.csv")
-			indexCSV := android.PathForModuleOut(ctx, "hiddenapi", "index.csv")
-			h.hiddenAPIGenerateCSV(ctx, flagsCSV, metadataCSV, indexCSV, implementationJar)
+			// Create ninja rules to generate various CSV files needed by hiddenapi and store the paths
+			// in the hiddenAPI structure.
+			h.hiddenAPIGenerateCSV(ctx, implementationJar)
 
 			// If this module is actually on the boot jars list and not providing
 			// hiddenapi information for a module on the boot jars list then encode
@@ -136,9 +134,10 @@ func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bo
 	return dexJar
 }
 
-func (h *hiddenAPI) hiddenAPIGenerateCSV(ctx android.ModuleContext, flagsCSV, metadataCSV, indexCSV android.WritablePath, classesJar android.Path) {
+func (h *hiddenAPI) hiddenAPIGenerateCSV(ctx android.ModuleContext, classesJar android.Path) {
 	stubFlagsCSV := hiddenAPISingletonPaths(ctx).stubFlags
 
+	flagsCSV := android.PathForModuleOut(ctx, "hiddenapi", "flags.csv")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        hiddenAPIGenerateCSVRule,
 		Description: "hiddenapi flags",
@@ -152,6 +151,7 @@ func (h *hiddenAPI) hiddenAPIGenerateCSV(ctx android.ModuleContext, flagsCSV, me
 	})
 	h.flagsCSVPath = flagsCSV
 
+	metadataCSV := android.PathForModuleOut(ctx, "hiddenapi", "metadata.csv")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        hiddenAPIGenerateCSVRule,
 		Description: "hiddenapi metadata",
@@ -165,6 +165,7 @@ func (h *hiddenAPI) hiddenAPIGenerateCSV(ctx android.ModuleContext, flagsCSV, me
 	})
 	h.metadataCSVPath = metadataCSV
 
+	indexCSV := android.PathForModuleOut(ctx, "hiddenapi", "index.csv")
 	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
 		BuiltTool("merge_csv").
