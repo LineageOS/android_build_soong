@@ -15,12 +15,14 @@
 package java
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/genrule"
 )
 
 func init() {
@@ -34,6 +36,12 @@ func RegisterPrebuiltApisBuildComponents(ctx android.RegistrationContext) {
 type prebuiltApisProperties struct {
 	// list of api version directories
 	Api_dirs []string
+
+	// The next API directory can optionally point to a directory where
+	// files incompatibility-tracking files are stored for the current
+	// "in progress" API. Each module present in one of the api_dirs will have
+	// a <module>-incompatibilities.api.<scope>.latest module created.
+	Next_api_dir *string
 
 	// The sdk_version of java_import modules generated based on jar files.
 	// Defaults to "current"
@@ -98,28 +106,46 @@ func createImport(mctx android.LoadHookContext, module, scope, apiver, path, sdk
 	mctx.CreateModule(ImportFactory, &props)
 }
 
-func createFilegroup(mctx android.LoadHookContext, module string, scope string, apiver string, path string) {
-	fgName := module + ".api." + scope + "." + apiver
+func createFilegroup(mctx android.LoadHookContext, name string, path string) {
 	filegroupProps := struct {
 		Name *string
 		Srcs []string
 	}{}
-	filegroupProps.Name = proptools.StringPtr(fgName)
+	filegroupProps.Name = proptools.StringPtr(name)
 	filegroupProps.Srcs = []string{path}
 	mctx.CreateModule(android.FileGroupFactory, &filegroupProps)
 }
 
+func createEmptyFile(mctx android.LoadHookContext, name string) {
+	props := struct {
+		Name *string
+		Cmd  *string
+		Out  []string
+	}{}
+	props.Name = proptools.StringPtr(name)
+	props.Out = []string{name}
+	props.Cmd = proptools.StringPtr("touch $(genDir)/" + name)
+	mctx.CreateModule(genrule.GenRuleFactory, &props)
+}
+
 func getPrebuiltFiles(mctx android.LoadHookContext, p *prebuiltApis, name string) []string {
-	mydir := mctx.ModuleDir() + "/"
 	var files []string
 	for _, apiver := range p.properties.Api_dirs {
-		for _, scope := range []string{"public", "system", "test", "core", "module-lib", "system-server"} {
-			vfiles, err := mctx.GlobWithDeps(mydir+apiver+"/"+scope+"/"+name, nil)
-			if err != nil {
-				mctx.ModuleErrorf("failed to glob %s files under %q: %s", name, mydir+apiver+"/"+scope, err)
-			}
-			files = append(files, vfiles...)
+		files = append(files, getPrebuiltFilesInSubdir(mctx, apiver, name)...)
+	}
+	return files
+}
+
+func getPrebuiltFilesInSubdir(mctx android.LoadHookContext, subdir string, name string) []string {
+	var files []string
+	dir := mctx.ModuleDir() + "/" + subdir
+	for _, scope := range []string{"public", "system", "test", "core", "module-lib", "system-server"} {
+		glob := fmt.Sprintf("%s/%s/%s", dir, scope, name)
+		vfiles, err := mctx.GlobWithDeps(glob, nil)
+		if err != nil {
+			mctx.ModuleErrorf("failed to glob %s files under %q: %s", name, dir+"/"+scope, err)
 		}
+		files = append(files, vfiles...)
 	}
 	return files
 }
@@ -181,11 +207,14 @@ func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
 
 	// Create filegroups for all (<module>, <scope, <version>) triplets,
 	// and a "latest" filegroup variant for each (<module>, <scope>) pair
+	moduleName := func(module, scope, version string) string {
+		return module + ".api." + scope + "." + version
+	}
 	m := make(map[string]latestApiInfo)
 	for _, f := range files {
 		localPath := strings.TrimPrefix(f, mydir)
 		module, apiver, scope := parseApiFilePath(mctx, localPath)
-		createFilegroup(mctx, module, scope, apiver, localPath)
+		createFilegroup(mctx, moduleName(module, scope, apiver), localPath)
 
 		version, err := strconv.Atoi(apiver)
 		if err != nil {
@@ -193,20 +222,52 @@ func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
 			return
 		}
 
-		key := module + "." + scope
-		info, ok := m[key]
-		if !ok {
-			m[key] = latestApiInfo{module, scope, version, localPath}
-		} else if version > info.version {
-			info.version = version
-			info.path = localPath
-			m[key] = info
+		// Track latest version of each module/scope, except for incompatibilities
+		if !strings.HasSuffix(module, "incompatibilities") {
+			key := module + "." + scope
+			info, ok := m[key]
+			if !ok {
+				m[key] = latestApiInfo{module, scope, version, localPath}
+			} else if version > info.version {
+				info.version = version
+				info.path = localPath
+				m[key] = info
+			}
 		}
 	}
+
 	// Sort the keys in order to make build.ninja stable
 	for _, k := range android.SortedStringKeys(m) {
 		info := m[k]
-		createFilegroup(mctx, info.module, info.scope, "latest", info.path)
+		name := moduleName(info.module, info.scope, "latest")
+		createFilegroup(mctx, name, info.path)
+	}
+
+	// Create incompatibilities tracking files for all modules, if we have a "next" api.
+	if nextApiDir := String(p.properties.Next_api_dir); nextApiDir != "" {
+		files := getPrebuiltFilesInSubdir(mctx, nextApiDir, "api/*incompatibilities.txt")
+		incompatibilities := make(map[string]bool)
+		for _, f := range files {
+			localPath := strings.TrimPrefix(f, mydir)
+			module, _, scope := parseApiFilePath(mctx, localPath)
+
+			// Figure out which module is referenced by this file. Special case for "android".
+			referencedModule := strings.TrimSuffix(module, "incompatibilities")
+			referencedModule = strings.TrimSuffix(referencedModule, "-")
+			if referencedModule == "" {
+				referencedModule = "android"
+			}
+
+			createFilegroup(mctx, moduleName(referencedModule+"-incompatibilities", scope, "latest"), localPath)
+
+			incompatibilities[referencedModule+"."+scope] = true
+		}
+		// Create empty incompatibilities files for remaining modules
+		for _, k := range android.SortedStringKeys(m) {
+			if _, ok := incompatibilities[k]; !ok {
+				createEmptyFile(mctx, moduleName(m[k].module+"-incompatibilities", m[k].scope, "latest"))
+			}
+		}
 	}
 }
 
