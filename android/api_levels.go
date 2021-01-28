@@ -81,6 +81,10 @@ func (this ApiLevel) IsCurrent() bool {
 	return this.value == "current"
 }
 
+func (this ApiLevel) IsNone() bool {
+	return this.number == -1
+}
+
 // Returns -1 if the current API level is less than the argument, 0 if they
 // are equal, and 1 if it is greater than the argument.
 func (this ApiLevel) CompareTo(other ApiLevel) int {
