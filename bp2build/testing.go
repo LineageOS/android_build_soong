@@ -137,3 +137,29 @@ func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 		})
 	}
 }
+
+// A bp2build mutator that uses load statements and creates a 1:M mapping from
+// module to target.
+func customBp2BuildMutatorFromStarlark(ctx android.TopDownMutatorContext) {
+	if m, ok := ctx.Module().(*customModule); ok {
+		baseName := "__bp2build__" + m.Name()
+		ctx.CreateModule(customBazelModuleFactory, &customBazelModuleAttributes{
+			Name: proptools.StringPtr(baseName),
+		}, &bazel.BazelTargetModuleProperties{
+			Rule_class:        "my_library",
+			Bzl_load_location: "//build/bazel/rules:rules.bzl",
+		})
+		ctx.CreateModule(customBazelModuleFactory, &customBazelModuleAttributes{
+			Name: proptools.StringPtr(baseName + "_proto_library_deps"),
+		}, &bazel.BazelTargetModuleProperties{
+			Rule_class:        "proto_library",
+			Bzl_load_location: "//build/bazel/rules:proto.bzl",
+		})
+		ctx.CreateModule(customBazelModuleFactory, &customBazelModuleAttributes{
+			Name: proptools.StringPtr(baseName + "_my_proto_library_deps"),
+		}, &bazel.BazelTargetModuleProperties{
+			Rule_class:        "my_proto_library",
+			Bzl_load_location: "//build/bazel/rules:proto.bzl",
+		})
+	}
+}
