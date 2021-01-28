@@ -146,7 +146,7 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 	builder.Command().Text("rm").Flag("-rf").Output(propFile)
 	for _, p := range props {
 		builder.Command().
-			Text("echo").Flag("-e").
+			Text("echo").
 			Flag(`"` + p.name + "=" + p.value + `"`).
 			Text(">>").Output(propFile)
 	}
