@@ -89,7 +89,7 @@ func (ctx *TestContext) RegisterBp2BuildMutator(moduleType string, m func(TopDow
 	f := func(ctx RegisterMutatorsContext) {
 		ctx.TopDown(mutatorName, m)
 	}
-	bp2buildMutators = append(bp2buildMutators, f)
+	ctx.bp2buildMutators = append(ctx.bp2buildMutators, f)
 }
 
 func (ctx *TestContext) Register() {
@@ -100,7 +100,7 @@ func (ctx *TestContext) Register() {
 
 // RegisterForBazelConversion prepares a test context for bp2build conversion.
 func (ctx *TestContext) RegisterForBazelConversion() {
-	RegisterMutatorsForBazelConversion(ctx.Context.Context, bp2buildMutators)
+	RegisterMutatorsForBazelConversion(ctx.Context.Context, ctx.bp2buildMutators)
 }
 
 func (ctx *TestContext) ParseFileList(rootDir string, filePaths []string) (deps []string, errs []error) {
