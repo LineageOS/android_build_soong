@@ -125,6 +125,22 @@ license_kind {
 }
 
 license_kind {
+    name: "SPDX-license-identifier-APSL-1.1",
+    conditions: [
+        "reciprocal",
+    ],
+    url: "https://spdx.org/licenses/APSL-1.1.html",
+}
+
+license_kind {
+    name: "SPDX-license-identifier-APSL-2.0",
+    conditions: [
+        "reciprocal",
+    ],
+    url: "https://spdx.org/licenses/APSL-2.0.html",
+}
+
+license_kind {
     name: "SPDX-license-identifier-Apache",
     conditions: ["notice"],
 }
