@@ -47,7 +47,7 @@ func RegisterGenruleBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("genrule_tool_deps", toolDepsMutator).Parallel()
 	})
 
-	android.RegisterBp2BuildMutator("genrule", bp2buildMutator)
+	android.RegisterBp2BuildMutator("genrule", GenruleBp2Build)
 }
 
 var (
@@ -794,7 +794,7 @@ func BazelGenruleFactory() android.Module {
 	return module
 }
 
-func bp2buildMutator(ctx android.TopDownMutatorContext) {
+func GenruleBp2Build(ctx android.TopDownMutatorContext) {
 	if m, ok := ctx.Module().(*Module); ok {
 		name := "__bp2build__" + m.Name()
 		// Bazel only has the "tools" attribute.

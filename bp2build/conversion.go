@@ -17,7 +17,7 @@ type BazelFile struct {
 
 func CreateBazelFiles(
 	ruleShims map[string]RuleShim,
-	buildToTargets map[string][]BazelTarget,
+	buildToTargets map[string]BazelTargets,
 	mode CodegenMode) []BazelFile {
 	files := make([]BazelFile, 0, len(ruleShims)+len(buildToTargets)+numAdditionalFiles)
 
@@ -43,20 +43,20 @@ func CreateBazelFiles(
 	return files
 }
 
-func createBuildFiles(buildToTargets map[string][]BazelTarget, mode CodegenMode) []BazelFile {
+func createBuildFiles(buildToTargets map[string]BazelTargets, mode CodegenMode) []BazelFile {
 	files := make([]BazelFile, 0, len(buildToTargets))
 	for _, dir := range android.SortedStringKeys(buildToTargets) {
-		content := soongModuleLoad
-		if mode == Bp2Build {
-			// No need to load soong_module for bp2build BUILD files.
-			content = ""
-		}
 		targets := buildToTargets[dir]
 		sort.Slice(targets, func(i, j int) bool { return targets[i].name < targets[j].name })
-		for _, t := range targets {
-			content += "\n\n"
-			content += t.content
+		content := soongModuleLoad
+		if mode == Bp2Build {
+			content = targets.LoadStatements()
 		}
+		if content != "" {
+			// If there are load statements, add a couple of newlines.
+			content += "\n\n"
+		}
+		content += targets.String()
 		files = append(files, newFile(dir, "BUILD.bazel", content))
 	}
 	return files
