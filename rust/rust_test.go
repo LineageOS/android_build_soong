@@ -116,6 +116,7 @@ func (tctx *testRustCtx) useMockedFs() {
 		"foo.proto":       nil,
 		"liby.so":         nil,
 		"libz.so":         nil,
+		"data.txt":        nil,
 	}
 }
 
