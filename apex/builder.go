@@ -780,7 +780,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("test_only_force_compression", "not available")
 		return
 	}
-	compressionEnabled := ctx.Config().CompressedApex() && proptools.BoolDefault(a.properties.Compressible, true)
+	compressionEnabled := ctx.Config().CompressedApex() && proptools.BoolDefault(a.properties.Compressible, false)
 	if apexType == imageApex && (compressionEnabled || a.testOnlyShouldForceCompression()) {
 		a.isCompressed = true
 		unsignedCompressedOutputFile := android.PathForModuleOut(ctx, a.Name()+".capex.unsigned")
