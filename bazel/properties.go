@@ -31,4 +31,7 @@ type Properties struct {
 type BazelTargetModuleProperties struct {
 	// The Bazel rule class for this target.
 	Rule_class string
+
+	// The target label for the bzl file containing the definition of the rule class.
+	Bzl_load_location string
 }

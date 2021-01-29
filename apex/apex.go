@@ -854,11 +854,17 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 		Contents: apexContents,
 	})
 
+	minSdkVersion := a.minSdkVersion(mctx)
+	// When min_sdk_version is not set, the apex is built against FutureApiLevel.
+	if minSdkVersion.IsNone() {
+		minSdkVersion = android.FutureApiLevel
+	}
+
 	// This is the main part of this mutator. Mark the collected dependencies that they need to
 	// be built for this apexBundle.
 	apexInfo := android.ApexInfo{
 		ApexVariationName: mctx.ModuleName(),
-		MinSdkVersionStr:  a.minSdkVersion(mctx).String(),
+		MinSdkVersionStr:  minSdkVersion.String(),
 		RequiredSdks:      a.RequiredSdks(),
 		Updatable:         a.Updatable(),
 		InApexes:          []string{mctx.ModuleName()},
@@ -2116,16 +2122,12 @@ func (a *apexBundle) checkMinSdkVersion(ctx android.ModuleContext) {
 func (a *apexBundle) minSdkVersion(ctx android.BaseModuleContext) android.ApiLevel {
 	ver := proptools.String(a.properties.Min_sdk_version)
 	if ver == "" {
-		return android.FutureApiLevel
+		return android.NoneApiLevel
 	}
 	apiLevel, err := android.ApiLevelFromUser(ctx, ver)
 	if err != nil {
 		ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
 		return android.NoneApiLevel
-	}
-	if apiLevel.IsPreview() {
-		// All codenames should build against "current".
-		return android.FutureApiLevel
 	}
 	return apiLevel
 }

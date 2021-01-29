@@ -2135,6 +2135,74 @@ func TestApexMinSdkVersion_OkayEvenWhenDepIsNewer_IfItSatisfiesApexMinSdkVersion
 	expectLink("mylib", "shared_apex30", "mylib2", "shared_apex30")
 }
 
+func TestApexMinSdkVersion_WorksWithSdkCodename(t *testing.T) {
+	withSAsActiveCodeNames := func(fs map[string][]byte, config android.Config) {
+		config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("S")
+		config.TestProductVariables.Platform_version_active_codenames = []string{"S"}
+	}
+	testApexError(t, `libbar.*: should support min_sdk_version\(S\)`, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libfoo"],
+			min_sdk_version: "S",
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+		cc_library {
+			name: "libfoo",
+			shared_libs: ["libbar"],
+			apex_available: ["myapex"],
+			min_sdk_version: "29",
+		}
+		cc_library {
+			name: "libbar",
+			apex_available: ["myapex"],
+		}
+	`, withSAsActiveCodeNames)
+}
+
+func TestApexMinSdkVersion_WorksWithActiveCodenames(t *testing.T) {
+	withSAsActiveCodeNames := func(fs map[string][]byte, config android.Config) {
+		config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("S")
+		config.TestProductVariables.Platform_version_active_codenames = []string{"S", "T"}
+	}
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["libfoo"],
+			min_sdk_version: "S",
+		}
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+		cc_library {
+			name: "libfoo",
+			shared_libs: ["libbar"],
+			apex_available: ["myapex"],
+			min_sdk_version: "S",
+		}
+		cc_library {
+			name: "libbar",
+			stubs: {
+				symbol_file: "libbar.map.txt",
+				versions: ["30", "S", "T"],
+			},
+		}
+	`, withSAsActiveCodeNames)
+
+	// ensure libfoo is linked with "S" version of libbar stub
+	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared_apex10000")
+	libFlags := libfoo.Rule("ld").Args["libFlags"]
+	ensureContains(t, libFlags, "android_arm64_armv8-a_shared_S/libbar.so")
+}
+
 func TestFilesInSubDir(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {
