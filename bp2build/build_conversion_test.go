@@ -16,6 +16,7 @@ package bp2build
 
 import (
 	"android/soong/android"
+	"android/soong/genrule"
 	"testing"
 )
 
@@ -31,10 +32,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
 )`,
 		},
@@ -46,10 +47,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     ramdisk = True,
 )`,
@@ -62,10 +63,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     owner = "a_string_with\"quotes\"_and_\\backslashes\\\\",
 )`,
@@ -78,10 +79,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     required = [
         "bar",
@@ -96,10 +97,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     target_required = [
         "qux",
@@ -124,10 +125,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     dist = {
         "tag": ".foo",
@@ -162,10 +163,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
-    module_name = "foo",
-    module_type = "custom",
-    module_variant = "",
-    module_deps = [
+    soong_module_name = "foo",
+    soong_module_type = "custom",
+    soong_module_variant = "",
+    soong_module_deps = [
     ],
     dists = [
         {
@@ -200,9 +201,9 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		_, errs = ctx.PrepareBuildActions(config)
 		android.FailIfErrored(t, errs)
 
-		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, false)[dir]
-		if g, w := len(bazelTargets), 1; g != w {
-			t.Fatalf("Expected %d bazel target, got %d", w, g)
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, QueryView)[dir]
+		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
+			t.Fatalf("Expected %d bazel target, got %d", expectedCount, actualCount)
 		}
 
 		actualBazelTarget := bazelTargets[0]
@@ -251,9 +252,9 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 		_, errs = ctx.ResolveDependencies(config)
 		android.FailIfErrored(t, errs)
 
-		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, true)[dir]
-		if g, w := len(bazelTargets), 1; g != w {
-			t.Fatalf("Expected %d bazel target, got %d", w, g)
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, Bp2Build)[dir]
+		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
+			t.Fatalf("Expected %d bazel target, got %d", expectedCount, actualCount)
 		}
 
 		actualBazelTarget := bazelTargets[0]
@@ -267,16 +268,185 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 	}
 }
 
-func TestModuleTypeBp2Build(t *testing.T) {
+func TestLoadStatements(t *testing.T) {
 	testCases := []struct {
-		moduleTypeUnderTest        string
-		moduleTypeUnderTestFactory android.ModuleFactory
-		bp                         string
-		expectedBazelTarget        string
+		bazelTargets           BazelTargets
+		expectedLoadStatements string
 	}{
 		{
-			moduleTypeUnderTest:        "filegroup",
-			moduleTypeUnderTestFactory: android.FileGroupFactory,
+			bazelTargets: BazelTargets{
+				BazelTarget{
+					name:            "foo",
+					ruleClass:       "cc_library",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+			},
+			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_library")`,
+		},
+		{
+			bazelTargets: BazelTargets{
+				BazelTarget{
+					name:            "foo",
+					ruleClass:       "cc_library",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+				BazelTarget{
+					name:            "bar",
+					ruleClass:       "cc_library",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+			},
+			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_library")`,
+		},
+		{
+			bazelTargets: BazelTargets{
+				BazelTarget{
+					name:            "foo",
+					ruleClass:       "cc_library",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+				BazelTarget{
+					name:            "bar",
+					ruleClass:       "cc_binary",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+			},
+			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_binary", "cc_library")`,
+		},
+		{
+			bazelTargets: BazelTargets{
+				BazelTarget{
+					name:            "foo",
+					ruleClass:       "cc_library",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+				BazelTarget{
+					name:            "bar",
+					ruleClass:       "cc_binary",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+				BazelTarget{
+					name:            "baz",
+					ruleClass:       "java_binary",
+					bzlLoadLocation: "//build/bazel/rules:java.bzl",
+				},
+			},
+			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_binary", "cc_library")
+load("//build/bazel/rules:java.bzl", "java_binary")`,
+		},
+		{
+			bazelTargets: BazelTargets{
+				BazelTarget{
+					name:            "foo",
+					ruleClass:       "cc_binary",
+					bzlLoadLocation: "//build/bazel/rules:cc.bzl",
+				},
+				BazelTarget{
+					name:            "bar",
+					ruleClass:       "java_binary",
+					bzlLoadLocation: "//build/bazel/rules:java.bzl",
+				},
+				BazelTarget{
+					name:      "baz",
+					ruleClass: "genrule",
+					// Note: no bzlLoadLocation for native rules
+				},
+			},
+			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_binary")
+load("//build/bazel/rules:java.bzl", "java_binary")`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		actual := testCase.bazelTargets.LoadStatements()
+		expected := testCase.expectedLoadStatements
+		if actual != expected {
+			t.Fatalf("Expected load statements to be %s, got %s", expected, actual)
+		}
+	}
+
+}
+
+func TestGenerateBazelTargetModules_OneToMany_LoadedFromStarlark(t *testing.T) {
+	testCases := []struct {
+		bp                       string
+		expectedBazelTarget      string
+		expectedBazelTargetCount int
+		expectedLoadStatements   string
+	}{
+		{
+			bp: `custom {
+    name: "bar",
+}`,
+			expectedBazelTarget: `my_library(
+    name = "bar",
+)
+
+my_proto_library(
+    name = "bar_my_proto_library_deps",
+)
+
+proto_library(
+    name = "bar_proto_library_deps",
+)`,
+			expectedBazelTargetCount: 3,
+			expectedLoadStatements: `load("//build/bazel/rules:proto.bzl", "my_proto_library", "proto_library")
+load("//build/bazel/rules:rules.bzl", "my_library")`,
+		},
+	}
+
+	dir := "."
+	for _, testCase := range testCases {
+		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
+		ctx := android.NewTestContext(config)
+		ctx.RegisterModuleType("custom", customModuleFactory)
+		ctx.RegisterBp2BuildMutator("custom_starlark", customBp2BuildMutatorFromStarlark)
+		ctx.RegisterForBazelConversion()
+
+		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
+		android.FailIfErrored(t, errs)
+		_, errs = ctx.ResolveDependencies(config)
+		android.FailIfErrored(t, errs)
+
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, Bp2Build)[dir]
+		if actualCount := len(bazelTargets); actualCount != testCase.expectedBazelTargetCount {
+			t.Fatalf("Expected %d bazel target, got %d", testCase.expectedBazelTargetCount, actualCount)
+		}
+
+		actualBazelTargets := bazelTargets.String()
+		if actualBazelTargets != testCase.expectedBazelTarget {
+			t.Errorf(
+				"Expected generated Bazel target to be '%s', got '%s'",
+				testCase.expectedBazelTarget,
+				actualBazelTargets,
+			)
+		}
+
+		actualLoadStatements := bazelTargets.LoadStatements()
+		if actualLoadStatements != testCase.expectedLoadStatements {
+			t.Errorf(
+				"Expected generated load statements to be '%s', got '%s'",
+				testCase.expectedLoadStatements,
+				actualLoadStatements,
+			)
+		}
+	}
+}
+
+func TestModuleTypeBp2Build(t *testing.T) {
+	testCases := []struct {
+		moduleTypeUnderTest                string
+		moduleTypeUnderTestFactory         android.ModuleFactory
+		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
+		bp                                 string
+		expectedBazelTarget                string
+		description                        string
+	}{
+		{
+			description:                        "filegroup with no srcs",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
 			bp: `filegroup {
 	name: "foo",
 	srcs: [],
@@ -288,8 +458,10 @@ func TestModuleTypeBp2Build(t *testing.T) {
 )`,
 		},
 		{
-			moduleTypeUnderTest:        "filegroup",
-			moduleTypeUnderTestFactory: android.FileGroupFactory,
+			description:                        "filegroup with srcs",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
 			bp: `filegroup {
 	name: "foo",
 	srcs: ["a", "b"],
@@ -302,6 +474,134 @@ func TestModuleTypeBp2Build(t *testing.T) {
     ],
 )`,
 		},
+		{
+			description:                        "genrule with command line variable replacements",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    tools: [":foo.tool"],
+    cmd: "$(location :foo.tool) --genDir=$(genDir) arg $(in) $(out)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "$(location :foo.tool) --genDir=$(GENDIR) arg $(SRCS) $(OUTS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+    tools = [
+        ":foo.tool",
+    ],
+)`,
+		},
+		{
+			description:                        "genrule using $(locations :label)",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    tools: [":foo.tools"],
+    cmd: "$(locations :foo.tools) -s $(out) $(in)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "$(locations :foo.tools) -s $(OUTS) $(SRCS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+    tools = [
+        ":foo.tools",
+    ],
+)`,
+		},
+		{
+			description:                        "genrule using $(location) label should substitute first tool label automatically",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    tool_files: [":foo.tool", ":other.tool"],
+    cmd: "$(location) -s $(out) $(in)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "$(location :foo.tool) -s $(OUTS) $(SRCS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+    tools = [
+        ":foo.tool",
+        ":other.tool",
+    ],
+)`,
+		},
+		{
+			description:                        "genrule using $(locations) label should substitute first tool label automatically",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    tools: [":foo.tool", ":other.tool"],
+    cmd: "$(locations) -s $(out) $(in)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "$(locations :foo.tool) -s $(OUTS) $(SRCS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+    tools = [
+        ":foo.tool",
+        ":other.tool",
+    ],
+)`,
+		},
+		{
+			description:                        "genrule without tools or tool_files can convert successfully",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    cmd: "cp $(in) $(out)",
+}`,
+			expectedBazelTarget: `genrule(
+    name = "foo",
+    cmd = "cp $(SRCS) $(OUTS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+)`,
+		},
 	}
 
 	dir := "."
@@ -309,6 +609,7 @@ func TestModuleTypeBp2Build(t *testing.T) {
 		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
 		ctx := android.NewTestContext(config)
 		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
+		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
@@ -316,15 +617,16 @@ func TestModuleTypeBp2Build(t *testing.T) {
 		_, errs = ctx.ResolveDependencies(config)
 		android.FailIfErrored(t, errs)
 
-		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, true)[dir]
-		if g, w := len(bazelTargets), 1; g != w {
-			t.Fatalf("Expected %d bazel target, got %d", w, g)
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, Bp2Build)[dir]
+		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
+			t.Fatalf("%s: Expected %d bazel target, got %d", testCase.description, expectedCount, actualCount)
 		}
 
 		actualBazelTarget := bazelTargets[0]
 		if actualBazelTarget.content != testCase.expectedBazelTarget {
 			t.Errorf(
-				"Expected generated Bazel target to be '%s', got '%s'",
+				"%s: Expected generated Bazel target to be '%s', got '%s'",
+				testCase.description,
 				testCase.expectedBazelTarget,
 				actualBazelTarget.content,
 			)

@@ -68,11 +68,7 @@ func (mod *Module) OnlyInVendorRamdisk() bool {
 
 // Returns true when this module is configured to have core and vendor variants.
 func (mod *Module) HasVendorVariant() bool {
-	return mod.IsVndk() || Bool(mod.VendorProperties.Vendor_available)
-}
-
-func (c *Module) VendorAvailable() bool {
-	return Bool(c.VendorProperties.Vendor_available)
+	return Bool(mod.VendorProperties.Vendor_available) || Bool(mod.VendorProperties.Odm_available)
 }
 
 func (c *Module) InProduct() bool {
@@ -114,10 +110,15 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	coreVariantNeeded := true
 	var vendorVariants []string
 
-	if Bool(mod.VendorProperties.Vendor_available) {
+	if mod.HasVendorVariant() {
+		prop := "vendor_available"
+		if Bool(mod.VendorProperties.Odm_available) {
+			prop = "odm_available"
+		}
+
 		if vendorSpecific {
-			mctx.PropertyErrorf("vendor_available",
-				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific:true`")
+			mctx.PropertyErrorf(prop,
+				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific: true`")
 		}
 
 		if lib, ok := mod.compiler.(libraryInterface); ok {
@@ -128,9 +129,8 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 			// We can't check shared() here because image mutator is called before the library mutator, so we need to
 			// check buildShared()
 			if lib.buildShared() {
-				mctx.PropertyErrorf("vendor_available",
-					"vendor_available can only be set for rust_ffi_static modules.")
-			} else if Bool(mod.VendorProperties.Vendor_available) == true {
+				mctx.PropertyErrorf(prop, "can only be set for rust_ffi_static modules.")
+			} else {
 				vendorVariants = append(vendorVariants, platformVndkVersion)
 			}
 		}

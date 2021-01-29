@@ -106,7 +106,7 @@ func startRBE(ctx Context, config Config) {
 	cmd := Command(ctx, config, "startRBE bootstrap", rbeCommand(ctx, config, bootstrapCmd))
 
 	if output, err := cmd.CombinedOutput(); err != nil {
-		ctx.Fatalf("rbe bootstrap failed with: %v\n%s\n", err, output)
+		ctx.Fatalf("Unable to start RBE reproxy\nFAILED: RBE bootstrap failed with: %v\n%s\n", err, output)
 	}
 }
 

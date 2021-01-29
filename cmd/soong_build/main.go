@@ -170,7 +170,7 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	bp2buildCtx.SetNameInterface(newNameResolver(configuration))
 	bootstrap.Main(bp2buildCtx.Context, configuration, extraNinjaDeps...)
 
-	codegenContext := bp2build.NewCodegenContext(configuration, *bp2buildCtx)
+	codegenContext := bp2build.NewCodegenContext(configuration, *bp2buildCtx, bp2build.Bp2Build)
 	bp2build.Codegen(codegenContext)
 }
 

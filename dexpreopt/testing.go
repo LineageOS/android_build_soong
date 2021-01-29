@@ -34,7 +34,7 @@ func dummyToolBinaryFactory() android.Module {
 	return module
 }
 
-func RegisterToolModulesForTest(ctx *android.TestContext) {
+func RegisterToolModulesForTest(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("dummy_tool_binary", dummyToolBinaryFactory)
 }
 

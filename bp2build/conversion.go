@@ -17,8 +17,8 @@ type BazelFile struct {
 
 func CreateBazelFiles(
 	ruleShims map[string]RuleShim,
-	buildToTargets map[string][]BazelTarget,
-	bp2buildEnabled bool) []BazelFile {
+	buildToTargets map[string]BazelTargets,
+	mode CodegenMode) []BazelFile {
 	files := make([]BazelFile, 0, len(ruleShims)+len(buildToTargets)+numAdditionalFiles)
 
 	// Write top level files: WORKSPACE and BUILD. These files are empty.
@@ -28,7 +28,7 @@ func CreateBazelFiles(
 
 	files = append(files, newFile(bazelRulesSubDir, "BUILD", ""))
 
-	if !bp2buildEnabled {
+	if mode == QueryView {
 		// These files are only used for queryview.
 		files = append(files, newFile(bazelRulesSubDir, "providers.bzl", providersBzl))
 
@@ -38,25 +38,25 @@ func CreateBazelFiles(
 		files = append(files, newFile(bazelRulesSubDir, "soong_module.bzl", generateSoongModuleBzl(ruleShims)))
 	}
 
-	files = append(files, createBuildFiles(buildToTargets, bp2buildEnabled)...)
+	files = append(files, createBuildFiles(buildToTargets, mode)...)
 
 	return files
 }
 
-func createBuildFiles(buildToTargets map[string][]BazelTarget, bp2buildEnabled bool) []BazelFile {
+func createBuildFiles(buildToTargets map[string]BazelTargets, mode CodegenMode) []BazelFile {
 	files := make([]BazelFile, 0, len(buildToTargets))
 	for _, dir := range android.SortedStringKeys(buildToTargets) {
-		content := soongModuleLoad
-		if bp2buildEnabled {
-			// No need to load soong_module for bp2build BUILD files.
-			content = ""
-		}
 		targets := buildToTargets[dir]
 		sort.Slice(targets, func(i, j int) bool { return targets[i].name < targets[j].name })
-		for _, t := range targets {
-			content += "\n\n"
-			content += t.content
+		content := soongModuleLoad
+		if mode == Bp2Build {
+			content = targets.LoadStatements()
 		}
+		if content != "" {
+			// If there are load statements, add a couple of newlines.
+			content += "\n\n"
+		}
+		content += targets.String()
 		files = append(files, newFile(dir, "BUILD.bazel", content))
 	}
 	return files

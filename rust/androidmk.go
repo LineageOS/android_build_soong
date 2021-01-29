@@ -82,9 +82,6 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 	}
 
 	ret.Class = "EXECUTABLES"
-	ret.ExtraEntries = append(ret.ExtraEntries, func(entries *android.AndroidMkEntries) {
-		entries.SetOptionalPath("LOCAL_PREBUILT_COVERAGE_ARCHIVE", binary.coverageOutputZipFile)
-	})
 }
 
 func (test *testDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {
@@ -117,10 +114,6 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 	if library.distFile.Valid() {
 		ret.DistFiles = android.MakeDefaultDistFiles(library.distFile.Path())
 	}
-
-	ret.ExtraEntries = append(ret.ExtraEntries, func(entries *android.AndroidMkEntries) {
-		entries.SetOptionalPath("LOCAL_PREBUILT_COVERAGE_ARCHIVE", library.coverageOutputZipFile)
-	})
 }
 
 func (procMacro *procMacroDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {

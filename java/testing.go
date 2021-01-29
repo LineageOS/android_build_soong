@@ -86,8 +86,11 @@ func prebuiltApisFilesForLibs(apiLevels []string, sdkLibs []string) map[string][
 		for _, lib := range sdkLibs {
 			for _, scope := range []string{"public", "system", "module-lib", "system-server", "test"} {
 				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/%s.jar", level, scope, lib)] = nil
-				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s.txt", level, scope, lib)] = nil
-				fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s-removed.txt", level, scope, lib)] = nil
+				// No finalized API files for "current"
+				if level != "current" {
+					fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s.txt", level, scope, lib)] = nil
+					fs[fmt.Sprintf("prebuilts/sdk/%s/%s/api/%s-removed.txt", level, scope, lib)] = nil
+				}
 			}
 		}
 		fs[fmt.Sprintf("prebuilts/sdk/%s/public/framework.aidl", level)] = nil
@@ -104,6 +107,7 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterAppBuildComponents(ctx)
 	RegisterAppImportBuildComponents(ctx)
 	RegisterAppSetBuildComponents(ctx)
+	RegisterBootImageBuildComponents(ctx)
 	RegisterDexpreoptBootJarsComponents(ctx)
 	RegisterDocsBuildComponents(ctx)
 	RegisterGenRuleBuildComponents(ctx)
@@ -113,6 +117,9 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterSdkLibraryBuildComponents(ctx)
 	RegisterStubsBuildComponents(ctx)
 	RegisterSystemModulesBuildComponents(ctx)
+
+	// Make sure that any tool related module types needed by dexpreopt have been registered.
+	dexpreopt.RegisterToolModulesForTest(ctx)
 }
 
 // Gather the module definitions needed by tests that depend upon code from this package.
@@ -204,10 +211,23 @@ func GatherRequiredDepsForTest() string {
 		`, extra)
 	}
 
+	// Make sure that any tools needed for dexpreopting are defined.
+	bp += dexpreopt.BpToolModulesForTest()
+
 	// Make sure that the dex_bootjars singleton module is instantiated for the tests.
 	bp += `
 		dex_bootjars {
 			name: "dex_bootjars",
+		}
+
+		boot_image {
+			name: "art-boot-image",
+			image_name: "art",
+		}
+
+		boot_image {
+			name: "framework-boot-image",
+			image_name: "boot",
 		}
 `
 

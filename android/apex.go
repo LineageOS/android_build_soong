@@ -830,9 +830,8 @@ func CheckMinSdkVersion(m UpdatableModule, ctx ModuleContext, minSdkVersion ApiL
 		return
 	}
 
-	// do not enforce deps.min_sdk_version if APEX/APK doesn't set min_sdk_version or
-	// min_sdk_version is not finalized (e.g. current or codenames)
-	if minSdkVersion.IsCurrent() {
+	// do not enforce deps.min_sdk_version if APEX/APK doesn't set min_sdk_version
+	if minSdkVersion.IsNone() {
 		return
 	}
 

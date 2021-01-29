@@ -42,6 +42,10 @@ func init() {
 		ctx.BottomUp("rust_libraries", LibraryMutator).Parallel()
 		ctx.BottomUp("rust_stdlinkage", LibstdMutator).Parallel()
 		ctx.BottomUp("rust_begin", BeginMutator).Parallel()
+
+	})
+	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("rust_sanitizers", rustSanitizerRuntimeMutator).Parallel()
 	})
 	pctx.Import("android/soong/rust/config")
 	pctx.ImportAs("cc_config", "android/soong/cc/config")
@@ -97,6 +101,7 @@ type Module struct {
 	compiler         compiler
 	coverage         *coverage
 	clippy           *clippy
+	sanitize         *sanitize
 	cachedToolchain  config.Toolchain
 	sourceProvider   SourceProvider
 	subAndroidMkOnce map[SubAndroidMkProvider]bool
@@ -125,7 +130,9 @@ func (mod *Module) SetHideFromMake() {
 }
 
 func (mod *Module) SanitizePropDefined() bool {
-	return false
+	// Because compiler is not set for some Rust modules where sanitize might be set, check that compiler is also not
+	// nil since we need compiler to actually sanitize.
+	return mod.sanitize != nil && mod.compiler != nil
 }
 
 func (mod *Module) IsDependencyRoot() bool {
@@ -284,8 +291,6 @@ type PathDeps struct {
 	depGeneratedHeaders   android.Paths
 	depSystemIncludePaths android.Paths
 
-	coverageFiles android.Paths
-
 	CrtBegin android.OptionalPath
 	CrtEnd   android.OptionalPath
 
@@ -420,6 +425,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&cc.CoverageProperties{},
 		&cc.RustBindgenClangProperties{},
 		&ClippyProperties{},
+		&SanitizeProperties{},
 	)
 
 	android.InitDefaultsModule(module)
@@ -507,15 +513,7 @@ func (mod *Module) OutputFile() android.OptionalPath {
 
 func (mod *Module) CoverageFiles() android.Paths {
 	if mod.compiler != nil {
-		if !mod.compiler.nativeCoverage() {
-			return android.Paths{}
-		}
-		if library, ok := mod.compiler.(*libraryDecorator); ok {
-			if library.coverageFile != nil {
-				return android.Paths{library.coverageFile}
-			}
-			return android.Paths{}
-		}
+		return android.Paths{}
 	}
 	panic(fmt.Errorf("CoverageFiles called on non-library module: %q", mod.BaseModuleName()))
 }
@@ -548,6 +546,9 @@ func (mod *Module) Init() android.Module {
 	if mod.sourceProvider != nil {
 		mod.AddProperties(mod.sourceProvider.SourceProviderProps()...)
 	}
+	if mod.sanitize != nil {
+		mod.AddProperties(mod.sanitize.props()...)
+	}
 
 	android.InitAndroidArchModule(mod, mod.hod, mod.multilib)
 	android.InitApexModule(mod)
@@ -566,6 +567,7 @@ func newModule(hod android.HostOrDeviceSupported, multilib android.Multilib) *Mo
 	module := newBaseModule(hod, multilib)
 	module.coverage = &coverage{}
 	module.clippy = &clippy{}
+	module.sanitize = &sanitize{}
 	return module
 }
 
@@ -680,6 +682,9 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if mod.clippy != nil {
 		flags, deps = mod.clippy.flags(ctx, flags, deps)
 	}
+	if mod.sanitize != nil {
+		flags, deps = mod.sanitize.flags(ctx, flags, deps)
+	}
 
 	// SourceProvider needs to call GenerateSource() before compiler calls
 	// compile() so it can provide the source. A SourceProvider has
@@ -721,6 +726,10 @@ func (mod *Module) deps(ctx DepsContext) Deps {
 
 	if mod.coverage != nil {
 		deps = mod.coverage.deps(ctx, deps)
+	}
+
+	if mod.sanitize != nil {
+		deps = mod.sanitize.deps(ctx, deps)
 	}
 
 	deps.Rlibs = android.LastUniqueStrings(deps.Rlibs)
@@ -783,6 +792,9 @@ func (mod *Module) begin(ctx BaseModuleContext) {
 	if mod.coverage != nil {
 		mod.coverage.begin(ctx)
 	}
+	if mod.sanitize != nil {
+		mod.sanitize.begin(ctx)
+	}
 }
 
 func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
@@ -818,7 +830,6 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					ctx.ModuleErrorf("mod %q not an rlib library", depName+rustDep.Properties.SubName)
 					return
 				}
-				depPaths.coverageFiles = append(depPaths.coverageFiles, rustDep.CoverageFiles()...)
 				directRlibDeps = append(directRlibDeps, rustDep)
 				mod.Properties.AndroidMkRlibs = append(mod.Properties.AndroidMkRlibs, depName+rustDep.Properties.SubName)
 			case procMacroDepTag:
@@ -894,7 +905,6 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, exportedInfo.SystemIncludeDirs...)
 				depPaths.depClangFlags = append(depPaths.depClangFlags, exportedInfo.Flags...)
 				depPaths.depGeneratedHeaders = append(depPaths.depGeneratedHeaders, exportedInfo.GeneratedHeaders...)
-				depPaths.coverageFiles = append(depPaths.coverageFiles, ccDep.CoverageFiles()...)
 				directStaticLibDeps = append(directStaticLibDeps, ccDep)
 				mod.Properties.AndroidMkStaticLibs = append(mod.Properties.AndroidMkStaticLibs, depName)
 			case cc.IsSharedDepTag(depTag):

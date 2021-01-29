@@ -18,6 +18,7 @@ import (
 	"android/soong/android"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -29,8 +30,62 @@ type BazelAttributes struct {
 }
 
 type BazelTarget struct {
-	name    string
-	content string
+	name            string
+	content         string
+	ruleClass       string
+	bzlLoadLocation string
+}
+
+// IsLoadedFromStarlark determines if the BazelTarget's rule class is loaded from a .bzl file,
+// as opposed to a native rule built into Bazel.
+func (t BazelTarget) IsLoadedFromStarlark() bool {
+	return t.bzlLoadLocation != ""
+}
+
+// BazelTargets is a typedef for a slice of BazelTarget objects.
+type BazelTargets []BazelTarget
+
+// String returns the string representation of BazelTargets, without load
+// statements (use LoadStatements for that), since the targets are usually not
+// adjacent to the load statements at the top of the BUILD file.
+func (targets BazelTargets) String() string {
+	var res string
+	for i, target := range targets {
+		res += target.content
+		if i != len(targets)-1 {
+			res += "\n\n"
+		}
+	}
+	return res
+}
+
+// LoadStatements return the string representation of the sorted and deduplicated
+// Starlark rule load statements needed by a group of BazelTargets.
+func (targets BazelTargets) LoadStatements() string {
+	bzlToLoadedSymbols := map[string][]string{}
+	for _, target := range targets {
+		if target.IsLoadedFromStarlark() {
+			bzlToLoadedSymbols[target.bzlLoadLocation] =
+				append(bzlToLoadedSymbols[target.bzlLoadLocation], target.ruleClass)
+		}
+	}
+
+	var loadStatements []string
+	for bzl, ruleClasses := range bzlToLoadedSymbols {
+		loadStatement := "load(\""
+		loadStatement += bzl
+		loadStatement += "\", "
+		ruleClasses = android.SortedUniqueStrings(ruleClasses)
+		for i, ruleClass := range ruleClasses {
+			loadStatement += "\"" + ruleClass + "\""
+			if i != len(ruleClasses)-1 {
+				loadStatement += ", "
+			}
+		}
+		loadStatement += ")"
+		loadStatements = append(loadStatements, loadStatement)
+	}
+	return strings.Join(android.SortedUniqueStrings(loadStatements), "\n")
 }
 
 type bpToBuildContext interface {
@@ -46,6 +101,36 @@ type bpToBuildContext interface {
 type CodegenContext struct {
 	config  android.Config
 	context android.Context
+	mode    CodegenMode
+}
+
+// CodegenMode is an enum to differentiate code-generation modes.
+type CodegenMode int
+
+const (
+	// Bp2Build: generate BUILD files with targets buildable by Bazel directly.
+	//
+	// This mode is used for the Soong->Bazel build definition conversion.
+	Bp2Build CodegenMode = iota
+
+	// QueryView: generate BUILD files with targets representing fully mutated
+	// Soong modules, representing the fully configured Soong module graph with
+	// variants and dependency endges.
+	//
+	// This mode is used for discovering and introspecting the existing Soong
+	// module graph.
+	QueryView
+)
+
+func (mode CodegenMode) String() string {
+	switch mode {
+	case Bp2Build:
+		return "Bp2Build"
+	case QueryView:
+		return "QueryView"
+	default:
+		return fmt.Sprintf("%d", mode)
+	}
 }
 
 func (ctx CodegenContext) AddNinjaFileDeps(...string) {}
@@ -54,10 +139,11 @@ func (ctx CodegenContext) Context() android.Context   { return ctx.context }
 
 // NewCodegenContext creates a wrapper context that conforms to PathContext for
 // writing BUILD files in the output directory.
-func NewCodegenContext(config android.Config, context android.Context) CodegenContext {
+func NewCodegenContext(config android.Config, context android.Context, mode CodegenMode) CodegenContext {
 	return CodegenContext{
 		context: context,
 		config:  config,
+		mode:    mode,
 	}
 }
 
@@ -73,24 +159,42 @@ func propsToAttributes(props map[string]string) string {
 	return attributes
 }
 
-func GenerateSoongModuleTargets(ctx bpToBuildContext, bp2buildEnabled bool) map[string][]BazelTarget {
-	buildFileToTargets := make(map[string][]BazelTarget)
+func GenerateSoongModuleTargets(ctx bpToBuildContext, codegenMode CodegenMode) map[string]BazelTargets {
+	buildFileToTargets := make(map[string]BazelTargets)
 	ctx.VisitAllModules(func(m blueprint.Module) {
 		dir := ctx.ModuleDir(m)
 		var t BazelTarget
 
-		if bp2buildEnabled {
+		switch codegenMode {
+		case Bp2Build:
 			if _, ok := m.(android.BazelTargetModule); !ok {
 				return
 			}
 			t = generateBazelTarget(ctx, m)
-		} else {
+		case QueryView:
 			t = generateSoongModuleTarget(ctx, m)
+		default:
+			panic(fmt.Errorf("Unknown code-generation mode: %s", codegenMode))
 		}
 
 		buildFileToTargets[ctx.ModuleDir(m)] = append(buildFileToTargets[dir], t)
 	})
 	return buildFileToTargets
+}
+
+// Helper method to trim quotes around strings.
+func trimQuotes(s string) string {
+	if s == "" {
+		// strconv.Unquote would error out on empty strings, but this method
+		// allows them, so return the empty string directly.
+		return ""
+	}
+	ret, err := strconv.Unquote(s)
+	if err != nil {
+		// Panic the error immediately.
+		panic(fmt.Errorf("Trying to unquote '%s', but got error: %s", s, err))
+	}
+	return ret
 }
 
 func generateBazelTarget(ctx bpToBuildContext, m blueprint.Module) BazelTarget {
@@ -99,16 +203,23 @@ func generateBazelTarget(ctx bpToBuildContext, m blueprint.Module) BazelTarget {
 
 	// extract the rule class name from the attributes. Since the string value
 	// will be string-quoted, remove the quotes here.
-	ruleClass := strings.Replace(props.Attrs["rule_class"], "\"", "", 2)
+	ruleClass := trimQuotes(props.Attrs["rule_class"])
 	// Delete it from being generated in the BUILD file.
 	delete(props.Attrs, "rule_class")
+
+	// extract the bzl_load_location, and also remove the quotes around it here.
+	bzlLoadLocation := trimQuotes(props.Attrs["bzl_load_location"])
+	// Delete it from being generated in the BUILD file.
+	delete(props.Attrs, "bzl_load_location")
 
 	// Return the Bazel target with rule class and attributes, ready to be
 	// code-generated.
 	attributes := propsToAttributes(props.Attrs)
 	targetName := targetNameForBp2Build(ctx, m)
 	return BazelTarget{
-		name: targetName,
+		name:            targetName,
+		ruleClass:       ruleClass,
+		bzlLoadLocation: bzlLoadLocation,
 		content: fmt.Sprintf(
 			bazelTarget,
 			ruleClass,
