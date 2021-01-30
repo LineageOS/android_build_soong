@@ -26,6 +26,7 @@ func TestRustTest(t *testing.T) {
 		rust_test_host {
 			name: "my_test",
 			srcs: ["foo.rs"],
+			data: ["data.txt"],
 		}`)
 
 	testingModule := ctx.ModuleForTests("my_test", "linux_glibc_x86_64")
@@ -33,6 +34,12 @@ func TestRustTest(t *testing.T) {
 	outPath := testingModule.Output("my_test").Output.String()
 	if !strings.Contains(outPath, expectedOut) {
 		t.Errorf("wrong output path: %v;  expected: %v", outPath, expectedOut)
+	}
+
+	dataPaths := testingModule.Module().(*Module).compiler.(*testDecorator).dataPaths()
+	if len(dataPaths) != 1 {
+		t.Errorf("expected exactly one test data file. test data files: [%s]", dataPaths)
+		return
 	}
 }
 
