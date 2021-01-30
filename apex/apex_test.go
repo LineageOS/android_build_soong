@@ -4398,6 +4398,215 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 	})
 }
 
+func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
+	transform := func(config *dexpreopt.GlobalConfig) {
+		config.BootJars = android.CreateTestConfiguredJarList([]string{"myapex:libfoo"})
+	}
+
+	checkBootDexJarPath := func(ctx *android.TestContext, bootDexJarPath string) {
+		s := ctx.SingletonForTests("dex_bootjars")
+		foundLibfooJar := false
+		for _, output := range s.AllOutputs() {
+			if strings.HasSuffix(output, "/libfoo.jar") {
+				foundLibfooJar = true
+				buildRule := s.Output(output)
+				actual := android.NormalizePathForTesting(buildRule.Input)
+				if actual != bootDexJarPath {
+					t.Errorf("Incorrect boot dex jar path '%s', expected '%s'", actual, bootDexJarPath)
+				}
+			}
+		}
+		if !foundLibfooJar {
+			t.Errorf("Rule for libfoo.jar missing in dex_bootjars singleton outputs")
+		}
+	}
+
+	t.Run("prebuilt only", func(t *testing.T) {
+		bp := `
+		prebuilt_apex {
+			name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_java_libs: ["libfoo"],
+		}
+
+		java_import {
+			name: "libfoo",
+			jars: ["libfoo.jar"],
+			apex_available: ["myapex"],
+		}
+	`
+
+		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+		checkBootDexJarPath(ctx, ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+	})
+
+	t.Run("prebuilt with source library preferred", func(t *testing.T) {
+		bp := `
+		prebuilt_apex {
+			name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_java_libs: ["libfoo"],
+		}
+
+		java_import {
+			name: "libfoo",
+			jars: ["libfoo.jar"],
+			apex_available: ["myapex"],
+		}
+
+		java_library {
+			name: "libfoo",
+			srcs: ["foo/bar/MyClass.java"],
+			apex_available: ["myapex"],
+		}
+	`
+
+		// In this test the source (java_library) libfoo is active since the
+		// prebuilt (java_import) defaults to prefer:false. However the
+		// prebuilt_apex module always depends on the prebuilt, and so it doesn't
+		// find the dex boot jar in it. We either need to disable the source libfoo
+		// or make the prebuilt libfoo preferred.
+		testDexpreoptWithApexes(t, bp, "failed to find a dex jar path for module 'libfoo'", transform)
+	})
+
+	t.Run("prebuilt library preferred with source", func(t *testing.T) {
+		bp := `
+		prebuilt_apex {
+			name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_java_libs: ["libfoo"],
+		}
+
+		java_import {
+			name: "libfoo",
+			prefer: true,
+			jars: ["libfoo.jar"],
+			apex_available: ["myapex"],
+		}
+
+		java_library {
+			name: "libfoo",
+			srcs: ["foo/bar/MyClass.java"],
+			apex_available: ["myapex"],
+		}
+	`
+
+		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+		checkBootDexJarPath(ctx, ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+	})
+
+	t.Run("prebuilt with source apex preferred", func(t *testing.T) {
+		bp := `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			java_libs: ["libfoo"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		prebuilt_apex {
+			name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_java_libs: ["libfoo"],
+		}
+
+		java_import {
+			name: "libfoo",
+			jars: ["libfoo.jar"],
+			apex_available: ["myapex"],
+		}
+
+		java_library {
+			name: "libfoo",
+			srcs: ["foo/bar/MyClass.java"],
+			apex_available: ["myapex"],
+		}
+	`
+
+		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+		checkBootDexJarPath(ctx, ".intermediates/libfoo/android_common_apex10000/aligned/libfoo.jar")
+	})
+
+	t.Run("prebuilt preferred with source apex disabled", func(t *testing.T) {
+		bp := `
+		apex {
+			name: "myapex",
+			enabled: false,
+			key: "myapex.key",
+			java_libs: ["libfoo"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		prebuilt_apex {
+			name: "myapex",
+			arch: {
+				arm64: {
+					src: "myapex-arm64.apex",
+				},
+				arm: {
+					src: "myapex-arm.apex",
+				},
+			},
+			exported_java_libs: ["libfoo"],
+		}
+
+		java_import {
+			name: "libfoo",
+			prefer: true,
+			jars: ["libfoo.jar"],
+			apex_available: ["myapex"],
+		}
+
+		java_library {
+			name: "libfoo",
+			srcs: ["foo/bar/MyClass.java"],
+			apex_available: ["myapex"],
+		}
+	`
+
+		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+		checkBootDexJarPath(ctx, ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+	})
+}
+
 func TestApexWithTests(t *testing.T) {
 	ctx, config := testApex(t, `
 		apex_test {
@@ -6002,10 +6211,11 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 		"build/make/target/product/security": nil,
 		"apex_manifest.json":                 nil,
 		"AndroidManifest.xml":                nil,
+		"system/sepolicy/apex/myapex-file_contexts":                  nil,
 		"system/sepolicy/apex/some-updatable-apex-file_contexts":     nil,
 		"system/sepolicy/apex/some-non-updatable-apex-file_contexts": nil,
 		"system/sepolicy/apex/com.android.art.debug-file_contexts":   nil,
-		"framework/aidl/a.aidl": nil,
+		"framework/aidl/a.aidl":                                      nil,
 	}
 	cc.GatherRequiredFilesForTest(fs)
 
