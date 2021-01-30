@@ -84,16 +84,10 @@ for product in "${PRODUCTS[@]}"; do
 done
 
 # Create multi-archs SDKs in a different out directory. The multi-arch script
-# uses Soong in --skip-kati mode which cannot use the same directory as normal
+# uses Soong in --skip-make mode which cannot use the same directory as normal
 # mode with make.
 export OUT_DIR=${OUT_DIR}/aml
-# We use force building LLVM components flag (even though we actually don't
-# compile them) because we don't have bionic host prebuilts
-# for them.
-export FORCE_BUILD_LLVM_COMPONENTS=true
-
-echo_and_run build/soong/soong_ui.bash --make-mode --skip-kati \
-  TARGET_PRODUCT=mainline_sdk "$@" ${MODULES_SDK_AND_EXPORTS[@]}
+echo_and_run build/soong/scripts/build-aml-prebuilts.sh ${MODULES_SDK_AND_EXPORTS[@]}
 
 rm -rf ${DIST_DIR}/mainline-sdks
 echo_and_run cp -R ${OUT_DIR}/soong/mainline-sdks ${DIST_DIR}
