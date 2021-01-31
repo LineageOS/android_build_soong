@@ -49,14 +49,36 @@ func populateMapFromConfiguredJarList(ctx android.SingletonContext, moduleToApex
 	return true
 }
 
+// isActiveModule returns true if the given module should be considered for boot
+// jars, i.e. if it's enabled and the preferred one in case of source and
+// prebuilt alternatives.
+func isActiveModule(module android.Module) bool {
+	if !module.Enabled() {
+		return false
+	}
+	if module.IsReplacedByPrebuilt() {
+		// A source module that has been replaced by a prebuilt counterpart.
+		return false
+	}
+	if prebuilt, ok := module.(android.PrebuiltInterface); ok {
+		if p := prebuilt.Prebuilt(); p != nil {
+			return p.UsePrebuilt()
+		}
+	}
+	return true
+}
+
 func (b *bootJarsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	config := ctx.Config()
 	if config.SkipBootJarsCheck() {
 		return
 	}
 
-	// Populate a map from module name to APEX from the boot jars. If there is a problem
-	// such as duplicate modules then fail and return immediately.
+	// Populate a map from module name to APEX from the boot jars. If there is a
+	// problem such as duplicate modules then fail and return immediately. Note
+	// that both module and APEX names are tracked by base names here, so we need
+	// to be careful to remove "prebuilt_" prefixes when comparing them with
+	// actual modules and APEX bundles.
 	moduleToApex := make(map[string]string)
 	if !populateMapFromConfiguredJarList(ctx, moduleToApex, config.NonUpdatableBootJars(), "BootJars") ||
 		!populateMapFromConfiguredJarList(ctx, moduleToApex, config.UpdatableBootJars(), "UpdatableBootJars") {
@@ -69,10 +91,14 @@ func (b *bootJarsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	// Scan all the modules looking for the module/apex variants corresponding to the
 	// boot jars.
 	ctx.VisitAllModules(func(module android.Module) {
-		name := ctx.ModuleName(module)
+		if !isActiveModule(module) {
+			return
+		}
+
+		name := android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName(module))
 		if apex, ok := moduleToApex[name]; ok {
 			apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
-			if (apex == "platform" && apexInfo.IsForPlatform()) || apexInfo.InApex(apex) {
+			if (apex == "platform" && apexInfo.IsForPlatform()) || apexInfo.InApexByBaseName(apex) {
 				// The module name/apex variant should be unique in the system but double check
 				// just in case something has gone wrong.
 				if existing, ok := nameToApexVariant[name]; ok {
