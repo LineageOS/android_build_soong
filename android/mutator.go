@@ -48,6 +48,14 @@ func registerMutatorsToContext(ctx *blueprint.Context, mutators []*mutator) {
 func RegisterMutatorsForBazelConversion(ctx *blueprint.Context, bp2buildMutators []RegisterMutatorFunc) {
 	mctx := &registerMutatorsContext{}
 
+	sharedMutators := []RegisterMutatorFunc{
+		RegisterDefaultsPreArchMutators,
+	}
+
+	for _, f := range sharedMutators {
+		f(mctx)
+	}
+
 	// Register bp2build mutators
 	for _, f := range bp2buildMutators {
 		f(mctx)

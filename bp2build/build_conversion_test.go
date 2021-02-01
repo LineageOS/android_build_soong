@@ -633,3 +633,201 @@ func TestModuleTypeBp2Build(t *testing.T) {
 		}
 	}
 }
+
+type bp2buildMutator = func(android.TopDownMutatorContext)
+
+func TestBp2BuildInlinesDefaults(t *testing.T) {
+	testCases := []struct {
+		moduleTypesUnderTest      map[string]android.ModuleFactory
+		bp2buildMutatorsUnderTest map[string]bp2buildMutator
+		bp                        string
+		expectedBazelTarget       string
+		description               string
+	}{
+		{
+			moduleTypesUnderTest: map[string]android.ModuleFactory{
+				"genrule":          genrule.GenRuleFactory,
+				"genrule_defaults": func() android.Module { return genrule.DefaultsFactory() },
+			},
+			bp2buildMutatorsUnderTest: map[string]bp2buildMutator{
+				"genrule": genrule.GenruleBp2Build,
+			},
+			bp: `genrule_defaults {
+    name: "gen_defaults",
+    cmd: "do-something $(in) $(out)",
+}
+genrule {
+    name: "gen",
+    out: ["out"],
+    srcs: ["in1"],
+    defaults: ["gen_defaults"],
+}
+`,
+			expectedBazelTarget: `genrule(
+    name = "gen",
+    cmd = "do-something $(SRCS) $(OUTS)",
+    outs = [
+        "out",
+    ],
+    srcs = [
+        "in1",
+    ],
+)`,
+			description: "genrule applies properties from a genrule_defaults dependency if not specified",
+		},
+		{
+			moduleTypesUnderTest: map[string]android.ModuleFactory{
+				"genrule":          genrule.GenRuleFactory,
+				"genrule_defaults": func() android.Module { return genrule.DefaultsFactory() },
+			},
+			bp2buildMutatorsUnderTest: map[string]bp2buildMutator{
+				"genrule": genrule.GenruleBp2Build,
+			},
+			bp: `genrule_defaults {
+    name: "gen_defaults",
+    out: ["out-from-defaults"],
+    srcs: ["in-from-defaults"],
+    cmd: "cmd-from-defaults",
+}
+genrule {
+    name: "gen",
+    out: ["out"],
+    srcs: ["in1"],
+    defaults: ["gen_defaults"],
+    cmd: "do-something $(in) $(out)",
+}
+`,
+			expectedBazelTarget: `genrule(
+    name = "gen",
+    cmd = "do-something $(SRCS) $(OUTS)",
+    outs = [
+        "out-from-defaults",
+        "out",
+    ],
+    srcs = [
+        "in-from-defaults",
+        "in1",
+    ],
+)`,
+			description: "genrule does merges properties from a genrule_defaults dependency, latest-first",
+		},
+		{
+			moduleTypesUnderTest: map[string]android.ModuleFactory{
+				"genrule":          genrule.GenRuleFactory,
+				"genrule_defaults": func() android.Module { return genrule.DefaultsFactory() },
+			},
+			bp2buildMutatorsUnderTest: map[string]bp2buildMutator{
+				"genrule": genrule.GenruleBp2Build,
+			},
+			bp: `genrule_defaults {
+    name: "gen_defaults1",
+    cmd: "cp $(in) $(out)",
+}
+
+genrule_defaults {
+    name: "gen_defaults2",
+    srcs: ["in1"],
+}
+
+genrule {
+    name: "gen",
+    out: ["out"],
+    defaults: ["gen_defaults1", "gen_defaults2"],
+}
+`,
+			expectedBazelTarget: `genrule(
+    name = "gen",
+    cmd = "cp $(SRCS) $(OUTS)",
+    outs = [
+        "out",
+    ],
+    srcs = [
+        "in1",
+    ],
+)`,
+			description: "genrule applies properties from list of genrule_defaults",
+		},
+		{
+			moduleTypesUnderTest: map[string]android.ModuleFactory{
+				"genrule":          genrule.GenRuleFactory,
+				"genrule_defaults": func() android.Module { return genrule.DefaultsFactory() },
+			},
+			bp2buildMutatorsUnderTest: map[string]bp2buildMutator{
+				"genrule": genrule.GenruleBp2Build,
+			},
+			bp: `genrule_defaults {
+    name: "gen_defaults1",
+    defaults: ["gen_defaults2"],
+    cmd: "cmd1 $(in) $(out)", // overrides gen_defaults2's cmd property value.
+}
+
+genrule_defaults {
+    name: "gen_defaults2",
+    defaults: ["gen_defaults3"],
+    cmd: "cmd2 $(in) $(out)",
+    out: ["out-from-2"],
+    srcs: ["in1"],
+}
+
+genrule_defaults {
+    name: "gen_defaults3",
+    out: ["out-from-3"],
+    srcs: ["srcs-from-3"],
+}
+
+genrule {
+    name: "gen",
+    out: ["out"],
+    defaults: ["gen_defaults1"],
+}
+`,
+			expectedBazelTarget: `genrule(
+    name = "gen",
+    cmd = "cmd1 $(SRCS) $(OUTS)",
+    outs = [
+        "out-from-3",
+        "out-from-2",
+        "out",
+    ],
+    srcs = [
+        "srcs-from-3",
+        "in1",
+    ],
+)`,
+			description: "genrule applies properties from genrule_defaults transitively",
+		},
+	}
+
+	dir := "."
+	for _, testCase := range testCases {
+		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
+		ctx := android.NewTestContext(config)
+		for m, factory := range testCase.moduleTypesUnderTest {
+			ctx.RegisterModuleType(m, factory)
+		}
+		for mutator, f := range testCase.bp2buildMutatorsUnderTest {
+			ctx.RegisterBp2BuildMutator(mutator, f)
+		}
+		ctx.RegisterForBazelConversion()
+
+		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
+		android.FailIfErrored(t, errs)
+		_, errs = ctx.ResolveDependencies(config)
+		android.FailIfErrored(t, errs)
+
+		bazelTargets := GenerateSoongModuleTargets(ctx.Context.Context, Bp2Build)[dir]
+		if actualCount := len(bazelTargets); actualCount != 1 {
+			t.Fatalf("%s: Expected 1 bazel target, got %d", testCase.description, actualCount)
+		}
+
+		actualBazelTarget := bazelTargets[0]
+		if actualBazelTarget.content != testCase.expectedBazelTarget {
+			t.Errorf(
+				"%s: Expected generated Bazel target to be '%s', got '%s'",
+				testCase.description,
+				testCase.expectedBazelTarget,
+				actualBazelTarget.content,
+			)
+		}
+	}
+}
