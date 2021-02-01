@@ -28,10 +28,21 @@ var hiddenAPIGenerateCSVRule = pctx.AndroidStaticRule("hiddenAPIGenerateCSV", bl
 }, "outFlag", "stubAPIFlags")
 
 type hiddenAPI struct {
+	// True if the module containing this structure contributes to the hiddenapi information.
+	active bool
+
+	// True if the module only contains additional annotations and so does not require hiddenapi
+	// information to be encoded in its dex file and should not be used to generate the
+	// hiddenAPISingletonPathsStruct.stubFlags file.
+	annotationsOnly bool
+
 	// The path to the dex jar that is in the boot class path. If this is nil then the associated
 	// module is not a boot jar, but could be one of the <x>-hiddenapi modules that provide additional
 	// annotations for the <x> boot dex jar but which do not actually provide a boot dex jar
 	// themselves.
+	//
+	// This must be the path to the unencoded dex jar as the encoded dex jar indirectly depends on
+	// this file so using the encoded dex jar here would result in a cycle in the ninja rules.
 	bootDexJarPath android.Path
 
 	// The path to the CSV file that contains mappings from Java signature to various flags derived
@@ -89,48 +100,69 @@ type hiddenAPIIntf interface {
 
 var _ hiddenAPIIntf = (*hiddenAPI)(nil)
 
+// Initialize the hiddenapi structure
+func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, name string) {
+	// If hiddenapi processing is disabled treat this as inactive.
+	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+		return
+	}
+
+	// Modules whose names are of the format <x>-hiddenapi provide hiddenapi information for the boot
+	// jar module <x>. Otherwise, the module provides information for itself. Either way extract the
+	// name of the boot jar module.
+	bootJarName := strings.TrimSuffix(name, "-hiddenapi")
+
+	// It is important that hiddenapi information is only gathered for/from modules that are actually
+	// on the boot jars list because the runtime only enforces access to the hidden API for the
+	// bootclassloader. If information is gathered for modules not on the list then that will cause
+	// failures in the CtsHiddenApiBlocklist... tests.
+	h.active = inList(bootJarName, ctx.Config().BootJars())
+
+	// If this module has a suffix of -hiddenapi then it only provides additional annotation
+	// information for a module on the boot jars list.
+	h.annotationsOnly = strings.HasSuffix(name, "-hiddenapi")
+}
+
+// hiddenAPI is called by any module that could contribute to the hiddenapi processing.
+//
+// It ignores any module that has not had initHiddenApi() called on it and which is not in the boot
+// jar list.
+//
+// Otherwise, it generates ninja rules to do the following:
+// 1. Generates CSV files needed for hiddenapi processing.
+// 2. Conditionally adds the supplied dex file to the list of files used to generate the
+//    hiddenAPISingletonPathsStruct.stubsFlag file.
+// 3. Conditionally creates a copy of the supplied dex file into which it has encoded the hiddenapi
+//    flags and returns this instead of the supplied dex jar, otherwise simply returns the supplied
+//    dex jar.
 func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bool, dexJar android.OutputPath,
 	implementationJar android.Path, uncompressDex bool) android.OutputPath {
-	if !ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
 
-		// Modules whose names are of the format <x>-hiddenapi provide hiddenapi information
-		// for the boot jar module <x>. Otherwise, the module provides information for itself.
-		// Either way extract the name of the boot jar module.
-		bootJarName := strings.TrimSuffix(name, "-hiddenapi")
+	if !h.active {
+		return dexJar
+	}
 
-		// If this module is on the boot jars list (or providing information for a module
-		// on the list) then extract the hiddenapi information from it, and if necessary
-		// encode that information in the generated dex file.
-		//
-		// It is important that hiddenapi information is only gathered for/from modules on
-		// that are actually on the boot jars list because the runtime only enforces access
-		// to the hidden API for the bootclassloader. If information is gathered for modules
-		// not on the list then that will cause failures in the CtsHiddenApiBlacklist...
-		// tests.
-		if inList(bootJarName, ctx.Config().BootJars()) {
-			// More than one library with the same classes may need to be encoded but only one should be
-			// used as a source of information for hidden API processing otherwise it will result in
-			// duplicate entries in the files.
-			if primary {
-				// Create ninja rules to generate various CSV files needed by hiddenapi and store the paths
-				// in the hiddenAPI structure.
-				h.hiddenAPIGenerateCSV(ctx, implementationJar)
+	// More than one library with the same classes may need to be encoded but only one should be
+	// used as a source of information for hidden API processing otherwise it will result in
+	// duplicate entries in the files.
+	if primary {
+		// Create ninja rules to generate various CSV files needed by hiddenapi and store the paths
+		// in the hiddenAPI structure.
+		h.hiddenAPIGenerateCSV(ctx, implementationJar)
 
-				// Save the unencoded dex jar so it can be used when generating the
-				// hiddenAPISingletonPathsStruct.stubFlags file.
-				h.bootDexJarPath = dexJar
-			}
+		// Save the unencoded dex jar so it can be used when generating the
+		// hiddenAPISingletonPathsStruct.stubFlags file.
+		h.bootDexJarPath = dexJar
+	}
 
-			// If this module is actually on the boot jars list and not providing
-			// hiddenapi information for a module on the boot jars list then encode
-			// the gathered information in the generated dex file.
-			if name == bootJarName {
-				hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", name+".jar").OutputPath
+	if !h.annotationsOnly {
+		hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", name+".jar").OutputPath
 
-				hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexJar, uncompressDex)
-				dexJar = hiddenAPIJar
-			}
-		}
+		// Create a copy of the dex jar which has been encoded with hiddenapi flags.
+		hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexJar, uncompressDex)
+
+		// Use the encoded dex jar from here onwards.
+		dexJar = hiddenAPIJar
 	}
 
 	return dexJar
