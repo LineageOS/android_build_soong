@@ -28,9 +28,64 @@ func init() {
 }
 
 type hiddenAPISingletonPathsStruct struct {
-	flags     android.OutputPath
-	index     android.OutputPath
-	metadata  android.OutputPath
+	// The path to the CSV file that contains the flags that will be encoded into the dex boot jars.
+	//
+	// It is created by the generate_hiddenapi_lists.py tool that is passed the stubFlags along with
+	// a number of additional files that are used to augment the information in the stubFlags with
+	// manually curated data.
+	flags android.OutputPath
+
+	// The path to the CSV index file that contains mappings from Java signature to source location
+	// information for all Java elements annotated with the UnsupportedAppUsage annotation in the
+	// source of all the boot jars.
+	//
+	// It is created by the merge_csv tool which merges all the hiddenAPI.indexCSVPath files that have
+	// been created by the rest of the build. That includes the index files generated for
+	// <x>-hiddenapi modules.
+	index android.OutputPath
+
+	// The path to the CSV metadata file that contains mappings from Java signature to the value of
+	// properties specified on UnsupportedAppUsage annotations in the source of all the boot jars.
+	//
+	// It is created by the merge_csv tool which merges all the hiddenAPI.metadataCSVPath files that
+	// have been created by the rest of the build. That includes the metadata files generated for
+	// <x>-hiddenapi modules.
+	metadata android.OutputPath
+
+	// The path to the CSV metadata file that contains mappings from Java signature to flags obtained
+	// from the public, system and test API stubs.
+	//
+	// This is created by the hiddenapi tool which is given dex files for the public, system and test
+	// API stubs (including product specific stubs) along with dex boot jars, so does not include
+	// <x>-hiddenapi modules. For each API surface (i.e. public, system, test) it records which
+	// members in the dex boot jars match a member in the dex stub jars for that API surface and then
+	// outputs a file containing the signatures of all members in the dex boot jars along with the
+	// flags that indicate which API surface it belongs, if any.
+	//
+	// e.g. a dex member that matches a member in the public dex stubs would have flags
+	// "public-api,system-api,test-api" set (as system and test are both supersets of public). A dex
+	// member that didn't match a member in any of the dex stubs is still output it just has an empty
+	// set of flags.
+	//
+	// The notion of matching is quite complex, it is not restricted to just exact matching but also
+	// follows the Java inheritance rules. e.g. if a method is public then all overriding/implementing
+	// methods are also public. If an interface method is public and a class inherits an
+	// implementation of that method from a super class then that super class method is also public.
+	// That ensures that any method that can be called directly by an App through a public method is
+	// visible to that App.
+	//
+	// Propagating the visibility of members across the inheritance hierarchy at build time will cause
+	// problems when modularizing and unbundling as it that propagation can cross module boundaries.
+	// e.g. Say that a private framework class implements a public interface and inherits an
+	// implementation of one of its methods from a core platform ART class. In that case the ART
+	// implementation method needs to be marked as public which requires the build to have access to
+	// the framework implementation classes at build time. The work to rectify this is being tracked
+	// at http://b/178693149.
+	//
+	// This file (or at least those items marked as being in the public-api) is used by hiddenapi when
+	// creating the metadata and flags for the individual modules in order to perform consistency
+	// checks and filter out bridge methods that are part of the public API. The latter relies on the
+	// propagation of visibility across the inheritance hierarchy.
 	stubFlags android.OutputPath
 }
 
