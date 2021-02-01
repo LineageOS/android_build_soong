@@ -48,7 +48,7 @@ type BootImageModule struct {
 func bootImageFactory() android.Module {
 	m := &BootImageModule{}
 	m.AddProperties(&m.properties)
-	android.InitAndroidArchModule(m, android.HostAndDeviceDefault, android.MultilibCommon)
+	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitApexModule(m)
 	return m
 }
