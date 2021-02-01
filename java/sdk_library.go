@@ -60,12 +60,12 @@ type scopeDependencyTag struct {
 	apiScope *apiScope
 
 	// Function for extracting appropriate path information from the dependency.
-	depInfoExtractor func(paths *scopePaths, dep android.Module) error
+	depInfoExtractor func(paths *scopePaths, ctx android.ModuleContext, dep android.Module) error
 }
 
 // Extract tag specific information from the dependency.
 func (tag scopeDependencyTag) extractDepInfo(ctx android.ModuleContext, dep android.Module, paths *scopePaths) {
-	err := tag.depInfoExtractor(paths, dep)
+	err := tag.depInfoExtractor(paths, ctx, dep)
 	if err != nil {
 		ctx.ModuleErrorf("has an invalid {scopeDependencyTag: %s} dependency on module %s: %s", tag.name, ctx.OtherModuleName(dep), err.Error())
 	}
@@ -539,13 +539,14 @@ type scopePaths struct {
 	stubsSrcJar android.OptionalPath
 }
 
-func (paths *scopePaths) extractStubsLibraryInfoFromDependency(dep android.Module) error {
-	if lib, ok := dep.(Dependency); ok {
-		paths.stubsHeaderPath = lib.HeaderJars()
-		paths.stubsImplPath = lib.ImplementationJars()
+func (paths *scopePaths) extractStubsLibraryInfoFromDependency(ctx android.ModuleContext, dep android.Module) error {
+	if ctx.OtherModuleHasProvider(dep, JavaInfoProvider) {
+		lib := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+		paths.stubsHeaderPath = lib.HeaderJars
+		paths.stubsImplPath = lib.ImplementationJars
 		return nil
 	} else {
-		return fmt.Errorf("expected module that implements Dependency, e.g. java_library")
+		return fmt.Errorf("expected module that has JavaInfoProvider, e.g. java_library")
 	}
 }
 
@@ -572,7 +573,7 @@ func (paths *scopePaths) extractApiInfoFromApiStubsProvider(provider ApiStubsPro
 	paths.removedApiFilePath = android.OptionalPathForPath(provider.RemovedApiFilePath())
 }
 
-func (paths *scopePaths) extractApiInfoFromDep(dep android.Module) error {
+func (paths *scopePaths) extractApiInfoFromDep(ctx android.ModuleContext, dep android.Module) error {
 	return paths.treatDepAsApiStubsProvider(dep, func(provider ApiStubsProvider) {
 		paths.extractApiInfoFromApiStubsProvider(provider)
 	})
@@ -582,13 +583,13 @@ func (paths *scopePaths) extractStubsSourceInfoFromApiStubsProviders(provider Ap
 	paths.stubsSrcJar = android.OptionalPathForPath(provider.StubsSrcJar())
 }
 
-func (paths *scopePaths) extractStubsSourceInfoFromDep(dep android.Module) error {
+func (paths *scopePaths) extractStubsSourceInfoFromDep(ctx android.ModuleContext, dep android.Module) error {
 	return paths.treatDepAsApiStubsSrcProvider(dep, func(provider ApiStubsSrcProvider) {
 		paths.extractStubsSourceInfoFromApiStubsProviders(provider)
 	})
 }
 
-func (paths *scopePaths) extractStubsSourceAndApiInfoFromApiStubsProvider(dep android.Module) error {
+func (paths *scopePaths) extractStubsSourceAndApiInfoFromApiStubsProvider(ctx android.ModuleContext, dep android.Module) error {
 	return paths.treatDepAsApiStubsProvider(dep, func(provider ApiStubsProvider) {
 		paths.extractApiInfoFromApiStubsProvider(provider)
 		paths.extractStubsSourceInfoFromApiStubsProviders(provider)
@@ -951,7 +952,6 @@ type SdkLibrary struct {
 	commonToSdkLibraryAndImport
 }
 
-var _ Dependency = (*SdkLibrary)(nil)
 var _ SdkLibraryDependency = (*SdkLibrary)(nil)
 
 func (module *SdkLibrary) generateTestAndSystemScopesByDefault() bool {
