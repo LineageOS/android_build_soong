@@ -219,16 +219,6 @@ func GatherRequiredDepsForTest() string {
 		dex_bootjars {
 			name: "dex_bootjars",
 		}
-
-		boot_image {
-			name: "art-boot-image",
-			image_name: "art",
-		}
-
-		boot_image {
-			name: "framework-boot-image",
-			image_name: "boot",
-		}
 `
 
 	return bp
