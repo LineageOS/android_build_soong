@@ -534,3 +534,26 @@ func fromJsonClassLoaderContextRec(ctx android.PathContext, jClcs map[string]*js
 	}
 	return clcs
 }
+
+// Convert Soong CLC map to JSON representation for Make.
+func toJsonClassLoaderContext(clcMap ClassLoaderContextMap) jsonClassLoaderContextMap {
+	jClcMap := make(jsonClassLoaderContextMap)
+	for sdkVer, clcs := range clcMap {
+		sdkVerStr := fmt.Sprintf("%d", sdkVer)
+		jClcMap[sdkVerStr] = toJsonClassLoaderContextRec(clcs)
+	}
+	return jClcMap
+}
+
+// Recursive helper for toJsonClassLoaderContext.
+func toJsonClassLoaderContextRec(clcs []*ClassLoaderContext) map[string]*jsonClassLoaderContext {
+	jClcs := make(map[string]*jsonClassLoaderContext, len(clcs))
+	for _, clc := range clcs {
+		jClcs[clc.Name] = &jsonClassLoaderContext{
+			Host:        clc.Host.String(),
+			Device:      clc.Device,
+			Subcontexts: toJsonClassLoaderContextRec(clc.Subcontexts),
+		}
+	}
+	return jClcs
+}
