@@ -125,6 +125,10 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.SetString("LOCAL_MODULE_STEM", library.Stem())
 
 					entries.SetOptionalPaths("LOCAL_SOONG_LINT_REPORTS", library.linter.reports)
+
+					if library.dexpreopter.configPath != nil {
+						entries.SetPath("LOCAL_SOONG_DEXPREOPT_CONFIG", library.dexpreopter.configPath)
+					}
 				},
 			},
 		})
