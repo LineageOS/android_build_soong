@@ -255,6 +255,7 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 		installDir = android.PathForModuleInstall(ctx, "app", a.BaseModuleName())
 	}
 
+	a.dexpreopter.isApp = true
 	a.dexpreopter.installPath = installDir.Join(ctx, a.BaseModuleName()+".apk")
 	a.dexpreopter.isPresignedPrebuilt = Bool(a.properties.Presigned)
 	a.dexpreopter.uncompressedDex = a.shouldUncompressDex(ctx)
