@@ -107,6 +107,10 @@ func (p *vndkPrebuiltLibraryDecorator) binderBit() string {
 	return "64"
 }
 
+func (p *vndkPrebuiltLibraryDecorator) snapshotAndroidMkSuffix() string {
+	return ".vendor"
+}
+
 func (p *vndkPrebuiltLibraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 	p.libraryDecorator.libName = strings.TrimSuffix(ctx.ModuleName(), p.NameSuffix())
 	return p.libraryDecorator.linkerFlags(ctx, flags)
