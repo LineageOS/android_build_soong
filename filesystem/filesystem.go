@@ -47,6 +47,10 @@ type filesystemProperties struct {
 
 	// Hash and signing algorithm for avbtool. Default is SHA256_RSA4096.
 	Avb_algorithm *string
+
+	// Type of the filesystem. Currently, ext4 and compressed_cpio are supported. Default is
+	// ext4.
+	Type *string
 }
 
 // android_filesystem packages a set of modules and their transitive dependencies into a filesystem
@@ -71,6 +75,27 @@ func (f *filesystem) DepsMutator(ctx android.BottomUpMutatorContext) {
 	f.AddDeps(ctx, dependencyTag)
 }
 
+type fsType int
+
+const (
+	ext4Type fsType = iota
+	compressedCpioType
+	unknown
+)
+
+func (f *filesystem) fsType(ctx android.ModuleContext) fsType {
+	typeStr := proptools.StringDefault(f.properties.Type, "ext4")
+	switch typeStr {
+	case "ext4":
+		return ext4Type
+	case "compressed_cpio":
+		return compressedCpioType
+	default:
+		ctx.PropertyErrorf("type", "%q not supported", typeStr)
+		return unknown
+	}
+}
+
 func (f *filesystem) installFileName() string {
 	return f.BaseModuleName() + ".img"
 }
@@ -78,6 +103,20 @@ func (f *filesystem) installFileName() string {
 var pctx = android.NewPackageContext("android/soong/filesystem")
 
 func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	switch f.fsType(ctx) {
+	case ext4Type:
+		f.output = f.buildImageUsingBuildImage(ctx)
+	case compressedCpioType:
+		f.output = f.buildCompressedCpioImage(ctx)
+	default:
+		return
+	}
+
+	f.installDir = android.PathForModuleInstall(ctx, "etc")
+	ctx.InstallFile(f.installDir, f.installFileName(), f.output)
+}
+
+func (f *filesystem) buildImageUsingBuildImage(ctx android.ModuleContext) android.OutputPath {
 	zipFile := android.PathForModuleOut(ctx, "temp.zip").OutputPath
 	f.CopyDepsToZip(ctx, zipFile)
 
@@ -89,19 +128,18 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Input(zipFile)
 
 	propFile, toolDeps := f.buildPropFile(ctx)
-	f.output = android.PathForModuleOut(ctx, f.installFileName()).OutputPath
+	output := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
 	builder.Command().BuiltTool("build_image").
 		Text(rootDir.String()). // input directory
 		Input(propFile).
 		Implicits(toolDeps).
-		Output(f.output).
+		Output(output).
 		Text(rootDir.String()) // directory where to find fs_config_files|dirs
 
 	// rootDir is not deleted. Might be useful for quick inspection.
 	builder.Build("build_filesystem_image", fmt.Sprintf("Creating filesystem %s", f.BaseModuleName()))
 
-	f.installDir = android.PathForModuleInstall(ctx, "etc")
-	ctx.InstallFile(f.installDir, f.installFileName(), f.output)
+	return output
 }
 
 func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.OutputPath, toolDeps android.Paths) {
@@ -120,8 +158,17 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 		deps = append(deps, path)
 	}
 
-	// TODO(jiyong): support more filesystem types other than ext4
-	addStr("fs_type", "ext4")
+	// Type string that build_image.py accepts.
+	fsTypeStr := func(t fsType) string {
+		switch t {
+		// TODO(jiyong): add more types like f2fs, erofs, etc.
+		case ext4Type:
+			return "ext4"
+		}
+		panic(fmt.Errorf("unsupported fs type %v", t))
+	}
+
+	addStr("fs_type", fsTypeStr(f.fsType(ctx)))
 	addStr("mount_point", "system")
 	addStr("use_dynamic_partition_size", "true")
 	addPath("ext_mkuserimg", ctx.Config().HostToolPath(ctx, "mkuserimg_mke2fs"))
@@ -152,6 +199,39 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 	}
 	builder.Build("build_filesystem_prop", fmt.Sprintf("Creating filesystem props for %s", f.BaseModuleName()))
 	return propFile, deps
+}
+
+func (f *filesystem) buildCompressedCpioImage(ctx android.ModuleContext) android.OutputPath {
+	if proptools.Bool(f.properties.Use_avb) {
+		ctx.PropertyErrorf("use_avb", "signing compresed cpio image using avbtool is not supported."+
+			"Consider adding this to bootimg module and signing the entire boot image.")
+	}
+
+	zipFile := android.PathForModuleOut(ctx, "temp.zip").OutputPath
+	f.CopyDepsToZip(ctx, zipFile)
+
+	rootDir := android.PathForModuleOut(ctx, "root").OutputPath
+	builder := android.NewRuleBuilder(pctx, ctx)
+	builder.Command().
+		BuiltTool("zipsync").
+		FlagWithArg("-d ", rootDir.String()). // zipsync wipes this. No need to clear.
+		Input(zipFile)
+
+	output := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
+	builder.Command().
+		BuiltTool("mkbootfs").
+		Text(rootDir.String()). // input directory
+		Text("|").
+		BuiltTool("lz4").
+		Flag("--favor-decSpeed"). // for faster boot
+		Flag("-12").              // maximum compression level
+		Flag("-l").               // legacy format for kernel
+		Text(">").Output(output)
+
+	// rootDir is not deleted. Might be useful for quick inspection.
+	builder.Build("build_compressed_cpio_image", fmt.Sprintf("Creating filesystem %s", f.BaseModuleName()))
+
+	return output
 }
 
 var _ android.AndroidMkEntriesProvider = (*filesystem)(nil)
