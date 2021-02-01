@@ -71,6 +71,16 @@ func TestBootImages(t *testing.T) {
 			],
 			srcs: ["b.java"],
 		}
+
+		boot_image {
+			name: "art-boot-image",
+			image_name: "art",
+		}
+
+		boot_image {
+			name: "framework-boot-image",
+			image_name: "boot",
+		}
 `,
 		// Configure some libraries in the art and framework boot images.
 		withArtBootImageJars("com.android.art:baz", "com.android.art:quuz"),
