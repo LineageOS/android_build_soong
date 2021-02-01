@@ -49,6 +49,11 @@ func (p *PackagingSpec) FileName() string {
 	return ""
 }
 
+// Path relative to the root of the package
+func (p *PackagingSpec) RelPathInPackage() string {
+	return p.relPathInPackage
+}
+
 type PackageModule interface {
 	Module
 	packagingBase() *PackagingBase
