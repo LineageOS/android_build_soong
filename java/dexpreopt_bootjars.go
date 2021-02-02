@@ -392,22 +392,6 @@ type dexpreoptBootJars struct {
 	dexpreoptConfigForMake android.WritablePath
 }
 
-// Accessor function for the apex package. Returns nil if dexpreopt is disabled.
-func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]android.OutputPaths {
-	if SkipDexpreoptBootJars(ctx) {
-		return nil
-	}
-	// Include dexpreopt files for the primary boot image.
-	files := map[android.ArchType]android.OutputPaths{}
-	for _, variant := range artBootImageConfig(ctx).variants {
-		// We also generate boot images for host (for testing), but we don't need those in the apex.
-		if variant.target.Os == android.Android {
-			files[variant.target.Arch.ArchType] = variant.imagesDeps
-		}
-	}
-	return files
-}
-
 // Provide paths to boot images for use by modules that depend upon them.
 //
 // The build rules are created in GenerateSingletonBuildActions().

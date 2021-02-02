@@ -15,9 +15,11 @@
 package java
 
 import (
+	"fmt"
 	"strings"
 
 	"android/soong/android"
+	"android/soong/dexpreopt"
 	"github.com/google/blueprint"
 )
 
@@ -38,6 +40,7 @@ type bootImageProperties struct {
 
 type BootImageModule struct {
 	android.ModuleBase
+	android.ApexModuleBase
 
 	properties bootImageProperties
 }
@@ -45,7 +48,8 @@ type BootImageModule struct {
 func bootImageFactory() android.Module {
 	m := &BootImageModule{}
 	m.AddProperties(&m.properties)
-	android.InitAndroidArchModule(m, android.HostAndDeviceDefault, android.MultilibCommon)
+	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
+	android.InitApexModule(m)
 	return m
 }
 
@@ -53,6 +57,9 @@ var BootImageInfoProvider = blueprint.NewProvider(BootImageInfo{})
 
 type BootImageInfo struct {
 	// The image config, internal to this module (and the dex_bootjars singleton).
+	//
+	// Will be nil if the BootImageInfo has not been provided for a specific module. That can occur
+	// when SkipDexpreoptBootJars(ctx) returns true.
 	imageConfig *bootImageConfig
 }
 
@@ -60,11 +67,55 @@ func (i BootImageInfo) Modules() android.ConfiguredJarList {
 	return i.imageConfig.modules
 }
 
+// Get a map from ArchType to the associated boot image's contents for Android.
+//
+// Extension boot images only return their own files, not the files of the boot images they extend.
+func (i BootImageInfo) AndroidBootImageFilesByArchType() map[android.ArchType]android.OutputPaths {
+	files := map[android.ArchType]android.OutputPaths{}
+	if i.imageConfig != nil {
+		for _, variant := range i.imageConfig.variants {
+			// We also generate boot images for host (for testing), but we don't need those in the apex.
+			// TODO(b/177892522) - consider changing this to check Os.OsClass = android.Device
+			if variant.target.Os == android.Android {
+				files[variant.target.Arch.ArchType] = variant.imagesDeps
+			}
+		}
+	}
+	return files
+}
+
+func (b *BootImageModule) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	tag := ctx.OtherModuleDependencyTag(dep)
+	if tag == dexpreopt.Dex2oatDepTag {
+		// The dex2oat tool is only needed for building and is not required in the apex.
+		return false
+	}
+	panic(fmt.Errorf("boot_image module %q should not have a dependency on %q via tag %s", b, dep, android.PrettyPrintTag(tag)))
+}
+
+func (b *BootImageModule) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
+	return nil
+}
+
+func (b *BootImageModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if SkipDexpreoptBootJars(ctx) {
+		return
+	}
+
+	// Add a dependency onto the dex2oat tool which is needed for creating the boot image. The
+	// path is retrieved from the dependency by GetGlobalSoongConfig(ctx).
+	dexpreopt.RegisterToolDeps(ctx)
+}
+
 func (b *BootImageModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Nothing to do if skipping the dexpreopt of boot image jars.
 	if SkipDexpreoptBootJars(ctx) {
 		return
 	}
+
+	// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
+	// GenerateSingletonBuildActions method as it cannot create it for itself.
+	dexpreopt.GetGlobalSoongConfig(ctx)
 
 	// Get a map of the image configs that are supported.
 	imageConfigs := genBootImageConfigs(ctx)
