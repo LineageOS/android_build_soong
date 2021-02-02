@@ -148,7 +148,7 @@ func TestDexpreoptEnabled(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ctx, _ := testJava(t, test.bp)
 
-			dexpreopt := ctx.ModuleForTests("foo", "android_common").MaybeDescription("dexpreopt")
+			dexpreopt := ctx.ModuleForTests("foo", "android_common").MaybeRule("dexpreopt")
 			enabled := dexpreopt.Rule != nil
 
 			if enabled != test.enabled {
