@@ -19,12 +19,10 @@ package cc
 
 import (
 	"strings"
-	"sync"
 
 	"android/soong/android"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/proptools"
 )
 
 // Defines the specifics of different images to which the snapshot process is applicable, e.g.,
@@ -58,15 +56,6 @@ type snapshotImage interface {
 	// snapshot, e.g., using the exclude_from_vendor_snapshot or
 	// exclude_from_recovery_snapshot properties.
 	excludeFromSnapshot(m *Module) bool
-
-	// Returns mutex used for mutual exclusion when updating the snapshot maps.
-	getMutex() *sync.Mutex
-
-	// For a given arch, a maps of which modules are included in this image.
-	suffixModules(config android.Config) map[string]bool
-
-	// Whether to add a given module to the suffix map.
-	shouldBeAddedToSuffixModules(m *Module) bool
 
 	// Returns true if the build is using a snapshot for this image.
 	isUsingSnapshot(cfg android.DeviceConfig) bool
@@ -129,29 +118,6 @@ func (vendorSnapshotImage) includeVndk() bool {
 
 func (vendorSnapshotImage) excludeFromSnapshot(m *Module) bool {
 	return m.ExcludeFromVendorSnapshot()
-}
-
-func (vendorSnapshotImage) getMutex() *sync.Mutex {
-	return &vendorSnapshotsLock
-}
-
-func (vendorSnapshotImage) suffixModules(config android.Config) map[string]bool {
-	return vendorSuffixModules(config)
-}
-
-func (vendorSnapshotImage) shouldBeAddedToSuffixModules(module *Module) bool {
-	// vendor suffix should be added to snapshots if the source module isn't vendor: true.
-	if module.SocSpecific() {
-		return false
-	}
-
-	// But we can't just check SocSpecific() since we already passed the image mutator.
-	// Check ramdisk and recovery to see if we are real "vendor: true" module.
-	ramdiskAvailable := module.InRamdisk() && !module.OnlyInRamdisk()
-	vendorRamdiskAvailable := module.InVendorRamdisk() && !module.OnlyInVendorRamdisk()
-	recoveryAvailable := module.InRecovery() && !module.OnlyInRecovery()
-
-	return !ramdiskAvailable && !recoveryAvailable && !vendorRamdiskAvailable
 }
 
 func (vendorSnapshotImage) isUsingSnapshot(cfg android.DeviceConfig) bool {
@@ -219,18 +185,6 @@ func (recoverySnapshotImage) excludeFromSnapshot(m *Module) bool {
 	return m.ExcludeFromRecoverySnapshot()
 }
 
-func (recoverySnapshotImage) getMutex() *sync.Mutex {
-	return &recoverySnapshotsLock
-}
-
-func (recoverySnapshotImage) suffixModules(config android.Config) map[string]bool {
-	return recoverySuffixModules(config)
-}
-
-func (recoverySnapshotImage) shouldBeAddedToSuffixModules(module *Module) bool {
-	return proptools.BoolDefault(module.Properties.Recovery_available, false)
-}
-
 func (recoverySnapshotImage) isUsingSnapshot(cfg android.DeviceConfig) bool {
 	recoverySnapshotVersion := cfg.RecoverySnapshotVersion()
 	return recoverySnapshotVersion != "current" && recoverySnapshotVersion != ""
@@ -267,16 +221,6 @@ const (
 	snapshotStaticSuffix = "_static."
 	snapshotBinarySuffix = "_binary."
 	snapshotObjectSuffix = "_object."
-)
-
-var (
-	vendorSnapshotsLock    sync.Mutex
-	vendorSuffixModulesKey = android.NewOnceKey("vendorSuffixModules")
-)
-
-var (
-	recoverySnapshotsLock    sync.Mutex
-	recoverySuffixModulesKey = android.NewOnceKey("recoverySuffixModules")
 )
 
 type SnapshotProperties struct {
@@ -411,33 +355,15 @@ func snapshotFactory(image snapshotImage) android.Module {
 	return snapshot
 }
 
-// vendorSuffixModules holds names of modules whose vendor variants should have the vendor suffix.
-// This is determined by source modules, and then this will be used when exporting snapshot modules
-// to Makefile.
-//
-// For example, if libbase has "vendor_available: true", the name of core variant will be "libbase"
-// while the name of vendor variant will be "libbase.vendor". In such cases, the vendor snapshot of
-// "libbase" should be exported with the name "libbase.vendor".
-//
-// Refer to VendorSnapshotSourceMutator and makeLibName which use this.
-func vendorSuffixModules(config android.Config) map[string]bool {
-	return config.Once(vendorSuffixModulesKey, func() interface{} {
-		return make(map[string]bool)
-	}).(map[string]bool)
-}
-
-func recoverySuffixModules(config android.Config) map[string]bool {
-	return config.Once(recoverySuffixModulesKey, func() interface{} {
-		return make(map[string]bool)
-	}).(map[string]bool)
-}
-
 type baseSnapshotDecoratorProperties struct {
 	// snapshot version.
 	Version string
 
 	// Target arch name of the snapshot (e.g. 'arm64' for variant 'aosp_arm64')
 	Target_arch string
+
+	// Suffix to be added to the module name when exporting to Android.mk, e.g. ".vendor".
+	Androidmk_suffix string
 
 	// Suffix to be added to the module name, e.g., vendor_shared,
 	// recovery_shared, etc.
@@ -487,6 +413,10 @@ func (p *baseSnapshotDecorator) moduleSuffix() string {
 
 func (p *baseSnapshotDecorator) isSnapshotPrebuilt() bool {
 	return true
+}
+
+func (p *baseSnapshotDecorator) snapshotAndroidMkSuffix() string {
+	return p.baseProperties.Androidmk_suffix
 }
 
 // Call this with a module suffix after creating a snapshot module, such as
@@ -552,7 +482,6 @@ type snapshotLibraryDecorator struct {
 		// Library flags for cfi variant.
 		Cfi snapshotLibraryProperties `android:"arch_variant"`
 	}
-	androidMkSuffix string
 }
 
 func (p *snapshotLibraryDecorator) linkerFlags(ctx ModuleContext, flags Flags) Flags {
@@ -575,14 +504,6 @@ func (p *snapshotLibraryDecorator) matchesWithDevice(config android.DeviceConfig
 // As snapshots are prebuilts, this just returns the prebuilt binary after doing things which are
 // done by normal library decorator, e.g. exporting flags.
 func (p *snapshotLibraryDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps, objs Objects) android.Path {
-	m := ctx.Module().(*Module)
-
-	if m.InVendor() && vendorSuffixModules(ctx.Config())[m.BaseModuleName()] {
-		p.androidMkSuffix = vendorSuffix
-	} else if m.InRecovery() && recoverySuffixModules(ctx.Config())[m.BaseModuleName()] {
-		p.androidMkSuffix = recoverySuffix
-	}
-
 	if p.header() {
 		return p.libraryDecorator.link(ctx, flags, deps, objs)
 	}
@@ -774,8 +695,7 @@ type snapshotBinaryProperties struct {
 type snapshotBinaryDecorator struct {
 	baseSnapshotDecorator
 	*binaryDecorator
-	properties      snapshotBinaryProperties
-	androidMkSuffix string
+	properties snapshotBinaryProperties
 }
 
 func (p *snapshotBinaryDecorator) matchesWithDevice(config android.DeviceConfig) bool {
@@ -798,14 +718,6 @@ func (p *snapshotBinaryDecorator) link(ctx ModuleContext, flags Flags, deps Path
 	in := android.PathForModuleSrc(ctx, *p.properties.Src)
 	p.unstrippedOutputFile = in
 	binName := in.Base()
-
-	m := ctx.Module().(*Module)
-	if m.InVendor() && vendorSuffixModules(ctx.Config())[m.BaseModuleName()] {
-		p.androidMkSuffix = vendorSuffix
-	} else if m.InRecovery() && recoverySuffixModules(ctx.Config())[m.BaseModuleName()] {
-		p.androidMkSuffix = recoverySuffix
-
-	}
 
 	// use cpExecutable to make it executable
 	outputFile := android.PathForModuleOut(ctx, binName)
@@ -876,8 +788,7 @@ type vendorSnapshotObjectProperties struct {
 type snapshotObjectLinker struct {
 	baseSnapshotDecorator
 	objectLinker
-	properties      vendorSnapshotObjectProperties
-	androidMkSuffix string
+	properties vendorSnapshotObjectProperties
 }
 
 func (p *snapshotObjectLinker) matchesWithDevice(config android.DeviceConfig) bool {
@@ -895,14 +806,6 @@ func (p *snapshotObjectLinker) matchesWithDevice(config android.DeviceConfig) bo
 func (p *snapshotObjectLinker) link(ctx ModuleContext, flags Flags, deps PathDeps, objs Objects) android.Path {
 	if !p.matchesWithDevice(ctx.DeviceConfig()) {
 		return nil
-	}
-
-	m := ctx.Module().(*Module)
-
-	if m.InVendor() && vendorSuffixModules(ctx.Config())[m.BaseModuleName()] {
-		p.androidMkSuffix = vendorSuffix
-	} else if m.InRecovery() && recoverySuffixModules(ctx.Config())[m.BaseModuleName()] {
-		p.androidMkSuffix = recoverySuffix
 	}
 
 	return android.PathForModuleSrc(ctx, *p.properties.Src)
@@ -950,44 +853,12 @@ func RecoverySnapshotObjectFactory() android.Module {
 
 type snapshotInterface interface {
 	matchesWithDevice(config android.DeviceConfig) bool
+	isSnapshotPrebuilt() bool
+	version() string
+	snapshotAndroidMkSuffix() string
 }
 
 var _ snapshotInterface = (*vndkPrebuiltLibraryDecorator)(nil)
 var _ snapshotInterface = (*snapshotLibraryDecorator)(nil)
 var _ snapshotInterface = (*snapshotBinaryDecorator)(nil)
 var _ snapshotInterface = (*snapshotObjectLinker)(nil)
-
-//
-// Mutators that helps vendor snapshot modules override source modules.
-//
-
-// VendorSnapshotSourceMutator disables source modules which have corresponding snapshots.
-func VendorSnapshotSourceMutator(ctx android.BottomUpMutatorContext) {
-	snapshotSourceMutator(ctx, vendorSnapshotImageSingleton)
-}
-
-func RecoverySnapshotSourceMutator(ctx android.BottomUpMutatorContext) {
-	snapshotSourceMutator(ctx, recoverySnapshotImageSingleton)
-}
-
-func snapshotSourceMutator(ctx android.BottomUpMutatorContext, image snapshotImage) {
-	if !ctx.Device() {
-		return
-	}
-	if !image.isUsingSnapshot(ctx.DeviceConfig()) {
-		return
-	}
-
-	module, ok := ctx.Module().(*Module)
-	if !ok {
-		return
-	}
-
-	if image.shouldBeAddedToSuffixModules(module) {
-		mutex := image.getMutex()
-		mutex.Lock()
-		defer mutex.Unlock()
-
-		image.suffixModules(ctx.Config())[ctx.ModuleName()] = true
-	}
-}
