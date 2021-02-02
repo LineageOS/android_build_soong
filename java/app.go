@@ -455,6 +455,7 @@ func (a *AndroidApp) installPath(ctx android.ModuleContext) android.InstallPath 
 
 func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 	a.dexpreopter.installPath = a.installPath(ctx)
+	a.dexpreopter.isApp = true
 	if a.dexProperties.Uncompress_dex == nil {
 		// If the value was not force-set by the user, use reasonable default based on the module.
 		a.dexProperties.Uncompress_dex = proptools.BoolPtr(a.shouldUncompressDex(ctx))
