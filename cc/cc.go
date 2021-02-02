@@ -50,8 +50,6 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("version", versionMutator).Parallel()
 		ctx.BottomUp("begin", BeginMutator).Parallel()
 		ctx.BottomUp("sysprop_cc", SyspropMutator).Parallel()
-		ctx.BottomUp("vendor_snapshot_source", VendorSnapshotSourceMutator).Parallel()
-		ctx.BottomUp("recovery_snapshot_source", RecoverySnapshotSourceMutator).Parallel()
 	})
 
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
@@ -1235,7 +1233,7 @@ func (c *Module) nativeCoverage() bool {
 }
 
 func (c *Module) isSnapshotPrebuilt() bool {
-	if p, ok := c.linker.(interface{ isSnapshotPrebuilt() bool }); ok {
+	if p, ok := c.linker.(snapshotInterface); ok {
 		return p.isSnapshotPrebuilt()
 	}
 	return false
@@ -2887,8 +2885,6 @@ func baseLibName(depName string) string {
 }
 
 func (c *Module) makeLibName(ctx android.ModuleContext, ccDep LinkableInterface, depName string) string {
-	vendorSuffixModules := vendorSuffixModules(ctx.Config())
-	recoverySuffixModules := recoverySuffixModules(ctx.Config())
 	vendorPublicLibraries := vendorPublicLibraries(ctx.Config())
 
 	libName := baseLibName(depName)
@@ -2899,20 +2895,10 @@ func (c *Module) makeLibName(ctx android.ModuleContext, ccDep LinkableInterface,
 
 	if c, ok := ccDep.(*Module); ok {
 		// Use base module name for snapshots when exporting to Makefile.
-		if c.isSnapshotPrebuilt() {
+		if snapshotPrebuilt, ok := c.linker.(snapshotInterface); ok {
 			baseName := c.BaseModuleName()
 
-			if c.IsVndk() {
-				return baseName + ".vendor"
-			}
-
-			if c.InVendor() && vendorSuffixModules[baseName] {
-				return baseName + ".vendor"
-			} else if c.InRecovery() && recoverySuffixModules[baseName] {
-				return baseName + ".recovery"
-			} else {
-				return baseName
-			}
+			return baseName + snapshotPrebuilt.snapshotAndroidMkSuffix()
 		}
 	}
 
