@@ -519,7 +519,7 @@ func (c *snapshotLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entrie
 		entries.SubName += ".cfi"
 	}
 
-	entries.SubName += c.androidMkSuffix
+	entries.SubName += c.baseProperties.Androidmk_suffix
 
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		c.libraryDecorator.androidMkWriteExportedFlags(entries)
@@ -546,7 +546,7 @@ func (c *snapshotLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entrie
 
 func (c *snapshotBinaryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	entries.Class = "EXECUTABLES"
-	entries.SubName = c.androidMkSuffix
+	entries.SubName = c.baseProperties.Androidmk_suffix
 
 	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
 		entries.AddStrings("LOCAL_MODULE_SYMLINKS", c.Properties.Symlinks...)
@@ -555,7 +555,7 @@ func (c *snapshotBinaryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries
 
 func (c *snapshotObjectLinker) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	entries.Class = "STATIC_LIBRARIES"
-	entries.SubName = c.androidMkSuffix
+	entries.SubName = c.baseProperties.Androidmk_suffix
 
 	entries.ExtraFooters = append(entries.ExtraFooters,
 		func(w io.Writer, name, prefix, moduleDir string) {
