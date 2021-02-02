@@ -49,6 +49,11 @@ func (p *PackagingSpec) FileName() string {
 	return ""
 }
 
+// Path relative to the root of the package
+func (p *PackagingSpec) RelPathInPackage() string {
+	return p.relPathInPackage
+}
+
 type PackageModule interface {
 	Module
 	packagingBase() *PackagingBase
@@ -87,9 +92,17 @@ type packagingMultilibProperties struct {
 	Lib64  depsProperty `android:"arch_variant"`
 }
 
+type packagingArchProperties struct {
+	Arm64  depsProperty
+	Arm    depsProperty
+	X86_64 depsProperty
+	X86    depsProperty
+}
+
 type PackagingProperties struct {
 	Deps     []string                    `android:"arch_variant"`
 	Multilib packagingMultilibProperties `android:"arch_variant"`
+	Arch     packagingArchProperties
 }
 
 func InitPackageModule(p PackageModule) {
@@ -116,6 +129,7 @@ func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) []s
 	} else if arch == Common {
 		ret = append(ret, p.properties.Multilib.Common.Deps...)
 	}
+
 	for i, t := range ctx.MultiTargets() {
 		if t.Arch.ArchType == arch {
 			ret = append(ret, p.properties.Deps...)
@@ -124,6 +138,20 @@ func (p *PackagingBase) getDepsForArch(ctx BaseModuleContext, arch ArchType) []s
 			}
 		}
 	}
+
+	if ctx.Arch().ArchType == Common {
+		switch arch {
+		case Arm64:
+			ret = append(ret, p.properties.Arch.Arm64.Deps...)
+		case Arm:
+			ret = append(ret, p.properties.Arch.Arm.Deps...)
+		case X86_64:
+			ret = append(ret, p.properties.Arch.X86_64.Deps...)
+		case X86:
+			ret = append(ret, p.properties.Arch.X86.Deps...)
+		}
+	}
+
 	return FirstUniqueStrings(ret)
 }
 
