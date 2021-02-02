@@ -1149,13 +1149,11 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			// added to libFlags and LOCAL_SHARED_LIBRARIES by cc.Module
 			if c.staticBinary() {
 				deps := append(extraStaticDeps, runtimeLibrary)
-				// If we're using snapshots and in vendor, redirect to snapshot whenever possible
-				if c.VndkVersion() == mctx.DeviceConfig().VndkVersion() {
-					snapshots := vendorSnapshotStaticLibs(mctx.Config())
-					for idx, dep := range deps {
-						if lib, ok := snapshots.get(dep, mctx.Arch().ArchType); ok {
-							deps[idx] = lib
-						}
+				// If we're using snapshots, redirect to snapshot whenever possible
+				snapshot := mctx.Provider(SnapshotInfoProvider).(SnapshotInfo)
+				for idx, dep := range deps {
+					if lib, ok := snapshot.StaticLibs[dep]; ok {
+						deps[idx] = lib
 					}
 				}
 
@@ -1168,13 +1166,12 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 				}
 				mctx.AddFarVariationDependencies(variations, depTag, deps...)
 			} else if !c.static() && !c.Header() {
-				// If we're using snapshots and in vendor, redirect to snapshot whenever possible
-				if c.VndkVersion() == mctx.DeviceConfig().VndkVersion() {
-					snapshots := vendorSnapshotSharedLibs(mctx.Config())
-					if lib, ok := snapshots.get(runtimeLibrary, mctx.Arch().ArchType); ok {
-						runtimeLibrary = lib
-					}
+				// If we're using snapshots, redirect to snapshot whenever possible
+				snapshot := mctx.Provider(SnapshotInfoProvider).(SnapshotInfo)
+				if lib, ok := snapshot.SharedLibs[runtimeLibrary]; ok {
+					runtimeLibrary = lib
 				}
+
 				// Skip apex dependency check for sharedLibraryDependency
 				// when sanitizer diags are enabled. Skipping the check will allow
 				// building with diag libraries without having to list the
