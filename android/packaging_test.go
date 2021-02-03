@@ -80,7 +80,7 @@ func (m *packageTestModule) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (m *packageTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	zipFile := PathForModuleOut(ctx, "myzip.zip").OutputPath
+	zipFile := PathForModuleOut(ctx, "myzip.zip")
 	m.entries = m.CopyDepsToZip(ctx, zipFile)
 }
 
