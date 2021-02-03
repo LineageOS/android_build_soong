@@ -89,8 +89,8 @@ type hiddenAPIIntf interface {
 
 var _ hiddenAPIIntf = (*hiddenAPI)(nil)
 
-func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bool, dexJar android.ModuleOutPath,
-	implementationJar android.Path, uncompressDex bool) android.ModuleOutPath {
+func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bool, dexJar android.OutputPath,
+	implementationJar android.Path, uncompressDex bool) android.OutputPath {
 	if !ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
 
 		// Modules whose names are of the format <x>-hiddenapi provide hiddenapi information
@@ -116,7 +116,7 @@ func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bo
 			// hiddenapi information for a module on the boot jars list then encode
 			// the gathered information in the generated dex file.
 			if name == bootJarName {
-				hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", name+".jar")
+				hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", name+".jar").OutputPath
 
 				// More than one library with the same classes can be encoded but only one can
 				// be added to the global set of flags, otherwise it will result in duplicate
