@@ -2917,6 +2917,9 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.properties.Aidl.Export_include_dirs)
 
 	if ctx.Device() {
+		configurationName := j.BaseModuleName()
+		primary := j.Prebuilt().UsePrebuilt()
+
 		// If this is a variant created for a prebuilt_apex then use the dex implementation jar
 		// obtained from the associated deapexer module.
 		ai := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
@@ -2930,8 +2933,10 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 			// Get the path of the dex implementation jar from the `deapexer` module.
 			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
-			j.dexJarFile = di.PrebuiltExportPath(j.BaseModuleName(), ".dexjar")
-			if j.dexJarFile == nil {
+			if dexOutputPath := di.PrebuiltExportPath(j.BaseModuleName(), ".dexjar"); dexOutputPath != nil {
+				j.dexJarFile = dexOutputPath
+				j.hiddenAPI.hiddenAPIExtractInformation(ctx, dexOutputPath, outputFile, primary)
+			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
 				// prebuilt_apex has been configured to export the java library dex file.
 				ctx.ModuleErrorf("internal error: no dex implementation jar available from prebuilt_apex %q", deapexerModule.Name())
@@ -2960,9 +2965,6 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			if ctx.Failed() {
 				return
 			}
-
-			configurationName := j.BaseModuleName()
-			primary := j.Prebuilt().UsePrebuilt()
 
 			// Hidden API CSV generation and dex encoding
 			dexOutputFile = j.hiddenAPIExtractAndEncode(ctx, configurationName, primary, dexOutputFile, outputFile,
