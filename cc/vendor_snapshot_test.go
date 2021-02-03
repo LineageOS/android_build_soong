@@ -329,6 +329,24 @@ func TestVendorSnapshotUse(t *testing.T) {
 			},
 		},
 	}
+
+	// old snapshot module which has to be ignored
+	vndk_prebuilt_shared {
+		name: "libvndk",
+		version: "OLD",
+		target_arch: "arm64",
+		vendor_available: true,
+		product_available: true,
+		vndk: {
+			enabled: true,
+		},
+		arch: {
+			arm64: {
+				srcs: ["libvndk.so"],
+				export_include_dirs: ["include/libvndk"],
+			},
+		},
+	}
 `
 
 	vendorProprietaryBp := `
@@ -365,6 +383,27 @@ func TestVendorSnapshotUse(t *testing.T) {
 		static_libs: ["libvndk"],
 		compile_multilib: "64",
 		srcs: ["bin.cpp"],
+	}
+
+	vendor_snapshot {
+		name: "vendor_snapshot",
+		compile_multilib: "first",
+		version: "BOARD",
+		vndk_libs: [
+			"libvndk",
+		],
+		static_libs: [
+			"libvendor",
+			"libvendor_available",
+			"libvndk",
+		],
+		shared_libs: [
+			"libvendor",
+			"libvendor_available",
+		],
+		binaries: [
+			"bin",
+		],
 	}
 
 	vendor_snapshot_static {
@@ -408,6 +447,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_shared {
 		name: "libvendor_available",
+		androidmk_suffix: ".vendor",
 		version: "BOARD",
 		target_arch: "arm64",
 		vendor: true,
@@ -421,6 +461,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_static {
 		name: "libvendor_available",
+		androidmk_suffix: ".vendor",
 		version: "BOARD",
 		target_arch: "arm64",
 		vendor: true,
@@ -435,6 +476,19 @@ func TestVendorSnapshotUse(t *testing.T) {
 	vendor_snapshot_binary {
 		name: "bin",
 		version: "BOARD",
+		target_arch: "arm64",
+		vendor: true,
+		arch: {
+			arm64: {
+				src: "bin",
+			},
+		},
+	}
+
+	// old snapshot module which has to be ignored
+	vendor_snapshot_binary {
+		name: "bin",
+		version: "OLD",
 		target_arch: "arm64",
 		vendor: true,
 		arch: {

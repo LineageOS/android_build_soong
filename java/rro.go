@@ -55,7 +55,11 @@ type RuntimeResourceOverlayProperties struct {
 	// only when the ro.boot.vendor.overlay.theme system property is set to the same value.
 	Theme *string
 
-	// if not blank, set to the version of the sdk to compile against.
+	// If not blank, set to the version of the sdk to compile against. This
+	// can be either an API version (e.g. "29" for API level 29 AKA Android 10)
+	// or special subsets of the current platform, for example "none", "current",
+	// "core", "system", "test". See build/soong/java/sdk.go for the full and
+	// up-to-date list of possible values.
 	// Defaults to compiling against the current platform.
 	Sdk_version *string
 

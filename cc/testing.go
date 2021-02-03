@@ -586,17 +586,13 @@ func CreateTestContext(config android.Config) *android.TestContext {
 	ctx.RegisterModuleType("vendor_public_library", vendorPublicLibraryFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
-	ctx.RegisterModuleType("vendor_snapshot_shared", VendorSnapshotSharedFactory)
-	ctx.RegisterModuleType("vendor_snapshot_static", VendorSnapshotStaticFactory)
-	ctx.RegisterModuleType("vendor_snapshot_binary", VendorSnapshotBinaryFactory)
+	vendorSnapshotImageSingleton.init(ctx)
+	recoverySnapshotImageSingleton.init(ctx)
 	RegisterVndkLibraryTxtTypes(ctx)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	android.RegisterPrebuiltMutators(ctx)
 	RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
-	ctx.RegisterSingletonType("vendor-snapshot", VendorSnapshotSingleton)
-	ctx.RegisterSingletonType("vendor-fake-snapshot", VendorFakeSnapshotSingleton)
-	ctx.RegisterSingletonType("recovery-snapshot", RecoverySnapshotSingleton)
 
 	return ctx
 }
