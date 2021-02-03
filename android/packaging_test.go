@@ -61,10 +61,17 @@ type packageTestModule struct {
 	entries []string
 }
 
-func packageTestModuleFactory() Module {
+func packageMultiTargetTestModuleFactory() Module {
 	module := &packageTestModule{}
 	InitPackageModule(module)
 	InitAndroidMultiTargetsArchModule(module, DeviceSupported, MultilibCommon)
+	return module
+}
+
+func packageTestModuleFactory() Module {
+	module := &packageTestModule{}
+	InitPackageModule(module)
+	InitAndroidArchModule(module, DeviceSupported, MultilibBoth)
 	return module
 }
 
@@ -77,14 +84,22 @@ func (m *packageTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	m.entries = m.CopyDepsToZip(ctx, zipFile)
 }
 
-func runPackagingTest(t *testing.T, bp string, expected []string) {
+func runPackagingTest(t *testing.T, multitarget bool, bp string, expected []string) {
 	t.Helper()
 
 	config := TestArchConfig(buildDir, nil, bp, nil)
 
 	ctx := NewTestArchContext(config)
 	ctx.RegisterModuleType("component", componentTestModuleFactory)
-	ctx.RegisterModuleType("package_module", packageTestModuleFactory)
+
+	var archVariant string
+	if multitarget {
+		archVariant = "android_common"
+		ctx.RegisterModuleType("package_module", packageMultiTargetTestModuleFactory)
+	} else {
+		archVariant = "android_arm64_armv8-a"
+		ctx.RegisterModuleType("package_module", packageTestModuleFactory)
+	}
 	ctx.Register()
 
 	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
@@ -92,7 +107,7 @@ func runPackagingTest(t *testing.T, bp string, expected []string) {
 	_, errs = ctx.PrepareBuildActions(config)
 	FailIfErrored(t, errs)
 
-	p := ctx.ModuleForTests("package", "android_common").Module().(*packageTestModule)
+	p := ctx.ModuleForTests("package", archVariant).Module().(*packageTestModule)
 	actual := p.entries
 	actual = SortedUniqueStrings(actual)
 	expected = SortedUniqueStrings(expected)
@@ -101,8 +116,9 @@ func runPackagingTest(t *testing.T, bp string, expected []string) {
 	}
 }
 
-func TestPackagingBase(t *testing.T) {
-	runPackagingTest(t,
+func TestPackagingBaseMultiTarget(t *testing.T) {
+	multiTarget := true
+	runPackagingTest(t, multiTarget,
 		`
 		component {
 			name: "foo",
@@ -114,7 +130,7 @@ func TestPackagingBase(t *testing.T) {
 		}
 		`, []string{"lib64/foo"})
 
-	runPackagingTest(t,
+	runPackagingTest(t, multiTarget,
 		`
 		component {
 			name: "foo",
@@ -131,7 +147,7 @@ func TestPackagingBase(t *testing.T) {
 		}
 		`, []string{"lib64/foo", "lib64/bar"})
 
-	runPackagingTest(t,
+	runPackagingTest(t, multiTarget,
 		`
 		component {
 			name: "foo",
@@ -149,7 +165,7 @@ func TestPackagingBase(t *testing.T) {
 		}
 		`, []string{"lib32/foo", "lib32/bar", "lib64/foo", "lib64/bar"})
 
-	runPackagingTest(t,
+	runPackagingTest(t, multiTarget,
 		`
 		component {
 			name: "foo",
@@ -172,7 +188,7 @@ func TestPackagingBase(t *testing.T) {
 		}
 		`, []string{"lib32/foo", "lib32/bar", "lib64/foo"})
 
-	runPackagingTest(t,
+	runPackagingTest(t, multiTarget,
 		`
 		component {
 			name: "foo",
@@ -193,4 +209,136 @@ func TestPackagingBase(t *testing.T) {
 			compile_multilib: "both",
 		}
 		`, []string{"lib32/foo", "lib64/foo", "lib64/bar"})
+
+	runPackagingTest(t, multiTarget,
+		`
+		component {
+			name: "foo",
+		}
+
+		component {
+			name: "bar",
+		}
+
+		component {
+			name: "baz",
+		}
+
+		package_module {
+			name: "package",
+			deps: ["foo"],
+			arch: {
+				arm64: {
+					deps: ["bar"],
+				},
+				x86_64: {
+					deps: ["baz"],
+				},
+			},
+			compile_multilib: "both",
+		}
+		`, []string{"lib32/foo", "lib64/foo", "lib64/bar"})
+}
+
+func TestPackagingBaseSingleTarget(t *testing.T) {
+	multiTarget := false
+	runPackagingTest(t, multiTarget,
+		`
+		component {
+			name: "foo",
+		}
+
+		package_module {
+			name: "package",
+			deps: ["foo"],
+		}
+		`, []string{"lib64/foo"})
+
+	runPackagingTest(t, multiTarget,
+		`
+		component {
+			name: "foo",
+			deps: ["bar"],
+		}
+
+		component {
+			name: "bar",
+		}
+
+		package_module {
+			name: "package",
+			deps: ["foo"],
+		}
+		`, []string{"lib64/foo", "lib64/bar"})
+
+	runPackagingTest(t, multiTarget,
+		`
+		component {
+			name: "foo",
+		}
+
+		component {
+			name: "bar",
+			compile_multilib: "32",
+		}
+
+		package_module {
+			name: "package",
+			deps: ["foo"],
+			multilib: {
+				lib32: {
+					deps: ["bar"],
+				},
+			},
+		}
+		`, []string{"lib64/foo"})
+
+	runPackagingTest(t, multiTarget,
+		`
+		component {
+			name: "foo",
+		}
+
+		component {
+			name: "bar",
+		}
+
+		package_module {
+			name: "package",
+			deps: ["foo"],
+			multilib: {
+				lib64: {
+					deps: ["bar"],
+				},
+			},
+		}
+		`, []string{"lib64/foo", "lib64/bar"})
+
+	runPackagingTest(t, multiTarget,
+		`
+		component {
+			name: "foo",
+		}
+
+		component {
+			name: "bar",
+		}
+
+		component {
+			name: "baz",
+		}
+
+		package_module {
+			name: "package",
+			deps: ["foo"],
+			arch: {
+				arm64: {
+					deps: ["bar"],
+				},
+				x86_64: {
+					deps: ["baz"],
+				},
+			},
+		}
+		`, []string{"lib64/foo", "lib64/bar"})
 }
