@@ -61,6 +61,9 @@ lib_dir() {
   esac
 }
 
+# Make sure this build builds from source, regardless of the default.
+export SOONG_CONFIG_art_module_source_build=true
+
 OUT_DIR=$(source build/envsetup.sh > /dev/null; TARGET_PRODUCT= get_build_var OUT_DIR)
 DIST_DIR=$(source build/envsetup.sh > /dev/null; TARGET_PRODUCT= get_build_var DIST_DIR)
 
