@@ -2712,6 +2712,14 @@ const runtimeLibAndroidBp = `
 		system_shared_libs : [],
 	}
 	cc_library {
+		name: "libproduct_vendor",
+		product_specific: true,
+		vendor_available: true,
+		no_libcrt : true,
+		nocrt : true,
+		system_shared_libs : [],
+	}
+	cc_library {
 		name: "libcore",
 		runtime_libs: ["liball_available"],
 		no_libcrt : true,
@@ -2728,7 +2736,7 @@ const runtimeLibAndroidBp = `
 	cc_library {
 		name: "libvendor2",
 		vendor: true,
-		runtime_libs: ["liball_available", "libvendor1"],
+		runtime_libs: ["liball_available", "libvendor1", "libproduct_vendor"],
 		no_libcrt : true,
 		nocrt : true,
 		system_shared_libs : [],
@@ -2751,7 +2759,7 @@ const runtimeLibAndroidBp = `
 	cc_library {
 		name: "libproduct2",
 		product_specific: true,
-		runtime_libs: ["liball_available", "libproduct1"],
+		runtime_libs: ["liball_available", "libproduct1", "libproduct_vendor"],
 		no_libcrt : true,
 		nocrt : true,
 		system_shared_libs : [],
@@ -2781,7 +2789,7 @@ func TestRuntimeLibs(t *testing.T) {
 	checkRuntimeLibs(t, []string{"liball_available.vendor"}, module)
 
 	module = ctx.ModuleForTests("libvendor2", variant).Module().(*Module)
-	checkRuntimeLibs(t, []string{"liball_available.vendor", "libvendor1"}, module)
+	checkRuntimeLibs(t, []string{"liball_available.vendor", "libvendor1", "libproduct_vendor.vendor"}, module)
 
 	// runtime_libs for product variants have '.product' suffixes if the modules have both core
 	// and product variants.
@@ -2791,7 +2799,7 @@ func TestRuntimeLibs(t *testing.T) {
 	checkRuntimeLibs(t, []string{"liball_available.product"}, module)
 
 	module = ctx.ModuleForTests("libproduct2", variant).Module().(*Module)
-	checkRuntimeLibs(t, []string{"liball_available.product", "libproduct1"}, module)
+	checkRuntimeLibs(t, []string{"liball_available.product", "libproduct1", "libproduct_vendor.product"}, module)
 }
 
 func TestExcludeRuntimeLibs(t *testing.T) {
@@ -2817,10 +2825,10 @@ func TestRuntimeLibsNoVndk(t *testing.T) {
 	checkRuntimeLibs(t, []string{"liball_available"}, module)
 
 	module = ctx.ModuleForTests("libvendor2", variant).Module().(*Module)
-	checkRuntimeLibs(t, []string{"liball_available", "libvendor1"}, module)
+	checkRuntimeLibs(t, []string{"liball_available", "libvendor1", "libproduct_vendor"}, module)
 
 	module = ctx.ModuleForTests("libproduct2", variant).Module().(*Module)
-	checkRuntimeLibs(t, []string{"liball_available", "libproduct1"}, module)
+	checkRuntimeLibs(t, []string{"liball_available", "libproduct1", "libproduct_vendor"}, module)
 }
 
 func checkStaticLibs(t *testing.T, expected []string, module *Module) {
