@@ -291,6 +291,7 @@ func isSnapshotAware(cfg android.DeviceConfig, m *Module, inProprietaryPath bool
 type snapshotJsonFlags struct {
 	ModuleName          string `json:",omitempty"`
 	RelativeInstallPath string `json:",omitempty"`
+	AndroidMkSuffix     string `json:",omitempty"`
 
 	// library flags
 	ExportedDirs       []string `json:",omitempty"`
@@ -403,6 +404,7 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		} else {
 			prop.RelativeInstallPath = m.RelativeInstallPath()
 		}
+		prop.AndroidMkSuffix = m.Properties.SubName
 		prop.RuntimeLibs = m.Properties.SnapshotRuntimeLibs
 		prop.Required = m.RequiredModuleNames()
 		for _, path := range m.InitRc() {
