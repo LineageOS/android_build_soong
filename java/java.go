@@ -1805,7 +1805,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		primary = primary && !j.IsReplacedByPrebuilt()
 
 		// Hidden API CSV generation and dex encoding
-		dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, configurationName, primary, dexOutputFile, j.implementationJarFile,
+		dexOutputFile = j.hiddenAPIExtractAndEncode(ctx, configurationName, primary, dexOutputFile, j.implementationJarFile,
 			proptools.Bool(j.dexProperties.Uncompress_dex))
 
 		// merge dex jar with resources if necessary
@@ -2965,7 +2965,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			primary := j.Prebuilt().UsePrebuilt()
 
 			// Hidden API CSV generation and dex encoding
-			dexOutputFile = j.hiddenAPI.hiddenAPI(ctx, configurationName, primary, dexOutputFile, outputFile,
+			dexOutputFile = j.hiddenAPIExtractAndEncode(ctx, configurationName, primary, dexOutputFile, outputFile,
 				proptools.Bool(j.dexProperties.Uncompress_dex))
 
 			j.dexJarFile = dexOutputFile
