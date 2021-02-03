@@ -1535,6 +1535,11 @@ func (c *Module) getNameSuffixWithVndkVersion(ctx android.ModuleContext) string 
 	var vndkVersion string
 	var nameSuffix string
 	if c.InProduct() {
+		if c.ProductSpecific() {
+			// If the module is product specific with 'product_specific: true',
+			// do not add a name suffix because it is a base module.
+			return ""
+		}
 		vndkVersion = ctx.DeviceConfig().ProductVndkVersion()
 		nameSuffix = productSuffix
 	} else {

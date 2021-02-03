@@ -2799,7 +2799,7 @@ func TestRuntimeLibs(t *testing.T) {
 	checkRuntimeLibs(t, []string{"liball_available.product"}, module)
 
 	module = ctx.ModuleForTests("libproduct2", variant).Module().(*Module)
-	checkRuntimeLibs(t, []string{"liball_available.product", "libproduct1", "libproduct_vendor.product"}, module)
+	checkRuntimeLibs(t, []string{"liball_available.product", "libproduct1", "libproduct_vendor"}, module)
 }
 
 func TestExcludeRuntimeLibs(t *testing.T) {
