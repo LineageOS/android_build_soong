@@ -159,7 +159,7 @@ func propsToAttributes(props map[string]string) string {
 	return attributes
 }
 
-func GenerateSoongModuleTargets(ctx bpToBuildContext, codegenMode CodegenMode) map[string]BazelTargets {
+func GenerateBazelTargets(ctx bpToBuildContext, codegenMode CodegenMode) map[string]BazelTargets {
 	buildFileToTargets := make(map[string]BazelTargets)
 	ctx.VisitAllModules(func(m blueprint.Module) {
 		dir := ctx.ModuleDir(m)
