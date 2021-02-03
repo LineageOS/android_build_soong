@@ -66,7 +66,7 @@ type PackageModule interface {
 	// returns zip entries in it. This is expected to be called in GenerateAndroidBuildActions,
 	// followed by a build rule that unzips it and creates the final output (img, zip, tar.gz,
 	// etc.) from the extracted files
-	CopyDepsToZip(ctx ModuleContext, zipOut OutputPath) []string
+	CopyDepsToZip(ctx ModuleContext, zipOut WritablePath) []string
 }
 
 // PackagingBase provides basic functionality for packaging dependencies. A module is expected to
@@ -180,7 +180,7 @@ func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.Dep
 }
 
 // See PackageModule.CopyDepsToZip
-func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut OutputPath) (entries []string) {
+func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut WritablePath) (entries []string) {
 	m := make(map[string]PackagingSpec)
 	ctx.WalkDeps(func(child Module, parent Module) bool {
 		if !IsInstallDepNeeded(ctx.OtherModuleDependencyTag(child)) {
@@ -196,7 +196,7 @@ func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut OutputPath) (ent
 
 	builder := NewRuleBuilder(pctx, ctx)
 
-	dir := PathForModuleOut(ctx, ".zip").OutputPath
+	dir := PathForModuleOut(ctx, ".zip")
 	builder.Command().Text("rm").Flag("-rf").Text(dir.String())
 	builder.Command().Text("mkdir").Flag("-p").Text(dir.String())
 
