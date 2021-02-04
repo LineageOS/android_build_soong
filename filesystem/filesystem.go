@@ -48,8 +48,8 @@ type filesystemProperties struct {
 	// Hash and signing algorithm for avbtool. Default is SHA256_RSA4096.
 	Avb_algorithm *string
 
-	// Type of the filesystem. Currently, ext4 and compressed_cpio are supported. Default is
-	// ext4.
+	// Type of the filesystem. Currently, ext4, cpio, and compressed_cpio are supported. Default
+	// is ext4.
 	Type *string
 }
 
@@ -80,6 +80,7 @@ type fsType int
 const (
 	ext4Type fsType = iota
 	compressedCpioType
+	cpioType // uncompressed
 	unknown
 )
 
@@ -90,6 +91,8 @@ func (f *filesystem) fsType(ctx android.ModuleContext) fsType {
 		return ext4Type
 	case "compressed_cpio":
 		return compressedCpioType
+	case "cpio":
+		return cpioType
 	default:
 		ctx.PropertyErrorf("type", "%q not supported", typeStr)
 		return unknown
@@ -107,7 +110,9 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	case ext4Type:
 		f.output = f.buildImageUsingBuildImage(ctx)
 	case compressedCpioType:
-		f.output = f.buildCompressedCpioImage(ctx)
+		f.output = f.buildCpioImage(ctx, true)
+	case cpioType:
+		f.output = f.buildCpioImage(ctx, false)
 	default:
 		return
 	}
@@ -201,7 +206,7 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 	return propFile, deps
 }
 
-func (f *filesystem) buildCompressedCpioImage(ctx android.ModuleContext) android.OutputPath {
+func (f *filesystem) buildCpioImage(ctx android.ModuleContext, compressed bool) android.OutputPath {
 	if proptools.Bool(f.properties.Use_avb) {
 		ctx.PropertyErrorf("use_avb", "signing compresed cpio image using avbtool is not supported."+
 			"Consider adding this to bootimg module and signing the entire boot image.")
@@ -218,18 +223,22 @@ func (f *filesystem) buildCompressedCpioImage(ctx android.ModuleContext) android
 		Input(zipFile)
 
 	output := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
-	builder.Command().
+	cmd := builder.Command().
 		BuiltTool("mkbootfs").
-		Text(rootDir.String()). // input directory
-		Text("|").
-		BuiltTool("lz4").
-		Flag("--favor-decSpeed"). // for faster boot
-		Flag("-12").              // maximum compression level
-		Flag("-l").               // legacy format for kernel
-		Text(">").Output(output)
+		Text(rootDir.String()) // input directory
+	if compressed {
+		cmd.Text("|").
+			BuiltTool("lz4").
+			Flag("--favor-decSpeed"). // for faster boot
+			Flag("-12").              // maximum compression level
+			Flag("-l").               // legacy format for kernel
+			Text(">").Output(output)
+	} else {
+		cmd.Text(">").Output(output)
+	}
 
 	// rootDir is not deleted. Might be useful for quick inspection.
-	builder.Build("build_compressed_cpio_image", fmt.Sprintf("Creating filesystem %s", f.BaseModuleName()))
+	builder.Build("build_cpio_image", fmt.Sprintf("Creating filesystem %s", f.BaseModuleName()))
 
 	return output
 }
