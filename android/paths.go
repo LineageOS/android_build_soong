@@ -1011,8 +1011,13 @@ func (p OutputPath) buildDir() string {
 	return p.config.buildDir
 }
 
+func (p OutputPath) objPathWithExt(ctx ModuleOutPathContext, subdir, ext string) ModuleObjPath {
+	return PathForModuleObj(ctx, subdir, pathtools.ReplaceExtension(p.path, ext))
+}
+
 var _ Path = OutputPath{}
 var _ WritablePath = OutputPath{}
+var _ objPathProvider = OutputPath{}
 
 // toolDepPath is a Path representing a dependency of the build tool.
 type toolDepPath struct {
