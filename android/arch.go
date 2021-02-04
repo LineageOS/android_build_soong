@@ -647,10 +647,11 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	}
 
 	// Recovery is always the primary architecture, filter out any other architectures.
+	// Common arch is also allowed
 	if image == RecoveryVariation {
 		primaryArch := mctx.Config().DevicePrimaryArchType()
-		targets = filterToArch(targets, primaryArch)
-		multiTargets = filterToArch(multiTargets, primaryArch)
+		targets = filterToArch(targets, primaryArch, Common)
+		multiTargets = filterToArch(multiTargets, primaryArch, Common)
 	}
 
 	// If there are no supported targets disable the module.
@@ -719,10 +720,17 @@ func decodeMultilib(base *ModuleBase, class OsClass) (multilib, extraMultilib st
 }
 
 // filterToArch takes a list of Targets and an ArchType, and returns a modified list that contains
-// only Targets that have the specified ArchType.
-func filterToArch(targets []Target, arch ArchType) []Target {
+// only Targets that have the specified ArchTypes.
+func filterToArch(targets []Target, archs ...ArchType) []Target {
 	for i := 0; i < len(targets); i++ {
-		if targets[i].Arch.ArchType != arch {
+		found := false
+		for _, arch := range archs {
+			if targets[i].Arch.ArchType == arch {
+				found = true
+				break
+			}
+		}
+		if !found {
 			targets = append(targets[:i], targets[i+1:]...)
 			i--
 		}
