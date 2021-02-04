@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/tradefed"
 )
@@ -230,6 +232,7 @@ func TestPerSrcMutator(mctx android.BottomUpMutatorContext) {
 type testDecorator struct {
 	Properties TestProperties
 	linker     *baseLinker
+	hod        android.HostOrDeviceSupported
 }
 
 func (test *testDecorator) gtest() bool {
@@ -429,6 +432,10 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 		ctx.PropertyErrorf("no_named_install_directory", "Module install directory may only be disabled if relative_install_path is set")
 	}
 
+	// TODO(179092189): Clean up to use Ctx.Host() when generalizing to cc_test
+	if test.testDecorator.hod == android.HostSupported && test.gtest() && test.Properties.Test_options.Unit_test == nil {
+		test.Properties.Test_options.Unit_test = proptools.BoolPtr(true)
+	}
 	test.binaryDecorator.baseInstaller.install(ctx, file)
 }
 
@@ -440,6 +447,7 @@ func NewTest(hod android.HostOrDeviceSupported) *Module {
 	test := &testBinary{
 		testDecorator: testDecorator{
 			linker: binary.baseLinker,
+			hod:    hod,
 		},
 		binaryDecorator: binary,
 		baseCompiler:    NewBaseCompiler(),
