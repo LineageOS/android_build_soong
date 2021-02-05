@@ -47,7 +47,12 @@ func RegisterGenruleBuildComponents(ctx android.RegistrationContext) {
 		ctx.BottomUp("genrule_tool_deps", toolDepsMutator).Parallel()
 	})
 
+	android.DepsBp2BuildMutators(RegisterGenruleBp2BuildDeps)
 	android.RegisterBp2BuildMutator("genrule", GenruleBp2Build)
+}
+
+func RegisterGenruleBp2BuildDeps(ctx android.RegisterMutatorsContext) {
+	ctx.BottomUp("genrule_tool_deps", toolDepsMutator)
 }
 
 var (
@@ -776,9 +781,9 @@ type genRuleProperties struct {
 
 type bazelGenruleAttributes struct {
 	Name  *string
-	Srcs  []string
+	Srcs  bazel.LabelList
 	Outs  []string
-	Tools []string
+	Tools bazel.LabelList
 	Cmd   string
 }
 
@@ -795,45 +800,63 @@ func BazelGenruleFactory() android.Module {
 }
 
 func GenruleBp2Build(ctx android.TopDownMutatorContext) {
-	if m, ok := ctx.Module().(*Module); ok {
-		name := "__bp2build__" + m.Name()
-		// Bazel only has the "tools" attribute.
-		tools := append(m.properties.Tools, m.properties.Tool_files...)
-
-		// Replace in and out variables with $< and $@
-		var cmd string
-		if m.properties.Cmd != nil {
-			cmd = strings.Replace(*m.properties.Cmd, "$(in)", "$(SRCS)", -1)
-			cmd = strings.Replace(cmd, "$(out)", "$(OUTS)", -1)
-			cmd = strings.Replace(cmd, "$(genDir)", "$(GENDIR)", -1)
-			if len(tools) > 0 {
-				cmd = strings.Replace(cmd, "$(location)", fmt.Sprintf("$(location %s)", tools[0]), -1)
-				cmd = strings.Replace(cmd, "$(locations)", fmt.Sprintf("$(locations %s)", tools[0]), -1)
-			}
-		}
-
-		// The Out prop is not in an immediately accessible field
-		// in the Module struct, so use GetProperties and cast it
-		// to the known struct prop.
-		var outs []string
-		for _, propIntf := range m.GetProperties() {
-			if props, ok := propIntf.(*genRuleProperties); ok {
-				outs = props.Out
-				break
-			}
-		}
-
-		// Create the BazelTargetModule.
-		ctx.CreateModule(BazelGenruleFactory, &bazelGenruleAttributes{
-			Name:  proptools.StringPtr(name),
-			Srcs:  m.properties.Srcs,
-			Outs:  outs,
-			Cmd:   cmd,
-			Tools: tools,
-		}, &bazel.BazelTargetModuleProperties{
-			Rule_class: "genrule",
-		})
+	m, ok := ctx.Module().(*Module)
+	if !ok {
+		return
 	}
+	name := "__bp2build__" + m.Name()
+	// Bazel only has the "tools" attribute.
+	tools := android.BazelLabelForModuleDeps(ctx, m.properties.Tools)
+	tool_files := android.BazelLabelForModuleSrc(ctx, m.properties.Tool_files)
+	tools.Append(tool_files)
+
+	srcs := android.BazelLabelForModuleSrc(ctx, m.properties.Srcs)
+
+	var allReplacements bazel.LabelList
+	allReplacements.Append(tools)
+	allReplacements.Append(srcs)
+
+	// Replace in and out variables with $< and $@
+	var cmd string
+	if m.properties.Cmd != nil {
+		cmd = strings.Replace(*m.properties.Cmd, "$(in)", "$(SRCS)", -1)
+		cmd = strings.Replace(cmd, "$(out)", "$(OUTS)", -1)
+		cmd = strings.Replace(cmd, "$(genDir)", "$(GENDIR)", -1)
+		if len(tools.Includes) > 0 {
+			cmd = strings.Replace(cmd, "$(location)", fmt.Sprintf("$(location %s)", tools.Includes[0].Label), -1)
+			cmd = strings.Replace(cmd, "$(locations)", fmt.Sprintf("$(locations %s)", tools.Includes[0].Label), -1)
+		}
+		for _, l := range allReplacements.Includes {
+			bpLoc := fmt.Sprintf("$(location %s)", l.Bp_text)
+			bpLocs := fmt.Sprintf("$(locations %s)", l.Bp_text)
+			bazelLoc := fmt.Sprintf("$(location %s)", l.Label)
+			bazelLocs := fmt.Sprintf("$(locations %s)", l.Label)
+			cmd = strings.Replace(cmd, bpLoc, bazelLoc, -1)
+			cmd = strings.Replace(cmd, bpLocs, bazelLocs, -1)
+		}
+	}
+
+	// The Out prop is not in an immediately accessible field
+	// in the Module struct, so use GetProperties and cast it
+	// to the known struct prop.
+	var outs []string
+	for _, propIntf := range m.GetProperties() {
+		if props, ok := propIntf.(*genRuleProperties); ok {
+			outs = props.Out
+			break
+		}
+	}
+
+	// Create the BazelTargetModule.
+	ctx.CreateModule(BazelGenruleFactory, &bazelGenruleAttributes{
+		Name:  proptools.StringPtr(name),
+		Srcs:  srcs,
+		Outs:  outs,
+		Cmd:   cmd,
+		Tools: tools,
+	}, &bazel.BazelTargetModuleProperties{
+		Rule_class: "genrule",
+	})
 }
 
 func (m *bazelGenrule) Name() string {

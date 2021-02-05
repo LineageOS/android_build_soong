@@ -82,7 +82,7 @@ func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
 		case "lite", "":
 			ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-lite")
 		case "full":
-			if ctx.Host() {
+			if ctx.Host() || ctx.BazelConversionMode() {
 				ctx.AddVariationDependencies(nil, staticLibTag, "libprotobuf-java-full")
 			} else {
 				ctx.PropertyErrorf("proto.type", "full java protos only supported on the host")
