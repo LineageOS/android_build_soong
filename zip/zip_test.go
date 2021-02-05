@@ -46,13 +46,14 @@ var mockFs = pathtools.MockFs(map[string][]byte{
 	"dangling -> missing": nil,
 	"a/a/d -> b":          nil,
 	"c":                   fileC,
-	"l_nl":                []byte("a/a/a\na/a/b\nc\n"),
-	"l_sp":                []byte("a/a/a a/a/b c"),
+	"l_nl":                []byte("a/a/a\na/a/b\nc\n\\[\n"),
+	"l_sp":                []byte("a/a/a a/a/b c \\["),
 	"l2":                  []byte("missing\n"),
-	"rsp":                 []byte("'a/a/a'\na/a/b\n'@'\n'foo'\\''bar'"),
+	"rsp":                 []byte("'a/a/a'\na/a/b\n'@'\n'foo'\\''bar'\n'['"),
 	"@ -> c":              nil,
 	"foo'bar -> c":        nil,
 	"manifest.txt":        fileCustomManifest,
+	"[":                   fileEmpty,
 })
 
 func fh(name string, contents []byte, method uint16) zip.FileHeader {
@@ -127,13 +128,15 @@ func TestZip(t *testing.T) {
 			args: fileArgsBuilder().
 				File("a/a/a").
 				File("a/a/b").
-				File("c"),
+				File("c").
+				File(`\[`),
 			compressionLevel: 9,
 
 			files: []zip.FileHeader{
 				fh("a/a/a", fileA, zip.Deflate),
 				fh("a/a/b", fileB, zip.Deflate),
 				fh("c", fileC, zip.Deflate),
+				fh("[", fileEmpty, zip.Store),
 			},
 		},
 		{
@@ -235,6 +238,7 @@ func TestZip(t *testing.T) {
 				fh("a/a/a", fileA, zip.Deflate),
 				fh("a/a/b", fileB, zip.Deflate),
 				fh("c", fileC, zip.Deflate),
+				fh("[", fileEmpty, zip.Store),
 			},
 		},
 		{
@@ -247,6 +251,7 @@ func TestZip(t *testing.T) {
 				fh("a/a/a", fileA, zip.Deflate),
 				fh("a/a/b", fileB, zip.Deflate),
 				fh("c", fileC, zip.Deflate),
+				fh("[", fileEmpty, zip.Store),
 			},
 		},
 		{
@@ -260,6 +265,7 @@ func TestZip(t *testing.T) {
 				fh("a/a/b", fileB, zip.Deflate),
 				fh("@", fileC, zip.Deflate),
 				fh("foo'bar", fileC, zip.Deflate),
+				fh("[", fileEmpty, zip.Store),
 			},
 		},
 		{
