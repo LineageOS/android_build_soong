@@ -32,12 +32,42 @@ func registerToolchainFactory(os android.OsType, arch android.ArchType, factory 
 	toolchainFactories[os][arch] = factory
 }
 
+type toolchainContext interface {
+	Os() android.OsType
+	Arch() android.Arch
+}
+
+type conversionContext interface {
+	BazelConversionMode() bool
+}
+
+func FindToolchainWithContext(ctx toolchainContext) Toolchain {
+	t, err := findToolchain(ctx.Os(), ctx.Arch())
+	if err != nil {
+		if c, ok := ctx.(conversionContext); ok && c.BazelConversionMode() {
+			// TODO(b/179123288): determine conversion for toolchain
+			return &toolchainX86_64{}
+		} else {
+			panic(err)
+		}
+	}
+	return t
+}
+
 func FindToolchain(os android.OsType, arch android.Arch) Toolchain {
+	t, err := findToolchain(os, arch)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+func findToolchain(os android.OsType, arch android.Arch) (Toolchain, error) {
 	factory := toolchainFactories[os][arch.ArchType]
 	if factory == nil {
-		panic(fmt.Errorf("Toolchain not found for %s arch %q", os.String(), arch.String()))
+		return nil, fmt.Errorf("Toolchain not found for %s arch %q", os.String(), arch.String())
 	}
-	return factory(arch)
+	return factory(arch), nil
 }
 
 type Toolchain interface {

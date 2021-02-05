@@ -1746,7 +1746,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 func (c *Module) toolchain(ctx android.BaseModuleContext) config.Toolchain {
 	if c.cachedToolchain == nil {
-		c.cachedToolchain = config.FindToolchain(ctx.Os(), ctx.Arch())
+		c.cachedToolchain = config.FindToolchainWithContext(ctx)
 	}
 	return c.cachedToolchain
 }
@@ -1837,6 +1837,12 @@ func (c *Module) deps(ctx DepsContext) Deps {
 	deps.LateSharedLibs = android.LastUniqueStrings(deps.LateSharedLibs)
 	deps.HeaderLibs = android.LastUniqueStrings(deps.HeaderLibs)
 	deps.RuntimeLibs = android.LastUniqueStrings(deps.RuntimeLibs)
+
+	// In Bazel conversion mode, we dependency and build validations will occur in Bazel, so there is
+	// no need to do so in Soong.
+	if ctx.BazelConversionMode() {
+		return deps
+	}
 
 	for _, lib := range deps.ReexportSharedLibHeaders {
 		if !inList(lib, deps.SharedLibs) {

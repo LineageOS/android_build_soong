@@ -132,7 +132,7 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	return outputFile
 }
 
-func (binary *binaryDecorator) autoDep(ctx BaseModuleContext) autoDep {
+func (binary *binaryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {
 	// Binaries default to dylib dependencies for device, rlib for host.
 	if binary.preferRlib() {
 		return rlibAutoDep

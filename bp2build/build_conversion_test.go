@@ -17,6 +17,7 @@ package bp2build
 import (
 	"android/soong/android"
 	"android/soong/genrule"
+	"strings"
 	"testing"
 )
 
@@ -248,22 +249,26 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
-		android.FailIfErrored(t, errs)
+		if Errored(t, "", errs) {
+			continue
+		}
 		_, errs = ctx.ResolveDependencies(config)
-		android.FailIfErrored(t, errs)
+		if Errored(t, "", errs) {
+			continue
+		}
 
 		bazelTargets := GenerateBazelTargets(ctx.Context.Context, Bp2Build)[dir]
 		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
-			t.Fatalf("Expected %d bazel target, got %d", expectedCount, actualCount)
-		}
-
-		actualBazelTarget := bazelTargets[0]
-		if actualBazelTarget.content != testCase.expectedBazelTarget {
-			t.Errorf(
-				"Expected generated Bazel target to be '%s', got '%s'",
-				testCase.expectedBazelTarget,
-				actualBazelTarget.content,
-			)
+			t.Errorf("Expected %d bazel target, got %d", expectedCount, actualCount)
+		} else {
+			actualBazelTarget := bazelTargets[0]
+			if actualBazelTarget.content != testCase.expectedBazelTarget {
+				t.Errorf(
+					"Expected generated Bazel target to be '%s', got '%s'",
+					testCase.expectedBazelTarget,
+					actualBazelTarget.content,
+				)
+			}
 		}
 	}
 }
@@ -434,13 +439,32 @@ load("//build/bazel/rules:rules.bzl", "my_library")`,
 }
 
 func TestModuleTypeBp2Build(t *testing.T) {
+	otherGenruleBp := map[string]string{
+		"other/Android.bp": `genrule {
+    name: "foo.tool",
+    out: ["foo_tool.out"],
+    srcs: ["foo_tool.in"],
+    cmd: "cp $(in) $(out)",
+}
+genrule {
+    name: "other.tool",
+    out: ["other_tool.out"],
+    srcs: ["other_tool.in"],
+    cmd: "cp $(in) $(out)",
+}`,
+	}
+
 	testCases := []struct {
+		description                        string
 		moduleTypeUnderTest                string
 		moduleTypeUnderTestFactory         android.ModuleFactory
 		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
+		preArchMutators                    []android.RegisterMutatorFunc
+		depsMutators                       []android.RegisterMutatorFunc
 		bp                                 string
-		expectedBazelTarget                string
-		description                        string
+		expectedBazelTargets               []string
+		fs                                 map[string]string
+		dir                                string
 	}{
 		{
 			description:                        "filegroup with no srcs",
@@ -448,14 +472,16 @@ func TestModuleTypeBp2Build(t *testing.T) {
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
 			bp: `filegroup {
-	name: "foo",
-	srcs: [],
+    name: "fg_foo",
+    srcs: [],
 }`,
-			expectedBazelTarget: `filegroup(
-    name = "foo",
+			expectedBazelTargets: []string{
+				`filegroup(
+    name = "fg_foo",
     srcs = [
     ],
 )`,
+			},
 		},
 		{
 			description:                        "filegroup with srcs",
@@ -463,30 +489,140 @@ func TestModuleTypeBp2Build(t *testing.T) {
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
 			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
 			bp: `filegroup {
-	name: "foo",
-	srcs: ["a", "b"],
+    name: "fg_foo",
+    srcs: ["a", "b"],
 }`,
-			expectedBazelTarget: `filegroup(
-    name = "foo",
+			expectedBazelTargets: []string{`filegroup(
+    name = "fg_foo",
     srcs = [
         "a",
         "b",
     ],
 )`,
+			},
+		},
+		{
+			description:                        "filegroup with excludes srcs",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp: `filegroup {
+    name: "fg_foo",
+    srcs: ["a", "b"],
+    exclude_srcs: ["a"],
+}`,
+			expectedBazelTargets: []string{`filegroup(
+    name = "fg_foo",
+    srcs = [
+        "b",
+    ],
+)`,
+			},
+		},
+		{
+			description:                        "filegroup with glob",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp: `filegroup {
+    name: "foo",
+    srcs: ["**/*.txt"],
+}`,
+			expectedBazelTargets: []string{`filegroup(
+    name = "foo",
+    srcs = [
+        "other/a.txt",
+        "other/b.txt",
+        "other/subdir/a.txt",
+    ],
+)`,
+			},
+			fs: map[string]string{
+				"other/a.txt":        "",
+				"other/b.txt":        "",
+				"other/subdir/a.txt": "",
+				"other/file":         "",
+			},
+		},
+		{
+			description:                        "filegroup with glob in subdir",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp: `filegroup {
+    name: "foo",
+    srcs: ["a.txt"],
+}`,
+			dir: "other",
+			expectedBazelTargets: []string{`filegroup(
+    name = "fg_foo",
+    srcs = [
+        "a.txt",
+        "b.txt",
+        "subdir/a.txt",
+    ],
+)`,
+			},
+			fs: map[string]string{
+				"other/Android.bp": `filegroup {
+    name: "fg_foo",
+    srcs: ["**/*.txt"],
+}`,
+				"other/a.txt":        "",
+				"other/b.txt":        "",
+				"other/subdir/a.txt": "",
+				"other/file":         "",
+			},
+		},
+		{
+			description:                        "depends_on_other_dir_module",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp: `filegroup {
+    name: "foobar",
+    srcs: [
+      ":foo",
+        "c",
+    ],
+}`,
+			expectedBazelTargets: []string{`filegroup(
+    name = "foobar",
+    srcs = [
+        "//other:foo",
+        "c",
+    ],
+)`,
+			},
+			fs: map[string]string{
+				"other/Android.bp": `filegroup {
+    name: "foo",
+    srcs: ["a", "b"],
+}`,
+			},
 		},
 		{
 			description:                        "genrule with command line variable replacements",
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
+    name: "foo.tool",
+    out: ["foo_tool.out"],
+    srcs: ["foo_tool.in"],
+    cmd: "cp $(in) $(out)",
+}
+
+genrule {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
     tools: [":foo.tool"],
     cmd: "$(location :foo.tool) --genDir=$(genDir) arg $(in) $(out)",
 }`,
-			expectedBazelTarget: `genrule(
+			expectedBazelTargets: []string{
+				`genrule(
     name = "foo",
     cmd = "$(location :foo.tool) --genDir=$(GENDIR) arg $(SRCS) $(OUTS)",
     outs = [
@@ -499,20 +635,39 @@ func TestModuleTypeBp2Build(t *testing.T) {
         ":foo.tool",
     ],
 )`,
+				`genrule(
+    name = "foo.tool",
+    cmd = "cp $(SRCS) $(OUTS)",
+    outs = [
+        "foo_tool.out",
+    ],
+    srcs = [
+        "foo_tool.in",
+    ],
+)`,
+			},
 		},
 		{
 			description:                        "genrule using $(locations :label)",
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
+    name: "foo.tools",
+    out: ["foo_tool.out", "foo_tool2.out"],
+    srcs: ["foo_tool.in"],
+    cmd: "cp $(in) $(out)",
+   }
+
+genrule {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
     tools: [":foo.tools"],
     cmd: "$(locations :foo.tools) -s $(out) $(in)",
 }`,
-			expectedBazelTarget: `genrule(
+			expectedBazelTargets: []string{`genrule(
     name = "foo",
     cmd = "$(locations :foo.tools) -s $(OUTS) $(SRCS)",
     outs = [
@@ -525,12 +680,83 @@ func TestModuleTypeBp2Build(t *testing.T) {
         ":foo.tools",
     ],
 )`,
+				`genrule(
+    name = "foo.tools",
+    cmd = "cp $(SRCS) $(OUTS)",
+    outs = [
+        "foo_tool.out",
+        "foo_tool2.out",
+    ],
+    srcs = [
+        "foo_tool.in",
+    ],
+)`,
+			},
+		},
+		{
+			description:                        "genrule using $(locations //absolute:label)",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: ["foo.in"],
+    tool_files: [":foo.tool"],
+    cmd: "$(locations :foo.tool) -s $(out) $(in)",
+}`,
+			expectedBazelTargets: []string{`genrule(
+    name = "foo",
+    cmd = "$(locations //other:foo.tool) -s $(OUTS) $(SRCS)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "foo.in",
+    ],
+    tools = [
+        "//other:foo.tool",
+    ],
+)`,
+			},
+			fs: otherGenruleBp,
+		},
+		{
+			description:                        "genrule srcs using $(locations //absolute:label)",
+			moduleTypeUnderTest:                "genrule",
+			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
+			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
+			bp: `genrule {
+    name: "foo",
+    out: ["foo.out"],
+    srcs: [":other.tool"],
+    tool_files: [":foo.tool"],
+    cmd: "$(locations :foo.tool) -s $(out) $(location :other.tool)",
+}`,
+			expectedBazelTargets: []string{`genrule(
+    name = "foo",
+    cmd = "$(locations //other:foo.tool) -s $(OUTS) $(location //other:other.tool)",
+    outs = [
+        "foo.out",
+    ],
+    srcs = [
+        "//other:other.tool",
+    ],
+    tools = [
+        "//other:foo.tool",
+    ],
+)`,
+			},
+			fs: otherGenruleBp,
 		},
 		{
 			description:                        "genrule using $(location) label should substitute first tool label automatically",
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -538,9 +764,9 @@ func TestModuleTypeBp2Build(t *testing.T) {
     tool_files: [":foo.tool", ":other.tool"],
     cmd: "$(location) -s $(out) $(in)",
 }`,
-			expectedBazelTarget: `genrule(
+			expectedBazelTargets: []string{`genrule(
     name = "foo",
-    cmd = "$(location :foo.tool) -s $(OUTS) $(SRCS)",
+    cmd = "$(location //other:foo.tool) -s $(OUTS) $(SRCS)",
     outs = [
         "foo.out",
     ],
@@ -548,16 +774,19 @@ func TestModuleTypeBp2Build(t *testing.T) {
         "foo.in",
     ],
     tools = [
-        ":foo.tool",
-        ":other.tool",
+        "//other:foo.tool",
+        "//other:other.tool",
     ],
 )`,
+			},
+			fs: otherGenruleBp,
 		},
 		{
 			description:                        "genrule using $(locations) label should substitute first tool label automatically",
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
@@ -565,9 +794,9 @@ func TestModuleTypeBp2Build(t *testing.T) {
     tools: [":foo.tool", ":other.tool"],
     cmd: "$(locations) -s $(out) $(in)",
 }`,
-			expectedBazelTarget: `genrule(
+			expectedBazelTargets: []string{`genrule(
     name = "foo",
-    cmd = "$(locations :foo.tool) -s $(OUTS) $(SRCS)",
+    cmd = "$(locations //other:foo.tool) -s $(OUTS) $(SRCS)",
     outs = [
         "foo.out",
     ],
@@ -575,23 +804,26 @@ func TestModuleTypeBp2Build(t *testing.T) {
         "foo.in",
     ],
     tools = [
-        ":foo.tool",
-        ":other.tool",
+        "//other:foo.tool",
+        "//other:other.tool",
     ],
 )`,
+			},
+			fs: otherGenruleBp,
 		},
 		{
 			description:                        "genrule without tools or tool_files can convert successfully",
 			moduleTypeUnderTest:                "genrule",
 			moduleTypeUnderTestFactory:         genrule.GenRuleFactory,
 			moduleTypeUnderTestBp2BuildMutator: genrule.GenruleBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{genrule.RegisterGenruleBp2BuildDeps},
 			bp: `genrule {
     name: "foo",
     out: ["foo.out"],
     srcs: ["foo.in"],
     cmd: "cp $(in) $(out)",
 }`,
-			expectedBazelTarget: `genrule(
+			expectedBazelTargets: []string{`genrule(
     name = "foo",
     cmd = "cp $(SRCS) $(OUTS)",
     outs = [
@@ -601,37 +833,71 @@ func TestModuleTypeBp2Build(t *testing.T) {
         "foo.in",
     ],
 )`,
+			},
 		},
 	}
 
 	dir := "."
 	for _, testCase := range testCases {
-		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
+		fs := make(map[string][]byte)
+		toParse := []string{
+			"Android.bp",
+		}
+		for f, content := range testCase.fs {
+			if strings.HasSuffix(f, "Android.bp") {
+				toParse = append(toParse, f)
+			}
+			fs[f] = []byte(content)
+		}
+		config := android.TestConfig(buildDir, nil, testCase.bp, fs)
 		ctx := android.NewTestContext(config)
 		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
+		for _, m := range testCase.depsMutators {
+			ctx.DepsBp2BuildMutators(m)
+		}
 		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
 		ctx.RegisterForBazelConversion()
 
-		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
-		android.FailIfErrored(t, errs)
+		_, errs := ctx.ParseFileList(dir, toParse)
+		if Errored(t, testCase.description, errs) {
+			continue
+		}
 		_, errs = ctx.ResolveDependencies(config)
-		android.FailIfErrored(t, errs)
-
-		bazelTargets := GenerateBazelTargets(ctx.Context.Context, Bp2Build)[dir]
-		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
-			t.Fatalf("%s: Expected %d bazel target, got %d", testCase.description, expectedCount, actualCount)
+		if Errored(t, testCase.description, errs) {
+			continue
 		}
 
-		actualBazelTarget := bazelTargets[0]
-		if actualBazelTarget.content != testCase.expectedBazelTarget {
-			t.Errorf(
-				"%s: Expected generated Bazel target to be '%s', got '%s'",
-				testCase.description,
-				testCase.expectedBazelTarget,
-				actualBazelTarget.content,
-			)
+		checkDir := dir
+		if testCase.dir != "" {
+			checkDir = testCase.dir
+		}
+		bazelTargets := GenerateBazelTargets(ctx.Context.Context, Bp2Build)[checkDir]
+		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
+			t.Errorf("%s: Expected %d bazel target, got %d", testCase.description, expectedCount, actualCount)
+		} else {
+			for i, target := range bazelTargets {
+				if w, g := testCase.expectedBazelTargets[i], target.content; w != g {
+					t.Errorf(
+						"%s: Expected generated Bazel target to be '%s', got '%s'",
+						testCase.description,
+						w,
+						g,
+					)
+				}
+			}
 		}
 	}
+}
+
+func Errored(t *testing.T, desc string, errs []error) bool {
+	t.Helper()
+	if len(errs) > 0 {
+		for _, err := range errs {
+			t.Errorf("%s: %s", desc, err)
+		}
+		return true
+	}
+	return false
 }
 
 type bp2buildMutator = func(android.TopDownMutatorContext)

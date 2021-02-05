@@ -15,6 +15,7 @@
 package android
 
 import (
+	"android/soong/bazel"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -329,6 +330,115 @@ func PathsForModuleSrcExcludes(ctx ModuleMissingDepsPathContext, paths, excludes
 		}
 	}
 	return ret
+}
+
+// A subset of the ModuleContext methods which are sufficient to resolve references to paths/deps in
+// order to form a Bazel-compatible label for conversion.
+type BazelConversionPathContext interface {
+	EarlyModulePathContext
+
+	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
+	OtherModuleName(m blueprint.Module) string
+	OtherModuleDir(m blueprint.Module) string
+}
+
+// BazelLabelForModuleDeps returns a Bazel-compatible label for the requested modules which
+// correspond to dependencies on the module within the given ctx.
+func BazelLabelForModuleDeps(ctx BazelConversionPathContext, modules []string) bazel.LabelList {
+	var labels bazel.LabelList
+	for _, module := range modules {
+		bpText := module
+		if m := SrcIsModule(module); m == "" {
+			module = ":" + module
+		}
+		if m, t := SrcIsModuleWithTag(module); m != "" {
+			l := getOtherModuleLabel(ctx, m, t)
+			l.Bp_text = bpText
+			labels.Includes = append(labels.Includes, l)
+		} else {
+			ctx.ModuleErrorf("%q, is not a module reference", module)
+		}
+	}
+	return labels
+}
+
+// BazelLabelForModuleSrc returns bazel.LabelList with paths rooted from the module's local source
+// directory. It expands globs, and resolves references to modules using the ":name" syntax to
+// bazel-compatible labels.  Properties passed as the paths or excludes argument must have been
+// annotated with struct tag `android:"path"` so that dependencies on other modules will have
+// already been handled by the path_properties mutator.
+func BazelLabelForModuleSrc(ctx BazelConversionPathContext, paths []string) bazel.LabelList {
+	return BazelLabelForModuleSrcExcludes(ctx, paths, []string(nil))
+}
+
+// BazelLabelForModuleSrcExcludes returns bazel.LabelList with paths rooted from the module's local
+// source directory, excluding labels included in the excludes argument. It expands globs, and
+// resolves references to modules using the ":name" syntax to bazel-compatible labels. Properties
+// passed as the paths or excludes argument must have been annotated with struct tag
+// `android:"path"` so that dependencies on other modules will have already been handled by the
+// path_properties mutator.
+func BazelLabelForModuleSrcExcludes(ctx BazelConversionPathContext, paths, excludes []string) bazel.LabelList {
+	excludeLabels := expandSrcsForBazel(ctx, excludes, []string(nil))
+	excluded := make([]string, 0, len(excludeLabels.Includes))
+	for _, e := range excludeLabels.Includes {
+		excluded = append(excluded, e.Label)
+	}
+	labels := expandSrcsForBazel(ctx, paths, excluded)
+	labels.Excludes = excludeLabels.Includes
+	return labels
+}
+
+// expandSrcsForBazel returns bazel.LabelList with paths rooted from the module's local
+// source directory, excluding labels included in the excludes argument. It expands globs, and
+// resolves references to modules using the ":name" syntax to bazel-compatible labels.  Properties
+// passed as the paths or excludes argument must have been annotated with struct tag
+// `android:"path"` so that dependencies on other modules will have already been handled by the
+// path_properties mutator.
+func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes []string) bazel.LabelList {
+	labels := bazel.LabelList{
+		Includes: []bazel.Label{},
+	}
+	for _, p := range paths {
+		if m, tag := SrcIsModuleWithTag(p); m != "" {
+			l := getOtherModuleLabel(ctx, m, tag)
+			if !InList(l.Label, expandedExcludes) {
+				l.Bp_text = fmt.Sprintf(":%s", m)
+				labels.Includes = append(labels.Includes, l)
+			}
+		} else {
+			var expandedPaths []bazel.Label
+			if pathtools.IsGlob(p) {
+				globbedPaths := GlobFiles(ctx, pathForModuleSrc(ctx, p).String(), expandedExcludes)
+				globbedPaths = PathsWithModuleSrcSubDir(ctx, globbedPaths, "")
+				for _, path := range globbedPaths {
+					s := path.Rel()
+					expandedPaths = append(expandedPaths, bazel.Label{Label: s})
+				}
+			} else {
+				if !InList(p, expandedExcludes) {
+					expandedPaths = append(expandedPaths, bazel.Label{Label: p})
+				}
+			}
+			labels.Includes = append(labels.Includes, expandedPaths...)
+		}
+	}
+	return labels
+}
+
+// getOtherModuleLabel returns a bazel.Label for the given dependency/tag combination for the
+// module. The label will be relative to the current directory if appropriate. The dependency must
+// already be resolved by either deps mutator or path deps mutator.
+func getOtherModuleLabel(ctx BazelConversionPathContext, dep, tag string) bazel.Label {
+	m, _ := ctx.GetDirectDep(dep)
+	// TODO(b/165114590): Convert tag (":name{.tag}") to corresponding Bazel implicit output targets.
+	otherModuleName := ctx.OtherModuleName(m)
+	var label bazel.Label
+	if otherDir, dir := ctx.OtherModuleDir(m), ctx.ModuleDir(); otherDir != dir {
+		label.Label = fmt.Sprintf("//%s:%s", otherDir, otherModuleName)
+	} else {
+		label.Label = fmt.Sprintf(":%s", otherModuleName)
+	}
+	return label
 }
 
 // OutputPaths is a slice of OutputPath objects, with helpers to operate on the collection.
