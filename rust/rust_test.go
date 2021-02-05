@@ -230,6 +230,7 @@ func TestDepsTracking(t *testing.T) {
 		}
 	`)
 	module := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module)
+	rustc := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Rule("rustc")
 
 	// Since dependencies are added to AndroidMk* properties, we can check these to see if they've been picked up.
 	if !android.InList("libdylib", module.Properties.AndroidMkDylibs) {
@@ -251,6 +252,11 @@ func TestDepsTracking(t *testing.T) {
 	if !android.InList("libstatic", module.Properties.AndroidMkStaticLibs) {
 		t.Errorf("Static library dependency not detected (dependency missing from AndroidMkStaticLibs)")
 	}
+
+	if !strings.Contains(rustc.Args["rustcFlags"], "-lstatic=static") {
+		t.Errorf("-lstatic flag not being passed to rustc for static library")
+	}
+
 }
 
 func TestSourceProviderDeps(t *testing.T) {
