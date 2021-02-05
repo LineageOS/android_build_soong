@@ -65,7 +65,7 @@ func TestHiddenAPISingleton(t *testing.T) {
 			srcs: ["a.java"],
 			compile_dex: true,
 	}
-	`, []string{":foo"}, nil)
+	`, []string{"platform:foo"}, nil)
 
 	hiddenAPI := ctx.SingletonForTests("hiddenapi")
 	hiddenapiRule := hiddenAPI.Rule("hiddenapi")
@@ -82,7 +82,7 @@ func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {
 			jars: ["a.jar"],
 			compile_dex: true,
 	}
-	`, []string{":foo"}, nil)
+	`, []string{"platform:foo"}, nil)
 
 	hiddenAPI := ctx.SingletonForTests("hiddenapi")
 	hiddenapiRule := hiddenAPI.Rule("hiddenapi")
@@ -106,7 +106,7 @@ func TestHiddenAPISingletonWithPrebuiltUseSource(t *testing.T) {
 			compile_dex: true,
 			prefer: false,
 	}
-	`, []string{":foo"}, nil)
+	`, []string{"platform:foo"}, nil)
 
 	hiddenAPI := ctx.SingletonForTests("hiddenapi")
 	hiddenapiRule := hiddenAPI.Rule("hiddenapi")
@@ -135,7 +135,7 @@ func TestHiddenAPISingletonWithPrebuiltOverrideSource(t *testing.T) {
 			compile_dex: true,
 			prefer: true,
 	}
-	`, []string{":foo"}, nil)
+	`, []string{"platform:foo"}, nil)
 
 	hiddenAPI := ctx.SingletonForTests("hiddenapi")
 	hiddenapiRule := hiddenAPI.Rule("hiddenapi")
@@ -236,7 +236,7 @@ func TestHiddenAPISingletonWithPrebuiltCsvFile(t *testing.T) {
 			jars: ["a.jar"],
 			compile_dex: true,
 	}
-	`, []string{":foo"}, &prebuiltHiddenApiDir)
+	`, []string{"platform:foo"}, &prebuiltHiddenApiDir)
 
 	expectedCpInput := prebuiltHiddenApiDir + "/hiddenapi-flags.csv"
 	expectedCpOutput := buildDir + "/hiddenapi/hiddenapi-flags.csv"
