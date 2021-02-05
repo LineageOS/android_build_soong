@@ -271,6 +271,16 @@ func (f *filesystem) AndroidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
+var _ android.OutputFileProducer = (*filesystem)(nil)
+
+// Implements android.OutputFileProducer
+func (f *filesystem) OutputFiles(tag string) (android.Paths, error) {
+	if tag == "" {
+		return []android.Path{f.output}, nil
+	}
+	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+}
+
 // Filesystem is the public interface for the filesystem struct. Currently, it's only for the apex
 // package to have access to the output file.
 type Filesystem interface {
