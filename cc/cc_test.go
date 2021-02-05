@@ -266,7 +266,7 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 	}
 }
 
-func checkSnapshotIncludeExclude(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string, include bool) {
+func checkSnapshotIncludeExclude(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string, include bool, fake bool) {
 	t.Helper()
 	mod, ok := ctx.ModuleForTests(moduleName, variant).Module().(android.OutputFileProducer)
 	if !ok {
@@ -282,8 +282,14 @@ func checkSnapshotIncludeExclude(t *testing.T, ctx *android.TestContext, singlet
 
 	if include {
 		out := singleton.Output(snapshotPath)
-		if out.Input.String() != outputFiles[0].String() {
-			t.Errorf("The input of snapshot %q must be %q, but %q", moduleName, out.Input.String(), outputFiles[0])
+		if fake {
+			if out.Rule == nil {
+				t.Errorf("Missing rule for module %q output file %q", moduleName, outputFiles[0])
+			}
+		} else {
+			if out.Input.String() != outputFiles[0].String() {
+				t.Errorf("The input of snapshot %q must be %q, but %q", moduleName, out.Input.String(), outputFiles[0])
+			}
 		}
 	} else {
 		out := singleton.MaybeOutput(snapshotPath)
@@ -294,11 +300,15 @@ func checkSnapshotIncludeExclude(t *testing.T, ctx *android.TestContext, singlet
 }
 
 func checkSnapshot(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
-	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, true)
+	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, true, false)
 }
 
 func checkSnapshotExclude(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
-	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, false)
+	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, false, false)
+}
+
+func checkSnapshotRule(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
+	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, true, true)
 }
 
 func checkWriteFileOutput(t *testing.T, params android.TestingBuildParams, expected []string) {
