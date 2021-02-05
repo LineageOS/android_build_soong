@@ -785,7 +785,7 @@ var (
 )
 
 type autoDeppable interface {
-	autoDep(ctx BaseModuleContext) autoDep
+	autoDep(ctx android.BottomUpMutatorContext) autoDep
 }
 
 func (mod *Module) begin(ctx BaseModuleContext) {

@@ -154,9 +154,6 @@ func (s *ShBinary) HostToolPath() android.OptionalPath {
 }
 
 func (s *ShBinary) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if s.properties.Src == nil {
-		ctx.PropertyErrorf("src", "missing prebuilt source file")
-	}
 }
 
 func (s *ShBinary) OutputFile() android.OutputPath {
@@ -203,6 +200,10 @@ func (s *ShBinary) SetImageVariation(ctx android.BaseModuleContext, variation st
 }
 
 func (s *ShBinary) generateAndroidBuildActions(ctx android.ModuleContext) {
+	if s.properties.Src == nil {
+		ctx.PropertyErrorf("src", "missing prebuilt source file")
+	}
+
 	s.sourceFilePath = android.PathForModuleSrc(ctx, proptools.String(s.properties.Src))
 	filename := proptools.String(s.properties.Filename)
 	filenameFromSrc := proptools.Bool(s.properties.Filename_from_src)
@@ -275,7 +276,7 @@ func (s *ShTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(ctx.Target().Variations(), shTestDataBinsTag, s.testProperties.Data_bins...)
 	ctx.AddFarVariationDependencies(append(ctx.Target().Variations(), sharedLibVariations...),
 		shTestDataLibsTag, s.testProperties.Data_libs...)
-	if ctx.Target().Os.Class == android.Host && len(ctx.Config().Targets[android.Android]) > 0 {
+	if (ctx.Target().Os.Class == android.Host || ctx.BazelConversionMode()) && len(ctx.Config().Targets[android.Android]) > 0 {
 		deviceVariations := ctx.Config().AndroidFirstDeviceTarget.Variations()
 		ctx.AddFarVariationDependencies(deviceVariations, shTestDataDeviceBinsTag, s.testProperties.Data_device_bins...)
 		ctx.AddFarVariationDependencies(append(deviceVariations, sharedLibVariations...),

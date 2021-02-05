@@ -115,7 +115,7 @@ func (ctx *Context) RegisterForBazelConversion() {
 		ctx.RegisterSingletonType(t.name, SingletonFactoryAdaptor(ctx, t.factory))
 	}
 
-	RegisterMutatorsForBazelConversion(ctx.Context, bp2buildMutators)
+	RegisterMutatorsForBazelConversion(ctx.Context, bp2buildPreArchMutators, bp2buildDepsMutators, bp2buildMutators)
 }
 
 // Register the pipeline of singletons, module types, and mutators for
