@@ -71,6 +71,15 @@ func (mod *Module) HasVendorVariant() bool {
 	return Bool(mod.VendorProperties.Vendor_available) || Bool(mod.VendorProperties.Odm_available)
 }
 
+// Always returns false because rust modules do not support product variant.
+func (mod *Module) HasProductVariant() bool {
+	return Bool(mod.VendorProperties.Product_available)
+}
+
+func (mod *Module) HasNonSystemVariants() bool {
+	return mod.HasVendorVariant() || mod.HasProductVariant()
+}
+
 func (c *Module) InProduct() bool {
 	return false
 }
