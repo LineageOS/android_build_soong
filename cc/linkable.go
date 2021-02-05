@@ -106,6 +106,8 @@ type LinkableInterface interface {
 	IsVndkExt() bool
 	IsVndkPrivate() bool
 	HasVendorVariant() bool
+	HasProductVariant() bool
+	HasNonSystemVariants() bool
 	InProduct() bool
 
 	SdkVersion() string

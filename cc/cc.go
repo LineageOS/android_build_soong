@@ -1535,6 +1535,11 @@ func (c *Module) getNameSuffixWithVndkVersion(ctx android.ModuleContext) string 
 	var vndkVersion string
 	var nameSuffix string
 	if c.InProduct() {
+		if c.ProductSpecific() {
+			// If the module is product specific with 'product_specific: true',
+			// do not add a name suffix because it is a base module.
+			return ""
+		}
 		vndkVersion = ctx.DeviceConfig().ProductVndkVersion()
 		nameSuffix = productSuffix
 	} else {
@@ -2891,12 +2896,12 @@ func (c *Module) makeLibName(ctx android.ModuleContext, ccDep LinkableInterface,
 	ccDepModule, _ := ccDep.(*Module)
 	isLLndk := ccDepModule != nil && ccDepModule.IsLlndk()
 	isVendorPublicLib := inList(libName, *vendorPublicLibraries)
-	bothVendorAndCoreVariantsExist := ccDep.HasVendorVariant() || isLLndk
+	nonSystemVariantsExist := ccDep.HasNonSystemVariants() || isLLndk
 
-	if c, ok := ccDep.(*Module); ok {
+	if ccDepModule != nil {
 		// Use base module name for snapshots when exporting to Makefile.
-		if snapshotPrebuilt, ok := c.linker.(snapshotInterface); ok {
-			baseName := c.BaseModuleName()
+		if snapshotPrebuilt, ok := ccDepModule.linker.(snapshotInterface); ok {
+			baseName := ccDepModule.BaseModuleName()
 
 			return baseName + snapshotPrebuilt.snapshotAndroidMkSuffix()
 		}
@@ -2907,10 +2912,10 @@ func (c *Module) makeLibName(ctx android.ModuleContext, ccDep LinkableInterface,
 		// The vendor module is a no-vendor-variant VNDK library.  Depend on the
 		// core module instead.
 		return libName
-	} else if c.UseVndk() && bothVendorAndCoreVariantsExist {
-		// The vendor module in Make will have been renamed to not conflict with the core
-		// module, so update the dependency name here accordingly.
-		return libName + c.getNameSuffixWithVndkVersion(ctx)
+	} else if ccDep.UseVndk() && nonSystemVariantsExist && ccDepModule != nil {
+		// The vendor and product modules in Make will have been renamed to not conflict with the
+		// core module, so update the dependency name here accordingly.
+		return libName + ccDepModule.Properties.SubName
 	} else if (ctx.Platform() || ctx.ProductSpecific()) && isVendorPublicLib {
 		return libName + vendorPublicLibrarySuffix
 	} else if ccDep.InRamdisk() && !ccDep.OnlyInRamdisk() {
