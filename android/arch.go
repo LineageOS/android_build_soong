@@ -436,7 +436,7 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 	// blueprint.BottomUpMutatorContext because android.BottomUpMutatorContext
 	// filters out non-Soong modules.  Now that we've handled them, create a
 	// normal android.BottomUpMutatorContext.
-	mctx := bottomUpMutatorContextFactory(bpctx, module, false)
+	mctx := bottomUpMutatorContextFactory(bpctx, module, false, false)
 
 	base := module.base()
 
@@ -576,7 +576,7 @@ func archMutator(bpctx blueprint.BottomUpMutatorContext) {
 	// blueprint.BottomUpMutatorContext because android.BottomUpMutatorContext
 	// filters out non-Soong modules.  Now that we've handled them, create a
 	// normal android.BottomUpMutatorContext.
-	mctx := bottomUpMutatorContextFactory(bpctx, module, false)
+	mctx := bottomUpMutatorContextFactory(bpctx, module, false, false)
 
 	base := module.base()
 

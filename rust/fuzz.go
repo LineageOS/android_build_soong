@@ -91,6 +91,6 @@ func (fuzzer *fuzzDecorator) stdLinkage(ctx *depsContext) RustLinkage {
 	return RlibLinkage
 }
 
-func (fuzzer *fuzzDecorator) autoDep(ctx BaseModuleContext) autoDep {
+func (fuzzer *fuzzDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {
 	return rlibAutoDep
 }
