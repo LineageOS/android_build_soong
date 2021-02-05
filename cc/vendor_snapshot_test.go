@@ -228,7 +228,6 @@ func TestVendorSnapshotDirected(t *testing.T) {
 	snapshotSingleton := ctx.SingletonForTests("vendor-snapshot")
 
 	var includeJsonFiles []string
-	var excludeJsonFiles []string
 
 	for _, arch := range [][]string{
 		[]string{"arm64", "armv8-a"},
@@ -248,22 +247,16 @@ func TestVendorSnapshotDirected(t *testing.T) {
 		checkSnapshot(t, ctx, snapshotSingleton, "prebuilt_libfoo", "libfoo.so", sharedDir, sharedVariant)
 		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libfoo.so.json"))
 
-		// Excluded modules
-		checkSnapshotExclude(t, ctx, snapshotSingleton, "libvendor_available", "libvendor_available.so", sharedDir, sharedVariant)
-		excludeJsonFiles = append(excludeJsonFiles, filepath.Join(sharedDir, "libvendor_available.so.json"))
+		// Excluded modules. Modules not included in the directed vendor snapshot
+		// are still include as fake modules.
+		checkSnapshotRule(t, ctx, snapshotSingleton, "libvendor_available", "libvendor_available.so", sharedDir, sharedVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libvendor_available.so.json"))
 	}
 
 	// Verify that each json file for an included module has a rule.
 	for _, jsonFile := range includeJsonFiles {
 		if snapshotSingleton.MaybeOutput(jsonFile).Rule == nil {
 			t.Errorf("include json file %q not found", jsonFile)
-		}
-	}
-
-	// Verify that each json file for an excluded module has no rule.
-	for _, jsonFile := range excludeJsonFiles {
-		if snapshotSingleton.MaybeOutput(jsonFile).Rule != nil {
-			t.Errorf("exclude json file %q found", jsonFile)
 		}
 	}
 }
