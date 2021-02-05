@@ -72,7 +72,7 @@ func (pkm *prebuiltKernelModules) GenerateAndroidBuildActions(ctx android.Module
 	depmodOut := runDepmod(ctx, modules)
 	strippedModules := stripDebugSymbols(ctx, modules)
 
-	installDir := android.PathForModuleInstall(ctx, "lib", "module")
+	installDir := android.PathForModuleInstall(ctx, "lib", "modules")
 	if pkm.KernelVersion() != "" {
 		installDir = installDir.Join(ctx, pkm.KernelVersion())
 	}
