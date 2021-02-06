@@ -1841,6 +1841,16 @@ func (m *moduleContext) FinalModule() Module {
 	return m.bp.FinalModule().(Module)
 }
 
+// IsMetaDependencyTag returns true for cross-cutting metadata dependencies.
+func IsMetaDependencyTag(tag blueprint.DependencyTag) bool {
+	if tag == licenseKindTag {
+		return true
+	} else if tag == licensesTag {
+		return true
+	}
+	return false
+}
+
 func (m *moduleContext) ModuleSubDir() string {
 	return m.bp.ModuleSubDir()
 }
