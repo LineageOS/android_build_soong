@@ -19,6 +19,7 @@ import (
 	"io"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -1362,8 +1363,11 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 func (library *libraryDecorator) exportVersioningMacroIfNeeded(ctx android.BaseModuleContext) {
 	if library.buildStubs() && library.stubsVersion() != "" && !library.skipAPIDefine {
 		name := versioningMacroName(ctx.Module().(*Module).ImplementationModuleName(ctx))
-		ver := library.stubsVersion()
-		library.reexportFlags("-D" + name + "=" + ver)
+		apiLevel, err := android.ApiLevelFromUser(ctx, library.stubsVersion())
+		if err != nil {
+			ctx.ModuleErrorf("Can't export version macro: %s", err.Error())
+		}
+		library.reexportFlags("-D" + name + "=" + strconv.Itoa(apiLevel.FinalOrPreviewInt()))
 	}
 }
 
