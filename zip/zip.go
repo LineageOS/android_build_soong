@@ -172,6 +172,9 @@ func (b *FileArgsBuilder) RspFile(name string) *FileArgsBuilder {
 
 	arg := b.state
 	arg.SourceFiles = ReadRespFile(list)
+	for i := range arg.SourceFiles {
+		arg.SourceFiles[i] = pathtools.MatchEscape(arg.SourceFiles[i])
+	}
 	b.fileArgs = append(b.fileArgs, arg)
 	return b
 }

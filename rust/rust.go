@@ -280,10 +280,15 @@ type PathDeps struct {
 	SharedLibDeps android.Paths
 	StaticLibs    android.Paths
 	ProcMacros    RustLibraries
-	linkDirs      []string
-	depFlags      []string
-	linkObjects   []string
-	//ReexportedDeps android.Paths
+
+	// depFlags and depLinkFlags are rustc and linker (clang) flags.
+	depFlags     []string
+	depLinkFlags []string
+
+	// linkDirs are link paths passed via -L to rustc. linkObjects are objects passed directly to the linker.
+	// Both of these are exported and propagate to dependencies.
+	linkDirs    []string
+	linkObjects []string
 
 	// Used by bindgen modules which call clang
 	depClangFlags         []string
@@ -328,12 +333,10 @@ type compiler interface {
 
 type exportedFlagsProducer interface {
 	exportLinkDirs(...string)
-	exportDepFlags(...string)
 	exportLinkObjects(...string)
 }
 
 type flagExporter struct {
-	depFlags    []string
 	linkDirs    []string
 	linkObjects []string
 }
@@ -342,17 +345,12 @@ func (flagExporter *flagExporter) exportLinkDirs(dirs ...string) {
 	flagExporter.linkDirs = android.FirstUniqueStrings(append(flagExporter.linkDirs, dirs...))
 }
 
-func (flagExporter *flagExporter) exportDepFlags(flags ...string) {
-	flagExporter.depFlags = android.FirstUniqueStrings(append(flagExporter.depFlags, flags...))
-}
-
 func (flagExporter *flagExporter) exportLinkObjects(flags ...string) {
 	flagExporter.linkObjects = android.FirstUniqueStrings(append(flagExporter.linkObjects, flags...))
 }
 
 func (flagExporter *flagExporter) setProvider(ctx ModuleContext) {
 	ctx.SetProvider(FlagExporterInfoProvider, FlagExporterInfo{
-		Flags:       flagExporter.depFlags,
 		LinkDirs:    flagExporter.linkDirs,
 		LinkObjects: flagExporter.linkObjects,
 	})
@@ -785,7 +783,7 @@ var (
 )
 
 type autoDeppable interface {
-	autoDep(ctx BaseModuleContext) autoDep
+	autoDep(ctx android.BottomUpMutatorContext) autoDep
 }
 
 func (mod *Module) begin(ctx BaseModuleContext) {
@@ -898,8 +896,21 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			exportDep := false
 			switch {
 			case cc.IsStaticDepTag(depTag):
-				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
+				// Link cc static libraries using "-lstatic" so rustc can reason about how to handle these
+				// (for example, bundling them into rlibs).
+				//
+				// rustc does not support linking libraries with the "-l" flag unless they are prefixed by "lib".
+				// If we need to link a library that isn't prefixed by "lib", we'll just link to it directly through
+				// linkObjects; such a library may need to be redeclared by static dependents.
+				if libName, ok := libNameFromFilePath(linkObject.Path()); ok {
+					depPaths.depFlags = append(depPaths.depFlags, "-lstatic="+libName)
+				}
+
+				// Add this to linkObjects to pass the library directly to the linker as well. This propagates
+				// to dependencies to avoid having to redeclare static libraries for dependents of the dylib variant.
 				depPaths.linkObjects = append(depPaths.linkObjects, linkObject.String())
+				depPaths.linkDirs = append(depPaths.linkDirs, linkPath)
+
 				exportedInfo := ctx.OtherModuleProvider(dep, cc.FlagExporterInfoProvider).(cc.FlagExporterInfo)
 				depPaths.depIncludePaths = append(depPaths.depIncludePaths, exportedInfo.IncludeDirs...)
 				depPaths.depSystemIncludePaths = append(depPaths.depSystemIncludePaths, exportedInfo.SystemIncludeDirs...)
@@ -1211,6 +1222,16 @@ func (mod *Module) IsInstallableToApex() bool {
 		}
 	}
 	return false
+}
+
+// If a library file has a "lib" prefix, extract the library name without the prefix.
+func libNameFromFilePath(filepath android.Path) (string, bool) {
+	libName := strings.TrimSuffix(filepath.Base(), filepath.Ext())
+	if strings.HasPrefix(libName, "lib") {
+		libName = libName[3:]
+		return libName, true
+	}
+	return "", false
 }
 
 var Bool = proptools.Bool

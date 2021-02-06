@@ -219,13 +219,17 @@ func (library *libraryDecorator) setSource() {
 	library.MutatedProperties.VariantIsSource = true
 }
 
-func (library *libraryDecorator) autoDep(ctx BaseModuleContext) autoDep {
+func (library *libraryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {
 	if library.preferRlib() {
 		return rlibAutoDep
 	} else if library.rlib() || library.static() {
 		return rlibAutoDep
 	} else if library.dylib() || library.shared() {
 		return dylibAutoDep
+	} else if ctx.BazelConversionMode() {
+		// In Bazel conversion mode, we are currently ignoring the deptag, so we just need to supply a
+		// compatible tag in order to add the dependency.
+		return rlibAutoDep
 	} else {
 		panic(fmt.Errorf("autoDep called on library %q that has no enabled variants.", ctx.ModuleName()))
 	}
@@ -439,6 +443,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	}
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
+	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects...)
 
 	if library.dylib() {
@@ -478,7 +483,6 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	if library.rlib() || library.dylib() {
 		library.flagExporter.exportLinkDirs(deps.linkDirs...)
-		library.flagExporter.exportDepFlags(deps.depFlags...)
 		library.flagExporter.exportLinkObjects(deps.linkObjects...)
 	}
 

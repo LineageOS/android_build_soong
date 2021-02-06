@@ -48,9 +48,12 @@ type filesystemProperties struct {
 	// Hash and signing algorithm for avbtool. Default is SHA256_RSA4096.
 	Avb_algorithm *string
 
-	// Type of the filesystem. Currently, ext4 and compressed_cpio are supported. Default is
-	// ext4.
+	// Type of the filesystem. Currently, ext4, cpio, and compressed_cpio are supported. Default
+	// is ext4.
 	Type *string
+
+	// file_contexts file to make image. Currently, only ext4 is supported.
+	File_contexts *string `android:"path"`
 }
 
 // android_filesystem packages a set of modules and their transitive dependencies into a filesystem
@@ -80,6 +83,7 @@ type fsType int
 const (
 	ext4Type fsType = iota
 	compressedCpioType
+	cpioType // uncompressed
 	unknown
 )
 
@@ -90,6 +94,8 @@ func (f *filesystem) fsType(ctx android.ModuleContext) fsType {
 		return ext4Type
 	case "compressed_cpio":
 		return compressedCpioType
+	case "cpio":
+		return cpioType
 	default:
 		ctx.PropertyErrorf("type", "%q not supported", typeStr)
 		return unknown
@@ -107,7 +113,9 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	case ext4Type:
 		f.output = f.buildImageUsingBuildImage(ctx)
 	case compressedCpioType:
-		f.output = f.buildCompressedCpioImage(ctx)
+		f.output = f.buildCpioImage(ctx, true)
+	case cpioType:
+		f.output = f.buildCpioImage(ctx, false)
 	default:
 		return
 	}
@@ -140,6 +148,16 @@ func (f *filesystem) buildImageUsingBuildImage(ctx android.ModuleContext) androi
 	builder.Build("build_filesystem_image", fmt.Sprintf("Creating filesystem %s", f.BaseModuleName()))
 
 	return output
+}
+
+func (f *filesystem) buildFileContexts(ctx android.ModuleContext) android.OutputPath {
+	builder := android.NewRuleBuilder(pctx, ctx)
+	fcBin := android.PathForModuleOut(ctx, "file_contexts.bin")
+	builder.Command().BuiltTool("sefcontext_compile").
+		FlagWithOutput("-o ", fcBin).
+		Input(android.PathForModuleSrc(ctx, proptools.String(f.properties.File_contexts)))
+	builder.Build("build_filesystem_file_contexts", fmt.Sprintf("Creating filesystem file contexts for %s", f.BaseModuleName()))
+	return fcBin.OutputPath
 }
 
 func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.OutputPath, toolDeps android.Paths) {
@@ -188,6 +206,10 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 		addStr("partition_name", f.Name())
 	}
 
+	if proptools.String(f.properties.File_contexts) != "" {
+		addPath("selinux_fc", f.buildFileContexts(ctx))
+	}
+
 	propFile = android.PathForModuleOut(ctx, "prop").OutputPath
 	builder := android.NewRuleBuilder(pctx, ctx)
 	builder.Command().Text("rm").Flag("-rf").Output(propFile)
@@ -201,10 +223,14 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 	return propFile, deps
 }
 
-func (f *filesystem) buildCompressedCpioImage(ctx android.ModuleContext) android.OutputPath {
+func (f *filesystem) buildCpioImage(ctx android.ModuleContext, compressed bool) android.OutputPath {
 	if proptools.Bool(f.properties.Use_avb) {
 		ctx.PropertyErrorf("use_avb", "signing compresed cpio image using avbtool is not supported."+
 			"Consider adding this to bootimg module and signing the entire boot image.")
+	}
+
+	if proptools.String(f.properties.File_contexts) != "" {
+		ctx.PropertyErrorf("file_contexts", "file_contexts is not supported for compressed cpio image.")
 	}
 
 	zipFile := android.PathForModuleOut(ctx, "temp.zip").OutputPath
@@ -218,18 +244,22 @@ func (f *filesystem) buildCompressedCpioImage(ctx android.ModuleContext) android
 		Input(zipFile)
 
 	output := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
-	builder.Command().
+	cmd := builder.Command().
 		BuiltTool("mkbootfs").
-		Text(rootDir.String()). // input directory
-		Text("|").
-		BuiltTool("lz4").
-		Flag("--favor-decSpeed"). // for faster boot
-		Flag("-12").              // maximum compression level
-		Flag("-l").               // legacy format for kernel
-		Text(">").Output(output)
+		Text(rootDir.String()) // input directory
+	if compressed {
+		cmd.Text("|").
+			BuiltTool("lz4").
+			Flag("--favor-decSpeed"). // for faster boot
+			Flag("-12").              // maximum compression level
+			Flag("-l").               // legacy format for kernel
+			Text(">").Output(output)
+	} else {
+		cmd.Text(">").Output(output)
+	}
 
 	// rootDir is not deleted. Might be useful for quick inspection.
-	builder.Build("build_compressed_cpio_image", fmt.Sprintf("Creating filesystem %s", f.BaseModuleName()))
+	builder.Build("build_cpio_image", fmt.Sprintf("Creating filesystem %s", f.BaseModuleName()))
 
 	return output
 }
@@ -248,6 +278,16 @@ func (f *filesystem) AndroidMkEntries() []android.AndroidMkEntries {
 			},
 		},
 	}}
+}
+
+var _ android.OutputFileProducer = (*filesystem)(nil)
+
+// Implements android.OutputFileProducer
+func (f *filesystem) OutputFiles(tag string) (android.Paths, error) {
+	if tag == "" {
+		return []android.Path{f.output}, nil
+	}
+	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 }
 
 // Filesystem is the public interface for the filesystem struct. Currently, it's only for the apex

@@ -100,6 +100,22 @@ func TestConfiguredJarList(t *testing.T) {
 		assertStringEquals(t, "apex1:jarA", list1.String())
 	})
 
+	t.Run("create invalid - missing apex", func(t *testing.T) {
+		defer func() {
+			err := recover().(error)
+			assertStringEquals(t, "malformed (apex, jar) pair: 'jarA', expected format: <apex>:<jar>", err.Error())
+		}()
+		CreateTestConfiguredJarList([]string{"jarA"})
+	})
+
+	t.Run("create invalid - empty apex", func(t *testing.T) {
+		defer func() {
+			err := recover().(error)
+			assertStringEquals(t, "invalid apex '' in <apex>:<jar> pair ':jarA', expected format: <apex>:<jar>", err.Error())
+		}()
+		CreateTestConfiguredJarList([]string{":jarA"})
+	})
+
 	list2 := list1.Append("apex2", "jarB")
 	t.Run("append", func(t *testing.T) {
 		assertStringEquals(t, "apex1:jarA,apex2:jarB", list2.String())
