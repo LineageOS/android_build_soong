@@ -119,6 +119,7 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	outputFile := android.PathForModuleOut(ctx, fileName)
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
+	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects...)
 
 	TransformSrcToBinary(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
@@ -132,7 +133,7 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	return outputFile
 }
 
-func (binary *binaryDecorator) autoDep(ctx BaseModuleContext) autoDep {
+func (binary *binaryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {
 	// Binaries default to dylib dependencies for device, rlib for host.
 	if binary.preferRlib() {
 		return rlibAutoDep

@@ -84,12 +84,12 @@ func TestKernelModulesFilelist(t *testing.T) {
 		})
 
 	expected := []string{
-		"lib/module/5.10/mod1.ko",
-		"lib/module/5.10/mod2.ko",
-		"lib/module/5.10/modules.load",
-		"lib/module/5.10/modules.dep",
-		"lib/module/5.10/modules.softdep",
-		"lib/module/5.10/modules.alias",
+		"lib/modules/5.10/mod1.ko",
+		"lib/modules/5.10/mod2.ko",
+		"lib/modules/5.10/modules.load",
+		"lib/modules/5.10/modules.dep",
+		"lib/modules/5.10/modules.softdep",
+		"lib/modules/5.10/modules.alias",
 	}
 
 	var actual []string

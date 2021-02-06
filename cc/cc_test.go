@@ -266,7 +266,7 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 	}
 }
 
-func checkSnapshotIncludeExclude(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string, include bool) {
+func checkSnapshotIncludeExclude(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string, include bool, fake bool) {
 	t.Helper()
 	mod, ok := ctx.ModuleForTests(moduleName, variant).Module().(android.OutputFileProducer)
 	if !ok {
@@ -282,8 +282,14 @@ func checkSnapshotIncludeExclude(t *testing.T, ctx *android.TestContext, singlet
 
 	if include {
 		out := singleton.Output(snapshotPath)
-		if out.Input.String() != outputFiles[0].String() {
-			t.Errorf("The input of snapshot %q must be %q, but %q", moduleName, out.Input.String(), outputFiles[0])
+		if fake {
+			if out.Rule == nil {
+				t.Errorf("Missing rule for module %q output file %q", moduleName, outputFiles[0])
+			}
+		} else {
+			if out.Input.String() != outputFiles[0].String() {
+				t.Errorf("The input of snapshot %q must be %q, but %q", moduleName, out.Input.String(), outputFiles[0])
+			}
 		}
 	} else {
 		out := singleton.MaybeOutput(snapshotPath)
@@ -294,11 +300,15 @@ func checkSnapshotIncludeExclude(t *testing.T, ctx *android.TestContext, singlet
 }
 
 func checkSnapshot(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
-	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, true)
+	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, true, false)
 }
 
 func checkSnapshotExclude(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
-	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, false)
+	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, false, false)
+}
+
+func checkSnapshotRule(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
+	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, true, true)
 }
 
 func checkWriteFileOutput(t *testing.T, params android.TestingBuildParams, expected []string) {
@@ -2712,6 +2722,14 @@ const runtimeLibAndroidBp = `
 		system_shared_libs : [],
 	}
 	cc_library {
+		name: "libproduct_vendor",
+		product_specific: true,
+		vendor_available: true,
+		no_libcrt : true,
+		nocrt : true,
+		system_shared_libs : [],
+	}
+	cc_library {
 		name: "libcore",
 		runtime_libs: ["liball_available"],
 		no_libcrt : true,
@@ -2728,7 +2746,7 @@ const runtimeLibAndroidBp = `
 	cc_library {
 		name: "libvendor2",
 		vendor: true,
-		runtime_libs: ["liball_available", "libvendor1"],
+		runtime_libs: ["liball_available", "libvendor1", "libproduct_vendor"],
 		no_libcrt : true,
 		nocrt : true,
 		system_shared_libs : [],
@@ -2751,7 +2769,7 @@ const runtimeLibAndroidBp = `
 	cc_library {
 		name: "libproduct2",
 		product_specific: true,
-		runtime_libs: ["liball_available", "libproduct1"],
+		runtime_libs: ["liball_available", "libproduct1", "libproduct_vendor"],
 		no_libcrt : true,
 		nocrt : true,
 		system_shared_libs : [],
@@ -2781,7 +2799,7 @@ func TestRuntimeLibs(t *testing.T) {
 	checkRuntimeLibs(t, []string{"liball_available.vendor"}, module)
 
 	module = ctx.ModuleForTests("libvendor2", variant).Module().(*Module)
-	checkRuntimeLibs(t, []string{"liball_available.vendor", "libvendor1"}, module)
+	checkRuntimeLibs(t, []string{"liball_available.vendor", "libvendor1", "libproduct_vendor.vendor"}, module)
 
 	// runtime_libs for product variants have '.product' suffixes if the modules have both core
 	// and product variants.
@@ -2791,7 +2809,7 @@ func TestRuntimeLibs(t *testing.T) {
 	checkRuntimeLibs(t, []string{"liball_available.product"}, module)
 
 	module = ctx.ModuleForTests("libproduct2", variant).Module().(*Module)
-	checkRuntimeLibs(t, []string{"liball_available.product", "libproduct1"}, module)
+	checkRuntimeLibs(t, []string{"liball_available.product", "libproduct1", "libproduct_vendor"}, module)
 }
 
 func TestExcludeRuntimeLibs(t *testing.T) {
@@ -2817,10 +2835,10 @@ func TestRuntimeLibsNoVndk(t *testing.T) {
 	checkRuntimeLibs(t, []string{"liball_available"}, module)
 
 	module = ctx.ModuleForTests("libvendor2", variant).Module().(*Module)
-	checkRuntimeLibs(t, []string{"liball_available", "libvendor1"}, module)
+	checkRuntimeLibs(t, []string{"liball_available", "libvendor1", "libproduct_vendor"}, module)
 
 	module = ctx.ModuleForTests("libproduct2", variant).Module().(*Module)
-	checkRuntimeLibs(t, []string{"liball_available", "libproduct1"}, module)
+	checkRuntimeLibs(t, []string{"liball_available", "libproduct1", "libproduct_vendor"}, module)
 }
 
 func checkStaticLibs(t *testing.T, expected []string, module *Module) {

@@ -16,6 +16,7 @@ package bp2build
 
 import (
 	"android/soong/android"
+	"android/soong/bazel"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -177,7 +178,7 @@ func GenerateBazelTargets(ctx bpToBuildContext, codegenMode CodegenMode) map[str
 			panic(fmt.Errorf("Unknown code-generation mode: %s", codegenMode))
 		}
 
-		buildFileToTargets[ctx.ModuleDir(m)] = append(buildFileToTargets[dir], t)
+		buildFileToTargets[dir] = append(buildFileToTargets[dir], t)
 	})
 	return buildFileToTargets
 }
@@ -349,6 +350,13 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 		ret += makeIndent(indent)
 		ret += "]"
 	case reflect.Struct:
+		if labels, ok := propertyValue.Interface().(bazel.LabelList); ok {
+			// TODO(b/165114590): convert glob syntax
+			return prettyPrint(reflect.ValueOf(labels.Includes), indent)
+		} else if label, ok := propertyValue.Interface().(bazel.Label); ok {
+			return fmt.Sprintf("%q", label.Label), nil
+		}
+
 		ret = "{\n"
 		// Sort and print the struct props by the key.
 		structProps := extractStructProperties(propertyValue, indent)
