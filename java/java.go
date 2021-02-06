@@ -2383,7 +2383,7 @@ type testProperties struct {
 
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test
-	Data []string `android:"path"`
+	Data []string `android:"path,arch_variant"`
 
 	// Flag to indicate whether or not to create test config automatically. If AndroidTest.xml
 	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
@@ -2687,9 +2687,10 @@ func (j *Binary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func (j *Binary) DepsMutator(ctx android.BottomUpMutatorContext) {
-	if ctx.Arch().ArchType == android.Common {
+	if ctx.Arch().ArchType == android.Common || ctx.BazelConversionMode() {
 		j.deps(ctx)
-	} else {
+	}
+	if ctx.Arch().ArchType != android.Common || ctx.BazelConversionMode() {
 		// These dependencies ensure the host installation rules will install the jar file and
 		// the jni libraries when the wrapper is installed.
 		ctx.AddVariationDependencies(nil, jniInstallTag, j.binaryProperties.Jni_libs...)

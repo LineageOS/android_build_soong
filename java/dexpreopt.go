@@ -129,8 +129,6 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 
 	dexLocation := android.InstallPathToOnDevicePath(ctx, d.installPath)
 
-	buildPath := android.PathForModuleOut(ctx, "dexpreopt", ctx.ModuleName()+".jar").OutputPath
-
 	providesUsesLib := ctx.ModuleName()
 	if ulib, ok := ctx.Module().(ProvidesUsesLib); ok {
 		name := ulib.ProvidesUsesLib()
@@ -146,7 +144,6 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		slimDexpreoptConfig := &dexpreopt.ModuleConfig{
 			Name:                 ctx.ModuleName(),
 			DexLocation:          dexLocation,
-			BuildPath:            buildPath,
 			EnforceUsesLibraries: d.enforceUsesLibs,
 			ProvidesUsesLibrary:  providesUsesLib,
 			ClassLoaderContexts:  d.classLoaderContexts,
@@ -218,7 +215,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 	dexpreoptConfig := &dexpreopt.ModuleConfig{
 		Name:            ctx.ModuleName(),
 		DexLocation:     dexLocation,
-		BuildPath:       buildPath,
+		BuildPath:       android.PathForModuleOut(ctx, "dexpreopt", ctx.ModuleName()+".jar").OutputPath,
 		DexPath:         dexJarFile,
 		ManifestPath:    d.manifestFile,
 		UncompressedDex: d.uncompressedDex,
