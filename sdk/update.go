@@ -653,9 +653,6 @@ type snapshotBuilder struct {
 	filesToZip  android.Paths
 	zipsToMerge android.Paths
 
-	// The path to an empty file.
-	emptyFile android.WritablePath
-
 	prebuiltModules map[string]*bpModule
 	prebuiltOrder   []*bpModule
 
@@ -704,19 +701,6 @@ func (s *snapshotBuilder) UnzipToSnapshot(zipPath android.Path, destDir string) 
 
 	// Add the repackaged zip file to the files to merge.
 	s.zipsToMerge = append(s.zipsToMerge, tmpZipPath)
-}
-
-func (s *snapshotBuilder) EmptyFile() android.Path {
-	if s.emptyFile == nil {
-		ctx := s.ctx
-		s.emptyFile = android.PathForModuleOut(ctx, "empty")
-		s.ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Touch,
-			Output: s.emptyFile,
-		})
-	}
-
-	return s.emptyFile
 }
 
 func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType string) android.BpModule {
