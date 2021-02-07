@@ -213,6 +213,7 @@ func TestDepsTracking(t *testing.T) {
 			name: "librlib",
 			srcs: ["foo.rs"],
 			crate_name: "rlib",
+			static_libs: ["libstatic"],
 		}
 		rust_proc_macro {
 			name: "libpm",
@@ -230,7 +231,7 @@ func TestDepsTracking(t *testing.T) {
 		}
 	`)
 	module := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Module().(*Module)
-	rustc := ctx.ModuleForTests("fizz-buzz", "linux_glibc_x86_64").Rule("rustc")
+	rustc := ctx.ModuleForTests("librlib", "linux_glibc_x86_64_rlib_rlib-std").Rule("rustc")
 
 	// Since dependencies are added to AndroidMk* properties, we can check these to see if they've been picked up.
 	if !android.InList("libdylib", module.Properties.AndroidMkDylibs) {

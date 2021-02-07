@@ -994,6 +994,80 @@ func TestApexWithStubsWithMinSdkVersion(t *testing.T) {
 	})
 }
 
+func TestApex_PlatformUsesLatestStubFromApex(t *testing.T) {
+	t.Parallel()
+	//   myapex (Z)
+	//      mylib -----------------.
+	//                             |
+	//   otherapex (29)            |
+	//      libstub's versions: 29 Z current
+	//                                  |
+	//   <platform>                     |
+	//      libplatform ----------------'
+	ctx, _ := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+			min_sdk_version: "Z", // non-final
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["libstub"],
+			apex_available: ["myapex"],
+			min_sdk_version: "Z",
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		apex {
+			name: "otherapex",
+			key: "myapex.key",
+			native_shared_libs: ["libstub"],
+			min_sdk_version: "29",
+		}
+
+		cc_library {
+			name: "libstub",
+			srcs: ["mylib.cpp"],
+			stubs: {
+				versions: ["29", "Z", "current"],
+			},
+			apex_available: ["otherapex"],
+			min_sdk_version: "29",
+		}
+
+		// platform module depending on libstub from otherapex should use the latest stub("current")
+		cc_library {
+			name: "libplatform",
+			srcs: ["mylib.cpp"],
+			shared_libs: ["libstub"],
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("Z")
+		config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(false)
+		config.TestProductVariables.Platform_version_active_codenames = []string{"Z"}
+	})
+
+	// Ensure that mylib from myapex is built against "min_sdk_version" stub ("Z"), which is non-final
+	mylibCflags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_apex10000").Rule("cc").Args["cFlags"]
+	ensureContains(t, mylibCflags, "-D__LIBSTUB_API__=9000 ")
+	mylibLdflags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_apex10000").Rule("ld").Args["libFlags"]
+	ensureContains(t, mylibLdflags, "libstub/android_arm64_armv8-a_shared_Z/libstub.so ")
+
+	// Ensure that libplatform is built against latest stub ("current") of mylib3 from the apex
+	libplatformCflags := ctx.ModuleForTests("libplatform", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
+	ensureContains(t, libplatformCflags, "-D__LIBSTUB_API__=10000 ") // "current" maps to 10000
+	libplatformLdflags := ctx.ModuleForTests("libplatform", "android_arm64_armv8-a_shared").Rule("ld").Args["libFlags"]
+	ensureContains(t, libplatformLdflags, "libstub/android_arm64_armv8-a_shared_current/libstub.so ")
+}
+
 func TestApexWithExplicitStubsDependency(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex {

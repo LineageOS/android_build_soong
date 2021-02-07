@@ -896,14 +896,17 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			exportDep := false
 			switch {
 			case cc.IsStaticDepTag(depTag):
-				// Link cc static libraries using "-lstatic" so rustc can reason about how to handle these
-				// (for example, bundling them into rlibs).
-				//
-				// rustc does not support linking libraries with the "-l" flag unless they are prefixed by "lib".
-				// If we need to link a library that isn't prefixed by "lib", we'll just link to it directly through
-				// linkObjects; such a library may need to be redeclared by static dependents.
-				if libName, ok := libNameFromFilePath(linkObject.Path()); ok {
-					depPaths.depFlags = append(depPaths.depFlags, "-lstatic="+libName)
+				// Only pass -lstatic for rlibs as it results in dylib bloat.
+				if lib, ok := ctx.Module().(*Module).compiler.(libraryInterface); ok && lib.rlib() {
+					// Link cc static libraries using "-lstatic" so rustc can reason about how to handle these
+					// (for example, bundling them into rlibs).
+					//
+					// rustc does not support linking libraries with the "-l" flag unless they are prefixed by "lib".
+					// If we need to link a library that isn't prefixed by "lib", we'll just link to it directly through
+					// linkObjects; such a library may need to be redeclared by static dependents.
+					if libName, ok := libNameFromFilePath(linkObject.Path()); ok {
+						depPaths.depFlags = append(depPaths.depFlags, "-lstatic="+libName)
+					}
 				}
 
 				// Add this to linkObjects to pass the library directly to the linker as well. This propagates
