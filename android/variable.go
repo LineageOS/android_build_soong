@@ -121,10 +121,6 @@ type variableProperties struct {
 			Cppflags []string
 		}
 
-		Use_lmkd_stats_log struct {
-			Cflags []string
-		}
-
 		Arc struct {
 			Cflags            []string `android:"arch_variant"`
 			Exclude_srcs      []string `android:"arch_variant"`
@@ -240,7 +236,6 @@ type productVariables struct {
 	Treble_linker_namespaces     *bool `json:",omitempty"`
 	Enforce_vintf_manifest       *bool `json:",omitempty"`
 	Uml                          *bool `json:",omitempty"`
-	Use_lmkd_stats_log           *bool `json:",omitempty"`
 	Arc                          *bool `json:",omitempty"`
 	MinimizeJavaDebugInfo        *bool `json:",omitempty"`
 
