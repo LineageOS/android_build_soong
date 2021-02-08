@@ -109,10 +109,8 @@ func TestHiddenAPIIndexSingleton(t *testing.T) {
 	hiddenAPIIndex := ctx.SingletonForTests("hiddenapi_index")
 	indexRule := hiddenAPIIndex.Rule("singleton-merged-hiddenapi-index")
 	checkRuleInputs(t, `
-.intermediates/bar.impl/android_common/hiddenapi/index.csv
 .intermediates/bar/android_common/hiddenapi/index.csv
 .intermediates/foo/android_common/hiddenapi/index.csv
-.intermediates/prebuilt_foo/android_common/hiddenapi/index.csv
 `,
 		indexRule)
 }
