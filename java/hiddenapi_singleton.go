@@ -22,9 +22,13 @@ import (
 )
 
 func init() {
-	android.RegisterSingletonType("hiddenapi", hiddenAPISingletonFactory)
-	android.RegisterSingletonType("hiddenapi_index", hiddenAPIIndexSingletonFactory)
-	android.RegisterModuleType("hiddenapi_flags", hiddenAPIFlagsFactory)
+	RegisterHiddenApiSingletonComponents(android.InitRegistrationContext)
+}
+
+func RegisterHiddenApiSingletonComponents(ctx android.RegistrationContext) {
+	ctx.RegisterSingletonType("hiddenapi", hiddenAPISingletonFactory)
+	ctx.RegisterSingletonType("hiddenapi_index", hiddenAPIIndexSingletonFactory)
+	ctx.RegisterModuleType("hiddenapi_flags", hiddenAPIFlagsFactory)
 }
 
 type hiddenAPISingletonPathsStruct struct {
