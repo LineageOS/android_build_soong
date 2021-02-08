@@ -29,6 +29,8 @@ type Properties struct {
 // BazelTargetModuleProperties contain properties and metadata used for
 // Blueprint to BUILD file conversion.
 type BazelTargetModuleProperties struct {
+	Name *string
+
 	// The Bazel rule class for this target.
 	Rule_class string
 
