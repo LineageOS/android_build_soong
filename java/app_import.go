@@ -92,6 +92,10 @@ type AndroidAppImportProperties struct {
 
 	// Optional name for the installed app. If unspecified, it is derived from the module name.
 	Filename *string
+
+	// If set, create package-export.apk, which other packages can
+	// use to get PRODUCT-agnostic resource data like IDs and type definitions.
+	Export_package_resources *bool
 }
 
 func (a *AndroidAppImport) IsInstallable() bool {
@@ -142,13 +146,17 @@ func MergePropertiesFromVariant(ctx android.EarlyModuleContext,
 	}
 }
 
+func (a *AndroidAppImport) isPrebuiltFrameworkRes() bool {
+	return a.Name() == "prebuilt_framework-res"
+}
+
 func (a *AndroidAppImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 	cert := android.SrcIsModule(String(a.properties.Certificate))
 	if cert != "" {
 		ctx.AddDependency(ctx.Module(), certificateTag, cert)
 	}
 
-	a.usesLibrary.deps(ctx, true)
+	a.usesLibrary.deps(ctx, !a.isPrebuiltFrameworkRes())
 }
 
 func (a *AndroidAppImport) uncompressEmbeddedJniLibs(
@@ -247,7 +255,12 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	a.uncompressEmbeddedJniLibs(ctx, srcApk, jnisUncompressed.OutputPath)
 
 	var installDir android.InstallPath
-	if Bool(a.properties.Privileged) {
+
+	if a.isPrebuiltFrameworkRes() {
+		// framework-res.apk is installed as system/framework/framework-res.apk
+		installDir = android.PathForModuleInstall(ctx, "framework")
+		a.preprocessed = true
+	} else if Bool(a.properties.Privileged) {
 		installDir = android.PathForModuleInstall(ctx, "priv-app", a.BaseModuleName())
 	} else if ctx.InstallInTestcases() {
 		installDir = android.PathForModuleInstall(ctx, a.BaseModuleName(), ctx.DeviceConfig().DeviceArch())
@@ -275,7 +288,15 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 	// TODO: Handle EXTERNAL
 
 	// Sign or align the package if package has not been preprocessed
-	if a.preprocessed {
+
+	if a.isPrebuiltFrameworkRes() {
+		a.outputFile = srcApk
+		certificates = processMainCert(a.ModuleBase, String(a.properties.Certificate), certificates, ctx)
+		if len(certificates) != 1 {
+			ctx.ModuleErrorf("Unexpected number of certificates were extracted: %q", certificates)
+		}
+		a.certificate = certificates[0]
+	} else if a.preprocessed {
 		a.outputFile = srcApk
 		a.certificate = PresignedCertificate
 	} else if !Bool(a.properties.Presigned) {
