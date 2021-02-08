@@ -3,8 +3,6 @@ package bp2build
 import (
 	"android/soong/android"
 	"android/soong/bazel"
-
-	"github.com/google/blueprint/proptools"
 )
 
 type nestedProps struct {
@@ -105,7 +103,6 @@ func customDefaultsModuleFactory() android.Module {
 }
 
 type customBazelModuleAttributes struct {
-	Name             *string
 	String_prop      string
 	String_list_prop []string
 }
@@ -127,14 +124,18 @@ func (m *customBazelModule) GenerateAndroidBuildActions(ctx android.ModuleContex
 
 func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 	if m, ok := ctx.Module().(*customModule); ok {
-		name := "__bp2build__" + m.Name()
-		ctx.CreateModule(customBazelModuleFactory, &customBazelModuleAttributes{
-			Name:             proptools.StringPtr(name),
+		attrs := &customBazelModuleAttributes{
 			String_prop:      m.props.String_prop,
 			String_list_prop: m.props.String_list_prop,
-		}, &bazel.BazelTargetModuleProperties{
+		}
+
+		name := "__bp2build__" + m.Name()
+		props := bazel.BazelTargetModuleProperties{
+			Name:       &name,
 			Rule_class: "custom",
-		})
+		}
+
+		ctx.CreateBazelTargetModule(customBazelModuleFactory, props, attrs)
 	}
 }
 
@@ -142,24 +143,31 @@ func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 // module to target.
 func customBp2BuildMutatorFromStarlark(ctx android.TopDownMutatorContext) {
 	if m, ok := ctx.Module().(*customModule); ok {
-		baseName := "__bp2build__" + m.Name()
-		ctx.CreateModule(customBazelModuleFactory, &customBazelModuleAttributes{
-			Name: proptools.StringPtr(baseName),
-		}, &bazel.BazelTargetModuleProperties{
+		baseName := m.Name()
+		attrs := &customBazelModuleAttributes{}
+
+		myLibraryName := "__bp2build__" + baseName
+		myLibraryProps := bazel.BazelTargetModuleProperties{
+			Name:              &myLibraryName,
 			Rule_class:        "my_library",
 			Bzl_load_location: "//build/bazel/rules:rules.bzl",
-		})
-		ctx.CreateModule(customBazelModuleFactory, &customBazelModuleAttributes{
-			Name: proptools.StringPtr(baseName + "_proto_library_deps"),
-		}, &bazel.BazelTargetModuleProperties{
+		}
+		ctx.CreateBazelTargetModule(customBazelModuleFactory, myLibraryProps, attrs)
+
+		protoLibraryName := "__bp2build__" + baseName + "_proto_library_deps"
+		protoLibraryProps := bazel.BazelTargetModuleProperties{
+			Name:              &protoLibraryName,
 			Rule_class:        "proto_library",
 			Bzl_load_location: "//build/bazel/rules:proto.bzl",
-		})
-		ctx.CreateModule(customBazelModuleFactory, &customBazelModuleAttributes{
-			Name: proptools.StringPtr(baseName + "_my_proto_library_deps"),
-		}, &bazel.BazelTargetModuleProperties{
+		}
+		ctx.CreateBazelTargetModule(customBazelModuleFactory, protoLibraryProps, attrs)
+
+		myProtoLibraryName := "__bp2build__" + baseName + "_my_proto_library_deps"
+		myProtoLibraryProps := bazel.BazelTargetModuleProperties{
+			Name:              &myProtoLibraryName,
 			Rule_class:        "my_proto_library",
 			Bzl_load_location: "//build/bazel/rules:proto.bzl",
-		})
+		}
+		ctx.CreateBazelTargetModule(customBazelModuleFactory, myProtoLibraryProps, attrs)
 	}
 }
