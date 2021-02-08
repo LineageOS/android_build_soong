@@ -435,6 +435,11 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 // Inspect this module to see if it contains a bootclasspath dex jar.
 // Note that the same jar may occur in multiple modules.
 // This logic is tested in the apex package to avoid import cycle apex <-> java.
+//
+// This is similar to logic in isModuleInConfiguredList() so any changes needed here are likely to
+// be needed there too.
+//
+// TODO(b/177892522): Avoid having to perform this type of check or if necessary dedup it.
 func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, module android.Module) (int, android.Path) {
 	name := ctx.ModuleName(module)
 
