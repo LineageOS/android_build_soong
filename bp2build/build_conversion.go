@@ -173,6 +173,12 @@ func GenerateBazelTargets(ctx bpToBuildContext, codegenMode CodegenMode) map[str
 			}
 			t = generateBazelTarget(ctx, m)
 		case QueryView:
+			// Blocklist certain module types from being generated.
+			if canonicalizeModuleType(ctx.ModuleType(m)) == "package" {
+				// package module name contain slashes, and thus cannot
+				// be mapped cleanly to a bazel label.
+				return
+			}
 			t = generateSoongModuleTarget(ctx, m)
 		default:
 			panic(fmt.Errorf("Unknown code-generation mode: %s", codegenMode))
