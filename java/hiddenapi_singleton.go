@@ -213,6 +213,10 @@ func stubFlagsRule(ctx android.SingletonContext) {
 
 	var bootDexJars android.Paths
 
+	// Get the configured non-updatable and updatable boot jars.
+	nonUpdatableBootJars := ctx.Config().NonUpdatableBootJars()
+	updatableBootJars := ctx.Config().UpdatableBootJars()
+
 	ctx.VisitAllModules(func(module android.Module) {
 		// Collect dex jar paths for the modules listed above.
 		if j, ok := module.(Dependency); ok {
@@ -227,11 +231,8 @@ func stubFlagsRule(ctx android.SingletonContext) {
 		// Collect dex jar paths for modules that had hiddenapi encode called on them.
 		if h, ok := module.(hiddenAPIIntf); ok {
 			if jar := h.bootDexJar(); jar != nil {
-				// For a java lib included in an APEX, only take the one built for
-				// the platform variant, and skip the variants for APEXes.
-				// Otherwise, the hiddenapi tool will complain about duplicated classes
-				apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
-				if !apexInfo.IsForPlatform() {
+				if !isModuleInConfiguredList(ctx, module, nonUpdatableBootJars) &&
+					!isModuleInConfiguredList(ctx, module, updatableBootJars) {
 					return
 				}
 
@@ -278,6 +279,47 @@ func stubFlagsRule(ctx android.SingletonContext) {
 	commitChangeForRestat(rule, tempPath, outputPath)
 
 	rule.Build("hiddenAPIStubFlagsFile", "hiddenapi stub flags")
+}
+
+// Checks to see whether the supplied module variant is in the list of boot jars.
+//
+// This is similar to logic in getBootImageJar() so any changes needed here are likely to be needed
+// there too.
+//
+// TODO(b/179354495): Avoid having to perform this type of check or if necessary dedup it.
+func isModuleInConfiguredList(ctx android.SingletonContext, module android.Module, configuredBootJars android.ConfiguredJarList) bool {
+	name := ctx.ModuleName(module)
+
+	// Strip a prebuilt_ prefix so that this can match a prebuilt module that has not been renamed.
+	name = android.RemoveOptionalPrebuiltPrefix(name)
+
+	// Ignore any module that is not listed in the boot image configuration.
+	index := configuredBootJars.IndexOfJar(name)
+	if index == -1 {
+		return false
+	}
+
+	// It is an error if the module is not an ApexModule.
+	if _, ok := module.(android.ApexModule); !ok {
+		ctx.Errorf("module %q configured in boot jars does not support being added to an apex", module)
+		return false
+	}
+
+	apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+
+	// Now match the apex part of the boot image configuration.
+	requiredApex := configuredBootJars.Apex(index)
+	if requiredApex == "platform" {
+		if len(apexInfo.InApexes) != 0 {
+			// A platform variant is required but this is for an apex so ignore it.
+			return false
+		}
+	} else if !apexInfo.InApexByBaseName(requiredApex) {
+		// An apex variant for a specific apex is required but this is the wrong apex.
+		return false
+	}
+
+	return true
 }
 
 func prebuiltFlagsRule(ctx android.SingletonContext) android.Path {

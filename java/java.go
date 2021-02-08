@@ -40,18 +40,21 @@ func init() {
 	// Register sdk member types.
 	android.RegisterSdkMemberType(javaHeaderLibsSdkMemberType)
 
+	// Export implementation classes jar as part of the sdk.
+	exportImplementationClassesJar := func(_ android.SdkMemberContext, j *Library) android.Path {
+		implementationJars := j.ImplementationAndResourcesJars()
+		if len(implementationJars) != 1 {
+			panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
+		}
+		return implementationJars[0]
+	}
+
 	// Register java implementation libraries for use only in module_exports (not sdk).
 	android.RegisterSdkMemberType(&librarySdkMemberType{
 		android.SdkMemberTypeBase{
 			PropertyName: "java_libs",
 		},
-		func(_ android.SdkMemberContext, j *Library) android.Path {
-			implementationJars := j.ImplementationAndResourcesJars()
-			if len(implementationJars) != 1 {
-				panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
-			}
-			return implementationJars[0]
-		},
+		exportImplementationClassesJar,
 		sdkSnapshotFilePathForJar,
 		copyEverythingToSnapshot,
 	})
@@ -72,19 +75,11 @@ func init() {
 			PropertyName: "java_boot_libs",
 			SupportsSdk:  true,
 		},
-		func(ctx android.SdkMemberContext, j *Library) android.Path {
-			// Java boot libs are only provided in the SDK to provide access to their dex implementation
-			// jar for use by dexpreopting and boot jars package check. They do not need to provide an
-			// actual implementation jar but the java_import will need a file that exists so just copy an
-			// empty file. Any attempt to use that file as a jar will cause a build error.
-			return ctx.SnapshotBuilder().EmptyFile()
-		},
-		func(osPrefix, name string) string {
-			// Create a special name for the implementation jar to try and provide some useful information
-			// to a developer that attempts to compile against this.
-			// TODO(b/175714559): Provide a proper error message in Soong not ninja.
-			return filepath.Join(osPrefix, "java_boot_libs", "snapshot", "jars", "are", "invalid", name+jarFileSuffix)
-		},
+		// Temporarily export implementation classes jar for java_boot_libs as it is required for the
+		// hiddenapi processing.
+		// TODO(b/179354495): Revert once hiddenapi processing has been modularized.
+		exportImplementationClassesJar,
+		sdkSnapshotFilePathForJar,
 		onlyCopyJarToSnapshot,
 	})
 
