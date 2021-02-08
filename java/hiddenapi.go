@@ -108,9 +108,18 @@ func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bo
 		// not on the list then that will cause failures in the CtsHiddenApiBlacklist...
 		// tests.
 		if inList(bootJarName, ctx.Config().BootJars()) {
-			// Create ninja rules to generate various CSV files needed by hiddenapi and store the paths
-			// in the hiddenAPI structure.
-			h.hiddenAPIGenerateCSV(ctx, implementationJar)
+			// More than one library with the same classes may need to be encoded but only one should be
+			// used as a source of information for hidden API processing otherwise it will result in
+			// duplicate entries in the files.
+			if primary {
+				// Create ninja rules to generate various CSV files needed by hiddenapi and store the paths
+				// in the hiddenAPI structure.
+				h.hiddenAPIGenerateCSV(ctx, implementationJar)
+
+				// Save the unencoded dex jar so it can be used when generating the
+				// hiddenAPISingletonPathsStruct.stubFlags file.
+				h.bootDexJarPath = dexJar
+			}
 
 			// If this module is actually on the boot jars list and not providing
 			// hiddenapi information for a module on the boot jars list then encode
@@ -118,13 +127,6 @@ func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bo
 			if name == bootJarName {
 				hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", name+".jar").OutputPath
 
-				// More than one library with the same classes can be encoded but only one can
-				// be added to the global set of flags, otherwise it will result in duplicate
-				// classes which is an error. Therefore, only add the dex jar of one of them
-				// to the global set of flags.
-				if primary {
-					h.bootDexJarPath = dexJar
-				}
 				hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexJar, uncompressDex)
 				dexJar = hiddenAPIJar
 			}
