@@ -4631,7 +4631,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
-		checkBootDexJarPath(t, ctx, ".intermediates/libfoo/android_common_apex10000/aligned/libfoo.jar")
+		checkBootDexJarPath(t, ctx, ".intermediates/libfoo/android_common_apex10000/hiddenapi/libfoo.jar")
 	})
 
 	t.Run("prebuilt preferred with source apex disabled", func(t *testing.T) {
@@ -6304,6 +6304,7 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 	android.RegisterPrebuiltMutators(ctx)
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	java.RegisterRequiredBuildComponentsForTest(ctx)
+	java.RegisterHiddenApiSingletonComponents(ctx)
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
@@ -6314,6 +6315,11 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 	dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
 	transformDexpreoptConfig(dexpreoptConfig)
 	dexpreopt.SetTestGlobalConfig(config, dexpreoptConfig)
+
+	// Make sure that any changes to these dexpreopt properties are mirrored in the corresponding
+	// product variables that are used by hiddenapi.
+	config.TestProductVariables.BootJars = dexpreoptConfig.BootJars
+	config.TestProductVariables.UpdatableBootJars = dexpreoptConfig.UpdatableBootJars
 
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
 	android.FailIfErrored(t, errs)
