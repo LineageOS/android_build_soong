@@ -219,6 +219,8 @@ func generateBazelTarget(ctx bpToBuildContext, m blueprint.Module) BazelTarget {
 	// Delete it from being generated in the BUILD file.
 	delete(props.Attrs, "bzl_load_location")
 
+	delete(props.Attrs, "bp2build_available")
+
 	// Return the Bazel target with rule class and attributes, ready to be
 	// code-generated.
 	attributes := propsToAttributes(props.Attrs)

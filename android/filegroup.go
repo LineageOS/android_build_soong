@@ -49,9 +49,10 @@ func (bfg *bazelFilegroup) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
 func FilegroupBp2Build(ctx TopDownMutatorContext) {
 	fg, ok := ctx.Module().(*fileGroup)
-	if !ok {
+	if !ok || !fg.properties.Bazel_module.Bp2build_available {
 		return
 	}
+
 	attrs := &bazelFilegroupAttributes{
 		Srcs: BazelLabelForModuleSrcExcludes(ctx, fg.properties.Srcs, fg.properties.Exclude_srcs),
 	}

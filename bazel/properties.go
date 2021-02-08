@@ -17,6 +17,9 @@ package bazel
 type bazelModuleProperties struct {
 	// The label of the Bazel target replacing this Soong module.
 	Label string
+
+	// If true, bp2build will generate the converted Bazel target for this module.
+	Bp2build_available bool
 }
 
 // Properties contains common module properties for Bazel migration purposes.
