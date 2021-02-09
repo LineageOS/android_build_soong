@@ -2090,6 +2090,11 @@ func (j *Module) Stem() string {
 	return proptools.StringDefault(j.deviceProperties.Stem, j.Name())
 }
 
+// ConfigurationName returns the name of the module as used in build configuration.
+//
+// This is usually the same as BaseModuleName() except for the <x>.impl libraries created by
+// java_sdk_library in which case this is the BaseModuleName() without the ".impl" suffix,
+// i.e. just <x>.
 func (j *Module) ConfigurationName() string {
 	return proptools.StringDefault(j.deviceProperties.ConfigurationName, j.BaseModuleName())
 }
@@ -2149,6 +2154,11 @@ func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bo
 }
 
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Initialize the hiddenapi structure. Pass in the configuration name rather than the module name
+	// so the hidden api will encode the <x>.impl java_ library created by java_sdk_library just as it
+	// would the <x> library if <x> was configured as a boot jar.
+	j.initHiddenAPI(ctx, j.ConfigurationName())
+
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
 		j.hideApexVariantFromMake = true
@@ -2849,6 +2859,9 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Initialize the hiddenapi structure.
+	j.initHiddenAPI(ctx, j.BaseModuleName())
+
 	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
 		j.hideApexVariantFromMake = true
 	}
