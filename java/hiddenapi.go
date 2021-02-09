@@ -123,19 +123,21 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, name string) {
 	h.annotationsOnly = strings.HasSuffix(name, "-hiddenapi")
 }
 
-// hiddenAPI is called by any module that could contribute to the hiddenapi processing.
+// hiddenAPIExtractAndEncode is called by any module that could contribute to the hiddenapi
+// processing.
 //
 // It ignores any module that has not had initHiddenApi() called on it and which is not in the boot
 // jar list.
 //
 // Otherwise, it generates ninja rules to do the following:
-// 1. Generates CSV files needed for hiddenapi processing.
+// 1. Extract information needed for hiddenapi processing from the module and output it into CSV
+//    files.
 // 2. Conditionally adds the supplied dex file to the list of files used to generate the
 //    hiddenAPISingletonPathsStruct.stubsFlag file.
 // 3. Conditionally creates a copy of the supplied dex file into which it has encoded the hiddenapi
 //    flags and returns this instead of the supplied dex jar, otherwise simply returns the supplied
 //    dex jar.
-func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bool, dexJar android.OutputPath,
+func (h *hiddenAPI) hiddenAPIExtractAndEncode(ctx android.ModuleContext, name string, primary bool, dexJar android.OutputPath,
 	implementationJar android.Path, uncompressDex bool) android.OutputPath {
 
 	if !h.active {
@@ -146,13 +148,7 @@ func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bo
 	// used as a source of information for hidden API processing otherwise it will result in
 	// duplicate entries in the files.
 	if primary {
-		// Create ninja rules to generate various CSV files needed by hiddenapi and store the paths
-		// in the hiddenAPI structure.
-		h.hiddenAPIGenerateCSV(ctx, implementationJar)
-
-		// Save the unencoded dex jar so it can be used when generating the
-		// hiddenAPISingletonPathsStruct.stubFlags file.
-		h.bootDexJarPath = dexJar
+		h.hiddenAPIExtractInformation(ctx, dexJar, implementationJar)
 	}
 
 	if !h.annotationsOnly {
@@ -168,7 +164,12 @@ func (h *hiddenAPI) hiddenAPI(ctx android.ModuleContext, name string, primary bo
 	return dexJar
 }
 
-func (h *hiddenAPI) hiddenAPIGenerateCSV(ctx android.ModuleContext, classesJar android.Path) {
+// hiddenAPIExtractInformation generates ninja rules to extract the information from the classes
+// jar, and outputs it to the appropriate module specific CSV file.
+//
+// It also makes the dex jar available for use when generating the
+// hiddenAPISingletonPathsStruct.stubFlags.
+func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJar, classesJar android.Path) {
 	stubFlagsCSV := hiddenAPISingletonPaths(ctx).stubFlags
 
 	flagsCSV := android.PathForModuleOut(ctx, "hiddenapi", "flags.csv")
@@ -207,6 +208,10 @@ func (h *hiddenAPI) hiddenAPIGenerateCSV(ctx android.ModuleContext, classesJar a
 		FlagWithOutput("--output=", indexCSV)
 	rule.Build("merged-hiddenapi-index", "Merged Hidden API index")
 	h.indexCSVPath = indexCSV
+
+	// Save the unencoded dex jar so it can be used when generating the
+	// hiddenAPISingletonPathsStruct.stubFlags file.
+	h.bootDexJarPath = dexJar
 }
 
 var hiddenAPIEncodeDexRule = pctx.AndroidStaticRule("hiddenAPIEncodeDex", blueprint.RuleParams{
