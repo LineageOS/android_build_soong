@@ -4526,9 +4526,10 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
 		checkBootDexJarPath(t, ctx, ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 
-		// Make sure that the dex file from the prebuilt_apex does NOT contribute to the hiddenapi index
-		// file.
-		checkHiddenAPIIndexInputs(t, ctx, ``)
+		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
+		checkHiddenAPIIndexInputs(t, ctx, `
+.intermediates/libfoo/android_common_myapex/hiddenapi/index.csv
+`)
 	})
 
 	t.Run("prebuilt with source library preferred", func(t *testing.T) {
@@ -4599,9 +4600,10 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
 		checkBootDexJarPath(t, ctx, ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 
-		// Make sure that the dex file from the prebuilt_apex does NOT contribute to the hiddenapi index
-		// file.
-		checkHiddenAPIIndexInputs(t, ctx, ``)
+		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
+		checkHiddenAPIIndexInputs(t, ctx, `
+.intermediates/prebuilt_libfoo/android_common_myapex/hiddenapi/index.csv
+`)
 	})
 
 	t.Run("prebuilt with source apex preferred", func(t *testing.T) {
@@ -4698,9 +4700,10 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
 		checkBootDexJarPath(t, ctx, ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 
-		// Make sure that the dex file from the prebuilt_apex does NOT contribute to the hiddenapi index
-		// file.
-		checkHiddenAPIIndexInputs(t, ctx, ``)
+		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
+		checkHiddenAPIIndexInputs(t, ctx, `
+.intermediates/prebuilt_libfoo/android_common_prebuilt_myapex/hiddenapi/index.csv
+`)
 	})
 }
 
