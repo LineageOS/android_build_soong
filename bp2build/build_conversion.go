@@ -469,7 +469,7 @@ func makeIndent(indent int) string {
 }
 
 func targetNameForBp2Build(c bpToBuildContext, logicModule blueprint.Module) string {
-	return strings.Replace(c.ModuleName(logicModule), "__bp2build__", "", 1)
+	return strings.Replace(c.ModuleName(logicModule), bazel.BazelTargetModuleNamePrefix, "", 1)
 }
 
 func targetNameWithVariant(c bpToBuildContext, logicModule blueprint.Module) string {
