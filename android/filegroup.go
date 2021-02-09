@@ -57,12 +57,7 @@ func FilegroupBp2Build(ctx TopDownMutatorContext) {
 		Srcs: BazelLabelForModuleSrcExcludes(ctx, fg.properties.Srcs, fg.properties.Exclude_srcs),
 	}
 
-	// Can we automate this?
-	name := "__bp2build__" + fg.Name()
-	props := bazel.BazelTargetModuleProperties{
-		Name:       &name,
-		Rule_class: "filegroup",
-	}
+	props := bazel.NewBazelTargetModuleProperties(fg.Name(), "filegroup", "")
 
 	ctx.CreateBazelTargetModule(BazelFileGroupFactory, props, attrs)
 }

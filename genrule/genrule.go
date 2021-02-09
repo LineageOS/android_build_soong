@@ -853,12 +853,7 @@ func GenruleBp2Build(ctx android.TopDownMutatorContext) {
 		Tools: tools,
 	}
 
-	// Can we automate this?
-	name := "__bp2build__" + m.Name()
-	props := bazel.BazelTargetModuleProperties{
-		Name:       &name,
-		Rule_class: "genrule",
-	}
+	props := bazel.NewBazelTargetModuleProperties(m.Name(), "genrule", "")
 
 	// Create the BazelTargetModule.
 	ctx.CreateBazelTargetModule(BazelGenruleFactory, props, attrs)
