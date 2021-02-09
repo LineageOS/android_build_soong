@@ -62,7 +62,7 @@ func createBuildFiles(buildToTargets map[string]BazelTargets, mode CodegenMode) 
 			content += "\n\n"
 		}
 		content += targets.String()
-		files = append(files, newFile(dir, "BUILD.bazel", content))
+		files = append(files, newFile(dir, "BUILD", content))
 	}
 	return files
 }
