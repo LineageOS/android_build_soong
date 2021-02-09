@@ -193,12 +193,19 @@ var (
 
 	jarjar = pctx.AndroidStaticRule("jarjar",
 		blueprint.RuleParams{
-			Command: "${config.JavaCmd} ${config.JavaVmFlags}" +
+			Command: "" +
+				// Jarjar doesn't exit with an error when the rules file contains a syntax error,
+				// leading to stale or missing files later in the build.  Remove the output file
+				// before running jarjar.
+				"rm -f ${out} && " +
+				"${config.JavaCmd} ${config.JavaVmFlags}" +
 				// b/146418363 Enable Android specific jarjar transformer to drop compat annotations
 				// for newly repackaged classes. Dropping @UnsupportedAppUsage on repackaged classes
 				// avoids adding new hiddenapis after jarjar'ing.
 				" -DremoveAndroidCompatAnnotations=true" +
-				" -jar ${config.JarjarCmd} process $rulesFile $in $out",
+				" -jar ${config.JarjarCmd} process $rulesFile $in $out && " +
+				// Turn a missing output file into a ninja error
+				`[ -e ${out} ] || (echo "Missing output file"; exit 1)`,
 			CommandDeps: []string{"${config.JavaCmd}", "${config.JarjarCmd}", "$rulesFile"},
 		},
 		"rulesFile")
