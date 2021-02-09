@@ -259,12 +259,36 @@ func prebuiltSelectSourceMutator(ctx android.BottomUpMutatorContext) {
 	}
 }
 
+type exportedDependencyTag struct {
+	blueprint.BaseDependencyTag
+	name string
+}
+
+// Mark this tag so dependencies that use it are excluded from visibility enforcement.
+//
+// This does allow any prebuilt_apex to reference any module which does open up a small window for
+// restricted visibility modules to be referenced from the wrong prebuilt_apex. However, doing so
+// avoids opening up a much bigger window by widening the visibility of modules that need files
+// provided by the prebuilt_apex to include all the possible locations they may be defined, which
+// could include everything below vendor/.
+//
+// A prebuilt_apex that references a module via this tag will have to contain the appropriate files
+// corresponding to that module, otherwise it will fail when attempting to retrieve the files from
+// the .apex file. It will also have to be included in the module's apex_available property too.
+// That makes it highly unlikely that a prebuilt_apex would reference a restricted module
+// incorrectly.
+func (t exportedDependencyTag) ExcludeFromVisibilityEnforcement() {}
+
+var (
+	exportedJavaLibTag = exportedDependencyTag{name: "exported_java_lib"}
+)
+
 func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add dependencies onto the java modules that represent the java libraries that are provided by
 	// and exported from this prebuilt apex.
 	for _, lib := range p.properties.Exported_java_libs {
 		dep := prebuiltApexExportedModuleName(ctx, lib)
-		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), javaLibTag, dep)
+		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), exportedJavaLibTag, dep)
 	}
 }
 
@@ -304,7 +328,7 @@ func (p *Prebuilt) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	var dependencies []android.ApexModule
 	mctx.VisitDirectDeps(func(m android.Module) {
 		tag := mctx.OtherModuleDependencyTag(m)
-		if tag == javaLibTag {
+		if tag == exportedJavaLibTag {
 			depName := mctx.OtherModuleName(m)
 
 			// It is an error if the other module is not a prebuilt.

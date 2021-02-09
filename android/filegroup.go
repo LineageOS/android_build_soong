@@ -17,8 +17,6 @@ package android
 import (
 	"android/soong/bazel"
 	"strings"
-
-	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -28,7 +26,6 @@ func init() {
 
 // https://docs.bazel.build/versions/master/be/general.html#filegroup
 type bazelFilegroupAttributes struct {
-	Name *string
 	Srcs bazel.LabelList
 }
 
@@ -50,20 +47,24 @@ func (bfg *bazelFilegroup) Name() string {
 
 func (bfg *bazelFilegroup) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
-// TODO: Create helper functions to avoid this boilerplate.
 func FilegroupBp2Build(ctx TopDownMutatorContext) {
 	fg, ok := ctx.Module().(*fileGroup)
-	if !ok {
+	if !ok || !fg.properties.Bazel_module.Bp2build_available {
 		return
 	}
 
-	name := "__bp2build__" + fg.base().BaseModuleName()
-	ctx.CreateModule(BazelFileGroupFactory, &bazelFilegroupAttributes{
-		Name: proptools.StringPtr(name),
+	attrs := &bazelFilegroupAttributes{
 		Srcs: BazelLabelForModuleSrcExcludes(ctx, fg.properties.Srcs, fg.properties.Exclude_srcs),
-	}, &bazel.BazelTargetModuleProperties{
+	}
+
+	// Can we automate this?
+	name := "__bp2build__" + fg.Name()
+	props := bazel.BazelTargetModuleProperties{
+		Name:       &name,
 		Rule_class: "filegroup",
-	})
+	}
+
+	ctx.CreateBazelTargetModule(BazelFileGroupFactory, props, attrs)
 }
 
 type fileGroupProperties struct {

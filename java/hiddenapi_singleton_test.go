@@ -15,10 +15,11 @@
 package java
 
 import (
-	"android/soong/android"
 	"fmt"
 	"strings"
 	"testing"
+
+	"android/soong/android"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -32,7 +33,7 @@ func testConfigWithBootJars(bp string, bootJars []string, prebuiltHiddenApiDir *
 
 func testContextWithHiddenAPI(config android.Config) *android.TestContext {
 	ctx := testContext(config)
-	ctx.RegisterSingletonType("hiddenapi", hiddenAPISingletonFactory)
+	RegisterHiddenApiSingletonComponents(ctx)
 	return ctx
 }
 
@@ -64,7 +65,7 @@ func TestHiddenAPISingleton(t *testing.T) {
 			name: "foo",
 			srcs: ["a.java"],
 			compile_dex: true,
-	}
+		}
 	`, []string{"platform:foo"}, nil)
 
 	hiddenAPI := ctx.SingletonForTests("hiddenapi")
@@ -73,6 +74,45 @@ func TestHiddenAPISingleton(t *testing.T) {
 	if !strings.Contains(hiddenapiRule.RuleParams.Command, want) {
 		t.Errorf("Expected %s in hiddenapi command, but it was not present: %s", want, hiddenapiRule.RuleParams.Command)
 	}
+}
+
+func checkRuleInputs(t *testing.T, expected string, hiddenAPIRule android.TestingBuildParams) {
+	actual := strings.TrimSpace(strings.Join(android.NormalizePathsForTesting(hiddenAPIRule.Implicits), "\n"))
+	expected = strings.TrimSpace(expected)
+	if actual != expected {
+		t.Errorf("Expected hiddenapi rule inputs:\n%s\nactual inputs:\n%s", expected, actual)
+	}
+}
+
+func TestHiddenAPIIndexSingleton(t *testing.T) {
+	ctx, _ := testHiddenAPIBootJars(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+			compile_dex: true,
+		}
+
+		java_import {
+			name: "foo",
+			jars: ["a.jar"],
+			compile_dex: true,
+			prefer: false,
+		}
+
+		java_sdk_library {
+			name: "bar",
+			srcs: ["a.java"],
+			compile_dex: true,
+		}
+	`, []string{"platform:foo", "platform:bar"}, nil)
+
+	hiddenAPIIndex := ctx.SingletonForTests("hiddenapi_index")
+	indexRule := hiddenAPIIndex.Rule("singleton-merged-hiddenapi-index")
+	checkRuleInputs(t, `
+.intermediates/bar/android_common/hiddenapi/index.csv
+.intermediates/foo/android_common/hiddenapi/index.csv
+`,
+		indexRule)
 }
 
 func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {
@@ -98,14 +138,14 @@ func TestHiddenAPISingletonWithPrebuiltUseSource(t *testing.T) {
 			name: "foo",
 			srcs: ["a.java"],
 			compile_dex: true,
-	}
+		}
 
 		java_import {
 			name: "foo",
 			jars: ["a.jar"],
 			compile_dex: true,
 			prefer: false,
-	}
+		}
 	`, []string{"platform:foo"}, nil)
 
 	hiddenAPI := ctx.SingletonForTests("hiddenapi")
@@ -127,14 +167,14 @@ func TestHiddenAPISingletonWithPrebuiltOverrideSource(t *testing.T) {
 			name: "foo",
 			srcs: ["a.java"],
 			compile_dex: true,
-	}
+		}
 
 		java_import {
 			name: "foo",
 			jars: ["a.jar"],
 			compile_dex: true,
 			prefer: true,
-	}
+		}
 	`, []string{"platform:foo"}, nil)
 
 	hiddenAPI := ctx.SingletonForTests("hiddenapi")

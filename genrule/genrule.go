@@ -780,7 +780,6 @@ type genRuleProperties struct {
 }
 
 type bazelGenruleAttributes struct {
-	Name  *string
 	Srcs  bazel.LabelList
 	Outs  []string
 	Tools bazel.LabelList
@@ -801,10 +800,10 @@ func BazelGenruleFactory() android.Module {
 
 func GenruleBp2Build(ctx android.TopDownMutatorContext) {
 	m, ok := ctx.Module().(*Module)
-	if !ok {
+	if !ok || !m.properties.Bazel_module.Bp2build_available {
 		return
 	}
-	name := "__bp2build__" + m.Name()
+
 	// Bazel only has the "tools" attribute.
 	tools := android.BazelLabelForModuleDeps(ctx, m.properties.Tools)
 	tool_files := android.BazelLabelForModuleSrc(ctx, m.properties.Tool_files)
@@ -847,16 +846,22 @@ func GenruleBp2Build(ctx android.TopDownMutatorContext) {
 		}
 	}
 
-	// Create the BazelTargetModule.
-	ctx.CreateModule(BazelGenruleFactory, &bazelGenruleAttributes{
-		Name:  proptools.StringPtr(name),
+	attrs := &bazelGenruleAttributes{
 		Srcs:  srcs,
 		Outs:  outs,
 		Cmd:   cmd,
 		Tools: tools,
-	}, &bazel.BazelTargetModuleProperties{
+	}
+
+	// Can we automate this?
+	name := "__bp2build__" + m.Name()
+	props := bazel.BazelTargetModuleProperties{
+		Name:       &name,
 		Rule_class: "genrule",
-	})
+	}
+
+	// Create the BazelTargetModule.
+	ctx.CreateBazelTargetModule(BazelGenruleFactory, props, attrs)
 }
 
 func (m *bazelGenrule) Name() string {
