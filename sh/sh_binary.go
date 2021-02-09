@@ -24,6 +24,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/bazel"
 	"android/soong/cc"
 	"android/soong/tradefed"
 )
@@ -43,6 +44,8 @@ func init() {
 	android.RegisterModuleType("sh_binary_host", ShBinaryHostFactory)
 	android.RegisterModuleType("sh_test", ShTestFactory)
 	android.RegisterModuleType("sh_test_host", ShTestHostFactory)
+
+	android.RegisterBp2BuildMutator("sh_binary", ShBinaryBp2Build)
 }
 
 type shBinaryProperties struct {
@@ -81,6 +84,9 @@ type shBinaryProperties struct {
 
 	// Make this module available when building for recovery.
 	Recovery_available *bool
+
+	// Properties for Bazel migration purposes.
+	bazel.Properties
 }
 
 type TestProperties struct {
@@ -460,5 +466,63 @@ func ShTestHostFactory() android.Module {
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibFirst)
 	return module
 }
+
+type bazelShBinaryAttributes struct {
+	Srcs bazel.LabelList
+	// Bazel also supports the attributes below, but (so far) these are not required for Bionic
+	// deps
+	// data
+	// args
+	// compatible_with
+	// deprecation
+	// distribs
+	// env
+	// exec_compatible_with
+	// exec_properties
+	// features
+	// licenses
+	// output_licenses
+	// restricted_to
+	// tags
+	// target_compatible_with
+	// testonly
+	// toolchains
+	// visibility
+}
+
+type bazelShBinary struct {
+	android.BazelTargetModuleBase
+	bazelShBinaryAttributes
+}
+
+func BazelShBinaryFactory() android.Module {
+	module := &bazelShBinary{}
+	module.AddProperties(&module.bazelShBinaryAttributes)
+	android.InitBazelTargetModule(module)
+	return module
+}
+
+func ShBinaryBp2Build(ctx android.TopDownMutatorContext) {
+	m, ok := ctx.Module().(*ShBinary)
+	if !ok || !m.properties.Bazel_module.Bp2build_available {
+		return
+	}
+
+	srcs := android.BazelLabelForModuleSrc(ctx, []string{*m.properties.Src})
+
+	attrs := &bazelShBinaryAttributes{
+		Srcs: srcs,
+	}
+
+	props := bazel.NewBazelTargetModuleProperties(m.Name(), "sh_binary", "")
+
+	ctx.CreateBazelTargetModule(BazelShBinaryFactory, props, attrs)
+}
+
+func (m *bazelShBinary) Name() string {
+	return m.BaseModuleName()
+}
+
+func (m *bazelShBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
 
 var Bool = proptools.Bool
