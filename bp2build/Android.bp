@@ -12,6 +12,7 @@ bootstrap_go_package {
         "soong-android",
         "soong-bazel",
         "soong-genrule",
+        "soong-sh",
     ],
     testSrcs: [
         "build_conversion_test.go",
