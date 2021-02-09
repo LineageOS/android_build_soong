@@ -16,6 +16,8 @@ package filesystem
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"android/soong/android"
 
@@ -35,6 +37,11 @@ type filesystem struct {
 
 	output     android.OutputPath
 	installDir android.InstallPath
+}
+
+type symlinkDefinition struct {
+	Target *string
+	Name   *string
 }
 
 type filesystemProperties struct {
@@ -58,6 +65,12 @@ type filesystemProperties struct {
 	// Base directory relative to root, to which deps are installed, e.g. "system". Default is "."
 	// (root).
 	Base_dir *string
+
+	// Directories to be created under root. e.g. /dev, /proc, etc.
+	Dirs []string
+
+	// Symbolic links to be created under root with "ln -sf <target> <name>".
+	Symlinks []symlinkDefinition
 }
 
 // android_filesystem packages a set of modules and their transitive dependencies into a filesystem
@@ -135,7 +148,32 @@ func (f *filesystem) buildRootZip(ctx android.ModuleContext) android.OutputPath 
 	builder.Command().Text("rm -rf").Text(rootDir.String())
 	builder.Command().Text("mkdir -p").Text(rootDir.String())
 
-	// Currently root.zip is empty, and just a placeholder now. Dirs and symlinks will be added.
+	// create dirs and symlinks
+	for _, dir := range f.properties.Dirs {
+		// OutputPath.Join verifies dir
+		builder.Command().Text("mkdir -p").Text(rootDir.Join(ctx, dir).String())
+	}
+
+	for _, symlink := range f.properties.Symlinks {
+		name := strings.TrimSpace(proptools.String(symlink.Name))
+		target := strings.TrimSpace(proptools.String(symlink.Target))
+
+		if name == "" {
+			ctx.PropertyErrorf("symlinks", "Name can't be empty")
+			continue
+		}
+
+		if target == "" {
+			ctx.PropertyErrorf("symlinks", "Target can't be empty")
+			continue
+		}
+
+		// OutputPath.Join verifies name. don't need to verify target.
+		dst := rootDir.Join(ctx, name)
+
+		builder.Command().Text("mkdir -p").Text(filepath.Dir(dst.String()))
+		builder.Command().Text("ln -sf").Text(proptools.ShellEscape(target)).Text(dst.String())
+	}
 
 	zipOut := android.PathForModuleGen(ctx, "root.zip").OutputPath
 
