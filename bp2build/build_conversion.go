@@ -173,6 +173,12 @@ func GenerateBazelTargets(ctx bpToBuildContext, codegenMode CodegenMode) map[str
 			}
 			t = generateBazelTarget(ctx, m)
 		case QueryView:
+			// Blocklist certain module types from being generated.
+			if canonicalizeModuleType(ctx.ModuleType(m)) == "package" {
+				// package module name contain slashes, and thus cannot
+				// be mapped cleanly to a bazel label.
+				return
+			}
 			t = generateSoongModuleTarget(ctx, m)
 		default:
 			panic(fmt.Errorf("Unknown code-generation mode: %s", codegenMode))
@@ -212,6 +218,8 @@ func generateBazelTarget(ctx bpToBuildContext, m blueprint.Module) BazelTarget {
 	bzlLoadLocation := trimQuotes(props.Attrs["bzl_load_location"])
 	// Delete it from being generated in the BUILD file.
 	delete(props.Attrs, "bzl_load_location")
+
+	delete(props.Attrs, "bp2build_available")
 
 	// Return the Bazel target with rule class and attributes, ready to be
 	// code-generated.
