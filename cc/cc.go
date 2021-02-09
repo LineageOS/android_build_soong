@@ -1544,7 +1544,7 @@ func (c *Module) getNameSuffixWithVndkVersion(ctx android.ModuleContext) string 
 		nameSuffix = productSuffix
 	} else {
 		vndkVersion = ctx.DeviceConfig().VndkVersion()
-		nameSuffix = vendorSuffix
+		nameSuffix = VendorSuffix
 	}
 	if vndkVersion == "current" {
 		vndkVersion = ctx.DeviceConfig().PlatformVndkVersion()
@@ -1591,11 +1591,11 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	} else if _, ok := c.linker.(*vndkPrebuiltLibraryDecorator); ok {
 		// .vendor suffix is added for backward compatibility with VNDK snapshot whose names with
 		// such suffixes are already hard-coded in prebuilts/vndk/.../Android.bp.
-		c.Properties.SubName += vendorSuffix
+		c.Properties.SubName += VendorSuffix
 	} else if c.InRamdisk() && !c.OnlyInRamdisk() {
 		c.Properties.SubName += ramdiskSuffix
 	} else if c.InVendorRamdisk() && !c.OnlyInVendorRamdisk() {
-		c.Properties.SubName += vendorRamdiskSuffix
+		c.Properties.SubName += VendorRamdiskSuffix
 	} else if c.InRecovery() && !c.OnlyInRecovery() {
 		c.Properties.SubName += recoverySuffix
 	} else if c.IsSdkVariant() && (c.Properties.SdkAndPlatformVariantVisibleToMake || c.SplitPerApiLevel()) {
@@ -2927,7 +2927,7 @@ func (c *Module) makeLibName(ctx android.ModuleContext, ccDep LinkableInterface,
 	} else if ccDep.InRamdisk() && !ccDep.OnlyInRamdisk() {
 		return libName + ramdiskSuffix
 	} else if ccDep.InVendorRamdisk() && !ccDep.OnlyInVendorRamdisk() {
-		return libName + vendorRamdiskSuffix
+		return libName + VendorRamdiskSuffix
 	} else if ccDep.InRecovery() && !ccDep.OnlyInRecovery() {
 		return libName + recoverySuffix
 	} else if ccDep.Target().NativeBridge == android.NativeBridgeEnabled {
