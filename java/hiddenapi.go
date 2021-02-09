@@ -144,12 +144,7 @@ func (h *hiddenAPI) hiddenAPIExtractAndEncode(ctx android.ModuleContext, name st
 		return dexJar
 	}
 
-	// More than one library with the same classes may need to be encoded but only one should be
-	// used as a source of information for hidden API processing otherwise it will result in
-	// duplicate entries in the files.
-	if primary {
-		h.hiddenAPIExtractInformation(ctx, dexJar, implementationJar)
-	}
+	h.hiddenAPIExtractInformation(ctx, dexJar, implementationJar, primary)
 
 	if !h.annotationsOnly {
 		hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", name+".jar").OutputPath
@@ -169,7 +164,18 @@ func (h *hiddenAPI) hiddenAPIExtractAndEncode(ctx android.ModuleContext, name st
 //
 // It also makes the dex jar available for use when generating the
 // hiddenAPISingletonPathsStruct.stubFlags.
-func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJar, classesJar android.Path) {
+func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJar, classesJar android.Path, primary bool) {
+	if !h.active {
+		return
+	}
+
+	// More than one library with the same classes may need to be encoded but only one should be
+	// used as a source of information for hidden API processing otherwise it will result in
+	// duplicate entries in the files.
+	if !primary {
+		return
+	}
+
 	stubFlagsCSV := hiddenAPISingletonPaths(ctx).stubFlags
 
 	flagsCSV := android.PathForModuleOut(ctx, "hiddenapi", "flags.csv")
