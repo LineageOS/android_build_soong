@@ -234,6 +234,13 @@ func (context *bazelContext) issueBazelCommand(runName bazel.RunName, command st
 	cmdFlags = append(cmdFlags, labels...)
 	cmdFlags = append(cmdFlags, "--package_path=%workspace%/"+context.intermediatesDir())
 	cmdFlags = append(cmdFlags, "--profile="+shared.BazelMetricsFilename(context, runName))
+	// Set default platforms to canonicalized values for mixed builds requests. If these are set
+	// in the bazelrc, they will have values that are non-canonicalized, and thus be invalid.
+	// The actual platform values here may be overridden by configuration transitions from the buildroot.
+	cmdFlags = append(cmdFlags,
+		fmt.Sprintf("--platforms=%s", canonicalizeLabel("//build/bazel/platforms:generic_x86_64")))
+	cmdFlags = append(cmdFlags,
+		fmt.Sprintf("--extra_toolchains=%s", canonicalizeLabel("//prebuilts/clang/host/linux-x86:all")))
 	cmdFlags = append(cmdFlags, extraFlags...)
 
 	bazelCmd := exec.Command(context.bazelPath, cmdFlags...)
