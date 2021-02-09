@@ -3333,6 +3333,7 @@ func DefaultsFactory() android.Module {
 		&android.ApexProperties{},
 		&RuntimeResourceOverlayProperties{},
 		&LintProperties{},
+		&appTestHelperAppProperties{},
 	)
 
 	android.InitDefaultsModule(module)
