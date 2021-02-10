@@ -77,7 +77,12 @@ func NewSmartStatusOutput(w io.Writer, formatter formatter) status.StatusOutput 
 		s.requestedTableHeight = h
 	}
 
-	s.updateTermSize()
+	if w, h, ok := termSize(s.writer); ok {
+		s.termWidth, s.termHeight = w, h
+		s.computeTableHeight()
+	} else {
+		s.tableMode = false
+	}
 
 	if s.tableMode {
 		// Add empty lines at the bottom of the screen to scroll back the existing history
@@ -296,40 +301,44 @@ func (s *smartStatusOutput) stopSigwinch() {
 	close(s.sigwinch)
 }
 
+// computeTableHeight recomputes s.tableHeight based on s.termHeight and s.requestedTableHeight.
+func (s *smartStatusOutput) computeTableHeight() {
+	tableHeight := s.requestedTableHeight
+	if tableHeight == 0 {
+		tableHeight = s.termHeight / 4
+		if tableHeight < 1 {
+			tableHeight = 1
+		} else if tableHeight > 10 {
+			tableHeight = 10
+		}
+	}
+	if tableHeight > s.termHeight-1 {
+		tableHeight = s.termHeight - 1
+	}
+	s.tableHeight = tableHeight
+}
+
+// updateTermSize recomputes the table height after a SIGWINCH and pans any existing text if
+// necessary.
 func (s *smartStatusOutput) updateTermSize() {
 	if w, h, ok := termSize(s.writer); ok {
-		firstUpdate := s.termHeight == 0 && s.termWidth == 0
 		oldScrollingHeight := s.termHeight - s.tableHeight
 
 		s.termWidth, s.termHeight = w, h
 
 		if s.tableMode {
-			tableHeight := s.requestedTableHeight
-			if tableHeight == 0 {
-				tableHeight = s.termHeight / 4
-				if tableHeight < 1 {
-					tableHeight = 1
-				} else if tableHeight > 10 {
-					tableHeight = 10
-				}
-			}
-			if tableHeight > s.termHeight-1 {
-				tableHeight = s.termHeight - 1
-			}
-			s.tableHeight = tableHeight
+			s.computeTableHeight()
 
 			scrollingHeight := s.termHeight - s.tableHeight
 
-			if !firstUpdate {
-				// If the scrolling region has changed, attempt to pan the existing text so that it is
-				// not overwritten by the table.
-				if scrollingHeight < oldScrollingHeight {
-					pan := oldScrollingHeight - scrollingHeight
-					if pan > s.tableHeight {
-						pan = s.tableHeight
-					}
-					fmt.Fprint(s.writer, ansi.panDown(pan))
+			// If the scrolling region has changed, attempt to pan the existing text so that it is
+			// not overwritten by the table.
+			if scrollingHeight < oldScrollingHeight {
+				pan := oldScrollingHeight - scrollingHeight
+				if pan > s.tableHeight {
+					pan = s.tableHeight
 				}
+				fmt.Fprint(s.writer, ansi.panDown(pan))
 			}
 		}
 	}
