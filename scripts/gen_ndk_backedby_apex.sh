@@ -23,33 +23,50 @@ printHelp() {
     echo "**************************** Usage Instructions ****************************"
     echo "This script is used to generate the Mainline modules backed-by NDK symbols."
     echo ""
-    echo "To run this script use: ./ndk_backedby_module.sh \$BINARY_IMAGE_DIRECTORY \$OUTPUT_FILE_PATH \$NDK_LIB_NAME_LIST"
-    echo "For example: If all the module image files that you would like to run is under directory '/myModule' and output write to /backedby.txt then the command would be:"
-    echo "./ndk_usedby_module.sh /myModule /backedby.txt /ndkLibList.txt"
+    echo "To run this script use: ./gen_ndk_backed_by_apex.sh \$OUTPUT_FILE_PATH \$NDK_LIB_NAME_LIST \$MODULE_LIB1 \$MODULE_LIB2..."
+    echo "For example: If output write to /backedby.txt then the command would be:"
+    echo "./gen_ndk_backed_by_apex.sh /backedby.txt /ndkLibList.txt lib1.so lib2.so"
     echo "If the module1 is backing lib1 then the backedby.txt would contains: "
     echo "lib1"
 }
 
+contains() {
+  val="$1"
+  shift
+  for x in "$@"; do
+    if [ "$x" = "$val" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+
 genBackedByList() {
-  dir="$1"
-  [[ ! -e "$2" ]] && echo "" >> "$2"
+  out="$1"
+  shift
+  ndk_list="$1"
+  shift
+  rm -f "$out"
+  touch "$out"
   while IFS= read -r line
   do
     soFileName=$(echo "$line" | sed 's/\(.*so\).*/\1/')
     if [[ ! -z "$soFileName" && "$soFileName" != *"#"* ]]
     then
-      find "$dir" -type f -name "$soFileName" -exec echo "$soFileName" >> "$2" \;
+      if contains "$soFileName" "$@"; then
+        echo "$soFileName" >> "$out"
+      fi
     fi
-  done < "$3"
+  done < "$ndk_list"
 }
 
 if [[ "$1" == "help" ]]
 then
   printHelp
-elif [[ "$#" -ne 3 ]]
+elif [[ "$#" -lt 2 ]]
 then
-  echo "Wrong argument length. Expecting 3 argument representing image file directory, output path, path to ndk library list."
+  echo "Wrong argument length. Expecting at least 2 argument representing output path, path to ndk library list, followed by a list of libraries in the Mainline module."
 else
-  [[ -e "$2" ]] && rm "$2"
-  genBackedByList "$1" "$2" "$3"
+  genBackedByList "$@"
 fi
