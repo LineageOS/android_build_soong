@@ -648,6 +648,11 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		return objs
 	}
 	if library.buildStubs() {
+		symbolFile := String(library.Properties.Stubs.Symbol_file)
+		if symbolFile != "" && !strings.HasSuffix(symbolFile, ".map.txt") {
+			ctx.PropertyErrorf("symbol_file", "%q doesn't have .map.txt suffix", symbolFile)
+			return Objects{}
+		}
 		objs, versionScript := compileStubLibrary(ctx, flags, String(library.Properties.Stubs.Symbol_file), library.MutatedProperties.StubsVersion, "--apex")
 		library.versionScriptPath = android.OptionalPathForPath(versionScript)
 		return objs
