@@ -1051,3 +1051,85 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 		}
 	}
 }
+
+func TestRecoverySnapshotDirected(t *testing.T) {
+	bp := `
+	cc_library_shared {
+		name: "librecovery",
+		recovery: true,
+		nocrt: true,
+	}
+
+	cc_library_shared {
+		name: "librecovery_available",
+		recovery_available: true,
+		nocrt: true,
+	}
+
+	genrule {
+		name: "libfoo_gen",
+		cmd: "",
+		out: ["libfoo.so"],
+	}
+
+	cc_prebuilt_library_shared {
+		name: "libfoo",
+		recovery: true,
+		prefer: true,
+		srcs: [":libfoo_gen"],
+	}
+
+	cc_library_shared {
+		name: "libfoo",
+		recovery: true,
+		nocrt: true,
+	}
+`
+	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	config.TestProductVariables.RecoverySnapshotVersion = StringPtr("current")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.DirectedRecoverySnapshot = true
+	config.TestProductVariables.RecoverySnapshotModules = make(map[string]bool)
+	config.TestProductVariables.RecoverySnapshotModules["librecovery"] = true
+	config.TestProductVariables.RecoverySnapshotModules["libfoo"] = true
+	ctx := testCcWithConfig(t, config)
+
+	// Check recovery snapshot output.
+
+	snapshotDir := "recovery-snapshot"
+	snapshotVariantPath := filepath.Join(buildDir, snapshotDir, "arm64")
+	snapshotSingleton := ctx.SingletonForTests("recovery-snapshot")
+
+	var includeJsonFiles []string
+
+	for _, arch := range [][]string{
+		[]string{"arm64", "armv8-a"},
+	} {
+		archType := arch[0]
+		archVariant := arch[1]
+		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
+
+		sharedVariant := fmt.Sprintf("android_recovery_%s_%s_shared", archType, archVariant)
+		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
+
+		// Included modules
+		checkSnapshot(t, ctx, snapshotSingleton, "librecovery", "librecovery.so", sharedDir, sharedVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "librecovery.so.json"))
+		// Check that snapshot captures "prefer: true" prebuilt
+		checkSnapshot(t, ctx, snapshotSingleton, "prebuilt_libfoo", "libfoo.so", sharedDir, sharedVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "libfoo.so.json"))
+
+		// Excluded modules. Modules not included in the directed recovery snapshot
+		// are still include as fake modules.
+		checkSnapshotRule(t, ctx, snapshotSingleton, "librecovery_available", "librecovery_available.so", sharedDir, sharedVariant)
+		includeJsonFiles = append(includeJsonFiles, filepath.Join(sharedDir, "librecovery_available.so.json"))
+	}
+
+	// Verify that each json file for an included module has a rule.
+	for _, jsonFile := range includeJsonFiles {
+		if snapshotSingleton.MaybeOutput(jsonFile).Rule == nil {
+			t.Errorf("include json file %q not found", jsonFile)
+		}
+	}
+}
