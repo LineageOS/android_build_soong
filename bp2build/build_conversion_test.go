@@ -17,6 +17,7 @@ package bp2build
 import (
 	"android/soong/android"
 	"android/soong/genrule"
+	"android/soong/sh"
 	"strings"
 	"testing"
 )
@@ -356,6 +357,12 @@ load("//build/bazel/rules:java.bzl", "java_binary")`,
 					name:      "baz",
 					ruleClass: "genrule",
 					// Note: no bzlLoadLocation for native rules
+				},
+				BazelTarget{
+					name:      "sh_binary_target",
+					ruleClass: "sh_binary",
+					// Note: no bzlLoadLocation for native rules
+					// TODO(ruperts): Could open source the existing, experimental Starlark sh_ rules?
 				},
 			},
 			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_binary")
@@ -852,6 +859,23 @@ genrule {
     ],
 )`,
 			},
+		},
+		{
+			description:                        "sh_binary test",
+			moduleTypeUnderTest:                "sh_binary",
+			moduleTypeUnderTestFactory:         sh.ShBinaryFactory,
+			moduleTypeUnderTestBp2BuildMutator: sh.ShBinaryBp2Build,
+			bp: `sh_binary {
+    name: "foo",
+    src: "foo.sh",
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{`sh_binary(
+    name = "foo",
+    srcs = [
+        "foo.sh",
+    ],
+)`},
 		},
 	}
 

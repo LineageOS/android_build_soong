@@ -144,7 +144,7 @@ func (vendorSnapshotImage) imageVariantName(cfg android.DeviceConfig) string {
 }
 
 func (vendorSnapshotImage) moduleNameSuffix() string {
-	return vendorSuffix
+	return VendorSuffix
 }
 
 func (recoverySnapshotImage) init(ctx android.RegistrationContext) {

@@ -76,14 +76,6 @@ func TestHiddenAPISingleton(t *testing.T) {
 	}
 }
 
-func checkRuleInputs(t *testing.T, expected string, hiddenAPIRule android.TestingBuildParams) {
-	actual := strings.TrimSpace(strings.Join(android.NormalizePathsForTesting(hiddenAPIRule.Implicits), "\n"))
-	expected = strings.TrimSpace(expected)
-	if actual != expected {
-		t.Errorf("Expected hiddenapi rule inputs:\n%s\nactual inputs:\n%s", expected, actual)
-	}
-}
-
 func TestHiddenAPIIndexSingleton(t *testing.T) {
 	ctx, _ := testHiddenAPIBootJars(t, `
 		java_library {
@@ -108,7 +100,7 @@ func TestHiddenAPIIndexSingleton(t *testing.T) {
 
 	hiddenAPIIndex := ctx.SingletonForTests("hiddenapi_index")
 	indexRule := hiddenAPIIndex.Rule("singleton-merged-hiddenapi-index")
-	checkRuleInputs(t, `
+	CheckHiddenAPIRuleInputs(t, `
 .intermediates/bar/android_common/hiddenapi/index.csv
 .intermediates/foo/android_common/hiddenapi/index.csv
 `,

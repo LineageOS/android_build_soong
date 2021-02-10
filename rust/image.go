@@ -24,7 +24,7 @@ import (
 var _ android.ImageInterface = (*Module)(nil)
 
 func (mod *Module) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
-	return false
+	return mod.Properties.VendorRamdiskVariantNeeded
 }
 
 func (mod *Module) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
@@ -50,6 +50,10 @@ func (ctx *moduleContext) ProductSpecific() bool {
 func (mod *Module) InRecovery() bool {
 	// TODO(b/165791368)
 	return false
+}
+
+func (mod *Module) InVendorRamdisk() bool {
+	return mod.ModuleBase.InVendorRamdisk() || mod.ModuleBase.InstallInVendorRamdisk()
 }
 
 func (mod *Module) OnlyInRamdisk() bool {
@@ -86,7 +90,9 @@ func (c *Module) InProduct() bool {
 
 func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
 	m := module.(*Module)
-	if strings.HasPrefix(variant, cc.VendorVariationPrefix) {
+	if variant == android.VendorRamdiskVariation {
+		m.MakeAsPlatform()
+	} else if strings.HasPrefix(variant, cc.VendorVariationPrefix) {
 		m.Properties.ImageVariationPrefix = cc.VendorVariationPrefix
 		m.Properties.VndkVersion = strings.TrimPrefix(variant, cc.VendorVariationPrefix)
 
@@ -117,6 +123,8 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	}
 
 	coreVariantNeeded := true
+	vendorRamdiskVariantNeeded := false
+
 	var vendorVariants []string
 
 	if mod.HasVendorVariant() {
@@ -138,15 +146,23 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 			// We can't check shared() here because image mutator is called before the library mutator, so we need to
 			// check buildShared()
 			if lib.buildShared() {
-				mctx.PropertyErrorf(prop, "can only be set for rust_ffi_static modules.")
+				mctx.PropertyErrorf(prop, "cannot be set for rust_ffi or rust_ffi_shared modules.")
 			} else {
 				vendorVariants = append(vendorVariants, platformVndkVersion)
 			}
 		}
 	}
 
+	if Bool(mod.Properties.Vendor_ramdisk_available) {
+		if lib, ok := mod.compiler.(libraryInterface); !ok || (ok && lib.buildShared()) {
+			mctx.PropertyErrorf("vendor_ramdisk_available", "cannot be set for rust_ffi or rust_ffi_shared modules.")
+		} else {
+			vendorRamdiskVariantNeeded = true
+		}
+	}
+
 	if vendorSpecific {
-		if lib, ok := mod.compiler.(libraryInterface); !ok || (ok && !lib.static()) {
+		if lib, ok := mod.compiler.(libraryInterface); !ok || (ok && (lib.buildShared() || lib.buildDylib() || lib.buildRlib())) {
 			mctx.ModuleErrorf("Rust vendor specific modules are currently only supported for rust_ffi_static modules.")
 		} else {
 			coreVariantNeeded = false
@@ -155,6 +171,8 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	}
 
 	mod.Properties.CoreVariantNeeded = coreVariantNeeded
+	mod.Properties.VendorRamdiskVariantNeeded = vendorRamdiskVariantNeeded
+
 	for _, variant := range android.FirstUniqueStrings(vendorVariants) {
 		mod.Properties.ExtraVariants = append(mod.Properties.ExtraVariants, cc.VendorVariationPrefix+variant)
 	}

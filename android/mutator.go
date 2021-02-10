@@ -16,7 +16,9 @@ package android
 
 import (
 	"android/soong/bazel"
+	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -513,6 +515,14 @@ func (t *topDownMutatorContext) CreateBazelTargetModule(
 	factory ModuleFactory,
 	bazelProps bazel.BazelTargetModuleProperties,
 	attrs interface{}) BazelTargetModule {
+	if !strings.HasPrefix(*bazelProps.Name, bazel.BazelTargetModuleNamePrefix) {
+		panic(fmt.Errorf(
+			"bp2build error: the bazel target module name must start with '%s': %s",
+			bazel.BazelTargetModuleNamePrefix,
+			*bazelProps.Name,
+		))
+	}
+
 	return t.CreateModule(factory, &bazelProps, attrs).(BazelTargetModule)
 }
 
