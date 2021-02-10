@@ -26,9 +26,9 @@ import (
 var (
 	nativeBridgeSuffix  = ".native_bridge"
 	productSuffix       = ".product"
-	vendorSuffix        = ".vendor"
+	VendorSuffix        = ".vendor"
 	ramdiskSuffix       = ".ramdisk"
-	vendorRamdiskSuffix = ".vendor_ramdisk"
+	VendorRamdiskSuffix = ".vendor_ramdisk"
 	recoverySuffix      = ".recovery"
 	sdkSuffix           = ".sdk"
 )

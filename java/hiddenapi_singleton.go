@@ -372,7 +372,7 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 	stubFlags := hiddenAPISingletonPaths(ctx).stubFlags
 
 	rule.Command().
-		Tool(android.PathForSource(ctx, "frameworks/base/tools/hiddenapi/generate_hiddenapi_lists.py")).
+		BuiltTool("generate_hiddenapi_lists").
 		FlagWithInput("--csv ", stubFlags).
 		Inputs(flagsCSV).
 		FlagWithInput("--unsupported ",
