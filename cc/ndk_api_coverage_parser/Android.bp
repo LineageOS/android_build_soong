@@ -14,6 +14,10 @@
 // limitations under the License.
 //
 
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
 python_library_host {
     name: "ndk_api_coverage_parser_lib",
     pkg_path: "ndk_api_coverage_parser",
