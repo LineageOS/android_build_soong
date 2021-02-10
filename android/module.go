@@ -2374,6 +2374,16 @@ func (b *baseModuleContext) FinalModule() Module {
 	return b.bp.FinalModule().(Module)
 }
 
+// IsMetaDependencyTag returns true for cross-cutting metadata dependencies.
+func IsMetaDependencyTag(tag blueprint.DependencyTag) bool {
+	if tag == licenseKindTag {
+		return true
+	} else if tag == licensesTag {
+		return true
+	}
+	return false
+}
+
 // A regexp for removing boilerplate from BaseDependencyTag from the string representation of
 // a dependency tag.
 var tagCleaner = regexp.MustCompile(`\QBaseDependencyTag:{}\E(, )?`)
