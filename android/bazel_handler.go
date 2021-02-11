@@ -467,7 +467,6 @@ func (context *bazelContext) InvokeBazel() error {
 		return err
 	}
 
-	fmt.Printf("Build statements %s", context.buildStatements)
 	// Clear requests.
 	context.requests = map[cqueryKey]bool{}
 	return nil
