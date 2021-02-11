@@ -50,7 +50,7 @@ func (mod *Module) AndroidModuleBase() *android.ModuleBase {
 }
 
 func (mod *Module) RecoveryAvailable() bool {
-	return false
+	return Bool(mod.Properties.Recovery_available)
 }
 
 func (mod *Module) ExtraVariants() []string {
@@ -72,9 +72,7 @@ func (mod *Module) SetVendorRamdiskVariantNeeded(b bool) {
 }
 
 func (mod *Module) SetRecoveryVariantNeeded(b bool) {
-	if b {
-		panic("Setting recovery variant needed for Rust module is unsupported: " + mod.BaseModuleName())
-	}
+	mod.Properties.RecoveryVariantNeeded = b
 }
 
 func (mod *Module) SetCoreVariantNeeded(b bool) {
@@ -107,7 +105,7 @@ func (mod *Module) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool
 }
 
 func (mod *Module) RecoveryVariantNeeded(android.BaseModuleContext) bool {
-	return mod.InRecovery()
+	return mod.Properties.RecoveryVariantNeeded
 }
 
 func (mod *Module) ExtraImageVariations(android.BaseModuleContext) []string {
@@ -144,8 +142,7 @@ func (ctx *moduleContext) ProductSpecific() bool {
 }
 
 func (mod *Module) InRecovery() bool {
-	// TODO(b/165791368)
-	return false
+	return mod.ModuleBase.InRecovery() || mod.ModuleBase.InstallInRecovery()
 }
 
 func (mod *Module) InVendorRamdisk() bool {
@@ -192,6 +189,8 @@ func (mod *Module) InVendor() bool {
 func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
 	m := module.(*Module)
 	if variant == android.VendorRamdiskVariation {
+		m.MakeAsPlatform()
+	} else if variant == android.RecoveryVariation {
 		m.MakeAsPlatform()
 	} else if strings.HasPrefix(variant, cc.VendorVariationPrefix) {
 		m.Properties.ImageVariationPrefix = cc.VendorVariationPrefix

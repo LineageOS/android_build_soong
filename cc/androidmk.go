@@ -29,7 +29,7 @@ var (
 	VendorSuffix        = ".vendor"
 	ramdiskSuffix       = ".ramdisk"
 	VendorRamdiskSuffix = ".vendor_ramdisk"
-	recoverySuffix      = ".recovery"
+	RecoverySuffix      = ".recovery"
 	sdkSuffix           = ".sdk"
 )
 
