@@ -195,8 +195,12 @@ func (recoverySnapshotImage) targetSnapshotVersion(cfg android.DeviceConfig) str
 }
 
 func (recoverySnapshotImage) excludeFromDirectedSnapshot(cfg android.DeviceConfig, name string) bool {
-	// directed recovery snapshot is not implemented yet
-	return false
+	// If we're using full snapshot, not directed snapshot, capture every module
+	if !cfg.DirectedRecoverySnapshot() {
+		return false
+	}
+	// Else, checks if name is in RECOVERY_SNAPSHOT_MODULES.
+	return !cfg.RecoverySnapshotModules()[name]
 }
 
 func (recoverySnapshotImage) imageVariantName(cfg android.DeviceConfig) string {

@@ -307,10 +307,7 @@ license_kind {
 
 license_kind {
     name: "SPDX-license-identifier-Beerware",
-    conditions: [
-        "by_exception_only",
-        "not_allowed",
-    ],
+    conditions: ["notice"],
     url: "https://spdx.org/licenses/Beerware.html",
 }
 
@@ -1137,10 +1134,7 @@ license_kind {
 
 license_kind {
     name: "SPDX-license-identifier-WTFPL",
-    conditions: [
-        "by_exception_only",
-        "not_allowed",
-    ],
+    conditions: ["notice"],
     url: "https://spdx.org/licenses/WTFPL.html",
 }
 
