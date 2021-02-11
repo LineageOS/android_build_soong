@@ -137,6 +137,16 @@ func HasAnyPrefix(s string, prefixList []string) bool {
 	return false
 }
 
+// Returns true if any string in the given list has the given substring.
+func SubstringInList(list []string, substr string) bool {
+	for _, s := range list {
+		if strings.Contains(s, substr) {
+			return true
+		}
+	}
+	return false
+}
+
 // Returns true if any string in the given list has the given prefix.
 func PrefixInList(list []string, prefix string) bool {
 	for _, s := range list {
