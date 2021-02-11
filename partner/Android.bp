@@ -16,6 +16,10 @@
 // Sample project for creating an extended androidmk
 //
 
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
 blueprint_go_binary {
     name: "partner_androidmk",
     srcs: [
