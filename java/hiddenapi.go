@@ -28,8 +28,26 @@ var hiddenAPIGenerateCSVRule = pctx.AndroidStaticRule("hiddenAPIGenerateCSV", bl
 }, "outFlag", "stubAPIFlags")
 
 type hiddenAPI struct {
-	// True if the module containing this structure contributes to the hiddenapi information.
+	// The name of the module as it would be used in the boot jars configuration, e.g. without any
+	// prebuilt_ prefix (if it is a prebuilt), without any "-hiddenapi" suffix if it just provides
+	// annotations and without any ".impl" suffix if it is a java_sdk_library implementation library.
+	configurationName string
+
+	// True if the module containing this structure contributes to the hiddenapi information or has
+	// that information encoded within it.
 	active bool
+
+	// Identifies the active module variant which will be used as the source of hiddenapi information.
+	//
+	// A class may be compiled into a number of different module variants each of which will need the
+	// hiddenapi information encoded into it and so will be marked as active. However, only one of
+	// them must be used as a source of information by hiddenapi otherwise it will end up with
+	// duplicate entries. That module will have primary=true.
+	//
+	// Note, that modules <x>-hiddenapi that provide additional annotation information for module <x>
+	// that is on the bootclasspath are marked as primary=true as they are the primary source of that
+	// annotation information.
+	primary bool
 
 	// True if the module only contains additional annotations and so does not require hiddenapi
 	// information to be encoded in its dex file and should not be used to generate the
@@ -109,18 +127,45 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, name string) {
 
 	// Modules whose names are of the format <x>-hiddenapi provide hiddenapi information for the boot
 	// jar module <x>. Otherwise, the module provides information for itself. Either way extract the
-	// name of the boot jar module.
-	bootJarName := strings.TrimSuffix(name, "-hiddenapi")
+	// configurationName of the boot jar module.
+	configurationName := strings.TrimSuffix(name, "-hiddenapi")
+	h.configurationName = configurationName
 
 	// It is important that hiddenapi information is only gathered for/from modules that are actually
 	// on the boot jars list because the runtime only enforces access to the hidden API for the
 	// bootclassloader. If information is gathered for modules not on the list then that will cause
 	// failures in the CtsHiddenApiBlocklist... tests.
-	h.active = inList(bootJarName, ctx.Config().BootJars())
+	h.active = inList(configurationName, ctx.Config().BootJars())
+	if !h.active {
+		// The rest of the properties will be ignored if active is false.
+		return
+	}
 
 	// If this module has a suffix of -hiddenapi then it only provides additional annotation
 	// information for a module on the boot jars list.
 	h.annotationsOnly = strings.HasSuffix(name, "-hiddenapi")
+
+	// Determine whether this module is the primary module or not.
+	primary := true
+
+	// A prebuilt module is only primary if it is preferred and conversely a source module is only
+	// primary if it has not been replaced by a prebuilt module.
+	module := ctx.Module()
+	if pi, ok := module.(android.PrebuiltInterface); ok {
+		if p := pi.Prebuilt(); p != nil {
+			primary = p.UsePrebuilt()
+		}
+	} else {
+		// The only module that will pass a different name to its module name to this method is the
+		// implementation library of a java_sdk_library. It has a configuration name of <x> the same
+		// as its parent java_sdk_library but a module name of <x>.impl. It is not the primary module,
+		// the java_sdk_library with the name of <x> is.
+		primary = name == ctx.ModuleName()
+
+		// A source module that has been replaced by a prebuilt can never be the primary module.
+		primary = primary && !module.IsReplacedByPrebuilt()
+	}
+	h.primary = primary
 }
 
 // hiddenAPIExtractAndEncode is called by any module that could contribute to the hiddenapi
@@ -137,17 +182,17 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, name string) {
 // 3. Conditionally creates a copy of the supplied dex file into which it has encoded the hiddenapi
 //    flags and returns this instead of the supplied dex jar, otherwise simply returns the supplied
 //    dex jar.
-func (h *hiddenAPI) hiddenAPIExtractAndEncode(ctx android.ModuleContext, name string, primary bool, dexJar android.OutputPath,
+func (h *hiddenAPI) hiddenAPIExtractAndEncode(ctx android.ModuleContext, dexJar android.OutputPath,
 	implementationJar android.Path, uncompressDex bool) android.OutputPath {
 
 	if !h.active {
 		return dexJar
 	}
 
-	h.hiddenAPIExtractInformation(ctx, dexJar, implementationJar, primary)
+	h.hiddenAPIExtractInformation(ctx, dexJar, implementationJar)
 
 	if !h.annotationsOnly {
-		hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", name+".jar").OutputPath
+		hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", h.configurationName+".jar").OutputPath
 
 		// Create a copy of the dex jar which has been encoded with hiddenapi flags.
 		hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexJar, uncompressDex)
@@ -164,7 +209,7 @@ func (h *hiddenAPI) hiddenAPIExtractAndEncode(ctx android.ModuleContext, name st
 //
 // It also makes the dex jar available for use when generating the
 // hiddenAPISingletonPathsStruct.stubFlags.
-func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJar, classesJar android.Path, primary bool) {
+func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJar, classesJar android.Path) {
 	if !h.active {
 		return
 	}
@@ -172,7 +217,7 @@ func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJa
 	// More than one library with the same classes may need to be encoded but only one should be
 	// used as a source of information for hidden API processing otherwise it will result in
 	// duplicate entries in the files.
-	if !primary {
+	if !h.primary {
 		return
 	}
 
