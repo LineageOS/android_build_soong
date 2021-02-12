@@ -1798,14 +1798,8 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 			return
 		}
 
-		configurationName := j.ConfigurationName()
-		primary := configurationName == ctx.ModuleName()
-		// If the prebuilt is being used rather than the from source, skip this
-		// module to prevent duplicated classes
-		primary = primary && !j.IsReplacedByPrebuilt()
-
 		// Hidden API CSV generation and dex encoding
-		dexOutputFile = j.hiddenAPIExtractAndEncode(ctx, configurationName, primary, dexOutputFile, j.implementationJarFile,
+		dexOutputFile = j.hiddenAPIExtractAndEncode(ctx, dexOutputFile, j.implementationJarFile,
 			proptools.Bool(j.dexProperties.Uncompress_dex))
 
 		// merge dex jar with resources if necessary
@@ -2917,9 +2911,6 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.exportAidlIncludeDirs = android.PathsForModuleSrc(ctx, j.properties.Aidl.Export_include_dirs)
 
 	if ctx.Device() {
-		configurationName := j.BaseModuleName()
-		primary := j.Prebuilt().UsePrebuilt()
-
 		// If this is a variant created for a prebuilt_apex then use the dex implementation jar
 		// obtained from the associated deapexer module.
 		ai := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
@@ -2935,7 +2926,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
 			if dexOutputPath := di.PrebuiltExportPath(j.BaseModuleName(), ".dexjar"); dexOutputPath != nil {
 				j.dexJarFile = dexOutputPath
-				j.hiddenAPI.hiddenAPIExtractInformation(ctx, dexOutputPath, outputFile, primary)
+				j.hiddenAPIExtractInformation(ctx, dexOutputPath, outputFile)
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
 				// prebuilt_apex has been configured to export the java library dex file.
@@ -2967,7 +2958,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			}
 
 			// Hidden API CSV generation and dex encoding
-			dexOutputFile = j.hiddenAPIExtractAndEncode(ctx, configurationName, primary, dexOutputFile, outputFile,
+			dexOutputFile = j.hiddenAPIExtractAndEncode(ctx, dexOutputFile, outputFile,
 				proptools.Bool(j.dexProperties.Uncompress_dex))
 
 			j.dexJarFile = dexOutputFile
