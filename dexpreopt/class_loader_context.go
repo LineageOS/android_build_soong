@@ -489,20 +489,16 @@ func computeClassLoaderContextRec(clcs []*ClassLoaderContext) (string, string, a
 }
 
 // Class loader contexts that come from Make via JSON dexpreopt.config. JSON CLC representation is
-// slightly different: it uses a map of library names to their CLC (instead of a list of structs
-// that including the name, as in the Soong CLC representation). The difference is insubstantial, it
-// is caused only by the language differerences between Go and JSON.
+// the same as Soong representation except that SDK versions and paths are represented with strings.
 type jsonClassLoaderContext struct {
+	Name        string
 	Host        string
 	Device      string
-	Subcontexts map[string]*jsonClassLoaderContext
+	Subcontexts []*jsonClassLoaderContext
 }
 
-// A map of <uses-library> name to its on-host and on-device build paths and CLC.
-type jsonClassLoaderContexts map[string]*jsonClassLoaderContext
-
 // A map from SDK version (represented with a JSON string) to JSON CLCs.
-type jsonClassLoaderContextMap map[string]map[string]*jsonClassLoaderContext
+type jsonClassLoaderContextMap map[string][]*jsonClassLoaderContext
 
 // Convert JSON CLC map to Soong represenation.
 func fromJsonClassLoaderContext(ctx android.PathContext, jClcMap jsonClassLoaderContextMap) ClassLoaderContextMap {
@@ -522,11 +518,11 @@ func fromJsonClassLoaderContext(ctx android.PathContext, jClcMap jsonClassLoader
 }
 
 // Recursive helper for fromJsonClassLoaderContext.
-func fromJsonClassLoaderContextRec(ctx android.PathContext, jClcs map[string]*jsonClassLoaderContext) []*ClassLoaderContext {
+func fromJsonClassLoaderContextRec(ctx android.PathContext, jClcs []*jsonClassLoaderContext) []*ClassLoaderContext {
 	clcs := make([]*ClassLoaderContext, 0, len(jClcs))
-	for lib, clc := range jClcs {
+	for _, clc := range jClcs {
 		clcs = append(clcs, &ClassLoaderContext{
-			Name:        lib,
+			Name:        clc.Name,
 			Host:        constructPath(ctx, clc.Host),
 			Device:      clc.Device,
 			Subcontexts: fromJsonClassLoaderContextRec(ctx, clc.Subcontexts),
@@ -546,14 +542,15 @@ func toJsonClassLoaderContext(clcMap ClassLoaderContextMap) jsonClassLoaderConte
 }
 
 // Recursive helper for toJsonClassLoaderContext.
-func toJsonClassLoaderContextRec(clcs []*ClassLoaderContext) map[string]*jsonClassLoaderContext {
-	jClcs := make(map[string]*jsonClassLoaderContext, len(clcs))
+func toJsonClassLoaderContextRec(clcs []*ClassLoaderContext) []*jsonClassLoaderContext {
+	jClcs := make([]*jsonClassLoaderContext, len(clcs))
 	for _, clc := range clcs {
-		jClcs[clc.Name] = &jsonClassLoaderContext{
+		jClcs = append(jClcs, &jsonClassLoaderContext{
+			Name:        clc.Name,
 			Host:        clc.Host.String(),
 			Device:      clc.Device,
 			Subcontexts: toJsonClassLoaderContextRec(clc.Subcontexts),
-		}
+		})
 	}
 	return jClcs
 }
