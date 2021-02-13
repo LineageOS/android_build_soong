@@ -566,10 +566,11 @@ func createFrameworkAidl(stubsModules []string, path android.OutputPath, ctx and
 
 	ctx.VisitAllModules(func(module android.Module) {
 		// Collect dex jar paths for the modules listed above.
-		if j, ok := module.(Dependency); ok {
+		if ctx.ModuleHasProvider(module, JavaInfoProvider) {
+			j := ctx.ModuleProvider(module, JavaInfoProvider).(JavaInfo)
 			name := ctx.ModuleName(module)
 			if i := android.IndexList(name, stubsModules); i != -1 {
-				stubsJars[i] = j.HeaderJars()
+				stubsJars[i] = j.HeaderJars
 			}
 		}
 	})

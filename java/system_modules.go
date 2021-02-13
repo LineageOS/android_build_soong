@@ -160,8 +160,8 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 	var jars android.Paths
 
 	ctx.VisitDirectDepsWithTag(systemModulesLibsTag, func(module android.Module) {
-		dep, _ := module.(Dependency)
-		jars = append(jars, dep.HeaderJars()...)
+		dep, _ := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+		jars = append(jars, dep.HeaderJars...)
 	})
 
 	system.headerJars = jars
