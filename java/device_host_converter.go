@@ -97,15 +97,15 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 	}
 
 	ctx.VisitDirectDepsWithTag(deviceHostConverterDepTag, func(m android.Module) {
-		if dep, ok := m.(Dependency); ok {
-			d.headerJars = append(d.headerJars, dep.HeaderJars()...)
-			d.implementationJars = append(d.implementationJars, dep.ImplementationJars()...)
-			d.implementationAndResourceJars = append(d.implementationAndResourceJars, dep.ImplementationAndResourcesJars()...)
-			d.resourceJars = append(d.resourceJars, dep.ResourceJars()...)
+		if ctx.OtherModuleHasProvider(m, JavaInfoProvider) {
+			dep := ctx.OtherModuleProvider(m, JavaInfoProvider).(JavaInfo)
+			d.headerJars = append(d.headerJars, dep.HeaderJars...)
+			d.implementationJars = append(d.implementationJars, dep.ImplementationJars...)
+			d.implementationAndResourceJars = append(d.implementationAndResourceJars, dep.ImplementationAndResourcesJars...)
+			d.resourceJars = append(d.resourceJars, dep.ResourceJars...)
 
-			srcJarArgs, srcJarDeps := dep.SrcJarArgs()
-			d.srcJarArgs = append(d.srcJarArgs, srcJarArgs...)
-			d.srcJarDeps = append(d.srcJarDeps, srcJarDeps...)
+			d.srcJarArgs = append(d.srcJarArgs, dep.SrcJarArgs...)
+			d.srcJarDeps = append(d.srcJarDeps, dep.SrcJarDeps...)
 		} else {
 			ctx.PropertyErrorf("libs", "module %q cannot be used as a dependency", ctx.OtherModuleName(m))
 		}
@@ -131,9 +131,16 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 		d.combinedHeaderJar = d.headerJars[0]
 	}
 
-}
+	ctx.SetProvider(JavaInfoProvider, JavaInfo{
+		HeaderJars:                     d.headerJars,
+		ImplementationAndResourcesJars: d.implementationAndResourceJars,
+		ImplementationJars:             d.implementationJars,
+		ResourceJars:                   d.resourceJars,
+		SrcJarArgs:                     d.srcJarArgs,
+		SrcJarDeps:                     d.srcJarDeps,
+	})
 
-var _ Dependency = (*DeviceHostConverter)(nil)
+}
 
 func (d *DeviceHostConverter) HeaderJars() android.Paths {
 	return d.headerJars

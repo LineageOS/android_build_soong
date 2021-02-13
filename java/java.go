@@ -533,6 +533,53 @@ func (j *Module) OutputFiles(tag string) (android.Paths, error) {
 
 var _ android.OutputFileProducer = (*Module)(nil)
 
+// JavaInfo contains information about a java module for use by modules that depend on it.
+type JavaInfo struct {
+	// HeaderJars is a list of jars that can be passed as the javac classpath in order to link
+	// against this module.  If empty, ImplementationJars should be used instead.
+	HeaderJars android.Paths
+
+	// ImplementationAndResourceJars is a list of jars that contain the implementations of classes
+	// in the module as well as any resources included in the module.
+	ImplementationAndResourcesJars android.Paths
+
+	// ImplementationJars is a list of jars that contain the implementations of classes in the
+	//module.
+	ImplementationJars android.Paths
+
+	// ResourceJars is a list of jars that contain the resources included in the module.
+	ResourceJars android.Paths
+
+	// AidlIncludeDirs is a list of directories that should be passed to the aidl tool when
+	// depending on this module.
+	AidlIncludeDirs android.Paths
+
+	// SrcJarArgs is a list of arguments to pass to soong_zip to package the sources of this
+	// module.
+	SrcJarArgs []string
+
+	// SrcJarDeps is a list of paths to depend on when packaging the sources of this module.
+	SrcJarDeps android.Paths
+
+	// ExportedPlugins is a list of paths that should be used as annotation processors for any
+	// module that depends on this module.
+	ExportedPlugins android.Paths
+
+	// ExportedPluginClasses is a list of classes that should be run as annotation processors for
+	// any module that depends on this module.
+	ExportedPluginClasses []string
+
+	// ExportedPluginDisableTurbine is true if this module's annotation processors generate APIs,
+	// requiring disbling turbine for any modules that depend on it.
+	ExportedPluginDisableTurbine bool
+
+	// JacocoReportClassesFile is the path to a jar containing uninstrumented classes that will be
+	// instrumented by jacoco.
+	JacocoReportClassesFile android.Path
+}
+
+var JavaInfoProvider = blueprint.NewProvider(JavaInfo{})
+
 // Methods that need to be implemented for a module that is added to apex java_libs property.
 type ApexDependency interface {
 	HeaderJars() android.Paths
@@ -544,18 +591,6 @@ type UsesLibraryDependency interface {
 	DexJarBuildPath() android.Path
 	DexJarInstallPath() android.Path
 	ClassLoaderContexts() dexpreopt.ClassLoaderContextMap
-}
-
-type Dependency interface {
-	ApexDependency
-	UsesLibraryDependency
-	ImplementationJars() android.Paths
-	ResourceJars() android.Paths
-	AidlIncludeDirs() android.Paths
-	ExportedPlugins() (android.Paths, []string, bool)
-	SrcJarArgs() ([]string, android.Paths)
-	BaseModuleName() string
-	JacocoReportClassesFile() android.Path
 }
 
 type xref interface {
@@ -1111,44 +1146,42 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			return
 		}
 
-		switch dep := module.(type) {
-		case SdkLibraryDependency:
+		if dep, ok := module.(SdkLibraryDependency); ok {
 			switch tag {
 			case libTag:
 				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
 			case staticLibTag:
 				ctx.ModuleErrorf("dependency on java_sdk_library %q can only be in libs", otherName)
 			}
-		case Dependency:
+		} else if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
+			dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
 			switch tag {
 			case bootClasspathTag:
-				deps.bootClasspath = append(deps.bootClasspath, dep.HeaderJars()...)
+				deps.bootClasspath = append(deps.bootClasspath, dep.HeaderJars...)
 			case libTag, instrumentationForTag:
-				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
-				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
-				pluginJars, pluginClasses, disableTurbine := dep.ExportedPlugins()
-				addPlugins(&deps, pluginJars, pluginClasses...)
-				deps.disableTurbine = deps.disableTurbine || disableTurbine
+				deps.classpath = append(deps.classpath, dep.HeaderJars...)
+				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs...)
+				addPlugins(&deps, dep.ExportedPlugins, dep.ExportedPluginClasses...)
+				deps.disableTurbine = deps.disableTurbine || dep.ExportedPluginDisableTurbine
 			case java9LibTag:
-				deps.java9Classpath = append(deps.java9Classpath, dep.HeaderJars()...)
+				deps.java9Classpath = append(deps.java9Classpath, dep.HeaderJars...)
 			case staticLibTag:
-				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
-				deps.staticJars = append(deps.staticJars, dep.ImplementationJars()...)
-				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.HeaderJars()...)
-				deps.staticResourceJars = append(deps.staticResourceJars, dep.ResourceJars()...)
-				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
-				pluginJars, pluginClasses, disableTurbine := dep.ExportedPlugins()
-				addPlugins(&deps, pluginJars, pluginClasses...)
+				deps.classpath = append(deps.classpath, dep.HeaderJars...)
+				deps.staticJars = append(deps.staticJars, dep.ImplementationJars...)
+				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.HeaderJars...)
+				deps.staticResourceJars = append(deps.staticResourceJars, dep.ResourceJars...)
+				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs...)
+				addPlugins(&deps, dep.ExportedPlugins, dep.ExportedPluginClasses...)
 				// Turbine doesn't run annotation processors, so any module that uses an
 				// annotation processor that generates API is incompatible with the turbine
 				// optimization.
-				deps.disableTurbine = deps.disableTurbine || disableTurbine
+				deps.disableTurbine = deps.disableTurbine || dep.ExportedPluginDisableTurbine
 			case pluginTag:
-				if plugin, ok := dep.(*Plugin); ok {
+				if plugin, ok := module.(*Plugin); ok {
 					if plugin.pluginProperties.Processor_class != nil {
-						addPlugins(&deps, plugin.ImplementationAndResourcesJars(), *plugin.pluginProperties.Processor_class)
+						addPlugins(&deps, dep.ImplementationAndResourcesJars, *plugin.pluginProperties.Processor_class)
 					} else {
-						addPlugins(&deps, plugin.ImplementationAndResourcesJars())
+						addPlugins(&deps, dep.ImplementationAndResourcesJars)
 					}
 					// Turbine doesn't run annotation processors, so any module that uses an
 					// annotation processor that generates API is incompatible with the turbine
@@ -1158,14 +1191,14 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 					ctx.PropertyErrorf("plugins", "%q is not a java_plugin module", otherName)
 				}
 			case errorpronePluginTag:
-				if plugin, ok := dep.(*Plugin); ok {
-					deps.errorProneProcessorPath = append(deps.errorProneProcessorPath, plugin.ImplementationAndResourcesJars()...)
+				if _, ok := module.(*Plugin); ok {
+					deps.errorProneProcessorPath = append(deps.errorProneProcessorPath, dep.ImplementationAndResourcesJars...)
 				} else {
 					ctx.PropertyErrorf("plugins", "%q is not a java_plugin module", otherName)
 				}
 			case exportedPluginTag:
-				if plugin, ok := dep.(*Plugin); ok {
-					j.exportedPluginJars = append(j.exportedPluginJars, plugin.ImplementationAndResourcesJars()...)
+				if plugin, ok := module.(*Plugin); ok {
+					j.exportedPluginJars = append(j.exportedPluginJars, dep.ImplementationAndResourcesJars...)
 					if plugin.pluginProperties.Processor_class != nil {
 						j.exportedPluginClasses = append(j.exportedPluginClasses, *plugin.pluginProperties.Processor_class)
 					}
@@ -1177,12 +1210,11 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 					ctx.PropertyErrorf("exported_plugins", "%q is not a java_plugin module", otherName)
 				}
 			case kotlinStdlibTag:
-				deps.kotlinStdlib = append(deps.kotlinStdlib, dep.HeaderJars()...)
+				deps.kotlinStdlib = append(deps.kotlinStdlib, dep.HeaderJars...)
 			case kotlinAnnotationsTag:
-				deps.kotlinAnnotations = dep.HeaderJars()
+				deps.kotlinAnnotations = dep.HeaderJars
 			}
-
-		case android.SourceFileProducer:
+		} else if dep, ok := module.(android.SourceFileProducer); ok {
 			switch tag {
 			case libTag:
 				checkProducesJars(ctx, dep)
@@ -1193,7 +1225,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				deps.staticJars = append(deps.staticJars, dep.Srcs()...)
 				deps.staticHeaderJars = append(deps.staticHeaderJars, dep.Srcs()...)
 			}
-		default:
+		} else {
 			switch tag {
 			case bootClasspathTag:
 				// If a system modules dependency has been added to the bootclasspath
@@ -1860,6 +1892,20 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	ctx.CheckbuildFile(outputFile)
 
+	ctx.SetProvider(JavaInfoProvider, JavaInfo{
+		HeaderJars:                     android.PathsIfNonNil(j.headerJarFile),
+		ImplementationAndResourcesJars: android.PathsIfNonNil(j.implementationAndResourcesJar),
+		ImplementationJars:             android.PathsIfNonNil(j.implementationJarFile),
+		ResourceJars:                   android.PathsIfNonNil(j.resourceJar),
+		AidlIncludeDirs:                j.exportAidlIncludeDirs,
+		SrcJarArgs:                     j.srcJarArgs,
+		SrcJarDeps:                     j.srcJarDeps,
+		ExportedPlugins:                j.exportedPluginJars,
+		ExportedPluginClasses:          j.exportedPluginClasses,
+		ExportedPluginDisableTurbine:   j.exportedDisableTurbine,
+		JacocoReportClassesFile:        j.jacocoReportClassesFile,
+	})
+
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
 	j.outputFile = outputFile.WithoutRel()
 }
@@ -1966,8 +2012,6 @@ func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
 
 	return instrumentedJar
 }
-
-var _ Dependency = (*Module)(nil)
 
 func (j *Module) HeaderJars() android.Paths {
 	if j.headerJarFile == nil {
@@ -2880,15 +2924,15 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.VisitDirectDeps(func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
 
-		switch dep := module.(type) {
-		case Dependency:
+		if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
+			dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
 			switch tag {
 			case libTag, staticLibTag:
-				flags.classpath = append(flags.classpath, dep.HeaderJars()...)
+				flags.classpath = append(flags.classpath, dep.HeaderJars...)
 			case bootClasspathTag:
-				flags.bootClasspath = append(flags.bootClasspath, dep.HeaderJars()...)
+				flags.bootClasspath = append(flags.bootClasspath, dep.HeaderJars...)
 			}
-		case SdkLibraryDependency:
+		} else if dep, ok := module.(SdkLibraryDependency); ok {
 			switch tag {
 			case libTag:
 				flags.classpath = append(flags.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
@@ -2964,6 +3008,13 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			j.dexJarFile = dexOutputFile
 		}
 	}
+
+	ctx.SetProvider(JavaInfoProvider, JavaInfo{
+		HeaderJars:                     android.PathsIfNonNil(j.combinedClasspathFile),
+		ImplementationAndResourcesJars: android.PathsIfNonNil(j.combinedClasspathFile),
+		ImplementationJars:             android.PathsIfNonNil(j.combinedClasspathFile),
+		AidlIncludeDirs:                j.exportAidlIncludeDirs,
+	})
 }
 
 func (j *Import) OutputFiles(tag string) (android.Paths, error) {
@@ -2976,8 +3027,6 @@ func (j *Import) OutputFiles(tag string) (android.Paths, error) {
 }
 
 var _ android.OutputFileProducer = (*Import)(nil)
-
-var _ Dependency = (*Import)(nil)
 
 func (j *Import) HeaderJars() android.Paths {
 	if j.combinedClasspathFile == nil {
