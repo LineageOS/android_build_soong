@@ -223,7 +223,7 @@ func stubFlagsRule(ctx android.SingletonContext) {
 
 	ctx.VisitAllModules(func(module android.Module) {
 		// Collect dex jar paths for the modules listed above.
-		if j, ok := module.(Dependency); ok {
+		if j, ok := module.(UsesLibraryDependency); ok {
 			name := ctx.ModuleName(module)
 			for moduleList, pathList := range moduleListToPathList {
 				if i := android.IndexList(name, *moduleList); i != -1 {
