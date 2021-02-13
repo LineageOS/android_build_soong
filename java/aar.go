@@ -28,7 +28,6 @@ import (
 )
 
 type AndroidLibraryDependency interface {
-	Dependency
 	ExportPackage() android.Path
 	ExportedProguardFlagFiles() android.Paths
 	ExportedRRODirs() []rroDir
@@ -796,9 +795,13 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	aapt2Link(ctx, a.exportPackage, srcJar, proguardOptionsFile, rTxt, a.extraAaptPackagesFile,
 		linkFlags, linkDeps, nil, overlayRes, transitiveAssets, nil)
-}
 
-var _ Dependency = (*AARImport)(nil)
+	ctx.SetProvider(JavaInfoProvider, JavaInfo{
+		HeaderJars:                     android.PathsIfNonNil(a.classpathFile),
+		ImplementationAndResourcesJars: android.PathsIfNonNil(a.classpathFile),
+		ImplementationJars:             android.PathsIfNonNil(a.classpathFile),
+	})
+}
 
 func (a *AARImport) HeaderJars() android.Paths {
 	return android.Paths{a.classpathFile}

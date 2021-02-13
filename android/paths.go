@@ -1949,3 +1949,28 @@ type DataPath struct {
 	// The install path of the data file, relative to the install root.
 	RelativeInstallPath string
 }
+
+// PathsIfNonNil returns a Paths containing only the non-nil input arguments.
+func PathsIfNonNil(paths ...Path) Paths {
+	if len(paths) == 0 {
+		// Fast path for empty argument list
+		return nil
+	} else if len(paths) == 1 {
+		// Fast path for a single argument
+		if paths[0] != nil {
+			return paths
+		} else {
+			return nil
+		}
+	}
+	ret := make(Paths, 0, len(paths))
+	for _, path := range paths {
+		if path != nil {
+			ret = append(ret, path)
+		}
+	}
+	if len(ret) == 0 {
+		return nil
+	}
+	return ret
+}
