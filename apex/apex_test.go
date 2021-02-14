@@ -4364,7 +4364,7 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 
 	checkDexJarBuildPath := func(t *testing.T, ctx *android.TestContext, name string) {
 		// Make sure the import has been given the correct path to the dex jar.
-		p := ctx.ModuleForTests(name, "android_common_myapex").Module().(java.Dependency)
+		p := ctx.ModuleForTests(name, "android_common_myapex").Module().(java.UsesLibraryDependency)
 		dexJarBuildPath := p.DexJarBuildPath()
 		if expected, actual := ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar", android.NormalizePathForTesting(dexJarBuildPath); actual != expected {
 			t.Errorf("Incorrect DexJarBuildPath value '%s', expected '%s'", actual, expected)
