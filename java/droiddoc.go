@@ -470,8 +470,9 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 
 		switch tag {
 		case bootClasspathTag:
-			if dep, ok := module.(Dependency); ok {
-				deps.bootClasspath = append(deps.bootClasspath, dep.ImplementationJars()...)
+			if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
+				dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+				deps.bootClasspath = append(deps.bootClasspath, dep.ImplementationJars...)
 			} else if sm, ok := module.(SystemModulesProvider); ok {
 				// A system modules dependency has been added to the bootclasspath
 				// so add its libs to the bootclasspath.
@@ -480,23 +481,23 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 				panic(fmt.Errorf("unknown dependency %q for %q", otherName, ctx.ModuleName()))
 			}
 		case libTag:
-			switch dep := module.(type) {
-			case SdkLibraryDependency:
+			if dep, ok := module.(SdkLibraryDependency); ok {
 				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
-			case Dependency:
-				deps.classpath = append(deps.classpath, dep.HeaderJars()...)
-				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs()...)
-			case android.SourceFileProducer:
+			} else if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
+				dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+				deps.classpath = append(deps.classpath, dep.HeaderJars...)
+				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs...)
+			} else if dep, ok := module.(android.SourceFileProducer); ok {
 				checkProducesJars(ctx, dep)
 				deps.classpath = append(deps.classpath, dep.Srcs()...)
-			default:
+			} else {
 				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
 		case java9LibTag:
-			switch dep := module.(type) {
-			case Dependency:
-				deps.java9Classpath = append(deps.java9Classpath, dep.HeaderJars()...)
-			default:
+			if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
+				dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
+				deps.java9Classpath = append(deps.java9Classpath, dep.HeaderJars...)
+			} else {
 				ctx.ModuleErrorf("depends on non-java module %q", otherName)
 			}
 		case systemModulesTag:

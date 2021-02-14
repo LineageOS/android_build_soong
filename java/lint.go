@@ -276,8 +276,9 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	extraLintCheckModules := ctx.GetDirectDepsWithTag(extraLintCheckTag)
 	for _, extraLintCheckModule := range extraLintCheckModules {
-		if dep, ok := extraLintCheckModule.(Dependency); ok {
-			l.extraLintCheckJars = append(l.extraLintCheckJars, dep.ImplementationAndResourcesJars()...)
+		if ctx.OtherModuleHasProvider(extraLintCheckModule, JavaInfoProvider) {
+			dep := ctx.OtherModuleProvider(extraLintCheckModule, JavaInfoProvider).(JavaInfo)
+			l.extraLintCheckJars = append(l.extraLintCheckJars, dep.ImplementationAndResourcesJars...)
 		} else {
 			ctx.PropertyErrorf("lint.extra_check_modules",
 				"%s is not a java module", ctx.OtherModuleName(extraLintCheckModule))
