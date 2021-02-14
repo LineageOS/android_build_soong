@@ -64,6 +64,14 @@ func testRust(t *testing.T, bp string) *android.TestContext {
 	return tctx.parse(t)
 }
 
+func testRustVndk(t *testing.T, bp string) *android.TestContext {
+	tctx := newTestRustCtx(t, bp)
+	tctx.useMockedFs()
+	tctx.generateConfig()
+	tctx.setVndk(t)
+	return tctx.parse(t)
+}
+
 // testRustCov returns a TestContext in which a basic environment has been
 // setup. This environment explicitly enables coverage.
 func testRustCov(t *testing.T, bp string) *android.TestContext {
@@ -138,6 +146,15 @@ func (tctx *testRustCtx) enableCoverage(t *testing.T) {
 	tctx.config.TestProductVariables.ClangCoverage = proptools.BoolPtr(true)
 	tctx.config.TestProductVariables.Native_coverage = proptools.BoolPtr(true)
 	tctx.config.TestProductVariables.NativeCoveragePaths = []string{"*"}
+}
+
+func (tctx *testRustCtx) setVndk(t *testing.T) {
+	if tctx.config == nil {
+		t.Fatalf("tctx.config not been generated yet. Please call generateConfig first.")
+	}
+	tctx.config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
+	tctx.config.TestProductVariables.ProductVndkVersion = StringPtr("current")
+	tctx.config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 }
 
 // parse validates the configuration and parses the Blueprint file. It returns
