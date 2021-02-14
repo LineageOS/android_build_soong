@@ -148,10 +148,10 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	}
 
 	for _, dep := range ctx.GetDirectDepsWithTag(libTag) {
-		m := dep.(Dependency)
-		r.libs = append(r.libs, m.BaseModuleName())
-		if !android.InList(m.BaseModuleName(), config.FrameworkLibraries) {
-			combinedJarJars = append(combinedJarJars, m.ImplementationAndResourcesJars()...)
+		m := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+		r.libs = append(r.libs, ctx.OtherModuleName(dep))
+		if !android.InList(ctx.OtherModuleName(dep), config.FrameworkLibraries) {
+			combinedJarJars = append(combinedJarJars, m.ImplementationAndResourcesJars...)
 		}
 	}
 
@@ -245,10 +245,10 @@ func (r *robolectricTest) generateRoboSrcJar(ctx android.ModuleContext, outputFi
 	srcJarDeps := append(android.Paths(nil), instrumentedApp.srcJarDeps...)
 
 	for _, m := range ctx.GetDirectDepsWithTag(roboCoverageLibsTag) {
-		if dep, ok := m.(Dependency); ok {
-			depSrcJarArgs, depSrcJarDeps := dep.SrcJarArgs()
-			srcJarArgs = append(srcJarArgs, depSrcJarArgs...)
-			srcJarDeps = append(srcJarDeps, depSrcJarDeps...)
+		if ctx.OtherModuleHasProvider(m, JavaInfoProvider) {
+			dep := ctx.OtherModuleProvider(m, JavaInfoProvider).(JavaInfo)
+			srcJarArgs = append(srcJarArgs, dep.SrcJarArgs...)
+			srcJarDeps = append(srcJarDeps, dep.SrcJarDeps...)
 		}
 	}
 

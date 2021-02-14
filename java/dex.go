@@ -204,8 +204,9 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 	// - prevent ProGuard stripping subclass in the support library that extends class added in the higher SDK version.
 	// See b/20667396
 	var proguardRaiseDeps classpath
-	ctx.VisitDirectDepsWithTag(proguardRaiseTag, func(dep android.Module) {
-		proguardRaiseDeps = append(proguardRaiseDeps, dep.(Dependency).HeaderJars()...)
+	ctx.VisitDirectDepsWithTag(proguardRaiseTag, func(m android.Module) {
+		dep := ctx.OtherModuleProvider(m, JavaInfoProvider).(JavaInfo)
+		proguardRaiseDeps = append(proguardRaiseDeps, dep.HeaderJars...)
 	})
 
 	r8Flags = append(r8Flags, proguardRaiseDeps.FormJavaClassPath("-libraryjars"))
