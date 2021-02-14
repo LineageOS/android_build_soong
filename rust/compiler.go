@@ -232,6 +232,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 		flags.LinkFlags = append(flags.LinkFlags, "-Wl,-rpath,"+rpathPrefix+"../"+rpath)
 	}
 
+	if ctx.RustModule().UseVndk() {
+		flags.RustFlags = append(flags.RustFlags, "--cfg 'android_vndk'")
+	}
+
 	return flags
 }
 
