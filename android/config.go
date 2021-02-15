@@ -113,7 +113,7 @@ type config struct {
 
 	// If testAllowNonExistentPaths is true then PathForSource and PathForModuleSrc won't error
 	// in tests when a path doesn't exist.
-	testAllowNonExistentPaths bool
+	TestAllowNonExistentPaths bool
 
 	OncePer
 }
@@ -237,7 +237,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 
 		// Set testAllowNonExistentPaths so that test contexts don't need to specify every path
 		// passed to PathForSource or PathForModuleSrc.
-		testAllowNonExistentPaths: true,
+		TestAllowNonExistentPaths: true,
 	}
 	config.deviceConfig = &deviceConfig{
 		config: config,
