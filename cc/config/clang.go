@@ -150,6 +150,8 @@ func init() {
 		"-Wunguarded-availability",
 		// This macro allows the bionic versioning.h to indirectly determine whether the
 		// option -Wunguarded-availability is on or not.
+		"-D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__",
+		// TODO: remove this once prebuilt SDKs are only using the above macro instead.
 		"-D__ANDROID_UNGUARDED_AVAILABILITY__",
 	}, " "))
 
