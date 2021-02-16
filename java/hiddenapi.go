@@ -254,6 +254,7 @@ func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJa
 	rule.Command().
 		BuiltTool("merge_csv").
 		Flag("--zip_input").
+		Flag("--key_field signature").
 		FlagWithOutput("--output=", indexCSV).
 		Inputs(classesJars)
 	rule.Build("merged-hiddenapi-index", "Merged Hidden API index")
