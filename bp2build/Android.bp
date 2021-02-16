@@ -22,6 +22,7 @@ bootstrap_go_package {
         "build_conversion_test.go",
         "bzl_conversion_test.go",
         "conversion_test.go",
+        "sh_conversion_test.go",
         "testing.go",
     ],
     pluginFor: [
