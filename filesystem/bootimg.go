@@ -38,6 +38,9 @@ type bootimg struct {
 }
 
 type bootimgProperties struct {
+	// Set the name of the output. Defaults to <module_name>.img.
+	Stem *string
+
 	// Path to the linux kernel prebuilt file
 	Kernel_prebuilt *string `android:"arch_variant,path"`
 
@@ -96,7 +99,7 @@ func (b *bootimg) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (b *bootimg) installFileName() string {
-	return b.BaseModuleName() + ".img"
+	return proptools.StringDefault(b.properties.Stem, b.BaseModuleName()+".img")
 }
 
 func (b *bootimg) partitionName() string {
@@ -110,6 +113,7 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	} else {
 		// TODO(jiyong): fix this
 		ctx.PropertyErrorf("vendor_boot", "only vendor_boot:true is supported")
+		return
 	}
 
 	if proptools.Bool(b.properties.Use_avb) {
@@ -123,7 +127,8 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func (b *bootimg) buildVendorBootImage(ctx android.ModuleContext) android.OutputPath {
-	output := android.PathForModuleOut(ctx, "unsigned.img").OutputPath
+	output := android.PathForModuleOut(ctx, "unsigned", b.installFileName()).OutputPath
+
 	builder := android.NewRuleBuilder(pctx, ctx)
 	cmd := builder.Command().BuiltTool("mkbootimg")
 
@@ -182,21 +187,20 @@ func (b *bootimg) buildVendorBootImage(ctx android.ModuleContext) android.Output
 }
 
 func (b *bootimg) signImage(ctx android.ModuleContext, unsignedImage android.OutputPath) android.OutputPath {
-	signedImage := android.PathForModuleOut(ctx, "signed.img").OutputPath
+	output := android.PathForModuleOut(ctx, b.installFileName()).OutputPath
 	key := android.PathForModuleSrc(ctx, proptools.String(b.properties.Avb_private_key))
 
 	builder := android.NewRuleBuilder(pctx, ctx)
-	builder.Command().Text("cp").Input(unsignedImage).Output(signedImage)
+	builder.Command().Text("cp").Input(unsignedImage).Output(output)
 	builder.Command().
 		BuiltTool("avbtool").
 		Flag("add_hash_footer").
 		FlagWithArg("--partition_name ", b.partitionName()).
 		FlagWithInput("--key ", key).
-		FlagWithOutput("--image ", signedImage)
+		FlagWithOutput("--image ", output)
 
 	builder.Build("sign_bootimg", fmt.Sprintf("Signing %s", b.BaseModuleName()))
-
-	return signedImage
+	return output
 }
 
 var _ android.AndroidMkEntriesProvider = (*bootimg)(nil)
