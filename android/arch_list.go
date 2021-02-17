@@ -41,6 +41,7 @@ var archVariants = map[ArchType][]string{
 	},
 	Arm64: {
 		"armv8_a",
+		"armv8_a_branchprot",
 		"armv8_2a",
 		"armv8-2a-dotprod",
 		"cortex-a53",
