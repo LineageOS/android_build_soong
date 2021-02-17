@@ -39,7 +39,9 @@ class EnforceUsesLibrariesTest(unittest.TestCase):
   def run_test(self, input_manifest, uses_libraries=None, optional_uses_libraries=None):
     doc = minidom.parseString(input_manifest)
     try:
-      manifest_check.enforce_uses_libraries(doc, uses_libraries, optional_uses_libraries)
+      relax = False
+      manifest_check.enforce_uses_libraries(doc, uses_libraries,
+        optional_uses_libraries, relax)
       return True
     except manifest_check.ManifestMismatchError:
       return False
