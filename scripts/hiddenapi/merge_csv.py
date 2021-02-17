@@ -26,7 +26,8 @@ from zipfile import ZipFile
 args_parser = argparse.ArgumentParser(description='Merge given CSV files into a single one.')
 args_parser.add_argument('--header', help='Comma separated field names; '
                                           'if missing determines the header from input files.')
-args_parser.add_argument('--zip_input', help='ZIP archive with all CSV files to merge.')
+args_parser.add_argument('--zip_input', help='Treat files as ZIP archives containing CSV files to merge.',
+                         action="store_true")
 args_parser.add_argument('--output', help='Output file for merged CSV.',
                          default='-', type=argparse.FileType('w'))
 args_parser.add_argument('files', nargs=argparse.REMAINDER)
@@ -36,20 +37,16 @@ args = args_parser.parse_args()
 def dict_reader(input):
     return csv.DictReader(input, delimiter=',', quotechar='|')
 
-
-if args.zip_input and len(args.files) > 0:
-    raise ValueError('Expecting either a single ZIP with CSV files'
-                     ' or a list of CSV files as input; not both.')
-
 csv_readers = []
-if len(args.files) > 0:
+if not(args.zip_input):
     for file in args.files:
         csv_readers.append(dict_reader(open(file, 'r')))
-elif args.zip_input:
-    with ZipFile(args.zip_input) as zip:
-        for entry in zip.namelist():
-            if entry.endswith('.uau'):
-                csv_readers.append(dict_reader(io.TextIOWrapper(zip.open(entry, 'r'))))
+else:
+    for file in args.files:
+        with ZipFile(file) as zip:
+            for entry in zip.namelist():
+                if entry.endswith('.uau'):
+                    csv_readers.append(dict_reader(io.TextIOWrapper(zip.open(entry, 'r'))))
 
 headers = set()
 if args.header:
