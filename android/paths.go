@@ -395,6 +395,9 @@ func BazelLabelForModuleSrcExcludes(ctx BazelConversionPathContext, paths, exclu
 // `android:"path"` so that dependencies on other modules will have already been handled by the
 // path_properties mutator.
 func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes []string) bazel.LabelList {
+	if paths == nil {
+		return bazel.LabelList{}
+	}
 	labels := bazel.LabelList{
 		Includes: []bazel.Label{},
 	}
