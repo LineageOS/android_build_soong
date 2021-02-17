@@ -87,27 +87,11 @@ func init() {
 		}, ",")
 	})
 
-	// Give warnings to header files only in selected directories.
-	// Do not give warnings to external or vendor header files, which contain too
-	// many warnings.
+	// To reduce duplicate warnings from the same header files,
+	// header-filter will contain only the module directory and
+	// those specified by DEFAULT_TIDY_HEADER_DIRS.
 	pctx.VariableFunc("TidyDefaultHeaderDirs", func(ctx android.PackageVarContext) string {
-		if override := ctx.Config().Getenv("DEFAULT_TIDY_HEADER_DIRS"); override != "" {
-			return override
-		}
-		return strings.Join([]string{
-			"art/",
-			"bionic/",
-			"bootable/",
-			"build/",
-			"cts/",
-			"dalvik/",
-			"developers/",
-			"development/",
-			"frameworks/",
-			"libcore/",
-			"libnativehelper/",
-			"system/",
-		}, "|")
+		return ctx.Config().Getenv("DEFAULT_TIDY_HEADER_DIRS")
 	})
 
 	// Use WTIH_TIDY_FLAGS to pass extra global default clang-tidy flags.
