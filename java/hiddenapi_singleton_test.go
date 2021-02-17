@@ -82,10 +82,20 @@ func TestHiddenAPIIndexSingleton(t *testing.T) {
 			name: "foo",
 			srcs: ["a.java"],
 			compile_dex: true,
+
+			hiddenapi_additional_annotations: [
+				"foo-hiddenapi-annotations",
+			],
 		}
 
 		java_library {
 			name: "foo-hiddenapi",
+			srcs: ["a.java"],
+			compile_dex: true,
+		}
+
+		java_library {
+			name: "foo-hiddenapi-annotations",
 			srcs: ["a.java"],
 			compile_dex: true,
 		}
@@ -112,6 +122,15 @@ func TestHiddenAPIIndexSingleton(t *testing.T) {
 .intermediates/foo/android_common/hiddenapi/index.csv
 `,
 		indexRule)
+
+	// Make sure that the foo-hiddenapi-annotations.jar is included in the inputs to the rules that
+	// creates the index.csv file.
+	foo := ctx.ModuleForTests("foo", "android_common")
+	indexParams := foo.Output("hiddenapi/index.csv")
+	CheckHiddenAPIRuleInputs(t, `
+.intermediates/foo-hiddenapi-annotations/android_common/javac/foo-hiddenapi-annotations.jar
+.intermediates/foo/android_common/javac/foo.jar
+`, indexParams)
 }
 
 func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {

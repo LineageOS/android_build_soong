@@ -17,7 +17,6 @@ package bp2build
 import (
 	"android/soong/android"
 	"android/soong/genrule"
-	"android/soong/sh"
 	"strings"
 	"testing"
 )
@@ -358,12 +357,6 @@ load("//build/bazel/rules:java.bzl", "java_binary")`,
 					ruleClass: "genrule",
 					// Note: no bzlLoadLocation for native rules
 				},
-				BazelTarget{
-					name:      "sh_binary_target",
-					ruleClass: "sh_binary",
-					// Note: no bzlLoadLocation for native rules
-					// TODO(ruperts): Could open source the existing, experimental Starlark sh_ rules?
-				},
 			},
 			expectedLoadStatements: `load("//build/bazel/rules:cc.bzl", "cc_binary")
 load("//build/bazel/rules:java.bzl", "java_binary")`,
@@ -475,6 +468,21 @@ genrule {
 		fs                                 map[string]string
 		dir                                string
 	}{
+		{
+			description:                        "filegroup with does not specify srcs",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp: `filegroup {
+    name: "fg_foo",
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{
+				`filegroup(
+    name = "fg_foo",
+)`,
+			},
+		},
 		{
 			description:                        "filegroup with no srcs",
 			moduleTypeUnderTest:                "filegroup",
@@ -859,23 +867,6 @@ genrule {
     ],
 )`,
 			},
-		},
-		{
-			description:                        "sh_binary test",
-			moduleTypeUnderTest:                "sh_binary",
-			moduleTypeUnderTestFactory:         sh.ShBinaryFactory,
-			moduleTypeUnderTestBp2BuildMutator: sh.ShBinaryBp2Build,
-			bp: `sh_binary {
-    name: "foo",
-    src: "foo.sh",
-    bazel_module: { bp2build_available: true },
-}`,
-			expectedBazelTargets: []string{`sh_binary(
-    name = "foo",
-    srcs = [
-        "foo.sh",
-    ],
-)`},
 		},
 	}
 

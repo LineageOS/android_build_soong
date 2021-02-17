@@ -298,6 +298,9 @@ type CompilerProperties struct {
 
 	// If true, package the kotlin stdlib into the jar.  Defaults to true.
 	Static_kotlin_stdlib *bool `android:"arch_variant"`
+
+	// A list of java_library instances that provide additional hiddenapi annotations for the library.
+	Hiddenapi_additional_annotations []string
 }
 
 type CompilerDeviceProperties struct {
@@ -839,6 +842,9 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 
 	libDeps := ctx.AddVariationDependencies(nil, libTag, rewriteSyspropLibs(j.properties.Libs, "libs")...)
 	ctx.AddVariationDependencies(nil, staticLibTag, rewriteSyspropLibs(j.properties.Static_libs, "static_libs")...)
+
+	// Add dependency on libraries that provide additional hidden api annotations.
+	ctx.AddVariationDependencies(nil, hiddenApiAnnotationsTag, j.properties.Hiddenapi_additional_annotations...)
 
 	if ctx.DeviceConfig().VndkVersion() != "" && ctx.Config().EnforceInterPartitionJavaSdkLibrary() {
 		// Require java_sdk_library at inter-partition java dependency to ensure stable
@@ -2426,7 +2432,7 @@ type testProperties struct {
 
 	// list of files or filegroup modules that provide data that should be installed alongside
 	// the test
-	Data []string `android:"path,arch_variant"`
+	Data []string `android:"path"`
 
 	// Flag to indicate whether or not to create test config automatically. If AndroidTest.xml
 	// doesn't exist next to the Android.bp, this attribute doesn't need to be set to true
