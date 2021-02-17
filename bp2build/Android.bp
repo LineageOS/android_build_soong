@@ -15,12 +15,14 @@ bootstrap_go_package {
     deps: [
         "soong-android",
         "soong-bazel",
+        "soong-cc",
         "soong-genrule",
         "soong-sh",
     ],
     testSrcs: [
         "build_conversion_test.go",
         "bzl_conversion_test.go",
+        "cc_conversion_test.go",
         "conversion_test.go",
         "sh_conversion_test.go",
         "testing.go",
