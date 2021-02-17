@@ -31,6 +31,10 @@ var (
 		"armv8-a": []string{
 			"-march=armv8-a",
 		},
+		"armv8-a-branchprot": []string{
+			"-march=armv8-a",
+			"-mbranch-protection=standard",
+		},
 		"armv8-2a": []string{
 			"-march=armv8.2-a",
 		},
@@ -102,6 +106,7 @@ func init() {
 	pctx.StaticVariable("Arm64ClangCppflags", strings.Join(ClangFilterUnknownCflags(arm64Cppflags), " "))
 
 	pctx.StaticVariable("Arm64ClangArmv8ACflags", strings.Join(arm64ArchVariantCflags["armv8-a"], " "))
+	pctx.StaticVariable("Arm64ClangArmv8ABranchProtCflags", strings.Join(arm64ArchVariantCflags["armv8-a-branchprot"], " "))
 	pctx.StaticVariable("Arm64ClangArmv82ACflags", strings.Join(arm64ArchVariantCflags["armv8-2a"], " "))
 	pctx.StaticVariable("Arm64ClangArmv82ADotprodCflags", strings.Join(arm64ArchVariantCflags["armv8-2a-dotprod"], " "))
 
@@ -124,6 +129,7 @@ func init() {
 var (
 	arm64ClangArchVariantCflagsVar = map[string]string{
 		"armv8-a":  "${config.Arm64ClangArmv8ACflags}",
+		"armv8-a-branchprot": "${config.Arm64ClangArmv8ABranchProtCflags}",
 		"armv8-2a": "${config.Arm64ClangArmv82ACflags}",
 		"armv8-2a-dotprod": "${config.Arm64ClangArmv82ADotprodCflags}",
 	}
@@ -202,6 +208,7 @@ func (toolchainArm64) LibclangRuntimeLibraryArch() string {
 func arm64ToolchainFactory(arch android.Arch) Toolchain {
 	switch arch.ArchVariant {
 	case "armv8-a":
+	case "armv8-a-branchprot":
 	case "armv8-2a":
 	case "armv8-2a-dotprod":
 		// Nothing extra for armv8-a/armv8-2a
