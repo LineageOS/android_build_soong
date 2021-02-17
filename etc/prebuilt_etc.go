@@ -28,6 +28,8 @@ package etc
 // various `prebuilt_*` mutators.
 
 import (
+	"fmt"
+
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -206,6 +208,17 @@ func (p *PrebuiltEtc) SetAdditionalDependencies(paths android.Paths) {
 
 func (p *PrebuiltEtc) OutputFile() android.OutputPath {
 	return p.outputFilePath
+}
+
+var _ android.OutputFileProducer = (*PrebuiltEtc)(nil)
+
+func (p *PrebuiltEtc) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return android.Paths{p.outputFilePath}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
 }
 
 func (p *PrebuiltEtc) SubDir() string {

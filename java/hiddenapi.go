@@ -221,13 +221,19 @@ func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJa
 		return
 	}
 
+	classesJars := android.Paths{classesJar}
+	ctx.VisitDirectDepsWithTag(hiddenApiAnnotationsTag, func(dep android.Module) {
+		javaInfo := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+		classesJars = append(classesJars, javaInfo.ImplementationJars...)
+	})
+
 	stubFlagsCSV := hiddenAPISingletonPaths(ctx).stubFlags
 
 	flagsCSV := android.PathForModuleOut(ctx, "hiddenapi", "flags.csv")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        hiddenAPIGenerateCSVRule,
 		Description: "hiddenapi flags",
-		Input:       classesJar,
+		Inputs:      classesJars,
 		Output:      flagsCSV,
 		Implicit:    stubFlagsCSV,
 		Args: map[string]string{
@@ -241,7 +247,7 @@ func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJa
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        hiddenAPIGenerateCSVRule,
 		Description: "hiddenapi metadata",
-		Input:       classesJar,
+		Inputs:      classesJars,
 		Output:      metadataCSV,
 		Implicit:    stubFlagsCSV,
 		Args: map[string]string{
@@ -255,8 +261,9 @@ func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJa
 	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
 		BuiltTool("merge_csv").
-		FlagWithInput("--zip_input=", classesJar).
-		FlagWithOutput("--output=", indexCSV)
+		Flag("--zip_input").
+		FlagWithOutput("--output=", indexCSV).
+		Inputs(classesJars)
 	rule.Build("merged-hiddenapi-index", "Merged Hidden API index")
 	h.indexCSVPath = indexCSV
 
@@ -335,3 +342,16 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, 
 		TransformZipAlign(ctx, output, tmpOutput)
 	}
 }
+
+type hiddenApiAnnotationsDependencyTag struct {
+	blueprint.BaseDependencyTag
+}
+
+// Tag used to mark dependencies on java_library instances that contains Java source files whose
+// sole purpose is to provide additional hiddenapi annotations.
+var hiddenApiAnnotationsTag hiddenApiAnnotationsDependencyTag
+
+// Mark this tag so dependencies that use it are excluded from APEX contents.
+func (t hiddenApiAnnotationsDependencyTag) ExcludeFromApexContents() {}
+
+var _ android.ExcludeFromApexContentsTag = hiddenApiAnnotationsTag
