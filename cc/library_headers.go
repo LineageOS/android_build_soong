@@ -14,13 +14,18 @@
 
 package cc
 
-import "android/soong/android"
+import (
+	"android/soong/android"
+	"android/soong/bazel"
+)
 
 func init() {
 	RegisterLibraryHeadersBuildComponents(android.InitRegistrationContext)
 
 	// Register sdk member types.
 	android.RegisterSdkMemberType(headersLibrarySdkMemberType)
+
+	android.RegisterBp2BuildMutator("cc_library_headers", CcLibraryHeadersBp2Build)
 }
 
 var headersLibrarySdkMemberType = &librarySdkMemberType{
@@ -55,3 +60,86 @@ func prebuiltLibraryHeaderFactory() android.Module {
 	library.HeaderOnly()
 	return module.Init()
 }
+
+type bazelCcLibraryHeadersAttributes struct {
+	Hdrs     bazel.LabelList
+	Includes bazel.LabelList
+	Deps     bazel.LabelList
+}
+
+type bazelCcLibraryHeaders struct {
+	android.BazelTargetModuleBase
+	bazelCcLibraryHeadersAttributes
+}
+
+func BazelCcLibraryHeadersFactory() android.Module {
+	module := &bazelCcLibraryHeaders{}
+	module.AddProperties(&module.bazelCcLibraryHeadersAttributes)
+	android.InitBazelTargetModule(module)
+	return module
+}
+
+func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
+	module, ok := ctx.Module().(*Module)
+	if !ok {
+		// Not a cc module
+		return
+	}
+
+	lib, ok := module.linker.(*libraryDecorator)
+	if !ok {
+		// Not a cc_library module
+		return
+	}
+	if !lib.header() {
+		// Not a cc_library_headers module
+		return
+	}
+
+	if !lib.Properties.Bazel_module.Bp2build_available {
+		return
+	}
+
+	// list of directories that will be added to the include path (using -I) for this
+	// module and any module that links against this module.
+	includeDirs := lib.flagExporter.Properties.Export_system_include_dirs
+	includeDirs = append(includeDirs, lib.flagExporter.Properties.Export_include_dirs...)
+	includeDirLabels := android.BazelLabelForModuleSrc(ctx, includeDirs)
+
+	var includeDirGlobs []string
+	for _, includeDir := range includeDirs {
+		includeDirGlobs = append(includeDirGlobs, includeDir+"/**/*.h")
+	}
+
+	headerLabels := android.BazelLabelForModuleSrc(ctx, includeDirGlobs)
+
+	// list of modules that should only provide headers for this module.
+	var headerLibs []string
+	for _, linkerProps := range lib.linkerProps() {
+		if baseLinkerProps, ok := linkerProps.(*BaseLinkerProperties); ok {
+			headerLibs = baseLinkerProps.Export_header_lib_headers
+			break
+		}
+	}
+	headerLibLabels := android.BazelLabelForModuleDeps(ctx, headerLibs)
+
+	attrs := &bazelCcLibraryHeadersAttributes{
+		Includes: includeDirLabels,
+		Hdrs:     headerLabels,
+		Deps:     headerLibLabels,
+	}
+
+	props := bazel.NewBazelTargetModuleProperties(
+		module.Name(),
+		"cc_library_headers",
+		"//build/bazel/rules:cc_library_headers.bzl",
+	)
+
+	ctx.CreateBazelTargetModule(BazelCcLibraryHeadersFactory, props, attrs)
+}
+
+func (m *bazelCcLibraryHeaders) Name() string {
+	return m.BaseModuleName()
+}
+
+func (m *bazelCcLibraryHeaders) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
