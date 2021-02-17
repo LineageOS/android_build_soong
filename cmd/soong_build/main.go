@@ -198,7 +198,6 @@ func runBp2Build(srcDir string, configuration android.Config) {
 	if err != nil {
 		panic(err)
 	}
-	extraNinjaDepsString := strings.Join(extraNinjaDeps, " \\\n ")
 
 	// Run the loading and analysis pipeline to prepare the graph of regular
 	// Modules parsed from Android.bp files, and the BazelTargetModules mapped
@@ -214,6 +213,9 @@ func runBp2Build(srcDir string, configuration android.Config) {
 	// for queryview, since that's a total repo-wide conversion and there's a
 	// 1:1 mapping for each module.
 	metrics.Print()
+
+	extraNinjaDeps = append(extraNinjaDeps, codegenContext.AdditionalNinjaDeps()...)
+	extraNinjaDepsString := strings.Join(extraNinjaDeps, " \\\n ")
 
 	// Workarounds to support running bp2build in a clean AOSP checkout with no
 	// prior builds, and exiting early as soon as the BUILD files get generated,
