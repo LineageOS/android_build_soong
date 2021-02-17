@@ -208,6 +208,9 @@ type ApexNativeDependencies struct {
 
 	// List of native tests that are embedded inside this APEX.
 	Tests []string
+
+	// List of filesystem images that are embedded inside this APEX bundle.
+	Filesystems []string
 }
 
 type apexMultilibProperties struct {
@@ -580,6 +583,7 @@ func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext, nativeM
 	ctx.AddFarVariationDependencies(libVariations, jniLibTag, nativeModules.Jni_libs...)
 	ctx.AddFarVariationDependencies(libVariations, sharedLibTag, nativeModules.Native_shared_libs...)
 	ctx.AddFarVariationDependencies(rustLibVariations, sharedLibTag, nativeModules.Rust_dyn_libs...)
+	ctx.AddFarVariationDependencies(target.Variations(), fsTag, nativeModules.Filesystems...)
 }
 
 func (a *apexBundle) combineProperties(ctx android.BottomUpMutatorContext) {
