@@ -469,6 +469,21 @@ genrule {
 		dir                                string
 	}{
 		{
+			description:                        "filegroup with does not specify srcs",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp: `filegroup {
+    name: "fg_foo",
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{
+				`filegroup(
+    name = "fg_foo",
+)`,
+			},
+		},
+		{
 			description:                        "filegroup with no srcs",
 			moduleTypeUnderTest:                "filegroup",
 			moduleTypeUnderTestFactory:         android.FileGroupFactory,
