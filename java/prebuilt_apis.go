@@ -106,14 +106,18 @@ func createImport(mctx android.LoadHookContext, module, scope, apiver, path, sdk
 	mctx.CreateModule(ImportFactory, &props)
 }
 
-func createFilegroup(mctx android.LoadHookContext, name string, path string) {
-	filegroupProps := struct {
+func createApiModule(mctx android.LoadHookContext, name string, path string) {
+	genruleProps := struct {
 		Name *string
 		Srcs []string
+		Out  []string
+		Cmd  *string
 	}{}
-	filegroupProps.Name = proptools.StringPtr(name)
-	filegroupProps.Srcs = []string{path}
-	mctx.CreateModule(android.FileGroupFactory, &filegroupProps)
+	genruleProps.Name = proptools.StringPtr(name)
+	genruleProps.Srcs = []string{path}
+	genruleProps.Out = []string{name}
+	genruleProps.Cmd = proptools.StringPtr("cp $(in) $(out)")
+	mctx.CreateModule(genrule.GenRuleFactory, &genruleProps)
 }
 
 func createEmptyFile(mctx android.LoadHookContext, name string) {
@@ -205,16 +209,16 @@ func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
 		path    string
 	}
 
-	// Create filegroups for all (<module>, <scope, <version>) triplets,
-	// and a "latest" filegroup variant for each (<module>, <scope>) pair
-	moduleName := func(module, scope, version string) string {
+	// Create modules for all (<module>, <scope, <version>) triplets,
+	// and a "latest" module variant for each (<module>, <scope>) pair
+	apiModuleName := func(module, scope, version string) string {
 		return module + ".api." + scope + "." + version
 	}
 	m := make(map[string]latestApiInfo)
 	for _, f := range files {
 		localPath := strings.TrimPrefix(f, mydir)
 		module, apiver, scope := parseApiFilePath(mctx, localPath)
-		createFilegroup(mctx, moduleName(module, scope, apiver), localPath)
+		createApiModule(mctx, apiModuleName(module, scope, apiver), localPath)
 
 		version, err := strconv.Atoi(apiver)
 		if err != nil {
@@ -239,8 +243,8 @@ func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
 	// Sort the keys in order to make build.ninja stable
 	for _, k := range android.SortedStringKeys(m) {
 		info := m[k]
-		name := moduleName(info.module, info.scope, "latest")
-		createFilegroup(mctx, name, info.path)
+		name := apiModuleName(info.module, info.scope, "latest")
+		createApiModule(mctx, name, info.path)
 	}
 
 	// Create incompatibilities tracking files for all modules, if we have a "next" api.
@@ -258,14 +262,14 @@ func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
 				referencedModule = "android"
 			}
 
-			createFilegroup(mctx, moduleName(referencedModule+"-incompatibilities", scope, "latest"), localPath)
+			createApiModule(mctx, apiModuleName(referencedModule+"-incompatibilities", scope, "latest"), localPath)
 
 			incompatibilities[referencedModule+"."+scope] = true
 		}
 		// Create empty incompatibilities files for remaining modules
 		for _, k := range android.SortedStringKeys(m) {
 			if _, ok := incompatibilities[k]; !ok {
-				createEmptyFile(mctx, moduleName(m[k].module+"-incompatibilities", m[k].scope, "latest"))
+				createEmptyFile(mctx, apiModuleName(m[k].module+"-incompatibilities", m[k].scope, "latest"))
 			}
 		}
 	}
@@ -279,10 +283,10 @@ func createPrebuiltApiModules(mctx android.LoadHookContext) {
 	}
 }
 
-// prebuilt_apis is a meta-module that generates filegroup modules for all
-// API txt files found under the directory where the Android.bp is located.
+// prebuilt_apis is a meta-module that generates modules for all API txt files
+// found under the directory where the Android.bp is located.
 // Specifically, an API file located at ./<ver>/<scope>/api/<module>.txt
-// generates a filegroup module named <module>-api.<scope>.<ver>.
+// generates a module named <module>-api.<scope>.<ver>.
 //
 // It also creates <module>-api.<scope>.latest for the latest <ver>.
 //
