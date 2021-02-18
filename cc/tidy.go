@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/blueprint/proptools"
 
+	"android/soong/android"
 	"android/soong/cc/config"
 )
 
@@ -75,9 +76,17 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	}
 	esc := proptools.NinjaAndShellEscapeList
 	flags.TidyFlags = append(flags.TidyFlags, esc(tidy.Properties.Tidy_flags)...)
-	// If TidyFlags is empty, add default header filter.
-	if len(flags.TidyFlags) == 0 {
-		headerFilter := "-header-filter=\"(" + ctx.ModuleDir() + "|${config.TidyDefaultHeaderDirs})\""
+	// If TidyFlags does not contain -header-filter, add default header filter.
+	// Find the substring because the flag could also appear as --header-filter=...
+	// and with or without single or double quotes.
+	if !android.SubstringInList(flags.TidyFlags, "-header-filter=") {
+		defaultDirs := ctx.Config().Getenv("DEFAULT_TIDY_HEADER_DIRS")
+		headerFilter := "-header-filter="
+		if defaultDirs == "" {
+			headerFilter += ctx.ModuleDir() + "/"
+		} else {
+			headerFilter += "\"(" + ctx.ModuleDir() + "/|" + defaultDirs + ")\""
+		}
 		flags.TidyFlags = append(flags.TidyFlags, headerFilter)
 	}
 
