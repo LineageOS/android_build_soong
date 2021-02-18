@@ -1014,6 +1014,7 @@ type linkType int
 const (
 	// TODO(jiyong) rename these for better readability. Make the allowed
 	// and disallowed link types explicit
+	// order is important here. See rank()
 	javaCore linkType = iota
 	javaSdk
 	javaSystem
@@ -1039,6 +1040,12 @@ func (lt linkType) String() string {
 	default:
 		panic(fmt.Errorf("unrecognized linktype: %v", lt))
 	}
+}
+
+// rank determins the total order among linkTypes. A link type of rank A can link to another link
+// type of rank B only when B <= A
+func (lt linkType) rank() int {
+	return int(lt)
 }
 
 type linkTypeContext interface {
@@ -1101,34 +1108,7 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to linkTypeContext, 
 	}
 	otherLinkType, _ := to.getLinkType(ctx.OtherModuleName(to))
 
-	violation := false
-	switch myLinkType {
-	case javaCore:
-		if otherLinkType != javaCore {
-			violation = true
-		}
-	case javaSdk:
-		if otherLinkType != javaCore && otherLinkType != javaSdk {
-			violation = true
-		}
-	case javaSystem:
-		if otherLinkType == javaPlatform || otherLinkType == javaModule || otherLinkType == javaSystemServer {
-			violation = true
-		}
-	case javaModule:
-		if otherLinkType == javaPlatform || otherLinkType == javaSystemServer {
-			violation = true
-		}
-	case javaSystemServer:
-		if otherLinkType == javaPlatform {
-			violation = true
-		}
-	case javaPlatform:
-		// no restriction on link-type
-		break
-	}
-
-	if violation {
+	if myLinkType.rank() < otherLinkType.rank() {
 		ctx.ModuleErrorf("compiles against %v, but dependency %q is compiling against %v. "+
 			"In order to fix this, consider adjusting sdk_version: OR platform_apis: "+
 			"property of the source or target module so that target module is built "+
