@@ -16,6 +16,8 @@ package filesystem
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"android/soong/android"
 
@@ -37,6 +39,11 @@ type filesystem struct {
 	installDir android.InstallPath
 }
 
+type symlinkDefinition struct {
+	Target *string
+	Name   *string
+}
+
 type filesystemProperties struct {
 	// When set to true, sign the image with avbtool. Default is false.
 	Use_avb *bool
@@ -54,6 +61,16 @@ type filesystemProperties struct {
 
 	// file_contexts file to make image. Currently, only ext4 is supported.
 	File_contexts *string `android:"path"`
+
+	// Base directory relative to root, to which deps are installed, e.g. "system". Default is "."
+	// (root).
+	Base_dir *string
+
+	// Directories to be created under root. e.g. /dev, /proc, etc.
+	Dirs []string
+
+	// Symbolic links to be created under root with "ln -sf <target> <name>".
+	Symlinks []symlinkDefinition
 }
 
 // android_filesystem packages a set of modules and their transitive dependencies into a filesystem
@@ -124,16 +141,75 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.InstallFile(f.installDir, f.installFileName(), f.output)
 }
 
+// root zip will contain stuffs like dirs or symlinks.
+func (f *filesystem) buildRootZip(ctx android.ModuleContext) android.OutputPath {
+	rootDir := android.PathForModuleGen(ctx, "root").OutputPath
+	builder := android.NewRuleBuilder(pctx, ctx)
+	builder.Command().Text("rm -rf").Text(rootDir.String())
+	builder.Command().Text("mkdir -p").Text(rootDir.String())
+
+	// create dirs and symlinks
+	for _, dir := range f.properties.Dirs {
+		// OutputPath.Join verifies dir
+		builder.Command().Text("mkdir -p").Text(rootDir.Join(ctx, dir).String())
+	}
+
+	for _, symlink := range f.properties.Symlinks {
+		name := strings.TrimSpace(proptools.String(symlink.Name))
+		target := strings.TrimSpace(proptools.String(symlink.Target))
+
+		if name == "" {
+			ctx.PropertyErrorf("symlinks", "Name can't be empty")
+			continue
+		}
+
+		if target == "" {
+			ctx.PropertyErrorf("symlinks", "Target can't be empty")
+			continue
+		}
+
+		// OutputPath.Join verifies name. don't need to verify target.
+		dst := rootDir.Join(ctx, name)
+
+		builder.Command().Text("mkdir -p").Text(filepath.Dir(dst.String()))
+		builder.Command().Text("ln -sf").Text(proptools.ShellEscape(target)).Text(dst.String())
+	}
+
+	zipOut := android.PathForModuleGen(ctx, "root.zip").OutputPath
+
+	builder.Command().
+		BuiltTool("soong_zip").
+		FlagWithOutput("-o ", zipOut).
+		FlagWithArg("-C ", rootDir.String()).
+		Flag("-L 0"). // no compression because this will be unzipped soon
+		FlagWithArg("-D ", rootDir.String()).
+		Flag("-d") // include empty directories
+	builder.Command().Text("rm -rf").Text(rootDir.String())
+
+	builder.Build("zip_root", fmt.Sprintf("zipping root contents for %s", ctx.ModuleName()))
+	return zipOut
+}
+
 func (f *filesystem) buildImageUsingBuildImage(ctx android.ModuleContext) android.OutputPath {
-	zipFile := android.PathForModuleOut(ctx, "temp.zip").OutputPath
-	f.CopyDepsToZip(ctx, zipFile)
+	depsZipFile := android.PathForModuleOut(ctx, "deps.zip").OutputPath
+	f.CopyDepsToZip(ctx, depsZipFile)
+
+	builder := android.NewRuleBuilder(pctx, ctx)
+	depsBase := proptools.StringDefault(f.properties.Base_dir, ".")
+	rebasedDepsZip := android.PathForModuleOut(ctx, "rebased_deps.zip").OutputPath
+	builder.Command().
+		BuiltTool("zip2zip").
+		FlagWithInput("-i ", depsZipFile).
+		FlagWithOutput("-o ", rebasedDepsZip).
+		Text("**/*:" + proptools.ShellEscape(depsBase)) // zip2zip verifies depsBase
 
 	rootDir := android.PathForModuleOut(ctx, "root").OutputPath
-	builder := android.NewRuleBuilder(pctx, ctx)
+	rootZip := f.buildRootZip(ctx)
 	builder.Command().
 		BuiltTool("zipsync").
 		FlagWithArg("-d ", rootDir.String()). // zipsync wipes this. No need to clear.
-		Input(zipFile)
+		Input(rootZip).
+		Input(rebasedDepsZip)
 
 	propFile, toolDeps := f.buildPropFile(ctx)
 	output := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
@@ -187,7 +263,7 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 	}
 
 	addStr("fs_type", fsTypeStr(f.fsType(ctx)))
-	addStr("mount_point", "system")
+	addStr("mount_point", "/")
 	addStr("use_dynamic_partition_size", "true")
 	addPath("ext_mkuserimg", ctx.Config().HostToolPath(ctx, "mkuserimg_mke2fs"))
 	// b/177813163 deps of the host tools have to be added. Remove this.
@@ -233,15 +309,25 @@ func (f *filesystem) buildCpioImage(ctx android.ModuleContext, compressed bool) 
 		ctx.PropertyErrorf("file_contexts", "file_contexts is not supported for compressed cpio image.")
 	}
 
-	zipFile := android.PathForModuleOut(ctx, "temp.zip").OutputPath
-	f.CopyDepsToZip(ctx, zipFile)
+	depsZipFile := android.PathForModuleOut(ctx, "deps.zip").OutputPath
+	f.CopyDepsToZip(ctx, depsZipFile)
+
+	builder := android.NewRuleBuilder(pctx, ctx)
+	depsBase := proptools.StringDefault(f.properties.Base_dir, ".")
+	rebasedDepsZip := android.PathForModuleOut(ctx, "rebased_deps.zip").OutputPath
+	builder.Command().
+		BuiltTool("zip2zip").
+		FlagWithInput("-i ", depsZipFile).
+		FlagWithOutput("-o ", rebasedDepsZip).
+		Text("**/*:" + proptools.ShellEscape(depsBase)) // zip2zip verifies depsBase
 
 	rootDir := android.PathForModuleOut(ctx, "root").OutputPath
-	builder := android.NewRuleBuilder(pctx, ctx)
+	rootZip := f.buildRootZip(ctx)
 	builder.Command().
 		BuiltTool("zipsync").
 		FlagWithArg("-d ", rootDir.String()). // zipsync wipes this. No need to clear.
-		Input(zipFile)
+		Input(rootZip).
+		Input(rebasedDepsZip)
 
 	output := android.PathForModuleOut(ctx, f.installFileName()).OutputPath
 	cmd := builder.Command().
