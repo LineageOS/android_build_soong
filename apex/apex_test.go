@@ -2039,7 +2039,7 @@ func TestJavaStableSdkVersion(t *testing.T) {
 		},
 		{
 			name:          "Updatable apex with non-stable transitive dep",
-			expectedError: "compiles against Android API, but dependency \"transitive-jar\" is compiling against non-public Android API.",
+			expectedError: "compiles against Android API, but dependency \"transitive-jar\" is compiling against private API.",
 			bp: `
 				apex {
 					name: "myapex",
