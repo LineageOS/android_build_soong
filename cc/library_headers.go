@@ -86,6 +86,10 @@ func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
+	if !module.Properties.Bazel_module.Bp2build_available {
+		return
+	}
+
 	lib, ok := module.linker.(*libraryDecorator)
 	if !ok {
 		// Not a cc_library module
@@ -93,10 +97,6 @@ func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
 	}
 	if !lib.header() {
 		// Not a cc_library_headers module
-		return
-	}
-
-	if !lib.Properties.Bazel_module.Bp2build_available {
 		return
 	}
 
