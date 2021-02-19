@@ -48,27 +48,29 @@ func (p *Module) AndroidMkEntries() []android.AndroidMkEntries {
 func (p *binaryDecorator) AndroidMk(base *Module, entries *android.AndroidMkEntries) {
 	entries.Class = "EXECUTABLES"
 
-	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
-		entries.AddCompatibilityTestSuites(p.binaryProperties.Test_suites...)
-	})
+	entries.ExtraEntries = append(entries.ExtraEntries,
+		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+			entries.AddCompatibilityTestSuites(p.binaryProperties.Test_suites...)
+		})
 	base.subAndroidMk(entries, p.pythonInstaller)
 }
 
 func (p *testDecorator) AndroidMk(base *Module, entries *android.AndroidMkEntries) {
 	entries.Class = "NATIVE_TESTS"
 
-	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
-		entries.AddCompatibilityTestSuites(p.binaryDecorator.binaryProperties.Test_suites...)
-		if p.testConfig != nil {
-			entries.SetString("LOCAL_FULL_TEST_CONFIG", p.testConfig.String())
-		}
+	entries.ExtraEntries = append(entries.ExtraEntries,
+		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+			entries.AddCompatibilityTestSuites(p.binaryDecorator.binaryProperties.Test_suites...)
+			if p.testConfig != nil {
+				entries.SetString("LOCAL_FULL_TEST_CONFIG", p.testConfig.String())
+			}
 
-		entries.SetBoolIfTrue("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", !BoolDefault(p.binaryProperties.Auto_gen_config, true))
+			entries.SetBoolIfTrue("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", !BoolDefault(p.binaryProperties.Auto_gen_config, true))
 
-		entries.AddStrings("LOCAL_TEST_DATA", android.AndroidMkDataPaths(p.data)...)
+			entries.AddStrings("LOCAL_TEST_DATA", android.AndroidMkDataPaths(p.data)...)
 
-		entries.SetBoolIfTrue("LOCAL_IS_UNIT_TEST", Bool(p.testProperties.Test_options.Unit_test))
-	})
+			entries.SetBoolIfTrue("LOCAL_IS_UNIT_TEST", Bool(p.testProperties.Test_options.Unit_test))
+		})
 	base.subAndroidMk(entries, p.binaryDecorator.pythonInstaller)
 }
 
@@ -80,14 +82,15 @@ func (installer *pythonInstaller) AndroidMk(base *Module, entries *android.Andro
 	}
 
 	entries.Required = append(entries.Required, "libc++")
-	entries.ExtraEntries = append(entries.ExtraEntries, func(entries *android.AndroidMkEntries) {
-		path, file := filepath.Split(installer.path.ToMakePath().String())
-		stem := strings.TrimSuffix(file, filepath.Ext(file))
+	entries.ExtraEntries = append(entries.ExtraEntries,
+		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+			path, file := filepath.Split(installer.path.ToMakePath().String())
+			stem := strings.TrimSuffix(file, filepath.Ext(file))
 
-		entries.SetString("LOCAL_MODULE_SUFFIX", filepath.Ext(file))
-		entries.SetString("LOCAL_MODULE_PATH", path)
-		entries.SetString("LOCAL_MODULE_STEM", stem)
-		entries.AddStrings("LOCAL_SHARED_LIBRARIES", installer.androidMkSharedLibs...)
-		entries.SetBool("LOCAL_CHECK_ELF_FILES", false)
-	})
+			entries.SetString("LOCAL_MODULE_SUFFIX", filepath.Ext(file))
+			entries.SetString("LOCAL_MODULE_PATH", path)
+			entries.SetString("LOCAL_MODULE_STEM", stem)
+			entries.AddStrings("LOCAL_SHARED_LIBRARIES", installer.androidMkSharedLibs...)
+			entries.SetBool("LOCAL_CHECK_ELF_FILES", false)
+		})
 }

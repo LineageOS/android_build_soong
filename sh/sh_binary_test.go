@@ -61,7 +61,7 @@ func testShBinary(t *testing.T, bp string) (*android.TestContext, android.Config
 }
 
 func TestShTestSubDir(t *testing.T) {
-	ctx, config := testShBinary(t, `
+	ctx, _ := testShBinary(t, `
 		sh_test {
 			name: "foo",
 			src: "test.sh",
@@ -71,7 +71,7 @@ func TestShTestSubDir(t *testing.T) {
 
 	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*ShTest)
 
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
+	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 
 	expectedPath := "/tmp/target/product/test_device/data/nativetest64/foo_test"
 	actualPath := entries.EntryMap["LOCAL_MODULE_PATH"][0]
@@ -81,7 +81,7 @@ func TestShTestSubDir(t *testing.T) {
 }
 
 func TestShTest(t *testing.T) {
-	ctx, config := testShBinary(t, `
+	ctx, _ := testShBinary(t, `
 		sh_test {
 			name: "foo",
 			src: "test.sh",
@@ -95,7 +95,7 @@ func TestShTest(t *testing.T) {
 
 	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*ShTest)
 
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
+	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 
 	expectedPath := "/tmp/target/product/test_device/data/nativetest64/foo"
 	actualPath := entries.EntryMap["LOCAL_MODULE_PATH"][0]
@@ -111,7 +111,7 @@ func TestShTest(t *testing.T) {
 }
 
 func TestShTest_dataModules(t *testing.T) {
-	ctx, config := testShBinary(t, `
+	ctx, _ := testShBinary(t, `
 		sh_test {
 			name: "foo",
 			src: "test.sh",
@@ -157,7 +157,7 @@ func TestShTest_dataModules(t *testing.T) {
 		}
 
 		mod := variant.Module().(*ShTest)
-		entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
+		entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 		expectedData := []string{
 			filepath.Join(buildDir, ".intermediates/bar", arch, ":bar"),
 			filepath.Join(buildDir, ".intermediates/foo", arch, "relocated/:lib64/libbar"+libExt),
@@ -190,7 +190,7 @@ func TestShTestHost(t *testing.T) {
 }
 
 func TestShTestHost_dataDeviceModules(t *testing.T) {
-	ctx, config := testShBinary(t, `
+	ctx, _ := testShBinary(t, `
 		sh_test_host {
 			name: "foo",
 			src: "test.sh",
@@ -227,7 +227,7 @@ func TestShTestHost_dataDeviceModules(t *testing.T) {
 	}
 
 	mod := variant.Module().(*ShTest)
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
+	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 	expectedData := []string{
 		filepath.Join(buildDir, ".intermediates/bar/android_arm64_armv8-a/:bar"),
 		// libbar has been relocated, and so has a variant that matches the host arch.
