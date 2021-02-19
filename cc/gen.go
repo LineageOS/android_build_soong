@@ -220,8 +220,35 @@ func genWinMsg(ctx android.ModuleContext, srcFile android.Path, flags builderFla
 	return rcFile, headerFile
 }
 
+// Used to communicate information from the genSources method back to the library code that uses
+// it.
+type generatedSourceInfo struct {
+	// The headers created from .proto files
+	protoHeaders android.Paths
+
+	// The files that can be used as order only dependencies in order to ensure that the proto header
+	// files are up to date.
+	protoOrderOnlyDeps android.Paths
+
+	// The headers created from .aidl files
+	aidlHeaders android.Paths
+
+	// The files that can be used as order only dependencies in order to ensure that the aidl header
+	// files are up to date.
+	aidlOrderOnlyDeps android.Paths
+
+	// The headers created from .sysprop files
+	syspropHeaders android.Paths
+
+	// The files that can be used as order only dependencies in order to ensure that the sysprop
+	// header files are up to date.
+	syspropOrderOnlyDeps android.Paths
+}
+
 func genSources(ctx android.ModuleContext, srcFiles android.Paths,
-	buildFlags builderFlags) (android.Paths, android.Paths) {
+	buildFlags builderFlags) (android.Paths, android.Paths, generatedSourceInfo) {
+
+	var info generatedSourceInfo
 
 	var deps android.Paths
 	var rsFiles android.Paths
@@ -258,7 +285,9 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 		case ".proto":
 			ccFile, headerFile := genProto(ctx, srcFile, buildFlags)
 			srcFiles[i] = ccFile
-			deps = append(deps, headerFile)
+			info.protoHeaders = append(info.protoHeaders, headerFile)
+			// Use the generated header as an order only dep to ensure that it is up to date when needed.
+			info.protoOrderOnlyDeps = append(info.protoOrderOnlyDeps, headerFile)
 		case ".aidl":
 			if aidlRule == nil {
 				aidlRule = android.NewRuleBuilder(pctx, ctx).Sbox(android.PathForModuleGen(ctx, "aidl"),
@@ -267,7 +296,12 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 			cppFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp")
 			depFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp.d")
 			srcFiles[i] = cppFile
-			deps = append(deps, genAidl(ctx, aidlRule, srcFile, cppFile, depFile, buildFlags.aidlFlags)...)
+			aidlHeaders := genAidl(ctx, aidlRule, srcFile, cppFile, depFile, buildFlags.aidlFlags)
+			info.aidlHeaders = append(info.aidlHeaders, aidlHeaders...)
+			// Use the generated headers as order only deps to ensure that they are up to date when
+			// needed.
+			// TODO: Reduce the size of the ninja file by using one order only dep for the whole rule
+			info.aidlOrderOnlyDeps = append(info.aidlOrderOnlyDeps, aidlHeaders...)
 		case ".rscript", ".fs":
 			cppFile := rsGeneratedCppFile(ctx, srcFile)
 			rsFiles = append(rsFiles, srcFiles[i])
@@ -279,7 +313,10 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 		case ".sysprop":
 			cppFile, headerFiles := genSysprop(ctx, srcFile)
 			srcFiles[i] = cppFile
-			deps = append(deps, headerFiles...)
+			info.syspropHeaders = append(info.syspropHeaders, headerFiles...)
+			// Use the generated headers as order only deps to ensure that they are up to date when
+			// needed.
+			info.syspropOrderOnlyDeps = append(info.syspropOrderOnlyDeps, headerFiles...)
 		}
 	}
 
@@ -291,9 +328,13 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 		yaccRule_.Build("yacc", "gen yacc")
 	}
 
+	deps = append(deps, info.protoOrderOnlyDeps...)
+	deps = append(deps, info.aidlOrderOnlyDeps...)
+	deps = append(deps, info.syspropOrderOnlyDeps...)
+
 	if len(rsFiles) > 0 {
 		deps = append(deps, rsGenerateCpp(ctx, rsFiles, buildFlags.rsFlags)...)
 	}
 
-	return srcFiles, deps
+	return srcFiles, deps, info
 }
