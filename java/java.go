@@ -1014,6 +1014,7 @@ type linkType int
 const (
 	// TODO(jiyong) rename these for better readability. Make the allowed
 	// and disallowed link types explicit
+	// order is important here. See rank()
 	javaCore linkType = iota
 	javaSdk
 	javaSystem
@@ -1021,6 +1022,31 @@ const (
 	javaSystemServer
 	javaPlatform
 )
+
+func (lt linkType) String() string {
+	switch lt {
+	case javaCore:
+		return "core Java API"
+	case javaSdk:
+		return "Android API"
+	case javaSystem:
+		return "system API"
+	case javaModule:
+		return "module API"
+	case javaSystemServer:
+		return "system server API"
+	case javaPlatform:
+		return "private API"
+	default:
+		panic(fmt.Errorf("unrecognized linktype: %v", lt))
+	}
+}
+
+// rank determins the total order among linkTypes. A link type of rank A can link to another link
+// type of rank B only when B <= A
+func (lt linkType) rank() int {
+	return int(lt)
+}
 
 type linkTypeContext interface {
 	android.Module
@@ -1081,44 +1107,13 @@ func checkLinkType(ctx android.ModuleContext, from *Module, to linkTypeContext, 
 		return
 	}
 	otherLinkType, _ := to.getLinkType(ctx.OtherModuleName(to))
-	commonMessage := " In order to fix this, consider adjusting sdk_version: OR platform_apis: " +
-		"property of the source or target module so that target module is built with the same " +
-		"or smaller API set when compared to the source."
 
-	switch myLinkType {
-	case javaCore:
-		if otherLinkType != javaCore {
-			ctx.ModuleErrorf("compiles against core Java API, but dependency %q is compiling against non-core Java APIs."+commonMessage,
-				ctx.OtherModuleName(to))
-		}
-		break
-	case javaSdk:
-		if otherLinkType != javaCore && otherLinkType != javaSdk {
-			ctx.ModuleErrorf("compiles against Android API, but dependency %q is compiling against non-public Android API."+commonMessage,
-				ctx.OtherModuleName(to))
-		}
-		break
-	case javaSystem:
-		if otherLinkType == javaPlatform || otherLinkType == javaModule || otherLinkType == javaSystemServer {
-			ctx.ModuleErrorf("compiles against system API, but dependency %q is compiling against private API."+commonMessage,
-				ctx.OtherModuleName(to))
-		}
-		break
-	case javaModule:
-		if otherLinkType == javaPlatform || otherLinkType == javaSystemServer {
-			ctx.ModuleErrorf("compiles against module API, but dependency %q is compiling against private API."+commonMessage,
-				ctx.OtherModuleName(to))
-		}
-		break
-	case javaSystemServer:
-		if otherLinkType == javaPlatform {
-			ctx.ModuleErrorf("compiles against system server API, but dependency %q is compiling against private API."+commonMessage,
-				ctx.OtherModuleName(to))
-		}
-		break
-	case javaPlatform:
-		// no restriction on link-type
-		break
+	if myLinkType.rank() < otherLinkType.rank() {
+		ctx.ModuleErrorf("compiles against %v, but dependency %q is compiling against %v. "+
+			"In order to fix this, consider adjusting sdk_version: OR platform_apis: "+
+			"property of the source or target module so that target module is built "+
+			"with the same or smaller API set when compared to the source.",
+			myLinkType, ctx.OtherModuleName(to), otherLinkType)
 	}
 }
 

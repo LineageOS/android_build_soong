@@ -128,7 +128,7 @@ type config struct {
 
 	// If testAllowNonExistentPaths is true then PathForSource and PathForModuleSrc won't error
 	// in tests when a path doesn't exist.
-	testAllowNonExistentPaths bool
+	TestAllowNonExistentPaths bool
 
 	// The list of files that when changed, must invalidate soong_build to
 	// regenerate build.ninja.
@@ -256,7 +256,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 
 		// Set testAllowNonExistentPaths so that test contexts don't need to specify every path
 		// passed to PathForSource or PathForModuleSrc.
-		testAllowNonExistentPaths: true,
+		TestAllowNonExistentPaths: true,
 
 		BazelContext: noopBazelContext{},
 	}
