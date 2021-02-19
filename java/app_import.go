@@ -452,6 +452,8 @@ func AndroidAppImportFactory() android.Module {
 	android.InitDefaultableModule(module)
 	android.InitSingleSourcePrebuiltModule(module, &module.properties, "Apk")
 
+	module.usesLibrary.enforce = true
+
 	return module
 }
 

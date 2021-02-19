@@ -586,7 +586,7 @@ func expandOneSrcPath(ctx ModuleWithDepsPathContext, sPath string, expandedExclu
 		p := pathForModuleSrc(ctx, sPath)
 		if exists, _, err := ctx.Config().fs.Exists(p.String()); err != nil {
 			ReportPathErrorf(ctx, "%s: %s", p, err.Error())
-		} else if !exists && !ctx.Config().testAllowNonExistentPaths {
+		} else if !exists && !ctx.Config().TestAllowNonExistentPaths {
 			ReportPathErrorf(ctx, "module source path %q does not exist", p)
 		}
 
@@ -1022,7 +1022,7 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 		}
 	} else if exists, _, err := ctx.Config().fs.Exists(path.String()); err != nil {
 		ReportPathErrorf(ctx, "%s: %s", path, err.Error())
-	} else if !exists && !ctx.Config().testAllowNonExistentPaths {
+	} else if !exists && !ctx.Config().TestAllowNonExistentPaths {
 		ReportPathErrorf(ctx, "source path %q does not exist", path)
 	}
 	return path

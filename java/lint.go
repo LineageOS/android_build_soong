@@ -19,6 +19,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 )
 
@@ -46,6 +48,9 @@ type LintProperties struct {
 
 		// Modules that provide extra lint checks
 		Extra_check_modules []string
+
+		// Name of the file that lint uses as the baseline. Defaults to "lint-baseline.xml".
+		Baseline_filename *string
 	}
 }
 
@@ -342,6 +347,19 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	if checkOnly := ctx.Config().Getenv("ANDROID_LINT_CHECK"); checkOnly != "" {
 		cmd.FlagWithArg("--check ", checkOnly)
+	}
+
+	if lintFilename := proptools.StringDefault(l.properties.Lint.Baseline_filename, "lint-baseline.xml"); lintFilename != "" {
+		var lintBaseline android.OptionalPath
+		if String(l.properties.Lint.Baseline_filename) != "" {
+			// if manually specified, we require the file to exist
+			lintBaseline = android.OptionalPathForPath(android.PathForModuleSrc(ctx, lintFilename))
+		} else {
+			lintBaseline = android.ExistentPathForSource(ctx, ctx.ModuleDir(), lintFilename)
+		}
+		if lintBaseline.Valid() {
+			cmd.FlagWithInput("--baseline ", lintBaseline.Path())
+		}
 	}
 
 	cmd.Text("|| (").Text("cat").Input(text).Text("; exit 7)").Text(")")
