@@ -4154,8 +4154,6 @@ func TestIncludeDirsExporting(t *testing.T) {
 		)
 	})
 
-	// TODO fix this test as it exports the sysprop public and non-public headers irrespective of
-	//  which include directory is exported.
 	t.Run("ensure only sysprop headers are exported", func(t *testing.T) {
 		ctx := testCc(t, genRuleModules+`
 		cc_library_shared {
@@ -4176,7 +4174,6 @@ func TestIncludeDirsExporting(t *testing.T) {
 			expectedSystemIncludeDirs(``),
 			expectedGeneratedHeaders(`
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/include/a.sysprop.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/public/include/a.sysprop.h
 			`),
 			expectedOrderOnlyDeps(`
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/include/a.sysprop.h
