@@ -27,7 +27,6 @@ import (
 	"github.com/google/blueprint/pathtools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/cc/config"
 )
 
@@ -121,9 +120,6 @@ type LibraryProperties struct {
 	// If this is an LLNDK library, properties to describe the LLNDK stubs.  Will be copied from
 	// the module pointed to by llndk_stubs if it is set.
 	Llndk llndkLibraryProperties
-
-	// Properties for Bazel migration purposes.
-	bazel.Properties
 }
 
 // StaticProperties is a properties stanza to affect only attributes of the "static" variants of a
