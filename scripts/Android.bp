@@ -209,13 +209,18 @@ python_test_host {
     test_suites: ["general-tests"],
 }
 
+python_library_host {
+    name: "ninja_rsp",
+    srcs: ["ninja_rsp.py"],
+}
+
 python_binary_host {
     name: "lint-project-xml",
     main: "lint-project-xml.py",
     srcs: [
         "lint-project-xml.py",
-        "ninja_rsp.py",
     ],
+    libs: ["ninja_rsp"],
 }
 
 python_binary_host {
@@ -223,8 +228,8 @@ python_binary_host {
     main: "gen-kotlin-build-file.py",
     srcs: [
         "gen-kotlin-build-file.py",
-        "ninja_rsp.py",
     ],
+    libs: ["ninja_rsp"],
 }
 
 python_binary_host {
