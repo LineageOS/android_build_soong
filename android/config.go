@@ -946,13 +946,7 @@ func (c *config) ArtUseReadBarrier() bool {
 // More info: https://source.android.com/devices/architecture/rros
 func (c *config) EnforceRROForModule(name string) bool {
 	enforceList := c.productVariables.EnforceRROTargets
-	// TODO(b/150820813) Some modules depend on static overlay, remove this after eliminating the dependency.
-	exemptedList := c.productVariables.EnforceRROExemptedTargets
-	if len(exemptedList) > 0 {
-		if InList(name, exemptedList) {
-			return false
-		}
-	}
+
 	if len(enforceList) > 0 {
 		if InList("*", enforceList) {
 			return true
@@ -961,11 +955,6 @@ func (c *config) EnforceRROForModule(name string) bool {
 	}
 	return false
 }
-
-func (c *config) EnforceRROExemptedForModule(name string) bool {
-	return InList(name, c.productVariables.EnforceRROExemptedTargets)
-}
-
 func (c *config) EnforceRROExcludedOverlay(path string) bool {
 	excluded := c.productVariables.EnforceRROExcludedOverlays
 	if len(excluded) > 0 {
