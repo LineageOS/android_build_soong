@@ -28,6 +28,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
+	"android/soong/bazel"
 	"android/soong/cc/config"
 	"android/soong/genrule"
 )
@@ -364,6 +365,8 @@ type BaseProperties struct {
 	// can depend on libraries that are not exported by the APEXes and use private symbols
 	// from the exported libraries.
 	Test_for []string
+
+	bazel.Properties
 }
 
 type VendorProperties struct {
