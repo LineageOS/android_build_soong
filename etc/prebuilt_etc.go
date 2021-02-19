@@ -282,11 +282,14 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Input:  p.sourceFilePath,
 	})
 
-	if p.Installable() {
-		installPath := ctx.InstallFile(p.installDirPath, p.outputFilePath.Base(), p.outputFilePath)
-		for _, sl := range p.properties.Symlinks {
-			ctx.InstallSymlink(p.installDirPath, sl, installPath)
-		}
+	if !p.Installable() {
+		p.SkipInstall()
+	}
+
+	// Call InstallFile even when uninstallable to make the module included in the package
+	installPath := ctx.InstallFile(p.installDirPath, p.outputFilePath.Base(), p.outputFilePath)
+	for _, sl := range p.properties.Symlinks {
+		ctx.InstallSymlink(p.installDirPath, sl, installPath)
 	}
 }
 
