@@ -1442,7 +1442,7 @@ type archConfig struct {
 func getNdkAbisConfig() []archConfig {
 	return []archConfig{
 		{"arm", "armv7-a", "", []string{"armeabi-v7a"}},
-		{"arm64", "armv8-a", "", []string{"arm64-v8a"}},
+		{"arm64", "armv8-a-branchprot", "", []string{"arm64-v8a"}},
 		{"x86", "", "", []string{"x86"}},
 		{"x86_64", "", "", []string{"x86_64"}},
 	}
@@ -1609,13 +1609,15 @@ func decodeMultilibTargets(multilib string, targets []Target, prefer32 bool) ([]
 		} else {
 			buildTargets = firstTarget(targets, "lib64", "lib32")
 		}
+	case "first_prefer32":
+		buildTargets = firstTarget(targets, "lib32", "lib64")
 	case "prefer32":
 		buildTargets = filterMultilibTargets(targets, "lib32")
 		if len(buildTargets) == 0 {
 			buildTargets = filterMultilibTargets(targets, "lib64")
 		}
 	default:
-		return nil, fmt.Errorf(`compile_multilib must be "both", "first", "32", "64", or "prefer32" found %q`,
+		return nil, fmt.Errorf(`compile_multilib must be "both", "first", "32", "64", "prefer32" or "first_prefer32" found %q`,
 			multilib)
 	}
 

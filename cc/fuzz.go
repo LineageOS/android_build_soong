@@ -20,6 +20,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/google/blueprint/proptools"
+
 	"android/soong/android"
 	"android/soong/cc/config"
 )
@@ -172,7 +174,7 @@ func collectAllSharedDependencies(ctx android.SingletonContext, module android.M
 // This function takes a module and determines if it is a unique shared library
 // that should be installed in the fuzz target output directories. This function
 // returns true, unless:
-//  - The module is not a shared library, or
+//  - The module is not an installable shared library, or
 //  - The module is a header, stub, or vendor-linked library, or
 //  - The module is a prebuilt and its source is available, or
 //  - The module is a versioned member of an SDK snapshot.
@@ -207,6 +209,11 @@ func isValidSharedDependency(dependency android.Module) bool {
 	// Discard LLNDK prebuilts stubs as well.
 	if ccLibrary, isCcLibrary := dependency.(*Module); isCcLibrary {
 		if _, isLLndkStubLibrary := ccLibrary.linker.(*stubDecorator); isLLndkStubLibrary {
+			return false
+		}
+		// Discard installable:false libraries because they are expected to be absent
+		// in runtime.
+		if !proptools.BoolDefault(ccLibrary.Properties.Installable, true) {
 			return false
 		}
 	}

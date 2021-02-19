@@ -906,6 +906,8 @@ func AndroidAppFactory() android.Module {
 		&module.appProperties,
 		&module.overridableAppProperties)
 
+	module.usesLibrary.enforce = true
+
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
 	android.InitOverridableModule(module, &module.appProperties.Overrides)
@@ -1176,6 +1178,9 @@ type UsesLibraryProperties struct {
 // with knowledge of their shared libraries.
 type usesLibrary struct {
 	usesLibraryProperties UsesLibraryProperties
+
+	// Whether to enforce verify_uses_library check.
+	enforce bool
 }
 
 func (u *usesLibrary) addLib(lib string, optional bool) {
@@ -1242,7 +1247,7 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 func (u *usesLibrary) enforceUsesLibraries() bool {
 	defaultEnforceUsesLibs := len(u.usesLibraryProperties.Uses_libs) > 0 ||
 		len(u.usesLibraryProperties.Optional_uses_libs) > 0
-	return BoolDefault(u.usesLibraryProperties.Enforce_uses_libs, defaultEnforceUsesLibs)
+	return BoolDefault(u.usesLibraryProperties.Enforce_uses_libs, u.enforce || defaultEnforceUsesLibs)
 }
 
 // Freeze the value of `enforce_uses_libs` based on the current values of `uses_libs` and `optional_uses_libs`.
