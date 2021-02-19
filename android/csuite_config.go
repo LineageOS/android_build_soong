@@ -40,7 +40,7 @@ func (me *CSuiteConfig) AndroidMkEntries() []AndroidMkEntries {
 		OutputFile: OptionalPathForPath(me.OutputFilePath),
 	}
 	androidMkEntries.ExtraEntries = []AndroidMkExtraEntriesFunc{
-		func(entries *AndroidMkEntries) {
+		func(ctx AndroidMkExtraEntriesContext, entries *AndroidMkEntries) {
 			if me.properties.Test_config != nil {
 				entries.SetString("LOCAL_TEST_CONFIG", *me.properties.Test_config)
 			}

@@ -175,7 +175,7 @@ func TestPrebuiltEtcGlob(t *testing.T) {
 }
 
 func TestPrebuiltEtcAndroidMk(t *testing.T) {
-	ctx, config := testPrebuiltEtc(t, `
+	ctx, _ := testPrebuiltEtc(t, `
 		prebuilt_etc {
 			name: "foo",
 			src: "foo.conf",
@@ -198,7 +198,7 @@ func TestPrebuiltEtcAndroidMk(t *testing.T) {
 	}
 
 	mod := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*PrebuiltEtc)
-	entries := android.AndroidMkEntriesForTest(t, config, "", mod)[0]
+	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 	for k, expectedValue := range expected {
 		if value, ok := entries.EntryMap[k]; ok {
 			if !reflect.DeepEqual(value, expectedValue) {
