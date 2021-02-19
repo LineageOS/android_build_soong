@@ -8,6 +8,7 @@ MAINLINE_MODULES=(
   com.android.art.testing
   com.android.conscrypt
   com.android.i18n
+  com.android.os.statsd
   com.android.runtime
   com.android.tzdata
 )
