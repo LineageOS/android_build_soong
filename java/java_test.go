@@ -2509,7 +2509,7 @@ func TestAidlFlagsArePassedToTheAidlCompiler(t *testing.T) {
 }
 
 func TestDataNativeBinaries(t *testing.T) {
-	ctx, config := testJava(t, `
+	ctx, _ := testJava(t, `
 		java_test_host {
 			name: "foo",
 			srcs: ["a.java"],
@@ -2525,7 +2525,7 @@ func TestDataNativeBinaries(t *testing.T) {
 	buildOS := android.BuildOs.String()
 
 	test := ctx.ModuleForTests("foo", buildOS+"_common").Module().(*TestHost)
-	entries := android.AndroidMkEntriesForTest(t, config, "", test)[0]
+	entries := android.AndroidMkEntriesForTest(t, ctx, test)[0]
 	expected := []string{buildDir + "/.intermediates/bin/" + buildOS + "_x86_64_PY3/bin:bin"}
 	actual := entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"]
 	if !reflect.DeepEqual(expected, actual) {

@@ -201,6 +201,10 @@ func (ctx *TestContext) SingletonForTests(name string) TestingSingleton {
 		"\nall singletons: %v", name, allSingletonNames))
 }
 
+func (ctx *TestContext) Config() Config {
+	return ctx.config
+}
+
 type testBuildProvider interface {
 	BuildParamsForTests() []BuildParams
 	RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParams
@@ -461,7 +465,7 @@ func SetKatiEnabledForTests(config Config) {
 	config.katiEnabled = true
 }
 
-func AndroidMkEntriesForTest(t *testing.T, config Config, bpPath string, mod blueprint.Module) []AndroidMkEntries {
+func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) []AndroidMkEntries {
 	var p AndroidMkEntriesProvider
 	var ok bool
 	if p, ok = mod.(AndroidMkEntriesProvider); !ok {
@@ -470,19 +474,19 @@ func AndroidMkEntriesForTest(t *testing.T, config Config, bpPath string, mod blu
 
 	entriesList := p.AndroidMkEntries()
 	for i, _ := range entriesList {
-		entriesList[i].fillInEntries(config, bpPath, mod)
+		entriesList[i].fillInEntries(ctx, mod)
 	}
 	return entriesList
 }
 
-func AndroidMkDataForTest(t *testing.T, config Config, bpPath string, mod blueprint.Module) AndroidMkData {
+func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) AndroidMkData {
 	var p AndroidMkDataProvider
 	var ok bool
 	if p, ok = mod.(AndroidMkDataProvider); !ok {
 		t.Errorf("module does not implement AndroidMkDataProvider: " + mod.Name())
 	}
 	data := p.AndroidMk()
-	data.fillInData(config, bpPath, mod)
+	data.fillInData(ctx, mod)
 	return data
 }
 
