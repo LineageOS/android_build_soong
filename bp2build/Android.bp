@@ -22,7 +22,8 @@ bootstrap_go_package {
     testSrcs: [
         "build_conversion_test.go",
         "bzl_conversion_test.go",
-        "cc_conversion_test.go",
+        "cc_library_headers_conversion_test.go",
+        "cc_object_conversion_test.go",
         "conversion_test.go",
         "sh_conversion_test.go",
         "testing.go",

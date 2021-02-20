@@ -1,0 +1,40 @@
+bootstrap_go_package {
+    name: "soong-bloaty",
+    pkgPath: "android/soong/bloaty",
+    deps: [
+        "blueprint",
+        "soong-android",
+    ],
+    srcs: [
+        "bloaty.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+python_test_host {
+    name: "bloaty_merger_test",
+    srcs: [
+        "bloaty_merger_test.py",
+        "bloaty_merger.py",
+        "file_sections.proto",
+    ],
+    proto: {
+        canonical_path_from_root: false,
+    },
+    libs: [
+        "pyfakefs",
+        "ninja_rsp",
+    ],
+}
+
+python_binary_host {
+    name: "bloaty_merger",
+    srcs: [
+        "bloaty_merger.py",
+        "file_sections.proto",
+    ],
+    proto: {
+        canonical_path_from_root: false,
+    },
+    libs: ["ninja_rsp"],
+}

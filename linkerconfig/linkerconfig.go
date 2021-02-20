@@ -98,7 +98,7 @@ func (l *linkerConfig) AndroidMkEntries() []android.AndroidMkEntries {
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(l.outputFilePath),
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(entries *android.AndroidMkEntries) {
+			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_PATH", l.installDirPath.ToMakePath().String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", l.outputFilePath.Base())
 				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !installable)
