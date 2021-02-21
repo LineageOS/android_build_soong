@@ -263,45 +263,32 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 
 func TestEnforceRRO_propagatesToDependencies(t *testing.T) {
 	testCases := []struct {
-		name                    string
-		enforceRROTargets       []string
-		enforceRROExemptTargets []string
-		rroDirs                 map[string][]string
+		name              string
+		enforceRROTargets []string
+		rroDirs           map[string][]string
 	}{
 		{
-			name:                    "no RRO",
-			enforceRROTargets:       nil,
-			enforceRROExemptTargets: nil,
+			name:              "no RRO",
+			enforceRROTargets: nil,
 			rroDirs: map[string][]string{
 				"foo": nil,
 				"bar": nil,
 			},
 		},
 		{
-			name:                    "enforce RRO on all",
-			enforceRROTargets:       []string{"*"},
-			enforceRROExemptTargets: nil,
+			name:              "enforce RRO on all",
+			enforceRROTargets: []string{"*"},
 			rroDirs: map[string][]string{
 				"foo": {"product/vendor/blah/overlay/lib2/res"},
 				"bar": {"product/vendor/blah/overlay/lib2/res"},
 			},
 		},
 		{
-			name:                    "enforce RRO on foo",
-			enforceRROTargets:       []string{"foo"},
-			enforceRROExemptTargets: nil,
+			name:              "enforce RRO on foo",
+			enforceRROTargets: []string{"foo"},
 			rroDirs: map[string][]string{
 				"foo": {"product/vendor/blah/overlay/lib2/res"},
 				"bar": {"product/vendor/blah/overlay/lib2/res"},
-			},
-		},
-		{
-			name:                    "enforce RRO on foo, bar exempted",
-			enforceRROTargets:       []string{"foo"},
-			enforceRROExemptTargets: []string{"bar"},
-			rroDirs: map[string][]string{
-				"foo": {"product/vendor/blah/overlay/lib2/res"},
-				"bar": nil,
 			},
 		},
 	}
@@ -350,9 +337,6 @@ func TestEnforceRRO_propagatesToDependencies(t *testing.T) {
 			config.TestProductVariables.ProductResourceOverlays = productResourceOverlays
 			if testCase.enforceRROTargets != nil {
 				config.TestProductVariables.EnforceRROTargets = testCase.enforceRROTargets
-			}
-			if testCase.enforceRROExemptTargets != nil {
-				config.TestProductVariables.EnforceRROExemptedTargets = testCase.enforceRROExemptTargets
 			}
 
 			ctx := testContext(config)
