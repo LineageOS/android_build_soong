@@ -160,8 +160,8 @@ func (a *aapt) SetRROEnforcedForDependent(enforce bool) {
 func (a *aapt) IsRROEnforced(ctx android.BaseModuleContext) bool {
 	// True if RRO is enforced for this module or...
 	return ctx.Config().EnforceRROForModule(ctx.ModuleName()) ||
-		// if RRO is enforced for any of its dependents, and this module is not exempted.
-		(a.aaptProperties.RROEnforcedForDependent && !ctx.Config().EnforceRROExemptedForModule(ctx.ModuleName()))
+		// if RRO is enforced for any of its dependents.
+		a.aaptProperties.RROEnforcedForDependent
 }
 
 func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext,
@@ -443,16 +443,14 @@ func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, classLoaderConte
 					assets = append(assets, aarDep.ExportedAssets().Path())
 				}
 
-				if !ctx.Config().EnforceRROExemptedForModule(ctx.ModuleName()) {
-				outer:
-					for _, d := range aarDep.ExportedRRODirs() {
-						for _, e := range staticRRODirs {
-							if d.path == e.path {
-								continue outer
-							}
+			outer:
+				for _, d := range aarDep.ExportedRRODirs() {
+					for _, e := range staticRRODirs {
+						if d.path == e.path {
+							continue outer
 						}
-						staticRRODirs = append(staticRRODirs, d)
 					}
+					staticRRODirs = append(staticRRODirs, d)
 				}
 			}
 		}
