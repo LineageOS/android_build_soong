@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -3909,4 +3910,295 @@ func TestSanitizeMemtagHeapWithSanitizeDeviceDiag(t *testing.T) {
 	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true", variant), Sync)
 	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true_nodiag", variant), Async)
 	checkHasMemtagNote(t, ctx.ModuleForTests("sync_binary_true_diag", variant), Sync)
+}
+
+func TestIncludeDirsExporting(t *testing.T) {
+
+	// Trim spaces from the beginning, end and immediately after any newline characters. Leaves
+	// embedded newline characters alone.
+	trimIndentingSpaces := func(s string) string {
+		return strings.TrimSpace(regexp.MustCompile("(^|\n)\\s+").ReplaceAllString(s, "$1"))
+	}
+
+	checkPaths := func(t *testing.T, message string, expected string, paths android.Paths) {
+		t.Helper()
+		expected = trimIndentingSpaces(expected)
+		actual := trimIndentingSpaces(strings.Join(android.FirstUniqueStrings(android.NormalizePathsForTesting(paths)), "\n"))
+		if expected != actual {
+			t.Errorf("%s: expected:\n%s\n actual:\n%s\n", message, expected, actual)
+		}
+	}
+
+	type exportedChecker func(t *testing.T, name string, exported FlagExporterInfo)
+
+	checkIncludeDirs := func(t *testing.T, ctx *android.TestContext, module android.Module, checkers ...exportedChecker) {
+		t.Helper()
+		exported := ctx.ModuleProvider(module, FlagExporterInfoProvider).(FlagExporterInfo)
+		name := module.Name()
+
+		for _, checker := range checkers {
+			checker(t, name, exported)
+		}
+	}
+
+	expectedIncludeDirs := func(expectedPaths string) exportedChecker {
+		return func(t *testing.T, name string, exported FlagExporterInfo) {
+			t.Helper()
+			checkPaths(t, fmt.Sprintf("%s: include dirs", name), expectedPaths, exported.IncludeDirs)
+		}
+	}
+
+	expectedSystemIncludeDirs := func(expectedPaths string) exportedChecker {
+		return func(t *testing.T, name string, exported FlagExporterInfo) {
+			t.Helper()
+			checkPaths(t, fmt.Sprintf("%s: system include dirs", name), expectedPaths, exported.SystemIncludeDirs)
+		}
+	}
+
+	expectedGeneratedHeaders := func(expectedPaths string) exportedChecker {
+		return func(t *testing.T, name string, exported FlagExporterInfo) {
+			t.Helper()
+			checkPaths(t, fmt.Sprintf("%s: generated headers", name), expectedPaths, exported.GeneratedHeaders)
+		}
+	}
+
+	expectedOrderOnlyDeps := func(expectedPaths string) exportedChecker {
+		return func(t *testing.T, name string, exported FlagExporterInfo) {
+			t.Helper()
+			checkPaths(t, fmt.Sprintf("%s: order only deps", name), expectedPaths, exported.Deps)
+		}
+	}
+
+	genRuleModules := `
+		genrule {
+			name: "genrule_foo",
+			cmd: "generate-foo",
+			out: [
+				"generated_headers/foo/generated_header.h",
+			],
+			export_include_dirs: [
+				"generated_headers",
+			],
+		}
+
+		genrule {
+			name: "genrule_bar",
+			cmd: "generate-bar",
+			out: [
+				"generated_headers/bar/generated_header.h",
+			],
+			export_include_dirs: [
+				"generated_headers",
+			],
+		}
+	`
+
+	t.Run("ensure exported include dirs are not automatically re-exported from shared_libs", func(t *testing.T) {
+		ctx := testCc(t, genRuleModules+`
+		cc_library {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			export_include_dirs: ["foo/standard"],
+			export_system_include_dirs: ["foo/system"],
+			generated_headers: ["genrule_foo"],
+			export_generated_headers: ["genrule_foo"],
+		}
+
+		cc_library {
+			name: "libbar",
+			srcs: ["bar.c"],
+			shared_libs: ["libfoo"],
+			export_include_dirs: ["bar/standard"],
+			export_system_include_dirs: ["bar/system"],
+			generated_headers: ["genrule_bar"],
+			export_generated_headers: ["genrule_bar"],
+		}
+		`)
+		foo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+		checkIncludeDirs(t, ctx, foo,
+			expectedIncludeDirs(`
+				foo/standard
+				.intermediates/genrule_foo/gen/generated_headers
+			`),
+			expectedSystemIncludeDirs(`foo/system`),
+			expectedGeneratedHeaders(`.intermediates/genrule_foo/gen/generated_headers/foo/generated_header.h`),
+			expectedOrderOnlyDeps(`.intermediates/genrule_foo/gen/generated_headers/foo/generated_header.h`),
+		)
+
+		bar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_shared").Module()
+		checkIncludeDirs(t, ctx, bar,
+			expectedIncludeDirs(`
+				bar/standard
+				.intermediates/genrule_bar/gen/generated_headers
+			`),
+			expectedSystemIncludeDirs(`bar/system`),
+			expectedGeneratedHeaders(`.intermediates/genrule_bar/gen/generated_headers/bar/generated_header.h`),
+			expectedOrderOnlyDeps(`.intermediates/genrule_bar/gen/generated_headers/bar/generated_header.h`),
+		)
+	})
+
+	t.Run("ensure exported include dirs are automatically re-exported from whole_static_libs", func(t *testing.T) {
+		ctx := testCc(t, genRuleModules+`
+		cc_library {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			export_include_dirs: ["foo/standard"],
+			export_system_include_dirs: ["foo/system"],
+			generated_headers: ["genrule_foo"],
+			export_generated_headers: ["genrule_foo"],
+		}
+
+		cc_library {
+			name: "libbar",
+			srcs: ["bar.c"],
+			whole_static_libs: ["libfoo"],
+			export_include_dirs: ["bar/standard"],
+			export_system_include_dirs: ["bar/system"],
+			generated_headers: ["genrule_bar"],
+			export_generated_headers: ["genrule_bar"],
+		}
+		`)
+		foo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+		checkIncludeDirs(t, ctx, foo,
+			expectedIncludeDirs(`
+				foo/standard
+				.intermediates/genrule_foo/gen/generated_headers
+			`),
+			expectedSystemIncludeDirs(`foo/system`),
+			expectedGeneratedHeaders(`.intermediates/genrule_foo/gen/generated_headers/foo/generated_header.h`),
+			expectedOrderOnlyDeps(`.intermediates/genrule_foo/gen/generated_headers/foo/generated_header.h`),
+		)
+
+		bar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_shared").Module()
+		checkIncludeDirs(t, ctx, bar,
+			expectedIncludeDirs(`
+				bar/standard
+				foo/standard
+				.intermediates/genrule_foo/gen/generated_headers
+				.intermediates/genrule_bar/gen/generated_headers
+			`),
+			expectedSystemIncludeDirs(`
+				bar/system
+				foo/system
+			`),
+			expectedGeneratedHeaders(`
+				.intermediates/genrule_foo/gen/generated_headers/foo/generated_header.h
+				.intermediates/genrule_bar/gen/generated_headers/bar/generated_header.h
+			`),
+			expectedOrderOnlyDeps(`
+				.intermediates/genrule_foo/gen/generated_headers/foo/generated_header.h
+				.intermediates/genrule_bar/gen/generated_headers/bar/generated_header.h
+			`),
+		)
+	})
+
+	// TODO: fix this test as it exports all generated headers.
+	t.Run("ensure only aidl headers are exported", func(t *testing.T) {
+		ctx := testCc(t, genRuleModules+`
+		cc_library_shared {
+			name: "libfoo",
+			srcs: [
+				"foo.c",
+				"b.aidl",
+				"a.proto",
+			],
+			aidl: {
+				export_aidl_headers: true,
+			}
+		}
+		`)
+		foo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+		checkIncludeDirs(t, ctx, foo,
+			expectedIncludeDirs(`
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl
+			`),
+			expectedSystemIncludeDirs(``),
+			expectedGeneratedHeaders(`
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
+			`),
+			expectedOrderOnlyDeps(`
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
+			`),
+		)
+	})
+
+	// TODO: fix this test as it exports all generated headers.
+	t.Run("ensure only proto headers are exported", func(t *testing.T) {
+		ctx := testCc(t, genRuleModules+`
+		cc_library_shared {
+			name: "libfoo",
+			srcs: [
+				"foo.c",
+				"b.aidl",
+				"a.proto",
+			],
+			proto: {
+				export_proto_headers: true,
+			}
+		}
+		`)
+		foo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+		checkIncludeDirs(t, ctx, foo,
+			expectedIncludeDirs(`
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto
+			`),
+			expectedSystemIncludeDirs(``),
+			expectedGeneratedHeaders(`
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
+			`),
+			expectedOrderOnlyDeps(`
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
+			`),
+		)
+	})
+
+	// TODO: fix this test as it exports all generated headers including public and non-public.
+	t.Run("ensure only non-public sysprop headers are exported", func(t *testing.T) {
+		ctx := testCc(t, genRuleModules+`
+		cc_library_shared {
+			name: "libfoo",
+			srcs: [
+				"foo.c",
+				"a.sysprop",
+				"b.aidl",
+				"a.proto",
+			],
+		}
+		`)
+		foo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Module()
+		checkIncludeDirs(t, ctx, foo,
+			expectedIncludeDirs(`
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/include
+			`),
+			expectedSystemIncludeDirs(``),
+			expectedGeneratedHeaders(`
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/include/a.sysprop.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/public/include/a.sysprop.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
+			`),
+			expectedOrderOnlyDeps(`
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/include/a.sysprop.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/public/include/a.sysprop.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
+				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
+			`),
+		)
+	})
 }
