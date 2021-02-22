@@ -739,6 +739,8 @@ func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, minSdkVersion
 
 	d.flatListPath = PathForModuleOut(ctx, "depsinfo", "flatlist.txt").OutputPath
 	WriteFileRule(ctx, d.flatListPath, flatContent.String())
+
+	ctx.Phony(fmt.Sprintf("%s-depsinfo", ctx.ModuleName()), d.fullListPath, d.flatListPath)
 }
 
 // TODO(b/158059172): remove minSdkVersion allowlist
