@@ -358,7 +358,7 @@ func (f *filesystem) AndroidMkEntries() []android.AndroidMkEntries {
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(f.output),
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(entries *android.AndroidMkEntries) {
+			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_PATH", f.installDir.ToMakePath().String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", f.installFileName())
 			},

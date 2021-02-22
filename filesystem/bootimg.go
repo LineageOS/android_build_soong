@@ -211,7 +211,7 @@ func (b *bootimg) AndroidMkEntries() []android.AndroidMkEntries {
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(b.output),
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(entries *android.AndroidMkEntries) {
+			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				entries.SetString("LOCAL_MODULE_PATH", b.installDir.ToMakePath().String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", b.installFileName())
 			},

@@ -22,7 +22,7 @@ import (
 )
 
 func TestAndroidAppSet(t *testing.T) {
-	ctx, config := testJava(t, `
+	ctx, _ := testJava(t, `
 		android_app_set {
 			name: "foo",
 			set: "prebuilts/apks/app.apks",
@@ -40,7 +40,7 @@ func TestAndroidAppSet(t *testing.T) {
 	if s := params.Args["partition"]; s != "system" {
 		t.Errorf("wrong partition value: '%s', expected 'system'", s)
 	}
-	mkEntries := android.AndroidMkEntriesForTest(t, config, "", module.Module())[0]
+	mkEntries := android.AndroidMkEntriesForTest(t, ctx, module.Module())[0]
 	actualInstallFile := mkEntries.EntryMap["LOCAL_APK_SET_INSTALL_FILE"]
 	expectedInstallFile := []string{"foo.apk"}
 	if !reflect.DeepEqual(actualInstallFile, expectedInstallFile) {
