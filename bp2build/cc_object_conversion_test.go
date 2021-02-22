@@ -166,7 +166,8 @@ cc_defaults {
 			continue
 		}
 
-		bazelTargets := GenerateBazelTargets(ctx.Context.Context, Bp2Build)[dir]
+		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+		bazelTargets := GenerateBazelTargetsForDir(codegenCtx, dir)
 		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
 			fmt.Println(bazelTargets)
 			t.Errorf("%s: Expected %d bazel target, got %d", testCase.description, expectedCount, actualCount)
