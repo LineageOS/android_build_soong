@@ -115,7 +115,8 @@ func TestShBinaryBp2Build(t *testing.T) {
 		if testCase.dir != "" {
 			checkDir = testCase.dir
 		}
-		bazelTargets := GenerateBazelTargets(ctx.Context.Context, Bp2Build)[checkDir]
+		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+		bazelTargets := GenerateBazelTargetsForDir(codegenCtx, checkDir)
 		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
 			t.Errorf("%s: Expected %d bazel target, got %d", testCase.description, expectedCount, actualCount)
 		} else {
