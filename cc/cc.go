@@ -577,6 +577,17 @@ type installer interface {
 	makeUninstallable(mod *Module)
 }
 
+// bazelHandler is the interface for a helper object related to deferring to Bazel for
+// processing a module (during Bazel mixed builds). Individual module types should define
+// their own bazel handler if they support deferring to Bazel.
+type bazelHandler interface {
+	// Issue query to Bazel to retrieve information about Bazel's view of the current module.
+	// If Bazel returns this information, set module properties on the current module to reflect
+	// the returned information.
+	// Returns true if information was available from Bazel, false if bazel invocation still needs to occur.
+	generateBazelBuildActions(ctx android.ModuleContext, label string) bool
+}
+
 type xref interface {
 	XrefCcFiles() android.Paths
 }
@@ -779,9 +790,10 @@ type Module struct {
 	// type-specific logic. These members may reference different objects or the same object.
 	// Functions of these decorators will be invoked to initialize and register type-specific
 	// build statements.
-	compiler  compiler
-	linker    linker
-	installer installer
+	compiler     compiler
+	linker       linker
+	installer    installer
+	bazelHandler bazelHandler
 
 	features []feature
 	stl      *stl
@@ -1559,24 +1571,7 @@ func (c *Module) getNameSuffixWithVndkVersion(ctx android.ModuleContext) string 
 	return nameSuffix
 }
 
-func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
-	// Handle the case of a test module split by `test_per_src` mutator.
-	//
-	// The `test_per_src` mutator adds an extra variation named "", depending on all the other
-	// `test_per_src` variations of the test module. Set `outputFile` to an empty path for this
-	// module and return early, as this module does not produce an output file per se.
-	if c.IsTestPerSrcAllTestsVariation() {
-		c.outputFile = android.OptionalPath{}
-		return
-	}
-
-	apexInfo := actx.Provider(android.ApexInfoProvider).(android.ApexInfo)
-	if !apexInfo.IsForPlatform() {
-		c.hideApexVariantFromMake = true
-	}
-
-	c.makeLinkType = GetMakeLinkType(actx, c)
-
+func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 	c.Properties.SubName = ""
 
 	if c.Target().NativeBridge == android.NativeBridgeEnabled {
@@ -1606,6 +1601,43 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			c.Properties.SubName += "." + c.SdkVersion()
 		}
 	}
+}
+
+// Returns true if Bazel was successfully used for the analysis of this module.
+func (c *Module) maybeGenerateBazelActions(actx android.ModuleContext) bool {
+	bazelModuleLabel := c.GetBazelLabel()
+	bazelActionsUsed := false
+	if c.bazelHandler != nil && actx.Config().BazelContext.BazelEnabled() && len(bazelModuleLabel) > 0 {
+		bazelActionsUsed = c.bazelHandler.generateBazelBuildActions(actx, bazelModuleLabel)
+	}
+	return bazelActionsUsed
+}
+
+func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
+	// TODO(cparsons): Any logic in this method occurring prior to querying Bazel should be
+	// requested from Bazel instead.
+
+	// Handle the case of a test module split by `test_per_src` mutator.
+	//
+	// The `test_per_src` mutator adds an extra variation named "", depending on all the other
+	// `test_per_src` variations of the test module. Set `outputFile` to an empty path for this
+	// module and return early, as this module does not produce an output file per se.
+	if c.IsTestPerSrcAllTestsVariation() {
+		c.outputFile = android.OptionalPath{}
+		return
+	}
+
+	c.setSubnameProperty(actx)
+	apexInfo := actx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	if !apexInfo.IsForPlatform() {
+		c.hideApexVariantFromMake = true
+	}
+
+	if c.maybeGenerateBazelActions(actx) {
+		return
+	}
+
+	c.makeLinkType = GetMakeLinkType(actx, c)
 
 	ctx := &moduleContext{
 		ModuleContext: actx,

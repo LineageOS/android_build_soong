@@ -115,7 +115,23 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 	// may be an expensive operation.
 	depsetIdToArtifactIdsCache := map[int][]int{}
 
+	// Do a pass through all actions to identify which artifacts are middleman artifacts.
+	// These will be omitted from the inputs of other actions.
+	// TODO(b/180945500): Handle middleman actions; without proper handling, depending on generated
+	// headers may cause build failures.
+	middlemanArtifactIds := map[int]bool{}
 	for _, actionEntry := range aqueryResult.Actions {
+		if actionEntry.Mnemonic == "Middleman" {
+			for _, outputId := range actionEntry.OutputIds {
+				middlemanArtifactIds[outputId] = true
+			}
+		}
+	}
+
+	for _, actionEntry := range aqueryResult.Actions {
+		if shouldSkipAction(actionEntry) {
+			continue
+		}
 		outputPaths := []string{}
 		for _, outputId := range actionEntry.OutputIds {
 			outputPath, exists := artifactIdToPath[outputId]
@@ -132,6 +148,10 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 				return nil, err
 			}
 			for _, inputId := range inputArtifacts {
+				if _, isMiddlemanArtifact := middlemanArtifactIds[inputId]; isMiddlemanArtifact {
+					// Omit middleman artifacts.
+					continue
+				}
 				inputPath, exists := artifactIdToPath[inputId]
 				if !exists {
 					return nil, fmt.Errorf("undefined input artifactId %d", inputId)
@@ -145,10 +165,36 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 			InputPaths:  inputPaths,
 			Env:         actionEntry.EnvironmentVariables,
 			Mnemonic:    actionEntry.Mnemonic}
+		if len(actionEntry.Arguments) < 1 {
+			return nil, fmt.Errorf("received action with no command: [%s]", buildStatement)
+			continue
+		}
 		buildStatements = append(buildStatements, buildStatement)
 	}
 
 	return buildStatements, nil
+}
+
+func shouldSkipAction(a action) bool {
+	// TODO(b/180945121): Handle symlink actions.
+	if a.Mnemonic == "Symlink" || a.Mnemonic == "SourceSymlinkManifest" || a.Mnemonic == "SymlinkTree" {
+		return true
+	}
+	// TODO(b/180945500): Handle middleman actions; without proper handling, depending on generated
+	// headers may cause build failures.
+	if a.Mnemonic == "Middleman" {
+		return true
+	}
+	// Skip "Fail" actions, which are placeholder actions designed to always fail.
+	if a.Mnemonic == "Fail" {
+		return true
+	}
+	// TODO(b/180946980): Handle FileWrite. The aquery proto currently contains no information
+	// about the contents that are written.
+	if a.Mnemonic == "FileWrite" {
+		return true
+	}
+	return false
 }
 
 func artifactIdsFromDepsetId(depsetIdToDepset map[int]depSetOfFiles,
