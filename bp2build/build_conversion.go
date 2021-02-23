@@ -208,12 +208,6 @@ func GenerateBazelTargets(ctx CodegenContext) (map[string]BazelTargets, CodegenM
 	return buildFileToTargets, metrics
 }
 
-// Helper method for tests to easily access the targets in a dir.
-func GenerateBazelTargetsForDir(codegenCtx CodegenContext, dir string) BazelTargets {
-	bazelTargetsMap, _ := GenerateBazelTargets(codegenCtx)
-	return bazelTargetsMap[dir]
-}
-
 // Helper method to trim quotes around strings.
 func trimQuotes(s string) string {
 	if s == "" {
