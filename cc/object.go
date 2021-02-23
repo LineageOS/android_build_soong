@@ -92,6 +92,7 @@ func ObjectFactory() android.Module {
 // For bp2build conversion.
 type bazelObjectAttributes struct {
 	Srcs               bazel.LabelList
+	Deps               bazel.LabelList
 	Copts              []string
 	Local_include_dirs []string
 }
@@ -134,18 +135,28 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 
 	var copts []string
 	var srcs []string
+	var excludeSrcs []string
 	var localIncludeDirs []string
 	for _, props := range m.compiler.compilerProps() {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
 			copts = baseCompilerProps.Cflags
 			srcs = baseCompilerProps.Srcs
+			excludeSrcs = baseCompilerProps.Exclude_srcs
 			localIncludeDirs = baseCompilerProps.Local_include_dirs
 			break
 		}
 	}
 
+	var deps bazel.LabelList
+	for _, props := range m.linker.linkerProps() {
+		if objectLinkerProps, ok := props.(*ObjectLinkerProperties); ok {
+			deps = android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Objs)
+		}
+	}
+
 	attrs := &bazelObjectAttributes{
-		Srcs:               android.BazelLabelForModuleSrc(ctx, srcs),
+		Srcs:               android.BazelLabelForModuleSrcExcludes(ctx, srcs, excludeSrcs),
+		Deps:               deps,
 		Copts:              copts,
 		Local_include_dirs: localIncludeDirs,
 	}
