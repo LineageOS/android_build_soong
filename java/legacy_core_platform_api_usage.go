@@ -24,6 +24,7 @@ import (
 // merges between branches (see the comment in the
 // useLegacyCorePlatformApi() function):
 var legacyCorePlatformApiModules = []string{
+	"ArcSettings",
 	"ahat-test-dump",
 	"android.car",
 	"android.test.mock",
@@ -104,6 +105,7 @@ var legacyCorePlatformApiModules = []string{
 	"services.usage",
 	"services.usb",
 	"Settings-core",
+	"SettingsGoogle",
 	"SettingsLib",
 	"SettingsProvider",
 	"SettingsProviderTest",
