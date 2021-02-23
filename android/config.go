@@ -913,6 +913,25 @@ func (c *config) XrefCuEncoding() string {
 	return "json"
 }
 
+// XrefCuJavaSourceMax returns the maximum number of the Java source files
+// in a single compilation unit
+const xrefJavaSourceFileMaxDefault = "1000"
+
+func (c Config) XrefCuJavaSourceMax() string {
+	v := c.Getenv("KYTHE_JAVA_SOURCE_BATCH_SIZE")
+	if v == "" {
+		return xrefJavaSourceFileMaxDefault
+	}
+	if _, err := strconv.ParseUint(v, 0, 0); err != nil {
+		fmt.Fprintf(os.Stderr,
+			"bad KYTHE_JAVA_SOURCE_BATCH_SIZE value: %s, will use %s",
+			err, xrefJavaSourceFileMaxDefault)
+		return xrefJavaSourceFileMaxDefault
+	}
+	return v
+
+}
+
 func (c *config) EmitXrefRules() bool {
 	return c.XrefCorpusName() != ""
 }
