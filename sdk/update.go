@@ -572,12 +572,20 @@ func (t pruneEmptySetTransformer) transformPropertySetAfterContents(name string,
 }
 
 func generateBpContents(contents *generatedContents, bpFile *bpFile) {
+	generateFilteredBpContents(contents, bpFile, func(*bpModule) bool {
+		return true
+	})
+}
+
+func generateFilteredBpContents(contents *generatedContents, bpFile *bpFile, moduleFilter func(module *bpModule) bool) {
 	contents.Printfln("// This is auto-generated. DO NOT EDIT.")
 	for _, bpModule := range bpFile.order {
-		contents.Printfln("")
-		contents.Printfln("%s {", bpModule.moduleType)
-		outputPropertySet(contents, bpModule.bpPropertySet)
-		contents.Printfln("}")
+		if moduleFilter(bpModule) {
+			contents.Printfln("")
+			contents.Printfln("%s {", bpModule.moduleType)
+			outputPropertySet(contents, bpModule.bpPropertySet)
+			contents.Printfln("}")
+		}
 	}
 }
 
@@ -636,6 +644,22 @@ func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 func (s *sdk) GetAndroidBpContentsForTests() string {
 	contents := &generatedContents{}
 	generateBpContents(contents, s.builderForTests.bpFile)
+	return contents.content.String()
+}
+
+func (s *sdk) GetUnversionedAndroidBpContentsForTests() string {
+	contents := &generatedContents{}
+	generateFilteredBpContents(contents, s.builderForTests.bpFile, func(module *bpModule) bool {
+		return !strings.Contains(module.properties["name"].(string), "@")
+	})
+	return contents.content.String()
+}
+
+func (s *sdk) GetVersionedAndroidBpContentsForTests() string {
+	contents := &generatedContents{}
+	generateFilteredBpContents(contents, s.builderForTests.bpFile, func(module *bpModule) bool {
+		return strings.Contains(module.properties["name"].(string), "@")
+	})
 	return contents.content.String()
 }
 
