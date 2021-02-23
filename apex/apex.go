@@ -2846,14 +2846,6 @@ func makeApexAvailableBaseline() map[string][]string {
 	//
 	// Module separator
 	//
-	m["com.android.sdkext"] = []string{
-		"fmtlib_ndk",
-		"libbase_ndk",
-		"libprotobuf-cpp-lite-ndk",
-	}
-	//
-	// Module separator
-	//
 	m["com.android.os.statsd"] = []string{
 		"libstatssocket",
 	}
