@@ -105,6 +105,10 @@ type CodegenContext struct {
 	mode    CodegenMode
 }
 
+func (c *CodegenContext) Mode() CodegenMode {
+	return c.mode
+}
+
 // CodegenMode is an enum to differentiate code-generation modes.
 type CodegenMode int
 
@@ -160,33 +164,54 @@ func propsToAttributes(props map[string]string) string {
 	return attributes
 }
 
-func GenerateBazelTargets(ctx bpToBuildContext, codegenMode CodegenMode) map[string]BazelTargets {
+func GenerateBazelTargets(ctx CodegenContext) (map[string]BazelTargets, CodegenMetrics) {
 	buildFileToTargets := make(map[string]BazelTargets)
-	ctx.VisitAllModules(func(m blueprint.Module) {
-		dir := ctx.ModuleDir(m)
+
+	// Simple metrics tracking for bp2build
+	totalModuleCount := 0
+	ruleClassCount := make(map[string]int)
+
+	bpCtx := ctx.Context()
+	bpCtx.VisitAllModules(func(m blueprint.Module) {
+		dir := bpCtx.ModuleDir(m)
 		var t BazelTarget
 
-		switch codegenMode {
+		switch ctx.Mode() {
 		case Bp2Build:
 			if _, ok := m.(android.BazelTargetModule); !ok {
+				// Only include regular Soong modules (non-BazelTargetModules) into the total count.
+				totalModuleCount += 1
 				return
 			}
-			t = generateBazelTarget(ctx, m)
+			t = generateBazelTarget(bpCtx, m)
+			ruleClassCount[t.ruleClass] += 1
 		case QueryView:
 			// Blocklist certain module types from being generated.
-			if canonicalizeModuleType(ctx.ModuleType(m)) == "package" {
+			if canonicalizeModuleType(bpCtx.ModuleType(m)) == "package" {
 				// package module name contain slashes, and thus cannot
 				// be mapped cleanly to a bazel label.
 				return
 			}
-			t = generateSoongModuleTarget(ctx, m)
+			t = generateSoongModuleTarget(bpCtx, m)
 		default:
-			panic(fmt.Errorf("Unknown code-generation mode: %s", codegenMode))
+			panic(fmt.Errorf("Unknown code-generation mode: %s", ctx.Mode()))
 		}
 
 		buildFileToTargets[dir] = append(buildFileToTargets[dir], t)
 	})
-	return buildFileToTargets
+
+	metrics := CodegenMetrics{
+		TotalModuleCount: totalModuleCount,
+		RuleClassCount:   ruleClassCount,
+	}
+
+	return buildFileToTargets, metrics
+}
+
+// Helper method for tests to easily access the targets in a dir.
+func GenerateBazelTargetsForDir(codegenCtx CodegenContext, dir string) BazelTargets {
+	bazelTargetsMap, _ := GenerateBazelTargets(codegenCtx)
+	return bazelTargetsMap[dir]
 }
 
 // Helper method to trim quotes around strings.
