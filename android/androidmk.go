@@ -141,7 +141,20 @@ type AndroidMkEntries struct {
 	entryOrder []string
 }
 
-type AndroidMkExtraEntriesFunc func(entries *AndroidMkEntries)
+type AndroidMkExtraEntriesContext interface {
+	Provider(provider blueprint.ProviderKey) interface{}
+}
+
+type androidMkExtraEntriesContext struct {
+	ctx fillInEntriesContext
+	mod blueprint.Module
+}
+
+func (a *androidMkExtraEntriesContext) Provider(provider blueprint.ProviderKey) interface{} {
+	return a.ctx.ModuleProvider(a.mod, provider)
+}
+
+type AndroidMkExtraEntriesFunc func(ctx AndroidMkExtraEntriesContext, entries *AndroidMkEntries)
 type AndroidMkExtraFootersFunc func(w io.Writer, name, prefix, moduleDir string)
 
 // Utility funcs to manipulate Android.mk variable entries.
@@ -448,7 +461,13 @@ func (a *AndroidMkEntries) WriteLicenseVariables(w io.Writer) {
 
 // fillInEntries goes through the common variable processing and calls the extra data funcs to
 // generate and fill in AndroidMkEntries's in-struct data, ready to be flushed to a file.
-func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod blueprint.Module) {
+type fillInEntriesContext interface {
+	ModuleDir(module blueprint.Module) string
+	Config() Config
+	ModuleProvider(module blueprint.Module, provider blueprint.ProviderKey) interface{}
+}
+
+func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint.Module) {
 	a.EntryMap = make(map[string][]string)
 	amod := mod.(Module).base()
 	name := amod.BaseModuleName()
@@ -470,7 +489,7 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 	fmt.Fprintln(&a.header, "\ninclude $(CLEAR_VARS)")
 
 	// Collect make variable assignment entries.
-	a.SetString("LOCAL_PATH", filepath.Dir(bpPath))
+	a.SetString("LOCAL_PATH", ctx.ModuleDir(mod))
 	a.SetString("LOCAL_MODULE", name+a.SubName)
 	a.AddStrings("LOCAL_LICENSE_KINDS", amod.commonProperties.Effective_license_kinds...)
 	a.AddStrings("LOCAL_LICENSE_CONDITIONS", amod.commonProperties.Effective_license_conditions...)
@@ -561,17 +580,23 @@ func (a *AndroidMkEntries) fillInEntries(config Config, bpPath string, mod bluep
 
 		}
 
-		if amod.Arch().ArchType != config.Targets[amod.Os()][0].Arch.ArchType {
+		if amod.Arch().ArchType != ctx.Config().Targets[amod.Os()][0].Arch.ArchType {
 			prefix = "2ND_" + prefix
 		}
 	}
+
+	extraCtx := &androidMkExtraEntriesContext{
+		ctx: ctx,
+		mod: mod,
+	}
+
 	for _, extra := range a.ExtraEntries {
-		extra(a)
+		extra(extraCtx, a)
 	}
 
 	// Write to footer.
 	fmt.Fprintln(&a.footer, "include "+a.Include)
-	blueprintDir := filepath.Dir(bpPath)
+	blueprintDir := ctx.ModuleDir(mod)
 	for _, footerFunc := range a.ExtraFooters {
 		footerFunc(&a.footer, name, prefix, blueprintDir)
 	}
@@ -732,7 +757,7 @@ func translateGoBinaryModule(ctx SingletonContext, w io.Writer, mod blueprint.Mo
 	return nil
 }
 
-func (data *AndroidMkData) fillInData(config Config, bpPath string, mod blueprint.Module) {
+func (data *AndroidMkData) fillInData(ctx fillInEntriesContext, mod blueprint.Module) {
 	// Get the preamble content through AndroidMkEntries logic.
 	data.Entries = AndroidMkEntries{
 		Class:           data.Class,
@@ -745,7 +770,7 @@ func (data *AndroidMkData) fillInData(config Config, bpPath string, mod blueprin
 		Host_required:   data.Host_required,
 		Target_required: data.Target_required,
 	}
-	data.Entries.fillInEntries(config, bpPath, mod)
+	data.Entries.fillInEntries(ctx, mod)
 
 	// copy entries back to data since it is used in Custom
 	data.Required = data.Entries.Required
@@ -768,7 +793,7 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, mod blueprint.Mod
 		data.Include = "$(BUILD_PREBUILT)"
 	}
 
-	data.fillInData(ctx.Config(), ctx.BlueprintFile(mod), mod)
+	data.fillInData(ctx, mod)
 
 	prefix := ""
 	if amod.ArchSpecific() {
@@ -795,7 +820,7 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, mod blueprint.Mod
 	if data.Custom != nil {
 		// List of module types allowed to use .Custom(...)
 		// Additions to the list require careful review for proper license handling.
-		switch reflect.TypeOf(mod).String() {  // ctx.ModuleType(mod) doesn't work: aidl_interface creates phony without type
+		switch reflect.TypeOf(mod).String() { // ctx.ModuleType(mod) doesn't work: aidl_interface creates phony without type
 		case "*aidl.aidlApi": // writes non-custom before adding .phony
 		case "*aidl.aidlMapping": // writes non-custom before adding .phony
 		case "*android.customModule": // appears in tests only
@@ -850,7 +875,7 @@ func translateAndroidMkEntriesModule(ctx SingletonContext, w io.Writer, mod blue
 
 	// Any new or special cases here need review to verify correct propagation of license information.
 	for _, entries := range provider.AndroidMkEntries() {
-		entries.fillInEntries(ctx.Config(), ctx.BlueprintFile(mod), mod)
+		entries.fillInEntries(ctx, mod)
 		entries.write(w)
 	}
 
