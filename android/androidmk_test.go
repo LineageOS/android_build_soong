@@ -137,9 +137,9 @@ func customModuleFactory() Module {
 	return module
 }
 
-// buildConfigAndCustomModuleFoo creates a config object, processes the supplied
+// buildContextAndCustomModuleFoo creates a config object, processes the supplied
 // bp module and then returns the config and the custom module called "foo".
-func buildConfigAndCustomModuleFoo(t *testing.T, bp string) (Config, *customModule) {
+func buildContextAndCustomModuleFoo(t *testing.T, bp string) (*TestContext, *customModule) {
 	t.Helper()
 	config := TestConfig(buildDir, nil, bp, nil)
 	config.katiEnabled = true // Enable androidmk Singleton
@@ -155,7 +155,7 @@ func buildConfigAndCustomModuleFoo(t *testing.T, bp string) (Config, *customModu
 	FailIfErrored(t, errs)
 
 	module := ctx.ModuleForTests("foo", "").Module().(*customModule)
-	return config, module
+	return ctx, module
 }
 
 func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testing.T) {
@@ -168,7 +168,7 @@ func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testin
 	}
 	`
 
-	_, m := buildConfigAndCustomModuleFoo(t, bp)
+	_, m := buildContextAndCustomModuleFoo(t, bp)
 
 	assertEqual := func(expected interface{}, actual interface{}) {
 		if !reflect.DeepEqual(expected, actual) {
@@ -253,8 +253,8 @@ func TestGetDistForGoals(t *testing.T) {
 		"$(call dist-for-goals,my_goal my_other_goal,three/four.out:four.out)\n",
 	}
 
-	config, module := buildConfigAndCustomModuleFoo(t, bp)
-	entries := AndroidMkEntriesForTest(t, config, "", module)
+	ctx, module := buildContextAndCustomModuleFoo(t, bp)
+	entries := AndroidMkEntriesForTest(t, ctx, module)
 	if len(entries) != 1 {
 		t.Errorf("Expected a single AndroidMk entry, got %d", len(entries))
 	}
@@ -343,8 +343,8 @@ func TestGetDistContributions(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Helper()
 
-			config, module := buildConfigAndCustomModuleFoo(t, bp)
-			entries := AndroidMkEntriesForTest(t, config, "", module)
+			ctx, module := buildContextAndCustomModuleFoo(t, bp)
+			entries := AndroidMkEntriesForTest(t, ctx, module)
 			if len(entries) != 1 {
 				t.Errorf("Expected a single AndroidMk entry, got %d", len(entries))
 			}
