@@ -217,10 +217,6 @@ func stubFlagsRule(ctx android.SingletonContext) {
 
 	var bootDexJars android.Paths
 
-	// Get the configured non-updatable and updatable boot jars.
-	nonUpdatableBootJars := ctx.Config().NonUpdatableBootJars()
-	updatableBootJars := ctx.Config().UpdatableBootJars()
-
 	ctx.VisitAllModules(func(module android.Module) {
 		// Collect dex jar paths for the modules listed above.
 		if j, ok := module.(UsesLibraryDependency); ok {
@@ -235,11 +231,6 @@ func stubFlagsRule(ctx android.SingletonContext) {
 		// Collect dex jar paths for modules that had hiddenapi encode called on them.
 		if h, ok := module.(hiddenAPIIntf); ok {
 			if jar := h.bootDexJar(); jar != nil {
-				if !isModuleInConfiguredList(ctx, module, nonUpdatableBootJars) &&
-					!isModuleInConfiguredList(ctx, module, updatableBootJars) {
-					return
-				}
-
 				bootDexJars = append(bootDexJars, jar)
 			}
 		}
@@ -291,8 +282,8 @@ func stubFlagsRule(ctx android.SingletonContext) {
 // there too.
 //
 // TODO(b/179354495): Avoid having to perform this type of check or if necessary dedup it.
-func isModuleInConfiguredList(ctx android.SingletonContext, module android.Module, configuredBootJars android.ConfiguredJarList) bool {
-	name := ctx.ModuleName(module)
+func isModuleInConfiguredList(ctx android.BaseModuleContext, module android.Module, configuredBootJars android.ConfiguredJarList) bool {
+	name := ctx.OtherModuleName(module)
 
 	// Strip a prebuilt_ prefix so that this can match a prebuilt module that has not been renamed.
 	name = android.RemoveOptionalPrebuiltPrefix(name)
@@ -305,11 +296,11 @@ func isModuleInConfiguredList(ctx android.SingletonContext, module android.Modul
 
 	// It is an error if the module is not an ApexModule.
 	if _, ok := module.(android.ApexModule); !ok {
-		ctx.Errorf("module %q configured in boot jars does not support being added to an apex", module)
+		ctx.ModuleErrorf("is configured in boot jars but does not support being added to an apex")
 		return false
 	}
 
-	apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+	apexInfo := ctx.OtherModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
 
 	// Now match the apex part of the boot image configuration.
 	requiredApex := configuredBootJars.Apex(index)
@@ -433,6 +424,7 @@ func metadataRule(ctx android.SingletonContext) android.Path {
 
 	rule.Command().
 		BuiltTool("merge_csv").
+		Flag("--key_field signature").
 		FlagWithOutput("--output=", outputPath).
 		Inputs(metadataCSV)
 
@@ -544,6 +536,7 @@ func (h *hiddenAPIIndexSingleton) GenerateBuildActions(ctx android.SingletonCont
 	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
 		BuiltTool("merge_csv").
+		Flag("--key_field signature").
 		FlagWithArg("--header=", "signature,file,startline,startcol,endline,endcol,properties").
 		FlagWithOutput("--output=", hiddenAPISingletonPaths(ctx).index).
 		Inputs(indexes)
