@@ -134,7 +134,9 @@ func main() {
 
 	// Convert the Soong module graph into Bazel BUILD files.
 	if bazelQueryViewDir != "" {
-		if err := createBazelQueryView(ctx, bazelQueryViewDir); err != nil {
+		// Run the code-generation phase to convert BazelTargetModules to BUILD files.
+		codegenContext := bp2build.NewCodegenContext(configuration, *ctx, bp2build.QueryView)
+		if err := createBazelQueryView(codegenContext, bazelQueryViewDir); err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
@@ -188,9 +190,15 @@ func runBp2Build(srcDir string, configuration android.Config) {
 	// from the regular Modules.
 	bootstrap.Main(bp2buildCtx.Context, configuration, extraNinjaDeps...)
 
-	// Run the code-generation phase to convert BazelTargetModules to BUILD files.
+	// Run the code-generation phase to convert BazelTargetModules to BUILD files
+	// and print conversion metrics to the user.
 	codegenContext := bp2build.NewCodegenContext(configuration, *bp2buildCtx, bp2build.Bp2Build)
-	bp2build.Codegen(codegenContext)
+	metrics := bp2build.Codegen(codegenContext)
+
+	// Only report metrics when in bp2build mode. The metrics aren't relevant
+	// for queryview, since that's a total repo-wide conversion and there's a
+	// 1:1 mapping for each module.
+	metrics.Print()
 
 	// Workarounds to support running bp2build in a clean AOSP checkout with no
 	// prior builds, and exiting early as soon as the BUILD files get generated,
