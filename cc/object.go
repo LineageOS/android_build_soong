@@ -118,7 +118,7 @@ func BazelObjectFactory() android.Module {
 // Bazel equivalent target, plus any necessary include deps for the cc_object.
 func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 	m, ok := ctx.Module().(*Module)
-	if !ok || !m.Properties.Bazel_module.Bp2build_available {
+	if !ok || !m.ConvertWithBp2build() {
 		return
 	}
 
