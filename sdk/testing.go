@@ -204,7 +204,11 @@ func (h *TestHelper) AssertErrorMessageEquals(message string, expected string, a
 
 func (h *TestHelper) AssertTrimmedStringEquals(message string, expected string, actual string) {
 	h.t.Helper()
-	h.AssertStringEquals(message, strings.TrimSpace(expected), strings.TrimSpace(actual))
+	expected = strings.TrimSpace(expected)
+	actual = strings.TrimSpace(actual)
+	if actual != expected {
+		h.t.Errorf("%s: expected:\n%s\nactual:\n%s\n", message, expected, actual)
+	}
 }
 
 func (h *TestHelper) AssertDeepEquals(message string, expected interface{}, actual interface{}) {
