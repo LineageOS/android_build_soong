@@ -89,12 +89,6 @@ func TestHiddenAPIIndexSingleton(t *testing.T) {
 		}
 
 		java_library {
-			name: "foo-hiddenapi",
-			srcs: ["a.java"],
-			compile_dex: true,
-		}
-
-		java_library {
 			name: "foo-hiddenapi-annotations",
 			srcs: ["a.java"],
 			compile_dex: true,
@@ -118,7 +112,6 @@ func TestHiddenAPIIndexSingleton(t *testing.T) {
 	indexRule := hiddenAPIIndex.Rule("singleton-merged-hiddenapi-index")
 	CheckHiddenAPIRuleInputs(t, `
 .intermediates/bar/android_common/hiddenapi/index.csv
-.intermediates/foo-hiddenapi/android_common/hiddenapi/index.csv
 .intermediates/foo/android_common/hiddenapi/index.csv
 `,
 		indexRule)
