@@ -424,6 +424,7 @@ func metadataRule(ctx android.SingletonContext) android.Path {
 
 	rule.Command().
 		BuiltTool("merge_csv").
+		Flag("--key_field signature").
 		FlagWithOutput("--output=", outputPath).
 		Inputs(metadataCSV)
 
@@ -535,6 +536,7 @@ func (h *hiddenAPIIndexSingleton) GenerateBuildActions(ctx android.SingletonCont
 	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
 		BuiltTool("merge_csv").
+		Flag("--key_field signature").
 		FlagWithArg("--header=", "signature,file,startline,startcol,endline,endcol,properties").
 		FlagWithOutput("--output=", hiddenAPISingletonPaths(ctx).index).
 		Inputs(indexes)
