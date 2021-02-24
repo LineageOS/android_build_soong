@@ -23,6 +23,7 @@ import (
 )
 
 const bloatyDescriptorExt = "bloaty.csv"
+const protoFilename = "binary_sizes.pb"
 
 var (
 	fileSizeMeasurerKey blueprint.ProviderKey
@@ -87,6 +88,10 @@ func (singleton *sizesSingleton) GenerateBuildActions(ctx android.SingletonConte
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   bloatyMerger,
 		Inputs: android.SortedUniquePaths(deps),
-		Output: android.PathForOutput(ctx, "binary_sizes.pb"),
+		Output: android.PathForOutput(ctx, protoFilename),
 	})
+}
+
+func (singleton *sizesSingleton) MakeVars(ctx android.MakeVarsContext) {
+	ctx.DistForGoalWithFilename("checkbuild", android.PathForOutput(ctx, protoFilename), protoFilename)
 }
