@@ -29,6 +29,7 @@ MODULES_SDK_AND_EXPORTS=(
   runtime-module-sdk
   stats-log-api-gen-exports
   statsd-module-sdk
+  statsd-module-sdk-for-art
   tzdata-module-test-exports
 )
 
