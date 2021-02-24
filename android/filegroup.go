@@ -57,9 +57,9 @@ func FilegroupBp2Build(ctx TopDownMutatorContext) {
 		Srcs: BazelLabelForModuleSrcExcludes(ctx, fg.properties.Srcs, fg.properties.Exclude_srcs),
 	}
 
-	props := bazel.NewBazelTargetModuleProperties(fg.Name(), "filegroup", "")
+	props := bazel.BazelTargetModuleProperties{Rule_class: "filegroup"}
 
-	ctx.CreateBazelTargetModule(BazelFileGroupFactory, props, attrs)
+	ctx.CreateBazelTargetModule(BazelFileGroupFactory, fg.Name(), props, attrs)
 }
 
 type fileGroupProperties struct {
