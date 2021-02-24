@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -51,9 +52,11 @@ type BazelModuleBase struct {
 type Bazelable interface {
 	bazelProps() *properties
 	HasHandcraftedLabel() bool
-	GetBazelLabel() string
+	HandcraftedLabel() string
+	GetBazelLabel(ctx BazelConversionPathContext, module blueprint.Module) string
 	ConvertWithBp2build() bool
 	GetBazelBuildFileContents(c Config, path, name string) (string, error)
+	ConvertedToBazel() bool
 }
 
 // BazelModule is a lightweight wrapper interface around Module for Bazel-convertible modules.
@@ -84,8 +87,14 @@ func (b *BazelModuleBase) HandcraftedLabel() string {
 }
 
 // GetBazelLabel returns the Bazel label for the given BazelModuleBase.
-func (b *BazelModuleBase) GetBazelLabel() string {
-	return proptools.String(b.bazelProperties.Bazel_module.Label)
+func (b *BazelModuleBase) GetBazelLabel(ctx BazelConversionPathContext, module blueprint.Module) string {
+	if b.HasHandcraftedLabel() {
+		return b.HandcraftedLabel()
+	}
+	if b.ConvertWithBp2build() {
+		return bp2buildModuleLabel(ctx, module)
+	}
+	return "" // no label for unconverted module
 }
 
 // ConvertWithBp2build returns whether the given BazelModuleBase should be converted with bp2build.
@@ -98,8 +107,8 @@ func (b *BazelModuleBase) ConvertWithBp2build() bool {
 // TODO(b/181575318): currently we append the whole BUILD file, let's change that to do
 // something more targeted based on the rule type and target.
 func (b *BazelModuleBase) GetBazelBuildFileContents(c Config, path, name string) (string, error) {
-	if !strings.Contains(b.GetBazelLabel(), path) {
-		return "", fmt.Errorf("%q not found in bazel_module.label %q", path, b.GetBazelLabel())
+	if !strings.Contains(b.HandcraftedLabel(), path) {
+		return "", fmt.Errorf("%q not found in bazel_module.label %q", path, b.HandcraftedLabel())
 	}
 	name = filepath.Join(path, name)
 	f, err := c.fs.Open(name)
@@ -113,4 +122,10 @@ func (b *BazelModuleBase) GetBazelBuildFileContents(c Config, path, name string)
 		return "", err
 	}
 	return string(data[:]), nil
+}
+
+// ConvertedToBazel returns whether this module has been converted to Bazel, whether automatically
+// or manually
+func (b *BazelModuleBase) ConvertedToBazel() bool {
+	return b.ConvertWithBp2build() || b.HasHandcraftedLabel()
 }

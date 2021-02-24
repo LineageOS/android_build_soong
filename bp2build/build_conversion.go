@@ -235,7 +235,7 @@ func GenerateBazelTargets(ctx *CodegenContext) (map[string]BazelTargets, Codegen
 }
 
 func getBazelPackagePath(b android.Bazelable) string {
-	label := b.GetBazelLabel()
+	label := b.HandcraftedLabel()
 	pathToBuildFile := strings.TrimPrefix(label, "//")
 	pathToBuildFile = strings.Split(pathToBuildFile, ":")[0]
 	return pathToBuildFile
