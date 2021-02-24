@@ -136,9 +136,11 @@ func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 			String_list_prop: m.props.String_list_prop,
 		}
 
-		props := bazel.NewBazelTargetModuleProperties(m.Name(), "custom", "")
+		props := bazel.BazelTargetModuleProperties{
+			Rule_class: "custom",
+		}
 
-		ctx.CreateBazelTargetModule(customBazelModuleFactory, props, attrs)
+		ctx.CreateBazelTargetModule(customBazelModuleFactory, m.Name(), props, attrs)
 	}
 }
 
@@ -153,26 +155,23 @@ func customBp2BuildMutatorFromStarlark(ctx android.TopDownMutatorContext) {
 		baseName := m.Name()
 		attrs := &customBazelModuleAttributes{}
 
-		myLibraryProps := bazel.NewBazelTargetModuleProperties(
-			baseName,
-			"my_library",
-			"//build/bazel/rules:rules.bzl",
-		)
-		ctx.CreateBazelTargetModule(customBazelModuleFactory, myLibraryProps, attrs)
+		myLibraryProps := bazel.BazelTargetModuleProperties{
+			Rule_class:        "my_library",
+			Bzl_load_location: "//build/bazel/rules:rules.bzl",
+		}
+		ctx.CreateBazelTargetModule(customBazelModuleFactory, baseName, myLibraryProps, attrs)
 
-		protoLibraryProps := bazel.NewBazelTargetModuleProperties(
-			baseName+"_proto_library_deps",
-			"proto_library",
-			"//build/bazel/rules:proto.bzl",
-		)
-		ctx.CreateBazelTargetModule(customBazelModuleFactory, protoLibraryProps, attrs)
+		protoLibraryProps := bazel.BazelTargetModuleProperties{
+			Rule_class:        "proto_library",
+			Bzl_load_location: "//build/bazel/rules:proto.bzl",
+		}
+		ctx.CreateBazelTargetModule(customBazelModuleFactory, baseName+"_proto_library_deps", protoLibraryProps, attrs)
 
-		myProtoLibraryProps := bazel.NewBazelTargetModuleProperties(
-			baseName+"_my_proto_library_deps",
-			"my_proto_library",
-			"//build/bazel/rules:proto.bzl",
-		)
-		ctx.CreateBazelTargetModule(customBazelModuleFactory, myProtoLibraryProps, attrs)
+		myProtoLibraryProps := bazel.BazelTargetModuleProperties{
+			Rule_class:        "my_proto_library",
+			Bzl_load_location: "//build/bazel/rules:proto.bzl",
+		}
+		ctx.CreateBazelTargetModule(customBazelModuleFactory, baseName+"_my_proto_library_deps", myProtoLibraryProps, attrs)
 	}
 }
 

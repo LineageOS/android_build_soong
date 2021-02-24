@@ -150,13 +150,12 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 		Local_include_dirs: localIncludeDirs,
 	}
 
-	props := bazel.NewBazelTargetModuleProperties(
-		m.Name(),
-		"cc_object",
-		"//build/bazel/rules:cc_object.bzl",
-	)
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "cc_object",
+		Bzl_load_location: "//build/bazel/rules:cc_object.bzl",
+	}
 
-	ctx.CreateBazelTargetModule(BazelObjectFactory, props, attrs)
+	ctx.CreateBazelTargetModule(BazelObjectFactory, m.Name(), props, attrs)
 }
 
 func (object *objectLinker) appendLdflags(flags []string) {
