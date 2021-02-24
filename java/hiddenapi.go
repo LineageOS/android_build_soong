@@ -124,7 +124,8 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, configurationNa
 	// on the boot jars list because the runtime only enforces access to the hidden API for the
 	// bootclassloader. If information is gathered for modules not on the list then that will cause
 	// failures in the CtsHiddenApiBlocklist... tests.
-	h.active = inList(configurationName, ctx.Config().BootJars())
+	module := ctx.Module()
+	h.active = isModuleInBootClassPath(ctx, module)
 	if !h.active {
 		// The rest of the properties will be ignored if active is false.
 		return
@@ -135,7 +136,6 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, configurationNa
 
 	// A prebuilt module is only primary if it is preferred and conversely a source module is only
 	// primary if it has not been replaced by a prebuilt module.
-	module := ctx.Module()
 	if pi, ok := module.(android.PrebuiltInterface); ok {
 		if p := pi.Prebuilt(); p != nil {
 			primary = p.UsePrebuilt()
@@ -151,6 +151,15 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, configurationNa
 		primary = primary && !module.IsReplacedByPrebuilt()
 	}
 	h.primary = primary
+}
+
+func isModuleInBootClassPath(ctx android.BaseModuleContext, module android.Module) bool {
+	// Get the configured non-updatable and updatable boot jars.
+	nonUpdatableBootJars := ctx.Config().NonUpdatableBootJars()
+	updatableBootJars := ctx.Config().UpdatableBootJars()
+	active := isModuleInConfiguredList(ctx, module, nonUpdatableBootJars) ||
+		isModuleInConfiguredList(ctx, module, updatableBootJars)
+	return active
 }
 
 // hiddenAPIExtractAndEncode is called by any module that could contribute to the hiddenapi
