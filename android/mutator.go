@@ -283,7 +283,7 @@ type TopDownMutatorContext interface {
 	// factory method, just like in CreateModule, but also requires
 	// BazelTargetModuleProperties containing additional metadata for the
 	// bp2build codegenerator.
-	CreateBazelTargetModule(ModuleFactory, bazel.BazelTargetModuleProperties, interface{}) BazelTargetModule
+	CreateBazelTargetModule(ModuleFactory, string, bazel.BazelTargetModuleProperties, interface{}) BazelTargetModule
 }
 
 type topDownMutatorContext struct {
@@ -513,17 +513,25 @@ func registerDepsMutatorBp2Build(ctx RegisterMutatorsContext) {
 
 func (t *topDownMutatorContext) CreateBazelTargetModule(
 	factory ModuleFactory,
+	name string,
 	bazelProps bazel.BazelTargetModuleProperties,
 	attrs interface{}) BazelTargetModule {
-	if !strings.HasPrefix(*bazelProps.Name, bazel.BazelTargetModuleNamePrefix) {
+	if strings.HasPrefix(name, bazel.BazelTargetModuleNamePrefix) {
 		panic(fmt.Errorf(
-			"bp2build error: the bazel target module name must start with '%s': %s",
+			"The %s name prefix is added automatically, do not set it manually: %s",
 			bazel.BazelTargetModuleNamePrefix,
-			*bazelProps.Name,
-		))
+			name))
+	}
+	name = bazel.BazelTargetModuleNamePrefix + name
+	nameProp := struct {
+		Name *string
+	}{
+		Name: &name,
 	}
 
-	return t.CreateModule(factory, &bazelProps, attrs).(BazelTargetModule)
+	b := t.CreateModule(factory, &nameProp, attrs).(BazelTargetModule)
+	b.SetBazelTargetModuleProperties(bazelProps)
+	return b
 }
 
 func (t *topDownMutatorContext) AppendProperties(props ...interface{}) {
