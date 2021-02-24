@@ -1348,10 +1348,16 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			}
 		}
 
+		// Make sure to only export headers which are within the include directory.
+		_, headers := android.FilterPathListPredicate(library.baseCompiler.syspropHeaders, func(path android.Path) bool {
+			_, isRel := android.MaybeRel(ctx, dir.String(), path.String())
+			return isRel
+		})
+
 		// Add sysprop-related directories to the exported directories of this library.
 		library.reexportDirs(dir)
 		library.reexportDeps(library.baseCompiler.syspropOrderOnlyDeps...)
-		library.addExportedGeneratedHeaders(library.baseCompiler.syspropHeaders...)
+		library.addExportedGeneratedHeaders(headers...)
 	}
 
 	// Add stub-related flags if this library is a stub library.
