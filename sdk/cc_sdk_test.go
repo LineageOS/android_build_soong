@@ -448,6 +448,81 @@ include/Test.h -> include/include/Test.h
 	)
 }
 
+func TestSnapshotWithCcExportGeneratedHeaders(t *testing.T) {
+	result := testSdkWithCc(t, `
+		sdk {
+			name: "mysdk",
+			native_shared_libs: ["mynativelib"],
+		}
+
+		cc_library_shared {
+			name: "mynativelib",
+			srcs: [
+				"Test.cpp",
+			],
+			generated_headers: [
+				"generated_foo",
+			],
+			export_generated_headers: [
+				"generated_foo",
+			],
+			export_include_dirs: ["include"],
+			stl: "none",
+		}
+
+		genrule {
+			name: "generated_foo",
+			cmd: "generate-foo",
+			out: [
+				"generated_foo/protos/foo/bar.h",
+			],
+			export_include_dirs: [
+				".",
+				"protos",
+			],
+		}
+	`)
+
+	result.CheckSnapshot("mysdk", "",
+		checkUnversionedAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+cc_prebuilt_library_shared {
+    name: "mynativelib",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    stl: "none",
+    compile_multilib: "both",
+    export_include_dirs: ["include/include"],
+    arch: {
+        arm64: {
+            srcs: ["arm64/lib/mynativelib.so"],
+            export_include_dirs: [
+                "arm64/include_gen/mynativelib",
+                "arm64/include_gen/mynativelib",
+            ],
+        },
+        arm: {
+            srcs: ["arm/lib/mynativelib.so"],
+            export_include_dirs: [
+                "arm/include_gen/mynativelib",
+                "arm/include_gen/mynativelib",
+            ],
+        },
+    },
+}
+`),
+		checkAllCopyRules(`
+include/Test.h -> include/include/Test.h
+.intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
+.intermediates/generated_foo/gen/generated_foo/protos/foo/bar.h -> arm64/include_gen/mynativelib/generated_foo/protos/foo/bar.h
+.intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so
+.intermediates/generated_foo/gen/generated_foo/protos/foo/bar.h -> arm/include_gen/mynativelib/generated_foo/protos/foo/bar.h
+`),
+	)
+}
+
 // Verify that when the shared library has some common and some arch specific
 // properties that the generated snapshot is optimized properly. Substruct
 // handling is tested with the sanitize clauses (but note there's a lot of
