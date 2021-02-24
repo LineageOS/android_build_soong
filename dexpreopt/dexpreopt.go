@@ -279,11 +279,12 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 
 		// Generate command that saves host and target class loader context in shell variables.
 		clc, paths := ComputeClassLoaderContext(module.ClassLoaderContexts)
-		cmd := rule.Command().
-			Text(`eval "$(`).Tool(globalSoong.ConstructContext).
+		rule.Command().
+			Text("if ! test -s ").Input(module.EnforceUsesLibrariesStatusFile).
+			Text(` ; then eval "$(`).Tool(globalSoong.ConstructContext).
 			Text(` --target-sdk-version ${target_sdk_version}`).
-			Text(clc).Implicits(paths)
-		cmd.Text(`)"`)
+			Text(clc).Implicits(paths).
+			Text(`)" ; fi`)
 
 	} else {
 		// Other libraries or APKs for which the exact <uses-library> list is unknown.
@@ -366,7 +367,16 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 		} else {
 			compilerFilter = "quicken"
 		}
-		cmd.FlagWithArg("--compiler-filter=", compilerFilter)
+		if module.EnforceUsesLibraries {
+			// If the verify_uses_libraries check failed (in this case status file contains a
+			// non-empty error message), then use "extract" compiler filter to avoid compiling any
+			// code (it would be rejected on device because of a class loader context mismatch).
+			cmd.Text("--compiler-filter=$(if test -s ").
+				Input(module.EnforceUsesLibrariesStatusFile).
+				Text(" ; then echo extract ; else echo " + compilerFilter + " ; fi)")
+		} else {
+			cmd.FlagWithArg("--compiler-filter=", compilerFilter)
+		}
 	}
 
 	if generateDM {
@@ -540,6 +550,12 @@ func checkSystemServerOrder(ctx android.PathContext, jarIndex int) {
 			return true
 		})
 	}
+}
+
+// Returns path to a file containing the reult of verify_uses_libraries check (empty if the check
+// has succeeded, or an error message if it failed).
+func UsesLibrariesStatusFile(ctx android.ModuleContext) android.WritablePath {
+	return android.PathForModuleOut(ctx, "enforce_uses_libraries.status")
 }
 
 func contains(l []string, s string) bool {
