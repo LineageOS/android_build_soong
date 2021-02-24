@@ -494,31 +494,26 @@ cc_prebuilt_library_shared {
     apex_available: ["//apex_available:platform"],
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/myinclude"],
+    export_include_dirs: [
+        "include/myinclude",
+        "include_gen/generated_foo/gen",
+        "include_gen/generated_foo/gen/protos",
+    ],
     arch: {
         arm64: {
             srcs: ["arm64/lib/mynativelib.so"],
-            export_include_dirs: [
-                "arm64/include_gen/generated_foo/gen",
-                "arm64/include_gen/generated_foo/gen/protos",
-            ],
         },
         arm: {
             srcs: ["arm/lib/mynativelib.so"],
-            export_include_dirs: [
-                "arm/include_gen/generated_foo/gen",
-                "arm/include_gen/generated_foo/gen/protos",
-            ],
         },
     },
 }
 `),
 		checkAllCopyRules(`
 myinclude/Test.h -> include/myinclude/Test.h
+.intermediates/generated_foo/gen/generated_foo/protos/foo/bar.h -> include_gen/generated_foo/gen/generated_foo/protos/foo/bar.h
 .intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
-.intermediates/generated_foo/gen/generated_foo/protos/foo/bar.h -> arm64/include_gen/generated_foo/gen/generated_foo/protos/foo/bar.h
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so
-.intermediates/generated_foo/gen/generated_foo/protos/foo/bar.h -> arm/include_gen/generated_foo/gen/generated_foo/protos/foo/bar.h
 `),
 	)
 }
@@ -1858,7 +1853,10 @@ cc_prebuilt_library_static {
     host_supported: true,
     stl: "none",
     compile_multilib: "64",
-    export_include_dirs: ["include/myinclude"],
+    export_include_dirs: [
+        "include/myinclude",
+        "include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl",
+    ],
     target: {
         host: {
             enabled: false,
@@ -1866,7 +1864,6 @@ cc_prebuilt_library_static {
         linux_glibc_x86_64: {
             enabled: true,
             srcs: ["x86_64/lib/mynativelib.a"],
-            export_include_dirs: ["x86_64/include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl"],
         },
     },
 }
@@ -1884,7 +1881,10 @@ cc_prebuilt_library_static {
     installable: false,
     stl: "none",
     compile_multilib: "64",
-    export_include_dirs: ["include/myinclude"],
+    export_include_dirs: [
+        "include/myinclude",
+        "include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl",
+    ],
     target: {
         host: {
             enabled: false,
@@ -1892,7 +1892,6 @@ cc_prebuilt_library_static {
         linux_glibc_x86_64: {
             enabled: true,
             srcs: ["x86_64/lib/mynativelib.a"],
-            export_include_dirs: ["x86_64/include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl"],
         },
     },
 }
@@ -1916,10 +1915,10 @@ module_exports_snapshot {
 `),
 		checkAllCopyRules(`
 myinclude/Test.h -> include/myinclude/Test.h
+.intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/Test.h -> include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/Test.h
+.intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BnTest.h -> include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BnTest.h
+.intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BpTest.h -> include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BpTest.h
 .intermediates/mynativelib/linux_glibc_x86_64_static/mynativelib.a -> x86_64/lib/mynativelib.a
-.intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/Test.h -> x86_64/include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/Test.h
-.intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BnTest.h -> x86_64/include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BnTest.h
-.intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BpTest.h -> x86_64/include_gen/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BpTest.h
 `),
 	)
 }
