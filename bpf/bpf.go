@@ -26,7 +26,7 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("bpf", BpfFactory)
+	registerBpfBuildComponents(android.InitRegistrationContext)
 	pctx.Import("android/soong/cc/config")
 }
 
@@ -42,6 +42,12 @@ var (
 		},
 		"ccCmd", "cFlags")
 )
+
+func registerBpfBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("bpf", BpfFactory)
+}
+
+var PrepareForTestWithBpf = android.FixtureRegisterWithContext(registerBpfBuildComponents)
 
 // BpfModule interface is used by the apex package to gather information from a bpf module.
 type BpfModule interface {
