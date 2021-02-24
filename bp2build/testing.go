@@ -25,10 +25,9 @@ type customProps struct {
 
 type customModule struct {
 	android.ModuleBase
+	android.BazelModuleBase
 
 	props customProps
-
-	bazelProps bazel.Properties
 }
 
 // OutputFiles is needed because some instances of this module use dist with a
@@ -44,7 +43,7 @@ func (m *customModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func customModuleFactoryBase() android.Module {
 	module := &customModule{}
 	module.AddProperties(&module.props)
-	module.AddProperties(&module.bazelProps)
+	android.InitBazelModule(module)
 	return module
 }
 
@@ -127,7 +126,7 @@ func (m *customBazelModule) GenerateAndroidBuildActions(ctx android.ModuleContex
 
 func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 	if m, ok := ctx.Module().(*customModule); ok {
-		if !m.bazelProps.Bazel_module.Bp2build_available {
+		if !m.ConvertWithBp2build() {
 			return
 		}
 
@@ -148,7 +147,7 @@ func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 // module to target.
 func customBp2BuildMutatorFromStarlark(ctx android.TopDownMutatorContext) {
 	if m, ok := ctx.Module().(*customModule); ok {
-		if !m.bazelProps.Bazel_module.Bp2build_available {
+		if !m.ConvertWithBp2build() {
 			return
 		}
 
