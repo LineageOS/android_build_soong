@@ -22,6 +22,7 @@ import (
 var legacyCorePlatformApiModules = []string{
 	"AAECarSystemUI",
 	"AAECarSystemUI-tests",
+	"ArcSettings",
 	"ahat-test-dump",
 	"android.car",
 	"android.test.mock",
@@ -151,6 +152,7 @@ var legacyCorePlatformApiModules = []string{
 	"services.usage",
 	"services.usb",
 	"Settings-core",
+	"SettingsGoogle",
 	"SettingsGoogleOverlayCoral",
 	"SettingsGoogleOverlayFlame",
 	"SettingsLib",
