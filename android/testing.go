@@ -140,6 +140,10 @@ func (ctx *TestContext) RegisterSingletonType(name string, factory SingletonFact
 	ctx.Context.RegisterSingletonType(name, SingletonFactoryAdaptor(ctx.Context, factory))
 }
 
+func (ctx *TestContext) RegisterPreSingletonType(name string, factory SingletonFactory) {
+	ctx.Context.RegisterPreSingletonType(name, SingletonFactoryAdaptor(ctx.Context, factory))
+}
+
 func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {
 	var module Module
 	ctx.VisitAllModules(func(m blueprint.Module) {
