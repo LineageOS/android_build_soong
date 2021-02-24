@@ -204,7 +204,7 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		android.FailIfErrored(t, errs)
 
 		codegenCtx := NewCodegenContext(config, *ctx.Context, QueryView)
-		bazelTargets := GenerateBazelTargetsForDir(codegenCtx, dir)
+		bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
 		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
 			t.Fatalf("Expected %d bazel target, got %d", expectedCount, actualCount)
 		}
@@ -262,7 +262,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 		}
 
 		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-		bazelTargets := GenerateBazelTargetsForDir(codegenCtx, dir)
+		bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
 
 		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
 			t.Errorf("Expected %d bazel target, got %d", expectedCount, actualCount)
@@ -421,7 +421,7 @@ load("//build/bazel/rules:rules.bzl", "my_library")`,
 		android.FailIfErrored(t, errs)
 
 		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-		bazelTargets := GenerateBazelTargetsForDir(codegenCtx, dir)
+		bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
 		if actualCount := len(bazelTargets); actualCount != testCase.expectedBazelTargetCount {
 			t.Fatalf("Expected %d bazel target, got %d", testCase.expectedBazelTargetCount, actualCount)
 		}
@@ -912,7 +912,7 @@ genrule {
 		}
 
 		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-		bazelTargets := GenerateBazelTargetsForDir(codegenCtx, checkDir)
+		bazelTargets := generateBazelTargetsForDir(codegenCtx, checkDir)
 		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
 			t.Errorf("%s: Expected %d bazel target, got %d", testCase.description, expectedCount, actualCount)
 		} else {
@@ -1127,7 +1127,7 @@ genrule {
 		android.FailIfErrored(t, errs)
 
 		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-		bazelTargets := GenerateBazelTargetsForDir(codegenCtx, dir)
+		bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
 		if actualCount := len(bazelTargets); actualCount != 1 {
 			t.Fatalf("%s: Expected 1 bazel target, got %d", testCase.description, actualCount)
 		}
@@ -1215,7 +1215,7 @@ func TestAllowlistingBp2buildTargets(t *testing.T) {
 		android.FailIfErrored(t, errs)
 
 		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
-		bazelTargets := GenerateBazelTargetsForDir(codegenCtx, dir)
+		bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
 		if actualCount := len(bazelTargets); actualCount != testCase.expectedCount {
 			t.Fatalf("%s: Expected %d bazel target, got %d", testCase.description, testCase.expectedCount, actualCount)
 		}

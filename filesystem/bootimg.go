@@ -107,14 +107,8 @@ func (b *bootimg) partitionName() string {
 }
 
 func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	var unsignedOutput android.OutputPath
-	if proptools.Bool(b.properties.Vendor_boot) {
-		unsignedOutput = b.buildVendorBootImage(ctx)
-	} else {
-		// TODO(jiyong): fix this
-		ctx.PropertyErrorf("vendor_boot", "only vendor_boot:true is supported")
-		return
-	}
+	vendor := proptools.Bool(b.properties.Vendor_boot)
+	unsignedOutput := b.buildBootImage(ctx, vendor)
 
 	if proptools.Bool(b.properties.Use_avb) {
 		b.output = b.signImage(ctx, unsignedOutput)
@@ -126,16 +120,23 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.InstallFile(b.installDir, b.installFileName(), b.output)
 }
 
-func (b *bootimg) buildVendorBootImage(ctx android.ModuleContext) android.OutputPath {
+func (b *bootimg) buildBootImage(ctx android.ModuleContext, vendor bool) android.OutputPath {
 	output := android.PathForModuleOut(ctx, "unsigned", b.installFileName()).OutputPath
 
 	builder := android.NewRuleBuilder(pctx, ctx)
 	cmd := builder.Command().BuiltTool("mkbootimg")
 
-	kernel := android.OptionalPathForModuleSrc(ctx, b.properties.Kernel_prebuilt)
-	if kernel.Valid() {
+	kernel := proptools.String(b.properties.Kernel_prebuilt)
+	if vendor && kernel != "" {
 		ctx.PropertyErrorf("kernel_prebuilt", "vendor_boot partition can't have kernel")
 		return output
+	}
+	if !vendor && kernel == "" {
+		ctx.PropertyErrorf("kernel_prebuilt", "boot partition must have kernel")
+		return output
+	}
+	if kernel != "" {
+		cmd.FlagWithInput("--kernel ", android.PathForModuleSrc(ctx, kernel))
 	}
 
 	dtbName := proptools.String(b.properties.Dtb_prebuilt)
@@ -148,7 +149,11 @@ func (b *bootimg) buildVendorBootImage(ctx android.ModuleContext) android.Output
 
 	cmdline := proptools.String(b.properties.Cmdline)
 	if cmdline != "" {
-		cmd.FlagWithArg("--vendor_cmdline ", "\""+cmdline+"\"")
+		flag := "--cmdline "
+		if vendor {
+			flag = "--vendor_cmdline "
+		}
+		cmd.FlagWithArg(flag, "\""+proptools.ShellEscape(cmdline)+"\"")
 	}
 
 	headerVersion := proptools.String(b.properties.Header_version)
@@ -174,15 +179,23 @@ func (b *bootimg) buildVendorBootImage(ctx android.ModuleContext) android.Output
 	}
 	ramdisk := ctx.GetDirectDepWithTag(ramdiskName, bootimgRamdiskDep)
 	if filesystem, ok := ramdisk.(*filesystem); ok {
-		cmd.FlagWithInput("--vendor_ramdisk ", filesystem.OutputPath())
+		flag := "--ramdisk "
+		if vendor {
+			flag = "--vendor_ramdisk "
+		}
+		cmd.FlagWithInput(flag, filesystem.OutputPath())
 	} else {
 		ctx.PropertyErrorf("ramdisk", "%q is not android_filesystem module", ramdisk.Name())
 		return output
 	}
 
-	cmd.FlagWithOutput("--vendor_boot ", output)
+	flag := "--output "
+	if vendor {
+		flag = "--vendor_boot "
+	}
+	cmd.FlagWithOutput(flag, output)
 
-	builder.Build("build_vendor_bootimg", fmt.Sprintf("Creating %s", b.BaseModuleName()))
+	builder.Build("build_bootimg", fmt.Sprintf("Creating %s", b.BaseModuleName()))
 	return output
 }
 
