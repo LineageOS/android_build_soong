@@ -1038,7 +1038,7 @@ func (lt linkType) String() string {
 	case javaPlatform:
 		return "private API"
 	default:
-		panic(fmt.Errorf("unrecognized linktype: %v", lt))
+		panic(fmt.Errorf("unrecognized linktype: %d", lt))
 	}
 }
 
