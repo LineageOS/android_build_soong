@@ -74,8 +74,8 @@ func testContext(config android.Config) *android.TestContext {
 
 	ctx.PreDepsMutators(python.RegisterPythonPreDepsMutators)
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
-	ctx.RegisterPreSingletonType("overlay", android.SingletonFactoryAdaptor(ctx.Context, OverlaySingletonFactory))
-	ctx.RegisterPreSingletonType("sdk_versions", android.SingletonFactoryAdaptor(ctx.Context, sdkPreSingletonFactory))
+	ctx.RegisterPreSingletonType("overlay", OverlaySingletonFactory)
+	ctx.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
 
 	android.RegisterPrebuiltMutators(ctx)
 
