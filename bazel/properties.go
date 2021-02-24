@@ -14,6 +14,8 @@
 
 package bazel
 
+import "fmt"
+
 type bazelModuleProperties struct {
 	// The label of the Bazel target replacing this Soong module.
 	Label string
@@ -61,5 +63,74 @@ func (ll *LabelList) Append(other LabelList) {
 	}
 	if len(ll.Excludes) > 0 || len(other.Excludes) > 0 {
 		ll.Excludes = append(other.Excludes, other.Excludes...)
+	}
+}
+
+// StringListAttribute corresponds to the string_list Bazel attribute type with
+// support for additional metadata, like configurations.
+type StringListAttribute struct {
+	// The base value of the string list attribute.
+	Value []string
+
+	// Optional additive set of list values to the base value.
+	ArchValues stringListArchValues
+}
+
+// Arch-specific string_list typed Bazel attribute values. This should correspond
+// to the types of architectures supported for compilation in arch.go.
+type stringListArchValues struct {
+	X86     []string
+	X86_64  []string
+	Arm     []string
+	Arm64   []string
+	Default []string
+	// TODO(b/181299724): this is currently missing the "common" arch, which
+	// doesn't have an equivalent platform() definition yet.
+}
+
+// HasArchSpecificValues returns true if the attribute contains
+// architecture-specific string_list values.
+func (attrs *StringListAttribute) HasArchSpecificValues() bool {
+	for _, arch := range []string{"x86", "x86_64", "arm", "arm64", "default"} {
+		if len(attrs.GetValueForArch(arch)) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// GetValueForArch returns the string_list attribute value for an architecture.
+func (attrs *StringListAttribute) GetValueForArch(arch string) []string {
+	switch arch {
+	case "x86":
+		return attrs.ArchValues.X86
+	case "x86_64":
+		return attrs.ArchValues.X86_64
+	case "arm":
+		return attrs.ArchValues.Arm
+	case "arm64":
+		return attrs.ArchValues.Arm64
+	case "default":
+		return attrs.ArchValues.Default
+	default:
+		panic(fmt.Errorf("Unknown arch: %s", arch))
+	}
+}
+
+// SetValueForArch sets the string_list attribute value for an architecture.
+func (attrs *StringListAttribute) SetValueForArch(arch string, value []string) {
+	switch arch {
+	case "x86":
+		attrs.ArchValues.X86 = value
+	case "x86_64":
+		attrs.ArchValues.X86_64 = value
+	case "arm":
+		attrs.ArchValues.Arm = value
+	case "arm64":
+		attrs.ArchValues.Arm64 = value
+	case "default":
+		attrs.ArchValues.Default = value
+	default:
+		panic(fmt.Errorf("Unknown arch: %s", arch))
 	}
 }
