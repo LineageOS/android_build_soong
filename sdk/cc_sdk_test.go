@@ -22,14 +22,14 @@ import (
 )
 
 var ccTestFs = map[string][]byte{
-	"Test.cpp":                      nil,
-	"include/Test.h":                nil,
-	"include-android/AndroidTest.h": nil,
-	"include-host/HostTest.h":       nil,
-	"arm64/include/Arm64Test.h":     nil,
-	"libfoo.so":                     nil,
-	"aidl/foo/bar/Test.aidl":        nil,
-	"some/where/stubslib.map.txt":   nil,
+	"Test.cpp":                        nil,
+	"myinclude/Test.h":                nil,
+	"myinclude-android/AndroidTest.h": nil,
+	"myinclude-host/HostTest.h":       nil,
+	"arm64/include/Arm64Test.h":       nil,
+	"libfoo.so":                       nil,
+	"aidl/foo/bar/Test.aidl":          nil,
+	"some/where/stubslib.map.txt":     nil,
 }
 
 func testSdkWithCc(t *testing.T, bp string) *testSdkResult {
@@ -423,7 +423,7 @@ func TestSnapshotWithCcDuplicateHeaders(t *testing.T) {
 			srcs: [
 				"Test.cpp",
 			],
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			stl: "none",
 		}
 
@@ -432,14 +432,14 @@ func TestSnapshotWithCcDuplicateHeaders(t *testing.T) {
 			srcs: [
 				"Test.cpp",
 			],
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			stl: "none",
 		}
 	`)
 
 	result.CheckSnapshot("mysdk", "",
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib1/android_arm64_armv8-a_shared/mynativelib1.so -> arm64/lib/mynativelib1.so
 .intermediates/mynativelib1/android_arm_armv7-a-neon_shared/mynativelib1.so -> arm/lib/mynativelib1.so
 .intermediates/mynativelib2/android_arm64_armv8-a_shared/mynativelib2.so -> arm64/lib/mynativelib2.so
@@ -466,7 +466,7 @@ func TestSnapshotWithCcExportGeneratedHeaders(t *testing.T) {
 			export_generated_headers: [
 				"generated_foo",
 			],
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			stl: "none",
 		}
 
@@ -494,7 +494,7 @@ cc_prebuilt_library_shared {
     apex_available: ["//apex_available:platform"],
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     arch: {
         arm64: {
             srcs: ["arm64/lib/mynativelib.so"],
@@ -514,7 +514,7 @@ cc_prebuilt_library_shared {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
 .intermediates/generated_foo/gen/generated_foo/protos/foo/bar.h -> arm64/include_gen/mynativelib/generated_foo/protos/foo/bar.h
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so
@@ -540,7 +540,7 @@ func TestSnapshotWithCcSharedLibraryCommonProperties(t *testing.T) {
 				"Test.cpp",
 				"aidl/foo/bar/Test.aidl",
 			],
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			sanitize: {
 				fuzzer: false,
 				integer_overflow: true,
@@ -569,7 +569,7 @@ cc_prebuilt_library_shared {
     apex_available: ["//apex_available:platform"],
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     sanitize: {
         fuzzer: false,
         diag: {
@@ -594,7 +594,7 @@ cc_prebuilt_library_shared {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
 arm64/include/Arm64Test.h -> arm64/include/arm64/include/Arm64Test.h
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so`),
@@ -1093,7 +1093,7 @@ func TestSnapshotWithCcSharedLibrary(t *testing.T) {
 				"aidl/foo/bar/Test.aidl",
 			],
 			apex_available: ["apex1", "apex2"],
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			aidl: {
 				export_aidl_headers: true,
 			},
@@ -1115,7 +1115,7 @@ cc_prebuilt_library_shared {
     ],
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     arch: {
         arm64: {
             srcs: ["arm64/lib/mynativelib.so"],
@@ -1129,7 +1129,7 @@ cc_prebuilt_library_shared {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
 .intermediates/mynativelib/android_arm64_armv8-a_shared/gen/aidl/aidl/foo/bar/Test.h -> arm64/include_gen/mynativelib/aidl/foo/bar/Test.h
 .intermediates/mynativelib/android_arm64_armv8-a_shared/gen/aidl/aidl/foo/bar/BnTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
@@ -1290,7 +1290,7 @@ func TestHostSnapshotWithCcSharedLibrary(t *testing.T) {
 				"Test.cpp",
 				"aidl/foo/bar/Test.aidl",
 			],
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			aidl: {
 				export_aidl_headers: true,
 			},
@@ -1313,7 +1313,7 @@ cc_prebuilt_library_shared {
     sdk_version: "minimum",
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     target: {
         host: {
             enabled: false,
@@ -1345,7 +1345,7 @@ cc_prebuilt_library_shared {
     sdk_version: "minimum",
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     target: {
         host: {
             enabled: false,
@@ -1383,7 +1383,7 @@ sdk_snapshot {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/linux_glibc_x86_64_shared/mynativelib.so -> x86_64/lib/mynativelib.so
 .intermediates/mynativelib/linux_glibc_x86_64_shared/gen/aidl/aidl/foo/bar/Test.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/Test.h
 .intermediates/mynativelib/linux_glibc_x86_64_shared/gen/aidl/aidl/foo/bar/BnTest.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
@@ -1546,7 +1546,7 @@ func TestSnapshotWithCcStaticLibrary(t *testing.T) {
 				"Test.cpp",
 				"aidl/foo/bar/Test.aidl",
 			],
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			aidl: {
 				export_aidl_headers: true,
 			},
@@ -1565,7 +1565,7 @@ cc_prebuilt_library_static {
     apex_available: ["//apex_available:platform"],
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     arch: {
         arm64: {
             srcs: ["arm64/lib/mynativelib.a"],
@@ -1579,7 +1579,7 @@ cc_prebuilt_library_static {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/android_arm64_armv8-a_static/mynativelib.a -> arm64/lib/mynativelib.a
 .intermediates/mynativelib/android_arm64_armv8-a_static/gen/aidl/aidl/foo/bar/Test.h -> arm64/include_gen/mynativelib/aidl/foo/bar/Test.h
 .intermediates/mynativelib/android_arm64_armv8-a_static/gen/aidl/aidl/foo/bar/BnTest.h -> arm64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
@@ -1609,7 +1609,7 @@ func TestHostSnapshotWithCcStaticLibrary(t *testing.T) {
 				"Test.cpp",
 				"aidl/foo/bar/Test.aidl",
 			],
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			aidl: {
 				export_aidl_headers: true,
 			},
@@ -1630,7 +1630,7 @@ cc_prebuilt_library_static {
     host_supported: true,
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     target: {
         host: {
             enabled: false,
@@ -1661,7 +1661,7 @@ cc_prebuilt_library_static {
     installable: false,
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     target: {
         host: {
             enabled: false,
@@ -1699,7 +1699,7 @@ module_exports_snapshot {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/linux_glibc_x86_64_static/mynativelib.a -> x86_64/lib/mynativelib.a
 .intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/Test.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/Test.h
 .intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BnTest.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
@@ -1724,7 +1724,7 @@ func TestSnapshotWithCcLibrary(t *testing.T) {
 			srcs: [
 				"Test.cpp",
 			],
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			stl: "none",
 			recovery_available: true,
 			vendor_available: true,
@@ -1744,7 +1744,7 @@ cc_prebuilt_library {
     vendor_available: true,
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     arch: {
         arm64: {
             static: {
@@ -1779,7 +1779,7 @@ cc_prebuilt_library {
     vendor_available: true,
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     arch: {
         arm64: {
             static: {
@@ -1807,7 +1807,7 @@ module_exports_snapshot {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/android_arm64_armv8-a_static/mynativelib.a -> arm64/lib/mynativelib.a
 .intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
 .intermediates/mynativelib/android_arm_armv7-a-neon_static/mynativelib.a -> arm/lib/mynativelib.a
@@ -1837,7 +1837,7 @@ func TestHostSnapshotWithMultiLib64(t *testing.T) {
 				"Test.cpp",
 				"aidl/foo/bar/Test.aidl",
 			],
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			aidl: {
 				export_aidl_headers: true,
 			},
@@ -1858,7 +1858,7 @@ cc_prebuilt_library_static {
     host_supported: true,
     stl: "none",
     compile_multilib: "64",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     target: {
         host: {
             enabled: false,
@@ -1884,7 +1884,7 @@ cc_prebuilt_library_static {
     installable: false,
     stl: "none",
     compile_multilib: "64",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     target: {
         host: {
             enabled: false,
@@ -1915,7 +1915,7 @@ module_exports_snapshot {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/linux_glibc_x86_64_static/mynativelib.a -> x86_64/lib/mynativelib.a
 .intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/Test.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/Test.h
 .intermediates/mynativelib/linux_glibc_x86_64_static/gen/aidl/aidl/foo/bar/BnTest.h -> x86_64/include_gen/mynativelib/aidl/foo/bar/BnTest.h
@@ -1933,7 +1933,7 @@ func TestSnapshotWithCcHeadersLibrary(t *testing.T) {
 
 		cc_library_headers {
 			name: "mynativeheaders",
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			stl: "none",
 		}
 	`)
@@ -1949,11 +1949,11 @@ cc_prebuilt_library_headers {
     apex_available: ["//apex_available:platform"],
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 `),
 	)
 }
@@ -1971,7 +1971,7 @@ func TestHostSnapshotWithCcHeadersLibrary(t *testing.T) {
 			name: "mynativeheaders",
 			device_supported: false,
 			host_supported: true,
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			stl: "none",
 		}
 	`)
@@ -1989,7 +1989,7 @@ cc_prebuilt_library_headers {
     host_supported: true,
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     target: {
         host: {
             enabled: false,
@@ -2015,7 +2015,7 @@ cc_prebuilt_library_headers {
     host_supported: true,
     stl: "none",
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     target: {
         host: {
             enabled: false,
@@ -2049,7 +2049,7 @@ sdk_snapshot {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 `),
 	)
 }
@@ -2066,13 +2066,13 @@ func TestDeviceAndHostSnapshotWithCcHeadersLibrary(t *testing.T) {
 			name: "mynativeheaders",
 			host_supported: true,
 			stl: "none",
-			export_system_include_dirs: ["include"],
+			export_system_include_dirs: ["myinclude"],
 			target: {
 				android: {
-					export_include_dirs: ["include-android"],
+					export_include_dirs: ["myinclude-android"],
 				},
 				host: {
-					export_include_dirs: ["include-host"],
+					export_include_dirs: ["myinclude-host"],
 				},
 			},
 		}
@@ -2090,16 +2090,16 @@ cc_prebuilt_library_headers {
     host_supported: true,
     stl: "none",
     compile_multilib: "both",
-    export_system_include_dirs: ["common_os/include/include"],
+    export_system_include_dirs: ["common_os/include/myinclude"],
     target: {
         host: {
             enabled: false,
         },
         android: {
-            export_include_dirs: ["android/include/include-android"],
+            export_include_dirs: ["android/include/myinclude-android"],
         },
         linux_glibc: {
-            export_include_dirs: ["linux_glibc/include/include-host"],
+            export_include_dirs: ["linux_glibc/include/myinclude-host"],
         },
         linux_glibc_x86_64: {
             enabled: true,
@@ -2122,16 +2122,16 @@ cc_prebuilt_library_headers {
     host_supported: true,
     stl: "none",
     compile_multilib: "both",
-    export_system_include_dirs: ["common_os/include/include"],
+    export_system_include_dirs: ["common_os/include/myinclude"],
     target: {
         host: {
             enabled: false,
         },
         android: {
-            export_include_dirs: ["android/include/include-android"],
+            export_include_dirs: ["android/include/myinclude-android"],
         },
         linux_glibc: {
-            export_include_dirs: ["linux_glibc/include/include-host"],
+            export_include_dirs: ["linux_glibc/include/myinclude-host"],
         },
         linux_glibc_x86_64: {
             enabled: true,
@@ -2161,9 +2161,9 @@ sdk_snapshot {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> common_os/include/include/Test.h
-include-android/AndroidTest.h -> android/include/include-android/AndroidTest.h
-include-host/HostTest.h -> linux_glibc/include/include-host/HostTest.h
+myinclude/Test.h -> common_os/include/myinclude/Test.h
+myinclude-android/AndroidTest.h -> android/include/myinclude-android/AndroidTest.h
+myinclude-host/HostTest.h -> linux_glibc/include/myinclude-host/HostTest.h
 `),
 	)
 }
@@ -2644,7 +2644,7 @@ func TestNoSanitizerMembers(t *testing.T) {
 		cc_library_shared {
 			name: "mynativelib",
 			srcs: ["Test.cpp"],
-			export_include_dirs: ["include"],
+			export_include_dirs: ["myinclude"],
 			arch: {
 				arm64: {
 					export_system_include_dirs: ["arm64/include"],
@@ -2666,7 +2666,7 @@ cc_prebuilt_library_shared {
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
     compile_multilib: "both",
-    export_include_dirs: ["include/include"],
+    export_include_dirs: ["include/myinclude"],
     arch: {
         arm64: {
             export_system_include_dirs: ["arm64/include/arm64/include"],
@@ -2678,7 +2678,7 @@ cc_prebuilt_library_shared {
 }
 `),
 		checkAllCopyRules(`
-include/Test.h -> include/include/Test.h
+myinclude/Test.h -> include/myinclude/Test.h
 arm64/include/Arm64Test.h -> arm64/include/arm64/include/Arm64Test.h
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so`),
 	)
