@@ -76,52 +76,73 @@ func pathPropertiesForPropertyStruct(ps interface{}) []string {
 	var ret []string
 
 	for _, i := range pathPropertyIndexes {
-		// Turn an index into a field.
-		sv := fieldByIndex(v, i)
-		if !sv.IsValid() {
-			// Skip properties inside a nil pointer.
-			continue
-		}
-
-		// If the field is a non-nil pointer step into it.
-		if sv.Kind() == reflect.Ptr {
-			if sv.IsNil() {
+		var values []reflect.Value
+		fieldsByIndex(v, i, &values)
+		for _, sv := range values {
+			if !sv.IsValid() {
+				// Skip properties inside a nil pointer.
 				continue
 			}
-			sv = sv.Elem()
-		}
 
-		// Collect paths from all strings and slices of strings.
-		switch sv.Kind() {
-		case reflect.String:
-			ret = append(ret, sv.String())
-		case reflect.Slice:
-			ret = append(ret, sv.Interface().([]string)...)
-		default:
-			panic(fmt.Errorf(`field %s in type %s has tag android:"path" but is not a string or slice of strings, it is a %s`,
-				v.Type().FieldByIndex(i).Name, v.Type(), sv.Type()))
+			// If the field is a non-nil pointer step into it.
+			if sv.Kind() == reflect.Ptr {
+				if sv.IsNil() {
+					continue
+				}
+				sv = sv.Elem()
+			}
+
+			// Collect paths from all strings and slices of strings.
+			switch sv.Kind() {
+			case reflect.String:
+				ret = append(ret, sv.String())
+			case reflect.Slice:
+				ret = append(ret, sv.Interface().([]string)...)
+			default:
+				panic(fmt.Errorf(`field %s in type %s has tag android:"path" but is not a string or slice of strings, it is a %s`,
+					v.Type().FieldByIndex(i).Name, v.Type(), sv.Type()))
+			}
 		}
 	}
 
 	return ret
 }
 
-// fieldByIndex is like reflect.Value.FieldByIndex, but returns an invalid reflect.Value when
-// traversing a nil pointer to a struct.
-func fieldByIndex(v reflect.Value, index []int) reflect.Value {
+// fieldsByIndex is similar to reflect.Value.FieldByIndex, but is more robust: it doesn't track
+// nil pointers and it returns multiple values when there's slice of struct.
+func fieldsByIndex(v reflect.Value, index []int, values *[]reflect.Value) {
+	// leaf case
 	if len(index) == 1 {
-		return v.Field(index[0])
-	}
-	for _, x := range index {
-		if v.Kind() == reflect.Ptr {
-			if v.IsNil() {
-				return reflect.Value{}
+		if isSliceOfStruct(v) {
+			for i := 0; i < v.Len(); i++ {
+				*values = append(*values, v.Index(i).Field(index[0]))
 			}
-			v = v.Elem()
+		} else {
+			*values = append(*values, v.Field(index[0]))
 		}
-		v = v.Field(x)
+		return
 	}
-	return v
+
+	// recursion
+	if v.Kind() == reflect.Ptr {
+		// don't track nil pointer
+		if v.IsNil() {
+			return
+		}
+		v = v.Elem()
+	} else if isSliceOfStruct(v) {
+		// do the recursion for all elements
+		for i := 0; i < v.Len(); i++ {
+			fieldsByIndex(v.Index(i).Field(index[0]), index[1:], values)
+		}
+		return
+	}
+	fieldsByIndex(v.Field(index[0]), index[1:], values)
+	return
+}
+
+func isSliceOfStruct(v reflect.Value) bool {
+	return v.Kind() == reflect.Slice && v.Type().Elem().Kind() == reflect.Struct
 }
 
 var pathPropertyIndexesCache OncePer
