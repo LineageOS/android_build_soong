@@ -43,6 +43,7 @@ func testModuleConfig(ctx android.PathContext, name, partition string) *ModuleCo
 		PreoptFlags:                     nil,
 		ProfileClassListing:             android.OptionalPath{},
 		ProfileIsTextListing:            false,
+		EnforceUsesLibrariesStatusFile:  android.PathForOutput(ctx, fmt.Sprintf("%s/enforce_uses_libraries.status", name)),
 		EnforceUsesLibraries:            false,
 		ClassLoaderContexts:             nil,
 		Archs:                           []android.ArchType{android.Arm},

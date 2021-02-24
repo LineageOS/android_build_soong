@@ -35,6 +35,7 @@ type dexpreopter struct {
 	isPresignedPrebuilt bool
 
 	manifestFile        android.Path
+	statusFile          android.WritablePath
 	enforceUsesLibs     bool
 	classLoaderContexts dexpreopt.ClassLoaderContextMap
 
@@ -226,9 +227,10 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		ProfileIsTextListing: profileIsTextListing,
 		ProfileBootListing:   profileBootListing,
 
-		EnforceUsesLibraries: d.enforceUsesLibs,
-		ProvidesUsesLibrary:  providesUsesLib,
-		ClassLoaderContexts:  d.classLoaderContexts,
+		EnforceUsesLibrariesStatusFile: dexpreopt.UsesLibrariesStatusFile(ctx),
+		EnforceUsesLibraries:           d.enforceUsesLibs,
+		ProvidesUsesLibrary:            providesUsesLib,
+		ClassLoaderContexts:            d.classLoaderContexts,
 
 		Archs:                   archs,
 		DexPreoptImages:         images,
