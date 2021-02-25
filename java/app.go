@@ -1298,7 +1298,7 @@ func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk andr
 		Textf("aapt_binary=%s", aapt.String()).Implicit(aapt).
 		Textf(`uses_library_names="%s"`, strings.Join(u.usesLibraryProperties.Uses_libs, " ")).
 		Textf(`optional_uses_library_names="%s"`, strings.Join(u.usesLibraryProperties.Optional_uses_libs, " ")).
-		Textf(`relax_check="%b"`, dexpreopt.GetGlobalConfig(ctx).RelaxUsesLibraryCheck).
+		Textf(`relax_check="%t"`, dexpreopt.GetGlobalConfig(ctx).RelaxUsesLibraryCheck).
 		Tool(android.PathForSource(ctx, "build/make/core/verify_uses_libraries.sh")).Input(apk).Output(statusFile)
 	rule.Command().Text("cp -f").Input(apk).Output(outputFile)
 
