@@ -38,9 +38,10 @@ func TestCcObjectBp2Build(t *testing.T) {
 			moduleTypeUnderTestFactory:         cc.ObjectFactory,
 			moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
 			filesystem: map[string]string{
-				"a/b/foo.h": "",
-				"a/b/bar.h": "",
-				"a/b/c.c":   "",
+				"a/b/foo.h":     "",
+				"a/b/bar.h":     "",
+				"a/b/exclude.c": "",
+				"a/b/c.c":       "",
 			},
 			blueprint: `cc_object {
     name: "foo",
@@ -52,8 +53,9 @@ func TestCcObjectBp2Build(t *testing.T) {
     ],
     srcs: [
         "a/b/*.h",
-        "a/b/c.c"
+        "a/b/*.c"
     ],
+    exclude_srcs: ["a/b/exclude.c"],
 
     bazel_module: { bp2build_available: true },
 }
@@ -127,6 +129,52 @@ cc_defaults {
     ],
     local_include_dirs = [
         "include",
+    ],
+    srcs = [
+        "a/b/c.c",
+    ],
+)`,
+			},
+		},
+		{
+			description:                        "cc_object with cc_object deps in objs props",
+			moduleTypeUnderTest:                "cc_object",
+			moduleTypeUnderTestFactory:         cc.ObjectFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+			filesystem: map[string]string{
+				"a/b/c.c": "",
+				"x/y/z.c": "",
+			},
+			blueprint: `cc_object {
+    name: "foo",
+    srcs: ["a/b/c.c"],
+    objs: ["bar"],
+
+    bazel_module: { bp2build_available: true },
+}
+
+cc_object {
+    name: "bar",
+    srcs: ["x/y/z.c"],
+
+    bazel_module: { bp2build_available: true },
+}
+`,
+			expectedBazelTargets: []string{`cc_object(
+    name = "bar",
+    copts = [
+        "-fno-addrsig",
+    ],
+    srcs = [
+        "x/y/z.c",
+    ],
+)`, `cc_object(
+    name = "foo",
+    copts = [
+        "-fno-addrsig",
+    ],
+    deps = [
+        ":bar",
     ],
     srcs = [
         "a/b/c.c",
