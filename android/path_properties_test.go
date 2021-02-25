@@ -33,12 +33,21 @@ type pathDepsMutatorTestModule struct {
 		Foo string `android:"path"`
 	}
 
+	// nested slices of struct
+	props3 struct {
+		X []struct {
+			Y []struct {
+				Z []string `android:"path"`
+			}
+		}
+	}
+
 	sourceDeps []string
 }
 
 func pathDepsMutatorTestModuleFactory() Module {
 	module := &pathDepsMutatorTestModule{}
-	module.AddProperties(&module.props, &module.props2)
+	module.AddProperties(&module.props, &module.props2, &module.props3)
 	InitAndroidArchModule(module, DeviceSupported, MultilibBoth)
 	return module
 }
@@ -73,8 +82,20 @@ func TestPathDepsMutator(t *testing.T) {
 				bar: [":b"],
 				baz: ":c{.bar}",
 				qux: ":d",
+				x: [
+					{
+						y: [
+							{
+								z: [":x", ":y"],
+							},
+							{
+								z: [":z"],
+							},
+						],
+					},
+				],
 			}`,
-			deps: []string{"a", "b", "c"},
+			deps: []string{"a", "b", "c", "x", "y", "z"},
 		},
 		{
 			name: "arch variant",
@@ -112,6 +133,18 @@ func TestPathDepsMutator(t *testing.T) {
     	
 				filegroup {
 					name: "d",
+				}
+
+				filegroup {
+					name: "x",
+				}
+
+				filegroup {
+					name: "y",
+				}
+
+				filegroup {
+					name: "z",
 				}
 			`
 

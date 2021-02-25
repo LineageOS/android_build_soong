@@ -507,13 +507,17 @@ type Module interface {
 type BazelTargetModule interface {
 	Module
 
-	BazelTargetModuleProperties() *bazel.BazelTargetModuleProperties
+	bazelTargetModuleProperties() *bazel.BazelTargetModuleProperties
+	SetBazelTargetModuleProperties(props bazel.BazelTargetModuleProperties)
+
+	RuleClass() string
+	BzlLoadLocation() string
 }
 
 // InitBazelTargetModule is a wrapper function that decorates BazelTargetModule
 // with property structs containing metadata for bp2build conversion.
 func InitBazelTargetModule(module BazelTargetModule) {
-	module.AddProperties(module.BazelTargetModuleProperties())
+	module.AddProperties(module.bazelTargetModuleProperties())
 	InitAndroidModule(module)
 }
 
@@ -524,9 +528,24 @@ type BazelTargetModuleBase struct {
 	Properties bazel.BazelTargetModuleProperties
 }
 
-// BazelTargetModuleProperties getter.
-func (btmb *BazelTargetModuleBase) BazelTargetModuleProperties() *bazel.BazelTargetModuleProperties {
+// bazelTargetModuleProperties getter.
+func (btmb *BazelTargetModuleBase) bazelTargetModuleProperties() *bazel.BazelTargetModuleProperties {
 	return &btmb.Properties
+}
+
+// SetBazelTargetModuleProperties setter for BazelTargetModuleProperties
+func (btmb *BazelTargetModuleBase) SetBazelTargetModuleProperties(props bazel.BazelTargetModuleProperties) {
+	btmb.Properties = props
+}
+
+// RuleClass returns the rule class for this Bazel target
+func (b *BazelTargetModuleBase) RuleClass() string {
+	return b.bazelTargetModuleProperties().Rule_class
+}
+
+// BzlLoadLocation returns the rule class for this Bazel target
+func (b *BazelTargetModuleBase) BzlLoadLocation() string {
+	return b.bazelTargetModuleProperties().Bzl_load_location
 }
 
 // Qualified id for a module

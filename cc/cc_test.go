@@ -4092,7 +4092,6 @@ func TestIncludeDirsExporting(t *testing.T) {
 		)
 	})
 
-	// TODO: fix this test as it exports all generated headers.
 	t.Run("ensure only aidl headers are exported", func(t *testing.T) {
 		ctx := testCc(t, genRuleModules+`
 		cc_library_shared {
@@ -4117,18 +4116,15 @@ func TestIncludeDirsExporting(t *testing.T) {
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
 			`),
 			expectedOrderOnlyDeps(`
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
 			`),
 		)
 	})
 
-	// TODO: fix this test as it exports all generated headers.
 	t.Run("ensure only proto headers are exported", func(t *testing.T) {
 		ctx := testCc(t, genRuleModules+`
 		cc_library_shared {
@@ -4150,22 +4146,15 @@ func TestIncludeDirsExporting(t *testing.T) {
 			`),
 			expectedSystemIncludeDirs(``),
 			expectedGeneratedHeaders(`
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
 			`),
 			expectedOrderOnlyDeps(`
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
 			`),
 		)
 	})
 
-	// TODO: fix this test as it exports all generated headers including public and non-public.
-	t.Run("ensure only non-public sysprop headers are exported", func(t *testing.T) {
+	t.Run("ensure only sysprop headers are exported", func(t *testing.T) {
 		ctx := testCc(t, genRuleModules+`
 		cc_library_shared {
 			name: "libfoo",
@@ -4185,19 +4174,10 @@ func TestIncludeDirsExporting(t *testing.T) {
 			expectedSystemIncludeDirs(``),
 			expectedGeneratedHeaders(`
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/include/a.sysprop.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/public/include/a.sysprop.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
 			`),
 			expectedOrderOnlyDeps(`
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/include/a.sysprop.h
 				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/sysprop/public/include/a.sysprop.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/b.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bnb.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/aidl/Bpb.h
-				.intermediates/libfoo/android_arm64_armv8-a_shared/gen/proto/a.pb.h
 			`),
 		)
 	})

@@ -124,14 +124,12 @@ type generatorProperties struct {
 
 	// input files to exclude
 	Exclude_srcs []string `android:"path,arch_variant"`
-
-	// Properties for Bazel migration purposes.
-	bazel.Properties
 }
 
 type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.BazelModuleBase
 	android.ApexModuleBase
 
 	// For other packages to make their own genrules with extra
@@ -519,7 +517,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	g.outputFiles = outputFiles.Paths()
 
-	bazelModuleLabel := g.properties.Bazel_module.Label
+	bazelModuleLabel := g.GetBazelLabel()
 	bazelActionsUsed := false
 	if ctx.Config().BazelContext.BazelEnabled() && len(bazelModuleLabel) > 0 {
 		bazelActionsUsed = g.generateBazelBuildActions(ctx, bazelModuleLabel)
@@ -771,6 +769,7 @@ func GenRuleFactory() android.Module {
 	m := NewGenRule()
 	android.InitAndroidModule(m)
 	android.InitDefaultableModule(m)
+	android.InitBazelModule(m)
 	return m
 }
 
@@ -800,7 +799,7 @@ func BazelGenruleFactory() android.Module {
 
 func GenruleBp2Build(ctx android.TopDownMutatorContext) {
 	m, ok := ctx.Module().(*Module)
-	if !ok || !m.properties.Bazel_module.Bp2build_available {
+	if !ok || !m.ConvertWithBp2build() {
 		return
 	}
 
@@ -853,10 +852,12 @@ func GenruleBp2Build(ctx android.TopDownMutatorContext) {
 		Tools: tools,
 	}
 
-	props := bazel.NewBazelTargetModuleProperties(m.Name(), "genrule", "")
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class: "genrule",
+	}
 
 	// Create the BazelTargetModule.
-	ctx.CreateBazelTargetModule(BazelGenruleFactory, props, attrs)
+	ctx.CreateBazelTargetModule(BazelGenruleFactory, m.Name(), props, attrs)
 }
 
 func (m *bazelGenrule) Name() string {

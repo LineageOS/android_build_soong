@@ -20,6 +20,9 @@ Merge multiple CSV files, possibly with different columns.
 import argparse
 import csv
 import io
+import heapq
+import itertools
+import operator
 
 from zipfile import ZipFile
 
@@ -28,6 +31,10 @@ args_parser.add_argument('--header', help='Comma separated field names; '
                                           'if missing determines the header from input files.')
 args_parser.add_argument('--zip_input', help='Treat files as ZIP archives containing CSV files to merge.',
                          action="store_true")
+args_parser.add_argument('--key_field', help='The name of the field by which the rows should be sorted. '
+                                             'Must be in the field names. '
+                                             'Will be the first field in the output. '
+                                             'All input files must be sorted by that field.')
 args_parser.add_argument('--output', help='Output file for merged CSV.',
                          default='-', type=argparse.FileType('w'))
 args_parser.add_argument('files', nargs=argparse.REMAINDER)
@@ -57,10 +64,29 @@ else:
         headers = headers.union(reader.fieldnames)
     fieldnames = sorted(headers)
 
-# Concatenate all files to output:
+# By default chain the csv readers together so that the resulting output is
+# the concatenation of the rows from each of them:
+all_rows = itertools.chain.from_iterable(csv_readers)
+
+if len(csv_readers) > 0:
+    keyField = args.key_field
+    if keyField:
+        assert keyField in fieldnames, (
+            "--key_field {} not found, must be one of {}\n").format(
+            keyField, ",".join(fieldnames))
+        # Make the key field the first field in the output
+        keyFieldIndex = fieldnames.index(args.key_field)
+        fieldnames.insert(0, fieldnames.pop(keyFieldIndex))
+        # Create an iterable that performs a lazy merge sort on the csv readers
+        # sorting the rows by the key field.
+        all_rows = heapq.merge(*csv_readers, key=operator.itemgetter(keyField))
+
+# Write all rows from the input files to the output:
 writer = csv.DictWriter(args.output, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL,
                         dialect='unix', fieldnames=fieldnames)
 writer.writeheader()
-for reader in csv_readers:
-    for row in reader:
-        writer.writerow(row)
+
+# Read all the rows from the input and write them to the output in the correct
+# order:
+for row in all_rows:
+  writer.writerow(row)

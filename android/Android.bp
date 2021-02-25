@@ -22,6 +22,7 @@ bootstrap_go_package {
         "api_levels.go",
         "arch.go",
         "arch_list.go",
+        "bazel.go",
         "bazel_handler.go",
         "config.go",
         "csuite_config.go",
