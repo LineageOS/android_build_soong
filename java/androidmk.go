@@ -287,9 +287,16 @@ func (binary *Binary) AndroidMkEntries() []android.AndroidMkEntries {
 			},
 		}}
 	} else {
+		outputFile := binary.wrapperFile
+		// Have Make installation trigger Soong installation by using Soong's install path as
+		// the output file.
+		if binary.Host() {
+			outputFile = binary.binaryFile
+		}
+
 		return []android.AndroidMkEntries{android.AndroidMkEntries{
 			Class:      "EXECUTABLES",
-			OutputFile: android.OptionalPathForPath(binary.wrapperFile),
+			OutputFile: android.OptionalPathForPath(outputFile),
 			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 					entries.SetBool("LOCAL_STRIP_MODULE", false)

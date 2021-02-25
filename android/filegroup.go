@@ -49,7 +49,7 @@ func (bfg *bazelFilegroup) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
 func FilegroupBp2Build(ctx TopDownMutatorContext) {
 	fg, ok := ctx.Module().(*fileGroup)
-	if !ok || !fg.properties.Bazel_module.Bp2build_available {
+	if !ok || !fg.ConvertWithBp2build() {
 		return
 	}
 
@@ -57,9 +57,9 @@ func FilegroupBp2Build(ctx TopDownMutatorContext) {
 		Srcs: BazelLabelForModuleSrcExcludes(ctx, fg.properties.Srcs, fg.properties.Exclude_srcs),
 	}
 
-	props := bazel.NewBazelTargetModuleProperties(fg.Name(), "filegroup", "")
+	props := bazel.BazelTargetModuleProperties{Rule_class: "filegroup"}
 
-	ctx.CreateBazelTargetModule(BazelFileGroupFactory, props, attrs)
+	ctx.CreateBazelTargetModule(BazelFileGroupFactory, fg.Name(), props, attrs)
 }
 
 type fileGroupProperties struct {
@@ -77,13 +77,11 @@ type fileGroupProperties struct {
 	// Create a make variable with the specified name that contains the list of files in the
 	// filegroup, relative to the root of the source tree.
 	Export_to_make_var *string
-
-	// Properties for Bazel migration purposes.
-	bazel.Properties
 }
 
 type fileGroup struct {
 	ModuleBase
+	BazelModuleBase
 	properties fileGroupProperties
 	srcs       Paths
 }
@@ -97,6 +95,7 @@ func FileGroupFactory() Module {
 	module := &fileGroup{}
 	module.AddProperties(&module.properties)
 	InitAndroidModule(module)
+	InitBazelModule(module)
 	return module
 }
 

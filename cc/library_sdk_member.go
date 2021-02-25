@@ -206,22 +206,22 @@ var includeDirProperties = []includeDirsProperty{
 		dirs:         true,
 	},
 	{
-		// exportedGeneratedIncludeDirs lists directories that contains some header files
-		// that are explicitly listed in the exportedGeneratedHeaders property. So, the contents
+		// ExportedGeneratedIncludeDirs lists directories that contains some header files
+		// that are explicitly listed in the ExportedGeneratedHeaders property. So, the contents
 		// of these directories do not need to be copied, but these directories do need adding to
 		// the export_include_dirs property in the prebuilt module in the snapshot.
-		pathsGetter:  func(libInfo *nativeLibInfoProperties) android.Paths { return libInfo.exportedGeneratedIncludeDirs },
+		pathsGetter:  func(libInfo *nativeLibInfoProperties) android.Paths { return libInfo.ExportedGeneratedIncludeDirs },
 		propertyName: "export_include_dirs",
 		snapshotDir:  nativeGeneratedIncludeDir,
 		copy:         false,
 		dirs:         true,
 	},
 	{
-		// exportedGeneratedHeaders lists header files that are in one of the directories
-		// specified in exportedGeneratedIncludeDirs must be copied into the snapshot.
-		// As they are in a directory in exportedGeneratedIncludeDirs they do not need adding to a
+		// ExportedGeneratedHeaders lists header files that are in one of the directories
+		// specified in ExportedGeneratedIncludeDirs must be copied into the snapshot.
+		// As they are in a directory in ExportedGeneratedIncludeDirs they do not need adding to a
 		// property in the prebuilt module in the snapshot.
-		pathsGetter:  func(libInfo *nativeLibInfoProperties) android.Paths { return libInfo.exportedGeneratedHeaders },
+		pathsGetter:  func(libInfo *nativeLibInfoProperties) android.Paths { return libInfo.ExportedGeneratedHeaders },
 		propertyName: "",
 		snapshotDir:  nativeGeneratedIncludeDir,
 		copy:         true,
@@ -258,42 +258,52 @@ func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, b
 	// values where necessary.
 	for _, propertyInfo := range includeDirProperties {
 		// Calculate the base directory in the snapshot into which the files will be copied.
-		// lib.ArchType is "" for common properties.
+		// lib.archType is "" for common properties.
 		targetDir := filepath.Join(libInfo.OsPrefix(), libInfo.archType, propertyInfo.snapshotDir)
 
 		propertyName := propertyInfo.propertyName
 
 		// Iterate over each path in one of the include directory properties.
 		for _, path := range propertyInfo.pathsGetter(libInfo) {
+			inputPath := path.String()
+
+			// Map the input path to a snapshot relative path. The mapping is independent of the module
+			// that references them so that if multiple modules within the same snapshot export the same
+			// header files they end up in the same place in the snapshot and so do not get duplicated.
+			targetRelativePath := inputPath
+			if isGeneratedHeaderDirectory(path) {
+				// Remove everything up to the .intermediates/ from the generated output directory to
+				// leave a module relative path.
+				base := android.PathForIntermediates(sdkModuleContext, "")
+				targetRelativePath = android.Rel(sdkModuleContext, base.String(), inputPath)
+			}
+
+			snapshotRelativePath := filepath.Join(targetDir, targetRelativePath)
 
 			// Copy the files/directories when necessary.
 			if propertyInfo.copy {
 				if propertyInfo.dirs {
 					// When copying a directory glob and copy all the headers within it.
 					// TODO(jiyong) copy headers having other suffixes
-					headers, _ := sdkModuleContext.GlobWithDeps(path.String()+"/**/*.h", nil)
+					headers, _ := sdkModuleContext.GlobWithDeps(inputPath+"/**/*.h", nil)
 					for _, file := range headers {
 						src := android.PathForSource(sdkModuleContext, file)
-						dest := filepath.Join(targetDir, file)
+
+						// The destination path in the snapshot is constructed from the snapshot relative path
+						// of the input directory and the input directory relative path of the header file.
+						inputRelativePath := android.Rel(sdkModuleContext, inputPath, file)
+						dest := filepath.Join(snapshotRelativePath, inputRelativePath)
 						builder.CopyToSnapshot(src, dest)
 					}
 				} else {
-					// Otherwise, just copy the files.
-					dest := filepath.Join(targetDir, libInfo.name, path.Rel())
-					builder.CopyToSnapshot(path, dest)
+					// Otherwise, just copy the file to its snapshot relative path.
+					builder.CopyToSnapshot(path, snapshotRelativePath)
 				}
 			}
 
 			// Only directories are added to a property.
 			if propertyInfo.dirs {
-				var snapshotPath string
-				if isGeneratedHeaderDirectory(path) {
-					snapshotPath = filepath.Join(targetDir, libInfo.name)
-				} else {
-					snapshotPath = filepath.Join(targetDir, path.String())
-				}
-
-				includeDirs[propertyName] = append(includeDirs[propertyName], snapshotPath)
+				includeDirs[propertyName] = append(includeDirs[propertyName], snapshotRelativePath)
 			}
 		}
 	}
@@ -330,9 +340,6 @@ type nativeLibInfoProperties struct {
 
 	memberType *librarySdkMemberType
 
-	// The name of the library, is not exported as this must not be changed during optimization.
-	name string
-
 	// archType is not exported as if set (to a non default value) it is always arch specific.
 	// This is "" for common properties.
 	archType string
@@ -344,13 +351,13 @@ type nativeLibInfoProperties struct {
 
 	// The list of arch specific exported generated include dirs.
 	//
-	// This field is not exported as its contents are always arch specific.
-	exportedGeneratedIncludeDirs android.Paths
+	// This field is exported as its contents may not be arch specific, e.g. protos.
+	ExportedGeneratedIncludeDirs android.Paths `android:"arch_variant"`
 
 	// The list of arch specific exported generated header files.
 	//
-	// This field is not exported as its contents are is always arch specific.
-	exportedGeneratedHeaders android.Paths
+	// This field is exported as its contents may not be arch specific, e.g. protos.
+	ExportedGeneratedHeaders android.Paths `android:"arch_variant"`
 
 	// The list of possibly common exported system include dirs.
 	//
@@ -419,12 +426,11 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 	exportedIncludeDirs, exportedGeneratedIncludeDirs := android.FilterPathListPredicate(
 		exportedInfo.IncludeDirs, isGeneratedHeaderDirectory)
 
-	p.name = variant.Name()
 	p.archType = ccModule.Target().Arch.ArchType.String()
 
 	// Make sure that the include directories are unique.
 	p.ExportedIncludeDirs = android.FirstUniquePaths(exportedIncludeDirs)
-	p.exportedGeneratedIncludeDirs = android.FirstUniquePaths(exportedGeneratedIncludeDirs)
+	p.ExportedGeneratedIncludeDirs = android.FirstUniquePaths(exportedGeneratedIncludeDirs)
 
 	// Take a copy before filtering out duplicates to avoid changing the slice owned by the
 	// ccModule.
@@ -450,7 +456,7 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 		}
 		p.SystemSharedLibs = specifiedDeps.systemSharedLibs
 	}
-	p.exportedGeneratedHeaders = exportedInfo.GeneratedHeaders
+	p.ExportedGeneratedHeaders = exportedInfo.GeneratedHeaders
 
 	if !p.memberType.noOutputFiles && addOutputFile {
 		p.outputFile = getRequiredMemberOutputFile(ctx, ccModule)
