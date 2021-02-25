@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// env implements the environment JSON file handling for the soong_env command line tool run before
-// the builder and for the env writer in the builder.
-package env
+// Implements the environment JSON file handling for serializing the
+// environment variables that were used in soong_build so that soong_ui can
+// check whether they have changed
+package shared
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"sort"
 )
 
@@ -57,7 +57,7 @@ func EnvFileContents(envDeps map[string]string) ([]byte, error) {
 // Reads and deserializes a Soong environment file located at the given file path to determine its
 // staleness. If any environment variable values have changed, it prints them out and returns true.
 // Failing to read or parse the file also causes it to return true.
-func StaleEnvFile(filepath string) (bool, error) {
+func StaleEnvFile(filepath string, getenv func(string) string) (bool, error) {
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		return true, err
@@ -74,7 +74,7 @@ func StaleEnvFile(filepath string) (bool, error) {
 	for _, entry := range contents {
 		key := entry.Key
 		old := entry.Value
-		cur := os.Getenv(key)
+		cur := getenv(key)
 		if old != cur {
 			changed = append(changed, fmt.Sprintf("%s (%q -> %q)", key, old, cur))
 		}
