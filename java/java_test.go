@@ -1261,6 +1261,14 @@ func TestJavaLintUsesCorrectBpConfig(t *testing.T) {
 	if !strings.Contains(*sboxProto.Commands[0].Command, "--baseline mybaseline.xml") {
 		t.Error("did not use the correct file for baseline")
 	}
+
+	if !strings.Contains(*sboxProto.Commands[0].Command, "--error_check NewApi") {
+		t.Error("should check NewApi errors")
+	}
+
+	if !strings.Contains(*sboxProto.Commands[0].Command, "--error_check SomeCheck") {
+		t.Error("should combine NewApi errors with SomeCheck errors")
+	}
 }
 
 func TestGeneratedSources(t *testing.T) {

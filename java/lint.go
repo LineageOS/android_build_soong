@@ -57,24 +57,25 @@ type LintProperties struct {
 }
 
 type linter struct {
-	name                string
-	manifest            android.Path
-	mergedManifest      android.Path
-	srcs                android.Paths
-	srcJars             android.Paths
-	resources           android.Paths
-	classpath           android.Paths
-	classes             android.Path
-	extraLintCheckJars  android.Paths
-	test                bool
-	library             bool
-	minSdkVersion       string
-	targetSdkVersion    string
-	compileSdkVersion   string
-	javaLanguageLevel   string
-	kotlinLanguageLevel string
-	outputs             lintOutputs
-	properties          LintProperties
+	name                    string
+	manifest                android.Path
+	mergedManifest          android.Path
+	srcs                    android.Paths
+	srcJars                 android.Paths
+	resources               android.Paths
+	classpath               android.Paths
+	classes                 android.Path
+	extraLintCheckJars      android.Paths
+	test                    bool
+	library                 bool
+	minSdkVersion           string
+	targetSdkVersion        string
+	compileSdkVersion       string
+	javaLanguageLevel       string
+	kotlinLanguageLevel     string
+	outputs                 lintOutputs
+	properties              LintProperties
+	extraMainlineLintErrors []string
 
 	reports android.Paths
 
@@ -246,6 +247,7 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	cmd.FlagWithInput("@",
 		android.PathForSource(ctx, "build/soong/java/lint_defaults.txt"))
 
+	cmd.FlagForEachArg("--error_check ", l.extraMainlineLintErrors)
 	cmd.FlagForEachArg("--disable_check ", l.properties.Lint.Disabled_checks)
 	cmd.FlagForEachArg("--warning_check ", l.properties.Lint.Warning_checks)
 	cmd.FlagForEachArg("--error_check ", l.properties.Lint.Error_checks)
@@ -280,6 +282,10 @@ func (l *linter) generateManifest(ctx android.ModuleContext, rule *android.RuleB
 func (l *linter) lint(ctx android.ModuleContext) {
 	if !l.enabled() {
 		return
+	}
+
+	if l.minSdkVersion != l.compileSdkVersion {
+		l.extraMainlineLintErrors = append(l.extraMainlineLintErrors, "NewApi")
 	}
 
 	extraLintCheckModules := ctx.GetDirectDepsWithTag(extraLintCheckTag)
