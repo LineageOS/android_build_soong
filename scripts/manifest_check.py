@@ -48,6 +48,13 @@ def parse_args():
                       dest='enforce_uses_libraries',
                       action='store_true',
                       help='check the uses-library entries known to the build system against the manifest')
+  parser.add_argument('--enforce-uses-libraries-relax',
+                      dest='enforce_uses_libraries_relax',
+                      action='store_true',
+                      help='do not fail immediately, just save the error message to file')
+  parser.add_argument('--enforce-uses-libraries-status',
+                      dest='enforce_uses_libraries_status',
+                      help='output file to store check status (error message)')
   parser.add_argument('--extract-target-sdk-version',
                       dest='extract_target_sdk_version',
                       action='store_true',
@@ -57,7 +64,7 @@ def parse_args():
   return parser.parse_args()
 
 
-def enforce_uses_libraries(doc, uses_libraries, optional_uses_libraries):
+def enforce_uses_libraries(doc, uses_libraries, optional_uses_libraries, relax):
   """Verify that the <uses-library> tags in the manifest match those provided by the build system.
 
   Args:
@@ -80,10 +87,10 @@ def enforce_uses_libraries(doc, uses_libraries, optional_uses_libraries):
       raise ManifestMismatchError('no <application> tag found')
     return
 
-  verify_uses_library(application, uses_libraries, optional_uses_libraries)
+  return verify_uses_library(application, uses_libraries, optional_uses_libraries, relax)
 
 
-def verify_uses_library(application, uses_libraries, optional_uses_libraries):
+def verify_uses_library(application, uses_libraries, optional_uses_libraries, relax):
   """Verify that the uses-library values known to the build system match the manifest.
 
   Args:
@@ -112,8 +119,12 @@ def verify_uses_library(application, uses_libraries, optional_uses_libraries):
                (', '.join(optional_uses_libraries), ', '.join(manifest_optional_uses_libraries)))
 
   if err:
-    raise ManifestMismatchError('\n'.join(err))
+    errmsg = '\n'.join(err)
+    if not relax:
+      raise ManifestMismatchError(errmsg)
+    return errmsg
 
+  return None
 
 def parse_uses_library(application):
   """Extract uses-library tags from the manifest.
@@ -195,9 +206,19 @@ def main():
     doc = minidom.parse(args.input)
 
     if args.enforce_uses_libraries:
-      enforce_uses_libraries(doc,
-                             args.uses_libraries,
-                             args.optional_uses_libraries)
+      # Check if the <uses-library> lists in the build system agree with those
+      # in the manifest. Raise an exception on mismatch, unless the script was
+      # passed a special parameter to suppress exceptions.
+      errmsg = enforce_uses_libraries(doc, args.uses_libraries,
+        args.optional_uses_libraries, args.enforce_uses_libraries_relax)
+
+      # Create a status file that is empty on success, or contains an error
+      # message on failure. When exceptions are suppressed, dexpreopt command
+      # command will check file size to determine if the check has failed.
+      if args.enforce_uses_libraries_status:
+        with open(args.enforce_uses_libraries_status, 'w') as f:
+          if not errmsg == None:
+            f.write("%s\n" % errmsg)
 
     if args.extract_target_sdk_version:
       print(extract_target_sdk_version(doc))

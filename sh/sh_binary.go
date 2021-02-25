@@ -84,9 +84,6 @@ type shBinaryProperties struct {
 
 	// Make this module available when building for recovery.
 	Recovery_available *bool
-
-	// Properties for Bazel migration purposes.
-	bazel.Properties
 }
 
 type TestProperties struct {
@@ -132,6 +129,7 @@ type TestProperties struct {
 
 type ShBinary struct {
 	android.ModuleBase
+	android.BazelModuleBase
 
 	properties shBinaryProperties
 
@@ -427,6 +425,7 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 
 func InitShBinaryModule(s *ShBinary) {
 	s.AddProperties(&s.properties)
+	android.InitBazelModule(s)
 }
 
 // sh_binary is for a shell script or batch file to be installed as an
@@ -504,7 +503,7 @@ func BazelShBinaryFactory() android.Module {
 
 func ShBinaryBp2Build(ctx android.TopDownMutatorContext) {
 	m, ok := ctx.Module().(*ShBinary)
-	if !ok || !m.properties.Bazel_module.Bp2build_available {
+	if !ok || !m.ConvertWithBp2build() {
 		return
 	}
 
@@ -514,9 +513,11 @@ func ShBinaryBp2Build(ctx android.TopDownMutatorContext) {
 		Srcs: srcs,
 	}
 
-	props := bazel.NewBazelTargetModuleProperties(m.Name(), "sh_binary", "")
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class: "sh_binary",
+	}
 
-	ctx.CreateBazelTargetModule(BazelShBinaryFactory, props, attrs)
+	ctx.CreateBazelTargetModule(BazelShBinaryFactory, m.Name(), props, attrs)
 }
 
 func (m *bazelShBinary) Name() string {

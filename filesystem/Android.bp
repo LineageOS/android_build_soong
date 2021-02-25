@@ -13,6 +13,7 @@ bootstrap_go_package {
     srcs: [
         "bootimg.go",
         "filesystem.go",
+        "logical_partition.go",
     ],
     testSrcs: [
     ],

@@ -28,7 +28,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/bazel"
 	"android/soong/cc/config"
 	"android/soong/genrule"
 )
@@ -365,8 +364,6 @@ type BaseProperties struct {
 	// can depend on libraries that are not exported by the APEXes and use private symbols
 	// from the exported libraries.
 	Test_for []string
-
-	bazel.Properties
 }
 
 type VendorProperties struct {
@@ -765,6 +762,7 @@ type Module struct {
 	android.DefaultableModuleBase
 	android.ApexModuleBase
 	android.SdkBase
+	android.BazelModuleBase
 
 	Properties       BaseProperties
 	VendorProperties VendorProperties
@@ -1054,6 +1052,7 @@ func (c *Module) Init() android.Module {
 	}
 
 	android.InitAndroidArchModule(c, c.hod, c.multilib)
+	android.InitBazelModule(c)
 	android.InitApexModule(c)
 	android.InitSdkAwareModule(c)
 	android.InitDefaultableModule(c)

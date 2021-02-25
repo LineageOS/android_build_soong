@@ -204,7 +204,11 @@ func (h *TestHelper) AssertErrorMessageEquals(message string, expected string, a
 
 func (h *TestHelper) AssertTrimmedStringEquals(message string, expected string, actual string) {
 	h.t.Helper()
-	h.AssertStringEquals(message, strings.TrimSpace(expected), strings.TrimSpace(actual))
+	expected = strings.TrimSpace(expected)
+	actual = strings.TrimSpace(actual)
+	if actual != expected {
+		h.t.Errorf("%s: expected:\n%s\nactual:\n%s\n", message, expected, actual)
+	}
 }
 
 func (h *TestHelper) AssertDeepEquals(message string, expected interface{}, actual interface{}) {
@@ -243,11 +247,11 @@ type testSdkResult struct {
 // e.g. find the src/dest pairs from each cp command, the various zip files
 // generated, etc.
 func (r *testSdkResult) getSdkSnapshotBuildInfo(sdk *sdk) *snapshotBuildInfo {
-	androidBpContents := sdk.GetAndroidBpContentsForTests()
-
 	info := &snapshotBuildInfo{
-		r:                 r,
-		androidBpContents: androidBpContents,
+		r:                            r,
+		androidBpContents:            sdk.GetAndroidBpContentsForTests(),
+		androidUnversionedBpContents: sdk.GetUnversionedAndroidBpContentsForTests(),
+		androidVersionedBpContents:   sdk.GetVersionedAndroidBpContentsForTests(),
 	}
 
 	buildParams := sdk.BuildParamsForTests()
@@ -365,6 +369,33 @@ func checkAndroidBpContents(expected string) snapshotBuildInfoChecker {
 	}
 }
 
+// Check that the snapshot's unversioned generated Android.bp is correct.
+//
+// This func should be used to check the general snapshot generation code.
+//
+// Both the expected and actual string are both trimmed before comparing.
+func checkUnversionedAndroidBpContents(expected string) snapshotBuildInfoChecker {
+	return func(info *snapshotBuildInfo) {
+		info.r.t.Helper()
+		info.r.AssertTrimmedStringEquals("unversioned Android.bp contents do not match", expected, info.androidUnversionedBpContents)
+	}
+}
+
+// Check that the snapshot's versioned generated Android.bp is correct.
+//
+// This func should only be used to check the version specific snapshot generation code,
+// i.e. the encoding of version into module names and the generation of the _snapshot module. The
+// general snapshot generation code should be checked using the checkUnversionedAndroidBpContents()
+// func.
+//
+// Both the expected and actual string are both trimmed before comparing.
+func checkVersionedAndroidBpContents(expected string) snapshotBuildInfoChecker {
+	return func(info *snapshotBuildInfo) {
+		info.r.t.Helper()
+		info.r.AssertTrimmedStringEquals("versioned Android.bp contents do not match", expected, info.androidVersionedBpContents)
+	}
+}
+
 // Check that the snapshot's copy rules are correct.
 //
 // The copy rules are formatted as <src> -> <dest>, one per line and then compared
@@ -406,6 +437,12 @@ type snapshotBuildInfo struct {
 
 	// The contents of the generated Android.bp file
 	androidBpContents string
+
+	// The contents of the unversioned Android.bp file
+	androidUnversionedBpContents string
+
+	// The contents of the versioned Android.bp file
+	androidVersionedBpContents string
 
 	// The paths, relative to the snapshot root, of all files and directories copied into the
 	// snapshot.
