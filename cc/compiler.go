@@ -442,7 +442,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		fmt.Sprintf("${config.%sClangGlobalCflags}", hod))
 
 	if isThirdParty(modulePath) {
-		flags.Global.CommonFlags = append([]string{"${config.ClangExternalCflags}"}, flags.Global.CommonFlags...)
+		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "${config.ClangExternalCflags}")
 	}
 
 	if tc.Bionic() {
