@@ -284,23 +284,14 @@ func (s *snapshot) DepsMutator(ctx android.BottomUpMutatorContext) {
 	collectSnapshotMap := func(variations []blueprint.Variation, depTag blueprint.DependencyTag,
 		names []string, snapshotSuffix, moduleSuffix string) map[string]string {
 
-		decoratedNames := make([]string, 0, len(names))
-		for _, name := range names {
-			decoratedNames = append(decoratedNames, name+
-				snapshotSuffix+moduleSuffix+
-				s.baseSnapshot.version()+
-				"."+ctx.Arch().ArchType.Name)
-		}
-
-		deps := ctx.AddVariationDependencies(variations, depTag, decoratedNames...)
 		snapshotMap := make(map[string]string)
-		for _, dep := range deps {
-			if dep == nil {
-				continue
-			}
-
-			snapshotMap[dep.(*Module).BaseModuleName()] = ctx.OtherModuleName(dep)
+		for _, name := range names {
+			snapshotMap[name] = name +
+				snapshotSuffix + moduleSuffix +
+				s.baseSnapshot.version() +
+				"." + ctx.Arch().ArchType.Name
 		}
+
 		return snapshotMap
 	}
 
