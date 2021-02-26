@@ -2312,10 +2312,9 @@ func TestUsesLibraries(t *testing.T) {
 		`--uses-library qux ` +
 		`--uses-library quuz ` +
 		`--uses-library foo ` + // TODO(b/132357300): "foo" should not be passed to manifest_fixer
-		`--uses-library non-sdk-lib ` + // TODO(b/132357300): "non-sdk-lib" should not be passed to manifest_fixer
+		`--uses-library com.non.sdk.lib ` + // TODO(b/132357300): "com.non.sdk.lib" should not be passed to manifest_fixer
 		`--uses-library bar ` + // TODO(b/132357300): "bar" should not be passed to manifest_fixer
-		`--uses-library runtime-library ` +
-		`--uses-library com.non.sdk.lib` // TODO(b/132357300): "com.non.sdk.lib" should not be passed to manifest_fixer
+		`--uses-library runtime-library`
 	if actualManifestFixerArgs != expectManifestFixerArgs {
 		t.Errorf("unexpected manifest_fixer args:\n\texpect: %q\n\tactual: %q",
 			expectManifestFixerArgs, actualManifestFixerArgs)
@@ -2324,11 +2323,10 @@ func TestUsesLibraries(t *testing.T) {
 	// Test that all libraries are verified (library order matters).
 	verifyCmd := app.Rule("verify_uses_libraries").RuleParams.Command
 	verifyArgs := `--uses-library foo ` +
-		`--uses-library non-sdk-lib ` + // TODO(b/132357300): "non-sdk-lib" should not be here
+		`--uses-library com.non.sdk.lib ` +
 		`--uses-library qux ` +
 		`--uses-library quuz ` +
 		`--uses-library runtime-library ` +
-		`--uses-library com.non.sdk.lib ` +
 		`--optional-uses-library bar ` +
 		`--optional-uses-library baz `
 	if !strings.Contains(verifyCmd, verifyArgs) {

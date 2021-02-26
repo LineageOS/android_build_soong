@@ -1217,6 +1217,15 @@ func (u *usesLibrary) presentOptionalUsesLibs(ctx android.BaseModuleContext) []s
 	return optionalUsesLibs
 }
 
+// Helper function to replace string in a list.
+func replaceInList(list []string, oldstr, newstr string) {
+	for i, str := range list {
+		if str == oldstr {
+			list[i] = newstr
+		}
+	}
+}
+
 // Returns a map of module names of shared library dependencies to the paths
 // to their dex jars on host and on device.
 func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext) dexpreopt.ClassLoaderContextMap {
@@ -1227,7 +1236,16 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 			if tag, ok := ctx.OtherModuleDependencyTag(m).(usesLibraryDependencyTag); ok {
 				dep := ctx.OtherModuleName(m)
 				if lib, ok := m.(UsesLibraryDependency); ok {
-					clcMap.AddContext(ctx, tag.sdkVersion, dep,
+					libName := dep
+					if ulib, ok := m.(ProvidesUsesLib); ok && ulib.ProvidesUsesLib() != nil {
+						libName = *ulib.ProvidesUsesLib()
+						// Replace module name with library name in `uses_libs`/`optional_uses_libs`
+						// in order to pass verify_uses_libraries check (which compares these
+						// properties against library names written in the manifest).
+						replaceInList(u.usesLibraryProperties.Uses_libs, dep, libName)
+						replaceInList(u.usesLibraryProperties.Optional_uses_libs, dep, libName)
+					}
+					clcMap.AddContext(ctx, tag.sdkVersion, libName,
 						lib.DexJarBuildPath(), lib.DexJarInstallPath(), lib.ClassLoaderContexts())
 				} else if ctx.Config().AllowMissingDependencies() {
 					ctx.AddMissingDependencies([]string{dep})
