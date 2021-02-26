@@ -421,6 +421,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		shared_libs: [
 			"libvendor_without_snapshot",
 			"libvendor_available",
+			"libvndk",
 		],
 		arch: {
 			arm64: {
