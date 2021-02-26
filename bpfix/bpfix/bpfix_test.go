@@ -1056,3 +1056,71 @@ func TestRemovePdkProperty(t *testing.T) {
 		})
 	}
 }
+
+func TestRewriteRuntimeResourceOverlay(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "product_specific runtime_resource_overlay",
+			in: `
+				runtime_resource_overlay {
+					name: "foo",
+					resource_dirs: ["res"],
+					product_specific: true,
+				}
+			`,
+			out: `
+				runtime_resource_overlay {
+					name: "foo",
+					resource_dirs: ["res"],
+					product_specific: true,
+				}
+			`,
+		},
+		{
+			// It's probably wrong for runtime_resource_overlay not to be product specific, but let's not
+			// debate it here.
+			name: "non-product_specific runtime_resource_overlay",
+			in: `
+				runtime_resource_overlay {
+					name: "foo",
+					resource_dirs: ["res"],
+					product_specific: false,
+				}
+			`,
+			out: `
+				runtime_resource_overlay {
+					name: "foo",
+					resource_dirs: ["res"],
+					product_specific: false,
+				}
+			`,
+		},
+		{
+			name: "runtime_resource_overlay without product_specific value",
+			in: `
+				runtime_resource_overlay {
+					name: "foo",
+					resource_dirs: ["res"],
+				}
+			`,
+			out: `
+				runtime_resource_overlay {
+					name: "foo",
+					resource_dirs: ["res"],
+					product_specific: true,
+				}
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runPass(t, test.in, test.out, func(fixer *Fixer) error {
+				return RewriteRuntimeResourceOverlay(fixer)
+			})
+		})
+	}
+}
