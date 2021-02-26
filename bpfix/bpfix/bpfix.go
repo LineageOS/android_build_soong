@@ -670,6 +670,26 @@ func rewriteAndroidAppImport(f *Fixer) error {
 	return nil
 }
 
+func RewriteRuntimeResourceOverlay(f *Fixer) error {
+	for _, def := range f.tree.Defs {
+		mod, ok := def.(*parser.Module)
+		if !(ok && mod.Type == "runtime_resource_overlay") {
+			continue
+		}
+		// runtime_resource_overlays are always product specific in Make.
+		if _, ok := mod.GetProperty("product_specific"); !ok {
+			prop := &parser.Property{
+				Name: "product_specific",
+				Value: &parser.Bool{
+					Value: true,
+				},
+			}
+			mod.Properties = append(mod.Properties, prop)
+		}
+	}
+	return nil
+}
+
 // Removes library dependencies which are empty (and restricted from usage in Soong)
 func removeEmptyLibDependencies(f *Fixer) error {
 	emptyLibraries := []string{
