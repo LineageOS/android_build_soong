@@ -240,6 +240,7 @@ func CheckModuleDependencies(t *testing.T, ctx *android.TestContext, name, varia
 }
 
 func CheckHiddenAPIRuleInputs(t *testing.T, expected string, hiddenAPIRule android.TestingBuildParams) {
+	t.Helper()
 	actual := strings.TrimSpace(strings.Join(android.NormalizePathsForTesting(hiddenAPIRule.Implicits), "\n"))
 	expected = strings.TrimSpace(expected)
 	if actual != expected {
