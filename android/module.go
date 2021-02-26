@@ -1168,8 +1168,6 @@ type ModuleBase struct {
 
 	initRcPaths         Paths
 	vintfFragmentsPaths Paths
-
-	prefer32 func(ctx BaseModuleContext, base *ModuleBase, os OsType) bool
 }
 
 func (m *ModuleBase) ComponentDepsMutator(BottomUpMutatorContext) {}
@@ -1194,10 +1192,6 @@ func (m *ModuleBase) RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParam
 
 func (m *ModuleBase) VariablesForTests() map[string]string {
 	return m.variables
-}
-
-func (m *ModuleBase) Prefer32(prefer32 func(ctx BaseModuleContext, base *ModuleBase, os OsType) bool) {
-	m.prefer32 = prefer32
 }
 
 // Name returns the name of the module.  It may be overridden by individual module types, for

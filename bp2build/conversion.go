@@ -93,6 +93,7 @@ var (
 		"name":       true, // redundant, since this is explicitly generated for every target
 		"from":       true, // reserved keyword
 		"in":         true, // reserved keyword
+		"size":       true, // reserved for tests
 		"arch":       true, // interface prop type is not supported yet.
 		"multilib":   true, // interface prop type is not supported yet.
 		"target":     true, // interface prop type is not supported yet.
