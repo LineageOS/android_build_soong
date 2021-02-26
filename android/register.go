@@ -168,6 +168,7 @@ func ModuleTypeFactoriesForDocs() map[string]reflect.Value {
 type RegistrationContext interface {
 	RegisterModuleType(name string, factory ModuleFactory)
 	RegisterSingletonModuleType(name string, factory SingletonModuleFactory)
+	RegisterPreSingletonType(name string, factory SingletonFactory)
 	RegisterSingletonType(name string, factory SingletonFactory)
 	PreArchMutators(f RegisterMutatorFunc)
 
@@ -208,6 +209,7 @@ var _ RegistrationContext = (*TestContext)(nil)
 type initRegistrationContext struct {
 	moduleTypes        map[string]ModuleFactory
 	singletonTypes     map[string]SingletonFactory
+	preSingletonTypes  map[string]SingletonFactory
 	moduleTypesForDocs map[string]reflect.Value
 }
 
@@ -236,6 +238,14 @@ func (ctx *initRegistrationContext) RegisterSingletonType(name string, factory S
 	}
 	ctx.singletonTypes[name] = factory
 	RegisterSingletonType(name, factory)
+}
+
+func (ctx *initRegistrationContext) RegisterPreSingletonType(name string, factory SingletonFactory) {
+	if _, present := ctx.preSingletonTypes[name]; present {
+		panic(fmt.Sprintf("pre singleton type %q is already registered", name))
+	}
+	ctx.preSingletonTypes[name] = factory
+	RegisterPreSingletonType(name, factory)
 }
 
 func (ctx *initRegistrationContext) PreArchMutators(f RegisterMutatorFunc) {
