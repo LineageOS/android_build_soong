@@ -78,6 +78,7 @@ var legacyCorePlatformApiModules = []string{
 	"DownloadProvider",
 	"DownloadProviderTests",
 	"DownloadProviderUi",
+	"ds-car-docs", // for AAOS API documentation only
 	"DynamicSystemInstallationService",
 	"EmergencyInfo-lib",
 	"ethernet-service",
