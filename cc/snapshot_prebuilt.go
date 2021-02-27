@@ -280,50 +280,36 @@ func (s *snapshot) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Nothing, the snapshot module is only used to forward dependency information in DepsMutator.
 }
 
+func getSnapshotNameSuffix(moduleSuffix, version, arch string) string {
+	versionSuffix := version
+	if arch != "" {
+		versionSuffix += "." + arch
+	}
+	return moduleSuffix + versionSuffix
+}
+
 func (s *snapshot) DepsMutator(ctx android.BottomUpMutatorContext) {
-	collectSnapshotMap := func(variations []blueprint.Variation, depTag blueprint.DependencyTag,
-		names []string, snapshotSuffix, moduleSuffix string) map[string]string {
-
-		decoratedNames := make([]string, 0, len(names))
-		for _, name := range names {
-			decoratedNames = append(decoratedNames, name+
-				snapshotSuffix+moduleSuffix+
-				s.baseSnapshot.version()+
-				"."+ctx.Arch().ArchType.Name)
-		}
-
-		deps := ctx.AddVariationDependencies(variations, depTag, decoratedNames...)
+	collectSnapshotMap := func(names []string, snapshotSuffix, moduleSuffix string) map[string]string {
 		snapshotMap := make(map[string]string)
-		for _, dep := range deps {
-			if dep == nil {
-				continue
-			}
-
-			snapshotMap[dep.(*Module).BaseModuleName()] = ctx.OtherModuleName(dep)
+		for _, name := range names {
+			snapshotMap[name] = name +
+				getSnapshotNameSuffix(snapshotSuffix+moduleSuffix,
+					s.baseSnapshot.version(), ctx.Arch().ArchType.Name)
 		}
 		return snapshotMap
 	}
 
 	snapshotSuffix := s.image.moduleNameSuffix()
-	headers := collectSnapshotMap(nil, HeaderDepTag(), s.properties.Header_libs, snapshotSuffix, snapshotHeaderSuffix)
-	binaries := collectSnapshotMap(nil, nil, s.properties.Binaries, snapshotSuffix, snapshotBinarySuffix)
-	objects := collectSnapshotMap(nil, nil, s.properties.Objects, snapshotSuffix, snapshotObjectSuffix)
-
-	staticLibs := collectSnapshotMap([]blueprint.Variation{
-		{Mutator: "link", Variation: "static"},
-	}, StaticDepTag(), s.properties.Static_libs, snapshotSuffix, snapshotStaticSuffix)
-
-	sharedLibs := collectSnapshotMap([]blueprint.Variation{
-		{Mutator: "link", Variation: "shared"},
-	}, SharedDepTag(), s.properties.Shared_libs, snapshotSuffix, snapshotSharedSuffix)
-
-	vndkLibs := collectSnapshotMap([]blueprint.Variation{
-		{Mutator: "link", Variation: "shared"},
-	}, SharedDepTag(), s.properties.Vndk_libs, "", vndkSuffix)
-
+	headers := collectSnapshotMap(s.properties.Header_libs, snapshotSuffix, snapshotHeaderSuffix)
+	binaries := collectSnapshotMap(s.properties.Binaries, snapshotSuffix, snapshotBinarySuffix)
+	objects := collectSnapshotMap(s.properties.Objects, snapshotSuffix, snapshotObjectSuffix)
+	staticLibs := collectSnapshotMap(s.properties.Static_libs, snapshotSuffix, snapshotStaticSuffix)
+	sharedLibs := collectSnapshotMap(s.properties.Shared_libs, snapshotSuffix, snapshotSharedSuffix)
+	vndkLibs := collectSnapshotMap(s.properties.Vndk_libs, "", vndkSuffix)
 	for k, v := range vndkLibs {
 		sharedLibs[k] = v
 	}
+
 	ctx.SetProvider(SnapshotInfoProvider, SnapshotInfo{
 		HeaderLibs: headers,
 		Binaries:   binaries,
@@ -395,12 +381,7 @@ func (p *baseSnapshotDecorator) Name(name string) string {
 }
 
 func (p *baseSnapshotDecorator) NameSuffix() string {
-	versionSuffix := p.version()
-	if p.arch() != "" {
-		versionSuffix += "." + p.arch()
-	}
-
-	return p.baseProperties.ModuleSuffix + versionSuffix
+	return getSnapshotNameSuffix(p.moduleSuffix(), p.version(), p.arch())
 }
 
 func (p *baseSnapshotDecorator) version() string {

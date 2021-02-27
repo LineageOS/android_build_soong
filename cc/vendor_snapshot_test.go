@@ -416,7 +416,13 @@ func TestVendorSnapshotUse(t *testing.T) {
 		name: "libvendor",
 		version: "BOARD",
 		target_arch: "arm64",
+		compile_multilib: "64",
 		vendor: true,
+		shared_libs: [
+			"libvendor_without_snapshot",
+			"libvendor_available",
+			"libvndk",
+		],
 		arch: {
 			arm64: {
 				src: "libvendor.so",
