@@ -305,10 +305,7 @@ func TestArchConfigFuchsia(buildDir string, env map[string]string, bp string, fs
 	return testConfig
 }
 
-// TestArchConfig returns a Config object suitable for using for tests that
-// need to run the arch mutator.
-func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
-	testConfig := TestConfig(buildDir, env, bp, fs)
+func modifyTestConfigToSupportArchMutator(testConfig Config) {
 	config := testConfig.config
 
 	config.Targets = map[OsType][]Target{
@@ -334,7 +331,13 @@ func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[st
 	config.TestProductVariables.DeviceArchVariant = proptools.StringPtr("armv8-a")
 	config.TestProductVariables.DeviceSecondaryArch = proptools.StringPtr("arm")
 	config.TestProductVariables.DeviceSecondaryArchVariant = proptools.StringPtr("armv7-a-neon")
+}
 
+// TestArchConfig returns a Config object suitable for using for tests that
+// need to run the arch mutator.
+func TestArchConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
+	testConfig := TestConfig(buildDir, env, bp, fs)
+	modifyTestConfigToSupportArchMutator(testConfig)
 	return testConfig
 }
 
