@@ -24,6 +24,10 @@ func init() {
 	RegisterBp2BuildMutator("filegroup", FilegroupBp2Build)
 }
 
+var PrepareForTestWithFilegroup = FixtureRegisterWithContext(func(ctx RegistrationContext) {
+	ctx.RegisterModuleType("filegroup", FileGroupFactory)
+})
+
 // https://docs.bazel.build/versions/master/be/general.html#filegroup
 type bazelFilegroupAttributes struct {
 	Srcs bazel.LabelList
