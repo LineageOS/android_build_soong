@@ -469,7 +469,7 @@ func (a *AndroidApp) dexBuildActions(ctx android.ModuleContext) android.Path {
 		a.Module.compile(ctx, a.aaptSrcJar)
 	}
 
-	return a.maybeStrippedDexJarFile
+	return a.dexJarFile
 }
 
 func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, ctx android.ModuleContext) android.WritablePath {
