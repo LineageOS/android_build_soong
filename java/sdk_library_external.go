@@ -75,16 +75,25 @@ func (j *Module) allowListedInterPartitionJavaLibrary(ctx android.EarlyModuleCon
 	return inList(j.Name(), ctx.Config().InterPartitionJavaLibraryAllowList())
 }
 
+func (j *Module) syspropWithPublicStubs() bool {
+	return j.deviceProperties.SyspropPublicStub != ""
+}
+
 type javaSdkLibraryEnforceContext interface {
 	Name() string
 	allowListedInterPartitionJavaLibrary(ctx android.EarlyModuleContext) bool
 	partitionGroup(ctx android.EarlyModuleContext) partitionGroup
+	syspropWithPublicStubs() bool
 }
 
 var _ javaSdkLibraryEnforceContext = (*Module)(nil)
 
 func (j *Module) checkPartitionsForJavaDependency(ctx android.EarlyModuleContext, propName string, dep javaSdkLibraryEnforceContext) {
 	if dep.allowListedInterPartitionJavaLibrary(ctx) {
+		return
+	}
+
+	if dep.syspropWithPublicStubs() {
 		return
 	}
 
