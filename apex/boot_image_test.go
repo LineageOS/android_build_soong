@@ -305,6 +305,7 @@ func TestBootImageInPrebuiltArtApex(t *testing.T) {
 	`)
 
 	java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common", []string{
+		`com.android.art.apex.selector`,
 		`prebuilt_bar`,
 		`prebuilt_foo`,
 	})
