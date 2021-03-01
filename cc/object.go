@@ -93,7 +93,7 @@ func ObjectFactory() android.Module {
 type bazelObjectAttributes struct {
 	Srcs               bazel.LabelList
 	Deps               bazel.LabelList
-	Copts              []string
+	Copts              bazel.StringListAttribute
 	Local_include_dirs []string
 }
 
@@ -133,13 +133,14 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 		ctx.ModuleErrorf("compiler must not be nil for a cc_object module")
 	}
 
-	var copts []string
+	// Set arch-specific configurable attributes
+	var copts bazel.StringListAttribute
 	var srcs []string
 	var excludeSrcs []string
 	var localIncludeDirs []string
 	for _, props := range m.compiler.compilerProps() {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
-			copts = baseCompilerProps.Cflags
+			copts.Value = baseCompilerProps.Cflags
 			srcs = baseCompilerProps.Srcs
 			excludeSrcs = baseCompilerProps.Exclude_srcs
 			localIncludeDirs = baseCompilerProps.Local_include_dirs
@@ -153,6 +154,13 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 			deps = android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Objs)
 		}
 	}
+
+	for arch, p := range m.GetArchProperties(&BaseCompilerProperties{}) {
+		if cProps, ok := p.(*BaseCompilerProperties); ok {
+			copts.SetValueForArch(arch.Name, cProps.Cflags)
+		}
+	}
+	copts.SetValueForArch("default", []string{})
 
 	attrs := &bazelObjectAttributes{
 		Srcs:               android.BazelLabelForModuleSrcExcludes(ctx, srcs, excludeSrcs),
