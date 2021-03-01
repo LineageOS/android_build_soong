@@ -4419,6 +4419,13 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 			t.Errorf("expected: %q, found: %q", expected, actual)
 		}
 
+		// Make sure that the prebuilt_apex has the correct input APEX.
+		prebuiltApex := ctx.ModuleForTests("myapex", "android_common")
+		rule = prebuiltApex.Rule("android/soong/android.Cp")
+		if expected, actual := "myapex-arm64.apex", android.NormalizePathForTesting(rule.Input); !reflect.DeepEqual(expected, actual) {
+			t.Errorf("expected: %q, found: %q", expected, actual)
+		}
+
 		checkDexJarBuildPath(t, ctx, "libfoo")
 
 		checkDexJarBuildPath(t, ctx, "libbar")
