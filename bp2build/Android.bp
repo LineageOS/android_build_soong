@@ -10,6 +10,7 @@ bootstrap_go_package {
         "bp2build.go",
         "build_conversion.go",
         "bzl_conversion.go",
+        "configurability.go",
         "conversion.go",
         "metrics.go",
     ],
