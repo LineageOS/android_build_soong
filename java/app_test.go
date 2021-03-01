@@ -685,6 +685,51 @@ func TestLibraryAssets(t *testing.T) {
 	}
 }
 
+func TestAppJavaResources(t *testing.T) {
+	bp := `
+			android_app {
+				name: "foo",
+				sdk_version: "current",
+				java_resources: ["resources/a"],
+				srcs: ["a.java"],
+			}
+
+			android_app {
+				name: "bar",
+				sdk_version: "current",
+				java_resources: ["resources/a"],
+			}
+		`
+
+	ctx := testApp(t, bp)
+
+	foo := ctx.ModuleForTests("foo", "android_common")
+	fooResources := foo.Output("res/foo.jar")
+	fooDexJar := foo.Output("dex-withres/foo.jar")
+	fooDexJarAligned := foo.Output("dex-withres-aligned/foo.jar")
+	fooApk := foo.Rule("combineApk")
+
+	if g, w := fooDexJar.Inputs.Strings(), fooResources.Output.String(); !android.InList(w, g) {
+		t.Errorf("expected resource jar %q in foo dex jar inputs %q", w, g)
+	}
+
+	if g, w := fooDexJarAligned.Input.String(), fooDexJar.Output.String(); g != w {
+		t.Errorf("expected dex jar %q in foo aligned dex jar inputs %q", w, g)
+	}
+
+	if g, w := fooApk.Inputs.Strings(), fooDexJarAligned.Output.String(); !android.InList(w, g) {
+		t.Errorf("expected aligned dex jar %q in foo apk inputs %q", w, g)
+	}
+
+	bar := ctx.ModuleForTests("bar", "android_common")
+	barResources := bar.Output("res/bar.jar")
+	barApk := bar.Rule("combineApk")
+
+	if g, w := barApk.Inputs.Strings(), barResources.Output.String(); !android.InList(w, g) {
+		t.Errorf("expected resources jar %q in bar apk inputs %q", w, g)
+	}
+}
+
 func TestAndroidResources(t *testing.T) {
 	testCases := []struct {
 		name                       string
