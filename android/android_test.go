@@ -44,3 +44,5 @@ func TestMain(m *testing.M) {
 
 	os.Exit(run())
 }
+
+var emptyTestFixtureFactory = NewFixtureFactory(&buildDir)
