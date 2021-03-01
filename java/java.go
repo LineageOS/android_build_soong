@@ -434,9 +434,6 @@ type Module struct {
 	// output file containing classes.dex and resources
 	dexJarFile android.Path
 
-	// output file that contains classes.dex if it should be in the output file
-	maybeStrippedDexJarFile android.Path
-
 	// output file containing uninstrumented classes that will be instrumented by jacoco
 	jacocoReportClassesFile android.Path
 
@@ -1818,46 +1815,50 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		}
 	}
 
-	if ctx.Device() && j.hasCode(ctx) &&
-		(Bool(j.properties.Installable) || Bool(j.dexProperties.Compile_dex)) {
-		if j.shouldInstrumentStatic(ctx) {
-			j.dexer.extraProguardFlagFiles = append(j.dexer.extraProguardFlagFiles,
-				android.PathForSource(ctx, "build/make/core/proguard.jacoco.flags"))
-		}
-		// Dex compilation
-		var dexOutputFile android.OutputPath
-		dexOutputFile = j.dexer.compileDex(ctx, flags, j.minSdkVersion(), outputFile, jarName)
-		if ctx.Failed() {
-			return
-		}
-
-		// Hidden API CSV generation and dex encoding
-		dexOutputFile = j.hiddenAPIExtractAndEncode(ctx, dexOutputFile, j.implementationJarFile,
-			proptools.Bool(j.dexProperties.Uncompress_dex))
-
-		// merge dex jar with resources if necessary
-		if j.resourceJar != nil {
-			jars := android.Paths{dexOutputFile, j.resourceJar}
-			combinedJar := android.PathForModuleOut(ctx, "dex-withres", jarName).OutputPath
-			TransformJarsToJar(ctx, combinedJar, "for dex resources", jars, android.OptionalPath{},
-				false, nil, nil)
-			if *j.dexProperties.Uncompress_dex {
-				combinedAlignedJar := android.PathForModuleOut(ctx, "dex-withres-aligned", jarName).OutputPath
-				TransformZipAlign(ctx, combinedAlignedJar, combinedJar)
-				dexOutputFile = combinedAlignedJar
-			} else {
-				dexOutputFile = combinedJar
+	if ctx.Device() && (Bool(j.properties.Installable) || Bool(j.dexProperties.Compile_dex)) {
+		if j.hasCode(ctx) {
+			if j.shouldInstrumentStatic(ctx) {
+				j.dexer.extraProguardFlagFiles = append(j.dexer.extraProguardFlagFiles,
+					android.PathForSource(ctx, "build/make/core/proguard.jacoco.flags"))
 			}
+			// Dex compilation
+			var dexOutputFile android.OutputPath
+			dexOutputFile = j.dexer.compileDex(ctx, flags, j.minSdkVersion(), outputFile, jarName)
+			if ctx.Failed() {
+				return
+			}
+
+			// Hidden API CSV generation and dex encoding
+			dexOutputFile = j.hiddenAPIExtractAndEncode(ctx, dexOutputFile, j.implementationJarFile,
+				proptools.Bool(j.dexProperties.Uncompress_dex))
+
+			// merge dex jar with resources if necessary
+			if j.resourceJar != nil {
+				jars := android.Paths{dexOutputFile, j.resourceJar}
+				combinedJar := android.PathForModuleOut(ctx, "dex-withres", jarName).OutputPath
+				TransformJarsToJar(ctx, combinedJar, "for dex resources", jars, android.OptionalPath{},
+					false, nil, nil)
+				if *j.dexProperties.Uncompress_dex {
+					combinedAlignedJar := android.PathForModuleOut(ctx, "dex-withres-aligned", jarName).OutputPath
+					TransformZipAlign(ctx, combinedAlignedJar, combinedJar)
+					dexOutputFile = combinedAlignedJar
+				} else {
+					dexOutputFile = combinedJar
+				}
+			}
+
+			j.dexJarFile = dexOutputFile
+
+			// Dexpreopting
+			j.dexpreopt(ctx, dexOutputFile)
+
+			outputFile = dexOutputFile
+		} else {
+			// There is no code to compile into a dex jar, make sure the resources are propagated
+			// to the APK if this is an app.
+			outputFile = implementationAndResourcesJar
+			j.dexJarFile = j.resourceJar
 		}
-
-		j.dexJarFile = dexOutputFile
-
-		// Dexpreopting
-		j.dexpreopt(ctx, dexOutputFile)
-
-		j.maybeStrippedDexJarFile = dexOutputFile
-
-		outputFile = dexOutputFile
 
 		if ctx.Failed() {
 			return
@@ -3183,8 +3184,7 @@ type DexImport struct {
 
 	properties DexImportProperties
 
-	dexJarFile              android.Path
-	maybeStrippedDexJarFile android.Path
+	dexJarFile android.Path
 
 	dexpreopter
 
@@ -3270,8 +3270,6 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.dexJarFile = dexOutputFile
 
 	j.dexpreopt(ctx, dexOutputFile)
-
-	j.maybeStrippedDexJarFile = dexOutputFile
 
 	if apexInfo.IsForPlatform() {
 		ctx.InstallFile(android.PathForModuleInstall(ctx, "framework"),
