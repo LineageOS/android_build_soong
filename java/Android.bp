@@ -58,7 +58,6 @@ bootstrap_go_package {
         "sdk_library.go",
         "sdk_library_external.go",
         "support_libraries.go",
-        "sysprop.go",
         "system_modules.go",
         "testing.go",
         "tradefed.go",
