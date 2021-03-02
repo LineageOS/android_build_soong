@@ -25,7 +25,6 @@ bootstrap_go_binary {
         "soong",
         "soong-android",
         "soong-bp2build",
-        "soong-env",
         "soong-ui-metrics_proto",
     ],
     srcs: [
