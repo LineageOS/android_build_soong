@@ -19,8 +19,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
+	"android/soong/shared"
 	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
 
 	"github.com/golang/protobuf/proto"
@@ -79,29 +79,12 @@ func runSoong(ctx Context, config Config) {
 		defer ctx.EndTrace()
 
 		envFile := filepath.Join(config.SoongOutDir(), ".soong.environment")
-		envTool := filepath.Join(config.SoongOutDir(), ".bootstrap/bin/soong_env")
-		if _, err := os.Stat(envFile); err == nil {
-			if _, err := os.Stat(envTool); err == nil {
-				cmd := Command(ctx, config, "soong_env", envTool, envFile)
-				cmd.Sandbox = soongSandbox
-
-				var buf strings.Builder
-				cmd.Stdout = &buf
-				cmd.Stderr = &buf
-				if err := cmd.Run(); err != nil {
-					ctx.Verboseln("soong_env failed, forcing manifest regeneration")
-					os.Remove(envFile)
-				}
-
-				if buf.Len() > 0 {
-					ctx.Verboseln(buf.String())
-				}
-			} else {
-				ctx.Verboseln("Missing soong_env tool, forcing manifest regeneration")
-				os.Remove(envFile)
-			}
-		} else if !os.IsNotExist(err) {
-			ctx.Fatalf("Failed to stat %f: %v", envFile, err)
+		getenv := func(k string) string {
+			v, _ := config.Environment().Get(k)
+			return v
+		}
+		if stale, _ := shared.StaleEnvFile(envFile, getenv); stale {
+			os.Remove(envFile)
 		}
 	}()
 
