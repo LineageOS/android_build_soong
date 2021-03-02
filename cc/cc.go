@@ -2420,36 +2420,6 @@ func checkDoubleLoadableLibraries(ctx android.TopDownMutatorContext) {
 	}
 }
 
-// Returns the highest version which is <= maxSdkVersion.
-// For example, with maxSdkVersion is 10 and versionList is [9,11]
-// it returns 9 as string.  The list of stubs must be in order from
-// oldest to newest.
-func (c *Module) chooseSdkVersion(ctx android.PathContext, stubsInfo []SharedStubLibrary,
-	maxSdkVersion android.ApiLevel) (SharedStubLibrary, error) {
-
-	for i := range stubsInfo {
-		stubInfo := stubsInfo[len(stubsInfo)-i-1]
-		var ver android.ApiLevel
-		if stubInfo.Version == "" {
-			ver = android.FutureApiLevel
-		} else {
-			var err error
-			ver, err = android.ApiLevelFromUser(ctx, stubInfo.Version)
-			if err != nil {
-				return SharedStubLibrary{}, err
-			}
-		}
-		if ver.LessThanOrEqualTo(maxSdkVersion) {
-			return stubInfo, nil
-		}
-	}
-	var versionList []string
-	for _, stubInfo := range stubsInfo {
-		versionList = append(versionList, stubInfo.Version)
-	}
-	return SharedStubLibrary{}, fmt.Errorf("not found a version(<=%s) in versionList: %v", maxSdkVersion.String(), versionList)
-}
-
 // Convert dependencies to paths.  Returns a PathDeps containing paths
 func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	var depPaths PathDeps
@@ -2633,16 +2603,12 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						useStubs = !android.DirectlyInAllApexes(apexInfo, depName)
 					}
 
-					// when to use (unspecified) stubs, check min_sdk_version and choose the right one
+					// when to use (unspecified) stubs, use the latest one.
 					if useStubs {
-						sharedLibraryStubsInfo, err :=
-							c.chooseSdkVersion(ctx, sharedLibraryStubsInfo.SharedStubLibraries, c.apexSdkVersion)
-						if err != nil {
-							ctx.OtherModuleErrorf(dep, err.Error())
-							return
-						}
-						sharedLibraryInfo = sharedLibraryStubsInfo.SharedLibraryInfo
-						depExporterInfo = sharedLibraryStubsInfo.FlagExporterInfo
+						stubs := sharedLibraryStubsInfo.SharedStubLibraries
+						toUse := stubs[len(stubs)-1]
+						sharedLibraryInfo = toUse.SharedLibraryInfo
+						depExporterInfo = toUse.FlagExporterInfo
 					}
 				}
 
