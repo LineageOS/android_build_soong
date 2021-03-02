@@ -21,7 +21,7 @@ import (
 	"strings"
 	"syscall"
 
-	"android/soong/env"
+	"android/soong/shared"
 )
 
 // This file supports dependencies on environment variables.  During build manifest generation,
@@ -113,7 +113,7 @@ func (c *envSingleton) GenerateBuildActions(ctx SingletonContext) {
 		return
 	}
 
-	data, err := env.EnvFileContents(envDeps)
+	data, err := shared.EnvFileContents(envDeps)
 	if err != nil {
 		ctx.Errorf(err.Error())
 	}
