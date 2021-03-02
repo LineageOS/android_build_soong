@@ -85,7 +85,7 @@ type GlobalConfig struct {
 	Dex2oatImageXmx   string        // max heap size for dex2oat for the boot image
 	Dex2oatImageXms   string        // initial heap size for dex2oat for the boot image
 
-	// If true, downgrade the compiler filter of dexpreopt to "extract" when verify_uses_libraries
+	// If true, downgrade the compiler filter of dexpreopt to "verify" when verify_uses_libraries
 	// check fails, instead of failing the build. This will disable any AOT-compilation.
 	//
 	// The intended use case for this flag is to have a smoother migration path for the Java
