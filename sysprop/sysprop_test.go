@@ -26,7 +26,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -61,16 +60,10 @@ func testContext(config android.Config) *android.TestContext {
 	java.RegisterRequiredBuildComponentsForTest(ctx)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("sysprop_deps", syspropDepsMutator).Parallel()
-	})
 
 	android.RegisterPrebuiltMutators(ctx)
 
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
-	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("sysprop_java", java.SyspropMutator).Parallel()
-	})
 
 	ctx.RegisterModuleType("sysprop_library", syspropLibraryFactory)
 
@@ -392,15 +385,9 @@ func TestSyspropLibrary(t *testing.T) {
 	}
 
 	// Java modules linking against system API should use public stub
-	javaSystemApiClient := ctx.ModuleForTests("java-platform", "android_common")
-	publicStubFound := false
-	ctx.VisitDirectDeps(javaSystemApiClient.Module(), func(dep blueprint.Module) {
-		if dep.Name() == "sysprop-platform_public" {
-			publicStubFound = true
-		}
-	})
-	if !publicStubFound {
-		t.Errorf("system api client should use public stub")
+	javaSystemApiClient := ctx.ModuleForTests("java-platform", "android_common").Rule("javac")
+	syspropPlatformPublic := ctx.ModuleForTests("sysprop-platform_public", "android_common").Description("for turbine")
+	if g, w := javaSystemApiClient.Implicits.Strings(), syspropPlatformPublic.Output.String(); !android.InList(w, g) {
+		t.Errorf("system api client should use public stub %q, got %q", w, g)
 	}
-
 }

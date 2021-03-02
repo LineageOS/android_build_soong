@@ -48,6 +48,43 @@ func NewTestContext(config Config) *TestContext {
 	return ctx
 }
 
+var PrepareForTestWithArchMutator = FixturePreparers(
+	// Configure architecture targets in the fixture config.
+	FixtureModifyConfig(modifyTestConfigToSupportArchMutator),
+
+	// Add the arch mutator to the context.
+	FixtureRegisterWithContext(func(ctx RegistrationContext) {
+		ctx.PreDepsMutators(registerArchMutator)
+	}),
+)
+
+var PrepareForTestWithDefaults = FixtureRegisterWithContext(func(ctx RegistrationContext) {
+	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
+})
+
+var PrepareForTestWithComponentsMutator = FixtureRegisterWithContext(func(ctx RegistrationContext) {
+	ctx.PreArchMutators(RegisterComponentsMutator)
+})
+
+var PrepareForTestWithPrebuilts = FixtureRegisterWithContext(RegisterPrebuiltMutators)
+
+var PrepareForTestWithOverrides = FixtureRegisterWithContext(func(ctx RegistrationContext) {
+	ctx.PostDepsMutators(RegisterOverridePostDepsMutators)
+})
+
+// Prepares an integration test with build components from the android package.
+var PrepareForIntegrationTestWithAndroid = FixturePreparers(
+	// Mutators. Must match order in mutator.go.
+	PrepareForTestWithArchMutator,
+	PrepareForTestWithDefaults,
+	PrepareForTestWithComponentsMutator,
+	PrepareForTestWithPrebuilts,
+	PrepareForTestWithOverrides,
+
+	// Modules
+	PrepareForTestWithFilegroup,
+)
+
 func NewTestArchContext(config Config) *TestContext {
 	ctx := NewTestContext(config)
 	ctx.preDeps = append(ctx.preDeps, registerArchMutator)

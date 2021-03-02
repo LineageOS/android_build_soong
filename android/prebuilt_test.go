@@ -262,7 +262,7 @@ var prebuiltsTests = []struct {
 }
 
 func TestPrebuilts(t *testing.T) {
-	fs := map[string][]byte{
+	fs := MockFS{
 		"prebuilt_file": nil,
 		"source_file":   nil,
 	}
@@ -277,32 +277,33 @@ func TestPrebuilts(t *testing.T) {
 						deps: [":bar"],
 					}`
 			}
-			config := TestArchConfig(buildDir, nil, bp, fs)
 
 			// Add windows to the target list to test the logic when a variant is
 			// disabled by default.
 			if !Windows.DefaultDisabled {
 				t.Errorf("windows is assumed to be disabled by default")
 			}
-			config.config.Targets[Windows] = []Target{
-				{Windows, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", true},
-			}
 
-			ctx := NewTestArchContext(config)
-			registerTestPrebuiltBuildComponents(ctx)
-			ctx.RegisterModuleType("filegroup", FileGroupFactory)
-			ctx.Register()
+			result := emptyTestFixtureFactory.Extend(
+				PrepareForTestWithArchMutator,
+				PrepareForTestWithPrebuilts,
+				PrepareForTestWithOverrides,
+				PrepareForTestWithFilegroup,
+				// Add a Windows target to the configuration.
+				FixtureModifyConfig(func(config Config) {
+					config.Targets[Windows] = []Target{
+						{Windows, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", true},
+					}
+				}),
+				fs.AddToFixture(),
+				FixtureRegisterWithContext(registerTestPrebuiltModules),
+			).RunTestWithBp(t, bp)
 
-			_, errs := ctx.ParseBlueprintsFiles("Android.bp")
-			FailIfErrored(t, errs)
-			_, errs = ctx.PrepareBuildActions(config)
-			FailIfErrored(t, errs)
-
-			for _, variant := range ctx.ModuleVariantsForTests("foo") {
-				foo := ctx.ModuleForTests("foo", variant)
+			for _, variant := range result.ModuleVariantsForTests("foo") {
+				foo := result.ModuleForTests("foo", variant)
 				t.Run(foo.Module().Target().Os.String(), func(t *testing.T) {
 					var dependsOnSourceModule, dependsOnPrebuiltModule bool
-					ctx.VisitDirectDeps(foo.Module(), func(m blueprint.Module) {
+					result.VisitDirectDeps(foo.Module(), func(m blueprint.Module) {
 						if _, ok := m.(*sourceModule); ok {
 							dependsOnSourceModule = true
 						}
@@ -381,12 +382,16 @@ func TestPrebuilts(t *testing.T) {
 }
 
 func registerTestPrebuiltBuildComponents(ctx RegistrationContext) {
-	ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
-	ctx.RegisterModuleType("source", newSourceModule)
-	ctx.RegisterModuleType("override_source", newOverrideSourceModule)
+	registerTestPrebuiltModules(ctx)
 
 	RegisterPrebuiltMutators(ctx)
 	ctx.PostDepsMutators(RegisterOverridePostDepsMutators)
+}
+
+func registerTestPrebuiltModules(ctx RegistrationContext) {
+	ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
+	ctx.RegisterModuleType("source", newSourceModule)
+	ctx.RegisterModuleType("override_source", newOverrideSourceModule)
 }
 
 type prebuiltModule struct {

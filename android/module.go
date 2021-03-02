@@ -1123,8 +1123,15 @@ type ModuleBase struct {
 	variableProperties      interface{}
 	hostAndDeviceProperties hostAndDeviceProperties
 	generalProperties       []interface{}
-	archProperties          [][]interface{}
-	customizableProperties  []interface{}
+
+	// Arch specific versions of structs in generalProperties. The outer index
+	// has the same order as generalProperties as initialized in
+	// InitAndroidArchModule, and the inner index chooses the props specific to
+	// the architecture. The interface{} value is an archPropRoot that is
+	// filled with arch specific values by the arch mutator.
+	archProperties [][]interface{}
+
+	customizableProperties []interface{}
 
 	// Properties specific to the Blueprint to BUILD migration.
 	bazelTargetModuleProperties bazel.BazelTargetModuleProperties
