@@ -443,6 +443,7 @@ type Module interface {
 	Disable()
 	Enabled() bool
 	Target() Target
+	MultiTargets() []Target
 	Owner() string
 	InstallInData() bool
 	InstallInTestcases() bool
