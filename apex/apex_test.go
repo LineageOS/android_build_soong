@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -191,6 +192,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 		"AppSet.apks":                                nil,
 		"foo.rs":                                     nil,
 		"libfoo.jar":                                 nil,
+		"libbar.jar":                                 nil,
 	}
 
 	cc.GatherRequiredFilesForTest(fs)
@@ -4366,14 +4368,15 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 		// Make sure the import has been given the correct path to the dex jar.
 		p := ctx.ModuleForTests(name, "android_common_myapex").Module().(java.UsesLibraryDependency)
 		dexJarBuildPath := p.DexJarBuildPath()
-		if expected, actual := ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar", android.NormalizePathForTesting(dexJarBuildPath); actual != expected {
+		stem := android.RemoveOptionalPrebuiltPrefix(name)
+		if expected, actual := ".intermediates/myapex.deapexer/android_common/deapexer/javalib/"+stem+".jar", android.NormalizePathForTesting(dexJarBuildPath); actual != expected {
 			t.Errorf("Incorrect DexJarBuildPath value '%s', expected '%s'", actual, expected)
 		}
 	}
 
-	ensureNoSourceVariant := func(t *testing.T, ctx *android.TestContext) {
+	ensureNoSourceVariant := func(t *testing.T, ctx *android.TestContext, name string) {
 		// Make sure that an apex variant is not created for the source module.
-		if expected, actual := []string{"android_common"}, ctx.ModuleVariantsForTests("libfoo"); !reflect.DeepEqual(expected, actual) {
+		if expected, actual := []string{"android_common"}, ctx.ModuleVariantsForTests(name); !reflect.DeepEqual(expected, actual) {
 			t.Errorf("invalid set of variants for %q: expected %q, found %q", "libfoo", expected, actual)
 		}
 	}
@@ -4390,12 +4393,19 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 					src: "myapex-arm.apex",
 				},
 			},
-			exported_java_libs: ["libfoo"],
+			exported_java_libs: ["libfoo", "libbar"],
 		}
 
 		java_import {
 			name: "libfoo",
 			jars: ["libfoo.jar"],
+		}
+
+		java_sdk_library_import {
+			name: "libbar",
+			public: {
+				jars: ["libbar.jar"],
+			},
 		}
 	`
 
@@ -4403,6 +4413,8 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
 
 		checkDexJarBuildPath(t, ctx, "libfoo")
+
+		checkDexJarBuildPath(t, ctx, "libbar")
 	})
 
 	t.Run("prebuilt with source preferred", func(t *testing.T) {
@@ -4418,7 +4430,7 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 					src: "myapex-arm.apex",
 				},
 			},
-			exported_java_libs: ["libfoo"],
+			exported_java_libs: ["libfoo", "libbar"],
 		}
 
 		java_import {
@@ -4429,13 +4441,29 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 		java_library {
 			name: "libfoo",
 		}
+
+		java_sdk_library_import {
+			name: "libbar",
+			public: {
+				jars: ["libbar.jar"],
+			},
+		}
+
+		java_sdk_library {
+			name: "libbar",
+			srcs: ["foo/bar/MyClass.java"],
+			unsafe_ignore_missing_latest_api: true,
+		}
 	`
 
 		// Make sure that dexpreopt can access dex implementation files from the prebuilt.
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
 
 		checkDexJarBuildPath(t, ctx, "prebuilt_libfoo")
-		ensureNoSourceVariant(t, ctx)
+		ensureNoSourceVariant(t, ctx, "libfoo")
+
+		checkDexJarBuildPath(t, ctx, "prebuilt_libbar")
+		ensureNoSourceVariant(t, ctx, "libbar")
 	})
 
 	t.Run("prebuilt preferred with source", func(t *testing.T) {
@@ -4450,7 +4478,7 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 					src: "myapex-arm.apex",
 				},
 			},
-			exported_java_libs: ["libfoo"],
+			exported_java_libs: ["libfoo", "libbar"],
 		}
 
 		java_import {
@@ -4462,26 +4490,45 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 		java_library {
 			name: "libfoo",
 		}
+
+		java_sdk_library_import {
+			name: "libbar",
+			prefer: true,
+			public: {
+				jars: ["libbar.jar"],
+			},
+		}
+
+		java_sdk_library {
+			name: "libbar",
+			srcs: ["foo/bar/MyClass.java"],
+			unsafe_ignore_missing_latest_api: true,
+		}
 	`
 
 		// Make sure that dexpreopt can access dex implementation files from the prebuilt.
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
 
 		checkDexJarBuildPath(t, ctx, "prebuilt_libfoo")
-		ensureNoSourceVariant(t, ctx)
+		ensureNoSourceVariant(t, ctx, "libfoo")
+
+		checkDexJarBuildPath(t, ctx, "prebuilt_libbar")
+		ensureNoSourceVariant(t, ctx, "libbar")
 	})
 }
 
 func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	transform := func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = android.CreateTestConfiguredJarList([]string{"myapex:libfoo"})
+		config.BootJars = android.CreateTestConfiguredJarList([]string{"myapex:libfoo", "myapex:libbar"})
 	}
 
-	checkBootDexJarPath := func(t *testing.T, ctx *android.TestContext, bootDexJarPath string) {
+	checkBootDexJarPath := func(t *testing.T, ctx *android.TestContext, stem string, bootDexJarPath string) {
+		t.Helper()
 		s := ctx.SingletonForTests("dex_bootjars")
 		foundLibfooJar := false
+		base := stem + ".jar"
 		for _, output := range s.AllOutputs() {
-			if strings.HasSuffix(output, "/libfoo.jar") {
+			if filepath.Base(output) == base {
 				foundLibfooJar = true
 				buildRule := s.Output(output)
 				actual := android.NormalizePathForTesting(buildRule.Input)
@@ -4496,6 +4543,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	}
 
 	checkHiddenAPIIndexInputs := func(t *testing.T, ctx *android.TestContext, expectedInputs string) {
+		t.Helper()
 		hiddenAPIIndex := ctx.SingletonForTests("hiddenapi_index")
 		indexRule := hiddenAPIIndex.Rule("singleton-merged-hiddenapi-index")
 		java.CheckHiddenAPIRuleInputs(t, expectedInputs, indexRule)
@@ -4513,7 +4561,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 					src: "myapex-arm.apex",
 				},
 			},
-			exported_java_libs: ["libfoo"],
+			exported_java_libs: ["libfoo", "libbar"],
 		}
 
 		java_import {
@@ -4521,13 +4569,23 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			jars: ["libfoo.jar"],
 			apex_available: ["myapex"],
 		}
+
+		java_sdk_library_import {
+			name: "libbar",
+			public: {
+				jars: ["libbar.jar"],
+			},
+			apex_available: ["myapex"],
+		}
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
-		checkBootDexJarPath(t, ctx, ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
+.intermediates/libbar/android_common_myapex/hiddenapi/index.csv
 .intermediates/libfoo/android_common_myapex/hiddenapi/index.csv
 `)
 	})
@@ -4544,7 +4602,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 					src: "myapex-arm.apex",
 				},
 			},
-			exported_java_libs: ["libfoo"],
+			exported_java_libs: ["libfoo", "libbar"],
 		}
 
 		java_import {
@@ -4556,6 +4614,21 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		java_library {
 			name: "libfoo",
 			srcs: ["foo/bar/MyClass.java"],
+			apex_available: ["myapex"],
+		}
+
+		java_sdk_library_import {
+			name: "libbar",
+			public: {
+				jars: ["libbar.jar"],
+			},
+			apex_available: ["myapex"],
+		}
+
+		java_sdk_library {
+			name: "libbar",
+			srcs: ["foo/bar/MyClass.java"],
+			unsafe_ignore_missing_latest_api: true,
 			apex_available: ["myapex"],
 		}
 	`
@@ -4580,7 +4653,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 					src: "myapex-arm.apex",
 				},
 			},
-			exported_java_libs: ["libfoo"],
+			exported_java_libs: ["libfoo", "libbar"],
 		}
 
 		java_import {
@@ -4595,13 +4668,31 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			apex_available: ["myapex"],
 		}
+
+		java_sdk_library_import {
+			name: "libbar",
+			prefer: true,
+			public: {
+				jars: ["libbar.jar"],
+			},
+			apex_available: ["myapex"],
+		}
+
+		java_sdk_library {
+			name: "libbar",
+			srcs: ["foo/bar/MyClass.java"],
+			unsafe_ignore_missing_latest_api: true,
+			apex_available: ["myapex"],
+		}
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
-		checkBootDexJarPath(t, ctx, ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
+.intermediates/prebuilt_libbar/android_common_myapex/hiddenapi/index.csv
 .intermediates/prebuilt_libfoo/android_common_myapex/hiddenapi/index.csv
 `)
 	})
@@ -4611,7 +4702,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		apex {
 			name: "myapex",
 			key: "myapex.key",
-			java_libs: ["libfoo"],
+			java_libs: ["libfoo", "libbar"],
 		}
 
 		apex_key {
@@ -4630,7 +4721,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 					src: "myapex-arm.apex",
 				},
 			},
-			exported_java_libs: ["libfoo"],
+			exported_java_libs: ["libfoo", "libbar"],
 		}
 
 		java_import {
@@ -4644,13 +4735,30 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			apex_available: ["myapex"],
 		}
+
+		java_sdk_library_import {
+			name: "libbar",
+			public: {
+				jars: ["libbar.jar"],
+			},
+			apex_available: ["myapex"],
+		}
+
+		java_sdk_library {
+			name: "libbar",
+			srcs: ["foo/bar/MyClass.java"],
+			unsafe_ignore_missing_latest_api: true,
+			apex_available: ["myapex"],
+		}
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
-		checkBootDexJarPath(t, ctx, ".intermediates/libfoo/android_common_apex10000/hiddenapi/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", ".intermediates/libfoo/android_common_apex10000/hiddenapi/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", ".intermediates/libbar/android_common_myapex/hiddenapi/libbar.jar")
 
 		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
+.intermediates/libbar/android_common_myapex/hiddenapi/index.csv
 .intermediates/libfoo/android_common_apex10000/hiddenapi/index.csv
 `)
 	})
@@ -4680,7 +4788,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 					src: "myapex-arm.apex",
 				},
 			},
-			exported_java_libs: ["libfoo"],
+			exported_java_libs: ["libfoo", "libbar"],
 		}
 
 		java_import {
@@ -4695,13 +4803,31 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			srcs: ["foo/bar/MyClass.java"],
 			apex_available: ["myapex"],
 		}
+
+		java_sdk_library_import {
+			name: "libbar",
+			prefer: true,
+			public: {
+				jars: ["libbar.jar"],
+			},
+			apex_available: ["myapex"],
+		}
+
+		java_sdk_library {
+			name: "libbar",
+			srcs: ["foo/bar/MyClass.java"],
+			unsafe_ignore_missing_latest_api: true,
+			apex_available: ["myapex"],
+		}
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
-		checkBootDexJarPath(t, ctx, ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
+.intermediates/prebuilt_libbar/android_common_prebuilt_myapex/hiddenapi/index.csv
 .intermediates/prebuilt_libfoo/android_common_prebuilt_myapex/hiddenapi/index.csv
 `)
 	})
@@ -6319,6 +6445,9 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 	}
 	cc.GatherRequiredFilesForTest(fs)
 
+	for k, v := range filesForSdkLibrary {
+		fs[k] = v
+	}
 	config := android.TestArchConfig(buildDir, nil, bp, fs)
 
 	ctx := android.NewTestArchContext(config)
@@ -6327,6 +6456,7 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 	ctx.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	ctx.PreArchMutators(android.RegisterComponentsMutator)
 	android.RegisterPrebuiltMutators(ctx)
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	java.RegisterRequiredBuildComponentsForTest(ctx)

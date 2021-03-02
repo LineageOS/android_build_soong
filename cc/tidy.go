@@ -42,6 +42,21 @@ type tidyFeature struct {
 	Properties TidyProperties
 }
 
+var quotedFlagRegexp, _ = regexp.Compile(`^-?-[^=]+=('|").*('|")$`)
+
+// When passing flag -name=value, if user add quotes around 'value',
+// the quotation marks will be preserved by NinjaAndShellEscapeList
+// and the 'value' string with quotes won't work like the intended value.
+// So here we report an error if -*='*' is found.
+func checkNinjaAndShellEscapeList(ctx ModuleContext, prop string, slice []string) []string {
+	for _, s := range slice {
+		if quotedFlagRegexp.MatchString(s) {
+			ctx.PropertyErrorf(prop, "Extra quotes in: %s", s)
+		}
+	}
+	return proptools.NinjaAndShellEscapeList(slice)
+}
+
 func (tidy *tidyFeature) props() []interface{} {
 	return []interface{}{&tidy.Properties}
 }
@@ -74,8 +89,8 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 	if len(withTidyFlags) > 0 {
 		flags.TidyFlags = append(flags.TidyFlags, withTidyFlags)
 	}
-	esc := proptools.NinjaAndShellEscapeList
-	flags.TidyFlags = append(flags.TidyFlags, esc(tidy.Properties.Tidy_flags)...)
+	esc := checkNinjaAndShellEscapeList
+	flags.TidyFlags = append(flags.TidyFlags, esc(ctx, "tidy_flags", tidy.Properties.Tidy_flags)...)
 	// If TidyFlags does not contain -header-filter, add default header filter.
 	// Find the substring because the flag could also appear as --header-filter=...
 	// and with or without single or double quotes.
@@ -119,7 +134,7 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 		tidyChecks += config.TidyChecksForDir(ctx.ModuleDir())
 	}
 	if len(tidy.Properties.Tidy_checks) > 0 {
-		tidyChecks = tidyChecks + "," + strings.Join(esc(
+		tidyChecks = tidyChecks + "," + strings.Join(esc(ctx, "tidy_checks",
 			config.ClangRewriteTidyChecks(tidy.Properties.Tidy_checks)), ",")
 	}
 	if ctx.Windows() {
@@ -165,7 +180,7 @@ func (tidy *tidyFeature) flags(ctx ModuleContext, flags Flags) Flags {
 			flags.TidyFlags = append(flags.TidyFlags, "-warnings-as-errors=-*")
 		}
 	} else if len(tidy.Properties.Tidy_checks_as_errors) > 0 {
-		tidyChecksAsErrors := "-warnings-as-errors=" + strings.Join(esc(tidy.Properties.Tidy_checks_as_errors), ",")
+		tidyChecksAsErrors := "-warnings-as-errors=" + strings.Join(esc(ctx, "tidy_checks_as_errors", tidy.Properties.Tidy_checks_as_errors), ",")
 		flags.TidyFlags = append(flags.TidyFlags, tidyChecksAsErrors)
 	}
 	return flags

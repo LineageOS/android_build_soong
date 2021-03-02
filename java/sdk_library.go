@@ -1772,6 +1772,8 @@ type SdkLibraryImport struct {
 	android.ApexModuleBase
 	android.SdkBase
 
+	hiddenAPI
+
 	properties sdkLibraryImportProperties
 
 	// Map from api scope to the scope specific property structure.
@@ -1786,6 +1788,9 @@ type SdkLibraryImport struct {
 	// The reference to the xml permissions module created by the source module.
 	// Is nil if the source module does not exist.
 	xmlPermissionsFileModule *sdkLibraryXml
+
+	// Path to the dex implementation jar obtained from the prebuilt_apex, if any.
+	dexJarFile android.Path
 }
 
 var _ SdkLibraryDependency = (*SdkLibraryImport)(nil)
@@ -1982,6 +1987,8 @@ func (module *SdkLibraryImport) OutputFiles(tag string) (android.Paths, error) {
 func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	module.generateCommonBuildActions(ctx)
 
+	var deapexerModule android.Module
+
 	// Record the paths to the prebuilt stubs library and stubs source.
 	ctx.VisitDirectDeps(func(to android.Module) {
 		tag := ctx.OtherModuleDependencyTag(to)
@@ -2007,6 +2014,11 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 				ctx.ModuleErrorf("xml permissions file module must be of type *sdkLibraryXml but was %T", to)
 			}
 		}
+
+		// Save away the `deapexer` module on which this depends, if any.
+		if tag == android.DeapexerTag {
+			deapexerModule = to
+		}
 	})
 
 	// Populate the scope paths with information from the properties.
@@ -2018,6 +2030,32 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 		paths := module.getScopePathsCreateIfNeeded(apiScope)
 		paths.currentApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Current_api)
 		paths.removedApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Removed_api)
+	}
+
+	if ctx.Device() {
+		// If this is a variant created for a prebuilt_apex then use the dex implementation jar
+		// obtained from the associated deapexer module.
+		ai := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+		if ai.ForPrebuiltApex {
+			if deapexerModule == nil {
+				// This should never happen as a variant for a prebuilt_apex is only created if the
+				// deapxer module has been configured to export the dex implementation jar for this module.
+				ctx.ModuleErrorf("internal error: module %q does not depend on a `deapexer` module for prebuilt_apex %q",
+					module.Name(), ai.ApexVariationName)
+			}
+
+			// Get the path of the dex implementation jar from the `deapexer` module.
+			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
+			if dexOutputPath := di.PrebuiltExportPath(module.BaseModuleName(), ".dexjar"); dexOutputPath != nil {
+				module.dexJarFile = dexOutputPath
+				module.initHiddenAPI(ctx, module.configurationName)
+				module.hiddenAPIExtractInformation(ctx, dexOutputPath, module.findScopePaths(apiScopePublic).stubsImplPath[0])
+			} else {
+				// This should never happen as a variant for a prebuilt_apex is only created if the
+				// prebuilt_apex has been configured to export the java library dex file.
+				ctx.ModuleErrorf("internal error: no dex implementation jar available from prebuilt_apex %q", deapexerModule.Name())
+			}
+		}
 	}
 }
 
@@ -2051,6 +2089,11 @@ func (module *SdkLibraryImport) SdkImplementationJars(ctx android.BaseModuleCont
 
 // to satisfy UsesLibraryDependency interface
 func (module *SdkLibraryImport) DexJarBuildPath() android.Path {
+	// The dex implementation jar extracted from the .apex file should be used in preference to the
+	// source.
+	if module.dexJarFile != nil {
+		return module.dexJarFile
+	}
 	if module.implLibraryModule == nil {
 		return nil
 	} else {
