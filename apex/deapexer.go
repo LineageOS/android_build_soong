@@ -65,7 +65,7 @@ func privateDeapexerFactory() android.Module {
 		&module.properties,
 		&module.apexFileProperties,
 	)
-	android.InitSingleSourcePrebuiltModule(module, &module.apexFileProperties, "Source")
+	android.InitPrebuiltModuleWithSrcSupplier(module, module.apexFileProperties.prebuiltApexSelector, "src")
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
 }
@@ -76,16 +76,6 @@ func (p *Deapexer) Prebuilt() *android.Prebuilt {
 
 func (p *Deapexer) Name() string {
 	return p.prebuilt.Name(p.ModuleBase.Name())
-}
-
-func deapexerSelectSourceMutator(ctx android.BottomUpMutatorContext) {
-	p, ok := ctx.Module().(*Deapexer)
-	if !ok {
-		return
-	}
-	if err := p.apexFileProperties.selectSource(ctx); err != nil {
-		ctx.ModuleErrorf("%s", err)
-	}
 }
 
 func (p *Deapexer) DepsMutator(ctx android.BottomUpMutatorContext) {
