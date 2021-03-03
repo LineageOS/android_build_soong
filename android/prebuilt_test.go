@@ -388,6 +388,8 @@ func registerTestPrebuiltBuildComponents(ctx RegistrationContext) {
 	ctx.PostDepsMutators(RegisterOverridePostDepsMutators)
 }
 
+var prepareForTestWithFakePrebuiltModules = FixtureRegisterWithContext(registerTestPrebuiltModules)
+
 func registerTestPrebuiltModules(ctx RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt", newPrebuiltModule)
 	ctx.RegisterModuleType("source", newSourceModule)
