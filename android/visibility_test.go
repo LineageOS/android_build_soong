@@ -9,13 +9,13 @@ import (
 
 var visibilityTests = []struct {
 	name                string
-	fs                  map[string][]byte
+	fs                  MockFS
 	expectedErrors      []string
 	effectiveVisibility map[qualifiedModuleName][]string
 }{
 	{
 		name: "invalid visibility: empty list",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -26,7 +26,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "invalid visibility: empty rule",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -37,7 +37,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "invalid visibility: unqualified",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -48,7 +48,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "invalid visibility: empty namespace",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -59,7 +59,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "invalid visibility: empty module",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -70,7 +70,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "invalid visibility: empty namespace and module",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -81,7 +81,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:unknown",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -92,7 +92,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:xxx mixed",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -113,7 +113,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:legacy_public",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -129,7 +129,7 @@ var visibilityTests = []struct {
 		// Verify that //visibility:public will allow the module to be referenced from anywhere, e.g.
 		// the current directory, a nested directory and a directory in a separate tree.
 		name: "//visibility:public",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -156,7 +156,7 @@ var visibilityTests = []struct {
 		// Verify that //visibility:private allows the module to be referenced from the current
 		// directory only.
 		name: "//visibility:private",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -188,7 +188,7 @@ var visibilityTests = []struct {
 	{
 		// Verify that :__pkg__ allows the module to be referenced from the current directory only.
 		name: ":__pkg__",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -221,7 +221,7 @@ var visibilityTests = []struct {
 		// Verify that //top/nested allows the module to be referenced from the current directory and
 		// the top/nested directory only, not a subdirectory of top/nested and not peak directory.
 		name: "//top/nested",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -259,7 +259,7 @@ var visibilityTests = []struct {
 		// Verify that :__subpackages__ allows the module to be referenced from the current directory
 		// and sub directories but nowhere else.
 		name: ":__subpackages__",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -290,7 +290,7 @@ var visibilityTests = []struct {
 		// Verify that //top/nested:__subpackages__ allows the module to be referenced from the current
 		// directory and sub directories but nowhere else.
 		name: "//top/nested:__subpackages__",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -321,7 +321,7 @@ var visibilityTests = []struct {
 		// Verify that ["//top/nested", "//peak:__subpackages"] allows the module to be referenced from
 		// the current directory, top/nested and peak and all its subpackages.
 		name: `["//top/nested", "//peak:__subpackages__"]`,
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -347,7 +347,7 @@ var visibilityTests = []struct {
 	{
 		// Verify that //vendor... cannot be used outside vendor apart from //vendor:__subpackages__
 		name: `//vendor`,
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -381,7 +381,7 @@ var visibilityTests = []struct {
 	{
 		// Check that visibility is the union of the defaults modules.
 		name: "defaults union, basic",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -419,7 +419,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "defaults union, multiple defaults",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults_1",
@@ -460,7 +460,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:public mixed with other in defaults",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -478,7 +478,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:public overriding defaults",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -501,7 +501,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:public mixed with other from different defaults 1",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults_1",
@@ -524,7 +524,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:public mixed with other from different defaults 2",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults_1",
@@ -547,7 +547,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:private in defaults",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -581,7 +581,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:private mixed with other in defaults",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -599,7 +599,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:private overriding defaults",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -618,7 +618,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:private in defaults overridden",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -637,7 +637,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:private override //visibility:public",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -655,7 +655,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:public override //visibility:private",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -673,7 +673,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:override must be first in the list",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_library {
 					name: "libexample",
@@ -686,7 +686,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:override discards //visibility:private",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -707,7 +707,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:override discards //visibility:public",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -736,7 +736,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:override discards defaults supplied rules",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -765,7 +765,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:override can override //visibility:public with //visibility:private",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -788,7 +788,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:override can override //visibility:private with //visibility:public",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults",
@@ -808,7 +808,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "//visibility:private mixed with itself",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "libexample_defaults_1",
@@ -838,7 +838,7 @@ var visibilityTests = []struct {
 	// Defaults module's defaults_visibility tests
 	{
 		name: "defaults_visibility invalid",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_defaults {
 					name: "top_defaults",
@@ -851,7 +851,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "defaults_visibility overrides package default",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				package {
 					default_visibility: ["//visibility:private"],
@@ -871,7 +871,7 @@ var visibilityTests = []struct {
 	// Package default_visibility tests
 	{
 		name: "package default_visibility property is checked",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				package {
 					default_visibility: ["//visibility:invalid"],
@@ -882,7 +882,7 @@ var visibilityTests = []struct {
 	{
 		// This test relies on the default visibility being legacy_public.
 		name: "package default_visibility property used when no visibility specified",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				package {
 					default_visibility: ["//visibility:private"],
@@ -904,7 +904,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "package default_visibility public does not override visibility private",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				package {
 					default_visibility: ["//visibility:public"],
@@ -927,7 +927,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "package default_visibility private does not override visibility public",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				package {
 					default_visibility: ["//visibility:private"],
@@ -946,7 +946,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "package default_visibility :__subpackages__",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				package {
 					default_visibility: [":__subpackages__"],
@@ -973,7 +973,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "package default_visibility inherited to subpackages",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				package {
 					default_visibility: ["//outsider"],
@@ -1001,7 +1001,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "package default_visibility inherited to subpackages",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				package {
 					default_visibility: ["//visibility:private"],
@@ -1031,7 +1031,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "verify that prebuilt dependencies are ignored for visibility reasons (not preferred)",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"prebuilts/Blueprints": []byte(`
 				prebuilt {
 					name: "module",
@@ -1053,7 +1053,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "verify that prebuilt dependencies are ignored for visibility reasons (preferred)",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"prebuilts/Blueprints": []byte(`
 				prebuilt {
 					name: "module",
@@ -1076,7 +1076,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "ensure visibility properties are checked for correctness",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_parent {
 					name: "parent",
@@ -1093,7 +1093,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "invalid visibility added to child detected during gather phase",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_parent {
 					name: "parent",
@@ -1115,7 +1115,7 @@ var visibilityTests = []struct {
 	},
 	{
 		name: "automatic visibility inheritance enabled",
-		fs: map[string][]byte{
+		fs: MockFS{
 			"top/Blueprints": []byte(`
 				mock_parent {
 					name: "parent",
@@ -1142,53 +1142,41 @@ var visibilityTests = []struct {
 func TestVisibility(t *testing.T) {
 	for _, test := range visibilityTests {
 		t.Run(test.name, func(t *testing.T) {
-			ctx, errs := testVisibility(buildDir, test.fs)
-
-			CheckErrorsAgainstExpectations(t, errs, test.expectedErrors)
+			result := emptyTestFixtureFactory.Extend(
+				FixtureRegisterWithContext(func(ctx RegistrationContext) {
+					ctx.RegisterModuleType("mock_library", newMockLibraryModule)
+					ctx.RegisterModuleType("mock_parent", newMockParentFactory)
+					ctx.RegisterModuleType("mock_defaults", defaultsFactory)
+				}),
+				prepareForTestWithFakePrebuiltModules,
+				PrepareForTestWithPackageModule,
+				// Order of the following method calls is significant as they register mutators.
+				PrepareForTestWithArchMutator,
+				PrepareForTestWithPrebuilts,
+				PrepareForTestWithOverrides,
+				PrepareForTestWithVisibilityRuleChecker,
+				PrepareForTestWithDefaults,
+				PrepareForTestWithVisibilityRuleGatherer,
+				PrepareForTestWithVisibilityRuleEnforcer,
+				// Add additional files to the mock filesystem
+				test.fs.AddToFixture(),
+			).
+				SetErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
+				RunTest(t)
 
 			if test.effectiveVisibility != nil {
-				checkEffectiveVisibility(t, ctx, test.effectiveVisibility)
+				checkEffectiveVisibility(result, test.effectiveVisibility)
 			}
 		})
 	}
 }
 
-func checkEffectiveVisibility(t *testing.T, ctx *TestContext, effectiveVisibility map[qualifiedModuleName][]string) {
+func checkEffectiveVisibility(result *TestResult, effectiveVisibility map[qualifiedModuleName][]string) {
 	for moduleName, expectedRules := range effectiveVisibility {
-		rule := effectiveVisibilityRules(ctx.config, moduleName)
+		rule := effectiveVisibilityRules(result.Config, moduleName)
 		stringRules := rule.Strings()
-		if !reflect.DeepEqual(expectedRules, stringRules) {
-			t.Errorf("effective rules mismatch: expected %q, found %q", expectedRules, stringRules)
-		}
+		result.AssertDeepEquals("effective rules mismatch", expectedRules, stringRules)
 	}
-}
-
-func testVisibility(buildDir string, fs map[string][]byte) (*TestContext, []error) {
-
-	// Create a new config per test as visibility information is stored in the config.
-	config := TestArchConfig(buildDir, nil, "", fs)
-
-	ctx := NewTestArchContext(config)
-	ctx.RegisterModuleType("mock_library", newMockLibraryModule)
-	ctx.RegisterModuleType("mock_parent", newMockParentFactory)
-	ctx.RegisterModuleType("mock_defaults", defaultsFactory)
-
-	// Order of the following method calls is significant.
-	RegisterPackageBuildComponents(ctx)
-	registerTestPrebuiltBuildComponents(ctx)
-	ctx.PreArchMutators(RegisterVisibilityRuleChecker)
-	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(RegisterVisibilityRuleGatherer)
-	ctx.PostDepsMutators(RegisterVisibilityRuleEnforcer)
-	ctx.Register()
-
-	_, errs := ctx.ParseBlueprintsFiles(".")
-	if len(errs) > 0 {
-		return ctx, errs
-	}
-
-	_, errs = ctx.PrepareBuildActions(config)
-	return ctx, errs
 }
 
 type mockLibraryProperties struct {
