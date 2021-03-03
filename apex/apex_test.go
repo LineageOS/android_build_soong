@@ -144,17 +144,18 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	bp = bp + java.GatherRequiredDepsForTest()
 
 	fs := map[string][]byte{
-		"a.java":                                              nil,
-		"PrebuiltAppFoo.apk":                                  nil,
-		"PrebuiltAppFooPriv.apk":                              nil,
-		"build/make/target/product/security":                  nil,
-		"apex_manifest.json":                                  nil,
-		"AndroidManifest.xml":                                 nil,
-		"system/sepolicy/apex/myapex-file_contexts":           nil,
-		"system/sepolicy/apex/myapex.updatable-file_contexts": nil,
-		"system/sepolicy/apex/myapex2-file_contexts":          nil,
-		"system/sepolicy/apex/otherapex-file_contexts":        nil,
-		"system/sepolicy/apex/com.android.vndk-file_contexts": nil,
+		"a.java":                                                      nil,
+		"PrebuiltAppFoo.apk":                                          nil,
+		"PrebuiltAppFooPriv.apk":                                      nil,
+		"build/make/target/product/security":                          nil,
+		"apex_manifest.json":                                          nil,
+		"AndroidManifest.xml":                                         nil,
+		"system/sepolicy/apex/myapex-file_contexts":                   nil,
+		"system/sepolicy/apex/myapex.updatable-file_contexts":         nil,
+		"system/sepolicy/apex/myapex2-file_contexts":                  nil,
+		"system/sepolicy/apex/otherapex-file_contexts":                nil,
+		"system/sepolicy/apex/com.android.vndk-file_contexts":         nil,
+		"system/sepolicy/apex/com.android.vndk.current-file_contexts": nil,
 		"mylib.cpp":                                  nil,
 		"mytest.cpp":                                 nil,
 		"mytest1.cpp":                                nil,
@@ -3204,12 +3205,12 @@ func ensureExactContents(t *testing.T, ctx *android.TestContext, moduleName, var
 func TestVndkApexCurrent(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex_vndk {
-			name: "myapex",
-			key: "myapex.key",
+			name: "com.android.vndk.current",
+			key: "com.android.vndk.current.key",
 		}
 
 		apex_key {
-			name: "myapex.key",
+			name: "com.android.vndk.current.key",
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
@@ -3224,7 +3225,7 @@ func TestVndkApexCurrent(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
-			apex_available: [ "myapex" ],
+			apex_available: [ "com.android.vndk.current" ],
 		}
 
 		cc_library {
@@ -3238,11 +3239,11 @@ func TestVndkApexCurrent(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
-			apex_available: [ "myapex" ],
+			apex_available: [ "com.android.vndk.current" ],
 		}
 	`+vndkLibrariesTxtFiles("current"))
 
-	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
+	ensureExactContents(t, ctx, "com.android.vndk.current", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib/libvndksp.so",
 		"lib/libc++.so",
@@ -3260,12 +3261,12 @@ func TestVndkApexCurrent(t *testing.T) {
 func TestVndkApexWithPrebuilt(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex_vndk {
-			name: "myapex",
-			key: "myapex.key",
+			name: "com.android.vndk.current",
+			key: "com.android.vndk.current.key",
 		}
 
 		apex_key {
-			name: "myapex.key",
+			name: "com.android.vndk.current.key",
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
@@ -3280,7 +3281,7 @@ func TestVndkApexWithPrebuilt(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
-			apex_available: [ "myapex" ],
+			apex_available: [ "com.android.vndk.current" ],
 		}
 
 		cc_prebuilt_library_shared {
@@ -3299,15 +3300,14 @@ func TestVndkApexWithPrebuilt(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
-			apex_available: [ "myapex" ],
+			apex_available: [ "com.android.vndk.current" ],
 		}
 		`+vndkLibrariesTxtFiles("current"),
 		withFiles(map[string][]byte{
 			"libvndk.so":     nil,
 			"libvndk.arm.so": nil,
 		}))
-
-	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
+	ensureExactContents(t, ctx, "com.android.vndk.current", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib/libvndk.arm.so",
 		"lib64/libvndk.so",
@@ -3344,7 +3344,7 @@ func vndkLibrariesTxtFiles(vers ...string) (result string) {
 func TestVndkApexVersion(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex_vndk {
-			name: "myapex_v27",
+			name: "com.android.vndk.v27",
 			key: "myapex.key",
 			file_contexts: ":myapex-file_contexts",
 			vndk_version: "27",
@@ -3373,7 +3373,7 @@ func TestVndkApexVersion(t *testing.T) {
 					srcs: ["libvndk27_arm64.so"],
 				},
 			},
-			apex_available: [ "myapex_v27" ],
+			apex_available: [ "com.android.vndk.v27" ],
 		}
 
 		vndk_prebuilt_shared {
@@ -3402,70 +3402,22 @@ func TestVndkApexVersion(t *testing.T) {
 			"libvndk27_x86_64.so": nil,
 		}))
 
-	ensureExactContents(t, ctx, "myapex_v27", "android_common_image", []string{
+	ensureExactContents(t, ctx, "com.android.vndk.v27", "android_common_image", []string{
 		"lib/libvndk27_arm.so",
 		"lib64/libvndk27_arm64.so",
 		"etc/*",
 	})
 }
 
-func TestVndkApexErrorWithDuplicateVersion(t *testing.T) {
-	testApexError(t, `module "myapex_v27.*" .*: vndk_version: 27 is already defined in "myapex_v27.*"`, `
-		apex_vndk {
-			name: "myapex_v27",
-			key: "myapex.key",
-			file_contexts: ":myapex-file_contexts",
-			vndk_version: "27",
-		}
-		apex_vndk {
-			name: "myapex_v27_other",
-			key: "myapex.key",
-			file_contexts: ":myapex-file_contexts",
-			vndk_version: "27",
-		}
-
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-
-		cc_library {
-			name: "libvndk",
-			srcs: ["mylib.cpp"],
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			system_shared_libs: [],
-			stl: "none",
-		}
-
-		vndk_prebuilt_shared {
-			name: "libvndk",
-			version: "27",
-			vendor_available: true,
-			product_available: true,
-			vndk: {
-				enabled: true,
-			},
-			srcs: ["libvndk.so"],
-		}
-	`, withFiles(map[string][]byte{
-		"libvndk.so": nil,
-	}))
-}
-
 func TestVndkApexNameRule(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex_vndk {
-			name: "myapex",
+			name: "com.android.vndk.current",
 			key: "myapex.key",
 			file_contexts: ":myapex-file_contexts",
 		}
 		apex_vndk {
-			name: "myapex_v28",
+			name: "com.android.vndk.v28",
 			key: "myapex.key",
 			file_contexts: ":myapex-file_contexts",
 			vndk_version: "28",
@@ -3484,20 +3436,20 @@ func TestVndkApexNameRule(t *testing.T) {
 		}
 	}
 
-	assertApexName("com.android.vndk.vVER", "myapex")
-	assertApexName("com.android.vndk.v28", "myapex_v28")
+	assertApexName("com.android.vndk.vVER", "com.android.vndk.current")
+	assertApexName("com.android.vndk.v28", "com.android.vndk.v28")
 }
 
 func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex_vndk {
-			name: "myapex",
-			key: "myapex.key",
+			name: "com.android.vndk.current",
+			key: "com.android.vndk.current.key",
 			file_contexts: ":myapex-file_contexts",
 		}
 
 		apex_key {
-			name: "myapex.key",
+			name: "com.android.vndk.current.key",
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
@@ -3514,11 +3466,12 @@ func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
-			apex_available: [ "myapex" ],
+			apex_available: [ "com.android.vndk.current" ],
 		}
-		`+vndkLibrariesTxtFiles("current"), withNativeBridgeEnabled)
+		`+vndkLibrariesTxtFiles("current"),
+		withNativeBridgeEnabled)
 
-	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
+	ensureExactContents(t, ctx, "com.android.vndk.current", "android_common_image", []string{
 		"lib/libvndk.so",
 		"lib64/libvndk.so",
 		"lib/libc++.so",
@@ -3528,16 +3481,16 @@ func TestVndkApexSkipsNativeBridgeSupportedModules(t *testing.T) {
 }
 
 func TestVndkApexDoesntSupportNativeBridgeSupported(t *testing.T) {
-	testApexError(t, `module "myapex" .*: native_bridge_supported: .* doesn't support native bridge binary`, `
+	testApexError(t, `module "com.android.vndk.current" .*: native_bridge_supported: .* doesn't support native bridge binary`, `
 		apex_vndk {
-			name: "myapex",
-			key: "myapex.key",
+			name: "com.android.vndk.current",
+			key: "com.android.vndk.current.key",
 			file_contexts: ":myapex-file_contexts",
 			native_bridge_supported: true,
 		}
 
 		apex_key {
-			name: "myapex.key",
+			name: "com.android.vndk.current.key",
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
@@ -3561,7 +3514,7 @@ func TestVndkApexDoesntSupportNativeBridgeSupported(t *testing.T) {
 func TestVndkApexWithBinder32(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex_vndk {
-			name: "myapex_v27",
+			name: "com.android.vndk.v27",
 			key: "myapex.key",
 			file_contexts: ":myapex-file_contexts",
 			vndk_version: "27",
@@ -3604,7 +3557,7 @@ func TestVndkApexWithBinder32(t *testing.T) {
 					srcs: ["libvndk27binder32.so"],
 				}
 			},
-			apex_available: [ "myapex_v27" ],
+			apex_available: [ "com.android.vndk.v27" ],
 		}
 		`+vndkLibrariesTxtFiles("27"),
 		withFiles(map[string][]byte{
@@ -3620,7 +3573,7 @@ func TestVndkApexWithBinder32(t *testing.T) {
 		}),
 	)
 
-	ensureExactContents(t, ctx, "myapex_v27", "android_common_image", []string{
+	ensureExactContents(t, ctx, "com.android.vndk.v27", "android_common_image", []string{
 		"lib/libvndk27binder32.so",
 		"etc/*",
 	})
@@ -3629,13 +3582,13 @@ func TestVndkApexWithBinder32(t *testing.T) {
 func TestVndkApexShouldNotProvideNativeLibs(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex_vndk {
-			name: "myapex",
-			key: "myapex.key",
+			name: "com.android.vndk.current",
+			key: "com.android.vndk.current.key",
 			file_contexts: ":myapex-file_contexts",
 		}
 
 		apex_key {
-			name: "myapex.key",
+			name: "com.android.vndk.current.key",
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
@@ -3656,7 +3609,7 @@ func TestVndkApexShouldNotProvideNativeLibs(t *testing.T) {
 		"libz.map.txt": nil,
 	}))
 
-	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_image").Rule("apexManifestRule")
+	apexManifestRule := ctx.ModuleForTests("com.android.vndk.current", "android_common_image").Rule("apexManifestRule")
 	provideNativeLibs := names(apexManifestRule.Args["provideNativeLibs"])
 	ensureListEmpty(t, provideNativeLibs)
 }
