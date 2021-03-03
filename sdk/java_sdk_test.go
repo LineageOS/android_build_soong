@@ -211,6 +211,7 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 			uses_sdks: ["mysdk@1"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
+			updatable: false,
 		}
 
 		apex {
@@ -219,6 +220,7 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 			uses_sdks: ["mysdk@2"],
 			key: "myapex.key",
 			certificate: ":myapex.cert",
+			updatable: false,
 		}
 	`)
 

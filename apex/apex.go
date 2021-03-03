@@ -121,7 +121,7 @@ type apexBundleProperties struct {
 	// Whether this APEX is considered updatable or not. When set to true, this will enforce
 	// additional rules for making sure that the APEX is truly updatable. To be updatable,
 	// min_sdk_version should be set as well. This will also disable the size optimizations like
-	// symlinking to the system libs. Default is false.
+	// symlinking to the system libs. Default is true.
 	Updatable *bool
 
 	// Whether this APEX is installable to one of the partitions like system, vendor, etc.
@@ -1232,7 +1232,7 @@ var _ android.ApexBundleDepsInfoIntf = (*apexBundle)(nil)
 
 // Implements android.ApexBudleDepsInfoIntf
 func (a *apexBundle) Updatable() bool {
-	return proptools.Bool(a.properties.Updatable)
+	return proptools.BoolDefault(a.properties.Updatable, true)
 }
 
 // getCertString returns the name of the cert that should be used to sign this APEX. This is
