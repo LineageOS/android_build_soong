@@ -972,8 +972,8 @@ func TestApexWithStubsWithMinSdkVersion(t *testing.T) {
 
 	mylibLdFlags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_apex29").Rule("ld").Args["libFlags"]
 
-	// Ensure that mylib is linking with the version 29 stubs for mylib2
-	ensureContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared_29/mylib2.so")
+	// Ensure that mylib is linking with the latest version of stub for mylib2
+	ensureContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared_current/mylib2.so")
 	// ... and not linking to the non-stub (impl) variant of mylib2
 	ensureNotContains(t, mylibLdFlags, "mylib2/android_arm64_armv8-a_shared/mylib2.so")
 
@@ -1057,11 +1057,11 @@ func TestApex_PlatformUsesLatestStubFromApex(t *testing.T) {
 		config.TestProductVariables.Platform_version_active_codenames = []string{"Z"}
 	})
 
-	// Ensure that mylib from myapex is built against "min_sdk_version" stub ("Z"), which is non-final
+	// Ensure that mylib from myapex is built against the latest stub (current)
 	mylibCflags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_apex10000").Rule("cc").Args["cFlags"]
-	ensureContains(t, mylibCflags, "-D__LIBSTUB_API__=9000 ")
+	ensureContains(t, mylibCflags, "-D__LIBSTUB_API__=10000 ")
 	mylibLdflags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_shared_apex10000").Rule("ld").Args["libFlags"]
-	ensureContains(t, mylibLdflags, "libstub/android_arm64_armv8-a_shared_Z/libstub.so ")
+	ensureContains(t, mylibLdflags, "libstub/android_arm64_armv8-a_shared_current/libstub.so ")
 
 	// Ensure that libplatform is built against latest stub ("current") of mylib3 from the apex
 	libplatformCflags := ctx.ModuleForTests("libplatform", "android_arm64_armv8-a_static").Rule("cc").Args["cFlags"]
@@ -1359,18 +1359,18 @@ func TestApexDependsOnLLNDKTransitively(t *testing.T) {
 		shouldNotLink []string
 	}{
 		{
-			name:          "should link to the latest",
+			name:          "unspecified version links to the latest",
 			minSdkVersion: "",
 			apexVariant:   "apex10000",
 			shouldLink:    "30",
 			shouldNotLink: []string{"29"},
 		},
 		{
-			name:          "should link to llndk#29",
+			name:          "always use the latest",
 			minSdkVersion: "min_sdk_version: \"29\",",
 			apexVariant:   "apex29",
-			shouldLink:    "29",
-			shouldNotLink: []string{"30"},
+			shouldLink:    "30",
+			shouldNotLink: []string{"29"},
 		},
 	}
 	for _, tc := range testcases {
@@ -1532,8 +1532,8 @@ func TestApexWithSystemLibsStubs(t *testing.T) {
 }
 
 func TestApexMinSdkVersion_NativeModulesShouldBeBuiltAgainstStubs(t *testing.T) {
-	// there are three links between liba --> libz
-	// 1) myapex -> libx -> liba -> libz    : this should be #29 link, but fallback to #28
+	// there are three links between liba --> libz.
+	// 1) myapex -> libx -> liba -> libz    : this should be #30 link
 	// 2) otherapex -> liby -> liba -> libz : this should be #30 link
 	// 3) (platform) -> liba -> libz        : this should be non-stub link
 	ctx, _ := testApex(t, `
@@ -1607,9 +1607,9 @@ func TestApexMinSdkVersion_NativeModulesShouldBeBuiltAgainstStubs(t *testing.T) 
 	}
 	// platform liba is linked to non-stub version
 	expectLink("liba", "shared", "libz", "shared")
-	// liba in myapex is linked to #28
-	expectLink("liba", "shared_apex29", "libz", "shared_28")
-	expectNoLink("liba", "shared_apex29", "libz", "shared_30")
+	// liba in myapex is linked to #30
+	expectLink("liba", "shared_apex29", "libz", "shared_30")
+	expectNoLink("liba", "shared_apex29", "libz", "shared_28")
 	expectNoLink("liba", "shared_apex29", "libz", "shared")
 	// liba in otherapex is linked to #30
 	expectLink("liba", "shared_apex30", "libz", "shared_30")
@@ -1825,41 +1825,6 @@ func TestQTargetApexUsesStaticUnwinder(t *testing.T) {
 	// note that platform variant is not.
 	cm = ctx.ModuleForTests("libc++", "android_arm64_armv8-a_shared").Module().(*cc.Module)
 	ensureListNotContains(t, cm.Properties.AndroidMkStaticLibs, "libunwind")
-}
-
-func TestApexMinSdkVersion_ErrorIfIncompatibleStubs(t *testing.T) {
-	testApexError(t, `"libz" .*: not found a version\(<=29\)`, `
-		apex {
-			name: "myapex",
-			key: "myapex.key",
-			native_shared_libs: ["libx"],
-			min_sdk_version: "29",
-		}
-
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-
-		cc_library {
-			name: "libx",
-			shared_libs: ["libz"],
-			system_shared_libs: [],
-			stl: "none",
-			apex_available: [ "myapex" ],
-			min_sdk_version: "29",
-		}
-
-		cc_library {
-			name: "libz",
-			system_shared_libs: [],
-			stl: "none",
-			stubs: {
-				versions: ["30"],
-			},
-		}
-	`)
 }
 
 func TestApexMinSdkVersion_ErrorIfIncompatibleVersion(t *testing.T) {
@@ -2173,7 +2138,7 @@ func TestApexMinSdkVersion_OkayEvenWhenDepIsNewer_IfItSatisfiesApexMinSdkVersion
 			private_key: "testkey.pem",
 		}
 
-		// mylib in myapex will link to mylib2#29
+		// mylib in myapex will link to mylib2#30
 		// mylib in otherapex will link to mylib2(non-stub) in otherapex as well
 		cc_library {
 			name: "mylib",
@@ -2207,7 +2172,7 @@ func TestApexMinSdkVersion_OkayEvenWhenDepIsNewer_IfItSatisfiesApexMinSdkVersion
 		libFlags := ld.Args["libFlags"]
 		ensureContains(t, libFlags, "android_arm64_armv8-a_"+to_variant+"/"+to+".so")
 	}
-	expectLink("mylib", "shared_apex29", "mylib2", "shared_29")
+	expectLink("mylib", "shared_apex29", "mylib2", "shared_30")
 	expectLink("mylib", "shared_apex30", "mylib2", "shared_apex30")
 }
 
@@ -2276,7 +2241,7 @@ func TestApexMinSdkVersion_WorksWithActiveCodenames(t *testing.T) {
 	// ensure libfoo is linked with "S" version of libbar stub
 	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared_apex10000")
 	libFlags := libfoo.Rule("ld").Args["libFlags"]
-	ensureContains(t, libFlags, "android_arm64_armv8-a_shared_S/libbar.so")
+	ensureContains(t, libFlags, "android_arm64_armv8-a_shared_T/libbar.so")
 }
 
 func TestFilesInSubDir(t *testing.T) {
@@ -4411,6 +4376,20 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 
 		// Make sure that dexpreopt can access dex implementation files from the prebuilt.
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+
+		// Make sure that the deapexer has the correct input APEX.
+		deapexer := ctx.ModuleForTests("myapex.deapexer", "android_common")
+		rule := deapexer.Rule("deapexer")
+		if expected, actual := []string{"myapex-arm64.apex"}, android.NormalizePathsForTesting(rule.Implicits); !reflect.DeepEqual(expected, actual) {
+			t.Errorf("expected: %q, found: %q", expected, actual)
+		}
+
+		// Make sure that the prebuilt_apex has the correct input APEX.
+		prebuiltApex := ctx.ModuleForTests("myapex", "android_common")
+		rule = prebuiltApex.Rule("android/soong/android.Cp")
+		if expected, actual := "myapex-arm64.apex", android.NormalizePathForTesting(rule.Input); !reflect.DeepEqual(expected, actual) {
+			t.Errorf("expected: %q, found: %q", expected, actual)
+		}
 
 		checkDexJarBuildPath(t, ctx, "libfoo")
 
