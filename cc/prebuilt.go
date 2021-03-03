@@ -246,7 +246,7 @@ func NewPrebuiltLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDec
 
 	module.AddProperties(&prebuilt.properties)
 
-	srcsSupplier := func(ctx android.BaseModuleContext) []string {
+	srcsSupplier := func(ctx android.BaseModuleContext, _ android.Module) []string {
 		return prebuilt.prebuiltSrcs(ctx)
 	}
 
