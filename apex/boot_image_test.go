@@ -48,6 +48,7 @@ func TestBootImages(t *testing.T) {
 				"baz",
 				"quuz",
 			],
+			updatable: false,
 		}
 
 		apex_key {
@@ -187,6 +188,7 @@ func TestBootImageInApex(t *testing.T) {
 			boot_images: [
 				"mybootimage",
 			],
+			updatable: false,
 		}
 
 		apex_key {
