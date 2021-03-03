@@ -2331,35 +2331,44 @@ func TestUsesLibraries(t *testing.T) {
 	prebuilt := ctx.ModuleForTests("prebuilt", "android_common")
 
 	// Test that implicit dependencies on java_sdk_library instances are passed to the manifest.
-	manifestFixerArgs := app.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
-	for _, w := range []string{"qux", "quuz", "runtime-library"} {
-		if !strings.Contains(manifestFixerArgs, "--uses-library "+w) {
-			t.Errorf("unexpected manifest_fixer args: wanted %q in %q", w, manifestFixerArgs)
-		}
+	// This should not include explicit `uses_libs`/`optional_uses_libs` entries.
+	actualManifestFixerArgs := app.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
+	expectManifestFixerArgs := `--extract-native-libs=true ` +
+		`--uses-library qux ` +
+		`--uses-library quuz ` +
+		`--uses-library foo ` + // TODO(b/132357300): "foo" should not be passed to manifest_fixer
+		`--uses-library bar ` + // TODO(b/132357300): "bar" should not be passed to manifest_fixer
+		`--uses-library runtime-library`
+	if actualManifestFixerArgs != expectManifestFixerArgs {
+		t.Errorf("unexpected manifest_fixer args:\n\texpect: %q\n\tactual: %q",
+			expectManifestFixerArgs, actualManifestFixerArgs)
 	}
 
-	// Test that all libraries are verified
-	cmd := app.Rule("verify_uses_libraries").RuleParams.Command
-	if w := "--uses-library foo"; !strings.Contains(cmd, w) {
-		t.Errorf("wanted %q in %q", w, cmd)
+	// Test that all libraries are verified (library order matters).
+	verifyCmd := app.Rule("verify_uses_libraries").RuleParams.Command
+	verifyArgs := `--uses-library foo ` +
+		`--uses-library qux ` +
+		`--uses-library quuz ` +
+		`--uses-library runtime-library ` +
+		`--optional-uses-library bar ` +
+		`--optional-uses-library baz `
+	if !strings.Contains(verifyCmd, verifyArgs) {
+		t.Errorf("wanted %q in %q", verifyArgs, verifyCmd)
 	}
 
-	if w := "--optional-uses-library bar --optional-uses-library baz"; !strings.Contains(cmd, w) {
-		t.Errorf("wanted %q in %q", w, cmd)
+	// Test that all libraries are verified for an APK (library order matters).
+	verifyApkCmd := prebuilt.Rule("verify_uses_libraries").RuleParams.Command
+	verifyApkReqLibs := `uses_library_names="foo android.test.runner"`
+	verifyApkOptLibs := `optional_uses_library_names="bar baz"`
+	if !strings.Contains(verifyApkCmd, verifyApkReqLibs) {
+		t.Errorf("wanted %q in %q", verifyApkReqLibs, verifyApkCmd)
 	}
-
-	cmd = prebuilt.Rule("verify_uses_libraries").RuleParams.Command
-
-	if w := `uses_library_names="foo android.test.runner"`; !strings.Contains(cmd, w) {
-		t.Errorf("wanted %q in %q", w, cmd)
-	}
-
-	if w := `optional_uses_library_names="bar baz"`; !strings.Contains(cmd, w) {
-		t.Errorf("wanted %q in %q", w, cmd)
+	if !strings.Contains(verifyApkCmd, verifyApkOptLibs) {
+		t.Errorf("wanted %q in %q", verifyApkOptLibs, verifyApkCmd)
 	}
 
 	// Test that all present libraries are preopted, including implicit SDK dependencies, possibly stubs
-	cmd = app.Rule("dexpreopt").RuleParams.Command
+	cmd := app.Rule("dexpreopt").RuleParams.Command
 	w := `--target-context-for-sdk any ` +
 		`PCL[/system/framework/qux.jar]#` +
 		`PCL[/system/framework/quuz.jar]#` +
