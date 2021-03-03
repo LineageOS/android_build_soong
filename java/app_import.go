@@ -244,10 +244,6 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	srcApk := a.prebuilt.SingleSourcePath(ctx)
 
-	if a.usesLibrary.enforceUsesLibraries() {
-		srcApk = a.usesLibrary.verifyUsesLibrariesAPK(ctx, srcApk)
-	}
-
 	// TODO: Install or embed JNI libraries
 
 	// Uncompress JNI libraries in the apk
@@ -275,6 +271,10 @@ func (a *AndroidAppImport) generateAndroidBuildActions(ctx android.ModuleContext
 
 	a.dexpreopter.enforceUsesLibs = a.usesLibrary.enforceUsesLibraries()
 	a.dexpreopter.classLoaderContexts = a.usesLibrary.classLoaderContextForUsesLibDeps(ctx)
+
+	if a.usesLibrary.enforceUsesLibraries() {
+		srcApk = a.usesLibrary.verifyUsesLibrariesAPK(ctx, srcApk)
+	}
 
 	a.dexpreopter.dexpreopt(ctx, jnisUncompressed)
 	if a.dexpreopter.uncompressedDex {
