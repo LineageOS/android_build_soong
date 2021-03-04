@@ -329,8 +329,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		FlagWithArg("ANDROID_SDK_HOME=", homeDir.String()).
 		FlagWithInput("SDK_ANNOTATIONS=", annotationsZipPath).
 		FlagWithInput("LINT_OPTS=-DLINT_API_DATABASE=", apiVersionsXMLPath).
-		Tool(android.PathForSource(ctx, "prebuilts/cmdline-tools/tools/bin/lint")).
-		Implicit(android.PathForSource(ctx, "prebuilts/cmdline-tools/tools/lib/lint-classpath.jar")).
+		BuiltTool("lint").
 		Flag("--quiet").
 		FlagWithInput("--project ", projectXML).
 		FlagWithInput("--config ", lintXML).
