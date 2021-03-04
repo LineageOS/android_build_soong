@@ -91,6 +91,28 @@ func StaleEnvFile(filepath string, getenv func(string) string) (bool, error) {
 	return false, nil
 }
 
+// Deserializes and environment serialized by EnvFileContents() and returns it
+// as a map[string]string.
+func EnvFromFile(envFile string) (map[string]string, error) {
+	result := make(map[string]string)
+	data, err := ioutil.ReadFile(envFile)
+	if err != nil {
+		return result, err
+	}
+
+	var contents envFileData
+	err = json.Unmarshal(data, &contents)
+	if err != nil {
+		return result, err
+	}
+
+	for _, entry := range contents {
+		result[entry.Key] = entry.Value
+	}
+
+	return result, nil
+}
+
 // Implements sort.Interface so that we can use sort.Sort on envFileData arrays.
 func (e envFileData) Len() int {
 	return len(e)
