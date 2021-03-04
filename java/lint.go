@@ -313,6 +313,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	rule.Command().Text("rm -rf").Flag(cacheDir.String()).Flag(homeDir.String())
 	rule.Command().Text("mkdir -p").Flag(cacheDir.String()).Flag(homeDir.String())
+	rule.Command().Text("rm -f").Output(html).Output(text).Output(xml)
 
 	var annotationsZipPath, apiVersionsXMLPath android.Path
 	if ctx.Config().AlwaysUsePrebuiltSdks() {
@@ -361,7 +362,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		}
 	}
 
-	cmd.Text("|| (").Text("cat").Input(text).Text("; exit 7)").Text(")")
+	cmd.Text("|| (").Text("if [ -e").Input(text).Text("]; then cat").Input(text).Text("; fi; exit 7)").Text(")")
 
 	rule.Command().Text("rm -rf").Flag(cacheDir.String()).Flag(homeDir.String())
 
