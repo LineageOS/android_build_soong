@@ -1832,6 +1832,18 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			return
 		}
 
+		m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
+		rcDir := PathForModuleInstall(ctx, "etc", "init")
+		for _, src := range m.initRcPaths {
+			ctx.PackageFile(rcDir, filepath.Base(src.String()), src)
+		}
+
+		m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
+		vintfDir := PathForModuleInstall(ctx, "etc", "vintf", "manifest")
+		for _, src := range m.vintfFragmentsPaths {
+			ctx.PackageFile(vintfDir, filepath.Base(src.String()), src)
+		}
+
 		// Create the set of tagged dist files after calling GenerateAndroidBuildActions
 		// as GenerateTaggedDistFiles() calls OutputFiles(tag) and so relies on the
 		// output paths being set which must be done before or during
@@ -1844,8 +1856,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		m.installFiles = append(m.installFiles, ctx.installFiles...)
 		m.checkbuildFiles = append(m.checkbuildFiles, ctx.checkbuildFiles...)
 		m.packagingSpecs = append(m.packagingSpecs, ctx.packagingSpecs...)
-		m.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc)
-		m.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments)
 		for k, v := range ctx.phonies {
 			m.phonies[k] = append(m.phonies[k], v...)
 		}
