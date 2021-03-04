@@ -23,6 +23,8 @@ func init() {
 	RegisterPackageBuildComponents(InitRegistrationContext)
 }
 
+var PrepareForTestWithPackageModule = FixtureRegisterWithContext(RegisterPackageBuildComponents)
+
 // Register the package module type.
 func RegisterPackageBuildComponents(ctx RegistrationContext) {
 	ctx.RegisterModuleType("package", PackageFactory)

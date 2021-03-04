@@ -11,12 +11,13 @@ import (
 func TestVndkApexForVndkLite(t *testing.T) {
 	ctx, _ := testApex(t, `
 		apex_vndk {
-			name: "myapex",
-			key: "myapex.key",
+			name: "com.android.vndk.current",
+			key: "com.android.vndk.current.key",
+			updatable: false,
 		}
 
 		apex_key {
-			name: "myapex.key",
+			name: "com.android.vndk.current.key",
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
@@ -31,7 +32,7 @@ func TestVndkApexForVndkLite(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
-			apex_available: [ "myapex" ],
+			apex_available: [ "com.android.vndk.current" ],
 		}
 
 		cc_library {
@@ -45,13 +46,13 @@ func TestVndkApexForVndkLite(t *testing.T) {
 			},
 			system_shared_libs: [],
 			stl: "none",
-			apex_available: [ "myapex" ],
+			apex_available: [ "com.android.vndk.current" ],
 		}
 	`+vndkLibrariesTxtFiles("current"), func(fs map[string][]byte, config android.Config) {
 		config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("")
 	})
 	// VNDK-Lite contains only core variants of VNDK-Sp libraries
-	ensureExactContents(t, ctx, "myapex", "android_common_image", []string{
+	ensureExactContents(t, ctx, "com.android.vndk.current", "android_common_image", []string{
 		"lib/libvndksp.so",
 		"lib/libc++.so",
 		"lib64/libvndksp.so",
@@ -67,8 +68,9 @@ func TestVndkApexForVndkLite(t *testing.T) {
 func TestVndkApexUsesVendorVariant(t *testing.T) {
 	bp := `
 		apex_vndk {
-			name: "myapex",
+			name: "com.android.vndk.current",
 			key: "mykey",
+			updatable: false,
 		}
 		apex_key {
 			name: "mykey",
@@ -94,7 +96,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 				return
 			}
 		}
-		t.Fail()
+		t.Errorf("expected path %q not found", path)
 	}
 
 	t.Run("VNDK lib doesn't have an apex variant", func(t *testing.T) {
@@ -106,7 +108,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 		}
 
 		// VNDK APEX doesn't create apex variant
-		files := getFiles(t, ctx, "myapex", "android_common_image")
+		files := getFiles(t, ctx, "com.android.vndk.current", "android_common_image")
 		ensureFileSrc(t, files, "lib/libfoo.so", "libfoo/android_vendor.VER_arm_armv7-a-neon_shared/libfoo.so")
 	})
 
@@ -116,7 +118,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 			config.TestProductVariables.ProductVndkVersion = proptools.StringPtr("current")
 		})
 
-		files := getFiles(t, ctx, "myapex", "android_common_image")
+		files := getFiles(t, ctx, "com.android.vndk.current", "android_common_image")
 		ensureFileSrc(t, files, "lib/libfoo.so", "libfoo/android_vendor.VER_arm_armv7-a-neon_shared/libfoo.so")
 	})
 
@@ -126,10 +128,10 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 			config.TestProductVariables.Native_coverage = proptools.BoolPtr(true)
 		})
 
-		files := getFiles(t, ctx, "myapex", "android_common_image")
+		files := getFiles(t, ctx, "com.android.vndk.current", "android_common_image")
 		ensureFileSrc(t, files, "lib/libfoo.so", "libfoo/android_vendor.VER_arm_armv7-a-neon_shared/libfoo.so")
 
-		files = getFiles(t, ctx, "myapex", "android_common_cov_image")
+		files = getFiles(t, ctx, "com.android.vndk.current", "android_common_cov_image")
 		ensureFileSrc(t, files, "lib/libfoo.so", "libfoo/android_vendor.VER_arm_armv7-a-neon_shared_cov/libfoo.so")
 	})
 }

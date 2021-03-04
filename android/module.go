@@ -443,6 +443,7 @@ type Module interface {
 	Disable()
 	Enabled() bool
 	Target() Target
+	MultiTargets() []Target
 	Owner() string
 	InstallInData() bool
 	InstallInTestcases() bool
@@ -752,7 +753,7 @@ type commonProperties struct {
 	// Whether this module is installed to vendor ramdisk
 	Vendor_ramdisk *bool
 
-	// Whether this module is built for non-native architecures (also known as native bridge binary)
+	// Whether this module is built for non-native architectures (also known as native bridge binary)
 	Native_bridge_supported *bool `android:"arch_variant"`
 
 	// init.rc files to be installed if this module is installed

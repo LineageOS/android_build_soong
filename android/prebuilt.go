@@ -100,7 +100,7 @@ func (p *Prebuilt) Prefer() bool {
 // more modules like this.
 func (p *Prebuilt) SingleSourcePath(ctx ModuleContext) Path {
 	if p.srcsSupplier != nil {
-		srcs := p.srcsSupplier(ctx)
+		srcs := p.srcsSupplier(ctx, ctx.Module())
 
 		if len(srcs) == 0 {
 			ctx.PropertyErrorf(p.srcsPropertyName, "missing prebuilt source file")
@@ -128,8 +128,11 @@ func (p *Prebuilt) UsePrebuilt() bool {
 
 // Called to provide the srcs value for the prebuilt module.
 //
+// This can be called with a context for any module not just the prebuilt one itself. It can also be
+// called concurrently.
+//
 // Return the src value or nil if it is not available.
-type PrebuiltSrcsSupplier func(ctx BaseModuleContext) []string
+type PrebuiltSrcsSupplier func(ctx BaseModuleContext, prebuilt Module) []string
 
 // Initialize the module as a prebuilt module that uses the provided supplier to access the
 // prebuilt sources of the module.
@@ -163,7 +166,7 @@ func InitPrebuiltModule(module PrebuiltInterface, srcs *[]string) {
 		panic(fmt.Errorf("srcs must not be nil"))
 	}
 
-	srcsSupplier := func(ctx BaseModuleContext) []string {
+	srcsSupplier := func(ctx BaseModuleContext, _ Module) []string {
 		return *srcs
 	}
 
@@ -184,7 +187,7 @@ func InitSingleSourcePrebuiltModule(module PrebuiltInterface, srcProps interface
 	srcFieldIndex := srcStructField.Index
 	srcPropertyName := proptools.PropertyNameForField(srcField)
 
-	srcsSupplier := func(ctx BaseModuleContext) []string {
+	srcsSupplier := func(ctx BaseModuleContext, _ Module) []string {
 		if !module.Enabled() {
 			return nil
 		}
@@ -256,12 +259,12 @@ func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 			panic(fmt.Errorf("prebuilt module did not have InitPrebuiltModule called on it"))
 		}
 		if !p.properties.SourceExists {
-			p.properties.UsePrebuilt = p.usePrebuilt(ctx, nil)
+			p.properties.UsePrebuilt = p.usePrebuilt(ctx, nil, m)
 		}
 	} else if s, ok := ctx.Module().(Module); ok {
 		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(m Module) {
 			p := m.(PrebuiltInterface).Prebuilt()
-			if p.usePrebuilt(ctx, s) {
+			if p.usePrebuilt(ctx, s, m) {
 				p.properties.UsePrebuilt = true
 				s.ReplacedByPrebuilt()
 			}
@@ -296,8 +299,8 @@ func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 
 // usePrebuilt returns true if a prebuilt should be used instead of the source module.  The prebuilt
 // will be used if it is marked "prefer" or if the source module is disabled.
-func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module) bool {
-	if p.srcsSupplier != nil && len(p.srcsSupplier(ctx)) == 0 {
+func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module, prebuilt Module) bool {
+	if p.srcsSupplier != nil && len(p.srcsSupplier(ctx, prebuilt)) == 0 {
 		return false
 	}
 
