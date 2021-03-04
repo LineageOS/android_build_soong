@@ -199,6 +199,24 @@ type FixtureFactory interface {
 	//
 	// Shorthand for RunTest(t, android.FixtureWithRootAndroidBp(bp))
 	RunTestWithBp(t *testing.T, bp string) *TestResult
+
+	// RunTestWithConfig is a temporary method added to help ease the migration of existing tests to
+	// the test fixture.
+	//
+	// In order to allow the Config object to be customized separately to the TestContext a lot of
+	// existing test code has `test...WithConfig` funcs that allow the Config object to be supplied
+	// from the test and then have the TestContext created and configured automatically. e.g.
+	// testCcWithConfig, testCcErrorWithConfig, testJavaWithConfig, etc.
+	//
+	// This method allows those methods to be migrated to use the test fixture pattern without
+	// requiring that every test that uses those methods be migrated at the same time. That allows
+	// those tests to benefit from correctness in the order of registration quickly.
+	//
+	// This method discards the config (along with its mock file system, product variables,
+	// environment, etc.) that may have been set up by FixturePreparers.
+	//
+	// deprecated
+	RunTestWithConfig(t *testing.T, config Config) *TestResult
 }
 
 // Create a new FixtureFactory that will apply the supplied preparers.
@@ -658,6 +676,28 @@ func (f *fixtureFactory) RunTestWithBp(t *testing.T, bp string) *TestResult {
 	return f.RunTest(t, FixtureWithRootAndroidBp(bp))
 }
 
+func (f *fixtureFactory) RunTestWithConfig(t *testing.T, config Config) *TestResult {
+	t.Helper()
+	// Create the fixture as normal.
+	fixture := f.Fixture(t).(*fixture)
+
+	// Discard the mock filesystem as otherwise that will override the one in the config.
+	fixture.mockFS = nil
+
+	// Replace the config with the supplied one in the fixture.
+	fixture.config = config
+
+	// Ditto with config derived information in the TestContext.
+	ctx := fixture.ctx
+	ctx.config = config
+	ctx.SetFs(ctx.config.fs)
+	if ctx.config.mockBpList != "" {
+		ctx.SetModuleListFile(ctx.config.mockBpList)
+	}
+
+	return fixture.RunTest()
+}
+
 type fixture struct {
 	// The factory used to create this fixture.
 	factory *fixtureFactory
@@ -683,17 +723,22 @@ func (f *fixture) RunTest() *TestResult {
 
 	ctx := f.ctx
 
-	// The TestConfig() method assumes that the mock filesystem is available when creating so creates
-	// the mock file system immediately. Similarly, the NewTestContext(Config) method assumes that the
-	// supplied Config's FileSystem has been properly initialized before it is called and so it takes
-	// its own reference to the filesystem. However, fixtures create the Config and TestContext early
-	// so they can be modified by preparers at which time the mockFS has not been populated (because
-	// it too is modified by preparers). So, this reinitializes the Config and TestContext's
-	// FileSystem using the now populated mockFS.
-	f.config.mockFileSystem("", f.mockFS)
-	ctx.SetFs(ctx.config.fs)
-	if ctx.config.mockBpList != "" {
-		ctx.SetModuleListFile(ctx.config.mockBpList)
+	// Do not use the fixture's mockFS to initialize the config's mock file system if it has been
+	// cleared by RunTestWithConfig.
+	if f.mockFS != nil {
+		// The TestConfig() method assumes that the mock filesystem is available when creating so
+		// creates the mock file system immediately. Similarly, the NewTestContext(Config) method
+		// assumes that the supplied Config's FileSystem has been properly initialized before it is
+		// called and so it takes its own reference to the filesystem. However, fixtures create the
+		// Config and TestContext early so they can be modified by preparers at which time the mockFS
+		// has not been populated (because it too is modified by preparers). So, this reinitializes the
+		// Config and TestContext's FileSystem using the now populated mockFS.
+		f.config.mockFileSystem("", f.mockFS)
+
+		ctx.SetFs(ctx.config.fs)
+		if ctx.config.mockBpList != "" {
+			ctx.SetModuleListFile(ctx.config.mockBpList)
+		}
 	}
 
 	ctx.Register()
