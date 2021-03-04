@@ -25,7 +25,6 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterBinaryBuildComponents(ctx)
 	RegisterLibraryBuildComponents(ctx)
 	RegisterLibraryHeadersBuildComponents(ctx)
-	genrule.RegisterGenruleBuildComponents(ctx)
 
 	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
 	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
@@ -591,6 +590,7 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 
 func CreateTestContext(config android.Config) *android.TestContext {
 	ctx := android.NewTestArchContext(config)
+	genrule.RegisterGenruleBuildComponents(ctx)
 	ctx.RegisterModuleType("cc_fuzz", FuzzFactory)
 	ctx.RegisterModuleType("cc_test", TestFactory)
 	ctx.RegisterModuleType("cc_test_library", TestLibraryFactory)
