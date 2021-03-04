@@ -124,6 +124,7 @@ type variableProperties struct {
 		Arc struct {
 			Cflags            []string `android:"arch_variant"`
 			Exclude_srcs      []string `android:"arch_variant"`
+			Header_libs       []string `android:"arch_variant"`
 			Include_dirs      []string `android:"arch_variant"`
 			Shared_libs       []string `android:"arch_variant"`
 			Static_libs       []string `android:"arch_variant"`
