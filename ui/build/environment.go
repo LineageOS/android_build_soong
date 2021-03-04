@@ -33,6 +33,19 @@ func OsEnvironment() *Environment {
 	return &env
 }
 
+// Returns a copy of the environment as a map[string]string.
+func (e *Environment) AsMap() map[string]string {
+	result := make(map[string]string)
+
+	for _, envVar := range *e {
+		if k, v, ok := decodeKeyValue(envVar); ok {
+			result[k] = v
+		}
+	}
+
+	return result
+}
+
 // Get returns the value associated with the key, and whether it exists.
 // It's equivalent to the os.LookupEnv function, but with this copy of the
 // Environment.
