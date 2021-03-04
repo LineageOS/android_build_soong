@@ -1,4 +1,4 @@
 per-file * = jiyong@google.com
 
 per-file allowed_deps.txt = set noparent
-per-file allowed_deps.txt = dariofreni@google.com,hansson@google.com,harpin@google.com,jiyong@google.com,narayan@google.com,omakoto@google.com,jham@google.com
+per-file allowed_deps.txt = dariofreni@google.com,hansson@google.com,harpin@google.com,jiyong@google.com,narayan@google.com,jham@google.com
