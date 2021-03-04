@@ -437,13 +437,13 @@ func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
 	}
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.Cp,
+		Rule:   android.CpIfChanged,
 		Input:  android.OutputFileForModule(ctx, frameworkDocStubs, ".annotations.zip"),
 		Output: copiedAnnotationsZipPath(ctx),
 	})
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.Cp,
+		Rule:   android.CpIfChanged,
 		Input:  android.OutputFileForModule(ctx, frameworkDocStubs, ".api_versions.xml"),
 		Output: copiedAPIVersionsXmlPath(ctx),
 	})
