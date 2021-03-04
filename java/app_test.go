@@ -2290,17 +2290,33 @@ func TestUsesLibraries(t *testing.T) {
 			sdk_version: "current",
 		}
 
+		// A library that has to use "provides_uses_lib", because:
+		//    - it is not an SDK library
+		//    - its library name is different from its module name
+		java_library {
+			name: "non-sdk-lib",
+			provides_uses_lib: "com.non.sdk.lib",
+			installable: true,
+			srcs: ["a.java"],
+		}
+
 		android_app {
 			name: "app",
 			srcs: ["a.java"],
-			libs: ["qux", "quuz.stubs"],
+			libs: [
+				"qux",
+				"quuz.stubs"
+			],
 			static_libs: [
 				"static-runtime-helper",
 				// statically linked component libraries should not pull their SDK libraries,
 				// so "fred" should not be added to class loader context
 				"fred.stubs",
 			],
-			uses_libs: ["foo"],
+			uses_libs: [
+				"foo",
+				"non-sdk-lib"
+			],
 			sdk_version: "current",
 			optional_uses_libs: [
 				"bar",
@@ -2312,7 +2328,11 @@ func TestUsesLibraries(t *testing.T) {
 			name: "prebuilt",
 			apk: "prebuilts/apk/app.apk",
 			certificate: "platform",
-			uses_libs: ["foo", "android.test.runner"],
+			uses_libs: [
+				"foo",
+				"non-sdk-lib",
+				"android.test.runner"
+			],
 			optional_uses_libs: [
 				"bar",
 				"baz",
@@ -2331,39 +2351,51 @@ func TestUsesLibraries(t *testing.T) {
 	prebuilt := ctx.ModuleForTests("prebuilt", "android_common")
 
 	// Test that implicit dependencies on java_sdk_library instances are passed to the manifest.
-	manifestFixerArgs := app.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
-	for _, w := range []string{"qux", "quuz", "runtime-library"} {
-		if !strings.Contains(manifestFixerArgs, "--uses-library "+w) {
-			t.Errorf("unexpected manifest_fixer args: wanted %q in %q", w, manifestFixerArgs)
-		}
+	// This should not include explicit `uses_libs`/`optional_uses_libs` entries.
+	actualManifestFixerArgs := app.Output("manifest_fixer/AndroidManifest.xml").Args["args"]
+	expectManifestFixerArgs := `--extract-native-libs=true ` +
+		`--uses-library qux ` +
+		`--uses-library quuz ` +
+		`--uses-library foo ` + // TODO(b/132357300): "foo" should not be passed to manifest_fixer
+		`--uses-library com.non.sdk.lib ` + // TODO(b/132357300): "com.non.sdk.lib" should not be passed to manifest_fixer
+		`--uses-library bar ` + // TODO(b/132357300): "bar" should not be passed to manifest_fixer
+		`--uses-library runtime-library`
+	if actualManifestFixerArgs != expectManifestFixerArgs {
+		t.Errorf("unexpected manifest_fixer args:\n\texpect: %q\n\tactual: %q",
+			expectManifestFixerArgs, actualManifestFixerArgs)
 	}
 
-	// Test that all libraries are verified
-	cmd := app.Rule("verify_uses_libraries").RuleParams.Command
-	if w := "--uses-library foo"; !strings.Contains(cmd, w) {
-		t.Errorf("wanted %q in %q", w, cmd)
+	// Test that all libraries are verified (library order matters).
+	verifyCmd := app.Rule("verify_uses_libraries").RuleParams.Command
+	verifyArgs := `--uses-library foo ` +
+		`--uses-library com.non.sdk.lib ` +
+		`--uses-library qux ` +
+		`--uses-library quuz ` +
+		`--uses-library runtime-library ` +
+		`--optional-uses-library bar ` +
+		`--optional-uses-library baz `
+	if !strings.Contains(verifyCmd, verifyArgs) {
+		t.Errorf("wanted %q in %q", verifyArgs, verifyCmd)
 	}
 
-	if w := "--optional-uses-library bar --optional-uses-library baz"; !strings.Contains(cmd, w) {
-		t.Errorf("wanted %q in %q", w, cmd)
+	// Test that all libraries are verified for an APK (library order matters).
+	verifyApkCmd := prebuilt.Rule("verify_uses_libraries").RuleParams.Command
+	verifyApkReqLibs := `uses_library_names="foo com.non.sdk.lib android.test.runner"`
+	verifyApkOptLibs := `optional_uses_library_names="bar baz"`
+	if !strings.Contains(verifyApkCmd, verifyApkReqLibs) {
+		t.Errorf("wanted %q in %q", verifyApkReqLibs, verifyApkCmd)
 	}
-
-	cmd = prebuilt.Rule("verify_uses_libraries").RuleParams.Command
-
-	if w := `uses_library_names="foo android.test.runner"`; !strings.Contains(cmd, w) {
-		t.Errorf("wanted %q in %q", w, cmd)
-	}
-
-	if w := `optional_uses_library_names="bar baz"`; !strings.Contains(cmd, w) {
-		t.Errorf("wanted %q in %q", w, cmd)
+	if !strings.Contains(verifyApkCmd, verifyApkOptLibs) {
+		t.Errorf("wanted %q in %q", verifyApkOptLibs, verifyApkCmd)
 	}
 
 	// Test that all present libraries are preopted, including implicit SDK dependencies, possibly stubs
-	cmd = app.Rule("dexpreopt").RuleParams.Command
+	cmd := app.Rule("dexpreopt").RuleParams.Command
 	w := `--target-context-for-sdk any ` +
 		`PCL[/system/framework/qux.jar]#` +
 		`PCL[/system/framework/quuz.jar]#` +
 		`PCL[/system/framework/foo.jar]#` +
+		`PCL[/system/framework/non-sdk-lib.jar]#` +
 		`PCL[/system/framework/bar.jar]#` +
 		`PCL[/system/framework/runtime-library.jar]`
 	if !strings.Contains(cmd, w) {
@@ -2393,6 +2425,7 @@ func TestUsesLibraries(t *testing.T) {
 	cmd = prebuilt.Rule("dexpreopt").RuleParams.Command
 	if w := `--target-context-for-sdk any` +
 		` PCL[/system/framework/foo.jar]` +
+		`#PCL[/system/framework/non-sdk-lib.jar]` +
 		`#PCL[/system/framework/android.test.runner.jar]` +
 		`#PCL[/system/framework/bar.jar] `; !strings.Contains(cmd, w) {
 		t.Errorf("wanted %q in %q", w, cmd)

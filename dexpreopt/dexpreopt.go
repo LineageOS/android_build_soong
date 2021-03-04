@@ -369,11 +369,11 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 		}
 		if module.EnforceUsesLibraries {
 			// If the verify_uses_libraries check failed (in this case status file contains a
-			// non-empty error message), then use "extract" compiler filter to avoid compiling any
+			// non-empty error message), then use "verify" compiler filter to avoid compiling any
 			// code (it would be rejected on device because of a class loader context mismatch).
 			cmd.Text("--compiler-filter=$(if test -s ").
 				Input(module.EnforceUsesLibrariesStatusFile).
-				Text(" ; then echo extract ; else echo " + compilerFilter + " ; fi)")
+				Text(" ; then echo verify ; else echo " + compilerFilter + " ; fi)")
 		} else {
 			cmd.FlagWithArg("--compiler-filter=", compilerFilter)
 		}

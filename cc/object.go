@@ -46,6 +46,26 @@ type objectLinker struct {
 	Properties ObjectLinkerProperties
 }
 
+type objectBazelHandler struct {
+	bazelHandler
+
+	module *Module
+}
+
+func (handler *objectBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+	bazelCtx := ctx.Config().BazelContext
+	objPaths, ok := bazelCtx.GetCcObjectFiles(label, ctx.Arch().ArchType)
+	if ok {
+		if len(objPaths) != 1 {
+			ctx.ModuleErrorf("expected exactly one object file for '%s', but got %s", label, objPaths)
+			return false
+		}
+
+		handler.module.outputFile = android.OptionalPathForPath(android.PathForBazelOut(ctx, objPaths[0]))
+	}
+	return ok
+}
+
 type ObjectLinkerProperties struct {
 	// list of modules that should only provide headers for this module.
 	Header_libs []string `android:"arch_variant,variant_prepend"`
@@ -80,6 +100,7 @@ func ObjectFactory() android.Module {
 		baseLinker: NewBaseLinker(module.sanitize),
 	}
 	module.compiler = NewBaseCompiler()
+	module.bazelHandler = &objectBazelHandler{module: module}
 
 	// Clang's address-significance tables are incompatible with ld -r.
 	module.compiler.appendCflags([]string{"-fno-addrsig"})
