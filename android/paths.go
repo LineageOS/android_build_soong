@@ -1662,9 +1662,9 @@ func modulePartition(ctx ModuleInstallPathContext, os OsType) string {
 			// on a device without a dedicated recovery partition, install the
 			// recovery variant.
 			if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
-				partition = "vendor-ramdisk/first_stage_ramdisk"
+				partition = "vendor_ramdisk/first_stage_ramdisk"
 			} else {
-				partition = "vendor-ramdisk"
+				partition = "vendor_ramdisk"
 			}
 			if !ctx.InstallInRoot() {
 				partition += "/system"
