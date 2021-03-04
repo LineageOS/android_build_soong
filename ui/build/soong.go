@@ -21,6 +21,7 @@ import (
 	"strconv"
 
 	"android/soong/shared"
+
 	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
 
 	"github.com/golang/protobuf/proto"
@@ -29,6 +30,15 @@ import (
 	"android/soong/ui/metrics"
 	"android/soong/ui/status"
 )
+
+func writeEnvironmentFile(ctx Context, envFile string, envDeps map[string]string) error {
+	data, err := shared.EnvFileContents(envDeps)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(envFile, data, 0644)
+}
 
 // This uses Android.bp files and various tools to generate <builddir>/build.ninja.
 //
@@ -47,6 +57,12 @@ func runSoong(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunSoong, "soong")
 	defer ctx.EndTrace()
 
+	// We have two environment files: .available is the one with every variable,
+	// .used with the ones that were actually used. The latter is used to
+	// determine whether Soong needs to be re-run since why re-run it if only
+	// unused variables were changed?
+	envFile := filepath.Join(config.SoongOutDir(), "soong.environment.available")
+
 	// Use an anonymous inline function for tracing purposes (this pattern is used several times below).
 	func() {
 		ctx.BeginTrace(metrics.RunSoong, "blueprint bootstrap")
@@ -61,6 +77,7 @@ func runSoong(ctx Context, config Config) {
 		}
 
 		cmd := Command(ctx, config, "blueprint bootstrap", "build/blueprint/bootstrap.bash", args...)
+
 		cmd.Environment.Set("BLUEPRINTDIR", "./build/blueprint")
 		cmd.Environment.Set("BOOTSTRAP", "./build/blueprint/bootstrap.bash")
 		cmd.Environment.Set("BUILDDIR", config.SoongOutDir())
@@ -74,11 +91,32 @@ func runSoong(ctx Context, config Config) {
 		cmd.RunAndPrintOrFatal()
 	}()
 
+	soongBuildEnv := config.Environment().Copy()
+	soongBuildEnv.Set("TOP", os.Getenv("TOP"))
+	// These two dependencies are read from bootstrap.go, but also need to be here
+	// so that soong_build can declare a dependency on them
+	soongBuildEnv.Set("SOONG_DELVE", os.Getenv("SOONG_DELVE"))
+	soongBuildEnv.Set("SOONG_DELVE_PATH", os.Getenv("SOONG_DELVE_PATH"))
+	soongBuildEnv.Set("SOONG_OUTDIR", config.SoongOutDir())
+	// For Bazel mixed builds.
+	soongBuildEnv.Set("BAZEL_PATH", "./tools/bazel")
+	soongBuildEnv.Set("BAZEL_HOME", filepath.Join(config.BazelOutDir(), "bazelhome"))
+	soongBuildEnv.Set("BAZEL_OUTPUT_BASE", filepath.Join(config.BazelOutDir(), "output"))
+	soongBuildEnv.Set("BAZEL_WORKSPACE", absPath(ctx, "."))
+	soongBuildEnv.Set("BAZEL_METRICS_DIR", config.BazelMetricsDir())
+
+	if os.Getenv("SOONG_DELVE") != "" {
+		// SOONG_DELVE is already in cmd.Environment
+		soongBuildEnv.Set("SOONG_DELVE_PATH", shared.ResolveDelveBinary())
+	}
+
+	writeEnvironmentFile(ctx, envFile, soongBuildEnv.AsMap())
+
 	func() {
 		ctx.BeginTrace(metrics.RunSoong, "environment check")
 		defer ctx.EndTrace()
 
-		envFile := filepath.Join(config.SoongOutDir(), ".soong.environment")
+		envFile := filepath.Join(config.SoongOutDir(), "soong.environment.used")
 		getenv := func(k string) string {
 			v, _ := config.Environment().Get(k)
 			return v
@@ -134,14 +172,7 @@ func runSoong(ctx Context, config Config) {
 			"--frontend_file", fifo,
 			"-f", filepath.Join(config.SoongOutDir(), file))
 
-		// For Bazel mixed builds.
-		cmd.Environment.Set("BAZEL_PATH", "./tools/bazel")
-		cmd.Environment.Set("BAZEL_HOME", filepath.Join(config.BazelOutDir(), "bazelhome"))
-		cmd.Environment.Set("BAZEL_OUTPUT_BASE", filepath.Join(config.BazelOutDir(), "output"))
-		cmd.Environment.Set("BAZEL_WORKSPACE", absPath(ctx, "."))
-		cmd.Environment.Set("BAZEL_METRICS_DIR", config.BazelMetricsDir())
-
-		cmd.Environment.Set("SOONG_SANDBOX_SOONG_BUILD", "true")
+		cmd.Environment.Set("SOONG_OUTDIR", config.SoongOutDir())
 		cmd.Sandbox = soongSandbox
 		cmd.RunAndStreamOrFatal()
 	}

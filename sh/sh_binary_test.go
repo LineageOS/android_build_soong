@@ -3,6 +3,7 @@ package sh
 import (
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -73,7 +74,8 @@ func TestShTestSubDir(t *testing.T) {
 
 	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 
-	expectedPath := "/tmp/target/product/test_device/data/nativetest64/foo_test"
+	expectedPath := path.Join(buildDir,
+		"../target/product/test_device/data/nativetest64/foo_test")
 	actualPath := entries.EntryMap["LOCAL_MODULE_PATH"][0]
 	if expectedPath != actualPath {
 		t.Errorf("Unexpected LOCAL_MODULE_PATH expected: %q, actual: %q", expectedPath, actualPath)
@@ -97,7 +99,8 @@ func TestShTest(t *testing.T) {
 
 	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 
-	expectedPath := "/tmp/target/product/test_device/data/nativetest64/foo"
+	expectedPath := path.Join(buildDir,
+		"../target/product/test_device/data/nativetest64/foo")
 	actualPath := entries.EntryMap["LOCAL_MODULE_PATH"][0]
 	if expectedPath != actualPath {
 		t.Errorf("Unexpected LOCAL_MODULE_PATH expected: %q, actual: %q", expectedPath, actualPath)
