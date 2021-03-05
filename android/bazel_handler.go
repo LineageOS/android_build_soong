@@ -441,7 +441,7 @@ phony_root(name = "phonyroot",
 		case "arm":
 			deps_arm = append(deps_arm, labelString)
 		default:
-			panic(fmt.Sprintf("unhandled architecture %s for %s", getArchString(val), val))
+			panic(fmt.Sprintf("unhandled architecture %s for %v", getArchString(val), val))
 		}
 	}
 
