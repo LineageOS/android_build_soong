@@ -232,7 +232,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 
 	// Copy the real PATH value to the test environment, it's needed by
 	// NonHermeticHostSystemTool() used in x86_darwin_host.go
-	envCopy["PATH"] = originalEnv["PATH"]
+	envCopy["PATH"] = os.Getenv("PATH")
 
 	config := &config{
 		productVariables: productVariables{

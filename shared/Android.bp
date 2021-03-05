@@ -8,6 +8,10 @@ bootstrap_go_package {
     srcs: [
         "env.go",
         "paths.go",
+        "debug.go",
+    ],
+    testSrcs: [
+        "paths_test.go",
     ],
     deps: [
         "soong-bazel",
