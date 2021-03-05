@@ -146,14 +146,6 @@ func (d *DeviceHostConverter) HeaderJars() android.Paths {
 	return d.headerJars
 }
 
-func (d *DeviceHostConverter) ImplementationJars() android.Paths {
-	return d.implementationJars
-}
-
-func (d *DeviceHostConverter) ResourceJars() android.Paths {
-	return d.resourceJars
-}
-
 func (d *DeviceHostConverter) ImplementationAndResourcesJars() android.Paths {
 	return d.implementationAndResourceJars
 }
@@ -172,14 +164,6 @@ func (d *DeviceHostConverter) AidlIncludeDirs() android.Paths {
 
 func (d *DeviceHostConverter) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
 	return nil
-}
-
-func (d *DeviceHostConverter) ExportedPlugins() (android.Paths, []string, bool) {
-	return nil, nil, false
-}
-
-func (d *DeviceHostConverter) SrcJarArgs() ([]string, android.Paths) {
-	return d.srcJarArgs, d.srcJarDeps
 }
 
 func (d *DeviceHostConverter) JacocoReportClassesFile() android.Path {
