@@ -7,15 +7,15 @@ import (
 )
 
 var licensesTests = []struct {
-	name                         string
-	fs                           map[string][]byte
-	expectedErrors               []string
-	effectiveLicenses            map[string][]string
-	effectiveInheritedLicenses   map[string][]string
-	effectivePackage             map[string]string
-	effectiveNotices             map[string][]string
-	effectiveKinds               map[string][]string
-	effectiveConditions          map[string][]string
+	name                       string
+	fs                         map[string][]byte
+	expectedErrors             []string
+	effectiveLicenses          map[string][]string
+	effectiveInheritedLicenses map[string][]string
+	effectivePackage           map[string]string
+	effectiveNotices           map[string][]string
+	effectiveKinds             map[string][]string
+	effectiveConditions        map[string][]string
 }{
 	{
 		name: "invalid module type without licenses property",
@@ -71,28 +71,28 @@ var licensesTests = []struct {
 		},
 		effectiveLicenses: map[string][]string{
 			"libexample1": []string{"top_Apache2"},
-			"libnested": []string{"top_Apache2"},
-			"libother": []string{"top_Apache2"},
+			"libnested":   []string{"top_Apache2"},
+			"libother":    []string{"top_Apache2"},
 		},
 		effectiveKinds: map[string][]string{
 			"libexample1": []string{"notice"},
-			"libnested": []string{"notice"},
-			"libother": []string{"notice"},
+			"libnested":   []string{"notice"},
+			"libother":    []string{"notice"},
 		},
 		effectivePackage: map[string]string{
 			"libexample1": "topDog",
-			"libnested": "topDog",
-			"libother": "topDog",
+			"libnested":   "topDog",
+			"libother":    "topDog",
 		},
 		effectiveConditions: map[string][]string{
 			"libexample1": []string{"shownotice"},
-			"libnested": []string{"shownotice"},
-			"libother": []string{"shownotice"},
+			"libnested":   []string{"shownotice"},
+			"libother":    []string{"shownotice"},
 		},
 		effectiveNotices: map[string][]string{
 			"libexample1": []string{"top/LICENSE", "top/NOTICE"},
-			"libnested": []string{"top/LICENSE", "top/NOTICE"},
-			"libother": []string{"top/LICENSE", "top/NOTICE"},
+			"libnested":   []string{"top/LICENSE", "top/NOTICE"},
+			"libother":    []string{"top/LICENSE", "top/NOTICE"},
 		},
 	},
 
@@ -147,28 +147,28 @@ var licensesTests = []struct {
 				}`),
 		},
 		effectiveLicenses: map[string][]string{
-			"libexample": []string{"nested_other", "top_other"},
+			"libexample":     []string{"nested_other", "top_other"},
 			"libsamepackage": []string{},
-			"libnested": []string{},
-			"libother": []string{},
+			"libnested":      []string{},
+			"libother":       []string{},
 		},
 		effectiveInheritedLicenses: map[string][]string{
-			"libexample": []string{"nested_other", "top_other"},
+			"libexample":     []string{"nested_other", "top_other"},
 			"libsamepackage": []string{"nested_other", "top_other"},
-			"libnested": []string{"nested_other", "top_other"},
-			"libother": []string{"nested_other", "top_other"},
+			"libnested":      []string{"nested_other", "top_other"},
+			"libother":       []string{"nested_other", "top_other"},
 		},
 		effectiveKinds: map[string][]string{
-			"libexample": []string{"nested_notice", "top_notice"},
+			"libexample":     []string{"nested_notice", "top_notice"},
 			"libsamepackage": []string{},
-			"libnested": []string{},
-			"libother": []string{},
+			"libnested":      []string{},
+			"libother":       []string{},
 		},
 		effectiveConditions: map[string][]string{
-			"libexample": []string{"notice"},
+			"libexample":     []string{"notice"},
 			"libsamepackage": []string{},
-			"libnested": []string{},
-			"libother": []string{},
+			"libnested":      []string{},
+			"libother":       []string{},
 		},
 	},
 	{
@@ -218,32 +218,32 @@ var licensesTests = []struct {
 				}`),
 		},
 		effectiveLicenses: map[string][]string{
-			"libexample": []string{"other", "top_nested"},
+			"libexample":     []string{"other", "top_nested"},
 			"libsamepackage": []string{},
-			"libnested": []string{},
-			"libother": []string{},
-			"liboutsider": []string{},
+			"libnested":      []string{},
+			"libother":       []string{},
+			"liboutsider":    []string{},
 		},
 		effectiveInheritedLicenses: map[string][]string{
-			"libexample": []string{"other", "top_nested"},
+			"libexample":     []string{"other", "top_nested"},
 			"libsamepackage": []string{"other", "top_nested"},
-			"libnested": []string{"other", "top_nested"},
-			"libother": []string{"other", "top_nested"},
-			"liboutsider": []string{"other", "top_nested"},
+			"libnested":      []string{"other", "top_nested"},
+			"libother":       []string{"other", "top_nested"},
+			"liboutsider":    []string{"other", "top_nested"},
 		},
 		effectiveKinds: map[string][]string{
-			"libexample": []string{},
+			"libexample":     []string{},
 			"libsamepackage": []string{},
-			"libnested": []string{},
-			"libother": []string{},
-			"liboutsider": []string{},
+			"libnested":      []string{},
+			"libother":       []string{},
+			"liboutsider":    []string{},
 		},
 		effectiveNotices: map[string][]string{
-			"libexample": []string{"top/nested/LICENSE.txt"},
+			"libexample":     []string{"top/nested/LICENSE.txt"},
 			"libsamepackage": []string{},
-			"libnested": []string{},
-			"libother": []string{},
-			"liboutsider": []string{},
+			"libnested":      []string{},
+			"libother":       []string{},
+			"liboutsider":    []string{},
 		},
 	},
 
@@ -285,11 +285,11 @@ var licensesTests = []struct {
 				}`),
 		},
 		effectiveLicenses: map[string][]string{
-			"libexample": []string{"by_exception_only"},
+			"libexample":  []string{"by_exception_only"},
 			"libdefaults": []string{"notice"},
 		},
 		effectiveInheritedLicenses: map[string][]string{
-			"libexample": []string{"by_exception_only"},
+			"libexample":  []string{"by_exception_only"},
 			"libdefaults": []string{"notice"},
 		},
 	},
@@ -327,11 +327,11 @@ var licensesTests = []struct {
 				}`),
 		},
 		effectiveLicenses: map[string][]string{
-			"libexample": []string{"top_notice"},
+			"libexample":  []string{"top_notice"},
 			"liboutsider": []string{},
 		},
 		effectiveInheritedLicenses: map[string][]string{
-			"libexample": []string{"top_notice"},
+			"libexample":  []string{"top_notice"},
 			"liboutsider": []string{"top_notice"},
 		},
 	},
@@ -370,15 +370,15 @@ var licensesTests = []struct {
 				}`),
 		},
 		effectiveLicenses: map[string][]string{
-			"libexample": []string{"top_notice"},
-			"libnested": []string{"outsider"},
-			"libother": []string{},
+			"libexample":  []string{"top_notice"},
+			"libnested":   []string{"outsider"},
+			"libother":    []string{},
 			"liboutsider": []string{},
 		},
 		effectiveInheritedLicenses: map[string][]string{
-			"libexample": []string{"top_notice"},
-			"libnested": []string{"outsider"},
-			"libother": []string{},
+			"libexample":  []string{"top_notice"},
+			"libnested":   []string{"outsider"},
+			"libother":    []string{},
 			"liboutsider": []string{"top_notice", "outsider"},
 		},
 	},
@@ -449,7 +449,7 @@ var licensesTests = []struct {
 		},
 		effectiveInheritedLicenses: map[string][]string{
 			"module": []string{"prebuilt", "top_sources"},
-			"other": []string{"prebuilt", "top_sources"},
+			"other":  []string{"prebuilt", "top_sources"},
 		},
 	},
 }
