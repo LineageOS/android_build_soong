@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/shared"
 )
 
 func TestRuntimeResourceOverlay(t *testing.T) {
@@ -105,7 +106,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 
 	// Check device location.
 	path = androidMkEntries.EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath = []string{"/tmp/target/product/test_device/product/overlay"}
+	expectedPath = []string{shared.JoinPath(buildDir, "../target/product/test_device/product/overlay")}
 	if !reflect.DeepEqual(path, expectedPath) {
 		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
 	}
@@ -114,7 +115,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 	m = ctx.ModuleForTests("foo_themed", "android_common")
 	androidMkEntries = android.AndroidMkEntriesForTest(t, ctx, m.Module())[0]
 	path = androidMkEntries.EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath = []string{"/tmp/target/product/test_device/product/overlay/faza"}
+	expectedPath = []string{shared.JoinPath(buildDir, "../target/product/test_device/product/overlay/faza")}
 	if !reflect.DeepEqual(path, expectedPath) {
 		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
 	}
@@ -160,7 +161,7 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 
 	// Check device location.
 	path := android.AndroidMkEntriesForTest(t, ctx, m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath := []string{"/tmp/target/product/test_device/product/overlay/default_theme"}
+	expectedPath := []string{shared.JoinPath(buildDir, "../target/product/test_device/product/overlay/default_theme")}
 	if !reflect.DeepEqual(path, expectedPath) {
 		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %q, expected: %q", path, expectedPath)
 	}
@@ -179,7 +180,7 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 
 	// Check device location.
 	path = android.AndroidMkEntriesForTest(t, ctx, m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath = []string{"/tmp/target/product/test_device/system/overlay"}
+	expectedPath = []string{shared.JoinPath(buildDir, "../target/product/test_device/system/overlay")}
 	if !reflect.DeepEqual(path, expectedPath) {
 		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
 	}
