@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"android/soong/shared"
 	"github.com/google/blueprint/bootstrap"
 
 	"android/soong/android"
@@ -28,11 +29,15 @@ import (
 )
 
 var (
+	topDir            string
+	outDir            string
 	docFile           string
 	bazelQueryViewDir string
 )
 
 func init() {
+	flag.StringVar(&topDir, "top", "", "Top directory of the Android source tree")
+	flag.StringVar(&outDir, "out", "", "Soong output directory (usually $TOP/out/soong)")
 	flag.StringVar(&docFile, "soong_docs", "", "build documentation file to output")
 	flag.StringVar(&bazelQueryViewDir, "bazel_queryview_dir", "", "path to the bazel queryview directory")
 }
@@ -80,8 +85,11 @@ func newConfig(srcDir string) android.Config {
 }
 
 func main() {
-	android.ReexecWithDelveMaybe()
 	flag.Parse()
+
+	android.InitSandbox(topDir)
+	android.InitEnvironment(shared.JoinPath(topDir, outDir, "soong.environment.available"))
+	android.ReexecWithDelveMaybe()
 
 	// The top-level Blueprints file is passed as the first argument.
 	srcDir := filepath.Dir(flag.Arg(0))
@@ -89,6 +97,10 @@ func main() {
 	configuration := newConfig(srcDir)
 	extraNinjaDeps := []string{configuration.ProductVariablesFileName}
 
+	// These two are here so that we restart a non-debugged soong_build when the
+	// user sets SOONG_DELVE the first time.
+	configuration.Getenv("SOONG_DELVE")
+	configuration.Getenv("SOONG_DELVE_PATH")
 	// Read the SOONG_DELVE again through configuration so that there is a dependency on the environment variable
 	// and soong_build will rerun when it is set for the first time.
 	if listen := configuration.Getenv("SOONG_DELVE"); listen != "" {
