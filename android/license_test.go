@@ -49,9 +49,9 @@ var licenseTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			`other/Blueprints:2:5: module "arule": depends on //top:top_allowed_as_notice `+
+			`other/Blueprints:2:5: module "arule": depends on //top:top_allowed_as_notice ` +
 				`which is not visible to this module`,
-			`yetmore/Blueprints:2:5: module "//yetmore": depends on //top:top_allowed_as_notice `+
+			`yetmore/Blueprints:2:5: module "//yetmore": depends on //top:top_allowed_as_notice ` +
 				`which is not visible to this module`,
 		},
 	},
@@ -70,7 +70,7 @@ var licenseTests = []struct {
 				}`),
 		},
 		expectedErrors: []string{
-			`top/Blueprints:6:5: module "top_proprietary": license_kinds property `+
+			`top/Blueprints:6:5: module "top_proprietary": license_kinds property ` +
 				`"top_by_exception_only" is not a license_kind module`,
 		},
 	},
