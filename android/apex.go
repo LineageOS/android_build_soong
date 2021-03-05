@@ -849,8 +849,12 @@ func CheckMinSdkVersion(m UpdatableModule, ctx ModuleContext, minSdkVersion ApiL
 		if err := to.ShouldSupportSdkVersion(ctx, minSdkVersion); err != nil {
 			toName := ctx.OtherModuleName(to)
 			if ver, ok := minSdkVersionAllowlist[toName]; !ok || ver.GreaterThan(minSdkVersion) {
-				ctx.OtherModuleErrorf(to, "should support min_sdk_version(%v) for %q: %v. Dependency path: %s",
-					minSdkVersion, ctx.ModuleName(), err.Error(), ctx.GetPathString(false))
+				ctx.OtherModuleErrorf(to, "should support min_sdk_version(%v) for %q: %v."+
+					"\n\nDependency path: %s\n\n"+
+					"Consider adding 'min_sdk_version: %q' to %q",
+					minSdkVersion, ctx.ModuleName(), err.Error(),
+					ctx.GetPathString(false),
+					minSdkVersion, ctx.ModuleName())
 				return false
 			}
 		}
