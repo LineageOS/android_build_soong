@@ -313,6 +313,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	rule.Command().Text("rm -rf").Flag(cacheDir.String()).Flag(homeDir.String())
 	rule.Command().Text("mkdir -p").Flag(cacheDir.String()).Flag(homeDir.String())
+	rule.Command().Text("rm -f").Output(html).Output(text).Output(xml)
 
 	var annotationsZipPath, apiVersionsXMLPath android.Path
 	if ctx.Config().AlwaysUsePrebuiltSdks() {
@@ -329,8 +330,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		FlagWithArg("ANDROID_SDK_HOME=", homeDir.String()).
 		FlagWithInput("SDK_ANNOTATIONS=", annotationsZipPath).
 		FlagWithInput("LINT_OPTS=-DLINT_API_DATABASE=", apiVersionsXMLPath).
-		Tool(android.PathForSource(ctx, "prebuilts/cmdline-tools/tools/bin/lint")).
-		Implicit(android.PathForSource(ctx, "prebuilts/cmdline-tools/tools/lib/lint-classpath.jar")).
+		BuiltTool("lint").
 		Flag("--quiet").
 		FlagWithInput("--project ", projectXML).
 		FlagWithInput("--config ", lintXML).
@@ -362,7 +362,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		}
 	}
 
-	cmd.Text("|| (").Text("cat").Input(text).Text("; exit 7)").Text(")")
+	cmd.Text("|| (").Text("if [ -e").Input(text).Text("]; then cat").Input(text).Text("; fi; exit 7)").Text(")")
 
 	rule.Command().Text("rm -rf").Flag(cacheDir.String()).Flag(homeDir.String())
 
@@ -438,13 +438,13 @@ func (l *lintSingleton) copyLintDependencies(ctx android.SingletonContext) {
 	}
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.Cp,
+		Rule:   android.CpIfChanged,
 		Input:  android.OutputFileForModule(ctx, frameworkDocStubs, ".annotations.zip"),
 		Output: copiedAnnotationsZipPath(ctx),
 	})
 
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.Cp,
+		Rule:   android.CpIfChanged,
 		Input:  android.OutputFileForModule(ctx, frameworkDocStubs, ".api_versions.xml"),
 		Output: copiedAPIVersionsXmlPath(ctx),
 	})
