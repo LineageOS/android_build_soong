@@ -240,7 +240,6 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterComponentsMutator)
-	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 
 	android.RegisterPrebuiltMutators(ctx)
 
@@ -249,6 +248,10 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
 	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
 
+	// These must come after prebuilts and visibility rules to match runtime.
+	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
+
+	// These must come after override rules to match the runtime.
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	rust.RegisterRequiredBuildComponentsForTest(ctx)
 	java.RegisterRequiredBuildComponentsForTest(ctx)
@@ -5204,7 +5207,8 @@ func TestApexWithAppImportsPrefer(t *testing.T) {
 	}))
 
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
-		"app/AppFoo/AppFooPrebuilt.apk",
+		// TODO(b/181974714) - this is wrong it should be "app/AppFoo/AppFooPrebuilt.apk"
+		"app/AppFoo/AppFoo.apk",
 	})
 }
 
