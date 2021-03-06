@@ -396,6 +396,9 @@ func (h simpleErrorHandler) CheckErrors(result *TestResult, errs []error) {
 // The default fixture error handler.
 //
 // Will fail the test immediately if any errors are reported.
+//
+// If the test fails this handler will call `result.FailNow()` which will exit the goroutine within
+// which the test is being run which means that the RunTest() method will not return.
 var FixtureExpectsNoErrors = FixtureCustomErrorHandler(
 	func(result *TestResult, errs []error) {
 		FailIfErrored(result.T, errs)
@@ -411,9 +414,14 @@ var FixtureExpectsNoErrors = FixtureCustomErrorHandler(
 //
 // The test will not fail if:
 // * Multiple errors are reported that do not match the pattern as long as one does match.
+//
+// If the test fails this handler will call `result.FailNow()` which will exit the goroutine within
+// which the test is being run which means that the RunTest() method will not return.
 func FixtureExpectsAtLeastOneErrorMatchingPattern(pattern string) FixtureErrorHandler {
 	return FixtureCustomErrorHandler(func(result *TestResult, errs []error) {
-		FailIfNoMatchingErrors(result.T, pattern, errs)
+		if !FailIfNoMatchingErrors(result.T, pattern, errs) {
+			result.FailNow()
+		}
 	})
 }
 
@@ -427,6 +435,9 @@ func FixtureExpectsAtLeastOneErrorMatchingPattern(pattern string) FixtureErrorHa
 //
 // The test will not fail if:
 // * One or more of the patterns does not match an error.
+//
+// If the test fails this handler will call `result.FailNow()` which will exit the goroutine within
+// which the test is being run which means that the RunTest() method will not return.
 func FixtureExpectsAllErrorsToMatchAPattern(patterns []string) FixtureErrorHandler {
 	return FixtureCustomErrorHandler(func(result *TestResult, errs []error) {
 		CheckErrorsAgainstExpectations(result.T, errs, patterns)
