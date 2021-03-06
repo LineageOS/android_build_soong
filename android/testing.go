@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/blueprint"
@@ -96,6 +97,9 @@ type TestContext struct {
 	preArch, preDeps, postDeps, finalDeps           []RegisterMutatorFunc
 	bp2buildPreArch, bp2buildDeps, bp2buildMutators []RegisterMutatorFunc
 	NameResolver                                    *NameResolver
+
+	// The order in which the mutators will be run in this test context; for debugging.
+	mutatorOrder []string
 }
 
 func (ctx *TestContext) PreArchMutators(f RegisterMutatorFunc) {
@@ -140,11 +144,214 @@ func (ctx *TestContext) DepsBp2BuildMutators(f RegisterMutatorFunc) {
 	ctx.bp2buildDeps = append(ctx.bp2buildDeps, f)
 }
 
+// registeredComponentOrder defines the order in which a sortableComponent type is registered at
+// runtime and provides support for reordering the components registered for a test in the same
+// way.
+type registeredComponentOrder struct {
+	// The name of the component type, used for error messages.
+	componentType string
+
+	// The names of the registered components in the order in which they were registered.
+	namesInOrder []string
+
+	// Maps from the component name to its position in the runtime ordering.
+	namesToIndex map[string]int
+
+	// A function that defines the order between two named components that can be used to sort a slice
+	// of component names into the same order as they appear in namesInOrder.
+	less func(string, string) bool
+}
+
+// registeredComponentOrderFromExistingOrder takes an existing slice of sortableComponents and
+// creates a registeredComponentOrder that contains a less function that can be used to sort a
+// subset of that list of names so it is in the same order as the original sortableComponents.
+func registeredComponentOrderFromExistingOrder(componentType string, existingOrder sortableComponents) registeredComponentOrder {
+	// Only the names from the existing order are needed for this so create a list of component names
+	// in the correct order.
+	namesInOrder := componentsToNames(existingOrder)
+
+	// Populate the map from name to position in the list.
+	nameToIndex := make(map[string]int)
+	for i, n := range namesInOrder {
+		nameToIndex[n] = i
+	}
+
+	// A function to use to map from a name to an index in the original order.
+	indexOf := func(name string) int {
+		index, ok := nameToIndex[name]
+		if !ok {
+			// Should never happen as tests that use components that are not known at runtime do not sort
+			// so should never use this function.
+			panic(fmt.Errorf("internal error: unknown %s %q should be one of %s", componentType, name, strings.Join(namesInOrder, ", ")))
+		}
+		return index
+	}
+
+	// The less function.
+	less := func(n1, n2 string) bool {
+		i1 := indexOf(n1)
+		i2 := indexOf(n2)
+		return i1 < i2
+	}
+
+	return registeredComponentOrder{
+		componentType: componentType,
+		namesInOrder:  namesInOrder,
+		namesToIndex:  nameToIndex,
+		less:          less,
+	}
+}
+
+// componentsToNames maps from the slice of components to a slice of their names.
+func componentsToNames(components sortableComponents) []string {
+	names := make([]string, len(components))
+	for i, c := range components {
+		names[i] = c.componentName()
+	}
+	return names
+}
+
+// enforceOrdering enforces the supplied components are in the same order as is defined in this
+// object.
+//
+// If the supplied components contains any components that are not registered at runtime, i.e. test
+// specific components, then it is impossible to sort them into an order that both matches the
+// runtime and also preserves the implicit ordering defined in the test. In that case it will not
+// sort the components, instead it will just check that the components are in the correct order.
+//
+// Otherwise, this will sort the supplied components in place.
+func (o *registeredComponentOrder) enforceOrdering(components sortableComponents) {
+	// Check to see if the list of components contains any components that are
+	// not registered at runtime.
+	var unknownComponents []string
+	testOrder := componentsToNames(components)
+	for _, name := range testOrder {
+		if _, ok := o.namesToIndex[name]; !ok {
+			unknownComponents = append(unknownComponents, name)
+			break
+		}
+	}
+
+	// If the slice contains some unknown components then it is not possible to
+	// sort them into an order that matches the runtime while also preserving the
+	// order expected from the test, so in that case don't sort just check that
+	// the order of the known mutators does match.
+	if len(unknownComponents) > 0 {
+		// Check order.
+		o.checkTestOrder(testOrder, unknownComponents)
+	} else {
+		// Sort the components.
+		sort.Slice(components, func(i, j int) bool {
+			n1 := components[i].componentName()
+			n2 := components[j].componentName()
+			return o.less(n1, n2)
+		})
+	}
+}
+
+// checkTestOrder checks that the supplied testOrder matches the one defined by this object,
+// panicking if it does not.
+func (o *registeredComponentOrder) checkTestOrder(testOrder []string, unknownComponents []string) {
+	lastMatchingTest := -1
+	matchCount := 0
+	// Take a copy of the runtime order as it is modified during the comparison.
+	runtimeOrder := append([]string(nil), o.namesInOrder...)
+	componentType := o.componentType
+	for i, j := 0, 0; i < len(testOrder) && j < len(runtimeOrder); {
+		test := testOrder[i]
+		runtime := runtimeOrder[j]
+
+		if test == runtime {
+			testOrder[i] = test + fmt.Sprintf(" <-- matched with runtime %s %d", componentType, j)
+			runtimeOrder[j] = runtime + fmt.Sprintf(" <-- matched with test %s %d", componentType, i)
+			lastMatchingTest = i
+			i += 1
+			j += 1
+			matchCount += 1
+		} else if _, ok := o.namesToIndex[test]; !ok {
+			// The test component is not registered globally so assume it is the correct place, treat it
+			// as having matched and skip it.
+			i += 1
+			matchCount += 1
+		} else {
+			// Assume that the test list is in the same order as the runtime list but the runtime list
+			// contains some components that are not present in the tests. So, skip the runtime component
+			// to try and find the next one that matches the current test component.
+			j += 1
+		}
+	}
+
+	// If every item in the test order was either test specific or matched one in the runtime then
+	// it is in the correct order. Otherwise, it was not so fail.
+	if matchCount != len(testOrder) {
+		// The test component names were not all matched with a runtime component name so there must
+		// either be a component present in the test that is not present in the runtime or they must be
+		// in the wrong order.
+		testOrder[lastMatchingTest+1] = testOrder[lastMatchingTest+1] + " <--- unmatched"
+		panic(fmt.Errorf("the tests uses test specific components %q and so cannot be automatically sorted."+
+			" Unfortunately it uses %s components in the wrong order.\n"+
+			"test order:\n    %s\n"+
+			"runtime order\n    %s\n",
+			SortedUniqueStrings(unknownComponents),
+			componentType,
+			strings.Join(testOrder, "\n    "),
+			strings.Join(runtimeOrder, "\n    ")))
+	}
+}
+
+// registrationSorter encapsulates the information needed to ensure that the test mutators are
+// registered, and thereby executed, in the same order as they are at runtime.
+//
+// It MUST be populated lazily AFTER all package initialization has been done otherwise it will
+// only define the order for a subset of all the registered build components that are available for
+// the packages being tested.
+//
+// e.g if this is initialized during say the cc package initialization then any tests run in the
+// java package will not sort build components registered by the java package's init() functions.
+type registrationSorter struct {
+	// Used to ensure that this is only created once.
+	once sync.Once
+
+	// The order of mutators
+	mutatorOrder registeredComponentOrder
+}
+
+// populate initializes this structure from globally registered build components.
+//
+// Only the first call has any effect.
+func (s *registrationSorter) populate() {
+	s.once.Do(func() {
+		// Created an ordering from the globally registered mutators.
+		globallyRegisteredMutators := collateGloballyRegisteredMutators()
+		s.mutatorOrder = registeredComponentOrderFromExistingOrder("mutator", globallyRegisteredMutators)
+	})
+}
+
+// Provides support for enforcing the same order in which build components are registered globally
+// to the order in which they are registered during tests.
+//
+// MUST only be accessed via the globallyRegisteredComponentsOrder func.
+var globalRegistrationSorter registrationSorter
+
+// globallyRegisteredComponentsOrder returns the globalRegistrationSorter after ensuring it is
+// correctly populated.
+func globallyRegisteredComponentsOrder() *registrationSorter {
+	globalRegistrationSorter.populate()
+	return &globalRegistrationSorter
+}
+
 func (ctx *TestContext) Register() {
+	globalOrder := globallyRegisteredComponentsOrder()
+
 	mutators := collateRegisteredMutators(ctx.preArch, ctx.preDeps, ctx.postDeps, ctx.finalDeps)
+	// Ensure that the mutators used in the test are in the same order as they are used at runtime.
+	globalOrder.mutatorOrder.enforceOrdering(mutators)
 	mutators.registerAll(ctx.Context)
 
 	ctx.RegisterSingletonType("env", EnvSingleton)
+
+	// Save the mutator order away to make it easy to access while debugging.
+	ctx.mutatorOrder = globalOrder.mutatorOrder.namesInOrder
 }
 
 // RegisterForBazelConversion prepares a test context for bp2build conversion.
