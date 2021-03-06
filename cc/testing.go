@@ -20,8 +20,6 @@ import (
 )
 
 func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
-	// Genrule components must be registered before anything from cc to match runtime behavior.
-	genrule.RegisterGenruleBuildComponents(ctx)
 	RegisterPrebuiltBuildComponents(ctx)
 	RegisterCCBuildComponents(ctx)
 	RegisterBinaryBuildComponents(ctx)
