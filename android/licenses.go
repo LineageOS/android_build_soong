@@ -51,7 +51,7 @@ type applicableLicensesPropertyImpl struct {
 
 func newApplicableLicensesProperty(name string, licensesProperty *[]string) applicableLicensesProperty {
 	return applicableLicensesPropertyImpl{
-		name: name,
+		name:             name,
 		licensesProperty: licensesProperty,
 	}
 }
