@@ -19,7 +19,7 @@ import (
 )
 
 type licenseKindDependencyTag struct {
-        blueprint.BaseDependencyTag
+	blueprint.BaseDependencyTag
 }
 
 var (

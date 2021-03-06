@@ -5315,7 +5315,7 @@ func TestApexAvailable_DirectDep(t *testing.T) {
 
 func TestApexAvailable_IndirectDep(t *testing.T) {
 	// libbbaz is an indirect dep
-	testApexError(t, `requires "libbaz" that doesn't list the APEX under 'apex_available'. Dependency path:
+	testApexError(t, `requires "libbaz" that doesn't list the APEX under 'apex_available'.\n\nDependency path:
 .*via tag apex\.dependencyTag.*name:sharedLib.*
 .*-> libfoo.*link:shared.*
 .*via tag cc\.libraryDependencyTag.*Kind:sharedLibraryDependency.*
