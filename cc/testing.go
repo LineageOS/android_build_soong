@@ -592,6 +592,7 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 
 func CreateTestContext(config android.Config) *android.TestContext {
 	ctx := android.NewTestArchContext(config)
+	genrule.RegisterGenruleBuildComponents(ctx)
 	ctx.RegisterModuleType("cc_fuzz", FuzzFactory)
 	ctx.RegisterModuleType("cc_test", TestFactory)
 	ctx.RegisterModuleType("cc_test_library", TestLibraryFactory)
