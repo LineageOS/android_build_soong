@@ -32,9 +32,9 @@ func TestFixtureDedup(t *testing.T) {
 	preparer3 := appendToList("preparer3")
 	preparer4 := appendToList("preparer4")
 
-	preparer1Then2 := FixturePreparers(preparer1, preparer2)
+	preparer1Then2 := GroupFixturePreparers(preparer1, preparer2)
 
-	preparer2Then1 := FixturePreparers(preparer2, preparer1)
+	preparer2Then1 := GroupFixturePreparers(preparer2, preparer1)
 
 	buildDir := "build"
 	factory := NewFixtureFactory(&buildDir, preparer1, preparer2, preparer1, preparer1Then2)

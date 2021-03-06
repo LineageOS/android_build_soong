@@ -61,15 +61,15 @@ import (
 // register module bar twice:
 //   var Preparer1 = FixtureRegisterWithContext(RegisterModuleFooAndBar)
 //   var Preparer2 = FixtureRegisterWithContext(RegisterModuleBarAndBaz)
-//   var AllPreparers = FixturePreparers(Preparer1, Preparer2)
+//   var AllPreparers = GroupFixturePreparers(Preparer1, Preparer2)
 //
 // However, when restructured like this it would work fine:
 //   var PreparerFoo = FixtureRegisterWithContext(RegisterModuleFoo)
 //   var PreparerBar = FixtureRegisterWithContext(RegisterModuleBar)
 //   var PreparerBaz = FixtureRegisterWithContext(RegisterModuleBaz)
-//   var Preparer1 = FixturePreparers(RegisterModuleFoo, RegisterModuleBar)
-//   var Preparer2 = FixturePreparers(RegisterModuleBar, RegisterModuleBaz)
-//   var AllPreparers = FixturePreparers(Preparer1, Preparer2)
+//   var Preparer1 = GroupFixturePreparers(RegisterModuleFoo, RegisterModuleBar)
+//   var Preparer2 = GroupFixturePreparers(RegisterModuleBar, RegisterModuleBaz)
+//   var AllPreparers = GroupFixturePreparers(Preparer1, Preparer2)
 //
 // As after deduping and flattening AllPreparers would result in the following preparers being
 // applied:
@@ -109,7 +109,7 @@ import (
 // An exported preparer for use by other packages that need to use java modules.
 //
 // package java
-// var PrepareForIntegrationTestWithJava = FixturePreparers(
+// var PrepareForIntegrationTestWithJava = GroupFixturePreparers(
 //    android.PrepareForIntegrationTestWithAndroid,
 //    FixtureRegisterWithContext(RegisterAGroupOfRelatedModulesMutatorsAndSingletons),
 //    FixtureRegisterWithContext(RegisterAnotherGroupOfRelatedModulesMutatorsAndSingletons),
@@ -144,7 +144,7 @@ import (
 // }
 //
 // package cc
-// var PrepareForTestWithCC = FixturePreparers(
+// var PrepareForTestWithCC = GroupFixturePreparers(
 //    android.PrepareForArchMutator,
 //	  android.prepareForPrebuilts,
 //    FixtureRegisterWithContext(RegisterRequiredBuildComponentsForTest),
@@ -153,7 +153,7 @@ import (
 //
 // package apex
 //
-// var PrepareForApex = FixturePreparers(
+// var PrepareForApex = GroupFixturePreparers(
 //    ...
 // )
 //
@@ -285,9 +285,12 @@ func FixtureWithRootAndroidBp(contents string) FixturePreparer {
 	return FixtureAddTextFile("Android.bp", contents)
 }
 
-// Create a composite FixturePreparer that is equivalent to applying each of the supplied
-// FixturePreparer instances in order.
-func FixturePreparers(preparers ...FixturePreparer) FixturePreparer {
+// GroupFixturePreparers creates a composite FixturePreparer that is equivalent to applying each of
+// the supplied FixturePreparer instances in order.
+//
+// Before preparing the fixture the list of preparers is flattened by replacing each
+// instance of GroupFixturePreparers with its contents.
+func GroupFixturePreparers(preparers ...FixturePreparer) FixturePreparer {
 	return &compositeFixturePreparer{dedupAndFlattenPreparers(nil, preparers)}
 }
 
