@@ -61,15 +61,15 @@ import (
 // register module bar twice:
 //   var Preparer1 = FixtureRegisterWithContext(RegisterModuleFooAndBar)
 //   var Preparer2 = FixtureRegisterWithContext(RegisterModuleBarAndBaz)
-//   var AllPreparers = FixturePreparers(Preparer1, Preparer2)
+//   var AllPreparers = GroupFixturePreparers(Preparer1, Preparer2)
 //
 // However, when restructured like this it would work fine:
 //   var PreparerFoo = FixtureRegisterWithContext(RegisterModuleFoo)
 //   var PreparerBar = FixtureRegisterWithContext(RegisterModuleBar)
 //   var PreparerBaz = FixtureRegisterWithContext(RegisterModuleBaz)
-//   var Preparer1 = FixturePreparers(RegisterModuleFoo, RegisterModuleBar)
-//   var Preparer2 = FixturePreparers(RegisterModuleBar, RegisterModuleBaz)
-//   var AllPreparers = FixturePreparers(Preparer1, Preparer2)
+//   var Preparer1 = GroupFixturePreparers(RegisterModuleFoo, RegisterModuleBar)
+//   var Preparer2 = GroupFixturePreparers(RegisterModuleBar, RegisterModuleBaz)
+//   var AllPreparers = GroupFixturePreparers(Preparer1, Preparer2)
 //
 // As after deduping and flattening AllPreparers would result in the following preparers being
 // applied:
@@ -109,7 +109,7 @@ import (
 // An exported preparer for use by other packages that need to use java modules.
 //
 // package java
-// var PrepareForIntegrationTestWithJava = FixturePreparers(
+// var PrepareForIntegrationTestWithJava = GroupFixturePreparers(
 //    android.PrepareForIntegrationTestWithAndroid,
 //    FixtureRegisterWithContext(RegisterAGroupOfRelatedModulesMutatorsAndSingletons),
 //    FixtureRegisterWithContext(RegisterAnotherGroupOfRelatedModulesMutatorsAndSingletons),
@@ -144,7 +144,7 @@ import (
 // }
 //
 // package cc
-// var PrepareForTestWithCC = FixturePreparers(
+// var PrepareForTestWithCC = GroupFixturePreparers(
 //    android.PrepareForArchMutator,
 //	  android.prepareForPrebuilts,
 //    FixtureRegisterWithContext(RegisterRequiredBuildComponentsForTest),
@@ -153,7 +153,7 @@ import (
 //
 // package apex
 //
-// var PrepareForApex = FixturePreparers(
+// var PrepareForApex = GroupFixturePreparers(
 //    ...
 // )
 //
@@ -182,7 +182,8 @@ type FixtureFactory interface {
 	// Create a Fixture.
 	Fixture(t *testing.T, preparers ...FixturePreparer) Fixture
 
-	// Set the error handler that will be used to check any errors reported by the test.
+	// SetErrorHandler creates a new FixtureFactory that will use the supplied error handler to check
+	// the errors (may be 0) reported by the test.
 	//
 	// The default handlers is FixtureExpectsNoErrors which will fail the go test immediately if any
 	// errors are reported.
@@ -285,9 +286,12 @@ func FixtureWithRootAndroidBp(contents string) FixturePreparer {
 	return FixtureAddTextFile("Android.bp", contents)
 }
 
-// Create a composite FixturePreparer that is equivalent to applying each of the supplied
-// FixturePreparer instances in order.
-func FixturePreparers(preparers ...FixturePreparer) FixturePreparer {
+// GroupFixturePreparers creates a composite FixturePreparer that is equivalent to applying each of
+// the supplied FixturePreparer instances in order.
+//
+// Before preparing the fixture the list of preparers is flattened by replacing each
+// instance of GroupFixturePreparers with its contents.
+func GroupFixturePreparers(preparers ...FixturePreparer) FixturePreparer {
 	return &compositeFixturePreparer{dedupAndFlattenPreparers(nil, preparers)}
 }
 
@@ -378,23 +382,28 @@ type FixtureErrorHandler interface {
 	// The supplied result can be used to access the state of the code under test just as the main
 	// body of the test would but if any errors other than ones expected are reported the state may
 	// be indeterminate.
-	CheckErrors(result *TestResult, errs []error)
+	CheckErrors(result *TestResult)
 }
 
 type simpleErrorHandler struct {
-	function func(result *TestResult, errs []error)
+	function func(result *TestResult)
 }
 
-func (h simpleErrorHandler) CheckErrors(result *TestResult, errs []error) {
-	h.function(result, errs)
+func (h simpleErrorHandler) CheckErrors(result *TestResult) {
+	result.Helper()
+	h.function(result)
 }
 
 // The default fixture error handler.
 //
 // Will fail the test immediately if any errors are reported.
+//
+// If the test fails this handler will call `result.FailNow()` which will exit the goroutine within
+// which the test is being run which means that the RunTest() method will not return.
 var FixtureExpectsNoErrors = FixtureCustomErrorHandler(
-	func(result *TestResult, errs []error) {
-		FailIfErrored(result.T, errs)
+	func(result *TestResult) {
+		result.Helper()
+		FailIfErrored(result.T, result.Errs)
 	},
 )
 
@@ -407,9 +416,15 @@ var FixtureExpectsNoErrors = FixtureCustomErrorHandler(
 //
 // The test will not fail if:
 // * Multiple errors are reported that do not match the pattern as long as one does match.
+//
+// If the test fails this handler will call `result.FailNow()` which will exit the goroutine within
+// which the test is being run which means that the RunTest() method will not return.
 func FixtureExpectsAtLeastOneErrorMatchingPattern(pattern string) FixtureErrorHandler {
-	return FixtureCustomErrorHandler(func(result *TestResult, errs []error) {
-		FailIfNoMatchingErrors(result.T, pattern, errs)
+	return FixtureCustomErrorHandler(func(result *TestResult) {
+		result.Helper()
+		if !FailIfNoMatchingErrors(result.T, pattern, result.Errs) {
+			result.FailNow()
+		}
 	})
 }
 
@@ -423,14 +438,18 @@ func FixtureExpectsAtLeastOneErrorMatchingPattern(pattern string) FixtureErrorHa
 //
 // The test will not fail if:
 // * One or more of the patterns does not match an error.
+//
+// If the test fails this handler will call `result.FailNow()` which will exit the goroutine within
+// which the test is being run which means that the RunTest() method will not return.
 func FixtureExpectsAllErrorsToMatchAPattern(patterns []string) FixtureErrorHandler {
-	return FixtureCustomErrorHandler(func(result *TestResult, errs []error) {
-		CheckErrorsAgainstExpectations(result.T, errs, patterns)
+	return FixtureCustomErrorHandler(func(result *TestResult) {
+		result.Helper()
+		CheckErrorsAgainstExpectations(result.T, result.Errs, patterns)
 	})
 }
 
 // FixtureCustomErrorHandler creates a custom error handler
-func FixtureCustomErrorHandler(function func(result *TestResult, errs []error)) FixtureErrorHandler {
+func FixtureCustomErrorHandler(function func(result *TestResult)) FixtureErrorHandler {
 	return simpleErrorHandler{
 		function: function,
 	}
@@ -531,6 +550,9 @@ type TestResult struct {
 
 	fixture *fixture
 	Config  Config
+
+	// The errors that were reported during the test.
+	Errs []error
 }
 
 var _ FixtureFactory = (*fixtureFactory)(nil)
@@ -575,8 +597,10 @@ func (f *fixtureFactory) Fixture(t *testing.T, preparers ...FixturePreparer) Fix
 }
 
 func (f *fixtureFactory) SetErrorHandler(errorHandler FixtureErrorHandler) FixtureFactory {
-	f.errorHandler = errorHandler
-	return f
+	newFactory := &fixtureFactory{}
+	*newFactory = *f
+	newFactory.errorHandler = errorHandler
+	return newFactory
 }
 
 func (f *fixtureFactory) RunTest(t *testing.T, preparers ...FixturePreparer) *TestResult {
@@ -639,9 +663,10 @@ func (f *fixture) RunTest() *TestResult {
 		testContext: testContext{ctx},
 		fixture:     f,
 		Config:      f.config,
+		Errs:        errs,
 	}
 
-	f.errorHandler.CheckErrors(result, errs)
+	f.errorHandler.CheckErrors(result)
 
 	return result
 }

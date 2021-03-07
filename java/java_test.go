@@ -25,6 +25,7 @@ import (
 	"strings"
 	"testing"
 
+	"android/soong/genrule"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -78,6 +79,8 @@ func testContext(config android.Config) *android.TestContext {
 	ctx.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
 
 	android.RegisterPrebuiltMutators(ctx)
+
+	genrule.RegisterGenruleBuildComponents(ctx)
 
 	// Register module types and mutators from cc needed for JNI testing
 	cc.RegisterRequiredBuildComponentsForTest(ctx)

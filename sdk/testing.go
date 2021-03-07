@@ -26,6 +26,7 @@ import (
 	"android/soong/android"
 	"android/soong/apex"
 	"android/soong/cc"
+	"android/soong/genrule"
 	"android/soong/java"
 )
 
@@ -108,6 +109,9 @@ func testSdkContext(bp string, fs map[string][]byte, extraOsTypes []android.OsTy
 
 	// from java package
 	java.RegisterRequiredBuildComponentsForTest(ctx)
+
+	// from genrule package
+	genrule.RegisterGenruleBuildComponents(ctx)
 
 	// from cc package
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
