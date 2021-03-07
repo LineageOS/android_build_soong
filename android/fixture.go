@@ -581,6 +581,16 @@ func (h *TestHelper) AssertStringDoesNotContain(message string, s string, unexpe
 	}
 }
 
+// AssertStringListContains checks if the list of strings contains the expected string. If it does
+// not then it reports an error prefixed with the supplied message and including a reason for why it
+// failed.
+func (h *TestHelper) AssertStringListContains(message string, list []string, expected string) {
+	h.Helper()
+	if !InList(expected, list) {
+		h.Errorf("%s: could not find %q within %q", message, expected, list)
+	}
+}
+
 // AssertArrayString checks if the expected and actual values are equal and if they are not then it
 // reports an error prefixed with the supplied message and including a reason for why it failed.
 func (h *TestHelper) AssertArrayString(message string, expected, actual []string) {
