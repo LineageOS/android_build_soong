@@ -48,7 +48,7 @@ func NewTestContext(config Config) *TestContext {
 	return ctx
 }
 
-var PrepareForTestWithArchMutator = FixturePreparers(
+var PrepareForTestWithArchMutator = GroupFixturePreparers(
 	// Configure architecture targets in the fixture config.
 	FixtureModifyConfig(modifyTestConfigToSupportArchMutator),
 
@@ -73,7 +73,7 @@ var PrepareForTestWithOverrides = FixtureRegisterWithContext(func(ctx Registrati
 })
 
 // Prepares an integration test with build components from the android package.
-var PrepareForIntegrationTestWithAndroid = FixturePreparers(
+var PrepareForIntegrationTestWithAndroid = GroupFixturePreparers(
 	// Mutators. Must match order in mutator.go.
 	PrepareForTestWithArchMutator,
 	PrepareForTestWithDefaults,
@@ -456,12 +456,15 @@ func FailIfErrored(t *testing.T, errs []error) {
 	}
 }
 
-func FailIfNoMatchingErrors(t *testing.T, pattern string, errs []error) {
+// Fail if no errors that matched the regular expression were found.
+//
+// Returns true if a matching error was found, false otherwise.
+func FailIfNoMatchingErrors(t *testing.T, pattern string, errs []error) bool {
 	t.Helper()
 
 	matcher, err := regexp.Compile(pattern)
 	if err != nil {
-		t.Errorf("failed to compile regular expression %q because %s", pattern, err)
+		t.Fatalf("failed to compile regular expression %q because %s", pattern, err)
 	}
 
 	found := false
@@ -477,6 +480,8 @@ func FailIfNoMatchingErrors(t *testing.T, pattern string, errs []error) {
 			t.Errorf("errs[%d] = %q", i, err)
 		}
 	}
+
+	return found
 }
 
 func CheckErrorsAgainstExpectations(t *testing.T, errs []error, expectedErrorPatterns []string) {
@@ -497,9 +502,9 @@ func CheckErrorsAgainstExpectations(t *testing.T, errs []error, expectedErrorPat
 			for i, err := range errs {
 				t.Errorf("errs[%d] = %s", i, err)
 			}
+			t.FailNow()
 		}
 	}
-
 }
 
 func SetKatiEnabledForTests(config Config) {
