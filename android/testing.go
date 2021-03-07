@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 func NewTestContext(config Config) *TestContext {
@@ -103,6 +104,17 @@ var PrepareForTestWithAndroidBuildComponents = GroupFixturePreparers(
 // This should only be used by tests that want to run with as much of the build enabled as possible.
 var PrepareForIntegrationTestWithAndroid = GroupFixturePreparers(
 	PrepareForTestWithAndroidBuildComponents,
+)
+
+// Prepares a test that may be missing dependencies by setting allow_missing_dependencies to
+// true.
+var PrepareForTestWithAllowMissingDependencies = GroupFixturePreparers(
+	FixtureModifyProductVariables(func(variables FixtureProductVariables) {
+		variables.Allow_missing_dependencies = proptools.BoolPtr(true)
+	}),
+	FixtureModifyContext(func(ctx *TestContext) {
+		ctx.SetAllowMissingDependencies(true)
+	}),
 )
 
 func NewTestArchContext(config Config) *TestContext {
