@@ -75,15 +75,16 @@ var PrepareForTestWithOverrides = FixtureRegisterWithContext(func(ctx Registrati
 
 // Prepares an integration test with build components from the android package.
 var PrepareForIntegrationTestWithAndroid = GroupFixturePreparers(
-	// Mutators. Must match order in mutator.go.
+	// Sorted alphabetically as the actual order does not matter as tests automatically enforce the
+	// correct order.
 	PrepareForTestWithArchMutator,
-	PrepareForTestWithDefaults,
 	PrepareForTestWithComponentsMutator,
-	PrepareForTestWithPrebuilts,
-	PrepareForTestWithOverrides,
-
-	// Modules
+	PrepareForTestWithDefaults,
 	PrepareForTestWithFilegroup,
+	PrepareForTestWithOverrides,
+	PrepareForTestWithPackageModule,
+	PrepareForTestWithPrebuilts,
+	PrepareForTestWithVisibility,
 )
 
 func NewTestArchContext(config Config) *TestContext {
