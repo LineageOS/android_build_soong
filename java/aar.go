@@ -805,14 +805,6 @@ func (a *AARImport) HeaderJars() android.Paths {
 	return android.Paths{a.classpathFile}
 }
 
-func (a *AARImport) ImplementationJars() android.Paths {
-	return android.Paths{a.classpathFile}
-}
-
-func (a *AARImport) ResourceJars() android.Paths {
-	return nil
-}
-
 func (a *AARImport) ImplementationAndResourcesJars() android.Paths {
 	return android.Paths{a.classpathFile}
 }
@@ -825,20 +817,8 @@ func (a *AARImport) DexJarInstallPath() android.Path {
 	return nil
 }
 
-func (a *AARImport) AidlIncludeDirs() android.Paths {
-	return nil
-}
-
 func (a *AARImport) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
 	return nil
-}
-
-func (d *AARImport) ExportedPlugins() (android.Paths, []string, bool) {
-	return nil, nil, false
-}
-
-func (a *AARImport) SrcJarArgs() ([]string, android.Paths) {
-	return nil, nil
 }
 
 var _ android.ApexModule = (*AARImport)(nil)

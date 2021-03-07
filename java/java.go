@@ -2046,13 +2046,6 @@ func (j *Module) DexJarInstallPath() android.Path {
 	return j.installFile
 }
 
-func (j *Module) ResourceJars() android.Paths {
-	if j.resourceJar == nil {
-		return nil
-	}
-	return android.Paths{j.resourceJar}
-}
-
 func (j *Module) ImplementationAndResourcesJars() android.Paths {
 	if j.implementationAndResourcesJar == nil {
 		return nil
@@ -2067,17 +2060,6 @@ func (j *Module) AidlIncludeDirs() android.Paths {
 
 func (j *Module) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
 	return j.classLoaderContexts
-}
-
-// ExportedPlugins returns the list of jars needed to run the exported plugins, the list of
-// classes for the plugins, and a boolean for whether turbine needs to be disabled due to plugins
-// that generate APIs.
-func (j *Module) ExportedPlugins() (android.Paths, []string, bool) {
-	return j.exportedPluginJars, j.exportedPluginClasses, j.exportedDisableTurbine
-}
-
-func (j *Module) SrcJarArgs() ([]string, android.Paths) {
-	return j.srcJarArgs, j.srcJarDeps
 }
 
 var _ logtagsProducer = (*Module)(nil)
@@ -2515,6 +2497,11 @@ func (j *TestHost) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if j.testProperties.Test_options.Unit_test == nil && ctx.Host() {
+		// TODO(b/): Clean temporary heuristic to avoid unexpected onboarding.
+		defaultUnitTest := !inList("tradefed", j.properties.Static_libs) && !inList("tradefed", j.properties.Libs) && !inList("cts", j.testProperties.Test_suites) && !inList("robolectric-host-android_all", j.properties.Static_libs) && !inList("robolectric-host-android_all", j.properties.Libs)
+		j.testProperties.Test_options.Unit_test = proptools.BoolPtr(defaultUnitTest)
+	}
 	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config, j.testProperties.Test_config_template,
 		j.testProperties.Test_suites, j.testProperties.Auto_gen_config, j.testProperties.Test_options.Unit_test)
 
@@ -2675,6 +2662,7 @@ func TestHostFactory() android.Module {
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	InitJavaModuleMultiTargets(module, android.HostSupported)
+
 	return module
 }
 
@@ -3046,17 +3034,6 @@ func (j *Import) HeaderJars() android.Paths {
 	return android.Paths{j.combinedClasspathFile}
 }
 
-func (j *Import) ImplementationJars() android.Paths {
-	if j.combinedClasspathFile == nil {
-		return nil
-	}
-	return android.Paths{j.combinedClasspathFile}
-}
-
-func (j *Import) ResourceJars() android.Paths {
-	return nil
-}
-
 func (j *Import) ImplementationAndResourcesJars() android.Paths {
 	if j.combinedClasspathFile == nil {
 		return nil
@@ -3072,20 +3049,8 @@ func (j *Import) DexJarInstallPath() android.Path {
 	return nil
 }
 
-func (j *Import) AidlIncludeDirs() android.Paths {
-	return j.exportAidlIncludeDirs
-}
-
 func (j *Import) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
 	return j.classLoaderContexts
-}
-
-func (j *Import) ExportedPlugins() (android.Paths, []string, bool) {
-	return nil, nil, false
-}
-
-func (j *Import) SrcJarArgs() ([]string, android.Paths) {
-	return nil, nil
 }
 
 var _ android.ApexModule = (*Import)(nil)

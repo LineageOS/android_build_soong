@@ -17,6 +17,7 @@ package rust
 import (
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/genrule"
 )
 
 func GatherRequiredDepsForTest() string {
@@ -211,6 +212,7 @@ func CreateTestContext(config android.Config) *android.TestContext {
 	ctx := android.NewTestArchContext(config)
 	android.RegisterPrebuiltMutators(ctx)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
+	genrule.RegisterGenruleBuildComponents(ctx)
 	cc.RegisterRequiredBuildComponentsForTest(ctx)
 	RegisterRequiredBuildComponentsForTest(ctx)
 
