@@ -67,10 +67,14 @@ func generateBuildActionsForBazelConversion(ctx SingletonContext, converterMode 
 		blueprint.RuleParams{
 			Command: fmt.Sprintf(
 				"rm -rf ${outDir}/* && "+
-					"%s --bazel_queryview_dir ${outDir} %s && "+
+					"BUILDER=\"%s\" && "+
+					"cd $$(dirname \"$$BUILDER\") && "+
+					"ABSBUILDER=\"$$PWD/$$(basename \"$$BUILDER\")\" && "+
+					"cd / && "+
+					"env -i \"$$ABSBUILDER\" --bazel_queryview_dir ${outDir} \"%s\" && "+
 					"echo WORKSPACE: `cat %s` > ${outDir}/.queryview-depfile.d",
 				primaryBuilder.String(),
-				strings.Join(os.Args[1:], " "),
+				strings.Join(os.Args[1:], "\" \""),
 				moduleListFilePath.String(), // Use the contents of Android.bp.list as the depfile.
 			),
 			CommandDeps: []string{primaryBuilder.String()},
