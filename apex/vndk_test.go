@@ -48,9 +48,11 @@ func TestVndkApexForVndkLite(t *testing.T) {
 			stl: "none",
 			apex_available: [ "com.android.vndk.current" ],
 		}
-	`+vndkLibrariesTxtFiles("current"), func(fs map[string][]byte, config android.Config) {
-		config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("")
-	})
+	`+vndkLibrariesTxtFiles("current"),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.DeviceVndkVersion = proptools.StringPtr("")
+		}),
+	)
 	// VNDK-Lite contains only core variants of VNDK-Sp libraries
 	ensureExactContents(t, ctx, "com.android.vndk.current", "android_common_image", []string{
 		"lib/libvndksp.so",
@@ -113,20 +115,24 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 	})
 
 	t.Run("VNDK APEX gathers only vendor variants even if product variants are available", func(t *testing.T) {
-		ctx := testApex(t, bp, func(fs map[string][]byte, config android.Config) {
-			// Now product variant is available
-			config.TestProductVariables.ProductVndkVersion = proptools.StringPtr("current")
-		})
+		ctx := testApex(t, bp,
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				// Now product variant is available
+				variables.ProductVndkVersion = proptools.StringPtr("current")
+			}),
+		)
 
 		files := getFiles(t, ctx, "com.android.vndk.current", "android_common_image")
 		ensureFileSrc(t, files, "lib/libfoo.so", "libfoo/android_vendor.VER_arm_armv7-a-neon_shared/libfoo.so")
 	})
 
 	t.Run("VNDK APEX supports coverage variants", func(t *testing.T) {
-		ctx := testApex(t, bp, func(fs map[string][]byte, config android.Config) {
-			config.TestProductVariables.GcovCoverage = proptools.BoolPtr(true)
-			config.TestProductVariables.Native_coverage = proptools.BoolPtr(true)
-		})
+		ctx := testApex(t, bp,
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.GcovCoverage = proptools.BoolPtr(true)
+				variables.Native_coverage = proptools.BoolPtr(true)
+			}),
+		)
 
 		files := getFiles(t, ctx, "com.android.vndk.current", "android_common_image")
 		ensureFileSrc(t, files, "lib/libfoo.so", "libfoo/android_vendor.VER_arm_armv7-a-neon_shared/libfoo.so")
