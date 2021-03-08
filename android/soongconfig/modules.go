@@ -295,18 +295,25 @@ func createAffectablePropertiesType(affectableProperties []string, factoryProps 
 	recurse = func(prefix string, aps []string) ([]string, reflect.Type) {
 		var fields []reflect.StructField
 
+		// Iterate while the list is non-empty so it can be modified in the loop.
 		for len(affectableProperties) > 0 {
 			p := affectableProperties[0]
 			if !strings.HasPrefix(affectableProperties[0], prefix) {
+				// The properties are sorted and recurse is always called with a prefix that matches
+				// the first property in the list, so if we've reached one that doesn't match the
+				// prefix we are done with this prefix.
 				break
 			}
-			affectableProperties = affectableProperties[1:]
 
 			nestedProperty := strings.TrimPrefix(p, prefix)
 			if i := strings.IndexRune(nestedProperty, '.'); i >= 0 {
 				var nestedType reflect.Type
 				nestedPrefix := nestedProperty[:i+1]
 
+				// Recurse to handle the properties with the found prefix.  This will return
+				// an updated affectableProperties with the handled entries removed from the front
+				// of the list, and the type that contains the handled entries.  The type may be
+				// nil if none of the entries matched factoryProps.
 				affectableProperties, nestedType = recurse(prefix+nestedPrefix, affectableProperties)
 
 				if nestedType != nil {
@@ -325,6 +332,8 @@ func createAffectablePropertiesType(affectableProperties []string, factoryProps 
 						Type: typ,
 					})
 				}
+				// The first element in the list has been handled, remove it from the list.
+				affectableProperties = affectableProperties[1:]
 			}
 		}
 
