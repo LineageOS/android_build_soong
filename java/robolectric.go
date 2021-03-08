@@ -31,12 +31,14 @@ func init() {
 }
 
 var robolectricDefaultLibs = []string{
-	"Robolectric_all-target",
 	"mockito-robolectric-prebuilt",
 	"truth-prebuilt",
 	// TODO(ccross): this is not needed at link time
 	"junitxml",
 }
+
+const robolectricCurrentLib = "Robolectric_all-target"
+const robolectricPrebuiltLibPattern = "platform-robolectric-%s-prebuilt"
 
 var (
 	roboCoverageLibsTag = dependencyTag{name: "roboCoverageLibs"}
@@ -57,6 +59,10 @@ type robolectricProperties struct {
 		// Number of shards to use when running the tests.
 		Shards *int64
 	}
+
+	// The version number of a robolectric prebuilt to use from prebuilts/misc/common/robolectric
+	// instead of the one built from source in external/robolectric-shadows.
+	Robolectric_prebuilt_version *string
 }
 
 type robolectricTest struct {
@@ -92,6 +98,12 @@ func (r *robolectricTest) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddVariationDependencies(nil, instrumentationForTag, String(r.robolectricProperties.Instrumentation_for))
 	} else {
 		ctx.PropertyErrorf("instrumentation_for", "missing required instrumented module")
+	}
+
+	if v := String(r.robolectricProperties.Robolectric_prebuilt_version); v != "" {
+		ctx.AddVariationDependencies(nil, libTag, fmt.Sprintf(robolectricPrebuiltLibPattern, v))
+	} else {
+		ctx.AddVariationDependencies(nil, libTag, robolectricCurrentLib)
 	}
 
 	ctx.AddVariationDependencies(nil, libTag, robolectricDefaultLibs...)
@@ -298,7 +310,11 @@ func (r *robolectricTest) writeTestRunner(w io.Writer, module, name string, test
 	if t := r.robolectricProperties.Test_options.Timeout; t != nil {
 		fmt.Fprintln(w, "LOCAL_ROBOTEST_TIMEOUT :=", *t)
 	}
-	fmt.Fprintln(w, "-include external/robolectric-shadows/run_robotests.mk")
+	if v := String(r.robolectricProperties.Robolectric_prebuilt_version); v != "" {
+		fmt.Fprintf(w, "-include prebuilts/misc/common/robolectric/%s/run_robotests.mk\n", v)
+	} else {
+		fmt.Fprintln(w, "-include external/robolectric-shadows/run_robotests.mk")
+	}
 }
 
 // An android_robolectric_test module compiles tests against the Robolectric framework that can run on the local host
