@@ -125,6 +125,7 @@ type pathMapping struct {
 type Module struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
+	android.BazelModuleBase
 
 	properties      BaseProperties
 	protoProperties android.ProtoProperties
