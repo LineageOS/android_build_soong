@@ -69,7 +69,14 @@ func RegisterMutatorsForBazelConversion(ctx *Context, preArchMutators, depsMutat
 	mctx.mutators.registerAll(ctx)
 }
 
-func registerMutators(ctx *Context, preArch, preDeps, postDeps, finalDeps []RegisterMutatorFunc) {
+// collateGloballyRegisteredMutators constructs the list of mutators that have been registered
+// with the InitRegistrationContext and will be used at runtime.
+func collateGloballyRegisteredMutators() sortableComponents {
+	return collateRegisteredMutators(preArch, preDeps, postDeps, finalDeps)
+}
+
+// collateRegisteredMutators constructs a single list of mutators from the separate lists.
+func collateRegisteredMutators(preArch, preDeps, postDeps, finalDeps []RegisterMutatorFunc) sortableComponents {
 	mctx := &registerMutatorsContext{}
 
 	register := func(funcs []RegisterMutatorFunc) {
@@ -89,7 +96,7 @@ func registerMutators(ctx *Context, preArch, preDeps, postDeps, finalDeps []Regi
 	mctx.finalPhase = true
 	register(finalDeps)
 
-	mctx.mutators.registerAll(ctx)
+	return mctx.mutators
 }
 
 type registerMutatorsContext struct {
