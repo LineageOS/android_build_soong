@@ -15,11 +15,6 @@
 package android
 
 import (
-	"fmt"
-	"os"
-	"strings"
-	"syscall"
-
 	"android/soong/shared"
 )
 
@@ -31,9 +26,6 @@ import (
 // a manifest regeneration.
 
 var originalEnv map[string]string
-var soongDelveListen string
-var soongDelvePath string
-var isDebugging bool
 
 func InitEnvironment(envFile string) {
 	var err error
@@ -41,51 +33,6 @@ func InitEnvironment(envFile string) {
 	if err != nil {
 		panic(err)
 	}
-
-	soongDelveListen = originalEnv["SOONG_DELVE"]
-	soongDelvePath = originalEnv["SOONG_DELVE_PATH"]
-}
-
-// Returns whether the current process is running under Delve due to
-// ReexecWithDelveMaybe().
-func IsDebugging() bool {
-	return isDebugging
-}
-func ReexecWithDelveMaybe() {
-	isDebugging = os.Getenv("SOONG_DELVE_REEXECUTED") == "true"
-	if isDebugging || soongDelveListen == "" {
-		return
-	}
-
-	if soongDelvePath == "" {
-		fmt.Fprintln(os.Stderr, "SOONG_DELVE is set but failed to find dlv")
-		os.Exit(1)
-	}
-
-	soongDelveEnv := []string{}
-	for _, env := range os.Environ() {
-		idx := strings.IndexRune(env, '=')
-		if idx != -1 {
-			soongDelveEnv = append(soongDelveEnv, env)
-		}
-	}
-
-	soongDelveEnv = append(soongDelveEnv, "SOONG_DELVE_REEXECUTED=true")
-
-	dlvArgv := []string{
-		soongDelvePath,
-		"--listen=:" + soongDelveListen,
-		"--headless=true",
-		"--api-version=2",
-		"exec",
-		os.Args[0],
-		"--",
-	}
-	dlvArgv = append(dlvArgv, os.Args[1:]...)
-	os.Chdir(absSrcDir)
-	syscall.Exec(soongDelvePath, dlvArgv, soongDelveEnv)
-	fmt.Fprintln(os.Stderr, "exec() failed while trying to reexec with Delve")
-	os.Exit(1)
 }
 
 func EnvSingleton() Singleton {
