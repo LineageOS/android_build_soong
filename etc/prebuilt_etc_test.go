@@ -49,58 +49,34 @@ func TestMain(m *testing.M) {
 	os.Exit(run())
 }
 
-func testPrebuiltEtcContext(t *testing.T, bp string) (*android.TestContext, android.Config) {
-	fs := map[string][]byte{
+var prebuiltEtcFixtureFactory = android.NewFixtureFactory(
+	&buildDir,
+	android.PrepareForTestWithArchMutator,
+	PrepareForTestWithPrebuiltEtc,
+	android.FixtureMergeMockFs(android.MockFS{
 		"foo.conf": nil,
 		"bar.conf": nil,
 		"baz.conf": nil,
-	}
+	}),
+)
 
-	config := android.TestArchConfig(buildDir, nil, bp, fs)
-
-	ctx := android.NewTestArchContext(config)
-	ctx.RegisterModuleType("prebuilt_etc", PrebuiltEtcFactory)
-	ctx.RegisterModuleType("prebuilt_etc_host", PrebuiltEtcHostFactory)
-	ctx.RegisterModuleType("prebuilt_usr_share", PrebuiltUserShareFactory)
-	ctx.RegisterModuleType("prebuilt_usr_share_host", PrebuiltUserShareHostFactory)
-	ctx.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
-	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
-	ctx.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
-	ctx.Register()
-
-	return ctx, config
-}
-
+// testPrebuiltEtc runs tests using the prebuiltEtcFixtureFactory
+//
+// Do not add any new usages of this, instead use the prebuiltEtcFixtureFactory directly as it
+// makes it much easier to customize the test behavior.
+//
+// If it is necessary to customize the behavior of an existing test that uses this then please first
+// convert the test to using prebuiltEtcFixtureFactory first and then in a following change add the
+// appropriate fixture preparers. Keeping the conversion change separate makes it easy to verify
+// that it did not change the test behavior unexpectedly.
+//
+// deprecated
 func testPrebuiltEtc(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	t.Helper()
-
-	ctx, config := testPrebuiltEtcContext(t, bp)
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
-
-	return ctx, config
+	result := prebuiltEtcFixtureFactory.RunTestWithBp(t, bp)
+	return result.TestContext, result.Config
 }
 
-func testPrebuiltEtcError(t *testing.T, pattern, bp string) {
-	t.Helper()
-
-	ctx, config := testPrebuiltEtcContext(t, bp)
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-
-	_, errs = ctx.PrepareBuildActions(config)
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-
-	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
-}
 func TestPrebuiltEtcVariants(t *testing.T) {
 	ctx, _ := testPrebuiltEtc(t, `
 		prebuilt_etc {
@@ -227,14 +203,16 @@ func TestPrebuiltEtcRelativeInstallPathInstallDirPath(t *testing.T) {
 }
 
 func TestPrebuiltEtcCannotSetRelativeInstallPathAndSubDir(t *testing.T) {
-	testPrebuiltEtcError(t, "relative_install_path is set. Cannot set sub_dir", `
-		prebuilt_etc {
-			name: "foo.conf",
-			src: "foo.conf",
-			sub_dir: "bar",
-			relative_install_path: "bar",
-		}
-	`)
+	prebuiltEtcFixtureFactory.
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern("relative_install_path is set. Cannot set sub_dir")).
+		RunTestWithBp(t, `
+			prebuilt_etc {
+				name: "foo.conf",
+				src: "foo.conf",
+				sub_dir: "bar",
+				relative_install_path: "bar",
+			}
+		`)
 }
 
 func TestPrebuiltEtcHost(t *testing.T) {
