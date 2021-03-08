@@ -188,7 +188,8 @@ func (ctx *Context) Register() {
 
 	singletons.registerAll(ctx)
 
-	registerMutators(ctx, preArch, preDeps, postDeps, finalDeps)
+	mutators := collateGloballyRegisteredMutators()
+	mutators.registerAll(ctx)
 
 	ctx.RegisterSingletonType("bazeldeps", SingletonFactoryAdaptor(ctx, BazelSingleton))
 
