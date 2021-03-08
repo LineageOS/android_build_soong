@@ -141,7 +141,8 @@ func (ctx *TestContext) DepsBp2BuildMutators(f RegisterMutatorFunc) {
 }
 
 func (ctx *TestContext) Register() {
-	registerMutators(ctx.Context, ctx.preArch, ctx.preDeps, ctx.postDeps, ctx.finalDeps)
+	mutators := collateRegisteredMutators(ctx.preArch, ctx.preDeps, ctx.postDeps, ctx.finalDeps)
+	mutators.registerAll(ctx.Context)
 
 	ctx.RegisterSingletonType("env", EnvSingleton)
 }
