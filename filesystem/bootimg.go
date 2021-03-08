@@ -153,7 +153,7 @@ func (b *bootimg) buildBootImage(ctx android.ModuleContext, vendor bool) android
 		if vendor {
 			flag = "--vendor_cmdline "
 		}
-		cmd.FlagWithArg(flag, "\""+proptools.ShellEscape(cmdline)+"\"")
+		cmd.FlagWithArg(flag, proptools.ShellEscapeIncludingSpaces(cmdline))
 	}
 
 	headerVersion := proptools.String(b.properties.Header_version)
