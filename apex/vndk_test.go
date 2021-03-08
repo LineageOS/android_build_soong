@@ -9,7 +9,7 @@ import (
 )
 
 func TestVndkApexForVndkLite(t *testing.T) {
-	ctx, _ := testApex(t, `
+	ctx := testApex(t, `
 		apex_vndk {
 			name: "com.android.vndk.current",
 			key: "com.android.vndk.current.key",
@@ -100,7 +100,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 	}
 
 	t.Run("VNDK lib doesn't have an apex variant", func(t *testing.T) {
-		ctx, _ := testApex(t, bp)
+		ctx := testApex(t, bp)
 
 		// libfoo doesn't have apex variants
 		for _, variant := range ctx.ModuleVariantsForTests("libfoo") {
@@ -113,7 +113,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 	})
 
 	t.Run("VNDK APEX gathers only vendor variants even if product variants are available", func(t *testing.T) {
-		ctx, _ := testApex(t, bp, func(fs map[string][]byte, config android.Config) {
+		ctx := testApex(t, bp, func(fs map[string][]byte, config android.Config) {
 			// Now product variant is available
 			config.TestProductVariables.ProductVndkVersion = proptools.StringPtr("current")
 		})
@@ -123,7 +123,7 @@ func TestVndkApexUsesVendorVariant(t *testing.T) {
 	})
 
 	t.Run("VNDK APEX supports coverage variants", func(t *testing.T) {
-		ctx, _ := testApex(t, bp, func(fs map[string][]byte, config android.Config) {
+		ctx := testApex(t, bp, func(fs map[string][]byte, config android.Config) {
 			config.TestProductVariables.GcovCoverage = proptools.BoolPtr(true)
 			config.TestProductVariables.Native_coverage = proptools.BoolPtr(true)
 		})
