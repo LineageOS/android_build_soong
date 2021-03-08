@@ -235,6 +235,44 @@ func Test_createAffectablePropertiesType(t *testing.T) {
 			}{},
 			want: "",
 		},
+		{
+			name:                 "nested",
+			affectableProperties: []string{"multilib.lib32.cflags"},
+			factoryProps: struct {
+				Multilib struct {
+					Lib32 struct {
+						Cflags string
+					}
+				}
+			}{},
+			want: "*struct { Multilib struct { Lib32 struct { Cflags string } } }",
+		},
+		{
+			name: "complex",
+			affectableProperties: []string{
+				"cflags",
+				"multilib.lib32.cflags",
+				"multilib.lib32.ldflags",
+				"multilib.lib64.cflags",
+				"multilib.lib64.ldflags",
+				"zflags",
+			},
+			factoryProps: struct {
+				Cflags   string
+				Multilib struct {
+					Lib32 struct {
+						Cflags  string
+						Ldflags string
+					}
+					Lib64 struct {
+						Cflags  string
+						Ldflags string
+					}
+				}
+				Zflags string
+			}{},
+			want: "*struct { Cflags string; Multilib struct { Lib32 struct { Cflags string; Ldflags string }; Lib64 struct { Cflags string; Ldflags string } }; Zflags string }",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
