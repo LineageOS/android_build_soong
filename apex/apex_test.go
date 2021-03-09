@@ -50,14 +50,14 @@ func names(s string) (ns []string) {
 	return
 }
 
-func testApexError(t *testing.T, pattern, bp string, handlers ...testCustomizer) {
+func testApexError(t *testing.T, pattern, bp string, handlers ...interface{}) {
 	t.Helper()
 	testApexFixtureFactory(bp, handlers).
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
 		RunTest(t)
 }
 
-func testApex(t *testing.T, bp string, handlers ...testCustomizer) *android.TestContext {
+func testApex(t *testing.T, bp string, handlers ...interface{}) *android.TestContext {
 	t.Helper()
 	result := testApexFixtureFactory(bp, handlers).RunTest(t)
 	return result.TestContext
@@ -208,14 +208,26 @@ var apexFixtureFactory = android.NewFixtureFactory(
 	}),
 )
 
-func testApexFixtureFactory(bp string, handlers []testCustomizer) android.FixtureFactory {
-	factory := apexFixtureFactory.Extend(
-		android.FixtureCustomPreparer(func(fixture android.Fixture) {
-			for _, handler := range handlers {
-				handler(fixture.MockFS(), fixture.Config())
+func testApexFixtureFactory(bp string, handlers []interface{}) android.FixtureFactory {
+	var preparers []android.FixturePreparer
+	for _, handler := range handlers {
+		var preparer android.FixturePreparer
+		if p, ok := handler.(android.FixturePreparer); ok {
+			preparer = p
+		} else {
+			var customizer testCustomizer
+			if c, ok := handler.(testCustomizer); ok {
+				customizer = c
+			} else {
+				customizer = handler.(func(fs map[string][]byte, config android.Config))
 			}
-		}),
-	)
+			preparer = android.FixtureCustomPreparer(func(fixture android.Fixture) {
+				customizer(fixture.MockFS(), fixture.Config())
+			})
+		}
+		preparers = append(preparers, preparer)
+	}
+	factory := apexFixtureFactory.Extend(preparers...)
 	if bp != "" {
 		factory = factory.Extend(android.FixtureWithRootAndroidBp(bp))
 	}
