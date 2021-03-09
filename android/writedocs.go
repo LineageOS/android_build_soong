@@ -66,7 +66,9 @@ func (c *docsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	soongDocs := ctx.Rule(pctx, "soongDocs",
 		blueprint.RuleParams{
 			Command: fmt.Sprintf("rm -f ${outDir}/* && %s --soong_docs %s %s",
-				primaryBuilder.String(), docsFile.String(), strings.Join(os.Args[1:], " ")),
+				primaryBuilder.String(),
+				docsFile.String(),
+				"\""+strings.Join(os.Args[1:], "\" \"")+"\""),
 			CommandDeps: []string{primaryBuilder.String()},
 			Description: fmt.Sprintf("%s docs $out", primaryBuilder.Base()),
 		},
