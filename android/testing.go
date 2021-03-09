@@ -378,9 +378,9 @@ func (ctx *TestContext) Register() {
 	ctx.singletons.registerAll(ctx.Context)
 
 	// Save the sorted components order away to make them easy to access while debugging.
-	ctx.preSingletonOrder = globalOrder.preSingletonOrder.namesInOrder
-	ctx.mutatorOrder = globalOrder.mutatorOrder.namesInOrder
-	ctx.singletonOrder = globalOrder.singletonOrder.namesInOrder
+	ctx.preSingletonOrder = componentsToNames(preSingletons)
+	ctx.mutatorOrder = componentsToNames(mutators)
+	ctx.singletonOrder = componentsToNames(singletons)
 }
 
 // RegisterForBazelConversion prepares a test context for bp2build conversion.
