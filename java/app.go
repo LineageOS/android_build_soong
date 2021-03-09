@@ -1280,6 +1280,14 @@ func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, man
 	outputFile := android.PathForModuleOut(ctx, "manifest_check", "AndroidManifest.xml")
 	statusFile := dexpreopt.UsesLibrariesStatusFile(ctx)
 
+	// Disable verify_uses_libraries check if dexpreopt is globally disabled. Without dexpreopt the
+	// check is not necessary, and although it is good to have, it is difficult to maintain on
+	// non-linux build platforms where dexpreopt is generally disabled (the check may fail due to
+	// various unrelated reasons, such as a failure to get manifest from an APK).
+	if dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
+		return manifest
+	}
+
 	rule := android.NewRuleBuilder(pctx, ctx)
 	cmd := rule.Command().BuiltTool("manifest_check").
 		Flag("--enforce-uses-libraries").
@@ -1309,6 +1317,14 @@ func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, man
 func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk android.Path) android.Path {
 	outputFile := android.PathForModuleOut(ctx, "verify_uses_libraries", apk.Base())
 	statusFile := dexpreopt.UsesLibrariesStatusFile(ctx)
+
+	// Disable verify_uses_libraries check if dexpreopt is globally disabled. Without dexpreopt the
+	// check is not necessary, and although it is good to have, it is difficult to maintain on
+	// non-linux build platforms where dexpreopt is generally disabled (the check may fail due to
+	// various unrelated reasons, such as a failure to get manifest from an APK).
+	if dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
+		return apk
+	}
 
 	rule := android.NewRuleBuilder(pctx, ctx)
 	aapt := ctx.Config().HostToolPath(ctx, "aapt")
