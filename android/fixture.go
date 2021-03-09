@@ -564,7 +564,11 @@ type fixtureFactory struct {
 }
 
 func (f *fixtureFactory) Extend(preparers ...FixturePreparer) FixtureFactory {
-	all := append(f.preparers, dedupAndFlattenPreparers(f.preparers, preparers)...)
+	// Create a new slice to avoid accidentally sharing the preparers slice from this factory with
+	// the extending factories.
+	var all []*simpleFixturePreparer
+	all = append(all, f.preparers...)
+	all = append(all, dedupAndFlattenPreparers(f.preparers, preparers)...)
 	// Copy the existing factory.
 	extendedFactory := &fixtureFactory{}
 	*extendedFactory = *f
