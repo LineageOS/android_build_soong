@@ -288,12 +288,9 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 
 	} else {
 		// Other libraries or APKs for which the exact <uses-library> list is unknown.
-		// Pass special class loader context to skip the classpath and collision check.
-		// This will get removed once LOCAL_USES_LIBRARIES is enforced.
-		// Right now LOCAL_USES_LIBRARIES is opt in, for the case where it's not specified we still default
-		// to the &.
+		// We assume the class loader context is empty.
 		rule.Command().
-			Text(`class_loader_context_arg=--class-loader-context=\&`).
+			Text(`class_loader_context_arg=--class-loader-context=PCL[]`).
 			Text(`stored_class_loader_context_arg=""`)
 	}
 

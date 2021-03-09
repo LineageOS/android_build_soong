@@ -141,14 +141,15 @@ func (ctx *TestContext) DepsBp2BuildMutators(f RegisterMutatorFunc) {
 }
 
 func (ctx *TestContext) Register() {
-	registerMutators(ctx.Context.Context, ctx.preArch, ctx.preDeps, ctx.postDeps, ctx.finalDeps)
+	mutators := collateRegisteredMutators(ctx.preArch, ctx.preDeps, ctx.postDeps, ctx.finalDeps)
+	mutators.registerAll(ctx.Context)
 
 	ctx.RegisterSingletonType("env", EnvSingleton)
 }
 
 // RegisterForBazelConversion prepares a test context for bp2build conversion.
 func (ctx *TestContext) RegisterForBazelConversion() {
-	RegisterMutatorsForBazelConversion(ctx.Context.Context, ctx.bp2buildPreArch, ctx.bp2buildDeps, ctx.bp2buildMutators)
+	RegisterMutatorsForBazelConversion(ctx.Context, ctx.bp2buildPreArch, ctx.bp2buildDeps, ctx.bp2buildMutators)
 }
 
 func (ctx *TestContext) ParseFileList(rootDir string, filePaths []string) (deps []string, errs []error) {
