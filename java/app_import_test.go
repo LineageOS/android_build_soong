@@ -109,16 +109,30 @@ func TestAndroidAppImport_SigningLineage(t *testing.T) {
 			name: "foo",
 			apk: "prebuilts/apk/app.apk",
 			certificate: "platform",
+			additional_certificates: [":additional_certificate"],
 			lineage: "lineage.bin",
+		}
+
+		android_app_certificate {
+			name: "additional_certificate",
+			certificate: "cert/additional_cert",
 		}
 	`)
 
 	variant := ctx.ModuleForTests("foo", "android_common")
 
-	// Check cert signing lineage flag.
 	signedApk := variant.Output("signed/foo.apk")
+	// Check certificates
+	certificatesFlag := signedApk.Args["certificates"]
+	expected := "build/make/target/product/security/platform.x509.pem " +
+		"build/make/target/product/security/platform.pk8 " +
+		"cert/additional_cert.x509.pem cert/additional_cert.pk8"
+	if expected != certificatesFlag {
+		t.Errorf("Incorrect certificates flags, expected: %q, got: %q", expected, certificatesFlag)
+	}
+	// Check cert signing lineage flag.
 	signingFlag := signedApk.Args["flags"]
-	expected := "--lineage lineage.bin"
+	expected = "--lineage lineage.bin"
 	if expected != signingFlag {
 		t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected, signingFlag)
 	}
