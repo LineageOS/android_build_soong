@@ -127,6 +127,8 @@ func withUnbundledBuild(_ map[string][]byte, config android.Config) {
 	config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 }
 
+var emptyFixtureFactory = android.NewFixtureFactory(&buildDir)
+
 var apexFixtureFactory = android.NewFixtureFactory(
 	&buildDir,
 	// General preparers in alphabetical order as test infrastructure will enforce correct
@@ -1316,9 +1318,10 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 
 }
 
-func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
-	ctx := testApex(t, "", func(fs map[string][]byte, config android.Config) {
-		bp := `
+var prepareForTestOfRuntimeApexWithHwasan = android.GroupFixturePreparers(
+	cc.PrepareForTestWithCcBuildComponents,
+	PrepareForTestWithApexBuildComponents,
+	android.FixtureAddTextFile("bionic/apex/Android.bp", `
 		apex {
 			name: "com.android.runtime",
 			key: "com.android.runtime.key",
@@ -1331,7 +1334,12 @@ func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
+	`),
+	android.FixtureAddFile("system/sepolicy/apex/com.android.runtime-file_contexts", nil),
+)
 
+func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
+	result := emptyFixtureFactory.Extend(prepareForTestOfRuntimeApexWithHwasan).RunTestWithBp(t, `
 		cc_library {
 			name: "libc",
 			no_libcrt: true,
@@ -1358,12 +1366,8 @@ func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
 			sanitize: {
 				never: true,
 			},
-		}
-		`
-		// override bp to use hard-coded names: com.android.runtime and libc
-		fs["Android.bp"] = []byte(bp)
-		fs["system/sepolicy/apex/com.android.runtime-file_contexts"] = nil
-	})
+		}	`)
+	ctx := result.TestContext
 
 	ensureExactContents(t, ctx, "com.android.runtime", "android_common_hwasan_com.android.runtime_image", []string{
 		"lib64/bionic/libc.so",
@@ -1381,21 +1385,12 @@ func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
 }
 
 func TestRuntimeApexShouldInstallHwasanIfHwaddressSanitized(t *testing.T) {
-	ctx := testApex(t, "", func(fs map[string][]byte, config android.Config) {
-		bp := `
-		apex {
-			name: "com.android.runtime",
-			key: "com.android.runtime.key",
-			native_shared_libs: ["libc"],
-			updatable: false,
-		}
-
-		apex_key {
-			name: "com.android.runtime.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-
+	result := emptyFixtureFactory.Extend(
+		prepareForTestOfRuntimeApexWithHwasan,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.SanitizeDevice = []string{"hwaddress"}
+		}),
+	).RunTestWithBp(t, `
 		cc_library {
 			name: "libc",
 			no_libcrt: true,
@@ -1419,13 +1414,8 @@ func TestRuntimeApexShouldInstallHwasanIfHwaddressSanitized(t *testing.T) {
 				never: true,
 			},
 		}
-		`
-		// override bp to use hard-coded names: com.android.runtime and libc
-		fs["Android.bp"] = []byte(bp)
-		fs["system/sepolicy/apex/com.android.runtime-file_contexts"] = nil
-
-		config.TestProductVariables.SanitizeDevice = []string{"hwaddress"}
-	})
+		`)
+	ctx := result.TestContext
 
 	ensureExactContents(t, ctx, "com.android.runtime", "android_common_hwasan_com.android.runtime_image", []string{
 		"lib64/bionic/libc.so",
