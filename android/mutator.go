@@ -33,22 +33,8 @@ import (
 //   run FinalDeps mutators (CreateVariations disallowed in this phase)
 //   continue on to GenerateAndroidBuildActions
 
-func registerMutatorsToContext(ctx *blueprint.Context, mutators []*mutator) {
-	for _, t := range mutators {
-		var handle blueprint.MutatorHandle
-		if t.bottomUpMutator != nil {
-			handle = ctx.RegisterBottomUpMutator(t.name, t.bottomUpMutator)
-		} else if t.topDownMutator != nil {
-			handle = ctx.RegisterTopDownMutator(t.name, t.topDownMutator)
-		}
-		if t.parallel {
-			handle.Parallel()
-		}
-	}
-}
-
 // RegisterMutatorsForBazelConversion is a alternate registration pipeline for bp2build. Exported for testing.
-func RegisterMutatorsForBazelConversion(ctx *blueprint.Context, preArchMutators, depsMutators, bp2buildMutators []RegisterMutatorFunc) {
+func RegisterMutatorsForBazelConversion(ctx *Context, preArchMutators, depsMutators, bp2buildMutators []RegisterMutatorFunc) {
 	mctx := &registerMutatorsContext{
 		bazelConversionMode: true,
 	}
@@ -80,10 +66,17 @@ func RegisterMutatorsForBazelConversion(ctx *blueprint.Context, preArchMutators,
 		f(mctx)
 	}
 
-	registerMutatorsToContext(ctx, mctx.mutators)
+	mctx.mutators.registerAll(ctx)
 }
 
-func registerMutators(ctx *blueprint.Context, preArch, preDeps, postDeps, finalDeps []RegisterMutatorFunc) {
+// collateGloballyRegisteredMutators constructs the list of mutators that have been registered
+// with the InitRegistrationContext and will be used at runtime.
+func collateGloballyRegisteredMutators() sortableComponents {
+	return collateRegisteredMutators(preArch, preDeps, postDeps, finalDeps)
+}
+
+// collateRegisteredMutators constructs a single list of mutators from the separate lists.
+func collateRegisteredMutators(preArch, preDeps, postDeps, finalDeps []RegisterMutatorFunc) sortableComponents {
 	mctx := &registerMutatorsContext{}
 
 	register := func(funcs []RegisterMutatorFunc) {
@@ -103,11 +96,11 @@ func registerMutators(ctx *blueprint.Context, preArch, preDeps, postDeps, finalD
 	mctx.finalPhase = true
 	register(finalDeps)
 
-	registerMutatorsToContext(ctx, mctx.mutators)
+	return mctx.mutators
 }
 
 type registerMutatorsContext struct {
-	mutators            []*mutator
+	mutators            sortableComponents
 	finalPhase          bool
 	bazelConversionMode bool
 }
@@ -471,6 +464,23 @@ func (x *registerMutatorsContext) TopDown(name string, m TopDownMutator) Mutator
 	mutator := &mutator{name: x.mutatorName(name), topDownMutator: f}
 	x.mutators = append(x.mutators, mutator)
 	return mutator
+}
+
+func (mutator *mutator) componentName() string {
+	return mutator.name
+}
+
+func (mutator *mutator) register(ctx *Context) {
+	blueprintCtx := ctx.Context
+	var handle blueprint.MutatorHandle
+	if mutator.bottomUpMutator != nil {
+		handle = blueprintCtx.RegisterBottomUpMutator(mutator.name, mutator.bottomUpMutator)
+	} else if mutator.topDownMutator != nil {
+		handle = blueprintCtx.RegisterTopDownMutator(mutator.name, mutator.topDownMutator)
+	}
+	if mutator.parallel {
+		handle.Parallel()
+	}
 }
 
 type MutatorHandle interface {
