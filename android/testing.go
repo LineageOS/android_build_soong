@@ -787,10 +787,6 @@ func NormalizePathForTesting(path Path) string {
 		return "<nil path>"
 	}
 	p := path.String()
-	// Allow absolute paths to /dev/
-	if strings.HasPrefix(p, "/dev/") {
-		return p
-	}
 	if w, ok := path.(WritablePath); ok {
 		rel, err := filepath.Rel(w.buildDir(), p)
 		if err != nil {
