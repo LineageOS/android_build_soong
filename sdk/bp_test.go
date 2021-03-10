@@ -54,7 +54,7 @@ func propertyStructFixture() interface{} {
 	return str
 }
 
-func checkPropertySetFixture(h *TestHelper, val interface{}, hasTags bool) {
+func checkPropertySetFixture(h android.TestHelper, val interface{}, hasTags bool) {
 	set := val.(*bpPropertySet)
 	h.AssertDeepEquals("wrong x value", "taxi", set.getValue("x"))
 	h.AssertDeepEquals("wrong y value", 1729, set.getValue("y"))
@@ -73,7 +73,7 @@ func checkPropertySetFixture(h *TestHelper, val interface{}, hasTags bool) {
 }
 
 func TestAddPropertySimple(t *testing.T) {
-	h := &TestHelper{t}
+	h := android.TestHelper{t}
 	set := newPropertySet()
 	for name, val := range map[string]interface{}{
 		"x":   "taxi",
@@ -92,7 +92,7 @@ func TestAddPropertySimple(t *testing.T) {
 }
 
 func TestAddPropertySubset(t *testing.T) {
-	h := &TestHelper{t}
+	h := android.TestHelper{t}
 	getFixtureMap := map[string]func() interface{}{
 		"property set":    propertySetFixture,
 		"property struct": propertyStructFixture,
@@ -139,7 +139,7 @@ func TestAddPropertySubset(t *testing.T) {
 }
 
 func TestAddPropertySetNew(t *testing.T) {
-	h := &TestHelper{t}
+	h := android.TestHelper{t}
 	set := newPropertySet()
 	subset := set.AddPropertySet("sub")
 	subset.AddProperty("new", "d^^b")
@@ -147,7 +147,7 @@ func TestAddPropertySetNew(t *testing.T) {
 }
 
 func TestAddPropertySetExisting(t *testing.T) {
-	h := &TestHelper{t}
+	h := android.TestHelper{t}
 	set := propertySetFixture().(*bpPropertySet)
 	subset := set.AddPropertySet("sub")
 	subset.AddProperty("new", "d^^b")
@@ -181,7 +181,7 @@ func (t removeFredTransformation) transformPropertySetAfterContents(name string,
 
 func TestTransformRemoveProperty(t *testing.T) {
 
-	helper := &TestHelper{t}
+	helper := android.TestHelper{t}
 
 	set := newPropertySet()
 	set.AddProperty("name", "name")
@@ -196,7 +196,7 @@ func TestTransformRemoveProperty(t *testing.T) {
 
 func TestTransformRemovePropertySet(t *testing.T) {
 
-	helper := &TestHelper{t}
+	helper := android.TestHelper{t}
 
 	set := newPropertySet()
 	set.AddProperty("name", "name")
