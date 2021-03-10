@@ -229,14 +229,8 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	android.RegisterPackageBuildComponents(ctx)
 	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
 
-	ctx.RegisterModuleType("apex", BundleFactory)
-	ctx.RegisterModuleType("apex_test", testApexBundleFactory)
-	ctx.RegisterModuleType("apex_vndk", vndkApexBundleFactory)
-	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
-	ctx.RegisterModuleType("apex_defaults", defaultsFactory)
-	ctx.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
-	ctx.RegisterModuleType("override_apex", overrideApexFactory)
-	ctx.RegisterModuleType("apex_set", apexSetFactory)
+	registerApexBuildComponents(ctx)
+	registerApexKeyBuildComponents(ctx)
 
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterComponentsMutator)
@@ -263,11 +257,7 @@ func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*andr
 	ctx.RegisterModuleType("platform_compat_config", java.PlatformCompatConfigFactory)
 	ctx.RegisterModuleType("sh_binary", sh.ShBinaryFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	ctx.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
 	ctx.RegisterModuleType("bpf", bpf.BpfFactory)
-
-	ctx.PreDepsMutators(RegisterPreDepsMutators)
-	ctx.PostDepsMutators(RegisterPostDepsMutators)
 
 	ctx.Register()
 
