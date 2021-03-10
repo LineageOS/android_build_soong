@@ -5207,8 +5207,7 @@ func TestApexWithAppImportsPrefer(t *testing.T) {
 	}))
 
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
-		// TODO(b/181974714) - this is wrong it should be "app/AppFoo/AppFooPrebuilt.apk"
-		"app/AppFoo/AppFoo.apk",
+		"app/AppFoo/AppFooPrebuilt.apk",
 	})
 }
 
