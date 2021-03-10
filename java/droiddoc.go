@@ -1203,8 +1203,14 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 }
 
 func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersion javaVersion, srcs android.Paths,
-	srcJarList android.Path, bootclasspath, classpath classpath, sourcepaths android.Paths, implicitsRsp android.WritablePath, sandbox bool) *android.RuleBuilderCommand {
+	srcJarList android.Path, bootclasspath, classpath classpath, sourcepaths android.Paths,
+	implicitsRsp, homeDir android.WritablePath, sandbox bool) *android.RuleBuilderCommand {
+	rule.Command().Text("rm -rf").Flag(homeDir.String())
+	rule.Command().Text("mkdir -p").Flag(homeDir.String())
+
 	cmd := rule.Command()
+	cmd.FlagWithArg("ANDROID_SDK_HOME=", homeDir.String())
+
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_METALAVA") {
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
 		pool := ctx.Config().GetenvWithDefault("RBE_METALAVA_POOL", "metalava")
@@ -1214,17 +1220,21 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 			execStrategy = remoteexec.LocalExecStrategy
 			labels["shallow"] = "true"
 		}
-		inputs := []string{android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "framework", "metalava.jar").String()}
+		inputs := []string{
+			ctx.Config().HostJavaToolPath(ctx, "metalava").String(),
+			homeDir.String(),
+		}
 		if v := ctx.Config().Getenv("RBE_METALAVA_INPUTS"); v != "" {
 			inputs = append(inputs, strings.Split(v, ",")...)
 		}
 		cmd.Text((&remoteexec.REParams{
-			Labels:          labels,
-			ExecStrategy:    execStrategy,
-			Inputs:          inputs,
-			RSPFile:         implicitsRsp.String(),
-			ToolchainInputs: []string{config.JavaCmd(ctx).String()},
-			Platform:        map[string]string{remoteexec.PoolKey: pool},
+			Labels:               labels,
+			ExecStrategy:         execStrategy,
+			Inputs:               inputs,
+			RSPFile:              implicitsRsp.String(),
+			ToolchainInputs:      []string{config.JavaCmd(ctx).String()},
+			Platform:             map[string]string{remoteexec.PoolKey: pool},
+			EnvironmentVariables: []string{"ANDROID_SDK_HOME"},
 		}).NoVarTemplate(ctx.Config()))
 	}
 
@@ -1302,9 +1312,9 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	srcJarList := zipSyncCmd(ctx, rule, srcJarDir, d.Javadoc.srcJars)
 
 	implicitsRsp := android.PathForModuleOut(ctx, ctx.ModuleName()+"-"+"implicits.rsp")
-
+	homeDir := android.PathForModuleOut(ctx, "metalava-home")
 	cmd := metalavaCmd(ctx, rule, javaVersion, d.Javadoc.srcFiles, srcJarList,
-		deps.bootClasspath, deps.classpath, d.Javadoc.sourcepaths, implicitsRsp,
+		deps.bootClasspath, deps.classpath, d.Javadoc.sourcepaths, implicitsRsp, homeDir,
 		Bool(d.Javadoc.properties.Sandbox))
 	cmd.Implicits(d.Javadoc.implicits)
 
