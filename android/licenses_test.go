@@ -6,9 +6,21 @@ import (
 	"github.com/google/blueprint"
 )
 
+var prepareForTestWithLicenses = GroupFixturePreparers(
+	FixtureRegisterWithContext(RegisterLicenseKindBuildComponents),
+	FixtureRegisterWithContext(RegisterLicenseBuildComponents),
+	FixtureRegisterWithContext(registerLicenseMutators),
+)
+
+func registerLicenseMutators(ctx RegistrationContext) {
+	ctx.PreArchMutators(RegisterLicensesPackageMapper)
+	ctx.PreArchMutators(RegisterLicensesPropertyGatherer)
+	ctx.PostDepsMutators(RegisterLicensesDependencyChecker)
+}
+
 var licensesTests = []struct {
 	name                       string
-	fs                         map[string][]byte
+	fs                         MockFS
 	expectedErrors             []string
 	effectiveLicenses          map[string][]string
 	effectiveInheritedLicenses map[string][]string
@@ -457,40 +469,48 @@ var licensesTests = []struct {
 func TestLicenses(t *testing.T) {
 	for _, test := range licensesTests {
 		t.Run(test.name, func(t *testing.T) {
-			ctx, errs := testLicenses(buildDir, test.fs)
-
-			CheckErrorsAgainstExpectations(t, errs, test.expectedErrors)
+			// Customize the common license text fixture factory.
+			result := licenseTestFixtureFactory.Extend(
+				FixtureRegisterWithContext(func(ctx RegistrationContext) {
+					ctx.RegisterModuleType("mock_bad_module", newMockLicensesBadModule)
+					ctx.RegisterModuleType("mock_library", newMockLicensesLibraryModule)
+					ctx.RegisterModuleType("mock_defaults", defaultsLicensesFactory)
+				}),
+				test.fs.AddToFixture(),
+			).
+				ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
+				RunTest(t)
 
 			if test.effectiveLicenses != nil {
-				checkEffectiveLicenses(t, ctx, test.effectiveLicenses)
+				checkEffectiveLicenses(result, test.effectiveLicenses)
 			}
 
 			if test.effectivePackage != nil {
-				checkEffectivePackage(t, ctx, test.effectivePackage)
+				checkEffectivePackage(result, test.effectivePackage)
 			}
 
 			if test.effectiveNotices != nil {
-				checkEffectiveNotices(t, ctx, test.effectiveNotices)
+				checkEffectiveNotices(result, test.effectiveNotices)
 			}
 
 			if test.effectiveKinds != nil {
-				checkEffectiveKinds(t, ctx, test.effectiveKinds)
+				checkEffectiveKinds(result, test.effectiveKinds)
 			}
 
 			if test.effectiveConditions != nil {
-				checkEffectiveConditions(t, ctx, test.effectiveConditions)
+				checkEffectiveConditions(result, test.effectiveConditions)
 			}
 
 			if test.effectiveInheritedLicenses != nil {
-				checkEffectiveInheritedLicenses(t, ctx, test.effectiveInheritedLicenses)
+				checkEffectiveInheritedLicenses(result, test.effectiveInheritedLicenses)
 			}
 		})
 	}
 }
 
-func checkEffectiveLicenses(t *testing.T, ctx *TestContext, effectiveLicenses map[string][]string) {
+func checkEffectiveLicenses(result *TestResult, effectiveLicenses map[string][]string) {
 	actualLicenses := make(map[string][]string)
-	ctx.Context.Context.VisitAllModules(func(m blueprint.Module) {
+	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
 			return
 		}
@@ -502,7 +522,7 @@ func checkEffectiveLicenses(t *testing.T, ctx *TestContext, effectiveLicenses ma
 		}
 		module, ok := m.(Module)
 		if !ok {
-			t.Errorf("%q not a module", m.Name())
+			result.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -518,14 +538,14 @@ func checkEffectiveLicenses(t *testing.T, ctx *TestContext, effectiveLicenses ma
 			licenses = []string{}
 		}
 		if !compareUnorderedStringArrays(expectedLicenses, licenses) {
-			t.Errorf("effective licenses mismatch for module %q: expected %q, found %q", moduleName, expectedLicenses, licenses)
+			result.Errorf("effective licenses mismatch for module %q: expected %q, found %q", moduleName, expectedLicenses, licenses)
 		}
 	}
 }
 
-func checkEffectiveInheritedLicenses(t *testing.T, ctx *TestContext, effectiveInheritedLicenses map[string][]string) {
+func checkEffectiveInheritedLicenses(result *TestResult, effectiveInheritedLicenses map[string][]string) {
 	actualLicenses := make(map[string][]string)
-	ctx.Context.Context.VisitAllModules(func(m blueprint.Module) {
+	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
 			return
 		}
@@ -537,7 +557,7 @@ func checkEffectiveInheritedLicenses(t *testing.T, ctx *TestContext, effectiveIn
 		}
 		module, ok := m.(Module)
 		if !ok {
-			t.Errorf("%q not a module", m.Name())
+			result.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -548,7 +568,7 @@ func checkEffectiveInheritedLicenses(t *testing.T, ctx *TestContext, effectiveIn
 		for _, l := range base.commonProperties.Effective_licenses {
 			inherited[l] = true
 		}
-		ctx.Context.Context.VisitDepsDepthFirst(m, func(c blueprint.Module) {
+		result.Context.Context.VisitDepsDepthFirst(m, func(c blueprint.Module) {
 			if _, ok := c.(*licenseModule); ok {
 				return
 			}
@@ -560,7 +580,7 @@ func checkEffectiveInheritedLicenses(t *testing.T, ctx *TestContext, effectiveIn
 			}
 			cmodule, ok := c.(Module)
 			if !ok {
-				t.Errorf("%q not a module", c.Name())
+				result.Errorf("%q not a module", c.Name())
 				return
 			}
 			cbase := cmodule.base()
@@ -583,14 +603,14 @@ func checkEffectiveInheritedLicenses(t *testing.T, ctx *TestContext, effectiveIn
 			licenses = []string{}
 		}
 		if !compareUnorderedStringArrays(expectedInheritedLicenses, licenses) {
-			t.Errorf("effective inherited licenses mismatch for module %q: expected %q, found %q", moduleName, expectedInheritedLicenses, licenses)
+			result.Errorf("effective inherited licenses mismatch for module %q: expected %q, found %q", moduleName, expectedInheritedLicenses, licenses)
 		}
 	}
 }
 
-func checkEffectivePackage(t *testing.T, ctx *TestContext, effectivePackage map[string]string) {
+func checkEffectivePackage(result *TestResult, effectivePackage map[string]string) {
 	actualPackage := make(map[string]string)
-	ctx.Context.Context.VisitAllModules(func(m blueprint.Module) {
+	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
 			return
 		}
@@ -602,7 +622,7 @@ func checkEffectivePackage(t *testing.T, ctx *TestContext, effectivePackage map[
 		}
 		module, ok := m.(Module)
 		if !ok {
-			t.Errorf("%q not a module", m.Name())
+			result.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -623,14 +643,14 @@ func checkEffectivePackage(t *testing.T, ctx *TestContext, effectivePackage map[
 			packageName = ""
 		}
 		if expectedPackage != packageName {
-			t.Errorf("effective package mismatch for module %q: expected %q, found %q", moduleName, expectedPackage, packageName)
+			result.Errorf("effective package mismatch for module %q: expected %q, found %q", moduleName, expectedPackage, packageName)
 		}
 	}
 }
 
-func checkEffectiveNotices(t *testing.T, ctx *TestContext, effectiveNotices map[string][]string) {
+func checkEffectiveNotices(result *TestResult, effectiveNotices map[string][]string) {
 	actualNotices := make(map[string][]string)
-	ctx.Context.Context.VisitAllModules(func(m blueprint.Module) {
+	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
 			return
 		}
@@ -642,7 +662,7 @@ func checkEffectiveNotices(t *testing.T, ctx *TestContext, effectiveNotices map[
 		}
 		module, ok := m.(Module)
 		if !ok {
-			t.Errorf("%q not a module", m.Name())
+			result.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -658,14 +678,14 @@ func checkEffectiveNotices(t *testing.T, ctx *TestContext, effectiveNotices map[
 			notices = []string{}
 		}
 		if !compareUnorderedStringArrays(expectedNotices, notices) {
-			t.Errorf("effective notice files mismatch for module %q: expected %q, found %q", moduleName, expectedNotices, notices)
+			result.Errorf("effective notice files mismatch for module %q: expected %q, found %q", moduleName, expectedNotices, notices)
 		}
 	}
 }
 
-func checkEffectiveKinds(t *testing.T, ctx *TestContext, effectiveKinds map[string][]string) {
+func checkEffectiveKinds(result *TestResult, effectiveKinds map[string][]string) {
 	actualKinds := make(map[string][]string)
-	ctx.Context.Context.VisitAllModules(func(m blueprint.Module) {
+	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
 			return
 		}
@@ -677,7 +697,7 @@ func checkEffectiveKinds(t *testing.T, ctx *TestContext, effectiveKinds map[stri
 		}
 		module, ok := m.(Module)
 		if !ok {
-			t.Errorf("%q not a module", m.Name())
+			result.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -693,14 +713,14 @@ func checkEffectiveKinds(t *testing.T, ctx *TestContext, effectiveKinds map[stri
 			kinds = []string{}
 		}
 		if !compareUnorderedStringArrays(expectedKinds, kinds) {
-			t.Errorf("effective license kinds mismatch for module %q: expected %q, found %q", moduleName, expectedKinds, kinds)
+			result.Errorf("effective license kinds mismatch for module %q: expected %q, found %q", moduleName, expectedKinds, kinds)
 		}
 	}
 }
 
-func checkEffectiveConditions(t *testing.T, ctx *TestContext, effectiveConditions map[string][]string) {
+func checkEffectiveConditions(result *TestResult, effectiveConditions map[string][]string) {
 	actualConditions := make(map[string][]string)
-	ctx.Context.Context.VisitAllModules(func(m blueprint.Module) {
+	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
 			return
 		}
@@ -712,7 +732,7 @@ func checkEffectiveConditions(t *testing.T, ctx *TestContext, effectiveCondition
 		}
 		module, ok := m.(Module)
 		if !ok {
-			t.Errorf("%q not a module", m.Name())
+			result.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -728,7 +748,7 @@ func checkEffectiveConditions(t *testing.T, ctx *TestContext, effectiveCondition
 			conditions = []string{}
 		}
 		if !compareUnorderedStringArrays(expectedConditions, conditions) {
-			t.Errorf("effective license conditions mismatch for module %q: expected %q, found %q", moduleName, expectedConditions, conditions)
+			result.Errorf("effective license conditions mismatch for module %q: expected %q, found %q", moduleName, expectedConditions, conditions)
 		}
 	}
 }
@@ -752,41 +772,6 @@ func compareUnorderedStringArrays(expected, actual []string) bool {
 		s[v] -= 1
 	}
 	return true
-}
-
-func testLicenses(buildDir string, fs map[string][]byte) (*TestContext, []error) {
-
-	// Create a new config per test as licenses information is stored in the config.
-	env := make(map[string]string)
-	env["ANDROID_REQUIRE_LICENSES"] = "1"
-	config := TestArchConfig(buildDir, env, "", fs)
-
-	ctx := NewTestArchContext(config)
-	ctx.RegisterModuleType("mock_bad_module", newMockLicensesBadModule)
-	ctx.RegisterModuleType("mock_library", newMockLicensesLibraryModule)
-	ctx.RegisterModuleType("mock_defaults", defaultsLicensesFactory)
-
-	// Order of the following method calls is significant.
-	RegisterPackageBuildComponents(ctx)
-	registerTestPrebuiltBuildComponents(ctx)
-	RegisterLicenseKindBuildComponents(ctx)
-	RegisterLicenseBuildComponents(ctx)
-	ctx.PreArchMutators(RegisterVisibilityRuleChecker)
-	ctx.PreArchMutators(RegisterLicensesPackageMapper)
-	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(RegisterLicensesPropertyGatherer)
-	ctx.PreArchMutators(RegisterVisibilityRuleGatherer)
-	ctx.PostDepsMutators(RegisterVisibilityRuleEnforcer)
-	ctx.PostDepsMutators(RegisterLicensesDependencyChecker)
-	ctx.Register()
-
-	_, errs := ctx.ParseBlueprintsFiles(".")
-	if len(errs) > 0 {
-		return ctx, errs
-	}
-
-	_, errs = ctx.PrepareBuildActions(config)
-	return ctx, errs
 }
 
 type mockLicensesBadProperties struct {
