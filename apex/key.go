@@ -27,8 +27,12 @@ import (
 var String = proptools.String
 
 func init() {
-	android.RegisterModuleType("apex_key", ApexKeyFactory)
-	android.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
+	registerApexKeyBuildComponents(android.InitRegistrationContext)
+}
+
+func registerApexKeyBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
+	ctx.RegisterSingletonType("apex_keys_text", apexKeysTextFactory)
 }
 
 type apexKey struct {
