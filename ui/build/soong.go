@@ -170,12 +170,15 @@ func runSoong(ctx Context, config Config) {
 			"--frontend_file", fifo,
 			"-f", filepath.Join(config.SoongOutDir(), file))
 
-		cmd.Environment.Set("SOONG_OUTDIR", config.SoongOutDir())
+		var ninjaEnv Environment
+		ninjaEnv.Set("TOP", os.Getenv("TOP"))
+		ninjaEnv.Set("SOONG_OUTDIR", config.SoongOutDir())
 		if os.Getenv("SOONG_DELVE") != "" {
 			// SOONG_DELVE is already in cmd.Environment
-			cmd.Environment.Set("SOONG_DELVE_PATH", shared.ResolveDelveBinary())
+			ninjaEnv.Set("SOONG_DELVE_PATH", shared.ResolveDelveBinary())
 		}
 
+		cmd.Environment = &ninjaEnv
 		cmd.Sandbox = soongSandbox
 		cmd.RunAndStreamOrFatal()
 	}
