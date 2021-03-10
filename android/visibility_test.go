@@ -1162,7 +1162,7 @@ func TestVisibility(t *testing.T) {
 				// Add additional files to the mock filesystem
 				test.fs.AddToFixture(),
 			).
-				SetErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
+				ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
 				RunTest(t)
 
 			if test.effectiveVisibility != nil {

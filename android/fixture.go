@@ -183,12 +183,12 @@ type FixtureFactory interface {
 	// Create a Fixture.
 	Fixture(t *testing.T, preparers ...FixturePreparer) Fixture
 
-	// SetErrorHandler creates a new FixtureFactory that will use the supplied error handler to check
-	// the errors (may be 0) reported by the test.
+	// ExtendWithErrorHandler creates a new FixtureFactory that will use the supplied error handler
+	// to check the errors (may be 0) reported by the test.
 	//
 	// The default handlers is FixtureExpectsNoErrors which will fail the go test immediately if any
 	// errors are reported.
-	SetErrorHandler(errorHandler FixtureErrorHandler) FixtureFactory
+	ExtendWithErrorHandler(errorHandler FixtureErrorHandler) FixtureFactory
 
 	// Run the test, checking any errors reported and returning a TestResult instance.
 	//
@@ -640,7 +640,7 @@ func (f *fixtureFactory) Fixture(t *testing.T, preparers ...FixturePreparer) Fix
 	return fixture
 }
 
-func (f *fixtureFactory) SetErrorHandler(errorHandler FixtureErrorHandler) FixtureFactory {
+func (f *fixtureFactory) ExtendWithErrorHandler(errorHandler FixtureErrorHandler) FixtureFactory {
 	newFactory := &fixtureFactory{}
 	*newFactory = *f
 	newFactory.errorHandler = errorHandler
