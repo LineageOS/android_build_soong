@@ -14,6 +14,7 @@ var (
 		"external/rust",
 		"external/vm_tools/p9",
 		"frameworks/native/libs/binder/rust",
+		"frameworks/proto_logging/stats",
 		"packages/modules/DnsResolver",
 		"packages/modules/Virtualization",
 		"prebuilts/rust",
