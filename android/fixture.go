@@ -313,6 +313,19 @@ func FixtureModifyEnv(mutator func(env map[string]string)) FixturePreparer {
 	})
 }
 
+// Allow access to the product variables when preparing the fixture.
+type FixtureProductVariables struct {
+	*productVariables
+}
+
+// Modify product variables.
+func FixtureModifyProductVariables(mutator func(variables FixtureProductVariables)) FixturePreparer {
+	return FixtureModifyConfig(func(config Config) {
+		productVariables := FixtureProductVariables{&config.productVariables}
+		mutator(productVariables)
+	})
+}
+
 // GroupFixturePreparers creates a composite FixturePreparer that is equivalent to applying each of
 // the supplied FixturePreparer instances in order.
 //
