@@ -3319,10 +3319,6 @@ type Defaults struct {
 //         ],
 //         javacflags: ["-Xlint:all"],
 //     }
-func defaultsFactory() android.Module {
-	return DefaultsFactory()
-}
-
 func DefaultsFactory() android.Module {
 	module := &Defaults{}
 
