@@ -387,7 +387,7 @@ func TestCommonValueOptimization(t *testing.T) {
 
 	extractor := newCommonValueExtractor(common)
 
-	h := TestHelper{t}
+	h := android.TestHelper{t}
 
 	err := extractor.extractCommonProperties(common, structs)
 	h.AssertDeepEquals("unexpected error", nil, err)
@@ -462,7 +462,7 @@ func TestCommonValueOptimization_InvalidArchSpecificVariants(t *testing.T) {
 
 	extractor := newCommonValueExtractor(common)
 
-	h := TestHelper{t}
+	h := android.TestHelper{t}
 
 	err := extractor.extractCommonProperties(common, structs)
 	h.AssertErrorMessageEquals("unexpected error", `field "S_Common" is not tagged as "arch_variant" but has arch specific properties:
