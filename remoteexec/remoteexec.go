@@ -81,6 +81,9 @@ type REParams struct {
 	// ToolchainInputs is a list of paths or ninja variables pointing to the location of
 	// toolchain binaries used by the rule.
 	ToolchainInputs []string
+	// EnvironmentVariables is a list of environment variables whose values should be passed through
+	// to the remote execution.
+	EnvironmentVariables []string
 }
 
 func init() {
@@ -160,6 +163,10 @@ func (r *REParams) wrapperArgs() string {
 
 	if len(r.ToolchainInputs) > 0 {
 		args += " --toolchain_inputs=" + strings.Join(r.ToolchainInputs, ",")
+	}
+
+	if len(r.EnvironmentVariables) > 0 {
+		args += " --env_var_allowlist=" + strings.Join(r.EnvironmentVariables, ",")
 	}
 
 	return args + " -- "
