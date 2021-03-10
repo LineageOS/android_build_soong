@@ -229,11 +229,7 @@ func runKatiBuild(ctx Context, config Config) {
 
 	// Cleanup steps.
 	cleanCopyHeaders(ctx, config)
-	// Skip the old installed file cleanup step for few non-full build goals as we don't create
-	// an installed file list for them.
-	if config.FullBuild() {
-		cleanOldInstalledFiles(ctx, config)
-	}
+	cleanOldInstalledFiles(ctx, config)
 }
 
 // Clean out obsolete header files on the disk that were *not copied* during the
