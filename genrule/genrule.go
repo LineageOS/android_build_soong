@@ -37,6 +37,27 @@ func init() {
 	RegisterGenruleBuildComponents(android.InitRegistrationContext)
 }
 
+// Test fixture preparer that will register most genrule build components.
+//
+// Singletons and mutators should only be added here if they are needed for a majority of genrule
+// module types, otherwise they should be added under a separate preparer to allow them to be
+// selected only when needed to reduce test execution time.
+//
+// Module types do not have much of an overhead unless they are used so this should include as many
+// module types as possible. The exceptions are those module types that require mutators and/or
+// singletons in order to function in which case they should be kept together in a separate
+// preparer.
+var PrepareForTestWithGenRuleBuildComponents = android.GroupFixturePreparers(
+	android.FixtureRegisterWithContext(RegisterGenruleBuildComponents),
+)
+
+// Prepare a fixture to use all genrule module types, mutators and singletons fully.
+//
+// This should only be used by tests that want to run with as much of the build enabled as possible.
+var PrepareForIntegrationTestWithGenrule = android.GroupFixturePreparers(
+	PrepareForTestWithGenRuleBuildComponents,
+)
+
 func RegisterGenruleBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("genrule_defaults", defaultsFactory)
 
