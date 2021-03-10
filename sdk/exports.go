@@ -17,8 +17,12 @@ package sdk
 import "android/soong/android"
 
 func init() {
-	android.RegisterModuleType("module_exports", ModuleExportsFactory)
-	android.RegisterModuleType("module_exports_snapshot", ModuleExportsSnapshotsFactory)
+	registerModuleExportsBuildComponents(android.InitRegistrationContext)
+}
+
+func registerModuleExportsBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("module_exports", ModuleExportsFactory)
+	ctx.RegisterModuleType("module_exports_snapshot", ModuleExportsSnapshotsFactory)
 }
 
 // module_exports defines the exports of a mainline module. The exports are Soong modules
