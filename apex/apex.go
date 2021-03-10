@@ -39,16 +39,20 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("apex", BundleFactory)
-	android.RegisterModuleType("apex_test", testApexBundleFactory)
-	android.RegisterModuleType("apex_vndk", vndkApexBundleFactory)
-	android.RegisterModuleType("apex_defaults", defaultsFactory)
-	android.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
-	android.RegisterModuleType("override_apex", overrideApexFactory)
-	android.RegisterModuleType("apex_set", apexSetFactory)
+	registerApexBuildComponents(android.InitRegistrationContext)
+}
 
-	android.PreDepsMutators(RegisterPreDepsMutators)
-	android.PostDepsMutators(RegisterPostDepsMutators)
+func registerApexBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("apex", BundleFactory)
+	ctx.RegisterModuleType("apex_test", testApexBundleFactory)
+	ctx.RegisterModuleType("apex_vndk", vndkApexBundleFactory)
+	ctx.RegisterModuleType("apex_defaults", defaultsFactory)
+	ctx.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
+	ctx.RegisterModuleType("override_apex", overrideApexFactory)
+	ctx.RegisterModuleType("apex_set", apexSetFactory)
+
+	ctx.PreDepsMutators(RegisterPreDepsMutators)
+	ctx.PostDepsMutators(RegisterPostDepsMutators)
 }
 
 func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
