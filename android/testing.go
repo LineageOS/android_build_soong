@@ -378,9 +378,9 @@ func (ctx *TestContext) Register() {
 	ctx.singletons.registerAll(ctx.Context)
 
 	// Save the sorted components order away to make them easy to access while debugging.
-	ctx.preSingletonOrder = globalOrder.preSingletonOrder.namesInOrder
-	ctx.mutatorOrder = globalOrder.mutatorOrder.namesInOrder
-	ctx.singletonOrder = globalOrder.singletonOrder.namesInOrder
+	ctx.preSingletonOrder = componentsToNames(preSingletons)
+	ctx.mutatorOrder = componentsToNames(mutators)
+	ctx.singletonOrder = componentsToNames(singletons)
 }
 
 // RegisterForBazelConversion prepares a test context for bp2build conversion.
@@ -787,10 +787,6 @@ func NormalizePathForTesting(path Path) string {
 		return "<nil path>"
 	}
 	p := path.String()
-	// Allow absolute paths to /dev/
-	if strings.HasPrefix(p, "/dev/") {
-		return p
-	}
 	if w, ok := path.(WritablePath); ok {
 		rel, err := filepath.Rel(w.buildDir(), p)
 		if err != nil {

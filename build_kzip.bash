@@ -16,6 +16,7 @@
 : ${BUILD_NUMBER:=$(uuidgen)}
 : ${KYTHE_JAVA_SOURCE_BATCH_SIZE:=500}
 : ${KYTHE_KZIP_ENCODING:=proto}
+: ${XREF_CORPUS:?should be set}
 export KYTHE_JAVA_SOURCE_BATCH_SIZE KYTHE_KZIP_ENCODING
 
 # The extraction might fail for some source files, so run with -k and then check that
@@ -29,11 +30,15 @@ build/soong/soong_ui.bash --build-mode --all-modules --dir=$PWD -k merge_zips xr
 declare -r abspath_out=$(realpath "${out}")
 declare -r go_extractor=$(realpath prebuilts/build-tools/linux-x86/bin/go_extractor)
 declare -r go_root=$(realpath prebuilts/go/linux-x86)
-declare -r vnames_path=$(realpath build/soong/vnames.go.json)
 declare -r source_root=$PWD
+
+# TODO(asmundak): Until b/182183061 is fixed, default corpus has to be specified 
+# in the rules file. Generate this file on the fly with corpus value set from the
+# environment variable.
 for dir in blueprint soong; do
   (cd "build/$dir";
-   KYTHE_ROOT_DIRECTORY="${source_root}" "$go_extractor" --goroot="$go_root" --rules="${vnames_path}" \
+   KYTHE_ROOT_DIRECTORY="${source_root}" "$go_extractor" --goroot="$go_root" \
+   --rules=<(printf '[{"pattern": "(.*)","vname": {"path": "@1@", "corpus":"%s"}}]' "${XREF_CORPUS}") \
    --canonicalize_package_corpus --output "${abspath_out}/soong/build_${dir}.go.kzip" ./...
   )
 done
