@@ -186,23 +186,31 @@ func (ctx *Context) Register() {
 		t.register(ctx)
 	}
 
-	singletons.registerAll(ctx)
-
 	mutators := collateGloballyRegisteredMutators()
 	mutators.registerAll(ctx)
 
-	ctx.RegisterSingletonType("bazeldeps", SingletonFactoryAdaptor(ctx, BazelSingleton))
+	singletons := collateGloballyRegisteredSingletons()
+	singletons.registerAll(ctx)
+}
 
-	// Register phony just before makevars so it can write out its phony rules as Make rules
-	ctx.RegisterSingletonType("phony", SingletonFactoryAdaptor(ctx, phonySingletonFactory))
+func collateGloballyRegisteredSingletons() sortableComponents {
+	allSingletons := append(sortableComponents(nil), singletons...)
+	allSingletons = append(allSingletons,
+		singleton{false, "bazeldeps", BazelSingleton},
 
-	// Register makevars after other singletons so they can export values through makevars
-	ctx.RegisterSingletonType("makevars", SingletonFactoryAdaptor(ctx, makeVarsSingletonFunc))
+		// Register phony just before makevars so it can write out its phony rules as Make rules
+		singleton{false, "phony", phonySingletonFactory},
 
-	// Register env and ninjadeps last so that they can track all used environment variables and
-	// Ninja file dependencies stored in the config.
-	ctx.RegisterSingletonType("env", SingletonFactoryAdaptor(ctx, EnvSingleton))
-	ctx.RegisterSingletonType("ninjadeps", SingletonFactoryAdaptor(ctx, ninjaDepsSingletonFactory))
+		// Register makevars after other singletons so they can export values through makevars
+		singleton{false, "makevars", makeVarsSingletonFunc},
+
+		// Register env and ninjadeps last so that they can track all used environment variables and
+		// Ninja file dependencies stored in the config.
+		singleton{false, "env", EnvSingleton},
+		singleton{false, "ninjadeps", ninjaDepsSingletonFactory},
+	)
+
+	return allSingletons
 }
 
 func ModuleTypeFactories() map[string]ModuleFactory {

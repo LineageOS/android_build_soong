@@ -43,7 +43,7 @@ func init() {
 	flag.StringVar(&delveListen, "delve_listen", "", "Delve port to listen on for debugging")
 	flag.StringVar(&delvePath, "delve_path", "", "Path to Delve. Only used if --delve_listen is set")
 	flag.StringVar(&docFile, "soong_docs", "", "build documentation file to output")
-	flag.StringVar(&bazelQueryViewDir, "bazel_queryview_dir", "", "path to the bazel queryview directory")
+	flag.StringVar(&bazelQueryViewDir, "bazel_queryview_dir", "", "path to the bazel queryview directory relative to --top")
 }
 
 func newNameResolver(config android.Config) *android.NameResolver {
@@ -150,7 +150,8 @@ func main() {
 	if bazelQueryViewDir != "" {
 		// Run the code-generation phase to convert BazelTargetModules to BUILD files.
 		codegenContext := bp2build.NewCodegenContext(configuration, *ctx, bp2build.QueryView)
-		if err := createBazelQueryView(codegenContext, bazelQueryViewDir); err != nil {
+		absoluteQueryViewDir := shared.JoinPath(topDir, bazelQueryViewDir)
+		if err := createBazelQueryView(codegenContext, absoluteQueryViewDir); err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
