@@ -484,6 +484,18 @@ func (h *TestHelper) AssertStringEquals(message string, expected string, actual 
 	}
 }
 
+// AssertErrorMessageEquals checks if the error is not nil and has the expected message. If it does
+// not then this reports an error prefixed with the supplied message and including a reason for why
+// it failed.
+func (h *TestHelper) AssertErrorMessageEquals(message string, expected string, actual error) {
+	h.Helper()
+	if actual == nil {
+		h.Errorf("Expected error but was nil")
+	} else if actual.Error() != expected {
+		h.Errorf("%s: expected %s, actual %s", message, expected, actual.Error())
+	}
+}
+
 // AssertTrimmedStringEquals checks if the expected and actual values are the same after trimming
 // leading and trailing spaces from them both. If they are not then it reports an error prefixed
 // with the supplied message and including a reason for why it failed.
@@ -535,6 +547,23 @@ func (h *TestHelper) AssertDeepEquals(message string, expected interface{}, actu
 	h.Helper()
 	if !reflect.DeepEqual(actual, expected) {
 		h.Errorf("%s: expected:\n  %#v\n got:\n  %#v", message, expected, actual)
+	}
+}
+
+// AssertPanic checks that the supplied function panics as expected.
+func (h *TestHelper) AssertPanic(message string, funcThatShouldPanic func()) {
+	h.Helper()
+	panicked := false
+	func() {
+		defer func() {
+			if x := recover(); x != nil {
+				panicked = true
+			}
+		}()
+		funcThatShouldPanic()
+	}()
+	if !panicked {
+		h.Error(message)
 	}
 }
 
