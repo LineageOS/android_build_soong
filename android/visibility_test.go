@@ -1143,25 +1143,26 @@ func TestVisibility(t *testing.T) {
 	for _, test := range visibilityTests {
 		t.Run(test.name, func(t *testing.T) {
 			result := emptyTestFixtureFactory.Extend(
+				// General preparers in alphabetical order as test infrastructure will enforce correct
+				// registration order.
+				PrepareForTestWithArchMutator,
+				PrepareForTestWithDefaults,
+				PrepareForTestWithOverrides,
+				PrepareForTestWithPackageModule,
+				PrepareForTestWithPrebuilts,
+				PrepareForTestWithVisibility,
+
+				// Additional test specific preparers.
 				FixtureRegisterWithContext(func(ctx RegistrationContext) {
 					ctx.RegisterModuleType("mock_library", newMockLibraryModule)
 					ctx.RegisterModuleType("mock_parent", newMockParentFactory)
 					ctx.RegisterModuleType("mock_defaults", defaultsFactory)
 				}),
 				prepareForTestWithFakePrebuiltModules,
-				PrepareForTestWithPackageModule,
-				// Order of the following method calls is significant as they register mutators.
-				PrepareForTestWithArchMutator,
-				PrepareForTestWithPrebuilts,
-				PrepareForTestWithOverrides,
-				PrepareForTestWithVisibilityRuleChecker,
-				PrepareForTestWithDefaults,
-				PrepareForTestWithVisibilityRuleGatherer,
-				PrepareForTestWithVisibilityRuleEnforcer,
 				// Add additional files to the mock filesystem
 				test.fs.AddToFixture(),
 			).
-				SetErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
+				ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
 				RunTest(t)
 
 			if test.effectiveVisibility != nil {

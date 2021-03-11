@@ -73,17 +73,36 @@ var PrepareForTestWithOverrides = FixtureRegisterWithContext(func(ctx Registrati
 	ctx.PostDepsMutators(RegisterOverridePostDepsMutators)
 })
 
-// Prepares an integration test with build components from the android package.
-var PrepareForIntegrationTestWithAndroid = GroupFixturePreparers(
-	// Mutators. Must match order in mutator.go.
+// Test fixture preparer that will register most java build components.
+//
+// Singletons and mutators should only be added here if they are needed for a majority of java
+// module types, otherwise they should be added under a separate preparer to allow them to be
+// selected only when needed to reduce test execution time.
+//
+// Module types do not have much of an overhead unless they are used so this should include as many
+// module types as possible. The exceptions are those module types that require mutators and/or
+// singletons in order to function in which case they should be kept together in a separate
+// preparer.
+//
+// The mutators in this group were chosen because they are needed by the vast majority of tests.
+var PrepareForTestWithAndroidBuildComponents = GroupFixturePreparers(
+	// Sorted alphabetically as the actual order does not matter as tests automatically enforce the
+	// correct order.
 	PrepareForTestWithArchMutator,
-	PrepareForTestWithDefaults,
 	PrepareForTestWithComponentsMutator,
-	PrepareForTestWithPrebuilts,
-	PrepareForTestWithOverrides,
-
-	// Modules
+	PrepareForTestWithDefaults,
 	PrepareForTestWithFilegroup,
+	PrepareForTestWithOverrides,
+	PrepareForTestWithPackageModule,
+	PrepareForTestWithPrebuilts,
+	PrepareForTestWithVisibility,
+)
+
+// Prepares an integration test with all build components from the android package.
+//
+// This should only be used by tests that want to run with as much of the build enabled as possible.
+var PrepareForIntegrationTestWithAndroid = GroupFixturePreparers(
+	PrepareForTestWithAndroidBuildComponents,
 )
 
 func NewTestArchContext(config Config) *TestContext {

@@ -15,6 +15,7 @@
 package android
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -182,12 +183,12 @@ type FixtureFactory interface {
 	// Create a Fixture.
 	Fixture(t *testing.T, preparers ...FixturePreparer) Fixture
 
-	// SetErrorHandler creates a new FixtureFactory that will use the supplied error handler to check
-	// the errors (may be 0) reported by the test.
+	// ExtendWithErrorHandler creates a new FixtureFactory that will use the supplied error handler
+	// to check the errors (may be 0) reported by the test.
 	//
 	// The default handlers is FixtureExpectsNoErrors which will fail the go test immediately if any
 	// errors are reported.
-	SetErrorHandler(errorHandler FixtureErrorHandler) FixtureFactory
+	ExtendWithErrorHandler(errorHandler FixtureErrorHandler) FixtureFactory
 
 	// Run the test, checking any errors reported and returning a TestResult instance.
 	//
@@ -284,6 +285,45 @@ func FixtureAddTextFile(path string, contents string) FixturePreparer {
 // Add the root Android.bp file with the supplied contents.
 func FixtureWithRootAndroidBp(contents string) FixturePreparer {
 	return FixtureAddTextFile("Android.bp", contents)
+}
+
+// Merge some environment variables into the fixture.
+func FixtureMergeEnv(env map[string]string) FixturePreparer {
+	return FixtureModifyConfig(func(config Config) {
+		for k, v := range env {
+			if k == "PATH" {
+				panic("Cannot set PATH environment variable")
+			}
+			config.env[k] = v
+		}
+	})
+}
+
+// Modify the env.
+//
+// Will panic if the mutator changes the PATH environment variable.
+func FixtureModifyEnv(mutator func(env map[string]string)) FixturePreparer {
+	return FixtureModifyConfig(func(config Config) {
+		oldPath := config.env["PATH"]
+		mutator(config.env)
+		newPath := config.env["PATH"]
+		if newPath != oldPath {
+			panic(fmt.Errorf("Cannot change PATH environment variable from %q to %q", oldPath, newPath))
+		}
+	})
+}
+
+// Allow access to the product variables when preparing the fixture.
+type FixtureProductVariables struct {
+	*productVariables
+}
+
+// Modify product variables.
+func FixtureModifyProductVariables(mutator func(variables FixtureProductVariables)) FixturePreparer {
+	return FixtureModifyConfig(func(config Config) {
+		productVariables := FixtureProductVariables{&config.productVariables}
+		mutator(productVariables)
+	})
 }
 
 // GroupFixturePreparers creates a composite FixturePreparer that is equivalent to applying each of
@@ -484,6 +524,18 @@ func (h *TestHelper) AssertStringEquals(message string, expected string, actual 
 	}
 }
 
+// AssertErrorMessageEquals checks if the error is not nil and has the expected message. If it does
+// not then this reports an error prefixed with the supplied message and including a reason for why
+// it failed.
+func (h *TestHelper) AssertErrorMessageEquals(message string, expected string, actual error) {
+	h.Helper()
+	if actual == nil {
+		h.Errorf("Expected error but was nil")
+	} else if actual.Error() != expected {
+		h.Errorf("%s: expected %s, actual %s", message, expected, actual.Error())
+	}
+}
+
 // AssertTrimmedStringEquals checks if the expected and actual values are the same after trimming
 // leading and trailing spaces from them both. If they are not then it reports an error prefixed
 // with the supplied message and including a reason for why it failed.
@@ -535,6 +587,23 @@ func (h *TestHelper) AssertDeepEquals(message string, expected interface{}, actu
 	h.Helper()
 	if !reflect.DeepEqual(actual, expected) {
 		h.Errorf("%s: expected:\n  %#v\n got:\n  %#v", message, expected, actual)
+	}
+}
+
+// AssertPanic checks that the supplied function panics as expected.
+func (h *TestHelper) AssertPanic(message string, funcThatShouldPanic func()) {
+	h.Helper()
+	panicked := false
+	func() {
+		defer func() {
+			if x := recover(); x != nil {
+				panicked = true
+			}
+		}()
+		funcThatShouldPanic()
+	}()
+	if !panicked {
+		h.Error(message)
 	}
 }
 
@@ -600,7 +669,7 @@ func (f *fixtureFactory) Fixture(t *testing.T, preparers ...FixturePreparer) Fix
 	return fixture
 }
 
-func (f *fixtureFactory) SetErrorHandler(errorHandler FixtureErrorHandler) FixtureFactory {
+func (f *fixtureFactory) ExtendWithErrorHandler(errorHandler FixtureErrorHandler) FixtureFactory {
 	newFactory := &fixtureFactory{}
 	*newFactory = *f
 	newFactory.errorHandler = errorHandler
