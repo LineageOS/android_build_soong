@@ -319,6 +319,9 @@ func categorizeParameter(parameter string) parameterType {
 	if strings.HasPrefix(parameter, "-fsanitize-blacklist") {
 		return relativeFilePathFlag
 	}
+	if strings.HasPrefix(parameter, "-fprofile-sample-use") {
+		return relativeFilePathFlag
+	}
 	return flag
 }
 
