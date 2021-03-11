@@ -169,7 +169,7 @@ func TestSnapshotVisibility(t *testing.T) {
 			"package/Android.bp": []byte(packageBp),
 		})
 
-	result.CheckSnapshot("mysdk", "package",
+	CheckSnapshot(result, "mysdk", "package",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -317,7 +317,7 @@ func TestSdkInstall(t *testing.T) {
 	`
 	result := testSdkWithFs(t, sdk, nil)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAllOtherCopyRules(`.intermediates/mysdk/common_os/mysdk-current.zip -> mysdk-current.zip`),
 	)
 }
