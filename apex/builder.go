@@ -759,6 +759,12 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 			return !externalDep
 		}
 
+		// Skip dependencies that are only available to APEXes; they are developed with updatability
+		// in mind and don't need manual approval.
+		if to.(android.ApexModule).NotAvailableForPlatform() {
+			return !externalDep
+		}
+
 		if info, exists := depInfos[to.Name()]; exists {
 			if !android.InList(from.Name(), info.From) {
 				info.From = append(info.From, from.Name())
