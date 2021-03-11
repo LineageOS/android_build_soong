@@ -58,8 +58,8 @@ var (
 				echo "ERROR: go/apex-allowed-deps-error";
 				echo "******************************";
 				echo "Detected changes to allowed dependencies in updatable modules.";
-				echo "To fix and update build/soong/apex/allowed_deps.txt, please run:";
-				echo "$$ (croot && build/soong/scripts/update-apex-allowed-deps.sh)";
+				echo "To fix and update packages/modules/common/build/allowed_deps.txt, please run:";
+				echo "$$ (croot && packages/modules/common/build/update-apex-allowed-deps.sh)";
 				echo "Members of mainline-modularization@google.com will review the changes.";
 				echo -e "******************************\n";
 				exit 1;
@@ -81,7 +81,7 @@ func (s *apexDepsInfoSingleton) GenerateBuildActions(ctx android.SingletonContex
 		}
 	})
 
-	allowedDeps := android.ExistentPathForSource(ctx, "build/soong/apex/allowed_deps.txt").Path()
+	allowedDeps := android.ExistentPathForSource(ctx, "packages/modules/common/build/allowed_deps.txt").Path()
 
 	newAllowedDeps := android.PathForOutput(ctx, "apex", "depsinfo", "new-allowed-deps.txt")
 	ctx.Build(pctx, android.BuildParams{
