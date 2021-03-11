@@ -107,7 +107,6 @@ func TestJavaSystemModulesMixSourceAndPrebuilt(t *testing.T) {
 	prebuiltInputs := prebuiltSystemModules.Rule("jarsTosystemModules").Inputs
 
 	// The expected paths are the header jars from the renamed prebuilt input modules.
-	// TODO(b/182402568) - these should be depending on the prebuilts
-	expectedPrebuiltPaths := normalizedPathsToHeaderJars(result, "system-module1", "system-module2")
+	expectedPrebuiltPaths := normalizedPathsToHeaderJars(result, "prebuilt_system-module1", "prebuilt_system-module2")
 	result.AssertArrayString("prebuilt system modules inputs", expectedPrebuiltPaths, result.NormalizePathsForTesting(prebuiltInputs))
 }
