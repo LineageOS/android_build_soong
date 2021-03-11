@@ -422,6 +422,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 				"ANDROID_SDK_HOME",
 				"SDK_ANNOTATIONS",
 				"LINT_OPTS",
+				"LANG",
 			},
 			Platform: map[string]string{remoteexec.PoolKey: pool},
 		}).NoVarTemplate(ctx.Config()))
