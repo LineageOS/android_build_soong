@@ -33,10 +33,14 @@ func init() {
 	pctx.Import("android/soong/android")
 	pctx.Import("android/soong/java/config")
 
-	android.RegisterModuleType("sdk", SdkModuleFactory)
-	android.RegisterModuleType("sdk_snapshot", SnapshotModuleFactory)
-	android.PreDepsMutators(RegisterPreDepsMutators)
-	android.PostDepsMutators(RegisterPostDepsMutators)
+	registerSdkBuildComponents(android.InitRegistrationContext)
+}
+
+func registerSdkBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("sdk", SdkModuleFactory)
+	ctx.RegisterModuleType("sdk_snapshot", SnapshotModuleFactory)
+	ctx.PreDepsMutators(RegisterPreDepsMutators)
+	ctx.PostDepsMutators(RegisterPostDepsMutators)
 }
 
 type sdk struct {
