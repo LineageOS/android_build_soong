@@ -20,6 +20,30 @@ import (
 	"android/soong/genrule"
 )
 
+// Preparer that will define all cc module types and a limited set of mutators and singletons that
+// make those module types usable.
+var PrepareForTestWithRustBuildComponents = android.GroupFixturePreparers(
+	android.FixtureRegisterWithContext(RegisterRequiredBuildComponentsForTest),
+)
+
+// The directory in which rust test default modules will be defined.
+//
+// Placing them here ensures that their location does not conflict with default test modules
+// defined by other packages.
+const rustDefaultsDir = "defaults/rust/"
+
+// Preparer that will define default rust modules, e.g. standard prebuilt modules.
+var PrepareForTestWithRustDefaultModules = android.GroupFixturePreparers(
+	cc.PrepareForTestWithCcDefaultModules,
+	PrepareForTestWithRustBuildComponents,
+	android.FixtureAddTextFile(rustDefaultsDir+"Android.bp", GatherRequiredDepsForTest()),
+)
+
+// Preparer that will allow use of all rust modules fully.
+var PrepareForIntegrationTestWithRust = android.GroupFixturePreparers(
+	PrepareForTestWithRustDefaultModules,
+)
+
 func GatherRequiredDepsForTest() string {
 	bp := `
 		rust_prebuilt_library {
