@@ -178,7 +178,7 @@ func createSystemModules(mctx android.LoadHookContext, apiver string) {
 	props.Name = proptools.StringPtr(prebuiltApiModuleName(mctx, "system_modules", "public", apiver))
 	props.Libs = append(props.Libs, prebuiltApiModuleName(mctx, "core-for-system-modules", "public", apiver))
 
-	mctx.CreateModule(SystemModulesFactory, &props)
+	mctx.CreateModule(systemModulesImportFactory, &props)
 }
 
 func prebuiltSdkSystemModules(mctx android.LoadHookContext, p *prebuiltApis) {
