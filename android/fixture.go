@@ -608,7 +608,7 @@ func (h *TestHelper) AssertArrayString(message string, expected, actual []string
 	}
 }
 
-// AssertArrayString checks if the expected and actual values are equal using reflect.DeepEqual and
+// AssertDeepEquals checks if the expected and actual values are equal using reflect.DeepEqual and
 // if they are not then it reports an error prefixed with the supplied message and including a
 // reason for why it failed.
 func (h *TestHelper) AssertDeepEquals(message string, expected interface{}, actual interface{}) {
