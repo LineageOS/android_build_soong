@@ -122,8 +122,8 @@ type overridableAppProperties struct {
 	// or an android_app_certificate module name in the form ":module".
 	Certificate *string
 
-	// Name of the signing certificate lineage file.
-	Lineage *string
+	// Name of the signing certificate lineage file or filegroup module.
+	Lineage *string `android:"path"`
 
 	// the package name of this app. The package name in the manifest file is used if one was not given.
 	Package_name *string

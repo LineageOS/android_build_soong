@@ -138,6 +138,32 @@ func TestAndroidAppImport_SigningLineage(t *testing.T) {
 	}
 }
 
+func TestAndroidAppImport_SigningLineageFilegroup(t *testing.T) {
+	ctx, _ := testJava(t, `
+	  android_app_import {
+			name: "foo",
+			apk: "prebuilts/apk/app.apk",
+			certificate: "platform",
+			lineage: ":lineage_bin",
+		}
+
+		filegroup {
+			name: "lineage_bin",
+			srcs: ["lineage.bin"],
+		}
+	`)
+
+	variant := ctx.ModuleForTests("foo", "android_common")
+
+	signedApk := variant.Output("signed/foo.apk")
+	// Check cert signing lineage flag.
+	signingFlag := signedApk.Args["flags"]
+	expected := "--lineage lineage.bin"
+	if expected != signingFlag {
+		t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected, signingFlag)
+	}
+}
+
 func TestAndroidAppImport_DefaultDevCert(t *testing.T) {
 	ctx, _ := testJava(t, `
 		android_app_import {

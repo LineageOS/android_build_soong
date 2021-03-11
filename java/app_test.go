@@ -1576,6 +1576,31 @@ func TestCertificates(t *testing.T) {
 			expectedLineage:     "--lineage lineage.bin",
 			expectedCertificate: "cert/new_cert.x509.pem cert/new_cert.pk8",
 		},
+		{
+			name: "lineage from filegroup",
+			bp: `
+				android_app {
+					name: "foo",
+					srcs: ["a.java"],
+					certificate: ":new_certificate",
+					lineage: ":lineage_bin",
+					sdk_version: "current",
+				}
+
+				android_app_certificate {
+					name: "new_certificate",
+					certificate: "cert/new_cert",
+				}
+
+				filegroup {
+					name: "lineage_bin",
+					srcs: ["lineage.bin"],
+				}
+			`,
+			certificateOverride: "",
+			expectedLineage:     "--lineage lineage.bin",
+			expectedCertificate: "cert/new_cert.x509.pem cert/new_cert.pk8",
+		},
 	}
 
 	for _, test := range testCases {
