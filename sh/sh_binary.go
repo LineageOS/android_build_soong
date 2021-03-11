@@ -40,13 +40,31 @@ var pctx = android.NewPackageContext("android/soong/sh")
 func init() {
 	pctx.Import("android/soong/android")
 
-	android.RegisterModuleType("sh_binary", ShBinaryFactory)
-	android.RegisterModuleType("sh_binary_host", ShBinaryHostFactory)
-	android.RegisterModuleType("sh_test", ShTestFactory)
-	android.RegisterModuleType("sh_test_host", ShTestHostFactory)
+	registerShBuildComponents(android.InitRegistrationContext)
 
 	android.RegisterBp2BuildMutator("sh_binary", ShBinaryBp2Build)
 }
+
+func registerShBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("sh_binary", ShBinaryFactory)
+	ctx.RegisterModuleType("sh_binary_host", ShBinaryHostFactory)
+	ctx.RegisterModuleType("sh_test", ShTestFactory)
+	ctx.RegisterModuleType("sh_test_host", ShTestHostFactory)
+}
+
+// Test fixture preparer that will register most sh build components.
+//
+// Singletons and mutators should only be added here if they are needed for a majority of sh
+// module types, otherwise they should be added under a separate preparer to allow them to be
+// selected only when needed to reduce test execution time.
+//
+// Module types do not have much of an overhead unless they are used so this should include as many
+// module types as possible. The exceptions are those module types that require mutators and/or
+// singletons in order to function in which case they should be kept together in a separate
+// preparer.
+var PrepareForTestWithShBuildComponents = android.GroupFixturePreparers(
+	android.FixtureRegisterWithContext(registerShBuildComponents),
+)
 
 type shBinaryProperties struct {
 	// Source file of this prebuilt.

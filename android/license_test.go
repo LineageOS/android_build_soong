@@ -4,9 +4,24 @@ import (
 	"testing"
 )
 
+// Common test set up for license tests.
+var licenseTestFixtureFactory = emptyTestFixtureFactory.Extend(
+	// General preparers in alphabetical order.
+	PrepareForTestWithDefaults,
+	prepareForTestWithLicenses,
+	PrepareForTestWithOverrides,
+	PrepareForTestWithPackageModule,
+	PrepareForTestWithPrebuilts,
+	PrepareForTestWithVisibility,
+
+	// Additional test specific stuff
+	prepareForTestWithFakePrebuiltModules,
+	FixtureMergeEnv(map[string]string{"ANDROID_REQUIRE_LICENSES": "1"}),
+)
+
 var licenseTests = []struct {
 	name           string
-	fs             map[string][]byte
+	fs             MockFS
 	expectedErrors []string
 }{
 	{
@@ -163,58 +178,20 @@ var licenseTests = []struct {
 func TestLicense(t *testing.T) {
 	for _, test := range licenseTests {
 		t.Run(test.name, func(t *testing.T) {
-			_, errs := testLicense(test.fs)
-
-			expectedErrors := test.expectedErrors
-			if expectedErrors == nil {
-				FailIfErrored(t, errs)
-			} else {
-				for _, expectedError := range expectedErrors {
-					FailIfNoMatchingErrors(t, expectedError, errs)
-				}
-				if len(errs) > len(expectedErrors) {
-					t.Errorf("additional errors found, expected %d, found %d", len(expectedErrors), len(errs))
-					for i, expectedError := range expectedErrors {
-						t.Errorf("expectedErrors[%d] = %s", i, expectedError)
-					}
-					for i, err := range errs {
-						t.Errorf("errs[%d] = %s", i, err)
-					}
-				}
-			}
+			// Customize the common license text fixture factory.
+			licenseTestFixtureFactory.Extend(
+				FixtureRegisterWithContext(func(ctx RegistrationContext) {
+					ctx.RegisterModuleType("rule", newMockRuleModule)
+				}),
+				test.fs.AddToFixture(),
+			).
+				ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
+				RunTest(t)
 		})
 	}
 }
 
-func testLicense(fs map[string][]byte) (*TestContext, []error) {
-
-	// Create a new config per test as visibility information is stored in the config.
-	env := make(map[string]string)
-	env["ANDROID_REQUIRE_LICENSES"] = "1"
-	config := TestArchConfig(buildDir, env, "", fs)
-
-	ctx := NewTestArchContext(config)
-	RegisterPackageBuildComponents(ctx)
-	registerTestPrebuiltBuildComponents(ctx)
-	RegisterLicenseKindBuildComponents(ctx)
-	RegisterLicenseBuildComponents(ctx)
-	ctx.RegisterModuleType("rule", newMockRuleModule)
-	ctx.PreArchMutators(RegisterVisibilityRuleChecker)
-	ctx.PreArchMutators(RegisterLicensesPackageMapper)
-	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(RegisterLicensesPropertyGatherer)
-	ctx.PreArchMutators(RegisterVisibilityRuleGatherer)
-	ctx.PostDepsMutators(RegisterVisibilityRuleEnforcer)
-	ctx.PostDepsMutators(RegisterLicensesDependencyChecker)
-	ctx.Register()
-
-	_, errs := ctx.ParseBlueprintsFiles(".")
-	if len(errs) > 0 {
-		return ctx, errs
-	}
-
-	_, errs = ctx.PrepareBuildActions(config)
-	return ctx, errs
+func testLicense(t *testing.T, fs MockFS, expectedErrors []string) {
 }
 
 type mockRuleModule struct {
