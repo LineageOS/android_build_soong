@@ -452,6 +452,7 @@ type sdkLibraryProperties struct {
 	// that references the latest released API and remove API specification files.
 	// * API specification filegroup -> <dist-stem>.api.<scope>.latest
 	// * Removed API specification filegroup -> <dist-stem>-removed.api.<scope>.latest
+	// * API incompatibilities baseline filegroup -> <dist-stem>-incompatibilities.api.<scope>.latest
 	Dist_stem *string
 
 	// A compatibility mode that allows historical API-tracking files to not exist.
@@ -1059,6 +1060,9 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 		if m := android.SrcIsModule(module.latestRemovedApiFilegroupName(apiScope)); !ctx.OtherModuleExists(m) {
 			missingApiModules = append(missingApiModules, m)
 		}
+		if m := android.SrcIsModule(module.latestIncompatibilitiesFilegroupName(apiScope)); !ctx.OtherModuleExists(m) {
+			missingApiModules = append(missingApiModules, m)
+		}
 	}
 	if len(missingApiModules) != 0 && !module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api {
 		m := module.Name() + " is missing tracking files for previously released library versions.\n"
@@ -1163,6 +1167,10 @@ func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {
 
 func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) string {
 	return ":" + module.distStem() + "-removed.api." + apiScope.name + ".latest"
+}
+
+func (module *SdkLibrary) latestIncompatibilitiesFilegroupName(apiScope *apiScope) string {
+	return ":" + module.distStem() + "-incompatibilities.api." + apiScope.name + ".latest"
 }
 
 func childModuleVisibility(childVisibility []string) []string {
@@ -1389,6 +1397,8 @@ func (module *SdkLibrary) createStubsSourcesAndApi(mctx android.DefaultableHookC
 		props.Check_api.Last_released.Api_file = latestApiFilegroupName
 		props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
 			module.latestRemovedApiFilegroupName(apiScope))
+		props.Check_api.Last_released.Baseline_file = proptools.StringPtr(
+			module.latestIncompatibilitiesFilegroupName(apiScope))
 
 		if proptools.Bool(module.sdkLibraryProperties.Api_lint.Enabled) {
 			// Enable api lint.
