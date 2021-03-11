@@ -12,6 +12,7 @@ bootstrap_go_package {
         "soong",
         "soong-android-soongconfig",
         "soong-bazel",
+        "soong-cquery",
         "soong-shared",
         "soong-ui-metrics_proto",
     ],
