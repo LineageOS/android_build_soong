@@ -136,9 +136,8 @@ func runTests(t *testing.T, ctx *android.TestContext, config android.Config) *te
 	_, errs = ctx.PrepareBuildActions(config)
 	android.FailIfErrored(t, errs)
 	return &testSdkResult{
-		TestHelper: android.TestHelper{T: t},
-		ctx:        ctx,
-		config:     config,
+		TestHelper:  android.TestHelper{T: t},
+		TestContext: ctx,
 	}
 }
 
@@ -184,8 +183,7 @@ func pathsToStrings(paths android.Paths) []string {
 // checking the state of the build structures.
 type testSdkResult struct {
 	android.TestHelper
-	ctx    *android.TestContext
-	config android.Config
+	*android.TestContext
 }
 
 // Analyse the sdk build rules to extract information about what it is doing.
@@ -257,11 +255,7 @@ func (r *testSdkResult) getSdkSnapshotBuildInfo(sdk *sdk) *snapshotBuildInfo {
 }
 
 func (r *testSdkResult) Module(name string, variant string) android.Module {
-	return r.ctx.ModuleForTests(name, variant).Module()
-}
-
-func (r *testSdkResult) ModuleForTests(name string, variant string) android.TestingModule {
-	return r.ctx.ModuleForTests(name, variant)
+	return r.ModuleForTests(name, variant).Module()
 }
 
 // Check the snapshot build rules.
