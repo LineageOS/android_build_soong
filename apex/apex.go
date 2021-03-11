@@ -974,6 +974,10 @@ func markPlatformAvailability(mctx android.BottomUpMutatorContext) {
 	// If any of the dep is not available to platform, this module is also considered as being
 	// not available to platform even if it has "//apex_available:platform"
 	mctx.VisitDirectDeps(func(child android.Module) {
+		depTag := mctx.OtherModuleDependencyTag(child)
+		if _, ok := depTag.(android.ExcludeFromApexContentsTag); ok {
+			return
+		}
 		if !am.DepIsInSameApex(mctx, child) {
 			// if the dependency crosses apex boundary, don't consider it
 			return
