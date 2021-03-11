@@ -45,3 +45,36 @@ func BpToolModulesForTest() string {
 		}
 	`
 }
+
+// Prepares a test fixture by enabling dexpreopt.
+var PrepareForTestWithDexpreopt = FixtureModifyGlobalConfig(func(*GlobalConfig) {})
+
+// FixtureModifyGlobalConfig enables dexpreopt (unless modified by the mutator) and modifies the
+// configuration.
+func FixtureModifyGlobalConfig(configModifier func(dexpreoptConfig *GlobalConfig)) android.FixturePreparer {
+	return android.FixtureModifyConfig(func(config android.Config) {
+		// Initialize the dexpreopt GlobalConfig to an empty structure. This has no effect if it has
+		// already been set.
+		pathCtx := android.PathContextForTesting(config)
+		dexpreoptConfig := GlobalConfigForTests(pathCtx)
+		SetTestGlobalConfig(config, dexpreoptConfig)
+
+		// Retrieve the existing configuration and modify it.
+		dexpreoptConfig = GetGlobalConfig(pathCtx)
+		configModifier(dexpreoptConfig)
+	})
+}
+
+// FixtureSetArtBootJars enables dexpreopt and sets the ArtApexJars property.
+func FixtureSetArtBootJars(bootJars ...string) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.ArtApexJars = android.CreateTestConfiguredJarList(bootJars)
+	})
+}
+
+// FixtureSetBootJars enables dexpreopt and sets the BootJars property.
+func FixtureSetBootJars(bootJars ...string) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.BootJars = android.CreateTestConfiguredJarList(bootJars)
+	})
+}
