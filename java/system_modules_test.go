@@ -15,12 +15,11 @@
 package java
 
 import (
-	"strings"
 	"testing"
 )
 
 func TestJavaSystemModules(t *testing.T) {
-	ctx, _ := testJava(t, `
+	result := javaFixtureFactory.RunTestWithBp(t, `
 		java_system_modules {
 			name: "system-modules",
 			libs: ["system-module1", "system-module2"],
@@ -40,21 +39,18 @@ func TestJavaSystemModules(t *testing.T) {
 		`)
 
 	// check the existence of the module
-	systemModules := ctx.ModuleForTests("system-modules", "android_common")
+	systemModules := result.ModuleForTests("system-modules", "android_common")
 
 	cmd := systemModules.Rule("jarsTosystemModules")
 
 	// make sure the command compiles against the supplied modules.
 	for _, module := range []string{"system-module1.jar", "system-module2.jar"} {
-		if !strings.Contains(cmd.Args["classpath"], module) {
-			t.Errorf("system modules classpath %v does not contain %q", cmd.Args["classpath"],
-				module)
-		}
+		result.AssertStringDoesContain("system modules classpath", cmd.Args["classpath"], module)
 	}
 }
 
 func TestJavaSystemModulesImport(t *testing.T) {
-	ctx, _ := testJava(t, `
+	result := javaFixtureFactory.RunTestWithBp(t, `
 		java_system_modules_import {
 			name: "system-modules",
 			libs: ["system-module1", "system-module2"],
@@ -70,15 +66,12 @@ func TestJavaSystemModulesImport(t *testing.T) {
 		`)
 
 	// check the existence of the module
-	systemModules := ctx.ModuleForTests("system-modules", "android_common")
+	systemModules := result.ModuleForTests("system-modules", "android_common")
 
 	cmd := systemModules.Rule("jarsTosystemModules")
 
 	// make sure the command compiles against the supplied modules.
 	for _, module := range []string{"system-module1.jar", "system-module2.jar"} {
-		if !strings.Contains(cmd.Args["classpath"], module) {
-			t.Errorf("system modules classpath %v does not contain %q", cmd.Args["classpath"],
-				module)
-		}
+		result.AssertStringDoesContain("system modules classpath", cmd.Args["classpath"], module)
 	}
 }
