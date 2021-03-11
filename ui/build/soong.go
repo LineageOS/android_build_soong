@@ -170,12 +170,28 @@ func runSoong(ctx Context, config Config) {
 			"--frontend_file", fifo,
 			"-f", filepath.Join(config.SoongOutDir(), file))
 
-		cmd.Environment.Set("SOONG_OUTDIR", config.SoongOutDir())
+		var ninjaEnv Environment
+
+		// This is currently how the command line to invoke soong_build finds the
+		// root of the source tree and the output root
+		ninjaEnv.Set("TOP", os.Getenv("TOP"))
+		ninjaEnv.Set("SOONG_OUTDIR", config.SoongOutDir())
+
+		// Needed for NonHermeticHostSystemTool() and that, only in tests. We should
+		// probably find a better way of running tests other than making $PATH
+		// available also to production builds. Note that this is not get same as
+		// os.Getenv("PATH"): config.Environment() contains the $PATH that redirects
+		// every binary through the path interposer.
+		configPath, _ := config.Environment().Get("PATH")
+		ninjaEnv.Set("PATH", configPath)
+
+		// For debugging
 		if os.Getenv("SOONG_DELVE") != "" {
 			// SOONG_DELVE is already in cmd.Environment
-			cmd.Environment.Set("SOONG_DELVE_PATH", shared.ResolveDelveBinary())
+			ninjaEnv.Set("SOONG_DELVE_PATH", shared.ResolveDelveBinary())
 		}
 
+		cmd.Environment = &ninjaEnv
 		cmd.Sandbox = soongSandbox
 		cmd.RunAndStreamOrFatal()
 	}
