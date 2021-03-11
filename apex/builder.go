@@ -577,7 +577,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 		var libNames []string
 		for _, f := range a.filesInfo {
 			if f.class == nativeSharedLib {
-				libNames = append(libNames, f.stem)
+				libNames = append(libNames, f.Stem())
 			}
 		}
 		apisBackedbyOutputFile := android.PathForModuleOut(ctx, a.Name()+"_backing.txt")
