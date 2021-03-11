@@ -19,10 +19,6 @@ import (
 	"android/soong/java/config"
 )
 
-// This variable is effectively unused in pre-master branches, and is
-// included (with the same value as it has in AOSP) only to ease
-// merges between branches (see the comment in the
-// useLegacyCorePlatformApi() function):
 var legacyCorePlatformApiModules = []string{
 	"ArcSettings",
 	"ahat-test-dump",
@@ -35,29 +31,44 @@ var legacyCorePlatformApiModules = []string{
 	"art_cts_jvmti_test_library",
 	"art-gtest-jars-MyClassNatives",
 	"BackupFrameworksServicesRoboTests",
+	"backuplib",
 	"BandwidthEnforcementTest",
 	"BlockedNumberProvider",
 	"BluetoothInstrumentationTests",
 	"BluetoothMidiService",
+	"CarDeveloperOptions",
+	"CarService",
+	"CarServiceTest",
 	"car-apps-common",
+	"car-service-test-lib",
+	"car-service-test-static-lib",
 	"CertInstaller",
 	"ConnectivityManagerTest",
 	"ContactsProvider",
+	"CorePerfTests",
 	"core-tests-support",
+	"CtsAppExitTestCases",
 	"CtsContentTestCases",
 	"CtsIkeTestCases",
+	"CtsAppExitTestCases",
 	"CtsLibcoreWycheproofBCTestCases",
 	"CtsMediaTestCases",
 	"CtsNetTestCases",
 	"CtsNetTestCasesLatestSdk",
 	"CtsSecurityTestCases",
+	"CtsSuspendAppsTestCases",
 	"CtsUsageStatsTestCases",
+	"DeadpoolService",
+	"DeadpoolServiceBtServices",
+	"DeviceInfo",
+	"DiagnosticTools",
 	"DisplayCutoutEmulationEmu01Overlay",
 	"DocumentsUIPerfTests",
 	"DocumentsUITests",
 	"DownloadProvider",
 	"DownloadProviderTests",
 	"DownloadProviderUi",
+	"ds-car-docs", // for AAOS API documentation only
 	"DynamicSystemInstallationService",
 	"EmergencyInfo-lib",
 	"ethernet-service",
@@ -74,6 +85,7 @@ var legacyCorePlatformApiModules = []string{
 	"FrameworksServicesRoboTests",
 	"FrameworksServicesTests",
 	"FrameworksUtilTests",
+	"FrameworksWifiTests",
 	"hid",
 	"hidl_test_java_java",
 	"hwbinder",
@@ -96,6 +108,9 @@ var legacyCorePlatformApiModules = []string{
 	"platform_library-docs",
 	"PrintSpooler",
 	"RollbackTest",
+	"service-blobstore",
+	"service-connectivity",
+	"service-jobscheduler",
 	"services",
 	"services.accessibility",
 	"services.backup",
@@ -138,10 +153,6 @@ var legacyCorePlatformApiModules = []string{
 	"wifi-service",
 }
 
-// This variable is effectively unused in pre-master branches, and is
-// included (with the same value as it has in AOSP) only to ease
-// merges between branches (see the comment in the
-// useLegacyCorePlatformApi() function):
 var legacyCorePlatformApiLookup = make(map[string]struct{})
 
 func init() {
@@ -151,12 +162,8 @@ func init() {
 }
 
 func useLegacyCorePlatformApi(ctx android.EarlyModuleContext) bool {
-	// In pre-master branches, we don't attempt to force usage of the stable
-	// version of the core/platform API. Instead, we always use the legacy
-	// version --- except in tests, where we always use stable, so that we
-	// can make the test assertions the same as other branches.
-	// This should be false in tests and true otherwise:
-	return ctx.Config().TestProductVariables == nil
+	_, found := legacyCorePlatformApiLookup[ctx.ModuleName()]
+	return found
 }
 
 func corePlatformSystemModules(ctx android.EarlyModuleContext) string {
