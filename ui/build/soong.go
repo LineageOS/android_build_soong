@@ -116,7 +116,7 @@ func runSoong(ctx Context, config Config) {
 
 		envFile := filepath.Join(config.SoongOutDir(), "soong.environment.used")
 		getenv := func(k string) string {
-			v, _ := config.Environment().Get(k)
+			v, _ := soongBuildEnv.Get(k)
 			return v
 		}
 		if stale, _ := shared.StaleEnvFile(envFile, getenv); stale {
@@ -187,7 +187,7 @@ func runSoong(ctx Context, config Config) {
 
 		// For debugging
 		if os.Getenv("SOONG_DELVE") != "" {
-			// SOONG_DELVE is already in cmd.Environment
+			ninjaEnv.Set("SOONG_DELVE", os.Getenv("SOONG_DELVE"))
 			ninjaEnv.Set("SOONG_DELVE_PATH", shared.ResolveDelveBinary())
 		}
 
