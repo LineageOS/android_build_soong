@@ -527,25 +527,6 @@ func (c *config) HostJavaToolPath(ctx PathContext, path string) Path {
 	return PathForOutput(ctx, "host", c.PrebuiltOS(), "framework", path)
 }
 
-// NonHermeticHostSystemTool looks for non-hermetic tools from the system we're
-// running on. These tools are not checked-in to AOSP, and therefore could lead
-// to reproducibility problems. Should not be used for other than finding the
-// XCode SDK (xcrun, sw_vers), etc. See ui/build/paths/config.go for the
-// allowlist of host system tools.
-func (c *config) NonHermeticHostSystemTool(name string) string {
-	for _, dir := range filepath.SplitList(c.Getenv("PATH")) {
-		path := filepath.Join(dir, name)
-		if s, err := os.Stat(path); err != nil {
-			continue
-		} else if m := s.Mode(); !s.IsDir() && m&0111 != 0 {
-			return path
-		}
-	}
-	panic(fmt.Errorf(
-		"Cannot find non-hermetic system tool '%s' on path '%s'",
-		name, c.Getenv("PATH")))
-}
-
 // PrebuiltOS returns the name of the host OS used in prebuilts directories.
 func (c *config) PrebuiltOS() string {
 	switch runtime.GOOS {
