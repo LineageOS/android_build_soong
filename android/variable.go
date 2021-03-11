@@ -24,10 +24,16 @@ import (
 )
 
 func init() {
-	PreDepsMutators(func(ctx RegisterMutatorsContext) {
+	registerVariableBuildComponents(InitRegistrationContext)
+}
+
+func registerVariableBuildComponents(ctx RegistrationContext) {
+	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
 		ctx.BottomUp("variable", VariableMutator).Parallel()
 	})
 }
+
+var PrepareForTestWithVariables = FixtureRegisterWithContext(registerVariableBuildComponents)
 
 type variableProperties struct {
 	Product_variables struct {
