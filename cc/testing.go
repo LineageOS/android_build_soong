@@ -653,6 +653,14 @@ var PrepareForTestOnLinuxBionic = android.GroupFixturePreparers(
 	android.FixtureAddTextFile(linuxBionicDefaultsPath, withLinuxBionic()),
 )
 
+// The preparer to include if running a cc related test for fuchsia.
+var PrepareForTestOnFuchsia = android.GroupFixturePreparers(
+	// Place the default cc test modules for fuschia in a location that will not conflict with default
+	// test modules defined by other packages.
+	android.FixtureAddTextFile("defaults/cc/fuschia/Android.bp", withFuchsiaModules()),
+	android.PrepareForTestSetDeviceToFuchsia,
+)
+
 // This adds some additional modules and singletons which might negatively impact the performance
 // of tests so they are not included in the PrepareForIntegrationTestWithCc.
 var PrepareForTestWithCcIncludeVndk = android.GroupFixturePreparers(
@@ -685,7 +693,7 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 
 	var config android.Config
 	if os == android.Fuchsia {
-		config = android.TestArchConfigFuchsia(buildDir, env, bp, mockFS)
+		panic("Fuchsia not supported use test fixture instead")
 	} else {
 		config = android.TestArchConfig(buildDir, env, bp, mockFS)
 	}

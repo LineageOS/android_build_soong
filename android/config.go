@@ -287,23 +287,20 @@ func TestArchConfigNativeBridge(buildDir string, env map[string]string, bp strin
 	return testConfig
 }
 
-// TestArchConfigFuchsia returns a Config object suitable for using for
-// tests that need to run the arch mutator for the Fuchsia arch.
-func TestArchConfigFuchsia(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
-	testConfig := TestConfig(buildDir, env, bp, fs)
-	config := testConfig.config
-
-	config.Targets = map[OsType][]Target{
-		Fuchsia: []Target{
+func fuchsiaTargets() map[OsType][]Target {
+	return map[OsType][]Target{
+		Fuchsia: {
 			{Fuchsia, Arch{ArchType: Arm64, ArchVariant: "", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
 		},
-		BuildOs: []Target{
+		BuildOs: {
 			{BuildOs, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", false},
 		},
 	}
-
-	return testConfig
 }
+
+var PrepareForTestSetDeviceToFuchsia = FixtureModifyConfig(func(config Config) {
+	config.Targets = fuchsiaTargets()
+})
 
 func modifyTestConfigToSupportArchMutator(testConfig Config) {
 	config := testConfig.config
