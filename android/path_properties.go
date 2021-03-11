@@ -118,6 +118,13 @@ func fieldsByIndex(v reflect.Value, index []int, values *[]reflect.Value) {
 				*values = append(*values, v.Index(i).Field(index[0]))
 			}
 		} else {
+			// Dereference it if it's a pointer.
+			if v.Kind() == reflect.Ptr {
+				if v.IsNil() {
+					return
+				}
+				v = v.Elem()
+			}
 			*values = append(*values, v.Field(index[0]))
 		}
 		return
