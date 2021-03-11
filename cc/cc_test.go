@@ -55,7 +55,6 @@ func TestMain(m *testing.M) {
 var ccFixtureFactory = android.NewFixtureFactory(
 	&buildDir,
 	PrepareForTestWithCcIncludeVndk,
-
 	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 		variables.DeviceVndkVersion = StringPtr("current")
 		variables.ProductVndkVersion = StringPtr("current")
@@ -3421,24 +3420,16 @@ func TestProductVariableDefaults(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
-	config.TestProductVariables.Debuggable = BoolPtr(true)
+	result := ccFixtureFactory.Extend(
+		android.PrepareForTestWithVariables,
 
-	ctx := CreateTestContext(config)
-	ctx.PreDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("variable", android.VariableMutator).Parallel()
-	})
-	ctx.Register()
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Debuggable = BoolPtr(true)
+		}),
+	).RunTestWithBp(t, bp)
 
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
-
-	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static").Module().(*Module)
-	if !android.InList("-DBAR", libfoo.flags.Local.CppFlags) {
-		t.Errorf("expected -DBAR in cppflags, got %q", libfoo.flags.Local.CppFlags)
-	}
+	libfoo := result.Module("libfoo", "android_arm64_armv8-a_static").(*Module)
+	result.AssertStringListContains("cppflags", libfoo.flags.Local.CppFlags, "-DBAR")
 }
 
 func TestEmptyWholeStaticLibsAllowMissingDependencies(t *testing.T) {
@@ -3456,32 +3447,17 @@ func TestEmptyWholeStaticLibsAllowMissingDependencies(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
-	config.TestProductVariables.Allow_missing_dependencies = BoolPtr(true)
+	result := ccFixtureFactory.Extend(
+		android.PrepareForTestWithAllowMissingDependencies,
+	).RunTestWithBp(t, bp)
 
-	ctx := CreateTestContext(config)
-	ctx.SetAllowMissingDependencies(true)
-	ctx.Register()
+	libbar := result.ModuleForTests("libbar", "android_arm64_armv8-a_static").Output("libbar.a")
+	result.AssertDeepEquals("libbar rule", android.ErrorRule, libbar.Rule)
 
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
+	result.AssertStringDoesContain("libbar error", libbar.Args["error"], "missing dependencies: libmissing")
 
-	libbar := ctx.ModuleForTests("libbar", "android_arm64_armv8-a_static").Output("libbar.a")
-	if g, w := libbar.Rule, android.ErrorRule; g != w {
-		t.Fatalf("Expected libbar rule to be %q, got %q", w, g)
-	}
-
-	if g, w := libbar.Args["error"], "missing dependencies: libmissing"; !strings.Contains(g, w) {
-		t.Errorf("Expected libbar error to contain %q, was %q", w, g)
-	}
-
-	libfoo := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_static").Output("libfoo.a")
-	if g, w := libfoo.Inputs.Strings(), libbar.Output.String(); !android.InList(w, g) {
-		t.Errorf("Expected libfoo.a to depend on %q, got %q", w, g)
-	}
-
+	libfoo := result.ModuleForTests("libfoo", "android_arm64_armv8-a_static").Output("libfoo.a")
+	result.AssertStringListContains("libfoo.a dependencies", libfoo.Inputs.Strings(), libbar.Output.String())
 }
 
 func TestInstallSharedLibs(t *testing.T) {
@@ -3671,8 +3647,9 @@ func checkHasMemtagNote(t *testing.T, m android.TestingModule, expected MemtagNo
 	}
 }
 
-func makeMemtagTestConfig(t *testing.T) android.Config {
-	templateBp := `
+var prepareForTestWithMemtagHeap = android.GroupFixturePreparers(
+	android.FixtureModifyMockFS(func(fs android.MockFS) {
+		templateBp := `
 		cc_test {
 			name: "%[1]s_test",
 			gtest: false,
@@ -3726,35 +3703,30 @@ func makeMemtagTestConfig(t *testing.T) android.Config {
 			sanitize: { memtag_heap: true, diag: { memtag_heap: true }  },
 		}
 		`
-	subdirDefaultBp := fmt.Sprintf(templateBp, "default")
-	subdirExcludeBp := fmt.Sprintf(templateBp, "exclude")
-	subdirSyncBp := fmt.Sprintf(templateBp, "sync")
-	subdirAsyncBp := fmt.Sprintf(templateBp, "async")
+		subdirDefaultBp := fmt.Sprintf(templateBp, "default")
+		subdirExcludeBp := fmt.Sprintf(templateBp, "exclude")
+		subdirSyncBp := fmt.Sprintf(templateBp, "sync")
+		subdirAsyncBp := fmt.Sprintf(templateBp, "async")
 
-	mockFS := map[string][]byte{
-		"subdir_default/Android.bp": []byte(subdirDefaultBp),
-		"subdir_exclude/Android.bp": []byte(subdirExcludeBp),
-		"subdir_sync/Android.bp":    []byte(subdirSyncBp),
-		"subdir_async/Android.bp":   []byte(subdirAsyncBp),
-	}
-
-	return TestConfig(buildDir, android.Android, nil, "", mockFS)
-}
+		fs.Merge(android.MockFS{
+			"subdir_default/Android.bp": []byte(subdirDefaultBp),
+			"subdir_exclude/Android.bp": []byte(subdirExcludeBp),
+			"subdir_sync/Android.bp":    []byte(subdirSyncBp),
+			"subdir_async/Android.bp":   []byte(subdirAsyncBp),
+		})
+	}),
+	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		variables.MemtagHeapExcludePaths = []string{"subdir_exclude"}
+		variables.MemtagHeapSyncIncludePaths = []string{"subdir_sync"}
+		variables.MemtagHeapAsyncIncludePaths = []string{"subdir_async"}
+	}),
+)
 
 func TestSanitizeMemtagHeap(t *testing.T) {
 	variant := "android_arm64_armv8-a"
 
-	config := makeMemtagTestConfig(t)
-	config.TestProductVariables.MemtagHeapExcludePaths = []string{"subdir_exclude"}
-	config.TestProductVariables.MemtagHeapSyncIncludePaths = []string{"subdir_sync"}
-	config.TestProductVariables.MemtagHeapAsyncIncludePaths = []string{"subdir_async"}
-	ctx := CreateTestContext(config)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp", "subdir_default/Android.bp", "subdir_exclude/Android.bp", "subdir_sync/Android.bp", "subdir_async/Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
+	result := ccFixtureFactory.Extend(prepareForTestWithMemtagHeap).RunTest(t)
+	ctx := result.TestContext
 
 	checkHasMemtagNote(t, ctx.ModuleForTests("default_test", variant), Sync)
 	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_false", variant), None)
@@ -3808,18 +3780,13 @@ func TestSanitizeMemtagHeap(t *testing.T) {
 func TestSanitizeMemtagHeapWithSanitizeDevice(t *testing.T) {
 	variant := "android_arm64_armv8-a"
 
-	config := makeMemtagTestConfig(t)
-	config.TestProductVariables.MemtagHeapExcludePaths = []string{"subdir_exclude"}
-	config.TestProductVariables.MemtagHeapSyncIncludePaths = []string{"subdir_sync"}
-	config.TestProductVariables.MemtagHeapAsyncIncludePaths = []string{"subdir_async"}
-	config.TestProductVariables.SanitizeDevice = []string{"memtag_heap"}
-	ctx := CreateTestContext(config)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp", "subdir_default/Android.bp", "subdir_exclude/Android.bp", "subdir_sync/Android.bp", "subdir_async/Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
+	result := ccFixtureFactory.Extend(
+		prepareForTestWithMemtagHeap,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.SanitizeDevice = []string{"memtag_heap"}
+		}),
+	).RunTest(t)
+	ctx := result.TestContext
 
 	checkHasMemtagNote(t, ctx.ModuleForTests("default_test", variant), Sync)
 	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_false", variant), None)
@@ -3873,19 +3840,14 @@ func TestSanitizeMemtagHeapWithSanitizeDevice(t *testing.T) {
 func TestSanitizeMemtagHeapWithSanitizeDeviceDiag(t *testing.T) {
 	variant := "android_arm64_armv8-a"
 
-	config := makeMemtagTestConfig(t)
-	config.TestProductVariables.MemtagHeapExcludePaths = []string{"subdir_exclude"}
-	config.TestProductVariables.MemtagHeapSyncIncludePaths = []string{"subdir_sync"}
-	config.TestProductVariables.MemtagHeapAsyncIncludePaths = []string{"subdir_async"}
-	config.TestProductVariables.SanitizeDevice = []string{"memtag_heap"}
-	config.TestProductVariables.SanitizeDeviceDiag = []string{"memtag_heap"}
-	ctx := CreateTestContext(config)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp", "subdir_default/Android.bp", "subdir_exclude/Android.bp", "subdir_sync/Android.bp", "subdir_async/Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
+	result := ccFixtureFactory.Extend(
+		prepareForTestWithMemtagHeap,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.SanitizeDevice = []string{"memtag_heap"}
+			variables.SanitizeDeviceDiag = []string{"memtag_heap"}
+		}),
+	).RunTest(t)
+	ctx := result.TestContext
 
 	checkHasMemtagNote(t, ctx.ModuleForTests("default_test", variant), Sync)
 	checkHasMemtagNote(t, ctx.ModuleForTests("default_test_false", variant), None)
