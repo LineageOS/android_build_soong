@@ -26,6 +26,9 @@ type pathDepsMutatorTestModule struct {
 		Bar []string `android:"path,arch_variant"`
 		Baz *string  `android:"path"`
 		Qux string
+		V   *struct {
+			W string `android:"path"`
+		}
 	}
 
 	// A second property struct with a duplicate property name
@@ -94,8 +97,11 @@ func TestPathDepsMutator(t *testing.T) {
 						],
 					},
 				],
+				v: {
+					w: ":w",
+				},
 			}`,
-			deps: []string{"a", "b", "c", "x", "y", "z"},
+			deps: []string{"a", "b", "c", "w", "x", "y", "z"},
 		},
 		{
 			name: "arch variant",
@@ -133,6 +139,10 @@ func TestPathDepsMutator(t *testing.T) {
     	
 				filegroup {
 					name: "d",
+				}
+
+				filegroup {
+					name: "w",
 				}
 
 				filegroup {
