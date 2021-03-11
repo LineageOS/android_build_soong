@@ -542,9 +542,8 @@ func (c *config) NonHermeticHostSystemTool(name string) string {
 		}
 	}
 	panic(fmt.Errorf(
-		"Unable to use '%s' as a host system tool for build system "+
-			"hermeticity reasons. See build/soong/ui/build/paths/config.go "+
-			"for the full list of allowed host tools on your system.", name))
+		"Cannot find non-hermetic system tool '%s' on path '%s'",
+		name, c.Getenv("PATH")))
 }
 
 // PrebuiltOS returns the name of the host OS used in prebuilts directories.
