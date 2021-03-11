@@ -174,6 +174,8 @@ func (l *linter) deps(ctx android.BottomUpMutatorContext) {
 		extraLintCheckTag, extraCheckModules...)
 }
 
+// lintPaths contains the paths to lint's inputs and outputs to make it easier to pass them
+// around.
 type lintPaths struct {
 	projectXML android.WritablePath
 	configXML  android.WritablePath
