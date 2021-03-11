@@ -214,9 +214,6 @@ func runMakeProductConfig(ctx Context, config Config) {
 		// So that later Kati runs can find BoardConfig.mk faster
 		"TARGET_DEVICE_DIR",
 
-		// To decide whether to skip the old installed cleanup step.
-		"FULL_BUILD",
-
 		// Whether --werror_overriding_commands will work
 		"BUILD_BROKEN_DUP_RULES",
 
@@ -281,7 +278,6 @@ func runMakeProductConfig(ctx Context, config Config) {
 	config.SetNinjaArgs(strings.Fields(makeVars["NINJA_GOALS"]))
 	config.SetTargetDevice(makeVars["TARGET_DEVICE"])
 	config.SetTargetDeviceDir(makeVars["TARGET_DEVICE_DIR"])
-	config.SetFullBuild(makeVars["FULL_BUILD"] == "true")
 
 	config.SetBuildBrokenDupRules(makeVars["BUILD_BROKEN_DUP_RULES"] == "true")
 	config.SetBuildBrokenUsesNetwork(makeVars["BUILD_BROKEN_USES_NETWORK"] == "true")
