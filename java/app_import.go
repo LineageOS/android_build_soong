@@ -74,8 +74,8 @@ type AndroidAppImportProperties struct {
 	// be set for presigned modules.
 	Presigned *bool
 
-	// Name of the signing certificate lineage file.
-	Lineage *string
+	// Name of the signing certificate lineage file or filegroup module.
+	Lineage *string `android:"path"`
 
 	// Sign with the default system dev certificate. Must be used judiciously. Most imported apps
 	// need to either specify a specific certificate or be presigned.
