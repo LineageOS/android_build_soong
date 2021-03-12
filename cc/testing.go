@@ -649,8 +649,11 @@ var PrepareForTestOnWindows = android.GroupFixturePreparers(
 
 // The preparer to include if running a cc related test for linux bionic.
 var PrepareForTestOnLinuxBionic = android.GroupFixturePreparers(
-	// Enable linux bionic.
-	android.FixtureAddTextFile(linuxBionicDefaultsPath, withLinuxBionic()),
+	// Enable linux bionic
+	//
+	// Can be used after PrepareForTestWithCcDefaultModules to override its default behavior of
+	// disabling linux bionic, hence why this uses FixtureOverrideTextFile.
+	android.FixtureOverrideTextFile(linuxBionicDefaultsPath, withLinuxBionic()),
 )
 
 // The preparer to include if running a cc related test for fuchsia.
