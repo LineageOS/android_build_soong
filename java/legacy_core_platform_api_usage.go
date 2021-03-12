@@ -43,6 +43,7 @@ var legacyCorePlatformApiModules = []string{
 	"car-service-test-lib",
 	"car-service-test-static-lib",
 	"CertInstaller",
+	"com.qti.media.secureprocessor",
 	"ConnectivityManagerTest",
 	"ContactsProvider",
 	"CorePerfTests",
