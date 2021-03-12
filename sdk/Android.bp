@@ -20,6 +20,7 @@ bootstrap_go_package {
         "update.go",
     ],
     testSrcs: [
+        "boot_image_sdk_test.go",
         "bp_test.go",
         "cc_sdk_test.go",
         "exports_test.go",
