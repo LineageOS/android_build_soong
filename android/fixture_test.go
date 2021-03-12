@@ -43,7 +43,6 @@ func TestFixtureDedup(t *testing.T) {
 
 	extension.Fixture(t, preparer1, preparer2, preparer2Then1, preparer3)
 
-	h := TestHelper{t}
-	h.AssertDeepEquals("preparers called in wrong order",
+	AssertDeepEquals(t, "preparers called in wrong order",
 		[]string{"preparer1", "preparer2", "preparer4", "preparer3"}, list)
 }
