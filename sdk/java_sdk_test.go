@@ -17,10 +17,11 @@ package sdk
 import (
 	"testing"
 
+	"android/soong/android"
 	"android/soong/java"
 )
 
-func testSdkWithJava(t *testing.T, bp string) *testSdkResult {
+func testSdkWithJava(t *testing.T, bp string) *android.TestResult {
 	t.Helper()
 
 	fs := map[string][]byte{
