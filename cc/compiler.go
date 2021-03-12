@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	allowedManualInterfacePaths = []string{"vendor/", "hardware/"}
+	allowedManualInterfacePaths = []string{"device/", "vendor/", "hardware/"}
 )
 
 // This file contains the basic C/C++/assembly to .o compliation steps
