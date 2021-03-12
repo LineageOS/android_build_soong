@@ -21,7 +21,7 @@ import (
 	"android/soong/cc"
 )
 
-var ccTestFs = map[string][]byte{
+var ccTestFs = android.MockFS{
 	"Test.cpp":                        nil,
 	"myinclude/Test.h":                nil,
 	"myinclude-android/AndroidTest.h": nil,
@@ -32,7 +32,7 @@ var ccTestFs = map[string][]byte{
 	"some/where/stubslib.map.txt":     nil,
 }
 
-func testSdkWithCc(t *testing.T, bp string) *testSdkResult {
+func testSdkWithCc(t *testing.T, bp string) *android.TestResult {
 	t.Helper()
 	return testSdkWithFs(t, bp, ccTestFs)
 }
@@ -808,7 +808,15 @@ module_exports_snapshot {
 }
 
 func TestSnapshotWithSingleHostOsType(t *testing.T) {
-	ctx, config := testSdkContext(`
+	result := sdkFixtureFactory.Extend(
+		ccTestFs.AddToFixture(),
+		cc.PrepareForTestOnLinuxBionic,
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.Targets[android.LinuxBionic] = []android.Target{
+				{android.LinuxBionic, android.Arch{ArchType: android.X86_64}, android.NativeBridgeDisabled, "", "", false},
+			}
+		}),
+	).RunTestWithBp(t, `
 		cc_defaults {
 			name: "mydefaults",
 			device_supported: false,
@@ -849,9 +857,7 @@ func TestSnapshotWithSingleHostOsType(t *testing.T) {
 			],
 			stl: "none",
 		}
-	`, ccTestFs, []android.OsType{android.LinuxBionic})
-
-	result := runTests(t, ctx, config)
+	`)
 
 	CheckSnapshot(result, "myexports", "",
 		checkUnversionedAndroidBpContents(`
