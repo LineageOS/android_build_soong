@@ -103,7 +103,7 @@ func TestPrebuiltEtcOutputPath(t *testing.T) {
 	`)
 
 	p := result.Module("foo.conf", "android_arm64_armv8-a").(*PrebuiltEtc)
-	result.AssertStringEquals("output file path", "foo.installed.conf", p.outputFilePath.Base())
+	android.AssertStringEquals(t, "output file path", "foo.installed.conf", p.outputFilePath.Base())
 }
 
 func TestPrebuiltEtcGlob(t *testing.T) {
@@ -120,10 +120,10 @@ func TestPrebuiltEtcGlob(t *testing.T) {
 	`)
 
 	p := result.Module("my_foo", "android_arm64_armv8-a").(*PrebuiltEtc)
-	result.AssertStringEquals("my_foo output file path", "my_foo", p.outputFilePath.Base())
+	android.AssertStringEquals(t, "my_foo output file path", "my_foo", p.outputFilePath.Base())
 
 	p = result.Module("my_bar", "android_arm64_armv8-a").(*PrebuiltEtc)
-	result.AssertStringEquals("my_bar output file path", "bar.conf", p.outputFilePath.Base())
+	android.AssertStringEquals(t, "my_bar output file path", "bar.conf", p.outputFilePath.Base())
 }
 
 func TestPrebuiltEtcAndroidMk(t *testing.T) {
@@ -153,7 +153,7 @@ func TestPrebuiltEtcAndroidMk(t *testing.T) {
 	entries := android.AndroidMkEntriesForTest(t, result.TestContext, mod)[0]
 	for k, expectedValue := range expected {
 		if value, ok := entries.EntryMap[k]; ok {
-			result.AssertDeepEquals(k, expectedValue, value)
+			android.AssertDeepEquals(t, k, expectedValue, value)
 		} else {
 			t.Errorf("No %s defined, saw %q", k, entries.EntryMap)
 		}
@@ -171,7 +171,7 @@ func TestPrebuiltEtcRelativeInstallPathInstallDirPath(t *testing.T) {
 
 	p := result.Module("foo.conf", "android_arm64_armv8-a").(*PrebuiltEtc)
 	expected := buildDir + "/target/product/test_device/system/etc/bar"
-	result.AssertStringEquals("install dir", expected, p.installDirPath.String())
+	android.AssertStringEquals(t, "install dir", expected, p.installDirPath.String())
 }
 
 func TestPrebuiltEtcCannotSetRelativeInstallPathAndSubDir(t *testing.T) {
@@ -213,7 +213,7 @@ func TestPrebuiltUserShareInstallDirPath(t *testing.T) {
 
 	p := result.Module("foo.conf", "android_arm64_armv8-a").(*PrebuiltEtc)
 	expected := buildDir + "/target/product/test_device/system/usr/share/bar"
-	result.AssertStringEquals("install dir", expected, p.installDirPath.String())
+	android.AssertStringEquals(t, "install dir", expected, p.installDirPath.String())
 }
 
 func TestPrebuiltUserShareHostInstallDirPath(t *testing.T) {
@@ -228,7 +228,7 @@ func TestPrebuiltUserShareHostInstallDirPath(t *testing.T) {
 	buildOS := android.BuildOs.String()
 	p := result.Module("foo.conf", buildOS+"_common").(*PrebuiltEtc)
 	expected := filepath.Join(buildDir, "host", result.Config.PrebuiltOS(), "usr", "share", "bar")
-	result.AssertStringEquals("install dir", expected, p.installDirPath.String())
+	android.AssertStringEquals(t, "install dir", expected, p.installDirPath.String())
 }
 
 func TestPrebuiltFontInstallDirPath(t *testing.T) {
@@ -241,7 +241,7 @@ func TestPrebuiltFontInstallDirPath(t *testing.T) {
 
 	p := result.Module("foo.conf", "android_arm64_armv8-a").(*PrebuiltEtc)
 	expected := buildDir + "/target/product/test_device/system/fonts"
-	result.AssertStringEquals("install dir", expected, p.installDirPath.String())
+	android.AssertStringEquals(t, "install dir", expected, p.installDirPath.String())
 }
 
 func TestPrebuiltFirmwareDirPath(t *testing.T) {
@@ -273,7 +273,7 @@ func TestPrebuiltFirmwareDirPath(t *testing.T) {
 		t.Run(tt.description, func(t *testing.T) {
 			result := prebuiltEtcFixtureFactory.RunTestWithBp(t, tt.config)
 			p := result.Module("foo.conf", "android_arm64_armv8-a").(*PrebuiltEtc)
-			result.AssertStringEquals("install dir", tt.expectedPath, p.installDirPath.String())
+			android.AssertStringEquals(t, "install dir", tt.expectedPath, p.installDirPath.String())
 		})
 	}
 }
@@ -307,7 +307,7 @@ func TestPrebuiltDSPDirPath(t *testing.T) {
 		t.Run(tt.description, func(t *testing.T) {
 			result := prebuiltEtcFixtureFactory.RunTestWithBp(t, tt.config)
 			p := result.Module("foo.conf", "android_arm64_armv8-a").(*PrebuiltEtc)
-			result.AssertStringEquals("install dir", tt.expectedPath, p.installDirPath.String())
+			android.AssertStringEquals(t, "install dir", tt.expectedPath, p.installDirPath.String())
 		})
 	}
 }
