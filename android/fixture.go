@@ -237,8 +237,14 @@ func NewFixtureFactory(buildDirSupplier *string, preparers ...FixturePreparer) F
 // A set of mock files to add to the mock file system.
 type MockFS map[string][]byte
 
+// Merge adds the extra entries from the supplied map to this one.
+//
+// Fails if the supplied map files with the same paths are present in both of them.
 func (fs MockFS) Merge(extra map[string][]byte) {
 	for p, c := range extra {
+		if _, ok := fs[p]; ok {
+			panic(fmt.Errorf("attempted to add file %s to the mock filesystem but it already exists", p))
+		}
 		fs[p] = c
 	}
 }
@@ -289,15 +295,38 @@ func FixtureMergeMockFs(mockFS MockFS) FixturePreparer {
 }
 
 // Add a file to the mock filesystem
+//
+// Fail if the filesystem already contains a file with that path, use FixtureOverrideFile instead.
 func FixtureAddFile(path string, contents []byte) FixturePreparer {
 	return FixtureModifyMockFS(func(fs MockFS) {
+		if _, ok := fs[path]; ok {
+			panic(fmt.Errorf("attempted to add file %s to the mock filesystem but it already exists, use FixtureOverride*File instead", path))
+		}
 		fs[path] = contents
 	})
 }
 
 // Add a text file to the mock filesystem
+//
+// Fail if the filesystem already contains a file with that path.
 func FixtureAddTextFile(path string, contents string) FixturePreparer {
 	return FixtureAddFile(path, []byte(contents))
+}
+
+// Override a file in the mock filesystem
+//
+// If the file does not exist this behaves as FixtureAddFile.
+func FixtureOverrideFile(path string, contents []byte) FixturePreparer {
+	return FixtureModifyMockFS(func(fs MockFS) {
+		fs[path] = contents
+	})
+}
+
+// Override a text file in the mock filesystem
+//
+// If the file does not exist this behaves as FixtureAddTextFile.
+func FixtureOverrideTextFile(path string, contents string) FixturePreparer {
+	return FixtureOverrideFile(path, []byte(contents))
 }
 
 // Add the root Android.bp file with the supplied contents.
