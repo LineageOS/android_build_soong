@@ -127,6 +127,94 @@ func withUnbundledBuild(_ map[string][]byte, config android.Config) {
 	config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 }
 
+var apexFixtureFactory = android.NewFixtureFactory(
+	&buildDir,
+	// General preparers in alphabetical order as test infrastructure will enforce correct
+	// registration order.
+	android.PrepareForTestWithAndroidBuildComponents,
+	bpf.PrepareForTestWithBpf,
+	cc.PrepareForTestWithCcBuildComponents,
+	java.PrepareForTestWithJavaDefaultModules,
+	prebuilt_etc.PrepareForTestWithPrebuiltEtc,
+	rust.PrepareForTestWithRustDefaultModules,
+	sh.PrepareForTestWithShBuildComponents,
+
+	PrepareForTestWithApexBuildComponents,
+
+	// Additional apex test specific preparers.
+	android.FixtureAddTextFile("system/sepolicy/Android.bp", `
+		filegroup {
+			name: "myapex-file_contexts",
+			srcs: [
+				"apex/myapex-file_contexts",
+			],
+		}
+	`),
+	android.FixtureMergeMockFs(android.MockFS{
+		"a.java":                                                      nil,
+		"PrebuiltAppFoo.apk":                                          nil,
+		"PrebuiltAppFooPriv.apk":                                      nil,
+		"build/make/target/product/security":                          nil,
+		"apex_manifest.json":                                          nil,
+		"AndroidManifest.xml":                                         nil,
+		"system/sepolicy/apex/myapex-file_contexts":                   nil,
+		"system/sepolicy/apex/myapex.updatable-file_contexts":         nil,
+		"system/sepolicy/apex/myapex2-file_contexts":                  nil,
+		"system/sepolicy/apex/otherapex-file_contexts":                nil,
+		"system/sepolicy/apex/com.android.vndk-file_contexts":         nil,
+		"system/sepolicy/apex/com.android.vndk.current-file_contexts": nil,
+		"mylib.cpp":                                  nil,
+		"mytest.cpp":                                 nil,
+		"mytest1.cpp":                                nil,
+		"mytest2.cpp":                                nil,
+		"mytest3.cpp":                                nil,
+		"myprebuilt":                                 nil,
+		"my_include":                                 nil,
+		"foo/bar/MyClass.java":                       nil,
+		"prebuilt.jar":                               nil,
+		"prebuilt.so":                                nil,
+		"vendor/foo/devkeys/test.x509.pem":           nil,
+		"vendor/foo/devkeys/test.pk8":                nil,
+		"testkey.x509.pem":                           nil,
+		"testkey.pk8":                                nil,
+		"testkey.override.x509.pem":                  nil,
+		"testkey.override.pk8":                       nil,
+		"vendor/foo/devkeys/testkey.avbpubkey":       nil,
+		"vendor/foo/devkeys/testkey.pem":             nil,
+		"NOTICE":                                     nil,
+		"custom_notice":                              nil,
+		"custom_notice_for_static_lib":               nil,
+		"testkey2.avbpubkey":                         nil,
+		"testkey2.pem":                               nil,
+		"myapex-arm64.apex":                          nil,
+		"myapex-arm.apex":                            nil,
+		"myapex.apks":                                nil,
+		"frameworks/base/api/current.txt":            nil,
+		"framework/aidl/a.aidl":                      nil,
+		"build/make/core/proguard.flags":             nil,
+		"build/make/core/proguard_basic_keeps.flags": nil,
+		"dummy.txt":                                  nil,
+		"baz":                                        nil,
+		"bar/baz":                                    nil,
+		"testdata/baz":                               nil,
+		"AppSet.apks":                                nil,
+		"foo.rs":                                     nil,
+		"libfoo.jar":                                 nil,
+		"libbar.jar":                                 nil,
+	},
+	),
+
+	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		variables.DeviceVndkVersion = proptools.StringPtr("current")
+		variables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
+		variables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
+		variables.Platform_sdk_codename = proptools.StringPtr("Q")
+		variables.Platform_sdk_final = proptools.BoolPtr(false)
+		variables.Platform_version_active_codenames = []string{"Q"}
+		variables.Platform_vndk_version = proptools.StringPtr("VER")
+	}),
+)
+
 func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
 	bp = bp + `
 		filegroup {
