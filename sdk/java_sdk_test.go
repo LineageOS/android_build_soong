@@ -125,9 +125,9 @@ func TestSdkDependsOnSourceEvenWhenPrebuiltPreferred(t *testing.T) {
 	`)
 
 	// Make sure that the mysdk module depends on "sdkmember" and not "prebuilt_sdkmember".
-	java.CheckModuleDependencies(t, result.ctx, "mysdk", "android_common", []string{"sdkmember"})
+	java.CheckModuleDependencies(t, result.TestContext, "mysdk", "android_common", []string{"sdkmember"})
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`// This is auto-generated. DO NOT EDIT.
 
 java_import {
@@ -224,11 +224,11 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 		}
 	`)
 
-	sdkMemberV1 := result.ctx.ModuleForTests("sdkmember_mysdk_1", "android_common").Rule("combineJar").Output
-	sdkMemberV2 := result.ctx.ModuleForTests("sdkmember_mysdk_2", "android_common").Rule("combineJar").Output
+	sdkMemberV1 := result.ModuleForTests("sdkmember_mysdk_1", "android_common").Rule("combineJar").Output
+	sdkMemberV2 := result.ModuleForTests("sdkmember_mysdk_2", "android_common").Rule("combineJar").Output
 
-	javalibForMyApex := result.ctx.ModuleForTests("myjavalib", "android_common_apex10000_mysdk_1")
-	javalibForMyApex2 := result.ctx.ModuleForTests("myjavalib", "android_common_apex10000_mysdk_2")
+	javalibForMyApex := result.ModuleForTests("myjavalib", "android_common_apex10000_mysdk_1")
+	javalibForMyApex2 := result.ModuleForTests("myjavalib", "android_common_apex10000_mysdk_2")
 
 	// Depending on the uses_sdks value, different libs are linked
 	ensureListContains(t, pathsToStrings(javalibForMyApex.Rule("javac").Implicits), sdkMemberV1.String())
@@ -255,7 +255,7 @@ func TestSnapshotWithJavaHeaderLibrary(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -312,7 +312,7 @@ func TestHostSnapshotWithJavaHeaderLibrary(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -369,7 +369,7 @@ func TestDeviceAndHostSnapshotWithJavaHeaderLibrary(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -440,7 +440,7 @@ func TestSnapshotWithJavaImplLibrary(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("myexports", "",
+	CheckSnapshot(result, "myexports", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -496,7 +496,7 @@ func TestSnapshotWithJavaBootLibrary(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("myexports", "",
+	CheckSnapshot(result, "myexports", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -551,7 +551,7 @@ func TestHostSnapshotWithJavaImplLibrary(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("myexports", "",
+	CheckSnapshot(result, "myexports", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -607,7 +607,7 @@ func TestSnapshotWithJavaTest(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("myexports", "",
+	CheckSnapshot(result, "myexports", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -662,7 +662,7 @@ func TestHostSnapshotWithJavaTest(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("myexports", "",
+	CheckSnapshot(result, "myexports", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -731,7 +731,7 @@ func TestSnapshotWithJavaSystemModules(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -827,7 +827,7 @@ func TestHostSnapshotWithJavaSystemModules(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -918,7 +918,7 @@ func TestDeviceAndHostSnapshotWithOsSpecificMembers(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("myexports", "",
+	CheckSnapshot(result, "myexports", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -1032,7 +1032,7 @@ func TestSnapshotWithJavaSdkLibrary(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -1133,7 +1133,7 @@ func TestSnapshotWithJavaSdkLibrary_SdkVersion_None(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -1202,7 +1202,7 @@ func TestSnapshotWithJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -1274,7 +1274,7 @@ func TestSnapshotWithJavaSdkLibrary_ApiScopes(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -1367,7 +1367,7 @@ func TestSnapshotWithJavaSdkLibrary_ModuleLib(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -1475,7 +1475,7 @@ func TestSnapshotWithJavaSdkLibrary_SystemServer(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -1563,7 +1563,7 @@ func TestSnapshotWithJavaSdkLibrary_NamingScheme(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -1639,7 +1639,7 @@ func TestSnapshotWithJavaSdkLibrary_DoctagFiles(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 

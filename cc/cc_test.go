@@ -52,29 +52,50 @@ func TestMain(m *testing.M) {
 	os.Exit(run())
 }
 
+var ccFixtureFactory = android.NewFixtureFactory(
+	&buildDir,
+	PrepareForTestWithCcIncludeVndk,
+
+	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		variables.DeviceVndkVersion = StringPtr("current")
+		variables.ProductVndkVersion = StringPtr("current")
+		variables.Platform_vndk_version = StringPtr("VER")
+	}),
+)
+
+// testCcWithConfig runs tests using the ccFixtureFactory
+//
+// See testCc for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func testCcWithConfig(t *testing.T, config android.Config) *android.TestContext {
 	t.Helper()
-	ctx := CreateTestContext(config)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
-
-	return ctx
+	result := ccFixtureFactory.RunTestWithConfig(t, config)
+	return result.TestContext
 }
 
+// testCc runs tests using the ccFixtureFactory
+//
+// Do not add any new usages of this, instead use the ccFixtureFactory directly as it makes it much
+// easier to customize the test behavior.
+//
+// If it is necessary to customize the behavior of an existing test that uses this then please first
+// convert the test to using ccFixtureFactory first and then in a following change add the
+// appropriate fixture preparers. Keeping the conversion change separate makes it easy to verify
+// that it did not change the test behavior unexpectedly.
+//
+// deprecated
 func testCc(t *testing.T, bp string) *android.TestContext {
 	t.Helper()
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.ProductVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
-
-	return testCcWithConfig(t, config)
+	result := ccFixtureFactory.RunTestWithBp(t, bp)
+	return result.TestContext
 }
 
+// testCcNoVndk runs tests using the ccFixtureFactory
+//
+// See testCc for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func testCcNoVndk(t *testing.T, bp string) *android.TestContext {
 	t.Helper()
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
@@ -83,6 +104,11 @@ func testCcNoVndk(t *testing.T, bp string) *android.TestContext {
 	return testCcWithConfig(t, config)
 }
 
+// testCcNoProductVndk runs tests using the ccFixtureFactory
+//
+// See testCc for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func testCcNoProductVndk(t *testing.T, bp string) *android.TestContext {
 	t.Helper()
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
@@ -92,27 +118,24 @@ func testCcNoProductVndk(t *testing.T, bp string) *android.TestContext {
 	return testCcWithConfig(t, config)
 }
 
+// testCcErrorWithConfig runs tests using the ccFixtureFactory
+//
+// See testCc for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func testCcErrorWithConfig(t *testing.T, pattern string, config android.Config) {
 	t.Helper()
 
-	ctx := CreateTestContext(config)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-
-	_, errs = ctx.PrepareBuildActions(config)
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-
-	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
+	ccFixtureFactory.Extend().
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
+		RunTestWithConfig(t, config)
 }
 
+// testCcError runs tests using the ccFixtureFactory
+//
+// See testCc for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func testCcError(t *testing.T, pattern string, bp string) {
 	t.Helper()
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
@@ -122,6 +145,11 @@ func testCcError(t *testing.T, pattern string, bp string) {
 	return
 }
 
+// testCcErrorProductVndk runs tests using the ccFixtureFactory
+//
+// See testCc for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func testCcErrorProductVndk(t *testing.T, pattern string, bp string) {
 	t.Helper()
 	config := TestConfig(buildDir, android.Android, nil, bp, nil)
@@ -153,13 +181,12 @@ func TestFuchsiaDeps(t *testing.T) {
 			},
 		}`
 
-	config := TestConfig(buildDir, android.Fuchsia, nil, bp, nil)
-	ctx := testCcWithConfig(t, config)
+	result := ccFixtureFactory.Extend(PrepareForTestOnFuchsia).RunTestWithBp(t, bp)
 
 	rt := false
 	fb := false
 
-	ld := ctx.ModuleForTests("libTest", "fuchsia_arm64_shared").Rule("ld")
+	ld := result.ModuleForTests("libTest", "fuchsia_arm64_shared").Rule("ld")
 	implicits := ld.Implicits
 	for _, lib := range implicits {
 		if strings.Contains(lib.Rel(), "libcompiler_rt") {
@@ -190,16 +217,13 @@ func TestFuchsiaTargetDecl(t *testing.T) {
 			},
 		}`
 
-	config := TestConfig(buildDir, android.Fuchsia, nil, bp, nil)
-	ctx := testCcWithConfig(t, config)
-	ld := ctx.ModuleForTests("libTest", "fuchsia_arm64_shared").Rule("ld")
+	result := ccFixtureFactory.Extend(PrepareForTestOnFuchsia).RunTestWithBp(t, bp)
+	ld := result.ModuleForTests("libTest", "fuchsia_arm64_shared").Rule("ld")
 	var objs []string
 	for _, o := range ld.Inputs {
 		objs = append(objs, o.Base())
 	}
-	if len(objs) != 2 || objs[0] != "foo.o" || objs[1] != "bar.o" {
-		t.Errorf("inputs of libTest must be []string{\"foo.o\", \"bar.o\"}, but was %#v.", objs)
-	}
+	result.AssertArrayString("libTest inputs", []string{"foo.o", "bar.o"}, objs)
 }
 
 func TestVendorSrc(t *testing.T) {

@@ -37,7 +37,31 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 }
 
 func GatherRequiredDepsForTest(oses ...android.OsType) string {
-	ret := `
+	ret := commonDefaultModules()
+
+	supportLinuxBionic := false
+	for _, os := range oses {
+		if os == android.Fuchsia {
+			ret += withFuchsiaModules()
+		}
+		if os == android.Windows {
+			ret += withWindowsModules()
+		}
+		if os == android.LinuxBionic {
+			supportLinuxBionic = true
+			ret += withLinuxBionic()
+		}
+	}
+
+	if !supportLinuxBionic {
+		ret += withoutLinuxBionic()
+	}
+
+	return ret
+}
+
+func commonDefaultModules() string {
+	return `
 		toolchain_library {
 			name: "libatomic",
 			defaults: ["linux_bionic_supported"],
@@ -475,23 +499,10 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			name: "note_memtag_heap_sync",
 		}
 	`
+}
 
-	supportLinuxBionic := false
-	for _, os := range oses {
-		if os == android.Fuchsia {
-			ret += `
-		cc_library {
-			name: "libbioniccompat",
-			stl: "none",
-		}
-		cc_library {
-			name: "libcompiler_rt",
-			stl: "none",
-		}
-		`
-		}
-		if os == android.Windows {
-			ret += `
+func withWindowsModules() string {
+	return `
 		toolchain_library {
 			name: "libwinpthread",
 			host_supported: true,
@@ -504,10 +515,23 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 			src: "",
 		}
 		`
+}
+
+func withFuchsiaModules() string {
+	return `
+		cc_library {
+			name: "libbioniccompat",
+			stl: "none",
 		}
-		if os == android.LinuxBionic {
-			supportLinuxBionic = true
-			ret += `
+		cc_library {
+			name: "libcompiler_rt",
+			stl: "none",
+		}
+		`
+}
+
+func withLinuxBionic() string {
+	return `
 				cc_binary {
 					name: "linker",
 					defaults: ["linux_bionic_supported"],
@@ -547,23 +571,112 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 					},
 				}
 			`
-		}
-	}
+}
 
-	if !supportLinuxBionic {
-		ret += `
+func withoutLinuxBionic() string {
+	return `
 			cc_defaults {
 				name: "linux_bionic_supported",
 			}
 		`
-	}
-
-	return ret
 }
 
 func GatherRequiredFilesForTest(fs map[string][]byte) {
 }
 
+// The directory in which cc linux bionic default modules will be defined.
+//
+// Placing them here ensures that their location does not conflict with default test modules
+// defined by other packages.
+const linuxBionicDefaultsPath = "defaults/cc/linux-bionic/Android.bp"
+
+// The directory in which the default cc common test modules will be defined.
+//
+// Placing them here ensures that their location does not conflict with default test modules
+// defined by other packages.
+const DefaultCcCommonTestModulesDir = "defaults/cc/common/"
+
+// Test fixture preparer that will register most cc build components.
+//
+// Singletons and mutators should only be added here if they are needed for a majority of cc
+// module types, otherwise they should be added under a separate preparer to allow them to be
+// selected only when needed to reduce test execution time.
+//
+// Module types do not have much of an overhead unless they are used so this should include as many
+// module types as possible. The exceptions are those module types that require mutators and/or
+// singletons in order to function in which case they should be kept together in a separate
+// preparer.
+var PrepareForTestWithCcBuildComponents = android.GroupFixturePreparers(
+	android.PrepareForTestWithAndroidBuildComponents,
+	android.FixtureRegisterWithContext(RegisterRequiredBuildComponentsForTest),
+	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("cc_fuzz", FuzzFactory)
+		ctx.RegisterModuleType("cc_test", TestFactory)
+		ctx.RegisterModuleType("cc_test_library", TestLibraryFactory)
+		ctx.RegisterModuleType("llndk_headers", llndkHeadersFactory)
+		ctx.RegisterModuleType("vendor_public_library", vendorPublicLibraryFactory)
+		ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
+
+		RegisterVndkLibraryTxtTypes(ctx)
+	}),
+)
+
+// Preparer that will define default cc modules, e.g. standard prebuilt modules.
+var PrepareForTestWithCcDefaultModules = android.GroupFixturePreparers(
+	PrepareForTestWithCcBuildComponents,
+	// Place the default cc test modules that are common to all platforms in a location that will not
+	// conflict with default test modules defined by other packages.
+	android.FixtureAddTextFile(DefaultCcCommonTestModulesDir+"Android.bp", commonDefaultModules()),
+	// Disable linux bionic by default.
+	android.FixtureAddTextFile(linuxBionicDefaultsPath, withoutLinuxBionic()),
+)
+
+// Prepare a fixture to use all cc module types, mutators and singletons fully.
+//
+// This should only be used by tests that want to run with as much of the build enabled as possible.
+var PrepareForIntegrationTestWithCc = android.GroupFixturePreparers(
+	android.PrepareForIntegrationTestWithAndroid,
+	genrule.PrepareForIntegrationTestWithGenrule,
+	PrepareForTestWithCcDefaultModules,
+)
+
+// The preparer to include if running a cc related test for windows.
+var PrepareForTestOnWindows = android.GroupFixturePreparers(
+	// Place the default cc test modules for windows platforms in a location that will not conflict
+	// with default test modules defined by other packages.
+	android.FixtureAddTextFile("defaults/cc/windows/Android.bp", withWindowsModules()),
+)
+
+// The preparer to include if running a cc related test for linux bionic.
+var PrepareForTestOnLinuxBionic = android.GroupFixturePreparers(
+	// Enable linux bionic.
+	android.FixtureAddTextFile(linuxBionicDefaultsPath, withLinuxBionic()),
+)
+
+// The preparer to include if running a cc related test for fuchsia.
+var PrepareForTestOnFuchsia = android.GroupFixturePreparers(
+	// Place the default cc test modules for fuschia in a location that will not conflict with default
+	// test modules defined by other packages.
+	android.FixtureAddTextFile("defaults/cc/fuschia/Android.bp", withFuchsiaModules()),
+	android.PrepareForTestSetDeviceToFuchsia,
+)
+
+// This adds some additional modules and singletons which might negatively impact the performance
+// of tests so they are not included in the PrepareForIntegrationTestWithCc.
+var PrepareForTestWithCcIncludeVndk = android.GroupFixturePreparers(
+	PrepareForIntegrationTestWithCc,
+	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+		vendorSnapshotImageSingleton.init(ctx)
+		recoverySnapshotImageSingleton.init(ctx)
+		ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
+	}),
+)
+
+// TestConfig is the legacy way of creating a test Config for testing cc modules.
+//
+// See testCc for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func TestConfig(buildDir string, os android.OsType, env map[string]string,
 	bp string, fs map[string][]byte) android.Config {
 
@@ -580,7 +693,7 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 
 	var config android.Config
 	if os == android.Fuchsia {
-		config = android.TestArchConfigFuchsia(buildDir, env, bp, mockFS)
+		panic("Fuchsia not supported use test fixture instead")
 	} else {
 		config = android.TestArchConfig(buildDir, env, bp, mockFS)
 	}
@@ -588,6 +701,11 @@ func TestConfig(buildDir string, os android.OsType, env map[string]string,
 	return config
 }
 
+// CreateTestContext is the legacy way of creating a TestContext for testing cc modules.
+//
+// See testCc for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func CreateTestContext(config android.Config) *android.TestContext {
 	ctx := android.NewTestArchContext(config)
 	genrule.RegisterGenruleBuildComponents(ctx)
@@ -598,13 +716,15 @@ func CreateTestContext(config android.Config) *android.TestContext {
 	ctx.RegisterModuleType("vendor_public_library", vendorPublicLibraryFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
+
 	vendorSnapshotImageSingleton.init(ctx)
 	recoverySnapshotImageSingleton.init(ctx)
+	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 	RegisterVndkLibraryTxtTypes(ctx)
+
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	android.RegisterPrebuiltMutators(ctx)
 	RegisterRequiredBuildComponentsForTest(ctx)
-	ctx.RegisterSingletonType("vndk-snapshot", VndkSnapshotSingleton)
 
 	return ctx
 }
