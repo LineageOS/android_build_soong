@@ -859,19 +859,6 @@ func (r *TestResult) NormalizePathsForTesting(paths Paths) []string {
 	return result
 }
 
-// NewFixture creates a new test fixture that is based on the one that created this result. It is
-// intended to test the output of module types that generate content to be processed by the build,
-// e.g. sdk snapshots.
-func (r *TestResult) NewFixture(preparers ...FixturePreparer) Fixture {
-	return r.fixture.factory.Fixture(r.T, preparers...)
-}
-
-// RunTest is shorthand for NewFixture(preparers...).RunTest().
-func (r *TestResult) RunTest(preparers ...FixturePreparer) *TestResult {
-	r.Helper()
-	return r.fixture.factory.Fixture(r.T, preparers...).RunTest()
-}
-
 // Module returns the module with the specific name and of the specified variant.
 func (r *TestResult) Module(name string, variant string) Module {
 	return r.ModuleForTests(name, variant).Module()
