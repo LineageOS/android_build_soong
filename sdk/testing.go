@@ -191,7 +191,7 @@ func (result *testSdkResult) Module(name string, variant string) android.Module 
 }
 
 // Analyse the sdk build rules to extract information about what it is doing.
-
+//
 // e.g. find the src/dest pairs from each cp command, the various zip files
 // generated, etc.
 func getSdkSnapshotBuildInfo(result *testSdkResult, sdk *sdk) *snapshotBuildInfo {
