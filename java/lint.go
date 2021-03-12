@@ -430,7 +430,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 				"LANG",
 			},
 			Platform: map[string]string{remoteexec.PoolKey: pool},
-		}).NoVarTemplate(ctx.Config()))
+		}).NoVarTemplate(ctx.Config().RBEWrapper()))
 	}
 
 	cmd.BuiltTool("lint").
