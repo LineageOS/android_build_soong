@@ -259,35 +259,53 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 			Implicits(clcHost).
 			Text("stored_class_loader_context_arg=--stored-class-loader-context=PCL[" + strings.Join(clcTarget, ":") + "]")
 
-	} else if module.EnforceUsesLibraries {
-		// Generate command that saves target SDK version in a shell variable.
-		manifestOrApk := module.ManifestPath
-		if manifestOrApk == nil {
-			// No manifest to extract targetSdkVersion from, hope that dexjar is an APK.
+	} else {
+		// There are three categories of Java modules handled here:
+		//
+		// - Modules that have passed verify_uses_libraries check. They are AOT-compiled and
+		//   expected to be loaded on device without CLC mismatch errors.
+		//
+		// - Modules that have failed the check in relaxed mode, so it didn't cause a build error.
+		//   They are dexpreopted with "verify" filter and not AOT-compiled.
+		//   TODO(b/132357300): ensure that CLC mismatch errors are ignored with "verify" filter.
+		//
+		// - Modules that didn't run the check. They are AOT-compiled, but it's unknown if they
+		//   will have CLC mismatch errors on device (the check is disabled by default).
+		//
+		// TODO(b/132357300): enable the check by default and eliminate the last category, so that
+		// no time/space is wasted on AOT-compiling modules that will fail CLC check on device.
+
+		var manifestOrApk android.Path
+		if module.ManifestPath != nil {
+			// Ok, there is an XML manifest.
+			manifestOrApk = module.ManifestPath
+		} else if filepath.Ext(base) == ".apk" {
+			// Ok, there is is an APK with the manifest inside.
 			manifestOrApk = module.DexPath
 		}
-		rule.Command().Text(`target_sdk_version="$(`).
-			Tool(globalSoong.ManifestCheck).
-			Flag("--extract-target-sdk-version").
-			Input(manifestOrApk).
-			FlagWithInput("--aapt ", ctx.Config().HostToolPath(ctx, "aapt")).
-			Text(`)"`)
+
+		// Generate command that saves target SDK version in a shell variable.
+		if manifestOrApk == nil {
+			// There is neither an XML manifest nor APK => nowhere to extract targetSdkVersion from.
+			// Set the latest ("any") version: then construct_context will not add any compatibility
+			// libraries (if this is incorrect, there will be a CLC mismatch and dexopt on device).
+			rule.Command().Textf(`target_sdk_version=%d`, AnySdkVersion)
+		} else {
+			rule.Command().Text(`target_sdk_version="$(`).
+				Tool(globalSoong.ManifestCheck).
+				Flag("--extract-target-sdk-version").
+				Input(manifestOrApk).
+				FlagWithInput("--aapt ", ctx.Config().HostToolPath(ctx, "aapt")).
+				Text(`)"`)
+		}
 
 		// Generate command that saves host and target class loader context in shell variables.
 		clc, paths := ComputeClassLoaderContext(module.ClassLoaderContexts)
 		rule.Command().
-			Text("if ! test -s ").Input(module.EnforceUsesLibrariesStatusFile).
-			Text(` ; then eval "$(`).Tool(globalSoong.ConstructContext).
+			Text(`eval "$(`).Tool(globalSoong.ConstructContext).
 			Text(` --target-sdk-version ${target_sdk_version}`).
 			Text(clc).Implicits(paths).
-			Text(`)" ; fi`)
-
-	} else {
-		// Other libraries or APKs for which the exact <uses-library> list is unknown.
-		// We assume the class loader context is empty.
-		rule.Command().
-			Text(`class_loader_context_arg=--class-loader-context=PCL[]`).
-			Text(`stored_class_loader_context_arg=""`)
+			Text(`)"`)
 	}
 
 	// Devices that do not have a product partition use a symlink from /product to /system/product.
