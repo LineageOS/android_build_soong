@@ -48,6 +48,26 @@ func tearDown() {
 	os.RemoveAll(buildDir)
 }
 
+// Factory to use to create fixtures for tests in this package.
+var javaFixtureFactory = android.NewFixtureFactory(
+	&buildDir,
+	genrule.PrepareForTestWithGenRuleBuildComponents,
+	// Get the CC build components but not default modules.
+	cc.PrepareForTestWithCcBuildComponents,
+	// Include all the default java modules.
+	PrepareForTestWithJavaDefaultModules,
+	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
+		ctx.RegisterModuleType("java_plugin", PluginFactory)
+		ctx.RegisterModuleType("python_binary_host", python.PythonBinaryHostFactory)
+
+		ctx.PreDepsMutators(python.RegisterPythonPreDepsMutators)
+		ctx.RegisterPreSingletonType("overlay", OverlaySingletonFactory)
+		ctx.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
+	}),
+	javaMockFS().AddToFixture(),
+	dexpreopt.PrepareForTestWithDexpreopt,
+)
+
 func TestMain(m *testing.M) {
 	run := func() int {
 		setUp()
@@ -59,10 +79,20 @@ func TestMain(m *testing.M) {
 	os.Exit(run())
 }
 
+// testConfig is a legacy way of creating a test Config for testing java modules.
+//
+// See testJava for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func testConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
 	return TestConfig(buildDir, env, bp, fs)
 }
 
+// testContext is a legacy way of creating a TestContext for testing java modules.
+//
+// See testJava for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func testContext(config android.Config) *android.TestContext {
 
 	ctx := android.NewTestArchContext(config)
@@ -92,6 +122,11 @@ func testContext(config android.Config) *android.TestContext {
 	return ctx
 }
 
+// run is a legacy way of running tests of java modules.
+//
+// See testJava for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	t.Helper()
 
@@ -105,23 +140,38 @@ func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 	android.FailIfErrored(t, errs)
 }
 
+// testJavaError is a legacy way of running tests of java modules that expect errors.
+//
+// See testJava for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func testJavaError(t *testing.T, pattern string, bp string) (*android.TestContext, android.Config) {
 	t.Helper()
 	return testJavaErrorWithConfig(t, pattern, testConfig(nil, bp, nil))
 }
 
+// testJavaErrorWithConfig is a legacy way of running tests of java modules that expect errors.
+//
+// See testJava for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func testJavaErrorWithConfig(t *testing.T, pattern string, config android.Config) (*android.TestContext, android.Config) {
 	t.Helper()
-	ctx := testContext(config)
-
+	// This must be done on the supplied config and not as part of the fixture because any changes to
+	// the fixture's config will be ignored when RunTestWithConfig replaces it.
 	pathCtx := android.PathContextForTesting(config)
 	dexpreopt.SetTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
-
-	runWithErrors(t, ctx, config, pattern)
-
-	return ctx, config
+	result := javaFixtureFactory.
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
+		RunTestWithConfig(t, config)
+	return result.TestContext, result.Config
 }
 
+// runWithErrors is a legacy way of running tests of java modules that expect errors.
+//
+// See testJava for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func runWithErrors(t *testing.T, ctx *android.TestContext, config android.Config, pattern string) {
 	ctx.Register()
 	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
@@ -139,22 +189,43 @@ func runWithErrors(t *testing.T, ctx *android.TestContext, config android.Config
 	return
 }
 
-func testJavaWithFS(t *testing.T, bp string, fs map[string][]byte) (*android.TestContext, android.Config) {
+// testJavaWithFS runs tests using the javaFixtureFactory
+//
+// See testJava for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
+func testJavaWithFS(t *testing.T, bp string, fs android.MockFS) (*android.TestContext, android.Config) {
 	t.Helper()
-	return testJavaWithConfig(t, testConfig(nil, bp, fs))
+	result := javaFixtureFactory.Extend(fs.AddToFixture()).RunTestWithBp(t, bp)
+	return result.TestContext, result.Config
 }
 
+// testJava runs tests using the javaFixtureFactory
+//
+// Do not add any new usages of this, instead use the javaFixtureFactory directly as it makes it
+// much easier to customize the test behavior.
+//
+// If it is necessary to customize the behavior of an existing test that uses this then please first
+// convert the test to using javaFixtureFactory first and then in a following change add the
+// appropriate fixture preparers. Keeping the conversion change separate makes it easy to verify
+// that it did not change the test behavior unexpectedly.
+//
+// deprecated
 func testJava(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	t.Helper()
-	return testJavaWithFS(t, bp, nil)
+	result := javaFixtureFactory.RunTestWithBp(t, bp)
+	return result.TestContext, result.Config
 }
 
+// testJavaWithConfig runs tests using the javaFixtureFactory
+//
+// See testJava for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
 func testJavaWithConfig(t *testing.T, config android.Config) (*android.TestContext, android.Config) {
 	t.Helper()
-	ctx := testContext(config)
-	run(t, ctx, config)
-
-	return ctx, config
+	result := javaFixtureFactory.RunTestWithConfig(t, config)
+	return result.TestContext, result.Config
 }
 
 func moduleToPath(name string) string {
@@ -166,6 +237,12 @@ func moduleToPath(name string) string {
 	default:
 		return filepath.Join(buildDir, ".intermediates", name, "android_common", "turbine-combined", name+".jar")
 	}
+}
+
+// defaultModuleToPath constructs a path to the turbine generate jar for a default test module that
+// is defined in PrepareForIntegrationTestWithJava
+func defaultModuleToPath(name string) string {
+	return filepath.Join(buildDir, ".intermediates", defaultJavaDir, name, "android_common", "turbine-combined", name+".jar")
 }
 
 func TestJavaLinkType(t *testing.T) {
@@ -2352,73 +2429,9 @@ func TestPatchModule(t *testing.T) {
 		expected := "java.base=.:" + buildDir
 		checkPatchModuleFlag(t, ctx, "bar", expected)
 		expected = "java.base=" + strings.Join([]string{
-			".", buildDir, "dir", "dir2", "nested", moduleToPath("ext"), moduleToPath("framework")}, ":")
+			".", buildDir, "dir", "dir2", "nested", defaultModuleToPath("ext"), defaultModuleToPath("framework")}, ":")
 		checkPatchModuleFlag(t, ctx, "baz", expected)
 	})
-}
-
-func TestJavaSystemModules(t *testing.T) {
-	ctx, _ := testJava(t, `
-		java_system_modules {
-			name: "system-modules",
-			libs: ["system-module1", "system-module2"],
-		}
-		java_library {
-			name: "system-module1",
-			srcs: ["a.java"],
-			sdk_version: "none",
-			system_modules: "none",
-		}
-		java_library {
-			name: "system-module2",
-			srcs: ["b.java"],
-			sdk_version: "none",
-			system_modules: "none",
-		}
-		`)
-
-	// check the existence of the module
-	systemModules := ctx.ModuleForTests("system-modules", "android_common")
-
-	cmd := systemModules.Rule("jarsTosystemModules")
-
-	// make sure the command compiles against the supplied modules.
-	for _, module := range []string{"system-module1.jar", "system-module2.jar"} {
-		if !strings.Contains(cmd.Args["classpath"], module) {
-			t.Errorf("system modules classpath %v does not contain %q", cmd.Args["classpath"],
-				module)
-		}
-	}
-}
-
-func TestJavaSystemModulesImport(t *testing.T) {
-	ctx, _ := testJava(t, `
-		java_system_modules_import {
-			name: "system-modules",
-			libs: ["system-module1", "system-module2"],
-		}
-		java_import {
-			name: "system-module1",
-			jars: ["a.jar"],
-		}
-		java_import {
-			name: "system-module2",
-			jars: ["b.jar"],
-		}
-		`)
-
-	// check the existence of the module
-	systemModules := ctx.ModuleForTests("system-modules", "android_common")
-
-	cmd := systemModules.Rule("jarsTosystemModules")
-
-	// make sure the command compiles against the supplied modules.
-	for _, module := range []string{"system-module1.jar", "system-module2.jar"} {
-		if !strings.Contains(cmd.Args["classpath"], module) {
-			t.Errorf("system modules classpath %v does not contain %q", cmd.Args["classpath"],
-				module)
-		}
-	}
 }
 
 func TestJavaLibraryWithSystemModules(t *testing.T) {

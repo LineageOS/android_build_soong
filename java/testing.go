@@ -29,10 +29,40 @@ import (
 	"github.com/google/blueprint"
 )
 
-func TestConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) android.Config {
-	bp += GatherRequiredDepsForTest()
+const defaultJavaDir = "default/java"
 
-	mockFS := map[string][]byte{
+// Test fixture preparer that will register most java build components.
+//
+// Singletons and mutators should only be added here if they are needed for a majority of java
+// module types, otherwise they should be added under a separate preparer to allow them to be
+// selected only when needed to reduce test execution time.
+//
+// Module types do not have much of an overhead unless they are used so this should include as many
+// module types as possible. The exceptions are those module types that require mutators and/or
+// singletons in order to function in which case they should be kept together in a separate
+// preparer.
+var PrepareForTestWithJavaBuildComponents = android.FixtureRegisterWithContext(RegisterRequiredBuildComponentsForTest)
+
+// Test fixture preparer that will define default java modules, e.g. standard prebuilt modules.
+var PrepareForTestWithJavaDefaultModules = android.GroupFixturePreparers(
+	// Make sure that mutators and module types, e.g. prebuilt mutators available.
+	android.PrepareForTestWithAndroidBuildComponents,
+	// Make sure that all the module types used in the defaults are registered.
+	PrepareForTestWithJavaBuildComponents,
+	// The java default module definitions.
+	android.FixtureAddTextFile(defaultJavaDir+"/Android.bp", GatherRequiredDepsForTest()),
+)
+
+// Prepare a fixture to use all java module types, mutators and singletons fully.
+//
+// This should only be used by tests that want to run with as much of the build enabled as possible.
+var PrepareForIntegrationTestWithJava = android.GroupFixturePreparers(
+	cc.PrepareForIntegrationTestWithCc,
+	PrepareForTestWithJavaDefaultModules,
+)
+
+func javaMockFS() android.MockFS {
+	mockFS := android.MockFS{
 		"api/current.txt":        nil,
 		"api/removed.txt":        nil,
 		"api/system-current.txt": nil,
@@ -63,6 +93,14 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	for k, v := range prebuiltApisFilesForLibs(levels, libs) {
 		mockFS[k] = v
 	}
+
+	return mockFS
+}
+
+func TestConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) android.Config {
+	bp += GatherRequiredDepsForTest()
+
+	mockFS := javaMockFS()
 
 	cc.GatherRequiredFilesForTest(mockFS)
 

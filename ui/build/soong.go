@@ -116,7 +116,7 @@ func runSoong(ctx Context, config Config) {
 
 		envFile := filepath.Join(config.SoongOutDir(), "soong.environment.used")
 		getenv := func(k string) string {
-			v, _ := config.Environment().Get(k)
+			v, _ := soongBuildEnv.Get(k)
 			return v
 		}
 		if stale, _ := shared.StaleEnvFile(envFile, getenv); stale {
@@ -177,17 +177,9 @@ func runSoong(ctx Context, config Config) {
 		ninjaEnv.Set("TOP", os.Getenv("TOP"))
 		ninjaEnv.Set("SOONG_OUTDIR", config.SoongOutDir())
 
-		// Needed for NonHermeticHostSystemTool() and that, only in tests. We should
-		// probably find a better way of running tests other than making $PATH
-		// available also to production builds. Note that this is not get same as
-		// os.Getenv("PATH"): config.Environment() contains the $PATH that redirects
-		// every binary through the path interposer.
-		configPath, _ := config.Environment().Get("PATH")
-		ninjaEnv.Set("PATH", configPath)
-
 		// For debugging
 		if os.Getenv("SOONG_DELVE") != "" {
-			// SOONG_DELVE is already in cmd.Environment
+			ninjaEnv.Set("SOONG_DELVE", os.Getenv("SOONG_DELVE"))
 			ninjaEnv.Set("SOONG_DELVE_PATH", shared.ResolveDelveBinary())
 		}
 

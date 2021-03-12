@@ -169,7 +169,13 @@ func (system *SystemModules) GenerateAndroidBuildActions(ctx android.ModuleConte
 	system.outputDir, system.outputDeps = TransformJarsToSystemModules(ctx, jars)
 }
 
-func (system *SystemModules) DepsMutator(ctx android.BottomUpMutatorContext) {
+// ComponentDepsMutator is called before prebuilt modules without a corresponding source module are
+// renamed so unless the supplied libs specifically includes the prebuilt_ prefix this is guaranteed
+// to only add dependencies on source modules.
+//
+// The systemModuleLibsTag will prevent the prebuilt mutators from replacing this dependency so it
+// will never be changed to depend on a prebuilt either.
+func (system *SystemModules) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, systemModulesLibsTag, system.properties.Libs...)
 }
 
@@ -223,6 +229,15 @@ func (system *systemModulesImport) Name() string {
 
 func (system *systemModulesImport) Prebuilt() *android.Prebuilt {
 	return &system.prebuilt
+}
+
+// ComponentDepsMutator is called before prebuilt modules without a corresponding source module are
+// renamed so as this adds a prebuilt_ prefix this is guaranteed to only add dependencies on source
+// modules.
+func (system *systemModulesImport) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
+	for _, lib := range system.properties.Libs {
+		ctx.AddVariationDependencies(nil, systemModulesLibsTag, "prebuilt_"+lib)
+	}
 }
 
 type systemModulesSdkMemberType struct {

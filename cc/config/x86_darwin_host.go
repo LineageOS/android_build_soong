@@ -136,7 +136,7 @@ var macTools = &macPlatformTools{}
 
 func getMacTools(ctx android.PackageVarContext) *macPlatformTools {
 	macTools.once.Do(func() {
-		xcrunTool := ctx.Config().NonHermeticHostSystemTool("xcrun")
+		xcrunTool := "/usr/bin/xcrun"
 
 		xcrun := func(args ...string) string {
 			if macTools.err != nil {
