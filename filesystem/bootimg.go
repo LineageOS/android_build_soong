@@ -237,3 +237,13 @@ var _ Filesystem = (*bootimg)(nil)
 func (b *bootimg) OutputPath() android.Path {
 	return b.output
 }
+
+var _ android.OutputFileProducer = (*bootimg)(nil)
+
+// Implements android.OutputFileProducer
+func (b *bootimg) OutputFiles(tag string) (android.Paths, error) {
+	if tag == "" {
+		return []android.Path{b.output}, nil
+	}
+	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+}
