@@ -16,7 +16,6 @@ package java
 
 import (
 	"path/filepath"
-	"reflect"
 	"sort"
 	"testing"
 
@@ -44,17 +43,11 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 		}
 	`
 
-	config := testConfig(nil, bp, nil)
+	result := javaFixtureFactory.
+		Extend(dexpreopt.FixtureSetBootJars("platform:foo", "platform:bar", "platform:baz")).
+		RunTestWithBp(t, bp)
 
-	pathCtx := android.PathContextForTesting(config)
-	dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
-	dexpreoptConfig.BootJars = android.CreateTestConfiguredJarList([]string{"platform:foo", "platform:bar", "platform:baz"})
-	dexpreopt.SetTestGlobalConfig(config, dexpreoptConfig)
-
-	ctx := testContext(config)
-	run(t, ctx, config)
-
-	dexpreoptBootJars := ctx.SingletonForTests("dex_bootjars")
+	dexpreoptBootJars := result.SingletonForTests("dex_bootjars")
 	rule := dexpreoptBootJars.Output(ruleFile)
 
 	for i := range expectedInputs {
@@ -73,13 +66,9 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 	sort.Strings(outputs)
 	sort.Strings(expectedOutputs)
 
-	if !reflect.DeepEqual(inputs, expectedInputs) {
-		t.Errorf("want inputs %q\n got inputs %q", expectedInputs, inputs)
-	}
+	result.AssertDeepEquals("inputs", expectedInputs, inputs)
 
-	if !reflect.DeepEqual(outputs, expectedOutputs) {
-		t.Errorf("want outputs %q\n got outputs %q", expectedOutputs, outputs)
-	}
+	result.AssertDeepEquals("outputs", expectedOutputs, outputs)
 }
 
 func TestDexpreoptBootJars(t *testing.T) {
