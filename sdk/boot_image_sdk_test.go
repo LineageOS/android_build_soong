@@ -29,7 +29,7 @@ func TestSnapshotWithBootImage(t *testing.T) {
 		}
 	`)
 
-	result.CheckSnapshot("mysdk", "",
+	CheckSnapshot(result, "mysdk", "",
 		checkUnversionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
