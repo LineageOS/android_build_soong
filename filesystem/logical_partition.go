@@ -208,3 +208,13 @@ var _ Filesystem = (*logicalPartition)(nil)
 func (l *logicalPartition) OutputPath() android.Path {
 	return l.output
 }
+
+var _ android.OutputFileProducer = (*logicalPartition)(nil)
+
+// Implements android.OutputFileProducer
+func (l *logicalPartition) OutputFiles(tag string) (android.Paths, error) {
+	if tag == "" {
+		return []android.Path{l.output}, nil
+	}
+	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+}
