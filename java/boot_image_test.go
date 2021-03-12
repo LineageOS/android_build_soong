@@ -29,3 +29,12 @@ func TestUnknownBootImage(t *testing.T) {
 		}
 `)
 }
+
+func TestUnknownPrebuiltBootImage(t *testing.T) {
+	testJavaError(t, "image_name: Unknown image name \\\"unknown\\\", expected one of art, boot", `
+		prebuilt_boot_image {
+			name: "unknown-boot-image",
+			image_name: "unknown",
+		}
+`)
+}
