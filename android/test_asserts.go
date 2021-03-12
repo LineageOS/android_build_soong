@@ -15,71 +15,91 @@
 package android
 
 import (
+	"reflect"
+	"strings"
 	"testing"
 )
 
-// Provides general test support.
-type TestHelper struct {
-	*testing.T
-}
+// This file contains general purpose test assert functions.
 
 // AssertBoolEquals checks if the expected and actual values are equal and if they are not then it
 // reports an error prefixed with the supplied message and including a reason for why it failed.
-func (h *TestHelper) AssertBoolEquals(message string, expected bool, actual bool) {
-	AssertBoolEquals(h.T, message, expected, actual)
+func AssertBoolEquals(t *testing.T, message string, expected bool, actual bool) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s: expected %t, actual %t", message, expected, actual)
+	}
 }
 
 // AssertStringEquals checks if the expected and actual values are equal and if they are not then
 // it reports an error prefixed with the supplied message and including a reason for why it failed.
-func (h *TestHelper) AssertStringEquals(message string, expected string, actual string) {
-	AssertStringEquals(h.T, message, expected, actual)
+func AssertStringEquals(t *testing.T, message string, expected string, actual string) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s: expected %s, actual %s", message, expected, actual)
+	}
 }
 
 // AssertErrorMessageEquals checks if the error is not nil and has the expected message. If it does
 // not then this reports an error prefixed with the supplied message and including a reason for why
 // it failed.
-func (h *TestHelper) AssertErrorMessageEquals(message string, expected string, actual error) {
-	AssertErrorMessageEquals(h.T, message, expected, actual)
+func AssertErrorMessageEquals(t *testing.T, message string, expected string, actual error) {
+	t.Helper()
+	if actual == nil {
+		t.Errorf("Expected error but was nil")
+	} else if actual.Error() != expected {
+		t.Errorf("%s: expected %s, actual %s", message, expected, actual.Error())
+	}
 }
 
 // AssertTrimmedStringEquals checks if the expected and actual values are the same after trimming
 // leading and trailing spaces from them both. If they are not then it reports an error prefixed
 // with the supplied message and including a reason for why it failed.
-func (h *TestHelper) AssertTrimmedStringEquals(message string, expected string, actual string) {
-	AssertTrimmedStringEquals(h.T, message, expected, actual)
+func AssertTrimmedStringEquals(t *testing.T, message string, expected string, actual string) {
+	t.Helper()
+	AssertStringEquals(t, message, strings.TrimSpace(expected), strings.TrimSpace(actual))
 }
 
 // AssertStringDoesContain checks if the string contains the expected substring. If it does not
 // then it reports an error prefixed with the supplied message and including a reason for why it
 // failed.
-func (h *TestHelper) AssertStringDoesContain(message string, s string, expectedSubstring string) {
-	AssertStringDoesContain(h.T, message, s, expectedSubstring)
+func AssertStringDoesContain(t *testing.T, message string, s string, expectedSubstring string) {
+	t.Helper()
+	if !strings.Contains(s, expectedSubstring) {
+		t.Errorf("%s: could not find %q within %q", message, expectedSubstring, s)
+	}
 }
 
 // AssertStringDoesNotContain checks if the string contains the expected substring. If it does then
 // it reports an error prefixed with the supplied message and including a reason for why it failed.
-func (h *TestHelper) AssertStringDoesNotContain(message string, s string, unexpectedSubstring string) {
-	AssertStringDoesNotContain(h.T, message, s, unexpectedSubstring)
+func AssertStringDoesNotContain(t *testing.T, message string, s string, unexpectedSubstring string) {
+	t.Helper()
+	if strings.Contains(s, unexpectedSubstring) {
+		t.Errorf("%s: unexpectedly found %q within %q", message, unexpectedSubstring, s)
+	}
 }
 
 // AssertStringListContains checks if the list of strings contains the expected string. If it does
 // not then it reports an error prefixed with the supplied message and including a reason for why it
 // failed.
-func (h *TestHelper) AssertStringListContains(message string, list []string, expected string) {
-	AssertStringListContains(h.T, message, list, expected)
+func AssertStringListContains(t *testing.T, message string, list []string, expected string) {
+	t.Helper()
+	if !InList(expected, list) {
+		t.Errorf("%s: could not find %q within %q", message, expected, list)
+	}
 }
 
 // AssertArrayString checks if the expected and actual values are equal and if they are not then it
 // reports an error prefixed with the supplied message and including a reason for why it failed.
-func (h *TestHelper) AssertArrayString(message string, expected, actual []string) {
-	h.Helper()
+func AssertArrayString(t *testing.T, message string, expected, actual []string) {
+	t.Helper()
 	if len(actual) != len(expected) {
-		h.Errorf("%s: expected %d (%q), actual (%d) %q", message, len(expected), expected, len(actual), actual)
+		t.Errorf("%s: expected %d (%q), actual (%d) %q", message, len(expected), expected, len(actual), actual)
 		return
 	}
 	for i := range actual {
 		if actual[i] != expected[i] {
-			h.Errorf("%s: expected %d-th, %q (%q), actual %q (%q)",
+			t.Errorf("%s: expected %d-th, %q (%q), actual %q (%q)",
 				message, i, expected[i], expected, actual[i], actual)
 			return
 		}
@@ -89,13 +109,16 @@ func (h *TestHelper) AssertArrayString(message string, expected, actual []string
 // AssertDeepEquals checks if the expected and actual values are equal using reflect.DeepEqual and
 // if they are not then it reports an error prefixed with the supplied message and including a
 // reason for why it failed.
-func (h *TestHelper) AssertDeepEquals(message string, expected interface{}, actual interface{}) {
-	AssertDeepEquals(h.T, message, expected, actual)
+func AssertDeepEquals(t *testing.T, message string, expected interface{}, actual interface{}) {
+	t.Helper()
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("%s: expected:\n  %#v\n got:\n  %#v", message, expected, actual)
+	}
 }
 
 // AssertPanic checks that the supplied function panics as expected.
-func (h *TestHelper) AssertPanic(message string, funcThatShouldPanic func()) {
-	h.Helper()
+func AssertPanic(t *testing.T, message string, funcThatShouldPanic func()) {
+	t.Helper()
 	panicked := false
 	func() {
 		defer func() {
@@ -106,6 +129,6 @@ func (h *TestHelper) AssertPanic(message string, funcThatShouldPanic func()) {
 		funcThatShouldPanic()
 	}()
 	if !panicked {
-		h.Error(message)
+		t.Error(message)
 	}
 }
