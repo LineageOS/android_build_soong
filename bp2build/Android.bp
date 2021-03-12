@@ -19,6 +19,7 @@ bootstrap_go_package {
         "soong-bazel",
         "soong-cc",
         "soong-genrule",
+        "soong-python",
         "soong-sh",
     ],
     testSrcs: [
@@ -27,6 +28,7 @@ bootstrap_go_package {
         "cc_library_headers_conversion_test.go",
         "cc_object_conversion_test.go",
         "conversion_test.go",
+        "python_binary_conversion_test.go",
         "sh_conversion_test.go",
         "testing.go",
     ],
