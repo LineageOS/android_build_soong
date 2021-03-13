@@ -153,7 +153,7 @@ func (b *bootimg) buildBootImage(ctx android.ModuleContext, vendor bool) android
 		if vendor {
 			flag = "--vendor_cmdline "
 		}
-		cmd.FlagWithArg(flag, "\""+proptools.ShellEscape(cmdline)+"\"")
+		cmd.FlagWithArg(flag, proptools.ShellEscapeIncludingSpaces(cmdline))
 	}
 
 	headerVersion := proptools.String(b.properties.Header_version)
@@ -236,4 +236,14 @@ var _ Filesystem = (*bootimg)(nil)
 
 func (b *bootimg) OutputPath() android.Path {
 	return b.output
+}
+
+var _ android.OutputFileProducer = (*bootimg)(nil)
+
+// Implements android.OutputFileProducer
+func (b *bootimg) OutputFiles(tag string) (android.Paths, error) {
+	if tag == "" {
+		return []android.Path{b.output}, nil
+	}
+	return nil, fmt.Errorf("unsupported module reference tag %q", tag)
 }
