@@ -467,16 +467,16 @@ type FixtureErrorHandler interface {
 	// The supplied result can be used to access the state of the code under test just as the main
 	// body of the test would but if any errors other than ones expected are reported the state may
 	// be indeterminate.
-	CheckErrors(result *TestResult)
+	CheckErrors(t *testing.T, result *TestResult)
 }
 
 type simpleErrorHandler struct {
-	function func(result *TestResult)
+	function func(t *testing.T, result *TestResult)
 }
 
-func (h simpleErrorHandler) CheckErrors(result *TestResult) {
-	result.Helper()
-	h.function(result)
+func (h simpleErrorHandler) CheckErrors(t *testing.T, result *TestResult) {
+	t.Helper()
+	h.function(t, result)
 }
 
 // The default fixture error handler.
@@ -486,9 +486,9 @@ func (h simpleErrorHandler) CheckErrors(result *TestResult) {
 // If the test fails this handler will call `result.FailNow()` which will exit the goroutine within
 // which the test is being run which means that the RunTest() method will not return.
 var FixtureExpectsNoErrors = FixtureCustomErrorHandler(
-	func(result *TestResult) {
-		result.Helper()
-		FailIfErrored(result.T, result.Errs)
+	func(t *testing.T, result *TestResult) {
+		t.Helper()
+		FailIfErrored(t, result.Errs)
 	},
 )
 
@@ -505,10 +505,10 @@ var FixtureExpectsNoErrors = FixtureCustomErrorHandler(
 // If the test fails this handler will call `result.FailNow()` which will exit the goroutine within
 // which the test is being run which means that the RunTest() method will not return.
 func FixtureExpectsAtLeastOneErrorMatchingPattern(pattern string) FixtureErrorHandler {
-	return FixtureCustomErrorHandler(func(result *TestResult) {
-		result.Helper()
-		if !FailIfNoMatchingErrors(result.T, pattern, result.Errs) {
-			result.FailNow()
+	return FixtureCustomErrorHandler(func(t *testing.T, result *TestResult) {
+		t.Helper()
+		if !FailIfNoMatchingErrors(t, pattern, result.Errs) {
+			t.FailNow()
 		}
 	})
 }
@@ -527,14 +527,14 @@ func FixtureExpectsAtLeastOneErrorMatchingPattern(pattern string) FixtureErrorHa
 // If the test fails this handler will call `result.FailNow()` which will exit the goroutine within
 // which the test is being run which means that the RunTest() method will not return.
 func FixtureExpectsAllErrorsToMatchAPattern(patterns []string) FixtureErrorHandler {
-	return FixtureCustomErrorHandler(func(result *TestResult) {
-		result.Helper()
-		CheckErrorsAgainstExpectations(result.T, result.Errs, patterns)
+	return FixtureCustomErrorHandler(func(t *testing.T, result *TestResult) {
+		t.Helper()
+		CheckErrorsAgainstExpectations(t, result.Errs, patterns)
 	})
 }
 
 // FixtureCustomErrorHandler creates a custom error handler
-func FixtureCustomErrorHandler(function func(result *TestResult)) FixtureErrorHandler {
+func FixtureCustomErrorHandler(function func(t *testing.T, result *TestResult)) FixtureErrorHandler {
 	return simpleErrorHandler{
 		function: function,
 	}
@@ -705,7 +705,7 @@ func (f *fixture) RunTest() *TestResult {
 		Errs:        errs,
 	}
 
-	f.errorHandler.CheckErrors(result)
+	f.errorHandler.CheckErrors(f.t, result)
 
 	return result
 }
