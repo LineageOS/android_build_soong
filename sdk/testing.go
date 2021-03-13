@@ -108,8 +108,9 @@ func pathsToStrings(paths android.Paths) []string {
 //
 // e.g. find the src/dest pairs from each cp command, the various zip files
 // generated, etc.
-func getSdkSnapshotBuildInfo(result *android.TestResult, sdk *sdk) *snapshotBuildInfo {
+func getSdkSnapshotBuildInfo(t *testing.T, result *android.TestResult, sdk *sdk) *snapshotBuildInfo {
 	info := &snapshotBuildInfo{
+		t:                            t,
 		r:                            result,
 		androidBpContents:            sdk.GetAndroidBpContentsForTests(),
 		androidUnversionedBpContents: sdk.GetUnversionedAndroidBpContentsForTests(),
@@ -153,7 +154,7 @@ func getSdkSnapshotBuildInfo(result *android.TestResult, sdk *sdk) *snapshotBuil
 			info.intermediateZip = info.outputZip
 			mergeInput := android.NormalizePathForTesting(bp.Input)
 			if info.intermediateZip != mergeInput {
-				result.Errorf("Expected intermediate zip %s to be an input to merge zips but found %s instead",
+				t.Errorf("Expected intermediate zip %s to be an input to merge zips but found %s instead",
 					info.intermediateZip, mergeInput)
 			}
 
@@ -177,15 +178,15 @@ func getSdkSnapshotBuildInfo(result *android.TestResult, sdk *sdk) *snapshotBuil
 // Takes a list of functions which check different facets of the snapshot build rules.
 // Allows each test to customize what is checked without duplicating lots of code
 // or proliferating check methods of different flavors.
-func CheckSnapshot(result *android.TestResult, name string, dir string, checkers ...snapshotBuildInfoChecker) {
-	result.Helper()
+func CheckSnapshot(t *testing.T, result *android.TestResult, name string, dir string, checkers ...snapshotBuildInfoChecker) {
+	t.Helper()
 
 	// The sdk CommonOS variant is always responsible for generating the snapshot.
 	variant := android.CommonOS.Name
 
 	sdk := result.Module(name, variant).(*sdk)
 
-	snapshotBuildInfo := getSdkSnapshotBuildInfo(result, sdk)
+	snapshotBuildInfo := getSdkSnapshotBuildInfo(t, result, sdk)
 
 	// Check state of the snapshot build.
 	for _, checker := range checkers {
@@ -197,7 +198,7 @@ func CheckSnapshot(result *android.TestResult, name string, dir string, checkers
 	if dir != "" {
 		dir = filepath.Clean(dir) + "/"
 	}
-	result.AssertStringEquals("Snapshot zip file in wrong place",
+	android.AssertStringEquals(t, "Snapshot zip file in wrong place",
 		fmt.Sprintf(".intermediates/%s%s/%s/%s-current.zip", dir, name, variant, name), actual)
 
 	// Populate a mock filesystem with the files that would have been copied by
@@ -208,7 +209,7 @@ func CheckSnapshot(result *android.TestResult, name string, dir string, checkers
 	}
 
 	// Process the generated bp file to make sure it is valid.
-	testSdkWithFs(result.T, snapshotBuildInfo.androidBpContents, fs)
+	testSdkWithFs(t, snapshotBuildInfo.androidBpContents, fs)
 }
 
 type snapshotBuildInfoChecker func(info *snapshotBuildInfo)
@@ -218,8 +219,8 @@ type snapshotBuildInfoChecker func(info *snapshotBuildInfo)
 // Both the expected and actual string are both trimmed before comparing.
 func checkAndroidBpContents(expected string) snapshotBuildInfoChecker {
 	return func(info *snapshotBuildInfo) {
-		info.r.Helper()
-		info.r.AssertTrimmedStringEquals("Android.bp contents do not match", expected, info.androidBpContents)
+		info.t.Helper()
+		android.AssertTrimmedStringEquals(info.t, "Android.bp contents do not match", expected, info.androidBpContents)
 	}
 }
 
@@ -230,8 +231,8 @@ func checkAndroidBpContents(expected string) snapshotBuildInfoChecker {
 // Both the expected and actual string are both trimmed before comparing.
 func checkUnversionedAndroidBpContents(expected string) snapshotBuildInfoChecker {
 	return func(info *snapshotBuildInfo) {
-		info.r.Helper()
-		info.r.AssertTrimmedStringEquals("unversioned Android.bp contents do not match", expected, info.androidUnversionedBpContents)
+		info.t.Helper()
+		android.AssertTrimmedStringEquals(info.t, "unversioned Android.bp contents do not match", expected, info.androidUnversionedBpContents)
 	}
 }
 
@@ -245,8 +246,8 @@ func checkUnversionedAndroidBpContents(expected string) snapshotBuildInfoChecker
 // Both the expected and actual string are both trimmed before comparing.
 func checkVersionedAndroidBpContents(expected string) snapshotBuildInfoChecker {
 	return func(info *snapshotBuildInfo) {
-		info.r.Helper()
-		info.r.AssertTrimmedStringEquals("versioned Android.bp contents do not match", expected, info.androidVersionedBpContents)
+		info.t.Helper()
+		android.AssertTrimmedStringEquals(info.t, "versioned Android.bp contents do not match", expected, info.androidVersionedBpContents)
 	}
 }
 
@@ -257,27 +258,27 @@ func checkVersionedAndroidBpContents(expected string) snapshotBuildInfoChecker {
 // before comparing.
 func checkAllCopyRules(expected string) snapshotBuildInfoChecker {
 	return func(info *snapshotBuildInfo) {
-		info.r.Helper()
-		info.r.AssertTrimmedStringEquals("Incorrect copy rules", expected, info.copyRules)
+		info.t.Helper()
+		android.AssertTrimmedStringEquals(info.t, "Incorrect copy rules", expected, info.copyRules)
 	}
 }
 
 func checkAllOtherCopyRules(expected string) snapshotBuildInfoChecker {
 	return func(info *snapshotBuildInfo) {
-		info.r.Helper()
-		info.r.AssertTrimmedStringEquals("Incorrect copy rules", expected, info.otherCopyRules)
+		info.t.Helper()
+		android.AssertTrimmedStringEquals(info.t, "Incorrect copy rules", expected, info.otherCopyRules)
 	}
 }
 
 // Check that the specified paths match the list of zips to merge with the intermediate zip.
 func checkMergeZips(expected ...string) snapshotBuildInfoChecker {
 	return func(info *snapshotBuildInfo) {
-		info.r.Helper()
+		info.t.Helper()
 		if info.intermediateZip == "" {
-			info.r.Errorf("No intermediate zip file was created")
+			info.t.Errorf("No intermediate zip file was created")
 		}
 
-		info.r.AssertDeepEquals("mismatching merge zip files", expected, info.mergeZips)
+		android.AssertDeepEquals(info.t, "mismatching merge zip files", expected, info.mergeZips)
 	}
 }
 
@@ -287,6 +288,9 @@ func checkMergeZips(expected ...string) snapshotBuildInfoChecker {
 // All source/input paths are relative either the build directory. All dest/output paths are
 // relative to the snapshot root directory.
 type snapshotBuildInfo struct {
+	t *testing.T
+
+	// The result from RunTest()
 	r *android.TestResult
 
 	// The contents of the generated Android.bp file
