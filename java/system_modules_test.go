@@ -58,7 +58,7 @@ func TestJavaSystemModules(t *testing.T) {
 
 	// The expected paths are the header jars from the source input modules.
 	expectedSourcePaths := getModuleHeaderJarsAsNormalizedPaths(result, "system-module1", "system-module2")
-	result.AssertArrayString("source system modules inputs", expectedSourcePaths, result.NormalizePathsForTesting(sourceInputs))
+	android.AssertArrayString(t, "source system modules inputs", expectedSourcePaths, result.NormalizePathsForTesting(sourceInputs))
 }
 
 var addPrebuiltSystemModules = android.FixtureAddTextFile("prebuilts/Android.bp", `
@@ -85,7 +85,7 @@ func TestJavaSystemModulesImport(t *testing.T) {
 
 	// The expected paths are the header jars from the renamed prebuilt input modules.
 	expectedPrebuiltPaths := getModuleHeaderJarsAsNormalizedPaths(result, "system-module1", "system-module2")
-	result.AssertArrayString("renamed prebuilt system modules inputs", expectedPrebuiltPaths, result.NormalizePathsForTesting(prebuiltInputs))
+	android.AssertArrayString(t, "renamed prebuilt system modules inputs", expectedPrebuiltPaths, result.NormalizePathsForTesting(prebuiltInputs))
 }
 
 func TestJavaSystemModulesMixSourceAndPrebuilt(t *testing.T) {
@@ -100,7 +100,7 @@ func TestJavaSystemModulesMixSourceAndPrebuilt(t *testing.T) {
 
 	// The expected paths are the header jars from the source input modules.
 	expectedSourcePaths := getModuleHeaderJarsAsNormalizedPaths(result, "system-module1", "system-module2")
-	result.AssertArrayString("source system modules inputs", expectedSourcePaths, result.NormalizePathsForTesting(sourceInputs))
+	android.AssertArrayString(t, "source system modules inputs", expectedSourcePaths, result.NormalizePathsForTesting(sourceInputs))
 
 	// check the existence of the renamed prebuilt module
 	prebuiltSystemModules := result.ModuleForTests("prebuilt_system-modules", "android_common")
@@ -108,5 +108,5 @@ func TestJavaSystemModulesMixSourceAndPrebuilt(t *testing.T) {
 
 	// The expected paths are the header jars from the renamed prebuilt input modules.
 	expectedPrebuiltPaths := getModuleHeaderJarsAsNormalizedPaths(result, "prebuilt_system-module1", "prebuilt_system-module2")
-	result.AssertArrayString("prebuilt system modules inputs", expectedPrebuiltPaths, result.NormalizePathsForTesting(prebuiltInputs))
+	android.AssertArrayString(t, "prebuilt system modules inputs", expectedPrebuiltPaths, result.NormalizePathsForTesting(prebuiltInputs))
 }

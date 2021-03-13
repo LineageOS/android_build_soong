@@ -222,7 +222,7 @@ func TestFuchsiaTargetDecl(t *testing.T) {
 	for _, o := range ld.Inputs {
 		objs = append(objs, o.Base())
 	}
-	result.AssertArrayString("libTest inputs", []string{"foo.o", "bar.o"}, objs)
+	android.AssertArrayString(t, "libTest inputs", []string{"foo.o", "bar.o"}, objs)
 }
 
 func TestVendorSrc(t *testing.T) {
@@ -3429,7 +3429,7 @@ func TestProductVariableDefaults(t *testing.T) {
 	).RunTestWithBp(t, bp)
 
 	libfoo := result.Module("libfoo", "android_arm64_armv8-a_static").(*Module)
-	result.AssertStringListContains("cppflags", libfoo.flags.Local.CppFlags, "-DBAR")
+	android.AssertStringListContains(t, "cppflags", libfoo.flags.Local.CppFlags, "-DBAR")
 }
 
 func TestEmptyWholeStaticLibsAllowMissingDependencies(t *testing.T) {
@@ -3452,12 +3452,12 @@ func TestEmptyWholeStaticLibsAllowMissingDependencies(t *testing.T) {
 	).RunTestWithBp(t, bp)
 
 	libbar := result.ModuleForTests("libbar", "android_arm64_armv8-a_static").Output("libbar.a")
-	result.AssertDeepEquals("libbar rule", android.ErrorRule, libbar.Rule)
+	android.AssertDeepEquals(t, "libbar rule", android.ErrorRule, libbar.Rule)
 
-	result.AssertStringDoesContain("libbar error", libbar.Args["error"], "missing dependencies: libmissing")
+	android.AssertStringDoesContain(t, "libbar error", libbar.Args["error"], "missing dependencies: libmissing")
 
 	libfoo := result.ModuleForTests("libfoo", "android_arm64_armv8-a_static").Output("libfoo.a")
-	result.AssertStringListContains("libfoo.a dependencies", libfoo.Inputs.Strings(), libbar.Output.String())
+	android.AssertStringListContains(t, "libfoo.a dependencies", libfoo.Inputs.Strings(), libbar.Output.String())
 }
 
 func TestInstallSharedLibs(t *testing.T) {
