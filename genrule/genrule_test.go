@@ -477,7 +477,7 @@ func TestGenruleCmd(t *testing.T) {
 			}
 
 			gen := result.Module("gen", "").(*Module)
-			result.AssertStringEquals("raw commands", test.expect, gen.rawCommands[0])
+			android.AssertStringEquals(t, "raw commands", test.expect, gen.rawCommands[0])
 		})
 	}
 }
@@ -541,12 +541,11 @@ func TestGenruleHashInputs(t *testing.T) {
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
-			subResult := result.ResultForSubTest(t)
-			gen := subResult.ModuleForTests(test.name, "")
+			gen := result.ModuleForTests(test.name, "")
 			manifest := android.RuleBuilderSboxProtoForTests(t, gen.Output("genrule.sbox.textproto"))
 			hash := manifest.Commands[0].GetInputHash()
 
-			subResult.AssertStringEquals("hash", test.expectedHash, hash)
+			android.AssertStringEquals(t, "hash", test.expectedHash, hash)
 		})
 	}
 }
@@ -615,11 +614,11 @@ func TestGenSrcs(t *testing.T) {
 			}
 
 			gen := result.Module("gen", "").(*Module)
-			result.AssertDeepEquals("cmd", test.cmds, gen.rawCommands)
+			android.AssertDeepEquals(t, "cmd", test.cmds, gen.rawCommands)
 
-			result.AssertDeepEquals("deps", test.deps, gen.outputDeps.Strings())
+			android.AssertDeepEquals(t, "deps", test.deps, gen.outputDeps.Strings())
 
-			result.AssertDeepEquals("files", test.files, gen.outputFiles.Strings())
+			android.AssertDeepEquals(t, "files", test.files, gen.outputFiles.Strings())
 		})
 	}
 }
@@ -648,10 +647,10 @@ func TestGenruleDefaults(t *testing.T) {
 	gen := result.Module("gen", "").(*Module)
 
 	expectedCmd := "cp in1 __SBOX_SANDBOX_DIR__/out/out"
-	result.AssertStringEquals("cmd", expectedCmd, gen.rawCommands[0])
+	android.AssertStringEquals(t, "cmd", expectedCmd, gen.rawCommands[0])
 
 	expectedSrcs := []string{"in1"}
-	result.AssertDeepEquals("srcs", expectedSrcs, gen.properties.Srcs)
+	android.AssertDeepEquals(t, "srcs", expectedSrcs, gen.properties.Srcs)
 }
 
 func TestGenruleWithBazel(t *testing.T) {
@@ -673,8 +672,8 @@ func TestGenruleWithBazel(t *testing.T) {
 
 	expectedOutputFiles := []string{"outputbase/execroot/__main__/bazelone.txt",
 		"outputbase/execroot/__main__/bazeltwo.txt"}
-	result.AssertDeepEquals("output files", expectedOutputFiles, gen.outputFiles.Strings())
-	result.AssertDeepEquals("output deps", expectedOutputFiles, gen.outputDeps.Strings())
+	android.AssertDeepEquals(t, "output files", expectedOutputFiles, gen.outputFiles.Strings())
+	android.AssertDeepEquals(t, "output deps", expectedOutputFiles, gen.outputDeps.Strings())
 }
 
 type testTool struct {
