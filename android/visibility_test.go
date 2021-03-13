@@ -1166,17 +1166,17 @@ func TestVisibility(t *testing.T) {
 				RunTest(t)
 
 			if test.effectiveVisibility != nil {
-				checkEffectiveVisibility(result, test.effectiveVisibility)
+				checkEffectiveVisibility(t, result, test.effectiveVisibility)
 			}
 		})
 	}
 }
 
-func checkEffectiveVisibility(result *TestResult, effectiveVisibility map[qualifiedModuleName][]string) {
+func checkEffectiveVisibility(t *testing.T, result *TestResult, effectiveVisibility map[qualifiedModuleName][]string) {
 	for moduleName, expectedRules := range effectiveVisibility {
 		rule := effectiveVisibilityRules(result.Config, moduleName)
 		stringRules := rule.Strings()
-		result.AssertDeepEquals("effective rules mismatch", expectedRules, stringRules)
+		AssertDeepEquals(t, "effective rules mismatch", expectedRules, stringRules)
 	}
 }
 

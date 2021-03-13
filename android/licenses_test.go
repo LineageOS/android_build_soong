@@ -482,33 +482,33 @@ func TestLicenses(t *testing.T) {
 				RunTest(t)
 
 			if test.effectiveLicenses != nil {
-				checkEffectiveLicenses(result, test.effectiveLicenses)
+				checkEffectiveLicenses(t, result, test.effectiveLicenses)
 			}
 
 			if test.effectivePackage != nil {
-				checkEffectivePackage(result, test.effectivePackage)
+				checkEffectivePackage(t, result, test.effectivePackage)
 			}
 
 			if test.effectiveNotices != nil {
-				checkEffectiveNotices(result, test.effectiveNotices)
+				checkEffectiveNotices(t, result, test.effectiveNotices)
 			}
 
 			if test.effectiveKinds != nil {
-				checkEffectiveKinds(result, test.effectiveKinds)
+				checkEffectiveKinds(t, result, test.effectiveKinds)
 			}
 
 			if test.effectiveConditions != nil {
-				checkEffectiveConditions(result, test.effectiveConditions)
+				checkEffectiveConditions(t, result, test.effectiveConditions)
 			}
 
 			if test.effectiveInheritedLicenses != nil {
-				checkEffectiveInheritedLicenses(result, test.effectiveInheritedLicenses)
+				checkEffectiveInheritedLicenses(t, result, test.effectiveInheritedLicenses)
 			}
 		})
 	}
 }
 
-func checkEffectiveLicenses(result *TestResult, effectiveLicenses map[string][]string) {
+func checkEffectiveLicenses(t *testing.T, result *TestResult, effectiveLicenses map[string][]string) {
 	actualLicenses := make(map[string][]string)
 	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
@@ -522,7 +522,7 @@ func checkEffectiveLicenses(result *TestResult, effectiveLicenses map[string][]s
 		}
 		module, ok := m.(Module)
 		if !ok {
-			result.Errorf("%q not a module", m.Name())
+			t.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -538,12 +538,12 @@ func checkEffectiveLicenses(result *TestResult, effectiveLicenses map[string][]s
 			licenses = []string{}
 		}
 		if !compareUnorderedStringArrays(expectedLicenses, licenses) {
-			result.Errorf("effective licenses mismatch for module %q: expected %q, found %q", moduleName, expectedLicenses, licenses)
+			t.Errorf("effective licenses mismatch for module %q: expected %q, found %q", moduleName, expectedLicenses, licenses)
 		}
 	}
 }
 
-func checkEffectiveInheritedLicenses(result *TestResult, effectiveInheritedLicenses map[string][]string) {
+func checkEffectiveInheritedLicenses(t *testing.T, result *TestResult, effectiveInheritedLicenses map[string][]string) {
 	actualLicenses := make(map[string][]string)
 	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
@@ -557,7 +557,7 @@ func checkEffectiveInheritedLicenses(result *TestResult, effectiveInheritedLicen
 		}
 		module, ok := m.(Module)
 		if !ok {
-			result.Errorf("%q not a module", m.Name())
+			t.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -580,7 +580,7 @@ func checkEffectiveInheritedLicenses(result *TestResult, effectiveInheritedLicen
 			}
 			cmodule, ok := c.(Module)
 			if !ok {
-				result.Errorf("%q not a module", c.Name())
+				t.Errorf("%q not a module", c.Name())
 				return
 			}
 			cbase := cmodule.base()
@@ -603,12 +603,12 @@ func checkEffectiveInheritedLicenses(result *TestResult, effectiveInheritedLicen
 			licenses = []string{}
 		}
 		if !compareUnorderedStringArrays(expectedInheritedLicenses, licenses) {
-			result.Errorf("effective inherited licenses mismatch for module %q: expected %q, found %q", moduleName, expectedInheritedLicenses, licenses)
+			t.Errorf("effective inherited licenses mismatch for module %q: expected %q, found %q", moduleName, expectedInheritedLicenses, licenses)
 		}
 	}
 }
 
-func checkEffectivePackage(result *TestResult, effectivePackage map[string]string) {
+func checkEffectivePackage(t *testing.T, result *TestResult, effectivePackage map[string]string) {
 	actualPackage := make(map[string]string)
 	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
@@ -622,7 +622,7 @@ func checkEffectivePackage(result *TestResult, effectivePackage map[string]strin
 		}
 		module, ok := m.(Module)
 		if !ok {
-			result.Errorf("%q not a module", m.Name())
+			t.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -643,12 +643,12 @@ func checkEffectivePackage(result *TestResult, effectivePackage map[string]strin
 			packageName = ""
 		}
 		if expectedPackage != packageName {
-			result.Errorf("effective package mismatch for module %q: expected %q, found %q", moduleName, expectedPackage, packageName)
+			t.Errorf("effective package mismatch for module %q: expected %q, found %q", moduleName, expectedPackage, packageName)
 		}
 	}
 }
 
-func checkEffectiveNotices(result *TestResult, effectiveNotices map[string][]string) {
+func checkEffectiveNotices(t *testing.T, result *TestResult, effectiveNotices map[string][]string) {
 	actualNotices := make(map[string][]string)
 	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
@@ -662,7 +662,7 @@ func checkEffectiveNotices(result *TestResult, effectiveNotices map[string][]str
 		}
 		module, ok := m.(Module)
 		if !ok {
-			result.Errorf("%q not a module", m.Name())
+			t.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -678,12 +678,12 @@ func checkEffectiveNotices(result *TestResult, effectiveNotices map[string][]str
 			notices = []string{}
 		}
 		if !compareUnorderedStringArrays(expectedNotices, notices) {
-			result.Errorf("effective notice files mismatch for module %q: expected %q, found %q", moduleName, expectedNotices, notices)
+			t.Errorf("effective notice files mismatch for module %q: expected %q, found %q", moduleName, expectedNotices, notices)
 		}
 	}
 }
 
-func checkEffectiveKinds(result *TestResult, effectiveKinds map[string][]string) {
+func checkEffectiveKinds(t *testing.T, result *TestResult, effectiveKinds map[string][]string) {
 	actualKinds := make(map[string][]string)
 	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
@@ -697,7 +697,7 @@ func checkEffectiveKinds(result *TestResult, effectiveKinds map[string][]string)
 		}
 		module, ok := m.(Module)
 		if !ok {
-			result.Errorf("%q not a module", m.Name())
+			t.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -713,12 +713,12 @@ func checkEffectiveKinds(result *TestResult, effectiveKinds map[string][]string)
 			kinds = []string{}
 		}
 		if !compareUnorderedStringArrays(expectedKinds, kinds) {
-			result.Errorf("effective license kinds mismatch for module %q: expected %q, found %q", moduleName, expectedKinds, kinds)
+			t.Errorf("effective license kinds mismatch for module %q: expected %q, found %q", moduleName, expectedKinds, kinds)
 		}
 	}
 }
 
-func checkEffectiveConditions(result *TestResult, effectiveConditions map[string][]string) {
+func checkEffectiveConditions(t *testing.T, result *TestResult, effectiveConditions map[string][]string) {
 	actualConditions := make(map[string][]string)
 	result.Context.Context.VisitAllModules(func(m blueprint.Module) {
 		if _, ok := m.(*licenseModule); ok {
@@ -732,7 +732,7 @@ func checkEffectiveConditions(result *TestResult, effectiveConditions map[string
 		}
 		module, ok := m.(Module)
 		if !ok {
-			result.Errorf("%q not a module", m.Name())
+			t.Errorf("%q not a module", m.Name())
 			return
 		}
 		base := module.base()
@@ -748,7 +748,7 @@ func checkEffectiveConditions(result *TestResult, effectiveConditions map[string
 			conditions = []string{}
 		}
 		if !compareUnorderedStringArrays(expectedConditions, conditions) {
-			result.Errorf("effective license conditions mismatch for module %q: expected %q, found %q", moduleName, expectedConditions, conditions)
+			t.Errorf("effective license conditions mismatch for module %q: expected %q, found %q", moduleName, expectedConditions, conditions)
 		}
 	}
 }

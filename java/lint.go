@@ -189,6 +189,10 @@ type lintPaths struct {
 	remoteRSPInputs android.Paths
 }
 
+func lintRBEExecStrategy(ctx android.ModuleContext) string {
+	return ctx.Config().GetenvWithDefault("RBE_LINT_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
+}
+
 func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.RuleBuilder) lintPaths {
 	var deps android.Paths
 	var remoteInputs android.Paths
@@ -280,7 +284,8 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	cmd.FlagForEachArg("--extra_checks_jar ", l.extraLintCheckJars.Strings())
 	trackInputDependency(l.extraLintCheckJars...)
 
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_LINT") {
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_LINT") &&
+		lintRBEExecStrategy(ctx) != remoteexec.LocalExecStrategy {
 		// TODO(b/181912787): remove these and use "." instead.
 		cmd.FlagWithArg("--root_dir ", "/b/f/w")
 	} else {
@@ -391,7 +396,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		pool := ctx.Config().GetenvWithDefault("RBE_LINT_POOL", "java16")
 		// TODO(b/181912787): this should be local fallback once the hack that passes /b/f/w in project.xml
 		// is removed.
-		execStrategy := ctx.Config().GetenvWithDefault("RBE_LINT_EXEC_STRATEGY", remoteexec.RemoteExecStrategy)
+		execStrategy := lintRBEExecStrategy(ctx)
 		labels := map[string]string{"type": "tool", "name": "lint"}
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
 		remoteInputs := lintPaths.remoteInputs
@@ -417,6 +422,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 				"ANDROID_SDK_HOME",
 				"SDK_ANNOTATIONS",
 				"LINT_OPTS",
+				"LANG",
 			},
 			Platform: map[string]string{remoteexec.PoolKey: pool},
 		}).NoVarTemplate(ctx.Config()))

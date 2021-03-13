@@ -2499,7 +2499,7 @@ func (j *TestHost) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if j.testProperties.Test_options.Unit_test == nil && ctx.Host() {
 		// TODO(b/): Clean temporary heuristic to avoid unexpected onboarding.
-		defaultUnitTest := !inList("tradefed", j.properties.Static_libs) && !inList("tradefed", j.properties.Libs) && !inList("cts", j.testProperties.Test_suites) && !inList("robolectric-host-android_all", j.properties.Static_libs) && !inList("robolectric-host-android_all", j.properties.Libs)
+		defaultUnitTest := !inList("tradefed", j.properties.Static_libs) && !inList("tradefed", j.properties.Libs) && !inList("cts", j.testProperties.Test_suites)
 		j.testProperties.Test_options.Unit_test = proptools.BoolPtr(defaultUnitTest)
 	}
 	j.testConfig = tradefed.AutoGenJavaTestConfig(ctx, j.testProperties.Test_config, j.testProperties.Test_config_template,
@@ -3319,10 +3319,6 @@ type Defaults struct {
 //         ],
 //         javacflags: ["-Xlint:all"],
 //     }
-func defaultsFactory() android.Module {
-	return DefaultsFactory()
-}
-
 func DefaultsFactory() android.Module {
 	module := &Defaults{}
 
