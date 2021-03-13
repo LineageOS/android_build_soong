@@ -537,7 +537,7 @@ func (r *RuleBuilder) Build(name string, desc string) {
 		}
 
 		// Create a rule to write the manifest as a the textproto.
-		WriteFileRule(r.ctx, r.sboxManifestPath, proptools.NinjaEscape(proto.MarshalTextString(&manifest)))
+		WriteFileRule(r.ctx, r.sboxManifestPath, proto.MarshalTextString(&manifest))
 
 		// Generate a new string to use as the command line of the sbox rule.  This uses
 		// a RuleBuilderCommand as a convenience method of building the command line, then
