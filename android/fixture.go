@@ -553,7 +553,6 @@ type testContext struct {
 
 // The result of running a test.
 type TestResult struct {
-	TestHelper
 	testContext
 
 	fixture *fixture
@@ -698,7 +697,6 @@ func (f *fixture) RunTest() *TestResult {
 	}
 
 	result := &TestResult{
-		TestHelper:  TestHelper{T: f.t},
 		testContext: testContext{ctx},
 		fixture:     f,
 		Config:      f.config,
