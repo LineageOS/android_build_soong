@@ -745,19 +745,3 @@ func (r *TestResult) NormalizePathsForTesting(paths Paths) []string {
 func (r *TestResult) Module(name string, variant string) Module {
 	return r.ModuleForTests(name, variant).Module()
 }
-
-// Create a *TestResult object suitable for use within a subtest.
-//
-// This ensures that any errors reported by the TestResult, e.g. from within one of its
-// Assert... methods, will be associated with the sub test and not the main test.
-//
-// result := ....RunTest()
-// t.Run("subtest", func(t *testing.T) {
-//    subResult := result.ResultForSubTest(t)
-//    subResult.AssertStringEquals("something", ....)
-// })
-func (r *TestResult) ResultForSubTest(t *testing.T) *TestResult {
-	subTestResult := *r
-	r.T = t
-	return &subTestResult
-}
