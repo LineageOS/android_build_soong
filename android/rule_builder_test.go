@@ -283,16 +283,6 @@ func ExampleRuleBuilderCommand_String() {
 	// FOO=foo echo $FOO
 }
 
-func ExampleRuleBuilderCommand_NinjaEscapedString() {
-	ctx := builderContext()
-	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
-		Text("FOO=foo").
-		Text("echo $FOO").
-		NinjaEscapedString())
-	// Output:
-	// FOO=foo echo $$FOO
-}
-
 func TestRuleBuilder(t *testing.T) {
 	fs := map[string][]byte{
 		"dep_fixer":  nil,
@@ -629,80 +619,6 @@ func TestRuleBuilder_Build(t *testing.T) {
 		check(t, ctx.SingletonForTests("rule_builder_test").Rule("rule"),
 			"cp bar "+outFile, outFile, outFile+".d", true, nil, nil)
 	})
-}
-
-func Test_ninjaEscapeExceptForSpans(t *testing.T) {
-	type args struct {
-		s     string
-		spans [][2]int
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "empty",
-			args: args{
-				s: "",
-			},
-			want: "",
-		},
-		{
-			name: "unescape none",
-			args: args{
-				s: "$abc",
-			},
-			want: "$$abc",
-		},
-		{
-			name: "unescape all",
-			args: args{
-				s:     "$abc",
-				spans: [][2]int{{0, 4}},
-			},
-			want: "$abc",
-		},
-		{
-			name: "unescape first",
-			args: args{
-				s:     "$abc$",
-				spans: [][2]int{{0, 1}},
-			},
-			want: "$abc$$",
-		},
-		{
-			name: "unescape last",
-			args: args{
-				s:     "$abc$",
-				spans: [][2]int{{4, 5}},
-			},
-			want: "$$abc$",
-		},
-		{
-			name: "unescape middle",
-			args: args{
-				s:     "$a$b$c$",
-				spans: [][2]int{{2, 5}},
-			},
-			want: "$$a$b$c$$",
-		},
-		{
-			name: "unescape multiple",
-			args: args{
-				s:     "$a$b$c$",
-				spans: [][2]int{{2, 3}, {4, 5}},
-			},
-			want: "$$a$b$c$$",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := ninjaEscapeExceptForSpans(tt.args.s, tt.args.spans); got != tt.want {
-				t.Errorf("ninjaEscapeExceptForSpans() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestRuleBuilderHashInputs(t *testing.T) {
