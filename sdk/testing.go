@@ -29,10 +29,15 @@ import (
 	"android/soong/java"
 )
 
-func testSdkContext(bp string, fs map[string][]byte, extraOsTypes []android.OsType) (*android.TestContext, android.Config) {
-	extraOsTypes = append(extraOsTypes, android.Android, android.Windows)
+var sdkFixtureFactory = android.NewFixtureFactory(
+	&buildDir,
+	apex.PrepareForTestWithApexBuildComponents,
+	cc.PrepareForTestWithCcDefaultModules,
+	genrule.PrepareForTestWithGenRuleBuildComponents,
+	java.PrepareForTestWithJavaBuildComponents,
+	PrepareForTestWithSdkBuildComponents,
 
-	bp = bp + `
+	android.FixtureAddTextFile("sdk/tests/Android.bp", `
 		apex_key {
 			name: "myapex.key",
 			public_key: "myapex.avbpubkey",
@@ -43,9 +48,9 @@ func testSdkContext(bp string, fs map[string][]byte, extraOsTypes []android.OsTy
 			name: "myapex.cert",
 			certificate: "myapex",
 		}
-	` + cc.GatherRequiredDepsForTest(extraOsTypes...)
+	`),
 
-	mockFS := map[string][]byte{
+	android.FixtureMergeMockFs(map[string][]byte{
 		"build/make/target/product/security":           nil,
 		"apex_manifest.json":                           nil,
 		"system/sepolicy/apex/myapex-file_contexts":    nil,
@@ -55,113 +60,33 @@ func testSdkContext(bp string, fs map[string][]byte, extraOsTypes []android.OsTy
 		"myapex.pem":                                   nil,
 		"myapex.x509.pem":                              nil,
 		"myapex.pk8":                                   nil,
-	}
+	}),
 
-	cc.GatherRequiredFilesForTest(mockFS)
-
-	for k, v := range fs {
-		mockFS[k] = v
-	}
-
-	config := android.TestArchConfig(buildDir, nil, bp, mockFS)
-
-	// Add windows as a default disable OS to test behavior when some OS variants
-	// are disabled.
-	config.Targets[android.Windows] = []android.Target{
-		{android.Windows, android.Arch{ArchType: android.X86_64}, android.NativeBridgeDisabled, "", "", true},
-	}
-
-	for _, extraOsType := range extraOsTypes {
-		switch extraOsType {
-		case android.LinuxBionic:
-			config.Targets[android.LinuxBionic] = []android.Target{
-				{android.LinuxBionic, android.Arch{ArchType: android.X86_64}, android.NativeBridgeDisabled, "", "", false},
-			}
+	cc.PrepareForTestOnWindows,
+	android.FixtureModifyConfig(func(config android.Config) {
+		// Add windows as a default disable OS to test behavior when some OS variants
+		// are disabled.
+		config.Targets[android.Windows] = []android.Target{
+			{android.Windows, android.Arch{ArchType: android.X86_64}, android.NativeBridgeDisabled, "", "", true},
 		}
-	}
+	}),
+)
 
-	ctx := android.NewTestArchContext(config)
+var PrepareForTestWithSdkBuildComponents = android.GroupFixturePreparers(
+	android.FixtureRegisterWithContext(registerModuleExportsBuildComponents),
+	android.FixtureRegisterWithContext(registerSdkBuildComponents),
+)
 
-	// Enable androidmk support.
-	// * Register the singleton
-	// * Configure that we are inside make
-	// * Add CommonOS to ensure that androidmk processing works.
-	android.RegisterAndroidMkBuildComponents(ctx)
-	android.SetKatiEnabledForTests(config)
-	config.Targets[android.CommonOS] = []android.Target{
-		{android.CommonOS, android.Arch{ArchType: android.Common}, android.NativeBridgeDisabled, "", "", true},
-	}
-
-	// from android package
-	android.RegisterPackageBuildComponents(ctx)
-	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
-	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(android.RegisterComponentsMutator)
-
-	android.RegisterPrebuiltMutators(ctx)
-
-	// Register these after the prebuilt mutators have been registered to match what
-	// happens at runtime.
-	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
-	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
-
-	// from java package
-	java.RegisterRequiredBuildComponentsForTest(ctx)
-
-	// from genrule package
-	genrule.RegisterGenruleBuildComponents(ctx)
-
-	// from cc package
-	cc.RegisterRequiredBuildComponentsForTest(ctx)
-
-	// from apex package
-	ctx.RegisterModuleType("apex", apex.BundleFactory)
-	ctx.RegisterModuleType("apex_key", apex.ApexKeyFactory)
-	ctx.PostDepsMutators(apex.RegisterPostDepsMutators)
-
-	// from this package
-	registerModuleExportsBuildComponents(ctx)
-	registerSdkBuildComponents(ctx)
-
-	ctx.Register()
-
-	return ctx, config
-}
-
-func runTests(t *testing.T, ctx *android.TestContext, config android.Config) *testSdkResult {
+func testSdkWithFs(t *testing.T, bp string, fs android.MockFS) *android.TestResult {
 	t.Helper()
-	_, errs := ctx.ParseBlueprintsFiles(".")
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
-	return &testSdkResult{
-		TestHelper:  android.TestHelper{T: t},
-		TestContext: ctx,
-	}
-}
-
-func testSdkWithFs(t *testing.T, bp string, fs map[string][]byte) *testSdkResult {
-	t.Helper()
-	ctx, config := testSdkContext(bp, fs, nil)
-	return runTests(t, ctx, config)
+	return sdkFixtureFactory.RunTest(t, fs.AddToFixture(), android.FixtureWithRootAndroidBp(bp))
 }
 
 func testSdkError(t *testing.T, pattern, bp string) {
 	t.Helper()
-	ctx, config := testSdkContext(bp, nil, nil)
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-	_, errs = ctx.PrepareBuildActions(config)
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-
-	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
+	sdkFixtureFactory.
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
+		RunTestWithBp(t, bp)
 }
 
 func ensureListContains(t *testing.T, result []string, expected string) {
@@ -179,22 +104,11 @@ func pathsToStrings(paths android.Paths) []string {
 	return ret
 }
 
-// Encapsulates result of processing an SDK definition. Provides support for
-// checking the state of the build structures.
-type testSdkResult struct {
-	android.TestHelper
-	*android.TestContext
-}
-
-func (result *testSdkResult) Module(name string, variant string) android.Module {
-	return result.ModuleForTests(name, variant).Module()
-}
-
 // Analyse the sdk build rules to extract information about what it is doing.
-
+//
 // e.g. find the src/dest pairs from each cp command, the various zip files
 // generated, etc.
-func getSdkSnapshotBuildInfo(result *testSdkResult, sdk *sdk) *snapshotBuildInfo {
+func getSdkSnapshotBuildInfo(result *android.TestResult, sdk *sdk) *snapshotBuildInfo {
 	info := &snapshotBuildInfo{
 		r:                            result,
 		androidBpContents:            sdk.GetAndroidBpContentsForTests(),
@@ -263,7 +177,7 @@ func getSdkSnapshotBuildInfo(result *testSdkResult, sdk *sdk) *snapshotBuildInfo
 // Takes a list of functions which check different facets of the snapshot build rules.
 // Allows each test to customize what is checked without duplicating lots of code
 // or proliferating check methods of different flavors.
-func CheckSnapshot(result *testSdkResult, name string, dir string, checkers ...snapshotBuildInfoChecker) {
+func CheckSnapshot(result *android.TestResult, name string, dir string, checkers ...snapshotBuildInfoChecker) {
 	result.Helper()
 
 	// The sdk CommonOS variant is always responsible for generating the snapshot.
@@ -373,7 +287,7 @@ func checkMergeZips(expected ...string) snapshotBuildInfoChecker {
 // All source/input paths are relative either the build directory. All dest/output paths are
 // relative to the snapshot root directory.
 type snapshotBuildInfo struct {
-	r *testSdkResult
+	r *android.TestResult
 
 	// The contents of the generated Android.bp file
 	androidBpContents string

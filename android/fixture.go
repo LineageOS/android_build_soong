@@ -16,8 +16,6 @@ package android
 
 import (
 	"fmt"
-	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -237,8 +235,14 @@ func NewFixtureFactory(buildDirSupplier *string, preparers ...FixturePreparer) F
 // A set of mock files to add to the mock file system.
 type MockFS map[string][]byte
 
+// Merge adds the extra entries from the supplied map to this one.
+//
+// Fails if the supplied map files with the same paths are present in both of them.
 func (fs MockFS) Merge(extra map[string][]byte) {
 	for p, c := range extra {
+		if _, ok := fs[p]; ok {
+			panic(fmt.Errorf("attempted to add file %s to the mock filesystem but it already exists", p))
+		}
 		fs[p] = c
 	}
 }
@@ -289,15 +293,38 @@ func FixtureMergeMockFs(mockFS MockFS) FixturePreparer {
 }
 
 // Add a file to the mock filesystem
+//
+// Fail if the filesystem already contains a file with that path, use FixtureOverrideFile instead.
 func FixtureAddFile(path string, contents []byte) FixturePreparer {
 	return FixtureModifyMockFS(func(fs MockFS) {
+		if _, ok := fs[path]; ok {
+			panic(fmt.Errorf("attempted to add file %s to the mock filesystem but it already exists, use FixtureOverride*File instead", path))
+		}
 		fs[path] = contents
 	})
 }
 
 // Add a text file to the mock filesystem
+//
+// Fail if the filesystem already contains a file with that path.
 func FixtureAddTextFile(path string, contents string) FixturePreparer {
 	return FixtureAddFile(path, []byte(contents))
+}
+
+// Override a file in the mock filesystem
+//
+// If the file does not exist this behaves as FixtureAddFile.
+func FixtureOverrideFile(path string, contents []byte) FixturePreparer {
+	return FixtureModifyMockFS(func(fs MockFS) {
+		fs[path] = contents
+	})
+}
+
+// Override a text file in the mock filesystem
+//
+// If the file does not exist this behaves as FixtureAddTextFile.
+func FixtureOverrideTextFile(path string, contents string) FixturePreparer {
+	return FixtureOverrideFile(path, []byte(contents))
 }
 
 // Add the root Android.bp file with the supplied contents.
@@ -519,122 +546,6 @@ type Fixture interface {
 	RunTest() *TestResult
 }
 
-// Provides general test support.
-type TestHelper struct {
-	*testing.T
-}
-
-// AssertBoolEquals checks if the expected and actual values are equal and if they are not then it
-// reports an error prefixed with the supplied message and including a reason for why it failed.
-func (h *TestHelper) AssertBoolEquals(message string, expected bool, actual bool) {
-	h.Helper()
-	if actual != expected {
-		h.Errorf("%s: expected %t, actual %t", message, expected, actual)
-	}
-}
-
-// AssertStringEquals checks if the expected and actual values are equal and if they are not then
-// it reports an error prefixed with the supplied message and including a reason for why it failed.
-func (h *TestHelper) AssertStringEquals(message string, expected string, actual string) {
-	h.Helper()
-	if actual != expected {
-		h.Errorf("%s: expected %s, actual %s", message, expected, actual)
-	}
-}
-
-// AssertErrorMessageEquals checks if the error is not nil and has the expected message. If it does
-// not then this reports an error prefixed with the supplied message and including a reason for why
-// it failed.
-func (h *TestHelper) AssertErrorMessageEquals(message string, expected string, actual error) {
-	h.Helper()
-	if actual == nil {
-		h.Errorf("Expected error but was nil")
-	} else if actual.Error() != expected {
-		h.Errorf("%s: expected %s, actual %s", message, expected, actual.Error())
-	}
-}
-
-// AssertTrimmedStringEquals checks if the expected and actual values are the same after trimming
-// leading and trailing spaces from them both. If they are not then it reports an error prefixed
-// with the supplied message and including a reason for why it failed.
-func (h *TestHelper) AssertTrimmedStringEquals(message string, expected string, actual string) {
-	h.Helper()
-	h.AssertStringEquals(message, strings.TrimSpace(expected), strings.TrimSpace(actual))
-}
-
-// AssertStringDoesContain checks if the string contains the expected substring. If it does not
-// then it reports an error prefixed with the supplied message and including a reason for why it
-// failed.
-func (h *TestHelper) AssertStringDoesContain(message string, s string, expectedSubstring string) {
-	h.Helper()
-	if !strings.Contains(s, expectedSubstring) {
-		h.Errorf("%s: could not find %q within %q", message, expectedSubstring, s)
-	}
-}
-
-// AssertStringDoesNotContain checks if the string contains the expected substring. If it does then
-// it reports an error prefixed with the supplied message and including a reason for why it failed.
-func (h *TestHelper) AssertStringDoesNotContain(message string, s string, unexpectedSubstring string) {
-	h.Helper()
-	if strings.Contains(s, unexpectedSubstring) {
-		h.Errorf("%s: unexpectedly found %q within %q", message, unexpectedSubstring, s)
-	}
-}
-
-// AssertStringListContains checks if the list of strings contains the expected string. If it does
-// not then it reports an error prefixed with the supplied message and including a reason for why it
-// failed.
-func (h *TestHelper) AssertStringListContains(message string, list []string, expected string) {
-	h.Helper()
-	if !InList(expected, list) {
-		h.Errorf("%s: could not find %q within %q", message, expected, list)
-	}
-}
-
-// AssertArrayString checks if the expected and actual values are equal and if they are not then it
-// reports an error prefixed with the supplied message and including a reason for why it failed.
-func (h *TestHelper) AssertArrayString(message string, expected, actual []string) {
-	h.Helper()
-	if len(actual) != len(expected) {
-		h.Errorf("%s: expected %d (%q), actual (%d) %q", message, len(expected), expected, len(actual), actual)
-		return
-	}
-	for i := range actual {
-		if actual[i] != expected[i] {
-			h.Errorf("%s: expected %d-th, %q (%q), actual %q (%q)",
-				message, i, expected[i], expected, actual[i], actual)
-			return
-		}
-	}
-}
-
-// AssertDeepEquals checks if the expected and actual values are equal using reflect.DeepEqual and
-// if they are not then it reports an error prefixed with the supplied message and including a
-// reason for why it failed.
-func (h *TestHelper) AssertDeepEquals(message string, expected interface{}, actual interface{}) {
-	h.Helper()
-	if !reflect.DeepEqual(actual, expected) {
-		h.Errorf("%s: expected:\n  %#v\n got:\n  %#v", message, expected, actual)
-	}
-}
-
-// AssertPanic checks that the supplied function panics as expected.
-func (h *TestHelper) AssertPanic(message string, funcThatShouldPanic func()) {
-	h.Helper()
-	panicked := false
-	func() {
-		defer func() {
-			if x := recover(); x != nil {
-				panicked = true
-			}
-		}()
-		funcThatShouldPanic()
-	}()
-	if !panicked {
-		h.Error(message)
-	}
-}
-
 // Struct to allow TestResult to embed a *TestContext and allow call forwarding to its methods.
 type testContext struct {
 	*TestContext
@@ -828,19 +739,6 @@ func (r *TestResult) NormalizePathsForTesting(paths Paths) []string {
 		result = append(result, r.NormalizePathForTesting(path))
 	}
 	return result
-}
-
-// NewFixture creates a new test fixture that is based on the one that created this result. It is
-// intended to test the output of module types that generate content to be processed by the build,
-// e.g. sdk snapshots.
-func (r *TestResult) NewFixture(preparers ...FixturePreparer) Fixture {
-	return r.fixture.factory.Fixture(r.T, preparers...)
-}
-
-// RunTest is shorthand for NewFixture(preparers...).RunTest().
-func (r *TestResult) RunTest(preparers ...FixturePreparer) *TestResult {
-	r.Helper()
-	return r.fixture.factory.Fixture(r.T, preparers...).RunTest()
 }
 
 // Module returns the module with the specific name and of the specified variant.

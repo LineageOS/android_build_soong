@@ -25,6 +25,7 @@ bootstrap_go_package {
         "deapexer.go",
         "key.go",
         "prebuilt.go",
+        "testing.go",
         "vndk.go",
     ],
     testSrcs: [
