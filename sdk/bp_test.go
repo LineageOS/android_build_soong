@@ -54,26 +54,25 @@ func propertyStructFixture() interface{} {
 	return str
 }
 
-func checkPropertySetFixture(h android.TestHelper, val interface{}, hasTags bool) {
+func checkPropertySetFixture(t *testing.T, val interface{}, hasTags bool) {
 	set := val.(*bpPropertySet)
-	h.AssertDeepEquals("wrong x value", "taxi", set.getValue("x"))
-	h.AssertDeepEquals("wrong y value", 1729, set.getValue("y"))
+	android.AssertDeepEquals(t, "wrong x value", "taxi", set.getValue("x"))
+	android.AssertDeepEquals(t, "wrong y value", 1729, set.getValue("y"))
 
 	subset := set.getValue("sub").(*bpPropertySet)
-	h.AssertDeepEquals("wrong sub.x value", "taxi", subset.getValue("x"))
-	h.AssertDeepEquals("wrong sub.y value", 1729, subset.getValue("y"))
+	android.AssertDeepEquals(t, "wrong sub.x value", "taxi", subset.getValue("x"))
+	android.AssertDeepEquals(t, "wrong sub.y value", 1729, subset.getValue("y"))
 
 	if hasTags {
-		h.AssertDeepEquals("wrong y tag", "tag_y", set.getTag("y"))
-		h.AssertDeepEquals("wrong sub.x tag", "tag_x", subset.getTag("x"))
+		android.AssertDeepEquals(t, "wrong y tag", "tag_y", set.getTag("y"))
+		android.AssertDeepEquals(t, "wrong sub.x tag", "tag_x", subset.getTag("x"))
 	} else {
-		h.AssertDeepEquals("wrong y tag", nil, set.getTag("y"))
-		h.AssertDeepEquals("wrong sub.x tag", nil, subset.getTag("x"))
+		android.AssertDeepEquals(t, "wrong y tag", nil, set.getTag("y"))
+		android.AssertDeepEquals(t, "wrong sub.x tag", nil, subset.getTag("x"))
 	}
 }
 
 func TestAddPropertySimple(t *testing.T) {
-	h := android.TestHelper{t}
 	set := newPropertySet()
 	for name, val := range map[string]interface{}{
 		"x":   "taxi",
@@ -83,16 +82,15 @@ func TestAddPropertySimple(t *testing.T) {
 		"arr": []string{"a", "b", "c"},
 	} {
 		set.AddProperty(name, val)
-		h.AssertDeepEquals("wrong value", val, set.getValue(name))
+		android.AssertDeepEquals(t, "wrong value", val, set.getValue(name))
 	}
-	h.AssertPanic("adding x again should panic",
+	android.AssertPanic(t, "adding x again should panic",
 		func() { set.AddProperty("x", "taxi") })
-	h.AssertPanic("adding arr again should panic",
+	android.AssertPanic(t, "adding arr again should panic",
 		func() { set.AddProperty("arr", []string{"d"}) })
 }
 
 func TestAddPropertySubset(t *testing.T) {
-	h := android.TestHelper{t}
 	getFixtureMap := map[string]func() interface{}{
 		"property set":    propertySetFixture,
 		"property struct": propertyStructFixture,
@@ -103,8 +101,8 @@ func TestAddPropertySubset(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				set := propertySetFixture().(*bpPropertySet)
 				set.AddProperty("new", getFixture())
-				checkPropertySetFixture(h, set, true)
-				checkPropertySetFixture(h, set.getValue("new"), name == "property set")
+				checkPropertySetFixture(t, set, true)
+				checkPropertySetFixture(t, set.getValue("new"), name == "property set")
 			})
 		}
 	})
@@ -118,40 +116,38 @@ func TestAddPropertySubset(t *testing.T) {
 				subset.AddPropertySet("sub")
 				set.AddProperty("sub", getFixture())
 				merged := set.getValue("sub").(*bpPropertySet)
-				h.AssertDeepEquals("wrong flag value", false, merged.getValue("flag"))
-				checkPropertySetFixture(h, merged, name == "property set")
+				android.AssertDeepEquals(t, "wrong flag value", false, merged.getValue("flag"))
+				checkPropertySetFixture(t, merged, name == "property set")
 			})
 		}
 	})
 
 	t.Run("add conflicting subset", func(t *testing.T) {
 		set := propertySetFixture().(*bpPropertySet)
-		h.AssertPanic("adding x again should panic",
+		android.AssertPanic(t, "adding x again should panic",
 			func() { set.AddProperty("x", propertySetFixture()) })
 	})
 
 	t.Run("add non-pointer struct", func(t *testing.T) {
 		set := propertySetFixture().(*bpPropertySet)
 		str := propertyStructFixture().(*propertyStruct)
-		h.AssertPanic("adding a non-pointer struct should panic",
+		android.AssertPanic(t, "adding a non-pointer struct should panic",
 			func() { set.AddProperty("new", *str) })
 	})
 }
 
 func TestAddPropertySetNew(t *testing.T) {
-	h := android.TestHelper{t}
 	set := newPropertySet()
 	subset := set.AddPropertySet("sub")
 	subset.AddProperty("new", "d^^b")
-	h.AssertDeepEquals("wrong sub.new value", "d^^b", set.getValue("sub").(*bpPropertySet).getValue("new"))
+	android.AssertDeepEquals(t, "wrong sub.new value", "d^^b", set.getValue("sub").(*bpPropertySet).getValue("new"))
 }
 
 func TestAddPropertySetExisting(t *testing.T) {
-	h := android.TestHelper{t}
 	set := propertySetFixture().(*bpPropertySet)
 	subset := set.AddPropertySet("sub")
 	subset.AddProperty("new", "d^^b")
-	h.AssertDeepEquals("wrong sub.new value", "d^^b", set.getValue("sub").(*bpPropertySet).getValue("new"))
+	android.AssertDeepEquals(t, "wrong sub.new value", "d^^b", set.getValue("sub").(*bpPropertySet).getValue("new"))
 }
 
 type removeFredTransformation struct {
@@ -180,9 +176,6 @@ func (t removeFredTransformation) transformPropertySetAfterContents(name string,
 }
 
 func TestTransformRemoveProperty(t *testing.T) {
-
-	helper := android.TestHelper{t}
-
 	set := newPropertySet()
 	set.AddProperty("name", "name")
 	set.AddProperty("fred", "12")
@@ -191,13 +184,10 @@ func TestTransformRemoveProperty(t *testing.T) {
 
 	contents := &generatedContents{}
 	outputPropertySet(contents, set)
-	helper.AssertTrimmedStringEquals("removing property failed", "name: \"name\",\n", contents.content.String())
+	android.AssertTrimmedStringEquals(t, "removing property failed", "name: \"name\",\n", contents.content.String())
 }
 
 func TestTransformRemovePropertySet(t *testing.T) {
-
-	helper := android.TestHelper{t}
-
 	set := newPropertySet()
 	set.AddProperty("name", "name")
 	set.AddPropertySet("fred")
@@ -206,5 +196,5 @@ func TestTransformRemovePropertySet(t *testing.T) {
 
 	contents := &generatedContents{}
 	outputPropertySet(contents, set)
-	helper.AssertTrimmedStringEquals("removing property set failed", "name: \"name\",\n", contents.content.String())
+	android.AssertTrimmedStringEquals(t, "removing property set failed", "name: \"name\",\n", contents.content.String())
 }
