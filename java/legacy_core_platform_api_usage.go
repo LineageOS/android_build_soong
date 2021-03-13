@@ -41,6 +41,7 @@ var legacyCorePlatformApiModules = []string{
 	"BluetoothMidiService",
 	"car-apps-common",
 	"CertInstaller",
+	"com.qti.media.secureprocessor",
 	"ConnectivityManagerTest",
 	"ContactsProvider",
 	"core-tests-support",
