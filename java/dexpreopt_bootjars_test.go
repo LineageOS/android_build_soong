@@ -66,9 +66,9 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 	sort.Strings(outputs)
 	sort.Strings(expectedOutputs)
 
-	result.AssertDeepEquals("inputs", expectedInputs, inputs)
+	android.AssertDeepEquals(t, "inputs", expectedInputs, inputs)
 
-	result.AssertDeepEquals("outputs", expectedOutputs, outputs)
+	android.AssertDeepEquals(t, "outputs", expectedOutputs, outputs)
 }
 
 func TestDexpreoptBootJars(t *testing.T) {
