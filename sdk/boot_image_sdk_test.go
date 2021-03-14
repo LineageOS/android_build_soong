@@ -29,7 +29,7 @@ func TestSnapshotWithBootImage(t *testing.T) {
 		}
 	`)
 
-	CheckSnapshot(result, "mysdk", "",
+	CheckSnapshot(t, result, "mysdk", "",
 		checkUnversionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -58,6 +58,5 @@ sdk_snapshot {
     boot_images: ["mysdk_mybootimage@current"],
 }
 `),
-		checkAllCopyRules(""),
-	)
+		checkAllCopyRules(""))
 }
