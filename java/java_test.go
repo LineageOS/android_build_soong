@@ -64,8 +64,6 @@ var javaFixtureFactory = android.NewFixtureFactory(
 		ctx.RegisterPreSingletonType("overlay", OverlaySingletonFactory)
 		ctx.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
 	}),
-	javaMockFS().AddToFixture(),
-	PrepareForTestWithJavaSdkLibraryFiles,
 	dexpreopt.PrepareForTestWithDexpreopt,
 )
 
