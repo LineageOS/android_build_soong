@@ -370,11 +370,12 @@ func TestUpdatableApps(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			if test.expectedError == "" {
-				testJava(t, test.bp)
-			} else {
-				testJavaError(t, test.expectedError, test.bp)
+			errorHandler := android.FixtureExpectsNoErrors
+			if test.expectedError != "" {
+				errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(test.expectedError)
 			}
+			javaFixtureFactory.
+				ExtendWithErrorHandler(errorHandler).RunTestWithBp(t, test.bp)
 		})
 	}
 }
@@ -984,12 +985,8 @@ func TestAndroidResources(t *testing.T) {
 	}
 }
 
-func checkSdkVersion(t *testing.T, config android.Config, expectedSdkVersion string) {
-	ctx := testContext(config)
-
-	run(t, ctx, config)
-
-	foo := ctx.ModuleForTests("foo", "android_common")
+func checkSdkVersion(t *testing.T, result *android.TestResult, expectedSdkVersion string) {
+	foo := result.ModuleForTests("foo", "android_common")
 	link := foo.Output("package-res.apk")
 	linkFlags := strings.Split(link.Args["flags"], " ")
 	min := android.IndexList("--min-sdk-version", linkFlags)
@@ -1002,15 +999,9 @@ func checkSdkVersion(t *testing.T, config android.Config, expectedSdkVersion str
 	gotMinSdkVersion := linkFlags[min+1]
 	gotTargetSdkVersion := linkFlags[target+1]
 
-	if gotMinSdkVersion != expectedSdkVersion {
-		t.Errorf("incorrect --min-sdk-version, expected %q got %q",
-			expectedSdkVersion, gotMinSdkVersion)
-	}
+	android.AssertStringEquals(t, "incorrect --min-sdk-version", expectedSdkVersion, gotMinSdkVersion)
 
-	if gotTargetSdkVersion != expectedSdkVersion {
-		t.Errorf("incorrect --target-sdk-version, expected %q got %q",
-			expectedSdkVersion, gotTargetSdkVersion)
-	}
+	android.AssertStringEquals(t, "incorrect --target-sdk-version", expectedSdkVersion, gotTargetSdkVersion)
 }
 
 func TestAppSdkVersion(t *testing.T) {
@@ -1083,13 +1074,16 @@ func TestAppSdkVersion(t *testing.T) {
 					%s
 				}`, moduleType, test.sdkVersion, platformApiProp)
 
-				config := testAppConfig(nil, bp, nil)
-				config.TestProductVariables.Platform_sdk_version = &test.platformSdkInt
-				config.TestProductVariables.Platform_sdk_codename = &test.platformSdkCodename
-				config.TestProductVariables.Platform_version_active_codenames = test.activeCodenames
-				config.TestProductVariables.Platform_sdk_final = &test.platformSdkFinal
-				checkSdkVersion(t, config, test.expectedMinSdkVersion)
+				result := javaFixtureFactory.Extend(
+					android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+						variables.Platform_sdk_version = &test.platformSdkInt
+						variables.Platform_sdk_codename = &test.platformSdkCodename
+						variables.Platform_version_active_codenames = test.activeCodenames
+						variables.Platform_sdk_final = &test.platformSdkFinal
+					}),
+				).RunTestWithBp(t, bp)
 
+				checkSdkVersion(t, result, test.expectedMinSdkVersion)
 			})
 		}
 	}
@@ -1145,13 +1139,17 @@ func TestVendorAppSdkVersion(t *testing.T) {
 						vendor: true,
 					}`, moduleType, sdkKind, test.sdkVersion)
 
-					config := testAppConfig(nil, bp, nil)
-					config.TestProductVariables.Platform_sdk_version = &test.platformSdkInt
-					config.TestProductVariables.Platform_sdk_codename = &test.platformSdkCodename
-					config.TestProductVariables.Platform_sdk_final = &test.platformSdkFinal
-					config.TestProductVariables.DeviceCurrentApiLevelForVendorModules = &test.deviceCurrentApiLevelForVendorModules
-					config.TestProductVariables.DeviceSystemSdkVersions = []string{"28", "29"}
-					checkSdkVersion(t, config, test.expectedMinSdkVersion)
+					result := javaFixtureFactory.Extend(
+						android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+							variables.Platform_sdk_version = &test.platformSdkInt
+							variables.Platform_sdk_codename = &test.platformSdkCodename
+							variables.Platform_sdk_final = &test.platformSdkFinal
+							variables.DeviceCurrentApiLevelForVendorModules = &test.deviceCurrentApiLevelForVendorModules
+							variables.DeviceSystemSdkVersions = []string{"28", "29"}
+						}),
+					).RunTestWithBp(t, bp)
+
+					checkSdkVersion(t, result, test.expectedMinSdkVersion)
 				})
 			}
 		}
@@ -2707,28 +2705,23 @@ func TestUncompressDex(t *testing.T) {
 	test := func(t *testing.T, bp string, want bool, unbundled bool) {
 		t.Helper()
 
-		config := testAppConfig(nil, bp, nil)
-		if unbundled {
-			config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
-			config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
-		}
+		result := javaFixtureFactory.Extend(
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				if unbundled {
+					variables.Unbundled_build = proptools.BoolPtr(true)
+					variables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
+				}
+			}),
+		).RunTestWithBp(t, bp)
 
-		ctx := testContext(config)
-
-		run(t, ctx, config)
-
-		foo := ctx.ModuleForTests("foo", "android_common")
+		foo := result.ModuleForTests("foo", "android_common")
 		dex := foo.Rule("r8")
 		uncompressedInDexJar := strings.Contains(dex.Args["zipFlags"], "-L 0")
 		aligned := foo.MaybeRule("zipalign").Rule != nil
 
-		if uncompressedInDexJar != want {
-			t.Errorf("want uncompressed in dex %v, got %v", want, uncompressedInDexJar)
-		}
+		android.AssertBoolEquals(t, "uncompressed in dex", want, uncompressedInDexJar)
 
-		if aligned != want {
-			t.Errorf("want aligned %v, got %v", want, aligned)
-		}
+		android.AssertBoolEquals(t, "aligne", want, aligned)
 	}
 
 	for _, tt := range testCases {
