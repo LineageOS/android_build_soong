@@ -5995,7 +5995,7 @@ func TestCompatConfig(t *testing.T) {
 		apex {
 			name: "myapex",
 			key: "myapex.key",
-			prebuilts: ["myjar-platform-compat-config"],
+			compat_configs: ["myjar-platform-compat-config"],
 			java_libs: ["myjar"],
 			updatable: false,
 		}
