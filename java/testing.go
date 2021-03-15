@@ -77,6 +77,71 @@ var javaSdkLibraryFiles = android.MockFS{
 	"api/system-server-removed.txt": nil,
 }
 
+// FixtureWithLastReleaseApis creates a preparer that creates prebuilt versions of the specified
+// modules for the `last` API release. By `last` it just means last in the list of supplied versions
+// and as this only provides one version it can be any value.
+//
+// This uses FixtureWithPrebuiltApis under the covers so the limitations of that apply to this.
+func FixtureWithLastReleaseApis(moduleNames ...string) android.FixturePreparer {
+	return FixtureWithPrebuiltApis(map[string][]string{
+		"30": moduleNames,
+	})
+}
+
+// PrepareForTestWithPrebuiltsOfCurrentApi is a preparer that creates prebuilt versions of the
+// standard modules for the current version.
+//
+// This uses FixtureWithPrebuiltApis under the covers so the limitations of that apply to this.
+var PrepareForTestWithPrebuiltsOfCurrentApi = FixtureWithPrebuiltApis(map[string][]string{
+	"current": {},
+	// Can't have current on its own as it adds a prebuilt_apis module but doesn't add any
+	// .txt files which causes the prebuilt_apis module to fail.
+	"30": {},
+})
+
+// FixtureWithPrebuiltApis creates a preparer that will define prebuilt api modules for the
+// specified releases and modules.
+//
+// The supplied map keys are the releases, e.g. current, 29, 30, etc. The values are a list of
+// modules for that release. Due to limitations in the prebuilt_apis module which this preparer
+// uses the set of releases must include at least one numbered release, i.e. it cannot just include
+// "current".
+//
+// This defines a file in the mock file system in a predefined location (prebuilts/sdk/Android.bp)
+// and so only one instance of this can be used in each fixture.
+func FixtureWithPrebuiltApis(release2Modules map[string][]string) android.FixturePreparer {
+	mockFS := android.MockFS{}
+	path := "prebuilts/sdk/Android.bp"
+
+	bp := fmt.Sprintf(`
+			prebuilt_apis {
+				name: "sdk",
+				api_dirs: ["%s"],
+				imports_sdk_version: "none",
+				imports_compile_dex: true,
+			}
+		`, strings.Join(android.SortedStringKeys(release2Modules), `", "`))
+
+	for release, modules := range release2Modules {
+		libs := append([]string{"android", "core-for-system-modules"}, modules...)
+		mockFS.Merge(prebuiltApisFilesForLibs([]string{release}, libs))
+	}
+	return android.GroupFixturePreparers(
+		// A temporary measure to discard the definitions provided by default by javaMockFS() to allow
+		// the changes that use this preparer to fix tests to be separated from the change to remove
+		// javaMockFS().
+		android.FixtureModifyMockFS(func(fs android.MockFS) {
+			for k, _ := range fs {
+				if strings.HasPrefix(k, "prebuilts/sdk/") {
+					delete(fs, k)
+				}
+			}
+		}),
+		android.FixtureAddTextFile(path, bp),
+		android.FixtureMergeMockFs(mockFS),
+	)
+}
+
 func javaMockFS() android.MockFS {
 	mockFS := android.MockFS{
 		"prebuilts/sdk/tools/core-lambda-stubs.jar": nil,
