@@ -108,7 +108,7 @@ var legacyCorePlatformApiModules = []string{
 	"PrintSpooler",
 	"RollbackTest",
 	"service-blobstore",
-	"service-connectivity",
+	"service-connectivity-pre-jarjar",
 	"service-jobscheduler",
 	"services",
 	"services.accessibility",
