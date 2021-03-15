@@ -61,27 +61,30 @@ var PrepareForIntegrationTestWithJava = android.GroupFixturePreparers(
 	PrepareForTestWithJavaDefaultModules,
 )
 
+// Prepare a fixture with the standard files required by a java_sdk_library module.
+var PrepareForTestWithJavaSdkLibraryFiles = android.FixtureMergeMockFs(javaSdkLibraryFiles)
+
+var javaSdkLibraryFiles = android.MockFS{
+	"api/current.txt":               nil,
+	"api/removed.txt":               nil,
+	"api/system-current.txt":        nil,
+	"api/system-removed.txt":        nil,
+	"api/test-current.txt":          nil,
+	"api/test-removed.txt":          nil,
+	"api/module-lib-current.txt":    nil,
+	"api/module-lib-removed.txt":    nil,
+	"api/system-server-current.txt": nil,
+	"api/system-server-removed.txt": nil,
+}
+
 func javaMockFS() android.MockFS {
 	mockFS := android.MockFS{
-		"api/current.txt":        nil,
-		"api/removed.txt":        nil,
-		"api/system-current.txt": nil,
-		"api/system-removed.txt": nil,
-		"api/test-current.txt":   nil,
-		"api/test-removed.txt":   nil,
-
 		"prebuilts/sdk/tools/core-lambda-stubs.jar": nil,
 		"prebuilts/sdk/Android.bp":                  []byte(`prebuilt_apis { name: "sdk", api_dirs: ["14", "28", "30", "current"], imports_sdk_version: "none", imports_compile_dex:true,}`),
 
 		"bin.py": nil,
 		python.StubTemplateHost: []byte(`PYTHON_BINARY = '%interpreter%'
 		MAIN_FILE = '%main%'`),
-
-		// For java_sdk_library
-		"api/module-lib-current.txt":    nil,
-		"api/module-lib-removed.txt":    nil,
-		"api/system-server-current.txt": nil,
-		"api/system-server-removed.txt": nil,
 	}
 
 	levels := []string{"14", "28", "29", "30", "current"}
@@ -101,6 +104,7 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	bp += GatherRequiredDepsForTest()
 
 	mockFS := javaMockFS()
+	mockFS.Merge(javaSdkLibraryFiles)
 
 	cc.GatherRequiredFilesForTest(mockFS)
 
