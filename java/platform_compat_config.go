@@ -152,7 +152,7 @@ func platformCompatConfigSingletonFactory() android.Singleton {
 func PlatformCompatConfigFactory() android.Module {
 	module := &platformCompatConfig{}
 	module.AddProperties(&module.properties)
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
 }
 

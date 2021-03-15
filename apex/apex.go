@@ -735,19 +735,13 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		{Mutator: "arch", Variation: archForPrebuiltEtc.String()},
 	}, prebuiltTag, a.properties.Prebuilts...)
 
-	// Add dependency on platform_compat_configs.
-	// TODO(b/182816033) - make this common-arch once all usages have been migrated.
-	ctx.AddFarVariationDependencies([]blueprint.Variation{
-		{Mutator: "os", Variation: ctx.Os().String()},
-		{Mutator: "arch", Variation: archForPrebuiltEtc.String()},
-	}, compatConfigsTag, a.properties.Compat_configs...)
-
 	// Common-arch dependencies come next
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
 	ctx.AddFarVariationDependencies(commonVariation, bootImageTag, a.properties.Boot_images...)
 	ctx.AddFarVariationDependencies(commonVariation, javaLibTag, a.properties.Java_libs...)
 	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.properties.Bpfs...)
 	ctx.AddFarVariationDependencies(commonVariation, fsTag, a.properties.Filesystems...)
+	ctx.AddFarVariationDependencies(commonVariation, compatConfigsTag, a.properties.Compat_configs...)
 
 	if a.artApex {
 		// With EMMA_INSTRUMENT_FRAMEWORK=true the ART boot image includes jacoco library.
