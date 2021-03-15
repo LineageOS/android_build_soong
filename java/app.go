@@ -812,6 +812,13 @@ func (a *AndroidApp) buildAppDependencyInfo(ctx android.ModuleContext) {
 	depsInfo := android.DepNameToDepInfoMap{}
 	a.WalkPayloadDeps(ctx, func(ctx android.ModuleContext, from blueprint.Module, to android.ApexModule, externalDep bool) bool {
 		depName := to.Name()
+
+		// Skip dependencies that are only available to APEXes; they are developed with updatability
+		// in mind and don't need manual approval.
+		if to.(android.ApexModule).NotAvailableForPlatform() {
+			return true
+		}
+
 		if info, exist := depsInfo[depName]; exist {
 			info.From = append(info.From, from.Name())
 			info.IsExternal = info.IsExternal && externalDep

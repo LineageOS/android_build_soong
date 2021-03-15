@@ -719,6 +719,8 @@ func (d *ApexBundleDepsInfo) FullListPath() Path {
 // Generate two module out files:
 // 1. FullList with transitive deps and their parents in the dep graph
 // 2. FlatList with a flat list of transitive deps
+// In both cases transitive deps of external deps are not included. Neither are deps that are only
+// available to APEXes; they are developed with updatability in mind and don't need manual approval.
 func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, minSdkVersion string, depInfos DepNameToDepInfoMap) {
 	var fullContent strings.Builder
 	var flatContent strings.Builder
