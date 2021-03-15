@@ -62,6 +62,10 @@ type bootimgProperties struct {
 	// Optional kernel commandline
 	Cmdline *string
 
+	// File that contains bootconfig parameters. This can be set only when `vendor_boot` is true
+	// and `header_version` is greater than or equal to 4.
+	Bootconfig *string `android:"arch_variant,path"`
+
 	// When set to true, sign the image with avbtool. Default is false.
 	Use_avb *bool
 
@@ -187,6 +191,19 @@ func (b *bootimg) buildBootImage(ctx android.ModuleContext, vendor bool) android
 	} else {
 		ctx.PropertyErrorf("ramdisk", "%q is not android_filesystem module", ramdisk.Name())
 		return output
+	}
+
+	bootconfig := proptools.String(b.properties.Bootconfig)
+	if bootconfig != "" {
+		if !vendor {
+			ctx.PropertyErrorf("bootconfig", "requires vendor_boot: true")
+			return output
+		}
+		if verNum < 4 {
+			ctx.PropertyErrorf("bootconfig", "requires header_version: 4 or later")
+			return output
+		}
+		cmd.FlagWithInput("--vendor_bootconfig ", android.PathForModuleSrc(ctx, bootconfig))
 	}
 
 	flag := "--output "
