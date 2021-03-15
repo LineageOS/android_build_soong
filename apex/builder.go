@@ -926,9 +926,15 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 			return !externalDep
 		}
 
+		// Skip dependencies that are only available to APEXes; they are developed with updatability
+		// in mind and don't need manual approval.
+		if to.(android.ApexModule).NotAvailableForPlatform() {
+			return !externalDep
+		}
+
 		depTag := ctx.OtherModuleDependencyTag(to)
+		// Check to see if dependency been marked to skip the dependency check
 		if skipDepCheck, ok := depTag.(android.SkipApexAllowedDependenciesCheck); ok && skipDepCheck.SkipApexAllowedDependenciesCheck() {
-			// Check to see if dependency been marked to skip the dependency check
 			return !externalDep
 		}
 
