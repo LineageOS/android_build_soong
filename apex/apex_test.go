@@ -2049,7 +2049,7 @@ func TestJavaStableSdkVersion(t *testing.T) {
 				java_library {
 					name: "myjar",
 					srcs: ["foo/bar/MyClass.java"],
-					sdk_version: "core_platform",
+					sdk_version: "test_current",
 					apex_available: ["myapex"],
 				}
 			`,
@@ -2096,13 +2096,16 @@ func TestJavaStableSdkVersion(t *testing.T) {
 				java_library {
 					name: "myjar",
 					srcs: ["foo/bar/MyClass.java"],
-					sdk_version: "core_platform",
+					sdk_version: "test_current",
 					apex_available: ["myapex"],
 				}
 			`,
 		},
 		{
-			name:          "Updatable apex with non-stable transitive dep",
+			name: "Updatable apex with non-stable transitive dep",
+			// This is not actually detecting that the transitive dependency is unstable, rather it is
+			// detecting that the transitive dependency is building against a wider API surface than the
+			// module that depends on it is using.
 			expectedError: "compiles against Android API, but dependency \"transitive-jar\" is compiling against private API.",
 			bp: `
 				apex {
