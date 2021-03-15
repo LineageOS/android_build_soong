@@ -28,70 +28,68 @@ import (
 	"android/soong/cc"
 )
 
-var (
-	resourceFiles = []string{
+// testAppConfig is a legacy way of creating a test Config for testing java app modules.
+//
+// See testJava for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
+func testAppConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
+	return testConfig(env, bp, fs)
+}
+
+// testApp runs tests using the javaFixtureFactory
+//
+// See testJava for an explanation as to how to stop using this deprecated method.
+//
+// deprecated
+func testApp(t *testing.T, bp string) *android.TestContext {
+	t.Helper()
+	result := javaFixtureFactory.RunTestWithBp(t, bp)
+	return result.TestContext
+}
+
+func TestApp(t *testing.T) {
+	resourceFiles := []string{
 		"res/layout/layout.xml",
 		"res/values/strings.xml",
 		"res/values-en-rUS/strings.xml",
 	}
 
-	compiledResourceFiles = []string{
+	compiledResourceFiles := []string{
 		"aapt2/res/layout_layout.xml.flat",
 		"aapt2/res/values_strings.arsc.flat",
 		"aapt2/res/values-en-rUS_strings.arsc.flat",
 	}
-)
 
-func testAppConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
-	appFS := map[string][]byte{}
-	for k, v := range fs {
-		appFS[k] = v
-	}
-
-	for _, file := range resourceFiles {
-		appFS[file] = nil
-	}
-
-	return testConfig(env, bp, appFS)
-}
-
-func testApp(t *testing.T, bp string) *android.TestContext {
-	config := testAppConfig(nil, bp, nil)
-
-	ctx := testContext(config)
-
-	run(t, ctx, config)
-
-	return ctx
-}
-
-func TestApp(t *testing.T) {
 	for _, moduleType := range []string{"android_app", "android_library"} {
 		t.Run(moduleType, func(t *testing.T) {
-			ctx := testApp(t, moduleType+` {
+			result := javaFixtureFactory.Extend(
+				android.FixtureModifyMockFS(func(fs android.MockFS) {
+					for _, file := range resourceFiles {
+						fs[file] = nil
+					}
+				}),
+			).RunTestWithBp(t, moduleType+` {
 					name: "foo",
 					srcs: ["a.java"],
 					sdk_version: "current"
 				}
 			`)
 
-			foo := ctx.ModuleForTests("foo", "android_common")
+			foo := result.ModuleForTests("foo", "android_common")
 
 			var expectedLinkImplicits []string
 
 			manifestFixer := foo.Output("manifest_fixer/AndroidManifest.xml")
 			expectedLinkImplicits = append(expectedLinkImplicits, manifestFixer.Output.String())
 
-			frameworkRes := ctx.ModuleForTests("framework-res", "android_common")
+			frameworkRes := result.ModuleForTests("framework-res", "android_common")
 			expectedLinkImplicits = append(expectedLinkImplicits,
 				frameworkRes.Output("package-res.apk").Output.String())
 
 			// Test the mapping from input files to compiled output file names
 			compile := foo.Output(compiledResourceFiles[0])
-			if !reflect.DeepEqual(resourceFiles, compile.Inputs.Strings()) {
-				t.Errorf("expected aapt2 compile inputs expected:\n  %#v\n got:\n  %#v",
-					resourceFiles, compile.Inputs.Strings())
-			}
+			android.AssertDeepEquals(t, "aapt2 compile inputs", resourceFiles, compile.Inputs.Strings())
 
 			compiledResourceOutputs := compile.Outputs.Strings()
 			sort.Strings(compiledResourceOutputs)
@@ -102,11 +100,8 @@ func TestApp(t *testing.T) {
 			expectedLinkImplicits = append(expectedLinkImplicits, list.Output.String())
 
 			// Check that the link rule uses
-			res := ctx.ModuleForTests("foo", "android_common").Output("package-res.apk")
-			if !reflect.DeepEqual(expectedLinkImplicits, res.Implicits.Strings()) {
-				t.Errorf("expected aapt2 link implicits expected:\n  %#v\n got:\n  %#v",
-					expectedLinkImplicits, res.Implicits.Strings())
-			}
+			res := result.ModuleForTests("foo", "android_common").Output("package-res.apk")
+			android.AssertDeepEquals(t, "aapt2 link implicits", expectedLinkImplicits, res.Implicits.Strings())
 		})
 	}
 }
