@@ -45,11 +45,12 @@ type rustProjectDep struct {
 }
 
 type rustProjectCrate struct {
-	DisplayName string           `json:"display_name"`
-	RootModule  string           `json:"root_module"`
-	Edition     string           `json:"edition,omitempty"`
-	Deps        []rustProjectDep `json:"deps"`
-	Cfgs        []string         `json:"cfgs"`
+	DisplayName string            `json:"display_name"`
+	RootModule  string            `json:"root_module"`
+	Edition     string            `json:"edition,omitempty"`
+	Deps        []rustProjectDep  `json:"deps"`
+	Cfgs        []string          `json:"cfgs"`
+	Env         map[string]string `json:"env"`
 }
 
 type rustProjectJson struct {
@@ -136,7 +137,7 @@ func sourceProviderSource(ctx android.SingletonContext, rModule *Module) (string
 		}
 	})
 	if !foundSource {
-		fmt.Errorf("No valid source for source provider found: %v\n", rModule)
+		ctx.Errorf("No valid source for source provider found: %v\n", rModule)
 	}
 	return sourceSrc, foundSource
 }
@@ -220,7 +221,7 @@ func isModuleSupported(ctx android.SingletonContext, module android.Module) (*Mo
 func (singleton *projectGeneratorSingleton) addCrate(ctx android.SingletonContext, rModule *Module, comp *baseCompiler) (int, bool) {
 	rootModule, ok := crateSource(ctx, rModule, comp)
 	if !ok {
-		fmt.Errorf("Unable to find source for valid module: %v", rModule)
+		ctx.Errorf("Unable to find source for valid module: %v", rModule)
 		return 0, false
 	}
 
@@ -230,6 +231,11 @@ func (singleton *projectGeneratorSingleton) addCrate(ctx android.SingletonContex
 		Edition:     comp.edition(),
 		Deps:        make([]rustProjectDep, 0),
 		Cfgs:        make([]string, 0),
+		Env:         make(map[string]string),
+	}
+
+	if comp.CargoOutDir().Valid() {
+		crate.Env["OUT_DIR"] = comp.CargoOutDir().String()
 	}
 
 	deps := make(map[string]int)
