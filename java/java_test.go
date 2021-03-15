@@ -147,7 +147,11 @@ func run(t *testing.T, ctx *android.TestContext, config android.Config) {
 // deprecated
 func testJavaError(t *testing.T, pattern string, bp string) (*android.TestContext, android.Config) {
 	t.Helper()
-	return testJavaErrorWithConfig(t, pattern, testConfig(nil, bp, nil))
+	result := javaFixtureFactory.
+		Extend(dexpreopt.PrepareForTestWithDexpreopt).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
+		RunTestWithBp(t, bp)
+	return result.TestContext, result.Config
 }
 
 // testJavaErrorWithConfig is a legacy way of running tests of java modules that expect errors.
