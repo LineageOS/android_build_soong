@@ -60,6 +60,7 @@ const (
 	InstallInData                   = iota
 
 	incorrectSourcesError = "srcs can only contain one path for a rust file and source providers prefixed by \":\""
+	genSubDir             = "out/"
 )
 
 type BaseCompilerProperties struct {
@@ -154,6 +155,10 @@ type baseCompiler struct {
 	distFile android.OptionalPath
 	// Stripped output file. If Valid(), this file will be installed instead of outputFile.
 	strippedOutputFile android.OptionalPath
+
+	// If a crate has a source-generated dependency, a copy of the source file
+	// will be available in cargoOutDir (equivalent to Cargo OUT_DIR).
+	cargoOutDir android.ModuleOutPath
 }
 
 func (compiler *baseCompiler) Disabled() bool {
@@ -241,6 +246,14 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 
 func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) android.Path {
 	panic(fmt.Errorf("baseCrater doesn't know how to crate things!"))
+}
+
+func (compiler *baseCompiler) initialize(ctx ModuleContext) {
+	compiler.cargoOutDir = android.PathForModuleOut(ctx, genSubDir)
+}
+
+func (compiler *baseCompiler) CargoOutDir() android.OptionalPath {
+	return android.OptionalPathForPath(compiler.cargoOutDir)
 }
 
 func (compiler *baseCompiler) isDependencyRoot() bool {

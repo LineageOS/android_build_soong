@@ -190,8 +190,8 @@ func TestProjectJsonBindGen(t *testing.T) {
 				}
 			}
 		}
-		// Check that liba depends on libbindings1
 		if strings.Contains(rootModule, "d/src/lib.rs") {
+			// Check that libd depends on libbindings1
 			found := false
 			for _, depName := range validateDependencies(t, crate) {
 				if depName == "bindings1" {
@@ -200,8 +200,17 @@ func TestProjectJsonBindGen(t *testing.T) {
 				}
 			}
 			if !found {
-				t.Errorf("liba does not depend on libbindings1: %v", crate)
+				t.Errorf("libd does not depend on libbindings1: %v", crate)
 			}
+			// Check that OUT_DIR is populated.
+			env, ok := crate["env"].(map[string]interface{})
+			if !ok {
+				t.Errorf("libd does not have its environment variables set: %v", crate)
+			}
+			if _, ok = env["OUT_DIR"]; !ok {
+				t.Errorf("libd does not have its OUT_DIR set: %v", env)
+			}
+
 		}
 	}
 }
