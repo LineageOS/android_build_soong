@@ -900,7 +900,7 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		allowList                  []string
 	}
 
-	createTestConfig := func(info testConfigInfo) android.Config {
+	createPreparer := func(info testConfigInfo) android.FixturePreparer {
 		bpFileTemplate := `
 			java_library {
 				name: "foo",
@@ -923,26 +923,26 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 			info.libraryType,
 			partitionToBpOption(info.toPartition))
 
-		config := testConfig(nil, bpFile, nil)
-		configVariables := config.TestProductVariables
-
-		configVariables.EnforceProductPartitionInterface = proptools.BoolPtr(info.enforceProductInterface)
-		if info.enforceVendorInterface {
-			configVariables.DeviceVndkVersion = proptools.StringPtr("current")
-		}
-		configVariables.EnforceInterPartitionJavaSdkLibrary = proptools.BoolPtr(info.enforceJavaSdkLibraryCheck)
-		configVariables.InterPartitionJavaLibraryAllowList = info.allowList
-
-		return config
+		return android.GroupFixturePreparers(
+			android.FixtureWithRootAndroidBp(bpFile),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.EnforceProductPartitionInterface = proptools.BoolPtr(info.enforceProductInterface)
+				if info.enforceVendorInterface {
+					variables.DeviceVndkVersion = proptools.StringPtr("current")
+				}
+				variables.EnforceInterPartitionJavaSdkLibrary = proptools.BoolPtr(info.enforceJavaSdkLibraryCheck)
+				variables.InterPartitionJavaLibraryAllowList = info.allowList
+			}),
+		)
 	}
 
 	runTest := func(t *testing.T, info testConfigInfo, expectedErrorPattern string) {
 		t.Run(fmt.Sprintf("%#v", info), func(t *testing.T) {
-			if expectedErrorPattern == "" {
-				testJavaWithConfig(t, createTestConfig(info))
-			} else {
-				testJavaErrorWithConfig(t, expectedErrorPattern, createTestConfig(info))
+			errorHandler := android.FixtureExpectsNoErrors
+			if expectedErrorPattern != "" {
+				errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(expectedErrorPattern)
 			}
+			javaFixtureFactory.ExtendWithErrorHandler(errorHandler).RunTest(t, createPreparer(info))
 		})
 	}
 
