@@ -31,6 +31,8 @@ func RegisterHiddenApiSingletonComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("hiddenapi_flags", hiddenAPIFlagsFactory)
 }
 
+var PrepareForTestWithHiddenApiBuildComponents = android.FixtureRegisterWithContext(RegisterHiddenApiSingletonComponents)
+
 type hiddenAPISingletonPathsStruct struct {
 	// The path to the CSV file that contains the flags that will be encoded into the dex boot jars.
 	//
