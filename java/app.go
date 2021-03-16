@@ -302,7 +302,7 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 // This check is enforced for "updatable" APKs (including APK-in-APEX).
 // b/155209650: until min_sdk_version is properly supported, use sdk_version instead.
 // because, sdk_version is overridden by min_sdk_version (if set as smaller)
-// and linkType is checked with dependencies so we can be sure that the whole dependency tree
+// and sdkLinkType is checked with dependencies so we can be sure that the whole dependency tree
 // will meet the requirements.
 func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVersion sdkVersion) {
 	// It's enough to check direct JNI deps' sdk_version because all transitive deps from JNI deps are checked in cc.checkLinkType()
