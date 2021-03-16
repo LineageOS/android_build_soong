@@ -795,7 +795,10 @@ func TestJavaSdkLibraryImport(t *testing.T) {
 }
 
 func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
-	result := javaFixtureFactory.RunTestWithBp(t, `
+	result := javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("sdklib"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "sdklib",
 			srcs: ["a.java"],
@@ -834,7 +837,10 @@ func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
 }
 
 func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
-	result := javaFixtureFactory.RunTestWithBp(t, `
+	result := javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("sdklib"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "sdklib",
 			srcs: ["a.java"],
@@ -918,6 +924,8 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 			partitionToBpOption(info.toPartition))
 
 		return android.GroupFixturePreparers(
+			PrepareForTestWithJavaSdkLibraryFiles,
+			FixtureWithLastReleaseApis("bar"),
 			android.FixtureWithRootAndroidBp(bpFile),
 			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 				variables.EnforceProductPartitionInterface = proptools.BoolPtr(info.enforceProductInterface)
@@ -1838,7 +1846,14 @@ func TestJavaImport(t *testing.T) {
 }
 
 func TestJavaSdkLibrary(t *testing.T) {
-	result := javaFixtureFactory.RunTestWithBp(t, `
+	result := javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithPrebuiltApis(map[string][]string{
+			"28": {"foo"},
+			"29": {"foo"},
+			"30": {"bar", "barney", "baz", "betty", "foo", "fred", "quuz", "wilma"},
+		}),
+	).RunTestWithBp(t, `
 		droiddoc_exported_dir {
 			name: "droiddoc-templates-sdk",
 			path: ".",
@@ -1956,7 +1971,10 @@ func TestJavaSdkLibrary(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
-	result := javaFixtureFactory.RunTestWithBp(t, `
+	result := javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("sdklib"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "sdklib",
 			srcs: ["a.java"],
@@ -1989,7 +2007,10 @@ func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_DoNotAccessImplWhenItIsNotBuilt(t *testing.T) {
-	result := javaFixtureFactory.RunTestWithBp(t, `
+	result := javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -2014,7 +2035,10 @@ func TestJavaSdkLibrary_DoNotAccessImplWhenItIsNotBuilt(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_UseSourcesFromAnotherSdkLibrary(t *testing.T) {
-	javaFixtureFactory.RunTestWithBp(t, `
+	javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -2033,6 +2057,10 @@ func TestJavaSdkLibrary_UseSourcesFromAnotherSdkLibrary(t *testing.T) {
 
 func TestJavaSdkLibrary_AccessOutputFiles_MissingScope(t *testing.T) {
 	javaFixtureFactory.
+		Extend(
+			PrepareForTestWithJavaSdkLibraryFiles,
+			FixtureWithLastReleaseApis("foo"),
+		).
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`"foo" does not provide api scope system`)).
 		RunTestWithBp(t, `
 		java_sdk_library {
@@ -2052,7 +2080,10 @@ func TestJavaSdkLibrary_AccessOutputFiles_MissingScope(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_Deps(t *testing.T) {
-	result := javaFixtureFactory.RunTestWithBp(t, `
+	result := javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("sdklib"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "sdklib",
 			srcs: ["a.java"],
@@ -2171,7 +2202,10 @@ func TestJavaSdkLibrary_InvalidScopes(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
-	javaFixtureFactory.RunTestWithBp(t, `
+	javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
 			srcs: ["a.java", "b.java"],
@@ -2185,7 +2219,10 @@ func TestJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_ModuleLib(t *testing.T) {
-	javaFixtureFactory.RunTestWithBp(t, `
+	javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
 			srcs: ["a.java", "b.java"],
@@ -2201,7 +2238,10 @@ func TestJavaSdkLibrary_ModuleLib(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_SystemServer(t *testing.T) {
-	javaFixtureFactory.RunTestWithBp(t, `
+	javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
 			srcs: ["a.java", "b.java"],
@@ -2238,7 +2278,10 @@ func TestJavaSdkLibrary_MissingScope(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_FallbackScope(t *testing.T) {
-	javaFixtureFactory.RunTestWithBp(t, `
+	javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -2258,7 +2301,10 @@ func TestJavaSdkLibrary_FallbackScope(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_DefaultToStubs(t *testing.T) {
-	result := javaFixtureFactory.RunTestWithBp(t, `
+	result := javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
 			srcs: ["a.java"],
