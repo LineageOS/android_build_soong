@@ -221,7 +221,8 @@ type FixtureFactory interface {
 //
 // The buildDirSupplier is a pointer to the package level buildDir variable that is initialized by
 // the package level setUp method. It has to be a pointer to the variable as the variable will not
-// have been initialized at the time the factory is created.
+// have been initialized at the time the factory is created. If it is nil then a test specific
+// temporary directory will be created instead.
 func NewFixtureFactory(buildDirSupplier *string, preparers ...FixturePreparer) FixtureFactory {
 	return &fixtureFactory{
 		buildDirSupplier: buildDirSupplier,
@@ -585,7 +586,16 @@ func (f *fixtureFactory) Extend(preparers ...FixturePreparer) FixtureFactory {
 }
 
 func (f *fixtureFactory) Fixture(t *testing.T, preparers ...FixturePreparer) Fixture {
-	config := TestConfig(*f.buildDirSupplier, nil, "", nil)
+	var buildDir string
+	if f.buildDirSupplier == nil {
+		// Create a new temporary directory for this run. It will be automatically cleaned up when the
+		// test finishes.
+		buildDir = t.TempDir()
+	} else {
+		// Retrieve the buildDir from the supplier.
+		buildDir = *f.buildDirSupplier
+	}
+	config := TestConfig(buildDir, nil, "", nil)
 	ctx := NewTestContext(config)
 	fixture := &fixture{
 		factory:      f,
