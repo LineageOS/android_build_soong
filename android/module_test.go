@@ -163,6 +163,10 @@ func depsModuleFactory() Module {
 	return m
 }
 
+var prepareForModuleTests = FixtureRegisterWithContext(func(ctx RegistrationContext) {
+	ctx.RegisterModuleType("deps", depsModuleFactory)
+})
+
 func TestErrorDependsOnDisabledModule(t *testing.T) {
 	bp := `
 		deps {
@@ -175,20 +179,15 @@ func TestErrorDependsOnDisabledModule(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, nil, bp, nil)
-
-	ctx := NewTestContext(config)
-	ctx.RegisterModuleType("deps", depsModuleFactory)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	FailIfNoMatchingErrors(t, `module "foo": depends on disabled module "bar"`, errs)
+	emptyTestFixtureFactory.
+		ExtendWithErrorHandler(FixtureExpectsAtLeastOneErrorMatchingPattern(`module "foo": depends on disabled module "bar"`)).
+		RunTest(t,
+			prepareForModuleTests,
+			FixtureWithRootAndroidBp(bp))
 }
 
 func TestValidateCorrectBuildParams(t *testing.T) {
-	config := TestConfig(buildDir, nil, "", nil)
+	config := TestConfig(t.TempDir(), nil, "", nil)
 	pathContext := PathContextForTesting(config)
 	bparams := convertBuildParams(BuildParams{
 		// Test with Output
@@ -214,7 +213,7 @@ func TestValidateCorrectBuildParams(t *testing.T) {
 }
 
 func TestValidateIncorrectBuildParams(t *testing.T) {
-	config := TestConfig(buildDir, nil, "", nil)
+	config := TestConfig(t.TempDir(), nil, "", nil)
 	pathContext := PathContextForTesting(config)
 	params := BuildParams{
 		Output:          PathForOutput(pathContext, "regular_output"),
@@ -257,16 +256,6 @@ func TestDistErrorChecking(t *testing.T) {
  		}
 	`
 
-	config := TestConfig(buildDir, nil, bp, nil)
-
-	ctx := NewTestContext(config)
-	ctx.RegisterModuleType("deps", depsModuleFactory)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-
 	expectedErrs := []string{
 		"\\QAndroid.bp:5:13: module \"foo\": dist.dest: Path is outside directory: ../invalid-dest\\E",
 		"\\QAndroid.bp:6:12: module \"foo\": dist.dir: Path is outside directory: ../invalid-dir\\E",
@@ -278,5 +267,10 @@ func TestDistErrorChecking(t *testing.T) {
 		"\\QAndroid.bp:17:14: module \"foo\": dists[1].dir: Path is outside directory: ../invalid-dir1\\E",
 		"\\QAndroid.bp:18:17: module \"foo\": dists[1].suffix: Suffix may not contain a '/' character.\\E",
 	}
-	CheckErrorsAgainstExpectations(t, errs, expectedErrs)
+
+	emptyTestFixtureFactory.
+		ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(expectedErrs)).
+		RunTest(t,
+			prepareForModuleTests,
+			FixtureWithRootAndroidBp(bp))
 }
