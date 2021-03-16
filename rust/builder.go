@@ -194,8 +194,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 	}
 
 	if len(deps.SrcDeps) > 0 {
-		genSubDir := "out/"
-		moduleGenDir := android.PathForModuleOut(ctx, genSubDir)
+		moduleGenDir := ctx.RustModule().compiler.CargoOutDir()
 		var outputs android.WritablePaths
 
 		for _, genSrc := range deps.SrcDeps {
@@ -208,7 +207,7 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        cp,
-			Description: "cp " + moduleGenDir.Rel(),
+			Description: "cp " + moduleGenDir.Path().Rel(),
 			Outputs:     outputs,
 			Inputs:      deps.SrcDeps,
 			Args: map[string]string{
