@@ -135,7 +135,10 @@ func TestHostdexSpecificRequired(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_RequireXmlPermissionFile(t *testing.T) {
-	result := javaFixtureFactory.RunTestWithBp(t, `
+	result := javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo-shared_library", "foo-no_shared_library"),
+	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo-shared_library",
 			srcs: ["a.java"],
