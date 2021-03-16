@@ -77,6 +77,7 @@ var preArch = []RegisterMutatorFunc{
 		ctx.TopDown("load_hooks", loadHookMutator).Parallel()
 	},
 	RegisterNamespaceMutator,
+	registerPackageRenamer,
 	RegisterPrebuiltsPreArchMutators,
 	RegisterDefaultsPreArchMutators,
 }
