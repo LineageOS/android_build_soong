@@ -85,6 +85,7 @@ var legacyCorePlatformApiModules = []string{
 	"FrameworksNetTests",
 	"FrameworksServicesRoboTests",
 	"FrameworksServicesTests",
+	"FrameworksMockingServicesTests",
 	"FrameworksUtilTests",
 	"FrameworksWifiTests",
 	"hid",
