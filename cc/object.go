@@ -53,17 +53,8 @@ type objectBazelHandler struct {
 }
 
 func (handler *objectBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
-	bazelCtx := ctx.Config().BazelContext
-	objPaths, ok := bazelCtx.GetCcObjectFiles(label, ctx.Arch().ArchType)
-	if ok {
-		if len(objPaths) != 1 {
-			ctx.ModuleErrorf("expected exactly one object file for '%s', but got %s", label, objPaths)
-			return false
-		}
-
-		handler.module.outputFile = android.OptionalPathForPath(android.PathForBazelOut(ctx, objPaths[0]))
-	}
-	return ok
+	// TODO(b/181794963): restore mixed builds once cc_object incompatibility resolved
+	return false
 }
 
 type ObjectLinkerProperties struct {
