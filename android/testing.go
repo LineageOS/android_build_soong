@@ -813,6 +813,9 @@ func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) 
 // that is relative to the root of the source tree.
 //
 // The build and source paths should be distinguishable based on their contents.
+//
+// deprecated: use PathRelativeToTop instead as it handles make install paths and differentiates
+// between output and source properly.
 func NormalizePathForTesting(path Path) string {
 	if path == nil {
 		return "<nil path>"
@@ -828,10 +831,112 @@ func NormalizePathForTesting(path Path) string {
 	return p
 }
 
+// NormalizePathsForTesting creates a slice of strings where each string is the result of applying
+// NormalizePathForTesting to the corresponding Path in the input slice.
+//
+// deprecated: use PathsRelativeToTop instead as it handles make install paths and differentiates
+// between output and source properly.
 func NormalizePathsForTesting(paths Paths) []string {
 	var result []string
 	for _, path := range paths {
 		relative := NormalizePathForTesting(path)
+		result = append(result, relative)
+	}
+	return result
+}
+
+// PathRelativeToTop returns a string representation of the path relative to a notional top
+// directory.
+//
+// For a WritablePath it applies StringPathRelativeToTop to it, using the buildDir returned from the
+// WritablePath's buildDir() method. For all other paths, i.e. source paths, that are already
+// relative to the top it just returns their string representation.
+func PathRelativeToTop(path Path) string {
+	if path == nil {
+		return "<nil path>"
+	}
+	p := path.String()
+	if w, ok := path.(WritablePath); ok {
+		buildDir := w.buildDir()
+		return StringPathRelativeToTop(buildDir, p)
+	}
+	return p
+}
+
+// PathsRelativeToTop creates a slice of strings where each string is the result of applying
+// PathRelativeToTop to the corresponding Path in the input slice.
+func PathsRelativeToTop(paths Paths) []string {
+	var result []string
+	for _, path := range paths {
+		relative := PathRelativeToTop(path)
+		result = append(result, relative)
+	}
+	return result
+}
+
+// StringPathRelativeToTop returns a string representation of the path relative to a notional top
+// directory.
+//
+// A standard build has the following structure:
+//   ../top/
+//          out/ - make install files go here.
+//          out/soong - this is the buildDir passed to NewTestConfig()
+//          ... - the source files
+//
+// This function converts a path so that it appears relative to the ../top/ directory, i.e.
+// * Make install paths, which have the pattern "buildDir/../<path>" are converted into the top
+//   relative path "out/<path>"
+// * Soong install paths and other writable paths, which have the pattern "buildDir/<path>" are
+//   converted into the top relative path "out/soong/<path>".
+// * Source paths are already relative to the top.
+//
+// This is provided for processing paths that have already been converted into a string, e.g. paths
+// in AndroidMkEntries structures. As a result it needs to be supplied the soong output dir against
+// which it can try and relativize paths. PathRelativeToTop must be used for process Path objects.
+func StringPathRelativeToTop(soongOutDir string, path string) string {
+
+	// A relative path must be a source path so leave it as it is.
+	if !filepath.IsAbs(path) {
+		return path
+	}
+
+	// Check to see if the path is relative to the soong out dir.
+	rel, isRel, err := maybeRelErr(soongOutDir, path)
+	if err != nil {
+		panic(err)
+	}
+
+	if isRel {
+		// The path is in the soong out dir so indicate that in the relative path.
+		return filepath.Join("out/soong", rel)
+	}
+
+	// Check to see if the path is relative to the top level out dir.
+	outDir := filepath.Dir(soongOutDir)
+	rel, isRel, err = maybeRelErr(outDir, path)
+	if err != nil {
+		panic(err)
+	}
+
+	if isRel {
+		// The path is in the out dir so indicate that in the relative path.
+		return filepath.Join("out", rel)
+	}
+
+	// This should never happen.
+	panic(fmt.Errorf("internal error: absolute path %s is not relative to the out dir %s", path, outDir))
+}
+
+// StringPathsRelativeToTop creates a slice of strings where each string is the result of applying
+// StringPathRelativeToTop to the corresponding string path in the input slice.
+//
+// This is provided for processing paths that have already been converted into a string, e.g. paths
+// in AndroidMkEntries structures. As a result it needs to be supplied the soong output dir against
+// which it can try and relativize paths. PathsRelativeToTop must be used for process Paths objects.
+func StringPathsRelativeToTop(soongOutDir string, paths []string) []string {
+	var result []string
+	for _, path := range paths {
+		relative := StringPathRelativeToTop(soongOutDir, path)
 		result = append(result, relative)
 	}
 	return result
