@@ -19,21 +19,6 @@ import (
 	"sort"
 )
 
-type bazelModuleProperties struct {
-	// The label of the Bazel target replacing this Soong module.
-	Label string
-
-	// If true, bp2build will generate the converted Bazel target for this module.
-	Bp2build_available bool
-}
-
-// Properties contains common module properties for Bazel migration purposes.
-type Properties struct {
-	// In USE_BAZEL_ANALYSIS=1 mode, this represents the Bazel target replacing
-	// this Soong module.
-	Bazel_module bazelModuleProperties
-}
-
 // BazelTargetModuleProperties contain properties and metadata used for
 // Blueprint to BUILD file conversion.
 type BazelTargetModuleProperties struct {
