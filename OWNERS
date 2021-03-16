@@ -4,6 +4,7 @@ per-file * = dwillemsen@google.com
 per-file * = eakammer@google.com
 per-file * = jungjw@google.com
 per-file * = patricearruda@google.com
+per-file * = hansson@google.com
 per-file * = paulduffin@google.com
 
 per-file ndk_*.go, *gen_stub_libs.py = danalbert@google.com
