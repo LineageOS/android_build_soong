@@ -3628,6 +3628,18 @@ func TestAidlFlagsPassedToTheAidlCompiler(t *testing.T) {
 	}
 }
 
+func TestMinSdkVersionInClangTriple(t *testing.T) {
+	ctx := testCc(t, `
+		cc_library_shared {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			min_sdk_version: "29",
+		}`)
+
+	cFlags := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Rule("cc").Args["cFlags"]
+	android.AssertStringDoesContain(t, "min sdk version", cFlags, "-target aarch64-linux-android29")
+}
+
 type MemtagNoteType int
 
 const (
