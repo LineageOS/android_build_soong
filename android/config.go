@@ -1005,7 +1005,7 @@ func (c *config) DexpreoptGlobalConfig(ctx PathContext) ([]byte, error) {
 }
 
 func (c *config) FrameworksBaseDirExists(ctx PathContext) bool {
-	return ExistentPathForSource(ctx, "frameworks", "base").Valid()
+	return ExistentPathForSource(ctx, "frameworks", "base", "Android.bp").Valid()
 }
 
 func (c *config) VndkSnapshotBuildArtifacts() bool {
