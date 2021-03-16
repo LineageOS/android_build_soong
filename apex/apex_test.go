@@ -127,6 +127,8 @@ func withUnbundledBuild(_ map[string][]byte, config android.Config) {
 	config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
 }
 
+var emptyFixtureFactory = android.NewFixtureFactory(&buildDir)
+
 var apexFixtureFactory = android.NewFixtureFactory(
 	&buildDir,
 	// General preparers in alphabetical order as test infrastructure will enforce correct
@@ -520,7 +522,7 @@ func TestBasicApex(t *testing.T) {
 		}
 
 		rust_binary {
-		        name: "foo.rust",
+			name: "foo.rust",
 			srcs: ["foo.rs"],
 			rlibs: ["libfoo.rlib.rust"],
 			dylibs: ["libfoo.dylib.rust"],
@@ -528,14 +530,14 @@ func TestBasicApex(t *testing.T) {
 		}
 
 		rust_library_rlib {
-		        name: "libfoo.rlib.rust",
+			name: "libfoo.rlib.rust",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
 			apex_available: ["myapex"],
 		}
 
 		rust_library_dylib {
-		        name: "libfoo.dylib.rust",
+			name: "libfoo.dylib.rust",
 			srcs: ["foo.rs"],
 			crate_name: "foo",
 			apex_available: ["myapex"],
@@ -730,14 +732,12 @@ func TestBasicApex(t *testing.T) {
 
 	fullDepsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
 	ensureListContains(t, fullDepsInfo, "  myjar(minSdkVersion:(no version)) <- myapex")
-	ensureListContains(t, fullDepsInfo, "  mylib(minSdkVersion:(no version)) <- myapex")
 	ensureListContains(t, fullDepsInfo, "  mylib2(minSdkVersion:(no version)) <- mylib")
 	ensureListContains(t, fullDepsInfo, "  myotherjar(minSdkVersion:(no version)) <- myjar")
 	ensureListContains(t, fullDepsInfo, "  mysharedjar(minSdkVersion:(no version)) (external) <- myjar")
 
 	flatDepsInfo := strings.Split(ctx.ModuleForTests("myapex", "android_common_myapex_image").Output("depsinfo/flatlist.txt").Args["content"], "\\n")
 	ensureListContains(t, flatDepsInfo, "myjar(minSdkVersion:(no version))")
-	ensureListContains(t, flatDepsInfo, "mylib(minSdkVersion:(no version))")
 	ensureListContains(t, flatDepsInfo, "mylib2(minSdkVersion:(no version))")
 	ensureListContains(t, flatDepsInfo, "myotherjar(minSdkVersion:(no version))")
 	ensureListContains(t, flatDepsInfo, "mysharedjar(minSdkVersion:(no version)) (external)")
@@ -1236,13 +1236,9 @@ func TestApexWithExplicitStubsDependency(t *testing.T) {
 	ensureNotContains(t, libFooStubsLdFlags, "libbar.so")
 
 	fullDepsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("depsinfo/fulllist.txt").Args["content"], "\\n")
-	ensureListContains(t, fullDepsInfo, "  mylib(minSdkVersion:(no version)) <- myapex2")
-	ensureListContains(t, fullDepsInfo, "  libbaz(minSdkVersion:(no version)) <- mylib")
 	ensureListContains(t, fullDepsInfo, "  libfoo(minSdkVersion:(no version)) (external) <- mylib")
 
 	flatDepsInfo := strings.Split(ctx.ModuleForTests("myapex2", "android_common_myapex2_image").Output("depsinfo/flatlist.txt").Args["content"], "\\n")
-	ensureListContains(t, flatDepsInfo, "mylib(minSdkVersion:(no version))")
-	ensureListContains(t, flatDepsInfo, "libbaz(minSdkVersion:(no version))")
 	ensureListContains(t, flatDepsInfo, "libfoo(minSdkVersion:(no version)) (external)")
 }
 
@@ -1316,9 +1312,10 @@ func TestApexWithRuntimeLibsDependency(t *testing.T) {
 
 }
 
-func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
-	ctx := testApex(t, "", func(fs map[string][]byte, config android.Config) {
-		bp := `
+var prepareForTestOfRuntimeApexWithHwasan = android.GroupFixturePreparers(
+	cc.PrepareForTestWithCcBuildComponents,
+	PrepareForTestWithApexBuildComponents,
+	android.FixtureAddTextFile("bionic/apex/Android.bp", `
 		apex {
 			name: "com.android.runtime",
 			key: "com.android.runtime.key",
@@ -1331,7 +1328,12 @@ func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
+	`),
+	android.FixtureAddFile("system/sepolicy/apex/com.android.runtime-file_contexts", nil),
+)
 
+func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
+	result := emptyFixtureFactory.Extend(prepareForTestOfRuntimeApexWithHwasan).RunTestWithBp(t, `
 		cc_library {
 			name: "libc",
 			no_libcrt: true,
@@ -1358,12 +1360,8 @@ func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
 			sanitize: {
 				never: true,
 			},
-		}
-		`
-		// override bp to use hard-coded names: com.android.runtime and libc
-		fs["Android.bp"] = []byte(bp)
-		fs["system/sepolicy/apex/com.android.runtime-file_contexts"] = nil
-	})
+		}	`)
+	ctx := result.TestContext
 
 	ensureExactContents(t, ctx, "com.android.runtime", "android_common_hwasan_com.android.runtime_image", []string{
 		"lib64/bionic/libc.so",
@@ -1381,21 +1379,12 @@ func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
 }
 
 func TestRuntimeApexShouldInstallHwasanIfHwaddressSanitized(t *testing.T) {
-	ctx := testApex(t, "", func(fs map[string][]byte, config android.Config) {
-		bp := `
-		apex {
-			name: "com.android.runtime",
-			key: "com.android.runtime.key",
-			native_shared_libs: ["libc"],
-			updatable: false,
-		}
-
-		apex_key {
-			name: "com.android.runtime.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-
+	result := emptyFixtureFactory.Extend(
+		prepareForTestOfRuntimeApexWithHwasan,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.SanitizeDevice = []string{"hwaddress"}
+		}),
+	).RunTestWithBp(t, `
 		cc_library {
 			name: "libc",
 			no_libcrt: true,
@@ -1419,13 +1408,8 @@ func TestRuntimeApexShouldInstallHwasanIfHwaddressSanitized(t *testing.T) {
 				never: true,
 			},
 		}
-		`
-		// override bp to use hard-coded names: com.android.runtime and libc
-		fs["Android.bp"] = []byte(bp)
-		fs["system/sepolicy/apex/com.android.runtime-file_contexts"] = nil
-
-		config.TestProductVariables.SanitizeDevice = []string{"hwaddress"}
-	})
+		`)
+	ctx := result.TestContext
 
 	ensureExactContents(t, ctx, "com.android.runtime", "android_common_hwasan_com.android.runtime_image", []string{
 		"lib64/bionic/libc.so",
@@ -2049,7 +2033,7 @@ func TestJavaStableSdkVersion(t *testing.T) {
 				java_library {
 					name: "myjar",
 					srcs: ["foo/bar/MyClass.java"],
-					sdk_version: "core_platform",
+					sdk_version: "test_current",
 					apex_available: ["myapex"],
 				}
 			`,
@@ -2096,13 +2080,16 @@ func TestJavaStableSdkVersion(t *testing.T) {
 				java_library {
 					name: "myjar",
 					srcs: ["foo/bar/MyClass.java"],
-					sdk_version: "core_platform",
+					sdk_version: "test_current",
 					apex_available: ["myapex"],
 				}
 			`,
 		},
 		{
-			name:          "Updatable apex with non-stable transitive dep",
+			name: "Updatable apex with non-stable transitive dep",
+			// This is not actually detecting that the transitive dependency is unstable, rather it is
+			// detecting that the transitive dependency is building against a wider API surface than the
+			// module that depends on it is using.
 			expectedError: "compiles against Android API, but dependency \"transitive-jar\" is compiling against private API.",
 			bp: `
 				apex {

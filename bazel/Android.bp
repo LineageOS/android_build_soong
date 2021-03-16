@@ -12,6 +12,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "aquery_test.go",
+        "properties_test.go",
     ],
     pluginFor: [
         "soong_build",
