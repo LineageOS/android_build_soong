@@ -15,10 +15,7 @@
 package android
 
 import (
-	"reflect"
 	"testing"
-
-	"github.com/google/blueprint/proptools"
 )
 
 type defaultsTestProperties struct {
@@ -58,6 +55,14 @@ func defaultsTestDefaultsFactory() Module {
 	return defaults
 }
 
+var prepareForDefaultsTest = GroupFixturePreparers(
+	PrepareForTestWithDefaults,
+	FixtureRegisterWithContext(func(ctx RegistrationContext) {
+		ctx.RegisterModuleType("test", defaultsTestModuleFactory)
+		ctx.RegisterModuleType("defaults", defaultsTestDefaultsFactory)
+	}),
+)
+
 func TestDefaults(t *testing.T) {
 	bp := `
 		defaults {
@@ -78,27 +83,14 @@ func TestDefaults(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, nil, bp, nil)
+	result := emptyTestFixtureFactory.RunTest(t,
+		prepareForDefaultsTest,
+		FixtureWithRootAndroidBp(bp),
+	)
 
-	ctx := NewTestContext(config)
+	foo := result.Module("foo", "").(*defaultsTestModule)
 
-	ctx.RegisterModuleType("test", defaultsTestModuleFactory)
-	ctx.RegisterModuleType("defaults", defaultsTestDefaultsFactory)
-
-	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
-
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	FailIfErrored(t, errs)
-
-	foo := ctx.ModuleForTests("foo", "").Module().(*defaultsTestModule)
-
-	if g, w := foo.properties.Foo, []string{"transitive", "defaults", "module"}; !reflect.DeepEqual(g, w) {
-		t.Errorf("expected foo %q, got %q", w, g)
-	}
+	AssertDeepEquals(t, "foo", []string{"transitive", "defaults", "module"}, foo.properties.Foo)
 }
 
 func TestDefaultsAllowMissingDependencies(t *testing.T) {
@@ -122,34 +114,18 @@ func TestDefaultsAllowMissingDependencies(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, nil, bp, nil)
-	config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
+	result := emptyTestFixtureFactory.RunTest(t,
+		prepareForDefaultsTest,
+		PrepareForTestWithAllowMissingDependencies,
+		FixtureWithRootAndroidBp(bp),
+	)
 
-	ctx := NewTestContext(config)
-	ctx.SetAllowMissingDependencies(true)
+	missingDefaults := result.ModuleForTests("missing_defaults", "").Output("out")
+	missingTransitiveDefaults := result.ModuleForTests("missing_transitive_defaults", "").Output("out")
 
-	ctx.RegisterModuleType("test", defaultsTestModuleFactory)
-	ctx.RegisterModuleType("defaults", defaultsTestDefaultsFactory)
+	AssertSame(t, "missing_defaults rule", ErrorRule, missingDefaults.Rule)
 
-	ctx.PreArchMutators(RegisterDefaultsPreArchMutators)
-
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	FailIfErrored(t, errs)
-
-	missingDefaults := ctx.ModuleForTests("missing_defaults", "").Output("out")
-	missingTransitiveDefaults := ctx.ModuleForTests("missing_transitive_defaults", "").Output("out")
-
-	if missingDefaults.Rule != ErrorRule {
-		t.Errorf("expected missing_defaults rule to be ErrorRule, got %#v", missingDefaults.Rule)
-	}
-
-	if g, w := missingDefaults.Args["error"], "module missing_defaults missing dependencies: missing\n"; g != w {
-		t.Errorf("want error %q, got %q", w, g)
-	}
+	AssertStringEquals(t, "missing_defaults", "module missing_defaults missing dependencies: missing\n", missingDefaults.Args["error"])
 
 	// TODO: missing transitive defaults is currently not handled
 	_ = missingTransitiveDefaults
