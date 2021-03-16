@@ -15,8 +15,6 @@
 package android
 
 import (
-	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -43,23 +41,14 @@ func testSingletonModuleFactory() SingletonModule {
 	return tsm
 }
 
-func runSingletonModuleTest(bp string) (*TestContext, []error) {
-	config := TestConfig(buildDir, nil, bp, nil)
+var prepareForSingletonModuleTest = GroupFixturePreparers(
 	// Enable Kati output to test SingletonModules with MakeVars.
-	config.katiEnabled = true
-	ctx := NewTestContext(config)
-	ctx.RegisterSingletonModuleType("test_singleton_module", testSingletonModuleFactory)
-	ctx.RegisterSingletonType("makevars", makeVarsSingletonFunc)
-	ctx.Register()
-
-	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
-	if len(errs) > 0 {
-		return ctx, errs
-	}
-
-	_, errs = ctx.PrepareBuildActions(config)
-	return ctx, errs
-}
+	PrepareForTestWithAndroidMk,
+	FixtureRegisterWithContext(func(ctx RegistrationContext) {
+		ctx.RegisterSingletonModuleType("test_singleton_module", testSingletonModuleFactory)
+		ctx.RegisterSingletonType("makevars", makeVarsSingletonFunc)
+	}),
+)
 
 func TestSingletonModule(t *testing.T) {
 	bp := `
@@ -67,16 +56,15 @@ func TestSingletonModule(t *testing.T) {
 			name: "test_singleton_module",
 		}
 	`
-	ctx, errs := runSingletonModuleTest(bp)
-	if len(errs) > 0 {
-		t.Fatal(errs)
-	}
+	result := emptyTestFixtureFactory.
+		RunTest(t,
+			prepareForSingletonModuleTest,
+			FixtureWithRootAndroidBp(bp),
+		)
 
-	ops := ctx.ModuleForTests("test_singleton_module", "").Module().(*testSingletonModule).ops
+	ops := result.ModuleForTests("test_singleton_module", "").Module().(*testSingletonModule).ops
 	wantOps := []string{"GenerateAndroidBuildActions", "GenerateSingletonBuildActions", "MakeVars"}
-	if !reflect.DeepEqual(ops, wantOps) {
-		t.Errorf("Expected operations %q, got %q", wantOps, ops)
-	}
+	AssertDeepEquals(t, "operations", wantOps, ops)
 }
 
 func TestDuplicateSingletonModule(t *testing.T) {
@@ -89,23 +77,22 @@ func TestDuplicateSingletonModule(t *testing.T) {
 			name: "test_singleton_module2",
 		}
 	`
-	_, errs := runSingletonModuleTest(bp)
-	if len(errs) == 0 {
-		t.Fatal("expected duplicate SingletonModule error")
-	}
-	if len(errs) != 1 || !strings.Contains(errs[0].Error(), `Duplicate SingletonModule "test_singleton_module", previously used in`) {
-		t.Fatalf("expected duplicate SingletonModule error, got %q", errs)
-	}
+
+	emptyTestFixtureFactory.
+		ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern([]string{
+			`\QDuplicate SingletonModule "test_singleton_module", previously used in\E`,
+		})).RunTest(t,
+		prepareForSingletonModuleTest,
+		FixtureWithRootAndroidBp(bp),
+	)
 }
 
 func TestUnusedSingletonModule(t *testing.T) {
-	bp := ``
-	ctx, errs := runSingletonModuleTest(bp)
-	if len(errs) > 0 {
-		t.Fatal(errs)
-	}
+	result := emptyTestFixtureFactory.RunTest(t,
+		prepareForSingletonModuleTest,
+	)
 
-	singleton := ctx.SingletonForTests("test_singleton_module").Singleton()
+	singleton := result.SingletonForTests("test_singleton_module").Singleton()
 	sm := singleton.(*singletonModuleSingletonAdaptor).sm
 	ops := sm.(*testSingletonModule).ops
 	if ops != nil {
@@ -126,24 +113,17 @@ func TestVariantSingletonModule(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, nil, bp, nil)
-	ctx := NewTestContext(config)
-	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
-		ctx.BottomUp("test_singleton_module_mutator", testVariantSingletonModuleMutator)
-	})
-	ctx.RegisterSingletonModuleType("test_singleton_module", testSingletonModuleFactory)
-	ctx.Register()
-
-	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
-
-	if len(errs) == 0 {
-		_, errs = ctx.PrepareBuildActions(config)
-	}
-
-	if len(errs) == 0 {
-		t.Fatal("expected duplicate SingletonModule error")
-	}
-	if len(errs) != 1 || !strings.Contains(errs[0].Error(), `GenerateAndroidBuildActions already called for variant`) {
-		t.Fatalf("expected duplicate SingletonModule error, got %q", errs)
-	}
+	emptyTestFixtureFactory.
+		ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern([]string{
+			`\QGenerateAndroidBuildActions already called for variant\E`,
+		})).
+		RunTest(t,
+			prepareForSingletonModuleTest,
+			FixtureRegisterWithContext(func(ctx RegistrationContext) {
+				ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
+					ctx.BottomUp("test_singleton_module_mutator", testVariantSingletonModuleMutator)
+				})
+			}),
+			FixtureWithRootAndroidBp(bp),
+		)
 }
