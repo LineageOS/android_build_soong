@@ -64,7 +64,8 @@ type LibraryProperties struct {
 		// symbols that are exported for stubs variant of this library.
 		Symbol_file *string `android:"path"`
 
-		// List versions to generate stubs libs for.
+		// List versions to generate stubs libs for. The version name "current" is always
+		// implicitly added.
 		Versions []string
 	}
 
@@ -170,6 +171,8 @@ type LibraryMutatedProperties struct {
 
 	// This variant is a stubs lib
 	BuildStubs bool `blueprint:"mutated"`
+	// This variant is the latest version
+	IsLatestVersion bool `blueprint:"mutated"`
 	// Version of the stubs lib
 	StubsVersion string `blueprint:"mutated"`
 	// List of all stubs versions associated with an implementation lib
@@ -777,7 +780,7 @@ type libraryInterface interface {
 
 type versionedInterface interface {
 	buildStubs() bool
-	setBuildStubs()
+	setBuildStubs(isLatest bool)
 	hasStubsVariants() bool
 	setStubsVersion(string)
 	stubsVersion() string
@@ -1495,7 +1498,7 @@ func (library *libraryDecorator) install(ctx ModuleContext, file android.Path) {
 			if ctx.isVndk() && !ctx.IsVndkExt() {
 				return
 			}
-		} else if len(library.Properties.Stubs.Versions) > 0 && !ctx.Host() && ctx.directlyInAnyApex() {
+		} else if library.hasStubsVariants() && !ctx.Host() && ctx.directlyInAnyApex() {
 			// Bionic libraries (e.g. libc.so) is installed to the bootstrap subdirectory.
 			// The original path becomes a symlink to the corresponding file in the
 			// runtime APEX.
@@ -1611,11 +1614,29 @@ func (library *libraryDecorator) symbolFileForAbiCheck(ctx ModuleContext) *strin
 }
 
 func (library *libraryDecorator) hasStubsVariants() bool {
-	return len(library.Properties.Stubs.Versions) > 0
+	// Just having stubs.symbol_file is enough to create a stub variant. In that case
+	// the stub for the future API level is created.
+	return library.Properties.Stubs.Symbol_file != nil ||
+		len(library.Properties.Stubs.Versions) > 0
 }
 
 func (library *libraryDecorator) stubsVersions(ctx android.BaseMutatorContext) []string {
-	return library.Properties.Stubs.Versions
+	if !library.hasStubsVariants() {
+		return nil
+	}
+
+	// Future API level is implicitly added if there isn't
+	vers := library.Properties.Stubs.Versions
+	if inList(android.FutureApiLevel.String(), vers) {
+		return vers
+	}
+	// In some cases, people use the raw value "10000" in the versions property.
+	// We shouldn't add the future API level in that case, otherwise there will
+	// be two identical versions.
+	if inList(strconv.Itoa(android.FutureApiLevel.FinalOrFutureInt()), vers) {
+		return vers
+	}
+	return append(vers, android.FutureApiLevel.String())
 }
 
 func (library *libraryDecorator) setStubsVersion(version string) {
@@ -1626,8 +1647,9 @@ func (library *libraryDecorator) stubsVersion() string {
 	return library.MutatedProperties.StubsVersion
 }
 
-func (library *libraryDecorator) setBuildStubs() {
+func (library *libraryDecorator) setBuildStubs(isLatest bool) {
 	library.MutatedProperties.BuildStubs = true
+	library.MutatedProperties.IsLatestVersion = isLatest
 }
 
 func (library *libraryDecorator) setAllStubsVersions(versions []string) {
@@ -1639,8 +1661,7 @@ func (library *libraryDecorator) allStubsVersions() []string {
 }
 
 func (library *libraryDecorator) isLatestStubVersion() bool {
-	versions := library.Properties.Stubs.Versions
-	return versions[len(versions)-1] == library.stubsVersion()
+	return library.MutatedProperties.IsLatestVersion
 }
 
 func (library *libraryDecorator) availableFor(what string) bool {
@@ -1883,7 +1904,8 @@ func createVersionVariations(mctx android.BottomUpMutatorContext, versions []str
 			c.stl = nil
 			c.Properties.PreventInstall = true
 			lib := moduleLibraryInterface(m)
-			lib.setBuildStubs()
+			isLatest := i == (len(versions) - 1)
+			lib.setBuildStubs(isLatest)
 
 			if variants[i] != "" {
 				// A non-LLNDK stubs module is hidden from make and has a dependency from the
