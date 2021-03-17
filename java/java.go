@@ -2520,6 +2520,10 @@ func (j *TestHost) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.deps(ctx)
 }
 
+func (j *TestHost) AddExtraResource(p android.Path) {
+	j.extraResources = append(j.extraResources, p)
+}
+
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if j.testProperties.Test_options.Unit_test == nil && ctx.Host() {
 		// TODO(b/): Clean temporary heuristic to avoid unexpected onboarding.
@@ -2683,11 +2687,21 @@ func TestHostFactory() android.Module {
 	module.AddProperties(&module.testProperties)
 	module.AddProperties(&module.testHostProperties)
 
-	module.Module.properties.Installable = proptools.BoolPtr(true)
+	InitTestHost(
+		module,
+		proptools.BoolPtr(true),
+		nil,
+		nil)
 
 	InitJavaModuleMultiTargets(module, android.HostSupported)
 
 	return module
+}
+
+func InitTestHost(th *TestHost, installable *bool, testSuites []string, autoGenConfig *bool) {
+	th.properties.Installable = installable
+	th.testProperties.Auto_gen_config = autoGenConfig
+	th.testProperties.Test_suites = testSuites
 }
 
 //
