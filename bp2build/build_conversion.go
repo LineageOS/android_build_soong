@@ -99,9 +99,10 @@ type bpToBuildContext interface {
 }
 
 type CodegenContext struct {
-	config  android.Config
-	context android.Context
-	mode    CodegenMode
+	config         android.Config
+	context        android.Context
+	mode           CodegenMode
+	additionalDeps []string
 }
 
 func (c *CodegenContext) Mode() CodegenMode {
@@ -137,14 +138,26 @@ func (mode CodegenMode) String() string {
 	}
 }
 
-func (ctx CodegenContext) AddNinjaFileDeps(...string) {}
-func (ctx CodegenContext) Config() android.Config     { return ctx.config }
-func (ctx CodegenContext) Context() android.Context   { return ctx.context }
+// AddNinjaFileDeps adds dependencies on the specified files to be added to the ninja manifest. The
+// primary builder will be rerun whenever the specified files are modified. Allows us to fulfill the
+// PathContext interface in order to add dependencies on hand-crafted BUILD files. Note: must also
+// call AdditionalNinjaDeps and add them manually to the ninja file.
+func (ctx *CodegenContext) AddNinjaFileDeps(deps ...string) {
+	ctx.additionalDeps = append(ctx.additionalDeps, deps...)
+}
+
+// AdditionalNinjaDeps returns additional ninja deps added by CodegenContext
+func (ctx *CodegenContext) AdditionalNinjaDeps() []string {
+	return ctx.additionalDeps
+}
+
+func (ctx *CodegenContext) Config() android.Config   { return ctx.config }
+func (ctx *CodegenContext) Context() android.Context { return ctx.context }
 
 // NewCodegenContext creates a wrapper context that conforms to PathContext for
 // writing BUILD files in the output directory.
-func NewCodegenContext(config android.Config, context android.Context, mode CodegenMode) CodegenContext {
-	return CodegenContext{
+func NewCodegenContext(config android.Config, context android.Context, mode CodegenMode) *CodegenContext {
+	return &CodegenContext{
 		context: context,
 		config:  config,
 		mode:    mode,
@@ -163,12 +176,14 @@ func propsToAttributes(props map[string]string) string {
 	return attributes
 }
 
-func GenerateBazelTargets(ctx CodegenContext) (map[string]BazelTargets, CodegenMetrics) {
+func GenerateBazelTargets(ctx *CodegenContext) (map[string]BazelTargets, CodegenMetrics) {
 	buildFileToTargets := make(map[string]BazelTargets)
+	buildFileToAppend := make(map[string]bool)
 
 	// Simple metrics tracking for bp2build
-	totalModuleCount := 0
-	ruleClassCount := make(map[string]int)
+	metrics := CodegenMetrics{
+		RuleClassCount: make(map[string]int),
+	}
 
 	bpCtx := ctx.Context()
 	bpCtx.VisitAllModules(func(m blueprint.Module) {
@@ -177,13 +192,29 @@ func GenerateBazelTargets(ctx CodegenContext) (map[string]BazelTargets, CodegenM
 
 		switch ctx.Mode() {
 		case Bp2Build:
-			if b, ok := m.(android.BazelTargetModule); !ok {
-				// Only include regular Soong modules (non-BazelTargetModules) into the total count.
-				totalModuleCount += 1
-				return
+			if b, ok := m.(android.Bazelable); ok && b.HasHandcraftedLabel() {
+				metrics.handCraftedTargetCount += 1
+				metrics.TotalModuleCount += 1
+				pathToBuildFile := getBazelPackagePath(b)
+				// We are using the entire contents of handcrafted build file, so if multiple targets within
+				// a package have handcrafted targets, we only want to include the contents one time.
+				if _, exists := buildFileToAppend[pathToBuildFile]; exists {
+					return
+				}
+				var err error
+				t, err = getHandcraftedBuildContent(ctx, b, pathToBuildFile)
+				if err != nil {
+					panic(fmt.Errorf("Error converting %s: %s", bpCtx.ModuleName(m), err))
+				}
+				// TODO(b/181575318): currently we append the whole BUILD file, let's change that to do
+				// something more targeted based on the rule type and target
+				buildFileToAppend[pathToBuildFile] = true
+			} else if btm, ok := m.(android.BazelTargetModule); ok {
+				t = generateBazelTarget(bpCtx, m, btm)
+				metrics.RuleClassCount[t.ruleClass] += 1
 			} else {
-				t = generateBazelTarget(bpCtx, m, b)
-				ruleClassCount[t.ruleClass] += 1
+				metrics.TotalModuleCount += 1
+				return
 			}
 		case QueryView:
 			// Blocklist certain module types from being generated.
@@ -200,17 +231,34 @@ func GenerateBazelTargets(ctx CodegenContext) (map[string]BazelTargets, CodegenM
 		buildFileToTargets[dir] = append(buildFileToTargets[dir], t)
 	})
 
-	metrics := CodegenMetrics{
-		TotalModuleCount: totalModuleCount,
-		RuleClassCount:   ruleClassCount,
-	}
-
 	return buildFileToTargets, metrics
 }
 
-func generateBazelTarget(ctx bpToBuildContext, m blueprint.Module, b android.BazelTargetModule) BazelTarget {
-	ruleClass := b.RuleClass()
-	bzlLoadLocation := b.BzlLoadLocation()
+func getBazelPackagePath(b android.Bazelable) string {
+	label := b.HandcraftedLabel()
+	pathToBuildFile := strings.TrimPrefix(label, "//")
+	pathToBuildFile = strings.Split(pathToBuildFile, ":")[0]
+	return pathToBuildFile
+}
+
+func getHandcraftedBuildContent(ctx *CodegenContext, b android.Bazelable, pathToBuildFile string) (BazelTarget, error) {
+	p := android.ExistentPathForSource(ctx, pathToBuildFile, HandcraftedBuildFileName)
+	if !p.Valid() {
+		return BazelTarget{}, fmt.Errorf("Could not find file %q for handcrafted target.", pathToBuildFile)
+	}
+	c, err := b.GetBazelBuildFileContents(ctx.Config(), pathToBuildFile, HandcraftedBuildFileName)
+	if err != nil {
+		return BazelTarget{}, err
+	}
+	// TODO(b/181575318): once this is more targeted, we need to include name, rule class, etc
+	return BazelTarget{
+		content: c,
+	}, nil
+}
+
+func generateBazelTarget(ctx bpToBuildContext, m blueprint.Module, btm android.BazelTargetModule) BazelTarget {
+	ruleClass := btm.RuleClass()
+	bzlLoadLocation := btm.BzlLoadLocation()
 
 	// extract the bazel attributes from the module.
 	props := getBuildProperties(ctx, m)

@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 )
 
-func createBazelQueryView(ctx bp2build.CodegenContext, bazelQueryViewDir string) error {
+func createBazelQueryView(ctx *bp2build.CodegenContext, bazelQueryViewDir string) error {
 	ruleShims := bp2build.CreateRuleShims(android.ModuleTypeFactories())
 
 	// Ignore metrics reporting for queryview, since queryview is already a full-repo
