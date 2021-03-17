@@ -586,9 +586,9 @@ func (r *RuleBuilder) Build(name string, desc string) {
 	r.ctx.Build(r.pctx, BuildParams{
 		Rule: r.ctx.Rule(pctx, name, blueprint.RuleParams{
 			Command:        commandString,
-			CommandDeps:    tools.Strings(),
+			CommandDeps:    proptools.NinjaEscapeList(tools.Strings()),
 			Restat:         r.restat,
-			Rspfile:        rspFile,
+			Rspfile:        proptools.NinjaEscape(rspFile),
 			RspfileContent: rspFileContent,
 			Pool:           pool,
 		}),
