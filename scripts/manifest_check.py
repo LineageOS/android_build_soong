@@ -19,8 +19,6 @@
 from __future__ import print_function
 
 import argparse
-import re
-import subprocess
 import sys
 from xml.dom import minidom
 
@@ -61,75 +59,25 @@ def parse_args():
                       dest='extract_target_sdk_version',
                       action='store_true',
                       help='print the targetSdkVersion from the manifest')
-  parser.add_argument('--aapt',
-                      dest='aapt',
-                      help='path to aapt executable')
   parser.add_argument('--output', '-o', dest='output', help='output AndroidManifest.xml file')
   parser.add_argument('input', help='input AndroidManifest.xml file')
   return parser.parse_args()
 
 
-def enforce_uses_libraries(manifest, required, optional, relax, is_apk = False):
-  """Verify that the <uses-library> tags in the manifest match those provided
-  by the build system.
+def enforce_uses_libraries(doc, uses_libraries, optional_uses_libraries, relax):
+  """Verify that the <uses-library> tags in the manifest match those provided by the build system.
 
   Args:
-    manifest: manifest (either parsed XML or aapt dump of APK)
-    required: required libs known to the build system
-    optional: optional libs known to the build system
-    relax:    if true, suppress error on mismatch and just write it to file
-    is_apk:   if the manifest comes from an APK or an XML file
+    doc: The XML document.
+    uses_libraries: The names of <uses-library> tags known to the build system
+    optional_uses_libraries: The names of <uses-library> tags with required:fals
+      known to the build system
+  Raises:
+    RuntimeError: Invalid manifest
+    ManifestMismatchError: Manifest does not match
   """
-  if is_apk:
-    manifest_required, manifest_optional = extract_uses_libs_apk(manifest)
-  else:
-    manifest_required, manifest_optional = extract_uses_libs_xml(manifest)
 
-  if required is None:
-    required = []
-
-  if optional is None:
-    optional = []
-
-  err = []
-  if manifest_required != required:
-    err.append('Expected required <uses-library> tags "%s", got "%s"' %
-               (', '.join(required), ', '.join(manifest_required)))
-
-  if manifest_optional != optional:
-    err.append('Expected optional <uses-library> tags "%s", got "%s"' %
-               (', '.join(optional), ', '.join(manifest_optional)))
-
-  if err:
-    errmsg = '\n'.join(err)
-    if not relax:
-      raise ManifestMismatchError(errmsg)
-    return errmsg
-
-  return None
-
-
-def extract_uses_libs_apk(badging):
-  """Extract <uses-library> tags from the manifest of an APK."""
-
-  pattern = re.compile("^uses-library(-not-required)?:'(.*)'$", re.MULTILINE)
-
-  required = []
-  optional = []
-  for match in re.finditer(pattern, badging):
-    libname = match.group(2)
-    if match.group(1) == None:
-      required.append(libname)
-    else:
-      optional.append(libname)
-
-  return first_unique_elements(required), first_unique_elements(optional)
-
-
-def extract_uses_libs_xml(xml):
-  """Extract <uses-library> tags from the manifest."""
-
-  manifest = parse_manifest(xml)
+  manifest = parse_manifest(doc)
   elems = get_children_with_tag(manifest, 'application')
   application = elems[0] if len(elems) == 1 else None
   if len(elems) > 1:
@@ -139,12 +87,58 @@ def extract_uses_libs_xml(xml):
       raise ManifestMismatchError('no <application> tag found')
     return
 
+  return verify_uses_library(application, uses_libraries, optional_uses_libraries, relax)
+
+
+def verify_uses_library(application, uses_libraries, optional_uses_libraries, relax):
+  """Verify that the uses-library values known to the build system match the manifest.
+
+  Args:
+    application: the <application> tag in the manifest.
+    uses_libraries: the names of expected <uses-library> tags.
+    optional_uses_libraries: the names of expected <uses-library> tags with required="false".
+  Raises:
+    ManifestMismatchError: Manifest does not match
+  """
+
+  if uses_libraries is None:
+    uses_libraries = []
+
+  if optional_uses_libraries is None:
+    optional_uses_libraries = []
+
+  manifest_uses_libraries, manifest_optional_uses_libraries = parse_uses_library(application)
+
+  err = []
+  if manifest_uses_libraries != uses_libraries:
+    err.append('Expected required <uses-library> tags "%s", got "%s"' %
+               (', '.join(uses_libraries), ', '.join(manifest_uses_libraries)))
+
+  if manifest_optional_uses_libraries != optional_uses_libraries:
+    err.append('Expected optional <uses-library> tags "%s", got "%s"' %
+               (', '.join(optional_uses_libraries), ', '.join(manifest_optional_uses_libraries)))
+
+  if err:
+    errmsg = '\n'.join(err)
+    if not relax:
+      raise ManifestMismatchError(errmsg)
+    return errmsg
+
+  return None
+
+def parse_uses_library(application):
+  """Extract uses-library tags from the manifest.
+
+  Args:
+    application: the <application> tag in the manifest.
+  """
+
   libs = get_children_with_tag(application, 'uses-library')
 
-  required = [uses_library_name(x) for x in libs if uses_library_required(x)]
-  optional = [uses_library_name(x) for x in libs if not uses_library_required(x)]
+  uses_libraries = [uses_library_name(x) for x in libs if uses_library_required(x)]
+  optional_uses_libraries = [uses_library_name(x) for x in libs if not uses_library_required(x)]
 
-  return first_unique_elements(required), first_unique_elements(optional)
+  return first_unique_elements(uses_libraries), first_unique_elements(optional_uses_libraries)
 
 
 def first_unique_elements(l):
@@ -173,34 +167,16 @@ def uses_library_required(lib):
   return (required.value == 'true') if required is not None else True
 
 
-def extract_target_sdk_version(manifest, is_apk = False):
+def extract_target_sdk_version(doc):
   """Returns the targetSdkVersion from the manifest.
 
   Args:
-    manifest: manifest (either parsed XML or aapt dump of APK)
-    is_apk:   if the manifest comes from an APK or an XML file
+    doc: The XML document.
+  Raises:
+    RuntimeError: invalid manifest
   """
-  if is_apk:
-    return extract_target_sdk_version_apk(manifest)
-  else:
-    return extract_target_sdk_version_xml(manifest)
 
-
-def extract_target_sdk_version_apk(badging):
-  """Extract targetSdkVersion tags from the manifest of an APK."""
-
-  pattern = re.compile("^targetSdkVersion?:'(.*)'$", re.MULTILINE)
-
-  for match in re.finditer(pattern, badging):
-    return match.group(1)
-
-  raise RuntimeError('cannot find targetSdkVersion in the manifest')
-
-
-def extract_target_sdk_version_xml(xml):
-  """Extract targetSdkVersion tags from the manifest."""
-
-  manifest = parse_manifest(xml)
+  manifest = parse_manifest(doc)
 
   # Get or insert the uses-sdk element
   uses_sdk = get_children_with_tag(manifest, 'uses-sdk')
@@ -227,22 +203,14 @@ def main():
   try:
     args = parse_args()
 
-    # The input can be either an XML manifest or an APK, they are parsed and
-    # processed in different ways.
-    is_apk = args.input.endswith('.apk')
-    if is_apk:
-      aapt = args.aapt if args.aapt != None else "aapt"
-      manifest = subprocess.check_output([aapt, "dump", "badging", args.input])
-    else:
-      manifest = minidom.parse(args.input)
+    doc = minidom.parse(args.input)
 
     if args.enforce_uses_libraries:
       # Check if the <uses-library> lists in the build system agree with those
       # in the manifest. Raise an exception on mismatch, unless the script was
       # passed a special parameter to suppress exceptions.
-      errmsg = enforce_uses_libraries(manifest, args.uses_libraries,
-        args.optional_uses_libraries, args.enforce_uses_libraries_relax,
-        is_apk)
+      errmsg = enforce_uses_libraries(doc, args.uses_libraries,
+        args.optional_uses_libraries, args.enforce_uses_libraries_relax)
 
       # Create a status file that is empty on success, or contains an error
       # message on failure. When exceptions are suppressed, dexpreopt command
@@ -253,16 +221,11 @@ def main():
             f.write("%s\n" % errmsg)
 
     if args.extract_target_sdk_version:
-      print(extract_target_sdk_version(manifest, is_apk))
+      print(extract_target_sdk_version(doc))
 
     if args.output:
-      # XML output is supposed to be written only when this script is invoked
-      # with XML input manifest, not with an APK.
-      if is_apk:
-        raise RuntimeError('cannot save APK manifest as XML')
-
       with open(args.output, 'wb') as f:
-        write_xml(f, manifest)
+        write_xml(f, doc)
 
   # pylint: disable=broad-except
   except Exception as err:
