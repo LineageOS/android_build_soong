@@ -506,6 +506,10 @@ func (c *config) SetStopBefore(stopBefore bootstrap.StopBefore) {
 	c.stopBefore = stopBefore
 }
 
+func (c *config) SetAllowMissingDependencies() {
+	c.productVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
+}
+
 var _ bootstrap.ConfigStopBefore = (*config)(nil)
 
 // BlueprintToolLocation returns the directory containing build system tools
