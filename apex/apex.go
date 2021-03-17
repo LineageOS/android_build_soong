@@ -846,6 +846,19 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 		if !ok || !am.CanHaveApexVariants() {
 			return false
 		}
+		depTag := mctx.OtherModuleDependencyTag(child)
+
+		// Check to see if the tag always requires that the child module has an apex variant for every
+		// apex variant of the parent module. If it does not then it is still possible for something
+		// else, e.g. the DepIsInSameApex(...) method to decide that a variant is required.
+		if required, ok := depTag.(android.AlwaysRequireApexVariantTag); ok && required.AlwaysRequireApexVariant() {
+			return true
+		}
+		if _, ok := depTag.(android.ExcludeFromApexContentsTag); ok {
+			// The tag defines a dependency that never requires the child module to be part of the same
+			// apex as the parent so it does not need an apex variant created.
+			return false
+		}
 		if !parent.(android.DepIsInSameApex).DepIsInSameApex(mctx, child) {
 			return false
 		}
