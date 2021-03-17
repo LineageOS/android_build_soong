@@ -70,10 +70,6 @@ type BlueprintConfig struct {
 	ninjaBuildDir string
 }
 
-func (c BlueprintConfig) GeneratingPrimaryBuilder() bool {
-	return true
-}
-
 func (c BlueprintConfig) SrcDir() string {
 	return "."
 }
@@ -101,6 +97,7 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	args.OutFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja")
 	args.DepFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja.d")
 	args.GlobFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/soong-build-globs.ninja")
+	args.GeneratingPrimaryBuilder = true
 
 	blueprintCtx := blueprint.NewContext()
 	blueprintCtx.SetIgnoreUnknownModuleTypes(true)

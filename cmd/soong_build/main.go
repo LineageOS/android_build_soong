@@ -131,7 +131,7 @@ func main() {
 		// the incorrect results from the first pass, and file I/O is expensive.
 		firstCtx := newContext(configuration)
 		configuration.SetStopBefore(bootstrap.StopBeforeWriteNinja)
-		bootstrap.Main(firstCtx.Context, configuration, extraNinjaDeps...)
+		bootstrap.Main(firstCtx.Context, configuration, false, extraNinjaDeps...)
 		// Invoke bazel commands and save results for second pass.
 		if err := configuration.BazelContext.InvokeBazel(); err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
@@ -144,10 +144,10 @@ func main() {
 			os.Exit(1)
 		}
 		ctx = newContext(secondPassConfig)
-		bootstrap.Main(ctx.Context, secondPassConfig, extraNinjaDeps...)
+		bootstrap.Main(ctx.Context, secondPassConfig, false, extraNinjaDeps...)
 	} else {
 		ctx = newContext(configuration)
-		bootstrap.Main(ctx.Context, configuration, extraNinjaDeps...)
+		bootstrap.Main(ctx.Context, configuration, false, extraNinjaDeps...)
 	}
 
 	// Convert the Soong module graph into Bazel BUILD files.
@@ -206,7 +206,7 @@ func runBp2Build(srcDir string, configuration android.Config) {
 	// Run the loading and analysis pipeline to prepare the graph of regular
 	// Modules parsed from Android.bp files, and the BazelTargetModules mapped
 	// from the regular Modules.
-	bootstrap.Main(bp2buildCtx.Context, configuration, extraNinjaDeps...)
+	bootstrap.Main(bp2buildCtx.Context, configuration, false, extraNinjaDeps...)
 
 	// Run the code-generation phase to convert BazelTargetModules to BUILD files
 	// and print conversion metrics to the user.
