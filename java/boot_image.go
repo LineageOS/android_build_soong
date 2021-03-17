@@ -20,6 +20,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/dexpreopt"
+
 	"github.com/google/blueprint"
 )
 
@@ -56,9 +57,9 @@ type BootImageModule struct {
 func bootImageFactory() android.Module {
 	m := &BootImageModule{}
 	m.AddProperties(&m.properties)
-	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitApexModule(m)
 	android.InitSdkAwareModule(m)
+	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
 	return m
 }
 
@@ -210,11 +211,11 @@ func (module *prebuiltBootImageModule) Name() string {
 func prebuiltBootImageFactory() android.Module {
 	m := &prebuiltBootImageModule{}
 	m.AddProperties(&m.properties)
-	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
 	// This doesn't actually have any prebuilt files of its own so pass a placeholder for the srcs
 	// array.
 	android.InitPrebuiltModule(m, &[]string{"placeholder"})
 	android.InitApexModule(m)
 	android.InitSdkAwareModule(m)
+	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
 	return m
 }
