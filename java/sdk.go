@@ -647,6 +647,7 @@ func createAPIFingerprint(ctx android.SingletonContext) {
 			"frameworks-base-api-current.txt",
 			"frameworks-base-api-system-current.txt",
 			"frameworks-base-api-module-lib-current.txt",
+			"services-system-server-current.txt",
 		}
 		count := 0
 		ctx.VisitAllModules(func(module android.Module) {
@@ -660,8 +661,7 @@ func createAPIFingerprint(ctx android.SingletonContext) {
 			ctx.Errorf("Could not find all the expected API modules %v, found %d\n", apiTxtFileModules, count)
 			return
 		}
-		cmd.Input(android.PathForSource(ctx, "frameworks/base/services/api/current.txt")).
-			Text("| md5sum | cut -d' ' -f1 >").
+		cmd.Text("| md5sum | cut -d' ' -f1 >").
 			Output(out)
 	} else {
 		// Unbundled build
