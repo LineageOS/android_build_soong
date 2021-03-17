@@ -827,10 +827,11 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 	// filenames in rspfile from FlagWithRspFileInputList might be single-quoted. Remove it with tr
 	snapshotOutputList := android.PathForOutput(ctx, snapshotDir, "android-vndk-"+ctx.DeviceConfig().DeviceArch()+"_list")
+	rspFile := snapshotOutputList.ReplaceExtension(ctx, "rsp")
 	zipRule.Command().
 		Text("tr").
 		FlagWithArg("-d ", "\\'").
-		FlagWithRspFileInputList("< ", snapshotOutputs).
+		FlagWithRspFileInputList("< ", rspFile, snapshotOutputs).
 		FlagWithOutput("> ", snapshotOutputList)
 
 	zipRule.Temporary(snapshotOutputList)

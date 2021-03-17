@@ -298,6 +298,14 @@ func TestGenruleCmd(t *testing.T) {
 			`,
 			expect: "echo foo > __SBOX_SANDBOX_DIR__/out/foo && cp __SBOX_SANDBOX_DIR__/out/foo __SBOX_SANDBOX_DIR__/out/out",
 		},
+		{
+			name: "$",
+			prop: `
+				out: ["out"],
+				cmd: "echo $$ > $(out)",
+			`,
+			expect: "echo $ > __SBOX_SANDBOX_DIR__/out/out",
+		},
 
 		{
 			name: "error empty location",

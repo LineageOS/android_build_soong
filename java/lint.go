@@ -220,7 +220,9 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 		// Insert a second rule to write out the list of resources to a file.
 		resourcesList = android.PathForModuleOut(ctx, "lint", "resources.list")
 		resListRule := android.NewRuleBuilder(pctx, ctx)
-		resListRule.Command().Text("cp").FlagWithRspFileInputList("", l.resources).Output(resourcesList)
+		resListRule.Command().Text("cp").
+			FlagWithRspFileInputList("", resourcesList.ReplaceExtension(ctx, "rsp"), l.resources).
+			Output(resourcesList)
 		resListRule.Build("lint_resources_list", "lint resources list")
 		trackRSPDependency(l.resources, resourcesList)
 	}
@@ -241,7 +243,10 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	// TODO(ccross): some of the files in l.srcs are generated sources and should be passed to
 	// lint separately.
 	srcsList := android.PathForModuleOut(ctx, "lint", "srcs.list")
-	rule.Command().Text("cp").FlagWithRspFileInputList("", l.srcs).Output(srcsList)
+	srcsListRsp := android.PathForModuleOut(ctx, "lint-srcs.list.rsp")
+	rule.Command().Text("cp").
+		FlagWithRspFileInputList("", srcsListRsp, l.srcs).
+		Output(srcsList)
 	trackRSPDependency(l.srcs, srcsList)
 
 	cmd := rule.Command().
@@ -635,7 +640,7 @@ func lintZip(ctx android.BuilderContext, paths android.Paths, outputPath android
 	rule.Command().BuiltTool("soong_zip").
 		FlagWithOutput("-o ", outputPath).
 		FlagWithArg("-C ", android.PathForIntermediates(ctx).String()).
-		FlagWithRspFileInputList("-r ", paths)
+		FlagWithRspFileInputList("-r ", outputPath.ReplaceExtension(ctx, "rsp"), paths)
 
 	rule.Build(outputPath.Base(), outputPath.Base())
 }
