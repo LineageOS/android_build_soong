@@ -44,6 +44,7 @@ var packageTests = []struct {
 			"top/Blueprints": []byte(`
 				package {
 					default_visibility: ["//visibility:private"],
+					default_applicable_licenses: ["license"],
 				}
 
         package {
