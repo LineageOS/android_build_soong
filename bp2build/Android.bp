@@ -11,6 +11,7 @@ bootstrap_go_package {
         "build_conversion.go",
         "bzl_conversion.go",
         "configurability.go",
+        "constants.go",
         "conversion.go",
         "metrics.go",
     ],

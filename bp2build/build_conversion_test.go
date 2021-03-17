@@ -1221,3 +1221,157 @@ func TestAllowlistingBp2buildTargets(t *testing.T) {
 		}
 	}
 }
+
+func TestCombineBuildFilesBp2buildTargets(t *testing.T) {
+	testCases := []struct {
+		description                        string
+		moduleTypeUnderTest                string
+		moduleTypeUnderTestFactory         android.ModuleFactory
+		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
+		preArchMutators                    []android.RegisterMutatorFunc
+		depsMutators                       []android.RegisterMutatorFunc
+		bp                                 string
+		expectedBazelTargets               []string
+		fs                                 map[string]string
+		dir                                string
+	}{
+		{
+			description:                        "filegroup bazel_module.label",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp: `filegroup {
+    name: "fg_foo",
+    bazel_module: { label: "//other:fg_foo" },
+}`,
+			expectedBazelTargets: []string{
+				`// BUILD file`,
+			},
+			fs: map[string]string{
+				"other/BUILD.bazel": `// BUILD file`,
+			},
+		},
+		{
+			description:                        "multiple bazel_module.label same BUILD",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp: `filegroup {
+    name: "fg_foo",
+    bazel_module: { label: "//other:fg_foo" },
+}
+
+filegroup {
+    name: "foo",
+    bazel_module: { label: "//other:foo" },
+}`,
+			expectedBazelTargets: []string{
+				`// BUILD file`,
+			},
+			fs: map[string]string{
+				"other/BUILD.bazel": `// BUILD file`,
+			},
+		},
+		{
+			description:                        "filegroup bazel_module.label and bp2build",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp: `filegroup {
+    name: "fg_foo",
+    bazel_module: {
+      label: "//other:fg_foo",
+      bp2build_available: true,
+    },
+}`,
+			expectedBazelTargets: []string{
+				`filegroup(
+    name = "fg_foo",
+)`,
+				`// BUILD file`,
+			},
+			fs: map[string]string{
+				"other/BUILD.bazel": `// BUILD file`,
+			},
+		},
+		{
+			description:                        "filegroup bazel_module.label and filegroup bp2build",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp: `filegroup {
+    name: "fg_foo",
+    bazel_module: {
+      label: "//other:fg_foo",
+    },
+}
+
+filegroup {
+    name: "fg_bar",
+    bazel_module: {
+      bp2build_available: true,
+    },
+}`,
+			expectedBazelTargets: []string{
+				`filegroup(
+    name = "fg_bar",
+)`,
+				`// BUILD file`,
+			},
+			fs: map[string]string{
+				"other/BUILD.bazel": `// BUILD file`,
+			},
+		},
+	}
+
+	dir := "."
+	for _, testCase := range testCases {
+		fs := make(map[string][]byte)
+		toParse := []string{
+			"Android.bp",
+		}
+		for f, content := range testCase.fs {
+			if strings.HasSuffix(f, "Android.bp") {
+				toParse = append(toParse, f)
+			}
+			fs[f] = []byte(content)
+		}
+		config := android.TestConfig(buildDir, nil, testCase.bp, fs)
+		ctx := android.NewTestContext(config)
+		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
+		for _, m := range testCase.depsMutators {
+			ctx.DepsBp2BuildMutators(m)
+		}
+		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
+		ctx.RegisterForBazelConversion()
+
+		_, errs := ctx.ParseFileList(dir, toParse)
+		if Errored(t, testCase.description, errs) {
+			continue
+		}
+		_, errs = ctx.ResolveDependencies(config)
+		if Errored(t, testCase.description, errs) {
+			continue
+		}
+
+		checkDir := dir
+		if testCase.dir != "" {
+			checkDir = testCase.dir
+		}
+		bazelTargets := generateBazelTargetsForDir(NewCodegenContext(config, *ctx.Context, Bp2Build), checkDir)
+		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
+			t.Errorf("%s: Expected %d bazel target, got %d\n%s", testCase.description, expectedCount, actualCount, bazelTargets)
+		} else {
+			for i, target := range bazelTargets {
+				if w, g := testCase.expectedBazelTargets[i], target.content; w != g {
+					t.Errorf(
+						"%s: Expected generated Bazel target to be '%s', got '%s'",
+						testCase.description,
+						w,
+						g,
+					)
+				}
+			}
+		}
+	}
+}
