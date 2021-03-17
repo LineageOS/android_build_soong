@@ -267,10 +267,10 @@ func ExampleRuleBuilderCommand_FlagWithRspFileInputList() {
 	ctx := builderContext()
 	fmt.Println(NewRuleBuilder(pctx, ctx).Command().
 		Tool(PathForSource(ctx, "javac")).
-		FlagWithRspFileInputList("@", PathsForTesting("a.java", "b.java")).
-		NinjaEscapedString())
+		FlagWithRspFileInputList("@", PathForOutput(ctx, "foo.rsp"), PathsForTesting("a.java", "b.java")).
+		String())
 	// Output:
-	// javac @$out.rsp
+	// javac @out/foo.rsp
 }
 
 func ExampleRuleBuilderCommand_String() {
