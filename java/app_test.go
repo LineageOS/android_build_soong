@@ -2400,13 +2400,13 @@ func TestUsesLibraries(t *testing.T) {
 
 	// Test that all libraries are verified for an APK (library order matters).
 	verifyApkCmd := prebuilt.Rule("verify_uses_libraries").RuleParams.Command
-	verifyApkReqLibs := `uses_library_names="foo com.non.sdk.lib android.test.runner"`
-	verifyApkOptLibs := `optional_uses_library_names="bar baz"`
-	if !strings.Contains(verifyApkCmd, verifyApkReqLibs) {
-		t.Errorf("wanted %q in %q", verifyApkReqLibs, verifyApkCmd)
-	}
-	if !strings.Contains(verifyApkCmd, verifyApkOptLibs) {
-		t.Errorf("wanted %q in %q", verifyApkOptLibs, verifyApkCmd)
+	verifyApkArgs := `--uses-library foo ` +
+		`--uses-library com.non.sdk.lib ` +
+		`--uses-library android.test.runner ` +
+		`--optional-uses-library bar ` +
+		`--optional-uses-library baz `
+	if !strings.Contains(verifyApkCmd, verifyApkArgs) {
+		t.Errorf("wanted %q in %q", verifyApkArgs, verifyApkCmd)
 	}
 
 	// Test that all present libraries are preopted, including implicit SDK dependencies, possibly stubs
