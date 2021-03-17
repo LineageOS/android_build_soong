@@ -2601,3 +2601,16 @@ func TestDataNativeBinaries(t *testing.T) {
 		t.Errorf("Unexpected test data - expected: %q, actual: %q", expected, actual)
 	}
 }
+
+func TestDefaultInstallable(t *testing.T) {
+	ctx, _ := testJava(t, `
+		java_test_host {
+			name: "foo"
+		}
+	`)
+
+	buildOS := android.BuildOs.String()
+	module := ctx.ModuleForTests("foo", buildOS+"_common").Module().(*TestHost)
+	assertDeepEquals(t, "Default installable value should be true.", proptools.BoolPtr(true),
+		module.properties.Installable)
+}
