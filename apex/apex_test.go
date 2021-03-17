@@ -5989,11 +5989,13 @@ func TestJavaSDKLibrary_ImportOnly(t *testing.T) {
 }
 
 func TestCompatConfig(t *testing.T) {
-	ctx := testApex(t, `
+	result := apexFixtureFactory.
+		Extend(java.PrepareForTestWithPlatformCompatConfig).
+		RunTestWithBp(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
-			prebuilts: ["myjar-platform-compat-config"],
+			compat_configs: ["myjar-platform-compat-config"],
 			java_libs: ["myjar"],
 			updatable: false,
 		}
@@ -6017,6 +6019,7 @@ func TestCompatConfig(t *testing.T) {
 			apex_available: [ "myapex" ],
 		}
 	`)
+	ctx := result.TestContext
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
 		"etc/compatconfig/myjar-platform-compat-config.xml",
 		"javalib/myjar.jar",

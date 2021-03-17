@@ -900,7 +900,7 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		allowList                  []string
 	}
 
-	createTestConfig := func(info testConfigInfo) android.Config {
+	createPreparer := func(info testConfigInfo) android.FixturePreparer {
 		bpFileTemplate := `
 			java_library {
 				name: "foo",
@@ -923,58 +923,68 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 			info.libraryType,
 			partitionToBpOption(info.toPartition))
 
-		config := testConfig(nil, bpFile, nil)
-		configVariables := config.TestProductVariables
+		return android.GroupFixturePreparers(
+			android.FixtureWithRootAndroidBp(bpFile),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.EnforceProductPartitionInterface = proptools.BoolPtr(info.enforceProductInterface)
+				if info.enforceVendorInterface {
+					variables.DeviceVndkVersion = proptools.StringPtr("current")
+				}
+				variables.EnforceInterPartitionJavaSdkLibrary = proptools.BoolPtr(info.enforceJavaSdkLibraryCheck)
+				variables.InterPartitionJavaLibraryAllowList = info.allowList
+			}),
+		)
+	}
 
-		configVariables.EnforceProductPartitionInterface = proptools.BoolPtr(info.enforceProductInterface)
-		if info.enforceVendorInterface {
-			configVariables.DeviceVndkVersion = proptools.StringPtr("current")
-		}
-		configVariables.EnforceInterPartitionJavaSdkLibrary = proptools.BoolPtr(info.enforceJavaSdkLibraryCheck)
-		configVariables.InterPartitionJavaLibraryAllowList = info.allowList
-
-		return config
+	runTest := func(t *testing.T, info testConfigInfo, expectedErrorPattern string) {
+		t.Run(fmt.Sprintf("%#v", info), func(t *testing.T) {
+			errorHandler := android.FixtureExpectsNoErrors
+			if expectedErrorPattern != "" {
+				errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(expectedErrorPattern)
+			}
+			javaFixtureFactory.ExtendWithErrorHandler(errorHandler).RunTest(t, createPreparer(info))
+		})
 	}
 
 	errorMessage := "is not allowed across the partitions"
 
-	testJavaWithConfig(t, createTestConfig(testConfigInfo{
+	runTest(t, testConfigInfo{
 		libraryType:                "java_library",
 		fromPartition:              "product",
 		toPartition:                "system",
 		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: false,
-	}))
+	}, "")
 
-	testJavaWithConfig(t, createTestConfig(testConfigInfo{
+	runTest(t, testConfigInfo{
 		libraryType:                "java_library",
 		fromPartition:              "product",
 		toPartition:                "system",
 		enforceVendorInterface:     true,
 		enforceProductInterface:    false,
 		enforceJavaSdkLibraryCheck: true,
-	}))
+	}, "")
 
-	testJavaErrorWithConfig(t, errorMessage, createTestConfig(testConfigInfo{
+	runTest(t, testConfigInfo{
 		libraryType:                "java_library",
 		fromPartition:              "product",
 		toPartition:                "system",
 		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
-	}))
+	}, errorMessage)
 
-	testJavaErrorWithConfig(t, errorMessage, createTestConfig(testConfigInfo{
+	runTest(t, testConfigInfo{
 		libraryType:                "java_library",
 		fromPartition:              "vendor",
 		toPartition:                "system",
 		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
-	}))
+	}, errorMessage)
 
-	testJavaWithConfig(t, createTestConfig(testConfigInfo{
+	runTest(t, testConfigInfo{
 		libraryType:                "java_library",
 		fromPartition:              "vendor",
 		toPartition:                "system",
@@ -982,43 +992,43 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
 		allowList:                  []string{"bar"},
-	}))
+	}, "")
 
-	testJavaErrorWithConfig(t, errorMessage, createTestConfig(testConfigInfo{
+	runTest(t, testConfigInfo{
 		libraryType:                "java_library",
 		fromPartition:              "vendor",
 		toPartition:                "product",
 		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
-	}))
+	}, errorMessage)
 
-	testJavaWithConfig(t, createTestConfig(testConfigInfo{
+	runTest(t, testConfigInfo{
 		libraryType:                "java_sdk_library",
 		fromPartition:              "product",
 		toPartition:                "system",
 		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
-	}))
+	}, "")
 
-	testJavaWithConfig(t, createTestConfig(testConfigInfo{
+	runTest(t, testConfigInfo{
 		libraryType:                "java_sdk_library",
 		fromPartition:              "vendor",
 		toPartition:                "system",
 		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
-	}))
+	}, "")
 
-	testJavaWithConfig(t, createTestConfig(testConfigInfo{
+	runTest(t, testConfigInfo{
 		libraryType:                "java_sdk_library",
 		fromPartition:              "vendor",
 		toPartition:                "product",
 		enforceVendorInterface:     true,
 		enforceProductInterface:    true,
 		enforceJavaSdkLibraryCheck: true,
-	}))
+	}, "")
 }
 
 func TestDefaults(t *testing.T) {

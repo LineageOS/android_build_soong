@@ -102,6 +102,9 @@ type apexBundleProperties struct {
 	// List of prebuilt files that are embedded inside this APEX bundle.
 	Prebuilts []string
 
+	// List of platform_compat_config files that are embedded inside this APEX bundle.
+	Compat_configs []string
+
 	// List of BPF programs inside this APEX bundle.
 	Bpfs []string
 
@@ -549,20 +552,21 @@ type dependencyTag struct {
 }
 
 var (
-	androidAppTag  = dependencyTag{name: "androidApp", payload: true}
-	bpfTag         = dependencyTag{name: "bpf", payload: true}
-	certificateTag = dependencyTag{name: "certificate"}
-	executableTag  = dependencyTag{name: "executable", payload: true}
-	fsTag          = dependencyTag{name: "filesystem", payload: true}
-	bootImageTag   = dependencyTag{name: "bootImage", payload: true}
-	javaLibTag     = dependencyTag{name: "javaLib", payload: true}
-	jniLibTag      = dependencyTag{name: "jniLib", payload: true}
-	keyTag         = dependencyTag{name: "key"}
-	prebuiltTag    = dependencyTag{name: "prebuilt", payload: true}
-	rroTag         = dependencyTag{name: "rro", payload: true}
-	sharedLibTag   = dependencyTag{name: "sharedLib", payload: true}
-	testForTag     = dependencyTag{name: "test for"}
-	testTag        = dependencyTag{name: "test", payload: true}
+	androidAppTag    = dependencyTag{name: "androidApp", payload: true}
+	bpfTag           = dependencyTag{name: "bpf", payload: true}
+	certificateTag   = dependencyTag{name: "certificate"}
+	executableTag    = dependencyTag{name: "executable", payload: true}
+	fsTag            = dependencyTag{name: "filesystem", payload: true}
+	bootImageTag     = dependencyTag{name: "bootImage", payload: true}
+	compatConfigsTag = dependencyTag{name: "compatConfig", payload: true}
+	javaLibTag       = dependencyTag{name: "javaLib", payload: true}
+	jniLibTag        = dependencyTag{name: "jniLib", payload: true}
+	keyTag           = dependencyTag{name: "key"}
+	prebuiltTag      = dependencyTag{name: "prebuilt", payload: true}
+	rroTag           = dependencyTag{name: "rro", payload: true}
+	sharedLibTag     = dependencyTag{name: "sharedLib", payload: true}
+	testForTag       = dependencyTag{name: "test for"}
+	testTag          = dependencyTag{name: "test", payload: true}
 )
 
 // TODO(jiyong): shorten this function signature
@@ -737,6 +741,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(commonVariation, javaLibTag, a.properties.Java_libs...)
 	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.properties.Bpfs...)
 	ctx.AddFarVariationDependencies(commonVariation, fsTag, a.properties.Filesystems...)
+	ctx.AddFarVariationDependencies(commonVariation, compatConfigsTag, a.properties.Compat_configs...)
 
 	if a.artApex {
 		// With EMMA_INSTRUMENT_FRAMEWORK=true the ART boot image includes jacoco library.
@@ -1735,10 +1740,14 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case prebuiltTag:
 				if prebuilt, ok := child.(prebuilt_etc.PrebuiltEtcModule); ok {
 					filesInfo = append(filesInfo, apexFileForPrebuiltEtc(ctx, prebuilt, depName))
-				} else if prebuilt, ok := child.(java.PlatformCompatConfigIntf); ok {
-					filesInfo = append(filesInfo, apexFileForCompatConfig(ctx, prebuilt, depName))
 				} else {
-					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc and not a platform_compat_config module", depName)
+					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
+				}
+			case compatConfigsTag:
+				if compatConfig, ok := child.(java.PlatformCompatConfigIntf); ok {
+					filesInfo = append(filesInfo, apexFileForCompatConfig(ctx, compatConfig, depName))
+				} else {
+					ctx.PropertyErrorf("compat_configs", "%q is not a platform_compat_config module", depName)
 				}
 			case testTag:
 				if ccTest, ok := child.(*cc.Module); ok {
