@@ -158,7 +158,7 @@ func main() {
 	}
 
 	if docFile != "" {
-		if err := writeDocs(ctx, docFile); err != nil {
+		if err := writeDocs(ctx, configuration, docFile); err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
 		}
