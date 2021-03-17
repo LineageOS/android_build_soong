@@ -56,6 +56,8 @@ func TestHiddenAPISingleton(t *testing.T) {
 
 func TestHiddenAPIIndexSingleton(t *testing.T) {
 	result := hiddenApiFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("bar"),
 		fixtureSetBootJarsProductVariable("platform:foo", "platform:bar"),
 	).RunTestWithBp(t, `
 		java_library {
@@ -209,6 +211,9 @@ func TestHiddenAPISingletonSdks(t *testing.T) {
 		systemStub       string
 		testStub         string
 		corePlatformStub string
+
+		// Additional test preparer
+		preparer android.FixturePreparer
 	}{
 		{
 			name:             "testBundled",
@@ -217,6 +222,7 @@ func TestHiddenAPISingletonSdks(t *testing.T) {
 			systemStub:       "android_system_stubs_current",
 			testStub:         "android_test_stubs_current",
 			corePlatformStub: "legacy.core.platform.api.stubs",
+			preparer:         android.GroupFixturePreparers(),
 		}, {
 			name:             "testUnbundled",
 			unbundledBuild:   true,
@@ -224,11 +230,13 @@ func TestHiddenAPISingletonSdks(t *testing.T) {
 			systemStub:       "sdk_system_current_android",
 			testStub:         "sdk_test_current_android",
 			corePlatformStub: "legacy.core.platform.api.stubs",
+			preparer:         PrepareForTestWithPrebuiltsOfCurrentApi,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := hiddenApiFixtureFactory.Extend(
+				tc.preparer,
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 					variables.Always_use_prebuilt_sdks = proptools.BoolPtr(tc.unbundledBuild)
 				}),
