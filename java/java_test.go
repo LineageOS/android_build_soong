@@ -56,11 +56,10 @@ var javaFixtureFactory = android.NewFixtureFactory(
 	cc.PrepareForTestWithCcBuildComponents,
 	// Include all the default java modules.
 	PrepareForTestWithJavaDefaultModules,
+	python.PrepareForTestWithPythonBuildComponents,
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("java_plugin", PluginFactory)
-		ctx.RegisterModuleType("python_binary_host", python.PythonBinaryHostFactory)
 
-		ctx.PreDepsMutators(python.RegisterPythonPreDepsMutators)
 		ctx.RegisterPreSingletonType("overlay", OverlaySingletonFactory)
 		ctx.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
 	}),
@@ -100,11 +99,9 @@ func testContext(config android.Config) *android.TestContext {
 	RegisterRequiredBuildComponentsForTest(ctx)
 	ctx.RegisterModuleType("java_plugin", PluginFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	ctx.RegisterModuleType("python_binary_host", python.PythonBinaryHostFactory)
 	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
 	ctx.PreArchMutators(android.RegisterComponentsMutator)
 
-	ctx.PreDepsMutators(python.RegisterPythonPreDepsMutators)
 	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
 	ctx.RegisterPreSingletonType("overlay", OverlaySingletonFactory)
 	ctx.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
