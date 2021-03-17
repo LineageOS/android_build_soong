@@ -406,6 +406,8 @@ func Zip(args ZipArgs) error {
 	buf := &bytes.Buffer{}
 	var out io.Writer = buf
 
+	var zipErr error
+
 	if !args.WriteIfChanged {
 		f, err := os.Create(args.OutputFilePath)
 		if err != nil {
@@ -414,7 +416,7 @@ func Zip(args ZipArgs) error {
 
 		defer f.Close()
 		defer func() {
-			if err != nil {
+			if zipErr != nil {
 				os.Remove(args.OutputFilePath)
 			}
 		}()
@@ -422,9 +424,9 @@ func Zip(args ZipArgs) error {
 		out = f
 	}
 
-	err := zipTo(args, out)
-	if err != nil {
-		return err
+	zipErr = zipTo(args, out)
+	if zipErr != nil {
+		return zipErr
 	}
 
 	if args.WriteIfChanged {
