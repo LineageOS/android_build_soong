@@ -20,10 +20,16 @@ import (
 )
 
 func init() {
-	android.RegisterSingletonType("platform_compat_config_singleton", platformCompatConfigSingletonFactory)
-	android.RegisterModuleType("platform_compat_config", PlatformCompatConfigFactory)
-	android.RegisterModuleType("global_compat_config", globalCompatConfigFactory)
+	registerPlatformCompatConfigBuildComponents(android.InitRegistrationContext)
 }
+
+func registerPlatformCompatConfigBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterSingletonType("platform_compat_config_singleton", platformCompatConfigSingletonFactory)
+	ctx.RegisterModuleType("platform_compat_config", PlatformCompatConfigFactory)
+	ctx.RegisterModuleType("global_compat_config", globalCompatConfigFactory)
+}
+
+var PrepareForTestWithPlatformCompatConfig = android.FixtureRegisterWithContext(registerPlatformCompatConfigBuildComponents)
 
 func platformCompatConfigPath(ctx android.PathContext) android.OutputPath {
 	return android.PathForOutput(ctx, "compat_config", "merged_compat_config.xml")
@@ -146,7 +152,7 @@ func platformCompatConfigSingletonFactory() android.Singleton {
 func PlatformCompatConfigFactory() android.Module {
 	module := &platformCompatConfig{}
 	module.AddProperties(&module.properties)
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
 }
 
