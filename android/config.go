@@ -72,6 +72,10 @@ func (c Config) NinjaBuildDir() string {
 	return c.buildDir
 }
 
+func (c Config) DebugCompilation() bool {
+	return false // Never compile Go code in the main build for debugging
+}
+
 func (c Config) SrcDir() string {
 	return c.srcDir
 }
