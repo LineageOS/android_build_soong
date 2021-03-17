@@ -1681,7 +1681,7 @@ func (s *defaultNamingScheme) apiModuleName(scope *apiScope, baseName string) st
 
 var _ sdkLibraryComponentNamingScheme = (*defaultNamingScheme)(nil)
 
-func moduleStubLinkType(name string) (stub bool, ret linkType) {
+func moduleStubLinkType(name string) (stub bool, ret sdkLinkType) {
 	// This suffix-based approach is fragile and could potentially mis-trigger.
 	// TODO(b/155164730): Clean this up when modules no longer reference sdk_lib stubs directly.
 	if strings.HasSuffix(name, ".stubs.public") || strings.HasSuffix(name, "-stubs-publicapi") {
