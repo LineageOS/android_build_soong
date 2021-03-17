@@ -95,13 +95,13 @@ func moduleTypeDocsToTemplates(moduleTypeList []*bpdoc.ModuleType) []moduleTypeT
 	return result
 }
 
-func getPackages(ctx *android.Context) ([]*bpdoc.Package, error) {
+func getPackages(ctx *android.Context, config interface{}) ([]*bpdoc.Package, error) {
 	moduleTypeFactories := android.ModuleTypeFactoriesForDocs()
-	return bootstrap.ModuleTypeDocs(ctx.Context, moduleTypeFactories)
+	return bootstrap.ModuleTypeDocs(ctx.Context, config, moduleTypeFactories)
 }
 
-func writeDocs(ctx *android.Context, filename string) error {
-	packages, err := getPackages(ctx)
+func writeDocs(ctx *android.Context, config interface{}, filename string) error {
+	packages, err := getPackages(ctx, config)
 	if err != nil {
 		return err
 	}
