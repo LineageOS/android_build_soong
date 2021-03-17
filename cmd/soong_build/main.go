@@ -80,7 +80,7 @@ func newContext(configuration android.Config) *android.Context {
 }
 
 func newConfig(srcDir string) android.Config {
-	configuration, err := android.NewConfig(srcDir, bootstrap.BuildDir, bootstrap.ModuleListFile)
+	configuration, err := android.NewConfig(srcDir, bootstrap.CmdlineBuildDir(), bootstrap.CmdlineModuleListFile())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
@@ -100,6 +100,10 @@ func main() {
 	var ctx *android.Context
 	configuration := newConfig(srcDir)
 	extraNinjaDeps := []string{configuration.ProductVariablesFileName}
+
+	if configuration.Getenv("ALLOW_MISSING_DEPENDENCIES") == "true" {
+		configuration.SetAllowMissingDependencies()
+	}
 
 	// These two are here so that we restart a non-debugged soong_build when the
 	// user sets SOONG_DELVE the first time.
@@ -167,7 +171,7 @@ func main() {
 	// TODO(ccross): make this a command line argument.  Requires plumbing through blueprint
 	//  to affect the command line of the primary builder.
 	if shouldPrepareBuildActions(configuration) {
-		metricsFile := filepath.Join(bootstrap.BuildDir, "soong_build_metrics.pb")
+		metricsFile := filepath.Join(bootstrap.CmdlineBuildDir(), "soong_build_metrics.pb")
 		err := android.WriteMetrics(configuration, metricsFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error writing soong_build metrics %s: %s", metricsFile, err)
@@ -193,7 +197,7 @@ func runBp2Build(srcDir string, configuration android.Config) {
 	// Android.bp files. It must not depend on the values of per-build product
 	// configurations or variables, since those will generate different BUILD
 	// files based on how the user has configured their tree.
-	bp2buildCtx.SetModuleListFile(bootstrap.ModuleListFile)
+	bp2buildCtx.SetModuleListFile(bootstrap.CmdlineModuleListFile())
 	extraNinjaDeps, err := bp2buildCtx.ListModulePaths(srcDir)
 	if err != nil {
 		panic(err)

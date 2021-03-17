@@ -30,7 +30,7 @@ import (
 // Constructs and runs the Ninja command line with a restricted set of
 // environment variables. It's important to restrict the environment Ninja runs
 // for hermeticity reasons, and to avoid spurious rebuilds.
-func runNinja(ctx Context, config Config) {
+func runNinjaForBuild(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.PrimaryNinja, "ninja")
 	defer ctx.EndTrace()
 
