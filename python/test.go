@@ -22,8 +22,12 @@ import (
 // This file contains the module types for building Python test.
 
 func init() {
-	android.RegisterModuleType("python_test_host", PythonTestHostFactory)
-	android.RegisterModuleType("python_test", PythonTestFactory)
+	registerPythonTestComponents(android.InitRegistrationContext)
+}
+
+func registerPythonTestComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("python_test_host", PythonTestHostFactory)
+	ctx.RegisterModuleType("python_test", PythonTestFactory)
 }
 
 // Test option struct.
