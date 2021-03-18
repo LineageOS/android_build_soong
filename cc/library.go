@@ -415,38 +415,39 @@ type staticLibraryBazelHandler struct {
 
 func (handler *staticLibraryBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
 	bazelCtx := ctx.Config().BazelContext
-	outputPaths, objPaths, ok := bazelCtx.GetAllFilesAndCcObjectFiles(label, ctx.Arch().ArchType)
-	if ok {
-		if len(outputPaths) != 1 {
-			// TODO(cparsons): This is actually expected behavior for static libraries with no srcs.
-			// We should support this.
-			ctx.ModuleErrorf("expected exactly one output file for '%s', but got %s", label, objPaths)
-			return false
-		}
-		outputFilePath := android.PathForBazelOut(ctx, outputPaths[0])
-		handler.module.outputFile = android.OptionalPathForPath(outputFilePath)
-
-		objFiles := make(android.Paths, len(objPaths))
-		for i, objPath := range objPaths {
-			objFiles[i] = android.PathForBazelOut(ctx, objPath)
-		}
-		objects := Objects{
-			objFiles: objFiles,
-		}
-
-		ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
-			StaticLibrary: outputFilePath,
-			ReuseObjects:  objects,
-			Objects:       objects,
-
-			// TODO(cparsons): Include transitive static libraries in this provider to support
-			// static libraries with deps.
-			TransitiveStaticLibrariesForOrdering: android.NewDepSetBuilder(android.TOPOLOGICAL).
-				Direct(outputFilePath).
-				Build(),
-		})
-		handler.module.outputFile = android.OptionalPathForPath(android.PathForBazelOut(ctx, objPaths[0]))
+	outputPaths, objPaths, ok := bazelCtx.GetOutputFilesAndCcObjectFiles(label, ctx.Arch().ArchType)
+	if !ok {
+		return ok
 	}
+	if len(outputPaths) != 1 {
+		// TODO(cparsons): This is actually expected behavior for static libraries with no srcs.
+		// We should support this.
+		ctx.ModuleErrorf("expected exactly one output file for '%s', but got %s", label, objPaths)
+		return false
+	}
+	outputFilePath := android.PathForBazelOut(ctx, outputPaths[0])
+	handler.module.outputFile = android.OptionalPathForPath(outputFilePath)
+
+	objFiles := make(android.Paths, len(objPaths))
+	for i, objPath := range objPaths {
+		objFiles[i] = android.PathForBazelOut(ctx, objPath)
+	}
+	objects := Objects{
+		objFiles: objFiles,
+	}
+
+	ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
+		StaticLibrary: outputFilePath,
+		ReuseObjects:  objects,
+		Objects:       objects,
+
+		// TODO(cparsons): Include transitive static libraries in this provider to support
+		// static libraries with deps.
+		TransitiveStaticLibrariesForOrdering: android.NewDepSetBuilder(android.TOPOLOGICAL).
+			Direct(outputFilePath).
+			Build(),
+	})
+	handler.module.outputFile = android.OptionalPathForPath(android.PathForBazelOut(ctx, objPaths[0]))
 	return ok
 }
 

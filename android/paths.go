@@ -339,6 +339,7 @@ type BazelConversionPathContext interface {
 	EarlyModulePathContext
 
 	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
+	Module() Module
 	OtherModuleName(m blueprint.Module) string
 	OtherModuleDir(m blueprint.Module) string
 }
@@ -434,15 +435,45 @@ func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes 
 // already be resolved by either deps mutator or path deps mutator.
 func getOtherModuleLabel(ctx BazelConversionPathContext, dep, tag string) bazel.Label {
 	m, _ := ctx.GetDirectDep(dep)
-	// TODO(b/165114590): Convert tag (":name{.tag}") to corresponding Bazel implicit output targets.
-	otherModuleName := ctx.OtherModuleName(m)
-	var label bazel.Label
-	if otherDir, dir := ctx.OtherModuleDir(m), ctx.ModuleDir(); otherDir != dir {
-		label.Label = fmt.Sprintf("//%s:%s", otherDir, otherModuleName)
-	} else {
-		label.Label = fmt.Sprintf(":%s", otherModuleName)
+	otherLabel := bazelModuleLabel(ctx, m, tag)
+	label := bazelModuleLabel(ctx, ctx.Module(), "")
+	if samePackage(label, otherLabel) {
+		otherLabel = bazelShortLabel(otherLabel)
 	}
-	return label
+
+	return bazel.Label{
+		Label: otherLabel,
+	}
+}
+
+func bazelModuleLabel(ctx BazelConversionPathContext, module blueprint.Module, tag string) string {
+	// TODO(b/165114590): Convert tag (":name{.tag}") to corresponding Bazel implicit output targets.
+	b, ok := module.(Bazelable)
+	// TODO(b/181155349): perhaps return an error here if the module can't be/isn't being converted
+	if !ok || !b.ConvertedToBazel() {
+		return bp2buildModuleLabel(ctx, module)
+	}
+	return b.GetBazelLabel(ctx, module)
+}
+
+func bazelShortLabel(label string) string {
+	i := strings.Index(label, ":")
+	return label[i:]
+}
+
+func bazelPackage(label string) string {
+	i := strings.Index(label, ":")
+	return label[0:i]
+}
+
+func samePackage(label1, label2 string) bool {
+	return bazelPackage(label1) == bazelPackage(label2)
+}
+
+func bp2buildModuleLabel(ctx BazelConversionPathContext, module blueprint.Module) string {
+	moduleName := ctx.OtherModuleName(module)
+	moduleDir := ctx.OtherModuleDir(module)
+	return fmt.Sprintf("//%s:%s", moduleDir, moduleName)
 }
 
 // OutputPaths is a slice of OutputPath objects, with helpers to operate on the collection.
