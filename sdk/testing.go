@@ -16,8 +16,6 @@ package sdk
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -30,7 +28,7 @@ import (
 )
 
 var sdkFixtureFactory = android.NewFixtureFactory(
-	&buildDir,
+	nil,
 	apex.PrepareForTestWithApexBuildComponents,
 	cc.PrepareForTestWithCcDefaultModules,
 	genrule.PrepareForTestWithGenRuleBuildComponents,
@@ -325,29 +323,4 @@ type snapshotBuildInfo struct {
 
 	// The final output zip.
 	outputZip string
-}
-
-var buildDir string
-
-func setUp() {
-	var err error
-	buildDir, err = ioutil.TempDir("", "soong_sdk_test")
-	if err != nil {
-		panic(err)
-	}
-}
-
-func tearDown() {
-	_ = os.RemoveAll(buildDir)
-}
-
-func runTestWithBuildDir(m *testing.M) {
-	run := func() int {
-		setUp()
-		defer tearDown()
-
-		return m.Run()
-	}
-
-	os.Exit(run())
 }
