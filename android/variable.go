@@ -427,6 +427,9 @@ func (v *productVariables) SetDefaultConfig() {
 		Malloc_zero_contents:         boolPtr(true),
 		Malloc_pattern_fill_contents: boolPtr(false),
 		Safestack:                    boolPtr(false),
+
+		BootJars:          ConfiguredJarList{apexes: []string{}, jars: []string{}},
+		UpdatableBootJars: ConfiguredJarList{apexes: []string{}, jars: []string{}},
 	}
 
 	if runtime.GOOS == "linux" {
