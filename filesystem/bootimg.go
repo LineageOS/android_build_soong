@@ -280,6 +280,13 @@ func (b *bootimg) OutputPath() android.Path {
 	return b.output
 }
 
+func (b *bootimg) SignedOutputPath() android.Path {
+	if proptools.Bool(b.properties.Use_avb) {
+		return b.OutputPath()
+	}
+	return nil
+}
+
 var _ android.OutputFileProducer = (*bootimg)(nil)
 
 // Implements android.OutputFileProducer
