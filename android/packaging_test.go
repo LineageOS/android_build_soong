@@ -15,7 +15,6 @@
 package android
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/google/blueprint"
@@ -87,33 +86,30 @@ func (m *packageTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 func runPackagingTest(t *testing.T, multitarget bool, bp string, expected []string) {
 	t.Helper()
 
-	config := TestArchConfig(buildDir, nil, bp, nil)
-
-	ctx := NewTestArchContext(config)
-	ctx.RegisterModuleType("component", componentTestModuleFactory)
-
 	var archVariant string
+	var moduleFactory ModuleFactory
 	if multitarget {
 		archVariant = "android_common"
-		ctx.RegisterModuleType("package_module", packageMultiTargetTestModuleFactory)
+		moduleFactory = packageMultiTargetTestModuleFactory
 	} else {
 		archVariant = "android_arm64_armv8-a"
-		ctx.RegisterModuleType("package_module", packageTestModuleFactory)
+		moduleFactory = packageTestModuleFactory
 	}
-	ctx.Register()
 
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	FailIfErrored(t, errs)
+	result := emptyTestFixtureFactory.RunTest(t,
+		PrepareForTestWithArchMutator,
+		FixtureRegisterWithContext(func(ctx RegistrationContext) {
+			ctx.RegisterModuleType("component", componentTestModuleFactory)
+			ctx.RegisterModuleType("package_module", moduleFactory)
+		}),
+		FixtureWithRootAndroidBp(bp),
+	)
 
-	p := ctx.ModuleForTests("package", archVariant).Module().(*packageTestModule)
+	p := result.Module("package", archVariant).(*packageTestModule)
 	actual := p.entries
 	actual = SortedUniqueStrings(actual)
 	expected = SortedUniqueStrings(expected)
-	if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("\ngot: %v\nexpected: %v\n", actual, expected)
-	}
+	AssertDeepEquals(t, "package entries", expected, actual)
 }
 
 func TestPackagingBaseMultiTarget(t *testing.T) {
