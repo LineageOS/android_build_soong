@@ -15,7 +15,11 @@
 package android
 
 func init() {
-	RegisterModuleType("csuite_config", CSuiteConfigFactory)
+	registerCSuiteBuildComponents(InitRegistrationContext)
+}
+
+func registerCSuiteBuildComponents(ctx RegistrationContext) {
+	ctx.RegisterModuleType("csuite_config", CSuiteConfigFactory)
 }
 
 type csuiteConfigProperties struct {
