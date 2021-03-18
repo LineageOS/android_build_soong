@@ -15,6 +15,7 @@
 package genrule
 
 import (
+	"io/ioutil"
 	"os"
 	"regexp"
 	"testing"
@@ -24,12 +25,33 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+var buildDir string
+
+func setUp() {
+	var err error
+	buildDir, err = ioutil.TempDir("", "genrule_test")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func tearDown() {
+	os.RemoveAll(buildDir)
+}
+
 func TestMain(m *testing.M) {
-	os.Exit(m.Run())
+	run := func() int {
+		setUp()
+		defer tearDown()
+
+		return m.Run()
+	}
+
+	os.Exit(run())
 }
 
 var genruleFixtureFactory = android.NewFixtureFactory(
-	nil,
+	&buildDir,
 	android.PrepareForTestWithArchMutator,
 	android.PrepareForTestWithDefaults,
 
@@ -550,14 +572,8 @@ func TestGenSrcs(t *testing.T) {
 			cmds: []string{
 				"bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in1.txt > __SBOX_SANDBOX_DIR__/out/in1.h' && bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in2.txt > __SBOX_SANDBOX_DIR__/out/in2.h'",
 			},
-			deps: []string{
-				"out/soong/.intermediates/gen/gen/gensrcs/in1.h",
-				"out/soong/.intermediates/gen/gen/gensrcs/in2.h",
-			},
-			files: []string{
-				"out/soong/.intermediates/gen/gen/gensrcs/in1.h",
-				"out/soong/.intermediates/gen/gen/gensrcs/in2.h",
-			},
+			deps:  []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h"},
+			files: []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h"},
 		},
 		{
 			name: "shards",
@@ -571,16 +587,8 @@ func TestGenSrcs(t *testing.T) {
 				"bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in1.txt > __SBOX_SANDBOX_DIR__/out/in1.h' && bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in2.txt > __SBOX_SANDBOX_DIR__/out/in2.h'",
 				"bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in3.txt > __SBOX_SANDBOX_DIR__/out/in3.h'",
 			},
-			deps: []string{
-				"out/soong/.intermediates/gen/gen/gensrcs/in1.h",
-				"out/soong/.intermediates/gen/gen/gensrcs/in2.h",
-				"out/soong/.intermediates/gen/gen/gensrcs/in3.h",
-			},
-			files: []string{
-				"out/soong/.intermediates/gen/gen/gensrcs/in1.h",
-				"out/soong/.intermediates/gen/gen/gensrcs/in2.h",
-				"out/soong/.intermediates/gen/gen/gensrcs/in3.h",
-			},
+			deps:  []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h", buildDir + "/.intermediates/gen/gen/gensrcs/in3.h"},
+			files: []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h", buildDir + "/.intermediates/gen/gen/gensrcs/in3.h"},
 		},
 	}
 
@@ -608,9 +616,9 @@ func TestGenSrcs(t *testing.T) {
 			gen := result.Module("gen", "").(*Module)
 			android.AssertDeepEquals(t, "cmd", test.cmds, gen.rawCommands)
 
-			android.AssertPathsRelativeToTopEquals(t, "deps", test.deps, gen.outputDeps)
+			android.AssertDeepEquals(t, "deps", test.deps, gen.outputDeps.Strings())
 
-			android.AssertPathsRelativeToTopEquals(t, "files", test.files, gen.outputFiles)
+			android.AssertDeepEquals(t, "files", test.files, gen.outputFiles.Strings())
 		})
 	}
 }

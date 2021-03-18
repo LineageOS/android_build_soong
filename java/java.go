@@ -37,36 +37,6 @@ import (
 func init() {
 	RegisterJavaBuildComponents(android.InitRegistrationContext)
 
-	RegisterJavaSdkMemberTypes()
-}
-
-func RegisterJavaBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterModuleType("java_defaults", DefaultsFactory)
-
-	ctx.RegisterModuleType("java_library", LibraryFactory)
-	ctx.RegisterModuleType("java_library_static", LibraryStaticFactory)
-	ctx.RegisterModuleType("java_library_host", LibraryHostFactory)
-	ctx.RegisterModuleType("java_binary", BinaryFactory)
-	ctx.RegisterModuleType("java_binary_host", BinaryHostFactory)
-	ctx.RegisterModuleType("java_test", TestFactory)
-	ctx.RegisterModuleType("java_test_helper_library", TestHelperLibraryFactory)
-	ctx.RegisterModuleType("java_test_host", TestHostFactory)
-	ctx.RegisterModuleType("java_test_import", JavaTestImportFactory)
-	ctx.RegisterModuleType("java_import", ImportFactory)
-	ctx.RegisterModuleType("java_import_host", ImportFactoryHost)
-	ctx.RegisterModuleType("java_device_for_host", DeviceForHostFactory)
-	ctx.RegisterModuleType("java_host_for_device", HostForDeviceFactory)
-	ctx.RegisterModuleType("dex_import", DexImportFactory)
-
-	ctx.FinalDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("dexpreopt_tool_deps", dexpreoptToolDepsMutator).Parallel()
-	})
-
-	ctx.RegisterSingletonType("logtags", LogtagsSingleton)
-	ctx.RegisterSingletonType("kythe_java_extract", kytheExtractJavaFactory)
-}
-
-func RegisterJavaSdkMemberTypes() {
 	// Register sdk member types.
 	android.RegisterSdkMemberType(javaHeaderLibsSdkMemberType)
 
@@ -119,7 +89,85 @@ func RegisterJavaSdkMemberTypes() {
 			PropertyName: "java_tests",
 		},
 	})
+}
 
+func RegisterJavaBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("java_defaults", DefaultsFactory)
+
+	ctx.RegisterModuleType("java_library", LibraryFactory)
+	ctx.RegisterModuleType("java_library_static", LibraryStaticFactory)
+	ctx.RegisterModuleType("java_library_host", LibraryHostFactory)
+	ctx.RegisterModuleType("java_binary", BinaryFactory)
+	ctx.RegisterModuleType("java_binary_host", BinaryHostFactory)
+	ctx.RegisterModuleType("java_test", TestFactory)
+	ctx.RegisterModuleType("java_test_helper_library", TestHelperLibraryFactory)
+	ctx.RegisterModuleType("java_test_host", TestHostFactory)
+	ctx.RegisterModuleType("java_test_import", JavaTestImportFactory)
+	ctx.RegisterModuleType("java_import", ImportFactory)
+	ctx.RegisterModuleType("java_import_host", ImportFactoryHost)
+	ctx.RegisterModuleType("java_device_for_host", DeviceForHostFactory)
+	ctx.RegisterModuleType("java_host_for_device", HostForDeviceFactory)
+	ctx.RegisterModuleType("dex_import", DexImportFactory)
+
+	ctx.FinalDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("dexpreopt_tool_deps", dexpreoptToolDepsMutator).Parallel()
+	})
+
+	ctx.RegisterSingletonType("logtags", LogtagsSingleton)
+	ctx.RegisterSingletonType("kythe_java_extract", kytheExtractJavaFactory)
+}
+
+func (j *Module) CheckStableSdkVersion() error {
+	sdkVersion := j.sdkVersion()
+	if sdkVersion.stable() {
+		return nil
+	}
+	if sdkVersion.kind == sdkCorePlatform {
+		if useLegacyCorePlatformApiByName(j.BaseModuleName()) {
+			return fmt.Errorf("non stable SDK %v - uses legacy core platform", sdkVersion)
+		} else {
+			// Treat stable core platform as stable.
+			return nil
+		}
+	} else {
+		return fmt.Errorf("non stable SDK %v", sdkVersion)
+	}
+}
+
+func (j *Module) checkSdkVersions(ctx android.ModuleContext) {
+	if j.RequiresStableAPIs(ctx) {
+		if sc, ok := ctx.Module().(sdkContext); ok {
+			if !sc.sdkVersion().specified() {
+				ctx.PropertyErrorf("sdk_version",
+					"sdk_version must have a value when the module is located at vendor or product(only if PRODUCT_ENFORCE_PRODUCT_PARTITION_INTERFACE is set).")
+			}
+		}
+	}
+
+	ctx.VisitDirectDeps(func(module android.Module) {
+		tag := ctx.OtherModuleDependencyTag(module)
+		switch module.(type) {
+		// TODO(satayev): cover other types as well, e.g. imports
+		case *Library, *AndroidLibrary:
+			switch tag {
+			case bootClasspathTag, libTag, staticLibTag, java9LibTag:
+				checkLinkType(ctx, j, module.(linkTypeContext), tag.(dependencyTag))
+			}
+		}
+	})
+}
+
+func (j *Module) checkPlatformAPI(ctx android.ModuleContext) {
+	if sc, ok := ctx.Module().(sdkContext); ok {
+		usePlatformAPI := proptools.Bool(j.deviceProperties.Platform_apis)
+		sdkVersionSpecified := sc.sdkVersion().specified()
+		if usePlatformAPI && sdkVersionSpecified {
+			ctx.PropertyErrorf("platform_apis", "platform_apis must be false when sdk_version is not empty.")
+		} else if !usePlatformAPI && !sdkVersionSpecified {
+			ctx.PropertyErrorf("platform_apis", "platform_apis must be true when sdk_version is empty.")
+		}
+
+	}
 }
 
 // TODO:
@@ -131,8 +179,7 @@ func RegisterJavaSdkMemberTypes() {
 // DroidDoc
 // Findbugs
 
-// Properties that are common to most Java modules, i.e. whether it's a host or device module.
-type CommonProperties struct {
+type CompilerProperties struct {
 	// list of source files used to compile the Java module.  May be .java, .kt, .logtags, .proto,
 	// or .aidl files.
 	Srcs []string `android:"path,arch_variant"`
@@ -265,9 +312,7 @@ type CommonProperties struct {
 	Hiddenapi_additional_annotations []string
 }
 
-// Properties that are specific to device modules. Host module factories should not add these when
-// constructing a new module.
-type DeviceProperties struct {
+type CompilerDeviceProperties struct {
 	// if not blank, set to the version of the sdk to compile against.
 	// Defaults to compiling against the current platform.
 	Sdk_version *string
@@ -376,9 +421,9 @@ type Module struct {
 	// Functionality common to Module and Import.
 	embeddableInModuleAndImport
 
-	properties       CommonProperties
+	properties       CompilerProperties
 	protoProperties  android.ProtoProperties
-	deviceProperties DeviceProperties
+	deviceProperties CompilerDeviceProperties
 
 	// jar file containing header classes including static library dependencies, suitable for
 	// inserting into the bootclasspath/classpath of another compile
@@ -461,62 +506,6 @@ type Module struct {
 	modulePaths []string
 
 	hideApexVariantFromMake bool
-}
-
-func (j *Module) CheckStableSdkVersion() error {
-	sdkVersion := j.sdkVersion()
-	if sdkVersion.stable() {
-		return nil
-	}
-	if sdkVersion.kind == sdkCorePlatform {
-		if useLegacyCorePlatformApiByName(j.BaseModuleName()) {
-			return fmt.Errorf("non stable SDK %v - uses legacy core platform", sdkVersion)
-		} else {
-			// Treat stable core platform as stable.
-			return nil
-		}
-	} else {
-		return fmt.Errorf("non stable SDK %v", sdkVersion)
-	}
-}
-
-// checkSdkVersions enforces restrictions around SDK dependencies.
-func (j *Module) checkSdkVersions(ctx android.ModuleContext) {
-	if j.RequiresStableAPIs(ctx) {
-		if sc, ok := ctx.Module().(sdkContext); ok {
-			if !sc.sdkVersion().specified() {
-				ctx.PropertyErrorf("sdk_version",
-					"sdk_version must have a value when the module is located at vendor or product(only if PRODUCT_ENFORCE_PRODUCT_PARTITION_INTERFACE is set).")
-			}
-		}
-	}
-
-	// Make sure this module doesn't statically link to modules with lower-ranked SDK link type.
-	// See rank() for details.
-	ctx.VisitDirectDeps(func(module android.Module) {
-		tag := ctx.OtherModuleDependencyTag(module)
-		switch module.(type) {
-		// TODO(satayev): cover other types as well, e.g. imports
-		case *Library, *AndroidLibrary:
-			switch tag {
-			case bootClasspathTag, libTag, staticLibTag, java9LibTag:
-				j.checkSdkLinkType(ctx, module.(moduleWithSdkDep), tag.(dependencyTag))
-			}
-		}
-	})
-}
-
-func (j *Module) checkPlatformAPI(ctx android.ModuleContext) {
-	if sc, ok := ctx.Module().(sdkContext); ok {
-		usePlatformAPI := proptools.Bool(j.deviceProperties.Platform_apis)
-		sdkVersionSpecified := sc.sdkVersion().specified()
-		if usePlatformAPI && sdkVersionSpecified {
-			ctx.PropertyErrorf("platform_apis", "platform_apis must be false when sdk_version is not empty.")
-		} else if !usePlatformAPI && !sdkVersionSpecified {
-			ctx.PropertyErrorf("platform_apis", "platform_apis must be true when sdk_version is empty.")
-		}
-
-	}
 }
 
 func (j *Module) addHostProperties() {
@@ -1019,13 +1008,13 @@ func checkProducesJars(ctx android.ModuleContext, dep android.SourceFileProducer
 	}
 }
 
-type sdkLinkType int
+type linkType int
 
 const (
 	// TODO(jiyong) rename these for better readability. Make the allowed
 	// and disallowed link types explicit
 	// order is important here. See rank()
-	javaCore sdkLinkType = iota
+	javaCore linkType = iota
 	javaSdk
 	javaSystem
 	javaModule
@@ -1033,7 +1022,7 @@ const (
 	javaPlatform
 )
 
-func (lt sdkLinkType) String() string {
+func (lt linkType) String() string {
 	switch lt {
 	case javaCore:
 		return "core Java API"
@@ -1052,19 +1041,18 @@ func (lt sdkLinkType) String() string {
 	}
 }
 
-// rank determines the total order among sdkLinkType. An SDK link type of rank A can link to
-// another SDK link type of rank B only when B <= A. For example, a module linking to Android SDK
-// can't statically depend on modules that use Platform API.
-func (lt sdkLinkType) rank() int {
+// rank determins the total order among linkTypes. A link type of rank A can link to another link
+// type of rank B only when B <= A
+func (lt linkType) rank() int {
 	return int(lt)
 }
 
-type moduleWithSdkDep interface {
+type linkTypeContext interface {
 	android.Module
-	getSdkLinkType(name string) (ret sdkLinkType, stubs bool)
+	getLinkType(name string) (ret linkType, stubs bool)
 }
 
-func (m *Module) getSdkLinkType(name string) (ret sdkLinkType, stubs bool) {
+func (m *Module) getLinkType(name string) (ret linkType, stubs bool) {
 	switch name {
 	case "core.current.stubs", "legacy.core.platform.api.stubs", "stable.core.platform.api.stubs",
 		"stub-annotations", "private-stub-annotations-jar",
@@ -1108,26 +1096,23 @@ func (m *Module) getSdkLinkType(name string) (ret sdkLinkType, stubs bool) {
 	return javaSdk, false
 }
 
-// checkSdkLinkType make sures the given dependency doesn't have a lower SDK link type rank than
-// this module's. See the comment on rank() for details and an example.
-func (j *Module) checkSdkLinkType(
-	ctx android.ModuleContext, dep moduleWithSdkDep, tag dependencyTag) {
+func checkLinkType(ctx android.ModuleContext, from *Module, to linkTypeContext, tag dependencyTag) {
 	if ctx.Host() {
 		return
 	}
 
-	myLinkType, stubs := j.getSdkLinkType(ctx.ModuleName())
+	myLinkType, stubs := from.getLinkType(ctx.ModuleName())
 	if stubs {
 		return
 	}
-	depLinkType, _ := dep.getSdkLinkType(ctx.OtherModuleName(dep))
+	otherLinkType, _ := to.getLinkType(ctx.OtherModuleName(to))
 
-	if myLinkType.rank() < depLinkType.rank() {
+	if myLinkType.rank() < otherLinkType.rank() {
 		ctx.ModuleErrorf("compiles against %v, but dependency %q is compiling against %v. "+
 			"In order to fix this, consider adjusting sdk_version: OR platform_apis: "+
 			"property of the source or target module so that target module is built "+
 			"with the same or smaller API set when compared to the source.",
-			myLinkType, ctx.OtherModuleName(dep), depLinkType)
+			myLinkType, ctx.OtherModuleName(to), otherLinkType)
 	}
 }
 
@@ -1148,7 +1133,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 		}
 	}
 
-	sdkLinkType, _ := j.getSdkLinkType(ctx.ModuleName())
+	linkType, _ := j.getLinkType(ctx.ModuleName())
 
 	ctx.VisitDirectDeps(func(module android.Module) {
 		otherName := ctx.OtherModuleName(module)
@@ -1172,7 +1157,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 			}
 		} else if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
 			dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
-			if sdkLinkType != javaPlatform &&
+			if linkType != javaPlatform &&
 				ctx.OtherModuleHasProvider(module, SyspropPublicStubInfoProvider) {
 				// dep is a sysprop implementation library, but this module is not linking against
 				// the platform, so it gets the sysprop public stubs library instead.  Replace
@@ -3347,8 +3332,8 @@ func DefaultsFactory() android.Module {
 	module := &Defaults{}
 
 	module.AddProperties(
-		&CommonProperties{},
-		&DeviceProperties{},
+		&CompilerProperties{},
+		&CompilerDeviceProperties{},
 		&DexProperties{},
 		&DexpreoptProperties{},
 		&android.ProtoProperties{},
