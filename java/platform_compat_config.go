@@ -35,10 +35,6 @@ func platformCompatConfigPath(ctx android.PathContext) android.OutputPath {
 	return android.PathForOutput(ctx, "compat_config", "merged_compat_config.xml")
 }
 
-type platformCompatConfigSingleton struct {
-	metadata android.Path
-}
-
 type platformCompatConfigProperties struct {
 	Src *string `android:"path"`
 }
@@ -75,7 +71,52 @@ type PlatformCompatConfigIntf interface {
 
 var _ PlatformCompatConfigIntf = (*platformCompatConfig)(nil)
 
+func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	rule := android.NewRuleBuilder(pctx, ctx)
+
+	configFileName := p.Name() + ".xml"
+	metadataFileName := p.Name() + "_meta.xml"
+	p.configFile = android.PathForModuleOut(ctx, configFileName).OutputPath
+	p.metadataFile = android.PathForModuleOut(ctx, metadataFileName).OutputPath
+	path := android.PathForModuleSrc(ctx, String(p.properties.Src))
+
+	rule.Command().
+		BuiltTool("process-compat-config").
+		FlagWithInput("--jar ", path).
+		FlagWithOutput("--device-config ", p.configFile).
+		FlagWithOutput("--merged-config ", p.metadataFile)
+
+	p.installDirPath = android.PathForModuleInstall(ctx, "etc", "compatconfig")
+	rule.Build(configFileName, "Extract compat/compat_config.xml and install it")
+
+}
+
+func (p *platformCompatConfig) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{android.AndroidMkEntries{
+		Class:      "ETC",
+		OutputFile: android.OptionalPathForPath(p.configFile),
+		Include:    "$(BUILD_PREBUILT)",
+		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+				entries.SetString("LOCAL_MODULE_PATH", p.installDirPath.ToMakePath().String())
+				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.configFile.Base())
+			},
+		},
+	}}
+}
+
+func PlatformCompatConfigFactory() android.Module {
+	module := &platformCompatConfig{}
+	module.AddProperties(&module.properties)
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	return module
+}
+
 // compat singleton rules
+type platformCompatConfigSingleton struct {
+	metadata android.Path
+}
+
 func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 
 	var compatConfigMetadata android.Paths
@@ -111,49 +152,8 @@ func (p *platformCompatConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
 	}
 }
 
-func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	rule := android.NewRuleBuilder(pctx, ctx)
-
-	configFileName := p.Name() + ".xml"
-	metadataFileName := p.Name() + "_meta.xml"
-	p.configFile = android.PathForModuleOut(ctx, configFileName).OutputPath
-	p.metadataFile = android.PathForModuleOut(ctx, metadataFileName).OutputPath
-	path := android.PathForModuleSrc(ctx, String(p.properties.Src))
-
-	rule.Command().
-		BuiltTool("process-compat-config").
-		FlagWithInput("--jar ", path).
-		FlagWithOutput("--device-config ", p.configFile).
-		FlagWithOutput("--merged-config ", p.metadataFile)
-
-	p.installDirPath = android.PathForModuleInstall(ctx, "etc", "compatconfig")
-	rule.Build(configFileName, "Extract compat/compat_config.xml and install it")
-
-}
-
-func (p *platformCompatConfig) AndroidMkEntries() []android.AndroidMkEntries {
-	return []android.AndroidMkEntries{android.AndroidMkEntries{
-		Class:      "ETC",
-		OutputFile: android.OptionalPathForPath(p.configFile),
-		Include:    "$(BUILD_PREBUILT)",
-		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-				entries.SetString("LOCAL_MODULE_PATH", p.installDirPath.ToMakePath().String())
-				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", p.configFile.Base())
-			},
-		},
-	}}
-}
-
 func platformCompatConfigSingletonFactory() android.Singleton {
 	return &platformCompatConfigSingleton{}
-}
-
-func PlatformCompatConfigFactory() android.Module {
-	module := &platformCompatConfig{}
-	module.AddProperties(&module.properties)
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
-	return module
 }
 
 //============== merged_compat_config =================
