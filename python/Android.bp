@@ -20,6 +20,7 @@ bootstrap_go_package {
         "proto.go",
         "python.go",
         "test.go",
+        "testing.go",
     ],
     testSrcs: [
         "python_test.go",
