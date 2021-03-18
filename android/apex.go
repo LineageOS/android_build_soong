@@ -257,11 +257,25 @@ type ApexProperties struct {
 }
 
 // Marker interface that identifies dependencies that are excluded from APEX contents.
+//
+// Unless the tag also implements the AlwaysRequireApexVariantTag this will prevent an apex variant
+// from being created for the module.
 type ExcludeFromApexContentsTag interface {
 	blueprint.DependencyTag
 
 	// Method that differentiates this interface from others.
 	ExcludeFromApexContents()
+}
+
+// Marker interface that identifies dependencies that always requires an APEX variant to be created.
+//
+// It is possible for a dependency to require an apex variant but exclude the module from the APEX
+// contents. See sdk.sdkMemberDependencyTag.
+type AlwaysRequireApexVariantTag interface {
+	blueprint.DependencyTag
+
+	// Return true if this tag requires that the target dependency has an apex variant.
+	AlwaysRequireApexVariant() bool
 }
 
 // Marker interface that identifies dependencies that should inherit the DirectlyInAnyApex state
