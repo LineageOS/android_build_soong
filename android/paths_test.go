@@ -21,8 +21,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/google/blueprint/proptools"
 )
 
 type strsTestCase struct {
@@ -977,7 +975,7 @@ type pathForModuleSrcTestCase struct {
 	rel  string
 }
 
-func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSrcTestCase) {
+func testPathForModuleSrc(t *testing.T, tests []pathForModuleSrcTestCase) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			fgBp := `
@@ -995,7 +993,7 @@ func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSr
 				}
 			`
 
-			mockFS := map[string][]byte{
+			mockFS := MockFS{
 				"fg/Android.bp":     []byte(fgBp),
 				"foo/Android.bp":    []byte(test.bp),
 				"ofp/Android.bp":    []byte(ofpBp),
@@ -1007,37 +1005,21 @@ func testPathForModuleSrc(t *testing.T, buildDir string, tests []pathForModuleSr
 				"foo/src_special/$": nil,
 			}
 
-			config := TestConfig(buildDir, nil, "", mockFS)
+			result := emptyTestFixtureFactory.RunTest(t,
+				FixtureRegisterWithContext(func(ctx RegistrationContext) {
+					ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
+					ctx.RegisterModuleType("output_file_provider", pathForModuleSrcOutputFileProviderModuleFactory)
+					ctx.RegisterModuleType("filegroup", FileGroupFactory)
+				}),
+				mockFS.AddToFixture(),
+			)
 
-			ctx := NewTestContext(config)
+			m := result.ModuleForTests("foo", "").Module().(*pathForModuleSrcTestModule)
 
-			ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
-			ctx.RegisterModuleType("output_file_provider", pathForModuleSrcOutputFileProviderModuleFactory)
-			ctx.RegisterModuleType("filegroup", FileGroupFactory)
-
-			ctx.Register()
-			_, errs := ctx.ParseFileList(".", []string{"fg/Android.bp", "foo/Android.bp", "ofp/Android.bp"})
-			FailIfErrored(t, errs)
-			_, errs = ctx.PrepareBuildActions(config)
-			FailIfErrored(t, errs)
-
-			m := ctx.ModuleForTests("foo", "").Module().(*pathForModuleSrcTestModule)
-
-			if g, w := m.srcs, test.srcs; !reflect.DeepEqual(g, w) {
-				t.Errorf("want srcs %q, got %q", w, g)
-			}
-
-			if g, w := m.rels, test.rels; !reflect.DeepEqual(g, w) {
-				t.Errorf("want rels %q, got %q", w, g)
-			}
-
-			if g, w := m.src, test.src; g != w {
-				t.Errorf("want src %q, got %q", w, g)
-			}
-
-			if g, w := m.rel, test.rel; g != w {
-				t.Errorf("want rel %q, got %q", w, g)
-			}
+			AssertStringPathsRelativeToTopEquals(t, "srcs", result.Config, test.srcs, m.srcs)
+			AssertStringPathsRelativeToTopEquals(t, "rels", result.Config, test.rels, m.rels)
+			AssertStringPathRelativeToTopEquals(t, "src", result.Config, test.src, m.src)
+			AssertStringPathRelativeToTopEquals(t, "rel", result.Config, test.rel, m.rel)
 		})
 	}
 }
@@ -1094,7 +1076,7 @@ func TestPathsForModuleSrc(t *testing.T) {
 				name: "foo",
 				srcs: [":b"],
 			}`,
-			srcs: []string{buildDir + "/.intermediates/ofp/b/gen/b"},
+			srcs: []string{"out/soong/.intermediates/ofp/b/gen/b"},
 			rels: []string{"gen/b"},
 		},
 		{
@@ -1104,7 +1086,7 @@ func TestPathsForModuleSrc(t *testing.T) {
 				name: "foo",
 				srcs: [":b{.tagged}"],
 			}`,
-			srcs: []string{buildDir + "/.intermediates/ofp/b/gen/c"},
+			srcs: []string{"out/soong/.intermediates/ofp/b/gen/c"},
 			rels: []string{"gen/c"},
 		},
 		{
@@ -1119,7 +1101,7 @@ func TestPathsForModuleSrc(t *testing.T) {
 				name: "c",
 				outs: ["gen/c"],
 			}`,
-			srcs: []string{buildDir + "/.intermediates/ofp/b/gen/b"},
+			srcs: []string{"out/soong/.intermediates/ofp/b/gen/b"},
 			rels: []string{"gen/b"},
 		},
 		{
@@ -1134,7 +1116,7 @@ func TestPathsForModuleSrc(t *testing.T) {
 		},
 	}
 
-	testPathForModuleSrc(t, buildDir, tests)
+	testPathForModuleSrc(t, tests)
 }
 
 func TestPathForModuleSrc(t *testing.T) {
@@ -1176,7 +1158,7 @@ func TestPathForModuleSrc(t *testing.T) {
 				name: "foo",
 				src: ":b",
 			}`,
-			src: buildDir + "/.intermediates/ofp/b/gen/b",
+			src: "out/soong/.intermediates/ofp/b/gen/b",
 			rel: "gen/b",
 		},
 		{
@@ -1186,7 +1168,7 @@ func TestPathForModuleSrc(t *testing.T) {
 				name: "foo",
 				src: ":b{.tagged}",
 			}`,
-			src: buildDir + "/.intermediates/ofp/b/gen/c",
+			src: "out/soong/.intermediates/ofp/b/gen/c",
 			rel: "gen/c",
 		},
 		{
@@ -1201,7 +1183,7 @@ func TestPathForModuleSrc(t *testing.T) {
 		},
 	}
 
-	testPathForModuleSrc(t, buildDir, tests)
+	testPathForModuleSrc(t, tests)
 }
 
 func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
@@ -1221,44 +1203,24 @@ func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, nil, bp, nil)
-	config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
+	result := emptyTestFixtureFactory.RunTest(t,
+		PrepareForTestWithAllowMissingDependencies,
+		FixtureRegisterWithContext(func(ctx RegistrationContext) {
+			ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
+		}),
+		FixtureWithRootAndroidBp(bp),
+	)
 
-	ctx := NewTestContext(config)
-	ctx.SetAllowMissingDependencies(true)
+	foo := result.ModuleForTests("foo", "").Module().(*pathForModuleSrcTestModule)
 
-	ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
+	AssertArrayString(t, "foo missing deps", []string{"a", "b", "c"}, foo.missingDeps)
+	AssertArrayString(t, "foo srcs", []string{}, foo.srcs)
+	AssertStringEquals(t, "foo src", "", foo.src)
 
-	ctx.Register()
+	bar := result.ModuleForTests("bar", "").Module().(*pathForModuleSrcTestModule)
 
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	FailIfErrored(t, errs)
-
-	foo := ctx.ModuleForTests("foo", "").Module().(*pathForModuleSrcTestModule)
-
-	if g, w := foo.missingDeps, []string{"a", "b", "c"}; !reflect.DeepEqual(g, w) {
-		t.Errorf("want foo missing deps %q, got %q", w, g)
-	}
-
-	if g, w := foo.srcs, []string{}; !reflect.DeepEqual(g, w) {
-		t.Errorf("want foo srcs %q, got %q", w, g)
-	}
-
-	if g, w := foo.src, ""; g != w {
-		t.Errorf("want foo src %q, got %q", w, g)
-	}
-
-	bar := ctx.ModuleForTests("bar", "").Module().(*pathForModuleSrcTestModule)
-
-	if g, w := bar.missingDeps, []string{"d", "e"}; !reflect.DeepEqual(g, w) {
-		t.Errorf("want bar missing deps %q, got %q", w, g)
-	}
-
-	if g, w := bar.srcs, []string{}; !reflect.DeepEqual(g, w) {
-		t.Errorf("want bar srcs %q, got %q", w, g)
-	}
+	AssertArrayString(t, "bar missing deps", []string{"d", "e"}, bar.missingDeps)
+	AssertArrayString(t, "bar srcs", []string{}, bar.srcs)
 }
 
 func TestPathRelativeToTop(t *testing.T) {
