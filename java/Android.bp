@@ -75,6 +75,7 @@ bootstrap_go_package {
         "java_test.go",
         "jdeps_test.go",
         "kotlin_test.go",
+        "platform_compat_config_test.go",
         "plugin_test.go",
         "rro_test.go",
         "sdk_test.go",

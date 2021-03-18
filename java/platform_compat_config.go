@@ -48,7 +48,7 @@ type platformCompatConfig struct {
 	metadataFile   android.OutputPath
 }
 
-func (p *platformCompatConfig) compatConfigMetadata() android.OutputPath {
+func (p *platformCompatConfig) compatConfigMetadata() android.Path {
 	return p.metadataFile
 }
 
@@ -60,16 +60,20 @@ func (p *platformCompatConfig) SubDir() string {
 	return "compatconfig"
 }
 
+type platformCompatConfigMetadataProvider interface {
+	compatConfigMetadata() android.Path
+}
+
 type PlatformCompatConfigIntf interface {
 	android.Module
 
-	compatConfigMetadata() android.OutputPath
 	CompatConfig() android.OutputPath
 	// Sub dir under etc dir.
 	SubDir() string
 }
 
 var _ PlatformCompatConfigIntf = (*platformCompatConfig)(nil)
+var _ platformCompatConfigMetadataProvider = (*platformCompatConfig)(nil)
 
 func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	rule := android.NewRuleBuilder(pctx, ctx)
@@ -122,7 +126,7 @@ func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.Singlet
 	var compatConfigMetadata android.Paths
 
 	ctx.VisitAllModules(func(module android.Module) {
-		if c, ok := module.(PlatformCompatConfigIntf); ok {
+		if c, ok := module.(platformCompatConfigMetadataProvider); ok {
 			metadata := c.compatConfigMetadata()
 			compatConfigMetadata = append(compatConfigMetadata, metadata)
 		}
