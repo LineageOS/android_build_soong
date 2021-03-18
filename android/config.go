@@ -279,23 +279,6 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	return Config{config}
 }
 
-// TestArchConfigNativeBridge returns a Config object suitable for using
-// for tests that need to run the arch mutator for native bridge supported
-// archs.
-func TestArchConfigNativeBridge(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
-	testConfig := TestArchConfig(buildDir, env, bp, fs)
-	config := testConfig.config
-
-	config.Targets[Android] = []Target{
-		{Android, Arch{ArchType: X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
-		{Android, Arch{ArchType: X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", "", false},
-		{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeEnabled, "x86_64", "arm64", false},
-		{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeEnabled, "x86", "arm", false},
-	}
-
-	return testConfig
-}
-
 func fuchsiaTargets() map[OsType][]Target {
 	return map[OsType][]Target{
 		Fuchsia: {
