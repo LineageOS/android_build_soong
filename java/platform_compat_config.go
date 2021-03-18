@@ -26,6 +26,7 @@ func init() {
 func registerPlatformCompatConfigBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterSingletonType("platform_compat_config_singleton", platformCompatConfigSingletonFactory)
 	ctx.RegisterModuleType("platform_compat_config", PlatformCompatConfigFactory)
+	ctx.RegisterModuleType("prebuilt_platform_compat_config", prebuiltCompatConfigFactory)
 	ctx.RegisterModuleType("global_compat_config", globalCompatConfigFactory)
 }
 
@@ -114,6 +115,49 @@ func PlatformCompatConfigFactory() android.Module {
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
+}
+
+// A prebuilt version of the platform compat config module.
+type prebuiltCompatConfigModule struct {
+	android.ModuleBase
+	android.SdkBase
+	prebuilt android.Prebuilt
+
+	properties prebuiltCompatConfigProperties
+
+	metadataFile android.Path
+}
+
+type prebuiltCompatConfigProperties struct {
+	Metadata *string `android:"path"`
+}
+
+func (module *prebuiltCompatConfigModule) Prebuilt() *android.Prebuilt {
+	return &module.prebuilt
+}
+
+func (module *prebuiltCompatConfigModule) Name() string {
+	return module.prebuilt.Name(module.ModuleBase.Name())
+}
+
+func (module *prebuiltCompatConfigModule) compatConfigMetadata() android.Path {
+	return module.metadataFile
+}
+
+var _ platformCompatConfigMetadataProvider = (*prebuiltCompatConfigModule)(nil)
+
+func (module *prebuiltCompatConfigModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	module.metadataFile = module.prebuilt.SingleSourcePath(ctx)
+}
+
+// A prebuilt version of platform_compat_config that provides the metadata.
+func prebuiltCompatConfigFactory() android.Module {
+	m := &prebuiltCompatConfigModule{}
+	m.AddProperties(&m.properties)
+	android.InitSingleSourcePrebuiltModule(m, &m.properties, "Metadata")
+	android.InitSdkAwareModule(m)
+	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
+	return m
 }
 
 // compat singleton rules
