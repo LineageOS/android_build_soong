@@ -506,6 +506,14 @@ var FixtureExpectsNoErrors = FixtureCustomErrorHandler(
 	},
 )
 
+// FixtureIgnoreErrors ignores any errors.
+//
+// If this is used then it is the responsibility of the test to check the TestResult.Errs does not
+// contain any unexpected errors.
+var FixtureIgnoreErrors = FixtureCustomErrorHandler(func(t *testing.T, result *TestResult) {
+	// Ignore the errors
+})
+
 // FixtureExpectsAtLeastOneMatchingError returns an error handler that will cause the test to fail
 // if at least one error that matches the regular expression is not found.
 //
