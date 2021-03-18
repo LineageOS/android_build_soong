@@ -13,6 +13,7 @@ bootstrap_go_package {
         "soong-etc",
     ],
     srcs: [
+        "testing.go",
         "xml.go",
     ],
     testSrcs: [
