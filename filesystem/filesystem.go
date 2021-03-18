@@ -55,6 +55,9 @@ type filesystemProperties struct {
 	// Hash and signing algorithm for avbtool. Default is SHA256_RSA4096.
 	Avb_algorithm *string
 
+	// Name of the partition stored in vbmeta desc. Defaults to the name of this module.
+	Partition_name *string
+
 	// Type of the filesystem. Currently, ext4, cpio, and compressed_cpio are supported. Default
 	// is ext4.
 	Type *string
@@ -279,7 +282,8 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (propFile android.
 		key := android.PathForModuleSrc(ctx, proptools.String(f.properties.Avb_private_key))
 		addPath("avb_key_path", key)
 		addStr("avb_add_hashtree_footer_args", "--do_not_generate_fec")
-		addStr("partition_name", f.Name())
+		partitionName := proptools.StringDefault(f.properties.Partition_name, f.Name())
+		addStr("partition_name", partitionName)
 	}
 
 	if proptools.String(f.properties.File_contexts) != "" {
