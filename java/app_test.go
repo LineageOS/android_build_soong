@@ -375,6 +375,9 @@ func TestUpdatableApps(t *testing.T) {
 				errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(test.expectedError)
 			}
 			javaFixtureFactory.
+				Extend(FixtureWithPrebuiltApis(map[string][]string{
+					"29": {"foo"},
+				})).
 				ExtendWithErrorHandler(errorHandler).RunTestWithBp(t, test.bp)
 		})
 	}
@@ -1081,6 +1084,9 @@ func TestAppSdkVersion(t *testing.T) {
 						variables.Platform_version_active_codenames = test.activeCodenames
 						variables.Platform_sdk_final = &test.platformSdkFinal
 					}),
+					FixtureWithPrebuiltApis(map[string][]string{
+						"14": {"foo"},
+					}),
 				).RunTestWithBp(t, bp)
 
 				checkSdkVersion(t, result, test.expectedMinSdkVersion)
@@ -1146,6 +1152,11 @@ func TestVendorAppSdkVersion(t *testing.T) {
 							variables.Platform_sdk_final = &test.platformSdkFinal
 							variables.DeviceCurrentApiLevelForVendorModules = &test.deviceCurrentApiLevelForVendorModules
 							variables.DeviceSystemSdkVersions = []string{"28", "29"}
+						}),
+						FixtureWithPrebuiltApis(map[string][]string{
+							"28":      {"foo"},
+							"29":      {"foo"},
+							"current": {"foo"},
 						}),
 					).RunTestWithBp(t, bp)
 
@@ -2359,6 +2370,8 @@ func TestUsesLibraries(t *testing.T) {
 	`
 
 	result := javaFixtureFactory.Extend(
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("runtime-library", "foo", "quuz", "qux", "bar", "fred"),
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.MissingUsesLibraries = []string{"baz"}
 		}),
@@ -2706,6 +2719,7 @@ func TestUncompressDex(t *testing.T) {
 		t.Helper()
 
 		result := javaFixtureFactory.Extend(
+			PrepareForTestWithPrebuiltsOfCurrentApi,
 			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 				if unbundled {
 					variables.Unbundled_build = proptools.BoolPtr(true)
