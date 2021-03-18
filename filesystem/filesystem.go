@@ -385,10 +385,21 @@ func (f *filesystem) OutputFiles(tag string) (android.Paths, error) {
 type Filesystem interface {
 	android.Module
 	OutputPath() android.Path
+
+	// Returns the output file that is signed by avbtool. If this module is not signed, returns
+	// nil.
+	SignedOutputPath() android.Path
 }
 
 var _ Filesystem = (*filesystem)(nil)
 
 func (f *filesystem) OutputPath() android.Path {
 	return f.output
+}
+
+func (f *filesystem) SignedOutputPath() android.Path {
+	if proptools.Bool(f.properties.Use_avb) {
+		return f.OutputPath()
+	}
+	return nil
 }
