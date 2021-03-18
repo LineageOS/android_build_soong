@@ -207,14 +207,26 @@ var (
 							"lib1",
 						],
 					}
+
+					python_binary_host {
+						name: "bin",
+						pkg_path: "e/",
+						srcs: [
+							"bin.py",
+						],
+						libs: [
+							"lib2",
+						],
+					}
 					`,
 				),
 				"dir/c/file1.py": nil,
 				"dir/file1.py":   nil,
+				"dir/bin.py":     nil,
 			},
 			errors: []string{
-				fmt.Sprintf(dupRunfileErrTemplate, "dir/Android.bp:9:6",
-					"lib2", "PY3", "a/b/c/file1.py", "lib2", "dir/file1.py",
+				fmt.Sprintf(dupRunfileErrTemplate, "dir/Android.bp:20:6",
+					"bin", "PY3", "a/b/c/file1.py", "bin", "dir/file1.py",
 					"lib1", "dir/c/file1.py"),
 			},
 		},
@@ -339,7 +351,7 @@ func TestPythonModule(t *testing.T) {
 			_, testErrs := ctx.ParseBlueprintsFiles(bpFile)
 			android.FailIfErrored(t, testErrs)
 			_, actErrs := ctx.PrepareBuildActions(config)
-			if len(actErrs) > 0 {
+			if len(actErrs) > 0 || len(d.errors) > 0 {
 				testErrs = append(testErrs, expectErrors(t, actErrs, d.errors)...)
 			} else {
 				for _, e := range d.expectedBinaries {
