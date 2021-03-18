@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -85,6 +86,37 @@ func TestMissingVendorConfig(t *testing.T) {
 	if c.VendorConfig("test").Bool("not_set") {
 		t.Errorf("Expected false")
 	}
+}
+
+func verifyProductVariableMarshaling(t *testing.T, v productVariables) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.variables")
+	err := saveToConfigFile(&v, path)
+	if err != nil {
+		t.Errorf("Couldn't save default product config: %q", err)
+	}
+
+	var v2 productVariables
+	err = loadFromConfigFile(&v2, path)
+	if err != nil {
+		t.Errorf("Couldn't load default product config: %q", err)
+	}
+}
+func TestDefaultProductVariableMarshaling(t *testing.T) {
+	v := productVariables{}
+	v.SetDefaultConfig()
+	verifyProductVariableMarshaling(t, v)
+}
+
+func TestBootJarsMarshaling(t *testing.T) {
+	v := productVariables{}
+	v.SetDefaultConfig()
+	v.BootJars = ConfiguredJarList{
+		apexes: []string{"apex"},
+		jars:   []string{"jar"},
+	}
+
+	verifyProductVariableMarshaling(t, v)
 }
 
 func assertStringEquals(t *testing.T, expected, actual string) {

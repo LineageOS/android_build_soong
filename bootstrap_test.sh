@@ -4,7 +4,7 @@
 # in a source tree that only contains enough files for Bazel and Soong to work.
 
 HARDWIRED_MOCK_TOP=
-# Uncomment this for to be able to view the source tree after a test is run
+# Uncomment this to be able to view the source tree after a test is run
 # HARDWIRED_MOCK_TOP=/tmp/td
 
 REAL_TOP="$(readlink -f "$(dirname "$0")"/../..)"
@@ -85,63 +85,6 @@ function setup() {
   export ALLOW_MISSING_DEPENDENCIES=true
 
   mkdir -p out/soong
-  # This is necessary because the empty soong.variables file written to satisfy
-  # Ninja would contain "BootJars: {}" instead of "BootJars: []" which cannot
-  # be parsed back
-  # TODO(b/182965747): Fix this.
-  cat > out/soong/soong.variables <<'EOF'
-{
-    "BuildNumberFile": "build_number.txt",
-    "Platform_version_name": "S",
-    "Platform_sdk_version": 30,
-    "Platform_sdk_codename": "S",
-    "Platform_sdk_final": false,
-    "Platform_version_active_codenames": [
-        "S"
-    ],
-    "Platform_vndk_version": "S",
-    "DeviceName": "generic_arm64",
-    "DeviceArch": "arm64",
-    "DeviceArchVariant": "armv8-a",
-    "DeviceCpuVariant": "generic",
-    "DeviceAbi": [
-        "arm64-v8a"
-    ],
-    "DeviceSecondaryArch": "arm",
-    "DeviceSecondaryArchVariant": "armv8-a",
-    "DeviceSecondaryCpuVariant": "generic",
-    "DeviceSecondaryAbi": [
-        "armeabi-v7a",
-        "armeabi"
-    ],
-    "HostArch": "x86_64",
-    "HostSecondaryArch": "x86",
-    "CrossHost": "windows",
-    "CrossHostArch": "x86",
-    "CrossHostSecondaryArch": "x86_64",
-    "AAPTCharacteristics": "nosdcard",
-    "AAPTConfig": [
-        "normal",
-        "large",
-        "xlarge",
-        "hdpi",
-        "xhdpi",
-        "xxhdpi"
-    ],
-    "AAPTPreferredConfig": "xhdpi",
-    "AAPTPrebuiltDPI": [
-        "xhdpi",
-        "xxhdpi"
-    ],
-    "Malloc_not_svelte": true,
-    "Malloc_zero_contents": true,
-    "Malloc_pattern_fill_contents": false,
-    "Safestack": false,
-    "BootJars": [],
-    "UpdatableBootJars": [],
-    "Native_coverage": null
-}
-EOF
 }
 
 function run_soong() {
