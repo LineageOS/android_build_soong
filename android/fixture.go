@@ -381,6 +381,19 @@ func GroupFixturePreparers(preparers ...FixturePreparer) FixturePreparer {
 	return &compositeFixturePreparer{dedupAndFlattenPreparers(nil, preparers)}
 }
 
+// NullFixturePreparer is a preparer that does nothing.
+var NullFixturePreparer = GroupFixturePreparers()
+
+// OptionalFixturePreparer will return the supplied preparer if it is non-nil, otherwise it will
+// return the NullFixturePreparer
+func OptionalFixturePreparer(preparer FixturePreparer) FixturePreparer {
+	if preparer == nil {
+		return NullFixturePreparer
+	} else {
+		return preparer
+	}
+}
+
 type simpleFixturePreparerVisitor func(preparer *simpleFixturePreparer)
 
 // FixturePreparer is an opaque interface that can change a fixture.
