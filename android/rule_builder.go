@@ -523,6 +523,12 @@ func (r *RuleBuilder) Build(name string, desc string) {
 			})
 		}
 
+		// Outputs that were marked Temporary will not be checked that they are in the output
+		// directory by the loop above, check them here.
+		for path := range r.temporariesSet {
+			Rel(r.ctx, r.outDir.String(), path.String())
+		}
+
 		// Add a hash of the list of input files to the manifest so that the textproto file
 		// changes when the list of input files changes and causes the sbox rule that
 		// depends on it to rerun.
@@ -537,7 +543,7 @@ func (r *RuleBuilder) Build(name string, desc string) {
 		}
 
 		// Create a rule to write the manifest as a the textproto.
-		WriteFileRule(r.ctx, r.sboxManifestPath, proptools.NinjaEscape(proto.MarshalTextString(&manifest)))
+		WriteFileRule(r.ctx, r.sboxManifestPath, proto.MarshalTextString(&manifest))
 
 		// Generate a new string to use as the command line of the sbox rule.  This uses
 		// a RuleBuilderCommand as a convenience method of building the command line, then
