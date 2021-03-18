@@ -46,7 +46,6 @@ var fuzzerFlags = []string{
 	"-C llvm-args=-sanitizer-coverage-trace-geps",
 	"-C llvm-args=-sanitizer-coverage-prune-blocks=0",
 	"-C llvm-args=-sanitizer-coverage-pc-table",
-	"-C link-dead-code=y",
 	"-Z sanitizer=address",
 
 	// Sancov breaks with lto
