@@ -31,6 +31,15 @@ func AssertBoolEquals(t *testing.T, message string, expected bool, actual bool) 
 	}
 }
 
+// AssertIntEquals checks if the expected and actual values are equal and if they are not then it
+// reports an error prefixed with the supplied message and including a reason for why it failed.
+func AssertIntEquals(t *testing.T, message string, expected int, actual int) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s: expected %d, actual %d", message, expected, actual)
+	}
+}
+
 // AssertStringEquals checks if the expected and actual values are equal and if they are not then
 // it reports an error prefixed with the supplied message and including a reason for why it failed.
 func AssertStringEquals(t *testing.T, message string, expected string, actual string) {
