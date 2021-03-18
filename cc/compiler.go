@@ -256,6 +256,10 @@ func (compiler *baseCompiler) compilerProps() []interface{} {
 	return []interface{}{&compiler.Properties, &compiler.Proto}
 }
 
+func (compiler *baseCompiler) includeBuildDirectory() bool {
+	return proptools.BoolDefault(compiler.Properties.Include_build_directory, true)
+}
+
 func (compiler *baseCompiler) compilerInit(ctx BaseModuleContext) {}
 
 func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
@@ -332,8 +336,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.Local.YasmFlags = append(flags.Local.YasmFlags, f)
 	}
 
-	if compiler.Properties.Include_build_directory == nil ||
-		*compiler.Properties.Include_build_directory {
+	if compiler.includeBuildDirectory() {
 		flags.Local.CommonFlags = append(flags.Local.CommonFlags, "-I"+modulePath)
 		flags.Local.YasmFlags = append(flags.Local.YasmFlags, "-I"+modulePath)
 	}
