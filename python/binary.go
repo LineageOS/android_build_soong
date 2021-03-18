@@ -26,8 +26,12 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("python_binary_host", PythonBinaryHostFactory)
+	registerPythonBinaryComponents(android.InitRegistrationContext)
 	android.RegisterBp2BuildMutator("python_binary_host", PythonBinaryBp2Build)
+}
+
+func registerPythonBinaryComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("python_binary_host", PythonBinaryHostFactory)
 }
 
 type bazelPythonBinaryAttributes struct {
