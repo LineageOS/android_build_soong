@@ -32,6 +32,8 @@ bootstrap_go_package {
     name: "soong-ui-build",
     pkgPath: "android/soong/ui/build",
     deps: [
+        "blueprint",
+        "blueprint-bootstrap",
         "soong-ui-build-paths",
         "soong-ui-logger",
         "soong-ui-metrics",

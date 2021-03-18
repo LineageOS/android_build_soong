@@ -68,6 +68,14 @@ func (c Config) BuildDir() string {
 	return c.buildDir
 }
 
+func (c Config) NinjaBuildDir() string {
+	return c.buildDir
+}
+
+func (c Config) SrcDir() string {
+	return c.srcDir
+}
+
 // A DeviceConfig object represents the configuration for a particular device
 // being built. For now there will only be one of these, but in the future there
 // may be multiple devices being built.
@@ -496,6 +504,10 @@ func (c *config) StopBefore() bootstrap.StopBefore {
 // SetStopBefore configures soong_build to exit earlier at a specific point.
 func (c *config) SetStopBefore(stopBefore bootstrap.StopBefore) {
 	c.stopBefore = stopBefore
+}
+
+func (c *config) SetAllowMissingDependencies() {
+	c.productVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 }
 
 var _ bootstrap.ConfigStopBefore = (*config)(nil)

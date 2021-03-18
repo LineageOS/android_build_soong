@@ -96,6 +96,7 @@ var legacyCorePlatformApiModules = []string{
 	"FrameworksNetTests",
 	"FrameworksServicesRoboTests",
 	"FrameworksServicesTests",
+	"FrameworksMockingServicesTests",
 	"FrameworksUtilTests",
 	"GtsIncrementalInstallTestCases",
 	"GtsIncrementalInstallTriggerApp",

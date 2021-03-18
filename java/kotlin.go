@@ -64,7 +64,9 @@ func kotlinCommonSrcsList(ctx android.ModuleContext, commonSrcFiles android.Path
 		// Insert a second rule to write out the list of resources to a file.
 		commonSrcsList := android.PathForModuleOut(ctx, "kotlinc_common_srcs.list")
 		rule := android.NewRuleBuilder(pctx, ctx)
-		rule.Command().Text("cp").FlagWithRspFileInputList("", commonSrcFiles).Output(commonSrcsList)
+		rule.Command().Text("cp").
+			FlagWithRspFileInputList("", commonSrcsList.ReplaceExtension(ctx, "rsp"), commonSrcFiles).
+			Output(commonSrcsList)
 		rule.Build("kotlin_common_srcs_list", "kotlin common_srcs list")
 		return android.OptionalPathForPath(commonSrcsList)
 	}
