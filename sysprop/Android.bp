@@ -14,6 +14,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "sysprop_library.go",
+        "testing.go",
     ],
     testSrcs: [
         "sysprop_test.go",
