@@ -26,6 +26,7 @@ import (
 	"strings"
 	"sync"
 
+	"android/soong/bazel/cquery"
 	"github.com/google/blueprint/bootstrap"
 
 	"android/soong/bazel"
@@ -43,7 +44,7 @@ const (
 // Map key to describe bazel cquery requests.
 type cqueryKey struct {
 	label       string
-	requestType CqueryRequestType
+	requestType cquery.RequestType
 	archType    ArchType
 }
 
@@ -53,14 +54,15 @@ type BazelContext interface {
 	// has been queued to be run later.
 
 	// Returns result files built by building the given bazel target label.
-	GetAllFiles(label string, archType ArchType) ([]string, bool)
+	GetOutputFiles(label string, archType ArchType) ([]string, bool)
 
 	// Returns object files produced by compiling the given cc-related target.
 	// Retrieves these files from Bazel's CcInfo provider.
 	GetCcObjectFiles(label string, archType ArchType) ([]string, bool)
 
-	// Returns the results of GetAllFiles and GetCcObjectFiles in a single query (in that order).
-	GetAllFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool)
+	// TODO(cparsons): Other cquery-related methods should be added here.
+	// Returns the results of GetOutputFiles and GetCcObjectFiles in a single query (in that order).
+	GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool)
 
 	// ** End cquery methods
 
@@ -109,7 +111,7 @@ type MockBazelContext struct {
 	AllFiles map[string][]string
 }
 
-func (m MockBazelContext) GetAllFiles(label string, archType ArchType) ([]string, bool) {
+func (m MockBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
 	result, ok := m.AllFiles[label]
 	return result, ok
 }
@@ -119,7 +121,7 @@ func (m MockBazelContext) GetCcObjectFiles(label string, archType ArchType) ([]s
 	return result, ok
 }
 
-func (m MockBazelContext) GetAllFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
+func (m MockBazelContext) GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
 	result, ok := m.AllFiles[label]
 	return result, result, ok
 }
@@ -142,43 +144,42 @@ func (m MockBazelContext) BuildStatementsToRegister() []bazel.BuildStatement {
 
 var _ BazelContext = MockBazelContext{}
 
-func (bazelCtx *bazelContext) GetAllFiles(label string, archType ArchType) ([]string, bool) {
-	result, ok := bazelCtx.cquery(label, getAllFiles, archType)
+func (bazelCtx *bazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
+	rawString, ok := bazelCtx.cquery(label, cquery.GetOutputFiles, archType)
+	var ret []string
 	if ok {
-		bazelOutput := strings.TrimSpace(result)
-		return strings.Split(bazelOutput, ", "), true
-	} else {
-		return nil, false
+		bazelOutput := strings.TrimSpace(rawString)
+		ret = cquery.GetOutputFiles.ParseResult(bazelOutput).([]string)
 	}
+	return ret, ok
 }
 
 func (bazelCtx *bazelContext) GetCcObjectFiles(label string, archType ArchType) ([]string, bool) {
-	result, ok := bazelCtx.cquery(label, getCcObjectFiles, archType)
+	rawString, ok := bazelCtx.cquery(label, cquery.GetCcObjectFiles, archType)
+	var returnResult []string
 	if ok {
-		bazelOutput := strings.TrimSpace(result)
-		return strings.Split(bazelOutput, ", "), true
-	} else {
-		return nil, false
+		bazelOutput := strings.TrimSpace(rawString)
+		returnResult = cquery.GetCcObjectFiles.ParseResult(bazelOutput).([]string)
 	}
+	return returnResult, ok
 }
 
-func (bazelCtx *bazelContext) GetAllFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
-	var allFiles []string
+func (bazelCtx *bazelContext) GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
+	var outputFiles []string
 	var ccObjects []string
 
-	result, ok := bazelCtx.cquery(label, getAllFilesAndCcObjectFiles, archType)
+	result, ok := bazelCtx.cquery(label, cquery.GetOutputFilesAndCcObjectFiles, archType)
 	if ok {
 		bazelOutput := strings.TrimSpace(result)
-		splitString := strings.Split(bazelOutput, "|")
-		allFilesString := splitString[0]
-		ccObjectsString := splitString[1]
-		allFiles = strings.Split(allFilesString, ", ")
-		ccObjects = strings.Split(ccObjectsString, ", ")
+		returnResult := cquery.GetOutputFilesAndCcObjectFiles.ParseResult(bazelOutput).(cquery.GetOutputFilesAndCcObjectFiles_Result)
+		outputFiles = returnResult.OutputFiles
+		ccObjects = returnResult.CcObjectFiles
 	}
-	return allFiles, ccObjects, ok
+
+	return outputFiles, ccObjects, ok
 }
 
-func (n noopBazelContext) GetAllFiles(label string, archType ArchType) ([]string, bool) {
+func (n noopBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
 	panic("unimplemented")
 }
 
@@ -186,7 +187,7 @@ func (n noopBazelContext) GetCcObjectFiles(label string, archType ArchType) ([]s
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) GetAllFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
+func (n noopBazelContext) GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
 	panic("unimplemented")
 }
 
@@ -260,7 +261,7 @@ func (context *bazelContext) BazelEnabled() bool {
 // If the given request was already made (and the results are available), then
 // returns (result, true). If the request is queued but no results are available,
 // then returns ("", false).
-func (context *bazelContext) cquery(label string, requestType CqueryRequestType,
+func (context *bazelContext) cquery(label string, requestType cquery.RequestType,
 	archType ArchType) (string, bool) {
 	key := cqueryKey{label, requestType, archType}
 	if result, ok := context.results[key]; ok {
@@ -485,38 +486,66 @@ phony_root(name = "phonyroot",
 		strings.Join(deps_arm, ",\n            ")))
 }
 
+func indent(original string) string {
+	result := ""
+	for _, line := range strings.Split(original, "\n") {
+		result += "  " + line + "\n"
+	}
+	return result
+}
+
 // Returns the file contents of the buildroot.cquery file that should be used for the cquery
 // expression in order to obtain information about buildroot and its dependencies.
 // The contents of this file depend on the bazelContext's requests; requests are enumerated
 // and grouped by their request type. The data retrieved for each label depends on its
 // request type.
 func (context *bazelContext) cqueryStarlarkFileContents() []byte {
+	requestTypeToCqueryIdEntries := map[cquery.RequestType][]string{}
+	for val, _ := range context.requests {
+		cqueryId := getCqueryId(val)
+		mapEntryString := fmt.Sprintf("%q : True", cqueryId)
+		requestTypeToCqueryIdEntries[val.requestType] =
+			append(requestTypeToCqueryIdEntries[val.requestType], mapEntryString)
+	}
+	labelRegistrationMapSection := ""
+	functionDefSection := ""
+	mainSwitchSection := ""
+
+	mapDeclarationFormatString := `
+%s = {
+  %s
+}
+`
+	functionDefFormatString := `
+def %s(target):
+%s
+`
+	mainSwitchSectionFormatString := `
+  if id_string in %s:
+    return id_string + ">>" + %s(target)
+`
+
+	for _, requestType := range cquery.RequestTypes {
+		labelMapName := requestType.Name() + "_Labels"
+		functionName := requestType.Name() + "_Fn"
+		labelRegistrationMapSection += fmt.Sprintf(mapDeclarationFormatString,
+			labelMapName,
+			strings.Join(requestTypeToCqueryIdEntries[requestType], ",\n  "))
+		functionDefSection += fmt.Sprintf(functionDefFormatString,
+			functionName,
+			indent(requestType.StarlarkFunctionBody()))
+		mainSwitchSection += fmt.Sprintf(mainSwitchSectionFormatString,
+			labelMapName, functionName)
+	}
+
 	formatString := `
 # This file is generated by soong_build. Do not edit.
-getAllFilesLabels = {
-  %s
-}
 
-getCcObjectFilesLabels = {
-  %s
-}
+# Label Map Section
+%s
 
-getAllFilesAndCcObjectFilesLabels = {
-  %s
-}
-
-def get_all_files(target):
-  return [f.path for f in target.files.to_list()]
-
-def get_cc_object_files(target):
-  result = []
-  linker_inputs = providers(target)["CcInfo"].linking_context.linker_inputs.to_list()
-
-  for linker_input in linker_inputs:
-    for library in linker_input.libraries:
-      for object in library.objects:
-        result += [object.path]
-  return result
+# Function Def Section
+%s
 
 def get_arch(target):
   buildoptions = build_options(target)
@@ -536,39 +565,16 @@ def get_arch(target):
 
 def format(target):
   id_string = str(target.label) + "|" + get_arch(target)
-  if id_string in getAllFilesLabels:
-    return id_string + ">>" + ', '.join(get_all_files(target))
-  elif id_string in getCcObjectFilesLabels:
-    return id_string + ">>" + ', '.join(get_cc_object_files(target))
-  elif id_string in getAllFilesAndCcObjectFilesLabels:
-    return id_string + ">>" + ', '.join(get_all_files(target)) + "|" + ', '.join(get_cc_object_files(target))
-  else:
-    # This target was not requested via cquery, and thus must be a dependency
-    # of a requested target.
-    return id_string + ">>NONE"
+
+  # Main switch section
+  %s
+  # This target was not requested via cquery, and thus must be a dependency
+  # of a requested target.
+  return id_string + ">>NONE"
 `
-	var getAllFilesDeps []string = nil
-	var getCcObjectFilesDeps []string = nil
-	var getAllFilesAndCcObjectFilesDeps []string = nil
 
-	for val, _ := range context.requests {
-		labelWithArch := getCqueryId(val)
-		mapEntryString := fmt.Sprintf("%q : True", labelWithArch)
-		switch val.requestType {
-		case getAllFiles:
-			getAllFilesDeps = append(getAllFilesDeps, mapEntryString)
-		case getCcObjectFiles:
-			getCcObjectFilesDeps = append(getCcObjectFilesDeps, mapEntryString)
-		case getAllFilesAndCcObjectFiles:
-			getAllFilesAndCcObjectFilesDeps = append(getAllFilesAndCcObjectFilesDeps, mapEntryString)
-		}
-	}
-	getAllFilesDepsString := strings.Join(getAllFilesDeps, ",\n  ")
-	getCcObjectFilesDepsString := strings.Join(getCcObjectFilesDeps, ",\n  ")
-	getAllFilesAndCcObjectFilesDepsString := strings.Join(getAllFilesAndCcObjectFilesDeps, ",\n  ")
-
-	return []byte(fmt.Sprintf(formatString, getAllFilesDepsString, getCcObjectFilesDepsString,
-		getAllFilesAndCcObjectFilesDepsString))
+	return []byte(fmt.Sprintf(formatString, labelRegistrationMapSection, functionDefSection,
+		mainSwitchSection))
 }
 
 // Returns a workspace-relative path containing build-related metadata required
