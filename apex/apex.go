@@ -563,21 +563,21 @@ func (d dependencyTag) ReplaceSourceWithPrebuilt() bool {
 var _ android.ReplaceSourceWithPrebuilt = &dependencyTag{}
 
 var (
-	androidAppTag    = dependencyTag{name: "androidApp", payload: true}
-	bpfTag           = dependencyTag{name: "bpf", payload: true}
-	certificateTag   = dependencyTag{name: "certificate"}
-	executableTag    = dependencyTag{name: "executable", payload: true}
-	fsTag            = dependencyTag{name: "filesystem", payload: true}
-	bootImageTag     = dependencyTag{name: "bootImage", payload: true}
-	compatConfigsTag = dependencyTag{name: "compatConfig", payload: true}
-	javaLibTag       = dependencyTag{name: "javaLib", payload: true}
-	jniLibTag        = dependencyTag{name: "jniLib", payload: true}
-	keyTag           = dependencyTag{name: "key"}
-	prebuiltTag      = dependencyTag{name: "prebuilt", payload: true}
-	rroTag           = dependencyTag{name: "rro", payload: true}
-	sharedLibTag     = dependencyTag{name: "sharedLib", payload: true}
-	testForTag       = dependencyTag{name: "test for"}
-	testTag          = dependencyTag{name: "test", payload: true}
+	androidAppTag   = dependencyTag{name: "androidApp", payload: true}
+	bpfTag          = dependencyTag{name: "bpf", payload: true}
+	certificateTag  = dependencyTag{name: "certificate"}
+	executableTag   = dependencyTag{name: "executable", payload: true}
+	fsTag           = dependencyTag{name: "filesystem", payload: true}
+	bootImageTag    = dependencyTag{name: "bootImage", payload: true}
+	compatConfigTag = dependencyTag{name: "compatConfig", payload: true}
+	javaLibTag      = dependencyTag{name: "javaLib", payload: true}
+	jniLibTag       = dependencyTag{name: "jniLib", payload: true}
+	keyTag          = dependencyTag{name: "key"}
+	prebuiltTag     = dependencyTag{name: "prebuilt", payload: true}
+	rroTag          = dependencyTag{name: "rro", payload: true}
+	sharedLibTag    = dependencyTag{name: "sharedLib", payload: true}
+	testForTag      = dependencyTag{name: "test for"}
+	testTag         = dependencyTag{name: "test", payload: true}
 )
 
 // TODO(jiyong): shorten this function signature
@@ -752,7 +752,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(commonVariation, javaLibTag, a.properties.Java_libs...)
 	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.properties.Bpfs...)
 	ctx.AddFarVariationDependencies(commonVariation, fsTag, a.properties.Filesystems...)
-	ctx.AddFarVariationDependencies(commonVariation, compatConfigsTag, a.properties.Compat_configs...)
+	ctx.AddFarVariationDependencies(commonVariation, compatConfigTag, a.properties.Compat_configs...)
 
 	if a.artApex {
 		// With EMMA_INSTRUMENT_FRAMEWORK=true the ART boot image includes jacoco library.
@@ -1754,7 +1754,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				} else {
 					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
 				}
-			case compatConfigsTag:
+			case compatConfigTag:
 				if compatConfig, ok := child.(java.PlatformCompatConfigIntf); ok {
 					filesInfo = append(filesInfo, apexFileForCompatConfig(ctx, compatConfig, depName))
 				} else {
