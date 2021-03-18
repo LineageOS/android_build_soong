@@ -1286,7 +1286,7 @@ func (u *usesLibrary) freezeEnforceUsesLibraries() {
 // an APK with the manifest embedded in it (manifest_check will know which one it is by the file
 // extension: APKs are supposed to end with '.apk').
 func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile android.Path,
-	outputFile android.WritablePath) {
+	outputFile android.WritablePath) android.Path {
 
 	statusFile := dexpreopt.UsesLibrariesStatusFile(ctx)
 
@@ -1295,7 +1295,7 @@ func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile a
 	// non-linux build platforms where dexpreopt is generally disabled (the check may fail due to
 	// various unrelated reasons, such as a failure to get manifest from an APK).
 	if dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
-		return
+		return inputFile
 	}
 
 	rule := android.NewRuleBuilder(pctx, ctx)
@@ -1322,14 +1322,14 @@ func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile a
 	}
 
 	rule.Build("verify_uses_libraries", "verify <uses-library>")
+	return outputFile
 }
 
 // verifyUsesLibrariesManifest checks the <uses-library> tags in an AndroidManifest.xml against
 // the build system and returns the path to a copy of the manifest.
 func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, manifest android.Path) android.Path {
 	outputFile := android.PathForModuleOut(ctx, "manifest_check", "AndroidManifest.xml")
-	u.verifyUsesLibraries(ctx, manifest, outputFile)
-	return outputFile
+	return u.verifyUsesLibraries(ctx, manifest, outputFile)
 }
 
 // verifyUsesLibrariesAPK checks the <uses-library> tags in the manifest of an APK against the build
