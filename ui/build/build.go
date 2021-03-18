@@ -218,6 +218,11 @@ func Build(ctx Context, config Config, what int) {
 		what = what &^ BuildKati
 	}
 
+	if config.SkipNinja() {
+		ctx.Verboseln("Skipping Ninja as requested")
+		what = what &^ BuildNinja
+	}
+
 	if config.StartGoma() {
 		// Ensure start Goma compiler_proxy
 		startGoma(ctx, config)
@@ -290,7 +295,7 @@ func Build(ctx Context, config Config, what int) {
 		}
 
 		// Run ninja
-		runNinja(ctx, config)
+		runNinjaForBuild(ctx, config)
 	}
 
 	// Currently, using Bazel requires Kati and Soong to run first, so check whether to run Bazel last.

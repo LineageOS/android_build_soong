@@ -812,7 +812,7 @@ func javadocCmd(ctx android.ModuleContext, rule *android.RuleBuilder, srcs andro
 		BuiltTool("soong_javac_wrapper").Tool(config.JavadocCmd(ctx)).
 		Flag(config.JavacVmFlags).
 		FlagWithArg("-encoding ", "UTF-8").
-		FlagWithRspFileInputList("@", srcs).
+		FlagWithRspFileInputList("@", android.PathForModuleOut(ctx, "javadoc.rsp"), srcs).
 		FlagWithInput("@", srcJarList)
 
 	// TODO(ccross): Remove this if- statement once we finish migration for all Doclava
@@ -1243,7 +1243,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 		Flag("-J--add-opens=java.base/java.util=ALL-UNNAMED").
 		FlagWithArg("-encoding ", "UTF-8").
 		FlagWithArg("-source ", javaVersion.String()).
-		FlagWithRspFileInputList("@", srcs).
+		FlagWithRspFileInputList("@", android.PathForModuleOut(ctx, "metalava.rsp"), srcs).
 		FlagWithInput("@", srcJarList)
 
 	if javaHome := ctx.Config().Getenv("ANDROID_JAVA_HOME"); javaHome != "" {
@@ -1446,7 +1446,9 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// add a large number of inputs to a file without exceeding bash command length limits (which
 	// would happen if we use the WriteFile rule). The cp is needed because RuleBuilder sets the
 	// rsp file to be ${output}.rsp.
-	impCmd.Text("cp").FlagWithRspFileInputList("", cmd.GetImplicits()).Output(implicitsRsp)
+	impCmd.Text("cp").
+		FlagWithRspFileInputList("", android.PathForModuleOut(ctx, "metalava-implicits.rsp"), cmd.GetImplicits()).
+		Output(implicitsRsp)
 	impRule.Build("implicitsGen", "implicits generation")
 	cmd.Implicit(implicitsRsp)
 
@@ -1750,7 +1752,7 @@ func (p *PrebuiltStubsSources) GenerateAndroidBuildActions(ctx android.ModuleCon
 		Flag("-jar").
 		FlagWithOutput("-o ", p.stubsSrcJar).
 		FlagWithArg("-C ", srcDir.String()).
-		FlagWithRspFileInputList("-r ", srcPaths)
+		FlagWithRspFileInputList("-r ", p.stubsSrcJar.ReplaceExtension(ctx, "rsp"), srcPaths)
 
 	rule.Restat()
 

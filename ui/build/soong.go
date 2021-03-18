@@ -23,6 +23,8 @@ import (
 	"android/soong/shared"
 
 	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/bootstrap"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/blueprint/microfactory"
@@ -42,17 +44,72 @@ func writeEnvironmentFile(ctx Context, envFile string, envDeps map[string]string
 
 // This uses Android.bp files and various tools to generate <builddir>/build.ninja.
 //
-// However, the execution of <builddir>/build.ninja happens later in build/soong/ui/build/build.go#Build()
+// However, the execution of <builddir>/build.ninja happens later in
+// build/soong/ui/build/build.go#Build()
 //
-// We want to rely on as few prebuilts as possible, so there is some bootstrapping here.
+// We want to rely on as few prebuilts as possible, so we need to bootstrap
+// Soong. The process is as follows:
 //
-// "Microfactory" is a tool for compiling Go code. We use it to build two other tools:
-// - minibp, used to generate build.ninja files. This is really build/blueprint/bootstrap/command.go#Main()
-// - bpglob, used during incremental builds to identify files in a glob that have changed
+// 1. We use "Microfactory", a simple tool to compile Go code, to build
+//    first itself, then soong_ui from soong_ui.bash. This binary contains
+//    parts of soong_build that are needed to build itself.
+// 2. This simplified version of soong_build then reads the Blueprint files
+//    that describe itself and emits .bootstrap/build.ninja that describes
+//    how to build its full version and use that to produce the final Ninja
+//    file Soong emits.
+// 3. soong_ui executes .bootstrap/build.ninja
 //
-// In reality, several build.ninja files are generated and/or used during the bootstrapping and build process.
-// See build/blueprint/bootstrap/doc.go for more information.
-//
+// (After this, Kati is executed to parse the Makefiles, but that's not part of
+// bootstrapping Soong)
+
+// A tiny struct used to tell Blueprint that it's in bootstrap mode. It would
+// probably be nicer to use a flag in bootstrap.Args instead.
+type BlueprintConfig struct {
+	srcDir        string
+	buildDir      string
+	ninjaBuildDir string
+}
+
+func (c BlueprintConfig) SrcDir() string {
+	return "."
+}
+
+func (c BlueprintConfig) BuildDir() string {
+	return c.buildDir
+}
+
+func (c BlueprintConfig) NinjaBuildDir() string {
+	return c.ninjaBuildDir
+}
+
+func bootstrapBlueprint(ctx Context, config Config) {
+	ctx.BeginTrace(metrics.RunSoong, "blueprint bootstrap")
+	defer ctx.EndTrace()
+
+	var args bootstrap.Args
+
+	args.RunGoTests = !config.skipSoongTests
+	args.UseValidations = true // Use validations to depend on tests
+	args.BuildDir = config.SoongOutDir()
+	args.NinjaBuildDir = config.OutDir()
+	args.TopFile = "Android.bp"
+	args.ModuleListFile = filepath.Join(config.FileListDir(), "Android.bp.list")
+	args.OutFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja")
+	args.DepFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja.d")
+	args.GlobFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/soong-build-globs.ninja")
+	args.GeneratingPrimaryBuilder = true
+
+	blueprintCtx := blueprint.NewContext()
+	blueprintCtx.SetIgnoreUnknownModuleTypes(true)
+	blueprintConfig := BlueprintConfig{
+		srcDir:        os.Getenv("TOP"),
+		buildDir:      config.SoongOutDir(),
+		ninjaBuildDir: config.OutDir(),
+	}
+
+	bootstrap.RunBlueprint(args, blueprintCtx, blueprintConfig)
+}
+
 func runSoong(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunSoong, "soong")
 	defer ctx.EndTrace()
@@ -63,33 +120,15 @@ func runSoong(ctx Context, config Config) {
 	// unused variables were changed?
 	envFile := filepath.Join(config.SoongOutDir(), "soong.environment.available")
 
-	// Use an anonymous inline function for tracing purposes (this pattern is used several times below).
-	func() {
-		ctx.BeginTrace(metrics.RunSoong, "blueprint bootstrap")
-		defer ctx.EndTrace()
-
-		// Use validations to depend on tests.
-		args := []string{"-n"}
-
-		if !config.skipSoongTests {
-			// Run tests.
-			args = append(args, "-t")
+	for _, n := range []string{".bootstrap", ".minibootstrap"} {
+		dir := filepath.Join(config.SoongOutDir(), n)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			ctx.Fatalf("Cannot mkdir " + dir)
 		}
+	}
 
-		cmd := Command(ctx, config, "blueprint bootstrap", "build/blueprint/bootstrap.bash", args...)
-
-		cmd.Environment.Set("BLUEPRINTDIR", "./build/blueprint")
-		cmd.Environment.Set("BOOTSTRAP", "./build/blueprint/bootstrap.bash")
-		cmd.Environment.Set("BUILDDIR", config.SoongOutDir())
-		cmd.Environment.Set("GOROOT", "./"+filepath.Join("prebuilts/go", config.HostPrebuiltTag()))
-		cmd.Environment.Set("BLUEPRINT_LIST_FILE", filepath.Join(config.FileListDir(), "Android.bp.list"))
-		cmd.Environment.Set("NINJA_BUILDDIR", config.OutDir())
-		cmd.Environment.Set("SRCDIR", ".")
-		cmd.Environment.Set("TOPNAME", "Android.bp")
-		cmd.Sandbox = soongSandbox
-
-		cmd.RunAndPrintOrFatal()
-	}()
+	// This is done unconditionally, but does not take a measurable amount of time
+	bootstrapBlueprint(ctx, config)
 
 	soongBuildEnv := config.Environment().Copy()
 	soongBuildEnv.Set("TOP", os.Getenv("TOP"))
@@ -104,6 +143,11 @@ func runSoong(ctx Context, config Config) {
 	soongBuildEnv.Set("BAZEL_OUTPUT_BASE", filepath.Join(config.BazelOutDir(), "output"))
 	soongBuildEnv.Set("BAZEL_WORKSPACE", absPath(ctx, "."))
 	soongBuildEnv.Set("BAZEL_METRICS_DIR", config.BazelMetricsDir())
+
+	// For Soong bootstrapping tests
+	if os.Getenv("ALLOW_MISSING_DEPENDENCIES") == "true" {
+		soongBuildEnv.Set("ALLOW_MISSING_DEPENDENCIES", "true")
+	}
 
 	err := writeEnvironmentFile(ctx, envFile, soongBuildEnv.AsMap())
 	if err != nil {
@@ -128,16 +172,6 @@ func runSoong(ctx Context, config Config) {
 	cfg.Map("github.com/google/blueprint", "build/blueprint")
 
 	cfg.TrimPath = absPath(ctx, ".")
-
-	func() {
-		ctx.BeginTrace(metrics.RunSoong, "minibp")
-		defer ctx.EndTrace()
-
-		minibp := filepath.Join(config.SoongOutDir(), ".minibootstrap/minibp")
-		if _, err := microfactory.Build(&cfg, minibp, "github.com/google/blueprint/bootstrap/minibp"); err != nil {
-			ctx.Fatalln("Failed to build minibp:", err)
-		}
-	}()
 
 	func() {
 		ctx.BeginTrace(metrics.RunSoong, "bpglob")
@@ -187,10 +221,6 @@ func runSoong(ctx Context, config Config) {
 		cmd.Sandbox = soongSandbox
 		cmd.RunAndStreamOrFatal()
 	}
-
-	// This build generates .bootstrap/build.ninja, which is used in the next step.
-	ninja("minibootstrap", ".minibootstrap/build.ninja")
-
 	// This build generates <builddir>/build.ninja, which is used later by build/soong/ui/build/build.go#Build().
 	ninja("bootstrap", ".bootstrap/build.ninja")
 
