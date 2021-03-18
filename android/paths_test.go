@@ -1261,6 +1261,52 @@ func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
 	}
 }
 
+func TestPathRelativeToTop(t *testing.T) {
+	testConfig := pathTestConfig("/tmp/build/top")
+	deviceTarget := Target{Os: Android, Arch: Arch{ArchType: Arm64}}
+
+	ctx := &testModuleInstallPathContext{
+		baseModuleContext: baseModuleContext{
+			os:     deviceTarget.Os,
+			target: deviceTarget,
+		},
+	}
+	ctx.baseModuleContext.config = testConfig
+
+	t.Run("install for soong", func(t *testing.T) {
+		p := PathForModuleInstall(ctx, "install/path")
+		AssertPathRelativeToTopEquals(t, "install path for soong", "out/soong/target/product/test_device/system/install/path", p)
+	})
+	t.Run("install for make", func(t *testing.T) {
+		p := PathForModuleInstall(ctx, "install/path").ToMakePath()
+		AssertPathRelativeToTopEquals(t, "install path for make", "out/target/product/test_device/system/install/path", p)
+	})
+	t.Run("output", func(t *testing.T) {
+		p := PathForOutput(ctx, "output/path")
+		AssertPathRelativeToTopEquals(t, "output path", "out/soong/output/path", p)
+	})
+	t.Run("source", func(t *testing.T) {
+		p := PathForSource(ctx, "source/path")
+		AssertPathRelativeToTopEquals(t, "source path", "source/path", p)
+	})
+	t.Run("mixture", func(t *testing.T) {
+		paths := Paths{
+			PathForModuleInstall(ctx, "install/path"),
+			PathForModuleInstall(ctx, "install/path").ToMakePath(),
+			PathForOutput(ctx, "output/path"),
+			PathForSource(ctx, "source/path"),
+		}
+
+		expected := []string{
+			"out/soong/target/product/test_device/system/install/path",
+			"out/target/product/test_device/system/install/path",
+			"out/soong/output/path",
+			"source/path",
+		}
+		AssertPathsRelativeToTopEquals(t, "mixture", expected, paths)
+	})
+}
+
 func ExampleOutputPath_ReplaceExtension() {
 	ctx := &configErrorWrapper{
 		config: TestConfig("out", nil, "", nil),

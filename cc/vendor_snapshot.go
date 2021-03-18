@@ -90,73 +90,24 @@ type snapshotSingleton struct {
 	fake bool
 }
 
-var (
-	// Modules under following directories are ignored. They are OEM's and vendor's
-	// proprietary modules(device/, kernel/, vendor/, and hardware/).
-	vendorProprietaryDirs = []string{
-		"device",
-		"kernel",
-		"vendor",
-		"hardware",
-	}
-
-	// Modules under following directories are ignored. They are OEM's and vendor's
-	// proprietary modules(device/, kernel/, vendor/, and hardware/).
-	recoveryProprietaryDirs = []string{
-		"device",
-		"hardware",
-		"kernel",
-		"vendor",
-	}
-
-	// Modules under following directories are included as they are in AOSP,
-	// although hardware/ and kernel/ are normally for vendor's own.
-	aospDirsUnderProprietary = []string{
-		"kernel/configs",
-		"kernel/prebuilts",
-		"kernel/tests",
-		"hardware/interfaces",
-		"hardware/libhardware",
-		"hardware/libhardware_legacy",
-		"hardware/ril",
-	}
-)
-
-// Determine if a dir under source tree is an SoC-owned proprietary directory, such as
-// device/, vendor/, etc.
-func isVendorProprietaryPath(dir string) bool {
-	return isProprietaryPath(dir, vendorProprietaryDirs)
+// Determine if a dir under source tree is an SoC-owned proprietary directory based
+// on vendor snapshot configuration
+// Examples: device/, vendor/
+func isVendorProprietaryPath(dir string, deviceConfig android.DeviceConfig) bool {
+	return VendorSnapshotSingleton().(*snapshotSingleton).image.isProprietaryPath(dir, deviceConfig)
 }
 
-func isRecoveryProprietaryPath(dir string) bool {
-	return isProprietaryPath(dir, recoveryProprietaryDirs)
-}
-
-// Determine if a dir under source tree is an SoC-owned proprietary directory, such as
-// device/, vendor/, etc.
-func isProprietaryPath(dir string, proprietaryDirs []string) bool {
-	for _, p := range proprietaryDirs {
-		if strings.HasPrefix(dir, p) {
-			// filter out AOSP defined directories, e.g. hardware/interfaces/
-			aosp := false
-			for _, p := range aospDirsUnderProprietary {
-				if strings.HasPrefix(dir, p) {
-					aosp = true
-					break
-				}
-			}
-			if !aosp {
-				return true
-			}
-		}
-	}
-	return false
+// Determine if a dir under source tree is an SoC-owned proprietary directory based
+// on recovery snapshot configuration
+// Examples: device/, vendor/
+func isRecoveryProprietaryPath(dir string, deviceConfig android.DeviceConfig) bool {
+	return RecoverySnapshotSingleton().(*snapshotSingleton).image.isProprietaryPath(dir, deviceConfig)
 }
 
 func isVendorProprietaryModule(ctx android.BaseModuleContext) bool {
 	// Any module in a vendor proprietary path is a vendor proprietary
 	// module.
-	if isVendorProprietaryPath(ctx.ModuleDir()) {
+	if isVendorProprietaryPath(ctx.ModuleDir(), ctx.DeviceConfig()) {
 		return true
 	}
 
@@ -177,7 +128,7 @@ func isRecoveryProprietaryModule(ctx android.BaseModuleContext) bool {
 
 	// Any module in a recovery proprietary path is a recovery proprietary
 	// module.
-	if isRecoveryProprietaryPath(ctx.ModuleDir()) {
+	if isRecoveryProprietaryPath(ctx.ModuleDir(), ctx.DeviceConfig()) {
 		return true
 	}
 
@@ -513,7 +464,7 @@ func (c *snapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		}
 
 		moduleDir := ctx.ModuleDir(module)
-		inProprietaryPath := c.image.isProprietaryPath(moduleDir)
+		inProprietaryPath := c.image.isProprietaryPath(moduleDir, ctx.DeviceConfig())
 		apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
 
 		if c.image.excludeFromSnapshot(m) {
