@@ -261,17 +261,21 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 
 	} else if module.EnforceUsesLibraries {
 		// Generate command that saves target SDK version in a shell variable.
-		manifestOrApk := module.ManifestPath
-		if manifestOrApk == nil {
-			// No manifest to extract targetSdkVersion from, hope that dexjar is an APK.
-			manifestOrApk = module.DexPath
+		if module.ManifestPath != nil {
+			rule.Command().Text(`target_sdk_version="$(`).
+				Tool(globalSoong.ManifestCheck).
+				Flag("--extract-target-sdk-version").
+				Input(module.ManifestPath).
+				Text(`)"`)
+		} else {
+			// No manifest to extract targetSdkVersion from, hope that DexJar is an APK
+			rule.Command().Text(`target_sdk_version="$(`).
+				Tool(globalSoong.Aapt).
+				Flag("dump badging").
+				Input(module.DexPath).
+				Text(`| grep "targetSdkVersion" | sed -n "s/targetSdkVersion:'\(.*\)'/\1/p"`).
+				Text(`)"`)
 		}
-		rule.Command().Text(`target_sdk_version="$(`).
-			Tool(globalSoong.ManifestCheck).
-			Flag("--extract-target-sdk-version").
-			Input(manifestOrApk).
-			FlagWithInput("--aapt ", ctx.Config().HostToolPath(ctx, "aapt")).
-			Text(`)"`)
 
 		// Generate command that saves host and target class loader context in shell variables.
 		clc, paths := ComputeClassLoaderContext(module.ClassLoaderContexts)
