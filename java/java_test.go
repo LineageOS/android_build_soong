@@ -48,9 +48,10 @@ func tearDown() {
 	os.RemoveAll(buildDir)
 }
 
+var emptyFixtureFactory = android.NewFixtureFactory(&buildDir)
+
 // Factory to use to create fixtures for tests in this package.
-var javaFixtureFactory = android.NewFixtureFactory(
-	&buildDir,
+var javaFixtureFactory = emptyFixtureFactory.Extend(
 	genrule.PrepareForTestWithGenRuleBuildComponents,
 	// Get the CC build components but not default modules.
 	cc.PrepareForTestWithCcBuildComponents,
