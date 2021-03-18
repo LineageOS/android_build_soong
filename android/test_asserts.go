@@ -22,6 +22,15 @@ import (
 
 // This file contains general purpose test assert functions.
 
+// AssertSame checks if the expected and actual values are equal and if they are not then
+// it reports an error prefixed with the supplied message and including a reason for why it failed.
+func AssertSame(t *testing.T, message string, expected interface{}, actual interface{}) {
+	t.Helper()
+	if actual != expected {
+		t.Errorf("%s: expected:\n%#v\nactual:\n%#v", message, expected, actual)
+	}
+}
+
 // AssertBoolEquals checks if the expected and actual values are equal and if they are not then it
 // reports an error prefixed with the supplied message and including a reason for why it failed.
 func AssertBoolEquals(t *testing.T, message string, expected bool, actual bool) {
