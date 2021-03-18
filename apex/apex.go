@@ -549,7 +549,18 @@ type dependencyTag struct {
 	// Determines if the dependent will be part of the APEX payload. Can be false for the
 	// dependencies to the signing key module, etc.
 	payload bool
+
+	// True if the dependent can only be a source module, false if a prebuilt module is a suitable
+	// replacement. This is needed because some prebuilt modules do not provide all the information
+	// needed by the apex.
+	sourceOnly bool
 }
+
+func (d dependencyTag) ReplaceSourceWithPrebuilt() bool {
+	return !d.sourceOnly
+}
+
+var _ android.ReplaceSourceWithPrebuilt = &dependencyTag{}
 
 var (
 	androidAppTag    = dependencyTag{name: "androidApp", payload: true}
