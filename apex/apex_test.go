@@ -6018,6 +6018,13 @@ func TestCompatConfig(t *testing.T) {
 			system_modules: "none",
 			apex_available: [ "myapex" ],
 		}
+
+		// Make sure that a preferred prebuilt does not affect the apex contents.
+		prebuilt_platform_compat_config {
+			name: "myjar-platform-compat-config",
+			metadata: "compat-config/metadata.xml",
+			prefer: true,
+		}
 	`)
 	ctx := result.TestContext
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
