@@ -245,7 +245,14 @@ func moduleToPath(name string) string {
 // defaultModuleToPath constructs a path to the turbine generate jar for a default test module that
 // is defined in PrepareForIntegrationTestWithJava
 func defaultModuleToPath(name string) string {
-	return filepath.Join(buildDir, ".intermediates", defaultJavaDir, name, "android_common", "turbine-combined", name+".jar")
+	switch {
+	case name == `""`:
+		return name
+	case strings.HasSuffix(name, ".jar"):
+		return name
+	default:
+		return filepath.Join(buildDir, ".intermediates", defaultJavaDir, name, "android_common", "turbine-combined", name+".jar")
+	}
 }
 
 func TestJavaLinkType(t *testing.T) {
