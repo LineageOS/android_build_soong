@@ -143,7 +143,7 @@ func TestDependingOnModuleInImportedNamespace(t *testing.T) {
 }
 
 func TestDependingOnModuleInNonImportedNamespace(t *testing.T) {
-	_, errs := setupTestExpectErrs(
+	_, errs := setupTestExpectErrs(t,
 		map[string]string{
 			"dir1": `
 			soong_namespace {
@@ -378,7 +378,7 @@ func TestTwoNamespacesCanImportEachOther(t *testing.T) {
 }
 
 func TestImportingNonexistentNamespace(t *testing.T) {
-	_, errs := setupTestExpectErrs(
+	_, errs := setupTestExpectErrs(t,
 		map[string]string{
 			"dir1": `
 			soong_namespace {
@@ -402,7 +402,7 @@ func TestImportingNonexistentNamespace(t *testing.T) {
 }
 
 func TestNamespacesDontInheritParentNamespaces(t *testing.T) {
-	_, errs := setupTestExpectErrs(
+	_, errs := setupTestExpectErrs(t,
 		map[string]string{
 			"dir1": `
 			soong_namespace {
@@ -455,7 +455,7 @@ func TestModulesDoReceiveParentNamespace(t *testing.T) {
 }
 
 func TestNamespaceImportsNotTransitive(t *testing.T) {
-	_, errs := setupTestExpectErrs(
+	_, errs := setupTestExpectErrs(t,
 		map[string]string{
 			"dir1": `
 			soong_namespace {
@@ -496,7 +496,7 @@ Module "a" can be found in these namespaces: ["dir1"]`),
 }
 
 func TestTwoNamepacesInSameDir(t *testing.T) {
-	_, errs := setupTestExpectErrs(
+	_, errs := setupTestExpectErrs(t,
 		map[string]string{
 			"dir1": `
 			soong_namespace {
@@ -516,7 +516,7 @@ func TestTwoNamepacesInSameDir(t *testing.T) {
 }
 
 func TestNamespaceNotAtTopOfFile(t *testing.T) {
-	_, errs := setupTestExpectErrs(
+	_, errs := setupTestExpectErrs(t,
 		map[string]string{
 			"dir1": `
 			test_module {
@@ -537,7 +537,7 @@ func TestNamespaceNotAtTopOfFile(t *testing.T) {
 }
 
 func TestTwoModulesWithSameNameInSameNamespace(t *testing.T) {
-	_, errs := setupTestExpectErrs(
+	_, errs := setupTestExpectErrs(t,
 		map[string]string{
 			"dir1": `
 			soong_namespace {
@@ -562,7 +562,7 @@ func TestTwoModulesWithSameNameInSameNamespace(t *testing.T) {
 }
 
 func TestDeclaringNamespaceInNonAndroidBpFile(t *testing.T) {
-	_, errs := setupTestFromFiles(
+	_, errs := setupTestFromFiles(t,
 		map[string][]byte{
 			"Android.bp": []byte(`
 				build = ["include.bp"]
@@ -632,39 +632,38 @@ func mockFiles(bps map[string]string) (files map[string][]byte) {
 	return files
 }
 
-func setupTestFromFiles(bps map[string][]byte) (ctx *TestContext, errs []error) {
-	config := TestConfig(buildDir, nil, "", bps)
+func setupTestFromFiles(t *testing.T, bps MockFS) (ctx *TestContext, errs []error) {
+	result := emptyTestFixtureFactory.
+		// Ignore errors for now so tests can check them later.
+		ExtendWithErrorHandler(FixtureIgnoreErrors).
+		RunTest(t,
+			FixtureModifyContext(func(ctx *TestContext) {
+				ctx.RegisterModuleType("test_module", newTestModule)
+				ctx.RegisterModuleType("soong_namespace", NamespaceFactory)
+				ctx.Context.RegisterModuleType("blueprint_test_module", newBlueprintTestModule)
+				ctx.PreArchMutators(RegisterNamespaceMutator)
+				ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
+					ctx.BottomUp("rename", renameMutator)
+				})
+			}),
+			bps.AddToFixture(),
+		)
 
-	ctx = NewTestContext(config)
-	ctx.RegisterModuleType("test_module", newTestModule)
-	ctx.RegisterModuleType("soong_namespace", NamespaceFactory)
-	ctx.Context.RegisterModuleType("blueprint_test_module", newBlueprintTestModule)
-	ctx.PreArchMutators(RegisterNamespaceMutator)
-	ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
-		ctx.BottomUp("rename", renameMutator)
-	})
-	ctx.Register()
-
-	_, errs = ctx.ParseBlueprintsFiles("Android.bp")
-	if len(errs) > 0 {
-		return ctx, errs
-	}
-	_, errs = ctx.PrepareBuildActions(config)
-	return ctx, errs
+	return result.TestContext, result.Errs
 }
 
-func setupTestExpectErrs(bps map[string]string) (ctx *TestContext, errs []error) {
+func setupTestExpectErrs(t *testing.T, bps map[string]string) (ctx *TestContext, errs []error) {
 	files := make(map[string][]byte, len(bps))
 	files["Android.bp"] = []byte("")
 	for dir, text := range bps {
 		files[filepath.Join(dir, "Android.bp")] = []byte(text)
 	}
-	return setupTestFromFiles(files)
+	return setupTestFromFiles(t, files)
 }
 
 func setupTest(t *testing.T, bps map[string]string) (ctx *TestContext) {
 	t.Helper()
-	ctx, errs := setupTestExpectErrs(bps)
+	ctx, errs := setupTestExpectErrs(t, bps)
 	FailIfErrored(t, errs)
 	return ctx
 }

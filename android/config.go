@@ -19,6 +19,7 @@ package android
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -70,6 +71,10 @@ func (c Config) BuildDir() string {
 
 func (c Config) NinjaBuildDir() string {
 	return c.buildDir
+}
+
+func (c Config) DebugCompilation() bool {
+	return false // Never compile Go code in the main build for debugging
 }
 
 func (c Config) SrcDir() string {
@@ -276,23 +281,6 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	config.mockFileSystem(bp, fs)
 
 	return Config{config}
-}
-
-// TestArchConfigNativeBridge returns a Config object suitable for using
-// for tests that need to run the arch mutator for native bridge supported
-// archs.
-func TestArchConfigNativeBridge(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
-	testConfig := TestArchConfig(buildDir, env, bp, fs)
-	config := testConfig.config
-
-	config.Targets[Android] = []Target{
-		{Android, Arch{ArchType: X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
-		{Android, Arch{ArchType: X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", "", false},
-		{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeEnabled, "x86_64", "arm64", false},
-		{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeEnabled, "x86", "arm", false},
-	}
-
-	return testConfig
 }
 
 func fuchsiaTargets() map[OsType][]Target {
@@ -1633,6 +1621,20 @@ func (l *ConfiguredJarList) UnmarshalJSON(b []byte) error {
 	l.apexes = apexes
 	l.jars = jars
 	return nil
+}
+
+func (l *ConfiguredJarList) MarshalJSON() ([]byte, error) {
+	if len(l.apexes) != len(l.jars) {
+		return nil, errors.New(fmt.Sprintf("Inconsistent ConfiguredJarList: apexes: %q, jars: %q", l.apexes, l.jars))
+	}
+
+	list := make([]string, 0, len(l.apexes))
+
+	for i := 0; i < len(l.apexes); i++ {
+		list = append(list, l.apexes[i]+":"+l.jars[i])
+	}
+
+	return json.Marshal(list)
 }
 
 // ModuleStem hardcodes the stem of framework-minus-apex to return "framework".

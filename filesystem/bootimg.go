@@ -17,6 +17,7 @@ package filesystem
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -217,20 +218,44 @@ func (b *bootimg) buildBootImage(ctx android.ModuleContext, vendor bool) android
 }
 
 func (b *bootimg) signImage(ctx android.ModuleContext, unsignedImage android.OutputPath) android.OutputPath {
-	output := android.PathForModuleOut(ctx, b.installFileName()).OutputPath
-	key := android.PathForModuleSrc(ctx, proptools.String(b.properties.Avb_private_key))
+	propFile, toolDeps := b.buildPropFile(ctx)
 
+	output := android.PathForModuleOut(ctx, b.installFileName()).OutputPath
 	builder := android.NewRuleBuilder(pctx, ctx)
 	builder.Command().Text("cp").Input(unsignedImage).Output(output)
-	builder.Command().
-		BuiltTool("avbtool").
-		Flag("add_hash_footer").
-		FlagWithArg("--partition_name ", b.partitionName()).
-		FlagWithInput("--key ", key).
-		FlagWithOutput("--image ", output)
+	builder.Command().BuiltTool("verity_utils").
+		Input(propFile).
+		Implicits(toolDeps).
+		Output(output)
 
 	builder.Build("sign_bootimg", fmt.Sprintf("Signing %s", b.BaseModuleName()))
 	return output
+}
+
+func (b *bootimg) buildPropFile(ctx android.ModuleContext) (propFile android.OutputPath, toolDeps android.Paths) {
+	var sb strings.Builder
+	var deps android.Paths
+	addStr := func(name string, value string) {
+		fmt.Fprintf(&sb, "%s=%s\n", name, value)
+	}
+	addPath := func(name string, path android.Path) {
+		addStr(name, path.String())
+		deps = append(deps, path)
+	}
+
+	addStr("avb_hash_enable", "true")
+	addPath("avb_avbtool", ctx.Config().HostToolPath(ctx, "avbtool"))
+	algorithm := proptools.StringDefault(b.properties.Avb_algorithm, "SHA256_RSA4096")
+	addStr("avb_algorithm", algorithm)
+	key := android.PathForModuleSrc(ctx, proptools.String(b.properties.Avb_private_key))
+	addPath("avb_key_path", key)
+	addStr("avb_add_hash_footer_args", "") // TODO(jiyong): add --rollback_index
+	partitionName := proptools.StringDefault(b.properties.Partition_name, b.Name())
+	addStr("partition_name", partitionName)
+
+	propFile = android.PathForModuleOut(ctx, "prop").OutputPath
+	android.WriteFileRule(ctx, propFile, sb.String())
+	return propFile, deps
 }
 
 var _ android.AndroidMkEntriesProvider = (*bootimg)(nil)
@@ -253,6 +278,13 @@ var _ Filesystem = (*bootimg)(nil)
 
 func (b *bootimg) OutputPath() android.Path {
 	return b.output
+}
+
+func (b *bootimg) SignedOutputPath() android.Path {
+	if proptools.Bool(b.properties.Use_avb) {
+		return b.OutputPath()
+	}
+	return nil
 }
 
 var _ android.OutputFileProducer = (*bootimg)(nil)

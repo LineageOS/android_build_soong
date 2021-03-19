@@ -1281,10 +1281,13 @@ func (u *usesLibrary) freezeEnforceUsesLibraries() {
 	u.usesLibraryProperties.Enforce_uses_libs = &enforce
 }
 
-// verifyUsesLibrariesManifest checks the <uses-library> tags in an AndroidManifest.xml against the ones specified
-// in the uses_libs and optional_uses_libs properties.  It returns the path to a copy of the manifest.
-func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, manifest android.Path) android.Path {
-	outputFile := android.PathForModuleOut(ctx, "manifest_check", "AndroidManifest.xml")
+// verifyUsesLibraries checks the <uses-library> tags in the manifest against the ones specified
+// in the `uses_libs`/`optional_uses_libs` properties. The input can be either an XML manifest, or
+// an APK with the manifest embedded in it (manifest_check will know which one it is by the file
+// extension: APKs are supposed to end with '.apk').
+func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile android.Path,
+	outputFile android.WritablePath) android.Path {
+
 	statusFile := dexpreopt.UsesLibrariesStatusFile(ctx)
 
 	// Disable verify_uses_libraries check if dexpreopt is globally disabled. Without dexpreopt the
@@ -1292,15 +1295,19 @@ func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, man
 	// non-linux build platforms where dexpreopt is generally disabled (the check may fail due to
 	// various unrelated reasons, such as a failure to get manifest from an APK).
 	if dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
-		return manifest
+		return inputFile
 	}
 
 	rule := android.NewRuleBuilder(pctx, ctx)
 	cmd := rule.Command().BuiltTool("manifest_check").
 		Flag("--enforce-uses-libraries").
-		Input(manifest).
+		Input(inputFile).
 		FlagWithOutput("--enforce-uses-libraries-status ", statusFile).
-		FlagWithOutput("-o ", outputFile)
+		FlagWithInput("--aapt ", ctx.Config().HostToolPath(ctx, "aapt"))
+
+	if outputFile != nil {
+		cmd.FlagWithOutput("-o ", outputFile)
+	}
 
 	if dexpreopt.GetGlobalConfig(ctx).RelaxUsesLibraryCheck {
 		cmd.Flag("--enforce-uses-libraries-relax")
@@ -1315,35 +1322,20 @@ func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, man
 	}
 
 	rule.Build("verify_uses_libraries", "verify <uses-library>")
-
 	return outputFile
 }
 
-// verifyUsesLibrariesAPK checks the <uses-library> tags in the manifest of an APK against the ones specified
-// in the uses_libs and optional_uses_libs properties.  It returns the path to a copy of the APK.
+// verifyUsesLibrariesManifest checks the <uses-library> tags in an AndroidManifest.xml against
+// the build system and returns the path to a copy of the manifest.
+func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, manifest android.Path) android.Path {
+	outputFile := android.PathForModuleOut(ctx, "manifest_check", "AndroidManifest.xml")
+	return u.verifyUsesLibraries(ctx, manifest, outputFile)
+}
+
+// verifyUsesLibrariesAPK checks the <uses-library> tags in the manifest of an APK against the build
+// system and returns the path to a copy of the APK.
 func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk android.Path) android.Path {
+	u.verifyUsesLibraries(ctx, apk, nil) // for APKs manifest_check does not write output file
 	outputFile := android.PathForModuleOut(ctx, "verify_uses_libraries", apk.Base())
-	statusFile := dexpreopt.UsesLibrariesStatusFile(ctx)
-
-	// Disable verify_uses_libraries check if dexpreopt is globally disabled. Without dexpreopt the
-	// check is not necessary, and although it is good to have, it is difficult to maintain on
-	// non-linux build platforms where dexpreopt is generally disabled (the check may fail due to
-	// various unrelated reasons, such as a failure to get manifest from an APK).
-	if dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
-		return apk
-	}
-
-	rule := android.NewRuleBuilder(pctx, ctx)
-	aapt := ctx.Config().HostToolPath(ctx, "aapt")
-	rule.Command().
-		Textf("aapt_binary=%s", aapt.String()).Implicit(aapt).
-		Textf(`uses_library_names="%s"`, strings.Join(u.usesLibraryProperties.Uses_libs, " ")).
-		Textf(`optional_uses_library_names="%s"`, strings.Join(u.usesLibraryProperties.Optional_uses_libs, " ")).
-		Textf(`relax_check="%t"`, dexpreopt.GetGlobalConfig(ctx).RelaxUsesLibraryCheck).
-		Tool(android.PathForSource(ctx, "build/make/core/verify_uses_libraries.sh")).Input(apk).Output(statusFile)
-	rule.Command().Text("cp -f").Input(apk).Output(outputFile)
-
-	rule.Build("verify_uses_libraries", "verify <uses-library>")
-
 	return outputFile
 }

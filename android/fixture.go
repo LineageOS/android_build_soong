@@ -381,6 +381,19 @@ func GroupFixturePreparers(preparers ...FixturePreparer) FixturePreparer {
 	return &compositeFixturePreparer{dedupAndFlattenPreparers(nil, preparers)}
 }
 
+// NullFixturePreparer is a preparer that does nothing.
+var NullFixturePreparer = GroupFixturePreparers()
+
+// OptionalFixturePreparer will return the supplied preparer if it is non-nil, otherwise it will
+// return the NullFixturePreparer
+func OptionalFixturePreparer(preparer FixturePreparer) FixturePreparer {
+	if preparer == nil {
+		return NullFixturePreparer
+	} else {
+		return preparer
+	}
+}
+
 type simpleFixturePreparerVisitor func(preparer *simpleFixturePreparer)
 
 // FixturePreparer is an opaque interface that can change a fixture.
@@ -492,6 +505,14 @@ var FixtureExpectsNoErrors = FixtureCustomErrorHandler(
 		FailIfErrored(t, result.Errs)
 	},
 )
+
+// FixtureIgnoreErrors ignores any errors.
+//
+// If this is used then it is the responsibility of the test to check the TestResult.Errs does not
+// contain any unexpected errors.
+var FixtureIgnoreErrors = FixtureCustomErrorHandler(func(t *testing.T, result *TestResult) {
+	// Ignore the errors
+})
 
 // FixtureExpectsAtLeastOneMatchingError returns an error handler that will cause the test to fail
 // if at least one error that matches the regular expression is not found.
