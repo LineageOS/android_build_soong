@@ -193,7 +193,11 @@ func SyspropLibraries(config android.Config) []string {
 }
 
 func init() {
-	android.RegisterModuleType("sysprop_library", syspropLibraryFactory)
+	registerSyspropBuildComponents(android.InitRegistrationContext)
+}
+
+func registerSyspropBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("sysprop_library", syspropLibraryFactory)
 }
 
 func (m *syspropLibrary) Name() string {
