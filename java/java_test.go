@@ -1427,7 +1427,9 @@ func TestGeneratedSources(t *testing.T) {
 }
 
 func TestTurbine(t *testing.T) {
-	ctx, _ := testJava(t, `
+	result := javaFixtureFactory.
+		Extend(FixtureWithPrebuiltApis(map[string][]string{"14": {"foo"}})).
+		RunTestWithBp(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -1449,30 +1451,20 @@ func TestTurbine(t *testing.T) {
 		}
 		`)
 
-	fooTurbine := ctx.ModuleForTests("foo", "android_common").Rule("turbine")
-	barTurbine := ctx.ModuleForTests("bar", "android_common").Rule("turbine")
-	barJavac := ctx.ModuleForTests("bar", "android_common").Rule("javac")
-	barTurbineCombined := ctx.ModuleForTests("bar", "android_common").Description("for turbine")
-	bazJavac := ctx.ModuleForTests("baz", "android_common").Rule("javac")
+	fooTurbine := result.ModuleForTests("foo", "android_common").Rule("turbine")
+	barTurbine := result.ModuleForTests("bar", "android_common").Rule("turbine")
+	barJavac := result.ModuleForTests("bar", "android_common").Rule("javac")
+	barTurbineCombined := result.ModuleForTests("bar", "android_common").Description("for turbine")
+	bazJavac := result.ModuleForTests("baz", "android_common").Rule("javac")
 
-	if len(fooTurbine.Inputs) != 1 || fooTurbine.Inputs[0].String() != "a.java" {
-		t.Errorf(`foo inputs %v != ["a.java"]`, fooTurbine.Inputs)
-	}
+	android.AssertArrayString(t, "foo inputs", []string{"a.java"}, fooTurbine.Inputs.Strings())
 
 	fooHeaderJar := filepath.Join(buildDir, ".intermediates", "foo", "android_common", "turbine-combined", "foo.jar")
-	if !strings.Contains(barTurbine.Args["classpath"], fooHeaderJar) {
-		t.Errorf("bar turbine classpath %v does not contain %q", barTurbine.Args["classpath"], fooHeaderJar)
-	}
-	if !strings.Contains(barJavac.Args["classpath"], fooHeaderJar) {
-		t.Errorf("bar javac classpath %v does not contain %q", barJavac.Args["classpath"], fooHeaderJar)
-	}
-	if len(barTurbineCombined.Inputs) != 2 || barTurbineCombined.Inputs[1].String() != fooHeaderJar {
-		t.Errorf("bar turbine combineJar inputs %v does not contain %q", barTurbineCombined.Inputs, fooHeaderJar)
-	}
-	if !strings.Contains(bazJavac.Args["classpath"], "prebuilts/sdk/14/public/android.jar") {
-		t.Errorf("baz javac classpath %v does not contain %q", bazJavac.Args["classpath"],
-			"prebuilts/sdk/14/public/android.jar")
-	}
+	barTurbineJar := filepath.Join(buildDir, ".intermediates", "bar", "android_common", "turbine", "bar.jar")
+	android.AssertStringDoesContain(t, "bar turbine classpath", barTurbine.Args["classpath"], fooHeaderJar)
+	android.AssertStringDoesContain(t, "bar javac classpath", barJavac.Args["classpath"], fooHeaderJar)
+	android.AssertArrayString(t, "bar turbine combineJar", []string{barTurbineJar, fooHeaderJar}, barTurbineCombined.Inputs.Strings())
+	android.AssertStringDoesContain(t, "baz javac classpath", bazJavac.Args["classpath"], "prebuilts/sdk/14/public/android.jar")
 }
 
 func TestSharding(t *testing.T) {
