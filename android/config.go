@@ -1475,8 +1475,28 @@ func (c *deviceConfig) ShippingApiLevel() ApiLevel {
 	return uncheckedFinalApiLevel(apiLevel)
 }
 
+func (c *deviceConfig) BuildBrokenEnforceSyspropOwner() bool {
+	return c.config.productVariables.BuildBrokenEnforceSyspropOwner
+}
+
+func (c *deviceConfig) BuildBrokenTrebleSyspropNeverallow() bool {
+	return c.config.productVariables.BuildBrokenTrebleSyspropNeverallow
+}
+
 func (c *deviceConfig) BuildBrokenVendorPropertyNamespace() bool {
 	return c.config.productVariables.BuildBrokenVendorPropertyNamespace
+}
+
+func (c *deviceConfig) RequiresInsecureExecmemForSwiftshader() bool {
+	return c.config.productVariables.RequiresInsecureExecmemForSwiftshader
+}
+
+func (c *config) SelinuxIgnoreNeverallows() bool {
+	return c.productVariables.SelinuxIgnoreNeverallows
+}
+
+func (c *deviceConfig) SepolicySplit() bool {
+	return c.config.productVariables.SepolicySplit
 }
 
 // The ConfiguredJarList struct provides methods for handling a list of (apex, jar) pairs.
