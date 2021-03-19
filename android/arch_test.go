@@ -273,6 +273,13 @@ func archTestModuleFactory() Module {
 	return m
 }
 
+var prepareForArchTest = GroupFixturePreparers(
+	PrepareForTestWithArchMutator,
+	FixtureRegisterWithContext(func(ctx RegistrationContext) {
+		ctx.RegisterModuleType("module", archTestModuleFactory)
+	}),
+)
+
 func TestArchMutator(t *testing.T) {
 	var buildOSVariants []string
 	var buildOS32Variants []string
@@ -309,7 +316,7 @@ func TestArchMutator(t *testing.T) {
 
 	testCases := []struct {
 		name        string
-		config      func(Config)
+		preparer    FixturePreparer
 		fooVariants []string
 		barVariants []string
 		bazVariants []string
@@ -317,7 +324,7 @@ func TestArchMutator(t *testing.T) {
 	}{
 		{
 			name:        "normal",
-			config:      nil,
+			preparer:    nil,
 			fooVariants: []string{"android_arm64_armv8-a", "android_arm_armv7-a-neon"},
 			barVariants: append(buildOSVariants, "android_arm64_armv8-a", "android_arm_armv7-a-neon"),
 			bazVariants: nil,
@@ -325,11 +332,11 @@ func TestArchMutator(t *testing.T) {
 		},
 		{
 			name: "host-only",
-			config: func(config Config) {
+			preparer: FixtureModifyConfig(func(config Config) {
 				config.BuildOSTarget = Target{}
 				config.BuildOSCommonTarget = Target{}
 				config.Targets[Android] = nil
-			},
+			}),
 			fooVariants: nil,
 			barVariants: buildOSVariants,
 			bazVariants: nil,
@@ -351,19 +358,13 @@ func TestArchMutator(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			config := TestArchConfig(buildDir, nil, bp, nil)
-
-			ctx := NewTestArchContext(config)
-			ctx.RegisterModuleType("module", archTestModuleFactory)
-			ctx.Register()
-			if tt.config != nil {
-				tt.config(config)
-			}
-
-			_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-			FailIfErrored(t, errs)
-			_, errs = ctx.PrepareBuildActions(config)
-			FailIfErrored(t, errs)
+			result := emptyTestFixtureFactory.RunTest(t,
+				prepareForArchTest,
+				// Test specific preparer
+				OptionalFixturePreparer(tt.preparer),
+				FixtureWithRootAndroidBp(bp),
+			)
+			ctx := result.TestContext
 
 			if g, w := enabledVariants(ctx, "foo"), tt.fooVariants; !reflect.DeepEqual(w, g) {
 				t.Errorf("want foo variants:\n%q\ngot:\n%q\n", w, g)
@@ -412,14 +413,14 @@ func TestArchMutatorNativeBridge(t *testing.T) {
 
 	testCases := []struct {
 		name        string
-		config      func(Config)
+		preparer    FixturePreparer
 		fooVariants []string
 		barVariants []string
 		bazVariants []string
 	}{
 		{
 			name:        "normal",
-			config:      nil,
+			preparer:    nil,
 			fooVariants: []string{"android_x86_64_silvermont", "android_x86_silvermont"},
 			barVariants: []string{"android_x86_64_silvermont", "android_native_bridge_arm64_armv8-a", "android_x86_silvermont", "android_native_bridge_arm_armv7-a-neon"},
 			bazVariants: []string{"android_native_bridge_arm64_armv8-a", "android_native_bridge_arm_armv7-a-neon"},
@@ -440,19 +441,23 @@ func TestArchMutatorNativeBridge(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			config := TestArchConfigNativeBridge(buildDir, nil, bp, nil)
+			result := emptyTestFixtureFactory.RunTest(t,
+				prepareForArchTest,
+				// Test specific preparer
+				OptionalFixturePreparer(tt.preparer),
+				// Prepare for native bridge test
+				FixtureModifyConfig(func(config Config) {
+					config.Targets[Android] = []Target{
+						{Android, Arch{ArchType: X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
+						{Android, Arch{ArchType: X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", "", false},
+						{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeEnabled, "x86_64", "arm64", false},
+						{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeEnabled, "x86", "arm", false},
+					}
+				}),
+				FixtureWithRootAndroidBp(bp),
+			)
 
-			ctx := NewTestArchContext(config)
-			ctx.RegisterModuleType("module", archTestModuleFactory)
-			ctx.Register()
-			if tt.config != nil {
-				tt.config(config)
-			}
-
-			_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-			FailIfErrored(t, errs)
-			_, errs = ctx.PrepareBuildActions(config)
-			FailIfErrored(t, errs)
+			ctx := result.TestContext
 
 			if g, w := enabledVariants(ctx, "foo"), tt.fooVariants; !reflect.DeepEqual(w, g) {
 				t.Errorf("want foo variants:\n%q\ngot:\n%q\n", w, g)

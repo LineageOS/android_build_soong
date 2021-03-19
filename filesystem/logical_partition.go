@@ -209,6 +209,10 @@ func (l *logicalPartition) OutputPath() android.Path {
 	return l.output
 }
 
+func (l *logicalPartition) SignedOutputPath() android.Path {
+	return nil // logical partition is not signed by itself
+}
+
 var _ android.OutputFileProducer = (*logicalPartition)(nil)
 
 // Implements android.OutputFileProducer

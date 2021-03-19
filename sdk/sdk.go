@@ -358,14 +358,35 @@ var _ android.ExcludeFromApexContentsTag = dependencyTag{}
 
 // For dependencies from an in-development version of an SDK member to frozen versions of the same member
 // e.g. libfoo -> libfoo.mysdk.11 and libfoo.mysdk.12
+//
+// The dependency represented by this tag requires that for every APEX variant created for the
+// `from` module that an equivalent APEX variant is created for the 'to' module. This is because an
+// APEX that requires a specific version of an sdk (via the `uses_sdks` property will replace
+// dependencies on the unversioned sdk member with a dependency on the appropriate versioned sdk
+// member. In order for that to work the versioned sdk member needs to have a variant for that APEX.
+// As it is not known at the time that the APEX variants are created which specific APEX variants of
+// a versioned sdk members will be required it is necessary for the versioned sdk members to have
+// variants for any APEX that it could be used within.
+//
+// If the APEX selects a versioned sdk member then it will not have a dependency on the `from`
+// module at all so any dependencies of that module will not affect the APEX. However, if the APEX
+// selects the unversioned sdk member then it must exclude all the versioned sdk members. In no
+// situation would this dependency cause the `to` module to be added to the APEX hence why this tag
+// also excludes the `to` module from being added to the APEX contents.
 type sdkMemberVersionedDepTag struct {
 	dependencyTag
 	member  string
 	version string
 }
 
+func (t sdkMemberVersionedDepTag) AlwaysRequireApexVariant() bool {
+	return true
+}
+
 // Mark this tag so dependencies that use it are excluded from visibility enforcement.
 func (t sdkMemberVersionedDepTag) ExcludeFromVisibilityEnforcement() {}
+
+var _ android.AlwaysRequireApexVariantTag = sdkMemberVersionedDepTag{}
 
 // Step 1: create dependencies from an SDK module to its members.
 func memberMutator(mctx android.BottomUpMutatorContext) {

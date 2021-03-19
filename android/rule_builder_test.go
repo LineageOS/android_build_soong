@@ -17,7 +17,6 @@ package android
 import (
 	"fmt"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -361,32 +360,16 @@ func TestRuleBuilder(t *testing.T) {
 
 		wantDepMergerCommand := "out/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer out/DepFile out/depfile out/ImplicitDepFile out/depfile2"
 
-		if g, w := rule.Commands(), wantCommands; !reflect.DeepEqual(g, w) {
-			t.Errorf("\nwant rule.Commands() = %#v\n                   got %#v", w, g)
-		}
+		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
 
-		if g, w := rule.Inputs(), wantInputs; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.Inputs() = %#v\n                 got %#v", w, g)
-		}
-		if g, w := rule.Outputs(), wantOutputs; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.Outputs() = %#v\n                  got %#v", w, g)
-		}
-		if g, w := rule.SymlinkOutputs(), wantSymlinkOutputs; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.SymlinkOutputs() = %#v\n                  got %#v", w, g)
-		}
-		if g, w := rule.DepFiles(), wantDepFiles; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.DepFiles() = %#v\n                  got %#v", w, g)
-		}
-		if g, w := rule.Tools(), wantTools; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.Tools() = %#v\n                got %#v", w, g)
-		}
-		if g, w := rule.OrderOnlys(), wantOrderOnlys; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.OrderOnlys() = %#v\n                got %#v", w, g)
-		}
+		AssertDeepEquals(t, "rule.Inputs()", wantInputs, rule.Inputs())
+		AssertDeepEquals(t, "rule.Outputs()", wantOutputs, rule.Outputs())
+		AssertDeepEquals(t, "rule.SymlinkOutputs()", wantSymlinkOutputs, rule.SymlinkOutputs())
+		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
+		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
+		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
 
-		if g, w := rule.depFileMergerCmd(rule.DepFiles()).String(), wantDepMergerCommand; g != w {
-			t.Errorf("\nwant rule.depFileMergerCmd() = %#v\n                   got %#v", w, g)
-		}
+		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
 	})
 
 	t.Run("sbox", func(t *testing.T) {
@@ -402,29 +385,15 @@ func TestRuleBuilder(t *testing.T) {
 
 		wantDepMergerCommand := "out/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
 
-		if g, w := rule.Commands(), wantCommands; !reflect.DeepEqual(g, w) {
-			t.Errorf("\nwant rule.Commands() = %#v\n                   got %#v", w, g)
-		}
+		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
 
-		if g, w := rule.Inputs(), wantInputs; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.Inputs() = %#v\n                 got %#v", w, g)
-		}
-		if g, w := rule.Outputs(), wantOutputs; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.Outputs() = %#v\n                  got %#v", w, g)
-		}
-		if g, w := rule.DepFiles(), wantDepFiles; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.DepFiles() = %#v\n                  got %#v", w, g)
-		}
-		if g, w := rule.Tools(), wantTools; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.Tools() = %#v\n                got %#v", w, g)
-		}
-		if g, w := rule.OrderOnlys(), wantOrderOnlys; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.OrderOnlys() = %#v\n                got %#v", w, g)
-		}
+		AssertDeepEquals(t, "rule.Inputs()", wantInputs, rule.Inputs())
+		AssertDeepEquals(t, "rule.Outputs()", wantOutputs, rule.Outputs())
+		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
+		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
+		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
 
-		if g, w := rule.depFileMergerCmd(rule.DepFiles()).String(), wantDepMergerCommand; g != w {
-			t.Errorf("\nwant rule.depFileMergerCmd() = %#v\n                   got %#v", w, g)
-		}
+		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
 	})
 
 	t.Run("sbox tools", func(t *testing.T) {
@@ -440,29 +409,15 @@ func TestRuleBuilder(t *testing.T) {
 
 		wantDepMergerCommand := "__SBOX_SANDBOX_DIR__/tools/out/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
 
-		if g, w := rule.Commands(), wantCommands; !reflect.DeepEqual(g, w) {
-			t.Errorf("\nwant rule.Commands() = %#v\n                   got %#v", w, g)
-		}
+		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
 
-		if g, w := rule.Inputs(), wantInputs; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.Inputs() = %#v\n                 got %#v", w, g)
-		}
-		if g, w := rule.Outputs(), wantOutputs; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.Outputs() = %#v\n                  got %#v", w, g)
-		}
-		if g, w := rule.DepFiles(), wantDepFiles; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.DepFiles() = %#v\n                  got %#v", w, g)
-		}
-		if g, w := rule.Tools(), wantTools; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.Tools() = %#v\n                got %#v", w, g)
-		}
-		if g, w := rule.OrderOnlys(), wantOrderOnlys; !reflect.DeepEqual(w, g) {
-			t.Errorf("\nwant rule.OrderOnlys() = %#v\n                got %#v", w, g)
-		}
+		AssertDeepEquals(t, "rule.Inputs()", wantInputs, rule.Inputs())
+		AssertDeepEquals(t, "rule.Outputs()", wantOutputs, rule.Outputs())
+		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
+		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
+		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
 
-		if g, w := rule.depFileMergerCmd(rule.DepFiles()).String(), wantDepMergerCommand; g != w {
-			t.Errorf("\nwant rule.depFileMergerCmd() = %#v\n                   got %#v", w, g)
-		}
+		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
 	})
 }
 
@@ -524,8 +479,13 @@ func testRuleBuilder_Build(ctx BuilderContext, in Paths, out, outDep, outDir, ma
 	rule.Build("rule", "desc")
 }
 
+var prepareForRuleBuilderTest = FixtureRegisterWithContext(func(ctx RegistrationContext) {
+	ctx.RegisterModuleType("rule_builder_test", testRuleBuilderFactory)
+	ctx.RegisterSingletonType("rule_builder_test", testRuleBuilderSingletonFactory)
+})
+
 func TestRuleBuilder_Build(t *testing.T) {
-	fs := map[string][]byte{
+	fs := MockFS{
 		"bar": nil,
 		"cp":  nil,
 	}
@@ -543,60 +503,46 @@ func TestRuleBuilder_Build(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, nil, bp, fs)
-	ctx := NewTestContext(config)
-	ctx.RegisterModuleType("rule_builder_test", testRuleBuilderFactory)
-	ctx.RegisterSingletonType("rule_builder_test", testRuleBuilderSingletonFactory)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	FailIfErrored(t, errs)
+	result := emptyTestFixtureFactory.RunTest(t,
+		prepareForRuleBuilderTest,
+		FixtureWithRootAndroidBp(bp),
+		fs.AddToFixture(),
+	)
 
 	check := func(t *testing.T, params TestingBuildParams, wantCommand, wantOutput, wantDepfile string, wantRestat bool, extraImplicits, extraCmdDeps []string) {
 		t.Helper()
 		command := params.RuleParams.Command
 		re := regexp.MustCompile(" # hash of input list: [a-z0-9]*$")
 		command = re.ReplaceAllLiteralString(command, "")
-		if command != wantCommand {
-			t.Errorf("\nwant RuleParams.Command = %q\n                      got %q", wantCommand, params.RuleParams.Command)
-		}
+
+		AssertStringEquals(t, "RuleParams.Command", wantCommand, command)
 
 		wantDeps := append([]string{"cp"}, extraCmdDeps...)
-		if !reflect.DeepEqual(params.RuleParams.CommandDeps, wantDeps) {
-			t.Errorf("\nwant RuleParams.CommandDeps = %q\n                          got %q", wantDeps, params.RuleParams.CommandDeps)
-		}
+		AssertArrayString(t, "RuleParams.CommandDeps", wantDeps, params.RuleParams.CommandDeps)
 
-		if params.RuleParams.Restat != wantRestat {
-			t.Errorf("want RuleParams.Restat = %v, got %v", wantRestat, params.RuleParams.Restat)
-		}
+		AssertBoolEquals(t, "RuleParams.Restat", wantRestat, params.RuleParams.Restat)
 
 		wantImplicits := append([]string{"bar"}, extraImplicits...)
-		if !reflect.DeepEqual(params.Implicits.Strings(), wantImplicits) {
-			t.Errorf("want Implicits = [%q], got %q", "bar", params.Implicits.Strings())
-		}
+		AssertArrayString(t, "Implicits", wantImplicits, params.Implicits.Strings())
 
-		if params.Output.String() != wantOutput {
-			t.Errorf("want Output = %q, got %q", wantOutput, params.Output)
-		}
+		AssertStringEquals(t, "Output", wantOutput, params.Output.String())
 
 		if len(params.ImplicitOutputs) != 0 {
 			t.Errorf("want ImplicitOutputs = [], got %q", params.ImplicitOutputs.Strings())
 		}
 
-		if params.Depfile.String() != wantDepfile {
-			t.Errorf("want Depfile = %q, got %q", wantDepfile, params.Depfile)
-		}
+		AssertStringEquals(t, "Depfile", wantDepfile, params.Depfile.String())
 
 		if params.Deps != blueprint.DepsGCC {
 			t.Errorf("want Deps = %q, got %q", blueprint.DepsGCC, params.Deps)
 		}
 	}
 
+	buildDir := result.Config.BuildDir()
+
 	t.Run("module", func(t *testing.T) {
 		outFile := filepath.Join(buildDir, ".intermediates", "foo", "gen", "foo")
-		check(t, ctx.ModuleForTests("foo", "").Rule("rule"),
+		check(t, result.ModuleForTests("foo", "").Rule("rule"),
 			"cp bar "+outFile,
 			outFile, outFile+".d", true, nil, nil)
 	})
@@ -605,18 +551,18 @@ func TestRuleBuilder_Build(t *testing.T) {
 		outFile := filepath.Join(outDir, "gen/foo_sbox")
 		depFile := filepath.Join(outDir, "gen/foo_sbox.d")
 		manifest := filepath.Join(outDir, "sbox.textproto")
-		sbox := filepath.Join(buildDir, "host", config.PrebuiltOS(), "bin/sbox")
+		sbox := filepath.Join(buildDir, "host", result.Config.PrebuiltOS(), "bin/sbox")
 		sandboxPath := shared.TempDirForOutDir(buildDir)
 
 		cmd := `rm -rf ` + outDir + `/gen && ` +
 			sbox + ` --sandbox-path ` + sandboxPath + ` --manifest ` + manifest
 
-		check(t, ctx.ModuleForTests("foo_sbox", "").Output("gen/foo_sbox"),
+		check(t, result.ModuleForTests("foo_sbox", "").Output("gen/foo_sbox"),
 			cmd, outFile, depFile, false, []string{manifest}, []string{sbox})
 	})
 	t.Run("singleton", func(t *testing.T) {
 		outFile := filepath.Join(buildDir, "singleton/gen/baz")
-		check(t, ctx.SingletonForTests("rule_builder_test").Rule("rule"),
+		check(t, result.SingletonForTests("rule_builder_test").Rule("rule"),
 			"cp bar "+outFile, outFile, outFile+".d", true, nil, nil)
 	})
 }
@@ -666,29 +612,22 @@ func TestRuleBuilderHashInputs(t *testing.T) {
 		},
 	}
 
-	config := TestConfig(buildDir, nil, bp, nil)
-	ctx := NewTestContext(config)
-	ctx.RegisterModuleType("rule_builder_test", testRuleBuilderFactory)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	FailIfErrored(t, errs)
+	result := emptyTestFixtureFactory.RunTest(t,
+		prepareForRuleBuilderTest,
+		FixtureWithRootAndroidBp(bp),
+	)
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
 			t.Run("sbox", func(t *testing.T) {
-				gen := ctx.ModuleForTests(test.name+"_sbox", "")
+				gen := result.ModuleForTests(test.name+"_sbox", "")
 				manifest := RuleBuilderSboxProtoForTests(t, gen.Output("sbox.textproto"))
 				hash := manifest.Commands[0].GetInputHash()
 
-				if g, w := hash, test.expectedHash; g != w {
-					t.Errorf("Expected has %q, got %q", w, g)
-				}
+				AssertStringEquals(t, "hash", test.expectedHash, hash)
 			})
 			t.Run("", func(t *testing.T) {
-				gen := ctx.ModuleForTests(test.name+"", "")
+				gen := result.ModuleForTests(test.name+"", "")
 				command := gen.Output("gen/" + test.name).RuleParams.Command
 				if g, w := command, " # hash of input list: "+test.expectedHash; !strings.HasSuffix(g, w) {
 					t.Errorf("Expected command line to end with %q, got %q", w, g)

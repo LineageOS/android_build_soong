@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 
-	runTestWithBuildDir(m)
+	os.Exit(m.Run())
 }
 
 func TestDepNotInRequiredSdks(t *testing.T) {

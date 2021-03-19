@@ -121,7 +121,7 @@ func Test_mergeApexVariations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := TestConfig(buildDir, nil, "", nil)
+			config := TestConfig(t.TempDir(), nil, "", nil)
 			ctx := &configErrorWrapper{config: config}
 			gotMerged, gotAliases := mergeApexVariations(ctx, tt.in)
 			if !reflect.DeepEqual(gotMerged, tt.wantMerged) {
