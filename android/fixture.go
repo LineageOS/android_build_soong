@@ -582,6 +582,10 @@ type TestResult struct {
 
 	// The errors that were reported during the test.
 	Errs []error
+
+	// The ninja deps is a list of the ninja files dependencies that were added by the modules and
+	// singletons via the *.AddNinjaFileDeps() methods.
+	NinjaDeps []string
 }
 
 var _ FixtureFactory = (*fixtureFactory)(nil)
@@ -722,9 +726,14 @@ func (f *fixture) RunTest() *TestResult {
 	}
 
 	ctx.Register()
-	_, errs := ctx.ParseBlueprintsFiles("ignored")
+	var ninjaDeps []string
+	extraNinjaDeps, errs := ctx.ParseBlueprintsFiles("ignored")
 	if len(errs) == 0 {
-		_, errs = ctx.PrepareBuildActions(f.config)
+		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
+		extraNinjaDeps, errs = ctx.PrepareBuildActions(f.config)
+		if len(errs) == 0 {
+			ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
+		}
 	}
 
 	result := &TestResult{
@@ -732,6 +741,7 @@ func (f *fixture) RunTest() *TestResult {
 		fixture:     f,
 		Config:      f.config,
 		Errs:        errs,
+		NinjaDeps:   ninjaDeps,
 	}
 
 	f.errorHandler.CheckErrors(f.t, result)

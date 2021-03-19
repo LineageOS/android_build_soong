@@ -80,21 +80,20 @@ func TestInstallDependencyTag(t *testing.T) {
 		}
 	`
 
-	config := TestArchConfig(buildDir, nil, bp, nil)
-	ctx := NewTestArchContext(config)
+	result := emptyTestFixtureFactory.RunTest(t,
+		PrepareForTestWithArchMutator,
+		FixtureWithRootAndroidBp(bp),
+		FixtureRegisterWithContext(func(ctx RegistrationContext) {
+			ctx.RegisterModuleType("test_module", testInstallDependencyTagModuleFactory)
+		}),
+	)
 
-	ctx.RegisterModuleType("test_module", testInstallDependencyTagModuleFactory)
+	config := result.Config
 
-	ctx.Register()
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	FailIfErrored(t, errs)
-
-	hostFoo := ctx.ModuleForTests("foo", config.BuildOSCommonTarget.String()).Description("install")
-	hostInstallDep := ctx.ModuleForTests("install_dep", config.BuildOSCommonTarget.String()).Description("install")
-	hostTransitive := ctx.ModuleForTests("transitive", config.BuildOSCommonTarget.String()).Description("install")
-	hostDep := ctx.ModuleForTests("dep", config.BuildOSCommonTarget.String()).Description("install")
+	hostFoo := result.ModuleForTests("foo", config.BuildOSCommonTarget.String()).Description("install")
+	hostInstallDep := result.ModuleForTests("install_dep", config.BuildOSCommonTarget.String()).Description("install")
+	hostTransitive := result.ModuleForTests("transitive", config.BuildOSCommonTarget.String()).Description("install")
+	hostDep := result.ModuleForTests("dep", config.BuildOSCommonTarget.String()).Description("install")
 
 	if g, w := hostFoo.Implicits.Strings(), hostInstallDep.Output.String(); !InList(w, g) {
 		t.Errorf("expected host dependency %q, got %q", w, g)
@@ -112,10 +111,10 @@ func TestInstallDependencyTag(t *testing.T) {
 		t.Errorf("expected no host dependency %q, got %q", w, g)
 	}
 
-	deviceFoo := ctx.ModuleForTests("foo", "android_common").Description("install")
-	deviceInstallDep := ctx.ModuleForTests("install_dep", "android_common").Description("install")
-	deviceTransitive := ctx.ModuleForTests("transitive", "android_common").Description("install")
-	deviceDep := ctx.ModuleForTests("dep", "android_common").Description("install")
+	deviceFoo := result.ModuleForTests("foo", "android_common").Description("install")
+	deviceInstallDep := result.ModuleForTests("install_dep", "android_common").Description("install")
+	deviceTransitive := result.ModuleForTests("transitive", "android_common").Description("install")
+	deviceDep := result.ModuleForTests("dep", "android_common").Description("install")
 
 	if g, w := deviceFoo.OrderOnly.Strings(), deviceInstallDep.Output.String(); !InList(w, g) {
 		t.Errorf("expected device dependency %q, got %q", w, g)
