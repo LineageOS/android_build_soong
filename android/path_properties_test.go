@@ -15,7 +15,6 @@
 package android
 
 import (
-	"reflect"
 	"testing"
 )
 
@@ -158,23 +157,18 @@ func TestPathDepsMutator(t *testing.T) {
 				}
 			`
 
-			config := TestArchConfig(buildDir, nil, bp, nil)
-			ctx := NewTestArchContext(config)
+			result := emptyTestFixtureFactory.RunTest(t,
+				PrepareForTestWithArchMutator,
+				PrepareForTestWithFilegroup,
+				FixtureRegisterWithContext(func(ctx RegistrationContext) {
+					ctx.RegisterModuleType("test", pathDepsMutatorTestModuleFactory)
+				}),
+				FixtureWithRootAndroidBp(bp),
+			)
 
-			ctx.RegisterModuleType("test", pathDepsMutatorTestModuleFactory)
-			ctx.RegisterModuleType("filegroup", FileGroupFactory)
+			m := result.Module("foo", "android_arm64_armv8-a").(*pathDepsMutatorTestModule)
 
-			ctx.Register()
-			_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-			FailIfErrored(t, errs)
-			_, errs = ctx.PrepareBuildActions(config)
-			FailIfErrored(t, errs)
-
-			m := ctx.ModuleForTests("foo", "android_arm64_armv8-a").Module().(*pathDepsMutatorTestModule)
-
-			if g, w := m.sourceDeps, test.deps; !reflect.DeepEqual(g, w) {
-				t.Errorf("want deps %q, got %q", w, g)
-			}
+			AssertDeepEquals(t, "deps", test.deps, m.sourceDeps)
 		})
 	}
 }
