@@ -90,15 +90,11 @@ func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
-	lib, ok := module.linker.(*libraryDecorator)
-	if !ok {
-		// Not a cc_library module
+	if ctx.ModuleType() != "cc_library_headers" {
 		return
 	}
-	if !lib.header() {
-		// Not a cc_library_headers module
-		return
-	}
+
+	lib, _ := module.linker.(*libraryDecorator)
 
 	// list of directories that will be added to the include path (using -I) for this
 	// module and any module that links against this module.
