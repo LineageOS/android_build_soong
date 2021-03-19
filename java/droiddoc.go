@@ -1235,7 +1235,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 			ToolchainInputs:      []string{config.JavaCmd(ctx).String()},
 			Platform:             map[string]string{remoteexec.PoolKey: pool},
 			EnvironmentVariables: []string{"ANDROID_SDK_HOME"},
-		}).NoVarTemplate(ctx.Config()))
+		}).NoVarTemplate(ctx.Config().RBEWrapper()))
 	}
 
 	cmd.BuiltTool("metalava").
@@ -1678,14 +1678,17 @@ func StubsDefaultsFactory() android.Module {
 func zipSyncCmd(ctx android.ModuleContext, rule *android.RuleBuilder,
 	srcJarDir android.ModuleOutPath, srcJars android.Paths) android.OutputPath {
 
-	rule.Command().Text("rm -rf").Text(srcJarDir.String())
-	rule.Command().Text("mkdir -p").Text(srcJarDir.String())
+	cmd := rule.Command()
+	cmd.Text("rm -rf").Text(cmd.PathForOutput(srcJarDir))
+	cmd = rule.Command()
+	cmd.Text("mkdir -p").Text(cmd.PathForOutput(srcJarDir))
 	srcJarList := srcJarDir.Join(ctx, "list")
 
 	rule.Temporary(srcJarList)
 
-	rule.Command().BuiltTool("zipsync").
-		FlagWithArg("-d ", srcJarDir.String()).
+	cmd = rule.Command()
+	cmd.BuiltTool("zipsync").
+		FlagWithArg("-d ", cmd.PathForOutput(srcJarDir)).
 		FlagWithOutput("-l ", srcJarList).
 		FlagWithArg("-f ", `"*.java"`).
 		Inputs(srcJars)
