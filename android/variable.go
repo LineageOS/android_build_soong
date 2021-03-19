@@ -380,7 +380,15 @@ type productVariables struct {
 
 	ShippingApiLevel *string `json:",omitempty"`
 
+	BuildBrokenEnforceSyspropOwner     bool `json:",omitempty"`
+	BuildBrokenTrebleSyspropNeverallow bool `json:",omitempty"`
 	BuildBrokenVendorPropertyNamespace bool `json:",omitempty"`
+
+	RequiresInsecureExecmemForSwiftshader bool `json:",omitempty"`
+
+	SelinuxIgnoreNeverallows bool `json:",omitempty"`
+
+	SepolicySplit bool `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
