@@ -353,6 +353,11 @@ func TestClasspath(t *testing.T) {
 			}
 
 			fixtureFactory := javaFixtureFactory.Extend(
+				FixtureWithPrebuiltApis(map[string][]string{
+					"29":      {},
+					"30":      {},
+					"current": {},
+				}),
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 					if testcase.unbundled {
 						variables.Unbundled_build = proptools.BoolPtr(true)
