@@ -55,7 +55,9 @@ python_test_host {
     libs: [
         "manifest_utils",
     ],
-    test_suites: ["general-tests"],
+    test_options: {
+        unit_test: true,
+    },
 }
 
 python_library_host {
@@ -110,7 +112,9 @@ python_test_host {
     libs: [
         "manifest_utils",
     ],
-    test_suites: ["general-tests"],
+    test_options: {
+        unit_test: true,
+    },
 }
 
 python_binary_host {
