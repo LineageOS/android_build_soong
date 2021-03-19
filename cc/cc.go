@@ -1605,7 +1605,7 @@ func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 
 // Returns true if Bazel was successfully used for the analysis of this module.
 func (c *Module) maybeGenerateBazelActions(actx android.ModuleContext) bool {
-	bazelModuleLabel := c.GetBazelLabel()
+	bazelModuleLabel := c.GetBazelLabel(actx, c)
 	bazelActionsUsed := false
 	if c.bazelHandler != nil && actx.Config().BazelContext.BazelEnabled() && len(bazelModuleLabel) > 0 {
 		bazelActionsUsed = c.bazelHandler.generateBazelBuildActions(actx, bazelModuleLabel)

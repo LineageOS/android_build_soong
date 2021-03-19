@@ -385,21 +385,26 @@ func (r *RuleBuilder) RspFileInputs() Paths {
 	return rspFileInputs
 }
 
+// RspFile returns the path to the rspfile that was passed to the RuleBuilderCommand.FlagWithRspFileInputList method.
+func (r *RuleBuilder) RspFile() WritablePath {
+	var rspFile WritablePath
+	for _, c := range r.commands {
+		if c.rspFile != nil {
+			if rspFile != nil {
+				panic("Multiple commands in a rule may not have rsp file inputs")
+			}
+			rspFile = c.rspFile
+		}
+	}
+
+	return rspFile
+}
+
 // Commands returns a slice containing the built command line for each call to RuleBuilder.Command.
 func (r *RuleBuilder) Commands() []string {
 	var commands []string
 	for _, c := range r.commands {
 		commands = append(commands, c.String())
-	}
-	return commands
-}
-
-// NinjaEscapedCommands returns a slice containing the built command line after ninja escaping for each call to
-// RuleBuilder.Command.
-func (r *RuleBuilder) NinjaEscapedCommands() []string {
-	var commands []string
-	for _, c := range r.commands {
-		commands = append(commands, c.NinjaEscapedString())
 	}
 	return commands
 }
@@ -458,9 +463,11 @@ func (r *RuleBuilder) Build(name string, desc string) {
 	}
 
 	tools := r.Tools()
-	commands := r.NinjaEscapedCommands()
+	commands := r.Commands()
 	outputs := r.Outputs()
 	inputs := r.Inputs()
+	rspFileInputs := r.RspFileInputs()
+	rspFilePath := r.RspFile()
 
 	if len(commands) == 0 {
 		return
@@ -516,6 +523,12 @@ func (r *RuleBuilder) Build(name string, desc string) {
 			})
 		}
 
+		// Outputs that were marked Temporary will not be checked that they are in the output
+		// directory by the loop above, check them here.
+		for path := range r.temporariesSet {
+			Rel(r.ctx, r.outDir.String(), path.String())
+		}
+
 		// Add a hash of the list of input files to the manifest so that the textproto file
 		// changes when the list of input files changes and causes the sbox rule that
 		// depends on it to rerun.
@@ -559,15 +572,14 @@ func (r *RuleBuilder) Build(name string, desc string) {
 	}
 
 	// Ninja doesn't like multiple outputs when depfiles are enabled, move all but the first output to
-	// ImplicitOutputs.  RuleBuilder only uses "$out" for the rsp file location, so the distinction between Outputs and
+	// ImplicitOutputs.  RuleBuilder doesn't use "$out", so the distinction between Outputs and
 	// ImplicitOutputs doesn't matter.
 	output := outputs[0]
 	implicitOutputs := outputs[1:]
 
 	var rspFile, rspFileContent string
-	rspFileInputs := r.RspFileInputs()
-	if rspFileInputs != nil {
-		rspFile = "$out.rsp"
+	if rspFilePath != nil {
+		rspFile = rspFilePath.String()
 		rspFileContent = "$in"
 	}
 
@@ -585,10 +597,10 @@ func (r *RuleBuilder) Build(name string, desc string) {
 
 	r.ctx.Build(r.pctx, BuildParams{
 		Rule: r.ctx.Rule(pctx, name, blueprint.RuleParams{
-			Command:        commandString,
-			CommandDeps:    tools.Strings(),
+			Command:        proptools.NinjaEscape(commandString),
+			CommandDeps:    proptools.NinjaEscapeList(tools.Strings()),
 			Restat:         r.restat,
-			Rspfile:        rspFile,
+			Rspfile:        proptools.NinjaEscape(rspFile),
 			RspfileContent: rspFileContent,
 			Pool:           pool,
 		}),
@@ -620,9 +632,7 @@ type RuleBuilderCommand struct {
 	tools          Paths
 	packagedTools  []PackagingSpec
 	rspFileInputs  Paths
-
-	// spans [start,end) of the command that should not be ninja escaped
-	unescapedSpans [][2]int
+	rspFile        WritablePath
 }
 
 func (c *RuleBuilderCommand) addInput(path Path) string {
@@ -1020,8 +1030,9 @@ func (c *RuleBuilderCommand) FlagWithDepFile(flag string, path WritablePath) *Ru
 }
 
 // FlagWithRspFileInputList adds the specified flag and path to an rspfile to the command line, with no separator
-// between them.  The paths will be written to the rspfile.
-func (c *RuleBuilderCommand) FlagWithRspFileInputList(flag string, paths Paths) *RuleBuilderCommand {
+// between them.  The paths will be written to the rspfile.  If sbox is enabled, the rspfile must
+// be outside the sbox directory.
+func (c *RuleBuilderCommand) FlagWithRspFileInputList(flag string, rspFile WritablePath, paths Paths) *RuleBuilderCommand {
 	if c.rspFileInputs != nil {
 		panic("FlagWithRspFileInputList cannot be called if rsp file inputs have already been provided")
 	}
@@ -1033,21 +1044,22 @@ func (c *RuleBuilderCommand) FlagWithRspFileInputList(flag string, paths Paths) 
 	}
 
 	c.rspFileInputs = paths
+	c.rspFile = rspFile
 
-	rspFile := "$out.rsp"
-	c.FlagWithArg(flag, rspFile)
-	c.unescapedSpans = append(c.unescapedSpans, [2]int{c.buf.Len() - len(rspFile), c.buf.Len()})
+	if c.rule.sbox {
+		if _, isRel, _ := maybeRelErr(c.rule.outDir.String(), rspFile.String()); isRel {
+			panic(fmt.Errorf("FlagWithRspFileInputList rspfile %q must not be inside out dir %q",
+				rspFile.String(), c.rule.outDir.String()))
+		}
+	}
+
+	c.FlagWithArg(flag, rspFile.String())
 	return c
 }
 
 // String returns the command line.
 func (c *RuleBuilderCommand) String() string {
 	return c.buf.String()
-}
-
-// String returns the command line.
-func (c *RuleBuilderCommand) NinjaEscapedString() string {
-	return ninjaEscapeExceptForSpans(c.String(), c.unescapedSpans)
 }
 
 // RuleBuilderSboxProtoForTests takes the BuildParams for the manifest passed to RuleBuilder.Sbox()
@@ -1061,25 +1073,6 @@ func RuleBuilderSboxProtoForTests(t *testing.T, params TestingBuildParams) *sbox
 		t.Fatalf("failed to unmarshal manifest: %s", err.Error())
 	}
 	return &manifest
-}
-
-func ninjaEscapeExceptForSpans(s string, spans [][2]int) string {
-	if len(spans) == 0 {
-		return proptools.NinjaEscape(s)
-	}
-
-	sb := strings.Builder{}
-	sb.Grow(len(s) * 11 / 10)
-
-	i := 0
-	for _, span := range spans {
-		sb.WriteString(proptools.NinjaEscape(s[i:span[0]]))
-		sb.WriteString(s[span[0]:span[1]])
-		i = span[1]
-	}
-	sb.WriteString(proptools.NinjaEscape(s[i:]))
-
-	return sb.String()
 }
 
 func ninjaNameEscape(s string) string {

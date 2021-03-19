@@ -19,6 +19,7 @@ package android
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -66,6 +67,18 @@ type Config struct {
 // BuildDir returns the build output directory for the configuration.
 func (c Config) BuildDir() string {
 	return c.buildDir
+}
+
+func (c Config) NinjaBuildDir() string {
+	return c.buildDir
+}
+
+func (c Config) DebugCompilation() bool {
+	return false // Never compile Go code in the main build for debugging
+}
+
+func (c Config) SrcDir() string {
+	return c.srcDir
 }
 
 // A DeviceConfig object represents the configuration for a particular device
@@ -268,23 +281,6 @@ func TestConfig(buildDir string, env map[string]string, bp string, fs map[string
 	config.mockFileSystem(bp, fs)
 
 	return Config{config}
-}
-
-// TestArchConfigNativeBridge returns a Config object suitable for using
-// for tests that need to run the arch mutator for native bridge supported
-// archs.
-func TestArchConfigNativeBridge(buildDir string, env map[string]string, bp string, fs map[string][]byte) Config {
-	testConfig := TestArchConfig(buildDir, env, bp, fs)
-	config := testConfig.config
-
-	config.Targets[Android] = []Target{
-		{Android, Arch{ArchType: X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
-		{Android, Arch{ArchType: X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", "", false},
-		{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeEnabled, "x86_64", "arm64", false},
-		{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeEnabled, "x86", "arm", false},
-	}
-
-	return testConfig
 }
 
 func fuchsiaTargets() map[OsType][]Target {
@@ -496,6 +492,10 @@ func (c *config) StopBefore() bootstrap.StopBefore {
 // SetStopBefore configures soong_build to exit earlier at a specific point.
 func (c *config) SetStopBefore(stopBefore bootstrap.StopBefore) {
 	c.stopBefore = stopBefore
+}
+
+func (c *config) SetAllowMissingDependencies() {
+	c.productVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 }
 
 var _ bootstrap.ConfigStopBefore = (*config)(nil)
@@ -1005,7 +1005,7 @@ func (c *config) DexpreoptGlobalConfig(ctx PathContext) ([]byte, error) {
 }
 
 func (c *config) FrameworksBaseDirExists(ctx PathContext) bool {
-	return ExistentPathForSource(ctx, "frameworks", "base").Valid()
+	return ExistentPathForSource(ctx, "frameworks", "base", "Android.bp").Valid()
 }
 
 func (c *config) VndkSnapshotBuildArtifacts() bool {
@@ -1411,6 +1411,62 @@ func (c *deviceConfig) RecoverySnapshotModules() map[string]bool {
 	return c.config.productVariables.RecoverySnapshotModules
 }
 
+func createDirsMap(previous map[string]bool, dirs []string) (map[string]bool, error) {
+	var ret = make(map[string]bool)
+	for _, dir := range dirs {
+		clean := filepath.Clean(dir)
+		if previous[clean] || ret[clean] {
+			return nil, fmt.Errorf("Duplicate entry %s", dir)
+		}
+		ret[clean] = true
+	}
+	return ret, nil
+}
+
+func (c *deviceConfig) createDirsMapOnce(onceKey OnceKey, previous map[string]bool, dirs []string) map[string]bool {
+	dirMap := c.Once(onceKey, func() interface{} {
+		ret, err := createDirsMap(previous, dirs)
+		if err != nil {
+			panic(fmt.Errorf("%s: %w", onceKey.key, err))
+		}
+		return ret
+	})
+	if dirMap == nil {
+		return nil
+	}
+	return dirMap.(map[string]bool)
+}
+
+var vendorSnapshotDirsExcludedKey = NewOnceKey("VendorSnapshotDirsExcludedMap")
+
+func (c *deviceConfig) VendorSnapshotDirsExcludedMap() map[string]bool {
+	return c.createDirsMapOnce(vendorSnapshotDirsExcludedKey, nil,
+		c.config.productVariables.VendorSnapshotDirsExcluded)
+}
+
+var vendorSnapshotDirsIncludedKey = NewOnceKey("VendorSnapshotDirsIncludedMap")
+
+func (c *deviceConfig) VendorSnapshotDirsIncludedMap() map[string]bool {
+	excludedMap := c.VendorSnapshotDirsExcludedMap()
+	return c.createDirsMapOnce(vendorSnapshotDirsIncludedKey, excludedMap,
+		c.config.productVariables.VendorSnapshotDirsIncluded)
+}
+
+var recoverySnapshotDirsExcludedKey = NewOnceKey("RecoverySnapshotDirsExcludedMap")
+
+func (c *deviceConfig) RecoverySnapshotDirsExcludedMap() map[string]bool {
+	return c.createDirsMapOnce(recoverySnapshotDirsExcludedKey, nil,
+		c.config.productVariables.RecoverySnapshotDirsExcluded)
+}
+
+var recoverySnapshotDirsIncludedKey = NewOnceKey("RecoverySnapshotDirsIncludedMap")
+
+func (c *deviceConfig) RecoverySnapshotDirsIncludedMap() map[string]bool {
+	excludedMap := c.RecoverySnapshotDirsExcludedMap()
+	return c.createDirsMapOnce(recoverySnapshotDirsIncludedKey, excludedMap,
+		c.config.productVariables.RecoverySnapshotDirsIncluded)
+}
+
 func (c *deviceConfig) ShippingApiLevel() ApiLevel {
 	if c.config.productVariables.ShippingApiLevel == nil {
 		return NoneApiLevel
@@ -1565,6 +1621,20 @@ func (l *ConfiguredJarList) UnmarshalJSON(b []byte) error {
 	l.apexes = apexes
 	l.jars = jars
 	return nil
+}
+
+func (l *ConfiguredJarList) MarshalJSON() ([]byte, error) {
+	if len(l.apexes) != len(l.jars) {
+		return nil, errors.New(fmt.Sprintf("Inconsistent ConfiguredJarList: apexes: %q, jars: %q", l.apexes, l.jars))
+	}
+
+	list := make([]string, 0, len(l.apexes))
+
+	for i := 0; i < len(l.apexes); i++ {
+		list = append(list, l.apexes[i]+":"+l.jars[i])
+	}
+
+	return json.Marshal(list)
 }
 
 // ModuleStem hardcodes the stem of framework-minus-apex to return "framework".

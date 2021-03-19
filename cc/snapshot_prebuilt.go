@@ -18,6 +18,7 @@ package cc
 // snapshot mutators and snapshot information maps which are also defined in this file.
 
 import (
+	"path/filepath"
 	"strings"
 
 	"android/soong/android"
@@ -45,9 +46,9 @@ type snapshotImage interface {
 	// directory, such as device/, vendor/, etc.
 	//
 	// For a given snapshot (e.g., vendor, recovery, etc.) if
-	// isProprietaryPath(dir) returns true, then the module in dir will be
-	// built from sources.
-	isProprietaryPath(dir string) bool
+	// isProprietaryPath(dir, deviceConfig) returns true, then the module in dir
+	// will be built from sources.
+	isProprietaryPath(dir string, deviceConfig android.DeviceConfig) bool
 
 	// Whether to include VNDK in the snapshot for this image.
 	includeVndk() bool
@@ -82,6 +83,31 @@ type snapshotImage interface {
 type vendorSnapshotImage struct{}
 type recoverySnapshotImage struct{}
 
+type directoryMap map[string]bool
+
+var (
+	// Modules under following directories are ignored. They are OEM's and vendor's
+	// proprietary modules(device/, kernel/, vendor/, and hardware/).
+	defaultDirectoryExcludedMap = directoryMap{
+		"device":   true,
+		"hardware": true,
+		"kernel":   true,
+		"vendor":   true,
+	}
+
+	// Modules under following directories are included as they are in AOSP,
+	// although hardware/ and kernel/ are normally for vendor's own.
+	defaultDirectoryIncludedMap = directoryMap{
+		"kernel/configs":              true,
+		"kernel/prebuilts":            true,
+		"kernel/tests":                true,
+		"hardware/interfaces":         true,
+		"hardware/libhardware":        true,
+		"hardware/libhardware_legacy": true,
+		"hardware/ril":                true,
+	}
+)
+
 func (vendorSnapshotImage) init(ctx android.RegistrationContext) {
 	ctx.RegisterSingletonType("vendor-snapshot", VendorSnapshotSingleton)
 	ctx.RegisterModuleType("vendor_snapshot", vendorSnapshotFactory)
@@ -107,8 +133,25 @@ func (vendorSnapshotImage) private(m *Module) bool {
 	return m.IsVndkPrivate()
 }
 
-func (vendorSnapshotImage) isProprietaryPath(dir string) bool {
-	return isVendorProprietaryPath(dir)
+func isDirectoryExcluded(dir string, excludedMap directoryMap, includedMap directoryMap) bool {
+	if dir == "." || dir == "/" {
+		return false
+	}
+	if includedMap[dir] {
+		return false
+	} else if excludedMap[dir] {
+		return true
+	} else if defaultDirectoryIncludedMap[dir] {
+		return false
+	} else if defaultDirectoryExcludedMap[dir] {
+		return true
+	} else {
+		return isDirectoryExcluded(filepath.Dir(dir), excludedMap, includedMap)
+	}
+}
+
+func (vendorSnapshotImage) isProprietaryPath(dir string, deviceConfig android.DeviceConfig) bool {
+	return isDirectoryExcluded(dir, deviceConfig.VendorSnapshotDirsExcludedMap(), deviceConfig.VendorSnapshotDirsIncludedMap())
 }
 
 // vendor snapshot includes static/header libraries with vndk: {enabled: true}.
@@ -172,8 +215,8 @@ func (recoverySnapshotImage) private(m *Module) bool {
 	return false
 }
 
-func (recoverySnapshotImage) isProprietaryPath(dir string) bool {
-	return isRecoveryProprietaryPath(dir)
+func (recoverySnapshotImage) isProprietaryPath(dir string, deviceConfig android.DeviceConfig) bool {
+	return isDirectoryExcluded(dir, deviceConfig.RecoverySnapshotDirsExcludedMap(), deviceConfig.RecoverySnapshotDirsIncludedMap())
 }
 
 // recovery snapshot does NOT treat vndk specially.

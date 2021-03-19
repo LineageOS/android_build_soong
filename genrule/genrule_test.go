@@ -15,7 +15,6 @@
 package genrule
 
 import (
-	"io/ioutil"
 	"os"
 	"regexp"
 	"testing"
@@ -25,33 +24,12 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-var buildDir string
-
-func setUp() {
-	var err error
-	buildDir, err = ioutil.TempDir("", "genrule_test")
-	if err != nil {
-		panic(err)
-	}
-}
-
-func tearDown() {
-	os.RemoveAll(buildDir)
-}
-
 func TestMain(m *testing.M) {
-	run := func() int {
-		setUp()
-		defer tearDown()
-
-		return m.Run()
-	}
-
-	os.Exit(run())
+	os.Exit(m.Run())
 }
 
 var genruleFixtureFactory = android.NewFixtureFactory(
-	&buildDir,
+	nil,
 	android.PrepareForTestWithArchMutator,
 	android.PrepareForTestWithDefaults,
 
@@ -320,6 +298,14 @@ func TestGenruleCmd(t *testing.T) {
 			`,
 			expect: "echo foo > __SBOX_SANDBOX_DIR__/out/foo && cp __SBOX_SANDBOX_DIR__/out/foo __SBOX_SANDBOX_DIR__/out/out",
 		},
+		{
+			name: "$",
+			prop: `
+				out: ["out"],
+				cmd: "echo $$ > $(out)",
+			`,
+			expect: "echo $ > __SBOX_SANDBOX_DIR__/out/out",
+		},
 
 		{
 			name: "error empty location",
@@ -572,8 +558,14 @@ func TestGenSrcs(t *testing.T) {
 			cmds: []string{
 				"bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in1.txt > __SBOX_SANDBOX_DIR__/out/in1.h' && bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in2.txt > __SBOX_SANDBOX_DIR__/out/in2.h'",
 			},
-			deps:  []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h"},
-			files: []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h"},
+			deps: []string{
+				"out/soong/.intermediates/gen/gen/gensrcs/in1.h",
+				"out/soong/.intermediates/gen/gen/gensrcs/in2.h",
+			},
+			files: []string{
+				"out/soong/.intermediates/gen/gen/gensrcs/in1.h",
+				"out/soong/.intermediates/gen/gen/gensrcs/in2.h",
+			},
 		},
 		{
 			name: "shards",
@@ -587,8 +579,16 @@ func TestGenSrcs(t *testing.T) {
 				"bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in1.txt > __SBOX_SANDBOX_DIR__/out/in1.h' && bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in2.txt > __SBOX_SANDBOX_DIR__/out/in2.h'",
 				"bash -c '__SBOX_SANDBOX_DIR__/tools/out/bin/tool in3.txt > __SBOX_SANDBOX_DIR__/out/in3.h'",
 			},
-			deps:  []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h", buildDir + "/.intermediates/gen/gen/gensrcs/in3.h"},
-			files: []string{buildDir + "/.intermediates/gen/gen/gensrcs/in1.h", buildDir + "/.intermediates/gen/gen/gensrcs/in2.h", buildDir + "/.intermediates/gen/gen/gensrcs/in3.h"},
+			deps: []string{
+				"out/soong/.intermediates/gen/gen/gensrcs/in1.h",
+				"out/soong/.intermediates/gen/gen/gensrcs/in2.h",
+				"out/soong/.intermediates/gen/gen/gensrcs/in3.h",
+			},
+			files: []string{
+				"out/soong/.intermediates/gen/gen/gensrcs/in1.h",
+				"out/soong/.intermediates/gen/gen/gensrcs/in2.h",
+				"out/soong/.intermediates/gen/gen/gensrcs/in3.h",
+			},
 		},
 	}
 
@@ -616,9 +616,9 @@ func TestGenSrcs(t *testing.T) {
 			gen := result.Module("gen", "").(*Module)
 			android.AssertDeepEquals(t, "cmd", test.cmds, gen.rawCommands)
 
-			android.AssertDeepEquals(t, "deps", test.deps, gen.outputDeps.Strings())
+			android.AssertPathsRelativeToTopEquals(t, "deps", test.deps, gen.outputDeps)
 
-			android.AssertDeepEquals(t, "files", test.files, gen.outputFiles.Strings())
+			android.AssertPathsRelativeToTopEquals(t, "files", test.files, gen.outputFiles)
 		})
 	}
 }

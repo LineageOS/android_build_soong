@@ -549,24 +549,35 @@ type dependencyTag struct {
 	// Determines if the dependent will be part of the APEX payload. Can be false for the
 	// dependencies to the signing key module, etc.
 	payload bool
+
+	// True if the dependent can only be a source module, false if a prebuilt module is a suitable
+	// replacement. This is needed because some prebuilt modules do not provide all the information
+	// needed by the apex.
+	sourceOnly bool
 }
 
+func (d dependencyTag) ReplaceSourceWithPrebuilt() bool {
+	return !d.sourceOnly
+}
+
+var _ android.ReplaceSourceWithPrebuilt = &dependencyTag{}
+
 var (
-	androidAppTag    = dependencyTag{name: "androidApp", payload: true}
-	bpfTag           = dependencyTag{name: "bpf", payload: true}
-	certificateTag   = dependencyTag{name: "certificate"}
-	executableTag    = dependencyTag{name: "executable", payload: true}
-	fsTag            = dependencyTag{name: "filesystem", payload: true}
-	bootImageTag     = dependencyTag{name: "bootImage", payload: true}
-	compatConfigsTag = dependencyTag{name: "compatConfig", payload: true}
-	javaLibTag       = dependencyTag{name: "javaLib", payload: true}
-	jniLibTag        = dependencyTag{name: "jniLib", payload: true}
-	keyTag           = dependencyTag{name: "key"}
-	prebuiltTag      = dependencyTag{name: "prebuilt", payload: true}
-	rroTag           = dependencyTag{name: "rro", payload: true}
-	sharedLibTag     = dependencyTag{name: "sharedLib", payload: true}
-	testForTag       = dependencyTag{name: "test for"}
-	testTag          = dependencyTag{name: "test", payload: true}
+	androidAppTag   = dependencyTag{name: "androidApp", payload: true}
+	bpfTag          = dependencyTag{name: "bpf", payload: true}
+	certificateTag  = dependencyTag{name: "certificate"}
+	executableTag   = dependencyTag{name: "executable", payload: true}
+	fsTag           = dependencyTag{name: "filesystem", payload: true}
+	bootImageTag    = dependencyTag{name: "bootImage", payload: true}
+	compatConfigTag = dependencyTag{name: "compatConfig", payload: true, sourceOnly: true}
+	javaLibTag      = dependencyTag{name: "javaLib", payload: true}
+	jniLibTag       = dependencyTag{name: "jniLib", payload: true}
+	keyTag          = dependencyTag{name: "key"}
+	prebuiltTag     = dependencyTag{name: "prebuilt", payload: true}
+	rroTag          = dependencyTag{name: "rro", payload: true}
+	sharedLibTag    = dependencyTag{name: "sharedLib", payload: true}
+	testForTag      = dependencyTag{name: "test for"}
+	testTag         = dependencyTag{name: "test", payload: true}
 )
 
 // TODO(jiyong): shorten this function signature
@@ -741,7 +752,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(commonVariation, javaLibTag, a.properties.Java_libs...)
 	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.properties.Bpfs...)
 	ctx.AddFarVariationDependencies(commonVariation, fsTag, a.properties.Filesystems...)
-	ctx.AddFarVariationDependencies(commonVariation, compatConfigsTag, a.properties.Compat_configs...)
+	ctx.AddFarVariationDependencies(commonVariation, compatConfigTag, a.properties.Compat_configs...)
 
 	if a.artApex {
 		// With EMMA_INSTRUMENT_FRAMEWORK=true the ART boot image includes jacoco library.
@@ -833,6 +844,19 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	continueApexDepsWalk := func(child, parent android.Module) bool {
 		am, ok := child.(android.ApexModule)
 		if !ok || !am.CanHaveApexVariants() {
+			return false
+		}
+		depTag := mctx.OtherModuleDependencyTag(child)
+
+		// Check to see if the tag always requires that the child module has an apex variant for every
+		// apex variant of the parent module. If it does not then it is still possible for something
+		// else, e.g. the DepIsInSameApex(...) method to decide that a variant is required.
+		if required, ok := depTag.(android.AlwaysRequireApexVariantTag); ok && required.AlwaysRequireApexVariant() {
+			return true
+		}
+		if _, ok := depTag.(android.ExcludeFromApexContentsTag); ok {
+			// The tag defines a dependency that never requires the child module to be part of the same
+			// apex as the parent so it does not need an apex variant created.
 			return false
 		}
 		if !parent.(android.DepIsInSameApex).DepIsInSameApex(mctx, child) {
@@ -1743,7 +1767,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				} else {
 					ctx.PropertyErrorf("prebuilts", "%q is not a prebuilt_etc module", depName)
 				}
-			case compatConfigsTag:
+			case compatConfigTag:
 				if compatConfig, ok := child.(java.PlatformCompatConfigIntf); ok {
 					filesInfo = append(filesInfo, apexFileForCompatConfig(ctx, compatConfig, depName))
 				} else {

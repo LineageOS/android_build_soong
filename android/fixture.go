@@ -221,7 +221,8 @@ type FixtureFactory interface {
 //
 // The buildDirSupplier is a pointer to the package level buildDir variable that is initialized by
 // the package level setUp method. It has to be a pointer to the variable as the variable will not
-// have been initialized at the time the factory is created.
+// have been initialized at the time the factory is created. If it is nil then a test specific
+// temporary directory will be created instead.
 func NewFixtureFactory(buildDirSupplier *string, preparers ...FixturePreparer) FixtureFactory {
 	return &fixtureFactory{
 		buildDirSupplier: buildDirSupplier,
@@ -380,6 +381,19 @@ func GroupFixturePreparers(preparers ...FixturePreparer) FixturePreparer {
 	return &compositeFixturePreparer{dedupAndFlattenPreparers(nil, preparers)}
 }
 
+// NullFixturePreparer is a preparer that does nothing.
+var NullFixturePreparer = GroupFixturePreparers()
+
+// OptionalFixturePreparer will return the supplied preparer if it is non-nil, otherwise it will
+// return the NullFixturePreparer
+func OptionalFixturePreparer(preparer FixturePreparer) FixturePreparer {
+	if preparer == nil {
+		return NullFixturePreparer
+	} else {
+		return preparer
+	}
+}
+
 type simpleFixturePreparerVisitor func(preparer *simpleFixturePreparer)
 
 // FixturePreparer is an opaque interface that can change a fixture.
@@ -492,6 +506,14 @@ var FixtureExpectsNoErrors = FixtureCustomErrorHandler(
 	},
 )
 
+// FixtureIgnoreErrors ignores any errors.
+//
+// If this is used then it is the responsibility of the test to check the TestResult.Errs does not
+// contain any unexpected errors.
+var FixtureIgnoreErrors = FixtureCustomErrorHandler(func(t *testing.T, result *TestResult) {
+	// Ignore the errors
+})
+
 // FixtureExpectsAtLeastOneMatchingError returns an error handler that will cause the test to fail
 // if at least one error that matches the regular expression is not found.
 //
@@ -560,6 +582,10 @@ type TestResult struct {
 
 	// The errors that were reported during the test.
 	Errs []error
+
+	// The ninja deps is a list of the ninja files dependencies that were added by the modules and
+	// singletons via the *.AddNinjaFileDeps() methods.
+	NinjaDeps []string
 }
 
 var _ FixtureFactory = (*fixtureFactory)(nil)
@@ -585,7 +611,16 @@ func (f *fixtureFactory) Extend(preparers ...FixturePreparer) FixtureFactory {
 }
 
 func (f *fixtureFactory) Fixture(t *testing.T, preparers ...FixturePreparer) Fixture {
-	config := TestConfig(*f.buildDirSupplier, nil, "", nil)
+	var buildDir string
+	if f.buildDirSupplier == nil {
+		// Create a new temporary directory for this run. It will be automatically cleaned up when the
+		// test finishes.
+		buildDir = t.TempDir()
+	} else {
+		// Retrieve the buildDir from the supplier.
+		buildDir = *f.buildDirSupplier
+	}
+	config := TestConfig(buildDir, nil, "", nil)
 	ctx := NewTestContext(config)
 	fixture := &fixture{
 		factory:      f,
@@ -691,9 +726,14 @@ func (f *fixture) RunTest() *TestResult {
 	}
 
 	ctx.Register()
-	_, errs := ctx.ParseBlueprintsFiles("ignored")
+	var ninjaDeps []string
+	extraNinjaDeps, errs := ctx.ParseBlueprintsFiles("ignored")
 	if len(errs) == 0 {
-		_, errs = ctx.PrepareBuildActions(f.config)
+		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
+		extraNinjaDeps, errs = ctx.PrepareBuildActions(f.config)
+		if len(errs) == 0 {
+			ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
+		}
 	}
 
 	result := &TestResult{
@@ -701,6 +741,7 @@ func (f *fixture) RunTest() *TestResult {
 		fixture:     f,
 		Config:      f.config,
 		Errs:        errs,
+		NinjaDeps:   ninjaDeps,
 	}
 
 	f.errorHandler.CheckErrors(f.t, result)

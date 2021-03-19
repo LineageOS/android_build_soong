@@ -13,6 +13,9 @@ type CodegenMetrics struct {
 
 	// Counts of generated Bazel targets per Bazel rule class
 	RuleClassCount map[string]int
+
+	// Total number of handcrafted targets
+	handCraftedTargetCount int
 }
 
 // Print the codegen metrics to stdout.
@@ -24,7 +27,8 @@ func (metrics CodegenMetrics) Print() {
 		generatedTargetCount += count
 	}
 	fmt.Printf(
-		"[bp2build] Generated %d total BUILD targets from %d Android.bp modules.\n",
+		"[bp2build] Generated %d total BUILD targets and included %d handcrafted BUILD targets from %d Android.bp modules.\n",
 		generatedTargetCount,
+		metrics.handCraftedTargetCount,
 		metrics.TotalModuleCount)
 }

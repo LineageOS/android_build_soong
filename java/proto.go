@@ -94,7 +94,7 @@ func protoDeps(ctx android.BottomUpMutatorContext, p *android.ProtoProperties) {
 	}
 }
 
-func protoFlags(ctx android.ModuleContext, j *CompilerProperties, p *android.ProtoProperties,
+func protoFlags(ctx android.ModuleContext, j *CommonProperties, p *android.ProtoProperties,
 	flags javaBuilderFlags) javaBuilderFlags {
 
 	flags.proto = android.GetProtoFlags(ctx, p)

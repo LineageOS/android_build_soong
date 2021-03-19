@@ -15,20 +15,14 @@
 package python
 
 import (
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
-	"sort"
-	"strings"
+	"regexp"
 	"testing"
 
 	"android/soong/android"
 )
-
-var buildDir string
 
 type pyModule struct {
 	name          string
@@ -56,7 +50,7 @@ var (
 
 	data = []struct {
 		desc      string
-		mockFiles map[string][]byte
+		mockFiles android.MockFS
 
 		errors           []string
 		expectedBinaries []pyModule
@@ -64,7 +58,6 @@ var (
 		{
 			desc: "module without any src files",
 			mockFiles: map[string][]byte{
-				bpFile: []byte(`subdirs = ["dir"]`),
 				filepath.Join("dir", bpFile): []byte(
 					`python_library_host {
 						name: "lib1",
@@ -79,7 +72,6 @@ var (
 		{
 			desc: "module with bad src file ext",
 			mockFiles: map[string][]byte{
-				bpFile: []byte(`subdirs = ["dir"]`),
 				filepath.Join("dir", bpFile): []byte(
 					`python_library_host {
 						name: "lib1",
@@ -98,7 +90,6 @@ var (
 		{
 			desc: "module with bad data file ext",
 			mockFiles: map[string][]byte{
-				bpFile: []byte(`subdirs = ["dir"]`),
 				filepath.Join("dir", bpFile): []byte(
 					`python_library_host {
 						name: "lib1",
@@ -121,7 +112,6 @@ var (
 		{
 			desc: "module with bad pkg_path format",
 			mockFiles: map[string][]byte{
-				bpFile: []byte(`subdirs = ["dir"]`),
 				filepath.Join("dir", bpFile): []byte(
 					`python_library_host {
 						name: "lib1",
@@ -159,7 +149,6 @@ var (
 		{
 			desc: "module with bad runfile src path format",
 			mockFiles: map[string][]byte{
-				bpFile: []byte(`subdirs = ["dir"]`),
 				filepath.Join("dir", bpFile): []byte(
 					`python_library_host {
 						name: "lib1",
@@ -187,7 +176,6 @@ var (
 		{
 			desc: "module with duplicate runfile path",
 			mockFiles: map[string][]byte{
-				bpFile: []byte(`subdirs = ["dir"]`),
 				filepath.Join("dir", bpFile): []byte(
 					`python_library_host {
 						name: "lib1",
@@ -207,21 +195,32 @@ var (
 							"lib1",
 						],
 					}
+
+					python_binary_host {
+						name: "bin",
+						pkg_path: "e/",
+						srcs: [
+							"bin.py",
+						],
+						libs: [
+							"lib2",
+						],
+					}
 					`,
 				),
 				"dir/c/file1.py": nil,
 				"dir/file1.py":   nil,
+				"dir/bin.py":     nil,
 			},
 			errors: []string{
-				fmt.Sprintf(dupRunfileErrTemplate, "dir/Android.bp:9:6",
-					"lib2", "PY3", "a/b/c/file1.py", "lib2", "dir/file1.py",
+				fmt.Sprintf(dupRunfileErrTemplate, "dir/Android.bp:20:6",
+					"bin", "PY3", "a/b/c/file1.py", "bin", "dir/file1.py",
 					"lib1", "dir/c/file1.py"),
 			},
 		},
 		{
 			desc: "module for testing dependencies",
 			mockFiles: map[string][]byte{
-				bpFile: []byte(`subdirs = ["dir"]`),
 				filepath.Join("dir", bpFile): []byte(
 					`python_defaults {
 						name: "default_lib",
@@ -314,10 +313,10 @@ var (
 						"e/default_py3.py",
 						"e/file4.py",
 					},
-					srcsZip: "@prefix@/.intermediates/dir/bin/PY3/bin.py.srcszip",
+					srcsZip: "out/soong/.intermediates/dir/bin/PY3/bin.py.srcszip",
 					depsSrcsZips: []string{
-						"@prefix@/.intermediates/dir/lib5/PY3/lib5.py.srcszip",
-						"@prefix@/.intermediates/dir/lib6/PY3/lib6.py.srcszip",
+						"out/soong/.intermediates/dir/lib5/PY3/lib5.py.srcszip",
+						"out/soong/.intermediates/dir/lib6/PY3/lib6.py.srcszip",
 					},
 				},
 			},
@@ -327,60 +326,37 @@ var (
 
 func TestPythonModule(t *testing.T) {
 	for _, d := range data {
+		if d.desc != "module with duplicate runfile path" {
+			continue
+		}
+		errorPatterns := make([]string, len(d.errors))
+		for i, s := range d.errors {
+			errorPatterns[i] = regexp.QuoteMeta(s)
+		}
+
 		t.Run(d.desc, func(t *testing.T) {
-			config := android.TestConfig(buildDir, nil, "", d.mockFiles)
-			ctx := android.NewTestContext(config)
-			ctx.PreDepsMutators(RegisterPythonPreDepsMutators)
-			ctx.RegisterModuleType("python_library_host", PythonLibraryHostFactory)
-			ctx.RegisterModuleType("python_binary_host", PythonBinaryHostFactory)
-			ctx.RegisterModuleType("python_defaults", defaultsFactory)
-			ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-			ctx.Register()
-			_, testErrs := ctx.ParseBlueprintsFiles(bpFile)
-			android.FailIfErrored(t, testErrs)
-			_, actErrs := ctx.PrepareBuildActions(config)
-			if len(actErrs) > 0 {
-				testErrs = append(testErrs, expectErrors(t, actErrs, d.errors)...)
-			} else {
-				for _, e := range d.expectedBinaries {
-					testErrs = append(testErrs,
-						expectModule(t, ctx, buildDir, e.name,
-							e.actualVersion,
-							e.srcsZip,
-							e.pyRunfiles,
-							e.depsSrcsZips)...)
-				}
+			result := emptyFixtureFactory.
+				ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(errorPatterns)).
+				RunTest(t,
+					android.PrepareForTestWithDefaults,
+					PrepareForTestWithPythonBuildComponents,
+					d.mockFiles.AddToFixture(),
+				)
+
+			if len(result.Errs) > 0 {
+				return
 			}
-			android.FailIfErrored(t, testErrs)
+
+			for _, e := range d.expectedBinaries {
+				t.Run(e.name, func(t *testing.T) {
+					expectModule(t, result.TestContext, e.name, e.actualVersion, e.srcsZip, e.pyRunfiles, e.depsSrcsZips)
+				})
+			}
 		})
 	}
 }
 
-func expectErrors(t *testing.T, actErrs []error, expErrs []string) (testErrs []error) {
-	actErrStrs := []string{}
-	for _, v := range actErrs {
-		actErrStrs = append(actErrStrs, v.Error())
-	}
-	sort.Strings(actErrStrs)
-	if len(actErrStrs) != len(expErrs) {
-		t.Errorf("got (%d) errors, expected (%d) errors!", len(actErrStrs), len(expErrs))
-		for _, v := range actErrStrs {
-			testErrs = append(testErrs, errors.New(v))
-		}
-	} else {
-		sort.Strings(expErrs)
-		for i, v := range actErrStrs {
-			if !strings.Contains(v, expErrs[i]) {
-				testErrs = append(testErrs, errors.New(v))
-			}
-		}
-	}
-
-	return
-}
-
-func expectModule(t *testing.T, ctx *android.TestContext, buildDir, name, variant, expectedSrcsZip string,
-	expectedPyRunfiles, expectedDepsSrcsZips []string) (testErrs []error) {
+func expectModule(t *testing.T, ctx *android.TestContext, name, variant, expectedSrcsZip string, expectedPyRunfiles, expectedDepsSrcsZips []string) {
 	module := ctx.ModuleForTests(name, variant)
 
 	base, baseOk := module.Module().(*Module)
@@ -393,56 +369,15 @@ func expectModule(t *testing.T, ctx *android.TestContext, buildDir, name, varian
 		actualPyRunfiles = append(actualPyRunfiles, path.dest)
 	}
 
-	if !reflect.DeepEqual(actualPyRunfiles, expectedPyRunfiles) {
-		testErrs = append(testErrs, errors.New(fmt.Sprintf(
-			`binary "%s" variant "%s" has unexpected pyRunfiles: %q! (expected: %q)`,
-			base.Name(),
-			base.properties.Actual_version,
-			actualPyRunfiles,
-			expectedPyRunfiles)))
-	}
+	android.AssertDeepEquals(t, "pyRunfiles", expectedPyRunfiles, actualPyRunfiles)
 
-	if base.srcsZip.String() != strings.Replace(expectedSrcsZip, "@prefix@", buildDir, 1) {
-		testErrs = append(testErrs, errors.New(fmt.Sprintf(
-			`binary "%s" variant "%s" has unexpected srcsZip: %q!`,
-			base.Name(),
-			base.properties.Actual_version,
-			base.srcsZip)))
-	}
+	android.AssertPathRelativeToTopEquals(t, "srcsZip", expectedSrcsZip, base.srcsZip)
 
-	for i, _ := range expectedDepsSrcsZips {
-		expectedDepsSrcsZips[i] = strings.Replace(expectedDepsSrcsZips[i], "@prefix@", buildDir, 1)
-	}
-	if !reflect.DeepEqual(base.depsSrcsZips.Strings(), expectedDepsSrcsZips) {
-		testErrs = append(testErrs, errors.New(fmt.Sprintf(
-			`binary "%s" variant "%s" has unexpected depsSrcsZips: %q!`,
-			base.Name(),
-			base.properties.Actual_version,
-			base.depsSrcsZips)))
-	}
-
-	return
+	android.AssertPathsRelativeToTopEquals(t, "depsSrcsZips", expectedDepsSrcsZips, base.depsSrcsZips)
 }
 
-func setUp() {
-	var err error
-	buildDir, err = ioutil.TempDir("", "soong_python_test")
-	if err != nil {
-		panic(err)
-	}
-}
-
-func tearDown() {
-	os.RemoveAll(buildDir)
-}
+var emptyFixtureFactory = android.NewFixtureFactory(nil)
 
 func TestMain(m *testing.M) {
-	run := func() int {
-		setUp()
-		defer tearDown()
-
-		return m.Run()
-	}
-
-	os.Exit(run())
+	os.Exit(m.Run())
 }

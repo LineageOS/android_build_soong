@@ -28,7 +28,7 @@ var neverallowTests = []struct {
 	rules []Rule
 
 	// Additional contents to add to the virtual filesystem used by the tests.
-	fs map[string][]byte
+	fs MockFS
 
 	// The expected error patterns. If empty then no errors are expected, otherwise each error
 	// reported must be matched by at least one of these patterns. A pattern matches if the error
@@ -285,39 +285,34 @@ var neverallowTests = []struct {
 	},
 }
 
+var prepareForNeverAllowTest = GroupFixturePreparers(
+	FixtureRegisterWithContext(func(ctx RegistrationContext) {
+		ctx.RegisterModuleType("cc_library", newMockCcLibraryModule)
+		ctx.RegisterModuleType("java_library", newMockJavaLibraryModule)
+		ctx.RegisterModuleType("java_library_host", newMockJavaLibraryModule)
+		ctx.RegisterModuleType("java_device_for_host", newMockJavaLibraryModule)
+		ctx.RegisterModuleType("makefile_goal", newMockMakefileGoalModule)
+		ctx.PostDepsMutators(RegisterNeverallowMutator)
+	}),
+)
+
 func TestNeverallow(t *testing.T) {
 	for _, test := range neverallowTests {
-		// Create a test per config to allow for test specific config, e.g. test rules.
-		config := TestConfig(buildDir, nil, "", test.fs)
-
 		t.Run(test.name, func(t *testing.T) {
-			// If the test has its own rules then use them instead of the default ones.
-			if test.rules != nil {
-				SetTestNeverallowRules(config, test.rules)
-			}
-			_, errs := testNeverallow(config)
-			CheckErrorsAgainstExpectations(t, errs, test.expectedErrors)
+			emptyTestFixtureFactory.
+				ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
+				RunTest(t,
+					prepareForNeverAllowTest,
+					FixtureModifyConfig(func(config Config) {
+						// If the test has its own rules then use them instead of the default ones.
+						if test.rules != nil {
+							SetTestNeverallowRules(config, test.rules)
+						}
+					}),
+					test.fs.AddToFixture(),
+				)
 		})
 	}
-}
-
-func testNeverallow(config Config) (*TestContext, []error) {
-	ctx := NewTestContext(config)
-	ctx.RegisterModuleType("cc_library", newMockCcLibraryModule)
-	ctx.RegisterModuleType("java_library", newMockJavaLibraryModule)
-	ctx.RegisterModuleType("java_library_host", newMockJavaLibraryModule)
-	ctx.RegisterModuleType("java_device_for_host", newMockJavaLibraryModule)
-	ctx.RegisterModuleType("makefile_goal", newMockMakefileGoalModule)
-	ctx.PostDepsMutators(RegisterNeverallowMutator)
-	ctx.Register()
-
-	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
-	if len(errs) > 0 {
-		return ctx, errs
-	}
-
-	_, errs = ctx.PrepareBuildActions(config)
-	return ctx, errs
 }
 
 type mockCcLibraryProperties struct {

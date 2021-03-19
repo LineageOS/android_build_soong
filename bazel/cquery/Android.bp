@@ -1,0 +1,14 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+bootstrap_go_package {
+    name: "soong-cquery",
+    pkgPath: "android/soong/bazel/cquery",
+    srcs: [
+        "request_type.go",
+    ],
+    pluginFor: [
+        "soong_build",
+    ],
+}

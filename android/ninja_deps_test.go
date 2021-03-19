@@ -53,23 +53,20 @@ func (testNinjaDepsSingleton) GenerateBuildActions(ctx SingletonContext) {
 }
 
 func TestNinjaDeps(t *testing.T) {
-	fs := map[string][]byte{
+	fs := MockFS{
 		"test_ninja_deps/exists": nil,
 	}
-	config := TestConfig(buildDir, nil, "", fs)
 
-	ctx := NewTestContext(config)
-	ctx.RegisterSingletonType("test_ninja_deps_singleton", testNinjaDepsSingletonFactory)
-	ctx.RegisterSingletonType("ninja_deps_singleton", ninjaDepsSingletonFactory)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
-	ninjaDeps, errs := ctx.PrepareBuildActions(config)
-	FailIfErrored(t, errs)
+	result := emptyTestFixtureFactory.RunTest(t,
+		FixtureRegisterWithContext(func(ctx RegistrationContext) {
+			ctx.RegisterSingletonType("test_ninja_deps_singleton", testNinjaDepsSingletonFactory)
+			ctx.RegisterSingletonType("ninja_deps_singleton", ninjaDepsSingletonFactory)
+		}),
+		fs.AddToFixture(),
+	)
 
 	// Verify that the ninja file has a dependency on the test_ninja_deps directory.
-	if g, w := ninjaDeps, "test_ninja_deps"; !InList(w, g) {
+	if g, w := result.NinjaDeps, "test_ninja_deps"; !InList(w, g) {
 		t.Errorf("expected %q in %q", w, g)
 	}
 }

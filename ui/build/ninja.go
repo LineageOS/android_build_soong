@@ -30,7 +30,7 @@ import (
 // Constructs and runs the Ninja command line with a restricted set of
 // environment variables. It's important to restrict the environment Ninja runs
 // for hermeticity reasons, and to avoid spurious rebuilds.
-func runNinja(ctx Context, config Config) {
+func runNinjaForBuild(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.PrimaryNinja, "ninja")
 	defer ctx.EndTrace()
 
@@ -145,6 +145,7 @@ func runNinja(ctx Context, config Config) {
 			"RBE_exec_strategy",
 			"RBE_invocation_id",
 			"RBE_log_dir",
+			"RBE_num_retries_if_mismatched",
 			"RBE_platform",
 			"RBE_remote_accept_cache",
 			"RBE_remote_update_cache",

@@ -21,8 +21,12 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("python_library_host", PythonLibraryHostFactory)
-	android.RegisterModuleType("python_library", PythonLibraryFactory)
+	registerPythonLibraryComponents(android.InitRegistrationContext)
+}
+
+func registerPythonLibraryComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("python_library_host", PythonLibraryHostFactory)
+	ctx.RegisterModuleType("python_library", PythonLibraryFactory)
 }
 
 func PythonLibraryHostFactory() android.Module {

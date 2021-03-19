@@ -141,21 +141,17 @@ func customModuleFactory() Module {
 // bp module and then returns the config and the custom module called "foo".
 func buildContextAndCustomModuleFoo(t *testing.T, bp string) (*TestContext, *customModule) {
 	t.Helper()
-	config := TestConfig(buildDir, nil, bp, nil)
-	config.katiEnabled = true // Enable androidmk Singleton
+	result := emptyTestFixtureFactory.RunTest(t,
+		// Enable androidmk Singleton
+		PrepareForTestWithAndroidMk,
+		FixtureRegisterWithContext(func(ctx RegistrationContext) {
+			ctx.RegisterModuleType("custom", customModuleFactory)
+		}),
+		FixtureWithRootAndroidBp(bp),
+	)
 
-	ctx := NewTestContext(config)
-	ctx.RegisterSingletonType("androidmk", AndroidMkSingleton)
-	ctx.RegisterModuleType("custom", customModuleFactory)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	FailIfErrored(t, errs)
-
-	module := ctx.ModuleForTests("foo", "").Module().(*customModule)
-	return ctx, module
+	module := result.ModuleForTests("foo", "").Module().(*customModule)
+	return result.TestContext, module
 }
 
 func TestAndroidMkSingleton_PassesUpdatedAndroidMkDataToCustomCallback(t *testing.T) {
