@@ -229,13 +229,18 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 		return "", err
 	}
 
+	pathToTempDirInSbox := tempDir
+	if command.GetChdir() {
+		pathToTempDirInSbox = "."
+	}
+
 	if strings.Contains(rawCommand, depFilePlaceholder) {
-		depFile = filepath.Join(tempDir, "deps.d")
+		depFile = filepath.Join(pathToTempDirInSbox, "deps.d")
 		rawCommand = strings.Replace(rawCommand, depFilePlaceholder, depFile, -1)
 	}
 
 	if strings.Contains(rawCommand, sandboxDirPlaceholder) {
-		rawCommand = strings.Replace(rawCommand, sandboxDirPlaceholder, tempDir, -1)
+		rawCommand = strings.Replace(rawCommand, sandboxDirPlaceholder, pathToTempDirInSbox, -1)
 	}
 
 	// Emulate ninja's behavior of creating the directories for any output files before
@@ -254,6 +259,15 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 
 	if command.GetChdir() {
 		cmd.Dir = tempDir
+		path := os.Getenv("PATH")
+		absPath, err := makeAbsPathEnv(path)
+		if err != nil {
+			return "", err
+		}
+		err = os.Setenv("PATH", absPath)
+		if err != nil {
+			return "", fmt.Errorf("Failed to update PATH: %w", err)
+		}
 	}
 	err = cmd.Run()
 
@@ -465,4 +479,18 @@ func joinPath(dir, file string) string {
 		return file
 	}
 	return filepath.Join(dir, file)
+}
+
+func makeAbsPathEnv(pathEnv string) (string, error) {
+	pathEnvElements := filepath.SplitList(pathEnv)
+	for i, p := range pathEnvElements {
+		if !filepath.IsAbs(p) {
+			absPath, err := filepath.Abs(p)
+			if err != nil {
+				return "", fmt.Errorf("failed to make PATH entry %q absolute: %w", p, err)
+			}
+			pathEnvElements[i] = absPath
+		}
+	}
+	return strings.Join(pathEnvElements, string(filepath.ListSeparator)), nil
 }

@@ -145,7 +145,7 @@ var (
 
 func buildWriteFileRule(ctx BuilderContext, outputFile WritablePath, content string) {
 	content = echoEscaper.Replace(content)
-	content = proptools.ShellEscape(content)
+	content = proptools.NinjaEscape(proptools.ShellEscapeIncludingSpaces(content))
 	if content == "" {
 		content = "''"
 	}
