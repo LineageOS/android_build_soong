@@ -149,14 +149,14 @@ func init() {
 	pctx.HostBinToolVariable("SoongJavacWrapper", "soong_javac_wrapper")
 	pctx.HostBinToolVariable("DexpreoptGen", "dexpreopt_gen")
 
-	pctx.VariableFunc("REJavaPool", remoteexec.EnvOverrideFunc("RBE_JAVA_POOL", "java16"))
-	pctx.VariableFunc("REJavacExecStrategy", remoteexec.EnvOverrideFunc("RBE_JAVAC_EXEC_STRATEGY", remoteexec.RemoteLocalFallbackExecStrategy))
-	pctx.VariableFunc("RED8ExecStrategy", remoteexec.EnvOverrideFunc("RBE_D8_EXEC_STRATEGY", remoteexec.RemoteLocalFallbackExecStrategy))
-	pctx.VariableFunc("RER8ExecStrategy", remoteexec.EnvOverrideFunc("RBE_R8_EXEC_STRATEGY", remoteexec.RemoteLocalFallbackExecStrategy))
-	pctx.VariableFunc("RETurbineExecStrategy", remoteexec.EnvOverrideFunc("RBE_TURBINE_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
-	pctx.VariableFunc("RESignApkExecStrategy", remoteexec.EnvOverrideFunc("RBE_SIGNAPK_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
-	pctx.VariableFunc("REJarExecStrategy", remoteexec.EnvOverrideFunc("RBE_JAR_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
-	pctx.VariableFunc("REZipExecStrategy", remoteexec.EnvOverrideFunc("RBE_ZIP_EXEC_STRATEGY", remoteexec.LocalExecStrategy))
+	pctx.StaticVariableWithEnvOverride("REJavaPool", "RBE_JAVA_POOL", "java16")
+	pctx.StaticVariableWithEnvOverride("REJavacExecStrategy", "RBE_JAVAC_EXEC_STRATEGY", remoteexec.RemoteLocalFallbackExecStrategy)
+	pctx.StaticVariableWithEnvOverride("RED8ExecStrategy", "RBE_D8_EXEC_STRATEGY", remoteexec.RemoteLocalFallbackExecStrategy)
+	pctx.StaticVariableWithEnvOverride("RER8ExecStrategy", "RBE_R8_EXEC_STRATEGY", remoteexec.RemoteLocalFallbackExecStrategy)
+	pctx.StaticVariableWithEnvOverride("RETurbineExecStrategy", "RBE_TURBINE_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
+	pctx.StaticVariableWithEnvOverride("RESignApkExecStrategy", "RBE_SIGNAPK_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
+	pctx.StaticVariableWithEnvOverride("REJarExecStrategy", "RBE_JAR_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
+	pctx.StaticVariableWithEnvOverride("REZipExecStrategy", "RBE_ZIP_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
 
 	pctx.HostJavaToolVariable("JacocoCLIJar", "jacoco-cli.jar")
 
