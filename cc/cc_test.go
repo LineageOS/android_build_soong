@@ -2065,6 +2065,7 @@ func TestEnforceProductVndkVersion(t *testing.T) {
 			vendor_available: true,
 			product_available: true,
 			nocrt: true,
+			srcs: ["foo.c"],
 			target: {
 				vendor: {
 					suffix: "-vendor",
@@ -2108,12 +2109,7 @@ func TestEnforceProductVndkVersion(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.ProductVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
-
-	ctx := testCcWithConfig(t, config)
+	ctx := ccFixtureFactory.RunTestWithBp(t, bp).TestContext
 
 	checkVndkModule(t, ctx, "libvndk", "", false, "", productVariant)
 	checkVndkModule(t, ctx, "libvndk_sp", "", true, "", productVariant)
@@ -2123,6 +2119,33 @@ func TestEnforceProductVndkVersion(t *testing.T) {
 
 	mod_product := ctx.ModuleForTests("libboth_available", productVariant).Module().(*Module)
 	assertString(t, mod_product.outputFile.Path().Base(), "libboth_available-product.so")
+
+	ensureStringContains := func(t *testing.T, str string, substr string) {
+		t.Helper()
+		if !strings.Contains(str, substr) {
+			t.Errorf("%q is not found in %v", substr, str)
+		}
+	}
+	ensureStringNotContains := func(t *testing.T, str string, substr string) {
+		t.Helper()
+		if strings.Contains(str, substr) {
+			t.Errorf("%q is found in %v", substr, str)
+		}
+	}
+
+	// _static variant is used since _shared reuses *.o from the static variant
+	vendor_static := ctx.ModuleForTests("libboth_available", strings.Replace(vendorVariant, "_shared", "_static", 1))
+	product_static := ctx.ModuleForTests("libboth_available", strings.Replace(productVariant, "_shared", "_static", 1))
+
+	vendor_cflags := vendor_static.Rule("cc").Args["cFlags"]
+	ensureStringContains(t, vendor_cflags, "-D__ANDROID_VNDK__")
+	ensureStringContains(t, vendor_cflags, "-D__ANDROID_VENDOR__")
+	ensureStringNotContains(t, vendor_cflags, "-D__ANDROID_PRODUCT__")
+
+	product_cflags := product_static.Rule("cc").Args["cFlags"]
+	ensureStringContains(t, product_cflags, "-D__ANDROID_VNDK__")
+	ensureStringContains(t, product_cflags, "-D__ANDROID_PRODUCT__")
+	ensureStringNotContains(t, product_cflags, "-D__ANDROID_VENDOR__")
 }
 
 func TestEnforceProductVndkVersionErrors(t *testing.T) {

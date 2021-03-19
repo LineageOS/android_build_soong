@@ -2665,6 +2665,40 @@ func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 	ensureListContains(t, requireNativeLibs, ":vndk")
 }
 
+func TestProductVariant(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			updatable: false,
+			product_specific: true,
+			binaries: ["foo"],
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_binary {
+			name: "foo",
+			product_available: true,
+			apex_available: ["myapex"],
+			srcs: ["foo.cpp"],
+		}
+	`, func(fs map[string][]byte, config android.Config) {
+		config.TestProductVariables.ProductVndkVersion = proptools.StringPtr("current")
+	})
+
+	cflags := strings.Fields(
+		ctx.ModuleForTests("foo", "android_product.VER_arm64_armv8-a_apex10000").Rule("cc").Args["cFlags"])
+	ensureListContains(t, cflags, "-D__ANDROID_VNDK__")
+	ensureListContains(t, cflags, "-D__ANDROID_APEX__")
+	ensureListContains(t, cflags, "-D__ANDROID_PRODUCT__")
+	ensureListNotContains(t, cflags, "-D__ANDROID_VENDOR__")
+}
+
 func TestApex_withPrebuiltFirmware(t *testing.T) {
 	testCases := []struct {
 		name           string
