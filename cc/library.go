@@ -1914,6 +1914,7 @@ func createPerApiVersionVariations(mctx android.BottomUpMutatorContext, minSdkVe
 
 	for i, module := range modules {
 		module.(*Module).Properties.Sdk_version = StringPtr(versionStrs[i])
+		module.(*Module).Properties.Min_sdk_version = StringPtr(versionStrs[i])
 	}
 }
 
