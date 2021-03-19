@@ -409,30 +409,21 @@ func (r *RuleBuilder) Tools() Paths {
 func (r *RuleBuilder) RspFileInputs() Paths {
 	var rspFileInputs Paths
 	for _, c := range r.commands {
-		if c.rspFileInputs != nil {
-			if rspFileInputs != nil {
-				panic("Multiple commands in a rule may not have rsp file inputs")
-			}
-			rspFileInputs = c.rspFileInputs
+		for _, rspFile := range c.rspFiles {
+			rspFileInputs = append(rspFileInputs, rspFile.paths...)
 		}
 	}
 
 	return rspFileInputs
 }
 
-// RspFile returns the path to the rspfile that was passed to the RuleBuilderCommand.FlagWithRspFileInputList method.
-func (r *RuleBuilder) RspFile() WritablePath {
-	var rspFile WritablePath
+func (r *RuleBuilder) rspFiles() []rspFileAndPaths {
+	var rspFiles []rspFileAndPaths
 	for _, c := range r.commands {
-		if c.rspFile != nil {
-			if rspFile != nil {
-				panic("Multiple commands in a rule may not have rsp file inputs")
-			}
-			rspFile = c.rspFile
-		}
+		rspFiles = append(rspFiles, c.rspFiles...)
 	}
 
-	return rspFile
+	return rspFiles
 }
 
 // Commands returns a slice containing the built command line for each call to RuleBuilder.Command.
@@ -501,8 +492,7 @@ func (r *RuleBuilder) Build(name string, desc string) {
 	commands := r.Commands()
 	outputs := r.Outputs()
 	inputs := r.Inputs()
-	rspFileInputs := r.RspFileInputs()
-	rspFilePath := r.RspFile()
+	rspFiles := r.rspFiles()
 
 	if len(commands) == 0 {
 		return
@@ -556,10 +546,11 @@ func (r *RuleBuilder) Build(name string, desc string) {
 				})
 			}
 
-			// If using an rsp file copy it into the sbox directory.
-			if rspFilePath != nil {
+			// If using rsp files copy them and their contents into the sbox directory with
+			// the appropriate path mappings.
+			for _, rspFile := range rspFiles {
 				command.RspFiles = append(command.RspFiles, &sbox_proto.RspFile{
-					File: proto.String(rspFilePath.String()),
+					File: proto.String(rspFile.file.String()),
 					// These have to match the logic in sboxPathForInputRel
 					PathMappings: []*sbox_proto.PathMapping{
 						{
@@ -641,9 +632,9 @@ func (r *RuleBuilder) Build(name string, desc string) {
 			remoteInputs = append(remoteInputs, inputs...)
 			remoteInputs = append(remoteInputs, tools...)
 
-			if rspFilePath != nil {
-				remoteInputs = append(remoteInputs, rspFilePath)
-				remoteRspFiles = append(remoteRspFiles, rspFilePath)
+			for _, rspFile := range rspFiles {
+				remoteInputs = append(remoteInputs, rspFile.file)
+				remoteRspFiles = append(remoteRspFiles, rspFile.file)
 			}
 
 			if len(remoteInputs) > 0 {
@@ -673,12 +664,24 @@ func (r *RuleBuilder) Build(name string, desc string) {
 	implicitOutputs := outputs[1:]
 
 	var rspFile, rspFileContent string
-	if rspFilePath != nil {
-		rspFile = rspFilePath.String()
+	var rspFileInputs Paths
+	if len(rspFiles) > 0 {
+		// The first rsp files uses Ninja's rsp file support for the rule
+		rspFile = rspFiles[0].file.String()
 		// Use "$in" for rspFileContent to avoid duplicating the list of files in the dependency
 		// list and in the contents of the rsp file.  Inputs to the rule that are not in the
 		// rsp file will be listed in Implicits instead of Inputs so they don't show up in "$in".
 		rspFileContent = "$in"
+		rspFileInputs = append(rspFileInputs, rspFiles[0].paths...)
+
+		for _, rspFile := range rspFiles[1:] {
+			// Any additional rsp files need an extra rule to write the file.
+			writeRspFileRule(r.ctx, rspFile.file, rspFile.paths)
+			// The main rule needs to depend on the inputs listed in the extra rsp file.
+			inputs = append(inputs, rspFile.paths...)
+			// The main rule needs to depend on the extra rsp file.
+			inputs = append(inputs, rspFile.file)
+		}
 	}
 
 	var pool blueprint.Pool
@@ -729,8 +732,12 @@ type RuleBuilderCommand struct {
 	depFiles       WritablePaths
 	tools          Paths
 	packagedTools  []PackagingSpec
-	rspFileInputs  Paths
-	rspFile        WritablePath
+	rspFiles       []rspFileAndPaths
+}
+
+type rspFileAndPaths struct {
+	file  WritablePath
+	paths Paths
 }
 
 func (c *RuleBuilderCommand) addInput(path Path) string {
@@ -1174,22 +1181,19 @@ func (c *RuleBuilderCommand) FlagWithDepFile(flag string, path WritablePath) *Ru
 	return c.Text(flag + c.PathForOutput(path))
 }
 
-// FlagWithRspFileInputList adds the specified flag and path to an rspfile to the command line, with no separator
-// between them.  The paths will be written to the rspfile.  If sbox is enabled, the rspfile must
-// be outside the sbox directory.
+// FlagWithRspFileInputList adds the specified flag and path to an rspfile to the command line, with
+// no separator between them.  The paths will be written to the rspfile.  If sbox is enabled, the
+// rspfile must be outside the sbox directory.  The first use of FlagWithRspFileInputList in any
+// RuleBuilderCommand of a RuleBuilder will use Ninja's rsp file support for the rule, additional
+// uses will result in an auxiliary rules to write the rspFile contents.
 func (c *RuleBuilderCommand) FlagWithRspFileInputList(flag string, rspFile WritablePath, paths Paths) *RuleBuilderCommand {
-	if c.rspFileInputs != nil {
-		panic("FlagWithRspFileInputList cannot be called if rsp file inputs have already been provided")
-	}
-
 	// Use an empty slice if paths is nil, the non-nil slice is used as an indicator that the rsp file must be
 	// generated.
 	if paths == nil {
 		paths = Paths{}
 	}
 
-	c.rspFileInputs = paths
-	c.rspFile = rspFile
+	c.rspFiles = append(c.rspFiles, rspFileAndPaths{rspFile, paths})
 
 	if c.rule.sbox {
 		if _, isRel, _ := maybeRelErr(c.rule.outDir.String(), rspFile.String()); isRel {
