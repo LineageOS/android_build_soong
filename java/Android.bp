@@ -28,6 +28,7 @@ bootstrap_go_package {
         "app.go",
         "app_import.go",
         "app_set.go",
+        "base.go",
         "boot_image.go",
         "boot_jars.go",
         "builder.go",
