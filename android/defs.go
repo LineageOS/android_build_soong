@@ -124,6 +124,10 @@ var (
 
 func init() {
 	pctx.Import("github.com/google/blueprint/bootstrap")
+
+	pctx.VariableFunc("RBEWrapper", func(ctx PackageVarContext) string {
+		return ctx.Config().RBEWrapper()
+	})
 }
 
 var (
@@ -145,7 +149,7 @@ var (
 
 func buildWriteFileRule(ctx BuilderContext, outputFile WritablePath, content string) {
 	content = echoEscaper.Replace(content)
-	content = proptools.ShellEscape(content)
+	content = proptools.NinjaEscape(proptools.ShellEscapeIncludingSpaces(content))
 	if content == "" {
 		content = "''"
 	}

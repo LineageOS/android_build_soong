@@ -116,6 +116,7 @@ func runBazel(ctx Context, config Config) {
 			"RBE_exec_strategy",
 			"RBE_invocation_id",
 			"RBE_log_dir",
+			"RBE_num_retries_if_mismatched",
 			"RBE_platform",
 			"RBE_remote_accept_cache",
 			"RBE_remote_update_cache",
