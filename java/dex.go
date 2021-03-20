@@ -83,7 +83,7 @@ func (d *dexer) effectiveOptimizeEnabled() bool {
 	return BoolDefault(d.dexProperties.Optimize.Enabled, d.dexProperties.Optimize.EnabledByDefault)
 }
 
-var d8, d8RE = remoteexec.MultiCommandStaticRules(pctx, "d8",
+var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`$d8Template${config.D8Cmd} ${config.DexFlags} --output $outDir $d8Flags $in && ` +
@@ -111,7 +111,7 @@ var d8, d8RE = remoteexec.MultiCommandStaticRules(pctx, "d8",
 		},
 	}, []string{"outDir", "d8Flags", "zipFlags"}, nil)
 
-var r8, r8RE = remoteexec.MultiCommandStaticRules(pctx, "r8",
+var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
 			`rm -f "$outDict" && rm -rf "${outUsageDir}" && ` +

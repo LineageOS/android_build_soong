@@ -24,8 +24,6 @@ import (
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
-	"android/soong/python"
-
 	"github.com/google/blueprint"
 )
 
@@ -62,9 +60,7 @@ var PrepareForIntegrationTestWithJava = android.GroupFixturePreparers(
 )
 
 // Prepare a fixture with the standard files required by a java_sdk_library module.
-var PrepareForTestWithJavaSdkLibraryFiles = android.FixtureMergeMockFs(javaSdkLibraryFiles)
-
-var javaSdkLibraryFiles = android.MockFS{
+var PrepareForTestWithJavaSdkLibraryFiles = android.FixtureMergeMockFs(android.MockFS{
 	"api/current.txt":               nil,
 	"api/removed.txt":               nil,
 	"api/system-current.txt":        nil,
@@ -75,7 +71,7 @@ var javaSdkLibraryFiles = android.MockFS{
 	"api/module-lib-removed.txt":    nil,
 	"api/system-server-current.txt": nil,
 	"api/system-server-removed.txt": nil,
-}
+})
 
 // FixtureWithLastReleaseApis creates a preparer that creates prebuilt versions of the specified
 // modules for the `last` API release. By `last` it just means last in the list of supplied versions
@@ -127,49 +123,15 @@ func FixtureWithPrebuiltApis(release2Modules map[string][]string) android.Fixtur
 		mockFS.Merge(prebuiltApisFilesForLibs([]string{release}, libs))
 	}
 	return android.GroupFixturePreparers(
-		// A temporary measure to discard the definitions provided by default by javaMockFS() to allow
-		// the changes that use this preparer to fix tests to be separated from the change to remove
-		// javaMockFS().
-		android.FixtureModifyMockFS(func(fs android.MockFS) {
-			for k, _ := range fs {
-				if strings.HasPrefix(k, "prebuilts/sdk/") {
-					delete(fs, k)
-				}
-			}
-		}),
 		android.FixtureAddTextFile(path, bp),
 		android.FixtureMergeMockFs(mockFS),
 	)
 }
 
-func javaMockFS() android.MockFS {
-	mockFS := android.MockFS{
-		"prebuilts/sdk/tools/core-lambda-stubs.jar": nil,
-		"prebuilts/sdk/Android.bp":                  []byte(`prebuilt_apis { name: "sdk", api_dirs: ["14", "28", "30", "current"], imports_sdk_version: "none", imports_compile_dex:true,}`),
-
-		"bin.py": nil,
-		python.StubTemplateHost: []byte(`PYTHON_BINARY = '%interpreter%'
-		MAIN_FILE = '%main%'`),
-	}
-
-	levels := []string{"14", "28", "29", "30", "current"}
-	libs := []string{
-		"android", "foo", "bar", "sdklib", "barney", "betty", "foo-shared_library",
-		"foo-no_shared_library", "core-for-system-modules", "quuz", "qux", "fred",
-		"runtime-library",
-	}
-	for k, v := range prebuiltApisFilesForLibs(levels, libs) {
-		mockFS[k] = v
-	}
-
-	return mockFS
-}
-
 func TestConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) android.Config {
 	bp += GatherRequiredDepsForTest()
 
-	mockFS := javaMockFS()
-	mockFS.Merge(javaSdkLibraryFiles)
+	mockFS := android.MockFS{}
 
 	cc.GatherRequiredFilesForTest(mockFS)
 

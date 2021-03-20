@@ -296,35 +296,40 @@ func TestRuleBuilder(t *testing.T) {
 		"input3":     nil,
 	}
 
-	pathCtx := PathContextForTesting(TestConfig("out", nil, "", fs))
+	pathCtx := PathContextForTesting(TestConfig("out_local", nil, "", fs))
 	ctx := builderContextForTests{
 		PathContext: pathCtx,
 	}
 
 	addCommands := func(rule *RuleBuilder) {
 		cmd := rule.Command().
-			DepFile(PathForOutput(ctx, "DepFile")).
+			DepFile(PathForOutput(ctx, "module/DepFile")).
 			Flag("Flag").
 			FlagWithArg("FlagWithArg=", "arg").
-			FlagWithDepFile("FlagWithDepFile=", PathForOutput(ctx, "depfile")).
+			FlagWithDepFile("FlagWithDepFile=", PathForOutput(ctx, "module/depfile")).
 			FlagWithInput("FlagWithInput=", PathForSource(ctx, "input")).
-			FlagWithOutput("FlagWithOutput=", PathForOutput(ctx, "output")).
+			FlagWithOutput("FlagWithOutput=", PathForOutput(ctx, "module/output")).
+			FlagWithRspFileInputList("FlagWithRspFileInputList=", PathForOutput(ctx, "rsp"),
+				Paths{
+					PathForSource(ctx, "RspInput"),
+					PathForOutput(ctx, "other/RspOutput2"),
+				}).
 			Implicit(PathForSource(ctx, "Implicit")).
-			ImplicitDepFile(PathForOutput(ctx, "ImplicitDepFile")).
-			ImplicitOutput(PathForOutput(ctx, "ImplicitOutput")).
+			ImplicitDepFile(PathForOutput(ctx, "module/ImplicitDepFile")).
+			ImplicitOutput(PathForOutput(ctx, "module/ImplicitOutput")).
 			Input(PathForSource(ctx, "Input")).
-			Output(PathForOutput(ctx, "Output")).
+			Output(PathForOutput(ctx, "module/Output")).
 			OrderOnly(PathForSource(ctx, "OrderOnly")).
-			SymlinkOutput(PathForOutput(ctx, "SymlinkOutput")).
-			ImplicitSymlinkOutput(PathForOutput(ctx, "ImplicitSymlinkOutput")).
+			SymlinkOutput(PathForOutput(ctx, "module/SymlinkOutput")).
+			ImplicitSymlinkOutput(PathForOutput(ctx, "module/ImplicitSymlinkOutput")).
 			Text("Text").
 			Tool(PathForSource(ctx, "Tool"))
 
 		rule.Command().
 			Text("command2").
-			DepFile(PathForOutput(ctx, "depfile2")).
+			DepFile(PathForOutput(ctx, "module/depfile2")).
 			Input(PathForSource(ctx, "input2")).
-			Output(PathForOutput(ctx, "output2")).
+			Output(PathForOutput(ctx, "module/output2")).
 			OrderOnlys(PathsForSource(ctx, []string{"OrderOnlys"})).
 			Tool(PathForSource(ctx, "tool2"))
 
@@ -337,32 +342,46 @@ func TestRuleBuilder(t *testing.T) {
 		rule.Command().
 			Text("command3").
 			Input(PathForSource(ctx, "input3")).
-			Input(PathForOutput(ctx, "output2")).
-			Output(PathForOutput(ctx, "output3"))
+			Input(PathForOutput(ctx, "module/output2")).
+			Output(PathForOutput(ctx, "module/output3")).
+			Text(cmd.PathForInput(PathForSource(ctx, "input3"))).
+			Text(cmd.PathForOutput(PathForOutput(ctx, "module/output2")))
 	}
 
 	wantInputs := PathsForSource(ctx, []string{"Implicit", "Input", "input", "input2", "input3"})
-	wantOutputs := PathsForOutput(ctx, []string{"ImplicitOutput", "ImplicitSymlinkOutput", "Output", "SymlinkOutput", "output", "output2", "output3"})
-	wantDepFiles := PathsForOutput(ctx, []string{"DepFile", "depfile", "ImplicitDepFile", "depfile2"})
+	wantRspFileInputs := Paths{PathForSource(ctx, "RspInput"),
+		PathForOutput(ctx, "other/RspOutput2")}
+	wantOutputs := PathsForOutput(ctx, []string{
+		"module/ImplicitOutput", "module/ImplicitSymlinkOutput", "module/Output", "module/SymlinkOutput",
+		"module/output", "module/output2", "module/output3"})
+	wantDepFiles := PathsForOutput(ctx, []string{
+		"module/DepFile", "module/depfile", "module/ImplicitDepFile", "module/depfile2"})
 	wantTools := PathsForSource(ctx, []string{"Tool", "tool2"})
 	wantOrderOnlys := PathsForSource(ctx, []string{"OrderOnly", "OrderOnlys"})
-	wantSymlinkOutputs := PathsForOutput(ctx, []string{"ImplicitSymlinkOutput", "SymlinkOutput"})
+	wantSymlinkOutputs := PathsForOutput(ctx, []string{
+		"module/ImplicitSymlinkOutput", "module/SymlinkOutput"})
 
 	t.Run("normal", func(t *testing.T) {
 		rule := NewRuleBuilder(pctx, ctx)
 		addCommands(rule)
 
 		wantCommands := []string{
-			"out/DepFile Flag FlagWithArg=arg FlagWithDepFile=out/depfile FlagWithInput=input FlagWithOutput=out/output Input out/Output out/SymlinkOutput Text Tool after command2 old cmd",
-			"command2 out/depfile2 input2 out/output2 tool2",
-			"command3 input3 out/output2 out/output3",
+			"out_local/module/DepFile Flag FlagWithArg=arg FlagWithDepFile=out_local/module/depfile " +
+				"FlagWithInput=input FlagWithOutput=out_local/module/output FlagWithRspFileInputList=out_local/rsp " +
+				"Input out_local/module/Output out_local/module/SymlinkOutput Text Tool after command2 old cmd",
+			"command2 out_local/module/depfile2 input2 out_local/module/output2 tool2",
+			"command3 input3 out_local/module/output2 out_local/module/output3 input3 out_local/module/output2",
 		}
 
-		wantDepMergerCommand := "out/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer out/DepFile out/depfile out/ImplicitDepFile out/depfile2"
+		wantDepMergerCommand := "out_local/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer " +
+			"out_local/module/DepFile out_local/module/depfile out_local/module/ImplicitDepFile out_local/module/depfile2"
+
+		wantRspFileContent := "$in"
 
 		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
 
 		AssertDeepEquals(t, "rule.Inputs()", wantInputs, rule.Inputs())
+		AssertDeepEquals(t, "rule.RspfileInputs()", wantRspFileInputs, rule.RspFileInputs())
 		AssertDeepEquals(t, "rule.Outputs()", wantOutputs, rule.Outputs())
 		AssertDeepEquals(t, "rule.SymlinkOutputs()", wantSymlinkOutputs, rule.SymlinkOutputs())
 		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
@@ -370,54 +389,74 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
+
+		AssertSame(t, "rule.composeRspFileContent()", wantRspFileContent, rule.composeRspFileContent(rule.RspFileInputs()))
 	})
 
 	t.Run("sbox", func(t *testing.T) {
-		rule := NewRuleBuilder(pctx, ctx).Sbox(PathForOutput(ctx, ""),
+		rule := NewRuleBuilder(pctx, ctx).Sbox(PathForOutput(ctx, "module"),
 			PathForOutput(ctx, "sbox.textproto"))
 		addCommands(rule)
 
 		wantCommands := []string{
-			"__SBOX_SANDBOX_DIR__/out/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_SANDBOX_DIR__/out/depfile FlagWithInput=input FlagWithOutput=__SBOX_SANDBOX_DIR__/out/output Input __SBOX_SANDBOX_DIR__/out/Output __SBOX_SANDBOX_DIR__/out/SymlinkOutput Text Tool after command2 old cmd",
+			"__SBOX_SANDBOX_DIR__/out/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_SANDBOX_DIR__/out/depfile " +
+				"FlagWithInput=input FlagWithOutput=__SBOX_SANDBOX_DIR__/out/output " +
+				"FlagWithRspFileInputList=out_local/rsp Input __SBOX_SANDBOX_DIR__/out/Output " +
+				"__SBOX_SANDBOX_DIR__/out/SymlinkOutput Text Tool after command2 old cmd",
 			"command2 __SBOX_SANDBOX_DIR__/out/depfile2 input2 __SBOX_SANDBOX_DIR__/out/output2 tool2",
-			"command3 input3 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/out/output3",
+			"command3 input3 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/out/output3 input3 __SBOX_SANDBOX_DIR__/out/output2",
 		}
 
-		wantDepMergerCommand := "out/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
+		wantDepMergerCommand := "out_local/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
+
+		wantRspFileContent := "$in"
 
 		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
 
 		AssertDeepEquals(t, "rule.Inputs()", wantInputs, rule.Inputs())
+		AssertDeepEquals(t, "rule.RspfileInputs()", wantRspFileInputs, rule.RspFileInputs())
 		AssertDeepEquals(t, "rule.Outputs()", wantOutputs, rule.Outputs())
+		AssertDeepEquals(t, "rule.SymlinkOutputs()", wantSymlinkOutputs, rule.SymlinkOutputs())
 		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
 		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
+
+		AssertSame(t, "rule.composeRspFileContent()", wantRspFileContent, rule.composeRspFileContent(rule.RspFileInputs()))
 	})
 
 	t.Run("sbox tools", func(t *testing.T) {
-		rule := NewRuleBuilder(pctx, ctx).Sbox(PathForOutput(ctx, ""),
+		rule := NewRuleBuilder(pctx, ctx).Sbox(PathForOutput(ctx, "module"),
 			PathForOutput(ctx, "sbox.textproto")).SandboxTools()
 		addCommands(rule)
 
 		wantCommands := []string{
-			"__SBOX_SANDBOX_DIR__/out/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_SANDBOX_DIR__/out/depfile FlagWithInput=input FlagWithOutput=__SBOX_SANDBOX_DIR__/out/output Input __SBOX_SANDBOX_DIR__/out/Output __SBOX_SANDBOX_DIR__/out/SymlinkOutput Text __SBOX_SANDBOX_DIR__/tools/src/Tool after command2 old cmd",
+			"__SBOX_SANDBOX_DIR__/out/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_SANDBOX_DIR__/out/depfile " +
+				"FlagWithInput=input FlagWithOutput=__SBOX_SANDBOX_DIR__/out/output " +
+				"FlagWithRspFileInputList=out_local/rsp Input __SBOX_SANDBOX_DIR__/out/Output " +
+				"__SBOX_SANDBOX_DIR__/out/SymlinkOutput Text __SBOX_SANDBOX_DIR__/tools/src/Tool after command2 old cmd",
 			"command2 __SBOX_SANDBOX_DIR__/out/depfile2 input2 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/tools/src/tool2",
-			"command3 input3 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/out/output3",
+			"command3 input3 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/out/output3 input3 __SBOX_SANDBOX_DIR__/out/output2",
 		}
 
 		wantDepMergerCommand := "__SBOX_SANDBOX_DIR__/tools/out/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
 
+		wantRspFileContent := "$in"
+
 		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
 
 		AssertDeepEquals(t, "rule.Inputs()", wantInputs, rule.Inputs())
+		AssertDeepEquals(t, "rule.RspfileInputs()", wantRspFileInputs, rule.RspFileInputs())
 		AssertDeepEquals(t, "rule.Outputs()", wantOutputs, rule.Outputs())
+		AssertDeepEquals(t, "rule.SymlinkOutputs()", wantSymlinkOutputs, rule.SymlinkOutputs())
 		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
 		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
+
+		AssertSame(t, "rule.composeRspFileContent()", wantRspFileContent, rule.composeRspFileContent(rule.RspFileInputs()))
 	})
 }
 

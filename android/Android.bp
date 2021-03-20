@@ -13,6 +13,7 @@ bootstrap_go_package {
         "soong-android-soongconfig",
         "soong-bazel",
         "soong-cquery",
+        "soong-remoteexec",
         "soong-shared",
         "soong-ui-metrics_proto",
     ],

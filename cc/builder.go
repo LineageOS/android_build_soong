@@ -59,7 +59,7 @@ var (
 
 	// Rules to invoke ld to link binaries. Uses a .rsp file to list dependencies, as there may
 	// be many.
-	ld, ldRE = remoteexec.StaticRules(pctx, "ld",
+	ld, ldRE = pctx.RemoteStaticRules("ld",
 		blueprint.RuleParams{
 			Command: "$reTemplate$ldCmd ${crtBegin} @${out}.rsp " +
 				"${libFlags} ${crtEnd} -o ${out} ${ldFlags} ${extraLibFlags}",
@@ -80,7 +80,7 @@ var (
 		}, []string{"ldCmd", "crtBegin", "libFlags", "crtEnd", "ldFlags", "extraLibFlags"}, []string{"implicitInputs", "implicitOutputs"})
 
 	// Rules for .o files to combine to other .o files, using ld partial linking.
-	partialLd, partialLdRE = remoteexec.StaticRules(pctx, "partialLd",
+	partialLd, partialLdRE = pctx.RemoteStaticRules("partialLd",
 		blueprint.RuleParams{
 			// Without -no-pie, clang 7.0 adds -pie to link Android files,
 			// but -r and -pie cannot be used together.
@@ -132,7 +132,7 @@ var (
 		blueprint.RuleParams{
 			Depfile:     "${out}.d",
 			Deps:        blueprint.DepsGCC,
-			Command:     "CROSS_COMPILE=$crossCompile XZ=$xzCmd CLANG_BIN=${config.ClangBin} $stripPath ${args} -i ${in} -o ${out} -d ${out}.d",
+			Command:     "XZ=$xzCmd CLANG_BIN=${config.ClangBin} $stripPath ${args} -i ${in} -o ${out} -d ${out}.d",
 			CommandDeps: []string{"$stripPath", "$xzCmd"},
 			Pool:        darwinStripPool,
 		},
@@ -189,7 +189,7 @@ var (
 		"crossCompile", "format")
 
 	// Rule for invoking clang-tidy (a clang-based linter).
-	clangTidy, clangTidyRE = remoteexec.StaticRules(pctx, "clangTidy",
+	clangTidy, clangTidyRE = pctx.RemoteStaticRules("clangTidy",
 		blueprint.RuleParams{
 			Command:     "rm -f $out && $reTemplate${config.ClangBin}/clang-tidy $tidyFlags $in -- $cFlags && touch $out",
 			CommandDeps: []string{"${config.ClangBin}/clang-tidy"},
@@ -228,7 +228,7 @@ var (
 	_ = pctx.SourcePathVariable("sAbiDumper", "prebuilts/clang-tools/${config.HostPrebuiltTag}/bin/header-abi-dumper")
 
 	// -w has been added since header-abi-dumper does not need to produce any sort of diagnostic information.
-	sAbiDump, sAbiDumpRE = remoteexec.StaticRules(pctx, "sAbiDump",
+	sAbiDump, sAbiDumpRE = pctx.RemoteStaticRules("sAbiDump",
 		blueprint.RuleParams{
 			Command:     "rm -f $out && $reTemplate$sAbiDumper -o ${out} $in $exportDirs -- $cFlags -w -isystem prebuilts/clang-tools/${config.HostPrebuiltTag}/clang-headers",
 			CommandDeps: []string{"$sAbiDumper"},
@@ -246,7 +246,7 @@ var (
 
 	// Rule to combine .dump sAbi dump files from multiple source files into a single .ldump
 	// sAbi dump file.
-	sAbiLink, sAbiLinkRE = remoteexec.StaticRules(pctx, "sAbiLink",
+	sAbiLink, sAbiLinkRE = pctx.RemoteStaticRules("sAbiLink",
 		blueprint.RuleParams{
 			Command:        "$reTemplate$sAbiLinker -o ${out} $symbolFilter -arch $arch  $exportedHeaderFlags @${out}.rsp ",
 			CommandDeps:    []string{"$sAbiLinker"},
@@ -331,7 +331,6 @@ func init() {
 	pctx.StaticVariable("relPwd", PwdPrefix())
 
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
-	pctx.Import("android/soong/remoteexec")
 }
 
 // builderFlags contains various types of command line flags (and settings) for use in building

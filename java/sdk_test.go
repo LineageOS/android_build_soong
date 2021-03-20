@@ -27,6 +27,7 @@ import (
 )
 
 func TestClasspath(t *testing.T) {
+	const frameworkAidl = "-I" + defaultJavaDir + "/framework/aidl"
 	var classpathTestcases = []struct {
 		name       string
 		unbundled  bool
@@ -52,7 +53,7 @@ func TestClasspath(t *testing.T) {
 			system:         config.StableCorePlatformSystemModules,
 			java8classpath: config.FrameworkLibraries,
 			java9classpath: config.FrameworkLibraries,
-			aidl:           "-Iframework/aidl",
+			aidl:           frameworkAidl,
 		},
 		{
 			name:           `sdk_version:"core_platform"`,
@@ -69,7 +70,7 @@ func TestClasspath(t *testing.T) {
 			system:         config.StableCorePlatformSystemModules,
 			java8classpath: config.FrameworkLibraries,
 			java9classpath: config.FrameworkLibraries,
-			aidl:           "-Iframework/aidl",
+			aidl:           frameworkAidl,
 		},
 		{
 
@@ -263,7 +264,7 @@ func TestClasspath(t *testing.T) {
 			convertModulesToPaths := func(cp []string) []string {
 				ret := make([]string, len(cp))
 				for i, e := range cp {
-					ret[i] = moduleToPath(e)
+					ret[i] = defaultModuleToPath(e)
 				}
 				return ret
 			}
@@ -299,6 +300,8 @@ func TestClasspath(t *testing.T) {
 				dir := ""
 				if strings.HasPrefix(testcase.system, "sdk_public_") {
 					dir = "prebuilts/sdk"
+				} else {
+					dir = defaultJavaDir
 				}
 				system = "--system=" + filepath.Join(buildDir, ".intermediates", dir, testcase.system, "android_common", "system")
 				// The module-relative parts of these paths are hardcoded in system_modules.go:
@@ -309,8 +312,8 @@ func TestClasspath(t *testing.T) {
 				}
 			}
 
-			checkClasspath := func(t *testing.T, ctx *android.TestContext, isJava8 bool) {
-				foo := ctx.ModuleForTests("foo", variant)
+			checkClasspath := func(t *testing.T, result *android.TestResult, isJava8 bool) {
+				foo := result.ModuleForTests("foo", variant)
 				javac := foo.Rule("javac")
 				var deps []string
 
@@ -349,78 +352,68 @@ func TestClasspath(t *testing.T) {
 				}
 			}
 
+			fixtureFactory := javaFixtureFactory.Extend(
+				FixtureWithPrebuiltApis(map[string][]string{
+					"29":      {},
+					"30":      {},
+					"current": {},
+				}),
+				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+					if testcase.unbundled {
+						variables.Unbundled_build = proptools.BoolPtr(true)
+						variables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
+					}
+				}),
+				android.FixtureModifyEnv(func(env map[string]string) {
+					if env["ANDROID_JAVA8_HOME"] == "" {
+						env["ANDROID_JAVA8_HOME"] = "jdk8"
+					}
+				}),
+			)
+
 			// Test with legacy javac -source 1.8 -target 1.8
 			t.Run("Java language level 8", func(t *testing.T) {
-				config := testConfig(nil, bpJava8, nil)
-				if testcase.unbundled {
-					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
-					config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
-				}
-				ctx := testContext(config)
-				run(t, ctx, config)
+				result := fixtureFactory.RunTestWithBp(t, bpJava8)
 
-				checkClasspath(t, ctx, true /* isJava8 */)
+				checkClasspath(t, result, true /* isJava8 */)
 
 				if testcase.host != android.Host {
-					aidl := ctx.ModuleForTests("foo", variant).Rule("aidl")
+					aidl := result.ModuleForTests("foo", variant).Rule("aidl")
 
-					if g, w := aidl.RuleParams.Command, testcase.aidl+" -I."; !strings.Contains(g, w) {
-						t.Errorf("want aidl command to contain %q, got %q", w, g)
-					}
+					android.AssertStringDoesContain(t, "aidl command", aidl.RuleParams.Command, testcase.aidl+" -I.")
 				}
 			})
 
 			// Test with default javac -source 9 -target 9
 			t.Run("Java language level 9", func(t *testing.T) {
-				config := testConfig(nil, bp, nil)
-				if testcase.unbundled {
-					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
-					config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
-				}
-				ctx := testContext(config)
-				run(t, ctx, config)
+				result := fixtureFactory.RunTestWithBp(t, bp)
 
-				checkClasspath(t, ctx, false /* isJava8 */)
+				checkClasspath(t, result, false /* isJava8 */)
 
 				if testcase.host != android.Host {
-					aidl := ctx.ModuleForTests("foo", variant).Rule("aidl")
+					aidl := result.ModuleForTests("foo", variant).Rule("aidl")
 
-					if g, w := aidl.RuleParams.Command, testcase.aidl+" -I."; !strings.Contains(g, w) {
-						t.Errorf("want aidl command to contain %q, got %q", w, g)
-					}
+					android.AssertStringDoesContain(t, "aidl command", aidl.RuleParams.Command, testcase.aidl+" -I.")
 				}
+			})
+
+			prepareWithPlatformVersionRel := android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.Platform_sdk_codename = proptools.StringPtr("REL")
+				variables.Platform_sdk_final = proptools.BoolPtr(true)
 			})
 
 			// Test again with PLATFORM_VERSION_CODENAME=REL, javac -source 8 -target 8
 			t.Run("REL + Java language level 8", func(t *testing.T) {
-				config := testConfig(nil, bpJava8, nil)
-				config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("REL")
-				config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(true)
+				result := fixtureFactory.Extend(prepareWithPlatformVersionRel).RunTestWithBp(t, bpJava8)
 
-				if testcase.unbundled {
-					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
-					config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
-				}
-				ctx := testContext(config)
-				run(t, ctx, config)
-
-				checkClasspath(t, ctx, true /* isJava8 */)
+				checkClasspath(t, result, true /* isJava8 */)
 			})
 
 			// Test again with PLATFORM_VERSION_CODENAME=REL, javac -source 9 -target 9
 			t.Run("REL + Java language level 9", func(t *testing.T) {
-				config := testConfig(nil, bp, nil)
-				config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("REL")
-				config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(true)
+				result := fixtureFactory.Extend(prepareWithPlatformVersionRel).RunTestWithBp(t, bp)
 
-				if testcase.unbundled {
-					config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
-					config.TestProductVariables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
-				}
-				ctx := testContext(config)
-				run(t, ctx, config)
-
-				checkClasspath(t, ctx, false /* isJava8 */)
+				checkClasspath(t, result, false /* isJava8 */)
 			})
 		})
 	}
