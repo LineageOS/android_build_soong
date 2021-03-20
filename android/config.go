@@ -35,6 +35,7 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android/soongconfig"
+	"android/soong/remoteexec"
 )
 
 // Bool re-exports proptools.Bool for the android package.
@@ -1475,8 +1476,28 @@ func (c *deviceConfig) ShippingApiLevel() ApiLevel {
 	return uncheckedFinalApiLevel(apiLevel)
 }
 
+func (c *deviceConfig) BuildBrokenEnforceSyspropOwner() bool {
+	return c.config.productVariables.BuildBrokenEnforceSyspropOwner
+}
+
+func (c *deviceConfig) BuildBrokenTrebleSyspropNeverallow() bool {
+	return c.config.productVariables.BuildBrokenTrebleSyspropNeverallow
+}
+
 func (c *deviceConfig) BuildBrokenVendorPropertyNamespace() bool {
 	return c.config.productVariables.BuildBrokenVendorPropertyNamespace
+}
+
+func (c *deviceConfig) RequiresInsecureExecmemForSwiftshader() bool {
+	return c.config.productVariables.RequiresInsecureExecmemForSwiftshader
+}
+
+func (c *config) SelinuxIgnoreNeverallows() bool {
+	return c.productVariables.SelinuxIgnoreNeverallows
+}
+
+func (c *deviceConfig) SepolicySplit() bool {
+	return c.config.productVariables.SepolicySplit
 }
 
 // The ConfiguredJarList struct provides methods for handling a list of (apex, jar) pairs.
@@ -1753,4 +1774,8 @@ func (c *config) NonUpdatableBootJars() ConfiguredJarList {
 
 func (c *config) UpdatableBootJars() ConfiguredJarList {
 	return c.productVariables.UpdatableBootJars
+}
+
+func (c *config) RBEWrapper() string {
+	return c.GetenvWithDefault("RBE_WRAPPER", remoteexec.DefaultWrapperPath)
 }
