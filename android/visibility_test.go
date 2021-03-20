@@ -1142,7 +1142,7 @@ var visibilityTests = []struct {
 func TestVisibility(t *testing.T) {
 	for _, test := range visibilityTests {
 		t.Run(test.name, func(t *testing.T) {
-			result := emptyTestFixtureFactory.Extend(
+			result := GroupFixturePreparers(
 				// General preparers in alphabetical order as test infrastructure will enforce correct
 				// registration order.
 				PrepareForTestWithArchMutator,

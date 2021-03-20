@@ -65,7 +65,7 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 		}
 	`
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		PrepareForTestWithAllowMissingDependencies,
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			ctx.RegisterModuleType("test", mutatorTestModuleFactory)
@@ -74,7 +74,7 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 			})
 		}),
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	foo := result.ModuleForTests("foo", "").Module().(*mutatorTestModule)
 
@@ -90,7 +90,7 @@ func TestModuleString(t *testing.T) {
 
 	var moduleStrings []string
 
-	emptyTestFixtureFactory.RunTest(t,
+	GroupFixturePreparers(
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 
 			ctx.PreArchMutators(func(ctx RegisterMutatorsContext) {
@@ -128,7 +128,7 @@ func TestModuleString(t *testing.T) {
 			ctx.RegisterModuleType("test", mutatorTestModuleFactory)
 		}),
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	want := []string{
 		// Initial name.
@@ -187,7 +187,7 @@ func TestFinalDepsPhase(t *testing.T) {
 
 	finalGot := map[string]int{}
 
-	emptyTestFixtureFactory.RunTest(t,
+	GroupFixturePreparers(
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			dep1Tag := struct {
 				blueprint.BaseDependencyTag
@@ -224,7 +224,7 @@ func TestFinalDepsPhase(t *testing.T) {
 			ctx.RegisterModuleType("test", mutatorTestModuleFactory)
 		}),
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	finalWant := map[string]int{
 		"common_dep_1{variant:a}":                   1,
@@ -249,7 +249,7 @@ func TestNoCreateVariationsInFinalDeps(t *testing.T) {
 		}
 	}
 
-	emptyTestFixtureFactory.RunTest(t,
+	GroupFixturePreparers(
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			ctx.FinalDepsMutators(func(ctx RegisterMutatorsContext) {
 				ctx.BottomUp("vars", func(ctx BottomUpMutatorContext) {
@@ -265,5 +265,5 @@ func TestNoCreateVariationsInFinalDeps(t *testing.T) {
 			ctx.RegisterModuleType("test", mutatorTestModuleFactory)
 		}),
 		FixtureWithRootAndroidBp(`test {name: "foo"}`),
-	)
+	).RunTest(t)
 }
