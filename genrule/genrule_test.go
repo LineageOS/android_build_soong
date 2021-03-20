@@ -28,8 +28,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-var genruleFixtureFactory = android.NewFixtureFactory(
-	nil,
+var prepareForGenRuleTest = android.GroupFixturePreparers(
 	android.PrepareForTestWithArchMutator,
 	android.PrepareForTestWithDefaults,
 
@@ -447,7 +446,8 @@ func TestGenruleCmd(t *testing.T) {
 				expectedErrors = append(expectedErrors, regexp.QuoteMeta(test.err))
 			}
 
-			result := genruleFixtureFactory.Extend(
+			result := android.GroupFixturePreparers(
+				prepareForGenRuleTest,
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 					variables.Allow_missing_dependencies = proptools.BoolPtr(test.allowMissingDependencies)
 				}),
@@ -523,7 +523,7 @@ func TestGenruleHashInputs(t *testing.T) {
 		},
 	}
 
-	result := genruleFixtureFactory.RunTestWithBp(t, testGenruleBp()+bp)
+	result := prepareForGenRuleTest.RunTestWithBp(t, testGenruleBp()+bp)
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
@@ -605,7 +605,7 @@ func TestGenSrcs(t *testing.T) {
 				expectedErrors = append(expectedErrors, regexp.QuoteMeta(test.err))
 			}
 
-			result := genruleFixtureFactory.
+			result := prepareForGenRuleTest.
 				ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(expectedErrors)).
 				RunTestWithBp(t, testGenruleBp()+bp)
 
@@ -642,7 +642,7 @@ func TestGenruleDefaults(t *testing.T) {
 				}
 			`
 
-	result := genruleFixtureFactory.RunTestWithBp(t, testGenruleBp()+bp)
+	result := prepareForGenRuleTest.RunTestWithBp(t, testGenruleBp()+bp)
 
 	gen := result.Module("gen", "").(*Module)
 
@@ -662,11 +662,12 @@ func TestGenruleWithBazel(t *testing.T) {
 		}
 	`
 
-	result := genruleFixtureFactory.Extend(android.FixtureModifyConfig(func(config android.Config) {
-		config.BazelContext = android.MockBazelContext{
-			AllFiles: map[string][]string{
-				"//foo/bar:bar": []string{"bazelone.txt", "bazeltwo.txt"}}}
-	})).RunTestWithBp(t, testGenruleBp()+bp)
+	result := android.GroupFixturePreparers(
+		prepareForGenRuleTest, android.FixtureModifyConfig(func(config android.Config) {
+			config.BazelContext = android.MockBazelContext{
+				AllFiles: map[string][]string{
+					"//foo/bar:bar": []string{"bazelone.txt", "bazeltwo.txt"}}}
+		})).RunTestWithBp(t, testGenruleBp()+bp)
 
 	gen := result.Module("foo", "").(*Module)
 

@@ -30,8 +30,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-var emptyFixtureFactory = android.NewFixtureFactory(nil)
-
 func test(t *testing.T, bp string) *android.TestResult {
 	t.Helper()
 
@@ -124,7 +122,7 @@ func test(t *testing.T, bp string) *android.TestResult {
 		"com/android2/OdmProperties.sysprop":         nil,
 	}
 
-	result := emptyFixtureFactory.RunTest(t,
+	result := android.GroupFixturePreparers(
 		cc.PrepareForTestWithCcDefaultModules,
 		java.PrepareForTestWithJavaDefaultModules,
 		PrepareForTestWithSyspropBuildComponents,
@@ -135,7 +133,7 @@ func test(t *testing.T, bp string) *android.TestResult {
 		}),
 		mockFS.AddToFixture(),
 		android.FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	return result
 }

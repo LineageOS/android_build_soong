@@ -27,8 +27,7 @@ import (
 	"android/soong/java"
 )
 
-var sdkFixtureFactory = android.NewFixtureFactory(
-	nil,
+var prepareForSdkTest = android.GroupFixturePreparers(
 	apex.PrepareForTestWithApexBuildComponents,
 	cc.PrepareForTestWithCcDefaultModules,
 	genrule.PrepareForTestWithGenRuleBuildComponents,
@@ -77,12 +76,12 @@ var PrepareForTestWithSdkBuildComponents = android.GroupFixturePreparers(
 
 func testSdkWithFs(t *testing.T, bp string, fs android.MockFS) *android.TestResult {
 	t.Helper()
-	return sdkFixtureFactory.RunTest(t, fs.AddToFixture(), android.FixtureWithRootAndroidBp(bp))
+	return prepareForSdkTest.RunTest(t, fs.AddToFixture(), android.FixtureWithRootAndroidBp(bp))
 }
 
 func testSdkError(t *testing.T, pattern, bp string) {
 	t.Helper()
-	sdkFixtureFactory.
+	prepareForSdkTest.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
 		RunTestWithBp(t, bp)
 }
