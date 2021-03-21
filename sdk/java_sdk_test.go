@@ -21,6 +21,11 @@ import (
 	"android/soong/java"
 )
 
+var prepareForSdkTestWithJava = android.GroupFixturePreparers(
+	java.PrepareForTestWithJavaBuildComponents,
+	PrepareForTestWithSdkBuildComponents,
+)
+
 func testSdkWithJava(t *testing.T, bp string) *android.TestResult {
 	t.Helper()
 
