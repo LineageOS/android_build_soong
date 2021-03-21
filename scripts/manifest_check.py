@@ -19,6 +19,7 @@
 from __future__ import print_function
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -61,6 +62,10 @@ def parse_args():
                       dest='extract_target_sdk_version',
                       action='store_true',
                       help='print the targetSdkVersion from the manifest')
+  parser.add_argument('--dexpreopt-config',
+                      dest='dexpreopt_configs',
+                      action='append',
+                      help='a paths to a dexpreopt.config of some library')
   parser.add_argument('--aapt',
                       dest='aapt',
                       help='path to aapt executable')
@@ -84,12 +89,6 @@ def enforce_uses_libraries(manifest, required, optional, relax, is_apk = False):
     manifest_required, manifest_optional = extract_uses_libs_apk(manifest)
   else:
     manifest_required, manifest_optional = extract_uses_libs_xml(manifest)
-
-  if required is None:
-    required = []
-
-  if optional is None:
-    optional = []
 
   err = []
   if manifest_required != required:
@@ -222,6 +221,35 @@ def extract_target_sdk_version_xml(xml):
   return target_attr.value
 
 
+def load_dexpreopt_configs(configs):
+  """Load dexpreopt.config files and map module names to library names."""
+  module_to_libname = {}
+
+  if configs is None:
+    configs = []
+
+  for config in configs:
+    with open(config, 'r') as f:
+      contents = json.load(f)
+    module_to_libname[contents['Name']] = contents['ProvidesUsesLibrary']
+
+  return module_to_libname
+
+
+def translate_libnames(modules, module_to_libname):
+  """Translate module names into library names using the mapping."""
+  if modules is None:
+    modules = []
+
+  libnames = []
+  for name in modules:
+    if name in module_to_libname:
+      name = module_to_libname[name]
+    libnames.append(name)
+
+  return libnames
+
+
 def main():
   """Program entry point."""
   try:
@@ -237,12 +265,20 @@ def main():
       manifest = minidom.parse(args.input)
 
     if args.enforce_uses_libraries:
+      # Load dexpreopt.config files and build a mapping from module names to
+      # library names. This is necessary because build system addresses
+      # libraries by their module name (`uses_libs`, `optional_uses_libs`,
+      # `LOCAL_USES_LIBRARIES`, `LOCAL_OPTIONAL_LIBRARY_NAMES` all contain
+      # module names), while the manifest addresses libraries by their name.
+      mod_to_lib = load_dexpreopt_configs(args.dexpreopt_configs)
+      required = translate_libnames(args.uses_libraries, mod_to_lib)
+      optional = translate_libnames(args.optional_uses_libraries, mod_to_lib)
+
       # Check if the <uses-library> lists in the build system agree with those
       # in the manifest. Raise an exception on mismatch, unless the script was
       # passed a special parameter to suppress exceptions.
-      errmsg = enforce_uses_libraries(manifest, args.uses_libraries,
-        args.optional_uses_libraries, args.enforce_uses_libraries_relax,
-        is_apk)
+      errmsg = enforce_uses_libraries(manifest, required, optional,
+        args.enforce_uses_libraries_relax, is_apk)
 
       # Create a status file that is empty on success, or contains an error
       # message on failure. When exceptions are suppressed, dexpreopt command
