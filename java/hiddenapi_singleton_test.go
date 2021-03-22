@@ -35,7 +35,8 @@ func fixtureSetPrebuiltHiddenApiDirProductVariable(prebuiltHiddenApiDir *string)
 	})
 }
 
-var hiddenApiFixtureFactory = javaFixtureFactory.Extend(PrepareForTestWithHiddenApiBuildComponents)
+var hiddenApiFixtureFactory = android.GroupFixturePreparers(
+	prepareForJavaTest, PrepareForTestWithHiddenApiBuildComponents)
 
 func TestHiddenAPISingleton(t *testing.T) {
 	result := hiddenApiFixtureFactory.Extend(

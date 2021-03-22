@@ -29,14 +29,14 @@ import (
 	"android/soong/genrule"
 )
 
-// testApp runs tests using the javaFixtureFactory
+// testApp runs tests using the prepareForJavaTest
 //
 // See testJava for an explanation as to how to stop using this deprecated method.
 //
 // deprecated
 func testApp(t *testing.T, bp string) *android.TestContext {
 	t.Helper()
-	result := javaFixtureFactory.RunTestWithBp(t, bp)
+	result := prepareForJavaTest.RunTestWithBp(t, bp)
 	return result.TestContext
 }
 
@@ -55,7 +55,8 @@ func TestApp(t *testing.T) {
 
 	for _, moduleType := range []string{"android_app", "android_library"} {
 		t.Run(moduleType, func(t *testing.T) {
-			result := javaFixtureFactory.Extend(
+			result := android.GroupFixturePreparers(
+				prepareForJavaTest,
 				android.FixtureModifyMockFS(func(fs android.MockFS) {
 					for _, file := range resourceFiles {
 						fs[file] = nil
@@ -364,8 +365,8 @@ func TestUpdatableApps(t *testing.T) {
 			if test.expectedError != "" {
 				errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(test.expectedError)
 			}
-			javaFixtureFactory.
-				Extend(FixtureWithPrebuiltApis(map[string][]string{
+			android.GroupFixturePreparers(
+				prepareForJavaTest, FixtureWithPrebuiltApis(map[string][]string{
 					"29": {"foo"},
 				})).
 				ExtendWithErrorHandler(errorHandler).RunTestWithBp(t, test.bp)
@@ -1063,7 +1064,8 @@ func TestAppSdkVersion(t *testing.T) {
 					%s
 				}`, moduleType, test.sdkVersion, platformApiProp)
 
-				result := javaFixtureFactory.Extend(
+				result := android.GroupFixturePreparers(
+					prepareForJavaTest,
 					android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 						variables.Platform_sdk_version = &test.platformSdkInt
 						variables.Platform_sdk_codename = &test.platformSdkCodename
@@ -1131,7 +1133,8 @@ func TestVendorAppSdkVersion(t *testing.T) {
 						vendor: true,
 					}`, moduleType, sdkKind, test.sdkVersion)
 
-					result := javaFixtureFactory.Extend(
+					result := android.GroupFixturePreparers(
+						prepareForJavaTest,
 						android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 							variables.Platform_sdk_version = &test.platformSdkInt
 							variables.Platform_sdk_codename = &test.platformSdkCodename
@@ -2331,7 +2334,8 @@ func TestUsesLibraries(t *testing.T) {
 		}
 	`
 
-	result := javaFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("runtime-library", "foo", "quuz", "qux", "bar", "fred"),
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
@@ -2681,7 +2685,8 @@ func TestUncompressDex(t *testing.T) {
 	test := func(t *testing.T, bp string, want bool, unbundled bool) {
 		t.Helper()
 
-		result := javaFixtureFactory.Extend(
+		result := android.GroupFixturePreparers(
+			prepareForJavaTest,
 			PrepareForTestWithPrebuiltsOfCurrentApi,
 			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 				if unbundled {
