@@ -50,25 +50,22 @@ func names(s string) (ns []string) {
 	return
 }
 
-func testApexError(t *testing.T, pattern, bp string, handlers ...interface{}) {
+func testApexError(t *testing.T, pattern, bp string, preparers ...android.FixturePreparer) {
 	t.Helper()
-	testApexFixtureFactory(bp, handlers).
+	apexFixtureFactory.Extend(preparers...).
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
-		RunTest(t)
+		RunTestWithBp(t, bp)
 }
 
-func testApex(t *testing.T, bp string, handlers ...interface{}) *android.TestContext {
+func testApex(t *testing.T, bp string, preparers ...android.FixturePreparer) *android.TestContext {
 	t.Helper()
-	result := testApexFixtureFactory(bp, handlers).RunTest(t)
+	factory := apexFixtureFactory.Extend(preparers...)
+	if bp != "" {
+		factory = factory.Extend(android.FixtureWithRootAndroidBp(bp))
+	}
+	result := factory.RunTest(t)
 	return result.TestContext
 }
-
-// apex package specific mechanism for customizing the test configuration.
-//
-// Use FixturePreparer instances instead.
-//
-// deprecated
-type testCustomizer func(fs map[string][]byte, config android.Config)
 
 func withFiles(files android.MockFS) android.FixturePreparer {
 	return files.AddToFixture()
@@ -209,32 +206,6 @@ var apexFixtureFactory = android.NewFixtureFactory(
 		variables.Platform_vndk_version = proptools.StringPtr("VER")
 	}),
 )
-
-func testApexFixtureFactory(bp string, handlers []interface{}) android.FixtureFactory {
-	var preparers []android.FixturePreparer
-	for _, handler := range handlers {
-		var preparer android.FixturePreparer
-		if p, ok := handler.(android.FixturePreparer); ok {
-			preparer = p
-		} else {
-			var customizer testCustomizer
-			if c, ok := handler.(testCustomizer); ok {
-				customizer = c
-			} else {
-				customizer = handler.(func(fs map[string][]byte, config android.Config))
-			}
-			preparer = android.FixtureCustomPreparer(func(fixture android.Fixture) {
-				customizer(fixture.MockFS(), fixture.Config())
-			})
-		}
-		preparers = append(preparers, preparer)
-	}
-	factory := apexFixtureFactory.Extend(preparers...)
-	if bp != "" {
-		factory = factory.Extend(android.FixtureWithRootAndroidBp(bp))
-	}
-	return factory
-}
 
 func setUp() {
 	var err error
