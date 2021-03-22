@@ -26,8 +26,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-var emptyFixtureFactory = android.NewFixtureFactory(nil)
-
 func testXml(t *testing.T, bp string) *android.TestResult {
 	fs := android.MockFS{
 		"foo.xml": nil,
@@ -37,13 +35,13 @@ func testXml(t *testing.T, bp string) *android.TestResult {
 		"baz.xml": nil,
 	}
 
-	return emptyFixtureFactory.RunTest(t,
+	return android.GroupFixturePreparers(
 		android.PrepareForTestWithArchMutator,
 		etc.PrepareForTestWithPrebuiltEtc,
 		PreparerForTestWithXmlBuildComponents,
 		fs.AddToFixture(),
 		android.FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 }
 
 // Minimal test
