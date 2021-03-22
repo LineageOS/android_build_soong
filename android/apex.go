@@ -140,7 +140,22 @@ type DepIsInSameApex interface {
 	// DepIsInSameApex tests if the other module 'dep' is considered as part of the same APEX as
 	// this module. For example, a static lib dependency usually returns true here, while a
 	// shared lib dependency to a stub library returns false.
+	//
+	// This method must not be called directly without first ignoring dependencies whose tags
+	// implement ExcludeFromApexContentsTag. Calls from within the func passed to WalkPayloadDeps()
+	// are fine as WalkPayloadDeps() will ignore those dependencies automatically. Otherwise, use
+	// IsDepInSameApex instead.
 	DepIsInSameApex(ctx BaseModuleContext, dep Module) bool
+}
+
+func IsDepInSameApex(ctx BaseModuleContext, module, dep Module) bool {
+	depTag := ctx.OtherModuleDependencyTag(dep)
+	if _, ok := depTag.(ExcludeFromApexContentsTag); ok {
+		// The tag defines a dependency that never requires the child module to be part of the same
+		// apex as the parent.
+		return false
+	}
+	return module.(DepIsInSameApex).DepIsInSameApex(ctx, dep)
 }
 
 // ApexModule is the interface that a module type is expected to implement if the module has to be
@@ -260,6 +275,10 @@ type ApexProperties struct {
 //
 // Unless the tag also implements the AlwaysRequireApexVariantTag this will prevent an apex variant
 // from being created for the module.
+//
+// At the moment the sdk.sdkRequirementsMutator relies on the fact that the existing tags which
+// implement this interface do not define dependencies onto members of an sdk_snapshot. If that
+// changes then sdk.sdkRequirementsMutator will need fixing.
 type ExcludeFromApexContentsTag interface {
 	blueprint.DependencyTag
 
