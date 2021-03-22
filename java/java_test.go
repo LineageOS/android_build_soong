@@ -48,10 +48,24 @@ func tearDown() {
 	os.RemoveAll(buildDir)
 }
 
-var emptyFixtureFactory = android.NewFixtureFactory(&buildDir)
+// Legacy factory to use to create fixtures for tests in this package.
+//
+// deprecated: See prepareForJavaTest
+var javaFixtureFactory = android.NewFixtureFactory(
+	&buildDir,
+	prepareForJavaTest,
+)
 
-// Factory to use to create fixtures for tests in this package.
-var javaFixtureFactory = emptyFixtureFactory.Extend(
+// Legacy preparer used for running tests within the java package.
+//
+// This includes everything that was needed to run any test in the java package prior to the
+// introduction of the test fixtures. Tests that are being converted to use fixtures directly
+// rather than through the testJava...() methods should avoid using this and instead use the
+// various preparers directly, using android.GroupFixturePreparers(...) to group them when
+// necessary.
+//
+// deprecated
+var prepareForJavaTest = android.GroupFixturePreparers(
 	genrule.PrepareForTestWithGenRuleBuildComponents,
 	// Get the CC build components but not default modules.
 	cc.PrepareForTestWithCcBuildComponents,
