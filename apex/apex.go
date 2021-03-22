@@ -1207,11 +1207,13 @@ func useVendorAllowList(config android.Config) []string {
 	}).([]string)
 }
 
-// setUseVendorAllowListForTest overrides useVendorAllowList and must be called before the first
-// call to useVendorAllowList()
-func setUseVendorAllowListForTest(config android.Config, allowList []string) {
-	config.Once(useVendorAllowListKey, func() interface{} {
-		return allowList
+// setUseVendorAllowListForTest returns a FixturePreparer that overrides useVendorAllowList and
+// must be called before the first call to useVendorAllowList()
+func setUseVendorAllowListForTest(allowList []string) android.FixturePreparer {
+	return android.FixtureModifyConfig(func(config android.Config) {
+		config.Once(useVendorAllowListKey, func() interface{} {
+			return allowList
+		})
 	})
 }
 
