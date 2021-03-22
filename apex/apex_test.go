@@ -52,31 +52,22 @@ func names(s string) (ns []string) {
 
 func testApexError(t *testing.T, pattern, bp string, handlers ...testCustomizer) {
 	t.Helper()
-	ctx, config := testApexContext(t, bp, handlers...)
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-	_, errs = ctx.PrepareBuildActions(config)
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-
-	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
+	testApexFixtureFactory(bp, handlers).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
+		RunTest(t)
 }
 
 func testApex(t *testing.T, bp string, handlers ...testCustomizer) *android.TestContext {
 	t.Helper()
-	ctx, config := testApexContext(t, bp, handlers...)
-	_, errs := ctx.ParseBlueprintsFiles(".")
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
-	return ctx
+	result := testApexFixtureFactory(bp, handlers).RunTest(t)
+	return result.TestContext
 }
 
+// apex package specific mechanism for customizing the test configuration.
+//
+// Use FixturePreparer instances instead.
+//
+// deprecated
 type testCustomizer func(fs map[string][]byte, config android.Config)
 
 func withFiles(files map[string][]byte) testCustomizer {
@@ -217,141 +208,18 @@ var apexFixtureFactory = android.NewFixtureFactory(
 	}),
 )
 
-func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
-	bp = bp + `
-		filegroup {
-			name: "myapex-file_contexts",
-			srcs: [
-				"system/sepolicy/apex/myapex-file_contexts",
-			],
-		}
-	`
-
-	bp = bp + cc.GatherRequiredDepsForTest(android.Android)
-
-	bp = bp + rust.GatherRequiredDepsForTest()
-
-	bp = bp + java.GatherRequiredDepsForTest()
-
-	fs := map[string][]byte{
-		"a.java":                                                      nil,
-		"PrebuiltAppFoo.apk":                                          nil,
-		"PrebuiltAppFooPriv.apk":                                      nil,
-		"build/make/target/product/security":                          nil,
-		"apex_manifest.json":                                          nil,
-		"AndroidManifest.xml":                                         nil,
-		"system/sepolicy/apex/myapex-file_contexts":                   nil,
-		"system/sepolicy/apex/myapex.updatable-file_contexts":         nil,
-		"system/sepolicy/apex/myapex2-file_contexts":                  nil,
-		"system/sepolicy/apex/otherapex-file_contexts":                nil,
-		"system/sepolicy/apex/com.android.vndk-file_contexts":         nil,
-		"system/sepolicy/apex/com.android.vndk.current-file_contexts": nil,
-		"mylib.cpp":                                  nil,
-		"mytest.cpp":                                 nil,
-		"mytest1.cpp":                                nil,
-		"mytest2.cpp":                                nil,
-		"mytest3.cpp":                                nil,
-		"myprebuilt":                                 nil,
-		"my_include":                                 nil,
-		"foo/bar/MyClass.java":                       nil,
-		"prebuilt.jar":                               nil,
-		"prebuilt.so":                                nil,
-		"vendor/foo/devkeys/test.x509.pem":           nil,
-		"vendor/foo/devkeys/test.pk8":                nil,
-		"testkey.x509.pem":                           nil,
-		"testkey.pk8":                                nil,
-		"testkey.override.x509.pem":                  nil,
-		"testkey.override.pk8":                       nil,
-		"vendor/foo/devkeys/testkey.avbpubkey":       nil,
-		"vendor/foo/devkeys/testkey.pem":             nil,
-		"NOTICE":                                     nil,
-		"custom_notice":                              nil,
-		"custom_notice_for_static_lib":               nil,
-		"testkey2.avbpubkey":                         nil,
-		"testkey2.pem":                               nil,
-		"myapex-arm64.apex":                          nil,
-		"myapex-arm.apex":                            nil,
-		"myapex.apks":                                nil,
-		"frameworks/base/api/current.txt":            nil,
-		"framework/aidl/a.aidl":                      nil,
-		"build/make/core/proguard.flags":             nil,
-		"build/make/core/proguard_basic_keeps.flags": nil,
-		"dummy.txt":                                  nil,
-		"baz":                                        nil,
-		"bar/baz":                                    nil,
-		"testdata/baz":                               nil,
-		"AppSet.apks":                                nil,
-		"foo.rs":                                     nil,
-		"libfoo.jar":                                 nil,
-		"libbar.jar":                                 nil,
+func testApexFixtureFactory(bp string, handlers []testCustomizer) android.FixtureFactory {
+	factory := apexFixtureFactory.Extend(
+		android.FixtureCustomPreparer(func(fixture android.Fixture) {
+			for _, handler := range handlers {
+				handler(fixture.MockFS(), fixture.Config())
+			}
+		}),
+	)
+	if bp != "" {
+		factory = factory.Extend(android.FixtureWithRootAndroidBp(bp))
 	}
-
-	cc.GatherRequiredFilesForTest(fs)
-
-	for _, handler := range handlers {
-		// The fs now needs to be populated before creating the config, call handlers twice
-		// for now, once to get any fs changes, and later after the config was created to
-		// set product variables or targets.
-		tempConfig := android.TestArchConfig(buildDir, nil, bp, fs)
-		handler(fs, tempConfig)
-	}
-
-	config := android.TestArchConfig(buildDir, nil, bp, fs)
-	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
-	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
-	config.TestProductVariables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
-	config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("Q")
-	config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(false)
-	config.TestProductVariables.Platform_version_active_codenames = []string{"Q"}
-	config.TestProductVariables.Platform_vndk_version = proptools.StringPtr("VER")
-
-	for _, handler := range handlers {
-		// The fs now needs to be populated before creating the config, call handlers twice
-		// for now, earlier to get any fs changes, and now after the config was created to
-		// set product variables or targets.
-		tempFS := map[string][]byte{}
-		handler(tempFS, config)
-	}
-
-	ctx := android.NewTestArchContext(config)
-
-	// from android package
-	android.RegisterPackageBuildComponents(ctx)
-	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
-
-	registerApexBuildComponents(ctx)
-	registerApexKeyBuildComponents(ctx)
-
-	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(android.RegisterComponentsMutator)
-
-	android.RegisterPrebuiltMutators(ctx)
-
-	// Register these after the prebuilt mutators have been registered to match what
-	// happens at runtime.
-	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
-	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
-
-	// These must come after prebuilts and visibility rules to match runtime.
-	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
-
-	// These must come after override rules to match the runtime.
-	cc.RegisterRequiredBuildComponentsForTest(ctx)
-	rust.RegisterRequiredBuildComponentsForTest(ctx)
-	java.RegisterRequiredBuildComponentsForTest(ctx)
-
-	ctx.RegisterModuleType("cc_test", cc.TestFactory)
-	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
-	cc.RegisterVndkLibraryTxtTypes(ctx)
-	prebuilt_etc.RegisterPrebuiltEtcBuildComponents(ctx)
-	ctx.RegisterModuleType("platform_compat_config", java.PlatformCompatConfigFactory)
-	ctx.RegisterModuleType("sh_binary", sh.ShBinaryFactory)
-	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	ctx.RegisterModuleType("bpf", bpf.BpfFactory)
-
-	ctx.Register()
-
-	return ctx, config
+	return factory
 }
 
 func setUp() {
@@ -2650,7 +2518,7 @@ func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 	libs := names(ldRule.Args["libFlags"])
 	// VNDK libs(libvndk/libc++) as they are
 	ensureListContains(t, libs, buildDir+"/.intermediates/libvndk/"+vendorVariant+"_shared/libvndk.so")
-	ensureListContains(t, libs, buildDir+"/.intermediates/libc++/"+vendorVariant+"_shared/libc++.so")
+	ensureListContains(t, libs, buildDir+"/.intermediates/"+cc.DefaultCcCommonTestModulesDir+"libc++/"+vendorVariant+"_shared/libc++.so")
 	// non-stable Vendor libs as APEX variants
 	ensureListContains(t, libs, buildDir+"/.intermediates/libvendor/"+vendorVariant+"_shared_apex10000/libvendor.so")
 
@@ -5746,7 +5614,7 @@ func TestLegacyAndroid10Support(t *testing.T) {
 	}
 }
 
-var filesForSdkLibrary = map[string][]byte{
+var filesForSdkLibrary = android.MockFS{
 	"api/current.txt":        nil,
 	"api/removed.txt":        nil,
 	"api/system-current.txt": nil,
