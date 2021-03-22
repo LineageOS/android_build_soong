@@ -84,9 +84,9 @@ func TestAddPropertySimple(t *testing.T) {
 		set.AddProperty(name, val)
 		android.AssertDeepEquals(t, "wrong value", val, set.getValue(name))
 	}
-	android.AssertPanic(t, "adding x again should panic",
+	android.AssertPanicMessageContains(t, "adding x again should panic", `Property "x" already exists in property set`,
 		func() { set.AddProperty("x", "taxi") })
-	android.AssertPanic(t, "adding arr again should panic",
+	android.AssertPanicMessageContains(t, "adding arr again should panic", `Property "arr" already exists in property set`,
 		func() { set.AddProperty("arr", []string{"d"}) })
 }
 
@@ -124,14 +124,14 @@ func TestAddPropertySubset(t *testing.T) {
 
 	t.Run("add conflicting subset", func(t *testing.T) {
 		set := propertySetFixture().(*bpPropertySet)
-		android.AssertPanic(t, "adding x again should panic",
+		android.AssertPanicMessageContains(t, "adding x again should panic", `Property "x" already exists in property set`,
 			func() { set.AddProperty("x", propertySetFixture()) })
 	})
 
 	t.Run("add non-pointer struct", func(t *testing.T) {
 		set := propertySetFixture().(*bpPropertySet)
 		str := propertyStructFixture().(*propertyStruct)
-		android.AssertPanic(t, "adding a non-pointer struct should panic",
+		android.AssertPanicMessageContains(t, "adding a non-pointer struct should panic", "Value is a struct, not a pointer to one:",
 			func() { set.AddProperty("new", *str) })
 	})
 }
