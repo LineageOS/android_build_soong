@@ -27,13 +27,9 @@ import (
 	"android/soong/java"
 )
 
-var prepareForSdkTest = android.GroupFixturePreparers(
+// Prepare for running an sdk test with an apex.
+var prepareForSdkTestWithApex = android.GroupFixturePreparers(
 	apex.PrepareForTestWithApexBuildComponents,
-	cc.PrepareForTestWithCcDefaultModules,
-	genrule.PrepareForTestWithGenRuleBuildComponents,
-	java.PrepareForTestWithJavaBuildComponents,
-	PrepareForTestWithSdkBuildComponents,
-
 	android.FixtureAddTextFile("sdk/tests/Android.bp", `
 		apex_key {
 			name: "myapex.key",
@@ -58,6 +54,24 @@ var prepareForSdkTest = android.GroupFixturePreparers(
 		"myapex.x509.pem":                              nil,
 		"myapex.pk8":                                   nil,
 	}),
+)
+
+// Legacy preparer used for running tests within the sdk package.
+//
+// This includes everything that was needed to run any test in the sdk package prior to the
+// introduction of the test fixtures. Tests that are being converted to use fixtures directly
+// rather than through the testSdkError() and testSdkWithFs() methods should avoid using this and
+// instead should use the various preparers directly using android.GroupFixturePreparers(...) to
+// group them when necessary.
+//
+// deprecated
+var prepareForSdkTest = android.GroupFixturePreparers(
+	cc.PrepareForTestWithCcDefaultModules,
+	genrule.PrepareForTestWithGenRuleBuildComponents,
+	java.PrepareForTestWithJavaBuildComponents,
+	PrepareForTestWithSdkBuildComponents,
+
+	prepareForSdkTestWithApex,
 
 	cc.PrepareForTestOnWindows,
 	android.FixtureModifyConfig(func(config android.Config) {
