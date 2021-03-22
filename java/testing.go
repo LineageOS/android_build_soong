@@ -39,12 +39,15 @@ const defaultJavaDir = "default/java"
 // module types as possible. The exceptions are those module types that require mutators and/or
 // singletons in order to function in which case they should be kept together in a separate
 // preparer.
-var PrepareForTestWithJavaBuildComponents = android.FixtureRegisterWithContext(RegisterRequiredBuildComponentsForTest)
+var PrepareForTestWithJavaBuildComponents = android.GroupFixturePreparers(
+	// Make sure that mutators and module types, e.g. prebuilt mutators available.
+	android.PrepareForTestWithAndroidBuildComponents,
+	// Make java build components available to the test.
+	android.FixtureRegisterWithContext(RegisterRequiredBuildComponentsForTest),
+)
 
 // Test fixture preparer that will define default java modules, e.g. standard prebuilt modules.
 var PrepareForTestWithJavaDefaultModules = android.GroupFixturePreparers(
-	// Make sure that mutators and module types, e.g. prebuilt mutators available.
-	android.PrepareForTestWithAndroidBuildComponents,
 	// Make sure that all the module types used in the defaults are registered.
 	PrepareForTestWithJavaBuildComponents,
 	// The java default module definitions.
