@@ -252,6 +252,15 @@ func (fs MockFS) AddToFixture() FixturePreparer {
 	return FixtureMergeMockFs(fs)
 }
 
+// FixtureCustomPreparer allows for the modification of any aspect of the fixture.
+//
+// This should only be used if one of the other more specific preparers are not suitable.
+func FixtureCustomPreparer(mutator func(fixture Fixture)) FixturePreparer {
+	return newSimpleFixturePreparer(func(f *fixture) {
+		mutator(f)
+	})
+}
+
 // Modify the config
 func FixtureModifyConfig(mutator func(config Config)) FixturePreparer {
 	return newSimpleFixturePreparer(func(f *fixture) {
@@ -564,6 +573,15 @@ func FixtureCustomErrorHandler(function func(t *testing.T, result *TestResult)) 
 
 // Fixture defines the test environment.
 type Fixture interface {
+	// Config returns the fixture's configuration.
+	Config() Config
+
+	// Context returns the fixture's test context.
+	Context() *TestContext
+
+	// MockFS returns the fixture's mock filesystem.
+	MockFS() MockFS
+
 	// Run the test, checking any errors reported and returning a TestResult instance.
 	RunTest() *TestResult
 }
@@ -700,6 +718,18 @@ type fixture struct {
 
 	// The error handler used to check the errors, if any, that are reported.
 	errorHandler FixtureErrorHandler
+}
+
+func (f *fixture) Config() Config {
+	return f.config
+}
+
+func (f *fixture) Context() *TestContext {
+	return f.ctx
+}
+
+func (f *fixture) MockFS() MockFS {
+	return f.mockFS
 }
 
 func (f *fixture) RunTest() *TestResult {
