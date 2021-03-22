@@ -16,7 +16,6 @@ package cc
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -27,33 +26,12 @@ import (
 	"android/soong/android"
 )
 
-var buildDir string
-
-func setUp() {
-	var err error
-	buildDir, err = ioutil.TempDir("", "soong_cc_test")
-	if err != nil {
-		panic(err)
-	}
-}
-
-func tearDown() {
-	os.RemoveAll(buildDir)
-}
-
 func TestMain(m *testing.M) {
-	run := func() int {
-		setUp()
-		defer tearDown()
-
-		return m.Run()
-	}
-
-	os.Exit(run())
+	os.Exit(m.Run())
 }
 
 var ccFixtureFactory = android.NewFixtureFactory(
-	&buildDir,
+	nil,
 	prepareForCcTest,
 )
 
@@ -101,7 +79,7 @@ func testCc(t *testing.T, bp string) *android.TestContext {
 // deprecated
 func testCcNoVndk(t *testing.T, bp string) *android.TestContext {
 	t.Helper()
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 
 	return testCcWithConfig(t, config)
@@ -114,7 +92,7 @@ func testCcNoVndk(t *testing.T, bp string) *android.TestContext {
 // deprecated
 func testCcNoProductVndk(t *testing.T, bp string) *android.TestContext {
 	t.Helper()
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 
@@ -141,7 +119,7 @@ func testCcErrorWithConfig(t *testing.T, pattern string, config android.Config) 
 // deprecated
 func testCcError(t *testing.T, pattern string, bp string) {
 	t.Helper()
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	testCcErrorWithConfig(t, pattern, config)
@@ -155,7 +133,7 @@ func testCcError(t *testing.T, pattern string, bp string) {
 // deprecated
 func testCcErrorProductVndk(t *testing.T, pattern string, bp string) {
 	t.Helper()
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.ProductVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
@@ -474,7 +452,7 @@ func TestVndk(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.ProductVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
@@ -495,7 +473,7 @@ func TestVndk(t *testing.T) {
 
 	// Check VNDK snapshot output.
 	snapshotDir := "vndk-snapshot"
-	snapshotVariantPath := filepath.Join(buildDir, snapshotDir, "arm64")
+	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
 
 	vndkLibPath := filepath.Join(snapshotVariantPath, fmt.Sprintf("arch-%s-%s",
 		"arm64", "armv8-a"))
@@ -596,7 +574,7 @@ func TestVndkLibrariesTxtAndroidMk(t *testing.T) {
 			name: "llndk.libraries.txt",
 			insert_vndk_version: true,
 		}`
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	ctx := testCcWithConfig(t, config)
@@ -646,7 +624,7 @@ func TestVndkUsingCoreVariant(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	config.TestProductVariables.VndkUseCoreVariant = BoolPtr(true)
@@ -673,7 +651,7 @@ func TestDataLibs(t *testing.T) {
 		}
  `
 
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	config.TestProductVariables.VndkUseCoreVariant = BoolPtr(true)
@@ -724,7 +702,7 @@ func TestDataLibsRelativeInstallPath(t *testing.T) {
 		}
  `
 
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	config.TestProductVariables.VndkUseCoreVariant = BoolPtr(true)
@@ -1349,7 +1327,7 @@ func TestVndkExt(t *testing.T) {
 			nocrt: true,
 		}
 	`
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.ProductVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
@@ -1794,7 +1772,7 @@ func TestProductVndkExtDependency(t *testing.T) {
 			nocrt: true,
 		}
 	`
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.ProductVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
@@ -2349,7 +2327,7 @@ func TestMakeLinkType(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	// native:vndk
@@ -3141,7 +3119,7 @@ func TestDataLibsPrebuiltSharedTestLibrary(t *testing.T) {
 		}
  `
 
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	config.TestProductVariables.VndkUseCoreVariant = BoolPtr(true)
@@ -3536,7 +3514,7 @@ func TestInstallSharedLibs(t *testing.T) {
 		}
 	`
 
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	ctx := testCcWithConfig(t, config)
 
 	hostBin := ctx.ModuleForTests("bin", config.BuildOSTarget.String()).Description("install")
