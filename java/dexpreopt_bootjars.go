@@ -439,6 +439,8 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 	// Create boot image for the ART apex (build artifacts are accessed via the global boot image config).
 	d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx)))
 
+	copyUpdatableBootJars(ctx)
+
 	dumpOatRules(ctx, d.defaultBootImage)
 }
 
@@ -628,6 +630,21 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 	}
 
 	return image
+}
+
+// Generate commands that will copy updatable boot jars to predefined paths in the global config.
+func copyUpdatableBootJars(ctx android.SingletonContext) {
+	config := GetUpdatableBootConfig(ctx)
+	getBootJarFunc := func(module android.Module) (int, android.Path) {
+		index, jar, _ := getBootJar(ctx, config.modules, module, "configured in updatable boot jars ")
+		return index, jar
+	}
+	missingDeps := findAndCopyBootJars(ctx, config.modules, config.dexPaths, getBootJarFunc)
+	// Ignoring missing dependencies here. Ideally they should be added to the dexpreopt rule, but
+	// that is not possible as this rule is created after dexpreopt rules (it's in a singleton
+	// context, and they are in a module context). The true fix is to add dependencies from the
+	// dexpreopted modules on updatable boot jars and avoid this copying altogether.
+	_ = missingDeps
 }
 
 // Generate boot image build rules for a specific target.
@@ -997,8 +1014,11 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 	image := d.defaultBootImage
 	if image != nil {
 		ctx.Strict("DEXPREOPT_IMAGE_PROFILE_BUILT_INSTALLED", image.profileInstalls.String())
-		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_FILES", strings.Join(image.dexPathsDeps.Strings(), " "))
-		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_LOCATIONS", strings.Join(image.getAnyAndroidVariant().dexLocationsDeps, " "))
+
+		global := dexpreopt.GetGlobalConfig(ctx)
+		dexPaths, dexLocations := bcpForDexpreopt(ctx, global.PreoptWithUpdatableBcp)
+		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_FILES", strings.Join(dexPaths.Strings(), " "))
+		ctx.Strict("DEXPREOPT_BOOTCLASSPATH_DEX_LOCATIONS", strings.Join(dexLocations, " "))
 
 		var imageNames []string
 		// TODO: the primary ART boot image should not be exposed to Make, as it is installed in a
