@@ -182,7 +182,7 @@ func TestProductVariables(t *testing.T) {
 		}
 	`
 
-	emptyTestFixtureFactory.RunTest(t,
+	GroupFixturePreparers(
 		FixtureModifyProductVariables(func(variables FixtureProductVariables) {
 			variables.Eng = proptools.BoolPtr(true)
 		}),
@@ -204,7 +204,7 @@ func TestProductVariables(t *testing.T) {
 			})
 		}),
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 }
 
 var testProductVariableDefaultsProperties = struct {
@@ -288,7 +288,7 @@ func TestProductVariablesDefaults(t *testing.T) {
 		}
 	`
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		FixtureModifyProductVariables(func(variables FixtureProductVariables) {
 			variables.Eng = boolPtr(true)
 		}),
@@ -299,7 +299,7 @@ func TestProductVariablesDefaults(t *testing.T) {
 			ctx.RegisterModuleType("defaults", productVariablesDefaultsTestDefaultsFactory)
 		}),
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	foo := result.ModuleForTests("foo", "").Module().(*productVariablesDefaultsTestModule)
 

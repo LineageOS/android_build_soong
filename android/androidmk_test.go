@@ -141,14 +141,14 @@ func customModuleFactory() Module {
 // bp module and then returns the config and the custom module called "foo".
 func buildContextAndCustomModuleFoo(t *testing.T, bp string) (*TestContext, *customModule) {
 	t.Helper()
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		// Enable androidmk Singleton
 		PrepareForTestWithAndroidMk,
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			ctx.RegisterModuleType("custom", customModuleFactory)
 		}),
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	module := result.ModuleForTests("foo", "").Module().(*customModule)
 	return result.TestContext, module

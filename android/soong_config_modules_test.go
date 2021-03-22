@@ -278,7 +278,7 @@ func TestSoongConfigModule(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				result := emptyTestFixtureFactory.RunTest(t,
+				result := GroupFixturePreparers(
 					tc.preparer,
 					PrepareForTestWithDefaults,
 					FixtureRegisterWithContext(func(ctx RegistrationContext) {
@@ -291,7 +291,7 @@ func TestSoongConfigModule(t *testing.T) {
 					}),
 					fs.AddToFixture(),
 					FixtureWithRootAndroidBp(bp),
-				)
+				).RunTest(t)
 
 				foo := result.ModuleForTests("foo", "").Module().(*soongConfigTestModule)
 				AssertDeepEquals(t, "foo cflags", tc.fooExpectedFlags, foo.props.Cflags)

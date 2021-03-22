@@ -96,14 +96,14 @@ func runPackagingTest(t *testing.T, multitarget bool, bp string, expected []stri
 		moduleFactory = packageTestModuleFactory
 	}
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		PrepareForTestWithArchMutator,
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			ctx.RegisterModuleType("component", componentTestModuleFactory)
 			ctx.RegisterModuleType("package_module", moduleFactory)
 		}),
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	p := result.Module("package", archVariant).(*packageTestModule)
 	actual := p.entries

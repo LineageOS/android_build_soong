@@ -157,14 +157,14 @@ func TestPathDepsMutator(t *testing.T) {
 				}
 			`
 
-			result := emptyTestFixtureFactory.RunTest(t,
+			result := GroupFixturePreparers(
 				PrepareForTestWithArchMutator,
 				PrepareForTestWithFilegroup,
 				FixtureRegisterWithContext(func(ctx RegistrationContext) {
 					ctx.RegisterModuleType("test", pathDepsMutatorTestModuleFactory)
 				}),
 				FixtureWithRootAndroidBp(bp),
-			)
+			).RunTest(t)
 
 			m := result.Module("foo", "android_arm64_armv8-a").(*pathDepsMutatorTestModule)
 

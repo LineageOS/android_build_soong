@@ -80,13 +80,13 @@ func TestInstallDependencyTag(t *testing.T) {
 		}
 	`
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		PrepareForTestWithArchMutator,
 		FixtureWithRootAndroidBp(bp),
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			ctx.RegisterModuleType("test_module", testInstallDependencyTagModuleFactory)
 		}),
-	)
+	).RunTest(t)
 
 	config := result.Config
 
