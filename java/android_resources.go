@@ -22,8 +22,11 @@ import (
 )
 
 func init() {
-	android.RegisterPreSingletonType("overlay", OverlaySingletonFactory)
+	registerOverlayBuildComponents(android.InitRegistrationContext)
+}
 
+func registerOverlayBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterPreSingletonType("overlay", OverlaySingletonFactory)
 }
 
 var androidResourceIgnoreFilenames = []string{
