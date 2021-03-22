@@ -57,6 +57,7 @@ var VndkMustUseVendorVariantList = []string{
 	"android.hardware.security.sharedsecret-V1-ndk_platform",
 	"android.hardware.security.sharedsecret-ndk_platform",
 	"android.hardware.security.sharedsecret-unstable-ndk_platform",
+	"android.hardware.soundtrigger3-V1-ndk_platform",
 	"android.hardware.vibrator-V1-ndk_platform",
 	"android.hardware.vibrator-ndk_platform",
 	"android.hardware.weaver-V1-ndk_platform",
