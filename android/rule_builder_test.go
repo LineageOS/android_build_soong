@@ -376,8 +376,6 @@ func TestRuleBuilder(t *testing.T) {
 		wantDepMergerCommand := "out_local/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer " +
 			"out_local/module/DepFile out_local/module/depfile out_local/module/ImplicitDepFile out_local/module/depfile2"
 
-		wantRspFileContent := "$in"
-
 		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
 
 		AssertDeepEquals(t, "rule.Inputs()", wantInputs, rule.Inputs())
@@ -389,8 +387,6 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
-
-		AssertSame(t, "rule.composeRspFileContent()", wantRspFileContent, rule.composeRspFileContent(rule.RspFileInputs()))
 	})
 
 	t.Run("sbox", func(t *testing.T) {
@@ -409,8 +405,6 @@ func TestRuleBuilder(t *testing.T) {
 
 		wantDepMergerCommand := "out_local/host/" + ctx.Config().PrebuiltOS() + "/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
 
-		wantRspFileContent := "$in"
-
 		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
 
 		AssertDeepEquals(t, "rule.Inputs()", wantInputs, rule.Inputs())
@@ -422,8 +416,6 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
-
-		AssertSame(t, "rule.composeRspFileContent()", wantRspFileContent, rule.composeRspFileContent(rule.RspFileInputs()))
 	})
 
 	t.Run("sbox tools", func(t *testing.T) {
@@ -442,8 +434,6 @@ func TestRuleBuilder(t *testing.T) {
 
 		wantDepMergerCommand := "__SBOX_SANDBOX_DIR__/tools/out/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
 
-		wantRspFileContent := "$in"
-
 		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
 
 		AssertDeepEquals(t, "rule.Inputs()", wantInputs, rule.Inputs())
@@ -455,8 +445,6 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
-
-		AssertSame(t, "rule.composeRspFileContent()", wantRspFileContent, rule.composeRspFileContent(rule.RspFileInputs()))
 	})
 
 	t.Run("sbox inputs", func(t *testing.T) {

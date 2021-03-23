@@ -94,3 +94,30 @@ func TestReadRspFile(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteRspFile(t *testing.T) {
+	testCases := []struct {
+		name string
+		in   []string
+		out  string
+	}{
+		{
+			name: "ninja rsp file",
+			in:   []string{"a", "b", "@", "foo'bar", `foo"bar`},
+			out:  "a b '@' 'foo'\\''bar' 'foo\"bar'",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			buf := &bytes.Buffer{}
+			err := WriteRspFile(buf, testCase.in)
+			if err != nil {
+				t.Errorf("unexpected error: %q", err)
+			}
+			if buf.String() != testCase.out {
+				t.Errorf("expected %q got %q", testCase.out, buf.String())
+			}
+		})
+	}
+}

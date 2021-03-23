@@ -28,6 +28,7 @@ import (
 
 	"android/soong/cmd/sbox/sbox_proto"
 	"android/soong/remoteexec"
+	"android/soong/response"
 	"android/soong/shared"
 )
 
@@ -459,26 +460,6 @@ func (r *RuleBuilder) depFileMergerCmd(depFiles WritablePaths) *RuleBuilderComma
 		Inputs(depFiles.Paths())
 }
 
-// composeRspFileContent returns a string that will serve as the contents of the rsp file to pass
-// the listed input files to the command running in the sandbox.
-func (r *RuleBuilder) composeRspFileContent(rspFileInputs Paths) string {
-	if r.sboxInputs {
-		if len(rspFileInputs) > 0 {
-			// When SandboxInputs is used the paths need to be rewritten to be relative to the sandbox
-			// directory so that they are valid after sbox chdirs into the sandbox directory.
-			return proptools.NinjaEscape(strings.Join(r.sboxPathsForInputsRel(rspFileInputs), " "))
-		} else {
-			// If the list of inputs is empty fall back to "$in" so that the rspfilecontent Ninja
-			// variable is set to something non-empty, otherwise ninja will complain.  The inputs
-			// will be empty (all the non-rspfile inputs are implicits), so $in will evaluate to
-			// an empty string.
-			return "$in"
-		}
-	} else {
-		return "$in"
-	}
-}
-
 // Build adds the built command line to the build graph, with dependencies on Inputs and Tools, and output files for
 // Outputs.
 func (r *RuleBuilder) Build(name string, desc string) {
@@ -577,9 +558,19 @@ func (r *RuleBuilder) Build(name string, desc string) {
 
 			// If using an rsp file copy it into the sbox directory.
 			if rspFilePath != nil {
-				command.CopyBefore = append(command.CopyBefore, &sbox_proto.Copy{
-					From: proto.String(rspFilePath.String()),
-					To:   proto.String(r.sboxPathForInputRel(rspFilePath)),
+				command.RspFiles = append(command.RspFiles, &sbox_proto.RspFile{
+					File: proto.String(rspFilePath.String()),
+					// These have to match the logic in sboxPathForInputRel
+					PathMappings: []*sbox_proto.PathMapping{
+						{
+							From: proto.String(r.outDir.String()),
+							To:   proto.String(sboxOutSubDir),
+						},
+						{
+							From: proto.String(PathForOutput(r.ctx).String()),
+							To:   proto.String(sboxOutSubDir),
+						},
+					},
 				})
 			}
 
@@ -641,20 +632,30 @@ func (r *RuleBuilder) Build(name string, desc string) {
 		inputs = append(inputs, sboxCmd.inputs...)
 
 		if r.rbeParams != nil {
-			var remoteInputs []string
-			remoteInputs = append(remoteInputs, inputs.Strings()...)
-			remoteInputs = append(remoteInputs, tools.Strings()...)
-			remoteInputs = append(remoteInputs, rspFileInputs.Strings()...)
+			// RBE needs a list of input files to copy to the remote builder.  For inputs already
+			// listed in an rsp file, pass the rsp file directly to rewrapper.  For the rest,
+			// create a new rsp file to pass to rewrapper.
+			var remoteRspFiles Paths
+			var remoteInputs Paths
+
+			remoteInputs = append(remoteInputs, inputs...)
+			remoteInputs = append(remoteInputs, tools...)
+
 			if rspFilePath != nil {
-				remoteInputs = append(remoteInputs, rspFilePath.String())
+				remoteInputs = append(remoteInputs, rspFilePath)
+				remoteRspFiles = append(remoteRspFiles, rspFilePath)
 			}
-			inputsListFile := r.sboxManifestPath.ReplaceExtension(r.ctx, "rbe_inputs.list")
-			inputsListContents := rspFileForInputs(remoteInputs)
-			WriteFileRule(r.ctx, inputsListFile, inputsListContents)
-			inputs = append(inputs, inputsListFile)
+
+			if len(remoteInputs) > 0 {
+				inputsListFile := r.sboxManifestPath.ReplaceExtension(r.ctx, "rbe_inputs.list")
+				writeRspFileRule(r.ctx, inputsListFile, remoteInputs)
+				remoteRspFiles = append(remoteRspFiles, inputsListFile)
+				// Add the new rsp file as an extra input to the rule.
+				inputs = append(inputs, inputsListFile)
+			}
 
 			r.rbeParams.OutputFiles = outputs.Strings()
-			r.rbeParams.RSPFiles = []string{inputsListFile.String()}
+			r.rbeParams.RSPFiles = remoteRspFiles.Strings()
 			rewrapperCommand := r.rbeParams.NoVarTemplate(r.ctx.Config().RBEWrapper())
 			commandString = rewrapperCommand + " bash -c '" + strings.ReplaceAll(commandString, `'`, `'\''`) + "'"
 		}
@@ -674,7 +675,10 @@ func (r *RuleBuilder) Build(name string, desc string) {
 	var rspFile, rspFileContent string
 	if rspFilePath != nil {
 		rspFile = rspFilePath.String()
-		rspFileContent = r.composeRspFileContent(rspFileInputs)
+		// Use "$in" for rspFileContent to avoid duplicating the list of files in the dependency
+		// list and in the contents of the rsp file.  Inputs to the rule that are not in the
+		// rsp file will be listed in Implicits instead of Inputs so they don't show up in "$in".
+		rspFileContent = "$in"
 	}
 
 	var pool blueprint.Pool
@@ -1264,13 +1268,12 @@ func (builderContextForTests) Rule(PackageContext, string, blueprint.RuleParams,
 }
 func (builderContextForTests) Build(PackageContext, BuildParams) {}
 
-func rspFileForInputs(paths []string) string {
-	s := strings.Builder{}
-	for i, path := range paths {
-		if i != 0 {
-			s.WriteByte(' ')
-		}
-		s.WriteString(proptools.ShellEscape(path))
+func writeRspFileRule(ctx BuilderContext, rspFile WritablePath, paths Paths) {
+	buf := &strings.Builder{}
+	err := response.WriteRspFile(buf, paths.Strings())
+	if err != nil {
+		// There should never be I/O errors writing to a bytes.Buffer.
+		panic(err)
 	}
-	return s.String()
+	WriteFileRule(ctx, rspFile, buf.String())
 }
