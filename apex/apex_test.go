@@ -117,8 +117,6 @@ var withUnbundledBuild = android.FixtureModifyProductVariables(
 	},
 )
 
-var emptyFixtureFactory = android.NewFixtureFactory(&buildDir)
-
 var apexFixtureFactory = android.NewFixtureFactory(
 	&buildDir,
 	// General preparers in alphabetical order as test infrastructure will enforce correct
@@ -1188,7 +1186,7 @@ var prepareForTestOfRuntimeApexWithHwasan = android.GroupFixturePreparers(
 )
 
 func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
-	result := emptyFixtureFactory.Extend(prepareForTestOfRuntimeApexWithHwasan).RunTestWithBp(t, `
+	result := android.GroupFixturePreparers(prepareForTestOfRuntimeApexWithHwasan).RunTestWithBp(t, `
 		cc_library {
 			name: "libc",
 			no_libcrt: true,
@@ -1234,7 +1232,7 @@ func TestRuntimeApexShouldInstallHwasanIfLibcDependsOnIt(t *testing.T) {
 }
 
 func TestRuntimeApexShouldInstallHwasanIfHwaddressSanitized(t *testing.T) {
-	result := emptyFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
 		prepareForTestOfRuntimeApexWithHwasan,
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.SanitizeDevice = []string{"hwaddress"}
