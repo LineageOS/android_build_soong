@@ -15,6 +15,8 @@
 package dexpreopt
 
 import (
+	"fmt"
+
 	"android/soong/android"
 )
 
@@ -46,8 +48,45 @@ func BpToolModulesForTest() string {
 	`
 }
 
-// Prepares a test fixture by enabling dexpreopt.
-var PrepareForTestWithDexpreopt = FixtureModifyGlobalConfig(func(*GlobalConfig) {})
+func CompatLibDefinitionsForTest() string {
+	bp := ""
+
+	// For class loader context and <uses-library> tests.
+	dexpreoptModules := []string{"android.test.runner"}
+	dexpreoptModules = append(dexpreoptModules, CompatUsesLibs...)
+	dexpreoptModules = append(dexpreoptModules, OptionalCompatUsesLibs...)
+
+	for _, extra := range dexpreoptModules {
+		bp += fmt.Sprintf(`
+			java_library {
+				name: "%s",
+				srcs: ["a.java"],
+				sdk_version: "none",
+				system_modules: "stable-core-platform-api-stubs-system-modules",
+				compile_dex: true,
+				installable: true,
+			}
+		`, extra)
+	}
+
+	return bp
+}
+
+var PrepareForTestWithDexpreoptCompatLibs = android.GroupFixturePreparers(
+	android.FixtureAddFile("defaults/dexpreopt/compat/a.java", nil),
+	android.FixtureAddTextFile("defaults/dexpreopt/compat/Android.bp", CompatLibDefinitionsForTest()),
+)
+
+var PrepareForTestWithFakeDex2oatd = android.GroupFixturePreparers(
+	android.FixtureRegisterWithContext(RegisterToolModulesForTest),
+	android.FixtureAddTextFile("defaults/dexpreopt/Android.bp", BpToolModulesForTest()),
+)
+
+// Prepares a test fixture by enabling dexpreopt, registering the fake_tool_binary module type and
+// using that to define the `dex2oatd` module.
+var PrepareForTestByEnablingDexpreopt = android.GroupFixturePreparers(
+	FixtureModifyGlobalConfig(func(*GlobalConfig) {}),
+)
 
 // FixtureModifyGlobalConfig enables dexpreopt (unless modified by the mutator) and modifies the
 // configuration.
