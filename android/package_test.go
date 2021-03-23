@@ -61,13 +61,13 @@ var packageTests = []struct {
 func TestPackage(t *testing.T) {
 	for _, test := range packageTests {
 		t.Run(test.name, func(t *testing.T) {
-			emptyTestFixtureFactory.
+			GroupFixturePreparers(
+				PrepareForTestWithArchMutator,
+				PrepareForTestWithPackageModule,
+				test.fs.AddToFixture(),
+			).
 				ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
-				RunTest(t,
-					PrepareForTestWithArchMutator,
-					PrepareForTestWithPackageModule,
-					test.fs.AddToFixture(),
-				)
+				RunTest(t)
 		})
 	}
 }

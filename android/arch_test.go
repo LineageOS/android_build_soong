@@ -358,12 +358,12 @@ func TestArchMutator(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			result := emptyTestFixtureFactory.RunTest(t,
+			result := GroupFixturePreparers(
 				prepareForArchTest,
 				// Test specific preparer
 				OptionalFixturePreparer(tt.preparer),
 				FixtureWithRootAndroidBp(bp),
-			)
+			).RunTest(t)
 			ctx := result.TestContext
 
 			if g, w := enabledVariants(ctx, "foo"), tt.fooVariants; !reflect.DeepEqual(w, g) {
@@ -441,7 +441,7 @@ func TestArchMutatorNativeBridge(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			result := emptyTestFixtureFactory.RunTest(t,
+			result := GroupFixturePreparers(
 				prepareForArchTest,
 				// Test specific preparer
 				OptionalFixturePreparer(tt.preparer),
@@ -455,7 +455,7 @@ func TestArchMutatorNativeBridge(t *testing.T) {
 					}
 				}),
 				FixtureWithRootAndroidBp(bp),
-			)
+			).RunTest(t)
 
 			ctx := result.TestContext
 

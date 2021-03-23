@@ -179,11 +179,9 @@ func TestErrorDependsOnDisabledModule(t *testing.T) {
 		}
 	`
 
-	emptyTestFixtureFactory.
+	prepareForModuleTests.
 		ExtendWithErrorHandler(FixtureExpectsAtLeastOneErrorMatchingPattern(`module "foo": depends on disabled module "bar"`)).
-		RunTest(t,
-			prepareForModuleTests,
-			FixtureWithRootAndroidBp(bp))
+		RunTestWithBp(t, bp)
 }
 
 func TestValidateCorrectBuildParams(t *testing.T) {
@@ -268,9 +266,7 @@ func TestDistErrorChecking(t *testing.T) {
 		"\\QAndroid.bp:18:17: module \"foo\": dists[1].suffix: Suffix may not contain a '/' character.\\E",
 	}
 
-	emptyTestFixtureFactory.
+	prepareForModuleTests.
 		ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(expectedErrs)).
-		RunTest(t,
-			prepareForModuleTests,
-			FixtureWithRootAndroidBp(bp))
+		RunTestWithBp(t, bp)
 }
