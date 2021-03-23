@@ -263,8 +263,9 @@ type RegistrationContext interface {
 //   ctx := android.NewTestContext(config)
 //   RegisterBuildComponents(ctx)
 var InitRegistrationContext RegistrationContext = &initRegistrationContext{
-	moduleTypes:    make(map[string]ModuleFactory),
-	singletonTypes: make(map[string]SingletonFactory),
+	moduleTypes:       make(map[string]ModuleFactory),
+	singletonTypes:    make(map[string]SingletonFactory),
+	preSingletonTypes: make(map[string]SingletonFactory),
 }
 
 // Make sure the TestContext implements RegistrationContext.
