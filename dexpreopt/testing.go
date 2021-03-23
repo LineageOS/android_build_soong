@@ -18,29 +18,29 @@ import (
 	"android/soong/android"
 )
 
-type dummyToolBinary struct {
+type fakeToolBinary struct {
 	android.ModuleBase
 }
 
-func (m *dummyToolBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
+func (m *fakeToolBinary) GenerateAndroidBuildActions(ctx android.ModuleContext) {}
 
-func (m *dummyToolBinary) HostToolPath() android.OptionalPath {
+func (m *fakeToolBinary) HostToolPath() android.OptionalPath {
 	return android.OptionalPathForPath(android.PathForTesting("dex2oat"))
 }
 
-func dummyToolBinaryFactory() android.Module {
-	module := &dummyToolBinary{}
+func fakeToolBinaryFactory() android.Module {
+	module := &fakeToolBinary{}
 	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibFirst)
 	return module
 }
 
 func RegisterToolModulesForTest(ctx android.RegistrationContext) {
-	ctx.RegisterModuleType("dummy_tool_binary", dummyToolBinaryFactory)
+	ctx.RegisterModuleType("fake_tool_binary", fakeToolBinaryFactory)
 }
 
 func BpToolModulesForTest() string {
 	return `
-		dummy_tool_binary {
+		fake_tool_binary {
 			name: "dex2oatd",
 		}
 	`
