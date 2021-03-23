@@ -160,6 +160,10 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 		}
 	}
 
+	if c, ok := m.compiler.(*baseCompiler); ok && c.includeBuildDirectory() {
+		localIncludeDirs = append(localIncludeDirs, ".")
+	}
+
 	var deps bazel.LabelList
 	for _, props := range m.linker.linkerProps() {
 		if objectLinkerProps, ok := props.(*ObjectLinkerProperties); ok {
