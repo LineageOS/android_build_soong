@@ -1389,7 +1389,10 @@ func (c *deviceConfig) PlatformSepolicyVersion() string {
 }
 
 func (c *deviceConfig) BoardSepolicyVers() string {
-	return String(c.config.productVariables.BoardSepolicyVers)
+	if ver := String(c.config.productVariables.BoardSepolicyVers); ver != "" {
+		return ver
+	}
+	return c.PlatformSepolicyVersion()
 }
 
 func (c *deviceConfig) BoardReqdMaskPolicy() []string {
