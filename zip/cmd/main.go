@@ -24,7 +24,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -32,6 +31,7 @@ import (
 	"strconv"
 	"strings"
 
+	"android/soong/response"
 	"android/soong/zip"
 )
 
@@ -125,12 +125,18 @@ func main() {
 	var expandedArgs []string
 	for _, arg := range os.Args {
 		if strings.HasPrefix(arg, "@") {
-			bytes, err := ioutil.ReadFile(strings.TrimPrefix(arg, "@"))
+			f, err := os.Open(strings.TrimPrefix(arg, "@"))
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err.Error())
 				os.Exit(1)
 			}
-			respArgs := zip.ReadRespFile(bytes)
+
+			respArgs, err := response.ReadRspFile(f)
+			f.Close()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err.Error())
+				os.Exit(1)
+			}
 			expandedArgs = append(expandedArgs, respArgs...)
 		} else {
 			expandedArgs = append(expandedArgs, arg)
