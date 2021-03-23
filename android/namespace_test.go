@@ -697,7 +697,7 @@ func findModuleById(ctx *TestContext, id string) (module TestingModule) {
 		testModule, ok := candidate.(*testModule)
 		if ok {
 			if testModule.properties.Id == id {
-				module = TestingModule{testModule}
+				module = newTestingModule(testModule)
 			}
 		}
 	}
