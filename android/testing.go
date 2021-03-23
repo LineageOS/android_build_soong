@@ -776,6 +776,12 @@ func (m TestingModule) Module() Module {
 	return m.module
 }
 
+// VariablesForTestsRelativeToTop returns a copy of the Module.VariablesForTests() with every value
+// having any temporary build dir usages replaced with paths relative to a notional top.
+func (m TestingModule) VariablesForTestsRelativeToTop() map[string]string {
+	return normalizeStringMapRelativeToTop(m.config, m.module.VariablesForTests())
+}
+
 // TestingSingleton is wrapper around an android.Singleton that provides methods to find information about individual
 // ctx.Build parameters for verification in tests.
 type TestingSingleton struct {
