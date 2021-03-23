@@ -808,7 +808,8 @@ module_exports_snapshot {
 }
 
 func TestSnapshotWithSingleHostOsType(t *testing.T) {
-	result := sdkFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForSdkTest,
 		ccTestFs.AddToFixture(),
 		cc.PrepareForTestOnLinuxBionic,
 		android.FixtureModifyConfig(func(config android.Config) {
