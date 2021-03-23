@@ -21,7 +21,7 @@ import (
 )
 
 func TestPlatformCompatConfig(t *testing.T) {
-	result := emptyFixtureFactory.RunTest(t,
+	result := android.GroupFixturePreparers(
 		PrepareForTestWithPlatformCompatConfig,
 		android.FixtureWithRootAndroidBp(`
 			platform_compat_config {
@@ -34,7 +34,7 @@ func TestPlatformCompatConfig(t *testing.T) {
 				name: "myconfig3",
 			}
 		`),
-	)
+	).RunTest(t)
 
 	checkMergedCompatConfigInputs(t, result, "myconfig",
 		"out/soong/.intermediates/myconfig1/myconfig1_meta.xml",
