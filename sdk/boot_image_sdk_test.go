@@ -67,3 +67,39 @@ sdk_snapshot {
 `),
 		checkAllCopyRules(""))
 }
+
+// Test that boot_image works with sdk.
+func TestBasicSdkWithBootImage(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForSdkTestWithApex,
+		prepareForSdkTestWithJava,
+		android.FixtureWithRootAndroidBp(`
+		sdk {
+			name: "mysdk",
+			boot_images: ["mybootimage"],
+		}
+
+		boot_image {
+			name: "mybootimage",
+			image_name: "art",
+			apex_available: ["myapex"],
+		}
+
+		sdk_snapshot {
+			name: "mysdk@1",
+			boot_images: ["mybootimage_mysdk_1"],
+		}
+
+		prebuilt_boot_image {
+			name: "mybootimage_mysdk_1",
+			sdk_member_name: "mybootimage",
+			prefer: false,
+			visibility: ["//visibility:public"],
+			apex_available: [
+				"myapex",
+			],
+			image_name: "art",
+		}
+	`),
+	).RunTest(t)
+}
