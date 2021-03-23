@@ -14,20 +14,27 @@
 
 package sdk
 
-import "testing"
+import (
+	"testing"
+
+	"android/soong/android"
+)
 
 func TestSnapshotWithBootImage(t *testing.T) {
-	result := testSdkWithJava(t, `
-		sdk {
-			name: "mysdk",
-			boot_images: ["mybootimage"],
-		}
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		android.FixtureWithRootAndroidBp(`
+			sdk {
+				name: "mysdk",
+				boot_images: ["mybootimage"],
+			}
 
-		boot_image {
-			name: "mybootimage",
-			image_name: "art",
-		}
-	`)
+			boot_image {
+				name: "mybootimage",
+				image_name: "art",
+			}
+		`),
+	).RunTest(t)
 
 	CheckSnapshot(t, result, "mysdk", "",
 		checkUnversionedAndroidBpContents(`
