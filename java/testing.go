@@ -43,7 +43,7 @@ var PrepareForTestWithJavaBuildComponents = android.GroupFixturePreparers(
 	// Make sure that mutators and module types, e.g. prebuilt mutators available.
 	android.PrepareForTestWithAndroidBuildComponents,
 	// Make java build components available to the test.
-	android.FixtureRegisterWithContext(RegisterRequiredBuildComponentsForTest),
+	android.FixtureRegisterWithContext(registerRequiredBuildComponentsForTest),
 	android.FixtureRegisterWithContext(registerJavaPluginBuildComponents),
 )
 
@@ -52,7 +52,7 @@ var PrepareForTestWithJavaDefaultModules = android.GroupFixturePreparers(
 	// Make sure that all the module types used in the defaults are registered.
 	PrepareForTestWithJavaBuildComponents,
 	// The java default module definitions.
-	android.FixtureAddTextFile(defaultJavaDir+"/Android.bp", GatherRequiredDepsForTest()),
+	android.FixtureAddTextFile(defaultJavaDir+"/Android.bp", gatherRequiredDepsForTest()),
 )
 
 var PrepareForTestWithOverlayBuildComponents = android.FixtureRegisterWithContext(registerOverlayBuildComponents)
@@ -178,7 +178,19 @@ func prebuiltApisFilesForLibs(apiLevels []string, sdkLibs []string) map[string][
 //
 // In particular this must register all the components that are used in the `Android.bp` snippet
 // returned by GatherRequiredDepsForTest()
+//
+// deprecated: Use test fixtures instead, e.g. PrepareForTestWithJavaBuildComponents
 func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
+	registerRequiredBuildComponentsForTest(ctx)
+}
+
+// registerRequiredBuildComponentsForTest registers the build components used by
+// PrepareForTestWithJavaDefaultModules.
+//
+// As functionality is moved out of here into separate FixturePreparer instances they should also
+// be moved into GatherRequiredDepsForTest for use by tests that have not yet switched to use test
+// fixtures.
+func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterAARBuildComponents(ctx)
 	RegisterAppBuildComponents(ctx)
 	RegisterAppImportBuildComponents(ctx)
@@ -201,7 +213,19 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 // Gather the module definitions needed by tests that depend upon code from this package.
 //
 // Returns an `Android.bp` snippet that defines the modules that are needed by this package.
+//
+// deprecated: Use test fixtures instead, e.g. PrepareForTestWithJavaDefaultModules
 func GatherRequiredDepsForTest() string {
+	return gatherRequiredDepsForTest()
+}
+
+// gatherRequiredDepsForTest gathers the module definitions used by
+// PrepareForTestWithJavaDefaultModules.
+//
+// As functionality is moved out of here into separate FixturePreparer instances they should also
+// be moved into GatherRequiredDepsForTest for use by tests that have not yet switched to use test
+// fixtures.
+func gatherRequiredDepsForTest() string {
 	var bp string
 
 	extraModules := []string{
