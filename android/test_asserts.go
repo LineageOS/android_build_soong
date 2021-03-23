@@ -15,6 +15,7 @@
 package android
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -162,19 +163,24 @@ func AssertDeepEquals(t *testing.T, message string, expected interface{}, actual
 	}
 }
 
-// AssertPanic checks that the supplied function panics as expected.
-func AssertPanic(t *testing.T, message string, funcThatShouldPanic func()) {
+// AssertPanicMessageContains checks that the supplied function panics as expected and the message
+// obtained by formatting the recovered value as a string contains the expected contents.
+func AssertPanicMessageContains(t *testing.T, message, expectedMessageContents string, funcThatShouldPanic func()) {
 	t.Helper()
 	panicked := false
+	var recovered interface{}
 	func() {
 		defer func() {
-			if x := recover(); x != nil {
+			if recovered = recover(); recovered != nil {
 				panicked = true
 			}
 		}()
 		funcThatShouldPanic()
 	}()
 	if !panicked {
-		t.Error(message)
+		t.Errorf("%s: did not panic", message)
 	}
+
+	panicMessage := fmt.Sprintf("%s", recovered)
+	AssertStringDoesContain(t, fmt.Sprintf("%s: panic message", message), panicMessage, expectedMessageContents)
 }
