@@ -40,15 +40,14 @@ type AndroidLibraryDependency interface {
 
 func init() {
 	RegisterAARBuildComponents(android.InitRegistrationContext)
-
-	android.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.TopDown("propagate_rro_enforcement", propagateRROEnforcementMutator).Parallel()
-	})
 }
 
 func RegisterAARBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("android_library_import", AARImportFactory)
 	ctx.RegisterModuleType("android_library", AndroidLibraryFactory)
+	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("propagate_rro_enforcement", propagateRROEnforcementMutator).Parallel()
+	})
 }
 
 //
