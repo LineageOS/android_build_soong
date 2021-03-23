@@ -479,7 +479,7 @@ func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {
 		}
 	}
 
-	return newTestingModule(module)
+	return newTestingModule(ctx.config, module)
 }
 
 func (ctx *TestContext) ModuleVariantsForTests(name string) []string {
@@ -499,7 +499,7 @@ func (ctx *TestContext) SingletonForTests(name string) TestingSingleton {
 		n := ctx.SingletonName(s)
 		if n == name {
 			return TestingSingleton{
-				baseTestingComponent: newBaseTestingComponent(s.(testBuildProvider)),
+				baseTestingComponent: newBaseTestingComponent(ctx.config, s.(testBuildProvider)),
 				singleton:            s.(*singletonAdaptor).Singleton,
 			}
 		}
@@ -522,19 +522,118 @@ type testBuildProvider interface {
 type TestingBuildParams struct {
 	BuildParams
 	RuleParams blueprint.RuleParams
+
+	config Config
+}
+
+// RelativeToTop creates a new instance of this which has had any usages of the current test's
+// temporary and test specific build directory replaced with a path relative to the notional top.
+//
+// The parts of this structure which are changed are:
+// * BuildParams
+//   * Args
+//   * Path instances are intentionally not modified, use AssertPathRelativeToTopEquals or
+//     AssertPathsRelativeToTopEquals instead which do something similar.
+//
+// * RuleParams
+//   * Command
+//   * Depfile
+//   * Rspfile
+//   * RspfileContent
+//   * SymlinkOutputs
+//   * CommandDeps
+//   * CommandOrderOnly
+//
+// See PathRelativeToTop for more details.
+func (p TestingBuildParams) RelativeToTop() TestingBuildParams {
+	// If this is not a valid params then just return it back. That will make it easy to use with the
+	// Maybe...() methods.
+	if p.Rule == nil {
+		return p
+	}
+	if p.config.config == nil {
+		panic("cannot call RelativeToTop() on a TestingBuildParams previously returned by RelativeToTop()")
+	}
+	// Take a copy of the build params and replace any args that contains test specific temporary
+	// paths with paths relative to the top.
+	bparams := p.BuildParams
+	bparams.Args = normalizeStringMapRelativeToTop(p.config, bparams.Args)
+
+	// Ditto for any fields in the RuleParams.
+	rparams := p.RuleParams
+	rparams.Command = normalizeStringRelativeToTop(p.config, rparams.Command)
+	rparams.Depfile = normalizeStringRelativeToTop(p.config, rparams.Depfile)
+	rparams.Rspfile = normalizeStringRelativeToTop(p.config, rparams.Rspfile)
+	rparams.RspfileContent = normalizeStringRelativeToTop(p.config, rparams.RspfileContent)
+	rparams.SymlinkOutputs = normalizeStringArrayRelativeToTop(p.config, rparams.SymlinkOutputs)
+	rparams.CommandDeps = normalizeStringArrayRelativeToTop(p.config, rparams.CommandDeps)
+	rparams.CommandOrderOnly = normalizeStringArrayRelativeToTop(p.config, rparams.CommandOrderOnly)
+
+	return TestingBuildParams{
+		BuildParams: bparams,
+		RuleParams:  rparams,
+	}
 }
 
 // baseTestingComponent provides functionality common to both TestingModule and TestingSingleton.
 type baseTestingComponent struct {
+	config   Config
 	provider testBuildProvider
 }
 
-func newBaseTestingComponent(provider testBuildProvider) baseTestingComponent {
-	return baseTestingComponent{provider}
+func newBaseTestingComponent(config Config, provider testBuildProvider) baseTestingComponent {
+	return baseTestingComponent{config, provider}
+}
+
+// A function that will normalize a string containing paths, e.g. ninja command, by replacing
+// any references to the test specific temporary build directory that changes with each run to a
+// fixed path relative to a notional top directory.
+//
+// This is similar to StringPathRelativeToTop except that assumes the string is a single path
+// containing at most one instance of the temporary build directory at the start of the path while
+// this assumes that there can be any number at any position.
+func normalizeStringRelativeToTop(config Config, s string) string {
+	// The buildDir usually looks something like: /tmp/testFoo2345/001
+	//
+	// Replace any usage of the buildDir with out/soong, e.g. replace "/tmp/testFoo2345/001" with
+	// "out/soong".
+	outSoongDir := filepath.Clean(config.buildDir)
+	re := regexp.MustCompile(`\Q` + outSoongDir + `\E\b`)
+	s = re.ReplaceAllString(s, "out/soong")
+
+	// Replace any usage of the buildDir/.. with out, e.g. replace "/tmp/testFoo2345" with
+	// "out". This must come after the previous replacement otherwise this would replace
+	// "/tmp/testFoo2345/001" with "out/001" instead of "out/soong".
+	outDir := filepath.Dir(outSoongDir)
+	re = regexp.MustCompile(`\Q` + outDir + `\E\b`)
+	s = re.ReplaceAllString(s, "out")
+
+	return s
+}
+
+// normalizeStringArrayRelativeToTop creates a new slice constructed by applying
+// normalizeStringRelativeToTop to each item in the slice.
+func normalizeStringArrayRelativeToTop(config Config, slice []string) []string {
+	newSlice := make([]string, len(slice))
+	for i, s := range slice {
+		newSlice[i] = normalizeStringRelativeToTop(config, s)
+	}
+	return newSlice
+}
+
+// normalizeStringMapRelativeToTop creates a new map constructed by applying
+// normalizeStringRelativeToTop to each value in the map.
+func normalizeStringMapRelativeToTop(config Config, m map[string]string) map[string]string {
+	newMap := map[string]string{}
+	for k, v := range m {
+		newMap[k] = normalizeStringRelativeToTop(config, v)
+	}
+	return newMap
 }
 
 func (b baseTestingComponent) newTestingBuildParams(bparams BuildParams) TestingBuildParams {
 	return TestingBuildParams{
+		config:      b.config,
 		BuildParams: bparams,
 		RuleParams:  b.provider.RuleParamsForTests()[bparams.Rule],
 	}
@@ -665,9 +764,9 @@ type TestingModule struct {
 	module Module
 }
 
-func newTestingModule(module Module) TestingModule {
+func newTestingModule(config Config, module Module) TestingModule {
 	return TestingModule{
-		newBaseTestingComponent(module),
+		newBaseTestingComponent(config, module),
 		module,
 	}
 }
