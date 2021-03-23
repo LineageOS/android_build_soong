@@ -50,49 +50,33 @@ func names(s string) (ns []string) {
 	return
 }
 
-func testApexError(t *testing.T, pattern, bp string, handlers ...testCustomizer) {
+func testApexError(t *testing.T, pattern, bp string, preparers ...android.FixturePreparer) {
 	t.Helper()
-	ctx, config := testApexContext(t, bp, handlers...)
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-	_, errs = ctx.PrepareBuildActions(config)
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-
-	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
+	apexFixtureFactory.Extend(preparers...).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
+		RunTestWithBp(t, bp)
 }
 
-func testApex(t *testing.T, bp string, handlers ...testCustomizer) *android.TestContext {
+func testApex(t *testing.T, bp string, preparers ...android.FixturePreparer) *android.TestContext {
 	t.Helper()
-	ctx, config := testApexContext(t, bp, handlers...)
-	_, errs := ctx.ParseBlueprintsFiles(".")
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
-	return ctx
-}
-
-type testCustomizer func(fs map[string][]byte, config android.Config)
-
-func withFiles(files map[string][]byte) testCustomizer {
-	return func(fs map[string][]byte, config android.Config) {
-		for k, v := range files {
-			fs[k] = v
-		}
+	factory := apexFixtureFactory.Extend(preparers...)
+	if bp != "" {
+		factory = factory.Extend(android.FixtureWithRootAndroidBp(bp))
 	}
+	result := factory.RunTest(t)
+	return result.TestContext
 }
 
-func withTargets(targets map[android.OsType][]android.Target) testCustomizer {
-	return func(fs map[string][]byte, config android.Config) {
+func withFiles(files android.MockFS) android.FixturePreparer {
+	return files.AddToFixture()
+}
+
+func withTargets(targets map[android.OsType][]android.Target) android.FixturePreparer {
+	return android.FixtureModifyConfig(func(config android.Config) {
 		for k, v := range targets {
 			config.Targets[k] = v
 		}
-	}
+	})
 }
 
 // withNativeBridgeTargets sets configuration with targets including:
@@ -100,32 +84,38 @@ func withTargets(targets map[android.OsType][]android.Target) testCustomizer {
 // - X86 (secondary)
 // - Arm64 on X86_64 (native bridge)
 // - Arm on X86 (native bridge)
-func withNativeBridgeEnabled(_ map[string][]byte, config android.Config) {
-	config.Targets[android.Android] = []android.Target{
-		{Os: android.Android, Arch: android.Arch{ArchType: android.X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}},
-			NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
-		{Os: android.Android, Arch: android.Arch{ArchType: android.X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}},
-			NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
-		{Os: android.Android, Arch: android.Arch{ArchType: android.Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}},
-			NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "x86_64", NativeBridgeRelativePath: "arm64"},
-		{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}},
-			NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "x86", NativeBridgeRelativePath: "arm"},
-	}
+var withNativeBridgeEnabled = android.FixtureModifyConfig(
+	func(config android.Config) {
+		config.Targets[android.Android] = []android.Target{
+			{Os: android.Android, Arch: android.Arch{ArchType: android.X86_64, ArchVariant: "silvermont", Abi: []string{"arm64-v8a"}},
+				NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
+			{Os: android.Android, Arch: android.Arch{ArchType: android.X86, ArchVariant: "silvermont", Abi: []string{"armeabi-v7a"}},
+				NativeBridge: android.NativeBridgeDisabled, NativeBridgeHostArchName: "", NativeBridgeRelativePath: ""},
+			{Os: android.Android, Arch: android.Arch{ArchType: android.Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}},
+				NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "x86_64", NativeBridgeRelativePath: "arm64"},
+			{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}},
+				NativeBridge: android.NativeBridgeEnabled, NativeBridgeHostArchName: "x86", NativeBridgeRelativePath: "arm"},
+		}
+	},
+)
+
+func withManifestPackageNameOverrides(specs []string) android.FixturePreparer {
+	return android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		variables.ManifestPackageNameOverrides = specs
+	})
 }
 
-func withManifestPackageNameOverrides(specs []string) testCustomizer {
-	return func(fs map[string][]byte, config android.Config) {
-		config.TestProductVariables.ManifestPackageNameOverrides = specs
-	}
-}
+var withBinder32bit = android.FixtureModifyProductVariables(
+	func(variables android.FixtureProductVariables) {
+		variables.Binder32bit = proptools.BoolPtr(true)
+	},
+)
 
-func withBinder32bit(_ map[string][]byte, config android.Config) {
-	config.TestProductVariables.Binder32bit = proptools.BoolPtr(true)
-}
-
-func withUnbundledBuild(_ map[string][]byte, config android.Config) {
-	config.TestProductVariables.Unbundled_build = proptools.BoolPtr(true)
-}
+var withUnbundledBuild = android.FixtureModifyProductVariables(
+	func(variables android.FixtureProductVariables) {
+		variables.Unbundled_build = proptools.BoolPtr(true)
+	},
+)
 
 var emptyFixtureFactory = android.NewFixtureFactory(&buildDir)
 
@@ -216,143 +206,6 @@ var apexFixtureFactory = android.NewFixtureFactory(
 		variables.Platform_vndk_version = proptools.StringPtr("VER")
 	}),
 )
-
-func testApexContext(_ *testing.T, bp string, handlers ...testCustomizer) (*android.TestContext, android.Config) {
-	bp = bp + `
-		filegroup {
-			name: "myapex-file_contexts",
-			srcs: [
-				"system/sepolicy/apex/myapex-file_contexts",
-			],
-		}
-	`
-
-	bp = bp + cc.GatherRequiredDepsForTest(android.Android)
-
-	bp = bp + rust.GatherRequiredDepsForTest()
-
-	bp = bp + java.GatherRequiredDepsForTest()
-
-	fs := map[string][]byte{
-		"a.java":                                                      nil,
-		"PrebuiltAppFoo.apk":                                          nil,
-		"PrebuiltAppFooPriv.apk":                                      nil,
-		"build/make/target/product/security":                          nil,
-		"apex_manifest.json":                                          nil,
-		"AndroidManifest.xml":                                         nil,
-		"system/sepolicy/apex/myapex-file_contexts":                   nil,
-		"system/sepolicy/apex/myapex.updatable-file_contexts":         nil,
-		"system/sepolicy/apex/myapex2-file_contexts":                  nil,
-		"system/sepolicy/apex/otherapex-file_contexts":                nil,
-		"system/sepolicy/apex/com.android.vndk-file_contexts":         nil,
-		"system/sepolicy/apex/com.android.vndk.current-file_contexts": nil,
-		"mylib.cpp":                                  nil,
-		"mytest.cpp":                                 nil,
-		"mytest1.cpp":                                nil,
-		"mytest2.cpp":                                nil,
-		"mytest3.cpp":                                nil,
-		"myprebuilt":                                 nil,
-		"my_include":                                 nil,
-		"foo/bar/MyClass.java":                       nil,
-		"prebuilt.jar":                               nil,
-		"prebuilt.so":                                nil,
-		"vendor/foo/devkeys/test.x509.pem":           nil,
-		"vendor/foo/devkeys/test.pk8":                nil,
-		"testkey.x509.pem":                           nil,
-		"testkey.pk8":                                nil,
-		"testkey.override.x509.pem":                  nil,
-		"testkey.override.pk8":                       nil,
-		"vendor/foo/devkeys/testkey.avbpubkey":       nil,
-		"vendor/foo/devkeys/testkey.pem":             nil,
-		"NOTICE":                                     nil,
-		"custom_notice":                              nil,
-		"custom_notice_for_static_lib":               nil,
-		"testkey2.avbpubkey":                         nil,
-		"testkey2.pem":                               nil,
-		"myapex-arm64.apex":                          nil,
-		"myapex-arm.apex":                            nil,
-		"myapex.apks":                                nil,
-		"frameworks/base/api/current.txt":            nil,
-		"framework/aidl/a.aidl":                      nil,
-		"build/make/core/proguard.flags":             nil,
-		"build/make/core/proguard_basic_keeps.flags": nil,
-		"dummy.txt":                                  nil,
-		"baz":                                        nil,
-		"bar/baz":                                    nil,
-		"testdata/baz":                               nil,
-		"AppSet.apks":                                nil,
-		"foo.rs":                                     nil,
-		"libfoo.jar":                                 nil,
-		"libbar.jar":                                 nil,
-	}
-
-	cc.GatherRequiredFilesForTest(fs)
-
-	for _, handler := range handlers {
-		// The fs now needs to be populated before creating the config, call handlers twice
-		// for now, once to get any fs changes, and later after the config was created to
-		// set product variables or targets.
-		tempConfig := android.TestArchConfig(buildDir, nil, bp, fs)
-		handler(fs, tempConfig)
-	}
-
-	config := android.TestArchConfig(buildDir, nil, bp, fs)
-	config.TestProductVariables.DeviceVndkVersion = proptools.StringPtr("current")
-	config.TestProductVariables.DefaultAppCertificate = proptools.StringPtr("vendor/foo/devkeys/test")
-	config.TestProductVariables.CertificateOverrides = []string{"myapex_keytest:myapex.certificate.override"}
-	config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("Q")
-	config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(false)
-	config.TestProductVariables.Platform_version_active_codenames = []string{"Q"}
-	config.TestProductVariables.Platform_vndk_version = proptools.StringPtr("VER")
-
-	for _, handler := range handlers {
-		// The fs now needs to be populated before creating the config, call handlers twice
-		// for now, earlier to get any fs changes, and now after the config was created to
-		// set product variables or targets.
-		tempFS := map[string][]byte{}
-		handler(tempFS, config)
-	}
-
-	ctx := android.NewTestArchContext(config)
-
-	// from android package
-	android.RegisterPackageBuildComponents(ctx)
-	ctx.PreArchMutators(android.RegisterVisibilityRuleChecker)
-
-	registerApexBuildComponents(ctx)
-	registerApexKeyBuildComponents(ctx)
-
-	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(android.RegisterComponentsMutator)
-
-	android.RegisterPrebuiltMutators(ctx)
-
-	// Register these after the prebuilt mutators have been registered to match what
-	// happens at runtime.
-	ctx.PreArchMutators(android.RegisterVisibilityRuleGatherer)
-	ctx.PostDepsMutators(android.RegisterVisibilityRuleEnforcer)
-
-	// These must come after prebuilts and visibility rules to match runtime.
-	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
-
-	// These must come after override rules to match the runtime.
-	cc.RegisterRequiredBuildComponentsForTest(ctx)
-	rust.RegisterRequiredBuildComponentsForTest(ctx)
-	java.RegisterRequiredBuildComponentsForTest(ctx)
-
-	ctx.RegisterModuleType("cc_test", cc.TestFactory)
-	ctx.RegisterModuleType("vndk_prebuilt_shared", cc.VndkPrebuiltSharedFactory)
-	cc.RegisterVndkLibraryTxtTypes(ctx)
-	prebuilt_etc.RegisterPrebuiltEtcBuildComponents(ctx)
-	ctx.RegisterModuleType("platform_compat_config", java.PlatformCompatConfigFactory)
-	ctx.RegisterModuleType("sh_binary", sh.ShBinaryFactory)
-	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	ctx.RegisterModuleType("bpf", bpf.BpfFactory)
-
-	ctx.Register()
-
-	return ctx, config
-}
 
 func setUp() {
 	var err error
@@ -1139,11 +992,13 @@ func TestApex_PlatformUsesLatestStubFromApex(t *testing.T) {
 			srcs: ["mylib.cpp"],
 			shared_libs: ["libstub"],
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("Z")
-		config.TestProductVariables.Platform_sdk_final = proptools.BoolPtr(false)
-		config.TestProductVariables.Platform_version_active_codenames = []string{"Z"}
-	})
+	`,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_sdk_codename = proptools.StringPtr("Z")
+			variables.Platform_sdk_final = proptools.BoolPtr(false)
+			variables.Platform_version_active_codenames = []string{"Z"}
+		}),
+	)
 
 	// Ensure that mylib from myapex is built against the latest stub (current)
 	mylibCflags := ctx.ModuleForTests("mylib", "android_arm64_armv8-a_static_apex10000").Rule("cc").Args["cFlags"]
@@ -1491,9 +1346,10 @@ func TestApexDependsOnLLNDKTransitively(t *testing.T) {
 				name: "libbar.llndk",
 				symbol_file: "",
 			}
-			`, func(fs map[string][]byte, config android.Config) {
-				setUseVendorAllowListForTest(config, []string{"myapex"})
-			}, withUnbundledBuild)
+			`,
+				setUseVendorAllowListForTest([]string{"myapex"}),
+				withUnbundledBuild,
+			)
 
 			// Ensure that LLNDK dep is not included
 			ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
@@ -1727,9 +1583,11 @@ func TestApexMinSdkVersion_SupportsCodeNames(t *testing.T) {
 				versions: ["29", "R"],
 			},
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		config.TestProductVariables.Platform_version_active_codenames = []string{"R"}
-	})
+	`,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_version_active_codenames = []string{"R"}
+		}),
+	)
 
 	expectLink := func(from, from_variant, to, to_variant string) {
 		ldArgs := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld").Args["libFlags"]
@@ -1838,6 +1696,12 @@ func TestPlatformUsesLatestStubsFromApexes(t *testing.T) {
 	expectNoLink("libz", "shared", "libz", "shared")
 }
 
+var prepareForTestWithSantitizeHwaddress = android.FixtureModifyProductVariables(
+	func(variables android.FixtureProductVariables) {
+		variables.SanitizeDevice = []string{"hwaddress"}
+	},
+)
+
 func TestQApexesUseLatestStubsInBundledBuildsAndHWASAN(t *testing.T) {
 	ctx := testApex(t, `
 		apex {
@@ -1866,9 +1730,9 @@ func TestQApexesUseLatestStubsInBundledBuildsAndHWASAN(t *testing.T) {
 				versions: ["29", "30"],
 			},
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		config.TestProductVariables.SanitizeDevice = []string{"hwaddress"}
-	})
+	`,
+		prepareForTestWithSantitizeHwaddress,
+	)
 	expectLink := func(from, from_variant, to, to_variant string) {
 		ld := ctx.ModuleForTests(from, "android_arm64_armv8-a_"+from_variant).Rule("ld")
 		libFlags := ld.Args["libFlags"]
@@ -2261,10 +2125,12 @@ func TestApexMinSdkVersion_OkayEvenWhenDepIsNewer_IfItSatisfiesApexMinSdkVersion
 }
 
 func TestApexMinSdkVersion_WorksWithSdkCodename(t *testing.T) {
-	withSAsActiveCodeNames := func(fs map[string][]byte, config android.Config) {
-		config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("S")
-		config.TestProductVariables.Platform_version_active_codenames = []string{"S"}
-	}
+	withSAsActiveCodeNames := android.FixtureModifyProductVariables(
+		func(variables android.FixtureProductVariables) {
+			variables.Platform_sdk_codename = proptools.StringPtr("S")
+			variables.Platform_version_active_codenames = []string{"S"}
+		},
+	)
 	testApexError(t, `libbar.*: should support min_sdk_version\(S\)`, `
 		apex {
 			name: "myapex",
@@ -2291,10 +2157,10 @@ func TestApexMinSdkVersion_WorksWithSdkCodename(t *testing.T) {
 }
 
 func TestApexMinSdkVersion_WorksWithActiveCodenames(t *testing.T) {
-	withSAsActiveCodeNames := func(fs map[string][]byte, config android.Config) {
-		config.TestProductVariables.Platform_sdk_codename = proptools.StringPtr("S")
-		config.TestProductVariables.Platform_version_active_codenames = []string{"S", "T"}
-	}
+	withSAsActiveCodeNames := android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		variables.Platform_sdk_codename = proptools.StringPtr("S")
+		variables.Platform_version_active_codenames = []string{"S", "T"}
+	})
 	ctx := testApex(t, `
 		apex {
 			name: "myapex",
@@ -2484,9 +2350,9 @@ func TestUseVendor(t *testing.T) {
 			stl: "none",
 			apex_available: [ "myapex" ],
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		setUseVendorAllowListForTest(config, []string{"myapex"})
-	})
+	`,
+		setUseVendorAllowListForTest([]string{"myapex"}),
+	)
 
 	inputsList := []string{}
 	for _, i := range ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().BuildParamsForTests() {
@@ -2517,9 +2383,9 @@ func TestUseVendorNotAllowedForSystemApexes(t *testing.T) {
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		setUseVendorAllowListForTest(config, []string{""})
-	})
+	`,
+		setUseVendorAllowListForTest([]string{""}),
+	)
 	// no error with allow list
 	testApex(t, `
 		apex {
@@ -2533,9 +2399,9 @@ func TestUseVendorNotAllowedForSystemApexes(t *testing.T) {
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		setUseVendorAllowListForTest(config, []string{"myapex"})
-	})
+	`,
+		setUseVendorAllowListForTest([]string{"myapex"}),
+	)
 }
 
 func TestUseVendorFailsIfNotVendorAvailable(t *testing.T) {
@@ -2650,7 +2516,7 @@ func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 	libs := names(ldRule.Args["libFlags"])
 	// VNDK libs(libvndk/libc++) as they are
 	ensureListContains(t, libs, buildDir+"/.intermediates/libvndk/"+vendorVariant+"_shared/libvndk.so")
-	ensureListContains(t, libs, buildDir+"/.intermediates/libc++/"+vendorVariant+"_shared/libc++.so")
+	ensureListContains(t, libs, buildDir+"/.intermediates/"+cc.DefaultCcCommonTestModulesDir+"libc++/"+vendorVariant+"_shared/libc++.so")
 	// non-stable Vendor libs as APEX variants
 	ensureListContains(t, libs, buildDir+"/.intermediates/libvendor/"+vendorVariant+"_shared_apex10000/libvendor.so")
 
@@ -2687,9 +2553,10 @@ func TestProductVariant(t *testing.T) {
 			apex_available: ["myapex"],
 			srcs: ["foo.cpp"],
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		config.TestProductVariables.ProductVndkVersion = proptools.StringPtr("current")
-	})
+	`, android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+		variables.ProductVndkVersion = proptools.StringPtr("current")
+	}),
+	)
 
 	cflags := strings.Fields(
 		ctx.ModuleForTests("foo", "android_product.VER_arm64_armv8-a_apex10000").Rule("cc").Args["cFlags"])
@@ -2757,9 +2624,9 @@ func TestAndroidMk_UseVendorRequired(t *testing.T) {
 			vendor_available: true,
 			apex_available: ["myapex"],
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		setUseVendorAllowListForTest(config, []string{"myapex"})
-	})
+	`,
+		setUseVendorAllowListForTest([]string{"myapex"}),
+	)
 
 	apexBundle := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
 	data := android.AndroidMkDataForTest(t, ctx, apexBundle)
@@ -5053,9 +4920,11 @@ func TestInstallExtraFlattenedApexes(t *testing.T) {
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		config.TestProductVariables.InstallExtraFlattenedApexes = proptools.BoolPtr(true)
-	})
+	`,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.InstallExtraFlattenedApexes = proptools.BoolPtr(true)
+		}),
+	)
 	ab := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
 	ensureListContains(t, ab.requiredDeps, "myapex.flattened")
 	mk := android.AndroidMkDataForTest(t, ctx, ab)
@@ -5746,7 +5615,7 @@ func TestLegacyAndroid10Support(t *testing.T) {
 	}
 }
 
-var filesForSdkLibrary = map[string][]byte{
+var filesForSdkLibrary = android.MockFS{
 	"api/current.txt":        nil,
 	"api/removed.txt":        nil,
 	"api/system-current.txt": nil,
@@ -6368,10 +6237,12 @@ func TestApexMutatorsDontRunIfDisabled(t *testing.T) {
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		delete(config.Targets, android.Android)
-		config.AndroidCommonTarget = android.Target{}
-	})
+	`,
+		android.FixtureModifyConfig(func(config android.Config) {
+			delete(config.Targets, android.Android)
+			config.AndroidCommonTarget = android.Target{}
+		}),
+	)
 
 	if expected, got := []string{""}, ctx.ModuleVariantsForTests("myapex"); !reflect.DeepEqual(expected, got) {
 		t.Errorf("Expected variants: %v, but got: %v", expected, got)
@@ -6443,7 +6314,7 @@ func TestAppSetBundle(t *testing.T) {
 }
 
 func TestAppSetBundlePrebuilt(t *testing.T) {
-	ctx := testApex(t, "", func(fs map[string][]byte, config android.Config) {
+	ctx := testApex(t, "", android.FixtureModifyMockFS(func(fs android.MockFS) {
 		bp := `
 		apex_set {
 			name: "myapex",
@@ -6454,9 +6325,9 @@ func TestAppSetBundlePrebuilt(t *testing.T) {
 			},
 		}`
 		fs["Android.bp"] = []byte(bp)
-
-		config.TestProductVariables.SanitizeDevice = []string{"hwaddress"}
-	})
+	}),
+		prepareForTestWithSantitizeHwaddress,
+	)
 
 	m := ctx.ModuleForTests("myapex", "android_common")
 	extractedApex := m.Output(buildDir + "/.intermediates/myapex/android_common/foo_v2.apex")
@@ -7021,13 +6892,17 @@ func TestApexSet(t *testing.T) {
 			filename: "foo_v2.apex",
 			overrides: ["foo"],
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		config.TestProductVariables.Platform_sdk_version = intPtr(30)
-		config.Targets[android.Android] = []android.Target{
-			{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}},
-			{Os: android.Android, Arch: android.Arch{ArchType: android.Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}},
-		}
-	})
+	`,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_sdk_version = intPtr(30)
+		}),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.Targets[android.Android] = []android.Target{
+				{Os: android.Android, Arch: android.Arch{ArchType: android.Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}},
+				{Os: android.Android, Arch: android.Arch{ArchType: android.Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}},
+			}
+		}),
+	)
 
 	m := ctx.ModuleForTests("myapex", "android_common")
 
@@ -7235,9 +7110,11 @@ func TestCompressedApex(t *testing.T) {
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
 		}
-	`, func(fs map[string][]byte, config android.Config) {
-		config.TestProductVariables.CompressedApex = proptools.BoolPtr(true)
-	})
+	`,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.CompressedApex = proptools.BoolPtr(true)
+		}),
+	)
 
 	compressRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("compressRule")
 	ensureContains(t, compressRule.Output.String(), "myapex.capex.unsigned")
