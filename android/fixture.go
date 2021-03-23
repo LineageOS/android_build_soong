@@ -16,6 +16,7 @@ package android
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -227,9 +228,6 @@ func NewFixtureFactory(buildDirSupplier *string, preparers ...FixturePreparer) F
 	return &fixtureFactory{
 		buildDirSupplier: buildDirSupplier,
 		preparers:        dedupAndFlattenPreparers(nil, preparers),
-
-		// Set the default error handler.
-		errorHandler: FixtureExpectsNoErrors,
 	}
 }
 
@@ -241,6 +239,7 @@ type MockFS map[string][]byte
 // Fails if the supplied map files with the same paths are present in both of them.
 func (fs MockFS) Merge(extra map[string][]byte) {
 	for p, c := range extra {
+		validateFixtureMockFSPath(p)
 		if _, ok := fs[p]; ok {
 			panic(fmt.Errorf("attempted to add file %s to the mock filesystem but it already exists", p))
 		}
@@ -248,8 +247,38 @@ func (fs MockFS) Merge(extra map[string][]byte) {
 	}
 }
 
+// Ensure that tests cannot add paths into the mock file system which would not be allowed in the
+// runtime, e.g. absolute paths, paths relative to the 'out/' directory.
+func validateFixtureMockFSPath(path string) {
+	// This uses validateSafePath rather than validatePath because the latter prevents adding files
+	// that include a $ but there are tests that allow files with a $ to be used, albeit only by
+	// globbing.
+	validatedPath, err := validateSafePath(path)
+	if err != nil {
+		panic(err)
+	}
+
+	// Make sure that the path is canonical.
+	if validatedPath != path {
+		panic(fmt.Errorf("path %q is not a canonical path, use %q instead", path, validatedPath))
+	}
+
+	if path == "out" || strings.HasPrefix(path, "out/") {
+		panic(fmt.Errorf("cannot add output path %q to the mock file system", path))
+	}
+}
+
 func (fs MockFS) AddToFixture() FixturePreparer {
 	return FixtureMergeMockFs(fs)
+}
+
+// FixtureCustomPreparer allows for the modification of any aspect of the fixture.
+//
+// This should only be used if one of the other more specific preparers are not suitable.
+func FixtureCustomPreparer(mutator func(fixture Fixture)) FixturePreparer {
+	return newSimpleFixturePreparer(func(f *fixture) {
+		mutator(f)
+	})
 }
 
 // Modify the config
@@ -281,6 +310,11 @@ func FixtureRegisterWithContext(registeringFunc func(ctx RegistrationContext)) F
 func FixtureModifyMockFS(mutator func(fs MockFS)) FixturePreparer {
 	return newSimpleFixturePreparer(func(f *fixture) {
 		mutator(f.mockFS)
+
+		// Make sure that invalid paths were not added to the mock filesystem.
+		for p, _ := range f.mockFS {
+			validateFixtureMockFSPath(p)
+		}
 	})
 }
 
@@ -298,6 +332,7 @@ func FixtureMergeMockFs(mockFS MockFS) FixturePreparer {
 // Fail if the filesystem already contains a file with that path, use FixtureOverrideFile instead.
 func FixtureAddFile(path string, contents []byte) FixturePreparer {
 	return FixtureModifyMockFS(func(fs MockFS) {
+		validateFixtureMockFSPath(path)
 		if _, ok := fs[path]; ok {
 			panic(fmt.Errorf("attempted to add file %s to the mock filesystem but it already exists, use FixtureOverride*File instead", path))
 		}
@@ -394,20 +429,10 @@ func OptionalFixturePreparer(preparer FixturePreparer) FixturePreparer {
 	}
 }
 
-type simpleFixturePreparerVisitor func(preparer *simpleFixturePreparer)
-
 // FixturePreparer is an opaque interface that can change a fixture.
 type FixturePreparer interface {
-	// visit calls the supplied visitor with each *simpleFixturePreparer instances in this preparer,
-	visit(simpleFixturePreparerVisitor)
-}
-
-type fixturePreparers []FixturePreparer
-
-func (f fixturePreparers) visit(visitor simpleFixturePreparerVisitor) {
-	for _, p := range f {
-		p.visit(visitor)
-	}
+	// Return the flattened and deduped list of simpleFixturePreparer pointers.
+	list() []*simpleFixturePreparer
 }
 
 // dedupAndFlattenPreparers removes any duplicates and flattens any composite FixturePreparer
@@ -420,35 +445,45 @@ func (f fixturePreparers) visit(visitor simpleFixturePreparerVisitor) {
 // preparers - a list of additional unflattened, undeduped preparers that will be applied after the
 //             base preparers.
 //
-// Returns a deduped and flattened list of the preparers minus any that exist in the base preparers.
-func dedupAndFlattenPreparers(base []*simpleFixturePreparer, preparers fixturePreparers) []*simpleFixturePreparer {
-	var list []*simpleFixturePreparer
+// Returns a deduped and flattened list of the preparers starting with the ones in base with any
+// additional ones from the preparers list added afterwards.
+func dedupAndFlattenPreparers(base []*simpleFixturePreparer, preparers []FixturePreparer) []*simpleFixturePreparer {
+	if len(preparers) == 0 {
+		return base
+	}
+
+	list := make([]*simpleFixturePreparer, len(base))
 	visited := make(map[*simpleFixturePreparer]struct{})
 
 	// Mark the already flattened and deduped preparers, if any, as having been seen so that
-	// duplicates of these in the additional preparers will be discarded.
-	for _, s := range base {
+	// duplicates of these in the additional preparers will be discarded. Add them to the output
+	// list.
+	for i, s := range base {
 		visited[s] = struct{}{}
+		list[i] = s
 	}
 
-	preparers.visit(func(preparer *simpleFixturePreparer) {
-		if _, seen := visited[preparer]; !seen {
-			visited[preparer] = struct{}{}
-			list = append(list, preparer)
+	for _, p := range preparers {
+		for _, s := range p.list() {
+			if _, seen := visited[s]; !seen {
+				visited[s] = struct{}{}
+				list = append(list, s)
+			}
 		}
-	})
+	}
+
 	return list
 }
 
 // compositeFixturePreparer is a FixturePreparer created from a list of fixture preparers.
 type compositeFixturePreparer struct {
+	// The flattened and deduped list of simpleFixturePreparer pointers encapsulated within this
+	// composite preparer.
 	preparers []*simpleFixturePreparer
 }
 
-func (c *compositeFixturePreparer) visit(visitor simpleFixturePreparerVisitor) {
-	for _, p := range c.preparers {
-		p.visit(visitor)
-	}
+func (c *compositeFixturePreparer) list() []*simpleFixturePreparer {
+	return c.preparers
 }
 
 // simpleFixturePreparer is a FixturePreparer that applies a function to a fixture.
@@ -456,8 +491,8 @@ type simpleFixturePreparer struct {
 	function func(fixture *fixture)
 }
 
-func (s *simpleFixturePreparer) visit(visitor simpleFixturePreparerVisitor) {
-	visitor(s)
+func (s *simpleFixturePreparer) list() []*simpleFixturePreparer {
+	return []*simpleFixturePreparer{s}
 }
 
 func newSimpleFixturePreparer(preparer func(fixture *fixture)) FixturePreparer {
@@ -564,6 +599,15 @@ func FixtureCustomErrorHandler(function func(t *testing.T, result *TestResult)) 
 
 // Fixture defines the test environment.
 type Fixture interface {
+	// Config returns the fixture's configuration.
+	Config() Config
+
+	// Context returns the fixture's test context.
+	Context() *TestContext
+
+	// MockFS returns the fixture's mock filesystem.
+	MockFS() MockFS
+
 	// Run the test, checking any errors reported and returning a TestResult instance.
 	RunTest() *TestResult
 }
@@ -593,15 +637,11 @@ var _ FixtureFactory = (*fixtureFactory)(nil)
 type fixtureFactory struct {
 	buildDirSupplier *string
 	preparers        []*simpleFixturePreparer
-	errorHandler     FixtureErrorHandler
 }
 
 func (f *fixtureFactory) Extend(preparers ...FixturePreparer) FixtureFactory {
-	// Create a new slice to avoid accidentally sharing the preparers slice from this factory with
-	// the extending factories.
-	var all []*simpleFixturePreparer
-	all = append(all, f.preparers...)
-	all = append(all, dedupAndFlattenPreparers(f.preparers, preparers)...)
+	all := dedupAndFlattenPreparers(f.preparers, preparers)
+
 	// Copy the existing factory.
 	extendedFactory := &fixtureFactory{}
 	*extendedFactory = *f
@@ -620,22 +660,24 @@ func (f *fixtureFactory) Fixture(t *testing.T, preparers ...FixturePreparer) Fix
 		// Retrieve the buildDir from the supplier.
 		buildDir = *f.buildDirSupplier
 	}
+
+	// Construct an array of all preparers, those from this factory and the additional ones passed to
+	// this method.
+	all := dedupAndFlattenPreparers(f.preparers, preparers)
+
 	config := TestConfig(buildDir, nil, "", nil)
 	ctx := NewTestContext(config)
 	fixture := &fixture{
-		factory:      f,
-		t:            t,
-		config:       config,
-		ctx:          ctx,
-		mockFS:       make(MockFS),
-		errorHandler: f.errorHandler,
+		preparers: all,
+		t:         t,
+		config:    config,
+		ctx:       ctx,
+		mockFS:    make(MockFS),
+		// Set the default error handler.
+		errorHandler: FixtureExpectsNoErrors,
 	}
 
-	for _, preparer := range f.preparers {
-		preparer.function(fixture)
-	}
-
-	for _, preparer := range dedupAndFlattenPreparers(f.preparers, preparers) {
+	for _, preparer := range all {
 		preparer.function(fixture)
 	}
 
@@ -643,10 +685,9 @@ func (f *fixtureFactory) Fixture(t *testing.T, preparers ...FixturePreparer) Fix
 }
 
 func (f *fixtureFactory) ExtendWithErrorHandler(errorHandler FixtureErrorHandler) FixtureFactory {
-	newFactory := &fixtureFactory{}
-	*newFactory = *f
-	newFactory.errorHandler = errorHandler
-	return newFactory
+	return f.Extend(newSimpleFixturePreparer(func(fixture *fixture) {
+		fixture.errorHandler = errorHandler
+	}))
 }
 
 func (f *fixtureFactory) RunTest(t *testing.T, preparers ...FixturePreparer) *TestResult {
@@ -683,8 +724,8 @@ func (f *fixtureFactory) RunTestWithConfig(t *testing.T, config Config) *TestRes
 }
 
 type fixture struct {
-	// The factory used to create this fixture.
-	factory *fixtureFactory
+	// The preparers used to create this fixture.
+	preparers []*simpleFixturePreparer
 
 	// The gotest state of the go test within which this was created.
 	t *testing.T
@@ -700,6 +741,18 @@ type fixture struct {
 
 	// The error handler used to check the errors, if any, that are reported.
 	errorHandler FixtureErrorHandler
+}
+
+func (f *fixture) Config() Config {
+	return f.config
+}
+
+func (f *fixture) Context() *TestContext {
+	return f.ctx
+}
+
+func (f *fixture) MockFS() MockFS {
+	return f.mockFS
 }
 
 func (f *fixture) RunTest() *TestResult {
@@ -778,6 +831,21 @@ func (r *TestResult) NormalizePathsForTesting(paths Paths) []string {
 		result = append(result, r.NormalizePathForTesting(path))
 	}
 	return result
+}
+
+// Preparer will return a FixturePreparer encapsulating all the preparers used to create the fixture
+// that produced this result.
+//
+// e.g. assuming that this result was created by running:
+//     factory.Extend(preparer1, preparer2).RunTest(t, preparer3, preparer4)
+//
+// Then this method will be equivalent to running:
+//     GroupFixturePreparers(preparer1, preparer2, preparer3, preparer4)
+//
+// This is intended for use by tests whose output is Android.bp files to verify that those files
+// are valid, e.g. tests of the snapshots produced by the sdk module type.
+func (r *TestResult) Preparer() FixturePreparer {
+	return &compositeFixturePreparer{r.fixture.preparers}
 }
 
 // Module returns the module with the specific name and of the specified variant.
