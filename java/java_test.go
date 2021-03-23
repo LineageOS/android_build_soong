@@ -71,11 +71,11 @@ var prepareForJavaTest = android.GroupFixturePreparers(
 	cc.PrepareForTestWithCcBuildComponents,
 	// Include all the default java modules.
 	PrepareForTestWithJavaDefaultModules,
+	PrepareForTestWithOverlayBuildComponents,
 	python.PrepareForTestWithPythonBuildComponents,
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("java_plugin", PluginFactory)
 
-		ctx.RegisterPreSingletonType("overlay", OverlaySingletonFactory)
 		ctx.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
 	}),
 	dexpreopt.PrepareForTestWithDexpreopt,
