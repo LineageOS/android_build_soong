@@ -34,7 +34,6 @@ var (
 	armCppflags = []string{}
 
 	armLdflags = []string{
-		"-Wl,--icf=safe",
 		"-Wl,--hash-style=gnu",
 		"-Wl,-m,armelf",
 	}
