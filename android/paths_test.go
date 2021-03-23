@@ -1005,14 +1005,14 @@ func testPathForModuleSrc(t *testing.T, tests []pathForModuleSrcTestCase) {
 				"foo/src_special/$": nil,
 			}
 
-			result := emptyTestFixtureFactory.RunTest(t,
+			result := GroupFixturePreparers(
 				FixtureRegisterWithContext(func(ctx RegistrationContext) {
 					ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
 					ctx.RegisterModuleType("output_file_provider", pathForModuleSrcOutputFileProviderModuleFactory)
 					ctx.RegisterModuleType("filegroup", FileGroupFactory)
 				}),
 				mockFS.AddToFixture(),
-			)
+			).RunTest(t)
 
 			m := result.ModuleForTests("foo", "").Module().(*pathForModuleSrcTestModule)
 
@@ -1203,13 +1203,13 @@ func TestPathsForModuleSrc_AllowMissingDependencies(t *testing.T) {
 		}
 	`
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		PrepareForTestWithAllowMissingDependencies,
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			ctx.RegisterModuleType("test", pathForModuleSrcTestModuleFactory)
 		}),
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	foo := result.ModuleForTests("foo", "").Module().(*pathForModuleSrcTestModule)
 

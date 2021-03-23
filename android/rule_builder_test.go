@@ -542,11 +542,11 @@ func TestRuleBuilder_Build(t *testing.T) {
 		}
 	`
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		prepareForRuleBuilderTest,
 		FixtureWithRootAndroidBp(bp),
 		fs.AddToFixture(),
-	)
+	).RunTest(t)
 
 	check := func(t *testing.T, params TestingBuildParams, wantCommand, wantOutput, wantDepfile string, wantRestat bool, extraImplicits, extraCmdDeps []string) {
 		t.Helper()
@@ -651,10 +651,10 @@ func TestRuleBuilderHashInputs(t *testing.T) {
 		},
 	}
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		prepareForRuleBuilderTest,
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {

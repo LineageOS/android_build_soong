@@ -284,7 +284,7 @@ func TestPrebuilts(t *testing.T) {
 				t.Errorf("windows is assumed to be disabled by default")
 			}
 
-			result := emptyTestFixtureFactory.Extend(
+			result := GroupFixturePreparers(
 				PrepareForTestWithArchMutator,
 				PrepareForTestWithPrebuilts,
 				PrepareForTestWithOverrides,
