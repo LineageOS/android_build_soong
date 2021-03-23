@@ -585,7 +585,7 @@ func (b baseTestingComponent) maybeBuildParamsFromOutput(file string) (TestingBu
 			outputs = append(outputs, p.Output)
 		}
 		for _, f := range outputs {
-			if f.String() == file || f.Rel() == file {
+			if f.String() == file || f.Rel() == file || PathRelativeToTop(f) == file {
 				return b.newTestingBuildParams(p), nil
 			}
 			searchedOutputs = append(searchedOutputs, f.Rel())
@@ -597,8 +597,8 @@ func (b baseTestingComponent) maybeBuildParamsFromOutput(file string) (TestingBu
 func (b baseTestingComponent) buildParamsFromOutput(file string) TestingBuildParams {
 	p, searchedOutputs := b.maybeBuildParamsFromOutput(file)
 	if p.Rule == nil {
-		panic(fmt.Errorf("couldn't find output %q.\nall outputs: %v",
-			file, searchedOutputs))
+		panic(fmt.Errorf("couldn't find output %q.\nall outputs:\n    %s\n",
+			file, strings.Join(searchedOutputs, "\n    ")))
 	}
 	return p
 }
