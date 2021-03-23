@@ -321,3 +321,12 @@ func CheckHiddenAPIRuleInputs(t *testing.T, expected string, hiddenAPIRule andro
 		t.Errorf("Expected hiddenapi rule inputs:\n%s\nactual inputs:\n%s", expected, actual)
 	}
 }
+
+// Check that the merged file create by platform_compat_config_singleton has the correct inputs.
+func CheckMergedCompatConfigInputs(t *testing.T, result *android.TestResult, message string, expectedPaths ...string) {
+	sourceGlobalCompatConfig := result.SingletonForTests("platform_compat_config_singleton")
+	allOutputs := sourceGlobalCompatConfig.AllOutputs()
+	android.AssertIntEquals(t, message+": output len", 1, len(allOutputs))
+	output := sourceGlobalCompatConfig.Output(allOutputs[0])
+	android.AssertPathsRelativeToTopEquals(t, message+": inputs", expectedPaths, output.Implicits)
+}
