@@ -30,11 +30,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-var ccFixtureFactory = android.NewFixtureFactory(
-	nil,
-	prepareForCcTest,
-)
-
 var prepareForCcTest = android.GroupFixturePreparers(
 	PrepareForTestWithCcIncludeVndk,
 	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
@@ -44,35 +39,35 @@ var prepareForCcTest = android.GroupFixturePreparers(
 	}),
 )
 
-// testCcWithConfig runs tests using the ccFixtureFactory
+// testCcWithConfig runs tests using the prepareForCcTest
 //
 // See testCc for an explanation as to how to stop using this deprecated method.
 //
 // deprecated
 func testCcWithConfig(t *testing.T, config android.Config) *android.TestContext {
 	t.Helper()
-	result := ccFixtureFactory.RunTestWithConfig(t, config)
+	result := prepareForCcTest.RunTestWithConfig(t, config)
 	return result.TestContext
 }
 
-// testCc runs tests using the ccFixtureFactory
+// testCc runs tests using the prepareForCcTest
 //
-// Do not add any new usages of this, instead use the ccFixtureFactory directly as it makes it much
+// Do not add any new usages of this, instead use the prepareForCcTest directly as it makes it much
 // easier to customize the test behavior.
 //
 // If it is necessary to customize the behavior of an existing test that uses this then please first
-// convert the test to using ccFixtureFactory first and then in a following change add the
+// convert the test to using prepareForCcTest first and then in a following change add the
 // appropriate fixture preparers. Keeping the conversion change separate makes it easy to verify
 // that it did not change the test behavior unexpectedly.
 //
 // deprecated
 func testCc(t *testing.T, bp string) *android.TestContext {
 	t.Helper()
-	result := ccFixtureFactory.RunTestWithBp(t, bp)
+	result := prepareForCcTest.RunTestWithBp(t, bp)
 	return result.TestContext
 }
 
-// testCcNoVndk runs tests using the ccFixtureFactory
+// testCcNoVndk runs tests using the prepareForCcTest
 //
 // See testCc for an explanation as to how to stop using this deprecated method.
 //
@@ -85,7 +80,7 @@ func testCcNoVndk(t *testing.T, bp string) *android.TestContext {
 	return testCcWithConfig(t, config)
 }
 
-// testCcNoProductVndk runs tests using the ccFixtureFactory
+// testCcNoProductVndk runs tests using the prepareForCcTest
 //
 // See testCc for an explanation as to how to stop using this deprecated method.
 //
@@ -99,7 +94,7 @@ func testCcNoProductVndk(t *testing.T, bp string) *android.TestContext {
 	return testCcWithConfig(t, config)
 }
 
-// testCcErrorWithConfig runs tests using the ccFixtureFactory
+// testCcErrorWithConfig runs tests using the prepareForCcTest
 //
 // See testCc for an explanation as to how to stop using this deprecated method.
 //
@@ -107,12 +102,12 @@ func testCcNoProductVndk(t *testing.T, bp string) *android.TestContext {
 func testCcErrorWithConfig(t *testing.T, pattern string, config android.Config) {
 	t.Helper()
 
-	ccFixtureFactory.Extend().
+	prepareForCcTest.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
 		RunTestWithConfig(t, config)
 }
 
-// testCcError runs tests using the ccFixtureFactory
+// testCcError runs tests using the prepareForCcTest
 //
 // See testCc for an explanation as to how to stop using this deprecated method.
 //
@@ -126,7 +121,7 @@ func testCcError(t *testing.T, pattern string, bp string) {
 	return
 }
 
-// testCcErrorProductVndk runs tests using the ccFixtureFactory
+// testCcErrorProductVndk runs tests using the prepareForCcTest
 //
 // See testCc for an explanation as to how to stop using this deprecated method.
 //
@@ -171,7 +166,10 @@ func TestFuchsiaDeps(t *testing.T) {
 			},
 		}`
 
-	result := ccFixtureFactory.Extend(PrepareForTestOnFuchsia).RunTestWithBp(t, bp)
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
+		PrepareForTestOnFuchsia,
+	).RunTestWithBp(t, bp)
 
 	rt := false
 	fb := false
@@ -207,7 +205,10 @@ func TestFuchsiaTargetDecl(t *testing.T) {
 			},
 		}`
 
-	result := ccFixtureFactory.Extend(PrepareForTestOnFuchsia).RunTestWithBp(t, bp)
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
+		PrepareForTestOnFuchsia,
+	).RunTestWithBp(t, bp)
 	ld := result.ModuleForTests("libTest", "fuchsia_arm64_shared").Rule("ld")
 	var objs []string
 	for _, o := range ld.Inputs {
@@ -2099,7 +2100,7 @@ func TestEnforceProductVndkVersion(t *testing.T) {
 		}
 	`
 
-	ctx := ccFixtureFactory.RunTestWithBp(t, bp).TestContext
+	ctx := prepareForCcTest.RunTestWithBp(t, bp).TestContext
 
 	checkVndkModule(t, ctx, "libvndk", "", false, "", productVariant)
 	checkVndkModule(t, ctx, "libvndk_sp", "", true, "", productVariant)
@@ -3435,7 +3436,8 @@ func TestProductVariableDefaults(t *testing.T) {
 		}
 	`
 
-	result := ccFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
 		android.PrepareForTestWithVariables,
 
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
@@ -3462,7 +3464,8 @@ func TestEmptyWholeStaticLibsAllowMissingDependencies(t *testing.T) {
 		}
 	`
 
-	result := ccFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
 		android.PrepareForTestWithAllowMissingDependencies,
 	).RunTestWithBp(t, bp)
 
@@ -3805,7 +3808,10 @@ var prepareForTestWithMemtagHeap = android.GroupFixturePreparers(
 func TestSanitizeMemtagHeap(t *testing.T) {
 	variant := "android_arm64_armv8-a"
 
-	result := ccFixtureFactory.Extend(prepareForTestWithMemtagHeap).RunTest(t)
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
+		prepareForTestWithMemtagHeap,
+	).RunTest(t)
 	ctx := result.TestContext
 
 	checkHasMemtagNote(t, ctx.ModuleForTests("default_test", variant), Sync)
@@ -3860,7 +3866,8 @@ func TestSanitizeMemtagHeap(t *testing.T) {
 func TestSanitizeMemtagHeapWithSanitizeDevice(t *testing.T) {
 	variant := "android_arm64_armv8-a"
 
-	result := ccFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
 		prepareForTestWithMemtagHeap,
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.SanitizeDevice = []string{"memtag_heap"}
@@ -3920,7 +3927,8 @@ func TestSanitizeMemtagHeapWithSanitizeDevice(t *testing.T) {
 func TestSanitizeMemtagHeapWithSanitizeDeviceDiag(t *testing.T) {
 	variant := "android_arm64_armv8-a"
 
-	result := ccFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForCcTest,
 		prepareForTestWithMemtagHeap,
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.SanitizeDevice = []string{"memtag_heap"}
