@@ -479,7 +479,7 @@ func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {
 		}
 	}
 
-	return TestingModule{module}
+	return newTestingModule(module)
 }
 
 func (ctx *TestContext) ModuleVariantsForTests(name string) []string {
@@ -499,8 +499,8 @@ func (ctx *TestContext) SingletonForTests(name string) TestingSingleton {
 		n := ctx.SingletonName(s)
 		if n == name {
 			return TestingSingleton{
-				singleton: s.(*singletonAdaptor).Singleton,
-				provider:  s.(testBuildProvider),
+				baseTestingComponent: newBaseTestingComponent(s.(testBuildProvider)),
+				singleton:            s.(*singletonAdaptor).Singleton,
 			}
 		}
 		allSingletonNames = append(allSingletonNames, n)
@@ -607,10 +607,69 @@ func allOutputs(provider testBuildProvider) []string {
 	return outputFullPaths
 }
 
+// baseTestingComponent provides functionality common to both TestingModule and TestingSingleton.
+type baseTestingComponent struct {
+	provider testBuildProvider
+}
+
+func newBaseTestingComponent(provider testBuildProvider) baseTestingComponent {
+	return baseTestingComponent{provider}
+}
+
+// MaybeRule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Returns an empty
+// BuildParams if no rule is found.
+func (b baseTestingComponent) MaybeRule(rule string) TestingBuildParams {
+	r, _ := maybeBuildParamsFromRule(b.provider, rule)
+	return r
+}
+
+// Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
+func (b baseTestingComponent) Rule(rule string) TestingBuildParams {
+	return buildParamsFromRule(b.provider, rule)
+}
+
+// MaybeDescription finds a call to ctx.Build with BuildParams.Description set to a the given string.  Returns an empty
+// BuildParams if no rule is found.
+func (b baseTestingComponent) MaybeDescription(desc string) TestingBuildParams {
+	return maybeBuildParamsFromDescription(b.provider, desc)
+}
+
+// Description finds a call to ctx.Build with BuildParams.Description set to a the given string.  Panics if no rule is
+// found.
+func (b baseTestingComponent) Description(desc string) TestingBuildParams {
+	return buildParamsFromDescription(b.provider, desc)
+}
+
+// MaybeOutput finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
+// value matches the provided string.  Returns an empty BuildParams if no rule is found.
+func (b baseTestingComponent) MaybeOutput(file string) TestingBuildParams {
+	p, _ := maybeBuildParamsFromOutput(b.provider, file)
+	return p
+}
+
+// Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
+// value matches the provided string.  Panics if no rule is found.
+func (b baseTestingComponent) Output(file string) TestingBuildParams {
+	return buildParamsFromOutput(b.provider, file)
+}
+
+// AllOutputs returns all 'BuildParams.Output's and 'BuildParams.Outputs's in their full path string forms.
+func (b baseTestingComponent) AllOutputs() []string {
+	return allOutputs(b.provider)
+}
+
 // TestingModule is wrapper around an android.Module that provides methods to find information about individual
 // ctx.Build parameters for verification in tests.
 type TestingModule struct {
+	baseTestingComponent
 	module Module
+}
+
+func newTestingModule(module Module) TestingModule {
+	return TestingModule{
+		newBaseTestingComponent(module),
+		module,
+	}
 }
 
 // Module returns the Module wrapped by the TestingModule.
@@ -618,100 +677,16 @@ func (m TestingModule) Module() Module {
 	return m.module
 }
 
-// MaybeRule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Returns an empty
-// BuildParams if no rule is found.
-func (m TestingModule) MaybeRule(rule string) TestingBuildParams {
-	r, _ := maybeBuildParamsFromRule(m.module, rule)
-	return r
-}
-
-// Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
-func (m TestingModule) Rule(rule string) TestingBuildParams {
-	return buildParamsFromRule(m.module, rule)
-}
-
-// MaybeDescription finds a call to ctx.Build with BuildParams.Description set to a the given string.  Returns an empty
-// BuildParams if no rule is found.
-func (m TestingModule) MaybeDescription(desc string) TestingBuildParams {
-	return maybeBuildParamsFromDescription(m.module, desc)
-}
-
-// Description finds a call to ctx.Build with BuildParams.Description set to a the given string.  Panics if no rule is
-// found.
-func (m TestingModule) Description(desc string) TestingBuildParams {
-	return buildParamsFromDescription(m.module, desc)
-}
-
-// MaybeOutput finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
-// value matches the provided string.  Returns an empty BuildParams if no rule is found.
-func (m TestingModule) MaybeOutput(file string) TestingBuildParams {
-	p, _ := maybeBuildParamsFromOutput(m.module, file)
-	return p
-}
-
-// Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
-// value matches the provided string.  Panics if no rule is found.
-func (m TestingModule) Output(file string) TestingBuildParams {
-	return buildParamsFromOutput(m.module, file)
-}
-
-// AllOutputs returns all 'BuildParams.Output's and 'BuildParams.Outputs's in their full path string forms.
-func (m TestingModule) AllOutputs() []string {
-	return allOutputs(m.module)
-}
-
 // TestingSingleton is wrapper around an android.Singleton that provides methods to find information about individual
 // ctx.Build parameters for verification in tests.
 type TestingSingleton struct {
+	baseTestingComponent
 	singleton Singleton
-	provider  testBuildProvider
 }
 
 // Singleton returns the Singleton wrapped by the TestingSingleton.
 func (s TestingSingleton) Singleton() Singleton {
 	return s.singleton
-}
-
-// MaybeRule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Returns an empty
-// BuildParams if no rule is found.
-func (s TestingSingleton) MaybeRule(rule string) TestingBuildParams {
-	r, _ := maybeBuildParamsFromRule(s.provider, rule)
-	return r
-}
-
-// Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
-func (s TestingSingleton) Rule(rule string) TestingBuildParams {
-	return buildParamsFromRule(s.provider, rule)
-}
-
-// MaybeDescription finds a call to ctx.Build with BuildParams.Description set to a the given string.  Returns an empty
-// BuildParams if no rule is found.
-func (s TestingSingleton) MaybeDescription(desc string) TestingBuildParams {
-	return maybeBuildParamsFromDescription(s.provider, desc)
-}
-
-// Description finds a call to ctx.Build with BuildParams.Description set to a the given string.  Panics if no rule is
-// found.
-func (s TestingSingleton) Description(desc string) TestingBuildParams {
-	return buildParamsFromDescription(s.provider, desc)
-}
-
-// MaybeOutput finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
-// value matches the provided string.  Returns an empty BuildParams if no rule is found.
-func (s TestingSingleton) MaybeOutput(file string) TestingBuildParams {
-	p, _ := maybeBuildParamsFromOutput(s.provider, file)
-	return p
-}
-
-// Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
-// value matches the provided string.  Panics if no rule is found.
-func (s TestingSingleton) Output(file string) TestingBuildParams {
-	return buildParamsFromOutput(s.provider, file)
-}
-
-// AllOutputs returns all 'BuildParams.Output's and 'BuildParams.Outputs's in their full path string forms.
-func (s TestingSingleton) AllOutputs() []string {
-	return allOutputs(s.provider)
 }
 
 func FailIfErrored(t *testing.T, errs []error) {
