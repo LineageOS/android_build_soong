@@ -101,7 +101,7 @@ func TestRustGrpc(t *testing.T) {
 	}
 
 	// Check that we're including the exported directory from libprotobuf-cpp-full
-	if w := "-Ilibprotobuf-cpp-full-includes"; !strings.Contains(cmd, w) {
+	if w := "-I" + rustDefaultsDir + "libprotobuf-cpp-full-includes"; !strings.Contains(cmd, w) {
 		t.Errorf("expected %q in %q", w, cmd)
 	}
 
