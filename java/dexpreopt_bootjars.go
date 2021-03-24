@@ -15,6 +15,7 @@
 package java
 
 import (
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -449,45 +450,60 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 // be needed there too.
 //
 // TODO(b/177892522): Avoid having to perform this type of check or if necessary dedup it.
-func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, module android.Module) (int, android.Path) {
+func getBootJar(ctx android.SingletonContext, bootjars android.ConfiguredJarList,
+	module android.Module, fromWhere string) (int, android.Path, *android.ApexInfo) {
+
 	name := ctx.ModuleName(module)
 
 	// Strip a prebuilt_ prefix so that this can access the dex jar from a prebuilt module.
 	name = android.RemoveOptionalPrebuiltPrefix(name)
 
 	// Ignore any module that is not listed in the boot image configuration.
-	index := image.modules.IndexOfJar(name)
+	index := bootjars.IndexOfJar(name)
 	if index == -1 {
-		return -1, nil
+		return -1, nil, nil
 	}
 
 	// It is an error if a module configured in the boot image does not support accessing the dex jar.
 	// This is safe because every module that has the same name has to have the same module type.
 	jar, hasJar := module.(interface{ DexJarBuildPath() android.Path })
 	if !hasJar {
-		ctx.Errorf("module %q configured in boot image %q does not support accessing dex jar", module, image.name)
-		return -1, nil
+		ctx.Errorf("module %q %sdoes not support accessing dex jar", module, fromWhere)
+		return -1, nil, nil
 	}
 
 	// It is also an error if the module is not an ApexModule.
 	if _, ok := module.(android.ApexModule); !ok {
-		ctx.Errorf("module %q configured in boot image %q does not support being added to an apex", module, image.name)
-		return -1, nil
+		ctx.Errorf("module %q %sdoes not support being added to an apex", module, fromWhere)
+		return -1, nil, nil
 	}
 
 	apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
 
 	// Now match the apex part of the boot image configuration.
-	requiredApex := image.modules.Apex(index)
+	requiredApex := bootjars.Apex(index)
 	if requiredApex == "platform" {
 		if len(apexInfo.InApexes) != 0 {
 			// A platform variant is required but this is for an apex so ignore it.
-			return -1, nil
+			return -1, nil, nil
 		}
 	} else if !apexInfo.InApexByBaseName(requiredApex) {
 		// An apex variant for a specific apex is required but this is the wrong apex.
+		return -1, nil, nil
+	}
+
+	return index, jar.DexJarBuildPath(), &apexInfo
+}
+
+// Inspect this module to see if it contains a bootclasspath dex jar from a given boot image.
+func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, module android.Module) (int, android.Path) {
+	fromImage := fmt.Sprintf("configured in boot image %q ", image.name)
+	index, jarPath, apexInfo := getBootJar(ctx, image.modules, module, fromImage)
+	if index == -1 {
 		return -1, nil
 	}
+
+	name := ctx.ModuleName(module)
 
 	// Check that this module satisfies any boot image specific constraints.
 	fromUpdatableApex := apexInfo.Updatable
@@ -525,39 +541,40 @@ func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, modul
 		panic("unknown boot image: " + image.name)
 	}
 
-	return index, jar.DexJarBuildPath()
+	return index, jarPath
 }
 
-// buildBootImage takes a bootImageConfig, creates rules to build it, and returns the image.
-func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootImageConfig {
-	// Collect dex jar paths for the boot image modules.
+// Generate commands that will copy boot jars to predefined paths in the global config.
+func findAndCopyBootJars(ctx android.SingletonContext, bootjars android.ConfiguredJarList,
+	jarPathsPredefined android.WritablePaths,
+	getBootJar func(module android.Module) (int, android.Path)) []string {
+
 	// This logic is tested in the apex package to avoid import cycle apex <-> java.
-	bootDexJars := make(android.Paths, image.modules.Len())
+	jarPaths := make(android.Paths, bootjars.Len())
 
 	ctx.VisitAllModules(func(module android.Module) {
 		if !isActiveModule(module) {
 			return
 		}
-
-		if i, j := getBootImageJar(ctx, image, module); i != -1 {
-			if existing := bootDexJars[i]; existing != nil {
-				ctx.Errorf("Multiple dex jars found for %s:%s - %s and %s",
-					image.modules.Apex(i), image.modules.Jar(i), existing, j)
+		if i, j := getBootJar(module); i != -1 {
+			if existing := jarPaths[i]; existing != nil {
+				ctx.Errorf("Multiple dex jars found for %s:%s - %q and %q",
+					bootjars.Apex(i), bootjars.Jar(i), existing, j)
 				return
 			}
-
-			bootDexJars[i] = j
+			jarPaths[i] = j
 		}
 	})
 
 	var missingDeps []string
 	// Ensure all modules were converted to paths
-	for i := range bootDexJars {
-		if bootDexJars[i] == nil {
-			m := image.modules.Jar(i)
+	for i := range jarPaths {
+		if jarPaths[i] == nil {
+			m := bootjars.Jar(i)
 			if ctx.Config().AllowMissingDependencies() {
 				missingDeps = append(missingDeps, m)
-				bootDexJars[i] = android.PathForOutput(ctx, "missing/module", m, "from/apex", image.modules.Apex(i))
+				jarPaths[i] = android.PathForOutput(ctx, "missing/module", m, "from/apex",
+					bootjars.Apex(i))
 			} else {
 				ctx.Errorf("failed to find a dex jar path for module '%s'"+
 					", note that some jars may be filtered out by module constraints", m)
@@ -569,13 +586,23 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootI
 	// time, before the boot images are built (these paths are used in dexpreopt rule generation for
 	// Java libraries and apps). Generate rules that copy bootclasspath DEX jars to the predefined
 	// paths.
-	for i := range bootDexJars {
+	for i := range jarPaths {
 		ctx.Build(pctx, android.BuildParams{
 			Rule:   android.Cp,
-			Input:  bootDexJars[i],
-			Output: image.dexPaths[i],
+			Input:  jarPaths[i],
+			Output: jarPathsPredefined[i],
 		})
 	}
+
+	return missingDeps
+}
+
+// buildBootImage takes a bootImageConfig, creates rules to build it, and returns the image.
+func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootImageConfig {
+	getBootJarFunc := func(module android.Module) (int, android.Path) {
+		return getBootImageJar(ctx, image, module)
+	}
+	missingDeps := findAndCopyBootJars(ctx, image.modules, image.dexPaths, getBootJarFunc)
 
 	profile := bootImageProfileRule(ctx, image, missingDeps)
 	bootFrameworkProfileRule(ctx, image, missingDeps)
