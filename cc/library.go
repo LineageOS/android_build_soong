@@ -2046,38 +2046,6 @@ func maybeInjectBoringSSLHash(ctx android.ModuleContext, outputFile android.Modu
 	return outputFile
 }
 
-func Bp2BuildParseHeaderLibs(ctx android.TopDownMutatorContext, module *Module) bazel.LabelListAttribute {
-	var headerLibs []string
-	for _, linkerProps := range module.linker.linkerProps() {
-		if baseLinkerProps, ok := linkerProps.(*BaseLinkerProperties); ok {
-			headerLibs = baseLinkerProps.Header_libs
-			// FIXME: re-export include dirs from baseLinkerProps.Export_header_lib_headers?
-			break
-		}
-	}
-	headerLibsLabels := bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, headerLibs))
-	return headerLibsLabels
-}
-
-func Bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) (bazel.LabelListAttribute, bazel.LabelListAttribute) {
-	libraryDecorator := module.linker.(*libraryDecorator)
-
-	includeDirs := libraryDecorator.flagExporter.Properties.Export_system_include_dirs
-	includeDirs = append(includeDirs, libraryDecorator.flagExporter.Properties.Export_include_dirs...)
-
-	includeDirsLabels := android.BazelLabelForModuleSrc(ctx, includeDirs)
-
-	var includeDirGlobs []string
-	for _, includeDir := range includeDirs {
-		includeDirGlobs = append(includeDirGlobs, includeDir+"/**/*.h")
-		includeDirGlobs = append(includeDirGlobs, includeDir+"/**/*.inc")
-		includeDirGlobs = append(includeDirGlobs, includeDir+"/**/*.hpp")
-	}
-
-	headersLabels := android.BazelLabelForModuleSrc(ctx, includeDirGlobs)
-	return bazel.MakeLabelListAttribute(includeDirsLabels), bazel.MakeLabelListAttribute(headersLabels)
-}
-
 type bazelCcLibraryStaticAttributes struct {
 	Copts      []string
 	Srcs       bazel.LabelListAttribute
@@ -2149,10 +2117,10 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 	allIncludes = append(allIncludes, localIncludeDirs...)
 	includesLabels := android.BazelLabelForModuleSrc(ctx, allIncludes)
 
-	exportedIncludesLabels, exportedIncludesHeadersLabels := Bp2BuildParseExportedIncludes(ctx, module)
+	exportedIncludesLabels, exportedIncludesHeadersLabels := bp2BuildParseExportedIncludes(ctx, module)
 	includesLabels.Append(exportedIncludesLabels.Value)
 
-	headerLibsLabels := Bp2BuildParseHeaderLibs(ctx, module)
+	headerLibsLabels := bp2BuildParseHeaderLibs(ctx, module)
 	depsLabels.Append(headerLibsLabels.Value)
 
 	attrs := &bazelCcLibraryStaticAttributes{

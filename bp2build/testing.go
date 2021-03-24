@@ -5,6 +5,13 @@ import (
 	"android/soong/bazel"
 )
 
+var (
+	// A default configuration for tests to not have to specify bp2build_available on top level targets.
+	bp2buildConfig = android.Bp2BuildConfig{
+		android.BP2BUILD_TOPLEVEL: android.Bp2BuildDefaultTrueRecursively,
+	}
+)
+
 type nestedProps struct {
 	Nested_prop string
 }

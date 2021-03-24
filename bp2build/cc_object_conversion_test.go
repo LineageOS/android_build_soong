@@ -324,7 +324,7 @@ func TestCcObjectConfigurableAttributesBp2Build(t *testing.T) {
     copts = [
         "-fno-addrsig",
     ] + select({
-        "@bazel_tools//platforms:x86_32": [
+        "//build/bazel/platforms/arch:x86": [
             "-fPIC",
         ],
         "//conditions:default": [],
@@ -335,7 +335,7 @@ func TestCcObjectConfigurableAttributesBp2Build(t *testing.T) {
     srcs = [
         "a.cpp",
     ] + select({
-        "@bazel_tools//platforms:arm": [
+        "//build/bazel/platforms/arch:arm": [
             "arch/arm/file.S",
         ],
         "//conditions:default": [],
@@ -378,16 +378,16 @@ func TestCcObjectConfigurableAttributesBp2Build(t *testing.T) {
     copts = [
         "-fno-addrsig",
     ] + select({
-        "@bazel_tools//platforms:arm": [
+        "//build/bazel/platforms/arch:arm": [
             "-Wall",
         ],
-        "@bazel_tools//platforms:aarch64": [
+        "//build/bazel/platforms/arch:arm64": [
             "-Wall",
         ],
-        "@bazel_tools//platforms:x86_32": [
+        "//build/bazel/platforms/arch:x86": [
             "-fPIC",
         ],
-        "@bazel_tools//platforms:x86_64": [
+        "//build/bazel/platforms/arch:x86_64": [
             "-fPIC",
         ],
         "//conditions:default": [],
@@ -398,16 +398,16 @@ func TestCcObjectConfigurableAttributesBp2Build(t *testing.T) {
     srcs = [
         "base.cpp",
     ] + select({
-        "@bazel_tools//platforms:arm": [
+        "//build/bazel/platforms/arch:arm": [
             "arm.cpp",
         ],
-        "@bazel_tools//platforms:aarch64": [
+        "//build/bazel/platforms/arch:arm64": [
             "arm64.cpp",
         ],
-        "@bazel_tools//platforms:x86_32": [
+        "//build/bazel/platforms/arch:x86": [
             "x86.cpp",
         ],
-        "@bazel_tools//platforms:x86_64": [
+        "//build/bazel/platforms/arch:x86_64": [
             "x86_64.cpp",
         ],
         "//conditions:default": [],
