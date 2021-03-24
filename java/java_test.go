@@ -16,7 +16,6 @@ package java
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -34,25 +33,11 @@ import (
 	"android/soong/python"
 )
 
-var buildDir string
-
-func setUp() {
-	var err error
-	buildDir, err = ioutil.TempDir("", "soong_java_test")
-	if err != nil {
-		panic(err)
-	}
-}
-
-func tearDown() {
-	os.RemoveAll(buildDir)
-}
-
 // Legacy factory to use to create fixtures for tests in this package.
 //
 // deprecated: See prepareForJavaTest
 var javaFixtureFactory = android.NewFixtureFactory(
-	&buildDir,
+	nil,
 	prepareForJavaTest,
 )
 
@@ -80,69 +65,7 @@ var prepareForJavaTest = android.GroupFixturePreparers(
 )
 
 func TestMain(m *testing.M) {
-	run := func() int {
-		setUp()
-		defer tearDown()
-
-		return m.Run()
-	}
-
-	os.Exit(run())
-}
-
-// testConfig is a legacy way of creating a test Config for testing java modules.
-//
-// See testJava for an explanation as to how to stop using this deprecated method.
-//
-// deprecated
-func testConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
-	return TestConfig(buildDir, env, bp, fs)
-}
-
-// testContext is a legacy way of creating a TestContext for testing java modules.
-//
-// See testJava for an explanation as to how to stop using this deprecated method.
-//
-// deprecated
-func testContext(config android.Config) *android.TestContext {
-
-	ctx := android.NewTestArchContext(config)
-	RegisterRequiredBuildComponentsForTest(ctx)
-	ctx.RegisterModuleType("java_plugin", PluginFactory)
-	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(android.RegisterComponentsMutator)
-
-	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
-	ctx.RegisterPreSingletonType("overlay", OverlaySingletonFactory)
-	ctx.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
-
-	android.RegisterPrebuiltMutators(ctx)
-
-	genrule.RegisterGenruleBuildComponents(ctx)
-
-	// Register module types and mutators from cc needed for JNI testing
-	cc.RegisterRequiredBuildComponentsForTest(ctx)
-
-	return ctx
-}
-
-// run is a legacy way of running tests of java modules.
-//
-// See testJava for an explanation as to how to stop using this deprecated method.
-//
-// deprecated
-func run(t *testing.T, ctx *android.TestContext, config android.Config) {
-	t.Helper()
-
-	pathCtx := android.PathContextForTesting(config)
-	dexpreopt.SetTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
-
-	ctx.Register()
-	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
+	os.Exit(m.Run())
 }
 
 // testJavaError is a legacy way of running tests of java modules that expect errors.
@@ -176,28 +99,6 @@ func testJavaErrorWithConfig(t *testing.T, pattern string, config android.Config
 	return result.TestContext, result.Config
 }
 
-// runWithErrors is a legacy way of running tests of java modules that expect errors.
-//
-// See testJava for an explanation as to how to stop using this deprecated method.
-//
-// deprecated
-func runWithErrors(t *testing.T, ctx *android.TestContext, config android.Config, pattern string) {
-	ctx.Register()
-	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-	_, errs = ctx.PrepareBuildActions(config)
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-
-	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
-	return
-}
-
 // testJavaWithFS runs tests using the javaFixtureFactory
 //
 // See testJava for an explanation as to how to stop using this deprecated method.
@@ -224,28 +125,6 @@ func testJava(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	t.Helper()
 	result := javaFixtureFactory.RunTestWithBp(t, bp)
 	return result.TestContext, result.Config
-}
-
-// testJavaWithConfig runs tests using the javaFixtureFactory
-//
-// See testJava for an explanation as to how to stop using this deprecated method.
-//
-// deprecated
-func testJavaWithConfig(t *testing.T, config android.Config) (*android.TestContext, android.Config) {
-	t.Helper()
-	result := javaFixtureFactory.RunTestWithConfig(t, config)
-	return result.TestContext, result.Config
-}
-
-func moduleToPath(name string) string {
-	switch {
-	case name == `""`:
-		return name
-	case strings.HasSuffix(name, ".jar"):
-		return name
-	default:
-		return filepath.Join(buildDir, ".intermediates", name, "android_common", "turbine-combined", name+".jar")
-	}
 }
 
 // defaultModuleToPath constructs a path to the turbine generate jar for a default test module that
