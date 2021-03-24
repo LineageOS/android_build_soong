@@ -654,7 +654,7 @@ func (r *RuleBuilder) Build(name string, desc string) {
 			inputs = append(inputs, inputsListFile)
 
 			r.rbeParams.OutputFiles = outputs.Strings()
-			r.rbeParams.RSPFile = inputsListFile.String()
+			r.rbeParams.RSPFiles = []string{inputsListFile.String()}
 			rewrapperCommand := r.rbeParams.NoVarTemplate(r.ctx.Config().RBEWrapper())
 			commandString = rewrapperCommand + " bash -c '" + strings.ReplaceAll(commandString, `'`, `'\''`) + "'"
 		}
