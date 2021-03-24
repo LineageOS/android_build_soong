@@ -299,18 +299,17 @@ var prepareForNeverAllowTest = GroupFixturePreparers(
 func TestNeverallow(t *testing.T) {
 	for _, test := range neverallowTests {
 		t.Run(test.name, func(t *testing.T) {
-			emptyTestFixtureFactory.
-				ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
-				RunTest(t,
-					prepareForNeverAllowTest,
-					FixtureModifyConfig(func(config Config) {
-						// If the test has its own rules then use them instead of the default ones.
-						if test.rules != nil {
-							SetTestNeverallowRules(config, test.rules)
-						}
-					}),
-					test.fs.AddToFixture(),
-				)
+			GroupFixturePreparers(
+				prepareForNeverAllowTest,
+				FixtureModifyConfig(func(config Config) {
+					// If the test has its own rules then use them instead of the default ones.
+					if test.rules != nil {
+						SetTestNeverallowRules(config, test.rules)
+					}
+				}),
+				test.fs.AddToFixture(),
+			).ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
+				RunTest(t)
 		})
 	}
 }

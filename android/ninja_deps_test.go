@@ -57,13 +57,13 @@ func TestNinjaDeps(t *testing.T) {
 		"test_ninja_deps/exists": nil,
 	}
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			ctx.RegisterSingletonType("test_ninja_deps_singleton", testNinjaDepsSingletonFactory)
 			ctx.RegisterSingletonType("ninja_deps_singleton", ninjaDepsSingletonFactory)
 		}),
 		fs.AddToFixture(),
-	)
+	).RunTest(t)
 
 	// Verify that the ninja file has a dependency on the test_ninja_deps directory.
 	if g, w := result.NinjaDeps, "test_ninja_deps"; !InList(w, g) {

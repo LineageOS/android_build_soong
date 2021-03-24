@@ -633,21 +633,21 @@ func mockFiles(bps map[string]string) (files map[string][]byte) {
 }
 
 func setupTestFromFiles(t *testing.T, bps MockFS) (ctx *TestContext, errs []error) {
-	result := emptyTestFixtureFactory.
+	result := GroupFixturePreparers(
+		FixtureModifyContext(func(ctx *TestContext) {
+			ctx.RegisterModuleType("test_module", newTestModule)
+			ctx.RegisterModuleType("soong_namespace", NamespaceFactory)
+			ctx.Context.RegisterModuleType("blueprint_test_module", newBlueprintTestModule)
+			ctx.PreArchMutators(RegisterNamespaceMutator)
+			ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
+				ctx.BottomUp("rename", renameMutator)
+			})
+		}),
+		bps.AddToFixture(),
+	).
 		// Ignore errors for now so tests can check them later.
 		ExtendWithErrorHandler(FixtureIgnoreErrors).
-		RunTest(t,
-			FixtureModifyContext(func(ctx *TestContext) {
-				ctx.RegisterModuleType("test_module", newTestModule)
-				ctx.RegisterModuleType("soong_namespace", NamespaceFactory)
-				ctx.Context.RegisterModuleType("blueprint_test_module", newBlueprintTestModule)
-				ctx.PreArchMutators(RegisterNamespaceMutator)
-				ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
-					ctx.BottomUp("rename", renameMutator)
-				})
-			}),
-			bps.AddToFixture(),
-		)
+		RunTest(t)
 
 	return result.TestContext, result.Errs
 }
@@ -697,7 +697,7 @@ func findModuleById(ctx *TestContext, id string) (module TestingModule) {
 		testModule, ok := candidate.(*testModule)
 		if ok {
 			if testModule.properties.Id == id {
-				module = TestingModule{testModule}
+				module = newTestingModule(ctx.config, testModule)
 			}
 		}
 	}

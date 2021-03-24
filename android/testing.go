@@ -479,7 +479,7 @@ func (ctx *TestContext) ModuleForTests(name, variant string) TestingModule {
 		}
 	}
 
-	return TestingModule{module}
+	return newTestingModule(ctx.config, module)
 }
 
 func (ctx *TestContext) ModuleVariantsForTests(name string) []string {
@@ -499,8 +499,8 @@ func (ctx *TestContext) SingletonForTests(name string) TestingSingleton {
 		n := ctx.SingletonName(s)
 		if n == name {
 			return TestingSingleton{
-				singleton: s.(*singletonAdaptor).Singleton,
-				provider:  s.(testBuildProvider),
+				baseTestingComponent: newBaseTestingComponent(ctx.config, s.(testBuildProvider)),
+				singleton:            s.(*singletonAdaptor).Singleton,
 			}
 		}
 		allSingletonNames = append(allSingletonNames, n)
@@ -522,62 +522,170 @@ type testBuildProvider interface {
 type TestingBuildParams struct {
 	BuildParams
 	RuleParams blueprint.RuleParams
+
+	config Config
 }
 
-func newTestingBuildParams(provider testBuildProvider, bparams BuildParams) TestingBuildParams {
+// RelativeToTop creates a new instance of this which has had any usages of the current test's
+// temporary and test specific build directory replaced with a path relative to the notional top.
+//
+// The parts of this structure which are changed are:
+// * BuildParams
+//   * Args
+//   * Path instances are intentionally not modified, use AssertPathRelativeToTopEquals or
+//     AssertPathsRelativeToTopEquals instead which do something similar.
+//
+// * RuleParams
+//   * Command
+//   * Depfile
+//   * Rspfile
+//   * RspfileContent
+//   * SymlinkOutputs
+//   * CommandDeps
+//   * CommandOrderOnly
+//
+// See PathRelativeToTop for more details.
+func (p TestingBuildParams) RelativeToTop() TestingBuildParams {
+	// If this is not a valid params then just return it back. That will make it easy to use with the
+	// Maybe...() methods.
+	if p.Rule == nil {
+		return p
+	}
+	if p.config.config == nil {
+		panic("cannot call RelativeToTop() on a TestingBuildParams previously returned by RelativeToTop()")
+	}
+	// Take a copy of the build params and replace any args that contains test specific temporary
+	// paths with paths relative to the top.
+	bparams := p.BuildParams
+	bparams.Args = normalizeStringMapRelativeToTop(p.config, bparams.Args)
+
+	// Ditto for any fields in the RuleParams.
+	rparams := p.RuleParams
+	rparams.Command = normalizeStringRelativeToTop(p.config, rparams.Command)
+	rparams.Depfile = normalizeStringRelativeToTop(p.config, rparams.Depfile)
+	rparams.Rspfile = normalizeStringRelativeToTop(p.config, rparams.Rspfile)
+	rparams.RspfileContent = normalizeStringRelativeToTop(p.config, rparams.RspfileContent)
+	rparams.SymlinkOutputs = normalizeStringArrayRelativeToTop(p.config, rparams.SymlinkOutputs)
+	rparams.CommandDeps = normalizeStringArrayRelativeToTop(p.config, rparams.CommandDeps)
+	rparams.CommandOrderOnly = normalizeStringArrayRelativeToTop(p.config, rparams.CommandOrderOnly)
+
 	return TestingBuildParams{
 		BuildParams: bparams,
-		RuleParams:  provider.RuleParamsForTests()[bparams.Rule],
+		RuleParams:  rparams,
 	}
 }
 
-func maybeBuildParamsFromRule(provider testBuildProvider, rule string) (TestingBuildParams, []string) {
+// baseTestingComponent provides functionality common to both TestingModule and TestingSingleton.
+type baseTestingComponent struct {
+	config   Config
+	provider testBuildProvider
+}
+
+func newBaseTestingComponent(config Config, provider testBuildProvider) baseTestingComponent {
+	return baseTestingComponent{config, provider}
+}
+
+// A function that will normalize a string containing paths, e.g. ninja command, by replacing
+// any references to the test specific temporary build directory that changes with each run to a
+// fixed path relative to a notional top directory.
+//
+// This is similar to StringPathRelativeToTop except that assumes the string is a single path
+// containing at most one instance of the temporary build directory at the start of the path while
+// this assumes that there can be any number at any position.
+func normalizeStringRelativeToTop(config Config, s string) string {
+	// The buildDir usually looks something like: /tmp/testFoo2345/001
+	//
+	// Replace any usage of the buildDir with out/soong, e.g. replace "/tmp/testFoo2345/001" with
+	// "out/soong".
+	outSoongDir := filepath.Clean(config.buildDir)
+	re := regexp.MustCompile(`\Q` + outSoongDir + `\E\b`)
+	s = re.ReplaceAllString(s, "out/soong")
+
+	// Replace any usage of the buildDir/.. with out, e.g. replace "/tmp/testFoo2345" with
+	// "out". This must come after the previous replacement otherwise this would replace
+	// "/tmp/testFoo2345/001" with "out/001" instead of "out/soong".
+	outDir := filepath.Dir(outSoongDir)
+	re = regexp.MustCompile(`\Q` + outDir + `\E\b`)
+	s = re.ReplaceAllString(s, "out")
+
+	return s
+}
+
+// normalizeStringArrayRelativeToTop creates a new slice constructed by applying
+// normalizeStringRelativeToTop to each item in the slice.
+func normalizeStringArrayRelativeToTop(config Config, slice []string) []string {
+	newSlice := make([]string, len(slice))
+	for i, s := range slice {
+		newSlice[i] = normalizeStringRelativeToTop(config, s)
+	}
+	return newSlice
+}
+
+// normalizeStringMapRelativeToTop creates a new map constructed by applying
+// normalizeStringRelativeToTop to each value in the map.
+func normalizeStringMapRelativeToTop(config Config, m map[string]string) map[string]string {
+	newMap := map[string]string{}
+	for k, v := range m {
+		newMap[k] = normalizeStringRelativeToTop(config, v)
+	}
+	return newMap
+}
+
+func (b baseTestingComponent) newTestingBuildParams(bparams BuildParams) TestingBuildParams {
+	return TestingBuildParams{
+		config:      b.config,
+		BuildParams: bparams,
+		RuleParams:  b.provider.RuleParamsForTests()[bparams.Rule],
+	}
+}
+
+func (b baseTestingComponent) maybeBuildParamsFromRule(rule string) (TestingBuildParams, []string) {
 	var searchedRules []string
-	for _, p := range provider.BuildParamsForTests() {
+	for _, p := range b.provider.BuildParamsForTests() {
 		searchedRules = append(searchedRules, p.Rule.String())
 		if strings.Contains(p.Rule.String(), rule) {
-			return newTestingBuildParams(provider, p), searchedRules
+			return b.newTestingBuildParams(p), searchedRules
 		}
 	}
 	return TestingBuildParams{}, searchedRules
 }
 
-func buildParamsFromRule(provider testBuildProvider, rule string) TestingBuildParams {
-	p, searchRules := maybeBuildParamsFromRule(provider, rule)
+func (b baseTestingComponent) buildParamsFromRule(rule string) TestingBuildParams {
+	p, searchRules := b.maybeBuildParamsFromRule(rule)
 	if p.Rule == nil {
 		panic(fmt.Errorf("couldn't find rule %q.\nall rules: %v", rule, searchRules))
 	}
 	return p
 }
 
-func maybeBuildParamsFromDescription(provider testBuildProvider, desc string) TestingBuildParams {
-	for _, p := range provider.BuildParamsForTests() {
+func (b baseTestingComponent) maybeBuildParamsFromDescription(desc string) TestingBuildParams {
+	for _, p := range b.provider.BuildParamsForTests() {
 		if strings.Contains(p.Description, desc) {
-			return newTestingBuildParams(provider, p)
+			return b.newTestingBuildParams(p)
 		}
 	}
 	return TestingBuildParams{}
 }
 
-func buildParamsFromDescription(provider testBuildProvider, desc string) TestingBuildParams {
-	p := maybeBuildParamsFromDescription(provider, desc)
+func (b baseTestingComponent) buildParamsFromDescription(desc string) TestingBuildParams {
+	p := b.maybeBuildParamsFromDescription(desc)
 	if p.Rule == nil {
 		panic(fmt.Errorf("couldn't find description %q", desc))
 	}
 	return p
 }
 
-func maybeBuildParamsFromOutput(provider testBuildProvider, file string) (TestingBuildParams, []string) {
+func (b baseTestingComponent) maybeBuildParamsFromOutput(file string) (TestingBuildParams, []string) {
 	var searchedOutputs []string
-	for _, p := range provider.BuildParamsForTests() {
+	for _, p := range b.provider.BuildParamsForTests() {
 		outputs := append(WritablePaths(nil), p.Outputs...)
 		outputs = append(outputs, p.ImplicitOutputs...)
 		if p.Output != nil {
 			outputs = append(outputs, p.Output)
 		}
 		for _, f := range outputs {
-			if f.String() == file || f.Rel() == file {
-				return newTestingBuildParams(provider, p), nil
+			if f.String() == file || f.Rel() == file || PathRelativeToTop(f) == file {
+				return b.newTestingBuildParams(p), nil
 			}
 			searchedOutputs = append(searchedOutputs, f.Rel())
 		}
@@ -585,18 +693,18 @@ func maybeBuildParamsFromOutput(provider testBuildProvider, file string) (Testin
 	return TestingBuildParams{}, searchedOutputs
 }
 
-func buildParamsFromOutput(provider testBuildProvider, file string) TestingBuildParams {
-	p, searchedOutputs := maybeBuildParamsFromOutput(provider, file)
+func (b baseTestingComponent) buildParamsFromOutput(file string) TestingBuildParams {
+	p, searchedOutputs := b.maybeBuildParamsFromOutput(file)
 	if p.Rule == nil {
-		panic(fmt.Errorf("couldn't find output %q.\nall outputs: %v",
-			file, searchedOutputs))
+		panic(fmt.Errorf("couldn't find output %q.\nall outputs:\n    %s\n",
+			file, strings.Join(searchedOutputs, "\n    ")))
 	}
 	return p
 }
 
-func allOutputs(provider testBuildProvider) []string {
+func (b baseTestingComponent) allOutputs() []string {
 	var outputFullPaths []string
-	for _, p := range provider.BuildParamsForTests() {
+	for _, p := range b.provider.BuildParamsForTests() {
 		outputs := append(WritablePaths(nil), p.Outputs...)
 		outputs = append(outputs, p.ImplicitOutputs...)
 		if p.Output != nil {
@@ -607,10 +715,60 @@ func allOutputs(provider testBuildProvider) []string {
 	return outputFullPaths
 }
 
+// MaybeRule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Returns an empty
+// BuildParams if no rule is found.
+func (b baseTestingComponent) MaybeRule(rule string) TestingBuildParams {
+	r, _ := b.maybeBuildParamsFromRule(rule)
+	return r
+}
+
+// Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
+func (b baseTestingComponent) Rule(rule string) TestingBuildParams {
+	return b.buildParamsFromRule(rule)
+}
+
+// MaybeDescription finds a call to ctx.Build with BuildParams.Description set to a the given string.  Returns an empty
+// BuildParams if no rule is found.
+func (b baseTestingComponent) MaybeDescription(desc string) TestingBuildParams {
+	return b.maybeBuildParamsFromDescription(desc)
+}
+
+// Description finds a call to ctx.Build with BuildParams.Description set to a the given string.  Panics if no rule is
+// found.
+func (b baseTestingComponent) Description(desc string) TestingBuildParams {
+	return b.buildParamsFromDescription(desc)
+}
+
+// MaybeOutput finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
+// value matches the provided string.  Returns an empty BuildParams if no rule is found.
+func (b baseTestingComponent) MaybeOutput(file string) TestingBuildParams {
+	p, _ := b.maybeBuildParamsFromOutput(file)
+	return p
+}
+
+// Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
+// value matches the provided string.  Panics if no rule is found.
+func (b baseTestingComponent) Output(file string) TestingBuildParams {
+	return b.buildParamsFromOutput(file)
+}
+
+// AllOutputs returns all 'BuildParams.Output's and 'BuildParams.Outputs's in their full path string forms.
+func (b baseTestingComponent) AllOutputs() []string {
+	return b.allOutputs()
+}
+
 // TestingModule is wrapper around an android.Module that provides methods to find information about individual
 // ctx.Build parameters for verification in tests.
 type TestingModule struct {
+	baseTestingComponent
 	module Module
+}
+
+func newTestingModule(config Config, module Module) TestingModule {
+	return TestingModule{
+		newBaseTestingComponent(config, module),
+		module,
+	}
 }
 
 // Module returns the Module wrapped by the TestingModule.
@@ -618,100 +776,22 @@ func (m TestingModule) Module() Module {
 	return m.module
 }
 
-// MaybeRule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Returns an empty
-// BuildParams if no rule is found.
-func (m TestingModule) MaybeRule(rule string) TestingBuildParams {
-	r, _ := maybeBuildParamsFromRule(m.module, rule)
-	return r
-}
-
-// Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
-func (m TestingModule) Rule(rule string) TestingBuildParams {
-	return buildParamsFromRule(m.module, rule)
-}
-
-// MaybeDescription finds a call to ctx.Build with BuildParams.Description set to a the given string.  Returns an empty
-// BuildParams if no rule is found.
-func (m TestingModule) MaybeDescription(desc string) TestingBuildParams {
-	return maybeBuildParamsFromDescription(m.module, desc)
-}
-
-// Description finds a call to ctx.Build with BuildParams.Description set to a the given string.  Panics if no rule is
-// found.
-func (m TestingModule) Description(desc string) TestingBuildParams {
-	return buildParamsFromDescription(m.module, desc)
-}
-
-// MaybeOutput finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
-// value matches the provided string.  Returns an empty BuildParams if no rule is found.
-func (m TestingModule) MaybeOutput(file string) TestingBuildParams {
-	p, _ := maybeBuildParamsFromOutput(m.module, file)
-	return p
-}
-
-// Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
-// value matches the provided string.  Panics if no rule is found.
-func (m TestingModule) Output(file string) TestingBuildParams {
-	return buildParamsFromOutput(m.module, file)
-}
-
-// AllOutputs returns all 'BuildParams.Output's and 'BuildParams.Outputs's in their full path string forms.
-func (m TestingModule) AllOutputs() []string {
-	return allOutputs(m.module)
+// VariablesForTestsRelativeToTop returns a copy of the Module.VariablesForTests() with every value
+// having any temporary build dir usages replaced with paths relative to a notional top.
+func (m TestingModule) VariablesForTestsRelativeToTop() map[string]string {
+	return normalizeStringMapRelativeToTop(m.config, m.module.VariablesForTests())
 }
 
 // TestingSingleton is wrapper around an android.Singleton that provides methods to find information about individual
 // ctx.Build parameters for verification in tests.
 type TestingSingleton struct {
+	baseTestingComponent
 	singleton Singleton
-	provider  testBuildProvider
 }
 
 // Singleton returns the Singleton wrapped by the TestingSingleton.
 func (s TestingSingleton) Singleton() Singleton {
 	return s.singleton
-}
-
-// MaybeRule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Returns an empty
-// BuildParams if no rule is found.
-func (s TestingSingleton) MaybeRule(rule string) TestingBuildParams {
-	r, _ := maybeBuildParamsFromRule(s.provider, rule)
-	return r
-}
-
-// Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
-func (s TestingSingleton) Rule(rule string) TestingBuildParams {
-	return buildParamsFromRule(s.provider, rule)
-}
-
-// MaybeDescription finds a call to ctx.Build with BuildParams.Description set to a the given string.  Returns an empty
-// BuildParams if no rule is found.
-func (s TestingSingleton) MaybeDescription(desc string) TestingBuildParams {
-	return maybeBuildParamsFromDescription(s.provider, desc)
-}
-
-// Description finds a call to ctx.Build with BuildParams.Description set to a the given string.  Panics if no rule is
-// found.
-func (s TestingSingleton) Description(desc string) TestingBuildParams {
-	return buildParamsFromDescription(s.provider, desc)
-}
-
-// MaybeOutput finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
-// value matches the provided string.  Returns an empty BuildParams if no rule is found.
-func (s TestingSingleton) MaybeOutput(file string) TestingBuildParams {
-	p, _ := maybeBuildParamsFromOutput(s.provider, file)
-	return p
-}
-
-// Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
-// value matches the provided string.  Panics if no rule is found.
-func (s TestingSingleton) Output(file string) TestingBuildParams {
-	return buildParamsFromOutput(s.provider, file)
-}
-
-// AllOutputs returns all 'BuildParams.Output's and 'BuildParams.Outputs's in their full path string forms.
-func (s TestingSingleton) AllOutputs() []string {
-	return allOutputs(s.provider)
 }
 
 func FailIfErrored(t *testing.T, errs []error) {
