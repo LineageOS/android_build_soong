@@ -85,6 +85,7 @@ bootstrap_go_package {
         "androidmk_test.go",
         "apex_test.go",
         "arch_test.go",
+        "bazel_test.go",
         "config_test.go",
         "csuite_config_test.go",
         "depset_test.go",
