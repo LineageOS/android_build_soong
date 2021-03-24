@@ -206,7 +206,6 @@ func collateGloballyRegisteredSingletons() sortableComponents {
 
 		// Register env and ninjadeps last so that they can track all used environment variables and
 		// Ninja file dependencies stored in the config.
-		singleton{false, "env", EnvSingleton},
 		singleton{false, "ninjadeps", ninjaDepsSingletonFactory},
 	)
 

@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,11 +96,15 @@ func main() {
 	android.InitSandbox(topDir)
 	android.InitEnvironment(shared.JoinPath(topDir, outDir, "soong.environment.available"))
 
+	usedVariablesFile := shared.JoinPath(outDir, "soong.environment.used")
 	// The top-level Blueprints file is passed as the first argument.
 	srcDir := filepath.Dir(flag.Arg(0))
 	var ctx *android.Context
 	configuration := newConfig(srcDir)
-	extraNinjaDeps := []string{configuration.ProductVariablesFileName}
+	extraNinjaDeps := []string{
+		configuration.ProductVariablesFileName,
+		shared.JoinPath(outDir, "soong.environment.used"),
+	}
 
 	if configuration.Getenv("ALLOW_MISSING_DEPENDENCIES") == "true" {
 		configuration.SetAllowMissingDependencies()
@@ -115,15 +120,12 @@ func main() {
 		extraNinjaDeps = append(extraNinjaDeps, filepath.Join(configuration.BuildDir(), "always_rerun_for_delve"))
 	}
 
-	if bazelConversionRequested(configuration) {
+	bazelConversionRequested := bazelConversionRequested(configuration)
+	if bazelConversionRequested {
 		// Run the alternate pipeline of bp2build mutators and singleton to convert Blueprint to BUILD files
 		// before everything else.
-		runBp2Build(srcDir, configuration)
-		// Short-circuit and return.
-		return
-	}
-
-	if configuration.BazelContext.BazelEnabled() {
+		runBp2Build(srcDir, configuration, extraNinjaDeps)
+	} else if configuration.BazelContext.BazelEnabled() {
 		// Bazel-enabled mode. Soong runs in two passes.
 		// First pass: Analyze the build tree, but only store all bazel commands
 		// needed to correctly evaluate the tree in the second pass.
@@ -151,7 +153,7 @@ func main() {
 	}
 
 	// Convert the Soong module graph into Bazel BUILD files.
-	if bazelQueryViewDir != "" {
+	if !bazelConversionRequested && bazelQueryViewDir != "" {
 		// Run the code-generation phase to convert BazelTargetModules to BUILD files.
 		codegenContext := bp2build.NewCodegenContext(configuration, *ctx, bp2build.QueryView)
 		absoluteQueryViewDir := shared.JoinPath(topDir, bazelQueryViewDir)
@@ -161,7 +163,7 @@ func main() {
 		}
 	}
 
-	if docFile != "" {
+	if !bazelConversionRequested && docFile != "" {
 		if err := writeDocs(ctx, configuration, docFile); err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)
@@ -170,7 +172,7 @@ func main() {
 
 	// TODO(ccross): make this a command line argument.  Requires plumbing through blueprint
 	//  to affect the command line of the primary builder.
-	if shouldPrepareBuildActions(configuration) {
+	if !bazelConversionRequested && shouldPrepareBuildActions(configuration) {
 		metricsFile := filepath.Join(bootstrap.CmdlineBuildDir(), "soong_build_metrics.pb")
 		err := android.WriteMetrics(configuration, metricsFile)
 		if err != nil {
@@ -178,12 +180,32 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	if docFile == "" {
+		// Let's not overwrite the used variables file when generating
+		// documentation
+		writeUsedVariablesFile(shared.JoinPath(topDir, usedVariablesFile), configuration)
+	}
+}
+
+func writeUsedVariablesFile(path string, configuration android.Config) {
+	data, err := shared.EnvFileContents(configuration.EnvDeps())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error writing used variables file %s: %s", path, err)
+		os.Exit(1)
+	}
+
+	err = ioutil.WriteFile(path, data, 0666)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error writing used variables file %s: %s", path, err)
+		os.Exit(1)
+	}
 }
 
 // Run Soong in the bp2build mode. This creates a standalone context that registers
 // an alternate pipeline of mutators and singletons specifically for generating
 // Bazel BUILD files instead of Ninja files.
-func runBp2Build(srcDir string, configuration android.Config) {
+func runBp2Build(srcDir string, configuration android.Config, extraNinjaDeps []string) {
 	// Register an alternate set of singletons and mutators for bazel
 	// conversion for Bazel conversion.
 	bp2buildCtx := android.NewContext(configuration)
@@ -198,10 +220,12 @@ func runBp2Build(srcDir string, configuration android.Config) {
 	// configurations or variables, since those will generate different BUILD
 	// files based on how the user has configured their tree.
 	bp2buildCtx.SetModuleListFile(bootstrap.CmdlineModuleListFile())
-	extraNinjaDeps, err := bp2buildCtx.ListModulePaths(srcDir)
+	modulePaths, err := bp2buildCtx.ListModulePaths(srcDir)
 	if err != nil {
 		panic(err)
 	}
+
+	extraNinjaDeps = append(extraNinjaDeps, modulePaths...)
 
 	// Run the loading and analysis pipeline to prepare the graph of regular
 	// Modules parsed from Android.bp files, and the BazelTargetModules mapped
