@@ -43,12 +43,12 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 		}
 	`
 
-	result := javaFixtureFactory.
-		Extend(
-			PrepareForTestWithJavaSdkLibraryFiles,
-			FixtureWithLastReleaseApis("foo"),
-			dexpreopt.FixtureSetBootJars("platform:foo", "platform:bar", "platform:baz"),
-		).RunTestWithBp(t, bp)
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+		dexpreopt.FixtureSetBootJars("platform:foo", "platform:bar", "platform:baz"),
+	).RunTestWithBp(t, bp)
 
 	dexpreoptBootJars := result.SingletonForTests("dex_bootjars")
 	rule := dexpreoptBootJars.Output(ruleFile)
