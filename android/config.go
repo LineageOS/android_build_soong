@@ -1005,6 +1005,10 @@ func (c *config) DexpreoptGlobalConfig(ctx PathContext) ([]byte, error) {
 	return ioutil.ReadFile(absolutePath(path.String()))
 }
 
+func (c *deviceConfig) WithDexpreopt() bool {
+	return c.config.productVariables.WithDexpreopt
+}
+
 func (c *config) FrameworksBaseDirExists(ctx PathContext) bool {
 	return ExistentPathForSource(ctx, "frameworks", "base", "Android.bp").Valid()
 }
