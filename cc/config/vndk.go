@@ -47,5 +47,4 @@ var VndkMustUseVendorVariantList = []string{
 	"libstagefright_xmlparser",
 	"libui",
 	"libxml2",
-	"vendor.lineage.power-ndk_platform",
 }
