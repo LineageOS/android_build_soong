@@ -135,7 +135,8 @@ func TestHostdexSpecificRequired(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_RequireXmlPermissionFile(t *testing.T) {
-	result := javaFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo-shared_library", "foo-no_shared_library"),
 	).RunTestWithBp(t, `
