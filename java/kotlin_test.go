@@ -176,19 +176,22 @@ func TestKapt(t *testing.T) {
 		env := map[string]string{
 			"RUN_ERROR_PRONE": "true",
 		}
-		config := testConfig(env, bp, nil)
-		ctx, _ := testJavaWithConfig(t, config)
+
+		result := android.GroupFixturePreparers(
+			PrepareForTestWithJavaDefaultModules,
+			android.FixtureMergeEnv(env),
+		).RunTestWithBp(t, bp)
 
 		buildOS := android.BuildOs.String()
 
-		kapt := ctx.ModuleForTests("foo", "android_common").Rule("kapt")
+		kapt := result.ModuleForTests("foo", "android_common").Rule("kapt")
 		//kotlinc := ctx.ModuleForTests("foo", "android_common").Rule("kotlinc")
-		javac := ctx.ModuleForTests("foo", "android_common").Description("javac")
-		errorprone := ctx.ModuleForTests("foo", "android_common").Description("errorprone")
+		javac := result.ModuleForTests("foo", "android_common").Description("javac")
+		errorprone := result.ModuleForTests("foo", "android_common").Description("errorprone")
 
-		bar := ctx.ModuleForTests("bar", buildOS+"_common").Description("javac").Output.String()
-		baz := ctx.ModuleForTests("baz", buildOS+"_common").Description("javac").Output.String()
-		myCheck := ctx.ModuleForTests("my_check", buildOS+"_common").Description("javac").Output.String()
+		bar := result.ModuleForTests("bar", buildOS+"_common").Description("javac").Output.String()
+		baz := result.ModuleForTests("baz", buildOS+"_common").Description("javac").Output.String()
+		myCheck := result.ModuleForTests("my_check", buildOS+"_common").Description("javac").Output.String()
 
 		// Test that the errorprone plugins are not passed to kapt
 		expectedProcessorPath := "-P plugin:org.jetbrains.kotlin.kapt3:apclasspath=" + bar +
