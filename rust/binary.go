@@ -87,7 +87,7 @@ func (binary *binaryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = binary.baseCompiler.compilerDeps(ctx, deps)
 
 	if ctx.toolchain().Bionic() {
-		deps = bionicDeps(deps, Bool(binary.Properties.Static_executable))
+		deps = bionicDeps(ctx, deps, Bool(binary.Properties.Static_executable))
 		if Bool(binary.Properties.Static_executable) {
 			deps.CrtBegin = "crtbegin_static"
 		} else {
