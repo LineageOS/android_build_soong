@@ -27,14 +27,9 @@ import (
 	"android/soong/java"
 )
 
-var sdkFixtureFactory = android.NewFixtureFactory(
-	nil,
+// Prepare for running an sdk test with an apex.
+var prepareForSdkTestWithApex = android.GroupFixturePreparers(
 	apex.PrepareForTestWithApexBuildComponents,
-	cc.PrepareForTestWithCcDefaultModules,
-	genrule.PrepareForTestWithGenRuleBuildComponents,
-	java.PrepareForTestWithJavaBuildComponents,
-	PrepareForTestWithSdkBuildComponents,
-
 	android.FixtureAddTextFile("sdk/tests/Android.bp", `
 		apex_key {
 			name: "myapex.key",
@@ -59,6 +54,24 @@ var sdkFixtureFactory = android.NewFixtureFactory(
 		"myapex.x509.pem":                              nil,
 		"myapex.pk8":                                   nil,
 	}),
+)
+
+// Legacy preparer used for running tests within the sdk package.
+//
+// This includes everything that was needed to run any test in the sdk package prior to the
+// introduction of the test fixtures. Tests that are being converted to use fixtures directly
+// rather than through the testSdkError() and testSdkWithFs() methods should avoid using this and
+// instead should use the various preparers directly using android.GroupFixturePreparers(...) to
+// group them when necessary.
+//
+// deprecated
+var prepareForSdkTest = android.GroupFixturePreparers(
+	cc.PrepareForTestWithCcDefaultModules,
+	genrule.PrepareForTestWithGenRuleBuildComponents,
+	java.PrepareForTestWithJavaBuildComponents,
+	PrepareForTestWithSdkBuildComponents,
+
+	prepareForSdkTestWithApex,
 
 	cc.PrepareForTestOnWindows,
 	android.FixtureModifyConfig(func(config android.Config) {
@@ -77,12 +90,12 @@ var PrepareForTestWithSdkBuildComponents = android.GroupFixturePreparers(
 
 func testSdkWithFs(t *testing.T, bp string, fs android.MockFS) *android.TestResult {
 	t.Helper()
-	return sdkFixtureFactory.RunTest(t, fs.AddToFixture(), android.FixtureWithRootAndroidBp(bp))
+	return prepareForSdkTest.RunTest(t, fs.AddToFixture(), android.FixtureWithRootAndroidBp(bp))
 }
 
 func testSdkError(t *testing.T, pattern, bp string) {
 	t.Helper()
-	sdkFixtureFactory.
+	prepareForSdkTest.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
 		RunTestWithBp(t, bp)
 }
@@ -201,13 +214,33 @@ func CheckSnapshot(t *testing.T, result *android.TestResult, name string, dir st
 
 	// Populate a mock filesystem with the files that would have been copied by
 	// the rules.
-	fs := make(map[string][]byte)
+	fs := android.MockFS{}
+	snapshotSubDir := "snapshot"
 	for _, dest := range snapshotBuildInfo.snapshotContents {
-		fs[dest] = nil
+		fs[filepath.Join(snapshotSubDir, dest)] = nil
 	}
+	fs[filepath.Join(snapshotSubDir, "Android.bp")] = []byte(snapshotBuildInfo.androidBpContents)
 
-	// Process the generated bp file to make sure it is valid.
-	testSdkWithFs(t, snapshotBuildInfo.androidBpContents, fs)
+	preparer := result.Preparer()
+
+	// Process the generated bp file to make sure it is valid. Use the same preparer as was used to
+	// produce this result.
+	t.Run("snapshot without source", func(t *testing.T) {
+		android.GroupFixturePreparers(
+			preparer,
+			// TODO(b/183184375): Set Config.TestAllowNonExistentPaths = false to verify that all the
+			//  files the snapshot needs are actually copied into the snapshot.
+
+			// Add the files (including bp) created for this snapshot to the test fixture.
+			fs.AddToFixture(),
+
+			// Remove the source Android.bp file to make sure it works without.
+			// TODO(b/183184375): Add a test with the source.
+			android.FixtureModifyMockFS(func(fs android.MockFS) {
+				delete(fs, "Android.bp")
+			}),
+		).RunTest(t)
+	})
 }
 
 type snapshotBuildInfoChecker func(info *snapshotBuildInfo)

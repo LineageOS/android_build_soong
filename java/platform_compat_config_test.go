@@ -21,7 +21,7 @@ import (
 )
 
 func TestPlatformCompatConfig(t *testing.T) {
-	result := emptyFixtureFactory.RunTest(t,
+	result := android.GroupFixturePreparers(
 		PrepareForTestWithPlatformCompatConfig,
 		android.FixtureWithRootAndroidBp(`
 			platform_compat_config {
@@ -34,20 +34,11 @@ func TestPlatformCompatConfig(t *testing.T) {
 				name: "myconfig3",
 			}
 		`),
-	)
+	).RunTest(t)
 
-	checkMergedCompatConfigInputs(t, result, "myconfig",
+	CheckMergedCompatConfigInputs(t, result, "myconfig",
 		"out/soong/.intermediates/myconfig1/myconfig1_meta.xml",
 		"out/soong/.intermediates/myconfig2/myconfig2_meta.xml",
 		"out/soong/.intermediates/myconfig3/myconfig3_meta.xml",
 	)
-}
-
-// Check that the merged file create by platform_compat_config_singleton has the correct inputs.
-func checkMergedCompatConfigInputs(t *testing.T, result *android.TestResult, message string, expectedPaths ...string) {
-	sourceGlobalCompatConfig := result.SingletonForTests("platform_compat_config_singleton")
-	allOutputs := sourceGlobalCompatConfig.AllOutputs()
-	android.AssertIntEquals(t, message+": output len", 1, len(allOutputs))
-	output := sourceGlobalCompatConfig.Output(allOutputs[0])
-	android.AssertPathsRelativeToTopEquals(t, message+": inputs", expectedPaths, output.Implicits)
 }

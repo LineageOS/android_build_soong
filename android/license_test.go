@@ -5,7 +5,7 @@ import (
 )
 
 // Common test set up for license tests.
-var licenseTestFixtureFactory = emptyTestFixtureFactory.Extend(
+var prepareForLicenseTest = GroupFixturePreparers(
 	// General preparers in alphabetical order.
 	PrepareForTestWithDefaults,
 	prepareForTestWithLicenses,
@@ -179,7 +179,8 @@ func TestLicense(t *testing.T) {
 	for _, test := range licenseTests {
 		t.Run(test.name, func(t *testing.T) {
 			// Customize the common license text fixture factory.
-			licenseTestFixtureFactory.Extend(
+			GroupFixturePreparers(
+				prepareForLicenseTest,
 				FixtureRegisterWithContext(func(ctx RegistrationContext) {
 					ctx.RegisterModuleType("rule", newMockRuleModule)
 				}),

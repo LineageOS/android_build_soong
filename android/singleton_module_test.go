@@ -56,11 +56,10 @@ func TestSingletonModule(t *testing.T) {
 			name: "test_singleton_module",
 		}
 	`
-	result := emptyTestFixtureFactory.
-		RunTest(t,
-			prepareForSingletonModuleTest,
-			FixtureWithRootAndroidBp(bp),
-		)
+	result := GroupFixturePreparers(
+		prepareForSingletonModuleTest,
+		FixtureWithRootAndroidBp(bp),
+	).RunTest(t)
 
 	ops := result.ModuleForTests("test_singleton_module", "").Module().(*testSingletonModule).ops
 	wantOps := []string{"GenerateAndroidBuildActions", "GenerateSingletonBuildActions", "MakeVars"}
@@ -78,19 +77,16 @@ func TestDuplicateSingletonModule(t *testing.T) {
 		}
 	`
 
-	emptyTestFixtureFactory.
+	prepareForSingletonModuleTest.
 		ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern([]string{
 			`\QDuplicate SingletonModule "test_singleton_module", previously used in\E`,
-		})).RunTest(t,
-		prepareForSingletonModuleTest,
-		FixtureWithRootAndroidBp(bp),
-	)
+		})).RunTestWithBp(t, bp)
 }
 
 func TestUnusedSingletonModule(t *testing.T) {
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		prepareForSingletonModuleTest,
-	)
+	).RunTest(t)
 
 	singleton := result.SingletonForTests("test_singleton_module").Singleton()
 	sm := singleton.(*singletonModuleSingletonAdaptor).sm
@@ -113,17 +109,16 @@ func TestVariantSingletonModule(t *testing.T) {
 		}
 	`
 
-	emptyTestFixtureFactory.
+	GroupFixturePreparers(
+		prepareForSingletonModuleTest,
+		FixtureRegisterWithContext(func(ctx RegistrationContext) {
+			ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
+				ctx.BottomUp("test_singleton_module_mutator", testVariantSingletonModuleMutator)
+			})
+		}),
+	).
 		ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern([]string{
 			`\QGenerateAndroidBuildActions already called for variant\E`,
 		})).
-		RunTest(t,
-			prepareForSingletonModuleTest,
-			FixtureRegisterWithContext(func(ctx RegistrationContext) {
-				ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
-					ctx.BottomUp("test_singleton_module_mutator", testVariantSingletonModuleMutator)
-				})
-			}),
-			FixtureWithRootAndroidBp(bp),
-		)
+		RunTestWithBp(t, bp)
 }

@@ -13,8 +13,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-var shFixtureFactory = android.NewFixtureFactory(
-	nil,
+var prepareForShTest = android.GroupFixturePreparers(
 	cc.PrepareForTestWithCcBuildComponents,
 	PrepareForTestWithShBuildComponents,
 	android.FixtureMergeMockFs(android.MockFS{
@@ -24,19 +23,19 @@ var shFixtureFactory = android.NewFixtureFactory(
 	}),
 )
 
-// testShBinary runs tests using the shFixtureFactory
+// testShBinary runs tests using the prepareForShTest
 //
-// Do not add any new usages of this, instead use the shFixtureFactory directly as it makes it much
+// Do not add any new usages of this, instead use the prepareForShTest directly as it makes it much
 // easier to customize the test behavior.
 //
 // If it is necessary to customize the behavior of an existing test that uses this then please first
-// convert the test to using shFixtureFactory first and then in a following change add the
+// convert the test to using prepareForShTest first and then in a following change add the
 // appropriate fixture preparers. Keeping the conversion change separate makes it easy to verify
 // that it did not change the test behavior unexpectedly.
 //
 // deprecated
 func testShBinary(t *testing.T, bp string) (*android.TestContext, android.Config) {
-	result := shFixtureFactory.RunTestWithBp(t, bp)
+	result := prepareForShTest.RunTestWithBp(t, bp)
 
 	return result.TestContext, result.Config
 }

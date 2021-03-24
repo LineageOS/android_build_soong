@@ -56,7 +56,9 @@ func (m *componentTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 type packageTestModule struct {
 	ModuleBase
 	PackagingBase
-
+	properties struct {
+		Install_deps []string `android:`
+	}
 	entries []string
 }
 
@@ -64,6 +66,7 @@ func packageMultiTargetTestModuleFactory() Module {
 	module := &packageTestModule{}
 	InitPackageModule(module)
 	InitAndroidMultiTargetsArchModule(module, DeviceSupported, MultilibCommon)
+	module.AddProperties(&module.properties)
 	return module
 }
 
@@ -71,11 +74,18 @@ func packageTestModuleFactory() Module {
 	module := &packageTestModule{}
 	InitPackageModule(module)
 	InitAndroidArchModule(module, DeviceSupported, MultilibBoth)
+	module.AddProperties(&module.properties)
 	return module
 }
 
+type packagingDepTag struct {
+	blueprint.BaseDependencyTag
+	PackagingItemAlwaysDepTag
+}
+
 func (m *packageTestModule) DepsMutator(ctx BottomUpMutatorContext) {
-	m.AddDeps(ctx, installDepTag{})
+	m.AddDeps(ctx, packagingDepTag{})
+	ctx.AddDependency(ctx.Module(), installDepTag{}, m.properties.Install_deps...)
 }
 
 func (m *packageTestModule) GenerateAndroidBuildActions(ctx ModuleContext) {
@@ -96,14 +106,14 @@ func runPackagingTest(t *testing.T, multitarget bool, bp string, expected []stri
 		moduleFactory = packageTestModuleFactory
 	}
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		PrepareForTestWithArchMutator,
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			ctx.RegisterModuleType("component", componentTestModuleFactory)
 			ctx.RegisterModuleType("package_module", moduleFactory)
 		}),
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	p := result.Module("package", archVariant).(*packageTestModule)
 	actual := p.entries
@@ -337,4 +347,21 @@ func TestPackagingBaseSingleTarget(t *testing.T) {
 			},
 		}
 		`, []string{"lib64/foo", "lib64/bar"})
+
+	runPackagingTest(t, multiTarget,
+		`
+		component {
+			name: "foo",
+		}
+
+		component {
+			name: "bar",
+		}
+
+		package_module {
+			name: "package",
+			deps: ["foo"],
+			install_deps: ["bar"],
+		}
+		`, []string{"lib64/foo"})
 }

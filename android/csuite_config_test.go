@@ -19,14 +19,14 @@ import (
 )
 
 func TestCSuiteConfig(t *testing.T) {
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		PrepareForTestWithArchMutator,
 		FixtureRegisterWithContext(registerCSuiteBuildComponents),
 		FixtureWithRootAndroidBp(`
 			csuite_config { name: "plain"}
 			csuite_config { name: "with_manifest", test_config: "manifest.xml" }
 		`),
-	)
+	).RunTest(t)
 
 	variants := result.ModuleVariantsForTests("plain")
 	if len(variants) > 1 {
