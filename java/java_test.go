@@ -74,8 +74,6 @@ var prepareForJavaTest = android.GroupFixturePreparers(
 	PrepareForTestWithOverlayBuildComponents,
 	python.PrepareForTestWithPythonBuildComponents,
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-		ctx.RegisterModuleType("java_plugin", PluginFactory)
-
 		ctx.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
 	}),
 	dexpreopt.PrepareForTestWithDexpreopt,
