@@ -96,10 +96,6 @@ func (i BootImageInfo) AndroidBootImageFilesByArchType() map[android.ArchType]an
 
 func (b *BootImageModule) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	tag := ctx.OtherModuleDependencyTag(dep)
-	if tag == dexpreopt.Dex2oatDepTag {
-		// The dex2oat tool is only needed for building and is not required in the apex.
-		return false
-	}
 	if android.IsMetaDependencyTag(tag) {
 		// Cross-cutting metadata dependencies are metadata.
 		return false
