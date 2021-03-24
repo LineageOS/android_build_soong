@@ -252,14 +252,15 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 
 	jniRuleRe := regexp.MustCompile("^if \\(zipinfo (\\S+)")
 	for _, test := range testCases {
-		config := testAppConfig(nil, bp, nil)
-		config.TestProductVariables.AAPTPreferredConfig = test.aaptPreferredConfig
-		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
-		ctx := testContext(config)
+		result := android.GroupFixturePreparers(
+			PrepareForTestWithJavaDefaultModules,
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.AAPTPreferredConfig = test.aaptPreferredConfig
+				variables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
+			}),
+		).RunTestWithBp(t, bp)
 
-		run(t, ctx, config)
-
-		variant := ctx.ModuleForTests("foo", "android_common")
+		variant := result.ModuleForTests("foo", "android_common")
 		jniRuleCommand := variant.Output("jnis-uncompressed/foo.apk").RuleParams.Command
 		matches := jniRuleRe.FindStringSubmatch(jniRuleCommand)
 		if len(matches) != 2 {
@@ -456,12 +457,9 @@ func TestAndroidAppImport_frameworkRes(t *testing.T) {
 		t.Errorf("prebuilt framework-res is not preprocessed")
 	}
 
-	expectedInstallPath := buildDir + "/target/product/test_device/system/framework/framework-res.apk"
+	expectedInstallPath := "out/soong/target/product/test_device/system/framework/framework-res.apk"
 
-	if a.dexpreopter.installPath.String() != expectedInstallPath {
-		t.Errorf("prebuilt framework-res installed to incorrect location, actual: %s, expected: %s", a.dexpreopter.installPath, expectedInstallPath)
-
-	}
+	android.AssertPathRelativeToTopEquals(t, "prebuilt framework-res install location", expectedInstallPath, a.dexpreopter.installPath)
 
 	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 
