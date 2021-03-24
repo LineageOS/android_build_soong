@@ -349,7 +349,8 @@ func TestClasspath(t *testing.T) {
 				android.AssertPathsRelativeToTopEquals(t, "implicits", deps, javac.Implicits)
 			}
 
-			fixtureFactory := javaFixtureFactory.Extend(
+			fixtureFactory := android.GroupFixturePreparers(
+				prepareForJavaTest,
 				FixtureWithPrebuiltApis(map[string][]string{
 					"29":      {},
 					"30":      {},
