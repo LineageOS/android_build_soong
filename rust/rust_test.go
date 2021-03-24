@@ -15,7 +15,6 @@
 package rust
 
 import (
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -24,72 +23,94 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/cc"
+	"android/soong/genrule"
 )
-
-var (
-	buildDir string
-)
-
-func setUp() {
-	var err error
-	buildDir, err = ioutil.TempDir("", "soong_rust_test")
-	if err != nil {
-		panic(err)
-	}
-}
-
-func tearDown() {
-	os.RemoveAll(buildDir)
-}
 
 func TestMain(m *testing.M) {
-	run := func() int {
-		setUp()
-		defer tearDown()
+	os.Exit(m.Run())
+}
 
-		return m.Run()
-	}
+var prepareForRustTest = android.GroupFixturePreparers(
+	android.PrepareForTestWithArchMutator,
+	android.PrepareForTestWithDefaults,
+	android.PrepareForTestWithPrebuilts,
 
-	os.Exit(run())
+	genrule.PrepareForTestWithGenRuleBuildComponents,
+
+	PrepareForIntegrationTestWithRust,
+)
+
+var rustMockedFiles = android.MockFS{
+	"foo.rs":          nil,
+	"foo.c":           nil,
+	"src/bar.rs":      nil,
+	"src/any.h":       nil,
+	"proto.proto":     nil,
+	"proto/buf.proto": nil,
+	"buf.proto":       nil,
+	"foo.proto":       nil,
+	"liby.so":         nil,
+	"libz.so":         nil,
+	"data.txt":        nil,
 }
 
 // testRust returns a TestContext in which a basic environment has been setup.
-// This environment contains a few mocked files. See testRustCtx.useMockedFs
-// for the list of these files.
+// This environment contains a few mocked files. See rustMockedFiles for the list of these files.
 func testRust(t *testing.T, bp string) *android.TestContext {
-	tctx := newTestRustCtx(t, bp)
-	tctx.useMockedFs()
-	tctx.generateConfig()
-	return tctx.parse(t)
+	skipTestIfOsNotSupported(t)
+	result := android.GroupFixturePreparers(
+		prepareForRustTest,
+		rustMockedFiles.AddToFixture(),
+	).
+		RunTestWithBp(t, bp)
+	return result.TestContext
 }
 
 func testRustVndk(t *testing.T, bp string) *android.TestContext {
-	tctx := newTestRustCtx(t, bp)
-	tctx.useMockedFs()
-	tctx.generateConfig()
-	tctx.setVndk(t)
-	return tctx.parse(t)
+	skipTestIfOsNotSupported(t)
+	result := android.GroupFixturePreparers(
+		prepareForRustTest,
+		rustMockedFiles.AddToFixture(),
+		android.FixtureModifyProductVariables(
+			func(variables android.FixtureProductVariables) {
+				variables.DeviceVndkVersion = StringPtr("current")
+				variables.ProductVndkVersion = StringPtr("current")
+				variables.Platform_vndk_version = StringPtr("VER")
+			},
+		),
+	).RunTestWithBp(t, bp)
+	return result.TestContext
 }
 
 // testRustCov returns a TestContext in which a basic environment has been
 // setup. This environment explicitly enables coverage.
 func testRustCov(t *testing.T, bp string) *android.TestContext {
-	tctx := newTestRustCtx(t, bp)
-	tctx.useMockedFs()
-	tctx.generateConfig()
-	tctx.enableCoverage(t)
-	return tctx.parse(t)
+	skipTestIfOsNotSupported(t)
+	result := android.GroupFixturePreparers(
+		prepareForRustTest,
+		rustMockedFiles.AddToFixture(),
+		android.FixtureModifyProductVariables(
+			func(variables android.FixtureProductVariables) {
+				variables.ClangCoverage = proptools.BoolPtr(true)
+				variables.Native_coverage = proptools.BoolPtr(true)
+				variables.NativeCoveragePaths = []string{"*"}
+			},
+		),
+	).RunTestWithBp(t, bp)
+	return result.TestContext
 }
 
 // testRustError ensures that at least one error was raised and its value
 // matches the pattern provided. The error can be either in the parsing of the
 // Blueprint or when generating the build actions.
 func testRustError(t *testing.T, pattern string, bp string) {
-	tctx := newTestRustCtx(t, bp)
-	tctx.useMockedFs()
-	tctx.generateConfig()
-	tctx.parseError(t, pattern)
+	skipTestIfOsNotSupported(t)
+	android.GroupFixturePreparers(
+		prepareForRustTest,
+		rustMockedFiles.AddToFixture(),
+	).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
+		RunTestWithBp(t, bp)
 }
 
 // testRustCtx is used to build a particular test environment. Unless your
@@ -102,99 +123,11 @@ type testRustCtx struct {
 	config *android.Config
 }
 
-// newTestRustCtx returns a new testRustCtx for the Blueprint definition argument.
-func newTestRustCtx(t *testing.T, bp string) *testRustCtx {
+func skipTestIfOsNotSupported(t *testing.T) {
 	// TODO (b/140435149)
 	if runtime.GOOS != "linux" {
 		t.Skip("Rust Soong tests can only be run on Linux hosts currently")
 	}
-	return &testRustCtx{bp: bp}
-}
-
-// useMockedFs setup a default mocked filesystem for the test environment.
-func (tctx *testRustCtx) useMockedFs() {
-	tctx.fs = map[string][]byte{
-		"foo.rs":          nil,
-		"foo.c":           nil,
-		"src/bar.rs":      nil,
-		"src/any.h":       nil,
-		"proto.proto":     nil,
-		"proto/buf.proto": nil,
-		"buf.proto":       nil,
-		"foo.proto":       nil,
-		"liby.so":         nil,
-		"libz.so":         nil,
-		"data.txt":        nil,
-	}
-}
-
-// generateConfig creates the android.Config based on the bp, fs and env
-// attributes of the testRustCtx.
-func (tctx *testRustCtx) generateConfig() {
-	tctx.bp = tctx.bp + GatherRequiredDepsForTest()
-	tctx.bp = tctx.bp + cc.GatherRequiredDepsForTest(android.NoOsType)
-	cc.GatherRequiredFilesForTest(tctx.fs)
-	config := android.TestArchConfig(buildDir, tctx.env, tctx.bp, tctx.fs)
-	tctx.config = &config
-}
-
-// enableCoverage configures the test to enable coverage.
-func (tctx *testRustCtx) enableCoverage(t *testing.T) {
-	if tctx.config == nil {
-		t.Fatalf("tctx.config not been generated yet. Please call generateConfig first.")
-	}
-	tctx.config.TestProductVariables.ClangCoverage = proptools.BoolPtr(true)
-	tctx.config.TestProductVariables.Native_coverage = proptools.BoolPtr(true)
-	tctx.config.TestProductVariables.NativeCoveragePaths = []string{"*"}
-}
-
-func (tctx *testRustCtx) setVndk(t *testing.T) {
-	if tctx.config == nil {
-		t.Fatalf("tctx.config not been generated yet. Please call generateConfig first.")
-	}
-	tctx.config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	tctx.config.TestProductVariables.ProductVndkVersion = StringPtr("current")
-	tctx.config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
-}
-
-// parse validates the configuration and parses the Blueprint file. It returns
-// a TestContext which can be used to retrieve the generated modules via
-// ModuleForTests.
-func (tctx testRustCtx) parse(t *testing.T) *android.TestContext {
-	if tctx.config == nil {
-		t.Fatalf("tctx.config not been generated yet. Please call generateConfig first.")
-	}
-	ctx := CreateTestContext(*tctx.config)
-	ctx.Register()
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(*tctx.config)
-	android.FailIfErrored(t, errs)
-	return ctx
-}
-
-// parseError parses the Blueprint file and ensure that at least one error
-// matching the provided pattern is observed.
-func (tctx testRustCtx) parseError(t *testing.T, pattern string) {
-	if tctx.config == nil {
-		t.Fatalf("tctx.config not been generated yet. Please call generateConfig first.")
-	}
-	ctx := CreateTestContext(*tctx.config)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-
-	_, errs = ctx.PrepareBuildActions(*tctx.config)
-	if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, pattern, errs)
-		return
-	}
-
-	t.Fatalf("missing expected error %q (0 errors are returned)", pattern)
 }
 
 // Test that we can extract the link path from a lib path.
