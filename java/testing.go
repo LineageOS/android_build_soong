@@ -44,6 +44,7 @@ var PrepareForTestWithJavaBuildComponents = android.GroupFixturePreparers(
 	android.PrepareForTestWithAndroidBuildComponents,
 	// Make java build components available to the test.
 	android.FixtureRegisterWithContext(RegisterRequiredBuildComponentsForTest),
+	android.FixtureRegisterWithContext(registerJavaPluginBuildComponents),
 )
 
 // Test fixture preparer that will define default java modules, e.g. standard prebuilt modules.
