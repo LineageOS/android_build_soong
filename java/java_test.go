@@ -831,7 +831,7 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 	}
 
 	runTest := func(t *testing.T, info testConfigInfo, expectedErrorPattern string) {
-		t.Run(fmt.Sprintf("%#v", info), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", info), func(t *testing.T) {
 			errorHandler := android.FixtureExpectsNoErrors
 			if expectedErrorPattern != "" {
 				errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(expectedErrorPattern)
