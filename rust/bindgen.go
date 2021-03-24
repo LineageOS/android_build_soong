@@ -260,7 +260,7 @@ func NewRustBindgen(hod android.HostOrDeviceSupported) (*Module, *bindgenDecorat
 func (b *bindgenDecorator) SourceProviderDeps(ctx DepsContext, deps Deps) Deps {
 	deps = b.BaseSourceProvider.SourceProviderDeps(ctx, deps)
 	if ctx.toolchain().Bionic() {
-		deps = bionicDeps(deps, false)
+		deps = bionicDeps(ctx, deps, false)
 	}
 
 	deps.SharedLibs = append(deps.SharedLibs, b.ClangProperties.Shared_libs...)
