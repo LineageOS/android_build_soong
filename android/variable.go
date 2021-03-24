@@ -342,6 +342,8 @@ type productVariables struct {
 
 	DexpreoptGlobalConfig *string `json:",omitempty"`
 
+	WithDexpreopt bool `json:",omitempty"`
+
 	ManifestPackageNameOverrides []string `json:",omitempty"`
 	CertificateOverrides         []string `json:",omitempty"`
 	PackageNameOverrides         []string `json:",omitempty"`
