@@ -112,6 +112,10 @@ func (toolchainBase) LibclangRuntimeLibraryArch() string {
 	return ""
 }
 
+func BuiltinsRuntimeLibrary(t Toolchain) string {
+	return LibclangRuntimeLibrary(t, "builtins")
+}
+
 func LibFuzzerRuntimeLibrary(t Toolchain) string {
 	return LibclangRuntimeLibrary(t, "fuzzer")
 }
