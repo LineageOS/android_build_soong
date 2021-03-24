@@ -209,6 +209,34 @@ cc_object {
 )`,
 			},
 		},
+		{
+			description:                        "cc_object with product variable",
+			moduleTypeUnderTest:                "cc_object",
+			moduleTypeUnderTestFactory:         cc.ObjectFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+			blueprint: `cc_object {
+    name: "foo",
+    include_build_directory: false,
+    product_variables: {
+        platform_sdk_version: {
+            asflags: ["-DPLATFORM_SDK_VERSION=%d"],
+        },
+    },
+
+    bazel_module: { bp2build_available: true },
+}
+`,
+			expectedBazelTargets: []string{`cc_object(
+    name = "foo",
+    asflags = [
+        "-DPLATFORM_SDK_VERSION={Platform_sdk_version}",
+    ],
+    copts = [
+        "-fno-addrsig",
+    ],
+)`,
+			},
+		},
 	}
 
 	dir := "."
