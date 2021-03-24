@@ -86,7 +86,7 @@ func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
-	if !module.ConvertWithBp2build() {
+	if !module.ConvertWithBp2build(ctx) {
 		return
 	}
 
