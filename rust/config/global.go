@@ -53,6 +53,7 @@ var (
 
 	deviceGlobalRustFlags = []string{
 		"-C panic=abort",
+		"-Z link-native-libraries=no",
 	}
 
 	deviceGlobalLinkFlags = []string{
@@ -62,7 +63,7 @@ var (
 		// Override cc's --no-undefined-version to allow rustc's generated alloc functions
 		"-Wl,--undefined-version",
 
-		"-Bdynamic",
+		"-Wl,-Bdynamic",
 		"-nostdlib",
 		"-Wl,--pack-dyn-relocs=android+relr",
 		"-Wl,--use-android-relr-tags",

@@ -281,7 +281,7 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	return deps
 }
 
-func bionicDeps(deps Deps, static bool) Deps {
+func bionicDeps(ctx DepsContext, deps Deps, static bool) Deps {
 	bionicLibs := []string{}
 	bionicLibs = append(bionicLibs, "liblog")
 	bionicLibs = append(bionicLibs, "libc")
@@ -294,9 +294,9 @@ func bionicDeps(deps Deps, static bool) Deps {
 		deps.SharedLibs = append(deps.SharedLibs, bionicLibs...)
 	}
 
-	//TODO(b/141331117) libstd requires libgcc on Android
-	deps.StaticLibs = append(deps.StaticLibs, "libgcc")
-
+	if libRuntimeBuiltins := config.BuiltinsRuntimeLibrary(ctx.toolchain()); libRuntimeBuiltins != "" {
+		deps.StaticLibs = append(deps.StaticLibs, libRuntimeBuiltins)
+	}
 	return deps
 }
 
