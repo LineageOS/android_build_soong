@@ -820,7 +820,7 @@ func BazelGenruleFactory() android.Module {
 
 func GenruleBp2Build(ctx android.TopDownMutatorContext) {
 	m, ok := ctx.Module().(*Module)
-	if !ok || !m.ConvertWithBp2build() {
+	if !ok || !m.ConvertWithBp2build(ctx) {
 		return
 	}
 
