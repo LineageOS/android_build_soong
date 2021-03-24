@@ -401,9 +401,6 @@ func (ctx *TestContext) Register() {
 	globalOrder.mutatorOrder.enforceOrdering(mutators)
 	mutators.registerAll(ctx.Context)
 
-	// Register the env singleton with this context before sorting.
-	ctx.RegisterSingletonType("env", EnvSingleton)
-
 	// Ensure that the singletons used in the test are in the same order as they are used at runtime.
 	globalOrder.singletonOrder.enforceOrdering(ctx.singletons)
 	ctx.singletons.registerAll(ctx.Context)
