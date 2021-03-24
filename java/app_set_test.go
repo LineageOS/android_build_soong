@@ -15,6 +15,7 @@
 package java
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -96,20 +97,24 @@ func TestAndroidAppSet_Variants(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		config := testAppConfig(nil, bp, nil)
-		config.TestProductVariables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
-		config.TestProductVariables.Platform_sdk_version = &test.sdkVersion
-		config.Targets[android.Android] = test.targets
-		ctx := testContext(config)
-		run(t, ctx, config)
+		ctx := android.GroupFixturePreparers(
+			PrepareForTestWithJavaDefaultModules,
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.AAPTPrebuiltDPI = test.aaptPrebuiltDPI
+				variables.Platform_sdk_version = &test.sdkVersion
+			}),
+			android.FixtureModifyConfig(func(config android.Config) {
+				config.Targets[android.Android] = test.targets
+			}),
+		).RunTestWithBp(t, bp)
+
 		module := ctx.ModuleForTests("foo", "android_common")
 		const packedSplitApks = "foo.zip"
 		params := module.Output(packedSplitApks)
 		for k, v := range test.expected {
-			if actual := params.Args[k]; actual != v {
-				t.Errorf("%s: bad build arg value for '%s': '%s', expected '%s'",
-					test.name, k, actual, v)
-			}
+			t.Run(test.name, func(t *testing.T) {
+				android.AssertStringEquals(t, fmt.Sprintf("arg value for `%s`", k), v, params.Args[k])
+			})
 		}
 	}
 }
