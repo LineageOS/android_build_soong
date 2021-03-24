@@ -26,8 +26,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-var bpfFactory = android.NewFixtureFactory(
-	nil,
+var prepareForBpfTest = android.GroupFixturePreparers(
 	cc.PrepareForTestWithCcDefaultModules,
 	android.FixtureMergeMockFs(
 		map[string][]byte{
@@ -53,7 +52,7 @@ func TestBpfDataDependency(t *testing.T) {
 		}
 	`
 
-	bpfFactory.RunTestWithBp(t, bp)
+	prepareForBpfTest.RunTestWithBp(t, bp)
 
 	// We only verify the above BP configuration is processed successfully since the data property
 	// value is not available for testing from this package.

@@ -83,10 +83,10 @@ func TestDefaults(t *testing.T) {
 		}
 	`
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		prepareForDefaultsTest,
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	foo := result.Module("foo", "").(*defaultsTestModule)
 
@@ -114,11 +114,11 @@ func TestDefaultsAllowMissingDependencies(t *testing.T) {
 		}
 	`
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		prepareForDefaultsTest,
 		PrepareForTestWithAllowMissingDependencies,
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	missingDefaults := result.ModuleForTests("missing_defaults", "").Output("out")
 	missingTransitiveDefaults := result.ModuleForTests("missing_transitive_defaults", "").Output("out")

@@ -542,11 +542,11 @@ func TestRuleBuilder_Build(t *testing.T) {
 		}
 	`
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		prepareForRuleBuilderTest,
 		FixtureWithRootAndroidBp(bp),
 		fs.AddToFixture(),
-	)
+	).RunTest(t)
 
 	check := func(t *testing.T, params TestingBuildParams, wantCommand, wantOutput, wantDepfile string, wantRestat bool, extraImplicits, extraCmdDeps []string) {
 		t.Helper()
@@ -562,46 +562,44 @@ func TestRuleBuilder_Build(t *testing.T) {
 		AssertBoolEquals(t, "RuleParams.Restat", wantRestat, params.RuleParams.Restat)
 
 		wantImplicits := append([]string{"bar"}, extraImplicits...)
-		AssertArrayString(t, "Implicits", wantImplicits, params.Implicits.Strings())
+		AssertPathsRelativeToTopEquals(t, "Implicits", wantImplicits, params.Implicits)
 
-		AssertStringEquals(t, "Output", wantOutput, params.Output.String())
+		AssertPathRelativeToTopEquals(t, "Output", wantOutput, params.Output)
 
 		if len(params.ImplicitOutputs) != 0 {
 			t.Errorf("want ImplicitOutputs = [], got %q", params.ImplicitOutputs.Strings())
 		}
 
-		AssertStringEquals(t, "Depfile", wantDepfile, params.Depfile.String())
+		AssertPathRelativeToTopEquals(t, "Depfile", wantDepfile, params.Depfile)
 
 		if params.Deps != blueprint.DepsGCC {
 			t.Errorf("want Deps = %q, got %q", blueprint.DepsGCC, params.Deps)
 		}
 	}
 
-	buildDir := result.Config.BuildDir()
-
 	t.Run("module", func(t *testing.T) {
-		outFile := filepath.Join(buildDir, ".intermediates", "foo", "gen", "foo")
-		check(t, result.ModuleForTests("foo", "").Rule("rule"),
+		outFile := "out/soong/.intermediates/foo/gen/foo"
+		check(t, result.ModuleForTests("foo", "").Rule("rule").RelativeToTop(),
 			"cp bar "+outFile,
 			outFile, outFile+".d", true, nil, nil)
 	})
 	t.Run("sbox", func(t *testing.T) {
-		outDir := filepath.Join(buildDir, ".intermediates", "foo_sbox")
+		outDir := "out/soong/.intermediates/foo_sbox"
 		outFile := filepath.Join(outDir, "gen/foo_sbox")
 		depFile := filepath.Join(outDir, "gen/foo_sbox.d")
 		manifest := filepath.Join(outDir, "sbox.textproto")
-		sbox := filepath.Join(buildDir, "host", result.Config.PrebuiltOS(), "bin/sbox")
-		sandboxPath := shared.TempDirForOutDir(buildDir)
+		sbox := filepath.Join("out", "soong", "host", result.Config.PrebuiltOS(), "bin/sbox")
+		sandboxPath := shared.TempDirForOutDir("out/soong")
 
 		cmd := `rm -rf ` + outDir + `/gen && ` +
 			sbox + ` --sandbox-path ` + sandboxPath + ` --manifest ` + manifest
 
-		check(t, result.ModuleForTests("foo_sbox", "").Output("gen/foo_sbox"),
+		check(t, result.ModuleForTests("foo_sbox", "").Output("gen/foo_sbox").RelativeToTop(),
 			cmd, outFile, depFile, false, []string{manifest}, []string{sbox})
 	})
 	t.Run("singleton", func(t *testing.T) {
-		outFile := filepath.Join(buildDir, "singleton/gen/baz")
-		check(t, result.SingletonForTests("rule_builder_test").Rule("rule"),
+		outFile := filepath.Join("out/soong/singleton/gen/baz")
+		check(t, result.SingletonForTests("rule_builder_test").Rule("rule").RelativeToTop(),
 			"cp bar "+outFile, outFile, outFile+".d", true, nil, nil)
 	})
 }
@@ -651,10 +649,10 @@ func TestRuleBuilderHashInputs(t *testing.T) {
 		},
 	}
 
-	result := emptyTestFixtureFactory.RunTest(t,
+	result := GroupFixturePreparers(
 		prepareForRuleBuilderTest,
 		FixtureWithRootAndroidBp(bp),
-	)
+	).RunTest(t)
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {

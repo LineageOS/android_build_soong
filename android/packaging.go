@@ -59,7 +59,8 @@ type PackageModule interface {
 	packagingBase() *PackagingBase
 
 	// AddDeps adds dependencies to the `deps` modules. This should be called in DepsMutator.
-	// When adding the dependencies, depTag is used as the tag.
+	// When adding the dependencies, depTag is used as the tag. If `deps` modules are meant to
+	// be copied to a zip in CopyDepsToZip, `depTag` should implement PackagingItem marker interface.
 	AddDeps(ctx BottomUpMutatorContext, depTag blueprint.DependencyTag)
 
 	// CopyDepsToZip zips the built artifacts of the dependencies into the given zip file and
@@ -167,6 +168,24 @@ func (p *PackagingBase) getSupportedTargets(ctx BaseModuleContext) []Target {
 	return ret
 }
 
+// PackagingItem is a marker interface for dependency tags.
+// Direct dependencies with a tag implementing PackagingItem are packaged in CopyDepsToZip().
+type PackagingItem interface {
+	// IsPackagingItem returns true if the dep is to be packaged
+	IsPackagingItem() bool
+}
+
+// DepTag provides default implementation of PackagingItem interface.
+// PackagingBase-derived modules can define their own dependency tag by embedding this, which
+// can be passed to AddDeps() or AddDependencies().
+type PackagingItemAlwaysDepTag struct {
+}
+
+// IsPackagingItem returns true if the dep is to be packaged
+func (PackagingItemAlwaysDepTag) IsPackagingItem() bool {
+	return true
+}
+
 // See PackageModule.AddDeps
 func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.DependencyTag) {
 	for _, t := range p.getSupportedTargets(ctx) {
@@ -182,16 +201,15 @@ func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.Dep
 // See PackageModule.CopyDepsToZip
 func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut WritablePath) (entries []string) {
 	m := make(map[string]PackagingSpec)
-	ctx.WalkDeps(func(child Module, parent Module) bool {
-		if !IsInstallDepNeeded(ctx.OtherModuleDependencyTag(child)) {
-			return false
+	ctx.VisitDirectDeps(func(child Module) {
+		if pi, ok := ctx.OtherModuleDependencyTag(child).(PackagingItem); !ok || !pi.IsPackagingItem() {
+			return
 		}
-		for _, ps := range child.PackagingSpecs() {
+		for _, ps := range child.TransitivePackagingSpecs() {
 			if _, ok := m[ps.relPathInPackage]; !ok {
 				m[ps.relPathInPackage] = ps
 			}
 		}
-		return true
 	})
 
 	builder := NewRuleBuilder(pctx, ctx)

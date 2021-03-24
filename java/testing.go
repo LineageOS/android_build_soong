@@ -54,6 +54,8 @@ var PrepareForTestWithJavaDefaultModules = android.GroupFixturePreparers(
 	android.FixtureAddTextFile(defaultJavaDir+"/Android.bp", GatherRequiredDepsForTest()),
 )
 
+var PrepareForTestWithOverlayBuildComponents = android.FixtureRegisterWithContext(registerOverlayBuildComponents)
+
 // Prepare a fixture to use all java module types, mutators and singletons fully.
 //
 // This should only be used by tests that want to run with as much of the build enabled as possible.
@@ -318,4 +320,13 @@ func CheckHiddenAPIRuleInputs(t *testing.T, expected string, hiddenAPIRule andro
 	if actual != expected {
 		t.Errorf("Expected hiddenapi rule inputs:\n%s\nactual inputs:\n%s", expected, actual)
 	}
+}
+
+// Check that the merged file create by platform_compat_config_singleton has the correct inputs.
+func CheckMergedCompatConfigInputs(t *testing.T, result *android.TestResult, message string, expectedPaths ...string) {
+	sourceGlobalCompatConfig := result.SingletonForTests("platform_compat_config_singleton")
+	allOutputs := sourceGlobalCompatConfig.AllOutputs()
+	android.AssertIntEquals(t, message+": output len", 1, len(allOutputs))
+	output := sourceGlobalCompatConfig.Output(allOutputs[0])
+	android.AssertPathsRelativeToTopEquals(t, message+": inputs", expectedPaths, output.Implicits)
 }

@@ -26,8 +26,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-var prebuiltEtcFixtureFactory = android.NewFixtureFactory(
-	nil,
+var prepareForPrebuiltEtcTest = android.GroupFixturePreparers(
 	android.PrepareForTestWithArchMutator,
 	PrepareForTestWithPrebuiltEtc,
 	android.FixtureMergeMockFs(android.MockFS{
@@ -38,7 +37,7 @@ var prebuiltEtcFixtureFactory = android.NewFixtureFactory(
 )
 
 func TestPrebuiltEtcVariants(t *testing.T) {
-	result := prebuiltEtcFixtureFactory.RunTestWithBp(t, `
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_etc {
 			name: "foo.conf",
 			src: "foo.conf",
@@ -72,7 +71,7 @@ func TestPrebuiltEtcVariants(t *testing.T) {
 }
 
 func TestPrebuiltEtcOutputPath(t *testing.T) {
-	result := prebuiltEtcFixtureFactory.RunTestWithBp(t, `
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_etc {
 			name: "foo.conf",
 			src: "foo.conf",
@@ -85,7 +84,7 @@ func TestPrebuiltEtcOutputPath(t *testing.T) {
 }
 
 func TestPrebuiltEtcGlob(t *testing.T) {
-	result := prebuiltEtcFixtureFactory.RunTestWithBp(t, `
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_etc {
 			name: "my_foo",
 			src: "foo.*",
@@ -105,7 +104,7 @@ func TestPrebuiltEtcGlob(t *testing.T) {
 }
 
 func TestPrebuiltEtcAndroidMk(t *testing.T) {
-	result := prebuiltEtcFixtureFactory.RunTestWithBp(t, `
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_etc {
 			name: "foo",
 			src: "foo.conf",
@@ -139,7 +138,7 @@ func TestPrebuiltEtcAndroidMk(t *testing.T) {
 }
 
 func TestPrebuiltEtcRelativeInstallPathInstallDirPath(t *testing.T) {
-	result := prebuiltEtcFixtureFactory.RunTestWithBp(t, `
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_etc {
 			name: "foo.conf",
 			src: "foo.conf",
@@ -153,7 +152,7 @@ func TestPrebuiltEtcRelativeInstallPathInstallDirPath(t *testing.T) {
 }
 
 func TestPrebuiltEtcCannotSetRelativeInstallPathAndSubDir(t *testing.T) {
-	prebuiltEtcFixtureFactory.
+	prepareForPrebuiltEtcTest.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern("relative_install_path is set. Cannot set sub_dir")).
 		RunTestWithBp(t, `
 			prebuilt_etc {
@@ -166,7 +165,7 @@ func TestPrebuiltEtcCannotSetRelativeInstallPathAndSubDir(t *testing.T) {
 }
 
 func TestPrebuiltEtcHost(t *testing.T) {
-	result := prebuiltEtcFixtureFactory.RunTestWithBp(t, `
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_etc_host {
 			name: "foo.conf",
 			src: "foo.conf",
@@ -181,7 +180,7 @@ func TestPrebuiltEtcHost(t *testing.T) {
 }
 
 func TestPrebuiltUserShareInstallDirPath(t *testing.T) {
-	result := prebuiltEtcFixtureFactory.RunTestWithBp(t, `
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_usr_share {
 			name: "foo.conf",
 			src: "foo.conf",
@@ -195,7 +194,7 @@ func TestPrebuiltUserShareInstallDirPath(t *testing.T) {
 }
 
 func TestPrebuiltUserShareHostInstallDirPath(t *testing.T) {
-	result := prebuiltEtcFixtureFactory.RunTestWithBp(t, `
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_usr_share_host {
 			name: "foo.conf",
 			src: "foo.conf",
@@ -210,7 +209,7 @@ func TestPrebuiltUserShareHostInstallDirPath(t *testing.T) {
 }
 
 func TestPrebuiltFontInstallDirPath(t *testing.T) {
-	result := prebuiltEtcFixtureFactory.RunTestWithBp(t, `
+	result := prepareForPrebuiltEtcTest.RunTestWithBp(t, `
 		prebuilt_font {
 			name: "foo.conf",
 			src: "foo.conf",
@@ -249,7 +248,7 @@ func TestPrebuiltFirmwareDirPath(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
-			result := prebuiltEtcFixtureFactory.RunTestWithBp(t, tt.config)
+			result := prepareForPrebuiltEtcTest.RunTestWithBp(t, tt.config)
 			p := result.Module("foo.conf", "android_arm64_armv8-a").(*PrebuiltEtc)
 			android.AssertPathRelativeToTopEquals(t, "install dir", tt.expectedPath, p.installDirPath)
 		})
@@ -283,7 +282,7 @@ func TestPrebuiltDSPDirPath(t *testing.T) {
 	}}
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
-			result := prebuiltEtcFixtureFactory.RunTestWithBp(t, tt.config)
+			result := prepareForPrebuiltEtcTest.RunTestWithBp(t, tt.config)
 			p := result.Module("foo.conf", "android_arm64_armv8-a").(*PrebuiltEtc)
 			android.AssertPathRelativeToTopEquals(t, "install dir", tt.expectedPath, p.installDirPath)
 		})

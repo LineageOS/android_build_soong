@@ -70,6 +70,7 @@ func TestCcObjectBp2Build(t *testing.T) {
     ],
     local_include_dirs = [
         "include",
+        ".",
     ],
     srcs = [
         "a/b/bar.h",
@@ -120,6 +121,7 @@ cc_defaults {
     ],
     local_include_dirs = [
         "include",
+        ".",
     ],
     srcs = [
         "a/b/c.c",
@@ -156,6 +158,9 @@ cc_object {
     copts = [
         "-fno-addrsig",
     ],
+    local_include_dirs = [
+        ".",
+    ],
     srcs = [
         "x/y/z.c",
     ],
@@ -166,6 +171,37 @@ cc_object {
     ],
     deps = [
         ":bar",
+    ],
+    local_include_dirs = [
+        ".",
+    ],
+    srcs = [
+        "a/b/c.c",
+    ],
+)`,
+			},
+		},
+		{
+			description:                        "cc_object with include_build_dir: false",
+			moduleTypeUnderTest:                "cc_object",
+			moduleTypeUnderTestFactory:         cc.ObjectFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+			filesystem: map[string]string{
+				"a/b/c.c": "",
+				"x/y/z.c": "",
+			},
+			blueprint: `cc_object {
+    name: "foo",
+    srcs: ["a/b/c.c"],
+    include_build_directory: false,
+
+    bazel_module: { bp2build_available: true },
+}
+`,
+			expectedBazelTargets: []string{`cc_object(
+    name = "foo",
+    copts = [
+        "-fno-addrsig",
     ],
     srcs = [
         "a/b/c.c",
@@ -262,6 +298,9 @@ func TestCcObjectConfigurableAttributesBp2Build(t *testing.T) {
         "//conditions:default": [
         ],
     }),
+    local_include_dirs = [
+        ".",
+    ],
 )`,
 			},
 		},
@@ -310,6 +349,9 @@ func TestCcObjectConfigurableAttributesBp2Build(t *testing.T) {
         "//conditions:default": [
         ],
     }),
+    local_include_dirs = [
+        ".",
+    ],
 )`,
 			},
 		},

@@ -335,13 +335,12 @@ func TestPythonModule(t *testing.T) {
 		}
 
 		t.Run(d.desc, func(t *testing.T) {
-			result := emptyFixtureFactory.
-				ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(errorPatterns)).
-				RunTest(t,
-					android.PrepareForTestWithDefaults,
-					PrepareForTestWithPythonBuildComponents,
-					d.mockFiles.AddToFixture(),
-				)
+			result := android.GroupFixturePreparers(
+				android.PrepareForTestWithDefaults,
+				PrepareForTestWithPythonBuildComponents,
+				d.mockFiles.AddToFixture(),
+			).ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern(errorPatterns)).
+				RunTest(t)
 
 			if len(result.Errs) > 0 {
 				return
@@ -375,8 +374,6 @@ func expectModule(t *testing.T, ctx *android.TestContext, name, variant, expecte
 
 	android.AssertPathsRelativeToTopEquals(t, "depsSrcsZips", expectedDepsSrcsZips, base.depsSrcsZips)
 }
-
-var emptyFixtureFactory = android.NewFixtureFactory(nil)
 
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
