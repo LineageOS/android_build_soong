@@ -421,6 +421,9 @@ func BazelLabelForModuleDeps(ctx BazelConversionPathContext, modules []string) b
 // bazel-compatible labels.  Properties passed as the paths or excludes argument must have been
 // annotated with struct tag `android:"path"` so that dependencies on other modules will have
 // already been handled by the path_properties mutator.
+//
+// With expanded globs, we can catch package boundaries problem instead of
+// silently failing to potentially missing files from Bazel's globs.
 func BazelLabelForModuleSrc(ctx BazelConversionPathContext, paths []string) bazel.LabelList {
 	return BazelLabelForModuleSrcExcludes(ctx, paths, []string(nil))
 }
@@ -431,6 +434,9 @@ func BazelLabelForModuleSrc(ctx BazelConversionPathContext, paths []string) baze
 // passed as the paths or excludes argument must have been annotated with struct tag
 // `android:"path"` so that dependencies on other modules will have already been handled by the
 // path_properties mutator.
+//
+// With expanded globs, we can catch package boundaries problem instead of
+// silently failing to potentially missing files from Bazel's globs.
 func BazelLabelForModuleSrcExcludes(ctx BazelConversionPathContext, paths, excludes []string) bazel.LabelList {
 	excludeLabels := expandSrcsForBazel(ctx, excludes, []string(nil))
 	excluded := make([]string, 0, len(excludeLabels.Includes))

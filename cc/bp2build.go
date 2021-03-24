@@ -59,42 +59,76 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddDependency(module, nil, android.SortedUniqueStrings(allDeps)...)
 }
 
-// bp2buildParseCflags creates a label list attribute containing the cflags of a module, including
-func bp2BuildParseCflags(ctx android.TopDownMutatorContext, module *Module) bazel.StringListAttribute {
-	var ret bazel.StringListAttribute
+// bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.
+func bp2BuildParseCompilerProps(
+	ctx android.TopDownMutatorContext,
+	module *Module) (
+	copts bazel.StringListAttribute,
+	srcs bazel.LabelListAttribute,
+	hdrs bazel.LabelListAttribute) {
+
+	hdrsAndSrcs := func(baseCompilerProps *BaseCompilerProperties) (bazel.LabelList, bazel.LabelList) {
+		srcsList := android.BazelLabelForModuleSrcExcludes(
+			ctx, baseCompilerProps.Srcs, baseCompilerProps.Exclude_srcs)
+		hdrsList := android.BazelLabelForModuleSrc(ctx, srcsList.LooseHdrsGlobs(headerExts))
+		return hdrsList, srcsList
+	}
+
 	for _, props := range module.compiler.compilerProps() {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
-			ret.Value = baseCompilerProps.Cflags
+			hdrs.Value, srcs.Value = hdrsAndSrcs(baseCompilerProps)
+			copts.Value = baseCompilerProps.Cflags
 			break
 		}
 	}
 
 	for arch, props := range module.GetArchProperties(&BaseCompilerProperties{}) {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
-			ret.SetValueForArch(arch.Name, baseCompilerProps.Cflags)
+			hdrsList, srcsList := hdrsAndSrcs(baseCompilerProps)
+			hdrs.SetValueForArch(arch.Name, bazel.SubtractBazelLabelList(hdrsList, hdrs.Value))
+			srcs.SetValueForArch(arch.Name, srcsList)
+			copts.SetValueForArch(arch.Name, baseCompilerProps.Cflags)
 		}
 	}
 
 	for os, props := range module.GetTargetProperties(&BaseCompilerProperties{}) {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
-			ret.SetValueForOS(os.Name, baseCompilerProps.Cflags)
+			hdrsList, srcsList := hdrsAndSrcs(baseCompilerProps)
+			hdrs.SetValueForOS(os.Name, bazel.SubtractBazelLabelList(hdrsList, hdrs.Value))
+			srcs.SetValueForOS(os.Name, srcsList)
+			copts.SetValueForOS(os.Name, baseCompilerProps.Cflags)
 		}
 	}
 
-	return ret
+	return copts, srcs, hdrs
 }
 
-// bp2BuildParseHeaderLibs creates a label list attribute containing the header library deps of a module, including
+// bp2BuildParseLinkerProps creates a label list attribute containing the header library deps of a module, including
 // configurable attribute values.
-func bp2BuildParseHeaderLibs(ctx android.TopDownMutatorContext, module *Module) bazel.LabelListAttribute {
-	var ret bazel.LabelListAttribute
+func bp2BuildParseLinkerProps(
+	ctx android.TopDownMutatorContext, module *Module) (bazel.LabelListAttribute, bazel.StringListAttribute) {
+
+	var deps bazel.LabelListAttribute
+	var linkopts bazel.StringListAttribute
+
 	for _, linkerProps := range module.linker.linkerProps() {
 		if baseLinkerProps, ok := linkerProps.(*BaseLinkerProperties); ok {
 			libs := baseLinkerProps.Header_libs
 			libs = append(libs, baseLinkerProps.Export_header_lib_headers...)
-			ret = bazel.MakeLabelListAttribute(
+			deps = bazel.MakeLabelListAttribute(
 				android.BazelLabelForModuleDeps(ctx, android.SortedUniqueStrings(libs)))
+			linkopts.Value = baseLinkerProps.Ldflags
 			break
+		}
+	}
+
+	for arch, p := range module.GetArchProperties(&BaseLinkerProperties{}) {
+		if baseLinkerProps, ok := p.(*BaseLinkerProperties); ok {
+			libs := baseLinkerProps.Header_libs
+			libs = append(libs, baseLinkerProps.Export_header_lib_headers...)
+			libs = android.SortedUniqueStrings(libs)
+			deps.SetValueForArch(arch.Name, android.BazelLabelForModuleDeps(ctx, libs))
+			linkopts.SetValueForArch(arch.Name, baseLinkerProps.Ldflags)
 		}
 	}
 
@@ -103,28 +137,17 @@ func bp2BuildParseHeaderLibs(ctx android.TopDownMutatorContext, module *Module) 
 			libs := baseLinkerProps.Header_libs
 			libs = append(libs, baseLinkerProps.Export_header_lib_headers...)
 			libs = android.SortedUniqueStrings(libs)
-			ret.SetValueForOS(os.Name, android.BazelLabelForModuleDeps(ctx, libs))
+			deps.SetValueForOS(os.Name, android.BazelLabelForModuleDeps(ctx, libs))
+			linkopts.SetValueForOS(os.Name, baseLinkerProps.Ldflags)
 		}
 	}
 
-	return ret
+	return deps, linkopts
 }
 
 func bp2BuildListHeadersInDir(ctx android.TopDownMutatorContext, includeDir string) bazel.LabelList {
-	var globInfix string
-
-	if includeDir == "." {
-		globInfix = ""
-	} else {
-		globInfix = "/**"
-	}
-
-	var includeDirGlobs []string
-	includeDirGlobs = append(includeDirGlobs, includeDir+globInfix+"/*.h")
-	includeDirGlobs = append(includeDirGlobs, includeDir+globInfix+"/*.inc")
-	includeDirGlobs = append(includeDirGlobs, includeDir+globInfix+"/*.hpp")
-
-	return android.BazelLabelForModuleSrc(ctx, includeDirGlobs)
+	globs := bazel.GlobsInDir(includeDir, includeDir != ".", headerExts)
+	return android.BazelLabelForModuleSrc(ctx, globs)
 }
 
 // Bazel wants include paths to be relative to the module

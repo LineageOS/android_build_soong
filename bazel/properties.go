@@ -16,6 +16,7 @@ package bazel
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
 )
@@ -45,6 +46,57 @@ type Label struct {
 type LabelList struct {
 	Includes []Label
 	Excludes []Label
+}
+
+// GlobsInDir returns a list of glob expressions for a list of extensions
+// (optionally recursive) within a directory.
+func GlobsInDir(dir string, recursive bool, extensions []string) []string {
+	globs := []string{}
+
+	globInfix := ""
+	if dir == "." {
+		if recursive {
+			// e.g "**/*.h"
+			globInfix = "**/"
+		} // else e.g. "*.h"
+		for _, ext := range extensions {
+			globs = append(globs, globInfix+"*"+ext)
+		}
+	} else {
+		if recursive {
+			// e.g. "foo/bar/**/*.h"
+			dir += "/**"
+		} // else e.g. "foo/bar/*.h"
+		for _, ext := range extensions {
+			globs = append(globs, dir+"/*"+ext)
+		}
+	}
+	return globs
+}
+
+// LooseHdrsGlobs returns the list of non-recursive header globs for each parent directory of
+// each source file in this LabelList's Includes.
+func (ll *LabelList) LooseHdrsGlobs(exts []string) []string {
+	var globs []string
+	for _, parentDir := range ll.uniqueParentDirectories() {
+		globs = append(globs,
+			GlobsInDir(parentDir, false, exts)...)
+	}
+	return globs
+}
+
+// uniqueParentDirectories returns a list of the unique parent directories for
+// all files in ll.Includes.
+func (ll *LabelList) uniqueParentDirectories() []string {
+	dirMap := map[string]bool{}
+	for _, label := range ll.Includes {
+		dirMap[filepath.Dir(label.Label)] = true
+	}
+	dirs := []string{}
+	for dir := range dirMap {
+		dirs = append(dirs, dir)
+	}
+	return dirs
 }
 
 // Append appends the fields of other labelList to the corresponding fields of ll.
@@ -222,6 +274,26 @@ type LabelListAttribute struct {
 // MakeLabelListAttribute initializes a LabelListAttribute with the non-arch specific value.
 func MakeLabelListAttribute(value LabelList) LabelListAttribute {
 	return LabelListAttribute{Value: UniqueBazelLabelList(value)}
+}
+
+// Append appends all values, including os and arch specific ones, from another
+// LabelListAttribute to this LabelListAttribute.
+func (attrs *LabelListAttribute) Append(other LabelListAttribute) {
+	for arch := range PlatformArchMap {
+		this := attrs.GetValueForArch(arch)
+		that := other.GetValueForArch(arch)
+		this.Append(that)
+		attrs.SetValueForArch(arch, this)
+	}
+
+	for os := range PlatformOsMap {
+		this := attrs.GetValueForOS(os)
+		that := other.GetValueForOS(os)
+		this.Append(that)
+		attrs.SetValueForOS(os, this)
+	}
+
+	attrs.Value.Append(other.Value)
 }
 
 // HasArchSpecificValues returns true if the attribute contains
