@@ -29,15 +29,6 @@ import (
 	"android/soong/genrule"
 )
 
-// testAppConfig is a legacy way of creating a test Config for testing java app modules.
-//
-// See testJava for an explanation as to how to stop using this deprecated method.
-//
-// deprecated
-func testAppConfig(env map[string]string, bp string, fs map[string][]byte) android.Config {
-	return testConfig(env, bp, fs)
-}
-
 // testApp runs tests using the javaFixtureFactory
 //
 // See testJava for an explanation as to how to stop using this deprecated method.
