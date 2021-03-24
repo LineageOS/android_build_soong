@@ -50,7 +50,7 @@ var addSourceSystemModules = android.FixtureAddTextFile("source/Android.bp", `
 `)
 
 func TestJavaSystemModules(t *testing.T) {
-	result := javaFixtureFactory.RunTest(t, addSourceSystemModules)
+	result := prepareForJavaTest.RunTest(t, addSourceSystemModules)
 
 	// check the existence of the source module
 	sourceSystemModules := result.ModuleForTests("system-modules", "android_common")
@@ -77,7 +77,7 @@ var addPrebuiltSystemModules = android.FixtureAddTextFile("prebuilts/Android.bp"
 `)
 
 func TestJavaSystemModulesImport(t *testing.T) {
-	result := javaFixtureFactory.RunTest(t, addPrebuiltSystemModules)
+	result := prepareForJavaTest.RunTest(t, addPrebuiltSystemModules)
 
 	// check the existence of the renamed prebuilt module
 	prebuiltSystemModules := result.ModuleForTests("system-modules", "android_common")
@@ -89,7 +89,7 @@ func TestJavaSystemModulesImport(t *testing.T) {
 }
 
 func TestJavaSystemModulesMixSourceAndPrebuilt(t *testing.T) {
-	result := javaFixtureFactory.RunTest(t,
+	result := prepareForJavaTest.RunTest(t,
 		addSourceSystemModules,
 		addPrebuiltSystemModules,
 	)

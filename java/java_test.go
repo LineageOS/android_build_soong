@@ -33,14 +33,6 @@ import (
 	"android/soong/python"
 )
 
-// Legacy factory to use to create fixtures for tests in this package.
-//
-// deprecated: See prepareForJavaTest
-var javaFixtureFactory = android.NewFixtureFactory(
-	nil,
-	prepareForJavaTest,
-)
-
 // Legacy preparer used for running tests within the java package.
 //
 // This includes everything that was needed to run any test in the java package prior to the
@@ -75,8 +67,8 @@ func TestMain(m *testing.M) {
 // deprecated
 func testJavaError(t *testing.T, pattern string, bp string) (*android.TestContext, android.Config) {
 	t.Helper()
-	result := javaFixtureFactory.
-		Extend(dexpreopt.PrepareForTestWithDexpreopt).
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest, dexpreopt.PrepareForTestWithDexpreopt).
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
 		RunTestWithBp(t, bp)
 	return result.TestContext, result.Config
@@ -93,37 +85,38 @@ func testJavaErrorWithConfig(t *testing.T, pattern string, config android.Config
 	// the fixture's config will be ignored when RunTestWithConfig replaces it.
 	pathCtx := android.PathContextForTesting(config)
 	dexpreopt.SetTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
-	result := javaFixtureFactory.
+	result := prepareForJavaTest.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
 		RunTestWithConfig(t, config)
 	return result.TestContext, result.Config
 }
 
-// testJavaWithFS runs tests using the javaFixtureFactory
+// testJavaWithFS runs tests using the prepareForJavaTest
 //
 // See testJava for an explanation as to how to stop using this deprecated method.
 //
 // deprecated
 func testJavaWithFS(t *testing.T, bp string, fs android.MockFS) (*android.TestContext, android.Config) {
 	t.Helper()
-	result := javaFixtureFactory.Extend(fs.AddToFixture()).RunTestWithBp(t, bp)
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest, fs.AddToFixture()).RunTestWithBp(t, bp)
 	return result.TestContext, result.Config
 }
 
-// testJava runs tests using the javaFixtureFactory
+// testJava runs tests using the prepareForJavaTest
 //
-// Do not add any new usages of this, instead use the javaFixtureFactory directly as it makes it
+// Do not add any new usages of this, instead use the prepareForJavaTest directly as it makes it
 // much easier to customize the test behavior.
 //
 // If it is necessary to customize the behavior of an existing test that uses this then please first
-// convert the test to using javaFixtureFactory first and then in a following change add the
+// convert the test to using prepareForJavaTest first and then in a following change add the
 // appropriate fixture preparers. Keeping the conversion change separate makes it easy to verify
 // that it did not change the test behavior unexpectedly.
 //
 // deprecated
 func testJava(t *testing.T, bp string) (*android.TestContext, android.Config) {
 	t.Helper()
-	result := javaFixtureFactory.RunTestWithBp(t, bp)
+	result := prepareForJavaTest.RunTestWithBp(t, bp)
 	return result.TestContext, result.Config
 }
 
@@ -638,7 +631,7 @@ prebuilt_stubs_sources {
 }
 
 func TestJavaSdkLibraryImport(t *testing.T) {
-	result := javaFixtureFactory.RunTestWithBp(t, `
+	result := prepareForJavaTest.RunTestWithBp(t, `
 		java_library {
 			name: "foo",
 			srcs: ["a.java"],
@@ -692,7 +685,8 @@ func TestJavaSdkLibraryImport(t *testing.T) {
 }
 
 func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
-	result := javaFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("sdklib"),
 	).RunTestWithBp(t, `
@@ -734,7 +728,8 @@ func TestJavaSdkLibraryImport_WithSource(t *testing.T) {
 }
 
 func TestJavaSdkLibraryImport_Preferred(t *testing.T) {
-	result := javaFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("sdklib"),
 	).RunTestWithBp(t, `
@@ -841,7 +836,7 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 			if expectedErrorPattern != "" {
 				errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(expectedErrorPattern)
 			}
-			javaFixtureFactory.ExtendWithErrorHandler(errorHandler).RunTest(t, createPreparer(info))
+			prepareForJavaTest.ExtendWithErrorHandler(errorHandler).RunTest(t, createPreparer(info))
 		})
 	}
 
@@ -1319,8 +1314,8 @@ func TestGeneratedSources(t *testing.T) {
 }
 
 func TestTurbine(t *testing.T) {
-	result := javaFixtureFactory.
-		Extend(FixtureWithPrebuiltApis(map[string][]string{"14": {"foo"}})).
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest, FixtureWithPrebuiltApis(map[string][]string{"14": {"foo"}})).
 		RunTestWithBp(t, `
 		java_library {
 			name: "foo",
@@ -1731,7 +1726,8 @@ func TestJavaImport(t *testing.T) {
 }
 
 func TestJavaSdkLibrary(t *testing.T) {
-	result := javaFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithPrebuiltApis(map[string][]string{
 			"28": {"foo"},
@@ -1856,7 +1852,8 @@ func TestJavaSdkLibrary(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
-	result := javaFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("sdklib"),
 	).RunTestWithBp(t, `
@@ -1892,7 +1889,8 @@ func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_DoNotAccessImplWhenItIsNotBuilt(t *testing.T) {
-	result := javaFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).RunTestWithBp(t, `
@@ -1920,7 +1918,8 @@ func TestJavaSdkLibrary_DoNotAccessImplWhenItIsNotBuilt(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_UseSourcesFromAnotherSdkLibrary(t *testing.T) {
-	javaFixtureFactory.Extend(
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).RunTestWithBp(t, `
@@ -1941,11 +1940,11 @@ func TestJavaSdkLibrary_UseSourcesFromAnotherSdkLibrary(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_AccessOutputFiles_MissingScope(t *testing.T) {
-	javaFixtureFactory.
-		Extend(
-			PrepareForTestWithJavaSdkLibraryFiles,
-			FixtureWithLastReleaseApis("foo"),
-		).
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+	).
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`"foo" does not provide api scope system`)).
 		RunTestWithBp(t, `
 		java_sdk_library {
@@ -1965,7 +1964,8 @@ func TestJavaSdkLibrary_AccessOutputFiles_MissingScope(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_Deps(t *testing.T) {
-	result := javaFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("sdklib"),
 	).RunTestWithBp(t, `
@@ -1990,7 +1990,7 @@ func TestJavaSdkLibrary_Deps(t *testing.T) {
 }
 
 func TestJavaSdkLibraryImport_AccessOutputFiles(t *testing.T) {
-	javaFixtureFactory.RunTestWithBp(t, `
+	prepareForJavaTest.RunTestWithBp(t, `
 		java_sdk_library_import {
 			name: "foo",
 			public: {
@@ -2023,7 +2023,7 @@ func TestJavaSdkLibraryImport_AccessOutputFiles_Invalid(t *testing.T) {
 		`
 
 	t.Run("stubs.source", func(t *testing.T) {
-		javaFixtureFactory.
+		prepareForJavaTest.
 			ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`stubs.source not available for api scope public`)).
 			RunTestWithBp(t, bp+`
 				java_library {
@@ -2038,7 +2038,7 @@ func TestJavaSdkLibraryImport_AccessOutputFiles_Invalid(t *testing.T) {
 	})
 
 	t.Run("api.txt", func(t *testing.T) {
-		javaFixtureFactory.
+		prepareForJavaTest.
 			ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`api.txt not available for api scope public`)).
 			RunTestWithBp(t, bp+`
 				java_library {
@@ -2052,7 +2052,7 @@ func TestJavaSdkLibraryImport_AccessOutputFiles_Invalid(t *testing.T) {
 	})
 
 	t.Run("removed-api.txt", func(t *testing.T) {
-		javaFixtureFactory.
+		prepareForJavaTest.
 			ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`removed-api.txt not available for api scope public`)).
 			RunTestWithBp(t, bp+`
 				java_library {
@@ -2067,7 +2067,7 @@ func TestJavaSdkLibraryImport_AccessOutputFiles_Invalid(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_InvalidScopes(t *testing.T) {
-	javaFixtureFactory.
+	prepareForJavaTest.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "foo": enabled api scope "system" depends on disabled scope "public"`)).
 		RunTestWithBp(t, `
 			java_sdk_library {
@@ -2087,7 +2087,8 @@ func TestJavaSdkLibrary_InvalidScopes(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
-	javaFixtureFactory.Extend(
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).RunTestWithBp(t, `
@@ -2104,7 +2105,8 @@ func TestJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_ModuleLib(t *testing.T) {
-	javaFixtureFactory.Extend(
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).RunTestWithBp(t, `
@@ -2123,7 +2125,8 @@ func TestJavaSdkLibrary_ModuleLib(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_SystemServer(t *testing.T) {
-	javaFixtureFactory.Extend(
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).RunTestWithBp(t, `
@@ -2142,7 +2145,7 @@ func TestJavaSdkLibrary_SystemServer(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_MissingScope(t *testing.T) {
-	javaFixtureFactory.
+	prepareForJavaTest.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`requires api scope module-lib from foo but it only has \[\] available`)).
 		RunTestWithBp(t, `
 			java_sdk_library {
@@ -2163,7 +2166,8 @@ func TestJavaSdkLibrary_MissingScope(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_FallbackScope(t *testing.T) {
-	javaFixtureFactory.Extend(
+	android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).RunTestWithBp(t, `
@@ -2186,7 +2190,8 @@ func TestJavaSdkLibrary_FallbackScope(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_DefaultToStubs(t *testing.T) {
-	result := javaFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).RunTestWithBp(t, `
