@@ -1209,7 +1209,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 	rule.Command().Text("mkdir -p").Flag(homeDir.String())
 
 	cmd := rule.Command()
-	cmd.FlagWithArg("ANDROID_SDK_HOME=", homeDir.String())
+	cmd.FlagWithArg("ANDROID_PREFS_ROOT=", homeDir.String())
 
 	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_METALAVA") {
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
@@ -1234,7 +1234,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, javaVersi
 			RSPFiles:             []string{implicitsRsp.String()},
 			ToolchainInputs:      []string{config.JavaCmd(ctx).String()},
 			Platform:             map[string]string{remoteexec.PoolKey: pool},
-			EnvironmentVariables: []string{"ANDROID_SDK_HOME"},
+			EnvironmentVariables: []string{"ANDROID_PREFS_ROOT"},
 		}).NoVarTemplate(ctx.Config().RBEWrapper()))
 	}
 
