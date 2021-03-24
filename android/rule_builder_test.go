@@ -458,6 +458,35 @@ func TestRuleBuilder(t *testing.T) {
 
 		AssertSame(t, "rule.composeRspFileContent()", wantRspFileContent, rule.composeRspFileContent(rule.RspFileInputs()))
 	})
+
+	t.Run("sbox inputs", func(t *testing.T) {
+		rule := NewRuleBuilder(pctx, ctx).Sbox(PathForOutput(ctx, "module"),
+			PathForOutput(ctx, "sbox.textproto")).SandboxInputs()
+		addCommands(rule)
+
+		wantCommands := []string{
+			"__SBOX_SANDBOX_DIR__/out/DepFile Flag FlagWithArg=arg FlagWithDepFile=__SBOX_SANDBOX_DIR__/out/depfile " +
+				"FlagWithInput=input FlagWithOutput=__SBOX_SANDBOX_DIR__/out/output " +
+				"FlagWithRspFileInputList=__SBOX_SANDBOX_DIR__/out/rsp Input __SBOX_SANDBOX_DIR__/out/Output " +
+				"__SBOX_SANDBOX_DIR__/out/SymlinkOutput Text __SBOX_SANDBOX_DIR__/tools/src/Tool after command2 old cmd",
+			"command2 __SBOX_SANDBOX_DIR__/out/depfile2 input2 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/tools/src/tool2",
+			"command3 input3 __SBOX_SANDBOX_DIR__/out/output2 __SBOX_SANDBOX_DIR__/out/output3 input3 __SBOX_SANDBOX_DIR__/out/output2",
+		}
+
+		wantDepMergerCommand := "__SBOX_SANDBOX_DIR__/tools/out/bin/dep_fixer __SBOX_SANDBOX_DIR__/out/DepFile __SBOX_SANDBOX_DIR__/out/depfile __SBOX_SANDBOX_DIR__/out/ImplicitDepFile __SBOX_SANDBOX_DIR__/out/depfile2"
+
+		AssertDeepEquals(t, "rule.Commands()", wantCommands, rule.Commands())
+
+		AssertDeepEquals(t, "rule.Inputs()", wantInputs, rule.Inputs())
+		AssertDeepEquals(t, "rule.RspfileInputs()", wantRspFileInputs, rule.RspFileInputs())
+		AssertDeepEquals(t, "rule.Outputs()", wantOutputs, rule.Outputs())
+		AssertDeepEquals(t, "rule.SymlinkOutputs()", wantSymlinkOutputs, rule.SymlinkOutputs())
+		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
+		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
+		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
+
+		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
+	})
 }
 
 func testRuleBuilderFactory() Module {
