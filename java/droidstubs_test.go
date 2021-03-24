@@ -15,6 +15,7 @@
 package java
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -75,6 +76,25 @@ func TestDroidstubs(t *testing.T) {
 		if actual := rp.Pool != nil && strings.Contains(rp.Pool.String(), "highmem"); actual != c.high_mem {
 			t.Errorf("Expected %q high_mem to be %v, was %v", c.moduleName, c.high_mem, actual)
 		}
+	}
+}
+
+func TestDroidstubsSandbox(t *testing.T) {
+	ctx, _ := testJavaWithFS(t, `
+		droidstubs {
+			name: "bar-stubs",
+			srcs: ["bar-doc/a.java"],
+			sandbox: true,
+		}
+		`,
+		map[string][]byte{
+			"bar-doc/a.java": nil,
+		})
+
+	m := ctx.ModuleForTests("bar-stubs", "android_common")
+	metalava := m.Rule("metalava")
+	if g, w := metalava.Inputs.Strings(), []string{"bar-doc/a.java"}; !reflect.DeepEqual(w, g) {
+		t.Errorf("Expected inputs %q, got %q", w, g)
 	}
 }
 
