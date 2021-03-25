@@ -935,9 +935,8 @@ func (p WritablePaths) Paths() Paths {
 }
 
 type basePath struct {
-	path   string
-	config Config
-	rel    string
+	path string
+	rel  string
 }
 
 func (p basePath) Ext() string {
@@ -984,7 +983,7 @@ func (p SourcePath) withRel(rel string) SourcePath {
 // code that is embedding ninja variables in paths
 func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error) {
 	p, err := validateSafePath(pathComponents...)
-	ret := SourcePath{basePath{p, ctx.Config(), ""}, ctx.Config().srcDir}
+	ret := SourcePath{basePath{p, ""}, ctx.Config().srcDir}
 	if err != nil {
 		return ret, err
 	}
@@ -1000,7 +999,7 @@ func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, e
 // pathForSource creates a SourcePath from pathComponents, but does not check that it exists.
 func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error) {
 	p, err := validatePath(pathComponents...)
-	ret := SourcePath{basePath{p, ctx.Config(), ""}, ctx.Config().srcDir}
+	ret := SourcePath{basePath{p, ""}, ctx.Config().srcDir}
 	if err != nil {
 		return ret, err
 	}
@@ -1189,7 +1188,7 @@ var _ Path = toolDepPath{}
 // Only use this function to construct paths for dependencies of the build
 // tool invocation.
 func pathForBuildToolDep(ctx PathContext, path string) toolDepPath {
-	return toolDepPath{basePath{path, ctx.Config(), ""}}
+	return toolDepPath{basePath{path, ""}}
 }
 
 // PathForOutput joins the provided paths and returns an OutputPath that is
@@ -1202,7 +1201,7 @@ func PathForOutput(ctx PathContext, pathComponents ...string) OutputPath {
 	}
 	fullPath := filepath.Join(ctx.Config().buildDir, path)
 	path = fullPath[len(fullPath)-len(path):]
-	return OutputPath{basePath{path, ctx.Config(), ""}, ctx.Config().buildDir, fullPath}
+	return OutputPath{basePath{path, ""}, ctx.Config().buildDir, fullPath}
 }
 
 // PathsForOutput returns Paths rooted from buildDir
@@ -1436,7 +1435,7 @@ func PathForBazelOut(ctx PathContext, paths ...string) BazelOutPath {
 		reportPathError(ctx, err)
 	}
 
-	outputPath := OutputPath{basePath{"", ctx.Config(), ""},
+	outputPath := OutputPath{basePath{"", ""},
 		ctx.Config().buildDir,
 		ctx.Config().BazelContext.OutputBase()}
 
@@ -1654,7 +1653,7 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 	}
 
 	base := InstallPath{
-		basePath:     basePath{partionPath, ctx.Config(), ""},
+		basePath:     basePath{partionPath, ""},
 		buildDir:     ctx.Config().buildDir,
 		partitionDir: partionPath,
 		makePath:     false,
@@ -1665,7 +1664,7 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 
 func pathForNdkOrSdkInstall(ctx PathContext, prefix string, paths []string) InstallPath {
 	base := InstallPath{
-		basePath:     basePath{prefix, ctx.Config(), ""},
+		basePath:     basePath{prefix, ""},
 		buildDir:     ctx.Config().buildDir,
 		partitionDir: prefix,
 		makePath:     false,
@@ -1801,7 +1800,7 @@ func PathForPhony(ctx PathContext, phony string) WritablePath {
 	if strings.ContainsAny(phony, "$/") {
 		ReportPathErrorf(ctx, "Phony target contains invalid character ($ or /): %s", phony)
 	}
-	return PhonyPath{basePath{phony, ctx.Config(), ""}}
+	return PhonyPath{basePath{phony, ""}}
 }
 
 type PhonyPath struct {
