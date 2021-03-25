@@ -91,7 +91,6 @@ var (
 
 func init() {
 	pctx.Import("android/soong/android")
-	pctx.HostBinToolVariable("sboxCmd", "sbox")
 
 	pctx.HostBinToolVariable("soongZip", "soong_zip")
 	pctx.HostBinToolVariable("zipSync", "zipsync")
@@ -254,18 +253,18 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		g.exportedIncludeDirs = append(g.exportedIncludeDirs, android.PathForModuleGen(ctx, g.subDir))
 	}
 
-	locationLabels := map[string][]string{}
+	locationLabels := map[string]location{}
 	firstLabel := ""
 
-	addLocationLabel := func(label string, paths []string) {
+	addLocationLabel := func(label string, loc location) {
 		if firstLabel == "" {
 			firstLabel = label
 		}
 		if _, exists := locationLabels[label]; !exists {
-			locationLabels[label] = paths
+			locationLabels[label] = loc
 		} else {
 			ctx.ModuleErrorf("multiple labels for %q, %q and %q",
-				label, strings.Join(locationLabels[label], " "), strings.Join(paths, " "))
+				label, locationLabels[label], loc)
 		}
 	}
 
@@ -303,17 +302,17 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						// sandbox.
 						packagedTools = append(packagedTools, specs...)
 						// Assume that the first PackagingSpec of the module is the tool.
-						addLocationLabel(tag.label, []string{android.SboxPathForPackagedTool(specs[0])})
+						addLocationLabel(tag.label, packagedToolLocation{specs[0]})
 					} else {
 						tools = append(tools, path.Path())
-						addLocationLabel(tag.label, []string{android.SboxPathForTool(ctx, path.Path())})
+						addLocationLabel(tag.label, toolLocation{android.Paths{path.Path()}})
 					}
 				case bootstrap.GoBinaryTool:
 					// A GoBinaryTool provides the install path to a tool, which will be copied.
 					if s, err := filepath.Rel(android.PathForOutput(ctx).String(), t.InstallPath()); err == nil {
 						toolPath := android.PathForOutput(ctx, s)
 						tools = append(tools, toolPath)
-						addLocationLabel(tag.label, []string{android.SboxPathForTool(ctx, toolPath)})
+						addLocationLabel(tag.label, toolLocation{android.Paths{toolPath}})
 					} else {
 						ctx.ModuleErrorf("cannot find path for %q: %v", tool, err)
 						return
@@ -335,7 +334,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		if ctx.Config().AllowMissingDependencies() {
 			for _, tool := range g.properties.Tools {
 				if !seenTools[tool] {
-					addLocationLabel(tool, []string{"***missing tool " + tool + "***"})
+					addLocationLabel(tool, errorLocation{"***missing tool " + tool + "***"})
 				}
 			}
 		}
@@ -348,11 +347,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	for _, toolFile := range g.properties.Tool_files {
 		paths := android.PathsForModuleSrc(ctx, []string{toolFile})
 		tools = append(tools, paths...)
-		var sandboxPaths []string
-		for _, path := range paths {
-			sandboxPaths = append(sandboxPaths, android.SboxPathForTool(ctx, path))
-		}
-		addLocationLabel(toolFile, sandboxPaths)
+		addLocationLabel(toolFile, toolLocation{paths})
 	}
 
 	var srcFiles android.Paths
@@ -370,10 +365,10 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			// The command that uses this placeholder file will never be executed because the rule will be
 			// replaced with an android.Error rule reporting the missing dependencies.
 			ctx.AddMissingDependencies(missingDeps)
-			addLocationLabel(in, []string{"***missing srcs " + in + "***"})
+			addLocationLabel(in, errorLocation{"***missing srcs " + in + "***"})
 		} else {
 			srcFiles = append(srcFiles, paths...)
-			addLocationLabel(in, paths.Strings())
+			addLocationLabel(in, inputLocation{paths})
 		}
 	}
 
@@ -408,7 +403,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd := rule.Command()
 
 		for _, out := range task.out {
-			addLocationLabel(out.Rel(), []string{cmd.PathForOutput(out)})
+			addLocationLabel(out.Rel(), outputLocation{out})
 		}
 
 		referencedDepfile := false
@@ -426,16 +421,17 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				if len(g.properties.Tools) == 0 && len(g.properties.Tool_files) == 0 {
 					return reportError("at least one `tools` or `tool_files` is required if $(location) is used")
 				}
-				paths := locationLabels[firstLabel]
+				loc := locationLabels[firstLabel]
+				paths := loc.Paths(cmd)
 				if len(paths) == 0 {
 					return reportError("default label %q has no files", firstLabel)
 				} else if len(paths) > 1 {
 					return reportError("default label %q has multiple files, use $(locations %s) to reference it",
 						firstLabel, firstLabel)
 				}
-				return locationLabels[firstLabel][0], nil
+				return paths[0], nil
 			case "in":
-				return strings.Join(srcFiles.Strings(), " "), nil
+				return strings.Join(cmd.PathsForInputs(srcFiles), " "), nil
 			case "out":
 				var sandboxOuts []string
 				for _, out := range task.out {
@@ -453,7 +449,8 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			default:
 				if strings.HasPrefix(name, "location ") {
 					label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
-					if paths, ok := locationLabels[label]; ok {
+					if loc, ok := locationLabels[label]; ok {
+						paths := loc.Paths(cmd)
 						if len(paths) == 0 {
 							return reportError("label %q has no files", label)
 						} else if len(paths) > 1 {
@@ -466,7 +463,8 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					}
 				} else if strings.HasPrefix(name, "locations ") {
 					label := strings.TrimSpace(strings.TrimPrefix(name, "locations "))
-					if paths, ok := locationLabels[label]; ok {
+					if loc, ok := locationLabels[label]; ok {
+						paths := loc.Paths(cmd)
 						if len(paths) == 0 {
 							return reportError("label %q has no files", label)
 						}
@@ -719,7 +717,7 @@ func NewGenSrcs() *Module {
 				outputDepfile = android.PathForModuleGen(ctx, genSubDir, "gensrcs.d")
 				depFixerTool := ctx.Config().HostToolPath(ctx, "dep_fixer")
 				fullCommand += fmt.Sprintf(" && %s -o $(depfile) %s",
-					android.SboxPathForTool(ctx, depFixerTool),
+					rule.Command().PathForTool(depFixerTool),
 					strings.Join(commandDepFiles, " "))
 				extraTools = append(extraTools, depFixerTool)
 			}
