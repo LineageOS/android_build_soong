@@ -272,11 +272,9 @@ func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 	}
 }
 
-// PrebuiltPostDepsMutator does two operations.  It replace dependencies on the
-// source module with dependencies on the prebuilt when both modules exist and
-// the prebuilt should be used.  When the prebuilt should not be used, disable
-// installing it.  Secondly, it also adds a sourcegroup to any filegroups found
-// in the prebuilt's 'Srcs' property.
+// PrebuiltPostDepsMutator replaces dependencies on the source module with dependencies on the
+// prebuilt when both modules exist and the prebuilt should be used.  When the prebuilt should not
+// be used, disable installing it.
 func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
 	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Prebuilt() != nil {
 		p := m.Prebuilt()
