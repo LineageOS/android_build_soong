@@ -32,6 +32,7 @@ import (
 
 	"android/soong/cmd/sbox/sbox_proto"
 	"android/soong/makedeps"
+	"android/soong/response"
 
 	"github.com/golang/protobuf/proto"
 )
@@ -218,6 +219,11 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 		return "", fmt.Errorf("command is required")
 	}
 
+	pathToTempDirInSbox := tempDir
+	if command.GetChdir() {
+		pathToTempDirInSbox = "."
+	}
+
 	err = os.MkdirAll(tempDir, 0777)
 	if err != nil {
 		return "", fmt.Errorf("failed to create %q: %w", tempDir, err)
@@ -228,10 +234,9 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 	if err != nil {
 		return "", err
 	}
-
-	pathToTempDirInSbox := tempDir
-	if command.GetChdir() {
-		pathToTempDirInSbox = "."
+	err = copyRspFiles(command.RspFiles, tempDir, pathToTempDirInSbox)
+	if err != nil {
+		return "", err
 	}
 
 	if strings.Contains(rawCommand, depFilePlaceholder) {
@@ -407,6 +412,83 @@ func copyOneFile(from string, to string, executable bool) error {
 	}
 
 	return nil
+}
+
+// copyRspFiles copies rsp files into the sandbox with path mappings, and also copies the files
+// listed into the sandbox.
+func copyRspFiles(rspFiles []*sbox_proto.RspFile, toDir, toDirInSandbox string) error {
+	for _, rspFile := range rspFiles {
+		err := copyOneRspFile(rspFile, toDir, toDirInSandbox)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// copyOneRspFiles copies an rsp file into the sandbox with path mappings, and also copies the files
+// listed into the sandbox.
+func copyOneRspFile(rspFile *sbox_proto.RspFile, toDir, toDirInSandbox string) error {
+	in, err := os.Open(rspFile.GetFile())
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	files, err := response.ReadRspFile(in)
+	if err != nil {
+		return err
+	}
+
+	for i, from := range files {
+		// Convert the real path of the input file into the path inside the sandbox using the
+		// path mappings.
+		to := applyPathMappings(rspFile.PathMappings, from)
+
+		// Copy the file into the sandbox.
+		err := copyOneFile(from, joinPath(toDir, to), false)
+		if err != nil {
+			return err
+		}
+
+		// Rewrite the name in the list of files to be relative to the sandbox directory.
+		files[i] = joinPath(toDirInSandbox, to)
+	}
+
+	// Convert the real path of the rsp file into the path inside the sandbox using the path
+	// mappings.
+	outRspFile := joinPath(toDir, applyPathMappings(rspFile.PathMappings, rspFile.GetFile()))
+
+	err = os.MkdirAll(filepath.Dir(outRspFile), 0777)
+	if err != nil {
+		return err
+	}
+
+	out, err := os.Create(outRspFile)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Write the rsp file with converted paths into the sandbox.
+	err = response.WriteRspFile(out, files)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// applyPathMappings takes a list of path mappings and a path, and returns the path with the first
+// matching path mapping applied.  If the path does not match any of the path mappings then it is
+// returned unmodified.
+func applyPathMappings(pathMappings []*sbox_proto.PathMapping, path string) string {
+	for _, mapping := range pathMappings {
+		if strings.HasPrefix(path, mapping.GetFrom()+"/") {
+			return joinPath(mapping.GetTo()+"/", strings.TrimPrefix(path, mapping.GetFrom()+"/"))
+		}
+	}
+	return path
 }
 
 // moveFiles moves files specified by a set of copy rules.  It uses os.Rename, so it is restricted

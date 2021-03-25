@@ -64,9 +64,8 @@ type REParams struct {
 	ExecStrategy string
 	// Inputs is a list of input paths or ninja variables.
 	Inputs []string
-	// RSPFile is the name of the ninja variable used by the rule as a placeholder for an rsp
-	// input.
-	RSPFile string
+	// RSPFiles is the name of the files used by the rule as a placeholder for an rsp input.
+	RSPFiles []string
 	// OutputFiles is a list of output file paths or ninja variables as placeholders for rule
 	// outputs.
 	OutputFiles []string
@@ -134,8 +133,8 @@ func (r *REParams) wrapperArgs() string {
 		args += " --inputs=" + strings.Join(r.Inputs, ",")
 	}
 
-	if r.RSPFile != "" {
-		args += " --input_list_paths=" + r.RSPFile
+	if len(r.RSPFiles) > 0 {
+		args += " --input_list_paths=" + strings.Join(r.RSPFiles, ",")
 	}
 
 	if len(r.OutputFiles) > 0 {

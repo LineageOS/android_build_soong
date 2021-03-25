@@ -628,7 +628,7 @@ prebuilt_stubs_sources {
 	}
 
 	t.Run("empty/missing directory", func(t *testing.T) {
-		test(t, "empty-directory", []string{})
+		test(t, "empty-directory", nil)
 	})
 
 	t.Run("non-empty set of sources", func(t *testing.T) {
