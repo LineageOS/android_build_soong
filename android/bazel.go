@@ -127,10 +127,57 @@ var (
 		"system/core/libcutils": Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog": Bp2BuildDefaultTrueRecursively,
 	}
+
+	// Per-module denylist to always opt modules out.
+	bp2buildModuleDoNotConvert = map[string]bool{
+		"libBionicBenchmarksUtils":      true,
+		"libbionic_spawn_benchmark":     true,
+		"libc_jemalloc_wrapper":         true,
+		"libc_bootstrap":                true,
+		"libc_init_static":              true,
+		"libc_init_dynamic":             true,
+		"libc_tzcode":                   true,
+		"lib_dns":                       true,
+		"libc_freebsd":                  true,
+		"libc_freebsd_large_stack":      true,
+		"libc_netbsd":                   true,
+		"libc_openbsd_ndk":              true,
+		"libc_openbsd_large_stack":      true,
+		"libc_openbsd":                  true,
+		"libc_gdtoa":                    true,
+		"libc_fortify":                  true,
+		"libc_bionic":                   true,
+		"libc_bionic_ndk":               true,
+		"libc_bionic_systrace":          true,
+		"libc_pthread":                  true,
+		"libc_syscalls":                 true,
+		"libc_aeabi":                    true,
+		"libc_ndk":                      true,
+		"libc_nopthread":                true,
+		"libc_common":                   true,
+		"libc_static_dispatch":          true,
+		"libc_dynamic_dispatch":         true,
+		"libc_common_static":            true,
+		"libc_common_shared":            true,
+		"libc_unwind_static":            true,
+		"libc_nomalloc":                 true,
+		"libasync_safe":                 true,
+		"libc_malloc_debug_backtrace":   true,
+		"libsystemproperties":           true,
+		"libdl_static":                  true,
+		"liblinker_main":                true,
+		"liblinker_malloc":              true,
+		"liblinker_debuggerd_stub":      true,
+		"libbionic_tests_headers_posix": true,
+	}
 )
 
 // ConvertWithBp2build returns whether the given BazelModuleBase should be converted with bp2build.
 func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionPathContext) bool {
+	if bp2buildModuleDoNotConvert[ctx.Module().Name()] {
+		return false
+	}
+
 	// Ensure that the module type of this module has a bp2build converter. This
 	// prevents mixed builds from using auto-converted modules just by matching
 	// the package dir; it also has to have a bp2build mutator as well.
