@@ -1,0 +1,16 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+bootstrap_go_package {
+    name: "soong-response",
+    pkgPath: "android/soong/response",
+    deps: [
+    ],
+    srcs: [
+        "response.go",
+    ],
+    testSrcs: [
+        "response_test.go",
+    ],
+}
