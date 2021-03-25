@@ -45,12 +45,29 @@ var PrepareForTestWithJavaBuildComponents = android.GroupFixturePreparers(
 	// Make java build components available to the test.
 	android.FixtureRegisterWithContext(registerRequiredBuildComponentsForTest),
 	android.FixtureRegisterWithContext(registerJavaPluginBuildComponents),
+	// Additional files needed in tests that disallow non-existent source files.
+	// This includes files that are needed by all, or at least most, instances of a java module type.
+	android.MockFS{
+		// Needed for linter used by java_library.
+		"build/soong/java/lint_defaults.txt": nil,
+		// Needed for apps that do not provide their own.
+		"build/make/target/product/security": nil,
+	}.AddToFixture(),
 )
 
 // Test fixture preparer that will define default java modules, e.g. standard prebuilt modules.
 var PrepareForTestWithJavaDefaultModules = android.GroupFixturePreparers(
 	// Make sure that all the module types used in the defaults are registered.
 	PrepareForTestWithJavaBuildComponents,
+	// Additional files needed when test disallows non-existent source.
+	android.MockFS{
+		// Needed for framework-res
+		defaultJavaDir + "/AndroidManifest.xml": nil,
+		// Needed for framework
+		defaultJavaDir + "/framework/aidl": nil,
+		// Needed for various deps defined in GatherRequiredDepsForTest()
+		defaultJavaDir + "/a.java": nil,
+	}.AddToFixture(),
 	// The java default module definitions.
 	android.FixtureAddTextFile(defaultJavaDir+"/Android.bp", gatherRequiredDepsForTest()),
 	// Add dexpreopt compat libs (android.test.base, etc.) and a fake dex2oatd module.
