@@ -495,7 +495,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	d.apiLevelsAnnotationsFlags(ctx, cmd)
 
 	if android.InList("--generate-documentation", d.Javadoc.args) {
-		// Currently Metalava have the ability to invoke Javadoc in a seperate process.
+		// Currently Metalava have the ability to invoke Javadoc in a separate process.
 		// Pass "-nodocs" to suppress the Javadoc invocation when Metalava receives
 		// "--generate-documentation" arg. This is not needed when Metalava removes this feature.
 		d.Javadoc.args = append(d.Javadoc.args, "-nodocs")
@@ -526,7 +526,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		d.apiLintReport = android.PathForModuleOut(ctx, "api_lint_report.txt")
 		cmd.FlagWithOutput("--report-even-if-suppressed ", d.apiLintReport) // TODO:  Change to ":api-lint"
 
-		// TODO(b/154317059): Clean up this whitelist by baselining and/or checking in last-released.
+		// TODO(b/154317059): Clean up this allowlist by baselining and/or checking in last-released.
 		if d.Name() != "android.car-system-stubs-docs" &&
 			d.Name() != "android.car-stubs-docs" {
 			cmd.Flag("--lints-as-errors")
