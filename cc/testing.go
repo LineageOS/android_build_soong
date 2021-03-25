@@ -619,11 +619,26 @@ var PrepareForTestWithCcBuildComponents = android.GroupFixturePreparers(
 
 		RegisterVndkLibraryTxtTypes(ctx)
 	}),
+
+	// Additional files needed in tests that disallow non-existent source files.
+	// This includes files that are needed by all, or at least most, instances of a cc module type.
+	android.MockFS{
+		// Needed for ndk_prebuilt_(shared|static)_stl.
+		"prebuilts/ndk/current/sources/cxx-stl/llvm-libc++/libs": nil,
+	}.AddToFixture(),
 )
 
 // Preparer that will define default cc modules, e.g. standard prebuilt modules.
 var PrepareForTestWithCcDefaultModules = android.GroupFixturePreparers(
 	PrepareForTestWithCcBuildComponents,
+
+	// Additional files needed in tests that disallow non-existent source.
+	android.MockFS{
+		"defaults/cc/common/libc.map.txt":  nil,
+		"defaults/cc/common/libdl.map.txt": nil,
+		"defaults/cc/common/libm.map.txt":  nil,
+	}.AddToFixture(),
+
 	// Place the default cc test modules that are common to all platforms in a location that will not
 	// conflict with default test modules defined by other packages.
 	android.FixtureAddTextFile(DefaultCcCommonTestModulesDir+"Android.bp", commonDefaultModules()),
