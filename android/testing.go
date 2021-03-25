@@ -935,19 +935,14 @@ func NormalizePathsForTesting(paths Paths) []string {
 // PathRelativeToTop returns a string representation of the path relative to a notional top
 // directory.
 //
-// For a WritablePath it applies StringPathRelativeToTop to it, using the buildDir returned from the
-// WritablePath's buildDir() method. For all other paths, i.e. source paths, that are already
-// relative to the top it just returns their string representation.
+// It return "<nil path>" if the supplied path is nil, otherwise it returns the result of calling
+// Path.RelativeToTop to obtain a relative Path and then calling Path.String on that to get the
+// string representation.
 func PathRelativeToTop(path Path) string {
 	if path == nil {
 		return "<nil path>"
 	}
-	p := path.String()
-	if w, ok := path.(WritablePath); ok {
-		buildDir := w.getBuildDir()
-		return StringPathRelativeToTop(buildDir, p)
-	}
-	return p
+	return path.RelativeToTop().String()
 }
 
 // PathsRelativeToTop creates a slice of strings where each string is the result of applying
@@ -964,23 +959,13 @@ func PathsRelativeToTop(paths Paths) []string {
 // StringPathRelativeToTop returns a string representation of the path relative to a notional top
 // directory.
 //
-// A standard build has the following structure:
-//   ../top/
-//          out/ - make install files go here.
-//          out/soong - this is the buildDir passed to NewTestConfig()
-//          ... - the source files
-//
-// This function converts a path so that it appears relative to the ../top/ directory, i.e.
-// * Make install paths, which have the pattern "buildDir/../<path>" are converted into the top
-//   relative path "out/<path>"
-// * Soong install paths and other writable paths, which have the pattern "buildDir/<path>" are
-//   converted into the top relative path "out/soong/<path>".
-// * Source paths are already relative to the top.
+// See Path.RelativeToTop for more details as to what `relative to top` means.
 //
 // This is provided for processing paths that have already been converted into a string, e.g. paths
 // in AndroidMkEntries structures. As a result it needs to be supplied the soong output dir against
 // which it can try and relativize paths. PathRelativeToTop must be used for process Path objects.
 func StringPathRelativeToTop(soongOutDir string, path string) string {
+	ensureTestOnly()
 
 	// A relative path must be a source path so leave it as it is.
 	if !filepath.IsAbs(path) {
