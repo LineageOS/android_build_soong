@@ -221,12 +221,40 @@ type platformCompatConfigSingleton struct {
 	metadata android.Path
 }
 
+// isModulePreferredByCompatConfig checks to see whether the module is preferred for use by
+// platform compat config.
+func isModulePreferredByCompatConfig(module android.Module) bool {
+	// A versioned prebuilt_platform_compat_config, i.e. foo-platform-compat-config@current should be
+	// ignored.
+	if s, ok := module.(android.SdkAware); ok {
+		if !s.ContainingSdk().Unversioned() {
+			return false
+		}
+	}
+
+	// A prebuilt module should only be used when it is preferred.
+	if pi, ok := module.(android.PrebuiltInterface); ok {
+		if p := pi.Prebuilt(); p != nil {
+			return p.UsePrebuilt()
+		}
+	}
+
+	// Otherwise, a module should only be used if it has not been replaced by a prebuilt.
+	return !module.IsReplacedByPrebuilt()
+}
+
 func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 
 	var compatConfigMetadata android.Paths
 
 	ctx.VisitAllModules(func(module android.Module) {
+		if !module.Enabled() {
+			return
+		}
 		if c, ok := module.(platformCompatConfigMetadataProvider); ok {
+			if !isModulePreferredByCompatConfig(module) {
+				return
+			}
 			metadata := c.compatConfigMetadata()
 			compatConfigMetadata = append(compatConfigMetadata, metadata)
 		}
