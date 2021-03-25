@@ -182,11 +182,6 @@ type lintPaths struct {
 	cacheDir   android.WritablePath
 	homeDir    android.WritablePath
 	srcjarDir  android.WritablePath
-
-	deps android.Paths
-
-	remoteInputs    android.Paths
-	remoteRSPInputs android.Paths
 }
 
 func lintRBEExecStrategy(ctx android.ModuleContext) string {
@@ -194,39 +189,6 @@ func lintRBEExecStrategy(ctx android.ModuleContext) string {
 }
 
 func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.RuleBuilder) lintPaths {
-	var deps android.Paths
-	var remoteInputs android.Paths
-	var remoteRSPInputs android.Paths
-
-	// Paths passed to trackInputDependency will be added as dependencies of the rule that runs
-	// lint and passed as inputs to the remote execution proxy.
-	trackInputDependency := func(paths ...android.Path) {
-		deps = append(deps, paths...)
-		remoteInputs = append(remoteInputs, paths...)
-	}
-
-	// Paths passed to trackRSPDependency will be added as dependencies of the rule that runs
-	// lint, but the RSP file will be used by the remote execution proxy to find the files so that
-	// it doesn't overflow command line limits.
-	trackRSPDependency := func(paths android.Paths, rsp android.Path) {
-		deps = append(deps, paths...)
-		remoteRSPInputs = append(remoteRSPInputs, rsp)
-	}
-
-	var resourcesList android.WritablePath
-	if len(l.resources) > 0 {
-		// The list of resources may be too long to put on the command line, but
-		// we can't use the rsp file because it is already being used for srcs.
-		// Insert a second rule to write out the list of resources to a file.
-		resourcesList = android.PathForModuleOut(ctx, "resources.list")
-		resListRule := android.NewRuleBuilder(pctx, ctx)
-		resListRule.Command().Text("cp").
-			FlagWithRspFileInputList("", resourcesList.ReplaceExtension(ctx, "rsp"), l.resources).
-			Output(resourcesList)
-		resListRule.Build("lint_resources_list", "lint resources list")
-		trackRSPDependency(l.resources, resourcesList)
-	}
-
 	projectXMLPath := android.PathForModuleOut(ctx, "lint", "project.xml")
 	// Lint looks for a lint.xml file next to the project.xml file, give it one.
 	configXMLPath := android.PathForModuleOut(ctx, "lint", "lint.xml")
@@ -235,20 +197,6 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 
 	srcJarDir := android.PathForModuleOut(ctx, "lint", "srcjars")
 	srcJarList := zipSyncCmd(ctx, rule, srcJarDir, l.srcJars)
-	// TODO(ccross): this is a little fishy.  The files extracted from the srcjars are referenced
-	// by the project.xml and used by the later lint rule, but the lint rule depends on the srcjars,
-	// not the extracted files.
-	trackRSPDependency(l.srcJars, srcJarList)
-
-	// TODO(ccross): some of the files in l.srcs are generated sources and should be passed to
-	// lint separately.
-	srcsList := android.PathForModuleOut(ctx, "lint", "srcs.list")
-	srcsListRsp := android.PathForModuleOut(ctx, "lint-srcs.list.rsp")
-	rule.Command().Text("cp").
-		FlagWithRspFileInputList("", srcsListRsp, l.srcs).
-		Output(srcsList)
-	trackRSPDependency(l.srcs, srcsList)
-	rule.Temporary(srcsList)
 
 	cmd := rule.Command().
 		BuiltTool("lint-project-xml").
@@ -263,32 +211,31 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 		cmd.Flag("--test")
 	}
 	if l.manifest != nil {
-		cmd.FlagWithArg("--manifest ", cmd.PathForInput(l.manifest))
-		trackInputDependency(l.manifest)
+		cmd.FlagWithInput("--manifest ", l.manifest)
 	}
 	if l.mergedManifest != nil {
-		cmd.FlagWithArg("--merged_manifest ", cmd.PathForInput(l.mergedManifest))
-		trackInputDependency(l.mergedManifest)
+		cmd.FlagWithInput("--merged_manifest ", l.mergedManifest)
 	}
 
-	cmd.FlagWithInput("--srcs ", srcsList)
+	// TODO(ccross): some of the files in l.srcs are generated sources and should be passed to
+	// lint separately.
+	srcsList := android.PathForModuleOut(ctx, "lint-srcs.list")
+	cmd.FlagWithRspFileInputList("--srcs ", srcsList, l.srcs)
 
 	cmd.FlagWithInput("--generated_srcs ", srcJarList)
 
-	if resourcesList != nil {
-		cmd.FlagWithInput("--resources ", resourcesList)
+	if len(l.resources) > 0 {
+		resourcesList := android.PathForModuleOut(ctx, "lint-resources.list")
+		cmd.FlagWithRspFileInputList("--resources ", resourcesList, l.resources)
 	}
 
 	if l.classes != nil {
-		cmd.FlagWithArg("--classes ", cmd.PathForInput(l.classes))
-		trackInputDependency(l.classes)
+		cmd.FlagWithInput("--classes ", l.classes)
 	}
 
-	cmd.FlagForEachArg("--classpath ", cmd.PathsForInputs(l.classpath))
-	trackInputDependency(l.classpath...)
+	cmd.FlagForEachInput("--classpath ", l.classpath)
 
-	cmd.FlagForEachArg("--extra_checks_jar ", cmd.PathsForInputs(l.extraLintCheckJars))
-	trackInputDependency(l.extraLintCheckJars...)
+	cmd.FlagForEachInput("--extra_checks_jar ", l.extraLintCheckJars)
 
 	cmd.FlagWithArg("--root_dir ", "$PWD")
 
@@ -309,11 +256,6 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 		configXML:  configXMLPath,
 		cacheDir:   cacheDir,
 		homeDir:    homeDir,
-
-		deps: deps,
-
-		remoteInputs:    remoteInputs,
-		remoteRSPInputs: remoteRSPInputs,
 	}
 
 }
@@ -424,8 +366,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		Flag("--exitcode").
 		Flags(l.properties.Lint.Flags).
 		Implicit(annotationsZipPath).
-		Implicit(apiVersionsXMLPath).
-		Implicits(lintPaths.deps)
+		Implicit(apiVersionsXMLPath)
 
 	rule.Temporary(lintPaths.projectXML)
 	rule.Temporary(lintPaths.configXML)
