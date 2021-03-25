@@ -29,7 +29,6 @@ import (
 	"android/soong/android"
 	"android/soong/bpf"
 	"android/soong/cc"
-	"android/soong/dexpreopt"
 	prebuilt_etc "android/soong/etc"
 	"android/soong/filesystem"
 	"android/soong/java"
@@ -1571,9 +1570,6 @@ func (a *apexBundle) WalkPayloadDeps(ctx android.ModuleContext, do android.Paylo
 			return false
 		}
 		if dt, ok := depTag.(dependencyTag); ok && !dt.payload {
-			return false
-		}
-		if depTag == dexpreopt.Dex2oatDepTag {
 			return false
 		}
 
