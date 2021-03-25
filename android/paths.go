@@ -511,6 +511,9 @@ func getPathsFromModuleDep(ctx ModuleWithDepsPathContext, path, moduleName, tag 
 	if module == nil {
 		return nil, missingDependencyError{[]string{moduleName}}
 	}
+	if aModule, ok := module.(Module); ok && !aModule.Enabled() {
+		return nil, missingDependencyError{[]string{moduleName}}
+	}
 	if outProducer, ok := module.(OutputFileProducer); ok {
 		outputFiles, err := outProducer.OutputFiles(tag)
 		if err != nil {

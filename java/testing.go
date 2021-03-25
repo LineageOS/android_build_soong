@@ -43,7 +43,8 @@ var PrepareForTestWithJavaBuildComponents = android.GroupFixturePreparers(
 	// Make sure that mutators and module types, e.g. prebuilt mutators available.
 	android.PrepareForTestWithAndroidBuildComponents,
 	// Make java build components available to the test.
-	android.FixtureRegisterWithContext(RegisterRequiredBuildComponentsForTest),
+	android.FixtureRegisterWithContext(registerRequiredBuildComponentsForTest),
+	android.FixtureRegisterWithContext(registerJavaPluginBuildComponents),
 )
 
 // Test fixture preparer that will define default java modules, e.g. standard prebuilt modules.
@@ -51,7 +52,16 @@ var PrepareForTestWithJavaDefaultModules = android.GroupFixturePreparers(
 	// Make sure that all the module types used in the defaults are registered.
 	PrepareForTestWithJavaBuildComponents,
 	// The java default module definitions.
-	android.FixtureAddTextFile(defaultJavaDir+"/Android.bp", GatherRequiredDepsForTest()),
+	android.FixtureAddTextFile(defaultJavaDir+"/Android.bp", gatherRequiredDepsForTest()),
+	// Add dexpreopt compat libs (android.test.base, etc.) and a fake dex2oatd module.
+	dexpreopt.PrepareForTestWithDexpreoptCompatLibs,
+	dexpreopt.PrepareForTestWithFakeDex2oatd,
+)
+
+// Provides everything needed by dexpreopt.
+var PrepareForTestWithDexpreopt = android.GroupFixturePreparers(
+	PrepareForTestWithJavaDefaultModules,
+	dexpreopt.PrepareForTestByEnablingDexpreopt,
 )
 
 var PrepareForTestWithOverlayBuildComponents = android.FixtureRegisterWithContext(registerOverlayBuildComponents)
@@ -177,7 +187,22 @@ func prebuiltApisFilesForLibs(apiLevels []string, sdkLibs []string) map[string][
 //
 // In particular this must register all the components that are used in the `Android.bp` snippet
 // returned by GatherRequiredDepsForTest()
+//
+// deprecated: Use test fixtures instead, e.g. PrepareForTestWithJavaBuildComponents
 func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
+	registerRequiredBuildComponentsForTest(ctx)
+
+	// Make sure that any tool related module types needed by dexpreopt have been registered.
+	dexpreopt.RegisterToolModulesForTest(ctx)
+}
+
+// registerRequiredBuildComponentsForTest registers the build components used by
+// PrepareForTestWithJavaDefaultModules.
+//
+// As functionality is moved out of here into separate FixturePreparer instances they should also
+// be moved into GatherRequiredDepsForTest for use by tests that have not yet switched to use test
+// fixtures.
+func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterAARBuildComponents(ctx)
 	RegisterAppBuildComponents(ctx)
 	RegisterAppImportBuildComponents(ctx)
@@ -192,15 +217,32 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterSdkLibraryBuildComponents(ctx)
 	RegisterStubsBuildComponents(ctx)
 	RegisterSystemModulesBuildComponents(ctx)
-
-	// Make sure that any tool related module types needed by dexpreopt have been registered.
-	dexpreopt.RegisterToolModulesForTest(ctx)
 }
 
 // Gather the module definitions needed by tests that depend upon code from this package.
 //
 // Returns an `Android.bp` snippet that defines the modules that are needed by this package.
+//
+// deprecated: Use test fixtures instead, e.g. PrepareForTestWithJavaDefaultModules
 func GatherRequiredDepsForTest() string {
+	bp := gatherRequiredDepsForTest()
+
+	// For class loader context and <uses-library> tests.
+	bp += dexpreopt.CompatLibDefinitionsForTest()
+
+	// Make sure that any tools needed for dexpreopting are defined.
+	bp += dexpreopt.BpToolModulesForTest()
+
+	return bp
+}
+
+// gatherRequiredDepsForTest gathers the module definitions used by
+// PrepareForTestWithJavaDefaultModules.
+//
+// As functionality is moved out of here into separate FixturePreparer instances they should also
+// be moved into GatherRequiredDepsForTest for use by tests that have not yet switched to use test
+// fixtures.
+func gatherRequiredDepsForTest() string {
 	var bp string
 
 	extraModules := []string{
@@ -228,24 +270,6 @@ func GatherRequiredDepsForTest() string {
 				sdk_version: "none",
 				system_modules: "stable-core-platform-api-stubs-system-modules",
 				compile_dex: true,
-			}
-		`, extra)
-	}
-
-	// For class loader context and <uses-library> tests.
-	dexpreoptModules := []string{"android.test.runner"}
-	dexpreoptModules = append(dexpreoptModules, dexpreopt.CompatUsesLibs...)
-	dexpreoptModules = append(dexpreoptModules, dexpreopt.OptionalCompatUsesLibs...)
-
-	for _, extra := range dexpreoptModules {
-		bp += fmt.Sprintf(`
-			java_library {
-				name: "%s",
-				srcs: ["a.java"],
-				sdk_version: "none",
-				system_modules: "stable-core-platform-api-stubs-system-modules",
-				compile_dex: true,
-				installable: true,
 			}
 		`, extra)
 	}
@@ -285,9 +309,6 @@ func GatherRequiredDepsForTest() string {
 			}
 		`, extra)
 	}
-
-	// Make sure that any tools needed for dexpreopting are defined.
-	bp += dexpreopt.BpToolModulesForTest()
 
 	// Make sure that the dex_bootjars singleton module is instantiated for the tests.
 	bp += `
