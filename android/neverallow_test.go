@@ -308,7 +308,8 @@ func TestNeverallow(t *testing.T) {
 					}
 				}),
 				test.fs.AddToFixture(),
-			).ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
+			).
+				ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).
 				RunTest(t)
 		})
 	}
