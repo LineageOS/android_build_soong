@@ -18,12 +18,16 @@ import (
 	"android/soong/shared"
 )
 
-// This file supports dependencies on environment variables.  During build manifest generation,
-// any dependency on an environment variable is added to a list.  During the singleton phase
-// a JSON file is written containing the current value of all used environment variables.
-// The next time the top-level build script is run, it uses the soong_env executable to
-// compare the contents of the environment variables, rewriting the file if necessary to cause
-// a manifest regeneration.
+// This file supports dependencies on environment variables.  During build
+// manifest generation, any dependency on an environment variable is added to a
+// list.  At the end of the build, a JSON file called soong.environment.used is
+// written containing the current value of all used environment variables. The
+// next time the top-level build script is run, soong_ui parses the compare the
+// contents of the used environment variables, then, if they changed, deletes
+// soong.environment.used to cause a rebuild.
+//
+// The dependency of build.ninja on soong.environment.used is declared in
+// build.ninja.d
 
 var originalEnv map[string]string
 
@@ -33,31 +37,4 @@ func InitEnvironment(envFile string) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func EnvSingleton() Singleton {
-	return &envSingleton{}
-}
-
-type envSingleton struct{}
-
-func (c *envSingleton) GenerateBuildActions(ctx SingletonContext) {
-	envDeps := ctx.Config().EnvDeps()
-
-	envFile := PathForOutput(ctx, "soong.environment.used")
-	if ctx.Failed() {
-		return
-	}
-
-	data, err := shared.EnvFileContents(envDeps)
-	if err != nil {
-		ctx.Errorf(err.Error())
-	}
-
-	err = WriteFileToOutputDir(envFile, data, 0666)
-	if err != nil {
-		ctx.Errorf(err.Error())
-	}
-
-	ctx.AddNinjaFileDeps(envFile.String())
 }

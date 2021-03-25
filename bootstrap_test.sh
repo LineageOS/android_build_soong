@@ -235,6 +235,86 @@ EOF
   grep -q my_little_library.py out/soong/build.ninja || fail "new file is not in output"
 }
 
+function test_soong_build_rerun_iff_environment_changes() {
+  setup
+
+  mkdir -p cherry
+  cat > cherry/Android.bp <<'EOF'
+bootstrap_go_package {
+  name: "cherry",
+  pkgPath: "android/soong/cherry",
+  deps: [
+    "blueprint",
+    "soong",
+    "soong-android",
+  ],
+  srcs: [
+    "cherry.go",
+  ],
+  pluginFor: ["soong_build"],
+}
+EOF
+
+  cat > cherry/cherry.go <<'EOF'
+package cherry
+
+import (
+  "android/soong/android"
+  "github.com/google/blueprint"
+)
+
+var (
+  pctx = android.NewPackageContext("cherry")
+)
+
+func init() {
+  android.RegisterSingletonType("cherry", CherrySingleton)
+}
+
+func CherrySingleton() android.Singleton {
+  return &cherrySingleton{}
+}
+
+type cherrySingleton struct{}
+
+func (p *cherrySingleton) GenerateBuildActions(ctx android.SingletonContext) {
+  cherryRule := ctx.Rule(pctx, "cherry",
+    blueprint.RuleParams{
+      Command: "echo CHERRY IS " + ctx.Config().Getenv("CHERRY") + " > ${out}",
+      CommandDeps: []string{},
+      Description: "Cherry",
+    })
+
+  outputFile := android.PathForOutput(ctx, "cherry", "cherry.txt")
+  var deps android.Paths
+
+  ctx.Build(pctx, android.BuildParams{
+    Rule: cherryRule,
+    Output: outputFile,
+    Inputs: deps,
+  })
+}
+EOF
+
+  export CHERRY=TASTY
+  run_soong
+  grep -q "CHERRY IS TASTY" out/soong/build.ninja \
+    || fail "first value of environment variable is not used"
+
+  export CHERRY=RED
+  run_soong
+  grep -q "CHERRY IS RED" out/soong/build.ninja \
+    || fail "second value of environment variable not used"
+  local mtime1=$(stat -c "%y" out/soong/build.ninja)
+
+  run_soong
+  local mtime2=$(stat -c "%y" out/soong/build.ninja)
+  if [[ "$mtime1" != "$mtime2" ]]; then
+    fail "Output Ninja file changed when environment variable did not"
+  fi
+
+}
+
 function test_add_file_to_soong_build() {
   setup
   run_soong
@@ -308,12 +388,28 @@ EOF
   grep -q "Make it so" out/soong/build.ninja || fail "New action not present"
 }
 
+function test_null_build_after_docs {
+  setup
+  run_soong
+  local mtime1=$(stat -c "%y" out/soong/build.ninja)
+
+  prebuilts/build-tools/linux-x86/bin/ninja -f out/soong/build.ninja soong_docs
+  run_soong
+  local mtime2=$(stat -c "%y" out/soong/build.ninja)
+
+  if [[ "$mtime1" != "$mtime2" ]]; then
+    fail "Output Ninja file changed on null build"
+  fi
+}
+
 test_bazel_smoke
 test_smoke
 test_null_build
+test_null_build_after_docs
 test_soong_build_rebuilt_if_blueprint_changes
 test_add_file_to_glob
 test_add_android_bp
 test_change_android_bp
 test_delete_android_bp
 test_add_file_to_soong_build
+test_soong_build_rerun_iff_environment_changes
