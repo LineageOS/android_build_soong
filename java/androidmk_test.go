@@ -135,7 +135,8 @@ func TestHostdexSpecificRequired(t *testing.T) {
 }
 
 func TestJavaSdkLibrary_RequireXmlPermissionFile(t *testing.T) {
-	result := javaFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo-shared_library", "foo-no_shared_library"),
 	).RunTestWithBp(t, `
@@ -171,7 +172,7 @@ func TestJavaSdkLibrary_RequireXmlPermissionFile(t *testing.T) {
 }
 
 func TestImportSoongDexJar(t *testing.T) {
-	ctx, _ := testJava(t, `
+	result := PrepareForTestWithJavaDefaultModules.RunTestWithBp(t, `
 		java_import {
 			name: "my-java-import",
 			jars: ["a.jar"],
@@ -180,14 +181,10 @@ func TestImportSoongDexJar(t *testing.T) {
 		}
 	`)
 
-	mod := ctx.ModuleForTests("my-java-import", "android_common").Module()
-	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
-	expectedSoongDexJar := buildDir + "/.intermediates/my-java-import/android_common/dex/my-java-import.jar"
+	mod := result.Module("my-java-import", "android_common")
+	entries := android.AndroidMkEntriesForTest(t, result.TestContext, mod)[0]
+	expectedSoongDexJar := "out/soong/.intermediates/my-java-import/android_common/dex/my-java-import.jar"
 	actualSoongDexJar := entries.EntryMap["LOCAL_SOONG_DEX_JAR"]
 
-	if len(actualSoongDexJar) != 1 {
-		t.Errorf("LOCAL_SOONG_DEX_JAR incorrect len %d", len(actualSoongDexJar))
-	} else if actualSoongDexJar[0] != expectedSoongDexJar {
-		t.Errorf("LOCAL_SOONG_DEX_JAR mismatch, actual: %s, expected: %s", actualSoongDexJar[0], expectedSoongDexJar)
-	}
+	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_SOONG_DEX_JAR", result.Config, []string{expectedSoongDexJar}, actualSoongDexJar)
 }

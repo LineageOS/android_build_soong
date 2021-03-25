@@ -66,7 +66,7 @@ func TestClippy(t *testing.T) {
 	for _, tc := range clippyLintTests {
 		t.Run("path="+tc.modulePath, func(t *testing.T) {
 
-			config := android.TestArchConfig(buildDir, nil, bp, fs)
+			config := android.TestArchConfig(t.TempDir(), nil, bp, fs)
 			ctx := CreateTestContext(config)
 			ctx.Register()
 			_, errs := ctx.ParseFileList(".", []string{tc.modulePath + "Android.bp"})

@@ -36,6 +36,7 @@ var prepareForGenRuleTest = android.GroupFixturePreparers(
 	PrepareForTestWithGenRuleBuildComponents,
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("tool", toolFactory)
+		ctx.RegisterModuleType("output", outputProducerFactory)
 	}),
 	android.FixtureMergeMockFs(android.MockFS{
 		"tool":       nil,
@@ -653,6 +654,35 @@ func TestGenruleDefaults(t *testing.T) {
 	android.AssertDeepEquals(t, "srcs", expectedSrcs, gen.properties.Srcs)
 }
 
+func TestGenruleAllowMissingDependencies(t *testing.T) {
+	bp := `
+		output {
+			name: "disabled",
+			enabled: false,
+		}
+
+		genrule {
+			name: "gen",
+			srcs: [
+				":disabled",
+			],
+			out: ["out"],
+			cmd: "cat $(in) > $(out)",
+		}
+       `
+	result := prepareForGenRuleTest.Extend(
+		android.FixtureModifyConfigAndContext(
+			func(config android.Config, ctx *android.TestContext) {
+				config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
+				ctx.SetAllowMissingDependencies(true)
+			})).RunTestWithBp(t, bp)
+
+	gen := result.ModuleForTests("gen", "").Output("out")
+	if gen.Rule != android.ErrorRule {
+		t.Errorf("Expected missing dependency error rule for gen, got %q", gen.Rule.String())
+	}
+}
+
 func TestGenruleWithBazel(t *testing.T) {
 	bp := `
 		genrule {
@@ -697,3 +727,24 @@ func (t *testTool) HostToolPath() android.OptionalPath {
 }
 
 var _ android.HostToolProvider = (*testTool)(nil)
+
+type testOutputProducer struct {
+	android.ModuleBase
+	outputFile android.Path
+}
+
+func outputProducerFactory() android.Module {
+	module := &testOutputProducer{}
+	android.InitAndroidArchModule(module, android.HostSupported, android.MultilibFirst)
+	return module
+}
+
+func (t *testOutputProducer) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	t.outputFile = ctx.InstallFile(android.PathForModuleInstall(ctx, "bin"), ctx.ModuleName(), android.PathForOutput(ctx, ctx.ModuleName()))
+}
+
+func (t *testOutputProducer) OutputFiles(tag string) (android.Paths, error) {
+	return android.Paths{t.outputFile}, nil
+}
+
+var _ android.OutputFileProducer = (*testOutputProducer)(nil)

@@ -24,7 +24,7 @@ import (
 )
 
 func TestRuntimeResourceOverlay(t *testing.T) {
-	fs := map[string][]byte{
+	fs := android.MockFS{
 		"baz/res/res/values/strings.xml": nil,
 		"bar/res/res/values/strings.xml": nil,
 	}
@@ -57,15 +57,18 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 			sdk_version: "current",
 			resource_dirs: ["baz/res"],
 		}
-		`
-	config := testAppConfig(nil, bp, fs)
-	ctx := testContext(config)
-	run(t, ctx, config)
+	`
 
-	m := ctx.ModuleForTests("foo", "android_common")
+	result := android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		PrepareForTestWithOverlayBuildComponents,
+		fs.AddToFixture(),
+	).RunTestWithBp(t, bp)
+
+	m := result.ModuleForTests("foo", "android_common")
 
 	// Check AAPT2 link flags.
-	aapt2Flags := m.Output("package-res.apk").Args["flags"]
+	aapt2Flags := m.Output("package-res.apk").RelativeToTop().Args["flags"]
 	expectedFlags := []string{"--keep-raw-values", "--no-resource-deduping", "--no-resource-removal"}
 	absentFlags := android.RemoveListFromList(expectedFlags, strings.Split(aapt2Flags, " "))
 	if len(absentFlags) > 0 {
@@ -73,14 +76,14 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 	}
 
 	// Check overlay.list output for static_libs dependency.
-	overlayList := m.Output("aapt2/overlay.list").Inputs.Strings()
-	staticLibPackage := buildDir + "/.intermediates/bar/android_common/package-res.apk"
+	overlayList := android.PathsRelativeToTop(m.Output("aapt2/overlay.list").Inputs)
+	staticLibPackage := "out/soong/.intermediates/bar/android_common/package-res.apk"
 	if !inList(staticLibPackage, overlayList) {
 		t.Errorf("Stactic lib res package %q missing in overlay list: %q", staticLibPackage, overlayList)
 	}
 
 	// Check AAPT2 link flags for resource_libs dependency.
-	resourceLibFlag := "-I " + buildDir + "/.intermediates/baz/android_common/package-res.apk"
+	resourceLibFlag := "-I " + "out/soong/.intermediates/baz/android_common/package-res.apk"
 	if !strings.Contains(aapt2Flags, resourceLibFlag) {
 		t.Errorf("Resource lib flag %q missing in aapt2 link flags: %q", resourceLibFlag, aapt2Flags)
 	}
@@ -97,7 +100,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 	if expected != signingFlag {
 		t.Errorf("Incorrect signing flags, expected: %q, got: %q", expected, signingFlag)
 	}
-	androidMkEntries := android.AndroidMkEntriesForTest(t, ctx, m.Module())[0]
+	androidMkEntries := android.AndroidMkEntriesForTest(t, result.TestContext, m.Module())[0]
 	path := androidMkEntries.EntryMap["LOCAL_CERTIFICATE"]
 	expectedPath := []string{"build/make/target/product/security/platform.x509.pem"}
 	if !reflect.DeepEqual(path, expectedPath) {
@@ -106,19 +109,15 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 
 	// Check device location.
 	path = androidMkEntries.EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath = []string{shared.JoinPath(buildDir, "../target/product/test_device/product/overlay")}
-	if !reflect.DeepEqual(path, expectedPath) {
-		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
-	}
+	expectedPath = []string{shared.JoinPath("out/target/product/test_device/product/overlay")}
+	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_MODULE_PATH", result.Config, expectedPath, path)
 
 	// A themed module has a different device location
-	m = ctx.ModuleForTests("foo_themed", "android_common")
-	androidMkEntries = android.AndroidMkEntriesForTest(t, ctx, m.Module())[0]
+	m = result.ModuleForTests("foo_themed", "android_common")
+	androidMkEntries = android.AndroidMkEntriesForTest(t, result.TestContext, m.Module())[0]
 	path = androidMkEntries.EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath = []string{shared.JoinPath(buildDir, "../target/product/test_device/product/overlay/faza")}
-	if !reflect.DeepEqual(path, expectedPath) {
-		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
-	}
+	expectedPath = []string{shared.JoinPath("out/target/product/test_device/product/overlay/faza")}
+	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_MODULE_PATH", result.Config, expectedPath, path)
 
 	overrides := androidMkEntries.EntryMap["LOCAL_OVERRIDES_PACKAGES"]
 	expectedOverrides := []string{"foo"}
@@ -128,7 +127,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 }
 
 func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
-	ctx, _ := testJava(t, `
+	ctx, config := testJava(t, `
 		java_defaults {
 			name: "rro_defaults",
 			theme: "default_theme",
@@ -161,10 +160,8 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 
 	// Check device location.
 	path := android.AndroidMkEntriesForTest(t, ctx, m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath := []string{shared.JoinPath(buildDir, "../target/product/test_device/product/overlay/default_theme")}
-	if !reflect.DeepEqual(path, expectedPath) {
-		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %q, expected: %q", path, expectedPath)
-	}
+	expectedPath := []string{shared.JoinPath("out/target/product/test_device/product/overlay/default_theme")}
+	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_MODULE_PATH", config, expectedPath, path)
 
 	//
 	// RRO module without defaults
@@ -180,10 +177,8 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 
 	// Check device location.
 	path = android.AndroidMkEntriesForTest(t, ctx, m.Module())[0].EntryMap["LOCAL_MODULE_PATH"]
-	expectedPath = []string{shared.JoinPath(buildDir, "../target/product/test_device/system/overlay")}
-	if !reflect.DeepEqual(path, expectedPath) {
-		t.Errorf("Unexpected LOCAL_MODULE_PATH value: %v, expected: %v", path, expectedPath)
-	}
+	expectedPath = []string{shared.JoinPath("out/target/product/test_device/system/overlay")}
+	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_MODULE_PATH", config, expectedPath, path)
 }
 
 func TestOverrideRuntimeResourceOverlay(t *testing.T) {
@@ -214,7 +209,7 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 	}{
 		{
 			variantName:       "android_common",
-			apkPath:           "/target/product/test_device/product/overlay/foo_overlay.apk",
+			apkPath:           "out/soong/target/product/test_device/product/overlay/foo_overlay.apk",
 			overrides:         nil,
 			targetVariant:     "android_common",
 			packageFlag:       "",
@@ -222,7 +217,7 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 		},
 		{
 			variantName:       "android_common_bar_overlay",
-			apkPath:           "/target/product/test_device/product/overlay/bar_overlay.apk",
+			apkPath:           "out/soong/target/product/test_device/product/overlay/bar_overlay.apk",
 			overrides:         []string{"foo_overlay"},
 			targetVariant:     "android_common_bar",
 			packageFlag:       "com.android.bar.overlay",
@@ -233,18 +228,7 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 		variant := ctx.ModuleForTests("foo_overlay", expected.variantName)
 
 		// Check the final apk name
-		outputs := variant.AllOutputs()
-		expectedApkPath := buildDir + expected.apkPath
-		found := false
-		for _, o := range outputs {
-			if o == expectedApkPath {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Can't find %q in output files.\nAll outputs:%v", expectedApkPath, outputs)
-		}
+		variant.Output(expected.apkPath)
 
 		// Check if the overrides field values are correctly aggregated.
 		mod := variant.Module().(*RuntimeResourceOverlay)
@@ -298,7 +282,7 @@ func TestEnforceRRO_propagatesToDependencies(t *testing.T) {
 		"product/vendor/blah/overlay",
 	}
 
-	fs := map[string][]byte{
+	fs := android.MockFS{
 		"lib2/res/values/strings.xml":                             nil,
 		"product/vendor/blah/overlay/lib2/res/values/strings.xml": nil,
 	}
@@ -334,19 +318,22 @@ func TestEnforceRRO_propagatesToDependencies(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			config := testAppConfig(nil, bp, fs)
-			config.TestProductVariables.ProductResourceOverlays = productResourceOverlays
-			if testCase.enforceRROTargets != nil {
-				config.TestProductVariables.EnforceRROTargets = testCase.enforceRROTargets
-			}
-
-			ctx := testContext(config)
-			run(t, ctx, config)
+			result := android.GroupFixturePreparers(
+				PrepareForTestWithJavaDefaultModules,
+				PrepareForTestWithOverlayBuildComponents,
+				fs.AddToFixture(),
+				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+					variables.ProductResourceOverlays = productResourceOverlays
+					if testCase.enforceRROTargets != nil {
+						variables.EnforceRROTargets = testCase.enforceRROTargets
+					}
+				}),
+			).RunTestWithBp(t, bp)
 
 			modules := []string{"foo", "bar"}
 			for _, moduleName := range modules {
-				module := ctx.ModuleForTests(moduleName, "android_common")
-				mkEntries := android.AndroidMkEntriesForTest(t, ctx, module.Module())[0]
+				module := result.ModuleForTests(moduleName, "android_common")
+				mkEntries := android.AndroidMkEntriesForTest(t, result.TestContext, module.Module())[0]
 				actualRRODirs := mkEntries.EntryMap["LOCAL_SOONG_PRODUCT_RRO_DIRS"]
 				if !reflect.DeepEqual(actualRRODirs, testCase.rroDirs[moduleName]) {
 					t.Errorf("exected %s LOCAL_SOONG_PRODUCT_RRO_DIRS entry: %v\ngot:%q",
