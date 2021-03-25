@@ -77,8 +77,6 @@ prebuilt_platform_compat_config {
 				// Make sure that the snapshot metadata is collated by the platform compat config singleton.
 				java.CheckMergedCompatConfigInputs(t, result, "snapshot module",
 					"out/soong/.intermediates/myconfig/android_common/myconfig_meta.xml",
-					// TODO(b/182402754): Remove this as only the config file from the preferred module should be used.
-					"snapshot/compat_configs/myconfig/myconfig_meta.xml",
 				)
 			}),
 
@@ -86,8 +84,6 @@ prebuilt_platform_compat_config {
 			func(t *testing.T, result *android.TestResult) {
 				// Make sure that the snapshot metadata is collated by the platform compat config singleton.
 				java.CheckMergedCompatConfigInputs(t, result, "snapshot module",
-					"out/soong/.intermediates/myconfig/android_common/myconfig_meta.xml",
-					// TODO(b/182402754): Remove this as only the config file from the preferred module should be used.
 					"snapshot/compat_configs/myconfig/myconfig_meta.xml",
 				)
 			}),
