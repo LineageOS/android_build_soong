@@ -23,7 +23,7 @@ import (
 
 const (
 	// See cc/testing.go for more context
-	soongCcLibraryPreamble = `
+	soongCcLibraryStaticPreamble = `
 cc_defaults {
 	name: "linux_bionic_supported",
 }
@@ -51,7 +51,7 @@ toolchain_library {
 }`
 )
 
-func TestCcLibraryHeadersLoadStatement(t *testing.T) {
+func TestCcLibraryStaticLoadStatement(t *testing.T) {
 	testCases := []struct {
 		bazelTargets           BazelTargets
 		expectedLoadStatements string
@@ -59,9 +59,9 @@ func TestCcLibraryHeadersLoadStatement(t *testing.T) {
 		{
 			bazelTargets: BazelTargets{
 				BazelTarget{
-					name:      "cc_library_headers_target",
-					ruleClass: "cc_library_headers",
-					// Note: no bzlLoadLocation for native rules
+					name:      "cc_library_static_target",
+					ruleClass: "cc_library_static",
+					// NOTE: No bzlLoadLocation for native rules
 				},
 			},
 			expectedLoadStatements: ``,
@@ -78,7 +78,7 @@ func TestCcLibraryHeadersLoadStatement(t *testing.T) {
 
 }
 
-func TestCcLibraryHeadersBp2Build(t *testing.T) {
+func TestCcLibraryStaticBp2Build(t *testing.T) {
 	testCases := []struct {
 		description                        string
 		moduleTypeUnderTest                string
@@ -92,74 +92,157 @@ func TestCcLibraryHeadersBp2Build(t *testing.T) {
 		dir                                string
 	}{
 		{
-			description:                        "cc_library_headers test",
-			moduleTypeUnderTest:                "cc_library_headers",
-			moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
-			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
+			description:                        "cc_library_static test",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
 			filesystem: map[string]string{
-				"lib-1/lib1a.h": "",
-				"lib-1/lib1b.h": "",
-				"lib-2/lib2a.h": "",
-				"lib-2/lib2b.h": "",
-				"dir-1/dir1a.h": "",
-				"dir-1/dir1b.h": "",
-				"dir-2/dir2a.h": "",
-				"dir-2/dir2b.h": "",
+				// NOTE: include_dir headers *should not* appear in Bazel hdrs later (?)
+				"include_dir_1/include_dir_1_a.h": "",
+				"include_dir_1/include_dir_1_b.h": "",
+				"include_dir_2/include_dir_2_a.h": "",
+				"include_dir_2/include_dir_2_b.h": "",
+				// NOTE: local_include_dir headers *should not* appear in Bazel hdrs later (?)
+				"local_include_dir_1/local_include_dir_1_a.h": "",
+				"local_include_dir_1/local_include_dir_1_b.h": "",
+				"local_include_dir_2/local_include_dir_2_a.h": "",
+				"local_include_dir_2/local_include_dir_2_b.h": "",
+				// NOTE: export_include_dir headers *should* appear in Bazel hdrs later
+				"export_include_dir_1/export_include_dir_1_a.h": "",
+				"export_include_dir_1/export_include_dir_1_b.h": "",
+				"export_include_dir_2/export_include_dir_2_a.h": "",
+				"export_include_dir_2/export_include_dir_2_b.h": "",
 			},
-			bp: soongCcLibraryPreamble + `
+			bp: soongCcLibraryStaticPreamble + `
 cc_library_headers {
-    name: "lib-1",
-    export_include_dirs: ["lib-1"],
-    bazel_module: { bp2build_available: true },
+    name: "header_lib_1",
+    export_include_dirs: ["header_lib_1"],
 }
 
 cc_library_headers {
-    name: "lib-2",
-    export_include_dirs: ["lib-2"],
+    name: "header_lib_2",
+    export_include_dirs: ["header_lib_2"],
+}
+
+cc_library_static {
+    name: "static_lib_1",
+    srcs: ["static_lib_1.cc"],
     bazel_module: { bp2build_available: true },
 }
 
-cc_library_headers {
-    name: "foo_headers",
-    export_include_dirs: ["dir-1", "dir-2"],
-    header_libs: ["lib-1", "lib-2"],
+cc_library_static {
+    name: "static_lib_2",
+    srcs: ["static_lib_2.cc"],
+    bazel_module: { bp2build_available: true },
+}
+
+cc_library_static {
+    name: "whole_static_lib_1",
+    srcs: ["whole_static_lib_1.cc"],
+    bazel_module: { bp2build_available: true },
+}
+
+cc_library_static {
+    name: "whole_static_lib_2",
+    srcs: ["whole_static_lib_2.cc"],
+    bazel_module: { bp2build_available: true },
+}
+
+cc_library_static {
+    name: "foo_static",
+    srcs: [
+        "foo_static1.cc",
+	"foo_static2.cc",
+    ],
+    cflags: [
+        "-Dflag1",
+	"-Dflag2"
+    ],
+    static_libs: [
+        "static_lib_1",
+	"static_lib_2"
+    ],
+    whole_static_libs: [
+        "whole_static_lib_1",
+	"whole_static_lib_2"
+    ],
+    include_dirs: [
+	"include_dir_1",
+	"include_dir_2",
+    ],
+    local_include_dirs: [
+        "local_include_dir_1",
+	"local_include_dir_2",
+    ],
+    export_include_dirs: [
+	"export_include_dir_1",
+	"export_include_dir_2"
+    ],
+    header_libs: [
+        "header_lib_1",
+	"header_lib_2"
+    ],
 
     // TODO: Also support export_header_lib_headers
+
     bazel_module: { bp2build_available: true },
 }`,
-			expectedBazelTargets: []string{`cc_library_headers(
-    name = "foo_headers",
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = [
+        "-Dflag1",
+        "-Dflag2",
+    ],
     deps = [
-        ":lib-1",
-        ":lib-2",
+        ":header_lib_1",
+        ":header_lib_2",
+        ":static_lib_1",
+        ":static_lib_2",
+        ":whole_static_lib_1",
+        ":whole_static_lib_2",
     ],
     hdrs = [
-        "dir-1/dir1a.h",
-        "dir-1/dir1b.h",
-        "dir-2/dir2a.h",
-        "dir-2/dir2b.h",
+        "export_include_dir_1/export_include_dir_1_a.h",
+        "export_include_dir_1/export_include_dir_1_b.h",
+        "export_include_dir_2/export_include_dir_2_a.h",
+        "export_include_dir_2/export_include_dir_2_b.h",
     ],
     includes = [
-        "dir-1",
-        "dir-2",
+        "export_include_dir_1",
+        "export_include_dir_2",
+        "include_dir_1",
+        "include_dir_2",
+        "local_include_dir_1",
+        "local_include_dir_2",
     ],
-)`, `cc_library_headers(
-    name = "lib-1",
-    hdrs = [
-        "lib-1/lib1a.h",
-        "lib-1/lib1b.h",
+    linkstatic = True,
+    srcs = [
+        "foo_static1.cc",
+        "foo_static2.cc",
     ],
-    includes = [
-        "lib-1",
+)`, `cc_library_static(
+    name = "static_lib_1",
+    linkstatic = True,
+    srcs = [
+        "static_lib_1.cc",
     ],
-)`, `cc_library_headers(
-    name = "lib-2",
-    hdrs = [
-        "lib-2/lib2a.h",
-        "lib-2/lib2b.h",
+)`, `cc_library_static(
+    name = "static_lib_2",
+    linkstatic = True,
+    srcs = [
+        "static_lib_2.cc",
     ],
-    includes = [
-        "lib-2",
+)`, `cc_library_static(
+    name = "whole_static_lib_1",
+    linkstatic = True,
+    srcs = [
+        "whole_static_lib_1.cc",
+    ],
+)`, `cc_library_static(
+    name = "whole_static_lib_2",
+    linkstatic = True,
+    srcs = [
+        "whole_static_lib_2.cc",
     ],
 )`},
 		},
@@ -182,6 +265,7 @@ cc_library_headers {
 
 		cc.RegisterCCBuildComponents(ctx)
 		ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
+		ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 
 		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
 		for _, m := range testCase.depsMutators {
