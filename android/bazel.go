@@ -169,6 +169,7 @@ var (
 		"liblinker_malloc":              true,
 		"liblinker_debuggerd_stub":      true,
 		"libbionic_tests_headers_posix": true,
+		"libc_dns":                      true,
 	}
 )
 
