@@ -48,10 +48,10 @@ var prepareForSdkTestWithApex = android.GroupFixturePreparers(
 		"system/sepolicy/apex/myapex-file_contexts":    nil,
 		"system/sepolicy/apex/myapex2-file_contexts":   nil,
 		"system/sepolicy/apex/mysdkapex-file_contexts": nil,
-		"myapex.avbpubkey":                             nil,
-		"myapex.pem":                                   nil,
-		"myapex.x509.pem":                              nil,
-		"myapex.pk8":                                   nil,
+		"sdk/tests/myapex.avbpubkey":                   nil,
+		"sdk/tests/myapex.pem":                         nil,
+		"sdk/tests/myapex.x509.pem":                    nil,
+		"sdk/tests/myapex.pk8":                         nil,
 	}),
 )
 
@@ -80,6 +80,12 @@ var prepareForSdkTest = android.GroupFixturePreparers(
 			{android.Windows, android.Arch{ArchType: android.X86_64}, android.NativeBridgeDisabled, "", "", true},
 		}
 	}),
+
+	// Make sure that every test provides all the source files.
+	android.PrepareForTestDisallowNonExistentPaths,
+	android.MockFS{
+		"Test.java": nil,
+	}.AddToFixture(),
 )
 
 var PrepareForTestWithSdkBuildComponents = android.GroupFixturePreparers(

@@ -24,6 +24,16 @@ import (
 var prepareForSdkTestWithJava = android.GroupFixturePreparers(
 	java.PrepareForTestWithJavaBuildComponents,
 	PrepareForTestWithSdkBuildComponents,
+
+	// Ensure that all source paths are provided. This helps ensure that the snapshot generation is
+	// consistent and all files referenced from the snapshot's Android.bp file have actually been
+	// copied into the snapshot.
+	android.PrepareForTestDisallowNonExistentPaths,
+
+	// Files needs by most of the tests.
+	android.MockFS{
+		"Test.java": nil,
+	}.AddToFixture(),
 )
 
 var prepareForSdkTestWithJavaSdkLibrary = android.GroupFixturePreparers(
@@ -339,6 +349,7 @@ func TestSnapshotWithJavaImplLibrary(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForSdkTestWithJava,
 		android.FixtureAddFile("aidl/foo/bar/Test.aidl", nil),
+		android.FixtureAddFile("resource.txt", nil),
 	).RunTestWithBp(t, `
 		module_exports {
 			name: "myexports",
@@ -394,7 +405,11 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestSnapshotWithJavaBootLibrary(t *testing.T) {
-	result := android.GroupFixturePreparers(prepareForSdkTestWithJava).RunTestWithBp(t, `
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		android.FixtureAddFile("aidl", nil),
+		android.FixtureAddFile("resource.txt", nil),
+	).RunTestWithBp(t, `
 		module_exports {
 			name: "myexports",
 			java_boot_libs: ["myjavalib"],
@@ -1539,7 +1554,10 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_DoctagFiles(t *testing.T) {
-	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJavaSdkLibrary,
+		android.FixtureAddFile("docs/known_doctags", nil),
+	).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_sdk_libs: ["myjavalib"],
