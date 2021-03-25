@@ -126,7 +126,7 @@ func (m *customBazelModule) GenerateAndroidBuildActions(ctx android.ModuleContex
 
 func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 	if m, ok := ctx.Module().(*customModule); ok {
-		if !m.ConvertWithBp2build() {
+		if !m.ConvertWithBp2build(ctx) {
 			return
 		}
 
@@ -147,7 +147,7 @@ func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 // module to target.
 func customBp2BuildMutatorFromStarlark(ctx android.TopDownMutatorContext) {
 	if m, ok := ctx.Module().(*customModule); ok {
-		if !m.ConvertWithBp2build() {
+		if !m.ConvertWithBp2build(ctx) {
 			return
 		}
 

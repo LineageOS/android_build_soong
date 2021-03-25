@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"android/soong/shared"
+
 	"github.com/google/blueprint/bootstrap"
 
 	"android/soong/android"
