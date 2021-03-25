@@ -44,7 +44,6 @@ var prepareForSdkTestWithApex = android.GroupFixturePreparers(
 	`),
 
 	android.FixtureMergeMockFs(map[string][]byte{
-		"build/make/target/product/security":           nil,
 		"apex_manifest.json":                           nil,
 		"system/sepolicy/apex/myapex-file_contexts":    nil,
 		"system/sepolicy/apex/myapex2-file_contexts":   nil,
