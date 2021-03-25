@@ -117,6 +117,11 @@ var PrepareForTestWithAllowMissingDependencies = GroupFixturePreparers(
 	}),
 )
 
+// Prepares a test that disallows non-existent paths.
+var PrepareForTestDisallowNonExistentPaths = FixtureModifyConfig(func(config Config) {
+	config.TestAllowNonExistentPaths = false
+})
+
 func NewTestArchContext(config Config) *TestContext {
 	ctx := NewTestContext(config)
 	ctx.preDeps = append(ctx.preDeps, registerArchMutator)
