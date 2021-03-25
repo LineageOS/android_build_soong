@@ -412,7 +412,7 @@ load("//build/bazel/rules:rules.bzl", "my_library")`,
 		config := android.TestConfig(buildDir, nil, testCase.bp, nil)
 		ctx := android.NewTestContext(config)
 		ctx.RegisterModuleType("custom", customModuleFactory)
-		ctx.RegisterBp2BuildMutator("custom_starlark", customBp2BuildMutatorFromStarlark)
+		ctx.RegisterBp2BuildMutator("custom", customBp2BuildMutatorFromStarlark)
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
@@ -1144,7 +1144,7 @@ genrule {
 	}
 }
 
-func TestAllowlistingBp2buildTargets(t *testing.T) {
+func TestAllowlistingBp2buildTargetsExplicitly(t *testing.T) {
 	testCases := []struct {
 		moduleTypeUnderTest                string
 		moduleTypeUnderTestFactory         android.ModuleFactory
@@ -1218,6 +1218,124 @@ func TestAllowlistingBp2buildTargets(t *testing.T) {
 		bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
 		if actualCount := len(bazelTargets); actualCount != testCase.expectedCount {
 			t.Fatalf("%s: Expected %d bazel target, got %d", testCase.description, testCase.expectedCount, actualCount)
+		}
+	}
+}
+
+func TestAllowlistingBp2buildTargetsWithConfig(t *testing.T) {
+	testCases := []struct {
+		moduleTypeUnderTest                string
+		moduleTypeUnderTestFactory         android.ModuleFactory
+		moduleTypeUnderTestBp2BuildMutator bp2buildMutator
+		expectedCount                      map[string]int
+		description                        string
+		bp2buildConfig                     android.Bp2BuildConfig
+		checkDir                           string
+		fs                                 map[string]string
+	}{
+		{
+			description:                        "test bp2build config package and subpackages config",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			expectedCount: map[string]int{
+				"migrated":                           1,
+				"migrated/but_not_really":            0,
+				"migrated/but_not_really/but_really": 1,
+				"not_migrated":                       0,
+				"also_not_migrated":                  0,
+			},
+			bp2buildConfig: android.Bp2BuildConfig{
+				"migrated":                android.Bp2BuildDefaultTrueRecursively,
+				"migrated/but_not_really": android.Bp2BuildDefaultFalse,
+				"not_migrated":            android.Bp2BuildDefaultFalse,
+			},
+			fs: map[string]string{
+				"migrated/Android.bp":                           `filegroup { name: "a" }`,
+				"migrated/but_not_really/Android.bp":            `filegroup { name: "b" }`,
+				"migrated/but_not_really/but_really/Android.bp": `filegroup { name: "c" }`,
+				"not_migrated/Android.bp":                       `filegroup { name: "d" }`,
+				"also_not_migrated/Android.bp":                  `filegroup { name: "e" }`,
+			},
+		},
+		{
+			description:                        "test bp2build config opt-in and opt-out",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			expectedCount: map[string]int{
+				"package-opt-in":             2,
+				"package-opt-in/subpackage":  0,
+				"package-opt-out":            1,
+				"package-opt-out/subpackage": 0,
+			},
+			bp2buildConfig: android.Bp2BuildConfig{
+				"package-opt-in":  android.Bp2BuildDefaultFalse,
+				"package-opt-out": android.Bp2BuildDefaultTrueRecursively,
+			},
+			fs: map[string]string{
+				"package-opt-in/Android.bp": `
+filegroup { name: "opt-in-a" }
+filegroup { name: "opt-in-b", bazel_module: { bp2build_available: true } }
+filegroup { name: "opt-in-c", bazel_module: { bp2build_available: true } }
+`,
+
+				"package-opt-in/subpackage/Android.bp": `
+filegroup { name: "opt-in-d" } // parent package not configured to DefaultTrueRecursively
+`,
+
+				"package-opt-out/Android.bp": `
+filegroup { name: "opt-out-a" }
+filegroup { name: "opt-out-b", bazel_module: { bp2build_available: false } }
+filegroup { name: "opt-out-c", bazel_module: { bp2build_available: false } }
+`,
+
+				"package-opt-out/subpackage/Android.bp": `
+filegroup { name: "opt-out-g", bazel_module: { bp2build_available: false } }
+filegroup { name: "opt-out-h", bazel_module: { bp2build_available: false } }
+`,
+			},
+		},
+	}
+
+	dir := "."
+	for _, testCase := range testCases {
+		fs := make(map[string][]byte)
+		toParse := []string{
+			"Android.bp",
+		}
+		for f, content := range testCase.fs {
+			if strings.HasSuffix(f, "Android.bp") {
+				toParse = append(toParse, f)
+			}
+			fs[f] = []byte(content)
+		}
+		config := android.TestConfig(buildDir, nil, "", fs)
+		ctx := android.NewTestContext(config)
+		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
+		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
+		ctx.RegisterBp2BuildConfig(testCase.bp2buildConfig)
+		ctx.RegisterForBazelConversion()
+
+		_, errs := ctx.ParseFileList(dir, toParse)
+		android.FailIfErrored(t, errs)
+		_, errs = ctx.ResolveDependencies(config)
+		android.FailIfErrored(t, errs)
+
+		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
+
+		// For each directory, test that the expected number of generated targets is correct.
+		for dir, expectedCount := range testCase.expectedCount {
+			bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
+			if actualCount := len(bazelTargets); actualCount != expectedCount {
+				t.Fatalf(
+					"%s: Expected %d bazel target for %s package, got %d",
+					testCase.description,
+					expectedCount,
+					dir,
+					actualCount)
+			}
+
 		}
 	}
 }

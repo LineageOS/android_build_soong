@@ -53,7 +53,7 @@ func (bfg *bazelFilegroup) GenerateAndroidBuildActions(ctx ModuleContext) {}
 
 func FilegroupBp2Build(ctx TopDownMutatorContext) {
 	fg, ok := ctx.Module().(*fileGroup)
-	if !ok || !fg.ConvertWithBp2build() {
+	if !ok || !fg.ConvertWithBp2build(ctx) {
 		return
 	}
 
