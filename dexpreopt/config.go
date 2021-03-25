@@ -33,6 +33,8 @@ type GlobalConfig struct {
 
 	OnlyPreoptBootImageAndSystemServer bool // only preopt jars in the boot image or system server
 
+	PreoptWithUpdatableBcp bool // If updatable boot jars are included in dexpreopt or not.
+
 	UseArtImage bool // use the art image (use other boot class path dex files without image)
 
 	HasSystemOther        bool     // store odex files that match PatternsOnSystemOther on the system_other partition
