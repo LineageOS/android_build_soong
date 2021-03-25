@@ -793,13 +793,6 @@ func (c *RuleBuilderCommand) PathForOutput(path WritablePath) string {
 	return path.String()
 }
 
-// SboxPathForTool takes a path to a tool, which may be an output file or a source file, and returns
-// the corresponding path for the tool in the sbox sandbox.  It assumes that sandboxing and tool
-// sandboxing are enabled.
-func SboxPathForTool(ctx BuilderContext, path Path) string {
-	return filepath.Join(sboxSandboxBaseDir, sboxPathForToolRel(ctx, path))
-}
-
 func sboxPathForToolRel(ctx BuilderContext, path Path) string {
 	// Errors will be handled in RuleBuilder.Build where we have a context to report them
 	relOut, isRelOut, _ := maybeRelErr(PathForOutput(ctx, "host", ctx.Config().PrebuiltOS()).String(), path.String())
@@ -842,15 +835,19 @@ func (r *RuleBuilder) sboxPathsForInputsRel(paths Paths) []string {
 	return ret
 }
 
-// SboxPathForPackagedTool takes a PackageSpec for a tool and returns the corresponding path for the
-// tool after copying it into the sandbox.  This can be used  on the RuleBuilder command line to
-// reference the tool.
-func SboxPathForPackagedTool(spec PackagingSpec) string {
-	return filepath.Join(sboxSandboxBaseDir, sboxPathForPackagedToolRel(spec))
-}
-
 func sboxPathForPackagedToolRel(spec PackagingSpec) string {
 	return filepath.Join(sboxToolsSubDir, "out", spec.relPathInPackage)
+}
+
+// PathForPackagedTool takes a PackageSpec for a tool and returns the corresponding path for the
+// tool after copying it into the sandbox.  This can be used  on the RuleBuilder command line to
+// reference the tool.
+func (c *RuleBuilderCommand) PathForPackagedTool(spec PackagingSpec) string {
+	if !c.rule.sboxTools {
+		panic("PathForPackagedTool() requires SandboxTools()")
+	}
+
+	return filepath.Join(sboxSandboxBaseDir, sboxPathForPackagedToolRel(spec))
 }
 
 // PathForTool takes a path to a tool, which may be an output file or a source file, and returns
@@ -861,6 +858,20 @@ func (c *RuleBuilderCommand) PathForTool(path Path) string {
 		return filepath.Join(sboxSandboxBaseDir, sboxPathForToolRel(c.rule.ctx, path))
 	}
 	return path.String()
+}
+
+// PathsForTools takes a list of paths to tools, which may be output files or source files, and
+// returns the corresponding paths for the tools in the sbox sandbox if sbox is enabled, or the
+// original paths if it is not.  This can be used  on the RuleBuilder command line to reference the tool.
+func (c *RuleBuilderCommand) PathsForTools(paths Paths) []string {
+	if c.rule.sbox && c.rule.sboxTools {
+		var ret []string
+		for _, path := range paths {
+			ret = append(ret, filepath.Join(sboxSandboxBaseDir, sboxPathForToolRel(c.rule.ctx, path)))
+		}
+		return ret
+	}
+	return paths.Strings()
 }
 
 // PackagedTool adds the specified tool path to the command line.  It can only be used with tool
