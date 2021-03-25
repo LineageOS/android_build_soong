@@ -352,9 +352,23 @@ func dex2oatModuleName(config android.Config) string {
 	}
 }
 
-var Dex2oatDepTag = struct {
+type dex2oatDependencyTag struct {
 	blueprint.BaseDependencyTag
-}{}
+}
+
+func (d dex2oatDependencyTag) ExcludeFromVisibilityEnforcement() {
+}
+
+func (d dex2oatDependencyTag) ExcludeFromApexContents() {
+}
+
+// Dex2oatDepTag represents the dependency onto the dex2oatd module. It is added to any module that
+// needs dexpreopting and so it makes no sense for it to be checked for visibility or included in
+// the apex.
+var Dex2oatDepTag = dex2oatDependencyTag{}
+
+var _ android.ExcludeFromVisibilityEnforcementTag = Dex2oatDepTag
+var _ android.ExcludeFromApexContentsTag = Dex2oatDepTag
 
 // RegisterToolDeps adds the necessary dependencies to binary modules for tools
 // that are required later when Get(Cached)GlobalSoongConfig is called. It
