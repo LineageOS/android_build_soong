@@ -363,7 +363,7 @@ type BaseProperties struct {
 	// List of APEXes that this module has private access to for testing purpose. The module
 	// can depend on libraries that are not exported by the APEXes and use private symbols
 	// from the exported libraries.
-	Test_for []string
+	Test_for []string `android:"arch_variant"`
 }
 
 type VendorProperties struct {
