@@ -48,42 +48,17 @@ func TestSdkDependsOnSourceEvenWhenPrebuiltPreferred(t *testing.T) {
 			system_modules: "none",
 			sdk_version: "none",
 		}
-
-		java_import {
-			name: "sdkmember",
-			prefer: true,
-			jars: ["prebuilt.jar"],
-		}
 	`)
 
 	// Make sure that the mysdk module depends on "sdkmember" and not "prebuilt_sdkmember".
-	java.CheckModuleDependencies(t, result.TestContext, "mysdk", "android_common", []string{"sdkmember"})
+	sdkChecker := func(t *testing.T, result *android.TestResult) {
+		java.CheckModuleDependencies(t, result.TestContext, "mysdk", "android_common", []string{"sdkmember"})
+	}
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkAndroidBpContents(`// This is auto-generated. DO NOT EDIT.
-
-java_import {
-    name: "mysdk_sdkmember@current",
-    sdk_member_name: "sdkmember",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    jars: ["java/sdkmember.jar"],
-}
-
-java_import {
-    name: "sdkmember",
-    prefer: false,
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    jars: ["java/sdkmember.jar"],
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    java_header_libs: ["mysdk_sdkmember@current"],
-}
-`))
+		snapshotTestChecker(checkSnapshotWithSourcePreferred, sdkChecker),
+		snapshotTestChecker(checkSnapshotPreferredWithSource, sdkChecker),
+	)
 }
 
 func TestBasicSdkWithJavaLibrary(t *testing.T) {
