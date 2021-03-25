@@ -486,6 +486,9 @@ func TestSnapshotWithCcExportGeneratedHeaders(t *testing.T) {
 		}
 	`)
 
+	// TODO(b/183322862): Remove this and fix the issue.
+	errorHandler := android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module source path "snapshot/include_gen/generated_foo/gen/protos" does not exist`)
+
 	CheckSnapshot(t, result, "mysdk", "",
 		checkUnversionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
@@ -518,6 +521,9 @@ myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so
 `),
+		snapshotTestErrorHandler(checkSnapshotWithoutSource, errorHandler),
+		snapshotTestErrorHandler(checkSnapshotWithSourcePreferred, errorHandler),
+		snapshotTestErrorHandler(checkSnapshotPreferredWithSource, errorHandler),
 	)
 }
 

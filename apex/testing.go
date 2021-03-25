@@ -19,4 +19,11 @@ import "android/soong/android"
 var PrepareForTestWithApexBuildComponents = android.GroupFixturePreparers(
 	android.FixtureRegisterWithContext(registerApexBuildComponents),
 	android.FixtureRegisterWithContext(registerApexKeyBuildComponents),
+	// Additional files needed in tests that disallow non-existent source files.
+	// This includes files that are needed by all, or at least most, instances of an apex module type.
+	android.MockFS{
+		// Needed by apex.
+		"system/core/rootdir/etc/public.libraries.android.txt": nil,
+		"build/soong/scripts/gen_ndk_backedby_apex.sh":         nil,
+	}.AddToFixture(),
 )
