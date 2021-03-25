@@ -295,7 +295,7 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 				Tool(globalSoong.ManifestCheck).
 				Flag("--extract-target-sdk-version").
 				Input(manifestOrApk).
-				FlagWithInput("--aapt ", ctx.Config().HostToolPath(ctx, "aapt")).
+				FlagWithInput("--aapt ", globalSoong.Aapt).
 				Text(`)"`)
 		}
 
