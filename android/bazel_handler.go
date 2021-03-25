@@ -746,6 +746,10 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 			cmd.Implicit(PathForBazelOut(ctx, inputPath))
 		}
 
+		if depfile := buildStatement.Depfile; depfile != nil {
+			cmd.ImplicitDepFile(PathForBazelOut(ctx, *depfile))
+		}
+
 		// This is required to silence warnings pertaining to unexpected timestamps. Particularly,
 		// some Bazel builtins (such as files in the bazel_tools directory) have far-future
 		// timestamps. Without restat, Ninja would emit warnings that the input files of a
