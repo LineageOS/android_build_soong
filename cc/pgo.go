@@ -22,7 +22,6 @@ import (
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
-	"android/soong/cc/config"
 )
 
 var (
@@ -269,14 +268,6 @@ func (pgo *pgo) begin(ctx BaseModuleContext) {
 			pgo.Properties.PgoCompile = true
 		}
 	}
-}
-
-func (pgo *pgo) deps(ctx BaseModuleContext, deps Deps) Deps {
-	if pgo.Properties.ShouldProfileModule {
-		runtimeLibrary := config.ProfileRuntimeLibrary(ctx.toolchain())
-		deps.LateStaticLibs = append(deps.LateStaticLibs, runtimeLibrary)
-	}
-	return deps
 }
 
 func (pgo *pgo) flags(ctx ModuleContext, flags Flags) Flags {
