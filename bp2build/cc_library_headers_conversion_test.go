@@ -123,8 +123,7 @@ cc_library_headers {
     name: "foo_headers",
     export_include_dirs: ["dir-1", "dir-2"],
     header_libs: ["lib-1", "lib-2"],
-
-    // TODO: Also support export_header_lib_headers
+    export_header_lib_headers: ["lib-1", "lib-2"],
     bazel_module: { bp2build_available: true },
 }`,
 			expectedBazelTargets: []string{`cc_library_headers(
