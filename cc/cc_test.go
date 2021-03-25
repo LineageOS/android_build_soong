@@ -166,6 +166,15 @@ const (
 	recoveryVariant = "android_recovery_arm64_armv8-a_shared"
 )
 
+// Test that the PrepareForTestWithCcDefaultModules provides all the files that it uses by
+// running it in a fixture that requires all source files to exist.
+func TestPrepareForTestWithCcDefaultModules(t *testing.T) {
+	android.GroupFixturePreparers(
+		PrepareForTestWithCcDefaultModules,
+		android.PrepareForTestDisallowNonExistentPaths,
+	).RunTest(t)
+}
+
 func TestFuchsiaDeps(t *testing.T) {
 	t.Helper()
 
