@@ -117,6 +117,11 @@ var PrepareForTestWithAllowMissingDependencies = GroupFixturePreparers(
 	}),
 )
 
+// Prepares a test that disallows non-existent paths.
+var PrepareForTestDisallowNonExistentPaths = FixtureModifyConfig(func(config Config) {
+	config.TestAllowNonExistentPaths = false
+})
+
 func NewTestArchContext(config Config) *TestContext {
 	ctx := NewTestContext(config)
 	ctx.preDeps = append(ctx.preDeps, registerArchMutator)
@@ -158,12 +163,17 @@ func (ctx *TestContext) FinalDepsMutators(f RegisterMutatorFunc) {
 	ctx.finalDeps = append(ctx.finalDeps, f)
 }
 
+func (ctx *TestContext) RegisterBp2BuildConfig(config Bp2BuildConfig) {
+	ctx.config.bp2buildPackageConfig = config
+}
+
 // RegisterBp2BuildMutator registers a BazelTargetModule mutator for converting a module
 // type to the equivalent Bazel target.
 func (ctx *TestContext) RegisterBp2BuildMutator(moduleType string, m func(TopDownMutatorContext)) {
 	f := func(ctx RegisterMutatorsContext) {
 		ctx.TopDown(moduleType, m)
 	}
+	ctx.config.bp2buildModuleTypeConfig[moduleType] = true
 	ctx.bp2buildMutators = append(ctx.bp2buildMutators, f)
 }
 
@@ -899,7 +909,7 @@ func NormalizePathForTesting(path Path) string {
 	}
 	p := path.String()
 	if w, ok := path.(WritablePath); ok {
-		rel, err := filepath.Rel(w.buildDir(), p)
+		rel, err := filepath.Rel(w.getBuildDir(), p)
 		if err != nil {
 			panic(err)
 		}
@@ -934,7 +944,7 @@ func PathRelativeToTop(path Path) string {
 	}
 	p := path.String()
 	if w, ok := path.(WritablePath); ok {
-		buildDir := w.buildDir()
+		buildDir := w.getBuildDir()
 		return StringPathRelativeToTop(buildDir, p)
 	}
 	return p

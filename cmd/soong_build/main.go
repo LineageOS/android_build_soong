@@ -21,8 +21,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"android/soong/shared"
+
 	"github.com/google/blueprint/bootstrap"
 
 	"android/soong/android"
@@ -191,13 +193,24 @@ func main() {
 func writeUsedVariablesFile(path string, configuration android.Config) {
 	data, err := shared.EnvFileContents(configuration.EnvDeps())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error writing used variables file %s: %s", path, err)
+		fmt.Fprintf(os.Stderr, "error writing used variables file %s: %s\n", path, err)
 		os.Exit(1)
 	}
 
 	err = ioutil.WriteFile(path, data, 0666)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error writing used variables file %s: %s", path, err)
+		fmt.Fprintf(os.Stderr, "error writing used variables file %s: %s\n", path, err)
+		os.Exit(1)
+	}
+
+	// Touch the output Ninja file so that it's not older than the file we just
+	// wrote. We can't write the environment file earlier because one an access
+	// new environment variables while writing it.
+	outputNinjaFile := shared.JoinPath(topDir, bootstrap.CmdlineOutFile())
+	currentTime := time.Now().Local()
+	err = os.Chtimes(outputNinjaFile, currentTime, currentTime)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error touching output file %s: %s\n", outputNinjaFile, err)
 		os.Exit(1)
 	}
 }

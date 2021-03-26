@@ -181,7 +181,7 @@ type WritablePath interface {
 	Path
 
 	// return the path to the build directory.
-	buildDir() string
+	getBuildDir() string
 
 	// the writablePath method doesn't directly do anything,
 	// but it allows a struct to distinguish between whether or not it implements the WritablePath interface
@@ -340,6 +340,7 @@ type BazelConversionPathContext interface {
 
 	GetDirectDep(name string) (blueprint.Module, blueprint.DependencyTag)
 	Module() Module
+	ModuleType() string
 	OtherModuleName(m blueprint.Module) string
 	OtherModuleDir(m blueprint.Module) string
 }
@@ -450,7 +451,7 @@ func bazelModuleLabel(ctx BazelConversionPathContext, module blueprint.Module, t
 	// TODO(b/165114590): Convert tag (":name{.tag}") to corresponding Bazel implicit output targets.
 	b, ok := module.(Bazelable)
 	// TODO(b/181155349): perhaps return an error here if the module can't be/isn't being converted
-	if !ok || !b.ConvertedToBazel() {
+	if !ok || !b.ConvertedToBazel(ctx) {
 		return bp2buildModuleLabel(ctx, module)
 	}
 	return b.GetBazelLabel(ctx, module)
@@ -934,9 +935,8 @@ func (p WritablePaths) Paths() Paths {
 }
 
 type basePath struct {
-	path   string
-	config Config
-	rel    string
+	path string
+	rel  string
 }
 
 func (p basePath) Ext() string {
@@ -967,6 +967,9 @@ func (p basePath) withRel(rel string) basePath {
 // SourcePath is a Path representing a file path rooted from SrcDir
 type SourcePath struct {
 	basePath
+
+	// The sources root, i.e. Config.SrcDir()
+	srcDir string
 }
 
 var _ Path = SourcePath{}
@@ -980,7 +983,7 @@ func (p SourcePath) withRel(rel string) SourcePath {
 // code that is embedding ninja variables in paths
 func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error) {
 	p, err := validateSafePath(pathComponents...)
-	ret := SourcePath{basePath{p, ctx.Config(), ""}}
+	ret := SourcePath{basePath{p, ""}, ctx.Config().srcDir}
 	if err != nil {
 		return ret, err
 	}
@@ -996,7 +999,7 @@ func safePathForSource(ctx PathContext, pathComponents ...string) (SourcePath, e
 // pathForSource creates a SourcePath from pathComponents, but does not check that it exists.
 func pathForSource(ctx PathContext, pathComponents ...string) (SourcePath, error) {
 	p, err := validatePath(pathComponents...)
-	ret := SourcePath{basePath{p, ctx.Config(), ""}}
+	ret := SourcePath{basePath{p, ""}, ctx.Config().srcDir}
 	if err != nil {
 		return ret, err
 	}
@@ -1090,7 +1093,7 @@ func ExistentPathForSource(ctx PathContext, pathComponents ...string) OptionalPa
 }
 
 func (p SourcePath) String() string {
-	return filepath.Join(p.config.srcDir, p.path)
+	return filepath.Join(p.srcDir, p.path)
 }
 
 // Join creates a new SourcePath with paths... joined with the current path. The
@@ -1122,7 +1125,7 @@ func (p SourcePath) OverlayPath(ctx ModuleMissingDepsPathContext, path Path) Opt
 		ReportPathErrorf(ctx, "Cannot find relative path for %s(%s)", reflect.TypeOf(path).Name(), path)
 		return OptionalPath{}
 	}
-	dir := filepath.Join(p.config.srcDir, p.path, relDir)
+	dir := filepath.Join(p.srcDir, p.path, relDir)
 	// Use Glob so that we are run again if the directory is added.
 	if pathtools.IsGlob(dir) {
 		ReportPathErrorf(ctx, "Path may not contain a glob: %s", dir)
@@ -1135,13 +1138,17 @@ func (p SourcePath) OverlayPath(ctx ModuleMissingDepsPathContext, path Path) Opt
 	if len(paths) == 0 {
 		return OptionalPath{}
 	}
-	relPath := Rel(ctx, p.config.srcDir, paths[0])
+	relPath := Rel(ctx, p.srcDir, paths[0])
 	return OptionalPathForPath(PathForSource(ctx, relPath))
 }
 
 // OutputPath is a Path representing an intermediates file path rooted from the build directory
 type OutputPath struct {
 	basePath
+
+	// The soong build directory, i.e. Config.BuildDir()
+	buildDir string
+
 	fullPath string
 }
 
@@ -1156,8 +1163,8 @@ func (p OutputPath) WithoutRel() OutputPath {
 	return p
 }
 
-func (p OutputPath) buildDir() string {
-	return p.config.buildDir
+func (p OutputPath) getBuildDir() string {
+	return p.buildDir
 }
 
 func (p OutputPath) objPathWithExt(ctx ModuleOutPathContext, subdir, ext string) ModuleObjPath {
@@ -1181,7 +1188,7 @@ var _ Path = toolDepPath{}
 // Only use this function to construct paths for dependencies of the build
 // tool invocation.
 func pathForBuildToolDep(ctx PathContext, path string) toolDepPath {
-	return toolDepPath{basePath{path, ctx.Config(), ""}}
+	return toolDepPath{basePath{path, ""}}
 }
 
 // PathForOutput joins the provided paths and returns an OutputPath that is
@@ -1194,7 +1201,7 @@ func PathForOutput(ctx PathContext, pathComponents ...string) OutputPath {
 	}
 	fullPath := filepath.Join(ctx.Config().buildDir, path)
 	path = fullPath[len(fullPath)-len(path):]
-	return OutputPath{basePath{path, ctx.Config(), ""}, fullPath}
+	return OutputPath{basePath{path, ""}, ctx.Config().buildDir, fullPath}
 }
 
 // PathsForOutput returns Paths rooted from buildDir
@@ -1428,7 +1435,8 @@ func PathForBazelOut(ctx PathContext, paths ...string) BazelOutPath {
 		reportPathError(ctx, err)
 	}
 
-	outputPath := OutputPath{basePath{"", ctx.Config(), ""},
+	outputPath := OutputPath{basePath{"", ""},
+		ctx.Config().buildDir,
 		ctx.Config().BazelContext.OutputBase()}
 
 	return BazelOutPath{
@@ -1522,6 +1530,9 @@ func PathForModuleRes(ctx ModuleOutPathContext, pathComponents ...string) Module
 type InstallPath struct {
 	basePath
 
+	// The soong build directory, i.e. Config.BuildDir()
+	buildDir string
+
 	// partitionDir is the part of the InstallPath that is automatically determined according to the context.
 	// For example, it is host/<os>-<arch> for host modules, and target/product/<device>/<partition> for device modules.
 	partitionDir string
@@ -1530,8 +1541,8 @@ type InstallPath struct {
 	makePath bool
 }
 
-func (p InstallPath) buildDir() string {
-	return p.config.buildDir
+func (p InstallPath) getBuildDir() string {
+	return p.buildDir
 }
 
 func (p InstallPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
@@ -1546,9 +1557,9 @@ func (p InstallPath) writablePath() {}
 func (p InstallPath) String() string {
 	if p.makePath {
 		// Make path starts with out/ instead of out/soong.
-		return filepath.Join(p.config.buildDir, "../", p.path)
+		return filepath.Join(p.buildDir, "../", p.path)
 	} else {
-		return filepath.Join(p.config.buildDir, p.path)
+		return filepath.Join(p.buildDir, p.path)
 	}
 }
 
@@ -1557,9 +1568,9 @@ func (p InstallPath) String() string {
 // The ./soong is dropped if the install path is for Make.
 func (p InstallPath) PartitionDir() string {
 	if p.makePath {
-		return filepath.Join(p.config.buildDir, "../", p.partitionDir)
+		return filepath.Join(p.buildDir, "../", p.partitionDir)
 	} else {
-		return filepath.Join(p.config.buildDir, p.partitionDir)
+		return filepath.Join(p.buildDir, p.partitionDir)
 	}
 }
 
@@ -1642,7 +1653,8 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 	}
 
 	base := InstallPath{
-		basePath:     basePath{partionPath, ctx.Config(), ""},
+		basePath:     basePath{partionPath, ""},
+		buildDir:     ctx.Config().buildDir,
 		partitionDir: partionPath,
 		makePath:     false,
 	}
@@ -1652,7 +1664,8 @@ func pathForInstall(ctx PathContext, os OsType, arch ArchType, partition string,
 
 func pathForNdkOrSdkInstall(ctx PathContext, prefix string, paths []string) InstallPath {
 	base := InstallPath{
-		basePath:     basePath{prefix, ctx.Config(), ""},
+		basePath:     basePath{prefix, ""},
+		buildDir:     ctx.Config().buildDir,
 		partitionDir: prefix,
 		makePath:     false,
 	}
@@ -1787,7 +1800,7 @@ func PathForPhony(ctx PathContext, phony string) WritablePath {
 	if strings.ContainsAny(phony, "$/") {
 		ReportPathErrorf(ctx, "Phony target contains invalid character ($ or /): %s", phony)
 	}
-	return PhonyPath{basePath{phony, ctx.Config(), ""}}
+	return PhonyPath{basePath{phony, ""}}
 }
 
 type PhonyPath struct {
@@ -1796,8 +1809,9 @@ type PhonyPath struct {
 
 func (p PhonyPath) writablePath() {}
 
-func (p PhonyPath) buildDir() string {
-	return p.config.buildDir
+func (p PhonyPath) getBuildDir() string {
+	// A phone path cannot contain any / so cannot be relative to the build directory.
+	return ""
 }
 
 func (p PhonyPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {

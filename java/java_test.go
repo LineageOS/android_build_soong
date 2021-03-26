@@ -133,6 +133,15 @@ func defaultModuleToPath(name string) string {
 	}
 }
 
+// Test that the PrepareForTestWithJavaDefaultModules provides all the files that it uses by
+// running it in a fixture that requires all source files to exist.
+func TestPrepareForTestWithJavaDefaultModules(t *testing.T) {
+	android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		android.PrepareForTestDisallowNonExistentPaths,
+	).RunTest(t)
+}
+
 func TestJavaLinkType(t *testing.T) {
 	testJava(t, `
 		java_library {
@@ -831,7 +840,7 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 	}
 
 	runTest := func(t *testing.T, info testConfigInfo, expectedErrorPattern string) {
-		t.Run(fmt.Sprintf("%#v", info), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", info), func(t *testing.T) {
 			errorHandler := android.FixtureExpectsNoErrors
 			if expectedErrorPattern != "" {
 				errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(expectedErrorPattern)
@@ -1220,33 +1229,22 @@ func TestJavaLintWithoutBaseline(t *testing.T) {
 }
 
 func TestJavaLintRequiresCustomLintFileToExist(t *testing.T) {
-	config := TestConfig(t.TempDir(),
-		nil,
-		`
-		java_library {
-			name: "foo",
-			srcs: [
-			],
-			min_sdk_version: "29",
-			sdk_version: "system_current",
-			lint: {
-				baseline_filename: "mybaseline.xml",
-			},
-		}
-     `, map[string][]byte{
-			"build/soong/java/lint_defaults.txt":                   nil,
-			"prebuilts/cmdline-tools/tools/bin/lint":               nil,
-			"prebuilts/cmdline-tools/tools/lib/lint-classpath.jar": nil,
-			"framework/aidl":                     nil,
-			"a.java":                             nil,
-			"AndroidManifest.xml":                nil,
-			"build/make/target/product/security": nil,
-		})
-	config.TestAllowNonExistentPaths = false
-	testJavaErrorWithConfig(t,
-		"source path \"mybaseline.xml\" does not exist",
-		config,
-	)
+	android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		android.PrepareForTestDisallowNonExistentPaths,
+	).ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern([]string{`source path "mybaseline.xml" does not exist`})).
+		RunTestWithBp(t, `
+			java_library {
+				name: "foo",
+				srcs: [
+				],
+				min_sdk_version: "29",
+				sdk_version: "system_current",
+				lint: {
+					baseline_filename: "mybaseline.xml",
+				},
+			}
+	 `)
 }
 
 func TestJavaLintUsesCorrectBpConfig(t *testing.T) {

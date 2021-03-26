@@ -138,7 +138,7 @@ import (
 // }
 //
 // func TestJavaStuff(t *testing.T) {
-//   result := android.GroupFixturePreparers(t,
+//   result := android.GroupFixturePreparers(
 //       prepareForJavaTest,
 //       android.FixtureWithRootAndroidBp(`java_library {....}`),
 //       android.MockFS{...}.AddToFixture(),
