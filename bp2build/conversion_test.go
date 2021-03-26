@@ -89,15 +89,7 @@ func TestCreateBazelFiles_Bp2Build_AddsTopLevelFiles(t *testing.T) {
 	expectedFilePaths := []filepath{
 		{
 			dir:      "",
-			basename: "BUILD",
-		},
-		{
-			dir:      "",
 			basename: "WORKSPACE",
-		},
-		{
-			dir:      bazelRulesSubDir,
-			basename: "BUILD",
 		},
 	}
 

@@ -160,13 +160,16 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 
 	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
+
+	isSystemServerJar := inList(ctx.ModuleName(), global.SystemServerJars)
+
 	bootImage := defaultBootImageConfig(ctx)
-	dexFiles := bootImage.dexPathsDeps.Paths()
-	// The dex locations for all Android variants are identical.
-	dexLocations := bootImage.getAnyAndroidVariant().dexLocationsDeps
 	if global.UseArtImage {
 		bootImage = artBootImageConfig(ctx)
 	}
+
+	// System server jars are an exception: they are dexpreopted without updatable bootclasspath.
+	dexFiles, dexLocations := bcpForDexpreopt(ctx, global.PreoptWithUpdatableBcp && !isSystemServerJar)
 
 	targets := ctx.MultiTargets()
 	if len(targets) == 0 {
@@ -176,7 +179,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 				targets = append(targets, target)
 			}
 		}
-		if inList(ctx.ModuleName(), global.SystemServerJars) && !d.isSDKLibrary {
+		if isSystemServerJar && !d.isSDKLibrary {
 			// If the module is not an SDK library and it's a system server jar, only preopt the primary arch.
 			targets = targets[:1]
 		}
@@ -237,7 +240,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		DexPreoptImagesDeps:     imagesDeps,
 		DexPreoptImageLocations: imageLocations,
 
-		PreoptBootClassPathDexFiles:     dexFiles,
+		PreoptBootClassPathDexFiles:     dexFiles.Paths(),
 		PreoptBootClassPathDexLocations: dexLocations,
 
 		PreoptExtractedApk: false,

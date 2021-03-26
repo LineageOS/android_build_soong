@@ -176,6 +176,57 @@ func defaultBootclasspath(ctx android.PathContext) []string {
 	})
 }
 
+// Updatable boot config allows to access build/install paths of updatable boot jars without going
+// through the usual trouble of registering dependencies on those modules and extracting build paths
+// from those dependencies.
+type updatableBootConfig struct {
+	// A list of updatable boot jars.
+	modules android.ConfiguredJarList
+
+	// A list of predefined build paths to updatable boot jars. They are configured very early,
+	// before the modules for these jars are processed and the actual paths are generated, and
+	// later on a singleton adds commands to copy actual jars to the predefined paths.
+	dexPaths android.WritablePaths
+
+	// A list of dex locations (a.k.a. on-device paths) to the boot jars.
+	dexLocations []string
+}
+
+var updatableBootConfigKey = android.NewOnceKey("updatableBootConfig")
+
+// Returns updatable boot config.
+func GetUpdatableBootConfig(ctx android.PathContext) updatableBootConfig {
+	return ctx.Config().Once(updatableBootConfigKey, func() interface{} {
+		updatableBootJars := dexpreopt.GetGlobalConfig(ctx).UpdatableBootJars
+
+		dir := android.PathForOutput(ctx, ctx.Config().DeviceName(), "updatable_bootjars")
+		dexPaths := updatableBootJars.BuildPaths(ctx, dir)
+
+		dexLocations := updatableBootJars.DevicePaths(ctx.Config(), android.Android)
+
+		return updatableBootConfig{updatableBootJars, dexPaths, dexLocations}
+	}).(updatableBootConfig)
+}
+
+// Returns a list of paths and a list of locations for the boot jars used in dexpreopt (to be
+// passed in -Xbootclasspath and -Xbootclasspath-locations arguments for dex2oat).
+func bcpForDexpreopt(ctx android.PathContext, withUpdatable bool) (android.WritablePaths, []string) {
+	// Non-updatable boot jars (they are used both in the boot image and in dexpreopt).
+	bootImage := defaultBootImageConfig(ctx)
+	dexPaths := bootImage.dexPathsDeps
+	// The dex locations for all Android variants are identical.
+	dexLocations := bootImage.getAnyAndroidVariant().dexLocationsDeps
+
+	if withUpdatable {
+		// Updatable boot jars (they are used only in dexpreopt, but not in the boot image).
+		updBootConfig := GetUpdatableBootConfig(ctx)
+		dexPaths = append(dexPaths, updBootConfig.dexPaths...)
+		dexLocations = append(dexLocations, updBootConfig.dexLocations...)
+	}
+
+	return dexPaths, dexLocations
+}
+
 var defaultBootclasspathKey = android.NewOnceKey("defaultBootclasspath")
 
 var copyOf = android.CopyOf

@@ -26,6 +26,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/dexpreopt"
 	"android/soong/genrule"
 )
 
@@ -2420,6 +2421,66 @@ func TestUsesLibraries(t *testing.T) {
 		`--target-context-for-sdk 30`+
 			` PCL[/system/framework/android.test.base.jar]`+
 			`#PCL[/system/framework/android.test.mock.jar] `)
+}
+
+func TestDexpreoptBcp(t *testing.T) {
+	bp := `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			api_packages: ["foo"],
+			sdk_version: "current",
+		}
+
+		java_sdk_library {
+			name: "bar",
+			srcs: ["a.java"],
+			api_packages: ["bar"],
+			permitted_packages: ["bar"],
+			sdk_version: "current",
+		}
+
+		android_app {
+			name: "app",
+			srcs: ["a.java"],
+			sdk_version: "current",
+		}
+	`
+
+	testCases := []struct {
+		name   string
+		with   bool
+		expect string
+	}{
+		{
+			name:   "with updatable bcp",
+			with:   true,
+			expect: "/system/framework/foo.jar:/system/framework/bar.jar",
+		},
+		{
+			name:   "without updatable bcp",
+			with:   false,
+			expect: "/system/framework/foo.jar",
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			result := android.GroupFixturePreparers(
+				prepareForJavaTest,
+				PrepareForTestWithJavaSdkLibraryFiles,
+				FixtureWithLastReleaseApis("runtime-library", "foo", "bar"),
+				dexpreopt.FixtureSetBootJars("platform:foo"),
+				dexpreopt.FixtureSetUpdatableBootJars("platform:bar"),
+				dexpreopt.FixtureSetPreoptWithUpdatableBcp(test.with),
+			).RunTestWithBp(t, bp)
+
+			app := result.ModuleForTests("app", "android_common")
+			cmd := app.Rule("dexpreopt").RuleParams.Command
+			bcp := " -Xbootclasspath-locations:" + test.expect + " " // space at the end matters
+			android.AssertStringDoesContain(t, "dexpreopt app bcp", cmd, bcp)
+		})
+	}
 }
 
 func TestCodelessApp(t *testing.T) {

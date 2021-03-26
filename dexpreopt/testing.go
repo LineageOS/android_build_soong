@@ -117,3 +117,17 @@ func FixtureSetBootJars(bootJars ...string) android.FixturePreparer {
 		dexpreoptConfig.BootJars = android.CreateTestConfiguredJarList(bootJars)
 	})
 }
+
+// FixtureSetUpdatableBootJars sets the UpdatableBootJars property in the global config.
+func FixtureSetUpdatableBootJars(bootJars ...string) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.UpdatableBootJars = android.CreateTestConfiguredJarList(bootJars)
+	})
+}
+
+// FixtureSetPreoptWithUpdatableBcp sets the PreoptWithUpdatableBcp property in the global config.
+func FixtureSetPreoptWithUpdatableBcp(value bool) android.FixturePreparer {
+	return FixtureModifyGlobalConfig(func(dexpreoptConfig *GlobalConfig) {
+		dexpreoptConfig.PreoptWithUpdatableBcp = value
+	})
+}

@@ -32,7 +32,13 @@ type bazelModuleProperties struct {
 
 	// If true, bp2build will generate the converted Bazel target for this module. Note: this may
 	// cause a conflict due to the duplicate targets if label is also set.
-	Bp2build_available bool
+	//
+	// This is a bool pointer to support tristates: true, false, not set.
+	//
+	// To opt-in a module, set bazel_module: { bp2build_available: true }
+	// To opt-out a module, set bazel_module: { bp2build_available: false }
+	// To defer the default setting for the directory, do not set the value.
+	Bp2build_available *bool
 }
 
 // Properties contains common module properties for Bazel migration purposes.
@@ -54,9 +60,9 @@ type Bazelable interface {
 	HasHandcraftedLabel() bool
 	HandcraftedLabel() string
 	GetBazelLabel(ctx BazelConversionPathContext, module blueprint.Module) string
-	ConvertWithBp2build() bool
+	ConvertWithBp2build(ctx BazelConversionPathContext) bool
 	GetBazelBuildFileContents(c Config, path, name string) (string, error)
-	ConvertedToBazel() bool
+	ConvertedToBazel(ctx BazelConversionPathContext) bool
 }
 
 // BazelModule is a lightweight wrapper interface around Module for Bazel-convertible modules.
@@ -91,15 +97,138 @@ func (b *BazelModuleBase) GetBazelLabel(ctx BazelConversionPathContext, module b
 	if b.HasHandcraftedLabel() {
 		return b.HandcraftedLabel()
 	}
-	if b.ConvertWithBp2build() {
+	if b.ConvertWithBp2build(ctx) {
 		return bp2buildModuleLabel(ctx, module)
 	}
 	return "" // no label for unconverted module
 }
 
+// Configuration to decide if modules in a directory should default to true/false for bp2build_available
+type Bp2BuildConfig map[string]BazelConversionConfigEntry
+type BazelConversionConfigEntry int
+
+const (
+	// iota + 1 ensures that the int value is not 0 when used in the Bp2buildAllowlist map,
+	// which can also mean that the key doesn't exist in a lookup.
+
+	// all modules in this package and subpackages default to bp2build_available: true.
+	// allows modules to opt-out.
+	Bp2BuildDefaultTrueRecursively BazelConversionConfigEntry = iota + 1
+
+	// all modules in this package (not recursively) default to bp2build_available: false.
+	// allows modules to opt-in.
+	Bp2BuildDefaultFalse
+)
+
+var (
+	// Configure modules in these directories to enable bp2build_available: true or false by default.
+	bp2buildDefaultConfig = Bp2BuildConfig{
+		"bionic":                Bp2BuildDefaultTrueRecursively,
+		"system/core/libcutils": Bp2BuildDefaultTrueRecursively,
+		"system/logging/liblog": Bp2BuildDefaultTrueRecursively,
+	}
+
+	// Per-module denylist to always opt modules out.
+	bp2buildModuleDoNotConvert = map[string]bool{
+		"libBionicBenchmarksUtils":      true,
+		"libbionic_spawn_benchmark":     true,
+		"libc_jemalloc_wrapper":         true,
+		"libc_bootstrap":                true,
+		"libc_init_static":              true,
+		"libc_init_dynamic":             true,
+		"libc_tzcode":                   true,
+		"lib_dns":                       true,
+		"libc_freebsd":                  true,
+		"libc_freebsd_large_stack":      true,
+		"libc_netbsd":                   true,
+		"libc_openbsd_ndk":              true,
+		"libc_openbsd_large_stack":      true,
+		"libc_openbsd":                  true,
+		"libc_gdtoa":                    true,
+		"libc_fortify":                  true,
+		"libc_bionic":                   true,
+		"libc_bionic_ndk":               true,
+		"libc_bionic_systrace":          true,
+		"libc_pthread":                  true,
+		"libc_syscalls":                 true,
+		"libc_aeabi":                    true,
+		"libc_ndk":                      true,
+		"libc_nopthread":                true,
+		"libc_common":                   true,
+		"libc_static_dispatch":          true,
+		"libc_dynamic_dispatch":         true,
+		"libc_common_static":            true,
+		"libc_common_shared":            true,
+		"libc_unwind_static":            true,
+		"libc_nomalloc":                 true,
+		"libasync_safe":                 true,
+		"libc_malloc_debug_backtrace":   true,
+		"libsystemproperties":           true,
+		"libdl_static":                  true,
+		"liblinker_main":                true,
+		"liblinker_malloc":              true,
+		"liblinker_debuggerd_stub":      true,
+		"libbionic_tests_headers_posix": true,
+	}
+)
+
 // ConvertWithBp2build returns whether the given BazelModuleBase should be converted with bp2build.
-func (b *BazelModuleBase) ConvertWithBp2build() bool {
-	return b.bazelProperties.Bazel_module.Bp2build_available
+func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionPathContext) bool {
+	if bp2buildModuleDoNotConvert[ctx.Module().Name()] {
+		return false
+	}
+
+	// Ensure that the module type of this module has a bp2build converter. This
+	// prevents mixed builds from using auto-converted modules just by matching
+	// the package dir; it also has to have a bp2build mutator as well.
+	if ctx.Config().bp2buildModuleTypeConfig[ctx.ModuleType()] == false {
+		return false
+	}
+
+	packagePath := ctx.ModuleDir()
+	config := ctx.Config().bp2buildPackageConfig
+
+	// This is a tristate value: true, false, or unset.
+	propValue := b.bazelProperties.Bazel_module.Bp2build_available
+	if bp2buildDefaultTrueRecursively(packagePath, config) {
+		// Allow modules to explicitly opt-out.
+		return proptools.BoolDefault(propValue, true)
+	}
+
+	// Allow modules to explicitly opt-in.
+	return proptools.BoolDefault(propValue, false)
+}
+
+// bp2buildDefaultTrueRecursively checks that the package contains a prefix from the
+// set of package prefixes where all modules must be converted. That is, if the
+// package is x/y/z, and the list contains either x, x/y, or x/y/z, this function will
+// return true.
+//
+// However, if the package is x/y, and it matches a Bp2BuildDefaultFalse "x/y" entry
+// exactly, this module will return false early.
+//
+// This function will also return false if the package doesn't match anything in
+// the config.
+func bp2buildDefaultTrueRecursively(packagePath string, config Bp2BuildConfig) bool {
+	ret := false
+
+	if config[packagePath] == Bp2BuildDefaultFalse {
+		return false
+	}
+
+	packagePrefix := ""
+	// e.g. for x/y/z, iterate over x, x/y, then x/y/z, taking the final value from the allowlist.
+	for _, part := range strings.Split(packagePath, "/") {
+		packagePrefix += part
+		if config[packagePrefix] == Bp2BuildDefaultTrueRecursively {
+			// package contains this prefix and this prefix should convert all modules
+			return true
+		}
+		// Continue to the next part of the package dir.
+		packagePrefix += "/"
+	}
+
+	return ret
 }
 
 // GetBazelBuildFileContents returns the file contents of a hand-crafted BUILD file if available or
@@ -126,6 +255,6 @@ func (b *BazelModuleBase) GetBazelBuildFileContents(c Config, path, name string)
 
 // ConvertedToBazel returns whether this module has been converted to Bazel, whether automatically
 // or manually
-func (b *BazelModuleBase) ConvertedToBazel() bool {
-	return b.ConvertWithBp2build() || b.HasHandcraftedLabel()
+func (b *BazelModuleBase) ConvertedToBazel(ctx BazelConversionPathContext) bool {
+	return b.ConvertWithBp2build(ctx) || b.HasHandcraftedLabel()
 }

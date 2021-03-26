@@ -61,7 +61,7 @@ func (m *bazelPythonBinary) GenerateAndroidBuildActions(ctx android.ModuleContex
 
 func PythonBinaryBp2Build(ctx android.TopDownMutatorContext) {
 	m, ok := ctx.Module().(*Module)
-	if !ok || !m.ConvertWithBp2build() {
+	if !ok || !m.ConvertWithBp2build(ctx) {
 		return
 	}
 
