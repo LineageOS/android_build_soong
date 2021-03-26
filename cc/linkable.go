@@ -111,6 +111,7 @@ type LinkableInterface interface {
 	InProduct() bool
 
 	SdkVersion() string
+	MinSdkVersion() string
 	AlwaysSdk() bool
 	IsSdkVariant() bool
 
