@@ -53,7 +53,7 @@ var prepareForJavaTest = android.GroupFixturePreparers(
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 		ctx.RegisterPreSingletonType("sdk_versions", sdkPreSingletonFactory)
 	}),
-	dexpreopt.PrepareForTestWithDexpreopt,
+	PrepareForTestWithDexpreopt,
 )
 
 func TestMain(m *testing.M) {
@@ -68,7 +68,7 @@ func TestMain(m *testing.M) {
 func testJavaError(t *testing.T, pattern string, bp string) (*android.TestContext, android.Config) {
 	t.Helper()
 	result := android.GroupFixturePreparers(
-		prepareForJavaTest, dexpreopt.PrepareForTestWithDexpreopt).
+		prepareForJavaTest, dexpreopt.PrepareForTestByEnablingDexpreopt).
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
 		RunTestWithBp(t, bp)
 	return result.TestContext, result.Config
@@ -131,6 +131,15 @@ func defaultModuleToPath(name string) string {
 	default:
 		return filepath.Join("out", "soong", ".intermediates", defaultJavaDir, name, "android_common", "turbine-combined", name+".jar")
 	}
+}
+
+// Test that the PrepareForTestWithJavaDefaultModules provides all the files that it uses by
+// running it in a fixture that requires all source files to exist.
+func TestPrepareForTestWithJavaDefaultModules(t *testing.T) {
+	android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		android.PrepareForTestDisallowNonExistentPaths,
+	).RunTest(t)
 }
 
 func TestJavaLinkType(t *testing.T) {
@@ -619,7 +628,7 @@ prebuilt_stubs_sources {
 	}
 
 	t.Run("empty/missing directory", func(t *testing.T) {
-		test(t, "empty-directory", []string{})
+		test(t, "empty-directory", nil)
 	})
 
 	t.Run("non-empty set of sources", func(t *testing.T) {
@@ -831,7 +840,7 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 	}
 
 	runTest := func(t *testing.T, info testConfigInfo, expectedErrorPattern string) {
-		t.Run(fmt.Sprintf("%#v", info), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", info), func(t *testing.T) {
 			errorHandler := android.FixtureExpectsNoErrors
 			if expectedErrorPattern != "" {
 				errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(expectedErrorPattern)
@@ -1220,33 +1229,22 @@ func TestJavaLintWithoutBaseline(t *testing.T) {
 }
 
 func TestJavaLintRequiresCustomLintFileToExist(t *testing.T) {
-	config := TestConfig(t.TempDir(),
-		nil,
-		`
-		java_library {
-			name: "foo",
-			srcs: [
-			],
-			min_sdk_version: "29",
-			sdk_version: "system_current",
-			lint: {
-				baseline_filename: "mybaseline.xml",
-			},
-		}
-     `, map[string][]byte{
-			"build/soong/java/lint_defaults.txt":                   nil,
-			"prebuilts/cmdline-tools/tools/bin/lint":               nil,
-			"prebuilts/cmdline-tools/tools/lib/lint-classpath.jar": nil,
-			"framework/aidl":                     nil,
-			"a.java":                             nil,
-			"AndroidManifest.xml":                nil,
-			"build/make/target/product/security": nil,
-		})
-	config.TestAllowNonExistentPaths = false
-	testJavaErrorWithConfig(t,
-		"source path \"mybaseline.xml\" does not exist",
-		config,
-	)
+	android.GroupFixturePreparers(
+		PrepareForTestWithJavaDefaultModules,
+		android.PrepareForTestDisallowNonExistentPaths,
+	).ExtendWithErrorHandler(android.FixtureExpectsAllErrorsToMatchAPattern([]string{`source path "mybaseline.xml" does not exist`})).
+		RunTestWithBp(t, `
+			java_library {
+				name: "foo",
+				srcs: [
+				],
+				min_sdk_version: "29",
+				sdk_version: "system_current",
+				lint: {
+					baseline_filename: "mybaseline.xml",
+				},
+			}
+	 `)
 }
 
 func TestJavaLintUsesCorrectBpConfig(t *testing.T) {
@@ -1431,7 +1429,7 @@ func TestDroiddoc(t *testing.T) {
 	barStubsOutput := barStubsOutputs[0]
 	barDoc := ctx.ModuleForTests("bar-doc", "android_common")
 	javaDoc := barDoc.Rule("javadoc").RelativeToTop()
-	if g, w := javaDoc.Implicits.Strings(), barStubsOutput.String(); !inList(w, g) {
+	if g, w := android.PathsRelativeToTop(javaDoc.Implicits), android.PathRelativeToTop(barStubsOutput); !inList(w, g) {
 		t.Errorf("implicits of bar-doc must contain %q, but was %q.", w, g)
 	}
 
@@ -1441,7 +1439,7 @@ func TestDroiddoc(t *testing.T) {
 	}
 
 	aidl := barDoc.Rule("aidl")
-	if g, w := javaDoc.Implicits.Strings(), aidl.Output.String(); !inList(w, g) {
+	if g, w := android.PathsRelativeToTop(javaDoc.Implicits), android.PathRelativeToTop(aidl.Output); !inList(w, g) {
 		t.Errorf("implicits of bar-doc must contain %q, but was %q.", w, g)
 	}
 

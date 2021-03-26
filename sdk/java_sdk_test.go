@@ -24,93 +24,29 @@ import (
 var prepareForSdkTestWithJava = android.GroupFixturePreparers(
 	java.PrepareForTestWithJavaBuildComponents,
 	PrepareForTestWithSdkBuildComponents,
+
+	// Ensure that all source paths are provided. This helps ensure that the snapshot generation is
+	// consistent and all files referenced from the snapshot's Android.bp file have actually been
+	// copied into the snapshot.
+	android.PrepareForTestDisallowNonExistentPaths,
+
+	// Files needs by most of the tests.
+	android.MockFS{
+		"Test.java": nil,
+	}.AddToFixture(),
 )
 
-func testSdkWithJava(t *testing.T, bp string) *android.TestResult {
-	t.Helper()
-
-	fs := map[string][]byte{
-		"Test.java":              nil,
-		"resource.test":          nil,
-		"aidl/foo/bar/Test.aidl": nil,
-
-		// For java_import
-		"prebuilt.jar": nil,
-
-		// For java_sdk_library
-		"api/current.txt":                                   nil,
-		"api/removed.txt":                                   nil,
-		"api/system-current.txt":                            nil,
-		"api/system-removed.txt":                            nil,
-		"api/test-current.txt":                              nil,
-		"api/test-removed.txt":                              nil,
-		"api/module-lib-current.txt":                        nil,
-		"api/module-lib-removed.txt":                        nil,
-		"api/system-server-current.txt":                     nil,
-		"api/system-server-removed.txt":                     nil,
-		"build/soong/scripts/gen-java-current-api-files.sh": nil,
-		"docs/known_doctags":                                nil,
-		"100/public/api/myjavalib.txt":                      nil,
-		"100/public/api/myjavalib-removed.txt":              nil,
-		"100/system/api/myjavalib.txt":                      nil,
-		"100/system/api/myjavalib-removed.txt":              nil,
-		"100/module-lib/api/myjavalib.txt":                  nil,
-		"100/module-lib/api/myjavalib-removed.txt":          nil,
-		"100/system-server/api/myjavalib.txt":               nil,
-		"100/system-server/api/myjavalib-removed.txt":       nil,
-	}
-
-	// for java_sdk_library tests
-	bp = `
-java_system_modules_import {
-	name: "core-current-stubs-system-modules",
-}
-java_system_modules_import {
-	name: "stable-core-platform-api-stubs-system-modules",
-}
-java_import {
-	name: "stable.core.platform.api.stubs",
-}
-java_import {
-	name: "android_stubs_current",
-}
-java_import {
-	name: "android_system_stubs_current",
-}
-java_import {
-	name: "android_test_stubs_current",
-}
-java_import {
-	name: "android_module_lib_stubs_current",
-}
-java_import {
-	name: "android_system_server_stubs_current",
-}
-java_import {
-	name: "core-lambda-stubs", 
-	sdk_version: "none",
-}
-java_import {
-	name: "ext", 
-	sdk_version: "none",
-}
-java_import {
-	name: "framework", 
-	sdk_version: "none",
-}
-prebuilt_apis {
-	name: "sdk",
-	api_dirs: ["100"],
-}
-` + bp
-
-	return testSdkWithFs(t, bp, fs)
-}
+var prepareForSdkTestWithJavaSdkLibrary = android.GroupFixturePreparers(
+	prepareForSdkTestWithJava,
+	java.PrepareForTestWithJavaDefaultModules,
+	java.PrepareForTestWithJavaSdkLibraryFiles,
+	java.FixtureWithLastReleaseApis("myjavalib"),
+)
 
 // Contains tests for SDK members provided by the java package.
 
 func TestSdkDependsOnSourceEvenWhenPrebuiltPreferred(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJava).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_header_libs: ["sdkmember"],
@@ -122,46 +58,24 @@ func TestSdkDependsOnSourceEvenWhenPrebuiltPreferred(t *testing.T) {
 			system_modules: "none",
 			sdk_version: "none",
 		}
-
-		java_import {
-			name: "sdkmember",
-			prefer: true,
-			jars: ["prebuilt.jar"],
-		}
 	`)
 
 	// Make sure that the mysdk module depends on "sdkmember" and not "prebuilt_sdkmember".
-	java.CheckModuleDependencies(t, result.TestContext, "mysdk", "android_common", []string{"sdkmember"})
+	sdkChecker := func(t *testing.T, result *android.TestResult) {
+		java.CheckModuleDependencies(t, result.TestContext, "mysdk", "android_common", []string{"sdkmember"})
+	}
 
 	CheckSnapshot(t, result, "mysdk", "",
-		checkAndroidBpContents(`// This is auto-generated. DO NOT EDIT.
-
-java_import {
-    name: "mysdk_sdkmember@current",
-    sdk_member_name: "sdkmember",
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    jars: ["java/sdkmember.jar"],
-}
-
-java_import {
-    name: "sdkmember",
-    prefer: false,
-    visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
-    jars: ["java/sdkmember.jar"],
-}
-
-sdk_snapshot {
-    name: "mysdk@current",
-    visibility: ["//visibility:public"],
-    java_header_libs: ["mysdk_sdkmember@current"],
-}
-`))
+		snapshotTestChecker(checkSnapshotWithSourcePreferred, sdkChecker),
+		snapshotTestChecker(checkSnapshotPreferredWithSource, sdkChecker),
+	)
 }
 
 func TestBasicSdkWithJavaLibrary(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		prepareForSdkTestWithApex,
+	).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_header_libs: ["sdkmember"],
@@ -242,7 +156,10 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 }
 
 func TestSnapshotWithJavaHeaderLibrary(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		android.FixtureAddFile("aidl/foo/bar/Test.aidl", nil),
+	).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_header_libs: ["myjavalib"],
@@ -296,7 +213,10 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestHostSnapshotWithJavaHeaderLibrary(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		android.FixtureAddFile("aidl/foo/bar/Test.aidl", nil),
+	).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			device_supported: false,
@@ -358,7 +278,7 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestDeviceAndHostSnapshotWithJavaHeaderLibrary(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJava).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			host_supported: true,
@@ -426,7 +346,11 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaImplLibrary(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		android.FixtureAddFile("aidl/foo/bar/Test.aidl", nil),
+		android.FixtureAddFile("resource.txt", nil),
+	).RunTestWithBp(t, `
 		module_exports {
 			name: "myexports",
 			java_libs: ["myjavalib"],
@@ -481,7 +405,11 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestSnapshotWithJavaBootLibrary(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		android.FixtureAddFile("aidl", nil),
+		android.FixtureAddFile("resource.txt", nil),
+	).RunTestWithBp(t, `
 		module_exports {
 			name: "myexports",
 			java_boot_libs: ["myjavalib"],
@@ -535,7 +463,10 @@ module_exports_snapshot {
 }
 
 func TestHostSnapshotWithJavaImplLibrary(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		android.FixtureAddFile("aidl/foo/bar/Test.aidl", nil),
+	).RunTestWithBp(t, `
 		module_exports {
 			name: "myexports",
 			device_supported: false,
@@ -597,7 +528,7 @@ aidl/foo/bar/Test.aidl -> aidl/aidl/foo/bar/Test.aidl
 }
 
 func TestSnapshotWithJavaTest(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJava).RunTestWithBp(t, `
 		module_exports {
 			name: "myexports",
 			java_tests: ["myjavatests"],
@@ -649,7 +580,7 @@ module_exports_snapshot {
 }
 
 func TestHostSnapshotWithJavaTest(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJava).RunTestWithBp(t, `
 		module_exports {
 			name: "myexports",
 			device_supported: false,
@@ -710,7 +641,7 @@ module_exports_snapshot {
 }
 
 func TestSnapshotWithJavaSystemModules(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJava).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_header_libs: ["exported-system-module"],
@@ -808,7 +739,7 @@ sdk_snapshot {
 }
 
 func TestHostSnapshotWithJavaSystemModules(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJava).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			device_supported: false,
@@ -888,7 +819,7 @@ sdk_snapshot {
 }
 
 func TestDeviceAndHostSnapshotWithOsSpecificMembers(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJava).RunTestWithBp(t, `
 		module_exports {
 			name: "myexports",
 			host_supported: true,
@@ -1021,7 +952,7 @@ module_exports_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_sdk_libs: ["myjavalib"],
@@ -1125,7 +1056,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_SdkVersion_None(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_sdk_libs: ["myjavalib"],
@@ -1191,7 +1122,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_SdkVersion_ForScope(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_sdk_libs: ["myjavalib"],
@@ -1260,7 +1191,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_ApiScopes(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_sdk_libs: ["myjavalib"],
@@ -1350,7 +1281,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_ModuleLib(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_sdk_libs: ["myjavalib"],
@@ -1461,7 +1392,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_SystemServer(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_sdk_libs: ["myjavalib"],
@@ -1551,7 +1482,7 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_NamingScheme(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_sdk_libs: ["myjavalib"],
@@ -1623,7 +1554,10 @@ sdk_snapshot {
 }
 
 func TestSnapshotWithJavaSdkLibrary_DoctagFiles(t *testing.T) {
-	result := testSdkWithJava(t, `
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJavaSdkLibrary,
+		android.FixtureAddFile("docs/known_doctags", nil),
+	).RunTestWithBp(t, `
 		sdk {
 			name: "mysdk",
 			java_sdk_libs: ["myjavalib"],

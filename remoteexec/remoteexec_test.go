@@ -45,14 +45,14 @@ func TestTemplate(t *testing.T) {
 				Inputs:          []string{"$in"},
 				OutputFiles:     []string{"$out"},
 				ExecStrategy:    "remote",
-				RSPFile:         "$out.rsp",
+				RSPFiles:        []string{"$out.rsp", "out2.rsp"},
 				ToolchainInputs: []string{"clang++"},
 				Platform: map[string]string{
 					ContainerImageKey: DefaultImage,
 					PoolKey:           "default",
 				},
 			},
-			want: fmt.Sprintf("${android.RBEWrapper} --labels=compiler=clang,lang=cpp,type=compile --platform=\"Pool=default,container-image=%s\" --exec_strategy=remote --inputs=$in --input_list_paths=$out.rsp --output_files=$out --toolchain_inputs=clang++ -- ", DefaultImage),
+			want: fmt.Sprintf("${android.RBEWrapper} --labels=compiler=clang,lang=cpp,type=compile --platform=\"Pool=default,container-image=%s\" --exec_strategy=remote --inputs=$in --input_list_paths=$out.rsp,out2.rsp --output_files=$out --toolchain_inputs=clang++ -- ", DefaultImage),
 		},
 	}
 	for _, test := range tests {

@@ -486,6 +486,9 @@ func TestSnapshotWithCcExportGeneratedHeaders(t *testing.T) {
 		}
 	`)
 
+	// TODO(b/183322862): Remove this and fix the issue.
+	errorHandler := android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module source path "snapshot/include_gen/generated_foo/gen/protos" does not exist`)
+
 	CheckSnapshot(t, result, "mysdk", "",
 		checkUnversionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
@@ -518,6 +521,9 @@ myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so
 `),
+		snapshotTestErrorHandler(checkSnapshotWithoutSource, errorHandler),
+		snapshotTestErrorHandler(checkSnapshotWithSourcePreferred, errorHandler),
+		snapshotTestErrorHandler(checkSnapshotPreferredWithSource, errorHandler),
 	)
 }
 
@@ -1816,7 +1822,10 @@ myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/android_arm64_armv8-a_static/mynativelib.a -> arm64/lib/mynativelib.a
 .intermediates/mynativelib/android_arm64_armv8-a_shared/mynativelib.so -> arm64/lib/mynativelib.so
 .intermediates/mynativelib/android_arm_armv7-a-neon_static/mynativelib.a -> arm/lib/mynativelib.a
-.intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so`),
+.intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so
+`),
+		// TODO(b/183315522): Remove this and fix the issue.
+		snapshotTestErrorHandler(checkSnapshotPreferredWithSource, android.FixtureExpectsAtLeastOneErrorMatchingPattern(`\Qunrecognized property "arch.arm.shared.export_include_dirs"\E`)),
 	)
 }
 
@@ -2664,6 +2673,11 @@ func TestNoSanitizerMembers(t *testing.T) {
 		}
 	`)
 
+	// Mixing the snapshot with the source (irrespective of which one is preferred) causes a problem
+	// due to missing variants.
+	// TODO(b/183204176): Remove this and fix the cause.
+	snapshotWithSourceErrorHandler := android.FixtureExpectsAtLeastOneErrorMatchingPattern(`\QReplaceDependencies could not find identical variant {os:android,image:,arch:arm64_armv8-a,sdk:,link:shared,version:} for module mynativelib\E`)
+
 	CheckSnapshot(t, result, "mysdk", "",
 		checkUnversionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
@@ -2688,6 +2702,9 @@ cc_prebuilt_library_shared {
 		checkAllCopyRules(`
 myinclude/Test.h -> include/myinclude/Test.h
 arm64/include/Arm64Test.h -> arm64/include/arm64/include/Arm64Test.h
-.intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so`),
+.intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so
+`),
+		snapshotTestErrorHandler(checkSnapshotWithSourcePreferred, snapshotWithSourceErrorHandler),
+		snapshotTestErrorHandler(checkSnapshotPreferredWithSource, snapshotWithSourceErrorHandler),
 	)
 }
