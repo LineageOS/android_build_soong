@@ -284,7 +284,7 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 		cmd.Flag("--include-annotations")
 
 		validatingNullability :=
-			android.InList("--validate-nullability-from-merged-stubs", d.Javadoc.args) ||
+			strings.Contains(String(d.Javadoc.properties.Args), "--validate-nullability-from-merged-stubs") ||
 				String(d.properties.Validate_nullability_from_list) != ""
 
 		migratingNullability := String(d.properties.Previous_api) != ""
@@ -509,14 +509,8 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	d.inclusionAnnotationsFlags(ctx, cmd)
 	d.apiLevelsAnnotationsFlags(ctx, cmd)
 
-	if android.InList("--generate-documentation", d.Javadoc.args) {
-		// Currently Metalava have the ability to invoke Javadoc in a separate process.
-		// Pass "-nodocs" to suppress the Javadoc invocation when Metalava receives
-		// "--generate-documentation" arg. This is not needed when Metalava removes this feature.
-		d.Javadoc.args = append(d.Javadoc.args, "-nodocs")
-	}
+	d.expandArgs(ctx, cmd)
 
-	cmd.Flag(strings.Join(d.Javadoc.args, " ")).Implicits(d.Javadoc.argFiles)
 	for _, o := range d.Javadoc.properties.Out {
 		cmd.ImplicitOutput(android.PathForModuleGen(ctx, o))
 	}
