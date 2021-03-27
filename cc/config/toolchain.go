@@ -245,10 +245,6 @@ func ThreadSanitizerRuntimeLibrary(t Toolchain) string {
 	return LibclangRuntimeLibrary(t, "tsan")
 }
 
-func ProfileRuntimeLibrary(t Toolchain) string {
-	return LibclangRuntimeLibrary(t, "profile")
-}
-
 func ScudoRuntimeLibrary(t Toolchain) string {
 	return LibclangRuntimeLibrary(t, "scudo")
 }

@@ -149,6 +149,11 @@ func TestDepsTracking(t *testing.T) {
 			srcs: ["foo.rs"],
 			crate_name: "static",
 		}
+		rust_ffi_host_static {
+			name: "libwholestatic",
+			srcs: ["foo.rs"],
+			crate_name: "wholestatic",
+		}
 		rust_ffi_host_shared {
 			name: "libshared",
 			srcs: ["foo.rs"],
@@ -164,6 +169,7 @@ func TestDepsTracking(t *testing.T) {
 			srcs: ["foo.rs"],
 			crate_name: "rlib",
 			static_libs: ["libstatic"],
+			whole_static_libs: ["libwholestatic"],
 		}
 		rust_proc_macro {
 			name: "libpm",
@@ -204,8 +210,8 @@ func TestDepsTracking(t *testing.T) {
 		t.Errorf("Static library dependency not detected (dependency missing from AndroidMkStaticLibs)")
 	}
 
-	if !strings.Contains(rustc.Args["rustcFlags"], "-lstatic=static") {
-		t.Errorf("-lstatic flag not being passed to rustc for static library")
+	if !strings.Contains(rustc.Args["rustcFlags"], "-lstatic=wholestatic") {
+		t.Errorf("-lstatic flag not being passed to rustc for static library %#v", rustc.Args["rustcFlags"])
 	}
 
 }

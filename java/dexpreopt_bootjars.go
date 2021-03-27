@@ -214,7 +214,7 @@ import (
 var artApexNames = []string{
 	"com.android.art",
 	"com.android.art.debug",
-	"com.android.art,testing",
+	"com.android.art.testing",
 	"com.google.android.art",
 	"com.google.android.art.debug",
 	"com.google.android.art.testing",

@@ -166,6 +166,15 @@ const (
 	recoveryVariant = "android_recovery_arm64_armv8-a_shared"
 )
 
+// Test that the PrepareForTestWithCcDefaultModules provides all the files that it uses by
+// running it in a fixture that requires all source files to exist.
+func TestPrepareForTestWithCcDefaultModules(t *testing.T) {
+	android.GroupFixturePreparers(
+		PrepareForTestWithCcDefaultModules,
+		android.PrepareForTestDisallowNonExistentPaths,
+	).RunTest(t)
+}
+
 func TestFuchsiaDeps(t *testing.T) {
 	t.Helper()
 
@@ -3626,6 +3635,71 @@ func TestAidlFlagsPassedToTheAidlCompiler(t *testing.T) {
 	if !strings.Contains(aidlCommand, expectedAidlFlag) {
 		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
 	}
+}
+
+func TestMinSdkVersionInClangTriple(t *testing.T) {
+	ctx := testCc(t, `
+		cc_library_shared {
+			name: "libfoo",
+			srcs: ["foo.c"],
+			min_sdk_version: "29",
+		}`)
+
+	cFlags := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_shared").Rule("cc").Args["cFlags"]
+	android.AssertStringDoesContain(t, "min sdk version", cFlags, "-target aarch64-linux-android29")
+}
+
+func TestMinSdkVersionsOfCrtObjects(t *testing.T) {
+	ctx := testCc(t, `
+		cc_object {
+			name: "crt_foo",
+			srcs: ["foo.c"],
+			crt: true,
+			stl: "none",
+			min_sdk_version: "28",
+
+		}`)
+
+	arch := "android_arm64_armv8-a"
+	for _, v := range []string{"", "28", "29", "30", "current"} {
+		var variant string
+		if v == "" {
+			variant = arch
+		} else {
+			variant = arch + "_sdk_" + v
+		}
+		cflags := ctx.ModuleForTests("crt_foo", variant).Rule("cc").Args["cFlags"]
+		vNum := v
+		if v == "current" || v == "" {
+			vNum = "10000"
+		}
+		expected := "-target aarch64-linux-android" + vNum + " "
+		android.AssertStringDoesContain(t, "cflag", cflags, expected)
+	}
+}
+
+func TestUseCrtObjectOfCorrectVersion(t *testing.T) {
+	ctx := testCc(t, `
+		cc_binary {
+			name: "bin",
+			srcs: ["foo.c"],
+			stl: "none",
+			min_sdk_version: "29",
+			sdk_version: "current",
+		}
+		`)
+
+	// Sdk variant uses the crt object of the matching min_sdk_version
+	variant := "android_arm64_armv8-a_sdk"
+	crt := ctx.ModuleForTests("bin", variant).Rule("ld").Args["crtBegin"]
+	android.AssertStringDoesContain(t, "crt dep of sdk variant", crt,
+		variant+"_29/crtbegin_dynamic.o")
+
+	// platform variant uses the crt object built for platform
+	variant = "android_arm64_armv8-a"
+	crt = ctx.ModuleForTests("bin", variant).Rule("ld").Args["crtBegin"]
+	android.AssertStringDoesContain(t, "crt dep of platform variant", crt,
+		variant+"/crtbegin_dynamic.o")
 }
 
 type MemtagNoteType int

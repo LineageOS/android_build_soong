@@ -48,10 +48,10 @@ var prepareForSdkTestWithApex = android.GroupFixturePreparers(
 		"system/sepolicy/apex/myapex-file_contexts":    nil,
 		"system/sepolicy/apex/myapex2-file_contexts":   nil,
 		"system/sepolicy/apex/mysdkapex-file_contexts": nil,
-		"myapex.avbpubkey":                             nil,
-		"myapex.pem":                                   nil,
-		"myapex.x509.pem":                              nil,
-		"myapex.pk8":                                   nil,
+		"sdk/tests/myapex.avbpubkey":                   nil,
+		"sdk/tests/myapex.pem":                         nil,
+		"sdk/tests/myapex.x509.pem":                    nil,
+		"sdk/tests/myapex.pk8":                         nil,
 	}),
 )
 
@@ -80,6 +80,12 @@ var prepareForSdkTest = android.GroupFixturePreparers(
 			{android.Windows, android.Arch{ArchType: android.X86_64}, android.NativeBridgeDisabled, "", "", true},
 		}
 	}),
+
+	// Make sure that every test provides all the source files.
+	android.PrepareForTestDisallowNonExistentPaths,
+	android.MockFS{
+		"Test.java": nil,
+	}.AddToFixture(),
 )
 
 var PrepareForTestWithSdkBuildComponents = android.GroupFixturePreparers(
@@ -125,6 +131,7 @@ func getSdkSnapshotBuildInfo(t *testing.T, result *android.TestResult, sdk *sdk)
 		androidBpContents:            sdk.GetAndroidBpContentsForTests(),
 		androidUnversionedBpContents: sdk.GetUnversionedAndroidBpContentsForTests(),
 		androidVersionedBpContents:   sdk.GetVersionedAndroidBpContentsForTests(),
+		snapshotTestCustomizations:   map[snapshotTest]*snapshotTestCustomization{},
 	}
 
 	buildParams := sdk.BuildParamsForTests()
@@ -183,6 +190,24 @@ func getSdkSnapshotBuildInfo(t *testing.T, result *android.TestResult, sdk *sdk)
 	return info
 }
 
+// The enum of different sdk snapshot tests performed by CheckSnapshot.
+type snapshotTest int
+
+const (
+	// The enumeration of the different test configurations.
+	// A test with the snapshot/Android.bp file but without the original Android.bp file.
+	checkSnapshotWithoutSource snapshotTest = iota
+
+	// A test with both the original source and the snapshot, with the source preferred.
+	checkSnapshotWithSourcePreferred
+
+	// A test with both the original source and the snapshot, with the snapshot preferred.
+	checkSnapshotPreferredWithSource
+
+	// The directory into which the snapshot will be 'unpacked'.
+	snapshotSubDir = "snapshot"
+)
+
 // Check the snapshot build rules.
 //
 // Takes a list of functions which check different facets of the snapshot build rules.
@@ -214,31 +239,58 @@ func CheckSnapshot(t *testing.T, result *android.TestResult, name string, dir st
 	// Populate a mock filesystem with the files that would have been copied by
 	// the rules.
 	fs := android.MockFS{}
-	snapshotSubDir := "snapshot"
 	for _, dest := range snapshotBuildInfo.snapshotContents {
 		fs[filepath.Join(snapshotSubDir, dest)] = nil
 	}
 	fs[filepath.Join(snapshotSubDir, "Android.bp")] = []byte(snapshotBuildInfo.androidBpContents)
 
-	preparer := result.Preparer()
+	// The preparers from the original source fixture.
+	sourcePreparers := result.Preparer()
 
-	// Process the generated bp file to make sure it is valid. Use the same preparer as was used to
-	// produce this result.
+	// Preparer to combine the snapshot and the source.
+	snapshotPreparer := android.GroupFixturePreparers(sourcePreparers, fs.AddToFixture())
+
+	var runSnapshotTestWithCheckers = func(t *testing.T, testConfig snapshotTest, extraPreparer android.FixturePreparer) {
+		customization := snapshotBuildInfo.snapshotTestCustomization(testConfig)
+
+		// TODO(b/183184375): Set Config.TestAllowNonExistentPaths = false to verify that all the
+		//  files the snapshot needs are actually copied into the snapshot.
+
+		// Run the snapshot with the snapshot preparer and the extra preparer, which must come after as
+		// it may need to modify parts of the MockFS populated by the snapshot preparer.
+		result := android.GroupFixturePreparers(snapshotPreparer, extraPreparer).
+			ExtendWithErrorHandler(customization.errorHandler).
+			RunTest(t)
+
+		// Perform any additional checks the test need on the result of processing the snapshot.
+		for _, checker := range customization.checkers {
+			checker(t, result)
+		}
+	}
+
 	t.Run("snapshot without source", func(t *testing.T) {
-		android.GroupFixturePreparers(
-			preparer,
-			// TODO(b/183184375): Set Config.TestAllowNonExistentPaths = false to verify that all the
-			//  files the snapshot needs are actually copied into the snapshot.
+		// Remove the source Android.bp file to make sure it works without.
+		removeSourceAndroidBp := android.FixtureModifyMockFS(func(fs android.MockFS) {
+			delete(fs, "Android.bp")
+		})
 
-			// Add the files (including bp) created for this snapshot to the test fixture.
-			fs.AddToFixture(),
+		runSnapshotTestWithCheckers(t, checkSnapshotWithoutSource, removeSourceAndroidBp)
+	})
 
-			// Remove the source Android.bp file to make sure it works without.
-			// TODO(b/183184375): Add a test with the source.
-			android.FixtureModifyMockFS(func(fs android.MockFS) {
-				delete(fs, "Android.bp")
-			}),
-		).RunTest(t)
+	t.Run("snapshot with source preferred", func(t *testing.T) {
+		runSnapshotTestWithCheckers(t, checkSnapshotWithSourcePreferred, android.NullFixturePreparer)
+	})
+
+	t.Run("snapshot preferred with source", func(t *testing.T) {
+		// Replace the snapshot/Android.bp file with one where "prefer: false," has been replaced with
+		// "prefer: true,"
+		preferPrebuilts := android.FixtureModifyMockFS(func(fs android.MockFS) {
+			snapshotBpFile := filepath.Join(snapshotSubDir, "Android.bp")
+			unpreferred := string(fs[snapshotBpFile])
+			fs[snapshotBpFile] = []byte(strings.ReplaceAll(unpreferred, "prefer: false,", "prefer: true,"))
+		})
+
+		runSnapshotTestWithCheckers(t, checkSnapshotPreferredWithSource, preferPrebuilts)
 	})
 }
 
@@ -312,6 +364,46 @@ func checkMergeZips(expected ...string) snapshotBuildInfoChecker {
 	}
 }
 
+type resultChecker func(t *testing.T, result *android.TestResult)
+
+// snapshotTestChecker registers a checker that will be run against the result of processing the
+// generated snapshot for the specified snapshotTest.
+func snapshotTestChecker(snapshotTest snapshotTest, checker resultChecker) snapshotBuildInfoChecker {
+	return func(info *snapshotBuildInfo) {
+		customization := info.snapshotTestCustomization(snapshotTest)
+		customization.checkers = append(customization.checkers, checker)
+	}
+}
+
+// snapshotTestErrorHandler registers an error handler to use when processing the snapshot
+// in the specific test case.
+//
+// Generally, the snapshot should work with all the test cases but some do not and just in case
+// there are a lot of issues to resolve, or it will take a lot of time this is a
+// get-out-of-jail-free card that allows progress to be made.
+//
+// deprecated: should only be used as a temporary workaround with an attached to do and bug.
+func snapshotTestErrorHandler(snapshotTest snapshotTest, handler android.FixtureErrorHandler) snapshotBuildInfoChecker {
+	return func(info *snapshotBuildInfo) {
+		customization := info.snapshotTestCustomization(snapshotTest)
+		customization.errorHandler = handler
+	}
+}
+
+// Encapsulates information provided by each test to customize a specific snapshotTest.
+type snapshotTestCustomization struct {
+	// Checkers that are run on the result of processing the preferred snapshot in a specific test
+	// case.
+	checkers []resultChecker
+
+	// Specify an error handler for when processing a specific test case.
+	//
+	// In some cases the generated snapshot cannot be used in a test configuration. Those cases are
+	// invariably bugs that need to be resolved but sometimes that can take a while. This provides a
+	// mechanism to temporarily ignore that error.
+	errorHandler android.FixtureErrorHandler
+}
+
 // Encapsulates information about the snapshot build structure in order to insulate tests from
 // knowing too much about internal structures.
 //
@@ -355,4 +447,21 @@ type snapshotBuildInfo struct {
 
 	// The final output zip.
 	outputZip string
+
+	// The test specific customizations for each snapshot test.
+	snapshotTestCustomizations map[snapshotTest]*snapshotTestCustomization
+}
+
+// snapshotTestCustomization gets the test specific customization for the specified snapshotTest.
+//
+// If no customization was created previously then it creates a default customization.
+func (i *snapshotBuildInfo) snapshotTestCustomization(snapshotTest snapshotTest) *snapshotTestCustomization {
+	customization := i.snapshotTestCustomizations[snapshotTest]
+	if customization == nil {
+		customization = &snapshotTestCustomization{
+			errorHandler: android.FixtureExpectsNoErrors,
+		}
+		i.snapshotTestCustomizations[snapshotTest] = customization
+	}
+	return customization
 }

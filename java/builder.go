@@ -150,7 +150,7 @@ var (
 		&remoteexec.REParams{Labels: map[string]string{"type": "tool", "name": "turbine"},
 			ExecStrategy:      "${config.RETurbineExecStrategy}",
 			Inputs:            []string{"${config.TurbineJar}", "${out}.rsp", "$implicits"},
-			RSPFile:           "${out}.rsp",
+			RSPFiles:          []string{"${out}.rsp"},
 			OutputFiles:       []string{"$out.tmp"},
 			OutputDirectories: []string{"$outDir"},
 			ToolchainInputs:   []string{"${config.JavaCmd}"},
@@ -167,7 +167,7 @@ var (
 		&remoteexec.REParams{
 			ExecStrategy: "${config.REJarExecStrategy}",
 			Inputs:       []string{"${config.SoongZipCmd}", "${out}.rsp"},
-			RSPFile:      "${out}.rsp",
+			RSPFiles:     []string{"${out}.rsp"},
 			OutputFiles:  []string{"$out"},
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		}, []string{"jarArgs"}, nil)
@@ -182,7 +182,7 @@ var (
 		&remoteexec.REParams{
 			ExecStrategy: "${config.REZipExecStrategy}",
 			Inputs:       []string{"${config.SoongZipCmd}", "${out}.rsp", "$implicits"},
-			RSPFile:      "${out}.rsp",
+			RSPFiles:     []string{"${out}.rsp"},
 			OutputFiles:  []string{"$out"},
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		}, []string{"jarArgs"}, []string{"implicits"})

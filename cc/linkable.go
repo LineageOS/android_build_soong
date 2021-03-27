@@ -111,6 +111,7 @@ type LinkableInterface interface {
 	InProduct() bool
 
 	SdkVersion() string
+	MinSdkVersion() string
 	AlwaysSdk() bool
 	IsSdkVariant() bool
 
@@ -157,8 +158,16 @@ func SharedDepTag() blueprint.DependencyTag {
 }
 
 // StaticDepTag returns the dependency tag for any C++ static libraries.
-func StaticDepTag() blueprint.DependencyTag {
-	return libraryDependencyTag{Kind: staticLibraryDependency}
+func StaticDepTag(wholeStatic bool) blueprint.DependencyTag {
+	return libraryDependencyTag{Kind: staticLibraryDependency, wholeStatic: wholeStatic}
+}
+
+// IsWholeStaticLib whether a dependency tag is a whole static library dependency.
+func IsWholeStaticLib(depTag blueprint.DependencyTag) bool {
+	if tag, ok := depTag.(libraryDependencyTag); ok {
+		return tag.wholeStatic
+	}
+	return false
 }
 
 // HeaderDepTag returns the dependency tag for any C++ "header-only" libraries.
