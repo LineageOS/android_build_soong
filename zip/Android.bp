@@ -25,6 +25,7 @@ bootstrap_go_package {
         "android-archive-zip",
         "blueprint-pathtools",
         "soong-jar",
+        "soong-response",
     ],
     srcs: [
         "zip.go",

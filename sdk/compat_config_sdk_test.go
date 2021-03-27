@@ -66,5 +66,26 @@ prebuilt_platform_compat_config {
 		checkAllCopyRules(`
 .intermediates/myconfig/android_common/myconfig_meta.xml -> compat_configs/myconfig/myconfig_meta.xml
 `),
+		snapshotTestChecker(checkSnapshotWithoutSource,
+			func(t *testing.T, result *android.TestResult) {
+				// Make sure that the snapshot metadata is collated by the platform compat config singleton.
+				java.CheckMergedCompatConfigInputs(t, result, "snapshot module", "snapshot/compat_configs/myconfig/myconfig_meta.xml")
+			}),
+
+		snapshotTestChecker(checkSnapshotWithSourcePreferred,
+			func(t *testing.T, result *android.TestResult) {
+				// Make sure that the snapshot metadata is collated by the platform compat config singleton.
+				java.CheckMergedCompatConfigInputs(t, result, "snapshot module",
+					"out/soong/.intermediates/myconfig/android_common/myconfig_meta.xml",
+				)
+			}),
+
+		snapshotTestChecker(checkSnapshotPreferredWithSource,
+			func(t *testing.T, result *android.TestResult) {
+				// Make sure that the snapshot metadata is collated by the platform compat config singleton.
+				java.CheckMergedCompatConfigInputs(t, result, "snapshot module",
+					"snapshot/compat_configs/myconfig/myconfig_meta.xml",
+				)
+			}),
 	)
 }

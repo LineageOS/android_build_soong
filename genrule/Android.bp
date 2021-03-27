@@ -16,6 +16,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "genrule.go",
+        "locations.go",
     ],
     testSrcs: [
         "genrule_test.go",

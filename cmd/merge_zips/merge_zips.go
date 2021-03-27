@@ -25,12 +25,14 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
+
+	"android/soong/response"
 
 	"github.com/google/blueprint/pathtools"
 
 	"android/soong/jar"
 	"android/soong/third_party/zip"
-	soongZip "android/soong/zip"
 )
 
 // Input zip: we can open it, close it, and obtain an array of entries
@@ -690,15 +692,20 @@ func main() {
 	inputs := make([]string, 0)
 	for _, input := range args[1:] {
 		if input[0] == '@' {
-			bytes, err := ioutil.ReadFile(input[1:])
+			f, err := os.Open(strings.TrimPrefix(input[1:], "@"))
 			if err != nil {
 				log.Fatal(err)
 			}
-			inputs = append(inputs, soongZip.ReadRespFile(bytes)...)
-			continue
+
+			rspInputs, err := response.ReadRspFile(f)
+			f.Close()
+			if err != nil {
+				log.Fatal(err)
+			}
+			inputs = append(inputs, rspInputs...)
+		} else {
+			inputs = append(inputs, input)
 		}
-		inputs = append(inputs, input)
-		continue
 	}
 
 	log.SetFlags(log.Lshortfile)

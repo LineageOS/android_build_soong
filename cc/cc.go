@@ -1363,6 +1363,19 @@ func (ctx *moduleContextImpl) minSdkVersion() string {
 	if ver == "apex_inherit" || ver == "" {
 		ver = ctx.sdkVersion()
 	}
+	// For crt objects, the meaning of min_sdk_version is very different from other types of
+	// module. For them, min_sdk_version defines the oldest version that the build system will
+	// create versioned variants for. For example, if min_sdk_version is 16, then sdk variant of
+	// the crt object has local variants of 16, 17, ..., up to the latest version. sdk_version
+	// and min_sdk_version properties of the variants are set to the corresponding version
+	// numbers. However, the platform (non-sdk) variant of the crt object is left untouched.
+	// min_sdk_version: 16 doesn't actually mean that the platform variant has to support such
+	// an old version. Since the variant is for the platform, it's preferred to target the
+	// latest version.
+	if ctx.mod.SplitPerApiLevel() && !ctx.isSdkVariant() {
+		ver = strconv.Itoa(android.FutureApiLevelInt)
+	}
+
 	// Also make sure that minSdkVersion is not greater than sdkVersion, if they are both numbers
 	sdkVersionInt, err := strconv.Atoi(ctx.sdkVersion())
 	minSdkVersionInt, err2 := strconv.Atoi(ver)
@@ -1833,12 +1846,6 @@ func (c *Module) deps(ctx DepsContext) Deps {
 	if c.compiler != nil {
 		deps = c.compiler.compilerDeps(ctx, deps)
 	}
-	// Add the PGO dependency (the clang_rt.profile runtime library), which
-	// sometimes depends on symbols from libgcc, before libgcc gets added
-	// in linkerDeps().
-	if c.pgo != nil {
-		deps = c.pgo.deps(ctx, deps)
-	}
 	if c.linker != nil {
 		deps = c.linker.linkerDeps(ctx, deps)
 	}
@@ -1933,9 +1940,14 @@ func GetCrtVariations(ctx android.BottomUpMutatorContext,
 		return nil
 	}
 	if m.UseSdk() {
+		// Choose the CRT that best satisfies the min_sdk_version requirement of this module
+		minSdkVersion := m.MinSdkVersion()
+		if minSdkVersion == "" || minSdkVersion == "apex_inherit" {
+			minSdkVersion = m.SdkVersion()
+		}
 		return []blueprint.Variation{
 			{Mutator: "sdk", Variation: "sdk"},
-			{Mutator: "version", Variation: m.SdkVersion()},
+			{Mutator: "version", Variation: minSdkVersion},
 		}
 	}
 	return []blueprint.Variation{

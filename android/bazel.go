@@ -137,7 +137,6 @@ var (
 		"libc_init_static":              true,
 		"libc_init_dynamic":             true,
 		"libc_tzcode":                   true,
-		"lib_dns":                       true,
 		"libc_freebsd":                  true,
 		"libc_freebsd_large_stack":      true,
 		"libc_netbsd":                   true,
@@ -169,6 +168,7 @@ var (
 		"liblinker_malloc":              true,
 		"liblinker_debuggerd_stub":      true,
 		"libbionic_tests_headers_posix": true,
+		"libc_dns":                      true,
 	}
 )
 

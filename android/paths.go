@@ -174,7 +174,34 @@ type Path interface {
 	// example, Rel on a PathsForModuleSrc would return the path relative to the module source
 	// directory, and OutputPath.Join("foo").Rel() would return "foo".
 	Rel() string
+
+	// RelativeToTop returns a new path relative to the top, it is provided solely for use in tests.
+	//
+	// It is guaranteed to always return the same type as it is called on, e.g. if called on an
+	// InstallPath then the returned value can be converted to an InstallPath.
+	//
+	// A standard build has the following structure:
+	//   ../top/
+	//          out/ - make install files go here.
+	//          out/soong - this is the buildDir passed to NewTestConfig()
+	//          ... - the source files
+	//
+	// This function converts a path so that it appears relative to the ../top/ directory, i.e.
+	// * Make install paths, which have the pattern "buildDir/../<path>" are converted into the top
+	//   relative path "out/<path>"
+	// * Soong install paths and other writable paths, which have the pattern "buildDir/<path>" are
+	//   converted into the top relative path "out/soong/<path>".
+	// * Source paths are already relative to the top.
+	// * Phony paths are not relative to anything.
+	// * toolDepPath have an absolute but known value in so don't need making relative to anything in
+	//   order to test.
+	RelativeToTop() Path
 }
+
+const (
+	OutDir      = "out"
+	OutSoongDir = OutDir + "/soong"
+)
 
 // WritablePath is a type of path that can be used as an output for build rules.
 type WritablePath interface {
@@ -270,6 +297,20 @@ func (p OptionalPath) String() string {
 
 // Paths is a slice of Path objects, with helpers to operate on the collection.
 type Paths []Path
+
+// RelativeToTop creates a new Paths containing the result of calling Path.RelativeToTop on each
+// item in this slice.
+func (p Paths) RelativeToTop() Paths {
+	ensureTestOnly()
+	if p == nil {
+		return p
+	}
+	ret := make(Paths, len(p))
+	for i, path := range p {
+		ret[i] = path.RelativeToTop()
+	}
+	return ret
+}
 
 func (paths Paths) containsPath(path Path) bool {
 	for _, p := range paths {
@@ -910,6 +951,20 @@ func (p DirectorySortedPaths) PathsInDirectory(dir string) Paths {
 // WritablePaths is a slice of WritablePath, used for multiple outputs.
 type WritablePaths []WritablePath
 
+// RelativeToTop creates a new WritablePaths containing the result of calling Path.RelativeToTop on
+// each item in this slice.
+func (p WritablePaths) RelativeToTop() WritablePaths {
+	ensureTestOnly()
+	if p == nil {
+		return p
+	}
+	ret := make(WritablePaths, len(p))
+	for i, path := range p {
+		ret[i] = path.RelativeToTop().(WritablePath)
+	}
+	return ret
+}
+
 // Strings returns the string forms of the writable paths.
 func (p WritablePaths) Strings() []string {
 	if p == nil {
@@ -970,6 +1025,11 @@ type SourcePath struct {
 
 	// The sources root, i.e. Config.SrcDir()
 	srcDir string
+}
+
+func (p SourcePath) RelativeToTop() Path {
+	ensureTestOnly()
+	return p
 }
 
 var _ Path = SourcePath{}
@@ -1167,6 +1227,16 @@ func (p OutputPath) getBuildDir() string {
 	return p.buildDir
 }
 
+func (p OutputPath) RelativeToTop() Path {
+	return p.outputPathRelativeToTop()
+}
+
+func (p OutputPath) outputPathRelativeToTop() OutputPath {
+	p.fullPath = StringPathRelativeToTop(p.buildDir, p.fullPath)
+	p.buildDir = OutSoongDir
+	return p
+}
+
 func (p OutputPath) objPathWithExt(ctx ModuleOutPathContext, subdir, ext string) ModuleObjPath {
 	return PathForModuleObj(ctx, subdir, pathtools.ReplaceExtension(p.path, ext))
 }
@@ -1178,6 +1248,11 @@ var _ objPathProvider = OutputPath{}
 // toolDepPath is a Path representing a dependency of the build tool.
 type toolDepPath struct {
 	basePath
+}
+
+func (t toolDepPath) RelativeToTop() Path {
+	ensureTestOnly()
+	return t
 }
 
 var _ Path = toolDepPath{}
@@ -1357,7 +1432,13 @@ type ModuleOutPath struct {
 	OutputPath
 }
 
+func (p ModuleOutPath) RelativeToTop() Path {
+	p.OutputPath = p.outputPathRelativeToTop()
+	return p
+}
+
 var _ Path = ModuleOutPath{}
+var _ WritablePath = ModuleOutPath{}
 
 func (p ModuleOutPath) objPathWithExt(ctx ModuleOutPathContext, subdir, ext string) ModuleObjPath {
 	return PathForModuleObj(ctx, subdir, pathtools.ReplaceExtension(p.path, ext))
@@ -1462,7 +1543,13 @@ type ModuleGenPath struct {
 	ModuleOutPath
 }
 
+func (p ModuleGenPath) RelativeToTop() Path {
+	p.OutputPath = p.outputPathRelativeToTop()
+	return p
+}
+
 var _ Path = ModuleGenPath{}
+var _ WritablePath = ModuleGenPath{}
 var _ genPathProvider = ModuleGenPath{}
 var _ objPathProvider = ModuleGenPath{}
 
@@ -1495,7 +1582,13 @@ type ModuleObjPath struct {
 	ModuleOutPath
 }
 
+func (p ModuleObjPath) RelativeToTop() Path {
+	p.OutputPath = p.outputPathRelativeToTop()
+	return p
+}
+
 var _ Path = ModuleObjPath{}
+var _ WritablePath = ModuleObjPath{}
 
 // PathForModuleObj returns a Path representing the paths... under the module's
 // 'obj' directory.
@@ -1513,7 +1606,13 @@ type ModuleResPath struct {
 	ModuleOutPath
 }
 
+func (p ModuleResPath) RelativeToTop() Path {
+	p.OutputPath = p.outputPathRelativeToTop()
+	return p
+}
+
 var _ Path = ModuleResPath{}
+var _ WritablePath = ModuleResPath{}
 
 // PathForModuleRes returns a Path representing the paths... under the module's
 // 'res' directory.
@@ -1539,6 +1638,26 @@ type InstallPath struct {
 
 	// makePath indicates whether this path is for Soong (false) or Make (true).
 	makePath bool
+}
+
+// Will panic if called from outside a test environment.
+func ensureTestOnly() {
+	// Normal soong test environment
+	if InList("-test.short", os.Args) {
+		return
+	}
+	// IntelliJ test environment
+	if InList("-test.v", os.Args) {
+		return
+	}
+
+	panic(fmt.Errorf("Not in test\n%s", strings.Join(os.Args, "\n")))
+}
+
+func (p InstallPath) RelativeToTop() Path {
+	ensureTestOnly()
+	p.buildDir = OutSoongDir
+	return p
 }
 
 func (p InstallPath) getBuildDir() string {
@@ -1814,6 +1933,13 @@ func (p PhonyPath) getBuildDir() string {
 	return ""
 }
 
+func (p PhonyPath) RelativeToTop() Path {
+	ensureTestOnly()
+	// A phony path cannot contain any / so does not have a build directory so switching to a new
+	// build directory has no effect so just return this path.
+	return p
+}
+
 func (p PhonyPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
 	panic("Not implemented")
 }
@@ -1825,9 +1951,16 @@ type testPath struct {
 	basePath
 }
 
+func (p testPath) RelativeToTop() Path {
+	ensureTestOnly()
+	return p
+}
+
 func (p testPath) String() string {
 	return p.path
 }
+
+var _ Path = testPath{}
 
 // PathForTesting returns a Path constructed from joining the elements of paths with '/'.  It should only be used from
 // within tests.
