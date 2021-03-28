@@ -1040,3 +1040,14 @@ func StringPathsRelativeToTop(soongOutDir string, paths []string) []string {
 	}
 	return result
 }
+
+// StringRelativeToTop will normalize a string containing paths, e.g. ninja command, by replacing
+// any references to the test specific temporary build directory that changes with each run to a
+// fixed path relative to a notional top directory.
+//
+// This is similar to StringPathRelativeToTop except that assumes the string is a single path
+// containing at most one instance of the temporary build directory at the start of the path while
+// this assumes that there can be any number at any position.
+func StringRelativeToTop(config Config, command string) string {
+	return normalizeStringRelativeToTop(config, command)
+}
