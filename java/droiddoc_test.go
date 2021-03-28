@@ -80,7 +80,7 @@ func TestDroiddoc(t *testing.T) {
 
 	barStubsOutput := barStubsOutputs[0]
 	barDoc := ctx.ModuleForTests("bar-doc", "android_common")
-	javaDoc := barDoc.Rule("javadoc").RelativeToTop()
+	javaDoc := barDoc.Rule("javadoc")
 	if g, w := android.PathsRelativeToTop(javaDoc.Implicits), android.PathRelativeToTop(barStubsOutput); !inList(w, g) {
 		t.Errorf("implicits of bar-doc must contain %q, but was %q.", w, g)
 	}

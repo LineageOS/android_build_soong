@@ -652,7 +652,7 @@ func TestLibraryAssets(t *testing.T) {
 			} else {
 				aapt2link = m.Output("package-res.apk")
 			}
-			aapt2link = aapt2link.RelativeToTop()
+			aapt2link = aapt2link
 			aapt2Flags := aapt2link.Args["flags"]
 			if test.assetFlag != "" {
 				android.AssertStringDoesContain(t, "asset flag", aapt2Flags, test.assetFlag)
@@ -1993,14 +1993,14 @@ func TestOverrideAndroidAppDependency(t *testing.T) {
 		`)
 
 	// Verify baz, which depends on the overridden module foo, has the correct classpath javac arg.
-	javac := ctx.ModuleForTests("baz", "android_common").Rule("javac").RelativeToTop()
+	javac := ctx.ModuleForTests("baz", "android_common").Rule("javac")
 	fooTurbine := "out/soong/.intermediates/foo/android_common/turbine-combined/foo.jar"
 	if !strings.Contains(javac.Args["classpath"], fooTurbine) {
 		t.Errorf("baz classpath %v does not contain %q", javac.Args["classpath"], fooTurbine)
 	}
 
 	// Verify qux, which depends on the overriding module bar, has the correct classpath javac arg.
-	javac = ctx.ModuleForTests("qux", "android_common").Rule("javac").RelativeToTop()
+	javac = ctx.ModuleForTests("qux", "android_common").Rule("javac")
 	barTurbine := "out/soong/.intermediates/foo/android_common_bar/turbine-combined/foo.jar"
 	if !strings.Contains(javac.Args["classpath"], barTurbine) {
 		t.Errorf("qux classpath %v does not contain %q", javac.Args["classpath"], barTurbine)
@@ -2077,7 +2077,7 @@ func TestOverrideAndroidTest(t *testing.T) {
 		}
 
 		// Check if javac classpath has the correct jar file path. This checks instrumentation_for overrides.
-		javac := variant.Rule("javac").RelativeToTop()
+		javac := variant.Rule("javac")
 		turbine := filepath.Join("out", "soong", ".intermediates", "foo", expected.targetVariant, "turbine-combined", "foo.jar")
 		if !strings.Contains(javac.Args["classpath"], turbine) {
 			t.Errorf("classpath %q does not contain %q", javac.Args["classpath"], turbine)
@@ -2151,7 +2151,7 @@ func TestAndroidTest_FixTestConfig(t *testing.T) {
 
 	for _, test := range testCases {
 		variant := ctx.ModuleForTests(test.moduleName, test.variantName)
-		params := variant.MaybeOutput("test_config_fixer/AndroidTest.xml").RelativeToTop()
+		params := variant.MaybeOutput("test_config_fixer/AndroidTest.xml")
 
 		if len(test.expectedFlags) > 0 {
 			if params.Rule == nil {
@@ -2647,14 +2647,14 @@ func TestEmbedNotice(t *testing.T) {
 		t.Errorf("GENRULE_NOTICE is missing from notice files, %q", noticeInputs)
 	}
 	// aapt2 flags should include -A <NOTICE dir> so that its contents are put in the APK's /assets.
-	res := foo.Output("package-res.apk").RelativeToTop()
+	res := foo.Output("package-res.apk")
 	aapt2Flags := res.Args["flags"]
 	e := "-A out/soong/.intermediates/foo/android_common/NOTICE"
 	android.AssertStringDoesContain(t, "expected.apkPath", aapt2Flags, e)
 
 	// bar has NOTICE files to process, but embed_notices is not set.
 	bar := result.ModuleForTests("bar", "android_common")
-	res = bar.Output("package-res.apk").RelativeToTop()
+	res = bar.Output("package-res.apk")
 	aapt2Flags = res.Args["flags"]
 	e = "-A out/soong/.intermediates/bar/android_common/NOTICE"
 	android.AssertStringDoesNotContain(t, "bar shouldn't have the asset dir flag for NOTICE", aapt2Flags, e)
