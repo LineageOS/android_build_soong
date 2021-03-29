@@ -26,23 +26,32 @@ import (
 // Contains tests for boot_image logic from java/boot_image.go as the ART boot image requires
 // modules from the ART apex.
 
+var prepareForTestWithBootImage = android.GroupFixturePreparers(
+	java.PrepareForTestWithDexpreopt,
+	PrepareForTestWithApexBuildComponents,
+)
+
+// Some additional files needed for the art apex.
+var prepareForTestWithArtApex = android.FixtureMergeMockFs(android.MockFS{
+	"com.android.art.avbpubkey":                          nil,
+	"com.android.art.pem":                                nil,
+	"system/sepolicy/apex/com.android.art-file_contexts": nil,
+})
+
 func TestBootImages(t *testing.T) {
-	result := apexFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForTestWithBootImage,
 		// Configure some libraries in the art and framework boot images.
 		dexpreopt.FixtureSetArtBootJars("com.android.art:baz", "com.android.art:quuz"),
 		dexpreopt.FixtureSetBootJars("platform:foo", "platform:bar"),
-		filesForSdkLibrary.AddToFixture(),
-		// Some additional files needed for the art apex.
-		android.FixtureMergeMockFs(android.MockFS{
-			"com.android.art.avbpubkey":                          nil,
-			"com.android.art.pem":                                nil,
-			"system/sepolicy/apex/com.android.art-file_contexts": nil,
-		}),
+		prepareForTestWithArtApex,
+
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("foo"),
 	).RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
 			srcs: ["b.java"],
-			unsafe_ignore_missing_latest_api: true,
 		}
 
 		java_library {
@@ -152,7 +161,9 @@ func checkBootImage(t *testing.T, result *android.TestResult, moduleName string,
 }
 
 func TestBootImageInApex(t *testing.T) {
-	result := apexFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForTestWithBootImage,
+		prepareForTestWithMyapex,
 		// Configure some libraries in the framework boot image.
 		dexpreopt.FixtureSetBootJars("platform:foo", "platform:bar"),
 	).RunTestWithBp(t, `
