@@ -16,25 +16,39 @@ package java
 
 import (
 	"testing"
+
+	"android/soong/android"
+	"android/soong/dexpreopt"
 )
 
 // Contains some simple tests for boot_image logic, additional tests can be found in
 // apex/boot_image_test.go as the ART boot image requires modules from the ART apex.
 
+var prepareForTestWithBootImage = android.GroupFixturePreparers(
+	PrepareForTestWithJavaDefaultModules,
+	dexpreopt.PrepareForTestByEnablingDexpreopt,
+)
+
 func TestUnknownBootImage(t *testing.T) {
-	testJavaError(t, "image_name: Unknown image name \\\"unknown\\\", expected one of art, boot", `
-		boot_image {
-			name: "unknown-boot-image",
-			image_name: "unknown",
-		}
-`)
+	prepareForTestWithBootImage.
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
+		RunTestWithBp(t, `
+			boot_image {
+				name: "unknown-boot-image",
+				image_name: "unknown",
+			}
+		`)
 }
 
 func TestUnknownPrebuiltBootImage(t *testing.T) {
-	testJavaError(t, "image_name: Unknown image name \\\"unknown\\\", expected one of art, boot", `
-		prebuilt_boot_image {
-			name: "unknown-boot-image",
-			image_name: "unknown",
-		}
-`)
+	prepareForTestWithBootImage.
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
+		RunTestWithBp(t, `
+			prebuilt_boot_image {
+				name: "unknown-boot-image",
+				image_name: "unknown",
+			}
+		`)
 }
