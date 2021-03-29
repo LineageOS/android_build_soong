@@ -93,7 +93,13 @@ type apexBundleProperties struct {
 	Multilib apexMultilibProperties
 
 	// List of boot images that are embedded inside this APEX bundle.
+	//
+	// deprecated: Use Bootclasspath_fragments
+	// TODO(b/177892522): Remove after has been replaced by Bootclasspath_fragments
 	Boot_images []string
+
+	// List of bootclasspath fragments that are embedded inside this APEX bundle.
+	Bootclasspath_fragments []string
 
 	// List of java libraries that are embedded inside this APEX bundle.
 	Java_libs []string
@@ -748,6 +754,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Common-arch dependencies come next
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
 	ctx.AddFarVariationDependencies(commonVariation, bootImageTag, a.properties.Boot_images...)
+	ctx.AddFarVariationDependencies(commonVariation, bootImageTag, a.properties.Bootclasspath_fragments...)
 	ctx.AddFarVariationDependencies(commonVariation, javaLibTag, a.properties.Java_libs...)
 	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.properties.Bpfs...)
 	ctx.AddFarVariationDependencies(commonVariation, fsTag, a.properties.Filesystems...)
