@@ -26,16 +26,9 @@ import (
 // Fixture
 // =======
 // These determine the environment within which a test can be run. Fixtures are mutable and are
-// created by FixtureFactory instances and mutated by FixturePreparer instances. They are created by
-// first creating a base Fixture (which is essentially empty) and then applying FixturePreparer
-// instances to it to modify the environment.
-//
-// FixtureFactory (deprecated)
-// ===========================
-// These are responsible for creating fixtures. Factories are immutable and are intended to be
-// initialized once and reused to create multiple fixtures. Each factory has a list of fixture
-// preparers that prepare a fixture for running a test. Factories can also be used to create other
-// factories by extending them with additional fixture preparers.
+// created and mutated by FixturePreparer instances. They are created by first creating a base
+// Fixture (which is essentially empty) and then applying FixturePreparer instances to it to modify
+// the environment.
 //
 // FixturePreparer
 // ===============
@@ -169,77 +162,6 @@ import (
 //    PrepareForApex,
 // )
 //
-// // FixtureFactory instances have been deprecated, this remains for informational purposes to
-// // help explain some of the existing code but will be removed along with FixtureFactory.
-//
-// var javaFixtureFactory = android.NewFixtureFactory(
-//    PrepareForIntegrationTestWithJava,
-//    FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-//      ctx.RegisterModuleType("test_module", testModule)
-//    }),
-//    javaMockFS.AddToFixture(),
-//    ...
-// }
-//
-// func TestJavaStuff(t *testing.T) {
-//   result := javaFixtureFactory.RunTest(t,
-//       android.FixtureWithRootAndroidBp(`java_library {....}`),
-//       android.MockFS{...}.AddToFixture(),
-//   )
-//   ... test result ...
-// }
-//
-// package cc
-// var PrepareForTestWithCC = GroupFixturePreparers(
-//    android.PrepareForArchMutator,
-//    android.prepareForPrebuilts,
-//    FixtureRegisterWithContext(RegisterRequiredBuildComponentsForTest),
-//    ...
-// )
-//
-// package apex
-//
-// var PrepareForApex = GroupFixturePreparers(
-//    ...
-// )
-//
-// Use modules and mutators from java, cc and apex. Any duplicate preparers (like
-// android.PrepareForArchMutator) will be automatically deduped.
-//
-// var apexFixtureFactory = android.NewFixtureFactory(
-//    PrepareForJava,
-//    PrepareForCC,
-//    PrepareForApex,
-// )
-
-// Factory for Fixture objects.
-//
-// This is configured with a set of FixturePreparer objects that are used to
-// initialize each Fixture instance this creates.
-//
-// deprecated: Use FixturePreparer instead.
-type FixtureFactory interface {
-	FixturePreparer
-}
-
-// Create a new FixtureFactory that will apply the supplied preparers.
-//
-// The buildDirSupplier is a pointer to the package level buildDir variable that is initialized by
-// the package level setUp method. It has to be a pointer to the variable as the variable will not
-// have been initialized at the time the factory is created. If it is nil then a test specific
-// temporary directory will be created instead.
-//
-// deprecated: The functionality provided by FixtureFactory will be merged into FixturePreparer
-func NewFixtureFactory(buildDirSupplier *string, preparers ...FixturePreparer) FixtureFactory {
-	f := &fixtureFactory{
-		buildDirSupplier: buildDirSupplier,
-		compositeFixturePreparer: compositeFixturePreparer{
-			preparers: dedupAndFlattenPreparers(nil, preparers),
-		},
-	}
-	f.initBaseFixturePreparer(f)
-	return f
-}
 
 // A set of mock files to add to the mock file system.
 type MockFS map[string][]byte
@@ -447,9 +369,9 @@ type FixturePreparer interface {
 
 	// Creates a copy of this instance and adds some additional preparers.
 	//
-	// Before the preparers are used they are combined with the preparers provided when the factory
-	// was created, any groups of preparers are flattened, and the list is deduped so that each
-	// preparer is only used once. See the file documentation in android/fixture.go for more details.
+	// Before the preparers are used they are combined with the current preparer, any groups of
+	// preparers are flattened, and the list is deduped so that each preparer is only used once. See
+	// the file documentation in android/fixture.go for more details.
 	//
 	// deprecated: Use GroupFixturePreparers() instead.
 	Extend(preparers ...FixturePreparer) FixturePreparer
@@ -782,46 +704,6 @@ func (b *baseFixturePreparer) RunTestWithConfig(t *testing.T, config Config) *Te
 	return fixture.RunTest()
 }
 
-var _ FixtureFactory = (*fixtureFactory)(nil)
-
-type fixtureFactory struct {
-	compositeFixturePreparer
-
-	buildDirSupplier *string
-}
-
-// Override to preserve the buildDirSupplier.
-func (f *fixtureFactory) Extend(preparers ...FixturePreparer) FixturePreparer {
-	// If there is no buildDirSupplier then just use the default implementation.
-	if f.buildDirSupplier == nil {
-		return f.baseFixturePreparer.Extend(preparers...)
-	}
-
-	all := dedupAndFlattenPreparers(f.preparers, preparers)
-
-	// Create a new factory which uses the same buildDirSupplier as the previous one.
-	extendedFactory := &fixtureFactory{
-		buildDirSupplier: f.buildDirSupplier,
-		compositeFixturePreparer: compositeFixturePreparer{
-			preparers: all,
-		},
-	}
-	extendedFactory.initBaseFixturePreparer(extendedFactory)
-	return extendedFactory
-}
-
-func (f *fixtureFactory) Fixture(t *testing.T) Fixture {
-	// If there is no buildDirSupplier then just use the default implementation.
-	if f.buildDirSupplier == nil {
-		return f.baseFixturePreparer.Fixture(t)
-	}
-
-	// Retrieve the buildDir from the supplier.
-	buildDir := *f.buildDirSupplier
-
-	return createFixture(t, buildDir, f.preparers)
-}
-
 type fixture struct {
 	// The preparers used to create this fixture.
 	preparers []*simpleFixturePreparer
@@ -936,10 +818,10 @@ func (r *TestResult) NormalizePathsForTesting(paths Paths) []string {
 // that produced this result.
 //
 // e.g. assuming that this result was created by running:
-//     factory.Extend(preparer1, preparer2).RunTest(t, preparer3, preparer4)
+//     GroupFixturePreparers(preparer1, preparer2, preparer3).RunTest(t)
 //
 // Then this method will be equivalent to running:
-//     GroupFixturePreparers(preparer1, preparer2, preparer3, preparer4)
+//     GroupFixturePreparers(preparer1, preparer2, preparer3)
 //
 // This is intended for use by tests whose output is Android.bp files to verify that those files
 // are valid, e.g. tests of the snapshots produced by the sdk module type.
