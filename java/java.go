@@ -304,7 +304,7 @@ type jniLib struct {
 	unstrippedFile android.Path
 }
 
-func sdkDeps(ctx android.BottomUpMutatorContext, sdkContext sdkContext, d dexer) {
+func sdkDeps(ctx android.BottomUpMutatorContext, sdkContext android.SdkContext, d dexer) {
 	sdkDep := decodeSdkDep(ctx, sdkContext)
 	if sdkDep.useModule {
 		ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.bootclasspath...)
@@ -352,11 +352,11 @@ func checkProducesJars(ctx android.ModuleContext, dep android.SourceFileProducer
 	}
 }
 
-func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext sdkContext) javaVersion {
+func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext android.SdkContext) javaVersion {
 	if javaVersion != "" {
 		return normalizeJavaVersion(ctx, javaVersion)
 	} else if ctx.Device() {
-		return sdkContext.sdkVersion().defaultJavaLanguageVersion(ctx)
+		return defaultJavaLanguageVersion(ctx, sdkContext.SdkVersion())
 	} else {
 		return JAVA_VERSION_9
 	}
@@ -1132,31 +1132,31 @@ type Import struct {
 	hideApexVariantFromMake bool
 }
 
-func (j *Import) sdkVersion() sdkSpec {
-	return sdkSpecFrom(String(j.properties.Sdk_version))
+func (j *Import) SdkVersion() android.SdkSpec {
+	return android.SdkSpecFrom(String(j.properties.Sdk_version))
 }
 
 func (j *Import) makeSdkVersion() string {
-	return j.sdkVersion().raw
+	return j.SdkVersion().Raw
 }
 
-func (j *Import) systemModules() string {
+func (j *Import) SystemModules() string {
 	return "none"
 }
 
-func (j *Import) minSdkVersion() sdkSpec {
+func (j *Import) MinSdkVersion() android.SdkSpec {
 	if j.properties.Min_sdk_version != nil {
-		return sdkSpecFrom(*j.properties.Min_sdk_version)
+		return android.SdkSpecFrom(*j.properties.Min_sdk_version)
 	}
-	return j.sdkVersion()
+	return j.SdkVersion()
 }
 
-func (j *Import) targetSdkVersion() sdkSpec {
-	return j.sdkVersion()
+func (j *Import) TargetSdkVersion() android.SdkSpec {
+	return j.SdkVersion()
 }
 
-func (j *Import) MinSdkVersion() string {
-	return j.minSdkVersion().version.String()
+func (j *Import) MinSdkVersionString() string {
+	return j.MinSdkVersion().Version.String()
 }
 
 func (j *Import) Prebuilt() *android.Prebuilt {
@@ -1187,7 +1187,7 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
 
 	if ctx.Device() && Bool(j.dexProperties.Compile_dex) {
-		sdkDeps(ctx, sdkContext(j), j.dexer)
+		sdkDeps(ctx, android.SdkContext(j), j.dexer)
 	}
 }
 
@@ -1230,7 +1230,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		} else if dep, ok := module.(SdkLibraryDependency); ok {
 			switch tag {
 			case libTag:
-				flags.classpath = append(flags.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
+				flags.classpath = append(flags.classpath, dep.SdkHeaderJars(ctx, j.SdkVersion())...)
 			}
 		}
 
@@ -1272,7 +1272,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				ctx.ModuleErrorf("internal error: no dex implementation jar available from prebuilt_apex %q", deapexerModule.Name())
 			}
 		} else if Bool(j.dexProperties.Compile_dex) {
-			sdkDep := decodeSdkDep(ctx, sdkContext(j))
+			sdkDep := decodeSdkDep(ctx, android.SdkContext(j))
 			if sdkDep.invalidVersion {
 				ctx.AddMissingDependencies(sdkDep.bootclasspath)
 				ctx.AddMissingDependencies(sdkDep.java9Classpath)
@@ -1291,7 +1291,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
 
 			var dexOutputFile android.OutputPath
-			dexOutputFile = j.dexer.compileDex(ctx, flags, j.minSdkVersion(), outputFile, jarName)
+			dexOutputFile = j.dexer.compileDex(ctx, flags, j.MinSdkVersion(), outputFile, jarName)
 			if ctx.Failed() {
 				return
 			}
@@ -1359,14 +1359,14 @@ func (j *Import) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 // Implements android.ApexModule
 func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
-	sdkSpec := j.minSdkVersion()
-	if !sdkSpec.specified() {
+	sdkSpec := j.MinSdkVersion()
+	if !sdkSpec.Specified() {
 		return fmt.Errorf("min_sdk_version is not specified")
 	}
-	if sdkSpec.kind == sdkCore {
+	if sdkSpec.Kind == android.SdkCore {
 		return nil
 	}
-	ver, err := sdkSpec.effectiveVersion(ctx)
+	ver, err := sdkSpec.EffectiveVersion(ctx)
 	if err != nil {
 		return err
 	}

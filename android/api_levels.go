@@ -31,9 +31,9 @@ const previewAPILevelBase = 9000
 // ApiLevelFromUser or ApiLevelOrPanic.
 //
 // The different *types* of API levels are handled separately. Currently only
-// Java has these, and they're managed with the sdkKind enum of the sdkSpec. A
-// future cleanup should be to migrate sdkSpec to using ApiLevel instead of its
-// sdkVersion int, and to move sdkSpec into this package.
+// Java has these, and they're managed with the SdkKind enum of the SdkSpec. A
+// future cleanup should be to migrate SdkSpec to using ApiLevel instead of its
+// SdkVersion int, and to move SdkSpec into this package.
 type ApiLevel struct {
 	// The string representation of the API level.
 	value string
