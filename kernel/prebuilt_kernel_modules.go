@@ -27,8 +27,12 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("prebuilt_kernel_modules", prebuiltKernelModulesFactory)
 	pctx.Import("android/soong/cc/config")
+	registerKernelBuildComponents(android.InitRegistrationContext)
+}
+
+func registerKernelBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("prebuilt_kernel_modules", prebuiltKernelModulesFactory)
 }
 
 type prebuiltKernelModules struct {
