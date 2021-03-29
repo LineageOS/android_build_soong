@@ -144,6 +144,7 @@ func (n HostAndDeviceModuleNames) Set(v string) error {
 var hostAndDeviceModuleNames = HostAndDeviceModuleNames{}
 
 var sdkVersion string
+var defaultMinSdkVersion string
 var useVersion string
 var staticDeps bool
 var jetifier bool
@@ -284,6 +285,10 @@ func (p Pom) BpDeps(typeExt string, scopes []string) []string {
 
 func (p Pom) SdkVersion() string {
 	return sdkVersion
+}
+
+func (p Pom) DefaultMinSdkVersion() string {
+	return defaultMinSdkVersion
 }
 
 func (p Pom) Jetifier() bool {
@@ -457,7 +462,7 @@ var bpDepsTemplate = template.Must(template.New("bp").Parse(`
     min_sdk_version: "{{.MinSdkVersion}}",
     manifest: "manifests/{{.BpName}}/AndroidManifest.xml",
     {{- else if not .IsHostOnly}}
-    min_sdk_version: "24",
+    min_sdk_version: "{{.DefaultMinSdkVersion}}",
     {{- end}}
     {{- end}}
     static_libs: [
@@ -598,6 +603,8 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-static-libs
      This may be specified multiple times to declare these dependencies.
   -sdk-version <version>
      Sets sdk_version: "<version>" for all modules.
+  -default-min-sdk-version
+     The default min_sdk_version to use for a module if one cannot be mined from AndroidManifest.xml
   -use-version <version>
      If the maven directory contains multiple versions of artifacts and their pom files,
      -use-version can be used to only write Android.bp files for a specific version of those artifacts.
@@ -622,6 +629,7 @@ Usage: %s [--rewrite <regex>=<replace>] [-exclude <module>] [--extra-static-libs
 	flag.Var(&hostModuleNames, "host", "Specifies that the corresponding module (specified in the form 'module.group:module.artifact') is a host module")
 	flag.Var(&hostAndDeviceModuleNames, "host-and-device", "Specifies that the corresponding module (specified in the form 'module.group:module.artifact') is both a host and device module.")
 	flag.StringVar(&sdkVersion, "sdk-version", "", "What to write to sdk_version")
+	flag.StringVar(&defaultMinSdkVersion, "default-min-sdk-version", "24", "Default min_sdk_version to use, if one is not available from AndroidManifest.xml. Default: 24")
 	flag.StringVar(&useVersion, "use-version", "", "Only read artifacts of a specific version")
 	flag.BoolVar(&staticDeps, "static-deps", false, "Statically include direct dependencies")
 	flag.BoolVar(&jetifier, "jetifier", false, "Sets jetifier: true on all modules")
