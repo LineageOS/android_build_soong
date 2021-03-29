@@ -140,13 +140,13 @@ var apexFixtureFactory = android.NewFixtureFactory(
 			],
 		}
 	`),
+	prepareForTestWithMyapex,
 	android.FixtureMergeMockFs(android.MockFS{
-		"a.java":                                    nil,
-		"PrebuiltAppFoo.apk":                        nil,
-		"PrebuiltAppFooPriv.apk":                    nil,
-		"apex_manifest.json":                        nil,
-		"AndroidManifest.xml":                       nil,
-		"system/sepolicy/apex/myapex-file_contexts": nil,
+		"a.java":                 nil,
+		"PrebuiltAppFoo.apk":     nil,
+		"PrebuiltAppFooPriv.apk": nil,
+		"apex_manifest.json":     nil,
+		"AndroidManifest.xml":    nil,
 		"system/sepolicy/apex/myapex.updatable-file_contexts":         nil,
 		"system/sepolicy/apex/myapex2-file_contexts":                  nil,
 		"system/sepolicy/apex/otherapex-file_contexts":                nil,
@@ -203,6 +203,10 @@ var apexFixtureFactory = android.NewFixtureFactory(
 		variables.Platform_vndk_version = proptools.StringPtr("VER")
 	}),
 )
+
+var prepareForTestWithMyapex = android.FixtureMergeMockFs(android.MockFS{
+	"system/sepolicy/apex/myapex-file_contexts": nil,
+})
 
 func setUp() {
 	var err error
