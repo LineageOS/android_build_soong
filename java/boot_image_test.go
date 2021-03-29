@@ -41,6 +41,18 @@ func TestUnknownBootImage(t *testing.T) {
 		`)
 }
 
+func TestUnknownBootclasspathFragmentImageName(t *testing.T) {
+	prepareForTestWithBootImage.
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
+		RunTestWithBp(t, `
+			bootclasspath_fragment {
+				name: "unknown-boot-image",
+				image_name: "unknown",
+			}
+		`)
+}
+
 func TestUnknownPrebuiltBootImage(t *testing.T) {
 	prepareForTestWithBootImage.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
