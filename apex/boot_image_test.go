@@ -95,6 +95,9 @@ func TestBootImages(t *testing.T) {
 		boot_image {
 			name: "art-boot-image",
 			image_name: "art",
+			apex_available: [
+				"com.android.art",
+			],
 		}
 
 		boot_image {
@@ -307,6 +310,8 @@ func TestBootImageInPrebuiltArtApex(t *testing.T) {
 
 	java.CheckModuleDependencies(t, result.TestContext, "mybootimage", "android_common", []string{
 		`dex2oatd`,
+		`prebuilt_bar`,
+		`prebuilt_foo`,
 	})
 }
 

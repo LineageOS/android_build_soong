@@ -20,6 +20,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/dexpreopt"
+	"github.com/google/blueprint/proptools"
 
 	"github.com/google/blueprint"
 )
@@ -52,11 +53,33 @@ func RegisterBootImageBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_bootclasspath_fragment", prebuiltBootImageFactory)
 }
 
+type bootImageContentDependencyTag struct {
+	blueprint.BaseDependencyTag
+}
+
+// Avoid having to make boot image content visible to the boot image.
+//
+// This is a temporary workaround to make it easier to migrate to boot image modules with proper
+// dependencies.
+// TODO(b/177892522): Remove this and add needed visibility.
+func (b bootImageContentDependencyTag) ExcludeFromVisibilityEnforcement() {
+}
+
+// The tag used for the dependency between the boot image module and its contents.
+var bootImageContentDepTag = bootImageContentDependencyTag{}
+
+var _ android.ExcludeFromVisibilityEnforcementTag = bootImageContentDepTag
+
 type bootImageProperties struct {
 	// The name of the image this represents.
 	//
 	// Must be one of "art" or "boot".
 	Image_name *string
+
+	// The contents of this boot image, could be either java_library, java_sdk_library, or boot_image.
+	//
+	// The order of this list matters as it is the order that is used in the bootclasspath.
+	Contents []string `blueprint:"mutated"`
 }
 
 type BootImageModule struct {
@@ -72,7 +95,50 @@ func bootImageFactory() android.Module {
 	android.InitApexModule(m)
 	android.InitSdkAwareModule(m)
 	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
+
+	// Perform some consistency checking to ensure that the configuration is correct.
+	android.AddLoadHook(m, func(ctx android.LoadHookContext) {
+		bootImageConsistencyCheck(ctx, m)
+	})
 	return m
+}
+
+func bootImageConsistencyCheck(ctx android.EarlyModuleContext, m *BootImageModule) {
+	imageName := proptools.String(m.properties.Image_name)
+	if imageName == "art" {
+		// Get the configuration for the art apex jars. Do not use getImageConfig(ctx) here as this is
+		// too early in the Soong processing for that to work.
+		global := dexpreopt.GetGlobalConfig(ctx)
+		modules := global.ArtApexJars
+
+		// Make sure that the apex specified in the configuration is consistent and is one for which
+		// this boot image is available.
+		jars := []string{}
+		commonApex := ""
+		for i := 0; i < modules.Len(); i++ {
+			apex := modules.Apex(i)
+			jar := modules.Jar(i)
+			if apex == "platform" {
+				ctx.ModuleErrorf("ArtApexJars is invalid as it requests a platform variant of %q", jar)
+				continue
+			}
+			if !m.AvailableFor(apex) {
+				ctx.ModuleErrorf("incompatible with ArtApexJars which expects this to be in apex %q but this is only in apexes %q",
+					apex, m.ApexAvailable())
+				continue
+			}
+			if commonApex == "" {
+				commonApex = apex
+			} else if commonApex != apex {
+				ctx.ModuleErrorf("ArtApexJars configuration is inconsistent, expected all jars to be in the same apex but it specifies apex %q and %q",
+					commonApex, apex)
+			}
+			jars = append(jars, jar)
+		}
+
+		// Store the jars in the Contents property so that they can be used to add dependencies.
+		m.properties.Contents = jars
+	}
 }
 
 var BootImageInfoProvider = blueprint.NewProvider(BootImageInfo{})
@@ -108,6 +174,10 @@ func (i BootImageInfo) AndroidBootImageFilesByArchType() map[android.ArchType]an
 
 func (b *BootImageModule) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	tag := ctx.OtherModuleDependencyTag(dep)
+	if tag == bootImageContentDepTag {
+		// Boot image contents are not automatically added to apex, yet.
+		return false
+	}
 	if android.IsMetaDependencyTag(tag) {
 		// Cross-cutting metadata dependencies are metadata.
 		return false
@@ -120,6 +190,8 @@ func (b *BootImageModule) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 }
 
 func (b *BootImageModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	ctx.AddDependency(ctx.Module(), bootImageContentDepTag, b.properties.Contents...)
+
 	if SkipDexpreoptBootJars(ctx) {
 		return
 	}
@@ -242,5 +314,10 @@ func prebuiltBootImageFactory() android.Module {
 	android.InitApexModule(m)
 	android.InitSdkAwareModule(m)
 	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
+
+	// Perform some consistency checking to ensure that the configuration is correct.
+	android.AddLoadHook(m, func(ctx android.LoadHookContext) {
+		bootImageConsistencyCheck(ctx, &m.BootImageModule)
+	})
 	return m
 }
