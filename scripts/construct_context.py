@@ -66,9 +66,9 @@ def main():
     if not args.sdk:
       raise SystemExit('target sdk version is not set')
     if not args.host_contexts:
-      raise SystemExit('host context is not set')
+      args.host_contexts = []
     if not args.target_contexts:
-      raise SystemExit('target context is not set')
+      args.target_contexts = []
 
     print(construct_contexts(args))
 
