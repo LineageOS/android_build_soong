@@ -95,7 +95,10 @@ var PrepareForTestWithSdkBuildComponents = android.GroupFixturePreparers(
 
 func testSdkWithFs(t *testing.T, bp string, fs android.MockFS) *android.TestResult {
 	t.Helper()
-	return prepareForSdkTest.RunTest(t, fs.AddToFixture(), android.FixtureWithRootAndroidBp(bp))
+	return android.GroupFixturePreparers(
+		prepareForSdkTest,
+		fs.AddToFixture(),
+	).RunTestWithBp(t, bp)
 }
 
 func testSdkError(t *testing.T, pattern, bp string) {
