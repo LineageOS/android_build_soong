@@ -15,65 +15,29 @@
 package linkerconfig
 
 import (
-	"android/soong/android"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
+
+	"android/soong/android"
 )
 
-var buildDir string
-
-func setUp() {
-	var err error
-	buildDir, err = ioutil.TempDir("", "soong_etc_test")
-	if err != nil {
-		panic(err)
-	}
-}
-
-func tearDown() {
-	os.RemoveAll(buildDir)
-}
-
 func TestMain(m *testing.M) {
-	run := func() int {
-		setUp()
-		defer tearDown()
-
-		return m.Run()
-	}
-
-	os.Exit(run())
+	os.Exit(m.Run())
 }
 
-func testContext(t *testing.T, bp string) *android.TestContext {
-	t.Helper()
-
-	fs := map[string][]byte{
-		"linker.config.json": nil,
-	}
-
-	config := android.TestArchConfig(buildDir, nil, bp, fs)
-
-	ctx := android.NewTestArchContext(config)
-	ctx.RegisterModuleType("linker_config", linkerConfigFactory)
-	ctx.Register()
-
-	_, errs := ctx.ParseFileList(".", []string{"Android.bp"})
-	android.FailIfErrored(t, errs)
-	_, errs = ctx.PrepareBuildActions(config)
-	android.FailIfErrored(t, errs)
-
-	return ctx
-}
+var prepareForLinkerConfigTest = android.GroupFixturePreparers(
+	android.PrepareForTestWithAndroidBuildComponents,
+	android.FixtureRegisterWithContext(registerLinkerConfigBuildComponent),
+	android.FixtureAddFile("linker.config.json", nil),
+)
 
 func TestBaseLinkerConfig(t *testing.T) {
-	ctx := testContext(t, `
-	linker_config {
-		name: "linker-config-base",
-		src: "linker.config.json",
-	}
+	result := prepareForLinkerConfigTest.RunTestWithBp(t, `
+		linker_config {
+			name: "linker-config-base",
+			src: "linker.config.json",
+		}
 	`)
 
 	expected := map[string][]string{
@@ -82,13 +46,13 @@ func TestBaseLinkerConfig(t *testing.T) {
 		"LOCAL_INSTALLED_MODULE_STEM": {"linker.config.pb"},
 	}
 
-	p := ctx.ModuleForTests("linker-config-base", "android_arm64_armv8-a").Module().(*linkerConfig)
+	p := result.ModuleForTests("linker-config-base", "android_arm64_armv8-a").Module().(*linkerConfig)
 
 	if p.outputFilePath.Base() != "linker.config.pb" {
 		t.Errorf("expected linker.config.pb, got %q", p.outputFilePath.Base())
 	}
 
-	entries := android.AndroidMkEntriesForTest(t, ctx, p)[0]
+	entries := android.AndroidMkEntriesForTest(t, result.TestContext, p)[0]
 	for k, expectedValue := range expected {
 		if value, ok := entries.EntryMap[k]; ok {
 			if !reflect.DeepEqual(value, expectedValue) {
@@ -105,18 +69,18 @@ func TestBaseLinkerConfig(t *testing.T) {
 }
 
 func TestUninstallableLinkerConfig(t *testing.T) {
-	ctx := testContext(t, `
-	linker_config {
-		name: "linker-config-base",
-		src: "linker.config.json",
-		installable: false,
-	}
+	result := prepareForLinkerConfigTest.RunTestWithBp(t, `
+		linker_config {
+			name: "linker-config-base",
+			src: "linker.config.json",
+			installable: false,
+		}
 	`)
 
 	expected := []string{"true"}
 
-	p := ctx.ModuleForTests("linker-config-base", "android_arm64_armv8-a").Module().(*linkerConfig)
-	entries := android.AndroidMkEntriesForTest(t, ctx, p)[0]
+	p := result.ModuleForTests("linker-config-base", "android_arm64_armv8-a").Module().(*linkerConfig)
+	entries := android.AndroidMkEntriesForTest(t, result.TestContext, p)[0]
 	if value, ok := entries.EntryMap["LOCAL_UNINSTALLABLE_MODULE"]; ok {
 		if !reflect.DeepEqual(value, expected) {
 			t.Errorf("LOCAL_UNINSTALLABLE_MODULE is expected to be true but %s", value)
