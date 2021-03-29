@@ -190,6 +190,16 @@ func TestBootImageInApex(t *testing.T) {
 				"myapex",
 			],
 		}
+
+		// Make sure that a preferred prebuilt doesn't affect the apex.
+		prebuilt_boot_image {
+			name: "mybootimage",
+			image_name: "boot",
+			prefer: true,
+			apex_available: [
+				"myapex",
+			],
+		}
 	`)
 
 	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
@@ -205,6 +215,11 @@ func TestBootImageInApex(t *testing.T) {
 		"javalib/arm64/boot-foo.art",
 		"javalib/arm64/boot-foo.oat",
 		"javalib/arm64/boot-foo.vdex",
+	})
+
+	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+		`myapex.key`,
+		`mybootimage`,
 	})
 }
 
