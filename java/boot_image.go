@@ -44,7 +44,7 @@ type bootImageProperties struct {
 	// The name of the image this represents.
 	//
 	// Must be one of "art" or "boot".
-	Image_name string
+	Image_name *string
 }
 
 type BootImageModule struct {
@@ -127,14 +127,8 @@ func (b *BootImageModule) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	// GenerateSingletonBuildActions method as it cannot create it for itself.
 	dexpreopt.GetGlobalSoongConfig(ctx)
 
-	// Get a map of the image configs that are supported.
-	imageConfigs := genBootImageConfigs(ctx)
-
-	// Retrieve the config for this image.
-	imageName := b.properties.Image_name
-	imageConfig := imageConfigs[imageName]
+	imageConfig := b.getImageConfig(ctx)
 	if imageConfig == nil {
-		ctx.PropertyErrorf("image_name", "Unknown image name %q, expected one of %s", imageName, strings.Join(android.SortedStringKeys(imageConfigs), ", "))
 		return
 	}
 
@@ -143,6 +137,25 @@ func (b *BootImageModule) GenerateAndroidBuildActions(ctx android.ModuleContext)
 
 	// Make it available for other modules.
 	ctx.SetProvider(BootImageInfoProvider, info)
+}
+
+func (b *BootImageModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
+	// Get a map of the image configs that are supported.
+	imageConfigs := genBootImageConfigs(ctx)
+
+	// Retrieve the config for this image.
+	imageNamePtr := b.properties.Image_name
+	if imageNamePtr == nil {
+		return nil
+	}
+
+	imageName := *imageNamePtr
+	imageConfig := imageConfigs[imageName]
+	if imageConfig == nil {
+		ctx.PropertyErrorf("image_name", "Unknown image name %q, expected one of %s", imageName, strings.Join(android.SortedStringKeys(imageConfigs), ", "))
+		return nil
+	}
+	return imageConfig
 }
 
 type bootImageMemberType struct {
@@ -169,7 +182,7 @@ func (b *bootImageMemberType) CreateVariantPropertiesStruct() android.SdkMemberP
 type bootImageSdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
-	Image_name string
+	Image_name *string
 }
 
 func (b *bootImageSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
@@ -179,8 +192,8 @@ func (b *bootImageSdkMemberProperties) PopulateFromVariant(ctx android.SdkMember
 }
 
 func (b *bootImageSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
-	if b.Image_name != "" {
-		propertySet.AddProperty("image_name", b.Image_name)
+	if b.Image_name != nil {
+		propertySet.AddProperty("image_name", *b.Image_name)
 	}
 }
 
