@@ -1294,7 +1294,8 @@ func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile a
 	// check is not necessary, and although it is good to have, it is difficult to maintain on
 	// non-linux build platforms where dexpreopt is generally disabled (the check may fail due to
 	// various unrelated reasons, such as a failure to get manifest from an APK).
-	if dexpreopt.GetGlobalConfig(ctx).DisablePreopt {
+	global := dexpreopt.GetGlobalConfig(ctx)
+	if global.DisablePreopt || global.OnlyPreoptBootImageAndSystemServer {
 		return inputFile
 	}
 
