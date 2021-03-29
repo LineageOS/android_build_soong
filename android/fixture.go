@@ -367,15 +367,6 @@ type FixturePreparer interface {
 	// Return the flattened and deduped list of simpleFixturePreparer pointers.
 	list() []*simpleFixturePreparer
 
-	// Creates a copy of this instance and adds some additional preparers.
-	//
-	// Before the preparers are used they are combined with the current preparer, any groups of
-	// preparers are flattened, and the list is deduped so that each preparer is only used once. See
-	// the file documentation in android/fixture.go for more details.
-	//
-	// deprecated: Use GroupFixturePreparers() instead.
-	Extend(preparers ...FixturePreparer) FixturePreparer
-
 	// Create a Fixture.
 	Fixture(t *testing.T) Fixture
 
@@ -656,17 +647,12 @@ func (b *baseFixturePreparer) initBaseFixturePreparer(self FixturePreparer) {
 	b.self = self
 }
 
-func (b *baseFixturePreparer) Extend(preparers ...FixturePreparer) FixturePreparer {
-	all := dedupAndFlattenPreparers(b.self.list(), preparers)
-	return newFixturePreparer(all)
-}
-
 func (b *baseFixturePreparer) Fixture(t *testing.T) Fixture {
 	return createFixture(t, t.TempDir(), b.self.list())
 }
 
 func (b *baseFixturePreparer) ExtendWithErrorHandler(errorHandler FixtureErrorHandler) FixturePreparer {
-	return b.self.Extend(newSimpleFixturePreparer(func(fixture *fixture) {
+	return GroupFixturePreparers(b.self, newSimpleFixturePreparer(func(fixture *fixture) {
 		fixture.errorHandler = errorHandler
 	}))
 }
