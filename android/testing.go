@@ -816,6 +816,22 @@ func (m TestingModule) VariablesForTestsRelativeToTop() map[string]string {
 	return normalizeStringMapRelativeToTop(m.config, m.module.VariablesForTests())
 }
 
+// OutputFiles calls OutputFileProducer.OutputFiles on the encapsulated module, exits the test
+// immediately if there is an error and otherwise returns the result of calling Paths.RelativeToTop
+// on the returned Paths.
+func (m TestingModule) OutputFiles(t *testing.T, tag string) Paths {
+	producer, ok := m.module.(OutputFileProducer)
+	if !ok {
+		t.Fatalf("%q must implement OutputFileProducer\n", m.module.Name())
+	}
+	paths, err := producer.OutputFiles(tag)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return paths.RelativeToTop()
+}
+
 // TestingSingleton is wrapper around an android.Singleton that provides methods to find information about individual
 // ctx.Build parameters for verification in tests.
 type TestingSingleton struct {
