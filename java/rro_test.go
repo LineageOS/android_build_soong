@@ -68,7 +68,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 	m := result.ModuleForTests("foo", "android_common")
 
 	// Check AAPT2 link flags.
-	aapt2Flags := m.Output("package-res.apk").RelativeToTop().Args["flags"]
+	aapt2Flags := m.Output("package-res.apk").Args["flags"]
 	expectedFlags := []string{"--keep-raw-values", "--no-resource-deduping", "--no-resource-removal"}
 	absentFlags := android.RemoveListFromList(expectedFlags, strings.Split(aapt2Flags, " "))
 	if len(absentFlags) > 0 {
