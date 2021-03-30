@@ -551,6 +551,8 @@ type TestingBuildParams struct {
 //   * CommandOrderOnly
 //
 // See PathRelativeToTop for more details.
+//
+// deprecated: this is no longer needed as TestingBuildParams are created in this form.
 func (p TestingBuildParams) RelativeToTop() TestingBuildParams {
 	// If this is not a valid params then just return it back. That will make it easy to use with the
 	// Maybe...() methods.
