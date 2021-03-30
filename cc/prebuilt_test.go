@@ -15,7 +15,6 @@
 package cc
 
 import (
-	"path/filepath"
 	"testing"
 
 	"android/soong/android"
@@ -302,8 +301,7 @@ func TestPrebuiltSymlinkedHostBinary(t *testing.T) {
 	})
 
 	fooRule := ctx.ModuleForTests("foo", "linux_glibc_x86_64").Rule("Symlink")
-	assertString(t, fooRule.Output.String(),
-		filepath.Join(buildDir, ".intermediates/foo/linux_glibc_x86_64/foo"))
+	assertString(t, fooRule.Output.String(), "out/soong/.intermediates/foo/linux_glibc_x86_64/foo")
 	assertString(t, fooRule.Args["fromPath"], "$$PWD/linux_glibc_x86_64/bin/foo")
 
 	var libfooDep android.Path
@@ -313,8 +311,7 @@ func TestPrebuiltSymlinkedHostBinary(t *testing.T) {
 			break
 		}
 	}
-	assertString(t, libfooDep.String(),
-		filepath.Join(buildDir, ".intermediates/libfoo/linux_glibc_x86_64_shared/libfoo.so"))
+	assertString(t, libfooDep.String(), "out/soong/.intermediates/libfoo/linux_glibc_x86_64_shared/libfoo.so")
 }
 
 func TestPrebuiltLibrarySanitized(t *testing.T) {
