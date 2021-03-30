@@ -568,6 +568,13 @@ func isZero(value reflect.Value) bool {
 
 func escapeString(s string) string {
 	s = strings.ReplaceAll(s, "\\", "\\\\")
+
+	// b/184026959: Reverse the application of some common control sequences.
+	// These must be generated literally in the BUILD file.
+	s = strings.ReplaceAll(s, "\t", "\\t")
+	s = strings.ReplaceAll(s, "\n", "\\n")
+	s = strings.ReplaceAll(s, "\r", "\\r")
+
 	return strings.ReplaceAll(s, "\"", "\\\"")
 }
 
