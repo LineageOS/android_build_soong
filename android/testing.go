@@ -1051,3 +1051,9 @@ func StringPathsRelativeToTop(soongOutDir string, paths []string) []string {
 func StringRelativeToTop(config Config, command string) string {
 	return normalizeStringRelativeToTop(config, command)
 }
+
+// StringsRelativeToTop will return a new slice such that each item in the new slice is the result
+// of calling StringRelativeToTop on the corresponding item in the input slice.
+func StringsRelativeToTop(config Config, command []string) []string {
+	return normalizeStringArrayRelativeToTop(config, command)
+}
