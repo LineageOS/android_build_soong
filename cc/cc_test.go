@@ -301,13 +301,9 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 
 func checkSnapshotIncludeExclude(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string, include bool, fake bool) {
 	t.Helper()
-	mod, ok := ctx.ModuleForTests(moduleName, variant).Module().(android.OutputFileProducer)
-	if !ok {
-		t.Errorf("%q must have output\n", moduleName)
-		return
-	}
-	outputFiles, err := mod.OutputFiles("")
-	if err != nil || len(outputFiles) != 1 {
+	mod := ctx.ModuleForTests(moduleName, variant)
+	outputFiles := mod.OutputFiles(t, "")
+	if len(outputFiles) != 1 {
 		t.Errorf("%q must have single output\n", moduleName)
 		return
 	}
@@ -333,14 +329,17 @@ func checkSnapshotIncludeExclude(t *testing.T, ctx *android.TestContext, singlet
 }
 
 func checkSnapshot(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
+	t.Helper()
 	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, true, false)
 }
 
 func checkSnapshotExclude(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
+	t.Helper()
 	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, false, false)
 }
 
 func checkSnapshotRule(t *testing.T, ctx *android.TestContext, singleton android.TestingSingleton, moduleName, snapshotFilename, subDir, variant string) {
+	t.Helper()
 	checkSnapshotIncludeExclude(t, ctx, singleton, moduleName, snapshotFilename, subDir, variant, true, true)
 }
 
@@ -2552,7 +2551,7 @@ func parseModuleDeps(text string) (modulesInOrder []android.Path, allDeps map[an
 func getOutputPaths(ctx *android.TestContext, variant string, moduleNames []string) (paths android.Paths) {
 	for _, moduleName := range moduleNames {
 		module := ctx.ModuleForTests(moduleName, variant).Module().(*Module)
-		output := module.outputFile.Path()
+		output := module.outputFile.Path().RelativeToTop()
 		paths = append(paths, output)
 	}
 	return paths
@@ -2583,7 +2582,8 @@ func TestStaticLibDepReordering(t *testing.T) {
 
 	variant := "android_arm64_armv8-a_static"
 	moduleA := ctx.ModuleForTests("a", variant).Module().(*Module)
-	actual := ctx.ModuleProvider(moduleA, StaticLibraryInfoProvider).(StaticLibraryInfo).TransitiveStaticLibrariesForOrdering.ToList()
+	actual := ctx.ModuleProvider(moduleA, StaticLibraryInfoProvider).(StaticLibraryInfo).
+		TransitiveStaticLibrariesForOrdering.ToList().RelativeToTop()
 	expected := getOutputPaths(ctx, variant, []string{"a", "c", "b", "d"})
 
 	if !reflect.DeepEqual(actual, expected) {
@@ -2617,7 +2617,8 @@ func TestStaticLibDepReorderingWithShared(t *testing.T) {
 
 	variant := "android_arm64_armv8-a_static"
 	moduleA := ctx.ModuleForTests("a", variant).Module().(*Module)
-	actual := ctx.ModuleProvider(moduleA, StaticLibraryInfoProvider).(StaticLibraryInfo).TransitiveStaticLibrariesForOrdering.ToList()
+	actual := ctx.ModuleProvider(moduleA, StaticLibraryInfoProvider).(StaticLibraryInfo).
+		TransitiveStaticLibrariesForOrdering.ToList().RelativeToTop()
 	expected := getOutputPaths(ctx, variant, []string{"a", "c", "b"})
 
 	if !reflect.DeepEqual(actual, expected) {
