@@ -81,10 +81,19 @@ func TestDroidstubs(t *testing.T) {
 
 func TestDroidstubsSandbox(t *testing.T) {
 	ctx, _ := testJavaWithFS(t, `
+		genrule {
+			name: "foo",
+			out: ["foo.txt"],
+			cmd: "touch $(out)",
+		}
+
 		droidstubs {
 			name: "bar-stubs",
 			srcs: ["bar-doc/a.java"],
 			sandbox: true,
+
+			args: "--reference $(location :foo)",
+			arg_files: [":foo"],
 		}
 		`,
 		map[string][]byte{
@@ -95,6 +104,11 @@ func TestDroidstubsSandbox(t *testing.T) {
 	metalava := m.Rule("metalava")
 	if g, w := metalava.Inputs.Strings(), []string{"bar-doc/a.java"}; !reflect.DeepEqual(w, g) {
 		t.Errorf("Expected inputs %q, got %q", w, g)
+	}
+
+	manifest := android.RuleBuilderSboxProtoForTests(t, m.Output("metalava.sbox.textproto"))
+	if g, w := manifest.Commands[0].GetCommand(), "reference __SBOX_SANDBOX_DIR__/out/.intermediates/foo/gen/foo.txt"; !strings.Contains(g, w) {
+		t.Errorf("Expected command to contain %q, got %q", w, g)
 	}
 }
 
