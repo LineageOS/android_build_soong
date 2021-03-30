@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -113,6 +114,41 @@ func TestProjectJsonDep(t *testing.T) {
 	`
 	jsonContent := testProjectJson(t, bp)
 	validateJsonCrates(t, jsonContent)
+}
+
+func TestProjectJsonFeature(t *testing.T) {
+	bp := `
+	rust_library {
+		name: "liba",
+		srcs: ["a/src/lib.rs"],
+		crate_name: "a",
+		features: ["f1", "f2"]
+	}
+	`
+	jsonContent := testProjectJson(t, bp)
+	crates := validateJsonCrates(t, jsonContent)
+	for _, c := range crates {
+		crate := validateCrate(t, c)
+		cfgs, ok := crate["cfg"].([]interface{})
+		if !ok {
+			t.Fatalf("Unexpected type for cfgs: %v", crate)
+		}
+		expectedCfgs := []string{"feature=\"f1\"", "feature=\"f2\""}
+		foundCfgs := []string{}
+		for _, cfg := range cfgs {
+			cfg, ok := cfg.(string)
+			if !ok {
+				t.Fatalf("Unexpected type for cfg: %v", cfg)
+			}
+			foundCfgs = append(foundCfgs, cfg)
+		}
+		sort.Strings(foundCfgs)
+		for i, foundCfg := range foundCfgs {
+			if foundCfg != expectedCfgs[i] {
+				t.Errorf("Incorrect features: got %v; want %v", foundCfg, expectedCfgs[i])
+			}
+		}
+	}
 }
 
 func TestProjectJsonBinary(t *testing.T) {

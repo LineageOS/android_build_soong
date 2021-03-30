@@ -49,7 +49,7 @@ type rustProjectCrate struct {
 	RootModule  string            `json:"root_module"`
 	Edition     string            `json:"edition,omitempty"`
 	Deps        []rustProjectDep  `json:"deps"`
-	Cfgs        []string          `json:"cfgs"`
+	Cfg         []string          `json:"cfg"`
 	Env         map[string]string `json:"env"`
 }
 
@@ -230,12 +230,16 @@ func (singleton *projectGeneratorSingleton) addCrate(ctx android.SingletonContex
 		RootModule:  rootModule,
 		Edition:     comp.edition(),
 		Deps:        make([]rustProjectDep, 0),
-		Cfgs:        make([]string, 0),
+		Cfg:         make([]string, 0),
 		Env:         make(map[string]string),
 	}
 
 	if comp.CargoOutDir().Valid() {
 		crate.Env["OUT_DIR"] = comp.CargoOutDir().String()
+	}
+
+	for _, feature := range comp.Properties.Features {
+		crate.Cfg = append(crate.Cfg, "feature=\""+feature+"\"")
 	}
 
 	deps := make(map[string]int)

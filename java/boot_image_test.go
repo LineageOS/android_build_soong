@@ -16,25 +16,88 @@ package java
 
 import (
 	"testing"
+
+	"android/soong/android"
+	"android/soong/dexpreopt"
 )
 
 // Contains some simple tests for boot_image logic, additional tests can be found in
 // apex/boot_image_test.go as the ART boot image requires modules from the ART apex.
 
+var prepareForTestWithBootImage = android.GroupFixturePreparers(
+	PrepareForTestWithJavaDefaultModules,
+	dexpreopt.PrepareForTestByEnablingDexpreopt,
+)
+
 func TestUnknownBootImage(t *testing.T) {
-	testJavaError(t, "image_name: Unknown image name \\\"unknown\\\", expected one of art, boot", `
-		boot_image {
-			name: "unknown-boot-image",
-			image_name: "unknown",
-		}
-`)
+	prepareForTestWithBootImage.
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
+		RunTestWithBp(t, `
+			boot_image {
+				name: "unknown-boot-image",
+				image_name: "unknown",
+			}
+		`)
+}
+
+func TestUnknownBootclasspathFragmentImageName(t *testing.T) {
+	prepareForTestWithBootImage.
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
+		RunTestWithBp(t, `
+			bootclasspath_fragment {
+				name: "unknown-boot-image",
+				image_name: "unknown",
+			}
+		`)
 }
 
 func TestUnknownPrebuiltBootImage(t *testing.T) {
-	testJavaError(t, "image_name: Unknown image name \\\"unknown\\\", expected one of art, boot", `
-		prebuilt_boot_image {
-			name: "unknown-boot-image",
-			image_name: "unknown",
-		}
-`)
+	prepareForTestWithBootImage.
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			`\Qimage_name: Unknown image name "unknown", expected one of art, boot\E`)).
+		RunTestWithBp(t, `
+			prebuilt_boot_image {
+				name: "unknown-boot-image",
+				image_name: "unknown",
+			}
+		`)
+}
+
+func TestBootImageInconsistentArtConfiguration_Platform(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForTestWithBootImage,
+		dexpreopt.FixtureSetArtBootJars("platform:foo", "apex:bar"),
+	).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			`\QArtApexJars is invalid as it requests a platform variant of "foo"\E`)).
+		RunTestWithBp(t, `
+			boot_image {
+				name: "boot-image",
+				image_name: "art",
+				apex_available: [
+					"apex",
+				],
+			}
+		`)
+}
+
+func TestBootImageInconsistentArtConfiguration_ApexMixture(t *testing.T) {
+	android.GroupFixturePreparers(
+		prepareForTestWithBootImage,
+		dexpreopt.FixtureSetArtBootJars("apex1:foo", "apex2:bar"),
+	).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
+			`\QArtApexJars configuration is inconsistent, expected all jars to be in the same apex but it specifies apex "apex1" and "apex2"\E`)).
+		RunTestWithBp(t, `
+			boot_image {
+				name: "boot-image",
+				image_name: "art",
+				apex_available: [
+					"apex1",
+					"apex2",
+				],
+			}
+		`)
 }
