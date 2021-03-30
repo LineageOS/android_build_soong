@@ -1129,6 +1129,9 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			Bool(c.sanitize.Properties.Sanitize.Undefined) ||
 			Bool(c.sanitize.Properties.Sanitize.All_undefined) {
 			runtimeLibrary = config.UndefinedBehaviorSanitizerRuntimeLibrary(toolchain)
+			if c.staticBinary() {
+				runtimeLibrary += ".static"
+			}
 		}
 
 		if runtimeLibrary != "" && (toolchain.Bionic() || c.sanitize.Properties.UbsanRuntimeDep) {
