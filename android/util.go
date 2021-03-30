@@ -193,6 +193,17 @@ func FilterList(list []string, filter []string) (remainder []string, filtered []
 	return
 }
 
+// FilterListPred returns the elements of the given list for which the predicate
+// returns true. Order is kept.
+func FilterListPred(list []string, pred func(s string) bool) (filtered []string) {
+	for _, l := range list {
+		if pred(l) {
+			filtered = append(filtered, l)
+		}
+	}
+	return
+}
+
 // RemoveListFromList removes the strings belonging to the filter list from the
 // given list and returns the result
 func RemoveListFromList(list []string, filter_out []string) (result []string) {

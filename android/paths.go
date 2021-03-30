@@ -1642,16 +1642,10 @@ type InstallPath struct {
 
 // Will panic if called from outside a test environment.
 func ensureTestOnly() {
-	// Normal soong test environment
-	if InList("-test.short", os.Args) {
+	if PrefixInList(os.Args, "-test.") {
 		return
 	}
-	// IntelliJ test environment
-	if InList("-test.v", os.Args) {
-		return
-	}
-
-	panic(fmt.Errorf("Not in test\n%s", strings.Join(os.Args, "\n")))
+	panic(fmt.Errorf("Not in test. Command line:\n  %s", strings.Join(os.Args, "\n  ")))
 }
 
 func (p InstallPath) RelativeToTop() Path {

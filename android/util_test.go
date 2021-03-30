@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -297,6 +298,14 @@ func TestFilterList(t *testing.T) {
 		t.Errorf("  expected: %#v", expected)
 		t.Errorf("       got: %#v", filtered)
 	}
+}
+
+func TestFilterListPred(t *testing.T) {
+	pred := func(s string) bool { return strings.HasPrefix(s, "a/") }
+	AssertArrayString(t, "filter", FilterListPred([]string{"a/c", "b/a", "a/b"}, pred), []string{"a/c", "a/b"})
+	AssertArrayString(t, "filter", FilterListPred([]string{"b/c", "a/a", "b/b"}, pred), []string{"a/a"})
+	AssertArrayString(t, "filter", FilterListPred([]string{"c/c", "b/a", "c/b"}, pred), []string{})
+	AssertArrayString(t, "filter", FilterListPred([]string{"a/c", "a/a", "a/b"}, pred), []string{"a/c", "a/a", "a/b"})
 }
 
 func TestRemoveListFromList(t *testing.T) {
