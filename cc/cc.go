@@ -363,7 +363,7 @@ type BaseProperties struct {
 	// List of APEXes that this module has private access to for testing purpose. The module
 	// can depend on libraries that are not exported by the APEXes and use private symbols
 	// from the exported libraries.
-	Test_for []string
+	Test_for []string `android:"arch_variant"`
 }
 
 type VendorProperties struct {
@@ -2631,14 +2631,31 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// However, for host, ramdisk, vendor_ramdisk, recovery or bootstrap modules,
 						// always link to non-stub variant
 						useStubs = dep.(android.ApexModule).NotInPlatform() && !c.bootstrap()
-						// Another exception: if this module is bundled with an APEX, then
-						// it is linked with the non-stub variant of a module in the APEX
-						// as if this is part of the APEX.
-						testFor := ctx.Provider(android.ApexTestForInfoProvider).(android.ApexTestForInfo)
-						for _, apexContents := range testFor.ApexContents {
-							if apexContents.DirectlyInApex(depName) {
+						if useStubs {
+							// Another exception: if this module is a test for an APEX, then
+							// it is linked with the non-stub variant of a module in the APEX
+							// as if this is part of the APEX.
+							testFor := ctx.Provider(android.ApexTestForInfoProvider).(android.ApexTestForInfo)
+							for _, apexContents := range testFor.ApexContents {
+								if apexContents.DirectlyInApex(depName) {
+									useStubs = false
+									break
+								}
+							}
+						}
+						if useStubs {
+							// Yet another exception: If this module and the dependency are
+							// available to the same APEXes then skip stubs between their
+							// platform variants. This complements the test_for case above,
+							// which avoids the stubs on a direct APEX library dependency, by
+							// avoiding stubs for indirect test dependencies as well.
+							//
+							// TODO(b/183882457): This doesn't work if the two libraries have
+							// only partially overlapping apex_available. For that test_for
+							// modules would need to be split into APEX variants and resolved
+							// separately for each APEX they have access to.
+							if android.AvailableToSameApexes(c, dep.(android.ApexModule)) {
 								useStubs = false
-								break
 							}
 						}
 					} else {
