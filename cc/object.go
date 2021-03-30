@@ -103,8 +103,8 @@ func ObjectFactory() android.Module {
 
 // For bp2build conversion.
 type bazelObjectAttributes struct {
-	Srcs               bazel.LabelList
-	Deps               bazel.LabelList
+	Srcs               bazel.LabelListAttribute
+	Deps               bazel.LabelListAttribute
 	Copts              bazel.StringListAttribute
 	Local_include_dirs []string
 }
@@ -147,14 +147,16 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 
 	// Set arch-specific configurable attributes
 	var copts bazel.StringListAttribute
-	var srcs []string
-	var excludeSrcs []string
+	var srcs bazel.LabelListAttribute
 	var localIncludeDirs []string
 	for _, props := range m.compiler.compilerProps() {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
 			copts.Value = baseCompilerProps.Cflags
-			srcs = baseCompilerProps.Srcs
-			excludeSrcs = baseCompilerProps.Exclude_srcs
+			srcs = bazel.MakeLabelListAttribute(
+				android.BazelLabelForModuleSrcExcludes(
+					ctx,
+					baseCompilerProps.Srcs,
+					baseCompilerProps.Exclude_srcs))
 			localIncludeDirs = baseCompilerProps.Local_include_dirs
 			break
 		}
@@ -164,22 +166,23 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 		localIncludeDirs = append(localIncludeDirs, ".")
 	}
 
-	var deps bazel.LabelList
+	var deps bazel.LabelListAttribute
 	for _, props := range m.linker.linkerProps() {
 		if objectLinkerProps, ok := props.(*ObjectLinkerProperties); ok {
-			deps = android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Objs)
+			deps = bazel.MakeLabelListAttribute(
+				android.BazelLabelForModuleDeps(ctx, objectLinkerProps.Objs))
 		}
 	}
 
 	for arch, p := range m.GetArchProperties(&BaseCompilerProperties{}) {
 		if cProps, ok := p.(*BaseCompilerProperties); ok {
+			srcs.SetValueForArch(arch.Name, android.BazelLabelForModuleSrcExcludes(ctx, cProps.Srcs, cProps.Exclude_srcs))
 			copts.SetValueForArch(arch.Name, cProps.Cflags)
 		}
 	}
-	copts.SetValueForArch("default", []string{})
 
 	attrs := &bazelObjectAttributes{
-		Srcs:               android.BazelLabelForModuleSrcExcludes(ctx, srcs, excludeSrcs),
+		Srcs:               srcs,
 		Deps:               deps,
 		Copts:              copts,
 		Local_include_dirs: localIncludeDirs,

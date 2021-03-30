@@ -415,9 +415,34 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 	case reflect.Struct:
 		// Special cases where the bp2build sends additional information to the codegenerator
 		// by wrapping the attributes in a custom struct type.
-		if labels, ok := propertyValue.Interface().(bazel.LabelList); ok {
+		if labels, ok := propertyValue.Interface().(bazel.LabelListAttribute); ok {
 			// TODO(b/165114590): convert glob syntax
-			return prettyPrint(reflect.ValueOf(labels.Includes), indent)
+			ret, err := prettyPrint(reflect.ValueOf(labels.Value.Includes), indent)
+			if err != nil {
+				return ret, err
+			}
+
+			if !labels.HasArchSpecificValues() {
+				// Select statement not needed.
+				return ret, nil
+			}
+
+			ret += " + " + "select({\n"
+			for _, arch := range android.ArchTypeList() {
+				value := labels.GetValueForArch(arch.Name)
+				if len(value.Includes) > 0 {
+					ret += makeIndent(indent + 1)
+					list, _ := prettyPrint(reflect.ValueOf(value.Includes), indent+1)
+					ret += fmt.Sprintf("\"%s\": %s,\n", platformArchMap[arch], list)
+				}
+			}
+
+			ret += makeIndent(indent + 1)
+			ret += fmt.Sprintf("\"%s\": [],\n", "//conditions:default")
+
+			ret += makeIndent(indent)
+			ret += "})"
+			return ret, err
 		} else if label, ok := propertyValue.Interface().(bazel.Label); ok {
 			return fmt.Sprintf("%q", label.Label), nil
 		} else if stringList, ok := propertyValue.Interface().(bazel.StringListAttribute); ok {
@@ -443,8 +468,7 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 			}
 
 			ret += makeIndent(indent + 1)
-			list, _ := prettyPrint(reflect.ValueOf(stringList.GetValueForArch("default")), indent+1)
-			ret += fmt.Sprintf("\"%s\": %s,\n", "//conditions:default", list)
+			ret += fmt.Sprintf("\"%s\": [],\n", "//conditions:default")
 
 			ret += makeIndent(indent)
 			ret += "})"
