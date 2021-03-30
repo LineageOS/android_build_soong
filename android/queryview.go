@@ -68,7 +68,7 @@ func generateBuildActionsForBazelConversion(ctx SingletonContext, converterMode 
 			Command: fmt.Sprintf(
 				`rm -rf "${outDir}/"* && `+
 					`mkdir -p "${outDir}" && `+
-					`echo WORKSPACE: cat "%s" > "${outDir}/.queryview-depfile.d" && `+
+					`echo WORKSPACE: $$(cat "%s") > "${outDir}/.queryview-depfile.d" && `+
 					`BUILDER="%s" && `+
 					`echo BUILDER=$$BUILDER && `+
 					`cd "$$(dirname "$$BUILDER")" && `+
