@@ -62,9 +62,9 @@ func prebuiltLibraryHeaderFactory() android.Module {
 }
 
 type bazelCcLibraryHeadersAttributes struct {
-	Hdrs     bazel.LabelList
-	Includes bazel.LabelList
-	Deps     bazel.LabelList
+	Hdrs     bazel.LabelListAttribute
+	Includes bazel.LabelListAttribute
+	Deps     bazel.LabelListAttribute
 }
 
 type bazelCcLibraryHeaders struct {
