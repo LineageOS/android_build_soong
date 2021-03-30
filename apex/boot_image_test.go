@@ -177,8 +177,10 @@ func TestBootImageInArtApex(t *testing.T) {
 			boot_images: [
 				"mybootimage",
 			],
+			// bar (like foo) should be transitively included in this apex because it is part of the
+			// mybootimage boot_image. However, it is kept here to ensure that the apex dedups the files
+			// correctly.
 			java_libs: [
-				"foo",
 				"bar",
 			],
 			updatable: false,
@@ -247,7 +249,6 @@ func TestBootImageInArtApex(t *testing.T) {
 	java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
 		`bar`,
 		`com.android.art.key`,
-		`foo`,
 		`mybootimage`,
 	})
 }
@@ -365,8 +366,12 @@ func TestBootImageContentsNoName(t *testing.T) {
 		}
 	`)
 
-	// The apex is empty because the contents of boot_image are not transitively included, yet!
-	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{})
+	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+		// This does not include art, oat or vdex files as they are only included for the art boot
+		// image.
+		"javalib/bar.jar",
+		"javalib/foo.jar",
+	})
 
 	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
 		`myapex.key`,

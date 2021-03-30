@@ -70,6 +70,10 @@ var bootImageContentDepTag = bootImageContentDependencyTag{}
 
 var _ android.ExcludeFromVisibilityEnforcementTag = bootImageContentDepTag
 
+func IsbootImageContentDepTag(tag blueprint.DependencyTag) bool {
+	return tag == bootImageContentDepTag
+}
+
 type bootImageProperties struct {
 	// The name of the image this represents.
 	//
@@ -182,8 +186,8 @@ func (i BootImageInfo) AndroidBootImageFilesByArchType() map[android.ArchType]an
 func (b *BootImageModule) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	tag := ctx.OtherModuleDependencyTag(dep)
 	if tag == bootImageContentDepTag {
-		// Boot image contents are not automatically added to apex, yet.
-		return false
+		// Boot image contents are automatically added to apex.
+		return true
 	}
 	if android.IsMetaDependencyTag(tag) {
 		// Cross-cutting metadata dependencies are metadata.
