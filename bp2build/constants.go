@@ -18,7 +18,7 @@ var (
 	// When both a BUILD and BUILD.bazel file are exist in the same package, the BUILD.bazel file will
 	// be preferred for use within a Bazel build.
 
-	// The file name used for automatically generated files. Files with this name are ignored by git.
+	// The file name used for automatically generated files.
 	GeneratedBuildFileName = "BUILD"
 	// The file name used for hand-crafted build targets.
 	HandcraftedBuildFileName = "BUILD.bazel"
