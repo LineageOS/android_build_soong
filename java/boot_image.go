@@ -73,13 +73,13 @@ var _ android.ExcludeFromVisibilityEnforcementTag = bootImageContentDepTag
 type bootImageProperties struct {
 	// The name of the image this represents.
 	//
-	// Must be one of "art" or "boot".
+	// If specified then it must be one of "art" or "boot".
 	Image_name *string
 
 	// The contents of this boot image, could be either java_library, java_sdk_library, or boot_image.
 	//
 	// The order of this list matters as it is the order that is used in the bootclasspath.
-	Contents []string `blueprint:"mutated"`
+	Contents []string
 }
 
 type BootImageModule struct {
@@ -104,6 +104,13 @@ func bootImageFactory() android.Module {
 }
 
 func bootImageConsistencyCheck(ctx android.EarlyModuleContext, m *BootImageModule) {
+	contents := m.properties.Contents
+	if m.properties.Image_name == nil && len(contents) == 0 {
+		ctx.ModuleErrorf(`neither of the "image_name" and "contents" properties have been supplied, please supply exactly one`)
+	}
+	if m.properties.Image_name != nil && len(contents) != 0 {
+		ctx.ModuleErrorf(`both of the "image_name" and "contents" properties have been supplied, please supply exactly one`)
+	}
 	imageName := proptools.String(m.properties.Image_name)
 	if imageName == "art" {
 		// Get the configuration for the art apex jars. Do not use getImageConfig(ctx) here as this is
