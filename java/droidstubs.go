@@ -360,7 +360,16 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 	ctx.VisitDirectDepsWithTag(metalavaAPILevelsAnnotationsDirTag, func(m android.Module) {
 		if t, ok := m.(*ExportedDroiddocDir); ok {
 			for _, dep := range t.deps {
-				if strings.HasSuffix(dep.String(), filename) {
+				if dep.Base() == filename {
+					cmd.Implicit(dep)
+				}
+				if filename != "android.jar" && dep.Base() == "android.jar" {
+					// Metalava implicitly searches these patterns:
+					//  prebuilts/tools/common/api-versions/android-%/android.jar
+					//  prebuilts/sdk/%/public/android.jar
+					// Add android.jar files from the api_levels_annotations_dirs directories to try
+					// to satisfy these patterns.  If Metalava can't find a match for an API level
+					// between 1 and 28 in at least one pattern it will fail.
 					cmd.Implicit(dep)
 				}
 			}
