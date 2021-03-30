@@ -241,6 +241,22 @@ func TestGenerateBazelTargetModules(t *testing.T) {
     string_prop = "a",
 )`,
 		},
+		{
+			bp: `custom {
+	name: "control_characters",
+    string_list_prop: ["\t", "\n"],
+    string_prop: "a\t\n\r",
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTarget: `custom(
+    name = "control_characters",
+    string_list_prop = [
+        "\t",
+        "\n",
+    ],
+    string_prop = "a\t\n\r",
+)`,
+		},
 	}
 
 	dir := "."
