@@ -315,4 +315,63 @@ func TestBootImageInPrebuiltArtApex(t *testing.T) {
 	})
 }
 
+func TestBootImageContentsNoName(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithBootImage,
+		prepareForTestWithMyapex,
+	).RunTestWithBp(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			boot_images: [
+				"mybootimage",
+			],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "foo",
+			srcs: ["b.java"],
+			installable: true,
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java"],
+			installable: true,
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		boot_image {
+			name: "mybootimage",
+			contents: [
+				"foo",
+				"bar",
+			],
+			apex_available: [
+				"myapex",
+			],
+		}
+	`)
+
+	// The apex is empty because the contents of boot_image are not transitively included, yet!
+	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{})
+
+	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+		`myapex.key`,
+		`mybootimage`,
+	})
+}
+
 // TODO(b/177892522) - add test for host apex.
