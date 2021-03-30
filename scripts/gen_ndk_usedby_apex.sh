@@ -33,7 +33,7 @@ parseReadelfOutput() {
   do
       if [[ $line = *FUNC*GLOBAL*UND*@* ]] ;
       then
-          echo "$line" | sed -r 's/.*UND (.*)@.*/\1/g' >> "$2"
+          echo "$line" | sed -r 's/.*UND (.*@.*)/\1/g' >> "$2"
       fi
   done < "$1"
   echo "" >> "$2"
