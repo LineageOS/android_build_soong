@@ -370,9 +370,20 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 		// values for unset properties, like system_shared_libs = ["libc", "libm", "libdl"] at
 		// https://cs.android.com/android/platform/superproject/+/master:build/soong/cc/linker.go;l=281-287;drc=f70926eef0b9b57faf04c17a1062ce50d209e480
 		//
-		// In Bazel-parlance, we would use "attr.<type>(default = <default value>)" to set the default
-		// value of unset attributes.
-		return "", nil
+		// In Bazel-parlance, we would use "attr.<type>(default = <default
+		// value>)" to set the default value of unset attributes. In the cases
+		// where the bp2build converter didn't set the default value within the
+		// mutator when creating the BazelTargetModule, this would be a zero
+		// value. For those cases, we return a non-surprising default value so
+		// generated BUILD files are syntactically correct.
+		switch propertyValue.Kind() {
+		case reflect.Slice:
+			return "[]", nil
+		case reflect.Map:
+			return "{}", nil
+		default:
+			return "", nil
+		}
 	}
 
 	var ret string
