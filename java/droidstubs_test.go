@@ -34,6 +34,7 @@ func TestDroidstubs(t *testing.T) {
 			srcs: ["bar-doc/a.java"],
 			api_levels_annotations_dirs: ["droiddoc-templates-sdk"],
 			api_levels_annotations_enabled: true,
+			sandbox: false,
 		}
 
 		droidstubs {
@@ -43,6 +44,7 @@ func TestDroidstubs(t *testing.T) {
 			api_levels_annotations_dirs: ["droiddoc-templates-sdk"],
 			api_levels_annotations_enabled: true,
 			api_levels_jar_filename: "android.other.jar",
+			sandbox: false,
 		}
 		`,
 		map[string][]byte{
