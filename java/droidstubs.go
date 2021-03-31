@@ -482,7 +482,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	rule := android.NewRuleBuilder(pctx, ctx)
 
-	sandbox := proptools.Bool(d.Javadoc.properties.Sandbox)
+	sandbox := proptools.BoolDefault(d.Javadoc.properties.Sandbox, true)
 	if sandbox {
 		rule.Sbox(android.PathForModuleOut(ctx, "metalava"),
 			android.PathForModuleOut(ctx, "metalava.sbox.textproto")).
