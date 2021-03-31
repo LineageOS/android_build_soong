@@ -22,14 +22,17 @@ import (
 	"github.com/google/blueprint"
 )
 
-var prebuiltFixtureFactory = ccFixtureFactory.Extend(
+var prepareForPrebuiltTest = android.GroupFixturePreparers(
+	prepareForCcTest,
 	android.PrepareForTestWithAndroidMk,
 )
 
 func testPrebuilt(t *testing.T, bp string, fs android.MockFS, handlers ...android.FixturePreparer) *android.TestContext {
-	result := prebuiltFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForPrebuiltTest,
 		fs.AddToFixture(),
-	).Extend(handlers...).RunTestWithBp(t, bp)
+		android.GroupFixturePreparers(handlers...),
+	).RunTestWithBp(t, bp)
 
 	return result.TestContext
 }

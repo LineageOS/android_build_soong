@@ -86,7 +86,7 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		symbol_file: "",
 	}
 `
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	ctx := testCcWithConfig(t, config)
@@ -94,7 +94,7 @@ func TestVendorSnapshotCapture(t *testing.T) {
 	// Check Vendor snapshot output.
 
 	snapshotDir := "vendor-snapshot"
-	snapshotVariantPath := filepath.Join(buildDir, snapshotDir, "arm64")
+	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
 	snapshotSingleton := ctx.SingletonForTests("vendor-snapshot")
 
 	var jsonFiles []string
@@ -212,7 +212,7 @@ func TestVendorSnapshotDirected(t *testing.T) {
 		nocrt: true,
 	}
 `
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	config.TestProductVariables.DirectedVendorSnapshot = true
@@ -224,7 +224,7 @@ func TestVendorSnapshotDirected(t *testing.T) {
 	// Check Vendor snapshot output.
 
 	snapshotDir := "vendor-snapshot"
-	snapshotVariantPath := filepath.Join(buildDir, snapshotDir, "arm64")
+	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
 	snapshotSingleton := ctx.SingletonForTests("vendor-snapshot")
 
 	var includeJsonFiles []string
@@ -516,7 +516,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		"vndk/libvndk.so":              nil,
 	}
 
-	config := TestConfig(buildDir, android.Android, nil, "", mockFS)
+	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("BOARD")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	ctx := CreateTestContext(config)
@@ -628,7 +628,7 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 		},
 	}
 `
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("BOARD")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	ctx := testCcWithConfig(t, config)
@@ -707,7 +707,7 @@ func TestVendorSnapshotExclude(t *testing.T) {
 		"device/vendor.cpp":     nil,
 	}
 
-	config := TestConfig(buildDir, android.Android, nil, "", mockFS)
+	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	ctx := CreateTestContext(config)
@@ -730,7 +730,7 @@ func TestVendorSnapshotExclude(t *testing.T) {
 	// Verify the content of the vendor snapshot.
 
 	snapshotDir := "vendor-snapshot"
-	snapshotVariantPath := filepath.Join(buildDir, snapshotDir, "arm64")
+	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
 	snapshotSingleton := ctx.SingletonForTests("vendor-snapshot")
 
 	var includeJsonFiles []string
@@ -799,7 +799,7 @@ func TestVendorSnapshotExcludeInVendorProprietaryPathErrors(t *testing.T) {
 		"device/vendor.cpp": nil,
 	}
 
-	config := TestConfig(buildDir, android.Android, nil, "", mockFS)
+	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	ctx := CreateTestContext(config)
@@ -873,7 +873,7 @@ func TestRecoverySnapshotCapture(t *testing.T) {
 		recovery_available: true,
 	}
 `
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.RecoverySnapshotVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	ctx := testCcWithConfig(t, config)
@@ -881,7 +881,7 @@ func TestRecoverySnapshotCapture(t *testing.T) {
 	// Check Recovery snapshot output.
 
 	snapshotDir := "recovery-snapshot"
-	snapshotVariantPath := filepath.Join(buildDir, snapshotDir, "arm64")
+	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
 	snapshotSingleton := ctx.SingletonForTests("recovery-snapshot")
 
 	var jsonFiles []string
@@ -991,7 +991,7 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 		"device/recovery.cpp":   nil,
 	}
 
-	config := TestConfig(buildDir, android.Android, nil, "", mockFS)
+	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
 	config.TestProductVariables.RecoverySnapshotVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
 	ctx := CreateTestContext(config)
@@ -1014,7 +1014,7 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 	// Verify the content of the recovery snapshot.
 
 	snapshotDir := "recovery-snapshot"
-	snapshotVariantPath := filepath.Join(buildDir, snapshotDir, "arm64")
+	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
 	snapshotSingleton := ctx.SingletonForTests("recovery-snapshot")
 
 	var includeJsonFiles []string
@@ -1091,7 +1091,7 @@ func TestRecoverySnapshotDirected(t *testing.T) {
 		nocrt: true,
 	}
 `
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.RecoverySnapshotVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
@@ -1104,7 +1104,7 @@ func TestRecoverySnapshotDirected(t *testing.T) {
 	// Check recovery snapshot output.
 
 	snapshotDir := "recovery-snapshot"
-	snapshotVariantPath := filepath.Join(buildDir, snapshotDir, "arm64")
+	snapshotVariantPath := filepath.Join("out/soong", snapshotDir, "arm64")
 	snapshotSingleton := ctx.SingletonForTests("recovery-snapshot")
 
 	var includeJsonFiles []string
