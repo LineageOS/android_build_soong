@@ -115,6 +115,7 @@ type bazelObjectAttributes struct {
 	Srcs               bazel.LabelListAttribute
 	Deps               bazel.LabelListAttribute
 	Copts              bazel.StringListAttribute
+	Asflags            []string
 	Local_include_dirs []string
 }
 
@@ -158,6 +159,7 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 	var copts bazel.StringListAttribute
 	var srcs bazel.LabelListAttribute
 	var localIncludeDirs []string
+	var asFlags []string
 	for _, props := range m.compiler.compilerProps() {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
 			copts.Value = baseCompilerProps.Cflags
@@ -183,6 +185,23 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 		}
 	}
 
+	productVariableProps := android.ProductVariableProperties(ctx)
+	if props, exists := productVariableProps["Asflags"]; exists {
+		// TODO(b/183595873): consider deduplicating handling of product variable properties
+		for _, prop := range props {
+			flags, ok := prop.Property.([]string)
+			if !ok {
+				ctx.ModuleErrorf("Could not convert product variable asflag property")
+				return
+			}
+			// TODO(b/183595873) handle other product variable usages -- as selects?
+			if newFlags, subbed := bazel.TryVariableSubstitutions(flags, prop.ProductConfigVariable); subbed {
+				asFlags = append(asFlags, newFlags...)
+			}
+		}
+	}
+	// TODO(b/183595872) warn/error if we're not handling product variables
+
 	for arch, p := range m.GetArchProperties(&BaseCompilerProperties{}) {
 		if cProps, ok := p.(*BaseCompilerProperties); ok {
 			srcs.SetValueForArch(arch.Name, android.BazelLabelForModuleSrcExcludes(ctx, cProps.Srcs, cProps.Exclude_srcs))
@@ -194,6 +213,7 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 		Srcs:               srcs,
 		Deps:               deps,
 		Copts:              copts,
+		Asflags:            asFlags,
 		Local_include_dirs: localIncludeDirs,
 	}
 
