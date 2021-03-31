@@ -289,7 +289,12 @@ def main():
             f.write("%s\n" % errmsg)
 
     if args.extract_target_sdk_version:
-      print(extract_target_sdk_version(manifest, is_apk))
+      try:
+        print(extract_target_sdk_version(manifest, is_apk))
+      except:
+        # Failed; don't crash, return "any" SDK version. This will result in
+        # dexpreopt not adding any compatibility libraries.
+        print(10000)
 
     if args.output:
       # XML output is supposed to be written only when this script is invoked

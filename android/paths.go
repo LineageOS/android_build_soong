@@ -286,6 +286,16 @@ func (p OptionalPath) Path() Path {
 	return p.path
 }
 
+// RelativeToPath returns an OptionalPath with the path that was embedded having been replaced by
+// the result of calling Path.RelativeToPath on it.
+func (p OptionalPath) RelativeToPath() OptionalPath {
+	if !p.valid {
+		return p
+	}
+	p.path = p.path.RelativeToTop()
+	return p
+}
+
 // String returns the string version of the Path, or "" if it isn't valid.
 func (p OptionalPath) String() string {
 	if p.valid {
@@ -477,6 +487,9 @@ func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes 
 // already be resolved by either deps mutator or path deps mutator.
 func getOtherModuleLabel(ctx BazelConversionPathContext, dep, tag string) bazel.Label {
 	m, _ := ctx.GetDirectDep(dep)
+	if m == nil {
+		panic(fmt.Errorf("cannot get direct dep %s of %s", dep, ctx.Module().Name()))
+	}
 	otherLabel := bazelModuleLabel(ctx, m, tag)
 	label := bazelModuleLabel(ctx, ctx.Module(), "")
 	if samePackage(label, otherLabel) {
@@ -1642,16 +1655,10 @@ type InstallPath struct {
 
 // Will panic if called from outside a test environment.
 func ensureTestOnly() {
-	// Normal soong test environment
-	if InList("-test.short", os.Args) {
+	if PrefixInList(os.Args, "-test.") {
 		return
 	}
-	// IntelliJ test environment
-	if InList("-test.v", os.Args) {
-		return
-	}
-
-	panic(fmt.Errorf("Not in test\n%s", strings.Join(os.Args, "\n")))
+	panic(fmt.Errorf("Not in test. Command line:\n  %s", strings.Join(os.Args, "\n  ")))
 }
 
 func (p InstallPath) RelativeToTop() Path {

@@ -370,9 +370,20 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 		// values for unset properties, like system_shared_libs = ["libc", "libm", "libdl"] at
 		// https://cs.android.com/android/platform/superproject/+/master:build/soong/cc/linker.go;l=281-287;drc=f70926eef0b9b57faf04c17a1062ce50d209e480
 		//
-		// In Bazel-parlance, we would use "attr.<type>(default = <default value>)" to set the default
-		// value of unset attributes.
-		return "", nil
+		// In Bazel-parlance, we would use "attr.<type>(default = <default
+		// value>)" to set the default value of unset attributes. In the cases
+		// where the bp2build converter didn't set the default value within the
+		// mutator when creating the BazelTargetModule, this would be a zero
+		// value. For those cases, we return a non-surprising default value so
+		// generated BUILD files are syntactically correct.
+		switch propertyValue.Kind() {
+		case reflect.Slice:
+			return "[]", nil
+		case reflect.Map:
+			return "{}", nil
+		default:
+			return "", nil
+		}
 	}
 
 	var ret string
@@ -404,9 +415,34 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 	case reflect.Struct:
 		// Special cases where the bp2build sends additional information to the codegenerator
 		// by wrapping the attributes in a custom struct type.
-		if labels, ok := propertyValue.Interface().(bazel.LabelList); ok {
+		if labels, ok := propertyValue.Interface().(bazel.LabelListAttribute); ok {
 			// TODO(b/165114590): convert glob syntax
-			return prettyPrint(reflect.ValueOf(labels.Includes), indent)
+			ret, err := prettyPrint(reflect.ValueOf(labels.Value.Includes), indent)
+			if err != nil {
+				return ret, err
+			}
+
+			if !labels.HasArchSpecificValues() {
+				// Select statement not needed.
+				return ret, nil
+			}
+
+			ret += " + " + "select({\n"
+			for _, arch := range android.ArchTypeList() {
+				value := labels.GetValueForArch(arch.Name)
+				if len(value.Includes) > 0 {
+					ret += makeIndent(indent + 1)
+					list, _ := prettyPrint(reflect.ValueOf(value.Includes), indent+1)
+					ret += fmt.Sprintf("\"%s\": %s,\n", platformArchMap[arch], list)
+				}
+			}
+
+			ret += makeIndent(indent + 1)
+			ret += fmt.Sprintf("\"%s\": [],\n", "//conditions:default")
+
+			ret += makeIndent(indent)
+			ret += "})"
+			return ret, err
 		} else if label, ok := propertyValue.Interface().(bazel.Label); ok {
 			return fmt.Sprintf("%q", label.Label), nil
 		} else if stringList, ok := propertyValue.Interface().(bazel.StringListAttribute); ok {
@@ -432,8 +468,7 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 			}
 
 			ret += makeIndent(indent + 1)
-			list, _ := prettyPrint(reflect.ValueOf(stringList.GetValueForArch("default")), indent+1)
-			ret += fmt.Sprintf("\"%s\": %s,\n", "//conditions:default", list)
+			ret += fmt.Sprintf("\"%s\": [],\n", "//conditions:default")
 
 			ret += makeIndent(indent)
 			ret += "})"
