@@ -4479,14 +4479,11 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			if filepath.Base(output) == base {
 				foundLibfooJar = true
 				buildRule := s.Output(output)
-				actual := android.NormalizePathForTesting(buildRule.Input)
-				if actual != bootDexJarPath {
-					t.Errorf("Incorrect boot dex jar path '%s', expected '%s'", actual, bootDexJarPath)
-				}
+				android.AssertStringEquals(t, "boot dex jar path", bootDexJarPath, buildRule.Input.String())
 			}
 		}
 		if !foundLibfooJar {
-			t.Errorf("Rule for libfoo.jar missing in dex_bootjars singleton outputs")
+			t.Errorf("Rule for libfoo.jar missing in dex_bootjars singleton outputs %q", android.StringPathsRelativeToTop(ctx.Config().BuildDir(), s.AllOutputs()))
 		}
 	}
 
@@ -4528,8 +4525,8 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
-		checkBootDexJarPath(t, ctx, "libfoo", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
-		checkBootDexJarPath(t, ctx, "libbar", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
@@ -4635,8 +4632,8 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
-		checkBootDexJarPath(t, ctx, "libfoo", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
-		checkBootDexJarPath(t, ctx, "libbar", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
@@ -4702,8 +4699,8 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
-		checkBootDexJarPath(t, ctx, "libfoo", ".intermediates/libfoo/android_common_apex10000/hiddenapi/libfoo.jar")
-		checkBootDexJarPath(t, ctx, "libbar", ".intermediates/libbar/android_common_myapex/hiddenapi/libbar.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/libfoo/android_common_apex10000/hiddenapi/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/libbar/android_common_myapex/hiddenapi/libbar.jar")
 
 		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
@@ -4771,8 +4768,8 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	`
 
 		ctx := testDexpreoptWithApexes(t, bp, "", transform)
-		checkBootDexJarPath(t, ctx, "libfoo", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
-		checkBootDexJarPath(t, ctx, "libbar", ".intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
+		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
 		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
@@ -6423,68 +6420,46 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpre
 func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreoptConfig func(*dexpreopt.GlobalConfig)) *android.TestContext {
 	t.Helper()
 
-	bp += cc.GatherRequiredDepsForTest(android.Android)
-	bp += java.GatherRequiredDepsForTest()
-
-	fs := map[string][]byte{
-		"a.java":                             nil,
-		"a.jar":                              nil,
-		"build/make/target/product/security": nil,
-		"apex_manifest.json":                 nil,
-		"AndroidManifest.xml":                nil,
+	fs := android.MockFS{
+		"a.java":              nil,
+		"a.jar":               nil,
+		"apex_manifest.json":  nil,
+		"AndroidManifest.xml": nil,
 		"system/sepolicy/apex/myapex-file_contexts":                  nil,
 		"system/sepolicy/apex/some-updatable-apex-file_contexts":     nil,
 		"system/sepolicy/apex/some-non-updatable-apex-file_contexts": nil,
 		"system/sepolicy/apex/com.android.art.debug-file_contexts":   nil,
 		"framework/aidl/a.aidl":                                      nil,
 	}
-	cc.GatherRequiredFilesForTest(fs)
 
-	for k, v := range filesForSdkLibrary {
-		fs[k] = v
-	}
-	config := android.TestArchConfig(t.TempDir(), nil, bp, fs)
-
-	ctx := android.NewTestArchContext(config)
-	ctx.RegisterModuleType("apex", BundleFactory)
-	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
-	ctx.RegisterModuleType("prebuilt_apex", PrebuiltFactory)
-	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
-	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	ctx.PreArchMutators(android.RegisterComponentsMutator)
-	android.RegisterPrebuiltMutators(ctx)
-	cc.RegisterRequiredBuildComponentsForTest(ctx)
-	java.RegisterRequiredBuildComponentsForTest(ctx)
-	java.RegisterHiddenApiSingletonComponents(ctx)
-	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
-	ctx.PreDepsMutators(RegisterPreDepsMutators)
-	ctx.PostDepsMutators(RegisterPostDepsMutators)
-
-	ctx.Register()
-
-	pathCtx := android.PathContextForTesting(config)
-	dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
-	transformDexpreoptConfig(dexpreoptConfig)
-	dexpreopt.SetTestGlobalConfig(config, dexpreoptConfig)
-
-	// Make sure that any changes to these dexpreopt properties are mirrored in the corresponding
-	// product variables.
-	config.TestProductVariables.BootJars = dexpreoptConfig.BootJars
-	config.TestProductVariables.UpdatableBootJars = dexpreoptConfig.UpdatableBootJars
-
-	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
-	android.FailIfErrored(t, errs)
-
-	_, errs = ctx.PrepareBuildActions(config)
-	if errmsg == "" {
-		android.FailIfErrored(t, errs)
-	} else if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, errmsg, errs)
-	} else {
-		t.Fatalf("missing expected error %q (0 errors are returned)", errmsg)
+	errorHandler := android.FixtureExpectsNoErrors
+	if errmsg != "" {
+		errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(errmsg)
 	}
 
-	return ctx
+	result := android.GroupFixturePreparers(
+		cc.PrepareForTestWithCcDefaultModules,
+		java.PrepareForTestWithHiddenApiBuildComponents,
+		java.PrepareForTestWithJavaDefaultModules,
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		PrepareForTestWithApexBuildComponents,
+		android.FixtureModifyConfig(func(config android.Config) {
+			pathCtx := android.PathContextForTesting(config)
+			dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
+			transformDexpreoptConfig(dexpreoptConfig)
+			dexpreopt.SetTestGlobalConfig(config, dexpreoptConfig)
+
+			// Make sure that any changes to these dexpreopt properties are mirrored in the corresponding
+			// product variables.
+			config.TestProductVariables.BootJars = dexpreoptConfig.BootJars
+			config.TestProductVariables.UpdatableBootJars = dexpreoptConfig.UpdatableBootJars
+		}),
+		fs.AddToFixture(),
+	).
+		ExtendWithErrorHandler(errorHandler).
+		RunTestWithBp(t, bp)
+
+	return result.TestContext
 }
 
 func TestUpdatable_should_set_min_sdk_version(t *testing.T) {
