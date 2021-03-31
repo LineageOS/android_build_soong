@@ -2029,7 +2029,7 @@ func maybeInjectBoringSSLHash(ctx android.ModuleContext, outputFile android.Modu
 	return outputFile
 }
 
-func Bp2BuildParseHeaderLibs(ctx android.TopDownMutatorContext, module *Module) bazel.LabelList {
+func Bp2BuildParseHeaderLibs(ctx android.TopDownMutatorContext, module *Module) bazel.LabelListAttribute {
 	var headerLibs []string
 	for _, linkerProps := range module.linker.linkerProps() {
 		if baseLinkerProps, ok := linkerProps.(*BaseLinkerProperties); ok {
@@ -2038,12 +2038,11 @@ func Bp2BuildParseHeaderLibs(ctx android.TopDownMutatorContext, module *Module) 
 			break
 		}
 	}
-
-	headerLibsLabels := android.BazelLabelForModuleDeps(ctx, headerLibs)
+	headerLibsLabels := bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, headerLibs))
 	return headerLibsLabels
 }
 
-func Bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) (bazel.LabelList, bazel.LabelList) {
+func Bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) (bazel.LabelListAttribute, bazel.LabelListAttribute) {
 	libraryDecorator := module.linker.(*libraryDecorator)
 
 	includeDirs := libraryDecorator.flagExporter.Properties.Export_system_include_dirs
@@ -2059,17 +2058,16 @@ func Bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Mo
 	}
 
 	headersLabels := android.BazelLabelForModuleSrc(ctx, includeDirGlobs)
-
-	return includeDirsLabels, headersLabels
+	return bazel.MakeLabelListAttribute(includeDirsLabels), bazel.MakeLabelListAttribute(headersLabels)
 }
 
 type bazelCcLibraryStaticAttributes struct {
 	Copts      []string
-	Srcs       bazel.LabelList
-	Deps       bazel.LabelList
+	Srcs       bazel.LabelListAttribute
+	Deps       bazel.LabelListAttribute
 	Linkstatic bool
-	Includes   bazel.LabelList
-	Hdrs       bazel.LabelList
+	Includes   bazel.LabelListAttribute
+	Hdrs       bazel.LabelListAttribute
 }
 
 type bazelCcLibraryStatic struct {
@@ -2110,7 +2108,7 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 			break
 		}
 	}
-	srcsLabels := android.BazelLabelForModuleSrc(ctx, srcs)
+	srcsLabels := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, srcs))
 
 	var staticLibs []string
 	var wholeStaticLibs []string
@@ -2135,18 +2133,18 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 	includesLabels := android.BazelLabelForModuleSrc(ctx, allIncludes)
 
 	exportedIncludesLabels, exportedIncludesHeadersLabels := Bp2BuildParseExportedIncludes(ctx, module)
-	includesLabels.Append(exportedIncludesLabels)
+	includesLabels.Append(exportedIncludesLabels.Value)
 
 	headerLibsLabels := Bp2BuildParseHeaderLibs(ctx, module)
-	depsLabels.Append(headerLibsLabels)
+	depsLabels.Append(headerLibsLabels.Value)
 
 	attrs := &bazelCcLibraryStaticAttributes{
 		Copts:      copts,
-		Srcs:       bazel.UniqueBazelLabelList(srcsLabels),
-		Deps:       bazel.UniqueBazelLabelList(depsLabels),
+		Srcs:       srcsLabels,
+		Deps:       bazel.MakeLabelListAttribute(depsLabels),
 		Linkstatic: true,
-		Includes:   bazel.UniqueBazelLabelList(includesLabels),
-		Hdrs:       bazel.UniqueBazelLabelList(exportedIncludesHeadersLabels),
+		Includes:   bazel.MakeLabelListAttribute(includesLabels),
+		Hdrs:       exportedIncludesHeadersLabels,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
