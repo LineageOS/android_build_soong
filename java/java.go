@@ -33,12 +33,12 @@ import (
 )
 
 func init() {
-	RegisterJavaBuildComponents(android.InitRegistrationContext)
+	registerJavaBuildComponents(android.InitRegistrationContext)
 
 	RegisterJavaSdkMemberTypes()
 }
 
-func RegisterJavaBuildComponents(ctx android.RegistrationContext) {
+func registerJavaBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("java_defaults", DefaultsFactory)
 
 	ctx.RegisterModuleType("java_library", LibraryFactory)
