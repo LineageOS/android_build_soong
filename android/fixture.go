@@ -466,12 +466,13 @@ type FixturePreparer interface {
 
 	// Run the test, checking any errors reported and returning a TestResult instance.
 	//
-	// Shorthand for Fixture(t, preparers...).RunTest()
-	RunTest(t *testing.T, preparers ...FixturePreparer) *TestResult
+	// Shorthand for Fixture(t).RunTest()
+	RunTest(t *testing.T) *TestResult
 
 	// Run the test with the supplied Android.bp file.
 	//
-	// Shorthand for RunTest(t, android.FixtureWithRootAndroidBp(bp))
+	// preparer.RunTestWithBp(t, bp) is shorthand for
+	// android.GroupFixturePreparers(preparer, android.FixtureWithRootAndroidBp(bp)).RunTest(t)
 	RunTestWithBp(t *testing.T, bp string) *TestResult
 
 	// RunTestWithConfig is a temporary method added to help ease the migration of existing tests to
@@ -750,15 +751,15 @@ func (b *baseFixturePreparer) ExtendWithErrorHandler(errorHandler FixtureErrorHa
 	}))
 }
 
-func (b *baseFixturePreparer) RunTest(t *testing.T, preparers ...FixturePreparer) *TestResult {
+func (b *baseFixturePreparer) RunTest(t *testing.T) *TestResult {
 	t.Helper()
-	fixture := b.self.Fixture(t, preparers...)
+	fixture := b.self.Fixture(t)
 	return fixture.RunTest()
 }
 
 func (b *baseFixturePreparer) RunTestWithBp(t *testing.T, bp string) *TestResult {
 	t.Helper()
-	return b.RunTest(t, FixtureWithRootAndroidBp(bp))
+	return GroupFixturePreparers(b.self, FixtureWithRootAndroidBp(bp)).RunTest(t)
 }
 
 func (b *baseFixturePreparer) RunTestWithConfig(t *testing.T, config Config) *TestResult {
