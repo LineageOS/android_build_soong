@@ -448,6 +448,63 @@ func (v *productVariables) SetDefaultConfig() {
 	}
 }
 
+// ProductConfigContext requires the access to the Module to get product config properties.
+type ProductConfigContext interface {
+	Module() Module
+}
+
+// ProductConfigProperty contains the information for a single property (may be a struct) paired
+// with the appropriate ProductConfigVariable.
+type ProductConfigProperty struct {
+	ProductConfigVariable string
+	Property              interface{}
+}
+
+// ProductConfigProperties is a map of property name to a slice of ProductConfigProperty such that
+// all it all product variable-specific versions of a property are easily accessed together
+type ProductConfigProperties map[string][]ProductConfigProperty
+
+// ProductVariableProperties returns a ProductConfigProperties containing only the properties which
+// have been set for the module in the given context.
+func ProductVariableProperties(ctx ProductConfigContext) ProductConfigProperties {
+	module := ctx.Module()
+	moduleBase := module.base()
+
+	productConfigProperties := ProductConfigProperties{}
+
+	if moduleBase.variableProperties == nil {
+		return productConfigProperties
+	}
+
+	variableValues := reflect.ValueOf(moduleBase.variableProperties).Elem().FieldByName("Product_variables")
+	for i := 0; i < variableValues.NumField(); i++ {
+		variableValue := variableValues.Field(i)
+		// Check if any properties were set for the module
+		if variableValue.IsZero() {
+			continue
+		}
+		// e.g. Platform_sdk_version, Unbundled_build, Malloc_not_svelte, etc.
+		productVariableName := variableValues.Type().Field(i).Name
+		for j := 0; j < variableValue.NumField(); j++ {
+			property := variableValue.Field(j)
+			// If the property wasn't set, no need to pass it along
+			if property.IsZero() {
+				continue
+			}
+
+			// e.g. Asflags, Cflags, Enabled, etc.
+			propertyName := variableValue.Type().Field(j).Name
+			productConfigProperties[propertyName] = append(productConfigProperties[propertyName],
+				ProductConfigProperty{
+					ProductConfigVariable: productVariableName,
+					Property:              property.Interface(),
+				})
+		}
+	}
+
+	return productConfigProperties
+}
+
 func VariableMutator(mctx BottomUpMutatorContext) {
 	var module Module
 	var ok bool
