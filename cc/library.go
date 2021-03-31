@@ -504,12 +504,11 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext) 
 			return
 		}
 		isLibcxx := strings.HasPrefix(dir, "external/libcxx/include")
-		j := 0
-		for i, header := range glob {
+		for _, header := range glob {
 			if isLibcxx {
 				// Glob all files under this special directory, because of C++ headers with no
 				// extension.
-				if !strings.HasSuffix(header, "/") {
+				if strings.HasSuffix(header, "/") {
 					continue
 				}
 			} else {
@@ -525,12 +524,8 @@ func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext) 
 					continue
 				}
 			}
-			if i != j {
-				glob[j] = glob[i]
-			}
-			j++
+			ret = append(ret, android.PathForSource(ctx, header))
 		}
-		glob = glob[:j]
 	}
 
 	// Collect generated headers
