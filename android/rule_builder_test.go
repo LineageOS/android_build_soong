@@ -645,7 +645,7 @@ func TestRuleBuilder_Build(t *testing.T) {
 		rspFile := "out/soong/.intermediates/foo/rsp"
 		rspFile2 := "out/soong/.intermediates/foo/rsp2"
 		module := result.ModuleForTests("foo", "")
-		check(t, module.Rule("rule").RelativeToTop(), module.Output(rspFile2).RelativeToTop(),
+		check(t, module.Rule("rule"), module.Output(rspFile2),
 			"cp bar "+outFile+" @"+rspFile+" @"+rspFile2,
 			outFile, outFile+".d", rspFile, rspFile2, true, nil, nil)
 	})
@@ -662,7 +662,7 @@ func TestRuleBuilder_Build(t *testing.T) {
 		cmd := `rm -rf ` + outDir + `/gen && ` +
 			sbox + ` --sandbox-path ` + sandboxPath + ` --manifest ` + manifest
 		module := result.ModuleForTests("foo_sbox", "")
-		check(t, module.Output("gen/foo_sbox").RelativeToTop(), module.Output(rspFile2).RelativeToTop(),
+		check(t, module.Output("gen/foo_sbox"), module.Output(rspFile2),
 			cmd, outFile, depFile, rspFile, rspFile2, false, []string{manifest}, []string{sbox})
 	})
 	t.Run("sbox_inputs", func(t *testing.T) {
@@ -679,7 +679,7 @@ func TestRuleBuilder_Build(t *testing.T) {
 			sbox + ` --sandbox-path ` + sandboxPath + ` --manifest ` + manifest
 
 		module := result.ModuleForTests("foo_sbox_inputs", "")
-		check(t, module.Output("gen/foo_sbox_inputs").RelativeToTop(), module.Output(rspFile2).RelativeToTop(),
+		check(t, module.Output("gen/foo_sbox_inputs"), module.Output(rspFile2),
 			cmd, outFile, depFile, rspFile, rspFile2, false, []string{manifest}, []string{sbox})
 	})
 	t.Run("singleton", func(t *testing.T) {
@@ -687,7 +687,7 @@ func TestRuleBuilder_Build(t *testing.T) {
 		rspFile := filepath.Join("out/soong/singleton/rsp")
 		rspFile2 := filepath.Join("out/soong/singleton/rsp2")
 		singleton := result.SingletonForTests("rule_builder_test")
-		check(t, singleton.Rule("rule").RelativeToTop(), singleton.Output(rspFile2).RelativeToTop(),
+		check(t, singleton.Rule("rule"), singleton.Output(rspFile2),
 			"cp bar "+outFile+" @"+rspFile+" @"+rspFile2,
 			outFile, outFile+".d", rspFile, rspFile2, true, nil, nil)
 	})
