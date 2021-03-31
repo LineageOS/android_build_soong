@@ -845,7 +845,12 @@ func TestJavaSdkLibraryEnforce(t *testing.T) {
 			if expectedErrorPattern != "" {
 				errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(expectedErrorPattern)
 			}
-			prepareForJavaTest.ExtendWithErrorHandler(errorHandler).RunTest(t, createPreparer(info))
+			android.GroupFixturePreparers(
+				prepareForJavaTest,
+				createPreparer(info),
+			).
+				ExtendWithErrorHandler(errorHandler).
+				RunTest(t)
 		})
 	}
 
