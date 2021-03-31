@@ -188,7 +188,12 @@ func (stl *stl) deps(ctx BaseModuleContext, deps Deps) Deps {
 		if needsLibAndroidSupport(ctx) {
 			deps.StaticLibs = append(deps.StaticLibs, "ndk_libandroid_support")
 		}
-		deps.StaticLibs = append(deps.StaticLibs, "ndk_libunwind")
+		// TODO: Switch the NDK over to the LLVM unwinder for non-arm32 architectures.
+		if ctx.Arch().ArchType == android.Arm {
+			deps.StaticLibs = append(deps.StaticLibs, "ndk_libunwind")
+		} else {
+			deps.StaticLibs = append(deps.StaticLibs, "libgcc_stripped")
+		}
 	default:
 		panic(fmt.Errorf("Unknown stl: %q", stl.Properties.SelectedStl))
 	}
