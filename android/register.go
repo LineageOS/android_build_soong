@@ -192,6 +192,15 @@ func (ctx *Context) Register() {
 		t.register(ctx)
 	}
 
+	if ctx.config.BazelContext.BazelEnabled() {
+		// Hydrate the configuration of bp2build-enabled module types. This is
+		// required as a signal to identify which modules should be deferred to
+		// Bazel in mixed builds, if it is enabled.
+		for t, _ := range bp2buildMutators {
+			ctx.config.bp2buildModuleTypeConfig[t] = true
+		}
+	}
+
 	mutators := collateGloballyRegisteredMutators()
 	mutators.registerAll(ctx)
 
