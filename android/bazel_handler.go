@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"android/soong/bazel/cquery"
+
 	"github.com/google/blueprint/bootstrap"
 
 	"android/soong/bazel"
@@ -37,7 +38,6 @@ type CqueryRequestType int
 
 const (
 	getAllFiles CqueryRequestType = iota
-	getCcObjectFiles
 	getAllFilesAndCcObjectFiles
 )
 
@@ -55,10 +55,6 @@ type BazelContext interface {
 
 	// Returns result files built by building the given bazel target label.
 	GetOutputFiles(label string, archType ArchType) ([]string, bool)
-
-	// Returns object files produced by compiling the given cc-related target.
-	// Retrieves these files from Bazel's CcInfo provider.
-	GetCcObjectFiles(label string, archType ArchType) ([]string, bool)
 
 	// TODO(cparsons): Other cquery-related methods should be added here.
 	// Returns the results of GetOutputFiles and GetCcObjectFiles in a single query (in that order).
@@ -116,11 +112,6 @@ func (m MockBazelContext) GetOutputFiles(label string, archType ArchType) ([]str
 	return result, ok
 }
 
-func (m MockBazelContext) GetCcObjectFiles(label string, archType ArchType) ([]string, bool) {
-	result, ok := m.AllFiles[label]
-	return result, ok
-}
-
 func (m MockBazelContext) GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
 	result, ok := m.AllFiles[label]
 	return result, result, ok
@@ -154,16 +145,6 @@ func (bazelCtx *bazelContext) GetOutputFiles(label string, archType ArchType) ([
 	return ret, ok
 }
 
-func (bazelCtx *bazelContext) GetCcObjectFiles(label string, archType ArchType) ([]string, bool) {
-	rawString, ok := bazelCtx.cquery(label, cquery.GetCcObjectFiles, archType)
-	var returnResult []string
-	if ok {
-		bazelOutput := strings.TrimSpace(rawString)
-		returnResult = cquery.GetCcObjectFiles.ParseResult(bazelOutput).([]string)
-	}
-	return returnResult, ok
-}
-
 func (bazelCtx *bazelContext) GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
 	var outputFiles []string
 	var ccObjects []string
@@ -180,10 +161,6 @@ func (bazelCtx *bazelContext) GetOutputFilesAndCcObjectFiles(label string, archT
 }
 
 func (n noopBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
-	panic("unimplemented")
-}
-
-func (n noopBazelContext) GetCcObjectFiles(label string, archType ArchType) ([]string, bool) {
 	panic("unimplemented")
 }
 
@@ -332,8 +309,13 @@ local_repository(
     name = "sourceroot",
     path = "%s",
 )
+
+local_repository(
+    name = "rules_cc",
+    path = "%s/build/bazel/rules_cc",
+)
 `
-	return []byte(fmt.Sprintf(formatString, context.workspaceDir))
+	return []byte(fmt.Sprintf(formatString, context.workspaceDir, context.workspaceDir))
 }
 
 func (context *bazelContext) mainBzlFileContents() []byte {
