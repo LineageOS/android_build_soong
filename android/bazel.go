@@ -129,8 +129,8 @@ var (
 	}
 
 	// Per-module denylist to always opt modules out.
-
 	bp2buildModuleDoNotConvertList = []string{
+		"generated_android_ids",
 		"libBionicBenchmarksUtils",
 		"libbionic_spawn_benchmark",
 		"libc_jemalloc_wrapper",
@@ -170,6 +170,8 @@ var (
 		"liblinker_debuggerd_stub",
 		"libbionic_tests_headers_posix",
 		"libc_dns",
+		"note_memtag_heap_async",
+		"note_memtag_heap_sync",
 	}
 
 	// Used for quicker lookups
