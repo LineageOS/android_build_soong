@@ -54,6 +54,10 @@ func TestMain(m *testing.M) {
 
 var ccFixtureFactory = android.NewFixtureFactory(
 	&buildDir,
+	prepareForCcTest,
+)
+
+var prepareForCcTest = android.GroupFixturePreparers(
 	PrepareForTestWithCcIncludeVndk,
 	android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 		variables.DeviceVndkVersion = StringPtr("current")
