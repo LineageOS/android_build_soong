@@ -169,7 +169,6 @@ var (
 		"liblinker_debuggerd_stub",      // ruperts@, cc_library_static, depends on //system/libbase
 		"libbionic_tests_headers_posix", // ruperts@, cc_library_static
 		"libc_dns",                      // ruperts@, cc_library_static
-		"generated_android_ids",         // cparsons@, genrule
 		"note_memtag_heap_async",        // cparsons@, cc_library_static
 		"note_memtag_heap_sync",         // cparsons@, cc_library_static
 	}
