@@ -1702,6 +1702,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 							filesInfo = append(filesInfo, af)
 						}
 					}
+
+					// Track transitive dependencies.
+					return true
 				}
 			case javaLibTag:
 				switch child.(type) {
@@ -1910,6 +1913,21 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						filesInfo = append(filesInfo, af)
 						return true // track transitive dependencies
 					}
+				} else if java.IsbootImageContentDepTag(depTag) {
+					// Add the contents of the boot image to the apex.
+					switch child.(type) {
+					case *java.Library, *java.SdkLibrary:
+						af := apexFileForJavaModule(ctx, child.(javaModule))
+						if !af.ok() {
+							ctx.PropertyErrorf("boot_images", "boot image content %q is not configured to be compiled into dex", depName)
+							return false
+						}
+						filesInfo = append(filesInfo, af)
+						return true // track transitive dependencies
+					default:
+						ctx.PropertyErrorf("boot_images", "boot image content %q of type %q is not supported", depName, ctx.OtherModuleType(child))
+					}
+
 				} else if _, ok := depTag.(android.CopyDirectlyInAnyApexTag); ok {
 					// nothing
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {

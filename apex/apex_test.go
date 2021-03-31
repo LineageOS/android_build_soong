@@ -16,7 +16,6 @@ package apex
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -37,8 +36,6 @@ import (
 	"android/soong/rust"
 	"android/soong/sh"
 )
-
-var buildDir string
 
 // names returns name list from white space separated string
 func names(s string) (ns []string) {
@@ -118,7 +115,7 @@ var withUnbundledBuild = android.FixtureModifyProductVariables(
 )
 
 var apexFixtureFactory = android.NewFixtureFactory(
-	&buildDir,
+	nil,
 	// General preparers in alphabetical order as test infrastructure will enforce correct
 	// registration order.
 	android.PrepareForTestWithAndroidBuildComponents,
@@ -207,18 +204,6 @@ var apexFixtureFactory = android.NewFixtureFactory(
 var prepareForTestWithMyapex = android.FixtureMergeMockFs(android.MockFS{
 	"system/sepolicy/apex/myapex-file_contexts": nil,
 })
-
-func setUp() {
-	var err error
-	buildDir, err = ioutil.TempDir("", "soong_apex_test")
-	if err != nil {
-		panic(err)
-	}
-}
-
-func tearDown() {
-	_ = os.RemoveAll(buildDir)
-}
 
 // ensure that 'result' equals 'expected'
 func ensureEquals(t *testing.T, result string, expected string) {
@@ -500,7 +485,7 @@ func TestBasicApex(t *testing.T) {
 		}
 	`)
 
-	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule")
+	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule").RelativeToTop()
 
 	// Make sure that Android.mk is created
 	ab := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
@@ -515,7 +500,7 @@ func TestBasicApex(t *testing.T) {
 	optFlags := apexRule.Args["opt_flags"]
 	ensureContains(t, optFlags, "--pubkey vendor/foo/devkeys/testkey.avbpubkey")
 	// Ensure that the NOTICE output is being packaged as an asset.
-	ensureContains(t, optFlags, "--assets_dir "+buildDir+"/.intermediates/myapex/android_common_myapex_image/NOTICE")
+	ensureContains(t, optFlags, "--assets_dir out/soong/.intermediates/myapex/android_common_myapex_image/NOTICE")
 
 	copyCmds := apexRule.Args["copy_commands"]
 
@@ -2468,8 +2453,8 @@ func TestVendorApex(t *testing.T) {
 	prefix := "TARGET_"
 	var builder strings.Builder
 	data.Custom(&builder, name, prefix, "", data)
-	androidMk := builder.String()
-	installPath := path.Join(buildDir, "../target/product/test_device/vendor/apex")
+	androidMk := android.StringRelativeToTop(ctx.Config(), builder.String())
+	installPath := "out/target/product/test_device/vendor/apex"
 	ensureContains(t, androidMk, "LOCAL_MODULE_PATH := "+installPath)
 
 	apexManifestRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexManifestRule")
@@ -2513,13 +2498,13 @@ func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 
 	vendorVariant := "android_vendor.VER_arm64_armv8-a"
 
-	ldRule := ctx.ModuleForTests("mybin", vendorVariant+"_apex10000").Rule("ld")
+	ldRule := ctx.ModuleForTests("mybin", vendorVariant+"_apex10000").Rule("ld").RelativeToTop()
 	libs := names(ldRule.Args["libFlags"])
 	// VNDK libs(libvndk/libc++) as they are
-	ensureListContains(t, libs, buildDir+"/.intermediates/libvndk/"+vendorVariant+"_shared/libvndk.so")
-	ensureListContains(t, libs, buildDir+"/.intermediates/"+cc.DefaultCcCommonTestModulesDir+"libc++/"+vendorVariant+"_shared/libc++.so")
+	ensureListContains(t, libs, "out/soong/.intermediates/libvndk/"+vendorVariant+"_shared/libvndk.so")
+	ensureListContains(t, libs, "out/soong/.intermediates/"+cc.DefaultCcCommonTestModulesDir+"libc++/"+vendorVariant+"_shared/libc++.so")
 	// non-stable Vendor libs as APEX variants
-	ensureListContains(t, libs, buildDir+"/.intermediates/libvendor/"+vendorVariant+"_shared_apex10000/libvendor.so")
+	ensureListContains(t, libs, "out/soong/.intermediates/libvendor/"+vendorVariant+"_shared_apex10000/libvendor.so")
 
 	// VNDK libs are not included when use_vndk_as_stable: true
 	ensureExactContents(t, ctx, "myapex", "android_common_myapex_image", []string{
@@ -4092,15 +4077,15 @@ func TestApexInVariousPartition(t *testing.T) {
 			`)
 
 			apex := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
-			expected := buildDir + "/target/product/test_device/" + tc.parition + "/apex"
-			actual := apex.installDir.String()
+			expected := "out/soong/target/product/test_device/" + tc.parition + "/apex"
+			actual := apex.installDir.RelativeToTop().String()
 			if actual != expected {
 				t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
 			}
 
 			flattened := ctx.ModuleForTests("myapex", "android_common_myapex_flattened").Module().(*apexBundle)
-			expected = buildDir + "/target/product/test_device/" + tc.flattenedPartition + "/apex"
-			actual = flattened.installDir.String()
+			expected = "out/soong/target/product/test_device/" + tc.flattenedPartition + "/apex"
+			actual = flattened.installDir.RelativeToTop().String()
 			if actual != expected {
 				t.Errorf("wrong install path. expected %q. actual %q", expected, actual)
 			}
@@ -5719,7 +5704,7 @@ func TestJavaSDKLibrary_WithinApex(t *testing.T) {
 
 	// The bar library should depend on the implementation jar.
 	barLibrary := ctx.ModuleForTests("bar", "android_common_myapex").Rule("javac")
-	if expected, actual := `^-classpath /[^:]*/turbine-combined/foo\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+	if expected, actual := `^-classpath [^:]*/turbine-combined/foo\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
 		t.Errorf("expected %q, found %#q", expected, actual)
 	}
 }
@@ -5770,7 +5755,7 @@ func TestJavaSDKLibrary_CrossBoundary(t *testing.T) {
 
 	// The bar library should depend on the stubs jar.
 	barLibrary := ctx.ModuleForTests("bar", "android_common").Rule("javac")
-	if expected, actual := `^-classpath /[^:]*/turbine-combined/foo\.stubs\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+	if expected, actual := `^-classpath [^:]*/turbine-combined/foo\.stubs\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
 		t.Errorf("expected %q, found %#q", expected, actual)
 	}
 }
@@ -5860,7 +5845,7 @@ func TestJavaSDKLibrary_ImportPreferred(t *testing.T) {
 
 	// The bar library should depend on the implementation jar.
 	barLibrary := ctx.ModuleForTests("bar", "android_common_myapex").Rule("javac")
-	if expected, actual := `^-classpath /[^:]*/turbine-combined/foo\.impl\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
+	if expected, actual := `^-classpath [^:]*/turbine-combined/foo\.impl\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
 		t.Errorf("expected %q, found %#q", expected, actual)
 	}
 }
@@ -6331,7 +6316,7 @@ func TestAppSetBundlePrebuilt(t *testing.T) {
 	)
 
 	m := ctx.ModuleForTests("myapex", "android_common")
-	extractedApex := m.Output(buildDir + "/.intermediates/myapex/android_common/foo_v2.apex")
+	extractedApex := m.Output("out/soong/.intermediates/myapex/android_common/foo_v2.apex")
 
 	actual := extractedApex.Inputs
 	if len(actual) != 1 {
@@ -6458,7 +6443,7 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 	for k, v := range filesForSdkLibrary {
 		fs[k] = v
 	}
-	config := android.TestArchConfig(buildDir, nil, bp, fs)
+	config := android.TestArchConfig(t.TempDir(), nil, bp, fs)
 
 	ctx := android.NewTestArchContext(config)
 	ctx.RegisterModuleType("apex", BundleFactory)
@@ -6679,7 +6664,7 @@ func testApexPermittedPackagesRules(t *testing.T, errmsg, bp string, apexBootJar
 		"system/sepolicy/apex/myapex-file_contexts": nil,
 	}
 
-	config := android.TestArchConfig(buildDir, nil, bp, fs)
+	config := android.TestArchConfig(t.TempDir(), nil, bp, fs)
 	android.SetTestNeverallowRules(config, rules)
 	updatableBootJars := make([]string, 0, len(apexBootJars))
 	for _, apexBootJar := range apexBootJars {
@@ -6863,21 +6848,77 @@ func TestTestFor(t *testing.T) {
 		}
 	`)
 
-	// the test 'mytest' is a test for the apex, therefore is linked to the
+	ensureLinkedLibIs := func(mod, variant, linkedLib, expectedVariant string) {
+		ldFlags := strings.Split(ctx.ModuleForTests(mod, variant).Rule("ld").RelativeToTop().Args["libFlags"], " ")
+		mylibLdFlags := android.FilterListPred(ldFlags, func(s string) bool { return strings.HasPrefix(s, linkedLib) })
+		android.AssertArrayString(t, "unexpected "+linkedLib+" link library for "+mod, []string{linkedLib + expectedVariant}, mylibLdFlags)
+	}
+
+	// These modules are tests for the apex, therefore are linked to the
 	// actual implementation of mylib instead of its stub.
-	ldFlags := ctx.ModuleForTests("mytest", "android_arm64_armv8-a").Rule("ld").Args["libFlags"]
-	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared/mylib.so")
-	ensureNotContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared_1/mylib.so")
+	ensureLinkedLibIs("mytest", "android_arm64_armv8-a", "out/soong/.intermediates/mylib/", "android_arm64_armv8-a_shared/mylib.so")
+	ensureLinkedLibIs("mytestlib", "android_arm64_armv8-a_shared", "out/soong/.intermediates/mylib/", "android_arm64_armv8-a_shared/mylib.so")
+	ensureLinkedLibIs("mybench", "android_arm64_armv8-a", "out/soong/.intermediates/mylib/", "android_arm64_armv8-a_shared/mylib.so")
+}
 
-	// The same should be true for cc_library
-	ldFlags = ctx.ModuleForTests("mytestlib", "android_arm64_armv8-a_shared").Rule("ld").Args["libFlags"]
-	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared/mylib.so")
-	ensureNotContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared_1/mylib.so")
+func TestIndirectTestFor(t *testing.T) {
+	ctx := testApex(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			native_shared_libs: ["mylib", "myprivlib"],
+			updatable: false,
+		}
 
-	// ... and for cc_benchmark
-	ldFlags = ctx.ModuleForTests("mybench", "android_arm64_armv8-a").Rule("ld").Args["libFlags"]
-	ensureContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared/mylib.so")
-	ensureNotContains(t, ldFlags, "mylib/android_arm64_armv8-a_shared_1/mylib.so")
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["1"],
+			},
+			apex_available: ["myapex"],
+		}
+
+		cc_library {
+			name: "myprivlib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			shared_libs: ["mylib"],
+			apex_available: ["myapex"],
+		}
+
+		cc_library {
+			name: "mytestlib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			shared_libs: ["myprivlib"],
+			stl: "none",
+			test_for: ["myapex"],
+		}
+	`)
+
+	ensureLinkedLibIs := func(mod, variant, linkedLib, expectedVariant string) {
+		ldFlags := strings.Split(ctx.ModuleForTests(mod, variant).Rule("ld").RelativeToTop().Args["libFlags"], " ")
+		mylibLdFlags := android.FilterListPred(ldFlags, func(s string) bool { return strings.HasPrefix(s, linkedLib) })
+		android.AssertArrayString(t, "unexpected "+linkedLib+" link library for "+mod, []string{linkedLib + expectedVariant}, mylibLdFlags)
+	}
+
+	// The platform variant of mytestlib links to the platform variant of the
+	// internal myprivlib.
+	ensureLinkedLibIs("mytestlib", "android_arm64_armv8-a_shared", "out/soong/.intermediates/myprivlib/", "android_arm64_armv8-a_shared/myprivlib.so")
+
+	// The platform variant of myprivlib links to the platform variant of mylib
+	// and bypasses its stubs.
+	ensureLinkedLibIs("myprivlib", "android_arm64_armv8-a_shared", "out/soong/.intermediates/mylib/", "android_arm64_armv8-a_shared/mylib.so")
 }
 
 // TODO(jungjw): Move this to proptools
@@ -6908,7 +6949,7 @@ func TestApexSet(t *testing.T) {
 	m := ctx.ModuleForTests("myapex", "android_common")
 
 	// Check extract_apks tool parameters.
-	extractedApex := m.Output(buildDir + "/.intermediates/myapex/android_common/foo_v2.apex")
+	extractedApex := m.Output("out/soong/.intermediates/myapex/android_common/foo_v2.apex")
 	actual := extractedApex.Args["abis"]
 	expected := "ARMEABI_V7A,ARM64_V8A"
 	if actual != expected {
@@ -7399,12 +7440,5 @@ func TestPrebuiltStubLibDep(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	run := func() int {
-		setUp()
-		defer tearDown()
-
-		return m.Run()
-	}
-
-	os.Exit(run())
+	os.Exit(m.Run())
 }

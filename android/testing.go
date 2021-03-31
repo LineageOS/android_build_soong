@@ -816,6 +816,22 @@ func (m TestingModule) VariablesForTestsRelativeToTop() map[string]string {
 	return normalizeStringMapRelativeToTop(m.config, m.module.VariablesForTests())
 }
 
+// OutputFiles calls OutputFileProducer.OutputFiles on the encapsulated module, exits the test
+// immediately if there is an error and otherwise returns the result of calling Paths.RelativeToTop
+// on the returned Paths.
+func (m TestingModule) OutputFiles(t *testing.T, tag string) Paths {
+	producer, ok := m.module.(OutputFileProducer)
+	if !ok {
+		t.Fatalf("%q must implement OutputFileProducer\n", m.module.Name())
+	}
+	paths, err := producer.OutputFiles(tag)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return paths.RelativeToTop()
+}
+
 // TestingSingleton is wrapper around an android.Singleton that provides methods to find information about individual
 // ctx.Build parameters for verification in tests.
 type TestingSingleton struct {
@@ -1039,4 +1055,21 @@ func StringPathsRelativeToTop(soongOutDir string, paths []string) []string {
 		result = append(result, relative)
 	}
 	return result
+}
+
+// StringRelativeToTop will normalize a string containing paths, e.g. ninja command, by replacing
+// any references to the test specific temporary build directory that changes with each run to a
+// fixed path relative to a notional top directory.
+//
+// This is similar to StringPathRelativeToTop except that assumes the string is a single path
+// containing at most one instance of the temporary build directory at the start of the path while
+// this assumes that there can be any number at any position.
+func StringRelativeToTop(config Config, command string) string {
+	return normalizeStringRelativeToTop(config, command)
+}
+
+// StringsRelativeToTop will return a new slice such that each item in the new slice is the result
+// of calling StringRelativeToTop on the corresponding item in the input slice.
+func StringsRelativeToTop(config Config, command []string) []string {
+	return normalizeStringArrayRelativeToTop(config, command)
 }

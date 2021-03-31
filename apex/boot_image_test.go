@@ -177,8 +177,10 @@ func TestBootImageInArtApex(t *testing.T) {
 			boot_images: [
 				"mybootimage",
 			],
+			// bar (like foo) should be transitively included in this apex because it is part of the
+			// mybootimage boot_image. However, it is kept here to ensure that the apex dedups the files
+			// correctly.
 			java_libs: [
-				"foo",
 				"bar",
 			],
 			updatable: false,
@@ -247,7 +249,6 @@ func TestBootImageInArtApex(t *testing.T) {
 	java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
 		`bar`,
 		`com.android.art.key`,
-		`foo`,
 		`mybootimage`,
 	})
 }
@@ -312,6 +313,69 @@ func TestBootImageInPrebuiltArtApex(t *testing.T) {
 		`dex2oatd`,
 		`prebuilt_bar`,
 		`prebuilt_foo`,
+	})
+}
+
+func TestBootImageContentsNoName(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithBootImage,
+		prepareForTestWithMyapex,
+	).RunTestWithBp(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			boot_images: [
+				"mybootimage",
+			],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "foo",
+			srcs: ["b.java"],
+			installable: true,
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java"],
+			installable: true,
+			apex_available: [
+				"myapex",
+			],
+		}
+
+		boot_image {
+			name: "mybootimage",
+			contents: [
+				"foo",
+				"bar",
+			],
+			apex_available: [
+				"myapex",
+			],
+		}
+	`)
+
+	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+		// This does not include art, oat or vdex files as they are only included for the art boot
+		// image.
+		"javalib/bar.jar",
+		"javalib/foo.jar",
+	})
+
+	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
+		`myapex.key`,
+		`mybootimage`,
 	})
 }
 

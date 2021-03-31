@@ -30,7 +30,7 @@ var PrepareForTestWithFilegroup = FixtureRegisterWithContext(func(ctx Registrati
 
 // https://docs.bazel.build/versions/master/be/general.html#filegroup
 type bazelFilegroupAttributes struct {
-	Srcs bazel.LabelList
+	Srcs bazel.LabelListAttribute
 }
 
 type bazelFilegroup struct {
@@ -57,8 +57,10 @@ func FilegroupBp2Build(ctx TopDownMutatorContext) {
 		return
 	}
 
+	srcs := bazel.MakeLabelListAttribute(
+		BazelLabelForModuleSrcExcludes(ctx, fg.properties.Srcs, fg.properties.Exclude_srcs))
 	attrs := &bazelFilegroupAttributes{
-		Srcs: BazelLabelForModuleSrcExcludes(ctx, fg.properties.Srcs, fg.properties.Exclude_srcs),
+		Srcs: srcs,
 	}
 
 	props := bazel.BazelTargetModuleProperties{Rule_class: "filegroup"}

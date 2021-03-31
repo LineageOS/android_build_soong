@@ -502,8 +502,6 @@ genrule {
 			expectedBazelTargets: []string{
 				`filegroup(
     name = "fg_foo",
-    srcs = [
-    ],
 )`,
 			},
 		},
@@ -1101,8 +1099,8 @@ genrule {
         "out",
     ],
     srcs = [
-        "srcs-from-3",
         "in1",
+        "srcs-from-3",
     ],
 )`,
 			description: "genrule applies properties from genrule_defaults transitively",
