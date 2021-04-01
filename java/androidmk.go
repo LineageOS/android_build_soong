@@ -106,7 +106,7 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 					if len(library.dexpreopter.builtInstalled) > 0 {
 						entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", library.dexpreopter.builtInstalled)
 					}
-					entries.SetString("LOCAL_SDK_VERSION", library.SdkVersion().Raw)
+					entries.SetString("LOCAL_SDK_VERSION", library.sdkVersion.String())
 					entries.SetPath("LOCAL_SOONG_CLASSES_JAR", library.implementationAndResourcesJar)
 					entries.SetPath("LOCAL_SOONG_HEADER_JAR", library.headerJarFile)
 
@@ -205,7 +205,7 @@ func (prebuilt *Import) AndroidMkEntries() []android.AndroidMkEntries {
 				}
 				entries.SetPath("LOCAL_SOONG_HEADER_JAR", prebuilt.combinedClasspathFile)
 				entries.SetPath("LOCAL_SOONG_CLASSES_JAR", prebuilt.combinedClasspathFile)
-				entries.SetString("LOCAL_SDK_VERSION", prebuilt.makeSdkVersion())
+				entries.SetString("LOCAL_SDK_VERSION", prebuilt.sdkVersion.String())
 				entries.SetString("LOCAL_MODULE_STEM", prebuilt.Stem())
 			},
 		},
@@ -255,7 +255,7 @@ func (prebuilt *AARImport) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetPath("LOCAL_SOONG_EXPORT_PROGUARD_FLAGS", prebuilt.proguardFlags)
 				entries.SetPath("LOCAL_SOONG_STATIC_LIBRARY_EXTRA_PACKAGES", prebuilt.extraAaptPackagesFile)
 				entries.SetPath("LOCAL_FULL_MANIFEST_FILE", prebuilt.manifest)
-				entries.SetString("LOCAL_SDK_VERSION", prebuilt.SdkVersion().Raw)
+				entries.SetString("LOCAL_SDK_VERSION", prebuilt.sdkVersion.String())
 			},
 		},
 	}}

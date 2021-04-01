@@ -946,16 +946,19 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 			depInfos[to.Name()] = info
 		} else {
 			toMinSdkVersion := "(no version)"
-			if m, ok := to.(interface{ MinSdkVersion() string }); ok {
+			if m, ok := to.(interface {
+				MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec
+			}); ok {
+				if v := m.MinSdkVersion(ctx); !v.ApiLevel.IsNone() {
+					toMinSdkVersion = v.ApiLevel.String()
+				}
+			} else if m, ok := to.(interface{ MinSdkVersion() string }); ok {
+				// TODO(b/175678607) eliminate the use of MinSdkVersion returning
+				// string
 				if v := m.MinSdkVersion(); v != "" {
 					toMinSdkVersion = v
 				}
-			} else if m, ok := to.(interface{ MinSdkVersionString() string }); ok {
-				if v := m.MinSdkVersionString(); v != "" {
-					toMinSdkVersion = v
-				}
 			}
-
 			depInfos[to.Name()] = android.ApexModuleDepInfo{
 				To:            to.Name(),
 				From:          []string{from.Name()},

@@ -261,20 +261,20 @@ func JavadocHostFactory() android.Module {
 
 var _ android.OutputFileProducer = (*Javadoc)(nil)
 
-func (j *Javadoc) SdkVersion() android.SdkSpec {
-	return android.SdkSpecFrom(String(j.properties.Sdk_version))
+func (j *Javadoc) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpecFrom(ctx, String(j.properties.Sdk_version))
 }
 
 func (j *Javadoc) SystemModules() string {
 	return proptools.String(j.properties.System_modules)
 }
 
-func (j *Javadoc) MinSdkVersion() android.SdkSpec {
-	return j.SdkVersion()
+func (j *Javadoc) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return j.SdkVersion(ctx)
 }
 
-func (j *Javadoc) TargetSdkVersion() android.SdkSpec {
-	return j.SdkVersion()
+func (j *Javadoc) TargetSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return j.SdkVersion(ctx)
 }
 
 func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
@@ -386,7 +386,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			}
 		case libTag:
 			if dep, ok := module.(SdkLibraryDependency); ok {
-				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.SdkVersion())...)
+				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.SdkVersion(ctx))...)
 			} else if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
 				dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
 				deps.classpath = append(deps.classpath, dep.HeaderJars...)

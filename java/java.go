@@ -356,7 +356,7 @@ func getJavaVersion(ctx android.ModuleContext, javaVersion string, sdkContext an
 	if javaVersion != "" {
 		return normalizeJavaVersion(ctx, javaVersion)
 	} else if ctx.Device() {
-		return defaultJavaLanguageVersion(ctx, sdkContext.SdkVersion())
+		return defaultJavaLanguageVersion(ctx, sdkContext.SdkVersion(ctx))
 	} else {
 		return JAVA_VERSION_9
 	}
@@ -462,6 +462,9 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// so the hidden api will encode the <x>.impl java_ library created by java_sdk_library just as it
 	// would the <x> library if <x> was configured as a boot jar.
 	j.initHiddenAPI(ctx, j.ConfigurationName())
+
+	j.sdkVersion = j.SdkVersion(ctx)
+	j.minSdkVersion = j.MinSdkVersion(ctx)
 
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
@@ -1130,33 +1133,28 @@ type Import struct {
 	exportAidlIncludeDirs android.Paths
 
 	hideApexVariantFromMake bool
+
+	sdkVersion    android.SdkSpec
+	minSdkVersion android.SdkSpec
 }
 
-func (j *Import) SdkVersion() android.SdkSpec {
-	return android.SdkSpecFrom(String(j.properties.Sdk_version))
-}
-
-func (j *Import) makeSdkVersion() string {
-	return j.SdkVersion().Raw
+func (j *Import) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpecFrom(ctx, String(j.properties.Sdk_version))
 }
 
 func (j *Import) SystemModules() string {
 	return "none"
 }
 
-func (j *Import) MinSdkVersion() android.SdkSpec {
+func (j *Import) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	if j.properties.Min_sdk_version != nil {
-		return android.SdkSpecFrom(*j.properties.Min_sdk_version)
+		return android.SdkSpecFrom(ctx, *j.properties.Min_sdk_version)
 	}
-	return j.SdkVersion()
+	return j.SdkVersion(ctx)
 }
 
-func (j *Import) TargetSdkVersion() android.SdkSpec {
-	return j.SdkVersion()
-}
-
-func (j *Import) MinSdkVersionString() string {
-	return j.MinSdkVersion().ApiLevel.String()
+func (j *Import) TargetSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return j.SdkVersion(ctx)
 }
 
 func (j *Import) Prebuilt() *android.Prebuilt {
@@ -1192,6 +1190,9 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	j.sdkVersion = j.SdkVersion(ctx)
+	j.minSdkVersion = j.MinSdkVersion(ctx)
+
 	// Initialize the hiddenapi structure.
 	j.initHiddenAPI(ctx, j.BaseModuleName())
 
@@ -1230,7 +1231,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		} else if dep, ok := module.(SdkLibraryDependency); ok {
 			switch tag {
 			case libTag:
-				flags.classpath = append(flags.classpath, dep.SdkHeaderJars(ctx, j.SdkVersion())...)
+				flags.classpath = append(flags.classpath, dep.SdkHeaderJars(ctx, j.SdkVersion(ctx))...)
 			}
 		}
 
@@ -1291,7 +1292,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			j.dexpreopter.uncompressedDex = *j.dexProperties.Uncompress_dex
 
 			var dexOutputFile android.OutputPath
-			dexOutputFile = j.dexer.compileDex(ctx, flags, j.MinSdkVersion(), outputFile, jarName)
+			dexOutputFile = j.dexer.compileDex(ctx, flags, j.MinSdkVersion(ctx), outputFile, jarName)
 			if ctx.Failed() {
 				return
 			}
@@ -1359,7 +1360,7 @@ func (j *Import) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 // Implements android.ApexModule
 func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
-	sdkSpec := j.MinSdkVersion()
+	sdkSpec := j.MinSdkVersion(ctx)
 	if !sdkSpec.Specified() {
 		return fmt.Errorf("min_sdk_version is not specified")
 	}

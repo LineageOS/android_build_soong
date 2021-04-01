@@ -218,7 +218,7 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 	linkDeps = append(linkDeps, assetDeps...)
 
 	// SDK version flags
-	minSdkVersion, err := sdkContext.MinSdkVersion().EffectiveVersionString(ctx)
+	minSdkVersion, err := sdkContext.MinSdkVersion(ctx).EffectiveVersionString(ctx)
 	if err != nil {
 		ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 	}
@@ -609,6 +609,9 @@ type AARImport struct {
 	hideApexVariantFromMake bool
 
 	aarPath android.Path
+
+	sdkVersion    android.SdkSpec
+	minSdkVersion android.SdkSpec
 }
 
 var _ android.OutputFileProducer = (*AARImport)(nil)
@@ -625,23 +628,23 @@ func (a *AARImport) OutputFiles(tag string) (android.Paths, error) {
 	}
 }
 
-func (a *AARImport) SdkVersion() android.SdkSpec {
-	return android.SdkSpecFrom(String(a.properties.Sdk_version))
+func (a *AARImport) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpecFrom(ctx, String(a.properties.Sdk_version))
 }
 
 func (a *AARImport) SystemModules() string {
 	return ""
 }
 
-func (a *AARImport) MinSdkVersion() android.SdkSpec {
+func (a *AARImport) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	if a.properties.Min_sdk_version != nil {
-		return android.SdkSpecFrom(*a.properties.Min_sdk_version)
+		return android.SdkSpecFrom(ctx, *a.properties.Min_sdk_version)
 	}
-	return a.SdkVersion()
+	return a.SdkVersion(ctx)
 }
 
-func (a *AARImport) TargetSdkVersion() android.SdkSpec {
-	return a.SdkVersion()
+func (a *AARImport) TargetSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return a.SdkVersion(ctx)
 }
 
 func (a *AARImport) javaVersion() string {
@@ -726,6 +729,9 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.PropertyErrorf("aars", "exactly one aar is required")
 		return
 	}
+
+	a.sdkVersion = a.SdkVersion(ctx)
+	a.minSdkVersion = a.MinSdkVersion(ctx)
 
 	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
 

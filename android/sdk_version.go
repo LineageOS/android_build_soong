@@ -22,15 +22,15 @@ import (
 
 type SdkContext interface {
 	// SdkVersion returns SdkSpec that corresponds to the sdk_version property of the current module
-	SdkVersion() SdkSpec
+	SdkVersion(ctx EarlyModuleContext) SdkSpec
 	// SystemModules returns the system_modules property of the current module, or an empty string if it is not set.
 	SystemModules() string
 	// MinSdkVersion returns SdkSpec that corresponds to the min_sdk_version property of the current module,
 	// or from sdk_version if it is not set.
-	MinSdkVersion() SdkSpec
+	MinSdkVersion(ctx EarlyModuleContext) SdkSpec
 	// TargetSdkVersion returns the SdkSpec that corresponds to the target_sdk_version property of the current module,
 	// or from sdk_version if it is not set.
-	TargetSdkVersion() SdkSpec
+	TargetSdkVersion(ctx EarlyModuleContext) SdkSpec
 }
 
 // SdkKind represents a particular category of an SDK spec like public, system, test, etc.
@@ -201,15 +201,23 @@ func (s SdkSpec) EffectiveVersionString(ctx EarlyModuleContext) (string, error) 
 	return ctx.Config().DefaultAppTargetSdk(ctx).String(), nil
 }
 
-func SdkSpecFrom(str string) SdkSpec {
+var (
+	SdkSpecNone = SdkSpec{SdkNone, NoneApiLevel, "(no version)"}
+	// TODO(b/175678607) ApiLevel of SdkSpecPrivate should be FutureApiLevel
+	SdkSpecPrivate = SdkSpec{SdkPrivate, NoneApiLevel, ""}
+	// TODO(b/175678607) ApiLevel of SdkSpecCorePlatform should be FutureApiLevel
+	SdkSpecCorePlatform = SdkSpec{SdkCorePlatform, NoneApiLevel, "core_platform"}
+)
+
+func SdkSpecFrom(ctx EarlyModuleContext, str string) SdkSpec {
 	switch str {
 	// special cases first
 	case "":
-		return SdkSpec{SdkPrivate, NoneApiLevel, str}
+		return SdkSpecPrivate
 	case "none":
-		return SdkSpec{SdkNone, NoneApiLevel, str}
+		return SdkSpecNone
 	case "core_platform":
-		return SdkSpec{SdkCorePlatform, NoneApiLevel, str}
+		return SdkSpecCorePlatform
 	default:
 		// the syntax is [kind_]version
 		sep := strings.LastIndex(str, "_")
@@ -242,15 +250,10 @@ func SdkSpecFrom(str string) SdkSpec {
 			return SdkSpec{SdkInvalid, NoneApiLevel, str}
 		}
 
-		var apiLevel ApiLevel
-		if versionString == "current" {
-			apiLevel = FutureApiLevel
-		} else if i, err := strconv.Atoi(versionString); err == nil {
-			apiLevel = uncheckedFinalApiLevel(i)
-		} else {
+		apiLevel, err := ApiLevelFromUser(ctx, versionString)
+		if err != nil {
 			return SdkSpec{SdkInvalid, apiLevel, str}
 		}
-
 		return SdkSpec{kind, apiLevel, str}
 	}
 }
