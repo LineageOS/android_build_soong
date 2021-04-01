@@ -41,7 +41,7 @@ func TestFixtureDedup(t *testing.T) {
 
 	group := GroupFixturePreparers(preparer1, preparer2, preparer1, preparer1Then2)
 
-	extension := group.Extend(preparer4, preparer2)
+	extension := GroupFixturePreparers(group, preparer4, preparer2)
 
 	GroupFixturePreparers(extension, preparer1, preparer2, preparer2Then1, preparer3).Fixture(t)
 
