@@ -551,6 +551,8 @@ type TestingBuildParams struct {
 //   * CommandOrderOnly
 //
 // See PathRelativeToTop for more details.
+//
+// deprecated: this is no longer needed as TestingBuildParams are created in this form.
 func (p TestingBuildParams) RelativeToTop() TestingBuildParams {
 	// If this is not a valid params then just return it back. That will make it easy to use with the
 	// Maybe...() methods.
@@ -558,7 +560,7 @@ func (p TestingBuildParams) RelativeToTop() TestingBuildParams {
 		return p
 	}
 	if p.config.config == nil {
-		panic("cannot call RelativeToTop() on a TestingBuildParams previously returned by RelativeToTop()")
+		return p
 	}
 	// Take a copy of the build params and replace any args that contains test specific temporary
 	// paths with paths relative to the top.
@@ -670,7 +672,7 @@ func (b baseTestingComponent) newTestingBuildParams(bparams BuildParams) Testing
 		config:      b.config,
 		BuildParams: bparams,
 		RuleParams:  b.provider.RuleParamsForTests()[bparams.Rule],
-	}
+	}.RelativeToTop()
 }
 
 func (b baseTestingComponent) maybeBuildParamsFromRule(rule string) (TestingBuildParams, []string) {

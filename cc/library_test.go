@@ -199,7 +199,7 @@ func TestStubsVersions(t *testing.T) {
 			},
 		}
 	`
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.Platform_version_active_codenames = []string{"R"}
 	ctx := testCcWithConfig(t, config)
 
@@ -222,7 +222,7 @@ func TestStubsVersions_NotSorted(t *testing.T) {
 			},
 		}
 	`
-	config := TestConfig(buildDir, android.Android, nil, bp, nil)
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.Platform_version_active_codenames = []string{"R"}
 	testCcErrorWithConfig(t, `"libfoo" .*: versions: not sorted`, config)
 }
