@@ -6936,56 +6936,6 @@ func TestIndirectTestFor(t *testing.T) {
 	ensureLinkedLibIs("myprivlib", "android_arm64_armv8-a_shared", "out/soong/.intermediates/mylib/", "android_arm64_armv8-a_shared/mylib.so")
 }
 
-func TestTestForForLibInOtherApex(t *testing.T) {
-	// This case is only allowed for known overlapping APEXes, i.e. the ART APEXes.
-	_ = testApex(t, `
-		apex {
-			name: "com.android.art",
-			key: "myapex.key",
-			native_shared_libs: ["mylib"],
-			updatable: false,
-		}
-
-		apex {
-			name: "com.android.art.debug",
-			key: "myapex.key",
-			native_shared_libs: ["mylib", "mytestlib"],
-			updatable: false,
-		}
-
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-
-		cc_library {
-			name: "mylib",
-			srcs: ["mylib.cpp"],
-			system_shared_libs: [],
-			stl: "none",
-			stubs: {
-				versions: ["1"],
-			},
-			apex_available: ["com.android.art", "com.android.art.debug"],
-		}
-
-		cc_library {
-			name: "mytestlib",
-			srcs: ["mylib.cpp"],
-			system_shared_libs: [],
-			shared_libs: ["mylib"],
-			stl: "none",
-			apex_available: ["com.android.art.debug"],
-			test_for: ["com.android.art"],
-		}
-	`,
-		android.MockFS{
-			"system/sepolicy/apex/com.android.art-file_contexts":       nil,
-			"system/sepolicy/apex/com.android.art.debug-file_contexts": nil,
-		}.AddToFixture())
-}
-
 // TODO(jungjw): Move this to proptools
 func intPtr(i int) *int {
 	return &i
