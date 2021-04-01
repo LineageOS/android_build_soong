@@ -52,7 +52,7 @@ func TestArchGenruleCmd(t *testing.T) {
 					},
 				}
 			`
-	config := android.TestArchConfig(buildDir, nil, bp, fs)
+	config := android.TestArchConfig(t.TempDir(), nil, bp, fs)
 
 	ctx := testGenruleContext(config)
 
