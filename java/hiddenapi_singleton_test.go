@@ -39,7 +39,8 @@ var hiddenApiFixtureFactory = android.GroupFixturePreparers(
 	prepareForJavaTest, PrepareForTestWithHiddenApiBuildComponents)
 
 func TestHiddenAPISingleton(t *testing.T) {
-	result := hiddenApiFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		hiddenApiFixtureFactory,
 		fixtureSetBootJarsProductVariable("platform:foo"),
 	).RunTestWithBp(t, `
 		java_library {
@@ -56,7 +57,8 @@ func TestHiddenAPISingleton(t *testing.T) {
 }
 
 func TestHiddenAPIIndexSingleton(t *testing.T) {
-	result := hiddenApiFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		hiddenApiFixtureFactory,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("bar"),
 		fixtureSetBootJarsProductVariable("platform:foo", "platform:bar"),
@@ -115,7 +117,8 @@ func TestHiddenAPISingletonWithSourceAndPrebuiltPreferredButNoDex(t *testing.T) 
 			" replaced by the prebuilt module \"prebuilt_foo\" but unfortunately it does not provide a" +
 			" suitable boot dex jar"
 
-	hiddenApiFixtureFactory.Extend(
+	android.GroupFixturePreparers(
+		hiddenApiFixtureFactory,
 		fixtureSetBootJarsProductVariable("platform:foo"),
 	).ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(expectedErrorMessage)).
 		RunTestWithBp(t, `
@@ -134,7 +137,8 @@ func TestHiddenAPISingletonWithSourceAndPrebuiltPreferredButNoDex(t *testing.T) 
 }
 
 func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {
-	result := hiddenApiFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		hiddenApiFixtureFactory,
 		fixtureSetBootJarsProductVariable("platform:foo"),
 	).RunTestWithBp(t, `
 		java_import {
@@ -151,7 +155,8 @@ func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {
 }
 
 func TestHiddenAPISingletonWithPrebuiltUseSource(t *testing.T) {
-	result := hiddenApiFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		hiddenApiFixtureFactory,
 		fixtureSetBootJarsProductVariable("platform:foo"),
 	).RunTestWithBp(t, `
 		java_library {
@@ -178,7 +183,8 @@ func TestHiddenAPISingletonWithPrebuiltUseSource(t *testing.T) {
 }
 
 func TestHiddenAPISingletonWithPrebuiltOverrideSource(t *testing.T) {
-	result := hiddenApiFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		hiddenApiFixtureFactory,
 		fixtureSetBootJarsProductVariable("platform:foo"),
 	).RunTestWithBp(t, `
 		java_library {
@@ -236,7 +242,8 @@ func TestHiddenAPISingletonSdks(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := hiddenApiFixtureFactory.Extend(
+			result := android.GroupFixturePreparers(
+				hiddenApiFixtureFactory,
 				tc.preparer,
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 					variables.Always_use_prebuilt_sdks = proptools.BoolPtr(tc.unbundledBuild)
@@ -286,7 +293,8 @@ func TestHiddenAPISingletonWithPrebuiltCsvFile(t *testing.T) {
 	// Where to find the prebuilt hiddenapi files:
 	prebuiltHiddenApiDir := "path/to/prebuilt/hiddenapi"
 
-	result := hiddenApiFixtureFactory.Extend(
+	result := android.GroupFixturePreparers(
+		hiddenApiFixtureFactory,
 		fixtureSetBootJarsProductVariable("platform:foo"),
 		fixtureSetPrebuiltHiddenApiDirProductVariable(&prebuiltHiddenApiDir),
 	).RunTestWithBp(t, `
