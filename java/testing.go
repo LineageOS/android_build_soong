@@ -194,6 +194,7 @@ func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterDocsBuildComponents(ctx)
 	RegisterGenRuleBuildComponents(ctx)
 	registerJavaBuildComponents(ctx)
+	registerPlatformBootclasspathBuildComponents(ctx)
 	RegisterPrebuiltApisBuildComponents(ctx)
 	RegisterRuntimeResourceOverlayBuildComponents(ctx)
 	RegisterSdkLibraryBuildComponents(ctx)
