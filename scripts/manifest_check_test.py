@@ -49,9 +49,9 @@ class EnforceUsesLibrariesTest(unittest.TestCase):
     try:
       relax = False
       manifest_check.enforce_uses_libraries(doc, uses_libraries,
-        optional_uses_libraries, relax, is_apk=False)
+        optional_uses_libraries, relax, False, 'path/to/X/AndroidManifest.xml')
       manifest_check.enforce_uses_libraries(apk, uses_libraries,
-        optional_uses_libraries, relax, is_apk=True)
+        optional_uses_libraries, relax, True, 'path/to/X/X.apk')
       return True
     except manifest_check.ManifestMismatchError:
       return False
