@@ -43,6 +43,10 @@ type logicalPartitionProperties struct {
 	// Total size of the logical partition
 	Size *string
 
+	// List of partitions for default group. Default group has no size limit and automatically
+	// minimized when creating an image.
+	Default_group []partitionProperties
+
 	// List of groups. A group defines a fixed sized region. It can host one or more logical
 	// partitions and their total size is limited by the size of the group they are in.
 	Groups []groupProperties
@@ -52,7 +56,7 @@ type logicalPartitionProperties struct {
 }
 
 type groupProperties struct {
-	// Name of the partition group
+	// Name of the partition group. Can't be "default"; use default_group instead.
 	Name *string
 
 	// Size of the partition group
@@ -92,14 +96,21 @@ func (l *logicalPartition) GenerateAndroidBuildActions(ctx android.ModuleContext
 	// Sparse the filesystem images and calculate their sizes
 	sparseImages := make(map[string]android.OutputPath)
 	sparseImageSizes := make(map[string]android.OutputPath)
-	for _, group := range l.properties.Groups {
-		for _, part := range group.Partitions {
+
+	sparsePartitions := func(partitions []partitionProperties) {
+		for _, part := range partitions {
 			sparseImg, sizeTxt := sparseFilesystem(ctx, part, builder)
 			pName := proptools.String(part.Name)
 			sparseImages[pName] = sparseImg
 			sparseImageSizes[pName] = sizeTxt
 		}
 	}
+
+	for _, group := range l.properties.Groups {
+		sparsePartitions(group.Partitions)
+	}
+
+	sparsePartitions(l.properties.Default_group)
 
 	cmd := builder.Command().BuiltTool("lpmake")
 
@@ -123,10 +134,32 @@ func (l *logicalPartition) GenerateAndroidBuildActions(ctx android.ModuleContext
 	groupNames := make(map[string]bool)
 	partitionNames := make(map[string]bool)
 
+	addPartitionsToGroup := func(partitions []partitionProperties, gName string) {
+		for _, part := range partitions {
+			pName := proptools.String(part.Name)
+			if pName == "" {
+				ctx.PropertyErrorf("groups.partitions.name", "must be set")
+			}
+			if _, ok := partitionNames[pName]; ok {
+				ctx.PropertyErrorf("groups.partitions.name", "already exists")
+			} else {
+				partitionNames[pName] = true
+			}
+			// Get size of the partition by reading the -size.txt file
+			pSize := fmt.Sprintf("$(cat %s)", sparseImageSizes[pName])
+			cmd.FlagWithArg("--partition=", fmt.Sprintf("%s:readonly:%s:%s", pName, pSize, gName))
+			cmd.FlagWithInput("--image="+pName+"=", sparseImages[pName])
+		}
+	}
+
+	addPartitionsToGroup(l.properties.Default_group, "default")
+
 	for _, group := range l.properties.Groups {
 		gName := proptools.String(group.Name)
 		if gName == "" {
 			ctx.PropertyErrorf("groups.name", "must be set")
+		} else if gName == "default" {
+			ctx.PropertyErrorf("groups.name", `can't use "default" as a group name. Use default_group instead`)
 		}
 		if _, ok := groupNames[gName]; ok {
 			ctx.PropertyErrorf("group.name", "already exists")
@@ -142,21 +175,7 @@ func (l *logicalPartition) GenerateAndroidBuildActions(ctx android.ModuleContext
 		}
 		cmd.FlagWithArg("--group=", gName+":"+gSize)
 
-		for _, part := range group.Partitions {
-			pName := proptools.String(part.Name)
-			if pName == "" {
-				ctx.PropertyErrorf("groups.partitions.name", "must be set")
-			}
-			if _, ok := partitionNames[pName]; ok {
-				ctx.PropertyErrorf("groups.partitions.name", "already exists")
-			} else {
-				partitionNames[pName] = true
-			}
-			// Get size of the partition by reading the -size.txt file
-			pSize := fmt.Sprintf("$(cat %s)", sparseImageSizes[pName])
-			cmd.FlagWithArg("--partition=", fmt.Sprintf("%s:readonly:%s:%s", pName, pSize, gName))
-			cmd.FlagWithInput("--image="+pName+"=", sparseImages[pName])
-		}
+		addPartitionsToGroup(group.Partitions, gName)
 	}
 
 	l.output = android.PathForModuleOut(ctx, l.installFileName()).OutputPath
