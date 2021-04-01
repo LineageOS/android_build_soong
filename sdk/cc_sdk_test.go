@@ -2407,6 +2407,7 @@ cc_prebuilt_library_shared {
             "1",
             "2",
             "3",
+            "current",
         ],
     },
     arch: {
@@ -2461,6 +2462,7 @@ cc_prebuilt_library_shared {
             "1",
             "2",
             "3",
+            "current",
         ],
     },
     target: {
@@ -2500,6 +2502,7 @@ cc_prebuilt_library_shared {
             "1",
             "2",
             "3",
+            "current",
         ],
     },
     target: {

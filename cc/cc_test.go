@@ -2672,9 +2672,11 @@ func TestLlndkLibrary(t *testing.T) {
 	expected := []string{
 		"android_vendor.VER_arm64_armv8-a_shared_1",
 		"android_vendor.VER_arm64_armv8-a_shared_2",
+		"android_vendor.VER_arm64_armv8-a_shared_current",
 		"android_vendor.VER_arm64_armv8-a_shared",
 		"android_vendor.VER_arm_armv7-a-neon_shared_1",
 		"android_vendor.VER_arm_armv7-a-neon_shared_2",
+		"android_vendor.VER_arm_armv7-a-neon_shared_current",
 		"android_vendor.VER_arm_armv7-a-neon_shared",
 	}
 	checkEquals(t, "variants for llndk stubs", expected, actual)
@@ -3174,10 +3176,12 @@ func TestVersionedStubs(t *testing.T) {
 		"android_arm64_armv8-a_shared_1",
 		"android_arm64_armv8-a_shared_2",
 		"android_arm64_armv8-a_shared_3",
+		"android_arm64_armv8-a_shared_current",
 		"android_arm_armv7-a-neon_shared",
 		"android_arm_armv7-a-neon_shared_1",
 		"android_arm_armv7-a-neon_shared_2",
 		"android_arm_armv7-a-neon_shared_3",
+		"android_arm_armv7-a-neon_shared_current",
 	}
 	variantsMismatch := false
 	if len(variants) != len(expectedVariants) {
