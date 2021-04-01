@@ -402,14 +402,16 @@ func TestClasspath(t *testing.T) {
 
 			// Test again with PLATFORM_VERSION_CODENAME=REL, javac -source 8 -target 8
 			t.Run("REL + Java language level 8", func(t *testing.T) {
-				result := fixtureFactory.Extend(prepareWithPlatformVersionRel).RunTestWithBp(t, bpJava8)
+				result := android.GroupFixturePreparers(
+					fixtureFactory, prepareWithPlatformVersionRel).RunTestWithBp(t, bpJava8)
 
 				checkClasspath(t, result, true /* isJava8 */)
 			})
 
 			// Test again with PLATFORM_VERSION_CODENAME=REL, javac -source 9 -target 9
 			t.Run("REL + Java language level 9", func(t *testing.T) {
-				result := fixtureFactory.Extend(prepareWithPlatformVersionRel).RunTestWithBp(t, bp)
+				result := android.GroupFixturePreparers(
+					fixtureFactory, prepareWithPlatformVersionRel).RunTestWithBp(t, bp)
 
 				checkClasspath(t, result, false /* isJava8 */)
 			})
