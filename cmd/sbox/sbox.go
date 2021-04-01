@@ -387,6 +387,14 @@ func copyOneFile(from string, to string, executable bool) error {
 	}
 	defer in.Close()
 
+	// Remove the target before copying.  In most cases the file won't exist, but if there are
+	// duplicate copy rules for a file and the source file was read-only the second copy could
+	// fail.
+	err = os.Remove(to)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
 	out, err := os.Create(to)
 	if err != nil {
 		return err
