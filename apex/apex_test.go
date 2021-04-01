@@ -6658,45 +6658,33 @@ func testApexPermittedPackagesRules(t *testing.T, errmsg, bp string, apexBootJar
 		public_key: "testkey.avbpubkey",
 		private_key: "testkey.pem",
 	}`
-	fs := map[string][]byte{
+	fs := android.MockFS{
 		"lib1/src/A.java": nil,
 		"lib2/src/B.java": nil,
 		"system/sepolicy/apex/myapex-file_contexts": nil,
 	}
 
-	config := android.TestArchConfig(t.TempDir(), nil, bp, fs)
-	android.SetTestNeverallowRules(config, rules)
-	updatableBootJars := make([]string, 0, len(apexBootJars))
-	for _, apexBootJar := range apexBootJars {
-		updatableBootJars = append(updatableBootJars, "myapex:"+apexBootJar)
+	errorHandler := android.FixtureExpectsNoErrors
+	if errmsg != "" {
+		errorHandler = android.FixtureExpectsAtLeastOneErrorMatchingPattern(errmsg)
 	}
-	config.TestProductVariables.UpdatableBootJars = android.CreateTestConfiguredJarList(updatableBootJars)
 
-	ctx := android.NewTestArchContext(config)
-	ctx.RegisterModuleType("apex", BundleFactory)
-	ctx.RegisterModuleType("apex_key", ApexKeyFactory)
-	ctx.PreArchMutators(android.RegisterDefaultsPreArchMutators)
-	cc.RegisterRequiredBuildComponentsForTest(ctx)
-	java.RegisterRequiredBuildComponentsForTest(ctx)
-	ctx.PostDepsMutators(android.RegisterOverridePostDepsMutators)
-	ctx.PreDepsMutators(RegisterPreDepsMutators)
-	ctx.PostDepsMutators(RegisterPostDepsMutators)
-	ctx.PostDepsMutators(android.RegisterNeverallowMutator)
-
-	ctx.Register()
-
-	_, errs := ctx.ParseBlueprintsFiles("Android.bp")
-	android.FailIfErrored(t, errs)
-
-	_, errs = ctx.PrepareBuildActions(config)
-	if errmsg == "" {
-		android.FailIfErrored(t, errs)
-	} else if len(errs) > 0 {
-		android.FailIfNoMatchingErrors(t, errmsg, errs)
-		return
-	} else {
-		t.Fatalf("missing expected error %q (0 errors are returned)", errmsg)
-	}
+	android.GroupFixturePreparers(
+		android.PrepareForTestWithAndroidBuildComponents,
+		java.PrepareForTestWithJavaBuildComponents,
+		PrepareForTestWithApexBuildComponents,
+		android.PrepareForTestWithNeverallowRules(rules),
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			updatableBootJars := make([]string, 0, len(apexBootJars))
+			for _, apexBootJar := range apexBootJars {
+				updatableBootJars = append(updatableBootJars, "myapex:"+apexBootJar)
+			}
+			variables.UpdatableBootJars = android.CreateTestConfiguredJarList(updatableBootJars)
+		}),
+		fs.AddToFixture(),
+	).
+		ExtendWithErrorHandler(errorHandler).
+		RunTestWithBp(t, bp)
 }
 
 func TestApexPermittedPackagesRules(t *testing.T) {
