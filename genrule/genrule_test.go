@@ -670,7 +670,8 @@ func TestGenruleAllowMissingDependencies(t *testing.T) {
 			cmd: "cat $(in) > $(out)",
 		}
        `
-	result := prepareForGenRuleTest.Extend(
+	result := android.GroupFixturePreparers(
+		prepareForGenRuleTest,
 		android.FixtureModifyConfigAndContext(
 			func(config android.Config, ctx *android.TestContext) {
 				config.TestProductVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
