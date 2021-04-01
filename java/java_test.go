@@ -74,23 +74,6 @@ func testJavaError(t *testing.T, pattern string, bp string) (*android.TestContex
 	return result.TestContext, result.Config
 }
 
-// testJavaErrorWithConfig is a legacy way of running tests of java modules that expect errors.
-//
-// See testJava for an explanation as to how to stop using this deprecated method.
-//
-// deprecated
-func testJavaErrorWithConfig(t *testing.T, pattern string, config android.Config) (*android.TestContext, android.Config) {
-	t.Helper()
-	// This must be done on the supplied config and not as part of the fixture because any changes to
-	// the fixture's config will be ignored when RunTestWithConfig replaces it.
-	pathCtx := android.PathContextForTesting(config)
-	dexpreopt.SetTestGlobalConfig(config, dexpreopt.GlobalConfigForTests(pathCtx))
-	result := prepareForJavaTest.
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
-		RunTestWithConfig(t, config)
-	return result.TestContext, result.Config
-}
-
 // testJavaWithFS runs tests using the prepareForJavaTest
 //
 // See testJava for an explanation as to how to stop using this deprecated method.

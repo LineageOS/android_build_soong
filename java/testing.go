@@ -160,28 +160,6 @@ func FixtureWithPrebuiltApis(release2Modules map[string][]string) android.Fixtur
 	)
 }
 
-func TestConfig(buildDir string, env map[string]string, bp string, fs map[string][]byte) android.Config {
-	bp += GatherRequiredDepsForTest()
-
-	mockFS := android.MockFS{}
-
-	cc.GatherRequiredFilesForTest(mockFS)
-
-	for k, v := range fs {
-		mockFS[k] = v
-	}
-
-	if env == nil {
-		env = make(map[string]string)
-	}
-	if env["ANDROID_JAVA8_HOME"] == "" {
-		env["ANDROID_JAVA8_HOME"] = "jdk8"
-	}
-	config := android.TestArchConfig(buildDir, env, bp, mockFS)
-
-	return config
-}
-
 func prebuiltApisFilesForLibs(apiLevels []string, sdkLibs []string) map[string][]byte {
 	fs := make(map[string][]byte)
 	for _, level := range apiLevels {
@@ -200,19 +178,6 @@ func prebuiltApisFilesForLibs(apiLevels []string, sdkLibs []string) map[string][
 	return fs
 }
 
-// Register build components provided by this package that are needed by tests.
-//
-// In particular this must register all the components that are used in the `Android.bp` snippet
-// returned by GatherRequiredDepsForTest()
-//
-// deprecated: Use test fixtures instead, e.g. PrepareForTestWithJavaBuildComponents
-func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
-	registerRequiredBuildComponentsForTest(ctx)
-
-	// Make sure that any tool related module types needed by dexpreopt have been registered.
-	dexpreopt.RegisterToolModulesForTest(ctx)
-}
-
 // registerRequiredBuildComponentsForTest registers the build components used by
 // PrepareForTestWithJavaDefaultModules.
 //
@@ -228,29 +193,12 @@ func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterDexpreoptBootJarsComponents(ctx)
 	RegisterDocsBuildComponents(ctx)
 	RegisterGenRuleBuildComponents(ctx)
-	RegisterJavaBuildComponents(ctx)
+	registerJavaBuildComponents(ctx)
 	RegisterPrebuiltApisBuildComponents(ctx)
 	RegisterRuntimeResourceOverlayBuildComponents(ctx)
 	RegisterSdkLibraryBuildComponents(ctx)
 	RegisterStubsBuildComponents(ctx)
 	RegisterSystemModulesBuildComponents(ctx)
-}
-
-// Gather the module definitions needed by tests that depend upon code from this package.
-//
-// Returns an `Android.bp` snippet that defines the modules that are needed by this package.
-//
-// deprecated: Use test fixtures instead, e.g. PrepareForTestWithJavaDefaultModules
-func GatherRequiredDepsForTest() string {
-	bp := gatherRequiredDepsForTest()
-
-	// For class loader context and <uses-library> tests.
-	bp += dexpreopt.CompatLibDefinitionsForTest()
-
-	// Make sure that any tools needed for dexpreopting are defined.
-	bp += dexpreopt.BpToolModulesForTest()
-
-	return bp
 }
 
 // gatherRequiredDepsForTest gathers the module definitions used by
