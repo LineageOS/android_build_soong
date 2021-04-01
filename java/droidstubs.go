@@ -284,7 +284,7 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 		cmd.Flag("--include-annotations")
 
 		validatingNullability :=
-			android.InList("--validate-nullability-from-merged-stubs", d.Javadoc.args) ||
+			strings.Contains(String(d.Javadoc.properties.Args), "--validate-nullability-from-merged-stubs") ||
 				String(d.properties.Validate_nullability_from_list) != ""
 
 		migratingNullability := String(d.properties.Previous_api) != ""
@@ -360,7 +360,16 @@ func (d *Droidstubs) apiLevelsAnnotationsFlags(ctx android.ModuleContext, cmd *a
 	ctx.VisitDirectDepsWithTag(metalavaAPILevelsAnnotationsDirTag, func(m android.Module) {
 		if t, ok := m.(*ExportedDroiddocDir); ok {
 			for _, dep := range t.deps {
-				if strings.HasSuffix(dep.String(), filename) {
+				if dep.Base() == filename {
+					cmd.Implicit(dep)
+				}
+				if filename != "android.jar" && dep.Base() == "android.jar" {
+					// Metalava implicitly searches these patterns:
+					//  prebuilts/tools/common/api-versions/android-%/android.jar
+					//  prebuilts/sdk/%/public/android.jar
+					// Add android.jar files from the api_levels_annotations_dirs directories to try
+					// to satisfy these patterns.  If Metalava can't find a match for an API level
+					// between 1 and 28 in at least one pattern it will fail.
 					cmd.Implicit(dep)
 				}
 			}
@@ -473,7 +482,7 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	rule := android.NewRuleBuilder(pctx, ctx)
 
-	sandbox := proptools.Bool(d.Javadoc.properties.Sandbox)
+	sandbox := proptools.BoolDefault(d.Javadoc.properties.Sandbox, true)
 	if sandbox {
 		rule.Sbox(android.PathForModuleOut(ctx, "metalava"),
 			android.PathForModuleOut(ctx, "metalava.sbox.textproto")).
@@ -509,14 +518,8 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	d.inclusionAnnotationsFlags(ctx, cmd)
 	d.apiLevelsAnnotationsFlags(ctx, cmd)
 
-	if android.InList("--generate-documentation", d.Javadoc.args) {
-		// Currently Metalava have the ability to invoke Javadoc in a separate process.
-		// Pass "-nodocs" to suppress the Javadoc invocation when Metalava receives
-		// "--generate-documentation" arg. This is not needed when Metalava removes this feature.
-		d.Javadoc.args = append(d.Javadoc.args, "-nodocs")
-	}
+	d.expandArgs(ctx, cmd)
 
-	cmd.Flag(strings.Join(d.Javadoc.args, " ")).Implicits(d.Javadoc.argFiles)
 	for _, o := range d.Javadoc.properties.Out {
 		cmd.ImplicitOutput(android.PathForModuleGen(ctx, o))
 	}

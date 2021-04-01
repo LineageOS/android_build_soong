@@ -27,7 +27,6 @@ MODULES_SDK_AND_EXPORTS=(
   platform-mainline-test-exports
   runtime-module-host-exports
   runtime-module-sdk
-  stats-log-api-gen-exports
   statsd-module-sdk
   statsd-module-sdk-for-art
   tzdata-module-test-exports

@@ -226,10 +226,7 @@ type Javadoc struct {
 	srcJars     android.Paths
 	srcFiles    android.Paths
 	sourcepaths android.Paths
-	argFiles    android.Paths
 	implicits   android.Paths
-
-	args []string
 
 	docZip      android.WritablePath
 	stubsSrcJar android.WritablePath
@@ -480,15 +477,20 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		j.sourcepaths = android.PathsForModuleSrc(ctx, []string{"."})
 	}
 
-	j.argFiles = android.PathsForModuleSrc(ctx, j.properties.Arg_files)
+	return deps
+}
+
+func (j *Javadoc) expandArgs(ctx android.ModuleContext, cmd *android.RuleBuilderCommand) {
+	var argFiles android.Paths
 	argFilesMap := map[string]string{}
 	argFileLabels := []string{}
 
 	for _, label := range j.properties.Arg_files {
 		var paths = android.PathsForModuleSrc(ctx, []string{label})
 		if _, exists := argFilesMap[label]; !exists {
-			argFilesMap[label] = strings.Join(paths.Strings(), " ")
+			argFilesMap[label] = strings.Join(cmd.PathsForInputs(paths), " ")
 			argFileLabels = append(argFileLabels, label)
+			argFiles = append(argFiles, paths...)
 		} else {
 			ctx.ModuleErrorf("multiple arg_files for %q, %q and %q",
 				label, argFilesMap[label], paths)
@@ -508,7 +510,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	}
 
 	for _, flag := range flags {
-		args, err := android.Expand(flag, func(name string) (string, error) {
+		expanded, err := android.Expand(flag, func(name string) (string, error) {
 			if strings.HasPrefix(name, "location ") {
 				label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
 				if paths, ok := argFilesMap[label]; ok {
@@ -526,10 +528,10 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 		if err != nil {
 			ctx.PropertyErrorf(argsPropertyName, "%s", err.Error())
 		}
-		j.args = append(j.args, args)
+		cmd.Flag(expanded)
 	}
 
-	return deps
+	cmd.Implicits(argFiles)
 }
 
 func (j *Javadoc) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -562,6 +564,8 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Flag("-J-Xmx1024m").
 		Flag("-XDignore.symbol.file").
 		Flag("-Xdoclint:none")
+
+	j.expandArgs(ctx, cmd)
 
 	rule.Command().
 		BuiltTool("soong_zip").
@@ -821,7 +825,7 @@ func (d *Droiddoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			deps.bootClasspath, deps.classpath, d.Javadoc.sourcepaths)
 	}
 
-	cmd.Flag(strings.Join(d.Javadoc.args, " ")).Implicits(d.Javadoc.argFiles)
+	d.expandArgs(ctx, cmd)
 
 	if d.properties.Compat_config != nil {
 		compatConfig := android.PathForModuleSrc(ctx, String(d.properties.Compat_config))

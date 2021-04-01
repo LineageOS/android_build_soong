@@ -286,9 +286,9 @@ func (p OptionalPath) Path() Path {
 	return p.path
 }
 
-// RelativeToPath returns an OptionalPath with the path that was embedded having been replaced by
-// the result of calling Path.RelativeToPath on it.
-func (p OptionalPath) RelativeToPath() OptionalPath {
+// RelativeToTop returns an OptionalPath with the path that was embedded having been replaced by the
+// result of calling Path.RelativeToTop on it.
+func (p OptionalPath) RelativeToTop() OptionalPath {
 	if !p.valid {
 		return p
 	}

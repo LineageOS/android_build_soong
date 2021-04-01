@@ -61,7 +61,7 @@ func TestProto(t *testing.T) {
 			t.Errorf("expected %q in %q", w, cmd)
 		}
 
-		foobarPath := foobar.Module().(android.HostToolProvider).HostToolPath().String()
+		foobarPath := foobar.Module().(android.HostToolProvider).HostToolPath().RelativeToTop().String()
 
 		if w := "--plugin=protoc-gen-foobar=" + foobarPath; !strings.Contains(cmd, w) {
 			t.Errorf("expected %q in %q", w, cmd)

@@ -485,7 +485,7 @@ func TestBasicApex(t *testing.T) {
 		}
 	`)
 
-	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule").RelativeToTop()
+	apexRule := ctx.ModuleForTests("myapex", "android_common_myapex_image").Rule("apexRule")
 
 	// Make sure that Android.mk is created
 	ab := ctx.ModuleForTests("myapex", "android_common_myapex_image").Module().(*apexBundle)
@@ -2498,7 +2498,7 @@ func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 
 	vendorVariant := "android_vendor.VER_arm64_armv8-a"
 
-	ldRule := ctx.ModuleForTests("mybin", vendorVariant+"_apex10000").Rule("ld").RelativeToTop()
+	ldRule := ctx.ModuleForTests("mybin", vendorVariant+"_apex10000").Rule("ld")
 	libs := names(ldRule.Args["libFlags"])
 	// VNDK libs(libvndk/libc++) as they are
 	ensureListContains(t, libs, "out/soong/.intermediates/libvndk/"+vendorVariant+"_shared/libvndk.so")
@@ -5066,7 +5066,7 @@ func TestApexWithApps(t *testing.T) {
 	}
 	// JNI libraries including transitive deps are
 	for _, jni := range []string{"libjni", "libfoo"} {
-		jniOutput := ctx.ModuleForTests(jni, "android_arm64_armv8-a_sdk_shared_apex10000").Module().(*cc.Module).OutputFile()
+		jniOutput := ctx.ModuleForTests(jni, "android_arm64_armv8-a_sdk_shared_apex10000").Module().(*cc.Module).OutputFile().RelativeToTop()
 		// ... embedded inside APK (jnilibs.zip)
 		ensureListContains(t, appZipRule.Implicits.Strings(), jniOutput.String())
 		// ... and not directly inside the APEX
@@ -6849,7 +6849,7 @@ func TestTestFor(t *testing.T) {
 	`)
 
 	ensureLinkedLibIs := func(mod, variant, linkedLib, expectedVariant string) {
-		ldFlags := strings.Split(ctx.ModuleForTests(mod, variant).Rule("ld").RelativeToTop().Args["libFlags"], " ")
+		ldFlags := strings.Split(ctx.ModuleForTests(mod, variant).Rule("ld").Args["libFlags"], " ")
 		mylibLdFlags := android.FilterListPred(ldFlags, func(s string) bool { return strings.HasPrefix(s, linkedLib) })
 		android.AssertArrayString(t, "unexpected "+linkedLib+" link library for "+mod, []string{linkedLib + expectedVariant}, mylibLdFlags)
 	}
@@ -6907,7 +6907,7 @@ func TestIndirectTestFor(t *testing.T) {
 	`)
 
 	ensureLinkedLibIs := func(mod, variant, linkedLib, expectedVariant string) {
-		ldFlags := strings.Split(ctx.ModuleForTests(mod, variant).Rule("ld").RelativeToTop().Args["libFlags"], " ")
+		ldFlags := strings.Split(ctx.ModuleForTests(mod, variant).Rule("ld").Args["libFlags"], " ")
 		mylibLdFlags := android.FilterListPred(ldFlags, func(s string) bool { return strings.HasPrefix(s, linkedLib) })
 		android.AssertArrayString(t, "unexpected "+linkedLib+" link library for "+mod, []string{linkedLib + expectedVariant}, mylibLdFlags)
 	}

@@ -455,7 +455,7 @@ type FixturePreparer interface {
 	Extend(preparers ...FixturePreparer) FixturePreparer
 
 	// Create a Fixture.
-	Fixture(t *testing.T, preparers ...FixturePreparer) Fixture
+	Fixture(t *testing.T) Fixture
 
 	// ExtendWithErrorHandler creates a new FixturePreparer that will use the supplied error handler
 	// to check the errors (may be 0) reported by the test.
@@ -466,12 +466,13 @@ type FixturePreparer interface {
 
 	// Run the test, checking any errors reported and returning a TestResult instance.
 	//
-	// Shorthand for Fixture(t, preparers...).RunTest()
-	RunTest(t *testing.T, preparers ...FixturePreparer) *TestResult
+	// Shorthand for Fixture(t).RunTest()
+	RunTest(t *testing.T) *TestResult
 
 	// Run the test with the supplied Android.bp file.
 	//
-	// Shorthand for RunTest(t, android.FixtureWithRootAndroidBp(bp))
+	// preparer.RunTestWithBp(t, bp) is shorthand for
+	// android.GroupFixturePreparers(preparer, android.FixtureWithRootAndroidBp(bp)).RunTest(t)
 	RunTestWithBp(t *testing.T, bp string) *TestResult
 
 	// RunTestWithConfig is a temporary method added to help ease the migration of existing tests to
@@ -705,13 +706,11 @@ type TestResult struct {
 	NinjaDeps []string
 }
 
-func createFixture(t *testing.T, buildDir string, base []*simpleFixturePreparer, extra []FixturePreparer) Fixture {
-	all := dedupAndFlattenPreparers(base, extra)
-
+func createFixture(t *testing.T, buildDir string, preparers []*simpleFixturePreparer) Fixture {
 	config := TestConfig(buildDir, nil, "", nil)
 	ctx := NewTestContext(config)
 	fixture := &fixture{
-		preparers: all,
+		preparers: preparers,
 		t:         t,
 		config:    config,
 		ctx:       ctx,
@@ -720,7 +719,7 @@ func createFixture(t *testing.T, buildDir string, base []*simpleFixturePreparer,
 		errorHandler: FixtureExpectsNoErrors,
 	}
 
-	for _, preparer := range all {
+	for _, preparer := range preparers {
 		preparer.function(fixture)
 	}
 
@@ -740,8 +739,8 @@ func (b *baseFixturePreparer) Extend(preparers ...FixturePreparer) FixturePrepar
 	return newFixturePreparer(all)
 }
 
-func (b *baseFixturePreparer) Fixture(t *testing.T, preparers ...FixturePreparer) Fixture {
-	return createFixture(t, t.TempDir(), b.self.list(), preparers)
+func (b *baseFixturePreparer) Fixture(t *testing.T) Fixture {
+	return createFixture(t, t.TempDir(), b.self.list())
 }
 
 func (b *baseFixturePreparer) ExtendWithErrorHandler(errorHandler FixtureErrorHandler) FixturePreparer {
@@ -750,15 +749,15 @@ func (b *baseFixturePreparer) ExtendWithErrorHandler(errorHandler FixtureErrorHa
 	}))
 }
 
-func (b *baseFixturePreparer) RunTest(t *testing.T, preparers ...FixturePreparer) *TestResult {
+func (b *baseFixturePreparer) RunTest(t *testing.T) *TestResult {
 	t.Helper()
-	fixture := b.self.Fixture(t, preparers...)
+	fixture := b.self.Fixture(t)
 	return fixture.RunTest()
 }
 
 func (b *baseFixturePreparer) RunTestWithBp(t *testing.T, bp string) *TestResult {
 	t.Helper()
-	return b.RunTest(t, FixtureWithRootAndroidBp(bp))
+	return GroupFixturePreparers(b.self, FixtureWithRootAndroidBp(bp)).RunTest(t)
 }
 
 func (b *baseFixturePreparer) RunTestWithConfig(t *testing.T, config Config) *TestResult {
@@ -811,16 +810,16 @@ func (f *fixtureFactory) Extend(preparers ...FixturePreparer) FixturePreparer {
 	return extendedFactory
 }
 
-func (f *fixtureFactory) Fixture(t *testing.T, preparers ...FixturePreparer) Fixture {
+func (f *fixtureFactory) Fixture(t *testing.T) Fixture {
 	// If there is no buildDirSupplier then just use the default implementation.
 	if f.buildDirSupplier == nil {
-		return f.baseFixturePreparer.Fixture(t, preparers...)
+		return f.baseFixturePreparer.Fixture(t)
 	}
 
 	// Retrieve the buildDir from the supplier.
 	buildDir := *f.buildDirSupplier
 
-	return createFixture(t, buildDir, f.preparers, preparers)
+	return createFixture(t, buildDir, f.preparers)
 }
 
 type fixture struct {
