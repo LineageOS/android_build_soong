@@ -50,18 +50,28 @@ func names(s string) (ns []string) {
 
 func testApexError(t *testing.T, pattern, bp string, preparers ...android.FixturePreparer) {
 	t.Helper()
-	apexFixtureFactory.Extend(preparers...).
+	android.GroupFixturePreparers(
+		prepareForApexTest,
+		android.GroupFixturePreparers(preparers...),
+	).
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
 		RunTestWithBp(t, bp)
 }
 
 func testApex(t *testing.T, bp string, preparers ...android.FixturePreparer) *android.TestContext {
 	t.Helper()
-	factory := apexFixtureFactory.Extend(preparers...)
+
+	optionalBpPreparer := android.NullFixturePreparer
 	if bp != "" {
-		factory = factory.Extend(android.FixtureWithRootAndroidBp(bp))
+		optionalBpPreparer = android.FixtureWithRootAndroidBp(bp)
 	}
-	result := factory.RunTest(t)
+
+	result := android.GroupFixturePreparers(
+		prepareForApexTest,
+		android.GroupFixturePreparers(preparers...),
+		optionalBpPreparer,
+	).RunTest(t)
+
 	return result.TestContext
 }
 
@@ -115,8 +125,16 @@ var withUnbundledBuild = android.FixtureModifyProductVariables(
 	},
 )
 
-var apexFixtureFactory = android.NewFixtureFactory(
-	nil,
+// Legacy preparer used for running tests within the apex package.
+//
+// This includes everything that was needed to run any test in the apex package prior to the
+// introduction of the test fixtures. Tests that are being converted to use fixtures directly
+// rather than through the testApex...() methods should avoid using this and instead use the
+// various preparers directly, using android.GroupFixturePreparers(...) to group them when
+// necessary.
+//
+// deprecated
+var prepareForApexTest = android.GroupFixturePreparers(
 	// General preparers in alphabetical order as test infrastructure will enforce correct
 	// registration order.
 	android.PrepareForTestWithAndroidBuildComponents,
@@ -5885,9 +5903,10 @@ func TestJavaSDKLibrary_ImportOnly(t *testing.T) {
 }
 
 func TestCompatConfig(t *testing.T) {
-	result := apexFixtureFactory.
-		Extend(java.PrepareForTestWithPlatformCompatConfig).
-		RunTestWithBp(t, `
+	result := android.GroupFixturePreparers(
+		prepareForApexTest,
+		java.PrepareForTestWithPlatformCompatConfig,
+	).RunTestWithBp(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
