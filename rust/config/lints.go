@@ -54,6 +54,7 @@ var (
 		"-A clippy::type-complexity",
 		"-A clippy::unnecessary-wraps",
 		"-A clippy::unusual-byte-groupings",
+		"-A clippy::upper-case-acronyms",
 	}
 
 	// Rust lints for vendor code.
