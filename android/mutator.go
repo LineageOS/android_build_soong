@@ -202,7 +202,7 @@ var postDeps = []RegisterMutatorFunc{
 	RegisterPrebuiltsPostDepsMutators,
 	RegisterVisibilityRuleEnforcer,
 	RegisterLicensesDependencyChecker,
-	RegisterNeverallowMutator,
+	registerNeverallowMutator,
 	RegisterOverridePostDepsMutators,
 }
 
