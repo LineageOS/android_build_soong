@@ -189,6 +189,22 @@ func (sanitize *sanitize) SetSanitizer(t cc.SanitizerType, b bool) {
 	}
 }
 
+func (m *Module) UbsanRuntimeNeeded() bool {
+	return false
+}
+
+func (m *Module) MinimalRuntimeNeeded() bool {
+	return false
+}
+
+func (m *Module) UbsanRuntimeDep() bool {
+	return false
+}
+
+func (m *Module) MinimalRuntimeDep() bool {
+	return false
+}
+
 // Check if the sanitizer is explicitly disabled (as opposed to nil by
 // virtue of not being set).
 func (sanitize *sanitize) isSanitizerExplicitlyDisabled(t cc.SanitizerType) bool {
