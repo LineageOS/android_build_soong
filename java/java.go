@@ -1074,13 +1074,7 @@ func BinaryHostFactory() android.Module {
 type ImportProperties struct {
 	Jars []string `android:"path,arch_variant"`
 
-	// The version of the SDK that the source prebuilt file was built against. Defaults to the
-	// current version if not specified.
 	Sdk_version *string
-
-	// The minimum version of the SDK that this module supports. Defaults to sdk_version if not
-	// specified.
-	Min_sdk_version *string
 
 	Installable *bool
 
@@ -1145,9 +1139,6 @@ func (j *Import) systemModules() string {
 }
 
 func (j *Import) minSdkVersion() sdkSpec {
-	if j.properties.Min_sdk_version != nil {
-		return sdkSpecFrom(*j.properties.Min_sdk_version)
-	}
 	return j.sdkVersion()
 }
 
@@ -1359,20 +1350,7 @@ func (j *Import) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 // Implements android.ApexModule
 func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	sdkVersion android.ApiLevel) error {
-	sdkSpec := j.minSdkVersion()
-	if !sdkSpec.specified() {
-		return fmt.Errorf("min_sdk_version is not specified")
-	}
-	if sdkSpec.kind == sdkCore {
-		return nil
-	}
-	ver, err := sdkSpec.effectiveVersion(ctx)
-	if err != nil {
-		return err
-	}
-	if ver.ApiLevel(ctx).GreaterThan(sdkVersion) {
-		return fmt.Errorf("newer SDK(%v)", ver)
-	}
+	// Do not check for prebuilts against the min_sdk_version of enclosing APEX
 	return nil
 }
 
