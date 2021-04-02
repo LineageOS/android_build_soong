@@ -596,9 +596,9 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 			v.(*Module).compiler.(libraryInterface).setRlib()
 		case dylibVariation:
 			v.(*Module).compiler.(libraryInterface).setDylib()
-			if v.(*Module).ModuleBase.ImageVariation().Variation != android.CoreVariation {
+			if v.(*Module).ModuleBase.ImageVariation().Variation == android.VendorRamdiskVariation {
 				// TODO(b/165791368)
-				// Disable dylib non-core variations until we support these.
+				// Disable dylib Vendor Ramdisk variations until we support these.
 				v.(*Module).Disable()
 			}
 		case "source":
@@ -637,14 +637,14 @@ func LibstdMutator(mctx android.BottomUpMutatorContext) {
 				dylib := modules[1].(*Module)
 				rlib.compiler.(libraryInterface).setRlibStd()
 				dylib.compiler.(libraryInterface).setDylibStd()
-				if dylib.ModuleBase.ImageVariation().Variation != android.CoreVariation {
+				if dylib.ModuleBase.ImageVariation().Variation == android.VendorRamdiskVariation {
 					// TODO(b/165791368)
-					// Disable rlibs that link against dylib-std on non-core variations until non-core dylib
+					// Disable rlibs that link against dylib-std on vendor ramdisk variations until those dylib
 					// variants are properly supported.
 					dylib.Disable()
 				}
-				rlib.Properties.SubName += RlibStdlibSuffix
-				dylib.Properties.SubName += DylibStdlibSuffix
+				rlib.Properties.RustSubName += RlibStdlibSuffix
+				dylib.Properties.RustSubName += DylibStdlibSuffix
 			}
 		}
 	}
