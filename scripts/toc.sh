@@ -17,7 +17,7 @@
 # Script to handle generating a .toc file from a .so file
 # Inputs:
 #  Environment:
-#   CROSS_COMPILE: prefix added to readelf tool
+#   CLANG_BIN: path to the clang bin directory
 #  Arguments:
 #   -i ${file}: input file (required)
 #   -o ${file}: output file (required)
@@ -35,34 +35,34 @@ EOF
 }
 
 do_elf() {
-    ("${CROSS_COMPILE}readelf" -d "${infile}" | grep SONAME || echo "No SONAME for ${infile}") > "${outfile}.tmp"
-    "${CROSS_COMPILE}readelf" --dyn-syms "${infile}" | awk '{$2=""; $3=""; print}' >> "${outfile}.tmp"
+    ("${CLANG_BIN}/llvm-readelf" -d "${infile}" | grep SONAME || echo "No SONAME for ${infile}") > "${outfile}.tmp"
+    "${CLANG_BIN}/llvm-readelf" --dyn-syms "${infile}" | awk '{$2=""; $3=""; print}' >> "${outfile}.tmp"
 
     cat <<EOF > "${depsfile}"
 ${outfile}: \\
-  ${CROSS_COMPILE}readelf \\
+  ${CLANG_BIN}/llvm-readelf \\
 EOF
 }
 
 do_macho() {
-    "${CROSS_COMPILE}/otool" -l "${infile}" | grep LC_ID_DYLIB -A 5 > "${outfile}.tmp"
-    "${CROSS_COMPILE}/nm" -gP "${infile}" | cut -f1-2 -d" " | (grep -v 'U$' >> "${outfile}.tmp" || true)
+    "${CLANG_BIN}/llvm-objdump" -p "${infile}" | grep LC_ID_DYLIB -A 5 > "${outfile}.tmp"
+    "${CLANG_BIN}/llvm-nm" -gP "${infile}" | cut -f1-2 -d" " | (grep -v 'U$' >> "${outfile}.tmp" || true)
 
     cat <<EOF > "${depsfile}"
 ${outfile}: \\
-  ${CROSS_COMPILE}/otool \\
-  ${CROSS_COMPILE}/nm \\
+  ${CLANG_BIN}/llvm-objdump \\
+  ${CLANG_BIN}/llvm-nm \\
 EOF
 }
 
 do_pe() {
-    "${CROSS_COMPILE}objdump" -x "${infile}" | grep "^Name" | cut -f3 -d" " > "${outfile}.tmp"
-    "${CROSS_COMPILE}nm" -g -f p "${infile}" | cut -f1-2 -d" " >> "${outfile}.tmp"
+    "${CLANG_BIN}/llvm-objdump" -x "${infile}" | grep "^Name" | cut -f3 -d" " > "${outfile}.tmp"
+    "${CLANG_BIN}/llvm-nm" -g -f p "${infile}" | cut -f1-2 -d" " >> "${outfile}.tmp"
 
     cat <<EOF > "${depsfile}"
 ${outfile}: \\
-  ${CROSS_COMPILE}objdump \\
-  ${CROSS_COMPILE}nm \\
+  ${CLANG_BIN}/llvm-objdump \\
+  ${CLANG_BIN}/llvm-nm \\
 EOF
 }
 
@@ -98,8 +98,8 @@ if [ -z "${depsfile:-}" ]; then
     usage
 fi
 
-if [ -z "${CROSS_COMPILE:-}" ]; then
-    echo "CROSS_COMPILE environment variable must be set"
+if [ -z "${CLANG_BIN:-}" ]; then
+    echo "CLANG_BIN environment variable must be set"
     usage
 fi
 
@@ -107,7 +107,7 @@ rm -f "${outfile}.tmp"
 
 cat <<EOF > "${depsfile}"
 ${outfile}: \\
-  ${CROSS_COMPILE}readelf \\
+  ${CLANG_BIN}/llvm-readelf \\
 EOF
 
 if [ -n "${elf:-}" ]; then
