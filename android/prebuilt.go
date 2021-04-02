@@ -82,6 +82,12 @@ func RemoveOptionalPrebuiltPrefix(name string) string {
 }
 
 func (p *Prebuilt) Name(name string) string {
+	return PrebuiltNameFromSource(name)
+}
+
+// PrebuiltNameFromSource returns the result of prepending the "prebuilt_" prefix to the supplied
+// name.
+func PrebuiltNameFromSource(name string) string {
 	return "prebuilt_" + name
 }
 
