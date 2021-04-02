@@ -5,8 +5,9 @@ import (
 )
 
 var (
-	GetOutputFiles                 = &getOutputFilesRequestType{}
-	GetOutputFilesAndCcObjectFiles = &getOutputFilesAndCcObjectFilesType{}
+	GetOutputFiles                  = &getOutputFilesRequestType{}
+	GetOutputFilesAndCcObjectFiles  = &getOutputFilesAndCcObjectFilesType{}
+	GetPrebuiltCcStaticLibraryFiles = &getPrebuiltCcStaticLibraryFiles{}
 )
 
 type GetOutputFilesAndCcObjectFiles_Result struct {
@@ -84,6 +85,34 @@ func (g getOutputFilesAndCcObjectFilesType) ParseResult(rawString string) GetOut
 	outputFiles = splitOrEmpty(outputFilesString, ", ")
 	ccObjects = splitOrEmpty(ccObjectsString, ", ")
 	return GetOutputFilesAndCcObjectFiles_Result{outputFiles, ccObjects}
+}
+
+type getPrebuiltCcStaticLibraryFiles struct{}
+
+// Name returns the name of the starlark function to get prebuilt cc static library files
+func (g getPrebuiltCcStaticLibraryFiles) Name() string {
+	return "getPrebuiltCcStaticLibraryFiles"
+}
+
+// StarlarkFunctionBody returns the unindented body of a starlark function for extracting the static
+// library paths from a cc_import module.
+func (g getPrebuiltCcStaticLibraryFiles) StarlarkFunctionBody() string {
+	return `
+linker_inputs = providers(target)["CcInfo"].linking_context.linker_inputs.to_list()
+
+static_libraries = []
+for linker_input in linker_inputs:
+  for library in linker_input.libraries:
+    static_libraries.append(library.static_library.path)
+
+return ', '.join(static_libraries)`
+}
+
+// ParseResult returns a slice of bazel output paths to static libraries if any exist for the given
+// rawString corresponding to the string output which was created by evaluating the
+// StarlarkFunctionBody.
+func (g getPrebuiltCcStaticLibraryFiles) ParseResult(rawString string) []string {
+	return strings.Split(rawString, ", ")
 }
 
 // splitOrEmpty is a modification of strings.Split() that returns an empty list
