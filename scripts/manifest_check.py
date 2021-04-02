@@ -74,7 +74,7 @@ def parse_args():
   return parser.parse_args()
 
 
-def enforce_uses_libraries(manifest, required, optional, relax, is_apk = False):
+def enforce_uses_libraries(manifest, required, optional, relax, is_apk, path):
   """Verify that the <uses-library> tags in the manifest match those provided
   by the build system.
 
@@ -86,26 +86,36 @@ def enforce_uses_libraries(manifest, required, optional, relax, is_apk = False):
     is_apk:   if the manifest comes from an APK or an XML file
   """
   if is_apk:
-    manifest_required, manifest_optional = extract_uses_libs_apk(manifest)
+    manifest_required, manifest_optional, tags = extract_uses_libs_apk(manifest)
   else:
-    manifest_required, manifest_optional = extract_uses_libs_xml(manifest)
+    manifest_required, manifest_optional, tags = extract_uses_libs_xml(manifest)
 
-  err = []
-  if manifest_required != required:
-    err.append('Expected required <uses-library> tags "%s", got "%s"' %
-               (', '.join(required), ', '.join(manifest_required)))
+  if manifest_required == required and manifest_optional == optional:
+    return None
 
-  if manifest_optional != optional:
-    err.append('Expected optional <uses-library> tags "%s", got "%s"' %
-               (', '.join(optional), ', '.join(manifest_optional)))
+  errmsg = ''.join([
+    'mismatch in the <uses-library> tags between the build system and the '
+      'manifest:\n',
+    '\t- required libraries in build system: [%s]\n' % ', '.join(required),
+    '\t                 vs. in the manifest: [%s]\n' % ', '.join(manifest_required),
+    '\t- optional libraries in build system: [%s]\n' % ', '.join(optional),
+    '\t                 vs. in the manifest: [%s]\n' % ', '.join(manifest_optional),
+    '\t- tags in the manifest (%s):\n' % path,
+    '\t\t%s\n' % '\t\t'.join(tags),
+      'note: the following options are available:\n',
+    '\t- to temporarily disable the check on command line, rebuild with ',
+      'RELAX_USES_LIBRARY_CHECK=true (this will set compiler filter "verify" ',
+      'and disable AOT-compilation in dexpreopt)\n',
+    '\t- to temporarily disable the check for the whole product, set ',
+      'PRODUCT_BROKEN_VERIFY_USES_LIBRARIES := true in the product makefiles\n',
+    '\t- to fix the check, make build system properties coherent with the '
+      'manifest\n',
+    '\t- see build/make/Changes.md for details\n'])
 
-  if err:
-    errmsg = '\n'.join(err)
-    if not relax:
-      raise ManifestMismatchError(errmsg)
-    return errmsg
+  if not relax:
+    raise ManifestMismatchError(errmsg)
 
-  return None
+  return errmsg
 
 
 def extract_uses_libs_apk(badging):
@@ -115,14 +125,19 @@ def extract_uses_libs_apk(badging):
 
   required = []
   optional = []
+  lines = []
   for match in re.finditer(pattern, badging):
+    lines.append(match.group(0))
     libname = match.group(2)
     if match.group(1) == None:
       required.append(libname)
     else:
       optional.append(libname)
 
-  return first_unique_elements(required), first_unique_elements(optional)
+  required = first_unique_elements(required)
+  optional = first_unique_elements(optional)
+  tags = first_unique_elements(lines)
+  return required, optional, tags
 
 
 def extract_uses_libs_xml(xml):
@@ -143,7 +158,15 @@ def extract_uses_libs_xml(xml):
   required = [uses_library_name(x) for x in libs if uses_library_required(x)]
   optional = [uses_library_name(x) for x in libs if not uses_library_required(x)]
 
-  return first_unique_elements(required), first_unique_elements(optional)
+  # render <uses-library> tags as XML for a pretty error message
+  tags = []
+  for lib in libs:
+    tags.append(lib.toprettyxml())
+
+  required = first_unique_elements(required)
+  optional = first_unique_elements(optional)
+  tags = first_unique_elements(tags)
+  return required, optional, tags
 
 
 def first_unique_elements(l):
@@ -278,7 +301,7 @@ def main():
       # in the manifest. Raise an exception on mismatch, unless the script was
       # passed a special parameter to suppress exceptions.
       errmsg = enforce_uses_libraries(manifest, required, optional,
-        args.enforce_uses_libraries_relax, is_apk)
+        args.enforce_uses_libraries_relax, is_apk, args.input)
 
       # Create a status file that is empty on success, or contains an error
       # message on failure. When exceptions are suppressed, dexpreopt command
