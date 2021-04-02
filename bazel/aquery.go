@@ -74,6 +74,7 @@ type actionGraphContainer struct {
 // with a Bazel action from Bazel's action graph.
 type BuildStatement struct {
 	Command     string
+	Depfile     *string
 	OutputPaths []string
 	InputPaths  []string
 	Env         []KeyValuePair
@@ -133,12 +134,22 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 			continue
 		}
 		outputPaths := []string{}
+		var depfile *string
 		for _, outputId := range actionEntry.OutputIds {
 			outputPath, exists := artifactIdToPath[outputId]
 			if !exists {
 				return nil, fmt.Errorf("undefined outputId %d", outputId)
 			}
-			outputPaths = append(outputPaths, outputPath)
+			ext := filepath.Ext(outputPath)
+			if ext == ".d" {
+				if depfile != nil {
+					return nil, fmt.Errorf("found multiple potential depfiles %q, %q", *depfile, outputPath)
+				} else {
+					depfile = &outputPath
+				}
+			} else {
+				outputPaths = append(outputPaths, outputPath)
+			}
 		}
 		inputPaths := []string{}
 		for _, inputDepSetId := range actionEntry.InputDepSetIds {
@@ -161,12 +172,13 @@ func AqueryBuildStatements(aqueryJsonProto []byte) ([]BuildStatement, error) {
 		}
 		buildStatement := BuildStatement{
 			Command:     strings.Join(proptools.ShellEscapeList(actionEntry.Arguments), " "),
+			Depfile:     depfile,
 			OutputPaths: outputPaths,
 			InputPaths:  inputPaths,
 			Env:         actionEntry.EnvironmentVariables,
 			Mnemonic:    actionEntry.Mnemonic}
 		if len(actionEntry.Arguments) < 1 {
-			return nil, fmt.Errorf("received action with no command: [%s]", buildStatement)
+			return nil, fmt.Errorf("received action with no command: [%v]", buildStatement)
 			continue
 		}
 		buildStatements = append(buildStatements, buildStatement)
