@@ -42,7 +42,7 @@ import (
 //     counts as a match
 // - it has none of the "Without" properties matched (same rules as above)
 
-func RegisterNeverallowMutator(ctx RegisterMutatorsContext) {
+func registerNeverallowMutator(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("neverallow", neverallowMutator).Parallel()
 }
 
@@ -661,6 +661,22 @@ func neverallowRules(config Config) []Rule {
 // Overrides the default neverallow rules for the supplied config.
 //
 // For testing only.
-func SetTestNeverallowRules(config Config, testRules []Rule) {
+func setTestNeverallowRules(config Config, testRules []Rule) {
 	config.Once(neverallowRulesKey, func() interface{} { return testRules })
+}
+
+// Prepares for a test by setting neverallow rules and enabling the mutator.
+//
+// If the supplied rules are nil then the default rules are used.
+func PrepareForTestWithNeverallowRules(testRules []Rule) FixturePreparer {
+	return GroupFixturePreparers(
+		FixtureModifyConfig(func(config Config) {
+			if testRules != nil {
+				setTestNeverallowRules(config, testRules)
+			}
+		}),
+		FixtureRegisterWithContext(func(ctx RegistrationContext) {
+			ctx.PostDepsMutators(registerNeverallowMutator)
+		}),
+	)
 }

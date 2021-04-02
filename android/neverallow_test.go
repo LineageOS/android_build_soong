@@ -292,7 +292,6 @@ var prepareForNeverAllowTest = GroupFixturePreparers(
 		ctx.RegisterModuleType("java_library_host", newMockJavaLibraryModule)
 		ctx.RegisterModuleType("java_device_for_host", newMockJavaLibraryModule)
 		ctx.RegisterModuleType("makefile_goal", newMockMakefileGoalModule)
-		ctx.PostDepsMutators(RegisterNeverallowMutator)
 	}),
 )
 
@@ -301,12 +300,7 @@ func TestNeverallow(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			GroupFixturePreparers(
 				prepareForNeverAllowTest,
-				FixtureModifyConfig(func(config Config) {
-					// If the test has its own rules then use them instead of the default ones.
-					if test.rules != nil {
-						SetTestNeverallowRules(config, test.rules)
-					}
-				}),
+				PrepareForTestWithNeverallowRules(test.rules),
 				test.fs.AddToFixture(),
 			).
 				ExtendWithErrorHandler(FixtureExpectsAllErrorsToMatchAPattern(test.expectedErrors)).

@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"android/soong/android"
-	"android/soong/cc"
 )
 
 // Test that feature flags are being correctly generated.
@@ -132,15 +131,6 @@ func TestLints(t *testing.T) {
 			lints: "none",
 		}`
 
-	bp = bp + GatherRequiredDepsForTest()
-	bp = bp + cc.GatherRequiredDepsForTest(android.NoOsType)
-
-	fs := map[string][]byte{
-		// Reuse the same blueprint file for subdirectories.
-		"external/Android.bp": []byte(bp),
-		"hardware/Android.bp": []byte(bp),
-	}
-
 	var lintTests = []struct {
 		modulePath string
 		fooFlags   string
@@ -153,29 +143,20 @@ func TestLints(t *testing.T) {
 	for _, tc := range lintTests {
 		t.Run("path="+tc.modulePath, func(t *testing.T) {
 
-			config := android.TestArchConfig(t.TempDir(), nil, bp, fs)
-			ctx := CreateTestContext(config)
-			ctx.Register()
-			_, errs := ctx.ParseFileList(".", []string{tc.modulePath + "Android.bp"})
-			android.FailIfErrored(t, errs)
-			_, errs = ctx.PrepareBuildActions(config)
-			android.FailIfErrored(t, errs)
+			result := android.GroupFixturePreparers(
+				prepareForRustTest,
+				// Test with the blueprint file in different directories.
+				android.FixtureAddTextFile(tc.modulePath+"Android.bp", bp),
+			).RunTest(t)
 
-			r := ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
-			if !strings.Contains(r.Args["rustcFlags"], tc.fooFlags) {
-				t.Errorf("Incorrect flags for libfoo: %q, want %q", r.Args["rustcFlags"], tc.fooFlags)
-			}
+			r := result.ModuleForTests("libfoo", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
+			android.AssertStringDoesContain(t, "libfoo flags", r.Args["rustcFlags"], tc.fooFlags)
 
-			r = ctx.ModuleForTests("libbar", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
-			if !strings.Contains(r.Args["rustcFlags"], "${config.RustDefaultLints}") {
-				t.Errorf("Incorrect flags for libbar: %q, want %q", r.Args["rustcFlags"], "${config.RustDefaultLints}")
-			}
+			r = result.ModuleForTests("libbar", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
+			android.AssertStringDoesContain(t, "libbar flags", r.Args["rustcFlags"], "${config.RustDefaultLints}")
 
-			r = ctx.ModuleForTests("libfoobar", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
-			if !strings.Contains(r.Args["rustcFlags"], "${config.RustAllowAllLints}") {
-				t.Errorf("Incorrect flags for libfoobar: %q, want %q", r.Args["rustcFlags"], "${config.RustAllowAllLints}")
-			}
-
+			r = result.ModuleForTests("libfoobar", "android_arm64_armv8-a_dylib").MaybeRule("rustc")
+			android.AssertStringDoesContain(t, "libfoobar flags", r.Args["rustcFlags"], "${config.RustAllowAllLints}")
 		})
 	}
 }
