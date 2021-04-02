@@ -1836,30 +1836,6 @@ func TestApexMinSdkVersion_ErrorIfIncompatibleVersion(t *testing.T) {
 			min_sdk_version: "30",
 		}
 	`)
-
-	testApexError(t, `module "libfoo".*: should support min_sdk_version\(29\)`, `
-		apex {
-			name: "myapex",
-			key: "myapex.key",
-			java_libs: ["libfoo"],
-			min_sdk_version: "29",
-		}
-
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-
-		java_import {
-			name: "libfoo",
-			jars: ["libfoo.jar"],
-			apex_available: [
-				"myapex",
-			],
-			min_sdk_version: "30",
-		}
-	`)
 }
 
 func TestApexMinSdkVersion_Okay(t *testing.T) {
@@ -1897,10 +1873,7 @@ func TestApexMinSdkVersion_Okay(t *testing.T) {
 			name: "libbar",
 			sdk_version: "current",
 			srcs: ["a.java"],
-			static_libs: [
-				"libbar_dep",
-				"libbar_import_dep",
-			],
+			static_libs: ["libbar_dep"],
 			apex_available: ["myapex"],
 			min_sdk_version: "29",
 		}
@@ -1909,13 +1882,6 @@ func TestApexMinSdkVersion_Okay(t *testing.T) {
 			name: "libbar_dep",
 			sdk_version: "current",
 			srcs: ["a.java"],
-			apex_available: ["myapex"],
-			min_sdk_version: "29",
-		}
-
-		java_import {
-			name: "libbar_import_dep",
-			jars: ["libbar.jar"],
 			apex_available: ["myapex"],
 			min_sdk_version: "29",
 		}
