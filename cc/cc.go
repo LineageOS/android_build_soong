@@ -1892,8 +1892,8 @@ func (c *Module) deps(ctx DepsContext) Deps {
 	}
 
 	for _, lib := range deps.ReexportStaticLibHeaders {
-		if !inList(lib, deps.StaticLibs) {
-			ctx.PropertyErrorf("export_static_lib_headers", "Static library not in static_libs: '%s'", lib)
+		if !inList(lib, deps.StaticLibs) && !inList(lib, deps.WholeStaticLibs) {
+			ctx.PropertyErrorf("export_static_lib_headers", "Static library not in static_libs or whole_static_libs: '%s'", lib)
 		}
 	}
 
