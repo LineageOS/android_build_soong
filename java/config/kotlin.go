@@ -35,11 +35,16 @@ func init() {
 	pctx.SourcePathVariable("KotlinAnnotationJar", "external/kotlinc/lib/annotations-13.0.jar")
 	pctx.SourcePathVariable("KotlinStdlibJar", KotlinStdlibJar)
 
-	// These flags silence "Illegal reflective access" warnings when running kotlinc in OpenJDK9
-	pctx.StaticVariable("KotlincSuppressJDK9Warnings", strings.Join([]string{
+	// These flags silence "Illegal reflective access" warnings when running kapt in OpenJDK9+
+	pctx.StaticVariable("KaptSuppressJDK9Warnings", strings.Join([]string{
 		"-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
 		"-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
 		"-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
 		"-J--add-opens=java.base/sun.net.www.protocol.jar=ALL-UNNAMED",
+	}, " "))
+
+	// These flags silence "Illegal reflective access" warnings when running kotlinc in OpenJDK9+
+	pctx.StaticVariable("KotlincSuppressJDK9Warnings", strings.Join([]string{
+		"-J--add-opens=java.base/java.util=ALL-UNNAMED", // https://youtrack.jetbrains.com/issue/KT-43704
 	}, " "))
 }
