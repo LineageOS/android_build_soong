@@ -213,6 +213,26 @@ type PrebuiltInterface interface {
 	Prebuilt() *Prebuilt
 }
 
+// IsModulePreferred returns true if the given module is preferred.
+//
+// A source module is preferred if there is no corresponding prebuilt module or the prebuilt module
+// does not have "prefer: true".
+//
+// A prebuilt module is preferred if there is no corresponding source module or the prebuilt module
+// has "prefer: true".
+func IsModulePreferred(module Module) bool {
+	if module.IsReplacedByPrebuilt() {
+		// A source module that has been replaced by a prebuilt counterpart.
+		return false
+	}
+	if prebuilt, ok := module.(PrebuiltInterface); ok {
+		if p := prebuilt.Prebuilt(); p != nil {
+			return p.UsePrebuilt()
+		}
+	}
+	return true
+}
+
 func RegisterPrebuiltsPreArchMutators(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("prebuilt_rename", PrebuiltRenameMutator).Parallel()
 }
