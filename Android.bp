@@ -47,101 +47,6 @@ cc_defaults {
 //
 
 toolchain_library {
-    name: "libatomic",
-    defaults: ["linux_bionic_supported"],
-    vendor_available: true,
-    product_available: true,
-    ramdisk_available: true,
-    vendor_ramdisk_available: true,
-    recovery_available: true,
-    native_bridge_supported: true,
-
-    arch: {
-        arm: {
-            src: "prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/arm-linux-androideabi/lib/libatomic.a",
-        },
-        arm64: {
-            src: "prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/aarch64-linux-android/lib64/libatomic.a",
-        },
-        x86: {
-            src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/x86_64-linux-android/lib/libatomic.a",
-        },
-        x86_64: {
-            src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/x86_64-linux-android/lib64/libatomic.a",
-        },
-    },
-}
-
-toolchain_library {
-    name: "libgcc",
-    defaults: ["linux_bionic_supported"],
-    vendor_available: true,
-    product_available: true,
-    recovery_available: true,
-    native_bridge_supported: true,
-    apex_available: [
-        "//apex_available:platform",
-        "//apex_available:anyapex",
-    ],
-
-    arch: {
-        arm: {
-            src: "prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/lib/gcc/arm-linux-androideabi/4.9.x/libgcc.a",
-        },
-        arm64: {
-            src: "prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/lib/gcc/aarch64-linux-android/4.9.x/libgcc.a",
-        },
-        x86: {
-            src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/lib/gcc/x86_64-linux-android/4.9.x/32/libgcc.a",
-        },
-        x86_64: {
-            src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/lib/gcc/x86_64-linux-android/4.9.x/libgcc.a",
-        },
-    },
-}
-
-toolchain_library {
-    name: "libgcc_stripped",
-    defaults: ["linux_bionic_supported"],
-    vendor_available: true,
-    product_available: true,
-    ramdisk_available: true,
-    vendor_ramdisk_available: true,
-    recovery_available: true,
-    native_bridge_supported: true,
-    sdk_version: "current",
-
-    arch: {
-        arm: {
-            src: "prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/lib/gcc/arm-linux-androideabi/4.9.x/libgcc.a",
-            repack_objects_to_keep: [],
-            enabled: false,
-        },
-        arm64: {
-            src: "prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/lib/gcc/aarch64-linux-android/4.9.x/libgcc.a",
-            repack_objects_to_keep: [
-                "unwind-dw2.o",
-                "unwind-dw2-fde-dip.o",
-            ],
-        },
-        x86: {
-            src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/lib/gcc/x86_64-linux-android/4.9.x/32/libgcc.a",
-            repack_objects_to_keep: [
-                "unwind-dw2.o",
-                "unwind-dw2-fde-dip.o",
-            ],
-        },
-        x86_64: {
-            src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/lib/gcc/x86_64-linux-android/4.9.x/libgcc.a",
-            repack_objects_to_keep: [
-                "unwind-dw2.o",
-                "unwind-dw2-fde-dip.o",
-            ],
-        },
-    },
-}
-
-toolchain_library {
     name: "libwinpthread",
     host_supported: true,
     enabled: false,
@@ -157,26 +62,6 @@ toolchain_library {
         },
     },
     notice: ":mingw-libwinpthread-notice",
-}
-
-toolchain_library {
-    name: "libgcov",
-    defaults: ["linux_bionic_supported"],
-
-    arch: {
-        arm: {
-            src: "prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/lib/gcc/arm-linux-androideabi/4.9.x/libgcov.a",
-        },
-        arm64: {
-            src: "prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/lib/gcc/aarch64-linux-android/4.9.x/libgcov.a",
-        },
-        x86: {
-            src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/lib/gcc/x86_64-linux-android/4.9.x/32/libgcov.a",
-        },
-        x86_64: {
-            src: "prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/lib/gcc/x86_64-linux-android/4.9.x/libgcov.a",
-        },
-    },
 }
 
 kernel_headers {

@@ -63,17 +63,6 @@ func GatherRequiredDepsForTest(oses ...android.OsType) string {
 func commonDefaultModules() string {
 	return `
 		toolchain_library {
-			name: "libatomic",
-			defaults: ["linux_bionic_supported"],
-			vendor_available: true,
-			vendor_ramdisk_available: true,
-			product_available: true,
-			recovery_available: true,
-			native_bridge_supported: true,
-			src: "",
-		}
-
-		toolchain_library {
 			name: "libcompiler_rt-extras",
 			vendor_available: true,
 			vendor_ramdisk_available: true,
@@ -198,29 +187,6 @@ func commonDefaultModules() string {
 			recovery_available: true,
 			system_shared_libs: [],
 			srcs: [""],
-		}
-
-		toolchain_library {
-			name: "libgcc",
-			defaults: ["linux_bionic_supported"],
-			vendor_available: true,
-			product_available: true,
-			recovery_available: true,
-			src: "",
-			apex_available: [
-				"//apex_available:platform",
-				"//apex_available:anyapex",
-			],
-		}
-
-		toolchain_library {
-			name: "libgcc_stripped",
-			defaults: ["linux_bionic_supported"],
-			vendor_available: true,
-			product_available: true,
-			recovery_available: true,
-			sdk_version: "current",
-			src: "",
 		}
 
 		cc_library {
@@ -397,16 +363,6 @@ func commonDefaultModules() string {
 				"//apex_available:platform",
 				"//apex_available:anyapex",
 			],
-		}
-		cc_library {
-			name: "libunwind_llvm",
-			no_libcrt: true,
-			nocrt: true,
-			system_shared_libs: [],
-			stl: "none",
-			vendor_available: true,
-			product_available: true,
-			recovery_available: true,
 		}
 
 		cc_defaults {

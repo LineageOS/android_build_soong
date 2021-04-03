@@ -2925,9 +2925,7 @@ func makeApexAvailableBaseline() map[string][]string {
 		"com.google.android.material_material",
 		"com.google.android.material_material-nodeps",
 
-		"libatomic",
 		"libclang_rt",
-		"libgcc_stripped",
 		"libprofile-clang-extras",
 		"libprofile-clang-extras_ndk",
 		"libprofile-extras",
