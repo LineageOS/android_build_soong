@@ -43,7 +43,7 @@ var manifestMergerRule = pctx.AndroidStaticRule("manifestMerger",
 	"args", "libs")
 
 // Uses manifest_fixer.py to inject minSdkVersion, etc. into an AndroidManifest.xml
-func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext sdkContext,
+func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext android.SdkContext,
 	classLoaderContexts dexpreopt.ClassLoaderContextMap, isLibrary, useEmbeddedNativeLibs, usesNonSdkApis,
 	useEmbeddedDex, hasNoCode bool, loggingParent string) android.Path {
 
@@ -51,7 +51,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 	if isLibrary {
 		args = append(args, "--library")
 	} else {
-		minSdkVersion, err := sdkContext.minSdkVersion().effectiveVersion(ctx)
+		minSdkVersion, err := sdkContext.MinSdkVersion().EffectiveVersion(ctx)
 		if err != nil {
 			ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 		}
@@ -87,7 +87,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 		args = append(args, "--logging-parent", loggingParent)
 	}
 	var deps android.Paths
-	targetSdkVersion, err := sdkContext.targetSdkVersion().effectiveVersionString(ctx)
+	targetSdkVersion, err := sdkContext.TargetSdkVersion().EffectiveVersionString(ctx)
 	if err != nil {
 		ctx.ModuleErrorf("invalid targetSdkVersion: %s", err)
 	}
@@ -96,7 +96,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 		deps = append(deps, ApiFingerprintPath(ctx))
 	}
 
-	minSdkVersion, err := sdkContext.minSdkVersion().effectiveVersionString(ctx)
+	minSdkVersion, err := sdkContext.MinSdkVersion().EffectiveVersionString(ctx)
 	if err != nil {
 		ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 	}
