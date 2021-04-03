@@ -67,6 +67,7 @@ bootstrap_go_package {
         "rule_builder.go",
         "sandbox.go",
         "sdk.go",
+        "sdk_version.go",
         "singleton.go",
         "singleton_module.go",
         "soong_config_modules.go",
