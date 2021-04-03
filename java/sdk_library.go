@@ -814,22 +814,22 @@ func (c *commonToSdkLibraryAndImport) findClosestScopePath(scope *apiScope) *sco
 	return nil
 }
 
-func (c *commonToSdkLibraryAndImport) selectHeaderJarsForSdkVersion(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
+func (c *commonToSdkLibraryAndImport) selectHeaderJarsForSdkVersion(ctx android.BaseModuleContext, sdkVersion android.SdkSpec) android.Paths {
 
 	// If a specific numeric version has been requested then use prebuilt versions of the sdk.
-	if sdkVersion.version.isNumbered() {
+	if sdkVersion.Version.IsNumbered() {
 		return PrebuiltJars(ctx, c.moduleBase.BaseModuleName(), sdkVersion)
 	}
 
 	var apiScope *apiScope
-	switch sdkVersion.kind {
-	case sdkSystem:
+	switch sdkVersion.Kind {
+	case android.SdkSystem:
 		apiScope = apiScopeSystem
-	case sdkModule:
+	case android.SdkModule:
 		apiScope = apiScopeModuleLib
-	case sdkTest:
+	case android.SdkTest:
 		apiScope = apiScopeTest
-	case sdkSystemServer:
+	case android.SdkSystemServer:
 		apiScope = apiScopeSystemServer
 	default:
 		apiScope = apiScopePublic
@@ -932,14 +932,14 @@ type SdkLibraryDependency interface {
 	//
 	// These are turbine generated jars so they only change if the externals of the
 	// class changes but it does not contain and implementation or JavaDoc.
-	SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths
+	SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion android.SdkSpec) android.Paths
 
 	// Get the implementation jars appropriate for the supplied sdk version.
 	//
 	// These are either the implementation jar for the whole sdk library or the implementation
 	// jars for the stubs. The latter should only be needed when generating JavaDoc as otherwise
 	// they are identical to the corresponding header jars.
-	SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths
+	SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion android.SdkSpec) android.Paths
 }
 
 type SdkLibrary struct {
@@ -1147,7 +1147,7 @@ func (module *SdkLibrary) sdkVersionForStubsLibrary(mctx android.EarlyModuleCont
 		return proptools.String(scopeProperties.Sdk_version)
 	}
 
-	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+	sdkDep := decodeSdkDep(mctx, android.SdkContext(&module.Library))
 	if sdkDep.hasStandardLibs() {
 		// If building against a standard sdk then use the sdk version appropriate for the scope.
 		return apiScope.sdkVersion
@@ -1465,17 +1465,17 @@ func (module *SdkLibrary) createXmlFile(mctx android.DefaultableHookContext) {
 	mctx.CreateModule(sdkLibraryXmlFactory, &props)
 }
 
-func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s sdkSpec) android.Paths {
-	var ver sdkVersion
-	var kind sdkKind
-	if s.usePrebuilt(ctx) {
-		ver = s.version
-		kind = s.kind
+func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s android.SdkSpec) android.Paths {
+	var ver android.SdkVersion
+	var kind android.SdkKind
+	if s.UsePrebuilt(ctx) {
+		ver = s.Version
+		kind = s.Kind
 	} else {
 		// We don't have prebuilt SDK for the specific sdkVersion.
 		// Instead of breaking the build, fallback to use "system_current"
-		ver = sdkVersionCurrent
-		kind = sdkSystem
+		ver = android.SdkVersionCurrent
+		kind = android.SdkSystem
 	}
 
 	dir := filepath.Join("prebuilts", "sdk", ver.String(), kind.String())
@@ -1485,7 +1485,7 @@ func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s sdkSpec) and
 		if ctx.Config().AllowMissingDependencies() {
 			return android.Paths{android.PathForSource(ctx, jar)}
 		} else {
-			ctx.PropertyErrorf("sdk_library", "invalid sdk version %q, %q does not exist", s.raw, jar)
+			ctx.PropertyErrorf("sdk_library", "invalid sdk version %q, %q does not exist", s.Raw, jar)
 		}
 		return nil
 	}
@@ -1502,13 +1502,13 @@ func withinSameApexesAs(ctx android.BaseModuleContext, other android.Module) boo
 	return len(otherApexInfo.InApexes) > 0 && reflect.DeepEqual(apexInfo.InApexes, otherApexInfo.InApexes)
 }
 
-func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkSpec, headerJars bool) android.Paths {
+func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion android.SdkSpec, headerJars bool) android.Paths {
 	// If the client doesn't set sdk_version, but if this library prefers stubs over
 	// the impl library, let's provide the widest API surface possible. To do so,
 	// force override sdk_version to module_current so that the closest possible API
 	// surface could be found in selectHeaderJarsForSdkVersion
-	if module.defaultsToStubs() && !sdkVersion.specified() {
-		sdkVersion = sdkSpecFrom("module_current")
+	if module.defaultsToStubs() && !sdkVersion.Specified() {
+		sdkVersion = android.SdkSpecFrom("module_current")
 	}
 
 	// Only provide access to the implementation library if it is actually built.
@@ -1518,7 +1518,7 @@ func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkS
 		// Only allow access to the implementation library in the following condition:
 		// * No sdk_version specified on the referencing module.
 		// * The referencing module is in the same apex as this.
-		if sdkVersion.kind == sdkPrivate || withinSameApexesAs(ctx, module) {
+		if sdkVersion.Kind == android.SdkPrivate || withinSameApexesAs(ctx, module) {
 			if headerJars {
 				return module.HeaderJars()
 			} else {
@@ -1531,12 +1531,12 @@ func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkS
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *SdkLibrary) SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
+func (module *SdkLibrary) SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion android.SdkSpec) android.Paths {
 	return module.sdkJars(ctx, sdkVersion, true /*headerJars*/)
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *SdkLibrary) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
+func (module *SdkLibrary) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion android.SdkSpec) android.Paths {
 	return module.sdkJars(ctx, sdkVersion, false /*headerJars*/)
 }
 
@@ -1568,7 +1568,7 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 
 	// If this builds against standard libraries (i.e. is not part of the core libraries)
 	// then assume it provides both system and test apis.
-	sdkDep := decodeSdkDep(mctx, sdkContext(&module.Library))
+	sdkDep := decodeSdkDep(mctx, android.SdkContext(&module.Library))
 	hasSystemAndTestApis := sdkDep.hasStandardLibs()
 	module.sdkLibraryProperties.Generate_system_and_test_apis = hasSystemAndTestApis
 
@@ -2069,7 +2069,7 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 	}
 }
 
-func (module *SdkLibraryImport) sdkJars(ctx android.BaseModuleContext, sdkVersion sdkSpec, headerJars bool) android.Paths {
+func (module *SdkLibraryImport) sdkJars(ctx android.BaseModuleContext, sdkVersion android.SdkSpec, headerJars bool) android.Paths {
 
 	// For consistency with SdkLibrary make the implementation jar available to libraries that
 	// are within the same APEX.
@@ -2086,13 +2086,13 @@ func (module *SdkLibraryImport) sdkJars(ctx android.BaseModuleContext, sdkVersio
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *SdkLibraryImport) SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
+func (module *SdkLibraryImport) SdkHeaderJars(ctx android.BaseModuleContext, sdkVersion android.SdkSpec) android.Paths {
 	// This module is just a wrapper for the prebuilt stubs.
 	return module.sdkJars(ctx, sdkVersion, true)
 }
 
 // to satisfy SdkLibraryDependency interface
-func (module *SdkLibraryImport) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion sdkSpec) android.Paths {
+func (module *SdkLibraryImport) SdkImplementationJars(ctx android.BaseModuleContext, sdkVersion android.SdkSpec) android.Paths {
 	// This module is just a wrapper for the stubs.
 	return module.sdkJars(ctx, sdkVersion, false)
 }
