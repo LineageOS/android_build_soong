@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 
 	"android/soong/android"
 	"android/soong/java/config"
@@ -38,19 +37,6 @@ var sdkFrameworkAidlPathKey = android.NewOnceKey("sdkFrameworkAidlPathKey")
 var nonUpdatableFrameworkAidlPathKey = android.NewOnceKey("nonUpdatableFrameworkAidlPathKey")
 var apiFingerprintPathKey = android.NewOnceKey("apiFingerprintPathKey")
 
-type sdkContext interface {
-	// sdkVersion returns sdkSpec that corresponds to the sdk_version property of the current module
-	sdkVersion() sdkSpec
-	// systemModules returns the system_modules property of the current module, or an empty string if it is not set.
-	systemModules() string
-	// minSdkVersion returns sdkSpec that corresponds to the min_sdk_version property of the current module,
-	// or from sdk_version if it is not set.
-	minSdkVersion() sdkSpec
-	// targetSdkVersion returns the sdkSpec that corresponds to the target_sdk_version property of the current module,
-	// or from sdk_version if it is not set.
-	targetSdkVersion() sdkSpec
-}
-
 func UseApiFingerprint(ctx android.BaseModuleContext) bool {
 	if ctx.Config().UnbundledBuild() &&
 		!ctx.Config().AlwaysUsePrebuiltSdks() &&
@@ -60,209 +46,8 @@ func UseApiFingerprint(ctx android.BaseModuleContext) bool {
 	return false
 }
 
-// sdkKind represents a particular category of an SDK spec like public, system, test, etc.
-type sdkKind int
-
-const (
-	sdkInvalid sdkKind = iota
-	sdkNone
-	sdkCore
-	sdkCorePlatform
-	sdkPublic
-	sdkSystem
-	sdkTest
-	sdkModule
-	sdkSystemServer
-	sdkPrivate
-)
-
-// String returns the string representation of this sdkKind
-func (k sdkKind) String() string {
-	switch k {
-	case sdkPrivate:
-		return "private"
-	case sdkNone:
-		return "none"
-	case sdkPublic:
-		return "public"
-	case sdkSystem:
-		return "system"
-	case sdkTest:
-		return "test"
-	case sdkCore:
-		return "core"
-	case sdkCorePlatform:
-		return "core_platform"
-	case sdkModule:
-		return "module-lib"
-	case sdkSystemServer:
-		return "system-server"
-	default:
-		return "invalid"
-	}
-}
-
-// sdkVersion represents a specific version number of an SDK spec of a particular kind
-type sdkVersion int
-
-const (
-	// special version number for a not-yet-frozen SDK
-	sdkVersionCurrent sdkVersion = sdkVersion(android.FutureApiLevelInt)
-	// special version number to be used for SDK specs where version number doesn't
-	// make sense, e.g. "none", "", etc.
-	sdkVersionNone sdkVersion = sdkVersion(0)
-)
-
-// isCurrent checks if the sdkVersion refers to the not-yet-published version of an sdkKind
-func (v sdkVersion) isCurrent() bool {
-	return v == sdkVersionCurrent
-}
-
-// isNumbered checks if the sdkVersion refers to the published (a.k.a numbered) version of an sdkKind
-func (v sdkVersion) isNumbered() bool {
-	return !v.isCurrent() && v != sdkVersionNone
-}
-
-// String returns the string representation of this sdkVersion.
-func (v sdkVersion) String() string {
-	if v.isCurrent() {
-		return "current"
-	} else if v.isNumbered() {
-		return strconv.Itoa(int(v))
-	}
-	return "(no version)"
-}
-
-func (v sdkVersion) ApiLevel(ctx android.EarlyModuleContext) android.ApiLevel {
-	return android.ApiLevelOrPanic(ctx, v.String())
-}
-
-// asNumberString directly converts the numeric value of this sdk version as a string.
-// When isNumbered() is true, this method is the same as String(). However, for sdkVersionCurrent
-// and sdkVersionNone, this returns 10000 and 0 while String() returns "current" and "(no version"),
-// respectively.
-func (v sdkVersion) asNumberString() string {
-	return strconv.Itoa(int(v))
-}
-
-// sdkSpec represents the kind and the version of an SDK for a module to build against
-type sdkSpec struct {
-	kind    sdkKind
-	version sdkVersion
-	raw     string
-}
-
-func (s sdkSpec) String() string {
-	return fmt.Sprintf("%s_%s", s.kind, s.version)
-}
-
-// valid checks if this sdkSpec is well-formed. Note however that true doesn't mean that the
-// specified SDK actually exists.
-func (s sdkSpec) valid() bool {
-	return s.kind != sdkInvalid
-}
-
-// specified checks if this sdkSpec is well-formed and is not "".
-func (s sdkSpec) specified() bool {
-	return s.valid() && s.kind != sdkPrivate
-}
-
-// whether the API surface is managed and versioned, i.e. has .txt file that
-// get frozen on SDK freeze and changes get reviewed by API council.
-func (s sdkSpec) stable() bool {
-	if !s.specified() {
-		return false
-	}
-	switch s.kind {
-	case sdkNone:
-		// there is nothing to manage and version in this case; de facto stable API.
-		return true
-	case sdkCore, sdkPublic, sdkSystem, sdkModule, sdkSystemServer:
-		return true
-	case sdkCorePlatform, sdkTest, sdkPrivate:
-		return false
-	default:
-		panic(fmt.Errorf("unknown sdkKind=%v", s.kind))
-	}
-	return false
-}
-
-// prebuiltSdkAvailableForUnbundledBuilt tells whether this sdkSpec can have a prebuilt SDK
-// that can be used for unbundled builds.
-func (s sdkSpec) prebuiltSdkAvailableForUnbundledBuild() bool {
-	// "", "none", and "core_platform" are not available for unbundled build
-	// as we don't/can't have prebuilt stub for the versions
-	return s.kind != sdkPrivate && s.kind != sdkNone && s.kind != sdkCorePlatform
-}
-
-func (s sdkSpec) forVendorPartition(ctx android.EarlyModuleContext) sdkSpec {
-	// If BOARD_CURRENT_API_LEVEL_FOR_VENDOR_MODULES has a numeric value,
-	// use it instead of "current" for the vendor partition.
-	currentSdkVersion := ctx.DeviceConfig().CurrentApiLevelForVendorModules()
-	if currentSdkVersion == "current" {
-		return s
-	}
-
-	if s.kind == sdkPublic || s.kind == sdkSystem {
-		if s.version.isCurrent() {
-			if i, err := strconv.Atoi(currentSdkVersion); err == nil {
-				version := sdkVersion(i)
-				return sdkSpec{s.kind, version, s.raw}
-			}
-			panic(fmt.Errorf("BOARD_CURRENT_API_LEVEL_FOR_VENDOR_MODULES must be either \"current\" or a number, but was %q", currentSdkVersion))
-		}
-	}
-	return s
-}
-
-// usePrebuilt determines whether prebuilt SDK should be used for this sdkSpec with the given context.
-func (s sdkSpec) usePrebuilt(ctx android.EarlyModuleContext) bool {
-	if s.version.isCurrent() {
-		// "current" can be built from source and be from prebuilt SDK
-		return ctx.Config().AlwaysUsePrebuiltSdks()
-	} else if s.version.isNumbered() {
-		// validation check
-		if s.kind != sdkPublic && s.kind != sdkSystem && s.kind != sdkTest && s.kind != sdkModule {
-			panic(fmt.Errorf("prebuilt SDK is not not available for sdkKind=%q", s.kind))
-			return false
-		}
-		// numbered SDKs are always from prebuilt
-		return true
-	}
-	// "", "none", "core_platform" fall here
-	return false
-}
-
-// effectiveVersion converts an sdkSpec into the concrete sdkVersion that the module
-// should use. For modules targeting an unreleased SDK (meaning it does not yet have a number)
-// it returns android.FutureApiLevel(10000).
-func (s sdkSpec) effectiveVersion(ctx android.EarlyModuleContext) (sdkVersion, error) {
-	if !s.valid() {
-		return s.version, fmt.Errorf("invalid sdk version %q", s.raw)
-	}
-
-	if ctx.DeviceSpecific() || ctx.SocSpecific() {
-		s = s.forVendorPartition(ctx)
-	}
-	if s.version.isNumbered() {
-		return s.version, nil
-	}
-	return sdkVersion(ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt()), nil
-}
-
-// effectiveVersionString converts an sdkSpec into the concrete version string that the module
-// should use. For modules targeting an unreleased SDK (meaning it does not yet have a number)
-// it returns the codename (P, Q, R, etc.)
-func (s sdkSpec) effectiveVersionString(ctx android.EarlyModuleContext) (string, error) {
-	ver, err := s.effectiveVersion(ctx)
-	if err == nil && int(ver) == ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt() {
-		return ctx.Config().DefaultAppTargetSdk(ctx).String(), nil
-	}
-	return ver.String(), err
-}
-
-func (s sdkSpec) defaultJavaLanguageVersion(ctx android.EarlyModuleContext) javaVersion {
-	sdk, err := s.effectiveVersion(ctx)
+func defaultJavaLanguageVersion(ctx android.EarlyModuleContext, s android.SdkSpec) javaVersion {
+	sdk, err := s.EffectiveVersion(ctx)
 	if err != nil {
 		ctx.PropertyErrorf("sdk_version", "%s", err)
 	}
@@ -275,103 +60,27 @@ func (s sdkSpec) defaultJavaLanguageVersion(ctx android.EarlyModuleContext) java
 	}
 }
 
-func sdkSpecFrom(str string) sdkSpec {
-	switch str {
-	// special cases first
-	case "":
-		return sdkSpec{sdkPrivate, sdkVersionNone, str}
-	case "none":
-		return sdkSpec{sdkNone, sdkVersionNone, str}
-	case "core_platform":
-		return sdkSpec{sdkCorePlatform, sdkVersionNone, str}
-	default:
-		// the syntax is [kind_]version
-		sep := strings.LastIndex(str, "_")
-
-		var kindString string
-		if sep == 0 {
-			return sdkSpec{sdkInvalid, sdkVersionNone, str}
-		} else if sep == -1 {
-			kindString = ""
-		} else {
-			kindString = str[0:sep]
-		}
-		versionString := str[sep+1 : len(str)]
-
-		var kind sdkKind
-		switch kindString {
-		case "":
-			kind = sdkPublic
-		case "core":
-			kind = sdkCore
-		case "system":
-			kind = sdkSystem
-		case "test":
-			kind = sdkTest
-		case "module":
-			kind = sdkModule
-		case "system_server":
-			kind = sdkSystemServer
-		default:
-			return sdkSpec{sdkInvalid, sdkVersionNone, str}
-		}
-
-		var version sdkVersion
-		if versionString == "current" {
-			version = sdkVersionCurrent
-		} else if i, err := strconv.Atoi(versionString); err == nil {
-			version = sdkVersion(i)
-		} else {
-			return sdkSpec{sdkInvalid, sdkVersionNone, str}
-		}
-
-		return sdkSpec{kind, version, str}
-	}
-}
-
-func (s sdkSpec) validateSystemSdk(ctx android.EarlyModuleContext) bool {
-	// Ensures that the specified system SDK version is one of BOARD_SYSTEMSDK_VERSIONS (for vendor/product Java module)
-	// Assuming that BOARD_SYSTEMSDK_VERSIONS := 28 29,
-	// sdk_version of the modules in vendor/product that use system sdk must be either system_28, system_29 or system_current
-	if s.kind != sdkSystem || !s.version.isNumbered() {
-		return true
-	}
-	allowedVersions := ctx.DeviceConfig().PlatformSystemSdkVersions()
-	if ctx.DeviceSpecific() || ctx.SocSpecific() || (ctx.ProductSpecific() && ctx.Config().EnforceProductPartitionInterface()) {
-		systemSdkVersions := ctx.DeviceConfig().SystemSdkVersions()
-		if len(systemSdkVersions) > 0 {
-			allowedVersions = systemSdkVersions
-		}
-	}
-	if len(allowedVersions) > 0 && !android.InList(s.version.String(), allowedVersions) {
-		ctx.PropertyErrorf("sdk_version", "incompatible sdk version %q. System SDK version should be one of %q",
-			s.raw, allowedVersions)
-		return false
-	}
-	return true
-}
-
-func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep {
-	sdkVersion := sdkContext.sdkVersion()
-	if !sdkVersion.valid() {
-		ctx.PropertyErrorf("sdk_version", "invalid version %q", sdkVersion.raw)
+func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext) sdkDep {
+	sdkVersion := sdkContext.SdkVersion()
+	if !sdkVersion.Valid() {
+		ctx.PropertyErrorf("sdk_version", "invalid version %q", sdkVersion.Raw)
 		return sdkDep{}
 	}
 
 	if ctx.DeviceSpecific() || ctx.SocSpecific() {
-		sdkVersion = sdkVersion.forVendorPartition(ctx)
+		sdkVersion = sdkVersion.ForVendorPartition(ctx)
 	}
 
-	if !sdkVersion.validateSystemSdk(ctx) {
+	if !sdkVersion.ValidateSystemSdk(ctx) {
 		return sdkDep{}
 	}
 
-	if sdkVersion.usePrebuilt(ctx) {
-		dir := filepath.Join("prebuilts", "sdk", sdkVersion.version.String(), sdkVersion.kind.String())
+	if sdkVersion.UsePrebuilt(ctx) {
+		dir := filepath.Join("prebuilts", "sdk", sdkVersion.Version.String(), sdkVersion.Kind.String())
 		jar := filepath.Join(dir, "android.jar")
 		// There's no aidl for other SDKs yet.
 		// TODO(77525052): Add aidl files for other SDKs too.
-		publicDir := filepath.Join("prebuilts", "sdk", sdkVersion.version.String(), "public")
+		publicDir := filepath.Join("prebuilts", "sdk", sdkVersion.Version.String(), "public")
 		aidl := filepath.Join(publicDir, "framework.aidl")
 		jarPath := android.ExistentPathForSource(ctx, jar)
 		aidlPath := android.ExistentPathForSource(ctx, aidl)
@@ -380,23 +89,23 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.Config().AllowMissingDependencies() {
 			return sdkDep{
 				invalidVersion: true,
-				bootclasspath:  []string{fmt.Sprintf("sdk_%s_%s_android", sdkVersion.kind, sdkVersion.version.String())},
+				bootclasspath:  []string{fmt.Sprintf("sdk_%s_%s_android", sdkVersion.Kind, sdkVersion.Version.String())},
 			}
 		}
 
 		if !jarPath.Valid() {
-			ctx.PropertyErrorf("sdk_version", "invalid sdk version %q, %q does not exist", sdkVersion.raw, jar)
+			ctx.PropertyErrorf("sdk_version", "invalid sdk version %q, %q does not exist", sdkVersion.Raw, jar)
 			return sdkDep{}
 		}
 
 		if !aidlPath.Valid() {
-			ctx.PropertyErrorf("sdk_version", "invalid sdk version %q, %q does not exist", sdkVersion.raw, aidl)
+			ctx.PropertyErrorf("sdk_version", "invalid sdk version %q, %q does not exist", sdkVersion.Raw, aidl)
 			return sdkDep{}
 		}
 
 		var systemModules string
-		if sdkVersion.defaultJavaLanguageVersion(ctx).usesJavaModules() {
-			systemModules = "sdk_public_" + sdkVersion.version.String() + "_system_modules"
+		if defaultJavaLanguageVersion(ctx, sdkVersion).usesJavaModules() {
+			systemModules = "sdk_public_" + sdkVersion.Version.String() + "_system_modules"
 		}
 
 		return sdkDep{
@@ -418,8 +127,8 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 		}
 	}
 
-	switch sdkVersion.kind {
-	case sdkPrivate:
+	switch sdkVersion.Kind {
+	case android.SdkPrivate:
 		return sdkDep{
 			useModule:          true,
 			systemModules:      corePlatformSystemModules(ctx),
@@ -427,8 +136,8 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 			classpath:          config.FrameworkLibraries,
 			frameworkResModule: "framework-res",
 		}
-	case sdkNone:
-		systemModules := sdkContext.systemModules()
+	case android.SdkNone:
+		systemModules := sdkContext.SystemModules()
 		if systemModules == "" {
 			ctx.PropertyErrorf("sdk_version",
 				`system_modules is required to be set to a non-empty value when sdk_version is "none", did you mean sdk_version: "core_platform"?`)
@@ -444,34 +153,34 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext sdkContext) sdkDep 
 			systemModules:  systemModules,
 			bootclasspath:  []string{systemModules},
 		}
-	case sdkCorePlatform:
+	case android.SdkCorePlatform:
 		return sdkDep{
 			useModule:        true,
 			systemModules:    corePlatformSystemModules(ctx),
 			bootclasspath:    corePlatformBootclasspathLibraries(ctx),
 			noFrameworksLibs: true,
 		}
-	case sdkPublic:
+	case android.SdkPublic:
 		return toModule([]string{"android_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
-	case sdkSystem:
+	case android.SdkSystem:
 		return toModule([]string{"android_system_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
-	case sdkTest:
+	case android.SdkTest:
 		return toModule([]string{"android_test_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
-	case sdkCore:
+	case android.SdkCore:
 		return sdkDep{
 			useModule:        true,
 			bootclasspath:    []string{"core.current.stubs", config.DefaultLambdaStubsLibrary},
 			systemModules:    "core-current-stubs-system-modules",
 			noFrameworksLibs: true,
 		}
-	case sdkModule:
+	case android.SdkModule:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
 		return toModule([]string{"android_module_lib_stubs_current"}, "framework-res", nonUpdatableFrameworkAidlPath(ctx))
-	case sdkSystemServer:
+	case android.SdkSystemServer:
 		// TODO(146757305): provide .apk and .aidl that have more APIs for modules
 		return toModule([]string{"android_system_server_stubs_current"}, "framework-res", sdkFrameworkAidlPath(ctx))
 	default:
-		panic(fmt.Errorf("invalid sdk %q", sdkVersion.raw))
+		panic(fmt.Errorf("invalid sdk %q", sdkVersion.Raw))
 	}
 }
 

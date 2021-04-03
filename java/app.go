@@ -213,16 +213,16 @@ func (c Certificate) AndroidMkString() string {
 func (a *AndroidApp) DepsMutator(ctx android.BottomUpMutatorContext) {
 	a.Module.deps(ctx)
 
-	if String(a.appProperties.Stl) == "c++_shared" && !a.sdkVersion().specified() {
+	if String(a.appProperties.Stl) == "c++_shared" && !a.SdkVersion().Specified() {
 		ctx.PropertyErrorf("stl", "sdk_version must be set in order to use c++_shared")
 	}
 
-	sdkDep := decodeSdkDep(ctx, sdkContext(a))
+	sdkDep := decodeSdkDep(ctx, android.SdkContext(a))
 	if sdkDep.hasFrameworkLibs() {
 		a.aapt.deps(ctx, sdkDep)
 	}
 
-	usesSDK := a.sdkVersion().specified() && a.sdkVersion().kind != sdkCorePlatform
+	usesSDK := a.SdkVersion().Specified() && a.SdkVersion().Kind != android.SdkCorePlatform
 
 	if usesSDK && Bool(a.appProperties.Jni_uses_sdk_apis) {
 		ctx.PropertyErrorf("jni_uses_sdk_apis",
@@ -279,14 +279,14 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 	if a.Updatable() {
-		if !a.sdkVersion().stable() {
-			ctx.PropertyErrorf("sdk_version", "Updatable apps must use stable SDKs, found %v", a.sdkVersion())
+		if !a.SdkVersion().Stable() {
+			ctx.PropertyErrorf("sdk_version", "Updatable apps must use stable SDKs, found %v", a.SdkVersion())
 		}
 		if String(a.deviceProperties.Min_sdk_version) == "" {
 			ctx.PropertyErrorf("updatable", "updatable apps must set min_sdk_version.")
 		}
 
-		if minSdkVersion, err := a.minSdkVersion().effectiveVersion(ctx); err == nil {
+		if minSdkVersion, err := a.MinSdkVersion().EffectiveVersion(ctx); err == nil {
 			a.checkJniLibsSdkVersion(ctx, minSdkVersion)
 			android.CheckMinSdkVersion(a, ctx, minSdkVersion.ApiLevel(ctx))
 		} else {
@@ -304,7 +304,7 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 // because, sdk_version is overridden by min_sdk_version (if set as smaller)
 // and sdkLinkType is checked with dependencies so we can be sure that the whole dependency tree
 // will meet the requirements.
-func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVersion sdkVersion) {
+func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVersion android.SdkVersion) {
 	// It's enough to check direct JNI deps' sdk_version because all transitive deps from JNI deps are checked in cc.checkLinkType()
 	ctx.VisitDirectDeps(func(m android.Module) {
 		if !IsJniDepTag(ctx.OtherModuleDependencyTag(m)) {
@@ -312,9 +312,9 @@ func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVer
 		}
 		dep, _ := m.(*cc.Module)
 		// The domain of cc.sdk_version is "current" and <number>
-		// We can rely on sdkSpec to convert it to <number> so that "current" is handled
-		// properly regardless of sdk finalization.
-		jniSdkVersion, err := sdkSpecFrom(dep.SdkVersion()).effectiveVersion(ctx)
+		// We can rely on android.SdkSpec to convert it to <number> so that "current" is
+		// handled properly regardless of sdk finalization.
+		jniSdkVersion, err := android.SdkSpecFrom(dep.SdkVersion()).EffectiveVersion(ctx)
 		if err != nil || minSdkVersion < jniSdkVersion {
 			ctx.OtherModuleErrorf(dep, "sdk_version(%v) is higher than min_sdk_version(%v) of the containing android_app(%v)",
 				dep.SdkVersion(), minSdkVersion, ctx.ModuleName())
@@ -327,9 +327,9 @@ func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVer
 // Returns true if the native libraries should be stored in the APK uncompressed and the
 // extractNativeLibs application flag should be set to false in the manifest.
 func (a *AndroidApp) useEmbeddedNativeLibs(ctx android.ModuleContext) bool {
-	minSdkVersion, err := a.minSdkVersion().effectiveVersion(ctx)
+	minSdkVersion, err := a.MinSdkVersion().EffectiveVersion(ctx)
 	if err != nil {
-		ctx.PropertyErrorf("min_sdk_version", "invalid value %q: %s", a.minSdkVersion(), err)
+		ctx.PropertyErrorf("min_sdk_version", "invalid value %q: %s", a.MinSdkVersion(), err)
 	}
 
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
@@ -419,7 +419,7 @@ func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
 
 	a.aapt.splitNames = a.appProperties.Package_splits
 	a.aapt.LoggingParent = String(a.overridableAppProperties.Logging_parent)
-	a.aapt.buildActions(ctx, sdkContext(a), a.classLoaderContexts, aaptLinkFlags...)
+	a.aapt.buildActions(ctx, android.SdkContext(a), a.classLoaderContexts, aaptLinkFlags...)
 
 	// apps manifests are handled by aapt, don't let Module see them
 	a.properties.Manifest = nil
@@ -720,8 +720,8 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 type appDepsInterface interface {
-	sdkVersion() sdkSpec
-	minSdkVersion() sdkSpec
+	SdkVersion() android.SdkSpec
+	MinSdkVersion() android.SdkSpec
 	RequiresStableAPIs(ctx android.BaseModuleContext) bool
 }
 
@@ -734,8 +734,8 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 	seenModulePaths := make(map[string]bool)
 
 	if checkNativeSdkVersion {
-		checkNativeSdkVersion = app.sdkVersion().specified() &&
-			app.sdkVersion().kind != sdkCorePlatform && !app.RequiresStableAPIs(ctx)
+		checkNativeSdkVersion = app.SdkVersion().Specified() &&
+			app.SdkVersion().Kind != android.SdkCorePlatform && !app.RequiresStableAPIs(ctx)
 	}
 
 	ctx.WalkDeps(func(module android.Module, parent android.Module) bool {
@@ -829,6 +829,10 @@ func (a *AndroidApp) buildAppDependencyInfo(ctx android.ModuleContext) {
 				if v := m.MinSdkVersion(); v != "" {
 					toMinSdkVersion = v
 				}
+			} else if m, ok := to.(interface{ MinSdkVersionString() string }); ok {
+				if v := m.MinSdkVersionString(); v != "" {
+					toMinSdkVersion = v
+				}
 			}
 			depsInfo[depName] = android.ApexModuleDepInfo{
 				To:            depName,
@@ -840,7 +844,7 @@ func (a *AndroidApp) buildAppDependencyInfo(ctx android.ModuleContext) {
 		return true
 	})
 
-	a.ApexBundleDepsInfo.BuildDepsInfoLists(ctx, a.MinSdkVersion(), depsInfo)
+	a.ApexBundleDepsInfo.BuildDepsInfoLists(ctx, a.MinSdkVersionString(), depsInfo)
 }
 
 func (a *AndroidApp) Updatable() bool {
