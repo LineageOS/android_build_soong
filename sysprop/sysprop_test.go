@@ -371,6 +371,6 @@ func TestMinSdkVersionIsForwarded(t *testing.T) {
 	android.AssertStringEquals(t, "min_sdk_version forwarding to cc module", "29", propFromCc)
 
 	javaModule := result.ModuleForTests("sysprop-platform", "android_common").Module().(*java.Library)
-	propFromJava := javaModule.MinSdkVersion()
+	propFromJava := javaModule.MinSdkVersionString()
 	android.AssertStringEquals(t, "min_sdk_version forwarding to java module", "30", propFromJava)
 }
