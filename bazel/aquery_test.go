@@ -393,6 +393,109 @@ func TestInvalidPathFragmentId(t *testing.T) {
 	assertError(t, err, "undefined path fragment id 3")
 }
 
+func TestDepfiles(t *testing.T) {
+	const inputString = `
+{
+  "artifacts": [{
+    "id": 1,
+    "pathFragmentId": 1
+  }, {
+    "id": 2,
+    "pathFragmentId": 2
+  }, {
+    "id": 3,
+    "pathFragmentId": 3
+  }],
+  "actions": [{
+    "targetId": 1,
+    "actionKey": "x",
+    "mnemonic": "x",
+    "arguments": ["touch", "foo"],
+    "inputDepSetIds": [1],
+    "outputIds": [2, 3],
+    "primaryOutputId": 2
+  }],
+  "depSetOfFiles": [{
+    "id": 1,
+    "directArtifactIds": [1, 2, 3]
+  }],
+  "pathFragments": [{
+    "id": 1,
+    "label": "one"
+  }, {
+    "id": 2,
+    "label": "two"
+  }, {
+    "id": 3,
+    "label": "two.d"
+  }]
+}`
+
+	actual, err := AqueryBuildStatements([]byte(inputString))
+	if err != nil {
+		t.Errorf("Unexpected error %q", err)
+	}
+	if expected := 1; len(actual) != expected {
+		t.Fatalf("Expected %d build statements, got %d", expected, len(actual))
+	}
+
+	bs := actual[0]
+	expectedDepfile := "two.d"
+	if bs.Depfile == nil {
+		t.Errorf("Expected depfile %q, but there was none found", expectedDepfile)
+	} else if *bs.Depfile != expectedDepfile {
+		t.Errorf("Expected depfile %q, but got %q", expectedDepfile, *bs.Depfile)
+	}
+}
+
+func TestMultipleDepfiles(t *testing.T) {
+	const inputString = `
+{
+  "artifacts": [{
+    "id": 1,
+    "pathFragmentId": 1
+  }, {
+    "id": 2,
+    "pathFragmentId": 2
+  }, {
+    "id": 3,
+    "pathFragmentId": 3
+  }, {
+    "id": 4,
+    "pathFragmentId": 4
+  }],
+  "actions": [{
+    "targetId": 1,
+    "actionKey": "x",
+    "mnemonic": "x",
+    "arguments": ["touch", "foo"],
+    "inputDepSetIds": [1],
+    "outputIds": [2,3,4],
+    "primaryOutputId": 2
+  }],
+  "depSetOfFiles": [{
+    "id": 1,
+    "directArtifactIds": [1, 2, 3, 4]
+  }],
+  "pathFragments": [{
+    "id": 1,
+    "label": "one"
+  }, {
+    "id": 2,
+    "label": "two"
+  }, {
+    "id": 3,
+    "label": "two.d"
+  }, {
+    "id": 4,
+    "label": "other.d"
+  }]
+}`
+
+	_, err := AqueryBuildStatements([]byte(inputString))
+	assertError(t, err, `found multiple potential depfiles "two.d", "other.d"`)
+}
+
 func TestTransitiveInputDepsets(t *testing.T) {
 	// The input aquery for this test comes from a proof-of-concept starlark rule which registers
 	// a single action with many inputs given via a deep depset.
@@ -627,7 +730,7 @@ func assertError(t *testing.T, err error, expected string) {
 // Build statement equivalence is determined using buildStatementEquals.
 func assertBuildStatements(t *testing.T, expected []BuildStatement, actual []BuildStatement) {
 	if len(expected) != len(actual) {
-		t.Errorf("expected %d build statements, but got %d,\n expected: %s,\n actual: %s",
+		t.Errorf("expected %d build statements, but got %d,\n expected: %v,\n actual: %v",
 			len(expected), len(actual), expected, actual)
 		return
 	}
@@ -638,7 +741,7 @@ ACTUAL_LOOP:
 				continue ACTUAL_LOOP
 			}
 		}
-		t.Errorf("unexpected build statement %s.\n expected: %s",
+		t.Errorf("unexpected build statement %v.\n expected: %v",
 			actualStatement, expected)
 		return
 	}
