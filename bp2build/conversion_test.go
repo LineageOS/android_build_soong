@@ -24,36 +24,6 @@ type filepath struct {
 	basename string
 }
 
-func assertFilecountsAreEqual(t *testing.T, actual []BazelFile, expected []filepath) {
-	if a, e := len(actual), len(expected); a != e {
-		t.Errorf("Expected %d files, got %d", e, a)
-	}
-}
-
-func assertFileContent(t *testing.T, actual []BazelFile, expected []filepath) {
-	for i := range actual {
-		if g, w := actual[i], expected[i]; g.Dir != w.dir || g.Basename != w.basename {
-			t.Errorf("Did not find expected file %s/%s", g.Dir, g.Basename)
-		} else if g.Basename == "BUILD" || g.Basename == "WORKSPACE" {
-			if g.Contents != "" {
-				t.Errorf("Expected %s to have no content.", g)
-			}
-		} else if g.Contents == "" {
-			t.Errorf("Contents of %s unexpected empty.", g)
-		}
-	}
-}
-
-func sortFiles(files []BazelFile) {
-	sort.Slice(files, func(i, j int) bool {
-		if dir1, dir2 := files[i].Dir, files[j].Dir; dir1 == dir2 {
-			return files[i].Basename < files[j].Basename
-		} else {
-			return dir1 < dir2
-		}
-	})
-}
-
 func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 	files := CreateBazelFiles(map[string]RuleShim{}, map[string]BazelTargets{}, QueryView)
 	expectedFilePaths := []filepath{
@@ -79,21 +49,39 @@ func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 		},
 	}
 
-	assertFilecountsAreEqual(t, files, expectedFilePaths)
-	sortFiles(files)
-	assertFileContent(t, files, expectedFilePaths)
-}
-
-func TestCreateBazelFiles_Bp2Build_AddsTopLevelFiles(t *testing.T) {
-	files := CreateBazelFiles(map[string]RuleShim{}, map[string]BazelTargets{}, Bp2Build)
-	expectedFilePaths := []filepath{
-		{
-			dir:      "",
-			basename: "WORKSPACE",
-		},
+	// Compare number of files
+	if a, e := len(files), len(expectedFilePaths); a != e {
+		t.Errorf("Expected %d files, got %d", e, a)
 	}
 
-	assertFilecountsAreEqual(t, files, expectedFilePaths)
-	sortFiles(files)
-	assertFileContent(t, files, expectedFilePaths)
+	// Sort the files to be deterministic
+	sort.Slice(files, func(i, j int) bool {
+		if dir1, dir2 := files[i].Dir, files[j].Dir; dir1 == dir2 {
+			return files[i].Basename < files[j].Basename
+		} else {
+			return dir1 < dir2
+		}
+	})
+
+	// Compare the file contents
+	for i := range files {
+		actualFile, expectedFile := files[i], expectedFilePaths[i]
+
+		if actualFile.Dir != expectedFile.dir || actualFile.Basename != expectedFile.basename {
+			t.Errorf("Did not find expected file %s/%s", actualFile.Dir, actualFile.Basename)
+		} else if actualFile.Basename == "BUILD" || actualFile.Basename == "WORKSPACE" {
+			if actualFile.Contents != "" {
+				t.Errorf("Expected %s to have no content.", actualFile)
+			}
+		} else if actualFile.Contents == "" {
+			t.Errorf("Contents of %s unexpected empty.", actualFile)
+		}
+	}
+}
+
+func TestCreateBazelFiles_Bp2Build_CreatesNoFilesWithNoTargets(t *testing.T) {
+	files := CreateBazelFiles(map[string]RuleShim{}, map[string]BazelTargets{}, Bp2Build)
+	if len(files) != 0 {
+		t.Errorf("Expected no files, got %d", len(files))
+	}
 }

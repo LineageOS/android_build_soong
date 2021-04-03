@@ -34,8 +34,9 @@ var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports
 			`${config.GenKotlinBuildFileCmd} --classpath "$classpath" --name "$name"` +
 			` --out_dir "$classesDir" --srcs "$out.rsp" --srcs "$srcJarDir/list"` +
 			` $commonSrcFilesArg --out "$kotlinBuildFile" && ` +
-			`${config.KotlincCmd} ${config.JavacHeapFlags} $kotlincFlags ` +
-			`-jvm-target $kotlinJvmTarget -Xbuild-file=$kotlinBuildFile -kotlin-home $emptyDir && ` +
+			`${config.KotlincCmd} ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} ` +
+			`$kotlincFlags -jvm-target $kotlinJvmTarget -Xbuild-file=$kotlinBuildFile ` +
+			`-kotlin-home $emptyDir && ` +
 			`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir && ` +
 			`rm -rf "$srcJarDir"`,
 		CommandDeps: []string{
@@ -123,8 +124,8 @@ var kapt = pctx.AndroidRemoteStaticRule("kapt", android.RemoteRuleSupports{Goma:
 			`${config.GenKotlinBuildFileCmd} --classpath "$classpath" --name "$name"` +
 			` --srcs "$out.rsp" --srcs "$srcJarDir/list"` +
 			` $commonSrcFilesArg --out "$kotlinBuildFile" && ` +
-			`${config.KotlincCmd} ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} $kotlincFlags ` +
-			`-Xplugin=${config.KotlinKaptJar} ` +
+			`${config.KotlincCmd} ${config.KaptSuppressJDK9Warnings} ${config.KotlincSuppressJDK9Warnings} ` +
+			`${config.JavacHeapFlags} $kotlincFlags -Xplugin=${config.KotlinKaptJar} ` +
 			`-P plugin:org.jetbrains.kotlin.kapt3:sources=$kaptDir/sources ` +
 			`-P plugin:org.jetbrains.kotlin.kapt3:classes=$kaptDir/classes ` +
 			`-P plugin:org.jetbrains.kotlin.kapt3:stubs=$kaptDir/stubs ` +
