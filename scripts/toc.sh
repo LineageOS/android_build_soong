@@ -57,7 +57,7 @@ EOF
 
 do_pe() {
     "${CLANG_BIN}/llvm-objdump" -x "${infile}" | grep "^Name" | cut -f3 -d" " > "${outfile}.tmp"
-    "${CLANG_BIN}/llvm-nm" -g -f p "${infile}" | cut -f1-2 -d" " >> "${outfile}.tmp"
+    "${CLANG_BIN}/llvm-nm" -gP "${infile}" | cut -f1-2 -d" " >> "${outfile}.tmp"
 
     cat <<EOF > "${depsfile}"
 ${outfile}: \\
