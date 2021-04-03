@@ -265,25 +265,25 @@ func JavadocHostFactory() android.Module {
 
 var _ android.OutputFileProducer = (*Javadoc)(nil)
 
-func (j *Javadoc) sdkVersion() sdkSpec {
-	return sdkSpecFrom(String(j.properties.Sdk_version))
+func (j *Javadoc) SdkVersion() android.SdkSpec {
+	return android.SdkSpecFrom(String(j.properties.Sdk_version))
 }
 
-func (j *Javadoc) systemModules() string {
+func (j *Javadoc) SystemModules() string {
 	return proptools.String(j.properties.System_modules)
 }
 
-func (j *Javadoc) minSdkVersion() sdkSpec {
-	return j.sdkVersion()
+func (j *Javadoc) MinSdkVersion() android.SdkSpec {
+	return j.SdkVersion()
 }
 
-func (j *Javadoc) targetSdkVersion() sdkSpec {
-	return j.sdkVersion()
+func (j *Javadoc) TargetSdkVersion() android.SdkSpec {
+	return j.SdkVersion()
 }
 
 func (j *Javadoc) addDeps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
-		sdkDep := decodeSdkDep(ctx, sdkContext(j))
+		sdkDep := decodeSdkDep(ctx, android.SdkContext(j))
 		if sdkDep.useModule {
 			ctx.AddVariationDependencies(nil, bootClasspathTag, sdkDep.bootclasspath...)
 			ctx.AddVariationDependencies(nil, systemModulesTag, sdkDep.systemModules)
@@ -361,7 +361,7 @@ func (j *Javadoc) genSources(ctx android.ModuleContext, srcFiles android.Paths,
 func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 	var deps deps
 
-	sdkDep := decodeSdkDep(ctx, sdkContext(j))
+	sdkDep := decodeSdkDep(ctx, android.SdkContext(j))
 	if sdkDep.invalidVersion {
 		ctx.AddMissingDependencies(sdkDep.bootclasspath)
 		ctx.AddMissingDependencies(sdkDep.java9Classpath)
@@ -390,7 +390,7 @@ func (j *Javadoc) collectDeps(ctx android.ModuleContext) deps {
 			}
 		case libTag:
 			if dep, ok := module.(SdkLibraryDependency); ok {
-				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.sdkVersion())...)
+				deps.classpath = append(deps.classpath, dep.SdkHeaderJars(ctx, j.SdkVersion())...)
 			} else if ctx.OtherModuleHasProvider(module, JavaInfoProvider) {
 				dep := ctx.OtherModuleProvider(module, JavaInfoProvider).(JavaInfo)
 				deps.classpath = append(deps.classpath, dep.HeaderJars...)
@@ -555,7 +555,7 @@ func (j *Javadoc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	srcJarList := zipSyncCmd(ctx, rule, srcJarDir, j.srcJars)
 
-	javaVersion := getJavaVersion(ctx, String(j.properties.Java_version), sdkContext(j))
+	javaVersion := getJavaVersion(ctx, String(j.properties.Java_version), android.SdkContext(j))
 
 	cmd := javadocSystemModulesCmd(ctx, rule, j.srcFiles, outDir, srcJarDir, srcJarList,
 		deps.systemModules, deps.classpath, j.sourcepaths)

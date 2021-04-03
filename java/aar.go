@@ -163,7 +163,7 @@ func (a *aapt) IsRROEnforced(ctx android.BaseModuleContext) bool {
 		a.aaptProperties.RROEnforcedForDependent
 }
 
-func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext,
+func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkContext,
 	manifestPath android.Path) (compileFlags, linkFlags []string, linkDeps android.Paths,
 	resDirs, overlayDirs []globbedResourceDir, rroDirs []rroDir, resZips android.Paths) {
 
@@ -218,7 +218,7 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext sdkContext,
 	linkDeps = append(linkDeps, assetDeps...)
 
 	// SDK version flags
-	minSdkVersion, err := sdkContext.minSdkVersion().effectiveVersionString(ctx)
+	minSdkVersion, err := sdkContext.MinSdkVersion().EffectiveVersionString(ctx)
 	if err != nil {
 		ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 	}
@@ -266,7 +266,7 @@ var extractAssetsRule = pctx.AndroidStaticRule("extractAssets",
 		CommandDeps: []string{"${config.Zip2ZipCmd}"},
 	})
 
-func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext,
+func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext android.SdkContext,
 	classLoaderContexts dexpreopt.ClassLoaderContextMap, extraLinkFlags ...string) {
 
 	transitiveStaticLibs, transitiveStaticLibManifests, staticRRODirs, assetPackages, libDeps, libFlags :=
@@ -397,7 +397,7 @@ func (a *aapt) buildActions(ctx android.ModuleContext, sdkContext sdkContext,
 }
 
 // aaptLibs collects libraries from dependencies and sdk_version and converts them into paths
-func aaptLibs(ctx android.ModuleContext, sdkContext sdkContext, classLoaderContexts dexpreopt.ClassLoaderContextMap) (
+func aaptLibs(ctx android.ModuleContext, sdkContext android.SdkContext, classLoaderContexts dexpreopt.ClassLoaderContextMap) (
 	transitiveStaticLibs, transitiveStaticLibManifests android.Paths, staticRRODirs []rroDir, assets, deps android.Paths, flags []string) {
 
 	var sharedLibs android.Paths
@@ -498,7 +498,7 @@ var _ AndroidLibraryDependency = (*AndroidLibrary)(nil)
 
 func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	a.Module.deps(ctx)
-	sdkDep := decodeSdkDep(ctx, sdkContext(a))
+	sdkDep := decodeSdkDep(ctx, android.SdkContext(a))
 	if sdkDep.hasFrameworkLibs() {
 		a.aapt.deps(ctx, sdkDep)
 	}
@@ -507,7 +507,7 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.aapt.isLibrary = true
 	a.classLoaderContexts = make(dexpreopt.ClassLoaderContextMap)
-	a.aapt.buildActions(ctx, sdkContext(a), a.classLoaderContexts)
+	a.aapt.buildActions(ctx, android.SdkContext(a), a.classLoaderContexts)
 
 	a.hideApexVariantFromMake = !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform()
 
@@ -625,23 +625,23 @@ func (a *AARImport) OutputFiles(tag string) (android.Paths, error) {
 	}
 }
 
-func (a *AARImport) sdkVersion() sdkSpec {
-	return sdkSpecFrom(String(a.properties.Sdk_version))
+func (a *AARImport) SdkVersion() android.SdkSpec {
+	return android.SdkSpecFrom(String(a.properties.Sdk_version))
 }
 
-func (a *AARImport) systemModules() string {
+func (a *AARImport) SystemModules() string {
 	return ""
 }
 
-func (a *AARImport) minSdkVersion() sdkSpec {
+func (a *AARImport) MinSdkVersion() android.SdkSpec {
 	if a.properties.Min_sdk_version != nil {
-		return sdkSpecFrom(*a.properties.Min_sdk_version)
+		return android.SdkSpecFrom(*a.properties.Min_sdk_version)
 	}
-	return a.sdkVersion()
+	return a.SdkVersion()
 }
 
-func (a *AARImport) targetSdkVersion() sdkSpec {
-	return a.sdkVersion()
+func (a *AARImport) TargetSdkVersion() android.SdkSpec {
+	return a.SdkVersion()
 }
 
 func (a *AARImport) javaVersion() string {
@@ -700,7 +700,7 @@ func (a *AARImport) JacocoReportClassesFile() android.Path {
 
 func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if !ctx.Config().AlwaysUsePrebuiltSdks() {
-		sdkDep := decodeSdkDep(ctx, sdkContext(a))
+		sdkDep := decodeSdkDep(ctx, android.SdkContext(a))
 		if sdkDep.useModule && sdkDep.frameworkResModule != "" {
 			ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
 		}
@@ -780,7 +780,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	linkDeps = append(linkDeps, a.manifest)
 
 	transitiveStaticLibs, staticLibManifests, staticRRODirs, transitiveAssets, libDeps, libFlags :=
-		aaptLibs(ctx, sdkContext(a), nil)
+		aaptLibs(ctx, android.SdkContext(a), nil)
 
 	_ = staticLibManifests
 	_ = staticRRODirs
