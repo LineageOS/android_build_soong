@@ -149,6 +149,9 @@ func runBazel(ctx Context, config Config) {
 		cmd.Args = append(cmd.Args, "--action_env=PATH="+pathEnvValue)
 	}
 
+	// Allow Bazel actions to see the SHELL variable (passed to Bazel above)
+	cmd.Args = append(cmd.Args, "--action_env=SHELL")
+
 	// Append custom build flags to the Bazel command. Changes to these flags
 	// may invalidate Bazel's analysis cache.
 	// These should be appended as the final args, so that they take precedence.

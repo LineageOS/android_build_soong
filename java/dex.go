@@ -157,7 +157,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 	}, []string{"outDir", "outDict", "outUsage", "outUsageZip", "outUsageDir",
 		"r8Flags", "zipFlags"}, []string{"implicits"})
 
-func (d *dexer) dexCommonFlags(ctx android.ModuleContext, minSdkVersion sdkSpec) []string {
+func (d *dexer) dexCommonFlags(ctx android.ModuleContext, minSdkVersion android.SdkSpec) []string {
 	flags := d.dexProperties.Dxflags
 	// Translate all the DX flags to D8 ones until all the build files have been migrated
 	// to D8 flags. See: b/69377755
@@ -174,12 +174,12 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext, minSdkVersion sdkSpec)
 			"--verbose")
 	}
 
-	effectiveVersion, err := minSdkVersion.effectiveVersion(ctx)
+	effectiveVersion, err := minSdkVersion.EffectiveVersion(ctx)
 	if err != nil {
 		ctx.PropertyErrorf("min_sdk_version", "%s", err)
 	}
 
-	flags = append(flags, "--min-api "+effectiveVersion.asNumberString())
+	flags = append(flags, "--min-api "+effectiveVersion.AsNumberString())
 	return flags
 }
 
@@ -266,7 +266,7 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, flags javaBuilderFlags) (r8Fl
 	return r8Flags, r8Deps
 }
 
-func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, minSdkVersion sdkSpec,
+func (d *dexer) compileDex(ctx android.ModuleContext, flags javaBuilderFlags, minSdkVersion android.SdkSpec,
 	classesJar android.Path, jarName string) android.OutputPath {
 
 	// Compile classes.jar into classes.dex and then javalib.jar
