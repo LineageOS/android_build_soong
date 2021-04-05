@@ -110,13 +110,11 @@ func TestCcLibraryHeadersBp2Build(t *testing.T) {
 cc_library_headers {
     name: "lib-1",
     export_include_dirs: ["lib-1"],
-    bazel_module: { bp2build_available: true },
 }
 
 cc_library_headers {
     name: "lib-2",
     export_include_dirs: ["lib-2"],
-    bazel_module: { bp2build_available: true },
 }
 
 cc_library_headers {
@@ -125,7 +123,6 @@ cc_library_headers {
     header_libs: ["lib-1", "lib-2"],
 
     // TODO: Also support export_header_lib_headers
-    bazel_module: { bp2build_available: true },
 }`,
 			expectedBazelTargets: []string{`cc_library_headers(
     name = "foo_headers",
@@ -163,6 +160,106 @@ cc_library_headers {
     ],
 )`},
 		},
+		{
+			description:                        "cc_library_headers test with os-specific header_libs props",
+			moduleTypeUnderTest:                "cc_library_headers",
+			moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			filesystem:                         map[string]string{},
+			bp: soongCcLibraryPreamble + `
+cc_library_headers { name: "android-lib" }
+cc_library_headers { name: "base-lib" }
+cc_library_headers { name: "darwin-lib" }
+cc_library_headers { name: "fuchsia-lib" }
+cc_library_headers { name: "linux-lib" }
+cc_library_headers { name: "linux_bionic-lib" }
+cc_library_headers { name: "windows-lib" }
+cc_library_headers {
+    name: "foo_headers",
+    header_libs: ["base-lib"],
+    target: {
+        android: { header_libs: ["android-lib"] },
+        darwin: { header_libs: ["darwin-lib"] },
+        fuchsia: { header_libs: ["fuchsia-lib"] },
+        linux_bionic: { header_libs: ["linux_bionic-lib"] },
+        linux_glibc: { header_libs: ["linux-lib"] },
+        windows: { header_libs: ["windows-lib"] },
+    },
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{`cc_library_headers(
+    name = "android-lib",
+)`, `cc_library_headers(
+    name = "base-lib",
+)`, `cc_library_headers(
+    name = "darwin-lib",
+)`, `cc_library_headers(
+    name = "foo_headers",
+    deps = [
+        ":base-lib",
+    ] + select({
+        "//build/bazel/platforms/os:android": [
+            ":android-lib",
+        ],
+        "//build/bazel/platforms/os:darwin": [
+            ":darwin-lib",
+        ],
+        "//build/bazel/platforms/os:fuchsia": [
+            ":fuchsia-lib",
+        ],
+        "//build/bazel/platforms/os:linux": [
+            ":linux-lib",
+        ],
+        "//build/bazel/platforms/os:linux_bionic": [
+            ":linux_bionic-lib",
+        ],
+        "//build/bazel/platforms/os:windows": [
+            ":windows-lib",
+        ],
+        "//conditions:default": [],
+    }),
+)`, `cc_library_headers(
+    name = "fuchsia-lib",
+)`, `cc_library_headers(
+    name = "linux-lib",
+)`, `cc_library_headers(
+    name = "linux_bionic-lib",
+)`, `cc_library_headers(
+    name = "windows-lib",
+)`},
+		},
+		{
+			description:                        "cc_library_headers test with os-specific header_libs and export_header_lib_headers props",
+			moduleTypeUnderTest:                "cc_library_headers",
+			moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			filesystem:                         map[string]string{},
+			bp: soongCcLibraryPreamble + `
+cc_library_headers { name: "android-lib" }
+cc_library_headers { name: "exported-lib" }
+cc_library_headers {
+    name: "foo_headers",
+    target: {
+        android: { header_libs: ["android-lib"], export_header_lib_headers: ["exported-lib"] },
+    },
+}`,
+			expectedBazelTargets: []string{`cc_library_headers(
+    name = "android-lib",
+)`, `cc_library_headers(
+    name = "exported-lib",
+)`, `cc_library_headers(
+    name = "foo_headers",
+    deps = [] + select({
+        "//build/bazel/platforms/os:android": [
+            ":android-lib",
+            ":exported-lib",
+        ],
+        "//conditions:default": [],
+    }),
+)`},
+		},
 	}
 
 	dir := "."
@@ -179,6 +276,9 @@ cc_library_headers {
 		}
 		config := android.TestConfig(buildDir, nil, testCase.bp, filesystem)
 		ctx := android.NewTestContext(config)
+
+		// TODO(jingwen): make this default for all bp2build tests
+		ctx.RegisterBp2BuildConfig(bp2buildConfig)
 
 		cc.RegisterCCBuildComponents(ctx)
 		ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
