@@ -3284,6 +3284,10 @@ func (c *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 type Defaults struct {
 	android.ModuleBase
 	android.DefaultsModuleBase
+	// Included to support setting bazel_module.label for multiple Soong modules to the same Bazel
+	// target. This is primarily useful for modules that were architecture specific and instead are
+	// handled in Bazel as a select().
+	android.BazelModuleBase
 	android.ApexModuleBase
 }
 
@@ -3330,6 +3334,8 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&RustBindgenClangProperties{},
 	)
 
+	// Bazel module must be initialized _before_ Defaults to be included in cc_defaults module.
+	android.InitBazelModule(module)
 	android.InitDefaultsModule(module)
 
 	return module
