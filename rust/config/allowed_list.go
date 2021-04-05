@@ -19,6 +19,7 @@ var (
 		"packages/modules/Virtualization",
 		"prebuilts/rust",
 		"system/bt",
+		"system/core/libstats/pull_rust",
 		"system/extras/profcollectd",
 		"system/extras/simpleperf",
 		"system/hardware/interfaces/keystore2",
