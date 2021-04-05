@@ -108,6 +108,11 @@ type Bp2BuildConfig map[string]BazelConversionConfigEntry
 type BazelConversionConfigEntry int
 
 const (
+	// A sentinel value to be used as a key in Bp2BuildConfig for modules with
+	// no package path. This is also the module dir for top level Android.bp
+	// modules.
+	BP2BUILD_TOPLEVEL = "."
+
 	// iota + 1 ensures that the int value is not 0 when used in the Bp2buildAllowlist map,
 	// which can also mean that the key doesn't exist in a lookup.
 
@@ -224,10 +229,15 @@ func (b *BazelModuleBase) ConvertWithBp2build(ctx BazelConversionPathContext) bo
 func bp2buildDefaultTrueRecursively(packagePath string, config Bp2BuildConfig) bool {
 	ret := false
 
+	// Return exact matches in the config.
+	if config[packagePath] == Bp2BuildDefaultTrueRecursively {
+		return true
+	}
 	if config[packagePath] == Bp2BuildDefaultFalse {
 		return false
 	}
 
+	// If not, check for the config recursively.
 	packagePrefix := ""
 	// e.g. for x/y/z, iterate over x, x/y, then x/y/z, taking the final value from the allowlist.
 	for _, part := range strings.Split(packagePath, "/") {
