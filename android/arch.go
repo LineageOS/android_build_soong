@@ -1709,3 +1709,90 @@ func (m *ModuleBase) GetArchProperties(dst interface{}) map[ArchType]interface{}
 	}
 	return archToProp
 }
+
+// GetTargetProperties returns a map of OS target (e.g. android, windows) to the
+// values of the properties of the 'dst' struct that are specific to that OS
+// target.
+//
+// For example, passing a struct { Foo bool, Bar string } will return an
+// interface{} that can be type asserted back into the same struct, containing
+// the os-specific property value specified by the module if defined.
+//
+// While this looks similar to GetArchProperties, the internal representation of
+// the properties have a slightly different layout to warrant a standalone
+// lookup function.
+func (m *ModuleBase) GetTargetProperties(dst interface{}) map[OsType]interface{} {
+	// Return value of the arch types to the prop values for that arch.
+	osToProp := map[OsType]interface{}{}
+
+	// Nothing to do for non-OS/arch-specific modules.
+	if !m.ArchSpecific() {
+		return osToProp
+	}
+
+	// archProperties has the type of [][]interface{}. Looks complicated, so
+	// let's explain this step by step.
+	//
+	// Loop over the outer index, which determines the property struct that
+	// contains a matching set of properties in dst that we're interested in.
+	// For example, BaseCompilerProperties or BaseLinkerProperties.
+	for i := range m.archProperties {
+		if m.archProperties[i] == nil {
+			continue
+		}
+
+		// Iterate over the supported OS types
+		for _, os := range OsTypeList {
+			// e.g android, linux_bionic
+			field := os.Field
+
+			// If it's not nil, loop over the inner index, which determines the arch variant
+			// of the prop type. In an Android.bp file, this is like looping over:
+			//
+			// target: { android: { key: value, ... }, linux_bionic: { key: value, ... } }
+			for _, archProperties := range m.archProperties[i] {
+				archPropValues := reflect.ValueOf(archProperties).Elem()
+
+				// This is the archPropRoot struct. Traverse into the Targetnested struct.
+				src := archPropValues.FieldByName("Target").Elem()
+
+				// Step into non-nil pointers to structs in the src value.
+				if src.Kind() == reflect.Ptr {
+					if src.IsNil() {
+						continue
+					}
+					src = src.Elem()
+				}
+
+				// Find the requested field (e.g. android, linux_bionic) in the src struct.
+				src = src.FieldByName(field)
+
+				// Validation steps. We want valid non-nil pointers to structs.
+				if !src.IsValid() || src.IsNil() {
+					continue
+				}
+
+				if src.Kind() != reflect.Ptr || src.Elem().Kind() != reflect.Struct {
+					continue
+				}
+
+				// Clone the destination prop, since we want a unique prop struct per arch.
+				dstClone := reflect.New(reflect.ValueOf(dst).Elem().Type()).Interface()
+
+				// Copy the located property struct into the cloned destination property struct.
+				err := proptools.ExtendMatchingProperties([]interface{}{dstClone}, src.Interface(), nil, proptools.OrderReplace)
+				if err != nil {
+					// This is fine, it just means the src struct doesn't match.
+					continue
+				}
+
+				// Found the prop for the os, you have.
+				osToProp[os] = dstClone
+
+				// Go to the next prop.
+				break
+			}
+		}
+	}
+	return osToProp
+}

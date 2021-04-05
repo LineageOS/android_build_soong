@@ -270,13 +270,23 @@ func (context *bazelContext) issueBazelCommand(runName bazel.RunName, command st
 	cmdFlags = append(cmdFlags, labels...)
 	cmdFlags = append(cmdFlags, "--package_path=%workspace%/"+context.intermediatesDir())
 	cmdFlags = append(cmdFlags, "--profile="+shared.BazelMetricsFilename(context, runName))
-	// Set default platforms to canonicalized values for mixed builds requests. If these are set
-	// in the bazelrc, they will have values that are non-canonicalized, and thus be invalid.
-	// The actual platform values here may be overridden by configuration transitions from the buildroot.
+
+	// Set default platforms to canonicalized values for mixed builds requests.
+	// If these are set in the bazelrc, they will have values that are
+	// non-canonicalized to @sourceroot labels, and thus be invalid when
+	// referenced from the buildroot.
+	//
+	// The actual platform values here may be overridden by configuration
+	// transitions from the buildroot.
 	cmdFlags = append(cmdFlags,
-		fmt.Sprintf("--platforms=%s", canonicalizeLabel("//build/bazel/platforms:generic_x86_64")))
+		fmt.Sprintf("--platforms=%s", canonicalizeLabel("//build/bazel/platforms:android_x86_64")))
 	cmdFlags = append(cmdFlags,
 		fmt.Sprintf("--extra_toolchains=%s", canonicalizeLabel("//prebuilts/clang/host/linux-x86:all")))
+	// This should be parameterized on the host OS, but let's restrict to linux
+	// to keep things simple for now.
+	cmdFlags = append(cmdFlags,
+		fmt.Sprintf("--host_platform=%s", canonicalizeLabel("//build/bazel/platforms:linux_x86_64")))
+
 	// Explicitly disable downloading rules (such as canonical C++ and Java rules) from the network.
 	cmdFlags = append(cmdFlags, "--experimental_repository_disable_download")
 	cmdFlags = append(cmdFlags, extraFlags...)
@@ -328,7 +338,7 @@ func (context *bazelContext) mainBzlFileContents() []byte {
 
 def _config_node_transition_impl(settings, attr):
     return {
-        "//command_line_option:platforms": "@sourceroot//build/bazel/platforms:generic_%s" % attr.arch,
+        "//command_line_option:platforms": "@sourceroot//build/bazel/platforms:android_%s" % attr.arch,
     }
 
 _config_node_transition = transition(
@@ -504,10 +514,10 @@ def get_arch(target):
   platform_name = build_options(target)["//command_line_option:platforms"][0].name
   if platform_name == "host":
     return "HOST"
-  elif not platform_name.startswith("generic_"):
-    fail("expected platform name of the form 'generic_<arch>', but was " + str(platforms))
+  elif not platform_name.startswith("android_"):
+    fail("expected platform name of the form 'android_<arch>', but was " + str(platforms))
     return "UNKNOWN"
-  return platform_name[len("generic_"):]
+  return platform_name[len("android_"):]
 
 def format(target):
   id_string = str(target.label) + "|" + get_arch(target)
