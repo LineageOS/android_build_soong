@@ -20,6 +20,7 @@ bootstrap_go_package {
         "androidmk.go",
         "api_level.go",
         "builder.go",
+        "bp2build.go",
         "cc.go",
         "ccdeps.go",
         "check.go",
