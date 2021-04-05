@@ -229,11 +229,16 @@ func (c *Module) generateBazelBuildActions(ctx android.ModuleContext, label stri
 	filePaths, ok := bazelCtx.GetOutputFiles(label, ctx.Arch().ArchType)
 	if ok {
 		var bazelOutputFiles android.Paths
+		exportIncludeDirs := map[string]bool{}
 		for _, bazelOutputFile := range filePaths {
 			bazelOutputFiles = append(bazelOutputFiles, android.PathForBazelOut(ctx, bazelOutputFile))
+			exportIncludeDirs[filepath.Dir(bazelOutputFile)] = true
 		}
 		c.outputFiles = bazelOutputFiles
 		c.outputDeps = bazelOutputFiles
+		for includePath, _ := range exportIncludeDirs {
+			c.exportedIncludeDirs = append(c.exportedIncludeDirs, android.PathForBazelOut(ctx, includePath))
+		}
 	}
 	return ok
 }
