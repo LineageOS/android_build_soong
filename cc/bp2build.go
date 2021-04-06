@@ -58,6 +58,31 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddDependency(module, nil, android.SortedUniqueStrings(allDeps)...)
 }
 
+// bp2buildParseCflags creates a label list attribute containing the cflags of a module, including
+func bp2BuildParseCflags(ctx android.TopDownMutatorContext, module *Module) bazel.StringListAttribute {
+	var ret bazel.StringListAttribute
+	for _, props := range module.compiler.compilerProps() {
+		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
+			ret.Value = baseCompilerProps.Cflags
+			break
+		}
+	}
+
+	for arch, props := range module.GetArchProperties(&BaseCompilerProperties{}) {
+		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
+			ret.SetValueForArch(arch.Name, baseCompilerProps.Cflags)
+		}
+	}
+
+	for os, props := range module.GetTargetProperties(&BaseCompilerProperties{}) {
+		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
+			ret.SetValueForOS(os.Name, baseCompilerProps.Cflags)
+		}
+	}
+
+	return ret
+}
+
 // bp2BuildParseHeaderLibs creates a label list attribute containing the header library deps of a module, including
 // configurable attribute values.
 func bp2BuildParseHeaderLibs(ctx android.TopDownMutatorContext, module *Module) bazel.LabelListAttribute {
