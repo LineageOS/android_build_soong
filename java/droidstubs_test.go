@@ -34,7 +34,6 @@ func TestDroidstubs(t *testing.T) {
 			srcs: ["bar-doc/a.java"],
 			api_levels_annotations_dirs: ["droiddoc-templates-sdk"],
 			api_levels_annotations_enabled: true,
-			sandbox: false,
 		}
 
 		droidstubs {
@@ -44,7 +43,6 @@ func TestDroidstubs(t *testing.T) {
 			api_levels_annotations_dirs: ["droiddoc-templates-sdk"],
 			api_levels_annotations_enabled: true,
 			api_levels_jar_filename: "android.other.jar",
-			sandbox: false,
 		}
 		`,
 		map[string][]byte{
@@ -68,13 +66,15 @@ func TestDroidstubs(t *testing.T) {
 	}
 	for _, c := range testcases {
 		m := ctx.ModuleForTests(c.moduleName, "android_common")
-		metalava := m.Rule("metalava")
-		rp := metalava.RuleParams
+		manifest := m.Output("metalava.sbox.textproto")
+		sboxProto := android.RuleBuilderSboxProtoForTests(t, manifest)
 		expected := "--android-jar-pattern ./%/public/" + c.expectedJarFilename
-		if actual := rp.Command; !strings.Contains(actual, expected) {
+		if actual := String(sboxProto.Commands[0].Command); !strings.Contains(actual, expected) {
 			t.Errorf("For %q, expected metalava argument %q, but was not found %q", c.moduleName, expected, actual)
 		}
 
+		metalava := m.Rule("metalava")
+		rp := metalava.RuleParams
 		if actual := rp.Pool != nil && strings.Contains(rp.Pool.String(), "highmem"); actual != c.high_mem {
 			t.Errorf("Expected %q high_mem to be %v, was %v", c.moduleName, c.high_mem, actual)
 		}
@@ -92,7 +92,6 @@ func TestDroidstubsSandbox(t *testing.T) {
 		droidstubs {
 			name: "bar-stubs",
 			srcs: ["bar-doc/a.java"],
-			sandbox: true,
 
 			args: "--reference $(location :foo)",
 			arg_files: [":foo"],
