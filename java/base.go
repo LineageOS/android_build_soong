@@ -535,7 +535,7 @@ func (j *Module) TargetSdkVersion() android.SdkSpec {
 }
 
 func (j *Module) MinSdkVersionString() string {
-	return j.MinSdkVersion().Version.String()
+	return j.MinSdkVersion().ApiLevel.String()
 }
 
 func (j *Module) AvailableFor(what string) bool {
@@ -1255,7 +1255,7 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 
 	if ctx.Device() {
 		lintSDKVersionString := func(sdkSpec android.SdkSpec) string {
-			if v := sdkSpec.Version; v.IsNumbered() {
+			if v := sdkSpec.ApiLevel; !v.IsPreview() {
 				return v.String()
 			} else {
 				return ctx.Config().DefaultAppTargetSdk(ctx).String()
@@ -1482,7 +1482,7 @@ func (j *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	if err != nil {
 		return err
 	}
-	if ver.ApiLevel(ctx).GreaterThan(sdkVersion) {
+	if ver.GreaterThan(sdkVersion) {
 		return fmt.Errorf("newer SDK(%v)", ver)
 	}
 	return nil

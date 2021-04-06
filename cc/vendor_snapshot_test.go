@@ -88,7 +88,7 @@ func TestVendorSnapshotCapture(t *testing.T) {
 `
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	ctx := testCcWithConfig(t, config)
 
 	// Check Vendor snapshot output.
@@ -108,7 +108,7 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
 
 		// For shared libraries, only non-VNDK vendor_available modules are captured
-		sharedVariant := fmt.Sprintf("android_vendor.VER_%s_%s_shared", archType, archVariant)
+		sharedVariant := fmt.Sprintf("android_vendor.29_%s_%s_shared", archType, archVariant)
 		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
 		checkSnapshot(t, ctx, snapshotSingleton, "libvendor", "libvendor.so", sharedDir, sharedVariant)
 		checkSnapshot(t, ctx, snapshotSingleton, "libvendor_available", "libvendor_available.so", sharedDir, sharedVariant)
@@ -121,8 +121,8 @@ func TestVendorSnapshotCapture(t *testing.T) {
 
 		// For static libraries, all vendor:true and vendor_available modules (including VNDK) are captured.
 		// Also cfi variants are captured, except for prebuilts like toolchain_library
-		staticVariant := fmt.Sprintf("android_vendor.VER_%s_%s_static", archType, archVariant)
-		staticCfiVariant := fmt.Sprintf("android_vendor.VER_%s_%s_static_cfi", archType, archVariant)
+		staticVariant := fmt.Sprintf("android_vendor.29_%s_%s_static", archType, archVariant)
+		staticCfiVariant := fmt.Sprintf("android_vendor.29_%s_%s_static_cfi", archType, archVariant)
 		staticDir := filepath.Join(snapshotVariantPath, archDir, "static")
 		checkSnapshot(t, ctx, snapshotSingleton, "libb", "libb.a", staticDir, staticVariant)
 		checkSnapshot(t, ctx, snapshotSingleton, "libvndk", "libvndk.a", staticDir, staticVariant)
@@ -142,7 +142,7 @@ func TestVendorSnapshotCapture(t *testing.T) {
 
 		// For binary executables, all vendor:true and vendor_available modules are captured.
 		if archType == "arm64" {
-			binaryVariant := fmt.Sprintf("android_vendor.VER_%s_%s", archType, archVariant)
+			binaryVariant := fmt.Sprintf("android_vendor.29_%s_%s", archType, archVariant)
 			binaryDir := filepath.Join(snapshotVariantPath, archDir, "binary")
 			checkSnapshot(t, ctx, snapshotSingleton, "vendor_bin", "vendor_bin", binaryDir, binaryVariant)
 			checkSnapshot(t, ctx, snapshotSingleton, "vendor_available_bin", "vendor_available_bin", binaryDir, binaryVariant)
@@ -156,7 +156,7 @@ func TestVendorSnapshotCapture(t *testing.T) {
 		jsonFiles = append(jsonFiles, filepath.Join(headerDir, "libvendor_headers.json"))
 
 		// For object modules, all vendor:true and vendor_available modules are captured.
-		objectVariant := fmt.Sprintf("android_vendor.VER_%s_%s", archType, archVariant)
+		objectVariant := fmt.Sprintf("android_vendor.29_%s_%s", archType, archVariant)
 		objectDir := filepath.Join(snapshotVariantPath, archDir, "object")
 		checkSnapshot(t, ctx, snapshotSingleton, "obj", "obj.o", objectDir, objectVariant)
 		jsonFiles = append(jsonFiles, filepath.Join(objectDir, "obj.o.json"))
@@ -214,7 +214,7 @@ func TestVendorSnapshotDirected(t *testing.T) {
 `
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	config.TestProductVariables.DirectedVendorSnapshot = true
 	config.TestProductVariables.VendorSnapshotModules = make(map[string]bool)
 	config.TestProductVariables.VendorSnapshotModules["libvendor"] = true
@@ -237,7 +237,7 @@ func TestVendorSnapshotDirected(t *testing.T) {
 		archVariant := arch[1]
 		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
 
-		sharedVariant := fmt.Sprintf("android_vendor.VER_%s_%s_shared", archType, archVariant)
+		sharedVariant := fmt.Sprintf("android_vendor.29_%s_%s_shared", archType, archVariant)
 		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
 
 		// Included modules
@@ -308,7 +308,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	vndkBp := `
 	vndk_prebuilt_shared {
 		name: "libvndk",
-		version: "BOARD",
+		version: "28",
 		target_arch: "arm64",
 		vendor_available: true,
 		product_available: true,
@@ -326,7 +326,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	// old snapshot module which has to be ignored
 	vndk_prebuilt_shared {
 		name: "libvndk",
-		version: "OLD",
+		version: "26",
 		target_arch: "arm64",
 		vendor_available: true,
 		product_available: true,
@@ -381,7 +381,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	vendor_snapshot {
 		name: "vendor_snapshot",
 		compile_multilib: "first",
-		version: "BOARD",
+		version: "28",
 		vndk_libs: [
 			"libvndk",
 		],
@@ -401,7 +401,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_static {
 		name: "libvndk",
-		version: "BOARD",
+		version: "28",
 		target_arch: "arm64",
 		vendor: true,
 		arch: {
@@ -414,7 +414,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_shared {
 		name: "libvendor",
-		version: "BOARD",
+		version: "28",
 		target_arch: "arm64",
 		compile_multilib: "64",
 		vendor: true,
@@ -433,7 +433,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_static {
 		name: "libvendor",
-		version: "BOARD",
+		version: "28",
 		target_arch: "arm64",
 		vendor: true,
 		arch: {
@@ -447,7 +447,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	vendor_snapshot_shared {
 		name: "libvendor_available",
 		androidmk_suffix: ".vendor",
-		version: "BOARD",
+		version: "28",
 		target_arch: "arm64",
 		vendor: true,
 		arch: {
@@ -461,7 +461,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	vendor_snapshot_static {
 		name: "libvendor_available",
 		androidmk_suffix: ".vendor",
-		version: "BOARD",
+		version: "28",
 		target_arch: "arm64",
 		vendor: true,
 		arch: {
@@ -474,7 +474,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_binary {
 		name: "bin",
-		version: "BOARD",
+		version: "28",
 		target_arch: "arm64",
 		vendor: true,
 		arch: {
@@ -487,7 +487,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	// old snapshot module which has to be ignored
 	vendor_snapshot_binary {
 		name: "bin",
-		version: "OLD",
+		version: "26",
 		target_arch: "arm64",
 		vendor: true,
 		arch: {
@@ -517,8 +517,8 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("BOARD")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("28")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	ctx := CreateTestContext(config)
 	ctx.Register()
 
@@ -527,11 +527,11 @@ func TestVendorSnapshotUse(t *testing.T) {
 	_, errs = ctx.PrepareBuildActions(config)
 	android.FailIfErrored(t, errs)
 
-	sharedVariant := "android_vendor.BOARD_arm64_armv8-a_shared"
-	staticVariant := "android_vendor.BOARD_arm64_armv8-a_static"
-	binaryVariant := "android_vendor.BOARD_arm64_armv8-a"
+	sharedVariant := "android_vendor.28_arm64_armv8-a_shared"
+	staticVariant := "android_vendor.28_arm64_armv8-a_static"
+	binaryVariant := "android_vendor.28_arm64_armv8-a"
 
-	// libclient uses libvndk.vndk.BOARD.arm64, libvendor.vendor_static.BOARD.arm64, libvendor_without_snapshot
+	// libclient uses libvndk.vndk.28.arm64, libvendor.vendor_static.28.arm64, libvendor_without_snapshot
 	libclientCcFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("cc").Args["cFlags"]
 	for _, includeFlags := range []string{
 		"-Ivndk/include/libvndk",     // libvndk
@@ -545,8 +545,8 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	libclientLdFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("ld").Args["libFlags"]
 	for _, input := range [][]string{
-		[]string{sharedVariant, "libvndk.vndk.BOARD.arm64"},
-		[]string{staticVariant, "libvendor.vendor_static.BOARD.arm64"},
+		[]string{sharedVariant, "libvndk.vndk.28.arm64"},
+		[]string{staticVariant, "libvendor.vendor_static.28.arm64"},
 		[]string{staticVariant, "libvendor_without_snapshot"},
 	} {
 		outputPaths := getOutputPaths(ctx, input[0] /* variant */, []string{input[1]} /* module name */)
@@ -565,7 +565,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		t.Errorf("wanted libclient AndroidMkStaticLibs %q, got %q", w, g)
 	}
 
-	// bin_without_snapshot uses libvndk.vendor_static.BOARD.arm64
+	// bin_without_snapshot uses libvndk.vendor_static.28.arm64
 	binWithoutSnapshotCcFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("cc").Args["cFlags"]
 	if !strings.Contains(binWithoutSnapshotCcFlags, "-Ivendor/include/libvndk") {
 		t.Errorf("flags for bin_without_snapshot must contain %#v, but was %#v.",
@@ -573,28 +573,28 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	binWithoutSnapshotLdFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("ld").Args["libFlags"]
-	libVndkStaticOutputPaths := getOutputPaths(ctx, staticVariant, []string{"libvndk.vendor_static.BOARD.arm64"})
+	libVndkStaticOutputPaths := getOutputPaths(ctx, staticVariant, []string{"libvndk.vendor_static.28.arm64"})
 	if !strings.Contains(binWithoutSnapshotLdFlags, libVndkStaticOutputPaths[0].String()) {
 		t.Errorf("libflags for bin_without_snapshot must contain %#v, but was %#v",
 			libVndkStaticOutputPaths[0], binWithoutSnapshotLdFlags)
 	}
 
-	// libvendor.so is installed by libvendor.vendor_shared.BOARD.arm64
-	ctx.ModuleForTests("libvendor.vendor_shared.BOARD.arm64", sharedVariant).Output("libvendor.so")
+	// libvendor.so is installed by libvendor.vendor_shared.28.arm64
+	ctx.ModuleForTests("libvendor.vendor_shared.28.arm64", sharedVariant).Output("libvendor.so")
 
-	// libvendor_available.so is installed by libvendor_available.vendor_shared.BOARD.arm64
-	ctx.ModuleForTests("libvendor_available.vendor_shared.BOARD.arm64", sharedVariant).Output("libvendor_available.so")
+	// libvendor_available.so is installed by libvendor_available.vendor_shared.28.arm64
+	ctx.ModuleForTests("libvendor_available.vendor_shared.28.arm64", sharedVariant).Output("libvendor_available.so")
 
 	// libvendor_without_snapshot.so is installed by libvendor_without_snapshot
 	ctx.ModuleForTests("libvendor_without_snapshot", sharedVariant).Output("libvendor_without_snapshot.so")
 
-	// bin is installed by bin.vendor_binary.BOARD.arm64
-	ctx.ModuleForTests("bin.vendor_binary.BOARD.arm64", binaryVariant).Output("bin")
+	// bin is installed by bin.vendor_binary.28.arm64
+	ctx.ModuleForTests("bin.vendor_binary.28.arm64", binaryVariant).Output("bin")
 
 	// bin_without_snapshot is installed by bin_without_snapshot
 	ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Output("bin_without_snapshot")
 
-	// libvendor, libvendor_available and bin don't have vendor.BOARD variant
+	// libvendor, libvendor_available and bin don't have vendor.28 variant
 	libvendorVariants := ctx.ModuleVariantsForTests("libvendor")
 	if inList(sharedVariant, libvendorVariants) {
 		t.Errorf("libvendor must not have variant %#v, but it does", sharedVariant)
@@ -617,7 +617,7 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 		name: "libsnapshot",
 		vendor: true,
 		target_arch: "arm64",
-		version: "BOARD",
+		version: "28",
 		arch: {
 			arm64: {
 				src: "libsnapshot.a",
@@ -629,18 +629,18 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 	}
 `
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("BOARD")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("28")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	ctx := testCcWithConfig(t, config)
 
 	// Check non-cfi and cfi variant.
-	staticVariant := "android_vendor.BOARD_arm64_armv8-a_static"
-	staticCfiVariant := "android_vendor.BOARD_arm64_armv8-a_static_cfi"
+	staticVariant := "android_vendor.28_arm64_armv8-a_static"
+	staticCfiVariant := "android_vendor.28_arm64_armv8-a_static_cfi"
 
-	staticModule := ctx.ModuleForTests("libsnapshot.vendor_static.BOARD.arm64", staticVariant).Module().(*Module)
+	staticModule := ctx.ModuleForTests("libsnapshot.vendor_static.28.arm64", staticVariant).Module().(*Module)
 	assertString(t, staticModule.outputFile.Path().Base(), "libsnapshot.a")
 
-	staticCfiModule := ctx.ModuleForTests("libsnapshot.vendor_static.BOARD.arm64", staticCfiVariant).Module().(*Module)
+	staticCfiModule := ctx.ModuleForTests("libsnapshot.vendor_static.28.arm64", staticCfiVariant).Module().(*Module)
 	assertString(t, staticCfiModule.outputFile.Path().Base(), "libsnapshot.cfi.a")
 }
 
@@ -709,7 +709,7 @@ func TestVendorSnapshotExclude(t *testing.T) {
 
 	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	ctx := CreateTestContext(config)
 	ctx.Register()
 
@@ -744,7 +744,7 @@ func TestVendorSnapshotExclude(t *testing.T) {
 		archVariant := arch[1]
 		archDir := fmt.Sprintf("arch-%s-%s", archType, archVariant)
 
-		sharedVariant := fmt.Sprintf("android_vendor.VER_%s_%s_shared", archType, archVariant)
+		sharedVariant := fmt.Sprintf("android_vendor.29_%s_%s_shared", archType, archVariant)
 		sharedDir := filepath.Join(snapshotVariantPath, archDir, "shared")
 
 		// Included modules
@@ -801,7 +801,7 @@ func TestVendorSnapshotExcludeInVendorProprietaryPathErrors(t *testing.T) {
 
 	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	ctx := CreateTestContext(config)
 	ctx.Register()
 
@@ -875,7 +875,7 @@ func TestRecoverySnapshotCapture(t *testing.T) {
 `
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.RecoverySnapshotVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	ctx := testCcWithConfig(t, config)
 
 	// Check Recovery snapshot output.
@@ -993,7 +993,7 @@ func TestRecoverySnapshotExclude(t *testing.T) {
 
 	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
 	config.TestProductVariables.RecoverySnapshotVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	ctx := CreateTestContext(config)
 	ctx.Register()
 
@@ -1094,7 +1094,7 @@ func TestRecoverySnapshotDirected(t *testing.T) {
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.RecoverySnapshotVersion = StringPtr("current")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("VER")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	config.TestProductVariables.DirectedRecoverySnapshot = true
 	config.TestProductVariables.RecoverySnapshotModules = make(map[string]bool)
 	config.TestProductVariables.RecoverySnapshotModules["librecovery"] = true
