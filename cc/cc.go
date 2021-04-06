@@ -1646,11 +1646,11 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		c.hideApexVariantFromMake = true
 	}
 
+	c.makeLinkType = GetMakeLinkType(actx, c)
+
 	if c.maybeGenerateBazelActions(actx) {
 		return
 	}
-
-	c.makeLinkType = GetMakeLinkType(actx, c)
 
 	ctx := &moduleContext{
 		ModuleContext: actx,
