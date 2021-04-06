@@ -34,13 +34,6 @@ import (
 	"android/soong/shared"
 )
 
-type CqueryRequestType int
-
-const (
-	getAllFiles CqueryRequestType = iota
-	getAllFilesAndCcObjectFiles
-)
-
 // Map key to describe bazel cquery requests.
 type cqueryKey struct {
 	label       string
