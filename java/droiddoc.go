@@ -98,10 +98,6 @@ type JavadocProperties struct {
 
 	// names of the output files used in args that will be generated
 	Out []string
-
-	// If set, metalava is sandboxed to only read files explicitly specified on the command
-	// line. Defaults to false.
-	Sandbox *bool
 }
 
 type ApiToCheck struct {
