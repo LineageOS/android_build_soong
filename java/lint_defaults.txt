@@ -76,3 +76,5 @@
 
 # TODO(b/158390965): remove this when lint doesn't crash
 --disable_check HardcodedDebugMode
+
+--warning_check QueryAllPackagesPermission
