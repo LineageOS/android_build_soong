@@ -1049,6 +1049,16 @@ func apexMutator(mctx android.BottomUpMutatorContext) {
 	if a, ok := mctx.Module().(*apexBundle); ok && !a.vndkApex {
 		apexBundleName := mctx.ModuleName()
 		mctx.CreateVariations(apexBundleName)
+		if strings.HasPrefix(apexBundleName, "com.android.art") {
+			// Create an alias from the platform variant. This is done to make
+			// test_for dependencies work for modules that are split by the APEX
+			// mutator, since test_for dependencies always go to the platform variant.
+			// This doesn't happen for normal APEXes that are disjunct, so only do
+			// this for the overlapping ART APEXes.
+			// TODO(b/183882457): Remove this if the test_for functionality is
+			// refactored to depend on the proper APEX variants instead of platform.
+			mctx.CreateAliasVariation("", apexBundleName)
+		}
 	} else if o, ok := mctx.Module().(*OverrideApex); ok {
 		apexBundleName := o.GetOverriddenModuleName()
 		if apexBundleName == "" {
@@ -1056,6 +1066,10 @@ func apexMutator(mctx android.BottomUpMutatorContext) {
 			return
 		}
 		mctx.CreateVariations(apexBundleName)
+		if strings.HasPrefix(apexBundleName, "com.android.art") {
+			// TODO(b/183882457): See note for CreateAliasVariation above.
+			mctx.CreateAliasVariation("", apexBundleName)
+		}
 	}
 }
 
