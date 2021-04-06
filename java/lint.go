@@ -392,6 +392,9 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	rule.Command().Text("rm -rf").Flag(lintPaths.cacheDir.String()).Flag(lintPaths.homeDir.String())
 
+	// The HTML output contains a date, remove it to make the output deterministic.
+	rule.Command().Text(`sed -i.tmp -e 's|Check performed at .*\(</nav>\)|\1|'`).Output(html)
+
 	rule.Build("lint", "lint")
 
 	l.outputs = lintOutputs{
