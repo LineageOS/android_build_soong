@@ -97,14 +97,17 @@ func TestCcLibraryHeadersBp2Build(t *testing.T) {
 			moduleTypeUnderTestFactory:         cc.LibraryHeaderFactory,
 			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryHeadersBp2Build,
 			filesystem: map[string]string{
-				"lib-1/lib1a.h": "",
-				"lib-1/lib1b.h": "",
-				"lib-2/lib2a.h": "",
-				"lib-2/lib2b.h": "",
-				"dir-1/dir1a.h": "",
-				"dir-1/dir1b.h": "",
-				"dir-2/dir2a.h": "",
-				"dir-2/dir2b.h": "",
+				"lib-1/lib1a.h":                        "",
+				"lib-1/lib1b.h":                        "",
+				"lib-2/lib2a.h":                        "",
+				"lib-2/lib2b.h":                        "",
+				"dir-1/dir1a.h":                        "",
+				"dir-1/dir1b.h":                        "",
+				"dir-2/dir2a.h":                        "",
+				"dir-2/dir2b.h":                        "",
+				"arch_arm64_exported_include_dir/a.h":  "",
+				"arch_x86_exported_include_dir/b.h":    "",
+				"arch_x86_64_exported_include_dir/c.h": "",
 			},
 			bp: soongCcLibraryPreamble + `
 cc_library_headers {
@@ -122,6 +125,19 @@ cc_library_headers {
     export_include_dirs: ["dir-1", "dir-2"],
     header_libs: ["lib-1", "lib-2"],
 
+    arch: {
+        arm64: {
+	    // We expect dir-1 headers to be dropped, because dir-1 is already in export_include_dirs
+            export_include_dirs: ["arch_arm64_exported_include_dir", "dir-1"],
+        },
+        x86: {
+            export_include_dirs: ["arch_x86_exported_include_dir"],
+        },
+        x86_64: {
+            export_include_dirs: ["arch_x86_64_exported_include_dir"],
+        },
+    },
+
     // TODO: Also support export_header_lib_headers
 }`,
 			expectedBazelTargets: []string{`cc_library_headers(
@@ -135,11 +151,33 @@ cc_library_headers {
         "dir-1/dir1b.h",
         "dir-2/dir2a.h",
         "dir-2/dir2b.h",
-    ],
+    ] + select({
+        "//build/bazel/platforms/arch:arm64": [
+            "arch_arm64_exported_include_dir/a.h",
+        ],
+        "//build/bazel/platforms/arch:x86": [
+            "arch_x86_exported_include_dir/b.h",
+        ],
+        "//build/bazel/platforms/arch:x86_64": [
+            "arch_x86_64_exported_include_dir/c.h",
+        ],
+        "//conditions:default": [],
+    }),
     includes = [
         "dir-1",
         "dir-2",
-    ],
+    ] + select({
+        "//build/bazel/platforms/arch:arm64": [
+            "arch_arm64_exported_include_dir",
+        ],
+        "//build/bazel/platforms/arch:x86": [
+            "arch_x86_exported_include_dir",
+        ],
+        "//build/bazel/platforms/arch:x86_64": [
+            "arch_x86_64_exported_include_dir",
+        ],
+        "//conditions:default": [],
+    }),
 )`, `cc_library_headers(
     name = "lib-1",
     hdrs = [

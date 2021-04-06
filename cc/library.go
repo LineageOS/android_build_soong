@@ -2051,7 +2051,7 @@ type bazelCcLibraryStaticAttributes struct {
 	Srcs       bazel.LabelListAttribute
 	Deps       bazel.LabelListAttribute
 	Linkstatic bool
-	Includes   bazel.LabelListAttribute
+	Includes   bazel.StringListAttribute
 	Hdrs       bazel.LabelListAttribute
 }
 
@@ -2088,8 +2088,8 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
 			copts = baseCompilerProps.Cflags
 			srcs = baseCompilerProps.Srcs
-			includeDirs = baseCompilerProps.Include_dirs
-			localIncludeDirs = baseCompilerProps.Local_include_dirs
+			includeDirs = bp2BuildMakePathsRelativeToModule(ctx, baseCompilerProps.Include_dirs)
+			localIncludeDirs = bp2BuildMakePathsRelativeToModule(ctx, baseCompilerProps.Local_include_dirs)
 			break
 		}
 	}
@@ -2111,14 +2111,13 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 
 	depsLabels := android.BazelLabelForModuleDeps(ctx, allDeps)
 
+	exportedIncludes, exportedIncludesHeaders := bp2BuildParseExportedIncludes(ctx, module)
+
 	// FIXME: Unify absolute vs relative paths
 	// FIXME: Use -I copts instead of setting includes= ?
-	allIncludes := includeDirs
-	allIncludes = append(allIncludes, localIncludeDirs...)
-	includesLabels := android.BazelLabelForModuleSrc(ctx, allIncludes)
-
-	exportedIncludesLabels, exportedIncludesHeadersLabels := bp2BuildParseExportedIncludes(ctx, module)
-	includesLabels.Append(exportedIncludesLabels.Value)
+	allIncludes := exportedIncludes
+	allIncludes.Value = append(allIncludes.Value, includeDirs...)
+	allIncludes.Value = append(allIncludes.Value, localIncludeDirs...)
 
 	headerLibsLabels := bp2BuildParseHeaderLibs(ctx, module)
 	depsLabels.Append(headerLibsLabels.Value)
@@ -2128,8 +2127,8 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 		Srcs:       srcsLabels,
 		Deps:       bazel.MakeLabelListAttribute(depsLabels),
 		Linkstatic: true,
-		Includes:   bazel.MakeLabelListAttribute(includesLabels),
-		Hdrs:       exportedIncludesHeadersLabels,
+		Includes:   allIncludes,
+		Hdrs:       exportedIncludesHeaders,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
