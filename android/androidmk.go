@@ -546,7 +546,7 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod blueprint
 		}
 
 		if !amod.InRamdisk() && !amod.InVendorRamdisk() {
-			a.AddStrings("LOCAL_INIT_RC", amod.commonProperties.Init_rc...)
+			a.AddPaths("LOCAL_FULL_INIT_RC", amod.initRcPaths)
 		}
 		a.AddStrings("LOCAL_VINTF_FRAGMENTS", amod.commonProperties.Vintf_fragments...)
 		a.SetBoolIfTrue("LOCAL_PROPRIETARY_MODULE", Bool(amod.commonProperties.Proprietary))
