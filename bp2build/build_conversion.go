@@ -415,12 +415,10 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 	case reflect.Struct:
 		// Special cases where the bp2build sends additional information to the codegenerator
 		// by wrapping the attributes in a custom struct type.
-		if labels, ok := propertyValue.Interface().(bazel.LabelListAttribute); ok {
-			return prettyPrintLabelListAttribute(labels, indent)
+		if attr, ok := propertyValue.Interface().(bazel.Attribute); ok {
+			return prettyPrintAttribute(attr, indent)
 		} else if label, ok := propertyValue.Interface().(bazel.Label); ok {
 			return fmt.Sprintf("%q", label.Label), nil
-		} else if stringList, ok := propertyValue.Interface().(bazel.StringListAttribute); ok {
-			return prettyPrintStringListAttribute(stringList, indent)
 		}
 
 		ret = "{\n"
