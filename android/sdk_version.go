@@ -75,58 +75,15 @@ func (k SdkKind) String() string {
 	}
 }
 
-// SdkVersion represents a specific version number of an SDK spec of a particular kind
-type SdkVersion int
-
-const (
-	// special version number for a not-yet-frozen SDK
-	SdkVersionCurrent SdkVersion = SdkVersion(FutureApiLevelInt)
-	// special version number to be used for SDK specs where version number doesn't
-	// make sense, e.g. "none", "", etc.
-	SdkVersionNone SdkVersion = SdkVersion(0)
-)
-
-// IsCurrent checks if the SdkVersion refers to the not-yet-published version of an SdkKind
-func (v SdkVersion) IsCurrent() bool {
-	return v == SdkVersionCurrent
-}
-
-// IsNumbered checks if the SdkVersion refers to the published (a.k.a numbered) version of an SdkKind
-func (v SdkVersion) IsNumbered() bool {
-	return !v.IsCurrent() && v != SdkVersionNone
-}
-
-// String returns the string representation of this SdkVersion.
-func (v SdkVersion) String() string {
-	if v.IsCurrent() {
-		return "current"
-	} else if v.IsNumbered() {
-		return strconv.Itoa(int(v))
-	}
-	return "(no version)"
-}
-
-func (v SdkVersion) ApiLevel(ctx EarlyModuleContext) ApiLevel {
-	return ApiLevelOrPanic(ctx, v.String())
-}
-
-// AsNumberString directly converts the numeric value of this sdk version as a string.
-// When isNumbered() is true, this method is the same as String(). However, for SdkVersionCurrent
-// and SdkVersionNone, this returns 10000 and 0 while String() returns "current" and "(no version"),
-// respectively.
-func (v SdkVersion) AsNumberString() string {
-	return strconv.Itoa(int(v))
-}
-
 // SdkSpec represents the kind and the version of an SDK for a module to build against
 type SdkSpec struct {
-	Kind    SdkKind
-	Version SdkVersion
-	Raw     string
+	Kind     SdkKind
+	ApiLevel ApiLevel
+	Raw      string
 }
 
 func (s SdkSpec) String() string {
-	return fmt.Sprintf("%s_%s", s.Kind, s.Version)
+	return fmt.Sprintf("%s_%s", s.Kind, s.ApiLevel)
 }
 
 // Valid checks if this SdkSpec is well-formed. Note however that true doesn't mean that the
@@ -177,10 +134,10 @@ func (s SdkSpec) ForVendorPartition(ctx EarlyModuleContext) SdkSpec {
 	}
 
 	if s.Kind == SdkPublic || s.Kind == SdkSystem {
-		if s.Version.IsCurrent() {
+		if s.ApiLevel.IsCurrent() {
 			if i, err := strconv.Atoi(currentSdkVersion); err == nil {
-				version := SdkVersion(i)
-				return SdkSpec{s.Kind, version, s.Raw}
+				apiLevel := uncheckedFinalApiLevel(i)
+				return SdkSpec{s.Kind, apiLevel, s.Raw}
 			}
 			panic(fmt.Errorf("BOARD_CURRENT_API_LEVEL_FOR_VENDOR_MODULES must be either \"current\" or a number, but was %q", currentSdkVersion))
 		}
@@ -190,10 +147,10 @@ func (s SdkSpec) ForVendorPartition(ctx EarlyModuleContext) SdkSpec {
 
 // UsePrebuilt determines whether prebuilt SDK should be used for this SdkSpec with the given context.
 func (s SdkSpec) UsePrebuilt(ctx EarlyModuleContext) bool {
-	if s.Version.IsCurrent() {
+	if s.ApiLevel.IsCurrent() {
 		// "current" can be built from source and be from prebuilt SDK
 		return ctx.Config().AlwaysUsePrebuiltSdks()
-	} else if s.Version.IsNumbered() {
+	} else if !s.ApiLevel.IsPreview() {
 		// validation check
 		if s.Kind != SdkPublic && s.Kind != SdkSystem && s.Kind != SdkTest && s.Kind != SdkModule {
 			panic(fmt.Errorf("prebuilt SDK is not not available for SdkKind=%q", s.Kind))
@@ -206,50 +163,60 @@ func (s SdkSpec) UsePrebuilt(ctx EarlyModuleContext) bool {
 	return false
 }
 
-// EffectiveVersion converts an SdkSpec into the concrete SdkVersion that the module
-// should use. For modules targeting an unreleased SDK (meaning it does not yet have a number)
-// it returns FutureApiLevel(10000).
-func (s SdkSpec) EffectiveVersion(ctx EarlyModuleContext) (SdkVersion, error) {
+// EffectiveVersion converts an SdkSpec into the concrete ApiLevel that the module should use. For
+// modules targeting an unreleased SDK (meaning it does not yet have a number) it returns
+// FutureApiLevel(10000).
+func (s SdkSpec) EffectiveVersion(ctx EarlyModuleContext) (ApiLevel, error) {
 	if !s.Valid() {
-		return s.Version, fmt.Errorf("invalid sdk version %q", s.Raw)
+		return s.ApiLevel, fmt.Errorf("invalid sdk version %q", s.Raw)
 	}
 
 	if ctx.DeviceSpecific() || ctx.SocSpecific() {
 		s = s.ForVendorPartition(ctx)
 	}
-	if s.Version.IsNumbered() {
-		return s.Version, nil
+	if !s.ApiLevel.IsPreview() {
+		return s.ApiLevel, nil
 	}
-	return SdkVersion(ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt()), nil
+	ret := ctx.Config().DefaultAppTargetSdk(ctx)
+	if ret.IsPreview() {
+		return FutureApiLevel, nil
+	}
+	return ret, nil
 }
 
 // EffectiveVersionString converts an SdkSpec into the concrete version string that the module
 // should use. For modules targeting an unreleased SDK (meaning it does not yet have a number)
 // it returns the codename (P, Q, R, etc.)
 func (s SdkSpec) EffectiveVersionString(ctx EarlyModuleContext) (string, error) {
-	ver, err := s.EffectiveVersion(ctx)
-	if err == nil && int(ver) == ctx.Config().DefaultAppTargetSdk(ctx).FinalOrFutureInt() {
-		return ctx.Config().DefaultAppTargetSdk(ctx).String(), nil
+	if !s.Valid() {
+		return s.ApiLevel.String(), fmt.Errorf("invalid sdk version %q", s.Raw)
 	}
-	return ver.String(), err
+
+	if ctx.DeviceSpecific() || ctx.SocSpecific() {
+		s = s.ForVendorPartition(ctx)
+	}
+	if !s.ApiLevel.IsPreview() {
+		return s.ApiLevel.String(), nil
+	}
+	return ctx.Config().DefaultAppTargetSdk(ctx).String(), nil
 }
 
 func SdkSpecFrom(str string) SdkSpec {
 	switch str {
 	// special cases first
 	case "":
-		return SdkSpec{SdkPrivate, SdkVersionNone, str}
+		return SdkSpec{SdkPrivate, NoneApiLevel, str}
 	case "none":
-		return SdkSpec{SdkNone, SdkVersionNone, str}
+		return SdkSpec{SdkNone, NoneApiLevel, str}
 	case "core_platform":
-		return SdkSpec{SdkCorePlatform, SdkVersionNone, str}
+		return SdkSpec{SdkCorePlatform, NoneApiLevel, str}
 	default:
 		// the syntax is [kind_]version
 		sep := strings.LastIndex(str, "_")
 
 		var kindString string
 		if sep == 0 {
-			return SdkSpec{SdkInvalid, SdkVersionNone, str}
+			return SdkSpec{SdkInvalid, NoneApiLevel, str}
 		} else if sep == -1 {
 			kindString = ""
 		} else {
@@ -272,19 +239,19 @@ func SdkSpecFrom(str string) SdkSpec {
 		case "system_server":
 			kind = SdkSystemServer
 		default:
-			return SdkSpec{SdkInvalid, SdkVersionNone, str}
+			return SdkSpec{SdkInvalid, NoneApiLevel, str}
 		}
 
-		var version SdkVersion
+		var apiLevel ApiLevel
 		if versionString == "current" {
-			version = SdkVersionCurrent
+			apiLevel = FutureApiLevel
 		} else if i, err := strconv.Atoi(versionString); err == nil {
-			version = SdkVersion(i)
+			apiLevel = uncheckedFinalApiLevel(i)
 		} else {
-			return SdkSpec{SdkInvalid, SdkVersionNone, str}
+			return SdkSpec{SdkInvalid, apiLevel, str}
 		}
 
-		return SdkSpec{kind, version, str}
+		return SdkSpec{kind, apiLevel, str}
 	}
 }
 
@@ -292,7 +259,7 @@ func (s SdkSpec) ValidateSystemSdk(ctx EarlyModuleContext) bool {
 	// Ensures that the specified system SDK version is one of BOARD_SYSTEMSDK_VERSIONS (for vendor/product Java module)
 	// Assuming that BOARD_SYSTEMSDK_VERSIONS := 28 29,
 	// sdk_version of the modules in vendor/product that use system sdk must be either system_28, system_29 or system_current
-	if s.Kind != SdkSystem || !s.Version.IsNumbered() {
+	if s.Kind != SdkSystem || s.ApiLevel.IsPreview() {
 		return true
 	}
 	allowedVersions := ctx.DeviceConfig().PlatformSystemSdkVersions()
@@ -302,7 +269,7 @@ func (s SdkSpec) ValidateSystemSdk(ctx EarlyModuleContext) bool {
 			allowedVersions = systemSdkVersions
 		}
 	}
-	if len(allowedVersions) > 0 && !InList(s.Version.String(), allowedVersions) {
+	if len(allowedVersions) > 0 && !InList(s.ApiLevel.String(), allowedVersions) {
 		ctx.PropertyErrorf("sdk_version", "incompatible sdk version %q. System SDK version should be one of %q",
 			s.Raw, allowedVersions)
 		return false
