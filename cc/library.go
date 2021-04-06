@@ -2104,7 +2104,22 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 			break
 		}
 	}
-	srcsLabels := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, srcs))
+
+	// Soong implicitly includes headers from the module's directory.
+	// For Bazel builds to work we have to make these header includes explicit.
+	if module.compiler.(*libraryDecorator).includeBuildDirectory() {
+		localIncludeDirs = append(localIncludeDirs, ".")
+	}
+
+	srcsLabels := android.BazelLabelForModuleSrc(ctx, srcs)
+
+	// For Bazel, be more explicit about headers - list all header files in include dirs as srcs
+	for _, includeDir := range includeDirs {
+		srcsLabels.Append(bp2BuildListHeadersInDir(ctx, includeDir))
+	}
+	for _, localIncludeDir := range localIncludeDirs {
+		srcsLabels.Append(bp2BuildListHeadersInDir(ctx, localIncludeDir))
+	}
 
 	var staticLibs []string
 	var wholeStaticLibs []string
@@ -2135,7 +2150,7 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 
 	attrs := &bazelCcLibraryStaticAttributes{
 		Copts:      copts,
-		Srcs:       srcsLabels,
+		Srcs:       bazel.MakeLabelListAttribute(srcsLabels),
 		Deps:       bazel.MakeLabelListAttribute(depsLabels),
 		Linkstatic: true,
 		Includes:   allIncludes,
