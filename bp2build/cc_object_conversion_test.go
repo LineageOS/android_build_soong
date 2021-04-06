@@ -415,6 +415,54 @@ func TestCcObjectConfigurableAttributesBp2Build(t *testing.T) {
 )`,
 			},
 		},
+		{
+			description:                        "cc_object setting cflags for multiple OSes",
+			moduleTypeUnderTest:                "cc_object",
+			moduleTypeUnderTestFactory:         cc.ObjectFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.ObjectBp2Build,
+			blueprint: `cc_object {
+    name: "foo",
+    srcs: ["base.cpp"],
+    target: {
+        android: {
+            cflags: ["-fPIC"],
+        },
+        windows: {
+            cflags: ["-fPIC"],
+        },
+        darwin: {
+            cflags: ["-Wall"],
+        },
+    },
+    bazel_module: { bp2build_available: true },
+}
+`,
+			expectedBazelTargets: []string{
+				`cc_object(
+    name = "foo",
+    copts = [
+        "-fno-addrsig",
+    ] + select({
+        "//build/bazel/platforms/os:android": [
+            "-fPIC",
+        ],
+        "//build/bazel/platforms/os:darwin": [
+            "-Wall",
+        ],
+        "//build/bazel/platforms/os:windows": [
+            "-fPIC",
+        ],
+        "//conditions:default": [],
+    }),
+    local_include_dirs = [
+        ".",
+    ],
+    srcs = [
+        "base.cpp",
+    ],
+)`,
+			},
+		},
 	}
 
 	dir := "."
