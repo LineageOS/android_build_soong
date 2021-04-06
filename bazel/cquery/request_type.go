@@ -14,11 +14,6 @@ type GetOutputFilesAndCcObjectFiles_Result struct {
 	CcObjectFiles []string
 }
 
-var RequestTypes []RequestType = []RequestType{
-	GetOutputFiles,
-	GetOutputFilesAndCcObjectFiles,
-}
-
 type RequestType interface {
 	// Name returns a string name for this request type. Such request type names must be unique,
 	// and must only consist of alphanumeric characters.
