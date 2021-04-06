@@ -38,7 +38,7 @@ func TestVendorLinkage(t *testing.T) {
 			}
 		`)
 
-	vendorBinary := ctx.ModuleForTests("fizz_vendor", "android_vendor.VER_arm64_armv8-a").Module().(*cc.Module)
+	vendorBinary := ctx.ModuleForTests("fizz_vendor", "android_vendor.29_arm64_armv8-a").Module().(*cc.Module)
 
 	if !android.InList("libfoo_vendor", vendorBinary.Properties.AndroidMkStaticLibs) {
 		t.Errorf("vendorBinary should have a dependency on libfoo_vendor")
@@ -56,7 +56,7 @@ func TestImageVndkCfgFlag(t *testing.T) {
 			}
 		`)
 
-	vendor := ctx.ModuleForTests("libfoo", "android_vendor.VER_arm64_armv8-a_static").Rule("rustc")
+	vendor := ctx.ModuleForTests("libfoo", "android_vendor.29_arm64_armv8-a_static").Rule("rustc")
 
 	if !strings.Contains(vendor.Args["rustcFlags"], "--cfg 'android_vndk'") {
 		t.Errorf("missing \"--cfg 'android_vndk'\" for libfoo vendor variant, rustcFlags: %#v", vendor.Args["rustcFlags"])
