@@ -402,6 +402,14 @@ function test_null_build_after_docs {
   fi
 }
 
+function test_dump_json_module_graph() {
+  setup
+  SOONG_DUMP_JSON_MODULE_GRAPH="$MOCK_TOP/modules.json" run_soong
+  if [[ ! -r "$MOCK_TOP/modules.json" ]]; then
+    fail "JSON file was not created"
+  fi
+}
+
 test_bazel_smoke
 test_smoke
 test_null_build
@@ -413,3 +421,4 @@ test_change_android_bp
 test_delete_android_bp
 test_add_file_to_soong_build
 test_soong_build_rerun_iff_environment_changes
+test_dump_json_module_graph
