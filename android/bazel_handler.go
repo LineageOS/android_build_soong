@@ -474,7 +474,7 @@ def %s(target):
     return id_string + ">>" + %s(target)
 `
 
-	for _, requestType := range cquery.RequestTypes {
+	for requestType, _ := range requestTypeToCqueryIdEntries {
 		labelMapName := requestType.Name() + "_Labels"
 		functionName := requestType.Name() + "_Fn"
 		labelRegistrationMapSection += fmt.Sprintf(mapDeclarationFormatString,
