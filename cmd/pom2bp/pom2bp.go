@@ -401,6 +401,8 @@ var bpTemplate = template.Must(template.New("bp").Parse(`
         {{- end}}
     ],
     {{- end}}
+    {{- else if not .IsHostOnly}}
+    min_sdk_version: "{{.DefaultMinSdkVersion}}",
     {{- end}}
 }
 `))
@@ -442,6 +444,8 @@ var bpDepsTemplate = template.Must(template.New("bp").Parse(`
         {{- end}}
     ],
     {{- end}}
+    {{- else if not .IsHostOnly}}
+    min_sdk_version: "{{.DefaultMinSdkVersion}}",
     {{- end}}
 }
 
