@@ -40,12 +40,12 @@ var fuzzerFlags = []string{
 	"-C passes='sancov'",
 
 	"--cfg fuzzing",
-	"-C llvm-args=-sanitizer-coverage-level=4",
+	"-C llvm-args=-sanitizer-coverage-level=3",
 	"-C llvm-args=-sanitizer-coverage-trace-compares",
 	"-C llvm-args=-sanitizer-coverage-inline-8bit-counters",
+	"-C llvm-args=-sanitizer-coverage-stack-depth",
 	"-C llvm-args=-sanitizer-coverage-trace-geps",
 	"-C llvm-args=-sanitizer-coverage-prune-blocks=0",
-	"-C llvm-args=-sanitizer-coverage-pc-table",
 	"-Z sanitizer=address",
 
 	// Sancov breaks with lto
