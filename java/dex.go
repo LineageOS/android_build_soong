@@ -15,6 +15,7 @@
 package java
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -179,7 +180,7 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext, minSdkVersion android.
 		ctx.PropertyErrorf("min_sdk_version", "%s", err)
 	}
 
-	flags = append(flags, "--min-api "+effectiveVersion.AsNumberString())
+	flags = append(flags, "--min-api "+strconv.Itoa(effectiveVersion.FinalOrFutureInt()))
 	return flags
 }
 

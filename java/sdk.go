@@ -51,9 +51,9 @@ func defaultJavaLanguageVersion(ctx android.EarlyModuleContext, s android.SdkSpe
 	if err != nil {
 		ctx.PropertyErrorf("sdk_version", "%s", err)
 	}
-	if sdk <= 23 {
+	if sdk.FinalOrFutureInt() <= 23 {
 		return JAVA_VERSION_7
-	} else if sdk <= 29 {
+	} else if sdk.FinalOrFutureInt() <= 29 {
 		return JAVA_VERSION_8
 	} else {
 		return JAVA_VERSION_9
@@ -76,11 +76,11 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 	}
 
 	if sdkVersion.UsePrebuilt(ctx) {
-		dir := filepath.Join("prebuilts", "sdk", sdkVersion.Version.String(), sdkVersion.Kind.String())
+		dir := filepath.Join("prebuilts", "sdk", sdkVersion.ApiLevel.String(), sdkVersion.Kind.String())
 		jar := filepath.Join(dir, "android.jar")
 		// There's no aidl for other SDKs yet.
 		// TODO(77525052): Add aidl files for other SDKs too.
-		publicDir := filepath.Join("prebuilts", "sdk", sdkVersion.Version.String(), "public")
+		publicDir := filepath.Join("prebuilts", "sdk", sdkVersion.ApiLevel.String(), "public")
 		aidl := filepath.Join(publicDir, "framework.aidl")
 		jarPath := android.ExistentPathForSource(ctx, jar)
 		aidlPath := android.ExistentPathForSource(ctx, aidl)
@@ -89,7 +89,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 		if (!jarPath.Valid() || !aidlPath.Valid()) && ctx.Config().AllowMissingDependencies() {
 			return sdkDep{
 				invalidVersion: true,
-				bootclasspath:  []string{fmt.Sprintf("sdk_%s_%s_android", sdkVersion.Kind, sdkVersion.Version.String())},
+				bootclasspath:  []string{fmt.Sprintf("sdk_%s_%s_android", sdkVersion.Kind, sdkVersion.ApiLevel.String())},
 			}
 		}
 
@@ -105,7 +105,7 @@ func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext)
 
 		var systemModules string
 		if defaultJavaLanguageVersion(ctx, sdkVersion).usesJavaModules() {
-			systemModules = "sdk_public_" + sdkVersion.Version.String() + "_system_modules"
+			systemModules = "sdk_public_" + sdkVersion.ApiLevel.String() + "_system_modules"
 		}
 
 		return sdkDep{
