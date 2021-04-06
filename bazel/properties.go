@@ -96,21 +96,10 @@ const (
 )
 
 var (
-	// This is the list of architectures with a Bazel config_setting and
-	// constraint value equivalent. is actually android.ArchTypeList, but the
-	// android package depends on the bazel package, so a cyclic dependency
-	// prevents using that here.
-	selectableArchs = []string{ARCH_X86, ARCH_X86_64, ARCH_ARM, ARCH_ARM64}
-
-	// Likewise, this is the list of target operating systems.
-	selectableTargetOs = []string{
-		OS_ANDROID,
-		OS_DARWIN,
-		OS_FUCHSIA,
-		OS_LINUX,
-		OS_LINUX_BIONIC,
-		OS_WINDOWS,
-	}
+	// These are the list of OSes and architectures with a Bazel config_setting
+	// and constraint value equivalent. These exist in arch.go, but the android
+	// package depends on the bazel package, so a cyclic dependency prevents
+	// using those variables here.
 
 	// A map of architectures to the Bazel label of the constraint_value
 	// for the @platforms//cpu:cpu constraint_setting
@@ -132,6 +121,10 @@ var (
 		OS_WINDOWS:      "//build/bazel/platforms/os:windows",
 	}
 )
+
+type Attribute interface {
+	HasConfigurableValues() bool
+}
 
 // Arch-specific label_list typed Bazel attribute values. This should correspond
 // to the types of architectures supported for compilation in arch.go.
@@ -176,14 +169,14 @@ func MakeLabelListAttribute(value LabelList) LabelListAttribute {
 
 // HasArchSpecificValues returns true if the attribute contains
 // architecture-specific label_list values.
-func (attrs *LabelListAttribute) HasConfigurableValues() bool {
-	for _, arch := range selectableArchs {
+func (attrs LabelListAttribute) HasConfigurableValues() bool {
+	for arch := range PlatformArchMap {
 		if len(attrs.GetValueForArch(arch).Includes) > 0 {
 			return true
 		}
 	}
 
-	for _, os := range selectableTargetOs {
+	for os := range PlatformOsMap {
 		if len(attrs.GetValueForOS(os).Includes) > 0 {
 			return true
 		}
@@ -253,8 +246,15 @@ type StringListAttribute struct {
 	// The base value of the string list attribute.
 	Value []string
 
-	// Optional additive set of list values to the base value.
+	// The arch-specific attribute string list values. Optional. If used, these
+	// are generated in a select statement and appended to the non-arch specific
+	// label list Value.
 	ArchValues stringListArchValues
+
+	// The os-specific attribute string list values. Optional. If used, these
+	// are generated in a select statement and appended to the non-os specific
+	// label list Value.
+	OsValues stringListOsValues
 }
 
 // Arch-specific string_list typed Bazel attribute values. This should correspond
@@ -267,11 +267,26 @@ type stringListArchValues struct {
 	Common []string
 }
 
+type stringListOsValues struct {
+	Android     []string
+	Darwin      []string
+	Fuchsia     []string
+	Linux       []string
+	LinuxBionic []string
+	Windows     []string
+}
+
 // HasConfigurableValues returns true if the attribute contains
 // architecture-specific string_list values.
-func (attrs *StringListAttribute) HasConfigurableValues() bool {
-	for _, arch := range selectableArchs {
+func (attrs StringListAttribute) HasConfigurableValues() bool {
+	for arch := range PlatformArchMap {
 		if len(attrs.GetValueForArch(arch)) > 0 {
+			return true
+		}
+	}
+
+	for os := range PlatformOsMap {
+		if len(attrs.GetValueForOS(os)) > 0 {
 			return true
 		}
 	}
@@ -301,6 +316,35 @@ func (attrs *StringListAttribute) SetValueForArch(arch string, value []string) {
 	var v *[]string
 	if v = attrs.archValuePtrs()[arch]; v == nil {
 		panic(fmt.Errorf("Unknown arch: %s", arch))
+	}
+	*v = value
+}
+
+func (attrs *StringListAttribute) osValuePtrs() map[string]*[]string {
+	return map[string]*[]string{
+		OS_ANDROID:      &attrs.OsValues.Android,
+		OS_DARWIN:       &attrs.OsValues.Darwin,
+		OS_FUCHSIA:      &attrs.OsValues.Fuchsia,
+		OS_LINUX:        &attrs.OsValues.Linux,
+		OS_LINUX_BIONIC: &attrs.OsValues.LinuxBionic,
+		OS_WINDOWS:      &attrs.OsValues.Windows,
+	}
+}
+
+// GetValueForOS returns the string_list attribute value for an OS target.
+func (attrs *StringListAttribute) GetValueForOS(os string) []string {
+	var v *[]string
+	if v = attrs.osValuePtrs()[os]; v == nil {
+		panic(fmt.Errorf("Unknown os: %s", os))
+	}
+	return *v
+}
+
+// SetValueForArch sets the string_list attribute value for an OS target.
+func (attrs *StringListAttribute) SetValueForOS(os string, value []string) {
+	var v *[]string
+	if v = attrs.osValuePtrs()[os]; v == nil {
+		panic(fmt.Errorf("Unknown os: %s", os))
 	}
 	*v = value
 }
