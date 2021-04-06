@@ -9,48 +9,67 @@ import (
 
 // Configurability support for bp2build.
 
-// prettyPrintStringListAttribute converts a StringListAttribute to its Bazel
-// syntax. May contain a select statement.
-func prettyPrintStringListAttribute(stringList bazel.StringListAttribute, indent int) (string, error) {
-	ret, err := prettyPrint(reflect.ValueOf(stringList.Value), indent)
-	if err != nil {
-		return ret, err
+type selects map[string]reflect.Value
+
+func getStringListValues(list bazel.StringListAttribute) (reflect.Value, selects, selects) {
+	value := reflect.ValueOf(list.Value)
+	if !list.HasConfigurableValues() {
+		return value, nil, nil
 	}
 
-	if !stringList.HasConfigurableValues() {
-		// Select statement not needed.
-		return ret, nil
-	}
-
-	// Create the selects for arch specific values.
-	selects := map[string]reflect.Value{}
-	for arch, selectKey := range bazel.PlatformArchMap {
-		selects[selectKey] = reflect.ValueOf(stringList.GetValueForArch(arch))
-	}
-
-	selectMap, err := prettyPrintSelectMap(selects, "[]", indent)
-	return ret + selectMap, err
-}
-
-// prettyPrintLabelListAttribute converts a LabelListAttribute to its Bazel
-// syntax. May contain select statements.
-func prettyPrintLabelListAttribute(labels bazel.LabelListAttribute, indent int) (string, error) {
-	// TODO(b/165114590): convert glob syntax
-	ret, err := prettyPrint(reflect.ValueOf(labels.Value.Includes), indent)
-	if err != nil {
-		return ret, err
-	}
-
-	if !labels.HasConfigurableValues() {
-		// Select statements not needed.
-		return ret, nil
-	}
-
-	// Create the selects for arch specific values.
 	archSelects := map[string]reflect.Value{}
 	for arch, selectKey := range bazel.PlatformArchMap {
-		archSelects[selectKey] = reflect.ValueOf(labels.GetValueForArch(arch).Includes)
+		archSelects[selectKey] = reflect.ValueOf(list.GetValueForArch(arch))
 	}
+
+	osSelects := map[string]reflect.Value{}
+	for os, selectKey := range bazel.PlatformOsMap {
+		osSelects[selectKey] = reflect.ValueOf(list.GetValueForOS(os))
+	}
+
+	return value, archSelects, osSelects
+}
+
+func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, selects, selects) {
+	value := reflect.ValueOf(list.Value.Includes)
+	if !list.HasConfigurableValues() {
+		return value, nil, nil
+	}
+
+	archSelects := map[string]reflect.Value{}
+	for arch, selectKey := range bazel.PlatformArchMap {
+		archSelects[selectKey] = reflect.ValueOf(list.GetValueForArch(arch).Includes)
+	}
+
+	osSelects := map[string]reflect.Value{}
+	for os, selectKey := range bazel.PlatformOsMap {
+		osSelects[selectKey] = reflect.ValueOf(list.GetValueForOS(os).Includes)
+	}
+
+	return value, archSelects, osSelects
+}
+
+// prettyPrintAttribute converts an Attribute to its Bazel syntax. May contain
+// select statements.
+func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
+	var value reflect.Value
+	var archSelects, osSelects selects
+
+	switch list := v.(type) {
+	case bazel.StringListAttribute:
+		value, archSelects, osSelects = getStringListValues(list)
+	case bazel.LabelListAttribute:
+		value, archSelects, osSelects = getLabelListValues(list)
+	default:
+		return "", fmt.Errorf("Not a supported Bazel attribute type: %s", v)
+	}
+
+	ret, err := prettyPrint(value, indent)
+	if err != nil {
+		return ret, err
+	}
+
+	// Create the selects for arch specific values.
 	selectMap, err := prettyPrintSelectMap(archSelects, "[]", indent)
 	if err != nil {
 		return "", err
@@ -58,17 +77,22 @@ func prettyPrintLabelListAttribute(labels bazel.LabelListAttribute, indent int) 
 	ret += selectMap
 
 	// Create the selects for target os specific values.
-	osSelects := map[string]reflect.Value{}
-	for os, selectKey := range bazel.PlatformOsMap {
-		osSelects[selectKey] = reflect.ValueOf(labels.GetValueForOS(os).Includes)
-	}
 	selectMap, err = prettyPrintSelectMap(osSelects, "[]", indent)
-	return ret + selectMap, err
+	if err != nil {
+		return "", err
+	}
+	ret += selectMap
+
+	return ret, err
 }
 
 // prettyPrintSelectMap converts a map of select keys to reflected Values as a generic way
 // to construct a select map for any kind of attribute type.
 func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue string, indent int) (string, error) {
+	if selectMap == nil {
+		return "", nil
+	}
+
 	var selects string
 	for _, selectKey := range android.SortedStringKeys(selectMap) {
 		value := selectMap[selectKey]
