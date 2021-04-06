@@ -688,7 +688,7 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 	// Register bazel-owned build statements (obtained from the aquery invocation).
 	for index, buildStatement := range ctx.Config().BazelContext.BuildStatementsToRegister() {
 		if len(buildStatement.Command) < 1 {
-			panic(fmt.Sprintf("unhandled build statement: %s", buildStatement))
+			panic(fmt.Sprintf("unhandled build statement: %v", buildStatement))
 		}
 		rule := NewRuleBuilder(pctx, ctx)
 		cmd := rule.Command()
