@@ -37,17 +37,6 @@ toolchain_library {
 	recovery_available: true,
 	native_bridge_supported: true,
 	src: "",
-}
-
-toolchain_library {
-	name: "libatomic",
-	defaults: ["linux_bionic_supported"],
-	vendor_available: true,
-	vendor_ramdisk_available: true,
-	product_available: true,
-	recovery_available: true,
-	native_bridge_supported: true,
-	src: "",
 }`
 )
 
