@@ -250,7 +250,7 @@ func prebuiltApexExportedModuleName(ctx android.BottomUpMutatorContext, name str
 	// the unprefixed name is the one to use. If the unprefixed one turns out to be a source module
 	// and not a renamed prebuilt module then that will be detected and reported as an error when
 	// processing the dependency in ApexInfoMutator().
-	prebuiltName := "prebuilt_" + name
+	prebuiltName := android.PrebuiltNameFromSource(name)
 	if ctx.OtherModuleExists(prebuiltName) {
 		name = prebuiltName
 	}
