@@ -232,15 +232,7 @@ func isModulePreferredByCompatConfig(module android.Module) bool {
 		}
 	}
 
-	// A prebuilt module should only be used when it is preferred.
-	if pi, ok := module.(android.PrebuiltInterface); ok {
-		if p := pi.Prebuilt(); p != nil {
-			return p.UsePrebuilt()
-		}
-	}
-
-	// Otherwise, a module should only be used if it has not been replaced by a prebuilt.
-	return !module.IsReplacedByPrebuilt()
+	return android.IsModulePreferred(module)
 }
 
 func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.SingletonContext) {
