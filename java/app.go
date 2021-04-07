@@ -288,7 +288,7 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 
 		if minSdkVersion, err := a.MinSdkVersion().EffectiveVersion(ctx); err == nil {
 			a.checkJniLibsSdkVersion(ctx, minSdkVersion)
-			android.CheckMinSdkVersion(a, ctx, minSdkVersion.ApiLevel(ctx))
+			android.CheckMinSdkVersion(a, ctx, minSdkVersion)
 		} else {
 			ctx.PropertyErrorf("min_sdk_version", "%s", err.Error())
 		}
@@ -304,7 +304,7 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 // because, sdk_version is overridden by min_sdk_version (if set as smaller)
 // and sdkLinkType is checked with dependencies so we can be sure that the whole dependency tree
 // will meet the requirements.
-func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVersion android.SdkVersion) {
+func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVersion android.ApiLevel) {
 	// It's enough to check direct JNI deps' sdk_version because all transitive deps from JNI deps are checked in cc.checkLinkType()
 	ctx.VisitDirectDeps(func(m android.Module) {
 		if !IsJniDepTag(ctx.OtherModuleDependencyTag(m)) {
@@ -315,7 +315,7 @@ func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVer
 		// We can rely on android.SdkSpec to convert it to <number> so that "current" is
 		// handled properly regardless of sdk finalization.
 		jniSdkVersion, err := android.SdkSpecFrom(dep.SdkVersion()).EffectiveVersion(ctx)
-		if err != nil || minSdkVersion < jniSdkVersion {
+		if err != nil || minSdkVersion.LessThan(jniSdkVersion) {
 			ctx.OtherModuleErrorf(dep, "sdk_version(%v) is higher than min_sdk_version(%v) of the containing android_app(%v)",
 				dep.SdkVersion(), minSdkVersion, ctx.ModuleName())
 			return
@@ -333,7 +333,7 @@ func (a *AndroidApp) useEmbeddedNativeLibs(ctx android.ModuleContext) bool {
 	}
 
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
-	return (minSdkVersion >= 23 && Bool(a.appProperties.Use_embedded_native_libs)) ||
+	return (minSdkVersion.FinalOrFutureInt() >= 23 && Bool(a.appProperties.Use_embedded_native_libs)) ||
 		!apexInfo.IsForPlatform()
 }
 
@@ -380,7 +380,11 @@ func (a *AndroidApp) renameResourcesPackage() bool {
 }
 
 func (a *AndroidApp) aaptBuildActions(ctx android.ModuleContext) {
-	a.aapt.usesNonSdkApis = Bool(a.Module.deviceProperties.Platform_apis)
+	usePlatformAPI := proptools.Bool(a.Module.deviceProperties.Platform_apis)
+	if ctx.Module().(android.SdkContext).SdkVersion().Kind == android.SdkModule {
+		usePlatformAPI = true
+	}
+	a.aapt.usesNonSdkApis = usePlatformAPI
 
 	// Ask manifest_fixer to add or update the application element indicating this app has no code.
 	a.aapt.hasNoCode = !a.hasCode(ctx)

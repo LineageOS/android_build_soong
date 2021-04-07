@@ -14,11 +14,6 @@ type GetOutputFilesAndCcObjectFiles_Result struct {
 	CcObjectFiles []string
 }
 
-var RequestTypes []RequestType = []RequestType{
-	GetOutputFiles,
-	GetOutputFilesAndCcObjectFiles,
-}
-
 type RequestType interface {
 	// Name returns a string name for this request type. Such request type names must be unique,
 	// and must only consist of alphanumeric characters.
@@ -83,7 +78,17 @@ func (g getOutputFilesAndCcObjectFilesType) ParseResult(rawString string) interf
 	splitString := strings.Split(rawString, "|")
 	outputFilesString := splitString[0]
 	ccObjectsString := splitString[1]
-	outputFiles = strings.Split(outputFilesString, ", ")
-	ccObjects = strings.Split(ccObjectsString, ", ")
+	outputFiles = splitOrEmpty(outputFilesString, ", ")
+	ccObjects = splitOrEmpty(ccObjectsString, ", ")
 	return GetOutputFilesAndCcObjectFiles_Result{outputFiles, ccObjects}
+}
+
+// splitOrEmpty is a modification of strings.Split() that returns an empty list
+// if the given string is empty.
+func splitOrEmpty(s string, sep string) []string {
+	if len(s) < 1 {
+		return []string{}
+	} else {
+		return strings.Split(s, sep)
+	}
 }

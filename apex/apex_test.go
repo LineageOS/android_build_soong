@@ -216,7 +216,7 @@ var prepareForApexTest = android.GroupFixturePreparers(
 		variables.Platform_sdk_codename = proptools.StringPtr("Q")
 		variables.Platform_sdk_final = proptools.BoolPtr(false)
 		variables.Platform_version_active_codenames = []string{"Q"}
-		variables.Platform_vndk_version = proptools.StringPtr("VER")
+		variables.Platform_vndk_version = proptools.StringPtr("29")
 	}),
 )
 
@@ -1366,13 +1366,13 @@ func TestApexDependsOnLLNDKTransitively(t *testing.T) {
 			ensureListEmpty(t, names(apexManifestRule.Args["provideNativeLibs"]))
 			ensureListContains(t, names(apexManifestRule.Args["requireNativeLibs"]), "libbar.so")
 
-			mylibLdFlags := ctx.ModuleForTests("mylib", "android_vendor.VER_arm64_armv8-a_shared_"+tc.apexVariant).Rule("ld").Args["libFlags"]
-			ensureContains(t, mylibLdFlags, "libbar/android_vendor.VER_arm64_armv8-a_shared_"+tc.shouldLink+"/libbar.so")
+			mylibLdFlags := ctx.ModuleForTests("mylib", "android_vendor.29_arm64_armv8-a_shared_"+tc.apexVariant).Rule("ld").Args["libFlags"]
+			ensureContains(t, mylibLdFlags, "libbar/android_vendor.29_arm64_armv8-a_shared_"+tc.shouldLink+"/libbar.so")
 			for _, ver := range tc.shouldNotLink {
-				ensureNotContains(t, mylibLdFlags, "libbar/android_vendor.VER_arm64_armv8-a_shared_"+ver+"/libbar.so")
+				ensureNotContains(t, mylibLdFlags, "libbar/android_vendor.29_arm64_armv8-a_shared_"+ver+"/libbar.so")
 			}
 
-			mylibCFlags := ctx.ModuleForTests("mylib", "android_vendor.VER_arm64_armv8-a_static_"+tc.apexVariant).Rule("cc").Args["cFlags"]
+			mylibCFlags := ctx.ModuleForTests("mylib", "android_vendor.29_arm64_armv8-a_static_"+tc.apexVariant).Rule("cc").Args["cFlags"]
 			ver := tc.shouldLink
 			if tc.shouldLink == "current" {
 				ver = strconv.Itoa(android.FutureApiLevelInt)
@@ -2411,8 +2411,8 @@ func TestUseVendor(t *testing.T) {
 	inputsString := strings.Join(inputsList, " ")
 
 	// ensure that the apex includes vendor variants of the direct and indirect deps
-	ensureContains(t, inputsString, "android_vendor.VER_arm64_armv8-a_shared_apex10000/mylib.so")
-	ensureContains(t, inputsString, "android_vendor.VER_arm64_armv8-a_shared_apex10000/mylib2.so")
+	ensureContains(t, inputsString, "android_vendor.29_arm64_armv8-a_shared_apex10000/mylib.so")
+	ensureContains(t, inputsString, "android_vendor.29_arm64_armv8-a_shared_apex10000/mylib2.so")
 
 	// ensure that the apex does not include core variants
 	ensureNotContains(t, inputsString, "android_arm64_armv8-a_shared_apex10000/mylib.so")
@@ -2558,7 +2558,7 @@ func TestVendorApex_use_vndk_as_stable(t *testing.T) {
 		}
 	`)
 
-	vendorVariant := "android_vendor.VER_arm64_armv8-a"
+	vendorVariant := "android_vendor.29_arm64_armv8-a"
 
 	ldRule := ctx.ModuleForTests("mybin", vendorVariant+"_apex10000").Rule("ld")
 	libs := names(ldRule.Args["libFlags"])
@@ -2607,7 +2607,7 @@ func TestProductVariant(t *testing.T) {
 	)
 
 	cflags := strings.Fields(
-		ctx.ModuleForTests("foo", "android_product.VER_arm64_armv8-a_apex10000").Rule("cc").Args["cFlags"])
+		ctx.ModuleForTests("foo", "android_product.29_arm64_armv8-a_apex10000").Rule("cc").Args["cFlags"])
 	ensureListContains(t, cflags, "-D__ANDROID_VNDK__")
 	ensureListContains(t, cflags, "-D__ANDROID_APEX__")
 	ensureListContains(t, cflags, "-D__ANDROID_PRODUCT__")
@@ -3305,11 +3305,11 @@ func TestVndkApexCurrent(t *testing.T) {
 		"lib64/libvndk.so",
 		"lib64/libvndksp.so",
 		"lib64/libc++.so",
-		"etc/llndk.libraries.VER.txt",
-		"etc/vndkcore.libraries.VER.txt",
-		"etc/vndksp.libraries.VER.txt",
-		"etc/vndkprivate.libraries.VER.txt",
-		"etc/vndkproduct.libraries.VER.txt",
+		"etc/llndk.libraries.29.txt",
+		"etc/vndkcore.libraries.29.txt",
+		"etc/vndksp.libraries.29.txt",
+		"etc/vndkprivate.libraries.29.txt",
+		"etc/vndkproduct.libraries.29.txt",
 	})
 }
 
@@ -3495,7 +3495,7 @@ func TestVndkApexNameRule(t *testing.T) {
 		}
 	}
 
-	assertApexName("com.android.vndk.vVER", "com.android.vndk.current")
+	assertApexName("com.android.vndk.v29", "com.android.vndk.current")
 	assertApexName("com.android.vndk.v28", "com.android.vndk.v28")
 }
 
@@ -6945,6 +6945,56 @@ func TestIndirectTestFor(t *testing.T) {
 	// The platform variant of myprivlib links to the platform variant of mylib
 	// and bypasses its stubs.
 	ensureLinkedLibIs("myprivlib", "android_arm64_armv8-a_shared", "out/soong/.intermediates/mylib/", "android_arm64_armv8-a_shared/mylib.so")
+}
+
+func TestTestForForLibInOtherApex(t *testing.T) {
+	// This case is only allowed for known overlapping APEXes, i.e. the ART APEXes.
+	_ = testApex(t, `
+		apex {
+			name: "com.android.art",
+			key: "myapex.key",
+			native_shared_libs: ["mylib"],
+			updatable: false,
+		}
+
+		apex {
+			name: "com.android.art.debug",
+			key: "myapex.key",
+			native_shared_libs: ["mylib", "mytestlib"],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		cc_library {
+			name: "mylib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			stl: "none",
+			stubs: {
+				versions: ["1"],
+			},
+			apex_available: ["com.android.art", "com.android.art.debug"],
+		}
+
+		cc_library {
+			name: "mytestlib",
+			srcs: ["mylib.cpp"],
+			system_shared_libs: [],
+			shared_libs: ["mylib"],
+			stl: "none",
+			apex_available: ["com.android.art.debug"],
+			test_for: ["com.android.art"],
+		}
+	`,
+		android.MockFS{
+			"system/sepolicy/apex/com.android.art-file_contexts":       nil,
+			"system/sepolicy/apex/com.android.art.debug-file_contexts": nil,
+		}.AddToFixture())
 }
 
 // TODO(jungjw): Move this to proptools
