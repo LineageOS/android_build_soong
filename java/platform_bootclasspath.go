@@ -59,6 +59,7 @@ var _ android.ExcludeFromVisibilityEnforcementTag = platformBootclasspathDepende
 
 type platformBootclasspathModule struct {
 	android.ModuleBase
+	ClasspathFragmentBase
 
 	properties platformBootclasspathProperties
 
@@ -105,22 +106,23 @@ type platformBootclasspathProperties struct {
 func platformBootclasspathFactory() android.Module {
 	m := &platformBootclasspathModule{}
 	m.AddProperties(&m.properties)
+	// TODO(satayev): split systemserver and apex jars into separate configs.
+	initClasspathFragment(m)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
 }
 
 var _ android.OutputFileProducer = (*platformBootclasspathModule)(nil)
 
-// A minimal AndroidMkEntries is needed in order to support the dists property.
-func (b *platformBootclasspathModule) AndroidMkEntries() []android.AndroidMkEntries {
-	return []android.AndroidMkEntries{
-		{
-			Class: "FAKE",
-			// Need at least one output file in order for this to take effect.
-			OutputFile: android.OptionalPathForPath(b.hiddenAPIFlagsCSV),
-			Include:    "$(BUILD_PHONY_PACKAGE)",
-		},
-	}
+func (b *platformBootclasspathModule) AndroidMkEntries() (entries []android.AndroidMkEntries) {
+	entries = append(entries, android.AndroidMkEntries{
+		Class: "FAKE",
+		// Need at least one output file in order for this to take effect.
+		OutputFile: android.OptionalPathForPath(b.hiddenAPIFlagsCSV),
+		Include:    "$(BUILD_PHONY_PACKAGE)",
+	})
+	entries = append(entries, b.classpathFragmentBase().getAndroidMkEntries()...)
+	return
 }
 
 // Make the hidden API files available from the platform-bootclasspath module.
@@ -222,6 +224,8 @@ func addDependenciesOntoBootImageModules(ctx android.BottomUpMutatorContext, mod
 }
 
 func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	b.classpathFragmentBase().generateAndroidBuildActions(ctx)
+
 	ctx.VisitDirectDepsIf(isActiveModule, func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
 		if tag == platformBootclasspathModuleDepTag {
