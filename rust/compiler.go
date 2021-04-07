@@ -272,6 +272,10 @@ func (compiler *baseCompiler) isDependencyRoot() bool {
 	return false
 }
 
+func (compiler *baseCompiler) strippedOutputFilePath() android.OptionalPath {
+	return compiler.strippedOutputFile
+}
+
 func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps.Rlibs = append(deps.Rlibs, compiler.Properties.Rlibs...)
 	deps.Dylibs = append(deps.Dylibs, compiler.Properties.Dylibs...)
@@ -337,10 +341,7 @@ func (compiler *baseCompiler) nativeCoverage() bool {
 }
 
 func (compiler *baseCompiler) install(ctx ModuleContext) {
-	path := ctx.RustModule().outputFile
-	if compiler.strippedOutputFile.Valid() {
-		path = compiler.strippedOutputFile
-	}
+	path := ctx.RustModule().OutputFile()
 	compiler.path = ctx.InstallFile(compiler.installDir(ctx), path.Path().Base(), path.Path())
 }
 
