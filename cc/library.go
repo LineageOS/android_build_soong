@@ -425,11 +425,14 @@ func (handler *staticLibraryBazelHandler) generateBazelBuildActions(ctx android.
 	if !ok {
 		return ok
 	}
-	if len(outputPaths) != 1 {
+	if len(outputPaths) > 1 {
 		// TODO(cparsons): This is actually expected behavior for static libraries with no srcs.
 		// We should support this.
-		ctx.ModuleErrorf("expected exactly one output file for '%s', but got %s", label, objPaths)
+		ctx.ModuleErrorf("expected at most one output file for '%s', but got %s", label, objPaths)
 		return false
+	} else if len(outputPaths) == 0 {
+		handler.module.outputFile = android.OptionalPath{}
+		return true
 	}
 	outputFilePath := android.PathForBazelOut(ctx, outputPaths[0])
 	handler.module.outputFile = android.OptionalPathForPath(outputFilePath)
@@ -453,7 +456,15 @@ func (handler *staticLibraryBazelHandler) generateBazelBuildActions(ctx android.
 			Direct(outputFilePath).
 			Build(),
 	})
-	handler.module.outputFile = android.OptionalPathForPath(android.PathForBazelOut(ctx, objPaths[0]))
+	if i, ok := handler.module.linker.(snapshotLibraryInterface); ok {
+		// Dependencies on this library will expect collectedSnapshotHeaders to
+		// be set, otherwise validation will fail. For now, set this to an empty
+		// list.
+		// TODO(cparsons): More closely mirror the collectHeadersForSnapshot
+		// implementation.
+		i.(*libraryDecorator).collectedSnapshotHeaders = android.Paths{}
+	}
+
 	return ok
 }
 

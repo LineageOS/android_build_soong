@@ -135,10 +135,25 @@ func writeMetrics(configuration android.Config) {
 	}
 }
 
+func writeJsonModuleGraph(configuration android.Config, ctx *android.Context, path string, extraNinjaDeps []string) {
+	f, err := os.Create(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s", err)
+		os.Exit(1)
+	}
+
+	defer f.Close()
+	ctx.Context.PrintJSONGraph(f)
+	writeFakeNinjaFile(extraNinjaDeps, configuration.BuildDir())
+}
+
 func doChosenActivity(configuration android.Config, extraNinjaDeps []string) {
 	bazelConversionRequested := configuration.IsEnvTrue("GENERATE_BAZEL_FILES")
 	mixedModeBuild := configuration.BazelContext.BazelEnabled()
 	generateQueryView := bazelQueryViewDir != ""
+	jsonModuleFile := configuration.Getenv("SOONG_DUMP_JSON_MODULE_GRAPH")
+
+	prepareBuildActions := !generateQueryView && jsonModuleFile == ""
 
 	if bazelConversionRequested {
 		// Run the alternate pipeline of bp2build mutators and singleton to convert
@@ -147,7 +162,7 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) {
 		return
 	}
 
-	ctx := newContext(configuration, !generateQueryView)
+	ctx := newContext(configuration, prepareBuildActions)
 	if mixedModeBuild {
 		runMixedModeBuild(configuration, ctx, extraNinjaDeps)
 	} else {
@@ -159,6 +174,12 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) {
 		runQueryView(configuration, ctx)
 		return
 	}
+
+	if jsonModuleFile != "" {
+		writeJsonModuleGraph(configuration, ctx, jsonModuleFile, extraNinjaDeps)
+		return
+	}
+
 	writeMetrics(configuration)
 }
 
@@ -230,6 +251,29 @@ func writeUsedVariablesFile(path string, configuration android.Config) {
 	}
 }
 
+// Workarounds to support running bp2build in a clean AOSP checkout with no
+// prior builds, and exiting early as soon as the BUILD files get generated,
+// therefore not creating build.ninja files that soong_ui and callers of
+// soong_build expects.
+//
+// These files are: build.ninja and build.ninja.d. Since Kati hasn't been
+// ran as well, and `nothing` is defined in a .mk file, there isn't a ninja
+// target called `nothing`, so we manually create it here.
+func writeFakeNinjaFile(extraNinjaDeps []string, buildDir string) {
+	extraNinjaDepsString := strings.Join(extraNinjaDeps, " \\\n ")
+
+	ninjaFileName := "build.ninja"
+	ninjaFile := shared.JoinPath(topDir, buildDir, ninjaFileName)
+	ninjaFileD := shared.JoinPath(topDir, buildDir, ninjaFileName)
+	// A workaround to create the 'nothing' ninja target so `m nothing` works,
+	// since bp2build runs without Kati, and the 'nothing' target is declared in
+	// a Makefile.
+	ioutil.WriteFile(ninjaFile, []byte("build nothing: phony\n  phony_output = true\n"), 0666)
+	ioutil.WriteFile(ninjaFileD,
+		[]byte(fmt.Sprintf("%s: \\\n %s\n", ninjaFileName, extraNinjaDepsString)),
+		0666)
+}
+
 // Run Soong in the bp2build mode. This creates a standalone context that registers
 // an alternate pipeline of mutators and singletons specifically for generating
 // Bazel BUILD files instead of Ninja files.
@@ -271,30 +315,5 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	metrics.Print()
 
 	extraNinjaDeps = append(extraNinjaDeps, codegenContext.AdditionalNinjaDeps()...)
-	extraNinjaDepsString := strings.Join(extraNinjaDeps, " \\\n ")
-
-	// Workarounds to support running bp2build in a clean AOSP checkout with no
-	// prior builds, and exiting early as soon as the BUILD files get generated,
-	// therefore not creating build.ninja files that soong_ui and callers of
-	// soong_build expects.
-	//
-	// These files are: build.ninja and build.ninja.d. Since Kati hasn't been
-	// ran as well, and `nothing` is defined in a .mk file, there isn't a ninja
-	// target called `nothing`, so we manually create it here.
-	//
-	// Even though outFile (build.ninja) and depFile (build.ninja.d) are values
-	// passed into bootstrap.Main, they are package-private fields in bootstrap.
-	// Short of modifying Blueprint to add an exported getter, inlining them
-	// here is the next-best practical option.
-	ninjaFileName := "build.ninja"
-	ninjaFile := android.PathForOutput(codegenContext, ninjaFileName)
-	ninjaFileD := android.PathForOutput(codegenContext, ninjaFileName+".d")
-	// A workaround to create the 'nothing' ninja target so `m nothing` works,
-	// since bp2build runs without Kati, and the 'nothing' target is declared in
-	// a Makefile.
-	android.WriteFileToOutputDir(ninjaFile, []byte("build nothing: phony\n  phony_output = true\n"), 0666)
-	android.WriteFileToOutputDir(
-		ninjaFileD,
-		[]byte(fmt.Sprintf("%s: \\\n %s\n", ninjaFileName, extraNinjaDepsString)),
-		0666)
+	writeFakeNinjaFile(extraNinjaDeps, codegenContext.Config().BuildDir())
 }
