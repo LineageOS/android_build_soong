@@ -75,7 +75,7 @@ func testRustVndk(t *testing.T, bp string) *android.TestContext {
 			func(variables android.FixtureProductVariables) {
 				variables.DeviceVndkVersion = StringPtr("current")
 				variables.ProductVndkVersion = StringPtr("current")
-				variables.Platform_vndk_version = StringPtr("VER")
+				variables.Platform_vndk_version = StringPtr("29")
 			},
 		),
 	).RunTestWithBp(t, bp)

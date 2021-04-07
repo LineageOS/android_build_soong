@@ -817,7 +817,7 @@ func (c *commonToSdkLibraryAndImport) findClosestScopePath(scope *apiScope) *sco
 func (c *commonToSdkLibraryAndImport) selectHeaderJarsForSdkVersion(ctx android.BaseModuleContext, sdkVersion android.SdkSpec) android.Paths {
 
 	// If a specific numeric version has been requested then use prebuilt versions of the sdk.
-	if sdkVersion.Version.IsNumbered() {
+	if !sdkVersion.ApiLevel.IsPreview() {
 		return PrebuiltJars(ctx, c.moduleBase.BaseModuleName(), sdkVersion)
 	}
 
@@ -1466,15 +1466,15 @@ func (module *SdkLibrary) createXmlFile(mctx android.DefaultableHookContext) {
 }
 
 func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s android.SdkSpec) android.Paths {
-	var ver android.SdkVersion
+	var ver android.ApiLevel
 	var kind android.SdkKind
 	if s.UsePrebuilt(ctx) {
-		ver = s.Version
+		ver = s.ApiLevel
 		kind = s.Kind
 	} else {
 		// We don't have prebuilt SDK for the specific sdkVersion.
 		// Instead of breaking the build, fallback to use "system_current"
-		ver = android.SdkVersionCurrent
+		ver = android.FutureApiLevel
 		kind = android.SdkSystem
 	}
 

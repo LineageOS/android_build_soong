@@ -1156,7 +1156,7 @@ func (j *Import) TargetSdkVersion() android.SdkSpec {
 }
 
 func (j *Import) MinSdkVersionString() string {
-	return j.MinSdkVersion().Version.String()
+	return j.MinSdkVersion().ApiLevel.String()
 }
 
 func (j *Import) Prebuilt() *android.Prebuilt {
@@ -1370,7 +1370,7 @@ func (j *Import) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	if err != nil {
 		return err
 	}
-	if ver.ApiLevel(ctx).GreaterThan(sdkVersion) {
+	if ver.GreaterThan(sdkVersion) {
 		return fmt.Errorf("newer SDK(%v)", ver)
 	}
 	return nil

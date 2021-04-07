@@ -34,13 +34,6 @@ import (
 	"android/soong/shared"
 )
 
-type CqueryRequestType int
-
-const (
-	getAllFiles CqueryRequestType = iota
-	getAllFilesAndCcObjectFiles
-)
-
 // Map key to describe bazel cquery requests.
 type cqueryKey struct {
 	label       string
@@ -481,7 +474,7 @@ def %s(target):
     return id_string + ">>" + %s(target)
 `
 
-	for _, requestType := range cquery.RequestTypes {
+	for requestType, _ := range requestTypeToCqueryIdEntries {
 		labelMapName := requestType.Name() + "_Labels"
 		functionName := requestType.Name() + "_Fn"
 		labelRegistrationMapSection += fmt.Sprintf(mapDeclarationFormatString,
@@ -688,7 +681,7 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 	// Register bazel-owned build statements (obtained from the aquery invocation).
 	for index, buildStatement := range ctx.Config().BazelContext.BuildStatementsToRegister() {
 		if len(buildStatement.Command) < 1 {
-			panic(fmt.Sprintf("unhandled build statement: %s", buildStatement))
+			panic(fmt.Sprintf("unhandled build statement: %v", buildStatement))
 		}
 		rule := NewRuleBuilder(pctx, ctx)
 		cmd := rule.Command()
