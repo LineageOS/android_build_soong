@@ -50,7 +50,7 @@ func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 	}
 
 	ret := android.AndroidMkEntries{
-		OutputFile: mod.outputFile,
+		OutputFile: mod.unstrippedOutputFile,
 		Include:    "$(BUILD_SYSTEM)/soong_rust_prebuilt.mk",
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
