@@ -56,16 +56,7 @@ func isActiveModule(module android.Module) bool {
 	if !module.Enabled() {
 		return false
 	}
-	if module.IsReplacedByPrebuilt() {
-		// A source module that has been replaced by a prebuilt counterpart.
-		return false
-	}
-	if prebuilt, ok := module.(android.PrebuiltInterface); ok {
-		if p := prebuilt.Prebuilt(); p != nil {
-			return p.UsePrebuilt()
-		}
-	}
-	return true
+	return android.IsModulePreferred(module)
 }
 
 func (b *bootJarsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
