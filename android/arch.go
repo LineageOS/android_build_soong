@@ -167,7 +167,8 @@ func newArch(name, multilib string) ArchType {
 	return archType
 }
 
-// ArchTypeList returns the 4 supported ArchTypes for arm, arm64, x86 and x86_64.
+// ArchTypeList returns the a slice copy of the 4 supported ArchTypes for arm,
+// arm64, x86 and x86_64.
 func ArchTypeList() []ArchType {
 	return append([]ArchType(nil), archTypeList...)
 }
@@ -266,7 +267,7 @@ func newOsType(name string, class OsClass, defDisabled bool, archTypes ...ArchTy
 
 		DefaultDisabled: defDisabled,
 	}
-	OsTypeList = append(OsTypeList, os)
+	osTypeList = append(osTypeList, os)
 
 	if _, found := commonTargetMap[name]; found {
 		panic(fmt.Errorf("Found Os type duplicate during OsType registration: %q", name))
@@ -280,7 +281,7 @@ func newOsType(name string, class OsClass, defDisabled bool, archTypes ...ArchTy
 
 // osByName returns the OsType that has the given name, or NoOsType if none match.
 func osByName(name string) OsType {
-	for _, os := range OsTypeList {
+	for _, os := range osTypeList {
 		if os.Name == name {
 			return os
 		}
@@ -312,9 +313,9 @@ var BuildArch = func() ArchType {
 }()
 
 var (
-	// OsTypeList contains a list of all the supported OsTypes, including ones not supported
+	// osTypeList contains a list of all the supported OsTypes, including ones not supported
 	// by the current build host or the target device.
-	OsTypeList []OsType
+	osTypeList []OsType
 	// commonTargetMap maps names of OsTypes to the corresponding common Target, i.e. the
 	// Target with the same OsType and the common ArchType.
 	commonTargetMap = make(map[string]Target)
@@ -346,6 +347,11 @@ var (
 	// for example most Java modules.
 	CommonArch = Arch{ArchType: Common}
 )
+
+// OsTypeList returns a slice copy of the supported OsTypes.
+func OsTypeList() []OsType {
+	return append([]OsType(nil), osTypeList...)
+}
 
 // Target specifies the OS and architecture that a module is being compiled for.
 type Target struct {
@@ -448,7 +454,7 @@ func osMutator(bpctx blueprint.BottomUpMutatorContext) {
 	// Collect a list of OSTypes supported by this module based on the HostOrDevice value
 	// passed to InitAndroidArchModule and the device_supported and host_supported properties.
 	var moduleOSList []OsType
-	for _, os := range OsTypeList {
+	for _, os := range osTypeList {
 		for _, t := range mctx.Config().Targets[os] {
 			if base.supportsTarget(t) {
 				moduleOSList = append(moduleOSList, os)
@@ -838,7 +844,7 @@ func createArchPropTypeDesc(props reflect.Type) []archPropTypeDesc {
 			"Arm_on_x86_64",
 			"Native_bridge",
 		}
-		for _, os := range OsTypeList {
+		for _, os := range osTypeList {
 			// Add all the OSes.
 			targets = append(targets, os.Field)
 
@@ -1742,7 +1748,7 @@ func (m *ModuleBase) GetTargetProperties(dst interface{}) map[OsType]interface{}
 		}
 
 		// Iterate over the supported OS types
-		for _, os := range OsTypeList {
+		for _, os := range osTypeList {
 			// e.g android, linux_bionic
 			field := os.Field
 
