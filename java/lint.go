@@ -347,7 +347,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 
 	cmd := rule.Command()
 
-	cmd.Flag("JAVA_OPTS=-Xmx3072m").
+	cmd.Flag(`JAVA_OPTS="-Xmx3072m --add-opens java.base/java.util=ALL-UNNAMED"`).
 		FlagWithArg("ANDROID_SDK_HOME=", lintPaths.homeDir.String()).
 		FlagWithInput("SDK_ANNOTATIONS=", annotationsZipPath).
 		FlagWithInput("LINT_OPTS=-DLINT_API_DATABASE=", apiVersionsXMLPath)
@@ -391,6 +391,9 @@ func (l *linter) lint(ctx android.ModuleContext) {
 	cmd.Text("|| (").Text("if [ -e").Input(text).Text("]; then cat").Input(text).Text("; fi; exit 7)")
 
 	rule.Command().Text("rm -rf").Flag(lintPaths.cacheDir.String()).Flag(lintPaths.homeDir.String())
+
+	// The HTML output contains a date, remove it to make the output deterministic.
+	rule.Command().Text(`sed -i.tmp -e 's|Check performed at .*\(</nav>\)|\1|'`).Output(html)
 
 	rule.Build("lint", "lint")
 

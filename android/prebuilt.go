@@ -82,6 +82,12 @@ func RemoveOptionalPrebuiltPrefix(name string) string {
 }
 
 func (p *Prebuilt) Name(name string) string {
+	return PrebuiltNameFromSource(name)
+}
+
+// PrebuiltNameFromSource returns the result of prepending the "prebuilt_" prefix to the supplied
+// name.
+func PrebuiltNameFromSource(name string) string {
 	return "prebuilt_" + name
 }
 
@@ -211,6 +217,26 @@ func InitSingleSourcePrebuiltModule(module PrebuiltInterface, srcProps interface
 type PrebuiltInterface interface {
 	Module
 	Prebuilt() *Prebuilt
+}
+
+// IsModulePreferred returns true if the given module is preferred.
+//
+// A source module is preferred if there is no corresponding prebuilt module or the prebuilt module
+// does not have "prefer: true".
+//
+// A prebuilt module is preferred if there is no corresponding source module or the prebuilt module
+// has "prefer: true".
+func IsModulePreferred(module Module) bool {
+	if module.IsReplacedByPrebuilt() {
+		// A source module that has been replaced by a prebuilt counterpart.
+		return false
+	}
+	if prebuilt, ok := module.(PrebuiltInterface); ok {
+		if p := prebuilt.Prebuilt(); p != nil {
+			return p.UsePrebuilt()
+		}
+	}
+	return true
 }
 
 func RegisterPrebuiltsPreArchMutators(ctx RegisterMutatorsContext) {

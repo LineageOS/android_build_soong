@@ -186,17 +186,6 @@ func stubFlagsRule(ctx android.SingletonContext) {
 	// We do not have prebuilts of the core platform api yet
 	corePlatformStubModules = append(corePlatformStubModules, "legacy.core.platform.api.stubs")
 
-	// Add the android.test.base to the set of stubs only if the android.test.base module is on
-	// the boot jars list as the runtime will only enforce hiddenapi access against modules on
-	// that list.
-	if inList("android.test.base", ctx.Config().BootJars()) {
-		if ctx.Config().AlwaysUsePrebuiltSdks() {
-			publicStubModules = append(publicStubModules, "sdk_public_current_android.test.base")
-		} else {
-			publicStubModules = append(publicStubModules, "android.test.base.stubs")
-		}
-	}
-
 	// Allow products to define their own stubs for custom product jars that apps can use.
 	publicStubModules = append(publicStubModules, ctx.Config().ProductHiddenAPIStubs()...)
 	systemStubModules = append(systemStubModules, ctx.Config().ProductHiddenAPIStubsSystem()...)
