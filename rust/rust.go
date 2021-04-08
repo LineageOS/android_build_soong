@@ -114,7 +114,10 @@ type Module struct {
 	sourceProvider   SourceProvider
 	subAndroidMkOnce map[SubAndroidMkProvider]bool
 
-	outputFile android.OptionalPath
+	// Unstripped output. This is usually used when this module is linked to another module
+	// as a library. The stripped output which is used for installation can be found via
+	// compiler.strippedOutputFile if it exists.
+	unstrippedOutputFile android.OptionalPath
 
 	hideApexVariantFromMake bool
 }
@@ -163,8 +166,8 @@ func (mod *Module) OutputFiles(tag string) (android.Paths, error) {
 		if mod.sourceProvider != nil && (mod.compiler == nil || mod.compiler.Disabled()) {
 			return mod.sourceProvider.Srcs(), nil
 		} else {
-			if mod.outputFile.Valid() {
-				return android.Paths{mod.outputFile.Path()}, nil
+			if mod.OutputFile().Valid() {
+				return android.Paths{mod.OutputFile().Path()}, nil
 			}
 			return android.Paths{}, nil
 		}
@@ -346,6 +349,8 @@ type compiler interface {
 
 	stdLinkage(ctx *depsContext) RustLinkage
 	isDependencyRoot() bool
+
+	strippedOutputFilePath() android.OptionalPath
 }
 
 type exportedFlagsProducer interface {
@@ -523,7 +528,10 @@ func (mod *Module) Module() android.Module {
 }
 
 func (mod *Module) OutputFile() android.OptionalPath {
-	return mod.outputFile
+	if mod.compiler != nil && mod.compiler.strippedOutputFilePath().Valid() {
+		return mod.compiler.strippedOutputFilePath()
+	}
+	return mod.unstrippedOutputFile
 }
 
 func (mod *Module) CoverageFiles() android.Paths {
@@ -540,7 +548,7 @@ func (mod *Module) installable(apexInfo android.ApexInfo) bool {
 		return false
 	}
 
-	return mod.outputFile.Valid() && !mod.Properties.PreventInstall
+	return mod.OutputFile().Valid() && !mod.Properties.PreventInstall
 }
 
 var _ cc.LinkableInterface = (*Module)(nil)
@@ -721,9 +729,9 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	if mod.compiler != nil && !mod.compiler.Disabled() {
 		mod.compiler.initialize(ctx)
-		outputFile := mod.compiler.compile(ctx, flags, deps)
+		unstrippedOutputFile := mod.compiler.compile(ctx, flags, deps)
 
-		mod.outputFile = android.OptionalPathForPath(outputFile)
+		mod.unstrippedOutputFile = android.OptionalPathForPath(unstrippedOutputFile)
 
 		apexInfo := actx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 		if mod.installable(apexInfo) {
@@ -882,7 +890,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 
 			if depTag == dylibDepTag || depTag == rlibDepTag || depTag == procMacroDepTag {
-				linkFile := rustDep.outputFile
+				linkFile := rustDep.unstrippedOutputFile
 				if !linkFile.Valid() {
 					ctx.ModuleErrorf("Invalid output file when adding dep %q to %q",
 						depName, ctx.ModuleName())
@@ -978,15 +986,15 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 
 	var rlibDepFiles RustLibraries
 	for _, dep := range directRlibDeps {
-		rlibDepFiles = append(rlibDepFiles, RustLibrary{Path: dep.outputFile.Path(), CrateName: dep.CrateName()})
+		rlibDepFiles = append(rlibDepFiles, RustLibrary{Path: dep.unstrippedOutputFile.Path(), CrateName: dep.CrateName()})
 	}
 	var dylibDepFiles RustLibraries
 	for _, dep := range directDylibDeps {
-		dylibDepFiles = append(dylibDepFiles, RustLibrary{Path: dep.outputFile.Path(), CrateName: dep.CrateName()})
+		dylibDepFiles = append(dylibDepFiles, RustLibrary{Path: dep.unstrippedOutputFile.Path(), CrateName: dep.CrateName()})
 	}
 	var procMacroDepFiles RustLibraries
 	for _, dep := range directProcMacroDeps {
-		procMacroDepFiles = append(procMacroDepFiles, RustLibrary{Path: dep.outputFile.Path(), CrateName: dep.CrateName()})
+		procMacroDepFiles = append(procMacroDepFiles, RustLibrary{Path: dep.unstrippedOutputFile.Path(), CrateName: dep.CrateName()})
 	}
 
 	var staticLibDepFiles android.Paths
