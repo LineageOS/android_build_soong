@@ -33,24 +33,15 @@ func TestPythonBinaryHost(t *testing.T) {
 			blueprint: `python_binary_host {
     name: "foo",
     main: "a.py",
-    srcs: [
-        "**/*.py"
-    ],
-    exclude_srcs: [
-        "b/e.py"
-    ],
-    data: [
-        "files/data.txt",
-    ],
-
+    srcs: ["**/*.py"],
+    exclude_srcs: ["b/e.py"],
+    data: ["files/data.txt",],
     bazel_module: { bp2build_available: true },
 }
 `,
 			expectedBazelTargets: []string{`py_binary(
     name = "foo",
-    data = [
-        "files/data.txt",
-    ],
+    data = ["files/data.txt"],
     main = "a.py",
     srcs = [
         "a.py",
@@ -83,9 +74,7 @@ func TestPythonBinaryHost(t *testing.T) {
 			expectedBazelTargets: []string{`py_binary(
     name = "foo",
     python_version = "PY2",
-    srcs = [
-        "a.py",
-    ],
+    srcs = ["a.py"],
 )`,
 			},
 		},
@@ -113,9 +102,7 @@ func TestPythonBinaryHost(t *testing.T) {
 				// python_version is PY3 by default.
 				`py_binary(
     name = "foo",
-    srcs = [
-        "a.py",
-    ],
+    srcs = ["a.py"],
 )`,
 			},
 		},

@@ -394,21 +394,34 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 			return "", nil
 		}
 
-		ret = "[\n"
-		for i := 0; i < propertyValue.Len(); i++ {
-			indexedValue, err := prettyPrint(propertyValue.Index(i), indent+1)
+		if propertyValue.Len() == 1 {
+			// Single-line list for list with only 1 element
+			ret += "["
+			indexedValue, err := prettyPrint(propertyValue.Index(0), indent)
 			if err != nil {
 				return "", err
 			}
+			ret += indexedValue
+			ret += "]"
+		} else {
+			// otherwise, use a multiline list.
+			ret += "[\n"
+			for i := 0; i < propertyValue.Len(); i++ {
+				indexedValue, err := prettyPrint(propertyValue.Index(i), indent+1)
+				if err != nil {
+					return "", err
+				}
 
-			if indexedValue != "" {
-				ret += makeIndent(indent + 1)
-				ret += indexedValue
-				ret += ",\n"
+				if indexedValue != "" {
+					ret += makeIndent(indent + 1)
+					ret += indexedValue
+					ret += ",\n"
+				}
 			}
+			ret += makeIndent(indent)
+			ret += "]"
 		}
-		ret += makeIndent(indent)
-		ret += "]"
+
 	case reflect.Struct:
 		// Special cases where the bp2build sends additional information to the codegenerator
 		// by wrapping the attributes in a custom struct type.
