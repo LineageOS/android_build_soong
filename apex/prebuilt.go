@@ -515,6 +515,49 @@ func (p *Prebuilt) AndroidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
+// prebuiltApexExtractorModule is a private module type that is only created by the prebuilt_apex
+// module. It extracts the correct apex to use and makes it available for use by apex_set.
+type prebuiltApexExtractorModule struct {
+	android.ModuleBase
+
+	properties ApexExtractorProperties
+
+	extractedApex android.WritablePath
+}
+
+func privateApexExtractorModuleFactory() android.Module {
+	module := &prebuiltApexExtractorModule{}
+	module.AddProperties(
+		&module.properties,
+	)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	return module
+}
+
+func (p *prebuiltApexExtractorModule) Srcs() android.Paths {
+	return android.Paths{p.extractedApex}
+}
+
+func (p *prebuiltApexExtractorModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	srcsSupplier := func(ctx android.BaseModuleContext, prebuilt android.Module) []string {
+		return p.properties.prebuiltSrcs(ctx)
+	}
+	apexSet := android.SingleSourcePathFromSupplier(ctx, srcsSupplier, "set")
+	p.extractedApex = android.PathForModuleOut(ctx, "extracted", apexSet.Base())
+	ctx.Build(pctx,
+		android.BuildParams{
+			Rule:        extractMatchingApex,
+			Description: "Extract an apex from an apex set",
+			Inputs:      android.Paths{apexSet},
+			Output:      p.extractedApex,
+			Args: map[string]string{
+				"abis":              strings.Join(java.SupportedAbis(ctx), ","),
+				"allow-prereleased": strconv.FormatBool(proptools.Bool(p.properties.Prerelease)),
+				"sdk-version":       ctx.Config().PlatformSdkVersion().String(),
+			},
+		})
+}
+
 type ApexSet struct {
 	android.ModuleBase
 	prebuiltCommon
@@ -533,7 +576,7 @@ type ApexSet struct {
 	postInstallCommands []string
 }
 
-type ApexSetProperties struct {
+type ApexExtractorProperties struct {
 	// the .apks file path that contains prebuilt apex files to be extracted.
 	Set *string
 
@@ -549,6 +592,37 @@ type ApexSetProperties struct {
 		}
 	}
 
+	// apexes in this set use prerelease SDK version
+	Prerelease *bool
+}
+
+func (e *ApexExtractorProperties) prebuiltSrcs(ctx android.BaseModuleContext) []string {
+	var srcs []string
+	if e.Set != nil {
+		srcs = append(srcs, *e.Set)
+	}
+
+	var sanitizers []string
+	if ctx.Host() {
+		sanitizers = ctx.Config().SanitizeHost()
+	} else {
+		sanitizers = ctx.Config().SanitizeDevice()
+	}
+
+	if android.InList("address", sanitizers) && e.Sanitized.Address.Set != nil {
+		srcs = append(srcs, *e.Sanitized.Address.Set)
+	} else if android.InList("hwaddress", sanitizers) && e.Sanitized.Hwaddress.Set != nil {
+		srcs = append(srcs, *e.Sanitized.Hwaddress.Set)
+	} else if e.Sanitized.None.Set != nil {
+		srcs = append(srcs, *e.Sanitized.None.Set)
+	}
+
+	return srcs
+}
+
+type ApexSetProperties struct {
+	ApexExtractorProperties
+
 	// whether the extracted apex file installable.
 	Installable *bool
 
@@ -562,33 +636,6 @@ type ApexSetProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
-
-	// apexes in this set use prerelease SDK version
-	Prerelease *bool
-}
-
-func (a *ApexSet) prebuiltSrcs(ctx android.BaseModuleContext) []string {
-	var srcs []string
-	if a.properties.Set != nil {
-		srcs = append(srcs, *a.properties.Set)
-	}
-
-	var sanitizers []string
-	if ctx.Host() {
-		sanitizers = ctx.Config().SanitizeHost()
-	} else {
-		sanitizers = ctx.Config().SanitizeDevice()
-	}
-
-	if android.InList("address", sanitizers) && a.properties.Sanitized.Address.Set != nil {
-		srcs = append(srcs, *a.properties.Sanitized.Address.Set)
-	} else if android.InList("hwaddress", sanitizers) && a.properties.Sanitized.Hwaddress.Set != nil {
-		srcs = append(srcs, *a.properties.Sanitized.Hwaddress.Set)
-	} else if a.properties.Sanitized.None.Set != nil {
-		srcs = append(srcs, *a.properties.Sanitized.None.Set)
-	}
-
-	return srcs
 }
 
 func (a *ApexSet) hasSanitizedSource(sanitizer string) bool {
@@ -621,15 +668,41 @@ func (a *ApexSet) Overrides() []string {
 // prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
 func apexSetFactory() android.Module {
 	module := &ApexSet{}
-	module.AddProperties(&module.properties)
+	module.AddProperties(&module.properties, &module.selectedApexProperties)
 
-	srcsSupplier := func(ctx android.BaseModuleContext, _ android.Module) []string {
-		return module.prebuiltSrcs(ctx)
+	android.InitSingleSourcePrebuiltModule(module, &module.selectedApexProperties, "Selected_apex")
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		baseModuleName := module.BaseModuleName()
+
+		apexExtractorModuleName := apexExtractorModuleName(baseModuleName)
+		createApexExtractorModule(ctx, apexExtractorModuleName, &module.properties.ApexExtractorProperties)
+
+		apexFileSource := ":" + apexExtractorModuleName
+
+		// After passing the arch specific src properties to the creating the apex selector module
+		module.selectedApexProperties.Selected_apex = proptools.StringPtr(apexFileSource)
+	})
+
+	return module
+}
+
+func createApexExtractorModule(ctx android.LoadHookContext, name string, apexExtractorProperties *ApexExtractorProperties) {
+	props := struct {
+		Name *string
+	}{
+		Name: proptools.StringPtr(name),
 	}
 
-	android.InitPrebuiltModuleWithSrcSupplier(module, srcsSupplier, "set")
-	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
-	return module
+	ctx.CreateModule(privateApexExtractorModuleFactory,
+		&props,
+		apexExtractorProperties,
+	)
+}
+
+func apexExtractorModuleName(baseModuleName string) string {
+	return baseModuleName + ".apex.extractor"
 }
 
 func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -638,20 +711,13 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.ModuleErrorf("filename should end in %s for apex_set", imageApexSuffix)
 	}
 
-	apexSet := a.prebuiltCommon.prebuilt.SingleSourcePath(ctx)
+	inputApex := android.OptionalPathForModuleSrc(ctx, a.selectedApexProperties.Selected_apex).Path()
 	a.outputApex = android.PathForModuleOut(ctx, a.installFilename)
-	ctx.Build(pctx,
-		android.BuildParams{
-			Rule:        extractMatchingApex,
-			Description: "Extract an apex from an apex set",
-			Inputs:      android.Paths{apexSet},
-			Output:      a.outputApex,
-			Args: map[string]string{
-				"abis":              strings.Join(java.SupportedAbis(ctx), ","),
-				"allow-prereleased": strconv.FormatBool(proptools.Bool(a.properties.Prerelease)),
-				"sdk-version":       ctx.Config().PlatformSdkVersion().String(),
-			},
-		})
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Input:  inputApex,
+		Output: a.outputApex,
+	})
 
 	if a.prebuiltCommon.checkForceDisable(ctx) {
 		a.HideFromMake()
