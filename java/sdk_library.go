@@ -201,8 +201,12 @@ func initApiScope(scope *apiScope) *apiScope {
 	return scope
 }
 
+func (scope *apiScope) stubsLibraryModuleNameSuffix() string {
+	return ".stubs" + scope.moduleSuffix
+}
+
 func (scope *apiScope) stubsLibraryModuleName(baseName string) string {
-	return baseName + ".stubs" + scope.moduleSuffix
+	return baseName + scope.stubsLibraryModuleNameSuffix()
 }
 
 func (scope *apiScope) stubsSourceModuleName(baseName string) string {
@@ -1684,16 +1688,20 @@ var _ sdkLibraryComponentNamingScheme = (*defaultNamingScheme)(nil)
 func moduleStubLinkType(name string) (stub bool, ret sdkLinkType) {
 	// This suffix-based approach is fragile and could potentially mis-trigger.
 	// TODO(b/155164730): Clean this up when modules no longer reference sdk_lib stubs directly.
-	if strings.HasSuffix(name, ".stubs.public") || strings.HasSuffix(name, "-stubs-publicapi") {
+	if strings.HasSuffix(name, apiScopePublic.stubsLibraryModuleNameSuffix()) {
+		if name == "hwbinder.stubs" || name == "libcore_private.stubs" {
+			// Due to a previous bug, these modules were not considered stubs, so we retain that.
+			return false, javaPlatform
+		}
 		return true, javaSdk
 	}
-	if strings.HasSuffix(name, ".stubs.system") || strings.HasSuffix(name, "-stubs-systemapi") {
+	if strings.HasSuffix(name, apiScopeSystem.stubsLibraryModuleNameSuffix()) {
 		return true, javaSystem
 	}
-	if strings.HasSuffix(name, ".stubs.module_lib") || strings.HasSuffix(name, "-stubs-module_libs_api") {
+	if strings.HasSuffix(name, apiScopeModuleLib.stubsLibraryModuleNameSuffix()) {
 		return true, javaModule
 	}
-	if strings.HasSuffix(name, ".stubs.test") {
+	if strings.HasSuffix(name, apiScopeTest.stubsLibraryModuleNameSuffix()) {
 		return true, javaSystem
 	}
 	return false, javaPlatform
