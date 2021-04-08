@@ -101,6 +101,9 @@ func TestCcLibraryStaticBp2Build(t *testing.T) {
 				"export_include_dir_1/export_include_dir_1_b.h": "",
 				"export_include_dir_2/export_include_dir_2_a.h": "",
 				"export_include_dir_2/export_include_dir_2_b.h": "",
+				// NOTE: Soong implicitly includes headers in the current directory
+				"implicit_include_1.h": "",
+				"implicit_include_2.h": "",
 			},
 			bp: soongCcLibraryStaticPreamble + `
 cc_library_headers {
@@ -203,34 +206,65 @@ cc_library_static {
         "include_dir_2",
         "local_include_dir_1",
         "local_include_dir_2",
+        ".",
     ],
     linkstatic = True,
     srcs = [
         "foo_static1.cc",
         "foo_static2.cc",
+        "implicit_include_1.h",
+        "implicit_include_2.h",
+        "include_dir_1/include_dir_1_a.h",
+        "include_dir_1/include_dir_1_b.h",
+        "include_dir_2/include_dir_2_a.h",
+        "include_dir_2/include_dir_2_b.h",
+        "local_include_dir_1/local_include_dir_1_a.h",
+        "local_include_dir_1/local_include_dir_1_b.h",
+        "local_include_dir_2/local_include_dir_2_a.h",
+        "local_include_dir_2/local_include_dir_2_b.h",
     ],
 )`, `cc_library_static(
     name = "static_lib_1",
+    includes = [
+        ".",
+    ],
     linkstatic = True,
     srcs = [
+        "implicit_include_1.h",
+        "implicit_include_2.h",
         "static_lib_1.cc",
     ],
 )`, `cc_library_static(
     name = "static_lib_2",
+    includes = [
+        ".",
+    ],
     linkstatic = True,
     srcs = [
+        "implicit_include_1.h",
+        "implicit_include_2.h",
         "static_lib_2.cc",
     ],
 )`, `cc_library_static(
     name = "whole_static_lib_1",
+    includes = [
+        ".",
+    ],
     linkstatic = True,
     srcs = [
+        "implicit_include_1.h",
+        "implicit_include_2.h",
         "whole_static_lib_1.cc",
     ],
 )`, `cc_library_static(
     name = "whole_static_lib_2",
+    includes = [
+        ".",
+    ],
     linkstatic = True,
     srcs = [
+        "implicit_include_1.h",
+        "implicit_include_2.h",
         "whole_static_lib_2.cc",
     ],
 )`},
