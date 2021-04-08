@@ -151,12 +151,15 @@ func (p *ApexFileProperties) prebuiltApexSelector(ctx android.BaseModuleContext,
 		src = String(p.Arch.X86.Src)
 	case android.X86_64:
 		src = String(p.Arch.X86_64.Src)
-	default:
-		ctx.OtherModuleErrorf(prebuilt, "prebuilt_apex does not support %q", multiTargets[0].Arch.String())
-		return nil
 	}
 	if src == "" {
 		src = String(p.Src)
+	}
+
+	if src == "" {
+		ctx.OtherModuleErrorf(prebuilt, "prebuilt_apex does not support %q", multiTargets[0].Arch.String())
+		// Drop through to return an empty string as the src (instead of nil) to avoid the prebuilt
+		// logic from reporting a more general, less useful message.
 	}
 
 	return []string{src}
