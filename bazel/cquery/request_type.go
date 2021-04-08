@@ -5,8 +5,8 @@ import (
 )
 
 var (
-	GetOutputFiles                 RequestType = &getOutputFilesRequestType{}
-	GetOutputFilesAndCcObjectFiles RequestType = &getOutputFilesAndCcObjectFilesType{}
+	GetOutputFiles                 = &getOutputFilesRequestType{}
+	GetOutputFilesAndCcObjectFiles = &getOutputFilesAndCcObjectFilesType{}
 )
 
 type GetOutputFilesAndCcObjectFiles_Result struct {
@@ -14,49 +14,49 @@ type GetOutputFilesAndCcObjectFiles_Result struct {
 	CcObjectFiles []string
 }
 
-type RequestType interface {
-	// Name returns a string name for this request type. Such request type names must be unique,
-	// and must only consist of alphanumeric characters.
-	Name() string
-
-	// StarlarkFunctionBody returns a straark function body to process this request type.
-	// The returned string is the body of a Starlark function which obtains
-	// all request-relevant information about a target and returns a string containing
-	// this information.
-	// The function should have the following properties:
-	//   - `target` is the only parameter to this function (a configured target).
-	//   - The return value must be a string.
-	//   - The function body should not be indented outside of its own scope.
-	StarlarkFunctionBody() string
-
-	// ParseResult returns a value obtained by parsing the result of the request's Starlark function.
-	// The given rawString must correspond to the string output which was created by evaluating the
-	// Starlark given in StarlarkFunctionBody.
-	// The type of this value depends on the request type; it is up to the caller to
-	// cast to the correct type.
-	ParseResult(rawString string) interface{}
-}
-
 type getOutputFilesRequestType struct{}
 
+// Name returns a string name for this request type. Such request type names must be unique,
+// and must only consist of alphanumeric characters.
 func (g getOutputFilesRequestType) Name() string {
 	return "getOutputFiles"
 }
 
+// StarlarkFunctionBody returns a starlark function body to process this request type.
+// The returned string is the body of a Starlark function which obtains
+// all request-relevant information about a target and returns a string containing
+// this information.
+// The function should have the following properties:
+//   - `target` is the only parameter to this function (a configured target).
+//   - The return value must be a string.
+//   - The function body should not be indented outside of its own scope.
 func (g getOutputFilesRequestType) StarlarkFunctionBody() string {
 	return "return ', '.join([f.path for f in target.files.to_list()])"
 }
 
-func (g getOutputFilesRequestType) ParseResult(rawString string) interface{} {
+// ParseResult returns a value obtained by parsing the result of the request's Starlark function.
+// The given rawString must correspond to the string output which was created by evaluating the
+// Starlark given in StarlarkFunctionBody.
+func (g getOutputFilesRequestType) ParseResult(rawString string) []string {
 	return strings.Split(rawString, ", ")
 }
 
 type getOutputFilesAndCcObjectFilesType struct{}
 
+// Name returns a string name for this request type. Such request type names must be unique,
+// and must only consist of alphanumeric characters.
 func (g getOutputFilesAndCcObjectFilesType) Name() string {
 	return "getOutputFilesAndCcObjectFiles"
 }
 
+// StarlarkFunctionBody returns a starlark function body to process this request type.
+// The returned string is the body of a Starlark function which obtains
+// all request-relevant information about a target and returns a string containing
+// this information.
+// The function should have the following properties:
+//   - `target` is the only parameter to this function (a configured target).
+//   - The return value must be a string.
+//   - The function body should not be indented outside of its own scope.
 func (g getOutputFilesAndCcObjectFilesType) StarlarkFunctionBody() string {
 	return `
 outputFiles = [f.path for f in target.files.to_list()]
@@ -71,7 +71,10 @@ for linker_input in linker_inputs:
 return ', '.join(outputFiles) + "|" + ', '.join(ccObjectFiles)`
 }
 
-func (g getOutputFilesAndCcObjectFilesType) ParseResult(rawString string) interface{} {
+// ParseResult returns a value obtained by parsing the result of the request's Starlark function.
+// The given rawString must correspond to the string output which was created by evaluating the
+// Starlark given in StarlarkFunctionBody.
+func (g getOutputFilesAndCcObjectFilesType) ParseResult(rawString string) GetOutputFilesAndCcObjectFiles_Result {
 	var outputFiles []string
 	var ccObjects []string
 
