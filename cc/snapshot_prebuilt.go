@@ -337,7 +337,8 @@ func (s *snapshot) DepsMutator(ctx android.BottomUpMutatorContext) {
 		for _, name := range names {
 			snapshotMap[name] = name +
 				getSnapshotNameSuffix(snapshotSuffix+moduleSuffix,
-					s.baseSnapshot.version(), ctx.Arch().ArchType.Name)
+					s.baseSnapshot.version(),
+					ctx.DeviceConfig().Arches()[0].ArchType.String())
 		}
 		return snapshotMap
 	}
