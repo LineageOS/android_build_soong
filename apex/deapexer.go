@@ -49,21 +49,27 @@ type DeapexerProperties struct {
 	Exported_java_libs []string
 }
 
+type SelectedApexProperties struct {
+	// The path to the apex selected for use by this module.
+	//
+	// Is tagged as `android:"path"` because it will usually contain a string of the form ":<module>"
+	// and is tagged as "`blueprint:"mutate"` because it is only initialized in a LoadHook not an
+	// Android.bp file.
+	Selected_apex *string `android:"path" blueprint:"mutated"`
+}
+
 type Deapexer struct {
 	android.ModuleBase
 
-	properties         DeapexerProperties
-	apexFileProperties ApexFileProperties
+	properties             DeapexerProperties
+	selectedApexProperties SelectedApexProperties
 
 	inputApex android.Path
 }
 
 func privateDeapexerFactory() android.Module {
 	module := &Deapexer{}
-	module.AddProperties(
-		&module.properties,
-		&module.apexFileProperties,
-	)
+	module.AddProperties(&module.properties, &module.selectedApexProperties)
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
 }
@@ -78,7 +84,7 @@ func (p *Deapexer) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (p *Deapexer) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	p.inputApex = android.SingleSourcePathFromSupplier(ctx, p.apexFileProperties.prebuiltApexSelector, "src")
+	p.inputApex = android.OptionalPathForModuleSrc(ctx, p.selectedApexProperties.Selected_apex).Path()
 
 	// Create and remember the directory into which the .apex file's contents will be unpacked.
 	deapexerOutput := android.PathForModuleOut(ctx, "deapexer")
