@@ -51,9 +51,12 @@ var (
 			Command: "$envVars $clippyCmd " +
 				// Because clippy-driver uses rustc as backend, we need to have some output even during the linting.
 				// Use the metadata output as it has the smallest footprint.
-				"--emit metadata -o $out $in ${libFlags} " +
-				"$rustcFlags $clippyFlags",
+				"--emit metadata -o $out --emit dep-info=$out.d.raw $in ${libFlags} " +
+				"$rustcFlags $clippyFlags" +
+				" && grep \"^$out:\" $out.d.raw > $out.d",
 			CommandDeps: []string{"$clippyCmd"},
+			Deps:        blueprint.DepsGCC,
+			Depfile:     "$out.d",
 		},
 		"rustcFlags", "libFlags", "clippyFlags", "envVars")
 
