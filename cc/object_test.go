@@ -15,6 +15,7 @@
 package cc
 
 import (
+	"android/soong/android"
 	"testing"
 )
 
@@ -27,5 +28,28 @@ func TestLinkerScript(t *testing.T) {
 			linker_script: "foo.lds",
 		}`)
 	})
+}
 
+func TestCcObjectWithBazel(t *testing.T) {
+	bp := `
+cc_object {
+	name: "foo",
+	srcs: ["baz.o"],
+	bazel_module: { label: "//foo/bar:bar" },
+}`
+	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
+	config.BazelContext = android.MockBazelContext{
+		OutputBaseDir: "outputbase",
+		LabelToOutputFiles: map[string][]string{
+			"//foo/bar:bar": []string{"bazel_out.o"}}}
+	ctx := testCcWithConfig(t, config)
+
+	module := ctx.ModuleForTests("foo", "android_arm_armv7-a-neon").Module()
+	outputFiles, err := module.(android.OutputFileProducer).OutputFiles("")
+	if err != nil {
+		t.Errorf("Unexpected error getting cc_object outputfiles %s", err)
+	}
+
+	expectedOutputFiles := []string{"outputbase/execroot/__main__/bazel_out.o"}
+	android.AssertDeepEquals(t, "output files", expectedOutputFiles, outputFiles.Strings())
 }
