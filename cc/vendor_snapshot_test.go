@@ -819,6 +819,18 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 func TestVendorSnapshotSanitizer(t *testing.T) {
 	bp := `
+	vendor_snapshot {
+		name: "vendor_snapshot",
+		version: "28",
+		arch: {
+			arm64: {
+				static_libs: [
+					"libsnapshot",
+					"note_memtag_heap_sync",
+				],
+			},
+		},
+	}
 	vendor_snapshot_static {
 		name: "libsnapshot",
 		vendor: true,
@@ -833,8 +845,41 @@ func TestVendorSnapshotSanitizer(t *testing.T) {
 			},
 		},
 	}
+
+	vendor_snapshot_static {
+		name: "note_memtag_heap_sync",
+		vendor: true,
+		target_arch: "arm64",
+		version: "28",
+		arch: {
+			arm64: {
+				src: "note_memtag_heap_sync.a",
+			},
+		},
+	}
+
+	cc_test {
+		name: "vstest",
+		gtest: false,
+		vendor: true,
+		compile_multilib: "64",
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		static_libs: ["libsnapshot"],
+		system_shared_libs: [],
+	}
 `
-	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
+
+	mockFS := map[string][]byte{
+		"vendor/Android.bp":              []byte(bp),
+		"vendor/libc++demangle.a":        nil,
+		"vendor/libsnapshot.a":           nil,
+		"vendor/libsnapshot.cfi.a":       nil,
+		"vendor/note_memtag_heap_sync.a": nil,
+	}
+
+	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("28")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("29")
 	ctx := testCcWithConfig(t, config)
