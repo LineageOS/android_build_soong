@@ -99,22 +99,24 @@ func (p *Prebuilt) Prefer() bool {
 	return proptools.Bool(p.properties.Prefer)
 }
 
-// The below source-related functions and the srcs, src fields are based on an assumption that
-// prebuilt modules have a static source property at the moment. Currently there is only one
-// exception, android_app_import, which chooses a source file depending on the product's DPI
-// preference configs. We'll want to add native support for dynamic source cases if we end up having
-// more modules like this.
-func (p *Prebuilt) SingleSourcePath(ctx ModuleContext) Path {
-	if p.srcsSupplier != nil {
-		srcs := p.srcsSupplier(ctx, ctx.Module())
+// SingleSourcePathFromSupplier invokes the supplied supplier for the current module in the
+// supplied context to retrieve a list of file paths, ensures that the returned list of file paths
+// contains a single value and then assumes that is a module relative file path and converts it to
+// a Path accordingly.
+//
+// Any issues, such as nil supplier or not exactly one file path will be reported as errors on the
+// supplied context and this will return nil.
+func SingleSourcePathFromSupplier(ctx ModuleContext, srcsSupplier PrebuiltSrcsSupplier, srcsPropertyName string) Path {
+	if srcsSupplier != nil {
+		srcs := srcsSupplier(ctx, ctx.Module())
 
 		if len(srcs) == 0 {
-			ctx.PropertyErrorf(p.srcsPropertyName, "missing prebuilt source file")
+			ctx.PropertyErrorf(srcsPropertyName, "missing prebuilt source file")
 			return nil
 		}
 
 		if len(srcs) > 1 {
-			ctx.PropertyErrorf(p.srcsPropertyName, "multiple prebuilt source files")
+			ctx.PropertyErrorf(srcsPropertyName, "multiple prebuilt source files")
 			return nil
 		}
 
@@ -126,6 +128,15 @@ func (p *Prebuilt) SingleSourcePath(ctx ModuleContext) Path {
 		ctx.ModuleErrorf("prebuilt source was not set")
 		return nil
 	}
+}
+
+// The below source-related functions and the srcs, src fields are based on an assumption that
+// prebuilt modules have a static source property at the moment. Currently there is only one
+// exception, android_app_import, which chooses a source file depending on the product's DPI
+// preference configs. We'll want to add native support for dynamic source cases if we end up having
+// more modules like this.
+func (p *Prebuilt) SingleSourcePath(ctx ModuleContext) Path {
+	return SingleSourcePathFromSupplier(ctx, p.srcsSupplier, p.srcsPropertyName)
 }
 
 func (p *Prebuilt) UsePrebuilt() bool {
