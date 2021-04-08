@@ -127,9 +127,27 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 
 		platform_bootclasspath {
 			name: "myplatform-bootclasspath",
+
+			fragments: [
+				{
+					apex: "com.android.art",
+					module: "art-bootclasspath-fragment",
+				},
+			],
 		}
 `,
 	)
+
+	java.CheckPlatformBootclasspathModules(t, result, "myplatform-bootclasspath", []string{
+		"com.android.art:baz",
+		"com.android.art:quuz",
+		"platform:foo",
+		"myapex:bar",
+	})
+
+	java.CheckPlatformBootclasspathFragments(t, result, "myplatform-bootclasspath", []string{
+		`com.android.art:art-bootclasspath-fragment`,
+	})
 
 	// Make sure that the myplatform-bootclasspath has the correct dependencies.
 	CheckModuleDependencies(t, result.TestContext, "myplatform-bootclasspath", "android_common", []string{
@@ -138,6 +156,7 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 		`com.android.art:quuz`,
 		`platform:foo`,
 		`myapex:bar`,
+		`com.android.art:art-bootclasspath-fragment`,
 	})
 }
 
