@@ -51,7 +51,6 @@ type DeapexerProperties struct {
 
 type Deapexer struct {
 	android.ModuleBase
-	prebuilt android.Prebuilt
 
 	properties         DeapexerProperties
 	apexFileProperties ApexFileProperties
@@ -65,17 +64,8 @@ func privateDeapexerFactory() android.Module {
 		&module.properties,
 		&module.apexFileProperties,
 	)
-	android.InitPrebuiltModuleWithSrcSupplier(module, module.apexFileProperties.prebuiltApexSelector, "src")
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	return module
-}
-
-func (p *Deapexer) Prebuilt() *android.Prebuilt {
-	return &p.prebuilt
-}
-
-func (p *Deapexer) Name() string {
-	return p.prebuilt.Name(p.ModuleBase.Name())
 }
 
 func (p *Deapexer) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -88,7 +78,7 @@ func (p *Deapexer) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (p *Deapexer) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	p.inputApex = p.Prebuilt().SingleSourcePath(ctx)
+	p.inputApex = android.SingleSourcePathFromSupplier(ctx, p.apexFileProperties.prebuiltApexSelector, "src")
 
 	// Create and remember the directory into which the .apex file's contents will be unpacked.
 	deapexerOutput := android.PathForModuleOut(ctx, "deapexer")
