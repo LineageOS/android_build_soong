@@ -84,6 +84,9 @@ type prebuiltEtcProperties struct {
 	// the recovery variant instead.
 	Vendor_ramdisk_available *bool
 
+	// Make this module available when building for debug ramdisk.
+	Debug_ramdisk_available *bool
+
 	// Make this module available when building for recovery.
 	Recovery_available *bool
 
@@ -159,6 +162,18 @@ func (p *PrebuiltEtc) InstallInVendorRamdisk() bool {
 	return p.inVendorRamdisk()
 }
 
+func (p *PrebuiltEtc) inDebugRamdisk() bool {
+	return p.ModuleBase.InDebugRamdisk() || p.ModuleBase.InstallInDebugRamdisk()
+}
+
+func (p *PrebuiltEtc) onlyInDebugRamdisk() bool {
+	return p.ModuleBase.InstallInDebugRamdisk()
+}
+
+func (p *PrebuiltEtc) InstallInDebugRamdisk() bool {
+	return p.inDebugRamdisk()
+}
+
 func (p *PrebuiltEtc) inRecovery() bool {
 	return p.ModuleBase.InRecovery() || p.ModuleBase.InstallInRecovery()
 }
@@ -177,7 +192,7 @@ func (p *PrebuiltEtc) ImageMutatorBegin(ctx android.BaseModuleContext) {}
 
 func (p *PrebuiltEtc) CoreVariantNeeded(ctx android.BaseModuleContext) bool {
 	return !p.ModuleBase.InstallInRecovery() && !p.ModuleBase.InstallInRamdisk() &&
-		!p.ModuleBase.InstallInVendorRamdisk()
+		!p.ModuleBase.InstallInVendorRamdisk() && !p.ModuleBase.InstallInDebugRamdisk()
 }
 
 func (p *PrebuiltEtc) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
@@ -186,6 +201,10 @@ func (p *PrebuiltEtc) RamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
 
 func (p *PrebuiltEtc) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
 	return proptools.Bool(p.properties.Vendor_ramdisk_available) || p.ModuleBase.InstallInVendorRamdisk()
+}
+
+func (p *PrebuiltEtc) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+	return proptools.Bool(p.properties.Debug_ramdisk_available) || p.ModuleBase.InstallInDebugRamdisk()
 }
 
 func (p *PrebuiltEtc) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
@@ -312,6 +331,9 @@ func (p *PrebuiltEtc) AndroidMkEntries() []android.AndroidMkEntries {
 	}
 	if p.inVendorRamdisk() && !p.onlyInVendorRamdisk() {
 		nameSuffix = ".vendor_ramdisk"
+	}
+	if p.inDebugRamdisk() && !p.onlyInDebugRamdisk() {
+		nameSuffix = ".debug_ramdisk"
 	}
 	if p.inRecovery() && !p.onlyInRecovery() {
 		nameSuffix = ".recovery"

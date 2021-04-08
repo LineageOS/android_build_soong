@@ -395,6 +395,19 @@ func TestPathForModuleInstall(t *testing.T) {
 			partitionDir: "target/product/test_device/vendor_ramdisk",
 		},
 		{
+			name: "debug_ramdisk binary",
+			ctx: &testModuleInstallPathContext{
+				baseModuleContext: baseModuleContext{
+					os:     deviceTarget.Os,
+					target: deviceTarget,
+				},
+				inDebugRamdisk: true,
+			},
+			in:           []string{"my_test"},
+			out:          "target/product/test_device/debug_ramdisk/my_test",
+			partitionDir: "target/product/test_device/debug_ramdisk",
+		},
+		{
 			name: "system native test binary",
 			ctx: &testModuleInstallPathContext{
 				baseModuleContext: baseModuleContext{
