@@ -236,7 +236,7 @@ func (system *systemModulesImport) Prebuilt() *android.Prebuilt {
 // modules.
 func (system *systemModulesImport) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, lib := range system.properties.Libs {
-		ctx.AddVariationDependencies(nil, systemModulesLibsTag, "prebuilt_"+lib)
+		ctx.AddVariationDependencies(nil, systemModulesLibsTag, android.PrebuiltNameFromSource(lib))
 	}
 }
 
