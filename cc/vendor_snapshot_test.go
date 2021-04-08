@@ -446,7 +446,6 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_shared {
 		name: "libvendor_available",
-		androidmk_suffix: ".vendor",
 		version: "28",
 		target_arch: "arm64",
 		vendor: true,
@@ -460,7 +459,6 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_static {
 		name: "libvendor_available",
-		androidmk_suffix: ".vendor",
 		version: "28",
 		target_arch: "arm64",
 		vendor: true,
