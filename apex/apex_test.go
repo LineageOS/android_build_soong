@@ -4605,6 +4605,40 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 `)
 	})
 
+	t.Run("apex_set only", func(t *testing.T) {
+		bp := `
+		apex_set {
+			name: "myapex",
+			set: "myapex.apks",
+			exported_java_libs: ["libfoo", "libbar"],
+		}
+
+		java_import {
+			name: "libfoo",
+			jars: ["libfoo.jar"],
+			apex_available: ["myapex"],
+		}
+
+		java_sdk_library_import {
+			name: "libbar",
+			public: {
+				jars: ["libbar.jar"],
+			},
+			apex_available: ["myapex"],
+		}
+	`
+
+		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
+		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
+
+		// Make sure that the dex file from the apex_set contributes to the hiddenapi index file.
+		checkHiddenAPIIndexInputs(t, ctx, `
+.intermediates/libbar/android_common_myapex/hiddenapi/index.csv
+.intermediates/libfoo/android_common_myapex/hiddenapi/index.csv
+`)
+	})
+
 	t.Run("prebuilt with source library preferred", func(t *testing.T) {
 		bp := `
 		prebuilt_apex {
