@@ -42,6 +42,27 @@ func TestFeaturesToFlags(t *testing.T) {
 	}
 }
 
+// Test that cfgs flags are being correctly generated.
+func TestCfgsToFlags(t *testing.T) {
+	ctx := testRust(t, `
+		rust_library_host {
+			name: "libfoo",
+			srcs: ["foo.rs"],
+			crate_name: "foo",
+			cfgs: [
+				"std",
+				"cfg1=\"one\""
+			],
+		}`)
+
+	libfooDylib := ctx.ModuleForTests("libfoo", "linux_glibc_x86_64_dylib").Rule("rustc")
+
+	if !strings.Contains(libfooDylib.Args["rustcFlags"], "cfg 'std'") ||
+		!strings.Contains(libfooDylib.Args["rustcFlags"], "cfg 'cfg1=\"one\"'") {
+		t.Fatalf("missing std and cfg1 flags for libfoo dylib, rustcFlags: %#v", libfooDylib.Args["rustcFlags"])
+	}
+}
+
 // Test that we reject multiple source files.
 func TestEnforceSingleSourceFile(t *testing.T) {
 
