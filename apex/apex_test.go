@@ -4316,6 +4316,14 @@ func TestPrebuilt(t *testing.T) {
 	}
 }
 
+func TestPrebuiltMissingSrc(t *testing.T) {
+	testApexError(t, `module "myapex" variant "android_common".*: prebuilt_apex does not support "arm64_armv8-a"`, `
+		prebuilt_apex {
+			name: "myapex",
+		}
+	`)
+}
+
 func TestPrebuiltFilenameOverride(t *testing.T) {
 	ctx := testApex(t, `
 		prebuilt_apex {
