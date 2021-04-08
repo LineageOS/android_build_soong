@@ -18,6 +18,7 @@ import (
 	"android/soong/android"
 	"android/soong/dexpreopt"
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -49,19 +50,49 @@ func (t platformBootclasspathDependencyTag) ExcludeFromVisibilityEnforcement() {
 // The tag used for the dependency between the platform bootclasspath and any configured boot jars.
 var platformBootclasspathModuleDepTag = platformBootclasspathDependencyTag{name: "module"}
 
+// The tag used for the dependency between the platform bootclasspath and bootclasspath_fragments.
+var platformBootclasspathFragmentDepTag = platformBootclasspathDependencyTag{name: "fragment"}
+
 var _ android.ExcludeFromVisibilityEnforcementTag = platformBootclasspathDependencyTag{}
 
 type platformBootclasspathModule struct {
 	android.ModuleBase
 
+	properties platformBootclasspathProperties
+
 	// The apex:module pairs obtained from the configured modules.
 	//
 	// Currently only for testing.
 	configuredModules []android.Module
+
+	// The apex:module pairs obtained from the fragments.
+	//
+	// Currently only for testing.
+	fragments []android.Module
+}
+
+// ApexVariantReference specifies a particular apex variant of a module.
+type ApexVariantReference struct {
+	// The name of the module apex variant, i.e. the apex containing the module variant.
+	//
+	// If this is not specified then it defaults to "platform" which will cause a dependency to be
+	// added to the module's platform variant.
+	Apex *string
+
+	// The name of the module.
+	Module *string
+}
+
+type platformBootclasspathProperties struct {
+
+	// The names of the bootclasspath_fragment modules that form part of this
+	// platform_bootclasspath.
+	Fragments []ApexVariantReference
 }
 
 func platformBootclasspathFactory() android.Module {
 	m := &platformBootclasspathModule{}
+	m.AddProperties(&m.properties)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
 }
@@ -91,6 +122,23 @@ func platformBootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
 		// Add dependencies on all the updatable modules.
 		updatableModules := dexpreopt.GetGlobalConfig(ctx).UpdatableBootJars
 		addDependenciesOntoBootImageModules(ctx, updatableModules)
+
+		// Add dependencies on all the fragments.
+		addDependencyOntoApexVariants(ctx, "fragments", p.properties.Fragments, platformBootclasspathFragmentDepTag)
+	}
+}
+
+func addDependencyOntoApexVariants(ctx android.BottomUpMutatorContext, propertyName string, refs []ApexVariantReference, tag blueprint.DependencyTag) {
+	for i, ref := range refs {
+		apex := proptools.StringDefault(ref.Apex, "platform")
+
+		if ref.Module == nil {
+			ctx.PropertyErrorf(propertyName, "missing module name at position %d", i)
+			continue
+		}
+		name := proptools.String(ref.Module)
+
+		addDependencyOntoApexModulePair(ctx, apex, name, tag)
 	}
 }
 
@@ -138,6 +186,8 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 		tag := ctx.OtherModuleDependencyTag(module)
 		if tag == platformBootclasspathModuleDepTag {
 			b.configuredModules = append(b.configuredModules, module)
+		} else if tag == platformBootclasspathFragmentDepTag {
+			b.fragments = append(b.fragments, module)
 		}
 	})
 

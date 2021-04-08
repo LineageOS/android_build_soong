@@ -331,6 +331,15 @@ func apexNamePairFromModule(ctx *android.TestContext, module android.Module) str
 	return fmt.Sprintf("%s:%s", apex, name)
 }
 
+// CheckPlatformBootclasspathFragments returns the apex:module pair for the fragments depended upon
+// by the platform-bootclasspath module.
+func CheckPlatformBootclasspathFragments(t *testing.T, result *android.TestResult, name string, expected []string) {
+	t.Helper()
+	platformBootclasspath := result.Module(name, "android_common").(*platformBootclasspathModule)
+	pairs := ApexNamePairsFromModules(result.TestContext, platformBootclasspath.fragments)
+	android.AssertDeepEquals(t, fmt.Sprintf("%s fragments", "platform-bootclasspath"), expected, pairs)
+}
+
 func CheckHiddenAPIRuleInputs(t *testing.T, expected string, hiddenAPIRule android.TestingBuildParams) {
 	t.Helper()
 	actual := strings.TrimSpace(strings.Join(android.NormalizePathsForTesting(hiddenAPIRule.Implicits), "\n"))
