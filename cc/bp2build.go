@@ -16,6 +16,7 @@ package cc
 import (
 	"android/soong/android"
 	"android/soong/bazel"
+	"strings"
 )
 
 // bp2build functions and helpers for converting cc_* modules to Bazel.
@@ -109,23 +110,78 @@ func bp2BuildParseHeaderLibs(ctx android.TopDownMutatorContext, module *Module) 
 	return ret
 }
 
+func bp2BuildListHeadersInDir(ctx android.TopDownMutatorContext, includeDir string) bazel.LabelList {
+	var globInfix string
+
+	if includeDir == "." {
+		globInfix = ""
+	} else {
+		globInfix = "/**"
+	}
+
+	var includeDirGlobs []string
+	includeDirGlobs = append(includeDirGlobs, includeDir+globInfix+"/*.h")
+	includeDirGlobs = append(includeDirGlobs, includeDir+globInfix+"/*.inc")
+	includeDirGlobs = append(includeDirGlobs, includeDir+globInfix+"/*.hpp")
+
+	return android.BazelLabelForModuleSrc(ctx, includeDirGlobs)
+}
+
+// Bazel wants include paths to be relative to the module
+func bp2BuildMakePathsRelativeToModule(ctx android.TopDownMutatorContext, paths []string) []string {
+	var relativePaths []string
+	for _, path := range paths {
+		relativePath := strings.TrimPrefix(path, ctx.ModuleDir()+"/")
+		relativePaths = append(relativePaths, relativePath)
+	}
+	return relativePaths
+}
+
 // bp2BuildParseExportedIncludes creates a label list attribute contains the
 // exported included directories of a module.
-func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) (bazel.LabelListAttribute, bazel.LabelListAttribute) {
+func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) (bazel.StringListAttribute, bazel.LabelListAttribute) {
 	libraryDecorator := module.linker.(*libraryDecorator)
 
 	includeDirs := libraryDecorator.flagExporter.Properties.Export_system_include_dirs
 	includeDirs = append(includeDirs, libraryDecorator.flagExporter.Properties.Export_include_dirs...)
+	includeDirs = bp2BuildMakePathsRelativeToModule(ctx, includeDirs)
+	includeDirsAttribute := bazel.MakeStringListAttribute(includeDirs)
 
-	includeDirsLabels := android.BazelLabelForModuleSrc(ctx, includeDirs)
-
-	var includeDirGlobs []string
+	var headersAttribute bazel.LabelListAttribute
+	var headers bazel.LabelList
 	for _, includeDir := range includeDirs {
-		includeDirGlobs = append(includeDirGlobs, includeDir+"/**/*.h")
-		includeDirGlobs = append(includeDirGlobs, includeDir+"/**/*.inc")
-		includeDirGlobs = append(includeDirGlobs, includeDir+"/**/*.hpp")
+		headers.Append(bp2BuildListHeadersInDir(ctx, includeDir))
+	}
+	headers = bazel.UniqueBazelLabelList(headers)
+	headersAttribute.Value = headers
+
+	for arch, props := range module.GetArchProperties(&FlagExporterProperties{}) {
+		if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
+			archIncludeDirs := flagExporterProperties.Export_system_include_dirs
+			archIncludeDirs = append(archIncludeDirs, flagExporterProperties.Export_include_dirs...)
+			archIncludeDirs = bp2BuildMakePathsRelativeToModule(ctx, archIncludeDirs)
+
+			// To avoid duplicate includes when base includes + arch includes are combined
+			archIncludeDirs = bazel.SubtractStrings(archIncludeDirs, includeDirs)
+
+			if len(archIncludeDirs) > 0 {
+				includeDirsAttribute.SetValueForArch(arch.Name, archIncludeDirs)
+			}
+
+			var archHeaders bazel.LabelList
+			for _, archIncludeDir := range archIncludeDirs {
+				archHeaders.Append(bp2BuildListHeadersInDir(ctx, archIncludeDir))
+			}
+			archHeaders = bazel.UniqueBazelLabelList(archHeaders)
+
+			// To avoid duplicate headers when base headers + arch headers are combined
+			archHeaders = bazel.SubtractBazelLabelList(archHeaders, headers)
+
+			if len(archHeaders.Includes) > 0 || len(archHeaders.Excludes) > 0 {
+				headersAttribute.SetValueForArch(arch.Name, archHeaders)
+			}
+		}
 	}
 
-	headersLabels := android.BazelLabelForModuleSrc(ctx, includeDirGlobs)
-	return bazel.MakeLabelListAttribute(includeDirsLabels), bazel.MakeLabelListAttribute(headersLabels)
+	return includeDirsAttribute, headersAttribute
 }
