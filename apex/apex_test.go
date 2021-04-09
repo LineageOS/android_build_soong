@@ -4316,6 +4316,14 @@ func TestPrebuilt(t *testing.T) {
 	}
 }
 
+func TestPrebuiltMissingSrc(t *testing.T) {
+	testApexError(t, `module "myapex" variant "android_common".*: prebuilt_apex does not support "arm64_armv8-a"`, `
+		prebuilt_apex {
+			name: "myapex",
+		}
+	`)
+}
+
 func TestPrebuiltFilenameOverride(t *testing.T) {
 	ctx := testApex(t, `
 		prebuilt_apex {
@@ -6360,8 +6368,7 @@ func TestAppSetBundle(t *testing.T) {
 }
 
 func TestAppSetBundlePrebuilt(t *testing.T) {
-	ctx := testApex(t, "", android.FixtureModifyMockFS(func(fs android.MockFS) {
-		bp := `
+	bp := `
 		apex_set {
 			name: "myapex",
 			filename: "foo_v2.apex",
@@ -6369,24 +6376,23 @@ func TestAppSetBundlePrebuilt(t *testing.T) {
 				none: { set: "myapex.apks", },
 				hwaddress: { set: "myapex.hwasan.apks", },
 			},
-		}`
-		fs["Android.bp"] = []byte(bp)
-	}),
-		prepareForTestWithSantitizeHwaddress,
-	)
+		}
+	`
+	ctx := testApex(t, bp, prepareForTestWithSantitizeHwaddress)
 
-	m := ctx.ModuleForTests("myapex", "android_common")
-	extractedApex := m.Output("out/soong/.intermediates/myapex/android_common/foo_v2.apex")
+	// Check that the extractor produces the correct output file from the correct input file.
+	extractorOutput := "out/soong/.intermediates/myapex.apex.extractor/android_common/extracted/myapex.hwasan.apks"
 
-	actual := extractedApex.Inputs
-	if len(actual) != 1 {
-		t.Errorf("expected a single input")
-	}
+	m := ctx.ModuleForTests("myapex.apex.extractor", "android_common")
+	extractedApex := m.Output(extractorOutput)
 
-	expected := "myapex.hwasan.apks"
-	if actual[0].String() != expected {
-		t.Errorf("expected %s, got %s", expected, actual[0].String())
-	}
+	android.AssertArrayString(t, "extractor input", []string{"myapex.hwasan.apks"}, extractedApex.Inputs.Strings())
+
+	// Ditto for the apex.
+	m = ctx.ModuleForTests("myapex", "android_common")
+	copiedApex := m.Output("out/soong/.intermediates/myapex/android_common/foo_v2.apex")
+
+	android.AssertStringEquals(t, "myapex input", extractorOutput, copiedApex.Input.String())
 }
 
 func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpreoptConfig func(*dexpreopt.GlobalConfig)) {
@@ -7022,10 +7028,10 @@ func TestApexSet(t *testing.T) {
 		}),
 	)
 
-	m := ctx.ModuleForTests("myapex", "android_common")
+	m := ctx.ModuleForTests("myapex.apex.extractor", "android_common")
 
 	// Check extract_apks tool parameters.
-	extractedApex := m.Output("out/soong/.intermediates/myapex/android_common/foo_v2.apex")
+	extractedApex := m.Output("extracted/myapex.apks")
 	actual := extractedApex.Args["abis"]
 	expected := "ARMEABI_V7A,ARM64_V8A"
 	if actual != expected {
@@ -7037,6 +7043,7 @@ func TestApexSet(t *testing.T) {
 		t.Errorf("Unexpected abis parameter - expected %q vs actual %q", expected, actual)
 	}
 
+	m = ctx.ModuleForTests("myapex", "android_common")
 	a := m.Module().(*ApexSet)
 	expectedOverrides := []string{"foo"}
 	actualOverrides := android.AndroidMkEntriesForTest(t, ctx, a)[0].EntryMap["LOCAL_OVERRIDES_MODULES"]

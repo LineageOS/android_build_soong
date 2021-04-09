@@ -47,6 +47,9 @@ type prebuilt interface {
 type prebuiltCommon struct {
 	prebuilt   android.Prebuilt
 	properties prebuiltCommonProperties
+
+	deapexerProperties     DeapexerProperties
+	selectedApexProperties SelectedApexProperties
 }
 
 type sanitizedPrebuilt interface {
@@ -90,208 +93,16 @@ func (p *prebuiltCommon) checkForceDisable(ctx android.ModuleContext) bool {
 	return false
 }
 
-type Prebuilt struct {
-	android.ModuleBase
-	prebuiltCommon
-
-	properties PrebuiltProperties
-
-	inputApex       android.Path
-	installDir      android.InstallPath
-	installFilename string
-	outputApex      android.WritablePath
-
-	// list of commands to create symlinks for backward compatibility.
-	// these commands will be attached as LOCAL_POST_INSTALL_CMD
-	compatSymlinks []string
-}
-
-type ApexFileProperties struct {
-	// the path to the prebuilt .apex file to import.
-	//
-	// This cannot be marked as `android:"arch_variant"` because the `prebuilt_apex` is only mutated
-	// for android_common. That is so that it will have the same arch variant as, and so be compatible
-	// with, the source `apex` module type that it replaces.
-	Src  *string
-	Arch struct {
-		Arm struct {
-			Src *string
-		}
-		Arm64 struct {
-			Src *string
-		}
-		X86 struct {
-			Src *string
-		}
-		X86_64 struct {
-			Src *string
-		}
-	}
-}
-
-// prebuiltApexSelector selects the correct prebuilt APEX file for the build target.
-//
-// The ctx parameter can be for any module not just the prebuilt module so care must be taken not
-// to use methods on it that are specific to the current module.
-//
-// See the ApexFileProperties.Src property.
-func (p *ApexFileProperties) prebuiltApexSelector(ctx android.BaseModuleContext, prebuilt android.Module) []string {
-	multiTargets := prebuilt.MultiTargets()
-	if len(multiTargets) != 1 {
-		ctx.OtherModuleErrorf(prebuilt, "compile_multilib shouldn't be \"both\" for prebuilt_apex")
-		return nil
-	}
-	var src string
-	switch multiTargets[0].Arch.ArchType {
-	case android.Arm:
-		src = String(p.Arch.Arm.Src)
-	case android.Arm64:
-		src = String(p.Arch.Arm64.Src)
-	case android.X86:
-		src = String(p.Arch.X86.Src)
-	case android.X86_64:
-		src = String(p.Arch.X86_64.Src)
-	default:
-		ctx.OtherModuleErrorf(prebuilt, "prebuilt_apex does not support %q", multiTargets[0].Arch.String())
-		return nil
-	}
-	if src == "" {
-		src = String(p.Src)
-	}
-
-	return []string{src}
-}
-
-type PrebuiltProperties struct {
-	ApexFileProperties
-	DeapexerProperties
-
-	Installable *bool
-	// Optional name for the installed apex. If unspecified, name of the
-	// module is used as the file name
-	Filename *string
-
-	// Names of modules to be overridden. Listed modules can only be other binaries
-	// (in Make or Soong).
-	// This does not completely prevent installation of the overridden binaries, but if both
-	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
-	// from PRODUCT_PACKAGES.
-	Overrides []string
-}
-
-func (a *Prebuilt) hasSanitizedSource(sanitizer string) bool {
-	return false
-}
-
-func (p *Prebuilt) installable() bool {
-	return p.properties.Installable == nil || proptools.Bool(p.properties.Installable)
-}
-
-func (p *Prebuilt) OutputFiles(tag string) (android.Paths, error) {
-	switch tag {
-	case "":
-		return android.Paths{p.outputApex}, nil
-	default:
-		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
-	}
-}
-
-func (p *Prebuilt) InstallFilename() string {
-	return proptools.StringDefault(p.properties.Filename, p.BaseModuleName()+imageApexSuffix)
-}
-
-func (p *Prebuilt) Name() string {
-	return p.prebuiltCommon.prebuilt.Name(p.ModuleBase.Name())
-}
-
-// prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
-//
-// If this needs to make files from within a `.apex` file available for use by other Soong modules,
-// e.g. make dex implementation jars available for java_import modules isted in exported_java_libs,
-// it does so as follows:
-//
-// 1. It creates a `deapexer` module that actually extracts the files from the `.apex` file and
-//    makes them available for use by other modules, at both Soong and ninja levels.
-//
-// 2. It adds a dependency onto those modules and creates an apex specific variant similar to what
-//    an `apex` module does. That ensures that code which looks for specific apex variant, e.g.
-//    dexpreopt, will work the same way from source and prebuilt.
-//
-// 3. The `deapexer` module adds a dependency from the modules that require the exported files onto
-//    itself so that they can retrieve the file paths to those files.
-//
-func PrebuiltFactory() android.Module {
-	module := &Prebuilt{}
-	module.AddProperties(&module.properties)
-	android.InitPrebuiltModuleWithSrcSupplier(module, module.properties.prebuiltApexSelector, "src")
-	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
-
-	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
-		props := struct {
-			Name *string
-		}{
-			Name: proptools.StringPtr(module.BaseModuleName() + ".deapexer"),
-		}
-		ctx.CreateModule(privateDeapexerFactory,
-			&props,
-			&module.properties.ApexFileProperties,
-			&module.properties.DeapexerProperties,
-		)
-	})
-
-	return module
-}
-
-func prebuiltApexExportedModuleName(ctx android.BottomUpMutatorContext, name string) string {
-	// The prebuilt_apex should be depending on prebuilt modules but as this runs after
-	// prebuilt_rename the prebuilt module may or may not be using the prebuilt_ prefixed named. So,
-	// check to see if the prefixed name is in use first, if it is then use that, otherwise assume
-	// the unprefixed name is the one to use. If the unprefixed one turns out to be a source module
-	// and not a renamed prebuilt module then that will be detected and reported as an error when
-	// processing the dependency in ApexInfoMutator().
-	prebuiltName := android.PrebuiltNameFromSource(name)
-	if ctx.OtherModuleExists(prebuiltName) {
-		name = prebuiltName
-	}
-	return name
-}
-
-type exportedDependencyTag struct {
-	blueprint.BaseDependencyTag
-	name string
-}
-
-// Mark this tag so dependencies that use it are excluded from visibility enforcement.
-//
-// This does allow any prebuilt_apex to reference any module which does open up a small window for
-// restricted visibility modules to be referenced from the wrong prebuilt_apex. However, doing so
-// avoids opening up a much bigger window by widening the visibility of modules that need files
-// provided by the prebuilt_apex to include all the possible locations they may be defined, which
-// could include everything below vendor/.
-//
-// A prebuilt_apex that references a module via this tag will have to contain the appropriate files
-// corresponding to that module, otherwise it will fail when attempting to retrieve the files from
-// the .apex file. It will also have to be included in the module's apex_available property too.
-// That makes it highly unlikely that a prebuilt_apex would reference a restricted module
-// incorrectly.
-func (t exportedDependencyTag) ExcludeFromVisibilityEnforcement() {}
-
-var (
-	exportedJavaLibTag = exportedDependencyTag{name: "exported_java_lib"}
-)
-
-func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
+func (p *prebuiltCommon) deapexerDeps(ctx android.BottomUpMutatorContext) {
 	// Add dependencies onto the java modules that represent the java libraries that are provided by
 	// and exported from this prebuilt apex.
-	for _, lib := range p.properties.Exported_java_libs {
+	for _, lib := range p.deapexerProperties.Exported_java_libs {
 		dep := prebuiltApexExportedModuleName(ctx, lib)
 		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), exportedJavaLibTag, dep)
 	}
 }
 
-var _ ApexInfoMutator = (*Prebuilt)(nil)
-
-// ApexInfoMutator marks any modules for which this apex exports a file as requiring an apex
+// apexInfoMutator marks any modules for which this apex exports a file as requiring an apex
 // specific variant and checks that they are supported.
 //
 // The apexMutator will ensure that the ApexInfo objects passed to BuildForApex(ApexInfo) are
@@ -316,7 +127,7 @@ var _ ApexInfoMutator = (*Prebuilt)(nil)
 // * The build cost of a prebuilt_apex variant is generally low as at worst it will involve some
 //   extra copying of files. Contrast that with source apex modules that has to build each variant
 //   from source.
-func (p *Prebuilt) ApexInfoMutator(mctx android.TopDownMutatorContext) {
+func (p *prebuiltCommon) apexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	// Collect direct dependencies into contents.
 	contents := make(map[string]android.ApexMembership)
@@ -372,9 +183,289 @@ func (p *Prebuilt) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	}
 }
 
+// prebuiltApexSelectorModule is a private module type that is only created by the prebuilt_apex
+// module. It selects the apex to use and makes it available for use by prebuilt_apex and the
+// deapexer.
+type prebuiltApexSelectorModule struct {
+	android.ModuleBase
+
+	apexFileProperties ApexFileProperties
+
+	inputApex android.Path
+}
+
+func privateApexSelectorModuleFactory() android.Module {
+	module := &prebuiltApexSelectorModule{}
+	module.AddProperties(
+		&module.apexFileProperties,
+	)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	return module
+}
+
+func (p *prebuiltApexSelectorModule) Srcs() android.Paths {
+	return android.Paths{p.inputApex}
+}
+
+func (p *prebuiltApexSelectorModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	p.inputApex = android.SingleSourcePathFromSupplier(ctx, p.apexFileProperties.prebuiltApexSelector, "src")
+}
+
+type Prebuilt struct {
+	android.ModuleBase
+	prebuiltCommon
+
+	properties             PrebuiltProperties
+	selectedApexProperties SelectedApexProperties
+
+	inputApex       android.Path
+	installDir      android.InstallPath
+	installFilename string
+	outputApex      android.WritablePath
+
+	// list of commands to create symlinks for backward compatibility.
+	// these commands will be attached as LOCAL_POST_INSTALL_CMD
+	compatSymlinks []string
+}
+
+type ApexFileProperties struct {
+	// the path to the prebuilt .apex file to import.
+	//
+	// This cannot be marked as `android:"arch_variant"` because the `prebuilt_apex` is only mutated
+	// for android_common. That is so that it will have the same arch variant as, and so be compatible
+	// with, the source `apex` module type that it replaces.
+	Src  *string `android:"path"`
+	Arch struct {
+		Arm struct {
+			Src *string `android:"path"`
+		}
+		Arm64 struct {
+			Src *string `android:"path"`
+		}
+		X86 struct {
+			Src *string `android:"path"`
+		}
+		X86_64 struct {
+			Src *string `android:"path"`
+		}
+	}
+}
+
+// prebuiltApexSelector selects the correct prebuilt APEX file for the build target.
+//
+// The ctx parameter can be for any module not just the prebuilt module so care must be taken not
+// to use methods on it that are specific to the current module.
+//
+// See the ApexFileProperties.Src property.
+func (p *ApexFileProperties) prebuiltApexSelector(ctx android.BaseModuleContext, prebuilt android.Module) []string {
+	multiTargets := prebuilt.MultiTargets()
+	if len(multiTargets) != 1 {
+		ctx.OtherModuleErrorf(prebuilt, "compile_multilib shouldn't be \"both\" for prebuilt_apex")
+		return nil
+	}
+	var src string
+	switch multiTargets[0].Arch.ArchType {
+	case android.Arm:
+		src = String(p.Arch.Arm.Src)
+	case android.Arm64:
+		src = String(p.Arch.Arm64.Src)
+	case android.X86:
+		src = String(p.Arch.X86.Src)
+	case android.X86_64:
+		src = String(p.Arch.X86_64.Src)
+	}
+	if src == "" {
+		src = String(p.Src)
+	}
+
+	if src == "" {
+		ctx.OtherModuleErrorf(prebuilt, "prebuilt_apex does not support %q", multiTargets[0].Arch.String())
+		// Drop through to return an empty string as the src (instead of nil) to avoid the prebuilt
+		// logic from reporting a more general, less useful message.
+	}
+
+	return []string{src}
+}
+
+type PrebuiltProperties struct {
+	ApexFileProperties
+
+	Installable *bool
+	// Optional name for the installed apex. If unspecified, name of the
+	// module is used as the file name
+	Filename *string
+
+	// Names of modules to be overridden. Listed modules can only be other binaries
+	// (in Make or Soong).
+	// This does not completely prevent installation of the overridden binaries, but if both
+	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
+	// from PRODUCT_PACKAGES.
+	Overrides []string
+}
+
+func (a *Prebuilt) hasSanitizedSource(sanitizer string) bool {
+	return false
+}
+
+func (p *Prebuilt) installable() bool {
+	return p.properties.Installable == nil || proptools.Bool(p.properties.Installable)
+}
+
+func (p *Prebuilt) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return android.Paths{p.outputApex}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
+}
+
+func (p *Prebuilt) InstallFilename() string {
+	return proptools.StringDefault(p.properties.Filename, p.BaseModuleName()+imageApexSuffix)
+}
+
+func (p *Prebuilt) Name() string {
+	return p.prebuiltCommon.prebuilt.Name(p.ModuleBase.Name())
+}
+
+// prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
+//
+// If this needs to make files from within a `.apex` file available for use by other Soong modules,
+// e.g. make dex implementation jars available for java_import modules isted in exported_java_libs,
+// it does so as follows:
+//
+// 1. It creates a `deapexer` module that actually extracts the files from the `.apex` file and
+//    makes them available for use by other modules, at both Soong and ninja levels.
+//
+// 2. It adds a dependency onto those modules and creates an apex specific variant similar to what
+//    an `apex` module does. That ensures that code which looks for specific apex variant, e.g.
+//    dexpreopt, will work the same way from source and prebuilt.
+//
+// 3. The `deapexer` module adds a dependency from the modules that require the exported files onto
+//    itself so that they can retrieve the file paths to those files.
+//
+// It also creates a child module `selector` that is responsible for selecting the appropriate
+// input apex for both the prebuilt_apex and the deapexer. That is needed for a couple of reasons:
+// 1. To dedup the selection logic so it only runs in one module.
+// 2. To allow the deapexer to be wired up to a different source for the input apex, e.g. an
+//    `apex_set`.
+//
+//                     prebuilt_apex
+//                    /      |      \
+//                 /         |         \
+//              V            |            V
+//       selector  <---  deapexer  <---  exported java lib
+//
+func PrebuiltFactory() android.Module {
+	module := &Prebuilt{}
+	module.AddProperties(&module.properties, &module.deapexerProperties, &module.selectedApexProperties)
+	android.InitSingleSourcePrebuiltModule(module, &module.selectedApexProperties, "Selected_apex")
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		baseModuleName := module.BaseModuleName()
+
+		apexSelectorModuleName := apexSelectorModuleName(baseModuleName)
+		createApexSelectorModule(ctx, apexSelectorModuleName, &module.properties.ApexFileProperties)
+
+		apexFileSource := ":" + apexSelectorModuleName
+		if len(module.deapexerProperties.Exported_java_libs) != 0 {
+			createDeapexerModule(ctx, deapexerModuleName(baseModuleName), apexFileSource, &module.deapexerProperties)
+		}
+
+		// Add a source reference to retrieve the selected apex from the selector module.
+		module.selectedApexProperties.Selected_apex = proptools.StringPtr(apexFileSource)
+	})
+
+	return module
+}
+
+func createApexSelectorModule(ctx android.LoadHookContext, name string, apexFileProperties *ApexFileProperties) {
+	props := struct {
+		Name *string
+	}{
+		Name: proptools.StringPtr(name),
+	}
+
+	ctx.CreateModule(privateApexSelectorModuleFactory,
+		&props,
+		apexFileProperties,
+	)
+}
+
+func createDeapexerModule(ctx android.LoadHookContext, deapexerName string, apexFileSource string, deapexerProperties *DeapexerProperties) {
+	props := struct {
+		Name          *string
+		Selected_apex *string
+	}{
+		Name:          proptools.StringPtr(deapexerName),
+		Selected_apex: proptools.StringPtr(apexFileSource),
+	}
+	ctx.CreateModule(privateDeapexerFactory,
+		&props,
+		deapexerProperties,
+	)
+}
+
+func deapexerModuleName(baseModuleName string) string {
+	return baseModuleName + ".deapexer"
+}
+
+func apexSelectorModuleName(baseModuleName string) string {
+	return baseModuleName + ".apex.selector"
+}
+
+func prebuiltApexExportedModuleName(ctx android.BottomUpMutatorContext, name string) string {
+	// The prebuilt_apex should be depending on prebuilt modules but as this runs after
+	// prebuilt_rename the prebuilt module may or may not be using the prebuilt_ prefixed named. So,
+	// check to see if the prefixed name is in use first, if it is then use that, otherwise assume
+	// the unprefixed name is the one to use. If the unprefixed one turns out to be a source module
+	// and not a renamed prebuilt module then that will be detected and reported as an error when
+	// processing the dependency in ApexInfoMutator().
+	prebuiltName := android.PrebuiltNameFromSource(name)
+	if ctx.OtherModuleExists(prebuiltName) {
+		name = prebuiltName
+	}
+	return name
+}
+
+type exportedDependencyTag struct {
+	blueprint.BaseDependencyTag
+	name string
+}
+
+// Mark this tag so dependencies that use it are excluded from visibility enforcement.
+//
+// This does allow any prebuilt_apex to reference any module which does open up a small window for
+// restricted visibility modules to be referenced from the wrong prebuilt_apex. However, doing so
+// avoids opening up a much bigger window by widening the visibility of modules that need files
+// provided by the prebuilt_apex to include all the possible locations they may be defined, which
+// could include everything below vendor/.
+//
+// A prebuilt_apex that references a module via this tag will have to contain the appropriate files
+// corresponding to that module, otherwise it will fail when attempting to retrieve the files from
+// the .apex file. It will also have to be included in the module's apex_available property too.
+// That makes it highly unlikely that a prebuilt_apex would reference a restricted module
+// incorrectly.
+func (t exportedDependencyTag) ExcludeFromVisibilityEnforcement() {}
+
+var (
+	exportedJavaLibTag = exportedDependencyTag{name: "exported_java_lib"}
+)
+
+func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
+	p.deapexerDeps(ctx)
+}
+
+var _ ApexInfoMutator = (*Prebuilt)(nil)
+
+func (p *Prebuilt) ApexInfoMutator(mctx android.TopDownMutatorContext) {
+	p.apexInfoMutator(mctx)
+}
+
 func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// TODO(jungjw): Check the key validity.
-	p.inputApex = p.Prebuilt().SingleSourcePath(ctx)
+	p.inputApex = android.OptionalPathForModuleSrc(ctx, p.selectedApexProperties.Selected_apex).Path()
 	p.installDir = android.PathForModuleInstall(ctx, "apex")
 	p.installFilename = p.InstallFilename()
 	if !strings.HasSuffix(p.installFilename, imageApexSuffix) {
@@ -423,6 +514,49 @@ func (p *Prebuilt) AndroidMkEntries() []android.AndroidMkEntries {
 	}}
 }
 
+// prebuiltApexExtractorModule is a private module type that is only created by the prebuilt_apex
+// module. It extracts the correct apex to use and makes it available for use by apex_set.
+type prebuiltApexExtractorModule struct {
+	android.ModuleBase
+
+	properties ApexExtractorProperties
+
+	extractedApex android.WritablePath
+}
+
+func privateApexExtractorModuleFactory() android.Module {
+	module := &prebuiltApexExtractorModule{}
+	module.AddProperties(
+		&module.properties,
+	)
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+	return module
+}
+
+func (p *prebuiltApexExtractorModule) Srcs() android.Paths {
+	return android.Paths{p.extractedApex}
+}
+
+func (p *prebuiltApexExtractorModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	srcsSupplier := func(ctx android.BaseModuleContext, prebuilt android.Module) []string {
+		return p.properties.prebuiltSrcs(ctx)
+	}
+	apexSet := android.SingleSourcePathFromSupplier(ctx, srcsSupplier, "set")
+	p.extractedApex = android.PathForModuleOut(ctx, "extracted", apexSet.Base())
+	ctx.Build(pctx,
+		android.BuildParams{
+			Rule:        extractMatchingApex,
+			Description: "Extract an apex from an apex set",
+			Inputs:      android.Paths{apexSet},
+			Output:      p.extractedApex,
+			Args: map[string]string{
+				"abis":              strings.Join(java.SupportedAbis(ctx), ","),
+				"allow-prereleased": strconv.FormatBool(proptools.Bool(p.properties.Prerelease)),
+				"sdk-version":       ctx.Config().PlatformSdkVersion().String(),
+			},
+		})
+}
+
 type ApexSet struct {
 	android.ModuleBase
 	prebuiltCommon
@@ -438,7 +572,7 @@ type ApexSet struct {
 	compatSymlinks []string
 }
 
-type ApexSetProperties struct {
+type ApexExtractorProperties struct {
 	// the .apks file path that contains prebuilt apex files to be extracted.
 	Set *string
 
@@ -454,6 +588,37 @@ type ApexSetProperties struct {
 		}
 	}
 
+	// apexes in this set use prerelease SDK version
+	Prerelease *bool
+}
+
+func (e *ApexExtractorProperties) prebuiltSrcs(ctx android.BaseModuleContext) []string {
+	var srcs []string
+	if e.Set != nil {
+		srcs = append(srcs, *e.Set)
+	}
+
+	var sanitizers []string
+	if ctx.Host() {
+		sanitizers = ctx.Config().SanitizeHost()
+	} else {
+		sanitizers = ctx.Config().SanitizeDevice()
+	}
+
+	if android.InList("address", sanitizers) && e.Sanitized.Address.Set != nil {
+		srcs = append(srcs, *e.Sanitized.Address.Set)
+	} else if android.InList("hwaddress", sanitizers) && e.Sanitized.Hwaddress.Set != nil {
+		srcs = append(srcs, *e.Sanitized.Hwaddress.Set)
+	} else if e.Sanitized.None.Set != nil {
+		srcs = append(srcs, *e.Sanitized.None.Set)
+	}
+
+	return srcs
+}
+
+type ApexSetProperties struct {
+	ApexExtractorProperties
+
 	// whether the extracted apex file installable.
 	Installable *bool
 
@@ -467,33 +632,6 @@ type ApexSetProperties struct {
 	// binaries would be installed by default (in PRODUCT_PACKAGES) the other binary will be removed
 	// from PRODUCT_PACKAGES.
 	Overrides []string
-
-	// apexes in this set use prerelease SDK version
-	Prerelease *bool
-}
-
-func (a *ApexSet) prebuiltSrcs(ctx android.BaseModuleContext) []string {
-	var srcs []string
-	if a.properties.Set != nil {
-		srcs = append(srcs, *a.properties.Set)
-	}
-
-	var sanitizers []string
-	if ctx.Host() {
-		sanitizers = ctx.Config().SanitizeHost()
-	} else {
-		sanitizers = ctx.Config().SanitizeDevice()
-	}
-
-	if android.InList("address", sanitizers) && a.properties.Sanitized.Address.Set != nil {
-		srcs = append(srcs, *a.properties.Sanitized.Address.Set)
-	} else if android.InList("hwaddress", sanitizers) && a.properties.Sanitized.Hwaddress.Set != nil {
-		srcs = append(srcs, *a.properties.Sanitized.Hwaddress.Set)
-	} else if a.properties.Sanitized.None.Set != nil {
-		srcs = append(srcs, *a.properties.Sanitized.None.Set)
-	}
-
-	return srcs
 }
 
 func (a *ApexSet) hasSanitizedSource(sanitizer string) bool {
@@ -526,15 +664,41 @@ func (a *ApexSet) Overrides() []string {
 // prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
 func apexSetFactory() android.Module {
 	module := &ApexSet{}
-	module.AddProperties(&module.properties)
+	module.AddProperties(&module.properties, &module.selectedApexProperties)
 
-	srcsSupplier := func(ctx android.BaseModuleContext, _ android.Module) []string {
-		return module.prebuiltSrcs(ctx)
+	android.InitSingleSourcePrebuiltModule(module, &module.selectedApexProperties, "Selected_apex")
+	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
+
+	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		baseModuleName := module.BaseModuleName()
+
+		apexExtractorModuleName := apexExtractorModuleName(baseModuleName)
+		createApexExtractorModule(ctx, apexExtractorModuleName, &module.properties.ApexExtractorProperties)
+
+		apexFileSource := ":" + apexExtractorModuleName
+
+		// After passing the arch specific src properties to the creating the apex selector module
+		module.selectedApexProperties.Selected_apex = proptools.StringPtr(apexFileSource)
+	})
+
+	return module
+}
+
+func createApexExtractorModule(ctx android.LoadHookContext, name string, apexExtractorProperties *ApexExtractorProperties) {
+	props := struct {
+		Name *string
+	}{
+		Name: proptools.StringPtr(name),
 	}
 
-	android.InitPrebuiltModuleWithSrcSupplier(module, srcsSupplier, "set")
-	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
-	return module
+	ctx.CreateModule(privateApexExtractorModuleFactory,
+		&props,
+		apexExtractorProperties,
+	)
+}
+
+func apexExtractorModuleName(baseModuleName string) string {
+	return baseModuleName + ".apex.extractor"
 }
 
 func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -543,20 +707,13 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx.ModuleErrorf("filename should end in %s for apex_set", imageApexSuffix)
 	}
 
-	apexSet := a.prebuiltCommon.prebuilt.SingleSourcePath(ctx)
+	inputApex := android.OptionalPathForModuleSrc(ctx, a.selectedApexProperties.Selected_apex).Path()
 	a.outputApex = android.PathForModuleOut(ctx, a.installFilename)
-	ctx.Build(pctx,
-		android.BuildParams{
-			Rule:        extractMatchingApex,
-			Description: "Extract an apex from an apex set",
-			Inputs:      android.Paths{apexSet},
-			Output:      a.outputApex,
-			Args: map[string]string{
-				"abis":              strings.Join(java.SupportedAbis(ctx), ","),
-				"allow-prereleased": strconv.FormatBool(proptools.Bool(a.properties.Prerelease)),
-				"sdk-version":       ctx.Config().PlatformSdkVersion().String(),
-			},
-		})
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Input:  inputApex,
+		Output: a.outputApex,
+	})
 
 	if a.prebuiltCommon.checkForceDisable(ctx) {
 		a.HideFromMake()
