@@ -1259,7 +1259,7 @@ func (c *config) CFIEnabledForPath(path string) bool {
 	if len(c.productVariables.CFIIncludePaths) == 0 {
 		return false
 	}
-	return HasAnyPrefix(path, c.productVariables.CFIIncludePaths)
+	return HasAnyPrefix(path, c.productVariables.CFIIncludePaths) && !c.CFIDisabledForPath(path)
 }
 
 func (c *config) MemtagHeapDisabledForPath(path string) bool {
@@ -1273,14 +1273,14 @@ func (c *config) MemtagHeapAsyncEnabledForPath(path string) bool {
 	if len(c.productVariables.MemtagHeapAsyncIncludePaths) == 0 {
 		return false
 	}
-	return HasAnyPrefix(path, c.productVariables.MemtagHeapAsyncIncludePaths)
+	return HasAnyPrefix(path, c.productVariables.MemtagHeapAsyncIncludePaths) && !c.MemtagHeapDisabledForPath(path)
 }
 
 func (c *config) MemtagHeapSyncEnabledForPath(path string) bool {
 	if len(c.productVariables.MemtagHeapSyncIncludePaths) == 0 {
 		return false
 	}
-	return HasAnyPrefix(path, c.productVariables.MemtagHeapSyncIncludePaths)
+	return HasAnyPrefix(path, c.productVariables.MemtagHeapSyncIncludePaths) && !c.MemtagHeapDisabledForPath(path)
 }
 
 func (c *config) VendorConfig(name string) VendorConfig {
