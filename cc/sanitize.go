@@ -1080,6 +1080,12 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			if Bool(c.sanitize.Properties.Sanitize.Diag.Memtag_heap) {
 				noteDep = "note_memtag_heap_sync"
 			}
+			// If we're using snapshots, redirect to snapshot whenever possible
+			// TODO(b/178470649): clean manual snapshot redirections
+			snapshot := mctx.Provider(SnapshotInfoProvider).(SnapshotInfo)
+			if lib, ok := snapshot.StaticLibs[noteDep]; ok {
+				noteDep = lib
+			}
 			depTag := libraryDependencyTag{Kind: staticLibraryDependency, wholeStatic: true}
 			variations := append(mctx.Target().Variations(),
 				blueprint.Variation{Mutator: "link", Variation: "static"})
