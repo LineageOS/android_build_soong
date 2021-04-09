@@ -358,20 +358,20 @@ func flagsRule(ctx android.SingletonContext) android.Path {
 		FlagWithInput("--csv ", stubFlags).
 		Inputs(flagsCSV).
 		FlagWithInput("--unsupported ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-unsupported.txt")).
+			android.PathForSource(ctx, "frameworks/base/boot/hiddenapi/hiddenapi-unsupported.txt")).
 		FlagWithInput("--unsupported ", combinedRemovedApis).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed").
 		FlagWithInput("--max-target-r ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-r-loprio.txt")).FlagWithArg("--tag ", "lo-prio").
+			android.PathForSource(ctx, "frameworks/base/boot/hiddenapi/hiddenapi-max-target-r-loprio.txt")).FlagWithArg("--tag ", "lo-prio").
 		FlagWithInput("--max-target-q ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-q.txt")).
+			android.PathForSource(ctx, "frameworks/base/boot/hiddenapi/hiddenapi-max-target-q.txt")).
 		FlagWithInput("--max-target-p ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-max-target-p.txt")).
+			android.PathForSource(ctx, "frameworks/base/boot/hiddenapi/hiddenapi-max-target-p.txt")).
 		FlagWithInput("--max-target-o ", android.PathForSource(
-			ctx, "frameworks/base/config/hiddenapi-max-target-o.txt")).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio").
+			ctx, "frameworks/base/boot/hiddenapi/hiddenapi-max-target-o.txt")).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio").
 		FlagWithInput("--blocked ",
-			android.PathForSource(ctx, "frameworks/base/config/hiddenapi-force-blocked.txt")).
+			android.PathForSource(ctx, "frameworks/base/boot/hiddenapi/hiddenapi-force-blocked.txt")).
 		FlagWithInput("--unsupported ", android.PathForSource(
-			ctx, "frameworks/base/config/hiddenapi-unsupported-packages.txt")).Flag("--packages ").
+			ctx, "frameworks/base/boot/hiddenapi/hiddenapi-unsupported-packages.txt")).Flag("--packages ").
 		FlagWithOutput("--output ", tempPath)
 
 	commitChangeForRestat(rule, tempPath, outputPath)

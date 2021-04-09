@@ -79,6 +79,63 @@ func UniqueBazelLabelList(originalLabelList LabelList) LabelList {
 	return uniqueLabelList
 }
 
+// Subtract needle from haystack
+func SubtractStrings(haystack []string, needle []string) []string {
+	// This is really a set
+	remainder := make(map[string]bool)
+
+	for _, s := range haystack {
+		remainder[s] = true
+	}
+	for _, s := range needle {
+		delete(remainder, s)
+	}
+
+	var strings []string
+	for s, _ := range remainder {
+		strings = append(strings, s)
+	}
+
+	sort.SliceStable(strings, func(i, j int) bool {
+		return strings[i] < strings[j]
+	})
+
+	return strings
+}
+
+// Subtract needle from haystack
+func SubtractBazelLabels(haystack []Label, needle []Label) []Label {
+	// This is really a set
+	remainder := make(map[Label]bool)
+
+	for _, label := range haystack {
+		remainder[label] = true
+	}
+	for _, label := range needle {
+		delete(remainder, label)
+	}
+
+	var labels []Label
+	for label, _ := range remainder {
+		labels = append(labels, label)
+	}
+
+	sort.SliceStable(labels, func(i, j int) bool {
+		return labels[i].Label < labels[j].Label
+	})
+
+	return labels
+}
+
+// Subtract needle from haystack
+func SubtractBazelLabelList(haystack LabelList, needle LabelList) LabelList {
+	var result LabelList
+	result.Includes = SubtractBazelLabels(haystack.Includes, needle.Includes)
+	// NOTE: Excludes are intentionally not subtracted
+	result.Excludes = haystack.Excludes
+	return result
+}
+
 const (
 	// ArchType names in arch.go
 	ARCH_ARM    = "arm"
@@ -255,6 +312,12 @@ type StringListAttribute struct {
 	// are generated in a select statement and appended to the non-os specific
 	// label list Value.
 	OsValues stringListOsValues
+}
+
+// MakeStringListAttribute initializes a StringListAttribute with the non-arch specific value.
+func MakeStringListAttribute(value []string) StringListAttribute {
+	// NOTE: These strings are not necessarily unique or sorted.
+	return StringListAttribute{Value: value}
 }
 
 // Arch-specific string_list typed Bazel attribute values. This should correspond
