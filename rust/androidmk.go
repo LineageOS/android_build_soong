@@ -70,6 +70,11 @@ func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 		// If the compiler is disabled, this is a SourceProvider.
 		mod.SubAndroidMk(&ret, mod.sourceProvider)
 	}
+
+	if mod.sanitize != nil {
+		mod.SubAndroidMk(&ret, mod.sanitize)
+	}
+
 	ret.SubName += mod.Properties.SubName
 
 	return []android.AndroidMkEntries{ret}
