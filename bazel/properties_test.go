@@ -46,6 +46,82 @@ func TestUniqueBazelLabels(t *testing.T) {
 	}
 }
 
+func TestSubtractStrings(t *testing.T) {
+	testCases := []struct {
+		haystack       []string
+		needle         []string
+		expectedResult []string
+	}{
+		{
+			haystack: []string{
+				"a",
+				"b",
+				"c",
+			},
+			needle: []string{
+				"a",
+			},
+			expectedResult: []string{
+				"b", "c",
+			},
+		},
+	}
+	for _, tc := range testCases {
+		actualResult := SubtractStrings(tc.haystack, tc.needle)
+		if !reflect.DeepEqual(tc.expectedResult, actualResult) {
+			t.Fatalf("Expected %v, got %v", tc.expectedResult, actualResult)
+		}
+	}
+}
+
+func TestSubtractBazelLabelList(t *testing.T) {
+	testCases := []struct {
+		haystack       LabelList
+		needle         LabelList
+		expectedResult LabelList
+	}{
+		{
+			haystack: LabelList{
+				Includes: []Label{
+					{Label: "a"},
+					{Label: "b"},
+					{Label: "c"},
+				},
+				Excludes: []Label{
+					{Label: "x"},
+					{Label: "y"},
+					{Label: "z"},
+				},
+			},
+			needle: LabelList{
+				Includes: []Label{
+					{Label: "a"},
+				},
+				Excludes: []Label{
+					{Label: "z"},
+				},
+			},
+			// NOTE: Excludes are intentionally not subtracted
+			expectedResult: LabelList{
+				Includes: []Label{
+					{Label: "b"},
+					{Label: "c"},
+				},
+				Excludes: []Label{
+					{Label: "x"},
+					{Label: "y"},
+					{Label: "z"},
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		actualResult := SubtractBazelLabelList(tc.haystack, tc.needle)
+		if !reflect.DeepEqual(tc.expectedResult, actualResult) {
+			t.Fatalf("Expected %v, got %v", tc.expectedResult, actualResult)
+		}
+	}
+}
 func TestUniqueBazelLabelList(t *testing.T) {
 	testCases := []struct {
 		originalLabelList       LabelList
