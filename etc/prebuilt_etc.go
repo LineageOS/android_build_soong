@@ -52,6 +52,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
 	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
 	ctx.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
+	ctx.RegisterModuleType("prebuilt_rfsa", PrebuiltRFSAFactory)
 }
 
 var PrepareForTestWithPrebuiltEtc = android.FixtureRegisterWithContext(RegisterPrebuiltEtcBuildComponents)
@@ -401,6 +402,19 @@ func PrebuiltDSPFactory() android.Module {
 	module := &PrebuiltEtc{}
 	module.socInstallDirBase = "dsp"
 	InitPrebuiltEtcModule(module, "etc/dsp")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	return module
+}
+
+// prebuilt_rfsa installs a firmware file that will be available through Qualcomm's RFSA
+// to the <partition>/lib/rfsa directory.
+func PrebuiltRFSAFactory() android.Module {
+	module := &PrebuiltEtc{}
+	// Ideally these would go in /vendor/dsp, but the /vendor/lib/rfsa paths are hardcoded in too
+	// many places outside of the application processor.  They could be moved to /vendor/dsp once
+	// that is cleaned up.
+	InitPrebuiltEtcModule(module, "lib/rfsa")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	return module

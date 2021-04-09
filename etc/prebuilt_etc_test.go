@@ -288,3 +288,37 @@ func TestPrebuiltDSPDirPath(t *testing.T) {
 		})
 	}
 }
+
+func TestPrebuiltRFSADirPath(t *testing.T) {
+	targetPath := "out/soong/target/product/test_device"
+	tests := []struct {
+		description  string
+		config       string
+		expectedPath string
+	}{{
+		description: "prebuilt: system rfsa",
+		config: `
+			prebuilt_rfsa {
+				name: "foo.conf",
+				src: "foo.conf",
+			}`,
+		expectedPath: filepath.Join(targetPath, "system/lib/rfsa"),
+	}, {
+		description: "prebuilt: vendor rfsa",
+		config: `
+			prebuilt_rfsa {
+				name: "foo.conf",
+				src: "foo.conf",
+				soc_specific: true,
+				sub_dir: "sub_dir",
+			}`,
+		expectedPath: filepath.Join(targetPath, "vendor/lib/rfsa/sub_dir"),
+	}}
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			result := prepareForPrebuiltEtcTest.RunTestWithBp(t, tt.config)
+			p := result.Module("foo.conf", "android_arm64_armv8-a").(*PrebuiltEtc)
+			android.AssertPathRelativeToTopEquals(t, "install dir", tt.expectedPath, p.installDirPath)
+		})
+	}
+}
