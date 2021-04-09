@@ -43,7 +43,6 @@ var fuzzerFlags = []string{
 	"-C llvm-args=-sanitizer-coverage-level=3",
 	"-C llvm-args=-sanitizer-coverage-trace-compares",
 	"-C llvm-args=-sanitizer-coverage-inline-8bit-counters",
-	"-C llvm-args=-sanitizer-coverage-stack-depth",
 	"-C llvm-args=-sanitizer-coverage-trace-geps",
 	"-C llvm-args=-sanitizer-coverage-prune-blocks=0",
 	"-Z sanitizer=address",
