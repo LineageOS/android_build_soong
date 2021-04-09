@@ -58,12 +58,14 @@ func (ctx *moduleContext) SocSpecific() bool {
 	// Additionally check if this module is inVendor() that means it is a "vendor" variant of a
 	// module. As well as SoC specific modules, vendor variants must be installed to /vendor
 	// unless they have "odm_available: true".
-	return ctx.ModuleContext.SocSpecific() || (ctx.mod.InVendor() && !ctx.mod.VendorVariantToOdm())
+	return ctx.ModuleContext.SocSpecific() ||
+            (ctx.mod.HasVendorVariant() && ctx.mod.InVendor() && !ctx.mod.VendorVariantToOdm())
 }
 
 func (ctx *moduleContext) DeviceSpecific() bool {
 	// Some vendor variants want to be installed to /odm by setting "odm_available: true".
-	return ctx.ModuleContext.DeviceSpecific() || (ctx.mod.InVendor() && ctx.mod.VendorVariantToOdm())
+	return ctx.ModuleContext.DeviceSpecific() ||
+            (ctx.mod.HasVendorVariant() && ctx.mod.InVendor() && ctx.mod.VendorVariantToOdm())
 }
 
 func (ctx *moduleContextImpl) inProduct() bool {
