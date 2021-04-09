@@ -16,12 +16,13 @@
 Merges a list of .csv files from Bloaty into a protobuf.  It takes the list as
 a first argument and the output as second. For instance:
 
-    $ bloaty_merger binary_sizes.lst binary_sizes.pb
+    $ bloaty_merger binary_sizes.lst binary_sizes.pb.gz
 
 """
 
 import argparse
 import csv
+import gzip
 
 import ninja_rsp
 
@@ -57,7 +58,8 @@ def create_file_size_metrics(input_list, output_proto):
   Args:
     input_list: The path to the file which contains the list of CSV files. Each
         filepath is separated by a space.
-    output_proto: The path for the output protobuf.
+    output_proto: The path for the output protobuf. It will be compressed using
+        gzip.
   """
   metrics = file_sections_pb2.FileSizeMetrics()
   reader = ninja_rsp.NinjaRspFileReader(input_list)
@@ -65,7 +67,7 @@ def create_file_size_metrics(input_list, output_proto):
     file_proto = parse_csv(csv_path)
     if file_proto:
       metrics.files.append(file_proto)
-  with open(output_proto, "wb") as output:
+  with gzip.open(output_proto, "wb") as output:
     output.write(metrics.SerializeToString())
 
 def main():
