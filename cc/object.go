@@ -157,7 +157,7 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 	}
 
 	// Set arch-specific configurable attributes
-	copts, srcs, hdrs := bp2BuildParseCompilerProps(ctx, m)
+	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
 	var localIncludeDirs []string
 	var asFlags []string
 	for _, props := range m.compiler.compilerProps() {
@@ -196,17 +196,11 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 	}
 	// TODO(b/183595872) warn/error if we're not handling product variables
 
-	for arch, p := range m.GetArchProperties(&BaseCompilerProperties{}) {
-		if cProps, ok := p.(*BaseCompilerProperties); ok {
-			srcs.SetValueForArch(arch.Name, android.BazelLabelForModuleSrcExcludes(ctx, cProps.Srcs, cProps.Exclude_srcs))
-		}
-	}
-
 	attrs := &bazelObjectAttributes{
-		Srcs:               srcs,
-		Hdrs:               hdrs,
+		Srcs:               compilerAttrs.srcs,
+		Hdrs:               compilerAttrs.hdrs,
 		Deps:               deps,
-		Copts:              copts,
+		Copts:              compilerAttrs.copts,
 		Asflags:            asFlags,
 		Local_include_dirs: localIncludeDirs,
 	}

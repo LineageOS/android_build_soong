@@ -256,17 +256,17 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
-	copts, srcs, hdrs := bp2BuildParseCompilerProps(ctx, m)
-	deps, linkopts := bp2BuildParseLinkerProps(ctx, m)
+	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
+	linkerAttrs := bp2BuildParseLinkerProps(ctx, m)
 	exportedIncludes, exportedIncludesHeaders := bp2BuildParseExportedIncludes(ctx, m)
-	hdrs.Append(exportedIncludesHeaders)
+	compilerAttrs.hdrs.Append(exportedIncludesHeaders)
 
 	attrs := &bazelCcLibraryAttributes{
-		Srcs:     srcs,
-		Hdrs:     hdrs,
-		Copts:    copts,
-		Linkopts: linkopts,
-		Deps:     deps,
+		Srcs:     compilerAttrs.srcs,
+		Hdrs:     compilerAttrs.hdrs,
+		Copts:    compilerAttrs.copts,
+		Linkopts: linkerAttrs.linkopts,
+		Deps:     linkerAttrs.deps,
 		Includes: exportedIncludes,
 	}
 
@@ -2154,12 +2154,13 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
-	copts, srcs, hdrs := bp2BuildParseCompilerProps(ctx, module)
+	compilerAttrs := bp2BuildParseCompilerProps(ctx, module)
 
 	var includeDirs []string
 	var localIncludeDirs []string
 	for _, props := range module.compiler.compilerProps() {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
+			// TODO: these should be arch and os specific.
 			includeDirs = bp2BuildMakePathsRelativeToModule(ctx, baseCompilerProps.Include_dirs)
 			localIncludeDirs = bp2BuildMakePathsRelativeToModule(ctx, baseCompilerProps.Local_include_dirs)
 			break
@@ -2174,15 +2175,16 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 
 	// For Bazel, be more explicit about headers - list all header files in include dirs as srcs
 	for _, includeDir := range includeDirs {
-		srcs.Value.Append(bp2BuildListHeadersInDir(ctx, includeDir))
+		compilerAttrs.srcs.Value.Append(bp2BuildListHeadersInDir(ctx, includeDir))
 	}
 	for _, localIncludeDir := range localIncludeDirs {
-		srcs.Value.Append(bp2BuildListHeadersInDir(ctx, localIncludeDir))
+		compilerAttrs.srcs.Value.Append(bp2BuildListHeadersInDir(ctx, localIncludeDir))
 	}
 
 	var staticLibs []string
 	var wholeStaticLibs []string
 	for _, props := range module.linker.linkerProps() {
+		// TODO: move this into bp2buildParseLinkerProps
 		if baseLinkerProperties, ok := props.(*BaseLinkerProperties); ok {
 			staticLibs = baseLinkerProperties.Static_libs
 			wholeStaticLibs = baseLinkerProperties.Whole_static_libs
@@ -2204,18 +2206,18 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 	allIncludes.Value = append(allIncludes.Value, includeDirs...)
 	allIncludes.Value = append(allIncludes.Value, localIncludeDirs...)
 
-	hdrs.Append(exportedIncludesHeaders)
+	compilerAttrs.hdrs.Append(exportedIncludesHeaders)
 
-	headerLibsLabels, _ := bp2BuildParseLinkerProps(ctx, module)
-	depsLabels.Append(headerLibsLabels.Value)
+	linkerAttrs := bp2BuildParseLinkerProps(ctx, module)
+	depsLabels.Append(linkerAttrs.deps.Value)
 
 	attrs := &bazelCcLibraryStaticAttributes{
-		Copts:      copts,
-		Srcs:       srcs,
+		Copts:      compilerAttrs.copts,
+		Srcs:       compilerAttrs.srcs,
 		Deps:       bazel.MakeLabelListAttribute(depsLabels),
 		Linkstatic: true,
 		Includes:   allIncludes,
-		Hdrs:       hdrs,
+		Hdrs:       compilerAttrs.hdrs,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
