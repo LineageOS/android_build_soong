@@ -56,8 +56,8 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.TopDown("asan_deps", sanitizerDepsMutator(Asan))
 		ctx.BottomUp("asan", sanitizerMutator(Asan)).Parallel()
 
-		ctx.TopDown("hwasan_deps", sanitizerDepsMutator(hwasan))
-		ctx.BottomUp("hwasan", sanitizerMutator(hwasan)).Parallel()
+		ctx.TopDown("hwasan_deps", sanitizerDepsMutator(Hwasan))
+		ctx.BottomUp("hwasan", sanitizerMutator(Hwasan)).Parallel()
 
 		ctx.TopDown("fuzzer_deps", sanitizerDepsMutator(Fuzzer))
 		ctx.BottomUp("fuzzer", sanitizerMutator(Fuzzer)).Parallel()
