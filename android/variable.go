@@ -386,6 +386,8 @@ type productVariables struct {
 	BuildBrokenTrebleSyspropNeverallow bool `json:",omitempty"`
 	BuildBrokenVendorPropertyNamespace bool `json:",omitempty"`
 
+	BuildDebugfsRestrictionsEnabled bool `json:",omitempty"`
+
 	RequiresInsecureExecmemForSwiftshader bool `json:",omitempty"`
 
 	SelinuxIgnoreNeverallows bool `json:",omitempty"`

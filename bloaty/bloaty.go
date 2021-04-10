@@ -23,7 +23,7 @@ import (
 )
 
 const bloatyDescriptorExt = ".bloaty.csv"
-const protoFilename = "binary_sizes.pb"
+const protoFilename = "binary_sizes.pb.gz"
 
 var (
 	fileSizeMeasurerKey blueprint.ProviderKey
