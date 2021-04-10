@@ -29,10 +29,105 @@ var prepareForTestWithPlatformBootclasspath = android.GroupFixturePreparers(
 )
 
 func TestPlatformBootclasspath(t *testing.T) {
-	prepareForTestWithPlatformBootclasspath.
-		RunTestWithBp(t, `
+	preparer := android.GroupFixturePreparers(
+		prepareForTestWithPlatformBootclasspath,
+		dexpreopt.FixtureSetBootJars("platform:foo", "platform:bar"),
+		android.FixtureWithRootAndroidBp(`
 			platform_bootclasspath {
 				name: "platform-bootclasspath",
 			}
-		`)
+
+			java_library {
+				name: "bar",
+				srcs: ["a.java"],
+				system_modules: "none",
+				sdk_version: "none",
+				compile_dex: true,
+			}
+		`),
+	)
+
+	var addSourceBootclassPathModule = android.FixtureAddTextFile("source/Android.bp", `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+		}
+	`)
+
+	var addPrebuiltBootclassPathModule = android.FixtureAddTextFile("prebuilt/Android.bp", `
+		java_import {
+			name: "foo",
+			jars: ["a.jar"],
+			compile_dex: true,
+			prefer: false,
+		}
+	`)
+
+	var addPrebuiltPreferredBootclassPathModule = android.FixtureAddTextFile("prebuilt/Android.bp", `
+		java_import {
+			name: "foo",
+			jars: ["a.jar"],
+			compile_dex: true,
+			prefer: true,
+		}
+	`)
+
+	t.Run("missing", func(t *testing.T) {
+		preparer.
+			ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`"platform-bootclasspath" depends on undefined module "foo"`)).
+			RunTest(t)
+	})
+
+	t.Run("source", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			preparer,
+			addSourceBootclassPathModule,
+		).RunTest(t)
+
+		CheckPlatformBootclasspathModules(t, result, "platform-bootclasspath", []string{
+			"platform:foo",
+			"platform:bar",
+		})
+	})
+
+	t.Run("prebuilt", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			preparer,
+			addPrebuiltBootclassPathModule,
+		).RunTest(t)
+
+		CheckPlatformBootclasspathModules(t, result, "platform-bootclasspath", []string{
+			"platform:prebuilt_foo",
+			"platform:bar",
+		})
+	})
+
+	t.Run("source+prebuilt - source preferred", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			preparer,
+			addSourceBootclassPathModule,
+			addPrebuiltBootclassPathModule,
+		).RunTest(t)
+
+		CheckPlatformBootclasspathModules(t, result, "platform-bootclasspath", []string{
+			"platform:foo",
+			"platform:bar",
+		})
+	})
+
+	t.Run("source+prebuilt - prebuilt preferred", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			preparer,
+			addSourceBootclassPathModule,
+			addPrebuiltPreferredBootclassPathModule,
+		).RunTest(t)
+
+		CheckPlatformBootclasspathModules(t, result, "platform-bootclasspath", []string{
+			"platform:prebuilt_foo",
+			"platform:bar",
+		})
+	})
 }

@@ -17,6 +17,8 @@ package java
 import (
 	"android/soong/android"
 	"android/soong/dexpreopt"
+	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -25,14 +27,72 @@ func init() {
 
 func registerPlatformBootclasspathBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("platform_bootclasspath", platformBootclasspathFactory)
+
+	ctx.FinalDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("platform_bootclasspath_deps", platformBootclasspathDepsMutator)
+	})
 }
+
+type platformBootclasspathDependencyTag struct {
+	blueprint.BaseDependencyTag
+
+	name string
+}
+
+// Avoid having to make platform bootclasspath content visible to the platform bootclasspath.
+//
+// This is a temporary workaround to make it easier to migrate to platform bootclasspath with proper
+// dependencies.
+// TODO(b/177892522): Remove this and add needed visibility.
+func (t platformBootclasspathDependencyTag) ExcludeFromVisibilityEnforcement() {
+}
+
+// The tag used for the dependency between the platform bootclasspath and any configured boot jars.
+var platformBootclasspathModuleDepTag = platformBootclasspathDependencyTag{name: "module"}
+
+// The tag used for the dependency between the platform bootclasspath and bootclasspath_fragments.
+var platformBootclasspathFragmentDepTag = platformBootclasspathDependencyTag{name: "fragment"}
+
+var _ android.ExcludeFromVisibilityEnforcementTag = platformBootclasspathDependencyTag{}
 
 type platformBootclasspathModule struct {
 	android.ModuleBase
+
+	properties platformBootclasspathProperties
+
+	// The apex:module pairs obtained from the configured modules.
+	//
+	// Currently only for testing.
+	configuredModules []android.Module
+
+	// The apex:module pairs obtained from the fragments.
+	//
+	// Currently only for testing.
+	fragments []android.Module
+}
+
+// ApexVariantReference specifies a particular apex variant of a module.
+type ApexVariantReference struct {
+	// The name of the module apex variant, i.e. the apex containing the module variant.
+	//
+	// If this is not specified then it defaults to "platform" which will cause a dependency to be
+	// added to the module's platform variant.
+	Apex *string
+
+	// The name of the module.
+	Module *string
+}
+
+type platformBootclasspathProperties struct {
+
+	// The names of the bootclasspath_fragment modules that form part of this
+	// platform_bootclasspath.
+	Fragments []ApexVariantReference
 }
 
 func platformBootclasspathFactory() android.Module {
 	m := &platformBootclasspathModule{}
+	m.AddProperties(&m.properties)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
 }
@@ -47,7 +107,90 @@ func (b *platformBootclasspathModule) DepsMutator(ctx android.BottomUpMutatorCon
 	dexpreopt.RegisterToolDeps(ctx)
 }
 
+func platformBootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
+	m := ctx.Module()
+	if p, ok := m.(*platformBootclasspathModule); ok {
+		// Add dependencies on all the modules configured in the "art" boot image.
+		artImageConfig := genBootImageConfigs(ctx)[artBootImageName]
+		addDependenciesOntoBootImageModules(ctx, artImageConfig.modules)
+
+		// Add dependencies on all the modules configured in the "boot" boot image. That does not
+		// include modules configured in the "art" boot image.
+		bootImageConfig := p.getImageConfig(ctx)
+		addDependenciesOntoBootImageModules(ctx, bootImageConfig.modules)
+
+		// Add dependencies on all the updatable modules.
+		updatableModules := dexpreopt.GetGlobalConfig(ctx).UpdatableBootJars
+		addDependenciesOntoBootImageModules(ctx, updatableModules)
+
+		// Add dependencies on all the fragments.
+		addDependencyOntoApexVariants(ctx, "fragments", p.properties.Fragments, platformBootclasspathFragmentDepTag)
+	}
+}
+
+func addDependencyOntoApexVariants(ctx android.BottomUpMutatorContext, propertyName string, refs []ApexVariantReference, tag blueprint.DependencyTag) {
+	for i, ref := range refs {
+		apex := proptools.StringDefault(ref.Apex, "platform")
+
+		if ref.Module == nil {
+			ctx.PropertyErrorf(propertyName, "missing module name at position %d", i)
+			continue
+		}
+		name := proptools.String(ref.Module)
+
+		addDependencyOntoApexModulePair(ctx, apex, name, tag)
+	}
+}
+
+func addDependencyOntoApexModulePair(ctx android.BottomUpMutatorContext, apex string, name string, tag blueprint.DependencyTag) {
+	var variations []blueprint.Variation
+	if apex != "platform" {
+		// Pick the correct apex variant.
+		variations = []blueprint.Variation{
+			{Mutator: "apex", Variation: apex},
+		}
+	}
+
+	addedDep := false
+	if ctx.OtherModuleDependencyVariantExists(variations, name) {
+		ctx.AddFarVariationDependencies(variations, tag, name)
+		addedDep = true
+	}
+
+	// Add a dependency on the prebuilt module if it exists.
+	prebuiltName := android.PrebuiltNameFromSource(name)
+	if ctx.OtherModuleDependencyVariantExists(variations, prebuiltName) {
+		ctx.AddVariationDependencies(variations, tag, prebuiltName)
+		addedDep = true
+	}
+
+	// If no appropriate variant existing for this, so no dependency could be added, then it is an
+	// error, unless missing dependencies are allowed. The simplest way to handle that is to add a
+	// dependency that will not be satisfied and the default behavior will handle it.
+	if !addedDep {
+		ctx.AddFarVariationDependencies(variations, tag, name)
+	}
+}
+
+func addDependenciesOntoBootImageModules(ctx android.BottomUpMutatorContext, modules android.ConfiguredJarList) {
+	for i := 0; i < modules.Len(); i++ {
+		apex := modules.Apex(i)
+		name := modules.Jar(i)
+
+		addDependencyOntoApexModulePair(ctx, apex, name, platformBootclasspathModuleDepTag)
+	}
+}
+
 func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	ctx.VisitDirectDepsIf(isActiveModule, func(module android.Module) {
+		tag := ctx.OtherModuleDependencyTag(module)
+		if tag == platformBootclasspathModuleDepTag {
+			b.configuredModules = append(b.configuredModules, module)
+		} else if tag == platformBootclasspathFragmentDepTag {
+			b.fragments = append(b.fragments, module)
+		}
+	})
+
 	// Nothing to do if skipping the dexpreopt of boot image jars.
 	if SkipDexpreoptBootJars(ctx) {
 		return

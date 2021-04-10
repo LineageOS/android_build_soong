@@ -664,7 +664,7 @@ func (a *ApexSet) Overrides() []string {
 // prebuilt_apex imports an `.apex` file into the build graph as if it was built with apex.
 func apexSetFactory() android.Module {
 	module := &ApexSet{}
-	module.AddProperties(&module.properties, &module.selectedApexProperties)
+	module.AddProperties(&module.properties, &module.selectedApexProperties, &module.deapexerProperties)
 
 	android.InitSingleSourcePrebuiltModule(module, &module.selectedApexProperties, "Selected_apex")
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
@@ -676,6 +676,9 @@ func apexSetFactory() android.Module {
 		createApexExtractorModule(ctx, apexExtractorModuleName, &module.properties.ApexExtractorProperties)
 
 		apexFileSource := ":" + apexExtractorModuleName
+		if len(module.deapexerProperties.Exported_java_libs) != 0 {
+			createDeapexerModule(ctx, deapexerModuleName(baseModuleName), apexFileSource, &module.deapexerProperties)
+		}
 
 		// After passing the arch specific src properties to the creating the apex selector module
 		module.selectedApexProperties.Selected_apex = proptools.StringPtr(apexFileSource)
@@ -699,6 +702,16 @@ func createApexExtractorModule(ctx android.LoadHookContext, name string, apexExt
 
 func apexExtractorModuleName(baseModuleName string) string {
 	return baseModuleName + ".apex.extractor"
+}
+
+func (a *ApexSet) DepsMutator(ctx android.BottomUpMutatorContext) {
+	a.deapexerDeps(ctx)
+}
+
+var _ ApexInfoMutator = (*ApexSet)(nil)
+
+func (a *ApexSet) ApexInfoMutator(mctx android.TopDownMutatorContext) {
+	a.apexInfoMutator(mctx)
 }
 
 func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {

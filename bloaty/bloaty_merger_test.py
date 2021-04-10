@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import gzip
 import unittest
 
 from pyfakefs import fake_filesystem_unittest
@@ -53,10 +54,10 @@ class BloatyMergerTestCase(fake_filesystem_unittest.TestCase):
     self.fs.create_file("file1.bloaty.csv", contents=file1_content)
     self.fs.create_file("file2.bloaty.csv", contents=file2_content)
 
-    bloaty_merger.create_file_size_metrics("files.lst", "output.pb")
+    bloaty_merger.create_file_size_metrics("files.lst", "output.pb.gz")
 
     metrics = file_sections_pb2.FileSizeMetrics()
-    with open("output.pb", "rb") as output:
+    with gzip.open("output.pb.gz", "rb") as output:
       metrics.ParseFromString(output.read())
 
 

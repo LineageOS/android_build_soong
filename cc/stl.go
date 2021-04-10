@@ -140,6 +140,17 @@ func needsLibAndroidSupport(ctx BaseModuleContext) bool {
 }
 
 func staticUnwinder(ctx android.BaseModuleContext) string {
+	vndkVersion := ctx.Module().(*Module).VndkVersion()
+
+	// Modules using R vndk use different unwinder
+	if vndkVersion == "30" {
+		if ctx.Arch().ArchType == android.Arm {
+			return "libunwind_llvm"
+		} else {
+			return "libgcc_stripped"
+		}
+	}
+
 	return "libunwind"
 }
 
