@@ -1927,6 +1927,10 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						filesInfo = append(filesInfo, af)
 						return true // track transitive dependencies
 					}
+				} else if rust.IsRlibDepTag(depTag) {
+					// Rlib is statically linked, but it might have shared lib
+					// dependencies. Track them.
+					return true
 				} else if java.IsbootImageContentDepTag(depTag) {
 					// Add the contents of the boot image to the apex.
 					switch child.(type) {

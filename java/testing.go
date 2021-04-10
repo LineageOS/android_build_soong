@@ -300,6 +300,46 @@ func CheckModuleDependencies(t *testing.T, ctx *android.TestContext, name, varia
 	}
 }
 
+// CheckPlatformBootclasspathModules returns the apex:module pair for the modules depended upon by
+// the platform-bootclasspath module.
+func CheckPlatformBootclasspathModules(t *testing.T, result *android.TestResult, name string, expected []string) {
+	t.Helper()
+	platformBootclasspath := result.Module(name, "android_common").(*platformBootclasspathModule)
+	pairs := ApexNamePairsFromModules(result.TestContext, platformBootclasspath.configuredModules)
+	android.AssertDeepEquals(t, fmt.Sprintf("%s modules", "platform-bootclasspath"), expected, pairs)
+}
+
+// ApexNamePairsFromModules returns the apex:module pair for the supplied modules.
+func ApexNamePairsFromModules(ctx *android.TestContext, modules []android.Module) []string {
+	pairs := []string{}
+	for _, module := range modules {
+		pairs = append(pairs, apexNamePairFromModule(ctx, module))
+	}
+	return pairs
+}
+
+func apexNamePairFromModule(ctx *android.TestContext, module android.Module) string {
+	name := module.Name()
+	var apex string
+	apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
+	if apexInfo.IsForPlatform() {
+		apex = "platform"
+	} else {
+		apex = apexInfo.InApexes[0]
+	}
+
+	return fmt.Sprintf("%s:%s", apex, name)
+}
+
+// CheckPlatformBootclasspathFragments returns the apex:module pair for the fragments depended upon
+// by the platform-bootclasspath module.
+func CheckPlatformBootclasspathFragments(t *testing.T, result *android.TestResult, name string, expected []string) {
+	t.Helper()
+	platformBootclasspath := result.Module(name, "android_common").(*platformBootclasspathModule)
+	pairs := ApexNamePairsFromModules(result.TestContext, platformBootclasspath.fragments)
+	android.AssertDeepEquals(t, fmt.Sprintf("%s fragments", "platform-bootclasspath"), expected, pairs)
+}
+
 func CheckHiddenAPIRuleInputs(t *testing.T, expected string, hiddenAPIRule android.TestingBuildParams) {
 	t.Helper()
 	actual := strings.TrimSpace(strings.Join(android.NormalizePathsForTesting(hiddenAPIRule.Implicits), "\n"))

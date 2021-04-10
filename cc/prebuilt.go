@@ -305,6 +305,7 @@ func PrebuiltStaticLibraryFactory() android.Module {
 func NewPrebuiltStaticLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorator) {
 	module, library := NewPrebuiltLibrary(hod)
 	library.BuildOnlyStatic()
+	module.bazelHandler = &prebuiltStaticLibraryBazelHandler{module: module, library: library}
 	return module, library
 }
 
@@ -317,6 +318,52 @@ type prebuiltObjectLinker struct {
 	objectLinker
 
 	properties prebuiltObjectProperties
+}
+
+type prebuiltStaticLibraryBazelHandler struct {
+	bazelHandler
+
+	module  *Module
+	library *libraryDecorator
+}
+
+func (h *prebuiltStaticLibraryBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
+	bazelCtx := ctx.Config().BazelContext
+	staticLibs, ok := bazelCtx.GetPrebuiltCcStaticLibraryFiles(label, ctx.Arch().ArchType)
+	if !ok {
+		return false
+	}
+	if len(staticLibs) > 1 {
+		ctx.ModuleErrorf("expected 1 static library from bazel target %q, got %s", label, staticLibs)
+		return false
+	}
+
+	// TODO(b/184543518): cc_prebuilt_library_static may have properties for re-exporting flags
+
+	// TODO(eakammer):Add stub-related flags if this library is a stub library.
+	// h.library.exportVersioningMacroIfNeeded(ctx)
+
+	// Dependencies on this library will expect collectedSnapshotHeaders to be set, otherwise
+	// validation will fail. For now, set this to an empty list.
+	// TODO(cparsons): More closely mirror the collectHeadersForSnapshot implementation.
+	h.library.collectedSnapshotHeaders = android.Paths{}
+
+	if len(staticLibs) == 0 {
+		h.module.outputFile = android.OptionalPath{}
+		return true
+	}
+
+	out := android.PathForBazelOut(ctx, staticLibs[0])
+	h.module.outputFile = android.OptionalPathForPath(out)
+
+	depSet := android.NewDepSetBuilder(android.TOPOLOGICAL).Direct(out).Build()
+	ctx.SetProvider(StaticLibraryInfoProvider, StaticLibraryInfo{
+		StaticLibrary: out,
+
+		TransitiveStaticLibrariesForOrdering: depSet,
+	})
+
+	return true
 }
 
 func (p *prebuiltObjectLinker) prebuilt() *android.Prebuilt {

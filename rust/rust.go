@@ -798,6 +798,11 @@ func IsDylibDepTag(depTag blueprint.DependencyTag) bool {
 	return ok && tag == dylibDepTag
 }
 
+func IsRlibDepTag(depTag blueprint.DependencyTag) bool {
+	tag, ok := depTag.(dependencyTag)
+	return ok && tag == rlibDepTag
+}
+
 type autoDep struct {
 	variation string
 	depTag    dependencyTag
