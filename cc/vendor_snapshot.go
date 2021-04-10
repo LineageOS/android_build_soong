@@ -196,7 +196,7 @@ func isSnapshotAware(cfg android.DeviceConfig, m *Module, inProprietaryPath bool
 		if m.sanitize != nil {
 			// scs and hwasan export both sanitized and unsanitized variants for static and header
 			// Always use unsanitized variants of them.
-			for _, t := range []SanitizerType{scs, hwasan} {
+			for _, t := range []SanitizerType{scs, Hwasan} {
 				if !l.shared() && m.sanitize.isSanitizerEnabled(t) {
 					return false
 				}
