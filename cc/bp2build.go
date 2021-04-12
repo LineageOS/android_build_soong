@@ -59,13 +59,17 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddDependency(module, nil, android.SortedUniqueStrings(allDeps)...)
 }
 
+// Convenience struct to hold all attributes parsed from compiler properties.
+type compilerAttributes struct {
+	copts bazel.StringListAttribute
+	srcs  bazel.LabelListAttribute
+	hdrs  bazel.LabelListAttribute
+}
+
 // bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.
-func bp2BuildParseCompilerProps(
-	ctx android.TopDownMutatorContext,
-	module *Module) (
-	copts bazel.StringListAttribute,
-	srcs bazel.LabelListAttribute,
-	hdrs bazel.LabelListAttribute) {
+func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Module) compilerAttributes {
+	var hdrs, srcs bazel.LabelListAttribute
+	var copts bazel.StringListAttribute
 
 	hdrsAndSrcs := func(baseCompilerProps *BaseCompilerProperties) (bazel.LabelList, bazel.LabelList) {
 		srcsList := android.BazelLabelForModuleSrcExcludes(
@@ -100,13 +104,22 @@ func bp2BuildParseCompilerProps(
 		}
 	}
 
-	return copts, srcs, hdrs
+	return compilerAttributes{
+		hdrs:  hdrs,
+		srcs:  srcs,
+		copts: copts,
+	}
+}
+
+// Convenience struct to hold all attributes parsed from linker properties.
+type linkerAttributes struct {
+	deps     bazel.LabelListAttribute
+	linkopts bazel.StringListAttribute
 }
 
 // bp2BuildParseLinkerProps creates a label list attribute containing the header library deps of a module, including
 // configurable attribute values.
-func bp2BuildParseLinkerProps(
-	ctx android.TopDownMutatorContext, module *Module) (bazel.LabelListAttribute, bazel.StringListAttribute) {
+func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module) linkerAttributes {
 
 	var deps bazel.LabelListAttribute
 	var linkopts bazel.StringListAttribute
@@ -142,7 +155,10 @@ func bp2BuildParseLinkerProps(
 		}
 	}
 
-	return deps, linkopts
+	return linkerAttributes{
+		deps:     deps,
+		linkopts: linkopts,
+	}
 }
 
 func bp2BuildListHeadersInDir(ctx android.TopDownMutatorContext, includeDir string) bazel.LabelList {
