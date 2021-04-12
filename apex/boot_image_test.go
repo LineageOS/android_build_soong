@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"android/soong/android"
-	"android/soong/dexpreopt"
 	"android/soong/java"
 )
 
@@ -42,8 +41,7 @@ func TestBootImages(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithBootImage,
 		// Configure some libraries in the art and framework boot images.
-		dexpreopt.FixtureSetArtBootJars("com.android.art:baz", "com.android.art:quuz"),
-		dexpreopt.FixtureSetBootJars("platform:foo", "platform:bar"),
+		java.FixtureConfigureBootJars("com.android.art:baz", "com.android.art:quuz", "platform:foo", "platform:bar"),
 		prepareForTestWithArtApex,
 
 		java.PrepareForTestWithJavaSdkLibraryFiles,
@@ -169,7 +167,7 @@ func TestBootImageInArtApex(t *testing.T) {
 		prepareForTestWithArtApex,
 
 		// Configure some libraries in the art boot image.
-		dexpreopt.FixtureSetArtBootJars("com.android.art:foo", "com.android.art:bar"),
+		java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
 	).RunTestWithBp(t, `
 		apex {
 			name: "com.android.art",
@@ -264,7 +262,7 @@ func TestBootImageInPrebuiltArtApex(t *testing.T) {
 		}),
 
 		// Configure some libraries in the art boot image.
-		dexpreopt.FixtureSetArtBootJars("com.android.art:foo", "com.android.art:bar"),
+		java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
 	).RunTestWithBp(t, `
 		prebuilt_apex {
 			name: "com.android.art",
