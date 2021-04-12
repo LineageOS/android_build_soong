@@ -231,9 +231,7 @@ cc_library_static {
         "implicit_include_1.h",
         "implicit_include_2.h",
     ],
-    includes = [
-        ".",
-    ],
+    includes = ["."],
     linkstatic = True,
     srcs = [
         "static_lib_1.cc",
@@ -246,9 +244,7 @@ cc_library_static {
         "implicit_include_1.h",
         "implicit_include_2.h",
     ],
-    includes = [
-        ".",
-    ],
+    includes = ["."],
     linkstatic = True,
     srcs = [
         "static_lib_2.cc",
@@ -261,9 +257,7 @@ cc_library_static {
         "implicit_include_1.h",
         "implicit_include_2.h",
     ],
-    includes = [
-        ".",
-    ],
+    includes = ["."],
     linkstatic = True,
     srcs = [
         "whole_static_lib_1.cc",
@@ -276,9 +270,7 @@ cc_library_static {
         "implicit_include_1.h",
         "implicit_include_2.h",
     ],
-    includes = [
-        ".",
-    ],
+    includes = ["."],
     linkstatic = True,
     srcs = [
         "whole_static_lib_2.cc",
