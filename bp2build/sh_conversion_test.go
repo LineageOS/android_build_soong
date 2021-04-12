@@ -74,9 +74,7 @@ func TestShBinaryBp2Build(t *testing.T) {
 }`,
 			expectedBazelTargets: []string{`sh_binary(
     name = "foo",
-    srcs = [
-        "foo.sh",
-    ],
+    srcs = ["foo.sh"],
 )`},
 		},
 	}
