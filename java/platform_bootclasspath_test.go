@@ -173,7 +173,7 @@ func TestPlatformBootclasspath_Dist(t *testing.T) {
 	android.AssertStringEquals(t, "platform dist goals call", "$(call dist-for-goals,droidcore,out/soong/hiddenapi/hiddenapi-flags.csv:hiddenapi-flags.csv)\n", android.StringRelativeToTop(result.Config, goals[1]))
 }
 
-func TestPlatformBootclasspath_HiddenAPIMonolithicIndexFile(t *testing.T) {
+func TestPlatformBootclasspath_HiddenAPIMonolithicFiles(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		hiddenApiFixtureFactory,
 		PrepareForTestWithJavaSdkLibraryFiles,
