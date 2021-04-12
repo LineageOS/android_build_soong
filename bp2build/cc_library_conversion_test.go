@@ -109,12 +109,8 @@ cc_library {
 `,
 			expectedBazelTargets: []string{`cc_library(
     name = "foo-lib",
-    copts = [
-        "-Wall",
-    ],
-    deps = [
-        ":some-headers",
-    ],
+    copts = ["-Wall"],
+    deps = [":some-headers"],
     hdrs = [
         "header.h",
         "header.hh",
@@ -127,40 +123,20 @@ cc_library {
         "header.h.generic",
         "foo-dir/a.h",
     ],
-    includes = [
-        "foo-dir",
-    ],
-    linkopts = [
-        "-Wl,--exclude-libs=bar.a",
-    ] + select({
-        "//build/bazel/platforms/arch:x86": [
-            "-Wl,--exclude-libs=baz.a",
-        ],
-        "//build/bazel/platforms/arch:x86_64": [
-            "-Wl,--exclude-libs=qux.a",
-        ],
+    includes = ["foo-dir"],
+    linkopts = ["-Wl,--exclude-libs=bar.a"] + select({
+        "//build/bazel/platforms/arch:x86": ["-Wl,--exclude-libs=baz.a"],
+        "//build/bazel/platforms/arch:x86_64": ["-Wl,--exclude-libs=qux.a"],
         "//conditions:default": [],
     }),
-    srcs = [
-        "impl.cpp",
-    ] + select({
-        "//build/bazel/platforms/arch:x86": [
-            "x86.cpp",
-        ],
-        "//build/bazel/platforms/arch:x86_64": [
-            "x86_64.cpp",
-        ],
+    srcs = ["impl.cpp"] + select({
+        "//build/bazel/platforms/arch:x86": ["x86.cpp"],
+        "//build/bazel/platforms/arch:x86_64": ["x86_64.cpp"],
         "//conditions:default": [],
     }) + select({
-        "//build/bazel/platforms/os:android": [
-            "android.cpp",
-        ],
-        "//build/bazel/platforms/os:darwin": [
-            "darwin.cpp",
-        ],
-        "//build/bazel/platforms/os:linux": [
-            "linux.cpp",
-        ],
+        "//build/bazel/platforms/os:android": ["android.cpp"],
+        "//build/bazel/platforms/os:darwin": ["darwin.cpp"],
+        "//build/bazel/platforms/os:linux": ["linux.cpp"],
         "//conditions:default": [],
     }),
 )`},
@@ -215,9 +191,7 @@ cc_library {
         "-Wunused",
         "-Werror",
     ],
-    deps = [
-        ":libc_headers",
-    ],
+    deps = [":libc_headers"],
     hdrs = [
         "linked_list.h",
         "linker.h",
@@ -232,17 +206,11 @@ cc_library {
         "-Wl,--exclude-libs=libclang_rt.builtins-i686-android.a",
         "-Wl,--exclude-libs=libclang_rt.builtins-x86_64-android.a",
     ] + select({
-        "//build/bazel/platforms/arch:x86": [
-            "-Wl,--exclude-libs=libgcc_eh.a",
-        ],
-        "//build/bazel/platforms/arch:x86_64": [
-            "-Wl,--exclude-libs=libgcc_eh.a",
-        ],
+        "//build/bazel/platforms/arch:x86": ["-Wl,--exclude-libs=libgcc_eh.a"],
+        "//build/bazel/platforms/arch:x86_64": ["-Wl,--exclude-libs=libgcc_eh.a"],
         "//conditions:default": [],
     }),
-    srcs = [
-        "ld_android.cpp",
-    ],
+    srcs = ["ld_android.cpp"],
 )`},
 		},
 	}

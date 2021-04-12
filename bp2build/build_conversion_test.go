@@ -27,9 +27,7 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		expectedBazelTarget string
 	}{
 		{
-			bp: `custom {
-	name: "foo",
-}
+			bp: `custom { name: "foo" }
 		`,
 			expectedBazelTarget: `soong_module(
     name = "foo",
@@ -85,9 +83,7 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
     soong_module_variant = "",
     soong_module_deps = [
     ],
-    required = [
-        "bar",
-    ],
+    required = ["bar"],
 )`,
 		},
 		{
@@ -116,12 +112,10 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 		targets: ["goal_foo"],
 		tag: ".foo",
 	},
-	dists: [
-		{
-			targets: ["goal_bar"],
-			tag: ".bar",
-		},
-	],
+	dists: [{
+		targets: ["goal_bar"],
+		tag: ".bar",
+	}],
 }
 		`,
 			expectedBazelTarget: `soong_module(
@@ -133,18 +127,12 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
     ],
     dist = {
         "tag": ".foo",
-        "targets": [
-            "goal_foo",
-        ],
+        "targets": ["goal_foo"],
     },
-    dists = [
-        {
-            "tag": ".bar",
-            "targets": [
-                "goal_bar",
-            ],
-        },
-    ],
+    dists = [{
+        "tag": ".bar",
+        "targets": ["goal_bar"],
+    }],
 )`,
 		},
 		{
@@ -169,19 +157,13 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
     soong_module_variant = "",
     soong_module_deps = [
     ],
-    dists = [
-        {
-            "tag": ".tag",
-            "targets": [
-                "my_goal",
-            ],
-        },
-    ],
+    dists = [{
+        "tag": ".tag",
+        "targets": ["my_goal"],
+    }],
     owner = "custom_owner",
     ramdisk = True,
-    required = [
-        "bar",
-    ],
+    required = ["bar"],
     target_required = [
         "qux",
         "bazqux",
@@ -553,9 +535,7 @@ genrule {
 }`,
 			expectedBazelTargets: []string{`filegroup(
     name = "fg_foo",
-    srcs = [
-        "b",
-    ],
+    srcs = ["b"],
 )`,
 			},
 		},
@@ -625,7 +605,7 @@ genrule {
 			bp: `filegroup {
     name: "foobar",
     srcs: [
-      ":foo",
+        ":foo",
         "c",
     ],
     bazel_module: { bp2build_available: true },
@@ -671,25 +651,15 @@ genrule {
 				`genrule(
     name = "foo",
     cmd = "$(location :foo.tool) --genDir=$(GENDIR) arg $(SRCS) $(OUTS)",
-    outs = [
-        "foo.out",
-    ],
-    srcs = [
-        "foo.in",
-    ],
-    tools = [
-        ":foo.tool",
-    ],
+    outs = ["foo.out"],
+    srcs = ["foo.in"],
+    tools = [":foo.tool"],
 )`,
 				`genrule(
     name = "foo.tool",
     cmd = "cp $(SRCS) $(OUTS)",
-    outs = [
-        "foo_tool.out",
-    ],
-    srcs = [
-        "foo_tool.in",
-    ],
+    outs = ["foo_tool.out"],
+    srcs = ["foo_tool.in"],
 )`,
 			},
 		},
@@ -718,15 +688,9 @@ genrule {
 			expectedBazelTargets: []string{`genrule(
     name = "foo",
     cmd = "$(locations :foo.tools) -s $(OUTS) $(SRCS)",
-    outs = [
-        "foo.out",
-    ],
-    srcs = [
-        "foo.in",
-    ],
-    tools = [
-        ":foo.tools",
-    ],
+    outs = ["foo.out"],
+    srcs = ["foo.in"],
+    tools = [":foo.tools"],
 )`,
 				`genrule(
     name = "foo.tools",
@@ -735,9 +699,7 @@ genrule {
         "foo_tool.out",
         "foo_tool2.out",
     ],
-    srcs = [
-        "foo_tool.in",
-    ],
+    srcs = ["foo_tool.in"],
 )`,
 			},
 		},
@@ -758,15 +720,9 @@ genrule {
 			expectedBazelTargets: []string{`genrule(
     name = "foo",
     cmd = "$(locations //other:foo.tool) -s $(OUTS) $(SRCS)",
-    outs = [
-        "foo.out",
-    ],
-    srcs = [
-        "foo.in",
-    ],
-    tools = [
-        "//other:foo.tool",
-    ],
+    outs = ["foo.out"],
+    srcs = ["foo.in"],
+    tools = ["//other:foo.tool"],
 )`,
 			},
 			fs: otherGenruleBp,
@@ -788,15 +744,9 @@ genrule {
 			expectedBazelTargets: []string{`genrule(
     name = "foo",
     cmd = "$(locations //other:foo.tool) -s $(OUTS) $(location //other:other.tool)",
-    outs = [
-        "foo.out",
-    ],
-    srcs = [
-        "//other:other.tool",
-    ],
-    tools = [
-        "//other:foo.tool",
-    ],
+    outs = ["foo.out"],
+    srcs = ["//other:other.tool"],
+    tools = ["//other:foo.tool"],
 )`,
 			},
 			fs: otherGenruleBp,
@@ -818,12 +768,8 @@ genrule {
 			expectedBazelTargets: []string{`genrule(
     name = "foo",
     cmd = "$(location //other:foo.tool) -s $(OUTS) $(SRCS)",
-    outs = [
-        "foo.out",
-    ],
-    srcs = [
-        "foo.in",
-    ],
+    outs = ["foo.out"],
+    srcs = ["foo.in"],
     tools = [
         "//other:foo.tool",
         "//other:other.tool",
@@ -849,12 +795,8 @@ genrule {
 			expectedBazelTargets: []string{`genrule(
     name = "foo",
     cmd = "$(locations //other:foo.tool) -s $(OUTS) $(SRCS)",
-    outs = [
-        "foo.out",
-    ],
-    srcs = [
-        "foo.in",
-    ],
+    outs = ["foo.out"],
+    srcs = ["foo.in"],
     tools = [
         "//other:foo.tool",
         "//other:other.tool",
@@ -879,12 +821,8 @@ genrule {
 			expectedBazelTargets: []string{`genrule(
     name = "foo",
     cmd = "cp $(SRCS) $(OUTS)",
-    outs = [
-        "foo.out",
-    ],
-    srcs = [
-        "foo.in",
-    ],
+    outs = ["foo.out"],
+    srcs = ["foo.in"],
 )`,
 			},
 		},
@@ -988,12 +926,8 @@ genrule {
 			expectedBazelTarget: `genrule(
     name = "gen",
     cmd = "do-something $(SRCS) $(OUTS)",
-    outs = [
-        "out",
-    ],
-    srcs = [
-        "in1",
-    ],
+    outs = ["out"],
+    srcs = ["in1"],
 )`,
 			description: "genrule applies properties from a genrule_defaults dependency if not specified",
 		},
@@ -1062,12 +996,8 @@ genrule {
 			expectedBazelTarget: `genrule(
     name = "gen",
     cmd = "cp $(SRCS) $(OUTS)",
-    outs = [
-        "out",
-    ],
-    srcs = [
-        "in1",
-    ],
+    outs = ["out"],
+    srcs = ["in1"],
 )`,
 			description: "genrule applies properties from list of genrule_defaults",
 		},
