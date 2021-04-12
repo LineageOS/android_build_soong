@@ -374,16 +374,9 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 		// value>)" to set the default value of unset attributes. In the cases
 		// where the bp2build converter didn't set the default value within the
 		// mutator when creating the BazelTargetModule, this would be a zero
-		// value. For those cases, we return a non-surprising default value so
-		// generated BUILD files are syntactically correct.
-		switch propertyValue.Kind() {
-		case reflect.Slice:
-			return "[]", nil
-		case reflect.Map:
-			return "{}", nil
-		default:
-			return "", nil
-		}
+		// value. For those cases, we return an empty string so we don't
+		// unnecessarily generate empty values.
+		return "", nil
 	}
 
 	var ret string
@@ -397,6 +390,10 @@ func prettyPrint(propertyValue reflect.Value, indent int) (string, error) {
 	case reflect.Ptr:
 		return prettyPrint(propertyValue.Elem(), indent)
 	case reflect.Slice:
+		if propertyValue.Len() == 0 {
+			return "", nil
+		}
+
 		ret = "[\n"
 		for i := 0; i < propertyValue.Len(); i++ {
 			indexedValue, err := prettyPrint(propertyValue.Index(i), indent+1)
