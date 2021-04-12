@@ -113,6 +113,7 @@ func ObjectFactory() android.Module {
 // For bp2build conversion.
 type bazelObjectAttributes struct {
 	Srcs               bazel.LabelListAttribute
+	Hdrs               bazel.LabelListAttribute
 	Deps               bazel.LabelListAttribute
 	Copts              bazel.StringListAttribute
 	Asflags            []string
@@ -156,16 +157,11 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 	}
 
 	// Set arch-specific configurable attributes
-	var srcs bazel.LabelListAttribute
+	copts, srcs, hdrs := bp2BuildParseCompilerProps(ctx, m)
 	var localIncludeDirs []string
 	var asFlags []string
 	for _, props := range m.compiler.compilerProps() {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
-			srcs = bazel.MakeLabelListAttribute(
-				android.BazelLabelForModuleSrcExcludes(
-					ctx,
-					baseCompilerProps.Srcs,
-					baseCompilerProps.Exclude_srcs))
 			localIncludeDirs = baseCompilerProps.Local_include_dirs
 			break
 		}
@@ -208,8 +204,9 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 
 	attrs := &bazelObjectAttributes{
 		Srcs:               srcs,
+		Hdrs:               hdrs,
 		Deps:               deps,
-		Copts:              bp2BuildParseCflags(ctx, m),
+		Copts:              copts,
 		Asflags:            asFlags,
 		Local_include_dirs: localIncludeDirs,
 	}
