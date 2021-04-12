@@ -75,8 +75,8 @@ func newContext(configuration android.Config, prepareBuildActions bool) *android
 	return ctx
 }
 
-func newConfig(srcDir, outDir string) android.Config {
-	configuration, err := android.NewConfig(srcDir, outDir, bootstrap.CmdlineModuleListFile())
+func newConfig(srcDir, outDir string, availableEnv map[string]string) android.Config {
+	configuration, err := android.NewConfig(srcDir, outDir, bootstrap.CmdlineModuleListFile(), availableEnv)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
@@ -188,12 +188,31 @@ func main() {
 
 	shared.ReexecWithDelveMaybe(delveListen, delvePath)
 	android.InitSandbox(topDir)
-	android.InitEnvironment(shared.JoinPath(topDir, outDir, "soong.environment.available"))
 
-	usedVariablesFile := shared.JoinPath(outDir, "soong.environment.used")
+	// soong_ui dumps the available environment variables to
+	// soong.environment.available . Then soong_build itself is run with an empty
+	// environment so that the only way environment variables can be accessed is
+	// using Config, which tracks access to them.
+
+	// At the end of the build, a file called soong.environment.used is written
+	// containing the current value of all used environment variables. The next
+	// time soong_ui is run, it checks whether any environment variables that was
+	// used had changed and if so, it deletes soong.environment.used to cause a
+	// rebuild.
+	//
+	// The dependency of build.ninja on soong.environment.used is declared in
+	// build.ninja.d
+	availableEnvFile := shared.JoinPath(topDir, outDir, "soong.environment.available")
+	usedEnvFile := shared.JoinPath(topDir, outDir, "soong.environment.used")
+	availableEnv, err := shared.EnvFromFile(availableEnvFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error reading available environment file %s: %s\n", availableEnvFile, err)
+		os.Exit(1)
+	}
+
 	// The top-level Blueprints file is passed as the first argument.
 	srcDir := filepath.Dir(flag.Arg(0))
-	configuration := newConfig(srcDir, outDir)
+	configuration := newConfig(srcDir, outDir, availableEnv)
 	extraNinjaDeps := []string{
 		configuration.ProductVariablesFileName,
 		shared.JoinPath(outDir, "soong.environment.used"),
@@ -219,19 +238,19 @@ func main() {
 	}
 
 	doChosenActivity(configuration, extraNinjaDeps)
-	writeUsedVariablesFile(shared.JoinPath(topDir, usedVariablesFile), configuration)
+	writeUsedEnvironmentFile(usedEnvFile, configuration)
 }
 
-func writeUsedVariablesFile(path string, configuration android.Config) {
+func writeUsedEnvironmentFile(path string, configuration android.Config) {
 	data, err := shared.EnvFileContents(configuration.EnvDeps())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error writing used variables file %s: %s\n", path, err)
+		fmt.Fprintf(os.Stderr, "error writing used environment file %s: %s\n", path, err)
 		os.Exit(1)
 	}
 
 	err = ioutil.WriteFile(path, data, 0666)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error writing used variables file %s: %s\n", path, err)
+		fmt.Fprintf(os.Stderr, "error writing used environment file %s: %s\n", path, err)
 		os.Exit(1)
 	}
 
