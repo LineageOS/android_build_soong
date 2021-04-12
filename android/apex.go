@@ -919,7 +919,7 @@ func CheckMinSdkVersion(m UpdatableModule, ctx ModuleContext, minSdkVersion ApiL
 					"Consider adding 'min_sdk_version: %q' to %q",
 					minSdkVersion, ctx.ModuleName(), err.Error(),
 					ctx.GetPathString(false),
-					minSdkVersion, ctx.ModuleName())
+					minSdkVersion, toName)
 				return false
 			}
 		}
