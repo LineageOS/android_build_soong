@@ -23,7 +23,7 @@ import (
 
 const (
 	// See cc/testing.go for more context
-	soongCcLibraryPreamble = `
+	soongCcLibraryHeadersPreamble = `
 cc_defaults {
 	name: "linux_bionic_supported",
 }
@@ -98,7 +98,7 @@ func TestCcLibraryHeadersBp2Build(t *testing.T) {
 				"arch_x86_exported_include_dir/b.h":    "",
 				"arch_x86_64_exported_include_dir/c.h": "",
 			},
-			bp: soongCcLibraryPreamble + `
+			bp: soongCcLibraryHeadersPreamble + `
 cc_library_headers {
     name: "lib-1",
     export_include_dirs: ["lib-1"],
@@ -278,7 +278,7 @@ cc_library_headers {
     name = "exported-lib",
 )`, `cc_library_headers(
     name = "foo_headers",
-    deps = [] + select({
+    deps = select({
         "//build/bazel/platforms/os:android": [
             ":android-lib",
             ":exported-lib",
