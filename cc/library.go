@@ -426,7 +426,8 @@ type libraryDecorator struct {
 	tocFile android.OptionalPath
 
 	flagExporter
-	stripper Stripper
+	flagExporterInfo *FlagExporterInfo
+	stripper         Stripper
 
 	// For whole_static_libs
 	objects Objects

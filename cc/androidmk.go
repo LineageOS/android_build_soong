@@ -191,17 +191,31 @@ func makeOverrideModuleNames(ctx AndroidMkContext, overrides []string) []string 
 }
 
 func (library *libraryDecorator) androidMkWriteExportedFlags(entries *android.AndroidMkEntries) {
-	exportedFlags := library.flagExporter.flags
-	for _, dir := range library.flagExporter.dirs {
+	var exportedFlags []string
+	var includeDirs android.Paths
+	var systemIncludeDirs android.Paths
+	var exportedDeps android.Paths
+
+	if library.flagExporterInfo != nil {
+		exportedFlags = library.flagExporterInfo.Flags
+		includeDirs = library.flagExporterInfo.IncludeDirs
+		systemIncludeDirs = library.flagExporterInfo.SystemIncludeDirs
+		exportedDeps = library.flagExporterInfo.Deps
+	} else {
+		exportedFlags = library.flagExporter.flags
+		includeDirs = library.flagExporter.dirs
+		systemIncludeDirs = library.flagExporter.systemDirs
+		exportedDeps = library.flagExporter.deps
+	}
+	for _, dir := range includeDirs {
 		exportedFlags = append(exportedFlags, "-I"+dir.String())
 	}
-	for _, dir := range library.flagExporter.systemDirs {
+	for _, dir := range systemIncludeDirs {
 		exportedFlags = append(exportedFlags, "-isystem "+dir.String())
 	}
 	if len(exportedFlags) > 0 {
 		entries.AddStrings("LOCAL_EXPORT_CFLAGS", exportedFlags...)
 	}
-	exportedDeps := library.flagExporter.deps
 	if len(exportedDeps) > 0 {
 		entries.AddStrings("LOCAL_EXPORT_C_INCLUDE_DEPS", exportedDeps.Strings()...)
 	}
