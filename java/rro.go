@@ -141,23 +141,23 @@ func (r *RuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.ModuleC
 	ctx.InstallFile(r.installDir, r.outputFile.Base(), r.outputFile)
 }
 
-func (r *RuntimeResourceOverlay) SdkVersion() android.SdkSpec {
-	return android.SdkSpecFrom(String(r.properties.Sdk_version))
+func (r *RuntimeResourceOverlay) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return android.SdkSpecFrom(ctx, String(r.properties.Sdk_version))
 }
 
 func (r *RuntimeResourceOverlay) SystemModules() string {
 	return ""
 }
 
-func (r *RuntimeResourceOverlay) MinSdkVersion() android.SdkSpec {
+func (r *RuntimeResourceOverlay) MinSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
 	if r.properties.Min_sdk_version != nil {
-		return android.SdkSpecFrom(*r.properties.Min_sdk_version)
+		return android.SdkSpecFrom(ctx, *r.properties.Min_sdk_version)
 	}
-	return r.SdkVersion()
+	return r.SdkVersion(ctx)
 }
 
-func (r *RuntimeResourceOverlay) TargetSdkVersion() android.SdkSpec {
-	return r.SdkVersion()
+func (r *RuntimeResourceOverlay) TargetSdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+	return r.SdkVersion(ctx)
 }
 
 func (r *RuntimeResourceOverlay) Certificate() Certificate {
