@@ -2756,7 +2756,7 @@ func TestAndroidMkWritesCommonProperties(t *testing.T) {
 	data.Custom(&builder, name, prefix, "", data)
 	androidMk := builder.String()
 	ensureContains(t, androidMk, "LOCAL_VINTF_FRAGMENTS := fragment.xml\n")
-	ensureContains(t, androidMk, "LOCAL_INIT_RC := init.rc\n")
+	ensureContains(t, androidMk, "LOCAL_FULL_INIT_RC := init.rc\n")
 }
 
 func TestStaticLinking(t *testing.T) {

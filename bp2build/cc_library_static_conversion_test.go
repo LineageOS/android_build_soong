@@ -194,6 +194,8 @@ cc_library_static {
         ":whole_static_lib_2",
     ],
     hdrs = [
+        "implicit_include_1.h",
+        "implicit_include_2.h",
         "export_include_dir_1/export_include_dir_1_a.h",
         "export_include_dir_1/export_include_dir_1_b.h",
         "export_include_dir_2/export_include_dir_2_a.h",
@@ -212,8 +214,6 @@ cc_library_static {
     srcs = [
         "foo_static1.cc",
         "foo_static2.cc",
-        "implicit_include_1.h",
-        "implicit_include_2.h",
         "include_dir_1/include_dir_1_a.h",
         "include_dir_1/include_dir_1_b.h",
         "include_dir_2/include_dir_2_a.h",
@@ -222,50 +222,60 @@ cc_library_static {
         "local_include_dir_1/local_include_dir_1_b.h",
         "local_include_dir_2/local_include_dir_2_a.h",
         "local_include_dir_2/local_include_dir_2_b.h",
+        "implicit_include_1.h",
+        "implicit_include_2.h",
     ],
 )`, `cc_library_static(
     name = "static_lib_1",
-    includes = [
-        ".",
-    ],
-    linkstatic = True,
-    srcs = [
+    hdrs = [
         "implicit_include_1.h",
         "implicit_include_2.h",
+    ],
+    includes = ["."],
+    linkstatic = True,
+    srcs = [
         "static_lib_1.cc",
+        "implicit_include_1.h",
+        "implicit_include_2.h",
     ],
 )`, `cc_library_static(
     name = "static_lib_2",
-    includes = [
-        ".",
-    ],
-    linkstatic = True,
-    srcs = [
+    hdrs = [
         "implicit_include_1.h",
         "implicit_include_2.h",
+    ],
+    includes = ["."],
+    linkstatic = True,
+    srcs = [
         "static_lib_2.cc",
+        "implicit_include_1.h",
+        "implicit_include_2.h",
     ],
 )`, `cc_library_static(
     name = "whole_static_lib_1",
-    includes = [
-        ".",
-    ],
-    linkstatic = True,
-    srcs = [
+    hdrs = [
         "implicit_include_1.h",
         "implicit_include_2.h",
+    ],
+    includes = ["."],
+    linkstatic = True,
+    srcs = [
         "whole_static_lib_1.cc",
+        "implicit_include_1.h",
+        "implicit_include_2.h",
     ],
 )`, `cc_library_static(
     name = "whole_static_lib_2",
-    includes = [
-        ".",
-    ],
-    linkstatic = True,
-    srcs = [
+    hdrs = [
         "implicit_include_1.h",
         "implicit_include_2.h",
+    ],
+    includes = ["."],
+    linkstatic = True,
+    srcs = [
         "whole_static_lib_2.cc",
+        "implicit_include_1.h",
+        "implicit_include_2.h",
     ],
 )`},
 		},

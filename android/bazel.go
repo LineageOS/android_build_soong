@@ -174,6 +174,18 @@ var (
 		"liblinker_debuggerd_stub",      // ruperts@, cc_library_static, depends on //system/libbase
 		"libbionic_tests_headers_posix", // ruperts@, cc_library_static
 		"libc_dns",                      // ruperts@, cc_library_static
+
+		"note_memtag_heap_async", // jingwen@, b/185079815, features.h includes not found
+		"note_memtag_heap_sync",  // jingwen@, b/185079815, features.h includes not found
+
+		// List of all full_cc_libraries in //bionic, with their immediate failures
+		"libc",              // jingwen@, cc_library, depends on //external/gwp_asan
+		"libc_malloc_debug", // jingwen@, cc_library, fatal error: 'assert.h' file not found
+		"libc_malloc_hooks", // jingwen@, cc_library, fatal error: 'errno.h' file not found
+		"libdl",             // jingwen@, cc_library, ld.lld: error: no input files
+		"libm",              // jingwen@, cc_library, fatal error: 'freebsd-compat.h' file not found
+		"libseccomp_policy", // jingwen@, cc_library, fatal error: 'seccomp_policy.h' file not found
+		"libstdc++",         // jingwen@, cc_library, depends on //external/gwp_asan
 	}
 
 	// Used for quicker lookups

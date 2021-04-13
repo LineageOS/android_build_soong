@@ -23,7 +23,7 @@ import (
 
 const (
 	// See cc/testing.go for more context
-	soongCcLibraryPreamble = `
+	soongCcLibraryHeadersPreamble = `
 cc_defaults {
 	name: "linux_bionic_supported",
 }
@@ -98,7 +98,7 @@ func TestCcLibraryHeadersBp2Build(t *testing.T) {
 				"arch_x86_exported_include_dir/b.h":    "",
 				"arch_x86_64_exported_include_dir/c.h": "",
 			},
-			bp: soongCcLibraryPreamble + `
+			bp: soongCcLibraryHeadersPreamble + `
 cc_library_headers {
     name: "lib-1",
     export_include_dirs: ["lib-1"],
@@ -141,30 +141,18 @@ cc_library_headers {
         "dir-2/dir2a.h",
         "dir-2/dir2b.h",
     ] + select({
-        "//build/bazel/platforms/arch:arm64": [
-            "arch_arm64_exported_include_dir/a.h",
-        ],
-        "//build/bazel/platforms/arch:x86": [
-            "arch_x86_exported_include_dir/b.h",
-        ],
-        "//build/bazel/platforms/arch:x86_64": [
-            "arch_x86_64_exported_include_dir/c.h",
-        ],
+        "//build/bazel/platforms/arch:arm64": ["arch_arm64_exported_include_dir/a.h"],
+        "//build/bazel/platforms/arch:x86": ["arch_x86_exported_include_dir/b.h"],
+        "//build/bazel/platforms/arch:x86_64": ["arch_x86_64_exported_include_dir/c.h"],
         "//conditions:default": [],
     }),
     includes = [
         "dir-1",
         "dir-2",
     ] + select({
-        "//build/bazel/platforms/arch:arm64": [
-            "arch_arm64_exported_include_dir",
-        ],
-        "//build/bazel/platforms/arch:x86": [
-            "arch_x86_exported_include_dir",
-        ],
-        "//build/bazel/platforms/arch:x86_64": [
-            "arch_x86_64_exported_include_dir",
-        ],
+        "//build/bazel/platforms/arch:arm64": ["arch_arm64_exported_include_dir"],
+        "//build/bazel/platforms/arch:x86": ["arch_x86_exported_include_dir"],
+        "//build/bazel/platforms/arch:x86_64": ["arch_x86_64_exported_include_dir"],
         "//conditions:default": [],
     }),
 )`, `cc_library_headers(
@@ -173,18 +161,14 @@ cc_library_headers {
         "lib-1/lib1a.h",
         "lib-1/lib1b.h",
     ],
-    includes = [
-        "lib-1",
-    ],
+    includes = ["lib-1"],
 )`, `cc_library_headers(
     name = "lib-2",
     hdrs = [
         "lib-2/lib2a.h",
         "lib-2/lib2b.h",
     ],
-    includes = [
-        "lib-2",
-    ],
+    includes = ["lib-2"],
 )`},
 		},
 		{
@@ -223,27 +207,13 @@ cc_library_headers {
     name = "darwin-lib",
 )`, `cc_library_headers(
     name = "foo_headers",
-    deps = [
-        ":base-lib",
-    ] + select({
-        "//build/bazel/platforms/os:android": [
-            ":android-lib",
-        ],
-        "//build/bazel/platforms/os:darwin": [
-            ":darwin-lib",
-        ],
-        "//build/bazel/platforms/os:fuchsia": [
-            ":fuchsia-lib",
-        ],
-        "//build/bazel/platforms/os:linux": [
-            ":linux-lib",
-        ],
-        "//build/bazel/platforms/os:linux_bionic": [
-            ":linux_bionic-lib",
-        ],
-        "//build/bazel/platforms/os:windows": [
-            ":windows-lib",
-        ],
+    deps = [":base-lib"] + select({
+        "//build/bazel/platforms/os:android": [":android-lib"],
+        "//build/bazel/platforms/os:darwin": [":darwin-lib"],
+        "//build/bazel/platforms/os:fuchsia": [":fuchsia-lib"],
+        "//build/bazel/platforms/os:linux": [":linux-lib"],
+        "//build/bazel/platforms/os:linux_bionic": [":linux_bionic-lib"],
+        "//build/bazel/platforms/os:windows": [":windows-lib"],
         "//conditions:default": [],
     }),
 )`, `cc_library_headers(
@@ -278,7 +248,7 @@ cc_library_headers {
     name = "exported-lib",
 )`, `cc_library_headers(
     name = "foo_headers",
-    deps = [] + select({
+    deps = select({
         "//build/bazel/platforms/os:android": [
             ":android-lib",
             ":exported-lib",

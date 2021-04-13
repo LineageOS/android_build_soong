@@ -1,0 +1,172 @@
+// Copyright (C) 2021 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package java
+
+import (
+	"android/soong/android"
+)
+
+// Contains support for processing hiddenAPI in a modular fashion.
+
+// HiddenAPIAugmentationProperties contains paths to the files that can be used to augment the information
+// obtained from annotations within the source code in order to create the complete set of flags
+// that should be applied to the dex implementation jars on the bootclasspath.
+//
+// Each property contains a list of paths. With the exception of the Unsupported_packages the paths
+// of each property reference a plain text file that contains a java signature per line. The flags
+// for each of those signatures will be updated in a property specific way.
+//
+// The Unsupported_packages property contains a list of paths, each of which is a plain text file
+// with one Java package per line. All members of all classes within that package (but not nested
+// packages) will be updated in a property specific way.
+type HiddenAPIAugmentationProperties struct {
+	// Marks each signature in the referenced files as being unsupported.
+	Unsupported []string `android:"path"`
+
+	// Marks each signature in the referenced files as being unsupported because it has been removed.
+	// Any conflicts with other flags are ignored.
+	Removed []string `android:"path"`
+
+	// Marks each signature in the referenced files as being supported only for targetSdkVersion <= R
+	// and low priority.
+	Max_target_r_low_priority []string `android:"path"`
+
+	// Marks each signature in the referenced files as being supported only for targetSdkVersion <= Q.
+	Max_target_q []string `android:"path"`
+
+	// Marks each signature in the referenced files as being supported only for targetSdkVersion <= P.
+	Max_target_p []string `android:"path"`
+
+	// Marks each signature in the referenced files as being supported only for targetSdkVersion <= O
+	// and low priority. Any conflicts with other flags are ignored.
+	Max_target_o_low_priority []string `android:"path"`
+
+	// Marks each signature in the referenced files as being blocked.
+	Blocked []string `android:"path"`
+
+	// Marks each signature in every package in the referenced files as being unsupported.
+	Unsupported_packages []string `android:"path"`
+}
+
+func (p *HiddenAPIAugmentationProperties) hiddenAPIAugmentationInfo(ctx android.ModuleContext) hiddenAPIAugmentationInfo {
+	paths := func(paths []string) android.Paths { return android.PathsForModuleSrc(ctx, paths) }
+	return hiddenAPIAugmentationInfo{
+		Unsupported:               paths(p.Unsupported),
+		Removed:                   paths(p.Removed),
+		Max_target_r_low_priority: paths(p.Max_target_r_low_priority),
+		Max_target_q:              paths(p.Max_target_q),
+		Max_target_p:              paths(p.Max_target_p),
+		Max_target_o_low_priority: paths(p.Max_target_o_low_priority),
+		Blocked:                   paths(p.Blocked),
+		Unsupported_packages:      paths(p.Unsupported_packages),
+	}
+}
+
+// hiddenAPIAugmentationInfo contains paths resolved from HiddenAPIAugmentationProperties
+type hiddenAPIAugmentationInfo struct {
+	// See HiddenAPIAugmentationProperties.Unsupported
+	Unsupported android.Paths
+
+	// See HiddenAPIAugmentationProperties.Removed
+	Removed android.Paths
+
+	// See HiddenAPIAugmentationProperties.Max_target_r_low_priority
+	Max_target_r_low_priority android.Paths
+
+	// See HiddenAPIAugmentationProperties.Max_target_q
+	Max_target_q android.Paths
+
+	// See HiddenAPIAugmentationProperties.Max_target_p
+	Max_target_p android.Paths
+
+	// See HiddenAPIAugmentationProperties.Max_target_o_low_priority
+	Max_target_o_low_priority android.Paths
+
+	// See HiddenAPIAugmentationProperties.Blocked
+	Blocked android.Paths
+
+	// See HiddenAPIAugmentationProperties.Unsupported_packages
+	Unsupported_packages android.Paths
+}
+
+// ruleToGenerateHiddenApiFlags creates a rule to create the monolithic hidden API flags from the
+// flags from all the modules, the stub flags, augmented with some additional configuration files.
+//
+// baseFlagsPath is the path to the flags file containing all the information from the stubs plus
+// an entry for every single member in the dex implementation jars of the individual modules. Every
+// signature in any of the other files MUST be included in this file.
+//
+// moduleSpecificFlagsPaths are the paths to the flags files generated by each module using
+// information from the baseFlagsPath as well as from annotations within the source.
+//
+// augmentationInfo is a struct containing paths to files that augment the information provided by
+// the moduleSpecificFlagsPaths.
+// ruleToGenerateHiddenApiFlags creates a rule to create the monolithic hidden API flags from the
+// flags from all the modules, the stub flags, augmented with some additional configuration files.
+//
+// baseFlagsPath is the path to the flags file containing all the information from the stubs plus
+// an entry for every single member in the dex implementation jars of the individual modules. Every
+// signature in any of the other files MUST be included in this file.
+//
+// moduleSpecificFlagsPaths are the paths to the flags files generated by each module using
+// information from the baseFlagsPath as well as from annotations within the source.
+//
+// augmentationInfo is a struct containing paths to files that augment the information provided by
+// the moduleSpecificFlagsPaths.
+func ruleToGenerateHiddenApiFlags(ctx android.BuilderContext, outputPath android.WritablePath, baseFlagsPath android.Path, moduleSpecificFlagsPaths android.Paths, augmentationInfo hiddenAPIAugmentationInfo) {
+	tempPath := android.PathForOutput(ctx, outputPath.Rel()+".tmp")
+	rule := android.NewRuleBuilder(pctx, ctx)
+	command := rule.Command().
+		BuiltTool("generate_hiddenapi_lists").
+		FlagWithInput("--csv ", baseFlagsPath).
+		Inputs(moduleSpecificFlagsPaths).
+		FlagWithOutput("--output ", tempPath)
+
+	for _, path := range augmentationInfo.Unsupported {
+		command.FlagWithInput("--unsupported ", path)
+	}
+
+	for _, path := range augmentationInfo.Removed {
+		command.FlagWithInput("--unsupported ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed")
+	}
+
+	for _, path := range augmentationInfo.Max_target_r_low_priority {
+		command.FlagWithInput("--max-target-r ", path).FlagWithArg("--tag ", "lo-prio")
+	}
+
+	for _, path := range augmentationInfo.Max_target_q {
+		command.FlagWithInput("--max-target-q ", path)
+	}
+
+	for _, path := range augmentationInfo.Max_target_p {
+		command.FlagWithInput("--max-target-p ", path)
+	}
+
+	for _, path := range augmentationInfo.Max_target_o_low_priority {
+		command.FlagWithInput("--max-target-o ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio")
+	}
+
+	for _, path := range augmentationInfo.Blocked {
+		command.FlagWithInput("--blocked ", path)
+	}
+
+	for _, path := range augmentationInfo.Unsupported_packages {
+		command.FlagWithInput("--unsupported ", path).Flag("--packages ")
+	}
+
+	commitChangeForRestat(rule, tempPath, outputPath)
+
+	rule.Build("hiddenAPIFlagsFile", "hiddenapi flags")
+}
