@@ -73,13 +73,13 @@ type platformBootclasspathModule struct {
 	fragments []android.Module
 
 	// Path to the monolithic hiddenapi-flags.csv file.
-	hiddenAPIFlagsCSV android.Path
+	hiddenAPIFlagsCSV android.OutputPath
 
 	// Path to the monolithic hiddenapi-index.csv file.
-	hiddenAPIIndexCSV android.Path
+	hiddenAPIIndexCSV android.OutputPath
 
 	// Path to the monolithic hiddenapi-unsupported.csv file.
-	hiddenAPIMetadataCSV android.Path
+	hiddenAPIMetadataCSV android.OutputPath
 }
 
 // ApexVariantReference specifies a particular apex variant of a module.
@@ -265,6 +265,20 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	b.hiddenAPIFlagsCSV = hiddenAPISingletonPaths(ctx).flags
 	b.hiddenAPIIndexCSV = hiddenAPISingletonPaths(ctx).index
 	b.hiddenAPIMetadataCSV = hiddenAPISingletonPaths(ctx).metadata
+
+	// Don't run any hiddenapi rules if UNSAFE_DISABLE_HIDDENAPI_FLAGS=true. This is a performance
+	// optimization that can be used to reduce the incremental build time but as its name suggests it
+	// can be unsafe to use, e.g. when the changes affect anything that goes on the bootclasspath.
+	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+		paths := android.OutputPaths{b.hiddenAPIFlagsCSV, b.hiddenAPIIndexCSV, b.hiddenAPIMetadataCSV}
+		for _, path := range paths {
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.Touch,
+				Output: path,
+			})
+		}
+		return
+	}
 
 	moduleSpecificFlagsPaths := android.Paths{}
 	for _, module := range modules {
