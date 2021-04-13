@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"android/soong/android"
-	"android/soong/genrule"
 )
 
 func init() {
@@ -321,63 +320,10 @@ func prebuiltFlagsRule(ctx android.SingletonContext) android.Path {
 	return outputPath
 }
 
-// flagsRule creates a rule to build hiddenapi-flags.csv out of flags.csv files generated for boot image modules and
-// the unsupported API.
+// flagsRule is a placeholder that simply returns the location of the file, the generation of the
+// ninja rules is done in generateHiddenAPIBuildActions.
 func flagsRule(ctx android.SingletonContext) android.Path {
-	var flagsCSV android.Paths
-	var combinedRemovedApis android.Path
-
-	ctx.VisitAllModules(func(module android.Module) {
-		if h, ok := module.(hiddenAPIIntf); ok {
-			if csv := h.flagsCSV(); csv != nil {
-				flagsCSV = append(flagsCSV, csv)
-			}
-		} else if g, ok := module.(*genrule.Module); ok {
-			if ctx.ModuleName(module) == "combined-removed-dex" {
-				if len(g.GeneratedSourceFiles()) != 1 || combinedRemovedApis != nil {
-					ctx.Errorf("Expected 1 combined-removed-dex module that generates 1 output file.")
-				}
-				combinedRemovedApis = g.GeneratedSourceFiles()[0]
-			}
-		}
-	})
-
-	if combinedRemovedApis == nil {
-		ctx.Errorf("Failed to find combined-removed-dex.")
-	}
-
-	rule := android.NewRuleBuilder(pctx, ctx)
-
 	outputPath := hiddenAPISingletonPaths(ctx).flags
-	tempPath := android.PathForOutput(ctx, outputPath.Rel()+".tmp")
-
-	stubFlags := hiddenAPISingletonPaths(ctx).stubFlags
-
-	rule.Command().
-		BuiltTool("generate_hiddenapi_lists").
-		FlagWithInput("--csv ", stubFlags).
-		Inputs(flagsCSV).
-		FlagWithInput("--unsupported ",
-			android.PathForSource(ctx, "frameworks/base/boot/hiddenapi/hiddenapi-unsupported.txt")).
-		FlagWithInput("--unsupported ", combinedRemovedApis).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed").
-		FlagWithInput("--max-target-r ",
-			android.PathForSource(ctx, "frameworks/base/boot/hiddenapi/hiddenapi-max-target-r-loprio.txt")).FlagWithArg("--tag ", "lo-prio").
-		FlagWithInput("--max-target-q ",
-			android.PathForSource(ctx, "frameworks/base/boot/hiddenapi/hiddenapi-max-target-q.txt")).
-		FlagWithInput("--max-target-p ",
-			android.PathForSource(ctx, "frameworks/base/boot/hiddenapi/hiddenapi-max-target-p.txt")).
-		FlagWithInput("--max-target-o ", android.PathForSource(
-			ctx, "frameworks/base/boot/hiddenapi/hiddenapi-max-target-o.txt")).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio").
-		FlagWithInput("--blocked ",
-			android.PathForSource(ctx, "frameworks/base/boot/hiddenapi/hiddenapi-force-blocked.txt")).
-		FlagWithInput("--unsupported ", android.PathForSource(
-			ctx, "frameworks/base/boot/hiddenapi/hiddenapi-unsupported-packages.txt")).Flag("--packages ").
-		FlagWithOutput("--output ", tempPath)
-
-	commitChangeForRestat(rule, tempPath, outputPath)
-
-	rule.Build("hiddenAPIFlagsFile", "hiddenapi flags")
-
 	return outputPath
 }
 

@@ -84,10 +84,11 @@ type ApexVariantReference struct {
 }
 
 type platformBootclasspathProperties struct {
-
 	// The names of the bootclasspath_fragment modules that form part of this
 	// platform_bootclasspath.
 	Fragments []ApexVariantReference
+
+	Hidden_api HiddenAPIAugmentationProperties
 }
 
 func platformBootclasspathFactory() android.Module {
@@ -191,6 +192,8 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 		}
 	})
 
+	b.generateHiddenAPIBuildActions(ctx, b.configuredModules)
+
 	// Nothing to do if skipping the dexpreopt of boot image jars.
 	if SkipDexpreoptBootJars(ctx) {
 		return
@@ -214,4 +217,25 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 
 func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
 	return defaultBootImageConfig(ctx)
+}
+
+// generateHiddenAPIBuildActions generates all the hidden API related build rules.
+func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, modules []android.Module) {
+
+	moduleSpecificFlagsPaths := android.Paths{}
+	for _, module := range modules {
+		if h, ok := module.(hiddenAPIIntf); ok {
+			if csv := h.flagsCSV(); csv != nil {
+				moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, csv)
+			}
+		} else {
+			ctx.ModuleErrorf("module %s of type %s does not implement hiddenAPIIntf", module, ctx.OtherModuleType(module))
+		}
+	}
+
+	augmentationInfo := b.properties.Hidden_api.hiddenAPIAugmentationInfo(ctx)
+
+	outputPath := hiddenAPISingletonPaths(ctx).flags
+	baseFlagsPath := hiddenAPISingletonPaths(ctx).stubFlags
+	ruleToGenerateHiddenApiFlags(ctx, outputPath, baseFlagsPath, moduleSpecificFlagsPaths, augmentationInfo)
 }
