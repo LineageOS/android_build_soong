@@ -135,45 +135,45 @@ var (
 
 	// Per-module denylist to always opt modules out.
 	bp2buildModuleDoNotConvertList = []string{
-		"libBionicBenchmarksUtils",      // ruperts@, cc_library_static
+		"libBionicBenchmarksUtils",      // ruperts@, cc_library_static, 'map' file not found
 		"libbionic_spawn_benchmark",     // ruperts@, cc_library_static, depends on //system/libbase
 		"libc_jemalloc_wrapper",         // ruperts@, cc_library_static, depends on //external/jemalloc_new
-		"libc_bootstrap",                // ruperts@, cc_library_static
-		"libc_init_static",              // ruperts@, cc_library_static
-		"libc_init_dynamic",             // ruperts@, cc_library_static
-		"libc_tzcode",                   // ruperts@, cc_library_static
-		"libc_freebsd",                  // ruperts@, cc_library_static
-		"libc_freebsd_large_stack",      // ruperts@, cc_library_static
-		"libc_netbsd",                   // ruperts@, cc_library_static
-		"libc_openbsd_ndk",              // ruperts@, cc_library_static
-		"libc_openbsd_large_stack",      // ruperts@, cc_library_static
-		"libc_openbsd",                  // ruperts@, cc_library_static
-		"libc_gdtoa",                    // ruperts@, cc_library_static
-		"libc_fortify",                  // ruperts@, cc_library_static
-		"libc_bionic",                   // ruperts@, cc_library_static
+		"libc_bootstrap",                // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_init_static",              // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_init_dynamic",             // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_tzcode",                   // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_freebsd",                  // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_freebsd_large_stack",      // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_netbsd",                   // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_openbsd_ndk",              // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_openbsd_large_stack",      // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_openbsd",                  // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_gdtoa",                    // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_fortify",                  // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_bionic",                   // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
 		"libc_bionic_ndk",               // ruperts@, cc_library_static, depends on //bionic/libc/system_properties
-		"libc_bionic_systrace",          // ruperts@, cc_library_static
-		"libc_pthread",                  // ruperts@, cc_library_static
-		"libc_syscalls",                 // ruperts@, cc_library_static
-		"libc_aeabi",                    // ruperts@, cc_library_static
+		"libc_bionic_systrace",          // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_pthread",                  // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_syscalls",                 // ruperts@, cc_library_static, mutator panic cannot get direct dep syscalls-arm64.S of libc_syscalls
+		"libc_aeabi",                    // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
 		"libc_ndk",                      // ruperts@, cc_library_static, depends on //bionic/libm:libm
 		"libc_nopthread",                // ruperts@, cc_library_static, depends on //external/arm-optimized-routines
 		"libc_common",                   // ruperts@, cc_library_static, depends on //bionic/libc:libc_nopthread
-		"libc_static_dispatch",          // ruperts@, cc_library_static
-		"libc_dynamic_dispatch",         // ruperts@, cc_library_static
+		"libc_static_dispatch",          // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_dynamic_dispatch",         // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
 		"libc_common_static",            // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
 		"libc_common_shared",            // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
-		"libc_unwind_static",            // ruperts@, cc_library_static
+		"libc_unwind_static",            // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
 		"libc_nomalloc",                 // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
-		"libasync_safe",                 // ruperts@, cc_library_static
+		"libasync_safe",                 // ruperts@, cc_library_static, 'private/CachedProperty.h' file not found
 		"libc_malloc_debug_backtrace",   // ruperts@, cc_library_static, depends on //system/libbase
 		"libsystemproperties",           // ruperts@, cc_library_static, depends on //system/core/property_service/libpropertyinfoparser
-		"libdl_static",                  // ruperts@, cc_library_static
+		"libdl_static",                  // ruperts@, cc_library_static, 'private/CFIShadow.h' file not found
 		"liblinker_main",                // ruperts@, cc_library_static, depends on //system/libbase
 		"liblinker_malloc",              // ruperts@, cc_library_static, depends on //system/logging/liblog:liblog
 		"liblinker_debuggerd_stub",      // ruperts@, cc_library_static, depends on //system/libbase
-		"libbionic_tests_headers_posix", // ruperts@, cc_library_static
-		"libc_dns",                      // ruperts@, cc_library_static
+		"libbionic_tests_headers_posix", // ruperts@, cc_library_static, 'complex.h' file not found
+		"libc_dns",                      // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
 
 		"note_memtag_heap_async", // jingwen@, b/185079815, features.h includes not found
 		"note_memtag_heap_sync",  // jingwen@, b/185079815, features.h includes not found
