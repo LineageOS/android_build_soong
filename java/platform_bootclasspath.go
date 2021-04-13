@@ -261,16 +261,10 @@ func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleCont
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
 func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, modules []android.Module) {
 
-	// Save the paths to the monolithic files for retrieval via OutputFiles()
-	// Make the paths relative to the out/soong/hiddenapi directory instead of to the out/soong/
-	// directory. This ensures that if they are used as java_resources they do not end up in a
-	// hiddenapi directory in the resulting APK.
-	relToHiddenapiDir := func(path android.OutputPath) android.Path {
-		return path
-	}
-	b.hiddenAPIFlagsCSV = relToHiddenapiDir(hiddenAPISingletonPaths(ctx).flags)
-	b.hiddenAPIIndexCSV = relToHiddenapiDir(hiddenAPISingletonPaths(ctx).index)
-	b.hiddenAPIMetadataCSV = relToHiddenapiDir(hiddenAPISingletonPaths(ctx).metadata)
+	// Save the paths to the monolithic files for retrieval via OutputFiles().
+	b.hiddenAPIFlagsCSV = hiddenAPISingletonPaths(ctx).flags
+	b.hiddenAPIIndexCSV = hiddenAPISingletonPaths(ctx).index
+	b.hiddenAPIMetadataCSV = hiddenAPISingletonPaths(ctx).metadata
 
 	moduleSpecificFlagsPaths := android.Paths{}
 	for _, module := range modules {
