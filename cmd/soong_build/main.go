@@ -25,6 +25,7 @@ import (
 
 	"android/soong/bp2build"
 	"android/soong/shared"
+
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/deptools"
 
@@ -389,9 +390,7 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	blueprintArgs := bootstrap.CmdlineArgs
 	ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, bp2buildCtx.Context, configuration, extraNinjaDeps...)
 
-	for _, globPath := range bp2buildCtx.Globs() {
-		ninjaDeps = append(ninjaDeps, globPath.FileListFile(configuration.BuildDir()))
-	}
+	ninjaDeps = append(ninjaDeps, bootstrap.GlobFileListFiles(configuration)...)
 
 	depFile := bp2buildMarker + ".d"
 	err = deptools.WriteDepFile(shared.JoinPath(topDir, depFile), bp2buildMarker, ninjaDeps)
