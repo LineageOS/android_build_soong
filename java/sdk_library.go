@@ -1512,7 +1512,7 @@ func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion andr
 	// force override sdk_version to module_current so that the closest possible API
 	// surface could be found in selectHeaderJarsForSdkVersion
 	if module.defaultsToStubs() && !sdkVersion.Specified() {
-		sdkVersion = android.SdkSpecFrom("module_current")
+		sdkVersion = android.SdkSpecFrom(ctx, "module_current")
 	}
 
 	// Only provide access to the implementation library if it is actually built.
