@@ -117,6 +117,58 @@ EOF
   grep -q "^# Module:.*my_little_binary_host$" out/soong/build.ninja && fail "Old module in output"
 }
 
+# Test that an incremental build with a glob doesn't rerun soong_build, and
+# only regenerates the globs on the first but not the second incremental build.
+function test_glob_noop_incremental() {
+  setup
+
+  mkdir -p a
+  cat > a/Android.bp <<'EOF'
+python_binary_host {
+  name: "my_little_binary_host",
+  srcs: ["*.py"],
+}
+EOF
+  touch a/my_little_binary_host.py
+  run_soong
+  local ninja_mtime1=$(stat -c "%y" out/soong/build.ninja)
+
+  local glob_deps_file=out/soong/.glob/a/__py.glob.d
+
+  if [ -e "$glob_deps_file" ]; then
+    fail "Glob deps file unexpectedly written on first build"
+  fi
+
+  run_soong
+  local ninja_mtime2=$(stat -c "%y" out/soong/build.ninja)
+
+  # There is an ineffiencency in glob that requires bpglob to rerun once for each glob to update
+  # the entry in the .ninja_log.  It doesn't update the output file, but we can detect the rerun
+  # by checking if the deps file was created.
+  if [ ! -e "$glob_deps_file" ]; then
+    fail "Glob deps file missing after second build"
+  fi
+
+  local glob_deps_mtime2=$(stat -c "%y" "$glob_deps_file")
+
+  if [[ "$ninja_mtime1" != "$ninja_mtime2" ]]; then
+    fail "Ninja file rewritten on null incremental build"
+  fi
+
+  run_soong
+  local ninja_mtime3=$(stat -c "%y" out/soong/build.ninja)
+  local glob_deps_mtime3=$(stat -c "%y" "$glob_deps_file")
+
+  if [[ "$ninja_mtime2" != "$ninja_mtime3" ]]; then
+    fail "Ninja file rewritten on null incremental build"
+  fi
+
+  # The bpglob commands should not rerun after the first incremental build.
+  if [[ "$glob_deps_mtime2" != "$glob_deps_mtime3" ]]; then
+    fail "Glob deps file rewritten on second null incremental build"
+  fi
+}
+
 function test_add_file_to_glob() {
   setup
 
@@ -433,6 +485,7 @@ test_smoke
 test_null_build
 test_null_build_after_docs
 test_soong_build_rebuilt_if_blueprint_changes
+test_glob_noop_incremental
 test_add_file_to_glob
 test_add_android_bp
 test_change_android_bp
