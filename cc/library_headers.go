@@ -96,14 +96,14 @@ func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
 	}
 
 	exportedIncludes, exportedIncludesHeaders := bp2BuildParseExportedIncludes(ctx, module)
-
-	headerLibs := bp2BuildParseHeaderLibs(ctx, module)
+	compilerAttrs := bp2BuildParseCompilerProps(ctx, module)
+	linkerAttrs := bp2BuildParseLinkerProps(ctx, module)
 
 	attrs := &bazelCcLibraryHeadersAttributes{
-		Copts:    bp2BuildParseCflags(ctx, module),
+		Copts:    compilerAttrs.copts,
 		Includes: exportedIncludes,
 		Hdrs:     exportedIncludesHeaders,
-		Deps:     headerLibs,
+		Deps:     linkerAttrs.deps,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
