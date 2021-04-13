@@ -67,11 +67,7 @@ type BazelContext interface {
 
 	// TODO(cparsons): Other cquery-related methods should be added here.
 	// Returns the results of GetOutputFiles and GetCcObjectFiles in a single query (in that order).
-	GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool)
-
-	// GetPrebuiltCcStaticLibraryFiles returns paths to prebuilt cc static libraries, and whether the
-	// results were available
-	GetPrebuiltCcStaticLibraryFiles(label string, archType ArchType) ([]string, bool)
+	GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool)
 
 	// ** End cquery methods
 
@@ -127,9 +123,8 @@ var _ BazelContext = noopBazelContext{}
 type MockBazelContext struct {
 	OutputBaseDir string
 
-	LabelToOutputFiles                 map[string][]string
-	LabelToOutputFilesAndCcObjectFiles map[string]cquery.GetOutputFilesAndCcObjectFiles_Result
-	LabelToCcStaticLibraryFiles        map[string][]string
+	LabelToOutputFiles map[string][]string
+	LabelToCcInfo      map[string]cquery.CcInfo
 }
 
 func (m MockBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
@@ -137,13 +132,8 @@ func (m MockBazelContext) GetOutputFiles(label string, archType ArchType) ([]str
 	return result, ok
 }
 
-func (m MockBazelContext) GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
-	result, ok := m.LabelToOutputFilesAndCcObjectFiles[label]
-	return result.OutputFiles, result.CcObjectFiles, ok
-}
-
-func (m MockBazelContext) GetPrebuiltCcStaticLibraryFiles(label string, archType ArchType) ([]string, bool) {
-	result, ok := m.LabelToCcStaticLibraryFiles[label]
+func (m MockBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool) {
+	result, ok := m.LabelToCcInfo[label]
 	return result, ok
 }
 
@@ -173,39 +163,21 @@ func (bazelCtx *bazelContext) GetOutputFiles(label string, archType ArchType) ([
 	return ret, ok
 }
 
-func (bazelCtx *bazelContext) GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
-	var outputFiles []string
-	var ccObjects []string
-
-	result, ok := bazelCtx.cquery(label, cquery.GetOutputFilesAndCcObjectFiles, archType)
-	if ok {
-		bazelOutput := strings.TrimSpace(result)
-		returnResult := cquery.GetOutputFilesAndCcObjectFiles.ParseResult(bazelOutput)
-		outputFiles = returnResult.OutputFiles
-		ccObjects = returnResult.CcObjectFiles
-	}
-
-	return outputFiles, ccObjects, ok
-}
-
-// GetPrebuiltCcStaticLibraryFiles returns a slice of prebuilt static libraries for the given
-// label/archType if there are query results; otherwise, it enqueues the query and returns false.
-func (bazelCtx *bazelContext) GetPrebuiltCcStaticLibraryFiles(label string, archType ArchType) ([]string, bool) {
-	result, ok := bazelCtx.cquery(label, cquery.GetPrebuiltCcStaticLibraryFiles, archType)
+func (bazelCtx *bazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool) {
+	result, ok := bazelCtx.cquery(label, cquery.GetCcInfo, archType)
 	if !ok {
-		return nil, false
+		return cquery.CcInfo{}, ok
 	}
 
 	bazelOutput := strings.TrimSpace(result)
-	ret := cquery.GetPrebuiltCcStaticLibraryFiles.ParseResult(bazelOutput)
-	return ret, ok
+	return cquery.GetCcInfo.ParseResult(bazelOutput), ok
 }
 
 func (n noopBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
+func (n noopBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool) {
 	panic("unimplemented")
 }
 
