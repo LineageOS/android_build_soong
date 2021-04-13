@@ -483,7 +483,9 @@ type staticLibraryBazelHandler struct {
 
 func (handler *staticLibraryBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
 	bazelCtx := ctx.Config().BazelContext
-	outputPaths, objPaths, ok := bazelCtx.GetOutputFilesAndCcObjectFiles(label, ctx.Arch().ArchType)
+	ccInfo, ok := bazelCtx.GetCcInfo(label, ctx.Arch().ArchType)
+	outputPaths := ccInfo.OutputFiles
+	objPaths := ccInfo.CcObjectFiles
 	if !ok {
 		return ok
 	}
