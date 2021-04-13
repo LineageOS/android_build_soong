@@ -67,7 +67,7 @@ type BazelContext interface {
 
 	// TODO(cparsons): Other cquery-related methods should be added here.
 	// Returns the results of GetOutputFiles and GetCcObjectFiles in a single query (in that order).
-	GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool)
+	GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error)
 
 	// ** End cquery methods
 
@@ -132,9 +132,9 @@ func (m MockBazelContext) GetOutputFiles(label string, archType ArchType) ([]str
 	return result, ok
 }
 
-func (m MockBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool) {
+func (m MockBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error) {
 	result, ok := m.LabelToCcInfo[label]
-	return result, ok
+	return result, ok, nil
 }
 
 func (m MockBazelContext) InvokeBazel() error {
@@ -163,21 +163,22 @@ func (bazelCtx *bazelContext) GetOutputFiles(label string, archType ArchType) ([
 	return ret, ok
 }
 
-func (bazelCtx *bazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool) {
+func (bazelCtx *bazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error) {
 	result, ok := bazelCtx.cquery(label, cquery.GetCcInfo, archType)
 	if !ok {
-		return cquery.CcInfo{}, ok
+		return cquery.CcInfo{}, ok, nil
 	}
 
 	bazelOutput := strings.TrimSpace(result)
-	return cquery.GetCcInfo.ParseResult(bazelOutput), ok
+	ret, err := cquery.GetCcInfo.ParseResult(bazelOutput)
+	return ret, ok, err
 }
 
 func (n noopBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool) {
+func (n noopBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error) {
 	panic("unimplemented")
 }
 
