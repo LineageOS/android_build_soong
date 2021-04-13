@@ -32,6 +32,7 @@ bootstrap_go_package {
         "boot_image.go",
         "boot_jars.go",
         "builder.go",
+        "classpath_fragment.go",
         "device_host_converter.go",
         "dex.go",
         "dexpreopt.go",
