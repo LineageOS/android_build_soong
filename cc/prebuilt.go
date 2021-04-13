@@ -329,11 +329,14 @@ type prebuiltStaticLibraryBazelHandler struct {
 
 func (h *prebuiltStaticLibraryBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
 	bazelCtx := ctx.Config().BazelContext
-	ccInfo, ok := bazelCtx.GetCcInfo(label, ctx.Arch().ArchType)
-	staticLibs := ccInfo.CcStaticLibraryFiles
+	ccInfo, ok, err := bazelCtx.GetCcInfo(label, ctx.Arch().ArchType)
+	if err != nil {
+		ctx.ModuleErrorf("Error getting Bazel CcInfo: %s", err)
+	}
 	if !ok {
 		return false
 	}
+	staticLibs := ccInfo.CcStaticLibraryFiles
 	if len(staticLibs) > 1 {
 		ctx.ModuleErrorf("expected 1 static library from bazel target %q, got %s", label, staticLibs)
 		return false
