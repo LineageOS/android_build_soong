@@ -1,6 +1,7 @@
 package cquery
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -39,7 +40,7 @@ func (g getOutputFilesRequestType) StarlarkFunctionBody() string {
 // The given rawString must correspond to the string output which was created by evaluating the
 // Starlark given in StarlarkFunctionBody.
 func (g getOutputFilesRequestType) ParseResult(rawString string) []string {
-	return strings.Split(rawString, ", ")
+	return splitOrEmpty(rawString, ", ")
 }
 
 type getCcInfoType struct{}
@@ -85,11 +86,14 @@ return "|".join([", ".join(r) for r in returns])`
 // ParseResult returns a value obtained by parsing the result of the request's Starlark function.
 // The given rawString must correspond to the string output which was created by evaluating the
 // Starlark given in StarlarkFunctionBody.
-func (g getCcInfoType) ParseResult(rawString string) CcInfo {
+func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	var outputFiles []string
 	var ccObjects []string
 
 	splitString := strings.Split(rawString, "|")
+	if expectedLen := 3; len(splitString) != expectedLen {
+		return CcInfo{}, fmt.Errorf("Expected %d items, got %q", expectedLen, splitString)
+	}
 	outputFilesString := splitString[0]
 	ccStaticLibrariesString := splitString[1]
 	ccObjectsString := splitString[2]
@@ -100,7 +104,7 @@ func (g getCcInfoType) ParseResult(rawString string) CcInfo {
 		OutputFiles:          outputFiles,
 		CcObjectFiles:        ccObjects,
 		CcStaticLibraryFiles: ccStaticLibraries,
-	}
+	}, nil
 }
 
 // splitOrEmpty is a modification of strings.Split() that returns an empty list
