@@ -104,6 +104,11 @@ func bootstrapBlueprint(ctx Context, config Config) {
 	args.GlobFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/soong-build-globs.ninja")
 	args.GeneratingPrimaryBuilder = true
 
+	args.DelveListen = os.Getenv("SOONG_DELVE")
+	if args.DelveListen != "" {
+		args.DelvePath = shared.ResolveDelveBinary()
+	}
+
 	blueprintCtx := blueprint.NewContext()
 	blueprintCtx.SetIgnoreUnknownModuleTypes(true)
 	blueprintConfig := BlueprintConfig{
@@ -138,11 +143,6 @@ func runSoong(ctx Context, config Config) {
 
 	soongBuildEnv := config.Environment().Copy()
 	soongBuildEnv.Set("TOP", os.Getenv("TOP"))
-	// These two dependencies are read from bootstrap.go, but also need to be here
-	// so that soong_build can declare a dependency on them
-	soongBuildEnv.Set("SOONG_DELVE", os.Getenv("SOONG_DELVE"))
-	soongBuildEnv.Set("SOONG_DELVE_PATH", os.Getenv("SOONG_DELVE_PATH"))
-	soongBuildEnv.Set("SOONG_OUTDIR", config.SoongOutDir())
 	// For Bazel mixed builds.
 	soongBuildEnv.Set("BAZEL_PATH", "./tools/bazel")
 	soongBuildEnv.Set("BAZEL_HOME", filepath.Join(config.BazelOutDir(), "bazelhome"))
@@ -215,13 +215,6 @@ func runSoong(ctx Context, config Config) {
 		// This is currently how the command line to invoke soong_build finds the
 		// root of the source tree and the output root
 		ninjaEnv.Set("TOP", os.Getenv("TOP"))
-		ninjaEnv.Set("SOONG_OUTDIR", config.SoongOutDir())
-
-		// For debugging
-		if os.Getenv("SOONG_DELVE") != "" {
-			ninjaEnv.Set("SOONG_DELVE", os.Getenv("SOONG_DELVE"))
-			ninjaEnv.Set("SOONG_DELVE_PATH", shared.ResolveDelveBinary())
-		}
 
 		cmd.Environment = &ninjaEnv
 		cmd.Sandbox = soongSandbox
