@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	"android/soong/android"
-	"android/soong/dexpreopt"
 	"android/soong/java"
 	"github.com/google/blueprint"
 )
@@ -37,9 +36,8 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 		prepareForTestWithArtApex,
 		prepareForTestWithMyapex,
 		// Configure some libraries in the art and framework boot images.
-		dexpreopt.FixtureSetArtBootJars("com.android.art:baz", "com.android.art:quuz"),
-		dexpreopt.FixtureSetBootJars("platform:foo"),
-		dexpreopt.FixtureSetUpdatableBootJars("myapex:bar"),
+		java.FixtureConfigureBootJars("com.android.art:baz", "com.android.art:quuz", "platform:foo"),
+		java.FixtureConfigureUpdatableBootJars("myapex:bar"),
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		java.FixtureWithLastReleaseApis("foo"),
 	).RunTestWithBp(t, `
