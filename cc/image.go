@@ -49,23 +49,15 @@ const (
 )
 
 func (ctx *moduleContext) ProductSpecific() bool {
-	// Additionally check if this module is inProduct() that means it is a "product" variant of a
-	// module. As well as product specific modules, product variants must be installed to /product.
-	return ctx.ModuleContext.ProductSpecific() || ctx.mod.InProduct()
+	return ctx.ModuleContext.ProductSpecific() || ctx.mod.productSpecificModuleContext()
 }
 
 func (ctx *moduleContext) SocSpecific() bool {
-	// Additionally check if this module is inVendor() that means it is a "vendor" variant of a
-	// module. As well as SoC specific modules, vendor variants must be installed to /vendor
-	// unless they have "odm_available: true".
-	return ctx.ModuleContext.SocSpecific() ||
-            (ctx.mod.HasVendorVariant() && ctx.mod.InVendor() && !ctx.mod.VendorVariantToOdm())
+	return ctx.ModuleContext.SocSpecific() || ctx.mod.socSpecificModuleContext()
 }
 
 func (ctx *moduleContext) DeviceSpecific() bool {
-	// Some vendor variants want to be installed to /odm by setting "odm_available: true".
-	return ctx.ModuleContext.DeviceSpecific() ||
-            (ctx.mod.HasVendorVariant() && ctx.mod.InVendor() && ctx.mod.VendorVariantToOdm())
+	return ctx.ModuleContext.DeviceSpecific() || ctx.mod.deviceSpecificModuleContext()
 }
 
 func (ctx *moduleContextImpl) inProduct() bool {
@@ -86,6 +78,24 @@ func (ctx *moduleContextImpl) inVendorRamdisk() bool {
 
 func (ctx *moduleContextImpl) inRecovery() bool {
 	return ctx.mod.InRecovery()
+}
+
+func (c *Module) productSpecificModuleContext() bool {
+	// Additionally check if this module is inProduct() that means it is a "product" variant of a
+	// module. As well as product specific modules, product variants must be installed to /product.
+	return c.InProduct()
+}
+
+func (c *Module) socSpecificModuleContext() bool {
+	// Additionally check if this module is inVendor() that means it is a "vendor" variant of a
+	// module. As well as SoC specific modules, vendor variants must be installed to /vendor
+	// unless they have "odm_available: true".
+	return c.HasVendorVariant() && c.InVendor() && !c.VendorVariantToOdm()
+}
+
+func (c *Module) deviceSpecificModuleContext() bool {
+	// Some vendor variants want to be installed to /odm by setting "odm_available: true".
+	return c.InVendor() && c.VendorVariantToOdm()
 }
 
 // Returns true when this module is configured to have core and vendor variants.
