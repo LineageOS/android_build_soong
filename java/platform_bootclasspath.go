@@ -15,6 +15,8 @@
 package java
 
 import (
+	"fmt"
+
 	"android/soong/android"
 	"android/soong/dexpreopt"
 	"github.com/google/blueprint"
@@ -69,6 +71,15 @@ type platformBootclasspathModule struct {
 	//
 	// Currently only for testing.
 	fragments []android.Module
+
+	// Path to the monolithic hiddenapi-flags.csv file.
+	hiddenAPIFlagsCSV android.Path
+
+	// Path to the monolithic hiddenapi-index.csv file.
+	hiddenAPIIndexCSV android.Path
+
+	// Path to the monolithic hiddenapi-unsupported.csv file.
+	hiddenAPIMetadataCSV android.Path
 }
 
 // ApexVariantReference specifies a particular apex variant of a module.
@@ -96,6 +107,34 @@ func platformBootclasspathFactory() android.Module {
 	m.AddProperties(&m.properties)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
+}
+
+var _ android.OutputFileProducer = (*platformBootclasspathModule)(nil)
+
+// A minimal AndroidMkEntries is needed in order to support the dists property.
+func (b *platformBootclasspathModule) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{
+		{
+			Class: "FAKE",
+			// Need at least one output file in order for this to take effect.
+			OutputFile: android.OptionalPathForPath(b.hiddenAPIFlagsCSV),
+			Include:    "$(BUILD_PHONY_PACKAGE)",
+		},
+	}
+}
+
+// Make the hidden API files available from the platform-bootclasspath module.
+func (b *platformBootclasspathModule) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "hiddenapi-flags.csv":
+		return android.Paths{b.hiddenAPIFlagsCSV}, nil
+	case "hiddenapi-index.csv":
+		return android.Paths{b.hiddenAPIIndexCSV}, nil
+	case "hiddenapi-metadata.csv":
+		return android.Paths{b.hiddenAPIMetadataCSV}, nil
+	}
+
+	return nil, fmt.Errorf("unknown tag %s", tag)
 }
 
 func (b *platformBootclasspathModule) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -221,6 +260,17 @@ func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleCont
 
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
 func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, modules []android.Module) {
+
+	// Save the paths to the monolithic files for retrieval via OutputFiles()
+	// Make the paths relative to the out/soong/hiddenapi directory instead of to the out/soong/
+	// directory. This ensures that if they are used as java_resources they do not end up in a
+	// hiddenapi directory in the resulting APK.
+	relToHiddenapiDir := func(path android.OutputPath) android.Path {
+		return path
+	}
+	b.hiddenAPIFlagsCSV = relToHiddenapiDir(hiddenAPISingletonPaths(ctx).flags)
+	b.hiddenAPIIndexCSV = relToHiddenapiDir(hiddenAPISingletonPaths(ctx).index)
+	b.hiddenAPIMetadataCSV = relToHiddenapiDir(hiddenAPISingletonPaths(ctx).metadata)
 
 	moduleSpecificFlagsPaths := android.Paths{}
 	for _, module := range modules {
