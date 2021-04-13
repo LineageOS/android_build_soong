@@ -111,9 +111,7 @@ func genYacc(ctx android.ModuleContext, rule *android.RuleBuilder, yaccFile andr
 	return ret
 }
 
-func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile android.Path,
-	outFile, depFile android.ModuleGenPath, aidlFlags string) android.Paths {
-
+func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile android.Path, aidlFlags string) (cppFile android.OutputPath, headerFiles android.Paths) {
 	aidlPackage := strings.TrimSuffix(aidlFile.Rel(), aidlFile.Base())
 	baseName := strings.TrimSuffix(aidlFile.Base(), aidlFile.Ext())
 	shortName := baseName
@@ -126,6 +124,8 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 	}
 
 	outDir := android.PathForModuleGen(ctx, "aidl")
+	cppFile = outDir.Join(ctx, aidlPackage, baseName+".cpp")
+	depFile := outDir.Join(ctx, aidlPackage, baseName+".cpp.d")
 	headerI := outDir.Join(ctx, aidlPackage, baseName+".h")
 	headerBn := outDir.Join(ctx, aidlPackage, "Bn"+shortName+".h")
 	headerBp := outDir.Join(ctx, aidlPackage, "Bp"+shortName+".h")
@@ -142,14 +142,14 @@ func genAidl(ctx android.ModuleContext, rule *android.RuleBuilder, aidlFile andr
 		Flag(aidlFlags).
 		Input(aidlFile).
 		OutputDir().
-		Output(outFile).
+		Output(cppFile).
 		ImplicitOutputs(android.WritablePaths{
 			headerI,
 			headerBn,
 			headerBp,
 		})
 
-	return android.Paths{
+	return cppFile, android.Paths{
 		headerI,
 		headerBn,
 		headerBp,
@@ -293,10 +293,9 @@ func genSources(ctx android.ModuleContext, srcFiles android.Paths,
 				aidlRule = android.NewRuleBuilder(pctx, ctx).Sbox(android.PathForModuleGen(ctx, "aidl"),
 					android.PathForModuleGen(ctx, "aidl.sbox.textproto"))
 			}
-			cppFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp")
-			depFile := android.GenPathWithExt(ctx, "aidl", srcFile, "cpp.d")
+			cppFile, aidlHeaders := genAidl(ctx, aidlRule, srcFile, buildFlags.aidlFlags)
 			srcFiles[i] = cppFile
-			aidlHeaders := genAidl(ctx, aidlRule, srcFile, cppFile, depFile, buildFlags.aidlFlags)
+
 			info.aidlHeaders = append(info.aidlHeaders, aidlHeaders...)
 			// Use the generated headers as order only deps to ensure that they are up to date when
 			// needed.
