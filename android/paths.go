@@ -416,6 +416,93 @@ func BazelLabelForModuleDeps(ctx BazelConversionPathContext, modules []string) b
 	return labels
 }
 
+// Returns true if a prefix + components[:i] + /Android.bp exists
+// TODO(b/185358476) Could check for BUILD file instead of checking for Android.bp file, or ensure BUILD is always generated?
+func directoryHasBlueprint(fs pathtools.FileSystem, prefix string, components []string, componentIndex int) bool {
+	blueprintPath := prefix
+	if blueprintPath != "" {
+		blueprintPath = blueprintPath + "/"
+	}
+	blueprintPath = blueprintPath + strings.Join(components[:componentIndex+1], "/")
+	blueprintPath = blueprintPath + "/Android.bp"
+	if exists, _, _ := fs.Exists(blueprintPath); exists {
+		return true
+	} else {
+		return false
+	}
+}
+
+// Transform a path (if necessary) to acknowledge package boundaries
+//
+// e.g. something like
+//   async_safe/include/async_safe/CHECK.h
+// might become
+//   //bionic/libc/async_safe:include/async_safe/CHECK.h
+// if the "async_safe" directory is actually a package and not just a directory.
+//
+// In particular, paths that extend into packages are transformed into absolute labels beginning with //.
+func transformSubpackagePath(ctx BazelConversionPathContext, path bazel.Label) bazel.Label {
+	var newPath bazel.Label
+
+	// Don't transform Bp_text
+	newPath.Bp_text = path.Bp_text
+
+	if strings.HasPrefix(path.Label, "//") {
+		// Assume absolute labels are already correct (e.g. //path/to/some/package:foo.h)
+		newPath.Label = path.Label
+		return newPath
+	}
+
+	newLabel := ""
+	pathComponents := strings.Split(path.Label, "/")
+	foundBlueprint := false
+	// Check the deepest subdirectory first and work upwards
+	for i := len(pathComponents) - 1; i >= 0; i-- {
+		pathComponent := pathComponents[i]
+		var sep string
+		if !foundBlueprint && directoryHasBlueprint(ctx.Config().fs, ctx.ModuleDir(), pathComponents, i) {
+			sep = ":"
+			foundBlueprint = true
+		} else {
+			sep = "/"
+		}
+		if newLabel == "" {
+			newLabel = pathComponent
+		} else {
+			newLabel = pathComponent + sep + newLabel
+		}
+	}
+	if foundBlueprint {
+		// Ensure paths end up looking like //bionic/... instead of //./bionic/...
+		moduleDir := ctx.ModuleDir()
+		if strings.HasPrefix(moduleDir, ".") {
+			moduleDir = moduleDir[1:]
+		}
+		// Make the path into an absolute label (e.g. //bionic/libc/foo:bar.h instead of just foo:bar.h)
+		if moduleDir == "" {
+			newLabel = "//" + newLabel
+		} else {
+			newLabel = "//" + moduleDir + "/" + newLabel
+		}
+	}
+	newPath.Label = newLabel
+
+	return newPath
+}
+
+// Transform paths to acknowledge package boundaries
+// See transformSubpackagePath() for more information
+func transformSubpackagePaths(ctx BazelConversionPathContext, paths bazel.LabelList) bazel.LabelList {
+	var newPaths bazel.LabelList
+	for _, include := range paths.Includes {
+		newPaths.Includes = append(newPaths.Includes, transformSubpackagePath(ctx, include))
+	}
+	for _, exclude := range paths.Excludes {
+		newPaths.Excludes = append(newPaths.Excludes, transformSubpackagePath(ctx, exclude))
+	}
+	return newPaths
+}
+
 // BazelLabelForModuleSrc returns bazel.LabelList with paths rooted from the module's local source
 // directory. It expands globs, and resolves references to modules using the ":name" syntax to
 // bazel-compatible labels.  Properties passed as the paths or excludes argument must have been
@@ -445,6 +532,7 @@ func BazelLabelForModuleSrcExcludes(ctx BazelConversionPathContext, paths, exclu
 	}
 	labels := expandSrcsForBazel(ctx, paths, excluded)
 	labels.Excludes = excludeLabels.Includes
+	labels = transformSubpackagePaths(ctx, labels)
 	return labels
 }
 
