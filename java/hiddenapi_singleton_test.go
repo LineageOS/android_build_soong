@@ -23,12 +23,6 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-func fixtureSetBootJarsProductVariable(bootJars ...string) android.FixturePreparer {
-	return android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-		variables.BootJars = android.CreateTestConfiguredJarList(bootJars)
-	})
-}
-
 func fixtureSetPrebuiltHiddenApiDirProductVariable(prebuiltHiddenApiDir *string) android.FixturePreparer {
 	return android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 		variables.PrebuiltHiddenApiDir = prebuiltHiddenApiDir
@@ -41,7 +35,7 @@ var hiddenApiFixtureFactory = android.GroupFixturePreparers(
 func TestHiddenAPISingleton(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		hiddenApiFixtureFactory,
-		fixtureSetBootJarsProductVariable("platform:foo"),
+		FixtureConfigureBootJars("platform:foo"),
 	).RunTestWithBp(t, `
 		java_library {
 			name: "foo",
@@ -61,7 +55,7 @@ func TestHiddenAPIIndexSingleton(t *testing.T) {
 		hiddenApiFixtureFactory,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("bar"),
-		fixtureSetBootJarsProductVariable("platform:foo", "platform:bar"),
+		FixtureConfigureBootJars("platform:foo", "platform:bar"),
 	).RunTestWithBp(t, `
 		java_library {
 			name: "foo",
@@ -119,7 +113,7 @@ func TestHiddenAPISingletonWithSourceAndPrebuiltPreferredButNoDex(t *testing.T) 
 
 	android.GroupFixturePreparers(
 		hiddenApiFixtureFactory,
-		fixtureSetBootJarsProductVariable("platform:foo"),
+		FixtureConfigureBootJars("platform:foo"),
 	).ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(expectedErrorMessage)).
 		RunTestWithBp(t, `
 		java_library {
@@ -139,7 +133,7 @@ func TestHiddenAPISingletonWithSourceAndPrebuiltPreferredButNoDex(t *testing.T) 
 func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		hiddenApiFixtureFactory,
-		fixtureSetBootJarsProductVariable("platform:foo"),
+		FixtureConfigureBootJars("platform:foo"),
 	).RunTestWithBp(t, `
 		java_import {
 			name: "foo",
@@ -157,7 +151,7 @@ func TestHiddenAPISingletonWithPrebuilt(t *testing.T) {
 func TestHiddenAPISingletonWithPrebuiltUseSource(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		hiddenApiFixtureFactory,
-		fixtureSetBootJarsProductVariable("platform:foo"),
+		FixtureConfigureBootJars("platform:foo"),
 	).RunTestWithBp(t, `
 		java_library {
 			name: "foo",
@@ -185,7 +179,7 @@ func TestHiddenAPISingletonWithPrebuiltUseSource(t *testing.T) {
 func TestHiddenAPISingletonWithPrebuiltOverrideSource(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		hiddenApiFixtureFactory,
-		fixtureSetBootJarsProductVariable("platform:foo"),
+		FixtureConfigureBootJars("platform:foo"),
 	).RunTestWithBp(t, `
 		java_library {
 			name: "foo",
@@ -295,7 +289,7 @@ func TestHiddenAPISingletonWithPrebuiltCsvFile(t *testing.T) {
 
 	result := android.GroupFixturePreparers(
 		hiddenApiFixtureFactory,
-		fixtureSetBootJarsProductVariable("platform:foo"),
+		FixtureConfigureBootJars("platform:foo"),
 		fixtureSetPrebuiltHiddenApiDirProductVariable(&prebuiltHiddenApiDir),
 	).RunTestWithBp(t, `
 		java_import {

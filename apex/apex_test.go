@@ -4375,9 +4375,7 @@ func TestPrebuiltOverrides(t *testing.T) {
 // These tests verify that the prebuilt_apex/deapexer to java_import wiring allows for the
 // propagation of paths to dex implementation jars from the former to the latter.
 func TestPrebuiltExportDexImplementationJars(t *testing.T) {
-	transform := func(config *dexpreopt.GlobalConfig) {
-		// Empty transformation.
-	}
+	transform := android.NullFixturePreparer
 
 	checkDexJarBuildPath := func(t *testing.T, ctx *android.TestContext, name string) {
 		// Make sure the import has been given the correct path to the dex jar.
@@ -4547,9 +4545,7 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 }
 
 func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
-	transform := func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = android.CreateTestConfiguredJarList([]string{"myapex:libfoo", "myapex:libbar"})
-	}
+	preparer := java.FixtureConfigureBootJars("myapex:libfoo", "myapex:libbar")
 
 	checkBootDexJarPath := func(t *testing.T, ctx *android.TestContext, stem string, bootDexJarPath string) {
 		t.Helper()
@@ -4605,7 +4601,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		}
 	`
 
-		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+		ctx := testDexpreoptWithApexes(t, bp, "", preparer)
 		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
@@ -4639,7 +4635,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		}
 	`
 
-		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+		ctx := testDexpreoptWithApexes(t, bp, "", preparer)
 		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
@@ -4698,7 +4694,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		// prebuilt_apex module always depends on the prebuilt, and so it doesn't
 		// find the dex boot jar in it. We either need to disable the source libfoo
 		// or make the prebuilt libfoo preferred.
-		testDexpreoptWithApexes(t, bp, "failed to find a dex jar path for module 'libfoo'", transform)
+		testDexpreoptWithApexes(t, bp, "failed to find a dex jar path for module 'libfoo'", preparer)
 	})
 
 	t.Run("prebuilt library preferred with source", func(t *testing.T) {
@@ -4746,7 +4742,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		}
 	`
 
-		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+		ctx := testDexpreoptWithApexes(t, bp, "", preparer)
 		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
@@ -4813,7 +4809,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		}
 	`
 
-		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+		ctx := testDexpreoptWithApexes(t, bp, "", preparer)
 		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/libfoo/android_common_apex10000/hiddenapi/libfoo.jar")
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/libbar/android_common_myapex/hiddenapi/libbar.jar")
 
@@ -4882,7 +4878,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		}
 	`
 
-		ctx := testDexpreoptWithApexes(t, bp, "", transform)
+		ctx := testDexpreoptWithApexes(t, bp, "", preparer)
 		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
@@ -6440,7 +6436,7 @@ func TestAppSetBundlePrebuilt(t *testing.T) {
 	android.AssertStringEquals(t, "myapex input", extractorOutput, copiedApex.Input.String())
 }
 
-func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpreoptConfig func(*dexpreopt.GlobalConfig)) {
+func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer android.FixturePreparer) {
 	t.Helper()
 
 	bp := `
@@ -6528,10 +6524,10 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, transformDexpre
 		}
 	`
 
-	testDexpreoptWithApexes(t, bp, errmsg, transformDexpreoptConfig)
+	testDexpreoptWithApexes(t, bp, errmsg, preparer)
 }
 
-func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreoptConfig func(*dexpreopt.GlobalConfig)) *android.TestContext {
+func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, preparer android.FixturePreparer) *android.TestContext {
 	t.Helper()
 
 	fs := android.MockFS{
@@ -6557,17 +6553,7 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, transformDexpreopt
 		java.PrepareForTestWithJavaDefaultModules,
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		PrepareForTestWithApexBuildComponents,
-		android.FixtureModifyConfig(func(config android.Config) {
-			pathCtx := android.PathContextForTesting(config)
-			dexpreoptConfig := dexpreopt.GlobalConfigForTests(pathCtx)
-			transformDexpreoptConfig(dexpreoptConfig)
-			dexpreopt.SetTestGlobalConfig(config, dexpreoptConfig)
-
-			// Make sure that any changes to these dexpreopt properties are mirrored in the corresponding
-			// product variables.
-			config.TestProductVariables.BootJars = dexpreoptConfig.BootJars
-			config.TestProductVariables.UpdatableBootJars = dexpreoptConfig.UpdatableBootJars
-		}),
+		preparer,
 		fs.AddToFixture(),
 	).
 		ExtendWithErrorHandler(errorHandler).
@@ -6608,92 +6594,95 @@ func TestUpdatableDefault_should_set_min_sdk_version(t *testing.T) {
 }
 
 func TestNoUpdatableJarsInBootImage(t *testing.T) {
-	var err string
-	var transform func(*dexpreopt.GlobalConfig)
+	// Set the BootJars in dexpreopt.GlobalConfig and productVariables to the same value. This can
+	// result in an invalid configuration as it does not set the ArtApexJars and allows art apex
+	// modules to be included in the BootJars.
+	prepareSetBootJars := func(bootJars ...string) android.FixturePreparer {
+		return android.GroupFixturePreparers(
+			dexpreopt.FixtureSetBootJars(bootJars...),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BootJars = android.CreateTestConfiguredJarList(bootJars)
+			}),
+		)
+	}
+
+	// Set the ArtApexJars and BootJars in dexpreopt.GlobalConfig and productVariables all to the
+	// same value. This can result in an invalid configuration as it allows non art apex jars to be
+	// specified in the ArtApexJars configuration.
+	prepareSetArtJars := func(bootJars ...string) android.FixturePreparer {
+		return android.GroupFixturePreparers(
+			dexpreopt.FixtureSetArtBootJars(bootJars...),
+			dexpreopt.FixtureSetBootJars(bootJars...),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BootJars = android.CreateTestConfiguredJarList(bootJars)
+			}),
+		)
+	}
 
 	t.Run("updatable jar from ART apex in the ART boot image => ok", func(t *testing.T) {
-		transform = func(config *dexpreopt.GlobalConfig) {
-			config.ArtApexJars = android.CreateTestConfiguredJarList([]string{"com.android.art.debug:some-art-lib"})
-		}
-		testNoUpdatableJarsInBootImage(t, "", transform)
+		preparer := java.FixtureConfigureBootJars("com.android.art.debug:some-art-lib")
+		testNoUpdatableJarsInBootImage(t, "", preparer)
 	})
 
 	t.Run("updatable jar from ART apex in the framework boot image => error", func(t *testing.T) {
-		err = `module "some-art-lib" from updatable apexes \["com.android.art.debug"\] is not allowed in the framework boot image`
-		transform = func(config *dexpreopt.GlobalConfig) {
-			config.BootJars = android.CreateTestConfiguredJarList([]string{"com.android.art.debug:some-art-lib"})
-		}
-		testNoUpdatableJarsInBootImage(t, err, transform)
+		err := `module "some-art-lib" from updatable apexes \["com.android.art.debug"\] is not allowed in the framework boot image`
+		// Update the dexpreopt BootJars directly.
+		preparer := prepareSetBootJars("com.android.art.debug:some-art-lib")
+		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
 	t.Run("updatable jar from some other apex in the ART boot image => error", func(t *testing.T) {
-		err = `module "some-updatable-apex-lib" from updatable apexes \["some-updatable-apex"\] is not allowed in the ART boot image`
-		transform = func(config *dexpreopt.GlobalConfig) {
-			config.ArtApexJars = android.CreateTestConfiguredJarList([]string{"some-updatable-apex:some-updatable-apex-lib"})
-		}
-		testNoUpdatableJarsInBootImage(t, err, transform)
+		err := `module "some-updatable-apex-lib" from updatable apexes \["some-updatable-apex"\] is not allowed in the ART boot image`
+		// Update the dexpreopt ArtApexJars directly.
+		preparer := prepareSetArtJars("some-updatable-apex:some-updatable-apex-lib")
+		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
 	t.Run("non-updatable jar from some other apex in the ART boot image => error", func(t *testing.T) {
-		err = `module "some-non-updatable-apex-lib" is not allowed in the ART boot image`
-		transform = func(config *dexpreopt.GlobalConfig) {
-			config.ArtApexJars = android.CreateTestConfiguredJarList([]string{"some-non-updatable-apex:some-non-updatable-apex-lib"})
-		}
-		testNoUpdatableJarsInBootImage(t, err, transform)
+		err := `module "some-non-updatable-apex-lib" is not allowed in the ART boot image`
+		// Update the dexpreopt ArtApexJars directly.
+		preparer := prepareSetArtJars("some-non-updatable-apex:some-non-updatable-apex-lib")
+		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
 	t.Run("updatable jar from some other apex in the framework boot image => error", func(t *testing.T) {
-		err = `module "some-updatable-apex-lib" from updatable apexes \["some-updatable-apex"\] is not allowed in the framework boot image`
-		transform = func(config *dexpreopt.GlobalConfig) {
-			config.BootJars = android.CreateTestConfiguredJarList([]string{"some-updatable-apex:some-updatable-apex-lib"})
-		}
-		testNoUpdatableJarsInBootImage(t, err, transform)
+		err := `module "some-updatable-apex-lib" from updatable apexes \["some-updatable-apex"\] is not allowed in the framework boot image`
+		preparer := java.FixtureConfigureBootJars("some-updatable-apex:some-updatable-apex-lib")
+		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
 	t.Run("non-updatable jar from some other apex in the framework boot image => ok", func(t *testing.T) {
-		transform = func(config *dexpreopt.GlobalConfig) {
-			config.BootJars = android.CreateTestConfiguredJarList([]string{"some-non-updatable-apex:some-non-updatable-apex-lib"})
-		}
-		testNoUpdatableJarsInBootImage(t, "", transform)
+		preparer := java.FixtureConfigureBootJars("some-non-updatable-apex:some-non-updatable-apex-lib")
+		testNoUpdatableJarsInBootImage(t, "", preparer)
 	})
 
 	t.Run("nonexistent jar in the ART boot image => error", func(t *testing.T) {
-		err = "failed to find a dex jar path for module 'nonexistent'"
-		transform = func(config *dexpreopt.GlobalConfig) {
-			config.ArtApexJars = android.CreateTestConfiguredJarList([]string{"platform:nonexistent"})
-		}
-		testNoUpdatableJarsInBootImage(t, err, transform)
+		err := "failed to find a dex jar path for module 'nonexistent'"
+		preparer := java.FixtureConfigureBootJars("platform:nonexistent")
+		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
 	t.Run("nonexistent jar in the framework boot image => error", func(t *testing.T) {
-		err = "failed to find a dex jar path for module 'nonexistent'"
-		transform = func(config *dexpreopt.GlobalConfig) {
-			config.BootJars = android.CreateTestConfiguredJarList([]string{"platform:nonexistent"})
-		}
-		testNoUpdatableJarsInBootImage(t, err, transform)
+		err := "failed to find a dex jar path for module 'nonexistent'"
+		preparer := java.FixtureConfigureBootJars("platform:nonexistent")
+		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
 	t.Run("platform jar in the ART boot image => error", func(t *testing.T) {
-		err = `module "some-platform-lib" is not allowed in the ART boot image`
-		transform = func(config *dexpreopt.GlobalConfig) {
-			config.ArtApexJars = android.CreateTestConfiguredJarList([]string{"platform:some-platform-lib"})
-		}
-		testNoUpdatableJarsInBootImage(t, err, transform)
+		err := `module "some-platform-lib" is not allowed in the ART boot image`
+		// Update the dexpreopt ArtApexJars directly.
+		preparer := prepareSetArtJars("platform:some-platform-lib")
+		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
 	t.Run("platform jar in the framework boot image => ok", func(t *testing.T) {
-		transform = func(config *dexpreopt.GlobalConfig) {
-			config.BootJars = android.CreateTestConfiguredJarList([]string{"platform:some-platform-lib"})
-		}
-		testNoUpdatableJarsInBootImage(t, "", transform)
+		preparer := java.FixtureConfigureBootJars("platform:some-platform-lib")
+		testNoUpdatableJarsInBootImage(t, "", preparer)
 	})
-
 }
 
 func TestDexpreoptAccessDexFilesFromPrebuiltApex(t *testing.T) {
-	transform := func(config *dexpreopt.GlobalConfig) {
-		config.BootJars = android.CreateTestConfiguredJarList([]string{"myapex:libfoo"})
-	}
+	preparer := java.FixtureConfigureBootJars("myapex:libfoo")
 	t.Run("prebuilt no source", func(t *testing.T) {
 		testDexpreoptWithApexes(t, `
 			prebuilt_apex {
@@ -6713,7 +6702,7 @@ func TestDexpreoptAccessDexFilesFromPrebuiltApex(t *testing.T) {
 			name: "libfoo",
 			jars: ["libfoo.jar"],
 		}
-`, "", transform)
+`, "", preparer)
 	})
 
 	t.Run("prebuilt no source", func(t *testing.T) {
@@ -6735,7 +6724,7 @@ func TestDexpreoptAccessDexFilesFromPrebuiltApex(t *testing.T) {
 			name: "libfoo",
 			jars: ["libfoo.jar"],
 		}
-`, "", transform)
+`, "", preparer)
 	})
 }
 
