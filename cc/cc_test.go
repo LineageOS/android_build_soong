@@ -244,6 +244,120 @@ func TestVendorSrc(t *testing.T) {
 	}
 }
 
+func checkInstallPartition(t *testing.T, ctx *android.TestContext, name, variant, expected string) {
+	mod := ctx.ModuleForTests(name, variant).Module().(*Module)
+	partitionDefined := false
+	checkPartition := func(specific bool, partition string) {
+		if specific {
+			if expected != partition && !partitionDefined {
+				// The variant is installed to the 'partition'
+				t.Errorf("%s variant of %q must not be installed to %s partition", variant, name, partition)
+			}
+			partitionDefined = true
+		} else {
+			// The variant is not installed to the 'partition'
+			if expected == partition {
+				t.Errorf("%s variant of %q must be installed to %s partition", variant, name, partition)
+			}
+		}
+	}
+	socSpecific := func(m *Module) bool {
+		return m.SocSpecific() || m.socSpecificModuleContext()
+	}
+	deviceSpecific := func(m *Module) bool {
+		return m.DeviceSpecific() || m.deviceSpecificModuleContext()
+	}
+	productSpecific := func(m *Module) bool {
+		return m.ProductSpecific() || m.productSpecificModuleContext()
+	}
+	systemExtSpecific := func(m *Module) bool {
+		return m.SystemExtSpecific()
+	}
+	checkPartition(socSpecific(mod), "vendor")
+	checkPartition(deviceSpecific(mod), "odm")
+	checkPartition(productSpecific(mod), "product")
+	checkPartition(systemExtSpecific(mod), "system_ext")
+	if !partitionDefined && expected != "system" {
+		t.Errorf("%s variant of %q is expected to be installed to %s partition,"+
+			" but installed to system partition", variant, name, expected)
+	}
+}
+
+func TestInstallPartition(t *testing.T) {
+	t.Helper()
+	ctx := prepareForCcTest.RunTestWithBp(t, `
+		cc_library {
+			name: "libsystem",
+		}
+		cc_library {
+			name: "libsystem_ext",
+			system_ext_specific: true,
+		}
+		cc_library {
+			name: "libproduct",
+			product_specific: true,
+		}
+		cc_library {
+			name: "libvendor",
+			vendor: true,
+		}
+		cc_library {
+			name: "libodm",
+			device_specific: true,
+		}
+		cc_library {
+			name: "liball_available",
+			vendor_available: true,
+			product_available: true,
+		}
+		cc_library {
+			name: "libsystem_ext_all_available",
+			system_ext_specific: true,
+			vendor_available: true,
+			product_available: true,
+		}
+		cc_library {
+			name: "liball_available_odm",
+			odm_available: true,
+			product_available: true,
+		}
+		cc_library {
+			name: "libproduct_vendoravailable",
+			product_specific: true,
+			vendor_available: true,
+		}
+		cc_library {
+			name: "libproduct_odmavailable",
+			product_specific: true,
+			odm_available: true,
+		}
+	`).TestContext
+
+	checkInstallPartition(t, ctx, "libsystem", coreVariant, "system")
+	checkInstallPartition(t, ctx, "libsystem_ext", coreVariant, "system_ext")
+	checkInstallPartition(t, ctx, "libproduct", productVariant, "product")
+	checkInstallPartition(t, ctx, "libvendor", vendorVariant, "vendor")
+	checkInstallPartition(t, ctx, "libodm", vendorVariant, "odm")
+
+	checkInstallPartition(t, ctx, "liball_available", coreVariant, "system")
+	checkInstallPartition(t, ctx, "liball_available", productVariant, "product")
+	checkInstallPartition(t, ctx, "liball_available", vendorVariant, "vendor")
+
+	checkInstallPartition(t, ctx, "libsystem_ext_all_available", coreVariant, "system_ext")
+	checkInstallPartition(t, ctx, "libsystem_ext_all_available", productVariant, "product")
+	checkInstallPartition(t, ctx, "libsystem_ext_all_available", vendorVariant, "vendor")
+
+	checkInstallPartition(t, ctx, "liball_available_odm", coreVariant, "system")
+	checkInstallPartition(t, ctx, "liball_available_odm", productVariant, "product")
+	checkInstallPartition(t, ctx, "liball_available_odm", vendorVariant, "odm")
+
+	checkInstallPartition(t, ctx, "libproduct_vendoravailable", productVariant, "product")
+	checkInstallPartition(t, ctx, "libproduct_vendoravailable", vendorVariant, "vendor")
+
+	checkInstallPartition(t, ctx, "libproduct_odmavailable", productVariant, "product")
+	checkInstallPartition(t, ctx, "libproduct_odmavailable", vendorVariant, "odm")
+}
+
 func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string,
 	isVndkSp bool, extends string, variant string) {
 
