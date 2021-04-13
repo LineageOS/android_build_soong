@@ -292,11 +292,11 @@ func zipTo(args ZipArgs, w io.Writer) error {
 				continue
 			}
 
-			globbed, _, err := z.fs.Glob(s, nil, followSymlinks)
+			result, err := z.fs.Glob(s, nil, followSymlinks)
 			if err != nil {
 				return err
 			}
-			if len(globbed) == 0 {
+			if len(result.Matches) == 0 {
 				err := &os.PathError{
 					Op:   "lstat",
 					Path: s,
@@ -308,7 +308,7 @@ func zipTo(args ZipArgs, w io.Writer) error {
 					return err
 				}
 			}
-			srcs = append(srcs, globbed...)
+			srcs = append(srcs, result.Matches...)
 		}
 		if fa.GlobDir != "" {
 			if exists, isDir, err := z.fs.Exists(fa.GlobDir); err != nil {
@@ -336,11 +336,11 @@ func zipTo(args ZipArgs, w io.Writer) error {
 					return err
 				}
 			}
-			globbed, _, err := z.fs.Glob(filepath.Join(fa.GlobDir, "**/*"), nil, followSymlinks)
+			result, err := z.fs.Glob(filepath.Join(fa.GlobDir, "**/*"), nil, followSymlinks)
 			if err != nil {
 				return err
 			}
-			srcs = append(srcs, globbed...)
+			srcs = append(srcs, result.Matches...)
 		}
 		for _, src := range srcs {
 			err := fillPathPairs(fa, src, &pathMappings, args.NonDeflatedFiles, noCompression)
