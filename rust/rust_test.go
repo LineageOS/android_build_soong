@@ -113,6 +113,24 @@ func testRustError(t *testing.T, pattern string, bp string) {
 		RunTestWithBp(t, bp)
 }
 
+// testRustVndkError is similar to testRustError, but can be used to test VNDK-related errors.
+func testRustVndkError(t *testing.T, pattern string, bp string) {
+	skipTestIfOsNotSupported(t)
+	android.GroupFixturePreparers(
+		prepareForRustTest,
+		rustMockedFiles.AddToFixture(),
+		android.FixtureModifyProductVariables(
+			func(variables android.FixtureProductVariables) {
+				variables.DeviceVndkVersion = StringPtr("current")
+				variables.ProductVndkVersion = StringPtr("current")
+				variables.Platform_vndk_version = StringPtr("VER")
+			},
+		),
+	).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(pattern)).
+		RunTestWithBp(t, bp)
+}
+
 // testRustCtx is used to build a particular test environment. Unless your
 // tests requires a specific setup, prefer the wrapping functions: testRust,
 // testRustCov or testRustError.
