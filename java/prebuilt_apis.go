@@ -253,14 +253,8 @@ func prebuiltApiFiles(mctx android.LoadHookContext, p *prebuiltApis) {
 		files := getPrebuiltFilesInSubdir(mctx, nextApiDir, "api/*incompatibilities.txt")
 		for _, f := range files {
 			localPath := strings.TrimPrefix(f, mydir)
-			module, _, scope := parseApiFilePath(mctx, localPath)
-
-			// Figure out which module is referenced by this file. Special case for "android".
-			referencedModule := strings.TrimSuffix(module, "incompatibilities")
-			referencedModule = strings.TrimSuffix(referencedModule, "-")
-			if referencedModule == "" {
-				referencedModule = "android"
-			}
+			filename, _, scope := parseApiFilePath(mctx, localPath)
+			referencedModule := strings.TrimSuffix(filename, "-incompatibilities")
 
 			createApiModule(mctx, apiModuleName(referencedModule+"-incompatibilities", scope, "latest"), localPath)
 
