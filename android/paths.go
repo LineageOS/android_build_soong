@@ -1101,11 +1101,12 @@ func existsWithDependencies(ctx PathContext, path SourcePath) (exists bool, err 
 		// a single file.
 		files, err = gctx.GlobWithDeps(path.String(), nil)
 	} else {
-		var deps []string
+		var result pathtools.GlobResult
 		// We cannot add build statements in this context, so we fall back to
 		// AddNinjaFileDeps
-		files, deps, err = ctx.Config().fs.Glob(path.String(), nil, pathtools.FollowSymlinks)
-		ctx.AddNinjaFileDeps(deps...)
+		result, err = ctx.Config().fs.Glob(path.String(), nil, pathtools.FollowSymlinks)
+		ctx.AddNinjaFileDeps(result.Deps...)
+		files = result.Matches
 	}
 
 	if err != nil {

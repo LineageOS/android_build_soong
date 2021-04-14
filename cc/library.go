@@ -483,10 +483,16 @@ type staticLibraryBazelHandler struct {
 
 func (handler *staticLibraryBazelHandler) generateBazelBuildActions(ctx android.ModuleContext, label string) bool {
 	bazelCtx := ctx.Config().BazelContext
-	outputPaths, objPaths, ok := bazelCtx.GetOutputFilesAndCcObjectFiles(label, ctx.Arch().ArchType)
+	ccInfo, ok, err := bazelCtx.GetCcInfo(label, ctx.Arch().ArchType)
+	if err != nil {
+		ctx.ModuleErrorf("Error getting Bazel CcInfo: %s", err)
+		return false
+	}
 	if !ok {
 		return ok
 	}
+	outputPaths := ccInfo.OutputFiles
+	objPaths := ccInfo.CcObjectFiles
 	if len(outputPaths) > 1 {
 		// TODO(cparsons): This is actually expected behavior for static libraries with no srcs.
 		// We should support this.
