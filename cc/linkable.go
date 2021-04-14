@@ -98,10 +98,24 @@ type LinkableInterface interface {
 	InVendor() bool
 
 	UseSdk() bool
+
+	// IsLlndk returns true for both LLNDK (public) and LLNDK-private libs.
+	IsLlndk() bool
+
+	// IsLlndkPublic returns true only for LLNDK (public) libs.
+	IsLlndkPublic() bool
+
+	// IsLlndkHeaders returns true if this module is an LLNDK headers module.
+	IsLlndkHeaders() bool
+
+	// IsLlndkLibrary returns true if this module is an LLNDK library module.
+	IsLlndkLibrary() bool
+
+	// HasLlndkStubs returns true if this module has LLNDK stubs.
+	HasLlndkStubs() bool
+
 	UseVndk() bool
 	MustUseVendorVariant() bool
-	IsLlndk() bool
-	IsLlndkPublic() bool
 	IsVndk() bool
 	IsVndkExt() bool
 	IsVndkPrivate() bool
@@ -121,6 +135,10 @@ type LinkableInterface interface {
 	SetPreventInstall()
 	// SetHideFromMake sets the HideFromMake property to 'true' for this module.
 	SetHideFromMake()
+
+	// KernelHeadersDecorator returns true if this is a kernel headers decorator module.
+	// This is specific to cc and should always return false for all other packages.
+	KernelHeadersDecorator() bool
 }
 
 var (
