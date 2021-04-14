@@ -16,6 +16,7 @@ package rust
 
 import (
 	"android/soong/android"
+	"android/soong/bloaty"
 	"android/soong/cc"
 )
 
@@ -34,6 +35,7 @@ const rustDefaultsDir = "defaults/rust/"
 // Preparer that will define default rust modules, e.g. standard prebuilt modules.
 var PrepareForTestWithRustDefaultModules = android.GroupFixturePreparers(
 	cc.PrepareForTestWithCcDefaultModules,
+	bloaty.PrepareForTestWithBloatyDefaultModules,
 	PrepareForTestWithRustBuildComponents,
 	android.FixtureAddTextFile(rustDefaultsDir+"Android.bp", GatherRequiredDepsForTest()),
 )
