@@ -75,8 +75,8 @@ func newContext(configuration android.Config, prepareBuildActions bool) *android
 	return ctx
 }
 
-func newConfig(srcDir string) android.Config {
-	configuration, err := android.NewConfig(srcDir, bootstrap.CmdlineBuildDir(), bootstrap.CmdlineModuleListFile())
+func newConfig(srcDir, outDir string) android.Config {
+	configuration, err := android.NewConfig(srcDir, outDir, bootstrap.CmdlineModuleListFile())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
@@ -127,7 +127,7 @@ func runSoongDocs(configuration android.Config, extraNinjaDeps []string) {
 }
 
 func writeMetrics(configuration android.Config) {
-	metricsFile := filepath.Join(bootstrap.CmdlineBuildDir(), "soong_build_metrics.pb")
+	metricsFile := filepath.Join(configuration.BuildDir(), "soong_build_metrics.pb")
 	err := android.WriteMetrics(configuration, metricsFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error writing soong_build metrics %s: %s", metricsFile, err)
@@ -193,7 +193,7 @@ func main() {
 	usedVariablesFile := shared.JoinPath(outDir, "soong.environment.used")
 	// The top-level Blueprints file is passed as the first argument.
 	srcDir := filepath.Dir(flag.Arg(0))
-	configuration := newConfig(srcDir)
+	configuration := newConfig(srcDir, outDir)
 	extraNinjaDeps := []string{
 		configuration.ProductVariablesFileName,
 		shared.JoinPath(outDir, "soong.environment.used"),
@@ -203,10 +203,6 @@ func main() {
 		configuration.SetAllowMissingDependencies()
 	}
 
-	// These two are here so that we restart a non-debugged soong_build when the
-	// user sets SOONG_DELVE the first time.
-	configuration.Getenv("SOONG_DELVE")
-	configuration.Getenv("SOONG_DELVE_PATH")
 	if shared.IsDebugging() {
 		// Add a non-existent file to the dependencies so that soong_build will rerun when the debugger is
 		// enabled even if it completed successfully.

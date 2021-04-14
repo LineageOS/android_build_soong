@@ -61,7 +61,7 @@ type bootimgProperties struct {
 	Vendor_boot *bool
 
 	// Optional kernel commandline
-	Cmdline *string
+	Cmdline *string `android:"arch_variant"`
 
 	// File that contains bootconfig parameters. This can be set only when `vendor_boot` is true
 	// and `header_version` is greater than or equal to 4.

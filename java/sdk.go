@@ -61,7 +61,7 @@ func defaultJavaLanguageVersion(ctx android.EarlyModuleContext, s android.SdkSpe
 }
 
 func decodeSdkDep(ctx android.EarlyModuleContext, sdkContext android.SdkContext) sdkDep {
-	sdkVersion := sdkContext.SdkVersion()
+	sdkVersion := sdkContext.SdkVersion(ctx)
 	if !sdkVersion.Valid() {
 		ctx.PropertyErrorf("sdk_version", "invalid version %q", sdkVersion.Raw)
 		return sdkDep{}

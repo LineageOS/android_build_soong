@@ -31,7 +31,7 @@ var prepareForTestWithPlatformBootclasspath = android.GroupFixturePreparers(
 func TestPlatformBootclasspath(t *testing.T) {
 	preparer := android.GroupFixturePreparers(
 		prepareForTestWithPlatformBootclasspath,
-		dexpreopt.FixtureSetBootJars("platform:foo", "platform:bar"),
+		FixtureConfigureBootJars("platform:foo", "platform:bar"),
 		android.FixtureWithRootAndroidBp(`
 			platform_bootclasspath {
 				name: "platform-bootclasspath",
@@ -130,4 +130,45 @@ func TestPlatformBootclasspath(t *testing.T) {
 			"platform:bar",
 		})
 	})
+}
+
+func TestPlatformBootclasspath_Dist(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithPlatformBootclasspath,
+		FixtureConfigureBootJars("platform:foo", "platform:bar"),
+		android.PrepareForTestWithAndroidMk,
+		android.FixtureWithRootAndroidBp(`
+			platform_bootclasspath {
+				name: "platform-bootclasspath",
+				dists: [
+					{
+						targets: ["droidcore"],
+						tag: "hiddenapi-flags.csv",
+					},
+				],
+			}
+
+			java_library {
+				name: "bar",
+				srcs: ["a.java"],
+				system_modules: "none",
+				sdk_version: "none",
+				compile_dex: true,
+			}
+
+			java_library {
+				name: "foo",
+				srcs: ["a.java"],
+				system_modules: "none",
+				sdk_version: "none",
+				compile_dex: true,
+			}
+		`),
+	).RunTest(t)
+
+	platformBootclasspath := result.Module("platform-bootclasspath", "android_common").(*platformBootclasspathModule)
+	entries := android.AndroidMkEntriesForTest(t, result.TestContext, platformBootclasspath)
+	goals := entries[0].GetDistForGoals(platformBootclasspath)
+	android.AssertStringEquals(t, "platform dist goals phony", ".PHONY: droidcore\n", goals[0])
+	android.AssertStringEquals(t, "platform dist goals call", "$(call dist-for-goals,droidcore,out/soong/hiddenapi/hiddenapi-flags.csv:hiddenapi-flags.csv)\n", android.StringRelativeToTop(result.Config, goals[1]))
 }

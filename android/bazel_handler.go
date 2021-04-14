@@ -67,11 +67,7 @@ type BazelContext interface {
 
 	// TODO(cparsons): Other cquery-related methods should be added here.
 	// Returns the results of GetOutputFiles and GetCcObjectFiles in a single query (in that order).
-	GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool)
-
-	// GetPrebuiltCcStaticLibraryFiles returns paths to prebuilt cc static libraries, and whether the
-	// results were available
-	GetPrebuiltCcStaticLibraryFiles(label string, archType ArchType) ([]string, bool)
+	GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error)
 
 	// ** End cquery methods
 
@@ -89,16 +85,24 @@ type BazelContext interface {
 	BuildStatementsToRegister() []bazel.BuildStatement
 }
 
-// A context object which tracks queued requests that need to be made to Bazel,
-// and their results after the requests have been made.
-type bazelContext struct {
+type bazelRunner interface {
+	issueBazelCommand(paths *bazelPaths, runName bazel.RunName, command bazelCommand, extraFlags ...string) (string, string, error)
+}
+
+type bazelPaths struct {
 	homeDir      string
 	bazelPath    string
 	outputBase   string
 	workspaceDir string
 	buildDir     string
 	metricsDir   string
+}
 
+// A context object which tracks queued requests that need to be made to Bazel,
+// and their results after the requests have been made.
+type bazelContext struct {
+	bazelRunner
+	paths        *bazelPaths
 	requests     map[cqueryKey]bool // cquery requests that have not yet been issued to Bazel
 	requestMutex sync.Mutex         // requests can be written in parallel
 
@@ -119,9 +123,8 @@ var _ BazelContext = noopBazelContext{}
 type MockBazelContext struct {
 	OutputBaseDir string
 
-	LabelToOutputFiles                 map[string][]string
-	LabelToOutputFilesAndCcObjectFiles map[string]cquery.GetOutputFilesAndCcObjectFiles_Result
-	LabelToCcStaticLibraryFiles        map[string][]string
+	LabelToOutputFiles map[string][]string
+	LabelToCcInfo      map[string]cquery.CcInfo
 }
 
 func (m MockBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
@@ -129,14 +132,9 @@ func (m MockBazelContext) GetOutputFiles(label string, archType ArchType) ([]str
 	return result, ok
 }
 
-func (m MockBazelContext) GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
-	result, ok := m.LabelToOutputFilesAndCcObjectFiles[label]
-	return result.OutputFiles, result.CcObjectFiles, ok
-}
-
-func (m MockBazelContext) GetPrebuiltCcStaticLibraryFiles(label string, archType ArchType) ([]string, bool) {
-	result, ok := m.LabelToCcStaticLibraryFiles[label]
-	return result, ok
+func (m MockBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error) {
+	result, ok := m.LabelToCcInfo[label]
+	return result, ok, nil
 }
 
 func (m MockBazelContext) InvokeBazel() error {
@@ -165,39 +163,22 @@ func (bazelCtx *bazelContext) GetOutputFiles(label string, archType ArchType) ([
 	return ret, ok
 }
 
-func (bazelCtx *bazelContext) GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
-	var outputFiles []string
-	var ccObjects []string
-
-	result, ok := bazelCtx.cquery(label, cquery.GetOutputFilesAndCcObjectFiles, archType)
-	if ok {
-		bazelOutput := strings.TrimSpace(result)
-		returnResult := cquery.GetOutputFilesAndCcObjectFiles.ParseResult(bazelOutput)
-		outputFiles = returnResult.OutputFiles
-		ccObjects = returnResult.CcObjectFiles
-	}
-
-	return outputFiles, ccObjects, ok
-}
-
-// GetPrebuiltCcStaticLibraryFiles returns a slice of prebuilt static libraries for the given
-// label/archType if there are query results; otherwise, it enqueues the query and returns false.
-func (bazelCtx *bazelContext) GetPrebuiltCcStaticLibraryFiles(label string, archType ArchType) ([]string, bool) {
-	result, ok := bazelCtx.cquery(label, cquery.GetPrebuiltCcStaticLibraryFiles, archType)
+func (bazelCtx *bazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error) {
+	result, ok := bazelCtx.cquery(label, cquery.GetCcInfo, archType)
 	if !ok {
-		return nil, false
+		return cquery.CcInfo{}, ok, nil
 	}
 
 	bazelOutput := strings.TrimSpace(result)
-	ret := cquery.GetPrebuiltCcStaticLibraryFiles.ParseResult(bazelOutput)
-	return ret, ok
+	ret, err := cquery.GetCcInfo.ParseResult(bazelOutput)
+	return ret, ok, err
 }
 
 func (n noopBazelContext) GetOutputFiles(label string, archType ArchType) ([]string, bool) {
 	panic("unimplemented")
 }
 
-func (n noopBazelContext) GetOutputFilesAndCcObjectFiles(label string, archType ArchType) ([]string, []string, bool) {
+func (n noopBazelContext) GetCcInfo(label string, archType ArchType) (cquery.CcInfo, bool, error) {
 	panic("unimplemented")
 }
 
@@ -228,42 +209,56 @@ func NewBazelContext(c *config) (BazelContext, error) {
 		return noopBazelContext{}, nil
 	}
 
-	bazelCtx := bazelContext{buildDir: c.buildDir, requests: make(map[cqueryKey]bool)}
+	p, err := bazelPathsFromConfig(c)
+	if err != nil {
+		return nil, err
+	}
+	return &bazelContext{
+		bazelRunner: &builtinBazelRunner{},
+		paths:       p,
+		requests:    make(map[cqueryKey]bool),
+	}, nil
+}
+
+func bazelPathsFromConfig(c *config) (*bazelPaths, error) {
+	p := bazelPaths{
+		buildDir: c.buildDir,
+	}
 	missingEnvVars := []string{}
 	if len(c.Getenv("BAZEL_HOME")) > 1 {
-		bazelCtx.homeDir = c.Getenv("BAZEL_HOME")
+		p.homeDir = c.Getenv("BAZEL_HOME")
 	} else {
 		missingEnvVars = append(missingEnvVars, "BAZEL_HOME")
 	}
 	if len(c.Getenv("BAZEL_PATH")) > 1 {
-		bazelCtx.bazelPath = c.Getenv("BAZEL_PATH")
+		p.bazelPath = c.Getenv("BAZEL_PATH")
 	} else {
 		missingEnvVars = append(missingEnvVars, "BAZEL_PATH")
 	}
 	if len(c.Getenv("BAZEL_OUTPUT_BASE")) > 1 {
-		bazelCtx.outputBase = c.Getenv("BAZEL_OUTPUT_BASE")
+		p.outputBase = c.Getenv("BAZEL_OUTPUT_BASE")
 	} else {
 		missingEnvVars = append(missingEnvVars, "BAZEL_OUTPUT_BASE")
 	}
 	if len(c.Getenv("BAZEL_WORKSPACE")) > 1 {
-		bazelCtx.workspaceDir = c.Getenv("BAZEL_WORKSPACE")
+		p.workspaceDir = c.Getenv("BAZEL_WORKSPACE")
 	} else {
 		missingEnvVars = append(missingEnvVars, "BAZEL_WORKSPACE")
 	}
 	if len(c.Getenv("BAZEL_METRICS_DIR")) > 1 {
-		bazelCtx.metricsDir = c.Getenv("BAZEL_METRICS_DIR")
+		p.metricsDir = c.Getenv("BAZEL_METRICS_DIR")
 	} else {
 		missingEnvVars = append(missingEnvVars, "BAZEL_METRICS_DIR")
 	}
 	if len(missingEnvVars) > 0 {
 		return nil, errors.New(fmt.Sprintf("missing required env vars to use bazel: %s", missingEnvVars))
 	} else {
-		return &bazelCtx, nil
+		return &p, nil
 	}
 }
 
-func (context *bazelContext) BazelMetricsDir() string {
-	return context.metricsDir
+func (p *bazelPaths) BazelMetricsDir() string {
+	return p.metricsDir
 }
 
 func (context *bazelContext) BazelEnabled() bool {
@@ -296,17 +291,40 @@ func pwdPrefix() string {
 	return ""
 }
 
+type bazelCommand struct {
+	command string
+	// query or label
+	expression string
+}
+
+type mockBazelRunner struct {
+	bazelCommandResults map[bazelCommand]string
+	commands            []bazelCommand
+}
+
+func (r *mockBazelRunner) issueBazelCommand(paths *bazelPaths,
+	runName bazel.RunName,
+	command bazelCommand,
+	extraFlags ...string) (string, string, error) {
+	r.commands = append(r.commands, command)
+	if ret, ok := r.bazelCommandResults[command]; ok {
+		return ret, "", nil
+	}
+	return "", "", nil
+}
+
+type builtinBazelRunner struct{}
+
 // Issues the given bazel command with given build label and additional flags.
 // Returns (stdout, stderr, error). The first and second return values are strings
 // containing the stdout and stderr of the run command, and an error is returned if
 // the invocation returned an error code.
-func (context *bazelContext) issueBazelCommand(runName bazel.RunName, command string, labels []string,
+func (r *builtinBazelRunner) issueBazelCommand(paths *bazelPaths, runName bazel.RunName, command bazelCommand,
 	extraFlags ...string) (string, string, error) {
-
-	cmdFlags := []string{"--output_base=" + context.outputBase, command}
-	cmdFlags = append(cmdFlags, labels...)
-	cmdFlags = append(cmdFlags, "--package_path=%workspace%/"+context.intermediatesDir())
-	cmdFlags = append(cmdFlags, "--profile="+shared.BazelMetricsFilename(context, runName))
+	cmdFlags := []string{"--output_base=" + paths.outputBase, command.command}
+	cmdFlags = append(cmdFlags, command.expression)
+	cmdFlags = append(cmdFlags, "--package_path=%workspace%/"+paths.intermediatesDir())
+	cmdFlags = append(cmdFlags, "--profile="+shared.BazelMetricsFilename(paths, runName))
 
 	// Set default platforms to canonicalized values for mixed builds requests.
 	// If these are set in the bazelrc, they will have values that are
@@ -328,9 +346,9 @@ func (context *bazelContext) issueBazelCommand(runName bazel.RunName, command st
 	cmdFlags = append(cmdFlags, "--experimental_repository_disable_download")
 	cmdFlags = append(cmdFlags, extraFlags...)
 
-	bazelCmd := exec.Command(context.bazelPath, cmdFlags...)
-	bazelCmd.Dir = context.workspaceDir
-	bazelCmd.Env = append(os.Environ(), "HOME="+context.homeDir, pwdPrefix(),
+	bazelCmd := exec.Command(paths.bazelPath, cmdFlags...)
+	bazelCmd.Dir = paths.workspaceDir
+	bazelCmd.Env = append(os.Environ(), "HOME="+paths.homeDir, pwdPrefix(),
 		// Disables local host detection of gcc; toolchain information is defined
 		// explicitly in BUILD files.
 		"BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1")
@@ -367,7 +385,7 @@ local_repository(
     path = "%[1]s/build/bazel/bazel_skylib",
 )
 `
-	return []byte(fmt.Sprintf(formatString, context.workspaceDir))
+	return []byte(fmt.Sprintf(formatString, context.paths.workspaceDir))
 }
 
 func (context *bazelContext) mainBzlFileContents() []byte {
@@ -577,8 +595,8 @@ def format(target):
 
 // Returns a workspace-relative path containing build-related metadata required
 // for interfacing with Bazel. Example: out/soong/bazel.
-func (context *bazelContext) intermediatesDir() string {
-	return filepath.Join(context.buildDir, "bazel")
+func (p *bazelPaths) intermediatesDir() string {
+	return filepath.Join(p.buildDir, "bazel")
 }
 
 // Issues commands to Bazel to receive results for all cquery requests
@@ -590,7 +608,7 @@ func (context *bazelContext) InvokeBazel() error {
 	var cqueryErr string
 	var err error
 
-	intermediatesDirPath := absolutePath(context.intermediatesDir())
+	intermediatesDirPath := absolutePath(context.paths.intermediatesDir())
 	if _, err := os.Stat(intermediatesDirPath); os.IsNotExist(err) {
 		err = os.Mkdir(intermediatesDirPath, 0777)
 	}
@@ -599,38 +617,38 @@ func (context *bazelContext) InvokeBazel() error {
 		return err
 	}
 	err = ioutil.WriteFile(
-		absolutePath(filepath.Join(context.intermediatesDir(), "main.bzl")),
+		filepath.Join(intermediatesDirPath, "main.bzl"),
 		context.mainBzlFileContents(), 0666)
 	if err != nil {
 		return err
 	}
 	err = ioutil.WriteFile(
-		absolutePath(filepath.Join(context.intermediatesDir(), "BUILD.bazel")),
+		filepath.Join(intermediatesDirPath, "BUILD.bazel"),
 		context.mainBuildFileContents(), 0666)
 	if err != nil {
 		return err
 	}
-	cqueryFileRelpath := filepath.Join(context.intermediatesDir(), "buildroot.cquery")
+	cqueryFileRelpath := filepath.Join(context.paths.intermediatesDir(), "buildroot.cquery")
 	err = ioutil.WriteFile(
 		absolutePath(cqueryFileRelpath),
 		context.cqueryStarlarkFileContents(), 0666)
 	if err != nil {
 		return err
 	}
-	workspaceFileRelpath := filepath.Join(context.intermediatesDir(), "WORKSPACE.bazel")
 	err = ioutil.WriteFile(
-		absolutePath(workspaceFileRelpath),
+		filepath.Join(intermediatesDirPath, "WORKSPACE.bazel"),
 		context.workspaceFileContents(), 0666)
 	if err != nil {
 		return err
 	}
 	buildrootLabel := "//:buildroot"
-	cqueryOutput, cqueryErr, err = context.issueBazelCommand(bazel.CqueryBuildRootRunName, "cquery",
-		[]string{fmt.Sprintf("kind(rule, deps(%s))", buildrootLabel)},
+	cqueryOutput, cqueryErr, err = context.issueBazelCommand(
+		context.paths,
+		bazel.CqueryBuildRootRunName,
+		bazelCommand{"cquery", fmt.Sprintf("kind(rule, deps(%s))", buildrootLabel)},
 		"--output=starlark",
 		"--starlark:file="+cqueryFileRelpath)
-	err = ioutil.WriteFile(
-		absolutePath(filepath.Join(context.intermediatesDir(), "cquery.out")),
+	err = ioutil.WriteFile(filepath.Join(intermediatesDirPath, "cquery.out"),
 		[]byte(cqueryOutput), 0666)
 	if err != nil {
 		return err
@@ -661,11 +679,13 @@ func (context *bazelContext) InvokeBazel() error {
 	//
 	// TODO(cparsons): Use --target_pattern_file to avoid command line limits.
 	var aqueryOutput string
-	aqueryOutput, _, err = context.issueBazelCommand(bazel.AqueryBuildRootRunName, "aquery",
-		[]string{fmt.Sprintf("deps(%s)", buildrootLabel),
-			// Use jsonproto instead of proto; actual proto parsing would require a dependency on Bazel's
-			// proto sources, which would add a number of unnecessary dependencies.
-			"--output=jsonproto"})
+	aqueryOutput, _, err = context.issueBazelCommand(
+		context.paths,
+		bazel.AqueryBuildRootRunName,
+		bazelCommand{"aquery", fmt.Sprintf("deps(%s)", buildrootLabel)},
+		// Use jsonproto instead of proto; actual proto parsing would require a dependency on Bazel's
+		// proto sources, which would add a number of unnecessary dependencies.
+		"--output=jsonproto")
 
 	if err != nil {
 		return err
@@ -679,8 +699,10 @@ func (context *bazelContext) InvokeBazel() error {
 	// Issue a build command of the phony root to generate symlink forests for dependencies of the
 	// Bazel build. This is necessary because aquery invocations do not generate this symlink forest,
 	// but some of symlinks may be required to resolve source dependencies of the build.
-	_, _, err = context.issueBazelCommand(bazel.BazelBuildPhonyRootRunName, "build",
-		[]string{"//:phonyroot"})
+	_, _, err = context.issueBazelCommand(
+		context.paths,
+		bazel.BazelBuildPhonyRootRunName,
+		bazelCommand{"build", "//:phonyroot"})
 
 	if err != nil {
 		return err
@@ -696,7 +718,7 @@ func (context *bazelContext) BuildStatementsToRegister() []bazel.BuildStatement 
 }
 
 func (context *bazelContext) OutputBase() string {
-	return context.outputBase
+	return context.paths.outputBase
 }
 
 // Singleton used for registering BUILD file ninja dependencies (needed

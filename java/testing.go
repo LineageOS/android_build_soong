@@ -178,6 +178,43 @@ func prebuiltApisFilesForLibs(apiLevels []string, sdkLibs []string) map[string][
 	return fs
 }
 
+// FixtureConfigureBootJars configures the boot jars in both the dexpreopt.GlobalConfig and
+// Config.productVariables structs. As a side effect that enables dexpreopt.
+func FixtureConfigureBootJars(bootJars ...string) android.FixturePreparer {
+	artBootJars := []string{}
+	for _, j := range bootJars {
+		artApex := false
+		for _, artApexName := range artApexNames {
+			if strings.HasPrefix(j, artApexName+":") {
+				artApex = true
+				break
+			}
+		}
+		if artApex {
+			artBootJars = append(artBootJars, j)
+		}
+	}
+	return android.GroupFixturePreparers(
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.BootJars = android.CreateTestConfiguredJarList(bootJars)
+		}),
+		dexpreopt.FixtureSetBootJars(bootJars...),
+		dexpreopt.FixtureSetArtBootJars(artBootJars...),
+	)
+}
+
+// FixtureConfigureUpdatableBootJars configures the updatable boot jars in both the
+// dexpreopt.GlobalConfig and Config.productVariables structs. As a side effect that enables
+// dexpreopt.
+func FixtureConfigureUpdatableBootJars(bootJars ...string) android.FixturePreparer {
+	return android.GroupFixturePreparers(
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.UpdatableBootJars = android.CreateTestConfiguredJarList(bootJars)
+		}),
+		dexpreopt.FixtureSetUpdatableBootJars(bootJars...),
+	)
+}
+
 // registerRequiredBuildComponentsForTest registers the build components used by
 // PrepareForTestWithJavaDefaultModules.
 //
