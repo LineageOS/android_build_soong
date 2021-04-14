@@ -609,8 +609,8 @@ func isVndkSnapshotAware(config android.DeviceConfig, m *Module,
 	}
 	// !inVendor: There's product/vendor variants for VNDK libs. We only care about vendor variants.
 	// !installable: Snapshot only cares about "installable" modules.
-	// isSnapshotPrebuilt: Snapshotting a snapshot doesn't make sense.
-	if !m.InVendor() || !m.installable(apexInfo) || m.isSnapshotPrebuilt() {
+	// IsSnapshotPrebuilt: Snapshotting a snapshot doesn't make sense.
+	if !m.InVendor() || !m.installable(apexInfo) || m.IsSnapshotPrebuilt() {
 		return nil, "", false
 	}
 	l, ok := m.linker.(snapshotLibraryInterface)
