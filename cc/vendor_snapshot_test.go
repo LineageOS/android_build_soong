@@ -506,13 +506,13 @@ func TestVendorSnapshotUse(t *testing.T) {
 		arch: {
 			arm64: {
 				src: "libvndk.a",
-				export_include_dirs: ["include/libvndk"],
 			},
 			arm: {
 				src: "libvndk.a",
-				export_include_dirs: ["include/libvndk"],
 			},
 		},
+		shared_libs: ["libvndk"],
+		export_shared_lib_headers: ["libvndk"],
 	}
 
 	vendor_snapshot_shared {
@@ -848,9 +848,9 @@ func TestVendorSnapshotUse(t *testing.T) {
 		t.Errorf("libflags for libclientCfi must contain %#v, but was %#v", libvendorCfiOutputPaths[0], libclientCfiLdFlags)
 	}
 
-	// bin_without_snapshot uses libvndk.vendor_static.30.arm64
+	// bin_without_snapshot uses libvndk.vendor_static.30.arm64 (which reexports vndk's exported headers)
 	binWithoutSnapshotCcFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("cc").Args["cFlags"]
-	if !strings.Contains(binWithoutSnapshotCcFlags, "-Ivendor/include/libvndk") {
+	if !strings.Contains(binWithoutSnapshotCcFlags, "-Ivndk/include/libvndk") {
 		t.Errorf("flags for bin_without_snapshot must contain %#v, but was %#v.",
 			"-Ivendor/include/libvndk", binWithoutSnapshotCcFlags)
 	}
