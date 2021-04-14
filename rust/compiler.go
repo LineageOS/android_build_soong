@@ -303,7 +303,6 @@ func (compiler *baseCompiler) compilerDeps(ctx DepsContext, deps Deps) Deps {
 			if ctx.Target().Os == android.BuildOs {
 				stdlib = stdlib + "_" + ctx.toolchain().RustTriple()
 			}
-
 			deps.Stdlibs = append(deps.Stdlibs, stdlib)
 		}
 	}
@@ -343,6 +342,10 @@ func (compiler *baseCompiler) installDir(ctx ModuleContext) android.InstallPath 
 	}
 	if !ctx.Host() && ctx.Config().HasMultilibConflict(ctx.Arch().ArchType) {
 		dir = filepath.Join(dir, ctx.Arch().ArchType.String())
+	}
+
+	if compiler.location == InstallInData && ctx.RustModule().UseVndk() {
+		dir = filepath.Join(dir, "vendor")
 	}
 	return android.PathForModuleInstall(ctx, dir, compiler.subDir,
 		compiler.relativeInstallPath(), compiler.relative)

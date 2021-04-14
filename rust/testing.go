@@ -127,6 +127,7 @@ func GatherRequiredDepsForTest() string {
 			system_shared_libs: [],
 			apex_available: ["//apex_available:platform", "//apex_available:anyapex"],
 			min_sdk_version: "29",
+			vendor_available: true,
 		}
 		cc_library {
 			name: "libprotobuf-cpp-full",
