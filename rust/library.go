@@ -475,7 +475,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		TransformSrctoShared(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
 	}
 
-	if !library.rlib() && library.stripper.NeedsStrip(ctx) {
+	if !library.rlib() && !library.static() && library.stripper.NeedsStrip(ctx) {
 		strippedOutputFile := android.PathForModuleOut(ctx, "stripped", fileName)
 		library.stripper.StripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile)
 		library.strippedOutputFile = android.OptionalPathForPath(strippedOutputFile)
