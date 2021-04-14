@@ -78,9 +78,6 @@ bootstrap_go_package {
         "variable.go",
         "visibility.go",
         "writedocs.go",
-
-        // Lock down environment access last
-        "env.go",
     ],
     testSrcs: [
         "android_test.go",
