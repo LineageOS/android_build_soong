@@ -124,6 +124,9 @@ type LinkableInterface interface {
 	HasNonSystemVariants() bool
 	InProduct() bool
 
+	// SubName returns the modules SubName, used for image and NDK/SDK variations.
+	SubName() string
+
 	SdkVersion() string
 	MinSdkVersion() string
 	AlwaysSdk() bool
@@ -168,6 +171,15 @@ func GetImageVariantType(c LinkableInterface) ImageVariantType {
 	} else {
 		return coreImageVariant
 	}
+}
+
+// DepTagMakeSuffix returns the makeSuffix value of a particular library dependency tag.
+// Returns an empty string if not a library dependency tag.
+func DepTagMakeSuffix(depTag blueprint.DependencyTag) string {
+	if libDepTag, ok := depTag.(libraryDependencyTag); ok {
+		return libDepTag.makeSuffix
+	}
+	return ""
 }
 
 // SharedDepTag returns the dependency tag for any C++ shared libraries.

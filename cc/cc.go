@@ -1203,6 +1203,10 @@ func (c *Module) IsVndkExt() bool {
 	return false
 }
 
+func (c *Module) SubName() string {
+	return c.Properties.SubName
+}
+
 func (c *Module) MustUseVendorVariant() bool {
 	return c.isVndkSp() || c.Properties.MustUseVendorVariant
 }
@@ -2306,12 +2310,7 @@ func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to Lin
 			if ccFrom.vndkdep != nil {
 				ccFrom.vndkdep.vndkCheckLinkType(ctx, ccTo, tag)
 			}
-		} else if linkableMod, ok := to.(LinkableInterface); ok {
-			// Static libraries from other languages can be linked
-			if !linkableMod.Static() {
-				ctx.ModuleErrorf("Attempting to link VNDK cc.Module with unsupported module type")
-			}
-		} else {
+		} else if _, ok := to.(LinkableInterface); !ok {
 			ctx.ModuleErrorf("Attempting to link VNDK cc.Module with unsupported module type")
 		}
 		return
@@ -2824,7 +2823,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					c.sabi.Properties.ReexportedIncludes, depExporterInfo.IncludeDirs.Strings()...)
 			}
 
-			makeLibName := c.makeLibName(ctx, ccDep, depName) + libDepTag.makeSuffix
+			makeLibName := MakeLibName(ctx, c, ccDep, depName) + libDepTag.makeSuffix
 			switch {
 			case libDepTag.header():
 				c.Properties.AndroidMkHeaderLibs = append(
@@ -2863,7 +2862,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			switch depTag {
 			case runtimeDepTag:
 				c.Properties.AndroidMkRuntimeLibs = append(
-					c.Properties.AndroidMkRuntimeLibs, c.makeLibName(ctx, ccDep, depName)+libDepTag.makeSuffix)
+					c.Properties.AndroidMkRuntimeLibs, MakeLibName(ctx, c, ccDep, depName)+libDepTag.makeSuffix)
 				// Record baseLibName for snapshots.
 				c.Properties.SnapshotRuntimeLibs = append(c.Properties.SnapshotRuntimeLibs, baseLibName(depName))
 			case objDepTag:
@@ -2941,7 +2940,8 @@ func baseLibName(depName string) string {
 	return libName
 }
 
-func (c *Module) makeLibName(ctx android.ModuleContext, ccDep LinkableInterface, depName string) string {
+func MakeLibName(ctx android.ModuleContext, c LinkableInterface, ccDep LinkableInterface, depName string) string {
+
 	vendorPublicLibraries := vendorPublicLibraries(ctx.Config())
 
 	libName := baseLibName(depName)
@@ -2951,6 +2951,7 @@ func (c *Module) makeLibName(ctx android.ModuleContext, ccDep LinkableInterface,
 	nonSystemVariantsExist := ccDep.HasNonSystemVariants() || isLLndk
 
 	if ccDepModule != nil {
+		// TODO(ivanlozano) Support snapshots for Rust-produced C library variants.
 		// Use base module name for snapshots when exporting to Makefile.
 		if snapshotPrebuilt, ok := ccDepModule.linker.(snapshotInterface); ok {
 			baseName := ccDepModule.BaseModuleName()
@@ -2964,10 +2965,10 @@ func (c *Module) makeLibName(ctx android.ModuleContext, ccDep LinkableInterface,
 		// The vendor module is a no-vendor-variant VNDK library.  Depend on the
 		// core module instead.
 		return libName
-	} else if ccDep.UseVndk() && nonSystemVariantsExist && ccDepModule != nil {
+	} else if ccDep.UseVndk() && nonSystemVariantsExist {
 		// The vendor and product modules in Make will have been renamed to not conflict with the
 		// core module, so update the dependency name here accordingly.
-		return libName + ccDepModule.Properties.SubName
+		return libName + ccDep.SubName()
 	} else if (ctx.Platform() || ctx.ProductSpecific()) && isVendorPublicLib {
 		return libName + vendorPublicLibrarySuffix
 	} else if ccDep.InRamdisk() && !ccDep.OnlyInRamdisk() {
