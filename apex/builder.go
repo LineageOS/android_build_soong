@@ -517,6 +517,9 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	outHostBinDir := android.PathForOutput(ctx, "host", ctx.Config().PrebuiltOS(), "bin").String()
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
 
+	// Figure out if need to compress apex.
+	compressionEnabled := ctx.Config().CompressedApex() && proptools.BoolDefault(a.properties.Compressible, false) && !a.testApex
+
 	if apexType == imageApex {
 		////////////////////////////////////////////////////////////////////////////////////
 		// Step 2: create canned_fs_config which encodes filemode,uid,gid of each files
@@ -631,7 +634,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 			ctx.PropertyErrorf("test_only_no_hashtree", "not available")
 			return
 		}
-		if moduleMinSdkVersion.GreaterThan(android.SdkVersion_Android10) || a.testOnlyShouldSkipHashtreeGeneration() {
+		if (moduleMinSdkVersion.GreaterThan(android.SdkVersion_Android10) || a.testOnlyShouldSkipHashtreeGeneration()) && !compressionEnabled {
 			// Apexes which are supposed to be installed in builtin dirs(/system, etc)
 			// don't need hashtree for activation. Therefore, by removing hashtree from
 			// apex bundle (filesystem image in it, to be specific), we can save storage.
@@ -780,12 +783,11 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	})
 	a.outputFile = signedOutputFile
 
-	// Process APEX compression if enabled or forced
 	if ctx.ModuleDir() != "system/apex/apexd/apexd_testdata" && a.testOnlyShouldForceCompression() {
 		ctx.PropertyErrorf("test_only_force_compression", "not available")
 		return
 	}
-	compressionEnabled := ctx.Config().CompressedApex() && proptools.BoolDefault(a.properties.Compressible, false) && !a.testApex
+
 	if apexType == imageApex && (compressionEnabled || a.testOnlyShouldForceCompression()) {
 		a.isCompressed = true
 		unsignedCompressedOutputFile := android.PathForModuleOut(ctx, a.Name()+".capex.unsigned")
