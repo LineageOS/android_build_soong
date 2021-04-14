@@ -199,39 +199,72 @@ func (c *Module) compareVendorAndProductProps() bool {
 	return true
 }
 
+// ImageMutatableModule provides a common image mutation interface for  LinkableInterface modules.
+type ImageMutatableModule interface {
+	android.Module
+	LinkableInterface
+
+	// AndroidModuleBase returns the android.ModuleBase for this module
+	AndroidModuleBase() *android.ModuleBase
+
+	// VendorAvailable returns true if this module is available on the vendor image.
+	VendorAvailable() bool
+
+	// OdmAvailable returns true if this module is available on the odm image.
+	OdmAvailable() bool
+
+	// ProductAvailable returns true if this module is available on the product image.
+	ProductAvailable() bool
+
+	// RamdiskAvailable returns true if this module is available on the ramdisk image.
+	RamdiskAvailable() bool
+
+	// RecoveryAvailable returns true if this module is available on the recovery image.
+	RecoveryAvailable() bool
+
+	// VendorRamdiskAvailable returns true if this module is available on the vendor ramdisk image.
+	VendorRamdiskAvailable() bool
+
+	// IsSnapshotPrebuilt returns true if this module is a snapshot prebuilt.
+	IsSnapshotPrebuilt() bool
+
+	// SnapshotVersion returns the snapshot version for this module.
+	SnapshotVersion(mctx android.BaseModuleContext) string
+
+	// SdkVersion returns the SDK version for this module.
+	SdkVersion() string
+
+	// ExtraVariants returns the list of extra variants this module requires.
+	ExtraVariants() []string
+
+	// AppendExtraVariant returns an extra variant to the list of extra variants this module requires.
+	AppendExtraVariant(extraVariant string)
+
+	// SetRamdiskVariantNeeded sets whether the Ramdisk Variant is needed.
+	SetRamdiskVariantNeeded(b bool)
+
+	// SetVendorRamdiskVariantNeeded sets whether the Vendor Ramdisk Variant is needed.
+	SetVendorRamdiskVariantNeeded(b bool)
+
+	// SetRecoveryVariantNeeded sets whether the Recovery Variant is needed.
+	SetRecoveryVariantNeeded(b bool)
+
+	// SetCoreVariantNeeded sets whether the Core Variant is needed.
+	SetCoreVariantNeeded(b bool)
+}
+
+var _ ImageMutatableModule = (*Module)(nil)
+
 func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
-	// Validation check
+	m.CheckVndkProperties(mctx)
+	MutateImage(mctx, m)
+}
+
+// CheckVndkProperties checks whether the VNDK-related properties are set correctly.
+// If properties are not set correctly, results in a module context property error.
+func (m *Module) CheckVndkProperties(mctx android.BaseModuleContext) {
 	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
 	productSpecific := mctx.ProductSpecific()
-
-	if Bool(m.VendorProperties.Vendor_available) {
-		if vendorSpecific {
-			mctx.PropertyErrorf("vendor_available",
-				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific: true`")
-		}
-		if Bool(m.VendorProperties.Odm_available) {
-			mctx.PropertyErrorf("vendor_available",
-				"doesn't make sense at the same time as `odm_available: true`")
-		}
-	}
-
-	if Bool(m.VendorProperties.Odm_available) {
-		if vendorSpecific {
-			mctx.PropertyErrorf("odm_available",
-				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific: true`")
-		}
-	}
-
-	if Bool(m.VendorProperties.Product_available) {
-		if productSpecific {
-			mctx.PropertyErrorf("product_available",
-				"doesn't make sense at the same time as `product_specific: true`")
-		}
-		if vendorSpecific {
-			mctx.PropertyErrorf("product_available",
-				"cannot provide product variant from a vendor module. Please use `product_specific: true` with `vendor_available: true`")
-		}
-	}
 
 	if vndkdep := m.vndkdep; vndkdep != nil {
 		if vndkdep.isVndk() {
@@ -277,6 +310,111 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 			}
 		}
 	}
+}
+
+func (m *Module) VendorAvailable() bool {
+	return Bool(m.VendorProperties.Vendor_available)
+}
+
+func (m *Module) OdmAvailable() bool {
+	return Bool(m.VendorProperties.Odm_available)
+}
+
+func (m *Module) ProductAvailable() bool {
+	return Bool(m.VendorProperties.Product_available)
+}
+
+func (m *Module) RamdiskAvailable() bool {
+	return Bool(m.Properties.Ramdisk_available)
+}
+
+func (m *Module) VendorRamdiskAvailable() bool {
+	return Bool(m.Properties.Vendor_ramdisk_available)
+}
+
+func (m *Module) AndroidModuleBase() *android.ModuleBase {
+	return &m.ModuleBase
+}
+
+func (m *Module) RecoveryAvailable() bool {
+	return Bool(m.Properties.Recovery_available)
+}
+
+func (m *Module) ExtraVariants() []string {
+	return m.Properties.ExtraVariants
+}
+
+func (m *Module) AppendExtraVariant(extraVariant string) {
+	m.Properties.ExtraVariants = append(m.Properties.ExtraVariants, extraVariant)
+}
+
+func (m *Module) SetRamdiskVariantNeeded(b bool) {
+	m.Properties.RamdiskVariantNeeded = b
+}
+
+func (m *Module) SetVendorRamdiskVariantNeeded(b bool) {
+	m.Properties.VendorRamdiskVariantNeeded = b
+}
+
+func (m *Module) SetRecoveryVariantNeeded(b bool) {
+	m.Properties.RecoveryVariantNeeded = b
+}
+
+func (m *Module) SetCoreVariantNeeded(b bool) {
+	m.Properties.CoreVariantNeeded = b
+}
+
+func (m *Module) SnapshotVersion(mctx android.BaseModuleContext) string {
+	if snapshot, ok := m.linker.(snapshotInterface); ok {
+		return snapshot.version()
+	} else {
+		mctx.ModuleErrorf("version is unknown for snapshot prebuilt")
+		// Should we be panicking here instead?
+		return ""
+	}
+}
+
+func (m *Module) KernelHeadersDecorator() bool {
+	if _, ok := m.linker.(*kernelHeadersDecorator); ok {
+		return true
+	}
+	return false
+}
+
+// MutateImage handles common image mutations for ImageMutatableModule interfaces.
+func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
+	// Validation check
+	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
+	productSpecific := mctx.ProductSpecific()
+
+	if m.VendorAvailable() {
+		if vendorSpecific {
+			mctx.PropertyErrorf("vendor_available",
+				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific: true`")
+		}
+		if m.OdmAvailable() {
+			mctx.PropertyErrorf("vendor_available",
+				"doesn't make sense at the same time as `odm_available: true`")
+		}
+	}
+
+	if m.OdmAvailable() {
+		if vendorSpecific {
+			mctx.PropertyErrorf("odm_available",
+				"doesn't make sense at the same time as `vendor: true`, `proprietary: true`, or `device_specific: true`")
+		}
+	}
+
+	if m.ProductAvailable() {
+		if productSpecific {
+			mctx.PropertyErrorf("product_available",
+				"doesn't make sense at the same time as `product_specific: true`")
+		}
+		if vendorSpecific {
+			mctx.PropertyErrorf("product_available",
+				"cannot provide product variant from a vendor module. Please use `product_specific: true` with `vendor_available: true`")
+		}
+	}
 
 	var coreVariantNeeded bool = false
 	var ramdiskVariantNeeded bool = false
@@ -299,18 +437,13 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		productVndkVersion = platformVndkVersion
 	}
 
-	_, isLLNDKLibrary := m.linker.(*llndkStubDecorator)
-	_, isLLNDKHeaders := m.linker.(*llndkHeadersDecorator)
-	lib := moduleLibraryInterface(m)
-	hasLLNDKStubs := lib != nil && lib.hasLLNDKStubs()
-
-	if isLLNDKLibrary || isLLNDKHeaders || hasLLNDKStubs {
+	if m.IsLlndkLibrary() || m.IsLlndkHeaders() || m.HasLlndkStubs() {
 		// This is an LLNDK library.  The implementation of the library will be on /system,
 		// and vendor and product variants will be created with LLNDK stubs.
 		// The LLNDK libraries need vendor variants even if there is no VNDK.
 		// The obsolete llndk_library and llndk_headers modules also need the vendor variants
 		// so the cc_library LLNDK stubs can depend on them.
-		if hasLLNDKStubs {
+		if m.HasLlndkStubs() {
 			coreVariantNeeded = true
 		}
 		if platformVndkVersion != "" {
@@ -327,17 +460,13 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		// If the device isn't compiling against the VNDK, we always
 		// use the core mode.
 		coreVariantNeeded = true
-	} else if m.isSnapshotPrebuilt() {
+	} else if m.IsSnapshotPrebuilt() {
 		// Make vendor variants only for the versions in BOARD_VNDK_VERSION and
 		// PRODUCT_EXTRA_VNDK_VERSIONS.
-		if snapshot, ok := m.linker.(snapshotInterface); ok {
-			if m.InstallInRecovery() {
-				recoveryVariantNeeded = true
-			} else {
-				vendorVariants = append(vendorVariants, snapshot.version())
-			}
+		if m.InstallInRecovery() {
+			recoveryVariantNeeded = true
 		} else {
-			mctx.ModuleErrorf("version is unknown for snapshot prebuilt")
+			vendorVariants = append(vendorVariants, m.SnapshotVersion(mctx))
 		}
 	} else if m.HasNonSystemVariants() && !m.IsVndkExt() {
 		// This will be available to /system unless it is product_specific
@@ -363,7 +492,7 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 				productVariants = append(productVariants, productVndkVersion)
 			}
 		}
-	} else if vendorSpecific && String(m.Properties.Sdk_version) == "" {
+	} else if vendorSpecific && m.SdkVersion() == "" {
 		// This will be available in /vendor (or /odm) only
 
 		// kernel_headers is a special module type whose exported headers
@@ -372,7 +501,7 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		// For other modules, we assume that modules under proprietary
 		// paths are compatible for BOARD_VNDK_VERSION. The other modules
 		// are regarded as AOSP, which is PLATFORM_VNDK_VERSION.
-		if _, ok := m.linker.(*kernelHeadersDecorator); ok {
+		if m.KernelHeadersDecorator() {
 			vendorVariants = append(vendorVariants,
 				platformVndkVersion,
 				boardVndkVersion,
@@ -390,7 +519,7 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	}
 
 	if boardVndkVersion != "" && productVndkVersion != "" {
-		if coreVariantNeeded && productSpecific && String(m.Properties.Sdk_version) == "" {
+		if coreVariantNeeded && productSpecific && m.SdkVersion() == "" {
 			// The module has "product_specific: true" that does not create core variant.
 			coreVariantNeeded = false
 			productVariants = append(productVariants, productVndkVersion)
@@ -402,60 +531,60 @@ func (m *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		productVariants = []string{}
 	}
 
-	if Bool(m.Properties.Ramdisk_available) {
+	if m.RamdiskAvailable() {
 		ramdiskVariantNeeded = true
 	}
 
-	if m.ModuleBase.InstallInRamdisk() {
+	if m.AndroidModuleBase().InstallInRamdisk() {
 		ramdiskVariantNeeded = true
 		coreVariantNeeded = false
 	}
 
-	if Bool(m.Properties.Vendor_ramdisk_available) {
+	if m.VendorRamdiskAvailable() {
 		vendorRamdiskVariantNeeded = true
 	}
 
-	if m.ModuleBase.InstallInVendorRamdisk() {
+	if m.AndroidModuleBase().InstallInVendorRamdisk() {
 		vendorRamdiskVariantNeeded = true
 		coreVariantNeeded = false
 	}
 
-	if Bool(m.Properties.Recovery_available) {
+	if m.RecoveryAvailable() {
 		recoveryVariantNeeded = true
 	}
 
-	if m.ModuleBase.InstallInRecovery() {
+	if m.AndroidModuleBase().InstallInRecovery() {
 		recoveryVariantNeeded = true
 		coreVariantNeeded = false
 	}
 
 	// If using a snapshot, the recovery variant under AOSP directories is not needed,
 	// except for kernel headers, which needs all variants.
-	if _, ok := m.linker.(*kernelHeadersDecorator); !ok &&
-		!m.isSnapshotPrebuilt() &&
+	if m.KernelHeadersDecorator() &&
+		!m.IsSnapshotPrebuilt() &&
 		usingRecoverySnapshot &&
 		!isRecoveryProprietaryModule(mctx) {
 		recoveryVariantNeeded = false
 	}
 
 	for _, variant := range android.FirstUniqueStrings(vendorVariants) {
-		m.Properties.ExtraVariants = append(m.Properties.ExtraVariants, VendorVariationPrefix+variant)
+		m.AppendExtraVariant(VendorVariationPrefix + variant)
 	}
 
 	for _, variant := range android.FirstUniqueStrings(productVariants) {
-		m.Properties.ExtraVariants = append(m.Properties.ExtraVariants, ProductVariationPrefix+variant)
+		m.AppendExtraVariant(ProductVariationPrefix + variant)
 	}
 
-	m.Properties.RamdiskVariantNeeded = ramdiskVariantNeeded
-	m.Properties.VendorRamdiskVariantNeeded = vendorRamdiskVariantNeeded
-	m.Properties.RecoveryVariantNeeded = recoveryVariantNeeded
-	m.Properties.CoreVariantNeeded = coreVariantNeeded
+	m.SetRamdiskVariantNeeded(ramdiskVariantNeeded)
+	m.SetVendorRamdiskVariantNeeded(vendorRamdiskVariantNeeded)
+	m.SetRecoveryVariantNeeded(recoveryVariantNeeded)
+	m.SetCoreVariantNeeded(coreVariantNeeded)
 
 	// Disable the module if no variants are needed.
 	if !ramdiskVariantNeeded &&
 		!recoveryVariantNeeded &&
 		!coreVariantNeeded &&
-		len(m.Properties.ExtraVariants) == 0 {
+		len(m.ExtraVariants()) == 0 {
 		m.Disable()
 	}
 }

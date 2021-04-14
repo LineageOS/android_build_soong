@@ -1113,14 +1113,31 @@ func (c *Module) IsNdk(config android.Config) bool {
 	return inList(c.BaseModuleName(), *getNDKKnownLibs(config))
 }
 
-// isLLndk returns true for both LLNDK (public) and LLNDK-private libs.
 func (c *Module) IsLlndk() bool {
 	return c.VendorProperties.IsLLNDK
 }
 
-// IsLlndkPublic returns true only for LLNDK (public) libs.
 func (c *Module) IsLlndkPublic() bool {
 	return c.VendorProperties.IsLLNDK && !c.VendorProperties.IsVNDKPrivate
+}
+
+func (c *Module) IsLlndkHeaders() bool {
+	if _, ok := c.linker.(*llndkHeadersDecorator); ok {
+		return true
+	}
+	return false
+}
+
+func (c *Module) IsLlndkLibrary() bool {
+	if _, ok := c.linker.(*llndkStubDecorator); ok {
+		return true
+	}
+	return false
+}
+
+func (m *Module) HasLlndkStubs() bool {
+	lib := moduleLibraryInterface(m)
+	return lib != nil && lib.hasLLNDKStubs()
 }
 
 // isImplementationForLLNDKPublic returns true for any variant of a cc_library that has LLNDK stubs
@@ -1246,7 +1263,7 @@ func (c *Module) nativeCoverage() bool {
 	return c.linker != nil && c.linker.nativeCoverage()
 }
 
-func (c *Module) isSnapshotPrebuilt() bool {
+func (c *Module) IsSnapshotPrebuilt() bool {
 	if p, ok := c.linker.(snapshotInterface); ok {
 		return p.isSnapshotPrebuilt()
 	}

@@ -141,7 +141,7 @@ func shouldCreateSourceAbiDumpForLibrary(ctx android.BaseModuleContext) bool {
 	}
 
 	// Don't create ABI dump for prebuilts.
-	if m.Prebuilt() != nil || m.isSnapshotPrebuilt() {
+	if m.Prebuilt() != nil || m.IsSnapshotPrebuilt() {
 		return false
 	}
 
