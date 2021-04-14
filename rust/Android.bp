@@ -14,6 +14,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "androidmk.go",
+        "benchmark.go",
         "binary.go",
         "bindgen.go",
         "builder.go",
@@ -35,6 +36,7 @@ bootstrap_go_package {
         "testing.go",
     ],
     testSrcs: [
+        "benchmark_test.go",
         "binary_test.go",
         "bindgen_test.go",
         "builder_test.go",
