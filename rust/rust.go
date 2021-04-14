@@ -434,6 +434,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 	module.AddProperties(
 		&BaseProperties{},
 		&cc.VendorProperties{},
+		&BenchmarkProperties{},
 		&BindgenProperties{},
 		&BaseCompilerProperties{},
 		&BinaryCompilerProperties{},

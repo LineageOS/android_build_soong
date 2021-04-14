@@ -245,6 +245,25 @@ func AutoGenRustTestConfig(ctx android.ModuleContext, testConfigProp *string,
 	return path
 }
 
+func AutoGenRustBenchmarkConfig(ctx android.ModuleContext, testConfigProp *string,
+	testConfigTemplateProp *string, testSuites []string, config []Config, autoGenConfig *bool) android.Path {
+	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites, autoGenConfig, testConfigTemplateProp)
+	if autogenPath != nil {
+		templatePath := getTestConfigTemplate(ctx, testConfigTemplateProp)
+		if templatePath.Valid() {
+			autogenTemplate(ctx, autogenPath, templatePath.String(), config, "")
+		} else {
+			if ctx.Device() {
+				autogenTemplate(ctx, autogenPath, "${RustDeviceBenchmarkConfigTemplate}", config, "")
+			} else {
+				autogenTemplate(ctx, autogenPath, "${RustHostBenchmarkConfigTemplate}", config, "")
+			}
+		}
+		return autogenPath
+	}
+	return path
+}
+
 func AutoGenRobolectricTestConfig(ctx android.ModuleContext, testConfigProp *string, testConfigTemplateProp *string,
 	testSuites []string, autoGenConfig *bool) android.Path {
 	path, autogenPath := testConfigPath(ctx, testConfigProp, testSuites, autoGenConfig, testConfigTemplateProp)
