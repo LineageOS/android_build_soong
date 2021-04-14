@@ -17,6 +17,7 @@ package linkerconfig
 import (
 	"android/soong/android"
 	"android/soong/etc"
+	"fmt"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -66,6 +67,17 @@ func (l *linkerConfig) SubDir() string {
 
 func (l *linkerConfig) OutputFile() android.OutputPath {
 	return l.outputFilePath
+}
+
+var _ android.OutputFileProducer = (*linkerConfig)(nil)
+
+func (l *linkerConfig) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return android.Paths{l.outputFilePath}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
 }
 
 func (l *linkerConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
