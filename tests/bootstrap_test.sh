@@ -295,6 +295,118 @@ EOF
   grep -q "Make it so" out/soong/build.ninja || fail "New action not present"
 }
 
+# Tests a glob in a build= statement in an Android.bp file, which is interpreted
+# during bootstrapping.
+function test_glob_during_bootstrapping() {
+  setup
+
+  mkdir -p a
+  cat > a/Android.bp <<'EOF'
+build=["foo*.bp"]
+EOF
+  cat > a/fooa.bp <<'EOF'
+bootstrap_go_package {
+  name: "picard-soong-rules",
+  pkgPath: "android/soong/picard",
+  deps: [
+    "blueprint",
+    "soong",
+    "soong-android",
+  ],
+  srcs: [
+    "picard.go",
+  ],
+  pluginFor: ["soong_build"],
+}
+EOF
+
+  cat > a/picard.go <<'EOF'
+package picard
+
+import (
+  "android/soong/android"
+  "github.com/google/blueprint"
+)
+
+var (
+  pctx = android.NewPackageContext("picard")
+)
+
+func init() {
+  android.RegisterSingletonType("picard", PicardSingleton)
+}
+
+func PicardSingleton() android.Singleton {
+  return &picardSingleton{}
+}
+
+type picardSingleton struct{}
+
+var Message = "Make it so."
+
+func (p *picardSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+  picardRule := ctx.Rule(pctx, "picard",
+    blueprint.RuleParams{
+      Command: "echo " + Message + " > ${out}",
+      CommandDeps: []string{},
+      Description: "Something quotable",
+    })
+
+  outputFile := android.PathForOutput(ctx, "picard", "picard.txt")
+  var deps android.Paths
+
+  ctx.Build(pctx, android.BuildParams{
+    Rule: picardRule,
+    Output: outputFile,
+    Inputs: deps,
+  })
+}
+
+EOF
+
+  run_soong
+  local mtime1=$(stat -c "%y" out/soong/build.ninja)
+
+  grep -q "Make it so" out/soong/build.ninja || fail "Original action not present"
+
+  cat > a/foob.bp <<'EOF'
+bootstrap_go_package {
+  name: "worf-soong-rules",
+  pkgPath: "android/soong/worf",
+  deps: [
+    "blueprint",
+    "soong",
+    "soong-android",
+    "picard-soong-rules",
+  ],
+  srcs: [
+    "worf.go",
+  ],
+  pluginFor: ["soong_build"],
+}
+EOF
+
+  cat > a/worf.go <<'EOF'
+package worf
+
+import "android/soong/picard"
+
+func init() {
+   picard.Message = "Engage."
+}
+EOF
+
+  run_soong
+  local mtime2=$(stat -c "%y" out/soong/build.ninja)
+  if [[ "$mtime1" == "$mtime2" ]]; then
+    fail "Output Ninja file did not change"
+  fi
+
+  grep -q "Engage" out/soong/build.ninja || fail "New action not present"
+
+  grep -q "Make it so" out/soong/build.ninja && fail "Original action still present"
+}
+
 function test_null_build_after_docs {
   setup
   run_soong
@@ -326,5 +438,6 @@ test_add_android_bp
 test_change_android_bp
 test_delete_android_bp
 test_add_file_to_soong_build
+test_glob_during_bootstrapping
 test_soong_build_rerun_iff_environment_changes
 test_dump_json_module_graph
