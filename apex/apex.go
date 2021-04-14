@@ -2272,8 +2272,10 @@ func (a *apexBundle) checkJavaStableSdkVersion(ctx android.ModuleContext) {
 		tag := ctx.OtherModuleDependencyTag(module)
 		switch tag {
 		case javaLibTag, androidAppTag:
-			if m, ok := module.(interface{ CheckStableSdkVersion() error }); ok {
-				if err := m.CheckStableSdkVersion(); err != nil {
+			if m, ok := module.(interface {
+				CheckStableSdkVersion(ctx android.BaseModuleContext) error
+			}); ok {
+				if err := m.CheckStableSdkVersion(ctx); err != nil {
 					ctx.ModuleErrorf("cannot depend on \"%v\": %v", ctx.OtherModuleName(module), err)
 				}
 			}
