@@ -4826,7 +4826,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			name: "myapex",
 			enabled: false,
 			key: "myapex.key",
-			java_libs: ["libfoo"],
+			java_libs: ["libfoo", "libbar"],
 		}
 
 		apex_key {
@@ -4884,8 +4884,8 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 
 		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
-.intermediates/prebuilt_libbar/android_common_prebuilt_myapex/hiddenapi/index.csv
-.intermediates/prebuilt_libfoo/android_common_prebuilt_myapex/hiddenapi/index.csv
+.intermediates/prebuilt_libbar/android_common_myapex/hiddenapi/index.csv
+.intermediates/prebuilt_libfoo/android_common_myapex/hiddenapi/index.csv
 `)
 	})
 }
@@ -6555,6 +6555,11 @@ func testDexpreoptWithApexes(t *testing.T, bp, errmsg string, preparer android.F
 		PrepareForTestWithApexBuildComponents,
 		preparer,
 		fs.AddToFixture(),
+		android.FixtureAddTextFile("frameworks/base/boot/Android.bp", `
+			platform_bootclasspath {
+				name: "platform-bootclasspath",
+			}
+		`),
 	).
 		ExtendWithErrorHandler(errorHandler).
 		RunTestWithBp(t, bp)
@@ -6657,13 +6662,13 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 	})
 
 	t.Run("nonexistent jar in the ART boot image => error", func(t *testing.T) {
-		err := "failed to find a dex jar path for module 'nonexistent'"
+		err := `"platform-bootclasspath" depends on undefined module "nonexistent"`
 		preparer := java.FixtureConfigureBootJars("platform:nonexistent")
 		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
 	t.Run("nonexistent jar in the framework boot image => error", func(t *testing.T) {
-		err := "failed to find a dex jar path for module 'nonexistent'"
+		err := `"platform-bootclasspath" depends on undefined module "nonexistent"`
 		preparer := java.FixtureConfigureBootJars("platform:nonexistent")
 		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
