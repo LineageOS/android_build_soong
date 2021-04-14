@@ -110,6 +110,24 @@ func (mod *Module) IsSnapshotPrebuilt() bool {
 	return false
 }
 
+func (ctx *moduleContext) SocSpecific() bool {
+	// Additionally check if this module is inVendor() that means it is a "vendor" variant of a
+	// module. As well as SoC specific modules, vendor variants must be installed to /vendor
+	// unless they have "odm_available: true".
+	return ctx.ModuleContext.SocSpecific() || (ctx.RustModule().InVendor() && !ctx.RustModule().VendorVariantToOdm())
+}
+
+func (ctx *moduleContext) DeviceSpecific() bool {
+	// Some vendor variants want to be installed to /odm by setting "odm_available: true".
+	return ctx.ModuleContext.DeviceSpecific() || (ctx.RustModule().InVendor() && ctx.RustModule().VendorVariantToOdm())
+}
+
+// Returns true when this module creates a vendor variant and wants to install the vendor variant
+// to the odm partition.
+func (c *Module) VendorVariantToOdm() bool {
+	return Bool(c.VendorProperties.Odm_available)
+}
+
 func (ctx *moduleContext) ProductSpecific() bool {
 	return false
 }
@@ -155,6 +173,11 @@ func (mod *Module) InProduct() bool {
 	return false
 }
 
+// Returns true if the module is "vendor" variant. Usually these modules are installed in /vendor
+func (mod *Module) InVendor() bool {
+	return mod.Properties.ImageVariationPrefix == cc.VendorVariationPrefix
+}
+
 func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant string, module android.Module) {
 	m := module.(*Module)
 	if variant == android.VendorRamdiskVariation {
@@ -185,32 +208,19 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		mctx.PropertyErrorf("double_loadable",
 			"Rust modules do not yet support double loading")
 	}
-
-	if mod.HasVendorVariant() {
-		if lib, ok := mod.compiler.(libraryInterface); ok && lib.buildShared() {
-			// Explicitly disallow rust_ffi variants which produce shared libraries from setting vendor_available.
-			// Vendor variants do not produce an error for dylibs, rlibs with dylib-std linkage are disabled in the respective library
-			// mutators until support is added.
-			//
-			// We can't check shared() here because image mutator is called before the library mutator, so we need to
-			// check buildShared()
-
-			mctx.PropertyErrorf("vendor_available", "cannot be set for rust_ffi or rust_ffi_shared modules.")
-		}
-	}
-
 	if Bool(mod.Properties.Vendor_ramdisk_available) {
 		if lib, ok := mod.compiler.(libraryInterface); !ok || (ok && lib.buildShared()) {
 			mctx.PropertyErrorf("vendor_ramdisk_available", "cannot be set for rust_ffi or rust_ffi_shared modules.")
 		}
 	}
 
-	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
-	if vendorSpecific {
-		if lib, ok := mod.compiler.(libraryInterface); !ok || (ok && (lib.buildShared() || lib.buildDylib() || lib.buildRlib())) {
-			mctx.ModuleErrorf("Rust vendor specific modules are currently only supported for rust_ffi_static modules.")
+	cc.MutateImage(mctx, mod)
+
+	if !mod.Properties.CoreVariantNeeded || mod.HasNonSystemVariants() {
+
+		if _, ok := mod.compiler.(*prebuiltLibraryDecorator); ok {
+			// Rust does not support prebuilt libraries on non-System images.
+			mctx.ModuleErrorf("Rust prebuilt modules not supported for non-system images.")
 		}
 	}
-
-	cc.MutateImage(mctx, mod)
 }
