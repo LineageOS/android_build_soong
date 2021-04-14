@@ -23,29 +23,42 @@ import (
 	"strings"
 	"time"
 
+	"android/soong/bp2build"
 	"android/soong/shared"
 	"github.com/google/blueprint/bootstrap"
 
 	"android/soong/android"
-	"android/soong/bp2build"
 )
 
 var (
-	topDir            string
-	outDir            string
+	topDir           string
+	outDir           string
+	availableEnvFile string
+	usedEnvFile      string
+
+	delveListen string
+	delvePath   string
+
 	docFile           string
 	bazelQueryViewDir string
-	delveListen       string
-	delvePath         string
+	bp2buildMarker    string
 )
 
 func init() {
+	// Flags that make sense in every mode
 	flag.StringVar(&topDir, "top", "", "Top directory of the Android source tree")
 	flag.StringVar(&outDir, "out", "", "Soong output directory (usually $TOP/out/soong)")
+	flag.StringVar(&availableEnvFile, "available_env", "", "File containing available environment variables")
+	flag.StringVar(&usedEnvFile, "used_env", "", "File containing used environment variables")
+
+	// Debug flags
 	flag.StringVar(&delveListen, "delve_listen", "", "Delve port to listen on for debugging")
 	flag.StringVar(&delvePath, "delve_path", "", "Path to Delve. Only used if --delve_listen is set")
+
+	// Flags representing various modes soong_build can run in
 	flag.StringVar(&docFile, "soong_docs", "", "build documentation file to output")
 	flag.StringVar(&bazelQueryViewDir, "bazel_queryview_dir", "", "path to the bazel queryview directory relative to --top")
+	flag.StringVar(&bp2buildMarker, "bp2build_marker", "", "If set, run bp2build, touch the specified marker file then exit")
 }
 
 func newNameResolver(config android.Config) *android.NameResolver {
@@ -147,8 +160,8 @@ func writeJsonModuleGraph(configuration android.Config, ctx *android.Context, pa
 	writeFakeNinjaFile(extraNinjaDeps, configuration.BuildDir())
 }
 
-func doChosenActivity(configuration android.Config, extraNinjaDeps []string) {
-	bazelConversionRequested := configuration.IsEnvTrue("GENERATE_BAZEL_FILES")
+func doChosenActivity(configuration android.Config, extraNinjaDeps []string) string {
+	bazelConversionRequested := configuration.IsEnvTrue("GENERATE_BAZEL_FILES") || bp2buildMarker != ""
 	mixedModeBuild := configuration.BazelContext.BazelEnabled()
 	generateQueryView := bazelQueryViewDir != ""
 	jsonModuleFile := configuration.Getenv("SOONG_DUMP_JSON_MODULE_GRAPH")
@@ -159,7 +172,11 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) {
 		// Run the alternate pipeline of bp2build mutators and singleton to convert
 		// Blueprint to BUILD files before everything else.
 		runBp2Build(configuration, extraNinjaDeps)
-		return
+		if bp2buildMarker != "" {
+			return bp2buildMarker
+		} else {
+			return bootstrap.CmdlineOutFile()
+		}
 	}
 
 	ctx := newContext(configuration, prepareBuildActions)
@@ -172,15 +189,44 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) {
 	// Convert the Soong module graph into Bazel BUILD files.
 	if generateQueryView {
 		runQueryView(configuration, ctx)
-		return
+		return bootstrap.CmdlineOutFile() // TODO: This is a lie
 	}
 
 	if jsonModuleFile != "" {
 		writeJsonModuleGraph(configuration, ctx, jsonModuleFile, extraNinjaDeps)
-		return
+		return bootstrap.CmdlineOutFile() // TODO: This is a lie
 	}
 
 	writeMetrics(configuration)
+	return bootstrap.CmdlineOutFile()
+}
+
+// soong_ui dumps the available environment variables to
+// soong.environment.available . Then soong_build itself is run with an empty
+// environment so that the only way environment variables can be accessed is
+// using Config, which tracks access to them.
+
+// At the end of the build, a file called soong.environment.used is written
+// containing the current value of all used environment variables. The next
+// time soong_ui is run, it checks whether any environment variables that was
+// used had changed and if so, it deletes soong.environment.used to cause a
+// rebuild.
+//
+// The dependency of build.ninja on soong.environment.used is declared in
+// build.ninja.d
+func parseAvailableEnv() map[string]string {
+	if availableEnvFile == "" {
+		fmt.Fprintf(os.Stderr, "--available_env not set\n")
+		os.Exit(1)
+	}
+
+	result, err := shared.EnvFromFile(shared.JoinPath(topDir, availableEnvFile))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error reading available environment file '%s': %s\n", availableEnvFile, err)
+		os.Exit(1)
+	}
+
+	return result
 }
 
 func main() {
@@ -189,26 +235,7 @@ func main() {
 	shared.ReexecWithDelveMaybe(delveListen, delvePath)
 	android.InitSandbox(topDir)
 
-	// soong_ui dumps the available environment variables to
-	// soong.environment.available . Then soong_build itself is run with an empty
-	// environment so that the only way environment variables can be accessed is
-	// using Config, which tracks access to them.
-
-	// At the end of the build, a file called soong.environment.used is written
-	// containing the current value of all used environment variables. The next
-	// time soong_ui is run, it checks whether any environment variables that was
-	// used had changed and if so, it deletes soong.environment.used to cause a
-	// rebuild.
-	//
-	// The dependency of build.ninja on soong.environment.used is declared in
-	// build.ninja.d
-	availableEnvFile := shared.JoinPath(topDir, outDir, "soong.environment.available")
-	usedEnvFile := shared.JoinPath(topDir, outDir, "soong.environment.used")
-	availableEnv, err := shared.EnvFromFile(availableEnvFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading available environment file %s: %s\n", availableEnvFile, err)
-		os.Exit(1)
-	}
+	availableEnv := parseAvailableEnv()
 
 	// The top-level Blueprints file is passed as the first argument.
 	srcDir := filepath.Dir(flag.Arg(0))
@@ -233,37 +260,37 @@ func main() {
 		// because that is done from within the actual builds as a Ninja action and
 		// thus it would overwrite the actual used variables file so this is
 		// special-cased.
+		// TODO: Fix this by not passing --used_env to the soong_docs invocation
 		runSoongDocs(configuration, extraNinjaDeps)
 		return
 	}
 
-	doChosenActivity(configuration, extraNinjaDeps)
-	writeUsedEnvironmentFile(usedEnvFile, configuration)
+	finalOutputFile := doChosenActivity(configuration, extraNinjaDeps)
+	writeUsedEnvironmentFile(configuration, finalOutputFile)
 }
 
-func writeUsedEnvironmentFile(path string, configuration android.Config) {
+func writeUsedEnvironmentFile(configuration android.Config, finalOutputFile string) {
+	if usedEnvFile == "" {
+		return
+	}
+
+	path := shared.JoinPath(topDir, usedEnvFile)
 	data, err := shared.EnvFileContents(configuration.EnvDeps())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error writing used environment file %s: %s\n", path, err)
+		fmt.Fprintf(os.Stderr, "error writing used environment file '%s': %s\n", usedEnvFile, err)
 		os.Exit(1)
 	}
 
 	err = ioutil.WriteFile(path, data, 0666)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error writing used environment file %s: %s\n", path, err)
+		fmt.Fprintf(os.Stderr, "error writing used environment file '%s': %s\n", usedEnvFile, err)
 		os.Exit(1)
 	}
 
-	// Touch the output Ninja file so that it's not older than the file we just
+	// Touch the output file so that it's not older than the file we just
 	// wrote. We can't write the environment file earlier because one an access
 	// new environment variables while writing it.
-	outputNinjaFile := shared.JoinPath(topDir, bootstrap.CmdlineOutFile())
-	currentTime := time.Now().Local()
-	err = os.Chtimes(outputNinjaFile, currentTime, currentTime)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error touching output file %s: %s\n", outputNinjaFile, err)
-		os.Exit(1)
-	}
+	touch(shared.JoinPath(topDir, finalOutputFile))
 }
 
 // Workarounds to support running bp2build in a clean AOSP checkout with no
@@ -289,6 +316,27 @@ func writeFakeNinjaFile(extraNinjaDeps []string, buildDir string) {
 		0666)
 }
 
+func touch(path string) {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error touching '%s': %s\n", path, err)
+		os.Exit(1)
+	}
+
+	err = f.Close()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error touching '%s': %s\n", path, err)
+		os.Exit(1)
+	}
+
+	currentTime := time.Now().Local()
+	err = os.Chtimes(path, currentTime, currentTime)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error touching '%s': %s\n", path, err)
+		os.Exit(1)
+	}
+}
+
 // Run Soong in the bp2build mode. This creates a standalone context that registers
 // an alternate pipeline of mutators and singletons specifically for generating
 // Bazel BUILD files instead of Ninja files.
@@ -296,6 +344,7 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	// Register an alternate set of singletons and mutators for bazel
 	// conversion for Bazel conversion.
 	bp2buildCtx := android.NewContext(configuration)
+	bp2buildCtx.SetAllowMissingDependencies(configuration.AllowMissingDependencies())
 	bp2buildCtx.RegisterForBazelConversion()
 
 	// No need to generate Ninja build rules/statements from Modules and Singletons.
@@ -330,5 +379,9 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	metrics.Print()
 
 	extraNinjaDeps = append(extraNinjaDeps, codegenContext.AdditionalNinjaDeps()...)
-	writeFakeNinjaFile(extraNinjaDeps, codegenContext.Config().BuildDir())
+	if bp2buildMarker != "" {
+		touch(shared.JoinPath(topDir, bp2buildMarker))
+	} else {
+		writeFakeNinjaFile(extraNinjaDeps, codegenContext.Config().BuildDir())
+	}
 }
