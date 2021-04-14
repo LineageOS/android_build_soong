@@ -51,7 +51,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 	if isLibrary {
 		args = append(args, "--library")
 	} else {
-		minSdkVersion, err := sdkContext.MinSdkVersion().EffectiveVersion(ctx)
+		minSdkVersion, err := sdkContext.MinSdkVersion(ctx).EffectiveVersion(ctx)
 		if err != nil {
 			ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 		}
@@ -87,7 +87,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 		args = append(args, "--logging-parent", loggingParent)
 	}
 	var deps android.Paths
-	targetSdkVersion, err := sdkContext.TargetSdkVersion().EffectiveVersionString(ctx)
+	targetSdkVersion, err := sdkContext.TargetSdkVersion(ctx).EffectiveVersionString(ctx)
 	if err != nil {
 		ctx.ModuleErrorf("invalid targetSdkVersion: %s", err)
 	}
@@ -96,7 +96,7 @@ func manifestFixer(ctx android.ModuleContext, manifest android.Path, sdkContext 
 		deps = append(deps, ApiFingerprintPath(ctx))
 	}
 
-	minSdkVersion, err := sdkContext.MinSdkVersion().EffectiveVersionString(ctx)
+	minSdkVersion, err := sdkContext.MinSdkVersion(ctx).EffectiveVersionString(ctx)
 	if err != nil {
 		ctx.ModuleErrorf("invalid minSdkVersion: %s", err)
 	}
