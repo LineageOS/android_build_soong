@@ -81,9 +81,10 @@ func (l *linkerConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	linkerConfigRule.Build("conv_linker_config",
 		"Generate linker config protobuf "+l.outputFilePath.String())
 
-	if proptools.BoolDefault(l.properties.Installable, true) {
-		ctx.InstallFile(l.installDirPath, l.outputFilePath.Base(), l.outputFilePath)
+	if !proptools.BoolDefault(l.properties.Installable, true) {
+		l.SkipInstall()
 	}
+	ctx.InstallFile(l.installDirPath, l.outputFilePath.Base(), l.outputFilePath)
 }
 
 // linker_config generates protobuf file from json file. This protobuf file will be used from
