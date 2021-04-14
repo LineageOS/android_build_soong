@@ -111,6 +111,13 @@ type hiddenAPIIntf interface {
 
 var _ hiddenAPIIntf = (*hiddenAPI)(nil)
 
+// hiddenAPISupportingModule is the interface that is implemented by any module that supports
+// contributing to the hidden API processing.
+type hiddenAPISupportingModule interface {
+	android.Module
+	hiddenAPIIntf
+}
+
 // Initialize the hiddenapi structure
 func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, configurationName string) {
 	// If hiddenapi processing is disabled treat this as inactive.
