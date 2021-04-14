@@ -173,7 +173,7 @@ func isSnapshotAware(cfg android.DeviceConfig, m *Module, inProprietaryPath bool
 		return false
 	}
 	// the module must be installed in target image
-	if !apexInfo.IsForPlatform() || m.isSnapshotPrebuilt() || !image.inImage(m)() {
+	if !apexInfo.IsForPlatform() || m.IsSnapshotPrebuilt() || !image.inImage(m)() {
 		return false
 	}
 	// skip kernel_headers which always depend on vendor
