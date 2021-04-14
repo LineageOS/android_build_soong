@@ -303,15 +303,35 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 		return
 	}
 
-	moduleSpecificFlagsPaths := android.Paths{}
+	hiddenAPISupportingModules := []hiddenAPISupportingModule{}
 	for _, module := range modules {
-		if h, ok := module.(hiddenAPIIntf); ok {
-			if csv := h.flagsCSV(); csv != nil {
-				moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, csv)
+		if h, ok := module.(hiddenAPISupportingModule); ok {
+			if h.bootDexJar() == nil {
+				ctx.ModuleErrorf("module %s does not provide a bootDexJar file", module)
 			}
+			if h.flagsCSV() == nil {
+				ctx.ModuleErrorf("module %s does not provide a flagsCSV file", module)
+			}
+			if h.indexCSV() == nil {
+				ctx.ModuleErrorf("module %s does not provide an indexCSV file", module)
+			}
+			if h.metadataCSV() == nil {
+				ctx.ModuleErrorf("module %s does not provide a metadataCSV file", module)
+			}
+
+			if ctx.Failed() {
+				continue
+			}
+
+			hiddenAPISupportingModules = append(hiddenAPISupportingModules, h)
 		} else {
-			ctx.ModuleErrorf("module %s of type %s does not implement hiddenAPIIntf", module, ctx.OtherModuleType(module))
+			ctx.ModuleErrorf("module %s of type %s does not support hidden API processing", module, ctx.OtherModuleType(module))
 		}
+	}
+
+	moduleSpecificFlagsPaths := android.Paths{}
+	for _, module := range hiddenAPISupportingModules {
+		moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, module.flagsCSV())
 	}
 
 	augmentationInfo := b.properties.Hidden_api.hiddenAPIAugmentationInfo(ctx)
