@@ -21,6 +21,7 @@ import (
 	"strconv"
 
 	"android/soong/shared"
+	"github.com/google/blueprint/deptools"
 
 	soong_metrics_proto "android/soong/ui/metrics/metrics_proto"
 	"github.com/google/blueprint"
@@ -107,6 +108,7 @@ func bootstrapBlueprint(ctx Context, config Config, integratedBp2Build bool) {
 	mainNinjaFile := shared.JoinPath(config.SoongOutDir(), "build.ninja")
 	globFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/soong-build-globs.ninja")
 	bootstrapGlobFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build-globs.ninja")
+	bootstrapDepFile := shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja.d")
 
 	args.RunGoTests = !config.skipSoongTests
 	args.UseValidations = true // Use validations to depend on tests
@@ -115,7 +117,6 @@ func bootstrapBlueprint(ctx Context, config Config, integratedBp2Build bool) {
 	args.TopFile = "Android.bp"
 	args.ModuleListFile = filepath.Join(config.FileListDir(), "Android.bp.list")
 	args.OutFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja")
-	args.DepFile = shared.JoinPath(config.SoongOutDir(), ".bootstrap/build.ninja.d")
 	args.GlobFile = globFile
 	args.GeneratingPrimaryBuilder = true
 
@@ -171,7 +172,11 @@ func bootstrapBlueprint(ctx Context, config Config, integratedBp2Build bool) {
 		debugCompilation: os.Getenv("SOONG_DELVE") != "",
 	}
 
-	bootstrap.RunBlueprint(args, blueprintCtx, blueprintConfig)
+	bootstrapDeps := bootstrap.RunBlueprint(args, blueprintCtx, blueprintConfig)
+	err := deptools.WriteDepFile(bootstrapDepFile, args.OutFile, bootstrapDeps)
+	if err != nil {
+		ctx.Fatalf("Error writing depfile '%s': %s", bootstrapDepFile, err)
+	}
 }
 
 func checkEnvironmentFile(currentEnv *Environment, envFile string) {
