@@ -424,6 +424,20 @@ func TestVendorSnapshotUse(t *testing.T) {
 		srcs: ["client.cpp"],
 	}
 
+	cc_library_shared {
+		name: "libclient_cfi",
+		vendor: true,
+		nocrt: true,
+		no_libcrt: true,
+		stl: "none",
+		system_shared_libs: [],
+		static_libs: ["libvendor"],
+		sanitize: {
+			cfi: true,
+		},
+		srcs: ["client.cpp"],
+	}
+
 	cc_binary {
 		name: "bin_without_snapshot",
 		vendor: true,
@@ -492,13 +506,13 @@ func TestVendorSnapshotUse(t *testing.T) {
 		arch: {
 			arm64: {
 				src: "libvndk.a",
-				export_include_dirs: ["include/libvndk"],
 			},
 			arm: {
 				src: "libvndk.a",
-				export_include_dirs: ["include/libvndk"],
 			},
 		},
+		shared_libs: ["libvndk"],
+		export_shared_lib_headers: ["libvndk"],
 	}
 
 	vendor_snapshot_shared {
@@ -584,10 +598,18 @@ func TestVendorSnapshotUse(t *testing.T) {
 		vendor: true,
 		arch: {
 			arm64: {
+				cfi: {
+					src: "libvendor.cfi.a",
+					export_include_dirs: ["include/libvendor_cfi"],
+				},
 				src: "libvendor.a",
 				export_include_dirs: ["include/libvendor"],
 			},
 			arm: {
+				cfi: {
+					src: "libvendor.cfi.a",
+					export_include_dirs: ["include/libvendor_cfi"],
+				},
 				src: "libvendor.a",
 				export_include_dirs: ["include/libvendor"],
 			},
@@ -726,29 +748,31 @@ func TestVendorSnapshotUse(t *testing.T) {
 	depsBp := GatherRequiredDepsForTest(android.Android)
 
 	mockFS := map[string][]byte{
-		"deps/Android.bp":              []byte(depsBp),
-		"framework/Android.bp":         []byte(frameworkBp),
-		"framework/symbol.txt":         nil,
-		"vendor/Android.bp":            []byte(vendorProprietaryBp),
-		"vendor/bin":                   nil,
-		"vendor/bin32":                 nil,
-		"vendor/bin.cpp":               nil,
-		"vendor/client.cpp":            nil,
-		"vendor/include/libvndk/a.h":   nil,
-		"vendor/include/libvendor/b.h": nil,
-		"vendor/libc++_static.a":       nil,
-		"vendor/libc++demangle.a":      nil,
-		"vendor/libgcc_striped.a":      nil,
-		"vendor/libvndk.a":             nil,
-		"vendor/libvendor.a":           nil,
-		"vendor/libvendor.so":          nil,
-		"vendor/lib32.a":               nil,
-		"vendor/lib32.so":              nil,
-		"vendor/lib64.a":               nil,
-		"vendor/lib64.so":              nil,
-		"vndk/Android.bp":              []byte(vndkBp),
-		"vndk/include/libvndk/a.h":     nil,
-		"vndk/libvndk.so":              nil,
+		"deps/Android.bp":                  []byte(depsBp),
+		"framework/Android.bp":             []byte(frameworkBp),
+		"framework/symbol.txt":             nil,
+		"vendor/Android.bp":                []byte(vendorProprietaryBp),
+		"vendor/bin":                       nil,
+		"vendor/bin32":                     nil,
+		"vendor/bin.cpp":                   nil,
+		"vendor/client.cpp":                nil,
+		"vendor/include/libvndk/a.h":       nil,
+		"vendor/include/libvendor/b.h":     nil,
+		"vendor/include/libvendor_cfi/c.h": nil,
+		"vendor/libc++_static.a":           nil,
+		"vendor/libc++demangle.a":          nil,
+		"vendor/libgcc_striped.a":          nil,
+		"vendor/libvndk.a":                 nil,
+		"vendor/libvendor.a":               nil,
+		"vendor/libvendor.cfi.a":           nil,
+		"vendor/libvendor.so":              nil,
+		"vendor/lib32.a":                   nil,
+		"vendor/lib32.so":                  nil,
+		"vendor/lib64.a":                   nil,
+		"vendor/lib64.so":                  nil,
+		"vndk/Android.bp":                  []byte(vndkBp),
+		"vndk/include/libvndk/a.h":         nil,
+		"vndk/libvndk.so":                  nil,
 	}
 
 	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
@@ -765,6 +789,9 @@ func TestVendorSnapshotUse(t *testing.T) {
 	sharedVariant := "android_vendor.30_arm64_armv8-a_shared"
 	staticVariant := "android_vendor.30_arm64_armv8-a_static"
 	binaryVariant := "android_vendor.30_arm64_armv8-a"
+
+	sharedCfiVariant := "android_vendor.30_arm64_armv8-a_shared_cfi"
+	staticCfiVariant := "android_vendor.30_arm64_armv8-a_static_cfi"
 
 	shared32Variant := "android_vendor.30_arm_armv7-a-neon_shared"
 	binary32Variant := "android_vendor.30_arm_armv7-a-neon"
@@ -808,9 +835,22 @@ func TestVendorSnapshotUse(t *testing.T) {
 		t.Errorf("wanted libclient32 AndroidMkSharedLibs %q, got %q", w, g)
 	}
 
-	// bin_without_snapshot uses libvndk.vendor_static.30.arm64
+	// libclient_cfi uses libvendor.vendor_static.30.arm64's cfi variant
+	libclientCfiCcFlags := ctx.ModuleForTests("libclient_cfi", sharedCfiVariant).Rule("cc").Args["cFlags"]
+	if !strings.Contains(libclientCfiCcFlags, "-Ivendor/include/libvendor_cfi") {
+		t.Errorf("flags for libclient_cfi must contain %#v, but was %#v.",
+			"-Ivendor/include/libvendor_cfi", libclientCfiCcFlags)
+	}
+
+	libclientCfiLdFlags := ctx.ModuleForTests("libclient_cfi", sharedCfiVariant).Rule("ld").Args["libFlags"]
+	libvendorCfiOutputPaths := getOutputPaths(ctx, staticCfiVariant, []string{"libvendor.vendor_static.30.arm64"})
+	if !strings.Contains(libclientCfiLdFlags, libvendorCfiOutputPaths[0].String()) {
+		t.Errorf("libflags for libclientCfi must contain %#v, but was %#v", libvendorCfiOutputPaths[0], libclientCfiLdFlags)
+	}
+
+	// bin_without_snapshot uses libvndk.vendor_static.30.arm64 (which reexports vndk's exported headers)
 	binWithoutSnapshotCcFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("cc").Args["cFlags"]
-	if !strings.Contains(binWithoutSnapshotCcFlags, "-Ivendor/include/libvndk") {
+	if !strings.Contains(binWithoutSnapshotCcFlags, "-Ivndk/include/libvndk") {
 		t.Errorf("flags for bin_without_snapshot must contain %#v, but was %#v.",
 			"-Ivendor/include/libvndk", binWithoutSnapshotCcFlags)
 	}
