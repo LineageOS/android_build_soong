@@ -26,7 +26,7 @@ import (
 // systemServerClasspath returns the on-device locations of the modules in the system server classpath.  It is computed
 // once the first time it is called for any ctx.Config(), and returns the same slice for all future calls with the same
 // ctx.Config().
-func systemServerClasspath(ctx android.MakeVarsContext) []string {
+func systemServerClasspath(ctx android.PathContext) []string {
 	return ctx.Config().OnceStringSlice(systemServerClasspathKey, func() []string {
 		global := dexpreopt.GetGlobalConfig(ctx)
 		var systemServerClasspathLocations []string
