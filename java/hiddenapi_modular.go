@@ -61,44 +61,115 @@ type HiddenAPIAugmentationProperties struct {
 }
 
 func (p *HiddenAPIAugmentationProperties) hiddenAPIAugmentationInfo(ctx android.ModuleContext) hiddenAPIAugmentationInfo {
-	paths := func(paths []string) android.Paths { return android.PathsForModuleSrc(ctx, paths) }
-	return hiddenAPIAugmentationInfo{
-		Unsupported:               paths(p.Unsupported),
-		Removed:                   paths(p.Removed),
-		Max_target_r_low_priority: paths(p.Max_target_r_low_priority),
-		Max_target_q:              paths(p.Max_target_q),
-		Max_target_p:              paths(p.Max_target_p),
-		Max_target_o_low_priority: paths(p.Max_target_o_low_priority),
-		Blocked:                   paths(p.Blocked),
-		Unsupported_packages:      paths(p.Unsupported_packages),
+	info := hiddenAPIAugmentationInfo{categoryToPaths: map[*hiddenAPIFlagFileCategory]android.Paths{}}
+	for _, category := range hiddenAPIFlagFileCategories {
+		paths := android.PathsForModuleSrc(ctx, category.propertyAccessor(p))
+		info.categoryToPaths[category] = paths
 	}
+	return info
+}
+
+type hiddenAPIFlagFileCategory struct {
+	// propertyName is the name of the property for this category.
+	propertyName string
+
+	// propertyAccessor retrieves the value of the property for this category from the set of
+	// properties.
+	propertyAccessor func(properties *HiddenAPIAugmentationProperties) []string
+
+	// commandMutator adds the appropriate command line options for this category to the supplied
+	// command
+	commandMutator func(command *android.RuleBuilderCommand, path android.Path)
+}
+
+var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
+	// See HiddenAPIAugmentationProperties.Unsupported
+	{
+		propertyName: "unsupported",
+		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+			return properties.Unsupported
+		},
+		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
+			command.FlagWithInput("--unsupported ", path)
+		},
+	},
+	// See HiddenAPIAugmentationProperties.Removed
+	{
+		propertyName: "removed",
+		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+			return properties.Removed
+		},
+		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
+			command.FlagWithInput("--unsupported ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed")
+		},
+	},
+	// See HiddenAPIAugmentationProperties.Max_target_r_low_priority
+	{
+		propertyName: "max_target_r_low_priority",
+		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+			return properties.Max_target_r_low_priority
+		},
+		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
+			command.FlagWithInput("--max-target-r ", path).FlagWithArg("--tag ", "lo-prio")
+		},
+	},
+	// See HiddenAPIAugmentationProperties.Max_target_q
+	{
+		propertyName: "max_target_q",
+		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+			return properties.Max_target_q
+		},
+		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
+			command.FlagWithInput("--max-target-q ", path)
+		},
+	},
+	// See HiddenAPIAugmentationProperties.Max_target_p
+	{
+		propertyName: "max_target_p",
+		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+			return properties.Max_target_p
+		},
+		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
+			command.FlagWithInput("--max-target-p ", path)
+		},
+	},
+	// See HiddenAPIAugmentationProperties.Max_target_o_low_priority
+	{
+		propertyName: "max_target_o_low_priority",
+		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+			return properties.Max_target_o_low_priority
+		},
+		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
+			command.FlagWithInput("--max-target-o ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio")
+		},
+	},
+	// See HiddenAPIAugmentationProperties.Blocked
+	{
+		propertyName: "blocked",
+		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+			return properties.Blocked
+		},
+		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
+			command.FlagWithInput("--blocked ", path)
+		},
+	},
+	// See HiddenAPIAugmentationProperties.Unsupported_packages
+	{
+		propertyName: "unsupported_packages",
+		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+			return properties.Unsupported_packages
+		},
+		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
+			command.FlagWithInput("--unsupported ", path).Flag("--packages ")
+		},
+	},
 }
 
 // hiddenAPIAugmentationInfo contains paths resolved from HiddenAPIAugmentationProperties
 type hiddenAPIAugmentationInfo struct {
-	// See HiddenAPIAugmentationProperties.Unsupported
-	Unsupported android.Paths
-
-	// See HiddenAPIAugmentationProperties.Removed
-	Removed android.Paths
-
-	// See HiddenAPIAugmentationProperties.Max_target_r_low_priority
-	Max_target_r_low_priority android.Paths
-
-	// See HiddenAPIAugmentationProperties.Max_target_q
-	Max_target_q android.Paths
-
-	// See HiddenAPIAugmentationProperties.Max_target_p
-	Max_target_p android.Paths
-
-	// See HiddenAPIAugmentationProperties.Max_target_o_low_priority
-	Max_target_o_low_priority android.Paths
-
-	// See HiddenAPIAugmentationProperties.Blocked
-	Blocked android.Paths
-
-	// See HiddenAPIAugmentationProperties.Unsupported_packages
-	Unsupported_packages android.Paths
+	// categoryToPaths maps from the flag file category to the paths containing information for that
+	// category.
+	categoryToPaths map[*hiddenAPIFlagFileCategory]android.Paths
 }
 
 // ruleToGenerateHiddenApiFlags creates a rule to create the monolithic hidden API flags from the
@@ -134,36 +205,12 @@ func ruleToGenerateHiddenApiFlags(ctx android.BuilderContext, outputPath android
 		Inputs(moduleSpecificFlagsPaths).
 		FlagWithOutput("--output ", tempPath)
 
-	for _, path := range augmentationInfo.Unsupported {
-		command.FlagWithInput("--unsupported ", path)
-	}
-
-	for _, path := range augmentationInfo.Removed {
-		command.FlagWithInput("--unsupported ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed")
-	}
-
-	for _, path := range augmentationInfo.Max_target_r_low_priority {
-		command.FlagWithInput("--max-target-r ", path).FlagWithArg("--tag ", "lo-prio")
-	}
-
-	for _, path := range augmentationInfo.Max_target_q {
-		command.FlagWithInput("--max-target-q ", path)
-	}
-
-	for _, path := range augmentationInfo.Max_target_p {
-		command.FlagWithInput("--max-target-p ", path)
-	}
-
-	for _, path := range augmentationInfo.Max_target_o_low_priority {
-		command.FlagWithInput("--max-target-o ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio")
-	}
-
-	for _, path := range augmentationInfo.Blocked {
-		command.FlagWithInput("--blocked ", path)
-	}
-
-	for _, path := range augmentationInfo.Unsupported_packages {
-		command.FlagWithInput("--unsupported ", path).Flag("--packages ")
+	// Add the options for the different categories of flag files.
+	for _, category := range hiddenAPIFlagFileCategories {
+		paths := augmentationInfo.categoryToPaths[category]
+		for _, path := range paths {
+			category.commandMutator(command, path)
+		}
 	}
 
 	commitChangeForRestat(rule, tempPath, outputPath)
