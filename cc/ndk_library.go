@@ -78,11 +78,6 @@ type libraryProperties struct {
 	// used. This is only needed to work around platform bugs like
 	// https://github.com/android-ndk/ndk/issues/265.
 	Unversioned_until *string
-
-	// True if this API is not yet ready to be shipped in the NDK. It will be
-	// available in the platform for testing, but will be excluded from the
-	// sysroot provided to the NDK proper.
-	Draft bool
 }
 
 type stubDecorator struct {
