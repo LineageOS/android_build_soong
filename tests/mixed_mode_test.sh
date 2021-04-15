@@ -8,7 +8,7 @@
 
 source "$(dirname "$0")/lib.sh"
 
-function setup_bazel() {
+function create_mock_bazel() {
   copy_directory build/bazel
 
   symlink_directory prebuilts/bazel
@@ -20,7 +20,7 @@ function setup_bazel() {
 
 function test_bazel_smoke {
   setup
-  setup_bazel
+  create_mock_bazel
 
   tools/bazel info
 }
