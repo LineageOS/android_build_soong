@@ -40,8 +40,8 @@ func TestVendorLinkage(t *testing.T) {
 
 	vendorBinary := ctx.ModuleForTests("fizz_vendor", "android_vendor.29_arm64_armv8-a").Module().(*cc.Module)
 
-	if !android.InList("libfoo_vendor", vendorBinary.Properties.AndroidMkStaticLibs) {
-		t.Errorf("vendorBinary should have a dependency on libfoo_vendor")
+	if !android.InList("libfoo_vendor.vendor", vendorBinary.Properties.AndroidMkStaticLibs) {
+		t.Errorf("vendorBinary should have a dependency on libfoo_vendor: %#v", vendorBinary.Properties.AndroidMkStaticLibs)
 	}
 }
 
@@ -87,47 +87,19 @@ func TestVendorRamdiskLinkage(t *testing.T) {
 	}
 }
 
-// Test that shared libraries cannot be made vendor available until proper support is added.
+// Test that prebuilt libraries cannot be made vendor available.
 func TestForbiddenVendorLinkage(t *testing.T) {
-	testRustError(t, "cannot be set for rust_ffi or rust_ffi_shared modules.", `
-		rust_ffi_shared {
-			name: "libfoo_vendor",
-			crate_name: "foo",
-			srcs: ["foo.rs"],
-			vendor_available: true,
-		}
-	`)
-	testRustError(t, "cannot be set for rust_ffi or rust_ffi_shared modules.", `
-		rust_ffi_shared {
-			name: "libfoo_vendor",
-			crate_name: "foo",
-			srcs: ["foo.rs"],
-			vendor_ramdisk_available: true,
-		}
-	`)
-	testRustError(t, "Rust vendor specific modules are currently only supported for rust_ffi_static modules.", `
-		rust_ffi {
-			name: "libfoo_vendor",
-			crate_name: "foo",
-			srcs: ["foo.rs"],
+	testRustVndkError(t, "Rust prebuilt modules not supported for non-system images.", `
+		rust_prebuilt_library {
+			name: "librust_prebuilt",
+			crate_name: "rust_prebuilt",
+			rlib: {
+				srcs: ["libtest.rlib"],
+			},
+			dylib: {
+				srcs: ["libtest.so"],
+			},
 			vendor: true,
 		}
-	`)
-	testRustError(t, "Rust vendor specific modules are currently only supported for rust_ffi_static modules.", `
-		rust_library {
-			name: "libfoo_vendor",
-			crate_name: "foo",
-			srcs: ["foo.rs"],
-			vendor: true,
-		}
-	`)
-	testRustError(t, "Rust vendor specific modules are currently only supported for rust_ffi_static modules.", `
-		rust_binary {
-			name: "foo_vendor",
-			crate_name: "foo",
-			srcs: ["foo.rs"],
-			vendor: true,
-		}
-	`)
-
+       `)
 }

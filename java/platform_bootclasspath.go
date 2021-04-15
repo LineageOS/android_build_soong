@@ -208,7 +208,30 @@ func addDependencyOntoApexModulePair(ctx android.BottomUpMutatorContext, apex st
 	// error, unless missing dependencies are allowed. The simplest way to handle that is to add a
 	// dependency that will not be satisfied and the default behavior will handle it.
 	if !addedDep {
-		ctx.AddFarVariationDependencies(variations, tag, name)
+		// Add dependency on the unprefixed (i.e. source or renamed prebuilt) module which we know does
+		// not exist. The resulting error message will contain useful information about the available
+		// variants.
+		reportMissingVariationDependency(ctx, variations, name)
+
+		// Add dependency on the missing prefixed prebuilt variant too if a module with that name exists
+		// so that information about its available variants will be reported too.
+		if ctx.OtherModuleExists(prebuiltName) {
+			reportMissingVariationDependency(ctx, variations, prebuiltName)
+		}
+	}
+}
+
+// reportMissingVariationDependency intentionally adds a dependency on a missing variation in order
+// to generate an appropriate error message with information about the available variations.
+func reportMissingVariationDependency(ctx android.BottomUpMutatorContext, variations []blueprint.Variation, name string) {
+	modules := ctx.AddFarVariationDependencies(variations, nil, name)
+	if len(modules) != 1 {
+		panic(fmt.Errorf("Internal Error: expected one module, found %d", len(modules)))
+		return
+	}
+	if modules[0] != nil {
+		panic(fmt.Errorf("Internal Error: expected module to be missing but was found: %q", modules[0]))
+		return
 	}
 }
 
@@ -280,15 +303,35 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 		return
 	}
 
-	moduleSpecificFlagsPaths := android.Paths{}
+	hiddenAPISupportingModules := []hiddenAPISupportingModule{}
 	for _, module := range modules {
-		if h, ok := module.(hiddenAPIIntf); ok {
-			if csv := h.flagsCSV(); csv != nil {
-				moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, csv)
+		if h, ok := module.(hiddenAPISupportingModule); ok {
+			if h.bootDexJar() == nil {
+				ctx.ModuleErrorf("module %s does not provide a bootDexJar file", module)
 			}
+			if h.flagsCSV() == nil {
+				ctx.ModuleErrorf("module %s does not provide a flagsCSV file", module)
+			}
+			if h.indexCSV() == nil {
+				ctx.ModuleErrorf("module %s does not provide an indexCSV file", module)
+			}
+			if h.metadataCSV() == nil {
+				ctx.ModuleErrorf("module %s does not provide a metadataCSV file", module)
+			}
+
+			if ctx.Failed() {
+				continue
+			}
+
+			hiddenAPISupportingModules = append(hiddenAPISupportingModules, h)
 		} else {
-			ctx.ModuleErrorf("module %s of type %s does not implement hiddenAPIIntf", module, ctx.OtherModuleType(module))
+			ctx.ModuleErrorf("module %s of type %s does not support hidden API processing", module, ctx.OtherModuleType(module))
 		}
+	}
+
+	moduleSpecificFlagsPaths := android.Paths{}
+	for _, module := range hiddenAPISupportingModules {
+		moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, module.flagsCSV())
 	}
 
 	augmentationInfo := b.properties.Hidden_api.hiddenAPIAugmentationInfo(ctx)

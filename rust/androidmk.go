@@ -60,6 +60,10 @@ func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.AddStrings("LOCAL_SHARED_LIBRARIES", mod.Properties.AndroidMkSharedLibs...)
 				entries.AddStrings("LOCAL_STATIC_LIBRARIES", mod.Properties.AndroidMkStaticLibs...)
 				entries.AddStrings("LOCAL_SOONG_LINK_TYPE", mod.makeLinkType)
+				if mod.UseVndk() {
+					entries.SetBool("LOCAL_USE_VNDK", true)
+				}
+
 			},
 		},
 	}
@@ -75,6 +79,7 @@ func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 		mod.SubAndroidMk(&ret, mod.sanitize)
 	}
 
+	ret.SubName += mod.Properties.RustSubName
 	ret.SubName += mod.Properties.SubName
 
 	return []android.AndroidMkEntries{ret}
@@ -105,6 +110,20 @@ func (test *testDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidM
 		})
 
 	cc.AndroidMkWriteTestData(test.data, ret)
+}
+
+func (benchmark *benchmarkDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {
+	benchmark.binaryDecorator.AndroidMk(ctx, ret)
+	ret.Class = "NATIVE_TESTS"
+	ret.ExtraEntries = append(ret.ExtraEntries,
+		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+			entries.AddCompatibilityTestSuites(benchmark.Properties.Test_suites...)
+			if benchmark.testConfig != nil {
+				entries.SetString("LOCAL_FULL_TEST_CONFIG", benchmark.testConfig.String())
+			}
+			entries.SetBool("LOCAL_NATIVE_BENCHMARK", true)
+			entries.SetBoolIfTrue("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", !BoolDefault(benchmark.Properties.Auto_gen_config, true))
+		})
 }
 
 func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.AndroidMkEntries) {

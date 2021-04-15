@@ -54,7 +54,7 @@ function setup() {
     mkdir -p "$MOCK_TOP"
   else
     MOCK_TOP=$(mktemp -t -d st.XXXXX)
-    trap 'echo cd / && echo rm -fr "$MOCK_TOP"' EXIT
+    trap 'cd / && rm -fr "$MOCK_TOP"' EXIT
   fi
 
   echo "Test case: ${FUNCNAME[1]}, mock top path: $MOCK_TOP"
