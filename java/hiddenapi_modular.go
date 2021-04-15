@@ -20,9 +20,9 @@ import (
 
 // Contains support for processing hiddenAPI in a modular fashion.
 
-// HiddenAPIAugmentationProperties contains paths to the files that can be used to augment the information
-// obtained from annotations within the source code in order to create the complete set of flags
-// that should be applied to the dex implementation jars on the bootclasspath.
+// HiddenAPIFlagFileProperties contains paths to the flag files that can be used to augment the
+// information obtained from annotations within the source code in order to create the complete set
+// of flags that should be applied to the dex implementation jars on the bootclasspath.
 //
 // Each property contains a list of paths. With the exception of the Unsupported_packages the paths
 // of each property reference a plain text file that contains a java signature per line. The flags
@@ -31,7 +31,7 @@ import (
 // The Unsupported_packages property contains a list of paths, each of which is a plain text file
 // with one Java package per line. All members of all classes within that package (but not nested
 // packages) will be updated in a property specific way.
-type HiddenAPIAugmentationProperties struct {
+type HiddenAPIFlagFileProperties struct {
 	// Marks each signature in the referenced files as being unsupported.
 	Unsupported []string `android:"path"`
 
@@ -60,8 +60,8 @@ type HiddenAPIAugmentationProperties struct {
 	Unsupported_packages []string `android:"path"`
 }
 
-func (p *HiddenAPIAugmentationProperties) hiddenAPIAugmentationInfo(ctx android.ModuleContext) hiddenAPIAugmentationInfo {
-	info := hiddenAPIAugmentationInfo{categoryToPaths: map[*hiddenAPIFlagFileCategory]android.Paths{}}
+func (p *HiddenAPIFlagFileProperties) hiddenAPIFlagFileInfo(ctx android.ModuleContext) hiddenAPIFlagFileInfo {
+	info := hiddenAPIFlagFileInfo{categoryToPaths: map[*hiddenAPIFlagFileCategory]android.Paths{}}
 	for _, category := range hiddenAPIFlagFileCategories {
 		paths := android.PathsForModuleSrc(ctx, category.propertyAccessor(p))
 		info.categoryToPaths[category] = paths
@@ -75,7 +75,7 @@ type hiddenAPIFlagFileCategory struct {
 
 	// propertyAccessor retrieves the value of the property for this category from the set of
 	// properties.
-	propertyAccessor func(properties *HiddenAPIAugmentationProperties) []string
+	propertyAccessor func(properties *HiddenAPIFlagFileProperties) []string
 
 	// commandMutator adds the appropriate command line options for this category to the supplied
 	// command
@@ -83,80 +83,80 @@ type hiddenAPIFlagFileCategory struct {
 }
 
 var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
-	// See HiddenAPIAugmentationProperties.Unsupported
+	// See HiddenAPIFlagFileProperties.Unsupported
 	{
 		propertyName: "unsupported",
-		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Unsupported
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--unsupported ", path)
 		},
 	},
-	// See HiddenAPIAugmentationProperties.Removed
+	// See HiddenAPIFlagFileProperties.Removed
 	{
 		propertyName: "removed",
-		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Removed
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--unsupported ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "removed")
 		},
 	},
-	// See HiddenAPIAugmentationProperties.Max_target_r_low_priority
+	// See HiddenAPIFlagFileProperties.Max_target_r_low_priority
 	{
 		propertyName: "max_target_r_low_priority",
-		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_r_low_priority
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--max-target-r ", path).FlagWithArg("--tag ", "lo-prio")
 		},
 	},
-	// See HiddenAPIAugmentationProperties.Max_target_q
+	// See HiddenAPIFlagFileProperties.Max_target_q
 	{
 		propertyName: "max_target_q",
-		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_q
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--max-target-q ", path)
 		},
 	},
-	// See HiddenAPIAugmentationProperties.Max_target_p
+	// See HiddenAPIFlagFileProperties.Max_target_p
 	{
 		propertyName: "max_target_p",
-		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_p
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--max-target-p ", path)
 		},
 	},
-	// See HiddenAPIAugmentationProperties.Max_target_o_low_priority
+	// See HiddenAPIFlagFileProperties.Max_target_o_low_priority
 	{
 		propertyName: "max_target_o_low_priority",
-		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_o_low_priority
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--max-target-o ", path).Flag("--ignore-conflicts ").FlagWithArg("--tag ", "lo-prio")
 		},
 	},
-	// See HiddenAPIAugmentationProperties.Blocked
+	// See HiddenAPIFlagFileProperties.Blocked
 	{
 		propertyName: "blocked",
-		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Blocked
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
 			command.FlagWithInput("--blocked ", path)
 		},
 	},
-	// See HiddenAPIAugmentationProperties.Unsupported_packages
+	// See HiddenAPIFlagFileProperties.Unsupported_packages
 	{
 		propertyName: "unsupported_packages",
-		propertyAccessor: func(properties *HiddenAPIAugmentationProperties) []string {
+		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Unsupported_packages
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
@@ -165,8 +165,8 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	},
 }
 
-// hiddenAPIAugmentationInfo contains paths resolved from HiddenAPIAugmentationProperties
-type hiddenAPIAugmentationInfo struct {
+// hiddenAPIFlagFileInfo contains paths resolved from HiddenAPIFlagFileProperties
+type hiddenAPIFlagFileInfo struct {
 	// categoryToPaths maps from the flag file category to the paths containing information for that
 	// category.
 	categoryToPaths map[*hiddenAPIFlagFileCategory]android.Paths
@@ -196,7 +196,7 @@ type hiddenAPIAugmentationInfo struct {
 //
 // augmentationInfo is a struct containing paths to files that augment the information provided by
 // the moduleSpecificFlagsPaths.
-func ruleToGenerateHiddenApiFlags(ctx android.BuilderContext, outputPath android.WritablePath, baseFlagsPath android.Path, moduleSpecificFlagsPaths android.Paths, augmentationInfo hiddenAPIAugmentationInfo) {
+func ruleToGenerateHiddenApiFlags(ctx android.BuilderContext, outputPath android.WritablePath, baseFlagsPath android.Path, moduleSpecificFlagsPaths android.Paths, augmentationInfo hiddenAPIFlagFileInfo) {
 	tempPath := android.PathForOutput(ctx, outputPath.Rel()+".tmp")
 	rule := android.NewRuleBuilder(pctx, ctx)
 	command := rule.Command().

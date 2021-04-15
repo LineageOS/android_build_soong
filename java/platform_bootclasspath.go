@@ -99,7 +99,7 @@ type platformBootclasspathProperties struct {
 	// platform_bootclasspath.
 	Fragments []ApexVariantReference
 
-	Hidden_api HiddenAPIAugmentationProperties
+	Hidden_api HiddenAPIFlagFileProperties
 }
 
 func platformBootclasspathFactory() android.Module {
@@ -334,7 +334,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 		moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, module.flagsCSV())
 	}
 
-	augmentationInfo := b.properties.Hidden_api.hiddenAPIAugmentationInfo(ctx)
+	augmentationInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
 
 	outputPath := hiddenAPISingletonPaths(ctx).flags
 	baseFlagsPath := hiddenAPISingletonPaths(ctx).stubFlags
