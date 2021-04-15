@@ -114,7 +114,9 @@ EOF
   rm a/Android.bp
   run_soong
 
-  grep -q "^# Module:.*my_little_binary_host$" out/soong/build.ninja && fail "Old module in output"
+  if grep -q "^# Module:.*my_little_binary_host$" out/soong/build.ninja; then
+    fail "Old module in output"
+  fi
 }
 
 function test_add_file_to_glob() {
@@ -404,7 +406,9 @@ EOF
 
   grep -q "Engage" out/soong/build.ninja || fail "New action not present"
 
-  grep -q "Make it so" out/soong/build.ninja && fail "Original action still present"
+  if grep -q "Make it so" out/soong/build.ninja; then
+    fail "Original action still present"
+  fi
 }
 
 function test_null_build_after_docs {
@@ -414,6 +418,27 @@ function test_null_build_after_docs {
 
   prebuilts/build-tools/linux-x86/bin/ninja -f out/soong/build.ninja soong_docs
   run_soong
+  local mtime2=$(stat -c "%y" out/soong/build.ninja)
+
+  if [[ "$mtime1" != "$mtime2" ]]; then
+    fail "Output Ninja file changed on null build"
+  fi
+}
+
+function test_integrated_bp2build_smoke {
+  setup
+  INTEGRATED_BP2BUILD=1 run_soong
+  if [[ ! -e out/soong/.bootstrap/bp2build_workspace_marker ]]; then
+    fail "b2build marker file not created"
+  fi
+}
+
+function test_integrated_bp2build_null_build {
+  setup
+  INTEGRATED_BP2BUILD=1 run_soong
+  local mtime1=$(stat -c "%y" out/soong/build.ninja)
+
+  INTEGRATED_BP2BUILD=1 run_soong
   local mtime2=$(stat -c "%y" out/soong/build.ninja)
 
   if [[ "$mtime1" != "$mtime2" ]]; then
@@ -441,3 +466,5 @@ test_add_file_to_soong_build
 test_glob_during_bootstrapping
 test_soong_build_rerun_iff_environment_changes
 test_dump_json_module_graph
+test_integrated_bp2build_smoke
+test_integrated_bp2build_null_build
