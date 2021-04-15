@@ -339,4 +339,22 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	outputPath := hiddenAPISingletonPaths(ctx).flags
 	baseFlagsPath := hiddenAPISingletonPaths(ctx).stubFlags
 	ruleToGenerateHiddenApiFlags(ctx, outputPath, baseFlagsPath, moduleSpecificFlagsPaths, augmentationInfo)
+
+	b.generateHiddenAPIIndexRules(ctx, hiddenAPISupportingModules)
+}
+
+func (b *platformBootclasspathModule) generateHiddenAPIIndexRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
+	indexes := android.Paths{}
+	for _, module := range modules {
+		indexes = append(indexes, module.indexCSV())
+	}
+
+	rule := android.NewRuleBuilder(pctx, ctx)
+	rule.Command().
+		BuiltTool("merge_csv").
+		Flag("--key_field signature").
+		FlagWithArg("--header=", "signature,file,startline,startcol,endline,endcol,properties").
+		FlagWithOutput("--output=", hiddenAPISingletonPaths(ctx).index).
+		Inputs(indexes)
+	rule.Build("platform-bootclasspath-monolithic-hiddenapi-index", "monolithic hidden API index")
 }
