@@ -35,6 +35,7 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 			name: "bar",
 			srcs: ["b.java"],
 			installable: true,
+			system_ext_specific: true,
 		}
 
 		dex_import {
@@ -47,7 +48,7 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
-		dexpreopt.FixtureSetBootJars("platform:foo", "platform:bar", "platform:baz"),
+		dexpreopt.FixtureSetBootJars("platform:foo", "system_ext:bar", "platform:baz"),
 	).RunTestWithBp(t, bp)
 
 	dexpreoptBootJars := result.SingletonForTests("dex_bootjars")
