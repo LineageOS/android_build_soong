@@ -110,6 +110,9 @@ func (v *vbmeta) partitionName() string {
 	return proptools.StringDefault(v.properties.Partition_name, v.BaseModuleName())
 }
 
+// See external/avb/libavb/avb_slot_verify.c#VBMETA_MAX_SIZE
+const vbmetaMaxSize = 64 * 1024
+
 func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	extractedPublicKeys := v.extractPublicKeys(ctx)
 
@@ -172,6 +175,13 @@ func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	cmd.FlagWithOutput("--output ", v.output)
+
+	// libavb expects to be able to read the maximum vbmeta size, so we must provide a partition
+	// which matches this or the read will fail.
+	builder.Command().Text("truncate").
+		FlagWithArg("-s ", strconv.Itoa(vbmetaMaxSize)).
+		Output(v.output)
+
 	builder.Build("vbmeta", fmt.Sprintf("vbmeta %s", ctx.ModuleName()))
 
 	v.installDir = android.PathForModuleInstall(ctx, "etc")
