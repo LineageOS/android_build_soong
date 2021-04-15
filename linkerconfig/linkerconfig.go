@@ -17,6 +17,7 @@ package linkerconfig
 import (
 	"android/soong/android"
 	"android/soong/etc"
+	"fmt"
 
 	"github.com/google/blueprint/proptools"
 )
@@ -68,6 +69,17 @@ func (l *linkerConfig) OutputFile() android.OutputPath {
 	return l.outputFilePath
 }
 
+var _ android.OutputFileProducer = (*linkerConfig)(nil)
+
+func (l *linkerConfig) OutputFiles(tag string) (android.Paths, error) {
+	switch tag {
+	case "":
+		return android.Paths{l.outputFilePath}, nil
+	default:
+		return nil, fmt.Errorf("unsupported module reference tag %q", tag)
+	}
+}
+
 func (l *linkerConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	inputFile := android.PathForModuleSrc(ctx, android.String(l.properties.Src))
 	l.outputFilePath = android.PathForModuleOut(ctx, "linker.config.pb").OutputPath
@@ -81,9 +93,10 @@ func (l *linkerConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	linkerConfigRule.Build("conv_linker_config",
 		"Generate linker config protobuf "+l.outputFilePath.String())
 
-	if proptools.BoolDefault(l.properties.Installable, true) {
-		ctx.InstallFile(l.installDirPath, l.outputFilePath.Base(), l.outputFilePath)
+	if !proptools.BoolDefault(l.properties.Installable, true) {
+		l.SkipInstall()
 	}
+	ctx.InstallFile(l.installDirPath, l.outputFilePath.Base(), l.outputFilePath)
 }
 
 // linker_config generates protobuf file from json file. This protobuf file will be used from
