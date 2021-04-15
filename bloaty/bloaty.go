@@ -52,12 +52,28 @@ func init() {
 	pctx.SourcePathVariable("bloaty", "prebuilts/build-tools/${hostPrebuiltTag}/bin/bloaty")
 	pctx.HostBinToolVariable("bloatyMerger", "bloaty_merger")
 	android.RegisterSingletonType("file_metrics", fileSizesSingleton)
-	fileSizeMeasurerKey = blueprint.NewProvider(android.ModuleOutPath{})
+	fileSizeMeasurerKey = blueprint.NewProvider(measuredFiles{})
 }
 
-// MeasureSizeForPath should be called by binary producers (e.g. in builder.go).
-func MeasureSizeForPath(ctx android.ModuleContext, filePath android.WritablePath) {
-	ctx.SetProvider(fileSizeMeasurerKey, filePath)
+// measuredFiles contains the paths of the files measured by a module.
+type measuredFiles struct {
+	paths []android.WritablePath
+}
+
+// MeasureSizeForPaths should be called by binary producers to measure the
+// sizes of artifacts. It must only be called once per module; it will panic
+// otherwise.
+func MeasureSizeForPaths(ctx android.ModuleContext, paths ...android.OptionalPath) {
+	mf := measuredFiles{}
+	for _, p := range paths {
+		if !p.Valid() {
+			continue
+		}
+		if p, ok := p.Path().(android.WritablePath); ok {
+			mf.paths = append(mf.paths, p)
+		}
+	}
+	ctx.SetProvider(fileSizeMeasurerKey, mf)
 }
 
 type sizesSingleton struct{}
@@ -68,21 +84,22 @@ func fileSizesSingleton() android.Singleton {
 
 func (singleton *sizesSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var deps android.Paths
-	// Visit all modules. If the size provider give us a binary path to measure,
-	// create the rule to measure it.
 	ctx.VisitAllModules(func(m android.Module) {
 		if !ctx.ModuleHasProvider(m, fileSizeMeasurerKey) {
 			return
 		}
-		filePath := ctx.ModuleProvider(m, fileSizeMeasurerKey).(android.ModuleOutPath)
-		sizeFile := filePath.InSameDir(ctx, filePath.Base()+bloatyDescriptorExt)
-		ctx.Build(pctx, android.BuildParams{
-			Rule:        bloaty,
-			Description: "bloaty " + filePath.Rel(),
-			Input:       filePath,
-			Output:      sizeFile,
-		})
-		deps = append(deps, sizeFile)
+		filePaths := ctx.ModuleProvider(m, fileSizeMeasurerKey).(measuredFiles)
+		for _, path := range filePaths.paths {
+			filePath := path.(android.ModuleOutPath)
+			sizeFile := filePath.InSameDir(ctx, filePath.Base()+bloatyDescriptorExt)
+			ctx.Build(pctx, android.BuildParams{
+				Rule:        bloaty,
+				Description: "bloaty " + filePath.Rel(),
+				Input:       filePath,
+				Output:      sizeFile,
+			})
+			deps = append(deps, sizeFile)
+		}
 	})
 
 	ctx.Build(pctx, android.BuildParams{

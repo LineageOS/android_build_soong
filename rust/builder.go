@@ -21,7 +21,6 @@ import (
 	"github.com/google/blueprint"
 
 	"android/soong/android"
-	"android/soong/bloaty"
 	"android/soong/rust/config"
 )
 
@@ -253,8 +252,6 @@ func transformSrctoCrate(ctx ModuleContext, main android.Path, deps PathDeps, fl
 		// Declare the clippy build as an implicit dependency of the original crate.
 		implicits = append(implicits, clippyFile)
 	}
-
-	bloaty.MeasureSizeForPath(ctx, outputFile)
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:            rustc,
