@@ -52,7 +52,8 @@ the `version_script` property of `cc_library`. This has the effect of limiting
 symbol visibility of the library to expose only the interface named by the map
 file. Without this, APIs that you have not explicitly exposed will still be
 available to users via `dlsym`. Note: All comments are ignored in this case. Any
-symbol named in any `global:` group will be visible.
+symbol named in any `global:` group will be visible in the implementation
+library. Annotations in comments only affect what is exposed by the stubs.
 
 ## Special version names
 
@@ -76,8 +77,12 @@ to both APEX and the LL-NDK.
 ### future
 
 Indicates that the version or symbol is first introduced in the "future" API
-level. This is an abitrarily high API level used to define APIs that have not
+level. This is an arbitrarily high API level used to define APIs that have not
 yet been added to a specific release.
+
+Warning: APIs marked `future` will be usable in any module with `sdk: "current"`
+but **will not be included in the NDK**. `future` should generally not be used,
+but is useful when developing APIs for an unknown future release.
 
 ### introduced
 
@@ -92,13 +97,15 @@ Note: The map file alone does not contain all the information needed to
 determine which API level an API was added in. The `first_version` property of
 `ndk_library` will dictate which API levels stubs are generated for. If the
 module sets `first_version: "21"`, no symbols were introduced before API 21.
+**Symbol names for which no other rule applies will implicitly be introduced in
+`first_version`.**
 
-Codenames can (and typically should) be used when defining new APIs. This allows
-the actual number of the API level to remain vague during development of that
-release. For example, `introduced=S` can be used to define APIs added in S. Any
-code name known to the build system can be used. For a list of versions known to
-the build system, see `out/soong/api_levels.json` (if not present, run `m
-out/soong/api_levels.json` to generate it).
+Code names can (and typically should) be used when defining new APIs. This
+allows the actual number of the API level to remain vague during development of
+that release. For example, `introduced=S` can be used to define APIs added in S.
+Any code name known to the build system can be used. For a list of versions
+known to the build system, see `out/soong/api_levels.json` (if not present, run
+`m out/soong/api_levels.json` to generate it).
 
 Architecture-specific variants of this tag exist:
 
@@ -123,6 +130,8 @@ Indicates that the version or symbol is to be exposed in the LL-NDK stubs rather
 than the NDK. May be used in combination with `apex` if the symbol is exposed to
 both APEX and the LL-NDK.
 
+Historically this annotation was spelled `vndk`, but it has always meant LL-NDK.
+
 ### platform-only
 
 Indicates that the version or symbol is public in the implementation library but
@@ -131,9 +140,9 @@ should not be exposed in the stub library. Developers can still access them via
 clear to the developer that they are up to no good.
 
 The typical use for this tag is for exposing an API to the platform that is not
-for use by the NDK, LL-NDK, or APEX. It is preferable to keep such APIs in an
-entirely separate library to protect them from access via `dlsym`, but this is
-not always possible.
+for use by the NDK, LL-NDK, or APEX (similar to Java's `@SystemAPI`). It is
+preferable to keep such APIs in an entirely separate library to protect them
+from access via `dlsym`, but this is not always possible.
 
 ### var
 
