@@ -115,7 +115,7 @@ func hiddenAPISingletonFactory() android.Singleton {
 }
 
 type hiddenAPISingleton struct {
-	flags, metadata android.Path
+	flags android.Path
 }
 
 // hiddenAPI singleton rules
@@ -144,24 +144,18 @@ func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) 
 	// These rules depend on files located in frameworks/base, skip them if running in a tree that doesn't have them.
 	if ctx.Config().FrameworksBaseDirExists(ctx) {
 		h.flags = flagsRule(ctx)
-		h.metadata = metadataRule(ctx)
 	} else {
 		h.flags = emptyFlagsRule(ctx)
 	}
 }
 
 // Export paths to Make.  INTERNAL_PLATFORM_HIDDENAPI_FLAGS is used by Make rules in art/ and cts/.
-// Both paths are used to call dist-for-goals.
 func (h *hiddenAPISingleton) MakeVars(ctx android.MakeVarsContext) {
 	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
 		return
 	}
 
 	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", h.flags.String())
-
-	if h.metadata != nil {
-		ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_GREYLIST_METADATA", h.metadata.String())
-	}
 }
 
 // stubFlagsRule creates the rule to build hiddenapi-stub-flags.txt out of dex jars from stub modules and boot image
@@ -350,34 +344,6 @@ func emptyFlagsRule(ctx android.SingletonContext) android.Path {
 	rule.Command().Text("touch").Output(outputPath)
 
 	rule.Build("emptyHiddenAPIFlagsFile", "empty hiddenapi flags")
-
-	return outputPath
-}
-
-// metadataRule creates a rule to build hiddenapi-unsupported.csv out of the metadata.csv files generated for boot image
-// modules.
-func metadataRule(ctx android.SingletonContext) android.Path {
-	var metadataCSV android.Paths
-
-	ctx.VisitAllModules(func(module android.Module) {
-		if h, ok := module.(hiddenAPIIntf); ok {
-			if csv := h.metadataCSV(); csv != nil {
-				metadataCSV = append(metadataCSV, csv)
-			}
-		}
-	})
-
-	rule := android.NewRuleBuilder(pctx, ctx)
-
-	outputPath := hiddenAPISingletonPaths(ctx).metadata
-
-	rule.Command().
-		BuiltTool("merge_csv").
-		Flag("--key_field signature").
-		FlagWithOutput("--output=", outputPath).
-		Inputs(metadataCSV)
-
-	rule.Build("hiddenAPIGreylistMetadataFile", "hiddenapi greylist metadata")
 
 	return outputPath
 }
