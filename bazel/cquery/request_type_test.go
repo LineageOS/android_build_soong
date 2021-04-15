@@ -76,6 +76,12 @@ func TestGetCcInfoParseResults(t *testing.T) {
 			expectedOutput:       CcInfo{},
 			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 3, []string{"", ""}),
 		},
+		{
+			description:          "too many result splits",
+			input:                "|||",
+			expectedOutput:       CcInfo{},
+			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 3, []string{"", "", "", ""}),
+		},
 	}
 	for _, tc := range testCases {
 		actualOutput, err := GetCcInfo.ParseResult(tc.input)
