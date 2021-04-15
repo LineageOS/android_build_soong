@@ -97,6 +97,10 @@ func (mod *Module) RamdiskVariantNeeded(android.BaseModuleContext) bool {
 	return mod.InRamdisk()
 }
 
+func (mod *Module) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+	return false
+}
+
 func (mod *Module) RecoveryVariantNeeded(android.BaseModuleContext) bool {
 	return mod.InRecovery()
 }
