@@ -903,7 +903,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	// be built for this apexBundle.
 	apexInfo := android.ApexInfo{
 		ApexVariationName: mctx.ModuleName(),
-		MinSdkVersionStr:  minSdkVersion.String(),
+		MinSdkVersion:     minSdkVersion,
 		RequiredSdks:      a.RequiredSdks(),
 		Updatable:         a.Updatable(),
 		InApexes:          []string{mctx.ModuleName()},
