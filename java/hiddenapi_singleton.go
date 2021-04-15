@@ -24,7 +24,6 @@ func init() {
 
 func RegisterHiddenApiSingletonComponents(ctx android.RegistrationContext) {
 	ctx.RegisterSingletonType("hiddenapi", hiddenAPISingletonFactory)
-	ctx.RegisterSingletonType("hiddenapi_index", hiddenAPIIndexSingletonFactory)
 }
 
 var PrepareForTestWithHiddenApiBuildComponents = android.FixtureRegisterWithContext(RegisterHiddenApiSingletonComponents)
@@ -138,6 +137,7 @@ func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) 
 
 	if ctx.Config().PrebuiltHiddenApiDir(ctx) != "" {
 		h.flags = prebuiltFlagsRule(ctx)
+		prebuiltIndexRule(ctx)
 		return
 	}
 
@@ -321,6 +321,17 @@ func prebuiltFlagsRule(ctx android.SingletonContext) android.Path {
 	return outputPath
 }
 
+func prebuiltIndexRule(ctx android.SingletonContext) {
+	outputPath := hiddenAPISingletonPaths(ctx).index
+	inputPath := android.PathForSource(ctx, ctx.Config().PrebuiltHiddenApiDir(ctx), "hiddenapi-index.csv")
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Output: outputPath,
+		Input:  inputPath,
+	})
+}
+
 // flagsRule is a placeholder that simply returns the location of the file, the generation of the
 // ninja rules is done in generateHiddenAPIBuildActions.
 func flagsRule(ctx android.SingletonContext) android.Path {
@@ -387,33 +398,4 @@ func commitChangeForRestat(rule *android.RuleBuilder, tempPath, outputPath andro
 		Text("mv").Input(tempPath).Output(outputPath).Text(";").
 		Text("fi").
 		Text(")")
-}
-
-func hiddenAPIIndexSingletonFactory() android.Singleton {
-	return &hiddenAPIIndexSingleton{}
-}
-
-type hiddenAPIIndexSingleton struct {
-	index android.Path
-}
-
-func (h *hiddenAPIIndexSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	// Don't run any hiddenapi rules if UNSAFE_DISABLE_HIDDENAPI_FLAGS=true
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
-		return
-	}
-
-	if ctx.Config().PrebuiltHiddenApiDir(ctx) != "" {
-		outputPath := hiddenAPISingletonPaths(ctx).index
-		inputPath := android.PathForSource(ctx, ctx.Config().PrebuiltHiddenApiDir(ctx), "hiddenapi-index.csv")
-
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Cp,
-			Output: outputPath,
-			Input:  inputPath,
-		})
-
-		h.index = outputPath
-		return
-	}
 }
