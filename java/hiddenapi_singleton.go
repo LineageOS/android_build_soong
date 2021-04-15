@@ -416,32 +416,4 @@ func (h *hiddenAPIIndexSingleton) GenerateBuildActions(ctx android.SingletonCont
 		h.index = outputPath
 		return
 	}
-
-	indexes := android.Paths{}
-	ctx.VisitAllModules(func(module android.Module) {
-		if h, ok := module.(hiddenAPIIntf); ok {
-			if h.indexCSV() != nil {
-				indexes = append(indexes, h.indexCSV())
-			}
-		}
-	})
-
-	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.Command().
-		BuiltTool("merge_csv").
-		Flag("--key_field signature").
-		FlagWithArg("--header=", "signature,file,startline,startcol,endline,endcol,properties").
-		FlagWithOutput("--output=", hiddenAPISingletonPaths(ctx).index).
-		Inputs(indexes)
-	rule.Build("singleton-merged-hiddenapi-index", "Singleton merged Hidden API index")
-
-	h.index = hiddenAPISingletonPaths(ctx).index
-}
-
-func (h *hiddenAPIIndexSingleton) MakeVars(ctx android.MakeVarsContext) {
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
-		return
-	}
-
-	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_INDEX", h.index.String())
 }
