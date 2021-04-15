@@ -279,6 +279,53 @@ cc_library_static {
     ],
 )`},
 		},
+		{
+			description:                        "cc_library_static subpackage test",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			filesystem: map[string]string{
+				// subpackage with subdirectory
+				"subpackage/Android.bp":                         "",
+				"subpackage/subpackage_header.h":                "",
+				"subpackage/subdirectory/subdirectory_header.h": "",
+				// subsubpackage with subdirectory
+				"subpackage/subsubpackage/Android.bp":                         "",
+				"subpackage/subsubpackage/subsubpackage_header.h":             "",
+				"subpackage/subsubpackage/subdirectory/subdirectory_header.h": "",
+				// subsubsubpackage with subdirectory
+				"subpackage/subsubpackage/subsubsubpackage/Android.bp":                         "",
+				"subpackage/subsubpackage/subsubsubpackage/subsubsubpackage_header.h":          "",
+				"subpackage/subsubpackage/subsubsubpackage/subdirectory/subdirectory_header.h": "",
+			},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    srcs: [
+    ],
+    include_dirs: [
+	"subpackage",
+    ],
+
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    includes = [
+        "subpackage",
+        ".",
+    ],
+    linkstatic = True,
+    srcs = [
+        "//subpackage:subpackage_header.h",
+        "//subpackage:subdirectory/subdirectory_header.h",
+        "//subpackage/subsubpackage:subsubpackage_header.h",
+        "//subpackage/subsubpackage:subdirectory/subdirectory_header.h",
+        "//subpackage/subsubpackage/subsubsubpackage:subsubsubpackage_header.h",
+        "//subpackage/subsubpackage/subsubsubpackage:subdirectory/subdirectory_header.h",
+    ],
+)`},
+		},
 	}
 
 	dir := "."
