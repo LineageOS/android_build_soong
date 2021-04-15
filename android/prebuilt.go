@@ -339,6 +339,13 @@ func (p *Prebuilt) usePrebuilt(ctx TopDownMutatorContext, source Module, prebuil
 		return false
 	}
 
+	// Skip prebuilt modules under unexported namespaces so that we won't
+	// end up shadowing non-prebuilt module when prebuilt module under same
+	// name happens to have a `Prefer` property set to true.
+	if ctx.Config().KatiEnabled() && !prebuilt.ExportedToMake() {
+		return false
+	}
+
 	// TODO: use p.Properties.Name and ctx.ModuleDir to override preference
 	if Bool(p.properties.Prefer) {
 		return true
