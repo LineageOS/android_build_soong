@@ -341,6 +341,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	ruleToGenerateHiddenApiFlags(ctx, outputPath, baseFlagsPath, moduleSpecificFlagsPaths, augmentationInfo)
 
 	b.generateHiddenAPIIndexRules(ctx, hiddenAPISupportingModules)
+	b.generatedHiddenAPIMetadataRules(ctx, hiddenAPISupportingModules)
 }
 
 func (b *platformBootclasspathModule) generateHiddenAPIIndexRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
@@ -357,4 +358,23 @@ func (b *platformBootclasspathModule) generateHiddenAPIIndexRules(ctx android.Mo
 		FlagWithOutput("--output=", hiddenAPISingletonPaths(ctx).index).
 		Inputs(indexes)
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-index", "monolithic hidden API index")
+}
+
+func (b *platformBootclasspathModule) generatedHiddenAPIMetadataRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
+	metadataCSVFiles := android.Paths{}
+	for _, module := range modules {
+		metadataCSVFiles = append(metadataCSVFiles, module.metadataCSV())
+	}
+
+	rule := android.NewRuleBuilder(pctx, ctx)
+
+	outputPath := hiddenAPISingletonPaths(ctx).metadata
+
+	rule.Command().
+		BuiltTool("merge_csv").
+		Flag("--key_field signature").
+		FlagWithOutput("--output=", outputPath).
+		Inputs(metadataCSVFiles)
+
+	rule.Build("platform-bootclasspath-monolithic-hiddenapi-metadata", "monolithic hidden API metadata")
 }
