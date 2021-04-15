@@ -1295,10 +1295,6 @@ func (c *config) AmlAbis() bool {
 	return Bool(c.productVariables.Aml_abis)
 }
 
-func (c *config) ExcludeDraftNdkApis() bool {
-	return Bool(c.productVariables.Exclude_draft_ndk_apis)
-}
-
 func (c *config) FlattenApex() bool {
 	return Bool(c.productVariables.Flatten_apex)
 }
