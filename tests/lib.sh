@@ -6,8 +6,39 @@ HARDWIRED_MOCK_TOP=
 
 REAL_TOP="$(readlink -f "$(dirname "$0")"/../../..)"
 
+if [[ ! -z "$HARDWIRED_MOCK_TOP" ]]; then
+  MOCK_TOP="$HARDWIRED_MOCK_TOP"
+else
+  MOCK_TOP=$(mktemp -t -d st.XXXXX)
+  trap cleanup_mock_top EXIT
+fi
+
+WARMED_UP_MOCK_TOP=$(mktemp -t soong_integration_tests_warmup.XXXXXX.tar.gz)
+trap 'rm -f "$WARMED_UP_MOCK_TOP"' EXIT
+
+function warmup_mock_top {
+  info "Warming up mock top ..."
+  info "Mock top warmup archive: $WARMED_UP_MOCK_TOP"
+  cleanup_mock_top
+  mkdir -p "$MOCK_TOP"
+  cd "$MOCK_TOP"
+
+  create_mock_soong
+  run_soong
+  tar czf "$WARMED_UP_MOCK_TOP" *
+}
+
+function cleanup_mock_top {
+  cd /
+  rm -fr "$MOCK_TOP"
+}
+
+function info {
+  echo -e "\e[92;1m[TEST HARNESS INFO]\e[0m" $*
+}
+
 function fail {
-  echo ERROR: $1
+  echo -e "\e[91;1mFAILED:\e[0m" $*
   exit 1
 }
 
@@ -47,19 +78,7 @@ function symlink_directory() {
   done
 }
 
-function setup() {
-  if [[ ! -z "$HARDWIRED_MOCK_TOP" ]]; then
-    MOCK_TOP="$HARDWIRED_MOCK_TOP"
-    rm -fr "$MOCK_TOP"
-    mkdir -p "$MOCK_TOP"
-  else
-    MOCK_TOP=$(mktemp -t -d st.XXXXX)
-    trap 'cd / && rm -fr "$MOCK_TOP"' EXIT
-  fi
-
-  echo "Test case: ${FUNCNAME[1]}, mock top path: $MOCK_TOP"
-  cd "$MOCK_TOP"
-
+function create_mock_soong {
   copy_directory build/blueprint
   copy_directory build/soong
 
@@ -68,12 +87,27 @@ function setup() {
   symlink_directory external/golang-protobuf
 
   touch "$MOCK_TOP/Android.bp"
+}
 
-  export ALLOW_MISSING_DEPENDENCIES=true
+function setup() {
+  cleanup_mock_top
+  mkdir -p "$MOCK_TOP"
 
-  mkdir -p out/soong
+  echo
+  echo ----------------------------------------------------------------------------
+  info "Running test case ${FUNCNAME[1]}"
+  cd "$MOCK_TOP"
+
+  tar xzf "$WARMED_UP_MOCK_TOP"
 }
 
 function run_soong() {
   build/soong/soong_ui.bash --make-mode --skip-ninja --skip-make --skip-soong-tests
 }
+
+info "Starting Soong integration test suite $(basename $0)"
+info "Mock top: $MOCK_TOP"
+
+
+export ALLOW_MISSING_DEPENDENCIES=true
+warmup_mock_top
