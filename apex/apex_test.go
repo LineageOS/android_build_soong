@@ -4566,8 +4566,8 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 
 	checkHiddenAPIIndexInputs := func(t *testing.T, ctx *android.TestContext, expectedInputs string) {
 		t.Helper()
-		hiddenAPIIndex := ctx.SingletonForTests("hiddenapi_index")
-		indexRule := hiddenAPIIndex.Rule("singleton-merged-hiddenapi-index")
+		platformBootclasspath := ctx.ModuleForTests("platform-bootclasspath", "android_common")
+		indexRule := platformBootclasspath.Rule("platform-bootclasspath-monolithic-hiddenapi-index")
 		java.CheckHiddenAPIRuleInputs(t, expectedInputs, indexRule)
 	}
 
