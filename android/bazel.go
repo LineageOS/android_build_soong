@@ -129,6 +129,7 @@ var (
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
 	bp2buildDefaultConfig = Bp2BuildConfig{
 		"bionic":                Bp2BuildDefaultTrueRecursively,
+		"external/gwp_asan":     Bp2BuildDefaultTrueRecursively,
 		"system/core/libcutils": Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog": Bp2BuildDefaultTrueRecursively,
 	}
@@ -138,32 +139,25 @@ var (
 		"libBionicBenchmarksUtils",      // ruperts@, cc_library_static, 'map' file not found
 		"libbionic_spawn_benchmark",     // ruperts@, cc_library_static, depends on //system/libbase
 		"libc_jemalloc_wrapper",         // ruperts@, cc_library_static, depends on //external/jemalloc_new
-		"libc_bootstrap",                // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_init_static",              // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_init_dynamic",             // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_tzcode",                   // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_freebsd",                  // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_freebsd_large_stack",      // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_netbsd",                   // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_openbsd_ndk",              // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_openbsd_large_stack",      // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_openbsd",                  // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_gdtoa",                    // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_fortify",                  // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_bionic",                   // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_bootstrap",                // ruperts@, cc_library_static, 'private/bionic_auxv.h' file not found
+		"libc_init_static",              // ruperts@, cc_library_static, 'private/bionic_elf_tls.h' file not found
+		"libc_init_dynamic",             // ruperts@, cc_library_static, 'private/bionic_defs.h' file not found
+		"libc_tzcode",                   // ruperts@, cc_library_static, error: expected expression
+		"libc_netbsd",                   // ruperts@, cc_library_static, 'engine.c' file not found
+		"libc_openbsd_large_stack",      // ruperts@, cc_library_static, 'android/log.h' file not found
+		"libc_openbsd",                  // ruperts@, cc_library_static, 'android/log.h' file not found
+		"libc_fortify",                  // ruperts@, cc_library_static, 'private/bionic_fortify.h' file not found
+		"libc_bionic",                   // ruperts@, cc_library_static, 'private/bionic_asm.h' file not found
 		"libc_bionic_ndk",               // ruperts@, cc_library_static, depends on //bionic/libc/system_properties
-		"libc_bionic_systrace",          // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_pthread",                  // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_bionic_systrace",          // ruperts@, cc_library_static, 'private/bionic_systrace.h' file not found
+		"libc_pthread",                  // ruperts@, cc_library_static, 'private/bionic_defs.h' file not found
 		"libc_syscalls",                 // ruperts@, cc_library_static, mutator panic cannot get direct dep syscalls-arm64.S of libc_syscalls
-		"libc_aeabi",                    // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
 		"libc_ndk",                      // ruperts@, cc_library_static, depends on //bionic/libm:libm
 		"libc_nopthread",                // ruperts@, cc_library_static, depends on //external/arm-optimized-routines
 		"libc_common",                   // ruperts@, cc_library_static, depends on //bionic/libc:libc_nopthread
-		"libc_static_dispatch",          // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-		"libc_dynamic_dispatch",         // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
 		"libc_common_static",            // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
 		"libc_common_shared",            // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
-		"libc_unwind_static",            // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
+		"libc_unwind_static",            // ruperts@, cc_library_static, 'private/bionic_elf_tls.h' file not found
 		"libc_nomalloc",                 // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
 		"libasync_safe",                 // ruperts@, cc_library_static, 'private/CachedProperty.h' file not found
 		"libc_malloc_debug_backtrace",   // ruperts@, cc_library_static, depends on //system/libbase
@@ -173,10 +167,7 @@ var (
 		"liblinker_malloc",              // ruperts@, cc_library_static, depends on //system/logging/liblog:liblog
 		"liblinker_debuggerd_stub",      // ruperts@, cc_library_static, depends on //system/libbase
 		"libbionic_tests_headers_posix", // ruperts@, cc_library_static, 'complex.h' file not found
-		"libc_dns",                      // ruperts@, cc_library_static, 'bionic/libc/async_safe' is a subpackage
-
-		"note_memtag_heap_async", // jingwen@, b/185079815, features.h includes not found
-		"note_memtag_heap_sync",  // jingwen@, b/185079815, features.h includes not found
+		"libc_dns",                      // ruperts@, cc_library_static, 'android/log.h' file not found
 
 		// List of all full_cc_libraries in //bionic, with their immediate failures
 		"libc",              // jingwen@, cc_library, depends on //external/gwp_asan
@@ -186,6 +177,11 @@ var (
 		"libm",              // jingwen@, cc_library, fatal error: 'freebsd-compat.h' file not found
 		"libseccomp_policy", // jingwen@, cc_library, fatal error: 'seccomp_policy.h' file not found
 		"libstdc++",         // jingwen@, cc_library, depends on //external/gwp_asan
+
+		// For mixed builds specifically
+		"note_memtag_heap_async", // jingwen@, cc_library_static, OK for bp2build but features.h includes not found for mixed builds (b/185079815)
+		"note_memtag_heap_sync",  // jingwen@, cc_library_static, OK for bp2build but features.h includes not found for mixed builds (b/185079815)
+		"libc_gdtoa",             // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
 	}
 
 	// Used for quicker lookups

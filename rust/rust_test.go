@@ -402,3 +402,17 @@ func TestMultilib(t *testing.T) {
 	_ = ctx.ModuleForTests("libfoo", "android_arm64_armv8-a_rlib_dylib-std")
 	_ = ctx.ModuleForTests("libfoo", "android_arm_armv7-a-neon_rlib_dylib-std")
 }
+
+// Test that library size measurements are generated.
+func TestLibrarySizes(t *testing.T) {
+	ctx := testRust(t, `
+		rust_library_dylib {
+			name: "libwaldo",
+			srcs: ["foo.rs"],
+			crate_name: "waldo",
+		}`)
+
+	m := ctx.SingletonForTests("file_metrics")
+	m.Output("libwaldo.dylib.so.bloaty.csv")
+	m.Output("stripped/libwaldo.dylib.so.bloaty.csv")
+}

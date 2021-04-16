@@ -114,7 +114,61 @@ EOF
   rm a/Android.bp
   run_soong
 
-  grep -q "^# Module:.*my_little_binary_host$" out/soong/build.ninja && fail "Old module in output"
+  if grep -q "^# Module:.*my_little_binary_host$" out/soong/build.ninja; then
+    fail "Old module in output"
+  fi
+}
+
+# Test that an incremental build with a glob doesn't rerun soong_build, and
+# only regenerates the globs on the first but not the second incremental build.
+function test_glob_noop_incremental() {
+  setup
+
+  mkdir -p a
+  cat > a/Android.bp <<'EOF'
+python_binary_host {
+  name: "my_little_binary_host",
+  srcs: ["*.py"],
+}
+EOF
+  touch a/my_little_binary_host.py
+  run_soong
+  local ninja_mtime1=$(stat -c "%y" out/soong/build.ninja)
+
+  local glob_deps_file=out/soong/.glob/a/__py.glob.d
+
+  if [ -e "$glob_deps_file" ]; then
+    fail "Glob deps file unexpectedly written on first build"
+  fi
+
+  run_soong
+  local ninja_mtime2=$(stat -c "%y" out/soong/build.ninja)
+
+  # There is an ineffiencency in glob that requires bpglob to rerun once for each glob to update
+  # the entry in the .ninja_log.  It doesn't update the output file, but we can detect the rerun
+  # by checking if the deps file was created.
+  if [ ! -e "$glob_deps_file" ]; then
+    fail "Glob deps file missing after second build"
+  fi
+
+  local glob_deps_mtime2=$(stat -c "%y" "$glob_deps_file")
+
+  if [[ "$ninja_mtime1" != "$ninja_mtime2" ]]; then
+    fail "Ninja file rewritten on null incremental build"
+  fi
+
+  run_soong
+  local ninja_mtime3=$(stat -c "%y" out/soong/build.ninja)
+  local glob_deps_mtime3=$(stat -c "%y" "$glob_deps_file")
+
+  if [[ "$ninja_mtime2" != "$ninja_mtime3" ]]; then
+    fail "Ninja file rewritten on null incremental build"
+  fi
+
+  # The bpglob commands should not rerun after the first incremental build.
+  if [[ "$glob_deps_mtime2" != "$glob_deps_mtime3" ]]; then
+    fail "Glob deps file rewritten on second null incremental build"
+  fi
 }
 
 function test_add_file_to_glob() {
@@ -404,7 +458,9 @@ EOF
 
   grep -q "Engage" out/soong/build.ninja || fail "New action not present"
 
-  grep -q "Make it so" out/soong/build.ninja && fail "Original action still present"
+  if grep -q "Make it so" out/soong/build.ninja; then
+    fail "Original action still present"
+  fi
 }
 
 function test_null_build_after_docs {
@@ -421,6 +477,83 @@ function test_null_build_after_docs {
   fi
 }
 
+function test_integrated_bp2build_smoke {
+  setup
+  INTEGRATED_BP2BUILD=1 run_soong
+  if [[ ! -e out/soong/.bootstrap/bp2build_workspace_marker ]]; then
+    fail "bp2build marker file not created"
+  fi
+}
+
+function test_integrated_bp2build_add_android_bp {
+  setup
+
+  mkdir -p a
+  touch a/a.txt
+  cat > a/Android.bp <<'EOF'
+filegroup {
+  name: "a",
+  srcs: ["a.txt"],
+  bazel_module: { bp2build_available: true },
+}
+EOF
+
+  INTEGRATED_BP2BUILD=1 run_soong
+  if [[ ! -e out/soong/bp2build/a/BUILD ]]; then
+    fail "a/BUILD not created";
+  fi
+
+  mkdir -p b
+  touch b/b.txt
+  cat > b/Android.bp <<'EOF'
+filegroup {
+  name: "b",
+  srcs: ["b.txt"],
+  bazel_module: { bp2build_available: true },
+}
+EOF
+
+  INTEGRATED_BP2BUILD=1 run_soong
+  if [[ ! -e out/soong/bp2build/b/BUILD ]]; then
+    fail "b/BUILD not created";
+  fi
+}
+
+function test_integrated_bp2build_null_build {
+  setup
+
+  INTEGRATED_BP2BUILD=1 run_soong
+  local mtime1=$(stat -c "%y" out/soong/build.ninja)
+
+  INTEGRATED_BP2BUILD=1 run_soong
+  local mtime2=$(stat -c "%y" out/soong/build.ninja)
+
+  if [[ "$mtime1" != "$mtime2" ]]; then
+    fail "Output Ninja file changed on null build"
+  fi
+}
+
+function test_integrated_bp2build_add_to_glob {
+  setup
+
+  mkdir -p a
+  touch a/a1.txt
+  cat > a/Android.bp <<'EOF'
+filegroup {
+  name: "a",
+  srcs: ["*.txt"],
+  bazel_module: { bp2build_available: true },
+}
+EOF
+
+  INTEGRATED_BP2BUILD=1 run_soong
+  grep -q a1.txt out/soong/bp2build/a/BUILD || fail "a1.txt not in BUILD file"
+
+  touch a/a2.txt
+  INTEGRATED_BP2BUILD=1 run_soong
+  grep -q a2.txt out/soong/bp2build/a/BUILD || fail "a2.txt not in BUILD file"
+}
+
 function test_dump_json_module_graph() {
   setup
   SOONG_DUMP_JSON_MODULE_GRAPH="$MOCK_TOP/modules.json" run_soong
@@ -433,6 +566,7 @@ test_smoke
 test_null_build
 test_null_build_after_docs
 test_soong_build_rebuilt_if_blueprint_changes
+test_glob_noop_incremental
 test_add_file_to_glob
 test_add_android_bp
 test_change_android_bp
@@ -441,3 +575,6 @@ test_add_file_to_soong_build
 test_glob_during_bootstrapping
 test_soong_build_rerun_iff_environment_changes
 test_dump_json_module_graph
+test_integrated_bp2build_smoke
+test_integrated_bp2build_null_build
+test_integrated_bp2build_add_to_glob
