@@ -54,7 +54,6 @@ cat > ${SOONG_OUT}/soong.variables << EOF
     "Safestack": false,
 
     "Ndk_abis": true,
-    "Exclude_draft_ndk_apis": true,
 
     "VendorVars": {
         "art_module": {
