@@ -53,14 +53,6 @@ func nativeApiLevelFromUser(ctx android.BaseModuleContext,
 	return value, nil
 }
 
-func nativeApiLevelFromUserWithDefault(ctx android.BaseModuleContext,
-	raw string, defaultValue string) (android.ApiLevel, error) {
-	if raw == "" {
-		raw = defaultValue
-	}
-	return nativeApiLevelFromUser(ctx, raw)
-}
-
 func nativeApiLevelOrPanic(ctx android.BaseModuleContext,
 	raw string) android.ApiLevel {
 	value, err := nativeApiLevelFromUser(ctx, raw)
