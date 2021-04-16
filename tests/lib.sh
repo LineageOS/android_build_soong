@@ -95,7 +95,7 @@ function setup() {
 
   echo
   echo ----------------------------------------------------------------------------
-  info "Running test case ${FUNCNAME[1]}"
+  info "Running test case \e[96;1m${FUNCNAME[1]}\e[0m"
   cd "$MOCK_TOP"
 
   tar xzf "$WARMED_UP_MOCK_TOP"
