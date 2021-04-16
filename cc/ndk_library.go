@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -142,8 +143,8 @@ func (this *stubDecorator) initializeProperties(ctx BaseModuleContext) bool {
 		return false
 	}
 
-	this.unversionedUntil, err = nativeApiLevelFromUserWithDefault(ctx,
-		String(this.properties.Unversioned_until), "minimum")
+	str := proptools.StringDefault(this.properties.Unversioned_until, "minimum")
+	this.unversionedUntil, err = nativeApiLevelFromUser(ctx, str)
 	if err != nil {
 		ctx.PropertyErrorf("unversioned_until", err.Error())
 		return false
