@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -176,7 +175,7 @@ func ArchTypeList() []ArchType {
 // MarshalText allows an ArchType to be serialized through any encoder that supports
 // encoding.TextMarshaler.
 func (a ArchType) MarshalText() ([]byte, error) {
-	return []byte(strconv.Quote(a.String())), nil
+	return []byte(a.String()), nil
 }
 
 var _ encoding.TextMarshaler = ArchType{}
