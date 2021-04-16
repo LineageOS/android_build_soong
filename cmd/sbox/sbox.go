@@ -255,12 +255,11 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 		return "", err
 	}
 
-	commandDescription := rawCommand
-
 	cmd := exec.Command("bash", "-c", rawCommand)
+	buf := &bytes.Buffer{}
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = buf
+	cmd.Stderr = buf
 
 	if command.GetChdir() {
 		cmd.Dir = tempDir
@@ -284,9 +283,21 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 		copyFiles(command.CopyAfter, tempDir, "", true)
 	}
 
+	// If the command  was executed but failed with an error, print a debugging message before
+	// the command's output so it doesn't scroll the real error message off the screen.
 	if exit, ok := err.(*exec.ExitError); ok && !exit.Success() {
-		return "", fmt.Errorf("sbox command failed with err:\n%s\n%w\n", commandDescription, err)
-	} else if err != nil {
+		fmt.Fprintf(os.Stderr,
+			"The failing command was run inside an sbox sandbox in temporary directory\n"+
+				"%s\n"+
+				"The failing command line was:\n"+
+				"%s\n",
+			tempDir, rawCommand)
+	}
+
+	// Write the command's combined stdout/stderr.
+	os.Stdout.Write(buf.Bytes())
+
+	if err != nil {
 		return "", err
 	}
 
@@ -298,7 +309,7 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 
 		// build error message
 		errorMessage := "mismatch between declared and actual outputs\n"
-		errorMessage += "in sbox command(" + commandDescription + ")\n\n"
+		errorMessage += "in sbox command(" + rawCommand + ")\n\n"
 		errorMessage += "in sandbox " + tempDir + ",\n"
 		errorMessage += fmt.Sprintf("failed to create %v files:\n", len(missingOutputErrors))
 		for _, missingOutputError := range missingOutputErrors {
