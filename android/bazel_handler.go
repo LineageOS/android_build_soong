@@ -737,7 +737,7 @@ func (c *bazelSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 	// Add ninja file dependencies for files which all bazel invocations require.
 	bazelBuildList := absolutePath(filepath.Join(
-		filepath.Dir(bootstrap.CmdlineModuleListFile()), "bazel.list"))
+		filepath.Dir(bootstrap.CmdlineArgs.ModuleListFile), "bazel.list"))
 	ctx.AddNinjaFileDeps(bazelBuildList)
 
 	data, err := ioutil.ReadFile(bazelBuildList)
