@@ -276,9 +276,9 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
 		// no time/space is wasted on AOT-compiling modules that will fail CLC check on device.
 
 		var manifestOrApk android.Path
-		if module.ManifestPath != nil {
+		if module.ManifestPath.Valid() {
 			// Ok, there is an XML manifest.
-			manifestOrApk = module.ManifestPath
+			manifestOrApk = module.ManifestPath.Path()
 		} else if filepath.Ext(base) == ".apk" {
 			// Ok, there is is an APK with the manifest inside.
 			manifestOrApk = module.DexPath
