@@ -75,11 +75,6 @@ type headerProperties struct {
 
 	// Path to the NOTICE file associated with the headers.
 	License *string `android:"path"`
-
-	// True if this API is not yet ready to be shipped in the NDK. It will be
-	// available in the platform for testing, but will be excluded from the
-	// sysroot provided to the NDK proper.
-	Draft bool
 }
 
 type headerModule struct {
@@ -184,11 +179,6 @@ type versionedHeaderProperties struct {
 
 	// Path to the NOTICE file associated with the headers.
 	License *string
-
-	// True if this API is not yet ready to be shipped in the NDK. It will be
-	// available in the platform for testing, but will be excluded from the
-	// sysroot provided to the NDK proper.
-	Draft bool
 }
 
 // Like ndk_headers, but preprocesses the headers with the bionic versioner:
@@ -311,11 +301,6 @@ type preprocessedHeadersProperties struct {
 
 	// Path to the NOTICE file associated with the headers.
 	License *string
-
-	// True if this API is not yet ready to be shipped in the NDK. It will be
-	// available in the platform for testing, but will be excluded from the
-	// sysroot provided to the NDK proper.
-	Draft bool
 }
 
 type preprocessedHeadersModule struct {
