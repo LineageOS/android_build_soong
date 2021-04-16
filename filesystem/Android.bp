@@ -15,8 +15,10 @@ bootstrap_go_package {
         "filesystem.go",
         "logical_partition.go",
         "vbmeta.go",
+        "testing.go",
     ],
     testSrcs: [
+        "filesystem_test.go",
     ],
     pluginFor: ["soong_build"],
 }
