@@ -20,6 +20,7 @@ package {
 
 license {
     name: "Android-Apache-2.0",
+    package_name: "Android",
     license_kinds: ["SPDX-license-identifier-Apache-2.0"],
     copyright_notice: "Copyright (C) The Android Open Source Project",
     license_text: ["LICENSE"],
