@@ -172,3 +172,62 @@ func TestPlatformBootclasspath_Dist(t *testing.T) {
 	android.AssertStringEquals(t, "platform dist goals phony", ".PHONY: droidcore\n", goals[0])
 	android.AssertStringEquals(t, "platform dist goals call", "$(call dist-for-goals,droidcore,out/soong/hiddenapi/hiddenapi-flags.csv:hiddenapi-flags.csv)\n", android.StringRelativeToTop(result.Config, goals[1]))
 }
+
+func TestPlatformBootclasspath_HiddenAPIMonolithicFiles(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		hiddenApiFixtureFactory,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("bar"),
+		FixtureConfigureBootJars("platform:foo", "platform:bar"),
+	).RunTestWithBp(t, `
+		java_library {
+			name: "foo",
+			srcs: ["a.java"],
+			compile_dex: true,
+
+			hiddenapi_additional_annotations: [
+				"foo-hiddenapi-annotations",
+			],
+		}
+
+		java_library {
+			name: "foo-hiddenapi-annotations",
+			srcs: ["a.java"],
+			compile_dex: true,
+		}
+
+		java_import {
+			name: "foo",
+			jars: ["a.jar"],
+			compile_dex: true,
+			prefer: false,
+		}
+
+		java_sdk_library {
+			name: "bar",
+			srcs: ["a.java"],
+			compile_dex: true,
+		}
+
+		platform_bootclasspath {
+			name: "myplatform-bootclasspath",
+		}
+	`)
+
+	platformBootclasspath := result.ModuleForTests("myplatform-bootclasspath", "android_common")
+	indexRule := platformBootclasspath.Rule("platform-bootclasspath-monolithic-hiddenapi-index")
+	CheckHiddenAPIRuleInputs(t, `
+.intermediates/bar/android_common/hiddenapi/index.csv
+.intermediates/foo/android_common/hiddenapi/index.csv
+`,
+		indexRule)
+
+	// Make sure that the foo-hiddenapi-annotations.jar is included in the inputs to the rules that
+	// creates the index.csv file.
+	foo := result.ModuleForTests("foo", "android_common")
+	indexParams := foo.Output("hiddenapi/index.csv")
+	CheckHiddenAPIRuleInputs(t, `
+.intermediates/foo-hiddenapi-annotations/android_common/javac/foo-hiddenapi-annotations.jar
+.intermediates/foo/android_common/javac/foo.jar
+`, indexParams)
+}

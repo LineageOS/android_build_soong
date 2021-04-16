@@ -24,7 +24,6 @@ func init() {
 
 func RegisterHiddenApiSingletonComponents(ctx android.RegistrationContext) {
 	ctx.RegisterSingletonType("hiddenapi", hiddenAPISingletonFactory)
-	ctx.RegisterSingletonType("hiddenapi_index", hiddenAPIIndexSingletonFactory)
 }
 
 var PrepareForTestWithHiddenApiBuildComponents = android.FixtureRegisterWithContext(RegisterHiddenApiSingletonComponents)
@@ -116,7 +115,7 @@ func hiddenAPISingletonFactory() android.Singleton {
 }
 
 type hiddenAPISingleton struct {
-	flags, metadata android.Path
+	flags android.Path
 }
 
 // hiddenAPI singleton rules
@@ -138,30 +137,25 @@ func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) 
 
 	if ctx.Config().PrebuiltHiddenApiDir(ctx) != "" {
 		h.flags = prebuiltFlagsRule(ctx)
+		prebuiltIndexRule(ctx)
 		return
 	}
 
 	// These rules depend on files located in frameworks/base, skip them if running in a tree that doesn't have them.
 	if ctx.Config().FrameworksBaseDirExists(ctx) {
 		h.flags = flagsRule(ctx)
-		h.metadata = metadataRule(ctx)
 	} else {
 		h.flags = emptyFlagsRule(ctx)
 	}
 }
 
 // Export paths to Make.  INTERNAL_PLATFORM_HIDDENAPI_FLAGS is used by Make rules in art/ and cts/.
-// Both paths are used to call dist-for-goals.
 func (h *hiddenAPISingleton) MakeVars(ctx android.MakeVarsContext) {
 	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
 		return
 	}
 
 	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", h.flags.String())
-
-	if h.metadata != nil {
-		ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_GREYLIST_METADATA", h.metadata.String())
-	}
 }
 
 // stubFlagsRule creates the rule to build hiddenapi-stub-flags.txt out of dex jars from stub modules and boot image
@@ -321,6 +315,17 @@ func prebuiltFlagsRule(ctx android.SingletonContext) android.Path {
 	return outputPath
 }
 
+func prebuiltIndexRule(ctx android.SingletonContext) {
+	outputPath := hiddenAPISingletonPaths(ctx).index
+	inputPath := android.PathForSource(ctx, ctx.Config().PrebuiltHiddenApiDir(ctx), "hiddenapi-index.csv")
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Output: outputPath,
+		Input:  inputPath,
+	})
+}
+
 // flagsRule is a placeholder that simply returns the location of the file, the generation of the
 // ninja rules is done in generateHiddenAPIBuildActions.
 func flagsRule(ctx android.SingletonContext) android.Path {
@@ -343,34 +348,6 @@ func emptyFlagsRule(ctx android.SingletonContext) android.Path {
 	return outputPath
 }
 
-// metadataRule creates a rule to build hiddenapi-unsupported.csv out of the metadata.csv files generated for boot image
-// modules.
-func metadataRule(ctx android.SingletonContext) android.Path {
-	var metadataCSV android.Paths
-
-	ctx.VisitAllModules(func(module android.Module) {
-		if h, ok := module.(hiddenAPIIntf); ok {
-			if csv := h.metadataCSV(); csv != nil {
-				metadataCSV = append(metadataCSV, csv)
-			}
-		}
-	})
-
-	rule := android.NewRuleBuilder(pctx, ctx)
-
-	outputPath := hiddenAPISingletonPaths(ctx).metadata
-
-	rule.Command().
-		BuiltTool("merge_csv").
-		Flag("--key_field signature").
-		FlagWithOutput("--output=", outputPath).
-		Inputs(metadataCSV)
-
-	rule.Build("hiddenAPIGreylistMetadataFile", "hiddenapi greylist metadata")
-
-	return outputPath
-}
-
 // commitChangeForRestat adds a command to a rule that updates outputPath from tempPath if they are different.  It
 // also marks the rule as restat and marks the tempPath as a temporary file that should not be considered an output of
 // the rule.
@@ -387,61 +364,4 @@ func commitChangeForRestat(rule *android.RuleBuilder, tempPath, outputPath andro
 		Text("mv").Input(tempPath).Output(outputPath).Text(";").
 		Text("fi").
 		Text(")")
-}
-
-func hiddenAPIIndexSingletonFactory() android.Singleton {
-	return &hiddenAPIIndexSingleton{}
-}
-
-type hiddenAPIIndexSingleton struct {
-	index android.Path
-}
-
-func (h *hiddenAPIIndexSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	// Don't run any hiddenapi rules if UNSAFE_DISABLE_HIDDENAPI_FLAGS=true
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
-		return
-	}
-
-	if ctx.Config().PrebuiltHiddenApiDir(ctx) != "" {
-		outputPath := hiddenAPISingletonPaths(ctx).index
-		inputPath := android.PathForSource(ctx, ctx.Config().PrebuiltHiddenApiDir(ctx), "hiddenapi-index.csv")
-
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Cp,
-			Output: outputPath,
-			Input:  inputPath,
-		})
-
-		h.index = outputPath
-		return
-	}
-
-	indexes := android.Paths{}
-	ctx.VisitAllModules(func(module android.Module) {
-		if h, ok := module.(hiddenAPIIntf); ok {
-			if h.indexCSV() != nil {
-				indexes = append(indexes, h.indexCSV())
-			}
-		}
-	})
-
-	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.Command().
-		BuiltTool("merge_csv").
-		Flag("--key_field signature").
-		FlagWithArg("--header=", "signature,file,startline,startcol,endline,endcol,properties").
-		FlagWithOutput("--output=", hiddenAPISingletonPaths(ctx).index).
-		Inputs(indexes)
-	rule.Build("singleton-merged-hiddenapi-index", "Singleton merged Hidden API index")
-
-	h.index = hiddenAPISingletonPaths(ctx).index
-}
-
-func (h *hiddenAPIIndexSingleton) MakeVars(ctx android.MakeVarsContext) {
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
-		return
-	}
-
-	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_INDEX", h.index.String())
 }
