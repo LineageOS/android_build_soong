@@ -168,6 +168,8 @@ var (
 		"liblinker_debuggerd_stub",      // ruperts@, cc_library_static, depends on //system/libbase
 		"libbionic_tests_headers_posix", // ruperts@, cc_library_static, 'complex.h' file not found
 		"libc_dns",                      // ruperts@, cc_library_static, 'android/log.h' file not found
+		"libc_static_dispatch",          // eakammer@, cc_library_static, 'private/bionic_asm.h' file not found
+		"libc_dynamic_dispatch",         // eakammer@, cc_library_static, 'private/bionic_ifuncs.h' file not found
 
 		// List of all full_cc_libraries in //bionic, with their immediate failures
 		"libc",              // jingwen@, cc_library, depends on //external/gwp_asan
