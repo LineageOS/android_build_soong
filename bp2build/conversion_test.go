@@ -19,14 +19,14 @@ import (
 	"testing"
 )
 
-type filepath struct {
+type bazelFilepath struct {
 	dir      string
 	basename string
 }
 
 func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 	files := CreateBazelFiles(map[string]RuleShim{}, map[string]BazelTargets{}, QueryView)
-	expectedFilePaths := []filepath{
+	expectedFilePaths := []bazelFilepath{
 		{
 			dir:      "",
 			basename: "BUILD",
