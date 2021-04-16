@@ -43,10 +43,8 @@ type ApexInfo struct {
 	// mergeApexVariations.
 	ApexVariationName string
 
-	// Serialized ApiLevel that this module has to support at minimum. Should be accessed via
-	// MinSdkVersion() method. Cannot be stored in its struct form because this is cloned into
-	// properties structs, and ApiLevel has private members.
-	MinSdkVersionStr string
+	// ApiLevel that this module has to support at minimum.
+	MinSdkVersion ApiLevel
 
 	// True if this module comes from an updatable apexBundle.
 	Updatable bool
@@ -82,17 +80,11 @@ var ApexInfoProvider = blueprint.NewMutatorProvider(ApexInfo{}, "apex")
 // have to be built twice, but only once. In that case, the two apex variations apex.a and apex.b
 // are configured to have the same alias variation named apex29.
 func (i ApexInfo) mergedName(ctx PathContext) string {
-	name := "apex" + strconv.Itoa(i.MinSdkVersion(ctx).FinalOrFutureInt())
+	name := "apex" + strconv.Itoa(i.MinSdkVersion.FinalOrFutureInt())
 	for _, sdk := range i.RequiredSdks {
 		name += "_" + sdk.Name + "_" + sdk.Version
 	}
 	return name
-}
-
-// MinSdkVersion gives the api level that this module has to support at minimum. This is from the
-// min_sdk_version property of the containing apexBundle.
-func (i ApexInfo) MinSdkVersion(ctx PathContext) ApiLevel {
-	return ApiLevelOrPanic(ctx, i.MinSdkVersionStr)
 }
 
 // IsForPlatform tells whether this module is for the platform or not. If false is returned, it

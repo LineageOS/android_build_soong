@@ -2499,7 +2499,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	c.apexSdkVersion = android.FutureApiLevel
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	if !apexInfo.IsForPlatform() {
-		c.apexSdkVersion = apexInfo.MinSdkVersion(ctx)
+		c.apexSdkVersion = apexInfo.MinSdkVersion
 	}
 
 	if android.InList("hwaddress", ctx.Config().SanitizeDevice()) {
