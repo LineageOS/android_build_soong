@@ -170,6 +170,7 @@ func (p *vndkPrebuiltLibraryDecorator) link(ctx ModuleContext,
 		ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
 			SharedLibrary:           in,
 			UnstrippedSharedLibrary: p.unstrippedOutputFile,
+			Target:                  ctx.Target(),
 
 			TableOfContents: p.tocFile,
 		})
