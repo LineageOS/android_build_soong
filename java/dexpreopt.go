@@ -221,7 +221,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		DexLocation:     dexLocation,
 		BuildPath:       android.PathForModuleOut(ctx, "dexpreopt", ctx.ModuleName()+".jar").OutputPath,
 		DexPath:         dexJarFile,
-		ManifestPath:    d.manifestFile,
+		ManifestPath:    android.OptionalPathForPath(d.manifestFile),
 		UncompressedDex: d.uncompressedDex,
 		HasApkLibraries: false,
 		PreoptFlags:     nil,

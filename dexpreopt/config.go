@@ -115,7 +115,7 @@ type ModuleConfig struct {
 	DexLocation     string // dex location on device
 	BuildPath       android.OutputPath
 	DexPath         android.Path
-	ManifestPath    android.Path
+	ManifestPath    android.OptionalPath
 	UncompressedDex bool
 	HasApkLibraries bool
 	PreoptFlags     []string
@@ -291,7 +291,7 @@ func ParseModuleConfig(ctx android.PathContext, data []byte) (*ModuleConfig, err
 	// Construct paths that require a PathContext.
 	config.ModuleConfig.BuildPath = constructPath(ctx, config.BuildPath).(android.OutputPath)
 	config.ModuleConfig.DexPath = constructPath(ctx, config.DexPath)
-	config.ModuleConfig.ManifestPath = constructPath(ctx, config.ManifestPath)
+	config.ModuleConfig.ManifestPath = android.OptionalPathForPath(constructPath(ctx, config.ManifestPath))
 	config.ModuleConfig.ProfileClassListing = android.OptionalPathForPath(constructPath(ctx, config.ProfileClassListing))
 	config.ModuleConfig.EnforceUsesLibrariesStatusFile = constructPath(ctx, config.EnforceUsesLibrariesStatusFile)
 	config.ModuleConfig.ClassLoaderContexts = fromJsonClassLoaderContext(ctx, config.ClassLoaderContexts)

@@ -11,6 +11,7 @@ bootstrap_go_package {
     ],
     srcs: [
         "bloaty.go",
+        "testing.go",
     ],
     pluginFor: ["soong_build"],
 }
