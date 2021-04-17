@@ -147,6 +147,11 @@ func (s SdkSpec) ForVendorPartition(ctx EarlyModuleContext) SdkSpec {
 
 // UsePrebuilt determines whether prebuilt SDK should be used for this SdkSpec with the given context.
 func (s SdkSpec) UsePrebuilt(ctx EarlyModuleContext) bool {
+	switch s {
+	case SdkSpecNone, SdkSpecCorePlatform, SdkSpecPrivate:
+		return false
+	}
+
 	if s.ApiLevel.IsCurrent() {
 		// "current" can be built from source and be from prebuilt SDK
 		return ctx.Config().AlwaysUsePrebuiltSdks()
@@ -159,7 +164,6 @@ func (s SdkSpec) UsePrebuilt(ctx EarlyModuleContext) bool {
 		// numbered SDKs are always from prebuilt
 		return true
 	}
-	// "", "none", "core_platform" fall here
 	return false
 }
 
@@ -202,11 +206,9 @@ func (s SdkSpec) EffectiveVersionString(ctx EarlyModuleContext) (string, error) 
 }
 
 var (
-	SdkSpecNone = SdkSpec{SdkNone, NoneApiLevel, "(no version)"}
-	// TODO(b/175678607) ApiLevel of SdkSpecPrivate should be FutureApiLevel
-	SdkSpecPrivate = SdkSpec{SdkPrivate, NoneApiLevel, ""}
-	// TODO(b/175678607) ApiLevel of SdkSpecCorePlatform should be FutureApiLevel
-	SdkSpecCorePlatform = SdkSpec{SdkCorePlatform, NoneApiLevel, "core_platform"}
+	SdkSpecNone         = SdkSpec{SdkNone, NoneApiLevel, "(no version)"}
+	SdkSpecPrivate      = SdkSpec{SdkPrivate, FutureApiLevel, ""}
+	SdkSpecCorePlatform = SdkSpec{SdkCorePlatform, FutureApiLevel, "core_platform"}
 )
 
 func SdkSpecFrom(ctx EarlyModuleContext, str string) SdkSpec {
