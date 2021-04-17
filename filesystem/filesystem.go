@@ -26,7 +26,11 @@ import (
 )
 
 func init() {
-	android.RegisterModuleType("android_filesystem", filesystemFactory)
+	registerBuildComponents(android.InitRegistrationContext)
+}
+
+func registerBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("android_filesystem", filesystemFactory)
 }
 
 type filesystem struct {

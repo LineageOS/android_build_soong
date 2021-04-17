@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -78,11 +79,6 @@ type libraryProperties struct {
 	// used. This is only needed to work around platform bugs like
 	// https://github.com/android-ndk/ndk/issues/265.
 	Unversioned_until *string
-
-	// True if this API is not yet ready to be shipped in the NDK. It will be
-	// available in the platform for testing, but will be excluded from the
-	// sysroot provided to the NDK proper.
-	Draft bool
 }
 
 type stubDecorator struct {
@@ -147,8 +143,8 @@ func (this *stubDecorator) initializeProperties(ctx BaseModuleContext) bool {
 		return false
 	}
 
-	this.unversionedUntil, err = nativeApiLevelFromUserWithDefault(ctx,
-		String(this.properties.Unversioned_until), "minimum")
+	str := proptools.StringDefault(this.properties.Unversioned_until, "minimum")
+	this.unversionedUntil, err = nativeApiLevelFromUser(ctx, str)
 	if err != nil {
 		ctx.PropertyErrorf("unversioned_until", err.Error())
 		return false
