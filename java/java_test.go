@@ -462,32 +462,6 @@ func TestBinary(t *testing.T) {
 	}
 }
 
-func TestTest(t *testing.T) {
-	ctx, _ := testJava(t, `
-		java_test_host {
-			name: "foo",
-			srcs: ["a.java"],
-			jni_libs: ["libjni"],
-		}
-
-		cc_library_shared {
-			name: "libjni",
-			host_supported: true,
-			device_supported: false,
-			stl: "none",
-		}
-	`)
-
-	buildOS := android.BuildOs.String()
-
-	foo := ctx.ModuleForTests("foo", buildOS+"_common").Module().(*TestHost)
-
-	fooTestData := foo.data
-	if len(fooTestData) != 1 || fooTestData[0].Rel() != "lib64/libjni.so" {
-		t.Errorf(`expected foo test data relative path ["lib64/libjni.so"], got %q`, fooTestData.Strings())
-	}
-}
-
 func TestHostBinaryNoJavaDebugInfoOverride(t *testing.T) {
 	bp := `
 		java_library {
