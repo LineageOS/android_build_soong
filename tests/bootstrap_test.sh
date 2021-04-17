@@ -124,6 +124,11 @@ EOF
 function test_glob_noop_incremental() {
   setup
 
+  # This test needs to start from a clean build, but setup creates an
+  # initialized tree that has already been built once.  Clear the out
+  # directory to start from scratch.
+  rm -rf out
+
   mkdir -p a
   cat > a/Android.bp <<'EOF'
 python_binary_host {
