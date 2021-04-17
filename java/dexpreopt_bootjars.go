@@ -484,7 +484,7 @@ func getBootJar(ctx android.SingletonContext, bootjars android.ConfiguredJarList
 
 	// Now match the apex part of the boot image configuration.
 	requiredApex := bootjars.Apex(index)
-	if requiredApex == "platform" {
+	if requiredApex == "platform" || requiredApex == "system_ext" {
 		if len(apexInfo.InApexes) != 0 {
 			// A platform variant is required but this is for an apex so ignore it.
 			return -1, nil, nil
