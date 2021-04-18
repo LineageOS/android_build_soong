@@ -496,6 +496,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		ctx.SetProvider(cc.SharedLibraryInfoProvider, cc.SharedLibraryInfo{
 			SharedLibrary:           outputFile,
 			UnstrippedSharedLibrary: outputFile,
+			Target:                  ctx.Target(),
 		})
 	}
 

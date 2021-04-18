@@ -209,6 +209,7 @@ func HeaderDepTag() blueprint.DependencyTag {
 type SharedLibraryInfo struct {
 	SharedLibrary           android.Path
 	UnstrippedSharedLibrary android.Path
+	Target                  android.Target
 
 	TableOfContents       android.OptionalPath
 	CoverageSharedLibrary android.OptionalPath

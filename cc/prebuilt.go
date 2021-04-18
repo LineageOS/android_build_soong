@@ -185,6 +185,7 @@ func (p *prebuiltLibraryLinker) link(ctx ModuleContext,
 			ctx.SetProvider(SharedLibraryInfoProvider, SharedLibraryInfo{
 				SharedLibrary:           outputFile,
 				UnstrippedSharedLibrary: p.unstrippedOutputFile,
+				Target:                  ctx.Target(),
 
 				TableOfContents: p.tocFile,
 			})
