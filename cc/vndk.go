@@ -609,19 +609,26 @@ func isVndkSnapshotAware(config android.DeviceConfig, m *Module,
 	}
 	// !inVendor: There's product/vendor variants for VNDK libs. We only care about vendor variants.
 	// !installable: Snapshot only cares about "installable" modules.
+	// !m.IsLlndk: llndk stubs are required for building against snapshots.
 	// IsSnapshotPrebuilt: Snapshotting a snapshot doesn't make sense.
-	if !m.InVendor() || !m.installable(apexInfo) || m.IsSnapshotPrebuilt() {
+	// !outputFile.Valid: Snapshot requires valid output file.
+	if !m.InVendor() || (!m.installable(apexInfo) && !m.IsLlndk()) || m.IsSnapshotPrebuilt() || !m.outputFile.Valid() {
 		return nil, "", false
 	}
 	l, ok := m.linker.(snapshotLibraryInterface)
 	if !ok || !l.shared() {
 		return nil, "", false
 	}
-	if m.VndkVersion() == config.PlatformVndkVersion() && m.IsVndk() && !m.IsVndkExt() {
-		if m.isVndkSp() {
-			return l, "vndk-sp", true
-		} else {
-			return l, "vndk-core", true
+	if m.VndkVersion() == config.PlatformVndkVersion() {
+		if m.IsVndk() && !m.IsVndkExt() {
+			if m.isVndkSp() {
+				return l, "vndk-sp", true
+			} else {
+				return l, "vndk-core", true
+			}
+		} else if l.hasLLNDKStubs() && l.stubsVersion() == "" {
+			// Use default version for the snapshot.
+			return l, "llndk-stub", true
 		}
 	}
 
@@ -652,12 +659,16 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 						(VNDK-core libraries, e.g. libbinder.so)
 					vndk-sp/
 						(VNDK-SP libraries, e.g. libc++.so)
+					llndk-stub/
+						(LLNDK stub libraries)
 			arch-{TARGET_2ND_ARCH}-{TARGET_2ND_ARCH_VARIANT}/
 				shared/
 					vndk-core/
 						(VNDK-core libraries, e.g. libbinder.so)
 					vndk-sp/
 						(VNDK-SP libraries, e.g. libc++.so)
+					llndk-stub/
+						(LLNDK stub libraries)
 			binder32/
 				(This directory is newly introduced in v28 (Android P) to hold
 				prebuilts built for 32-bit binder interface.)
