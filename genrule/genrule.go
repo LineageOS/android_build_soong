@@ -543,7 +543,7 @@ func (g *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	bazelModuleLabel := g.GetBazelLabel(ctx, g)
 	bazelActionsUsed := false
-	if ctx.Config().BazelContext.BazelEnabled() && len(bazelModuleLabel) > 0 {
+	if g.MixedBuildsEnabled(ctx) {
 		bazelActionsUsed = g.generateBazelBuildActions(ctx, bazelModuleLabel)
 	}
 	if !bazelActionsUsed {
