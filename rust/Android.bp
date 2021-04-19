@@ -21,6 +21,7 @@ bootstrap_go_package {
         "clippy.go",
         "compiler.go",
         "coverage.go",
+        "doc.go",
         "fuzz.go",
         "image.go",
         "library.go",
