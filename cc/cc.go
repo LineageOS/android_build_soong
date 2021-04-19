@@ -1641,7 +1641,7 @@ func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 func (c *Module) maybeGenerateBazelActions(actx android.ModuleContext) bool {
 	bazelModuleLabel := c.GetBazelLabel(actx, c)
 	bazelActionsUsed := false
-	if c.bazelHandler != nil && actx.Config().BazelContext.BazelEnabled() && len(bazelModuleLabel) > 0 {
+	if c.MixedBuildsEnabled(actx) && c.bazelHandler != nil {
 		bazelActionsUsed = c.bazelHandler.generateBazelBuildActions(actx, bazelModuleLabel)
 	}
 	return bazelActionsUsed
