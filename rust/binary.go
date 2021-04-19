@@ -122,7 +122,7 @@ func (binary *binaryDecorator) compile(ctx ModuleContext, flags Flags, deps Path
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.linkObjects...)
 
-	TransformSrcToBinary(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
+	TransformSrcToBinary(ctx, srcPath, deps, flags, outputFile)
 
 	if binary.stripper.NeedsStrip(ctx) {
 		strippedOutputFile := android.PathForModuleOut(ctx, "stripped", fileName)
