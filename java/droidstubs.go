@@ -516,9 +516,6 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		d.apiLintTimestamp = android.PathForModuleOut(ctx, "metalava", "api_lint.timestamp")
 
 		// Note this string includes a special shell quote $' ... ', which decodes the "\n"s.
-		// However, because $' ... ' doesn't expand environmental variables, we can't just embed
-		// $PWD, so we have to terminate $'...', use "$PWD", then start $' ... ' again,
-		// which is why we have '"$PWD"$' in it.
 		//
 		// TODO: metalava also has a slightly different message hardcoded. Should we unify this
 		// message and metalava's one?
@@ -539,9 +536,9 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			msg += fmt.Sprintf(``+
 				`2. You can update the baseline by executing the following\n`+
 				`   command:\n`+
-				`       cp \\\n`+
-				`       "'"$PWD"$'/%s" \\\n`+
-				`       "'"$PWD"$'/%s"\n`+
+				`       (cd $ANDROID_BUILD_TOP && cp \\\n`+
+				`       "%s" \\\n`+
+				`       "%s")\n`+
 				`   To submit the revised baseline.txt to the main Android\n`+
 				`   repository, you will need approval.\n`, updatedBaselineOutput, baselineFile.Path())
 		} else {
