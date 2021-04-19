@@ -230,7 +230,7 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 	}
 
 	// Copy in any files specified by the manifest.
-	err = copyFiles(command.CopyBefore, "", tempDir)
+	err = copyFiles(command.CopyBefore, "", tempDir, false)
 	if err != nil {
 		return "", err
 	}
@@ -255,12 +255,11 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 		return "", err
 	}
 
-	commandDescription := rawCommand
-
 	cmd := exec.Command("bash", "-c", rawCommand)
+	buf := &bytes.Buffer{}
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = buf
+	cmd.Stderr = buf
 
 	if command.GetChdir() {
 		cmd.Dir = tempDir
@@ -276,9 +275,29 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 	}
 	err = cmd.Run()
 
+	if err != nil {
+		// The command failed, do a best effort copy of output files out of the sandbox.  This is
+		// especially useful for linters with baselines that print an error message on failure
+		// with a command to copy the output lint errors to the new baseline.  Use a copy instead of
+		// a move to leave the sandbox intact for manual inspection
+		copyFiles(command.CopyAfter, tempDir, "", true)
+	}
+
+	// If the command  was executed but failed with an error, print a debugging message before
+	// the command's output so it doesn't scroll the real error message off the screen.
 	if exit, ok := err.(*exec.ExitError); ok && !exit.Success() {
-		return "", fmt.Errorf("sbox command failed with err:\n%s\n%w\n", commandDescription, err)
-	} else if err != nil {
+		fmt.Fprintf(os.Stderr,
+			"The failing command was run inside an sbox sandbox in temporary directory\n"+
+				"%s\n"+
+				"The failing command line was:\n"+
+				"%s\n",
+			tempDir, rawCommand)
+	}
+
+	// Write the command's combined stdout/stderr.
+	os.Stdout.Write(buf.Bytes())
+
+	if err != nil {
 		return "", err
 	}
 
@@ -290,7 +309,7 @@ func runCommand(command *sbox_proto.Command, tempDir string) (depFile string, er
 
 		// build error message
 		errorMessage := "mismatch between declared and actual outputs\n"
-		errorMessage += "in sbox command(" + commandDescription + ")\n\n"
+		errorMessage += "in sbox command(" + rawCommand + ")\n\n"
 		errorMessage += "in sandbox " + tempDir + ",\n"
 		errorMessage += fmt.Sprintf("failed to create %v files:\n", len(missingOutputErrors))
 		for _, missingOutputError := range missingOutputErrors {
@@ -351,12 +370,13 @@ func validateOutputFiles(copies []*sbox_proto.Copy, sandboxDir string) []error {
 	return missingOutputErrors
 }
 
-// copyFiles copies files in or out of the sandbox.
-func copyFiles(copies []*sbox_proto.Copy, fromDir, toDir string) error {
+// copyFiles copies files in or out of the sandbox.  If allowFromNotExists is true then errors
+// caused by a from path not existing are ignored.
+func copyFiles(copies []*sbox_proto.Copy, fromDir, toDir string, allowFromNotExists bool) error {
 	for _, copyPair := range copies {
 		fromPath := joinPath(fromDir, copyPair.GetFrom())
 		toPath := joinPath(toDir, copyPair.GetTo())
-		err := copyOneFile(fromPath, toPath, copyPair.GetExecutable())
+		err := copyOneFile(fromPath, toPath, copyPair.GetExecutable(), allowFromNotExists)
 		if err != nil {
 			return fmt.Errorf("error copying %q to %q: %w", fromPath, toPath, err)
 		}
@@ -364,8 +384,9 @@ func copyFiles(copies []*sbox_proto.Copy, fromDir, toDir string) error {
 	return nil
 }
 
-// copyOneFile copies a file.
-func copyOneFile(from string, to string, executable bool) error {
+// copyOneFile copies a file and its permissions.  If forceExecutable is true it adds u+x to the
+// permissions.  If allowFromNotExists is true it returns nil if the from path doesn't exist.
+func copyOneFile(from string, to string, forceExecutable, allowFromNotExists bool) error {
 	err := os.MkdirAll(filepath.Dir(to), 0777)
 	if err != nil {
 		return err
@@ -373,11 +394,14 @@ func copyOneFile(from string, to string, executable bool) error {
 
 	stat, err := os.Stat(from)
 	if err != nil {
+		if os.IsNotExist(err) && allowFromNotExists {
+			return nil
+		}
 		return err
 	}
 
 	perm := stat.Mode()
-	if executable {
+	if forceExecutable {
 		perm = perm | 0100 // u+x
 	}
 
@@ -454,7 +478,7 @@ func copyOneRspFile(rspFile *sbox_proto.RspFile, toDir, toDirInSandbox string) e
 		to := applyPathMappings(rspFile.PathMappings, from)
 
 		// Copy the file into the sandbox.
-		err := copyOneFile(from, joinPath(toDir, to), false)
+		err := copyOneFile(from, joinPath(toDir, to), false, false)
 		if err != nil {
 			return err
 		}
