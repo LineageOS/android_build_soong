@@ -68,7 +68,7 @@ func (procMacro *procMacroDecorator) compile(ctx ModuleContext, flags Flags, dep
 	outputFile := android.PathForModuleOut(ctx, fileName)
 
 	srcPath, _ := srcPathFromModuleSrcs(ctx, procMacro.baseCompiler.Properties.Srcs)
-	TransformSrctoProcMacro(ctx, srcPath, deps, flags, outputFile, deps.linkDirs)
+	TransformSrctoProcMacro(ctx, srcPath, deps, flags, outputFile)
 	return outputFile
 }
 
