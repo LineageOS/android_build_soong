@@ -279,6 +279,19 @@ func (l *linter) generateManifest(ctx android.ModuleContext, rule *android.RuleB
 	return manifestPath
 }
 
+func (l *linter) getBaselineFilepath(ctx android.ModuleContext) android.OptionalPath {
+	var lintBaseline android.OptionalPath
+	if lintFilename := proptools.StringDefault(l.properties.Lint.Baseline_filename, "lint-baseline.xml"); lintFilename != "" {
+		if String(l.properties.Lint.Baseline_filename) != "" {
+			// if manually specified, we require the file to exist
+			lintBaseline = android.OptionalPathForPath(android.PathForModuleSrc(ctx, lintFilename))
+		} else {
+			lintBaseline = android.ExistentPathForSource(ctx, ctx.ModuleDir(), lintFilename)
+		}
+	}
+	return lintBaseline
+}
+
 func (l *linter) lint(ctx android.ModuleContext) {
 	if !l.enabled() {
 		return
@@ -381,17 +394,9 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		cmd.FlagWithArg("--check ", checkOnly)
 	}
 
-	if lintFilename := proptools.StringDefault(l.properties.Lint.Baseline_filename, "lint-baseline.xml"); lintFilename != "" {
-		var lintBaseline android.OptionalPath
-		if String(l.properties.Lint.Baseline_filename) != "" {
-			// if manually specified, we require the file to exist
-			lintBaseline = android.OptionalPathForPath(android.PathForModuleSrc(ctx, lintFilename))
-		} else {
-			lintBaseline = android.ExistentPathForSource(ctx, ctx.ModuleDir(), lintFilename)
-		}
-		if lintBaseline.Valid() {
-			cmd.FlagWithInput("--baseline ", lintBaseline.Path())
-		}
+	lintBaseline := l.getBaselineFilepath(ctx)
+	if lintBaseline.Valid() {
+		cmd.FlagWithInput("--baseline ", lintBaseline.Path())
 	}
 
 	cmd.Text("|| (").Text("if [ -e").Input(text).Text("]; then cat").Input(text).Text("; fi; exit 7)")
