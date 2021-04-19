@@ -108,7 +108,7 @@ func runMixedModeBuild(configuration android.Config, firstCtx *android.Context, 
 
 	firstArgs = bootstrap.CmdlineArgs
 	configuration.SetStopBefore(bootstrap.StopBeforeWriteNinja)
-	bootstrap.RunBlueprint(firstArgs, firstCtx.Context, configuration, extraNinjaDeps...)
+	bootstrap.RunBlueprint(firstArgs, firstCtx.Context, configuration)
 
 	// Invoke bazel commands and save results for second pass.
 	if err := configuration.BazelContext.InvokeBazel(); err != nil {
@@ -123,7 +123,8 @@ func runMixedModeBuild(configuration android.Config, firstCtx *android.Context, 
 	}
 	secondCtx := newContext(secondConfig, true)
 	secondArgs = bootstrap.CmdlineArgs
-	ninjaDeps := bootstrap.RunBlueprint(secondArgs, secondCtx.Context, secondConfig, extraNinjaDeps...)
+	ninjaDeps := bootstrap.RunBlueprint(secondArgs, secondCtx.Context, secondConfig)
+	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 	err = deptools.WriteDepFile(shared.JoinPath(topDir, secondArgs.DepFile), secondArgs.OutFile, ninjaDeps)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing depfile '%s': %s\n", secondArgs.DepFile, err)
@@ -141,10 +142,10 @@ func runQueryView(configuration android.Config, ctx *android.Context) {
 	}
 }
 
-func runSoongDocs(configuration android.Config, extraNinjaDeps []string) {
+func runSoongDocs(configuration android.Config) {
 	ctx := newContext(configuration, false)
 	soongDocsArgs := bootstrap.CmdlineArgs
-	bootstrap.RunBlueprint(soongDocsArgs, ctx.Context, configuration, extraNinjaDeps...)
+	bootstrap.RunBlueprint(soongDocsArgs, ctx.Context, configuration)
 	if err := writeDocs(ctx, configuration, docFile); err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)
@@ -195,7 +196,8 @@ func doChosenActivity(configuration android.Config, extraNinjaDeps []string) str
 	if mixedModeBuild {
 		runMixedModeBuild(configuration, ctx, extraNinjaDeps)
 	} else {
-		ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, ctx.Context, configuration, extraNinjaDeps...)
+		ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, ctx.Context, configuration)
+		ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 		err := deptools.WriteDepFile(shared.JoinPath(topDir, blueprintArgs.DepFile), blueprintArgs.OutFile, ninjaDeps)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing depfile '%s': %s\n", blueprintArgs.DepFile, err)
@@ -278,7 +280,7 @@ func main() {
 		// thus it would overwrite the actual used variables file so this is
 		// special-cased.
 		// TODO: Fix this by not passing --used_env to the soong_docs invocation
-		runSoongDocs(configuration, extraNinjaDeps)
+		runSoongDocs(configuration)
 		return
 	}
 
@@ -387,7 +389,8 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	// Modules parsed from Android.bp files, and the BazelTargetModules mapped
 	// from the regular Modules.
 	blueprintArgs := bootstrap.CmdlineArgs
-	ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, bp2buildCtx.Context, configuration, extraNinjaDeps...)
+	ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, bp2buildCtx.Context, configuration)
+	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
 	for _, globPath := range bp2buildCtx.Globs() {
 		ninjaDeps = append(ninjaDeps, globPath.FileListFile(configuration.BuildDir()))
