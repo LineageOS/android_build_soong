@@ -18,6 +18,7 @@
 """This file generates project.xml and lint.xml files used to drive the Android Lint CLI tool."""
 
 import argparse
+from xml.dom import minidom
 
 from ninja_rsp import NinjaRspFileReader
 
@@ -73,6 +74,8 @@ def parse_args():
                       help='file containing the module\'s manifest.')
   parser.add_argument('--merged_manifest', dest='merged_manifest',
                       help='file containing merged manifest for the module and its dependencies.')
+  parser.add_argument('--baseline', dest='baseline_path',
+                      help='file containing baseline lint issues.')
   parser.add_argument('--library', dest='library', action='store_true',
                       help='mark the module as a library.')
   parser.add_argument('--test', dest='test', action='store_true',
@@ -90,6 +93,8 @@ def parse_args():
                      help='treat a lint issue as a warning.')
   group.add_argument('--disable_check', dest='checks', action=check_action('ignore'), default=[],
                      help='disable a lint issue.')
+  group.add_argument('--disallowed_issues', dest='disallowed_issues', default=[],
+                     help='lint issues disallowed in the baseline file')
   return parser.parse_args()
 
 
@@ -134,9 +139,29 @@ def write_config_xml(f, args):
   f.write("</lint>\n")
 
 
+def check_baseline_for_disallowed_issues(baseline, forced_checks):
+  issues_element = baseline.documentElement
+  if issues_element.tagName != 'issues':
+    raise RuntimeError('expected issues tag at root')
+  issues = issues_element.getElementsByTagName('issue')
+  disallwed = set()
+  for issue in issues:
+    id = issue.getAttribute('id')
+    if id in forced_checks:
+      disallwed.add(id)
+  return disallwed
+
+
 def main():
   """Program entry point."""
   args = parse_args()
+
+  if args.baseline_path:
+    baseline = minidom.parse(args.baseline_path)
+    diallowed_issues = check_baseline_for_disallowed_issues(baseline, args.disallowed_issues)
+    if bool(diallowed_issues):
+      raise RuntimeError('disallowed issues %s found in lint baseline file %s for module %s'
+                         % (diallowed_issues, args.baseline_path, args.name))
 
   if args.project_out:
     with open(args.project_out, 'w') as f:
