@@ -140,7 +140,7 @@ EOF
   run_soong
   local ninja_mtime1=$(stat -c "%y" out/soong/build.ninja)
 
-  local glob_deps_file=out/soong/.glob/a/__py.glob.d
+  local glob_deps_file=out/soong/.primary/globs/0.d
 
   if [ -e "$glob_deps_file" ]; then
     fail "Glob deps file unexpectedly written on first build"

@@ -25,6 +25,7 @@ import (
 
 	"android/soong/bp2build"
 	"android/soong/shared"
+
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/deptools"
 
@@ -392,9 +393,7 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, bp2buildCtx.Context, configuration)
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
-	for _, globPath := range bp2buildCtx.Globs() {
-		ninjaDeps = append(ninjaDeps, globPath.FileListFile(configuration.BuildDir()))
-	}
+	ninjaDeps = append(ninjaDeps, bootstrap.GlobFileListFiles(configuration)...)
 
 	// Run the code-generation phase to convert BazelTargetModules to BUILD files
 	// and print conversion metrics to the user.
