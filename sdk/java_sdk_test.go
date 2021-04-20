@@ -1089,6 +1089,80 @@ sdk_snapshot {
 	)
 }
 
+func TestSnapshotWithJavaSdkLibrary_CompileDex(t *testing.T) {
+	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
+		sdk {
+			name: "mysdk",
+			java_sdk_libs: ["myjavalib"],
+		}
+
+		java_sdk_library {
+			name: "myjavalib",
+			srcs: ["Test.java"],
+			sdk_version: "current",
+			shared_library: false,
+			compile_dex: true,
+			public: {
+				enabled: true,
+			},
+			system: {
+				enabled: true,
+			},
+		}
+	`)
+
+	CheckSnapshot(t, result, "mysdk", "",
+		checkUnversionedAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_sdk_library_import {
+    name: "myjavalib",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    shared_library: false,
+    compile_dex: true,
+    public: {
+        jars: ["sdk_library/public/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/public/myjavalib_stub_sources"],
+        current_api: "sdk_library/public/myjavalib.txt",
+        removed_api: "sdk_library/public/myjavalib-removed.txt",
+        sdk_version: "current",
+    },
+    system: {
+        jars: ["sdk_library/system/myjavalib-stubs.jar"],
+        stub_srcs: ["sdk_library/system/myjavalib_stub_sources"],
+        current_api: "sdk_library/system/myjavalib.txt",
+        removed_api: "sdk_library/system/myjavalib-removed.txt",
+        sdk_version: "system_current",
+    },
+}
+`),
+		snapshotTestChecker(checkSnapshotWithSourcePreferred, func(t *testing.T, result *android.TestResult) {
+			ctx := android.ModuleInstallPathContextForTesting(result.Config)
+			dexJarBuildPath := func(name string, kind android.SdkKind) string {
+				dep := result.Module(name, "android_common").(java.SdkLibraryDependency)
+				path := dep.SdkApiStubDexJar(ctx, kind)
+				return path.RelativeToTop().String()
+			}
+
+			dexJarPath := dexJarBuildPath("myjavalib", android.SdkPublic)
+			android.AssertStringEquals(t, "source dex public stubs jar build path", "out/soong/.intermediates/myjavalib.stubs/android_common/dex/myjavalib.stubs.jar", dexJarPath)
+
+			dexJarPath = dexJarBuildPath("myjavalib", android.SdkSystem)
+			systemDexJar := "out/soong/.intermediates/myjavalib.stubs.system/android_common/dex/myjavalib.stubs.system.jar"
+			android.AssertStringEquals(t, "source dex system stubs jar build path", systemDexJar, dexJarPath)
+
+			// This should fall back to system as module is not available.
+			dexJarPath = dexJarBuildPath("myjavalib", android.SdkModule)
+			android.AssertStringEquals(t, "source dex module stubs jar build path", systemDexJar, dexJarPath)
+
+			dexJarPath = dexJarBuildPath(android.PrebuiltNameFromSource("myjavalib"), android.SdkPublic)
+			android.AssertStringEquals(t, "prebuilt dex public stubs jar build path", "out/soong/.intermediates/snapshot/prebuilt_myjavalib.stubs/android_common/dex/myjavalib.stubs.jar", dexJarPath)
+		}),
+	)
+}
+
 func TestSnapshotWithJavaSdkLibrary_SdkVersion_None(t *testing.T) {
 	result := android.GroupFixturePreparers(prepareForSdkTestWithJavaSdkLibrary).RunTestWithBp(t, `
 		sdk {
