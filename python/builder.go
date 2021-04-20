@@ -45,7 +45,7 @@ var (
 	hostPar = pctx.AndroidStaticRule("hostPar",
 		blueprint.RuleParams{
 			Command: `sed -e 's/%interpreter%/$interp/g' -e 's/%main%/$main/g' $template > $stub && ` +
-				`echo "#!/usr/bin/env python" >${out}.prefix &&` +
+				`echo "#!/usr/bin/env $interp" >${out}.prefix &&` +
 				`$mergeParCmd -p --prefix ${out}.prefix -pm $stub $out $srcsZips && ` +
 				`chmod +x $out && (rm -f $stub; rm -f ${out}.prefix)`,
 			CommandDeps: []string{"$mergeParCmd"},
