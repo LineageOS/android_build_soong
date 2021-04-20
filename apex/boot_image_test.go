@@ -216,6 +216,22 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			],
 		}
 
+		java_import {
+			name: "foo",
+			jars: ["foo.jar"],
+			apex_available: [
+				"com.android.art",
+			],
+		}
+
+		java_import {
+			name: "bar",
+			jars: ["bar.jar"],
+			apex_available: [
+				"com.android.art",
+			],
+		}
+
 		// Make sure that a preferred prebuilt doesn't affect the apex.
 		prebuilt_boot_image {
 			name: "mybootclasspathfragment",
