@@ -84,6 +84,8 @@ type bootImageProperties struct {
 	//
 	// The order of this list matters as it is the order that is used in the bootclasspath.
 	Contents []string
+
+	Hidden_api HiddenAPIFlagFileProperties
 }
 
 type BootImageModule struct {
@@ -213,6 +215,9 @@ func (b *BootImageModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (b *BootImageModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Perform hidden API processing.
+	b.generateHiddenAPIBuildActions(ctx)
+
 	// Nothing to do if skipping the dexpreopt of boot image jars.
 	if SkipDexpreoptBootJars(ctx) {
 		return
@@ -251,6 +256,15 @@ func (b *BootImageModule) getImageConfig(ctx android.EarlyModuleContext) *bootIm
 		return nil
 	}
 	return imageConfig
+}
+
+// generateHiddenAPIBuildActions generates all the hidden API related build rules.
+func (b *BootImageModule) generateHiddenAPIBuildActions(ctx android.ModuleContext) {
+	// Resolve the properties to paths.
+	flagFileInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
+
+	// Store the information for use by platform_bootclasspath.
+	ctx.SetProvider(hiddenAPIFlagFileInfoProvider, flagFileInfo)
 }
 
 type bootImageMemberType struct {
