@@ -206,7 +206,8 @@ func runSoong(ctx Context, config Config) {
 		}
 	}
 
-	integratedBp2Build := config.Environment().IsEnvTrue("INTEGRATED_BP2BUILD")
+	buildMode := config.bazelBuildMode()
+	integratedBp2Build := (buildMode == mixedBuild) || (buildMode == generateBuildFiles)
 
 	// This is done unconditionally, but does not take a measurable amount of time
 	bootstrapBlueprint(ctx, config, integratedBp2Build)
@@ -312,7 +313,7 @@ func runSoong(ctx Context, config Config) {
 
 func shouldCollectBuildSoongMetrics(config Config) bool {
 	// Do not collect metrics protobuf if the soong_build binary ran as the bp2build converter.
-	return config.Environment().IsFalse("GENERATE_BAZEL_FILES")
+	return config.bazelBuildMode() != generateBuildFiles
 }
 
 func loadSoongBuildMetrics(ctx Context, config Config) *soong_metrics_proto.SoongBuildMetrics {

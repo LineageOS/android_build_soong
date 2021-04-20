@@ -258,8 +258,8 @@ func Build(ctx Context, config Config, what int) {
 		// Run Soong
 		runSoong(ctx, config)
 
-		if config.Environment().IsEnvTrue("GENERATE_BAZEL_FILES") {
-			// Return early, if we're using Soong as the bp2build converter.
+		if config.bazelBuildMode() == generateBuildFiles {
+			// Return early, if we're using Soong as solely the generator of BUILD files.
 			return
 		}
 	}
