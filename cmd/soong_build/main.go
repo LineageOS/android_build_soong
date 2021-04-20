@@ -174,7 +174,7 @@ func writeJsonModuleGraph(configuration android.Config, ctx *android.Context, pa
 }
 
 func doChosenActivity(configuration android.Config, extraNinjaDeps []string) string {
-	bazelConversionRequested := configuration.IsEnvTrue("GENERATE_BAZEL_FILES") || bp2buildMarker != ""
+	bazelConversionRequested := bp2buildMarker != ""
 	mixedModeBuild := configuration.BazelContext.BazelEnabled()
 	generateQueryView := bazelQueryViewDir != ""
 	jsonModuleFile := configuration.Getenv("SOONG_DUMP_JSON_MODULE_GRAPH")
