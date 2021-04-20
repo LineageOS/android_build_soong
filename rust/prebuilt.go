@@ -103,6 +103,12 @@ func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags
 	return srcPath
 }
 
+func (prebuilt *prebuiltLibraryDecorator) rustdoc(ctx ModuleContext, flags Flags,
+	deps PathDeps) android.OptionalPath {
+
+	return android.OptionalPath{}
+}
+
 func (prebuilt *prebuiltLibraryDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
 	deps = prebuilt.baseCompiler.compilerDeps(ctx, deps)
 	return deps
