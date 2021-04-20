@@ -16,6 +16,7 @@ package java
 
 import (
 	"android/soong/android"
+	"github.com/google/blueprint"
 )
 
 // Contains support for processing hiddenAPI in a modular fashion.
@@ -171,6 +172,14 @@ type hiddenAPIFlagFileInfo struct {
 	// category.
 	categoryToPaths map[*hiddenAPIFlagFileCategory]android.Paths
 }
+
+func (i *hiddenAPIFlagFileInfo) append(other hiddenAPIFlagFileInfo) {
+	for _, category := range hiddenAPIFlagFileCategories {
+		i.categoryToPaths[category] = append(i.categoryToPaths[category], other.categoryToPaths[category]...)
+	}
+}
+
+var hiddenAPIFlagFileInfoProvider = blueprint.NewProvider(hiddenAPIFlagFileInfo{})
 
 // ruleToGenerateHiddenApiFlags creates a rule to create the monolithic hidden API flags from the
 // flags from all the modules, the stub flags, augmented with some additional configuration files.
