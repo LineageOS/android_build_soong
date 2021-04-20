@@ -219,10 +219,10 @@ python_library_host {
 }
 
 python_binary_host {
-    name: "lint-project-xml",
-    main: "lint-project-xml.py",
+    name: "lint_project_xml",
+    main: "lint_project_xml.py",
     srcs: [
-        "lint-project-xml.py",
+        "lint_project_xml.py",
     ],
     libs: ["ninja_rsp"],
 }

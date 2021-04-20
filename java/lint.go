@@ -200,7 +200,7 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	srcJarList := zipSyncCmd(ctx, rule, srcJarDir, l.srcJars)
 
 	cmd := rule.Command().
-		BuiltTool("lint-project-xml").
+		BuiltTool("lint_project_xml").
 		FlagWithOutput("--project_out ", projectXMLPath).
 		FlagWithOutput("--config_out ", configXMLPath).
 		FlagWithArg("--name ", ctx.ModuleName())
