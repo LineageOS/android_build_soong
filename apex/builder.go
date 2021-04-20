@@ -872,7 +872,7 @@ func (a *apexBundle) getCertificateAndPrivateKey(ctx android.PathContext) (pem, 
 		return a.containerCertificateFile, a.containerPrivateKeyFile
 	}
 
-	cert := String(a.properties.Certificate)
+	cert := String(a.overridableProperties.Certificate)
 	if cert == "" {
 		return ctx.Config().DefaultAppCertificate(ctx)
 	}
