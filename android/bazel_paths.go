@@ -91,7 +91,7 @@ func BazelLabelForModuleDeps(ctx BazelConversionPathContext, modules []string) b
 		}
 		if m, t := SrcIsModuleWithTag(module); m != "" {
 			l := getOtherModuleLabel(ctx, m, t)
-			l.Bp_text = bpText
+			l.OriginalModuleName = bpText
 			labels.Includes = append(labels.Includes, l)
 		} else {
 			ctx.ModuleErrorf("%q, is not a module reference", module)
@@ -156,8 +156,8 @@ func directoryHasBlueprint(fs pathtools.FileSystem, prefix string, components []
 func transformSubpackagePath(ctx BazelConversionPathContext, path bazel.Label) bazel.Label {
 	var newPath bazel.Label
 
-	// Don't transform Bp_text
-	newPath.Bp_text = path.Bp_text
+	// Don't transform OriginalModuleName
+	newPath.OriginalModuleName = path.OriginalModuleName
 
 	if strings.HasPrefix(path.Label, "//") {
 		// Assume absolute labels are already correct (e.g. //path/to/some/package:foo.h)
@@ -247,7 +247,7 @@ func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes 
 		if m, tag := SrcIsModuleWithTag(p); m != "" {
 			l := getOtherModuleLabel(ctx, m, tag)
 			if !InList(l.Label, expandedExcludes) {
-				l.Bp_text = fmt.Sprintf(":%s", m)
+				l.OriginalModuleName = fmt.Sprintf(":%s", m)
 				labels.Includes = append(labels.Includes, l)
 			}
 		} else {
