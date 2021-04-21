@@ -25,7 +25,7 @@ import (
 // Contains tests for boot_image logic from java/boot_image.go as the ART boot image requires
 // modules from the ART apex.
 
-var prepareForTestWithBootImage = android.GroupFixturePreparers(
+var prepareForTestWithBootclasspathFragment = android.GroupFixturePreparers(
 	java.PrepareForTestWithDexpreopt,
 	PrepareForTestWithApexBuildComponents,
 )
@@ -37,9 +37,9 @@ var prepareForTestWithArtApex = android.FixtureMergeMockFs(android.MockFS{
 	"system/sepolicy/apex/com.android.art-file_contexts": nil,
 })
 
-func TestBootImages(t *testing.T) {
+func TestBootclasspathFragments(t *testing.T) {
 	result := android.GroupFixturePreparers(
-		prepareForTestWithBootImage,
+		prepareForTestWithBootclasspathFragment,
 		// Configure some libraries in the art and framework boot images.
 		java.FixtureConfigureBootJars("com.android.art:baz", "com.android.art:quuz", "platform:foo", "platform:bar"),
 		prepareForTestWithArtApex,
@@ -90,23 +90,23 @@ func TestBootImages(t *testing.T) {
 			srcs: ["b.java"],
 		}
 
-		boot_image {
-			name: "art-boot-image",
+		bootclasspath_fragment {
+			name: "art-bootclasspath-fragment",
 			image_name: "art",
 			apex_available: [
 				"com.android.art",
 			],
 		}
 
-		boot_image {
-			name: "framework-boot-image",
+		bootclasspath_fragment {
+			name: "framework-bootclasspath-fragment",
 			image_name: "boot",
 		}
 `,
 	)
 
-	// Make sure that the framework-boot-image is using the correct configuration.
-	checkBootImage(t, result, "framework-boot-image", "platform:foo,platform:bar", `
+	// Make sure that the framework-bootclasspath-fragment is using the correct configuration.
+	checkBootclasspathFragment(t, result, "framework-bootclasspath-fragment", "platform:foo,platform:bar", `
 test_device/dex_bootjars/android/system/framework/arm/boot-foo.art
 test_device/dex_bootjars/android/system/framework/arm/boot-foo.oat
 test_device/dex_bootjars/android/system/framework/arm/boot-foo.vdex
@@ -121,8 +121,8 @@ test_device/dex_bootjars/android/system/framework/arm64/boot-bar.oat
 test_device/dex_bootjars/android/system/framework/arm64/boot-bar.vdex
 `)
 
-	// Make sure that the art-boot-image is using the correct configuration.
-	checkBootImage(t, result, "art-boot-image", "com.android.art:baz,com.android.art:quuz", `
+	// Make sure that the art-bootclasspath-fragment is using the correct configuration.
+	checkBootclasspathFragment(t, result, "art-bootclasspath-fragment", "com.android.art:baz,com.android.art:quuz", `
 test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.art
 test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.oat
 test_device/dex_artjars/android/apex/art_boot_images/javalib/arm/boot.vdex
@@ -138,7 +138,7 @@ test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-quuz.vde
 `)
 }
 
-func checkBootImage(t *testing.T, result *android.TestResult, moduleName string, expectedConfiguredModules string, expectedBootImageFiles string) {
+func checkBootclasspathFragment(t *testing.T, result *android.TestResult, moduleName string, expectedConfiguredModules string, expectedBootclasspathFragmentFiles string) {
 	t.Helper()
 
 	bootImage := result.ModuleForTests(moduleName, "android_common").Module().(*java.BootImageModule)
@@ -158,12 +158,12 @@ func checkBootImage(t *testing.T, result *android.TestResult, moduleName string,
 		}
 	}
 
-	android.AssertTrimmedStringEquals(t, "invalid paths for "+moduleName, expectedBootImageFiles, strings.Join(allPaths, "\n"))
+	android.AssertTrimmedStringEquals(t, "invalid paths for "+moduleName, expectedBootclasspathFragmentFiles, strings.Join(allPaths, "\n"))
 }
 
-func TestBootImageInArtApex(t *testing.T) {
+func TestBootclasspathFragmentInArtApex(t *testing.T) {
 	result := android.GroupFixturePreparers(
-		prepareForTestWithBootImage,
+		prepareForTestWithBootclasspathFragment,
 		prepareForTestWithArtApex,
 
 		// Configure some libraries in the art boot image.
@@ -172,11 +172,11 @@ func TestBootImageInArtApex(t *testing.T) {
 		apex {
 			name: "com.android.art",
 			key: "com.android.art.key",
-			boot_images: [
-				"mybootimage",
+			bootclasspath_fragments: [
+				"mybootclasspathfragment",
 			],
 			// bar (like foo) should be transitively included in this apex because it is part of the
-			// mybootimage boot_image. However, it is kept here to ensure that the apex dedups the files
+			// mybootclasspathfragment boot_image. However, it is kept here to ensure that the apex dedups the files
 			// correctly.
 			java_libs: [
 				"bar",
@@ -209,7 +209,7 @@ func TestBootImageInArtApex(t *testing.T) {
 		}
 
 		boot_image {
-			name: "mybootimage",
+			name: "mybootclasspathfragment",
 			image_name: "art",
 			apex_available: [
 				"com.android.art",
@@ -218,7 +218,7 @@ func TestBootImageInArtApex(t *testing.T) {
 
 		// Make sure that a preferred prebuilt doesn't affect the apex.
 		prebuilt_boot_image {
-			name: "mybootimage",
+			name: "mybootclasspathfragment",
 			image_name: "art",
 			prefer: true,
 			apex_available: [
@@ -247,13 +247,13 @@ func TestBootImageInArtApex(t *testing.T) {
 	java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
 		`bar`,
 		`com.android.art.key`,
-		`mybootimage`,
+		`mybootclasspathfragment`,
 	})
 }
 
-func TestBootImageInPrebuiltArtApex(t *testing.T) {
+func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 	result := android.GroupFixturePreparers(
-		prepareForTestWithBootImage,
+		prepareForTestWithBootclasspathFragment,
 		prepareForTestWithArtApex,
 
 		android.FixtureMergeMockFs(android.MockFS{
@@ -294,7 +294,7 @@ func TestBootImageInPrebuiltArtApex(t *testing.T) {
 		}
 
 		prebuilt_boot_image {
-			name: "mybootimage",
+			name: "mybootclasspathfragment",
 			image_name: "art",
 			apex_available: [
 				"com.android.art",
@@ -308,23 +308,23 @@ func TestBootImageInPrebuiltArtApex(t *testing.T) {
 		`prebuilt_foo`,
 	})
 
-	java.CheckModuleDependencies(t, result.TestContext, "mybootimage", "android_common", []string{
+	java.CheckModuleDependencies(t, result.TestContext, "mybootclasspathfragment", "android_common", []string{
 		`dex2oatd`,
 		`prebuilt_bar`,
 		`prebuilt_foo`,
 	})
 }
 
-func TestBootImageContentsNoName(t *testing.T) {
+func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 	result := android.GroupFixturePreparers(
-		prepareForTestWithBootImage,
+		prepareForTestWithBootclasspathFragment,
 		prepareForTestWithMyapex,
 	).RunTestWithBp(t, `
 		apex {
 			name: "myapex",
 			key: "myapex.key",
-			boot_images: [
-				"mybootimage",
+			bootclasspath_fragments: [
+				"mybootclasspathfragment",
 			],
 			updatable: false,
 		}
@@ -354,7 +354,7 @@ func TestBootImageContentsNoName(t *testing.T) {
 		}
 
 		boot_image {
-			name: "mybootimage",
+			name: "mybootclasspathfragment",
 			contents: [
 				"foo",
 				"bar",
@@ -374,7 +374,7 @@ func TestBootImageContentsNoName(t *testing.T) {
 
 	java.CheckModuleDependencies(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
 		`myapex.key`,
-		`mybootimage`,
+		`mybootclasspathfragment`,
 	})
 }
 
