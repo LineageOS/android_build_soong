@@ -151,7 +151,7 @@ var (
 		"libc_bionic_ndk",               // ruperts@, cc_library_static, depends on //bionic/libc/system_properties
 		"libc_bionic_systrace",          // ruperts@, cc_library_static, 'private/bionic_systrace.h' file not found
 		"libc_pthread",                  // ruperts@, cc_library_static, 'private/bionic_defs.h' file not found
-		"libc_syscalls",                 // ruperts@, cc_library_static, mutator panic cannot get direct dep syscalls-arm64.S of libc_syscalls
+		"libc_syscalls",                 // eakammer@, cc_library_static,  'private/bionic_asm.h' file not found
 		"libc_ndk",                      // ruperts@, cc_library_static, depends on //bionic/libm:libm
 		"libc_nopthread",                // ruperts@, cc_library_static, depends on //external/arm-optimized-routines
 		"libc_common",                   // ruperts@, cc_library_static, depends on //bionic/libc:libc_nopthread

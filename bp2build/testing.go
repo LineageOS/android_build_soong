@@ -28,6 +28,8 @@ type customProps struct {
 
 	Nested_props     nestedProps
 	Nested_props_ptr *nestedProps
+
+	Arch_paths []string `android:"path,arch_variant"`
 }
 
 type customModule struct {
@@ -56,7 +58,7 @@ func customModuleFactoryBase() android.Module {
 
 func customModuleFactory() android.Module {
 	m := customModuleFactoryBase()
-	android.InitAndroidModule(m)
+	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibBoth)
 	return m
 }
 
@@ -114,6 +116,7 @@ func customDefaultsModuleFactory() android.Module {
 type customBazelModuleAttributes struct {
 	String_prop      string
 	String_list_prop []string
+	Arch_paths       bazel.LabelListAttribute
 }
 
 type customBazelModule struct {
@@ -137,9 +140,18 @@ func customBp2BuildMutator(ctx android.TopDownMutatorContext) {
 			return
 		}
 
+		paths := bazel.MakeLabelListAttribute(android.BazelLabelForModuleSrc(ctx, m.props.Arch_paths))
+
+		for arch, props := range m.GetArchProperties(&customProps{}) {
+			if archProps, ok := props.(*customProps); ok && archProps.Arch_paths != nil {
+				paths.SetValueForArch(arch.Name, android.BazelLabelForModuleSrc(ctx, archProps.Arch_paths))
+			}
+		}
+
 		attrs := &customBazelModuleAttributes{
 			String_prop:      m.props.String_prop,
 			String_list_prop: m.props.String_list_prop,
+			Arch_paths:       paths,
 		}
 
 		props := bazel.BazelTargetModuleProperties{
