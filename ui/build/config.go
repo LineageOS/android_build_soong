@@ -93,6 +93,21 @@ const (
 	BUILD_MODULES
 )
 
+type bazelBuildMode int
+
+// Bazel-related build modes.
+const (
+	// Don't use bazel at all.
+	noBazel bazelBuildMode = iota
+
+	// Only generate build files (in a subdirectory of the out directory) and exit.
+	generateBuildFiles
+
+	// Generate synthetic build files and incorporate these files into a build which
+	// partially uses Bazel. Build metadata may come from Android.bp or BUILD files.
+	mixedBuild
+)
+
 // checkTopDir validates that the current directory is at the root directory of the source tree.
 func checkTopDir(ctx Context) {
 	if _, err := os.Stat(srcDirFileCheck); err != nil {
@@ -895,6 +910,16 @@ func (c *configImpl) UseRBE() bool {
 
 func (c *configImpl) UseBazel() bool {
 	return c.useBazel
+}
+
+func (c *configImpl) bazelBuildMode() bazelBuildMode {
+	if c.Environment().IsEnvTrue("USE_BAZEL_ANALYSIS") {
+		return mixedBuild
+	} else if c.Environment().IsEnvTrue("GENERATE_BAZEL_FILES") {
+		return generateBuildFiles
+	} else {
+		return noBazel
+	}
 }
 
 func (c *configImpl) StartRBE() bool {
