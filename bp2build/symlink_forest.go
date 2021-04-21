@@ -125,52 +125,52 @@ func plantSymlinkForestRecursive(topdir string, forestDir string, buildFilesDir 
 		}
 
 		// The full paths of children in the input trees and in the output tree
-		fp := shared.JoinPath(forestDir, f)
-		sp := shared.JoinPath(srcDir, f)
-		bp := shared.JoinPath(buildFilesDir, f)
+		forestChild := shared.JoinPath(forestDir, f)
+		srcChild := shared.JoinPath(srcDir, f)
+		buildFilesChild := shared.JoinPath(buildFilesDir, f)
 
 		// Descend in the exclusion tree, if there are any excludes left
-		var ce *node
+		var excludeChild *node
 		if exclude == nil {
-			ce = nil
+			excludeChild = nil
 		} else {
-			ce = exclude.children[f]
+			excludeChild = exclude.children[f]
 		}
 
-		sf, sExists := srcDirMap[f]
-		bf, bExists := buildFilesMap[f]
-		excluded := ce != nil && ce.excluded
+		srcChildEntry, sExists := srcDirMap[f]
+		buildFilesChildEntry, bExists := buildFilesMap[f]
+		excluded := excludeChild != nil && excludeChild.excluded
 
 		if excluded {
 			continue
 		}
 
 		if !sExists {
-			if bf.IsDir() && ce != nil {
+			if buildFilesChildEntry.IsDir() && excludeChild != nil {
 				// Not in the source tree, but we have to exclude something from under
 				// this subtree, so descend
-				plantSymlinkForestRecursive(topdir, fp, bp, sp, ce, acc)
+				plantSymlinkForestRecursive(topdir, forestChild, buildFilesChild, srcChild, excludeChild, acc)
 			} else {
 				// Not in the source tree, symlink BUILD file
-				symlinkIntoForest(topdir, fp, bp)
+				symlinkIntoForest(topdir, forestChild, buildFilesChild)
 			}
 		} else if !bExists {
-			if sf.IsDir() && ce != nil {
+			if srcChildEntry.IsDir() && excludeChild != nil {
 				// Not in the build file tree, but we have to exclude something from
 				// under this subtree, so descend
-				plantSymlinkForestRecursive(topdir, fp, bp, sp, ce, acc)
+				plantSymlinkForestRecursive(topdir, forestChild, buildFilesChild, srcChild, excludeChild, acc)
 			} else {
 				// Not in the build file tree, symlink source tree, carry on
-				symlinkIntoForest(topdir, fp, sp)
+				symlinkIntoForest(topdir, forestChild, srcChild)
 			}
-		} else if sf.IsDir() && bf.IsDir() {
+		} else if srcChildEntry.IsDir() && buildFilesChildEntry.IsDir() {
 			// Both are directories. Descend.
-			plantSymlinkForestRecursive(topdir, fp, bp, sp, ce, acc)
+			plantSymlinkForestRecursive(topdir, forestChild, buildFilesChild, srcChild, excludeChild, acc)
 		} else {
 			// Both exist and one is a file. This is an error.
 			fmt.Fprintf(os.Stderr,
 				"Conflict in workspace symlink tree creation: both '%s' and '%s' exist and at least one of them is a file\n",
-				sp, bp)
+				srcChild, buildFilesChild)
 			os.Exit(1)
 		}
 	}
