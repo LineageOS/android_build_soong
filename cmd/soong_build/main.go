@@ -25,6 +25,7 @@ import (
 
 	"android/soong/bp2build"
 	"android/soong/shared"
+
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/deptools"
 
@@ -392,9 +393,38 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, bp2buildCtx.Context, configuration)
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
-	for _, globPath := range bp2buildCtx.Globs() {
-		ninjaDeps = append(ninjaDeps, globPath.FileListFile(configuration.BuildDir()))
+	ninjaDeps = append(ninjaDeps, bootstrap.GlobFileListFiles(configuration)...)
+
+	// Run the code-generation phase to convert BazelTargetModules to BUILD files
+	// and print conversion metrics to the user.
+	codegenContext := bp2build.NewCodegenContext(configuration, *bp2buildCtx, bp2build.Bp2Build)
+	metrics := bp2build.Codegen(codegenContext)
+
+	generatedRoot := shared.JoinPath(configuration.BuildDir(), "bp2build")
+	workspaceRoot := shared.JoinPath(configuration.BuildDir(), "workspace")
+
+	excludes := []string{
+		"bazel-bin",
+		"bazel-genfiles",
+		"bazel-out",
+		"bazel-testlogs",
+		"bazel-" + filepath.Base(topDir),
 	}
+
+	if bootstrap.CmdlineArgs.NinjaBuildDir[0] != '/' {
+		excludes = append(excludes, bootstrap.CmdlineArgs.NinjaBuildDir)
+	}
+
+	symlinkForestDeps := bp2build.PlantSymlinkForest(
+		topDir, workspaceRoot, generatedRoot, configuration.SrcDir(), excludes)
+
+	// Only report metrics when in bp2build mode. The metrics aren't relevant
+	// for queryview, since that's a total repo-wide conversion and there's a
+	// 1:1 mapping for each module.
+	metrics.Print()
+
+	ninjaDeps = append(ninjaDeps, codegenContext.AdditionalNinjaDeps()...)
+	ninjaDeps = append(ninjaDeps, symlinkForestDeps...)
 
 	depFile := bp2buildMarker + ".d"
 	err = deptools.WriteDepFile(shared.JoinPath(topDir, depFile), bp2buildMarker, ninjaDeps)
@@ -403,17 +433,6 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 		os.Exit(1)
 	}
 
-	// Run the code-generation phase to convert BazelTargetModules to BUILD files
-	// and print conversion metrics to the user.
-	codegenContext := bp2build.NewCodegenContext(configuration, *bp2buildCtx, bp2build.Bp2Build)
-	metrics := bp2build.Codegen(codegenContext)
-
-	// Only report metrics when in bp2build mode. The metrics aren't relevant
-	// for queryview, since that's a total repo-wide conversion and there's a
-	// 1:1 mapping for each module.
-	metrics.Print()
-
-	extraNinjaDeps = append(extraNinjaDeps, codegenContext.AdditionalNinjaDeps()...)
 	if bp2buildMarker != "" {
 		touch(shared.JoinPath(topDir, bp2buildMarker))
 	} else {

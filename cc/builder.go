@@ -968,7 +968,7 @@ func transformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
 func transformBinaryPrefixSymbols(ctx android.ModuleContext, prefix string, inputFile android.Path,
 	flags builderFlags, outputFile android.WritablePath) {
 
-	objcopyCmd := gccCmd(flags.toolchain, "objcopy")
+	objcopyCmd := "${config.ClangBin}/llvm-objcopy"
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        prefixSymbols,
