@@ -609,6 +609,57 @@ EOF
   [[ -L out/soong/workspace/a/a2.txt ]] || fail "a/a2.txt not symlinked"
 }
 
+function test_bp2build_build_file_precedence {
+  setup
+
+  mkdir -p a
+  touch a/a.txt
+  touch a/BUILD
+  cat > a/Android.bp <<EOF
+filegroup {
+  name: "a",
+  srcs: ["a.txt"],
+  bazel_module: { bp2build_available: true },
+}
+EOF
+
+  GENERATE_BAZEL_FILES=1 run_soong
+  [[ -L out/soong/workspace/a/BUILD ]] || fail "BUILD file not symlinked"
+  [[ "$(readlink -f out/soong/workspace/a/BUILD)" =~ bp2build/a/BUILD$ ]] \
+    || fail "BUILD files symlinked to the wrong place"
+}
+
+function test_bp2build_reports_multiple_errors {
+  setup
+
+  mkdir -p a/BUILD
+  touch a/a.txt
+  cat > a/Android.bp <<EOF
+filegroup {
+  name: "a",
+  srcs: ["a.txt"],
+  bazel_module: { bp2build_available: true },
+}
+EOF
+
+  mkdir -p b/BUILD
+  touch b/b.txt
+  cat > b/Android.bp <<EOF
+filegroup {
+  name: "b",
+  srcs: ["b.txt"],
+  bazel_module: { bp2build_available: true },
+}
+EOF
+
+  if GENERATE_BAZEL_FILES=1 run_soong >& "$MOCK_TOP/errors"; then
+    fail "Build should have failed"
+  fi
+
+  grep -q "a/BUILD' exist" "$MOCK_TOP/errors" || fail "Error for a/BUILD not found"
+  grep -q "b/BUILD' exist" "$MOCK_TOP/errors" || fail "Error for b/BUILD not found"
+}
+
 test_smoke
 test_null_build
 test_null_build_after_docs
@@ -628,3 +679,5 @@ test_bp2build_add_android_bp
 test_bp2build_add_to_glob
 test_bp2build_bazel_workspace_structure
 test_bp2build_bazel_workspace_add_file
+test_bp2build_build_file_precedence
+test_bp2build_reports_multiple_errors
