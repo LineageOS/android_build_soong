@@ -126,13 +126,44 @@ func AssertStringDoesNotContain(t *testing.T, message string, s string, unexpect
 	}
 }
 
+// AssertStringContainsEquals checks if the string contains or does not contain the substring, given
+// the value of the expected bool. If the expectation does not hold it reports an error prefixed with
+// the supplied message and including a reason for why it failed.
+func AssertStringContainsEquals(t *testing.T, message string, s string, substring string, expected bool) {
+	if expected {
+		AssertStringDoesContain(t, message, s, substring)
+	} else {
+		AssertStringDoesNotContain(t, message, s, substring)
+	}
+}
+
 // AssertStringListContains checks if the list of strings contains the expected string. If it does
 // not then it reports an error prefixed with the supplied message and including a reason for why it
 // failed.
-func AssertStringListContains(t *testing.T, message string, list []string, expected string) {
+func AssertStringListContains(t *testing.T, message string, list []string, s string) {
 	t.Helper()
-	if !InList(expected, list) {
-		t.Errorf("%s: could not find %q within %q", message, expected, list)
+	if !InList(s, list) {
+		t.Errorf("%s: could not find %q within %q", message, s, list)
+	}
+}
+
+// AssertStringListDoesNotContain checks if the list of strings contains the expected string. If it does
+// then it reports an error prefixed with the supplied message and including a reason for why it failed.
+func AssertStringListDoesNotContain(t *testing.T, message string, list []string, s string) {
+	t.Helper()
+	if InList(s, list) {
+		t.Errorf("%s: unexpectedly found %q within %q", message, s, list)
+	}
+}
+
+// AssertStringContainsEquals checks if the string contains or does not contain the substring, given
+// the value of the expected bool. If the expectation does not hold it reports an error prefixed with
+// the supplied message and including a reason for why it failed.
+func AssertStringListContainsEquals(t *testing.T, message string, list []string, s string, expected bool) {
+	if expected {
+		AssertStringListContains(t, message, list, s)
+	} else {
+		AssertStringListDoesNotContain(t, message, list, s)
 	}
 }
 
