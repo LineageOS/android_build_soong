@@ -77,10 +77,10 @@ type BaseCompilerProperties struct {
 	Lints *string
 
 	// flags to pass to rustc. To enable configuration options or features, use the "cfgs" or "features" properties.
-	Flags []string `android:"path,arch_variant"`
+	Flags []string `android:"arch_variant"`
 
 	// flags to pass to the linker
-	Ld_flags []string `android:"path,arch_variant"`
+	Ld_flags []string `android:"arch_variant"`
 
 	// list of rust rlib crate dependencies
 	Rlibs []string `android:"arch_variant"`
