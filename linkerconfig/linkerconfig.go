@@ -15,11 +15,15 @@
 package linkerconfig
 
 import (
-	"android/soong/android"
-	"android/soong/etc"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/android"
+	"android/soong/cc"
+	"android/soong/etc"
 )
 
 var (
@@ -81,22 +85,57 @@ func (l *linkerConfig) OutputFiles(tag string) (android.Paths, error) {
 }
 
 func (l *linkerConfig) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	inputFile := android.PathForModuleSrc(ctx, android.String(l.properties.Src))
-	l.outputFilePath = android.PathForModuleOut(ctx, "linker.config.pb").OutputPath
-	l.installDirPath = android.PathForModuleInstall(ctx, "etc")
-	linkerConfigRule := android.NewRuleBuilder(pctx, ctx)
-	linkerConfigRule.Command().
-		BuiltTool("conv_linker_config").
-		Flag("proto").
-		FlagWithInput("-s ", inputFile).
-		FlagWithOutput("-o ", l.outputFilePath)
-	linkerConfigRule.Build("conv_linker_config",
-		"Generate linker config protobuf "+l.outputFilePath.String())
+	input := android.PathForModuleSrc(ctx, android.String(l.properties.Src))
+	output := android.PathForModuleOut(ctx, "linker.config.pb").OutputPath
 
+	builder := android.NewRuleBuilder(pctx, ctx)
+	BuildLinkerConfig(ctx, builder, input, nil, output)
+	builder.Build("conv_linker_config", "Generate linker config protobuf "+output.String())
+
+	l.outputFilePath = output
+	l.installDirPath = android.PathForModuleInstall(ctx, "etc")
 	if !proptools.BoolDefault(l.properties.Installable, true) {
 		l.SkipInstall()
 	}
 	ctx.InstallFile(l.installDirPath, l.outputFilePath.Base(), l.outputFilePath)
+}
+
+func BuildLinkerConfig(ctx android.ModuleContext, builder *android.RuleBuilder,
+	input android.Path, otherModules []android.Module, output android.OutputPath) {
+
+	// First, convert the input json to protobuf format
+	interimOutput := android.PathForModuleOut(ctx, "temp.pb")
+	builder.Command().
+		BuiltTool("conv_linker_config").
+		Flag("proto").
+		FlagWithInput("-s ", input).
+		FlagWithOutput("-o ", interimOutput)
+
+	// Secondly, if there's provideLibs gathered from otherModules, append them
+	var provideLibs []string
+	for _, m := range otherModules {
+		if c, ok := m.(*cc.Module); ok && cc.IsStubTarget(c) {
+			for _, ps := range c.PackagingSpecs() {
+				provideLibs = append(provideLibs, ps.FileName())
+			}
+		}
+	}
+	provideLibs = android.FirstUniqueStrings(provideLibs)
+	sort.Strings(provideLibs)
+	if len(provideLibs) > 0 {
+		builder.Command().
+			BuiltTool("conv_linker_config").
+			Flag("append").
+			FlagWithInput("-s ", interimOutput).
+			FlagWithOutput("-o ", output).
+			FlagWithArg("--key ", "provideLibs").
+			FlagWithArg("--value ", proptools.ShellEscapeIncludingSpaces(strings.Join(provideLibs, " ")))
+	} else {
+		// If nothing to add, just cp to the final output
+		builder.Command().Text("cp").Input(interimOutput).Output(output)
+	}
+	builder.Temporary(interimOutput)
+	builder.DeleteTemporaryFiles()
 }
 
 // linker_config generates protobuf file from json file. This protobuf file will be used from

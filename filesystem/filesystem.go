@@ -31,6 +31,7 @@ func init() {
 
 func registerBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("android_filesystem", filesystemFactory)
+	ctx.RegisterModuleType("android_system_image", systemImageFactory)
 }
 
 type filesystem struct {
@@ -38,6 +39,9 @@ type filesystem struct {
 	android.PackagingBase
 
 	properties filesystemProperties
+
+	// Function that builds extra files under the root directory and returns the files
+	buildExtraFiles func(ctx android.ModuleContext, root android.OutputPath) android.OutputPaths
 
 	output     android.OutputPath
 	installDir android.InstallPath
@@ -87,10 +91,14 @@ type filesystemProperties struct {
 // partitions like system.img. For example, cc_library modules are placed under ./lib[64] directory.
 func filesystemFactory() android.Module {
 	module := &filesystem{}
+	initFilesystemModule(module)
+	return module
+}
+
+func initFilesystemModule(module *filesystem) {
 	module.AddProperties(&module.properties)
 	android.InitPackageModule(module)
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibCommon)
-	return module
 }
 
 var dependencyTag = struct {
@@ -148,7 +156,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.InstallFile(f.installDir, f.installFileName(), f.output)
 }
 
-// root zip will contain stuffs like dirs or symlinks.
+// root zip will contain extra files/dirs that are not from the `deps` property.
 func (f *filesystem) buildRootZip(ctx android.ModuleContext) android.OutputPath {
 	rootDir := android.PathForModuleGen(ctx, "root").OutputPath
 	builder := android.NewRuleBuilder(pctx, ctx)
@@ -182,15 +190,34 @@ func (f *filesystem) buildRootZip(ctx android.ModuleContext) android.OutputPath 
 		builder.Command().Text("ln -sf").Text(proptools.ShellEscape(target)).Text(dst.String())
 	}
 
-	zipOut := android.PathForModuleGen(ctx, "root.zip").OutputPath
+	// create extra files if there's any
+	rootForExtraFiles := android.PathForModuleGen(ctx, "root-extra").OutputPath
+	var extraFiles android.OutputPaths
+	if f.buildExtraFiles != nil {
+		extraFiles = f.buildExtraFiles(ctx, rootForExtraFiles)
+		for _, f := range extraFiles {
+			rel, _ := filepath.Rel(rootForExtraFiles.String(), f.String())
+			if strings.HasPrefix(rel, "..") {
+				panic(fmt.Errorf("%q is not under %q\n", f, rootForExtraFiles))
+			}
+		}
+	}
 
-	builder.Command().
-		BuiltTool("soong_zip").
-		FlagWithOutput("-o ", zipOut).
+	// Zip them all
+	zipOut := android.PathForModuleGen(ctx, "root.zip").OutputPath
+	zipCommand := builder.Command().BuiltTool("soong_zip")
+	zipCommand.FlagWithOutput("-o ", zipOut).
 		FlagWithArg("-C ", rootDir.String()).
 		Flag("-L 0"). // no compression because this will be unzipped soon
 		FlagWithArg("-D ", rootDir.String()).
 		Flag("-d") // include empty directories
+	if len(extraFiles) > 0 {
+		zipCommand.FlagWithArg("-C ", rootForExtraFiles.String())
+		for _, f := range extraFiles {
+			zipCommand.FlagWithInput("-f ", f)
+		}
+	}
+
 	builder.Command().Text("rm -rf").Text(rootDir.String())
 
 	builder.Build("zip_root", fmt.Sprintf("zipping root contents for %s", ctx.ModuleName()))
