@@ -664,7 +664,7 @@ test_smoke
 test_null_build
 test_null_build_after_docs
 test_soong_build_rebuilt_if_blueprint_changes
-# test_glob_noop_incremental  # Currently failing
+test_glob_noop_incremental
 test_add_file_to_glob
 test_add_android_bp
 test_change_android_bp
