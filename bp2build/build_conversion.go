@@ -176,7 +176,7 @@ func propsToAttributes(props map[string]string) string {
 	return attributes
 }
 
-func GenerateBazelTargets(ctx *CodegenContext) (map[string]BazelTargets, CodegenMetrics) {
+func GenerateBazelTargets(ctx *CodegenContext, generateFilegroups bool) (map[string]BazelTargets, CodegenMetrics) {
 	buildFileToTargets := make(map[string]BazelTargets)
 	buildFileToAppend := make(map[string]bool)
 
@@ -185,9 +185,13 @@ func GenerateBazelTargets(ctx *CodegenContext) (map[string]BazelTargets, Codegen
 		RuleClassCount: make(map[string]int),
 	}
 
+	dirs := make(map[string]bool)
+
 	bpCtx := ctx.Context()
 	bpCtx.VisitAllModules(func(m blueprint.Module) {
 		dir := bpCtx.ModuleDir(m)
+		dirs[dir] = true
+
 		var t BazelTarget
 
 		switch ctx.Mode() {
@@ -230,6 +234,17 @@ func GenerateBazelTargets(ctx *CodegenContext) (map[string]BazelTargets, Codegen
 
 		buildFileToTargets[dir] = append(buildFileToTargets[dir], t)
 	})
+	if generateFilegroups {
+		// Add a filegroup target that exposes all sources in the subtree of this package
+		// NOTE: This also means we generate a BUILD file for every Android.bp file (as long as it has at least one module)
+		for dir, _ := range dirs {
+			buildFileToTargets[dir] = append(buildFileToTargets[dir], BazelTarget{
+				name:      "bp2build_all_srcs",
+				content:   `filegroup(name = "bp2build_all_srcs", srcs = glob(["**/*"]))`,
+				ruleClass: "filegroup",
+			})
+		}
+	}
 
 	return buildFileToTargets, metrics
 }
