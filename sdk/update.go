@@ -103,7 +103,7 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 
 	rb.Command().
 		Implicits(implicits).
-		Text("echo").Text(proptools.ShellEscape(content)).
+		Text("echo -n").Text(proptools.ShellEscape(content)).
 		// convert \\n to \n
 		Text("| sed 's/\\\\n/\\n/g' >").Output(gf.path)
 	rb.Command().
