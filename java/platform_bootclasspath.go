@@ -258,7 +258,7 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 		}
 	})
 
-	b.generateHiddenAPIBuildActions(ctx, b.configuredModules)
+	b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
 
 	// Nothing to do if skipping the dexpreopt of boot image jars.
 	if SkipDexpreoptBootJars(ctx) {
@@ -286,7 +286,7 @@ func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleCont
 }
 
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
-func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, modules []android.Module) {
+func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, modules []android.Module, fragments []android.Module) {
 
 	// Save the paths to the monolithic files for retrieval via OutputFiles().
 	b.hiddenAPIFlagsCSV = hiddenAPISingletonPaths(ctx).flags
@@ -338,11 +338,20 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 		moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, module.flagsCSV())
 	}
 
-	augmentationInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
+	flagFileInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
+	for _, fragment := range fragments {
+		if ctx.OtherModuleHasProvider(fragment, hiddenAPIFlagFileInfoProvider) {
+			info := ctx.OtherModuleProvider(fragment, hiddenAPIFlagFileInfoProvider).(hiddenAPIFlagFileInfo)
+			flagFileInfo.append(info)
+		}
+	}
+
+	// Store the information for testing.
+	ctx.SetProvider(hiddenAPIFlagFileInfoProvider, flagFileInfo)
 
 	outputPath := hiddenAPISingletonPaths(ctx).flags
 	baseFlagsPath := hiddenAPISingletonPaths(ctx).stubFlags
-	ruleToGenerateHiddenApiFlags(ctx, outputPath, baseFlagsPath, moduleSpecificFlagsPaths, augmentationInfo)
+	ruleToGenerateHiddenApiFlags(ctx, outputPath, baseFlagsPath, moduleSpecificFlagsPaths, flagFileInfo)
 
 	b.generateHiddenAPIIndexRules(ctx, hiddenAPISupportingModules)
 	b.generatedHiddenAPIMetadataRules(ctx, hiddenAPISupportingModules)
