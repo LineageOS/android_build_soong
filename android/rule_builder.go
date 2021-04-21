@@ -283,6 +283,28 @@ func (r *RuleBuilder) OrderOnlys() Paths {
 	return orderOnlyList
 }
 
+// Validations returns the list of paths that were passed to RuleBuilderCommand.Validation or
+// RuleBuilderCommand.Validations.  The list is sorted and duplicates removed.
+func (r *RuleBuilder) Validations() Paths {
+	validations := make(map[string]Path)
+	for _, c := range r.commands {
+		for _, validation := range c.validations {
+			validations[validation.String()] = validation
+		}
+	}
+
+	var validationList Paths
+	for _, validation := range validations {
+		validationList = append(validationList, validation)
+	}
+
+	sort.Slice(validationList, func(i, j int) bool {
+		return validationList[i].String() < validationList[j].String()
+	})
+
+	return validationList
+}
+
 func (r *RuleBuilder) outputSet() map[string]WritablePath {
 	outputs := make(map[string]WritablePath)
 	for _, c := range r.commands {
@@ -707,6 +729,7 @@ func (r *RuleBuilder) Build(name string, desc string) {
 		Inputs:          rspFileInputs,
 		Implicits:       inputs,
 		OrderOnly:       r.OrderOnlys(),
+		Validations:     r.Validations(),
 		Output:          output,
 		ImplicitOutputs: implicitOutputs,
 		SymlinkOutputs:  r.SymlinkOutputs(),
@@ -727,6 +750,7 @@ type RuleBuilderCommand struct {
 	inputs         Paths
 	implicits      Paths
 	orderOnlys     Paths
+	validations    Paths
 	outputs        WritablePaths
 	symlinkOutputs WritablePaths
 	depFiles       WritablePaths
@@ -1058,6 +1082,20 @@ func (c *RuleBuilderCommand) OrderOnlys(paths Paths) *RuleBuilderCommand {
 	for _, path := range paths {
 		c.addOrderOnly(path)
 	}
+	return c
+}
+
+// Validation adds the specified input path to the validation dependencies by
+// RuleBuilder.Validations without modifying the command line.
+func (c *RuleBuilderCommand) Validation(path Path) *RuleBuilderCommand {
+	c.validations = append(c.validations, path)
+	return c
+}
+
+// Validations adds the specified input paths to the validation dependencies by
+// RuleBuilder.Validations without modifying the command line.
+func (c *RuleBuilderCommand) Validations(paths Paths) *RuleBuilderCommand {
+	c.validations = append(c.validations, paths...)
 	return c
 }
 

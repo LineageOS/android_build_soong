@@ -322,6 +322,7 @@ func TestRuleBuilder(t *testing.T) {
 			Input(PathForSource(ctx, "Input")).
 			Output(PathForOutput(ctx, "module/Output")).
 			OrderOnly(PathForSource(ctx, "OrderOnly")).
+			Validation(PathForSource(ctx, "Validation")).
 			SymlinkOutput(PathForOutput(ctx, "module/SymlinkOutput")).
 			ImplicitSymlinkOutput(PathForOutput(ctx, "module/ImplicitSymlinkOutput")).
 			Text("Text").
@@ -333,6 +334,7 @@ func TestRuleBuilder(t *testing.T) {
 			Input(PathForSource(ctx, "input2")).
 			Output(PathForOutput(ctx, "module/output2")).
 			OrderOnlys(PathsForSource(ctx, []string{"OrderOnlys"})).
+			Validations(PathsForSource(ctx, []string{"Validations"})).
 			Tool(PathForSource(ctx, "tool2"))
 
 		// Test updates to the first command after the second command has been started
@@ -360,6 +362,7 @@ func TestRuleBuilder(t *testing.T) {
 		"module/DepFile", "module/depfile", "module/ImplicitDepFile", "module/depfile2"})
 	wantTools := PathsForSource(ctx, []string{"Tool", "tool2"})
 	wantOrderOnlys := PathsForSource(ctx, []string{"OrderOnly", "OrderOnlys"})
+	wantValidations := PathsForSource(ctx, []string{"Validation", "Validations"})
 	wantSymlinkOutputs := PathsForOutput(ctx, []string{
 		"module/ImplicitSymlinkOutput", "module/SymlinkOutput"})
 
@@ -387,6 +390,7 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
 		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
+		AssertDeepEquals(t, "rule.Validations()", wantValidations, rule.Validations())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
 	})
@@ -416,6 +420,7 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
 		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
+		AssertDeepEquals(t, "rule.Validations()", wantValidations, rule.Validations())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
 	})
@@ -445,6 +450,7 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
 		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
+		AssertDeepEquals(t, "rule.Validations()", wantValidations, rule.Validations())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
 	})
@@ -474,6 +480,7 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
 		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
+		AssertDeepEquals(t, "rule.Validations()", wantValidations, rule.Validations())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
 	})
@@ -501,6 +508,7 @@ func (t *testRuleBuilderModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	in := PathsForSource(ctx, t.properties.Srcs)
 	implicit := PathForSource(ctx, "implicit")
 	orderOnly := PathForSource(ctx, "orderonly")
+	validation := PathForSource(ctx, "validation")
 	out := PathForModuleOut(ctx, "gen", ctx.ModuleName())
 	outDep := PathForModuleOut(ctx, "gen", ctx.ModuleName()+".d")
 	outDir := PathForModuleOut(ctx, "gen")
@@ -510,7 +518,7 @@ func (t *testRuleBuilderModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	rspFileContents2 := PathsForSource(ctx, []string{"rsp_in2"})
 	manifestPath := PathForModuleOut(ctx, "sbox.textproto")
 
-	testRuleBuilder_Build(ctx, in, implicit, orderOnly, out, outDep, outDir,
+	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, out, outDep, outDir,
 		manifestPath, t.properties.Restat, t.properties.Sbox, t.properties.Sbox_inputs,
 		rspFile, rspFileContents, rspFile2, rspFileContents2)
 }
@@ -525,6 +533,7 @@ func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
 	in := PathsForSource(ctx, []string{"in"})
 	implicit := PathForSource(ctx, "implicit")
 	orderOnly := PathForSource(ctx, "orderonly")
+	validation := PathForSource(ctx, "validation")
 	out := PathForOutput(ctx, "singleton/gen/baz")
 	outDep := PathForOutput(ctx, "singleton/gen/baz.d")
 	outDir := PathForOutput(ctx, "singleton/gen")
@@ -534,12 +543,12 @@ func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
 	rspFileContents2 := PathsForSource(ctx, []string{"rsp_in2"})
 	manifestPath := PathForOutput(ctx, "singleton/sbox.textproto")
 
-	testRuleBuilder_Build(ctx, in, implicit, orderOnly, out, outDep, outDir,
+	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, out, outDep, outDir,
 		manifestPath, true, false, false,
 		rspFile, rspFileContents, rspFile2, rspFileContents2)
 }
 
-func testRuleBuilder_Build(ctx BuilderContext, in Paths, implicit, orderOnly Path,
+func testRuleBuilder_Build(ctx BuilderContext, in Paths, implicit, orderOnly, validation Path,
 	out, outDep, outDir, manifestPath WritablePath,
 	restat, sbox, sboxInputs bool,
 	rspFile WritablePath, rspFileContents Paths, rspFile2 WritablePath, rspFileContents2 Paths) {
@@ -558,6 +567,7 @@ func testRuleBuilder_Build(ctx BuilderContext, in Paths, implicit, orderOnly Pat
 		Inputs(in).
 		Implicit(implicit).
 		OrderOnly(orderOnly).
+		Validation(validation).
 		Output(out).
 		ImplicitDepFile(outDep).
 		FlagWithRspFileInputList("@", rspFile, rspFileContents).
@@ -632,6 +642,9 @@ func TestRuleBuilder_Build(t *testing.T) {
 
 		wantOrderOnlys := []string{"orderonly"}
 		AssertPathsRelativeToTopEquals(t, "OrderOnly", wantOrderOnlys, params.OrderOnly)
+
+		wantValidations := []string{"validation"}
+		AssertPathsRelativeToTopEquals(t, "Validations", wantValidations, params.Validations)
 
 		wantRspFileContent := "$in"
 		AssertStringEquals(t, "RspfileContent", wantRspFileContent, params.RuleParams.RspfileContent)
