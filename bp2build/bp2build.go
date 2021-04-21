@@ -28,7 +28,7 @@ func Codegen(ctx *CodegenContext) CodegenMetrics {
 	outputDir := android.PathForOutput(ctx, "bp2build")
 	android.RemoveAllOutputDir(outputDir)
 
-	buildToTargets, metrics := GenerateBazelTargets(ctx)
+	buildToTargets, metrics := GenerateBazelTargets(ctx, true)
 
 	filesToWrite := CreateBazelFiles(nil, buildToTargets, ctx.mode)
 
