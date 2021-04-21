@@ -64,7 +64,7 @@ type HiddenAPIFlagFileProperties struct {
 func (p *HiddenAPIFlagFileProperties) hiddenAPIFlagFileInfo(ctx android.ModuleContext) hiddenAPIFlagFileInfo {
 	info := hiddenAPIFlagFileInfo{categoryToPaths: map[*hiddenAPIFlagFileCategory]android.Paths{}}
 	for _, category := range hiddenAPIFlagFileCategories {
-		paths := android.PathsForModuleSrc(ctx, category.propertyAccessor(p))
+		paths := android.PathsForModuleSrc(ctx, category.propertyValueReader(p))
 		info.categoryToPaths[category] = paths
 	}
 	return info
@@ -74,9 +74,9 @@ type hiddenAPIFlagFileCategory struct {
 	// propertyName is the name of the property for this category.
 	propertyName string
 
-	// propertyAccessor retrieves the value of the property for this category from the set of
+	// propertyValueReader retrieves the value of the property for this category from the set of
 	// properties.
-	propertyAccessor func(properties *HiddenAPIFlagFileProperties) []string
+	propertyValueReader func(properties *HiddenAPIFlagFileProperties) []string
 
 	// commandMutator adds the appropriate command line options for this category to the supplied
 	// command
@@ -87,7 +87,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	// See HiddenAPIFlagFileProperties.Unsupported
 	{
 		propertyName: "unsupported",
-		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
+		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Unsupported
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
@@ -97,7 +97,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	// See HiddenAPIFlagFileProperties.Removed
 	{
 		propertyName: "removed",
-		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
+		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Removed
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
@@ -107,7 +107,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	// See HiddenAPIFlagFileProperties.Max_target_r_low_priority
 	{
 		propertyName: "max_target_r_low_priority",
-		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
+		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_r_low_priority
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
@@ -117,7 +117,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	// See HiddenAPIFlagFileProperties.Max_target_q
 	{
 		propertyName: "max_target_q",
-		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
+		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_q
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
@@ -127,7 +127,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	// See HiddenAPIFlagFileProperties.Max_target_p
 	{
 		propertyName: "max_target_p",
-		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
+		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_p
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
@@ -137,7 +137,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	// See HiddenAPIFlagFileProperties.Max_target_o_low_priority
 	{
 		propertyName: "max_target_o_low_priority",
-		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
+		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Max_target_o_low_priority
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
@@ -147,7 +147,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	// See HiddenAPIFlagFileProperties.Blocked
 	{
 		propertyName: "blocked",
-		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
+		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Blocked
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
@@ -157,7 +157,7 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	// See HiddenAPIFlagFileProperties.Unsupported_packages
 	{
 		propertyName: "unsupported_packages",
-		propertyAccessor: func(properties *HiddenAPIFlagFileProperties) []string {
+		propertyValueReader: func(properties *HiddenAPIFlagFileProperties) []string {
 			return properties.Unsupported_packages
 		},
 		commandMutator: func(command *android.RuleBuilderCommand, path android.Path) {
