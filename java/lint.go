@@ -57,6 +57,9 @@ type LintProperties struct {
 
 		// Name of the file that lint uses as the baseline. Defaults to "lint-baseline.xml".
 		Baseline_filename *string
+
+		// If true, baselining updatability lint checks (e.g. NewApi) is prohibited. Defaults to false.
+		Strict_updatability_linting *bool
 	}
 }
 
@@ -256,6 +259,13 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	cmd.FlagForEachArg("--warning_check ", l.properties.Lint.Warning_checks)
 	cmd.FlagForEachArg("--error_check ", l.properties.Lint.Error_checks)
 	cmd.FlagForEachArg("--fatal_check ", l.properties.Lint.Fatal_checks)
+
+	if BoolDefault(l.properties.Lint.Strict_updatability_linting, false) {
+		if baselinePath := l.getBaselineFilepath(ctx); baselinePath.Valid() {
+			cmd.FlagWithInput("--baseline ", baselinePath.Path())
+			cmd.FlagForEachArg("--disallowed_issues ", updatabilityChecks)
+		}
+	}
 
 	return lintPaths{
 		projectXML: projectXMLPath,
