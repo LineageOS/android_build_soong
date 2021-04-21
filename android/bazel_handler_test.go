@@ -11,7 +11,7 @@ func TestRequestResultsAfterInvokeBazel(t *testing.T) {
 	label := "//foo:bar"
 	arch := Arm64
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
-		bazelCommand{command: "cquery", expression: "kind(rule, deps(//:buildroot))"}: `@sourceroot//foo:bar|arm64>>out/foo/bar.txt`,
+		bazelCommand{command: "cquery", expression: "kind(rule, deps(@soong_injection//:buildroot))"}: `//foo:bar|arm64>>out/foo/bar.txt`,
 	})
 	g, ok := bazelContext.GetOutputFiles(label, arch)
 	if ok {
@@ -35,19 +35,19 @@ func TestInvokeBazelWritesBazelFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Did not expect error invoking Bazel, but got %s", err)
 	}
-	if _, err := os.Stat(filepath.Join(baseDir, "bazel", "main.bzl")); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(baseDir, "soong_injection", "main.bzl")); os.IsNotExist(err) {
 		t.Errorf("Expected main.bzl to exist, but it does not")
 	} else if err != nil {
 		t.Errorf("Unexpected error stating main.bzl %s", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(baseDir, "bazel", "BUILD.bazel")); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(baseDir, "soong_injection", "BUILD.bazel")); os.IsNotExist(err) {
 		t.Errorf("Expected BUILD.bazel to exist, but it does not")
 	} else if err != nil {
 		t.Errorf("Unexpected error stating BUILD.bazel %s", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(baseDir, "bazel", "WORKSPACE.bazel")); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(baseDir, "soong_injection", "WORKSPACE.bazel")); os.IsNotExist(err) {
 		t.Errorf("Expected WORKSPACE.bazel to exist, but it does not")
 	} else if err != nil {
 		t.Errorf("Unexpected error stating WORKSPACE.bazel %s", err)
@@ -56,7 +56,7 @@ func TestInvokeBazelWritesBazelFiles(t *testing.T) {
 
 func TestInvokeBazelPopulatesBuildStatements(t *testing.T) {
 	bazelContext, _ := testBazelContext(t, map[bazelCommand]string{
-		bazelCommand{command: "aquery", expression: "deps(//:buildroot)"}: `
+		bazelCommand{command: "aquery", expression: "deps(@soong_injection//:buildroot)"}: `
 {
   "artifacts": [{
     "id": 1,
@@ -105,7 +105,7 @@ func testBazelContext(t *testing.T, bazelCommandResults map[bazelCommand]string)
 		outputBase:   "outputbase",
 		workspaceDir: "workspace_dir",
 	}
-	aqueryCommand := bazelCommand{command: "aquery", expression: "deps(//:buildroot)"}
+	aqueryCommand := bazelCommand{command: "aquery", expression: "deps(@soong_injection//:buildroot)"}
 	if _, exists := bazelCommandResults[aqueryCommand]; !exists {
 		bazelCommandResults[aqueryCommand] = "{}\n"
 	}
