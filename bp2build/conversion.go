@@ -2,6 +2,7 @@ package bp2build
 
 import (
 	"android/soong/android"
+	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -48,6 +49,10 @@ func CreateBazelFiles(
 func createBuildFiles(buildToTargets map[string]BazelTargets, mode CodegenMode) []BazelFile {
 	files := make([]BazelFile, 0, len(buildToTargets))
 	for _, dir := range android.SortedStringKeys(buildToTargets) {
+		if !android.ShouldWriteBuildFileForDir(dir) {
+			fmt.Printf("[bp2build] Not writing generated BUILD file for dir: '%s'\n", dir)
+			continue
+		}
 		targets := buildToTargets[dir]
 		sort.Slice(targets, func(i, j int) bool {
 			// this will cover all bp2build generated targets
