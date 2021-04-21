@@ -339,6 +339,15 @@ func FixtureModifyProductVariables(mutator func(variables FixtureProductVariable
 	})
 }
 
+// PrepareForDebug_DO_NOT_SUBMIT puts the fixture into debug which will cause it to output its
+// state before running the test.
+//
+// This must only be added temporarily to a test for local debugging and must be removed from the
+// test before submitting.
+var PrepareForDebug_DO_NOT_SUBMIT = newSimpleFixturePreparer(func(fixture *fixture) {
+	fixture.debug = true
+})
+
 // GroupFixturePreparers creates a composite FixturePreparer that is equivalent to applying each of
 // the supplied FixturePreparer instances in order.
 //
@@ -708,6 +717,9 @@ type fixture struct {
 
 	// The error handler used to check the errors, if any, that are reported.
 	errorHandler FixtureErrorHandler
+
+	// Debug mode status
+	debug bool
 }
 
 func (f *fixture) Config() Config {
@@ -724,6 +736,11 @@ func (f *fixture) MockFS() MockFS {
 
 func (f *fixture) RunTest() *TestResult {
 	f.t.Helper()
+
+	// If in debug mode output the state of the fixture before running the test.
+	if f.debug {
+		f.outputDebugState()
+	}
 
 	ctx := f.ctx
 
@@ -767,6 +784,39 @@ func (f *fixture) RunTest() *TestResult {
 	f.errorHandler.CheckErrors(f.t, result)
 
 	return result
+}
+
+func (f *fixture) outputDebugState() {
+	fmt.Printf("Begin Fixture State for %s\n", f.t.Name())
+	if len(f.config.env) == 0 {
+		fmt.Printf("  Fixture Env is empty\n")
+	} else {
+		fmt.Printf("  Begin Env\n")
+		for k, v := range f.config.env {
+			fmt.Printf("  - %s=%s\n", k, v)
+		}
+		fmt.Printf("  End Env\n")
+	}
+	if len(f.mockFS) == 0 {
+		fmt.Printf("  Mock FS is empty\n")
+	} else {
+		fmt.Printf("  Begin Mock FS Contents\n")
+		for p, c := range f.mockFS {
+			if c == nil {
+				fmt.Printf("\n  - %s: nil\n", p)
+			} else {
+				contents := string(c)
+				separator := "    ========================================================================"
+				fmt.Printf("  - %s\n%s\n", p, separator)
+				for i, line := range strings.Split(contents, "\n") {
+					fmt.Printf("      %6d:    %s\n", i+1, line)
+				}
+				fmt.Printf("%s\n", separator)
+			}
+		}
+		fmt.Printf("  End Mock FS Contents\n")
+	}
+	fmt.Printf("End Fixture State for %s\n", f.t.Name())
 }
 
 // NormalizePathForTesting removes the test invocation specific build directory from the supplied
