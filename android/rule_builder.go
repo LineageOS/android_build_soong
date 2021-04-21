@@ -460,7 +460,6 @@ func (r *RuleBuilder) Build(name string, desc string) {
 		r.ctx.Build(pctx, BuildParams{
 			Rule:        ErrorRule,
 			Outputs:     r.Outputs(),
-			OrderOnly:   r.OrderOnlys(),
 			Description: desc,
 			Args: map[string]string{
 				"error": "missing dependencies: " + strings.Join(r.missingDeps, ", "),
@@ -707,6 +706,7 @@ func (r *RuleBuilder) Build(name string, desc string) {
 		}),
 		Inputs:          rspFileInputs,
 		Implicits:       inputs,
+		OrderOnly:       r.OrderOnlys(),
 		Output:          output,
 		ImplicitOutputs: implicitOutputs,
 		SymlinkOutputs:  r.SymlinkOutputs(),
