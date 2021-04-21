@@ -30,7 +30,7 @@ type stubLibraries struct {
 }
 
 // Check if the module defines stub, or itself is stub
-func isStubTarget(m *Module) bool {
+func IsStubTarget(m *Module) bool {
 	if m.IsStubs() || m.HasStubsVariants() {
 		return true
 	}
@@ -61,7 +61,7 @@ func (s *stubLibraries) GenerateBuildActions(ctx android.SingletonContext) {
 	// Visit all generated soong modules and store stub library file names.
 	ctx.VisitAllModules(func(module android.Module) {
 		if m, ok := module.(*Module); ok {
-			if isStubTarget(m) {
+			if IsStubTarget(m) {
 				if name := getInstalledFileName(m); name != "" {
 					s.stubLibraryMap[name] = true
 				}
