@@ -1,5 +1,7 @@
 #!/bin/bash -eu
 
+set -o pipefail
+
 # This test exercises the bootstrapping process of the build system
 # in a source tree that only contains enough files for Bazel and Soong to work.
 
