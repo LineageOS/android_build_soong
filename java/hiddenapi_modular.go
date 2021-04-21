@@ -206,7 +206,7 @@ var hiddenAPIFlagFileInfoProvider = blueprint.NewProvider(hiddenAPIFlagFileInfo{
 // augmentationInfo is a struct containing paths to files that augment the information provided by
 // the moduleSpecificFlagsPaths.
 func ruleToGenerateHiddenApiFlags(ctx android.BuilderContext, outputPath android.WritablePath, baseFlagsPath android.Path, moduleSpecificFlagsPaths android.Paths, augmentationInfo hiddenAPIFlagFileInfo) {
-	tempPath := android.PathForOutput(ctx, outputPath.Rel()+".tmp")
+	tempPath := tempPathForRestat(ctx, outputPath)
 	rule := android.NewRuleBuilder(pctx, ctx)
 	command := rule.Command().
 		BuiltTool("generate_hiddenapi_lists").
