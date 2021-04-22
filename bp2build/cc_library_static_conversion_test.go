@@ -119,71 +119,70 @@ cc_library_headers {
 cc_library_static {
     name: "static_lib_1",
     srcs: ["static_lib_1.cc"],
-    bazel_module: { bp2build_available: true },
 }
 
 cc_library_static {
     name: "static_lib_2",
     srcs: ["static_lib_2.cc"],
-    bazel_module: { bp2build_available: true },
 }
 
 cc_library_static {
     name: "whole_static_lib_1",
     srcs: ["whole_static_lib_1.cc"],
-    bazel_module: { bp2build_available: true },
 }
 
 cc_library_static {
     name: "whole_static_lib_2",
     srcs: ["whole_static_lib_2.cc"],
-    bazel_module: { bp2build_available: true },
 }
 
 cc_library_static {
     name: "foo_static",
     srcs: [
         "foo_static1.cc",
-	"foo_static2.cc",
+        "foo_static2.cc",
     ],
     cflags: [
         "-Dflag1",
-	"-Dflag2"
+        "-Dflag2"
     ],
     static_libs: [
         "static_lib_1",
-	"static_lib_2"
+        "static_lib_2"
     ],
     whole_static_libs: [
         "whole_static_lib_1",
-	"whole_static_lib_2"
+        "whole_static_lib_2"
     ],
     include_dirs: [
-	"include_dir_1",
-	"include_dir_2",
+        "include_dir_1",
+        "include_dir_2",
     ],
     local_include_dirs: [
         "local_include_dir_1",
-	"local_include_dir_2",
+        "local_include_dir_2",
     ],
     export_include_dirs: [
-	"export_include_dir_1",
-	"export_include_dir_2"
+    "export_include_dir_1",
+    "export_include_dir_2"
     ],
     header_libs: [
         "header_lib_1",
-	"header_lib_2"
+        "header_lib_2"
     ],
 
     // TODO: Also support export_header_lib_headers
-
-    bazel_module: { bp2build_available: true },
 }`,
 			expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static",
     copts = [
         "-Dflag1",
         "-Dflag2",
+        "-Iinclude_dir_1",
+        "-Iinclude_dir_2",
+        "-Ilocal_include_dir_1",
+        "-Ilocal_include_dir_2",
+        "-I.",
     ],
     deps = [
         ":header_lib_1",
@@ -194,8 +193,6 @@ cc_library_static {
         ":whole_static_lib_2",
     ],
     hdrs = [
-        "implicit_include_1.h",
-        "implicit_include_2.h",
         "export_include_dir_1/export_include_dir_1_a.h",
         "export_include_dir_1/export_include_dir_1_b.h",
         "export_include_dir_2/export_include_dir_2_a.h",
@@ -204,16 +201,17 @@ cc_library_static {
     includes = [
         "export_include_dir_1",
         "export_include_dir_2",
-        "include_dir_1",
-        "include_dir_2",
-        "local_include_dir_1",
-        "local_include_dir_2",
-        ".",
     ],
     linkstatic = True,
     srcs = [
         "foo_static1.cc",
         "foo_static2.cc",
+        "implicit_include_1.h",
+        "implicit_include_2.h",
+        "export_include_dir_1/export_include_dir_1_a.h",
+        "export_include_dir_1/export_include_dir_1_b.h",
+        "export_include_dir_2/export_include_dir_2_a.h",
+        "export_include_dir_2/export_include_dir_2_b.h",
         "include_dir_1/include_dir_1_a.h",
         "include_dir_1/include_dir_1_b.h",
         "include_dir_2/include_dir_2_a.h",
@@ -222,60 +220,90 @@ cc_library_static {
         "local_include_dir_1/local_include_dir_1_b.h",
         "local_include_dir_2/local_include_dir_2_a.h",
         "local_include_dir_2/local_include_dir_2_b.h",
-        "implicit_include_1.h",
-        "implicit_include_2.h",
     ],
 )`, `cc_library_static(
     name = "static_lib_1",
-    hdrs = [
-        "implicit_include_1.h",
-        "implicit_include_2.h",
-    ],
-    includes = ["."],
+    copts = ["-I."],
     linkstatic = True,
     srcs = [
         "static_lib_1.cc",
         "implicit_include_1.h",
         "implicit_include_2.h",
+        "export_include_dir_1/export_include_dir_1_a.h",
+        "export_include_dir_1/export_include_dir_1_b.h",
+        "export_include_dir_2/export_include_dir_2_a.h",
+        "export_include_dir_2/export_include_dir_2_b.h",
+        "include_dir_1/include_dir_1_a.h",
+        "include_dir_1/include_dir_1_b.h",
+        "include_dir_2/include_dir_2_a.h",
+        "include_dir_2/include_dir_2_b.h",
+        "local_include_dir_1/local_include_dir_1_a.h",
+        "local_include_dir_1/local_include_dir_1_b.h",
+        "local_include_dir_2/local_include_dir_2_a.h",
+        "local_include_dir_2/local_include_dir_2_b.h",
     ],
 )`, `cc_library_static(
     name = "static_lib_2",
-    hdrs = [
-        "implicit_include_1.h",
-        "implicit_include_2.h",
-    ],
-    includes = ["."],
+    copts = ["-I."],
     linkstatic = True,
     srcs = [
         "static_lib_2.cc",
         "implicit_include_1.h",
         "implicit_include_2.h",
+        "export_include_dir_1/export_include_dir_1_a.h",
+        "export_include_dir_1/export_include_dir_1_b.h",
+        "export_include_dir_2/export_include_dir_2_a.h",
+        "export_include_dir_2/export_include_dir_2_b.h",
+        "include_dir_1/include_dir_1_a.h",
+        "include_dir_1/include_dir_1_b.h",
+        "include_dir_2/include_dir_2_a.h",
+        "include_dir_2/include_dir_2_b.h",
+        "local_include_dir_1/local_include_dir_1_a.h",
+        "local_include_dir_1/local_include_dir_1_b.h",
+        "local_include_dir_2/local_include_dir_2_a.h",
+        "local_include_dir_2/local_include_dir_2_b.h",
     ],
 )`, `cc_library_static(
     name = "whole_static_lib_1",
-    hdrs = [
-        "implicit_include_1.h",
-        "implicit_include_2.h",
-    ],
-    includes = ["."],
+    copts = ["-I."],
     linkstatic = True,
     srcs = [
         "whole_static_lib_1.cc",
         "implicit_include_1.h",
         "implicit_include_2.h",
+        "export_include_dir_1/export_include_dir_1_a.h",
+        "export_include_dir_1/export_include_dir_1_b.h",
+        "export_include_dir_2/export_include_dir_2_a.h",
+        "export_include_dir_2/export_include_dir_2_b.h",
+        "include_dir_1/include_dir_1_a.h",
+        "include_dir_1/include_dir_1_b.h",
+        "include_dir_2/include_dir_2_a.h",
+        "include_dir_2/include_dir_2_b.h",
+        "local_include_dir_1/local_include_dir_1_a.h",
+        "local_include_dir_1/local_include_dir_1_b.h",
+        "local_include_dir_2/local_include_dir_2_a.h",
+        "local_include_dir_2/local_include_dir_2_b.h",
     ],
 )`, `cc_library_static(
     name = "whole_static_lib_2",
-    hdrs = [
-        "implicit_include_1.h",
-        "implicit_include_2.h",
-    ],
-    includes = ["."],
+    copts = ["-I."],
     linkstatic = True,
     srcs = [
         "whole_static_lib_2.cc",
         "implicit_include_1.h",
         "implicit_include_2.h",
+        "export_include_dir_1/export_include_dir_1_a.h",
+        "export_include_dir_1/export_include_dir_1_b.h",
+        "export_include_dir_2/export_include_dir_2_a.h",
+        "export_include_dir_2/export_include_dir_2_b.h",
+        "include_dir_1/include_dir_1_a.h",
+        "include_dir_1/include_dir_1_b.h",
+        "include_dir_2/include_dir_2_a.h",
+        "include_dir_2/include_dir_2_b.h",
+        "local_include_dir_1/local_include_dir_1_a.h",
+        "local_include_dir_1/local_include_dir_1_b.h",
+        "local_include_dir_2/local_include_dir_2_a.h",
+        "local_include_dir_2/local_include_dir_2_b.h",
     ],
 )`},
 		},
@@ -306,14 +334,12 @@ cc_library_static {
     include_dirs: [
 	"subpackage",
     ],
-
-    bazel_module: { bp2build_available: true },
 }`,
 			expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static",
-    includes = [
-        "subpackage",
-        ".",
+    copts = [
+        "-Isubpackage",
+        "-I.",
     ],
     linkstatic = True,
     srcs = [
@@ -324,6 +350,299 @@ cc_library_static {
         "//subpackage/subsubpackage/subsubsubpackage:subsubsubpackage_header.h",
         "//subpackage/subsubpackage/subsubsubpackage:subdirectory/subdirectory_header.h",
     ],
+)`},
+		},
+		{
+			description:                        "cc_library_static export include dir",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			filesystem: map[string]string{
+				// subpackage with subdirectory
+				"subpackage/Android.bp":                         "",
+				"subpackage/subpackage_header.h":                "",
+				"subpackage/subdirectory/subdirectory_header.h": "",
+			},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    export_include_dirs: ["subpackage"],
+}`,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = ["-I."],
+    hdrs = [
+        "//subpackage:subdirectory/subdirectory_header.h",
+        "//subpackage:subpackage_header.h",
+    ],
+    includes = ["subpackage"],
+    linkstatic = True,
+    srcs = [
+        "//subpackage:subpackage_header.h",
+        "//subpackage:subdirectory/subdirectory_header.h",
+    ],
+)`},
+		},
+		{
+			description:                        "cc_library_static export system include dir",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			filesystem: map[string]string{
+				// subpackage with subdirectory
+				"subpackage/Android.bp":                         "",
+				"subpackage/subpackage_header.h":                "",
+				"subpackage/subdirectory/subdirectory_header.h": "",
+			},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    export_system_include_dirs: ["subpackage"],
+}`,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = ["-I."],
+    hdrs = [
+        "//subpackage:subdirectory/subdirectory_header.h",
+        "//subpackage:subpackage_header.h",
+    ],
+    includes = ["subpackage"],
+    linkstatic = True,
+    srcs = [
+        "//subpackage:subpackage_header.h",
+        "//subpackage:subdirectory/subdirectory_header.h",
+    ],
+)`},
+		},
+		{
+			description:                        "cc_library_static include_dirs, local_include_dirs, export_include_dirs (b/183742505)",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			dir:                                "subpackage",
+			filesystem: map[string]string{
+				// subpackage with subdirectory
+				"subpackage/Android.bp": `
+cc_library_static {
+    name: "foo_static",
+    // include_dirs are workspace/root relative
+    include_dirs: [
+        "subpackage/subsubpackage",
+        "subpackage2",
+        "subpackage3/subsubpackage"
+    ],
+    local_include_dirs: ["subsubpackage2"], // module dir relative
+    export_include_dirs: ["./exported_subsubpackage"], // module dir relative
+    include_build_directory: true,
+    bazel_module: { bp2build_available: true },
+}`,
+				"subpackage/subsubpackage/header.h":          "",
+				"subpackage/subsubpackage2/header.h":         "",
+				"subpackage/exported_subsubpackage/header.h": "",
+				"subpackage2/header.h":                       "",
+				"subpackage3/subsubpackage/header.h":         "",
+			},
+			bp: soongCcLibraryStaticPreamble,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = [
+        "-Isubpackage/subsubpackage",
+        "-Isubpackage2",
+        "-Isubpackage3/subsubpackage",
+        "-Isubpackage/subsubpackage2",
+        "-Isubpackage",
+    ],
+    hdrs = ["exported_subsubpackage/header.h"],
+    includes = ["./exported_subsubpackage"],
+    linkstatic = True,
+    srcs = [
+        "exported_subsubpackage/header.h",
+        "subsubpackage/header.h",
+        "subsubpackage2/header.h",
+    ],
+)`},
+		},
+		{
+			description:                        "cc_library_static include_build_directory disabled",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			filesystem: map[string]string{
+				// subpackage with subdirectory
+				"subpackage/Android.bp":                         "",
+				"subpackage/subpackage_header.h":                "",
+				"subpackage/subdirectory/subdirectory_header.h": "",
+			},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    include_dirs: ["subpackage"], // still used, but local_include_dirs is recommended
+    local_include_dirs: ["subpackage2"],
+    include_build_directory: false,
+}`,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = [
+        "-Isubpackage",
+        "-Isubpackage2",
+    ],
+    linkstatic = True,
+)`},
+		},
+		{
+			description:                        "cc_library_static include_build_directory enabled",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			filesystem: map[string]string{
+				// subpackage with subdirectory
+				"subpackage/Android.bp":                         "",
+				"subpackage/subpackage_header.h":                "",
+				"subpackage2/Android.bp":                        "",
+				"subpackage2/subpackage2_header.h":              "",
+				"subpackage/subdirectory/subdirectory_header.h": "",
+			},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    include_dirs: ["subpackage"], // still used, but local_include_dirs is recommended
+    local_include_dirs: ["subpackage2"],
+    include_build_directory: true,
+}`,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = [
+        "-Isubpackage",
+        "-Isubpackage2",
+        "-I.",
+    ],
+    linkstatic = True,
+    srcs = [
+        "//subpackage:subpackage_header.h",
+        "//subpackage:subdirectory/subdirectory_header.h",
+        "//subpackage2:subpackage2_header.h",
+    ],
+)`},
+		},
+		{
+			description:                        "cc_library_static arch-specific static_libs",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			filesystem:                         map[string]string{},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static { name: "static_dep" }
+cc_library_static { name: "static_dep2" }
+cc_library_static {
+    name: "foo_static",
+    arch: { arm64: { static_libs: ["static_dep"], whole_static_libs: ["static_dep2"] } },
+}`,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = ["-I."],
+    deps = select({
+        "//build/bazel/platforms/arch:arm64": [
+            ":static_dep",
+            ":static_dep2",
+        ],
+        "//conditions:default": [],
+    }),
+    linkstatic = True,
+)`, `cc_library_static(
+    name = "static_dep",
+    copts = ["-I."],
+    linkstatic = True,
+)`, `cc_library_static(
+    name = "static_dep2",
+    copts = ["-I."],
+    linkstatic = True,
+)`},
+		},
+		{
+			description:                        "cc_library_static os-specific static_libs",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			filesystem:                         map[string]string{},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static { name: "static_dep" }
+cc_library_static { name: "static_dep2" }
+cc_library_static {
+    name: "foo_static",
+    target: { android: { static_libs: ["static_dep"], whole_static_libs: ["static_dep2"] } },
+}`,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = ["-I."],
+    deps = select({
+        "//build/bazel/platforms/os:android": [
+            ":static_dep",
+            ":static_dep2",
+        ],
+        "//conditions:default": [],
+    }),
+    linkstatic = True,
+)`, `cc_library_static(
+    name = "static_dep",
+    copts = ["-I."],
+    linkstatic = True,
+)`, `cc_library_static(
+    name = "static_dep2",
+    copts = ["-I."],
+    linkstatic = True,
+)`},
+		},
+		{
+			description:                        "cc_library_static base, arch and os-specific static_libs",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			filesystem:                         map[string]string{},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static { name: "static_dep" }
+cc_library_static { name: "static_dep2" }
+cc_library_static { name: "static_dep3" }
+cc_library_static { name: "static_dep4" }
+cc_library_static {
+    name: "foo_static",
+    static_libs: ["static_dep"],
+    whole_static_libs: ["static_dep2"],
+    target: { android: { static_libs: ["static_dep3"] } },
+    arch: { arm64: { static_libs: ["static_dep4"] } },
+}`,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = ["-I."],
+    deps = [
+        ":static_dep",
+        ":static_dep2",
+    ] + select({
+        "//build/bazel/platforms/arch:arm64": [":static_dep4"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms/os:android": [":static_dep3"],
+        "//conditions:default": [],
+    }),
+    linkstatic = True,
+)`, `cc_library_static(
+    name = "static_dep",
+    copts = ["-I."],
+    linkstatic = True,
+)`, `cc_library_static(
+    name = "static_dep2",
+    copts = ["-I."],
+    linkstatic = True,
+)`, `cc_library_static(
+    name = "static_dep3",
+    copts = ["-I."],
+    linkstatic = True,
+)`, `cc_library_static(
+    name = "static_dep4",
+    copts = ["-I."],
+    linkstatic = True,
 )`},
 		},
 	}
@@ -352,6 +671,7 @@ cc_library_static {
 			ctx.DepsBp2BuildMutators(m)
 		}
 		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
+		ctx.RegisterBp2BuildConfig(bp2buildConfig)
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, toParse)
