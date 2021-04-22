@@ -25,6 +25,7 @@ import (
 
 	"android/soong/bp2build"
 	"android/soong/shared"
+
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/deptools"
 
@@ -174,7 +175,7 @@ func writeJsonModuleGraph(configuration android.Config, ctx *android.Context, pa
 }
 
 func doChosenActivity(configuration android.Config, extraNinjaDeps []string) string {
-	bazelConversionRequested := configuration.IsEnvTrue("GENERATE_BAZEL_FILES") || bp2buildMarker != ""
+	bazelConversionRequested := bp2buildMarker != ""
 	mixedModeBuild := configuration.BazelContext.BazelEnabled()
 	generateQueryView := bazelQueryViewDir != ""
 	jsonModuleFile := configuration.Getenv("SOONG_DUMP_JSON_MODULE_GRAPH")
@@ -392,9 +393,7 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	ninjaDeps := bootstrap.RunBlueprint(blueprintArgs, bp2buildCtx.Context, configuration)
 	ninjaDeps = append(ninjaDeps, extraNinjaDeps...)
 
-	for _, globPath := range bp2buildCtx.Globs() {
-		ninjaDeps = append(ninjaDeps, globPath.FileListFile(configuration.BuildDir()))
-	}
+	ninjaDeps = append(ninjaDeps, bootstrap.GlobFileListFiles(configuration)...)
 
 	// Run the code-generation phase to convert BazelTargetModules to BUILD files
 	// and print conversion metrics to the user.
