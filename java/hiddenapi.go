@@ -156,16 +156,24 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, configurationNa
 
 		// A source module that has been replaced by a prebuilt can never be the primary module.
 		if module.IsReplacedByPrebuilt() {
-			ctx.VisitDirectDepsWithTag(android.PrebuiltDepTag, func(prebuilt android.Module) {
-				if h, ok := prebuilt.(hiddenAPIIntf); ok && h.bootDexJar() != nil {
-					primary = false
-				} else {
-					ctx.ModuleErrorf(
-						"hiddenapi has determined that the source module %q should be ignored as it has been"+
-							" replaced by the prebuilt module %q but unfortunately it does not provide a"+
-							" suitable boot dex jar", ctx.ModuleName(), ctx.OtherModuleName(prebuilt))
-				}
-			})
+			if ctx.HasProvider(android.ApexInfoProvider) {
+				// The source module is in an APEX but the prebuilt module on which it depends is not in an
+				// APEX and so is not the one that will actually be used for hidden API processing. That
+				// means it is not possible to check to see if it is a suitable replacement so just assume
+				// that it is.
+				primary = false
+			} else {
+				ctx.VisitDirectDepsWithTag(android.PrebuiltDepTag, func(prebuilt android.Module) {
+					if h, ok := prebuilt.(hiddenAPIIntf); ok && h.bootDexJar() != nil {
+						primary = false
+					} else {
+						ctx.ModuleErrorf(
+							"hiddenapi has determined that the source module %q should be ignored as it has been"+
+								" replaced by the prebuilt module %q but unfortunately it does not provide a"+
+								" suitable boot dex jar", ctx.ModuleName(), ctx.OtherModuleName(prebuilt))
+					}
+				})
+			}
 		}
 	}
 	h.primary = primary

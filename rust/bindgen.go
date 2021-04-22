@@ -79,7 +79,7 @@ type BindgenProperties struct {
 	// binary must expect arguments in a similar fashion to bindgen, e.g.
 	//
 	// "my_bindgen [flags] wrapper_header.h -o [output_path] -- [clang flags]"
-	Custom_bindgen string `android:"path"`
+	Custom_bindgen string
 }
 
 type bindgenDecorator struct {
