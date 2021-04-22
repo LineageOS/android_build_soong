@@ -247,7 +247,7 @@ func createSdkFrameworkAidl(ctx android.SingletonContext) {
 	}
 
 	combinedAidl := sdkFrameworkAidlPath(ctx)
-	tempPath := combinedAidl.ReplaceExtension(ctx, "aidl.tmp")
+	tempPath := tempPathForRestat(ctx, combinedAidl)
 
 	rule := createFrameworkAidl(stubsModules, tempPath, ctx)
 
@@ -261,7 +261,7 @@ func createNonUpdatableFrameworkAidl(ctx android.SingletonContext) {
 	stubsModules := []string{"android_module_lib_stubs_current"}
 
 	combinedAidl := nonUpdatableFrameworkAidlPath(ctx)
-	tempPath := combinedAidl.ReplaceExtension(ctx, "aidl.tmp")
+	tempPath := tempPathForRestat(ctx, combinedAidl)
 
 	rule := createFrameworkAidl(stubsModules, tempPath, ctx)
 
@@ -270,7 +270,7 @@ func createNonUpdatableFrameworkAidl(ctx android.SingletonContext) {
 	rule.Build("framework_non_updatable_aidl", "generate framework_non_updatable.aidl")
 }
 
-func createFrameworkAidl(stubsModules []string, path android.OutputPath, ctx android.SingletonContext) *android.RuleBuilder {
+func createFrameworkAidl(stubsModules []string, path android.WritablePath, ctx android.SingletonContext) *android.RuleBuilder {
 	stubsJars := make([]android.Paths, len(stubsModules))
 
 	ctx.VisitAllModules(func(module android.Module) {

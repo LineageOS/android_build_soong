@@ -15,6 +15,8 @@
 package java
 
 import (
+	"strings"
+
 	"android/soong/android"
 )
 
@@ -242,7 +244,7 @@ func stubFlagsRule(ctx android.SingletonContext) {
 	rule := android.NewRuleBuilder(pctx, ctx)
 
 	outputPath := hiddenAPISingletonPaths(ctx).stubFlags
-	tempPath := android.PathForOutput(ctx, outputPath.Rel()+".tmp")
+	tempPath := tempPathForRestat(ctx, outputPath)
 
 	rule.MissingDeps(missingDeps)
 
@@ -346,6 +348,16 @@ func emptyFlagsRule(ctx android.SingletonContext) android.Path {
 	rule.Build("emptyHiddenAPIFlagsFile", "empty hiddenapi flags")
 
 	return outputPath
+}
+
+// tempPathForRestat creates a path of the same type as the supplied type but with a name of
+// <path>.tmp.
+//
+// e.g. If path is an OutputPath for out/soong/hiddenapi/hiddenapi-flags.csv then this will return
+// an OutputPath for out/soong/hiddenapi/hiddenapi-flags.csv.tmp
+func tempPathForRestat(ctx android.PathContext, path android.WritablePath) android.WritablePath {
+	extWithoutLeadingDot := strings.TrimPrefix(path.Ext(), ".")
+	return path.ReplaceExtension(ctx, extWithoutLeadingDot+".tmp")
 }
 
 // commitChangeForRestat adds a command to a rule that updates outputPath from tempPath if they are different.  It
