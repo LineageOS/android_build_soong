@@ -219,7 +219,9 @@ func (b *BootImageModule) ComponentDepsMutator(ctx android.BottomUpMutatorContex
 	for _, name := range b.properties.Contents {
 		// A bootclasspath_fragment must depend only on other source modules, while the
 		// prebuilt_bootclasspath_fragment must only depend on other prebuilt modules.
-		if !isSourceModule {
+		//
+		// TODO(b/177892522) - avoid special handling of jacocoagent.
+		if !isSourceModule && name != "jacocoagent" {
 			name = android.PrebuiltNameFromSource(name)
 		}
 		ctx.AddDependency(module, bootclasspathFragmentContentDepTag, name)
