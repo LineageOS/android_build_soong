@@ -200,7 +200,7 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	srcJarList := zipSyncCmd(ctx, rule, srcJarDir, l.srcJars)
 
 	cmd := rule.Command().
-		BuiltTool("lint-project-xml").
+		BuiltTool("lint_project_xml").
 		FlagWithOutput("--project_out ", projectXMLPath).
 		FlagWithOutput("--config_out ", configXMLPath).
 		FlagWithArg("--name ", ctx.ModuleName())
@@ -277,6 +277,19 @@ func (l *linter) generateManifest(ctx android.ModuleContext, rule *android.RuleB
 		Text(") >").Output(manifestPath)
 
 	return manifestPath
+}
+
+func (l *linter) getBaselineFilepath(ctx android.ModuleContext) android.OptionalPath {
+	var lintBaseline android.OptionalPath
+	if lintFilename := proptools.StringDefault(l.properties.Lint.Baseline_filename, "lint-baseline.xml"); lintFilename != "" {
+		if String(l.properties.Lint.Baseline_filename) != "" {
+			// if manually specified, we require the file to exist
+			lintBaseline = android.OptionalPathForPath(android.PathForModuleSrc(ctx, lintFilename))
+		} else {
+			lintBaseline = android.ExistentPathForSource(ctx, ctx.ModuleDir(), lintFilename)
+		}
+	}
+	return lintBaseline
 }
 
 func (l *linter) lint(ctx android.ModuleContext) {
@@ -381,17 +394,9 @@ func (l *linter) lint(ctx android.ModuleContext) {
 		cmd.FlagWithArg("--check ", checkOnly)
 	}
 
-	if lintFilename := proptools.StringDefault(l.properties.Lint.Baseline_filename, "lint-baseline.xml"); lintFilename != "" {
-		var lintBaseline android.OptionalPath
-		if String(l.properties.Lint.Baseline_filename) != "" {
-			// if manually specified, we require the file to exist
-			lintBaseline = android.OptionalPathForPath(android.PathForModuleSrc(ctx, lintFilename))
-		} else {
-			lintBaseline = android.ExistentPathForSource(ctx, ctx.ModuleDir(), lintFilename)
-		}
-		if lintBaseline.Valid() {
-			cmd.FlagWithInput("--baseline ", lintBaseline.Path())
-		}
+	lintBaseline := l.getBaselineFilepath(ctx)
+	if lintBaseline.Valid() {
+		cmd.FlagWithInput("--baseline ", lintBaseline.Path())
 	}
 
 	cmd.Text("|| (").Text("if [ -e").Input(text).Text("]; then cat").Input(text).Text("; fi; exit 7)")

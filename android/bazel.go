@@ -126,6 +126,42 @@ const (
 )
 
 var (
+	// Do not write BUILD files for these directories
+	// NOTE: this is not recursive
+	bp2buildDoNotWriteBuildFileList = []string{
+		// Don't generate these BUILD files - because external BUILD files already exist
+		"external/boringssl",
+		"external/brotli",
+		"external/dagger2",
+		"external/flatbuffers",
+		"external/gflags",
+		"external/google-fruit",
+		"external/grpc-grpc",
+		"external/grpc-grpc/test/core/util",
+		"external/grpc-grpc/test/cpp/common",
+		"external/grpc-grpc/third_party/address_sorting",
+		"external/nanopb-c",
+		"external/nos/host/generic",
+		"external/nos/host/generic/libnos",
+		"external/nos/host/generic/libnos/generator",
+		"external/nos/host/generic/libnos_datagram",
+		"external/nos/host/generic/libnos_transport",
+		"external/nos/host/generic/nugget/proto",
+		"external/perfetto",
+		"external/protobuf",
+		"external/rust/cxx",
+		"external/rust/cxx/demo",
+		"external/ruy",
+		"external/tensorflow",
+		"external/tensorflow/tensorflow/lite",
+		"external/tensorflow/tensorflow/lite/java",
+		"external/tensorflow/tensorflow/lite/kernels",
+		"external/tflite-support",
+		"external/tinyalsa_new",
+		"external/wycheproof",
+		"external/libyuv",
+	}
+
 	// Configure modules in these directories to enable bp2build_available: true or false by default.
 	bp2buildDefaultConfig = Bp2BuildConfig{
 		"bionic":                Bp2BuildDefaultTrueRecursively,
@@ -190,17 +226,30 @@ var (
 	}
 
 	// Used for quicker lookups
-	bp2buildModuleDoNotConvert = map[string]bool{}
-	mixedBuildsDisabled        = map[string]bool{}
+	bp2buildDoNotWriteBuildFile = map[string]bool{}
+	bp2buildModuleDoNotConvert  = map[string]bool{}
+	mixedBuildsDisabled         = map[string]bool{}
 )
 
 func init() {
+	for _, moduleName := range bp2buildDoNotWriteBuildFileList {
+		bp2buildDoNotWriteBuildFile[moduleName] = true
+	}
+
 	for _, moduleName := range bp2buildModuleDoNotConvertList {
 		bp2buildModuleDoNotConvert[moduleName] = true
 	}
 
 	for _, moduleName := range mixedBuildsDisabledList {
 		mixedBuildsDisabled[moduleName] = true
+	}
+}
+
+func ShouldWriteBuildFileForDir(dir string) bool {
+	if _, ok := bp2buildDoNotWriteBuildFile[dir]; ok {
+		return false
+	} else {
+		return true
 	}
 }
 
