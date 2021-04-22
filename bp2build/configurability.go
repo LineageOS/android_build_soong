@@ -110,7 +110,11 @@ func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue strin
 		if err != nil {
 			return "", err
 		}
-		selects += s + ",\n"
+		// s could still be an empty string, e.g. unset slices of structs with
+		// length of 0.
+		if s != "" {
+			selects += s + ",\n"
+		}
 	}
 
 	if len(selects) == 0 {
@@ -136,6 +140,9 @@ func prettyPrintSelectEntry(value reflect.Value, key string, indent int) (string
 	v, err := prettyPrint(value, indent+1)
 	if err != nil {
 		return "", err
+	}
+	if v == "" {
+		return "", nil
 	}
 	s += fmt.Sprintf("\"%s\": %s", key, v)
 	return s, nil
