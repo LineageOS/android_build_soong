@@ -254,6 +254,7 @@ func CheckSnapshot(t *testing.T, result *android.TestResult, name string, dir st
 	snapshotPreparer := android.GroupFixturePreparers(sourcePreparers, fs.AddToFixture())
 
 	var runSnapshotTestWithCheckers = func(t *testing.T, testConfig snapshotTest, extraPreparer android.FixturePreparer) {
+		t.Helper()
 		customization := snapshotBuildInfo.snapshotTestCustomization(testConfig)
 		customizedPreparers := android.GroupFixturePreparers(customization.preparers...)
 
