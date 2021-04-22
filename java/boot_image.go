@@ -321,18 +321,32 @@ func (b *bootImageMemberType) CreateVariantPropertiesStruct() android.SdkMemberP
 type bootImageSdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
+	// The image name
 	Image_name *string
+
+	// Contents of the bootclasspath fragment
+	Contents []string
 }
 
 func (b *bootImageSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	module := variant.(*BootImageModule)
 
 	b.Image_name = module.properties.Image_name
+	if b.Image_name == nil {
+		// Only one of image_name or contents can be specified. However, if image_name is set then the
+		// contents property is updated to match the configuration used to create the corresponding
+		// boot image. Therefore, contents property is only copied if the image name is not specified.
+		b.Contents = module.properties.Contents
+	}
 }
 
 func (b *bootImageSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
 	if b.Image_name != nil {
 		propertySet.AddProperty("image_name", *b.Image_name)
+	}
+
+	if len(b.Contents) > 0 {
+		propertySet.AddPropertyWithTag("contents", b.Contents, ctx.SnapshotBuilder().SdkMemberReferencePropertyTag(true))
 	}
 }
 
