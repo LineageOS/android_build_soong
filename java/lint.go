@@ -26,6 +26,10 @@ import (
 	"android/soong/remoteexec"
 )
 
+// lint checks automatically enforced for modules that have different min_sdk_version than
+// sdk_version
+var updatabilityChecks = []string{"NewApi"}
+
 type LintProperties struct {
 	// Controls for running Android Lint on the module.
 	Lint struct {
@@ -53,6 +57,9 @@ type LintProperties struct {
 
 		// Name of the file that lint uses as the baseline. Defaults to "lint-baseline.xml".
 		Baseline_filename *string
+
+		// If true, baselining updatability lint checks (e.g. NewApi) is prohibited. Defaults to false.
+		Strict_updatability_linting *bool
 	}
 }
 
@@ -253,6 +260,13 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	cmd.FlagForEachArg("--error_check ", l.properties.Lint.Error_checks)
 	cmd.FlagForEachArg("--fatal_check ", l.properties.Lint.Fatal_checks)
 
+	if BoolDefault(l.properties.Lint.Strict_updatability_linting, false) {
+		if baselinePath := l.getBaselineFilepath(ctx); baselinePath.Valid() {
+			cmd.FlagWithInput("--baseline ", baselinePath.Path())
+			cmd.FlagForEachArg("--disallowed_issues ", updatabilityChecks)
+		}
+	}
+
 	return lintPaths{
 		projectXML: projectXMLPath,
 		configXML:  configXMLPath,
@@ -298,7 +312,17 @@ func (l *linter) lint(ctx android.ModuleContext) {
 	}
 
 	if l.minSdkVersion != l.compileSdkVersion {
-		l.extraMainlineLintErrors = append(l.extraMainlineLintErrors, "NewApi")
+		l.extraMainlineLintErrors = append(l.extraMainlineLintErrors, updatabilityChecks...)
+		_, filtered := android.FilterList(l.properties.Lint.Warning_checks, updatabilityChecks)
+		if len(filtered) != 0 {
+			ctx.PropertyErrorf("lint.warning_checks",
+				"Can't treat %v checks as warnings if min_sdk_version is different from sdk_version.", filtered)
+		}
+		_, filtered = android.FilterList(l.properties.Lint.Disabled_checks, updatabilityChecks)
+		if len(filtered) != 0 {
+			ctx.PropertyErrorf("lint.disabled_checks",
+				"Can't disable %v checks if min_sdk_version is different from sdk_version.", filtered)
+		}
 	}
 
 	extraLintCheckModules := ctx.GetDirectDepsWithTag(extraLintCheckTag)
