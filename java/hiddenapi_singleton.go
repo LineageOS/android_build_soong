@@ -160,9 +160,9 @@ func (h *hiddenAPISingleton) MakeVars(ctx android.MakeVarsContext) {
 	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", h.flags.String())
 }
 
-// stubFlagsRule creates the rule to build hiddenapi-stub-flags.txt out of dex jars from stub modules and boot image
-// modules.
-func stubFlagsRule(ctx android.SingletonContext) {
+// hiddenAPIComputeMonolithicStubLibModules computes the set of module names that provide stubs
+// needed to produce the hidden API monolithic stub flags file.
+func hiddenAPIComputeMonolithicStubLibModules(ctx android.BuilderContext) map[android.SdkKind][]string {
 	var publicStubModules []string
 	var systemStubModules []string
 	var testStubModules []string
@@ -190,27 +190,34 @@ func stubFlagsRule(ctx android.SingletonContext) {
 		publicStubModules = append(publicStubModules, "jacoco-stubs")
 	}
 
-	publicStubPaths := make(android.Paths, len(publicStubModules))
-	systemStubPaths := make(android.Paths, len(systemStubModules))
-	testStubPaths := make(android.Paths, len(testStubModules))
-	corePlatformStubPaths := make(android.Paths, len(corePlatformStubModules))
+	m := map[android.SdkKind][]string{}
+	m[android.SdkPublic] = publicStubModules
+	m[android.SdkSystem] = systemStubModules
+	m[android.SdkTest] = testStubModules
+	m[android.SdkCorePlatform] = corePlatformStubModules
+	return m
+}
 
-	moduleListToPathList := map[*[]string]android.Paths{
-		&publicStubModules:       publicStubPaths,
-		&systemStubModules:       systemStubPaths,
-		&testStubModules:         testStubPaths,
-		&corePlatformStubModules: corePlatformStubPaths,
+// stubFlagsRule creates the rule to build hiddenapi-stub-flags.txt out of dex jars from stub modules and boot image
+// modules.
+func stubFlagsRule(ctx android.SingletonContext) {
+
+	sdkKindToModules := hiddenAPIComputeMonolithicStubLibModules(ctx)
+
+	// Create a set of path slices into which the DexJarBuildPath from the stub modules can be stored.
+	sdkKindToPathList := map[android.SdkKind]android.Paths{}
+	for sdkKind, modules := range sdkKindToModules {
+		sdkKindToPathList[sdkKind] = make(android.Paths, len(modules))
 	}
 
 	var bootDexJars android.Paths
-
 	ctx.VisitAllModules(func(module android.Module) {
 		// Collect dex jar paths for the modules listed above.
 		if j, ok := module.(UsesLibraryDependency); ok {
 			name := ctx.ModuleName(module)
-			for moduleList, pathList := range moduleListToPathList {
-				if i := android.IndexList(name, *moduleList); i != -1 {
-					pathList[i] = j.DexJarBuildPath()
+			for _, sdkKind := range hiddenAPIRelevantSdkKinds {
+				if i := android.IndexList(name, sdkKindToModules[sdkKind]); i != -1 {
+					sdkKindToPathList[sdkKind][i] = j.DexJarBuildPath()
 				}
 			}
 		}
@@ -225,42 +232,63 @@ func stubFlagsRule(ctx android.SingletonContext) {
 
 	var missingDeps []string
 	// Ensure all modules were converted to paths
-	for moduleList, pathList := range moduleListToPathList {
+	for _, sdkKind := range hiddenAPIRelevantSdkKinds {
+		pathList := sdkKindToPathList[sdkKind]
 		for i := range pathList {
 			if pathList[i] == nil {
-				moduleName := (*moduleList)[i]
+				moduleName := sdkKindToModules[sdkKind][i]
 				pathList[i] = android.PathForOutput(ctx, "missing/module", moduleName)
 				if ctx.Config().AllowMissingDependencies() {
 					missingDeps = append(missingDeps, moduleName)
 				} else {
-					ctx.Errorf("failed to find dex jar path for module %q",
-						moduleName)
+					ctx.Errorf("failed to find dex jar path for module %q", moduleName)
 				}
 			}
 		}
 	}
 
+	outputPath := hiddenAPISingletonPaths(ctx).stubFlags
+	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, outputPath, bootDexJars, sdkKindToPathList)
+	rule.MissingDeps(missingDeps)
+	rule.Build("hiddenAPIStubFlagsFile", "hiddenapi stub flags")
+}
+
+var sdkKindToHiddenapiListOption = map[android.SdkKind]string{
+	android.SdkPublic:       "public-stub-classpath",
+	android.SdkSystem:       "system-stub-classpath",
+	android.SdkTest:         "test-stub-classpath",
+	android.SdkCorePlatform: "core-platform-stub-classpath",
+}
+
+// ruleToGenerateHiddenAPIStubFlagsFile creates a rule to create a hidden API stub flags file.
+//
+// The rule is initialized but not built so that the caller can modify it and select an appropriate
+// name.
+func ruleToGenerateHiddenAPIStubFlagsFile(ctx android.SingletonContext, outputPath android.OutputPath, bootDexJars android.Paths, sdkKindToPathList map[android.SdkKind]android.Paths) *android.RuleBuilder {
 	// Singleton rule which applies hiddenapi on all boot class path dex files.
 	rule := android.NewRuleBuilder(pctx, ctx)
 
-	outputPath := hiddenAPISingletonPaths(ctx).stubFlags
 	tempPath := tempPathForRestat(ctx, outputPath)
 
-	rule.MissingDeps(missingDeps)
-
-	rule.Command().
+	command := rule.Command().
 		Tool(ctx.Config().HostToolPath(ctx, "hiddenapi")).
 		Text("list").
-		FlagForEachInput("--boot-dex=", bootDexJars).
-		FlagWithInputList("--public-stub-classpath=", publicStubPaths, ":").
-		FlagWithInputList("--system-stub-classpath=", systemStubPaths, ":").
-		FlagWithInputList("--test-stub-classpath=", testStubPaths, ":").
-		FlagWithInputList("--core-platform-stub-classpath=", corePlatformStubPaths, ":").
-		FlagWithOutput("--out-api-flags=", tempPath)
+		FlagForEachInput("--boot-dex=", bootDexJars)
+
+	// Iterate over the sdk
+	for _, sdkKind := range hiddenAPIRelevantSdkKinds {
+		paths := sdkKindToPathList[sdkKind]
+		if len(paths) > 0 {
+			option := sdkKindToHiddenapiListOption[sdkKind]
+			command.FlagWithInputList("--"+option+"=", paths, ":")
+		}
+	}
+
+	// Add the output path.
+	command.FlagWithOutput("--out-api-flags=", tempPath)
 
 	commitChangeForRestat(rule, tempPath, outputPath)
-
-	rule.Build("hiddenAPIStubFlagsFile", "hiddenapi stub flags")
+	return rule
 }
 
 // Checks to see whether the supplied module variant is in the list of boot jars.

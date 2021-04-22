@@ -21,6 +21,15 @@ import (
 
 // Contains support for processing hiddenAPI in a modular fashion.
 
+// hiddenAPIRelevantSdkKinds lists all the android.SdkKind instances that are needed by the hidden
+// API processing.
+var hiddenAPIRelevantSdkKinds = []android.SdkKind{
+	android.SdkPublic,
+	android.SdkSystem,
+	android.SdkTest,
+	android.SdkCorePlatform,
+}
+
 // HiddenAPIFlagFileProperties contains paths to the flag files that can be used to augment the
 // information obtained from annotations within the source code in order to create the complete set
 // of flags that should be applied to the dex implementation jars on the bootclasspath.
