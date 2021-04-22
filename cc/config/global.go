@@ -46,6 +46,7 @@ var (
 
 		"-O2",
 		"-g",
+		"-fdebug-default-version=5",
 		"-fdebug-info-for-profiling",
 
 		"-fno-strict-aliasing",
