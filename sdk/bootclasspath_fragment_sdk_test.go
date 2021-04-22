@@ -248,3 +248,108 @@ func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 	`),
 	).RunTest(t)
 }
+
+func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		android.MockFS{
+			"my-blocked.txt":                   nil,
+			"my-max-target-o-low-priority.txt": nil,
+			"my-max-target-p.txt":              nil,
+			"my-max-target-q.txt":              nil,
+			"my-max-target-r-low-priority.txt": nil,
+			"my-removed.txt":                   nil,
+			"my-unsupported-packages.txt":      nil,
+			"my-unsupported.txt":               nil,
+		}.AddToFixture(),
+		android.FixtureWithRootAndroidBp(`
+			sdk {
+				name: "mysdk",
+				bootclasspath_fragments: ["mybootclasspathfragment"],
+				java_boot_libs: ["mybootlib"],
+			}
+
+			bootclasspath_fragment {
+				name: "mybootclasspathfragment",
+				contents: ["mybootlib"],
+				hidden_api: {
+					unsupported: [
+							"my-unsupported.txt",
+					],
+					removed: [
+							"my-removed.txt",
+					],
+					max_target_r_low_priority: [
+							"my-max-target-r-low-priority.txt",
+					],
+					max_target_q: [
+							"my-max-target-q.txt",
+					],
+					max_target_p: [
+							"my-max-target-p.txt",
+					],
+					max_target_o_low_priority: [
+							"my-max-target-o-low-priority.txt",
+					],
+					blocked: [
+							"my-blocked.txt",
+					],
+					unsupported_packages: [
+							"my-unsupported-packages.txt",
+					],
+				},
+			}
+
+			java_library {
+				name: "mybootlib",
+				srcs: ["Test.java"],
+				system_modules: "none",
+				sdk_version: "none",
+				compile_dex: true,
+			}
+		`),
+	).RunTest(t)
+
+	CheckSnapshot(t, result, "mysdk", "",
+		checkUnversionedAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+prebuilt_bootclasspath_fragment {
+    name: "mybootclasspathfragment",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    contents: ["mybootlib"],
+    hidden_api: {
+        unsupported: ["hiddenapi/my-unsupported.txt"],
+        removed: ["hiddenapi/my-removed.txt"],
+        max_target_r_low_priority: ["hiddenapi/my-max-target-r-low-priority.txt"],
+        max_target_q: ["hiddenapi/my-max-target-q.txt"],
+        max_target_p: ["hiddenapi/my-max-target-p.txt"],
+        max_target_o_low_priority: ["hiddenapi/my-max-target-o-low-priority.txt"],
+        blocked: ["hiddenapi/my-blocked.txt"],
+        unsupported_packages: ["hiddenapi/my-unsupported-packages.txt"],
+    },
+}
+
+java_import {
+    name: "mybootlib",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    jars: ["java/mybootlib.jar"],
+}
+`),
+		checkAllCopyRules(`
+my-unsupported.txt -> hiddenapi/my-unsupported.txt
+my-removed.txt -> hiddenapi/my-removed.txt
+my-max-target-r-low-priority.txt -> hiddenapi/my-max-target-r-low-priority.txt
+my-max-target-q.txt -> hiddenapi/my-max-target-q.txt
+my-max-target-p.txt -> hiddenapi/my-max-target-p.txt
+my-max-target-o-low-priority.txt -> hiddenapi/my-max-target-o-low-priority.txt
+my-blocked.txt -> hiddenapi/my-blocked.txt
+my-unsupported-packages.txt -> hiddenapi/my-unsupported-packages.txt
+.intermediates/mybootlib/android_common/javac/mybootlib.jar -> java/mybootlib.jar
+`),
+	)
+}
