@@ -220,7 +220,8 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libc_gdtoa", // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
+		"libc_gdtoa",   // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
+		"libc_openbsd", // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
 	}
 
 	// Used for quicker lookups
