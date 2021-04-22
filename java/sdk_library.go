@@ -399,6 +399,9 @@ type sdkLibraryProperties struct {
 	// List of Java libraries that will be in the classpath when building stubs
 	Stub_only_libs []string `android:"arch_variant"`
 
+	// List of Java libraries that will included in stub libraries
+	Stub_only_static_libs []string `android:"arch_variant"`
+
 	// list of package names that will be documented and publicized as API.
 	// This allows the API to be restricted to a subset of the source files provided.
 	// If this is unspecified then all the source files will be treated as being part
@@ -1275,6 +1278,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 		System_modules *string
 		Patch_module   *string
 		Libs           []string
+		Static_libs    []string
 		Compile_dex    *bool
 		Java_version   *string
 		Openjdk9       struct {
@@ -1299,6 +1303,7 @@ func (module *SdkLibrary) createStubsLibrary(mctx android.DefaultableHookContext
 	props.Patch_module = module.properties.Patch_module
 	props.Installable = proptools.BoolPtr(false)
 	props.Libs = module.sdkLibraryProperties.Stub_only_libs
+	props.Static_libs = module.sdkLibraryProperties.Stub_only_static_libs
 	// The stub-annotations library contains special versions of the annotations
 	// with CLASS retention policy, so that they're kept.
 	if proptools.Bool(module.sdkLibraryProperties.Annotations_enabled) {
