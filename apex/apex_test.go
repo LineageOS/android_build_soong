@@ -5599,12 +5599,25 @@ func TestOverrideApex(t *testing.T) {
 			overrides: ["unknownapex"],
 			logging_parent: "com.foo.bar",
 			package_name: "test.overridden.package",
+			key: "mynewapex.key",
+			certificate: ":myapex.certificate",
 		}
 
 		apex_key {
 			name: "myapex.key",
 			public_key: "testkey.avbpubkey",
 			private_key: "testkey.pem",
+		}
+
+		apex_key {
+			name: "mynewapex.key",
+			public_key: "testkey2.avbpubkey",
+			private_key: "testkey2.pem",
+		}
+
+		android_app_certificate {
+			name: "myapex.certificate",
+			certificate: "testkey",
 		}
 
 		android_app {
@@ -5651,6 +5664,10 @@ func TestOverrideApex(t *testing.T) {
 
 	optFlags := apexRule.Args["opt_flags"]
 	ensureContains(t, optFlags, "--override_apk_package_name test.overridden.package")
+	ensureContains(t, optFlags, "--pubkey testkey2.avbpubkey")
+
+	signApkRule := module.Rule("signapk")
+	ensureEquals(t, signApkRule.Args["certificates"], "testkey.x509.pem testkey.pk8")
 
 	data := android.AndroidMkDataForTest(t, ctx, apexBundle)
 	var builder strings.Builder
