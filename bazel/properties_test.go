@@ -39,7 +39,7 @@ func TestUniqueBazelLabels(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		actualUniqueLabels := UniqueBazelLabels(tc.originalLabels)
+		actualUniqueLabels := UniqueSortedBazelLabels(tc.originalLabels)
 		if !reflect.DeepEqual(tc.expectedUniqueLabels, actualUniqueLabels) {
 			t.Fatalf("Expected %v, got %v", tc.expectedUniqueLabels, actualUniqueLabels)
 		}
