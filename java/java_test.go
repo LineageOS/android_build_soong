@@ -1647,31 +1647,51 @@ func TestJavaSdkLibrary_StubOrImplOnlyLibs(t *testing.T) {
 		java_sdk_library {
 			name: "sdklib",
 			srcs: ["a.java"],
-			impl_only_libs: ["foo"],
-			stub_only_libs: ["bar"],
+			libs: ["lib"],
+			static_libs: ["static-lib"],
+			impl_only_libs: ["impl-only-lib"],
+			stub_only_libs: ["stub-only-lib"],
+			stub_only_static_libs: ["stub-only-static-lib"],
 		}
-		java_library {
-			name: "foo",
+		java_defaults {
+			name: "defaults",
 			srcs: ["a.java"],
 			sdk_version: "current",
 		}
-		java_library {
-			name: "bar",
-			srcs: ["a.java"],
-			sdk_version: "current",
-		}
+		java_library { name: "lib", defaults: ["defaults"] }
+		java_library { name: "static-lib", defaults: ["defaults"] }
+		java_library { name: "impl-only-lib", defaults: ["defaults"] }
+		java_library { name: "stub-only-lib", defaults: ["defaults"] }
+		java_library { name: "stub-only-static-lib", defaults: ["defaults"] }
 		`)
-
-	for _, implName := range []string{"sdklib", "sdklib.impl"} {
-		implJavacCp := result.ModuleForTests(implName, "android_common").Rule("javac").Args["classpath"]
-		if !strings.Contains(implJavacCp, "/foo.jar") || strings.Contains(implJavacCp, "/bar.jar") {
-			t.Errorf("%v javac classpath %v does not contain foo and not bar", implName, implJavacCp)
-		}
+	var expectations = []struct {
+		lib               string
+		on_impl_classpath bool
+		on_stub_classpath bool
+		in_impl_combined  bool
+		in_stub_combined  bool
+	}{
+		{lib: "lib", on_impl_classpath: true},
+		{lib: "static-lib", in_impl_combined: true},
+		{lib: "impl-only-lib", on_impl_classpath: true},
+		{lib: "stub-only-lib", on_stub_classpath: true},
+		{lib: "stub-only-static-lib", in_stub_combined: true},
 	}
-	stubName := apiScopePublic.stubsLibraryModuleName("sdklib")
-	stubsJavacCp := result.ModuleForTests(stubName, "android_common").Rule("javac").Args["classpath"]
-	if strings.Contains(stubsJavacCp, "/foo.jar") || !strings.Contains(stubsJavacCp, "/bar.jar") {
-		t.Errorf("stubs javac classpath %v does not contain bar and not foo", stubsJavacCp)
+	verify := func(sdklib, dep string, cp, combined bool) {
+		sdklibCp := result.ModuleForTests(sdklib, "android_common").Rule("javac").Args["classpath"]
+		expected := cp || combined // Every combined jar is also on the classpath.
+		android.AssertStringContainsEquals(t, "bad classpath for "+sdklib, sdklibCp, "/"+dep+".jar", expected)
+
+		combineJarInputs := result.ModuleForTests(sdklib, "android_common").Rule("combineJar").Inputs.Strings()
+		depPath := filepath.Join("out", "soong", ".intermediates", dep, "android_common", "turbine-combined", dep+".jar")
+		android.AssertStringListContainsEquals(t, "bad combined inputs for "+sdklib, combineJarInputs, depPath, combined)
+	}
+	for _, expectation := range expectations {
+		verify("sdklib", expectation.lib, expectation.on_impl_classpath, expectation.in_impl_combined)
+		verify("sdklib.impl", expectation.lib, expectation.on_impl_classpath, expectation.in_impl_combined)
+
+		stubName := apiScopePublic.stubsLibraryModuleName("sdklib")
+		verify(stubName, expectation.lib, expectation.on_stub_classpath, expectation.in_stub_combined)
 	}
 }
 
