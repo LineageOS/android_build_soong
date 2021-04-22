@@ -109,10 +109,22 @@ cc_library {
 `,
 			expectedBazelTargets: []string{`cc_library(
     name = "foo-lib",
-    copts = ["-Wall"],
+    copts = [
+        "-Wall",
+        "-I.",
+    ],
     deps = [":some-headers"],
-    hdrs = [
+    hdrs = ["foo-dir/a.h"],
+    includes = ["foo-dir"],
+    linkopts = ["-Wl,--exclude-libs=bar.a"] + select({
+        "//build/bazel/platforms/arch:x86": ["-Wl,--exclude-libs=baz.a"],
+        "//build/bazel/platforms/arch:x86_64": ["-Wl,--exclude-libs=qux.a"],
+        "//conditions:default": [],
+    }),
+    srcs = [
+        "impl.cpp",
         "header.h",
+        "foo-dir/a.h",
         "header.hh",
         "header.hpp",
         "header.hxx",
@@ -121,15 +133,7 @@ cc_library {
         "header.inc",
         "header.ipp",
         "header.h.generic",
-        "foo-dir/a.h",
-    ],
-    includes = ["foo-dir"],
-    linkopts = ["-Wl,--exclude-libs=bar.a"] + select({
-        "//build/bazel/platforms/arch:x86": ["-Wl,--exclude-libs=baz.a"],
-        "//build/bazel/platforms/arch:x86_64": ["-Wl,--exclude-libs=qux.a"],
-        "//conditions:default": [],
-    }),
-    srcs = ["impl.cpp"] + select({
+    ] + select({
         "//build/bazel/platforms/arch:x86": ["x86.cpp"],
         "//build/bazel/platforms/arch:x86_64": ["x86_64.cpp"],
         "//conditions:default": [],
@@ -190,14 +194,9 @@ cc_library {
         "-Wextra",
         "-Wunused",
         "-Werror",
+        "-I.",
     ],
     deps = [":libc_headers"],
-    hdrs = [
-        "linked_list.h",
-        "linker.h",
-        "linker_block_allocator.h",
-        "linker_cfi.h",
-    ],
     linkopts = [
         "-Wl,--exclude-libs=libgcc.a",
         "-Wl,--exclude-libs=libgcc_stripped.a",
@@ -210,7 +209,13 @@ cc_library {
         "//build/bazel/platforms/arch:x86_64": ["-Wl,--exclude-libs=libgcc_eh.a"],
         "//conditions:default": [],
     }),
-    srcs = ["ld_android.cpp"],
+    srcs = [
+        "ld_android.cpp",
+        "linked_list.h",
+        "linker.h",
+        "linker_block_allocator.h",
+        "linker_cfi.h",
+    ],
 )`},
 		},
 	}

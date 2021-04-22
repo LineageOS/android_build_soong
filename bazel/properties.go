@@ -125,7 +125,9 @@ func (ll *LabelList) Append(other LabelList) {
 	}
 }
 
-func UniqueBazelLabels(originalLabels []Label) []Label {
+// UniqueSortedBazelLabels takes a []Label and deduplicates the labels, and returns
+// the slice in a sorted order.
+func UniqueSortedBazelLabels(originalLabels []Label) []Label {
 	uniqueLabelsSet := make(map[Label]bool)
 	for _, l := range originalLabels {
 		uniqueLabelsSet[l] = true
@@ -142,8 +144,8 @@ func UniqueBazelLabels(originalLabels []Label) []Label {
 
 func UniqueBazelLabelList(originalLabelList LabelList) LabelList {
 	var uniqueLabelList LabelList
-	uniqueLabelList.Includes = UniqueBazelLabels(originalLabelList.Includes)
-	uniqueLabelList.Excludes = UniqueBazelLabels(originalLabelList.Excludes)
+	uniqueLabelList.Includes = UniqueSortedBazelLabels(originalLabelList.Includes)
+	uniqueLabelList.Excludes = UniqueSortedBazelLabels(originalLabelList.Excludes)
 	return uniqueLabelList
 }
 
@@ -292,7 +294,7 @@ func MakeLabelListAttribute(value LabelList) LabelListAttribute {
 	return LabelListAttribute{Value: UniqueBazelLabelList(value)}
 }
 
-// Append appends all values, including os and arch specific ones, from another
+// Append all values, including os and arch specific ones, from another
 // LabelListAttribute to this LabelListAttribute.
 func (attrs *LabelListAttribute) Append(other LabelListAttribute) {
 	for arch := range PlatformArchMap {
@@ -498,6 +500,26 @@ func (attrs *StringListAttribute) SetValueForOS(os string, value []string) {
 		panic(fmt.Errorf("Unknown os: %s", os))
 	}
 	*v = value
+}
+
+// Append appends all values, including os and arch specific ones, from another
+// StringListAttribute to this StringListAttribute
+func (attrs *StringListAttribute) Append(other StringListAttribute) {
+	for arch := range PlatformArchMap {
+		this := attrs.GetValueForArch(arch)
+		that := other.GetValueForArch(arch)
+		this = append(this, that...)
+		attrs.SetValueForArch(arch, this)
+	}
+
+	for os := range PlatformOsMap {
+		this := attrs.GetValueForOS(os)
+		that := other.GetValueForOS(os)
+		this = append(this, that...)
+		attrs.SetValueForOS(os, this)
+	}
+
+	attrs.Value = append(attrs.Value, other.Value...)
 }
 
 // TryVariableSubstitution, replace string substitution formatting within each string in slice with
