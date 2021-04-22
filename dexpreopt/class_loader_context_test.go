@@ -155,6 +155,29 @@ func TestCLC(t *testing.T) {
 	})
 }
 
+func TestCLCJson(t *testing.T) {
+	ctx := testContext()
+	m := make(ClassLoaderContextMap)
+	m.AddContext(ctx, 28, "a", buildPath(ctx, "a"), installPath(ctx, "a"), nil)
+	m.AddContext(ctx, 29, "b", buildPath(ctx, "b"), installPath(ctx, "b"), nil)
+	m.AddContext(ctx, 30, "c", buildPath(ctx, "c"), installPath(ctx, "c"), nil)
+	m.AddContext(ctx, AnySdkVersion, "d", buildPath(ctx, "d"), installPath(ctx, "d"), nil)
+	jsonCLC := toJsonClassLoaderContext(m)
+	restored := fromJsonClassLoaderContext(ctx, jsonCLC)
+	android.AssertIntEquals(t, "The size of the maps should be the same.", len(m), len(restored))
+	for k := range m {
+		a, _ := m[k]
+		b, ok := restored[k]
+		android.AssertBoolEquals(t, "The both maps should have the same keys.", ok, true)
+		android.AssertIntEquals(t, "The size of the elements should be the same.", len(a), len(b))
+		for i, elemA := range a {
+			before := fmt.Sprintf("%v", *elemA)
+			after := fmt.Sprintf("%v", *b[i])
+			android.AssertStringEquals(t, "The content should be the same.", before, after)
+		}
+	}
+}
+
 // Test that unknown library paths cause a validation error.
 func testCLCUnknownPath(t *testing.T, whichPath string) {
 	ctx := testContext()
