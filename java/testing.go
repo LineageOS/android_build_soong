@@ -200,6 +200,9 @@ func FixtureConfigureBootJars(bootJars ...string) android.FixturePreparer {
 		}),
 		dexpreopt.FixtureSetBootJars(bootJars...),
 		dexpreopt.FixtureSetArtBootJars(artBootJars...),
+
+		// Add a fake dex2oatd module.
+		dexpreopt.PrepareForTestWithFakeDex2oatd,
 	)
 }
 
@@ -212,6 +215,9 @@ func FixtureConfigureUpdatableBootJars(bootJars ...string) android.FixturePrepar
 			variables.UpdatableBootJars = android.CreateTestConfiguredJarList(bootJars)
 		}),
 		dexpreopt.FixtureSetUpdatableBootJars(bootJars...),
+
+		// Add a fake dex2oatd module.
+		dexpreopt.PrepareForTestWithFakeDex2oatd,
 	)
 }
 
