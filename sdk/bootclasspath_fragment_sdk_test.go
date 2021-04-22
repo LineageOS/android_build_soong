@@ -20,17 +20,17 @@ import (
 	"android/soong/android"
 )
 
-func TestSnapshotWithBootImage(t *testing.T) {
+func TestSnapshotWithBootclasspathFragment(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForSdkTestWithJava,
 		android.FixtureWithRootAndroidBp(`
 			sdk {
 				name: "mysdk",
-				boot_images: ["mybootimage"],
+				bootclasspath_fragments: ["mybootclasspathfragment"],
 			}
 
-			boot_image {
-				name: "mybootimage",
+			bootclasspath_fragment {
+				name: "mybootclasspathfragment",
 				image_name: "art",
 			}
 		`),
@@ -40,8 +40,8 @@ func TestSnapshotWithBootImage(t *testing.T) {
 		checkUnversionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
-prebuilt_boot_image {
-    name: "mybootimage",
+prebuilt_bootclasspath_fragment {
+    name: "mybootclasspathfragment",
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
@@ -51,9 +51,9 @@ prebuilt_boot_image {
 		checkVersionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
-prebuilt_boot_image {
-    name: "mysdk_mybootimage@current",
-    sdk_member_name: "mybootimage",
+prebuilt_bootclasspath_fragment {
+    name: "mysdk_mybootclasspathfragment@current",
+    sdk_member_name: "mybootclasspathfragment",
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
     image_name: "art",
@@ -62,37 +62,37 @@ prebuilt_boot_image {
 sdk_snapshot {
     name: "mysdk@current",
     visibility: ["//visibility:public"],
-    boot_images: ["mysdk_mybootimage@current"],
+    bootclasspath_fragments: ["mysdk_mybootclasspathfragment@current"],
 }
 `),
 		checkAllCopyRules(""))
 }
 
-// Test that boot_image works with sdk.
-func TestBasicSdkWithBootImage(t *testing.T) {
+// Test that bootclasspath_fragment works with sdk.
+func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 	android.GroupFixturePreparers(
 		prepareForSdkTestWithApex,
 		prepareForSdkTestWithJava,
 		android.FixtureWithRootAndroidBp(`
 		sdk {
 			name: "mysdk",
-			boot_images: ["mybootimage"],
+			bootclasspath_fragments: ["mybootclasspathfragment"],
 		}
 
-		boot_image {
-			name: "mybootimage",
+		bootclasspath_fragment {
+			name: "mybootclasspathfragment",
 			image_name: "art",
 			apex_available: ["myapex"],
 		}
 
 		sdk_snapshot {
 			name: "mysdk@1",
-			boot_images: ["mybootimage_mysdk_1"],
+			bootclasspath_fragments: ["mybootclasspathfragment_mysdk_1"],
 		}
 
-		prebuilt_boot_image {
-			name: "mybootimage_mysdk_1",
-			sdk_member_name: "mybootimage",
+		prebuilt_bootclasspath_fragment {
+			name: "mybootclasspathfragment_mysdk_1",
+			sdk_member_name: "mybootclasspathfragment",
 			prefer: false,
 			visibility: ["//visibility:public"],
 			apex_available: [

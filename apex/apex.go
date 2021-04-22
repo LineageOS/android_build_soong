@@ -1924,7 +1924,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					// Rlib is statically linked, but it might have shared lib
 					// dependencies. Track them.
 					return true
-				} else if java.IsbootImageContentDepTag(depTag) {
+				} else if java.IsBootclasspathFragmentContentDepTag(depTag) {
 					// Add the contents of the bootclasspath fragment to the apex.
 					switch child.(type) {
 					case *java.Library, *java.SdkLibrary:
