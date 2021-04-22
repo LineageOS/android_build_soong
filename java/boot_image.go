@@ -16,6 +16,7 @@ package java
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"android/soong/android"
@@ -326,6 +327,9 @@ type bootImageSdkMemberProperties struct {
 
 	// Contents of the bootclasspath fragment
 	Contents []string
+
+	// Flag files by *hiddenAPIFlagFileCategory
+	Flag_files_by_category map[*hiddenAPIFlagFileCategory]android.Paths
 }
 
 func (b *bootImageSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
@@ -338,6 +342,11 @@ func (b *bootImageSdkMemberProperties) PopulateFromVariant(ctx android.SdkMember
 		// boot image. Therefore, contents property is only copied if the image name is not specified.
 		b.Contents = module.properties.Contents
 	}
+
+	// Get the flag file information from the module.
+	mctx := ctx.SdkModuleContext()
+	flagFileInfo := mctx.OtherModuleProvider(module, hiddenAPIFlagFileInfoProvider).(hiddenAPIFlagFileInfo)
+	b.Flag_files_by_category = flagFileInfo.categoryToPaths
 }
 
 func (b *bootImageSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
@@ -347,6 +356,23 @@ func (b *bootImageSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCon
 
 	if len(b.Contents) > 0 {
 		propertySet.AddPropertyWithTag("contents", b.Contents, ctx.SnapshotBuilder().SdkMemberReferencePropertyTag(true))
+	}
+
+	builder := ctx.SnapshotBuilder()
+	if b.Flag_files_by_category != nil {
+		hiddenAPISet := propertySet.AddPropertySet("hidden_api")
+		for _, category := range hiddenAPIFlagFileCategories {
+			paths := b.Flag_files_by_category[category]
+			if len(paths) > 0 {
+				dests := []string{}
+				for _, p := range paths {
+					dest := filepath.Join("hiddenapi", p.Base())
+					builder.CopyToSnapshot(p, dest)
+					dests = append(dests, dest)
+				}
+				hiddenAPISet.AddProperty(category.propertyName, dests)
+			}
+		}
 	}
 }
 
