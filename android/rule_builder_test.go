@@ -15,6 +15,8 @@
 package android
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -320,6 +322,7 @@ func TestRuleBuilder(t *testing.T) {
 			Input(PathForSource(ctx, "Input")).
 			Output(PathForOutput(ctx, "module/Output")).
 			OrderOnly(PathForSource(ctx, "OrderOnly")).
+			Validation(PathForSource(ctx, "Validation")).
 			SymlinkOutput(PathForOutput(ctx, "module/SymlinkOutput")).
 			ImplicitSymlinkOutput(PathForOutput(ctx, "module/ImplicitSymlinkOutput")).
 			Text("Text").
@@ -331,6 +334,7 @@ func TestRuleBuilder(t *testing.T) {
 			Input(PathForSource(ctx, "input2")).
 			Output(PathForOutput(ctx, "module/output2")).
 			OrderOnlys(PathsForSource(ctx, []string{"OrderOnlys"})).
+			Validations(PathsForSource(ctx, []string{"Validations"})).
 			Tool(PathForSource(ctx, "tool2"))
 
 		// Test updates to the first command after the second command has been started
@@ -358,6 +362,7 @@ func TestRuleBuilder(t *testing.T) {
 		"module/DepFile", "module/depfile", "module/ImplicitDepFile", "module/depfile2"})
 	wantTools := PathsForSource(ctx, []string{"Tool", "tool2"})
 	wantOrderOnlys := PathsForSource(ctx, []string{"OrderOnly", "OrderOnlys"})
+	wantValidations := PathsForSource(ctx, []string{"Validation", "Validations"})
 	wantSymlinkOutputs := PathsForOutput(ctx, []string{
 		"module/ImplicitSymlinkOutput", "module/SymlinkOutput"})
 
@@ -385,6 +390,7 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
 		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
+		AssertDeepEquals(t, "rule.Validations()", wantValidations, rule.Validations())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
 	})
@@ -414,6 +420,7 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
 		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
+		AssertDeepEquals(t, "rule.Validations()", wantValidations, rule.Validations())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
 	})
@@ -443,6 +450,7 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
 		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
+		AssertDeepEquals(t, "rule.Validations()", wantValidations, rule.Validations())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
 	})
@@ -472,6 +480,7 @@ func TestRuleBuilder(t *testing.T) {
 		AssertDeepEquals(t, "rule.DepFiles()", wantDepFiles, rule.DepFiles())
 		AssertDeepEquals(t, "rule.Tools()", wantTools, rule.Tools())
 		AssertDeepEquals(t, "rule.OrderOnlys()", wantOrderOnlys, rule.OrderOnlys())
+		AssertDeepEquals(t, "rule.Validations()", wantValidations, rule.Validations())
 
 		AssertSame(t, "rule.depFileMergerCmd()", wantDepMergerCommand, rule.depFileMergerCmd(rule.DepFiles()).String())
 	})
@@ -497,6 +506,9 @@ type testRuleBuilderModule struct {
 
 func (t *testRuleBuilderModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	in := PathsForSource(ctx, t.properties.Srcs)
+	implicit := PathForSource(ctx, "implicit")
+	orderOnly := PathForSource(ctx, "orderonly")
+	validation := PathForSource(ctx, "validation")
 	out := PathForModuleOut(ctx, "gen", ctx.ModuleName())
 	outDep := PathForModuleOut(ctx, "gen", ctx.ModuleName()+".d")
 	outDir := PathForModuleOut(ctx, "gen")
@@ -506,9 +518,9 @@ func (t *testRuleBuilderModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 	rspFileContents2 := PathsForSource(ctx, []string{"rsp_in2"})
 	manifestPath := PathForModuleOut(ctx, "sbox.textproto")
 
-	testRuleBuilder_Build(ctx, in, out, outDep, outDir, manifestPath, t.properties.Restat,
-		t.properties.Sbox, t.properties.Sbox_inputs, rspFile, rspFileContents,
-		rspFile2, rspFileContents2)
+	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, out, outDep, outDir,
+		manifestPath, t.properties.Restat, t.properties.Sbox, t.properties.Sbox_inputs,
+		rspFile, rspFileContents, rspFile2, rspFileContents2)
 }
 
 type testRuleBuilderSingleton struct{}
@@ -518,7 +530,10 @@ func testRuleBuilderSingletonFactory() Singleton {
 }
 
 func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
-	in := PathForSource(ctx, "bar")
+	in := PathsForSource(ctx, []string{"in"})
+	implicit := PathForSource(ctx, "implicit")
+	orderOnly := PathForSource(ctx, "orderonly")
+	validation := PathForSource(ctx, "validation")
 	out := PathForOutput(ctx, "singleton/gen/baz")
 	outDep := PathForOutput(ctx, "singleton/gen/baz.d")
 	outDir := PathForOutput(ctx, "singleton/gen")
@@ -527,11 +542,14 @@ func (t *testRuleBuilderSingleton) GenerateBuildActions(ctx SingletonContext) {
 	rspFileContents := PathsForSource(ctx, []string{"rsp_in"})
 	rspFileContents2 := PathsForSource(ctx, []string{"rsp_in2"})
 	manifestPath := PathForOutput(ctx, "singleton/sbox.textproto")
-	testRuleBuilder_Build(ctx, Paths{in}, out, outDep, outDir, manifestPath, true, false, false,
+
+	testRuleBuilder_Build(ctx, in, implicit, orderOnly, validation, out, outDep, outDir,
+		manifestPath, true, false, false,
 		rspFile, rspFileContents, rspFile2, rspFileContents2)
 }
 
-func testRuleBuilder_Build(ctx BuilderContext, in Paths, out, outDep, outDir, manifestPath WritablePath,
+func testRuleBuilder_Build(ctx BuilderContext, in Paths, implicit, orderOnly, validation Path,
+	out, outDep, outDir, manifestPath WritablePath,
 	restat, sbox, sboxInputs bool,
 	rspFile WritablePath, rspFileContents Paths, rspFile2 WritablePath, rspFileContents2 Paths) {
 
@@ -547,6 +565,9 @@ func testRuleBuilder_Build(ctx BuilderContext, in Paths, out, outDep, outDir, ma
 	rule.Command().
 		Tool(PathForSource(ctx, "cp")).
 		Inputs(in).
+		Implicit(implicit).
+		OrderOnly(orderOnly).
+		Validation(validation).
 		Output(out).
 		ImplicitDepFile(outDep).
 		FlagWithRspFileInputList("@", rspFile, rspFileContents).
@@ -566,24 +587,24 @@ var prepareForRuleBuilderTest = FixtureRegisterWithContext(func(ctx Registration
 
 func TestRuleBuilder_Build(t *testing.T) {
 	fs := MockFS{
-		"bar": nil,
-		"cp":  nil,
+		"in": nil,
+		"cp": nil,
 	}
 
 	bp := `
 		rule_builder_test {
 			name: "foo",
-			srcs: ["bar"],
+			srcs: ["in"],
 			restat: true,
 		}
 		rule_builder_test {
 			name: "foo_sbox",
-			srcs: ["bar"],
+			srcs: ["in"],
 			sbox: true,
 		}
 		rule_builder_test {
 			name: "foo_sbox_inputs",
-			srcs: ["bar"],
+			srcs: ["in"],
 			sbox: true,
 			sbox_inputs: true,
 		}
@@ -614,10 +635,16 @@ func TestRuleBuilder_Build(t *testing.T) {
 		wantInputs := []string{"rsp_in"}
 		AssertArrayString(t, "Inputs", wantInputs, params.Inputs.Strings())
 
-		wantImplicits := append([]string{"bar"}, extraImplicits...)
+		wantImplicits := append([]string{"implicit", "in"}, extraImplicits...)
 		// The second rsp file and the files listed in it should be in implicits
 		wantImplicits = append(wantImplicits, "rsp_in2", wantRspFile2)
 		AssertPathsRelativeToTopEquals(t, "Implicits", wantImplicits, params.Implicits)
+
+		wantOrderOnlys := []string{"orderonly"}
+		AssertPathsRelativeToTopEquals(t, "OrderOnly", wantOrderOnlys, params.OrderOnly)
+
+		wantValidations := []string{"validation"}
+		AssertPathsRelativeToTopEquals(t, "Validations", wantValidations, params.Validations)
 
 		wantRspFileContent := "$in"
 		AssertStringEquals(t, "RspfileContent", wantRspFileContent, params.RuleParams.RspfileContent)
@@ -646,7 +673,7 @@ func TestRuleBuilder_Build(t *testing.T) {
 		rspFile2 := "out/soong/.intermediates/foo/rsp2"
 		module := result.ModuleForTests("foo", "")
 		check(t, module.Rule("rule"), module.Output(rspFile2),
-			"cp bar "+outFile+" @"+rspFile+" @"+rspFile2,
+			"cp in "+outFile+" @"+rspFile+" @"+rspFile2,
 			outFile, outFile+".d", rspFile, rspFile2, true, nil, nil)
 	})
 	t.Run("sbox", func(t *testing.T) {
@@ -688,7 +715,7 @@ func TestRuleBuilder_Build(t *testing.T) {
 		rspFile2 := filepath.Join("out/soong/singleton/rsp2")
 		singleton := result.SingletonForTests("rule_builder_test")
 		check(t, singleton.Rule("rule"), singleton.Output(rspFile2),
-			"cp bar "+outFile+" @"+rspFile+" @"+rspFile2,
+			"cp in "+outFile+" @"+rspFile+" @"+rspFile2,
 			outFile, outFile+".d", rspFile, rspFile2, true, nil, nil)
 	})
 }
@@ -701,6 +728,11 @@ func TestRuleBuilderHashInputs(t *testing.T) {
 	// By including a hash of the inputs, we cause the rule to re-run if
 	// the list of inputs changes because the command line or a dependency
 	// changes.
+
+	hashOf := func(s string) string {
+		sum := sha256.Sum256([]byte(s))
+		return hex.EncodeToString(sum[:])
+	}
 
 	bp := `
 			rule_builder_test {
@@ -727,14 +759,12 @@ func TestRuleBuilderHashInputs(t *testing.T) {
 		expectedHash string
 	}{
 		{
-			name: "hash0",
-			// sha256 value obtained from: echo -en 'in1.txt\nin2.txt' | sha256sum
-			expectedHash: "18da75b9b1cc74b09e365b4ca2e321b5d618f438cc632b387ad9dc2ab4b20e9d",
+			name:         "hash0",
+			expectedHash: hashOf("implicit\nin1.txt\nin2.txt"),
 		},
 		{
-			name: "hash1",
-			// sha256 value obtained from: echo -en 'in1.txt\nin2.txt\nin3.txt' | sha256sum
-			expectedHash: "a38d432a4b19df93140e1f1fe26c97ff0387dae01fe506412b47208f0595fb45",
+			name:         "hash1",
+			expectedHash: hashOf("implicit\nin1.txt\nin2.txt\nin3.txt"),
 		},
 	}
 
