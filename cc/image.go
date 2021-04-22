@@ -601,10 +601,6 @@ func (c *Module) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) bool 
 	return c.Properties.VendorRamdiskVariantNeeded
 }
 
-func (c *Module) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
-	return false
-}
-
 func (c *Module) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
 	return c.Properties.RecoveryVariantNeeded
 }
