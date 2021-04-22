@@ -110,16 +110,6 @@ type apexBundleProperties struct {
 	// List of filesystem images that are embedded inside this APEX bundle.
 	Filesystems []string
 
-	// Name of the apex_key module that provides the private key to sign this APEX bundle.
-	Key *string
-
-	// Specifies the certificate and the private key to sign the zip container of this APEX. If
-	// this is "foo", foo.x509.pem and foo.pk8 under PRODUCT_DEFAULT_DEV_CERTIFICATE are used
-	// as the certificate and the private key, respectively. If this is ":module", then the
-	// certificate and the private key are provided from the android_app_certificate module
-	// named "module".
-	Certificate *string
-
 	// The minimum SDK version that this APEX must support at minimum. This is usually set to
 	// the SDK version that the APEX was first introduced.
 	Min_sdk_version *string
@@ -299,6 +289,16 @@ type overridableProperties struct {
 
 	// A txt file containing list of files that are allowed to be included in this APEX.
 	Allowed_files *string `android:"path"`
+
+	// Name of the apex_key module that provides the private key to sign this APEX bundle.
+	Key *string
+
+	// Specifies the certificate and the private key to sign the zip container of this APEX. If
+	// this is "foo", foo.x509.pem and foo.pk8 under PRODUCT_DEFAULT_DEV_CERTIFICATE are used
+	// as the certificate and the private key, respectively. If this is ":module", then the
+	// certificate and the private key are provided from the android_app_certificate module
+	// named "module".
+	Certificate *string
 }
 
 type apexBundle struct {
@@ -760,20 +760,6 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	// Dependencies for signing
-	if String(a.properties.Key) == "" {
-		ctx.PropertyErrorf("key", "missing")
-		return
-	}
-	ctx.AddDependency(ctx.Module(), keyTag, String(a.properties.Key))
-
-	cert := android.SrcIsModule(a.getCertString(ctx))
-	if cert != "" {
-		ctx.AddDependency(ctx.Module(), certificateTag, cert)
-		// empty cert is not an error. Cert and private keys will be directly found under
-		// PRODUCT_DEFAULT_DEV_CERTIFICATE
-	}
-
 	// Marks that this APEX (in fact all the modules in it) has to be built with the given SDKs.
 	// This field currently isn't used.
 	// TODO(jiyong): consider dropping this feature
@@ -797,6 +783,20 @@ func (a *apexBundle) OverridablePropertiesDepsMutator(ctx android.BottomUpMutato
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
 	ctx.AddFarVariationDependencies(commonVariation, androidAppTag, a.overridableProperties.Apps...)
 	ctx.AddFarVariationDependencies(commonVariation, rroTag, a.overridableProperties.Rros...)
+
+	// Dependencies for signing
+	if String(a.overridableProperties.Key) == "" {
+		ctx.PropertyErrorf("key", "missing")
+		return
+	}
+	ctx.AddDependency(ctx.Module(), keyTag, String(a.overridableProperties.Key))
+
+	cert := android.SrcIsModule(a.getCertString(ctx))
+	if cert != "" {
+		ctx.AddDependency(ctx.Module(), certificateTag, cert)
+		// empty cert is not an error. Cert and private keys will be directly found under
+		// PRODUCT_DEFAULT_DEV_CERTIFICATE
+	}
 }
 
 type ApexBundleInfo struct {
@@ -1292,7 +1292,7 @@ func (a *apexBundle) getCertString(ctx android.BaseModuleContext) string {
 	if overridden {
 		return ":" + certificate
 	}
-	return String(a.properties.Certificate)
+	return String(a.overridableProperties.Certificate)
 }
 
 // See the installable property
@@ -1949,7 +1949,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return false
 	})
 	if a.privateKeyFile == nil {
-		ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.properties.Key))
+		ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.overridableProperties.Key))
 		return
 	}
 
