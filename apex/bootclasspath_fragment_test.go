@@ -22,8 +22,8 @@ import (
 	"android/soong/java"
 )
 
-// Contains tests for boot_image logic from java/boot_image.go as the ART boot image requires
-// modules from the ART apex.
+// Contains tests for bootclasspath_fragment logic from java/bootclasspath_fragment.go as the ART
+// bootclasspath_fragment requires modules from the ART apex.
 
 var prepareForTestWithBootclasspathFragment = android.GroupFixturePreparers(
 	java.PrepareForTestWithDexpreopt,
@@ -40,7 +40,7 @@ var prepareForTestWithArtApex = android.FixtureMergeMockFs(android.MockFS{
 func TestBootclasspathFragments(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithBootclasspathFragment,
-		// Configure some libraries in the art and framework boot images.
+		// Configure some libraries in the art bootclasspath_fragment and platform_bootclasspath.
 		java.FixtureConfigureBootJars("com.android.art:baz", "com.android.art:quuz", "platform:foo", "platform:bar"),
 		prepareForTestWithArtApex,
 
@@ -141,9 +141,9 @@ test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-quuz.vde
 func checkBootclasspathFragment(t *testing.T, result *android.TestResult, moduleName string, expectedConfiguredModules string, expectedBootclasspathFragmentFiles string) {
 	t.Helper()
 
-	bootImage := result.ModuleForTests(moduleName, "android_common").Module().(*java.BootImageModule)
+	bootclasspathFragment := result.ModuleForTests(moduleName, "android_common").Module().(*java.BootclasspathFragmentModule)
 
-	bootImageInfo := result.ModuleProvider(bootImage, java.BootImageInfoProvider).(java.BootImageInfo)
+	bootImageInfo := result.ModuleProvider(bootclasspathFragment, java.BootImageInfoProvider).(java.BootImageInfo)
 	modules := bootImageInfo.Modules()
 	android.AssertStringEquals(t, "invalid modules for "+moduleName, expectedConfiguredModules, modules.String())
 
@@ -166,7 +166,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		prepareForTestWithBootclasspathFragment,
 		prepareForTestWithArtApex,
 
-		// Configure some libraries in the art boot image.
+		// Configure some libraries in the art bootclasspath_fragment.
 		java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
 	).RunTestWithBp(t, `
 		apex {
@@ -176,8 +176,8 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 				"mybootclasspathfragment",
 			],
 			// bar (like foo) should be transitively included in this apex because it is part of the
-			// mybootclasspathfragment boot_image. However, it is kept here to ensure that the apex dedups the files
-			// correctly.
+			// mybootclasspathfragment bootclasspath_fragment. However, it is kept here to ensure that the
+			// apex dedups the files correctly.
 			java_libs: [
 				"bar",
 			],
@@ -208,7 +208,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			],
 		}
 
-		boot_image {
+		bootclasspath_fragment {
 			name: "mybootclasspathfragment",
 			image_name: "art",
 			apex_available: [
@@ -233,7 +233,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		}
 
 		// Make sure that a preferred prebuilt doesn't affect the apex.
-		prebuilt_boot_image {
+		prebuilt_bootclasspath_fragment {
 			name: "mybootclasspathfragment",
 			image_name: "art",
 			prefer: true,
@@ -277,7 +277,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 			"com.android.art-arm.apex":   nil,
 		}),
 
-		// Configure some libraries in the art boot image.
+		// Configure some libraries in the art bootclasspath_fragment.
 		java.FixtureConfigureBootJars("com.android.art:foo", "com.android.art:bar"),
 	).RunTestWithBp(t, `
 		prebuilt_apex {
@@ -309,7 +309,7 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 			],
 		}
 
-		prebuilt_boot_image {
+		prebuilt_bootclasspath_fragment {
 			name: "mybootclasspathfragment",
 			image_name: "art",
 			apex_available: [
@@ -369,7 +369,7 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 			],
 		}
 
-		boot_image {
+		bootclasspath_fragment {
 			name: "mybootclasspathfragment",
 			contents: [
 				"foo",
