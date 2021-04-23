@@ -255,13 +255,14 @@ func CheckSnapshot(t *testing.T, result *android.TestResult, name string, dir st
 
 	var runSnapshotTestWithCheckers = func(t *testing.T, testConfig snapshotTest, extraPreparer android.FixturePreparer) {
 		customization := snapshotBuildInfo.snapshotTestCustomization(testConfig)
+		customizedPreparers := android.GroupFixturePreparers(customization.preparers...)
 
 		// TODO(b/183184375): Set Config.TestAllowNonExistentPaths = false to verify that all the
 		//  files the snapshot needs are actually copied into the snapshot.
 
 		// Run the snapshot with the snapshot preparer and the extra preparer, which must come after as
 		// it may need to modify parts of the MockFS populated by the snapshot preparer.
-		result := android.GroupFixturePreparers(snapshotPreparer, extraPreparer).
+		result := android.GroupFixturePreparers(snapshotPreparer, extraPreparer, customizedPreparers).
 			ExtendWithErrorHandler(customization.errorHandler).
 			RunTest(t)
 
@@ -369,6 +370,15 @@ func checkMergeZips(expected ...string) snapshotBuildInfoChecker {
 
 type resultChecker func(t *testing.T, result *android.TestResult)
 
+// snapshotTestPreparer registers a preparer that will be used to customize the specified
+// snapshotTest.
+func snapshotTestPreparer(snapshotTest snapshotTest, preparer android.FixturePreparer) snapshotBuildInfoChecker {
+	return func(info *snapshotBuildInfo) {
+		customization := info.snapshotTestCustomization(snapshotTest)
+		customization.preparers = append(customization.preparers, preparer)
+	}
+}
+
 // snapshotTestChecker registers a checker that will be run against the result of processing the
 // generated snapshot for the specified snapshotTest.
 func snapshotTestChecker(snapshotTest snapshotTest, checker resultChecker) snapshotBuildInfoChecker {
@@ -395,6 +405,9 @@ func snapshotTestErrorHandler(snapshotTest snapshotTest, handler android.Fixture
 
 // Encapsulates information provided by each test to customize a specific snapshotTest.
 type snapshotTestCustomization struct {
+	// Preparers that are used to customize the test fixture before running the test.
+	preparers []android.FixturePreparer
+
 	// Checkers that are run on the result of processing the preferred snapshot in a specific test
 	// case.
 	checkers []resultChecker

@@ -518,8 +518,7 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
 	prebuiltSdkToolsBinDir := filepath.Join("prebuilts", "sdk", "tools", runtime.GOOS, "bin")
 
 	// Figure out if need to compress apex.
-	compressionEnabled := ctx.Config().CompressedApex() && proptools.BoolDefault(a.properties.Compressible, false) && !a.testApex
-
+	compressionEnabled := ctx.Config().CompressedApex() && proptools.BoolDefault(a.properties.Compressible, false) && !a.testApex && !ctx.Config().UnbundledBuildApps()
 	if apexType == imageApex {
 		////////////////////////////////////////////////////////////////////////////////////
 		// Step 2: create canned_fs_config which encodes filemode,uid,gid of each files
@@ -872,7 +871,7 @@ func (a *apexBundle) getCertificateAndPrivateKey(ctx android.PathContext) (pem, 
 		return a.containerCertificateFile, a.containerPrivateKeyFile
 	}
 
-	cert := String(a.properties.Certificate)
+	cert := String(a.overridableProperties.Certificate)
 	if cert == "" {
 		return ctx.Config().DefaultAppCertificate(ctx)
 	}

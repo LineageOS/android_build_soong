@@ -180,8 +180,6 @@ var (
 		"libc_init_dynamic",             // ruperts@, cc_library_static, 'private/bionic_defs.h' file not found
 		"libc_tzcode",                   // ruperts@, cc_library_static, error: expected expression
 		"libc_netbsd",                   // ruperts@, cc_library_static, 'engine.c' file not found
-		"libc_openbsd_large_stack",      // ruperts@, cc_library_static, 'android/log.h' file not found
-		"libc_openbsd",                  // ruperts@, cc_library_static, 'android/log.h' file not found
 		"libc_fortify",                  // ruperts@, cc_library_static, 'private/bionic_fortify.h' file not found
 		"libc_bionic",                   // ruperts@, cc_library_static, 'private/bionic_asm.h' file not found
 		"libc_bionic_ndk",               // ruperts@, cc_library_static, depends on //bionic/libc/system_properties
@@ -203,7 +201,7 @@ var (
 		"liblinker_malloc",              // ruperts@, cc_library_static, depends on //system/logging/liblog:liblog
 		"liblinker_debuggerd_stub",      // ruperts@, cc_library_static, depends on //system/libbase
 		"libbionic_tests_headers_posix", // ruperts@, cc_library_static, 'complex.h' file not found
-		"libc_dns",                      // ruperts@, cc_library_static, 'android/log.h' file not found
+		"libc_dns",                      // ruperts@, cc_library_static, 'private/android_filesystem_config.h' file not found
 		"libc_static_dispatch",          // eakammer@, cc_library_static, 'private/bionic_asm.h' file not found
 		"libc_dynamic_dispatch",         // eakammer@, cc_library_static, 'private/bionic_ifuncs.h' file not found
 		"note_memtag_heap_async",        // jingwen@, cc_library_static, 'private/bionic_asm.h' file not found (arm64)
@@ -222,7 +220,8 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libc_gdtoa", // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
+		"libc_gdtoa",   // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
+		"libc_openbsd", // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
 	}
 
 	// Used for quicker lookups

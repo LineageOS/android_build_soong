@@ -11,4 +11,7 @@ bootstrap_go_package {
     pluginFor: [
         "soong_build",
     ],
+    testSrcs: [
+        "request_type_test.go",
+    ],
 }
