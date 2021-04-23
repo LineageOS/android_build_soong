@@ -2824,6 +2824,100 @@ func TestLlndkLibrary(t *testing.T) {
 	checkEquals(t, "override apiLevel for versioned stubs", "1", params.Args["apiLevel"])
 }
 
+func TestEmbeddedLlndkLibrary(t *testing.T) {
+	result := prepareForCcTest.RunTestWithBp(t, `
+	cc_library {
+		name: "libllndk",
+		stubs: { versions: ["1", "2"] },
+		llndk: {
+			symbol_file: "libllndk.map.txt",
+		},
+		export_include_dirs: ["include"],
+	}
+
+	cc_prebuilt_library_shared {
+		name: "libllndkprebuilt",
+		stubs: { versions: ["1", "2"] },
+		llndk: {
+			symbol_file: "libllndkprebuilt.map.txt",
+		},
+	}
+
+	cc_library {
+		name: "libllndk_with_external_headers",
+		stubs: { versions: ["1", "2"] },
+		llndk: {
+			symbol_file: "libllndk.map.txt",
+			export_llndk_headers: ["libexternal_llndk_headers"],
+		},
+		header_libs: ["libexternal_headers"],
+		export_header_lib_headers: ["libexternal_headers"],
+	}
+	cc_library_headers {
+		name: "libexternal_headers",
+		export_include_dirs: ["include"],
+		vendor_available: true,
+	}
+	cc_library_headers {
+		name: "libexternal_llndk_headers",
+		export_include_dirs: ["include_llndk"],
+		llndk: {
+			symbol_file: "libllndk.map.txt",
+		},
+		vendor_available: true,
+	}
+
+	cc_library {
+		name: "libllndk_with_override_headers",
+		stubs: { versions: ["1", "2"] },
+		llndk: {
+			symbol_file: "libllndk.map.txt",
+			override_export_include_dirs: ["include_llndk"],
+		},
+		export_include_dirs: ["include"],
+	}
+	`)
+	actual := result.ModuleVariantsForTests("libllndk")
+	for i := 0; i < len(actual); i++ {
+		if !strings.HasPrefix(actual[i], "android_vendor.29_") {
+			actual = append(actual[:i], actual[i+1:]...)
+			i--
+		}
+	}
+	expected := []string{
+		"android_vendor.29_arm64_armv8-a_shared_1",
+		"android_vendor.29_arm64_armv8-a_shared_2",
+		"android_vendor.29_arm64_armv8-a_shared_current",
+		"android_vendor.29_arm64_armv8-a_shared",
+		"android_vendor.29_arm_armv7-a-neon_shared_1",
+		"android_vendor.29_arm_armv7-a-neon_shared_2",
+		"android_vendor.29_arm_armv7-a-neon_shared_current",
+		"android_vendor.29_arm_armv7-a-neon_shared",
+	}
+	android.AssertArrayString(t, "variants for llndk stubs", expected, actual)
+
+	params := result.ModuleForTests("libllndk", "android_vendor.29_arm_armv7-a-neon_shared").Description("generate stub")
+	android.AssertSame(t, "use VNDK version for default stubs", "current", params.Args["apiLevel"])
+
+	params = result.ModuleForTests("libllndk", "android_vendor.29_arm_armv7-a-neon_shared_1").Description("generate stub")
+	android.AssertSame(t, "override apiLevel for versioned stubs", "1", params.Args["apiLevel"])
+
+	checkExportedIncludeDirs := func(module, variant string, expectedDirs ...string) {
+		t.Helper()
+		m := result.ModuleForTests(module, variant).Module()
+		f := result.ModuleProvider(m, FlagExporterInfoProvider).(FlagExporterInfo)
+		android.AssertPathsRelativeToTopEquals(t, "exported include dirs for "+module+"["+variant+"]",
+			expectedDirs, f.IncludeDirs)
+	}
+
+	checkExportedIncludeDirs("libllndk", "android_arm64_armv8-a_shared", "include")
+	checkExportedIncludeDirs("libllndk", "android_vendor.29_arm64_armv8-a_shared", "include")
+	checkExportedIncludeDirs("libllndk_with_external_headers", "android_arm64_armv8-a_shared", "include")
+	checkExportedIncludeDirs("libllndk_with_external_headers", "android_vendor.29_arm64_armv8-a_shared", "include_llndk")
+	checkExportedIncludeDirs("libllndk_with_override_headers", "android_arm64_armv8-a_shared", "include")
+	checkExportedIncludeDirs("libllndk_with_override_headers", "android_vendor.29_arm64_armv8-a_shared", "include_llndk")
+}
+
 func TestLlndkHeaders(t *testing.T) {
 	ctx := testCc(t, `
 	llndk_headers {
