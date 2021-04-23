@@ -403,8 +403,8 @@ func (f *flagExporter) addExportedGeneratedHeaders(headers ...android.Path) {
 
 func (f *flagExporter) setProvider(ctx android.ModuleContext) {
 	ctx.SetProvider(FlagExporterInfoProvider, FlagExporterInfo{
-		IncludeDirs:       f.dirs,
-		SystemIncludeDirs: f.systemDirs,
+		IncludeDirs:       android.FirstUniquePaths(f.dirs),
+		SystemIncludeDirs: android.FirstUniquePaths(f.systemDirs),
 		Flags:             f.flags,
 		Deps:              f.deps,
 		GeneratedHeaders:  f.headers,
