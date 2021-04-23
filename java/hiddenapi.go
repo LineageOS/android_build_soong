@@ -84,6 +84,11 @@ type hiddenAPI struct {
 	// created by the unsupported app usage annotation processor during compilation of the class
 	// implementation jar.
 	indexCSVPath android.Path
+
+	// The paths to the classes jars that contain classes and class members annotated with
+	// the UnsupportedAppUsage annotation that need to be extracted as part of the hidden API
+	// processing.
+	classesJarPaths android.Paths
 }
 
 func (h *hiddenAPI) flagsCSV() android.Path {
@@ -102,11 +107,16 @@ func (h *hiddenAPI) indexCSV() android.Path {
 	return h.indexCSVPath
 }
 
+func (h *hiddenAPI) classesJars() android.Paths {
+	return h.classesJarPaths
+}
+
 type hiddenAPIIntf interface {
 	bootDexJar() android.Path
 	flagsCSV() android.Path
 	indexCSV() android.Path
 	metadataCSV() android.Path
+	classesJars() android.Paths
 }
 
 var _ hiddenAPIIntf = (*hiddenAPI)(nil)
@@ -244,6 +254,7 @@ func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJa
 		javaInfo := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
 		classesJars = append(classesJars, javaInfo.ImplementationJars...)
 	})
+	h.classesJarPaths = classesJars
 
 	stubFlagsCSV := hiddenAPISingletonPaths(ctx).stubFlags
 
