@@ -308,10 +308,6 @@ func (s *snapshot) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) boo
 	return false
 }
 
-func (s *snapshot) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
-	return false
-}
-
 func (s *snapshot) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
 	return false
 }
