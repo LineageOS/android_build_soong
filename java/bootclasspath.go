@@ -24,6 +24,33 @@ import (
 
 // Contains code that is common to both platform_bootclasspath and bootclasspath_fragment.
 
+func init() {
+	registerBootclasspathBuildComponents(android.InitRegistrationContext)
+}
+
+func registerBootclasspathBuildComponents(ctx android.RegistrationContext) {
+	ctx.FinalDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("bootclasspath_deps", bootclasspathDepsMutator)
+	})
+}
+
+// BootclasspathDepsMutator is the interface that a module must implement if it wants to add
+// dependencies onto APEX specific variants of bootclasspath fragments or bootclasspath contents.
+type BootclasspathDepsMutator interface {
+	// BootclasspathDepsMutator implementations should add dependencies using
+	// addDependencyOntoApexModulePair and addDependencyOntoApexVariants.
+	BootclasspathDepsMutator(ctx android.BottomUpMutatorContext)
+}
+
+// bootclasspathDepsMutator is called during the final deps phase after all APEX variants have
+// been created so can add dependencies onto specific APEX variants of modules.
+func bootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
+	m := ctx.Module()
+	if p, ok := m.(BootclasspathDepsMutator); ok {
+		p.BootclasspathDepsMutator(ctx)
+	}
+}
+
 // addDependencyOntoApexVariants adds dependencies onto the appropriate apex specific variants of
 // the module as specified in the ApexVariantReference list.
 func addDependencyOntoApexVariants(ctx android.BottomUpMutatorContext, propertyName string, refs []ApexVariantReference, tag blueprint.DependencyTag) {
