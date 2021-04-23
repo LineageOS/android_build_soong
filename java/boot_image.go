@@ -124,8 +124,22 @@ func bootImageConsistencyCheck(ctx android.EarlyModuleContext, m *BootImageModul
 	if m.properties.Image_name != nil && len(contents) != 0 {
 		ctx.ModuleErrorf(`both of the "image_name" and "contents" properties have been supplied, please supply exactly one`)
 	}
+
 	imageName := proptools.String(m.properties.Image_name)
 	if imageName == "art" {
+		// TODO(b/177892522): Prebuilts (versioned or not) should not use the image_name property.
+		if m.MemberName() != "" {
+			// The module is a versioned prebuilt so ignore it. This is done for a couple of reasons:
+			// 1. There is no way to use this at the moment so ignoring it is safe.
+			// 2. Attempting to initialize the contents property from the configuration will end up having
+			//    the versioned prebuilt depending on the unversioned prebuilt. That will cause problems
+			//    as the unversioned prebuilt could end up with an APEX variant created for the source
+			//    APEX which will prevent it from having an APEX variant for the prebuilt APEX which in
+			//    turn will prevent it from accessing the dex implementation jar from that which will
+			//    break hidden API processing, amongst others.
+			return
+		}
+
 		// Get the configuration for the art apex jars. Do not use getImageConfig(ctx) here as this is
 		// too early in the Soong processing for that to work.
 		global := dexpreopt.GetGlobalConfig(ctx)
