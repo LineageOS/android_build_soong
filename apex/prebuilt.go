@@ -97,9 +97,16 @@ func (p *prebuiltCommon) checkForceDisable(ctx android.ModuleContext) bool {
 func (p *prebuiltCommon) deapexerDeps(ctx android.BottomUpMutatorContext) {
 	// Add dependencies onto the java modules that represent the java libraries that are provided by
 	// and exported from this prebuilt apex.
-	for _, lib := range p.deapexerProperties.Exported_java_libs {
-		dep := prebuiltApexExportedModuleName(ctx, lib)
+	for _, exported := range p.deapexerProperties.Exported_java_libs {
+		dep := prebuiltApexExportedModuleName(ctx, exported)
 		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), exportedJavaLibTag, dep)
+	}
+
+	// Add dependencies onto the bootclasspath fragment modules that are exported from this prebuilt
+	// apex.
+	for _, exported := range p.deapexerProperties.Exported_bootclasspath_fragments {
+		dep := prebuiltApexExportedModuleName(ctx, exported)
+		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), exportedBootclasspathFragmentTag, dep)
 	}
 }
 
@@ -137,18 +144,19 @@ func (p *prebuiltCommon) apexInfoMutator(mctx android.TopDownMutatorContext) {
 	var dependencies []android.ApexModule
 	mctx.VisitDirectDeps(func(m android.Module) {
 		tag := mctx.OtherModuleDependencyTag(m)
-		if tag == exportedJavaLibTag {
+		if exportedTag, ok := tag.(exportedDependencyTag); ok {
+			propertyName := exportedTag.name
 			depName := mctx.OtherModuleName(m)
 
 			// It is an error if the other module is not a prebuilt.
 			if _, ok := m.(android.PrebuiltInterface); !ok {
-				mctx.PropertyErrorf("exported_java_libs", "%q is not a prebuilt module", depName)
+				mctx.PropertyErrorf(propertyName, "%q is not a prebuilt module", depName)
 				return
 			}
 
 			// It is an error if the other module is not an ApexModule.
 			if _, ok := m.(android.ApexModule); !ok {
-				mctx.PropertyErrorf("exported_java_libs", "%q is not usable within an apex", depName)
+				mctx.PropertyErrorf(propertyName, "%q is not usable within an apex", depName)
 				return
 			}
 
@@ -451,7 +459,8 @@ type exportedDependencyTag struct {
 func (t exportedDependencyTag) ExcludeFromVisibilityEnforcement() {}
 
 var (
-	exportedJavaLibTag = exportedDependencyTag{name: "exported_java_lib"}
+	exportedJavaLibTag               = exportedDependencyTag{name: "exported_java_libs"}
+	exportedBootclasspathFragmentTag = exportedDependencyTag{name: "exported_bootclasspath_fragments"}
 )
 
 func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
