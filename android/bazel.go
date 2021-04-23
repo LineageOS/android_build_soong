@@ -212,8 +212,8 @@ var (
 		"libc_malloc_debug", // jingwen@, cc_library, fatal error: 'assert.h' file not found
 		"libc_malloc_hooks", // jingwen@, cc_library, fatal error: 'errno.h' file not found
 		"libdl",             // jingwen@, cc_library, ld.lld: error: no input files
-		"libm",              // jingwen@, cc_library, fatal error: 'freebsd-compat.h' file not found
-		"libseccomp_policy", // jingwen@, cc_library, fatal error: 'seccomp_policy.h' file not found
+		"libm",              // lberki@, cc_library, compiler error: "Unexpected token in argument list"
+		"libseccomp_policy", // lberki@, cc_library, 'linux/filter.h' not found, caused by missing -isystem bionic/libc/kernel/uapi, dunno where it comes from in Soong
 		"libstdc++",         // jingwen@, cc_library, depends on //external/gwp_asan
 	}
 
