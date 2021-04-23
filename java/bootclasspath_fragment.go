@@ -29,14 +29,6 @@ import (
 func init() {
 	registerBootclasspathFragmentBuildComponents(android.InitRegistrationContext)
 
-	// TODO(b/177892522): Remove after has been replaced by bootclasspath_fragments
-	android.RegisterSdkMemberType(&bootclasspathFragmentMemberType{
-		SdkMemberTypeBase: android.SdkMemberTypeBase{
-			PropertyName: "boot_images",
-			SupportsSdk:  true,
-		},
-	})
-
 	android.RegisterSdkMemberType(&bootclasspathFragmentMemberType{
 		SdkMemberTypeBase: android.SdkMemberTypeBase{
 			PropertyName: "bootclasspath_fragments",
@@ -46,10 +38,6 @@ func init() {
 }
 
 func registerBootclasspathFragmentBuildComponents(ctx android.RegistrationContext) {
-	// TODO(b/177892522): Remove after has been replaced by bootclasspath_fragment
-	ctx.RegisterModuleType("boot_image", bootclasspathFragmentFactory)
-	ctx.RegisterModuleType("prebuilt_boot_image", prebuiltBootclasspathFragmentFactory)
-
 	ctx.RegisterModuleType("bootclasspath_fragment", bootclasspathFragmentFactory)
 	ctx.RegisterModuleType("prebuilt_bootclasspath_fragment", prebuiltBootclasspathFragmentFactory)
 }
