@@ -31,6 +31,7 @@ bootstrap_go_package {
         "base.go",
         "boot_image.go",
         "boot_jars.go",
+        "bootclasspath.go",
         "builder.go",
         "classpath_fragment.go",
         "device_host_converter.go",
