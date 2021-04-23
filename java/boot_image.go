@@ -16,6 +16,7 @@ package java
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"android/soong/android"
@@ -53,7 +54,7 @@ func RegisterBootImageBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_bootclasspath_fragment", prebuiltBootImageFactory)
 }
 
-type bootImageContentDependencyTag struct {
+type bootclasspathFragmentContentDependencyTag struct {
 	blueprint.BaseDependencyTag
 }
 
@@ -62,16 +63,22 @@ type bootImageContentDependencyTag struct {
 // This is a temporary workaround to make it easier to migrate to boot image modules with proper
 // dependencies.
 // TODO(b/177892522): Remove this and add needed visibility.
-func (b bootImageContentDependencyTag) ExcludeFromVisibilityEnforcement() {
+func (b bootclasspathFragmentContentDependencyTag) ExcludeFromVisibilityEnforcement() {
+}
+
+// The bootclasspath_fragment contents must never depend on prebuilts.
+func (b bootclasspathFragmentContentDependencyTag) ReplaceSourceWithPrebuilt() bool {
+	return false
 }
 
 // The tag used for the dependency between the boot image module and its contents.
-var bootImageContentDepTag = bootImageContentDependencyTag{}
+var bootclasspathFragmentContentDepTag = bootclasspathFragmentContentDependencyTag{}
 
-var _ android.ExcludeFromVisibilityEnforcementTag = bootImageContentDepTag
+var _ android.ExcludeFromVisibilityEnforcementTag = bootclasspathFragmentContentDepTag
+var _ android.ReplaceSourceWithPrebuilt = bootclasspathFragmentContentDepTag
 
-func IsbootImageContentDepTag(tag blueprint.DependencyTag) bool {
-	return tag == bootImageContentDepTag
+func IsBootclasspathFragmentContentDepTag(tag blueprint.DependencyTag) bool {
+	return tag == bootclasspathFragmentContentDepTag
 }
 
 type bootImageProperties struct {
@@ -187,7 +194,7 @@ func (i BootImageInfo) AndroidBootImageFilesByArchType() map[android.ArchType]an
 
 func (b *BootImageModule) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	tag := ctx.OtherModuleDependencyTag(dep)
-	if tag == bootImageContentDepTag {
+	if IsBootclasspathFragmentContentDepTag(tag) {
 		// Boot image contents are automatically added to apex.
 		return true
 	}
@@ -202,8 +209,28 @@ func (b *BootImageModule) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	return nil
 }
 
+// ComponentDepsMutator adds dependencies onto modules before any prebuilt modules without a
+// corresponding source module are renamed. This means that adding a dependency using a name without
+// a prebuilt_ prefix will always resolve to a source module and when using a name with that prefix
+// it will always resolve to a prebuilt module.
+func (b *BootImageModule) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
+	module := ctx.Module()
+	_, isSourceModule := module.(*BootImageModule)
+
+	for _, name := range b.properties.Contents {
+		// A bootclasspath_fragment must depend only on other source modules, while the
+		// prebuilt_bootclasspath_fragment must only depend on other prebuilt modules.
+		//
+		// TODO(b/177892522) - avoid special handling of jacocoagent.
+		if !isSourceModule && name != "jacocoagent" {
+			name = android.PrebuiltNameFromSource(name)
+		}
+		ctx.AddDependency(module, bootclasspathFragmentContentDepTag, name)
+	}
+
+}
+
 func (b *BootImageModule) DepsMutator(ctx android.BottomUpMutatorContext) {
-	ctx.AddDependency(ctx.Module(), bootImageContentDepTag, b.properties.Contents...)
 
 	if SkipDexpreoptBootJars(ctx) {
 		return
@@ -295,18 +322,57 @@ func (b *bootImageMemberType) CreateVariantPropertiesStruct() android.SdkMemberP
 type bootImageSdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
+	// The image name
 	Image_name *string
+
+	// Contents of the bootclasspath fragment
+	Contents []string
+
+	// Flag files by *hiddenAPIFlagFileCategory
+	Flag_files_by_category map[*hiddenAPIFlagFileCategory]android.Paths
 }
 
 func (b *bootImageSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
 	module := variant.(*BootImageModule)
 
 	b.Image_name = module.properties.Image_name
+	if b.Image_name == nil {
+		// Only one of image_name or contents can be specified. However, if image_name is set then the
+		// contents property is updated to match the configuration used to create the corresponding
+		// boot image. Therefore, contents property is only copied if the image name is not specified.
+		b.Contents = module.properties.Contents
+	}
+
+	// Get the flag file information from the module.
+	mctx := ctx.SdkModuleContext()
+	flagFileInfo := mctx.OtherModuleProvider(module, hiddenAPIFlagFileInfoProvider).(hiddenAPIFlagFileInfo)
+	b.Flag_files_by_category = flagFileInfo.categoryToPaths
 }
 
 func (b *bootImageSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
 	if b.Image_name != nil {
 		propertySet.AddProperty("image_name", *b.Image_name)
+	}
+
+	if len(b.Contents) > 0 {
+		propertySet.AddPropertyWithTag("contents", b.Contents, ctx.SnapshotBuilder().SdkMemberReferencePropertyTag(true))
+	}
+
+	builder := ctx.SnapshotBuilder()
+	if b.Flag_files_by_category != nil {
+		hiddenAPISet := propertySet.AddPropertySet("hidden_api")
+		for _, category := range hiddenAPIFlagFileCategories {
+			paths := b.Flag_files_by_category[category]
+			if len(paths) > 0 {
+				dests := []string{}
+				for _, p := range paths {
+					dest := filepath.Join("hiddenapi", p.Base())
+					builder.CopyToSnapshot(p, dest)
+					dests = append(dests, dest)
+				}
+				hiddenAPISet.AddProperty(category.propertyName, dests)
+			}
+		}
 	}
 }
 

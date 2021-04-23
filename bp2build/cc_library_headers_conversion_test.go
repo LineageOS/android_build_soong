@@ -131,6 +131,7 @@ cc_library_headers {
 }`,
 			expectedBazelTargets: []string{`cc_library_headers(
     name = "foo_headers",
+    copts = ["-I."],
     deps = [
         ":lib-1",
         ":lib-2",
@@ -157,6 +158,7 @@ cc_library_headers {
     }),
 )`, `cc_library_headers(
     name = "lib-1",
+    copts = ["-I."],
     hdrs = [
         "lib-1/lib1a.h",
         "lib-1/lib1b.h",
@@ -164,6 +166,7 @@ cc_library_headers {
     includes = ["lib-1"],
 )`, `cc_library_headers(
     name = "lib-2",
+    copts = ["-I."],
     hdrs = [
         "lib-2/lib2a.h",
         "lib-2/lib2b.h",
@@ -201,12 +204,16 @@ cc_library_headers {
 }`,
 			expectedBazelTargets: []string{`cc_library_headers(
     name = "android-lib",
+    copts = ["-I."],
 )`, `cc_library_headers(
     name = "base-lib",
+    copts = ["-I."],
 )`, `cc_library_headers(
     name = "darwin-lib",
+    copts = ["-I."],
 )`, `cc_library_headers(
     name = "foo_headers",
+    copts = ["-I."],
     deps = [":base-lib"] + select({
         "//build/bazel/platforms/os:android": [":android-lib"],
         "//build/bazel/platforms/os:darwin": [":darwin-lib"],
@@ -218,12 +225,16 @@ cc_library_headers {
     }),
 )`, `cc_library_headers(
     name = "fuchsia-lib",
+    copts = ["-I."],
 )`, `cc_library_headers(
     name = "linux-lib",
+    copts = ["-I."],
 )`, `cc_library_headers(
     name = "linux_bionic-lib",
+    copts = ["-I."],
 )`, `cc_library_headers(
     name = "windows-lib",
+    copts = ["-I."],
 )`},
 		},
 		{
@@ -244,10 +255,13 @@ cc_library_headers {
 }`,
 			expectedBazelTargets: []string{`cc_library_headers(
     name = "android-lib",
+    copts = ["-I."],
 )`, `cc_library_headers(
     name = "exported-lib",
+    copts = ["-I."],
 )`, `cc_library_headers(
     name = "foo_headers",
+    copts = ["-I."],
     deps = select({
         "//build/bazel/platforms/os:android": [
             ":android-lib",

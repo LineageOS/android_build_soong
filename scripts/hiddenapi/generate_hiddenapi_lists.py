@@ -332,7 +332,7 @@ def parse_ordered_flags(ordered_flags):
 def main(argv):
     # Parse arguments.
     args = vars(get_args())
-    flagfiles = parse_ordered_flags(args['ordered_flags'])
+    flagfiles = parse_ordered_flags(args['ordered_flags'] or [])
 
     # Initialize API->flags dictionary.
     flags = FlagsDict()

@@ -21,6 +21,158 @@ import (
 
 // Contains support for processing hiddenAPI in a modular fashion.
 
+type hiddenAPIStubsDependencyTag struct {
+	blueprint.BaseDependencyTag
+	sdkKind android.SdkKind
+}
+
+func (b hiddenAPIStubsDependencyTag) ExcludeFromApexContents() {
+}
+
+func (b hiddenAPIStubsDependencyTag) ReplaceSourceWithPrebuilt() bool {
+	return false
+}
+
+// Avoid having to make stubs content explicitly visible to dependent modules.
+//
+// This is a temporary workaround to make it easier to migrate to bootclasspath_fragment modules
+// with proper dependencies.
+// TODO(b/177892522): Remove this and add needed visibility.
+func (b hiddenAPIStubsDependencyTag) ExcludeFromVisibilityEnforcement() {
+}
+
+var _ android.ExcludeFromVisibilityEnforcementTag = hiddenAPIStubsDependencyTag{}
+var _ android.ReplaceSourceWithPrebuilt = hiddenAPIStubsDependencyTag{}
+var _ android.ExcludeFromApexContentsTag = hiddenAPIStubsDependencyTag{}
+
+// hiddenAPIRelevantSdkKinds lists all the android.SdkKind instances that are needed by the hidden
+// API processing.
+var hiddenAPIRelevantSdkKinds = []android.SdkKind{
+	android.SdkPublic,
+	android.SdkSystem,
+	android.SdkTest,
+	android.SdkCorePlatform,
+}
+
+// hiddenAPIComputeMonolithicStubLibModules computes the set of module names that provide stubs
+// needed to produce the hidden API monolithic stub flags file.
+func hiddenAPIComputeMonolithicStubLibModules(config android.Config) map[android.SdkKind][]string {
+	var publicStubModules []string
+	var systemStubModules []string
+	var testStubModules []string
+	var corePlatformStubModules []string
+
+	if config.AlwaysUsePrebuiltSdks() {
+		// Build configuration mandates using prebuilt stub modules
+		publicStubModules = append(publicStubModules, "sdk_public_current_android")
+		systemStubModules = append(systemStubModules, "sdk_system_current_android")
+		testStubModules = append(testStubModules, "sdk_test_current_android")
+	} else {
+		// Use stub modules built from source
+		publicStubModules = append(publicStubModules, "android_stubs_current")
+		systemStubModules = append(systemStubModules, "android_system_stubs_current")
+		testStubModules = append(testStubModules, "android_test_stubs_current")
+	}
+	// We do not have prebuilts of the core platform api yet
+	corePlatformStubModules = append(corePlatformStubModules, "legacy.core.platform.api.stubs")
+
+	// Allow products to define their own stubs for custom product jars that apps can use.
+	publicStubModules = append(publicStubModules, config.ProductHiddenAPIStubs()...)
+	systemStubModules = append(systemStubModules, config.ProductHiddenAPIStubsSystem()...)
+	testStubModules = append(testStubModules, config.ProductHiddenAPIStubsTest()...)
+	if config.IsEnvTrue("EMMA_INSTRUMENT") {
+		publicStubModules = append(publicStubModules, "jacoco-stubs")
+	}
+
+	m := map[android.SdkKind][]string{}
+	m[android.SdkPublic] = publicStubModules
+	m[android.SdkSystem] = systemStubModules
+	m[android.SdkTest] = testStubModules
+	m[android.SdkCorePlatform] = corePlatformStubModules
+	return m
+}
+
+// hiddenAPIAddStubLibDependencies adds dependencies onto the modules specified in
+// sdkKindToStubLibModules. It adds them in a well known order and uses an SdkKind specific tag to
+// identify the source of the dependency.
+func hiddenAPIAddStubLibDependencies(ctx android.BottomUpMutatorContext, sdkKindToStubLibModules map[android.SdkKind][]string) {
+	module := ctx.Module()
+	for _, sdkKind := range hiddenAPIRelevantSdkKinds {
+		modules := sdkKindToStubLibModules[sdkKind]
+		ctx.AddDependency(module, hiddenAPIStubsDependencyTag{sdkKind: sdkKind}, modules...)
+	}
+}
+
+// hiddenAPIGatherStubLibDexJarPaths gathers the paths to the dex jars from the dependencies added
+// in hiddenAPIAddStubLibDependencies.
+func hiddenAPIGatherStubLibDexJarPaths(ctx android.ModuleContext) map[android.SdkKind]android.Paths {
+	m := map[android.SdkKind]android.Paths{}
+	ctx.VisitDirectDepsIf(isActiveModule, func(module android.Module) {
+		tag := ctx.OtherModuleDependencyTag(module)
+		if hiddenAPIStubsTag, ok := tag.(hiddenAPIStubsDependencyTag); ok {
+			kind := hiddenAPIStubsTag.sdkKind
+			dexJar := hiddenAPIRetrieveDexJarBuildPath(ctx, module)
+			if dexJar != nil {
+				m[kind] = append(m[kind], dexJar)
+			}
+		}
+	})
+	return m
+}
+
+// hiddenAPIRetrieveDexJarBuildPath retrieves the DexJarBuildPath from the specified module, if
+// available, or reports an error.
+func hiddenAPIRetrieveDexJarBuildPath(ctx android.ModuleContext, module android.Module) android.Path {
+	if j, ok := module.(UsesLibraryDependency); ok {
+		dexJar := j.DexJarBuildPath()
+		if dexJar != nil {
+			return dexJar
+		}
+		ctx.ModuleErrorf("dependency %s does not provide a dex jar, consider setting compile_dex: true", module)
+	} else {
+		ctx.ModuleErrorf("dependency %s of module type %s does not support providing a dex jar", module, ctx.OtherModuleType(module))
+	}
+	return nil
+}
+
+var sdkKindToHiddenapiListOption = map[android.SdkKind]string{
+	android.SdkPublic:       "public-stub-classpath",
+	android.SdkSystem:       "system-stub-classpath",
+	android.SdkTest:         "test-stub-classpath",
+	android.SdkCorePlatform: "core-platform-stub-classpath",
+}
+
+// ruleToGenerateHiddenAPIStubFlagsFile creates a rule to create a hidden API stub flags file.
+//
+// The rule is initialized but not built so that the caller can modify it and select an appropriate
+// name.
+func ruleToGenerateHiddenAPIStubFlagsFile(ctx android.BuilderContext, outputPath android.OutputPath, bootDexJars android.Paths, sdkKindToPathList map[android.SdkKind]android.Paths) *android.RuleBuilder {
+	// Singleton rule which applies hiddenapi on all boot class path dex files.
+	rule := android.NewRuleBuilder(pctx, ctx)
+
+	tempPath := tempPathForRestat(ctx, outputPath)
+
+	command := rule.Command().
+		Tool(ctx.Config().HostToolPath(ctx, "hiddenapi")).
+		Text("list").
+		FlagForEachInput("--boot-dex=", bootDexJars)
+
+	// Iterate over the sdk kinds in a fixed order.
+	for _, sdkKind := range hiddenAPIRelevantSdkKinds {
+		paths := sdkKindToPathList[sdkKind]
+		if len(paths) > 0 {
+			option := sdkKindToHiddenapiListOption[sdkKind]
+			command.FlagWithInputList("--"+option+"=", paths, ":")
+		}
+	}
+
+	// Add the output path.
+	command.FlagWithOutput("--out-api-flags=", tempPath)
+
+	commitChangeForRestat(rule, tempPath, outputPath)
+	return rule
+}
+
 // HiddenAPIFlagFileProperties contains paths to the flag files that can be used to augment the
 // information obtained from annotations within the source code in order to create the complete set
 // of flags that should be applied to the dex implementation jars on the bootclasspath.
@@ -206,7 +358,7 @@ var hiddenAPIFlagFileInfoProvider = blueprint.NewProvider(hiddenAPIFlagFileInfo{
 // augmentationInfo is a struct containing paths to files that augment the information provided by
 // the moduleSpecificFlagsPaths.
 func ruleToGenerateHiddenApiFlags(ctx android.BuilderContext, outputPath android.WritablePath, baseFlagsPath android.Path, moduleSpecificFlagsPaths android.Paths, augmentationInfo hiddenAPIFlagFileInfo) {
-	tempPath := android.PathForOutput(ctx, outputPath.Rel()+".tmp")
+	tempPath := tempPathForRestat(ctx, outputPath)
 	rule := android.NewRuleBuilder(pctx, ctx)
 	command := rule.Command().
 		BuiltTool("generate_hiddenapi_lists").
