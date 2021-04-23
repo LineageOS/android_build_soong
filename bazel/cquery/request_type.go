@@ -14,6 +14,8 @@ type CcInfo struct {
 	OutputFiles          []string
 	CcObjectFiles        []string
 	CcStaticLibraryFiles []string
+	Includes             []string
+	SystemIncludes       []string
 }
 
 type getOutputFilesRequestType struct{}
@@ -63,6 +65,9 @@ func (g getCcInfoType) StarlarkFunctionBody() string {
 	return `
 outputFiles = [f.path for f in target.files.to_list()]
 
+includes = providers(target)["CcInfo"].compilation_context.includes.to_list()
+system_includes = providers(target)["CcInfo"].compilation_context.system_includes.to_list()
+
 ccObjectFiles = []
 staticLibraries = []
 linker_inputs = providers(target)["CcInfo"].linking_context.linker_inputs.to_list()
@@ -78,6 +83,8 @@ returns = [
   outputFiles,
   staticLibraries,
   ccObjectFiles,
+  includes,
+  system_includes,
 ]
 
 return "|".join([", ".join(r) for r in returns])`
@@ -91,7 +98,7 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	var ccObjects []string
 
 	splitString := strings.Split(rawString, "|")
-	if expectedLen := 3; len(splitString) != expectedLen {
+	if expectedLen := 5; len(splitString) != expectedLen {
 		return CcInfo{}, fmt.Errorf("Expected %d items, got %q", expectedLen, splitString)
 	}
 	outputFilesString := splitString[0]
@@ -100,10 +107,14 @@ func (g getCcInfoType) ParseResult(rawString string) (CcInfo, error) {
 	outputFiles = splitOrEmpty(outputFilesString, ", ")
 	ccStaticLibraries := splitOrEmpty(ccStaticLibrariesString, ", ")
 	ccObjects = splitOrEmpty(ccObjectsString, ", ")
+	includes := splitOrEmpty(splitString[3], ", ")
+	systemIncludes := splitOrEmpty(splitString[4], ", ")
 	return CcInfo{
 		OutputFiles:          outputFiles,
 		CcObjectFiles:        ccObjects,
 		CcStaticLibraryFiles: ccStaticLibraries,
+		Includes:             includes,
+		SystemIncludes:       systemIncludes,
 	}, nil
 }
 

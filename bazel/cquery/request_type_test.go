@@ -3,6 +3,7 @@ package cquery
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -45,42 +46,48 @@ func TestGetCcInfoParseResults(t *testing.T) {
 	}{
 		{
 			description: "no result",
-			input:       "||",
+			input:       "||||",
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{},
 				CcObjectFiles:        []string{},
 				CcStaticLibraryFiles: []string{},
+				Includes:             []string{},
+				SystemIncludes:       []string{},
 			},
 		},
 		{
 			description: "only output",
-			input:       "test||",
+			input:       "test||||",
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{"test"},
 				CcObjectFiles:        []string{},
 				CcStaticLibraryFiles: []string{},
+				Includes:             []string{},
+				SystemIncludes:       []string{},
 			},
 		},
 		{
 			description: "all items set",
-			input:       "out1, out2|static_lib1, static_lib2|object1, object2",
+			input:       "out1, out2|static_lib1, static_lib2|object1, object2|., dir/subdir|system/dir, system/other/dir",
 			expectedOutput: CcInfo{
 				OutputFiles:          []string{"out1", "out2"},
 				CcObjectFiles:        []string{"object1", "object2"},
 				CcStaticLibraryFiles: []string{"static_lib1", "static_lib2"},
+				Includes:             []string{".", "dir/subdir"},
+				SystemIncludes:       []string{"system/dir", "system/other/dir"},
 			},
 		},
 		{
 			description:          "too few result splits",
 			input:                "|",
 			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 3, []string{"", ""}),
+			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 5, []string{"", ""}),
 		},
 		{
 			description:          "too many result splits",
-			input:                "|||",
+			input:                strings.Repeat("|", 8),
 			expectedOutput:       CcInfo{},
-			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 3, []string{"", "", "", ""}),
+			expectedErrorMessage: fmt.Sprintf("Expected %d items, got %q", 5, make([]string, 9)),
 		},
 	}
 	for _, tc := range testCases {
