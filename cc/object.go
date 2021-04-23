@@ -112,12 +112,11 @@ func ObjectFactory() android.Module {
 
 // For bp2build conversion.
 type bazelObjectAttributes struct {
-	Srcs               bazel.LabelListAttribute
-	Hdrs               bazel.LabelListAttribute
-	Deps               bazel.LabelListAttribute
-	Copts              bazel.StringListAttribute
-	Asflags            []string
-	Local_include_dirs []string
+	Srcs    bazel.LabelListAttribute
+	Hdrs    bazel.LabelListAttribute
+	Deps    bazel.LabelListAttribute
+	Copts   bazel.StringListAttribute
+	Asflags []string
 }
 
 type bazelObject struct {
@@ -158,18 +157,7 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 
 	// Set arch-specific configurable attributes
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
-	var localIncludeDirs []string
 	var asFlags []string
-	for _, props := range m.compiler.compilerProps() {
-		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
-			localIncludeDirs = baseCompilerProps.Local_include_dirs
-			break
-		}
-	}
-
-	if c, ok := m.compiler.(*baseCompiler); ok && c.includeBuildDirectory() {
-		localIncludeDirs = append(localIncludeDirs, ".")
-	}
 
 	var deps bazel.LabelListAttribute
 	for _, props := range m.linker.linkerProps() {
@@ -197,12 +185,10 @@ func ObjectBp2Build(ctx android.TopDownMutatorContext) {
 	// TODO(b/183595872) warn/error if we're not handling product variables
 
 	attrs := &bazelObjectAttributes{
-		Srcs:               compilerAttrs.srcs,
-		Hdrs:               compilerAttrs.hdrs,
-		Deps:               deps,
-		Copts:              compilerAttrs.copts,
-		Asflags:            asFlags,
-		Local_include_dirs: localIncludeDirs,
+		Srcs:    compilerAttrs.srcs,
+		Deps:    deps,
+		Copts:   compilerAttrs.copts,
+		Asflags: asFlags,
 	}
 
 	props := bazel.BazelTargetModuleProperties{

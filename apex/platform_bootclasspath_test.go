@@ -137,9 +137,12 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 	)
 
 	java.CheckPlatformBootclasspathModules(t, result, "myplatform-bootclasspath", []string{
+		// The configured contents of BootJars.
 		"com.android.art:baz",
 		"com.android.art:quuz",
 		"platform:foo",
+
+		// The configured contents of UpdatableBootJars.
 		"myapex:bar",
 	})
 
@@ -149,11 +152,24 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 
 	// Make sure that the myplatform-bootclasspath has the correct dependencies.
 	CheckModuleDependencies(t, result.TestContext, "myplatform-bootclasspath", "android_common", []string{
+		// The following are stubs.
+		`platform:android_stubs_current`,
+		`platform:android_system_stubs_current`,
+		`platform:android_test_stubs_current`,
+		`platform:legacy.core.platform.api.stubs`,
+
+		// Needed for generating the boot image.
 		`platform:dex2oatd`,
+
+		// The configured contents of BootJars.
 		`com.android.art:baz`,
 		`com.android.art:quuz`,
 		`platform:foo`,
+
+		// The configured contents of UpdatableBootJars.
 		`myapex:bar`,
+
+		// The fragments.
 		`com.android.art:art-bootclasspath-fragment`,
 	})
 }

@@ -140,6 +140,8 @@ func (b *platformBootclasspathModule) OutputFiles(tag string) (android.Paths, er
 }
 
 func (b *platformBootclasspathModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	b.hiddenAPIDepsMutator(ctx)
+
 	if SkipDexpreoptBootJars(ctx) {
 		return
 	}
@@ -147,6 +149,16 @@ func (b *platformBootclasspathModule) DepsMutator(ctx android.BottomUpMutatorCon
 	// Add a dependency onto the dex2oat tool which is needed for creating the boot image. The
 	// path is retrieved from the dependency by GetGlobalSoongConfig(ctx).
 	dexpreopt.RegisterToolDeps(ctx)
+}
+
+func (b *platformBootclasspathModule) hiddenAPIDepsMutator(ctx android.BottomUpMutatorContext) {
+	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+		return
+	}
+
+	// Add dependencies onto the stub lib modules.
+	sdkKindToStubLibModules := hiddenAPIComputeMonolithicStubLibModules(ctx.Config())
+	hiddenAPIAddStubLibDependencies(ctx, sdkKindToStubLibModules)
 }
 
 func platformBootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
@@ -353,8 +365,22 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	baseFlagsPath := hiddenAPISingletonPaths(ctx).stubFlags
 	ruleToGenerateHiddenApiFlags(ctx, outputPath, baseFlagsPath, moduleSpecificFlagsPaths, flagFileInfo)
 
+	b.generateHiddenAPIStubFlagsRules(ctx, hiddenAPISupportingModules)
 	b.generateHiddenAPIIndexRules(ctx, hiddenAPISupportingModules)
 	b.generatedHiddenAPIMetadataRules(ctx, hiddenAPISupportingModules)
+}
+
+func (b *platformBootclasspathModule) generateHiddenAPIStubFlagsRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
+	bootDexJars := android.Paths{}
+	for _, module := range modules {
+		bootDexJars = append(bootDexJars, module.bootDexJar())
+	}
+
+	sdkKindToStubPaths := hiddenAPIGatherStubLibDexJarPaths(ctx)
+
+	outputPath := hiddenAPISingletonPaths(ctx).stubFlags
+	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, outputPath, bootDexJars, sdkKindToStubPaths)
+	rule.Build("platform-bootclasspath-monolithic-hiddenapi-stub-flags", "monolithic hidden API stub flags")
 }
 
 func (b *platformBootclasspathModule) generateHiddenAPIIndexRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {

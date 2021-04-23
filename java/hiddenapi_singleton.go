@@ -15,6 +15,8 @@
 package java
 
 import (
+	"strings"
+
 	"android/soong/android"
 )
 
@@ -125,8 +127,6 @@ func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) 
 		return
 	}
 
-	stubFlagsRule(ctx)
-
 	// If there is a prebuilt hiddenapi dir, generate rules to use the
 	// files within. Generally, we build the hiddenapi files from source
 	// during the build, ensuring consistency. It's possible, in a split
@@ -156,109 +156,6 @@ func (h *hiddenAPISingleton) MakeVars(ctx android.MakeVarsContext) {
 	}
 
 	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", h.flags.String())
-}
-
-// stubFlagsRule creates the rule to build hiddenapi-stub-flags.txt out of dex jars from stub modules and boot image
-// modules.
-func stubFlagsRule(ctx android.SingletonContext) {
-	var publicStubModules []string
-	var systemStubModules []string
-	var testStubModules []string
-	var corePlatformStubModules []string
-
-	if ctx.Config().AlwaysUsePrebuiltSdks() {
-		// Build configuration mandates using prebuilt stub modules
-		publicStubModules = append(publicStubModules, "sdk_public_current_android")
-		systemStubModules = append(systemStubModules, "sdk_system_current_android")
-		testStubModules = append(testStubModules, "sdk_test_current_android")
-	} else {
-		// Use stub modules built from source
-		publicStubModules = append(publicStubModules, "android_stubs_current")
-		systemStubModules = append(systemStubModules, "android_system_stubs_current")
-		testStubModules = append(testStubModules, "android_test_stubs_current")
-	}
-	// We do not have prebuilts of the core platform api yet
-	corePlatformStubModules = append(corePlatformStubModules, "legacy.core.platform.api.stubs")
-
-	// Allow products to define their own stubs for custom product jars that apps can use.
-	publicStubModules = append(publicStubModules, ctx.Config().ProductHiddenAPIStubs()...)
-	systemStubModules = append(systemStubModules, ctx.Config().ProductHiddenAPIStubsSystem()...)
-	testStubModules = append(testStubModules, ctx.Config().ProductHiddenAPIStubsTest()...)
-	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") {
-		publicStubModules = append(publicStubModules, "jacoco-stubs")
-	}
-
-	publicStubPaths := make(android.Paths, len(publicStubModules))
-	systemStubPaths := make(android.Paths, len(systemStubModules))
-	testStubPaths := make(android.Paths, len(testStubModules))
-	corePlatformStubPaths := make(android.Paths, len(corePlatformStubModules))
-
-	moduleListToPathList := map[*[]string]android.Paths{
-		&publicStubModules:       publicStubPaths,
-		&systemStubModules:       systemStubPaths,
-		&testStubModules:         testStubPaths,
-		&corePlatformStubModules: corePlatformStubPaths,
-	}
-
-	var bootDexJars android.Paths
-
-	ctx.VisitAllModules(func(module android.Module) {
-		// Collect dex jar paths for the modules listed above.
-		if j, ok := module.(UsesLibraryDependency); ok {
-			name := ctx.ModuleName(module)
-			for moduleList, pathList := range moduleListToPathList {
-				if i := android.IndexList(name, *moduleList); i != -1 {
-					pathList[i] = j.DexJarBuildPath()
-				}
-			}
-		}
-
-		// Collect dex jar paths for modules that had hiddenapi encode called on them.
-		if h, ok := module.(hiddenAPIIntf); ok {
-			if jar := h.bootDexJar(); jar != nil {
-				bootDexJars = append(bootDexJars, jar)
-			}
-		}
-	})
-
-	var missingDeps []string
-	// Ensure all modules were converted to paths
-	for moduleList, pathList := range moduleListToPathList {
-		for i := range pathList {
-			if pathList[i] == nil {
-				moduleName := (*moduleList)[i]
-				pathList[i] = android.PathForOutput(ctx, "missing/module", moduleName)
-				if ctx.Config().AllowMissingDependencies() {
-					missingDeps = append(missingDeps, moduleName)
-				} else {
-					ctx.Errorf("failed to find dex jar path for module %q",
-						moduleName)
-				}
-			}
-		}
-	}
-
-	// Singleton rule which applies hiddenapi on all boot class path dex files.
-	rule := android.NewRuleBuilder(pctx, ctx)
-
-	outputPath := hiddenAPISingletonPaths(ctx).stubFlags
-	tempPath := android.PathForOutput(ctx, outputPath.Rel()+".tmp")
-
-	rule.MissingDeps(missingDeps)
-
-	rule.Command().
-		Tool(ctx.Config().HostToolPath(ctx, "hiddenapi")).
-		Text("list").
-		FlagForEachInput("--boot-dex=", bootDexJars).
-		FlagWithInputList("--public-stub-classpath=", publicStubPaths, ":").
-		FlagWithInputList("--system-stub-classpath=", systemStubPaths, ":").
-		FlagWithInputList("--test-stub-classpath=", testStubPaths, ":").
-		FlagWithInputList("--core-platform-stub-classpath=", corePlatformStubPaths, ":").
-		FlagWithOutput("--out-api-flags=", tempPath)
-
-	commitChangeForRestat(rule, tempPath, outputPath)
-
-	rule.Build("hiddenAPIStubFlagsFile", "hiddenapi stub flags")
 }
 
 // Checks to see whether the supplied module variant is in the list of boot jars.
@@ -346,6 +243,16 @@ func emptyFlagsRule(ctx android.SingletonContext) android.Path {
 	rule.Build("emptyHiddenAPIFlagsFile", "empty hiddenapi flags")
 
 	return outputPath
+}
+
+// tempPathForRestat creates a path of the same type as the supplied type but with a name of
+// <path>.tmp.
+//
+// e.g. If path is an OutputPath for out/soong/hiddenapi/hiddenapi-flags.csv then this will return
+// an OutputPath for out/soong/hiddenapi/hiddenapi-flags.csv.tmp
+func tempPathForRestat(ctx android.PathContext, path android.WritablePath) android.WritablePath {
+	extWithoutLeadingDot := strings.TrimPrefix(path.Ext(), ".")
+	return path.ReplaceExtension(ctx, extWithoutLeadingDot+".tmp")
 }
 
 // commitChangeForRestat adds a command to a rule that updates outputPath from tempPath if they are different.  It
