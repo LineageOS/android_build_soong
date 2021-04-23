@@ -204,8 +204,9 @@ func TestGenerateSoongModuleTargets(t *testing.T) {
 
 func TestGenerateBazelTargetModules(t *testing.T) {
 	testCases := []struct {
-		bp                  string
-		expectedBazelTarget string
+		name                 string
+		bp                   string
+		expectedBazelTargets []string
 	}{
 		{
 			bp: `custom {
@@ -214,7 +215,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
     string_prop: "a",
     bazel_module: { bp2build_available: true },
 }`,
-			expectedBazelTarget: `custom(
+			expectedBazelTargets: []string{`custom(
     name = "foo",
     string_list_prop = [
         "a",
@@ -222,6 +223,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
     ],
     string_prop = "a",
 )`,
+			},
 		},
 		{
 			bp: `custom {
@@ -230,7 +232,7 @@ func TestGenerateBazelTargetModules(t *testing.T) {
     string_prop: "a\t\n\r",
     bazel_module: { bp2build_available: true },
 }`,
-			expectedBazelTarget: `custom(
+			expectedBazelTargets: []string{`custom(
     name = "control_characters",
     string_list_prop = [
         "\t",
@@ -238,6 +240,77 @@ func TestGenerateBazelTargetModules(t *testing.T) {
     ],
     string_prop = "a\t\n\r",
 )`,
+			},
+		},
+		{
+			bp: `custom {
+  name: "has_dep",
+  arch_paths: [":dep"],
+  bazel_module: { bp2build_available: true },
+}
+
+custom {
+  name: "dep",
+  arch_paths: ["abc"],
+  bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{`custom(
+    name = "dep",
+    arch_paths = ["abc"],
+)`,
+				`custom(
+    name = "has_dep",
+    arch_paths = [":dep"],
+)`,
+			},
+		},
+		{
+			bp: `custom {
+    name: "arch_paths",
+    arch: {
+      x86: {
+        arch_paths: ["abc"],
+      },
+    },
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{`custom(
+    name = "arch_paths",
+    arch_paths = select({
+        "//build/bazel/platforms/arch:x86": ["abc"],
+        "//conditions:default": [],
+    }),
+)`,
+			},
+		},
+		{
+			bp: `custom {
+  name: "has_dep",
+  arch: {
+    x86: {
+      arch_paths: [":dep"],
+    },
+  },
+  bazel_module: { bp2build_available: true },
+}
+
+custom {
+    name: "dep",
+    arch_paths: ["abc"],
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{`custom(
+    name = "dep",
+    arch_paths = ["abc"],
+)`,
+				`custom(
+    name = "has_dep",
+    arch_paths = select({
+        "//build/bazel/platforms/arch:x86": [":dep"],
+        "//conditions:default": [],
+    }),
+)`,
+			},
 		},
 	}
 
@@ -262,16 +335,18 @@ func TestGenerateBazelTargetModules(t *testing.T) {
 		codegenCtx := NewCodegenContext(config, *ctx.Context, Bp2Build)
 		bazelTargets := generateBazelTargetsForDir(codegenCtx, dir)
 
-		if actualCount, expectedCount := len(bazelTargets), 1; actualCount != expectedCount {
+		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
 			t.Errorf("Expected %d bazel target, got %d", expectedCount, actualCount)
 		} else {
-			actualBazelTarget := bazelTargets[0]
-			if actualBazelTarget.content != testCase.expectedBazelTarget {
-				t.Errorf(
-					"Expected generated Bazel target to be '%s', got '%s'",
-					testCase.expectedBazelTarget,
-					actualBazelTarget.content,
-				)
+			for i, expectedBazelTarget := range testCase.expectedBazelTargets {
+				actualBazelTarget := bazelTargets[i]
+				if actualBazelTarget.content != expectedBazelTarget {
+					t.Errorf(
+						"Expected generated Bazel target to be '%s', got '%s'",
+						expectedBazelTarget,
+						actualBazelTarget.content,
+					)
+				}
 			}
 		}
 	}
