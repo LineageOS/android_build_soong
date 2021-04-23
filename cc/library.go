@@ -959,9 +959,8 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 	if ctx.IsLlndk() {
 		// LLNDK libraries ignore most of the properties on the cc_library and use the
 		// LLNDK-specific properties instead.
-		deps.HeaderLibs = append(deps.HeaderLibs, library.Properties.Llndk.Export_llndk_headers...)
-		deps.ReexportHeaderLibHeaders = append(deps.ReexportHeaderLibHeaders,
-			library.Properties.Llndk.Export_llndk_headers...)
+		deps.HeaderLibs = append([]string(nil), library.Properties.Llndk.Export_llndk_headers...)
+		deps.ReexportHeaderLibHeaders = append([]string(nil), library.Properties.Llndk.Export_llndk_headers...)
 		return deps
 	}
 
@@ -1406,6 +1405,12 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 			library.reexportDeps(timestampFiles...)
 		}
 
+		// override the module's export_include_dirs with llndk.override_export_include_dirs
+		// if it is set.
+		if override := library.Properties.Llndk.Override_export_include_dirs; override != nil {
+			library.flagExporter.Properties.Export_include_dirs = override
+		}
+
 		if Bool(library.Properties.Llndk.Export_headers_as_system) {
 			library.flagExporter.Properties.Export_system_include_dirs = append(
 				library.flagExporter.Properties.Export_system_include_dirs,
@@ -1667,6 +1672,13 @@ func (library *libraryDecorator) HeaderOnly() {
 
 // hasLLNDKStubs returns true if this cc_library module has a variant that will build LLNDK stubs.
 func (library *libraryDecorator) hasLLNDKStubs() bool {
+	return library.hasVestigialLLNDKLibrary() || String(library.Properties.Llndk.Symbol_file) != ""
+}
+
+// hasVestigialLLNDKLibrary returns true if this cc_library module has a corresponding llndk_library
+// module containing properties describing the LLNDK variant.
+// TODO(b/170784825): remove this once there are no more llndk_library modules.
+func (library *libraryDecorator) hasVestigialLLNDKLibrary() bool {
 	return String(library.Properties.Llndk_stubs) != ""
 }
 
