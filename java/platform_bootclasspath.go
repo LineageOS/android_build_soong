@@ -27,10 +27,6 @@ func init() {
 
 func registerPlatformBootclasspathBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("platform_bootclasspath", platformBootclasspathFactory)
-
-	ctx.FinalDepsMutators(func(ctx android.RegisterMutatorsContext) {
-		ctx.BottomUp("platform_bootclasspath_deps", platformBootclasspathDepsMutator)
-	})
 }
 
 // The tag used for the dependency between the platform bootclasspath and any configured boot jars.
@@ -126,25 +122,22 @@ func (b *platformBootclasspathModule) hiddenAPIDepsMutator(ctx android.BottomUpM
 	hiddenAPIAddStubLibDependencies(ctx, sdkKindToStubLibModules)
 }
 
-func platformBootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
-	m := ctx.Module()
-	if p, ok := m.(*platformBootclasspathModule); ok {
-		// Add dependencies on all the modules configured in the "art" boot image.
-		artImageConfig := genBootImageConfigs(ctx)[artBootImageName]
-		addDependenciesOntoBootImageModules(ctx, artImageConfig.modules)
+func (b *platformBootclasspathModule) BootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
+	// Add dependencies on all the modules configured in the "art" boot image.
+	artImageConfig := genBootImageConfigs(ctx)[artBootImageName]
+	addDependenciesOntoBootImageModules(ctx, artImageConfig.modules)
 
-		// Add dependencies on all the modules configured in the "boot" boot image. That does not
-		// include modules configured in the "art" boot image.
-		bootImageConfig := p.getImageConfig(ctx)
-		addDependenciesOntoBootImageModules(ctx, bootImageConfig.modules)
+	// Add dependencies on all the modules configured in the "boot" boot image. That does not
+	// include modules configured in the "art" boot image.
+	bootImageConfig := b.getImageConfig(ctx)
+	addDependenciesOntoBootImageModules(ctx, bootImageConfig.modules)
 
-		// Add dependencies on all the updatable modules.
-		updatableModules := dexpreopt.GetGlobalConfig(ctx).UpdatableBootJars
-		addDependenciesOntoBootImageModules(ctx, updatableModules)
+	// Add dependencies on all the updatable modules.
+	updatableModules := dexpreopt.GetGlobalConfig(ctx).UpdatableBootJars
+	addDependenciesOntoBootImageModules(ctx, updatableModules)
 
-		// Add dependencies on all the fragments.
-		p.properties.BootclasspathFragmentsDepsProperties.addDependenciesOntoFragments(ctx)
-	}
+	// Add dependencies on all the fragments.
+	b.properties.BootclasspathFragmentsDepsProperties.addDependenciesOntoFragments(ctx)
 }
 
 func addDependenciesOntoBootImageModules(ctx android.BottomUpMutatorContext, modules android.ConfiguredJarList) {
