@@ -131,7 +131,7 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 			s.multilibUsages = s.multilibUsages.addArchType(child.Target().Arch.ArchType)
 
 			export := memberTag.ExportMember()
-			s.memberVariantDeps = append(s.memberVariantDeps, sdkMemberVariantDep{memberType, child.(android.SdkAware), export})
+			s.memberVariantDeps = append(s.memberVariantDeps, sdkMemberVariantDep{s, memberType, child.(android.SdkAware), export})
 
 			// If the member type supports transitive sdk members then recurse down into
 			// its dependencies, otherwise exit traversal.
@@ -368,7 +368,7 @@ func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuil
 
 	addHostDeviceSupportedProperties(s.ModuleBase.DeviceSupported(), s.ModuleBase.HostSupported(), snapshotModule)
 
-	combinedPropertiesList := s.collateSnapshotModuleInfo(sdkVariants)
+	combinedPropertiesList := s.collateSnapshotModuleInfo(ctx, sdkVariants, memberVariantDeps)
 	commonCombinedProperties := s.optimizeSnapshotModuleProperties(ctx, combinedPropertiesList)
 
 	s.addSnapshotPropertiesToPropertySet(builder, snapshotModule, commonCombinedProperties)
@@ -476,20 +476,44 @@ type combinedSnapshotModuleProperties struct {
 }
 
 // collateSnapshotModuleInfo collates all the snapshot module info from supplied sdk variants.
-func (s *sdk) collateSnapshotModuleInfo(sdkVariants []*sdk) []*combinedSnapshotModuleProperties {
+func (s *sdk) collateSnapshotModuleInfo(ctx android.BaseModuleContext, sdkVariants []*sdk, memberVariantDeps []sdkMemberVariantDep) []*combinedSnapshotModuleProperties {
+	sdkVariantToCombinedProperties := map[*sdk]*combinedSnapshotModuleProperties{}
 	var list []*combinedSnapshotModuleProperties
 	for _, sdkVariant := range sdkVariants {
 		staticProperties := &snapshotModuleStaticProperties{
 			Compile_multilib: sdkVariant.multilibUsages.String(),
 		}
-		dynamicProperties := sdkVariant.dynamicMemberTypeListProperties
+		dynamicProperties := s.dynamicSdkMemberTypes.createMemberListProperties()
 
-		list = append(list, &combinedSnapshotModuleProperties{
+		combinedProperties := &combinedSnapshotModuleProperties{
 			sdkVariant:        sdkVariant,
 			staticProperties:  staticProperties,
 			dynamicProperties: dynamicProperties,
-		})
+		}
+		sdkVariantToCombinedProperties[sdkVariant] = combinedProperties
+
+		list = append(list, combinedProperties)
 	}
+
+	for _, memberVariantDep := range memberVariantDeps {
+		// If the member dependency is internal then do not add the dependency to the snapshot member
+		// list properties.
+		if !memberVariantDep.export {
+			continue
+		}
+
+		combined := sdkVariantToCombinedProperties[memberVariantDep.sdkVariant]
+		memberTypeProperty := s.memberListProperty(memberVariantDep.memberType)
+		memberName := ctx.OtherModuleName(memberVariantDep.variant)
+
+		// Append the member to the appropriate list, if it is not already present in the list.
+		memberList := memberTypeProperty.getter(combined.dynamicProperties)
+		if !android.InList(memberName, memberList) {
+			memberList = append(memberList, memberName)
+		}
+		memberTypeProperty.setter(combined.dynamicProperties, memberList)
+	}
+
 	return list
 }
 
@@ -943,6 +967,8 @@ func addSdkMemberPropertiesToSet(ctx *memberContext, memberProperties android.Sd
 
 // sdkMemberVariantDep represents a dependency from an sdk variant onto a member variant.
 type sdkMemberVariantDep struct {
+	// The sdk variant that depends (possibly indirectly) on the member variant.
+	sdkVariant *sdk
 	memberType android.SdkMemberType
 	variant    android.SdkAware
 	export     bool
