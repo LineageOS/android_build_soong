@@ -1695,7 +1695,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 			case bcpfTag:
 				{
-					if _, ok := child.(*java.BootImageModule); !ok {
+					if _, ok := child.(*java.BootclasspathFragmentModule); !ok {
 						ctx.PropertyErrorf("bootclasspath_fragments", "%q is not a boot_image module", depName)
 						return false
 					}
