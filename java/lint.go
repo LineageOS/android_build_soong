@@ -261,6 +261,7 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	cmd.FlagForEachArg("--fatal_check ", l.properties.Lint.Fatal_checks)
 
 	if BoolDefault(l.properties.Lint.Strict_updatability_linting, false) {
+		// Verify the module does not baseline issues that endanger safe updatability.
 		if baselinePath := l.getBaselineFilepath(ctx); baselinePath.Valid() {
 			cmd.FlagWithInput("--baseline ", baselinePath.Path())
 			cmd.FlagForEachArg("--disallowed_issues ", updatabilityChecks)
