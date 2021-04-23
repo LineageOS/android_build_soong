@@ -30,7 +30,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "apex_test.go",
-        "boot_image_test.go",
+        "bootclasspath_fragment_test.go",
         "platform_bootclasspath_test.go",
         "vndk_test.go",
     ],
