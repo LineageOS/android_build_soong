@@ -55,6 +55,7 @@ func RegisterMutatorsForBazelConversion(ctx *Context, preArchMutators, depsMutat
 	bp2buildDepsMutators = append([]RegisterMutatorFunc{
 		registerDepsMutatorBp2Build,
 		registerPathDepsMutator,
+		registerBp2buildArchPathDepsMutator,
 	}, depsMutators...)
 
 	for _, f := range bp2buildDepsMutators {
