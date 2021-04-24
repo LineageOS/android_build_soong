@@ -44,9 +44,13 @@ import (
 // module.`
 type DeapexerProperties struct {
 	// List of java libraries that are embedded inside this prebuilt APEX bundle and for which this
-	// APEX bundle will provide dex implementation jars for use by dexpreopt and boot jars package
-	// check.
+	// APEX bundle will create an APEX variant and provide dex implementation jars for use by
+	// dexpreopt and boot jars package check.
 	Exported_java_libs []string
+
+	// List of bootclasspath fragments inside this prebuiltd APEX bundle and for which this APEX
+	// bundle will create an APEX variant.
+	Exported_bootclasspath_fragments []string
 }
 
 type SelectedApexProperties struct {

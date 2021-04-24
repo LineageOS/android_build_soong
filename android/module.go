@@ -393,7 +393,6 @@ type ModuleContext interface {
 	InstallInSanitizerDir() bool
 	InstallInRamdisk() bool
 	InstallInVendorRamdisk() bool
-	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
@@ -451,7 +450,6 @@ type Module interface {
 	InstallInSanitizerDir() bool
 	InstallInRamdisk() bool
 	InstallInVendorRamdisk() bool
-	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
@@ -754,9 +752,6 @@ type commonProperties struct {
 
 	// Whether this module is installed to vendor ramdisk
 	Vendor_ramdisk *bool
-
-	// Whether this module is installed to debug ramdisk
-	Debug_ramdisk *bool
 
 	// Whether this module is built for non-native architectures (also known as native bridge binary)
 	Native_bridge_supported *bool `android:"arch_variant"`
@@ -1545,10 +1540,6 @@ func (m *ModuleBase) InstallInVendorRamdisk() bool {
 	return Bool(m.commonProperties.Vendor_ramdisk)
 }
 
-func (m *ModuleBase) InstallInDebugRamdisk() bool {
-	return Bool(m.commonProperties.Debug_ramdisk)
-}
-
 func (m *ModuleBase) InstallInRecovery() bool {
 	return Bool(m.commonProperties.Recovery)
 }
@@ -1600,10 +1591,6 @@ func (m *ModuleBase) InRamdisk() bool {
 
 func (m *ModuleBase) InVendorRamdisk() bool {
 	return m.base().commonProperties.ImageVariation == VendorRamdiskVariation
-}
-
-func (m *ModuleBase) InDebugRamdisk() bool {
-	return m.base().commonProperties.ImageVariation == DebugRamdiskVariation
 }
 
 func (m *ModuleBase) InRecovery() bool {
@@ -2559,10 +2546,6 @@ func (m *moduleContext) InstallInRamdisk() bool {
 
 func (m *moduleContext) InstallInVendorRamdisk() bool {
 	return m.module.InstallInVendorRamdisk()
-}
-
-func (m *moduleContext) InstallInDebugRamdisk() bool {
-	return m.module.InstallInDebugRamdisk()
 }
 
 func (m *moduleContext) InstallInRecovery() bool {

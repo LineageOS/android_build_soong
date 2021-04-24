@@ -398,6 +398,9 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 				if len(app.dexpreopter.builtInstalled) > 0 {
 					entries.SetString("LOCAL_SOONG_BUILT_INSTALLED", app.dexpreopter.builtInstalled)
 				}
+				if app.dexpreopter.configPath != nil {
+					entries.SetPath("LOCAL_SOONG_DEXPREOPT_CONFIG", app.dexpreopter.configPath)
+				}
 				for _, extra := range app.extraOutputFiles {
 					install := app.onDeviceDir + "/" + extra.Base()
 					entries.AddStrings("LOCAL_SOONG_BUILT_INSTALLED", extra.String()+":"+install)

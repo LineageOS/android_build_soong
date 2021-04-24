@@ -351,3 +351,13 @@ func PathForBazelOut(ctx PathContext, paths ...string) BazelOutPath {
 		OutputPath: outputPath.withRel(validatedExecRootPath),
 	}
 }
+
+// PathsForBazelOut returns a list of paths representing the paths under an output directory
+// dedicated to Bazel-owned outputs.
+func PathsForBazelOut(ctx PathContext, paths []string) Paths {
+	outs := make(Paths, 0, len(paths))
+	for _, p := range paths {
+		outs = append(outs, PathForBazelOut(ctx, p))
+	}
+	return outs
+}
