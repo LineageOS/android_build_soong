@@ -27,17 +27,9 @@ import (
 )
 
 func init() {
-	RegisterBootImageBuildComponents(android.InitRegistrationContext)
+	registerBootclasspathFragmentBuildComponents(android.InitRegistrationContext)
 
-	// TODO(b/177892522): Remove after has been replaced by bootclasspath_fragments
-	android.RegisterSdkMemberType(&bootImageMemberType{
-		SdkMemberTypeBase: android.SdkMemberTypeBase{
-			PropertyName: "boot_images",
-			SupportsSdk:  true,
-		},
-	})
-
-	android.RegisterSdkMemberType(&bootImageMemberType{
+	android.RegisterSdkMemberType(&bootclasspathFragmentMemberType{
 		SdkMemberTypeBase: android.SdkMemberTypeBase{
 			PropertyName: "bootclasspath_fragments",
 			SupportsSdk:  true,
@@ -45,23 +37,19 @@ func init() {
 	})
 }
 
-func RegisterBootImageBuildComponents(ctx android.RegistrationContext) {
-	// TODO(b/177892522): Remove after has been replaced by bootclasspath_fragment
-	ctx.RegisterModuleType("boot_image", bootImageFactory)
-	ctx.RegisterModuleType("prebuilt_boot_image", prebuiltBootImageFactory)
-
-	ctx.RegisterModuleType("bootclasspath_fragment", bootImageFactory)
-	ctx.RegisterModuleType("prebuilt_bootclasspath_fragment", prebuiltBootImageFactory)
+func registerBootclasspathFragmentBuildComponents(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("bootclasspath_fragment", bootclasspathFragmentFactory)
+	ctx.RegisterModuleType("prebuilt_bootclasspath_fragment", prebuiltBootclasspathFragmentFactory)
 }
 
 type bootclasspathFragmentContentDependencyTag struct {
 	blueprint.BaseDependencyTag
 }
 
-// Avoid having to make boot image content visible to the boot image.
+// Avoid having to make bootclasspath_fragment content visible to the bootclasspath_fragment.
 //
-// This is a temporary workaround to make it easier to migrate to boot image modules with proper
-// dependencies.
+// This is a temporary workaround to make it easier to migrate to bootclasspath_fragment modules
+// with proper dependencies.
 // TODO(b/177892522): Remove this and add needed visibility.
 func (b bootclasspathFragmentContentDependencyTag) ExcludeFromVisibilityEnforcement() {
 }
@@ -71,7 +59,7 @@ func (b bootclasspathFragmentContentDependencyTag) ReplaceSourceWithPrebuilt() b
 	return false
 }
 
-// The tag used for the dependency between the boot image module and its contents.
+// The tag used for the dependency between the bootclasspath_fragment module and its contents.
 var bootclasspathFragmentContentDepTag = bootclasspathFragmentContentDependencyTag{}
 
 var _ android.ExcludeFromVisibilityEnforcementTag = bootclasspathFragmentContentDepTag
@@ -81,13 +69,13 @@ func IsBootclasspathFragmentContentDepTag(tag blueprint.DependencyTag) bool {
 	return tag == bootclasspathFragmentContentDepTag
 }
 
-type bootImageProperties struct {
+type bootclasspathFragmentProperties struct {
 	// The name of the image this represents.
 	//
 	// If specified then it must be one of "art" or "boot".
 	Image_name *string
 
-	// The contents of this boot image, could be either java_library, java_sdk_library, or boot_image.
+	// The contents of this bootclasspath_fragment, could be either java_library, java_sdk_library, or boot_image.
 	//
 	// The order of this list matters as it is the order that is used in the bootclasspath.
 	Contents []string
@@ -95,28 +83,30 @@ type bootImageProperties struct {
 	Hidden_api HiddenAPIFlagFileProperties
 }
 
-type BootImageModule struct {
+type BootclasspathFragmentModule struct {
 	android.ModuleBase
 	android.ApexModuleBase
 	android.SdkBase
-	properties bootImageProperties
+	properties bootclasspathFragmentProperties
 }
 
-func bootImageFactory() android.Module {
-	m := &BootImageModule{}
+func bootclasspathFragmentFactory() android.Module {
+	m := &BootclasspathFragmentModule{}
 	m.AddProperties(&m.properties)
 	android.InitApexModule(m)
 	android.InitSdkAwareModule(m)
 	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
 
-	// Perform some consistency checking to ensure that the configuration is correct.
+	// Initialize the contents property from the image_name.
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) {
-		bootImageConsistencyCheck(ctx, m)
+		bootclasspathFragmentInitContentsFromImage(ctx, m)
 	})
 	return m
 }
 
-func bootImageConsistencyCheck(ctx android.EarlyModuleContext, m *BootImageModule) {
+// bootclasspathFragmentInitContentsFromImage will initialize the contents property from the image_name if
+// necessary.
+func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, m *BootclasspathFragmentModule) {
 	contents := m.properties.Contents
 	if m.properties.Image_name == nil && len(contents) == 0 {
 		ctx.ModuleErrorf(`neither of the "image_name" and "contents" properties have been supplied, please supply exactly one`)
@@ -124,8 +114,22 @@ func bootImageConsistencyCheck(ctx android.EarlyModuleContext, m *BootImageModul
 	if m.properties.Image_name != nil && len(contents) != 0 {
 		ctx.ModuleErrorf(`both of the "image_name" and "contents" properties have been supplied, please supply exactly one`)
 	}
+
 	imageName := proptools.String(m.properties.Image_name)
 	if imageName == "art" {
+		// TODO(b/177892522): Prebuilts (versioned or not) should not use the image_name property.
+		if m.MemberName() != "" {
+			// The module is a versioned prebuilt so ignore it. This is done for a couple of reasons:
+			// 1. There is no way to use this at the moment so ignoring it is safe.
+			// 2. Attempting to initialize the contents property from the configuration will end up having
+			//    the versioned prebuilt depending on the unversioned prebuilt. That will cause problems
+			//    as the unversioned prebuilt could end up with an APEX variant created for the source
+			//    APEX which will prevent it from having an APEX variant for the prebuilt APEX which in
+			//    turn will prevent it from accessing the dex implementation jar from that which will
+			//    break hidden API processing, amongst others.
+			return
+		}
+
 		// Get the configuration for the art apex jars. Do not use getImageConfig(ctx) here as this is
 		// too early in the Soong processing for that to work.
 		global := dexpreopt.GetGlobalConfig(ctx)
@@ -192,7 +196,7 @@ func (i BootImageInfo) AndroidBootImageFilesByArchType() map[android.ArchType]an
 	return files
 }
 
-func (b *BootImageModule) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+func (b *BootclasspathFragmentModule) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	tag := ctx.OtherModuleDependencyTag(dep)
 	if IsBootclasspathFragmentContentDepTag(tag) {
 		// Boot image contents are automatically added to apex.
@@ -205,7 +209,7 @@ func (b *BootImageModule) DepIsInSameApex(ctx android.BaseModuleContext, dep and
 	panic(fmt.Errorf("boot_image module %q should not have a dependency on %q via tag %s", b, dep, android.PrettyPrintTag(tag)))
 }
 
-func (b *BootImageModule) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
+func (b *BootclasspathFragmentModule) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
 	return nil
 }
 
@@ -213,9 +217,9 @@ func (b *BootImageModule) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 // corresponding source module are renamed. This means that adding a dependency using a name without
 // a prebuilt_ prefix will always resolve to a source module and when using a name with that prefix
 // it will always resolve to a prebuilt module.
-func (b *BootImageModule) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
+func (b *BootclasspathFragmentModule) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	module := ctx.Module()
-	_, isSourceModule := module.(*BootImageModule)
+	_, isSourceModule := module.(*BootclasspathFragmentModule)
 
 	for _, name := range b.properties.Contents {
 		// A bootclasspath_fragment must depend only on other source modules, while the
@@ -230,7 +234,7 @@ func (b *BootImageModule) ComponentDepsMutator(ctx android.BottomUpMutatorContex
 
 }
 
-func (b *BootImageModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+func (b *BootclasspathFragmentModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	if SkipDexpreoptBootJars(ctx) {
 		return
@@ -241,7 +245,7 @@ func (b *BootImageModule) DepsMutator(ctx android.BottomUpMutatorContext) {
 	dexpreopt.RegisterToolDeps(ctx)
 }
 
-func (b *BootImageModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Perform hidden API processing.
 	b.generateHiddenAPIBuildActions(ctx)
 
@@ -266,7 +270,7 @@ func (b *BootImageModule) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	ctx.SetProvider(BootImageInfoProvider, info)
 }
 
-func (b *BootImageModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
+func (b *BootclasspathFragmentModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
 	// Get a map of the image configs that are supported.
 	imageConfigs := genBootImageConfigs(ctx)
 
@@ -286,7 +290,7 @@ func (b *BootImageModule) getImageConfig(ctx android.EarlyModuleContext) *bootIm
 }
 
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
-func (b *BootImageModule) generateHiddenAPIBuildActions(ctx android.ModuleContext) {
+func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.ModuleContext) {
 	// Resolve the properties to paths.
 	flagFileInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
 
@@ -294,20 +298,20 @@ func (b *BootImageModule) generateHiddenAPIBuildActions(ctx android.ModuleContex
 	ctx.SetProvider(hiddenAPIFlagFileInfoProvider, flagFileInfo)
 }
 
-type bootImageMemberType struct {
+type bootclasspathFragmentMemberType struct {
 	android.SdkMemberTypeBase
 }
 
-func (b *bootImageMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
+func (b *bootclasspathFragmentMemberType) AddDependencies(mctx android.BottomUpMutatorContext, dependencyTag blueprint.DependencyTag, names []string) {
 	mctx.AddVariationDependencies(nil, dependencyTag, names...)
 }
 
-func (b *bootImageMemberType) IsInstance(module android.Module) bool {
-	_, ok := module.(*BootImageModule)
+func (b *bootclasspathFragmentMemberType) IsInstance(module android.Module) bool {
+	_, ok := module.(*BootclasspathFragmentModule)
 	return ok
 }
 
-func (b *bootImageMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
+func (b *bootclasspathFragmentMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
 	if b.PropertyName == "boot_images" {
 		return ctx.SnapshotBuilder().AddPrebuiltModule(member, "prebuilt_boot_image")
 	} else {
@@ -315,11 +319,11 @@ func (b *bootImageMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, me
 	}
 }
 
-func (b *bootImageMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
-	return &bootImageSdkMemberProperties{}
+func (b *bootclasspathFragmentMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
+	return &bootclasspathFragmentSdkMemberProperties{}
 }
 
-type bootImageSdkMemberProperties struct {
+type bootclasspathFragmentSdkMemberProperties struct {
 	android.SdkMemberPropertiesBase
 
 	// The image name
@@ -332,8 +336,8 @@ type bootImageSdkMemberProperties struct {
 	Flag_files_by_category map[*hiddenAPIFlagFileCategory]android.Paths
 }
 
-func (b *bootImageSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
-	module := variant.(*BootImageModule)
+func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
+	module := variant.(*BootclasspathFragmentModule)
 
 	b.Image_name = module.properties.Image_name
 	if b.Image_name == nil {
@@ -349,7 +353,7 @@ func (b *bootImageSdkMemberProperties) PopulateFromVariant(ctx android.SdkMember
 	b.Flag_files_by_category = flagFileInfo.categoryToPaths
 }
 
-func (b *bootImageSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
+func (b *bootclasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
 	if b.Image_name != nil {
 		propertySet.AddProperty("image_name", *b.Image_name)
 	}
@@ -376,28 +380,28 @@ func (b *bootImageSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCon
 	}
 }
 
-var _ android.SdkMemberType = (*bootImageMemberType)(nil)
+var _ android.SdkMemberType = (*bootclasspathFragmentMemberType)(nil)
 
-// A prebuilt version of the boot image module.
+// A prebuilt version of the bootclasspath_fragment module.
 //
-// At the moment this is basically just a boot image module that can be used as a prebuilt.
-// Eventually as more functionality is migrated into the boot image module from the singleton then
-// this will diverge.
-type prebuiltBootImageModule struct {
-	BootImageModule
+// At the moment this is basically just a bootclasspath_fragment module that can be used as a
+// prebuilt. Eventually as more functionality is migrated into the bootclasspath_fragment module
+// type from the various singletons then this will diverge.
+type prebuiltBootclasspathFragmentModule struct {
+	BootclasspathFragmentModule
 	prebuilt android.Prebuilt
 }
 
-func (module *prebuiltBootImageModule) Prebuilt() *android.Prebuilt {
+func (module *prebuiltBootclasspathFragmentModule) Prebuilt() *android.Prebuilt {
 	return &module.prebuilt
 }
 
-func (module *prebuiltBootImageModule) Name() string {
+func (module *prebuiltBootclasspathFragmentModule) Name() string {
 	return module.prebuilt.Name(module.ModuleBase.Name())
 }
 
-func prebuiltBootImageFactory() android.Module {
-	m := &prebuiltBootImageModule{}
+func prebuiltBootclasspathFragmentFactory() android.Module {
+	m := &prebuiltBootclasspathFragmentModule{}
 	m.AddProperties(&m.properties)
 	// This doesn't actually have any prebuilt files of its own so pass a placeholder for the srcs
 	// array.
@@ -406,9 +410,9 @@ func prebuiltBootImageFactory() android.Module {
 	android.InitSdkAwareModule(m)
 	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
 
-	// Perform some consistency checking to ensure that the configuration is correct.
+	// Initialize the contents property from the image_name.
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) {
-		bootImageConsistencyCheck(ctx, &m.BootImageModule)
+		bootclasspathFragmentInitContentsFromImage(ctx, &m.BootclasspathFragmentModule)
 	})
 	return m
 }

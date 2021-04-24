@@ -544,13 +544,13 @@ func toJsonClassLoaderContext(clcMap ClassLoaderContextMap) jsonClassLoaderConte
 // Recursive helper for toJsonClassLoaderContext.
 func toJsonClassLoaderContextRec(clcs []*ClassLoaderContext) []*jsonClassLoaderContext {
 	jClcs := make([]*jsonClassLoaderContext, len(clcs))
-	for _, clc := range clcs {
-		jClcs = append(jClcs, &jsonClassLoaderContext{
+	for i, clc := range clcs {
+		jClcs[i] = &jsonClassLoaderContext{
 			Name:        clc.Name,
 			Host:        clc.Host.String(),
 			Device:      clc.Device,
 			Subcontexts: toJsonClassLoaderContextRec(clc.Subcontexts),
-		})
+		}
 	}
 	return jClcs
 }

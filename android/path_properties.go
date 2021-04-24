@@ -34,7 +34,10 @@ func registerPathDepsMutator(ctx RegisterMutatorsContext) {
 // ":module" module reference syntax in a property that is tagged with `android:"path"`.
 func pathDepsMutator(ctx BottomUpMutatorContext) {
 	props := ctx.Module().base().generalProperties
+	addPathDepsForProps(ctx, props)
+}
 
+func addPathDepsForProps(ctx BottomUpMutatorContext, props []interface{}) {
 	// Iterate through each property struct of the module extracting the contents of all properties
 	// tagged with `android:"path"`.
 	var pathProperties []string
