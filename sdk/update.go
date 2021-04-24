@@ -113,8 +113,8 @@ func (gf *generatedFile) build(pctx android.PackageContext, ctx android.BuilderC
 
 // Collect all the members.
 //
-// Returns a list containing type (extracted from the dependency tag) and the variant
-// plus the multilib usages.
+// Updates the sdk module with a list of sdkMemberVariantDeps and details as to which multilibs
+// (32/64/both) are used by this sdk variant.
 func (s *sdk) collectMembers(ctx android.ModuleContext) {
 	s.multilibUsages = multilibNone
 	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
@@ -141,14 +141,16 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 	})
 }
 
-// Organize the members.
+// groupMemberVariantsByMemberThenType groups the member variant dependencies so that all the
+// variants of each member are grouped together within an sdkMember instance.
 //
-// The members are first grouped by type and then grouped by name. The order of
-// the types is the order they are referenced in android.SdkMemberTypesRegistry.
-// The names are in the order in which the dependencies were added.
+// The sdkMember instances are then grouped into slices by member type. Within each such slice the
+// sdkMember instances appear in the order they were added as dependencies.
 //
-// Returns the members as well as the multilib setting to use.
-func (s *sdk) organizeMembers(ctx android.ModuleContext, memberVariantDeps []sdkMemberVariantDep) []*sdkMember {
+// Finally, the member type slices are concatenated together to form a single slice. The order in
+// which they are concatenated is the order in which the member types were registered in the
+// android.SdkMemberTypesRegistry.
+func (s *sdk) groupMemberVariantsByMemberThenType(ctx android.ModuleContext, memberVariantDeps []sdkMemberVariantDep) []*sdkMember {
 	byType := make(map[android.SdkMemberType][]*sdkMember)
 	byName := make(map[string]*sdkMember)
 
@@ -255,7 +257,8 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	}
 	s.builderForTests = builder
 
-	members := s.organizeMembers(ctx, memberVariantDeps)
+	// Create the prebuilt modules for each of the member modules.
+	members := s.groupMemberVariantsByMemberThenType(ctx, memberVariantDeps)
 	for _, member := range members {
 		memberType := member.memberType
 
@@ -365,10 +368,10 @@ func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuil
 	addHostDeviceSupportedProperties(s.ModuleBase.DeviceSupported(), s.ModuleBase.HostSupported(), snapshotModule)
 
 	var dynamicMemberPropertiesContainers []propertiesContainer
-	osTypeToMemberProperties := make(map[android.OsType]*sdk)
+	osTypeToMemberProperties := make(map[android.OsType]interface{})
 	for _, sdkVariant := range sdkVariants {
 		properties := sdkVariant.dynamicMemberTypeListProperties
-		osTypeToMemberProperties[sdkVariant.Target().Os] = sdkVariant
+		osTypeToMemberProperties[sdkVariant.Target().Os] = properties
 		dynamicMemberPropertiesContainers = append(dynamicMemberPropertiesContainers, &dynamicMemberPropertiesContainer{sdkVariant, properties})
 	}
 
@@ -385,13 +388,13 @@ func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuil
 		Compile_multilib string `android:"arch_variant"`
 	}
 	var variantPropertiesContainers []propertiesContainer
-	variantToProperties := make(map[*sdk]*variantProperties)
+	osTypeToVariantProperties := make(map[android.OsType]*variantProperties)
 	for _, sdkVariant := range sdkVariants {
 		props := &variantProperties{
 			Compile_multilib: sdkVariant.multilibUsages.String(),
 		}
 		variantPropertiesContainers = append(variantPropertiesContainers, &dynamicMemberPropertiesContainer{sdkVariant, props})
-		variantToProperties[sdkVariant] = props
+		osTypeToVariantProperties[sdkVariant.Target().Os] = props
 	}
 	commonVariantProperties := variantProperties{}
 	extractor = newCommonValueExtractor(commonVariantProperties)
@@ -406,15 +409,15 @@ func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuil
 
 	// Iterate over the os types in a fixed order.
 	for _, osType := range s.getPossibleOsTypes() {
-		if sdkVariant, ok := osTypeToMemberProperties[osType]; ok {
-			osPropertySet := targetPropertySet.AddPropertySet(sdkVariant.Target().Os.Name)
+		if properties, ok := osTypeToMemberProperties[osType]; ok {
+			osPropertySet := targetPropertySet.AddPropertySet(osType.Name)
 
-			variantProps := variantToProperties[sdkVariant]
+			variantProps := osTypeToVariantProperties[osType]
 			if variantProps.Compile_multilib != "" && variantProps.Compile_multilib != "both" {
 				osPropertySet.AddProperty("compile_multilib", variantProps.Compile_multilib)
 			}
 
-			s.addMemberPropertiesToPropertySet(builder, osPropertySet, sdkVariant.dynamicMemberTypeListProperties)
+			s.addMemberPropertiesToPropertySet(builder, osPropertySet, properties)
 		}
 	}
 
