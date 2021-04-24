@@ -2,6 +2,7 @@ package cc
 
 import (
 	"android/soong/android"
+	"android/soong/bazel/cquery"
 
 	"github.com/google/blueprint"
 )
@@ -274,3 +275,15 @@ type FlagExporterInfo struct {
 }
 
 var FlagExporterInfoProvider = blueprint.NewProvider(FlagExporterInfo{})
+
+// flagExporterInfoFromCcInfo populates FlagExporterInfo provider with information from Bazel.
+func flagExporterInfoFromCcInfo(ctx android.ModuleContext, ccInfo cquery.CcInfo) FlagExporterInfo {
+
+	includes := android.PathsForBazelOut(ctx, ccInfo.Includes)
+	systemIncludes := android.PathsForBazelOut(ctx, ccInfo.SystemIncludes)
+
+	return FlagExporterInfo{
+		IncludeDirs:       includes,
+		SystemIncludeDirs: systemIncludes,
+	}
+}

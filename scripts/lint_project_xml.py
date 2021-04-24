@@ -144,12 +144,12 @@ def check_baseline_for_disallowed_issues(baseline, forced_checks):
   if issues_element.tagName != 'issues':
     raise RuntimeError('expected issues tag at root')
   issues = issues_element.getElementsByTagName('issue')
-  disallwed = set()
+  disallowed = set()
   for issue in issues:
     id = issue.getAttribute('id')
     if id in forced_checks:
-      disallwed.add(id)
-  return disallwed
+      disallowed.add(id)
+  return disallowed
 
 
 def main():
@@ -158,10 +158,10 @@ def main():
 
   if args.baseline_path:
     baseline = minidom.parse(args.baseline_path)
-    diallowed_issues = check_baseline_for_disallowed_issues(baseline, args.disallowed_issues)
-    if bool(diallowed_issues):
+    disallowed_issues = check_baseline_for_disallowed_issues(baseline, args.disallowed_issues)
+    if bool(disallowed_issues):
       raise RuntimeError('disallowed issues %s found in lint baseline file %s for module %s'
-                         % (diallowed_issues, args.baseline_path, args.name))
+                         % (disallowed_issues, args.baseline_path, args.name))
 
   if args.project_out:
     with open(args.project_out, 'w') as f:

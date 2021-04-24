@@ -66,9 +66,9 @@ func TestFilterArchStruct(t *testing.T) {
 			}{},
 			out: &struct {
 				A *string
-				B *string
-				C *string
-				D *string
+				B *string `android:"path"`
+				C *string `android:"path"`
+				D *string `android:"path"`
 			}{},
 			filtered: true,
 		},

@@ -56,7 +56,12 @@ type llndkLibraryProperties struct {
 	Unversioned *bool
 
 	// list of llndk headers to re-export include directories from.
-	Export_llndk_headers []string `android:"arch_variant"`
+	Export_llndk_headers []string
+
+	// list of directories relative to the Blueprints file that willbe added to the include path
+	// (using -I) for any module that links against the LLNDK variant of this module, replacing
+	// any that were listed outside the llndk clause.
+	Override_export_include_dirs []string
 
 	// whether this module can be directly depended upon by libs that are installed
 	// to /vendor and /product.
