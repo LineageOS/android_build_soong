@@ -381,29 +381,21 @@ func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuil
 	extractCommonProperties(ctx, extractor, commonDynamicMemberProperties, dynamicMemberPropertiesContainers)
 
 	// Optimize other per-variant properties, besides the dynamic member lists.
-	type variantProperties struct {
-		Compile_multilib string `android:"arch_variant"`
-	}
 	var variantPropertiesContainers []propertiesContainer
-	osTypeToVariantProperties := make(map[android.OsType]*variantProperties)
+	osTypeToStaticProperties := make(map[android.OsType]*snapshotModuleStaticProperties)
 	for _, sdkVariant := range sdkVariants {
-		props := &variantProperties{
+		props := &snapshotModuleStaticProperties{
 			Compile_multilib: sdkVariant.multilibUsages.String(),
 		}
 		variantPropertiesContainers = append(variantPropertiesContainers, &dynamicMemberPropertiesContainer{sdkVariant, props})
-		osTypeToVariantProperties[sdkVariant.Target().Os] = props
+		osTypeToStaticProperties[sdkVariant.Target().Os] = props
 	}
-	commonVariantProperties := variantProperties{}
-	extractor = newCommonValueExtractor(commonVariantProperties)
-	extractCommonProperties(ctx, extractor, &commonVariantProperties, variantPropertiesContainers)
+	commonStaticProperties := &snapshotModuleStaticProperties{}
+	extractor = newCommonValueExtractor(commonStaticProperties)
+	extractCommonProperties(ctx, extractor, commonStaticProperties, variantPropertiesContainers)
 
-	if commonVariantProperties.Compile_multilib != "" && commonVariantProperties.Compile_multilib != "both" {
-		// Compile_multilib defaults to both so only needs to be set when it's
-		// specified and not both.
-		snapshotModule.AddProperty("compile_multilib", commonVariantProperties.Compile_multilib)
-	}
 	// Add properties common to all os types.
-	s.addMemberPropertiesToPropertySet(builder, snapshotModule, commonDynamicMemberProperties)
+	s.addSnapshotPropertiesToPropertySet(builder, snapshotModule, commonStaticProperties, commonDynamicMemberProperties)
 
 	targetPropertySet := snapshotModule.AddPropertySet("target")
 
@@ -412,12 +404,9 @@ func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuil
 		if properties, ok := osTypeToMemberProperties[osType]; ok {
 			osPropertySet := targetPropertySet.AddPropertySet(osType.Name)
 
-			variantProps := osTypeToVariantProperties[osType]
-			if variantProps.Compile_multilib != "" && variantProps.Compile_multilib != "both" {
-				osPropertySet.AddProperty("compile_multilib", variantProps.Compile_multilib)
-			}
+			staticProperties := osTypeToStaticProperties[osType]
 
-			s.addMemberPropertiesToPropertySet(builder, osPropertySet, properties)
+			s.addSnapshotPropertiesToPropertySet(builder, osPropertySet, staticProperties, properties)
 		}
 	}
 
@@ -489,7 +478,18 @@ func extractCommonProperties(ctx android.ModuleContext, extractor *commonValueEx
 	}
 }
 
-func (s *sdk) addMemberPropertiesToPropertySet(builder *snapshotBuilder, propertySet android.BpPropertySet, dynamicMemberTypeListProperties interface{}) {
+// snapshotModuleStaticProperties contains snapshot static (i.e. not dynamically generated) properties.
+type snapshotModuleStaticProperties struct {
+	Compile_multilib string `android:"arch_variant"`
+}
+
+func (s *sdk) addSnapshotPropertiesToPropertySet(builder *snapshotBuilder, propertySet android.BpPropertySet, staticProperties *snapshotModuleStaticProperties, dynamicMemberTypeListProperties interface{}) {
+	multilib := staticProperties.Compile_multilib
+	if multilib != "" && multilib != "both" {
+		// Compile_multilib defaults to both so only needs to be set when it's specified and not both.
+		propertySet.AddProperty("compile_multilib", multilib)
+	}
+
 	for _, memberListProperty := range s.memberListProperties() {
 		names := memberListProperty.getter(dynamicMemberTypeListProperties)
 		if len(names) > 0 {
