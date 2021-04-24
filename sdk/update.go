@@ -380,9 +380,6 @@ func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuil
 	extractor := newCommonValueExtractor(commonDynamicMemberProperties)
 	extractCommonProperties(ctx, extractor, commonDynamicMemberProperties, dynamicMemberPropertiesContainers)
 
-	// Add properties common to all os types.
-	s.addMemberPropertiesToPropertySet(builder, snapshotModule, commonDynamicMemberProperties)
-
 	// Optimize other per-variant properties, besides the dynamic member lists.
 	type variantProperties struct {
 		Compile_multilib string `android:"arch_variant"`
@@ -399,11 +396,14 @@ func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuil
 	commonVariantProperties := variantProperties{}
 	extractor = newCommonValueExtractor(commonVariantProperties)
 	extractCommonProperties(ctx, extractor, &commonVariantProperties, variantPropertiesContainers)
+
 	if commonVariantProperties.Compile_multilib != "" && commonVariantProperties.Compile_multilib != "both" {
 		// Compile_multilib defaults to both so only needs to be set when it's
 		// specified and not both.
 		snapshotModule.AddProperty("compile_multilib", commonVariantProperties.Compile_multilib)
 	}
+	// Add properties common to all os types.
+	s.addMemberPropertiesToPropertySet(builder, snapshotModule, commonDynamicMemberProperties)
 
 	targetPropertySet := snapshotModule.AddPropertySet("target")
 
