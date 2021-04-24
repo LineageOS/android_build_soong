@@ -54,14 +54,14 @@ type sdk struct {
 	// list properties, e.g. java_libs.
 	dynamicMemberTypeListProperties interface{}
 
-	// Information about the OsType specific member variants associated with this variant.
+	// Information about the OsType specific member variants depended upon by this variant.
 	//
 	// Set by OsType specific variants in the collectMembers() method and used by the
 	// CommonOS variant when building the snapshot. That work is all done on separate
 	// calls to the sdk.GenerateAndroidBuildActions method which is guaranteed to be
 	// called for the OsType specific variants before the CommonOS variant (because
 	// the latter depends on the former).
-	memberRefs []sdkMemberRef
+	memberVariantDeps []sdkMemberVariantDep
 
 	// The multilib variants that are used by this sdk variant.
 	multilibUsages multilibUsage
