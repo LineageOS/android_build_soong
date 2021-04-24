@@ -130,7 +130,7 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 			// Keep track of which multilib variants are used by the sdk.
 			s.multilibUsages = s.multilibUsages.addArchType(child.Target().Arch.ArchType)
 
-			s.memberRefs = append(s.memberRefs, sdkMemberRef{memberType, child.(android.SdkAware)})
+			s.memberVariantDeps = append(s.memberVariantDeps, sdkMemberVariantDep{memberType, child.(android.SdkAware)})
 
 			// If the member type supports transitive sdk members then recurse down into
 			// its dependencies, otherwise exit traversal.
@@ -148,13 +148,13 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 // The names are in the order in which the dependencies were added.
 //
 // Returns the members as well as the multilib setting to use.
-func (s *sdk) organizeMembers(ctx android.ModuleContext, memberRefs []sdkMemberRef) []*sdkMember {
+func (s *sdk) organizeMembers(ctx android.ModuleContext, memberVariantDeps []sdkMemberVariantDep) []*sdkMember {
 	byType := make(map[android.SdkMemberType][]*sdkMember)
 	byName := make(map[string]*sdkMember)
 
-	for _, memberRef := range memberRefs {
-		memberType := memberRef.memberType
-		variant := memberRef.variant
+	for _, memberVariantDep := range memberVariantDeps {
+		memberType := memberVariantDep.memberType
+		variant := memberVariantDep.variant
 
 		name := ctx.OtherModuleName(variant)
 		member := byName[name]
@@ -217,14 +217,14 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 
 	allMembersByName := make(map[string]struct{})
 	exportedMembersByName := make(map[string]struct{})
-	var memberRefs []sdkMemberRef
+	var memberVariantDeps []sdkMemberVariantDep
 	for _, sdkVariant := range sdkVariants {
-		memberRefs = append(memberRefs, sdkVariant.memberRefs...)
+		memberVariantDeps = append(memberVariantDeps, sdkVariant.memberVariantDeps...)
 
 		// Record the names of all the members, both explicitly specified and implicitly
 		// included.
-		for _, memberRef := range sdkVariant.memberRefs {
-			allMembersByName[memberRef.variant.Name()] = struct{}{}
+		for _, memberVariantDep := range sdkVariant.memberVariantDeps {
+			allMembersByName[memberVariantDep.variant.Name()] = struct{}{}
 		}
 
 		// Merge the exported member sets from all sdk variants.
@@ -255,7 +255,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	}
 	s.builderForTests = builder
 
-	members := s.organizeMembers(ctx, memberRefs)
+	members := s.organizeMembers(ctx, memberVariantDeps)
 	for _, member := range members {
 		memberType := member.memberType
 
@@ -289,7 +289,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	}
 
 	// Add the sdk/module_exports_snapshot module to the bp file.
-	s.addSnapshotModule(ctx, builder, sdkVariants, memberRefs)
+	s.addSnapshotModule(ctx, builder, sdkVariants, memberVariantDeps)
 
 	// generate Android.bp
 	bp = newGeneratedFile(ctx, "snapshot", "Android.bp")
@@ -343,7 +343,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 }
 
 // addSnapshotModule adds the sdk_snapshot/module_exports_snapshot module to the builder.
-func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuilder, sdkVariants []*sdk, memberRefs []sdkMemberRef) {
+func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuilder, sdkVariants []*sdk, memberVariantDeps []sdkMemberVariantDep) {
 	bpFile := builder.bpFile
 
 	snapshotName := ctx.ModuleName() + string(android.SdkVersionSeparator) + builder.version
@@ -424,9 +424,9 @@ func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuil
 	// used, which might be different from this run (e.g. different build OS).
 	if s.HostSupported() {
 		var supportedHostTargets []string
-		for _, memberRef := range memberRefs {
-			if memberRef.memberType.IsHostOsDependent() && memberRef.variant.Target().Os.Class == android.Host {
-				targetString := memberRef.variant.Target().Os.String() + "_" + memberRef.variant.Target().Arch.ArchType.String()
+		for _, memberVariantDep := range memberVariantDeps {
+			if memberVariantDep.memberType.IsHostOsDependent() && memberVariantDep.variant.Target().Os.Class == android.Host {
+				targetString := memberVariantDep.variant.Target().Os.String() + "_" + memberVariantDep.variant.Target().Arch.ArchType.String()
 				if !android.InList(targetString, supportedHostTargets) {
 					supportedHostTargets = append(supportedHostTargets, targetString)
 				}
@@ -890,13 +890,16 @@ func addSdkMemberPropertiesToSet(ctx *memberContext, memberProperties android.Sd
 	memberProperties.AddToPropertySet(ctx, targetPropertySet)
 }
 
-type sdkMemberRef struct {
+// sdkMemberVariantDep represents a dependency from an sdk variant onto a member variant.
+type sdkMemberVariantDep struct {
 	memberType android.SdkMemberType
 	variant    android.SdkAware
 }
 
 var _ android.SdkMember = (*sdkMember)(nil)
 
+// sdkMember groups all the variants of a specific member module together along with the name of the
+// module and the member type. This is used to generate the prebuilt modules for a specific member.
 type sdkMember struct {
 	memberType android.SdkMemberType
 	name       string
