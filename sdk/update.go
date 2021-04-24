@@ -288,7 +288,64 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 		bpFile.AddModule(unversioned)
 	}
 
-	// Create the snapshot module.
+	// Add the sdk/module_exports_snapshot module to the bp file.
+	s.addSnapshotModule(ctx, builder, sdkVariants, memberRefs)
+
+	// generate Android.bp
+	bp = newGeneratedFile(ctx, "snapshot", "Android.bp")
+	generateBpContents(&bp.generatedContents, bpFile)
+
+	contents := bp.content.String()
+	syntaxCheckSnapshotBpFile(ctx, contents)
+
+	bp.build(pctx, ctx, nil)
+
+	filesToZip := builder.filesToZip
+
+	// zip them all
+	outputZipFile := android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.zip").OutputPath
+	outputDesc := "Building snapshot for " + ctx.ModuleName()
+
+	// If there are no zips to merge then generate the output zip directly.
+	// Otherwise, generate an intermediate zip file into which other zips can be
+	// merged.
+	var zipFile android.OutputPath
+	var desc string
+	if len(builder.zipsToMerge) == 0 {
+		zipFile = outputZipFile
+		desc = outputDesc
+	} else {
+		zipFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.unmerged.zip").OutputPath
+		desc = "Building intermediate snapshot for " + ctx.ModuleName()
+	}
+
+	ctx.Build(pctx, android.BuildParams{
+		Description: desc,
+		Rule:        zipFiles,
+		Inputs:      filesToZip,
+		Output:      zipFile,
+		Args: map[string]string{
+			"basedir": builder.snapshotDir.String(),
+		},
+	})
+
+	if len(builder.zipsToMerge) != 0 {
+		ctx.Build(pctx, android.BuildParams{
+			Description: outputDesc,
+			Rule:        mergeZips,
+			Input:       zipFile,
+			Inputs:      builder.zipsToMerge,
+			Output:      outputZipFile,
+		})
+	}
+
+	return outputZipFile
+}
+
+// addSnapshotModule adds the sdk_snapshot/module_exports_snapshot module to the builder.
+func (s *sdk) addSnapshotModule(ctx android.ModuleContext, builder *snapshotBuilder, sdkVariants []*sdk, memberRefs []sdkMemberRef) {
+	bpFile := builder.bpFile
+
 	snapshotName := ctx.ModuleName() + string(android.SdkVersionSeparator) + builder.version
 	var snapshotModuleType string
 	if s.properties.Module_exports {
@@ -390,56 +447,6 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	snapshotModule.transform(pruneEmptySetTransformer{})
 
 	bpFile.AddModule(snapshotModule)
-
-	// generate Android.bp
-	bp = newGeneratedFile(ctx, "snapshot", "Android.bp")
-	generateBpContents(&bp.generatedContents, bpFile)
-
-	contents := bp.content.String()
-	syntaxCheckSnapshotBpFile(ctx, contents)
-
-	bp.build(pctx, ctx, nil)
-
-	filesToZip := builder.filesToZip
-
-	// zip them all
-	outputZipFile := android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.zip").OutputPath
-	outputDesc := "Building snapshot for " + ctx.ModuleName()
-
-	// If there are no zips to merge then generate the output zip directly.
-	// Otherwise, generate an intermediate zip file into which other zips can be
-	// merged.
-	var zipFile android.OutputPath
-	var desc string
-	if len(builder.zipsToMerge) == 0 {
-		zipFile = outputZipFile
-		desc = outputDesc
-	} else {
-		zipFile = android.PathForModuleOut(ctx, ctx.ModuleName()+"-current.unmerged.zip").OutputPath
-		desc = "Building intermediate snapshot for " + ctx.ModuleName()
-	}
-
-	ctx.Build(pctx, android.BuildParams{
-		Description: desc,
-		Rule:        zipFiles,
-		Inputs:      filesToZip,
-		Output:      zipFile,
-		Args: map[string]string{
-			"basedir": builder.snapshotDir.String(),
-		},
-	})
-
-	if len(builder.zipsToMerge) != 0 {
-		ctx.Build(pctx, android.BuildParams{
-			Description: outputDesc,
-			Rule:        mergeZips,
-			Input:       zipFile,
-			Inputs:      builder.zipsToMerge,
-			Output:      outputZipFile,
-		})
-	}
-
-	return outputZipFile
 }
 
 // Check the syntax of the generated Android.bp file contents and if they are
