@@ -193,7 +193,8 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 
 			memberType: memberType,
 
-			dependencyTag: android.DependencyTagForSdkMemberType(memberType),
+			// Dependencies added directly from member properties are always exported.
+			dependencyTag: android.DependencyTagForSdkMemberType(memberType, true),
 		}
 
 		listProperties = append(listProperties, memberListProperty)
@@ -253,22 +254,6 @@ func SnapshotModuleFactory() android.Module {
 
 func (s *sdk) memberListProperties() []*sdkMemberListProperty {
 	return s.dynamicSdkMemberTypes.memberListProperties
-}
-
-func (s *sdk) getExportedMembers() map[string]struct{} {
-	// Collect all the exported members.
-	exportedMembers := make(map[string]struct{})
-
-	for _, memberListProperty := range s.memberListProperties() {
-		names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
-
-		// Every member specified explicitly in the properties is exported by the sdk.
-		for _, name := range names {
-			exportedMembers[name] = struct{}{}
-		}
-	}
-
-	return exportedMembers
 }
 
 func (s *sdk) snapshot() bool {
