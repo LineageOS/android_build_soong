@@ -281,10 +281,31 @@ type SdkMember interface {
 	Variants() []SdkAware
 }
 
+// SdkMemberTypeDependencyTag is the interface that a tag must implement in order to allow the
+// dependent module to be automatically added to the sdk. In order for this to work the
+// SdkMemberType of the depending module must return true from
+// SdkMemberType.HasTransitiveSdkMembers.
 type SdkMemberTypeDependencyTag interface {
 	blueprint.DependencyTag
 
+	// SdkMemberType returns the SdkMemberType that will be used to automatically add the child module
+	// to the sdk.
 	SdkMemberType() SdkMemberType
+
+	// ExportMember determines whether a module added to the sdk through this tag will be exported
+	// from the sdk or not.
+	//
+	// An exported member is added to the sdk using its own name, e.g. if "foo" was exported from sdk
+	// "bar" then its prebuilt would be simply called "foo". A member can be added to the sdk via
+	// multiple tags and if any of those tags returns true from this method then the membe will be
+	// exported. Every module added directly to the sdk via one of the member type specific
+	// properties, e.g. java_libs, will automatically be exported.
+	//
+	// If a member is not exported then it is treated as an internal implementation detail of the
+	// sdk and so will be added with an sdk specific name. e.g. if "foo" was an internal member of sdk
+	// "bar" then its prebuilt would be called "bar_foo". Additionally its visibility will be set to
+	// "//visibility:private" so it will not be accessible from outside its Android.bp file.
+	ExportMember() bool
 }
 
 var _ SdkMemberTypeDependencyTag = (*sdkMemberDependencyTag)(nil)
@@ -293,10 +314,15 @@ var _ ReplaceSourceWithPrebuilt = (*sdkMemberDependencyTag)(nil)
 type sdkMemberDependencyTag struct {
 	blueprint.BaseDependencyTag
 	memberType SdkMemberType
+	export     bool
 }
 
 func (t *sdkMemberDependencyTag) SdkMemberType() SdkMemberType {
 	return t.memberType
+}
+
+func (t *sdkMemberDependencyTag) ExportMember() bool {
+	return t.export
 }
 
 // Prevent dependencies from the sdk/module_exports onto their members from being
@@ -305,8 +331,11 @@ func (t *sdkMemberDependencyTag) ReplaceSourceWithPrebuilt() bool {
 	return false
 }
 
-func DependencyTagForSdkMemberType(memberType SdkMemberType) SdkMemberTypeDependencyTag {
-	return &sdkMemberDependencyTag{memberType: memberType}
+// DependencyTagForSdkMemberType creates an SdkMemberTypeDependencyTag that will cause any
+// dependencies added by the tag to be added to the sdk as the specified SdkMemberType and exported
+// (or not) as specified by the export parameter.
+func DependencyTagForSdkMemberType(memberType SdkMemberType, export bool) SdkMemberTypeDependencyTag {
+	return &sdkMemberDependencyTag{memberType: memberType, export: export}
 }
 
 // Interface that must be implemented for every type that can be a member of an
