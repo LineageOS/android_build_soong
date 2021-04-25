@@ -157,8 +157,8 @@ sdk_snapshot {
     name: "mysdk@current",
     visibility: ["//visibility:public"],
     host_supported: true,
-    native_shared_libs: ["mysdk_sdkmember@current"],
     compile_multilib: "64",
+    native_shared_libs: ["mysdk_sdkmember@current"],
     target: {
         host: {
             enabled: false,
@@ -960,9 +960,9 @@ module_exports_snapshot {
     visibility: ["//visibility:public"],
     device_supported: false,
     host_supported: true,
+    compile_multilib: "64",
     native_binaries: ["myexports_mynativebinary@current"],
     native_shared_libs: ["myexports_mynativelib@current"],
-    compile_multilib: "64",
     target: {
         host: {
             enabled: false,
@@ -1920,8 +1920,8 @@ module_exports_snapshot {
     visibility: ["//visibility:public"],
     device_supported: false,
     host_supported: true,
-    native_static_libs: ["myexports_mynativelib@current"],
     compile_multilib: "64",
+    native_static_libs: ["myexports_mynativelib@current"],
     target: {
         host: {
             enabled: false,
