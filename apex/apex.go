@@ -1696,21 +1696,12 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			case bcpfTag:
 				{
 					if _, ok := child.(*java.BootclasspathFragmentModule); !ok {
-						ctx.PropertyErrorf("bootclasspath_fragments", "%q is not a boot_image module", depName)
+						ctx.PropertyErrorf("bootclasspath_fragments", "%q is not a bootclasspath_fragment module", depName)
 						return false
 					}
-					bootclasspathFragmentInfo := ctx.OtherModuleProvider(child, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
-					for arch, files := range bootclasspathFragmentInfo.AndroidBootImageFilesByArchType() {
-						dirInApex := filepath.Join("javalib", arch.String())
-						for _, f := range files {
-							androidMkModuleName := "javalib_" + arch.String() + "_" + filepath.Base(f.String())
-							// TODO(b/177892522) - consider passing in the bootclasspath fragment module here instead of nil
-							af := newApexFile(ctx, f, androidMkModuleName, dirInApex, etc, nil)
-							filesInfo = append(filesInfo, af)
-						}
-					}
 
-					// Track transitive dependencies.
+					filesToAdd := apexBootclasspathFragmentFiles(ctx, child)
+					filesInfo = append(filesInfo, filesToAdd...)
 					return true
 				}
 			case javaLibTag:
@@ -1928,7 +1919,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					// Add the contents of the bootclasspath fragment to the apex.
 					switch child.(type) {
 					case *java.Library, *java.SdkLibrary:
-						af := apexFileForJavaModule(ctx, child.(javaModule))
+						javaModule := child.(javaModule)
+						af := apexFileForBootclasspathFragmentContentModule(ctx, javaModule)
 						if !af.ok() {
 							ctx.PropertyErrorf("bootclasspath_fragments", "bootclasspath_fragment content %q is not configured to be compiled into dex", depName)
 							return false
@@ -2081,6 +2073,33 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		})
 		a.filesInfo = append(a.filesInfo, newApexFile(ctx, copiedPubkey, "apex_pubkey", ".", etc, nil))
 	}
+}
+
+// apexBootclasspathFragmentFiles returns the list of apexFile structures defining the files that
+// the bootclasspath_fragment contributes to the apex.
+func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.Module) []apexFile {
+	bootclasspathFragmentInfo := ctx.OtherModuleProvider(module, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
+	var filesToAdd []apexFile
+
+	// Add the boot image files, e.g. .art, .oat and .vdex files.
+	for arch, files := range bootclasspathFragmentInfo.AndroidBootImageFilesByArchType() {
+		dirInApex := filepath.Join("javalib", arch.String())
+		for _, f := range files {
+			androidMkModuleName := "javalib_" + arch.String() + "_" + filepath.Base(f.String())
+			// TODO(b/177892522) - consider passing in the bootclasspath fragment module here instead of nil
+			af := newApexFile(ctx, f, androidMkModuleName, dirInApex, etc, nil)
+			filesToAdd = append(filesToAdd, af)
+		}
+	}
+
+	return filesToAdd
+}
+
+// apexFileForBootclasspathFragmentContentModule creates an apexFile for a bootclasspath_fragment
+// content module, i.e. a library that is part of the bootclasspath.
+func apexFileForBootclasspathFragmentContentModule(ctx android.ModuleContext, javaModule javaModule) apexFile {
+	// For now it simply returns an apexFile for a normal java module.
+	return apexFileForJavaModule(ctx, javaModule)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
