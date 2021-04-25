@@ -130,7 +130,8 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 			// Keep track of which multilib variants are used by the sdk.
 			s.multilibUsages = s.multilibUsages.addArchType(child.Target().Arch.ArchType)
 
-			s.memberVariantDeps = append(s.memberVariantDeps, sdkMemberVariantDep{memberType, child.(android.SdkAware)})
+			export := memberTag.ExportMember()
+			s.memberVariantDeps = append(s.memberVariantDeps, sdkMemberVariantDep{memberType, child.(android.SdkAware), export})
 
 			// If the member type supports transitive sdk members then recurse down into
 			// its dependencies, otherwise exit traversal.
@@ -226,12 +227,12 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 		// Record the names of all the members, both explicitly specified and implicitly
 		// included.
 		for _, memberVariantDep := range sdkVariant.memberVariantDeps {
-			allMembersByName[memberVariantDep.variant.Name()] = struct{}{}
-		}
+			name := memberVariantDep.variant.Name()
+			allMembersByName[name] = struct{}{}
 
-		// Merge the exported member sets from all sdk variants.
-		for key, _ := range sdkVariant.getExportedMembers() {
-			exportedMembersByName[key] = struct{}{}
+			if memberVariantDep.export {
+				exportedMembersByName[name] = struct{}{}
+			}
 		}
 	}
 
@@ -944,6 +945,7 @@ func addSdkMemberPropertiesToSet(ctx *memberContext, memberProperties android.Sd
 type sdkMemberVariantDep struct {
 	memberType android.SdkMemberType
 	variant    android.SdkAware
+	export     bool
 }
 
 var _ android.SdkMember = (*sdkMember)(nil)
