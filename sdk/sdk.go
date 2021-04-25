@@ -101,6 +101,9 @@ type sdkMemberListProperty struct {
 	// getter for the list of member names
 	getter func(properties interface{}) []string
 
+	// setter for the list of member names
+	setter func(properties interface{}, list []string)
+
 	// the type of member referenced in the list
 	memberType android.SdkMemberType
 
@@ -127,6 +130,8 @@ type dynamicSdkMemberTypes struct {
 
 	// Information about each of the member type specific list properties.
 	memberListProperties []*sdkMemberListProperty
+
+	memberTypeToProperty map[android.SdkMemberType]*sdkMemberListProperty
 }
 
 func (d *dynamicSdkMemberTypes) createMemberListProperties() interface{} {
@@ -160,6 +165,7 @@ func getDynamicSdkMemberTypes(registry *android.SdkMemberTypesRegistry) *dynamic
 func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynamicSdkMemberTypes {
 
 	var listProperties []*sdkMemberListProperty
+	memberTypeToProperty := map[android.SdkMemberType]*sdkMemberListProperty{}
 	var fields []reflect.StructField
 
 	// Iterate over the member types creating StructField and sdkMemberListProperty objects.
@@ -191,12 +197,24 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 				return list
 			},
 
+			setter: func(properties interface{}, list []string) {
+				// The properties is expected to be of the following form (where
+				// <Module_types> is the name of an SdkMemberType.SdkPropertyName().
+				//     properties *struct {<Module_types> []string, ....}
+				//
+				// Although it accesses the field by index the following reflection code is equivalent to:
+				//    *properties.<Module_types> = list
+				//
+				reflect.ValueOf(properties).Elem().Field(fieldIndex).Set(reflect.ValueOf(list))
+			},
+
 			memberType: memberType,
 
 			// Dependencies added directly from member properties are always exported.
 			dependencyTag: android.DependencyTagForSdkMemberType(memberType, true),
 		}
 
+		memberTypeToProperty[memberType] = memberListProperty
 		listProperties = append(listProperties, memberListProperty)
 	}
 
@@ -205,6 +223,7 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 
 	return &dynamicSdkMemberTypes{
 		memberListProperties: listProperties,
+		memberTypeToProperty: memberTypeToProperty,
 		propertiesStructType: propertiesStructType,
 	}
 }
@@ -254,6 +273,10 @@ func SnapshotModuleFactory() android.Module {
 
 func (s *sdk) memberListProperties() []*sdkMemberListProperty {
 	return s.dynamicSdkMemberTypes.memberListProperties
+}
+
+func (s *sdk) memberListProperty(memberType android.SdkMemberType) *sdkMemberListProperty {
+	return s.dynamicSdkMemberTypes.memberTypeToProperty[memberType]
 }
 
 func (s *sdk) snapshot() bool {
