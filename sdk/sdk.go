@@ -54,14 +54,14 @@ type sdk struct {
 	// list properties, e.g. java_libs.
 	dynamicMemberTypeListProperties interface{}
 
-	// Information about the OsType specific member variants associated with this variant.
+	// Information about the OsType specific member variants depended upon by this variant.
 	//
 	// Set by OsType specific variants in the collectMembers() method and used by the
 	// CommonOS variant when building the snapshot. That work is all done on separate
 	// calls to the sdk.GenerateAndroidBuildActions method which is guaranteed to be
 	// called for the OsType specific variants before the CommonOS variant (because
 	// the latter depends on the former).
-	memberRefs []sdkMemberRef
+	memberVariantDeps []sdkMemberVariantDep
 
 	// The multilib variants that are used by this sdk variant.
 	multilibUsages multilibUsage
@@ -101,6 +101,9 @@ type sdkMemberListProperty struct {
 	// getter for the list of member names
 	getter func(properties interface{}) []string
 
+	// setter for the list of member names
+	setter func(properties interface{}, list []string)
+
 	// the type of member referenced in the list
 	memberType android.SdkMemberType
 
@@ -127,6 +130,8 @@ type dynamicSdkMemberTypes struct {
 
 	// Information about each of the member type specific list properties.
 	memberListProperties []*sdkMemberListProperty
+
+	memberTypeToProperty map[android.SdkMemberType]*sdkMemberListProperty
 }
 
 func (d *dynamicSdkMemberTypes) createMemberListProperties() interface{} {
@@ -160,6 +165,7 @@ func getDynamicSdkMemberTypes(registry *android.SdkMemberTypesRegistry) *dynamic
 func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynamicSdkMemberTypes {
 
 	var listProperties []*sdkMemberListProperty
+	memberTypeToProperty := map[android.SdkMemberType]*sdkMemberListProperty{}
 	var fields []reflect.StructField
 
 	// Iterate over the member types creating StructField and sdkMemberListProperty objects.
@@ -191,11 +197,24 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 				return list
 			},
 
+			setter: func(properties interface{}, list []string) {
+				// The properties is expected to be of the following form (where
+				// <Module_types> is the name of an SdkMemberType.SdkPropertyName().
+				//     properties *struct {<Module_types> []string, ....}
+				//
+				// Although it accesses the field by index the following reflection code is equivalent to:
+				//    *properties.<Module_types> = list
+				//
+				reflect.ValueOf(properties).Elem().Field(fieldIndex).Set(reflect.ValueOf(list))
+			},
+
 			memberType: memberType,
 
-			dependencyTag: android.DependencyTagForSdkMemberType(memberType),
+			// Dependencies added directly from member properties are always exported.
+			dependencyTag: android.DependencyTagForSdkMemberType(memberType, true),
 		}
 
+		memberTypeToProperty[memberType] = memberListProperty
 		listProperties = append(listProperties, memberListProperty)
 	}
 
@@ -204,6 +223,7 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 
 	return &dynamicSdkMemberTypes{
 		memberListProperties: listProperties,
+		memberTypeToProperty: memberTypeToProperty,
 		propertiesStructType: propertiesStructType,
 	}
 }
@@ -255,20 +275,8 @@ func (s *sdk) memberListProperties() []*sdkMemberListProperty {
 	return s.dynamicSdkMemberTypes.memberListProperties
 }
 
-func (s *sdk) getExportedMembers() map[string]struct{} {
-	// Collect all the exported members.
-	exportedMembers := make(map[string]struct{})
-
-	for _, memberListProperty := range s.memberListProperties() {
-		names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
-
-		// Every member specified explicitly in the properties is exported by the sdk.
-		for _, name := range names {
-			exportedMembers[name] = struct{}{}
-		}
-	}
-
-	return exportedMembers
+func (s *sdk) memberListProperty(memberType android.SdkMemberType) *sdkMemberListProperty {
+	return s.dynamicSdkMemberTypes.memberTypeToProperty[memberType]
 }
 
 func (s *sdk) snapshot() bool {
