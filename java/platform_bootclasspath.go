@@ -171,17 +171,6 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
 	// GenerateSingletonBuildActions method as it cannot create it for itself.
 	dexpreopt.GetGlobalSoongConfig(ctx)
-
-	imageConfig := b.getImageConfig(ctx)
-	if imageConfig == nil {
-		return
-	}
-
-	// Construct the boot image info from the config.
-	info := BootImageInfo{imageConfig: imageConfig}
-
-	// Make it available for other modules.
-	ctx.SetProvider(BootImageInfoProvider, info)
 }
 
 func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
