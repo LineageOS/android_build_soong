@@ -1699,8 +1699,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 						ctx.PropertyErrorf("bootclasspath_fragments", "%q is not a boot_image module", depName)
 						return false
 					}
-					bootImageInfo := ctx.OtherModuleProvider(child, java.BootImageInfoProvider).(java.BootImageInfo)
-					for arch, files := range bootImageInfo.AndroidBootImageFilesByArchType() {
+					bootclasspathFragmentInfo := ctx.OtherModuleProvider(child, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
+					for arch, files := range bootclasspathFragmentInfo.AndroidBootImageFilesByArchType() {
 						dirInApex := filepath.Join("javalib", arch.String())
 						for _, f := range files {
 							androidMkModuleName := "javalib_" + arch.String() + "_" + filepath.Base(f.String())
