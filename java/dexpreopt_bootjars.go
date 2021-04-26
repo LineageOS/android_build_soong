@@ -893,28 +893,38 @@ func updatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConf
 	}
 
 	global := dexpreopt.GetGlobalConfig(ctx)
+	var modules []android.Module
 	updatableModules := global.UpdatableBootJars.CopyOfJars()
-
-	// Collect `permitted_packages` for updatable boot jars.
-	var updatablePackages []string
 	ctx.VisitAllModules(func(module android.Module) {
 		if !isActiveModule(module) {
 			return
 		}
-		if j, ok := module.(PermittedPackagesForUpdatableBootJars); ok {
-			name := ctx.ModuleName(module)
-			if i := android.IndexList(name, updatableModules); i != -1 {
-				pp := j.PermittedPackagesForUpdatableBootJars()
-				if len(pp) > 0 {
-					updatablePackages = append(updatablePackages, pp...)
-				} else {
-					ctx.Errorf("Missing permitted_packages for %s", name)
-				}
-				// Do not match the same library repeatedly.
-				updatableModules = append(updatableModules[:i], updatableModules[i+1:]...)
-			}
+		name := ctx.ModuleName(module)
+		if i := android.IndexList(name, updatableModules); i != -1 {
+			modules = append(modules, module)
+			// Do not match the same library repeatedly.
+			updatableModules = append(updatableModules[:i], updatableModules[i+1:]...)
 		}
 	})
+
+	return generateUpdatableBcpPackagesRule(ctx, image, modules)
+}
+
+// generateUpdatableBcpPackagesRule generates the rule to create the updatable-bcp-packages.txt file
+// and returns a path to the generated file.
+func generateUpdatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConfig, updatableModules []android.Module) android.WritablePath {
+	// Collect `permitted_packages` for updatable boot jars.
+	var updatablePackages []string
+	for _, module := range updatableModules {
+		if j, ok := module.(PermittedPackagesForUpdatableBootJars); ok {
+			pp := j.PermittedPackagesForUpdatableBootJars()
+			if len(pp) > 0 {
+				updatablePackages = append(updatablePackages, pp...)
+			} else {
+				ctx.Errorf("Missing permitted_packages for %s", ctx.ModuleName(module))
+			}
+		}
+	}
 
 	// Sort updatable packages to ensure deterministic ordering.
 	sort.Strings(updatablePackages)
