@@ -428,12 +428,7 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 	module := variant.(*BootclasspathFragmentModule)
 
 	b.Image_name = module.properties.Image_name
-	if b.Image_name == nil {
-		// Only one of image_name or contents can be specified. However, if image_name is set then the
-		// contents property is updated to match the configuration used to create the corresponding
-		// boot image. Therefore, contents property is only copied if the image name is not specified.
-		b.Contents = module.properties.Contents
-	}
+	b.Contents = module.properties.Contents
 
 	// Get the flag file information from the module.
 	mctx := ctx.SdkModuleContext()
