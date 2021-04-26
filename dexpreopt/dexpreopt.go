@@ -154,6 +154,7 @@ func profileCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, glo
 	}
 
 	cmd.
+		Flag("--output-profile-type=app").
 		FlagWithInput("--apk=", module.DexPath).
 		Flag("--dex-location="+module.DexLocation).
 		FlagWithOutput("--reference-profile-file=", profilePath)
@@ -185,7 +186,7 @@ func bootProfileCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig,
 	cmd.FlagWithInput("--create-profile-from=", module.ProfileBootListing.Path())
 
 	cmd.
-		Flag("--generate-boot-profile").
+		Flag("--output-profile-type=bprof").
 		FlagWithInput("--apk=", module.DexPath).
 		Flag("--dex-location="+module.DexLocation).
 		FlagWithOutput("--reference-profile-file=", profilePath)
