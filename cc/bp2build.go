@@ -262,6 +262,7 @@ func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Mo
 			archIncludeDirs = append(archIncludeDirs, flagExporterProperties.Export_include_dirs...)
 
 			// To avoid duplicate includes when base includes + arch includes are combined
+			// FIXME: This doesn't take conflicts between arch and os includes into account
 			archIncludeDirs = bazel.SubtractStrings(archIncludeDirs, includeDirs)
 
 			if len(archIncludeDirs) > 0 {
@@ -275,10 +276,40 @@ func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Mo
 			archHeaders = bazel.UniqueBazelLabelList(archHeaders)
 
 			// To avoid duplicate headers when base headers + arch headers are combined
+			// FIXME: This doesn't take conflicts between arch and os includes into account
 			archHeaders = bazel.SubtractBazelLabelList(archHeaders, headers)
 
 			if len(archHeaders.Includes) > 0 || len(archHeaders.Excludes) > 0 {
 				headersAttribute.SetValueForArch(arch.Name, archHeaders)
+			}
+		}
+	}
+
+	for os, props := range module.GetTargetProperties(&FlagExporterProperties{}) {
+		if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
+			osIncludeDirs := flagExporterProperties.Export_system_include_dirs
+			osIncludeDirs = append(osIncludeDirs, flagExporterProperties.Export_include_dirs...)
+
+			// To avoid duplicate includes when base includes + os includes are combined
+			// FIXME: This doesn't take conflicts between arch and os includes into account
+			osIncludeDirs = bazel.SubtractStrings(osIncludeDirs, includeDirs)
+
+			if len(osIncludeDirs) > 0 {
+				includeDirsAttribute.SetValueForOS(os.Name, osIncludeDirs)
+			}
+
+			var osHeaders bazel.LabelList
+			for _, osIncludeDir := range osIncludeDirs {
+				osHeaders.Append(bp2BuildListHeadersInDir(ctx, osIncludeDir))
+			}
+			osHeaders = bazel.UniqueBazelLabelList(osHeaders)
+
+			// To avoid duplicate headers when base headers + os headers are combined
+			// FIXME: This doesn't take conflicts between arch and os includes into account
+			osHeaders = bazel.SubtractBazelLabelList(osHeaders, headers)
+
+			if len(osHeaders.Includes) > 0 || len(osHeaders.Excludes) > 0 {
+				headersAttribute.SetValueForOS(os.Name, osHeaders)
 			}
 		}
 	}
