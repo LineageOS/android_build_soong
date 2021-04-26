@@ -165,24 +165,26 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 	}
 }
 
-var BootImageInfoProvider = blueprint.NewProvider(BootImageInfo{})
+var BootclasspathFragmentApexContentInfoProvider = blueprint.NewProvider(BootclasspathFragmentApexContentInfo{})
 
-type BootImageInfo struct {
+// BootclasspathFragmentApexContentInfo contains the bootclasspath_fragments contributions to the
+// apex contents.
+type BootclasspathFragmentApexContentInfo struct {
 	// The image config, internal to this module (and the dex_bootjars singleton).
 	//
-	// Will be nil if the BootImageInfo has not been provided for a specific module. That can occur
+	// Will be nil if the BootclasspathFragmentApexContentInfo has not been provided for a specific module. That can occur
 	// when SkipDexpreoptBootJars(ctx) returns true.
 	imageConfig *bootImageConfig
 }
 
-func (i BootImageInfo) Modules() android.ConfiguredJarList {
+func (i BootclasspathFragmentApexContentInfo) Modules() android.ConfiguredJarList {
 	return i.imageConfig.modules
 }
 
 // Get a map from ArchType to the associated boot image's contents for Android.
 //
 // Extension boot images only return their own files, not the files of the boot images they extend.
-func (i BootImageInfo) AndroidBootImageFilesByArchType() map[android.ArchType]android.OutputPaths {
+func (i BootclasspathFragmentApexContentInfo) AndroidBootImageFilesByArchType() map[android.ArchType]android.OutputPaths {
 	files := map[android.ArchType]android.OutputPaths{}
 	if i.imageConfig != nil {
 		for _, variant := range i.imageConfig.variants {
@@ -264,10 +266,10 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	}
 
 	// Construct the boot image info from the config.
-	info := BootImageInfo{imageConfig: imageConfig}
+	info := BootclasspathFragmentApexContentInfo{imageConfig: imageConfig}
 
 	// Make it available for other modules.
-	ctx.SetProvider(BootImageInfoProvider, info)
+	ctx.SetProvider(BootclasspathFragmentApexContentInfoProvider, info)
 }
 
 func (b *BootclasspathFragmentModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
