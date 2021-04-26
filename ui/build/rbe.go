@@ -117,7 +117,7 @@ func stopRBE(ctx Context, config Config) {
 		ctx.Fatalf("rbe bootstrap with shutdown failed with: %v\n%s\n", err, output)
 	}
 
-	if len(output) > 0 {
+	if !config.Environment().IsEnvTrue("ANDROID_QUIET_BUILD") && len(output) > 0 {
 		fmt.Fprintln(ctx.Writer, "")
 		fmt.Fprintln(ctx.Writer, fmt.Sprintf("%s", output))
 	}
