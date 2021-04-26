@@ -834,6 +834,7 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImageConfig, 
 		rule.Command().
 			Text(`ANDROID_LOG_TAGS="*:e"`).
 			Tool(globalSoong.Profman).
+			Flag("--output-profile-type=boot").
 			FlagWithInput("--create-profile-from=", bootImageProfile).
 			FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
 			FlagForEachArg("--dex-location=", image.getAnyAndroidVariant().dexLocationsDeps).
@@ -884,7 +885,7 @@ func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImageConf
 		rule.Command().
 			Text(`ANDROID_LOG_TAGS="*:e"`).
 			Tool(globalSoong.Profman).
-			Flag("--generate-boot-profile").
+			Flag("--output-profile-type=bprof").
 			FlagWithInput("--create-profile-from=", bootFrameworkProfile).
 			FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
 			FlagForEachArg("--dex-location=", image.getAnyAndroidVariant().dexLocationsDeps).
