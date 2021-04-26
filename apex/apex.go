@@ -1498,10 +1498,15 @@ var _ javaModule = (*java.SdkLibrary)(nil)
 var _ javaModule = (*java.DexImport)(nil)
 var _ javaModule = (*java.SdkLibraryImport)(nil)
 
+// apexFileForJavaModule creates an apexFile for a java module's dex implementation jar.
 func apexFileForJavaModule(ctx android.BaseModuleContext, module javaModule) apexFile {
+	return apexFileForJavaModuleWithFile(ctx, module, module.DexJarBuildPath())
+}
+
+// apexFileForJavaModuleWithFile creates an apexFile for a java module with the supplied file.
+func apexFileForJavaModuleWithFile(ctx android.BaseModuleContext, module javaModule, dexImplementationJar android.Path) apexFile {
 	dirInApex := "javalib"
-	fileToCopy := module.DexJarBuildPath()
-	af := newApexFile(ctx, fileToCopy, module.BaseModuleName(), dirInApex, javaSharedLib, module)
+	af := newApexFile(ctx, dexImplementationJar, module.BaseModuleName(), dirInApex, javaSharedLib, module)
 	af.jacocoReportClassesFile = module.JacocoReportClassesFile()
 	af.lintDepSets = module.LintDepSets()
 	af.customStem = module.Stem() + ".jar"
@@ -1920,7 +1925,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					switch child.(type) {
 					case *java.Library, *java.SdkLibrary:
 						javaModule := child.(javaModule)
-						af := apexFileForBootclasspathFragmentContentModule(ctx, javaModule)
+						af := apexFileForBootclasspathFragmentContentModule(ctx, parent, javaModule)
 						if !af.ok() {
 							ctx.PropertyErrorf("bootclasspath_fragments", "bootclasspath_fragment content %q is not configured to be compiled into dex", depName)
 							return false
@@ -2097,9 +2102,17 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.
 
 // apexFileForBootclasspathFragmentContentModule creates an apexFile for a bootclasspath_fragment
 // content module, i.e. a library that is part of the bootclasspath.
-func apexFileForBootclasspathFragmentContentModule(ctx android.ModuleContext, javaModule javaModule) apexFile {
-	// For now it simply returns an apexFile for a normal java module.
-	return apexFileForJavaModule(ctx, javaModule)
+func apexFileForBootclasspathFragmentContentModule(ctx android.ModuleContext, fragmentModule blueprint.Module, javaModule javaModule) apexFile {
+	bootclasspathFragmentInfo := ctx.OtherModuleProvider(fragmentModule, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
+
+	// Get the dexBootJar from the bootclasspath_fragment as that is responsible for performing the
+	// hidden API encpding.
+	dexBootJar := bootclasspathFragmentInfo.DexBootJarPathForContentModule(javaModule)
+
+	// Create an apexFile as for a normal java module but with the dex boot jar provided by the
+	// bootclasspath_fragment.
+	af := apexFileForJavaModuleWithFile(ctx, javaModule, dexBootJar)
+	return af
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
