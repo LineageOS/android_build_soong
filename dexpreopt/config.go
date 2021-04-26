@@ -130,7 +130,6 @@ type ModuleConfig struct {
 	ClassLoaderContexts            ClassLoaderContextMap
 
 	Archs                   []android.ArchType
-	DexPreoptImages         android.Paths
 	DexPreoptImagesDeps     []android.OutputPaths
 	DexPreoptImageLocations []string
 
@@ -275,7 +274,6 @@ type moduleJSONConfig struct {
 	EnforceUsesLibrariesStatusFile string
 	ClassLoaderContexts            jsonClassLoaderContextMap
 
-	DexPreoptImages     []string
 	DexPreoptImagesDeps [][]string
 
 	PreoptBootClassPathDexFiles []string
@@ -301,11 +299,10 @@ func ParseModuleConfig(ctx android.PathContext, data []byte) (*ModuleConfig, err
 	config.ModuleConfig.ProfileClassListing = android.OptionalPathForPath(constructPath(ctx, config.ProfileClassListing))
 	config.ModuleConfig.EnforceUsesLibrariesStatusFile = constructPath(ctx, config.EnforceUsesLibrariesStatusFile)
 	config.ModuleConfig.ClassLoaderContexts = fromJsonClassLoaderContext(ctx, config.ClassLoaderContexts)
-	config.ModuleConfig.DexPreoptImages = constructPaths(ctx, config.DexPreoptImages)
 	config.ModuleConfig.PreoptBootClassPathDexFiles = constructPaths(ctx, config.PreoptBootClassPathDexFiles)
 
 	// This needs to exist, but dependencies are already handled in Make, so we don't need to pass them through JSON.
-	config.ModuleConfig.DexPreoptImagesDeps = make([]android.OutputPaths, len(config.ModuleConfig.DexPreoptImages))
+	config.ModuleConfig.DexPreoptImagesDeps = make([]android.OutputPaths, len(config.ModuleConfig.Archs))
 
 	return config.ModuleConfig, nil
 }
@@ -327,7 +324,6 @@ func moduleConfigToJSON(config *ModuleConfig) ([]byte, error) {
 		ProfileBootListing:             config.ProfileBootListing.String(),
 		EnforceUsesLibrariesStatusFile: config.EnforceUsesLibrariesStatusFile.String(),
 		ClassLoaderContexts:            toJsonClassLoaderContext(config.ClassLoaderContexts),
-		DexPreoptImages:                config.DexPreoptImages.Strings(),
 		DexPreoptImagesDeps:            pathsListToStringLists(config.DexPreoptImagesDeps),
 		PreoptBootClassPathDexFiles:    config.PreoptBootClassPathDexFiles.Strings(),
 		ModuleConfig:                   config,
