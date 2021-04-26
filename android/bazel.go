@@ -167,7 +167,8 @@ var (
 		"bionic":                Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":     Bp2BuildDefaultTrueRecursively,
 		"system/core/libcutils": Bp2BuildDefaultTrueRecursively,
-		"system/logging/liblog": Bp2BuildDefaultTrueRecursively,
+		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
+		"system/logging/liblog":                              Bp2BuildDefaultTrueRecursively,
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
@@ -191,7 +192,6 @@ var (
 
 		// Requires non-libc targets, but otherwise works
 		"libc_jemalloc_wrapper", // ruperts@, cc_library_static, depends on //external/jemalloc_new
-		"libsystemproperties",   // ruperts@, cc_library_static, depends on //system/core/property_service/libpropertyinfoparser
 
 		// Compilation error, seems to be fixable by changing the toolchain definition
 		"libc_bionic_ndk", // ruperts@, cc_library_static, error: ISO C++ requires field designators...
@@ -220,9 +220,11 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libc_gdtoa",   // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
-		"libc_netbsd",  // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
-		"libc_openbsd", // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
+		"libc_gdtoa",            // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
+		"libc_netbsd",           // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
+		"libc_openbsd",          // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
+		"libsystemproperties",   // cparsons@, cc_library_static, wrong include paths
+		"libpropertyinfoparser", // cparsons@, cc_library_static, wrong include paths
 	}
 
 	// Used for quicker lookups
