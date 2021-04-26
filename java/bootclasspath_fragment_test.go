@@ -113,19 +113,6 @@ func TestBootclasspathFragmentWithoutImageNameOrContents(t *testing.T) {
 		`)
 }
 
-func TestBootclasspathFragmentWithImageNameAndContents(t *testing.T) {
-	prepareForTestWithBootclasspathFragment.
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-			`\Qboth of the "image_name" and "contents" properties\E`)).
-		RunTestWithBp(t, `
-			bootclasspath_fragment {
-				name: "bootclasspath-fragment",
-				image_name: "boot",
-				contents: ["other"],
-			}
-		`)
-}
-
 func TestBootclasspathFragment_Coverage(t *testing.T) {
 	prepareForTestWithFrameworkCoverage := android.FixtureMergeEnv(map[string]string{
 		"EMMA_INSTRUMENT":           "true",
