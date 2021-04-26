@@ -125,3 +125,62 @@ func TestBootclasspathFragmentWithImageNameAndContents(t *testing.T) {
 			}
 		`)
 }
+
+func TestBootclasspathFragment_Coverage(t *testing.T) {
+	prepareForTestWithFrameworkCoverage := android.FixtureMergeEnv(map[string]string{
+		"EMMA_INSTRUMENT":           "true",
+		"EMMA_INSTRUMENT_FRAMEWORK": "true",
+	})
+
+	prepareWithBp := android.FixtureWithRootAndroidBp(`
+		bootclasspath_fragment {
+			name: "myfragment",
+			contents: [
+				"mybootlib",
+			],
+			coverage: {
+				contents: [
+					"coveragelib",
+				],
+			},
+		}
+
+		java_library {
+			name: "mybootlib",
+			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+		}
+
+		java_library {
+			name: "coveragelib",
+			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+		}
+	`)
+
+	checkContents := func(t *testing.T, result *android.TestResult, expected ...string) {
+		module := result.Module("myfragment", "android_common").(*BootclasspathFragmentModule)
+		android.AssertArrayString(t, "contents property", expected, module.properties.Contents)
+	}
+
+	t.Run("without coverage", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			prepareForTestWithBootclasspathFragment,
+			prepareWithBp,
+		).RunTest(t)
+		checkContents(t, result, "mybootlib")
+	})
+
+	t.Run("with coverage", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			prepareForTestWithBootclasspathFragment,
+			prepareForTestWithFrameworkCoverage,
+			prepareWithBp,
+		).RunTest(t)
+		checkContents(t, result, "mybootlib", "coveragelib")
+	})
+}
