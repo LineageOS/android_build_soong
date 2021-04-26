@@ -198,6 +198,15 @@ func (i BootclasspathFragmentApexContentInfo) AndroidBootImageFilesByArchType() 
 	return files
 }
 
+// DexBootJarPathForContentModule returns the path to the dex boot jar for specified module.
+//
+// The dex boot jar is one which has had hidden API encoding performed on it.
+func (i BootclasspathFragmentApexContentInfo) DexBootJarPathForContentModule(module android.Module) android.Path {
+	j := module.(UsesLibraryDependency)
+	dexJar := j.DexJarBuildPath()
+	return dexJar
+}
+
 func (b *BootclasspathFragmentModule) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
 	tag := ctx.OtherModuleDependencyTag(dep)
 	if IsBootclasspathFragmentContentDepTag(tag) {
