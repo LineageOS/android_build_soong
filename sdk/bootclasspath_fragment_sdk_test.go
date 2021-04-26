@@ -52,7 +52,6 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 			sdk {
 				name: "mysdk",
 				bootclasspath_fragments: ["mybootclasspathfragment"],
-				java_boot_libs: ["mybootlib"],
 			}
 
 			apex {
@@ -166,7 +165,6 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 			sdk {
 				name: "mysdk",
 				bootclasspath_fragments: ["mybootclasspathfragment"],
-				java_boot_libs: ["mybootlib"],
 			}
 
 			bootclasspath_fragment {
@@ -288,7 +286,6 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 			sdk {
 				name: "mysdk",
 				bootclasspath_fragments: ["mybootclasspathfragment"],
-				java_boot_libs: ["mybootlib"],
 			}
 
 			bootclasspath_fragment {
