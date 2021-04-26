@@ -434,10 +434,21 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 		return
 	}
 
-	// Always create the default boot image first, to get a unique profile rule for all images.
-	d.defaultBootImage = buildBootImage(ctx, defaultBootImageConfig(ctx))
+	// Generate the profile rule from the default boot image.
+	defaultImageConfig := defaultBootImageConfig(ctx)
+	profile := bootImageProfileRule(ctx, defaultImageConfig)
+
+	// Generate the framework profile rule
+	bootFrameworkProfileRule(ctx, defaultImageConfig)
+
+	// Generate the updatable bootclasspath packages rule.
+	updatableBcpPackagesRule(ctx, defaultImageConfig)
+
+	// Create the default boot image.
+	d.defaultBootImage = buildBootImage(ctx, defaultImageConfig, profile)
+
 	// Create boot image for the ART apex (build artifacts are accessed via the global boot image config).
-	d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx)))
+	d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx), profile))
 
 	copyUpdatableBootJars(ctx)
 
@@ -605,15 +616,11 @@ func findAndCopyBootJars(ctx android.SingletonContext, bootjars android.Configur
 }
 
 // buildBootImage takes a bootImageConfig, creates rules to build it, and returns the image.
-func buildBootImage(ctx android.SingletonContext, image *bootImageConfig) *bootImageConfig {
+func buildBootImage(ctx android.SingletonContext, image *bootImageConfig, profile android.WritablePath) *bootImageConfig {
 	getBootJarFunc := func(module android.Module) (int, android.Path) {
 		return getBootImageJar(ctx, image, module)
 	}
 	findAndCopyBootJars(ctx, image.modules, image.dexPaths, getBootJarFunc)
-
-	profile := bootImageProfileRule(ctx, image)
-	bootFrameworkProfileRule(ctx, image)
-	updatableBcpPackagesRule(ctx, image)
 
 	var zipFiles android.Paths
 	for _, variant := range image.variants {
@@ -805,53 +812,46 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImageConfig) 
 	if global.DisableGenerateProfile {
 		return nil
 	}
-	profile := ctx.Config().Once(bootImageProfileRuleKey, func() interface{} {
-		defaultProfile := "frameworks/base/config/boot-image-profile.txt"
 
-		rule := android.NewRuleBuilder(pctx, ctx)
+	defaultProfile := "frameworks/base/config/boot-image-profile.txt"
 
-		var bootImageProfile android.Path
-		if len(global.BootImageProfiles) > 1 {
-			combinedBootImageProfile := image.dir.Join(ctx, "boot-image-profile.txt")
-			rule.Command().Text("cat").Inputs(global.BootImageProfiles).Text(">").Output(combinedBootImageProfile)
-			bootImageProfile = combinedBootImageProfile
-		} else if len(global.BootImageProfiles) == 1 {
-			bootImageProfile = global.BootImageProfiles[0]
-		} else if path := android.ExistentPathForSource(ctx, defaultProfile); path.Valid() {
-			bootImageProfile = path.Path()
-		} else {
-			// No profile (not even a default one, which is the case on some branches
-			// like master-art-host that don't have frameworks/base).
-			// Return nil and continue without profile.
-			return nil
-		}
+	rule := android.NewRuleBuilder(pctx, ctx)
 
-		profile := image.dir.Join(ctx, "boot.prof")
-
-		rule.Command().
-			Text(`ANDROID_LOG_TAGS="*:e"`).
-			Tool(globalSoong.Profman).
-			Flag("--output-profile-type=boot").
-			FlagWithInput("--create-profile-from=", bootImageProfile).
-			FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
-			FlagForEachArg("--dex-location=", image.getAnyAndroidVariant().dexLocationsDeps).
-			FlagWithOutput("--reference-profile-file=", profile)
-
-		rule.Install(profile, "/system/etc/boot-image.prof")
-
-		rule.Build("bootJarsProfile", "profile boot jars")
-
-		image.profileInstalls = rule.Installs()
-
-		return profile
-	})
-	if profile == nil {
-		return nil // wrap nil into a typed pointer with value nil
+	var bootImageProfile android.Path
+	if len(global.BootImageProfiles) > 1 {
+		combinedBootImageProfile := image.dir.Join(ctx, "boot-image-profile.txt")
+		rule.Command().Text("cat").Inputs(global.BootImageProfiles).Text(">").Output(combinedBootImageProfile)
+		bootImageProfile = combinedBootImageProfile
+	} else if len(global.BootImageProfiles) == 1 {
+		bootImageProfile = global.BootImageProfiles[0]
+	} else if path := android.ExistentPathForSource(ctx, defaultProfile); path.Valid() {
+		bootImageProfile = path.Path()
+	} else {
+		// No profile (not even a default one, which is the case on some branches
+		// like master-art-host that don't have frameworks/base).
+		// Return nil and continue without profile.
+		return nil
 	}
-	return profile.(android.WritablePath)
-}
 
-var bootImageProfileRuleKey = android.NewOnceKey("bootImageProfileRule")
+	profile := image.dir.Join(ctx, "boot.prof")
+
+	rule.Command().
+		Text(`ANDROID_LOG_TAGS="*:e"`).
+		Tool(globalSoong.Profman).
+		Flag("--output-profile-type=boot").
+		FlagWithInput("--create-profile-from=", bootImageProfile).
+		FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
+		FlagForEachArg("--dex-location=", image.getAnyAndroidVariant().dexLocationsDeps).
+		FlagWithOutput("--reference-profile-file=", profile)
+
+	rule.Install(profile, "/system/etc/boot-image.prof")
+
+	rule.Build("bootJarsProfile", "profile boot jars")
+
+	image.profileInstalls = rule.Installs()
+
+	return profile
+}
 
 func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImageConfig) android.WritablePath {
 	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
@@ -860,95 +860,87 @@ func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImageConf
 	if global.DisableGenerateProfile || ctx.Config().UnbundledBuild() {
 		return nil
 	}
-	return ctx.Config().Once(bootFrameworkProfileRuleKey, func() interface{} {
 
-		// Some branches like master-art-host don't have frameworks/base, so manually
-		// handle the case that the default is missing.  Those branches won't attempt to build the profile rule,
-		// and if they do they'll get a missing deps error.
-		defaultProfile := "frameworks/base/config/boot-profile.txt"
-		path := android.ExistentPathForSource(ctx, defaultProfile)
-		var bootFrameworkProfile android.Path
-		var missingDeps []string
-		if path.Valid() {
-			bootFrameworkProfile = path.Path()
-		} else {
-			missingDeps = append(missingDeps, defaultProfile)
-			bootFrameworkProfile = android.PathForOutput(ctx, "missing", defaultProfile)
-		}
+	// Some branches like master-art-host don't have frameworks/base, so manually
+	// handle the case that the default is missing.  Those branches won't attempt to build the profile rule,
+	// and if they do they'll get a missing deps error.
+	defaultProfile := "frameworks/base/config/boot-profile.txt"
+	path := android.ExistentPathForSource(ctx, defaultProfile)
+	var bootFrameworkProfile android.Path
+	var missingDeps []string
+	if path.Valid() {
+		bootFrameworkProfile = path.Path()
+	} else {
+		missingDeps = append(missingDeps, defaultProfile)
+		bootFrameworkProfile = android.PathForOutput(ctx, "missing", defaultProfile)
+	}
 
-		profile := image.dir.Join(ctx, "boot.bprof")
+	profile := image.dir.Join(ctx, "boot.bprof")
 
-		rule := android.NewRuleBuilder(pctx, ctx)
-		rule.MissingDeps(missingDeps)
-		rule.Command().
-			Text(`ANDROID_LOG_TAGS="*:e"`).
-			Tool(globalSoong.Profman).
-			Flag("--output-profile-type=bprof").
-			FlagWithInput("--create-profile-from=", bootFrameworkProfile).
-			FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
-			FlagForEachArg("--dex-location=", image.getAnyAndroidVariant().dexLocationsDeps).
-			FlagWithOutput("--reference-profile-file=", profile)
+	rule := android.NewRuleBuilder(pctx, ctx)
+	rule.MissingDeps(missingDeps)
+	rule.Command().
+		Text(`ANDROID_LOG_TAGS="*:e"`).
+		Tool(globalSoong.Profman).
+		Flag("--output-profile-type=bprof").
+		FlagWithInput("--create-profile-from=", bootFrameworkProfile).
+		FlagForEachInput("--apk=", image.dexPathsDeps.Paths()).
+		FlagForEachArg("--dex-location=", image.getAnyAndroidVariant().dexLocationsDeps).
+		FlagWithOutput("--reference-profile-file=", profile)
 
-		rule.Install(profile, "/system/etc/boot-image.bprof")
-		rule.Build("bootFrameworkProfile", "profile boot framework jars")
-		image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
+	rule.Install(profile, "/system/etc/boot-image.bprof")
+	rule.Build("bootFrameworkProfile", "profile boot framework jars")
+	image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
 
-		return profile
-	}).(android.WritablePath)
+	return profile
 }
-
-var bootFrameworkProfileRuleKey = android.NewOnceKey("bootFrameworkProfileRule")
 
 func updatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConfig) android.WritablePath {
 	if ctx.Config().UnbundledBuild() {
 		return nil
 	}
 
-	return ctx.Config().Once(updatableBcpPackagesRuleKey, func() interface{} {
-		global := dexpreopt.GetGlobalConfig(ctx)
-		updatableModules := global.UpdatableBootJars.CopyOfJars()
+	global := dexpreopt.GetGlobalConfig(ctx)
+	updatableModules := global.UpdatableBootJars.CopyOfJars()
 
-		// Collect `permitted_packages` for updatable boot jars.
-		var updatablePackages []string
-		ctx.VisitAllModules(func(module android.Module) {
-			if !isActiveModule(module) {
-				return
-			}
-			if j, ok := module.(PermittedPackagesForUpdatableBootJars); ok {
-				name := ctx.ModuleName(module)
-				if i := android.IndexList(name, updatableModules); i != -1 {
-					pp := j.PermittedPackagesForUpdatableBootJars()
-					if len(pp) > 0 {
-						updatablePackages = append(updatablePackages, pp...)
-					} else {
-						ctx.Errorf("Missing permitted_packages for %s", name)
-					}
-					// Do not match the same library repeatedly.
-					updatableModules = append(updatableModules[:i], updatableModules[i+1:]...)
+	// Collect `permitted_packages` for updatable boot jars.
+	var updatablePackages []string
+	ctx.VisitAllModules(func(module android.Module) {
+		if !isActiveModule(module) {
+			return
+		}
+		if j, ok := module.(PermittedPackagesForUpdatableBootJars); ok {
+			name := ctx.ModuleName(module)
+			if i := android.IndexList(name, updatableModules); i != -1 {
+				pp := j.PermittedPackagesForUpdatableBootJars()
+				if len(pp) > 0 {
+					updatablePackages = append(updatablePackages, pp...)
+				} else {
+					ctx.Errorf("Missing permitted_packages for %s", name)
 				}
+				// Do not match the same library repeatedly.
+				updatableModules = append(updatableModules[:i], updatableModules[i+1:]...)
 			}
-		})
+		}
+	})
 
-		// Sort updatable packages to ensure deterministic ordering.
-		sort.Strings(updatablePackages)
+	// Sort updatable packages to ensure deterministic ordering.
+	sort.Strings(updatablePackages)
 
-		updatableBcpPackagesName := "updatable-bcp-packages.txt"
-		updatableBcpPackages := image.dir.Join(ctx, updatableBcpPackagesName)
+	updatableBcpPackagesName := "updatable-bcp-packages.txt"
+	updatableBcpPackages := image.dir.Join(ctx, updatableBcpPackagesName)
 
-		// WriteFileRule automatically adds the last end-of-line.
-		android.WriteFileRule(ctx, updatableBcpPackages, strings.Join(updatablePackages, "\n"))
+	// WriteFileRule automatically adds the last end-of-line.
+	android.WriteFileRule(ctx, updatableBcpPackages, strings.Join(updatablePackages, "\n"))
 
-		rule := android.NewRuleBuilder(pctx, ctx)
-		rule.Install(updatableBcpPackages, "/system/etc/"+updatableBcpPackagesName)
-		// TODO: Rename `profileInstalls` to `extraInstalls`?
-		// Maybe even move the field out of the bootImageConfig into some higher level type?
-		image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
+	rule := android.NewRuleBuilder(pctx, ctx)
+	rule.Install(updatableBcpPackages, "/system/etc/"+updatableBcpPackagesName)
+	// TODO: Rename `profileInstalls` to `extraInstalls`?
+	// Maybe even move the field out of the bootImageConfig into some higher level type?
+	image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
 
-		return updatableBcpPackages
-	}).(android.WritablePath)
+	return updatableBcpPackages
 }
-
-var updatableBcpPackagesRuleKey = android.NewOnceKey("updatableBcpPackagesRule")
 
 func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
 	var allPhonies android.Paths
