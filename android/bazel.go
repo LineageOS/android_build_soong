@@ -171,56 +171,59 @@ var (
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
+	// Please keep sorted.
 	bp2buildModuleDoNotConvertList = []string{
-		"libBionicBenchmarksUtils",      // ruperts@, cc_library_static, 'map' file not found
-		"libbionic_spawn_benchmark",     // ruperts@, cc_library_static, depends on //system/libbase
-		"libc_jemalloc_wrapper",         // ruperts@, cc_library_static, depends on //external/jemalloc_new
-		"libc_bootstrap",                // ruperts@, cc_library_static, 'private/bionic_auxv.h' file not found
-		"libc_init_static",              // ruperts@, cc_library_static, 'private/bionic_elf_tls.h' file not found
-		"libc_init_dynamic",             // ruperts@, cc_library_static, 'private/bionic_defs.h' file not found
-		"libc_tzcode",                   // ruperts@, cc_library_static, error: expected expression
-		"libc_netbsd",                   // ruperts@, cc_library_static, 'engine.c' file not found
-		"libc_fortify",                  // ruperts@, cc_library_static, 'private/bionic_fortify.h' file not found
-		"libc_bionic",                   // ruperts@, cc_library_static, 'private/bionic_asm.h' file not found
-		"libc_bionic_ndk",               // ruperts@, cc_library_static, depends on //bionic/libc/system_properties
-		"libc_bionic_systrace",          // ruperts@, cc_library_static, 'private/bionic_systrace.h' file not found
-		"libc_pthread",                  // ruperts@, cc_library_static, 'private/bionic_defs.h' file not found
-		"libc_syscalls",                 // eakammer@, cc_library_static,  'private/bionic_asm.h' file not found
-		"libc_ndk",                      // ruperts@, cc_library_static, depends on //bionic/libm:libm
-		"libc_nopthread",                // ruperts@, cc_library_static, depends on //external/arm-optimized-routines
-		"libc_common",                   // ruperts@, cc_library_static, depends on //bionic/libc:libc_nopthread
-		"libc_common_static",            // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
-		"libc_common_shared",            // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
-		"libc_unwind_static",            // ruperts@, cc_library_static, 'private/bionic_elf_tls.h' file not found
-		"libc_nomalloc",                 // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
-		"libasync_safe",                 // ruperts@, cc_library_static, 'private/CachedProperty.h' file not found
-		"libc_malloc_debug_backtrace",   // ruperts@, cc_library_static, depends on //system/libbase
-		"libsystemproperties",           // ruperts@, cc_library_static, depends on //system/core/property_service/libpropertyinfoparser
-		"libdl_static",                  // ruperts@, cc_library_static, 'private/CFIShadow.h' file not found
-		"liblinker_main",                // ruperts@, cc_library_static, depends on //system/libbase
-		"liblinker_malloc",              // ruperts@, cc_library_static, depends on //system/logging/liblog:liblog
-		"liblinker_debuggerd_stub",      // ruperts@, cc_library_static, depends on //system/libbase
-		"libbionic_tests_headers_posix", // ruperts@, cc_library_static, 'complex.h' file not found
-		"libc_dns",                      // ruperts@, cc_library_static, 'private/android_filesystem_config.h' file not found
-		"libc_static_dispatch",          // eakammer@, cc_library_static, 'private/bionic_asm.h' file not found
-		"libc_dynamic_dispatch",         // eakammer@, cc_library_static, 'private/bionic_ifuncs.h' file not found
-		"note_memtag_heap_async",        // jingwen@, cc_library_static, 'private/bionic_asm.h' file not found (arm64)
-		"note_memtag_heap_sync",         // jingwen@, cc_library_static, 'private/bionic_asm.h' file not found (arm64)
+		// Things that transitively depend on //external/arm-optimized-routines. That one fails
+		// with a linker error: "ld.lld: no input files"
+		"libc_nopthread",     // ruperts@, cc_library_static, depends on //external/arm-optimized-routine
+		"libc_common",        // ruperts@, cc_library_static, depends on //bionic/libc:libc_nopthread
+		"libc_common_static", // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
+		"libc_common_shared", // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
+		"libc_nomalloc",      // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
 
-		// List of all full_cc_libraries in //bionic, with their immediate failures
-		"libc",              // jingwen@, cc_library, depends on //external/gwp_asan
-		"libc_malloc_debug", // jingwen@, cc_library, fatal error: 'assert.h' file not found
-		"libc_malloc_hooks", // jingwen@, cc_library, fatal error: 'errno.h' file not found
-		"libdl",             // jingwen@, cc_library, ld.lld: error: no input files
-		"libm",              // lberki@, cc_library, compiler error: "Unexpected token in argument list"
-		"libseccomp_policy", // lberki@, cc_library, 'linux/filter.h' not found, caused by missing -isystem bionic/libc/kernel/uapi, dunno where it comes from in Soong
-		"libstdc++",         // jingwen@, cc_library, depends on //external/gwp_asan
+		// Things that transitively depend on //system/libbase. libbase doesn't work because:
+		// "Multiple dependencies having same BaseModuleName() "fmtlib" found from "libbase""
+		"libbionic_spawn_benchmark",   // ruperts@, cc_library_static, depends on libbase, libgoogle-benchmark
+		"libc_malloc_debug_backtrace", // ruperts@, cc_library_static, depends on libbase
+		"liblinker_main",              // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
+		"liblinker_debuggerd_stub",    // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
+		"libc_malloc_debug",           // ruperts@, cc_library_static, depends on libbase
+		"liblinker_malloc",            // ruperts@, cc_library_static, depends on libziparchive, libz, libbase
+
+		// Requires non-libc targets, but otherwise works
+		"libc_jemalloc_wrapper", // ruperts@, cc_library_static, depends on //external/jemalloc_new
+		"libsystemproperties",   // ruperts@, cc_library_static, depends on //system/core/property_service/libpropertyinfoparser
+
+		// Compilation error, seems to be fixable by changing the toolchain definition
+		"libc_tzcode",     // ruperts@, cc_library_static, error: expected expression
+		"libc_bionic_ndk", // ruperts@, cc_library_static, error: ISO C++ requires field designators...
+		"libm",            // jingwen@, cc_library, error: "expected register here" (and many others)
+
+		// Linker error
+		"libc_malloc_hooks", // jingwen@, cc_library, undefined symbol: __malloc_hook, etc.
+		"libdl",             // jingwen@, cc_library, no input files
+		"libstdc++",         // jingwen@, cc_library, undefined symbol: free
+
+		// Includes not found
+		"libbionic_tests_headers_posix", // ruperts@, cc_library_static, 'dirent.h' not found
+		"libseccomp_policy",             // jingwen@, cc_library, 'linux/filter.h' not found, missing -isystem bionic/libc/kernel/uapi/asm-arm, probably due to us not handling arch { ... { export_system_include_dirs } } correctly
+		"note_memtag_heap_async",        // lberki@, cc_library_static, error: feature.h not found, missing -isystem bionic/libc/include through the libc/libm/libdl default dependencies if system_shared_libs unset
+		"note_memtag_heap_sync",         // lberki@, cc_library_static, error: feature.h not found, missing -isystem bionic/libc/include through the libc/libm/libdl default dependencies if system_shared_libs unset
+
+		// Other
+		"libBionicBenchmarksUtils", // ruperts@, cc_library_static, 'map' file not found
+		"libc_syscalls",            // ruperts@, cc_library_static, mutator panic cannot get direct dep syscalls-arm64.S of libc_syscalls
+		"libc_ndk",                 // ruperts@, cc_library_static, depends on libc_bionic_ndk, libc_jemalloc_wrapper, libc_syscalls, libc_tzcode, libstdc++
+		"libdl_static",             // ruperts@, cc_library_static, conflicts with libdl
+
+		"libc", // jingwen@, cc_library, depends on //external/gwp_asan
 	}
 
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
 		"libc_gdtoa",   // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
+		"libc_netbsd",  // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
 		"libc_openbsd", // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
 	}
 
