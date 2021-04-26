@@ -69,16 +69,23 @@ func IsBootclasspathFragmentContentDepTag(tag blueprint.DependencyTag) bool {
 	return tag == bootclasspathFragmentContentDepTag
 }
 
+// Properties that can be different when coverage is enabled.
+type BootclasspathFragmentCoverageAffectedProperties struct {
+	// The contents of this bootclasspath_fragment, could be either java_library, or java_sdk_library.
+	//
+	// The order of this list matters as it is the order that is used in the bootclasspath.
+	Contents []string
+}
+
 type bootclasspathFragmentProperties struct {
 	// The name of the image this represents.
 	//
 	// If specified then it must be one of "art" or "boot".
 	Image_name *string
 
-	// The contents of this bootclasspath_fragment, could be either java_library, java_sdk_library, or boot_image.
-	//
-	// The order of this list matters as it is the order that is used in the bootclasspath.
-	Contents []string
+	// Properties whose values need to differ with and without coverage.
+	BootclasspathFragmentCoverageAffectedProperties
+	Coverage BootclasspathFragmentCoverageAffectedProperties
 
 	Hidden_api HiddenAPIFlagFileProperties
 }
@@ -97,8 +104,18 @@ func bootclasspathFragmentFactory() android.Module {
 	android.InitSdkAwareModule(m)
 	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
 
-	// Initialize the contents property from the image_name.
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) {
+		// If code coverage has been enabled for the framework then append the properties with
+		// coverage specific properties.
+		if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+			err := proptools.AppendProperties(&m.properties.BootclasspathFragmentCoverageAffectedProperties, &m.properties.Coverage, nil)
+			if err != nil {
+				ctx.PropertyErrorf("coverage", "error trying to append coverage specific properties: %s", err)
+				return
+			}
+		}
+
+		// Initialize the contents property from the image_name.
 		bootclasspathFragmentInitContentsFromImage(ctx, m)
 	})
 	return m
