@@ -32,8 +32,9 @@ func init() {
 
 	android.RegisterSdkMemberType(&bootclasspathFragmentMemberType{
 		SdkMemberTypeBase: android.SdkMemberTypeBase{
-			PropertyName: "bootclasspath_fragments",
-			SupportsSdk:  true,
+			PropertyName:         "bootclasspath_fragments",
+			SupportsSdk:          true,
+			TransitiveSdkMembers: true,
 		},
 	})
 }
@@ -60,11 +61,22 @@ func (b bootclasspathFragmentContentDependencyTag) ReplaceSourceWithPrebuilt() b
 	return false
 }
 
+// SdkMemberType causes dependencies added with this tag to be automatically added to the sdk as if
+// they were specified using java_boot_libs.
+func (b bootclasspathFragmentContentDependencyTag) SdkMemberType() android.SdkMemberType {
+	return javaBootLibsSdkMemberType
+}
+
+func (b bootclasspathFragmentContentDependencyTag) ExportMember() bool {
+	return true
+}
+
 // The tag used for the dependency between the bootclasspath_fragment module and its contents.
 var bootclasspathFragmentContentDepTag = bootclasspathFragmentContentDependencyTag{}
 
 var _ android.ExcludeFromVisibilityEnforcementTag = bootclasspathFragmentContentDepTag
 var _ android.ReplaceSourceWithPrebuilt = bootclasspathFragmentContentDepTag
+var _ android.SdkMemberTypeDependencyTag = bootclasspathFragmentContentDepTag
 
 func IsBootclasspathFragmentContentDepTag(tag blueprint.DependencyTag) bool {
 	return tag == bootclasspathFragmentContentDepTag
