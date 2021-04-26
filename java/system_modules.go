@@ -77,8 +77,9 @@ var (
 		"classpath", "outDir", "workDir")
 
 	// Dependency tag that causes the added dependencies to be added as java_header_libs
-	// to the sdk/module_exports/snapshot.
-	systemModulesLibsTag = android.DependencyTagForSdkMemberType(javaHeaderLibsSdkMemberType)
+	// to the sdk/module_exports/snapshot. Dependencies that are added automatically via this tag are
+	// not automatically exported.
+	systemModulesLibsTag = android.DependencyTagForSdkMemberType(javaHeaderLibsSdkMemberType, false)
 )
 
 func TransformJarsToSystemModules(ctx android.ModuleContext, jars android.Paths) (android.Path, android.Paths) {
