@@ -113,6 +113,7 @@ prebuilt_bootclasspath_fragment {
     visibility: ["//visibility:public"],
     apex_available: ["com.android.art"],
     image_name: "art",
+    contents: ["mybootlib"],
 }
 
 java_import {
@@ -132,6 +133,7 @@ prebuilt_bootclasspath_fragment {
     visibility: ["//visibility:public"],
     apex_available: ["com.android.art"],
     image_name: "art",
+    contents: ["mysdk_mybootlib@current"],
 }
 
 java_import {
