@@ -143,13 +143,13 @@ func checkBootclasspathFragment(t *testing.T, result *android.TestResult, module
 
 	bootclasspathFragment := result.ModuleForTests(moduleName, "android_common").Module().(*java.BootclasspathFragmentModule)
 
-	bootImageInfo := result.ModuleProvider(bootclasspathFragment, java.BootImageInfoProvider).(java.BootImageInfo)
-	modules := bootImageInfo.Modules()
+	bootclasspathFragmentInfo := result.ModuleProvider(bootclasspathFragment, java.BootclasspathFragmentApexContentInfoProvider).(java.BootclasspathFragmentApexContentInfo)
+	modules := bootclasspathFragmentInfo.Modules()
 	android.AssertStringEquals(t, "invalid modules for "+moduleName, expectedConfiguredModules, modules.String())
 
 	// Get a list of all the paths in the boot image sorted by arch type.
 	allPaths := []string{}
-	bootImageFilesByArchType := bootImageInfo.AndroidBootImageFilesByArchType()
+	bootImageFilesByArchType := bootclasspathFragmentInfo.AndroidBootImageFilesByArchType()
 	for _, archType := range android.ArchTypeList() {
 		if paths, ok := bootImageFilesByArchType[archType]; ok {
 			for _, path := range paths {
