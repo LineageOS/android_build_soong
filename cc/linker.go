@@ -322,7 +322,7 @@ func (linker *baseLinker) linkerDeps(ctx DepsContext, deps Deps) Deps {
 
 	if ctx.toolchain().Bionic() {
 		// libclang_rt.builtins has to be last on the command line
-		if !Bool(linker.Properties.No_libcrt) {
+		if !Bool(linker.Properties.No_libcrt) && !ctx.header() {
 			deps.LateStaticLibs = append(deps.LateStaticLibs, config.BuiltinsRuntimeLibrary(ctx.toolchain()))
 		}
 
