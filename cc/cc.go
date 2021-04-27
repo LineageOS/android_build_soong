@@ -2632,8 +2632,6 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					if lib := moduleLibraryInterface(dep); lib.buildStubs() && c.UseVndk() { // LLNDK
 						if !apexInfo.IsForPlatform() {
 							// For platform libraries, use current version of LLNDK
-							// If this is for use_vendor apex we will apply the same rules
-							// of apex sdk enforcement below to choose right version.
 							useStubs = true
 						}
 					} else if apexInfo.IsForPlatform() {
