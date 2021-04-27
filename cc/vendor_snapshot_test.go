@@ -78,14 +78,12 @@ func TestVendorSnapshotCapture(t *testing.T) {
 
 	cc_library {
 		name: "libllndk",
-		llndk_stubs: "libllndk.llndk",
-	}
-
-	llndk_library {
-		name: "libllndk.llndk",
-		symbol_file: "",
+		llndk: {
+			symbol_file: "libllndk.map.txt",
+		},
 	}
 `
+
 	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
 	config.TestProductVariables.DeviceVndkVersion = StringPtr("current")
 	config.TestProductVariables.Platform_vndk_version = StringPtr("29")

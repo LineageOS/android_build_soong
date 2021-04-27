@@ -485,12 +485,6 @@ func (c *stubDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.
 	})
 }
 
-func (c *llndkStubDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
-	// Don't write anything for an llndk_library module, the vendor variant of the cc_library
-	// module will write the Android.mk entries.
-	entries.Disabled = true
-}
-
 func (c *vndkPrebuiltLibraryDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
 	entries.Class = "SHARED_LIBRARIES"
 
