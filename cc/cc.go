@@ -1135,9 +1135,9 @@ func (c *Module) IsLlndkLibrary() bool {
 	return false
 }
 
-func (m *Module) HasLlndkStubs() bool {
+func (m *Module) NeedsLlndkVariants() bool {
 	lib := moduleLibraryInterface(m)
-	return lib != nil && lib.hasLLNDKStubs()
+	return lib != nil && (lib.hasLLNDKStubs() || lib.hasLLNDKHeaders())
 }
 
 // isImplementationForLLNDKPublic returns true for any variant of a cc_library that has LLNDK stubs
