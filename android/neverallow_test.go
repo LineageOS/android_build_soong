@@ -76,7 +76,20 @@ var neverallowTests = []struct {
 		},
 	},
 	{
-		name: "include_dir can reference another location",
+		name: "include_dir not allowed to reference art",
+		fs: map[string][]byte{
+			"system/libfmq/Android.bp": []byte(`
+				cc_library {
+					name: "libother",
+					include_dirs: ["any/random/file"],
+				}`),
+		},
+		expectedErrors: []string{
+			"all usages of them in 'system/libfmq' have been migrated",
+		},
+	},
+	{
+		name: "include_dir can work",
 		fs: map[string][]byte{
 			"other/Android.bp": []byte(`
 				cc_library {
