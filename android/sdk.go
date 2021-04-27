@@ -290,7 +290,7 @@ type SdkMemberTypeDependencyTag interface {
 
 	// SdkMemberType returns the SdkMemberType that will be used to automatically add the child module
 	// to the sdk.
-	SdkMemberType() SdkMemberType
+	SdkMemberType(child Module) SdkMemberType
 
 	// ExportMember determines whether a module added to the sdk through this tag will be exported
 	// from the sdk or not.
@@ -317,7 +317,7 @@ type sdkMemberDependencyTag struct {
 	export     bool
 }
 
-func (t *sdkMemberDependencyTag) SdkMemberType() SdkMemberType {
+func (t *sdkMemberDependencyTag) SdkMemberType(_ Module) SdkMemberType {
 	return t.memberType
 }
 
