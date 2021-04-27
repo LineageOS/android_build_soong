@@ -168,7 +168,8 @@ var (
 		"external/gwp_asan":     Bp2BuildDefaultTrueRecursively,
 		"system/core/libcutils": Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
-		"system/logging/liblog":                              Bp2BuildDefaultTrueRecursively,
+		"system/libbase":        Bp2BuildDefaultTrueRecursively,
+		"system/logging/liblog": Bp2BuildDefaultTrueRecursively,
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
@@ -183,10 +184,13 @@ var (
 
 		// Things that transitively depend on //system/libbase. libbase doesn't work because:
 		// fmtlib: fatal error: 'cassert' file not found
-		// libbase: no such target '//build/bazel/platforms/os:darwin': target 'darwin' not declared
+		"libbase",                     // eakammer@, cc_library, no such target '//build/bazel/platforms/os:darwin': target 'darwin' not declared
+		"libbase_ndk",                 // eakammer@, cc_library, no such target '//build/bazel/platforms/os:darwin': target 'darwin' not declared
 		"libbionic_spawn_benchmark",   // ruperts@, cc_library_static, depends on libbase, libgoogle-benchmark
 		"libc_malloc_debug",           // ruperts@, cc_library_static, depends on libbase
 		"libc_malloc_debug_backtrace", // ruperts@, cc_library_static, depends on libbase
+		"libcutils",                   // eakammer@, cc_library, depends on libbase, liblog
+		"libcutils_sockets",           // eakammer@, cc_library, depends on libbase, liblog
 		"liblinker_debuggerd_stub",    // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
 		"liblinker_main",              // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
 		"liblinker_malloc",            // ruperts@, cc_library_static, depends on libziparchive, libz, libbase
@@ -206,6 +210,7 @@ var (
 
 		// Includes not found
 		"libbionic_tests_headers_posix", // ruperts@, cc_library_static, 'dirent.h' not found
+		"liblog",                        // eakammer@, cc_library, 'sys/cdefs.h' file not found, missing -isystem bionic/libc/include through the libc/libm/libdl default dependencies if system_shared_libs unset
 		"libseccomp_policy",             // jingwen@, cc_library, 'linux/filter.h' not found, missing -isystem bionic/libc/kernel/uapi/asm-arm, probably due to us not handling arch { ... { export_system_include_dirs } } correctly
 		"note_memtag_heap_async",        // lberki@, cc_library_static, error: feature.h not found, missing -isystem bionic/libc/include through the libc/libm/libdl default dependencies if system_shared_libs unset
 		"note_memtag_heap_sync",         // lberki@, cc_library_static, error: feature.h not found, missing -isystem bionic/libc/include through the libc/libm/libdl default dependencies if system_shared_libs unset
