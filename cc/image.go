@@ -437,13 +437,13 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 		productVndkVersion = platformVndkVersion
 	}
 
-	if m.IsLlndkLibrary() || m.IsLlndkHeaders() || m.HasLlndkStubs() {
+	if m.IsLlndkLibrary() || m.IsLlndkHeaders() || m.NeedsLlndkVariants() {
 		// This is an LLNDK library.  The implementation of the library will be on /system,
 		// and vendor and product variants will be created with LLNDK stubs.
 		// The LLNDK libraries need vendor variants even if there is no VNDK.
 		// The obsolete llndk_library and llndk_headers modules also need the vendor variants
 		// so the cc_library LLNDK stubs can depend on them.
-		if m.HasLlndkStubs() {
+		if m.NeedsLlndkVariants() {
 			coreVariantNeeded = true
 		}
 		if platformVndkVersion != "" {

@@ -869,6 +869,7 @@ type versionedInterface interface {
 
 	implementationModuleName(name string) string
 	hasLLNDKStubs() bool
+	hasLLNDKHeaders() bool
 }
 
 var _ libraryInterface = (*libraryDecorator)(nil)
@@ -1681,6 +1682,12 @@ func (library *libraryDecorator) hasLLNDKStubs() bool {
 // TODO(b/170784825): remove this once there are no more llndk_library modules.
 func (library *libraryDecorator) hasVestigialLLNDKLibrary() bool {
 	return String(library.Properties.Llndk_stubs) != ""
+}
+
+// hasLLNDKHeaders returns true if this cc_library module has a variant that provides headers
+// to a module that sets llndk.symbol_file.
+func (library *libraryDecorator) hasLLNDKHeaders() bool {
+	return Bool(library.Properties.Llndk.Llndk_headers)
 }
 
 func (library *libraryDecorator) implementationModuleName(name string) string {
