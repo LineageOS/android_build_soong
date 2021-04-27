@@ -274,7 +274,7 @@ func (mod *Module) KernelHeadersDecorator() bool {
 	return false
 }
 
-func (m *Module) HasLlndkStubs() bool {
+func (m *Module) NeedsLlndkVariants() bool {
 	return false
 }
 
