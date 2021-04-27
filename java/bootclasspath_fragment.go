@@ -69,16 +69,23 @@ func IsBootclasspathFragmentContentDepTag(tag blueprint.DependencyTag) bool {
 	return tag == bootclasspathFragmentContentDepTag
 }
 
+// Properties that can be different when coverage is enabled.
+type BootclasspathFragmentCoverageAffectedProperties struct {
+	// The contents of this bootclasspath_fragment, could be either java_library, or java_sdk_library.
+	//
+	// The order of this list matters as it is the order that is used in the bootclasspath.
+	Contents []string
+}
+
 type bootclasspathFragmentProperties struct {
 	// The name of the image this represents.
 	//
 	// If specified then it must be one of "art" or "boot".
 	Image_name *string
 
-	// The contents of this bootclasspath_fragment, could be either java_library, java_sdk_library, or boot_image.
-	//
-	// The order of this list matters as it is the order that is used in the bootclasspath.
-	Contents []string
+	// Properties whose values need to differ with and without coverage.
+	BootclasspathFragmentCoverageAffectedProperties
+	Coverage BootclasspathFragmentCoverageAffectedProperties
 
 	Hidden_api HiddenAPIFlagFileProperties
 }
@@ -97,8 +104,18 @@ func bootclasspathFragmentFactory() android.Module {
 	android.InitSdkAwareModule(m)
 	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
 
-	// Initialize the contents property from the image_name.
 	android.AddLoadHook(m, func(ctx android.LoadHookContext) {
+		// If code coverage has been enabled for the framework then append the properties with
+		// coverage specific properties.
+		if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
+			err := proptools.AppendProperties(&m.properties.BootclasspathFragmentCoverageAffectedProperties, &m.properties.Coverage, nil)
+			if err != nil {
+				ctx.PropertyErrorf("coverage", "error trying to append coverage specific properties: %s", err)
+				return
+			}
+		}
+
+		// Initialize the contents property from the image_name.
 		bootclasspathFragmentInitContentsFromImage(ctx, m)
 	})
 	return m
@@ -165,24 +182,26 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 	}
 }
 
-var BootImageInfoProvider = blueprint.NewProvider(BootImageInfo{})
+var BootclasspathFragmentApexContentInfoProvider = blueprint.NewProvider(BootclasspathFragmentApexContentInfo{})
 
-type BootImageInfo struct {
+// BootclasspathFragmentApexContentInfo contains the bootclasspath_fragments contributions to the
+// apex contents.
+type BootclasspathFragmentApexContentInfo struct {
 	// The image config, internal to this module (and the dex_bootjars singleton).
 	//
-	// Will be nil if the BootImageInfo has not been provided for a specific module. That can occur
+	// Will be nil if the BootclasspathFragmentApexContentInfo has not been provided for a specific module. That can occur
 	// when SkipDexpreoptBootJars(ctx) returns true.
 	imageConfig *bootImageConfig
 }
 
-func (i BootImageInfo) Modules() android.ConfiguredJarList {
+func (i BootclasspathFragmentApexContentInfo) Modules() android.ConfiguredJarList {
 	return i.imageConfig.modules
 }
 
 // Get a map from ArchType to the associated boot image's contents for Android.
 //
 // Extension boot images only return their own files, not the files of the boot images they extend.
-func (i BootImageInfo) AndroidBootImageFilesByArchType() map[android.ArchType]android.OutputPaths {
+func (i BootclasspathFragmentApexContentInfo) AndroidBootImageFilesByArchType() map[android.ArchType]android.OutputPaths {
 	files := map[android.ArchType]android.OutputPaths{}
 	if i.imageConfig != nil {
 		for _, variant := range i.imageConfig.variants {
@@ -194,6 +213,15 @@ func (i BootImageInfo) AndroidBootImageFilesByArchType() map[android.ArchType]an
 		}
 	}
 	return files
+}
+
+// DexBootJarPathForContentModule returns the path to the dex boot jar for specified module.
+//
+// The dex boot jar is one which has had hidden API encoding performed on it.
+func (i BootclasspathFragmentApexContentInfo) DexBootJarPathForContentModule(module android.Module) android.Path {
+	j := module.(UsesLibraryDependency)
+	dexJar := j.DexJarBuildPath()
+	return dexJar
 }
 
 func (b *BootclasspathFragmentModule) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
@@ -264,10 +292,10 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	}
 
 	// Construct the boot image info from the config.
-	info := BootImageInfo{imageConfig: imageConfig}
+	info := BootclasspathFragmentApexContentInfo{imageConfig: imageConfig}
 
 	// Make it available for other modules.
-	ctx.SetProvider(BootImageInfoProvider, info)
+	ctx.SetProvider(BootclasspathFragmentApexContentInfoProvider, info)
 }
 
 func (b *BootclasspathFragmentModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
