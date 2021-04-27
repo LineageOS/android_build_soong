@@ -847,7 +847,6 @@ var minSdkVersionAllowlist = func(apiMap map[string]int) map[string]ApiLevel {
 	"libprocpartition":                                         30,
 	"libprotobuf-java-lite":                                    30,
 	"libprotoutil":                                             30,
-	"libqemu_pipe":                                             30,
 	"libsync":                                                  30,
 	"libtextclassifier_hash_headers":                           30,
 	"libtextclassifier_hash_static":                            30,
