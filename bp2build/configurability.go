@@ -99,8 +99,15 @@ func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue strin
 		return "", nil
 	}
 
+	// addConditionsDefault := false
+	conditionsDefaultKey := bazel.PlatformArchMap[bazel.CONDITIONS_DEFAULT]
+
 	var selects string
 	for _, selectKey := range android.SortedStringKeys(selectMap) {
+		if selectKey == conditionsDefaultKey {
+			// Handle default condition later.
+			continue
+		}
 		value := selectMap[selectKey]
 		if isZero(value) {
 			// Ignore zero values to not generate empty lists.
@@ -125,8 +132,22 @@ func prettyPrintSelectMap(selectMap map[string]reflect.Value, defaultValue strin
 	// Create the map.
 	ret := "select({\n"
 	ret += selects
-	// default condition comes last.
-	ret += fmt.Sprintf("%s\"%s\": %s,\n", makeIndent(indent+1), "//conditions:default", defaultValue)
+
+	// Handle the default condition
+	s, err := prettyPrintSelectEntry(selectMap[conditionsDefaultKey], conditionsDefaultKey, indent)
+	if err != nil {
+		return "", err
+	}
+	if s == "" {
+		// Print an explicit empty list (the default value) even if the value is
+		// empty, to avoid errors about not finding a configuration that matches.
+		ret += fmt.Sprintf("%s\"%s\": %s,\n", makeIndent(indent+1), "//conditions:default", defaultValue)
+	} else {
+		// Print the custom default value.
+		ret += s
+		ret += ",\n"
+	}
+
 	ret += makeIndent(indent)
 	ret += "})"
 
