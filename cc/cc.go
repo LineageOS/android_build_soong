@@ -2070,8 +2070,6 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 					nonvariantLibs = append(nonvariantLibs, rewriteSnapshotLib(entry, getSnapshot().SharedLibs))
 				} else if ctx.useSdk() && inList(name, *getNDKKnownLibs(ctx.Config())) {
 					variantLibs = append(variantLibs, name+ndkLibrarySuffix)
-				} else if ctx.useVndk() {
-					nonvariantLibs = append(nonvariantLibs, rewriteSnapshotLib(entry, getSnapshot().SharedLibs))
 				} else if (ctx.Platform() || ctx.ProductSpecific()) && inList(name, *vendorPublicLibraries) {
 					vendorPublicLib := name + vendorPublicLibrarySuffix
 					if actx.OtherModuleExists(vendorPublicLib) {
@@ -2082,6 +2080,8 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 						// link to the original library.
 						nonvariantLibs = append(nonvariantLibs, name)
 					}
+				} else if ctx.useVndk() {
+					nonvariantLibs = append(nonvariantLibs, rewriteSnapshotLib(entry, getSnapshot().SharedLibs))
 				} else {
 					// put name#version back
 					nonvariantLibs = append(nonvariantLibs, entry)
