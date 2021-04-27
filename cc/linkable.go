@@ -283,7 +283,7 @@ func flagExporterInfoFromCcInfo(ctx android.ModuleContext, ccInfo cquery.CcInfo)
 	systemIncludes := android.PathsForBazelOut(ctx, ccInfo.SystemIncludes)
 
 	return FlagExporterInfo{
-		IncludeDirs:       includes,
-		SystemIncludeDirs: systemIncludes,
+		IncludeDirs:       android.FirstUniquePaths(includes),
+		SystemIncludeDirs: android.FirstUniquePaths(systemIncludes),
 	}
 }
