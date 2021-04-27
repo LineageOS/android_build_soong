@@ -15,9 +15,8 @@
 package java
 
 import (
-	"fmt"
-
 	"android/soong/android"
+
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
@@ -116,15 +115,7 @@ func addDependencyOntoApexModulePair(ctx android.BottomUpMutatorContext, apex st
 // reportMissingVariationDependency intentionally adds a dependency on a missing variation in order
 // to generate an appropriate error message with information about the available variations.
 func reportMissingVariationDependency(ctx android.BottomUpMutatorContext, variations []blueprint.Variation, name string) {
-	modules := ctx.AddFarVariationDependencies(variations, nil, name)
-	if len(modules) != 1 {
-		panic(fmt.Errorf("Internal Error: expected one module, found %d", len(modules)))
-		return
-	}
-	if modules[0] != nil {
-		panic(fmt.Errorf("Internal Error: expected module to be missing but was found: %q", modules[0]))
-		return
-	}
+	ctx.AddFarVariationDependencies(variations, nil, name)
 }
 
 // ApexVariantReference specifies a particular apex variant of a module.
