@@ -64,43 +64,6 @@ type LabelList struct {
 	Excludes []Label
 }
 
-// GlobsInDir returns a list of glob expressions for a list of extensions
-// (optionally recursive) within a directory.
-func GlobsInDir(dir string, recursive bool, extensions []string) []string {
-	globs := []string{}
-
-	globInfix := ""
-	if dir == "." {
-		if recursive {
-			// e.g "**/*.h"
-			globInfix = "**/"
-		} // else e.g. "*.h"
-		for _, ext := range extensions {
-			globs = append(globs, globInfix+"*"+ext)
-		}
-	} else {
-		if recursive {
-			// e.g. "foo/bar/**/*.h"
-			dir += "/**"
-		} // else e.g. "foo/bar/*.h"
-		for _, ext := range extensions {
-			globs = append(globs, dir+"/*"+ext)
-		}
-	}
-	return globs
-}
-
-// LooseHdrsGlobs returns the list of non-recursive header globs for each parent directory of
-// each source file in this LabelList's Includes.
-func (ll *LabelList) LooseHdrsGlobs(exts []string) []string {
-	var globs []string
-	for _, parentDir := range ll.uniqueParentDirectories() {
-		globs = append(globs,
-			GlobsInDir(parentDir, false, exts)...)
-	}
-	return globs
-}
-
 // uniqueParentDirectories returns a list of the unique parent directories for
 // all files in ll.Includes.
 func (ll *LabelList) uniqueParentDirectories() []string {
