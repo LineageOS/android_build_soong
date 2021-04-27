@@ -1512,3 +1512,126 @@ filegroup {
 		}
 	}
 }
+
+func TestGlobExcludeSrcs(t *testing.T) {
+	testCases := []struct {
+		description                        string
+		moduleTypeUnderTest                string
+		moduleTypeUnderTestFactory         android.ModuleFactory
+		moduleTypeUnderTestBp2BuildMutator func(android.TopDownMutatorContext)
+		bp                                 string
+		expectedBazelTargets               []string
+		fs                                 map[string]string
+		dir                                string
+	}{
+		{
+			description:                        "filegroup top level exclude_srcs",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp: `filegroup {
+    name: "fg_foo",
+    srcs: ["**/*.txt"],
+    exclude_srcs: ["c.txt"],
+    bazel_module: { bp2build_available: true },
+}`,
+			expectedBazelTargets: []string{`filegroup(
+    name = "fg_foo",
+    srcs = [
+        "//dir:e.txt",
+        "//dir:f.txt",
+        "a.txt",
+        "b.txt",
+    ],
+)`,
+			},
+			fs: map[string]string{
+				"a.txt":          "",
+				"b.txt":          "",
+				"c.txt":          "",
+				"dir/Android.bp": "",
+				"dir/e.txt":      "",
+				"dir/f.txt":      "",
+			},
+		},
+		{
+			description:                        "filegroup in subdir exclude_srcs",
+			moduleTypeUnderTest:                "filegroup",
+			moduleTypeUnderTestFactory:         android.FileGroupFactory,
+			moduleTypeUnderTestBp2BuildMutator: android.FilegroupBp2Build,
+			bp:                                 "",
+			dir:                                "dir",
+			fs: map[string]string{
+				"dir/Android.bp": `filegroup {
+    name: "fg_foo",
+    srcs: ["**/*.txt"],
+    exclude_srcs: ["b.txt"],
+    bazel_module: { bp2build_available: true },
+}
+`,
+				"dir/a.txt":             "",
+				"dir/b.txt":             "",
+				"dir/subdir/Android.bp": "",
+				"dir/subdir/e.txt":      "",
+				"dir/subdir/f.txt":      "",
+			},
+			expectedBazelTargets: []string{`filegroup(
+    name = "fg_foo",
+    srcs = [
+        "//dir/subdir:e.txt",
+        "//dir/subdir:f.txt",
+        "a.txt",
+    ],
+)`,
+			},
+		},
+	}
+
+	dir := "."
+	for _, testCase := range testCases {
+		fs := make(map[string][]byte)
+		toParse := []string{
+			"Android.bp",
+		}
+		for f, content := range testCase.fs {
+			if strings.HasSuffix(f, "Android.bp") {
+				toParse = append(toParse, f)
+			}
+			fs[f] = []byte(content)
+		}
+		config := android.TestConfig(buildDir, nil, testCase.bp, fs)
+		ctx := android.NewTestContext(config)
+		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
+		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
+		ctx.RegisterForBazelConversion()
+
+		_, errs := ctx.ParseFileList(dir, toParse)
+		if Errored(t, testCase.description, errs) {
+			continue
+		}
+		_, errs = ctx.ResolveDependencies(config)
+		if Errored(t, testCase.description, errs) {
+			continue
+		}
+
+		checkDir := dir
+		if testCase.dir != "" {
+			checkDir = testCase.dir
+		}
+		bazelTargets := generateBazelTargetsForDir(NewCodegenContext(config, *ctx.Context, Bp2Build), checkDir)
+		if actualCount, expectedCount := len(bazelTargets), len(testCase.expectedBazelTargets); actualCount != expectedCount {
+			t.Errorf("%s: Expected %d bazel target, got %d\n%s", testCase.description, expectedCount, actualCount, bazelTargets)
+		} else {
+			for i, target := range bazelTargets {
+				if w, g := testCase.expectedBazelTargets[i], target.content; w != g {
+					t.Errorf(
+						"%s: Expected generated Bazel target to be '%s', got '%s'",
+						testCase.description,
+						w,
+						g,
+					)
+				}
+			}
+		}
+	}
+}

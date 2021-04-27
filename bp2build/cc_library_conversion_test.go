@@ -199,6 +199,55 @@ cc_library {
     srcs = ["ld_android.cpp"],
 )`},
 		},
+		{
+			description:                        "cc_library exclude_srcs - trimmed example of //external/arm-optimized-routines:libarm-optimized-routines-math",
+			moduleTypeUnderTest:                "cc_library",
+			moduleTypeUnderTestFactory:         cc.LibraryFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+			dir:                                "external",
+			filesystem: map[string]string{
+				"external/math/cosf.c":      "",
+				"external/math/erf.c":       "",
+				"external/math/erf_data.c":  "",
+				"external/math/erff.c":      "",
+				"external/math/erff_data.c": "",
+				"external/Android.bp": `
+cc_library {
+    name: "fake-libarm-optimized-routines-math",
+    exclude_srcs: [
+        // Provided by:
+        // bionic/libm/upstream-freebsd/lib/msun/src/s_erf.c
+        // bionic/libm/upstream-freebsd/lib/msun/src/s_erff.c
+        "math/erf.c",
+        "math/erf_data.c",
+        "math/erff.c",
+        "math/erff_data.c",
+    ],
+    srcs: [
+        "math/*.c",
+    ],
+    // arch-specific settings
+    arch: {
+        arm64: {
+            cflags: [
+                "-DHAVE_FAST_FMA=1",
+            ],
+        },
+    },
+    bazel_module: { bp2build_available: true },
+}
+`,
+			},
+			bp: soongCcLibraryPreamble,
+			expectedBazelTargets: []string{`cc_library(
+    name = "fake-libarm-optimized-routines-math",
+    copts = ["-Iexternal"] + select({
+        "//build/bazel/platforms/arch:arm64": ["-DHAVE_FAST_FMA=1"],
+        "//conditions:default": [],
+    }),
+    srcs = ["math/cosf.c"],
+)`},
+		},
 	}
 
 	dir := "."
