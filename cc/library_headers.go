@@ -142,14 +142,13 @@ func CcLibraryHeadersBp2Build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
-	exportedIncludes, exportedHdrs := bp2BuildParseExportedIncludes(ctx, module)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module)
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, module)
 	linkerAttrs := bp2BuildParseLinkerProps(ctx, module)
 
 	attrs := &bazelCcLibraryHeadersAttributes{
 		Copts:    compilerAttrs.copts,
 		Includes: exportedIncludes,
-		Hdrs:     exportedHdrs,
 		Deps:     linkerAttrs.deps,
 	}
 

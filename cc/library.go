@@ -259,11 +259,10 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
 	linkerAttrs := bp2BuildParseLinkerProps(ctx, m)
-	exportedIncludes, exportedIncludesHeaders := bp2BuildParseExportedIncludes(ctx, m)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, m)
 
 	attrs := &bazelCcLibraryAttributes{
 		Srcs:     compilerAttrs.srcs,
-		Hdrs:     exportedIncludesHeaders,
 		Copts:    compilerAttrs.copts,
 		Linkopts: linkerAttrs.linkopts,
 		Deps:     linkerAttrs.deps,
@@ -2176,7 +2175,7 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, module)
 	linkerAttrs := bp2BuildParseLinkerProps(ctx, module)
-	exportedIncludes, exportedIncludesHeaders := bp2BuildParseExportedIncludes(ctx, module)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module)
 
 	attrs := &bazelCcLibraryStaticAttributes{
 		Copts:      compilerAttrs.copts,
@@ -2184,7 +2183,6 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 		Deps:       linkerAttrs.deps,
 		Linkstatic: true,
 		Includes:   exportedIncludes,
-		Hdrs:       exportedIncludesHeaders,
 	}
 
 	props := bazel.BazelTargetModuleProperties{

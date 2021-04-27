@@ -67,11 +67,7 @@ func TestCcObjectBp2Build(t *testing.T) {
         "-Iinclude",
         "-I.",
     ],
-    srcs = [
-        "a/b/c.c",
-        "a/b/bar.h",
-        "a/b/foo.h",
-    ],
+    srcs = ["a/b/c.c"],
 )`,
 			},
 		},
