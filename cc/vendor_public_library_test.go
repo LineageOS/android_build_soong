@@ -23,10 +23,12 @@ func TestVendorPublicLibraries(t *testing.T) {
 	ctx := testCc(t, `
 	cc_library_headers {
 		name: "libvendorpublic_headers",
+		product_available: true,
 		export_include_dirs: ["my_include"],
 	}
 	vendor_public_library {
 		name: "libvendorpublic",
+		product_available: true,
 		symbol_file: "",
 		export_public_headers: ["libvendorpublic_headers"],
 	}
@@ -47,6 +49,14 @@ func TestVendorPublicLibraries(t *testing.T) {
 		nocrt: true,
 	}
 	cc_library {
+		name: "libproduct",
+		shared_libs: ["libvendorpublic"],
+		product_specific: true,
+		srcs: ["foo.c"],
+		no_libcrt: true,
+		nocrt: true,
+	}
+	cc_library {
 		name: "libvendor",
 		shared_libs: ["libvendorpublic"],
 		vendor: true,
@@ -58,6 +68,7 @@ func TestVendorPublicLibraries(t *testing.T) {
 
 	coreVariant := "android_arm64_armv8-a_shared"
 	vendorVariant := "android_vendor.29_arm64_armv8-a_shared"
+	productVariant := "android_product.29_arm64_armv8-a_shared"
 
 	// test if header search paths are correctly added
 	// _static variant is used since _shared reuses *.o from the static variant
@@ -75,6 +86,14 @@ func TestVendorPublicLibraries(t *testing.T) {
 		t.Errorf("libflags for libsystem must contain %#v, but was %#v", stubPaths[0], libflags)
 	}
 
+	// test if libsystem is linked to the stub
+	ld = ctx.ModuleForTests("libproduct", productVariant).Rule("ld")
+	libflags = ld.Args["libFlags"]
+	stubPaths = getOutputPaths(ctx, productVariant, []string{"libvendorpublic" + vendorPublicLibrarySuffix})
+	if !strings.Contains(libflags, stubPaths[0].String()) {
+		t.Errorf("libflags for libproduct must contain %#v, but was %#v", stubPaths[0], libflags)
+	}
+
 	// test if libvendor is linked to the real shared lib
 	ld = ctx.ModuleForTests("libvendor", vendorVariant).Rule("ld")
 	libflags = ld.Args["libFlags"]
@@ -82,5 +101,4 @@ func TestVendorPublicLibraries(t *testing.T) {
 	if !strings.Contains(libflags, stubPaths[0].String()) {
 		t.Errorf("libflags for libvendor must contain %#v, but was %#v", stubPaths[0], libflags)
 	}
-
 }
