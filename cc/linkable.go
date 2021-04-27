@@ -109,6 +109,9 @@ type LinkableInterface interface {
 	// NeedsLlndkVariants returns true if this module has LLNDK stubs or provides LLNDK headers.
 	NeedsLlndkVariants() bool
 
+	// NeedsVendorPublicLibraryVariants returns true if this module has vendor public library stubs.
+	NeedsVendorPublicLibraryVariants() bool
+
 	UseVndk() bool
 	MustUseVendorVariant() bool
 	IsVndk() bool
