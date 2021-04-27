@@ -155,6 +155,7 @@ func vendorPublicLibraryFactory() android.Module {
 
 	module.AddProperties(
 		&stub.Properties,
+		&module.VendorProperties,
 		&library.MutatedProperties,
 		&library.flagExporter.Properties)
 
