@@ -171,23 +171,22 @@ var (
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
-	// Please keep sorted.
 	bp2buildModuleDoNotConvertList = []string{
 		// Things that transitively depend on //external/arm-optimized-routines. That one fails
 		// with a linker error: "ld.lld: no input files"
-		"libc_nopthread",     // ruperts@, cc_library_static, depends on //external/arm-optimized-routine
 		"libc_common",        // ruperts@, cc_library_static, depends on //bionic/libc:libc_nopthread
 		"libc_common_static", // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
 		"libc_common_shared", // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
 		"libc_nomalloc",      // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
+		"libc_nopthread",     // ruperts@, cc_library_static, depends on //external/arm-optimized-routine
 
 		// Things that transitively depend on //system/libbase. libbase doesn't work because:
 		// "Multiple dependencies having same BaseModuleName() "fmtlib" found from "libbase""
 		"libbionic_spawn_benchmark",   // ruperts@, cc_library_static, depends on libbase, libgoogle-benchmark
-		"libc_malloc_debug_backtrace", // ruperts@, cc_library_static, depends on libbase
-		"liblinker_main",              // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
-		"liblinker_debuggerd_stub",    // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
 		"libc_malloc_debug",           // ruperts@, cc_library_static, depends on libbase
+		"libc_malloc_debug_backtrace", // ruperts@, cc_library_static, depends on libbase
+		"liblinker_debuggerd_stub",    // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
+		"liblinker_main",              // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
 		"liblinker_malloc",            // ruperts@, cc_library_static, depends on libziparchive, libz, libbase
 
 		// Requires non-libc targets, but otherwise works
@@ -195,8 +194,8 @@ var (
 		"libsystemproperties",   // ruperts@, cc_library_static, depends on //system/core/property_service/libpropertyinfoparser
 
 		// Compilation error, seems to be fixable by changing the toolchain definition
-		"libc_tzcode",     // ruperts@, cc_library_static, error: expected expression
 		"libc_bionic_ndk", // ruperts@, cc_library_static, error: ISO C++ requires field designators...
+		"libc_tzcode",     // ruperts@, cc_library_static, error: expected expression
 		"libm",            // jingwen@, cc_library, error: "expected register here" (and many others)
 
 		// Linker error
@@ -222,9 +221,10 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libc_gdtoa",   // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
-		"libc_netbsd",  // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
-		"libc_openbsd", // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
+		"libasync_safe", // lberki@, cc_library_static, 'async_safe/log.h not found' for out/combined-aosp_arm64.ninja out/soong/.intermediates/system/unwinding/libbacktrace/libbacktrace/android_arm64_armv8-a_shared/obj/system/unwinding/libbacktrace/ThreadEntry.o
+		"libc_gdtoa",    // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
+		"libc_netbsd",   // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
+		"libc_openbsd",  // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
 	}
 
 	// Used for quicker lookups

@@ -80,7 +80,7 @@ type compilerAttributes struct {
 
 // bp2BuildParseCompilerProps returns copts, srcs and hdrs and other attributes.
 func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Module) compilerAttributes {
-	var localHdrs, srcs bazel.LabelListAttribute
+	var srcs bazel.LabelListAttribute
 	var copts bazel.StringListAttribute
 
 	// Creates the -I flag for a directory, while making the directory relative
@@ -88,11 +88,6 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 	includeFlag := func(dir string) string {
 		// filepath.Join canonicalizes the path, i.e. it takes care of . or .. elements.
 		return "-I" + filepath.Join(ctx.ModuleDir(), dir)
-	}
-
-	// Parse the list of srcs, excluding files from exclude_srcs.
-	parseSrcs := func(baseCompilerProps *BaseCompilerProperties) bazel.LabelList {
-		return android.BazelLabelForModuleSrcExcludes(ctx, baseCompilerProps.Srcs, baseCompilerProps.Exclude_srcs)
 	}
 
 	// Parse the list of module-relative include directories (-I).
@@ -111,40 +106,85 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		return copts
 	}
 
+	// baseSrcs contain the list of src files that are used for every configuration.
+	var baseSrcs []string
+	// baseExcludeSrcs contain the list of src files that are excluded for every configuration.
+	var baseExcludeSrcs []string
+	// baseSrcsLabelList is a clone of the base srcs LabelList, used for computing the
+	// arch or os specific srcs later.
+	var baseSrcsLabelList bazel.LabelList
+
+	// Parse srcs from an arch or OS's props value, taking the base srcs and
+	// exclude srcs into account.
+	parseSrcs := func(baseCompilerProps *BaseCompilerProperties) bazel.LabelList {
+		// Combine the base srcs and arch-specific srcs
+		allSrcs := append(baseSrcs, baseCompilerProps.Srcs...)
+		// Combine the base exclude_srcs and configuration-specific exclude_srcs
+		allExcludeSrcs := append(baseExcludeSrcs, baseCompilerProps.Exclude_srcs...)
+		return android.BazelLabelForModuleSrcExcludes(ctx, allSrcs, allExcludeSrcs)
+	}
+
 	for _, props := range module.compiler.compilerProps() {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
 			srcs.Value = parseSrcs(baseCompilerProps)
 			copts.Value = parseCopts(baseCompilerProps)
+
+			// Used for arch-specific srcs later.
+			baseSrcs = baseCompilerProps.Srcs
+			baseExcludeSrcs = baseCompilerProps.Exclude_srcs
+			baseSrcsLabelList = parseSrcs(baseCompilerProps)
 			break
 		}
 	}
 
+	// Handle include_build_directory prop. If the property is true, then the
+	// target has access to all headers recursively in the package, and has
+	// "-I<module-dir>" in its copts.
 	if c, ok := module.compiler.(*baseCompiler); ok && c.includeBuildDirectory() {
 		copts.Value = append(copts.Value, includeFlag("."))
-		localHdrs.Value = bp2BuildListHeadersInDir(ctx, ".")
 	} else if c, ok := module.compiler.(*libraryDecorator); ok && c.includeBuildDirectory() {
 		copts.Value = append(copts.Value, includeFlag("."))
-		localHdrs.Value = bp2BuildListHeadersInDir(ctx, ".")
 	}
 
 	for arch, props := range module.GetArchProperties(&BaseCompilerProperties{}) {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
-			srcsList := parseSrcs(baseCompilerProps)
-			srcs.SetValueForArch(arch.Name, bazel.SubtractBazelLabelList(srcsList, srcs.Value))
+			// If there's arch specific srcs or exclude_srcs, generate a select entry for it.
+			// TODO(b/186153868): do this for OS specific srcs and exclude_srcs too.
+			if len(baseCompilerProps.Srcs) > 0 || len(baseCompilerProps.Exclude_srcs) > 0 {
+				srcsList := parseSrcs(baseCompilerProps)
+				srcs.SetValueForArch(arch.Name, srcsList)
+				// The base srcs value should not contain any arch-specific excludes.
+				srcs.Value = bazel.SubtractBazelLabelList(srcs.Value, bazel.LabelList{Includes: srcsList.Excludes})
+			}
+
 			copts.SetValueForArch(arch.Name, parseCopts(baseCompilerProps))
 		}
 	}
 
-	for os, props := range module.GetTargetProperties(&BaseCompilerProperties{}) {
-		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
-			srcsList := parseSrcs(baseCompilerProps)
-			srcs.SetValueForOS(os.Name, bazel.SubtractBazelLabelList(srcsList, srcs.Value))
-			copts.SetValueForOS(os.Name, parseCopts(baseCompilerProps))
+	// After going through all archs, delete the duplicate files in the arch
+	// values that are already in the base srcs.Value.
+	for arch, props := range module.GetArchProperties(&BaseCompilerProperties{}) {
+		if _, ok := props.(*BaseCompilerProperties); ok {
+			srcs.SetValueForArch(arch.Name, bazel.SubtractBazelLabelList(srcs.GetValueForArch(arch.Name), srcs.Value))
 		}
 	}
 
-	// Combine local, non-exported hdrs into srcs
-	srcs.Append(localHdrs)
+	// Now that the srcs.Value list is finalized, compare it with the original
+	// list, and put the difference into the default condition for the arch
+	// select.
+	defaultsSrcs := bazel.SubtractBazelLabelList(baseSrcsLabelList, srcs.Value)
+	// TODO(b/186153868): handle the case with multiple variant types, e.g. when arch and os are both used.
+	srcs.SetValueForArch(bazel.CONDITIONS_DEFAULT, defaultsSrcs)
+
+	// Handle OS specific props.
+	for os, props := range module.GetTargetProperties(&BaseCompilerProperties{}) {
+		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
+			srcsList := parseSrcs(baseCompilerProps)
+			// TODO(b/186153868): add support for os-specific srcs and exclude_srcs
+			srcs.SetValueForOS(os.Name, bazel.SubtractBazelLabelList(srcsList, baseSrcsLabelList))
+			copts.SetValueForOS(os.Name, parseCopts(baseCompilerProps))
+		}
+	}
 
 	return compilerAttributes{
 		srcs:  srcs,
@@ -207,11 +247,6 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 	}
 }
 
-func bp2BuildListHeadersInDir(ctx android.TopDownMutatorContext, includeDir string) bazel.LabelList {
-	globs := bazel.GlobsInDir(includeDir, true, headerExts)
-	return android.BazelLabelForModuleSrc(ctx, globs)
-}
-
 // Relativize a list of root-relative paths with respect to the module's
 // directory.
 //
@@ -236,9 +271,8 @@ func bp2BuildMakePathsRelativeToModule(ctx android.BazelConversionPathContext, p
 }
 
 // bp2BuildParseExportedIncludes creates a string list attribute contains the
-// exported included directories of a module, and a label list attribute
-// containing the exported headers of a module.
-func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) (bazel.StringListAttribute, bazel.LabelListAttribute) {
+// exported included directories of a module.
+func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Module) bazel.StringListAttribute {
 	libraryDecorator := module.linker.(*libraryDecorator)
 
 	// Export_system_include_dirs and export_include_dirs are already module dir
@@ -247,14 +281,6 @@ func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Mo
 	includeDirs := libraryDecorator.flagExporter.Properties.Export_system_include_dirs
 	includeDirs = append(includeDirs, libraryDecorator.flagExporter.Properties.Export_include_dirs...)
 	includeDirsAttribute := bazel.MakeStringListAttribute(includeDirs)
-
-	var headersAttribute bazel.LabelListAttribute
-	var headers bazel.LabelList
-	for _, includeDir := range includeDirs {
-		headers.Append(bp2BuildListHeadersInDir(ctx, includeDir))
-	}
-	headers = bazel.UniqueBazelLabelList(headers)
-	headersAttribute.Value = headers
 
 	for arch, props := range module.GetArchProperties(&FlagExporterProperties{}) {
 		if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
@@ -267,20 +293,6 @@ func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Mo
 
 			if len(archIncludeDirs) > 0 {
 				includeDirsAttribute.SetValueForArch(arch.Name, archIncludeDirs)
-			}
-
-			var archHeaders bazel.LabelList
-			for _, archIncludeDir := range archIncludeDirs {
-				archHeaders.Append(bp2BuildListHeadersInDir(ctx, archIncludeDir))
-			}
-			archHeaders = bazel.UniqueBazelLabelList(archHeaders)
-
-			// To avoid duplicate headers when base headers + arch headers are combined
-			// FIXME: This doesn't take conflicts between arch and os includes into account
-			archHeaders = bazel.SubtractBazelLabelList(archHeaders, headers)
-
-			if len(archHeaders.Includes) > 0 || len(archHeaders.Excludes) > 0 {
-				headersAttribute.SetValueForArch(arch.Name, archHeaders)
 			}
 		}
 	}
@@ -297,22 +309,8 @@ func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Mo
 			if len(osIncludeDirs) > 0 {
 				includeDirsAttribute.SetValueForOS(os.Name, osIncludeDirs)
 			}
-
-			var osHeaders bazel.LabelList
-			for _, osIncludeDir := range osIncludeDirs {
-				osHeaders.Append(bp2BuildListHeadersInDir(ctx, osIncludeDir))
-			}
-			osHeaders = bazel.UniqueBazelLabelList(osHeaders)
-
-			// To avoid duplicate headers when base headers + os headers are combined
-			// FIXME: This doesn't take conflicts between arch and os includes into account
-			osHeaders = bazel.SubtractBazelLabelList(osHeaders, headers)
-
-			if len(osHeaders.Includes) > 0 || len(osHeaders.Excludes) > 0 {
-				headersAttribute.SetValueForOS(os.Name, osHeaders)
-			}
 		}
 	}
 
-	return includeDirsAttribute, headersAttribute
+	return includeDirsAttribute
 }

@@ -243,6 +243,14 @@ func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes 
 	labels := bazel.LabelList{
 		Includes: []bazel.Label{},
 	}
+
+	// expandedExcludes contain module-dir relative paths, but root-relative paths
+	// are needed for GlobFiles later.
+	var rootRelativeExpandedExcludes []string
+	for _, e := range expandedExcludes {
+		rootRelativeExpandedExcludes = append(rootRelativeExpandedExcludes, filepath.Join(ctx.ModuleDir(), e))
+	}
+
 	for _, p := range paths {
 		if m, tag := SrcIsModuleWithTag(p); m != "" {
 			l := getOtherModuleLabel(ctx, m, tag)
@@ -253,7 +261,10 @@ func expandSrcsForBazel(ctx BazelConversionPathContext, paths, expandedExcludes 
 		} else {
 			var expandedPaths []bazel.Label
 			if pathtools.IsGlob(p) {
-				globbedPaths := GlobFiles(ctx, pathForModuleSrc(ctx, p).String(), expandedExcludes)
+				// e.g. turn "math/*.c" in
+				// external/arm-optimized-routines to external/arm-optimized-routines/math/*.c
+				rootRelativeGlobPath := pathForModuleSrc(ctx, p).String()
+				globbedPaths := GlobFiles(ctx, rootRelativeGlobPath, rootRelativeExpandedExcludes)
 				globbedPaths = PathsWithModuleSrcSubDir(ctx, globbedPaths, "")
 				for _, path := range globbedPaths {
 					s := path.Rel()

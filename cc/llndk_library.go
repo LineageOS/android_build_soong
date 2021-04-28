@@ -69,6 +69,10 @@ type llndkLibraryProperties struct {
 	// vendor nor product libraries. This effectively hides this module from
 	// non-system modules. Default value is false.
 	Private *bool
+
+	// if true, make this module available to provide headers to other modules that set
+	// llndk.symbol_file.
+	Llndk_headers *bool
 }
 
 type llndkStubDecorator struct {
