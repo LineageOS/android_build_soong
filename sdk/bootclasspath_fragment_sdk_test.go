@@ -46,6 +46,8 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 				],
 			}
 		`),
+		// Needed for platform_bootclasspath
+		android.FixtureAddFile("frameworks/base/config/boot-profile.txt", nil),
 
 		java.FixtureConfigureBootJars("com.android.art:mybootlib"),
 		android.FixtureWithRootAndroidBp(`
