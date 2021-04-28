@@ -423,23 +423,13 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 	writeGlobalConfigForMake(ctx, d.dexpreoptConfigForMake)
 
 	global := dexpreopt.GetGlobalConfig(ctx)
-
-	// Skip recompiling the boot image for the second sanitization phase. We'll get separate paths
-	// and invalidate first-stage artifacts which are crucial to SANITIZE_LITE builds.
-	// Note: this is technically incorrect. Compiled code contains stack checks which may depend
-	//       on ASAN settings.
-	if len(ctx.Config().SanitizeDevice()) == 1 &&
-		ctx.Config().SanitizeDevice()[0] == "address" &&
-		global.SanitizeLite {
+	if !shouldBuildBootImages(ctx.Config(), global) {
 		return
 	}
 
 	// Generate the profile rule from the default boot image.
 	defaultImageConfig := defaultBootImageConfig(ctx)
 	profile := bootImageProfileRule(ctx, defaultImageConfig)
-
-	// Generate the framework profile rule
-	bootFrameworkProfileRule(ctx, defaultImageConfig)
 
 	// Generate the updatable bootclasspath packages rule.
 	updatableBcpPackagesRule(ctx, defaultImageConfig)
@@ -453,6 +443,18 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 	copyUpdatableBootJars(ctx)
 
 	dumpOatRules(ctx, d.defaultBootImage)
+}
+
+// shouldBuildBootImages determines whether boot images should be built.
+func shouldBuildBootImages(config android.Config, global *dexpreopt.GlobalConfig) bool {
+	// Skip recompiling the boot image for the second sanitization phase. We'll get separate paths
+	// and invalidate first-stage artifacts which are crucial to SANITIZE_LITE builds.
+	// Note: this is technically incorrect. Compiled code contains stack checks which may depend
+	//       on ASAN settings.
+	if len(config.SanitizeDevice()) == 1 && config.SanitizeDevice()[0] == "address" && global.SanitizeLite {
+		return false
+	}
+	return true
 }
 
 // Inspect this module to see if it contains a bootclasspath dex jar.
@@ -853,8 +855,10 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImageConfig) 
 	return profile
 }
 
-func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImageConfig) android.WritablePath {
-	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
+// bootFrameworkProfileRule generates the rule to create the boot framework profile and
+// returns a path to the generated file.
+func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
+	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
 	if global.DisableGenerateProfile || ctx.Config().UnbundledBuild() {
