@@ -47,8 +47,7 @@ var (
 	_       = pctx.SourcePathVariable("rustdocCmd", "${config.RustBin}/rustdoc")
 	rustdoc = pctx.AndroidStaticRule("rustdoc",
 		blueprint.RuleParams{
-			Command: "rm -rf $outDir && " +
-				"$envVars $rustdocCmd $rustdocFlags $in -o $outDir && " +
+			Command: "$envVars $rustdocCmd $rustdocFlags $in -o $outDir && " +
 				"touch $out",
 			CommandDeps: []string{"$rustdocCmd"},
 		},
@@ -307,6 +306,10 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 	rustdocFlags := append([]string{}, flags.RustdocFlags...)
 	rustdocFlags = append(rustdocFlags, "--sysroot=/dev/null")
 
+	// Build an index for all our crates. -Z unstable options is required to use
+	// this flag.
+	rustdocFlags = append(rustdocFlags, "-Z", "unstable-options", "--enable-index-page")
+
 	targetTriple := ctx.toolchain().RustTriple()
 
 	// Collect rustc flags
@@ -315,13 +318,17 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 	}
 
 	crateName := ctx.RustModule().CrateName()
-	if crateName != "" {
-		rustdocFlags = append(rustdocFlags, "--crate-name "+crateName)
-	}
+	rustdocFlags = append(rustdocFlags, "--crate-name "+crateName)
 
 	rustdocFlags = append(rustdocFlags, makeLibFlags(deps)...)
 	docTimestampFile := android.PathForModuleOut(ctx, "rustdoc.timestamp")
-	docDir := android.PathForOutput(ctx, "rustdoc", ctx.ModuleName())
+
+	// Yes, the same out directory is used simultaneously by all rustdoc builds.
+	// This is what cargo does. The docs for individual crates get generated to
+	// a subdirectory named for the crate, and rustdoc synchronizes writes to
+	// shared pieces like the index and search data itself.
+	// https://github.com/rust-lang/rust/blob/master/src/librustdoc/html/render/write_shared.rs#L144-L146
+	docDir := android.PathForOutput(ctx, "rustdoc")
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        rustdoc,
