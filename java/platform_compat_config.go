@@ -226,10 +226,8 @@ type platformCompatConfigSingleton struct {
 func isModulePreferredByCompatConfig(module android.Module) bool {
 	// A versioned prebuilt_platform_compat_config, i.e. foo-platform-compat-config@current should be
 	// ignored.
-	if s, ok := module.(android.SdkAware); ok {
-		if !s.ContainingSdk().Unversioned() {
-			return false
-		}
+	if android.IsModuleInVersionedSdk(module) {
+		return false
 	}
 
 	return android.IsModulePreferred(module)
