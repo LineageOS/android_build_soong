@@ -80,7 +80,16 @@ func createIncludeDirsRules() []Rule {
 		"external/wycheproof",
 	}
 	noUseIncludeDir := []string{
+		"frameworks/av/apex",
+		"frameworks/av/tools",
+		"frameworks/native/cmds",
+		"system/apex",
+		"system/bpf",
+		"system/gatekeeper",
+		"system/hwservicemanager",
+		"system/libbase",
 		"system/libfmq",
+		"system/libvintf",
 	}
 
 	rules := make([]Rule, 0, len(notInIncludeDir)+len(noUseIncludeDir))
