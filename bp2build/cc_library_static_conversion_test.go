@@ -721,6 +721,31 @@ cc_library_static {
     }),
 )`},
 		},
+		{
+			description:                        "cc_library_static multiple dep same name panic",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			filesystem:                         map[string]string{},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static { name: "static_dep" }
+cc_library_static {
+    name: "foo_static",
+    static_libs: ["static_dep"],
+    whole_static_libs: ["static_dep"],
+}`,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = ["-I."],
+    deps = [":static_dep"],
+    linkstatic = True,
+)`, `cc_library_static(
+    name = "static_dep",
+    copts = ["-I."],
+    linkstatic = True,
+)`},
+		},
 	}
 
 	dir := "."
