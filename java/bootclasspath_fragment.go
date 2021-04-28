@@ -17,6 +17,7 @@ package java
 import (
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"android/soong/android"
@@ -31,8 +32,9 @@ func init() {
 
 	android.RegisterSdkMemberType(&bootclasspathFragmentMemberType{
 		SdkMemberTypeBase: android.SdkMemberTypeBase{
-			PropertyName: "bootclasspath_fragments",
-			SupportsSdk:  true,
+			PropertyName:         "bootclasspath_fragments",
+			SupportsSdk:          true,
+			TransitiveSdkMembers: true,
 		},
 	})
 }
@@ -59,11 +61,22 @@ func (b bootclasspathFragmentContentDependencyTag) ReplaceSourceWithPrebuilt() b
 	return false
 }
 
+// SdkMemberType causes dependencies added with this tag to be automatically added to the sdk as if
+// they were specified using java_boot_libs.
+func (b bootclasspathFragmentContentDependencyTag) SdkMemberType() android.SdkMemberType {
+	return javaBootLibsSdkMemberType
+}
+
+func (b bootclasspathFragmentContentDependencyTag) ExportMember() bool {
+	return true
+}
+
 // The tag used for the dependency between the bootclasspath_fragment module and its contents.
 var bootclasspathFragmentContentDepTag = bootclasspathFragmentContentDependencyTag{}
 
 var _ android.ExcludeFromVisibilityEnforcementTag = bootclasspathFragmentContentDepTag
 var _ android.ReplaceSourceWithPrebuilt = bootclasspathFragmentContentDepTag
+var _ android.SdkMemberTypeDependencyTag = bootclasspathFragmentContentDepTag
 
 func IsBootclasspathFragmentContentDepTag(tag blueprint.DependencyTag) bool {
 	return tag == bootclasspathFragmentContentDepTag
@@ -128,8 +141,10 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 	if m.properties.Image_name == nil && len(contents) == 0 {
 		ctx.ModuleErrorf(`neither of the "image_name" and "contents" properties have been supplied, please supply exactly one`)
 	}
-	if m.properties.Image_name != nil && len(contents) != 0 {
-		ctx.ModuleErrorf(`both of the "image_name" and "contents" properties have been supplied, please supply exactly one`)
+
+	if len(contents) != 0 {
+		// Nothing to do.
+		return
 	}
 
 	imageName := proptools.String(m.properties.Image_name)
@@ -154,7 +169,6 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 
 		// Make sure that the apex specified in the configuration is consistent and is one for which
 		// this boot image is available.
-		jars := []string{}
 		commonApex := ""
 		for i := 0; i < modules.Len(); i++ {
 			apex := modules.Apex(i)
@@ -174,11 +188,50 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 				ctx.ModuleErrorf("ArtApexJars configuration is inconsistent, expected all jars to be in the same apex but it specifies apex %q and %q",
 					commonApex, apex)
 			}
-			jars = append(jars, jar)
 		}
 
 		// Store the jars in the Contents property so that they can be used to add dependencies.
-		m.properties.Contents = jars
+		m.properties.Contents = modules.CopyOfJars()
+	}
+}
+
+// bootclasspathImageNameContentsConsistencyCheck checks that the configuration that applies to this
+// module (if any) matches the contents.
+//
+// This should be a noop as if image_name="art" then the contents will be set from the ArtApexJars
+// config by bootclasspathFragmentInitContentsFromImage so it will be guaranteed to match. However,
+// in future this will not be the case.
+func (b *BootclasspathFragmentModule) bootclasspathImageNameContentsConsistencyCheck(ctx android.BaseModuleContext) {
+	imageName := proptools.String(b.properties.Image_name)
+	if imageName == "art" {
+		// TODO(b/177892522): Prebuilts (versioned or not) should not use the image_name property.
+		if b.MemberName() != "" {
+			// The module is a versioned prebuilt so ignore it. This is done for a couple of reasons:
+			// 1. There is no way to use this at the moment so ignoring it is safe.
+			// 2. Attempting to initialize the contents property from the configuration will end up having
+			//    the versioned prebuilt depending on the unversioned prebuilt. That will cause problems
+			//    as the unversioned prebuilt could end up with an APEX variant created for the source
+			//    APEX which will prevent it from having an APEX variant for the prebuilt APEX which in
+			//    turn will prevent it from accessing the dex implementation jar from that which will
+			//    break hidden API processing, amongst others.
+			return
+		}
+
+		// Get the configuration for the art apex jars.
+		modules := b.getImageConfig(ctx).modules
+		configuredJars := modules.CopyOfJars()
+
+		// Skip the check if the configured jars list is empty as that is a common configuration when
+		// building targets that do not result in a system image.
+		if len(configuredJars) == 0 {
+			return
+		}
+
+		contents := b.properties.Contents
+		if !reflect.DeepEqual(configuredJars, contents) {
+			ctx.ModuleErrorf("inconsistency in specification of contents. ArtApexJars configuration specifies %#v, contents property specifies %#v",
+				configuredJars, contents)
+		}
 	}
 }
 
@@ -274,6 +327,13 @@ func (b *BootclasspathFragmentModule) DepsMutator(ctx android.BottomUpMutatorCon
 }
 
 func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Only perform a consistency check if this module is the active module. That will prevent an
+	// unused prebuilt that was created without instrumentation from breaking an instrumentation
+	// build.
+	if isActiveModule(ctx.Module()) {
+		b.bootclasspathImageNameContentsConsistencyCheck(ctx)
+	}
+
 	// Perform hidden API processing.
 	b.generateHiddenAPIBuildActions(ctx)
 
@@ -368,12 +428,7 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 	module := variant.(*BootclasspathFragmentModule)
 
 	b.Image_name = module.properties.Image_name
-	if b.Image_name == nil {
-		// Only one of image_name or contents can be specified. However, if image_name is set then the
-		// contents property is updated to match the configuration used to create the corresponding
-		// boot image. Therefore, contents property is only copied if the image name is not specified.
-		b.Contents = module.properties.Contents
-	}
+	b.Contents = module.properties.Contents
 
 	// Get the flag file information from the module.
 	mctx := ctx.SdkModuleContext()

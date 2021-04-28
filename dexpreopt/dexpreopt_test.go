@@ -47,7 +47,6 @@ func testModuleConfig(ctx android.PathContext, name, partition string) *ModuleCo
 		EnforceUsesLibraries:            false,
 		ClassLoaderContexts:             nil,
 		Archs:                           []android.ArchType{android.Arm},
-		DexPreoptImages:                 android.Paths{android.PathForTesting("system/framework/arm/boot.art")},
 		DexPreoptImagesDeps:             []android.OutputPaths{android.OutputPaths{}},
 		DexPreoptImageLocations:         []string{},
 		PreoptBootClassPathDexFiles:     nil,

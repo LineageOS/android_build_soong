@@ -62,6 +62,8 @@ func (stl *stl) begin(ctx BaseModuleContext) {
 		s := ""
 		if stl.Properties.Stl != nil {
 			s = *stl.Properties.Stl
+		} else if ctx.header() {
+			s = "none"
 		}
 		if ctx.useSdk() && ctx.Device() {
 			switch s {

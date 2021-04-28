@@ -1135,9 +1135,9 @@ func (c *Module) IsLlndkLibrary() bool {
 	return false
 }
 
-func (m *Module) HasLlndkStubs() bool {
+func (m *Module) NeedsLlndkVariants() bool {
 	lib := moduleLibraryInterface(m)
-	return lib != nil && lib.hasLLNDKStubs()
+	return lib != nil && (lib.hasLLNDKStubs() || lib.hasLLNDKHeaders())
 }
 
 // isImplementationForLLNDKPublic returns true for any variant of a cc_library that has LLNDK stubs
@@ -2070,8 +2070,6 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 					nonvariantLibs = append(nonvariantLibs, rewriteSnapshotLib(entry, getSnapshot().SharedLibs))
 				} else if ctx.useSdk() && inList(name, *getNDKKnownLibs(ctx.Config())) {
 					variantLibs = append(variantLibs, name+ndkLibrarySuffix)
-				} else if ctx.useVndk() {
-					nonvariantLibs = append(nonvariantLibs, rewriteSnapshotLib(entry, getSnapshot().SharedLibs))
 				} else if (ctx.Platform() || ctx.ProductSpecific()) && inList(name, *vendorPublicLibraries) {
 					vendorPublicLib := name + vendorPublicLibrarySuffix
 					if actx.OtherModuleExists(vendorPublicLib) {
@@ -2082,6 +2080,8 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 						// link to the original library.
 						nonvariantLibs = append(nonvariantLibs, name)
 					}
+				} else if ctx.useVndk() {
+					nonvariantLibs = append(nonvariantLibs, rewriteSnapshotLib(entry, getSnapshot().SharedLibs))
 				} else {
 					// put name#version back
 					nonvariantLibs = append(nonvariantLibs, entry)
