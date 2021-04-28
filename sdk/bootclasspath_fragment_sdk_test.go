@@ -52,7 +52,6 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 			sdk {
 				name: "mysdk",
 				bootclasspath_fragments: ["mybootclasspathfragment"],
-				java_boot_libs: ["mybootlib"],
 			}
 
 			apex {
@@ -114,6 +113,7 @@ prebuilt_bootclasspath_fragment {
     visibility: ["//visibility:public"],
     apex_available: ["com.android.art"],
     image_name: "art",
+    contents: ["mybootlib"],
 }
 
 java_import {
@@ -133,6 +133,7 @@ prebuilt_bootclasspath_fragment {
     visibility: ["//visibility:public"],
     apex_available: ["com.android.art"],
     image_name: "art",
+    contents: ["mysdk_mybootlib@current"],
 }
 
 java_import {
@@ -166,7 +167,6 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 			sdk {
 				name: "mysdk",
 				bootclasspath_fragments: ["mybootclasspathfragment"],
-				java_boot_libs: ["mybootlib"],
 			}
 
 			bootclasspath_fragment {
@@ -288,7 +288,6 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 			sdk {
 				name: "mysdk",
 				bootclasspath_fragments: ["mybootclasspathfragment"],
-				java_boot_libs: ["mybootlib"],
 			}
 
 			bootclasspath_fragment {

@@ -259,11 +259,10 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
 	linkerAttrs := bp2BuildParseLinkerProps(ctx, m)
-	exportedIncludes, exportedIncludesHeaders := bp2BuildParseExportedIncludes(ctx, m)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, m)
 
 	attrs := &bazelCcLibraryAttributes{
 		Srcs:     compilerAttrs.srcs,
-		Hdrs:     exportedIncludesHeaders,
 		Copts:    compilerAttrs.copts,
 		Linkopts: linkerAttrs.linkopts,
 		Deps:     linkerAttrs.deps,
@@ -869,6 +868,7 @@ type versionedInterface interface {
 
 	implementationModuleName(name string) string
 	hasLLNDKStubs() bool
+	hasLLNDKHeaders() bool
 }
 
 var _ libraryInterface = (*libraryDecorator)(nil)
@@ -1683,6 +1683,12 @@ func (library *libraryDecorator) hasVestigialLLNDKLibrary() bool {
 	return String(library.Properties.Llndk_stubs) != ""
 }
 
+// hasLLNDKHeaders returns true if this cc_library module has a variant that provides headers
+// to a module that sets llndk.symbol_file.
+func (library *libraryDecorator) hasLLNDKHeaders() bool {
+	return Bool(library.Properties.Llndk.Llndk_headers)
+}
+
 func (library *libraryDecorator) implementationModuleName(name string) string {
 	return name
 }
@@ -2176,7 +2182,7 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, module)
 	linkerAttrs := bp2BuildParseLinkerProps(ctx, module)
-	exportedIncludes, exportedIncludesHeaders := bp2BuildParseExportedIncludes(ctx, module)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module)
 
 	attrs := &bazelCcLibraryStaticAttributes{
 		Copts:      compilerAttrs.copts,
@@ -2184,7 +2190,6 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 		Deps:       linkerAttrs.deps,
 		Linkstatic: true,
 		Includes:   exportedIncludes,
-		Hdrs:       exportedIncludesHeaders,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
