@@ -1121,13 +1121,6 @@ func (c *Module) IsLlndkPublic() bool {
 	return c.VendorProperties.IsLLNDK && !c.VendorProperties.IsVNDKPrivate
 }
 
-func (c *Module) IsLlndkHeaders() bool {
-	if _, ok := c.linker.(*llndkHeadersDecorator); ok {
-		return true
-	}
-	return false
-}
-
 func (c *Module) IsLlndkLibrary() bool {
 	if _, ok := c.linker.(*llndkStubDecorator); ok {
 		return true
@@ -1608,8 +1601,7 @@ func (c *Module) setSubnameProperty(actx android.ModuleContext) {
 	}
 
 	llndk := c.IsLlndk()
-	_, llndkHeader := c.linker.(*llndkHeadersDecorator)
-	if llndk || llndkHeader || (c.UseVndk() && c.HasNonSystemVariants()) {
+	if llndk || (c.UseVndk() && c.HasNonSystemVariants()) {
 		// .vendor.{version} suffix is added for vendor variant or .product.{version} suffix is
 		// added for product variant only when we have vendor and product variants with core
 		// variant. The suffix is not added for vendor-only or product-only module.

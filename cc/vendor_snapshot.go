@@ -180,14 +180,11 @@ func isSnapshotAware(cfg android.DeviceConfig, m *Module, inProprietaryPath bool
 	if _, ok := m.linker.(*kernelHeadersDecorator); ok {
 		return false
 	}
-	// skip llndk_library and llndk_headers which are backward compatible
+	// skip LLNDK libraries which are backward compatible
 	if m.IsLlndk() {
 		return false
 	}
 	if _, ok := m.linker.(*llndkStubDecorator); ok {
-		return false
-	}
-	if _, ok := m.linker.(*llndkHeadersDecorator); ok {
 		return false
 	}
 
