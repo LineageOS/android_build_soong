@@ -865,24 +865,12 @@ func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig)
 		return nil
 	}
 
-	// Some branches like master-art-host don't have frameworks/base, so manually
-	// handle the case that the default is missing.  Those branches won't attempt to build the profile rule,
-	// and if they do they'll get a missing deps error.
 	defaultProfile := "frameworks/base/config/boot-profile.txt"
-	path := android.ExistentPathForSource(ctx, defaultProfile)
-	var bootFrameworkProfile android.Path
-	var missingDeps []string
-	if path.Valid() {
-		bootFrameworkProfile = path.Path()
-	} else {
-		missingDeps = append(missingDeps, defaultProfile)
-		bootFrameworkProfile = android.PathForOutput(ctx, "missing", defaultProfile)
-	}
+	bootFrameworkProfile := android.PathForSource(ctx, defaultProfile)
 
 	profile := image.dir.Join(ctx, "boot.bprof")
 
 	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.MissingDeps(missingDeps)
 	rule.Command().
 		Text(`ANDROID_LOG_TAGS="*:e"`).
 		Tool(globalSoong.Profman).
