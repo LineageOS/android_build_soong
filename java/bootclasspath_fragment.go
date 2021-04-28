@@ -63,7 +63,7 @@ func (b bootclasspathFragmentContentDependencyTag) ReplaceSourceWithPrebuilt() b
 
 // SdkMemberType causes dependencies added with this tag to be automatically added to the sdk as if
 // they were specified using java_boot_libs.
-func (b bootclasspathFragmentContentDependencyTag) SdkMemberType() android.SdkMemberType {
+func (b bootclasspathFragmentContentDependencyTag) SdkMemberType(_ android.Module) android.SdkMemberType {
 	return javaBootLibsSdkMemberType
 }
 
