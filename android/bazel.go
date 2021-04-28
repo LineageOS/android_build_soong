@@ -212,8 +212,7 @@ var (
 
 		// Other
 		"libBionicBenchmarksUtils", // ruperts@, cc_library_static, 'map' file not found
-		"libc_syscalls",            // ruperts@, cc_library_static, mutator panic cannot get direct dep syscalls-arm64.S of libc_syscalls
-		"libc_ndk",                 // ruperts@, cc_library_static, depends on libc_bionic_ndk, libc_jemalloc_wrapper, libc_syscalls, libc_tzcode, libstdc++
+		"libc_ndk",                 // ruperts@, cc_library_static, depends on libc_bionic_ndk, libc_jemalloc_wrapper, libc_tzcode, libstdc++
 
 		"libc", // jingwen@, cc_library, depends on //external/gwp_asan
 	}
