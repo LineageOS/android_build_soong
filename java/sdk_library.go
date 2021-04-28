@@ -339,12 +339,7 @@ func init() {
 	})
 
 	// Register sdk member types.
-	android.RegisterSdkMemberType(&sdkLibrarySdkMemberType{
-		android.SdkMemberTypeBase{
-			PropertyName: "java_sdk_libs",
-			SupportsSdk:  true,
-		},
-	})
+	android.RegisterSdkMemberType(javaSdkLibrarySdkMemberType)
 }
 
 func RegisterSdkLibraryBuildComponents(ctx android.RegistrationContext) {
@@ -2375,6 +2370,13 @@ func (s *sdkLibrarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext
 
 func (s *sdkLibrarySdkMemberType) CreateVariantPropertiesStruct() android.SdkMemberProperties {
 	return &sdkLibrarySdkMemberProperties{}
+}
+
+var javaSdkLibrarySdkMemberType = &sdkLibrarySdkMemberType{
+	android.SdkMemberTypeBase{
+		PropertyName: "java_sdk_libs",
+		SupportsSdk:  true,
+	},
 }
 
 type sdkLibrarySdkMemberProperties struct {
