@@ -73,6 +73,8 @@ func addDependencyOntoApexVariants(ctx android.BottomUpMutatorContext, propertyN
 // module. This adds dependencies onto the prebuilt and source modules with the specified name,
 // depending on which ones are available. Visiting must use isActiveModule to select the preferred
 // module when both source and prebuilt modules are available.
+//
+// Use gatherApexModulePairDepsWithTag to retrieve the dependencies.
 func addDependencyOntoApexModulePair(ctx android.BottomUpMutatorContext, apex string, name string, tag blueprint.DependencyTag) {
 	var variations []blueprint.Variation
 	if apex != "platform" && apex != "system_ext" {
@@ -116,6 +118,19 @@ func addDependencyOntoApexModulePair(ctx android.BottomUpMutatorContext, apex st
 // to generate an appropriate error message with information about the available variations.
 func reportMissingVariationDependency(ctx android.BottomUpMutatorContext, variations []blueprint.Variation, name string) {
 	ctx.AddFarVariationDependencies(variations, nil, name)
+}
+
+// gatherApexModulePairDepsWithTag returns the list of dependencies with the supplied tag that was
+// added by addDependencyOntoApexModulePair.
+func gatherApexModulePairDepsWithTag(ctx android.BaseModuleContext, tag blueprint.DependencyTag) []android.Module {
+	var modules []android.Module
+	ctx.VisitDirectDepsIf(isActiveModule, func(module android.Module) {
+		t := ctx.OtherModuleDependencyTag(module)
+		if t == tag {
+			modules = append(modules, module)
+		}
+	})
+	return modules
 }
 
 // ApexVariantReference specifies a particular apex variant of a module.
