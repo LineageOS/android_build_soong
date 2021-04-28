@@ -404,14 +404,14 @@ func dex2oatPathFromDep(ctx android.ModuleContext) android.Path {
 		if parent == ctx.Module() && ctx.OtherModuleDependencyTag(child) == Dex2oatDepTag {
 			// Found the source module, or prebuilt module that has replaced the source.
 			dex2oatModule = child
-			if p, ok := child.(android.PrebuiltInterface); ok && p.Prebuilt() != nil {
+			if android.IsModulePrebuilt(child) {
 				return false // If it's the prebuilt we're done.
 			} else {
 				return true // Recurse to check if the source has a prebuilt dependency.
 			}
 		}
 		if parent == dex2oatModule && ctx.OtherModuleDependencyTag(child) == android.PrebuiltDepTag {
-			if p, ok := child.(android.PrebuiltInterface); ok && p.Prebuilt() != nil && p.Prebuilt().UsePrebuilt() {
+			if p := android.GetEmbeddedPrebuilt(child); p != nil && p.UsePrebuilt() {
 				dex2oatModule = child // Found a prebuilt that should be used.
 			}
 		}
