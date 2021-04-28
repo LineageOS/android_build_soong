@@ -200,7 +200,7 @@ var (
 
 		// Linker error
 		"libc_malloc_hooks", // jingwen@, cc_library, undefined symbol: __malloc_hook, etc.
-		"libdl",             // jingwen@, cc_library, no input files
+		"libdl",             // jingwen@, cc_library, clang failed
 		"libstdc++",         // jingwen@, cc_library, undefined symbol: free
 
 		// Includes not found
@@ -213,7 +213,6 @@ var (
 		"libBionicBenchmarksUtils", // ruperts@, cc_library_static, 'map' file not found
 		"libc_syscalls",            // ruperts@, cc_library_static, mutator panic cannot get direct dep syscalls-arm64.S of libc_syscalls
 		"libc_ndk",                 // ruperts@, cc_library_static, depends on libc_bionic_ndk, libc_jemalloc_wrapper, libc_syscalls, libc_tzcode, libstdc++
-		"libdl_static",             // ruperts@, cc_library_static, conflicts with libdl
 
 		"libc", // jingwen@, cc_library, depends on //external/gwp_asan
 	}
