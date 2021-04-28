@@ -182,7 +182,8 @@ var (
 		"libc_nopthread",     // ruperts@, cc_library_static, depends on //external/arm-optimized-routine
 
 		// Things that transitively depend on //system/libbase. libbase doesn't work because:
-		// "Multiple dependencies having same BaseModuleName() "fmtlib" found from "libbase""
+		// fmtlib: fatal error: 'cassert' file not found
+		// libbase: no such target '//build/bazel/platforms/os:darwin': target 'darwin' not declared
 		"libbionic_spawn_benchmark",   // ruperts@, cc_library_static, depends on libbase, libgoogle-benchmark
 		"libc_malloc_debug",           // ruperts@, cc_library_static, depends on libbase
 		"libc_malloc_debug_backtrace", // ruperts@, cc_library_static, depends on libbase
