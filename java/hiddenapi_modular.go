@@ -33,6 +33,21 @@ func (b hiddenAPIStubsDependencyTag) ReplaceSourceWithPrebuilt() bool {
 	return false
 }
 
+func (b hiddenAPIStubsDependencyTag) SdkMemberType(child android.Module) android.SdkMemberType {
+	// If the module is a java_sdk_library then treat it as if it was specific in the java_sdk_libs
+	// property, otherwise treat if it was specified in the java_header_libs property.
+	if javaSdkLibrarySdkMemberType.IsInstance(child) {
+		return javaSdkLibrarySdkMemberType
+	}
+
+	return javaHeaderLibsSdkMemberType
+}
+
+func (b hiddenAPIStubsDependencyTag) ExportMember() bool {
+	// Export the module added via this dependency tag from the sdk.
+	return true
+}
+
 // Avoid having to make stubs content explicitly visible to dependent modules.
 //
 // This is a temporary workaround to make it easier to migrate to bootclasspath_fragment modules
@@ -44,6 +59,7 @@ func (b hiddenAPIStubsDependencyTag) ExcludeFromVisibilityEnforcement() {
 var _ android.ExcludeFromVisibilityEnforcementTag = hiddenAPIStubsDependencyTag{}
 var _ android.ReplaceSourceWithPrebuilt = hiddenAPIStubsDependencyTag{}
 var _ android.ExcludeFromApexContentsTag = hiddenAPIStubsDependencyTag{}
+var _ android.SdkMemberTypeDependencyTag = hiddenAPIStubsDependencyTag{}
 
 // hiddenAPIRelevantSdkKinds lists all the android.SdkKind instances that are needed by the hidden
 // API processing.
