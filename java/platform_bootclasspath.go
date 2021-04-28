@@ -168,9 +168,7 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 		return
 	}
 
-	// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
-	// GenerateSingletonBuildActions method as it cannot create it for itself.
-	dexpreopt.GetGlobalSoongConfig(ctx)
+	b.generateBootImageBuildActions(ctx)
 }
 
 func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
@@ -296,4 +294,24 @@ func (b *platformBootclasspathModule) generatedHiddenAPIMetadataRules(ctx androi
 		Inputs(metadataCSVFiles)
 
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-metadata", "monolithic hidden API metadata")
+}
+
+// generateBootImageBuildActions generates ninja rules related to the boot image creation.
+func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.ModuleContext) {
+	// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
+	// GenerateSingletonBuildActions method as it cannot create it for itself.
+	dexpreopt.GetGlobalSoongConfig(ctx)
+
+	imageConfig := b.getImageConfig(ctx)
+	if imageConfig == nil {
+		return
+	}
+
+	global := dexpreopt.GetGlobalConfig(ctx)
+	if !shouldBuildBootImages(ctx.Config(), global) {
+		return
+	}
+
+	// Generate the framework profile rule
+	bootFrameworkProfileRule(ctx, imageConfig)
 }
