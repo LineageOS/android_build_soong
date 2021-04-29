@@ -31,20 +31,7 @@ type stubLibraries struct {
 
 // Check if the module defines stub, or itself is stub
 func IsStubTarget(m *Module) bool {
-	if m.IsStubs() || m.HasStubsVariants() {
-		return true
-	}
-
-	// Library which defines LLNDK Stub is also Stub target.
-	// Pure LLNDK Stub target would not contain any packaging
-	// with target file path.
-	if library, ok := m.linker.(*libraryDecorator); ok {
-		if library.Properties.Llndk_stubs != nil {
-			return true
-		}
-	}
-
-	return false
+	return m.IsStubs() || m.HasStubsVariants()
 }
 
 // Get target file name to be installed from this module
