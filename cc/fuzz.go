@@ -221,8 +221,7 @@ func isValidSharedDependency(dependency android.Module) bool {
 	// If the same library is present both as source and a prebuilt we must pick
 	// only one to avoid a conflict. Always prefer the source since the prebuilt
 	// probably won't be built with sanitizers enabled.
-	if prebuilt, ok := dependency.(android.PrebuiltInterface); ok &&
-		prebuilt.Prebuilt() != nil && prebuilt.Prebuilt().SourceExists() {
+	if prebuilt := android.GetEmbeddedPrebuilt(dependency); prebuilt != nil && prebuilt.SourceExists() {
 		return false
 	}
 

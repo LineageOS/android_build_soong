@@ -171,6 +171,16 @@ func InitSdkAwareModule(m SdkAware) {
 	m.AddProperties(&base.properties)
 }
 
+// IsModuleInVersionedSdk returns true if the module is an versioned sdk.
+func IsModuleInVersionedSdk(module Module) bool {
+	if s, ok := module.(SdkAware); ok {
+		if !s.ContainingSdk().Unversioned() {
+			return true
+		}
+	}
+	return false
+}
+
 // Provide support for generating the build rules which will build the snapshot.
 type SnapshotBuilder interface {
 	// Copy src to the dest (which is a snapshot relative path) and add the dest
@@ -290,7 +300,7 @@ type SdkMemberTypeDependencyTag interface {
 
 	// SdkMemberType returns the SdkMemberType that will be used to automatically add the child module
 	// to the sdk.
-	SdkMemberType() SdkMemberType
+	SdkMemberType(child Module) SdkMemberType
 
 	// ExportMember determines whether a module added to the sdk through this tag will be exported
 	// from the sdk or not.
@@ -317,7 +327,7 @@ type sdkMemberDependencyTag struct {
 	export     bool
 }
 
-func (t *sdkMemberDependencyTag) SdkMemberType() SdkMemberType {
+func (t *sdkMemberDependencyTag) SdkMemberType(_ Module) SdkMemberType {
 	return t.memberType
 }
 

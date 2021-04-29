@@ -423,23 +423,13 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 	writeGlobalConfigForMake(ctx, d.dexpreoptConfigForMake)
 
 	global := dexpreopt.GetGlobalConfig(ctx)
-
-	// Skip recompiling the boot image for the second sanitization phase. We'll get separate paths
-	// and invalidate first-stage artifacts which are crucial to SANITIZE_LITE builds.
-	// Note: this is technically incorrect. Compiled code contains stack checks which may depend
-	//       on ASAN settings.
-	if len(ctx.Config().SanitizeDevice()) == 1 &&
-		ctx.Config().SanitizeDevice()[0] == "address" &&
-		global.SanitizeLite {
+	if !shouldBuildBootImages(ctx.Config(), global) {
 		return
 	}
 
 	// Generate the profile rule from the default boot image.
 	defaultImageConfig := defaultBootImageConfig(ctx)
 	profile := bootImageProfileRule(ctx, defaultImageConfig)
-
-	// Generate the framework profile rule
-	bootFrameworkProfileRule(ctx, defaultImageConfig)
 
 	// Generate the updatable bootclasspath packages rule.
 	updatableBcpPackagesRule(ctx, defaultImageConfig)
@@ -453,6 +443,18 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 	copyUpdatableBootJars(ctx)
 
 	dumpOatRules(ctx, d.defaultBootImage)
+}
+
+// shouldBuildBootImages determines whether boot images should be built.
+func shouldBuildBootImages(config android.Config, global *dexpreopt.GlobalConfig) bool {
+	// Skip recompiling the boot image for the second sanitization phase. We'll get separate paths
+	// and invalidate first-stage artifacts which are crucial to SANITIZE_LITE builds.
+	// Note: this is technically incorrect. Compiled code contains stack checks which may depend
+	//       on ASAN settings.
+	if len(config.SanitizeDevice()) == 1 && config.SanitizeDevice()[0] == "address" && global.SanitizeLite {
+		return false
+	}
+	return true
 }
 
 // Inspect this module to see if it contains a bootclasspath dex jar.
@@ -853,32 +855,22 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImageConfig) 
 	return profile
 }
 
-func bootFrameworkProfileRule(ctx android.SingletonContext, image *bootImageConfig) android.WritablePath {
-	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
+// bootFrameworkProfileRule generates the rule to create the boot framework profile and
+// returns a path to the generated file.
+func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
+	globalSoong := dexpreopt.GetGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
 	if global.DisableGenerateProfile || ctx.Config().UnbundledBuild() {
 		return nil
 	}
 
-	// Some branches like master-art-host don't have frameworks/base, so manually
-	// handle the case that the default is missing.  Those branches won't attempt to build the profile rule,
-	// and if they do they'll get a missing deps error.
 	defaultProfile := "frameworks/base/config/boot-profile.txt"
-	path := android.ExistentPathForSource(ctx, defaultProfile)
-	var bootFrameworkProfile android.Path
-	var missingDeps []string
-	if path.Valid() {
-		bootFrameworkProfile = path.Path()
-	} else {
-		missingDeps = append(missingDeps, defaultProfile)
-		bootFrameworkProfile = android.PathForOutput(ctx, "missing", defaultProfile)
-	}
+	bootFrameworkProfile := android.PathForSource(ctx, defaultProfile)
 
 	profile := image.dir.Join(ctx, "boot.bprof")
 
 	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.MissingDeps(missingDeps)
 	rule.Command().
 		Text(`ANDROID_LOG_TAGS="*:e"`).
 		Tool(globalSoong.Profman).
@@ -901,28 +893,38 @@ func updatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConf
 	}
 
 	global := dexpreopt.GetGlobalConfig(ctx)
+	var modules []android.Module
 	updatableModules := global.UpdatableBootJars.CopyOfJars()
-
-	// Collect `permitted_packages` for updatable boot jars.
-	var updatablePackages []string
 	ctx.VisitAllModules(func(module android.Module) {
 		if !isActiveModule(module) {
 			return
 		}
-		if j, ok := module.(PermittedPackagesForUpdatableBootJars); ok {
-			name := ctx.ModuleName(module)
-			if i := android.IndexList(name, updatableModules); i != -1 {
-				pp := j.PermittedPackagesForUpdatableBootJars()
-				if len(pp) > 0 {
-					updatablePackages = append(updatablePackages, pp...)
-				} else {
-					ctx.Errorf("Missing permitted_packages for %s", name)
-				}
-				// Do not match the same library repeatedly.
-				updatableModules = append(updatableModules[:i], updatableModules[i+1:]...)
-			}
+		name := ctx.ModuleName(module)
+		if i := android.IndexList(name, updatableModules); i != -1 {
+			modules = append(modules, module)
+			// Do not match the same library repeatedly.
+			updatableModules = append(updatableModules[:i], updatableModules[i+1:]...)
 		}
 	})
+
+	return generateUpdatableBcpPackagesRule(ctx, image, modules)
+}
+
+// generateUpdatableBcpPackagesRule generates the rule to create the updatable-bcp-packages.txt file
+// and returns a path to the generated file.
+func generateUpdatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConfig, updatableModules []android.Module) android.WritablePath {
+	// Collect `permitted_packages` for updatable boot jars.
+	var updatablePackages []string
+	for _, module := range updatableModules {
+		if j, ok := module.(PermittedPackagesForUpdatableBootJars); ok {
+			pp := j.PermittedPackagesForUpdatableBootJars()
+			if len(pp) > 0 {
+				updatablePackages = append(updatablePackages, pp...)
+			} else {
+				ctx.Errorf("Missing permitted_packages for %s", ctx.ModuleName(module))
+			}
+		}
+	}
 
 	// Sort updatable packages to ensure deterministic ordering.
 	sort.Strings(updatablePackages)

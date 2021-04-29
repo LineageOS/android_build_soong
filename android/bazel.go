@@ -167,6 +167,8 @@ var (
 		"bionic":                Bp2BuildDefaultTrueRecursively,
 		"external/gwp_asan":     Bp2BuildDefaultTrueRecursively,
 		"system/core/libcutils": Bp2BuildDefaultTrueRecursively,
+		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
+		"system/libbase":        Bp2BuildDefaultTrueRecursively,
 		"system/logging/liblog": Bp2BuildDefaultTrueRecursively,
 	}
 
@@ -181,17 +183,20 @@ var (
 		"libc_nopthread",     // ruperts@, cc_library_static, depends on //external/arm-optimized-routine
 
 		// Things that transitively depend on //system/libbase. libbase doesn't work because:
-		// "Multiple dependencies having same BaseModuleName() "fmtlib" found from "libbase""
+		// fmtlib: fatal error: 'cassert' file not found
+		"libbase",                     // eakammer@, cc_library, no such target '//build/bazel/platforms/os:darwin': target 'darwin' not declared
+		"libbase_ndk",                 // eakammer@, cc_library, no such target '//build/bazel/platforms/os:darwin': target 'darwin' not declared
 		"libbionic_spawn_benchmark",   // ruperts@, cc_library_static, depends on libbase, libgoogle-benchmark
 		"libc_malloc_debug",           // ruperts@, cc_library_static, depends on libbase
 		"libc_malloc_debug_backtrace", // ruperts@, cc_library_static, depends on libbase
+		"libcutils",                   // eakammer@, cc_library, depends on libbase, liblog
+		"libcutils_sockets",           // eakammer@, cc_library, depends on libbase, liblog
 		"liblinker_debuggerd_stub",    // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
 		"liblinker_main",              // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
 		"liblinker_malloc",            // ruperts@, cc_library_static, depends on libziparchive, libz, libbase
 
 		// Requires non-libc targets, but otherwise works
 		"libc_jemalloc_wrapper", // ruperts@, cc_library_static, depends on //external/jemalloc_new
-		"libsystemproperties",   // ruperts@, cc_library_static, depends on //system/core/property_service/libpropertyinfoparser
 
 		// Compilation error, seems to be fixable by changing the toolchain definition
 		"libc_bionic_ndk", // ruperts@, cc_library_static, error: ISO C++ requires field designators...
@@ -200,20 +205,19 @@ var (
 
 		// Linker error
 		"libc_malloc_hooks", // jingwen@, cc_library, undefined symbol: __malloc_hook, etc.
-		"libdl",             // jingwen@, cc_library, no input files
+		"libdl",             // jingwen@, cc_library, clang failed
 		"libstdc++",         // jingwen@, cc_library, undefined symbol: free
 
 		// Includes not found
 		"libbionic_tests_headers_posix", // ruperts@, cc_library_static, 'dirent.h' not found
+		"liblog",                        // eakammer@, cc_library, 'sys/cdefs.h' file not found, missing -isystem bionic/libc/include through the libc/libm/libdl default dependencies if system_shared_libs unset
 		"libseccomp_policy",             // jingwen@, cc_library, 'linux/filter.h' not found, missing -isystem bionic/libc/kernel/uapi/asm-arm, probably due to us not handling arch { ... { export_system_include_dirs } } correctly
 		"note_memtag_heap_async",        // lberki@, cc_library_static, error: feature.h not found, missing -isystem bionic/libc/include through the libc/libm/libdl default dependencies if system_shared_libs unset
 		"note_memtag_heap_sync",         // lberki@, cc_library_static, error: feature.h not found, missing -isystem bionic/libc/include through the libc/libm/libdl default dependencies if system_shared_libs unset
 
 		// Other
 		"libBionicBenchmarksUtils", // ruperts@, cc_library_static, 'map' file not found
-		"libc_syscalls",            // ruperts@, cc_library_static, mutator panic cannot get direct dep syscalls-arm64.S of libc_syscalls
-		"libc_ndk",                 // ruperts@, cc_library_static, depends on libc_bionic_ndk, libc_jemalloc_wrapper, libc_syscalls, libc_tzcode, libstdc++
-		"libdl_static",             // ruperts@, cc_library_static, conflicts with libdl
+		"libc_ndk",                 // ruperts@, cc_library_static, depends on libc_bionic_ndk, libc_jemalloc_wrapper, libc_tzcode, libstdc++
 
 		"libc", // jingwen@, cc_library, depends on //external/gwp_asan
 	}
@@ -221,10 +225,11 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libasync_safe", // lberki@, cc_library_static, 'async_safe/log.h not found' for out/combined-aosp_arm64.ninja out/soong/.intermediates/system/unwinding/libbacktrace/libbacktrace/android_arm64_armv8-a_shared/obj/system/unwinding/libbacktrace/ThreadEntry.o
-		"libc_gdtoa",    // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
-		"libc_netbsd",   // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
-		"libc_openbsd",  // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
+		"libc_gdtoa",            // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
+		"libc_netbsd",           // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
+		"libc_openbsd",          // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
+		"libsystemproperties",   // cparsons@, cc_library_static, wrong include paths
+		"libpropertyinfoparser", // cparsons@, cc_library_static, wrong include paths
 	}
 
 	// Used for quicker lookups

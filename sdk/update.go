@@ -120,7 +120,7 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 	ctx.WalkDeps(func(child android.Module, parent android.Module) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
 		if memberTag, ok := tag.(android.SdkMemberTypeDependencyTag); ok {
-			memberType := memberTag.SdkMemberType()
+			memberType := memberTag.SdkMemberType(child)
 
 			// Make sure that the resolved module is allowed in the member list property.
 			if !memberType.IsInstance(child) {
