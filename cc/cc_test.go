@@ -557,8 +557,11 @@ func TestVndk(t *testing.T) {
 			export_llndk_headers: ["libllndk_headers"],
 		}
 
-		llndk_headers {
+		cc_library_headers {
 			name: "libllndk_headers",
+			llndk: {
+				llndk_headers: true,
+			},
 			export_include_dirs: ["include"],
 		}
 
@@ -903,8 +906,11 @@ func TestVndkWhenVndkVersionIsNotSet(t *testing.T) {
 			export_llndk_headers: ["libllndk_headers"],
 		}
 
-		llndk_headers {
+		cc_library_headers {
 			name: "libllndk_headers",
+			llndk: {
+				symbol_file: "libllndk.map.txt",
+			},
 			export_include_dirs: ["include"],
 		}
 	`)
@@ -2920,17 +2926,19 @@ func TestEmbeddedLlndkLibrary(t *testing.T) {
 
 func TestLlndkHeaders(t *testing.T) {
 	ctx := testCc(t, `
-	llndk_headers {
+	cc_library_headers {
 		name: "libllndk_headers",
 		export_include_dirs: ["my_include"],
-	}
-	llndk_library {
-		name: "libllndk.llndk",
-		export_llndk_headers: ["libllndk_headers"],
+		llndk: {
+			llndk_headers: true,
+		},
 	}
 	cc_library {
 		name: "libllndk",
-		llndk_stubs: "libllndk.llndk",
+		llndk: {
+			symbol_file: "libllndk.map.txt",
+			export_llndk_headers: ["libllndk_headers"],
+		}
 	}
 
 	cc_library {

@@ -63,7 +63,7 @@ func (b bootclasspathFragmentContentDependencyTag) ReplaceSourceWithPrebuilt() b
 
 // SdkMemberType causes dependencies added with this tag to be automatically added to the sdk as if
 // they were specified using java_boot_libs.
-func (b bootclasspathFragmentContentDependencyTag) SdkMemberType() android.SdkMemberType {
+func (b bootclasspathFragmentContentDependencyTag) SdkMemberType(_ android.Module) android.SdkMemberType {
 	return javaBootLibsSdkMemberType
 }
 
@@ -150,7 +150,7 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 	imageName := proptools.String(m.properties.Image_name)
 	if imageName == "art" {
 		// TODO(b/177892522): Prebuilts (versioned or not) should not use the image_name property.
-		if m.MemberName() != "" {
+		if android.IsModuleInVersionedSdk(m) {
 			// The module is a versioned prebuilt so ignore it. This is done for a couple of reasons:
 			// 1. There is no way to use this at the moment so ignoring it is safe.
 			// 2. Attempting to initialize the contents property from the configuration will end up having
@@ -205,7 +205,7 @@ func (b *BootclasspathFragmentModule) bootclasspathImageNameContentsConsistencyC
 	imageName := proptools.String(b.properties.Image_name)
 	if imageName == "art" {
 		// TODO(b/177892522): Prebuilts (versioned or not) should not use the image_name property.
-		if b.MemberName() != "" {
+		if android.IsModuleInVersionedSdk(b) {
 			// The module is a versioned prebuilt so ignore it. This is done for a couple of reasons:
 			// 1. There is no way to use this at the moment so ignoring it is safe.
 			// 2. Attempting to initialize the contents property from the configuration will end up having
