@@ -125,10 +125,20 @@ func TestBootclasspathFragment_Coverage(t *testing.T) {
 			contents: [
 				"mybootlib",
 			],
+			api: {
+				stub_libs: [
+					"mysdklibrary",
+				],
+			},
 			coverage: {
 				contents: [
 					"coveragelib",
 				],
+				api: {
+					stub_libs: [
+						"mycoveragestubs",
+					],
+				},
 			},
 		}
 
@@ -147,6 +157,21 @@ func TestBootclasspathFragment_Coverage(t *testing.T) {
 			sdk_version: "none",
 			compile_dex: true,
 		}
+
+		java_sdk_library {
+			name: "mysdklibrary",
+			srcs: ["Test.java"],
+			compile_dex: true,
+			public: {enabled: true},
+			system: {enabled: true},
+		}
+
+		java_sdk_library {
+			name: "mycoveragestubs",
+			srcs: ["Test.java"],
+			compile_dex: true,
+			public: {enabled: true},
+		}
 	`)
 
 	checkContents := func(t *testing.T, result *android.TestResult, expected ...string) {
@@ -154,19 +179,22 @@ func TestBootclasspathFragment_Coverage(t *testing.T) {
 		android.AssertArrayString(t, "contents property", expected, module.properties.Contents)
 	}
 
+	preparer := android.GroupFixturePreparers(
+		prepareForTestWithBootclasspathFragment,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("mysdklibrary", "mycoveragestubs"),
+		prepareWithBp,
+	)
+
 	t.Run("without coverage", func(t *testing.T) {
-		result := android.GroupFixturePreparers(
-			prepareForTestWithBootclasspathFragment,
-			prepareWithBp,
-		).RunTest(t)
+		result := preparer.RunTest(t)
 		checkContents(t, result, "mybootlib")
 	})
 
 	t.Run("with coverage", func(t *testing.T) {
 		result := android.GroupFixturePreparers(
-			prepareForTestWithBootclasspathFragment,
 			prepareForTestWithFrameworkCoverage,
-			prepareWithBp,
+			preparer,
 		).RunTest(t)
 		checkContents(t, result, "mybootlib", "coveragelib")
 	})
