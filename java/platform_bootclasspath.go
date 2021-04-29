@@ -163,7 +163,7 @@ func (b *platformBootclasspathModule) GenerateSingletonBuildActions(android.Sing
 }
 
 func (d *platformBootclasspathModule) MakeVars(ctx android.MakeVarsContext) {
-	// Placeholder for now.
+	d.generateHiddenApiMakeVars(ctx)
 }
 
 func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -317,6 +317,16 @@ func (b *platformBootclasspathModule) generatedHiddenAPIMetadataRules(ctx androi
 		Inputs(metadataCSVFiles)
 
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-metadata", "monolithic hidden API metadata")
+}
+
+// generateHiddenApiMakeVars generates make variables needed by hidden API related make rules, e.g.
+// veridex and run-appcompat.
+func (b *platformBootclasspathModule) generateHiddenApiMakeVars(ctx android.MakeVarsContext) {
+	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+		return
+	}
+	// INTERNAL_PLATFORM_HIDDENAPI_FLAGS is used by Make rules in art/ and cts/.
+	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", b.hiddenAPIFlagsCSV.String())
 }
 
 // generateBootImageBuildActions generates ninja rules related to the boot image creation.
