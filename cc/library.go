@@ -117,9 +117,6 @@ type LibraryProperties struct {
 	// Inject boringssl hash into the shared library.  This is only intended for use by external/boringssl.
 	Inject_bssl_hash *bool `android:"arch_variant"`
 
-	// If this is an LLNDK library, the name of the equivalent llndk_library module.
-	Llndk_stubs *string
-
 	// If this is an LLNDK library, properties to describe the LLNDK stubs.  Will be copied from
 	// the module pointed to by llndk_stubs if it is set.
 	Llndk llndkLibraryProperties
@@ -1682,18 +1679,10 @@ func (library *libraryDecorator) HeaderOnly() {
 
 // hasLLNDKStubs returns true if this cc_library module has a variant that will build LLNDK stubs.
 func (library *libraryDecorator) hasLLNDKStubs() bool {
-	return library.hasVestigialLLNDKLibrary() || String(library.Properties.Llndk.Symbol_file) != ""
+	return String(library.Properties.Llndk.Symbol_file) != ""
 }
 
-// hasVestigialLLNDKLibrary returns true if this cc_library module has a corresponding llndk_library
-// module containing properties describing the LLNDK variant.
-// TODO(b/170784825): remove this once there are no more llndk_library modules.
-func (library *libraryDecorator) hasVestigialLLNDKLibrary() bool {
-	return String(library.Properties.Llndk_stubs) != ""
-}
-
-// hasLLNDKHeaders returns true if this cc_library module has a variant that provides headers
-// to a module that sets llndk.symbol_file.
+// hasLLNDKStubs returns true if this cc_library module has a variant that will build LLNDK stubs.
 func (library *libraryDecorator) hasLLNDKHeaders() bool {
 	return Bool(library.Properties.Llndk.Llndk_headers)
 }
@@ -1934,9 +1923,7 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 
 		isLLNDK := false
 		if m, ok := mctx.Module().(*Module); ok {
-			// Don't count the vestigial llndk_library module as isLLNDK, it needs a static
-			// variant so that a cc_library_prebuilt can depend on it.
-			isLLNDK = m.IsLlndk() && !isVestigialLLNDKModule(m)
+			isLLNDK = m.IsLlndk()
 		}
 		buildStatic := library.BuildStaticVariant() && !isLLNDK
 		buildShared := library.BuildSharedVariant()
