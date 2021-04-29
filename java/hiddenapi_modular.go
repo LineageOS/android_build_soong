@@ -127,7 +127,7 @@ func hiddenAPIGatherStubLibDexJarPaths(ctx android.ModuleContext) map[android.Sd
 		tag := ctx.OtherModuleDependencyTag(module)
 		if hiddenAPIStubsTag, ok := tag.(hiddenAPIStubsDependencyTag); ok {
 			kind := hiddenAPIStubsTag.sdkKind
-			dexJar := hiddenAPIRetrieveDexJarBuildPath(ctx, module)
+			dexJar := hiddenAPIRetrieveDexJarBuildPath(ctx, module, kind)
 			if dexJar != nil {
 				m[kind] = append(m[kind], dexJar)
 			}
@@ -138,17 +138,21 @@ func hiddenAPIGatherStubLibDexJarPaths(ctx android.ModuleContext) map[android.Sd
 
 // hiddenAPIRetrieveDexJarBuildPath retrieves the DexJarBuildPath from the specified module, if
 // available, or reports an error.
-func hiddenAPIRetrieveDexJarBuildPath(ctx android.ModuleContext, module android.Module) android.Path {
-	if j, ok := module.(UsesLibraryDependency); ok {
-		dexJar := j.DexJarBuildPath()
-		if dexJar != nil {
-			return dexJar
-		}
-		ctx.ModuleErrorf("dependency %s does not provide a dex jar, consider setting compile_dex: true", module)
+func hiddenAPIRetrieveDexJarBuildPath(ctx android.ModuleContext, module android.Module, kind android.SdkKind) android.Path {
+	var dexJar android.Path
+	if sdkLibrary, ok := module.(SdkLibraryDependency); ok {
+		dexJar = sdkLibrary.SdkApiStubDexJar(ctx, kind)
+	} else if j, ok := module.(UsesLibraryDependency); ok {
+		dexJar = j.DexJarBuildPath()
 	} else {
 		ctx.ModuleErrorf("dependency %s of module type %s does not support providing a dex jar", module, ctx.OtherModuleType(module))
+		return nil
 	}
-	return nil
+
+	if dexJar == nil {
+		ctx.ModuleErrorf("dependency %s does not provide a dex jar, consider setting compile_dex: true", module)
+	}
+	return dexJar
 }
 
 var sdkKindToHiddenapiListOption = map[android.SdkKind]string{
