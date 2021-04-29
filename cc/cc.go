@@ -1121,13 +1121,6 @@ func (c *Module) IsLlndkPublic() bool {
 	return c.VendorProperties.IsLLNDK && !c.VendorProperties.IsVNDKPrivate
 }
 
-func (c *Module) IsLlndkLibrary() bool {
-	if _, ok := c.linker.(*llndkStubDecorator); ok {
-		return true
-	}
-	return false
-}
-
 func (m *Module) NeedsLlndkVariants() bool {
 	lib := moduleLibraryInterface(m)
 	return lib != nil && (lib.hasLLNDKStubs() || lib.hasLLNDKHeaders())
