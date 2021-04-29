@@ -244,11 +244,11 @@ func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 		// See if there's a prebuilt module that overrides this override module with prefer flag,
 		// in which case we call HideFromMake on the corresponding variant later.
 		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(dep Module) {
-			prebuilt, ok := dep.(PrebuiltInterface)
-			if !ok {
+			prebuilt := GetEmbeddedPrebuilt(dep)
+			if prebuilt == nil {
 				panic("PrebuiltDepTag leads to a non-prebuilt module " + dep.Name())
 			}
-			if prebuilt.Prebuilt().UsePrebuilt() {
+			if prebuilt.UsePrebuilt() {
 				module.setOverriddenByPrebuilt(true)
 				return
 			}

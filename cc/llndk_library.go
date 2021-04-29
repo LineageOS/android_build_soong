@@ -166,40 +166,6 @@ func isVestigialLLNDKModule(m *Module) bool {
 	return ok
 }
 
-type llndkHeadersDecorator struct {
-	*libraryDecorator
-}
-
-func (llndk *llndkHeadersDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
-	deps.HeaderLibs = append(deps.HeaderLibs, llndk.Properties.Llndk.Export_llndk_headers...)
-	deps.ReexportHeaderLibHeaders = append(deps.ReexportHeaderLibHeaders,
-		llndk.Properties.Llndk.Export_llndk_headers...)
-	return deps
-}
-
-// llndk_headers contains a set of c/c++ llndk headers files which are imported
-// by other soongs cc modules.
-func llndkHeadersFactory() android.Module {
-	module, library := NewLibrary(android.DeviceSupported)
-	library.HeaderOnly()
-	module.stl = nil
-	module.sanitize = nil
-
-	decorator := &llndkHeadersDecorator{
-		libraryDecorator: library,
-	}
-
-	module.compiler = nil
-	module.linker = decorator
-	module.installer = nil
-	module.library = decorator
-
-	module.Init()
-
-	return module
-}
-
 func init() {
 	android.RegisterModuleType("llndk_library", LlndkLibraryFactory)
-	android.RegisterModuleType("llndk_headers", llndkHeadersFactory)
 }

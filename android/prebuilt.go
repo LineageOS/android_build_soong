@@ -242,12 +242,28 @@ func IsModulePreferred(module Module) bool {
 		// A source module that has been replaced by a prebuilt counterpart.
 		return false
 	}
-	if prebuilt, ok := module.(PrebuiltInterface); ok {
-		if p := prebuilt.Prebuilt(); p != nil {
-			return p.UsePrebuilt()
-		}
+	if p := GetEmbeddedPrebuilt(module); p != nil {
+		return p.UsePrebuilt()
 	}
 	return true
+}
+
+// IsModulePrebuilt returns true if the module implements PrebuiltInterface and
+// has been initialized as a prebuilt and so returns a non-nil value from the
+// PrebuiltInterface.Prebuilt() method.
+func IsModulePrebuilt(module Module) bool {
+	return GetEmbeddedPrebuilt(module) != nil
+}
+
+// GetEmbeddedPrebuilt returns a pointer to the embedded Prebuilt structure or
+// nil if the module does not implement PrebuiltInterface or has not been
+// initialized as a prebuilt module.
+func GetEmbeddedPrebuilt(module Module) *Prebuilt {
+	if p, ok := module.(PrebuiltInterface); ok {
+		return p.Prebuilt()
+	}
+
+	return nil
 }
 
 func RegisterPrebuiltsPreArchMutators(ctx RegisterMutatorsContext) {
@@ -263,11 +279,12 @@ func RegisterPrebuiltsPostDepsMutators(ctx RegisterMutatorsContext) {
 // PrebuiltRenameMutator ensures that there always is a module with an
 // undecorated name.
 func PrebuiltRenameMutator(ctx BottomUpMutatorContext) {
-	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Prebuilt() != nil {
+	m := ctx.Module()
+	if p := GetEmbeddedPrebuilt(m); p != nil {
 		name := m.base().BaseModuleName()
 		if !ctx.OtherModuleExists(name) {
 			ctx.Rename(name)
-			m.Prebuilt().properties.PrebuiltRenamedToSource = true
+			p.properties.PrebuiltRenamedToSource = true
 		}
 	}
 }
@@ -275,14 +292,14 @@ func PrebuiltRenameMutator(ctx BottomUpMutatorContext) {
 // PrebuiltSourceDepsMutator adds dependencies to the prebuilt module from the
 // corresponding source module, if one exists for the same variant.
 func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
-	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Enabled() && m.Prebuilt() != nil {
-		p := m.Prebuilt()
-		if !p.properties.PrebuiltRenamedToSource {
-			name := m.base().BaseModuleName()
-			if ctx.OtherModuleReverseDependencyVariantExists(name) {
-				ctx.AddReverseDependency(ctx.Module(), PrebuiltDepTag, name)
-				p.properties.SourceExists = true
-			}
+	m := ctx.Module()
+	// If this module is a prebuilt, is enabled and has not been renamed to source then add a
+	// dependency onto the source if it is present.
+	if p := GetEmbeddedPrebuilt(m); p != nil && m.Enabled() && !p.properties.PrebuiltRenamedToSource {
+		name := m.base().BaseModuleName()
+		if ctx.OtherModuleReverseDependencyVariantExists(name) {
+			ctx.AddReverseDependency(ctx.Module(), PrebuiltDepTag, name)
+			p.properties.SourceExists = true
 		}
 	}
 }
@@ -290,8 +307,8 @@ func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
 // PrebuiltSelectModuleMutator marks prebuilts that are used, either overriding source modules or
 // because the source module doesn't exist.  It also disables installing overridden source modules.
 func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
-	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Prebuilt() != nil {
-		p := m.Prebuilt()
+	m := ctx.Module()
+	if p := GetEmbeddedPrebuilt(m); p != nil {
 		if p.srcsSupplier == nil {
 			panic(fmt.Errorf("prebuilt module did not have InitPrebuiltModule called on it"))
 		}
@@ -299,9 +316,9 @@ func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 			p.properties.UsePrebuilt = p.usePrebuilt(ctx, nil, m)
 		}
 	} else if s, ok := ctx.Module().(Module); ok {
-		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(m Module) {
-			p := m.(PrebuiltInterface).Prebuilt()
-			if p.usePrebuilt(ctx, s, m) {
+		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(prebuiltModule Module) {
+			p := GetEmbeddedPrebuilt(prebuiltModule)
+			if p.usePrebuilt(ctx, s, prebuiltModule) {
 				p.properties.UsePrebuilt = true
 				s.ReplacedByPrebuilt()
 			}
@@ -313,8 +330,8 @@ func PrebuiltSelectModuleMutator(ctx TopDownMutatorContext) {
 // prebuilt when both modules exist and the prebuilt should be used.  When the prebuilt should not
 // be used, disable installing it.
 func PrebuiltPostDepsMutator(ctx BottomUpMutatorContext) {
-	if m, ok := ctx.Module().(PrebuiltInterface); ok && m.Prebuilt() != nil {
-		p := m.Prebuilt()
+	m := ctx.Module()
+	if p := GetEmbeddedPrebuilt(m); p != nil {
 		name := m.base().BaseModuleName()
 		if p.properties.UsePrebuilt {
 			if p.properties.SourceExists {
