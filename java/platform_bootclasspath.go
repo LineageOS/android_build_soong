@@ -328,4 +328,6 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 
 	// Generate the updatable bootclasspath packages rule.
 	generateUpdatableBcpPackagesRule(ctx, imageConfig, updatableModules)
+
+	dumpOatRules(ctx, imageConfig)
 }

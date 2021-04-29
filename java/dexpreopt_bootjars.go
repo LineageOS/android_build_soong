@@ -438,8 +438,6 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 	d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx), profile))
 
 	copyUpdatableBootJars(ctx)
-
-	dumpOatRules(ctx, d.defaultBootImage)
 }
 
 // shouldBuildBootImages determines whether boot images should be built.
@@ -918,7 +916,7 @@ func generateUpdatableBcpPackagesRule(ctx android.ModuleContext, image *bootImag
 	return updatableBcpPackages
 }
 
-func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
+func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 	var allPhonies android.Paths
 	for _, image := range image.variants {
 		arch := image.target.Arch.ArchType
@@ -959,7 +957,6 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
 		Inputs:      allPhonies,
 		Description: "dump-oat-boot",
 	})
-
 }
 
 func writeGlobalConfigForMake(ctx android.SingletonContext, path android.WritablePath) {
