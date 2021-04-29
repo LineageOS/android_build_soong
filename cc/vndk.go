@@ -233,11 +233,11 @@ func vndkIsVndkDepAllowed(from *vndkdep, to *vndkdep) error {
 type moduleListerFunc func(ctx android.SingletonContext) (moduleNames, fileNames []string)
 
 var (
-	llndkLibraries                = vndkModuleLister(func(m *Module) bool { return m.VendorProperties.IsLLNDK && !isVestigialLLNDKModule(m) && !m.Header() })
+	llndkLibraries                = vndkModuleLister(func(m *Module) bool { return m.VendorProperties.IsLLNDK && !m.Header() })
 	llndkLibrariesWithoutHWASAN   = vndkModuleListRemover(llndkLibraries, "libclang_rt.hwasan-")
 	vndkSPLibraries               = vndkModuleLister(func(m *Module) bool { return m.VendorProperties.IsVNDKSP })
 	vndkCoreLibraries             = vndkModuleLister(func(m *Module) bool { return m.VendorProperties.IsVNDKCore })
-	vndkPrivateLibraries          = vndkModuleLister(func(m *Module) bool { return m.VendorProperties.IsVNDKPrivate && !isVestigialLLNDKModule(m) })
+	vndkPrivateLibraries          = vndkModuleLister(func(m *Module) bool { return m.VendorProperties.IsVNDKPrivate })
 	vndkProductLibraries          = vndkModuleLister(func(m *Module) bool { return m.VendorProperties.IsVNDKProduct })
 	vndkUsingCoreVariantLibraries = vndkModuleLister(func(m *Module) bool { return m.VendorProperties.IsVNDKUsingCoreVariant })
 )
@@ -296,15 +296,6 @@ func setVndkMustUseVendorVariantListForTest(config android.Config, mustUseVendor
 	config.Once(vndkMustUseVendorVariantListKey, func() interface{} {
 		return mustUseVendorVariantList
 	})
-}
-
-func processLlndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
-	lib := m.linker.(*llndkStubDecorator)
-
-	m.VendorProperties.IsLLNDK = true
-	if Bool(lib.Properties.Private) {
-		m.VendorProperties.IsVNDKPrivate = true
-	}
 }
 
 func processVndkLibrary(mctx android.BottomUpMutatorContext, m *Module) {
@@ -402,41 +393,14 @@ func VndkMutator(mctx android.BottomUpMutatorContext) {
 		return
 	}
 
-	if _, ok := m.linker.(*llndkStubDecorator); ok {
-		processLlndkLibrary(mctx, m)
-		return
-	}
-
-	// This is a temporary measure to copy the properties from an llndk_library into the cc_library
-	// that will actually build the stubs.  It will be removed once the properties are moved into
-	// the cc_library in the Android.bp files.
-	mergeLLNDKToLib := func(llndk *Module, llndkProperties *llndkLibraryProperties, flagExporter *flagExporter) {
-		if llndkLib := moduleLibraryInterface(llndk); llndkLib != nil {
-			*llndkProperties = llndkLib.(*llndkStubDecorator).Properties
-			flagExporter.Properties = llndkLib.(*llndkStubDecorator).flagExporter.Properties
-
-			m.VendorProperties.IsLLNDK = llndk.VendorProperties.IsLLNDK
-			m.VendorProperties.IsVNDKPrivate = llndk.VendorProperties.IsVNDKPrivate
-		}
-	}
-
 	lib, isLib := m.linker.(*libraryDecorator)
 	prebuiltLib, isPrebuiltLib := m.linker.(*prebuiltLibraryLinker)
 
-	if m.UseVndk() && isLib && lib.hasVestigialLLNDKLibrary() {
-		llndk := mctx.AddVariationDependencies(nil, llndkStubDepTag, String(lib.Properties.Llndk_stubs))
-		mergeLLNDKToLib(llndk[0].(*Module), &lib.Properties.Llndk, &lib.flagExporter)
-	}
-	if m.UseVndk() && isPrebuiltLib && prebuiltLib.hasVestigialLLNDKLibrary() {
-		llndk := mctx.AddVariationDependencies(nil, llndkStubDepTag, String(prebuiltLib.Properties.Llndk_stubs))
-		mergeLLNDKToLib(llndk[0].(*Module), &prebuiltLib.Properties.Llndk, &prebuiltLib.flagExporter)
-	}
-
-	if m.UseVndk() && isLib && lib.hasLLNDKStubs() && !lib.hasVestigialLLNDKLibrary() {
+	if m.UseVndk() && isLib && lib.hasLLNDKStubs() {
 		m.VendorProperties.IsLLNDK = true
 		m.VendorProperties.IsVNDKPrivate = Bool(lib.Properties.Llndk.Private)
 	}
-	if m.UseVndk() && isPrebuiltLib && prebuiltLib.hasLLNDKStubs() && !prebuiltLib.hasVestigialLLNDKLibrary() {
+	if m.UseVndk() && isPrebuiltLib && prebuiltLib.hasLLNDKStubs() {
 		m.VendorProperties.IsLLNDK = true
 		m.VendorProperties.IsVNDKPrivate = Bool(prebuiltLib.Properties.Llndk.Private)
 	}
@@ -873,9 +837,6 @@ func getVndkFileName(m *Module) (string, error) {
 	}
 	if prebuilt, ok := m.linker.(*prebuiltLibraryLinker); ok {
 		return prebuilt.libraryDecorator.getLibNameHelper(m.BaseModuleName(), true, false) + ".so", nil
-	}
-	if library, ok := m.linker.(*llndkStubDecorator); ok {
-		return library.getLibNameHelper(m.BaseModuleName(), true, false) + ".so", nil
 	}
 	return "", fmt.Errorf("VNDK library should have libraryDecorator or prebuiltLibraryLinker as linker: %T", m.linker)
 }
