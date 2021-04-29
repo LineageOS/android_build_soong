@@ -205,7 +205,6 @@ var (
 
 		// Linker error
 		"libc_malloc_hooks", // jingwen@, cc_library, undefined symbol: __malloc_hook, etc.
-		"libdl",             // jingwen@, cc_library, clang failed
 		"libstdc++",         // jingwen@, cc_library, undefined symbol: free
 
 		// Includes not found
