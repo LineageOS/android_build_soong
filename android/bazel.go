@@ -168,19 +168,19 @@ var (
 		"external/gwp_asan":     Bp2BuildDefaultTrueRecursively,
 		"system/core/libcutils": Bp2BuildDefaultTrueRecursively,
 		"system/core/property_service/libpropertyinfoparser": Bp2BuildDefaultTrueRecursively,
-		"system/libbase":        Bp2BuildDefaultTrueRecursively,
-		"system/logging/liblog": Bp2BuildDefaultTrueRecursively,
+		"system/libbase":                  Bp2BuildDefaultTrueRecursively,
+		"system/logging/liblog":           Bp2BuildDefaultTrueRecursively,
+		"external/arm-optimized-routines": Bp2BuildDefaultTrueRecursively,
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
-		// Things that transitively depend on //external/arm-optimized-routines. That one fails
-		// with a linker error: "ld.lld: no input files"
+		// Things that transitively depend on unconverted libc_* modules.
 		"libc_common",        // ruperts@, cc_library_static, depends on //bionic/libc:libc_nopthread
 		"libc_common_static", // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
 		"libc_common_shared", // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
 		"libc_nomalloc",      // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
-		"libc_nopthread",     // ruperts@, cc_library_static, depends on //external/arm-optimized-routine
+		"libc_nopthread",     // ruperts@, cc_library_static, depends on lib_bionic_ndk, libc_syscalls, libc_tzcode, libstdc++
 
 		// Things that transitively depend on //system/libbase. libbase doesn't work because:
 		// fmtlib: fatal error: 'cassert' file not found
@@ -225,11 +225,12 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libc_gdtoa",            // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
-		"libc_netbsd",           // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
-		"libc_openbsd",          // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
-		"libsystemproperties",   // cparsons@, cc_library_static, wrong include paths
-		"libpropertyinfoparser", // cparsons@, cc_library_static, wrong include paths
+		"libc_gdtoa",                       // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
+		"libc_netbsd",                      // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
+		"libc_openbsd",                     // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
+		"libsystemproperties",              // cparsons@, cc_library_static, wrong include paths
+		"libpropertyinfoparser",            // cparsons@, cc_library_static, wrong include paths
+		"libarm-optimized-routines-string", // jingwen@, cc_library_static, OK for bp2build but b/186615213 (asflags not handled in  bp2build), version script assignment of 'LIBC' to symbol 'memcmp' failed: symbol not defined (also for memrchr, strnlen)
 	}
 
 	// Used for quicker lookups
