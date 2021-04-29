@@ -26,7 +26,7 @@ func init() {
 }
 
 func registerPlatformBootclasspathBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterModuleType("platform_bootclasspath", platformBootclasspathFactory)
+	ctx.RegisterSingletonModuleType("platform_bootclasspath", platformBootclasspathFactory)
 }
 
 // The tags used for the dependencies between the platform bootclasspath and any configured boot
@@ -38,7 +38,7 @@ var (
 )
 
 type platformBootclasspathModule struct {
-	android.ModuleBase
+	android.SingletonModuleBase
 	ClasspathFragmentBase
 
 	properties platformBootclasspathProperties
@@ -69,7 +69,7 @@ type platformBootclasspathProperties struct {
 	Hidden_api HiddenAPIFlagFileProperties
 }
 
-func platformBootclasspathFactory() android.Module {
+func platformBootclasspathFactory() android.SingletonModule {
 	m := &platformBootclasspathModule{}
 	m.AddProperties(&m.properties)
 	// TODO(satayev): split systemserver and apex jars into separate configs.
@@ -152,6 +152,18 @@ func addDependenciesOntoBootImageModules(ctx android.BottomUpMutatorContext, mod
 
 		addDependencyOntoApexModulePair(ctx, apex, name, tag)
 	}
+}
+
+// GenerateSingletonBuildActions does nothing and must never do anything.
+//
+// This module only implements android.SingletonModule so that it can implement
+// android.SingletonMakeVarsProvider.
+func (b *platformBootclasspathModule) GenerateSingletonBuildActions(android.SingletonContext) {
+	// Keep empty
+}
+
+func (d *platformBootclasspathModule) MakeVars(ctx android.MakeVarsContext) {
+	// Placeholder for now.
 }
 
 func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
