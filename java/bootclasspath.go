@@ -161,3 +161,59 @@ var _ android.ExcludeFromVisibilityEnforcementTag = bootclasspathDependencyTag{}
 
 // The tag used for dependencies onto bootclasspath_fragments.
 var bootclasspathFragmentDepTag = bootclasspathDependencyTag{name: "fragment"}
+
+// BootclasspathNestedAPIProperties defines properties related to the API provided by parts of the
+// bootclasspath that are nested within the main BootclasspathAPIProperties.
+type BootclasspathNestedAPIProperties struct {
+	// java_library or preferably, java_sdk_library modules providing stub classes that define the
+	// APIs provided by this bootclasspath_fragment.
+	Stub_libs []string
+}
+
+// BootclasspathAPIProperties defines properties for defining the API provided by parts of the
+// bootclasspath.
+type BootclasspathAPIProperties struct {
+	// Api properties provide information about the APIs provided by the bootclasspath_fragment.
+	// Properties in this section apply to public, system and test api scopes. They DO NOT apply to
+	// core_platform as that is a special, ART specific scope, that does not follow the pattern and so
+	// has its own section. It is in the process of being deprecated and replaced by the system scope
+	// but this will remain for the foreseeable future to maintain backwards compatibility.
+	//
+	// Every bootclasspath_fragment must specify at least one stubs_lib in this section and must
+	// specify stubs for all the APIs provided by its contents. Failure to do so will lead to those
+	// methods being inaccessible to other parts of Android, including but not limited to
+	// applications.
+	Api BootclasspathNestedAPIProperties
+
+	// Properties related to the core platform API surface.
+	//
+	// This must only be used by the following modules:
+	// * ART
+	// * Conscrypt
+	// * I18N
+	//
+	// The bootclasspath_fragments for each of the above modules must specify at least one stubs_lib
+	// and must specify stubs for all the APIs provided by its contents. Failure to do so will lead to
+	// those methods being inaccessible to the other modules in the list.
+	Core_platform_api BootclasspathNestedAPIProperties
+}
+
+// sdkKindToStubLibs calculates the stub library modules for each relevant android.SdkKind from the
+// Stub_libs properties.
+func (p BootclasspathAPIProperties) sdkKindToStubLibs() map[android.SdkKind][]string {
+	m := map[android.SdkKind][]string{}
+	for _, kind := range []android.SdkKind{android.SdkPublic, android.SdkSystem, android.SdkTest} {
+		m[kind] = p.Api.Stub_libs
+	}
+	m[android.SdkCorePlatform] = p.Core_platform_api.Stub_libs
+	return m
+}
+
+// bootclasspathApiInfo contains paths resolved from BootclasspathAPIProperties
+type bootclasspathApiInfo struct {
+	// stubJarsByKind maps from the android.SdkKind to the paths containing dex stub jars for each
+	// kind.
+	stubJarsByKind map[android.SdkKind]android.Paths
+}
+
+var bootclasspathApiInfoProvider = blueprint.NewProvider(bootclasspathApiInfo{})
