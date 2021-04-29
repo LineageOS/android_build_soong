@@ -88,6 +88,9 @@ type BootclasspathFragmentCoverageAffectedProperties struct {
 	//
 	// The order of this list matters as it is the order that is used in the bootclasspath.
 	Contents []string
+
+	// The properties for specifying the API stubs provided by this fragment.
+	BootclasspathAPIProperties
 }
 
 type bootclasspathFragmentProperties struct {
@@ -316,6 +319,9 @@ func (b *BootclasspathFragmentModule) ComponentDepsMutator(ctx android.BottomUpM
 }
 
 func (b *BootclasspathFragmentModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	// Add dependencies onto all the modules that provide the API stubs for classes on this
+	// bootclasspath fragment.
+	hiddenAPIAddStubLibDependencies(ctx, b.properties.sdkKindToStubLibs())
 
 	if SkipDexpreoptBootJars(ctx) {
 		return
@@ -384,6 +390,13 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 
 	// Store the information for use by platform_bootclasspath.
 	ctx.SetProvider(hiddenAPIFlagFileInfoProvider, flagFileInfo)
+
+	// Convert the kind specific lists of modules into kind specific lists of jars.
+	stubJarsByKind := hiddenAPIGatherStubLibDexJarPaths(ctx)
+
+	// Store the information for use by other modules.
+	bootclasspathApiInfo := bootclasspathApiInfo{stubJarsByKind: stubJarsByKind}
+	ctx.SetProvider(bootclasspathApiInfoProvider, bootclasspathApiInfo)
 }
 
 type bootclasspathFragmentMemberType struct {
