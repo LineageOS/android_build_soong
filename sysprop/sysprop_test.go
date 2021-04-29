@@ -52,12 +52,9 @@ func test(t *testing.T, bp string) *android.TestResult {
 			system_shared_libs: [],
 			recovery_available: true,
 			host_supported: true,
-			llndk_stubs: "liblog.llndk",
-		}
-
-		llndk_library {
-			name: "liblog.llndk",
-			symbol_file: "",
+			llndk: {
+				symbol_file: "liblog.map.txt",
+			}
 		}
 
 		java_library {

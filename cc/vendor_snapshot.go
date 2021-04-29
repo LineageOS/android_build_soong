@@ -184,9 +184,6 @@ func isSnapshotAware(cfg android.DeviceConfig, m *Module, inProprietaryPath bool
 	if m.IsLlndk() {
 		return false
 	}
-	if _, ok := m.linker.(*llndkStubDecorator); ok {
-		return false
-	}
 
 	// Libraries
 	if l, ok := m.linker.(snapshotLibraryInterface); ok {
