@@ -217,13 +217,14 @@ func RegisterLibraryBuildComponents(ctx android.RegistrationContext) {
 
 // For bp2build conversion.
 type bazelCcLibraryAttributes struct {
-	Srcs            bazel.LabelListAttribute
-	Hdrs            bazel.LabelListAttribute
-	Copts           bazel.StringListAttribute
-	Linkopts        bazel.StringListAttribute
-	Deps            bazel.LabelListAttribute
-	User_link_flags bazel.StringListAttribute
-	Includes        bazel.StringListAttribute
+	Srcs                   bazel.LabelListAttribute
+	Hdrs                   bazel.LabelListAttribute
+	Copts                  bazel.StringListAttribute
+	Linkopts               bazel.StringListAttribute
+	Deps                   bazel.LabelListAttribute
+	User_link_flags        bazel.StringListAttribute
+	Includes               bazel.StringListAttribute
+	Static_deps_for_shared bazel.LabelListAttribute
 }
 
 type bazelCcLibrary struct {
@@ -254,16 +255,23 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
+	sharedAttrs := bp2BuildParseSharedProps(ctx, m)
+	staticAttrs := bp2BuildParseStaticProps(ctx, m)
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
 	linkerAttrs := bp2BuildParseLinkerProps(ctx, m)
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, m)
 
+	var srcs bazel.LabelListAttribute
+	srcs.Append(compilerAttrs.srcs)
+	srcs.Append(staticAttrs.srcs)
+
 	attrs := &bazelCcLibraryAttributes{
-		Srcs:     compilerAttrs.srcs,
-		Copts:    compilerAttrs.copts,
-		Linkopts: linkerAttrs.linkopts,
-		Deps:     linkerAttrs.deps,
-		Includes: exportedIncludes,
+		Srcs:                   srcs,
+		Copts:                  compilerAttrs.copts,
+		Linkopts:               linkerAttrs.linkopts,
+		Deps:                   linkerAttrs.deps,
+		Static_deps_for_shared: sharedAttrs.staticDeps,
+		Includes:               exportedIncludes,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
