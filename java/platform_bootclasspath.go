@@ -209,7 +209,17 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	// Don't run any hiddenapi rules if UNSAFE_DISABLE_HIDDENAPI_FLAGS=true. This is a performance
 	// optimization that can be used to reduce the incremental build time but as its name suggests it
 	// can be unsafe to use, e.g. when the changes affect anything that goes on the bootclasspath.
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+	// Instead create some rules to create fake hidden api files.
+	config := ctx.Config()
+	fakeHiddenApiRules := config.IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS")
+
+	// Don't run them in an unbundled build either because the chances are that the modules needed
+	// are not available.
+	fakeHiddenApiRules = fakeHiddenApiRules || config.UnbundledBuild()
+
+	// Don't run them when always using prebuilts as they won't necessarily have the dex boot jars
+	// available.
+	if fakeHiddenApiRules {
 		paths := android.OutputPaths{b.hiddenAPIFlagsCSV, b.hiddenAPIIndexCSV, b.hiddenAPIMetadataCSV}
 		for _, path := range paths {
 			ctx.Build(pctx, android.BuildParams{
