@@ -458,5 +458,9 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 	config := GetUpdatableBootConfig(ctx)
 	copyBootJarsToPredefinedLocations(ctx, updatableModules, config.modules, config.dexPaths)
 
+	// Build a profile for the image config and then use that to build the boot image.
+	profile := bootImageProfileRule(ctx, imageConfig)
+	buildBootImage(ctx, imageConfig, profile)
+
 	dumpOatRules(ctx, imageConfig)
 }

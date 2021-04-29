@@ -478,6 +478,10 @@ func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.
 
 	// Copy the dex jars of this fragment's content modules to their predefined locations.
 	copyBootJarsToPredefinedLocations(ctx, contents, imageConfig.modules, imageConfig.dexPaths)
+
+	// Build a profile for the image config and then use that to build the boot image.
+	profile := bootImageProfileRule(ctx, imageConfig)
+	buildBootImage(ctx, imageConfig, profile)
 }
 
 type bootclasspathFragmentMemberType struct {
