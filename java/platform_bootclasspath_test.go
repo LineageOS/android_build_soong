@@ -33,7 +33,7 @@ var prepareForTestWithPlatformBootclasspath = android.GroupFixturePreparers(
 func TestPlatformBootclasspath(t *testing.T) {
 	preparer := android.GroupFixturePreparers(
 		prepareForTestWithPlatformBootclasspath,
-		FixtureConfigureBootJars("platform:foo", "platform:bar"),
+		FixtureConfigureBootJars("platform:foo", "system_ext:bar"),
 		android.FixtureWithRootAndroidBp(`
 			platform_bootclasspath {
 				name: "platform-bootclasspath",
@@ -45,6 +45,7 @@ func TestPlatformBootclasspath(t *testing.T) {
 				system_modules: "none",
 				sdk_version: "none",
 				compile_dex: true,
+				system_ext_specific: true,
 			}
 		`),
 	)
