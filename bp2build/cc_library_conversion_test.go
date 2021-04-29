@@ -50,6 +50,7 @@ func TestCcLibraryBp2Build(t *testing.T) {
 		expectedBazelTargets               []string
 		filesystem                         map[string]string
 		dir                                string
+		depsMutators                       []android.RegisterMutatorFunc
 	}{
 		{
 			description:                        "cc_library - simple example",
@@ -248,6 +249,34 @@ cc_library {
     srcs = ["math/cosf.c"],
 )`},
 		},
+		{
+			description:                        "cc_library shared/static props",
+			moduleTypeUnderTest:                "cc_library",
+			moduleTypeUnderTestFactory:         cc.LibraryFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			dir:                                "foo/bar",
+			filesystem: map[string]string{
+				"foo/bar/a.cpp": "",
+				"foo/bar/Android.bp": `
+cc_library {
+    name: "a",
+    shared: { whole_static_libs: ["b"] },
+    static: { srcs: ["a.cpp"] },
+    bazel_module: { bp2build_available: true },
+}
+
+cc_library_static { name: "b" }
+`,
+			},
+			bp: soongCcLibraryPreamble,
+			expectedBazelTargets: []string{`cc_library(
+    name = "a",
+    copts = ["-Ifoo/bar"],
+    srcs = ["a.cpp"],
+    static_deps_for_shared = [":b"],
+)`},
+		},
 	}
 
 	dir := "."
@@ -266,11 +295,15 @@ cc_library {
 		ctx := android.NewTestContext(config)
 
 		cc.RegisterCCBuildComponents(ctx)
+		ctx.RegisterModuleType("cc_library_static", cc.LibraryStaticFactory)
 		ctx.RegisterModuleType("toolchain_library", cc.ToolchainLibraryFactory)
 		ctx.RegisterModuleType("cc_library_headers", cc.LibraryHeaderFactory)
 		ctx.RegisterModuleType(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestFactory)
 		ctx.RegisterBp2BuildMutator(testCase.moduleTypeUnderTest, testCase.moduleTypeUnderTestBp2BuildMutator)
 		ctx.RegisterBp2BuildConfig(bp2buildConfig) // TODO(jingwen): make this the default for all tests
+		for _, m := range testCase.depsMutators {
+			ctx.DepsBp2BuildMutators(m)
+		}
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, toParse)
