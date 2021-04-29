@@ -179,7 +179,7 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 		return
 	}
 
-	b.generateBootImageBuildActions(ctx)
+	b.generateBootImageBuildActions(ctx, updatableModules)
 }
 
 func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
@@ -308,7 +308,7 @@ func (b *platformBootclasspathModule) generatedHiddenAPIMetadataRules(ctx androi
 }
 
 // generateBootImageBuildActions generates ninja rules related to the boot image creation.
-func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.ModuleContext) {
+func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.ModuleContext, updatableModules []android.Module) {
 	// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
 	// GenerateSingletonBuildActions method as it cannot create it for itself.
 	dexpreopt.GetGlobalSoongConfig(ctx)
@@ -325,4 +325,7 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 
 	// Generate the framework profile rule
 	bootFrameworkProfileRule(ctx, imageConfig)
+
+	// Generate the updatable bootclasspath packages rule.
+	generateUpdatableBcpPackagesRule(ctx, imageConfig, updatableModules)
 }
