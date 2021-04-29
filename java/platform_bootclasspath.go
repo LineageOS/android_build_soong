@@ -152,14 +152,8 @@ func addDependenciesOntoBootImageModules(ctx android.BottomUpMutatorContext, mod
 func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	b.classpathFragmentBase().generateAndroidBuildActions(ctx)
 
-	ctx.VisitDirectDepsIf(isActiveModule, func(module android.Module) {
-		tag := ctx.OtherModuleDependencyTag(module)
-		if tag == platformBootclasspathModuleDepTag {
-			b.configuredModules = append(b.configuredModules, module)
-		} else if tag == bootclasspathFragmentDepTag {
-			b.fragments = append(b.fragments, module)
-		}
-	})
+	b.configuredModules = gatherApexModulePairDepsWithTag(ctx, platformBootclasspathModuleDepTag)
+	b.fragments = gatherApexModulePairDepsWithTag(ctx, bootclasspathFragmentDepTag)
 
 	b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
 
