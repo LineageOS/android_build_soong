@@ -110,7 +110,7 @@ func TestJavaSdkLibrary(t *testing.T) {
 		`)
 
 	// check the existence of the internal modules
-	result.ModuleForTests("foo", "android_common")
+	foo := result.ModuleForTests("foo", "android_common")
 	result.ModuleForTests(apiScopePublic.stubsLibraryModuleName("foo"), "android_common")
 	result.ModuleForTests(apiScopeSystem.stubsLibraryModuleName("foo"), "android_common")
 	result.ModuleForTests(apiScopeTest.stubsLibraryModuleName("foo"), "android_common")
@@ -121,6 +121,17 @@ func TestJavaSdkLibrary(t *testing.T) {
 	result.ModuleForTests("foo.api.public.28", "")
 	result.ModuleForTests("foo.api.system.28", "")
 	result.ModuleForTests("foo.api.test.28", "")
+
+	exportedComponentsInfo := result.ModuleProvider(foo.Module(), ExportedComponentsInfoProvider).(ExportedComponentsInfo)
+	expectedFooExportedComponents := []string{
+		"foo.stubs",
+		"foo.stubs.source",
+		"foo.stubs.source.system",
+		"foo.stubs.source.test",
+		"foo.stubs.system",
+		"foo.stubs.test",
+	}
+	android.AssertArrayString(t, "foo exported components", expectedFooExportedComponents, exportedComponentsInfo.Components)
 
 	bazJavac := result.ModuleForTests("baz", "android_common").Rule("javac")
 	// tests if baz is actually linked to the stubs lib
