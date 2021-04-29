@@ -452,6 +452,17 @@ func MutateImage(mctx android.BaseModuleContext, m ImageMutatableModule) {
 		if productVndkVersion != "" {
 			productVariants = append(productVariants, productVndkVersion)
 		}
+	} else if m.NeedsVendorPublicLibraryVariants() {
+		// A vendor public library has the implementation on /vendor, with stub variants
+		// for system and product.
+		coreVariantNeeded = true
+		vendorVariants = append(vendorVariants, boardVndkVersion)
+		if platformVndkVersion != "" {
+			productVariants = append(productVariants, platformVndkVersion)
+		}
+		if productVndkVersion != "" {
+			productVariants = append(productVariants, productVndkVersion)
+		}
 	} else if boardVndkVersion == "" {
 		// If the device isn't compiling against the VNDK, we always
 		// use the core mode.
@@ -676,5 +687,10 @@ func (c *Module) SetImageVariation(ctx android.BaseModuleContext, variant string
 		m.Properties.ImageVariationPrefix = ProductVariationPrefix
 		m.Properties.VndkVersion = strings.TrimPrefix(variant, ProductVariationPrefix)
 		squashProductSrcs(m)
+	}
+
+	if c.NeedsVendorPublicLibraryVariants() &&
+		(variant == android.CoreVariation || strings.HasPrefix(variant, ProductVariationPrefix)) {
+		c.VendorProperties.IsVendorPublicLibrary = true
 	}
 }
