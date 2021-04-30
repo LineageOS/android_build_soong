@@ -176,24 +176,35 @@ var (
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
 		// Things that transitively depend on unconverted libc_* modules.
-		"libc_common",        // ruperts@, cc_library_static, depends on //bionic/libc:libc_nopthread
-		"libc_common_static", // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
-		"libc_common_shared", // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
-		"libc_nomalloc",      // ruperts@, cc_library_static, depends on //bionic/libc:libc_common
-		"libc_nopthread",     // ruperts@, cc_library_static, depends on lib_bionic_ndk, libc_syscalls, libc_tzcode, libstdc++
+		"libc_nopthread", // http://b/186821550, cc_library_static, depends on //bionic/libc:libc_bionic_ndk (http://b/186822256)
+		//                                                     also depends on //bionic/libc:libc_tzcode (http://b/186822591)
+		//                                                     also depends on //bionic/libc:libstdc++ (http://b/186822597)
+		"libc_common",        // http://b/186821517, cc_library_static, depends on //bionic/libc:libc_nopthread (http://b/186821550)
+		"libc_common_static", // http://b/186824119, cc_library_static, depends on //bionic/libc:libc_common (http://b/186821517)
+		"libc_common_shared", // http://b/186824118, cc_library_static, depends on //bionic/libc:libc_common (http://b/186821517)
+		"libc_nomalloc",      // http://b/186825031, cc_library_static, depends on //bionic/libc:libc_common (http://b/186821517)
 
-		// Things that transitively depend on //system/libbase. libbase doesn't work because:
-		// fmtlib: fatal error: 'cassert' file not found
-		"libbase",                     // eakammer@, cc_library, no such target '//build/bazel/platforms/os:darwin': target 'darwin' not declared
-		"libbase_ndk",                 // eakammer@, cc_library, no such target '//build/bazel/platforms/os:darwin': target 'darwin' not declared
-		"libbionic_spawn_benchmark",   // ruperts@, cc_library_static, depends on libbase, libgoogle-benchmark
-		"libc_malloc_debug",           // ruperts@, cc_library_static, depends on libbase
-		"libc_malloc_debug_backtrace", // ruperts@, cc_library_static, depends on libbase
-		"libcutils",                   // eakammer@, cc_library, depends on libbase, liblog
-		"libcutils_sockets",           // eakammer@, cc_library, depends on libbase, liblog
-		"liblinker_debuggerd_stub",    // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
-		"liblinker_main",              // ruperts@, cc_library_static, depends on libbase, libz, libziparchive
-		"liblinker_malloc",            // ruperts@, cc_library_static, depends on libziparchive, libz, libbase
+		"libbase",     // http://b/186826479, cc_library, bazel build //bionic/... works but --platforms //build/bazel/platforms:android_x86 fails
+		"libbase_ndk", // http://b/186826477, cc_library, bazel build //bionic/... works but --platforms //build/bazel/platforms:android_x86 fails
+
+		"libbionic_spawn_benchmark", // http://b/186824595, cc_library_static, depends on //external/google-benchmark (http://b/186822740)
+		//                                                                also depends on //system/logging/liblog:liblog (http://b/186822772)
+
+		"libc_malloc_debug",           // http://b/186824339, cc_library_static, depends on //system/libbase:libbase (http://b/186823646)
+		"libc_malloc_debug_backtrace", // http://b/186824112, cc_library_static, depends on //external/libcxxabi:libc++demangle (http://b/186823773)
+
+		"libcutils",         // http://b/186827426, cc_library, depends on //system/core/libprocessgroup:libprocessgroup_headers (http://b/186826841)
+		"libcutils_sockets", // http://b/186826853, cc_library, depends on //system/libbase:libbase (http://b/186826479)
+
+		"liblinker_debuggerd_stub", // http://b/186824327, cc_library_static, depends on //external/zlib:libz (http://b/186823782)
+		//                                                               also depends on //system/libziparchive:libziparchive (http://b/186823656)
+		//                                                               also depends on //system/logging/liblog:liblog (http://b/186822772)
+		"liblinker_main", // http://b/186825989, cc_library_static, depends on //external/zlib:libz (http://b/186823782)
+		//                                                     also depends on //system/libziparchive:libziparchive (http://b/186823656)
+		//                                                     also depends on//system/logging/liblog:liblog (http://b/186822772)
+		"liblinker_malloc", // http://b/186826466, cc_library_static, depends on //external/zlib:libz (http://b/186823782)
+		//                                                       also depends on //system/libziparchive:libziparchive (http://b/186823656)
+		//                                                       also depends on //system/logging/liblog:liblog (http://b/186822772)
 
 		// Requires non-libc targets, but otherwise works
 		"libc_jemalloc_wrapper", // ruperts@, cc_library_static, depends on //external/jemalloc_new
