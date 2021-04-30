@@ -272,7 +272,6 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libc_gdtoa",                       // ruperts@, cc_library_static, OK for bp2build but undefined symbol: __strtorQ for mixed builds
 		"libc_netbsd",                      // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
 		"libc_openbsd",                     // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
 		"libsystemproperties",              // cparsons@, cc_library_static, wrong include paths
