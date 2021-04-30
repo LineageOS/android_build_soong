@@ -88,6 +88,9 @@ type BootclasspathFragmentCoverageAffectedProperties struct {
 	//
 	// The order of this list matters as it is the order that is used in the bootclasspath.
 	Contents []string
+
+	// The properties for specifying the API stubs provided by this fragment.
+	BootclasspathAPIProperties
 }
 
 type bootclasspathFragmentProperties struct {
@@ -316,6 +319,9 @@ func (b *BootclasspathFragmentModule) ComponentDepsMutator(ctx android.BottomUpM
 }
 
 func (b *BootclasspathFragmentModule) DepsMutator(ctx android.BottomUpMutatorContext) {
+	// Add dependencies onto all the modules that provide the API stubs for classes on this
+	// bootclasspath fragment.
+	hiddenAPIAddStubLibDependencies(ctx, b.properties.sdkKindToStubLibs())
 
 	if SkipDexpreoptBootJars(ctx) {
 		return
@@ -384,6 +390,13 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 
 	// Store the information for use by platform_bootclasspath.
 	ctx.SetProvider(hiddenAPIFlagFileInfoProvider, flagFileInfo)
+
+	// Convert the kind specific lists of modules into kind specific lists of jars.
+	stubJarsByKind := hiddenAPIGatherStubLibDexJarPaths(ctx)
+
+	// Store the information for use by other modules.
+	bootclasspathApiInfo := bootclasspathApiInfo{stubJarsByKind: stubJarsByKind}
+	ctx.SetProvider(bootclasspathApiInfoProvider, bootclasspathApiInfo)
 }
 
 type bootclasspathFragmentMemberType struct {
@@ -420,6 +433,10 @@ type bootclasspathFragmentSdkMemberProperties struct {
 	// Contents of the bootclasspath fragment
 	Contents []string
 
+	// Stub_libs properties.
+	Stub_libs               []string
+	Core_platform_stub_libs []string
+
 	// Flag files by *hiddenAPIFlagFileCategory
 	Flag_files_by_category map[*hiddenAPIFlagFileCategory]android.Paths
 }
@@ -434,6 +451,10 @@ func (b *bootclasspathFragmentSdkMemberProperties) PopulateFromVariant(ctx andro
 	mctx := ctx.SdkModuleContext()
 	flagFileInfo := mctx.OtherModuleProvider(module, hiddenAPIFlagFileInfoProvider).(hiddenAPIFlagFileInfo)
 	b.Flag_files_by_category = flagFileInfo.categoryToPaths
+
+	// Copy stub_libs properties.
+	b.Stub_libs = module.properties.Api.Stub_libs
+	b.Core_platform_stub_libs = module.properties.Core_platform_api.Stub_libs
 }
 
 func (b *bootclasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
@@ -441,11 +462,22 @@ func (b *bootclasspathFragmentSdkMemberProperties) AddToPropertySet(ctx android.
 		propertySet.AddProperty("image_name", *b.Image_name)
 	}
 
+	builder := ctx.SnapshotBuilder()
+	requiredMemberDependency := builder.SdkMemberReferencePropertyTag(true)
+
 	if len(b.Contents) > 0 {
-		propertySet.AddPropertyWithTag("contents", b.Contents, ctx.SnapshotBuilder().SdkMemberReferencePropertyTag(true))
+		propertySet.AddPropertyWithTag("contents", b.Contents, requiredMemberDependency)
 	}
 
-	builder := ctx.SnapshotBuilder()
+	if len(b.Stub_libs) > 0 {
+		apiPropertySet := propertySet.AddPropertySet("api")
+		apiPropertySet.AddPropertyWithTag("stub_libs", b.Stub_libs, requiredMemberDependency)
+	}
+	if len(b.Core_platform_stub_libs) > 0 {
+		corePlatformApiPropertySet := propertySet.AddPropertySet("core_platform_api")
+		corePlatformApiPropertySet.AddPropertyWithTag("stub_libs", b.Core_platform_stub_libs, requiredMemberDependency)
+	}
+
 	if b.Flag_files_by_category != nil {
 		hiddenAPISet := propertySet.AddPropertySet("hidden_api")
 		for _, category := range hiddenAPIFlagFileCategories {

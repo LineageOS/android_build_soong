@@ -106,11 +106,11 @@ type LinkableInterface interface {
 	// IsLlndkPublic returns true only for LLNDK (public) libs.
 	IsLlndkPublic() bool
 
-	// IsLlndkLibrary returns true if this module is an LLNDK library module.
-	IsLlndkLibrary() bool
-
 	// NeedsLlndkVariants returns true if this module has LLNDK stubs or provides LLNDK headers.
 	NeedsLlndkVariants() bool
+
+	// NeedsVendorPublicLibraryVariants returns true if this module has vendor public library stubs.
+	NeedsVendorPublicLibraryVariants() bool
 
 	UseVndk() bool
 	MustUseVendorVariant() bool

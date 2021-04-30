@@ -149,15 +149,6 @@ func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) 
 	}
 }
 
-// Export paths to Make.  INTERNAL_PLATFORM_HIDDENAPI_FLAGS is used by Make rules in art/ and cts/.
-func (h *hiddenAPISingleton) MakeVars(ctx android.MakeVarsContext) {
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
-		return
-	}
-
-	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", h.flags.String())
-}
-
 // Checks to see whether the supplied module variant is in the list of boot jars.
 //
 // This is similar to logic in getBootImageJar() so any changes needed here are likely to be needed
@@ -186,7 +177,7 @@ func isModuleInConfiguredList(ctx android.BaseModuleContext, module android.Modu
 
 	// Now match the apex part of the boot image configuration.
 	requiredApex := configuredBootJars.Apex(index)
-	if requiredApex == "platform" {
+	if requiredApex == "platform" || requiredApex == "system_ext" {
 		if len(apexInfo.InApexes) != 0 {
 			// A platform variant is required but this is for an apex so ignore it.
 			return false

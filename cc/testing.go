@@ -27,7 +27,6 @@ func RegisterRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterLibraryHeadersBuildComponents(ctx)
 
 	ctx.RegisterModuleType("toolchain_library", ToolchainLibraryFactory)
-	ctx.RegisterModuleType("llndk_library", LlndkLibraryFactory)
 	ctx.RegisterModuleType("cc_benchmark", BenchmarkFactory)
 	ctx.RegisterModuleType("cc_object", ObjectFactory)
 	ctx.RegisterModuleType("cc_genrule", genRuleFactory)
@@ -200,12 +199,9 @@ func commonDefaultModules() string {
 			stubs: {
 				versions: ["27", "28", "29"],
 			},
-			llndk_stubs: "libc.llndk",
-		}
-		llndk_library {
-			name: "libc.llndk",
-			symbol_file: "",
-			sdk_version: "current",
+			llndk: {
+				symbol_file: "libc.map.txt",
+			},
 		}
 		cc_library {
 			name: "libm",
@@ -222,12 +218,9 @@ func commonDefaultModules() string {
 				"//apex_available:platform",
 				"myapex"
 			],
-			llndk_stubs: "libm.llndk",
-		}
-		llndk_library {
-			name: "libm.llndk",
-			symbol_file: "",
-			sdk_version: "current",
+			llndk: {
+				symbol_file: "libm.map.txt",
+			},
 		}
 
 		// Coverage libraries
@@ -289,12 +282,9 @@ func commonDefaultModules() string {
 				"//apex_available:platform",
 				"myapex"
 			],
-			llndk_stubs: "libdl.llndk",
-		}
-		llndk_library {
-			name: "libdl.llndk",
-			symbol_file: "",
-			sdk_version: "current",
+			llndk: {
+				symbol_file: "libdl.map.txt",
+			},
 		}
 		cc_library {
 			name: "libft2",
@@ -302,13 +292,10 @@ func commonDefaultModules() string {
 			nocrt: true,
 			system_shared_libs: [],
 			recovery_available: true,
-			llndk_stubs: "libft2.llndk",
-		}
-		llndk_library {
-			name: "libft2.llndk",
-			symbol_file: "",
-			private: true,
-			sdk_version: "current",
+			llndk: {
+				symbol_file: "libft2.map.txt",
+				private: true,
+			}
 		}
 		cc_library {
 			name: "libc++_static",
@@ -569,7 +556,6 @@ var PrepareForTestWithCcBuildComponents = android.GroupFixturePreparers(
 		ctx.RegisterModuleType("cc_fuzz", FuzzFactory)
 		ctx.RegisterModuleType("cc_test", TestFactory)
 		ctx.RegisterModuleType("cc_test_library", TestLibraryFactory)
-		ctx.RegisterModuleType("vendor_public_library", vendorPublicLibraryFactory)
 		ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 
 		RegisterVndkLibraryTxtTypes(ctx)
@@ -685,7 +671,6 @@ func CreateTestContext(config android.Config) *android.TestContext {
 	ctx.RegisterModuleType("cc_fuzz", FuzzFactory)
 	ctx.RegisterModuleType("cc_test", TestFactory)
 	ctx.RegisterModuleType("cc_test_library", TestLibraryFactory)
-	ctx.RegisterModuleType("vendor_public_library", vendorPublicLibraryFactory)
 	ctx.RegisterModuleType("filegroup", android.FileGroupFactory)
 	ctx.RegisterModuleType("vndk_prebuilt_shared", VndkPrebuiltSharedFactory)
 

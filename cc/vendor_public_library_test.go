@@ -26,18 +26,16 @@ func TestVendorPublicLibraries(t *testing.T) {
 		product_available: true,
 		export_include_dirs: ["my_include"],
 	}
-	vendor_public_library {
-		name: "libvendorpublic",
-		product_available: true,
-		symbol_file: "",
-		export_public_headers: ["libvendorpublic_headers"],
-	}
 	cc_library {
 		name: "libvendorpublic",
 		srcs: ["foo.c"],
 		vendor: true,
 		no_libcrt: true,
 		nocrt: true,
+		vendor_public_library: {
+			symbol_file: "libvendorpublic.map.txt",
+			export_public_headers: ["libvendorpublic_headers"],
+		},
 	}
 
 	cc_library {
@@ -81,7 +79,7 @@ func TestVendorPublicLibraries(t *testing.T) {
 	// test if libsystem is linked to the stub
 	ld := ctx.ModuleForTests("libsystem", coreVariant).Rule("ld")
 	libflags := ld.Args["libFlags"]
-	stubPaths := getOutputPaths(ctx, coreVariant, []string{"libvendorpublic" + vendorPublicLibrarySuffix})
+	stubPaths := getOutputPaths(ctx, coreVariant, []string{"libvendorpublic"})
 	if !strings.Contains(libflags, stubPaths[0].String()) {
 		t.Errorf("libflags for libsystem must contain %#v, but was %#v", stubPaths[0], libflags)
 	}
@@ -89,7 +87,7 @@ func TestVendorPublicLibraries(t *testing.T) {
 	// test if libsystem is linked to the stub
 	ld = ctx.ModuleForTests("libproduct", productVariant).Rule("ld")
 	libflags = ld.Args["libFlags"]
-	stubPaths = getOutputPaths(ctx, productVariant, []string{"libvendorpublic" + vendorPublicLibrarySuffix})
+	stubPaths = getOutputPaths(ctx, productVariant, []string{"libvendorpublic"})
 	if !strings.Contains(libflags, stubPaths[0].String()) {
 		t.Errorf("libflags for libproduct must contain %#v, but was %#v", stubPaths[0], libflags)
 	}
