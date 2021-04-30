@@ -6519,6 +6519,15 @@ func testNoUpdatableJarsInBootImage(t *testing.T, errmsg string, preparer androi
 			min_sdk_version: "current",
 		}
 
+		bootclasspath_fragment {
+			name: "art-bootclasspath-fragment",
+			image_name: "art",
+			contents: ["some-art-lib"],
+			apex_available: [
+				"com.android.art.debug",
+			],
+		}
+
 		apex_key {
 			name: "com.android.art.debug.key",
 		}
@@ -6651,14 +6660,14 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 	})
 
 	t.Run("updatable jar from some other apex in the ART boot image => error", func(t *testing.T) {
-		err := `module "some-updatable-apex-lib" from updatable apexes \["some-updatable-apex"\] is not allowed in the ART boot image`
+		err := `ArtApexJars expects this to be in apex "some-updatable-apex" but this is only in apexes.*"com.android.art.debug"`
 		// Update the dexpreopt ArtApexJars directly.
 		preparer := prepareSetArtJars("some-updatable-apex:some-updatable-apex-lib")
 		testNoUpdatableJarsInBootImage(t, err, preparer)
 	})
 
 	t.Run("non-updatable jar from some other apex in the ART boot image => error", func(t *testing.T) {
-		err := `module "some-non-updatable-apex-lib" is not allowed in the ART boot image`
+		err := `ArtApexJars expects this to be in apex "some-non-updatable-apex" but this is only in apexes.*"com.android.art.debug"`
 		// Update the dexpreopt ArtApexJars directly.
 		preparer := prepareSetArtJars("some-non-updatable-apex:some-non-updatable-apex-lib")
 		testNoUpdatableJarsInBootImage(t, err, preparer)
@@ -6688,7 +6697,7 @@ func TestNoUpdatableJarsInBootImage(t *testing.T) {
 	})
 
 	t.Run("platform jar in the ART boot image => error", func(t *testing.T) {
-		err := `module "some-platform-lib" is not allowed in the ART boot image`
+		err := `ArtApexJars is invalid as it requests a platform variant of "some-platform-lib"`
 		// Update the dexpreopt ArtApexJars directly.
 		preparer := prepareSetArtJars("platform:some-platform-lib")
 		testNoUpdatableJarsInBootImage(t, err, preparer)

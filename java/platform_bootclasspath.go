@@ -184,6 +184,11 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	// Gather all the fragments dependencies.
 	b.fragments = gatherApexModulePairDepsWithTag(ctx, bootclasspathFragmentDepTag)
 
+	// Check the configuration of the boot modules.
+	// ART modules are checked by the art-bootclasspath-fragment.
+	b.checkNonUpdatableModules(ctx, nonUpdatableModules)
+	b.checkUpdatableModules(ctx, updatableModules)
+
 	b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
 
 	// Nothing to do if skipping the dexpreopt of boot image jars.
@@ -192,6 +197,42 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	}
 
 	b.generateBootImageBuildActions(ctx, updatableModules)
+}
+
+// checkNonUpdatableModules ensures that the non-updatable modules supplied are not part of an
+// updatable module.
+func (b *platformBootclasspathModule) checkNonUpdatableModules(ctx android.ModuleContext, modules []android.Module) {
+	for _, m := range modules {
+		apexInfo := ctx.OtherModuleProvider(m, android.ApexInfoProvider).(android.ApexInfo)
+		fromUpdatableApex := apexInfo.Updatable
+		if fromUpdatableApex {
+			// error: this jar is part of an updatable apex
+			ctx.ModuleErrorf("module %q from updatable apexes %q is not allowed in the framework boot image", ctx.OtherModuleName(m), apexInfo.InApexes)
+		} else {
+			// ok: this jar is part of the platform or a non-updatable apex
+		}
+	}
+}
+
+// checkUpdatableModules ensures that the updatable modules supplied are not from the platform.
+func (b *platformBootclasspathModule) checkUpdatableModules(ctx android.ModuleContext, modules []android.Module) {
+	for _, m := range modules {
+		apexInfo := ctx.OtherModuleProvider(m, android.ApexInfoProvider).(android.ApexInfo)
+		fromUpdatableApex := apexInfo.Updatable
+		if fromUpdatableApex {
+			// ok: this jar is part of an updatable apex
+		} else {
+			name := ctx.OtherModuleName(m)
+			if apexInfo.IsForPlatform() {
+				// error: this jar is part of the platform
+				ctx.ModuleErrorf("module %q from platform is not allowed in the updatable boot jars list", name)
+			} else {
+				// TODO(b/177892522): Treat this as an error.
+				// Cannot do that at the moment because framework-wifi and framework-tethering are in the
+				// PRODUCT_UPDATABLE_BOOT_JARS but not marked as updatable in AOSP.
+			}
+		}
+	}
 }
 
 func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
