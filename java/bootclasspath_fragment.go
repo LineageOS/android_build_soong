@@ -145,11 +145,6 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 		ctx.ModuleErrorf(`neither of the "image_name" and "contents" properties have been supplied, please supply exactly one`)
 	}
 
-	if len(contents) != 0 {
-		// Nothing to do.
-		return
-	}
-
 	imageName := proptools.String(m.properties.Image_name)
 	if imageName == "art" {
 		// TODO(b/177892522): Prebuilts (versioned or not) should not use the image_name property.
@@ -181,7 +176,7 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 				continue
 			}
 			if !m.AvailableFor(apex) {
-				ctx.ModuleErrorf("incompatible with ArtApexJars which expects this to be in apex %q but this is only in apexes %q",
+				ctx.ModuleErrorf("ArtApexJars configuration incompatible with this module, ArtApexJars expects this to be in apex %q but this is only in apexes %q",
 					apex, m.ApexAvailable())
 				continue
 			}
@@ -191,6 +186,11 @@ func bootclasspathFragmentInitContentsFromImage(ctx android.EarlyModuleContext, 
 				ctx.ModuleErrorf("ArtApexJars configuration is inconsistent, expected all jars to be in the same apex but it specifies apex %q and %q",
 					commonApex, apex)
 			}
+		}
+
+		if len(contents) != 0 {
+			// Nothing to do.
+			return
 		}
 
 		// Store the jars in the Contents property so that they can be used to add dependencies.
