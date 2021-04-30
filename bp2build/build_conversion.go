@@ -519,9 +519,7 @@ func isZero(value reflect.Value) bool {
 	case reflect.Struct:
 		valueIsZero := true
 		for i := 0; i < value.NumField(); i++ {
-			if value.Field(i).CanSet() {
-				valueIsZero = valueIsZero && isZero(value.Field(i))
-			}
+			valueIsZero = valueIsZero && isZero(value.Field(i))
 		}
 		return valueIsZero
 	case reflect.Ptr:
