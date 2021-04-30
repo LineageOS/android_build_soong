@@ -100,6 +100,10 @@ func BazelLabelForModuleDeps(ctx BazelConversionPathContext, modules []string) b
 	return labels
 }
 
+func BazelLabelForModuleSrcSingle(ctx BazelConversionPathContext, path string) bazel.Label {
+	return BazelLabelForModuleSrcExcludes(ctx, []string{path}, []string(nil)).Includes[0]
+}
+
 // BazelLabelForModuleSrc expects a list of path (relative to local module directory) and module
 // references (":<module>") and returns a bazel.LabelList{} containing the resolved references in
 // paths, relative to the local module, or Bazel-labels (absolute if in a different package or
