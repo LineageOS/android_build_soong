@@ -69,13 +69,15 @@ func addDependencyOntoApexVariants(ctx android.BottomUpMutatorContext, propertyN
 // addDependencyOntoApexModulePair adds a dependency onto the specified APEX specific variant or the
 // specified module.
 //
-// If apex="platform" then this adds a dependency onto the platform variant of the module. This adds
-// dependencies onto the prebuilt and source modules with the specified name, depending on which
-// ones are available. Visiting must use isActiveModule to select the preferred module when both
-// source and prebuilt modules are available.
+// If apex="platform" or "system_ext" then this adds a dependency onto the platform variant of the
+// module. This adds dependencies onto the prebuilt and source modules with the specified name,
+// depending on which ones are available. Visiting must use isActiveModule to select the preferred
+// module when both source and prebuilt modules are available.
+//
+// Use gatherApexModulePairDepsWithTag to retrieve the dependencies.
 func addDependencyOntoApexModulePair(ctx android.BottomUpMutatorContext, apex string, name string, tag blueprint.DependencyTag) {
 	var variations []blueprint.Variation
-	if apex != "platform" {
+	if apex != "platform" && apex != "system_ext" {
 		// Pick the correct apex variant.
 		variations = []blueprint.Variation{
 			{Mutator: "apex", Variation: apex},
@@ -118,12 +120,28 @@ func reportMissingVariationDependency(ctx android.BottomUpMutatorContext, variat
 	ctx.AddFarVariationDependencies(variations, nil, name)
 }
 
+// gatherApexModulePairDepsWithTag returns the list of dependencies with the supplied tag that was
+// added by addDependencyOntoApexModulePair.
+func gatherApexModulePairDepsWithTag(ctx android.BaseModuleContext, tag blueprint.DependencyTag) []android.Module {
+	var modules []android.Module
+	ctx.VisitDirectDepsIf(isActiveModule, func(module android.Module) {
+		t := ctx.OtherModuleDependencyTag(module)
+		if t == tag {
+			modules = append(modules, module)
+		}
+	})
+	return modules
+}
+
 // ApexVariantReference specifies a particular apex variant of a module.
 type ApexVariantReference struct {
 	// The name of the module apex variant, i.e. the apex containing the module variant.
 	//
 	// If this is not specified then it defaults to "platform" which will cause a dependency to be
 	// added to the module's platform variant.
+	//
+	// A value of system_ext should be used for any module that will be part of the system_ext
+	// partition.
 	Apex *string
 
 	// The name of the module.
@@ -161,3 +179,59 @@ var _ android.ExcludeFromVisibilityEnforcementTag = bootclasspathDependencyTag{}
 
 // The tag used for dependencies onto bootclasspath_fragments.
 var bootclasspathFragmentDepTag = bootclasspathDependencyTag{name: "fragment"}
+
+// BootclasspathNestedAPIProperties defines properties related to the API provided by parts of the
+// bootclasspath that are nested within the main BootclasspathAPIProperties.
+type BootclasspathNestedAPIProperties struct {
+	// java_library or preferably, java_sdk_library modules providing stub classes that define the
+	// APIs provided by this bootclasspath_fragment.
+	Stub_libs []string
+}
+
+// BootclasspathAPIProperties defines properties for defining the API provided by parts of the
+// bootclasspath.
+type BootclasspathAPIProperties struct {
+	// Api properties provide information about the APIs provided by the bootclasspath_fragment.
+	// Properties in this section apply to public, system and test api scopes. They DO NOT apply to
+	// core_platform as that is a special, ART specific scope, that does not follow the pattern and so
+	// has its own section. It is in the process of being deprecated and replaced by the system scope
+	// but this will remain for the foreseeable future to maintain backwards compatibility.
+	//
+	// Every bootclasspath_fragment must specify at least one stubs_lib in this section and must
+	// specify stubs for all the APIs provided by its contents. Failure to do so will lead to those
+	// methods being inaccessible to other parts of Android, including but not limited to
+	// applications.
+	Api BootclasspathNestedAPIProperties
+
+	// Properties related to the core platform API surface.
+	//
+	// This must only be used by the following modules:
+	// * ART
+	// * Conscrypt
+	// * I18N
+	//
+	// The bootclasspath_fragments for each of the above modules must specify at least one stubs_lib
+	// and must specify stubs for all the APIs provided by its contents. Failure to do so will lead to
+	// those methods being inaccessible to the other modules in the list.
+	Core_platform_api BootclasspathNestedAPIProperties
+}
+
+// sdkKindToStubLibs calculates the stub library modules for each relevant android.SdkKind from the
+// Stub_libs properties.
+func (p BootclasspathAPIProperties) sdkKindToStubLibs() map[android.SdkKind][]string {
+	m := map[android.SdkKind][]string{}
+	for _, kind := range []android.SdkKind{android.SdkPublic, android.SdkSystem, android.SdkTest} {
+		m[kind] = p.Api.Stub_libs
+	}
+	m[android.SdkCorePlatform] = p.Core_platform_api.Stub_libs
+	return m
+}
+
+// bootclasspathApiInfo contains paths resolved from BootclasspathAPIProperties
+type bootclasspathApiInfo struct {
+	// stubJarsByKind maps from the android.SdkKind to the paths containing dex stub jars for each
+	// kind.
+	stubJarsByKind map[android.SdkKind]android.Paths
+}
+
+var bootclasspathApiInfoProvider = blueprint.NewProvider(bootclasspathApiInfo{})

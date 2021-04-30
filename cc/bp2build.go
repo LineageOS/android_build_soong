@@ -68,7 +68,59 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
+	// Deps in the static: { .. } and shared: { .. } props of a cc_library.
+	if lib, ok := module.compiler.(*libraryDecorator); ok {
+		allDeps = append(allDeps, lib.SharedProperties.Shared.Static_libs...)
+		allDeps = append(allDeps, lib.SharedProperties.Shared.Whole_static_libs...)
+		allDeps = append(allDeps, lib.SharedProperties.Shared.Shared_libs...)
+		allDeps = append(allDeps, lib.SharedProperties.Shared.System_shared_libs...)
+
+		allDeps = append(allDeps, lib.StaticProperties.Static.Static_libs...)
+		allDeps = append(allDeps, lib.StaticProperties.Static.Whole_static_libs...)
+		allDeps = append(allDeps, lib.StaticProperties.Static.Shared_libs...)
+		allDeps = append(allDeps, lib.StaticProperties.Static.System_shared_libs...)
+	}
+
 	ctx.AddDependency(module, nil, android.SortedUniqueStrings(allDeps)...)
+}
+
+type sharedAttributes struct {
+	staticDeps bazel.LabelListAttribute
+}
+
+// bp2buildParseSharedProps returns the attributes for the shared variant of a cc_library.
+func bp2BuildParseSharedProps(ctx android.TopDownMutatorContext, module *Module) sharedAttributes {
+	lib, ok := module.compiler.(*libraryDecorator)
+	if !ok {
+		return sharedAttributes{}
+	}
+
+	var staticDeps bazel.LabelListAttribute
+
+	staticDeps.Value = android.BazelLabelForModuleDeps(ctx, lib.SharedProperties.Shared.Whole_static_libs)
+
+	return sharedAttributes{
+		staticDeps: staticDeps,
+	}
+}
+
+type staticAttributes struct {
+	srcs bazel.LabelListAttribute
+}
+
+// bp2buildParseStaticProps returns the attributes for the static variant of a cc_library.
+func bp2BuildParseStaticProps(ctx android.TopDownMutatorContext, module *Module) staticAttributes {
+	lib, ok := module.compiler.(*libraryDecorator)
+	if !ok {
+		return staticAttributes{}
+	}
+
+	var srcs bazel.LabelListAttribute
+	srcs.Value = android.BazelLabelForModuleSrc(ctx, lib.StaticProperties.Static.Srcs)
+
+	return staticAttributes{
+		srcs: srcs,
+	}
 }
 
 // Convenience struct to hold all attributes parsed from compiler properties.

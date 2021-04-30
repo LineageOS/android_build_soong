@@ -125,10 +125,20 @@ func TestBootclasspathFragment_Coverage(t *testing.T) {
 			contents: [
 				"mybootlib",
 			],
+			api: {
+				stub_libs: [
+					"mysdklibrary",
+				],
+			},
 			coverage: {
 				contents: [
 					"coveragelib",
 				],
+				api: {
+					stub_libs: [
+						"mycoveragestubs",
+					],
+				},
 			},
 		}
 
@@ -147,6 +157,21 @@ func TestBootclasspathFragment_Coverage(t *testing.T) {
 			sdk_version: "none",
 			compile_dex: true,
 		}
+
+		java_sdk_library {
+			name: "mysdklibrary",
+			srcs: ["Test.java"],
+			compile_dex: true,
+			public: {enabled: true},
+			system: {enabled: true},
+		}
+
+		java_sdk_library {
+			name: "mycoveragestubs",
+			srcs: ["Test.java"],
+			compile_dex: true,
+			public: {enabled: true},
+		}
 	`)
 
 	checkContents := func(t *testing.T, result *android.TestResult, expected ...string) {
@@ -154,20 +179,88 @@ func TestBootclasspathFragment_Coverage(t *testing.T) {
 		android.AssertArrayString(t, "contents property", expected, module.properties.Contents)
 	}
 
+	preparer := android.GroupFixturePreparers(
+		prepareForTestWithBootclasspathFragment,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("mysdklibrary", "mycoveragestubs"),
+		prepareWithBp,
+	)
+
 	t.Run("without coverage", func(t *testing.T) {
-		result := android.GroupFixturePreparers(
-			prepareForTestWithBootclasspathFragment,
-			prepareWithBp,
-		).RunTest(t)
+		result := preparer.RunTest(t)
 		checkContents(t, result, "mybootlib")
 	})
 
 	t.Run("with coverage", func(t *testing.T) {
 		result := android.GroupFixturePreparers(
-			prepareForTestWithBootclasspathFragment,
 			prepareForTestWithFrameworkCoverage,
-			prepareWithBp,
+			preparer,
 		).RunTest(t)
 		checkContents(t, result, "mybootlib", "coveragelib")
 	})
+}
+
+func TestBootclasspathFragment_StubLibs(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithBootclasspathFragment,
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("mysdklibrary", "mycoreplatform"),
+	).RunTestWithBp(t, `
+		bootclasspath_fragment {
+			name: "myfragment",
+			contents: ["mysdklibrary"],
+			api: {
+				stub_libs: [
+					"mystublib",
+					"mysdklibrary",
+				],
+			},
+			core_platform_api: {
+				stub_libs: ["mycoreplatform"],
+			},
+		}
+
+		java_library {
+			name: "mystublib",
+			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+		}
+
+		java_sdk_library {
+			name: "mysdklibrary",
+			srcs: ["a.java"],
+			compile_dex: true,
+			public: {enabled: true},
+			system: {enabled: true},
+		}
+
+		java_sdk_library {
+			name: "mycoreplatform",
+			srcs: ["a.java"],
+			compile_dex: true,
+			public: {enabled: true},
+		}
+	`)
+
+	fragment := result.Module("myfragment", "android_common")
+	info := result.ModuleProvider(fragment, bootclasspathApiInfoProvider).(bootclasspathApiInfo)
+
+	stubsJar := "out/soong/.intermediates/mystublib/android_common/dex/mystublib.jar"
+
+	// Check that SdkPublic uses public stubs.
+	publicStubsJar := "out/soong/.intermediates/mysdklibrary.stubs/android_common/dex/mysdklibrary.stubs.jar"
+	android.AssertPathsRelativeToTopEquals(t, "public dex stubs jar", []string{stubsJar, publicStubsJar}, info.stubJarsByKind[android.SdkPublic])
+
+	// Check that SdkSystem uses system stubs.
+	systemStubsJar := "out/soong/.intermediates/mysdklibrary.stubs.system/android_common/dex/mysdklibrary.stubs.system.jar"
+	android.AssertPathsRelativeToTopEquals(t, "system dex stubs jar", []string{stubsJar, systemStubsJar}, info.stubJarsByKind[android.SdkSystem])
+
+	// Check that SdkTest also uses system stubs as the mysdklibrary does not provide test stubs.
+	android.AssertPathsRelativeToTopEquals(t, "test dex stubs jar", []string{stubsJar, systemStubsJar}, info.stubJarsByKind[android.SdkTest])
+
+	// Check that SdkCorePlatform uses public stubs from the mycoreplatform library.
+	corePlatformStubsJar := "out/soong/.intermediates/mycoreplatform.stubs/android_common/dex/mycoreplatform.stubs.jar"
+	android.AssertPathsRelativeToTopEquals(t, "core platform dex stubs jar", []string{corePlatformStubsJar}, info.stubJarsByKind[android.SdkCorePlatform])
 }
