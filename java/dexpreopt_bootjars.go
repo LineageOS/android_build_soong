@@ -460,8 +460,7 @@ func shouldBuildBootImages(config android.Config, global *dexpreopt.GlobalConfig
 // be needed there too.
 //
 // TODO(b/177892522): Avoid having to perform this type of check or if necessary dedup it.
-func getBootJar(ctx android.SingletonContext, bootjars android.ConfiguredJarList,
-	module android.Module, fromWhere string) (int, android.Path, *android.ApexInfo) {
+func getBootJar(ctx android.SingletonContext, bootjars android.ConfiguredJarList, module android.Module, fromWhere string) (int, android.Path) {
 
 	name := ctx.ModuleName(module)
 
@@ -471,7 +470,7 @@ func getBootJar(ctx android.SingletonContext, bootjars android.ConfiguredJarList
 	// Ignore any module that is not listed in the boot image configuration.
 	index := bootjars.IndexOfJar(name)
 	if index == -1 {
-		return -1, nil, nil
+		return -1, nil
 	}
 
 	// It is an error if a module configured in the boot image does not support accessing the dex jar.
@@ -479,13 +478,13 @@ func getBootJar(ctx android.SingletonContext, bootjars android.ConfiguredJarList
 	jar, hasJar := module.(interface{ DexJarBuildPath() android.Path })
 	if !hasJar {
 		ctx.Errorf("module %q %sdoes not support accessing dex jar", module, fromWhere)
-		return -1, nil, nil
+		return -1, nil
 	}
 
 	// It is also an error if the module is not an ApexModule.
 	if _, ok := module.(android.ApexModule); !ok {
 		ctx.Errorf("module %q %sdoes not support being added to an apex", module, fromWhere)
-		return -1, nil, nil
+		return -1, nil
 	}
 
 	apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
@@ -495,60 +494,22 @@ func getBootJar(ctx android.SingletonContext, bootjars android.ConfiguredJarList
 	if requiredApex == "platform" || requiredApex == "system_ext" {
 		if len(apexInfo.InApexes) != 0 {
 			// A platform variant is required but this is for an apex so ignore it.
-			return -1, nil, nil
+			return -1, nil
 		}
 	} else if !apexInfo.InApexByBaseName(requiredApex) {
 		// An apex variant for a specific apex is required but this is the wrong apex.
-		return -1, nil, nil
+		return -1, nil
 	}
 
-	return index, jar.DexJarBuildPath(), &apexInfo
+	return index, jar.DexJarBuildPath()
 }
 
 // Inspect this module to see if it contains a bootclasspath dex jar from a given boot image.
 func getBootImageJar(ctx android.SingletonContext, image *bootImageConfig, module android.Module) (int, android.Path) {
 	fromImage := fmt.Sprintf("configured in boot image %q ", image.name)
-	index, jarPath, apexInfo := getBootJar(ctx, image.modules, module, fromImage)
+	index, jarPath := getBootJar(ctx, image.modules, module, fromImage)
 	if index == -1 {
 		return -1, nil
-	}
-
-	name := ctx.ModuleName(module)
-
-	// Check that this module satisfies any boot image specific constraints.
-	fromUpdatableApex := apexInfo.Updatable
-
-	switch image.name {
-	case artBootImageName:
-		inArtApex := false
-		for _, n := range artApexNames {
-			if apexInfo.InApexByBaseName(n) {
-				inArtApex = true
-				break
-			}
-		}
-		if inArtApex {
-			// ok: found the jar in the ART apex
-		} else if name == "jacocoagent" && ctx.Config().IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK") {
-			// exception (skip and continue): Jacoco platform variant for a coverage build
-			return -1, nil
-		} else if fromUpdatableApex {
-			// error: this jar is part of an updatable apex other than ART
-			ctx.Errorf("module %q from updatable apexes %q is not allowed in the ART boot image", name, apexInfo.InApexes)
-		} else {
-			// error: this jar is part of the platform or a non-updatable apex
-			ctx.Errorf("module %q is not allowed in the ART boot image", name)
-		}
-
-	case frameworkBootImageName:
-		if !fromUpdatableApex {
-			// ok: this jar is part of the platform or a non-updatable apex
-		} else {
-			// error: this jar is part of an updatable apex
-			ctx.Errorf("module %q from updatable apexes %q is not allowed in the framework boot image", name, apexInfo.InApexes)
-		}
-	default:
-		panic("unknown boot image: " + image.name)
 	}
 
 	return index, jarPath
@@ -645,7 +606,7 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig, profil
 func copyUpdatableBootJars(ctx android.SingletonContext) {
 	config := GetUpdatableBootConfig(ctx)
 	getBootJarFunc := func(module android.Module) (int, android.Path) {
-		index, jar, _ := getBootJar(ctx, config.modules, module, "configured in updatable boot jars ")
+		index, jar := getBootJar(ctx, config.modules, module, "configured in updatable boot jars ")
 		return index, jar
 	}
 	findAndCopyBootJars(ctx, config.modules, config.dexPaths, getBootJarFunc)
