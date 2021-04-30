@@ -1673,13 +1673,144 @@ func decodeMultilibTargets(multilib string, targets []Target, prefer32 bool) ([]
 	return buildTargets, nil
 }
 
+func (m *ModuleBase) getArchPropertySet(propertySet interface{}, archType ArchType) interface{} {
+	archString := archType.Field
+	for i := range m.archProperties {
+		if m.archProperties[i] == nil {
+			// Skip over nil properties
+			continue
+		}
+
+		// Not archProperties are usable; this function looks for properties of a very specific
+		// form, and ignores the rest.
+		for _, archProperty := range m.archProperties[i] {
+			// archPropValue is a property struct, we are looking for the form:
+			// `arch: { arm: { key: value, ... }}`
+			archPropValue := reflect.ValueOf(archProperty).Elem()
+
+			// Unwrap src so that it should looks like a pointer to `arm: { key: value, ... }`
+			src := archPropValue.FieldByName("Arch").Elem()
+
+			// Step into non-nil pointers to structs in the src value.
+			if src.Kind() == reflect.Ptr {
+				if src.IsNil() {
+					continue
+				}
+				src = src.Elem()
+			}
+
+			// Find the requested field (e.g. arm, x86) in the src struct.
+			src = src.FieldByName(archString)
+
+			// We only care about structs.
+			if !src.IsValid() || src.Kind() != reflect.Struct {
+				continue
+			}
+
+			// If the value of the field is a struct then step into the
+			// BlueprintEmbed field. The special "BlueprintEmbed" name is
+			// used by createArchPropTypeDesc to embed the arch properties
+			// in the parent struct, so the src arch prop should be in this
+			// field.
+			//
+			// See createArchPropTypeDesc for more details on how Arch-specific
+			// module properties are processed from the nested props and written
+			// into the module's archProperties.
+			src = src.FieldByName("BlueprintEmbed")
+
+			// Clone the destination prop, since we want a unique prop struct per arch.
+			propertySetClone := reflect.New(reflect.ValueOf(propertySet).Elem().Type()).Interface()
+
+			// Copy the located property struct into the cloned destination property struct.
+			err := proptools.ExtendMatchingProperties([]interface{}{propertySetClone}, src.Interface(), nil, proptools.OrderReplace)
+			if err != nil {
+				// This is fine, it just means the src struct doesn't match the type of propertySet.
+				continue
+			}
+
+			return propertySetClone
+		}
+	}
+	// No property set was found specific to the given arch, so return an empty
+	// property set.
+	return reflect.New(reflect.ValueOf(propertySet).Elem().Type()).Interface()
+}
+
+// getMultilibPropertySet returns a property set struct matching the type of
+// `propertySet`, containing multilib-specific module properties for the given architecture.
+// If no multilib-specific properties exist for the given architecture, returns an empty property
+// set matching `propertySet`'s type.
+func (m *ModuleBase) getMultilibPropertySet(propertySet interface{}, archType ArchType) interface{} {
+	// archType.Multilib is lowercase (for example, lib32) but property struct field is
+	// capitalized, such as Lib32, so use strings.Title to capitalize it.
+	multiLibString := strings.Title(archType.Multilib)
+
+	for i := range m.archProperties {
+		if m.archProperties[i] == nil {
+			// Skip over nil properties
+			continue
+		}
+
+		// Not archProperties are usable; this function looks for properties of a very specific
+		// form, and ignores the rest.
+		for _, archProperties := range m.archProperties[i] {
+			// archPropValue is a property struct, we are looking for the form:
+			// `multilib: { lib32: { key: value, ... }}`
+			archPropValue := reflect.ValueOf(archProperties).Elem()
+
+			// Unwrap src so that it should looks like a pointer to `lib32: { key: value, ... }`
+			src := archPropValue.FieldByName("Multilib").Elem()
+
+			// Step into non-nil pointers to structs in the src value.
+			if src.Kind() == reflect.Ptr {
+				if src.IsNil() {
+					// Ignore nil pointers.
+					continue
+				}
+				src = src.Elem()
+			}
+
+			// Find the requested field (e.g. lib32) in the src struct.
+			src = src.FieldByName(multiLibString)
+
+			// We only care about valid struct pointers.
+			if !src.IsValid() || src.Kind() != reflect.Ptr || src.Elem().Kind() != reflect.Struct {
+				continue
+			}
+
+			// Get the zero value for the requested property set.
+			propertySetClone := reflect.New(reflect.ValueOf(propertySet).Elem().Type()).Interface()
+
+			// Copy the located property struct into the "zero" property set struct.
+			err := proptools.ExtendMatchingProperties([]interface{}{propertySetClone}, src.Interface(), nil, proptools.OrderReplace)
+
+			if err != nil {
+				// This is fine, it just means the src struct doesn't match.
+				continue
+			}
+
+			return propertySetClone
+		}
+	}
+
+	// There were no multilib properties specifically matching the given archtype.
+	// Return zeroed value.
+	return reflect.New(reflect.ValueOf(propertySet).Elem().Type()).Interface()
+}
+
 // GetArchProperties returns a map of architectures to the values of the
-// properties of the 'dst' struct that are specific to that architecture.
+// properties of the 'propertySet' struct that are specific to that architecture.
 //
 // For example, passing a struct { Foo bool, Bar string } will return an
 // interface{} that can be type asserted back into the same struct, containing
 // the arch specific property value specified by the module if defined.
-func (m *ModuleBase) GetArchProperties(dst interface{}) map[ArchType]interface{} {
+//
+// Arch-specific properties may come from an arch stanza or a multilib stanza; properties
+// in these stanzas are combined.
+// For example: `arch: { x86: { Foo: ["bar"] } }, multilib: { lib32: {` Foo: ["baz"] } }`
+// will result in `Foo: ["bar", "baz"]` being returned for architecture x86, if the given
+// propertyset contains `Foo []string`.
+func (m *ModuleBase) GetArchProperties(propertySet interface{}) map[ArchType]interface{} {
 	// Return value of the arch types to the prop values for that arch.
 	archToProp := map[ArchType]interface{}{}
 
@@ -1688,81 +1819,26 @@ func (m *ModuleBase) GetArchProperties(dst interface{}) map[ArchType]interface{}
 		return archToProp
 	}
 
-	// archProperties has the type of [][]interface{}. Looks complicated, so let's
-	// explain this step by step.
-	//
-	// Loop over the outer index, which determines the property struct that
-	// contains a matching set of properties in dst that we're interested in.
-	// For example, BaseCompilerProperties or BaseLinkerProperties.
-	for i := range m.archProperties {
-		if m.archProperties[i] == nil {
-			// Skip over nil arch props
-			continue
+	// For each arch (x86, arm64, etc.),
+	for _, arch := range ArchTypeList() {
+		// Find arch-specific properties matching that property set type. For example, any
+		// matching properties under `arch { x86 { ... } }`.
+		archPropertySet := m.getArchPropertySet(propertySet, arch)
+
+		// Find multilib-specific properties matching that property set type. For example, any
+		// matching properties under `multilib { lib32 { ... } }` for x86, as x86 is 32-bit.
+		multilibPropertySet := m.getMultilibPropertySet(propertySet, arch)
+
+		// Append the multilibPropertySet to archPropertySet. This combines the
+		// arch and multilib properties into a single property struct.
+		err := proptools.ExtendMatchingProperties([]interface{}{archPropertySet}, multilibPropertySet, nil, proptools.OrderAppend)
+		if err != nil {
+			// archPropertySet and multilibPropertySet must be of the same type, or
+			// something horrible went wrong.
+			panic(err)
 		}
 
-		// Non-nil arch prop, let's see if the props match up.
-		for _, arch := range ArchTypeList() {
-			// e.g X86, Arm
-			field := arch.Field
-
-			// If it's not nil, loop over the inner index, which determines the arch variant
-			// of the prop type. In an Android.bp file, this is like looping over:
-			//
-			// arch: { arm: { key: value, ... }, x86: { key: value, ... } }
-			for _, archProperties := range m.archProperties[i] {
-				archPropValues := reflect.ValueOf(archProperties).Elem()
-
-				// This is the archPropRoot struct. Traverse into the Arch nested struct.
-				src := archPropValues.FieldByName("Arch").Elem()
-
-				// Step into non-nil pointers to structs in the src value.
-				if src.Kind() == reflect.Ptr {
-					if src.IsNil() {
-						// Ignore nil pointers.
-						continue
-					}
-					src = src.Elem()
-				}
-
-				// Find the requested field (e.g. x86, x86_64) in the src struct.
-				src = src.FieldByName(field)
-				if !src.IsValid() {
-					continue
-				}
-
-				// We only care about structs. These are not the droids you are looking for.
-				if src.Kind() != reflect.Struct {
-					continue
-				}
-
-				// If the value of the field is a struct  then step into the
-				// BlueprintEmbed field. The special "BlueprintEmbed" name is
-				// used by createArchPropTypeDesc to embed the arch properties
-				// in the parent struct, so the src arch prop should be in this
-				// field.
-				//
-				// See createArchPropTypeDesc for more details on how Arch-specific
-				// module properties are processed from the nested props and written
-				// into the module's archProperties.
-				src = src.FieldByName("BlueprintEmbed")
-
-				// Clone the destination prop, since we want a unique prop struct per arch.
-				dstClone := reflect.New(reflect.ValueOf(dst).Elem().Type()).Interface()
-
-				// Copy the located property struct into the cloned destination property struct.
-				err := proptools.ExtendMatchingProperties([]interface{}{dstClone}, src.Interface(), nil, proptools.OrderReplace)
-				if err != nil {
-					// This is fine, it just means the src struct doesn't match.
-					continue
-				}
-
-				// Found the prop for the arch, you have.
-				archToProp[arch] = dstClone
-
-				// Go to the next prop.
-				break
-			}
-		}
+		archToProp[arch] = archPropertySet
 	}
 	return archToProp
 }
