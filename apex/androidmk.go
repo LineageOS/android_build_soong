@@ -79,10 +79,6 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
 	}
 
 	for _, fi := range a.filesInfo {
-		if ccMod, ok := fi.module.(*cc.Module); ok && ccMod.Properties.HideFromMake {
-			continue
-		}
-
 		linkToSystemLib := a.linkToSystemLib && fi.transitiveDep && fi.AvailableToPlatform()
 
 		var moduleName string
