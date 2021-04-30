@@ -246,15 +246,17 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 
 // Convenience struct to hold all attributes parsed from linker properties.
 type linkerAttributes struct {
-	deps     bazel.LabelListAttribute
-	linkopts bazel.StringListAttribute
+	deps          bazel.LabelListAttribute
+	linkopts      bazel.StringListAttribute
+	versionScript bazel.LabelAttribute
 }
 
-// bp2BuildParseLinkerProps creates a label list attribute containing the header library deps of a module, including
+// bp2BuildParseLinkerProps parses the linker properties of a module, including
 // configurable attribute values.
 func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module) linkerAttributes {
 	var deps bazel.LabelListAttribute
 	var linkopts bazel.StringListAttribute
+	var versionScript bazel.LabelAttribute
 
 	for _, linkerProps := range module.linker.linkerProps() {
 		if baseLinkerProps, ok := linkerProps.(*BaseLinkerProperties); ok {
@@ -265,6 +267,12 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 			libs = android.SortedUniqueStrings(libs)
 			deps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, libs))
 			linkopts.Value = baseLinkerProps.Ldflags
+
+			if baseLinkerProps.Version_script != nil {
+				versionScript = bazel.LabelAttribute{
+					Value: android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script),
+				}
+			}
 			break
 		}
 	}
@@ -294,8 +302,9 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 	}
 
 	return linkerAttributes{
-		deps:     deps,
-		linkopts: linkopts,
+		deps:          deps,
+		linkopts:      linkopts,
+		versionScript: versionScript,
 	}
 }
 
