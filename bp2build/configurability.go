@@ -30,6 +30,11 @@ func getStringListValues(list bazel.StringListAttribute) (reflect.Value, selects
 	return value, archSelects, osSelects
 }
 
+func getLabelValue(label bazel.LabelAttribute) (reflect.Value, selects, selects) {
+	value := reflect.ValueOf(label.Value)
+	return value, nil, nil
+}
+
 func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, selects, selects) {
 	value := reflect.ValueOf(list.Value.Includes)
 	if !list.HasConfigurableValues() {
@@ -54,12 +59,13 @@ func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, selects, 
 func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 	var value reflect.Value
 	var archSelects, osSelects selects
-
 	switch list := v.(type) {
 	case bazel.StringListAttribute:
 		value, archSelects, osSelects = getStringListValues(list)
 	case bazel.LabelListAttribute:
 		value, archSelects, osSelects = getLabelListValues(list)
+	case bazel.LabelAttribute:
+		value, archSelects, osSelects = getLabelValue(list)
 	default:
 		return "", fmt.Errorf("Not a supported Bazel attribute type: %s", v)
 	}
