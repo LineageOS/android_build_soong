@@ -26,14 +26,19 @@ func init() {
 }
 
 func registerPlatformBootclasspathBuildComponents(ctx android.RegistrationContext) {
-	ctx.RegisterModuleType("platform_bootclasspath", platformBootclasspathFactory)
+	ctx.RegisterSingletonModuleType("platform_bootclasspath", platformBootclasspathFactory)
 }
 
-// The tag used for the dependency between the platform bootclasspath and any configured boot jars.
-var platformBootclasspathModuleDepTag = bootclasspathDependencyTag{name: "module"}
+// The tags used for the dependencies between the platform bootclasspath and any configured boot
+// jars.
+var (
+	platformBootclasspathArtBootJarDepTag          = bootclasspathDependencyTag{name: "art-boot-jar"}
+	platformBootclasspathNonUpdatableBootJarDepTag = bootclasspathDependencyTag{name: "non-updatable-boot-jar"}
+	platformBootclasspathUpdatableBootJarDepTag    = bootclasspathDependencyTag{name: "updatable-boot-jar"}
+)
 
 type platformBootclasspathModule struct {
-	android.ModuleBase
+	android.SingletonModuleBase
 	ClasspathFragmentBase
 
 	properties platformBootclasspathProperties
@@ -64,7 +69,7 @@ type platformBootclasspathProperties struct {
 	Hidden_api HiddenAPIFlagFileProperties
 }
 
-func platformBootclasspathFactory() android.Module {
+func platformBootclasspathFactory() android.SingletonModule {
 	m := &platformBootclasspathModule{}
 	m.AddProperties(&m.properties)
 	// TODO(satayev): split systemserver and apex jars into separate configs.
@@ -125,41 +130,59 @@ func (b *platformBootclasspathModule) hiddenAPIDepsMutator(ctx android.BottomUpM
 func (b *platformBootclasspathModule) BootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add dependencies on all the modules configured in the "art" boot image.
 	artImageConfig := genBootImageConfigs(ctx)[artBootImageName]
-	addDependenciesOntoBootImageModules(ctx, artImageConfig.modules)
+	addDependenciesOntoBootImageModules(ctx, artImageConfig.modules, platformBootclasspathArtBootJarDepTag)
 
-	// Add dependencies on all the modules configured in the "boot" boot image. That does not
-	// include modules configured in the "art" boot image.
+	// Add dependencies on all the non-updatable module configured in the "boot" boot image. That does
+	// not include modules configured in the "art" boot image.
 	bootImageConfig := b.getImageConfig(ctx)
-	addDependenciesOntoBootImageModules(ctx, bootImageConfig.modules)
+	addDependenciesOntoBootImageModules(ctx, bootImageConfig.modules, platformBootclasspathNonUpdatableBootJarDepTag)
 
 	// Add dependencies on all the updatable modules.
 	updatableModules := dexpreopt.GetGlobalConfig(ctx).UpdatableBootJars
-	addDependenciesOntoBootImageModules(ctx, updatableModules)
+	addDependenciesOntoBootImageModules(ctx, updatableModules, platformBootclasspathUpdatableBootJarDepTag)
 
 	// Add dependencies on all the fragments.
 	b.properties.BootclasspathFragmentsDepsProperties.addDependenciesOntoFragments(ctx)
 }
 
-func addDependenciesOntoBootImageModules(ctx android.BottomUpMutatorContext, modules android.ConfiguredJarList) {
+func addDependenciesOntoBootImageModules(ctx android.BottomUpMutatorContext, modules android.ConfiguredJarList, tag bootclasspathDependencyTag) {
 	for i := 0; i < modules.Len(); i++ {
 		apex := modules.Apex(i)
 		name := modules.Jar(i)
 
-		addDependencyOntoApexModulePair(ctx, apex, name, platformBootclasspathModuleDepTag)
+		addDependencyOntoApexModulePair(ctx, apex, name, tag)
 	}
+}
+
+// GenerateSingletonBuildActions does nothing and must never do anything.
+//
+// This module only implements android.SingletonModule so that it can implement
+// android.SingletonMakeVarsProvider.
+func (b *platformBootclasspathModule) GenerateSingletonBuildActions(android.SingletonContext) {
+	// Keep empty
+}
+
+func (d *platformBootclasspathModule) MakeVars(ctx android.MakeVarsContext) {
+	d.generateHiddenApiMakeVars(ctx)
 }
 
 func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	b.classpathFragmentBase().generateAndroidBuildActions(ctx)
 
-	ctx.VisitDirectDepsIf(isActiveModule, func(module android.Module) {
-		tag := ctx.OtherModuleDependencyTag(module)
-		if tag == platformBootclasspathModuleDepTag {
-			b.configuredModules = append(b.configuredModules, module)
-		} else if tag == bootclasspathFragmentDepTag {
-			b.fragments = append(b.fragments, module)
-		}
-	})
+	// Gather all the dependencies from the art, updatable and non-updatable boot jars.
+	artModules := gatherApexModulePairDepsWithTag(ctx, platformBootclasspathArtBootJarDepTag)
+	nonUpdatableModules := gatherApexModulePairDepsWithTag(ctx, platformBootclasspathNonUpdatableBootJarDepTag)
+	updatableModules := gatherApexModulePairDepsWithTag(ctx, platformBootclasspathUpdatableBootJarDepTag)
+
+	// Concatenate them all, in order as they would appear on the bootclasspath.
+	var allModules []android.Module
+	allModules = append(allModules, artModules...)
+	allModules = append(allModules, nonUpdatableModules...)
+	allModules = append(allModules, updatableModules...)
+	b.configuredModules = allModules
+
+	// Gather all the fragments dependencies.
+	b.fragments = gatherApexModulePairDepsWithTag(ctx, bootclasspathFragmentDepTag)
 
 	b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
 
@@ -168,7 +191,7 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 		return
 	}
 
-	b.generateBootImageBuildActions(ctx)
+	b.generateBootImageBuildActions(ctx, updatableModules)
 }
 
 func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
@@ -186,7 +209,17 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	// Don't run any hiddenapi rules if UNSAFE_DISABLE_HIDDENAPI_FLAGS=true. This is a performance
 	// optimization that can be used to reduce the incremental build time but as its name suggests it
 	// can be unsafe to use, e.g. when the changes affect anything that goes on the bootclasspath.
-	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+	// Instead create some rules to create fake hidden api files.
+	config := ctx.Config()
+	fakeHiddenApiRules := config.IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS")
+
+	// Don't run them in an unbundled build either because the chances are that the modules needed
+	// are not available.
+	fakeHiddenApiRules = fakeHiddenApiRules || config.UnbundledBuild()
+
+	// Don't run them when always using prebuilts as they won't necessarily have the dex boot jars
+	// available.
+	if fakeHiddenApiRules {
 		paths := android.OutputPaths{b.hiddenAPIFlagsCSV, b.hiddenAPIIndexCSV, b.hiddenAPIMetadataCSV}
 		for _, path := range paths {
 			ctx.Build(pctx, android.BuildParams{
@@ -296,8 +329,18 @@ func (b *platformBootclasspathModule) generatedHiddenAPIMetadataRules(ctx androi
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-metadata", "monolithic hidden API metadata")
 }
 
+// generateHiddenApiMakeVars generates make variables needed by hidden API related make rules, e.g.
+// veridex and run-appcompat.
+func (b *platformBootclasspathModule) generateHiddenApiMakeVars(ctx android.MakeVarsContext) {
+	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
+		return
+	}
+	// INTERNAL_PLATFORM_HIDDENAPI_FLAGS is used by Make rules in art/ and cts/.
+	ctx.Strict("INTERNAL_PLATFORM_HIDDENAPI_FLAGS", b.hiddenAPIFlagsCSV.String())
+}
+
 // generateBootImageBuildActions generates ninja rules related to the boot image creation.
-func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.ModuleContext) {
+func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.ModuleContext, updatableModules []android.Module) {
 	// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
 	// GenerateSingletonBuildActions method as it cannot create it for itself.
 	dexpreopt.GetGlobalSoongConfig(ctx)
@@ -314,4 +357,9 @@ func (b *platformBootclasspathModule) generateBootImageBuildActions(ctx android.
 
 	// Generate the framework profile rule
 	bootFrameworkProfileRule(ctx, imageConfig)
+
+	// Generate the updatable bootclasspath packages rule.
+	generateUpdatableBcpPackagesRule(ctx, imageConfig, updatableModules)
+
+	dumpOatRules(ctx, imageConfig)
 }

@@ -117,12 +117,12 @@ type LibraryProperties struct {
 	// Inject boringssl hash into the shared library.  This is only intended for use by external/boringssl.
 	Inject_bssl_hash *bool `android:"arch_variant"`
 
-	// If this is an LLNDK library, the name of the equivalent llndk_library module.
-	Llndk_stubs *string
-
 	// If this is an LLNDK library, properties to describe the LLNDK stubs.  Will be copied from
 	// the module pointed to by llndk_stubs if it is set.
 	Llndk llndkLibraryProperties
+
+	// If this is a vendor public library, properties to describe the vendor public library stubs.
+	Vendor_public_library vendorPublicLibraryProperties
 }
 
 // StaticProperties is a properties stanza to affect only attributes of the "static" variants of a
@@ -220,13 +220,14 @@ func RegisterLibraryBuildComponents(ctx android.RegistrationContext) {
 
 // For bp2build conversion.
 type bazelCcLibraryAttributes struct {
-	Srcs            bazel.LabelListAttribute
-	Hdrs            bazel.LabelListAttribute
-	Copts           bazel.StringListAttribute
-	Linkopts        bazel.StringListAttribute
-	Deps            bazel.LabelListAttribute
-	User_link_flags bazel.StringListAttribute
-	Includes        bazel.StringListAttribute
+	Srcs                   bazel.LabelListAttribute
+	Hdrs                   bazel.LabelListAttribute
+	Copts                  bazel.StringListAttribute
+	Linkopts               bazel.StringListAttribute
+	Deps                   bazel.LabelListAttribute
+	User_link_flags        bazel.StringListAttribute
+	Includes               bazel.StringListAttribute
+	Static_deps_for_shared bazel.LabelListAttribute
 }
 
 type bazelCcLibrary struct {
@@ -257,16 +258,23 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
+	sharedAttrs := bp2BuildParseSharedProps(ctx, m)
+	staticAttrs := bp2BuildParseStaticProps(ctx, m)
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
 	linkerAttrs := bp2BuildParseLinkerProps(ctx, m)
 	exportedIncludes := bp2BuildParseExportedIncludes(ctx, m)
 
+	var srcs bazel.LabelListAttribute
+	srcs.Append(compilerAttrs.srcs)
+	srcs.Append(staticAttrs.srcs)
+
 	attrs := &bazelCcLibraryAttributes{
-		Srcs:     compilerAttrs.srcs,
-		Copts:    compilerAttrs.copts,
-		Linkopts: linkerAttrs.linkopts,
-		Deps:     linkerAttrs.deps,
-		Includes: exportedIncludes,
+		Srcs:                   srcs,
+		Copts:                  compilerAttrs.copts,
+		Linkopts:               linkerAttrs.linkopts,
+		Deps:                   linkerAttrs.deps,
+		Static_deps_for_shared: sharedAttrs.staticDeps,
+		Includes:               exportedIncludes,
 	}
 
 	props := bazel.BazelTargetModuleProperties{
@@ -781,6 +789,13 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		}
 		return objs
 	}
+	if ctx.IsVendorPublicLibrary() {
+		objs, versionScript := compileStubLibrary(ctx, flags, String(library.Properties.Vendor_public_library.Symbol_file), "current", "")
+		if !Bool(library.Properties.Vendor_public_library.Unversioned) {
+			library.versionScriptPath = android.OptionalPathForPath(versionScript)
+		}
+		return objs
+	}
 	if library.buildStubs() {
 		symbolFile := String(library.Properties.Stubs.Symbol_file)
 		if symbolFile != "" && !strings.HasSuffix(symbolFile, ".map.txt") {
@@ -878,6 +893,7 @@ type versionedInterface interface {
 	implementationModuleName(name string) string
 	hasLLNDKStubs() bool
 	hasLLNDKHeaders() bool
+	hasVendorPublicLibrary() bool
 }
 
 var _ libraryInterface = (*libraryDecorator)(nil)
@@ -971,6 +987,12 @@ func (library *libraryDecorator) linkerDeps(ctx DepsContext, deps Deps) Deps {
 		// LLNDK-specific properties instead.
 		deps.HeaderLibs = append([]string(nil), library.Properties.Llndk.Export_llndk_headers...)
 		deps.ReexportHeaderLibHeaders = append([]string(nil), library.Properties.Llndk.Export_llndk_headers...)
+		return deps
+	}
+	if ctx.IsVendorPublicLibrary() {
+		headers := library.Properties.Vendor_public_library.Export_public_headers
+		deps.HeaderLibs = append([]string(nil), headers...)
+		deps.ReexportHeaderLibHeaders = append([]string(nil), headers...)
 		return deps
 	}
 
@@ -1429,6 +1451,14 @@ func (library *libraryDecorator) link(ctx ModuleContext,
 		}
 	}
 
+	if ctx.IsVendorPublicLibrary() {
+		// override the module's export_include_dirs with vendor_public_library.override_export_include_dirs
+		// if it is set.
+		if override := library.Properties.Vendor_public_library.Override_export_include_dirs; override != nil {
+			library.flagExporter.Properties.Export_include_dirs = override
+		}
+	}
+
 	// Linking this library consists of linking `deps.Objs` (.o files in dependencies
 	// of this library), together with `objs` (.o files created by compiling this
 	// library).
@@ -1682,20 +1712,18 @@ func (library *libraryDecorator) HeaderOnly() {
 
 // hasLLNDKStubs returns true if this cc_library module has a variant that will build LLNDK stubs.
 func (library *libraryDecorator) hasLLNDKStubs() bool {
-	return library.hasVestigialLLNDKLibrary() || String(library.Properties.Llndk.Symbol_file) != ""
+	return String(library.Properties.Llndk.Symbol_file) != ""
 }
 
-// hasVestigialLLNDKLibrary returns true if this cc_library module has a corresponding llndk_library
-// module containing properties describing the LLNDK variant.
-// TODO(b/170784825): remove this once there are no more llndk_library modules.
-func (library *libraryDecorator) hasVestigialLLNDKLibrary() bool {
-	return String(library.Properties.Llndk_stubs) != ""
-}
-
-// hasLLNDKHeaders returns true if this cc_library module has a variant that provides headers
-// to a module that sets llndk.symbol_file.
+// hasLLNDKStubs returns true if this cc_library module has a variant that will build LLNDK stubs.
 func (library *libraryDecorator) hasLLNDKHeaders() bool {
 	return Bool(library.Properties.Llndk.Llndk_headers)
+}
+
+// hasVendorPublicLibrary returns true if this cc_library module has a variant that will build
+// vendor public library stubs.
+func (library *libraryDecorator) hasVendorPublicLibrary() bool {
+	return String(library.Properties.Vendor_public_library.Symbol_file) != ""
 }
 
 func (library *libraryDecorator) implementationModuleName(name string) string {
@@ -1934,9 +1962,7 @@ func LinkageMutator(mctx android.BottomUpMutatorContext) {
 
 		isLLNDK := false
 		if m, ok := mctx.Module().(*Module); ok {
-			// Don't count the vestigial llndk_library module as isLLNDK, it needs a static
-			// variant so that a cc_library_prebuilt can depend on it.
-			isLLNDK = m.IsLlndk() && !isVestigialLLNDKModule(m)
+			isLLNDK = m.IsLlndk()
 		}
 		buildStatic := library.BuildStaticVariant() && !isLLNDK
 		buildShared := library.BuildSharedVariant()
@@ -1999,11 +2025,12 @@ func createVersionVariations(mctx android.BottomUpMutatorContext, versions []str
 
 	m := mctx.Module().(*Module)
 	isLLNDK := m.IsLlndk()
+	isVendorPublicLibrary := m.IsVendorPublicLibrary()
 
 	modules := mctx.CreateLocalVariations(variants...)
 	for i, m := range modules {
 
-		if variants[i] != "" || isLLNDK {
+		if variants[i] != "" || isLLNDK || isVendorPublicLibrary {
 			// A stubs or LLNDK stubs variant.
 			c := m.(*Module)
 			c.sanitize = nil

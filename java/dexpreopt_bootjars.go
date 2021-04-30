@@ -431,9 +431,6 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 	defaultImageConfig := defaultBootImageConfig(ctx)
 	profile := bootImageProfileRule(ctx, defaultImageConfig)
 
-	// Generate the updatable bootclasspath packages rule.
-	updatableBcpPackagesRule(ctx, defaultImageConfig)
-
 	// Create the default boot image.
 	d.defaultBootImage = buildBootImage(ctx, defaultImageConfig, profile)
 
@@ -441,8 +438,6 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 	d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx), profile))
 
 	copyUpdatableBootJars(ctx)
-
-	dumpOatRules(ctx, d.defaultBootImage)
 }
 
 // shouldBuildBootImages determines whether boot images should be built.
@@ -887,32 +882,9 @@ func bootFrameworkProfileRule(ctx android.ModuleContext, image *bootImageConfig)
 	return profile
 }
 
-func updatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConfig) android.WritablePath {
-	if ctx.Config().UnbundledBuild() {
-		return nil
-	}
-
-	global := dexpreopt.GetGlobalConfig(ctx)
-	var modules []android.Module
-	updatableModules := global.UpdatableBootJars.CopyOfJars()
-	ctx.VisitAllModules(func(module android.Module) {
-		if !isActiveModule(module) {
-			return
-		}
-		name := ctx.ModuleName(module)
-		if i := android.IndexList(name, updatableModules); i != -1 {
-			modules = append(modules, module)
-			// Do not match the same library repeatedly.
-			updatableModules = append(updatableModules[:i], updatableModules[i+1:]...)
-		}
-	})
-
-	return generateUpdatableBcpPackagesRule(ctx, image, modules)
-}
-
 // generateUpdatableBcpPackagesRule generates the rule to create the updatable-bcp-packages.txt file
 // and returns a path to the generated file.
-func generateUpdatableBcpPackagesRule(ctx android.SingletonContext, image *bootImageConfig, updatableModules []android.Module) android.WritablePath {
+func generateUpdatableBcpPackagesRule(ctx android.ModuleContext, image *bootImageConfig, updatableModules []android.Module) android.WritablePath {
 	// Collect `permitted_packages` for updatable boot jars.
 	var updatablePackages []string
 	for _, module := range updatableModules {
@@ -921,7 +893,7 @@ func generateUpdatableBcpPackagesRule(ctx android.SingletonContext, image *bootI
 			if len(pp) > 0 {
 				updatablePackages = append(updatablePackages, pp...)
 			} else {
-				ctx.Errorf("Missing permitted_packages for %s", ctx.ModuleName(module))
+				ctx.ModuleErrorf("Missing permitted_packages")
 			}
 		}
 	}
@@ -944,7 +916,7 @@ func generateUpdatableBcpPackagesRule(ctx android.SingletonContext, image *bootI
 	return updatableBcpPackages
 }
 
-func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
+func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 	var allPhonies android.Paths
 	for _, image := range image.variants {
 		arch := image.target.Arch.ArchType
@@ -985,7 +957,6 @@ func dumpOatRules(ctx android.SingletonContext, image *bootImageConfig) {
 		Inputs:      allPhonies,
 		Description: "dump-oat-boot",
 	})
-
 }
 
 func writeGlobalConfigForMake(ctx android.SingletonContext, path android.WritablePath) {
