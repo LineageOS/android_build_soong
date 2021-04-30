@@ -277,6 +277,31 @@ cc_library_static { name: "b" }
     static_deps_for_shared = [":b"],
 )`},
 		},
+		{
+			description:                        "cc_library non-configured version script",
+			moduleTypeUnderTest:                "cc_library",
+			moduleTypeUnderTestFactory:         cc.LibraryFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			dir:                                "foo/bar",
+			filesystem: map[string]string{
+				"foo/bar/Android.bp": `
+cc_library {
+    name: "a",
+    srcs: ["a.cpp"],
+    version_script: "v.map",
+    bazel_module: { bp2build_available: true },
+}
+`,
+			},
+			bp: soongCcLibraryPreamble,
+			expectedBazelTargets: []string{`cc_library(
+    name = "a",
+    copts = ["-Ifoo/bar"],
+    srcs = ["a.cpp"],
+    version_script = "v.map",
+)`},
+		},
 	}
 
 	dir := "."
