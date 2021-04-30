@@ -198,6 +198,17 @@ func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleCont
 	return defaultBootImageConfig(ctx)
 }
 
+// hiddenAPISupportingModule encapsulates the information provided by any module that contributes to
+// the hidden API processing.
+type hiddenAPISupportingModule struct {
+	module android.Module
+
+	bootDexJar  android.Path
+	flagsCSV    android.Path
+	indexCSV    android.Path
+	metadataCSV android.Path
+}
+
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
 func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, modules []android.Module, fragments []android.Module) {
 
@@ -220,27 +231,55 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 		return
 	}
 
+	// nilPathHandler will check the supplied path and if it is nil then it will either immediately
+	// report an error, or it will defer the error reporting until it is actually used, depending
+	// whether missing dependencies are allowed.
+	var nilPathHandler func(path android.Path, name string, module android.Module) android.Path
+	if ctx.Config().AllowMissingDependencies() {
+		nilPathHandler = func(path android.Path, name string, module android.Module) android.Path {
+			if path == nil {
+				outputPath := android.PathForModuleOut(ctx, "missing", module.Name(), name)
+				path = outputPath
+
+				// Create an error rule that pretends to create the output file but will actually fail if it
+				// is run.
+				ctx.Build(pctx, android.BuildParams{
+					Rule:   android.ErrorRule,
+					Output: outputPath,
+					Args: map[string]string{
+						"error": fmt.Sprintf("missing hidden API file: %s for %s", name, module),
+					},
+				})
+			}
+			return path
+		}
+	} else {
+		nilPathHandler = func(path android.Path, name string, module android.Module) android.Path {
+			if path == nil {
+				ctx.ModuleErrorf("module %s does not provide a %s file", module, name)
+			}
+			return path
+		}
+	}
+
 	hiddenAPISupportingModules := []hiddenAPISupportingModule{}
 	for _, module := range modules {
-		if h, ok := module.(hiddenAPISupportingModule); ok {
-			if h.bootDexJar() == nil {
-				ctx.ModuleErrorf("module %s does not provide a bootDexJar file", module)
-			}
-			if h.flagsCSV() == nil {
-				ctx.ModuleErrorf("module %s does not provide a flagsCSV file", module)
-			}
-			if h.indexCSV() == nil {
-				ctx.ModuleErrorf("module %s does not provide an indexCSV file", module)
-			}
-			if h.metadataCSV() == nil {
-				ctx.ModuleErrorf("module %s does not provide a metadataCSV file", module)
+		if h, ok := module.(hiddenAPIIntf); ok {
+			hiddenAPISupportingModule := hiddenAPISupportingModule{
+				module:      module,
+				bootDexJar:  nilPathHandler(h.bootDexJar(), "bootDexJar", module),
+				flagsCSV:    nilPathHandler(h.flagsCSV(), "flagsCSV", module),
+				indexCSV:    nilPathHandler(h.indexCSV(), "indexCSV", module),
+				metadataCSV: nilPathHandler(h.metadataCSV(), "metadataCSV", module),
 			}
 
+			// If any errors were reported when trying to populate the hiddenAPISupportingModule struct
+			// then don't add it to the list.
 			if ctx.Failed() {
 				continue
 			}
 
-			hiddenAPISupportingModules = append(hiddenAPISupportingModules, h)
+			hiddenAPISupportingModules = append(hiddenAPISupportingModules, hiddenAPISupportingModule)
 		} else {
 			ctx.ModuleErrorf("module %s of type %s does not support hidden API processing", module, ctx.OtherModuleType(module))
 		}
@@ -248,7 +287,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 
 	moduleSpecificFlagsPaths := android.Paths{}
 	for _, module := range hiddenAPISupportingModules {
-		moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, module.flagsCSV())
+		moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, module.flagsCSV)
 	}
 
 	flagFileInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
@@ -274,7 +313,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 func (b *platformBootclasspathModule) generateHiddenAPIStubFlagsRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
 	bootDexJars := android.Paths{}
 	for _, module := range modules {
-		bootDexJars = append(bootDexJars, module.bootDexJar())
+		bootDexJars = append(bootDexJars, module.bootDexJar)
 	}
 
 	sdkKindToStubPaths := hiddenAPIGatherStubLibDexJarPaths(ctx)
@@ -287,7 +326,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIStubFlagsRules(ctx androi
 func (b *platformBootclasspathModule) generateHiddenAPIIndexRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
 	indexes := android.Paths{}
 	for _, module := range modules {
-		indexes = append(indexes, module.indexCSV())
+		indexes = append(indexes, module.indexCSV)
 	}
 
 	rule := android.NewRuleBuilder(pctx, ctx)
@@ -303,7 +342,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIIndexRules(ctx android.Mo
 func (b *platformBootclasspathModule) generatedHiddenAPIMetadataRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
 	metadataCSVFiles := android.Paths{}
 	for _, module := range modules {
-		metadataCSVFiles = append(metadataCSVFiles, module.metadataCSV())
+		metadataCSVFiles = append(metadataCSVFiles, module.metadataCSV)
 	}
 
 	rule := android.NewRuleBuilder(pctx, ctx)
