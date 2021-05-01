@@ -68,6 +68,7 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 			bootclasspath_fragment {
 				name: "mybootclasspathfragment",
 				image_name: "art",
+				contents: ["mybootlib"],
 				apex_available: ["com.android.art"],
 			}
 
