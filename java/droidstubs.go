@@ -283,6 +283,8 @@ func (d *Droidstubs) annotationsFlags(ctx android.ModuleContext, cmd *android.Ru
 	if Bool(d.properties.Annotations_enabled) {
 		cmd.Flag("--include-annotations")
 
+		cmd.FlagWithArg("--exclude-annotation ", "androidx.annotation.RequiresApi")
+
 		validatingNullability :=
 			strings.Contains(String(d.Javadoc.properties.Args), "--validate-nullability-from-merged-stubs") ||
 				String(d.properties.Validate_nullability_from_list) != ""

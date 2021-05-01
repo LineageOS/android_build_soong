@@ -184,6 +184,11 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	// Gather all the fragments dependencies.
 	b.fragments = gatherApexModulePairDepsWithTag(ctx, bootclasspathFragmentDepTag)
 
+	// Check the configuration of the boot modules.
+	// ART modules are checked by the art-bootclasspath-fragment.
+	b.checkNonUpdatableModules(ctx, nonUpdatableModules)
+	b.checkUpdatableModules(ctx, updatableModules)
+
 	b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
 
 	// Nothing to do if skipping the dexpreopt of boot image jars.
@@ -194,8 +199,55 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	b.generateBootImageBuildActions(ctx, updatableModules)
 }
 
+// checkNonUpdatableModules ensures that the non-updatable modules supplied are not part of an
+// updatable module.
+func (b *platformBootclasspathModule) checkNonUpdatableModules(ctx android.ModuleContext, modules []android.Module) {
+	for _, m := range modules {
+		apexInfo := ctx.OtherModuleProvider(m, android.ApexInfoProvider).(android.ApexInfo)
+		fromUpdatableApex := apexInfo.Updatable
+		if fromUpdatableApex {
+			// error: this jar is part of an updatable apex
+			ctx.ModuleErrorf("module %q from updatable apexes %q is not allowed in the framework boot image", ctx.OtherModuleName(m), apexInfo.InApexes)
+		} else {
+			// ok: this jar is part of the platform or a non-updatable apex
+		}
+	}
+}
+
+// checkUpdatableModules ensures that the updatable modules supplied are not from the platform.
+func (b *platformBootclasspathModule) checkUpdatableModules(ctx android.ModuleContext, modules []android.Module) {
+	for _, m := range modules {
+		apexInfo := ctx.OtherModuleProvider(m, android.ApexInfoProvider).(android.ApexInfo)
+		fromUpdatableApex := apexInfo.Updatable
+		if fromUpdatableApex {
+			// ok: this jar is part of an updatable apex
+		} else {
+			name := ctx.OtherModuleName(m)
+			if apexInfo.IsForPlatform() {
+				// error: this jar is part of the platform
+				ctx.ModuleErrorf("module %q from platform is not allowed in the updatable boot jars list", name)
+			} else {
+				// TODO(b/177892522): Treat this as an error.
+				// Cannot do that at the moment because framework-wifi and framework-tethering are in the
+				// PRODUCT_UPDATABLE_BOOT_JARS but not marked as updatable in AOSP.
+			}
+		}
+	}
+}
+
 func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleContext) *bootImageConfig {
 	return defaultBootImageConfig(ctx)
+}
+
+// hiddenAPISupportingModule encapsulates the information provided by any module that contributes to
+// the hidden API processing.
+type hiddenAPISupportingModule struct {
+	module android.Module
+
+	bootDexJar  android.Path
+	flagsCSV    android.Path
+	indexCSV    android.Path
+	metadataCSV android.Path
 }
 
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
@@ -209,17 +261,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	// Don't run any hiddenapi rules if UNSAFE_DISABLE_HIDDENAPI_FLAGS=true. This is a performance
 	// optimization that can be used to reduce the incremental build time but as its name suggests it
 	// can be unsafe to use, e.g. when the changes affect anything that goes on the bootclasspath.
-	// Instead create some rules to create fake hidden api files.
-	config := ctx.Config()
-	fakeHiddenApiRules := config.IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS")
-
-	// Don't run them in an unbundled build either because the chances are that the modules needed
-	// are not available.
-	fakeHiddenApiRules = fakeHiddenApiRules || config.UnbundledBuild()
-
-	// Don't run them when always using prebuilts as they won't necessarily have the dex boot jars
-	// available.
-	if fakeHiddenApiRules {
+	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
 		paths := android.OutputPaths{b.hiddenAPIFlagsCSV, b.hiddenAPIIndexCSV, b.hiddenAPIMetadataCSV}
 		for _, path := range paths {
 			ctx.Build(pctx, android.BuildParams{
@@ -230,27 +272,55 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 		return
 	}
 
+	// nilPathHandler will check the supplied path and if it is nil then it will either immediately
+	// report an error, or it will defer the error reporting until it is actually used, depending
+	// whether missing dependencies are allowed.
+	var nilPathHandler func(path android.Path, name string, module android.Module) android.Path
+	if ctx.Config().AllowMissingDependencies() {
+		nilPathHandler = func(path android.Path, name string, module android.Module) android.Path {
+			if path == nil {
+				outputPath := android.PathForModuleOut(ctx, "missing", module.Name(), name)
+				path = outputPath
+
+				// Create an error rule that pretends to create the output file but will actually fail if it
+				// is run.
+				ctx.Build(pctx, android.BuildParams{
+					Rule:   android.ErrorRule,
+					Output: outputPath,
+					Args: map[string]string{
+						"error": fmt.Sprintf("missing hidden API file: %s for %s", name, module),
+					},
+				})
+			}
+			return path
+		}
+	} else {
+		nilPathHandler = func(path android.Path, name string, module android.Module) android.Path {
+			if path == nil {
+				ctx.ModuleErrorf("module %s does not provide a %s file", module, name)
+			}
+			return path
+		}
+	}
+
 	hiddenAPISupportingModules := []hiddenAPISupportingModule{}
 	for _, module := range modules {
-		if h, ok := module.(hiddenAPISupportingModule); ok {
-			if h.bootDexJar() == nil {
-				ctx.ModuleErrorf("module %s does not provide a bootDexJar file", module)
-			}
-			if h.flagsCSV() == nil {
-				ctx.ModuleErrorf("module %s does not provide a flagsCSV file", module)
-			}
-			if h.indexCSV() == nil {
-				ctx.ModuleErrorf("module %s does not provide an indexCSV file", module)
-			}
-			if h.metadataCSV() == nil {
-				ctx.ModuleErrorf("module %s does not provide a metadataCSV file", module)
+		if h, ok := module.(hiddenAPIIntf); ok {
+			hiddenAPISupportingModule := hiddenAPISupportingModule{
+				module:      module,
+				bootDexJar:  nilPathHandler(h.bootDexJar(), "bootDexJar", module),
+				flagsCSV:    nilPathHandler(h.flagsCSV(), "flagsCSV", module),
+				indexCSV:    nilPathHandler(h.indexCSV(), "indexCSV", module),
+				metadataCSV: nilPathHandler(h.metadataCSV(), "metadataCSV", module),
 			}
 
+			// If any errors were reported when trying to populate the hiddenAPISupportingModule struct
+			// then don't add it to the list.
 			if ctx.Failed() {
 				continue
 			}
 
-			hiddenAPISupportingModules = append(hiddenAPISupportingModules, h)
+			hiddenAPISupportingModules = append(hiddenAPISupportingModules, hiddenAPISupportingModule)
 		} else {
 			ctx.ModuleErrorf("module %s of type %s does not support hidden API processing", module, ctx.OtherModuleType(module))
 		}
@@ -258,7 +328,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 
 	moduleSpecificFlagsPaths := android.Paths{}
 	for _, module := range hiddenAPISupportingModules {
-		moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, module.flagsCSV())
+		moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, module.flagsCSV)
 	}
 
 	flagFileInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
@@ -284,7 +354,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 func (b *platformBootclasspathModule) generateHiddenAPIStubFlagsRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
 	bootDexJars := android.Paths{}
 	for _, module := range modules {
-		bootDexJars = append(bootDexJars, module.bootDexJar())
+		bootDexJars = append(bootDexJars, module.bootDexJar)
 	}
 
 	sdkKindToStubPaths := hiddenAPIGatherStubLibDexJarPaths(ctx)
@@ -297,7 +367,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIStubFlagsRules(ctx androi
 func (b *platformBootclasspathModule) generateHiddenAPIIndexRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
 	indexes := android.Paths{}
 	for _, module := range modules {
-		indexes = append(indexes, module.indexCSV())
+		indexes = append(indexes, module.indexCSV)
 	}
 
 	rule := android.NewRuleBuilder(pctx, ctx)
@@ -313,7 +383,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIIndexRules(ctx android.Mo
 func (b *platformBootclasspathModule) generatedHiddenAPIMetadataRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
 	metadataCSVFiles := android.Paths{}
 	for _, module := range modules {
-		metadataCSVFiles = append(metadataCSVFiles, module.metadataCSV())
+		metadataCSVFiles = append(metadataCSVFiles, module.metadataCSV)
 	}
 
 	rule := android.NewRuleBuilder(pctx, ctx)

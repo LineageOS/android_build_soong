@@ -746,6 +746,172 @@ cc_library_static {
     linkstatic = True,
 )`},
 		},
+		{
+			description:                        "cc_library_static 1 multilib srcs and exclude_srcs",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			filesystem: map[string]string{
+				"common.c":        "",
+				"for-lib32.c":     "",
+				"not-for-lib32.c": "",
+			},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static",
+    srcs: ["common.c", "not-for-*.c"],
+    multilib: {
+        lib32: { srcs: ["for-lib32.c"], exclude_srcs: ["not-for-lib32.c"] },
+    },
+} `,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static",
+    copts = ["-I."],
+    linkstatic = True,
+    srcs = ["common.c"] + select({
+        "//build/bazel/platforms/arch:arm": ["for-lib32.c"],
+        "//build/bazel/platforms/arch:x86": ["for-lib32.c"],
+        "//conditions:default": ["not-for-lib32.c"],
+    }),
+)`},
+		},
+		{
+			description:                        "cc_library_static 2 multilib srcs and exclude_srcs",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			filesystem: map[string]string{
+				"common.c":        "",
+				"for-lib32.c":     "",
+				"for-lib64.c":     "",
+				"not-for-lib32.c": "",
+				"not-for-lib64.c": "",
+			},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static {
+    name: "foo_static2",
+    srcs: ["common.c", "not-for-*.c"],
+    multilib: {
+        lib32: { srcs: ["for-lib32.c"], exclude_srcs: ["not-for-lib32.c"] },
+        lib64: { srcs: ["for-lib64.c"], exclude_srcs: ["not-for-lib64.c"] },
+    },
+} `,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static2",
+    copts = ["-I."],
+    linkstatic = True,
+    srcs = ["common.c"] + select({
+        "//build/bazel/platforms/arch:arm": [
+            "for-lib32.c",
+            "not-for-lib64.c",
+        ],
+        "//build/bazel/platforms/arch:arm64": [
+            "for-lib64.c",
+            "not-for-lib32.c",
+        ],
+        "//build/bazel/platforms/arch:x86": [
+            "for-lib32.c",
+            "not-for-lib64.c",
+        ],
+        "//build/bazel/platforms/arch:x86_64": [
+            "for-lib64.c",
+            "not-for-lib32.c",
+        ],
+        "//conditions:default": [
+            "not-for-lib32.c",
+            "not-for-lib64.c",
+        ],
+    }),
+)`},
+		},
+		{
+			description:                        "cc_library_static arch and multilib srcs and exclude_srcs",
+			moduleTypeUnderTest:                "cc_library_static",
+			moduleTypeUnderTestFactory:         cc.LibraryStaticFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryStaticBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			filesystem: map[string]string{
+				"common.c":             "",
+				"for-arm.c":            "",
+				"for-arm64.c":          "",
+				"for-x86.c":            "",
+				"for-x86_64.c":         "",
+				"for-lib32.c":          "",
+				"for-lib64.c":          "",
+				"not-for-arm.c":        "",
+				"not-for-arm64.c":      "",
+				"not-for-x86.c":        "",
+				"not-for-x86_64.c":     "",
+				"not-for-lib32.c":      "",
+				"not-for-lib64.c":      "",
+				"not-for-everything.c": "",
+			},
+			bp: soongCcLibraryStaticPreamble + `
+cc_library_static {
+   name: "foo_static3",
+   srcs: ["common.c", "not-for-*.c"],
+   exclude_srcs: ["not-for-everything.c"],
+   arch: {
+       arm: { srcs: ["for-arm.c"], exclude_srcs: ["not-for-arm.c"] },
+       arm64: { srcs: ["for-arm64.c"], exclude_srcs: ["not-for-arm64.c"] },
+       x86: { srcs: ["for-x86.c"], exclude_srcs: ["not-for-x86.c"] },
+       x86_64: { srcs: ["for-x86_64.c"], exclude_srcs: ["not-for-x86_64.c"] },
+   },
+   multilib: {
+       lib32: { srcs: ["for-lib32.c"], exclude_srcs: ["not-for-lib32.c"] },
+       lib64: { srcs: ["for-lib64.c"], exclude_srcs: ["not-for-lib64.c"] },
+   },
+}`,
+			expectedBazelTargets: []string{`cc_library_static(
+    name = "foo_static3",
+    copts = ["-I."],
+    linkstatic = True,
+    srcs = ["common.c"] + select({
+        "//build/bazel/platforms/arch:arm": [
+            "for-arm.c",
+            "for-lib32.c",
+            "not-for-arm64.c",
+            "not-for-lib64.c",
+            "not-for-x86.c",
+            "not-for-x86_64.c",
+        ],
+        "//build/bazel/platforms/arch:arm64": [
+            "for-arm64.c",
+            "for-lib64.c",
+            "not-for-arm.c",
+            "not-for-lib32.c",
+            "not-for-x86.c",
+            "not-for-x86_64.c",
+        ],
+        "//build/bazel/platforms/arch:x86": [
+            "for-lib32.c",
+            "for-x86.c",
+            "not-for-arm.c",
+            "not-for-arm64.c",
+            "not-for-lib64.c",
+            "not-for-x86_64.c",
+        ],
+        "//build/bazel/platforms/arch:x86_64": [
+            "for-lib64.c",
+            "for-x86_64.c",
+            "not-for-arm.c",
+            "not-for-arm64.c",
+            "not-for-lib32.c",
+            "not-for-x86.c",
+        ],
+        "//conditions:default": [
+            "not-for-arm.c",
+            "not-for-arm64.c",
+            "not-for-lib32.c",
+            "not-for-lib64.c",
+            "not-for-x86.c",
+            "not-for-x86_64.c",
+        ],
+    }),
+)`},
+		},
 	}
 
 	dir := "."
