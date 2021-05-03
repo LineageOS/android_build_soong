@@ -106,6 +106,7 @@ type ModuleInstallPathContext interface {
 	InstallInSanitizerDir() bool
 	InstallInRamdisk() bool
 	InstallInVendorRamdisk() bool
+	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallBypassMake() bool
@@ -1689,6 +1690,8 @@ func modulePartition(ctx ModuleInstallPathContext, os OsType) string {
 			if !ctx.InstallInRoot() {
 				partition += "/system"
 			}
+		} else if ctx.InstallInDebugRamdisk() {
+			partition = "debug_ramdisk"
 		} else if ctx.InstallInRecovery() {
 			if ctx.InstallInRoot() {
 				partition = "recovery/root"
@@ -1859,6 +1862,7 @@ type testModuleInstallPathContext struct {
 	inSanitizerDir  bool
 	inRamdisk       bool
 	inVendorRamdisk bool
+	inDebugRamdisk  bool
 	inRecovery      bool
 	inRoot          bool
 	forceOS         *OsType
@@ -1889,6 +1893,10 @@ func (m testModuleInstallPathContext) InstallInRamdisk() bool {
 
 func (m testModuleInstallPathContext) InstallInVendorRamdisk() bool {
 	return m.inVendorRamdisk
+}
+
+func (m testModuleInstallPathContext) InstallInDebugRamdisk() bool {
+	return m.inDebugRamdisk
 }
 
 func (m testModuleInstallPathContext) InstallInRecovery() bool {

@@ -75,6 +75,10 @@ func (g *GenruleExtraProperties) VendorRamdiskVariantNeeded(ctx android.BaseModu
 	return Bool(g.Vendor_ramdisk_available)
 }
 
+func (g *GenruleExtraProperties) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+	return false
+}
+
 func (g *GenruleExtraProperties) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
 	// If the build is using a snapshot, the recovery variant under AOSP directories
 	// is not needed.
