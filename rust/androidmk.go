@@ -91,7 +91,6 @@ func (binary *binaryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.Andr
 	if binary.distFile.Valid() {
 		ret.DistFiles = android.MakeDefaultDistFiles(binary.distFile.Path())
 	}
-
 	ret.Class = "EXECUTABLES"
 }
 
@@ -200,4 +199,37 @@ func (compiler *baseCompiler) AndroidMk(ctx AndroidMkContext, ret *android.Andro
 			entries.SetString("LOCAL_MODULE_PATH", path)
 			entries.SetString("LOCAL_MODULE_STEM", stem)
 		})
+}
+
+func (fuzz *fuzzDecorator) AndroidMkEntries(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+	ctx.SubAndroidMk(entries, fuzz.binaryDecorator)
+
+	var fuzzFiles []string
+	for _, d := range fuzz.corpus {
+		fuzzFiles = append(fuzzFiles,
+			filepath.Dir(fuzz.corpusIntermediateDir.String())+":corpus/"+d.Base())
+	}
+
+	for _, d := range fuzz.data {
+		fuzzFiles = append(fuzzFiles,
+			filepath.Dir(fuzz.dataIntermediateDir.String())+":data/"+d.Rel())
+	}
+
+	if fuzz.dictionary != nil {
+		fuzzFiles = append(fuzzFiles,
+			filepath.Dir(fuzz.dictionary.String())+":"+fuzz.dictionary.Base())
+	}
+
+	if fuzz.config != nil {
+		fuzzFiles = append(fuzzFiles,
+			filepath.Dir(fuzz.config.String())+":config.json")
+	}
+
+	entries.ExtraEntries = append(entries.ExtraEntries, func(ctx android.AndroidMkExtraEntriesContext,
+		entries *android.AndroidMkEntries) {
+		entries.SetBool("LOCAL_IS_FUZZ_TARGET", true)
+		if len(fuzzFiles) > 0 {
+			entries.AddStrings("LOCAL_TEST_DATA", fuzzFiles...)
+		}
+	})
 }
