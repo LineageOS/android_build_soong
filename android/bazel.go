@@ -204,50 +204,18 @@ var (
 		"liblinker_malloc", // http://b/186826466, cc_library_static, depends on //external/zlib:libz (http://b/186823782)
 		//                                                       also depends on //system/libziparchive:libziparchive (http://b/186823656)
 		//                                                       also depends on //system/logging/liblog:liblog (http://b/186822772)
-		"libc_jemalloc_wrapper", // cc_library_static, depends on //external/jemalloc_new:libjemalloc5
-		"libc_ndk",              // cc_library_static, depends on libc_bionic_ndk, libc_jemalloc_wrapper, libc_tzcode, libstdc++
-		// libc: http://b/183064430
-		// cc_library, depends on libc_jemalloc_wrapper (and possibly many others)
-		// Also http://b/186816506: Handle static and shared props
-		// Also http://b/186650430: version_script prop support
-		// Also http://b/186651708: pack_relocations prop support
-		// Also http://b/186576099: multilib props support
-		"libc",
-
-		// Compilation or linker error from command line and toolchain inconsistencies.
-		// http://b/186388670: Make Bazel/Ninja command lines more similar.
-		// http://b/186628704: Incorporate Soong's Clang flags into Bazel's toolchains.
-		//
-		"libc_tzcode",  // http://b/186822591: cc_library_static, error: expected expression
-		"libjemalloc5", // http://b/186828626: cc_library, ld.lld: error: undefined symbol: memset, __stack_chk_fail, pthread_mutex_trylock..
-		// libc_bionic_ndk, cc_library_static
-		// Error: ISO C++ requires field designators...
-		// Also http://b/186576099: multilib props support
-		// Also http://b/183595873: product_variables support
-		"libc_bionic_ndk",
-		// libc_malloc_hooks, cc_library
-		// Error: undefined symbol: __malloc_hook, __realloc_hook, __free_hook, __memalign_hook, memset, __errno
-		// These symbols are defined in https://cs.android.com/android/platform/superproject/+/master:bionic/libc/bionic/malloc_common.cpp;l=57-60;drc=9cad8424ff7b0fa63b53cb9919eae31539b8561a
-		// Also http://b/186650430: version_script prop support
-		"libc_malloc_hooks",
-		// http://b/186822597, libstdc++, cc_library
-		// Error: undefined symbol: __errno, syscall, async_safe_fatal_no_abort, abort, malloc, free
-		// Also http://b/186024507: depends on libc through system_shared_libraries.
-		// Also http://b/186650430: version_script prop support
-		// Also http://b/186651708: pack_relocations prop support
-		"libstdc++",
-		// http://b/183064661, libm:
-		// cc_library, error: "expected register here" (and many others)
-		// Also http://b/186024507: depends on libc through system_shared_libraries.
-		// Also http://b/186650430: version_script prop support
-		// Also http://b/186651708: pack_relocations prop support
-		// Also http://b/186576099: multilib props support
-		"libm",
+		"libc_jemalloc_wrapper", // http://b/187012490, cc_library_static, depends on //external/jemalloc_new:libjemalloc5 (http://b/186828626)
+		"libc_ndk",              // http://b/187013218, cc_library_static, depends on //bionic/libm:libm (http://b/183064661)
+		"libc",                  // http://b/183064430, cc_library, depends on //external/jemalloc_new:libjemalloc5 (http://b/186828626)
+		"libc_tzcode",           // http://b/186822591, cc_library_static, localtime.c:84:46: error: expected expression
+		"libc_bionic_ndk",       // http://b/186822256, cc_library_static, signal.cpp:186:52: error: ISO C++ requires field designators to be specified in declaration order
+		"libc_malloc_hooks",     // http://b/187016307, cc_library, ld.lld: error: undefined symbol: __malloc_hook
+		"libstdc++",             // http://b/186822597, cc_library, ld.lld: error: undefined symbol: __errno
+		"libm",                  // http://b/183064661, cc_library, math.h:25:16: error: unexpected token in argument list
 
 		// http://b/186823769: Needs C++ STL support, includes from unconverted standard libraries in //external/libcxx
 		// c++_static
-		"fmtlib_ndk",  // cc_library, from c++_static
-		"libbase_ndk", // http://b/186826477, cc_library, depends on fmtlib_ndk, which depends on c++_static
+		"libbase_ndk", // http://b/186826477, cc_library, no such target '//build/bazel/platforms/os:darwin' when --platforms //build/bazel/platforms:android_x86 is added
 		// libcxx
 		"libBionicBenchmarksUtils", // cc_library_static, fatal error: 'map' file not found, from libcxx
 		"fmtlib",                   // cc_library_static, fatal error: 'cassert' file not found, from libcxx
