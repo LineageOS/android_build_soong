@@ -126,15 +126,22 @@ var (
 
 	_ = pctx.SourcePathVariable("stripPath", "build/soong/scripts/strip.sh")
 	_ = pctx.SourcePathVariable("xzCmd", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/xz")
+	_ = pctx.SourcePathVariable("createMiniDebugInfo", "prebuilts/build-tools/${config.HostPrebuiltTag}/bin/create_minidebuginfo")
 
 	// Rule to invoke `strip` (to discard symbols and data from object files).
 	strip = pctx.AndroidStaticRule("strip",
 		blueprint.RuleParams{
-			Depfile:     "${out}.d",
-			Deps:        blueprint.DepsGCC,
-			Command:     "XZ=$xzCmd CLANG_BIN=${config.ClangBin} $stripPath ${args} -i ${in} -o ${out} -d ${out}.d",
-			CommandDeps: []string{"$stripPath", "$xzCmd"},
-			Pool:        darwinStripPool,
+			Depfile: "${out}.d",
+			Deps:    blueprint.DepsGCC,
+			Command: "XZ=$xzCmd CREATE_MINIDEBUGINFO=$createMiniDebugInfo CLANG_BIN=${config.ClangBin} $stripPath ${args} -i ${in} -o ${out} -d ${out}.d",
+			CommandDeps: func() []string {
+				if runtime.GOOS != "darwin" {
+					return []string{"$stripPath", "$xzCmd", "$createMiniDebugInfo"}
+				} else {
+					return []string{"$stripPath", "$xzCmd"}
+				}
+			}(),
+			Pool: darwinStripPool,
 		},
 		"args", "crossCompile")
 
