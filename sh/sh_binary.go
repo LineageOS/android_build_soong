@@ -210,6 +210,10 @@ func (s *ShBinary) VendorRamdiskVariantNeeded(ctx android.BaseModuleContext) boo
 	return proptools.Bool(s.properties.Vendor_ramdisk_available) || s.ModuleBase.InstallInVendorRamdisk()
 }
 
+func (s *ShBinary) DebugRamdiskVariantNeeded(ctx android.BaseModuleContext) bool {
+	return false
+}
+
 func (s *ShBinary) RecoveryVariantNeeded(ctx android.BaseModuleContext) bool {
 	return proptools.Bool(s.properties.Recovery_available) || s.ModuleBase.InstallInRecovery()
 }
