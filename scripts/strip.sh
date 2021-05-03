@@ -71,7 +71,7 @@ do_strip_keep_symbol_list() {
     "${CLANG_BIN}/llvm-objcopy" -w "${infile}" "${outfile}.tmp" ${KEEP_SYMBOLS}
 }
 
-do_strip_keep_mini_debug_info() {
+do_strip_keep_mini_debug_info_darwin() {
     rm -f "${outfile}.dynsyms" "${outfile}.funcsyms" "${outfile}.keep_symbols" "${outfile}.debug" "${outfile}.mini_debuginfo" "${outfile}.mini_debuginfo.xz"
     local fail=
     "${CLANG_BIN}/llvm-strip" --strip-all --keep-section=.ARM.attributes --remove-section=.comment "${infile}" -o "${outfile}.tmp" || fail=true
@@ -90,6 +90,32 @@ do_strip_keep_mini_debug_info() {
     else
         cp -f "${infile}" "${outfile}.tmp"
     fi
+}
+
+do_strip_keep_mini_debug_info_linux() {
+    rm -f "${outfile}.mini_debuginfo.xz"
+    local fail=
+    "${CLANG_BIN}/llvm-strip" --strip-all --keep-section=.ARM.attributes --remove-section=.comment "${infile}" -o "${outfile}.tmp" || fail=true
+
+    if [ -z $fail ]; then
+        "${CREATE_MINIDEBUGINFO}" "${infile}" "${outfile}.mini_debuginfo.xz"
+        "${CLANG_BIN}/llvm-objcopy" --add-section .gnu_debugdata="${outfile}.mini_debuginfo.xz" "${outfile}.tmp"
+        rm -f "${outfile}.mini_debuginfo.xz"
+    else
+        cp -f "${infile}" "${outfile}.tmp"
+    fi
+}
+
+do_strip_keep_mini_debug_info() {
+  case $(uname) in
+      Linux)
+          do_strip_keep_mini_debug_info_linux
+          ;;
+      Darwin)
+          do_strip_keep_mini_debug_info_darwin
+          ;;
+      *) echo "unknown OS:" $(uname) >&2 && exit 1;;
+  esac
 }
 
 do_add_gnu_debuglink() {
