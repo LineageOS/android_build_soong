@@ -151,6 +151,7 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 
 	ctx.Strict("SOONG_STRIP_PATH", "${stripPath}")
 	ctx.Strict("XZ", "${xzCmd}")
+	ctx.Strict("CREATE_MINIDEBUGINFO", "${createMiniDebugInfo}")
 
 	includeFlags, err := ctx.Eval("${config.CommonGlobalIncludes}")
 	if err != nil {
