@@ -259,6 +259,14 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
+	// For some cc_library modules, their static variants are ready to be
+	// converted, but not their shared variants. For these modules, delegate to
+	// the cc_library_static bp2build converter temporarily instead.
+	if android.GenerateCcLibraryStaticOnly(ctx) {
+		ccLibraryStaticBp2BuildInternal(ctx, m)
+		return
+	}
+
 	sharedAttrs := bp2BuildParseSharedProps(ctx, m)
 	staticAttrs := bp2BuildParseStaticProps(ctx, m)
 	compilerAttrs := bp2BuildParseCompilerProps(ctx, m)
@@ -2205,6 +2213,28 @@ func BazelCcLibraryStaticFactory() android.Module {
 	return module
 }
 
+func ccLibraryStaticBp2BuildInternal(ctx android.TopDownMutatorContext, module *Module) {
+	compilerAttrs := bp2BuildParseCompilerProps(ctx, module)
+	linkerAttrs := bp2BuildParseLinkerProps(ctx, module)
+	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module)
+
+	attrs := &bazelCcLibraryStaticAttributes{
+		Copts:      compilerAttrs.copts,
+		Srcs:       compilerAttrs.srcs,
+		Deps:       linkerAttrs.deps,
+		Linkopts:   linkerAttrs.linkopts,
+		Linkstatic: true,
+		Includes:   exportedIncludes,
+	}
+
+	props := bazel.BazelTargetModuleProperties{
+		Rule_class:        "cc_library_static",
+		Bzl_load_location: "//build/bazel/rules:cc_library_static.bzl",
+	}
+
+	ctx.CreateBazelTargetModule(BazelCcLibraryStaticFactory, module.Name(), props, attrs)
+}
+
 func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 	module, ok := ctx.Module().(*Module)
 	if !ok {
@@ -2218,24 +2248,7 @@ func CcLibraryStaticBp2Build(ctx android.TopDownMutatorContext) {
 		return
 	}
 
-	compilerAttrs := bp2BuildParseCompilerProps(ctx, module)
-	linkerAttrs := bp2BuildParseLinkerProps(ctx, module)
-	exportedIncludes := bp2BuildParseExportedIncludes(ctx, module)
-
-	attrs := &bazelCcLibraryStaticAttributes{
-		Copts:      compilerAttrs.copts,
-		Srcs:       compilerAttrs.srcs,
-		Deps:       linkerAttrs.deps,
-		Linkstatic: true,
-		Includes:   exportedIncludes,
-	}
-
-	props := bazel.BazelTargetModuleProperties{
-		Rule_class:        "cc_library_static",
-		Bzl_load_location: "//build/bazel/rules:cc_library_static.bzl",
-	}
-
-	ctx.CreateBazelTargetModule(BazelCcLibraryStaticFactory, module.Name(), props, attrs)
+	ccLibraryStaticBp2BuildInternal(ctx, module)
 }
 
 func (m *bazelCcLibraryStatic) Name() string {
