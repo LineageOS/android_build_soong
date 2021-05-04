@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -62,10 +63,42 @@ func main() {
 	}
 }
 
+// concurrentWriter wraps a writer to make it thread-safe to call Write.
+type concurrentWriter struct {
+	w io.Writer
+	sync.Mutex
+}
+
+// Write writes the data to the wrapped writer with a lock to allow for concurrent calls.
+func (c *concurrentWriter) Write(data []byte) (n int, err error) {
+	c.Lock()
+	defer c.Unlock()
+	if c.w == nil {
+		return 0, nil
+	}
+	return c.w.Write(data)
+}
+
+// Close ends the concurrentWriter, causing future calls to Write to be no-ops.  It does not close
+// the underlying writer.
+func (c *concurrentWriter) Close() {
+	c.Lock()
+	defer c.Unlock()
+	c.w = nil
+}
+
 func runWithTimeout(command string, args []string, timeout time.Duration, onTimeoutCmdStr string,
 	stdin io.Reader, stdout, stderr io.Writer) error {
 	cmd := exec.Command(command, args...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, stderr
+
+	// Wrap the writers in a locking writer so that cmd and onTimeoutCmd don't try to write to
+	// stdout or stderr concurrently.
+	concurrentStdout := &concurrentWriter{w: stdout}
+	concurrentStderr := &concurrentWriter{w: stderr}
+	defer concurrentStdout.Close()
+	defer concurrentStderr.Close()
+
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, concurrentStdout, concurrentStderr
 	err := cmd.Start()
 	if err != nil {
 		return err
@@ -98,7 +131,7 @@ func runWithTimeout(command string, args []string, timeout time.Duration, onTime
 
 	if onTimeoutCmdStr != "" {
 		onTimeoutCmd := exec.Command("sh", "-c", onTimeoutCmdStr)
-		onTimeoutCmd.Stdin, onTimeoutCmd.Stdout, onTimeoutCmd.Stderr = stdin, stdout, stderr
+		onTimeoutCmd.Stdin, onTimeoutCmd.Stdout, onTimeoutCmd.Stderr = stdin, concurrentStdout, concurrentStderr
 		onTimeoutCmd.Env = append(os.Environ(), fmt.Sprintf("PID=%d", cmd.Process.Pid))
 		err := onTimeoutCmd.Run()
 		if err != nil {
