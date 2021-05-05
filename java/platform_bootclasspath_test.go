@@ -133,6 +133,23 @@ func TestPlatformBootclasspath(t *testing.T) {
 			"platform:bar",
 		})
 	})
+
+	t.Run("dex import", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			preparer,
+			android.FixtureAddTextFile("deximport/Android.bp", `
+				dex_import {
+					name: "foo",
+					jars: ["a.jar"],
+				}
+			`),
+		).RunTest(t)
+
+		CheckPlatformBootclasspathModules(t, result, "platform-bootclasspath", []string{
+			"platform:prebuilt_foo",
+			"platform:bar",
+		})
+	})
 }
 
 func TestPlatformBootclasspath_Fragments(t *testing.T) {
