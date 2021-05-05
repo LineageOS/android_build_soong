@@ -146,6 +146,23 @@ type DroidstubsProperties struct {
 	Write_sdk_values *bool
 }
 
+// Used by xsd_config
+type ApiFilePath interface {
+	ApiFilePath() android.Path
+}
+
+type ApiStubsSrcProvider interface {
+	StubsSrcJar() android.Path
+}
+
+// Provider of information about API stubs, used by java_sdk_library.
+type ApiStubsProvider interface {
+	ApiFilePath
+	RemovedApiFilePath() android.Path
+
+	ApiStubsSrcProvider
+}
+
 // droidstubs passes sources files through Metalava to generate stub .java files that only contain the API to be
 // documented, filtering out hidden classes and methods.  The resulting .java files are intended to be passed to
 // a droiddoc module to generate documentation.
