@@ -193,23 +193,6 @@ func apiCheckEnabled(ctx android.ModuleContext, apiToCheck ApiToCheck, apiVersio
 	return false
 }
 
-// Used by xsd_config
-type ApiFilePath interface {
-	ApiFilePath() android.Path
-}
-
-type ApiStubsSrcProvider interface {
-	StubsSrcJar() android.Path
-}
-
-// Provider of information about API stubs, used by java_sdk_library.
-type ApiStubsProvider interface {
-	ApiFilePath
-	RemovedApiFilePath() android.Path
-
-	ApiStubsSrcProvider
-}
-
 //
 // Javadoc
 //
