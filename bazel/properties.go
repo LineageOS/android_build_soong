@@ -229,11 +229,47 @@ type Attribute interface {
 
 // Represents an attribute whose value is a single label
 type LabelAttribute struct {
-	Value Label
+	Value  Label
+	X86    Label
+	X86_64 Label
+	Arm    Label
+	Arm64  Label
 }
 
-func (LabelAttribute) HasConfigurableValues() bool {
-	return false
+func (attr *LabelAttribute) GetValueForArch(arch string) Label {
+	switch arch {
+	case ARCH_ARM:
+		return attr.Arm
+	case ARCH_ARM64:
+		return attr.Arm64
+	case ARCH_X86:
+		return attr.X86
+	case ARCH_X86_64:
+		return attr.X86_64
+	case CONDITIONS_DEFAULT:
+		return attr.Value
+	default:
+		panic("Invalid arch type")
+	}
+}
+
+func (attr *LabelAttribute) SetValueForArch(arch string, value Label) {
+	switch arch {
+	case ARCH_ARM:
+		attr.Arm = value
+	case ARCH_ARM64:
+		attr.Arm64 = value
+	case ARCH_X86:
+		attr.X86 = value
+	case ARCH_X86_64:
+		attr.X86_64 = value
+	default:
+		panic("Invalid arch type")
+	}
+}
+
+func (attr LabelAttribute) HasConfigurableValues() bool {
+	return attr.Arm.Label != "" || attr.Arm64.Label != "" || attr.X86.Label != "" || attr.X86_64.Label != ""
 }
 
 // Arch-specific label_list typed Bazel attribute values. This should correspond
