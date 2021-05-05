@@ -59,22 +59,30 @@ func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, selects, 
 func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 	var value reflect.Value
 	var archSelects, osSelects selects
+	var defaultSelectValue string
 	switch list := v.(type) {
 	case bazel.StringListAttribute:
 		value, archSelects, osSelects = getStringListValues(list)
+		defaultSelectValue = "[]"
 	case bazel.LabelListAttribute:
 		value, archSelects, osSelects = getLabelListValues(list)
+		defaultSelectValue = "[]"
 	case bazel.LabelAttribute:
 		value, archSelects, osSelects = getLabelValue(list)
+		defaultSelectValue = "None"
 	default:
 		return "", fmt.Errorf("Not a supported Bazel attribute type: %s", v)
 	}
 
-	ret, err := prettyPrint(value, indent)
-	if err != nil {
-		return ret, err
-	}
+	ret := ""
+	if value.Kind() != reflect.Invalid {
+		s, err := prettyPrint(value, indent)
+		if err != nil {
+			return ret, err
+		}
 
+		ret += s
+	}
 	// Convenience function to append selects components to an attribute value.
 	appendSelects := func(selectsData selects, defaultValue, s string) (string, error) {
 		selectMap, err := prettyPrintSelectMap(selectsData, defaultValue, indent)
@@ -89,12 +97,12 @@ func prettyPrintAttribute(v bazel.Attribute, indent int) (string, error) {
 		return s, nil
 	}
 
-	ret, err = appendSelects(archSelects, "[]", ret)
+	ret, err := appendSelects(archSelects, defaultSelectValue, ret)
 	if err != nil {
 		return "", err
 	}
 
-	ret, err = appendSelects(osSelects, "[]", ret)
+	ret, err = appendSelects(osSelects, defaultSelectValue, ret)
 	return ret, err
 }
 
