@@ -1769,6 +1769,11 @@ func (library *libraryDecorator) stubsVersions(ctx android.BaseMutatorContext) [
 		return nil
 	}
 
+	if library.hasLLNDKStubs() && ctx.Module().(*Module).UseVndk() {
+		// LLNDK libraries only need a single stubs variant.
+		return []string{android.FutureApiLevel.String()}
+	}
+
 	// Future API level is implicitly added if there isn't
 	vers := library.Properties.Stubs.Versions
 	if inList(android.FutureApiLevel.String(), vers) {
@@ -2110,8 +2115,7 @@ func moduleLibraryInterface(module blueprint.Module) libraryInterface {
 	return nil
 }
 
-// versionSelector normalizes the versions in the Stubs.Versions property into MutatedProperties.AllStubsVersions,
-// and propagates the value from implementation libraries to llndk libraries with the same name.
+// versionSelector normalizes the versions in the Stubs.Versions property into MutatedProperties.AllStubsVersions.
 func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
 	if library := moduleLibraryInterface(mctx.Module()); library != nil && CanBeVersionVariant(mctx.Module().(*Module)) {
 		if library.buildShared() {
@@ -2124,15 +2128,6 @@ func versionSelectorMutator(mctx android.BottomUpMutatorContext) {
 				// Set the versions on the pre-mutated module so they can be read by any llndk modules that
 				// depend on the implementation library and haven't been mutated yet.
 				library.setAllStubsVersions(versions)
-			}
-
-			if mctx.Module().(*Module).UseVndk() && library.hasLLNDKStubs() {
-				// Propagate the version to the llndk stubs module.
-				mctx.VisitDirectDepsWithTag(llndkStubDepTag, func(stubs android.Module) {
-					if stubsLib := moduleLibraryInterface(stubs); stubsLib != nil {
-						stubsLib.setAllStubsVersions(library.allStubsVersions())
-					}
-				})
 			}
 		}
 	}
