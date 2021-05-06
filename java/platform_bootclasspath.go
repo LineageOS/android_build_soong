@@ -87,7 +87,7 @@ func (b *platformBootclasspathModule) AndroidMkEntries() (entries []android.Andr
 		OutputFile: android.OptionalPathForPath(b.hiddenAPIFlagsCSV),
 		Include:    "$(BUILD_PHONY_PACKAGE)",
 	})
-	entries = append(entries, b.classpathFragmentBase().getAndroidMkEntries()...)
+	entries = append(entries, b.classpathFragmentBase().androidMkEntries()...)
 	return
 }
 
@@ -167,7 +167,7 @@ func (d *platformBootclasspathModule) MakeVars(ctx android.MakeVarsContext) {
 }
 
 func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	b.classpathFragmentBase().generateAndroidBuildActions(ctx)
+	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx)
 
 	// Gather all the dependencies from the art, updatable and non-updatable boot jars.
 	artModules := gatherApexModulePairDepsWithTag(ctx, platformBootclasspathArtBootJarDepTag)
