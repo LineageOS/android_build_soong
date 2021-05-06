@@ -39,10 +39,9 @@ func systemServerClasspath(ctx android.PathContext) []string {
 		// 2) The jars that are from an updatable apex.
 		systemServerClasspathLocations = append(systemServerClasspathLocations,
 			global.UpdatableSystemServerJars.DevicePaths(ctx.Config(), android.Android)...)
-		if len(systemServerClasspathLocations) != len(global.SystemServerJars)+global.UpdatableSystemServerJars.Len() {
-			panic(fmt.Errorf("Wrong number of system server jars, got %d, expected %d",
-				len(systemServerClasspathLocations),
-				len(global.SystemServerJars)+global.UpdatableSystemServerJars.Len()))
+
+		if expectedLen := global.SystemServerJars.Len() + global.UpdatableSystemServerJars.Len(); expectedLen != len(systemServerClasspathLocations) {
+			panic(fmt.Errorf("wrong number of system server jars, got %d, expected %d", len(systemServerClasspathLocations), expectedLen))
 		}
 		return systemServerClasspathLocations
 	})
