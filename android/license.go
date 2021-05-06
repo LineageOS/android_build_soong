@@ -61,7 +61,17 @@ func (m *licenseModule) DepsMutator(ctx BottomUpMutatorContext) {
 }
 
 func (m *licenseModule) GenerateAndroidBuildActions(ctx ModuleContext) {
-	// Nothing to do.
+	// license modules have no licenses, but license_kinds must refer to license_kind modules
+	mergeProps(&m.base().commonProperties.Effective_licenses, ctx.ModuleName())
+	mergeProps(&m.base().commonProperties.Effective_license_text, PathsForModuleSrc(ctx, m.properties.License_text).Strings()...)
+	for _, module := range ctx.GetDirectDepsWithTag(licenseKindTag) {
+		if lk, ok := module.(*licenseKindModule); ok {
+			mergeProps(&m.base().commonProperties.Effective_license_conditions, lk.properties.Conditions...)
+			mergeProps(&m.base().commonProperties.Effective_license_kinds, ctx.OtherModuleName(module))
+		} else {
+			ctx.ModuleErrorf("license_kinds property %q is not a license_kind module", ctx.OtherModuleName(module))
+		}
+	}
 }
 
 func LicenseFactory() Module {
