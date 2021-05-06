@@ -32,9 +32,8 @@ func init() {
 
 	android.RegisterSdkMemberType(&bootclasspathFragmentMemberType{
 		SdkMemberTypeBase: android.SdkMemberTypeBase{
-			PropertyName:         "bootclasspath_fragments",
-			SupportsSdk:          true,
-			TransitiveSdkMembers: true,
+			PropertyName: "bootclasspath_fragments",
+			SupportsSdk:  true,
 		},
 	})
 }

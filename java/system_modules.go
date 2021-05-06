@@ -35,9 +35,8 @@ func init() {
 	// Register sdk member types.
 	android.RegisterSdkMemberType(&systemModulesSdkMemberType{
 		android.SdkMemberTypeBase{
-			PropertyName:         "java_system_modules",
-			SupportsSdk:          true,
-			TransitiveSdkMembers: true,
+			PropertyName: "java_system_modules",
+			SupportsSdk:  true,
 		},
 	})
 }
