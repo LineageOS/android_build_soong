@@ -464,3 +464,65 @@ func TestCommonValueOptimization_InvalidArchSpecificVariants(t *testing.T) {
     "struct-0" has value "should-be-but-is-not-common0"
     "struct-1" has value "should-be-but-is-not-common1"`, err)
 }
+
+// Ensure that sdk snapshot related environment variables work correctly.
+func TestSnapshot_EnvConfiguration(t *testing.T) {
+	bp := `
+		sdk {
+			name: "mysdk",
+			java_header_libs: ["myjavalib"],
+		}
+
+		java_library {
+			name: "myjavalib",
+			srcs: ["Test.java"],
+			system_modules: "none",
+			sdk_version: "none",
+			compile_dex: true,
+			host_supported: true,
+		}
+	`
+	preparer := android.GroupFixturePreparers(
+		prepareForSdkTestWithJava,
+		android.FixtureWithRootAndroidBp(bp),
+	)
+
+	checkZipFile := func(t *testing.T, result *android.TestResult, expected string) {
+		zipRule := result.ModuleForTests("mysdk", "common_os").Rule("SnapshotZipFiles")
+		android.AssertStringEquals(t, "snapshot zip file", expected, zipRule.Output.String())
+	}
+
+	t.Run("no env variables", func(t *testing.T) {
+		result := preparer.RunTest(t)
+
+		checkZipFile(t, result, "out/soong/.intermediates/mysdk/common_os/mysdk-current.zip")
+
+		CheckSnapshot(t, result, "mysdk", "",
+			checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "mysdk_myjavalib@current",
+    sdk_member_name: "myjavalib",
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    jars: ["java/myjavalib.jar"],
+}
+
+java_import {
+    name: "myjavalib",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    jars: ["java/myjavalib.jar"],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    visibility: ["//visibility:public"],
+    java_header_libs: ["mysdk_myjavalib@current"],
+}
+			`),
+		)
+	})
+}
