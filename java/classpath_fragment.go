@@ -81,7 +81,7 @@ type classpathJar struct {
 	maxSdkVersion int32
 }
 
-func (c *ClasspathFragmentBase) generateAndroidBuildActions(ctx android.ModuleContext) {
+func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.ModuleContext) {
 	outputFilename := ctx.ModuleName() + ".pb"
 	c.outputFilepath = android.PathForModuleOut(ctx, outputFilename).OutputPath
 	c.installDirPath = android.PathForModuleInstall(ctx, "etc", "classpaths")
@@ -137,7 +137,7 @@ func appendClasspathJar(slice []classpathJar, classpathType classpathType, paths
 	return
 }
 
-func (c *ClasspathFragmentBase) getAndroidMkEntries() []android.AndroidMkEntries {
+func (c *ClasspathFragmentBase) androidMkEntries() []android.AndroidMkEntries {
 	return []android.AndroidMkEntries{android.AndroidMkEntries{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(c.outputFilepath),
