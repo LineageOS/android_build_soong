@@ -58,7 +58,7 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 		}
 	}
 
-	for _, p := range module.GetArchProperties(&BaseLinkerProperties{}) {
+	for _, p := range module.GetArchProperties(ctx, &BaseLinkerProperties{}) {
 		// arch specific linker props
 		if baseLinkerProps, ok := p.(*BaseLinkerProperties); ok {
 			allDeps = append(allDeps, baseLinkerProps.Header_libs...)
@@ -198,7 +198,7 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 		copts.Value = append(copts.Value, includeFlag("."))
 	}
 
-	for arch, props := range module.GetArchProperties(&BaseCompilerProperties{}) {
+	for arch, props := range module.GetArchProperties(ctx, &BaseCompilerProperties{}) {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
 			// If there's arch specific srcs or exclude_srcs, generate a select entry for it.
 			// TODO(b/186153868): do this for OS specific srcs and exclude_srcs too.
@@ -215,7 +215,7 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 
 	// After going through all archs, delete the duplicate files in the arch
 	// values that are already in the base srcs.Value.
-	for arch, props := range module.GetArchProperties(&BaseCompilerProperties{}) {
+	for arch, props := range module.GetArchProperties(ctx, &BaseCompilerProperties{}) {
 		if _, ok := props.(*BaseCompilerProperties); ok {
 			srcs.SetValueForArch(arch.Name, bazel.SubtractBazelLabelList(srcs.GetValueForArch(arch.Name), srcs.Value))
 		}
@@ -269,15 +269,13 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 			linkopts.Value = baseLinkerProps.Ldflags
 
 			if baseLinkerProps.Version_script != nil {
-				versionScript = bazel.LabelAttribute{
-					Value: android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script),
-				}
+				versionScript.Value = android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script)
 			}
 			break
 		}
 	}
 
-	for arch, p := range module.GetArchProperties(&BaseLinkerProperties{}) {
+	for arch, p := range module.GetArchProperties(ctx, &BaseLinkerProperties{}) {
 		if baseLinkerProps, ok := p.(*BaseLinkerProperties); ok {
 			libs := baseLinkerProps.Header_libs
 			libs = append(libs, baseLinkerProps.Export_header_lib_headers...)
@@ -286,6 +284,10 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 			libs = android.SortedUniqueStrings(libs)
 			deps.SetValueForArch(arch.Name, android.BazelLabelForModuleDeps(ctx, libs))
 			linkopts.SetValueForArch(arch.Name, baseLinkerProps.Ldflags)
+			if baseLinkerProps.Version_script != nil {
+				versionScript.SetValueForArch(arch.Name,
+					android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script))
+			}
 		}
 	}
 
@@ -343,7 +345,7 @@ func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Mo
 	includeDirs = append(includeDirs, libraryDecorator.flagExporter.Properties.Export_include_dirs...)
 	includeDirsAttribute := bazel.MakeStringListAttribute(includeDirs)
 
-	for arch, props := range module.GetArchProperties(&FlagExporterProperties{}) {
+	for arch, props := range module.GetArchProperties(ctx, &FlagExporterProperties{}) {
 		if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
 			archIncludeDirs := flagExporterProperties.Export_system_include_dirs
 			archIncludeDirs = append(archIncludeDirs, flagExporterProperties.Export_include_dirs...)
