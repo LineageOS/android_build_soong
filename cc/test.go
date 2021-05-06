@@ -46,6 +46,14 @@ type TestOptions struct {
 
 	// If the test is a hostside(no device required) unittest that shall be run during presubmit check.
 	Unit_test *bool
+
+	// Add ShippingApiLevelModuleController to auto generated test config. If the device properties
+	// for the shipping api level is less than the test_min_api_level, skip this module.
+	Test_min_api_level *int64
+
+	// Add MinApiLevelModuleController with ro.vndk.version property. If ro.vndk.version has an
+	// integer value and the value is less than the test_min_vndk_version, skip this module.
+	Test_min_vndk_version *int64
 }
 
 type TestBinaryProperties struct {
@@ -89,6 +97,7 @@ type TestBinaryProperties struct {
 
 	// Add ShippingApiLevelModuleController to auto generated test config. If the device properties
 	// for the shipping api level is less than the test_min_api_level, skip this module.
+	// Deprecated (b/187258404). Use test_options.test_min_api_level instead.
 	Test_min_api_level *int64
 
 	// Flag to indicate whether or not to create test config automatically. If AndroidTest.xml
@@ -395,10 +404,21 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 	for _, tag := range test.Properties.Test_options.Test_suite_tag {
 		configs = append(configs, tradefed.Option{Name: "test-suite-tag", Value: tag})
 	}
-	if test.Properties.Test_min_api_level != nil {
+	if test.Properties.Test_options.Test_min_api_level != nil {
+		var options []tradefed.Option
+		options = append(options, tradefed.Option{Name: "min-api-level", Value: strconv.FormatInt(int64(*test.Properties.Test_options.Test_min_api_level), 10)})
+		configs = append(configs, tradefed.Object{"module_controller", "com.android.tradefed.testtype.suite.module.ShippingApiLevelModuleController", options})
+	} else if test.Properties.Test_min_api_level != nil {
+		// TODO: (b/187258404) Remove test.Properties.Test_min_api_level
 		var options []tradefed.Option
 		options = append(options, tradefed.Option{Name: "min-api-level", Value: strconv.FormatInt(int64(*test.Properties.Test_min_api_level), 10)})
 		configs = append(configs, tradefed.Object{"module_controller", "com.android.tradefed.testtype.suite.module.ShippingApiLevelModuleController", options})
+	}
+	if test.Properties.Test_options.Test_min_vndk_version != nil {
+		var options []tradefed.Option
+		options = append(options, tradefed.Option{Name: "min-api-level", Value: strconv.FormatInt(int64(*test.Properties.Test_options.Test_min_vndk_version), 10)})
+		options = append(options, tradefed.Option{Name: "api-level-prop", Value: "ro.vndk.version"})
+		configs = append(configs, tradefed.Object{"module_controller", "com.android.tradefed.testtype.suite.module.MinApiLevelModuleController", options})
 	}
 
 	test.testConfig = tradefed.AutoGenNativeTestConfig(ctx, test.Properties.Test_config,
