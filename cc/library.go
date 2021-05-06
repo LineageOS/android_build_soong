@@ -225,6 +225,7 @@ type bazelCcLibraryAttributes struct {
 	Copts                  bazel.StringListAttribute
 	Linkopts               bazel.StringListAttribute
 	Deps                   bazel.LabelListAttribute
+	Dynamic_deps           bazel.LabelListAttribute
 	User_link_flags        bazel.StringListAttribute
 	Includes               bazel.StringListAttribute
 	Static_deps_for_shared bazel.LabelListAttribute
@@ -282,6 +283,7 @@ func CcLibraryBp2Build(ctx android.TopDownMutatorContext) {
 		Copts:                  compilerAttrs.copts,
 		Linkopts:               linkerAttrs.linkopts,
 		Deps:                   linkerAttrs.deps,
+		Dynamic_deps:           linkerAttrs.dynamicDeps,
 		Version_script:         linkerAttrs.versionScript,
 		Static_deps_for_shared: sharedAttrs.staticDeps,
 		Includes:               exportedIncludes,
