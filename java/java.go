@@ -669,6 +669,7 @@ func LibraryHostFactory() android.Module {
 	module.Module.properties.Installable = proptools.BoolPtr(true)
 
 	android.InitApexModule(module)
+	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostSupported)
 	return module
 }
@@ -923,6 +924,7 @@ func TestFactory() android.Module {
 	module.Module.dexpreopter.isTest = true
 	module.Module.linter.test = true
 
+	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 	return module
 }
