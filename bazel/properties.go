@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // BazelTargetModuleProperties contain properties and metadata used for
@@ -200,6 +201,10 @@ const (
 	// config variable default key in an Android.bp file, although there's no
 	// integration with Soong config variables (yet).
 	CONDITIONS_DEFAULT = "conditions_default"
+
+	ConditionsDefaultSelectKey = "//conditions:default"
+
+	productVariableBazelPackage = "//build/bazel/product_variables"
 )
 
 var (
@@ -215,7 +220,7 @@ var (
 		ARCH_ARM64:         "//build/bazel/platforms/arch:arm64",
 		ARCH_X86:           "//build/bazel/platforms/arch:x86",
 		ARCH_X86_64:        "//build/bazel/platforms/arch:x86_64",
-		CONDITIONS_DEFAULT: "//conditions:default", // The default condition of as arch select map.
+		CONDITIONS_DEFAULT: ConditionsDefaultSelectKey, // The default condition of as arch select map.
 	}
 
 	// A map of target operating systems to the Bazel label of the
@@ -227,7 +232,7 @@ var (
 		OS_LINUX:           "//build/bazel/platforms/os:linux",
 		OS_LINUX_BIONIC:    "//build/bazel/platforms/os:linux_bionic",
 		OS_WINDOWS:         "//build/bazel/platforms/os:windows",
-		CONDITIONS_DEFAULT: "//conditions:default", // The default condition of an os select map.
+		CONDITIONS_DEFAULT: ConditionsDefaultSelectKey, // The default condition of an os select map.
 	}
 )
 
@@ -435,6 +440,10 @@ type StringListAttribute struct {
 	// are generated in a select statement and appended to the non-os specific
 	// label list Value.
 	OsValues stringListOsValues
+
+	// list of product-variable string list values. Optional. if used, each will generate a select
+	// statement appended to the label list Value.
+	ProductValues []ProductVariableValues
 }
 
 // MakeStringListAttribute initializes a StringListAttribute with the non-arch specific value.
@@ -466,6 +475,18 @@ type stringListOsValues struct {
 	ConditionsDefault []string
 }
 
+// Product Variable values for StringListAttribute
+type ProductVariableValues struct {
+	ProductVariable string
+
+	Values []string
+}
+
+// SelectKey returns the appropriate select key for the receiving ProductVariableValues.
+func (p ProductVariableValues) SelectKey() string {
+	return fmt.Sprintf("%s:%s", productVariableBazelPackage, strings.ToLower(p.ProductVariable))
+}
+
 // HasConfigurableValues returns true if the attribute contains
 // architecture-specific string_list values.
 func (attrs StringListAttribute) HasConfigurableValues() bool {
@@ -480,7 +501,8 @@ func (attrs StringListAttribute) HasConfigurableValues() bool {
 			return true
 		}
 	}
-	return false
+
+	return len(attrs.ProductValues) > 0
 }
 
 func (attrs *StringListAttribute) archValuePtrs() map[string]*[]string {
@@ -556,6 +578,21 @@ func (attrs *StringListAttribute) Append(other StringListAttribute) {
 		that := other.GetValueForOS(os)
 		this = append(this, that...)
 		attrs.SetValueForOS(os, this)
+	}
+
+	productValues := make(map[string][]string, 0)
+	for _, pv := range attrs.ProductValues {
+		productValues[pv.ProductVariable] = pv.Values
+	}
+	for _, pv := range other.ProductValues {
+		productValues[pv.ProductVariable] = append(productValues[pv.ProductVariable], pv.Values...)
+	}
+	attrs.ProductValues = make([]ProductVariableValues, 0, len(productValues))
+	for pv, vals := range productValues {
+		attrs.ProductValues = append(attrs.ProductValues, ProductVariableValues{
+			ProductVariable: pv,
+			Values:          vals,
+		})
 	}
 
 	attrs.Value = append(attrs.Value, other.Value...)
