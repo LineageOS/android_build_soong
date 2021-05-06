@@ -5,6 +5,7 @@
 # It is assumed that the current directory is the top of the source tree.
 # The following environment variables affect the result:
 #   BUILD_NUMBER          build number, used to generate unique ID (will use UUID if not set)
+#   SUPERPROJECT_SHA      superproject sha, used to generate unique id (will use BUILD_NUMBER if not set)
 #   DIST_DIR              where the resulting all.kzip will be placed
 #   KYTHE_KZIP_ENCODING   proto or json (proto is default)
 #   KYTHE_JAVA_SOURCE_BATCH_SIZE maximum number of the Java source files in a compilation unit
@@ -14,6 +15,7 @@
 #   XREF_CORPUS           source code repository URI, e.g., 'android.googlesource.com/platform/superproject'
 
 : ${BUILD_NUMBER:=$(uuidgen)}
+: ${SUPERPROJECT_SHA:=$BUILD_NUMBER}
 : ${KYTHE_JAVA_SOURCE_BATCH_SIZE:=500}
 : ${KYTHE_KZIP_ENCODING:=proto}
 : ${XREF_CORPUS:?should be set}
@@ -48,6 +50,6 @@ declare -r kzip_count=$(find "$out" -name '*.kzip' | wc -l)
 
 # Pack
 # TODO(asmundak): this should be done by soong.
-declare -r allkzip="$BUILD_NUMBER.kzip"
+declare -r allkzip="$SUPERPROJECT_SHA.kzip"
 "$out/soong/host/linux-x86/bin/merge_zips" "$DIST_DIR/$allkzip" @<(find "$out" -name '*.kzip')
 
