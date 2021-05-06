@@ -213,7 +213,6 @@ func (b *OverridableModuleBase) OverridablePropertiesDepsMutator(ctx BottomUpMut
 // to keep them in this order and not put any order mutators between them.
 func RegisterOverridePostDepsMutators(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("override_deps", overrideModuleDepsMutator).Parallel()
-	ctx.TopDown("register_override", registerOverrideMutator).Parallel()
 	ctx.BottomUp("perform_override", performOverrideMutator).Parallel()
 	// overridableModuleDepsMutator calls OverridablePropertiesDepsMutator so that overridable modules can
 	// add deps from overridable properties.
@@ -253,20 +252,11 @@ func overrideModuleDepsMutator(ctx BottomUpMutatorContext) {
 				return
 			}
 		})
-		ctx.AddDependency(ctx.Module(), overrideBaseDepTag, *module.getOverrideModuleProperties().Base)
-	}
-}
-
-// Visits the base module added as a dependency above, checks the module type, and registers the
-// overriding module.
-func registerOverrideMutator(ctx TopDownMutatorContext) {
-	ctx.VisitDirectDepsWithTag(overrideBaseDepTag, func(base Module) {
-		if o, ok := base.(OverridableModule); ok {
+		baseModule := ctx.AddDependency(ctx.Module(), overrideBaseDepTag, *module.getOverrideModuleProperties().Base)[0]
+		if o, ok := baseModule.(OverridableModule); ok {
 			o.addOverride(ctx.Module().(OverrideModule))
-		} else {
-			ctx.PropertyErrorf("base", "unsupported base module type")
 		}
-	})
+	}
 }
 
 // Now, goes through all overridable modules, finds all modules overriding them, creates a local
