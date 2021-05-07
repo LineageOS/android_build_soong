@@ -114,7 +114,10 @@ func writeDocs(ctx *android.Context, config interface{}, filename string) error 
 		err = ioutil.WriteFile(filename, buf.Bytes(), 0666)
 	}
 
-	// Now, produce per-package module lists with detailed information.
+	// Now, produce per-package module lists with detailed information, and a list
+	// of keywords.
+	keywordsTmpl := template.Must(template.New("file").Parse(keywordsTemplate))
+	keywordsBuf := &bytes.Buffer{}
 	for _, pkg := range packages {
 		// We need a module name getter/setter function because I couldn't
 		// find a way to keep it in a variable defined within the template.
@@ -141,7 +144,17 @@ func writeDocs(ctx *android.Context, config interface{}, filename string) error 
 		if err != nil {
 			return err
 		}
+		err = keywordsTmpl.Execute(keywordsBuf, data)
+		if err != nil {
+			return err
+		}
 	}
+
+	// Write out list of keywords. This includes all module and property names, which is useful for
+	// building syntax highlighters.
+	keywordsFilename := filepath.Join(filepath.Dir(filename), "keywords.txt")
+	err = ioutil.WriteFile(keywordsFilename, keywordsBuf.Bytes(), 0666)
+
 	return err
 }
 
@@ -411,6 +424,11 @@ window.addEventListener('message', (e) => {
   }
 });
 </script>
+{{end}}
+`
+
+	keywordsTemplate = `
+{{range $moduleType := .Modules}}{{$moduleType.Name}}:{{range $property := $moduleType.Properties}}{{$property.Name}},{{end}}
 {{end}}
 `
 )
