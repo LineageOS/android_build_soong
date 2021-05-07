@@ -82,7 +82,7 @@ const SdkVersionSeparator = '@'
 func ParseSdkRef(ctx BaseModuleContext, str string, property string) SdkRef {
 	tokens := strings.Split(str, string(SdkVersionSeparator))
 	if len(tokens) < 1 || len(tokens) > 2 {
-		ctx.PropertyErrorf(property, "%q does not follow name#version syntax", str)
+		ctx.PropertyErrorf(property, "%q does not follow name@version syntax", str)
 		return SdkRef{Name: "invalid sdk name", Version: "invalid sdk version"}
 	}
 
