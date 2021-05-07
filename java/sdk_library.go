@@ -1756,6 +1756,7 @@ func SdkLibraryFactory() android.Module {
 
 	module.InitSdkLibraryProperties()
 	android.InitApexModule(module)
+	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
 	// Initialize the map from scope to scope specific properties.

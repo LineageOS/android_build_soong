@@ -115,6 +115,7 @@ func SystemModulesFactory() android.Module {
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	android.InitSdkAwareModule(module)
 	return module
 }
 
