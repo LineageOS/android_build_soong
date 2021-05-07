@@ -444,7 +444,7 @@ func memberDepsMutator(mctx android.TopDownMutatorContext) {
 // built with libfoo.mysdk.11 and libfoo.mysdk.12, respectively depending on which sdk they are
 // using.
 func memberInterVersionMutator(mctx android.BottomUpMutatorContext) {
-	if m, ok := mctx.Module().(android.SdkAware); ok && m.IsInAnySdk() {
+	if m, ok := mctx.Module().(android.SdkAware); ok && m.IsInAnySdk() && m.IsVersioned() {
 		if !m.ContainingSdk().Unversioned() {
 			memberName := m.MemberName()
 			tag := sdkMemberVersionedDepTag{member: memberName, version: m.ContainingSdk().Version}
@@ -483,7 +483,7 @@ func sdkDepsMutator(mctx android.TopDownMutatorContext) {
 // Step 5: if libfoo.mysdk.11 is in the context where version 11 of mysdk is requested, the
 // versioned module is used instead of the un-versioned (in-development) module libfoo
 func sdkDepsReplaceMutator(mctx android.BottomUpMutatorContext) {
-	if versionedSdkMember, ok := mctx.Module().(android.SdkAware); ok && versionedSdkMember.IsInAnySdk() {
+	if versionedSdkMember, ok := mctx.Module().(android.SdkAware); ok && versionedSdkMember.IsInAnySdk() && versionedSdkMember.IsVersioned() {
 		if sdk := versionedSdkMember.ContainingSdk(); !sdk.Unversioned() {
 			// Only replace dependencies to <sdkmember> with <sdkmember@required-version>
 			// if the depending module requires it. e.g.
@@ -499,7 +499,7 @@ func sdkDepsReplaceMutator(mctx android.BottomUpMutatorContext) {
 			// TODO(b/183204176): Remove this after fixing.
 			defer func() {
 				if r := recover(); r != nil {
-					mctx.ModuleErrorf("%s", r)
+					mctx.ModuleErrorf("sdkDepsReplaceMutator %s", r)
 				}
 			}()
 
