@@ -83,12 +83,12 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 
 		sdk_snapshot {
 			name: "mysdk@1",
-			java_header_libs: ["sdkmember_mysdk_1"],
+			java_header_libs: ["sdkmember_mysdk@1"],
 		}
 
 		sdk_snapshot {
 			name: "mysdk@2",
-			java_header_libs: ["sdkmember_mysdk_2"],
+			java_header_libs: ["sdkmember_mysdk@2"],
 		}
 
 		java_library {
@@ -100,13 +100,13 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 		}
 
 		java_import {
-			name: "sdkmember_mysdk_1",
+			name: "sdkmember_mysdk@1",
 			sdk_member_name: "sdkmember",
 			host_supported: true,
 		}
 
 		java_import {
-			name: "sdkmember_mysdk_2",
+			name: "sdkmember_mysdk@2",
 			sdk_member_name: "sdkmember",
 			host_supported: true,
 		}
@@ -144,8 +144,8 @@ func TestBasicSdkWithJavaLibrary(t *testing.T) {
 		}
 	`)
 
-	sdkMemberV1 := result.ModuleForTests("sdkmember_mysdk_1", "android_common").Rule("combineJar").Output
-	sdkMemberV2 := result.ModuleForTests("sdkmember_mysdk_2", "android_common").Rule("combineJar").Output
+	sdkMemberV1 := result.ModuleForTests("sdkmember_mysdk@1", "android_common").Rule("combineJar").Output
+	sdkMemberV2 := result.ModuleForTests("sdkmember_mysdk@2", "android_common").Rule("combineJar").Output
 
 	javalibForMyApex := result.ModuleForTests("myjavalib", "android_common_apex10000_mysdk_1")
 	javalibForMyApex2 := result.ModuleForTests("myjavalib", "android_common_apex10000_mysdk_2")
