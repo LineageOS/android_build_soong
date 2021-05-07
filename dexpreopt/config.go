@@ -49,7 +49,7 @@ type GlobalConfig struct {
 
 	ArtApexJars android.ConfiguredJarList // modules for jars that are in the ART APEX
 
-	SystemServerJars          []string                  // jars that form the system server
+	SystemServerJars          android.ConfiguredJarList // jars that form the system server
 	SystemServerApps          []string                  // apps that are loaded into system server
 	UpdatableSystemServerJars android.ConfiguredJarList // jars within apex that are loaded into system server
 	SpeedApps                 []string                  // apps that should be speed optimized
@@ -604,7 +604,7 @@ func GlobalConfigForTests(ctx android.PathContext) *GlobalConfig {
 		BootJars:                           android.EmptyConfiguredJarList(),
 		UpdatableBootJars:                  android.EmptyConfiguredJarList(),
 		ArtApexJars:                        android.EmptyConfiguredJarList(),
-		SystemServerJars:                   nil,
+		SystemServerJars:                   android.EmptyConfiguredJarList(),
 		SystemServerApps:                   nil,
 		UpdatableSystemServerJars:          android.EmptyConfiguredJarList(),
 		SpeedApps:                          nil,
