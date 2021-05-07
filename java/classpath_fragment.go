@@ -58,6 +58,8 @@ type classpathFragment interface {
 type ClasspathFragmentBase struct {
 	properties classpathFragmentProperties
 
+	classpathType classpathType
+
 	outputFilepath android.OutputPath
 	installDirPath android.InstallPath
 }
@@ -67,8 +69,9 @@ func (c *ClasspathFragmentBase) classpathFragmentBase() *ClasspathFragmentBase {
 }
 
 // Initializes ClasspathFragmentBase struct. Must be called by all modules that include ClasspathFragmentBase.
-func initClasspathFragment(c classpathFragment) {
+func initClasspathFragment(c classpathFragment, classpathType classpathType) {
 	base := c.classpathFragmentBase()
+	base.classpathType = classpathType
 	c.AddProperties(&base.properties)
 }
 
@@ -87,9 +90,17 @@ func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.M
 	c.installDirPath = android.PathForModuleInstall(ctx, "etc", "classpaths")
 
 	var jars []classpathJar
-	jars = appendClasspathJar(jars, BOOTCLASSPATH, defaultBootclasspath(ctx)...)
-	jars = appendClasspathJar(jars, DEX2OATBOOTCLASSPATH, defaultBootImageConfig(ctx).getAnyAndroidVariant().dexLocationsDeps...)
-	jars = appendClasspathJar(jars, SYSTEMSERVERCLASSPATH, systemServerClasspath(ctx)...)
+	switch c.classpathType {
+	case BOOTCLASSPATH:
+		jars = appendClasspathJar(jars, BOOTCLASSPATH, defaultBootclasspath(ctx)...)
+		jars = appendClasspathJar(jars, DEX2OATBOOTCLASSPATH, defaultBootImageConfig(ctx).getAnyAndroidVariant().dexLocationsDeps...)
+	case SYSTEMSERVERCLASSPATH:
+		jars = appendClasspathJar(jars, SYSTEMSERVERCLASSPATH, systemServerClasspath(ctx)...)
+	default:
+		// Only supported classpath fragments are BOOTCLASSPATH and SYSTEMSERVERCLASSPATH.
+		// DEX2OATBOOTCLASSPATH is a special case of BOOTCLASSPATH and is auto-generated.
+		panic(fmt.Errorf("found %v, expected either BOOTCLASSPATH or SYSTEMSERVERCLASSPATH", c.classpathType))
+	}
 
 	generatedJson := android.PathForModuleOut(ctx, outputFilename+".json")
 	writeClasspathsJson(ctx, generatedJson, jars)
