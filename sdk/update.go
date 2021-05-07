@@ -133,9 +133,9 @@ func (s *sdk) collectMembers(ctx android.ModuleContext) {
 			export := memberTag.ExportMember()
 			s.memberVariantDeps = append(s.memberVariantDeps, sdkMemberVariantDep{s, memberType, child.(android.SdkAware), export})
 
-			// If the member type supports transitive sdk members then recurse down into
-			// its dependencies, otherwise exit traversal.
-			return memberType.HasTransitiveSdkMembers()
+			// Recurse down into the member's dependencies as it may have dependencies that need to be
+			// automatically added to the sdk.
+			return true
 		}
 
 		return false
