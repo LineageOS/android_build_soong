@@ -163,18 +163,6 @@ func defaultBootImageConfig(ctx android.PathContext) *bootImageConfig {
 	return genBootImageConfigs(ctx)[frameworkBootImageName]
 }
 
-func defaultBootclasspath(ctx android.PathContext) []string {
-	return ctx.Config().OnceStringSlice(defaultBootclasspathKey, func() []string {
-		global := dexpreopt.GetGlobalConfig(ctx)
-		image := defaultBootImageConfig(ctx)
-
-		updatableBootclasspath := global.UpdatableBootJars.DevicePaths(ctx.Config(), android.Android)
-
-		bootclasspath := append(copyOf(image.getAnyAndroidVariant().dexLocationsDeps), updatableBootclasspath...)
-		return bootclasspath
-	})
-}
-
 // Updatable boot config allows to access build/install paths of updatable boot jars without going
 // through the usual trouble of registering dependencies on those modules and extracting build paths
 // from those dependencies.
