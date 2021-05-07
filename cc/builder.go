@@ -143,7 +143,7 @@ var (
 			}(),
 			Pool: darwinStripPool,
 		},
-		"args", "crossCompile")
+		"args")
 
 	// Rule to invoke `strip` (to discard symbols and data from object files) on darwin architecture.
 	darwinStrip = pctx.AndroidStaticRule("darwinStrip",
@@ -993,7 +993,6 @@ func transformBinaryPrefixSymbols(ctx android.ModuleContext, prefix string, inpu
 func transformStrip(ctx android.ModuleContext, inputFile android.Path,
 	outputFile android.WritablePath, flags StripFlags) {
 
-	crossCompile := gccCmd(flags.Toolchain, "")
 	args := ""
 	if flags.StripAddGnuDebuglink {
 		args += " --add-gnu-debuglink"
@@ -1010,9 +1009,6 @@ func transformStrip(ctx android.ModuleContext, inputFile android.Path,
 	if flags.StripKeepSymbolsAndDebugFrame {
 		args += " --keep-symbols-and-debug-frame"
 	}
-	if flags.StripUseGnuStrip {
-		args += " --use-gnu-strip"
-	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        strip,
@@ -1020,8 +1016,7 @@ func transformStrip(ctx android.ModuleContext, inputFile android.Path,
 		Output:      outputFile,
 		Input:       inputFile,
 		Args: map[string]string{
-			"crossCompile": crossCompile,
-			"args":         args,
+			"args": args,
 		},
 	})
 }
