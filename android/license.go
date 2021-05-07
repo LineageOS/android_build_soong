@@ -51,6 +51,7 @@ type licenseProperties struct {
 type licenseModule struct {
 	ModuleBase
 	DefaultableModuleBase
+	SdkBase
 
 	properties licenseProperties
 }
@@ -75,6 +76,7 @@ func LicenseFactory() Module {
 	// The visibility property needs to be checked and parsed by the visibility module.
 	setPrimaryVisibilityProperty(module, "visibility", &module.properties.Visibility)
 
+	InitSdkAwareModule(module)
 	initAndroidModuleBase(module)
 	InitDefaultableModule(module)
 
