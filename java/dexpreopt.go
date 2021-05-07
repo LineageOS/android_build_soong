@@ -150,7 +150,7 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 
 	global := dexpreopt.GetGlobalConfig(ctx)
 
-	isSystemServerJar := inList(ctx.ModuleName(), global.SystemServerJars)
+	isSystemServerJar := global.SystemServerJars.ContainsJar(ctx.ModuleName())
 
 	bootImage := defaultBootImageConfig(ctx)
 	if global.UseArtImage {
