@@ -41,6 +41,11 @@ type sdkAwareWithoutModule interface {
 	sdkBase() *SdkBase
 	MakeMemberOf(sdk SdkRef)
 	IsInAnySdk() bool
+
+	// IsVersioned determines whether the module is versioned, i.e. has a name of the form
+	// <name>@<version>
+	IsVersioned() bool
+
 	ContainingSdk() SdkRef
 	MemberName() string
 	BuildWithSdks(sdks SdkRefs)
@@ -138,6 +143,11 @@ func (s *SdkBase) MakeMemberOf(sdk SdkRef) {
 // IsInAnySdk returns true if this module is a member of any SDK
 func (s *SdkBase) IsInAnySdk() bool {
 	return s.properties.ContainingSdk != nil
+}
+
+// IsVersioned returns true if this module is versioned.
+func (s *SdkBase) IsVersioned() bool {
+	return strings.Contains(s.module.Name(), "@")
 }
 
 // ContainingSdk returns the SDK that this module is a member of
