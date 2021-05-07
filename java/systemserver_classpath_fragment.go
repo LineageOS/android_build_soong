@@ -16,6 +16,7 @@ package java
 
 import (
 	"android/soong/android"
+	"android/soong/dexpreopt"
 )
 
 func init() {
@@ -45,6 +46,22 @@ func (b *platformSystemServerClasspathModule) AndroidMkEntries() (entries []andr
 }
 
 func (b *platformSystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	// TODO(satayev): split apex jars into separate configs.
-	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx)
+	configuredJars := configuredJarListToClasspathJars(ctx, b.ClasspathFragmentToConfiguredJarList(ctx), b.classpathType)
+	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars)
+}
+
+var platformSystemServerClasspathKey = android.NewOnceKey("platform_systemserverclasspath")
+
+func (b *platformSystemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
+	return ctx.Config().Once(platformSystemServerClasspathKey, func() interface{} {
+		global := dexpreopt.GetGlobalConfig(ctx)
+
+		jars := global.SystemServerJars
+
+		// TODO(satayev): split apex jars into separate configs.
+		for i := 0; i < global.UpdatableSystemServerJars.Len(); i++ {
+			jars = jars.Append(global.UpdatableSystemServerJars.Apex(i), global.UpdatableSystemServerJars.Jar(i))
+		}
+		return jars
+	}).(android.ConfiguredJarList)
 }
