@@ -790,7 +790,7 @@ func bootImageProfileRule(ctx android.SingletonContext, image *bootImageConfig) 
 
 	rule.Build("bootJarsProfile", "profile boot jars")
 
-	image.profileInstalls = rule.Installs()
+	image.profileInstalls = append(image.profileInstalls, rule.Installs()...)
 
 	return profile
 }
