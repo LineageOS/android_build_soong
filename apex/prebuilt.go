@@ -110,6 +110,13 @@ func (p *prebuiltCommon) deapexerDeps(ctx android.BottomUpMutatorContext) {
 	}
 }
 
+// Implements android.DepInInSameApex
+func (p *prebuiltCommon) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Module) bool {
+	tag := ctx.OtherModuleDependencyTag(dep)
+	_, ok := tag.(exportedDependencyTag)
+	return ok
+}
+
 // apexInfoMutator marks any modules for which this apex exports a file as requiring an apex
 // specific variant and checks that they are supported.
 //
@@ -142,34 +149,43 @@ func (p *prebuiltCommon) apexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	// Collect the list of dependencies.
 	var dependencies []android.ApexModule
-	mctx.VisitDirectDeps(func(m android.Module) {
-		tag := mctx.OtherModuleDependencyTag(m)
+	mctx.WalkDeps(func(child, parent android.Module) bool {
+		// If the child is not in the same apex as the parent then exit immediately and do not visit
+		// any of the child's dependencies.
+		if !android.IsDepInSameApex(mctx, parent, child) {
+			return false
+		}
+
+		tag := mctx.OtherModuleDependencyTag(child)
+		depName := mctx.OtherModuleName(child)
 		if exportedTag, ok := tag.(exportedDependencyTag); ok {
 			propertyName := exportedTag.name
-			depName := mctx.OtherModuleName(m)
 
 			// It is an error if the other module is not a prebuilt.
-			if _, ok := m.(android.PrebuiltInterface); !ok {
+			if !android.IsModulePrebuilt(child) {
 				mctx.PropertyErrorf(propertyName, "%q is not a prebuilt module", depName)
-				return
+				return false
 			}
 
 			// It is an error if the other module is not an ApexModule.
-			if _, ok := m.(android.ApexModule); !ok {
+			if _, ok := child.(android.ApexModule); !ok {
 				mctx.PropertyErrorf(propertyName, "%q is not usable within an apex", depName)
-				return
+				return false
 			}
-
-			// Strip off the prebuilt_ prefix if present before storing content to ensure consistent
-			// behavior whether there is a corresponding source module present or not.
-			depName = android.RemoveOptionalPrebuiltPrefix(depName)
-
-			// Remember that this module was added as a direct dependency.
-			contents[depName] = contents[depName].Add(true)
-
-			// Add the module to the list of dependencies that need to have an APEX variant.
-			dependencies = append(dependencies, m.(android.ApexModule))
 		}
+
+		// Strip off the prebuilt_ prefix if present before storing content to ensure consistent
+		// behavior whether there is a corresponding source module present or not.
+		depName = android.RemoveOptionalPrebuiltPrefix(depName)
+
+		// Remember if this module was added as a direct dependency.
+		direct := parent == mctx.Module()
+		contents[depName] = contents[depName].Add(direct)
+
+		// Add the module to the list of dependencies that need to have an APEX variant.
+		dependencies = append(dependencies, child.(android.ApexModule))
+
+		return true
 	})
 
 	// Create contents for the prebuilt_apex and store it away for later use.
