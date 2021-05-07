@@ -65,6 +65,7 @@ bootstrap_go_package {
         "sdk_library_external.go",
         "support_libraries.go",
         "system_modules.go",
+        "systemserver_classpath_fragment.go",
         "testing.go",
         "tradefed.go",
     ],
@@ -91,6 +92,7 @@ bootstrap_go_package {
         "rro_test.go",
         "sdk_test.go",
         "system_modules_test.go",
+        "systemserver_classpath_fragment_test.go",
     ],
     pluginFor: ["soong_build"],
 }
