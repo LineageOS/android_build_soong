@@ -284,11 +284,20 @@ type BpPropertySet interface {
 	// Add a property set with the specified name and return so that additional
 	// properties can be added.
 	AddPropertySet(name string) BpPropertySet
+
+	// Add comment for property (or property set).
+	AddCommentForProperty(name, text string)
 }
 
 // A .bp module definition.
 type BpModule interface {
 	BpPropertySet
+
+	// ModuleType returns the module type of the module
+	ModuleType() string
+
+	// Name returns the name of the module or "" if no name has been specified.
+	Name() string
 }
 
 // An individual member of the SDK, includes all of the variants that the SDK
