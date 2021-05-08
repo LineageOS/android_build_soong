@@ -48,7 +48,7 @@ func testModuleConfig(ctx android.PathContext, name, partition string) *ModuleCo
 		ClassLoaderContexts:             nil,
 		Archs:                           []android.ArchType{android.Arm},
 		DexPreoptImagesDeps:             []android.OutputPaths{android.OutputPaths{}},
-		DexPreoptImageLocations:         []string{},
+		DexPreoptImageLocationsOnHost:   []string{},
 		PreoptBootClassPathDexFiles:     nil,
 		PreoptBootClassPathDexLocations: nil,
 		PreoptExtractedApk:              false,
