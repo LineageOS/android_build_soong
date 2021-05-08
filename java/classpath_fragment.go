@@ -51,12 +51,18 @@ type classpathFragment interface {
 	android.Module
 
 	classpathFragmentBase() *ClasspathFragmentBase
+
+	// ClasspathFragmentToConfiguredJarList returns android.ConfiguredJarList representation of all
+	// the jars in this classpath fragment.
+	ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList
 }
 
 // ClasspathFragmentBase is meant to be embedded in any module types that implement classpathFragment;
 // such modules are expected to call initClasspathFragment().
 type ClasspathFragmentBase struct {
 	properties classpathFragmentProperties
+
+	classpathType classpathType
 
 	outputFilepath android.OutputPath
 	installDirPath android.InstallPath
@@ -67,8 +73,9 @@ func (c *ClasspathFragmentBase) classpathFragmentBase() *ClasspathFragmentBase {
 }
 
 // Initializes ClasspathFragmentBase struct. Must be called by all modules that include ClasspathFragmentBase.
-func initClasspathFragment(c classpathFragment) {
+func initClasspathFragment(c classpathFragment, classpathType classpathType) {
 	base := c.classpathFragmentBase()
+	base.classpathType = classpathType
 	c.AddProperties(&base.properties)
 }
 
@@ -81,15 +88,25 @@ type classpathJar struct {
 	maxSdkVersion int32
 }
 
-func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.ModuleContext) {
+// Converts android.ConfiguredJarList into a list of classpathJars for each given classpathType.
+func configuredJarListToClasspathJars(ctx android.ModuleContext, configuredJars android.ConfiguredJarList, classpaths ...classpathType) []classpathJar {
+	paths := configuredJars.DevicePaths(ctx.Config(), android.Android)
+	jars := make([]classpathJar, 0, len(paths)*len(classpaths))
+	for i := 0; i < len(paths); i++ {
+		for _, classpathType := range classpaths {
+			jars = append(jars, classpathJar{
+				classpath: classpathType,
+				path:      paths[i],
+			})
+		}
+	}
+	return jars
+}
+
+func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.ModuleContext, jars []classpathJar) {
 	outputFilename := ctx.ModuleName() + ".pb"
 	c.outputFilepath = android.PathForModuleOut(ctx, outputFilename).OutputPath
 	c.installDirPath = android.PathForModuleInstall(ctx, "etc", "classpaths")
-
-	var jars []classpathJar
-	jars = appendClasspathJar(jars, BOOTCLASSPATH, defaultBootclasspath(ctx)...)
-	jars = appendClasspathJar(jars, DEX2OATBOOTCLASSPATH, defaultBootImageConfig(ctx).getAnyAndroidVariant().dexLocationsDeps...)
-	jars = appendClasspathJar(jars, SYSTEMSERVERCLASSPATH, systemServerClasspath(ctx)...)
 
 	generatedJson := android.PathForModuleOut(ctx, outputFilename+".json")
 	writeClasspathsJson(ctx, generatedJson, jars)
@@ -126,19 +143,8 @@ func writeClasspathsJson(ctx android.ModuleContext, output android.WritablePath,
 	android.WriteFileRule(ctx, output, content.String())
 }
 
-func appendClasspathJar(slice []classpathJar, classpathType classpathType, paths ...string) (result []classpathJar) {
-	result = append(result, slice...)
-	for _, path := range paths {
-		result = append(result, classpathJar{
-			path:      path,
-			classpath: classpathType,
-		})
-	}
-	return
-}
-
 func (c *ClasspathFragmentBase) androidMkEntries() []android.AndroidMkEntries {
-	return []android.AndroidMkEntries{android.AndroidMkEntries{
+	return []android.AndroidMkEntries{{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(c.outputFilepath),
 		ExtraEntries: []android.AndroidMkExtraEntriesFunc{

@@ -1756,6 +1756,7 @@ func SdkLibraryFactory() android.Module {
 
 	module.InitSdkLibraryProperties()
 	android.InitApexModule(module)
+	android.InitSdkAwareModule(module)
 	InitJavaModule(module, android.HostAndDeviceSupported)
 
 	// Initialize the map from scope to scope specific properties.
@@ -2385,9 +2386,6 @@ type sdkLibrarySdkMemberProperties struct {
 	// Scope to per scope properties.
 	Scopes map[*apiScope]scopeProperties
 
-	// Additional libraries that the exported stubs libraries depend upon.
-	Libs []string
-
 	// The Java stubs source files.
 	Stub_srcs []string
 
@@ -2439,7 +2437,6 @@ func (s *sdkLibrarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMembe
 		}
 	}
 
-	s.Libs = sdk.properties.Libs
 	s.Naming_scheme = sdk.commonSdkLibraryProperties.Naming_scheme
 	s.Shared_library = proptools.BoolPtr(sdk.sharedLibrary())
 	s.Compile_dex = sdk.dexProperties.Compile_dex
@@ -2503,9 +2500,5 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 			dests = append(dests, dest)
 		}
 		propertySet.AddProperty("doctag_files", dests)
-	}
-
-	if len(s.Libs) > 0 {
-		propertySet.AddPropertyWithTag("libs", s.Libs, ctx.SnapshotBuilder().SdkMemberReferencePropertyTag(false))
 	}
 }
