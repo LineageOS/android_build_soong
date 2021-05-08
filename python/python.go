@@ -444,11 +444,10 @@ func (p *Module) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		var sharedLibs []string
 		// if embedded launcher is enabled, we need to collect the shared library depenendencies of the
 		// launcher
-		ctx.VisitDirectDeps(func(dep android.Module) {
-			if ctx.OtherModuleDependencyTag(dep) == launcherSharedLibTag {
-				sharedLibs = append(sharedLibs, ctx.OtherModuleName(dep))
-			}
-		})
+		for _, dep := range ctx.GetDirectDepsWithTag(launcherSharedLibTag) {
+			sharedLibs = append(sharedLibs, ctx.OtherModuleName(dep))
+		}
+
 		p.installer.setAndroidMkSharedLibs(sharedLibs)
 
 		// Install the par file from installSource
