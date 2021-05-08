@@ -55,6 +55,8 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
 	ctx.RegisterModuleType("prebuilt_dsp", PrebuiltDSPFactory)
 	ctx.RegisterModuleType("prebuilt_rfsa", PrebuiltRFSAFactory)
+
+	ctx.RegisterModuleType("prebuilt_defaults", defaultsFactory)
 }
 
 var PrepareForTestWithPrebuiltEtc = android.FixtureRegisterWithContext(RegisterPrebuiltEtcBuildComponents)
@@ -124,6 +126,7 @@ type PrebuiltEtcModule interface {
 
 type PrebuiltEtc struct {
 	android.ModuleBase
+	android.DefaultableModuleBase
 
 	properties       prebuiltEtcProperties
 	subdirProperties prebuiltSubdirProperties
@@ -137,6 +140,11 @@ type PrebuiltEtc struct {
 	socInstallDirBase      string
 	installDirPath         android.InstallPath
 	additionalDependencies *android.Paths
+}
+
+type Defaults struct {
+	android.ModuleBase
+	android.DefaultsModuleBase
 }
 
 func (p *PrebuiltEtc) inRamdisk() bool {
@@ -378,6 +386,25 @@ func PrebuiltEtcFactory() android.Module {
 	InitPrebuiltEtcModule(module, "etc")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+func defaultsFactory() android.Module {
+	return DefaultsFactory()
+}
+
+func DefaultsFactory(props ...interface{}) android.Module {
+	module := &Defaults{}
+
+	module.AddProperties(props...)
+	module.AddProperties(
+		&prebuiltEtcProperties{},
+		&prebuiltSubdirProperties{},
+	)
+
+	android.InitDefaultsModule(module)
+
 	return module
 }
 
