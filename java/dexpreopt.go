@@ -180,11 +180,11 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 	for _, target := range targets {
 		archs = append(archs, target.Arch.ArchType)
 		variant := bootImage.getVariant(target)
-		images = append(images, variant.images)
+		images = append(images, variant.imagePathOnHost)
 		imagesDeps = append(imagesDeps, variant.imagesDeps)
 	}
 	// The image locations for all Android variants are identical.
-	imageLocations := bootImage.getAnyAndroidVariant().imageLocations()
+	hostImageLocations := bootImage.getAnyAndroidVariant().imageLocations()
 
 	var profileClassListing android.OptionalPath
 	var profileBootListing android.OptionalPath
@@ -224,9 +224,9 @@ func (d *dexpreopter) dexpreopt(ctx android.ModuleContext, dexJarFile android.Wr
 		ProvidesUsesLibrary:            providesUsesLib,
 		ClassLoaderContexts:            d.classLoaderContexts,
 
-		Archs:                   archs,
-		DexPreoptImagesDeps:     imagesDeps,
-		DexPreoptImageLocations: imageLocations,
+		Archs:                         archs,
+		DexPreoptImagesDeps:           imagesDeps,
+		DexPreoptImageLocationsOnHost: hostImageLocations,
 
 		PreoptBootClassPathDexFiles:     dexFiles.Paths(),
 		PreoptBootClassPathDexLocations: dexLocations,
