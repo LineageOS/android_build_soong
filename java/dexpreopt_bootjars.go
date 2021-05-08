@@ -242,7 +242,7 @@ type bootImageConfig struct {
 	symbolsDir android.OutputPath
 
 	// Subdirectory where the image files are installed.
-	installSubdir string
+	installDirOnHost string
 
 	// A list of (location, jar) pairs for the Java modules in this image.
 	modules android.ConfiguredJarList
@@ -273,8 +273,8 @@ type bootImageVariant struct {
 	dexLocationsDeps []string // for the dependency images and in this image
 
 	// Paths to image files.
-	images     android.OutputPath  // first image file
-	imagesDeps android.OutputPaths // all files
+	imagePathOnHost android.OutputPath  // first image file
+	imagesDeps      android.OutputPaths // all files
 
 	// Only for extensions, paths to the primary boot images.
 	primaryImages android.OutputPath
@@ -365,7 +365,7 @@ func (image *bootImageVariant) imageLocations() (imageLocations []string) {
 	if image.extends != nil {
 		imageLocations = image.extends.getVariant(image.target).imageLocations()
 	}
-	return append(imageLocations, dexpreopt.PathToLocation(image.images, image.target.Arch.ArchType))
+	return append(imageLocations, dexpreopt.PathToLocation(image.imagePathOnHost, image.target.Arch.ArchType))
 }
 
 func dexpreoptBootJarsFactory() android.SingletonModule {
@@ -604,9 +604,9 @@ func buildBootImageVariant(ctx android.SingletonContext, image *bootImageVariant
 
 	arch := image.target.Arch.ArchType
 	os := image.target.Os.String() // We need to distinguish host-x86 and device-x86.
-	symbolsDir := image.symbolsDir.Join(ctx, os, image.installSubdir, arch.String())
+	symbolsDir := image.symbolsDir.Join(ctx, os, image.installDirOnHost, arch.String())
 	symbolsFile := symbolsDir.Join(ctx, image.stem+".oat")
-	outputDir := image.dir.Join(ctx, os, image.installSubdir, arch.String())
+	outputDir := image.dir.Join(ctx, os, image.installDirOnHost, arch.String())
 	outputPath := outputDir.Join(ctx, image.stem+".oat")
 	oatLocation := dexpreopt.PathToLocation(outputPath, arch)
 	imagePath := outputPath.ReplaceExtension(ctx, "art")
@@ -700,7 +700,7 @@ func buildBootImageVariant(ctx android.SingletonContext, image *bootImageVariant
 
 	cmd.Textf(`|| ( echo %s ; false )`, proptools.ShellEscape(failureMessage))
 
-	installDir := filepath.Join("/", image.installSubdir, arch.String())
+	installDir := filepath.Join("/", image.installDirOnHost, arch.String())
 
 	var vdexInstalls android.RuleBuilderInstalls
 	var unstrippedInstalls android.RuleBuilderInstalls
@@ -943,7 +943,7 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 				}
 				sfx := variant.name + suffix + "_" + variant.target.Arch.ArchType.String()
 				ctx.Strict("DEXPREOPT_IMAGE_VDEX_BUILT_INSTALLED_"+sfx, variant.vdexInstalls.String())
-				ctx.Strict("DEXPREOPT_IMAGE_"+sfx, variant.images.String())
+				ctx.Strict("DEXPREOPT_IMAGE_"+sfx, variant.imagePathOnHost.String())
 				ctx.Strict("DEXPREOPT_IMAGE_DEPS_"+sfx, strings.Join(variant.imagesDeps.Strings(), " "))
 				ctx.Strict("DEXPREOPT_IMAGE_BUILT_INSTALLED_"+sfx, variant.installs.String())
 				ctx.Strict("DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_"+sfx, variant.unstrippedInstalls.String())
