@@ -41,6 +41,11 @@ type sdkAwareWithoutModule interface {
 	sdkBase() *SdkBase
 	MakeMemberOf(sdk SdkRef)
 	IsInAnySdk() bool
+
+	// IsVersioned determines whether the module is versioned, i.e. has a name of the form
+	// <name>@<version>
+	IsVersioned() bool
+
 	ContainingSdk() SdkRef
 	MemberName() string
 	BuildWithSdks(sdks SdkRefs)
@@ -82,7 +87,7 @@ const SdkVersionSeparator = '@'
 func ParseSdkRef(ctx BaseModuleContext, str string, property string) SdkRef {
 	tokens := strings.Split(str, string(SdkVersionSeparator))
 	if len(tokens) < 1 || len(tokens) > 2 {
-		ctx.PropertyErrorf(property, "%q does not follow name#version syntax", str)
+		ctx.PropertyErrorf(property, "%q does not follow name@version syntax", str)
 		return SdkRef{Name: "invalid sdk name", Version: "invalid sdk version"}
 	}
 
@@ -138,6 +143,11 @@ func (s *SdkBase) MakeMemberOf(sdk SdkRef) {
 // IsInAnySdk returns true if this module is a member of any SDK
 func (s *SdkBase) IsInAnySdk() bool {
 	return s.properties.ContainingSdk != nil
+}
+
+// IsVersioned returns true if this module is versioned.
+func (s *SdkBase) IsVersioned() bool {
+	return strings.Contains(s.module.Name(), "@")
 }
 
 // ContainingSdk returns the SDK that this module is a member of
@@ -292,9 +302,7 @@ type SdkMember interface {
 }
 
 // SdkMemberTypeDependencyTag is the interface that a tag must implement in order to allow the
-// dependent module to be automatically added to the sdk. In order for this to work the
-// SdkMemberType of the depending module must return true from
-// SdkMemberType.HasTransitiveSdkMembers.
+// dependent module to be automatically added to the sdk.
 type SdkMemberTypeDependencyTag interface {
 	blueprint.DependencyTag
 
@@ -375,13 +383,6 @@ type SdkMemberType interface {
 	// True if the member type supports the sdk/sdk_snapshot, false otherwise.
 	UsableWithSdkAndSdkSnapshot() bool
 
-	// Return true if modules of this type can have dependencies which should be
-	// treated as if they are sdk members.
-	//
-	// Any dependency that is to be treated as a member of the sdk needs to implement
-	// SdkAware and be added with an SdkMemberTypeDependencyTag tag.
-	HasTransitiveSdkMembers() bool
-
 	// Return true if prebuilt host artifacts may be specific to the host OS. Only
 	// applicable to modules where HostSupported() is true. If this is true,
 	// snapshots will list each host OS variant explicitly and disable all other
@@ -447,10 +448,9 @@ type SdkMemberType interface {
 
 // Base type for SdkMemberType implementations.
 type SdkMemberTypeBase struct {
-	PropertyName         string
-	SupportsSdk          bool
-	TransitiveSdkMembers bool
-	HostOsDependent      bool
+	PropertyName    string
+	SupportsSdk     bool
+	HostOsDependent bool
 }
 
 func (b *SdkMemberTypeBase) SdkPropertyName() string {
@@ -459,10 +459,6 @@ func (b *SdkMemberTypeBase) SdkPropertyName() string {
 
 func (b *SdkMemberTypeBase) UsableWithSdkAndSdkSnapshot() bool {
 	return b.SupportsSdk
-}
-
-func (b *SdkMemberTypeBase) HasTransitiveSdkMembers() bool {
-	return b.TransitiveSdkMembers
 }
 
 func (b *SdkMemberTypeBase) IsHostOsDependent() bool {

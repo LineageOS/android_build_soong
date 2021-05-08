@@ -35,9 +35,8 @@ func init() {
 	// Register sdk member types.
 	android.RegisterSdkMemberType(&systemModulesSdkMemberType{
 		android.SdkMemberTypeBase{
-			PropertyName:         "java_system_modules",
-			SupportsSdk:          true,
-			TransitiveSdkMembers: true,
+			PropertyName: "java_system_modules",
+			SupportsSdk:  true,
 		},
 	})
 }
@@ -115,6 +114,7 @@ func SystemModulesFactory() android.Module {
 	module.AddProperties(&module.properties)
 	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibCommon)
 	android.InitDefaultableModule(module)
+	android.InitSdkAwareModule(module)
 	return module
 }
 
