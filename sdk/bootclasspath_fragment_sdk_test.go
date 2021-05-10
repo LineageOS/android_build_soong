@@ -95,9 +95,6 @@ func TestSnapshotWithBootclasspathFragment_ImageName(t *testing.T) {
 				prebuilt_apex {
 					name: "com.android.art",
 					src: "art.apex",
-					exported_java_libs: [
-						"mybootlib",
-					],
 					exported_bootclasspath_fragments: [
 						"mybootclasspathfragment",
 					],
