@@ -16,6 +16,7 @@ package apex
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -56,10 +57,18 @@ type sanitizedPrebuilt interface {
 }
 
 type prebuiltCommonProperties struct {
-	DeapexerProperties
 	SelectedApexProperties
 
 	ForceDisable bool `blueprint:"mutated"`
+
+	// List of java libraries that are embedded inside this prebuilt APEX bundle and for which this
+	// APEX bundle will create an APEX variant and provide dex implementation jars for use by
+	// dexpreopt and boot jars package check.
+	Exported_java_libs []string
+
+	// List of bootclasspath fragments inside this prebuilt APEX bundle and for which this APEX
+	// bundle will create an APEX variant.
+	Exported_bootclasspath_fragments []string
 }
 
 func (p *prebuiltCommon) Prebuilt() *android.Prebuilt {
@@ -410,15 +419,20 @@ func createDeapexerModuleIfNeeded(ctx android.TopDownMutatorContext, deapexerNam
 	}
 
 	// Compute the deapexer properties from the transitive dependencies of this module.
-	deapexerProperties := &DeapexerProperties{}
+	javaModules := []string{}
+	exportedFiles := map[string]string{}
 	ctx.WalkDeps(func(child, parent android.Module) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
 
 		name := android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(child))
 		if java.IsBootclasspathFragmentContentDepTag(tag) || tag == exportedJavaLibTag {
-			deapexerProperties.Exported_java_libs = append(deapexerProperties.Exported_java_libs, name)
+			javaModules = append(javaModules, name)
+
+			// Add the dex implementation jar to the set of exported files. The path here must match the
+			// path of the file in the APEX created by apexFileForJavaModule(...).
+			exportedFiles[name+"{.dexjar}"] = filepath.Join("javalib", name+".jar")
+
 		} else if tag == exportedBootclasspathFragmentTag {
-			deapexerProperties.Exported_bootclasspath_fragments = append(deapexerProperties.Exported_bootclasspath_fragments, name)
 			// Only visit the children of the bootclasspath_fragment for now.
 			return true
 		}
@@ -426,9 +440,20 @@ func createDeapexerModuleIfNeeded(ctx android.TopDownMutatorContext, deapexerNam
 		return false
 	})
 
-	// Remove any duplicates from the deapexer lists.
-	deapexerProperties.Exported_bootclasspath_fragments = android.FirstUniqueStrings(deapexerProperties.Exported_bootclasspath_fragments)
-	deapexerProperties.Exported_java_libs = android.FirstUniqueStrings(deapexerProperties.Exported_java_libs)
+	// Create properties for deapexer module.
+	deapexerProperties := &DeapexerProperties{
+		// Remove any duplicates from the java modules lists as a module may be included via a direct
+		// dependency as well as transitive ones.
+		CommonModules: android.SortedUniqueStrings(javaModules),
+	}
+
+	// Populate the exported files property in a fixed order.
+	for _, tag := range android.SortedStringKeys(exportedFiles) {
+		deapexerProperties.ExportedFiles = append(deapexerProperties.ExportedFiles, DeapexerExportedFile{
+			Tag:  tag,
+			Path: exportedFiles[tag],
+		})
+	}
 
 	props := struct {
 		Name          *string
