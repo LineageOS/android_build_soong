@@ -305,10 +305,10 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 			if baseLinkerProps.Version_script != nil {
 				versionScript.SetValueForArch(arch.Name,
 					android.BazelLabelForModuleSrcSingle(ctx, *baseLinkerProps.Version_script))
-
-				sharedLibs := baseLinkerProps.Shared_libs
-				dynamicDeps.SetValueForArch(arch.Name, android.BazelLabelForModuleDeps(ctx, sharedLibs))
 			}
+
+			sharedLibs := baseLinkerProps.Shared_libs
+			dynamicDeps.SetValueForArch(arch.Name, android.BazelLabelForModuleDeps(ctx, sharedLibs))
 		}
 	}
 
