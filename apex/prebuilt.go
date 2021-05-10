@@ -114,19 +114,21 @@ func prebuiltApexModuleCreatorMutator(ctx android.TopDownMutatorContext) {
 	}
 }
 
-func (p *prebuiltCommon) deapexerDeps(ctx android.BottomUpMutatorContext) {
+// prebuiltApexContentsDeps adds dependencies onto the prebuilt apex module's contents.
+func (p *prebuiltCommon) prebuiltApexContentsDeps(ctx android.BottomUpMutatorContext) {
+	module := ctx.Module()
 	// Add dependencies onto the java modules that represent the java libraries that are provided by
 	// and exported from this prebuilt apex.
 	for _, exported := range p.deapexerProperties.Exported_java_libs {
-		dep := prebuiltApexExportedModuleName(ctx, exported)
-		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), exportedJavaLibTag, dep)
+		dep := android.PrebuiltNameFromSource(exported)
+		ctx.AddDependency(module, exportedJavaLibTag, dep)
 	}
 
 	// Add dependencies onto the bootclasspath fragment modules that are exported from this prebuilt
 	// apex.
 	for _, exported := range p.deapexerProperties.Exported_bootclasspath_fragments {
-		dep := prebuiltApexExportedModuleName(ctx, exported)
-		ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), exportedBootclasspathFragmentTag, dep)
+		dep := android.PrebuiltNameFromSource(exported)
+		ctx.AddDependency(module, exportedBootclasspathFragmentTag, dep)
 	}
 }
 
@@ -398,14 +400,35 @@ func createApexSelectorModule(ctx android.TopDownMutatorContext, name string, ap
 
 // createDeapexerModuleIfNeeded will create a deapexer module if it is needed.
 //
-// A deapexer module is only needed when the prebuilt apex specifies an `exported_java_libs`
-// property as that indicates that the listed modules need access to files from within the prebuilt
-// .apex file.
+// A deapexer module is only needed when the prebuilt apex specifies one or more modules in either
+// the `exported_java_libs` or `exported_bootclasspath_fragments` properties as that indicates that
+// the listed modules need access to files from within the prebuilt .apex file.
 func createDeapexerModuleIfNeeded(ctx android.TopDownMutatorContext, deapexerName string, apexFileSource string, deapexerProperties *DeapexerProperties) {
 	// Only create the deapexer module if it is needed.
-	if len(deapexerProperties.Exported_java_libs) == 0 {
+	if len(deapexerProperties.Exported_java_libs)+len(deapexerProperties.Exported_bootclasspath_fragments) == 0 {
 		return
 	}
+
+	// Compute the deapexer properties from the transitive dependencies of this module.
+	deapexerProperties = &DeapexerProperties{}
+	ctx.WalkDeps(func(child, parent android.Module) bool {
+		tag := ctx.OtherModuleDependencyTag(child)
+
+		name := android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(child))
+		if java.IsBootclasspathFragmentContentDepTag(tag) || tag == exportedJavaLibTag {
+			deapexerProperties.Exported_java_libs = append(deapexerProperties.Exported_java_libs, name)
+		} else if tag == exportedBootclasspathFragmentTag {
+			deapexerProperties.Exported_bootclasspath_fragments = append(deapexerProperties.Exported_bootclasspath_fragments, name)
+			// Only visit the children of the bootclasspath_fragment for now.
+			return true
+		}
+
+		return false
+	})
+
+	// Remove any duplicates from the deapexer lists.
+	deapexerProperties.Exported_bootclasspath_fragments = android.FirstUniqueStrings(deapexerProperties.Exported_bootclasspath_fragments)
+	deapexerProperties.Exported_java_libs = android.FirstUniqueStrings(deapexerProperties.Exported_java_libs)
 
 	props := struct {
 		Name          *string
@@ -511,8 +534,8 @@ func (p *Prebuilt) createPrebuiltApexModules(ctx android.TopDownMutatorContext) 
 	p.selectedApexProperties.Selected_apex = proptools.StringPtr(apexFileSource)
 }
 
-func (p *Prebuilt) DepsMutator(ctx android.BottomUpMutatorContext) {
-	p.deapexerDeps(ctx)
+func (p *Prebuilt) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
+	p.prebuiltApexContentsDeps(ctx)
 }
 
 var _ ApexInfoMutator = (*Prebuilt)(nil)
@@ -772,8 +795,8 @@ func (a *ApexSet) createPrebuiltApexModules(ctx android.TopDownMutatorContext) {
 	a.selectedApexProperties.Selected_apex = proptools.StringPtr(apexFileSource)
 }
 
-func (a *ApexSet) DepsMutator(ctx android.BottomUpMutatorContext) {
-	a.deapexerDeps(ctx)
+func (a *ApexSet) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
+	a.prebuiltApexContentsDeps(ctx)
 }
 
 var _ ApexInfoMutator = (*ApexSet)(nil)
