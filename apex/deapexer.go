@@ -40,17 +40,29 @@ import (
 // This is intentionally not registered by name as it is not intended to be used from within an
 // `Android.bp` file.
 
-// Properties that are specific to `deapexer` but which need to be provided on the `prebuilt_apex`
-// module.`
-type DeapexerProperties struct {
-	// List of java libraries that are embedded inside this prebuilt APEX bundle and for which this
-	// APEX bundle will create an APEX variant and provide dex implementation jars for use by
-	// dexpreopt and boot jars package check.
-	Exported_java_libs []string
+// DeapexerExportedFile defines the properties needed to expose a file from the deapexer module.
+type DeapexerExportedFile struct {
+	// The tag parameter which must be passed to android.OutputFileProducer OutputFiles(tag) method
+	// to retrieve the path to the unpacked file.
+	Tag string
 
-	// List of bootclasspath fragments inside this prebuiltd APEX bundle and for which this APEX
-	// bundle will create an APEX variant.
-	Exported_bootclasspath_fragments []string
+	// The path within the APEX that needs to be exported.
+	Path string `android:"path"`
+}
+
+// DeapexerProperties specifies the properties supported by the deapexer module.
+//
+// As these are never intended to be supplied in a .bp file they use a different naming convention
+// to make it clear that they are different.
+type DeapexerProperties struct {
+	// List of common modules that may need access to files exported by this module.
+	//
+	// A common module in this sense is one that is not arch specific but uses a common variant for
+	// all architectures, e.g. java.
+	CommonModules []string
+
+	// List of files exported from the .apex file by this module
+	ExportedFiles []DeapexerExportedFile
 }
 
 type SelectedApexProperties struct {
@@ -81,7 +93,7 @@ func privateDeapexerFactory() android.Module {
 func (p *Deapexer) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add dependencies from the java modules to which this exports files from the `.apex` file onto
 	// this module so that they can access the `DeapexerInfo` object that this provides.
-	for _, lib := range p.properties.Exported_java_libs {
+	for _, lib := range p.properties.CommonModules {
 		dep := prebuiltApexExportedModuleName(ctx, lib)
 		ctx.AddReverseDependency(ctx.Module(), android.DeapexerTag, dep)
 	}
@@ -96,10 +108,12 @@ func (p *Deapexer) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	exports := make(map[string]android.Path)
 
 	// Create mappings from name+tag to all the required exported paths.
-	for _, l := range p.properties.Exported_java_libs {
-		// Populate the exports that this makes available. The path here must match the path of the
-		// file in the APEX created by apexFileForJavaModule(...).
-		exports[l+"{.dexjar}"] = deapexerOutput.Join(ctx, "javalib", l+".jar")
+	for _, e := range p.properties.ExportedFiles {
+		tag := e.Tag
+		path := e.Path
+
+		// Populate the exports that this makes available.
+		exports[tag] = deapexerOutput.Join(ctx, path)
 	}
 
 	// If the prebuilt_apex exports any files then create a build rule that unpacks the apex using
