@@ -196,10 +196,10 @@ func licensesPropertyFlattener(ctx ModuleContext) {
 			if m.base().commonProperties.Effective_package_name == nil && l.properties.Package_name != nil {
 				m.base().commonProperties.Effective_package_name = l.properties.Package_name
 			}
-			mergeProps(&m.base().commonProperties.Effective_licenses, module.base().commonProperties.Effective_licenses...)
-			mergeProps(&m.base().commonProperties.Effective_license_text, module.base().commonProperties.Effective_license_text...)
-			mergeProps(&m.base().commonProperties.Effective_license_kinds, module.base().commonProperties.Effective_license_kinds...)
-			mergeProps(&m.base().commonProperties.Effective_license_conditions, module.base().commonProperties.Effective_license_conditions...)
+			mergeStringProps(&m.base().commonProperties.Effective_licenses, module.base().commonProperties.Effective_licenses...)
+			mergePathProps(&m.base().commonProperties.Effective_license_text, module.base().commonProperties.Effective_license_text...)
+			mergeStringProps(&m.base().commonProperties.Effective_license_kinds, module.base().commonProperties.Effective_license_kinds...)
+			mergeStringProps(&m.base().commonProperties.Effective_license_conditions, module.base().commonProperties.Effective_license_conditions...)
 		} else {
 			propertyName := "licenses"
 			primaryProperty := m.base().primaryLicensesProperty
@@ -212,16 +212,15 @@ func licensesPropertyFlattener(ctx ModuleContext) {
 }
 
 // Update a property string array with a distinct union of its values and a list of new values.
-func mergeProps(prop *[]string, values ...string) {
-	s := make(map[string]bool)
-	for _, v := range *prop {
-		s[v] = true
-	}
-	for _, v := range values {
-		s[v] = true
-	}
-	*prop = []string{}
-	*prop = append(*prop, SortedStringKeys(s)...)
+func mergeStringProps(prop *[]string, values ...string) {
+	*prop = append(*prop, values...)
+	*prop = SortedUniqueStrings(*prop)
+}
+
+// Update a property Path array with a distinct union of its values and a list of new values.
+func mergePathProps(prop *Paths, values ...Path) {
+	*prop = append(*prop, values...)
+	*prop = SortedUniquePaths(*prop)
 }
 
 // Get the licenses property falling back to the package default.
