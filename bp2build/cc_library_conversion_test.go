@@ -302,6 +302,37 @@ cc_library {
     version_script = "v.map",
 )`},
 		},
+		{
+			description:                        "cc_library shared_libs",
+			moduleTypeUnderTest:                "cc_library",
+			moduleTypeUnderTestFactory:         cc.LibraryFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			dir:                                "foo/bar",
+			filesystem: map[string]string{
+				"foo/bar/Android.bp": `
+cc_library {
+    name: "mylib",
+    bazel_module: { bp2build_available: true },
+}
+
+cc_library {
+    name: "a",
+    shared_libs: ["mylib",],
+    bazel_module: { bp2build_available: true },
+}
+`,
+			},
+			bp: soongCcLibraryPreamble,
+			expectedBazelTargets: []string{`cc_library(
+    name = "a",
+    copts = ["-Ifoo/bar"],
+    dynamic_deps = [":mylib"],
+)`, `cc_library(
+    name = "mylib",
+    copts = ["-Ifoo/bar"],
+)`},
+		},
 	}
 
 	dir := "."
