@@ -380,6 +380,10 @@ type SdkMemberType interface {
 	// The name of the member type property on an sdk module.
 	SdkPropertyName() string
 
+	// RequiresBpProperty returns true if this member type requires its property to be usable within
+	// an Android.bp file.
+	RequiresBpProperty() bool
+
 	// True if the member type supports the sdk/sdk_snapshot, false otherwise.
 	UsableWithSdkAndSdkSnapshot() bool
 
@@ -452,7 +456,12 @@ type SdkMemberType interface {
 
 // Base type for SdkMemberType implementations.
 type SdkMemberTypeBase struct {
-	PropertyName    string
+	PropertyName string
+
+	// When set to true BpPropertyNotRequired indicates that the member type does not require the
+	// property to be specifiable in an Android.bp file.
+	BpPropertyNotRequired bool
+
 	SupportsSdk     bool
 	HostOsDependent bool
 
@@ -464,6 +473,10 @@ type SdkMemberTypeBase struct {
 
 func (b *SdkMemberTypeBase) SdkPropertyName() string {
 	return b.PropertyName
+}
+
+func (b *SdkMemberTypeBase) RequiresBpProperty() bool {
+	return !b.BpPropertyNotRequired
 }
 
 func (b *SdkMemberTypeBase) UsableWithSdkAndSdkSnapshot() bool {
