@@ -333,6 +333,68 @@ cc_library {
     copts = ["-Ifoo/bar"],
 )`},
 		},
+		{
+			description:                        "cc_library pack_relocations test",
+			moduleTypeUnderTest:                "cc_library",
+			moduleTypeUnderTestFactory:         cc.LibraryFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			dir:                                "foo/bar",
+			filesystem: map[string]string{
+				"foo/bar/Android.bp": `
+cc_library {
+    name: "a",
+    srcs: ["a.cpp"],
+    pack_relocations: false,
+    bazel_module: { bp2build_available: true },
+}
+
+cc_library {
+    name: "b",
+    srcs: ["b.cpp"],
+    arch: {
+        x86_64: {
+		pack_relocations: false,
+	},
+    },
+    bazel_module: { bp2build_available: true },
+}
+
+cc_library {
+    name: "c",
+    srcs: ["c.cpp"],
+    target: {
+        darwin: {
+		pack_relocations: false,
+	},
+    },
+    bazel_module: { bp2build_available: true },
+}`,
+			},
+			bp: soongCcLibraryPreamble,
+			expectedBazelTargets: []string{`cc_library(
+    name = "a",
+    copts = ["-Ifoo/bar"],
+    linkopts = ["-Wl,--pack-dyn-relocs=none"],
+    srcs = ["a.cpp"],
+)`, `cc_library(
+    name = "b",
+    copts = ["-Ifoo/bar"],
+    linkopts = select({
+        "//build/bazel/platforms/arch:x86_64": ["-Wl,--pack-dyn-relocs=none"],
+        "//conditions:default": [],
+    }),
+    srcs = ["b.cpp"],
+)`, `cc_library(
+    name = "c",
+    copts = ["-Ifoo/bar"],
+    linkopts = select({
+        "//build/bazel/platforms/os:darwin": ["-Wl,--pack-dyn-relocs=none"],
+        "//conditions:default": [],
+    }),
+    srcs = ["c.cpp"],
+)`},
+		},
 	}
 
 	dir := "."
