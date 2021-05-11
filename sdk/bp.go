@@ -188,6 +188,12 @@ func (s *bpPropertySet) setProperty(name string, value interface{}) {
 	}
 }
 
+func (s *bpPropertySet) removeProperty(name string) {
+	delete(s.properties, name)
+	delete(s.tags, name)
+	_, s.order = android.RemoveFromList(name, s.order)
+}
+
 func (s *bpPropertySet) insertAfter(position string, name string, value interface{}) {
 	if s.properties[name] != nil {
 		panic("Property %q already exists in property set")
