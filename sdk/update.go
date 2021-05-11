@@ -284,11 +284,6 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	// to internal members with a unique module name and setting prefer: false.
 	unversionedTransformer := unversionedTransformation{
 		builder: builder,
-		// Set the prefer based on the environment variable. This is a temporary work around to allow a
-		// snapshot to be created that sets prefer: true.
-		// TODO(b/174997203): Remove once the ability to select the modules to prefer can be done
-		//  dynamically at build time not at snapshot generation time.
-		prefer: ctx.Config().IsEnvTrue("SOONG_SDK_SNAPSHOT_PREFER"),
 	}
 
 	for _, unversioned := range builder.prebuiltOrder {
@@ -614,6 +609,8 @@ func (t unversionedToVersionedTransformation) transformModule(module *bpModule) 
 	name := module.getValue("name").(string)
 	module.setProperty("name", t.builder.versionedSdkMemberName(name, true))
 	module.insertAfter("name", "sdk_member_name", name)
+	// Remove the prefer property if present as versioned modules never need marking with prefer.
+	module.removeProperty("prefer")
 	return module
 }
 
@@ -629,20 +626,12 @@ func (t unversionedToVersionedTransformation) transformProperty(name string, val
 type unversionedTransformation struct {
 	identityTransformation
 	builder *snapshotBuilder
-	prefer  bool
 }
 
 func (t unversionedTransformation) transformModule(module *bpModule) *bpModule {
 	// If the module is an internal member then use a unique name for it.
 	name := module.getValue("name").(string)
 	module.setProperty("name", t.builder.unversionedSdkMemberName(name, true))
-
-	// Set prefer. Setting this to false is not strictly required as that is the default but it does
-	// provide a convenient hook to post-process the generated Android.bp file, e.g. in tests to check
-	// the behavior when a prebuilt is preferred. It also makes it explicit what the default behavior
-	// is for the module.
-	module.insertAfter("name", "prefer", t.prefer)
-
 	return module
 }
 
@@ -1380,6 +1369,18 @@ func (m *memberContext) Name() string {
 func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModule *bpModule) {
 
 	memberType := member.memberType
+
+	// Set the prefer based on the environment variable. This is a temporary work around to allow a
+	// snapshot to be created that sets prefer: true.
+	// TODO(b/174997203): Remove once the ability to select the modules to prefer can be done
+	//  dynamically at build time not at snapshot generation time.
+	prefer := ctx.sdkMemberContext.Config().IsEnvTrue("SOONG_SDK_SNAPSHOT_PREFER")
+
+	// Set prefer. Setting this to false is not strictly required as that is the default but it does
+	// provide a convenient hook to post-process the generated Android.bp file, e.g. in tests to
+	// check the behavior when a prebuilt is preferred. It also makes it explicit what the default
+	// behavior is for the module.
+	bpModule.insertAfter("name", "prefer", prefer)
 
 	// Group the variants by os type.
 	variantsByOsType := make(map[android.OsType][]android.Module)
