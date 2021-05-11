@@ -279,6 +279,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 		).RunTest(t)
 
 		ensureExactContents(t, result.TestContext, "com.android.art", "android_common_com.android.art_image", []string{
+			"etc/classpaths/mybootclasspathfragment.pb",
 			"javalib/arm/boot.art",
 			"javalib/arm/boot.oat",
 			"javalib/arm/boot.vdex",
@@ -481,6 +482,7 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 	ensureExactContents(t, result.TestContext, "myapex", "android_common_myapex_image", []string{
 		// This does not include art, oat or vdex files as they are only included for the art boot
 		// image.
+		"etc/classpaths/mybootclasspathfragment.pb",
 		"javalib/bar.jar",
 		"javalib/foo.jar",
 	})
