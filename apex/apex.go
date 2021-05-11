@@ -50,8 +50,13 @@ func registerApexBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("override_apex", overrideApexFactory)
 	ctx.RegisterModuleType("apex_set", apexSetFactory)
 
+	ctx.PreArchMutators(registerPreArchMutators)
 	ctx.PreDepsMutators(RegisterPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPostDepsMutators)
+}
+
+func registerPreArchMutators(ctx android.RegisterMutatorsContext) {
+	ctx.TopDown("prebuilt_apex_module_creator", prebuiltApexModuleCreatorMutator).Parallel()
 }
 
 func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {

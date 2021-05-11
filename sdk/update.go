@@ -29,6 +29,14 @@ import (
 	"android/soong/android"
 )
 
+// Environment variables that affect the generated snapshot
+// ========================================================
+//
+// SOONG_SDK_SNAPSHOT_PREFER
+//     By default every unversioned module in the generated snapshot has prefer: false. Building it
+//     with SOONG_SDK_SNAPSHOT_PREFER=true will force them to use prefer: true.
+//
+
 var pctx = android.NewPackageContext("android/soong/sdk")
 
 var (
@@ -274,7 +282,14 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 
 	// Create a transformer that will transform an unversioned module by replacing any references
 	// to internal members with a unique module name and setting prefer: false.
-	unversionedTransformer := unversionedTransformation{builder: builder}
+	unversionedTransformer := unversionedTransformation{
+		builder: builder,
+		// Set the prefer based on the environment variable. This is a temporary work around to allow a
+		// snapshot to be created that sets prefer: true.
+		// TODO(b/174997203): Remove once the ability to select the modules to prefer can be done
+		//  dynamically at build time not at snapshot generation time.
+		prefer: ctx.Config().IsEnvTrue("SOONG_SDK_SNAPSHOT_PREFER"),
+	}
 
 	for _, unversioned := range builder.prebuiltOrder {
 		// Prune any empty property sets.
@@ -614,6 +629,7 @@ func (t unversionedToVersionedTransformation) transformProperty(name string, val
 type unversionedTransformation struct {
 	identityTransformation
 	builder *snapshotBuilder
+	prefer  bool
 }
 
 func (t unversionedTransformation) transformModule(module *bpModule) *bpModule {
@@ -621,8 +637,11 @@ func (t unversionedTransformation) transformModule(module *bpModule) *bpModule {
 	name := module.getValue("name").(string)
 	module.setProperty("name", t.builder.unversionedSdkMemberName(name, true))
 
-	// Set prefer: false - this is not strictly required as that is the default.
-	module.insertAfter("name", "prefer", false)
+	// Set prefer. Setting this to false is not strictly required as that is the default but it does
+	// provide a convenient hook to post-process the generated Android.bp file, e.g. in tests to check
+	// the behavior when a prebuilt is preferred. It also makes it explicit what the default behavior
+	// is for the module.
+	module.insertAfter("name", "prefer", t.prefer)
 
 	return module
 }
