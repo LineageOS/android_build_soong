@@ -265,22 +265,3 @@ python_binary_host {
         "linker_config_proto",
     ],
 }
-
-python_binary_host {
-    name: "conv_classpaths_proto",
-    srcs: [
-        "conv_classpaths_proto.py",
-    ],
-    version: {
-        py2: {
-            enabled: false,
-        },
-        py3: {
-            enabled: true,
-            embedded_launcher: true,
-        },
-    },
-    libs: [
-        "classpaths_proto_python",
-    ],
-}
