@@ -513,15 +513,19 @@ func (s *sdk) collateSnapshotModuleInfo(ctx android.BaseModuleContext, sdkVarian
 		}
 
 		combined := sdkVariantToCombinedProperties[memberVariantDep.sdkVariant]
-		memberTypeProperty := s.memberListProperty(memberVariantDep.memberType)
+		memberListProperty := s.memberListProperty(memberVariantDep.memberType)
 		memberName := ctx.OtherModuleName(memberVariantDep.variant)
 
+		if memberListProperty.getter == nil {
+			continue
+		}
+
 		// Append the member to the appropriate list, if it is not already present in the list.
-		memberList := memberTypeProperty.getter(combined.dynamicProperties)
+		memberList := memberListProperty.getter(combined.dynamicProperties)
 		if !android.InList(memberName, memberList) {
 			memberList = append(memberList, memberName)
 		}
-		memberTypeProperty.setter(combined.dynamicProperties, memberList)
+		memberListProperty.setter(combined.dynamicProperties, memberList)
 	}
 
 	return list
@@ -573,6 +577,9 @@ func (s *sdk) addSnapshotPropertiesToPropertySet(builder *snapshotBuilder, prope
 
 	dynamicMemberTypeListProperties := combined.dynamicProperties
 	for _, memberListProperty := range s.memberListProperties() {
+		if memberListProperty.getter == nil {
+			continue
+		}
 		names := memberListProperty.getter(dynamicMemberTypeListProperties)
 		if len(names) > 0 {
 			propertySet.AddProperty(memberListProperty.propertyName(), builder.versionedSdkMemberNames(names, false))
