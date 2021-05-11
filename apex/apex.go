@@ -2102,6 +2102,11 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.
 		}
 	}
 
+	// Add classpaths.proto config.
+	classpathProtoOutput := bootclasspathFragmentInfo.ClasspathFragmentProtoOutput
+	classpathProto := newApexFile(ctx, classpathProtoOutput, classpathProtoOutput.Base(), bootclasspathFragmentInfo.ClasspathFragmentProtoInstallDir.Rel(), etc, nil)
+	filesToAdd = append(filesToAdd, classpathProto)
+
 	return filesToAdd
 }
 
