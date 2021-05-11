@@ -266,8 +266,11 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	}
 	s.builderForTests = builder
 
-	// Create the prebuilt modules for each of the member modules.
+	// Group the variants for each member module together and then group the members of each member
+	// type together.
 	members := s.groupMemberVariantsByMemberThenType(ctx, memberVariantDeps)
+
+	// Create the prebuilt modules for each of the member modules.
 	for _, member := range members {
 		memberType := member.memberType
 
@@ -613,7 +616,7 @@ type unversionedToVersionedTransformation struct {
 func (t unversionedToVersionedTransformation) transformModule(module *bpModule) *bpModule {
 	// Use a versioned name for the module but remember the original name for the
 	// snapshot.
-	name := module.getValue("name").(string)
+	name := module.Name()
 	module.setProperty("name", t.builder.versionedSdkMemberName(name, true))
 	module.insertAfter("name", "sdk_member_name", name)
 	// Remove the prefer property if present as versioned modules never need marking with prefer.
@@ -637,7 +640,7 @@ type unversionedTransformation struct {
 
 func (t unversionedTransformation) transformModule(module *bpModule) *bpModule {
 	// If the module is an internal member then use a unique name for it.
-	name := module.getValue("name").(string)
+	name := module.Name()
 	module.setProperty("name", t.builder.unversionedSdkMemberName(name, true))
 	return module
 }
@@ -689,12 +692,26 @@ func generateFilteredBpContents(contents *generatedContents, bpFile *bpFile, mod
 func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 	contents.Indent()
 
+	addComment := func(name string) {
+		if text, ok := set.comments[name]; ok {
+			for _, line := range strings.Split(text, "\n") {
+				contents.Printfln("// %s", line)
+			}
+		}
+	}
+
 	// Output the properties first, followed by the nested sets. This ensures a
 	// consistent output irrespective of whether property sets are created before
 	// or after the properties. This simplifies the creation of the module.
 	for _, name := range set.order {
 		value := set.getValue(name)
 
+		// Do not write property sets in the properties phase.
+		if _, ok := value.(*bpPropertySet); ok {
+			continue
+		}
+
+		addComment(name)
 		switch v := value.(type) {
 		case []string:
 			length := len(v)
@@ -715,9 +732,6 @@ func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 		case bool:
 			contents.Printfln("%s: %t,", name, v)
 
-		case *bpPropertySet:
-			// Do not write property sets in the properties phase.
-
 		default:
 			contents.Printfln("%s: %q,", name, value)
 		}
@@ -729,6 +743,7 @@ func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 		// Only write property sets in the sets phase.
 		switch v := value.(type) {
 		case *bpPropertySet:
+			addComment(name)
 			contents.Printfln("%s: {", name)
 			outputPropertySet(contents, v)
 			contents.Printfln("},")
@@ -747,7 +762,9 @@ func (s *sdk) GetAndroidBpContentsForTests() string {
 func (s *sdk) GetUnversionedAndroidBpContentsForTests() string {
 	contents := &generatedContents{}
 	generateFilteredBpContents(contents, s.builderForTests.bpFile, func(module *bpModule) bool {
-		return !strings.Contains(module.properties["name"].(string), "@")
+		name := module.Name()
+		// Include modules that are either unversioned or have no name.
+		return !strings.Contains(name, "@")
 	})
 	return contents.content.String()
 }
@@ -755,7 +772,9 @@ func (s *sdk) GetUnversionedAndroidBpContentsForTests() string {
 func (s *sdk) GetVersionedAndroidBpContentsForTests() string {
 	contents := &generatedContents{}
 	generateFilteredBpContents(contents, s.builderForTests.bpFile, func(module *bpModule) bool {
-		return strings.Contains(module.properties["name"].(string), "@")
+		name := module.Name()
+		// Include modules that are either versioned or have no name.
+		return name == "" || strings.Contains(name, "@")
 	})
 	return contents.content.String()
 }
