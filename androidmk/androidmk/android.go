@@ -216,6 +216,8 @@ func init() {
 			"LOCAL_JETIFIER_ENABLED":      "jetifier",
 
 			"LOCAL_IS_UNIT_TEST": "unit_test",
+
+			"LOCAL_ENFORCE_USES_LIBRARIES": "enforce_uses_libs",
 		})
 }
 
