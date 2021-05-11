@@ -1222,6 +1222,13 @@ func (j *Import) LintDepSets() LintDepSets {
 	return LintDepSets{}
 }
 
+func (j *Import) getStrictUpdatabilityLinting() bool {
+	return false
+}
+
+func (j *Import) setStrictUpdatabilityLinting(bool) {
+}
+
 func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, libTag, j.properties.Libs...)
 
@@ -1543,6 +1550,13 @@ func (a *DexImport) LintDepSets() LintDepSets {
 
 func (j *DexImport) IsInstallable() bool {
 	return true
+}
+
+func (j *DexImport) getStrictUpdatabilityLinting() bool {
+	return false
+}
+
+func (j *DexImport) setStrictUpdatabilityLinting(bool) {
 }
 
 func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
