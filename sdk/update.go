@@ -1370,17 +1370,20 @@ func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModu
 
 	memberType := member.memberType
 
-	// Set the prefer based on the environment variable. This is a temporary work around to allow a
-	// snapshot to be created that sets prefer: true.
-	// TODO(b/174997203): Remove once the ability to select the modules to prefer can be done
-	//  dynamically at build time not at snapshot generation time.
-	prefer := ctx.sdkMemberContext.Config().IsEnvTrue("SOONG_SDK_SNAPSHOT_PREFER")
+	// Do not add the prefer property if the member snapshot module is a source module type.
+	if !memberType.UsesSourceModuleTypeInSnapshot() {
+		// Set the prefer based on the environment variable. This is a temporary work around to allow a
+		// snapshot to be created that sets prefer: true.
+		// TODO(b/174997203): Remove once the ability to select the modules to prefer can be done
+		//  dynamically at build time not at snapshot generation time.
+		prefer := ctx.sdkMemberContext.Config().IsEnvTrue("SOONG_SDK_SNAPSHOT_PREFER")
 
-	// Set prefer. Setting this to false is not strictly required as that is the default but it does
-	// provide a convenient hook to post-process the generated Android.bp file, e.g. in tests to
-	// check the behavior when a prebuilt is preferred. It also makes it explicit what the default
-	// behavior is for the module.
-	bpModule.insertAfter("name", "prefer", prefer)
+		// Set prefer. Setting this to false is not strictly required as that is the default but it does
+		// provide a convenient hook to post-process the generated Android.bp file, e.g. in tests to
+		// check the behavior when a prebuilt is preferred. It also makes it explicit what the default
+		// behavior is for the module.
+		bpModule.insertAfter("name", "prefer", prefer)
+	}
 
 	// Group the variants by os type.
 	variantsByOsType := make(map[android.OsType][]android.Module)
