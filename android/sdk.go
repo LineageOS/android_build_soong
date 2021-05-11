@@ -405,6 +405,10 @@ type SdkMemberType interface {
 	// the module is not allowed in whichever sdk property it was added.
 	IsInstance(module Module) bool
 
+	// UsesSourceModuleTypeInSnapshot returns true when the AddPrebuiltModule() method returns a
+	// source module type.
+	UsesSourceModuleTypeInSnapshot() bool
+
 	// Add a prebuilt module that the sdk will populate.
 	//
 	// The sdk module code generates the snapshot as follows:
@@ -451,6 +455,11 @@ type SdkMemberTypeBase struct {
 	PropertyName    string
 	SupportsSdk     bool
 	HostOsDependent bool
+
+	// When set to true UseSourceModuleTypeInSnapshot indicates that the member type creates a source
+	// module type in its SdkMemberType.AddPrebuiltModule() method. That prevents the sdk snapshot
+	// code from automatically adding a prefer: true flag.
+	UseSourceModuleTypeInSnapshot bool
 }
 
 func (b *SdkMemberTypeBase) SdkPropertyName() string {
@@ -463,6 +472,10 @@ func (b *SdkMemberTypeBase) UsableWithSdkAndSdkSnapshot() bool {
 
 func (b *SdkMemberTypeBase) IsHostOsDependent() bool {
 	return b.HostOsDependent
+}
+
+func (b *SdkMemberTypeBase) UsesSourceModuleTypeInSnapshot() bool {
+	return b.UseSourceModuleTypeInSnapshot
 }
 
 // Encapsulates the information about registered SdkMemberTypes.
