@@ -25,6 +25,7 @@ import (
 type bpPropertySet struct {
 	properties map[string]interface{}
 	tags       map[string]android.BpPropertyTag
+	comments   map[string]string
 	order      []string
 }
 
@@ -133,8 +134,20 @@ func (s *bpPropertySet) getValue(name string) interface{} {
 	return s.properties[name]
 }
 
+func (s *bpPropertySet) getOptionalValue(name string) (interface{}, bool) {
+	value, ok := s.properties[name]
+	return value, ok
+}
+
 func (s *bpPropertySet) getTag(name string) interface{} {
 	return s.tags[name]
+}
+
+func (s *bpPropertySet) AddCommentForProperty(name, text string) {
+	if s.comments == nil {
+		s.comments = map[string]string{}
+	}
+	s.comments[name] = strings.TrimSpace(text)
 }
 
 func (s *bpPropertySet) transformContents(transformer bpPropertyTransformer) {
@@ -220,6 +233,19 @@ func (s *bpPropertySet) insertAfter(position string, name string, value interfac
 type bpModule struct {
 	*bpPropertySet
 	moduleType string
+}
+
+func (m *bpModule) ModuleType() string {
+	return m.moduleType
+}
+
+func (m *bpModule) Name() string {
+	name, hasName := m.getOptionalValue("name")
+	if hasName {
+		return name.(string)
+	} else {
+		return ""
+	}
 }
 
 var _ android.BpModule = (*bpModule)(nil)
@@ -352,16 +378,26 @@ type bpFile struct {
 // is unique within this file.
 func (f *bpFile) AddModule(module android.BpModule) {
 	m := module.(*bpModule)
-	if name, ok := m.getValue("name").(string); ok {
-		if f.modules[name] != nil {
-			panic(fmt.Sprintf("Module %q already exists in bp file", name))
-		}
-
-		f.modules[name] = m
-		f.order = append(f.order, m)
-	} else {
-		panic("Module does not have a name property, or it is not a string")
+	moduleType := module.ModuleType()
+	name := m.Name()
+	hasName := true
+	if name == "" {
+		// Use a prefixed module type as the name instead just in case this is something like a package
+		// of namespace module which does not require a name.
+		name = "#" + moduleType
+		hasName = false
 	}
+
+	if f.modules[name] != nil {
+		if hasName {
+			panic(fmt.Sprintf("Module %q already exists in bp file", name))
+		} else {
+			panic(fmt.Sprintf("Unnamed module type %q already exists in bp file", moduleType))
+		}
+	}
+
+	f.modules[name] = m
+	f.order = append(f.order, m)
 }
 
 func (f *bpFile) newModule(moduleType string) *bpModule {
