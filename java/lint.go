@@ -103,6 +103,10 @@ type lintOutputsIntf interface {
 
 type lintDepSetsIntf interface {
 	LintDepSets() LintDepSets
+
+	// Methods used to propagate strict_updatability_linting values.
+	getStrictUpdatabilityLinting() bool
+	setStrictUpdatabilityLinting(bool)
 }
 
 type LintDepSets struct {
@@ -151,6 +155,14 @@ func (l LintDepSetsBuilder) Build() LintDepSets {
 
 func (l *linter) LintDepSets() LintDepSets {
 	return l.outputs.depSets
+}
+
+func (l *linter) getStrictUpdatabilityLinting() bool {
+	return BoolDefault(l.properties.Lint.Strict_updatability_linting, false)
+}
+
+func (l *linter) setStrictUpdatabilityLinting(strictLinting bool) {
+	l.properties.Lint.Strict_updatability_linting = &strictLinting
 }
 
 var _ lintDepSetsIntf = (*linter)(nil)
@@ -260,7 +272,7 @@ func (l *linter) writeLintProjectXML(ctx android.ModuleContext, rule *android.Ru
 	cmd.FlagForEachArg("--error_check ", l.properties.Lint.Error_checks)
 	cmd.FlagForEachArg("--fatal_check ", l.properties.Lint.Fatal_checks)
 
-	if BoolDefault(l.properties.Lint.Strict_updatability_linting, false) {
+	if l.getStrictUpdatabilityLinting() {
 		// Verify the module does not baseline issues that endanger safe updatability.
 		if baselinePath := l.getBaselineFilepath(ctx); baselinePath.Valid() {
 			cmd.FlagWithInput("--baseline ", baselinePath.Path())
@@ -586,6 +598,14 @@ var _ android.SingletonMakeVarsProvider = (*lintSingleton)(nil)
 func init() {
 	android.RegisterSingletonType("lint",
 		func() android.Singleton { return &lintSingleton{} })
+
+	registerLintBuildComponents(android.InitRegistrationContext)
+}
+
+func registerLintBuildComponents(ctx android.RegistrationContext) {
+	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.TopDown("enforce_strict_updatability_linting", enforceStrictUpdatabilityLintingMutator).Parallel()
+	})
 }
 
 func lintZip(ctx android.BuilderContext, paths android.Paths, outputPath android.WritablePath) {
@@ -603,4 +623,16 @@ func lintZip(ctx android.BuilderContext, paths android.Paths, outputPath android
 		FlagWithRspFileInputList("-r ", outputPath.ReplaceExtension(ctx, "rsp"), paths)
 
 	rule.Build(outputPath.Base(), outputPath.Base())
+}
+
+// Enforce the strict updatability linting to all applicable transitive dependencies.
+func enforceStrictUpdatabilityLintingMutator(ctx android.TopDownMutatorContext) {
+	m := ctx.Module()
+	if d, ok := m.(lintDepSetsIntf); ok && d.getStrictUpdatabilityLinting() {
+		ctx.VisitDirectDepsWithTag(staticLibTag, func(d android.Module) {
+			if a, ok := d.(lintDepSetsIntf); ok {
+				a.setStrictUpdatabilityLinting(true)
+			}
+		})
+	}
 }
