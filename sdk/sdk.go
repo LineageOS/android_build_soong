@@ -169,23 +169,27 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 	var fields []reflect.StructField
 
 	// Iterate over the member types creating StructField and sdkMemberListProperty objects.
-	for f, memberType := range sdkMemberTypes {
+	nextFieldIndex := 0
+	for _, memberType := range sdkMemberTypes {
+
 		p := memberType.SdkPropertyName()
 
-		// Create a dynamic exported field for the member type's property.
-		fields = append(fields, reflect.StructField{
-			Name: proptools.FieldNameForProperty(p),
-			Type: reflect.TypeOf([]string{}),
-			Tag:  `android:"arch_variant"`,
-		})
+		var getter func(properties interface{}) []string
+		var setter func(properties interface{}, list []string)
+		if memberType.RequiresBpProperty() {
+			// Create a dynamic exported field for the member type's property.
+			fields = append(fields, reflect.StructField{
+				Name: proptools.FieldNameForProperty(p),
+				Type: reflect.TypeOf([]string{}),
+				Tag:  `android:"arch_variant"`,
+			})
 
-		// Copy the field index for use in the getter func as using the loop variable directly will
-		// cause all funcs to use the last value.
-		fieldIndex := f
+			// Copy the field index for use in the getter func as using the loop variable directly will
+			// cause all funcs to use the last value.
+			fieldIndex := nextFieldIndex
+			nextFieldIndex += 1
 
-		// Create an sdkMemberListProperty for the member type.
-		memberListProperty := &sdkMemberListProperty{
-			getter: func(properties interface{}) []string {
+			getter = func(properties interface{}) []string {
 				// The properties is expected to be of the following form (where
 				// <Module_types> is the name of an SdkMemberType.SdkPropertyName().
 				//     properties *struct {<Module_types> []string, ....}
@@ -195,9 +199,9 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 				//
 				list := reflect.ValueOf(properties).Elem().Field(fieldIndex).Interface().([]string)
 				return list
-			},
+			}
 
-			setter: func(properties interface{}, list []string) {
+			setter = func(properties interface{}, list []string) {
 				// The properties is expected to be of the following form (where
 				// <Module_types> is the name of an SdkMemberType.SdkPropertyName().
 				//     properties *struct {<Module_types> []string, ....}
@@ -206,8 +210,13 @@ func createDynamicSdkMemberTypes(sdkMemberTypes []android.SdkMemberType) *dynami
 				//    *properties.<Module_types> = list
 				//
 				reflect.ValueOf(properties).Elem().Field(fieldIndex).Set(reflect.ValueOf(list))
-			},
+			}
+		}
 
+		// Create an sdkMemberListProperty for the member type.
+		memberListProperty := &sdkMemberListProperty{
+			getter:     getter,
+			setter:     setter,
 			memberType: memberType,
 
 			// Dependencies added directly from member properties are always exported.
@@ -402,6 +411,9 @@ func memberMutator(mctx android.BottomUpMutatorContext) {
 		// Add dependencies from enabled and non CommonOS variants to the sdk member variants.
 		if s.Enabled() && !s.IsCommonOSVariant() {
 			for _, memberListProperty := range s.memberListProperties() {
+				if memberListProperty.getter == nil {
+					continue
+				}
 				names := memberListProperty.getter(s.dynamicMemberTypeListProperties)
 				if len(names) > 0 {
 					tag := memberListProperty.dependencyTag
