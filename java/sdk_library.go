@@ -2195,6 +2195,20 @@ func (module *SdkLibraryImport) LintDepSets() LintDepSets {
 	}
 }
 
+func (module *SdkLibraryImport) getStrictUpdatabilityLinting() bool {
+	if module.implLibraryModule == nil {
+		return false
+	} else {
+		return module.implLibraryModule.getStrictUpdatabilityLinting()
+	}
+}
+
+func (module *SdkLibraryImport) setStrictUpdatabilityLinting(strictLinting bool) {
+	if module.implLibraryModule != nil {
+		module.implLibraryModule.setStrictUpdatabilityLinting(strictLinting)
+	}
+}
+
 // to satisfy apex.javaDependency interface
 func (module *SdkLibraryImport) Stem() string {
 	return module.BaseModuleName()
