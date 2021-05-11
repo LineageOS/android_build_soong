@@ -525,4 +525,43 @@ sdk_snapshot {
 			`),
 		)
 	})
+
+	t.Run("SOONG_SDK_SNAPSHOT_PREFER=true", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			preparer,
+			android.FixtureMergeEnv(map[string]string{
+				"SOONG_SDK_SNAPSHOT_PREFER": "true",
+			}),
+		).RunTest(t)
+
+		checkZipFile(t, result, "out/soong/.intermediates/mysdk/common_os/mysdk-current.zip")
+
+		CheckSnapshot(t, result, "mysdk", "",
+			checkAndroidBpContents(`
+// This is auto-generated. DO NOT EDIT.
+
+java_import {
+    name: "mysdk_myjavalib@current",
+    sdk_member_name: "myjavalib",
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    jars: ["java/myjavalib.jar"],
+}
+
+java_import {
+    name: "myjavalib",
+    prefer: true,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    jars: ["java/myjavalib.jar"],
+}
+
+sdk_snapshot {
+    name: "mysdk@current",
+    visibility: ["//visibility:public"],
+    java_header_libs: ["mysdk_myjavalib@current"],
+}
+			`),
+		)
+	})
 }
