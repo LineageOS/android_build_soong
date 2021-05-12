@@ -6,18 +6,6 @@ import (
 	"github.com/google/blueprint"
 )
 
-var prepareForTestWithLicenses = GroupFixturePreparers(
-	FixtureRegisterWithContext(RegisterLicenseKindBuildComponents),
-	FixtureRegisterWithContext(RegisterLicenseBuildComponents),
-	FixtureRegisterWithContext(registerLicenseMutators),
-)
-
-func registerLicenseMutators(ctx RegistrationContext) {
-	ctx.PreArchMutators(RegisterLicensesPackageMapper)
-	ctx.PreArchMutators(RegisterLicensesPropertyGatherer)
-	ctx.PostDepsMutators(RegisterLicensesDependencyChecker)
-}
-
 var licensesTests = []struct {
 	name                       string
 	fs                         MockFS
