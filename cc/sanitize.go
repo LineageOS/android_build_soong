@@ -1075,7 +1075,7 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 			sanitizers = append(sanitizers, "shadow-call-stack")
 		}
 
-		if Bool(c.sanitize.Properties.Sanitize.Memtag_heap) && c.binary() {
+		if Bool(c.sanitize.Properties.Sanitize.Memtag_heap) && c.Binary() {
 			noteDep := "note_memtag_heap_async"
 			if Bool(c.sanitize.Properties.Sanitize.Diag.Memtag_heap) {
 				noteDep = "note_memtag_heap_sync"
@@ -1206,6 +1206,14 @@ type Sanitizeable interface {
 	IsSanitizerEnabled(ctx android.BaseModuleContext, sanitizerName string) bool
 	EnableSanitizer(sanitizerName string)
 	AddSanitizerDependencies(ctx android.BottomUpMutatorContext, sanitizerName string)
+}
+
+func (c *Module) MinimalRuntimeDep() bool {
+	return c.sanitize.Properties.MinimalRuntimeDep
+}
+
+func (c *Module) UbsanRuntimeDep() bool {
+	return c.sanitize.Properties.UbsanRuntimeDep
 }
 
 func (c *Module) SanitizePropDefined() bool {
@@ -1439,6 +1447,14 @@ func enableMinimalRuntime(sanitize *sanitize) bool {
 		return true
 	}
 	return false
+}
+
+func (m *Module) UbsanRuntimeNeeded() bool {
+	return enableUbsanRuntime(m.sanitize)
+}
+
+func (m *Module) MinimalRuntimeNeeded() bool {
+	return enableMinimalRuntime(m.sanitize)
 }
 
 func enableUbsanRuntime(sanitize *sanitize) bool {

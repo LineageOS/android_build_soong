@@ -82,3 +82,8 @@ func (procMacro *procMacroDecorator) getStem(ctx ModuleContext) string {
 func (procMacro *procMacroDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {
 	return rlibAutoDep
 }
+
+func (procMacro *procMacroDecorator) everInstallable() bool {
+	// Proc_macros are never installed
+	return false
+}
