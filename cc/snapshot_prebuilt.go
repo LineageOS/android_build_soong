@@ -35,12 +35,12 @@ type snapshotImage interface {
 	// Function that returns true if the module is included in this image.
 	// Using a function return instead of a value to prevent early
 	// evalution of a function that may be not be defined.
-	inImage(m *Module) func() bool
+	inImage(m LinkableInterface) func() bool
 
 	// Returns true if the module is private and must not be included in the
 	// snapshot. For example VNDK-private modules must return true for the
 	// vendor snapshots. But false for the recovery snapshots.
-	private(m *Module) bool
+	private(m LinkableInterface) bool
 
 	// Returns true if a dir under source tree is an SoC-owned proprietary
 	// directory, such as device/, vendor/, etc.
@@ -56,7 +56,7 @@ type snapshotImage interface {
 	// Whether a given module has been explicitly excluded from the
 	// snapshot, e.g., using the exclude_from_vendor_snapshot or
 	// exclude_from_recovery_snapshot properties.
-	excludeFromSnapshot(m *Module) bool
+	excludeFromSnapshot(m LinkableInterface) bool
 
 	// Returns true if the build is using a snapshot for this image.
 	isUsingSnapshot(cfg android.DeviceConfig) bool
@@ -125,11 +125,11 @@ func (vendorSnapshotImage) shouldGenerateSnapshot(ctx android.SingletonContext) 
 	return ctx.DeviceConfig().VndkVersion() == "current"
 }
 
-func (vendorSnapshotImage) inImage(m *Module) func() bool {
+func (vendorSnapshotImage) inImage(m LinkableInterface) func() bool {
 	return m.InVendor
 }
 
-func (vendorSnapshotImage) private(m *Module) bool {
+func (vendorSnapshotImage) private(m LinkableInterface) bool {
 	return m.IsVndkPrivate()
 }
 
@@ -159,7 +159,7 @@ func (vendorSnapshotImage) includeVndk() bool {
 	return true
 }
 
-func (vendorSnapshotImage) excludeFromSnapshot(m *Module) bool {
+func (vendorSnapshotImage) excludeFromSnapshot(m LinkableInterface) bool {
 	return m.ExcludeFromVendorSnapshot()
 }
 
@@ -206,12 +206,12 @@ func (recoverySnapshotImage) shouldGenerateSnapshot(ctx android.SingletonContext
 	return ctx.DeviceConfig().RecoverySnapshotVersion() == "current"
 }
 
-func (recoverySnapshotImage) inImage(m *Module) func() bool {
+func (recoverySnapshotImage) inImage(m LinkableInterface) func() bool {
 	return m.InRecovery
 }
 
 // recovery snapshot does not have private libraries.
-func (recoverySnapshotImage) private(m *Module) bool {
+func (recoverySnapshotImage) private(m LinkableInterface) bool {
 	return false
 }
 
@@ -224,7 +224,7 @@ func (recoverySnapshotImage) includeVndk() bool {
 	return false
 }
 
-func (recoverySnapshotImage) excludeFromSnapshot(m *Module) bool {
+func (recoverySnapshotImage) excludeFromSnapshot(m LinkableInterface) bool {
 	return m.ExcludeFromRecoverySnapshot()
 }
 
