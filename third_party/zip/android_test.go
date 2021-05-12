@@ -140,3 +140,83 @@ func TestCopyFromZip64(t *testing.T) {
 		t.Errorf("Expected UnompressedSize64 %d, got %d", w, g)
 	}
 }
+
+// Test for b/187485108: zip64 output can't be read by p7zip 16.02.
+func TestZip64P7ZipRecords(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow test; skipping")
+	}
+
+	const size = uint32max + 1
+	zipBytes := &bytes.Buffer{}
+	zip := NewWriter(zipBytes)
+	f, err := zip.CreateHeaderAndroid(&FileHeader{
+		Name:               "large",
+		Method:             Store,
+		UncompressedSize64: size,
+		CompressedSize64:   size,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	_, err = f.Write(make([]byte, size))
+	if err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	err = zip.Close()
+	if err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	buf := zipBytes.Bytes()
+	p := findSignatureInBlock(buf)
+	if p < 0 {
+		t.Fatalf("Missing signature")
+	}
+
+	b := readBuf(buf[p+4:]) // skip signature
+	d := &directoryEnd{
+		diskNbr:            uint32(b.uint16()),
+		dirDiskNbr:         uint32(b.uint16()),
+		dirRecordsThisDisk: uint64(b.uint16()),
+		directoryRecords:   uint64(b.uint16()),
+		directorySize:      uint64(b.uint32()),
+		directoryOffset:    uint64(b.uint32()),
+		commentLen:         b.uint16(),
+	}
+
+	// p7zip 16.02 wants regular end record directoryRecords to be accurate.
+	if g, w := d.directoryRecords, uint64(1); g != w {
+		t.Errorf("wanted directoryRecords %d, got %d", w, g)
+	}
+
+	if g, w := d.directorySize, uint64(uint32max); g != w {
+		t.Errorf("wanted directorySize %d, got %d", w, g)
+	}
+
+	if g, w := d.directoryOffset, uint64(uint32max); g != w {
+		t.Errorf("wanted directoryOffset %d, got %d", w, g)
+	}
+
+	r := bytes.NewReader(buf)
+
+	p64, err := findDirectory64End(r, int64(p))
+	if err != nil {
+		t.Fatalf("findDirectory64End: %v", err)
+	}
+	if p < 0 {
+		t.Fatalf("findDirectory64End: not found")
+	}
+	err = readDirectory64End(r, p64, d)
+	if err != nil {
+		t.Fatalf("readDirectory64End: %v", err)
+	}
+
+	if g, w := d.directoryRecords, uint64(1); g != w {
+		t.Errorf("wanted directoryRecords %d, got %d", w, g)
+	}
+
+	if g, w := d.directoryOffset, uint64(uint32max); g <= w {
+		t.Errorf("wanted directoryOffset > %d, got %d", w, g)
+	}
+}

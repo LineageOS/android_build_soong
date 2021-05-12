@@ -284,11 +284,20 @@ type BpPropertySet interface {
 	// Add a property set with the specified name and return so that additional
 	// properties can be added.
 	AddPropertySet(name string) BpPropertySet
+
+	// Add comment for property (or property set).
+	AddCommentForProperty(name, text string)
 }
 
 // A .bp module definition.
 type BpModule interface {
 	BpPropertySet
+
+	// ModuleType returns the module type of the module
+	ModuleType() string
+
+	// Name returns the name of the module or "" if no name has been specified.
+	Name() string
 }
 
 // An individual member of the SDK, includes all of the variants that the SDK
@@ -380,6 +389,10 @@ type SdkMemberType interface {
 	// The name of the member type property on an sdk module.
 	SdkPropertyName() string
 
+	// RequiresBpProperty returns true if this member type requires its property to be usable within
+	// an Android.bp file.
+	RequiresBpProperty() bool
+
 	// True if the member type supports the sdk/sdk_snapshot, false otherwise.
 	UsableWithSdkAndSdkSnapshot() bool
 
@@ -404,6 +417,10 @@ type SdkMemberType interface {
 	// SdkMember. Returning false will cause an error to be logged expaining that
 	// the module is not allowed in whichever sdk property it was added.
 	IsInstance(module Module) bool
+
+	// UsesSourceModuleTypeInSnapshot returns true when the AddPrebuiltModule() method returns a
+	// source module type.
+	UsesSourceModuleTypeInSnapshot() bool
 
 	// Add a prebuilt module that the sdk will populate.
 	//
@@ -448,13 +465,27 @@ type SdkMemberType interface {
 
 // Base type for SdkMemberType implementations.
 type SdkMemberTypeBase struct {
-	PropertyName    string
+	PropertyName string
+
+	// When set to true BpPropertyNotRequired indicates that the member type does not require the
+	// property to be specifiable in an Android.bp file.
+	BpPropertyNotRequired bool
+
 	SupportsSdk     bool
 	HostOsDependent bool
+
+	// When set to true UseSourceModuleTypeInSnapshot indicates that the member type creates a source
+	// module type in its SdkMemberType.AddPrebuiltModule() method. That prevents the sdk snapshot
+	// code from automatically adding a prefer: true flag.
+	UseSourceModuleTypeInSnapshot bool
 }
 
 func (b *SdkMemberTypeBase) SdkPropertyName() string {
 	return b.PropertyName
+}
+
+func (b *SdkMemberTypeBase) RequiresBpProperty() bool {
+	return !b.BpPropertyNotRequired
 }
 
 func (b *SdkMemberTypeBase) UsableWithSdkAndSdkSnapshot() bool {
@@ -463,6 +494,10 @@ func (b *SdkMemberTypeBase) UsableWithSdkAndSdkSnapshot() bool {
 
 func (b *SdkMemberTypeBase) IsHostOsDependent() bool {
 	return b.HostOsDependent
+}
+
+func (b *SdkMemberTypeBase) UsesSourceModuleTypeInSnapshot() bool {
+	return b.UseSourceModuleTypeInSnapshot
 }
 
 // Encapsulates the information about registered SdkMemberTypes.
