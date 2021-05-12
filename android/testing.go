@@ -74,6 +74,42 @@ var PrepareForTestWithOverrides = FixtureRegisterWithContext(func(ctx Registrati
 	ctx.PostDepsMutators(RegisterOverridePostDepsMutators)
 })
 
+var PrepareForTestWithLicenses = GroupFixturePreparers(
+	FixtureRegisterWithContext(RegisterLicenseKindBuildComponents),
+	FixtureRegisterWithContext(RegisterLicenseBuildComponents),
+	FixtureRegisterWithContext(registerLicenseMutators),
+)
+
+func registerLicenseMutators(ctx RegistrationContext) {
+	ctx.PreArchMutators(RegisterLicensesPackageMapper)
+	ctx.PreArchMutators(RegisterLicensesPropertyGatherer)
+	ctx.PostDepsMutators(RegisterLicensesDependencyChecker)
+}
+
+var PrepareForTestWithLicenseDefaultModules = GroupFixturePreparers(
+	FixtureAddTextFile("build/soong/licenses/Android.bp", `
+		license {
+				name: "Android-Apache-2.0",
+				package_name: "Android",
+				license_kinds: ["SPDX-license-identifier-Apache-2.0"],
+				copyright_notice: "Copyright (C) The Android Open Source Project",
+				license_text: ["LICENSE"],
+		}
+
+		license_kind {
+				name: "SPDX-license-identifier-Apache-2.0",
+				conditions: ["notice"],
+				url: "https://spdx.org/licenses/Apache-2.0.html",
+		}
+
+		license_kind {
+				name: "legacy_unencumbered",
+				conditions: ["unencumbered"],
+		}
+	`),
+	FixtureAddFile("build/soong/licenses/LICENSE", nil),
+)
+
 // Test fixture preparer that will register most java build components.
 //
 // Singletons and mutators should only be added here if they are needed for a majority of java
