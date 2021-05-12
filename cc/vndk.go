@@ -372,7 +372,7 @@ func IsForVndkApex(mctx android.BottomUpMutatorContext, m *Module) bool {
 			if mctx.ModuleName() == "libz" {
 				return false
 			}
-			return m.ImageVariation().Variation == android.CoreVariation && lib.shared() && m.isVndkSp()
+			return m.ImageVariation().Variation == android.CoreVariation && lib.shared() && m.IsVndkSp()
 		}
 
 		useCoreVariant := m.VndkVersion() == mctx.DeviceConfig().PlatformVndkVersion() &&
@@ -574,38 +574,37 @@ type vndkSnapshotSingleton struct {
 	vndkSnapshotZipFile android.OptionalPath
 }
 
-func isVndkSnapshotAware(config android.DeviceConfig, m *Module,
-	apexInfo android.ApexInfo) (i snapshotLibraryInterface, vndkType string, isVndkSnapshotLib bool) {
+func isVndkSnapshotAware(config android.DeviceConfig, m LinkableInterface,
+	apexInfo android.ApexInfo) (vndkType string, isVndkSnapshotLib bool) {
 
 	if m.Target().NativeBridge == android.NativeBridgeEnabled {
-		return nil, "", false
+		return "", false
 	}
 	// !inVendor: There's product/vendor variants for VNDK libs. We only care about vendor variants.
 	// !installable: Snapshot only cares about "installable" modules.
 	// !m.IsLlndk: llndk stubs are required for building against snapshots.
 	// IsSnapshotPrebuilt: Snapshotting a snapshot doesn't make sense.
 	// !outputFile.Valid: Snapshot requires valid output file.
-	if !m.InVendor() || (!m.installable(apexInfo) && !m.IsLlndk()) || m.IsSnapshotPrebuilt() || !m.outputFile.Valid() {
-		return nil, "", false
+	if !m.InVendor() || (!installable(m, apexInfo) && !m.IsLlndk()) || m.IsSnapshotPrebuilt() || !m.OutputFile().Valid() {
+		return "", false
 	}
-	l, ok := m.linker.(snapshotLibraryInterface)
-	if !ok || !l.shared() {
-		return nil, "", false
+	if !m.IsSnapshotLibrary() || !m.Shared() {
+		return "", false
 	}
 	if m.VndkVersion() == config.PlatformVndkVersion() {
 		if m.IsVndk() && !m.IsVndkExt() {
-			if m.isVndkSp() {
-				return l, "vndk-sp", true
+			if m.IsVndkSp() {
+				return "vndk-sp", true
 			} else {
-				return l, "vndk-core", true
+				return "vndk-core", true
 			}
-		} else if l.hasLLNDKStubs() && l.stubsVersion() == "" {
+		} else if m.HasLlndkStubs() && m.StubsVersion() == "" {
 			// Use default version for the snapshot.
-			return l, "llndk-stub", true
+			return "llndk-stub", true
 		}
 	}
 
-	return nil, "", false
+	return "", false
 }
 
 func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContext) {
@@ -722,7 +721,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 
 		apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
 
-		l, vndkType, ok := isVndkSnapshotAware(ctx.DeviceConfig(), m, apexInfo)
+		vndkType, ok := isVndkSnapshotAware(ctx.DeviceConfig(), m, apexInfo)
 		if !ok {
 			return
 		}
@@ -761,7 +760,7 @@ func (c *vndkSnapshotSingleton) GenerateBuildActions(ctx android.SingletonContex
 		}
 
 		if ctx.Config().VndkSnapshotBuildArtifacts() {
-			headers = append(headers, l.snapshotHeaders()...)
+			headers = append(headers, m.SnapshotHeaders()...)
 		}
 	})
 
