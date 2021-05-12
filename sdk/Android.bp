@@ -26,6 +26,7 @@ bootstrap_go_package {
         "compat_config_sdk_test.go",
         "exports_test.go",
         "java_sdk_test.go",
+        "license_sdk_test.go",
         "sdk_test.go",
         "testing.go",
     ],

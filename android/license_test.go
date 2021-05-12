@@ -8,7 +8,7 @@ import (
 var prepareForLicenseTest = GroupFixturePreparers(
 	// General preparers in alphabetical order.
 	PrepareForTestWithDefaults,
-	prepareForTestWithLicenses,
+	PrepareForTestWithLicenses,
 	PrepareForTestWithOverrides,
 	PrepareForTestWithPackageModule,
 	PrepareForTestWithPrebuilts,
