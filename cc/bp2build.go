@@ -17,6 +17,7 @@ import (
 	"android/soong/android"
 	"android/soong/bazel"
 	"path/filepath"
+	"strings"
 )
 
 // bp2build functions and helpers for converting cc_* modules to Bazel.
@@ -188,7 +189,13 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 
 	// Parse the list of copts.
 	parseCopts := func(baseCompilerProps *BaseCompilerProperties) []string {
-		copts := append([]string{}, baseCompilerProps.Cflags...)
+		var copts []string
+		for _, flag := range baseCompilerProps.Cflags {
+			// Soong's cflags can contain spaces, like `-include header.h`. For
+			// Bazel's copts, split them up to be compatible with the
+			// no_copts_tokenization feature.
+			copts = append(copts, strings.Split(flag, " ")...)
+		}
 		for _, dir := range parseLocalIncludeDirs(baseCompilerProps) {
 			copts = append(copts, includeFlag(dir))
 		}
