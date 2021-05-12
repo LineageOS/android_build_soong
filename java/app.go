@@ -893,7 +893,7 @@ func (a *AndroidApp) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool 
 	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
 }
 
-func (a *AndroidApp) PreventInstall() {
+func (a *AndroidApp) SetPreventInstall() {
 	a.appProperties.PreventInstall = true
 }
 

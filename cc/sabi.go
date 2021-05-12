@@ -84,7 +84,7 @@ func classifySourceAbiDump(ctx android.BaseModuleContext) string {
 		return "LLNDK"
 	}
 	if m.UseVndk() && m.IsVndk() && !m.IsVndkPrivate() {
-		if m.isVndkSp() {
+		if m.IsVndkSp() {
 			if m.IsVndkExt() {
 				return "VNDK-SP-ext"
 			} else {
