@@ -181,11 +181,21 @@ func TestJavaLintStrictUpdatabilityLinting(t *testing.T) {
 			srcs: [
 				"a.java",
 			],
+			static_libs: ["bar"],
 			min_sdk_version: "29",
 			sdk_version: "current",
 			lint: {
 				strict_updatability_linting: true,
 			},
+		}
+
+		java_library {
+			name: "bar",
+			srcs: [
+				"a.java",
+			],
+			min_sdk_version: "29",
+			sdk_version: "current",
 		}
 	`
 	fs := android.MockFS{
@@ -197,6 +207,13 @@ func TestJavaLintStrictUpdatabilityLinting(t *testing.T) {
 
 	foo := result.ModuleForTests("foo", "android_common")
 	sboxProto := android.RuleBuilderSboxProtoForTests(t, foo.Output("lint.sbox.textproto"))
+	if !strings.Contains(*sboxProto.Commands[0].Command,
+		"--baseline lint-baseline.xml --disallowed_issues NewApi") {
+		t.Error("did not restrict baselining NewApi")
+	}
+
+	bar := result.ModuleForTests("bar", "android_common")
+	sboxProto = android.RuleBuilderSboxProtoForTests(t, bar.Output("lint.sbox.textproto"))
 	if !strings.Contains(*sboxProto.Commands[0].Command,
 		"--baseline lint-baseline.xml --disallowed_issues NewApi") {
 		t.Error("did not restrict baselining NewApi")
