@@ -63,6 +63,12 @@ func TestSnapshotWithPackageDefaultLicense(t *testing.T) {
 		checkUnversionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
+package {
+    // A default list here prevents the license LSC from adding its own list which would
+    // be unnecessary as every module in the sdk already has its own licenses property.
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
 java_import {
     name: "myjavalib",
     prefer: false,
@@ -87,6 +93,12 @@ license {
 		`),
 		checkVersionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
+
+package {
+    // A default list here prevents the license LSC from adding its own list which would
+    // be unnecessary as every module in the sdk already has its own licenses property.
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
 
 java_import {
     name: "mysdk_myjavalib@current",
