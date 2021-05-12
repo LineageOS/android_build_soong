@@ -906,12 +906,16 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 
 	// This is the main part of this mutator. Mark the collected dependencies that they need to
 	// be built for this apexBundle.
+
+	// Note that there are many different names.
+	// ApexVariationName: this is the name of the apex variation
 	apexInfo := android.ApexInfo{
-		ApexVariationName: mctx.ModuleName(),
+		ApexVariationName: mctx.ModuleName(), // could be com.android.foo
 		MinSdkVersion:     minSdkVersion,
 		RequiredSdks:      a.RequiredSdks(),
 		Updatable:         a.Updatable(),
-		InApexVariants:    []string{mctx.ModuleName()},
+		InApexVariants:    []string{mctx.ModuleName()}, // could be com.android.foo
+		InApexModules:     []string{a.Name()},          // could be com.mycompany.android.foo
 		ApexContents:      []*android.ApexContents{apexContents},
 	}
 	mctx.WalkDeps(func(child, parent android.Module) bool {
