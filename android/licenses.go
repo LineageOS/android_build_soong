@@ -32,8 +32,23 @@ type licensesDependencyTag struct {
 	blueprint.BaseDependencyTag
 }
 
+func (l licensesDependencyTag) SdkMemberType(Module) SdkMemberType {
+	// Add the supplied module to the sdk as a license module.
+	return LicenseModuleSdkMemberType
+}
+
+func (l licensesDependencyTag) ExportMember() bool {
+	// The license module will only every be referenced from within the sdk. This will ensure that it
+	// gets a unique name and so avoid clashing with the original license module.
+	return false
+}
+
 var (
 	licensesTag = licensesDependencyTag{}
+
+	// License modules, i.e. modules depended upon via a licensesTag, must be automatically added to
+	// any sdk/module_exports to which their referencing module is a member.
+	_ SdkMemberTypeDependencyTag = licensesTag
 )
 
 // Describes the property provided by a module to reference applicable licenses.
@@ -140,7 +155,6 @@ func licensesPropertyGatherer(ctx BottomUpMutatorContext) {
 	}
 
 	licenses := getLicenses(ctx, m)
-
 	ctx.AddVariationDependencies(nil, licensesTag, licenses...)
 }
 
@@ -191,8 +205,10 @@ func licensesPropertyFlattener(ctx ModuleContext) {
 		return
 	}
 
+	var licenses []string
 	for _, module := range ctx.GetDirectDepsWithTag(licensesTag) {
 		if l, ok := module.(*licenseModule); ok {
+			licenses = append(licenses, ctx.OtherModuleName(module))
 			if m.base().commonProperties.Effective_package_name == nil && l.properties.Package_name != nil {
 				m.base().commonProperties.Effective_package_name = l.properties.Package_name
 			}
@@ -209,6 +225,12 @@ func licensesPropertyFlattener(ctx ModuleContext) {
 			ctx.ModuleErrorf("%s property %q is not a license module", propertyName, ctx.OtherModuleName(module))
 		}
 	}
+
+	// Make the license information available for other modules.
+	licenseInfo := LicenseInfo{
+		Licenses: licenses,
+	}
+	ctx.SetProvider(LicenseInfoProvider, licenseInfo)
 }
 
 // Update a property string array with a distinct union of its values and a list of new values.
@@ -277,3 +299,12 @@ func exemptFromRequiredApplicableLicensesProperty(module Module) bool {
 	}
 	return true
 }
+
+// LicenseInfo contains information about licenses for a specific module.
+type LicenseInfo struct {
+	// The list of license modules this depends upon, either explicitly or through default package
+	// configuration.
+	Licenses []string
+}
+
+var LicenseInfoProvider = blueprint.NewProvider(LicenseInfo{})
