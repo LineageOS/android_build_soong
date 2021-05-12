@@ -23,6 +23,36 @@ var (
 	headerExts = []string{".h", ".hh", ".hpp", ".hxx", ".h++", ".inl", ".inc", ".ipp", ".h.generic"}
 )
 
+func (m *Module) IsSnapshotLibrary() bool {
+	if _, ok := m.linker.(snapshotLibraryInterface); ok {
+		return true
+	}
+	return false
+}
+
+func (m *Module) SnapshotHeaders() android.Paths {
+	if m.IsSnapshotLibrary() {
+		return m.linker.(snapshotLibraryInterface).snapshotHeaders()
+	}
+	return android.Paths{}
+}
+
+func (m *Module) Dylib() bool {
+	return false
+}
+
+func (m *Module) Rlib() bool {
+	return false
+}
+
+func (m *Module) SnapshotRuntimeLibs() []string {
+	return m.Properties.SnapshotRuntimeLibs
+}
+
+func (m *Module) SnapshotSharedLibs() []string {
+	return m.Properties.SnapshotSharedLibs
+}
+
 // snapshotLibraryInterface is an interface for libraries captured to VNDK / vendor snapshots.
 type snapshotLibraryInterface interface {
 	libraryInterface
@@ -68,14 +98,14 @@ func (s *snapshotMap) get(name string, arch android.ArchType) (snapshot string, 
 	return snapshot, found
 }
 
-// shouldCollectHeadersForSnapshot determines if the module is a possible candidate for snapshot.
+// ShouldCollectHeadersForSnapshot determines if the module is a possible candidate for snapshot.
 // If it's true, collectHeadersForSnapshot will be called in GenerateAndroidBuildActions.
-func shouldCollectHeadersForSnapshot(ctx android.ModuleContext, m *Module, apexInfo android.ApexInfo) bool {
+func ShouldCollectHeadersForSnapshot(ctx android.ModuleContext, m LinkableInterface, apexInfo android.ApexInfo) bool {
 	if ctx.DeviceConfig().VndkVersion() != "current" &&
 		ctx.DeviceConfig().RecoverySnapshotVersion() != "current" {
 		return false
 	}
-	if _, _, ok := isVndkSnapshotAware(ctx.DeviceConfig(), m, apexInfo); ok {
+	if _, ok := isVndkSnapshotAware(ctx.DeviceConfig(), m, apexInfo); ok {
 		return ctx.Config().VndkSnapshotBuildArtifacts()
 	}
 

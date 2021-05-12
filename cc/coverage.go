@@ -203,7 +203,7 @@ func SetCoverageProperties(ctx android.BaseModuleContext, properties CoveragePro
 type Coverage interface {
 	android.Module
 	IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool
-	PreventInstall()
+	SetPreventInstall()
 	HideFromMake()
 	MarkAsCoverageVariant(bool)
 	EnableCoverageIfNeeded()
@@ -236,7 +236,7 @@ func coverageMutator(mctx android.BottomUpMutatorContext) {
 		// to an APEX via 'data' property.
 		m := mctx.CreateVariations("", "cov")
 		m[0].(Coverage).MarkAsCoverageVariant(false)
-		m[0].(Coverage).PreventInstall()
+		m[0].(Coverage).SetPreventInstall()
 		m[0].(Coverage).HideFromMake()
 
 		m[1].(Coverage).MarkAsCoverageVariant(true)
