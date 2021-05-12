@@ -445,6 +445,32 @@ cc_library {
     srcs = ["c.cpp"],
 )`},
 		},
+		{
+			description:                        "cc_library spaces in copts",
+			moduleTypeUnderTest:                "cc_library",
+			moduleTypeUnderTestFactory:         cc.LibraryFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			dir:                                "foo/bar",
+			filesystem: map[string]string{
+				"foo/bar/Android.bp": `
+cc_library {
+    name: "a",
+    cflags: ["-include header.h",],
+    bazel_module: { bp2build_available: true },
+}
+`,
+			},
+			bp: soongCcLibraryPreamble,
+			expectedBazelTargets: []string{`cc_library(
+    name = "a",
+    copts = [
+        "-include",
+        "header.h",
+        "-Ifoo/bar",
+    ],
+)`},
+		},
 	}
 
 	dir := "."
