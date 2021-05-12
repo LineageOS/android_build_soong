@@ -900,7 +900,7 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 		MinSdkVersion:     minSdkVersion,
 		RequiredSdks:      a.RequiredSdks(),
 		Updatable:         a.Updatable(),
-		InApexes:          []string{mctx.ModuleName()},
+		InApexVariants:    []string{mctx.ModuleName()},
 		ApexContents:      []*android.ApexContents{apexContents},
 	}
 	mctx.WalkDeps(func(child, parent android.Module) bool {
@@ -1557,7 +1557,7 @@ func (a *apexBundle) WalkPayloadDeps(ctx android.ModuleContext, do android.Paylo
 		}
 
 		ai := ctx.OtherModuleProvider(child, android.ApexInfoProvider).(android.ApexInfo)
-		externalDep := !android.InList(ctx.ModuleName(), ai.InApexes)
+		externalDep := !android.InList(ctx.ModuleName(), ai.InApexVariants)
 
 		// Visit actually
 		return do(ctx, parent, am, externalDep)
