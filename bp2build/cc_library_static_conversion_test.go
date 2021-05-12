@@ -189,8 +189,6 @@ cc_library_static {
         ":header_lib_2",
         ":static_lib_1",
         ":static_lib_2",
-        ":whole_static_lib_1",
-        ":whole_static_lib_2",
     ],
     includes = [
         "export_include_dir_1",
@@ -200,6 +198,10 @@ cc_library_static {
     srcs = [
         "foo_static1.cc",
         "foo_static2.cc",
+    ],
+    whole_archive_deps = [
+        ":whole_static_lib_1",
+        ":whole_static_lib_2",
     ],
 )`, `cc_library_static(
     name = "static_lib_1",
@@ -423,13 +425,14 @@ cc_library_static {
     name = "foo_static",
     copts = ["-I."],
     deps = select({
-        "//build/bazel/platforms/arch:arm64": [
-            ":static_dep",
-            ":static_dep2",
-        ],
+        "//build/bazel/platforms/arch:arm64": [":static_dep"],
         "//conditions:default": [],
     }),
     linkstatic = True,
+    whole_archive_deps = select({
+        "//build/bazel/platforms/arch:arm64": [":static_dep2"],
+        "//conditions:default": [],
+    }),
 )`, `cc_library_static(
     name = "static_dep",
     copts = ["-I."],
@@ -458,13 +461,14 @@ cc_library_static {
     name = "foo_static",
     copts = ["-I."],
     deps = select({
-        "//build/bazel/platforms/os:android": [
-            ":static_dep",
-            ":static_dep2",
-        ],
+        "//build/bazel/platforms/os:android": [":static_dep"],
         "//conditions:default": [],
     }),
     linkstatic = True,
+    whole_archive_deps = select({
+        "//build/bazel/platforms/os:android": [":static_dep2"],
+        "//conditions:default": [],
+    }),
 )`, `cc_library_static(
     name = "static_dep",
     copts = ["-I."],
@@ -497,10 +501,7 @@ cc_library_static {
 			expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static",
     copts = ["-I."],
-    deps = [
-        ":static_dep",
-        ":static_dep2",
-    ] + select({
+    deps = [":static_dep"] + select({
         "//build/bazel/platforms/arch:arm64": [":static_dep4"],
         "//conditions:default": [],
     }) + select({
@@ -508,6 +509,7 @@ cc_library_static {
         "//conditions:default": [],
     }),
     linkstatic = True,
+    whole_archive_deps = [":static_dep2"],
 )`, `cc_library_static(
     name = "static_dep",
     copts = ["-I."],
@@ -732,8 +734,7 @@ cc_library_static {
 cc_library_static { name: "static_dep" }
 cc_library_static {
     name: "foo_static",
-    static_libs: ["static_dep"],
-    whole_static_libs: ["static_dep"],
+    static_libs: ["static_dep", "static_dep"],
 }`,
 			expectedBazelTargets: []string{`cc_library_static(
     name = "foo_static",

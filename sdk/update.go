@@ -266,8 +266,11 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	}
 	s.builderForTests = builder
 
-	// Create the prebuilt modules for each of the member modules.
+	// Group the variants for each member module together and then group the members of each member
+	// type together.
 	members := s.groupMemberVariantsByMemberThenType(ctx, memberVariantDeps)
+
+	// Create the prebuilt modules for each of the member modules.
 	for _, member := range members {
 		memberType := member.memberType
 
@@ -284,11 +287,6 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 	// to internal members with a unique module name and setting prefer: false.
 	unversionedTransformer := unversionedTransformation{
 		builder: builder,
-		// Set the prefer based on the environment variable. This is a temporary work around to allow a
-		// snapshot to be created that sets prefer: true.
-		// TODO(b/174997203): Remove once the ability to select the modules to prefer can be done
-		//  dynamically at build time not at snapshot generation time.
-		prefer: ctx.Config().IsEnvTrue("SOONG_SDK_SNAPSHOT_PREFER"),
 	}
 
 	for _, unversioned := range builder.prebuiltOrder {
@@ -518,15 +516,19 @@ func (s *sdk) collateSnapshotModuleInfo(ctx android.BaseModuleContext, sdkVarian
 		}
 
 		combined := sdkVariantToCombinedProperties[memberVariantDep.sdkVariant]
-		memberTypeProperty := s.memberListProperty(memberVariantDep.memberType)
+		memberListProperty := s.memberListProperty(memberVariantDep.memberType)
 		memberName := ctx.OtherModuleName(memberVariantDep.variant)
 
+		if memberListProperty.getter == nil {
+			continue
+		}
+
 		// Append the member to the appropriate list, if it is not already present in the list.
-		memberList := memberTypeProperty.getter(combined.dynamicProperties)
+		memberList := memberListProperty.getter(combined.dynamicProperties)
 		if !android.InList(memberName, memberList) {
 			memberList = append(memberList, memberName)
 		}
-		memberTypeProperty.setter(combined.dynamicProperties, memberList)
+		memberListProperty.setter(combined.dynamicProperties, memberList)
 	}
 
 	return list
@@ -578,6 +580,9 @@ func (s *sdk) addSnapshotPropertiesToPropertySet(builder *snapshotBuilder, prope
 
 	dynamicMemberTypeListProperties := combined.dynamicProperties
 	for _, memberListProperty := range s.memberListProperties() {
+		if memberListProperty.getter == nil {
+			continue
+		}
 		names := memberListProperty.getter(dynamicMemberTypeListProperties)
 		if len(names) > 0 {
 			propertySet.AddProperty(memberListProperty.propertyName(), builder.versionedSdkMemberNames(names, false))
@@ -611,9 +616,11 @@ type unversionedToVersionedTransformation struct {
 func (t unversionedToVersionedTransformation) transformModule(module *bpModule) *bpModule {
 	// Use a versioned name for the module but remember the original name for the
 	// snapshot.
-	name := module.getValue("name").(string)
+	name := module.Name()
 	module.setProperty("name", t.builder.versionedSdkMemberName(name, true))
 	module.insertAfter("name", "sdk_member_name", name)
+	// Remove the prefer property if present as versioned modules never need marking with prefer.
+	module.removeProperty("prefer")
 	return module
 }
 
@@ -629,20 +636,12 @@ func (t unversionedToVersionedTransformation) transformProperty(name string, val
 type unversionedTransformation struct {
 	identityTransformation
 	builder *snapshotBuilder
-	prefer  bool
 }
 
 func (t unversionedTransformation) transformModule(module *bpModule) *bpModule {
 	// If the module is an internal member then use a unique name for it.
-	name := module.getValue("name").(string)
+	name := module.Name()
 	module.setProperty("name", t.builder.unversionedSdkMemberName(name, true))
-
-	// Set prefer. Setting this to false is not strictly required as that is the default but it does
-	// provide a convenient hook to post-process the generated Android.bp file, e.g. in tests to check
-	// the behavior when a prebuilt is preferred. It also makes it explicit what the default behavior
-	// is for the module.
-	module.insertAfter("name", "prefer", t.prefer)
-
 	return module
 }
 
@@ -693,12 +692,26 @@ func generateFilteredBpContents(contents *generatedContents, bpFile *bpFile, mod
 func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 	contents.Indent()
 
+	addComment := func(name string) {
+		if text, ok := set.comments[name]; ok {
+			for _, line := range strings.Split(text, "\n") {
+				contents.Printfln("// %s", line)
+			}
+		}
+	}
+
 	// Output the properties first, followed by the nested sets. This ensures a
 	// consistent output irrespective of whether property sets are created before
 	// or after the properties. This simplifies the creation of the module.
 	for _, name := range set.order {
 		value := set.getValue(name)
 
+		// Do not write property sets in the properties phase.
+		if _, ok := value.(*bpPropertySet); ok {
+			continue
+		}
+
+		addComment(name)
 		switch v := value.(type) {
 		case []string:
 			length := len(v)
@@ -719,9 +732,6 @@ func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 		case bool:
 			contents.Printfln("%s: %t,", name, v)
 
-		case *bpPropertySet:
-			// Do not write property sets in the properties phase.
-
 		default:
 			contents.Printfln("%s: %q,", name, value)
 		}
@@ -733,6 +743,7 @@ func outputPropertySet(contents *generatedContents, set *bpPropertySet) {
 		// Only write property sets in the sets phase.
 		switch v := value.(type) {
 		case *bpPropertySet:
+			addComment(name)
 			contents.Printfln("%s: {", name)
 			outputPropertySet(contents, v)
 			contents.Printfln("},")
@@ -751,7 +762,9 @@ func (s *sdk) GetAndroidBpContentsForTests() string {
 func (s *sdk) GetUnversionedAndroidBpContentsForTests() string {
 	contents := &generatedContents{}
 	generateFilteredBpContents(contents, s.builderForTests.bpFile, func(module *bpModule) bool {
-		return !strings.Contains(module.properties["name"].(string), "@")
+		name := module.Name()
+		// Include modules that are either unversioned or have no name.
+		return !strings.Contains(name, "@")
 	})
 	return contents.content.String()
 }
@@ -759,7 +772,9 @@ func (s *sdk) GetUnversionedAndroidBpContentsForTests() string {
 func (s *sdk) GetVersionedAndroidBpContentsForTests() string {
 	contents := &generatedContents{}
 	generateFilteredBpContents(contents, s.builderForTests.bpFile, func(module *bpModule) bool {
-		return strings.Contains(module.properties["name"].(string), "@")
+		name := module.Name()
+		// Include modules that are either versioned or have no name.
+		return name == "" || strings.Contains(name, "@")
 	})
 	return contents.content.String()
 }
@@ -1380,6 +1395,21 @@ func (m *memberContext) Name() string {
 func (s *sdk) createMemberSnapshot(ctx *memberContext, member *sdkMember, bpModule *bpModule) {
 
 	memberType := member.memberType
+
+	// Do not add the prefer property if the member snapshot module is a source module type.
+	if !memberType.UsesSourceModuleTypeInSnapshot() {
+		// Set the prefer based on the environment variable. This is a temporary work around to allow a
+		// snapshot to be created that sets prefer: true.
+		// TODO(b/174997203): Remove once the ability to select the modules to prefer can be done
+		//  dynamically at build time not at snapshot generation time.
+		prefer := ctx.sdkMemberContext.Config().IsEnvTrue("SOONG_SDK_SNAPSHOT_PREFER")
+
+		// Set prefer. Setting this to false is not strictly required as that is the default but it does
+		// provide a convenient hook to post-process the generated Android.bp file, e.g. in tests to
+		// check the behavior when a prebuilt is preferred. It also makes it explicit what the default
+		// behavior is for the module.
+		bpModule.insertAfter("name", "prefer", prefer)
+	}
 
 	// Group the variants by os type.
 	variantsByOsType := make(map[android.OsType][]android.Module)
