@@ -1256,7 +1256,7 @@ func (a *apexBundle) IsNativeCoverageNeeded(ctx android.BaseModuleContext) bool 
 }
 
 // Implements cc.Coverage
-func (a *apexBundle) PreventInstall() {
+func (a *apexBundle) SetPreventInstall() {
 	a.properties.PreventInstall = true
 }
 
