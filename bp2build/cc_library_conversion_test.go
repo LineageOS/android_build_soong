@@ -471,6 +471,56 @@ cc_library {
     ],
 )`},
 		},
+		{
+			description:                        "cc_library cppflags goes into copts",
+			moduleTypeUnderTest:                "cc_library",
+			moduleTypeUnderTestFactory:         cc.LibraryFactory,
+			moduleTypeUnderTestBp2BuildMutator: cc.CcLibraryBp2Build,
+			depsMutators:                       []android.RegisterMutatorFunc{cc.RegisterDepsBp2Build},
+			dir:                                "foo/bar",
+			filesystem: map[string]string{
+				"foo/bar/Android.bp": `cc_library {
+    name: "a",
+    srcs: ["a.cpp"],
+    cflags: [
+		"-Wall",
+	],
+    cppflags: [
+        "-fsigned-char",
+        "-pedantic",
+	],
+    arch: {
+        arm64: {
+            cppflags: ["-DARM64=1"],
+		},
+	},
+    target: {
+        android: {
+            cppflags: ["-DANDROID=1"],
+		},
+	},
+    bazel_module: { bp2build_available: true  },
+}
+`,
+			},
+			bp: soongCcLibraryPreamble,
+			expectedBazelTargets: []string{`cc_library(
+    name = "a",
+    copts = [
+        "-Wall",
+        "-fsigned-char",
+        "-pedantic",
+        "-Ifoo/bar",
+    ] + select({
+        "//build/bazel/platforms/arch:arm64": ["-DARM64=1"],
+        "//conditions:default": [],
+    }) + select({
+        "//build/bazel/platforms/os:android": ["-DANDROID=1"],
+        "//conditions:default": [],
+    }),
+    srcs = ["a.cpp"],
+)`},
+		},
 	}
 
 	dir := "."
