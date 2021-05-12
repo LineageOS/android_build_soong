@@ -228,6 +228,7 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 
 	allMembersByName := make(map[string]struct{})
 	exportedMembersByName := make(map[string]struct{})
+	hasLicenses := false
 	var memberVariantDeps []sdkMemberVariantDep
 	for _, sdkVariant := range sdkVariants {
 		memberVariantDeps = append(memberVariantDeps, sdkVariant.memberVariantDeps...)
@@ -240,6 +241,10 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 
 			if memberVariantDep.export {
 				exportedMembersByName[name] = struct{}{}
+			}
+
+			if memberVariantDep.memberType == android.LicenseModuleSdkMemberType {
+				hasLicenses = true
 			}
 		}
 	}
@@ -265,6 +270,22 @@ func (s *sdk) buildSnapshot(ctx android.ModuleContext, sdkVariants []*sdk) andro
 		exportedMembersByName: exportedMembersByName,
 	}
 	s.builderForTests = builder
+
+	// If the sdk snapshot includes any license modules then add a package module which has a
+	// default_applicable_licenses property. That will prevent the LSC license process from updating
+	// the generated Android.bp file to add a package module that includes all licenses used by all
+	// the modules in that package. That would be unnecessary as every module in the sdk should have
+	// their own licenses property specified.
+	if hasLicenses {
+		pkg := bpFile.newModule("package")
+		property := "default_applicable_licenses"
+		pkg.AddCommentForProperty(property, `
+A default list here prevents the license LSC from adding its own list which would
+be unnecessary as every module in the sdk already has its own licenses property.
+`)
+		pkg.AddProperty(property, []string{"Android-Apache-2.0"})
+		bpFile.AddModule(pkg)
+	}
 
 	// Group the variants for each member module together and then group the members of each member
 	// type together.
