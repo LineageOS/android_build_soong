@@ -658,7 +658,7 @@ func checkEffectiveNotices(t *testing.T, result *TestResult, effectiveNotices ma
 		if base == nil {
 			return
 		}
-		actualNotices[m.Name()] = base.commonProperties.Effective_license_text
+		actualNotices[m.Name()] = base.commonProperties.Effective_license_text.Strings()
 	})
 
 	for moduleName, expectedNotices := range effectiveNotices {
