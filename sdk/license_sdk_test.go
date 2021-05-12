@@ -68,9 +68,23 @@ java_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
+    licenses: ["mysdk_mylicense"],
     jars: ["java/myjavalib.jar"],
 }
-`),
+
+license {
+    name: "mysdk_mylicense",
+    visibility: ["//visibility:private"],
+    license_kinds: [
+        "SPDX-license-identifier-Apache-2.0",
+        "legacy_unencumbered",
+    ],
+    license_text: [
+        "licenses/NOTICE1",
+        "licenses/NOTICE2",
+    ],
+}
+		`),
 		checkVersionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -79,7 +93,22 @@ java_import {
     sdk_member_name: "myjavalib",
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
+    licenses: ["mysdk_mylicense@current"],
     jars: ["java/myjavalib.jar"],
+}
+
+license {
+    name: "mysdk_mylicense@current",
+    sdk_member_name: "mylicense",
+    visibility: ["//visibility:private"],
+    license_kinds: [
+        "SPDX-license-identifier-Apache-2.0",
+        "legacy_unencumbered",
+    ],
+    license_text: [
+        "licenses/NOTICE1",
+        "licenses/NOTICE2",
+    ],
 }
 
 sdk_snapshot {
@@ -87,9 +116,11 @@ sdk_snapshot {
     visibility: ["//visibility:public"],
     java_header_libs: ["mysdk_myjavalib@current"],
 }
-`),
+		`),
 		checkAllCopyRules(`
 .intermediates/myjavalib/android_common/turbine-combined/myjavalib.jar -> java/myjavalib.jar
+NOTICE1 -> licenses/NOTICE1
+NOTICE2 -> licenses/NOTICE2
 `),
 	)
 }

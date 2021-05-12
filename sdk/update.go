@@ -893,6 +893,13 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 		m.AddProperty("apex_available", apexAvailable)
 	}
 
+	// The licenses are the same for all variants.
+	mctx := s.ctx
+	licenseInfo := mctx.OtherModuleProvider(variant, android.LicenseInfoProvider).(android.LicenseInfo)
+	if len(licenseInfo.Licenses) > 0 {
+		m.AddPropertyWithTag("licenses", licenseInfo.Licenses, s.OptionalSdkMemberReferencePropertyTag())
+	}
+
 	deviceSupported := false
 	hostSupported := false
 
@@ -920,6 +927,12 @@ func (s *snapshotBuilder) AddPrebuiltModule(member android.SdkMember, moduleType
 }
 
 func addHostDeviceSupportedProperties(deviceSupported bool, hostSupported bool, bpModule *bpModule) {
+	// If neither device or host is supported then this module does not support either so will not
+	// recognize the properties.
+	if !deviceSupported && !hostSupported {
+		return
+	}
+
 	if !deviceSupported {
 		bpModule.AddProperty("device_supported", false)
 	}
