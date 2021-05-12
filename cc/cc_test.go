@@ -381,8 +381,8 @@ func checkVndkModule(t *testing.T, ctx *android.TestContext, name, subDir string
 	if !mod.IsVndk() {
 		t.Errorf("%q IsVndk() must equal to true", name)
 	}
-	if mod.isVndkSp() != isVndkSp {
-		t.Errorf("%q isVndkSp() must equal to %t", name, isVndkSp)
+	if mod.IsVndkSp() != isVndkSp {
+		t.Errorf("%q IsVndkSp() must equal to %t", name, isVndkSp)
 	}
 
 	// Check VNDK extension properties.
