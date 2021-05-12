@@ -3279,6 +3279,12 @@ func (c *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 	return nil
 }
 
+// Implements android.ApexModule
+func (c *Module) AlwaysRequiresPlatformApexVariant() bool {
+	// stub libraries and native bridge libraries are always available to platform
+	return c.IsStubs() || c.Target().NativeBridge == android.NativeBridgeEnabled
+}
+
 //
 // Defaults
 //
