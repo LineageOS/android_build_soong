@@ -155,7 +155,14 @@ func (w *Writer) Close() error {
 
 		// store max values in the regular end record to signal that
 		// that the zip64 values should be used instead
-		records = uint16max
+		// BEGIN ANDROID CHANGE: only store uintmax for the number of entries in the regular
+		// end record if it doesn't fit.  p7zip 16.02 rejects zip files where the number of
+		// entries in the regular end record is larger than the number of entries counted
+		// in the central directory.
+		if records > uint16max {
+			records = uint16max
+		}
+		// END ANDROID CHANGE
 		size = uint32max
 		offset = uint32max
 	}
