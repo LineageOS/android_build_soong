@@ -16,6 +16,7 @@ package bp2build
 
 import (
 	"android/soong/android"
+	"android/soong/bazel"
 	"fmt"
 	"os"
 )
@@ -32,7 +33,7 @@ func Codegen(ctx *CodegenContext) CodegenMetrics {
 	bp2buildFiles := CreateBazelFiles(nil, buildToTargets, ctx.mode)
 	writeFiles(ctx, bp2buildDir, bp2buildFiles)
 
-	soongInjectionDir := android.PathForOutput(ctx, "soong_injection")
+	soongInjectionDir := android.PathForOutput(ctx, bazel.SoongInjectionDirName)
 	writeFiles(ctx, soongInjectionDir, CreateSoongInjectionFiles())
 
 	return metrics

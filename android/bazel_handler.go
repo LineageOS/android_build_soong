@@ -567,7 +567,7 @@ func (p *bazelPaths) intermediatesDir() string {
 // Returns the path where the contents of the @soong_injection repository live.
 // It is used by Soong to tell Bazel things it cannot over the command line.
 func (p *bazelPaths) injectedFilesDir() string {
-	return filepath.Join(p.buildDir, "soong_injection")
+	return filepath.Join(p.buildDir, bazel.SoongInjectionDirName)
 }
 
 // Returns the path of the synthetic Bazel workspace that contains a symlink
