@@ -24,22 +24,16 @@ import (
 // writing .bzl files that are equivalent to Android.bp files that are capable
 // of being built with Bazel.
 func Codegen(ctx *CodegenContext) CodegenMetrics {
-	outputDir := android.PathForOutput(ctx, "bp2build")
-	android.RemoveAllOutputDir(outputDir)
+	// This directory stores BUILD files that could be eventually checked-in.
+	bp2buildDir := android.PathForOutput(ctx, "bp2build")
+	android.RemoveAllOutputDir(bp2buildDir)
 
 	buildToTargets, metrics := GenerateBazelTargets(ctx, true)
+	bp2buildFiles := CreateBazelFiles(nil, buildToTargets, ctx.mode)
+	writeFiles(ctx, bp2buildDir, bp2buildFiles)
 
-	filesToWrite := CreateBazelFiles(nil, buildToTargets, ctx.mode)
-
-	generatedBuildFiles := []string{}
-	for _, f := range filesToWrite {
-		p := getOrCreateOutputDir(outputDir, ctx, f.Dir).Join(ctx, f.Basename)
-		if err := writeFile(ctx, p, f.Contents); err != nil {
-			panic(fmt.Errorf("Failed to write %q (dir %q) due to %q", f.Basename, f.Dir, err))
-		}
-		// if these generated files are modified, regenerate on next run.
-		generatedBuildFiles = append(generatedBuildFiles, p.String())
-	}
+	soongInjectionDir := android.PathForOutput(ctx, "soong_injection")
+	writeFiles(ctx, soongInjectionDir, CreateSoongInjectionFiles())
 
 	return metrics
 }
@@ -49,6 +43,16 @@ func getOrCreateOutputDir(outputDir android.OutputPath, ctx android.PathContext,
 	dirPath := outputDir.Join(ctx, dir)
 	android.CreateOutputDirIfNonexistent(dirPath, os.ModePerm)
 	return dirPath
+}
+
+// writeFiles materializes a list of BazelFile rooted at outputDir.
+func writeFiles(ctx android.PathContext, outputDir android.OutputPath, files []BazelFile) {
+	for _, f := range files {
+		p := getOrCreateOutputDir(outputDir, ctx, f.Dir).Join(ctx, f.Basename)
+		if err := writeFile(ctx, p, f.Contents); err != nil {
+			panic(fmt.Errorf("Failed to write %q (dir %q) due to %q", f.Basename, f.Dir, err))
+		}
+	}
 }
 
 func writeFile(ctx android.PathContext, pathToFile android.OutputPath, content string) error {
