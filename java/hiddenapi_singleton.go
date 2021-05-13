@@ -151,9 +151,7 @@ func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) 
 
 // Checks to see whether the supplied module variant is in the list of boot jars.
 //
-// Apart from the context this is identical to isModuleInConfiguredListForSingleton.
-//
-// TODO(b/179354495): Avoid having to perform this type of check or if necessary dedup it.
+// TODO(b/179354495): Avoid having to perform this type of check.
 func isModuleInConfiguredList(ctx android.BaseModuleContext, module android.Module, configuredBootJars android.ConfiguredJarList) bool {
 	name := ctx.OtherModuleName(module)
 
