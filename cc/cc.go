@@ -3228,6 +3228,9 @@ func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 				return false
 			}
 		}
+		if cc.IsLlndk() {
+			return false
+		}
 		if isLibDepTag && c.static() && libDepTag.shared() {
 			// shared_lib dependency from a static lib is considered as crossing
 			// the APEX boundary because the dependency doesn't actually is
