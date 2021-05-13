@@ -1002,9 +1002,8 @@ func markPlatformAvailability(mctx android.BottomUpMutatorContext) {
 		}
 	})
 
-	// Exception 1: stub libraries and native bridge libraries are always available to platform
-	if cc, ok := mctx.Module().(*cc.Module); ok &&
-		(cc.IsStubs() || cc.Target().NativeBridge == android.NativeBridgeEnabled) {
+	// Exception 1: check to see if the module always requires it.
+	if am.AlwaysRequiresPlatformApexVariant() {
 		availableToPlatform = true
 	}
 
