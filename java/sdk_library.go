@@ -2482,11 +2482,18 @@ func (s *sdkLibrarySdkMemberProperties) AddToPropertySet(ctx android.SdkMemberCo
 			}
 			scopeSet.AddProperty("jars", jars)
 
-			// Merge the stubs source jar into the snapshot zip so that when it is unpacked
-			// the source files are also unpacked.
-			snapshotRelativeDir := filepath.Join(scopeDir, ctx.Name()+"_stub_sources")
-			ctx.SnapshotBuilder().UnzipToSnapshot(properties.StubsSrcJar, snapshotRelativeDir)
-			scopeSet.AddProperty("stub_srcs", []string{snapshotRelativeDir})
+			if ctx.SdkModuleContext().Config().IsEnvTrue("SOONG_SDK_SNAPSHOT_USE_SRCJAR") {
+				// Copy the stubs source jar into the snapshot zip as is.
+				srcJarSnapshotPath := filepath.Join(scopeDir, ctx.Name()+".srcjar")
+				ctx.SnapshotBuilder().CopyToSnapshot(properties.StubsSrcJar, srcJarSnapshotPath)
+				scopeSet.AddProperty("stub_srcs", []string{srcJarSnapshotPath})
+			} else {
+				// Merge the stubs source jar into the snapshot zip so that when it is unpacked
+				// the source files are also unpacked.
+				snapshotRelativeDir := filepath.Join(scopeDir, ctx.Name()+"_stub_sources")
+				ctx.SnapshotBuilder().UnzipToSnapshot(properties.StubsSrcJar, snapshotRelativeDir)
+				scopeSet.AddProperty("stub_srcs", []string{snapshotRelativeDir})
+			}
 
 			if properties.CurrentApiFile != nil {
 				currentApiSnapshotPath := filepath.Join(scopeDir, ctx.Name()+".txt")
