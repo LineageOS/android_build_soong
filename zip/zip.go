@@ -656,9 +656,11 @@ func (z *ZipWriter) addFile(dest, src string, method uint16, emulateJar, srcJar 
 			UncompressedSize64: uint64(fileSize),
 		}
 
+		mode := os.FileMode(0600)
 		if executable {
-			header.SetMode(0700)
+			mode = 0700
 		}
+		header.SetMode(mode)
 
 		err = createParentDirs(dest, src)
 		if err != nil {

@@ -48,6 +48,20 @@ type PlatformSanitizeable interface {
 	// SanitizerSupported returns true if a sanitizer type is supported by this modules compiler.
 	SanitizerSupported(t SanitizerType) bool
 
+	// MinimalRuntimeDep returns true if this module needs to link the minimal UBSan runtime,
+	// either because it requires it or because a dependent module which requires it to be linked in this module.
+	MinimalRuntimeDep() bool
+
+	// UbsanRuntimeDep returns true if this module needs to link the full UBSan runtime,
+	// either because it requires it or because a dependent module which requires it to be linked in this module.
+	UbsanRuntimeDep() bool
+
+	// UbsanRuntimeNeeded returns true if the full UBSan runtime is required by this module.
+	UbsanRuntimeNeeded() bool
+
+	// MinimalRuntimeNeeded returns true if the minimal UBSan runtime is required by this module
+	MinimalRuntimeNeeded() bool
+
 	// SanitizableDepTagChecker returns a SantizableDependencyTagChecker function type.
 	SanitizableDepTagChecker() SantizableDependencyTagChecker
 }
@@ -60,13 +74,41 @@ type PlatformSanitizeable interface {
 // implementation should handle tags from both.
 type SantizableDependencyTagChecker func(tag blueprint.DependencyTag) bool
 
+// Snapshottable defines those functions necessary for handling module snapshots.
+type Snapshottable interface {
+	// SnapshotHeaders returns a list of header paths provided by this module.
+	SnapshotHeaders() android.Paths
+
+	// ExcludeFromVendorSnapshot returns true if this module should be otherwise excluded from the vendor snapshot.
+	ExcludeFromVendorSnapshot() bool
+
+	// ExcludeFromRecoverySnapshot returns true if this module should be otherwise excluded from the recovery snapshot.
+	ExcludeFromRecoverySnapshot() bool
+
+	// SnapshotLibrary returns true if this module is a snapshot library.
+	IsSnapshotLibrary() bool
+
+	// SnapshotRuntimeLibs returns a list of libraries needed by this module at runtime but which aren't build dependencies.
+	SnapshotRuntimeLibs() []string
+
+	// SnapshotSharedLibs returns the list of shared library dependencies for this module.
+	SnapshotSharedLibs() []string
+
+	// IsSnapshotPrebuilt returns true if this module is a snapshot prebuilt.
+	IsSnapshotPrebuilt() bool
+}
+
 // LinkableInterface is an interface for a type of module that is linkable in a C++ library.
 type LinkableInterface interface {
 	android.Module
+	Snapshottable
 
 	Module() android.Module
 	CcLibrary() bool
 	CcLibraryInterface() bool
+
+	// BaseModuleName returns the android.ModuleBase.BaseModuleName() value for this module.
+	BaseModuleName() string
 
 	OutputFile() android.OptionalPath
 	CoverageFiles() android.Paths
@@ -79,9 +121,6 @@ type LinkableInterface interface {
 	BuildSharedVariant() bool
 	SetStatic()
 	SetShared()
-	Static() bool
-	Shared() bool
-	Header() bool
 	IsPrebuilt() bool
 	Toc() android.OptionalPath
 
@@ -106,13 +145,29 @@ type LinkableInterface interface {
 	// IsLlndkPublic returns true only for LLNDK (public) libs.
 	IsLlndkPublic() bool
 
+	// HasLlndkStubs returns true if this library has a variant that will build LLNDK stubs.
+	HasLlndkStubs() bool
+
 	// NeedsLlndkVariants returns true if this module has LLNDK stubs or provides LLNDK headers.
 	NeedsLlndkVariants() bool
 
 	// NeedsVendorPublicLibraryVariants returns true if this module has vendor public library stubs.
 	NeedsVendorPublicLibraryVariants() bool
 
+	//StubsVersion returns the stubs version for this module.
+	StubsVersion() string
+
+	// UseVndk returns true if the module is using VNDK libraries instead of the libraries in /system/lib or /system/lib64.
+	// "product" and "vendor" variant modules return true for this function.
+	// When BOARD_VNDK_VERSION is set, vendor variants of "vendor_available: true", "vendor: true",
+	// "soc_specific: true" and more vendor installed modules are included here.
+	// When PRODUCT_PRODUCT_VNDK_VERSION is set, product variants of "vendor_available: true" or
+	// "product_specific: true" modules are included here.
 	UseVndk() bool
+
+	// IsVndkSp returns true if this is a VNDK-SP module.
+	IsVndkSp() bool
+
 	MustUseVendorVariant() bool
 	IsVndk() bool
 	IsVndkExt() bool
@@ -140,6 +195,51 @@ type LinkableInterface interface {
 	// KernelHeadersDecorator returns true if this is a kernel headers decorator module.
 	// This is specific to cc and should always return false for all other packages.
 	KernelHeadersDecorator() bool
+
+	// HiddenFromMake returns true if this module is hidden from Make.
+	HiddenFromMake() bool
+
+	// RelativeInstallPath returns the relative install path for this module.
+	RelativeInstallPath() string
+
+	// Binary returns true if this is a binary module.
+	Binary() bool
+
+	// Object returns true if this is an object module.
+	Object() bool
+
+	// Rlib returns true if this is an rlib module.
+	Rlib() bool
+
+	// Dylib returns true if this is an dylib module.
+	Dylib() bool
+
+	// Static returns true if this is a static library module.
+	Static() bool
+
+	// Shared returns true if this is a shared library module.
+	Shared() bool
+
+	// Header returns true if this is a library headers module.
+	Header() bool
+
+	// EverInstallable returns true if the module is ever installable
+	EverInstallable() bool
+
+	// PreventInstall returns true if this module is prevented from installation.
+	PreventInstall() bool
+
+	// InstallInData returns true if this module is installed in data.
+	InstallInData() bool
+
+	// Installable returns a bool pointer to the module installable property.
+	Installable() *bool
+
+	// Symlinks returns a list of symlinks that should be created for this module.
+	Symlinks() []string
+
+	// VndkVersion returns the VNDK version string for this module.
+	VndkVersion() string
 }
 
 var (

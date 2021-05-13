@@ -1446,6 +1446,23 @@ runtime_resource_overlay {
 }
 `,
 	},
+	{
+		desc: "LOCAL_ENFORCE_USES_LIBRARIES",
+		in: `
+include $(CLEAR_VARS)
+LOCAL_MODULE := foo
+LOCAL_ENFORCE_USES_LIBRARIES := false
+LOCAL_ENFORCE_USES_LIBRARIES := true
+include $(BUILD_PACKAGE)
+`,
+		expected: `
+android_app {
+    name: "foo",
+    enforce_uses_libs: false,
+    enforce_uses_libs: true,
+}
+`,
+	},
 }
 
 func TestEndToEnd(t *testing.T) {
