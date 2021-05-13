@@ -431,11 +431,15 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 	defaultImageConfig := defaultBootImageConfig(ctx)
 	profile := bootImageProfileRule(ctx, defaultImageConfig)
 
-	// Create the default boot image.
-	d.defaultBootImage = buildBootImage(ctx, defaultImageConfig, profile)
+	d.defaultBootImage = defaultImageConfig
+	artBootImageConfig := artBootImageConfig(ctx)
+	d.otherImages = []*bootImageConfig{artBootImageConfig}
+
+	// Create the default boot image (build artifacts are accessed via the global boot image config).
+	buildBootImage(ctx, defaultImageConfig, profile)
 
 	// Create boot image for the ART apex (build artifacts are accessed via the global boot image config).
-	d.otherImages = append(d.otherImages, buildBootImage(ctx, artBootImageConfig(ctx), profile))
+	buildBootImage(ctx, artBootImageConfig, profile)
 }
 
 // shouldBuildBootImages determines whether boot images should be built.
@@ -503,7 +507,7 @@ func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, bootModules []
 }
 
 // buildBootImage takes a bootImageConfig, creates rules to build it, and returns the image.
-func buildBootImage(ctx android.SingletonContext, image *bootImageConfig, profile android.WritablePath) *bootImageConfig {
+func buildBootImage(ctx android.SingletonContext, image *bootImageConfig, profile android.WritablePath) {
 	var zipFiles android.Paths
 	for _, variant := range image.variants {
 		files := buildBootImageVariant(ctx, variant, profile)
@@ -522,8 +526,6 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig, profil
 
 		rule.Build("zip_"+image.name, "zip "+image.name+" image")
 	}
-
-	return image
 }
 
 // Generate boot image build rules for a specific target.
