@@ -32,8 +32,23 @@ type licensesDependencyTag struct {
 	blueprint.BaseDependencyTag
 }
 
+func (l licensesDependencyTag) SdkMemberType(Module) SdkMemberType {
+	// Add the supplied module to the sdk as a license module.
+	return LicenseModuleSdkMemberType
+}
+
+func (l licensesDependencyTag) ExportMember() bool {
+	// The license module will only every be referenced from within the sdk. This will ensure that it
+	// gets a unique name and so avoid clashing with the original license module.
+	return false
+}
+
 var (
 	licensesTag = licensesDependencyTag{}
+
+	// License modules, i.e. modules depended upon via a licensesTag, must be automatically added to
+	// any sdk/module_exports to which their referencing module is a member.
+	_ SdkMemberTypeDependencyTag = licensesTag
 )
 
 // Describes the property provided by a module to reference applicable licenses.
@@ -140,7 +155,6 @@ func licensesPropertyGatherer(ctx BottomUpMutatorContext) {
 	}
 
 	licenses := getLicenses(ctx, m)
-
 	ctx.AddVariationDependencies(nil, licensesTag, licenses...)
 }
 
@@ -187,34 +201,21 @@ func licensesPropertyFlattener(ctx ModuleContext) {
 		return
 	}
 
-	// license modules have no licenses, but license_kinds must refer to license_kind modules
-	if l, ok := m.(*licenseModule); ok {
-		mergeProps(&m.base().commonProperties.Effective_licenses, ctx.ModuleName())
-		mergeProps(&m.base().commonProperties.Effective_license_text, PathsForModuleSrc(ctx, l.properties.License_text).Strings()...)
-		for _, module := range ctx.GetDirectDepsWithTag(licenseKindTag) {
-			if lk, ok := module.(*licenseKindModule); ok {
-				mergeProps(&m.base().commonProperties.Effective_license_conditions, lk.properties.Conditions...)
-				mergeProps(&m.base().commonProperties.Effective_license_kinds, ctx.OtherModuleName(module))
-			} else {
-				ctx.ModuleErrorf("license_kinds property %q is not a license_kind module", ctx.OtherModuleName(module))
-			}
-		}
-		return
-	}
-
 	if exemptFromRequiredApplicableLicensesProperty(m) {
 		return
 	}
 
+	var licenses []string
 	for _, module := range ctx.GetDirectDepsWithTag(licensesTag) {
 		if l, ok := module.(*licenseModule); ok {
+			licenses = append(licenses, ctx.OtherModuleName(module))
 			if m.base().commonProperties.Effective_package_name == nil && l.properties.Package_name != nil {
 				m.base().commonProperties.Effective_package_name = l.properties.Package_name
 			}
-			mergeProps(&m.base().commonProperties.Effective_licenses, module.base().commonProperties.Effective_licenses...)
-			mergeProps(&m.base().commonProperties.Effective_license_text, module.base().commonProperties.Effective_license_text...)
-			mergeProps(&m.base().commonProperties.Effective_license_kinds, module.base().commonProperties.Effective_license_kinds...)
-			mergeProps(&m.base().commonProperties.Effective_license_conditions, module.base().commonProperties.Effective_license_conditions...)
+			mergeStringProps(&m.base().commonProperties.Effective_licenses, module.base().commonProperties.Effective_licenses...)
+			mergePathProps(&m.base().commonProperties.Effective_license_text, module.base().commonProperties.Effective_license_text...)
+			mergeStringProps(&m.base().commonProperties.Effective_license_kinds, module.base().commonProperties.Effective_license_kinds...)
+			mergeStringProps(&m.base().commonProperties.Effective_license_conditions, module.base().commonProperties.Effective_license_conditions...)
 		} else {
 			propertyName := "licenses"
 			primaryProperty := m.base().primaryLicensesProperty
@@ -224,19 +225,24 @@ func licensesPropertyFlattener(ctx ModuleContext) {
 			ctx.ModuleErrorf("%s property %q is not a license module", propertyName, ctx.OtherModuleName(module))
 		}
 	}
+
+	// Make the license information available for other modules.
+	licenseInfo := LicenseInfo{
+		Licenses: licenses,
+	}
+	ctx.SetProvider(LicenseInfoProvider, licenseInfo)
 }
 
 // Update a property string array with a distinct union of its values and a list of new values.
-func mergeProps(prop *[]string, values ...string) {
-	s := make(map[string]bool)
-	for _, v := range *prop {
-		s[v] = true
-	}
-	for _, v := range values {
-		s[v] = true
-	}
-	*prop = []string{}
-	*prop = append(*prop, SortedStringKeys(s)...)
+func mergeStringProps(prop *[]string, values ...string) {
+	*prop = append(*prop, values...)
+	*prop = SortedUniqueStrings(*prop)
+}
+
+// Update a property Path array with a distinct union of its values and a list of new values.
+func mergePathProps(prop *Paths, values ...Path) {
+	*prop = append(*prop, values...)
+	*prop = SortedUniquePaths(*prop)
 }
 
 // Get the licenses property falling back to the package default.
@@ -293,3 +299,12 @@ func exemptFromRequiredApplicableLicensesProperty(module Module) bool {
 	}
 	return true
 }
+
+// LicenseInfo contains information about licenses for a specific module.
+type LicenseInfo struct {
+	// The list of license modules this depends upon, either explicitly or through default package
+	// configuration.
+	Licenses []string
+}
+
+var LicenseInfoProvider = blueprint.NewProvider(LicenseInfo{})

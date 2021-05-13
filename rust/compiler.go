@@ -341,6 +341,11 @@ func (compiler *baseCompiler) crateName() string {
 	return compiler.Properties.Crate_name
 }
 
+func (compiler *baseCompiler) everInstallable() bool {
+	// Most modules are installable, so return true by default.
+	return true
+}
+
 func (compiler *baseCompiler) installDir(ctx ModuleContext) android.InstallPath {
 	dir := compiler.dir
 	if ctx.toolchain().Is64Bit() && compiler.dir64 != "" {

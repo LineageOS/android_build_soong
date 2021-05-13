@@ -688,7 +688,7 @@ type commonProperties struct {
 	// Override of module name when reporting licenses
 	Effective_package_name *string `blueprint:"mutated"`
 	// Notice files
-	Effective_license_text []string `blueprint:"mutated"`
+	Effective_license_text Paths `blueprint:"mutated"`
 	// License names
 	Effective_license_kinds []string `blueprint:"mutated"`
 	// License conditions
@@ -1500,7 +1500,7 @@ func (m *ModuleBase) computeInstallDeps(ctx ModuleContext) ([]*installPathsDepSe
 	var installDeps []*installPathsDepSet
 	var packagingSpecs []*packagingSpecsDepSet
 	ctx.VisitDirectDeps(func(dep Module) {
-		if IsInstallDepNeeded(ctx.OtherModuleDependencyTag(dep)) {
+		if IsInstallDepNeeded(ctx.OtherModuleDependencyTag(dep)) && !dep.IsHideFromMake() {
 			installDeps = append(installDeps, dep.base().installFilesDepSet)
 			packagingSpecs = append(packagingSpecs, dep.base().packagingSpecsDepSet)
 		}

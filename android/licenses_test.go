@@ -6,18 +6,6 @@ import (
 	"github.com/google/blueprint"
 )
 
-var prepareForTestWithLicenses = GroupFixturePreparers(
-	FixtureRegisterWithContext(RegisterLicenseKindBuildComponents),
-	FixtureRegisterWithContext(RegisterLicenseBuildComponents),
-	FixtureRegisterWithContext(registerLicenseMutators),
-)
-
-func registerLicenseMutators(ctx RegistrationContext) {
-	ctx.PreArchMutators(RegisterLicensesPackageMapper)
-	ctx.PreArchMutators(RegisterLicensesPropertyGatherer)
-	ctx.PostDepsMutators(RegisterLicensesDependencyChecker)
-}
-
 var licensesTests = []struct {
 	name                       string
 	fs                         MockFS
@@ -670,7 +658,7 @@ func checkEffectiveNotices(t *testing.T, result *TestResult, effectiveNotices ma
 		if base == nil {
 			return
 		}
-		actualNotices[m.Name()] = base.commonProperties.Effective_license_text
+		actualNotices[m.Name()] = base.commonProperties.Effective_license_text.Strings()
 	})
 
 	for moduleName, expectedNotices := range effectiveNotices {
