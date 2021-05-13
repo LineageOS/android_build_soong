@@ -141,6 +141,9 @@ func TestOptionalPath(t *testing.T) {
 
 	path = OptionalPathForPath(nil)
 	checkInvalidOptionalPath(t, path)
+
+	path = OptionalPathForPath(PathForTesting("path"))
+	checkValidOptionalPath(t, path, "path")
 }
 
 func checkInvalidOptionalPath(t *testing.T, path OptionalPath) {
@@ -151,11 +154,30 @@ func checkInvalidOptionalPath(t *testing.T, path OptionalPath) {
 	if path.String() != "" {
 		t.Errorf("Uninitialized OptionalPath String() should return \"\", not %q", path.String())
 	}
+	paths := path.AsPaths()
+	if len(paths) != 0 {
+		t.Errorf("Uninitialized OptionalPath AsPaths() should return empty Paths, not %q", paths)
+	}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("Expected a panic when calling Path() on an uninitialized OptionalPath")
 		}
 	}()
+	path.Path()
+}
+
+func checkValidOptionalPath(t *testing.T, path OptionalPath, expectedString string) {
+	t.Helper()
+	if !path.Valid() {
+		t.Errorf("Initialized OptionalPath should not be invalid")
+	}
+	if path.String() != expectedString {
+		t.Errorf("Initialized OptionalPath String() should return %q, not %q", expectedString, path.String())
+	}
+	paths := path.AsPaths()
+	if len(paths) != 1 {
+		t.Errorf("Initialized OptionalPath AsPaths() should return Paths with length 1, not %q", paths)
+	}
 	path.Path()
 }
 
