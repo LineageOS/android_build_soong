@@ -203,6 +203,12 @@ type ApexModule interface {
 	// apex_available property of the module.
 	AvailableFor(what string) bool
 
+	// AlwaysRequiresPlatformApexVariant allows the implementing module to determine whether an
+	// APEX mutator should always be created for it.
+	//
+	// Returns false by default.
+	AlwaysRequiresPlatformApexVariant() bool
+
 	// Returns true if this module is not available to platform (i.e. apex_available property
 	// doesn't have "//apex_available:platform"), or shouldn't be available to platform, which
 	// is the case when this module depends on other module that isn't available to platform.
@@ -421,6 +427,11 @@ func CheckAvailableForApex(what string, apex_available []string) bool {
 // Implements ApexModule
 func (m *ApexModuleBase) AvailableFor(what string) bool {
 	return CheckAvailableForApex(what, m.ApexProperties.Apex_available)
+}
+
+// Implements ApexModule
+func (m *ApexModuleBase) AlwaysRequiresPlatformApexVariant() bool {
+	return false
 }
 
 // Implements ApexModule
