@@ -287,6 +287,17 @@ func (p OptionalPath) Path() Path {
 	return p.path
 }
 
+// AsPaths converts the OptionalPath into Paths.
+//
+// It returns nil if this is not valid, or a single length slice containing the Path embedded in
+// this OptionalPath.
+func (p OptionalPath) AsPaths() Paths {
+	if !p.valid {
+		return nil
+	}
+	return Paths{p.path}
+}
+
 // RelativeToTop returns an OptionalPath with the path that was embedded having been replaced by the
 // result of calling Path.RelativeToTop on it.
 func (p OptionalPath) RelativeToTop() OptionalPath {
