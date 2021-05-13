@@ -347,7 +347,10 @@ func (r *builtinBazelRunner) issueBazelCommand(paths *bazelPaths, runName bazel.
 
 	bazelCmd := exec.Command(paths.bazelPath, cmdFlags...)
 	bazelCmd.Dir = absolutePath(paths.syntheticWorkspaceDir())
-	bazelCmd.Env = append(os.Environ(), "HOME="+paths.homeDir, pwdPrefix(),
+	bazelCmd.Env = append(os.Environ(),
+		"HOME="+paths.homeDir,
+		pwdPrefix(),
+		"BUILD_DIR="+absolutePath(paths.buildDir),
 		// Disables local host detection of gcc; toolchain information is defined
 		// explicitly in BUILD files.
 		"BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1")
@@ -583,8 +586,9 @@ func (context *bazelContext) InvokeBazel() error {
 	var err error
 
 	soongInjectionPath := absolutePath(context.paths.injectedFilesDir())
-	if _, err := os.Stat(soongInjectionPath); os.IsNotExist(err) {
-		err = os.Mkdir(soongInjectionPath, 0777)
+	mixedBuildsPath := filepath.Join(soongInjectionPath, "mixed_builds")
+	if _, err := os.Stat(mixedBuildsPath); os.IsNotExist(err) {
+		err = os.MkdirAll(mixedBuildsPath, 0777)
 	}
 	if err != nil {
 		return err
@@ -596,14 +600,14 @@ func (context *bazelContext) InvokeBazel() error {
 	}
 
 	err = ioutil.WriteFile(
-		filepath.Join(soongInjectionPath, "main.bzl"),
+		filepath.Join(mixedBuildsPath, "main.bzl"),
 		context.mainBzlFileContents(), 0666)
 	if err != nil {
 		return err
 	}
 
 	err = ioutil.WriteFile(
-		filepath.Join(soongInjectionPath, "BUILD.bazel"),
+		filepath.Join(mixedBuildsPath, "BUILD.bazel"),
 		context.mainBuildFileContents(), 0666)
 	if err != nil {
 		return err
@@ -615,7 +619,7 @@ func (context *bazelContext) InvokeBazel() error {
 	if err != nil {
 		return err
 	}
-	buildrootLabel := "@soong_injection//:buildroot"
+	buildrootLabel := "@soong_injection//mixed_builds:buildroot"
 	cqueryOutput, cqueryErr, err = context.issueBazelCommand(
 		context.paths,
 		bazel.CqueryBuildRootRunName,
@@ -676,7 +680,7 @@ func (context *bazelContext) InvokeBazel() error {
 	_, _, err = context.issueBazelCommand(
 		context.paths,
 		bazel.BazelBuildPhonyRootRunName,
-		bazelCommand{"build", "@soong_injection//:phonyroot"})
+		bazelCommand{"build", "@soong_injection//mixed_builds:phonyroot"})
 
 	if err != nil {
 		return err
