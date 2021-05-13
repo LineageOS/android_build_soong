@@ -427,19 +427,10 @@ func (d *dexpreoptBootJars) GenerateSingletonBuildActions(ctx android.SingletonC
 		return
 	}
 
-	// Generate the profile rule from the default boot image.
 	defaultImageConfig := defaultBootImageConfig(ctx)
-	profile := bootImageProfileRule(ctx, defaultImageConfig)
-
 	d.defaultBootImage = defaultImageConfig
 	artBootImageConfig := artBootImageConfig(ctx)
 	d.otherImages = []*bootImageConfig{artBootImageConfig}
-
-	// Create the default boot image (build artifacts are accessed via the global boot image config).
-	buildBootImage(ctx, defaultImageConfig, profile)
-
-	// Create boot image for the ART apex (build artifacts are accessed via the global boot image config).
-	buildBootImage(ctx, artBootImageConfig, profile)
 }
 
 // shouldBuildBootImages determines whether boot images should be built.
@@ -507,7 +498,7 @@ func copyBootJarsToPredefinedLocations(ctx android.ModuleContext, bootModules []
 }
 
 // buildBootImage takes a bootImageConfig, creates rules to build it, and returns the image.
-func buildBootImage(ctx android.SingletonContext, image *bootImageConfig, profile android.WritablePath) {
+func buildBootImage(ctx android.ModuleContext, image *bootImageConfig, profile android.WritablePath) {
 	var zipFiles android.Paths
 	for _, variant := range image.variants {
 		files := buildBootImageVariant(ctx, variant, profile)
@@ -529,7 +520,7 @@ func buildBootImage(ctx android.SingletonContext, image *bootImageConfig, profil
 }
 
 // Generate boot image build rules for a specific target.
-func buildBootImageVariant(ctx android.SingletonContext, image *bootImageVariant, profile android.Path) android.WritablePaths {
+func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, profile android.Path) android.WritablePaths {
 
 	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
@@ -679,7 +670,7 @@ const failureMessage = `ERROR: Dex2oat failed to compile a boot image.
 It is likely that the boot classpath is inconsistent.
 Rebuild with ART_BOOT_IMAGE_EXTRA_ARGS="--runtime-arg -verbose:verifier" to see verification errors.`
 
-func bootImageProfileRule(ctx android.SingletonContext, image *bootImageConfig) android.WritablePath {
+func bootImageProfileRule(ctx android.ModuleContext, image *bootImageConfig) android.WritablePath {
 	globalSoong := dexpreopt.GetCachedGlobalSoongConfig(ctx)
 	global := dexpreopt.GetGlobalConfig(ctx)
 
