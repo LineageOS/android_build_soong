@@ -1235,16 +1235,13 @@ func childModuleVisibility(childVisibility []string) []string {
 
 // Creates the implementation java library
 func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext) {
-	moduleNamePtr := proptools.StringPtr(module.BaseModuleName())
-
 	visibility := childModuleVisibility(module.sdkLibraryProperties.Impl_library_visibility)
 
 	props := struct {
-		Name              *string
-		Visibility        []string
-		Instrument        bool
-		Libs              []string
-		ConfigurationName *string
+		Name       *string
+		Visibility []string
+		Instrument bool
+		Libs       []string
 	}{
 		Name:       proptools.StringPtr(module.implLibraryModuleName()),
 		Visibility: visibility,
@@ -1253,9 +1250,6 @@ func (module *SdkLibrary) createImplLibrary(mctx android.DefaultableHookContext)
 		// Set the impl_only libs. Note that the module's "Libs" get appended as well, via the
 		// addition of &module.properties below.
 		Libs: module.sdkLibraryProperties.Impl_only_libs,
-
-		// Make the created library behave as if it had the same name as this module.
-		ConfigurationName: moduleNamePtr,
 	}
 
 	properties := []interface{}{
@@ -2127,7 +2121,7 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
 			if dexOutputPath := di.PrebuiltExportPath(module.BaseModuleName(), ".dexjar"); dexOutputPath != nil {
 				module.dexJarFile = dexOutputPath
-				module.initHiddenAPI(ctx, module.configurationName)
+				module.initHiddenAPI(ctx)
 				module.hiddenAPIUpdatePaths(ctx, dexOutputPath, module.findScopePaths(apiScopePublic).stubsImplPath[0])
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
