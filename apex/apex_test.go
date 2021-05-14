@@ -4542,7 +4542,12 @@ func TestPrebuiltExportDexImplementationJars(t *testing.T) {
 }
 
 func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
-	preparer := java.FixtureConfigureBootJars("myapex:libfoo", "myapex:libbar")
+	preparer := android.GroupFixturePreparers(
+		java.FixtureConfigureBootJars("myapex:libfoo", "myapex:libbar"),
+		// Make sure that the frameworks/base/Android.bp file exists as otherwise hidden API encoding
+		// is disabled.
+		android.FixtureAddTextFile("frameworks/base/Android.bp", ""),
+	)
 
 	checkBootDexJarPath := func(t *testing.T, ctx *android.TestContext, stem string, bootDexJarPath string) {
 		t.Helper()
