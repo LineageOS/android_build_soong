@@ -260,23 +260,40 @@ func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJa
 	stubFlagsCSV := hiddenAPISingletonPaths(ctx).stubFlags
 
 	flagsCSV := android.PathForModuleOut(ctx, "hiddenapi", "flags.csv")
+	h.flagsCSVPath = flagsCSV
+	buildRuleToGenerateAnnotationFlags(ctx, "hiddenapi flags", classesJars, stubFlagsCSV, flagsCSV)
+
+	metadataCSV := android.PathForModuleOut(ctx, "hiddenapi", "metadata.csv")
+	h.metadataCSVPath = metadataCSV
+	buildRuleToGenerateMetadata(ctx, "hiddenapi metadata", classesJars, stubFlagsCSV, metadataCSV)
+
+	indexCSV := android.PathForModuleOut(ctx, "hiddenapi", "index.csv")
+	h.indexCSVPath = indexCSV
+	buildRuleToGenerateIndex(ctx, "Merged Hidden API index", classesJars, indexCSV)
+}
+
+// buildRuleToGenerateAnnotationFlags builds a ninja rule to generate the annotation-flags.csv file
+// from the classes jars and stub-flags.csv files.
+func buildRuleToGenerateAnnotationFlags(ctx android.ModuleContext, desc string, classesJars android.Paths, stubFlagsCSV android.Path, outputPath android.WritablePath) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        hiddenAPIGenerateCSVRule,
-		Description: "hiddenapi flags",
+		Description: desc,
 		Inputs:      classesJars,
-		Output:      flagsCSV,
+		Output:      outputPath,
 		Implicit:    stubFlagsCSV,
 		Args: map[string]string{
 			"outFlag":      "--write-flags-csv",
 			"stubAPIFlags": stubFlagsCSV.String(),
 		},
 	})
-	h.flagsCSVPath = flagsCSV
+}
 
-	metadataCSV := android.PathForModuleOut(ctx, "hiddenapi", "metadata.csv")
+// buildRuleToGenerateMetadata builds a ninja rule to generate the metadata.csv file from
+// the classes jars and stub-flags.csv files.
+func buildRuleToGenerateMetadata(ctx android.ModuleContext, desc string, classesJars android.Paths, stubFlagsCSV android.Path, metadataCSV android.WritablePath) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        hiddenAPIGenerateCSVRule,
-		Description: "hiddenapi metadata",
+		Description: desc,
 		Inputs:      classesJars,
 		Output:      metadataCSV,
 		Implicit:    stubFlagsCSV,
@@ -285,9 +302,11 @@ func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJa
 			"stubAPIFlags": stubFlagsCSV.String(),
 		},
 	})
-	h.metadataCSVPath = metadataCSV
+}
 
-	indexCSV := android.PathForModuleOut(ctx, "hiddenapi", "index.csv")
+// buildRuleToGenerateMetadata builds a ninja rule to generate the index.csv file from the classes
+// jars.
+func buildRuleToGenerateIndex(ctx android.ModuleContext, desc string, classesJars android.Paths, indexCSV android.WritablePath) {
 	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
 		BuiltTool("merge_csv").
@@ -295,8 +314,7 @@ func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJa
 		Flag("--key_field signature").
 		FlagWithOutput("--output=", indexCSV).
 		Inputs(classesJars)
-	rule.Build("merged-hiddenapi-index", "Merged Hidden API index")
-	h.indexCSVPath = indexCSV
+	rule.Build(desc, desc)
 }
 
 var hiddenAPIEncodeDexRule = pctx.AndroidStaticRule("hiddenAPIEncodeDex", blueprint.RuleParams{
