@@ -384,11 +384,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	ctx.VisitDirectDeps(func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
 		if IsBootclasspathFragmentContentDepTag(tag) {
-			if sdkLibrary, ok := module.(SdkLibraryDependency); ok && sdkLibrary.sharedLibrary() {
-				ctx.PropertyErrorf("contents", "invalid module: %s, shared libraries cannot be on the bootclasspath", ctx.OtherModuleName(module))
-			} else {
-				contents = append(contents, module)
-			}
+			contents = append(contents, module)
 		}
 	})
 
