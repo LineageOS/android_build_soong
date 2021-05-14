@@ -47,3 +47,18 @@ python_binary_host {
         },
     },
 }
+
+python_binary_host {
+    name: "verify_overlaps",
+    main: "verify_overlaps.py",
+    srcs: ["verify_overlaps.py"],
+    version: {
+        py2: {
+            enabled: false,
+        },
+        py3: {
+            enabled: true,
+            embedded_launcher: true,
+        },
+    },
+}
