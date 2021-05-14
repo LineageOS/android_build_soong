@@ -257,17 +257,6 @@ func (b *platformBootclasspathModule) getImageConfig(ctx android.EarlyModuleCont
 	return defaultBootImageConfig(ctx)
 }
 
-// hiddenAPISupportingModule encapsulates the information provided by any module that contributes to
-// the hidden API processing.
-type hiddenAPISupportingModule struct {
-	module android.Module
-
-	bootDexJar  android.Path
-	flagsCSV    android.Path
-	indexCSV    android.Path
-	metadataCSV android.Path
-}
-
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
 func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, modules []android.Module, fragments []android.Module) {
 
@@ -290,67 +279,6 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 		return
 	}
 
-	// nilPathHandler will check the supplied path and if it is nil then it will either immediately
-	// report an error, or it will defer the error reporting until it is actually used, depending
-	// whether missing dependencies are allowed.
-	var nilPathHandler func(path android.Path, name string, module android.Module) android.Path
-	if ctx.Config().AllowMissingDependencies() {
-		nilPathHandler = func(path android.Path, name string, module android.Module) android.Path {
-			if path == nil {
-				outputPath := android.PathForModuleOut(ctx, "missing", module.Name(), name)
-				path = outputPath
-
-				// Create an error rule that pretends to create the output file but will actually fail if it
-				// is run.
-				ctx.Build(pctx, android.BuildParams{
-					Rule:   android.ErrorRule,
-					Output: outputPath,
-					Args: map[string]string{
-						"error": fmt.Sprintf("missing hidden API file: %s for %s", name, module),
-					},
-				})
-			}
-			return path
-		}
-	} else {
-		nilPathHandler = func(path android.Path, name string, module android.Module) android.Path {
-			if path == nil {
-				ctx.ModuleErrorf("module %s does not provide a %s file", module, name)
-			}
-			return path
-		}
-	}
-
-	hiddenAPISupportingModules := []hiddenAPISupportingModule{}
-	for _, module := range modules {
-		if h, ok := module.(hiddenAPIIntf); ok {
-			hiddenAPISupportingModule := hiddenAPISupportingModule{
-				module:      module,
-				bootDexJar:  nilPathHandler(h.bootDexJar(), "bootDexJar", module),
-				flagsCSV:    nilPathHandler(h.flagsCSV(), "flagsCSV", module),
-				indexCSV:    nilPathHandler(h.indexCSV(), "indexCSV", module),
-				metadataCSV: nilPathHandler(h.metadataCSV(), "metadataCSV", module),
-			}
-
-			// If any errors were reported when trying to populate the hiddenAPISupportingModule struct
-			// then don't add it to the list.
-			if ctx.Failed() {
-				continue
-			}
-
-			hiddenAPISupportingModules = append(hiddenAPISupportingModules, hiddenAPISupportingModule)
-		} else if _, ok := module.(*DexImport); ok {
-			// Ignore this for the purposes of hidden API processing
-		} else {
-			ctx.ModuleErrorf("module %s of type %s does not support hidden API processing", module, ctx.OtherModuleType(module))
-		}
-	}
-
-	moduleSpecificFlagsPaths := android.Paths{}
-	for _, module := range hiddenAPISupportingModules {
-		moduleSpecificFlagsPaths = append(moduleSpecificFlagsPaths, module.flagsCSV)
-	}
-
 	flagFileInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
 	for _, fragment := range fragments {
 		if ctx.OtherModuleHasProvider(fragment, hiddenAPIFlagFileInfoProvider) {
@@ -362,61 +290,53 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	// Store the information for testing.
 	ctx.SetProvider(hiddenAPIFlagFileInfoProvider, flagFileInfo)
 
-	outputPath := hiddenAPISingletonPaths(ctx).flags
-	baseFlagsPath := hiddenAPISingletonPaths(ctx).stubFlags
-	buildRuleToGenerateHiddenApiFlags(ctx, "hiddenAPIFlagsFile", "hiddenapi flags", outputPath, baseFlagsPath, moduleSpecificFlagsPaths, &flagFileInfo)
-
-	b.generateHiddenAPIStubFlagsRules(ctx, hiddenAPISupportingModules)
-	b.generateHiddenAPIIndexRules(ctx, hiddenAPISupportingModules)
-	b.generatedHiddenAPIMetadataRules(ctx, hiddenAPISupportingModules)
-}
-
-func (b *platformBootclasspathModule) generateHiddenAPIStubFlagsRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
-	bootDexJars := android.Paths{}
-	for _, module := range modules {
-		bootDexJars = append(bootDexJars, module.bootDexJar)
-	}
+	hiddenAPIModules := gatherHiddenAPIModuleFromContents(ctx, modules)
 
 	sdkKindToStubPaths := hiddenAPIGatherStubLibDexJarPaths(ctx, nil)
 
-	outputPath := hiddenAPISingletonPaths(ctx).stubFlags
-	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, outputPath, bootDexJars, sdkKindToStubPaths)
+	// Generate the monolithic stub-flags.csv file.
+	bootDexJars := extractBootDexJarsFromHiddenAPIModules(ctx, hiddenAPIModules)
+	stubFlags := hiddenAPISingletonPaths(ctx).stubFlags
+	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlags, bootDexJars, sdkKindToStubPaths)
 	rule.Build("platform-bootclasspath-monolithic-hiddenapi-stub-flags", "monolithic hidden API stub flags")
+
+	// Extract the classes jars from the contents.
+	classesJars := extractClassJarsFromHiddenAPIModules(ctx, hiddenAPIModules)
+
+	// Generate the annotation-flags.csv file from all the module annotations.
+	annotationFlags := android.PathForModuleOut(ctx, "hiddenapi-monolithic", "annotation-flags.csv")
+	buildRuleToGenerateAnnotationFlags(ctx, "monolithic hiddenapi flags", classesJars, stubFlags, annotationFlags)
+
+	// Generate the monotlithic hiddenapi-flags.csv file.
+	allFlags := hiddenAPISingletonPaths(ctx).flags
+	buildRuleToGenerateHiddenApiFlags(ctx, "hiddenAPIFlagsFile", "hiddenapi flags", allFlags, stubFlags, annotationFlags, &flagFileInfo)
+
+	// Generate an intermediate monolithic hiddenapi-metadata.csv file directly from the annotations
+	// in the source code.
+	intermediateMetadataCSV := android.PathForModuleOut(ctx, "hiddenapi-monolithic", "intermediate-metadata.csv")
+	buildRuleToGenerateMetadata(ctx, "monolithic hidden API metadata", classesJars, stubFlags, intermediateMetadataCSV)
+
+	// Reformat the intermediate file to add | quotes just in case that is important for the tools
+	// that consume the metadata file.
+	// TODO(b/179354495): Investigate whether it is possible to remove this reformatting step.
+	metadataCSV := hiddenAPISingletonPaths(ctx).metadata
+	b.buildRuleMergeCSV(ctx, "reformat monolithic hidden API metadata", android.Paths{intermediateMetadataCSV}, metadataCSV)
+
+	// Generate the monolithic hiddenapi-index.csv file directly from the CSV files in the classes
+	// jars.
+	indexCSV := hiddenAPISingletonPaths(ctx).index
+	buildRuleToGenerateIndex(ctx, "monolithic hidden API index", classesJars, indexCSV)
 }
 
-func (b *platformBootclasspathModule) generateHiddenAPIIndexRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
-	indexes := android.Paths{}
-	for _, module := range modules {
-		indexes = append(indexes, module.indexCSV)
-	}
-
+func (b *platformBootclasspathModule) buildRuleMergeCSV(ctx android.ModuleContext, desc string, inputPaths android.Paths, outputPath android.WritablePath) {
 	rule := android.NewRuleBuilder(pctx, ctx)
-	rule.Command().
-		BuiltTool("merge_csv").
-		Flag("--key_field signature").
-		FlagWithArg("--header=", "signature,file,startline,startcol,endline,endcol,properties").
-		FlagWithOutput("--output=", hiddenAPISingletonPaths(ctx).index).
-		Inputs(indexes)
-	rule.Build("platform-bootclasspath-monolithic-hiddenapi-index", "monolithic hidden API index")
-}
-
-func (b *platformBootclasspathModule) generatedHiddenAPIMetadataRules(ctx android.ModuleContext, modules []hiddenAPISupportingModule) {
-	metadataCSVFiles := android.Paths{}
-	for _, module := range modules {
-		metadataCSVFiles = append(metadataCSVFiles, module.metadataCSV)
-	}
-
-	rule := android.NewRuleBuilder(pctx, ctx)
-
-	outputPath := hiddenAPISingletonPaths(ctx).metadata
-
 	rule.Command().
 		BuiltTool("merge_csv").
 		Flag("--key_field signature").
 		FlagWithOutput("--output=", outputPath).
-		Inputs(metadataCSVFiles)
+		Inputs(inputPaths)
 
-	rule.Build("platform-bootclasspath-monolithic-hiddenapi-metadata", "monolithic hidden API metadata")
+	rule.Build(desc, desc)
 }
 
 // generateHiddenApiMakeVars generates make variables needed by hidden API related make rules, e.g.
