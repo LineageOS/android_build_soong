@@ -4396,7 +4396,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 
 	checkBootDexJarPath := func(t *testing.T, ctx *android.TestContext, stem string, bootDexJarPath string) {
 		t.Helper()
-		s := ctx.SingletonForTests("dex_bootjars")
+		s := ctx.ModuleForTests("platform-bootclasspath", "android_common")
 		foundLibfooJar := false
 		base := stem + ".jar"
 		for _, output := range s.AllOutputs() {

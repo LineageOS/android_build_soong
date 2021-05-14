@@ -62,7 +62,7 @@ func fh(name string, contents []byte, method uint16) zip.FileHeader {
 		Method:             method,
 		CRC32:              crc32.ChecksumIEEE(contents),
 		UncompressedSize64: uint64(len(contents)),
-		ExternalAttrs:      0,
+		ExternalAttrs:      (syscall.S_IFREG | 0600) << 16,
 	}
 }
 

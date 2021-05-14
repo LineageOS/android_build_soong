@@ -31,8 +31,19 @@ func getStringListValues(list bazel.StringListAttribute) (reflect.Value, selects
 }
 
 func getLabelValue(label bazel.LabelAttribute) (reflect.Value, selects, selects) {
-	value := reflect.ValueOf(label.Value)
-	return value, nil, nil
+	var value reflect.Value
+	var archSelects selects
+
+	if label.HasConfigurableValues() {
+		archSelects = map[string]reflect.Value{}
+		for arch, selectKey := range bazel.PlatformArchMap {
+			archSelects[selectKey] = reflect.ValueOf(label.GetValueForArch(arch))
+		}
+	} else {
+		value = reflect.ValueOf(label.Value)
+	}
+
+	return value, archSelects, nil
 }
 
 func getLabelListValues(list bazel.LabelListAttribute) (reflect.Value, selects, selects) {
