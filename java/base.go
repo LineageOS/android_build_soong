@@ -1177,8 +1177,14 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		j.properties.Instrument = true
 	}
 
+	// enforce syntax check to jacoco filters for any build (http://b/183622051)
+	specs := j.jacocoModuleToZipCommand(ctx)
+	if ctx.Failed() {
+		return
+	}
+
 	if j.shouldInstrument(ctx) {
-		outputFile = j.instrument(ctx, flags, outputFile, jarName)
+		outputFile = j.instrument(ctx, flags, outputFile, jarName, specs)
 	}
 
 	// merge implementation jar with resources if necessary
@@ -1390,9 +1396,7 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 }
 
 func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
-	classesJar android.Path, jarName string) android.OutputPath {
-
-	specs := j.jacocoModuleToZipCommand(ctx)
+	classesJar android.Path, jarName string, specs string) android.OutputPath {
 
 	jacocoReportClassesFile := android.PathForModuleOut(ctx, "jacoco-report-classes", jarName)
 	instrumentedJar := android.PathForModuleOut(ctx, "jacoco", jarName).OutputPath
