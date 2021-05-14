@@ -1309,7 +1309,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				j.dexJarFile = dexOutputPath
 
 				// Initialize the hiddenapi structure.
-				j.initHiddenAPI(ctx, dexOutputPath, outputFile)
+				j.initHiddenAPI(ctx, dexOutputPath, outputFile, nil)
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
 				// prebuilt_apex has been configured to export the java library dex file.
@@ -1341,10 +1341,10 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			}
 
 			// Initialize the hiddenapi structure.
-			j.initHiddenAPI(ctx, dexOutputFile, outputFile)
+			j.initHiddenAPI(ctx, dexOutputFile, outputFile, j.dexProperties.Uncompress_dex)
 
 			// Encode hidden API flags in dex file.
-			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile, proptools.Bool(j.dexProperties.Uncompress_dex))
+			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile)
 
 			j.dexJarFile = dexOutputFile
 		}
