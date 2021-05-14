@@ -18,7 +18,6 @@ import (
 	"android/soong/android"
 	"android/soong/cc/config"
 	"fmt"
-	"strconv"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -390,17 +389,17 @@ func (linker *baseLinker) useClangLld(ctx ModuleContext) bool {
 }
 
 // Check whether the SDK version is not older than the specific one
-func CheckSdkVersionAtLeast(ctx ModuleContext, SdkVersion int) bool {
-	if ctx.sdkVersion() == "current" {
+func CheckSdkVersionAtLeast(ctx ModuleContext, SdkVersion android.ApiLevel) bool {
+	if ctx.minSdkVersion() == "current" {
 		return true
 	}
-	parsedSdkVersion, err := strconv.Atoi(ctx.sdkVersion())
+	parsedSdkVersion, err := android.ApiLevelFromUser(ctx, ctx.minSdkVersion())
 	if err != nil {
-		ctx.PropertyErrorf("sdk_version",
-			"Invalid sdk_version value (must be int or current): %q",
-			ctx.sdkVersion())
+		ctx.PropertyErrorf("min_sdk_version",
+			"Invalid min_sdk_version value (must be int or current): %q",
+			ctx.minSdkVersion())
 	}
-	if parsedSdkVersion < SdkVersion {
+	if parsedSdkVersion.LessThan(SdkVersion) {
 		return false
 	}
 	return true
@@ -425,13 +424,13 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 			// ANDROID_RELR relocations were supported at API level >= 28.
 			// Relocation packer was supported at API level >= 23.
 			// Do the best we can...
-			if !ctx.useSdk() || CheckSdkVersionAtLeast(ctx, 30) {
+			if !ctx.useSdk() || CheckSdkVersionAtLeast(ctx, android.FirstShtRelrVersion) {
 				flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--pack-dyn-relocs=android+relr")
-			} else if CheckSdkVersionAtLeast(ctx, 28) {
+			} else if CheckSdkVersionAtLeast(ctx, android.FirstAndroidRelrVersion) {
 				flags.Global.LdFlags = append(flags.Global.LdFlags,
 					"-Wl,--pack-dyn-relocs=android+relr",
 					"-Wl,--use-android-relr-tags")
-			} else if CheckSdkVersionAtLeast(ctx, 23) {
+			} else if CheckSdkVersionAtLeast(ctx, android.FirstPackedRelocationsVersion) {
 				flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--pack-dyn-relocs=android")
 			}
 		}
