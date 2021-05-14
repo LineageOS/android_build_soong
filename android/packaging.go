@@ -198,8 +198,8 @@ func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.Dep
 	}
 }
 
-// See PackageModule.CopyDepsToZip
-func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut WritablePath) (entries []string) {
+// Returns transitive PackagingSpecs from deps
+func (p *PackagingBase) GatherPackagingSpecs(ctx ModuleContext) map[string]PackagingSpec {
 	m := make(map[string]PackagingSpec)
 	ctx.VisitDirectDeps(func(child Module) {
 		if pi, ok := ctx.OtherModuleDependencyTag(child).(PackagingItem); !ok || !pi.IsPackagingItem() {
@@ -211,7 +211,12 @@ func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut WritablePath) (e
 			}
 		}
 	})
+	return m
+}
 
+// See PackageModule.CopyDepsToZip
+func (p *PackagingBase) CopyDepsToZip(ctx ModuleContext, zipOut WritablePath) (entries []string) {
+	m := p.GatherPackagingSpecs(ctx)
 	builder := NewRuleBuilder(pctx, ctx)
 
 	dir := PathForModuleOut(ctx, ".zip")

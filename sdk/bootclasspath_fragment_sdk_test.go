@@ -384,6 +384,10 @@ func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForSdkTestWithJava,
+		java.PrepareForTestWithJavaDefaultModules,
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("mysdklibrary"),
+		prepareForSdkTestWithApex,
 		android.MockFS{
 			"my-blocked.txt":                   nil,
 			"my-max-target-o-low-priority.txt": nil,
@@ -400,9 +404,20 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 				bootclasspath_fragments: ["mybootclasspathfragment"],
 			}
 
+			apex {
+				name: "myapex",
+				key: "myapex.key",
+				min_sdk_version: "1",
+				bootclasspath_fragments: ["mybootclasspathfragment"],
+			}
+
 			bootclasspath_fragment {
 				name: "mybootclasspathfragment",
+				apex_available: ["myapex"],
 				contents: ["mybootlib"],
+				api: {
+					stub_libs: ["mysdklibrary"],
+				},
 				hidden_api: {
 					unsupported: [
 							"my-unsupported.txt",
@@ -433,10 +448,19 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 
 			java_library {
 				name: "mybootlib",
+				apex_available: ["myapex"],
 				srcs: ["Test.java"],
 				system_modules: "none",
 				sdk_version: "none",
+				min_sdk_version: "1",
 				compile_dex: true,
+			}
+
+			java_sdk_library {
+				name: "mysdklibrary",
+				srcs: ["Test.java"],
+				compile_dex: true,
+				public: {enabled: true},
 			}
 		`),
 	).RunTest(t)
@@ -449,8 +473,11 @@ prebuilt_bootclasspath_fragment {
     name: "mybootclasspathfragment",
     prefer: false,
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     contents: ["mybootlib"],
+    api: {
+        stub_libs: ["mysdklibrary"],
+    },
     hidden_api: {
         unsupported: ["hiddenapi/my-unsupported.txt"],
         removed: ["hiddenapi/my-removed.txt"],
@@ -467,8 +494,24 @@ java_import {
     name: "mybootlib",
     prefer: false,
     visibility: ["//visibility:public"],
-    apex_available: ["//apex_available:platform"],
+    apex_available: ["myapex"],
     jars: ["java/mybootlib.jar"],
+}
+
+java_sdk_library_import {
+    name: "mysdklibrary",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    shared_library: true,
+    compile_dex: true,
+    public: {
+        jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
+        current_api: "sdk_library/public/mysdklibrary.txt",
+        removed_api: "sdk_library/public/mysdklibrary-removed.txt",
+        sdk_version: "current",
+    },
 }
 `),
 		checkAllCopyRules(`
@@ -481,6 +524,9 @@ my-max-target-o-low-priority.txt -> hiddenapi/my-max-target-o-low-priority.txt
 my-blocked.txt -> hiddenapi/my-blocked.txt
 my-unsupported-packages.txt -> hiddenapi/my-unsupported-packages.txt
 .intermediates/mybootlib/android_common/javac/mybootlib.jar -> java/mybootlib.jar
+.intermediates/mysdklibrary.stubs/android_common/javac/mysdklibrary.stubs.jar -> sdk_library/public/mysdklibrary-stubs.jar
+.intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_api.txt -> sdk_library/public/mysdklibrary.txt
+.intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_removed.txt -> sdk_library/public/mysdklibrary-removed.txt
 `),
 	)
 }
