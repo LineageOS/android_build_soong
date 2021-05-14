@@ -274,3 +274,56 @@ func TestHiddenAPISingletonWithPrebuiltCsvFile(t *testing.T) {
 
 	android.AssertStringEquals(t, "hiddenapi encode dex rule flags csv", expectedFlagsCsv, actualFlagsCsv)
 }
+
+func TestHiddenAPIEncoding_JavaSdkLibrary(t *testing.T) {
+
+	result := android.GroupFixturePreparers(
+		hiddenApiFixtureFactory,
+		FixtureConfigureBootJars("platform:foo"),
+		PrepareForTestWithJavaSdkLibraryFiles,
+		FixtureWithLastReleaseApis("foo"),
+
+		// Make sure that the frameworks/base/Android.bp file exists as otherwise hidden API encoding
+		// is disabled.
+		android.FixtureAddTextFile("frameworks/base/Android.bp", ""),
+	).RunTestWithBp(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["a.java"],
+			shared_library: false,
+			compile_dex: true,
+			public: {enabled: true},
+		}
+	`)
+
+	checkDexEncoded := func(t *testing.T, name, unencodedDexJar, encodedDexJar string) {
+		moduleForTests := result.ModuleForTests(name, "android_common")
+
+		encodeDexRule := moduleForTests.Rule("hiddenAPIEncodeDex")
+		actualUnencodedDexJar := encodeDexRule.Input
+
+		// Make sure that the module has its dex jar encoded.
+		android.AssertStringEquals(t, "encode embedded java_library", unencodedDexJar, actualUnencodedDexJar.String())
+
+		// Make sure that the encoded dex jar is the exported one.
+		exportedDexJar := moduleForTests.Module().(UsesLibraryDependency).DexJarBuildPath()
+		android.AssertPathRelativeToTopEquals(t, "encode embedded java_library", encodedDexJar, exportedDexJar)
+	}
+
+	// The java_library embedded with the java_sdk_library must be dex encoded.
+	t.Run("foo", func(t *testing.T) {
+		expectedUnencodedDexJar := "out/soong/.intermediates/foo/android_common/aligned/foo.jar"
+		expectedEncodedDexJar := "out/soong/.intermediates/foo/android_common/hiddenapi/foo.jar"
+		checkDexEncoded(t, "foo", expectedUnencodedDexJar, expectedEncodedDexJar)
+	})
+
+	// The dex jar of the child implementation java_library of the java_sdk_library is not currently
+	// dex encoded.
+	t.Run("foo.impl", func(t *testing.T) {
+		fooImpl := result.ModuleForTests("foo.impl", "android_common")
+		encodeDexRule := fooImpl.MaybeRule("hiddenAPIEncodeDex")
+		if encodeDexRule.Rule != nil {
+			t.Errorf("foo.impl is not expected to be encoded")
+		}
+	})
+}
