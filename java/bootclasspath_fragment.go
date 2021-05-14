@@ -91,6 +91,9 @@ func IsBootclasspathFragmentContentDepTag(tag blueprint.DependencyTag) bool {
 type BootclasspathFragmentCoverageAffectedProperties struct {
 	// The contents of this bootclasspath_fragment, could be either java_library, or java_sdk_library.
 	//
+	// A java_sdk_library specified here will also be treated as if it was specified on the stub_libs
+	// property.
+	//
 	// The order of this list matters as it is the order that is used in the bootclasspath.
 	Contents []string
 
@@ -453,7 +456,7 @@ func (b *BootclasspathFragmentModule) getImageConfig(ctx android.EarlyModuleCont
 func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, contents []android.Module) {
 
 	// Convert the kind specific lists of modules into kind specific lists of jars.
-	stubJarsByKind := hiddenAPIGatherStubLibDexJarPaths(ctx)
+	stubJarsByKind := hiddenAPIGatherStubLibDexJarPaths(ctx, contents)
 
 	// Store the information for use by other modules.
 	bootclasspathApiInfo := bootclasspathApiInfo{stubJarsByKind: stubJarsByKind}
