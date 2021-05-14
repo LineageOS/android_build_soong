@@ -377,7 +377,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIStubFlagsRules(ctx androi
 		bootDexJars = append(bootDexJars, module.bootDexJar)
 	}
 
-	sdkKindToStubPaths := hiddenAPIGatherStubLibDexJarPaths(ctx)
+	sdkKindToStubPaths := hiddenAPIGatherStubLibDexJarPaths(ctx, nil)
 
 	outputPath := hiddenAPISingletonPaths(ctx).stubFlags
 	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, outputPath, bootDexJars, sdkKindToStubPaths)
