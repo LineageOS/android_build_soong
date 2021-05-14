@@ -1223,9 +1223,11 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 				return
 			}
 
-			// Hidden API CSV generation and dex encoding
-			dexOutputFile = j.hiddenAPIExtractAndEncode(ctx, dexOutputFile, j.implementationJarFile,
-				proptools.Bool(j.dexProperties.Uncompress_dex))
+			// Update hidden API paths.
+			j.hiddenAPIUpdatePaths(ctx, dexOutputFile, j.implementationJarFile)
+
+			// Encode hidden API flags in dex file.
+			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile, proptools.Bool(j.dexProperties.Uncompress_dex))
 
 			// merge dex jar with resources if necessary
 			if j.resourceJar != nil {
