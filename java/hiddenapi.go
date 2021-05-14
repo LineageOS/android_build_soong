@@ -91,31 +91,22 @@ type hiddenAPI struct {
 	classesJarPaths android.Paths
 }
 
-func (h *hiddenAPI) flagsCSV() android.Path {
-	return h.flagsCSVPath
-}
-
-func (h *hiddenAPI) metadataCSV() android.Path {
-	return h.metadataCSVPath
-}
-
 func (h *hiddenAPI) bootDexJar() android.Path {
 	return h.bootDexJarPath
-}
-
-func (h *hiddenAPI) indexCSV() android.Path {
-	return h.indexCSVPath
 }
 
 func (h *hiddenAPI) classesJars() android.Paths {
 	return h.classesJarPaths
 }
 
+// hiddenAPIModule is the interface a module that embeds the hiddenAPI structure must implement.
+type hiddenAPIModule interface {
+	android.Module
+	hiddenAPIIntf
+}
+
 type hiddenAPIIntf interface {
 	bootDexJar() android.Path
-	flagsCSV() android.Path
-	indexCSV() android.Path
-	metadataCSV() android.Path
 	classesJars() android.Paths
 }
 
@@ -312,6 +303,7 @@ func buildRuleToGenerateIndex(ctx android.ModuleContext, desc string, classesJar
 		BuiltTool("merge_csv").
 		Flag("--zip_input").
 		Flag("--key_field signature").
+		FlagWithArg("--header=", "signature,file,startline,startcol,endline,endcol,properties").
 		FlagWithOutput("--output=", indexCSV).
 		Inputs(classesJars)
 	rule.Build(desc, desc)
