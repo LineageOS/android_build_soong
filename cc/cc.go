@@ -3228,6 +3228,9 @@ func (c *Module) DepIsInSameApex(ctx android.BaseModuleContext, dep android.Modu
 				return false
 			}
 		}
+		if cc.IsLlndk() {
+			return false
+		}
 		if isLibDepTag && c.static() && libDepTag.shared() {
 			// shared_lib dependency from a static lib is considered as crossing
 			// the APEX boundary because the dependency doesn't actually is
@@ -3292,6 +3295,12 @@ func (c *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 		return fmt.Errorf("newer SDK(%v)", ver)
 	}
 	return nil
+}
+
+// Implements android.ApexModule
+func (c *Module) AlwaysRequiresPlatformApexVariant() bool {
+	// stub libraries and native bridge libraries are always available to platform
+	return c.IsStubs() || c.Target().NativeBridge == android.NativeBridgeEnabled
 }
 
 //

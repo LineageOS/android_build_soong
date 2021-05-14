@@ -61,8 +61,14 @@ func (b bootclasspathFragmentContentDependencyTag) ReplaceSourceWithPrebuilt() b
 }
 
 // SdkMemberType causes dependencies added with this tag to be automatically added to the sdk as if
-// they were specified using java_boot_libs.
-func (b bootclasspathFragmentContentDependencyTag) SdkMemberType(_ android.Module) android.SdkMemberType {
+// they were specified using java_boot_libs or java_sdk_libs.
+func (b bootclasspathFragmentContentDependencyTag) SdkMemberType(child android.Module) android.SdkMemberType {
+	// If the module is a java_sdk_library then treat it as if it was specified in the java_sdk_libs
+	// property, otherwise treat if it was specified in the java_boot_libs property.
+	if javaSdkLibrarySdkMemberType.IsInstance(child) {
+		return javaSdkLibrarySdkMemberType
+	}
+
 	return javaBootLibsSdkMemberType
 }
 
@@ -361,6 +367,15 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	// Generate classpaths.proto config
 	b.generateClasspathProtoBuildActions(ctx)
 
+	// Gather the bootclasspath fragment's contents.
+	var contents []android.Module
+	ctx.VisitDirectDeps(func(module android.Module) {
+		tag := ctx.OtherModuleDependencyTag(module)
+		if IsBootclasspathFragmentContentDepTag(tag) {
+			contents = append(contents, module)
+		}
+	})
+
 	// Perform hidden API processing.
 	b.generateHiddenAPIBuildActions(ctx)
 
@@ -376,6 +391,9 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 		// GenerateSingletonBuildActions method as it cannot create it for itself.
 		dexpreopt.GetGlobalSoongConfig(ctx)
 		info.imageConfig = b.getImageConfig(ctx)
+
+		// Only generate the boot image if the configuration does not skip it.
+		b.generateBootImageBuildActions(ctx, contents)
 	}
 
 	// Make it available for other modules.
@@ -432,6 +450,44 @@ func (b *BootclasspathFragmentModule) generateHiddenAPIBuildActions(ctx android.
 	// Store the information for use by other modules.
 	bootclasspathApiInfo := bootclasspathApiInfo{stubJarsByKind: stubJarsByKind}
 	ctx.SetProvider(bootclasspathApiInfoProvider, bootclasspathApiInfo)
+}
+
+// generateBootImageBuildActions generates ninja rules to create the boot image if required for this
+// module.
+func (b *BootclasspathFragmentModule) generateBootImageBuildActions(ctx android.ModuleContext, contents []android.Module) {
+	global := dexpreopt.GetGlobalConfig(ctx)
+	if !shouldBuildBootImages(ctx.Config(), global) {
+		return
+	}
+
+	// Bootclasspath fragment modules that are not preferred do not produce a boot image.
+	if !isActiveModule(ctx.Module()) {
+		return
+	}
+
+	// Bootclasspath fragment modules that have no image_name property do not produce a boot image.
+	imageConfig := b.getImageConfig(ctx)
+	if imageConfig == nil {
+		return
+	}
+
+	// Bootclasspath fragment modules that are for the platform do not produce a boot image.
+	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
+	if apexInfo.IsForPlatform() {
+		return
+	}
+
+	// Bootclasspath fragment modules that are versioned do not produce a boot image.
+	if android.IsModuleInVersionedSdk(ctx.Module()) {
+		return
+	}
+
+	// Copy the dex jars of this fragment's content modules to their predefined locations.
+	copyBootJarsToPredefinedLocations(ctx, contents, imageConfig.modules, imageConfig.dexPaths)
+
+	// Build a profile for the image config and then use that to build the boot image.
+	profile := bootImageProfileRule(ctx, imageConfig)
+	buildBootImage(ctx, imageConfig, profile)
 }
 
 type bootclasspathFragmentMemberType struct {
