@@ -1025,7 +1025,7 @@ func maybeBlueprintEmbed(src reflect.Value) reflect.Value {
 }
 
 // Merges the property struct in srcValue into dst.
-func mergePropertyStruct(ctx BaseMutatorContext, dst interface{}, srcValue reflect.Value) {
+func mergePropertyStruct(ctx ArchVariantContext, dst interface{}, srcValue reflect.Value) {
 	src := maybeBlueprintEmbed(srcValue).Interface()
 
 	// order checks the `android:"variant_prepend"` tag to handle properties where the
@@ -1054,7 +1054,7 @@ func mergePropertyStruct(ctx BaseMutatorContext, dst interface{}, srcValue refle
 
 // Returns the immediate child of the input property struct that corresponds to
 // the sub-property "field".
-func getChildPropertyStruct(ctx BaseMutatorContext,
+func getChildPropertyStruct(ctx ArchVariantContext,
 	src reflect.Value, field, userFriendlyField string) reflect.Value {
 
 	// Step into non-nil pointers to structs in the src value.
@@ -1186,7 +1186,7 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 // },
 // This struct will also contain sub-structs containing to the architecture/CPU
 // variants and features that themselves contain properties specific to those.
-func getArchTypeStruct(ctx BaseMutatorContext, archProperties interface{}, archType ArchType) reflect.Value {
+func getArchTypeStruct(ctx ArchVariantContext, archProperties interface{}, archType ArchType) reflect.Value {
 	archPropValues := reflect.ValueOf(archProperties).Elem()
 	archProp := archPropValues.FieldByName("Arch").Elem()
 	prefix := "arch." + archType.Name
@@ -1201,7 +1201,7 @@ func getArchTypeStruct(ctx BaseMutatorContext, archProperties interface{}, archT
 //         key: value,
 //     },
 // },
-func getMultilibStruct(ctx BaseMutatorContext, archProperties interface{}, archType ArchType) reflect.Value {
+func getMultilibStruct(ctx ArchVariantContext, archProperties interface{}, archType ArchType) reflect.Value {
 	archPropValues := reflect.ValueOf(archProperties).Elem()
 	multilibProp := archPropValues.FieldByName("Multilib").Elem()
 	multilibProperties := getChildPropertyStruct(ctx, multilibProp, archType.Multilib, "multilib."+archType.Multilib)
@@ -1851,6 +1851,12 @@ func (m *ModuleBase) getMultilibPropertySet(propertySet interface{}, archType Ar
 	return reflect.New(reflect.ValueOf(propertySet).Elem().Type()).Interface()
 }
 
+// ArchVariantContext defines the limited context necessary to retrieve arch_variant properties.
+type ArchVariantContext interface {
+	ModuleErrorf(fmt string, args ...interface{})
+	PropertyErrorf(property, fmt string, args ...interface{})
+}
+
 // GetArchProperties returns a map of architectures to the values of the
 // properties of the 'propertySet' struct that are specific to that architecture.
 //
@@ -1863,7 +1869,7 @@ func (m *ModuleBase) getMultilibPropertySet(propertySet interface{}, archType Ar
 // For example: `arch: { x86: { Foo: ["bar"] } }, multilib: { lib32: {` Foo: ["baz"] } }`
 // will result in `Foo: ["bar", "baz"]` being returned for architecture x86, if the given
 // propertyset contains `Foo []string`.
-func (m *ModuleBase) GetArchProperties(ctx BaseMutatorContext, propertySet interface{}) map[ArchType]interface{} {
+func (m *ModuleBase) GetArchProperties(ctx ArchVariantContext, propertySet interface{}) map[ArchType]interface{} {
 	// Return value of the arch types to the prop values for that arch.
 	archToProp := map[ArchType]interface{}{}
 
