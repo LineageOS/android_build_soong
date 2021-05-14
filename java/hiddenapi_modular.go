@@ -99,7 +99,12 @@ func hiddenAPIComputeMonolithicStubLibModules(config android.Config) map[android
 	systemStubModules = append(systemStubModules, config.ProductHiddenAPIStubsSystem()...)
 	testStubModules = append(testStubModules, config.ProductHiddenAPIStubsTest()...)
 	if config.IsEnvTrue("EMMA_INSTRUMENT") {
+		// Add jacoco-stubs to public, system and test. It doesn't make any real difference as public
+		// allows everyone access but it is needed to ensure consistent flags between the
+		// bootclasspath fragment generated flags and the platform_bootclasspath generated flags.
 		publicStubModules = append(publicStubModules, "jacoco-stubs")
+		systemStubModules = append(systemStubModules, "jacoco-stubs")
+		testStubModules = append(testStubModules, "jacoco-stubs")
 	}
 
 	m := map[android.SdkKind][]string{}
