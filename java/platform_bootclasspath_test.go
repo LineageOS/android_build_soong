@@ -427,20 +427,14 @@ func TestPlatformBootclasspath_HiddenAPIMonolithicFiles(t *testing.T) {
 		}
 	`)
 
-	platformBootclasspath := result.ModuleForTests("myplatform-bootclasspath", "android_common")
-	indexRule := platformBootclasspath.Rule("platform-bootclasspath-monolithic-hiddenapi-index")
-	CheckHiddenAPIRuleInputs(t, `
-.intermediates/bar/android_common/hiddenapi/index.csv
-.intermediates/foo/android_common/hiddenapi/index.csv
-`,
-		indexRule)
-
 	// Make sure that the foo-hiddenapi-annotations.jar is included in the inputs to the rules that
 	// creates the index.csv file.
-	foo := result.ModuleForTests("foo", "android_common")
-	indexParams := foo.Output("hiddenapi/index.csv")
+	platformBootclasspath := result.ModuleForTests("myplatform-bootclasspath", "android_common")
+	indexRule := platformBootclasspath.Rule("monolithic_hidden_API_index")
 	CheckHiddenAPIRuleInputs(t, `
+.intermediates/bar/android_common/javac/bar.jar
 .intermediates/foo-hiddenapi-annotations/android_common/javac/foo-hiddenapi-annotations.jar
 .intermediates/foo/android_common/javac/foo.jar
-`, indexParams)
+`,
+		indexRule)
 }
