@@ -4414,7 +4414,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 	checkHiddenAPIIndexInputs := func(t *testing.T, ctx *android.TestContext, expectedInputs string) {
 		t.Helper()
 		platformBootclasspath := ctx.ModuleForTests("platform-bootclasspath", "android_common")
-		indexRule := platformBootclasspath.Rule("platform-bootclasspath-monolithic-hiddenapi-index")
+		indexRule := platformBootclasspath.Rule("monolithic_hidden_API_index")
 		java.CheckHiddenAPIRuleInputs(t, expectedInputs, indexRule)
 	}
 
@@ -4452,10 +4452,10 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
-		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
+		// Verify the correct module jars contribute to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
-.intermediates/libbar/android_common_myapex/hiddenapi/index.csv
-.intermediates/libfoo/android_common_myapex/hiddenapi/index.csv
+.intermediates/libbar.stubs/android_common/combined/libbar.stubs.jar
+.intermediates/libfoo/android_common_myapex/combined/libfoo.jar
 `)
 	})
 
@@ -4486,10 +4486,10 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
-		// Make sure that the dex file from the apex_set contributes to the hiddenapi index file.
+		// Verify the correct module jars contribute to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
-.intermediates/libbar/android_common_myapex/hiddenapi/index.csv
-.intermediates/libfoo/android_common_myapex/hiddenapi/index.csv
+.intermediates/libbar.stubs/android_common/combined/libbar.stubs.jar
+.intermediates/libfoo/android_common_myapex/combined/libfoo.jar
 `)
 	})
 
@@ -4593,10 +4593,10 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
-		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
+		// Verify the correct module jars contribute to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
-.intermediates/prebuilt_libbar/android_common_myapex/hiddenapi/index.csv
-.intermediates/prebuilt_libfoo/android_common_myapex/hiddenapi/index.csv
+.intermediates/prebuilt_libbar.stubs/android_common/combined/libbar.stubs.jar
+.intermediates/prebuilt_libfoo/android_common_myapex/combined/libfoo.jar
 `)
 	})
 
@@ -4660,10 +4660,10 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/libfoo/android_common_apex10000/hiddenapi/libfoo.jar")
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/libbar/android_common_myapex/hiddenapi/libbar.jar")
 
-		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
+		// Verify the correct module jars contribute to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
-.intermediates/libbar/android_common_myapex/hiddenapi/index.csv
-.intermediates/libfoo/android_common_apex10000/hiddenapi/index.csv
+.intermediates/libbar/android_common_myapex/javac/libbar.jar
+.intermediates/libfoo/android_common_apex10000/javac/libfoo.jar
 `)
 	})
 
@@ -4729,10 +4729,10 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		checkBootDexJarPath(t, ctx, "libfoo", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libfoo.jar")
 		checkBootDexJarPath(t, ctx, "libbar", "out/soong/.intermediates/myapex.deapexer/android_common/deapexer/javalib/libbar.jar")
 
-		// Make sure that the dex file from the prebuilt_apex contributes to the hiddenapi index file.
+		// Verify the correct module jars contribute to the hiddenapi index file.
 		checkHiddenAPIIndexInputs(t, ctx, `
-.intermediates/prebuilt_libbar/android_common_myapex/hiddenapi/index.csv
-.intermediates/prebuilt_libfoo/android_common_myapex/hiddenapi/index.csv
+.intermediates/prebuilt_libbar.stubs/android_common/combined/libbar.stubs.jar
+.intermediates/prebuilt_libfoo/android_common_myapex/combined/libfoo.jar
 `)
 	})
 }
