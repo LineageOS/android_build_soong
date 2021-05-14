@@ -231,7 +231,7 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 		java_sdk_library {
 			name: "mysdklibrary",
 			srcs: ["a.java"],
-			compile_dex: true,
+			shared_library: false,
 			public: {enabled: true},
 			system: {enabled: true},
 		}
@@ -239,7 +239,7 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 		java_sdk_library {
 			name: "mycoreplatform",
 			srcs: ["a.java"],
-			compile_dex: true,
+			shared_library: false,
 			public: {enabled: true},
 		}
 	`)
