@@ -208,11 +208,12 @@ func isModuleInBootClassPath(ctx android.BaseModuleContext, module android.Modul
 func (h *hiddenAPI) hiddenAPIExtractAndEncode(ctx android.ModuleContext, dexJar android.OutputPath,
 	implementationJar android.Path, uncompressDex bool) android.OutputPath {
 
+	// Call before checking if this is active as it will update the hiddenAPI structure.
+	h.hiddenAPIExtractInformation(ctx, dexJar, implementationJar)
+
 	if !h.active {
 		return dexJar
 	}
-
-	h.hiddenAPIExtractInformation(ctx, dexJar, implementationJar)
 
 	hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", h.configurationName+".jar").OutputPath
 
@@ -231,6 +232,20 @@ func (h *hiddenAPI) hiddenAPIExtractAndEncode(ctx android.ModuleContext, dexJar 
 // It also makes the dex jar available for use when generating the
 // hiddenAPISingletonPathsStruct.stubFlags.
 func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJar, classesJar android.Path) {
+
+	// Save the classes jars even if this is not active as they may be used by modular hidden API
+	// processing.
+	classesJars := android.Paths{classesJar}
+	ctx.VisitDirectDepsWithTag(hiddenApiAnnotationsTag, func(dep android.Module) {
+		javaInfo := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+		classesJars = append(classesJars, javaInfo.ImplementationJars...)
+	})
+	h.classesJarPaths = classesJars
+
+	// Save the unencoded dex jar so it can be used when generating the
+	// hiddenAPISingletonPathsStruct.stubFlags file.
+	h.bootDexJarPath = dexJar
+
 	if !h.active {
 		return
 	}
@@ -241,13 +256,6 @@ func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJa
 	if !h.primary {
 		return
 	}
-
-	classesJars := android.Paths{classesJar}
-	ctx.VisitDirectDepsWithTag(hiddenApiAnnotationsTag, func(dep android.Module) {
-		javaInfo := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
-		classesJars = append(classesJars, javaInfo.ImplementationJars...)
-	})
-	h.classesJarPaths = classesJars
 
 	stubFlagsCSV := hiddenAPISingletonPaths(ctx).stubFlags
 
@@ -289,10 +297,6 @@ func (h *hiddenAPI) hiddenAPIExtractInformation(ctx android.ModuleContext, dexJa
 		Inputs(classesJars)
 	rule.Build("merged-hiddenapi-index", "Merged Hidden API index")
 	h.indexCSVPath = indexCSV
-
-	// Save the unencoded dex jar so it can be used when generating the
-	// hiddenAPISingletonPathsStruct.stubFlags file.
-	h.bootDexJarPath = dexJar
 }
 
 var hiddenAPIEncodeDexRule = pctx.AndroidStaticRule("hiddenAPIEncodeDex", blueprint.RuleParams{
