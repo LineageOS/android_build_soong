@@ -207,21 +207,21 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 			java_sdk_library {
 				name: "mysdklibrary",
 				srcs: ["Test.java"],
-				compile_dex: true,
+				shared_library: false,
 				public: {enabled: true},
 			}
 
 			java_sdk_library {
 				name: "myothersdklibrary",
 				srcs: ["Test.java"],
-				compile_dex: true,
+				shared_library: false,
 				public: {enabled: true},
 			}
 
 			java_sdk_library {
 				name: "mycoreplatform",
 				srcs: ["Test.java"],
-				compile_dex: true,
+				shared_library: false,
 				public: {enabled: true},
 			}
 		`),
@@ -261,8 +261,7 @@ java_sdk_library_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    shared_library: true,
-    compile_dex: true,
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/myothersdklibrary_stub_sources"],
@@ -277,8 +276,7 @@ java_sdk_library_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    shared_library: true,
-    compile_dex: true,
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
@@ -293,8 +291,7 @@ java_sdk_library_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    shared_library: true,
-    compile_dex: true,
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/mycoreplatform-stubs.jar"],
         stub_srcs: ["sdk_library/public/mycoreplatform_stub_sources"],
@@ -337,8 +334,7 @@ java_sdk_library_import {
     sdk_member_name: "myothersdklibrary",
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    shared_library: true,
-    compile_dex: true,
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/myothersdklibrary_stub_sources"],
@@ -353,8 +349,7 @@ java_sdk_library_import {
     sdk_member_name: "mysdklibrary",
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    shared_library: true,
-    compile_dex: true,
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
@@ -369,8 +364,7 @@ java_sdk_library_import {
     sdk_member_name: "mycoreplatform",
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    shared_library: true,
-    compile_dex: true,
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/mycoreplatform-stubs.jar"],
         stub_srcs: ["sdk_library/public/mycoreplatform_stub_sources"],
