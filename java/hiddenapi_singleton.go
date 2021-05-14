@@ -117,7 +117,6 @@ func hiddenAPISingletonFactory() android.Singleton {
 }
 
 type hiddenAPISingleton struct {
-	flags android.Path
 }
 
 // hiddenAPI singleton rules
@@ -136,16 +135,9 @@ func (h *hiddenAPISingleton) GenerateBuildActions(ctx android.SingletonContext) 
 	// consistency.
 
 	if ctx.Config().PrebuiltHiddenApiDir(ctx) != "" {
-		h.flags = prebuiltFlagsRule(ctx)
+		prebuiltFlagsRule(ctx)
 		prebuiltIndexRule(ctx)
 		return
-	}
-
-	// These rules depend on files located in frameworks/base, skip them if running in a tree that doesn't have them.
-	if ctx.Config().FrameworksBaseDirExists(ctx) {
-		h.flags = flagsRule(ctx)
-	} else {
-		h.flags = emptyFlagsRule(ctx)
 	}
 }
 
@@ -187,7 +179,7 @@ func isModuleInConfiguredList(ctx android.BaseModuleContext, module android.Modu
 	return true
 }
 
-func prebuiltFlagsRule(ctx android.SingletonContext) android.Path {
+func prebuiltFlagsRule(ctx android.SingletonContext) {
 	outputPath := hiddenAPISingletonPaths(ctx).flags
 	inputPath := android.PathForSource(ctx, ctx.Config().PrebuiltHiddenApiDir(ctx), "hiddenapi-flags.csv")
 
@@ -196,8 +188,6 @@ func prebuiltFlagsRule(ctx android.SingletonContext) android.Path {
 		Output: outputPath,
 		Input:  inputPath,
 	})
-
-	return outputPath
 }
 
 func prebuiltIndexRule(ctx android.SingletonContext) {
@@ -209,28 +199,6 @@ func prebuiltIndexRule(ctx android.SingletonContext) {
 		Output: outputPath,
 		Input:  inputPath,
 	})
-}
-
-// flagsRule is a placeholder that simply returns the location of the file, the generation of the
-// ninja rules is done in generateHiddenAPIBuildActions.
-func flagsRule(ctx android.SingletonContext) android.Path {
-	outputPath := hiddenAPISingletonPaths(ctx).flags
-	return outputPath
-}
-
-// emptyFlagsRule creates a rule to build an empty hiddenapi-flags.csv, which is needed by master-art-host builds that
-// have a partial manifest without frameworks/base but still need to build a boot image.
-func emptyFlagsRule(ctx android.SingletonContext) android.Path {
-	rule := android.NewRuleBuilder(pctx, ctx)
-
-	outputPath := hiddenAPISingletonPaths(ctx).flags
-
-	rule.Command().Text("rm").Flag("-f").Output(outputPath)
-	rule.Command().Text("touch").Output(outputPath)
-
-	rule.Build("emptyHiddenAPIFlagsFile", "empty hiddenapi flags")
-
-	return outputPath
 }
 
 // tempPathForRestat creates a path of the same type as the supplied type but with a name of
