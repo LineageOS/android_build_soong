@@ -92,6 +92,12 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, configurationNa
 
 	h.configurationName = configurationName
 
+	// If the frameworks/base directories does not exist and no prebuilt hidden API flag files have
+	// been configured then it is not possible to do hidden API encoding.
+	if !ctx.Config().FrameworksBaseDirExists(ctx) && ctx.Config().PrebuiltHiddenApiDir(ctx) == "" {
+		return
+	}
+
 	// It is important that hiddenapi information is only gathered for/from modules that are actually
 	// on the boot jars list because the runtime only enforces access to the hidden API for the
 	// bootclassloader. If information is gathered for modules not on the list then that will cause
@@ -303,11 +309,7 @@ func hiddenAPIEncodeDex(ctx android.ModuleContext, output android.WritablePath, 
 	}
 
 	enforceHiddenApiFlagsToAllMembers := true
-	// If frameworks/base doesn't exist we must be building with the 'master-art' manifest.
-	// Disable assertion that all methods/fields have hidden API flags assigned.
-	if !ctx.Config().FrameworksBaseDirExists(ctx) {
-		enforceHiddenApiFlagsToAllMembers = false
-	}
+
 	// b/149353192: when a module is instrumented, jacoco adds synthetic members
 	// $jacocoData and $jacocoInit. Since they don't exist when building the hidden API flags,
 	// don't complain when we don't find hidden API flags for the synthetic members.

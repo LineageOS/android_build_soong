@@ -60,10 +60,7 @@ func TestHiddenAPISingleton(t *testing.T) {
 }
 
 func TestHiddenAPISingletonWithSourceAndPrebuiltPreferredButNoDex(t *testing.T) {
-	expectedErrorMessage :=
-		"hiddenapi has determined that the source module \"foo\" should be ignored as it has been" +
-			" replaced by the prebuilt module \"prebuilt_foo\" but unfortunately it does not provide a" +
-			" suitable boot dex jar"
+	expectedErrorMessage := "module prebuilt_foo{os:android,arch:common} does not provide a dex jar"
 
 	android.GroupFixturePreparers(
 		hiddenApiFixtureFactory,
