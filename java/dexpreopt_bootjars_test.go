@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"android/soong/android"
-	"android/soong/dexpreopt"
 )
 
 func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOutputs []string) {
@@ -42,17 +41,21 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 			name: "baz",
 			jars: ["a.jar"],
 		}
+
+		platform_bootclasspath {
+			name: "platform-bootclasspath",
+		}
 	`
 
 	result := android.GroupFixturePreparers(
 		prepareForJavaTest,
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
-		dexpreopt.FixtureSetBootJars("platform:foo", "system_ext:bar", "platform:baz"),
+		FixtureConfigureBootJars("platform:foo", "system_ext:bar", "platform:baz"),
 	).RunTestWithBp(t, bp)
 
-	dexpreoptBootJars := result.SingletonForTests("dex_bootjars")
-	rule := dexpreoptBootJars.Output(ruleFile)
+	platformBootclasspath := result.ModuleForTests("platform-bootclasspath", "android_common")
+	rule := platformBootclasspath.Output(ruleFile)
 
 	for i := range expectedInputs {
 		expectedInputs[i] = filepath.Join("out/soong/test_device", expectedInputs[i])

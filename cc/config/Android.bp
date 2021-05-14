@@ -10,6 +10,7 @@ bootstrap_go_package {
         "soong-remoteexec",
     ],
     srcs: [
+        "bp2build.go",
         "clang.go",
         "global.go",
         "tidy.go",
@@ -31,6 +32,7 @@ bootstrap_go_package {
         "arm64_linux_host.go",
     ],
     testSrcs: [
+        "bp2build_test.go",
         "tidy_test.go",
     ],
 }

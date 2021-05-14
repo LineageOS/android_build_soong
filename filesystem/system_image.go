@@ -50,17 +50,19 @@ func (s *systemImage) buildExtraFiles(ctx android.ModuleContext, root android.Ou
 func (s *systemImage) buildLinkerConfigFile(ctx android.ModuleContext, root android.OutputPath) android.OutputPath {
 	input := android.PathForModuleSrc(ctx, android.String(s.properties.Linker_config_src))
 	output := root.Join(ctx, "system", "etc", "linker.config.pb")
+
+	// we need "Module"s for packaging items
 	var otherModules []android.Module
+	deps := s.GatherPackagingSpecs(ctx)
 	ctx.WalkDeps(func(child, parent android.Module) bool {
-		// Don't track direct dependencies that aren't not packaged
-		if parent == s {
-			if pi, ok := ctx.OtherModuleDependencyTag(child).(android.PackagingItem); !ok || !pi.IsPackagingItem() {
-				return false
+		for _, ps := range child.PackagingSpecs() {
+			if _, ok := deps[ps.RelPathInPackage()]; ok {
+				otherModules = append(otherModules, child)
 			}
 		}
-		otherModules = append(otherModules, child)
 		return true
 	})
+
 	builder := android.NewRuleBuilder(pctx, ctx)
 	linkerconfig.BuildLinkerConfig(ctx, builder, input, otherModules, output)
 	builder.Build("conv_linker_config", "Generate linker config protobuf "+output.String())

@@ -173,6 +173,7 @@ var (
 		"external/jemalloc_new":           Bp2BuildDefaultTrueRecursively,
 		"external/fmtlib":                 Bp2BuildDefaultTrueRecursively,
 		"external/arm-optimized-routines": Bp2BuildDefaultTrueRecursively,
+		"external/scudo":                  Bp2BuildDefaultTrueRecursively,
 	}
 
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
@@ -207,7 +208,7 @@ var (
 		"libc_jemalloc_wrapper", // http://b/187012490, cc_library_static, depends on //external/jemalloc_new:libjemalloc5 (http://b/186828626)
 		"libc_ndk",              // http://b/187013218, cc_library_static, depends on //bionic/libm:libm (http://b/183064661)
 		"libc",                  // http://b/183064430, cc_library, depends on //external/jemalloc_new:libjemalloc5 (http://b/186828626)
-		"libc_bionic_ndk",       // http://b/186822256, cc_library_static, signal.cpp:186:52: error: ISO C++ requires field designators to be specified in declaration order
+		"libc_bionic_ndk",       // http://b/186822256, cc_library_static, fatal error: 'generated_android_ids.h' file not found
 		"libc_malloc_hooks",     // http://b/187016307, cc_library, ld.lld: error: undefined symbol: __malloc_hook
 		"libm",                  // http://b/183064661, cc_library, math.h:25:16: error: unexpected token in argument list
 
