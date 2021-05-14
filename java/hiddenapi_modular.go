@@ -123,8 +123,21 @@ func hiddenAPIAddStubLibDependencies(ctx android.BottomUpMutatorContext, sdkKind
 
 // hiddenAPIGatherStubLibDexJarPaths gathers the paths to the dex jars from the dependencies added
 // in hiddenAPIAddStubLibDependencies.
-func hiddenAPIGatherStubLibDexJarPaths(ctx android.ModuleContext) map[android.SdkKind]android.Paths {
+func hiddenAPIGatherStubLibDexJarPaths(ctx android.ModuleContext, contents []android.Module) map[android.SdkKind]android.Paths {
 	m := map[android.SdkKind]android.Paths{}
+
+	// If the contents includes any java_sdk_library modules then add them to the stubs.
+	for _, module := range contents {
+		if _, ok := module.(SdkLibraryDependency); ok {
+			for _, kind := range []android.SdkKind{android.SdkPublic, android.SdkSystem, android.SdkTest} {
+				dexJar := hiddenAPIRetrieveDexJarBuildPath(ctx, module, kind)
+				if dexJar != nil {
+					m[kind] = append(m[kind], dexJar)
+				}
+			}
+		}
+	}
+
 	ctx.VisitDirectDepsIf(isActiveModule, func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
 		if hiddenAPIStubsTag, ok := tag.(hiddenAPIStubsDependencyTag); ok {
@@ -135,6 +148,12 @@ func hiddenAPIGatherStubLibDexJarPaths(ctx android.ModuleContext) map[android.Sd
 			}
 		}
 	})
+
+	// Normalize the paths, i.e. remove duplicates and sort.
+	for k, v := range m {
+		m[k] = android.SortedUniquePaths(v)
+	}
+
 	return m
 }
 
