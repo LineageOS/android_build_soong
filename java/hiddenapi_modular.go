@@ -517,42 +517,15 @@ func hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx android.ModuleContext
 
 	// Generate the set of flags from the annotations in the source code.
 	annotationFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "annotation-flags.csv")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        hiddenAPIGenerateCSVRule,
-		Description: "modular hiddenapi annotation flags",
-		Inputs:      classesJars,
-		Output:      annotationFlagsCSV,
-		Implicit:    stubFlagsCSV,
-		Args: map[string]string{
-			"outFlag":      "--write-flags-csv",
-			"stubAPIFlags": stubFlagsCSV.String(),
-		},
-	})
+	buildRuleToGenerateAnnotationFlags(ctx, "modular hiddenapi annotation flags", classesJars, stubFlagsCSV, annotationFlagsCSV)
 
 	// Generate the metadata from the annotations in the source code.
 	metadataCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "metadata.csv")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:        hiddenAPIGenerateCSVRule,
-		Description: "modular hiddenapi metadata",
-		Inputs:      classesJars,
-		Output:      metadataCSV,
-		Implicit:    stubFlagsCSV,
-		Args: map[string]string{
-			"outFlag":      "--write-metadata-csv",
-			"stubAPIFlags": stubFlagsCSV.String(),
-		},
-	})
+	buildRuleToGenerateMetadata(ctx, "modular hiddenapi metadata", classesJars, stubFlagsCSV, metadataCSV)
 
 	// Generate the index file from the annotations in the source code.
 	indexCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "index.csv")
-	rule = android.NewRuleBuilder(pctx, ctx)
-	rule.Command().
-		BuiltTool("merge_csv").
-		Flag("--zip_input").
-		Flag("--key_field signature").
-		FlagWithOutput("--output=", indexCSV).
-		Inputs(classesJars)
-	rule.Build("modular-hiddenapi-index", "modular hiddenapi index")
+	buildRuleToGenerateIndex(ctx, "modular hiddenapi index", classesJars, indexCSV)
 
 	// Removed APIs need to be marked and in order to do that the flagFileInfo needs to specify files
 	// containing dex signatures of all the removed APIs. In the monolithic files that is done by
