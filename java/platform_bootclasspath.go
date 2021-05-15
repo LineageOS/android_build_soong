@@ -364,7 +364,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 
 	outputPath := hiddenAPISingletonPaths(ctx).flags
 	baseFlagsPath := hiddenAPISingletonPaths(ctx).stubFlags
-	ruleToGenerateHiddenApiFlags(ctx, outputPath, baseFlagsPath, moduleSpecificFlagsPaths, flagFileInfo)
+	buildRuleToGenerateHiddenApiFlags(ctx, "hiddenAPIFlagsFile", "hiddenapi flags", outputPath, baseFlagsPath, moduleSpecificFlagsPaths, &flagFileInfo)
 
 	b.generateHiddenAPIStubFlagsRules(ctx, hiddenAPISupportingModules)
 	b.generateHiddenAPIIndexRules(ctx, hiddenAPISupportingModules)
@@ -377,7 +377,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIStubFlagsRules(ctx androi
 		bootDexJars = append(bootDexJars, module.bootDexJar)
 	}
 
-	sdkKindToStubPaths := hiddenAPIGatherStubLibDexJarPaths(ctx)
+	sdkKindToStubPaths := hiddenAPIGatherStubLibDexJarPaths(ctx, nil)
 
 	outputPath := hiddenAPISingletonPaths(ctx).stubFlags
 	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, outputPath, bootDexJars, sdkKindToStubPaths)

@@ -15,6 +15,8 @@
 package java
 
 import (
+	"strings"
+
 	"android/soong/android"
 	"github.com/google/blueprint"
 )
@@ -97,7 +99,12 @@ func hiddenAPIComputeMonolithicStubLibModules(config android.Config) map[android
 	systemStubModules = append(systemStubModules, config.ProductHiddenAPIStubsSystem()...)
 	testStubModules = append(testStubModules, config.ProductHiddenAPIStubsTest()...)
 	if config.IsEnvTrue("EMMA_INSTRUMENT") {
+		// Add jacoco-stubs to public, system and test. It doesn't make any real difference as public
+		// allows everyone access but it is needed to ensure consistent flags between the
+		// bootclasspath fragment generated flags and the platform_bootclasspath generated flags.
 		publicStubModules = append(publicStubModules, "jacoco-stubs")
+		systemStubModules = append(systemStubModules, "jacoco-stubs")
+		testStubModules = append(testStubModules, "jacoco-stubs")
 	}
 
 	m := map[android.SdkKind][]string{}
@@ -121,8 +128,21 @@ func hiddenAPIAddStubLibDependencies(ctx android.BottomUpMutatorContext, sdkKind
 
 // hiddenAPIGatherStubLibDexJarPaths gathers the paths to the dex jars from the dependencies added
 // in hiddenAPIAddStubLibDependencies.
-func hiddenAPIGatherStubLibDexJarPaths(ctx android.ModuleContext) map[android.SdkKind]android.Paths {
+func hiddenAPIGatherStubLibDexJarPaths(ctx android.ModuleContext, contents []android.Module) map[android.SdkKind]android.Paths {
 	m := map[android.SdkKind]android.Paths{}
+
+	// If the contents includes any java_sdk_library modules then add them to the stubs.
+	for _, module := range contents {
+		if _, ok := module.(SdkLibraryDependency); ok {
+			for _, kind := range []android.SdkKind{android.SdkPublic, android.SdkSystem, android.SdkTest} {
+				dexJar := hiddenAPIRetrieveDexJarBuildPath(ctx, module, kind)
+				if dexJar != nil {
+					m[kind] = append(m[kind], dexJar)
+				}
+			}
+		}
+	}
+
 	ctx.VisitDirectDepsIf(isActiveModule, func(module android.Module) {
 		tag := ctx.OtherModuleDependencyTag(module)
 		if hiddenAPIStubsTag, ok := tag.(hiddenAPIStubsDependencyTag); ok {
@@ -133,6 +153,12 @@ func hiddenAPIGatherStubLibDexJarPaths(ctx android.ModuleContext) map[android.Sd
 			}
 		}
 	})
+
+	// Normalize the paths, i.e. remove duplicates and sort.
+	for k, v := range m {
+		m[k] = android.SortedUniquePaths(v)
+	}
+
 	return m
 }
 
@@ -166,7 +192,7 @@ var sdkKindToHiddenapiListOption = map[android.SdkKind]string{
 //
 // The rule is initialized but not built so that the caller can modify it and select an appropriate
 // name.
-func ruleToGenerateHiddenAPIStubFlagsFile(ctx android.BuilderContext, outputPath android.OutputPath, bootDexJars android.Paths, sdkKindToPathList map[android.SdkKind]android.Paths) *android.RuleBuilder {
+func ruleToGenerateHiddenAPIStubFlagsFile(ctx android.BuilderContext, outputPath android.WritablePath, bootDexJars android.Paths, sdkKindToPathList map[android.SdkKind]android.Paths) *android.RuleBuilder {
 	// Singleton rule which applies hiddenapi on all boot class path dex files.
 	rule := android.NewRuleBuilder(pctx, ctx)
 
@@ -338,23 +364,59 @@ var hiddenAPIFlagFileCategories = []*hiddenAPIFlagFileCategory{
 	},
 }
 
-// hiddenAPIFlagFileInfo contains paths resolved from HiddenAPIFlagFileProperties
+// hiddenAPIFlagFileInfo contains paths resolved from HiddenAPIFlagFileProperties and also generated
+// by hidden API processing.
+//
+// This is used both for an individual bootclasspath_fragment to provide it to other modules and
+// for a module to collate the files from the fragments it depends upon. That is why the fields are
+// all Paths even though they are initialized with a single path.
 type hiddenAPIFlagFileInfo struct {
 	// categoryToPaths maps from the flag file category to the paths containing information for that
 	// category.
 	categoryToPaths map[*hiddenAPIFlagFileCategory]android.Paths
+
+	// The paths to the generated stub-flags.csv files.
+	StubFlagsPaths android.Paths
+
+	// The paths to the generated annotation-flags.csv files.
+	AnnotationFlagsPaths android.Paths
+
+	// The paths to the generated metadata.csv files.
+	MetadataPaths android.Paths
+
+	// The paths to the generated index.csv files.
+	IndexPaths android.Paths
+
+	// The paths to the generated all-flags.csv files.
+	AllFlagsPaths android.Paths
 }
 
 func (i *hiddenAPIFlagFileInfo) append(other hiddenAPIFlagFileInfo) {
 	for _, category := range hiddenAPIFlagFileCategories {
 		i.categoryToPaths[category] = append(i.categoryToPaths[category], other.categoryToPaths[category]...)
 	}
+	i.StubFlagsPaths = append(i.StubFlagsPaths, other.StubFlagsPaths...)
+	i.AnnotationFlagsPaths = append(i.AnnotationFlagsPaths, other.AnnotationFlagsPaths...)
+	i.MetadataPaths = append(i.MetadataPaths, other.MetadataPaths...)
+	i.IndexPaths = append(i.IndexPaths, other.IndexPaths...)
+	i.AllFlagsPaths = append(i.AllFlagsPaths, other.AllFlagsPaths...)
 }
 
 var hiddenAPIFlagFileInfoProvider = blueprint.NewProvider(hiddenAPIFlagFileInfo{})
 
-// ruleToGenerateHiddenApiFlags creates a rule to create the monolithic hidden API flags from the
-// flags from all the modules, the stub flags, augmented with some additional configuration files.
+// pathForValidation creates a path of the same type as the supplied type but with a name of
+// <path>.valid.
+//
+// e.g. If path is an OutputPath for out/soong/hiddenapi/hiddenapi-flags.csv then this will return
+// an OutputPath for out/soong/hiddenapi/hiddenapi-flags.csv.valid
+func pathForValidation(ctx android.PathContext, path android.WritablePath) android.WritablePath {
+	extWithoutLeadingDot := strings.TrimPrefix(path.Ext(), ".")
+	return path.ReplaceExtension(ctx, extWithoutLeadingDot+".valid")
+}
+
+// buildRuleToGenerateHiddenApiFlags creates a rule to create the monolithic hidden API flags from
+// the flags from all the modules, the stub flags, augmented with some additional configuration
+// files.
 //
 // baseFlagsPath is the path to the flags file containing all the information from the stubs plus
 // an entry for every single member in the dex implementation jars of the individual modules. Every
@@ -365,19 +427,31 @@ var hiddenAPIFlagFileInfoProvider = blueprint.NewProvider(hiddenAPIFlagFileInfo{
 //
 // augmentationInfo is a struct containing paths to files that augment the information provided by
 // the moduleSpecificFlagsPaths.
-// ruleToGenerateHiddenApiFlags creates a rule to create the monolithic hidden API flags from the
-// flags from all the modules, the stub flags, augmented with some additional configuration files.
-//
-// baseFlagsPath is the path to the flags file containing all the information from the stubs plus
-// an entry for every single member in the dex implementation jars of the individual modules. Every
-// signature in any of the other files MUST be included in this file.
-//
-// moduleSpecificFlagsPaths are the paths to the flags files generated by each module using
-// information from the baseFlagsPath as well as from annotations within the source.
-//
-// augmentationInfo is a struct containing paths to files that augment the information provided by
-// the moduleSpecificFlagsPaths.
-func ruleToGenerateHiddenApiFlags(ctx android.BuilderContext, outputPath android.WritablePath, baseFlagsPath android.Path, moduleSpecificFlagsPaths android.Paths, augmentationInfo hiddenAPIFlagFileInfo) {
+func buildRuleToGenerateHiddenApiFlags(ctx android.BuilderContext, name, desc string, outputPath android.WritablePath, baseFlagsPath android.Path, moduleSpecificFlagsPaths android.Paths, flagFileInfo *hiddenAPIFlagFileInfo) {
+
+	// The file which is used to record that the flags file is valid.
+	var validFile android.WritablePath
+
+	// If there are flag files that have been generated by fragments on which this depends then use
+	// them to validate the flag file generated by the rules created by this method.
+	if allFlagsPaths := flagFileInfo.AllFlagsPaths; len(allFlagsPaths) > 0 {
+		// The flags file generated by the rule created by this method needs to be validated to ensure
+		// that it is consistent with the flag files generated by the individual fragments.
+
+		validFile = pathForValidation(ctx, outputPath)
+
+		// Create a rule to validate the output from the following rule.
+		rule := android.NewRuleBuilder(pctx, ctx)
+		rule.Command().
+			BuiltTool("verify_overlaps").
+			Input(outputPath).
+			Inputs(allFlagsPaths).
+			// If validation passes then update the file that records that.
+			Text("&& touch").Output(validFile)
+		rule.Build(name+"Validation", desc+" validation")
+	}
+
+	// Create the rule that will generate the flag files.
 	tempPath := tempPathForRestat(ctx, outputPath)
 	rule := android.NewRuleBuilder(pctx, ctx)
 	command := rule.Command().
@@ -388,7 +462,7 @@ func ruleToGenerateHiddenApiFlags(ctx android.BuilderContext, outputPath android
 
 	// Add the options for the different categories of flag files.
 	for _, category := range hiddenAPIFlagFileCategories {
-		paths := augmentationInfo.categoryToPaths[category]
+		paths := flagFileInfo.categoryToPaths[category]
 		for _, path := range paths {
 			category.commandMutator(command, path)
 		}
@@ -396,5 +470,111 @@ func ruleToGenerateHiddenApiFlags(ctx android.BuilderContext, outputPath android
 
 	commitChangeForRestat(rule, tempPath, outputPath)
 
-	rule.Build("hiddenAPIFlagsFile", "hiddenapi flags")
+	if validFile != nil {
+		// Add the file that indicates that the file generated by this is valid.
+		//
+		// This will cause the validation rule above to be run any time that the output of this rule
+		// changes but the validation will run in parallel with other rules that depend on this file.
+		command.Validation(validFile)
+	}
+
+	rule.Build(name, desc)
+}
+
+// hiddenAPIGenerateAllFlagsForBootclasspathFragment will generate all the flags for a fragment
+// of the bootclasspath.
+//
+// It takes:
+// * Map from android.SdkKind to stub dex jar paths defining the API for that sdk kind.
+// * The list of modules that are the contents of the fragment.
+// * The additional manually curated flag files to use.
+//
+// It generates:
+// * stub-flags.csv
+// * annotation-flags.csv
+// * metadata.csv
+// * index.csv
+// * all-flags.csv
+func hiddenAPIGenerateAllFlagsForBootclasspathFragment(ctx android.ModuleContext, contents []android.Module, stubJarsByKind map[android.SdkKind]android.Paths, flagFileInfo *hiddenAPIFlagFileInfo) {
+
+	hiddenApiSubDir := "modular-hiddenapi"
+
+	bootDexJars := android.Paths{}
+	classesJars := android.Paths{}
+	for _, module := range contents {
+		if hiddenAPI, ok := module.(hiddenAPIIntf); ok {
+			classesJars = append(classesJars, hiddenAPI.classesJars()...)
+			bootDexJar := hiddenAPI.bootDexJar()
+			if bootDexJar == nil {
+				ctx.ModuleErrorf("module %s does not provide a dex jar", module)
+			} else {
+				bootDexJars = append(bootDexJars, bootDexJar)
+			}
+		} else {
+			ctx.ModuleErrorf("module %s does not implement hiddenAPIIntf", module)
+		}
+	}
+
+	// Generate the stub-flags.csv.
+	stubFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "stub-flags.csv")
+	rule := ruleToGenerateHiddenAPIStubFlagsFile(ctx, stubFlagsCSV, bootDexJars, stubJarsByKind)
+	rule.Build("modularHiddenAPIStubFlagsFile", "modular hiddenapi stub flags")
+
+	// Generate the set of flags from the annotations in the source code.
+	annotationFlagsCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "annotation-flags.csv")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        hiddenAPIGenerateCSVRule,
+		Description: "modular hiddenapi annotation flags",
+		Inputs:      classesJars,
+		Output:      annotationFlagsCSV,
+		Implicit:    stubFlagsCSV,
+		Args: map[string]string{
+			"outFlag":      "--write-flags-csv",
+			"stubAPIFlags": stubFlagsCSV.String(),
+		},
+	})
+
+	// Generate the metadata from the annotations in the source code.
+	metadataCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "metadata.csv")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        hiddenAPIGenerateCSVRule,
+		Description: "modular hiddenapi metadata",
+		Inputs:      classesJars,
+		Output:      metadataCSV,
+		Implicit:    stubFlagsCSV,
+		Args: map[string]string{
+			"outFlag":      "--write-metadata-csv",
+			"stubAPIFlags": stubFlagsCSV.String(),
+		},
+	})
+
+	// Generate the index file from the annotations in the source code.
+	indexCSV := android.PathForModuleOut(ctx, hiddenApiSubDir, "index.csv")
+	rule = android.NewRuleBuilder(pctx, ctx)
+	rule.Command().
+		BuiltTool("merge_csv").
+		Flag("--zip_input").
+		Flag("--key_field signature").
+		FlagWithOutput("--output=", indexCSV).
+		Inputs(classesJars)
+	rule.Build("modular-hiddenapi-index", "modular hiddenapi index")
+
+	// Removed APIs need to be marked and in order to do that the flagFileInfo needs to specify files
+	// containing dex signatures of all the removed APIs. In the monolithic files that is done by
+	// manually combining all the removed.txt files for each API and then converting them to dex
+	// signatures, see the combined-removed-dex module. That will all be done automatically in future.
+	// For now removed APIs are ignored.
+	// TODO(b/179354495): handle removed apis automatically.
+
+	// Generate the all-flags.csv which are the flags that will, in future, be encoded into the dex
+	// files.
+	outputPath := android.PathForModuleOut(ctx, hiddenApiSubDir, "all-flags.csv")
+	buildRuleToGenerateHiddenApiFlags(ctx, "modularHiddenApiAllFlags", "modular hiddenapi all flags", outputPath, stubFlagsCSV, android.Paths{annotationFlagsCSV}, flagFileInfo)
+
+	// Store the paths in the info for use by other modules and sdk snapshot generation.
+	flagFileInfo.StubFlagsPaths = android.Paths{stubFlagsCSV}
+	flagFileInfo.AnnotationFlagsPaths = android.Paths{annotationFlagsCSV}
+	flagFileInfo.MetadataPaths = android.Paths{metadataCSV}
+	flagFileInfo.IndexPaths = android.Paths{indexCSV}
+	flagFileInfo.AllFlagsPaths = android.Paths{outputPath}
 }
