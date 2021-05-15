@@ -204,7 +204,7 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithBootclasspathFragment,
 		PrepareForTestWithJavaSdkLibraryFiles,
-		FixtureWithLastReleaseApis("mysdklibrary", "mycoreplatform"),
+		FixtureWithLastReleaseApis("mysdklibrary", "myothersdklibrary", "mycoreplatform"),
 	).RunTestWithBp(t, `
 		bootclasspath_fragment {
 			name: "myfragment",
@@ -212,7 +212,7 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 			api: {
 				stub_libs: [
 					"mystublib",
-					"mysdklibrary",
+					"myothersdklibrary",
 				],
 			},
 			core_platform_api: {
@@ -231,15 +231,22 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 		java_sdk_library {
 			name: "mysdklibrary",
 			srcs: ["a.java"],
-			compile_dex: true,
+			shared_library: false,
 			public: {enabled: true},
 			system: {enabled: true},
 		}
 
 		java_sdk_library {
+			name: "myothersdklibrary",
+			srcs: ["a.java"],
+			shared_library: false,
+			public: {enabled: true},
+		}
+
+		java_sdk_library {
 			name: "mycoreplatform",
 			srcs: ["a.java"],
-			compile_dex: true,
+			shared_library: false,
 			public: {enabled: true},
 		}
 	`)
@@ -249,16 +256,23 @@ func TestBootclasspathFragment_StubLibs(t *testing.T) {
 
 	stubsJar := "out/soong/.intermediates/mystublib/android_common/dex/mystublib.jar"
 
-	// Check that SdkPublic uses public stubs.
+	// Stubs jars for mysdklibrary
 	publicStubsJar := "out/soong/.intermediates/mysdklibrary.stubs/android_common/dex/mysdklibrary.stubs.jar"
-	android.AssertPathsRelativeToTopEquals(t, "public dex stubs jar", []string{stubsJar, publicStubsJar}, info.stubJarsByKind[android.SdkPublic])
-
-	// Check that SdkSystem uses system stubs.
 	systemStubsJar := "out/soong/.intermediates/mysdklibrary.stubs.system/android_common/dex/mysdklibrary.stubs.system.jar"
-	android.AssertPathsRelativeToTopEquals(t, "system dex stubs jar", []string{stubsJar, systemStubsJar}, info.stubJarsByKind[android.SdkSystem])
 
-	// Check that SdkTest also uses system stubs as the mysdklibrary does not provide test stubs.
-	android.AssertPathsRelativeToTopEquals(t, "test dex stubs jar", []string{stubsJar, systemStubsJar}, info.stubJarsByKind[android.SdkTest])
+	// Stubs jars for myothersdklibrary
+	otherPublicStubsJar := "out/soong/.intermediates/myothersdklibrary.stubs/android_common/dex/myothersdklibrary.stubs.jar"
+
+	// Check that SdkPublic uses public stubs for all sdk libraries.
+	android.AssertPathsRelativeToTopEquals(t, "public dex stubs jar", []string{otherPublicStubsJar, publicStubsJar, stubsJar}, info.stubJarsByKind[android.SdkPublic])
+
+	// Check that SdkSystem uses system stubs for mysdklibrary and public stubs for myothersdklibrary
+	// as it does not provide system stubs.
+	android.AssertPathsRelativeToTopEquals(t, "system dex stubs jar", []string{otherPublicStubsJar, systemStubsJar, stubsJar}, info.stubJarsByKind[android.SdkSystem])
+
+	// Check that SdkTest also uses system stubs for mysdklibrary as it does not provide test stubs
+	// and public stubs for myothersdklibrary as it does not provide test stubs either.
+	android.AssertPathsRelativeToTopEquals(t, "test dex stubs jar", []string{otherPublicStubsJar, systemStubsJar, stubsJar}, info.stubJarsByKind[android.SdkTest])
 
 	// Check that SdkCorePlatform uses public stubs from the mycoreplatform library.
 	corePlatformStubsJar := "out/soong/.intermediates/mycoreplatform.stubs/android_common/dex/mycoreplatform.stubs.jar"
