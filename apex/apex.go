@@ -1980,7 +1980,9 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Sort to have consistent build rules
 	sort.Slice(filesInfo, func(i, j int) bool {
-		return filesInfo[i].builtFile.String() < filesInfo[j].builtFile.String()
+		// Sort by destination path so as to ensure consistent ordering even if the source of the files
+		// changes.
+		return filesInfo[i].path() < filesInfo[j].path()
 	})
 
 	////////////////////////////////////////////////////////////////////////////////////////////
