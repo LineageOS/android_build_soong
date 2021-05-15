@@ -165,21 +165,33 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 		prepareForSdkTestWithJava,
 		java.PrepareForTestWithJavaDefaultModules,
 		java.PrepareForTestWithJavaSdkLibraryFiles,
-		java.FixtureWithLastReleaseApis("mysdklibrary", "mycoreplatform"),
+		java.FixtureWithLastReleaseApis("mysdklibrary", "myothersdklibrary", "mycoreplatform"),
 		android.FixtureWithRootAndroidBp(`
 			sdk {
 				name: "mysdk",
 				bootclasspath_fragments: ["mybootclasspathfragment"],
-				java_sdk_libs: ["mysdklibrary", "mycoreplatform"],
+				java_sdk_libs: [
+					// This is not strictly needed as it should be automatically added to the sdk_snapshot as
+					// a java_sdk_libs module because it is used in the mybootclasspathfragment's
+					// api.stub_libs property. However, it is specified here to ensure that duplicates are
+					// correctly deduped.
+					"mysdklibrary",
+				],
 			}
 
 			bootclasspath_fragment {
 				name: "mybootclasspathfragment",
-				contents: ["mybootlib"],
+				contents: [
+					// This should be automatically added to the sdk_snapshot as a java_boot_libs module.
+					"mybootlib",
+					// This should be automatically added to the sdk_snapshot as a java_sdk_libs module.
+					"myothersdklibrary",
+				],
 				api: {
 					stub_libs: ["mysdklibrary"],
 				},
 				core_platform_api: {
+					// This should be automatically added to the sdk_snapshot as a java_sdk_libs module.
 					stub_libs: ["mycoreplatform"],
 				},
 			}
@@ -195,14 +207,21 @@ func TestSnapshotWithBootClasspathFragment_Contents(t *testing.T) {
 			java_sdk_library {
 				name: "mysdklibrary",
 				srcs: ["Test.java"],
-				compile_dex: true,
+				shared_library: false,
+				public: {enabled: true},
+			}
+
+			java_sdk_library {
+				name: "myothersdklibrary",
+				srcs: ["Test.java"],
+				shared_library: false,
 				public: {enabled: true},
 			}
 
 			java_sdk_library {
 				name: "mycoreplatform",
 				srcs: ["Test.java"],
-				compile_dex: true,
+				shared_library: false,
 				public: {enabled: true},
 			}
 		`),
@@ -217,12 +236,22 @@ prebuilt_bootclasspath_fragment {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    contents: ["mybootlib"],
+    contents: [
+        "mybootlib",
+        "myothersdklibrary",
+    ],
     api: {
         stub_libs: ["mysdklibrary"],
     },
     core_platform_api: {
         stub_libs: ["mycoreplatform"],
+    },
+    hidden_api: {
+        stub_flags: "hiddenapi/stub-flags.csv",
+        annotation_flags: "hiddenapi/annotation-flags.csv",
+        metadata: "hiddenapi/metadata.csv",
+        index: "hiddenapi/index.csv",
+        all_flags: "hiddenapi/all-flags.csv",
     },
 }
 
@@ -235,12 +264,26 @@ java_import {
 }
 
 java_sdk_library_import {
+    name: "myothersdklibrary",
+    prefer: false,
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    shared_library: false,
+    public: {
+        jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/public/myothersdklibrary_stub_sources"],
+        current_api: "sdk_library/public/myothersdklibrary.txt",
+        removed_api: "sdk_library/public/myothersdklibrary-removed.txt",
+        sdk_version: "current",
+    },
+}
+
+java_sdk_library_import {
     name: "mysdklibrary",
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    shared_library: true,
-    compile_dex: true,
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
@@ -255,8 +298,7 @@ java_sdk_library_import {
     prefer: false,
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    shared_library: true,
-    compile_dex: true,
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/mycoreplatform-stubs.jar"],
         stub_srcs: ["sdk_library/public/mycoreplatform_stub_sources"],
@@ -265,7 +307,7 @@ java_sdk_library_import {
         sdk_version: "current",
     },
 }
-`),
+		`),
 		checkVersionedAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -274,12 +316,22 @@ prebuilt_bootclasspath_fragment {
     sdk_member_name: "mybootclasspathfragment",
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    contents: ["mysdk_mybootlib@current"],
+    contents: [
+        "mysdk_mybootlib@current",
+        "mysdk_myothersdklibrary@current",
+    ],
     api: {
         stub_libs: ["mysdk_mysdklibrary@current"],
     },
     core_platform_api: {
         stub_libs: ["mysdk_mycoreplatform@current"],
+    },
+    hidden_api: {
+        stub_flags: "hiddenapi/stub-flags.csv",
+        annotation_flags: "hiddenapi/annotation-flags.csv",
+        metadata: "hiddenapi/metadata.csv",
+        index: "hiddenapi/index.csv",
+        all_flags: "hiddenapi/all-flags.csv",
     },
 }
 
@@ -292,12 +344,26 @@ java_import {
 }
 
 java_sdk_library_import {
+    name: "mysdk_myothersdklibrary@current",
+    sdk_member_name: "myothersdklibrary",
+    visibility: ["//visibility:public"],
+    apex_available: ["//apex_available:platform"],
+    shared_library: false,
+    public: {
+        jars: ["sdk_library/public/myothersdklibrary-stubs.jar"],
+        stub_srcs: ["sdk_library/public/myothersdklibrary_stub_sources"],
+        current_api: "sdk_library/public/myothersdklibrary.txt",
+        removed_api: "sdk_library/public/myothersdklibrary-removed.txt",
+        sdk_version: "current",
+    },
+}
+
+java_sdk_library_import {
     name: "mysdk_mysdklibrary@current",
     sdk_member_name: "mysdklibrary",
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    shared_library: true,
-    compile_dex: true,
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/mysdklibrary-stubs.jar"],
         stub_srcs: ["sdk_library/public/mysdklibrary_stub_sources"],
@@ -312,8 +378,7 @@ java_sdk_library_import {
     sdk_member_name: "mycoreplatform",
     visibility: ["//visibility:public"],
     apex_available: ["//apex_available:platform"],
-    shared_library: true,
-    compile_dex: true,
+    shared_library: false,
     public: {
         jars: ["sdk_library/public/mycoreplatform-stubs.jar"],
         stub_srcs: ["sdk_library/public/mycoreplatform_stub_sources"],
@@ -329,13 +394,22 @@ sdk_snapshot {
     bootclasspath_fragments: ["mysdk_mybootclasspathfragment@current"],
     java_boot_libs: ["mysdk_mybootlib@current"],
     java_sdk_libs: [
+        "mysdk_myothersdklibrary@current",
         "mysdk_mysdklibrary@current",
         "mysdk_mycoreplatform@current",
     ],
 }
-`),
+		`),
 		checkAllCopyRules(`
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/all-flags.csv -> hiddenapi/all-flags.csv
 .intermediates/mybootlib/android_common/javac/mybootlib.jar -> java/mybootlib.jar
+.intermediates/myothersdklibrary.stubs/android_common/javac/myothersdklibrary.stubs.jar -> sdk_library/public/myothersdklibrary-stubs.jar
+.intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_api.txt -> sdk_library/public/myothersdklibrary.txt
+.intermediates/myothersdklibrary.stubs.source/android_common/metalava/myothersdklibrary.stubs.source_removed.txt -> sdk_library/public/myothersdklibrary-removed.txt
 .intermediates/mysdklibrary.stubs/android_common/javac/mysdklibrary.stubs.jar -> sdk_library/public/mysdklibrary-stubs.jar
 .intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_api.txt -> sdk_library/public/mysdklibrary.txt
 .intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_removed.txt -> sdk_library/public/mysdklibrary-removed.txt
@@ -487,6 +561,11 @@ prebuilt_bootclasspath_fragment {
         max_target_o_low_priority: ["hiddenapi/my-max-target-o-low-priority.txt"],
         blocked: ["hiddenapi/my-blocked.txt"],
         unsupported_packages: ["hiddenapi/my-unsupported-packages.txt"],
+        stub_flags: "hiddenapi/stub-flags.csv",
+        annotation_flags: "hiddenapi/annotation-flags.csv",
+        metadata: "hiddenapi/metadata.csv",
+        index: "hiddenapi/index.csv",
+        all_flags: "hiddenapi/all-flags.csv",
     },
 }
 
@@ -523,6 +602,11 @@ my-max-target-p.txt -> hiddenapi/my-max-target-p.txt
 my-max-target-o-low-priority.txt -> hiddenapi/my-max-target-o-low-priority.txt
 my-blocked.txt -> hiddenapi/my-blocked.txt
 my-unsupported-packages.txt -> hiddenapi/my-unsupported-packages.txt
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/stub-flags.csv -> hiddenapi/stub-flags.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/annotation-flags.csv -> hiddenapi/annotation-flags.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/metadata.csv -> hiddenapi/metadata.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/index.csv -> hiddenapi/index.csv
+.intermediates/mybootclasspathfragment/android_common/modular-hiddenapi/all-flags.csv -> hiddenapi/all-flags.csv
 .intermediates/mybootlib/android_common/javac/mybootlib.jar -> java/mybootlib.jar
 .intermediates/mysdklibrary.stubs/android_common/javac/mysdklibrary.stubs.jar -> sdk_library/public/mysdklibrary-stubs.jar
 .intermediates/mysdklibrary.stubs.source/android_common/metalava/mysdklibrary.stubs.source_api.txt -> sdk_library/public/mysdklibrary.txt

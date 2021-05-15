@@ -1315,7 +1315,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
 			if dexOutputPath := di.PrebuiltExportPath(j.BaseModuleName(), ".dexjar"); dexOutputPath != nil {
 				j.dexJarFile = dexOutputPath
-				j.hiddenAPIExtractInformation(ctx, dexOutputPath, outputFile)
+				j.hiddenAPIUpdatePaths(ctx, dexOutputPath, outputFile)
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
 				// prebuilt_apex has been configured to export the java library dex file.
@@ -1346,9 +1346,11 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				return
 			}
 
-			// Hidden API CSV generation and dex encoding
-			dexOutputFile = j.hiddenAPIExtractAndEncode(ctx, dexOutputFile, outputFile,
-				proptools.Bool(j.dexProperties.Uncompress_dex))
+			// Update hidden API paths.
+			j.hiddenAPIUpdatePaths(ctx, dexOutputFile, outputFile)
+
+			// Encode hidden API flags in dex file.
+			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile, proptools.Bool(j.dexProperties.Uncompress_dex))
 
 			j.dexJarFile = dexOutputFile
 		}
