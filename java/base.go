@@ -1217,12 +1217,6 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 				return
 			}
 
-			// Initialize the hiddenapi structure.
-			j.initHiddenAPI(ctx, dexOutputFile, j.implementationJarFile, j.dexProperties.Uncompress_dex)
-
-			// Encode hidden API flags in dex file.
-			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile)
-
 			// merge dex jar with resources if necessary
 			if j.resourceJar != nil {
 				jars := android.Paths{dexOutputFile, j.resourceJar}
@@ -1237,6 +1231,12 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 					dexOutputFile = combinedJar
 				}
 			}
+
+			// Initialize the hiddenapi structure.
+			j.initHiddenAPI(ctx, dexOutputFile, j.implementationJarFile, j.dexProperties.Uncompress_dex)
+
+			// Encode hidden API flags in dex file, if needed.
+			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile)
 
 			j.dexJarFile = dexOutputFile
 
