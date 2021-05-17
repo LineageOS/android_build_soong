@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -357,6 +358,80 @@ func touch(path string) {
 	}
 }
 
+// Find BUILD files in the srcDir which...
+//
+// - are not on the allow list (android/bazel.go#ShouldKeepExistingBuildFileForDir())
+//
+// - won't be overwritten by corresponding bp2build generated files
+//
+// And return their paths so they can be left out of the Bazel workspace dir (i.e. ignored)
+func getPathsToIgnoredBuildFiles(topDir string, outDir string, generatedRoot string) ([]string, error) {
+	paths := make([]string, 0)
+
+	err := filepath.WalkDir(topDir, func(fFullPath string, fDirEntry fs.DirEntry, err error) error {
+		if err != nil {
+			// Warn about error, but continue trying to walk the directory tree
+			fmt.Fprintf(os.Stderr, "WARNING: Error accessing path '%s', err: %s\n", fFullPath, err)
+			return nil
+		}
+		if fDirEntry.IsDir() {
+			// Don't ignore entire directories
+			return nil
+		}
+		if !(fDirEntry.Name() == "BUILD" || fDirEntry.Name() == "BUILD.bazel") {
+			// Don't ignore this file - it is not a build file
+			return nil
+		}
+		f := strings.TrimPrefix(fFullPath, topDir+"/")
+		if strings.HasPrefix(f, ".repo/") {
+			// Don't check for files to ignore in the .repo dir (recursively)
+			return fs.SkipDir
+		}
+		if strings.HasPrefix(f, outDir+"/") {
+			// Don't check for files to ignore in the out dir (recursively)
+			return fs.SkipDir
+		}
+		if strings.HasPrefix(f, generatedRoot) {
+			// Don't check for files to ignore in the bp2build dir (recursively)
+			// NOTE: This is usually under outDir
+			return fs.SkipDir
+		}
+		fDir := filepath.Dir(f)
+		if android.ShouldKeepExistingBuildFileForDir(fDir) {
+			// Don't ignore this existing build file
+			return nil
+		}
+		f_bp2build := shared.JoinPath(topDir, generatedRoot, f)
+		if _, err := os.Stat(f_bp2build); err == nil {
+			// If bp2build generated an alternate BUILD file, don't exclude this workspace path
+			// BUILD file clash resolution happens later in the symlink forest creation
+			return nil
+		}
+		fmt.Fprintf(os.Stderr, "Ignoring existing BUILD file: %s\n", f)
+		paths = append(paths, f)
+		return nil
+	})
+
+	return paths, err
+}
+
+// Returns temporary symlink forest excludes necessary for bazel build //external/... (and bazel build //frameworks/...) to work
+func getTemporaryExcludes() []string {
+	excludes := make([]string, 0)
+
+	// FIXME: 'autotest_lib' is a symlink back to external/autotest, and this causes an infinite symlink expansion error for Bazel
+	excludes = append(excludes, "external/autotest/venv/autotest_lib")
+
+	// FIXME: The external/google-fruit/extras/bazel_root/third_party/fruit dir is poison
+	// It contains several symlinks back to real source dirs, and those source dirs contain BUILD files we want to ignore
+	excludes = append(excludes, "external/google-fruit/extras/bazel_root/third_party/fruit")
+
+	// FIXME: 'frameworks/compile/slang' has a filegroup error due to an escaping issue
+	excludes = append(excludes, "frameworks/compile/slang")
+
+	return excludes
+}
+
 // Run Soong in the bp2build mode. This creates a standalone context that registers
 // an alternate pipeline of mutators and singletons specifically for generating
 // Bazel BUILD files instead of Ninja files.
@@ -414,6 +489,18 @@ func runBp2Build(configuration android.Config, extraNinjaDeps []string) {
 	if bootstrap.CmdlineArgs.NinjaBuildDir[0] != '/' {
 		excludes = append(excludes, bootstrap.CmdlineArgs.NinjaBuildDir)
 	}
+
+	// FIXME: Don't hardcode this here
+	topLevelOutDir := "out"
+
+	pathsToIgnoredBuildFiles, err := getPathsToIgnoredBuildFiles(topDir, topLevelOutDir, generatedRoot)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error walking SrcDir: '%s': %s\n", configuration.SrcDir(), err)
+		os.Exit(1)
+	}
+	excludes = append(excludes, pathsToIgnoredBuildFiles...)
+
+	excludes = append(excludes, getTemporaryExcludes()...)
 
 	symlinkForestDeps := bp2build.PlantSymlinkForest(
 		topDir, workspaceRoot, generatedRoot, configuration.SrcDir(), excludes)
