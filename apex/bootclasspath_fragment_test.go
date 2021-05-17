@@ -141,6 +141,128 @@ test_device/dex_artjars/android/apex/art_boot_images/javalib/arm64/boot-quuz.vde
 `)
 }
 
+func TestBootclasspathFragments_FragmentDependency(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithBootclasspathFragment,
+		// Configure some libraries in the art bootclasspath_fragment and platform_bootclasspath.
+		java.FixtureConfigureBootJars("com.android.art:baz", "com.android.art:quuz", "platform:foo", "platform:bar"),
+		prepareForTestWithArtApex,
+
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		java.FixtureWithLastReleaseApis("foo", "baz"),
+	).RunTestWithBp(t, `
+		java_sdk_library {
+			name: "foo",
+			srcs: ["b.java"],
+			shared_library: false,
+			public: {
+				enabled: true,
+			},
+			system: {
+				enabled: true,
+			},
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java"],
+			installable: true,
+		}
+
+		apex {
+			name: "com.android.art",
+			key: "com.android.art.key",
+			bootclasspath_fragments: ["art-bootclasspath-fragment"],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "com.android.art.key",
+			public_key: "com.android.art.avbpubkey",
+			private_key: "com.android.art.pem",
+		}
+
+		java_sdk_library {
+			name: "baz",
+			apex_available: [
+				"com.android.art",
+			],
+			srcs: ["b.java"],
+			shared_library: false,
+			public: {
+				enabled: true,
+			},
+			system: {
+				enabled: true,
+			},
+			test: {
+				enabled: true,
+			},
+		}
+
+		java_library {
+			name: "quuz",
+			apex_available: [
+				"com.android.art",
+			],
+			srcs: ["b.java"],
+			compile_dex: true,
+		}
+
+		bootclasspath_fragment {
+			name: "art-bootclasspath-fragment",
+			image_name: "art",
+			// Must match the "com.android.art:" entries passed to FixtureConfigureBootJars above.
+			contents: ["baz", "quuz"],
+			apex_available: [
+				"com.android.art",
+			],
+		}
+
+		bootclasspath_fragment {
+			name: "other-bootclasspath-fragment",
+			contents: ["foo", "bar"],
+			fragments: [
+					{
+							apex: "com.android.art",
+							module: "art-bootclasspath-fragment",
+					},
+			],
+		}
+`,
+	)
+
+	checkSdkKindStubs := func(message string, info java.HiddenAPIInfo, kind android.SdkKind, expectedPaths ...string) {
+		t.Helper()
+		android.AssertPathsRelativeToTopEquals(t, fmt.Sprintf("%s %s", message, kind), expectedPaths, info.TransitiveStubDexJarsByKind[kind])
+	}
+
+	// Check stub dex paths exported by art.
+	artFragment := result.Module("art-bootclasspath-fragment", "android_common")
+	artInfo := result.ModuleProvider(artFragment, java.HiddenAPIInfoProvider).(java.HiddenAPIInfo)
+
+	bazPublicStubs := "out/soong/.intermediates/baz.stubs/android_common/dex/baz.stubs.jar"
+	bazSystemStubs := "out/soong/.intermediates/baz.stubs.system/android_common/dex/baz.stubs.system.jar"
+	bazTestStubs := "out/soong/.intermediates/baz.stubs.test/android_common/dex/baz.stubs.test.jar"
+
+	checkSdkKindStubs("art", artInfo, android.SdkPublic, bazPublicStubs)
+	checkSdkKindStubs("art", artInfo, android.SdkSystem, bazSystemStubs)
+	checkSdkKindStubs("art", artInfo, android.SdkTest, bazTestStubs)
+	checkSdkKindStubs("art", artInfo, android.SdkCorePlatform)
+
+	// Check stub dex paths exported by other.
+	otherFragment := result.Module("other-bootclasspath-fragment", "android_common")
+	otherInfo := result.ModuleProvider(otherFragment, java.HiddenAPIInfoProvider).(java.HiddenAPIInfo)
+
+	fooPublicStubs := "out/soong/.intermediates/foo.stubs/android_common/dex/foo.stubs.jar"
+	fooSystemStubs := "out/soong/.intermediates/foo.stubs.system/android_common/dex/foo.stubs.system.jar"
+
+	checkSdkKindStubs("other", otherInfo, android.SdkPublic, bazPublicStubs, fooPublicStubs)
+	checkSdkKindStubs("other", otherInfo, android.SdkSystem, bazSystemStubs, fooSystemStubs)
+	checkSdkKindStubs("other", otherInfo, android.SdkTest, bazTestStubs, fooSystemStubs)
+	checkSdkKindStubs("other", otherInfo, android.SdkCorePlatform)
+}
+
 func checkBootclasspathFragment(t *testing.T, result *android.TestResult, moduleName string, expectedConfiguredModules string, expectedBootclasspathFragmentFiles string) {
 	t.Helper()
 
