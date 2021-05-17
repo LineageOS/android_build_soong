@@ -160,13 +160,7 @@ var (
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
 		// Things that transitively depend on unconverted libc_* modules.
-		"libc_nopthread", // http://b/186821550, cc_library_static, depends on //bionic/libc:libc_bionic_ndk (http://b/186822256)
-		//                                                     also depends on //bionic/libc:libc_tzcode (http://b/186822591)
-		//                                                     also depends on //bionic/libc:libstdc++ (http://b/186822597)
-		"libc_common",        // http://b/186821517, cc_library_static, depends on //bionic/libc:libc_nopthread (http://b/186821550)
-		"libc_common_static", // http://b/186824119, cc_library_static, depends on //bionic/libc:libc_common (http://b/186821517)
-		"libc_common_shared", // http://b/186824118, cc_library_static, depends on //bionic/libc:libc_common (http://b/186821517)
-		"libc_nomalloc",      // http://b/186825031, cc_library_static, depends on //bionic/libc:libc_common (http://b/186821517)
+		"libc_nomalloc", // http://b/186825031, cc_library_static, depends on //bionic/libc:libc_common (http://b/186821517)
 
 		"libbionic_spawn_benchmark", // http://b/186824595, cc_library_static, depends on //external/google-benchmark (http://b/186822740)
 		//                                                                also depends on //system/logging/liblog:liblog (http://b/186822772)
@@ -189,7 +183,6 @@ var (
 		"libc_jemalloc_wrapper", // http://b/187012490, cc_library_static, depends on //external/jemalloc_new:libjemalloc5 (http://b/186828626)
 		"libc_ndk",              // http://b/187013218, cc_library_static, depends on //bionic/libm:libm (http://b/183064661)
 		"libc",                  // http://b/183064430, cc_library, depends on //external/jemalloc_new:libjemalloc5 (http://b/186828626)
-		"libc_bionic_ndk",       // http://b/186822256, cc_library_static, fatal error: 'generated_android_ids.h' file not found
 		"libc_malloc_hooks",     // http://b/187016307, cc_library, ld.lld: error: undefined symbol: __malloc_hook
 		"libm",                  // http://b/183064661, cc_library, math.h:25:16: error: unexpected token in argument list
 
@@ -230,7 +223,12 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
+		"libc_bionic_ndk",                  // cparsons@, http://b/183213331, Handle generated headers in mixed builds.
+		"libc_common",                      // cparsons@ cc_library_static, depends on //bionic/libc:libc_nopthread
+		"libc_common_static",               // cparsons@ cc_library_static, depends on //bionic/libc:libc_common
+		"libc_common_shared",               // cparsons@ cc_library_static, depends on //bionic/libc:libc_common
 		"libc_netbsd",                      // lberki@, cc_library_static, version script assignment of 'LIBC_PRIVATE' to symbol 'SHA1Final' failed: symbol not defined
+		"libc_nopthread",                   // cparsons@ cc_library_static, depends on //bionic/libc:libc_bionic_ndk
 		"libc_openbsd",                     // ruperts@, cc_library_static, OK for bp2build but error: duplicate symbol: strcpy for mixed builds
 		"libsystemproperties",              // cparsons@, cc_library_static, wrong include paths
 		"libpropertyinfoparser",            // cparsons@, cc_library_static, wrong include paths
