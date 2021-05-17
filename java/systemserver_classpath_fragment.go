@@ -24,8 +24,8 @@ func init() {
 }
 
 func registerSystemserverClasspathBuildComponents(ctx android.RegistrationContext) {
-	// TODO(satayev): add systemserver_classpath_fragment module
 	ctx.RegisterModuleType("platform_systemserverclasspath", platformSystemServerClasspathFactory)
+	ctx.RegisterModuleType("systemserverclasspath_fragment", systemServerClasspathFactory)
 }
 
 type platformSystemServerClasspathModule struct {
@@ -41,18 +41,18 @@ func platformSystemServerClasspathFactory() android.Module {
 	return m
 }
 
-func (b *platformSystemServerClasspathModule) AndroidMkEntries() (entries []android.AndroidMkEntries) {
-	return b.classpathFragmentBase().androidMkEntries()
+func (p *platformSystemServerClasspathModule) AndroidMkEntries() (entries []android.AndroidMkEntries) {
+	return p.classpathFragmentBase().androidMkEntries()
 }
 
-func (b *platformSystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	configuredJars := configuredJarListToClasspathJars(ctx, b.ClasspathFragmentToConfiguredJarList(ctx), b.classpathType)
-	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars)
+func (p *platformSystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	configuredJars := configuredJarListToClasspathJars(ctx, p.ClasspathFragmentToConfiguredJarList(ctx), p.classpathType)
+	p.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars)
 }
 
 var platformSystemServerClasspathKey = android.NewOnceKey("platform_systemserverclasspath")
 
-func (b *platformSystemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
+func (p *platformSystemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
 	return ctx.Config().Once(platformSystemServerClasspathKey, func() interface{} {
 		global := dexpreopt.GetGlobalConfig(ctx)
 
@@ -64,4 +64,26 @@ func (b *platformSystemServerClasspathModule) ClasspathFragmentToConfiguredJarLi
 		}
 		return jars
 	}).(android.ConfiguredJarList)
+}
+
+type systemServerClasspathModule struct {
+	android.ModuleBase
+
+	ClasspathFragmentBase
+}
+
+func systemServerClasspathFactory() android.Module {
+	m := &systemServerClasspathModule{}
+	initClasspathFragment(m, SYSTEMSERVERCLASSPATH)
+	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
+	return m
+}
+
+func (s *systemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	s.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJarListToClasspathJars(ctx, s.ClasspathFragmentToConfiguredJarList(ctx)))
+}
+
+func (s *systemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
+	// TODO(satayev): populate with actual content
+	return android.EmptyConfiguredJarList()
 }
