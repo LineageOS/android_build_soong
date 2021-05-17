@@ -43,6 +43,10 @@ type hiddenAPI struct {
 	// the UnsupportedAppUsage annotation that need to be extracted as part of the hidden API
 	// processing.
 	classesJarPaths android.Paths
+
+	// The compressed state of the dex file being encoded. This is used to ensure that the encoded
+	// dex file has the same state.
+	uncompressDexState *bool
 }
 
 func (h *hiddenAPI) bootDexJar() android.Path {
@@ -51,6 +55,10 @@ func (h *hiddenAPI) bootDexJar() android.Path {
 
 func (h *hiddenAPI) classesJars() android.Paths {
 	return h.classesJarPaths
+}
+
+func (h *hiddenAPI) uncompressDex() *bool {
+	return h.uncompressDexState
 }
 
 // hiddenAPIModule is the interface a module that embeds the hiddenAPI structure must implement.
@@ -62,12 +70,16 @@ type hiddenAPIModule interface {
 type hiddenAPIIntf interface {
 	bootDexJar() android.Path
 	classesJars() android.Paths
+	uncompressDex() *bool
 }
 
 var _ hiddenAPIIntf = (*hiddenAPI)(nil)
 
 // Initialize the hiddenapi structure
-func (h *hiddenAPI) initHiddenAPI(ctx android.ModuleContext, dexJar, classesJar android.Path) {
+//
+// uncompressedDexState should be nil when the module is a prebuilt and so does not require hidden
+// API encoding.
+func (h *hiddenAPI) initHiddenAPI(ctx android.ModuleContext, dexJar, classesJar android.Path, uncompressedDexState *bool) {
 
 	// Save the classes jars even if this is not active as they may be used by modular hidden API
 	// processing.
@@ -81,6 +93,8 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.ModuleContext, dexJar, classesJar 
 	// Save the unencoded dex jar so it can be used when generating the
 	// hiddenAPISingletonPathsStruct.stubFlags file.
 	h.bootDexJarPath = dexJar
+
+	h.uncompressDexState = uncompressedDexState
 
 	// If hiddenapi processing is disabled treat this as inactive.
 	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
@@ -119,11 +133,17 @@ func isModuleInBootClassPath(ctx android.BaseModuleContext, module android.Modul
 //
 // Otherwise, it creates a copy of the supplied dex file into which it has encoded the hiddenapi
 // flags and returns this instead of the supplied dex jar.
-func (h *hiddenAPI) hiddenAPIEncodeDex(ctx android.ModuleContext, dexJar android.OutputPath, uncompressDex bool) android.OutputPath {
+func (h *hiddenAPI) hiddenAPIEncodeDex(ctx android.ModuleContext, dexJar android.OutputPath) android.OutputPath {
 
 	if !h.active {
 		return dexJar
 	}
+
+	// A nil uncompressDexState prevents the dex file from being encoded.
+	if h.uncompressDexState == nil {
+		ctx.ModuleErrorf("cannot encode dex file %s when uncompressDexState is nil", dexJar)
+	}
+	uncompressDex := *h.uncompressDexState
 
 	hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", dexJar.Base()).OutputPath
 
