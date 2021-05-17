@@ -67,6 +67,12 @@ var _ android.SdkMemberTypeDependencyTag = hiddenAPIStubsDependencyTag{}
 
 // hiddenAPIRelevantSdkKinds lists all the android.SdkKind instances that are needed by the hidden
 // API processing.
+//
+// These are in order from narrowest API surface to widest. Widest means the API stubs with the
+// biggest API surface, e.g. test is wider than system is wider than public. Core platform is
+// considered wider than test even though it has no relationship with test because the libraries
+// that provide core platform API don't provide test. While the core platform API is being converted
+// to a system API the system API is still a subset of core platform.
 var hiddenAPIRelevantSdkKinds = []android.SdkKind{
 	android.SdkPublic,
 	android.SdkSystem,
@@ -164,14 +170,30 @@ func ruleToGenerateHiddenAPIStubFlagsFile(ctx android.BuilderContext, outputPath
 
 	tempPath := tempPathForRestat(ctx, outputPath)
 
+	// Find the widest API stubs provided by the fragments on which this depends, if any.
+	var dependencyStubDexJars android.Paths
+	for i := len(hiddenAPIRelevantSdkKinds) - 1; i >= 0; i-- {
+		kind := hiddenAPIRelevantSdkKinds[i]
+		stubsForKind := input.DependencyStubDexJarsByKind[kind]
+		if len(stubsForKind) != 0 {
+			dependencyStubDexJars = stubsForKind
+			break
+		}
+	}
+
 	command := rule.Command().
 		Tool(ctx.Config().HostToolPath(ctx, "hiddenapi")).
 		Text("list").
+		FlagForEachInput("--dependency-stub-dex=", dependencyStubDexJars).
 		FlagForEachInput("--boot-dex=", bootDexJars)
 
 	// Iterate over the sdk kinds in a fixed order.
 	for _, sdkKind := range hiddenAPIRelevantSdkKinds {
-		paths := input.StubDexJarsByKind[sdkKind]
+		// Merge in the stub dex jar paths for this kind from the fragments on which it depends. They
+		// will be needed to resolve dependencies from this fragment's stubs to classes in the other
+		// fragment's APIs.
+		dependencyPaths := input.DependencyStubDexJarsByKind[sdkKind]
+		paths := append(dependencyPaths, input.StubDexJarsByKind[sdkKind]...)
 		if len(paths) > 0 {
 			option := sdkKindToHiddenapiListOption[sdkKind]
 			command.FlagWithInputList("--"+option+"=", paths, ":")
@@ -349,10 +371,32 @@ type HiddenAPIInfo struct {
 	FlagFilesByCategory FlagFilesByCategory
 
 	// The paths to the stub dex jars for each of the android.SdkKind in hiddenAPIRelevantSdkKinds.
-	StubDexJarsByKind StubDexJarsByKind
+	TransitiveStubDexJarsByKind StubDexJarsByKind
 
 	// The output from the hidden API processing needs to be made available to other modules.
 	HiddenAPIFlagOutput
+}
+
+func newHiddenAPIInfo() *HiddenAPIInfo {
+	info := HiddenAPIInfo{
+		FlagFilesByCategory:         FlagFilesByCategory{},
+		TransitiveStubDexJarsByKind: StubDexJarsByKind{},
+	}
+	return &info
+}
+
+func (i *HiddenAPIInfo) mergeFromFragmentDeps(ctx android.ModuleContext, fragments []android.Module) {
+	// Merge all the information from the fragments. The fragments form a DAG so it is possible that
+	// this will introduce duplicates so they will be resolved after processing all the fragments.
+	for _, fragment := range fragments {
+		if ctx.OtherModuleHasProvider(fragment, HiddenAPIInfoProvider) {
+			info := ctx.OtherModuleProvider(fragment, HiddenAPIInfoProvider).(HiddenAPIInfo)
+			i.TransitiveStubDexJarsByKind.append(info.TransitiveStubDexJarsByKind)
+		}
+	}
+
+	// Dedup and sort paths.
+	i.TransitiveStubDexJarsByKind.dedupAndSort()
 }
 
 var HiddenAPIInfoProvider = blueprint.NewProvider(HiddenAPIInfo{})
@@ -387,6 +431,11 @@ type HiddenAPIFlagInput struct {
 	// StubDexJarsByKind contains the stub dex jars for different android.SdkKind and which determine
 	// the initial flags for each dex member.
 	StubDexJarsByKind StubDexJarsByKind
+
+	// DependencyStubDexJarsByKind contains the stub dex jars provided by the fragments on which this
+	// depends. It is the result of merging HiddenAPIInfo.TransitiveStubDexJarsByKind from each
+	// fragment on which this depends.
+	DependencyStubDexJarsByKind StubDexJarsByKind
 }
 
 // newHiddenAPIFlagInput creates a new initialize HiddenAPIFlagInput struct.
@@ -478,6 +527,12 @@ func (i *HiddenAPIFlagInput) extractFlagFilesFromProperties(ctx android.ModuleCo
 		paths := android.PathsForModuleSrc(ctx, category.propertyValueReader(p))
 		i.FlagFilesByCategory[category] = paths
 	}
+}
+
+func (i *HiddenAPIFlagInput) transitiveStubDexJarsByKind() StubDexJarsByKind {
+	transitive := i.DependencyStubDexJarsByKind
+	transitive.append(i.StubDexJarsByKind)
+	return transitive
 }
 
 // HiddenAPIFlagOutput contains paths to output files from the hidden API flag generation for a
