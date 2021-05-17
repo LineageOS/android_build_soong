@@ -268,22 +268,6 @@ var BootclasspathFragmentApexContentInfoProvider = blueprint.NewProvider(Bootcla
 // BootclasspathFragmentApexContentInfo contains the bootclasspath_fragments contributions to the
 // apex contents.
 type BootclasspathFragmentApexContentInfo struct {
-	// ClasspathFragmentProtoOutput is an output path for the generated classpaths.proto config of this module.
-	//
-	// The file should be copied to a relevant place on device, see ClasspathFragmentProtoInstallDir
-	// for more details.
-	ClasspathFragmentProtoOutput android.OutputPath
-
-	// ClasspathFragmentProtoInstallDir contains information about on device location for the generated classpaths.proto file.
-	//
-	// The path encodes expected sub-location within partitions, i.e. etc/classpaths/<proto-file>,
-	// for ClasspathFragmentProtoOutput. To get sub-location, instead of the full output / make path
-	// use android.InstallPath#Rel().
-	//
-	// This is only relevant for APEX modules as they perform their own installation; while regular
-	// system files are installed via ClasspathFragmentBase#androidMkEntries().
-	ClasspathFragmentProtoInstallDir android.InstallPath
-
 	// The image config, internal to this module (and the dex_bootjars singleton).
 	//
 	// Will be nil if the BootclasspathFragmentApexContentInfo has not been provided for a specific module. That can occur
@@ -396,25 +380,19 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	// Perform hidden API processing.
 	b.generateHiddenAPIBuildActions(ctx, contents)
 
-	// Construct the boot image info from the config.
-	info := BootclasspathFragmentApexContentInfo{
-		ClasspathFragmentProtoInstallDir: b.classpathFragmentBase().installDirPath,
-		ClasspathFragmentProtoOutput:     b.classpathFragmentBase().outputFilepath,
-		imageConfig:                      nil,
-	}
-
 	if !SkipDexpreoptBootJars(ctx) {
 		// Force the GlobalSoongConfig to be created and cached for use by the dex_bootjars
 		// GenerateSingletonBuildActions method as it cannot create it for itself.
 		dexpreopt.GetGlobalSoongConfig(ctx)
-		info.imageConfig = b.getImageConfig(ctx)
 
 		// Only generate the boot image if the configuration does not skip it.
 		b.generateBootImageBuildActions(ctx, contents)
-	}
 
-	// Make it available for other modules.
-	ctx.SetProvider(BootclasspathFragmentApexContentInfoProvider, info)
+		// Make the boot image info available for other modules
+		ctx.SetProvider(BootclasspathFragmentApexContentInfoProvider, BootclasspathFragmentApexContentInfo{
+			imageConfig: b.getImageConfig(ctx),
+		})
+	}
 }
 
 // generateClasspathProtoBuildActions generates all required build actions for classpath.proto config
