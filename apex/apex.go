@@ -2106,11 +2106,17 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.
 	}
 
 	// Add classpaths.proto config.
-	classpathProtoOutput := bootclasspathFragmentInfo.ClasspathFragmentProtoOutput
-	classpathProto := newApexFile(ctx, classpathProtoOutput, classpathProtoOutput.Base(), bootclasspathFragmentInfo.ClasspathFragmentProtoInstallDir.Rel(), etc, nil)
-	filesToAdd = append(filesToAdd, classpathProto)
+	filesToAdd = append(filesToAdd, apexClasspathFragmentProtoFile(ctx, module))
 
 	return filesToAdd
+}
+
+// apexClasspathFragmentProtoFile returns apexFile structure defining the classpath.proto config that
+// the module contributes to the apex.
+func apexClasspathFragmentProtoFile(ctx android.ModuleContext, module blueprint.Module) apexFile {
+	fragmentInfo := ctx.OtherModuleProvider(module, java.ClasspathFragmentProtoContentInfoProvider).(java.ClasspathFragmentProtoContentInfo)
+	classpathProtoOutput := fragmentInfo.ClasspathFragmentProtoOutput
+	return newApexFile(ctx, classpathProtoOutput, classpathProtoOutput.Base(), fragmentInfo.ClasspathFragmentProtoInstallDir.Rel(), etc, nil)
 }
 
 // apexFileForBootclasspathFragmentContentModule creates an apexFile for a bootclasspath_fragment
