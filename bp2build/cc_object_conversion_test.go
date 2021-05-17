@@ -65,7 +65,9 @@ func TestCcObjectBp2Build(t *testing.T) {
         "-Wall",
         "-Werror",
         "-Iinclude",
+        "-I$(BINDIR)/include",
         "-I.",
+        "-I$(BINDIR)/.",
     ],
     srcs = ["a/b/c.c"],
 )`,
@@ -109,7 +111,9 @@ cc_defaults {
         "-Werror",
         "-fno-addrsig",
         "-Iinclude",
+        "-I$(BINDIR)/include",
         "-I.",
+        "-I$(BINDIR)/.",
     ],
     srcs = ["a/b/c.c"],
 )`,
@@ -140,6 +144,7 @@ cc_object {
     copts = [
         "-fno-addrsig",
         "-I.",
+        "-I$(BINDIR)/.",
     ],
     srcs = ["x/y/z.c"],
 )`, `cc_object(
@@ -147,6 +152,7 @@ cc_object {
     copts = [
         "-fno-addrsig",
         "-I.",
+        "-I$(BINDIR)/.",
     ],
     deps = [":bar"],
     srcs = ["a/b/c.c"],
@@ -284,6 +290,7 @@ func TestCcObjectConfigurableAttributesBp2Build(t *testing.T) {
     copts = [
         "-fno-addrsig",
         "-I.",
+        "-I$(BINDIR)/.",
     ] + select({
         "//build/bazel/platforms/arch:x86": ["-fPIC"],
         "//conditions:default": [],
@@ -329,6 +336,7 @@ func TestCcObjectConfigurableAttributesBp2Build(t *testing.T) {
     copts = [
         "-fno-addrsig",
         "-I.",
+        "-I$(BINDIR)/.",
     ] + select({
         "//build/bazel/platforms/arch:arm": ["-Wall"],
         "//build/bazel/platforms/arch:arm64": ["-Wall"],
@@ -373,6 +381,7 @@ func TestCcObjectConfigurableAttributesBp2Build(t *testing.T) {
     copts = [
         "-fno-addrsig",
         "-I.",
+        "-I$(BINDIR)/.",
     ] + select({
         "//build/bazel/platforms/os:android": ["-fPIC"],
         "//build/bazel/platforms/os:darwin": ["-Wall"],
