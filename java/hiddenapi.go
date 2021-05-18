@@ -79,11 +79,28 @@ type hiddenAPIIntf interface {
 var _ hiddenAPIIntf = (*hiddenAPI)(nil)
 
 // Initialize the hiddenapi structure
-func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext) {
+func (h *hiddenAPI) initHiddenAPI(ctx android.ModuleContext, dexJar, classesJar android.Path) {
+
+	// Save the classes jars even if this is not active as they may be used by modular hidden API
+	// processing.
+	classesJars := android.Paths{classesJar}
+	ctx.VisitDirectDepsWithTag(hiddenApiAnnotationsTag, func(dep android.Module) {
+		javaInfo := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+		classesJars = append(classesJars, javaInfo.ImplementationJars...)
+	})
+	h.classesJarPaths = classesJars
+
+	// Save the unencoded dex jar so it can be used when generating the
+	// hiddenAPISingletonPathsStruct.stubFlags file.
+	h.bootDexJarPath = dexJar
+
 	// If hiddenapi processing is disabled treat this as inactive.
 	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
 		return
 	}
+
+	// The context module must implement hiddenAPIModule.
+	module := ctx.Module().(hiddenAPIModule)
 
 	// If the frameworks/base directories does not exist and no prebuilt hidden API flag files have
 	// been configured then it is not possible to do hidden API encoding.
@@ -95,7 +112,6 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext) {
 	// on the boot jars list because the runtime only enforces access to the hidden API for the
 	// bootclassloader. If information is gathered for modules not on the list then that will cause
 	// failures in the CtsHiddenApiBlocklist... tests.
-	module := ctx.Module()
 	h.active = isModuleInBootClassPath(ctx, module)
 	if !h.active {
 		// The rest of the properties will be ignored if active is false.
@@ -168,27 +184,6 @@ func (h *hiddenAPI) hiddenAPIEncodeDex(ctx android.ModuleContext, dexJar android
 	dexJar = hiddenAPIJar
 
 	return dexJar
-}
-
-// hiddenAPIUpdatePaths generates ninja rules to extract the information from the classes
-// jar, and outputs it to the appropriate module specific CSV file.
-//
-// It also makes the dex jar available for use when generating the
-// hiddenAPISingletonPathsStruct.stubFlags.
-func (h *hiddenAPI) hiddenAPIUpdatePaths(ctx android.ModuleContext, dexJar, classesJar android.Path) {
-
-	// Save the classes jars even if this is not active as they may be used by modular hidden API
-	// processing.
-	classesJars := android.Paths{classesJar}
-	ctx.VisitDirectDepsWithTag(hiddenApiAnnotationsTag, func(dep android.Module) {
-		javaInfo := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
-		classesJars = append(classesJars, javaInfo.ImplementationJars...)
-	})
-	h.classesJarPaths = classesJars
-
-	// Save the unencoded dex jar so it can be used when generating the
-	// hiddenAPISingletonPathsStruct.stubFlags file.
-	h.bootDexJarPath = dexJar
 }
 
 // buildRuleToGenerateAnnotationFlags builds a ninja rule to generate the annotation-flags.csv file
