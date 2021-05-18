@@ -889,8 +889,8 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 		kotlincFlags := j.properties.Kotlincflags
 		CheckKotlincFlags(ctx, kotlincFlags)
 
-		// Dogfood the JVM_IR backend.
-		kotlincFlags = append(kotlincFlags, "-Xuse-ir")
+		// Workaround for KT-46512
+		kotlincFlags = append(kotlincFlags, "-Xsam-conversions=class")
 
 		// If there are kotlin files, compile them first but pass all the kotlin and java files
 		// kotlinc will use the java files to resolve types referenced by the kotlin files, but
