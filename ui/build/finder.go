@@ -76,6 +76,8 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 			"Blueprints",
 			// Bazel build definitions.
 			"BUILD.bazel",
+			// Bazel build definitions.
+			"BUILD",
 			// Kati clean definitions.
 			"CleanSpec.mk",
 			// Ownership definition.
@@ -102,7 +104,7 @@ func NewSourceFinder(ctx Context, config Config) (f *finder.Finder) {
 func findBazelFiles(entries finder.DirEntries) (dirNames []string, fileNames []string) {
 	matches := []string{}
 	for _, foundName := range entries.FileNames {
-		if foundName == "BUILD.bazel" || foundName == "WORKSPACE" || strings.HasSuffix(foundName, ".bzl") {
+		if foundName == "BUILD.bazel" || foundName == "BUILD" || foundName == "WORKSPACE" || strings.HasSuffix(foundName, ".bzl") {
 			matches = append(matches, foundName)
 		}
 	}
