@@ -180,11 +180,10 @@ var (
 		"liblinker_malloc", // http://b/186826466, cc_library_static, depends on //external/zlib:libz (http://b/186823782)
 		//                                                       also depends on //system/libziparchive:libziparchive (http://b/186823656)
 		//                                                       also depends on //system/logging/liblog:liblog (http://b/186822772)
-		"libc_jemalloc_wrapper", // http://b/187012490, cc_library_static, depends on //external/jemalloc_new:libjemalloc5 (http://b/186828626)
-		"libc_ndk",              // http://b/187013218, cc_library_static, depends on //bionic/libm:libm (http://b/183064661)
-		"libc",                  // http://b/183064430, cc_library, depends on //external/jemalloc_new:libjemalloc5 (http://b/186828626)
-		"libc_malloc_hooks",     // http://b/187016307, cc_library, ld.lld: error: undefined symbol: __malloc_hook
-		"libm",                  // http://b/183064661, cc_library, math.h:25:16: error: unexpected token in argument list
+		"libc_ndk",          // http://b/187013218, cc_library_static, depends on //bionic/libm:libm (http://b/183064661)
+		"libc",              // http://b/183064430, cc_library, depends on //external/jemalloc_new:libjemalloc5 (http://b/186828626)
+		"libc_malloc_hooks", // http://b/187016307, cc_library, ld.lld: error: undefined symbol: __malloc_hook
+		"libm",              // http://b/183064661, cc_library, math.h:25:16: error: unexpected token in argument list
 
 		// http://b/186823769: Needs C++ STL support, includes from unconverted standard libraries in //external/libcxx
 		// c++_static
@@ -204,7 +203,6 @@ var (
 		"note_memtag_heap_async", // http://b/185127353: cc_library_static, error: feature.h not found
 		"note_memtag_heap_sync",  // http://b/185127353: cc_library_static, error: feature.h not found
 
-		"libjemalloc5",           // cc_library, ld.lld: error: undefined symbol: memset
 		"gwp_asan_crash_handler", // cc_library, ld.lld: error: undefined symbol: memset
 
 		// Tests. Handle later.
@@ -217,7 +215,8 @@ var (
 	// Per-module denylist of cc_library modules to only generate the static
 	// variant if their shared variant isn't ready or buildable by Bazel.
 	bp2buildCcLibraryStaticOnlyList = []string{
-		"libstdc++", // http://b/186822597, cc_library, ld.lld: error: undefined symbol: __errno
+		"libstdc++",    // http://b/186822597, cc_library, ld.lld: error: undefined symbol: __errno
+		"libjemalloc5", // http://b/188503688, cc_library, `target: { android: { enabled: false } }` for android targets.
 	}
 
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
