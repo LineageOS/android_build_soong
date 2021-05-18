@@ -7,6 +7,8 @@ set -o pipefail
 
 source "$(dirname "$0")/lib.sh"
 
+readonly GENERATED_BUILD_FILE_NAME="BUILD.bazel"
+
 function test_smoke {
   setup
   run_soong
@@ -505,8 +507,8 @@ filegroup {
 EOF
 
   GENERATE_BAZEL_FILES=1 run_soong
-  [[ -e out/soong/bp2build/a/BUILD ]] || fail "a/BUILD not created"
-  [[ -L out/soong/workspace/a/BUILD ]] || fail "a/BUILD not symlinked"
+  [[ -e out/soong/bp2build/a/${GENERATED_BUILD_FILE_NAME} ]] || fail "a/${GENERATED_BUILD_FILE_NAME} not created"
+  [[ -L out/soong/workspace/a/${GENERATED_BUILD_FILE_NAME} ]] || fail "a/${GENERATED_BUILD_FILE_NAME} not symlinked"
 
   mkdir -p b
   touch b/b.txt
@@ -519,8 +521,8 @@ filegroup {
 EOF
 
   GENERATE_BAZEL_FILES=1 run_soong
-  [[ -e out/soong/bp2build/b/BUILD ]] || fail "a/BUILD not created"
-  [[ -L out/soong/workspace/b/BUILD ]] || fail "a/BUILD not symlinked"
+  [[ -e out/soong/bp2build/b/${GENERATED_BUILD_FILE_NAME} ]] || fail "a/${GENERATED_BUILD_FILE_NAME} not created"
+  [[ -L out/soong/workspace/b/${GENERATED_BUILD_FILE_NAME} ]] || fail "a/${GENERATED_BUILD_FILE_NAME} not symlinked"
 }
 
 function test_bp2build_null_build {
@@ -551,11 +553,11 @@ filegroup {
 EOF
 
   GENERATE_BAZEL_FILES=1 run_soong
-  grep -q a1.txt out/soong/bp2build/a/BUILD || fail "a1.txt not in BUILD file"
+  grep -q a1.txt "out/soong/bp2build/a/${GENERATED_BUILD_FILE_NAME}" || fail "a1.txt not in ${GENERATED_BUILD_FILE_NAME} file"
 
   touch a/a2.txt
   GENERATE_BAZEL_FILES=1 run_soong
-  grep -q a2.txt out/soong/bp2build/a/BUILD || fail "a2.txt not in BUILD file"
+  grep -q a2.txt "out/soong/bp2build/a/${GENERATED_BUILD_FILE_NAME}" || fail "a2.txt not in ${GENERATED_BUILD_FILE_NAME} file"
 }
 
 function test_dump_json_module_graph() {
@@ -583,8 +585,8 @@ EOF
   GENERATE_BAZEL_FILES=1 run_soong
   [[ -e out/soong/workspace ]] || fail "Bazel workspace not created"
   [[ -d out/soong/workspace/a/b ]] || fail "module directory not a directory"
-  [[ -L out/soong/workspace/a/b/BUILD ]] || fail "BUILD file not symlinked"
-  [[ "$(readlink -f out/soong/workspace/a/b/BUILD)" =~ bp2build/a/b/BUILD$ ]] \
+  [[ -L "out/soong/workspace/a/b/${GENERATED_BUILD_FILE_NAME}" ]] || fail "${GENERATED_BUILD_FILE_NAME} file not symlinked"
+  [[ "$(readlink -f out/soong/workspace/a/b/${GENERATED_BUILD_FILE_NAME})" =~ "bp2build/a/b/${GENERATED_BUILD_FILE_NAME}"$ ]] \
     || fail "BUILD files symlinked at the wrong place"
   [[ -L out/soong/workspace/a/b/b.txt ]] || fail "a/b/b.txt not symlinked"
   [[ -L out/soong/workspace/a/a.txt ]] || fail "a/b/a.txt not symlinked"
@@ -616,7 +618,7 @@ function test_bp2build_build_file_precedence {
 
   mkdir -p a
   touch a/a.txt
-  touch a/BUILD
+  touch a/${GENERATED_BUILD_FILE_NAME}
   cat > a/Android.bp <<EOF
 filegroup {
   name: "a",
@@ -626,15 +628,15 @@ filegroup {
 EOF
 
   GENERATE_BAZEL_FILES=1 run_soong
-  [[ -L out/soong/workspace/a/BUILD ]] || fail "BUILD file not symlinked"
-  [[ "$(readlink -f out/soong/workspace/a/BUILD)" =~ bp2build/a/BUILD$ ]] \
-    || fail "BUILD files symlinked to the wrong place"
+  [[ -L "out/soong/workspace/a/${GENERATED_BUILD_FILE_NAME}" ]] || fail "${GENERATED_BUILD_FILE_NAME} file not symlinked"
+  [[ "$(readlink -f out/soong/workspace/a/${GENERATED_BUILD_FILE_NAME})" =~ "bp2build/a/${GENERATED_BUILD_FILE_NAME}"$ ]] \
+    || fail "${GENERATED_BUILD_FILE_NAME} files symlinked to the wrong place"
 }
 
 function test_bp2build_reports_multiple_errors {
   setup
 
-  mkdir -p a/BUILD
+  mkdir -p "a/${GENERATED_BUILD_FILE_NAME}"
   touch a/a.txt
   cat > a/Android.bp <<EOF
 filegroup {
@@ -644,7 +646,7 @@ filegroup {
 }
 EOF
 
-  mkdir -p b/BUILD
+  mkdir -p "b/${GENERATED_BUILD_FILE_NAME}"
   touch b/b.txt
   cat > b/Android.bp <<EOF
 filegroup {
@@ -658,8 +660,8 @@ EOF
     fail "Build should have failed"
   fi
 
-  grep -q "a/BUILD' exist" "$MOCK_TOP/errors" || fail "Error for a/BUILD not found"
-  grep -q "b/BUILD' exist" "$MOCK_TOP/errors" || fail "Error for b/BUILD not found"
+  grep -q "a/${GENERATED_BUILD_FILE_NAME}' exist" "$MOCK_TOP/errors" || fail "Error for a/${GENERATED_BUILD_FILE_NAME} not found"
+  grep -q "b/${GENERATED_BUILD_FILE_NAME}' exist" "$MOCK_TOP/errors" || fail "Error for b/${GENERATED_BUILD_FILE_NAME} not found"
 }
 
 test_smoke
