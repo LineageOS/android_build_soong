@@ -19,7 +19,10 @@ var (
 	// be preferred for use within a Bazel build.
 
 	// The file name used for automatically generated files.
-	GeneratedBuildFileName = "BUILD"
+	GeneratedBuildFileName = "BUILD.bazel"
+
 	// The file name used for hand-crafted build targets.
+	// NOTE: It is okay that this matches GeneratedBuildFileName, since we generate BUILD files in a different directory to source files
+	// FIXME: Because there are hundreds of existing BUILD.bazel files in the AOSP tree, we should pick another name here, like BUILD.android
 	HandcraftedBuildFileName = "BUILD.bazel"
 )
