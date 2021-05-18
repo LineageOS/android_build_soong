@@ -135,7 +135,7 @@ cc_library_headers {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    deps = [
+    implementation_deps = [
         ":lib-1",
         ":lib-2",
     ],
@@ -216,7 +216,7 @@ cc_library_headers {
         "-I.",
         "-I$(BINDIR)/.",
     ],
-    deps = [":base-lib"] + select({
+    implementation_deps = [":base-lib"] + select({
         "//build/bazel/platforms/os:android": [":android-lib"],
         "//build/bazel/platforms/os:darwin": [":darwin-lib"],
         "//build/bazel/platforms/os:fuchsia": [":fuchsia-lib"],
@@ -286,10 +286,11 @@ cc_library_headers {
         "-I$(BINDIR)/.",
     ],
     deps = select({
-        "//build/bazel/platforms/os:android": [
-            ":android-lib",
-            ":exported-lib",
-        ],
+        "//build/bazel/platforms/os:android": [":exported-lib"],
+        "//conditions:default": [],
+    }),
+    implementation_deps = select({
+        "//build/bazel/platforms/os:android": [":android-lib"],
         "//conditions:default": [],
     }),
 )`},
