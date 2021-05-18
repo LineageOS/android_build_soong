@@ -222,7 +222,7 @@ var (
 	// Per-module denylist to opt modules out of mixed builds. Such modules will
 	// still be generated via bp2build.
 	mixedBuildsDisabledList = []string{
-		"libc_bionic_ndk",                  // cparsons@, http://b/183213331, Handle generated headers in mixed builds.
+		"libc_bionic_ndk",                  // cparsons@ cc_library_static, depends on //bionic/libc:libsystemproperties
 		"libc_common",                      // cparsons@ cc_library_static, depends on //bionic/libc:libc_nopthread
 		"libc_common_static",               // cparsons@ cc_library_static, depends on //bionic/libc:libc_common
 		"libc_common_shared",               // cparsons@ cc_library_static, depends on //bionic/libc:libc_common

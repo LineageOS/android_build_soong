@@ -718,6 +718,93 @@ func TestTransitiveInputDepsets(t *testing.T) {
 	assertBuildStatements(t, expectedBuildStatements, actualbuildStatements)
 }
 
+func TestMiddlemenAction(t *testing.T) {
+	const inputString = `
+{
+  "artifacts": [{
+    "id": 1,
+    "pathFragmentId": 1
+  }, {
+    "id": 2,
+    "pathFragmentId": 2
+  }, {
+    "id": 3,
+    "pathFragmentId": 3
+  }, {
+    "id": 4,
+    "pathFragmentId": 4
+  }, {
+    "id": 5,
+    "pathFragmentId": 5
+  }, {
+    "id": 6,
+    "pathFragmentId": 6
+  }],
+  "pathFragments": [{
+    "id": 1,
+    "label": "middleinput_one"
+  }, {
+    "id": 2,
+    "label": "middleinput_two"
+  }, {
+    "id": 3,
+    "label": "middleman_artifact"
+  }, {
+    "id": 4,
+    "label": "maininput_one"
+  }, {
+    "id": 5,
+    "label": "maininput_two"
+  }, {
+    "id": 6,
+    "label": "output"
+  }],
+  "depSetOfFiles": [{
+    "id": 1,
+    "directArtifactIds": [1, 2]
+  }, {
+    "id": 2,
+    "directArtifactIds": [3, 4, 5]
+  }],
+  "actions": [{
+    "targetId": 1,
+    "actionKey": "x",
+    "mnemonic": "Middleman",
+    "arguments": ["touch", "foo"],
+    "inputDepSetIds": [1],
+    "outputIds": [3],
+    "primaryOutputId": 3
+  }, {
+    "targetId": 2,
+    "actionKey": "y",
+    "mnemonic": "Main action",
+    "arguments": ["touch", "foo"],
+    "inputDepSetIds": [2],
+    "outputIds": [6],
+    "primaryOutputId": 6
+  }]
+}`
+
+	actual, err := AqueryBuildStatements([]byte(inputString))
+	if err != nil {
+		t.Errorf("Unexpected error %q", err)
+	}
+	if expected := 1; len(actual) != expected {
+		t.Fatalf("Expected %d build statements, got %d", expected, len(actual))
+	}
+
+	bs := actual[0]
+	expectedInputs := []string{"middleinput_one", "middleinput_two", "maininput_one", "maininput_two"}
+	if !reflect.DeepEqual(bs.InputPaths, expectedInputs) {
+		t.Errorf("Expected main action inputs %q, but got %q", expectedInputs, bs.InputPaths)
+	}
+
+	expectedOutputs := []string{"output"}
+	if !reflect.DeepEqual(bs.OutputPaths, expectedOutputs) {
+		t.Errorf("Expected main action outputs %q, but got %q", expectedOutputs, bs.OutputPaths)
+	}
+}
+
 func assertError(t *testing.T, err error, expected string) {
 	if err == nil {
 		t.Errorf("expected error '%s', but got no error", expected)
