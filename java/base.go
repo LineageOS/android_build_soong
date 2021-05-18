@@ -1217,8 +1217,8 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 				return
 			}
 
-			// Update hidden API paths.
-			j.hiddenAPIUpdatePaths(ctx, dexOutputFile, j.implementationJarFile)
+			// Initialize the hiddenapi structure.
+			j.initHiddenAPI(ctx, dexOutputFile, j.implementationJarFile)
 
 			// Encode hidden API flags in dex file.
 			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile, proptools.Bool(j.dexProperties.Uncompress_dex))
