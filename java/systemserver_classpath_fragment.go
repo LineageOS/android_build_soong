@@ -67,12 +67,17 @@ func (p *platformSystemServerClasspathModule) ClasspathFragmentToConfiguredJarLi
 	}).(android.ConfiguredJarList)
 }
 
-type systemServerClasspathModule struct {
+type SystemServerClasspathModule struct {
 	android.ModuleBase
+	android.ApexModuleBase
 
 	ClasspathFragmentBase
 
 	properties systemServerClasspathFragmentProperties
+}
+
+func (s *SystemServerClasspathModule) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
+	return nil
 }
 
 type systemServerClasspathFragmentProperties struct {
@@ -83,14 +88,15 @@ type systemServerClasspathFragmentProperties struct {
 }
 
 func systemServerClasspathFactory() android.Module {
-	m := &systemServerClasspathModule{}
+	m := &SystemServerClasspathModule{}
 	m.AddProperties(&m.properties)
+	android.InitApexModule(m)
 	initClasspathFragment(m, SYSTEMSERVERCLASSPATH)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
 }
 
-func (s *systemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (s *SystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if len(s.properties.Contents) == 0 {
 		ctx.PropertyErrorf("contents", "empty contents are not allowed")
 	}
@@ -98,7 +104,7 @@ func (s *systemServerClasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	s.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJarListToClasspathJars(ctx, s.ClasspathFragmentToConfiguredJarList(ctx)))
 }
 
-func (s *systemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
+func (s *SystemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
 	// TODO(satayev): populate with actual content
 	return android.EmptyConfiguredJarList()
 }
@@ -114,7 +120,7 @@ func IsSystemServerClasspathFragmentContentDepTag(tag blueprint.DependencyTag) b
 	return tag == systemServerClasspathFragmentContentDepTag
 }
 
-func (s *systemServerClasspathModule) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
+func (s *SystemServerClasspathModule) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
 	module := ctx.Module()
 
 	for _, name := range s.properties.Contents {
