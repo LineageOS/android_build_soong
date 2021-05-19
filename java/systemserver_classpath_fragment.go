@@ -17,6 +17,7 @@ package java
 import (
 	"android/soong/android"
 	"android/soong/dexpreopt"
+	"github.com/google/blueprint"
 )
 
 func init() {
@@ -66,24 +67,63 @@ func (p *platformSystemServerClasspathModule) ClasspathFragmentToConfiguredJarLi
 	}).(android.ConfiguredJarList)
 }
 
-type systemServerClasspathModule struct {
+type SystemServerClasspathModule struct {
 	android.ModuleBase
+	android.ApexModuleBase
 
 	ClasspathFragmentBase
+
+	properties systemServerClasspathFragmentProperties
+}
+
+func (s *SystemServerClasspathModule) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
+	return nil
+}
+
+type systemServerClasspathFragmentProperties struct {
+	// The contents of this systemserverclasspath_fragment, could be either java_library, or java_sdk_library.
+	//
+	// The order of this list matters as it is the order that is used in the SYSTEMSERVERCLASSPATH.
+	Contents []string
 }
 
 func systemServerClasspathFactory() android.Module {
-	m := &systemServerClasspathModule{}
+	m := &SystemServerClasspathModule{}
+	m.AddProperties(&m.properties)
+	android.InitApexModule(m)
 	initClasspathFragment(m, SYSTEMSERVERCLASSPATH)
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
 }
 
-func (s *systemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+func (s *SystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if len(s.properties.Contents) == 0 {
+		ctx.PropertyErrorf("contents", "empty contents are not allowed")
+	}
+
 	s.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJarListToClasspathJars(ctx, s.ClasspathFragmentToConfiguredJarList(ctx)))
 }
 
-func (s *systemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
+func (s *SystemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
 	// TODO(satayev): populate with actual content
 	return android.EmptyConfiguredJarList()
+}
+
+type systemServerClasspathFragmentContentDependencyTag struct {
+	blueprint.BaseDependencyTag
+}
+
+// The tag used for the dependency between the systemserverclasspath_fragment module and its contents.
+var systemServerClasspathFragmentContentDepTag = systemServerClasspathFragmentContentDependencyTag{}
+
+func IsSystemServerClasspathFragmentContentDepTag(tag blueprint.DependencyTag) bool {
+	return tag == systemServerClasspathFragmentContentDepTag
+}
+
+func (s *SystemServerClasspathModule) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
+	module := ctx.Module()
+
+	for _, name := range s.properties.Contents {
+		ctx.AddDependency(module, systemServerClasspathFragmentContentDepTag, name)
+	}
 }

@@ -102,6 +102,9 @@ type apexBundleProperties struct {
 	// List of bootclasspath fragments that are embedded inside this APEX bundle.
 	Bootclasspath_fragments []string
 
+	// List of systemserverclasspath fragments that are embedded inside this APEX bundle.
+	Systemserverclasspath_fragments []string
+
 	// List of java libraries that are embedded inside this APEX bundle.
 	Java_libs []string
 
@@ -570,6 +573,7 @@ var (
 	executableTag   = dependencyTag{name: "executable", payload: true}
 	fsTag           = dependencyTag{name: "filesystem", payload: true}
 	bcpfTag         = dependencyTag{name: "bootclasspathFragment", payload: true, sourceOnly: true}
+	sscpfTag        = dependencyTag{name: "systemserverclasspathFragment", payload: true, sourceOnly: true}
 	compatConfigTag = dependencyTag{name: "compatConfig", payload: true, sourceOnly: true}
 	javaLibTag      = dependencyTag{name: "javaLib", payload: true}
 	jniLibTag       = dependencyTag{name: "jniLib", payload: true}
@@ -744,6 +748,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// Common-arch dependencies come next
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
 	ctx.AddFarVariationDependencies(commonVariation, bcpfTag, a.properties.Bootclasspath_fragments...)
+	ctx.AddFarVariationDependencies(commonVariation, sscpfTag, a.properties.Systemserverclasspath_fragments...)
 	ctx.AddFarVariationDependencies(commonVariation, javaLibTag, a.properties.Java_libs...)
 	ctx.AddFarVariationDependencies(commonVariation, bpfTag, a.properties.Bpfs...)
 	ctx.AddFarVariationDependencies(commonVariation, fsTag, a.properties.Filesystems...)
@@ -1668,6 +1673,15 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					filesInfo = append(filesInfo, filesToAdd...)
 					return true
 				}
+			case sscpfTag:
+				{
+					if _, ok := child.(*java.SystemServerClasspathModule); !ok {
+						ctx.PropertyErrorf("systemserverclasspath_fragments", "%q is not a systemserverclasspath_fragment module", depName)
+						return false
+					}
+					filesInfo = append(filesInfo, apexClasspathFragmentProtoFile(ctx, child))
+					return true
+				}
 			case javaLibTag:
 				switch child.(type) {
 				case *java.Library, *java.SdkLibrary, *java.DexImport, *java.SdkLibraryImport, *java.Import:
@@ -1888,7 +1902,16 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 					default:
 						ctx.PropertyErrorf("bootclasspath_fragments", "bootclasspath_fragment content %q of type %q is not supported", depName, ctx.OtherModuleType(child))
 					}
-
+				} else if java.IsSystemServerClasspathFragmentContentDepTag(depTag) {
+					// Add the contents of the systemserverclasspath fragment to the apex.
+					switch child.(type) {
+					case *java.Library, *java.SdkLibrary:
+						af := apexFileForJavaModule(ctx, child.(javaModule))
+						filesInfo = append(filesInfo, af)
+						return true // track transitive dependencies
+					default:
+						ctx.PropertyErrorf("systemserverclasspath_fragments", "systemserverclasspath_fragment content %q of type %q is not supported", depName, ctx.OtherModuleType(child))
+					}
 				} else if _, ok := depTag.(android.CopyDirectlyInAnyApexTag); ok {
 					// nothing
 				} else if am.CanHaveApexVariants() && am.IsInstallableToApex() {
@@ -2053,11 +2076,17 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module blueprint.
 	}
 
 	// Add classpaths.proto config.
-	classpathProtoOutput := bootclasspathFragmentInfo.ClasspathFragmentProtoOutput
-	classpathProto := newApexFile(ctx, classpathProtoOutput, classpathProtoOutput.Base(), bootclasspathFragmentInfo.ClasspathFragmentProtoInstallDir.Rel(), etc, nil)
-	filesToAdd = append(filesToAdd, classpathProto)
+	filesToAdd = append(filesToAdd, apexClasspathFragmentProtoFile(ctx, module))
 
 	return filesToAdd
+}
+
+// apexClasspathFragmentProtoFile returns apexFile structure defining the classpath.proto config that
+// the module contributes to the apex.
+func apexClasspathFragmentProtoFile(ctx android.ModuleContext, module blueprint.Module) apexFile {
+	fragmentInfo := ctx.OtherModuleProvider(module, java.ClasspathFragmentProtoContentInfoProvider).(java.ClasspathFragmentProtoContentInfo)
+	classpathProtoOutput := fragmentInfo.ClasspathFragmentProtoOutput
+	return newApexFile(ctx, classpathProtoOutput, classpathProtoOutput.Base(), fragmentInfo.ClasspathFragmentProtoInstallDir.Rel(), etc, nil)
 }
 
 // apexFileForBootclasspathFragmentContentModule creates an apexFile for a bootclasspath_fragment
