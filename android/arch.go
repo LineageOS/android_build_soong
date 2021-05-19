@@ -1055,24 +1055,28 @@ func mergePropertyStruct(ctx ArchVariantContext, dst interface{}, srcValue refle
 // Returns the immediate child of the input property struct that corresponds to
 // the sub-property "field".
 func getChildPropertyStruct(ctx ArchVariantContext,
-	src reflect.Value, field, userFriendlyField string) reflect.Value {
+	src reflect.Value, field, userFriendlyField string) (reflect.Value, bool) {
 
 	// Step into non-nil pointers to structs in the src value.
 	if src.Kind() == reflect.Ptr {
 		if src.IsNil() {
-			return src
+			return reflect.Value{}, false
 		}
 		src = src.Elem()
 	}
 
 	// Find the requested field in the src struct.
-	src = src.FieldByName(proptools.FieldNameForProperty(field))
-	if !src.IsValid() {
+	child := src.FieldByName(proptools.FieldNameForProperty(field))
+	if !child.IsValid() {
 		ctx.ModuleErrorf("field %q does not exist", userFriendlyField)
-		return src
+		return reflect.Value{}, false
 	}
 
-	return src
+	if child.IsZero() {
+		return reflect.Value{}, false
+	}
+
+	return child, true
 }
 
 // Squash the appropriate OS-specific property structs into the matching top level property structs
@@ -1099,8 +1103,9 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 			if os.Class == Host {
 				field := "Host"
 				prefix := "target.host"
-				hostProperties := getChildPropertyStruct(ctx, targetProp, field, prefix)
-				mergePropertyStruct(ctx, genProps, hostProperties)
+				if hostProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
+					mergePropertyStruct(ctx, genProps, hostProperties)
+				}
 			}
 
 			// Handle target OS generalities of the form:
@@ -1112,15 +1117,17 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 			if os.Linux() {
 				field := "Linux"
 				prefix := "target.linux"
-				linuxProperties := getChildPropertyStruct(ctx, targetProp, field, prefix)
-				mergePropertyStruct(ctx, genProps, linuxProperties)
+				if linuxProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
+					mergePropertyStruct(ctx, genProps, linuxProperties)
+				}
 			}
 
 			if os.Bionic() {
 				field := "Bionic"
 				prefix := "target.bionic"
-				bionicProperties := getChildPropertyStruct(ctx, targetProp, field, prefix)
-				mergePropertyStruct(ctx, genProps, bionicProperties)
+				if bionicProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
+					mergePropertyStruct(ctx, genProps, bionicProperties)
+				}
 			}
 
 			// Handle target OS properties in the form:
@@ -1137,14 +1144,16 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 			// },
 			field := os.Field
 			prefix := "target." + os.Name
-			osProperties := getChildPropertyStruct(ctx, targetProp, field, prefix)
-			mergePropertyStruct(ctx, genProps, osProperties)
+			if osProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
+				mergePropertyStruct(ctx, genProps, osProperties)
+			}
 
 			if os.Class == Host && os != Windows {
 				field := "Not_windows"
 				prefix := "target.not_windows"
-				notWindowsProperties := getChildPropertyStruct(ctx, targetProp, field, prefix)
-				mergePropertyStruct(ctx, genProps, notWindowsProperties)
+				if notWindowsProperties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
+					mergePropertyStruct(ctx, genProps, notWindowsProperties)
+				}
 			}
 
 			// Handle 64-bit device properties in the form:
@@ -1164,13 +1173,15 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 				if ctx.Config().Android64() {
 					field := "Android64"
 					prefix := "target.android64"
-					android64Properties := getChildPropertyStruct(ctx, targetProp, field, prefix)
-					mergePropertyStruct(ctx, genProps, android64Properties)
+					if android64Properties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
+						mergePropertyStruct(ctx, genProps, android64Properties)
+					}
 				} else {
 					field := "Android32"
 					prefix := "target.android32"
-					android32Properties := getChildPropertyStruct(ctx, targetProp, field, prefix)
-					mergePropertyStruct(ctx, genProps, android32Properties)
+					if android32Properties, ok := getChildPropertyStruct(ctx, targetProp, field, prefix); ok {
+						mergePropertyStruct(ctx, genProps, android32Properties)
+					}
 				}
 			}
 		}
@@ -1186,12 +1197,11 @@ func (m *ModuleBase) setOSProperties(ctx BottomUpMutatorContext) {
 // },
 // This struct will also contain sub-structs containing to the architecture/CPU
 // variants and features that themselves contain properties specific to those.
-func getArchTypeStruct(ctx ArchVariantContext, archProperties interface{}, archType ArchType) reflect.Value {
+func getArchTypeStruct(ctx ArchVariantContext, archProperties interface{}, archType ArchType) (reflect.Value, bool) {
 	archPropValues := reflect.ValueOf(archProperties).Elem()
 	archProp := archPropValues.FieldByName("Arch").Elem()
 	prefix := "arch." + archType.Name
-	archStruct := getChildPropertyStruct(ctx, archProp, archType.Name, prefix)
-	return archStruct
+	return getChildPropertyStruct(ctx, archProp, archType.Name, prefix)
 }
 
 // Returns the struct containing the properties specific to a given multilib
@@ -1201,11 +1211,10 @@ func getArchTypeStruct(ctx ArchVariantContext, archProperties interface{}, archT
 //         key: value,
 //     },
 // },
-func getMultilibStruct(ctx ArchVariantContext, archProperties interface{}, archType ArchType) reflect.Value {
+func getMultilibStruct(ctx ArchVariantContext, archProperties interface{}, archType ArchType) (reflect.Value, bool) {
 	archPropValues := reflect.ValueOf(archProperties).Elem()
 	multilibProp := archPropValues.FieldByName("Multilib").Elem()
-	multilibProperties := getChildPropertyStruct(ctx, multilibProp, archType.Multilib, "multilib."+archType.Multilib)
-	return multilibProperties
+	return getChildPropertyStruct(ctx, multilibProp, archType.Multilib, "multilib."+archType.Multilib)
 }
 
 // Returns the structs corresponding to the properties specific to the given
@@ -1219,57 +1228,63 @@ func getArchProperties(ctx BaseMutatorContext, archProperties interface{}, arch 
 	archType := arch.ArchType
 
 	if arch.ArchType != Common {
-		archStruct := getArchTypeStruct(ctx, archProperties, arch.ArchType)
-		result = append(result, archStruct)
+		archStruct, ok := getArchTypeStruct(ctx, archProperties, arch.ArchType)
+		if ok {
+			result = append(result, archStruct)
 
-		// Handle arch-variant-specific properties in the form:
-		// arch: {
-		//     arm: {
-		//         variant: {
-		//             key: value,
-		//         },
-		//     },
-		// },
-		v := variantReplacer.Replace(arch.ArchVariant)
-		if v != "" {
-			prefix := "arch." + archType.Name + "." + v
-			variantProperties := getChildPropertyStruct(ctx, archStruct, v, prefix)
-			result = append(result, variantProperties)
-		}
+			// Handle arch-variant-specific properties in the form:
+			// arch: {
+			//     arm: {
+			//         variant: {
+			//             key: value,
+			//         },
+			//     },
+			// },
+			v := variantReplacer.Replace(arch.ArchVariant)
+			if v != "" {
+				prefix := "arch." + archType.Name + "." + v
+				if variantProperties, ok := getChildPropertyStruct(ctx, archStruct, v, prefix); ok {
+					result = append(result, variantProperties)
+				}
+			}
 
-		// Handle cpu-variant-specific properties in the form:
-		// arch: {
-		//     arm: {
-		//         variant: {
-		//             key: value,
-		//         },
-		//     },
-		// },
-		if arch.CpuVariant != arch.ArchVariant {
-			c := variantReplacer.Replace(arch.CpuVariant)
-			if c != "" {
-				prefix := "arch." + archType.Name + "." + c
-				cpuVariantProperties := getChildPropertyStruct(ctx, archStruct, c, prefix)
-				result = append(result, cpuVariantProperties)
+			// Handle cpu-variant-specific properties in the form:
+			// arch: {
+			//     arm: {
+			//         variant: {
+			//             key: value,
+			//         },
+			//     },
+			// },
+			if arch.CpuVariant != arch.ArchVariant {
+				c := variantReplacer.Replace(arch.CpuVariant)
+				if c != "" {
+					prefix := "arch." + archType.Name + "." + c
+					if cpuVariantProperties, ok := getChildPropertyStruct(ctx, archStruct, c, prefix); ok {
+						result = append(result, cpuVariantProperties)
+					}
+				}
+			}
+
+			// Handle arch-feature-specific properties in the form:
+			// arch: {
+			//     arm: {
+			//         feature: {
+			//             key: value,
+			//         },
+			//     },
+			// },
+			for _, feature := range arch.ArchFeatures {
+				prefix := "arch." + archType.Name + "." + feature
+				if featureProperties, ok := getChildPropertyStruct(ctx, archStruct, feature, prefix); ok {
+					result = append(result, featureProperties)
+				}
 			}
 		}
 
-		// Handle arch-feature-specific properties in the form:
-		// arch: {
-		//     arm: {
-		//         feature: {
-		//             key: value,
-		//         },
-		//     },
-		// },
-		for _, feature := range arch.ArchFeatures {
-			prefix := "arch." + archType.Name + "." + feature
-			featureProperties := getChildPropertyStruct(ctx, archStruct, feature, prefix)
-			result = append(result, featureProperties)
+		if multilibProperties, ok := getMultilibStruct(ctx, archProperties, archType); ok {
+			result = append(result, multilibProperties)
 		}
-
-		multilibProperties := getMultilibStruct(ctx, archProperties, archType)
-		result = append(result, multilibProperties)
 
 		// Handle combined OS-feature and arch specific properties in the form:
 		// target: {
@@ -1280,15 +1295,17 @@ func getArchProperties(ctx BaseMutatorContext, archProperties interface{}, arch 
 		if os.Linux() {
 			field := "Linux_" + arch.ArchType.Name
 			userFriendlyField := "target.linux_" + arch.ArchType.Name
-			linuxProperties := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField)
-			result = append(result, linuxProperties)
+			if linuxProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
+				result = append(result, linuxProperties)
+			}
 		}
 
 		if os.Bionic() {
 			field := "Bionic_" + archType.Name
 			userFriendlyField := "target.bionic_" + archType.Name
-			bionicProperties := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField)
-			result = append(result, bionicProperties)
+			if bionicProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
+				result = append(result, bionicProperties)
+			}
 		}
 
 		// Handle combined OS and arch specific properties in the form:
@@ -1308,8 +1325,9 @@ func getArchProperties(ctx BaseMutatorContext, archProperties interface{}, arch 
 		// },
 		field := os.Field + "_" + archType.Name
 		userFriendlyField := "target." + os.Name + "_" + archType.Name
-		osArchProperties := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField)
-		result = append(result, osArchProperties)
+		if osArchProperties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
+			result = append(result, osArchProperties)
+		}
 	}
 
 	// Handle arm on x86 properties in the form:
@@ -1326,21 +1344,24 @@ func getArchProperties(ctx BaseMutatorContext, archProperties interface{}, arch 
 			hasArmAndroidArch(ctx.Config().Targets[Android])) {
 			field := "Arm_on_x86"
 			userFriendlyField := "target.arm_on_x86"
-			armOnX86Properties := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField)
-			result = append(result, armOnX86Properties)
+			if armOnX86Properties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
+				result = append(result, armOnX86Properties)
+			}
 		}
 		if arch.ArchType == X86_64 && (hasArmAbi(arch) ||
 			hasArmAndroidArch(ctx.Config().Targets[Android])) {
 			field := "Arm_on_x86_64"
 			userFriendlyField := "target.arm_on_x86_64"
-			armOnX8664Properties := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField)
-			result = append(result, armOnX8664Properties)
+			if armOnX8664Properties, ok := getChildPropertyStruct(ctx, targetProp, field, userFriendlyField); ok {
+				result = append(result, armOnX8664Properties)
+			}
 		}
 		if os == Android && nativeBridgeEnabled {
 			userFriendlyField := "Native_bridge"
 			prefix := "target.native_bridge"
-			nativeBridgeProperties := getChildPropertyStruct(ctx, targetProp, userFriendlyField, prefix)
-			result = append(result, nativeBridgeProperties)
+			if nativeBridgeProperties, ok := getChildPropertyStruct(ctx, targetProp, userFriendlyField, prefix); ok {
+				result = append(result, nativeBridgeProperties)
+			}
 		}
 	}
 
@@ -1869,6 +1890,8 @@ type ArchVariantContext interface {
 // For example: `arch: { x86: { Foo: ["bar"] } }, multilib: { lib32: {` Foo: ["baz"] } }`
 // will result in `Foo: ["bar", "baz"]` being returned for architecture x86, if the given
 // propertyset contains `Foo []string`.
+//
+// Implemented in a way very similar to GetTargetProperties().
 func (m *ModuleBase) GetArchProperties(ctx ArchVariantContext, propertySet interface{}) map[ArchType]interface{} {
 	// Return value of the arch types to the prop values for that arch.
 	archToProp := map[ArchType]interface{}{}
@@ -1903,9 +1926,14 @@ func (m *ModuleBase) GetArchProperties(ctx ArchVariantContext, propertySet inter
 		// input one that contains the data specific to that arch.
 		propertyStructs := make([]reflect.Value, 0)
 		for _, archProperty := range archProperties {
-			archTypeStruct := getArchTypeStruct(ctx, archProperty, arch)
-			multilibStruct := getMultilibStruct(ctx, archProperty, arch)
-			propertyStructs = append(propertyStructs, archTypeStruct, multilibStruct)
+			archTypeStruct, ok := getArchTypeStruct(ctx, archProperty, arch)
+			if ok {
+				propertyStructs = append(propertyStructs, archTypeStruct)
+			}
+			multilibStruct, ok := getMultilibStruct(ctx, archProperty, arch)
+			if ok {
+				propertyStructs = append(propertyStructs, multilibStruct)
+			}
 		}
 
 		// Create a new instance of the requested property set
@@ -1922,18 +1950,31 @@ func (m *ModuleBase) GetArchProperties(ctx ArchVariantContext, propertySet inter
 	return archToProp
 }
 
+// Returns the struct containing the properties specific to the given
+// architecture type. These look like this in Blueprint files:
+// target: {
+//     android: {
+//         key: value,
+//     },
+// },
+// This struct will also contain sub-structs containing to the architecture/CPU
+// variants and features that themselves contain properties specific to those.
+func getTargetStruct(ctx ArchVariantContext, archProperties interface{}, os OsType) (reflect.Value, bool) {
+	archPropValues := reflect.ValueOf(archProperties).Elem()
+	targetProp := archPropValues.FieldByName("Target").Elem()
+	return getChildPropertyStruct(ctx, targetProp, os.Field, os.Field)
+}
+
 // GetTargetProperties returns a map of OS target (e.g. android, windows) to the
-// values of the properties of the 'dst' struct that are specific to that OS
-// target.
+// values of the properties of the 'propertySet' struct that are specific to
+// that OS target.
 //
 // For example, passing a struct { Foo bool, Bar string } will return an
 // interface{} that can be type asserted back into the same struct, containing
 // the os-specific property value specified by the module if defined.
 //
-// While this looks similar to GetArchProperties, the internal representation of
-// the properties have a slightly different layout to warrant a standalone
-// lookup function.
-func (m *ModuleBase) GetTargetProperties(dst interface{}) map[OsType]interface{} {
+// Implemented in a way very similar to GetArchProperties().
+func (m *ModuleBase) GetTargetProperties(ctx ArchVariantContext, propertySet interface{}) map[OsType]interface{} {
 	// Return value of the arch types to the prop values for that arch.
 	osToProp := map[OsType]interface{}{}
 
@@ -1942,69 +1983,48 @@ func (m *ModuleBase) GetTargetProperties(dst interface{}) map[OsType]interface{}
 		return osToProp
 	}
 
-	// archProperties has the type of [][]interface{}. Looks complicated, so
-	// let's explain this step by step.
-	//
-	// Loop over the outer index, which determines the property struct that
-	// contains a matching set of properties in dst that we're interested in.
-	// For example, BaseCompilerProperties or BaseLinkerProperties.
-	for i := range m.archProperties {
-		if m.archProperties[i] == nil {
+	dstType := reflect.ValueOf(propertySet).Type()
+	var archProperties []interface{}
+
+	// First find the property set in the module that corresponds to the requested
+	// one. m.archProperties[i] corresponds to m.generalProperties[i].
+	for i, generalProp := range m.generalProperties {
+		srcType := reflect.ValueOf(generalProp).Type()
+		if srcType == dstType {
+			archProperties = m.archProperties[i]
+			break
+		}
+	}
+
+	if archProperties == nil {
+		// This module does not have the property set requested
+		return osToProp
+	}
+
+	for _, os := range osTypeList {
+		if os == CommonOS {
+			// It looks like this OS value is not used in Blueprint files
 			continue
 		}
 
-		// Iterate over the supported OS types
-		for _, os := range osTypeList {
-			// e.g android, linux_bionic
-			field := os.Field
-
-			// If it's not nil, loop over the inner index, which determines the arch variant
-			// of the prop type. In an Android.bp file, this is like looping over:
-			//
-			// target: { android: { key: value, ... }, linux_bionic: { key: value, ... } }
-			for _, archProperties := range m.archProperties[i] {
-				archPropValues := reflect.ValueOf(archProperties).Elem()
-
-				// This is the archPropRoot struct. Traverse into the Targetnested struct.
-				src := archPropValues.FieldByName("Target").Elem()
-
-				// Step into non-nil pointers to structs in the src value.
-				if src.Kind() == reflect.Ptr {
-					if src.IsNil() {
-						continue
-					}
-					src = src.Elem()
-				}
-
-				// Find the requested field (e.g. android, linux_bionic) in the src struct.
-				src = src.FieldByName(field)
-
-				// Validation steps. We want valid non-nil pointers to structs.
-				if !src.IsValid() || src.IsNil() {
-					continue
-				}
-
-				if src.Kind() != reflect.Ptr || src.Elem().Kind() != reflect.Struct {
-					continue
-				}
-
-				// Clone the destination prop, since we want a unique prop struct per arch.
-				dstClone := reflect.New(reflect.ValueOf(dst).Elem().Type()).Interface()
-
-				// Copy the located property struct into the cloned destination property struct.
-				err := proptools.ExtendMatchingProperties([]interface{}{dstClone}, src.Interface(), nil, proptools.OrderReplace)
-				if err != nil {
-					// This is fine, it just means the src struct doesn't match.
-					continue
-				}
-
-				// Found the prop for the os, you have.
-				osToProp[os] = dstClone
-
-				// Go to the next prop.
-				break
+		propertyStructs := make([]reflect.Value, 0)
+		for _, archProperty := range archProperties {
+			targetStruct, ok := getTargetStruct(ctx, archProperty, os)
+			if ok {
+				propertyStructs = append(propertyStructs, targetStruct)
 			}
 		}
+
+		// Create a new instance of the requested property set
+		value := reflect.New(reflect.ValueOf(propertySet).Elem().Type()).Interface()
+
+		// Merge all the structs together
+		for _, propertyStruct := range propertyStructs {
+			mergePropertyStruct(ctx, value, propertyStruct)
+		}
+
+		osToProp[os] = value
 	}
+
 	return osToProp
 }

@@ -49,7 +49,7 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 
 	var allDeps []string
 
-	for _, p := range module.GetTargetProperties(&BaseLinkerProperties{}) {
+	for _, p := range module.GetTargetProperties(ctx, &BaseLinkerProperties{}) {
 		// arch specific linker props
 		if baseLinkerProps, ok := p.(*BaseLinkerProperties); ok {
 			allDeps = append(allDeps, baseLinkerProps.Header_libs...)
@@ -273,7 +273,7 @@ func bp2BuildParseCompilerProps(ctx android.TopDownMutatorContext, module *Modul
 	srcs.SetValueForArch(bazel.CONDITIONS_DEFAULT, defaultsSrcs)
 
 	// Handle OS specific props.
-	for os, props := range module.GetTargetProperties(&BaseCompilerProperties{}) {
+	for os, props := range module.GetTargetProperties(ctx, &BaseCompilerProperties{}) {
 		if baseCompilerProps, ok := props.(*BaseCompilerProperties); ok {
 			srcsList := parseSrcs(baseCompilerProps)
 			// TODO(b/186153868): add support for os-specific srcs and exclude_srcs
@@ -358,7 +358,7 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 		}
 	}
 
-	for os, p := range module.GetTargetProperties(&BaseLinkerProperties{}) {
+	for os, p := range module.GetTargetProperties(ctx, &BaseLinkerProperties{}) {
 		if baseLinkerProps, ok := p.(*BaseLinkerProperties); ok {
 			libs := baseLinkerProps.Header_libs
 			libs = append(libs, baseLinkerProps.Export_header_lib_headers...)
@@ -434,7 +434,7 @@ func bp2BuildParseExportedIncludes(ctx android.TopDownMutatorContext, module *Mo
 		}
 	}
 
-	for os, props := range module.GetTargetProperties(&FlagExporterProperties{}) {
+	for os, props := range module.GetTargetProperties(ctx, &FlagExporterProperties{}) {
 		if flagExporterProperties, ok := props.(*FlagExporterProperties); ok {
 			osIncludeDirs := flagExporterProperties.Export_system_include_dirs
 			osIncludeDirs = append(osIncludeDirs, flagExporterProperties.Export_include_dirs...)
