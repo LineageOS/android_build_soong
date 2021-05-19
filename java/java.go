@@ -481,10 +481,8 @@ func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bo
 }
 
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	// Initialize the hiddenapi structure. Pass in the configuration name rather than the module name
-	// so the hidden api will encode the <x>.impl java_ library created by java_sdk_library just as it
-	// would the <x> library if <x> was configured as a boot jar.
-	j.initHiddenAPI(ctx, j.ConfigurationName())
+	// Initialize the hiddenapi structure.
+	j.initHiddenAPI(ctx)
 
 	j.sdkVersion = j.SdkVersion(ctx)
 	j.minSdkVersion = j.MinSdkVersion(ctx)
@@ -1242,7 +1240,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.minSdkVersion = j.MinSdkVersion(ctx)
 
 	// Initialize the hiddenapi structure.
-	j.initHiddenAPI(ctx, j.BaseModuleName())
+	j.initHiddenAPI(ctx)
 
 	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
 		j.hideApexVariantFromMake = true
