@@ -766,7 +766,7 @@ func generateUpdatableBcpPackagesRule(ctx android.ModuleContext, image *bootImag
 			if len(pp) > 0 {
 				updatablePackages = append(updatablePackages, pp...)
 			} else {
-				ctx.ModuleErrorf("Missing permitted_packages")
+				ctx.OtherModuleErrorf(module, "Missing permitted_packages")
 			}
 		}
 	}
