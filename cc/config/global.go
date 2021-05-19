@@ -225,18 +225,19 @@ func init() {
 
 	// Everything in these lists is a crime against abstraction and dependency tracking.
 	// Do not add anything to this list.
-	pctx.PrefixedExistentPathsForSourcesVariable("CommonGlobalIncludes", "-I",
-		[]string{
-			"system/core/include",
-			"system/logging/liblog/include",
-			"system/media/audio/include",
-			"hardware/libhardware/include",
-			"hardware/libhardware_legacy/include",
-			"hardware/ril/include",
-			"frameworks/native/include",
-			"frameworks/native/opengl/include",
-			"frameworks/av/include",
-		})
+	commonGlobalIncludes := []string{
+		"system/core/include",
+		"system/logging/liblog/include",
+		"system/media/audio/include",
+		"hardware/libhardware/include",
+		"hardware/libhardware_legacy/include",
+		"hardware/ril/include",
+		"frameworks/native/include",
+		"frameworks/native/opengl/include",
+		"frameworks/av/include",
+	}
+	exportedVars.Set("CommonGlobalIncludes", commonGlobalIncludes)
+	pctx.PrefixedExistentPathsForSourcesVariable("CommonGlobalIncludes", "-I", commonGlobalIncludes)
 
 	pctx.SourcePathVariable("ClangDefaultBase", ClangDefaultBase)
 	pctx.VariableFunc("ClangBase", func(ctx android.PackageVarContext) string {
