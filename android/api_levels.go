@@ -158,6 +158,21 @@ var NoneApiLevel = ApiLevel{
 // The first version that introduced 64-bit ABIs.
 var FirstLp64Version = uncheckedFinalApiLevel(21)
 
+// Android has had various kinds of packed relocations over the years
+// (http://b/187907243).
+//
+// API level 30 is where the now-standard SHT_RELR is available.
+var FirstShtRelrVersion = uncheckedFinalApiLevel(30)
+
+// API level 28 introduced SHT_RELR when it was still Android-only, and used an
+// Android-specific relocation.
+var FirstAndroidRelrVersion = uncheckedFinalApiLevel(28)
+
+// API level 23 was when we first had the Chrome relocation packer, which is
+// obsolete and has been removed, but lld can now generate compatible packed
+// relocations itself.
+var FirstPackedRelocationsVersion = uncheckedFinalApiLevel(23)
+
 // The first API level that does not require NDK code to link
 // libandroid_support.
 var FirstNonLibAndroidSupportVersion = uncheckedFinalApiLevel(21)
