@@ -6,6 +6,8 @@ set -o pipefail
 
 source "$(dirname "$0")/lib.sh"
 
+readonly GENERATED_BUILD_FILE_NAME="BUILD.bazel"
+
 function test_bp2build_generates_all_buildfiles {
   setup
   create_mock_bazel
@@ -40,24 +42,24 @@ EOF
 
   run_bp2build
 
-  if [[ ! -f "./out/soong/workspace/foo/convertible_soong_module/BUILD" ]]; then
-    fail "./out/soong/workspace/foo/convertible_soong_module/BUILD was not generated"
+  if [[ ! -f "./out/soong/workspace/foo/convertible_soong_module/${GENERATED_BUILD_FILE_NAME}" ]]; then
+    fail "./out/soong/workspace/foo/convertible_soong_module/${GENERATED_BUILD_FILE_NAME} was not generated"
   fi
 
-  if [[ ! -f "./out/soong/workspace/foo/unconvertible_soong_module/BUILD" ]]; then
-    fail "./out/soong/workspace/foo/unconvertible_soong_module/BUILD was not generated"
+  if [[ ! -f "./out/soong/workspace/foo/unconvertible_soong_module/${GENERATED_BUILD_FILE_NAME}" ]]; then
+    fail "./out/soong/workspace/foo/unconvertible_soong_module/${GENERATED_BUILD_FILE_NAME} was not generated"
   fi
 
-  if ! grep "the_answer" "./out/soong/workspace/foo/convertible_soong_module/BUILD"; then
-    fail "missing BUILD target the_answer in convertible_soong_module/BUILD"
+  if ! grep "the_answer" "./out/soong/workspace/foo/convertible_soong_module/${GENERATED_BUILD_FILE_NAME}"; then
+    fail "missing BUILD target the_answer in convertible_soong_module/${GENERATED_BUILD_FILE_NAME}"
   fi
 
-  if grep "not_the_answer" "./out/soong/workspace/foo/unconvertible_soong_module/BUILD"; then
-    fail "found unexpected BUILD target not_the_answer in unconvertible_soong_module/BUILD"
+  if grep "not_the_answer" "./out/soong/workspace/foo/unconvertible_soong_module/${GENERATED_BUILD_FILE_NAME}"; then
+    fail "found unexpected BUILD target not_the_answer in unconvertible_soong_module/${GENERATED_BUILD_FILE_NAME}"
   fi
 
-  if ! grep "filegroup" "./out/soong/workspace/foo/unconvertible_soong_module/BUILD"; then
-    fail "missing filegroup in unconvertible_soong_module/BUILD"
+  if ! grep "filegroup" "./out/soong/workspace/foo/unconvertible_soong_module/${GENERATED_BUILD_FILE_NAME}"; then
+    fail "missing filegroup in unconvertible_soong_module/${GENERATED_BUILD_FILE_NAME}"
   fi
 
   # NOTE: We don't actually use the extra BUILD file for anything here
