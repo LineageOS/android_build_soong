@@ -2121,8 +2121,7 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
 			if dexOutputPath := di.PrebuiltExportPath(module.BaseModuleName(), ".dexjar"); dexOutputPath != nil {
 				module.dexJarFile = dexOutputPath
-				module.initHiddenAPI(ctx)
-				module.hiddenAPIUpdatePaths(ctx, dexOutputPath, module.findScopePaths(apiScopePublic).stubsImplPath[0])
+				module.initHiddenAPI(ctx, dexOutputPath, module.findScopePaths(apiScopePublic).stubsImplPath[0])
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
 				// prebuilt_apex has been configured to export the java library dex file.
