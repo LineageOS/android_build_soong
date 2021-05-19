@@ -160,6 +160,14 @@ func SubtractBazelLabels(haystack []Label, needle []Label) []Label {
 	return labels
 }
 
+// Appends two LabelLists, returning the combined list.
+func AppendBazelLabelLists(a LabelList, b LabelList) LabelList {
+	var result LabelList
+	result.Includes = append(a.Includes, b.Includes...)
+	result.Excludes = append(a.Excludes, b.Excludes...)
+	return result
+}
+
 // Subtract needle from haystack
 func SubtractBazelLabelList(haystack LabelList, needle LabelList) LabelList {
 	var result LabelList
