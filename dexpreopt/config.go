@@ -372,6 +372,15 @@ func (d dex2oatDependencyTag) ExcludeFromVisibilityEnforcement() {
 func (d dex2oatDependencyTag) ExcludeFromApexContents() {
 }
 
+func (d dex2oatDependencyTag) AllowDisabledModuleDependency(target android.Module) bool {
+	// RegisterToolDeps may run after the prebuilt mutators and hence register a
+	// dependency on the source module even when the prebuilt is to be used.
+	// dex2oatPathFromDep takes that into account when it retrieves the path to
+	// the binary, but we also need to disable the check for dependencies on
+	// disabled modules.
+	return target.IsReplacedByPrebuilt()
+}
+
 // Dex2oatDepTag represents the dependency onto the dex2oatd module. It is added to any module that
 // needs dexpreopting and so it makes no sense for it to be checked for visibility or included in
 // the apex.
@@ -379,6 +388,7 @@ var Dex2oatDepTag = dex2oatDependencyTag{}
 
 var _ android.ExcludeFromVisibilityEnforcementTag = Dex2oatDepTag
 var _ android.ExcludeFromApexContentsTag = Dex2oatDepTag
+var _ android.AllowDisabledModuleDependency = Dex2oatDepTag
 
 // RegisterToolDeps adds the necessary dependencies to binary modules for tools
 // that are required later when Get(Cached)GlobalSoongConfig is called. It
