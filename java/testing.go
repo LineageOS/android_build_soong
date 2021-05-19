@@ -24,6 +24,7 @@ import (
 	"android/soong/android"
 	"android/soong/cc"
 	"android/soong/dexpreopt"
+
 	"github.com/google/blueprint"
 )
 
@@ -55,8 +56,9 @@ var PrepareForTestWithJavaBuildComponents = android.GroupFixturePreparers(
 	}.AddToFixture(),
 )
 
-// Test fixture preparer that will define default java modules, e.g. standard prebuilt modules.
-var PrepareForTestWithJavaDefaultModules = android.GroupFixturePreparers(
+// Test fixture preparer that will define all default java modules except the
+// fake_tool_binary for dex2oatd.
+var PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd = android.GroupFixturePreparers(
 	// Make sure that all the module types used in the defaults are registered.
 	PrepareForTestWithJavaBuildComponents,
 	// Additional files needed when test disallows non-existent source.
@@ -72,6 +74,11 @@ var PrepareForTestWithJavaDefaultModules = android.GroupFixturePreparers(
 	android.FixtureAddTextFile(defaultJavaDir+"/Android.bp", gatherRequiredDepsForTest()),
 	// Add dexpreopt compat libs (android.test.base, etc.) and a fake dex2oatd module.
 	dexpreopt.PrepareForTestWithDexpreoptCompatLibs,
+)
+
+// Test fixture preparer that will define default java modules, e.g. standard prebuilt modules.
+var PrepareForTestWithJavaDefaultModules = android.GroupFixturePreparers(
+	PrepareForTestWithJavaDefaultModulesWithoutFakeDex2oatd,
 	dexpreopt.PrepareForTestWithFakeDex2oatd,
 )
 
