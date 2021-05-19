@@ -229,12 +229,6 @@ type DeviceProperties struct {
 	// otherwise provides defaults libraries to add to the bootclasspath.
 	System_modules *string
 
-	// The name of the module as used in build configuration.
-	//
-	// Allows a library to separate its actual name from the name used in
-	// build configuration, e.g.ctx.Config().BootJars().
-	ConfigurationName *string `blueprint:"mutated"`
-
 	// set the name of the output
 	Stem *string
 
@@ -1223,11 +1217,11 @@ func (j *Module) compile(ctx android.ModuleContext, aaptSrcJar android.Path) {
 				return
 			}
 
-			// Update hidden API paths.
-			j.hiddenAPIUpdatePaths(ctx, dexOutputFile, j.implementationJarFile)
+			// Initialize the hiddenapi structure.
+			j.initHiddenAPI(ctx, dexOutputFile, j.implementationJarFile, j.dexProperties.Uncompress_dex)
 
 			// Encode hidden API flags in dex file.
-			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile, proptools.Bool(j.dexProperties.Uncompress_dex))
+			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile)
 
 			// merge dex jar with resources if necessary
 			if j.resourceJar != nil {
@@ -1499,15 +1493,6 @@ func (j *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
 
 func (j *Module) Stem() string {
 	return proptools.StringDefault(j.deviceProperties.Stem, j.Name())
-}
-
-// ConfigurationName returns the name of the module as used in build configuration.
-//
-// This is usually the same as BaseModuleName() except for the <x>.impl libraries created by
-// java_sdk_library in which case this is the BaseModuleName() without the ".impl" suffix,
-// i.e. just <x>.
-func (j *Module) ConfigurationName() string {
-	return proptools.StringDefault(j.deviceProperties.ConfigurationName, j.BaseModuleName())
 }
 
 func (j *Module) JacocoReportClassesFile() android.Path {

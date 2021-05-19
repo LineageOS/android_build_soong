@@ -26,26 +26,9 @@ var hiddenAPIGenerateCSVRule = pctx.AndroidStaticRule("hiddenAPIGenerateCSV", bl
 }, "outFlag", "stubAPIFlags")
 
 type hiddenAPI struct {
-	// The name of the module as it would be used in the boot jars configuration, e.g. without any
-	// prebuilt_ prefix (if it is a prebuilt) and without any ".impl" suffix if it is a
-	// java_sdk_library implementation library.
-	configurationName string
-
 	// True if the module containing this structure contributes to the hiddenapi information or has
 	// that information encoded within it.
 	active bool
-
-	// Identifies the active module variant which will be used as the source of hiddenapi information.
-	//
-	// A class may be compiled into a number of different module variants each of which will need the
-	// hiddenapi information encoded into it and so will be marked as active. However, only one of
-	// them must be used as a source of information by hiddenapi otherwise it will end up with
-	// duplicate entries. That module will have primary=true.
-	//
-	// Note, that modules <x>-hiddenapi that provide additional annotation information for module <x>
-	// that is on the bootclasspath are marked as primary=true as they are the primary source of that
-	// annotation information.
-	primary bool
 
 	// The path to the dex jar that is in the boot class path. If this is nil then the associated
 	// module is not a boot jar, but could be one of the <x>-hiddenapi modules that provide additional
@@ -60,6 +43,10 @@ type hiddenAPI struct {
 	// the UnsupportedAppUsage annotation that need to be extracted as part of the hidden API
 	// processing.
 	classesJarPaths android.Paths
+
+	// The compressed state of the dex file being encoded. This is used to ensure that the encoded
+	// dex file has the same state.
+	uncompressDexState *bool
 }
 
 func (h *hiddenAPI) bootDexJar() android.Path {
@@ -68,6 +55,10 @@ func (h *hiddenAPI) bootDexJar() android.Path {
 
 func (h *hiddenAPI) classesJars() android.Paths {
 	return h.classesJarPaths
+}
+
+func (h *hiddenAPI) uncompressDex() *bool {
+	return h.uncompressDexState
 }
 
 // hiddenAPIModule is the interface a module that embeds the hiddenAPI structure must implement.
@@ -79,18 +70,39 @@ type hiddenAPIModule interface {
 type hiddenAPIIntf interface {
 	bootDexJar() android.Path
 	classesJars() android.Paths
+	uncompressDex() *bool
 }
 
 var _ hiddenAPIIntf = (*hiddenAPI)(nil)
 
 // Initialize the hiddenapi structure
-func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, configurationName string) {
+//
+// uncompressedDexState should be nil when the module is a prebuilt and so does not require hidden
+// API encoding.
+func (h *hiddenAPI) initHiddenAPI(ctx android.ModuleContext, dexJar, classesJar android.Path, uncompressedDexState *bool) {
+
+	// Save the classes jars even if this is not active as they may be used by modular hidden API
+	// processing.
+	classesJars := android.Paths{classesJar}
+	ctx.VisitDirectDepsWithTag(hiddenApiAnnotationsTag, func(dep android.Module) {
+		javaInfo := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
+		classesJars = append(classesJars, javaInfo.ImplementationJars...)
+	})
+	h.classesJarPaths = classesJars
+
+	// Save the unencoded dex jar so it can be used when generating the
+	// hiddenAPISingletonPathsStruct.stubFlags file.
+	h.bootDexJarPath = dexJar
+
+	h.uncompressDexState = uncompressedDexState
+
 	// If hiddenapi processing is disabled treat this as inactive.
 	if ctx.Config().IsEnvTrue("UNSAFE_DISABLE_HIDDENAPI_FLAGS") {
 		return
 	}
 
-	h.configurationName = configurationName
+	// The context module must implement hiddenAPIModule.
+	module := ctx.Module().(hiddenAPIModule)
 
 	// If the frameworks/base directories does not exist and no prebuilt hidden API flag files have
 	// been configured then it is not possible to do hidden API encoding.
@@ -102,52 +114,7 @@ func (h *hiddenAPI) initHiddenAPI(ctx android.BaseModuleContext, configurationNa
 	// on the boot jars list because the runtime only enforces access to the hidden API for the
 	// bootclassloader. If information is gathered for modules not on the list then that will cause
 	// failures in the CtsHiddenApiBlocklist... tests.
-	module := ctx.Module()
 	h.active = isModuleInBootClassPath(ctx, module)
-	if !h.active {
-		// The rest of the properties will be ignored if active is false.
-		return
-	}
-
-	// Determine whether this module is the primary module or not.
-	primary := true
-
-	// A prebuilt module is only primary if it is preferred and conversely a source module is only
-	// primary if it has not been replaced by a prebuilt module.
-	if pi, ok := module.(android.PrebuiltInterface); ok {
-		if p := pi.Prebuilt(); p != nil {
-			primary = p.UsePrebuilt()
-		}
-	} else {
-		// The only module that will pass a different configurationName to its module name to this
-		// method is the implementation library of a java_sdk_library. It has a configuration name of
-		// <x> the same as its parent java_sdk_library but a module name of <x>.impl. It is not the
-		// primary module, the java_sdk_library with the name of <x> is.
-		primary = configurationName == ctx.ModuleName()
-
-		// A source module that has been replaced by a prebuilt can never be the primary module.
-		if module.IsReplacedByPrebuilt() {
-			if ctx.HasProvider(android.ApexInfoProvider) {
-				// The source module is in an APEX but the prebuilt module on which it depends is not in an
-				// APEX and so is not the one that will actually be used for hidden API processing. That
-				// means it is not possible to check to see if it is a suitable replacement so just assume
-				// that it is.
-				primary = false
-			} else {
-				ctx.VisitDirectDepsWithTag(android.PrebuiltDepTag, func(prebuilt android.Module) {
-					if h, ok := prebuilt.(hiddenAPIIntf); ok && h.bootDexJar() != nil {
-						primary = false
-					} else {
-						ctx.ModuleErrorf(
-							"hiddenapi has determined that the source module %q should be ignored as it has been"+
-								" replaced by the prebuilt module %q but unfortunately it does not provide a"+
-								" suitable boot dex jar", ctx.ModuleName(), ctx.OtherModuleName(prebuilt))
-					}
-				})
-			}
-		}
-	}
-	h.primary = primary
 }
 
 func isModuleInBootClassPath(ctx android.BaseModuleContext, module android.Module) bool {
@@ -166,13 +133,19 @@ func isModuleInBootClassPath(ctx android.BaseModuleContext, module android.Modul
 //
 // Otherwise, it creates a copy of the supplied dex file into which it has encoded the hiddenapi
 // flags and returns this instead of the supplied dex jar.
-func (h *hiddenAPI) hiddenAPIEncodeDex(ctx android.ModuleContext, dexJar android.OutputPath, uncompressDex bool) android.OutputPath {
+func (h *hiddenAPI) hiddenAPIEncodeDex(ctx android.ModuleContext, dexJar android.OutputPath) android.OutputPath {
 
 	if !h.active {
 		return dexJar
 	}
 
-	hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", h.configurationName+".jar").OutputPath
+	// A nil uncompressDexState prevents the dex file from being encoded.
+	if h.uncompressDexState == nil {
+		ctx.ModuleErrorf("cannot encode dex file %s when uncompressDexState is nil", dexJar)
+	}
+	uncompressDex := *h.uncompressDexState
+
+	hiddenAPIJar := android.PathForModuleOut(ctx, "hiddenapi", dexJar.Base()).OutputPath
 
 	// Create a copy of the dex jar which has been encoded with hiddenapi flags.
 	hiddenAPIEncodeDex(ctx, hiddenAPIJar, dexJar, uncompressDex)
@@ -181,27 +154,6 @@ func (h *hiddenAPI) hiddenAPIEncodeDex(ctx android.ModuleContext, dexJar android
 	dexJar = hiddenAPIJar
 
 	return dexJar
-}
-
-// hiddenAPIUpdatePaths generates ninja rules to extract the information from the classes
-// jar, and outputs it to the appropriate module specific CSV file.
-//
-// It also makes the dex jar available for use when generating the
-// hiddenAPISingletonPathsStruct.stubFlags.
-func (h *hiddenAPI) hiddenAPIUpdatePaths(ctx android.ModuleContext, dexJar, classesJar android.Path) {
-
-	// Save the classes jars even if this is not active as they may be used by modular hidden API
-	// processing.
-	classesJars := android.Paths{classesJar}
-	ctx.VisitDirectDepsWithTag(hiddenApiAnnotationsTag, func(dep android.Module) {
-		javaInfo := ctx.OtherModuleProvider(dep, JavaInfoProvider).(JavaInfo)
-		classesJars = append(classesJars, javaInfo.ImplementationJars...)
-	})
-	h.classesJarPaths = classesJars
-
-	// Save the unencoded dex jar so it can be used when generating the
-	// hiddenAPISingletonPathsStruct.stubFlags file.
-	h.bootDexJarPath = dexJar
 }
 
 // buildRuleToGenerateAnnotationFlags builds a ninja rule to generate the annotation-flags.csv file
