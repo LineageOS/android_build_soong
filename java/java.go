@@ -481,11 +481,6 @@ func shouldUncompressDex(ctx android.ModuleContext, dexpreopter *dexpreopter) bo
 }
 
 func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	// Initialize the hiddenapi structure. Pass in the configuration name rather than the module name
-	// so the hidden api will encode the <x>.impl java_ library created by java_sdk_library just as it
-	// would the <x> library if <x> was configured as a boot jar.
-	j.initHiddenAPI(ctx, j.ConfigurationName())
-
 	j.sdkVersion = j.SdkVersion(ctx)
 	j.minSdkVersion = j.MinSdkVersion(ctx)
 
@@ -1241,9 +1236,6 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.sdkVersion = j.SdkVersion(ctx)
 	j.minSdkVersion = j.MinSdkVersion(ctx)
 
-	// Initialize the hiddenapi structure.
-	j.initHiddenAPI(ctx, j.BaseModuleName())
-
 	if !ctx.Provider(android.ApexInfoProvider).(android.ApexInfo).IsForPlatform() {
 		j.hideApexVariantFromMake = true
 	}
@@ -1315,7 +1307,9 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			di := ctx.OtherModuleProvider(deapexerModule, android.DeapexerProvider).(android.DeapexerInfo)
 			if dexOutputPath := di.PrebuiltExportPath(j.BaseModuleName(), ".dexjar"); dexOutputPath != nil {
 				j.dexJarFile = dexOutputPath
-				j.hiddenAPIUpdatePaths(ctx, dexOutputPath, outputFile)
+
+				// Initialize the hiddenapi structure.
+				j.initHiddenAPI(ctx, dexOutputPath, outputFile, nil)
 			} else {
 				// This should never happen as a variant for a prebuilt_apex is only created if the
 				// prebuilt_apex has been configured to export the java library dex file.
@@ -1346,11 +1340,11 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				return
 			}
 
-			// Update hidden API paths.
-			j.hiddenAPIUpdatePaths(ctx, dexOutputFile, outputFile)
+			// Initialize the hiddenapi structure.
+			j.initHiddenAPI(ctx, dexOutputFile, outputFile, j.dexProperties.Uncompress_dex)
 
 			// Encode hidden API flags in dex file.
-			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile, proptools.Bool(j.dexProperties.Uncompress_dex))
+			dexOutputFile = j.hiddenAPIEncodeDex(ctx, dexOutputFile)
 
 			j.dexJarFile = dexOutputFile
 		}
