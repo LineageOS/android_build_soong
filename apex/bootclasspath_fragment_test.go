@@ -512,7 +512,10 @@ func TestBootclasspathFragmentContentsNoName(t *testing.T) {
 
 	checkFragmentExportedDexJar := func(name string, expectedDexJar string) {
 		module := result.Module(name, "android_common_apex10000")
-		dexJar := info.DexBootJarPathForContentModule(module)
+		dexJar, err := info.DexBootJarPathForContentModule(module)
+		if err != nil {
+			t.Error(err)
+		}
 		android.AssertPathRelativeToTopEquals(t, name+" dex", expectedDexJar, dexJar)
 
 		expectedCopyCommand := fmt.Sprintf("&& cp -f %s out/soong/.intermediates/myapex/android_common_myapex_image/image.apex/javalib/%s.jar", expectedDexJar, name)
