@@ -244,6 +244,9 @@ type bootImageConfig struct {
 	// Subdirectory where the image files are installed.
 	installDirOnHost string
 
+	// Subdirectory where the image files on device are installed.
+	installDirOnDevice string
+
 	// A list of (location, jar) pairs for the Java modules in this image.
 	modules android.ConfiguredJarList
 
@@ -273,8 +276,9 @@ type bootImageVariant struct {
 	dexLocationsDeps []string // for the dependency images and in this image
 
 	// Paths to image files.
-	imagePathOnHost android.OutputPath  // first image file
-	imagesDeps      android.OutputPaths // all files
+	imagePathOnHost   android.OutputPath  // first image file path on host
+	imagePathOnDevice string              // first image file path on device
+	imagesDeps        android.OutputPaths // all files
 
 	// Only for extensions, paths to the primary boot images.
 	primaryImages android.OutputPath
@@ -361,11 +365,12 @@ func (image bootImageConfig) moduleFiles(ctx android.PathContext, dir android.Ou
 // The location is passed as an argument to the ART tools like dex2oat instead of the real path.
 // ART tools will then reconstruct the architecture-specific real path.
 //
-func (image *bootImageVariant) imageLocations() (imageLocations []string) {
+func (image *bootImageVariant) imageLocations() (imageLocationsOnHost []string, imageLocationsOnDevice []string) {
 	if image.extends != nil {
-		imageLocations = image.extends.getVariant(image.target).imageLocations()
+		imageLocationsOnHost, imageLocationsOnDevice = image.extends.getVariant(image.target).imageLocations()
 	}
-	return append(imageLocations, dexpreopt.PathToLocation(image.imagePathOnHost, image.target.Arch.ArchType))
+	return append(imageLocationsOnHost, dexpreopt.PathToLocation(image.imagePathOnHost, image.target.Arch.ArchType)),
+		append(imageLocationsOnDevice, dexpreopt.PathStringToLocation(image.imagePathOnDevice, image.target.Arch.ArchType))
 }
 
 func dexpreoptBootJarsFactory() android.SingletonModule {
@@ -796,12 +801,13 @@ func dumpOatRules(ctx android.ModuleContext, image *bootImageConfig) {
 		// Create a rule to call oatdump.
 		output := android.PathForOutput(ctx, "boot."+suffix+".oatdump.txt")
 		rule := android.NewRuleBuilder(pctx, ctx)
+		imageLocationsOnHost, _ := image.imageLocations()
 		rule.Command().
 			// TODO: for now, use the debug version for better error reporting
 			BuiltTool("oatdumpd").
 			FlagWithInputList("--runtime-arg -Xbootclasspath:", image.dexPathsDeps.Paths(), ":").
 			FlagWithList("--runtime-arg -Xbootclasspath-locations:", image.dexLocationsDeps, ":").
-			FlagWithArg("--image=", strings.Join(image.imageLocations(), ":")).Implicits(image.imagesDeps.Paths()).
+			FlagWithArg("--image=", strings.Join(imageLocationsOnHost, ":")).Implicits(image.imagesDeps.Paths()).
 			FlagWithOutput("--output=", output).
 			FlagWithArg("--instruction-set=", arch.String())
 		rule.Build("dump-oat-boot-"+suffix, "dump oat boot "+arch.String())
@@ -871,8 +877,8 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 				ctx.Strict("DEXPREOPT_IMAGE_BUILT_INSTALLED_"+sfx, variant.installs.String())
 				ctx.Strict("DEXPREOPT_IMAGE_UNSTRIPPED_BUILT_INSTALLED_"+sfx, variant.unstrippedInstalls.String())
 			}
-			imageLocations := current.getAnyAndroidVariant().imageLocations()
-			ctx.Strict("DEXPREOPT_IMAGE_LOCATIONS_"+current.name, strings.Join(imageLocations, ":"))
+			imageLocationsOnHost, _ := current.getAnyAndroidVariant().imageLocations()
+			ctx.Strict("DEXPREOPT_IMAGE_LOCATIONS_"+current.name, strings.Join(imageLocationsOnHost, ":"))
 			ctx.Strict("DEXPREOPT_IMAGE_ZIP_"+current.name, current.zip.String())
 		}
 		ctx.Strict("DEXPREOPT_IMAGE_NAMES", strings.Join(imageNames, " "))
