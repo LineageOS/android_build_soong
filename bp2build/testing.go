@@ -1,6 +1,8 @@
 package bp2build
 
 import (
+	"testing"
+
 	"android/soong/android"
 	"android/soong/bazel"
 )
@@ -10,6 +12,8 @@ var (
 	bp2buildConfig = android.Bp2BuildConfig{
 		android.BP2BUILD_TOPLEVEL: android.Bp2BuildDefaultTrueRecursively,
 	}
+
+	buildDir string
 )
 
 type nestedProps struct {
@@ -37,6 +41,17 @@ type customModule struct {
 	android.BazelModuleBase
 
 	props customProps
+}
+
+func errored(t *testing.T, desc string, errs []error) bool {
+	t.Helper()
+	if len(errs) > 0 {
+		for _, err := range errs {
+			t.Errorf("%s: %s", desc, err)
+		}
+		return true
+	}
+	return false
 }
 
 // OutputFiles is needed because some instances of this module use dist with a
