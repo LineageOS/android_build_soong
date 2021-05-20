@@ -99,6 +99,8 @@ type libraryDecorator struct {
 	MutatedProperties LibraryMutatedProperties
 	includeDirs       android.Paths
 	sourceProvider    SourceProvider
+
+	collectedSnapshotHeaders android.Paths
 }
 
 type libraryInterface interface {
@@ -220,7 +222,10 @@ func (library *libraryDecorator) setSource() {
 }
 
 func (library *libraryDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {
-	if library.preferRlib() {
+	if ctx.Module().(*Module).InVendor() {
+		// Vendor modules should statically link libstd.
+		return rlibAutoDep
+	} else if library.preferRlib() {
 		return rlibAutoDep
 	} else if library.rlib() || library.static() {
 		return rlibAutoDep
@@ -236,7 +241,10 @@ func (library *libraryDecorator) autoDep(ctx android.BottomUpMutatorContext) aut
 }
 
 func (library *libraryDecorator) stdLinkage(ctx *depsContext) RustLinkage {
-	if library.static() || library.MutatedProperties.VariantIsStaticStd {
+	if ctx.RustModule().InVendor() {
+		// Vendor modules should statically link libstd.
+		return RlibLinkage
+	} else if library.static() || library.MutatedProperties.VariantIsStaticStd {
 		return RlibLinkage
 	} else if library.baseCompiler.preferRlib() {
 		return RlibLinkage
@@ -623,6 +631,19 @@ func LibraryMutator(mctx android.BottomUpMutatorContext) {
 				// Disable dylib Vendor Ramdisk variations until we support these.
 				v.(*Module).Disable()
 			}
+
+			variation := v.(*Module).ModuleBase.ImageVariation().Variation
+			if strings.HasPrefix(variation, cc.VendorVariationPrefix) &&
+				m.HasVendorVariant() &&
+				!cc.IsVendorProprietaryModule(mctx) &&
+				strings.TrimPrefix(variation, cc.VendorVariationPrefix) == mctx.DeviceConfig().VndkVersion() {
+
+				// cc.MutateImage runs before LibraryMutator, so vendor variations which are meant for rlibs only are
+				// produced for Dylibs; however, dylibs should not be enabled for boardVndkVersion for
+				// non-vendor proprietary modules.
+				v.(*Module).Disable()
+			}
+
 		case "source":
 			v.(*Module).compiler.(libraryInterface).setSource()
 			// The source variant does not produce any library.
@@ -670,4 +691,55 @@ func LibstdMutator(mctx android.BottomUpMutatorContext) {
 			}
 		}
 	}
+}
+
+func (l *libraryDecorator) snapshotHeaders() android.Paths {
+	if l.collectedSnapshotHeaders == nil {
+		panic("snapshotHeaders() must be called after collectHeadersForSnapshot()")
+	}
+	return l.collectedSnapshotHeaders
+}
+
+// collectHeadersForSnapshot collects all exported headers from library.
+// It globs header files in the source tree for exported include directories,
+// and tracks generated header files separately.
+//
+// This is to be called from GenerateAndroidBuildActions, and then collected
+// header files can be retrieved by snapshotHeaders().
+func (l *libraryDecorator) collectHeadersForSnapshot(ctx android.ModuleContext, deps PathDeps) {
+	ret := android.Paths{}
+
+	// Glob together the headers from the modules include_dirs property
+	for _, path := range android.CopyOfPaths(l.includeDirs) {
+		dir := path.String()
+		glob, err := ctx.GlobWithDeps(dir+"/**/*", nil)
+		if err != nil {
+			ctx.ModuleErrorf("glob failed: %#v", err)
+			return
+		}
+
+		for _, header := range glob {
+			// Filter out only the files with extensions that are headers.
+			found := false
+			for _, ext := range cc.HeaderExts {
+				if strings.HasSuffix(header, ext) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+			ret = append(ret, android.PathForSource(ctx, header))
+		}
+	}
+
+	// Glob together the headers from C dependencies as well, starting with non-generated headers.
+	ret = append(ret, cc.GlobHeadersForSnapshot(ctx, append(android.CopyOfPaths(deps.depIncludePaths), deps.depSystemIncludePaths...))...)
+
+	// Collect generated headers from C dependencies.
+	ret = append(ret, cc.GlobGeneratedHeadersForSnapshot(ctx, deps.depGeneratedHeaders)...)
+
+	// TODO(185577950): If support for generated headers is added, they need to be collected here as well.
+	l.collectedSnapshotHeaders = ret
 }

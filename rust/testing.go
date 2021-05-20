@@ -45,6 +45,11 @@ var PrepareForIntegrationTestWithRust = android.GroupFixturePreparers(
 	PrepareForTestWithRustDefaultModules,
 )
 
+var PrepareForTestWithRustIncludeVndk = android.GroupFixturePreparers(
+	PrepareForIntegrationTestWithRust,
+	cc.PrepareForTestWithCcIncludeVndk,
+)
+
 func GatherRequiredDepsForTest() string {
 	bp := `
 		rust_prebuilt_library {

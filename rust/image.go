@@ -202,6 +202,8 @@ func (mod *Module) SetImageVariation(ctx android.BaseModuleContext, variant stri
 
 func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 	// Rust does not support installing to the product image yet.
+	vendorSpecific := mctx.SocSpecific() || mctx.DeviceSpecific()
+
 	if Bool(mod.VendorProperties.Product_available) {
 		mctx.PropertyErrorf("product_available",
 			"Rust modules do not yet support being available to the product image")
@@ -216,6 +218,9 @@ func (mod *Module) ImageMutatorBegin(mctx android.BaseModuleContext) {
 		if lib, ok := mod.compiler.(libraryInterface); !ok || (ok && lib.buildShared()) {
 			mctx.PropertyErrorf("vendor_ramdisk_available", "cannot be set for rust_ffi or rust_ffi_shared modules.")
 		}
+	}
+	if vendorSpecific {
+		mctx.PropertyErrorf("vendor", "Vendor-only non-rust_ffi Rust modules are not supported.")
 	}
 
 	cc.MutateImage(mctx, mod)
