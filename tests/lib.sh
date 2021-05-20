@@ -114,6 +114,7 @@ function create_mock_bazel() {
   symlink_directory prebuilts/jdk
 
   symlink_file WORKSPACE
+  symlink_file BUILD
   symlink_file tools/bazel
 }
 
