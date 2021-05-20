@@ -231,7 +231,8 @@ var (
 		"libpropertyinfoparser",            // cparsons@, cc_library_static, wrong include paths
 		"libarm-optimized-routines-string", // jingwen@, cc_library_static, OK for bp2build but b/186615213 (asflags not handled in  bp2build), version script assignment of 'LIBC' to symbol 'memcmp' failed: symbol not defined (also for memrchr, strnlen)
 		"fmtlib_ndk",                       // http://b/187040371, cc_library_static, OK for bp2build but format-inl.h:11:10: fatal error: 'cassert' file not found for mixed builds
-	}
+		"libc_nomalloc",                    // cc_library_static, OK for bp2build but ld.lld: error: undefined symbol: pthread_mutex_lock (and others)
+    }
 
 	// Used for quicker lookups
 	bp2buildModuleDoNotConvert  = map[string]bool{}
