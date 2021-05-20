@@ -53,13 +53,7 @@ func (p *platformSystemServerClasspathModule) GenerateAndroidBuildActions(ctx an
 
 func (p *platformSystemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
 	global := dexpreopt.GetGlobalConfig(ctx)
-
-	jars := global.SystemServerJars
-	// TODO(satayev): split apex jars into separate configs.
-	for i := 0; i < global.UpdatableSystemServerJars.Len(); i++ {
-		jars = jars.Append(global.UpdatableSystemServerJars.Apex(i), global.UpdatableSystemServerJars.Jar(i))
-	}
-	return jars
+	return global.SystemServerJars
 }
 
 type SystemServerClasspathModule struct {
@@ -101,8 +95,12 @@ func (s *SystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 }
 
 func (s *SystemServerClasspathModule) ClasspathFragmentToConfiguredJarList(ctx android.ModuleContext) android.ConfiguredJarList {
-	// TODO(satayev): populate with actual content
-	return android.EmptyConfiguredJarList()
+	global := dexpreopt.GetGlobalConfig(ctx)
+
+	// Only create configs for updatable boot jars. Non-updatable system server jars must be part of the
+	// platform_systemserverclasspath's classpath proto config to guarantee that they come before any
+	// updatable jars at runtime.
+	return global.UpdatableSystemServerJars.Filter(s.properties.Contents)
 }
 
 type systemServerClasspathFragmentContentDependencyTag struct {
