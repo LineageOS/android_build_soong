@@ -393,7 +393,7 @@ func CheckSdkVersionAtLeast(ctx ModuleContext, SdkVersion android.ApiLevel) bool
 	if ctx.minSdkVersion() == "current" {
 		return true
 	}
-	parsedSdkVersion, err := android.ApiLevelFromUser(ctx, ctx.minSdkVersion())
+	parsedSdkVersion, err := nativeApiLevelFromUser(ctx, ctx.minSdkVersion())
 	if err != nil {
 		ctx.PropertyErrorf("min_sdk_version",
 			"Invalid min_sdk_version value (must be int or current): %q",
@@ -424,7 +424,7 @@ func (linker *baseLinker) linkerFlags(ctx ModuleContext, flags Flags) Flags {
 			// ANDROID_RELR relocations were supported at API level >= 28.
 			// Relocation packer was supported at API level >= 23.
 			// Do the best we can...
-			if !ctx.useSdk() || CheckSdkVersionAtLeast(ctx, android.FirstShtRelrVersion) {
+			if (!ctx.useSdk() && ctx.minSdkVersion() == "") || CheckSdkVersionAtLeast(ctx, android.FirstShtRelrVersion) {
 				flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--pack-dyn-relocs=android+relr")
 			} else if CheckSdkVersionAtLeast(ctx, android.FirstAndroidRelrVersion) {
 				flags.Global.LdFlags = append(flags.Global.LdFlags,
