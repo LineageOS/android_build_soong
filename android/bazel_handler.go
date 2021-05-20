@@ -333,7 +333,7 @@ func (r *builtinBazelRunner) issueBazelCommand(paths *bazelPaths, runName bazel.
 	// The actual platform values here may be overridden by configuration
 	// transitions from the buildroot.
 	cmdFlags = append(cmdFlags,
-		fmt.Sprintf("--platforms=%s", "//build/bazel/platforms:android_x86_64"))
+		fmt.Sprintf("--platforms=%s", "//build/bazel/platforms:android_arm"))
 	cmdFlags = append(cmdFlags,
 		fmt.Sprintf("--extra_toolchains=%s", "//prebuilts/clang/host/linux-x86:all"))
 	// This should be parameterized on the host OS, but let's restrict to linux
