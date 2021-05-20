@@ -454,13 +454,30 @@ func (p *baseSnapshotDecorator) snapshotAndroidMkSuffix() string {
 }
 
 func (p *baseSnapshotDecorator) setSnapshotAndroidMkSuffix(ctx android.ModuleContext) {
-	if ctx.OtherModuleDependencyVariantExists([]blueprint.Variation{
-		{Mutator: "image", Variation: android.CoreVariation},
-	}, ctx.Module().(*Module).BaseModuleName()) {
+	coreVariations := append(ctx.Target().Variations(), blueprint.Variation{
+		Mutator:   "image",
+		Variation: android.CoreVariation})
+
+	if ctx.OtherModuleFarDependencyVariantExists(coreVariations, ctx.Module().(*Module).BaseModuleName()) {
 		p.baseProperties.Androidmk_suffix = p.image.moduleNameSuffix()
-	} else {
-		p.baseProperties.Androidmk_suffix = ""
+		return
 	}
+
+	// If there is no matching core variation, there could still be a
+	// product variation, for example if a module is product specific and
+	// vendor available. In that case, we also want to add the androidmk
+	// suffix.
+
+	productVariations := append(ctx.Target().Variations(), blueprint.Variation{
+		Mutator:   "image",
+		Variation: ProductVariationPrefix + ctx.DeviceConfig().PlatformVndkVersion()})
+
+	if ctx.OtherModuleFarDependencyVariantExists(productVariations, ctx.Module().(*Module).BaseModuleName()) {
+		p.baseProperties.Androidmk_suffix = p.image.moduleNameSuffix()
+		return
+	}
+
+	p.baseProperties.Androidmk_suffix = ""
 }
 
 // Call this with a module suffix after creating a snapshot module, such as
