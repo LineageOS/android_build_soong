@@ -29,7 +29,7 @@ func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 	expectedFilePaths := []bazelFilepath{
 		{
 			dir:      "",
-			basename: "BUILD",
+			basename: "BUILD.bazel",
 		},
 		{
 			dir:      "",
@@ -37,7 +37,7 @@ func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 		},
 		{
 			dir:      bazelRulesSubDir,
-			basename: "BUILD",
+			basename: "BUILD.bazel",
 		},
 		{
 			dir:      bazelRulesSubDir,
@@ -69,7 +69,7 @@ func TestCreateBazelFiles_QueryView_AddsTopLevelFiles(t *testing.T) {
 
 		if actualFile.Dir != expectedFile.dir || actualFile.Basename != expectedFile.basename {
 			t.Errorf("Did not find expected file %s/%s", actualFile.Dir, actualFile.Basename)
-		} else if actualFile.Basename == "BUILD" || actualFile.Basename == "WORKSPACE" {
+		} else if actualFile.Basename == "BUILD.bazel" || actualFile.Basename == "WORKSPACE" {
 			if actualFile.Contents != "" {
 				t.Errorf("Expected %s to have no content.", actualFile)
 			}

@@ -619,6 +619,10 @@ func (mod *Module) CoverageFiles() android.Paths {
 }
 
 func (mod *Module) installable(apexInfo android.ApexInfo) bool {
+	if !mod.EverInstallable() {
+		return false
+	}
+
 	// The apex variant is not installable because it is included in the APEX and won't appear
 	// in the system partition as a standalone file.
 	if !apexInfo.IsForPlatform() {

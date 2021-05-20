@@ -20,6 +20,7 @@ import (
 	"android/soong/android"
 	"android/soong/java"
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 // Contains tests for platform_bootclasspath logic from java/platform_bootclasspath.go that requires
@@ -171,6 +172,141 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 
 		// The fragments.
 		`com.android.art:art-bootclasspath-fragment`,
+	})
+}
+
+// TestPlatformBootclasspath_AlwaysUsePrebuiltSdks verifies that the build does not fail when
+// AlwaysUsePrebuiltSdk() returns true. The structure of the modules in this test matches what
+// currently exists in some places in the Android build but it is not the intended structure. It is
+// in fact an invalid structure that should cause build failures. However, fixing that structure
+// will take too long so in the meantime this tests the workarounds to avoid build breakages.
+//
+// The main issues with this structure are:
+// 1. There is no prebuilt_bootclasspath_fragment referencing the "foo" java_sdk_library_import.
+// 2. There is no prebuilt_apex/apex_set which makes the dex implementation jar available to the
+//    prebuilt_bootclasspath_fragment and the "foo" java_sdk_library_import.
+//
+// Together these cause the following symptoms:
+// 1. The "foo" java_sdk_library_import does not have a dex implementation jar.
+// 2. The "foo" java_sdk_library_import does not have a myapex variant.
+//
+// TODO(b/179354495): Fix the structure in this test once the main Android build has been fixed.
+func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		prepareForTestWithPlatformBootclasspath,
+		prepareForTestWithMyapex,
+		// Configure two libraries, the first is a java_sdk_library whose prebuilt will be used because
+		// of AlwaysUsePrebuiltsSdk() but does not have an appropriate apex variant and does not provide
+		// a boot dex jar. The second is a normal library that is unaffected. The order matters because
+		// if the dependency on myapex:foo is filtered out because of either of those conditions then
+		// the dependencies resolved by the platform_bootclasspath will not match the configured list
+		// and so will fail the test.
+		java.FixtureConfigureUpdatableBootJars("myapex:foo", "myapex:bar"),
+		java.PrepareForTestWithJavaSdkLibraryFiles,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
+		}),
+		java.FixtureWithPrebuiltApis(map[string][]string{
+			"current": {},
+			"30":      {"foo"},
+		}),
+	).RunTestWithBp(t, `
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			bootclasspath_fragments: [
+				"mybootclasspath-fragment",
+			],
+			updatable: false,
+		}
+
+		apex_key {
+			name: "myapex.key",
+			public_key: "testkey.avbpubkey",
+			private_key: "testkey.pem",
+		}
+
+		java_library {
+			name: "bar",
+			srcs: ["b.java"],
+			installable: true,
+			apex_available: ["myapex"],
+			permitted_packages: ["bar"],
+		}
+
+		java_sdk_library {
+			name: "foo",
+			srcs: ["b.java"],
+			shared_library: false,
+			public: {
+				enabled: true,
+			},
+			apex_available: ["myapex"],
+			permitted_packages: ["foo"],
+		}
+
+		// A prebuilt java_sdk_library_import that is not preferred by default but will be preferred
+		// because AlwaysUsePrebuiltSdks() is true.
+		java_sdk_library_import {
+			name: "foo",
+			prefer: false,
+			shared_library: false,
+			public: {
+				jars: ["sdk_library/public/foo-stubs.jar"],
+				stub_srcs: ["sdk_library/public/foo_stub_sources"],
+				current_api: "sdk_library/public/foo.txt",
+				removed_api: "sdk_library/public/foo-removed.txt",
+				sdk_version: "current",
+			},
+			apex_available: ["myapex"],
+		}
+
+		// This always depends on the source foo module, its dependencies are not affected by the
+		// AlwaysUsePrebuiltSdks().
+		bootclasspath_fragment {
+			name: "mybootclasspath-fragment",
+			apex_available: [
+				"myapex",
+			],
+			contents: [
+				"foo", "bar",
+			],
+		}
+
+		platform_bootclasspath {
+			name: "myplatform-bootclasspath",
+		}
+`,
+	)
+
+	java.CheckPlatformBootclasspathModules(t, result, "myplatform-bootclasspath", []string{
+		// The configured contents of BootJars.
+		"platform:prebuilt_foo", // Note: This is the platform not myapex variant.
+		"myapex:bar",
+	})
+
+	// Make sure that the myplatform-bootclasspath has the correct dependencies.
+	CheckModuleDependencies(t, result.TestContext, "myplatform-bootclasspath", "android_common", []string{
+		// The following are stubs.
+		"platform:prebuilt_sdk_public_current_android",
+		"platform:prebuilt_sdk_system_current_android",
+		"platform:prebuilt_sdk_test_current_android",
+
+		// Not a prebuilt as no prebuilt existed when it was added.
+		"platform:legacy.core.platform.api.stubs",
+
+		// Needed for generating the boot image.
+		`platform:dex2oatd`,
+
+		// The platform_bootclasspath intentionally adds dependencies on both source and prebuilt
+		// modules when available as it does not know which one will be preferred.
+		//
+		// The source module has an APEX variant but the prebuilt does not.
+		"myapex:foo",
+		"platform:prebuilt_foo",
+
+		// Only a source module exists.
+		"myapex:bar",
 	})
 }
 

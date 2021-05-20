@@ -15,6 +15,7 @@
 package java
 
 import (
+	"fmt"
 	"strings"
 
 	"android/soong/android"
@@ -560,7 +561,25 @@ func extractBootDexJarsFromHiddenAPIModules(ctx android.ModuleContext, contents 
 	for _, module := range contents {
 		bootDexJar := module.bootDexJar()
 		if bootDexJar == nil {
-			ctx.ModuleErrorf("module %s does not provide a dex jar", module)
+			if ctx.Config().AlwaysUsePrebuiltSdks() {
+				// TODO(b/179354495): Remove this work around when it is unnecessary.
+				// Prebuilt modules like framework-wifi do not yet provide dex implementation jars. So,
+				// create a fake one that will cause a build error only if it is used.
+				fake := android.PathForModuleOut(ctx, "fake/boot-dex/%s.jar", module.Name())
+
+				// Create an error rule that pretends to create the output file but will actually fail if it
+				// is run.
+				ctx.Build(pctx, android.BuildParams{
+					Rule:   android.ErrorRule,
+					Output: fake,
+					Args: map[string]string{
+						"error": fmt.Sprintf("missing dependencies: boot dex jar for %s", module),
+					},
+				})
+				bootDexJars = append(bootDexJars, fake)
+			} else {
+				ctx.ModuleErrorf("module %s does not provide a dex jar", module)
+			}
 		} else {
 			bootDexJars = append(bootDexJars, bootDexJar)
 		}

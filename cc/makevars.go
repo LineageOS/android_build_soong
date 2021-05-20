@@ -288,9 +288,7 @@ func makeVarsToolchain(ctx android.MakeVarsContext, secondPrefix string,
 		ctx.Strict(makePrefix+"OBJCOPY", "${config.ClangBin}/llvm-objcopy")
 		ctx.Strict(makePrefix+"LD", "${config.ClangBin}/lld")
 		ctx.Strict(makePrefix+"NDK_TRIPLE", config.NDKTriple(toolchain))
-		// TODO: work out whether to make this "${config.ClangBin}/llvm-", which
-		// should mostly work, or remove it.
-		ctx.Strict(makePrefix+"TOOLS_PREFIX", gccCmd(toolchain, ""))
+		ctx.Strict(makePrefix+"TOOLS_PREFIX", "${config.ClangBin}/llvm-")
 		// TODO: GCC version is obsolete now that GCC has been removed.
 		ctx.Strict(makePrefix+"GCC_VERSION", toolchain.GccVersion())
 	}
