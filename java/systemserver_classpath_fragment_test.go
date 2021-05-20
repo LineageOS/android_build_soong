@@ -24,7 +24,7 @@ var prepareForTestWithSystemServerClasspath = android.GroupFixturePreparers(
 	PrepareForTestWithJavaDefaultModules,
 )
 
-func TestPlatformSystemserverClasspathVariant(t *testing.T) {
+func TestPlatformSystemServerClasspathVariant(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithSystemServerClasspath,
 		android.FixtureWithRootAndroidBp(`
@@ -38,7 +38,7 @@ func TestPlatformSystemserverClasspathVariant(t *testing.T) {
 	android.AssertIntEquals(t, "expect 1 variant", 1, len(variants))
 }
 
-func TestPlatformSystemserverClasspath_ClasspathFragmentPaths(t *testing.T) {
+func TestPlatformSystemServerClasspath_ClasspathFragmentPaths(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForTestWithSystemServerClasspath,
 		android.FixtureWithRootAndroidBp(`
@@ -49,11 +49,11 @@ func TestPlatformSystemserverClasspath_ClasspathFragmentPaths(t *testing.T) {
 	).RunTest(t)
 
 	p := result.Module("platform-systemserverclasspath", "android_common").(*platformSystemServerClasspathModule)
-	android.AssertStringEquals(t, "output filepath", p.Name()+".pb", p.ClasspathFragmentBase.outputFilepath.Base())
+	android.AssertStringEquals(t, "output filepath", "systemserverclasspath.pb", p.ClasspathFragmentBase.outputFilepath.Base())
 	android.AssertPathRelativeToTopEquals(t, "install filepath", "out/soong/target/product/test_device/system/etc/classpaths", p.ClasspathFragmentBase.installDirPath)
 }
 
-func TestPlatformSystemserverClasspathModule_AndroidMkEntries(t *testing.T) {
+func TestPlatformSystemServerClasspathModule_AndroidMkEntries(t *testing.T) {
 	preparer := android.GroupFixturePreparers(
 		prepareForTestWithSystemServerClasspath,
 		android.FixtureWithRootAndroidBp(`
@@ -78,8 +78,8 @@ func TestPlatformSystemserverClasspathModule_AndroidMkEntries(t *testing.T) {
 		want := map[string][]string{
 			"LOCAL_MODULE":                {"platform-systemserverclasspath"},
 			"LOCAL_MODULE_CLASS":          {"ETC"},
-			"LOCAL_INSTALLED_MODULE_STEM": {"platform-systemserverclasspath.pb"},
-			// Output and Install paths are tested separately in TestSystemserverClasspath_ClasspathFragmentPaths
+			"LOCAL_INSTALLED_MODULE_STEM": {"systemserverclasspath.pb"},
+			// Output and Install paths are tested separately in TestPlatformSystemServerClasspath_ClasspathFragmentPaths
 		}
 
 		p := result.Module("platform-systemserverclasspath", "android_common").(*platformSystemServerClasspathModule)
@@ -96,7 +96,7 @@ func TestPlatformSystemserverClasspathModule_AndroidMkEntries(t *testing.T) {
 	})
 }
 
-func TestSystemserverclasspathFragmentWithoutContents(t *testing.T) {
+func TestSystemServerClasspathFragmentWithoutContents(t *testing.T) {
 	prepareForTestWithSystemServerClasspath.
 		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
 			`\Qempty contents are not allowed\E`)).
