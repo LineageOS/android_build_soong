@@ -160,8 +160,6 @@ var (
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
 		// Things that transitively depend on unconverted libc_* modules.
-		"libc_nomalloc", // http://b/186825031, cc_library_static, depends on //bionic/libc:libc_common (http://b/186821517)
-
 		"libbionic_spawn_benchmark", // http://b/186824595, cc_library_static, depends on //external/google-benchmark (http://b/186822740)
 		//                                                                also depends on //system/logging/liblog:liblog (http://b/186822772)
 
