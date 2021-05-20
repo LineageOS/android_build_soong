@@ -283,7 +283,7 @@ type productVariables struct {
 	NativeCoverageExcludePaths []string `json:",omitempty"`
 
 	// Set by NewConfig
-	Native_coverage *bool
+	Native_coverage *bool `json:",omitempty"`
 
 	SanitizeHost       []string `json:",omitempty"`
 	SanitizeDevice     []string `json:",omitempty"`
