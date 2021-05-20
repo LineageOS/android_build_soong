@@ -324,11 +324,11 @@ custom {
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, []string{"Android.bp"})
-		if Errored(t, "", errs) {
+		if errored(t, "", errs) {
 			continue
 		}
 		_, errs = ctx.ResolveDependencies(config)
-		if Errored(t, "", errs) {
+		if errored(t, "", errs) {
 			continue
 		}
 
@@ -925,11 +925,11 @@ genrule {
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, toParse)
-		if Errored(t, testCase.description, errs) {
+		if errored(t, testCase.description, errs) {
 			continue
 		}
 		_, errs = ctx.ResolveDependencies(config)
-		if Errored(t, testCase.description, errs) {
+		if errored(t, testCase.description, errs) {
 			continue
 		}
 
@@ -955,17 +955,6 @@ genrule {
 			}
 		}
 	}
-}
-
-func Errored(t *testing.T, desc string, errs []error) bool {
-	t.Helper()
-	if len(errs) > 0 {
-		for _, err := range errs {
-			t.Errorf("%s: %s", desc, err)
-		}
-		return true
-	}
-	return false
 }
 
 type bp2buildMutator = func(android.TopDownMutatorContext)
@@ -1483,11 +1472,11 @@ filegroup {
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, toParse)
-		if Errored(t, testCase.description, errs) {
+		if errored(t, testCase.description, errs) {
 			continue
 		}
 		_, errs = ctx.ResolveDependencies(config)
-		if Errored(t, testCase.description, errs) {
+		if errored(t, testCase.description, errs) {
 			continue
 		}
 
@@ -1606,11 +1595,11 @@ func TestGlobExcludeSrcs(t *testing.T) {
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, toParse)
-		if Errored(t, testCase.description, errs) {
+		if errored(t, testCase.description, errs) {
 			continue
 		}
 		_, errs = ctx.ResolveDependencies(config)
-		if Errored(t, testCase.description, errs) {
+		if errored(t, testCase.description, errs) {
 			continue
 		}
 

@@ -617,11 +617,11 @@ cc_library {
 		ctx.RegisterForBazelConversion()
 
 		_, errs := ctx.ParseFileList(dir, toParse)
-		if Errored(t, testCase.description, errs) {
+		if errored(t, testCase.description, errs) {
 			continue
 		}
 		_, errs = ctx.ResolveDependencies(config)
-		if Errored(t, testCase.description, errs) {
+		if errored(t, testCase.description, errs) {
 			continue
 		}
 
