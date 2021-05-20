@@ -1546,7 +1546,7 @@ func PrebuiltJars(ctx android.BaseModuleContext, baseName string, s android.SdkS
 func withinSameApexesAs(ctx android.BaseModuleContext, other android.Module) bool {
 	apexInfo := ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)
 	otherApexInfo := ctx.OtherModuleProvider(other, android.ApexInfoProvider).(android.ApexInfo)
-	return len(otherApexInfo.InApexes) > 0 && reflect.DeepEqual(apexInfo.InApexes, otherApexInfo.InApexes)
+	return len(otherApexInfo.InApexVariants) > 0 && reflect.DeepEqual(apexInfo.InApexVariants, otherApexInfo.InApexVariants)
 }
 
 func (module *SdkLibrary) sdkJars(ctx android.BaseModuleContext, sdkVersion android.SdkSpec, headerJars bool) android.Paths {
