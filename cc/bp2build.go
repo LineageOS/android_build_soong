@@ -91,12 +91,15 @@ func depsBp2BuildMutator(ctx android.BottomUpMutatorContext) {
 		allDeps = append(allDeps, lib.SharedProperties.Shared.Static_libs...)
 		allDeps = append(allDeps, lib.SharedProperties.Shared.Whole_static_libs...)
 		allDeps = append(allDeps, lib.SharedProperties.Shared.Shared_libs...)
-		allDeps = append(allDeps, lib.SharedProperties.Shared.System_shared_libs...)
 
 		allDeps = append(allDeps, lib.StaticProperties.Static.Static_libs...)
 		allDeps = append(allDeps, lib.StaticProperties.Static.Whole_static_libs...)
 		allDeps = append(allDeps, lib.StaticProperties.Static.Shared_libs...)
-		allDeps = append(allDeps, lib.StaticProperties.Static.System_shared_libs...)
+
+		// TODO(b/186024507, b/186489250): Temporarily exclude adding
+		// system_shared_libs deps until libc and libm builds.
+		// allDeps = append(allDeps, lib.SharedProperties.Shared.System_shared_libs...)
+		// allDeps = append(allDeps, lib.StaticProperties.Static.System_shared_libs...)
 	}
 
 	ctx.AddDependency(module, nil, android.SortedUniqueStrings(allDeps)...)
