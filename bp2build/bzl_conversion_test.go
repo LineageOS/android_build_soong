@@ -22,8 +22,6 @@ import (
 	"testing"
 )
 
-var buildDir string
-
 func setUp() {
 	var err error
 	buildDir, err = ioutil.TempDir("", "bazel_queryview_test")
