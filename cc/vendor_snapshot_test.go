@@ -309,6 +309,13 @@ func TestVendorSnapshotUse(t *testing.T) {
 		compile_multilib: "64",
 	}
 
+	cc_library {
+		name: "libllndk",
+		llndk: {
+			symbol_file: "libllndk.map.txt",
+		},
+	}
+
 	cc_binary {
 		name: "bin",
 		vendor: true,
@@ -332,7 +339,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	vndkBp := `
 	vndk_prebuilt_shared {
 		name: "libvndk",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		vendor_available: true,
 		product_available: true,
@@ -376,7 +383,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	// different arch snapshot which has to be ignored
 	vndk_prebuilt_shared {
 		name: "libvndk",
-		version: "30",
+		version: "31",
 		target_arch: "arm",
 		vendor_available: true,
 		product_available: true,
@@ -387,6 +394,22 @@ func TestVendorSnapshotUse(t *testing.T) {
 			arm: {
 				srcs: ["libvndk.so"],
 				export_include_dirs: ["include/libvndk"],
+			},
+		},
+	}
+
+	vndk_prebuilt_shared {
+		name: "libllndk",
+		version: "31",
+		target_arch: "arm64",
+		vendor_available: true,
+		product_available: true,
+		arch: {
+			arm64: {
+				srcs: ["libllndk.so"],
+			},
+			arm: {
+				srcs: ["libllndk.so"],
 			},
 		},
 	}
@@ -409,7 +432,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		no_libcrt: true,
 		stl: "none",
 		system_shared_libs: [],
-		shared_libs: ["libvndk", "libvendor_available"],
+		shared_libs: ["libvndk", "libvendor_available", "libllndk"],
 		static_libs: ["libvendor", "libvendor_without_snapshot"],
 		arch: {
 			arm64: {
@@ -449,16 +472,17 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot {
 		name: "vendor_snapshot",
-		version: "30",
+		version: "31",
 		arch: {
 			arm64: {
 				vndk_libs: [
 					"libvndk",
+					"libllndk",
 				],
 				static_libs: [
 					"libc++_static",
 					"libc++demangle",
-					"libgcc_stripped",
+					"libunwind",
 					"libvendor",
 					"libvendor_available",
 					"libvndk",
@@ -476,6 +500,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 			arm: {
 				vndk_libs: [
 					"libvndk",
+					"libllndk",
 				],
 				static_libs: [
 					"libvendor",
@@ -497,7 +522,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_static {
 		name: "libvndk",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "both",
 		vendor: true,
@@ -515,7 +540,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_shared {
 		name: "libvendor",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "both",
 		vendor: true,
@@ -538,7 +563,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_static {
 		name: "lib32",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "32",
 		vendor: true,
@@ -551,7 +576,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_shared {
 		name: "lib32",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "32",
 		vendor: true,
@@ -564,7 +589,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_static {
 		name: "lib64",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "64",
 		vendor: true,
@@ -577,7 +602,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_shared {
 		name: "lib64",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "64",
 		vendor: true,
@@ -590,7 +615,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_static {
 		name: "libvendor",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "both",
 		vendor: true,
@@ -616,7 +641,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_shared {
 		name: "libvendor_available",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "both",
 		vendor: true,
@@ -634,7 +659,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_static {
 		name: "libvendor_available",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "both",
 		vendor: true,
@@ -652,7 +677,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_static {
 		name: "libc++_static",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "64",
 		vendor: true,
@@ -665,7 +690,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_static {
 		name: "libc++demangle",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "64",
 		vendor: true,
@@ -677,21 +702,21 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	vendor_snapshot_static {
-		name: "libgcc_stripped",
-		version: "30",
+		name: "libunwind",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "64",
 		vendor: true,
 		arch: {
 			arm64: {
-				src: "libgcc_stripped.a",
+				src: "libunwind.a",
 			},
 		},
 	}
 
 	vendor_snapshot_binary {
 		name: "bin",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "64",
 		vendor: true,
@@ -704,7 +729,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	vendor_snapshot_binary {
 		name: "bin32",
-		version: "30",
+		version: "31",
 		target_arch: "arm64",
 		compile_multilib: "32",
 		vendor: true,
@@ -732,7 +757,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	// different arch snapshot which has to be ignored
 	vendor_snapshot_binary {
 		name: "bin",
-		version: "30",
+		version: "31",
 		target_arch: "arm",
 		compile_multilib: "first",
 		vendor: true,
@@ -759,7 +784,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 		"vendor/include/libvendor_cfi/c.h": nil,
 		"vendor/libc++_static.a":           nil,
 		"vendor/libc++demangle.a":          nil,
-		"vendor/libgcc_striped.a":          nil,
+		"vendor/libunwind.a":               nil,
 		"vendor/libvndk.a":                 nil,
 		"vendor/libvendor.a":               nil,
 		"vendor/libvendor.cfi.a":           nil,
@@ -771,11 +796,12 @@ func TestVendorSnapshotUse(t *testing.T) {
 		"vndk/Android.bp":                  []byte(vndkBp),
 		"vndk/include/libvndk/a.h":         nil,
 		"vndk/libvndk.so":                  nil,
+		"vndk/libllndk.so":                 nil,
 	}
 
 	config := TestConfig(t.TempDir(), android.Android, nil, "", mockFS)
-	config.TestProductVariables.DeviceVndkVersion = StringPtr("30")
-	config.TestProductVariables.Platform_vndk_version = StringPtr("31")
+	config.TestProductVariables.DeviceVndkVersion = StringPtr("31")
+	config.TestProductVariables.Platform_vndk_version = StringPtr("32")
 	ctx := CreateTestContext(config)
 	ctx.Register()
 
@@ -784,17 +810,17 @@ func TestVendorSnapshotUse(t *testing.T) {
 	_, errs = ctx.PrepareBuildActions(config)
 	android.FailIfErrored(t, errs)
 
-	sharedVariant := "android_vendor.30_arm64_armv8-a_shared"
-	staticVariant := "android_vendor.30_arm64_armv8-a_static"
-	binaryVariant := "android_vendor.30_arm64_armv8-a"
+	sharedVariant := "android_vendor.31_arm64_armv8-a_shared"
+	staticVariant := "android_vendor.31_arm64_armv8-a_static"
+	binaryVariant := "android_vendor.31_arm64_armv8-a"
 
-	sharedCfiVariant := "android_vendor.30_arm64_armv8-a_shared_cfi"
-	staticCfiVariant := "android_vendor.30_arm64_armv8-a_static_cfi"
+	sharedCfiVariant := "android_vendor.31_arm64_armv8-a_shared_cfi"
+	staticCfiVariant := "android_vendor.31_arm64_armv8-a_static_cfi"
 
-	shared32Variant := "android_vendor.30_arm_armv7-a-neon_shared"
-	binary32Variant := "android_vendor.30_arm_armv7-a-neon"
+	shared32Variant := "android_vendor.31_arm_armv7-a-neon_shared"
+	binary32Variant := "android_vendor.31_arm_armv7-a-neon"
 
-	// libclient uses libvndk.vndk.30.arm64, libvendor.vendor_static.30.arm64, libvendor_without_snapshot
+	// libclient uses libvndk.vndk.31.arm64, libvendor.vendor_static.31.arm64, libvendor_without_snapshot
 	libclientCcFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("cc").Args["cFlags"]
 	for _, includeFlags := range []string{
 		"-Ivndk/include/libvndk",     // libvndk
@@ -808,8 +834,9 @@ func TestVendorSnapshotUse(t *testing.T) {
 
 	libclientLdFlags := ctx.ModuleForTests("libclient", sharedVariant).Rule("ld").Args["libFlags"]
 	for _, input := range [][]string{
-		[]string{sharedVariant, "libvndk.vndk.30.arm64"},
-		[]string{staticVariant, "libvendor.vendor_static.30.arm64"},
+		[]string{sharedVariant, "libvndk.vndk.31.arm64"},
+		[]string{sharedVariant, "libllndk.vndk.31.arm64"},
+		[]string{staticVariant, "libvendor.vendor_static.31.arm64"},
 		[]string{staticVariant, "libvendor_without_snapshot"},
 	} {
 		outputPaths := getOutputPaths(ctx, input[0] /* variant */, []string{input[1]} /* module name */)
@@ -819,7 +846,7 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	libclientAndroidMkSharedLibs := ctx.ModuleForTests("libclient", sharedVariant).Module().(*Module).Properties.AndroidMkSharedLibs
-	if g, w := libclientAndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "lib64"}; !reflect.DeepEqual(g, w) {
+	if g, w := libclientAndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "libllndk.vendor", "lib64"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient AndroidMkSharedLibs %q, got %q", w, g)
 	}
 
@@ -829,11 +856,11 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	libclient32AndroidMkSharedLibs := ctx.ModuleForTests("libclient", shared32Variant).Module().(*Module).Properties.AndroidMkSharedLibs
-	if g, w := libclient32AndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "lib32"}; !reflect.DeepEqual(g, w) {
+	if g, w := libclient32AndroidMkSharedLibs, []string{"libvndk.vendor", "libvendor_available.vendor", "libllndk.vendor", "lib32"}; !reflect.DeepEqual(g, w) {
 		t.Errorf("wanted libclient32 AndroidMkSharedLibs %q, got %q", w, g)
 	}
 
-	// libclient_cfi uses libvendor.vendor_static.30.arm64's cfi variant
+	// libclient_cfi uses libvendor.vendor_static.31.arm64's cfi variant
 	libclientCfiCcFlags := ctx.ModuleForTests("libclient_cfi", sharedCfiVariant).Rule("cc").Args["cFlags"]
 	if !strings.Contains(libclientCfiCcFlags, "-Ivendor/include/libvendor_cfi") {
 		t.Errorf("flags for libclient_cfi must contain %#v, but was %#v.",
@@ -841,12 +868,12 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	libclientCfiLdFlags := ctx.ModuleForTests("libclient_cfi", sharedCfiVariant).Rule("ld").Args["libFlags"]
-	libvendorCfiOutputPaths := getOutputPaths(ctx, staticCfiVariant, []string{"libvendor.vendor_static.30.arm64"})
+	libvendorCfiOutputPaths := getOutputPaths(ctx, staticCfiVariant, []string{"libvendor.vendor_static.31.arm64"})
 	if !strings.Contains(libclientCfiLdFlags, libvendorCfiOutputPaths[0].String()) {
 		t.Errorf("libflags for libclientCfi must contain %#v, but was %#v", libvendorCfiOutputPaths[0], libclientCfiLdFlags)
 	}
 
-	// bin_without_snapshot uses libvndk.vendor_static.30.arm64 (which reexports vndk's exported headers)
+	// bin_without_snapshot uses libvndk.vendor_static.31.arm64 (which reexports vndk's exported headers)
 	binWithoutSnapshotCcFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("cc").Args["cFlags"]
 	if !strings.Contains(binWithoutSnapshotCcFlags, "-Ivndk/include/libvndk") {
 		t.Errorf("flags for bin_without_snapshot must contain %#v, but was %#v.",
@@ -854,37 +881,37 @@ func TestVendorSnapshotUse(t *testing.T) {
 	}
 
 	binWithoutSnapshotLdFlags := ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Rule("ld").Args["libFlags"]
-	libVndkStaticOutputPaths := getOutputPaths(ctx, staticVariant, []string{"libvndk.vendor_static.30.arm64"})
+	libVndkStaticOutputPaths := getOutputPaths(ctx, staticVariant, []string{"libvndk.vendor_static.31.arm64"})
 	if !strings.Contains(binWithoutSnapshotLdFlags, libVndkStaticOutputPaths[0].String()) {
 		t.Errorf("libflags for bin_without_snapshot must contain %#v, but was %#v",
 			libVndkStaticOutputPaths[0], binWithoutSnapshotLdFlags)
 	}
 
-	// libvendor.so is installed by libvendor.vendor_shared.30.arm64
-	ctx.ModuleForTests("libvendor.vendor_shared.30.arm64", sharedVariant).Output("libvendor.so")
+	// libvendor.so is installed by libvendor.vendor_shared.31.arm64
+	ctx.ModuleForTests("libvendor.vendor_shared.31.arm64", sharedVariant).Output("libvendor.so")
 
-	// lib64.so is installed by lib64.vendor_shared.30.arm64
-	ctx.ModuleForTests("lib64.vendor_shared.30.arm64", sharedVariant).Output("lib64.so")
+	// lib64.so is installed by lib64.vendor_shared.31.arm64
+	ctx.ModuleForTests("lib64.vendor_shared.31.arm64", sharedVariant).Output("lib64.so")
 
-	// lib32.so is installed by lib32.vendor_shared.30.arm64
-	ctx.ModuleForTests("lib32.vendor_shared.30.arm64", shared32Variant).Output("lib32.so")
+	// lib32.so is installed by lib32.vendor_shared.31.arm64
+	ctx.ModuleForTests("lib32.vendor_shared.31.arm64", shared32Variant).Output("lib32.so")
 
-	// libvendor_available.so is installed by libvendor_available.vendor_shared.30.arm64
-	ctx.ModuleForTests("libvendor_available.vendor_shared.30.arm64", sharedVariant).Output("libvendor_available.so")
+	// libvendor_available.so is installed by libvendor_available.vendor_shared.31.arm64
+	ctx.ModuleForTests("libvendor_available.vendor_shared.31.arm64", sharedVariant).Output("libvendor_available.so")
 
 	// libvendor_without_snapshot.so is installed by libvendor_without_snapshot
 	ctx.ModuleForTests("libvendor_without_snapshot", sharedVariant).Output("libvendor_without_snapshot.so")
 
-	// bin is installed by bin.vendor_binary.30.arm64
-	ctx.ModuleForTests("bin.vendor_binary.30.arm64", binaryVariant).Output("bin")
+	// bin is installed by bin.vendor_binary.31.arm64
+	ctx.ModuleForTests("bin.vendor_binary.31.arm64", binaryVariant).Output("bin")
 
-	// bin32 is installed by bin32.vendor_binary.30.arm64
-	ctx.ModuleForTests("bin32.vendor_binary.30.arm64", binary32Variant).Output("bin32")
+	// bin32 is installed by bin32.vendor_binary.31.arm64
+	ctx.ModuleForTests("bin32.vendor_binary.31.arm64", binary32Variant).Output("bin32")
 
 	// bin_without_snapshot is installed by bin_without_snapshot
 	ctx.ModuleForTests("bin_without_snapshot", binaryVariant).Output("bin_without_snapshot")
 
-	// libvendor, libvendor_available and bin don't have vendor.30 variant
+	// libvendor, libvendor_available and bin don't have vendor.31 variant
 	libvendorVariants := ctx.ModuleVariantsForTests("libvendor")
 	if inList(sharedVariant, libvendorVariants) {
 		t.Errorf("libvendor must not have variant %#v, but it does", sharedVariant)
