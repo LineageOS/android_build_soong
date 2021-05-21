@@ -333,7 +333,7 @@ func (r *builtinBazelRunner) issueBazelCommand(paths *bazelPaths, runName bazel.
 	// The actual platform values here may be overridden by configuration
 	// transitions from the buildroot.
 	cmdFlags = append(cmdFlags,
-		fmt.Sprintf("--platforms=%s", "//build/bazel/platforms:android_x86_64"))
+		fmt.Sprintf("--platforms=%s", "//build/bazel/platforms:android_arm"))
 	cmdFlags = append(cmdFlags,
 		fmt.Sprintf("--extra_toolchains=%s", "//prebuilts/clang/host/linux-x86:all"))
 	// This should be parameterized on the host OS, but let's restrict to linux
@@ -567,7 +567,7 @@ func (p *bazelPaths) intermediatesDir() string {
 // Returns the path where the contents of the @soong_injection repository live.
 // It is used by Soong to tell Bazel things it cannot over the command line.
 func (p *bazelPaths) injectedFilesDir() string {
-	return filepath.Join(p.buildDir, "soong_injection")
+	return filepath.Join(p.buildDir, bazel.SoongInjectionDirName)
 }
 
 // Returns the path of the synthetic Bazel workspace that contains a symlink

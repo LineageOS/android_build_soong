@@ -1990,6 +1990,10 @@ func RemoveAllOutputDir(path WritablePath) error {
 
 func CreateOutputDirIfNonexistent(path WritablePath, perm os.FileMode) error {
 	dir := absolutePath(path.String())
+	return createDirIfNonexistent(dir, perm)
+}
+
+func createDirIfNonexistent(dir string, perm os.FileMode) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return os.MkdirAll(dir, os.ModePerm)
 	} else {

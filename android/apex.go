@@ -36,11 +36,16 @@ var (
 // Accessible via `ctx.Provider(android.ApexInfoProvider).(android.ApexInfo)`
 type ApexInfo struct {
 	// Name of the apex variation that this module (i.e. the apex variant of the module) is
-	// mutated into, or "" for a platform (i.e. non-APEX) variant. Note that a module can be
-	// included in multiple APEXes, in which case, the module is mutated into one or more
-	// variants, each of which is for an APEX. The variants then can later be deduped if they
-	// don't need to be compiled differently. This is an optimization done in
-	// mergeApexVariations.
+	// mutated into, or "" for a platform (i.e. non-APEX) variant. Note that this name and the
+	// Soong module name of the APEX can be different. That happens when there is
+	// `override_apex` that overrides `apex`. In that case, both Soong modules have the same
+	// apex variation name which usually is `com.android.foo`. This name is also the `name`
+	// in the path `/apex/<name>` where this apex is activated on at runtime.
+	//
+	// Also note that a module can be included in multiple APEXes, in which case, the module is
+	// mutated into one or more variants, each of which is for an APEX. The variants then can
+	// later be deduped if they don't need to be compiled differently. This is an optimization
+	// done in mergeApexVariations.
 	ApexVariationName string
 
 	// ApiLevel that this module has to support at minimum.
@@ -52,11 +57,19 @@ type ApexInfo struct {
 	// The list of SDK modules that the containing apexBundle depends on.
 	RequiredSdks SdkRefs
 
-	// List of apexBundles that this apex variant of the module is associated with. Initially,
-	// the size of this list is one because one apex variant is associated with one apexBundle.
-	// When multiple apex variants are merged in mergeApexVariations, ApexInfo struct of the
-	// merged variant holds the list of apexBundles that are merged together.
-	InApexes []string
+	// List of Apex variant names that this module is associated with. This initially is the
+	// same as the `ApexVariationName` field.  Then when multiple apex variants are merged in
+	// mergeApexVariations, ApexInfo struct of the merged variant holds the list of apexBundles
+	// that are merged together.
+	InApexVariants []string
+
+	// List of APEX Soong module names that this module is part of. Note that the list includes
+	// different variations of the same APEX. For example, if module `foo` is included in the
+	// apex `com.android.foo`, and also if there is an override_apex module
+	// `com.mycompany.android.foo` overriding `com.android.foo`, then this list contains both
+	// `com.android.foo` and `com.mycompany.android.foo`.  If the APEX Soong module is a
+	// prebuilt, the name here doesn't have the `prebuilt_` prefix.
+	InApexModules []string
 
 	// Pointers to the ApexContents struct each of which is for apexBundle modules that this
 	// module is part of. The ApexContents gives information about which modules the apexBundle
@@ -93,23 +106,33 @@ func (i ApexInfo) IsForPlatform() bool {
 	return i.ApexVariationName == ""
 }
 
-// InApex tells whether this apex variant of the module is part of the given apexBundle or not.
-func (i ApexInfo) InApex(apex string) bool {
-	for _, a := range i.InApexes {
-		if a == apex {
+// InApexVariant tells whether this apex variant of the module is part of the given apexVariant or
+// not.
+func (i ApexInfo) InApexVariant(apexVariant string) bool {
+	for _, a := range i.InApexVariants {
+		if a == apexVariant {
 			return true
 		}
 	}
 	return false
 }
 
-// InApexByBaseName tells whether this apex variant of the module is part of the given APEX or not,
-// where the APEX is specified by its canonical base name, i.e. typically beginning with
+// InApexByBaseName tells whether this apex variant of the module is part of the given apexVariant
+// or not, where the APEX is specified by its canonical base name, i.e. typically beginning with
 // "com.android.". In particular this function doesn't differentiate between source and prebuilt
 // APEXes, where the latter may have "prebuilt_" prefixes.
-func (i ApexInfo) InApexByBaseName(apex string) bool {
-	for _, a := range i.InApexes {
-		if RemoveOptionalPrebuiltPrefix(a) == apex {
+func (i ApexInfo) InApexVariantByBaseName(apexVariant string) bool {
+	for _, a := range i.InApexVariants {
+		if RemoveOptionalPrebuiltPrefix(a) == apexVariant {
+			return true
+		}
+	}
+	return false
+}
+
+func (i ApexInfo) InApexModule(apexModuleName string) bool {
+	for _, a := range i.InApexModules {
+		if a == apexModuleName {
 			return true
 		}
 	}
@@ -345,8 +368,21 @@ func (m *ApexModuleBase) ApexAvailable() []string {
 func (m *ApexModuleBase) BuildForApex(apex ApexInfo) {
 	m.apexInfosLock.Lock()
 	defer m.apexInfosLock.Unlock()
-	for _, v := range m.apexInfos {
+	for i, v := range m.apexInfos {
 		if v.ApexVariationName == apex.ApexVariationName {
+			if len(apex.InApexModules) != 1 {
+				panic(fmt.Errorf("Newly created apexInfo must be for a single APEX"))
+			}
+			// Even when the ApexVariantNames are the same, the given ApexInfo might
+			// actually be for different APEX. This can happen when an APEX is
+			// overridden via override_apex. For example, there can be two apexes
+			// `com.android.foo` (from the `apex` module type) and
+			// `com.mycompany.android.foo` (from the `override_apex` module type), both
+			// of which has the same ApexVariantName `com.android.foo`. Add the apex
+			// name to the list so that it's not lost.
+			if !InList(apex.InApexModules[0], v.InApexModules) {
+				m.apexInfos[i].InApexModules = append(m.apexInfos[i].InApexModules, apex.InApexModules[0])
+			}
 			return
 		}
 	}
@@ -496,21 +532,23 @@ func mergeApexVariations(ctx PathContext, apexInfos []ApexInfo) (merged []ApexIn
 		// Merge the ApexInfo together. If a compatible ApexInfo exists then merge the information from
 		// this one into it, otherwise create a new merged ApexInfo from this one and save it away so
 		// other ApexInfo instances can be merged into it.
-		apexName := apexInfo.ApexVariationName
+		variantName := apexInfo.ApexVariationName
 		mergedName := apexInfo.mergedName(ctx)
 		if index, exists := seen[mergedName]; exists {
 			// Variants having the same mergedName are deduped
-			merged[index].InApexes = append(merged[index].InApexes, apexName)
+			merged[index].InApexVariants = append(merged[index].InApexVariants, variantName)
+			merged[index].InApexModules = append(merged[index].InApexModules, apexInfo.InApexModules...)
 			merged[index].ApexContents = append(merged[index].ApexContents, apexInfo.ApexContents...)
 			merged[index].Updatable = merged[index].Updatable || apexInfo.Updatable
 		} else {
 			seen[mergedName] = len(merged)
 			apexInfo.ApexVariationName = mergedName
-			apexInfo.InApexes = CopyOf(apexInfo.InApexes)
+			apexInfo.InApexVariants = CopyOf(apexInfo.InApexVariants)
+			apexInfo.InApexModules = CopyOf(apexInfo.InApexModules)
 			apexInfo.ApexContents = append([]*ApexContents(nil), apexInfo.ApexContents...)
 			merged = append(merged, apexInfo)
 		}
-		aliases = append(aliases, [2]string{apexName, mergedName})
+		aliases = append(aliases, [2]string{variantName, mergedName})
 	}
 	return merged, aliases
 }
@@ -583,15 +621,15 @@ func CreateApexVariations(mctx BottomUpMutatorContext, module ApexModule) []Modu
 // in the same APEX have unique APEX variations so that the module can link against the right
 // variant.
 func UpdateUniqueApexVariationsForDeps(mctx BottomUpMutatorContext, am ApexModule) {
-	// anyInSameApex returns true if the two ApexInfo lists contain any values in an InApexes
-	// list in common. It is used instead of DepIsInSameApex because it needs to determine if
-	// the dep is in the same APEX due to being directly included, not only if it is included
-	// _because_ it is a dependency.
+	// anyInSameApex returns true if the two ApexInfo lists contain any values in an
+	// InApexVariants list in common. It is used instead of DepIsInSameApex because it needs to
+	// determine if the dep is in the same APEX due to being directly included, not only if it
+	// is included _because_ it is a dependency.
 	anyInSameApex := func(a, b []ApexInfo) bool {
 		collectApexes := func(infos []ApexInfo) []string {
 			var ret []string
 			for _, info := range infos {
-				ret = append(ret, info.InApexes...)
+				ret = append(ret, info.InApexVariants...)
 			}
 			return ret
 		}

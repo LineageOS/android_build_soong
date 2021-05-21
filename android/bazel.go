@@ -160,8 +160,6 @@ var (
 	// Per-module denylist to always opt modules out of both bp2build and mixed builds.
 	bp2buildModuleDoNotConvertList = []string{
 		// Things that transitively depend on unconverted libc_* modules.
-		"libc_nomalloc", // http://b/186825031, cc_library_static, depends on //bionic/libc:libc_common (http://b/186821517)
-
 		"libbionic_spawn_benchmark", // http://b/186824595, cc_library_static, depends on //external/google-benchmark (http://b/186822740)
 		//                                                                also depends on //system/logging/liblog:liblog (http://b/186822772)
 
@@ -233,7 +231,8 @@ var (
 		"libpropertyinfoparser",            // cparsons@, cc_library_static, wrong include paths
 		"libarm-optimized-routines-string", // jingwen@, cc_library_static, OK for bp2build but b/186615213 (asflags not handled in  bp2build), version script assignment of 'LIBC' to symbol 'memcmp' failed: symbol not defined (also for memrchr, strnlen)
 		"fmtlib_ndk",                       // http://b/187040371, cc_library_static, OK for bp2build but format-inl.h:11:10: fatal error: 'cassert' file not found for mixed builds
-	}
+		"libc_nomalloc",                    // cc_library_static, OK for bp2build but ld.lld: error: undefined symbol: pthread_mutex_lock (and others)
+    }
 
 	// Used for quicker lookups
 	bp2buildModuleDoNotConvert  = map[string]bool{}
