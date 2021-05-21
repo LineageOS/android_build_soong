@@ -493,6 +493,69 @@ func TestAndroidAppImport_frameworkRes(t *testing.T) {
 	}
 }
 
+func TestAndroidAppImport_relativeInstallPath(t *testing.T) {
+	bp := `
+		android_app_import {
+			name: "no_relative_install_path",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+		}
+
+		android_app_import {
+			name: "relative_install_path",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+			relative_install_path: "my/path",
+		}
+
+		android_app_import {
+			name: "framework-res",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+			prefer: true,
+		}
+
+		android_app_import {
+			name: "privileged_relative_install_path",
+			apk: "prebuilts/apk/app.apk",
+			presigned: true,
+			privileged: true,
+			relative_install_path: "my/path"
+		}
+		`
+	testCases := []struct {
+		name                string
+		expectedInstallPath string
+		errorMessage        string
+	}{
+		{
+			name:                "no_relative_install_path",
+			expectedInstallPath: "out/soong/target/product/test_device/system/app/no_relative_install_path/no_relative_install_path.apk",
+			errorMessage:        "Install path is not correct when relative_install_path is missing",
+		},
+		{
+			name:                "relative_install_path",
+			expectedInstallPath: "out/soong/target/product/test_device/system/app/my/path/relative_install_path/relative_install_path.apk",
+			errorMessage:        "Install path is not correct for app when relative_install_path is present",
+		},
+		{
+			name:                "prebuilt_framework-res",
+			expectedInstallPath: "out/soong/target/product/test_device/system/framework/framework-res.apk",
+			errorMessage:        "Install path is not correct for framework-res",
+		},
+		{
+			name:                "privileged_relative_install_path",
+			expectedInstallPath: "out/soong/target/product/test_device/system/priv-app/my/path/privileged_relative_install_path/privileged_relative_install_path.apk",
+			errorMessage:        "Install path is not correct for privileged app when relative_install_path is present",
+		},
+	}
+	for _, testCase := range testCases {
+		ctx, _ := testJava(t, bp)
+		mod := ctx.ModuleForTests(testCase.name, "android_common").Module().(*AndroidAppImport)
+		android.AssertPathRelativeToTopEquals(t, testCase.errorMessage, testCase.expectedInstallPath, mod.installPath)
+	}
+}
+
 func TestAndroidTestImport(t *testing.T) {
 	ctx, _ := testJava(t, `
 		android_test_import {
