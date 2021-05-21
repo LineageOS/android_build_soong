@@ -235,12 +235,3 @@ func (p BootclasspathAPIProperties) sdkKindToStubLibs() map[android.SdkKind][]st
 	m[android.SdkCorePlatform] = p.Core_platform_api.Stub_libs
 	return m
 }
-
-// bootclasspathApiInfo contains paths resolved from BootclasspathAPIProperties
-type bootclasspathApiInfo struct {
-	// stubJarsByKind maps from the android.SdkKind to the paths containing dex stub jars for each
-	// kind.
-	stubJarsByKind map[android.SdkKind]android.Paths
-}
-
-var bootclasspathApiInfoProvider = blueprint.NewProvider(bootclasspathApiInfo{})
