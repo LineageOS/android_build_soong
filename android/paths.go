@@ -2001,6 +2001,9 @@ func createDirIfNonexistent(dir string, perm os.FileMode) error {
 	}
 }
 
+// absolutePath is deliberately private so that Soong's Go plugins can't use it to find and
+// read arbitrary files without going through the methods in the current package that track
+// dependencies.
 func absolutePath(path string) string {
 	if filepath.IsAbs(path) {
 		return path
