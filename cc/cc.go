@@ -2831,7 +2831,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 						// Add the dependency to the APEX(es) providing the library so that
 						// m <module> can trigger building the APEXes as well.
 						depApexInfo := ctx.OtherModuleProvider(dep, android.ApexInfoProvider).(android.ApexInfo)
-						for _, an := range depApexInfo.InApexes {
+						for _, an := range depApexInfo.InApexVariants {
 							c.Properties.ApexesProvidingSharedLibs = append(
 								c.Properties.ApexesProvidingSharedLibs, an)
 						}
