@@ -89,7 +89,7 @@ func (b *bootJarsSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		name := android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName(module))
 		if apex, ok := moduleToApex[name]; ok {
 			apexInfo := ctx.ModuleProvider(module, android.ApexInfoProvider).(android.ApexInfo)
-			if (apex == "platform" && apexInfo.IsForPlatform()) || apexInfo.InApexVariantByBaseName(apex) {
+			if (apex == "platform" && apexInfo.IsForPlatform()) || apexInfo.InApexModule(apex) {
 				// The module name/apex variant should be unique in the system but double check
 				// just in case something has gone wrong.
 				if existing, ok := nameToApexVariant[name]; ok {
