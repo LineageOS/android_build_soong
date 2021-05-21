@@ -329,6 +329,7 @@ type linkerAttributes struct {
 	deps             bazel.LabelListAttribute
 	dynamicDeps      bazel.LabelListAttribute
 	wholeArchiveDeps bazel.LabelListAttribute
+	exportedDeps     bazel.LabelListAttribute
 	linkopts         bazel.StringListAttribute
 	versionScript    bazel.LabelAttribute
 }
@@ -346,6 +347,7 @@ func getBp2BuildLinkerFlags(linkerProperties *BaseLinkerProperties) []string {
 // configurable attribute values.
 func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module) linkerAttributes {
 	var deps bazel.LabelListAttribute
+	var exportedDeps bazel.LabelListAttribute
 	var dynamicDeps bazel.LabelListAttribute
 	var wholeArchiveDeps bazel.LabelListAttribute
 	var linkopts bazel.StringListAttribute
@@ -354,11 +356,12 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 	for _, linkerProps := range module.linker.linkerProps() {
 		if baseLinkerProps, ok := linkerProps.(*BaseLinkerProperties); ok {
 			libs := baseLinkerProps.Header_libs
-			libs = append(libs, baseLinkerProps.Export_header_lib_headers...)
 			libs = append(libs, baseLinkerProps.Static_libs...)
+			exportedLibs := baseLinkerProps.Export_header_lib_headers
 			wholeArchiveLibs := baseLinkerProps.Whole_static_libs
 			libs = android.SortedUniqueStrings(libs)
 			deps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, libs))
+			exportedDeps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, exportedLibs))
 			linkopts.Value = getBp2BuildLinkerFlags(baseLinkerProps)
 			wholeArchiveDeps = bazel.MakeLabelListAttribute(android.BazelLabelForModuleDeps(ctx, wholeArchiveLibs))
 
@@ -376,11 +379,12 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 	for arch, p := range module.GetArchProperties(ctx, &BaseLinkerProperties{}) {
 		if baseLinkerProps, ok := p.(*BaseLinkerProperties); ok {
 			libs := baseLinkerProps.Header_libs
-			libs = append(libs, baseLinkerProps.Export_header_lib_headers...)
 			libs = append(libs, baseLinkerProps.Static_libs...)
+			exportedLibs := baseLinkerProps.Export_header_lib_headers
 			wholeArchiveLibs := baseLinkerProps.Whole_static_libs
 			libs = android.SortedUniqueStrings(libs)
 			deps.SetValueForArch(arch.Name, android.BazelLabelForModuleDeps(ctx, libs))
+			exportedDeps.SetValueForArch(arch.Name, android.BazelLabelForModuleDeps(ctx, exportedLibs))
 			linkopts.SetValueForArch(arch.Name, getBp2BuildLinkerFlags(baseLinkerProps))
 			wholeArchiveDeps.SetValueForArch(arch.Name, android.BazelLabelForModuleDeps(ctx, wholeArchiveLibs))
 
@@ -397,12 +401,13 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 	for os, p := range module.GetTargetProperties(ctx, &BaseLinkerProperties{}) {
 		if baseLinkerProps, ok := p.(*BaseLinkerProperties); ok {
 			libs := baseLinkerProps.Header_libs
-			libs = append(libs, baseLinkerProps.Export_header_lib_headers...)
 			libs = append(libs, baseLinkerProps.Static_libs...)
+			exportedLibs := baseLinkerProps.Export_header_lib_headers
 			wholeArchiveLibs := baseLinkerProps.Whole_static_libs
 			libs = android.SortedUniqueStrings(libs)
 			wholeArchiveDeps.SetValueForOS(os.Name, android.BazelLabelForModuleDeps(ctx, wholeArchiveLibs))
 			deps.SetValueForOS(os.Name, android.BazelLabelForModuleDeps(ctx, libs))
+			exportedDeps.SetValueForOS(os.Name, android.BazelLabelForModuleDeps(ctx, exportedLibs))
 
 			linkopts.SetValueForOS(os.Name, getBp2BuildLinkerFlags(baseLinkerProps))
 
@@ -413,6 +418,7 @@ func bp2BuildParseLinkerProps(ctx android.TopDownMutatorContext, module *Module)
 
 	return linkerAttributes{
 		deps:             deps,
+		exportedDeps:     exportedDeps,
 		dynamicDeps:      dynamicDeps,
 		wholeArchiveDeps: wholeArchiveDeps,
 		linkopts:         linkopts,
