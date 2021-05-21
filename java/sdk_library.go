@@ -1629,8 +1629,12 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 			path := path.Join(mctx.ModuleDir(), apiDir, scope.apiFilePrefix+api)
 			p := android.ExistentPathForSource(mctx, path)
 			if !p.Valid() {
-				mctx.ModuleErrorf("Current api file %#v doesn't exist", path)
-				missingCurrentApi = true
+				if mctx.Config().AllowMissingDependencies() {
+					mctx.AddMissingDependencies([]string{path})
+				} else {
+					mctx.ModuleErrorf("Current api file %#v doesn't exist", path)
+					missingCurrentApi = true
+				}
 			}
 		}
 	}
