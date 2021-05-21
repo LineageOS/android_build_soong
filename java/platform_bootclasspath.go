@@ -279,20 +279,11 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 		return
 	}
 
-	flagFileInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
-	for _, fragment := range fragments {
-		if ctx.OtherModuleHasProvider(fragment, hiddenAPIFlagFileInfoProvider) {
-			info := ctx.OtherModuleProvider(fragment, hiddenAPIFlagFileInfoProvider).(hiddenAPIFlagFileInfo)
-			flagFileInfo.append(info)
-		}
-	}
-
-	// Store the information for testing.
-	ctx.SetProvider(hiddenAPIFlagFileInfoProvider, flagFileInfo)
-
-	hiddenAPIModules := gatherHiddenAPIModuleFromContents(ctx, modules)
+	monolithicInfo := b.createAndProvideMonolithicHiddenAPIInfo(ctx, fragments)
 
 	sdkKindToStubPaths := hiddenAPIGatherStubLibDexJarPaths(ctx, nil)
+
+	hiddenAPIModules := gatherHiddenAPIModuleFromContents(ctx, modules)
 
 	// Generate the monolithic stub-flags.csv file.
 	bootDexJars := extractBootDexJarsFromHiddenAPIModules(ctx, hiddenAPIModules)
@@ -309,7 +300,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 
 	// Generate the monotlithic hiddenapi-flags.csv file.
 	allFlags := hiddenAPISingletonPaths(ctx).flags
-	buildRuleToGenerateHiddenApiFlags(ctx, "hiddenAPIFlagsFile", "hiddenapi flags", allFlags, stubFlags, annotationFlags, &flagFileInfo)
+	buildRuleToGenerateHiddenApiFlags(ctx, "hiddenAPIFlagsFile", "hiddenapi flags", allFlags, stubFlags, annotationFlags, monolithicInfo.FlagsFilesByCategory, monolithicInfo.AllFlagsPaths)
 
 	// Generate an intermediate monolithic hiddenapi-metadata.csv file directly from the annotations
 	// in the source code.
@@ -326,6 +317,17 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	// jars.
 	indexCSV := hiddenAPISingletonPaths(ctx).index
 	buildRuleToGenerateIndex(ctx, "monolithic hidden API index", classesJars, indexCSV)
+}
+
+// createAndProvideMonolithicHiddenAPIInfo creates a MonolithicHiddenAPIInfo and provides it for
+// testing.
+func (b *platformBootclasspathModule) createAndProvideMonolithicHiddenAPIInfo(ctx android.ModuleContext, fragments []android.Module) MonolithicHiddenAPIInfo {
+	flagFileInfo := b.properties.Hidden_api.hiddenAPIFlagFileInfo(ctx)
+	monolithicInfo := newMonolithicHiddenAPIInfo(ctx, flagFileInfo.FlagFilesByCategory, fragments)
+
+	// Store the information for testing.
+	ctx.SetProvider(monolithicHiddenAPIInfoProvider, monolithicInfo)
+	return monolithicInfo
 }
 
 func (b *platformBootclasspathModule) buildRuleMergeCSV(ctx android.ModuleContext, desc string, inputPaths android.Paths, outputPath android.WritablePath) {
